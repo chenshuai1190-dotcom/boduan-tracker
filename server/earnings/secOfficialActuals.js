@@ -271,6 +271,118 @@ export async function fetchSecEarningsFilingSource({
   }
 }
 
+export async function fetchSecCompanyFactsSource({
+  symbol,
+  fetchFn = globalThis.fetch,
+  userAgent = process.env.SEC_USER_AGENT || DEFAULT_SEC_USER_AGENT,
+  now = new Date(),
+  requestIntervalMs,
+  batchTimeoutMs = SEC_BATCH_TIMEOUT_MS,
+} = {}) {
+  const normalizedSymbol = normalizeSymbol(symbol);
+  const normalizedNow = normalizeDate(now);
+  const base = {
+    status: 'pending',
+    reason: null,
+    symbol: normalizedSymbol,
+    cik: null,
+    companyFacts: null,
+  };
+  if (!/^[A-Z0-9.-]{1,15}$/.test(normalizedSymbol) || !normalizedNow) {
+    return {
+      ...base,
+      status: 'unsupported',
+      reason: 'invalid-sec-company-facts-request',
+    };
+  }
+
+  const context = {
+    fetchFn,
+    userAgent: sanitizeUserAgent(userAgent),
+    requestIntervalMs: resolveRequestInterval(fetchFn, requestIntervalMs),
+    cacheEnabled: fetchFn === globalThis.fetch,
+    nowMs: normalizedNow.getTime(),
+    deadlineAt: Date.now() + (
+      Number.isFinite(batchTimeoutMs) && batchTimeoutMs > 0
+        ? batchTimeoutMs
+        : SEC_BATCH_TIMEOUT_MS
+    ),
+  };
+
+  let cik = KNOWN_CIK_BY_SYMBOL.get(normalizedSymbol) || '';
+  try {
+    if (!cik) {
+      const cikBySymbol = await fetchTickerCikMap(context);
+      cik = cikBySymbol.get(normalizedSymbol) || '';
+    }
+    if (!cik) {
+      return {
+        ...base,
+        status: 'unsupported',
+        reason: 'sec-cik-not-found',
+      };
+    }
+
+    const submissionsUrl = `https://data.sec.gov/submissions/CIK${cik}.json`;
+    const submissions = await fetchJsonCached(submissionsUrl, {
+      ...context,
+      ttlMs: SUBMISSIONS_CACHE_TTL_MS,
+      maxBytes: SEC_MAX_COMPANY_FACTS_BYTES,
+    });
+    if (!submissionsMatchesSymbol(submissions, normalizedSymbol)) {
+      return {
+        ...base,
+        status: 'unsupported',
+        reason: 'sec-ticker-mismatch',
+        cik,
+      };
+    }
+
+    const companyFactsUrl = `https://data.sec.gov/api/xbrl/companyfacts/CIK${cik}.json`;
+    const companyFacts = await fetchJsonCached(companyFactsUrl, {
+      ...context,
+      ttlMs: COMPANY_FACTS_CACHE_TTL_MS,
+      maxBytes: SEC_MAX_COMPANY_FACTS_BYTES,
+    });
+    if (!companyFacts || typeof companyFacts !== 'object' || Array.isArray(companyFacts)) {
+      return {
+        ...base,
+        status: 'unsupported',
+        reason: 'sec-company-facts-invalid',
+        cik,
+      };
+    }
+    const companyFactsCik = padCik(companyFacts.cik);
+    if (!companyFactsCik || companyFactsCik !== cik) {
+      return {
+        ...base,
+        status: 'unsupported',
+        reason: 'sec-company-facts-cik-mismatch',
+        cik,
+      };
+    }
+
+    return {
+      ...base,
+      status: 'complete',
+      cik,
+      companyFacts,
+      source: {
+        provider: 'SEC',
+        cik,
+        submissionsUrl,
+        companyFactsUrl,
+      },
+    };
+  } catch {
+    return {
+      ...base,
+      reason: 'sec-unavailable',
+      cik: cik || null,
+    };
+  }
+}
+
 // Kept as a compatibility alias for the existing detail service and tests.
 // The reader now resolves the exact official earnings filing rather than being
 // restricted to a hard-coded 10-Q company list.

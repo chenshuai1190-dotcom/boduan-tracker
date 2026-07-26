@@ -75,6 +75,7 @@ const userScopedStorageSource = readFileSync(new URL('../src/lib/userScopedStora
 const inviteApiSource = readFileSync(new URL('../api/invite-codes.js', import.meta.url), 'utf8');
 const earningsCalendarApiSource = readFileSync(new URL('../api/earnings-calendar.js', import.meta.url), 'utf8');
 const earningsDetailServerSource = readFileSync(new URL('../server/earnings/secEarningsDetail.js', import.meta.url), 'utf8');
+const earningsGrowthServerSource = readFileSync(new URL('../server/earnings/secFinancialHistory.js', import.meta.url), 'utf8');
 const registerApiSource = readFileSync(new URL('../api/register.js', import.meta.url), 'utf8');
 const quoteApiSource = readFileSync(new URL('../api/quote.js', import.meta.url), 'utf8');
 const pnlBenchmarkApiSource = readFileSync(new URL('../api/pnl-benchmark.js', import.meta.url), 'utf8');
@@ -454,22 +455,32 @@ test('community competition is an isolated authenticated close-snapshot utility'
   assert.ok(i18nSource.includes("'competition.toolEntry': 'Community'"), 'English i18n should include the competition tool entry');
 });
 
-test('earnings detail reuses the authenticated earnings calendar function within the Vercel Hobby limit', () => {
+test('earnings detail and growth reuse the authenticated earnings calendar function within the Vercel Hobby limit', () => {
   const handlerStart = earningsCalendarApiSource.indexOf('export default async function handler');
   const authIndex = earningsCalendarApiSource.indexOf('await requireQuoteAuth(req, res)', handlerStart);
   const detailBranchIndex = earningsCalendarApiSource.indexOf("singleQueryValue(req.query?.operation) === 'detail'", handlerStart);
+  const growthBranchIndex = earningsCalendarApiSource.indexOf("singleQueryValue(req.query?.operation) === 'growth'", handlerStart);
   const eodhdKeyIndex = earningsCalendarApiSource.indexOf('process.env.EODHD_API_KEY', handlerStart);
 
   assert.ok(apiServerlessFunctionFiles.length <= 12, 'Vercel Hobby deployments must stay within 12 api serverless functions');
   assert.equal(existsSync(new URL('../api/earnings-detail.js', import.meta.url)), false, 'earnings detail must not allocate a thirteenth serverless function');
+  assert.equal(existsSync(new URL('../api/earnings-growth.js', import.meta.url)), false, 'earnings growth must not allocate another serverless function');
   assert.ok(vercelConfig.rewrites.some((rewrite) => (
     rewrite.source === '/api/earnings-detail'
     && rewrite.destination === '/api/earnings-calendar?operation=detail'
   )), 'the public earnings detail path should rewrite to the existing calendar function');
+  assert.ok(vercelConfig.rewrites.some((rewrite) => (
+    rewrite.source === '/api/earnings-growth'
+    && rewrite.destination === '/api/earnings-calendar?operation=growth'
+  )), 'the public earnings growth path should rewrite to the existing calendar function');
   assert.ok(authIndex >= 0 && authIndex < detailBranchIndex, 'earnings detail dispatch must happen only after the shared auth gate');
+  assert.ok(authIndex >= 0 && authIndex < growthBranchIndex, 'earnings growth dispatch must happen only after the shared auth gate');
   assert.ok(detailBranchIndex < eodhdKeyIndex, 'SEC detail reads must not depend on the calendar EODHD key');
+  assert.ok(growthBranchIndex < eodhdKeyIndex, 'SEC growth reads must not depend on the calendar EODHD key');
   assert.ok(earningsCalendarApiSource.includes('handleEarningsDetailRequest(req, res)'), 'the calendar handler should dispatch detail requests explicitly');
+  assert.ok(earningsCalendarApiSource.includes('handleEarningsGrowthRequest(req, res)'), 'the calendar handler should dispatch growth requests explicitly');
   assert.ok(earningsDetailServerSource.includes('export function parseEarningsDetailRequest'), 'detail validation should remain in the SEC detail server boundary');
+  assert.ok(earningsGrowthServerSource.includes('export async function fetchSecFinancialHistory'), 'growth reads should stay in the SEC history server boundary');
 });
 
 test('community profile settings use a dedicated public identity table without storage uploads', () => {
@@ -614,8 +625,9 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(indexHtmlSource.includes('color-scheme: dark;'), 'index.html should tell the browser to use a dark startup color scheme');
   assert.equal(manifestJson.background_color, '#05070b', 'PWA manifest background should match the app dark shell');
   assert.equal(manifestJson.theme_color, '#05070b', 'PWA manifest theme color should match the app dark shell');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.391'"), 'visible settings version surfaces should share one source');
-  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.391', date: '2026-07-26', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.392'"), 'visible settings version surfaces should share one source');
+  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.392', date: '2026-07-26', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsChangelogSource.includes('财报详情增加业绩趋势') && settingsChangelogSource.includes('近 6 个完整财年') && settingsChangelogSource.includes('近 8 个完整季度') && settingsChangelogSource.includes('SEC Company Facts') && settingsChangelogSource.includes('不修改数据库、交易、持仓、收益或比赛数据'), 'settings changelog should document the official earnings-growth release and its data boundaries');
   assert.ok(settingsChangelogSource.includes('MA200 技术分析术语优化') && settingsChangelogSource.includes('MA200 趋势重测') && settingsChangelogSource.includes('平均下探幅度') && settingsChangelogSource.includes('重测详情') && settingsChangelogSource.includes('不改变 daily-ma200-retest-v5 触发、20 日恢复、60 日结果或任何行情数据'), 'settings changelog should document the display-only MA200 terminology update without changing calculations');
   assert.ok(settingsChangelogSource.includes('首页财报股票直达详情') && settingsChangelogSource.includes('已公布股票改为直接进入对应财报详情') && settingsChangelogSource.includes('尚未公布财报的股票继续进入对应日期列表') && settingsChangelogSource.includes('不修改财报接口、缓存、公布判断或官方数据解析'), 'settings changelog should document direct Home earnings-detail navigation without changing earnings data boundaries');
   assert.ok(settingsChangelogSource.includes('MA200 回踩界面细节优化') && settingsChangelogSource.includes('弹层内几何居中') && settingsChangelogSource.includes('四位年份的 YYYY/MM 日期') && settingsChangelogSource.includes('移除“回踩历史（MA200）”标题后的说明图标') && settingsChangelogSource.includes('不改变回踩触发、20 日恢复、60 日结果或其他业务数据'), 'settings changelog should document the display-only retest title, date, and icon refinements');
@@ -2526,7 +2538,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.391'"), 'settings version surfaces should remain synchronized through the shared constant');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.392'"), 'settings version surfaces should remain synchronized through the shared constant');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');

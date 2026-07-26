@@ -163,3 +163,16 @@ test('production detail renders every official section without screenshot or sha
   assert.equal(fs.existsSync(new URL('../src/lib/shareEarningsDetail.js', import.meta.url)), false);
   assert.equal(detailPageSource.includes('COMPANY_DATA'), false);
 });
+
+test('earnings growth stays independent and renders below official detail before methodology', () => {
+  const detailSectionsIndex = detailPageSource.indexOf('<DetailSections detail={detail}');
+  const growthCardIndex = detailPageSource.indexOf('<EarningsGrowthCard');
+  const methodologyIndex = detailPageSource.indexOf('<div className="mt-3 rounded-[14px]');
+
+  assert.ok(detailSectionsIndex >= 0 && detailSectionsIndex < growthCardIndex);
+  assert.ok(growthCardIndex < methodologyIndex);
+  assert.ok(detailPageSource.includes('earningsGrowthDataOverride'));
+  assert.ok(detailPageSource.includes('supabase.auth.getSession()'));
+  assert.ok(detailPageSource.includes('token={growthSession?.access_token}'));
+  assert.ok(detailPageSource.includes('userId={growthSession?.user?.id}'));
+});

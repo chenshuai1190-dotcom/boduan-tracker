@@ -5,6 +5,10 @@
       "destination": "/api/earnings-calendar?operation=detail"
     },
     {
+      "source": "/api/earnings-growth",
+      "destination": "/api/earnings-calendar?operation=growth"
+    },
+    {
       "source": "/api/close-snapshot-schedule",
       "destination": "/api/pnl-report-daily-snapshot?operation=close-snapshot-schedule"
     },

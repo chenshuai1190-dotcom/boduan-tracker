@@ -8,6 +8,7 @@ import {
   MapPinned,
   PieChart,
 } from 'lucide-react';
+import EarningsGrowthCard from '../components/EarningsGrowthCard.jsx';
 import StockLogo, { stockLogoCandidates } from '../components/StockLogo.jsx';
 import {
   earningsDetailSourceBadgeKind,
@@ -376,6 +377,7 @@ export default function EarningsDetailPage({ ctx }) {
     closeEarningsDetail,
     displayStockName,
     earningsDetailDataOverride,
+    earningsGrowthDataOverride,
     earningsDetailEvent: event,
     language = 'zh',
     logoCache,
@@ -391,6 +393,7 @@ export default function EarningsDetailPage({ ctx }) {
   });
   const [loading, setLoading] = React.useState(!earningsDetailDataOverride);
   const [error, setError] = React.useState('');
+  const [growthSession, setGrowthSession] = React.useState(null);
   const symbol = String(event?.symbol || detail?.symbol || '').trim().toUpperCase();
   const name = typeof displayStockName === 'function' ? displayStockName(symbol, event?.name, language) : event?.name || symbol;
   const sourceProvider = String(detail?.source?.provider || '').trim().toUpperCase();
@@ -448,6 +451,21 @@ export default function EarningsDetailPage({ ctx }) {
     });
     return () => { cancelled = true; };
   }, [earningsDetailDataOverride, event, language, supabase]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    setGrowthSession(null);
+    if (earningsGrowthDataOverride) return () => { cancelled = true; };
+    if (typeof supabase?.auth?.getSession !== 'function') {
+      return () => { cancelled = true; };
+    }
+    Promise.resolve(supabase.auth.getSession()).then(({ data }) => {
+      if (!cancelled) setGrowthSession(data?.session || null);
+    }).catch(() => {
+      if (!cancelled) setGrowthSession(null);
+    });
+    return () => { cancelled = true; };
+  }, [earningsGrowthDataOverride, supabase, symbol]);
 
   if (!event && !detail) return null;
 
@@ -515,6 +533,15 @@ export default function EarningsDetailPage({ ctx }) {
           ) : (
             <div className="mt-4 rounded-[18px] border border-white/[0.07] bg-[#0b0f15] px-4 py-8 text-center text-[13px] text-white/[0.40]">{error}</div>
           )}
+
+          <EarningsGrowthCard
+            symbol={symbol}
+            token={growthSession?.access_token}
+            userId={growthSession?.user?.id}
+            language={language}
+            marketColorMode={marketColorMode}
+            dataOverride={earningsGrowthDataOverride}
+          />
 
           <div className="mt-3 rounded-[14px] border border-white/[0.05] bg-white/[0.018] px-3.5 py-3">
             <div className="flex items-start gap-2">

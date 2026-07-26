@@ -1,6 +1,23 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.391', date: '2026-07-26', latest: true,
+    ver: 'v10.7.9.392', date: '2026-07-26', latest: true,
+    items: [
+      '📊 财报详情增加业绩趋势',
+      '  - 财报详情底部新增年度与季度切换，展示近 6 个完整财年的营收、净利润和复合增速，以及近 8 个完整季度的同比与环比变化',
+      '  - 柱状图默认显示真实金额并保留千位分隔；点击任一财年或季度可查看公布值、同比、净利率及季度环比，四位数标签与柱顶间距同步优化',
+      '  - 历史数据读取 SEC Company Facts，严格匹配同一财期、币种和申报文件；缺失、冲突或口径不完整时显示不可用，不推测数据',
+      '  - 登录鉴权、用户隔离缓存和 Vercel 现有财报函数边界保持不变；不修改数据库、交易、持仓、收益或比赛数据',
+    ],
+    itemsEn: [
+      '📊 Performance trends added to earnings details',
+      '  - Earnings details now switch between annual and quarterly views, covering six complete fiscal years of revenue, net income, and CAGR plus eight complete quarters of year-over-year and sequential changes',
+      '  - The chart shows reported amounts with thousands separators by default; selecting a fiscal year or quarter reveals reported values, YoY changes, net margin, and quarterly sequential growth, with improved four-digit labels and bar spacing',
+      '  - History comes from SEC Company Facts with strict period, currency, and filing matching; missing, conflicting, or incomplete disclosures fail closed instead of being estimated',
+      '  - Existing authentication, user-scoped caching, and Vercel earnings-function boundaries are preserved; databases, trades, holdings, P&L, and competition data are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.391', date: '2026-07-26',
     items: [
       '📘 MA200 技术分析术语优化',
       '  - “回踩历史（MA200）”统一改为更中性的“MA200 趋势重测”，近 5 次事件同步称为“近 5 次重测”',

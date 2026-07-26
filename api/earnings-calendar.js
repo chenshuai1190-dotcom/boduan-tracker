@@ -10,6 +10,7 @@ import {
   fetchSecEarningsDetail,
   parseEarningsDetailRequest,
 } from '../server/earnings/secEarningsDetail.js';
+import { fetchSecFinancialHistory } from '../server/earnings/secFinancialHistory.js';
 import {
   fetchOfficialFundComposition,
   isOfficialFundCompositionSupportedSymbol,
@@ -57,6 +58,9 @@ export default async function handler(req, res) {
 
   if (singleQueryValue(req.query?.operation) === 'detail') {
     return handleEarningsDetailRequest(req, res);
+  }
+  if (singleQueryValue(req.query?.operation) === 'growth') {
+    return handleEarningsGrowthRequest(req, res);
   }
   if (singleQueryValue(req.query?.operation) === 'fund-composition') {
     return handleFundCompositionRequest(req, res);
@@ -126,6 +130,29 @@ export async function handleEarningsDetailRequest(req, res) {
     });
   } catch {
     return sendError(res, 502, '财报详情读取失败');
+  }
+}
+
+export async function handleEarningsGrowthRequest(req, res) {
+  res.setHeader('Cache-Control', 'private, no-store');
+  const symbol = normalizeEarningsSymbol(singleQueryValue(req.query?.symbol));
+  if (!symbol) return sendError(res, 400, '需要合法的 symbol 参数');
+
+  try {
+    const history = await fetchSecFinancialHistory({ symbol });
+    res.setHeader(
+      'Cache-Control',
+      history.status === 'complete' || history.status === 'partial'
+        ? 'private, max-age=21600, stale-while-revalidate=1800'
+        : 'private, max-age=300',
+    );
+    return res.status(200).json({
+      success: true,
+      ...history,
+      fetchedAt: new Date().toISOString(),
+    });
+  } catch {
+    return sendError(res, 502, '业绩趋势读取失败');
   }
 }
 

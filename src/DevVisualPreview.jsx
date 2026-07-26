@@ -844,6 +844,192 @@ const mockEarningsBaseDetailData = {
   },
 };
 
+const mockEarningsGrowthData = {
+  success: true,
+  status: 'complete',
+  symbol: 'NVDA',
+  currency: 'USD',
+  source: {
+    provider: 'SEC',
+    label: 'SEC 公司事实',
+    asOfDate: '2026-07-26',
+  },
+  annual: [
+    {
+      fiscalYear: 'FY2021',
+      startDate: '2020-01-27',
+      endDate: '2021-01-31',
+      revenue: 16_675_000_000,
+      netIncome: 4_332_000_000,
+      netMarginPct: 26.0,
+      revenueYoyPct: 52.7,
+      netIncomeYoyPct: 54.9,
+      netMarginChangePpt: 0.4,
+    },
+    {
+      fiscalYear: 'FY2022',
+      startDate: '2021-02-01',
+      endDate: '2022-01-30',
+      revenue: 26_914_000_000,
+      netIncome: 9_752_000_000,
+      netMarginPct: 36.2,
+      revenueYoyPct: 61.4,
+      netIncomeYoyPct: 125.1,
+      netMarginChangePpt: 10.2,
+    },
+    {
+      fiscalYear: 'FY2023',
+      startDate: '2022-01-31',
+      endDate: '2023-01-29',
+      revenue: 26_974_000_000,
+      netIncome: 4_368_000_000,
+      netMarginPct: 16.2,
+      revenueYoyPct: 0.2,
+      netIncomeYoyPct: -55.2,
+      netMarginChangePpt: -20.0,
+    },
+    {
+      fiscalYear: 'FY2024',
+      startDate: '2023-01-30',
+      endDate: '2024-01-28',
+      revenue: 60_922_000_000,
+      netIncome: 29_760_000_000,
+      netMarginPct: 48.8,
+      revenueYoyPct: 125.9,
+      netIncomeYoyPct: 581.3,
+      netMarginChangePpt: 32.6,
+    },
+    {
+      fiscalYear: 'FY2025',
+      startDate: '2024-01-29',
+      endDate: '2025-01-26',
+      revenue: 130_497_000_000,
+      netIncome: 72_880_000_000,
+      netMarginPct: 55.8,
+      revenueYoyPct: 114.2,
+      netIncomeYoyPct: 144.9,
+      netMarginChangePpt: 7.0,
+    },
+    {
+      fiscalYear: 'FY2026',
+      startDate: '2025-01-27',
+      endDate: '2026-01-25',
+      revenue: 215_938_000_000,
+      netIncome: 120_067_000_000,
+      netMarginPct: 55.6,
+      revenueYoyPct: 65.5,
+      netIncomeYoyPct: 64.7,
+      netMarginChangePpt: -0.2,
+    },
+  ],
+  quarterly: [
+    {
+      fiscalYear: 'FY2025',
+      fiscalQuarter: 'Q2',
+      startDate: '2024-04-29',
+      endDate: '2024-07-28',
+      revenue: 30_040_000_000,
+      netIncome: 16_599_000_000,
+      netMarginPct: 55.3,
+      revenueYoyPct: 122.4,
+      netIncomeYoyPct: 168.2,
+      netMarginChangePpt: 9.5,
+      revenueQoqPct: 15.3,
+    },
+    {
+      fiscalYear: 'FY2025',
+      fiscalQuarter: 'Q3',
+      startDate: '2024-07-29',
+      endDate: '2024-10-27',
+      revenue: 35_082_000_000,
+      netIncome: 19_309_000_000,
+      netMarginPct: 55.0,
+      revenueYoyPct: 93.6,
+      netIncomeYoyPct: 108.9,
+      netMarginChangePpt: 4.0,
+      revenueQoqPct: 16.8,
+    },
+    {
+      fiscalYear: 'FY2025',
+      fiscalQuarter: 'Q4',
+      startDate: '2024-10-28',
+      endDate: '2025-01-26',
+      revenue: 39_331_000_000,
+      netIncome: 22_091_000_000,
+      netMarginPct: 56.2,
+      revenueYoyPct: 77.9,
+      netIncomeYoyPct: 79.8,
+      netMarginChangePpt: 0.6,
+      revenueQoqPct: 12.1,
+    },
+    {
+      fiscalYear: 'FY2026',
+      fiscalQuarter: 'Q1',
+      startDate: '2025-01-27',
+      endDate: '2025-04-27',
+      revenue: 44_062_000_000,
+      netIncome: 18_775_000_000,
+      netMarginPct: 42.6,
+      revenueYoyPct: 69.2,
+      netIncomeYoyPct: 26.2,
+      netMarginChangePpt: -14.5,
+      revenueQoqPct: 12.0,
+    },
+    {
+      fiscalYear: 'FY2026',
+      fiscalQuarter: 'Q2',
+      startDate: '2025-04-28',
+      endDate: '2025-07-27',
+      revenue: 46_743_000_000,
+      netIncome: 26_422_000_000,
+      netMarginPct: 56.5,
+      revenueYoyPct: 55.6,
+      netIncomeYoyPct: 59.2,
+      netMarginChangePpt: 1.3,
+      revenueQoqPct: 6.1,
+    },
+    {
+      fiscalYear: 'FY2026',
+      fiscalQuarter: 'Q3',
+      startDate: '2025-07-28',
+      endDate: '2025-10-26',
+      revenue: 57_006_000_000,
+      netIncome: 31_910_000_000,
+      netMarginPct: 56.0,
+      revenueYoyPct: 62.5,
+      netIncomeYoyPct: 65.3,
+      netMarginChangePpt: 0.9,
+      revenueQoqPct: 22.0,
+    },
+    {
+      fiscalYear: 'FY2026',
+      fiscalQuarter: 'Q4',
+      startDate: '2025-10-27',
+      endDate: '2026-01-25',
+      revenue: 68_127_000_000,
+      netIncome: 42_960_000_000,
+      netMarginPct: 63.1,
+      revenueYoyPct: 73.2,
+      netIncomeYoyPct: 94.5,
+      netMarginChangePpt: 6.9,
+      revenueQoqPct: 19.5,
+    },
+    {
+      fiscalYear: 'FY2027',
+      fiscalQuarter: 'Q1',
+      startDate: '2026-01-26',
+      endDate: '2026-04-26',
+      revenue: 81_615_000_000,
+      netIncome: 58_321_000_000,
+      netMarginPct: 71.5,
+      revenueYoyPct: 85.2,
+      netIncomeYoyPct: 210.6,
+      netMarginChangePpt: 28.8,
+      revenueQoqPct: 19.8,
+    },
+  ],
+};
+
 const mockPnlPortfolioSnapshotRows = [
   {
     snapshotDate: '2026-01-02',
@@ -1439,8 +1625,12 @@ function buildCommunityCompetitionPreview(state, period = 'day') {
 }
 
 function StandardDevVisualPreview({ initialTab = '' }) {
-  const earningsBaseDetailPreview = typeof window !== 'undefined'
-    && new URLSearchParams(window.location.search).get('preview') === 'earnings-base-prototype';
+  const earningsPreviewName = typeof window === 'undefined'
+    ? ''
+    : new URLSearchParams(window.location.search).get('preview');
+  const earningsGrowthPreview = earningsPreviewName === 'earnings-growth-prototype';
+  const earningsBaseDetailPreview = ['earnings-base-prototype', 'earnings-growth-prototype']
+    .includes(earningsPreviewName);
   const earningsHoldingsDetailPreview = typeof window !== 'undefined'
     && new URLSearchParams(window.location.search).get('preview') === 'earnings-holdings-prototype';
   const earningsNokDetailPreview = typeof window !== 'undefined'
@@ -2254,6 +2444,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
         : earningsHoldingsDetailPreview
           ? mockTsmEarningsDetailData
           : mockEarningsDetailData,
+    earningsGrowthDataOverride: earningsGrowthPreview ? mockEarningsGrowthData : undefined,
     earningsDetailEvent: previewEarningsDetailEvent,
     closeEarningsDetail: () => setActiveTab(previewEarningsReturnTab),
     openEarningsDetail: (event, { returnPage = 'earnings-calendar' } = {}) => {
@@ -2719,7 +2910,7 @@ export default function DevVisualPreview() {
     );
   }
 
-  if (['earnings-segments-prototype', 'earnings-base-prototype', 'earnings-holdings-prototype', 'earnings-nok-prototype'].includes(preview)) {
+  if (['earnings-segments-prototype', 'earnings-base-prototype', 'earnings-growth-prototype', 'earnings-holdings-prototype', 'earnings-nok-prototype'].includes(preview)) {
     return <StandardDevVisualPreview initialTab="earnings-detail" />;
   }
 

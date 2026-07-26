@@ -1069,6 +1069,13 @@ test('earnings detail API preserves 401, 405, and 400 boundaries', async () => {
     assert.equal(unauthorizedFund.statusCode, 401);
     assert.match(unauthorizedFund.body.error, /未授权/);
 
+    const unauthorizedGrowth = createResponse();
+    await handler(createRequest({
+      query: { operation: 'growth', symbol: 'NVDA' },
+    }), unauthorizedGrowth);
+    assert.equal(unauthorizedGrowth.statusCode, 401);
+    assert.match(unauthorizedGrowth.body.error, /未授权/);
+
     const methodNotAllowed = createResponse();
     await handler(createRequest({
       method: 'POST',
@@ -1093,6 +1100,13 @@ test('earnings detail API preserves 401, 405, and 400 boundaries', async () => {
     }), unsupportedFund);
     assert.equal(unsupportedFund.statusCode, 400);
     assert.match(unsupportedFund.body.error, /官方基金构成/);
+
+    const invalidGrowth = createResponse();
+    await handler(createRequest({
+      query: { operation: 'growth', symbol: ['NVDA', 'MSFT'] },
+    }), invalidGrowth);
+    assert.equal(invalidGrowth.statusCode, 400);
+    assert.match(invalidGrowth.body.error, /symbol/);
   } finally {
     if (originalAuth === undefined) delete process.env.QUOTE_API_AUTH_REQUIRED;
     else process.env.QUOTE_API_AUTH_REQUIRED = originalAuth;
