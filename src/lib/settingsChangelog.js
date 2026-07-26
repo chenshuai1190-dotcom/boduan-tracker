@@ -1,6 +1,21 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.390', date: '2026-07-26', latest: true,
+    ver: 'v10.7.9.391', date: '2026-07-26', latest: true,
+    items: [
+      '📘 MA200 技术分析术语优化',
+      '  - “回踩历史（MA200）”统一改为更中性的“MA200 趋势重测”，近 5 次事件同步称为“近 5 次重测”',
+      '  - “平均回踩幅度”和表格“回踩”分别改为“平均下探幅度”和“下探”，单次弹层统一使用“重测详情”',
+      '  - 当前周期、空状态与无障碍文案同步更新；仅调整显示术语，不改变 daily-ma200-retest-v5 触发、20 日恢复、60 日结果或任何行情数据',
+    ],
+    itemsEn: [
+      '📘 Clarified MA200 technical-analysis terminology',
+      '  - “Retest history (MA200)” is renamed to the more neutral “MA200 trend retests,” with the latest-five label updated consistently',
+      '  - Average-depth, table-depth, and single-event detail labels now use clearer and consistent terminology',
+      '  - Current-cycle, empty-state, and accessibility copy are aligned; this display-only change does not alter daily-ma200-retest-v5 triggers, 20-session recovery, 60-session outcomes, or market data',
+    ],
+  },
+  {
+    ver: 'v10.7.9.390', date: '2026-07-26',
     items: [
       '📅 首页财报股票直达详情',
       '  - 首页财报日历中的已公布股票改为直接进入对应财报详情，返回时恢复首页原滚动位置',

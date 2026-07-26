@@ -232,7 +232,7 @@ function RetestChart({
         role="img"
         aria-label={copy(
           language,
-          `${symbol} 回踩触发后的完整日线走势`,
+          `${symbol} 趋势重测触发后的完整日线走势`,
           `${symbol} complete daily path after the retest trigger`,
         )}
         onPointerDown={selectNearestPoint}
@@ -359,8 +359,8 @@ export default function Ma200RetestDetailModal({
 
   return (
     <ActionModalCard
-      title={`${symbol} · ${copy(language, '回踩详情', 'Retest details')}`}
-      closeLabel={copy(language, '关闭回踩详情', 'Close retest details')}
+      title={`${symbol} · ${copy(language, '重测详情', 'Retest details')}`}
+      closeLabel={copy(language, '关闭重测详情', 'Close retest details')}
       onClose={onClose}
       widthClassName="w-full max-w-[430px]"
       overlayClassName="!items-end !px-[10px] !bg-black/[0.66] !backdrop-blur-[5px]"
@@ -483,7 +483,7 @@ export default function Ma200RetestDetailModal({
           <div className="flex min-h-[360px] items-center justify-center rounded-[16px] bg-white/[0.022] px-8 text-center text-[12px] leading-5 text-white/[0.42]">
             {copy(
               language,
-              '完整回踩走势暂不可用，不补造缺失数据。',
+              '完整重测走势暂不可用，不补造缺失数据。',
               'The complete retest path is unavailable; missing data is not estimated.',
             )}
           </div>

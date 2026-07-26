@@ -614,8 +614,9 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(indexHtmlSource.includes('color-scheme: dark;'), 'index.html should tell the browser to use a dark startup color scheme');
   assert.equal(manifestJson.background_color, '#05070b', 'PWA manifest background should match the app dark shell');
   assert.equal(manifestJson.theme_color, '#05070b', 'PWA manifest theme color should match the app dark shell');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.390'"), 'visible settings version surfaces should share one source');
-  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.390', date: '2026-07-26', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.391'"), 'visible settings version surfaces should share one source');
+  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.391', date: '2026-07-26', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsChangelogSource.includes('MA200 技术分析术语优化') && settingsChangelogSource.includes('MA200 趋势重测') && settingsChangelogSource.includes('平均下探幅度') && settingsChangelogSource.includes('重测详情') && settingsChangelogSource.includes('不改变 daily-ma200-retest-v5 触发、20 日恢复、60 日结果或任何行情数据'), 'settings changelog should document the display-only MA200 terminology update without changing calculations');
   assert.ok(settingsChangelogSource.includes('首页财报股票直达详情') && settingsChangelogSource.includes('已公布股票改为直接进入对应财报详情') && settingsChangelogSource.includes('尚未公布财报的股票继续进入对应日期列表') && settingsChangelogSource.includes('不修改财报接口、缓存、公布判断或官方数据解析'), 'settings changelog should document direct Home earnings-detail navigation without changing earnings data boundaries');
   assert.ok(settingsChangelogSource.includes('MA200 回踩界面细节优化') && settingsChangelogSource.includes('弹层内几何居中') && settingsChangelogSource.includes('四位年份的 YYYY/MM 日期') && settingsChangelogSource.includes('移除“回踩历史（MA200）”标题后的说明图标') && settingsChangelogSource.includes('不改变回踩触发、20 日恢复、60 日结果或其他业务数据'), 'settings changelog should document the display-only retest title, date, and icon refinements');
   assert.ok(settingsChangelogSource.includes('MA200 回踩增加当前周期状态') && settingsChangelogSource.includes('等待趋势重置') && settingsChangelogSource.includes('不重复生成回踩记录') && settingsChangelogSource.includes('重新连续 5 日收盘高出日线 MA200 至少 3%') && settingsChangelogSource.includes('daily-ma200-retest-v5') && settingsChangelogSource.includes('20 日恢复、60 日结果和近 5 次汇总保持不变'), 'settings changelog should document the parallel current-cycle state without changing historical MA200 results');
@@ -2525,7 +2526,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.390'"), 'settings version surfaces should remain synchronized through the shared constant');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.391'"), 'settings version surfaces should remain synchronized through the shared constant');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');

@@ -264,7 +264,7 @@ function RetestEventRow({
       className={`grid min-h-[58px] w-full min-w-0 ${TABLE_GRID} items-center border-t border-white/[0.045] text-left transition-colors enabled:active:bg-white/[0.035] disabled:cursor-default`}
       aria-label={copy(
         language,
-        `查看 ${formatDate(event?.triggerDate, language)} 回踩详情`,
+        `查看 ${formatDate(event?.triggerDate, language)} 重测详情`,
         `View retest details for ${formatDate(event?.triggerDate, language)}`,
       )}
       data-ma200-retest-event={event?.triggerDate || ''}
@@ -346,8 +346,8 @@ function RetestEventsTable({
       >
         <span className="px-0.5">#</span>
         <span className="px-0.5">{copy(language, '触发日期', 'Date')}</span>
-        <span className="px-0.5" title={copy(language, '回踩幅度', 'Retest depth')}>
-          {copy(language, '回踩', 'Depth')}
+        <span className="px-0.5" title={copy(language, '下探幅度', 'Retest depth')}>
+          {copy(language, '下探', 'Depth')}
         </span>
         <span
           className="px-0.5"
@@ -358,7 +358,7 @@ function RetestEventsTable({
           className="px-0.5"
           title={copy(
             language,
-            `${recentReboundTradingDays}日内最深回踩后的最大反弹`,
+            `${recentReboundTradingDays}日内最深下探后的最大反弹`,
             `Maximum rebound after the deepest retest within ${recentReboundTradingDays} sessions`,
           )}
         >
@@ -622,27 +622,27 @@ function CurrentCycleStatus({
   );
   const currentDistancePct = finiteNumber(cycle?.currentDistancePct);
   const cycleLabel = state === 'armed'
-    ? copy(language, '回踩资格已激活', 'Retest qualification active')
+    ? copy(language, '重测资格已激活', 'Retest qualification active')
     : state === 'waiting_reset'
       ? copy(language, '等待趋势重置', 'Waiting for trend reset')
       : copy(language, '未激活', 'Not active');
   const statusLabel = status === 'long_breakdown'
     ? copy(language, '长期破位', 'Long breakdown')
     : status === 'retest_observing'
-      ? copy(language, '回踩观察中', 'Retest observation')
+      ? copy(language, '重测观察中', 'Retest observation')
     : status === 'repairing'
       ? copy(language, '修复中', 'Repairing')
       : status === 'reset_confirming'
         ? copy(language, '趋势重置确认中', 'Reset confirmation')
         : status === 'waiting_retest'
-          ? copy(language, '等待下一次回踩', 'Waiting for retest')
+          ? copy(language, '等待下一次重测', 'Waiting for retest')
           : status === 'qualifying'
             ? copy(language, '激活确认中', 'Qualification in progress')
             : copy(language, '等待激活', 'Waiting to activate');
   const guidance = state === 'armed'
     ? copy(
         language,
-        '资格有效期内首次收盘≤MA200，才生成下一次回踩事件',
+        '资格有效期内首次收盘≤MA200，才生成下一次重测事件',
         'The first close at or below MA200 while qualified creates the next retest event',
       )
     : state === 'waiting_reset'
@@ -727,18 +727,18 @@ function EmptyState({ language, status }) {
   const message = status === 'insufficient_data'
     ? copy(
         language,
-        '日线历史不足，暂时无法形成MA200回踩统计。',
+        '日线历史不足，暂时无法形成MA200趋势重测统计。',
         'There is not enough daily history to calculate MA200 retests.',
       )
     : status === 'no_events'
       ? copy(
           language,
-          '近5年没有符合口径的日线MA200回踩。',
+          '近5年没有符合口径的日线MA200趋势重测事件。',
           'No qualifying daily MA200 retests were found in the past five years.',
         )
       : copy(
           language,
-          '日线MA200回踩历史暂不可用。',
+          '日线MA200趋势重测历史暂不可用。',
           'Daily MA200 retest history is unavailable.',
         );
   return <div className="px-5 py-9 text-center text-[12px] text-white/[0.44]">{message}</div>;
@@ -824,11 +824,11 @@ export default function Ma200RetestHistoryCard({
               `Split-adjusted daily MA200 without dividends; after 5 consecutive closes at least 3% above MA200, qualification remains valid for the next ${qualificationValidTradingDays} sessions and the first touch triggers the event. Event paths are fixed at ${recentReboundTradingDays} sessions; average rebound is the ${observationTradingDays}-session maximum and the chart shows the endpoint return on session ${observationTradingDays}`,
             )}
           >
-            {copy(language, '回踩历史（MA200）', 'Retest history (MA200)')}
+            {copy(language, 'MA200 趋势重测', 'MA200 trend retests')}
           </h2>
         </div>
         <div className="shrink-0 rounded-full bg-white/[0.045] px-2.5 py-1 text-[10.5px] text-white/[0.42]">
-          {copy(language, '近5次回踩', 'Latest 5 retests')}
+          {copy(language, '近5次重测', 'Latest 5 retests')}
         </div>
       </div>
 
@@ -870,7 +870,7 @@ export default function Ma200RetestHistoryCard({
               color={positiveColor}
             />
             <SummaryMetric
-              label={copy(language, '平均回踩幅度', 'Avg. depth')}
+              label={copy(language, '平均下探幅度', 'Avg. depth')}
               value={formatPercent(summary?.averageRetestDepthPct)}
               detail={copy(language, '相对MA200', 'vs MA200')}
               color={negativeColor}

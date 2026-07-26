@@ -21,10 +21,10 @@ test('daily MA200 retest history sits directly below key metrics and before comp
 });
 
 test('daily MA200 card removes the title icon while retaining methodology metadata and daily-MA scope', () => {
-  assert.ok(cardSource.includes('回踩历史（MA200）'));
+  assert.ok(cardSource.includes('MA200 趋势重测'));
   assert.equal(cardSource.includes("import { Info } from 'lucide-react'"), false);
   assert.equal(cardSource.includes('<Info className='), false);
-  assert.ok(cardSource.includes('近5次回踩'));
+  assert.ok(cardSource.includes('近5次重测'));
   assert.ok(cardSource.includes('拆股复权收盘价（不含现金分红）'));
   assert.ok(cardSource.includes('const DEFAULT_RECENT_REBOUND_DAYS = 20'));
   assert.ok(cardSource.includes('const DEFAULT_QUALIFICATION_VALID_TRADING_DAYS = 60'));
@@ -89,7 +89,7 @@ test('daily MA200 card adds a borderless current-cycle sidecar without changing 
   assert.ok(cardSource.includes("copy(language, '当前周期', 'Current cycle')"));
   assert.ok(cardSource.includes("copy(language, '等待趋势重置', 'Waiting for trend reset')"));
   assert.ok(cardSource.includes("copy(language, '长期破位', 'Long breakdown')"));
-  assert.ok(cardSource.includes("copy(language, '回踩观察中', 'Retest observation')"));
+  assert.ok(cardSource.includes("copy(language, '重测观察中', 'Retest observation')"));
   assert.ok(cardSource.includes("copy(language, '距MA200', 'vs MA200')"));
   assert.ok(cardSource.includes("copy(language, '重置进度', 'Reset progress')"));
   assert.ok(cardSource.includes('需重新连续5日收盘高出MA200至少3%'));
@@ -119,9 +119,9 @@ test('daily MA200 events use the reference-style compact seven-column table', ()
   [
     '#',
     '触发日期',
-    '回踩幅度',
+    '下探幅度',
     '迷你V形日线MA200图',
-    '${recentReboundTradingDays}日内最深回踩后的最大反弹',
+    '${recentReboundTradingDays}日内最深下探后的最大反弹',
     '反弹天数',
     '${recentReboundTradingDays}日观察结果',
     '结果',
@@ -175,6 +175,7 @@ test('MA200 detail modal derives the full path and keeps lowest close distinct f
   assert.ok(modalSource.includes('onPointerDown={selectNearestPoint}'));
   assert.ok(modalSource.includes('onPointerMove={(event) =>'));
   assert.ok(modalSource.includes('titleClassName="!flex-1 !pl-[31px] !text-center'));
+  assert.ok(modalSource.includes("copy(language, '重测详情', 'Retest details')"));
   assert.equal(/text-\\[(?:8|8\\.5|9|9\\.5)px\\]/.test(modalSource), false);
   assert.equal(/fontSize=["'](?:8|8\\.5|9|9\\.5)["']/.test(modalSource), false);
 });
@@ -273,7 +274,7 @@ test('daily MA200 forward-return distribution has one market-colored point per e
   assert.equal(distributionSource.includes('border border-white/[0.065]'), false);
   assert.equal(distributionSource.includes('data-ma200-distribution-point="retest-depth"'), false);
   assert.equal(distributionSource.includes('data-ma200-distribution-point="max-rebound"'), false);
-  assert.equal(distributionSource.includes("copy(language, '回踩幅度', 'Retest depth')"), false);
+  assert.equal(distributionSource.includes("copy(language, '下探幅度', 'Retest depth')"), false);
   assert.equal(distributionSource.includes('日内最大反弹'), false);
   assert.equal((distributionSource.match(/data-ma200-distribution-point=/g) || []).length, 1);
   assert.equal(cardSource.includes('overflow-x-auto'), false);
