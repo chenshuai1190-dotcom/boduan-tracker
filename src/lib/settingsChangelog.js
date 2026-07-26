@@ -1,6 +1,21 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.385', date: '2026-07-26', latest: true,
+    ver: 'v10.7.9.386', date: '2026-07-26', latest: true,
+    items: [
+      '📐 MA200 回踩资格与 60 日结果口径完善',
+      '  - 连续 5 日收盘高出日线 MA200 至少 3% 后，回踩资格在未来 60 个交易日内有效；期间首次收盘触及或跌破 MA200 才记录事件',
+      '  - 近 5 次逐项结果继续观察 20 个交易日，底部改为展示触发日至第 60 个交易日收盘的真实涨跌幅；固定窗口不会因提前恢复而截断后续低点',
+      '  - 页面减少重复边框，深跌标签不再被竖线遮挡，底部只保留数据截止日期；不改变持仓、交易、收益、比赛或数据库数据',
+    ],
+    itemsEn: [
+      '📐 Refined MA200 retest qualification and 60-session outcomes',
+      '  - After 5 consecutive closes at least 3% above daily MA200, retest qualification remains valid for the next 60 trading sessions; only the first close at or below MA200 records an event',
+      '  - Latest-five event details keep a 20-session window, while the bottom chart now shows the real close-to-close return from the trigger through session 60; fixed windows no longer stop measuring later lows after an early recovery',
+      '  - Repeated borders are reduced, deep-decline labels no longer collide with stems, and only the data-through date remains at the bottom; holdings, trades, P&L, competition, and database data are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.385', date: '2026-07-26',
     items: [
       '⏱️ MA200 回踩观察窗口调整为 20 个交易日',
       '  - 回踩恢复率、平均回踩幅度、平均恢复天数、逐次结果与分布图统一使用已完成的 20 个交易日样本，更贴近可操作的短期恢复表现',

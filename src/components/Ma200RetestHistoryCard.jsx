@@ -5,6 +5,8 @@ import { marketHexColor } from '../lib/marketColorMode.js';
 const NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif';
 const TABLE_GRID = 'grid-cols-[15px_62px_42px_minmax(76px,1fr)_47px_30px_44px]';
 const DEFAULT_RECENT_REBOUND_DAYS = 20;
+const DEFAULT_QUALIFICATION_VALID_TRADING_DAYS = 60;
+const DEFAULT_OBSERVATION_TRADING_DAYS = 60;
 
 function finiteNumber(value) {
   if (value === null || value === undefined || value === '') return null;
@@ -230,8 +232,8 @@ function EventStatus({
 
   return (
     <span
-      className="mx-auto inline-flex max-w-[44px] items-center justify-center truncate whitespace-nowrap rounded-md border px-[1px] py-1 text-center text-[10px]"
-      style={{ color, borderColor: `${color}35`, backgroundColor: `${color}12` }}
+      className="mx-auto inline-flex max-w-[44px] items-center justify-center truncate whitespace-nowrap rounded-md px-1.5 py-1 text-center text-[10px]"
+      style={{ color, backgroundColor: `${color}12` }}
       title={fullLabel}
       data-ma200-result-badge={status || 'observing'}
     >
@@ -323,7 +325,7 @@ function RetestEventsTable({
 }) {
   return (
     <div
-      className="mx-3 mt-3 min-w-0 overflow-hidden border-y border-white/[0.06]"
+      className="mx-3 mt-2 min-w-0 overflow-hidden"
       data-ma200-retest-table="compact-seven-column"
     >
       <div
@@ -384,22 +386,26 @@ function RetestEventsTable({
   );
 }
 
-function completedDistributionEvents(events) {
+function completedForwardReturnEvents(events, observationTradingDays) {
   return (Array.isArray(events) ? events : [])
-    .filter((event) => event?.recentReboundComplete === true)
     .map((event) => {
       const triggerDate = String(event?.triggerDate || '');
-      const retestDepthPct = finiteNumber(event?.recentRetestDepthPct);
-      const maxReboundPct = finiteNumber(event?.recentMaxReboundPct);
+      const forwardReturnEndDate = String(event?.forwardReturnEndDate || '');
+      const observedTradingDays = finiteNumber(event?.observedTradingDays);
+      const forwardReturnPct = finiteNumber(event?.forwardReturnPct);
+      const resolved = event?.status === 'recovered' || event?.status === 'failed';
       if (!distributionDateLabel(triggerDate)
-        || retestDepthPct === null
-        || maxReboundPct === null) {
+        || !formatDate(forwardReturnEndDate, 'zh').match(/^\d{4}\/\d{2}\/\d{2}$/)
+        || !resolved
+        || observedTradingDays === null
+        || observedTradingDays < observationTradingDays
+        || forwardReturnPct === null) {
         return null;
       }
       return {
         triggerDate,
-        retestDepthPct,
-        maxReboundPct,
+        forwardReturnEndDate,
+        forwardReturnPct,
       };
     })
     .filter(Boolean)
@@ -410,26 +416,26 @@ function RetestHistoryDistribution({
   events,
   language,
   marketColorMode,
-  recentReboundTradingDays,
+  observationTradingDays,
 }) {
-  const points = React.useMemo(() => completedDistributionEvents(events), [events]);
+  const points = React.useMemo(
+    () => completedForwardReturnEvents(events, observationTradingDays),
+    [events, observationTradingDays],
+  );
   if (points.length === 0) return null;
 
   const width = 328;
   const height = 126;
   const left = 31;
   const right = 26;
-  const top = 8;
-  const bottom = 25;
+  const top = 20;
+  const bottom = 38;
   const plotWidth = width - left - right;
   const plotHeight = height - top - bottom;
-  const values = points.flatMap((event) => [
-    event.retestDepthPct,
-    event.maxReboundPct,
-  ]);
+  const values = points.map((event) => event.forwardReturnPct);
   const axisBound = Math.max(
-    15,
-    Math.ceil(Math.max(...values.map((value) => Math.abs(value))) / 5) * 5 + 15,
+    10,
+    Math.ceil(Math.max(...values.map((value) => Math.abs(value))) / 5) * 5 + 10,
   );
   const minimum = -axisBound;
   const maximum = axisBound;
@@ -444,19 +450,23 @@ function RetestHistoryDistribution({
 
   return (
     <div
-      className="mx-3 mt-3 min-w-0 scroll-mt-28 overflow-hidden rounded-xl border border-white/[0.065] bg-white/[0.012] px-2.5 pb-2.5 pt-2.5"
-      data-ma200-retest-distribution="completed-events"
+      className="mx-3 mt-3 min-w-0 scroll-mt-28 overflow-hidden rounded-xl bg-white/[0.018] px-2.5 pb-2.5 pt-2.5"
+      data-ma200-retest-distribution="forward-return"
       data-watchlist-detail-section="ma200-distribution"
     >
       <div className="flex min-w-0 items-center justify-between gap-2">
         <div className="truncate text-[11px] text-white/[0.50]">
-          {copy(language, '近5次回踩结果', 'Latest 5 retest results')}
+          {copy(
+            language,
+            `触发后${observationTradingDays}日涨跌幅`,
+            `${observationTradingDays}-session return after trigger`,
+          )}
         </div>
         <div className="shrink-0 text-[10px] text-white/[0.30]">
           {copy(
             language,
-            `${recentReboundTradingDays}日样本 ${points.length} 次 · 未满${recentReboundTradingDays}日不计`,
-            `${points.length} ${recentReboundTradingDays}-session samples · Under ${recentReboundTradingDays} excluded`,
+            `${observationTradingDays}日样本 ${points.length} 次 · 未满${observationTradingDays}日不计`,
+            `${points.length} ${observationTradingDays}-session samples · Under ${observationTradingDays} excluded`,
           )}
         </div>
       </div>
@@ -467,8 +477,8 @@ function RetestHistoryDistribution({
         role="img"
         aria-label={copy(
           language,
-          `已完成事件的回踩幅度与${recentReboundTradingDays}日反弹分布`,
-          `Retest depth and ${recentReboundTradingDays}-session rebound distribution for completed events`,
+          `已完成事件从触发日收盘至第${observationTradingDays}个交易日收盘的涨跌幅`,
+          `Return from the trigger close to the close of session ${observationTradingDays}`,
         )}
         preserveAspectRatio="xMidYMid meet"
       >
@@ -494,55 +504,68 @@ function RetestHistoryDistribution({
 
         {points.map((event, index) => {
           const pointX = x(index);
-          const depthY = y(event.retestDepthPct);
-          const reboundY = y(event.maxReboundPct);
-          const depthLabelY = depthY + 17 <= height - bottom - 2
-            ? depthY + 17
-            : depthY - 8;
+          const returnY = y(event.forwardReturnPct);
+          const pointColor = event.forwardReturnPct > 0
+            ? positiveColor
+            : event.forwardReturnPct < 0
+              ? negativeColor
+              : 'rgba(255,255,255,0.52)';
+          const stemEndY = event.forwardReturnPct > 0
+            ? Math.min(zeroY, returnY + 4.5)
+            : event.forwardReturnPct < 0
+              ? Math.max(zeroY, returnY - 4.5)
+              : zeroY;
+          const returnLabelY = event.forwardReturnPct >= 0
+            ? Math.max(12, returnY - 9)
+            : Math.min(height - 20, returnY + 16);
+          const returnLabelAnchor = index === 0
+            ? 'start'
+            : index === points.length - 1
+              ? 'end'
+              : 'middle';
           return (
-            <g key={event.triggerDate} data-ma200-distribution-event={event.triggerDate}>
+            <g
+              key={event.triggerDate}
+              data-ma200-distribution-event={event.triggerDate}
+              data-ma200-forward-return-end-date={event.forwardReturnEndDate}
+            >
+              <title>
+                {copy(
+                  language,
+                  `${formatDate(event.triggerDate, language)} 至 ${formatDate(event.forwardReturnEndDate, language)}：${formatPercent(event.forwardReturnPct)}`,
+                  `${formatDate(event.triggerDate, language)} to ${formatDate(event.forwardReturnEndDate, language)}: ${formatPercent(event.forwardReturnPct)}`,
+                )}
+              </title>
               <line
                 x1={pointX}
                 x2={pointX}
-                y1={Math.min(depthY, reboundY)}
-                y2={Math.max(depthY, reboundY)}
-                stroke="rgba(255,255,255,0.11)"
+                y1={zeroY}
+                y2={stemEndY}
+                stroke={pointColor}
+                strokeOpacity="0.32"
+                strokeWidth="1.25"
+                data-ma200-distribution-stem="stops-before-point"
               />
               <circle
                 cx={pointX}
-                cy={depthY}
-                r="3"
-                fill={negativeColor}
-                data-ma200-distribution-point="retest-depth"
+                cy={returnY}
+                r="3.5"
+                fill={pointColor}
+                data-ma200-distribution-point="forward-return"
               />
               <text
                 x={pointX}
-                y={depthLabelY}
-                fill={negativeColor}
+                y={returnLabelY}
+                fill={pointColor}
                 fontSize="10"
-                textAnchor="middle"
-                style={{ fontFamily: NUMBER_FONT }}
-                data-ma200-distribution-label="retest-depth"
+                textAnchor={returnLabelAnchor}
+                stroke="#0b0f14"
+                strokeWidth="2.5"
+                strokeLinejoin="round"
+                style={{ fontFamily: NUMBER_FONT, paintOrder: 'stroke' }}
+                data-ma200-distribution-label="forward-return"
               >
-                {formatPercent(event.retestDepthPct)}
-              </text>
-              <circle
-                cx={pointX}
-                cy={reboundY}
-                r="3"
-                fill={positiveColor}
-                data-ma200-distribution-point="max-rebound"
-              />
-              <text
-                x={pointX}
-                y={Math.max(12, reboundY - 8)}
-                fill={positiveColor}
-                fontSize="10"
-                textAnchor="middle"
-                style={{ fontFamily: NUMBER_FONT }}
-                data-ma200-distribution-label="max-rebound"
-              >
-                {formatPercent(event.maxReboundPct)}
+                {formatPercent(event.forwardReturnPct)}
               </text>
               <text
                 x={pointX}
@@ -558,21 +581,6 @@ function RetestHistoryDistribution({
           );
         })}
       </svg>
-
-      <div className="flex items-center justify-center gap-4 text-[10px] text-white/[0.36]">
-        <span className="inline-flex items-center gap-1.5">
-          <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: negativeColor }} />
-          {copy(language, '回踩幅度', 'Retest depth')}
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: positiveColor }} />
-          {copy(
-            language,
-            `${recentReboundTradingDays}日内最大反弹`,
-            `${recentReboundTradingDays}d max rebound`,
-          )}
-        </span>
-      </div>
     </div>
   );
 }
@@ -613,6 +621,19 @@ export default function Ma200RetestHistoryCard({
       finiteNumber(data?.recentReboundTradingDays) || DEFAULT_RECENT_REBOUND_DAYS,
     ),
   );
+  const qualificationValidTradingDays = Math.max(
+    1,
+    Math.trunc(
+      finiteNumber(data?.qualificationValidTradingDays)
+        || DEFAULT_QUALIFICATION_VALID_TRADING_DAYS,
+    ),
+  );
+  const observationTradingDays = Math.max(
+    1,
+    Math.trunc(
+      finiteNumber(data?.observationTradingDays) || DEFAULT_OBSERVATION_TRADING_DAYS,
+    ),
+  );
   const resolvedSampleSize = Math.max(
     0,
     Math.trunc(finiteNumber(summary?.resolvedSampleSize) || 0),
@@ -643,19 +664,19 @@ export default function Ma200RetestHistoryCard({
             className="inline-flex shrink-0 text-white/[0.30]"
             title={copy(
               language,
-              `基于拆股复权收盘价（不含现金分红）的日线MA200回踩统计；恢复率、回踩幅度和恢复天数按${recentReboundTradingDays}日，平均反弹幅度按已完成的60日样本`,
-              `Daily MA200 retests use split-adjusted closes without cash dividends; recovery rate, depth, and recovery time use ${recentReboundTradingDays} sessions, while average rebound uses completed 60-session samples`,
+              `基于拆股复权收盘价（不含现金分红）的日线MA200；连续5日高出均线至少3%后，资格在未来${qualificationValidTradingDays}个交易日内有效，首次触及才触发；逐次路径固定${recentReboundTradingDays}日，平均反弹为${observationTradingDays}日内最大反弹，底图为触发日至第${observationTradingDays}日终点收益`,
+              `Split-adjusted daily MA200 without dividends; after 5 consecutive closes at least 3% above MA200, qualification remains valid for the next ${qualificationValidTradingDays} sessions and the first touch triggers the event. Event paths are fixed at ${recentReboundTradingDays} sessions; average rebound is the ${observationTradingDays}-session maximum and the chart shows the endpoint return on session ${observationTradingDays}`,
             )}
             aria-label={copy(
               language,
-              `基于拆股复权收盘价（不含现金分红）的日线MA200回踩统计；恢复率、回踩幅度和恢复天数按${recentReboundTradingDays}日，平均反弹幅度按已完成的60日样本`,
-              `Daily MA200 retests use split-adjusted closes without cash dividends; recovery rate, depth, and recovery time use ${recentReboundTradingDays} sessions, while average rebound uses completed 60-session samples`,
+              `基于拆股复权收盘价（不含现金分红）的日线MA200；连续5日高出均线至少3%后，资格在未来${qualificationValidTradingDays}个交易日内有效，首次触及才触发；逐次路径固定${recentReboundTradingDays}日，平均反弹为${observationTradingDays}日内最大反弹，底图为触发日至第${observationTradingDays}日终点收益`,
+              `Split-adjusted daily MA200 without dividends; after 5 consecutive closes at least 3% above MA200, qualification remains valid for the next ${qualificationValidTradingDays} sessions and the first touch triggers the event. Event paths are fixed at ${recentReboundTradingDays} sessions; average rebound is the ${observationTradingDays}-session maximum and the chart shows the endpoint return on session ${observationTradingDays}`,
             )}
           >
             <Info className="h-3.5 w-3.5" aria-hidden="true" />
           </span>
         </div>
-        <div className="shrink-0 rounded-full border border-white/[0.075] bg-white/[0.025] px-2.5 py-1 text-[10.5px] text-white/[0.42]">
+        <div className="shrink-0 rounded-full bg-white/[0.045] px-2.5 py-1 text-[10.5px] text-white/[0.42]">
           {copy(language, '近5次回踩', 'Latest 5 retests')}
         </div>
       </div>
@@ -663,9 +684,9 @@ export default function Ma200RetestHistoryCard({
       {ready ? (
         <>
           <div
-            className="mx-3 mt-3 grid grid-cols-4 divide-x divide-white/[0.055] overflow-hidden rounded-xl border border-white/[0.065] bg-white/[0.012]"
+            className="mx-3 mt-3 grid grid-cols-4 gap-1 overflow-hidden rounded-xl bg-white/[0.018] px-1"
             data-ma200-retest-summary="compact-four-column"
-            data-ma200-retest-summary-shell="rounded-inset"
+            data-ma200-retest-summary-shell="borderless-inset"
           >
             <SummaryMetric
               label={copy(
@@ -721,29 +742,26 @@ export default function Ma200RetestHistoryCard({
             events={visibleEvents}
             language={language}
             marketColorMode={marketColorMode}
-            recentReboundTradingDays={recentReboundTradingDays}
+            observationTradingDays={observationTradingDays}
           />
         </>
       ) : (
         <EmptyState language={language} status={data?.status} />
       )}
 
-      <div className="mt-3 border-t border-white/[0.06] px-4 py-3 text-center text-[10.5px] leading-relaxed text-white/[0.34]">
-        {copy(
-          language,
-          `口径：收盘触及或跌破日线MA200；价格仅拆股复权，不含分红。恢复率、回踩幅度和恢复天数按${recentReboundTradingDays}个交易日计算，平均反弹幅度保留已完成的60个交易日样本。未满各自窗口不计入对应统计，仅供历史参考。`,
-          `Basis: triggered when the close reaches or falls below daily MA200. Prices are split-adjusted without dividends. Recovery rate, depth, and recovery time use ${recentReboundTradingDays} sessions; average rebound keeps completed 60-session samples. Incomplete windows are excluded from their respective metrics; history is not predictive.`,
-        )}
-        {data?.asOfDate ? (
-          <span className="mt-1 block tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
-            {copy(
-              language,
-              `数据截至 ${formatDate(data.asOfDate, language)}`,
-              `Data through ${formatDate(data.asOfDate, language)}`,
-            )}
-          </span>
-        ) : null}
-      </div>
+      {data?.asOfDate ? (
+        <div
+          className="px-4 pb-4 pt-3 text-center text-[10.5px] tabular-nums text-white/[0.34]"
+          style={{ fontFamily: NUMBER_FONT }}
+          data-ma200-retest-as-of-date={data.asOfDate}
+        >
+          {copy(
+            language,
+            `数据截至 ${formatDate(data.asOfDate, language)}`,
+            `Data through ${formatDate(data.asOfDate, language)}`,
+          )}
+        </div>
+      ) : null}
     </section>
   );
 }

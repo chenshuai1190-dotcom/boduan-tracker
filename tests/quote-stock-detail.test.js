@@ -284,12 +284,13 @@ test('daily MA200 retest uses split-adjusted closes without dividends, a 60-sess
   const history = detail.ma200RetestHistory;
   const event = history.events[0];
 
-  assert.equal(history.algorithmVersion, 'daily-ma200-retest-v4');
+  assert.equal(history.algorithmVersion, 'daily-ma200-retest-v5');
   assert.equal(history.basis, 'split_adjusted_close');
   assert.equal(history.maWindowTradingDays, 200);
   assert.equal(history.triggerBasis, 'daily_close_at_or_below_ma200');
   assert.equal(history.prepareTradingDays, 5);
   assert.equal(history.prepareDistancePct, 3);
+  assert.equal(history.qualificationValidTradingDays, 60);
   assert.equal(history.recoveryConfirmationTradingDays, 2);
   assert.equal(history.observationTradingDays, 60);
   assert.equal(history.recentReboundTradingDays, 20);
@@ -524,6 +525,67 @@ test('daily MA200 retest keeps the 20-session rebound independent from its 60-se
   assert.notEqual(history.summary.averageMaxReboundPct, event.recentMaxReboundPct);
 });
 
+test('daily MA200 retest measures fixed-window lows even after an early recovery', () => {
+  const fixture = ma200RatioFixture();
+  for (let index = 0; index < 5; index += 1) fixture.appendAtMaRatio(1.05);
+  fixture.triggerIndexes.push(fixture.appendAtMaRatio(0.95));
+  for (let day = 1; day <= 60; day += 1) {
+    if (day <= 2) fixture.appendAtMaRatio(1.01);
+    else if (day === 10) fixture.appendAtMaRatio(0.90);
+    else if (day === 30) fixture.appendAtMaRatio(0.80);
+    else fixture.appendAtMaRatio(1.02);
+  }
+  const rows = fixture.rows();
+  const triggerIndex = fixture.triggerIndexes[0];
+  const event = buildStockDetail(
+    rows,
+    { asOfDate: rows.at(-1).date },
+  ).ma200RetestHistory.events[0];
+
+  assert.equal(event.recentRecoveryTradingDays, 2);
+  assert.equal(event.recoveryTradingDays, 2);
+  assert.equal(event.recentLowDate, rows[triggerIndex + 10].date);
+  assert.equal(event.lowDate, rows[triggerIndex + 30].date);
+  assert.ok(Math.abs(event.recentRetestDepthPct - (-10)) < 1e-10);
+  assert.ok(Math.abs(event.retestDepthPct - (-20)) < 1e-10);
+});
+
+test('daily MA200 retest exposes trigger-to-session-60 forward return only after completion', () => {
+  const fixture = ma200RatioFixture();
+  for (let index = 0; index < 5; index += 1) fixture.appendAtMaRatio(1.05);
+  const triggerIndex = fixture.appendAtMaRatio(0.95);
+  for (let day = 1; day <= 59; day += 1) fixture.appendAtMaRatio(0.98);
+
+  const incompleteRows = fixture.rows();
+  const incompleteEvent = buildStockDetail(
+    incompleteRows,
+    { asOfDate: incompleteRows.at(-1).date },
+  ).ma200RetestHistory.events[0];
+  assert.equal(incompleteEvent.forwardReturnPct, null);
+  assert.equal(incompleteEvent.forwardReturnEndDate, '');
+
+  fixture.appendAtMaRatio(1.10);
+  const completeRows = fixture.rows();
+  const completeEvent = buildStockDetail(
+    completeRows,
+    { asOfDate: completeRows.at(-1).date },
+  ).ma200RetestHistory.events[0];
+  const expectedForwardReturn = (
+    (completeRows[triggerIndex + 60].close / completeRows[triggerIndex].close) - 1
+  ) * 100;
+  assert.equal(completeEvent.forwardReturnPct, expectedForwardReturn);
+  assert.equal(completeEvent.forwardReturnEndDate, completeRows[triggerIndex + 60].date);
+
+  fixture.appendAtMaRatio(0.50);
+  const laterRows = fixture.rows();
+  const laterEvent = buildStockDetail(
+    laterRows,
+    { asOfDate: laterRows.at(-1).date },
+  ).ma200RetestHistory.events[0];
+  assert.equal(laterEvent.forwardReturnPct, expectedForwardReturn);
+  assert.equal(laterEvent.forwardReturnEndDate, completeRows[triggerIndex + 60].date);
+});
+
 test('daily MA200 retest leaves the 20-session display metrics empty until session 20 closes', () => {
   const fixture = ma200RatioFixture();
   fixture.appendEvent({ recovered: false, observedDays: 19 });
@@ -596,6 +658,60 @@ test('daily MA200 retest requires five consecutive closes at least 3% above MA20
   assert.deepEqual(detail.ma200RetestHistory.events, []);
 });
 
+test('daily MA200 retest qualification includes session 60 and expires before session 61', () => {
+  const onTime = ma200RatioFixture();
+  for (let index = 0; index < 5; index += 1) onTime.appendAtMaRatio(1.03);
+  for (let day = 1; day < 60; day += 1) onTime.appendAtMaRatio(1.02);
+  const onTimeTriggerIndex = onTime.appendAtMaRatio(1);
+  const onTimeRows = onTime.rows();
+  const onTimeHistory = buildStockDetail(
+    onTimeRows,
+    { asOfDate: onTimeRows.at(-1).date },
+  ).ma200RetestHistory;
+
+  assert.equal(onTimeHistory.qualificationValidTradingDays, 60);
+  assert.equal(onTimeHistory.events.length, 1);
+  assert.equal(onTimeHistory.events[0].triggerDate, onTimeRows[onTimeTriggerIndex].date);
+
+  const expired = ma200RatioFixture();
+  for (let index = 0; index < 5; index += 1) expired.appendAtMaRatio(1.03);
+  for (let day = 1; day <= 60; day += 1) expired.appendAtMaRatio(1.02);
+  expired.appendAtMaRatio(1);
+  const expiredRows = expired.rows();
+  const expiredHistory = buildStockDetail(
+    expiredRows,
+    { asOfDate: expiredRows.at(-1).date },
+  ).ma200RetestHistory;
+
+  assert.equal(expiredHistory.status, 'no_events');
+  assert.deepEqual(expiredHistory.events, []);
+});
+
+test('daily MA200 retest refreshes qualification on continued and newly completed preparation streaks', () => {
+  const continued = ma200RatioFixture();
+  for (let day = 0; day < 70; day += 1) continued.appendAtMaRatio(1.03);
+  const continuedTriggerIndex = continued.appendAtMaRatio(1);
+  const continuedRows = continued.rows();
+  const continuedEvent = buildStockDetail(
+    continuedRows,
+    { asOfDate: continuedRows.at(-1).date },
+  ).ma200RetestHistory.events[0];
+  assert.equal(continuedEvent.triggerDate, continuedRows[continuedTriggerIndex].date);
+
+  const renewed = ma200RatioFixture();
+  for (let index = 0; index < 5; index += 1) renewed.appendAtMaRatio(1.03);
+  for (let day = 1; day <= 55; day += 1) renewed.appendAtMaRatio(1.02);
+  for (let index = 0; index < 5; index += 1) renewed.appendAtMaRatio(1.03);
+  for (let day = 1; day < 60; day += 1) renewed.appendAtMaRatio(1.02);
+  const renewedTriggerIndex = renewed.appendAtMaRatio(1);
+  const renewedRows = renewed.rows();
+  const renewedEvent = buildStockDetail(
+    renewedRows,
+    { asOfDate: renewedRows.at(-1).date },
+  ).ma200RetestHistory.events[0];
+  assert.equal(renewedEvent.triggerDate, renewedRows[renewedTriggerIndex].date);
+});
+
 test('daily MA200 retest includes exact 3% preparation and exact MA200 touch boundaries', () => {
   const fixture = ma200RatioFixture();
   for (let index = 0; index < 5; index += 1) fixture.appendAtMaRatio(1.03);
@@ -624,6 +740,7 @@ test('stock detail returns null for insufficient windows and preserves zero vola
   assert.equal(twenty.indicators.ema30, null);
   assert.equal(twenty.indicators.volatility20AnnualizedPct, null);
   assert.equal(twenty.ma200RetestHistory.status, 'insufficient_data');
+  assert.equal(twenty.ma200RetestHistory.qualificationValidTradingDays, 60);
 
   const twentyOne = buildStockDetail(rows.slice(0, 21), { asOfDate: '2026-02-20' });
   assert.equal(twentyOne.indicators.volatility20AnnualizedPct, 0);

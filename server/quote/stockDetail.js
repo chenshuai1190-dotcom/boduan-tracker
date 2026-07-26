@@ -9,10 +9,11 @@ const WEEKLY_MA_TREND_WEEKS = 4;
 const WEEKLY_HISTORY_YEARS = 5;
 const STOCK_DETAIL_PRICE_BASIS = 'split_adjusted_close';
 const STOCK_DETAIL_SOURCE = 'EODHD_EOD_SPLITS';
-const MA200_RETEST_ALGORITHM_VERSION = 'daily-ma200-retest-v4';
+const MA200_RETEST_ALGORITHM_VERSION = 'daily-ma200-retest-v5';
 const MA200_RETEST_LOOKBACK_YEARS = 5;
 const MA200_RETEST_PREPARE_DAYS = 5;
 const MA200_RETEST_PREPARE_DISTANCE = 0.03;
+const MA200_RETEST_QUALIFICATION_VALID_DAYS = 60;
 const MA200_RETEST_OBSERVATION_DAYS = 60;
 const MA200_RETEST_RECENT_REBOUND_DAYS = 20;
 const MA200_RETEST_RESOLVED_LIMIT = 5;
@@ -282,6 +283,7 @@ function emptyMa200RetestHistory(asOfDate = '', status = 'insufficient_data') {
     triggerBasis: 'daily_close_at_or_below_ma200',
     prepareTradingDays: MA200_RETEST_PREPARE_DAYS,
     prepareDistancePct: MA200_RETEST_PREPARE_DISTANCE * 100,
+    qualificationValidTradingDays: MA200_RETEST_QUALIFICATION_VALID_DAYS,
     recoveryConfirmationTradingDays: 2,
     observationTradingDays: MA200_RETEST_OBSERVATION_DAYS,
     recentReboundTradingDays: MA200_RETEST_RECENT_REBOUND_DAYS,
@@ -314,28 +316,39 @@ function isAboveMa200(row) {
 function findMa200RetestTriggerIndexes(allHistory) {
   const triggerIndexes = [];
   let preparedStreak = 0;
-  let armed = false;
+  let latestQualificationIndex = -1;
 
   for (let index = 0; index < allHistory.length; index += 1) {
     const row = allHistory[index];
     if (!Number.isFinite(row?.ma200) || row.ma200 <= 0) {
       preparedStreak = 0;
-      armed = false;
-      continue;
-    }
-
-    if (armed && (row.close / row.ma200) <= (1 + MA200_COMPARISON_EPSILON)) {
-      triggerIndexes.push(index);
-      preparedStreak = 0;
-      armed = false;
+      latestQualificationIndex = -1;
       continue;
     }
 
     if (isPreparedAboveMa200(row)) {
       preparedStreak += 1;
-      if (preparedStreak >= MA200_RETEST_PREPARE_DAYS) armed = true;
-    } else if (!armed) {
-      preparedStreak = 0;
+      if (preparedStreak >= MA200_RETEST_PREPARE_DAYS) {
+        latestQualificationIndex = index;
+      }
+      continue;
+    }
+
+    preparedStreak = 0;
+    const qualificationAge = latestQualificationIndex >= 0
+      ? index - latestQualificationIndex
+      : Number.POSITIVE_INFINITY;
+    if (qualificationAge > MA200_RETEST_QUALIFICATION_VALID_DAYS) {
+      latestQualificationIndex = -1;
+      continue;
+    }
+
+    if (
+      latestQualificationIndex >= 0
+      && (row.close / row.ma200) <= (1 + MA200_COMPARISON_EPSILON)
+    ) {
+      triggerIndexes.push(index);
+      latestQualificationIndex = -1;
     }
   }
 
@@ -366,11 +379,10 @@ function analyzeMa200RetestWindow(allHistory, triggerIndex, observationTradingDa
     observedTradingDays,
   );
   const recovered = recoveryConfirmationIndex >= 0;
-  const depthEndIndex = recovered ? recoveryConfirmationIndex : observationEndIndex;
   let lowIndex = triggerIndex;
   let lowestDistance = (trigger.close / trigger.ma200) - 1;
 
-  for (let index = triggerIndex + 1; index <= depthEndIndex; index += 1) {
+  for (let index = triggerIndex + 1; index <= observationEndIndex; index += 1) {
     const row = allHistory[index];
     const distance = (row.close / row.ma200) - 1;
     if (distance < lowestDistance) {
@@ -409,6 +421,9 @@ function buildMa200RetestEvent(allHistory, triggerIndex) {
     triggerIndex,
     MA200_RETEST_RECENT_REBOUND_DAYS,
   );
+  const forwardReturnEndRow = summaryWindow.complete
+    ? allHistory[summaryWindow.observationEndIndex]
+    : null;
   const seriesStartIndex = Math.max(0, triggerIndex - MA200_RETEST_PREPARE_DAYS);
   const series = allHistory
     .slice(seriesStartIndex, recentWindow.observationEndIndex + 1)
@@ -430,6 +445,10 @@ function buildMa200RetestEvent(allHistory, triggerIndex) {
     triggerMa200: trigger.ma200,
     retestDepthPct: summaryWindow.retestDepthPct,
     maxReboundPct: summaryWindow.maxReboundPct,
+    forwardReturnPct: forwardReturnEndRow
+      ? ((forwardReturnEndRow.close / trigger.close) - 1) * 100
+      : null,
+    forwardReturnEndDate: forwardReturnEndRow?.date || '',
     recoveryTradingDays: summaryWindow.recovered
       ? summaryWindow.recoveryConfirmationIndex - triggerIndex
       : null,
@@ -493,6 +512,7 @@ function buildMa200RetestHistory(allHistory, latestDate) {
     triggerBasis: 'daily_close_at_or_below_ma200',
     prepareTradingDays: MA200_RETEST_PREPARE_DAYS,
     prepareDistancePct: MA200_RETEST_PREPARE_DISTANCE * 100,
+    qualificationValidTradingDays: MA200_RETEST_QUALIFICATION_VALID_DAYS,
     recoveryConfirmationTradingDays: 2,
     observationTradingDays: MA200_RETEST_OBSERVATION_DAYS,
     recentReboundTradingDays: MA200_RETEST_RECENT_REBOUND_DAYS,
