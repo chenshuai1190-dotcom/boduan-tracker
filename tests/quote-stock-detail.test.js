@@ -274,7 +274,7 @@ test('daily MA200 uses hidden ten-year warmup before the bounded history payload
   assert.equal(detail.history.at(-1).ma200, detail.indicators.ma200);
 });
 
-test('daily MA200 retest uses split-adjusted closes without dividends, a 60-session outcome window, and a separate 30-session recent window', () => {
+test('daily MA200 retest uses split-adjusted closes without dividends, a 60-session outcome window, and a separate 20-session recent window', () => {
   const fixture = ma200RatioFixture({ dividendAdjustmentFactor: 2 });
   fixture.appendEvent({ recovered: true });
   fixture.appendAtMaRatio(1.01);
@@ -284,7 +284,7 @@ test('daily MA200 retest uses split-adjusted closes without dividends, a 60-sess
   const history = detail.ma200RetestHistory;
   const event = history.events[0];
 
-  assert.equal(history.algorithmVersion, 'daily-ma200-retest-v3');
+  assert.equal(history.algorithmVersion, 'daily-ma200-retest-v4');
   assert.equal(history.basis, 'split_adjusted_close');
   assert.equal(history.maWindowTradingDays, 200);
   assert.equal(history.triggerBasis, 'daily_close_at_or_below_ma200');
@@ -292,12 +292,13 @@ test('daily MA200 retest uses split-adjusted closes without dividends, a 60-sess
   assert.equal(history.prepareDistancePct, 3);
   assert.equal(history.recoveryConfirmationTradingDays, 2);
   assert.equal(history.observationTradingDays, 60);
-  assert.equal(history.recentReboundTradingDays, 30);
+  assert.equal(history.recentReboundTradingDays, 20);
   assert.equal(history.lookbackYears, 5);
   assert.equal(history.status, 'ready');
   assert.equal(history.summary.resolvedSampleSize, 1);
   assert.equal(history.summary.recoveredCount, 1);
   assert.equal(history.summary.recoveryRatePct, 100);
+  assert.equal(history.summary.maxReboundSampleSize, 1);
 
   assert.equal(event.triggerDate, rows[triggerIndex].date);
   assert.equal(event.status, 'recovered');
@@ -305,20 +306,22 @@ test('daily MA200 retest uses split-adjusted closes without dividends, a 60-sess
   assert.equal(event.recoveryDate, rows[triggerIndex + 3].date);
   assert.equal(event.observedTradingDays, 60);
   assert.equal(event.observationEndDate, rows[triggerIndex + 60].date);
-  assert.equal(event.recentObservedTradingDays, 30);
-  assert.equal(event.rebound30Complete, true);
-  assert.equal(event.rebound30Status, 'recovered');
-  assert.equal(event.recovery30TradingDays, 3);
-  assert.equal(event.recovery30Date, rows[triggerIndex + 3].date);
-  assert.equal(event.rebound30EndDate, rows[triggerIndex + 30].date);
-  assert.ok(Number.isFinite(event.retestDepth30Pct));
-  assert.ok(Number.isFinite(event.maxRebound30Pct));
+  assert.equal(event.recentObservedTradingDays, 20);
+  assert.equal(event.recentReboundComplete, true);
+  assert.equal(event.recentReboundStatus, 'recovered');
+  assert.equal(event.recentRecoveryTradingDays, 3);
+  assert.equal(event.recentRecoveryDate, rows[triggerIndex + 3].date);
+  assert.equal(event.recentReboundEndDate, rows[triggerIndex + 20].date);
+  assert.ok(Number.isFinite(event.recentRetestDepthPct));
+  assert.ok(Number.isFinite(event.recentMaxReboundPct));
+  assert.equal(history.summary.averageRetestDepthPct, event.recentRetestDepthPct);
   assert.equal(history.summary.averageMaxReboundPct, event.maxReboundPct);
+  assert.equal(history.summary.averageRecoveryTradingDays, event.recentRecoveryTradingDays);
   assert.ok(Math.abs(event.triggerClose / event.triggerMa200 - 0.95) < 1e-12);
   assert.ok(Math.abs(event.retestDepthPct - (-5)) < 1e-10);
-  assert.equal(event.series.length, 36);
+  assert.equal(event.series.length, 26);
   assert.equal(event.series[0].date, rows[triggerIndex - 5].date);
-  assert.equal(event.series.at(-1).date, rows[triggerIndex + 30].date);
+  assert.equal(event.series.at(-1).date, rows[triggerIndex + 20].date);
   assert.notEqual(event.series.at(-1).date, rows.at(-1).date);
   assert.equal(event.series[5].close, rows[triggerIndex].close);
   assert.notEqual(event.series[5].close, rows[triggerIndex].adjusted_close);
@@ -344,13 +347,13 @@ test('daily MA200 retest keeps its summary on completed outcomes from the same l
   assert.equal(history.events[0].observedTradingDays, 4);
   assert.equal(history.events[0].observationEndDate, rows.at(-1).date);
   assert.equal(history.events[0].recentObservedTradingDays, 4);
-  assert.equal(history.events[0].rebound30Complete, false);
-  assert.equal(history.events[0].rebound30Status, 'observing');
-  assert.equal(history.events[0].recovery30TradingDays, null);
-  assert.equal(history.events[0].recovery30Date, '');
-  assert.equal(history.events[0].retestDepth30Pct, null);
-  assert.equal(history.events[0].maxRebound30Pct, null);
-  assert.equal(history.events[0].rebound30EndDate, '');
+  assert.equal(history.events[0].recentReboundComplete, false);
+  assert.equal(history.events[0].recentReboundStatus, 'observing');
+  assert.equal(history.events[0].recentRecoveryTradingDays, null);
+  assert.equal(history.events[0].recentRecoveryDate, '');
+  assert.equal(history.events[0].recentRetestDepthPct, null);
+  assert.equal(history.events[0].recentMaxReboundPct, null);
+  assert.equal(history.events[0].recentReboundEndDate, '');
   assert.equal(history.events[0].series.length, 10);
   assert.deepEqual(
     resolvedEvents.map((event) => event.status),
@@ -433,12 +436,12 @@ test('daily MA200 retest accepts recovery on session 60 but rejects recovery com
   );
 });
 
-test('latest-five details accept recovery on session 30 but reject recovery completed on session 31', () => {
+test('latest-five details accept recovery on session 20 but reject recovery completed on session 21', () => {
   const onTime = ma200RatioFixture();
   for (let index = 0; index < 5; index += 1) onTime.appendAtMaRatio(1.05);
   onTime.triggerIndexes.push(onTime.appendAtMaRatio(0.95));
-  for (let index = 1; index <= 30; index += 1) {
-    onTime.appendAtMaRatio(index >= 29 ? 1.01 : 0.98);
+  for (let index = 1; index <= 20; index += 1) {
+    onTime.appendAtMaRatio(index >= 19 ? 1.01 : 0.98);
   }
   const onTimeRows = onTime.rows();
   const onTimeEvent = buildStockDetail(
@@ -446,14 +449,14 @@ test('latest-five details accept recovery on session 30 but reject recovery comp
     { asOfDate: onTimeRows.at(-1).date },
   ).ma200RetestHistory.events[0];
 
-  assert.equal(onTimeEvent.rebound30Status, 'recovered');
-  assert.equal(onTimeEvent.recovery30TradingDays, 30);
+  assert.equal(onTimeEvent.recentReboundStatus, 'recovered');
+  assert.equal(onTimeEvent.recentRecoveryTradingDays, 20);
 
   const tooLate = ma200RatioFixture();
   for (let index = 0; index < 5; index += 1) tooLate.appendAtMaRatio(1.05);
   tooLate.triggerIndexes.push(tooLate.appendAtMaRatio(0.95));
-  for (let index = 1; index <= 31; index += 1) {
-    tooLate.appendAtMaRatio(index >= 30 ? 1.01 : 0.98);
+  for (let index = 1; index <= 21; index += 1) {
+    tooLate.appendAtMaRatio(index >= 20 ? 1.01 : 0.98);
   }
   const tooLateRows = tooLate.rows();
   const tooLateEvent = buildStockDetail(
@@ -461,10 +464,10 @@ test('latest-five details accept recovery on session 30 but reject recovery comp
     { asOfDate: tooLateRows.at(-1).date },
   ).ma200RetestHistory.events[0];
 
-  assert.equal(tooLateEvent.rebound30Status, 'failed');
-  assert.equal(tooLateEvent.recovery30TradingDays, null);
+  assert.equal(tooLateEvent.recentReboundStatus, 'failed');
+  assert.equal(tooLateEvent.recentRecoveryTradingDays, null);
   assert.equal(tooLateEvent.status, 'observing');
-  assert.equal(tooLateEvent.recoveryTradingDays, 31);
+  assert.equal(tooLateEvent.recoveryTradingDays, 21);
 });
 
 test('daily MA200 retest keeps every latest observing trigger instead of dropping overlapping events', () => {
@@ -487,7 +490,7 @@ test('daily MA200 retest keeps every latest observing trigger instead of droppin
   assert.ok(history.events.every((event) => event.status === 'observing'));
 });
 
-test('daily MA200 retest keeps the 30-session rebound independent from its 60-session summary rebound', () => {
+test('daily MA200 retest keeps the 20-session rebound independent from its 60-session summary rebound', () => {
   const fixture = ma200RatioFixture();
   for (let index = 0; index < 5; index += 1) fixture.appendAtMaRatio(1.05);
   fixture.triggerIndexes.push(fixture.appendAtMaRatio(0.95));
@@ -504,33 +507,39 @@ test('daily MA200 retest keeps the 30-session rebound independent from its 60-se
 
   assert.equal(event.status, 'recovered');
   assert.equal(event.recoveryTradingDays, 60);
-  assert.equal(event.rebound30Complete, true);
-  assert.equal(event.rebound30Status, 'failed');
-  assert.equal(event.recovery30TradingDays, null);
-  assert.equal(event.recovery30Date, '');
-  assert.equal(event.rebound30EndDate, rows[triggerIndex + 30].date);
-  assert.equal(event.series.at(-1).date, rows[triggerIndex + 30].date);
-  assert.ok(event.maxReboundPct > event.maxRebound30Pct);
+  assert.equal(event.recentReboundComplete, true);
+  assert.equal(event.recentReboundStatus, 'failed');
+  assert.equal(event.recentRecoveryTradingDays, null);
+  assert.equal(event.recentRecoveryDate, '');
+  assert.equal(event.recentReboundEndDate, rows[triggerIndex + 20].date);
+  assert.equal(event.series.at(-1).date, rows[triggerIndex + 20].date);
+  assert.ok(event.maxReboundPct > event.recentMaxReboundPct);
+  assert.equal(history.summary.resolvedSampleSize, 1);
+  assert.equal(history.summary.recoveredCount, 0);
+  assert.equal(history.summary.recoveryRatePct, 0);
+  assert.equal(history.summary.averageRecoveryTradingDays, null);
+  assert.equal(history.summary.averageRetestDepthPct, event.recentRetestDepthPct);
+  assert.equal(history.summary.maxReboundSampleSize, 1);
   assert.equal(history.summary.averageMaxReboundPct, event.maxReboundPct);
-  assert.notEqual(history.summary.averageMaxReboundPct, event.maxRebound30Pct);
+  assert.notEqual(history.summary.averageMaxReboundPct, event.recentMaxReboundPct);
 });
 
-test('daily MA200 retest leaves the 30-session display metrics empty until session 30 closes', () => {
+test('daily MA200 retest leaves the 20-session display metrics empty until session 20 closes', () => {
   const fixture = ma200RatioFixture();
-  fixture.appendEvent({ recovered: false, observedDays: 29 });
+  fixture.appendEvent({ recovered: false, observedDays: 19 });
   const beforeRows = fixture.rows();
   const triggerIndex = fixture.triggerIndexes[0];
   const before = buildStockDetail(beforeRows, { asOfDate: beforeRows.at(-1).date });
   const beforeEvent = before.ma200RetestHistory.events[0];
 
   assert.equal(beforeEvent.status, 'observing');
-  assert.equal(beforeEvent.observedTradingDays, 29);
-  assert.equal(beforeEvent.recentObservedTradingDays, 29);
-  assert.equal(beforeEvent.rebound30Complete, false);
-  assert.equal(beforeEvent.rebound30Status, 'observing');
-  assert.equal(beforeEvent.retestDepth30Pct, null);
-  assert.equal(beforeEvent.maxRebound30Pct, null);
-  assert.equal(beforeEvent.rebound30EndDate, '');
+  assert.equal(beforeEvent.observedTradingDays, 19);
+  assert.equal(beforeEvent.recentObservedTradingDays, 19);
+  assert.equal(beforeEvent.recentReboundComplete, false);
+  assert.equal(beforeEvent.recentReboundStatus, 'observing');
+  assert.equal(beforeEvent.recentRetestDepthPct, null);
+  assert.equal(beforeEvent.recentMaxReboundPct, null);
+  assert.equal(beforeEvent.recentReboundEndDate, '');
   assert.equal(beforeEvent.series.at(-1).date, beforeRows.at(-1).date);
 
   fixture.appendAtMaRatio(0.98);
@@ -539,15 +548,19 @@ test('daily MA200 retest leaves the 30-session display metrics empty until sessi
   const completeEvent = complete.ma200RetestHistory.events[0];
 
   assert.equal(completeEvent.status, 'observing');
-  assert.equal(completeEvent.observedTradingDays, 30);
-  assert.equal(completeEvent.recentObservedTradingDays, 30);
-  assert.equal(completeEvent.rebound30Complete, true);
-  assert.equal(completeEvent.rebound30Status, 'failed');
-  assert.ok(Number.isFinite(completeEvent.retestDepth30Pct));
-  assert.ok(Number.isFinite(completeEvent.maxRebound30Pct));
-  assert.equal(completeEvent.rebound30EndDate, completeRows[triggerIndex + 30].date);
-  assert.equal(completeEvent.series.at(-1).date, completeRows[triggerIndex + 30].date);
-  assert.equal(complete.ma200RetestHistory.summary.resolvedSampleSize, 0);
+  assert.equal(completeEvent.observedTradingDays, 20);
+  assert.equal(completeEvent.recentObservedTradingDays, 20);
+  assert.equal(completeEvent.recentReboundComplete, true);
+  assert.equal(completeEvent.recentReboundStatus, 'failed');
+  assert.ok(Number.isFinite(completeEvent.recentRetestDepthPct));
+  assert.ok(Number.isFinite(completeEvent.recentMaxReboundPct));
+  assert.equal(completeEvent.recentReboundEndDate, completeRows[triggerIndex + 20].date);
+  assert.equal(completeEvent.series.at(-1).date, completeRows[triggerIndex + 20].date);
+  assert.equal(complete.ma200RetestHistory.summary.resolvedSampleSize, 1);
+  assert.equal(complete.ma200RetestHistory.summary.recoveredCount, 0);
+  assert.equal(complete.ma200RetestHistory.summary.recoveryRatePct, 0);
+  assert.equal(complete.ma200RetestHistory.summary.maxReboundSampleSize, 0);
+  assert.equal(complete.ma200RetestHistory.summary.averageMaxReboundPct, null);
 });
 
 test('daily MA200 retest keeps its trigger date stable as later sessions resolve the event', () => {

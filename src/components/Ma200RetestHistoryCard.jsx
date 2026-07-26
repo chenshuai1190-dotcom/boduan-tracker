@@ -4,6 +4,7 @@ import { marketHexColor } from '../lib/marketColorMode.js';
 
 const NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif';
 const TABLE_GRID = 'grid-cols-[15px_62px_42px_minmax(76px,1fr)_47px_30px_44px]';
+const DEFAULT_RECENT_REBOUND_DAYS = 20;
 
 function finiteNumber(value) {
   if (value === null || value === undefined || value === '') return null;
@@ -244,10 +245,11 @@ function RetestEventRow({
   index,
   language,
   marketColorMode,
+  recentReboundTradingDays,
 }) {
-  const recoveryDays = finiteNumber(event?.recovery30TradingDays);
-  const status = ['recovered', 'failed', 'observing'].includes(event?.rebound30Status)
-    ? event.rebound30Status
+  const recoveryDays = finiteNumber(event?.recentRecoveryTradingDays);
+  const status = ['recovered', 'failed', 'observing'].includes(event?.recentReboundStatus)
+    ? event.recentReboundStatus
     : 'observing';
 
   return (
@@ -272,16 +274,16 @@ function RetestEventRow({
       <span
         className="truncate px-0.5 text-center text-[10px] tabular-nums"
         style={{
-          color: valueColor(event?.retestDepth30Pct, marketColorMode),
+          color: valueColor(event?.recentRetestDepthPct, marketColorMode),
           fontFamily: NUMBER_FONT,
         }}
       >
-        {formatPercent(event?.retestDepth30Pct)}
+        {formatPercent(event?.recentRetestDepthPct)}
       </span>
       <div className="min-w-0 px-0.5">
         <RetestMiniChart
           rows={event?.series}
-          lowDate={event?.low30Date}
+          lowDate={event?.recentLowDate}
           language={language}
           marketColorMode={marketColorMode}
         />
@@ -289,18 +291,18 @@ function RetestEventRow({
       <span
         className="truncate px-0.5 text-center text-[10px] tabular-nums"
         style={{
-          color: valueColor(event?.maxRebound30Pct, marketColorMode),
+          color: valueColor(event?.recentMaxReboundPct, marketColorMode),
           fontFamily: NUMBER_FONT,
         }}
       >
-        {formatPercent(event?.maxRebound30Pct)}
+        {formatPercent(event?.recentMaxReboundPct)}
       </span>
       <span
         className="truncate px-0.5 text-center text-[10px] tabular-nums text-white/[0.52]"
         style={{ fontFamily: NUMBER_FONT }}
       >
         {recoveryDays === null
-          ? status === 'failed' ? '>30' : '—'
+          ? status === 'failed' ? `>${recentReboundTradingDays}` : '—'
           : copy(language, `${recoveryDays}`, `${recoveryDays}`)}
       </span>
       <EventStatus
@@ -313,7 +315,12 @@ function RetestEventRow({
   );
 }
 
-function RetestEventsTable({ events, language, marketColorMode }) {
+function RetestEventsTable({
+  events,
+  language,
+  marketColorMode,
+  recentReboundTradingDays,
+}) {
   return (
     <div
       className="mx-3 mt-3 min-w-0 overflow-hidden border-y border-white/[0.06]"
@@ -333,13 +340,31 @@ function RetestEventsTable({ events, language, marketColorMode }) {
           title={copy(language, '迷你V形日线MA200图', 'Mini daily MA200 V chart')}
           aria-label={copy(language, '走势', 'Path')}
         />
-        <span className="px-0.5" title={copy(language, '30日内最深回踩后的最大反弹', 'Maximum rebound after the deepest retest within 30 sessions')}>
-          {copy(language, '30日反弹', '30d rebound')}
+        <span
+          className="px-0.5"
+          title={copy(
+            language,
+            `${recentReboundTradingDays}日内最深回踩后的最大反弹`,
+            `Maximum rebound after the deepest retest within ${recentReboundTradingDays} sessions`,
+          )}
+        >
+          {copy(
+            language,
+            `${recentReboundTradingDays}日反弹`,
+            `${recentReboundTradingDays}d rebound`,
+          )}
         </span>
         <span className="px-0.5" title={copy(language, '反弹天数', 'Rebound days')}>
           {copy(language, '天数', 'Days')}
         </span>
-        <span className="px-0.5" title={copy(language, '30日观察结果', '30-session result')}>
+        <span
+          className="px-0.5"
+          title={copy(
+            language,
+            `${recentReboundTradingDays}日观察结果`,
+            `${recentReboundTradingDays}-session result`,
+          )}
+        >
           {copy(language, '结果', 'Result')}
         </span>
       </div>
@@ -351,6 +376,7 @@ function RetestEventsTable({ events, language, marketColorMode }) {
             index={index}
             language={language}
             marketColorMode={marketColorMode}
+            recentReboundTradingDays={recentReboundTradingDays}
           />
         ))}
       </div>
@@ -360,11 +386,11 @@ function RetestEventsTable({ events, language, marketColorMode }) {
 
 function completedDistributionEvents(events) {
   return (Array.isArray(events) ? events : [])
-    .filter((event) => event?.rebound30Complete === true)
+    .filter((event) => event?.recentReboundComplete === true)
     .map((event) => {
       const triggerDate = String(event?.triggerDate || '');
-      const retestDepthPct = finiteNumber(event?.retestDepth30Pct);
-      const maxReboundPct = finiteNumber(event?.maxRebound30Pct);
+      const retestDepthPct = finiteNumber(event?.recentRetestDepthPct);
+      const maxReboundPct = finiteNumber(event?.recentMaxReboundPct);
       if (!distributionDateLabel(triggerDate)
         || retestDepthPct === null
         || maxReboundPct === null) {
@@ -380,7 +406,12 @@ function completedDistributionEvents(events) {
     .sort((left, right) => left.triggerDate.localeCompare(right.triggerDate));
 }
 
-function RetestHistoryDistribution({ events, language, marketColorMode }) {
+function RetestHistoryDistribution({
+  events,
+  language,
+  marketColorMode,
+  recentReboundTradingDays,
+}) {
   const points = React.useMemo(() => completedDistributionEvents(events), [events]);
   if (points.length === 0) return null;
 
@@ -424,8 +455,8 @@ function RetestHistoryDistribution({ events, language, marketColorMode }) {
         <div className="shrink-0 text-[10px] text-white/[0.30]">
           {copy(
             language,
-            `30日样本 ${points.length} 次 · 未满30日不计`,
-            `${points.length} 30-session samples · Under 30 excluded`,
+            `${recentReboundTradingDays}日样本 ${points.length} 次 · 未满${recentReboundTradingDays}日不计`,
+            `${points.length} ${recentReboundTradingDays}-session samples · Under ${recentReboundTradingDays} excluded`,
           )}
         </div>
       </div>
@@ -436,8 +467,8 @@ function RetestHistoryDistribution({ events, language, marketColorMode }) {
         role="img"
         aria-label={copy(
           language,
-          '已完成事件的回踩幅度与30日反弹分布',
-          'Retest depth and 30-session rebound distribution for completed events',
+          `已完成事件的回踩幅度与${recentReboundTradingDays}日反弹分布`,
+          `Retest depth and ${recentReboundTradingDays}-session rebound distribution for completed events`,
         )}
         preserveAspectRatio="xMidYMid meet"
       >
@@ -535,7 +566,11 @@ function RetestHistoryDistribution({ events, language, marketColorMode }) {
         </span>
         <span className="inline-flex items-center gap-1.5">
           <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: positiveColor }} />
-          {copy(language, '30日内最大反弹', '30d max rebound')}
+          {copy(
+            language,
+            `${recentReboundTradingDays}日内最大反弹`,
+            `${recentReboundTradingDays}d max rebound`,
+          )}
         </span>
       </div>
     </div>
@@ -572,6 +607,12 @@ export default function Ma200RetestHistoryCard({
   const events = Array.isArray(data?.events) ? data.events : [];
   const visibleEvents = events.slice(0, 5);
   const ready = data?.status === 'ready' && events.length > 0;
+  const recentReboundTradingDays = Math.max(
+    1,
+    Math.trunc(
+      finiteNumber(data?.recentReboundTradingDays) || DEFAULT_RECENT_REBOUND_DAYS,
+    ),
+  );
   const resolvedSampleSize = Math.max(
     0,
     Math.trunc(finiteNumber(summary?.resolvedSampleSize) || 0),
@@ -579,6 +620,10 @@ export default function Ma200RetestHistoryCard({
   const recoveredCount = Math.max(
     0,
     Math.trunc(finiteNumber(summary?.recoveredCount) || 0),
+  );
+  const maxReboundSampleSize = Math.max(
+    0,
+    Math.trunc(finiteNumber(summary?.maxReboundSampleSize) || 0),
   );
   const positiveColor = marketHexColor(1, marketColorMode);
   const negativeColor = marketHexColor(-1, marketColorMode);
@@ -598,13 +643,13 @@ export default function Ma200RetestHistoryCard({
             className="inline-flex shrink-0 text-white/[0.30]"
             title={copy(
               language,
-              '基于拆股复权收盘价（不含现金分红）的日线MA200回踩统计；顶部汇总按近5次触发中已完成的60日样本计算，明细观察30日',
-              'Daily MA200 retests use split-adjusted closes without cash dividends; the summary uses completed 60-session samples from the latest five triggers and details use 30 sessions',
+              `基于拆股复权收盘价（不含现金分红）的日线MA200回踩统计；恢复率、回踩幅度和恢复天数按${recentReboundTradingDays}日，平均反弹幅度按已完成的60日样本`,
+              `Daily MA200 retests use split-adjusted closes without cash dividends; recovery rate, depth, and recovery time use ${recentReboundTradingDays} sessions, while average rebound uses completed 60-session samples`,
             )}
             aria-label={copy(
               language,
-              '基于拆股复权收盘价（不含现金分红）的日线MA200回踩统计；顶部汇总按近5次触发中已完成的60日样本计算，明细观察30日',
-              'Daily MA200 retests use split-adjusted closes without cash dividends; the summary uses completed 60-session samples from the latest five triggers and details use 30 sessions',
+              `基于拆股复权收盘价（不含现金分红）的日线MA200回踩统计；恢复率、回踩幅度和恢复天数按${recentReboundTradingDays}日，平均反弹幅度按已完成的60日样本`,
+              `Daily MA200 retests use split-adjusted closes without cash dividends; recovery rate, depth, and recovery time use ${recentReboundTradingDays} sessions, while average rebound uses completed 60-session samples`,
             )}
           >
             <Info className="h-3.5 w-3.5" aria-hidden="true" />
@@ -623,7 +668,11 @@ export default function Ma200RetestHistoryCard({
             data-ma200-retest-summary-shell="rounded-inset"
           >
             <SummaryMetric
-              label={copy(language, '回踩恢复率', 'Recovery rate')}
+              label={copy(
+                language,
+                `${recentReboundTradingDays}日恢复率`,
+                `${recentReboundTradingDays}d recovery`,
+              )}
               value={formatPercent(summary?.recoveryRatePct, 0, { signed: false })}
               detail={copy(
                 language,
@@ -635,7 +684,11 @@ export default function Ma200RetestHistoryCard({
             <SummaryMetric
               label={copy(language, '平均反弹幅度', 'Avg. rebound')}
               value={formatPercent(summary?.averageMaxReboundPct)}
-              detail={copy(language, '60日内最大', '60-session max')}
+              detail={copy(
+                language,
+                `60日 · ${maxReboundSampleSize}次`,
+                `60d · ${maxReboundSampleSize}`,
+              )}
               color={positiveColor}
             />
             <SummaryMetric
@@ -662,11 +715,13 @@ export default function Ma200RetestHistoryCard({
             events={visibleEvents}
             language={language}
             marketColorMode={marketColorMode}
+            recentReboundTradingDays={recentReboundTradingDays}
           />
           <RetestHistoryDistribution
             events={visibleEvents}
             language={language}
             marketColorMode={marketColorMode}
+            recentReboundTradingDays={recentReboundTradingDays}
           />
         </>
       ) : (
@@ -676,8 +731,8 @@ export default function Ma200RetestHistoryCard({
       <div className="mt-3 border-t border-white/[0.06] px-4 py-3 text-center text-[10.5px] leading-relaxed text-white/[0.34]">
         {copy(
           language,
-          '口径：收盘触及或跌破日线MA200；价格仅拆股复权，不含分红。回踩取恢复前最深收盘偏离，反弹取该低点后的最高收盘涨幅。顶部汇总按近5次触发中已完成的60个交易日样本计算，明细均观察30个交易日。未满窗口不计入统计，仅供历史参考。',
-          'Basis: triggered when the close reaches or falls below daily MA200. Prices are split-adjusted without dividends. Depth is the deepest closing deviation before recovery; rebound is the highest closing gain after that low. The summary uses completed 60-session samples from the latest five triggers; every detail uses 30 sessions. Incomplete windows are excluded; history is not predictive.',
+          `口径：收盘触及或跌破日线MA200；价格仅拆股复权，不含分红。恢复率、回踩幅度和恢复天数按${recentReboundTradingDays}个交易日计算，平均反弹幅度保留已完成的60个交易日样本。未满各自窗口不计入对应统计，仅供历史参考。`,
+          `Basis: triggered when the close reaches or falls below daily MA200. Prices are split-adjusted without dividends. Recovery rate, depth, and recovery time use ${recentReboundTradingDays} sessions; average rebound keeps completed 60-session samples. Incomplete windows are excluded from their respective metrics; history is not predictive.`,
         )}
         {data?.asOfDate ? (
           <span className="mt-1 block tabular-nums" style={{ fontFamily: NUMBER_FONT }}>

@@ -1,6 +1,21 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.384', date: '2026-07-26', latest: true,
+    ver: 'v10.7.9.385', date: '2026-07-26', latest: true,
+    items: [
+      '⏱️ MA200 回踩观察窗口调整为 20 个交易日',
+      '  - 回踩恢复率、平均回踩幅度、平均恢复天数、逐次结果与分布图统一使用已完成的 20 个交易日样本，更贴近可操作的短期恢复表现',
+      '  - 60 个交易日最大反弹继续独立统计，并显示自己的有效样本数，避免较晚恢复抬高 20 日成功率',
+      '  - 已覆盖第 20 日成功、第 21 日失败及未完成样本边界；不改变持仓、交易、收益、比赛或数据库数据',
+    ],
+    itemsEn: [
+      '⏱️ MA200 retest observation window changed to 20 trading sessions',
+      '  - Recovery rate, average retest depth, average recovery time, per-event outcomes, and the distribution chart now consistently use completed 20-session samples for a more actionable short-term view',
+      '  - The 60-session maximum rebound remains a separate statistic with its own valid sample count, preventing later recoveries from inflating the 20-session success rate',
+      '  - Session-20 success, session-21 failure, and incomplete-sample boundaries are covered; holdings, trades, P&L, competition, and database data are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.384', date: '2026-07-26',
     items: [
       '🧮 MA200 回踩历史数据口径修正',
       '  - 股价曲线、日线与周线 MA200、52 周高点及回踩统计统一使用原始收盘加官方拆股记录推导的仅拆股复权价，不再把现金分红混入技术指标',

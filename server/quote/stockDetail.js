@@ -9,12 +9,12 @@ const WEEKLY_MA_TREND_WEEKS = 4;
 const WEEKLY_HISTORY_YEARS = 5;
 const STOCK_DETAIL_PRICE_BASIS = 'split_adjusted_close';
 const STOCK_DETAIL_SOURCE = 'EODHD_EOD_SPLITS';
-const MA200_RETEST_ALGORITHM_VERSION = 'daily-ma200-retest-v3';
+const MA200_RETEST_ALGORITHM_VERSION = 'daily-ma200-retest-v4';
 const MA200_RETEST_LOOKBACK_YEARS = 5;
 const MA200_RETEST_PREPARE_DAYS = 5;
 const MA200_RETEST_PREPARE_DISTANCE = 0.03;
 const MA200_RETEST_OBSERVATION_DAYS = 60;
-const MA200_RETEST_RECENT_REBOUND_DAYS = 30;
+const MA200_RETEST_RECENT_REBOUND_DAYS = 20;
 const MA200_RETEST_RESOLVED_LIMIT = 5;
 const MA200_COMPARISON_EPSILON = 1e-12;
 
@@ -292,6 +292,7 @@ function emptyMa200RetestHistory(asOfDate = '', status = 'insufficient_data') {
       recoveryRatePct: null,
       averageRetestDepthPct: null,
       averageMaxReboundPct: null,
+      maxReboundSampleSize: 0,
       averageRecoveryTradingDays: null,
     },
     events: [],
@@ -422,7 +423,7 @@ function buildMa200RetestEvent(allHistory, triggerIndex) {
     status: summaryWindow.complete
       ? (summaryWindow.recovered ? 'recovered' : 'failed')
       : 'observing',
-    rebound30Status: recentWindow.complete
+    recentReboundStatus: recentWindow.complete
       ? (recentWindow.recovered ? 'recovered' : 'failed')
       : 'observing',
     triggerClose: trigger.close,
@@ -439,19 +440,19 @@ function buildMa200RetestEvent(allHistory, triggerIndex) {
     observedTradingDays: summaryWindow.observedTradingDays,
     observationEndDate: allHistory[summaryWindow.observationEndIndex].date,
     recentObservedTradingDays: recentWindow.observedTradingDays,
-    rebound30Complete: recentWindow.complete,
-    recovery30TradingDays: recentWindow.recovered
+    recentReboundComplete: recentWindow.complete,
+    recentRecoveryTradingDays: recentWindow.recovered
       ? recentWindow.recoveryConfirmationIndex - triggerIndex
       : null,
-    recovery30Date: recentWindow.recovered
+    recentRecoveryDate: recentWindow.recovered
       ? allHistory[recentWindow.recoveryConfirmationIndex].date
       : '',
-    retestDepth30Pct: recentWindow.complete ? recentWindow.retestDepthPct : null,
-    maxRebound30Pct: recentWindow.complete ? recentWindow.maxReboundPct : null,
-    rebound30EndDate: recentWindow.complete
+    recentRetestDepthPct: recentWindow.complete ? recentWindow.retestDepthPct : null,
+    recentMaxReboundPct: recentWindow.complete ? recentWindow.maxReboundPct : null,
+    recentReboundEndDate: recentWindow.complete
       ? allHistory[recentWindow.observationEndIndex].date
       : '',
-    low30Date: allHistory[recentWindow.lowIndex].date,
+    recentLowDate: allHistory[recentWindow.lowIndex].date,
     series,
   };
 }
@@ -474,12 +475,14 @@ function buildMa200RetestHistory(allHistory, latestDate) {
   const events = recentEvents
     .slice(-MA200_RETEST_RESOLVED_LIMIT)
     .reverse();
-  // Keep the summary and the visible latest-five table on one cohort. An
-  // incomplete 60-session event stays visible but is excluded from the
-  // summary until its window closes.
-  const resolvedEvents = events.filter((event) => event.status !== 'observing');
-  const recoveredEvents = resolvedEvents.filter((event) => event.status === 'recovered');
-  const resolvedSampleSize = resolvedEvents.length;
+  // Keep every summary metric on the visible latest-five cohort. Recovery,
+  // depth, and recovery time use the actionable recent window; only the
+  // medium-term maximum rebound waits for the full 60-session window.
+  const recentResolvedEvents = events.filter((event) => event.recentReboundComplete);
+  const recentRecoveredEvents = recentResolvedEvents
+    .filter((event) => event.recentReboundStatus === 'recovered');
+  const maxReboundEvents = events.filter((event) => event.status !== 'observing');
+  const resolvedSampleSize = recentResolvedEvents.length;
 
   return {
     algorithmVersion: MA200_RETEST_ALGORITHM_VERSION,
@@ -496,18 +499,19 @@ function buildMa200RetestHistory(allHistory, latestDate) {
     lookbackYears: MA200_RETEST_LOOKBACK_YEARS,
     summary: {
       resolvedSampleSize,
-      recoveredCount: recoveredEvents.length,
+      recoveredCount: recentRecoveredEvents.length,
       recoveryRatePct: resolvedSampleSize > 0
-        ? (recoveredEvents.length / resolvedSampleSize) * 100
+        ? (recentRecoveredEvents.length / resolvedSampleSize) * 100
         : null,
       averageRetestDepthPct: averageOrNull(
-        resolvedEvents.map((event) => event.retestDepthPct),
+        recentResolvedEvents.map((event) => event.recentRetestDepthPct),
       ),
       averageMaxReboundPct: averageOrNull(
-        resolvedEvents.map((event) => event.maxReboundPct),
+        maxReboundEvents.map((event) => event.maxReboundPct),
       ),
+      maxReboundSampleSize: maxReboundEvents.length,
       averageRecoveryTradingDays: averageOrNull(
-        recoveredEvents.map((event) => event.recoveryTradingDays),
+        recentRecoveredEvents.map((event) => event.recentRecoveryTradingDays),
       ),
     },
     events,

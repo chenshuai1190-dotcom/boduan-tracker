@@ -614,8 +614,9 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(indexHtmlSource.includes('color-scheme: dark;'), 'index.html should tell the browser to use a dark startup color scheme');
   assert.equal(manifestJson.background_color, '#05070b', 'PWA manifest background should match the app dark shell');
   assert.equal(manifestJson.theme_color, '#05070b', 'PWA manifest theme color should match the app dark shell');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.384'"), 'visible settings version surfaces should share one source');
-  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.384', date: '2026-07-26', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.385'"), 'visible settings version surfaces should share one source');
+  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.385', date: '2026-07-26', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsChangelogSource.includes('MA200 回踩观察窗口调整为 20 个交易日') && settingsChangelogSource.includes('已完成的 20 个交易日样本') && settingsChangelogSource.includes('60 个交易日最大反弹继续独立统计') && settingsChangelogSource.includes('第 20 日成功、第 21 日失败') && settingsChangelogSource.includes('不改变持仓、交易、收益、比赛或数据库数据'), 'settings changelog should document the 20-session action window, separate 60-session metric, and tested boundaries');
   assert.ok(settingsChangelogSource.includes('MA200 回踩历史数据口径修正') && settingsChangelogSource.includes('原始收盘加官方拆股记录') && settingsChangelogSource.includes('已完成的 60 个交易日样本') && settingsChangelogSource.includes('全部锁定 30 个交易日') && settingsChangelogSource.includes('不改变持仓、交易、收益或比赛账本'), 'settings changelog should document the corrected split-only basis and separated 60/30-session contracts');
   assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.383', date: '2026-07-26'") && settingsChangelogSource.includes('股票趋势新增 MA200 日线回踩历史'), 'settings changelog should preserve the original MA200 retest release as history');
   assert.ok(settingsChangelogSource.includes('首页 BTC 实时行情增加独立兜底') && settingsChangelogSource.includes('只有收到真实 BTC tick 后才显示绿色 LIVE') && settingsChangelogSource.includes('BTC-USD.CC REST 行情') && settingsChangelogSource.includes('自动切回 LIVE'), 'settings changelog should document the BTC live-first REST fallback release');
@@ -2516,7 +2517,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.384'"), 'settings version surfaces should remain synchronized through the shared constant');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.385'"), 'settings version surfaces should remain synchronized through the shared constant');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');

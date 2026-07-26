@@ -24,13 +24,12 @@ test('daily MA200 card labels its basis and never presents weekly MA as the rete
   assert.ok(cardSource.includes('近5次回踩'));
   assert.ok(cardSource.includes('价格仅拆股复权，不含分红'));
   assert.ok(cardSource.includes('拆股复权收盘价（不含现金分红）'));
-  assert.ok(cardSource.includes('顶部汇总按近5次触发中已完成的60个交易日样本计算'));
-  assert.ok(cardSource.includes('明细均观察30个交易日'));
-  assert.ok(cardSource.includes('未满窗口不计入统计'));
+  assert.ok(cardSource.includes('const DEFAULT_RECENT_REBOUND_DAYS = 20'));
+  assert.ok(cardSource.includes('finiteNumber(data?.recentReboundTradingDays)'));
+  assert.ok(cardSource.includes('恢复率、回踩幅度和恢复天数按${recentReboundTradingDays}个交易日计算'));
+  assert.ok(cardSource.includes('平均反弹幅度保留已完成的60个交易日样本'));
+  assert.ok(cardSource.includes('未满各自窗口不计入对应统计'));
   assert.ok(cardSource.includes('仅供历史参考'));
-  assert.equal(cardSource.includes('回踩后观察20个交易日'), false);
-  assert.equal(cardSource.includes('20日反弹'), false);
-  assert.equal(cardSource.includes('20 sessions'), false);
   assert.equal(cardSource.includes('MA200周线'), false);
   assert.ok(cardSource.includes('data-watchlist-ma200-retest-history="daily"'));
 });
@@ -42,12 +41,12 @@ test('daily MA200 card renders real event states and respects the 10px typograph
   assert.ok(cardSource.includes('已重返MA200'));
   assert.ok(cardSource.includes('连续2日站上'));
   assert.ok(cardSource.includes('event?.series'));
-  assert.ok(cardSource.includes('event?.retestDepth30Pct'));
-  assert.ok(cardSource.includes('event?.maxRebound30Pct'));
-  assert.ok(cardSource.includes('lowDate={event?.low30Date}'));
-  assert.ok(cardSource.includes("status === 'failed' ? '>30' : '—'"));
-  assert.ok(cardSource.includes('event?.recovery30TradingDays'));
-  assert.ok(cardSource.includes('event?.rebound30Status'));
+  assert.ok(cardSource.includes('event?.recentRetestDepthPct'));
+  assert.ok(cardSource.includes('event?.recentMaxReboundPct'));
+  assert.ok(cardSource.includes('lowDate={event?.recentLowDate}'));
+  assert.ok(cardSource.includes("status === 'failed' ? `>${recentReboundTradingDays}` : '—'"));
+  assert.ok(cardSource.includes('event?.recentRecoveryTradingDays'));
+  assert.ok(cardSource.includes('event?.recentReboundStatus'));
   assert.equal(/text-\\[(?:8|8\\.5|9|9\\.5)px\\]/.test(cardSource), false);
   assert.equal(/fontSize=["'](?:8|8\\.5|9|9\\.5)["']/.test(cardSource), false);
 });
@@ -66,6 +65,7 @@ test('daily MA200 summary keeps all four metrics in one compact row on mobile', 
   assert.ok(summarySource.includes('rounded-xl'));
   assert.ok(cardSource.includes('whitespace-nowrap'));
   assert.equal((summarySource.match(/<SummaryMetric/g) || []).length, 4);
+  assert.ok(summarySource.includes('`${recentReboundTradingDays}日恢复率`'));
 });
 
 test('daily MA200 events use the reference-style compact seven-column table', () => {
@@ -81,9 +81,9 @@ test('daily MA200 events use the reference-style compact seven-column table', ()
     '触发日期',
     '回踩幅度',
     '迷你V形日线MA200图',
-    '30日内最深回踩后的最大反弹',
+    '${recentReboundTradingDays}日内最深回踩后的最大反弹',
     '反弹天数',
-    '30日观察结果',
+    '${recentReboundTradingDays}日观察结果',
     '结果',
   ].forEach((label) => assert.ok(cardSource.includes(label), label));
   assert.ok(cardSource.includes('min-h-[58px]'));
@@ -108,14 +108,14 @@ test('daily MA200 mini chart is calculated from real event series with zero, low
   assert.ok(cardSource.includes('if (points.length < 2)'));
 });
 
-test('daily MA200 history plots only completed 30-session windows after the compact event table', () => {
+test('daily MA200 history plots only completed 20-session windows after the compact event table', () => {
   assert.ok(cardSource.includes('data-ma200-retest-distribution="completed-events"'));
   assert.ok(cardSource.includes('data-watchlist-detail-section="ma200-distribution"'));
-  assert.ok(cardSource.includes("event?.rebound30Complete === true"));
-  assert.ok(cardSource.includes('finiteNumber(event?.retestDepth30Pct)'));
-  assert.ok(cardSource.includes('finiteNumber(event?.maxRebound30Pct)'));
+  assert.ok(cardSource.includes("event?.recentReboundComplete === true"));
+  assert.ok(cardSource.includes('finiteNumber(event?.recentRetestDepthPct)'));
+  assert.ok(cardSource.includes('finiteNumber(event?.recentMaxReboundPct)'));
   assert.ok(cardSource.includes('if (points.length === 0) return null'));
-  assert.ok(cardSource.includes('未满30日不计'));
+  assert.ok(cardSource.includes('未满${recentReboundTradingDays}日不计'));
   assert.ok(cardSource.includes('近5次回踩结果'));
   assert.ok(cardSource.includes('data-ma200-distribution-point="retest-depth"'));
   assert.ok(cardSource.includes('data-ma200-distribution-point="max-rebound"'));
@@ -123,7 +123,7 @@ test('daily MA200 history plots only completed 30-session windows after the comp
   assert.ok(cardSource.includes('data-ma200-distribution-label="max-rebound"'));
   assert.ok(cardSource.includes('{formatPercent(event.retestDepthPct)}'));
   assert.ok(cardSource.includes('{formatPercent(event.maxReboundPct)}'));
-  assert.ok(cardSource.includes('回踩幅度与30日反弹分布'));
+  assert.ok(cardSource.includes('回踩幅度与${recentReboundTradingDays}日反弹分布'));
   assert.ok(cardSource.includes('.sort((left, right) => left.triggerDate.localeCompare(right.triggerDate))'));
 
   const eventTableIndex = cardSource.indexOf('<RetestEventsTable');
@@ -142,13 +142,14 @@ test('daily MA200 history plots only completed 30-session windows after the comp
   assert.ok(basisCopyIndex > distributionIndex);
 });
 
-test('daily MA200 UI keeps the 60-session summary separate from the 30-session latest-five metrics', () => {
+test('daily MA200 UI keeps the 60-session summary separate from the 20-session latest-five metrics', () => {
   assert.ok(cardSource.includes('value={formatPercent(summary?.averageMaxReboundPct)}'));
-  assert.ok(cardSource.includes("detail={copy(language, '60日内最大', '60-session max')}"));
-  assert.ok(cardSource.includes('{formatPercent(event?.maxRebound30Pct)}'));
-  assert.ok(cardSource.includes('{formatPercent(event?.retestDepth30Pct)}'));
-  assert.ok(cardSource.includes("copy(language, '30日反弹', '30d rebound')"));
-  assert.ok(cardSource.includes("copy(language, '30日观察结果', '30-session result')"));
+  assert.ok(cardSource.includes('finiteNumber(summary?.maxReboundSampleSize)'));
+  assert.ok(cardSource.includes('`60日 · ${maxReboundSampleSize}次`'));
+  assert.ok(cardSource.includes('{formatPercent(event?.recentMaxReboundPct)}'));
+  assert.ok(cardSource.includes('{formatPercent(event?.recentRetestDepthPct)}'));
+  assert.ok(cardSource.includes('`${recentReboundTradingDays}日反弹`'));
+  assert.ok(cardSource.includes('`${recentReboundTradingDays}-session result`'));
   assert.equal(cardSource.includes('event?.recoveryTradingDays'), false);
   assert.equal(cardSource.includes('{formatPercent(event?.maxReboundPct)}'), false);
 });
