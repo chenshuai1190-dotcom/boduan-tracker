@@ -1,6 +1,21 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.393', date: '2026-07-26', latest: true,
+    ver: 'v10.7.9.394', date: '2026-07-26', latest: true,
+    items: [
+      '📊 季度业绩趋势排版优化',
+      '  - 季度图改为展示最近 6 个完整季度，并按时间顺序重新均分横向空间，季度之间更清晰',
+      '  - 季度柱宽统一为 18px；营收与净利润同时为四位数时仍保留千位分隔，标签不重叠、不越界',
+      '  - 年度图、SEC 历史读取、8 季度源数据、缓存和财报计算口径均保持不变',
+    ],
+    itemsEn: [
+      '📊 Refined quarterly performance-trend layout',
+      '  - The quarterly chart now presents the latest six complete quarters in chronological order with more breathing room between periods',
+      '  - Quarterly bars now use a consistent 18px width; four-digit revenue and net-income labels keep thousands separators without overlapping or overflowing',
+      '  - The annual chart, SEC history retrieval, eight-quarter source data, cache, and earnings calculations are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.393', date: '2026-07-26',
     items: [
       '🛠️ 财报历史财期读取修复',
       '  - Alphabet 的年度与季度历史现在会衔接已核验的 SEC 收入口径迁移，不再因官方概念切换而停留在较早财期',

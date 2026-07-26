@@ -6,6 +6,7 @@ import {
 } from '../server/earnings/secFinancialHistory.js';
 import {
   EARNINGS_GROWTH_CACHE_TTL_MS,
+  EARNINGS_GROWTH_QUARTERLY_DISPLAY_LIMIT,
   EARNINGS_GROWTH_SCHEMA_VERSION,
   EARNINGS_GROWTH_STORAGE_PREFIX,
   EARNINGS_GROWTH_STORAGE_VERSION,
@@ -13,6 +14,7 @@ import {
   buildEarningsGrowthChartGeometry,
   buildEarningsGrowthSummary,
   calculateEarningsGrowthCagr,
+  earningsGrowthVisiblePeriods,
   loadEarningsGrowth,
   normalizeEarningsGrowthPayload,
   resetEarningsGrowthMemoryCache,
@@ -227,6 +229,36 @@ test('chart labels keep a consistent distance from positive bars and grouped bar
   }
 });
 
+test('six visible quarters leave enough room between adjacent four-digit labels', () => {
+  const rows = Array.from({ length: 8 }, (_, index) => period(`FY202${index}`, {
+    fiscalQuarter: `Q${(index % 4) + 1}`,
+    revenue: 1_198 + index,
+    netIncome: 1_122 + index,
+  }));
+  const visible = earningsGrowthVisiblePeriods({ quarterly: rows }, 'quarterly');
+  assert.equal(EARNINGS_GROWTH_QUARTERLY_DISPLAY_LIMIT, 6);
+  assert.equal(rows.length, 8);
+  assert.equal(visible.length, 6);
+  assert.equal(visible[0], rows[2]);
+  const chart = buildEarningsGrowthChartGeometry(visible, {
+    mode: 'quarterly',
+    width: 480,
+    height: 185,
+  });
+  chart.groups.forEach((group, index) => {
+    const revenueCenter = group.revenue.x + group.revenue.width / 2;
+    const netIncomeCenter = group.netIncome.x + group.netIncome.width / 2;
+    assert.equal(group.revenue.width, 18);
+    assert.equal(group.netIncome.width, 18);
+    assert.ok(netIncomeCenter - revenueCenter >= 28);
+    if (index > 0) {
+      const previous = chart.groups[index - 1];
+      const previousNetIncomeCenter = previous.netIncome.x + previous.netIncome.width / 2;
+      assert.ok(revenueCenter - previousNetIncomeCenter >= 40);
+    }
+  });
+});
+
 test('earnings growth loader authenticates once and reuses the user-scoped cache', async () => {
   resetEarningsGrowthMemoryCache();
   const storage = memoryStorage();
@@ -438,4 +470,6 @@ test('earnings growth component keeps the confirmed mobile interaction contract'
   assert.equal(componentSource.includes('sourceText('), false);
   assert.equal(componentSource.includes('SEC 公司事实'), false);
   assert.equal(componentSource.includes('role="dialog"'), false);
+  assert.ok(componentSource.includes('const QUARTERLY_CHART_WIDTH = 480'));
+  assert.ok(componentSource.includes("earningsGrowthVisiblePeriods(data, mode)"));
 });

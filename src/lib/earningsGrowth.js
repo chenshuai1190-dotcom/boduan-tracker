@@ -2,6 +2,7 @@ export const EARNINGS_GROWTH_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 export const EARNINGS_GROWTH_TRANSIENT_CACHE_TTL_MS = 5 * 60 * 1000;
 export const EARNINGS_GROWTH_ANNUAL_LIMIT = 6;
 export const EARNINGS_GROWTH_QUARTERLY_LIMIT = 8;
+export const EARNINGS_GROWTH_QUARTERLY_DISPLAY_LIMIT = 6;
 export const EARNINGS_GROWTH_SCHEMA_VERSION = 3;
 export const EARNINGS_GROWTH_STORAGE_VERSION = 2;
 export const EARNINGS_GROWTH_STORAGE_PREFIX = 'xmoney_earnings_growth_v2';
@@ -273,6 +274,14 @@ export function buildEarningsGrowthSummary(data, mode = 'annual') {
   };
 }
 
+export function earningsGrowthVisiblePeriods(data, mode = 'annual') {
+  const normalizedMode = mode === 'quarterly' ? 'quarterly' : 'annual';
+  const periods = Array.isArray(data?.[normalizedMode]) ? data[normalizedMode] : [];
+  return normalizedMode === 'quarterly'
+    ? periods.slice(-EARNINGS_GROWTH_QUARTERLY_DISPLAY_LIMIT)
+    : periods;
+}
+
 function niceStep(value) {
   if (!Number.isFinite(value) || value <= 0) return 1;
   const power = 10 ** Math.floor(Math.log10(value));
@@ -283,7 +292,7 @@ function niceStep(value) {
 
 export function buildEarningsGrowthChartGeometry(periods, {
   mode = 'annual',
-  width = mode === 'quarterly' ? 520 : 356,
+  width = mode === 'quarterly' ? 480 : 356,
   height = 185,
 } = {}) {
   const rows = (Array.isArray(periods) ? periods : [])
@@ -308,8 +317,14 @@ export function buildEarningsGrowthChartGeometry(periods, {
     margin.top + ((domainMax - value) / (domainMax - domainMin)) * plotHeight
   );
   const groupWidth = plotWidth / rows.length;
-  const barWidth = Math.min(mode === 'quarterly' ? 12 : 16, groupWidth * 0.31);
-  const barGap = Math.max(4, Math.min(6, groupWidth * 0.1));
+  const quarterly = mode === 'quarterly';
+  const barWidth = Math.min(
+    quarterly ? 18 : 16,
+    groupWidth * (quarterly ? 0.34 : 0.31),
+  );
+  const barGap = quarterly
+    ? Math.max(9, Math.min(10, groupWidth * 0.15))
+    : Math.max(4, Math.min(6, groupWidth * 0.1));
   const zeroY = y(0);
   const groups = rows.map((period, index) => {
     const centerX = margin.left + groupWidth * (index + 0.5);

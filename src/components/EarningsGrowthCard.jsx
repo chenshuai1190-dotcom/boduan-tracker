@@ -5,6 +5,7 @@ import {
   buildEarningsGrowthSummary,
   earningsGrowthPeriodKey,
   earningsGrowthPeriodLabel,
+  earningsGrowthVisiblePeriods,
   loadEarningsGrowth,
   normalizeEarningsGrowthPayload,
 } from '../lib/earningsGrowth.js';
@@ -15,7 +16,7 @@ const REVENUE_COLOR = '#5e8ff5';
 const PROFIT_COLOR = '#69c34a';
 const ACCENT_COLOR = '#e7aa49';
 const ANNUAL_CHART_WIDTH = 356;
-const QUARTERLY_CHART_WIDTH = 520;
+const QUARTERLY_CHART_WIDTH = 480;
 const CHART_HEIGHT = 185;
 
 function finiteOrNull(value) {
@@ -250,7 +251,7 @@ function GrowthChart({
       <svg
         viewBox={`0 0 ${chart.width} ${chart.height}`}
         className={mode === 'quarterly'
-          ? 'block h-[185px] w-[520px] max-w-none overflow-visible'
+          ? 'block h-[185px] w-[480px] max-w-none overflow-visible'
           : 'block h-auto w-full overflow-visible'}
         role="img"
         aria-label={languageIsEnglish(language)
@@ -490,8 +491,8 @@ export default function EarningsGrowthCard({
   ]);
 
   const data = requestState.data;
-  const annualReady = Boolean(data?.annual?.length);
-  const quarterlyReady = Boolean(data?.quarterly?.length);
+  const annualReady = Boolean(earningsGrowthVisiblePeriods(data, 'annual').length);
+  const quarterlyReady = Boolean(earningsGrowthVisiblePeriods(data, 'quarterly').length);
   React.useEffect(() => {
     if (mode === 'annual' && !annualReady && quarterlyReady) setMode('quarterly');
     if (mode === 'quarterly' && !quarterlyReady && annualReady) setMode('annual');
@@ -502,7 +503,7 @@ export default function EarningsGrowthCard({
     setSelectedByMode((current) => {
       const next = { ...current };
       for (const candidateMode of ['annual', 'quarterly']) {
-        const periods = data[candidateMode] || [];
+        const periods = earningsGrowthVisiblePeriods(data, candidateMode);
         const validKeys = new Set(periods.map((period) => earningsGrowthPeriodKey(period, candidateMode)));
         if (!validKeys.has(next[candidateMode])) {
           next[candidateMode] = earningsGrowthPeriodKey(periods.at(-1), candidateMode);
@@ -521,7 +522,7 @@ export default function EarningsGrowthCard({
     return () => cancelAnimationFrame(frame);
   }, [mode, quarterlyReady]);
 
-  const periods = mode === 'annual' ? data?.annual || [] : data?.quarterly || [];
+  const periods = earningsGrowthVisiblePeriods(data, mode);
   const selectedKey = selectedByMode[mode];
   const selected = periods.find((period) => (
     earningsGrowthPeriodKey(period, mode) === selectedKey
