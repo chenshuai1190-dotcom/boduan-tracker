@@ -8,7 +8,7 @@ import { MARKET_COLOR_MODE_STORAGE_KEY, normalizeMarketColorMode } from './lib/m
 import { buildLedgerQuoteUniverse } from './lib/stockUniverse.js';
 import { applyBtcTickToMarketCard, resolveBtcSnapshotRealtimeStatus } from './lib/btcRealtime.js';
 import { applyIndexTickToMarketCards, mergeIndexRestCardsIntoMarketCards, shouldAppendIndexIntraday } from './lib/indexRealtime.js';
-import { applyStockTickToQuoteRows, getUsEquityRealtimeSession, isFreshStockRealtimeTick, mergeFreshStockRealtimeRows, mergeStockTicksIntoQuoteRows, selectStockRealtimeSymbols } from './lib/stockRealtime.js';
+import { applyStockTickToQuoteRows, getUsEquityRealtimeSession, isFreshStockRealtimeTick, mergeFreshStockRealtimeRows, mergeStockSnapshotPollRequest, mergeStockTicksIntoQuoteRows, selectStockRealtimeSymbols, shouldApplyStockSnapshotTick, shouldPollStockRealtimeSnapshot } from './lib/stockRealtime.js';
 import { normalizeStrictUserStockSymbol, normalizeUserStockSymbol } from './lib/symbols.js';
 import { getStoredLanguage, isEnglishLanguage, saveStoredLanguage, t } from './lib/i18n.js';
 import { isEarningsPublished } from './lib/earningsCalendarModel.js';
@@ -47,6 +47,7 @@ const REALTIME_RESUME_RECONNECT_THROTTLE_MS = 3000;
 const REALTIME_FORCE_RECONNECT_THROTTLE_MS = 1000;
 const BTC_RESUME_RECONNECT_GRACE_MS = REALTIME_STALE_MS;
 const STOCK_REALTIME_FIRST_TICK_TIMEOUT_MS = 8000;
+const IOS_PWA_STOCK_REALTIME_FIRST_TICK_TIMEOUT_MS = 4000;
 const STOCK_REALTIME_NO_TICK_RECONNECT_MS = 30_000;
 const REALTIME_RECONNECT_MAX_MS = 30_000;
 const PULL_REFRESH_THRESHOLD = 72;
@@ -1408,7 +1409,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     setMarketIndices((current) => applyIndexTickToMarketCards(current, tick, realtimeStatus, getIndexChartOptions()));
   }, []);
 
-  const applyStockRealtimeTick = useCallback((tick, realtimeStatus = 'live') => {
+  const applyStockRealtimeTick = useCallback((tick, realtimeStatus = 'live', options = {}) => {
     const price = Number(tick?.price);
     if (!Number.isFinite(price) || price <= 0) return;
     const tickAt = Number(tick?.timestamp || tick?.receivedAt || Date.now());
@@ -1421,7 +1422,13 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
       clientReceivedAt,
     };
     ref.lastTicks.set(key, enrichedTick);
-    ref.lastTickAt = Date.now();
+    ref.lastTickAt = clientReceivedAt;
+    if (options?.transport === 'websocket') {
+      ref.lastWebSocketTickAt = clientReceivedAt;
+      ref.lastWebSocketTickAtBySymbol.set(key, clientReceivedAt);
+    } else if (options?.transport === 'snapshot') {
+      ref.lastSnapshotTickAt = clientReceivedAt;
+    }
     ref.lastTickIso = new Date(tickAt).toISOString();
     ref.status = realtimeStatus;
     ref.error = null;
@@ -1704,6 +1711,9 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     error: null,
     lastTicks: new Map(),
     lastTickAt: 0,
+    lastWebSocketTickAt: 0,
+    lastWebSocketTickAtBySymbol: new Map(),
+    lastSnapshotTickAt: 0,
     lastTickIso: null,
     liveAt: 0,
     lastConnectAttemptAt: 0,
@@ -3199,7 +3209,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     const heartbeatTimer = window.setInterval(() => {
       if (document.hidden) return;
       markForegroundHeartbeat();
-      const stockLastTickAt = stockRealtimeRef.current.lastTickAt || 0;
+      const stockLastTickAt = stockRealtimeRef.current.lastWebSocketTickAt || 0;
       if (!stockLastTickAt || Date.now() - stockLastTickAt > REALTIME_STALE_MS) {
         requestRealtimeResumeReconnect({ force: true, trigger: 'auto-ios-visible-heartbeat' });
       }
@@ -3859,33 +3869,10 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
       stockRealtimeRef.current.error = null;
       return undefined;
     }
-    if (isIosStandaloneWebApp()) {
-      const ref = stockRealtimeRef.current;
-      if (ref.reconnectTimer) {
-        clearTimeout(ref.reconnectTimer);
-        ref.reconnectTimer = null;
-      }
-      if (ref.firstTickTimer) {
-        clearTimeout(ref.firstTickTimer);
-        ref.firstTickTimer = null;
-      }
-      if (ref.staleTimer) {
-        clearInterval(ref.staleTimer);
-        ref.staleTimer = null;
-      }
-      if (ref.socket) {
-        try {
-          ref.socket.close(1000, 'ios pwa snapshot mode');
-        } catch {}
-        ref.socket = null;
-      }
-      ref.status = 'polling';
-      ref.error = null;
-      return undefined;
-    }
-
     let stopped = false;
     const ref = stockRealtimeRef.current;
+    ref.lastWebSocketTickAt = 0;
+    ref.lastWebSocketTickAtBySymbol.clear();
 
     const clearReconnectTimer = () => {
       if (ref.reconnectTimer) {
@@ -3926,15 +3913,23 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
       ref.firstTickTimer = setTimeout(() => {
         ref.firstTickTimer = null;
         if (stopped || document.hidden || ref.socket !== socket) return;
-        if (ref.lastTickAt && ref.lastTickAt >= openedAt) return;
+        if (ref.lastWebSocketTickAt && ref.lastWebSocketTickAt >= openedAt) return;
         ref.status = 'waiting';
         ref.error = '股票实时首包等待中,保留连接并补拉快照';
+        if (isIosStandaloneWebApp() && iosPwaRealtimeSnapshotBurstRef.current(
+          'auto-ios-pwa-first-tick-timeout',
+          { resetFreshness: false },
+        )) {
+          return;
+        }
         requestQuickQuoteRefresh(quoteRowsRef.current, {
           trigger: 'auto-realtime-open',
           force: true,
           minIntervalMs: 0,
         });
-      }, STOCK_REALTIME_FIRST_TICK_TIMEOUT_MS);
+      }, isIosStandaloneWebApp()
+        ? IOS_PWA_STOCK_REALTIME_FIRST_TICK_TIMEOUT_MS
+        : STOCK_REALTIME_FIRST_TICK_TIMEOUT_MS);
     };
 
     const connect = async () => {
@@ -3963,6 +3958,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
           const openedAt = Date.now();
           ref.lastSocketOpenAt = openedAt;
           ref.sessionTickSymbols = new Set();
+          ref.lastWebSocketTickAtBySymbol.clear();
           ref.retryDelayMs = 1000;
           ref.status = 'connecting';
           ref.error = null;
@@ -3984,7 +3980,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
             const tickSymbol = normalizeSymbolKey(payload.symbol || payload.ticker || payload.displaySymbol);
             if (tickSymbol) ref.sessionTickSymbols.add(tickSymbol);
             clearFirstTickTimer();
-            applyStockRealtimeTick(payload, 'live');
+            applyStockRealtimeTick(payload, 'live', { transport: 'websocket' });
             return;
           }
           if (payload?.type === 'stocks_status' && payload.status) {
@@ -4002,11 +3998,13 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
             return;
           }
           if (stopped || document.hidden) return;
+          ref.lastWebSocketTickAt = 0;
           ref.status = ref.status === 'live' ? 'stale' : 'reconnecting';
           scheduleReconnect(connect);
         });
 
         socket.addEventListener('error', () => {
+          ref.lastWebSocketTickAt = 0;
           ref.error = '股票实时连接中断,正在重连';
         });
       } catch (e) {
@@ -4019,6 +4017,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     const pauseRealtime = () => {
       clearReconnectTimer();
       closeSocket();
+      ref.lastWebSocketTickAt = 0;
       ref.status = 'paused';
     };
 
@@ -4032,14 +4031,14 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
         return;
       }
       if (ref.lastConnectAttemptAt && now - ref.lastConnectAttemptAt < REALTIME_RESUME_RECONNECT_THROTTLE_MS) return;
-      const lastActivityAt = ref.lastTickAt || ref.liveAt;
+      const lastActivityAt = ref.lastWebSocketTickAt || ref.liveAt;
       if (ref.socket && lastActivityAt && now - lastActivityAt < REALTIME_RESUME_RECONNECT_STALE_MS) return;
       connect();
     };
 
     const handleRealtimeStale = () => {
       const now = Date.now();
-      const lastTickAt = ref.lastTickAt || 0;
+      const lastTickAt = ref.lastWebSocketTickAt || 0;
       if (!lastTickAt) {
         const openedAt = ref.lastSocketOpenAt || ref.lastConnectAttemptAt || 0;
         if (ref.socket && openedAt && now - openedAt > STOCK_REALTIME_NO_TICK_RECONNECT_MS) {
@@ -4106,6 +4105,8 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     let pollTimer = null;
     const burstTimers = new Set();
     let inFlight = false;
+    let trailingPoll = null;
+    let trailingPollTimer = null;
 
     const parseSnapshotResponse = async (response, label) => {
       const result = await response.json().catch(() => ({}));
@@ -4120,12 +4121,25 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
       burstTimers.clear();
     };
 
+    const clearTrailingPollTimer = () => {
+      if (!trailingPollTimer) return;
+      window.clearTimeout(trailingPollTimer);
+      trailingPollTimer = null;
+    };
+
     const markSnapshotWarming = (options = {}) => {
       if (options?.resetFreshness !== false) {
         setWarmStartedAt(Date.now());
       }
       setIndexRealtimeStatus('warming');
-      stockRealtimeRef.current.status = 'warming';
+      if (shouldPollStockRealtimeSnapshot({
+        lastWebSocketTickAt: stockRealtimeRef.current.lastWebSocketTickAt,
+        lastWebSocketTickAtBySymbol: stockRealtimeRef.current.lastWebSocketTickAtBySymbol,
+        symbols: stockRealtimeSymbols,
+        staleMs: REALTIME_STALE_MS,
+      })) {
+        stockRealtimeRef.current.status = 'warming';
+      }
     };
 
     const keepPendingStatus = (setter) => {
@@ -4136,52 +4150,83 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
       const forceSnapshot = options?.force === true;
       const warmSnapshot = options?.warm === true;
       const resetFreshness = options?.resetFreshness !== false;
-      if (stopped || inFlight) return;
+      if (stopped) return;
+      if (inFlight) {
+        trailingPoll = mergeStockSnapshotPollRequest(trailingPoll, {
+          trigger,
+          force: forceSnapshot,
+          warm: warmSnapshot,
+          resetFreshness,
+        });
+        return;
+      }
       if (!forceSnapshot && document.hidden) return;
       if (warmSnapshot) markSnapshotWarming({ resetFreshness });
       inFlight = true;
       const stockSymbolsSnapshot = stockRealtimeSymbols.join(',');
       try {
-        const requests = [
-          fetchRealtimeSnapshot('/api/indices-realtime'),
-        ];
-        if (stockSymbolsSnapshot) {
-          requests.push(fetchRealtimeSnapshot('/api/stocks-realtime', { symbols: stockSymbolsSnapshot }));
-        }
-
-        const [indicesResult, stocksResult] = await Promise.allSettled(requests);
-
-        if (indicesResult.status === 'fulfilled') {
-          const snapshot = await parseSnapshotResponse(indicesResult.value, 'indices');
-          const ticks = Array.isArray(snapshot?.ticks) ? snapshot.ticks : [];
-          ticks.forEach((tick) => applyIndexRealtimeTick(tick, 'live'));
-          if (ticks.length === 0) {
-            keepPendingStatus(setIndexRealtimeStatus);
-          }
-        } else {
-          keepPendingStatus(setIndexRealtimeStatus);
-        }
-
-        if (stocksResult) {
-          if (stocksResult.status === 'fulfilled') {
-            const snapshot = await parseSnapshotResponse(stocksResult.value, 'stocks');
+        const indicesRequest = fetchRealtimeSnapshot('/api/indices-realtime')
+          .then((response) => parseSnapshotResponse(response, 'indices'))
+          .then((snapshot) => {
             const ticks = Array.isArray(snapshot?.ticks) ? snapshot.ticks : [];
-            ticks.forEach((tick) => applyStockRealtimeTick(tick, 'live'));
-            if (ticks.length === 0 && stockRealtimeRef.current.status !== 'warming') {
-              stockRealtimeRef.current.status = 'polling';
+            ticks.forEach((tick) => applyIndexRealtimeTick(tick, 'live'));
+            if (ticks.length === 0) {
+              keepPendingStatus(setIndexRealtimeStatus);
             }
-          } else {
-            if (stockRealtimeRef.current.status !== 'warming') {
-              stockRealtimeRef.current.status = 'polling';
-            }
-          }
-        }
+          })
+          .catch(() => {
+            keepPendingStatus(setIndexRealtimeStatus);
+          });
 
+        const shouldPollStocks = Boolean(stockSymbolsSnapshot) && shouldPollStockRealtimeSnapshot({
+          lastWebSocketTickAt: stockRealtimeRef.current.lastWebSocketTickAt,
+          lastWebSocketTickAtBySymbol: stockRealtimeRef.current.lastWebSocketTickAtBySymbol,
+          symbols: stockRealtimeSymbols,
+          staleMs: REALTIME_STALE_MS,
+        });
+        const stockSnapshotRequestedAt = Date.now();
+        const stocksRequest = shouldPollStocks
+          ? fetchRealtimeSnapshot('/api/stocks-realtime', { symbols: stockSymbolsSnapshot })
+            .then((response) => parseSnapshotResponse(response, 'stocks'))
+            .then((snapshot) => {
+              const ticks = Array.isArray(snapshot?.ticks) ? snapshot.ticks : [];
+              ticks.forEach((tick) => {
+                const symbol = normalizeSymbolKey(tick?.symbol || tick?.ticker || tick?.displaySymbol);
+                const webSocketReceivedAt = symbol
+                  ? stockRealtimeRef.current.lastWebSocketTickAtBySymbol.get(symbol)
+                  : 0;
+                if (!shouldApplyStockSnapshotTick({
+                  snapshotRequestedAt: stockSnapshotRequestedAt,
+                  webSocketReceivedAt,
+                })) return;
+                applyStockRealtimeTick(tick, 'live', { transport: 'snapshot' });
+              });
+              if (ticks.length === 0 && stockRealtimeRef.current.status !== 'warming') {
+                stockRealtimeRef.current.status = 'polling';
+              }
+            })
+            .catch(() => {
+              if (stockRealtimeRef.current.status !== 'warming') {
+                stockRealtimeRef.current.status = 'polling';
+              }
+            })
+          : Promise.resolve();
+
+        await Promise.allSettled([indicesRequest, stocksRequest]);
         setLastFetched(new Date());
       } catch (e) {
         console.warn(`[iOS PWA snapshot] ${trigger} failed:`, e?.message || e);
       } finally {
         inFlight = false;
+        if (!stopped && trailingPoll) {
+          const nextPoll = trailingPoll;
+          trailingPoll = null;
+          clearTrailingPollTimer();
+          trailingPollTimer = window.setTimeout(() => {
+            trailingPollTimer = null;
+            runSnapshotPoll(nextPoll.trigger, nextPoll);
+          }, 0);
+        }
       }
     };
 
@@ -4247,6 +4292,8 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
       stopped = true;
       if (pollTimer) clearTimeout(pollTimer);
       clearBurstTimers();
+      clearTrailingPollTimer();
+      trailingPoll = null;
       if (iosPwaRealtimeSnapshotBurstRef.current === startSnapshotBurst) {
         iosPwaRealtimeSnapshotBurstRef.current = () => false;
       }

@@ -44,6 +44,28 @@ export function parseStockRealtimeSymbolsParam(rawSymbols, { limit = MAX_STOCK_R
   return { symbols };
 }
 
+export function parseStockUpstreamMessage(rawMessage, normalizeOptions = {}) {
+  const raw = typeof rawMessage === 'string' ? safeParseJson(rawMessage) : rawMessage;
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    return { kind: 'ignored' };
+  }
+
+  const statusCode = asNumber(raw.status_code ?? raw.statusCode);
+  if (statusCode !== null) {
+    return {
+      kind: 'status',
+      status: {
+        statusCode,
+        authorized: statusCode === 200,
+        isError: statusCode >= 400,
+      },
+    };
+  }
+
+  const tick = normalizeStockTick(raw, normalizeOptions);
+  return tick ? { kind: 'tick', tick } : { kind: 'ignored' };
+}
+
 export function normalizeStockTick(rawTick, {
   symbols = null,
   receivedAt = Date.now(),

@@ -44,8 +44,11 @@ import {
   applyStockTickToQuoteRows,
   isFreshStockRealtimeTick,
   mergeFreshStockRealtimeRows,
+  mergeStockSnapshotPollRequest,
   mergeStockTicksIntoQuoteRows,
   selectStockRealtimeSymbols,
+  shouldApplyStockSnapshotTick,
+  shouldPollStockRealtimeSnapshot,
 } from '../src/lib/stockRealtime.js';
 
 test('normalizeBtcTick accepts EODHD crypto WebSocket fields', () => {
@@ -640,6 +643,79 @@ test('stock realtime symbols are sanitized and capped for user quote streams', (
   const rows = Array.from({ length: 55 }, (_, index) => ({ symbol: `T${index}` }));
   assert.equal(selectStockRealtimeSymbols(rows).length, 50);
   assert.deepEqual(selectStockRealtimeSymbols([{ symbol: 'nvda.us' }, { symbol: 'NVDA' }, { symbol: 'MSFT' }]), ['NVDA', 'MSFT']);
+});
+
+test('stock snapshot polling yields to a fresh browser WebSocket tick and resumes when stale', () => {
+  const now = 1783000000000;
+  assert.equal(shouldPollStockRealtimeSnapshot({ now, lastWebSocketTickAt: 0 }), true);
+  assert.equal(shouldPollStockRealtimeSnapshot({
+    now,
+    lastWebSocketTickAt: now - 14_999,
+    staleMs: 15_000,
+  }), false);
+  assert.equal(shouldPollStockRealtimeSnapshot({
+    now,
+    lastWebSocketTickAt: now - 15_000,
+    staleMs: 15_000,
+  }), true);
+  assert.equal(shouldPollStockRealtimeSnapshot({
+    now,
+    lastWebSocketTickAt: now - 100,
+    lastWebSocketTickAtBySymbol: new Map([
+      ['NVDA', now - 100],
+      ['MSFT', now - 100],
+    ]),
+    symbols: ['NVDA', 'MSFT', 'META'],
+    staleMs: 15_000,
+  }), true, 'one active symbol must not hide another requested symbol that is still missing');
+  assert.equal(shouldPollStockRealtimeSnapshot({
+    now,
+    lastWebSocketTickAtBySymbol: new Map([
+      ['NVDA', now - 100],
+      ['MSFT', now - 200],
+      ['META', now - 300],
+    ]),
+    symbols: ['NVDA', 'MSFT', 'META'],
+    staleMs: 15_000,
+  }), false);
+});
+
+test('a late stock snapshot cannot overwrite a newer browser WebSocket tick for the same symbol', () => {
+  const snapshotRequestedAt = 1783000000000;
+  assert.equal(shouldApplyStockSnapshotTick({
+    snapshotRequestedAt,
+    webSocketReceivedAt: snapshotRequestedAt - 1,
+  }), true);
+  assert.equal(shouldApplyStockSnapshotTick({
+    snapshotRequestedAt,
+    webSocketReceivedAt: snapshotRequestedAt,
+  }), false);
+  assert.equal(shouldApplyStockSnapshotTick({
+    snapshotRequestedAt,
+    webSocketReceivedAt: snapshotRequestedAt + 1,
+  }), false);
+});
+
+test('overlapping iOS stock snapshot requests coalesce into one immediate trailing poll', () => {
+  const queued = mergeStockSnapshotPollRequest(null, {
+    trigger: 'startup-burst',
+    force: false,
+    warm: false,
+    resetFreshness: false,
+  });
+  const merged = mergeStockSnapshotPollRequest(queued, {
+    trigger: 'pageshow-burst',
+    force: true,
+    warm: true,
+    resetFreshness: true,
+  });
+
+  assert.deepEqual(merged, {
+    trigger: 'pageshow-burst',
+    force: true,
+    warm: true,
+    resetFreshness: true,
+  });
 });
 
 test('normalizeStockTick accepts EODHD US stock WebSocket fields', () => {

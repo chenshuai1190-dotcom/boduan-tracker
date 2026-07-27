@@ -625,8 +625,8 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(indexHtmlSource.includes('color-scheme: dark;'), 'index.html should tell the browser to use a dark startup color scheme');
   assert.equal(manifestJson.background_color, '#05070b', 'PWA manifest background should match the app dark shell');
   assert.equal(manifestJson.theme_color, '#05070b', 'PWA manifest theme color should match the app dark shell');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.398'"), 'visible settings version surfaces should share one source');
-  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.398', date: '2026-07-27', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.399'"), 'visible settings version surfaces should share one source');
+  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.399', date: '2026-07-28', latest: true"), 'latest changelog entry should match the visible settings version');
   assert.ok(settingsChangelogSource.includes('个股收益头卡整合目标计划') && settingsChangelogSource.includes('原有三排持仓结构下方') && settingsChangelogSource.includes('股票趋势原目标价卡继续保留') && settingsChangelogSource.includes('不修改持仓、正式交易、收益计算、比赛账本或数据库结构'), 'settings changelog should document the shared target entry and unchanged financial boundaries');
   assert.ok(settingsChangelogSource.includes('股票趋势模块顺序精简') && settingsChangelogSource.includes('“关键事件”移动到“目标价”上方') && settingsChangelogSource.includes('移除“最近交易记录”卡片') && settingsChangelogSource.includes('正式交易账本及“我的持仓”计算保持不变'), 'settings changelog should document the stock-trend module order and unchanged ledger boundary');
   assert.ok(settingsChangelogSource.includes('季度业绩趋势排版优化') && settingsChangelogSource.includes('最近 6 个完整季度') && settingsChangelogSource.includes('季度柱宽统一为 18px') && settingsChangelogSource.includes('8 季度源数据、缓存和财报计算口径均保持不变'), 'settings changelog should document the six-quarter display window and unchanged data boundaries');
@@ -1536,7 +1536,9 @@ test('realtime quote refresh avoids duplicate requests and hides raw Safari netw
   assert.ok(appSource.includes("requestIosPwaResumeQuoteRefresh("), 'pending iOS PWA resume refreshes should flush through the visibility-aware resume queue');
   assert.ok(appSource.includes('REALTIME_RESUME_RECONNECT_STALE_MS = 5000'), 'realtime sockets should reconnect quickly after app resume when activity is stale');
   assert.ok(appSource.includes('STOCK_REALTIME_FIRST_TICK_TIMEOUT_MS = 8000'), 'stock realtime should not stay static when the first tick never arrives');
+  assert.ok(appSource.includes('IOS_PWA_STOCK_REALTIME_FIRST_TICK_TIMEOUT_MS = 4000'), 'iOS standalone should enter stock snapshot fallback within four seconds when the first WebSocket tick never arrives');
   assert.ok(appSource.includes('scheduleFirstTickWatchdog(socket, openedAt)'), 'stock realtime should keep a first-tick watchdog after open');
+  assert.ok(appSource.includes("'auto-ios-pwa-first-tick-timeout'"), 'the iOS standalone first-tick watchdog should directly activate its authenticated snapshot fallback');
   assert.ok(appSource.includes('股票实时首包等待中,保留连接并补拉快照'), 'stock realtime first-tick wait should not tear down a sparse iOS PWA stream immediately');
   assert.ok(appSource.includes('STOCK_REALTIME_NO_TICK_RECONNECT_MS = 30_000'), 'stock realtime should only rebuild a no-tick socket after a longer grace window');
   assert.ok(appSource.includes('REALTIME_RESUME_RECONNECT_THROTTLE_MS = 3000'), 'realtime resume reconnect should be throttled across the same iOS event burst');
@@ -1620,7 +1622,13 @@ test('realtime quote refresh avoids duplicate requests and hides raw Safari netw
   assert.ok(homeTabSource.includes('realtimeTransportStatus: btcRealtimeStatus'), 'BTC market card should retain raw transport status separately from the displayed badge');
   assert.ok(appSource.includes("fetchRealtimeSnapshot('/api/indices-realtime')"), 'iOS standalone mode should poll the indices snapshot endpoint');
   assert.ok(appSource.includes("fetchRealtimeSnapshot('/api/stocks-realtime'"), 'iOS standalone mode should poll the stock snapshot endpoint');
-  assert.ok(appSource.includes("ref.socket.close(1000, 'ios pwa snapshot mode')"), 'iOS standalone mode should close stock/index browser realtime sockets before switching connection strategy');
+  assert.ok(appSource.includes("applyStockRealtimeTick(payload, 'live', { transport: 'websocket' })"), 'iOS standalone stock quotes should keep the authenticated browser relay as the preferred transport');
+  assert.equal(appSource.includes("ref.socket.close(1000, 'ios pwa stock snapshot mode')"), false, 'iOS standalone must not disable the stock WebSocket when entering snapshot fallback');
+  assert.ok(appSource.includes('shouldPollStockRealtimeSnapshot({'), 'iOS standalone stock snapshots should pause while browser WebSocket ticks remain fresh');
+  assert.ok(appSource.includes('shouldApplyStockSnapshotTick({'), 'a delayed iOS stock snapshot must not overwrite a newer browser WebSocket tick for the same symbol');
+  assert.ok(appSource.includes('trailingPoll = mergeStockSnapshotPollRequest'), 'overlapping iOS snapshot bursts should retain one immediate trailing poll instead of dropping it');
+  assert.ok(appSource.includes("applyStockRealtimeTick(tick, 'live', { transport: 'snapshot' })"), 'stock snapshot freshness must remain separate from browser WebSocket freshness');
+  assert.ok(appSource.includes("ref.socket.close(1000, 'ios pwa snapshot mode')"), 'iOS standalone index mode should still close its browser socket before switching to index snapshots');
   assert.ok(appSource.includes("status === 'live' ? status : 'polling'"), 'iOS standalone snapshot mode should not show reconnecting while polling');
   assert.ok(appSource.includes('const forceSnapshot = options?.force === true;'), 'iOS standalone resume snapshot should be able to bypass stale document.hidden state');
   assert.ok(appSource.includes('iosPwaRealtimeSnapshotBurstRef.current(nextTrigger, { resetFreshness })'), 'iOS standalone resume should prefer realtime snapshot burst over REST quote refresh');
@@ -2542,7 +2550,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.398'"), 'settings version surfaces should remain synchronized through the shared constant');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.399'"), 'settings version surfaces should remain synchronized through the shared constant');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');

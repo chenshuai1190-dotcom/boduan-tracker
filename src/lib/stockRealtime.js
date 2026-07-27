@@ -26,6 +26,62 @@ export function selectStockRealtimeSymbols(rows = [], limit = MAX_STOCK_REALTIME
   return symbols;
 }
 
+export function shouldPollStockRealtimeSnapshot({
+  lastWebSocketTickAt = 0,
+  lastWebSocketTickAtBySymbol = null,
+  symbols = [],
+  now = Date.now(),
+  staleMs = 15_000,
+} = {}) {
+  const checkedAt = asNumber(now) || Date.now();
+  const maxAgeMs = Math.max(0, asNumber(staleMs) || 0);
+  const isStale = (value) => {
+    const tickAt = asNumber(value);
+    if (!tickAt || tickAt <= 0) return true;
+    if (tickAt - checkedAt > 60_000) return true;
+    return checkedAt - tickAt >= maxAgeMs;
+  };
+  const normalizedSymbols = [...new Set(
+    (symbols || []).map(normalizeStockRealtimeSymbol).filter(Boolean),
+  )];
+  if (normalizedSymbols.length > 0 && lastWebSocketTickAtBySymbol) {
+    const readTickAt = lastWebSocketTickAtBySymbol instanceof Map
+      ? (symbol) => lastWebSocketTickAtBySymbol.get(symbol)
+      : (symbol) => lastWebSocketTickAtBySymbol[symbol];
+    return normalizedSymbols.some((symbol) => isStale(readTickAt(symbol)));
+  }
+  return isStale(lastWebSocketTickAt);
+}
+
+export function shouldApplyStockSnapshotTick({
+  snapshotRequestedAt = 0,
+  webSocketReceivedAt = 0,
+} = {}) {
+  const requestedAt = asNumber(snapshotRequestedAt);
+  const receivedAt = asNumber(webSocketReceivedAt);
+  if (!requestedAt || requestedAt <= 0 || !receivedAt || receivedAt <= 0) return true;
+  return receivedAt < requestedAt;
+}
+
+export function mergeStockSnapshotPollRequest(current, incoming = {}) {
+  const next = incoming && typeof incoming === 'object' ? incoming : {};
+  const previous = current && typeof current === 'object' ? current : null;
+  if (!previous) {
+    return {
+      trigger: next.trigger || 'auto-ios-pwa-snapshot-trailing',
+      force: next.force === true,
+      warm: next.warm === true,
+      resetFreshness: next.resetFreshness !== false,
+    };
+  }
+  return {
+    trigger: next.trigger || previous.trigger || 'auto-ios-pwa-snapshot-trailing',
+    force: previous.force === true || next.force === true,
+    warm: previous.warm === true || next.warm === true,
+    resetFreshness: previous.resetFreshness !== false || next.resetFreshness !== false,
+  };
+}
+
 export function applyStockTickToQuoteRows(rows = [], tick, realtimeStatus = 'live', baseRows = []) {
   const symbol = normalizeStockRealtimeSymbol(tick?.symbol || tick?.ticker || tick?.displaySymbol);
   const price = asNumber(tick?.price);

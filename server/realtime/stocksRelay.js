@@ -1,5 +1,5 @@
 import { WebSocket } from 'ws';
-import { normalizeStockTick } from './stocks.js';
+import { parseStockUpstreamMessage } from './stocks.js';
 import { sanitizeEodhdKey } from './btc.js';
 
 const TRADE_UPSTREAM_URL = 'wss://ws.eodhistoricaldata.com/ws/us';
@@ -11,6 +11,11 @@ const QUOTE_FALLBACK_AFTER_TRADE_MS = 15_000;
 const REPLAY_TICK_MAX_AGE_MS = 120_000;
 const SNAPSHOT_HOLD_MS = 45_000;
 const SNAPSHOT_WAIT_MS = 1_800;
+const PROVIDER_AUTH_GRACE_MS = 350;
+const SNAPSHOT_COLLECTION_MS = 350;
+const SNAPSHOT_TARGET_COVERAGE_RATIO = 0.8;
+const SNAPSHOT_POLL_MS = 50;
+const TRADE_START_STAGGER_MS = 1_300;
 
 const STREAMS = {
   trade: {
@@ -19,6 +24,8 @@ const STREAMS = {
     statusKey: 'upstreamStatus',
     reconnectDelayKey: 'reconnectDelayMs',
     reconnectTimerKey: 'reconnectTimer',
+    authFallbackTimerKey: 'authFallbackTimer',
+    providerReadyKey: 'upstreamReady',
     subscribedSymbolsKey: 'subscribedSymbols',
     source: 'EODHD_WS',
     priceType: 'trade',
@@ -31,6 +38,8 @@ const STREAMS = {
     statusKey: 'quoteUpstreamStatus',
     reconnectDelayKey: 'quoteReconnectDelayMs',
     reconnectTimerKey: 'quoteReconnectTimer',
+    authFallbackTimerKey: 'quoteAuthFallbackTimer',
+    providerReadyKey: 'quoteUpstreamReady',
     subscribedSymbolsKey: 'quoteSubscribedSymbols',
     source: 'EODHD_WS_QUOTE',
     priceType: 'quote-midpoint',
@@ -49,6 +58,10 @@ const state = {
   quoteReconnectDelayMs: 1000,
   reconnectTimer: null,
   quoteReconnectTimer: null,
+  authFallbackTimer: null,
+  quoteAuthFallbackTimer: null,
+  upstreamReady: false,
+  quoteUpstreamReady: false,
   lastTicks: new Map(),
   lastBroadcastAtBySymbol: new Map(),
   pendingTickBySymbol: new Map(),
@@ -60,6 +73,46 @@ const state = {
   snapshotHoldUntil: 0,
   snapshotHoldTimer: null,
 };
+
+export function createTradeStartScheduler({
+  delayMs = TRADE_START_STAGGER_MS,
+  hasConsumers = () => true,
+  startTrade = () => {},
+  setTimer = setTimeout,
+  clearTimer = clearTimeout,
+} = {}) {
+  let timer = null;
+
+  const clear = () => {
+    if (timer === null) return false;
+    clearTimer(timer);
+    timer = null;
+    return true;
+  };
+
+  const startNow = () => {
+    clear();
+    if (!hasConsumers()) return false;
+    startTrade();
+    return true;
+  };
+
+  const schedule = () => {
+    if (timer !== null || !hasConsumers()) return false;
+    timer = setTimer(() => {
+      timer = null;
+      if (hasConsumers()) startTrade();
+    }, Math.max(0, Number(delayMs) || 0));
+    return true;
+  };
+
+  return {
+    clear,
+    schedule,
+    startNow,
+    isPending: () => timer !== null,
+  };
+}
 
 function safeJsonSend(ws, payload) {
   if (ws.readyState !== WebSocket.OPEN) return false;
@@ -127,9 +180,23 @@ function clearReconnectTimer(kind) {
   }
 }
 
+function clearAuthFallbackTimer(kind) {
+  const stream = STREAMS[kind];
+  const timerKey = stream.authFallbackTimerKey;
+  if (state[timerKey]) {
+    clearTimeout(state[timerKey]);
+    state[timerKey] = null;
+  }
+}
+
 function clearAllReconnectTimers() {
   clearReconnectTimer('trade');
   clearReconnectTimer('quote');
+}
+
+function clearAllAuthFallbackTimers() {
+  clearAuthFallbackTimer('trade');
+  clearAuthFallbackTimer('quote');
 }
 
 function hasActiveConsumers() {
@@ -146,7 +213,9 @@ function clearPendingBroadcasts() {
 
 function closeUpstreamIfUnused() {
   if (hasActiveConsumers()) return;
+  tradeStartScheduler.clear();
   clearAllReconnectTimers();
+  clearAllAuthFallbackTimers();
   clearPendingBroadcasts();
   state.lastTicks.clear();
   state.lastBroadcastAtBySymbol.clear();
@@ -162,6 +231,7 @@ function closeUpstreamIfUnused() {
     }
     state[stream.upstreamKey] = null;
     state[stream.statusKey] = 'idle';
+    state[stream.providerReadyKey] = false;
   }
 }
 
@@ -182,11 +252,12 @@ function sendSubscription(kind, action, symbols) {
   safeJsonSend(upstream, { action, symbols: symbols.join(',') });
 }
 
-function reconcileSubscriptions(kind) {
+function reconcileSubscriptions(kind, { allowUnconfirmed = false } = {}) {
   const stream = STREAMS[kind];
   const wanted = currentSymbols();
   const upstream = state[stream.upstreamKey];
   if (!upstream || upstream.readyState !== WebSocket.OPEN) return;
+  if (!state[stream.providerReadyKey] && !allowUnconfirmed) return;
 
   const subscribedSymbolsKey = stream.subscribedSymbolsKey;
   const subscribedSymbols = state[subscribedSymbolsKey];
@@ -194,6 +265,10 @@ function reconcileSubscriptions(kind) {
   const removed = [...subscribedSymbols].filter((symbol) => !wanted.has(symbol));
   sendSubscription(kind, 'subscribe', added);
   sendSubscription(kind, 'unsubscribe', removed);
+  // The compatibility subscription sent before an explicit provider-ready
+  // frame is only provisional. Do not record it as confirmed, so a later
+  // authorization frame always re-sends the wanted symbols.
+  if (allowUnconfirmed) return;
   state[subscribedSymbolsKey] = wanted;
 }
 
@@ -206,6 +281,7 @@ function resubscribeAll(kind) {
   const stream = STREAMS[kind];
   const upstream = state[stream.upstreamKey];
   if (!upstream || upstream.readyState !== WebSocket.OPEN) return;
+  if (!state[stream.providerReadyKey]) return;
   const wanted = currentSymbols();
   const wantedSymbols = [...wanted];
   sendSubscription(kind, 'subscribe', wantedSymbols);
@@ -284,6 +360,78 @@ function emitTick(tick) {
   state.pendingBroadcastTimerBySymbol.set(tick.symbol, timer);
 }
 
+function confirmProviderReady(kind, upstream) {
+  const stream = STREAMS[kind];
+  if (state[stream.upstreamKey] !== upstream) return;
+  const wasLive = state[stream.statusKey] === 'live';
+  clearAuthFallbackTimer(kind);
+  state[stream.providerReadyKey] = true;
+  state[stream.statusKey] = 'live';
+  state[stream.reconnectDelayKey] = 1000;
+  reconcileSubscriptions(kind);
+  if (kind === 'quote') tradeStartScheduler.startNow();
+  if (wasLive) return;
+
+  broadcastCombinedStatus();
+  pruneStaleTicks();
+  for (const tick of state.lastTicks.values()) {
+    if (isFreshReplayTick(tick)) broadcastTick(tick);
+  }
+}
+
+function scheduleStatuslessSubscription(kind, upstream) {
+  const stream = STREAMS[kind];
+  clearAuthFallbackTimer(kind);
+  state[stream.authFallbackTimerKey] = setTimeout(() => {
+    state[stream.authFallbackTimerKey] = null;
+    if (state[stream.upstreamKey] !== upstream) return;
+    if (upstream.readyState !== WebSocket.OPEN || state[stream.providerReadyKey]) return;
+    // Some provider gateways omit the explicit 200 status frame. Subscribe after
+    // a short grace period, but keep the public status as "connecting" until a
+    // valid market-data tick proves that the stream is usable.
+    reconcileSubscriptions(kind, { allowUnconfirmed: true });
+  }, PROVIDER_AUTH_GRACE_MS);
+}
+
+function handleUpstreamMessage(kind, upstream, rawMessage) {
+  const stream = STREAMS[kind];
+  if (state[stream.upstreamKey] !== upstream) return;
+  const parsed = parseStockUpstreamMessage(rawMessage, {
+    symbols: currentSymbols(),
+    source: stream.source,
+    priceType: stream.priceType,
+    defaultMarketStatus: stream.defaultMarketStatus,
+  });
+
+  if (parsed.kind === 'status') {
+    if (parsed.status.isError) {
+      clearAuthFallbackTimer(kind);
+      state[stream.providerReadyKey] = false;
+      state[stream.statusKey] = 'error';
+      broadcastCombinedStatus({
+        error: `EODHD 股票实时服务异常 (${parsed.status.statusCode})`,
+      });
+      if (kind === 'quote') tradeStartScheduler.startNow();
+      try {
+        upstream.close(1011, 'provider error');
+      } catch {
+        if (state[stream.upstreamKey] === upstream) state[stream.upstreamKey] = null;
+        scheduleReconnect(kind);
+      }
+      return;
+    }
+    if (parsed.status.authorized) confirmProviderReady(kind, upstream);
+    return;
+  }
+
+  if (parsed.kind !== 'tick') return;
+  // A valid tick is also sufficient proof for gateways that do not emit a
+  // status frame. This keeps those feeds compatible without reporting "live"
+  // merely because the transport socket opened.
+  if (!state[stream.providerReadyKey]) confirmProviderReady(kind, upstream);
+  emitTick(parsed.tick);
+}
+
 function scheduleReconnect(kind) {
   const stream = STREAMS[kind];
   clearReconnectTimer(kind);
@@ -320,46 +468,53 @@ function connectUpstream(kind) {
   state[stream.upstreamKey] = nextUpstream;
 
   nextUpstream.on('open', () => {
-    state[stream.statusKey] = 'live';
-    state[stream.reconnectDelayKey] = 1000;
+    state[stream.statusKey] = 'connecting';
+    state[stream.providerReadyKey] = false;
     state[stream.subscribedSymbolsKey].clear();
-    reconcileSubscriptions(kind);
     broadcastCombinedStatus();
-    pruneStaleTicks();
-    for (const tick of state.lastTicks.values()) {
-      if (isFreshReplayTick(tick)) broadcastTick(tick);
-    }
+    scheduleStatuslessSubscription(kind, nextUpstream);
   });
 
   nextUpstream.on('message', (data) => {
     const text = typeof data === 'string' ? data : data.toString('utf8');
-    const tick = normalizeStockTick(text, {
-      symbols: currentSymbols(),
-      source: stream.source,
-      priceType: stream.priceType,
-      defaultMarketStatus: stream.defaultMarketStatus,
-    });
-    if (tick) emitTick(tick);
+    handleUpstreamMessage(kind, nextUpstream, text);
   });
 
-  nextUpstream.on('error', (error) => {
+  nextUpstream.on('error', () => {
+    if (state[stream.upstreamKey] !== nextUpstream) return;
+    clearAuthFallbackTimer(kind);
+    state[stream.providerReadyKey] = false;
     state[stream.statusKey] = 'error';
     broadcastCombinedStatus({
-      error: error?.message || stream.errorMessage,
+      error: stream.errorMessage,
     });
+    if (kind === 'quote') tradeStartScheduler.startNow();
   });
 
   nextUpstream.on('close', () => {
-    if (state[stream.upstreamKey] === nextUpstream) state[stream.upstreamKey] = null;
+    if (state[stream.upstreamKey] !== nextUpstream) return;
+    clearAuthFallbackTimer(kind);
+    state[stream.upstreamKey] = null;
     state[stream.subscribedSymbolsKey].clear();
+    state[stream.providerReadyKey] = false;
     state[stream.statusKey] = hasActiveConsumers() ? 'reconnecting' : 'idle';
+    if (kind === 'quote') tradeStartScheduler.startNow();
     scheduleReconnect(kind);
   });
 }
 
+const tradeStartScheduler = createTradeStartScheduler({
+  hasConsumers: hasActiveConsumers,
+  startTrade: () => connectUpstream('trade'),
+});
+
 function connectUpstreams() {
-  connectUpstream('trade');
   connectUpstream('quote');
+  if (state.quoteUpstreamReady || state.quoteUpstreamStatus === 'error') {
+    tradeStartScheduler.startNow();
+    return;
+  }
+  tradeStartScheduler.schedule();
 }
 
 export function attachStocksRealtimeClient(ws, { eodhdKey, symbols }) {
@@ -422,18 +577,136 @@ function getFreshSnapshotTicks(symbolSet) {
   return ticks;
 }
 
+function snapshotCoverageTarget(symbolCount, targetRatio = SNAPSHOT_TARGET_COVERAGE_RATIO) {
+  if (symbolCount <= 0) return 0;
+  const ratio = Number.isFinite(Number(targetRatio))
+    ? Math.min(1, Math.max(0, Number(targetRatio)))
+    : SNAPSHOT_TARGET_COVERAGE_RATIO;
+  return Math.max(1, Math.ceil(symbolCount * ratio));
+}
+
+export function buildStocksSnapshotMetadata({
+  symbols = [],
+  ticks = [],
+  receivedAt = Date.now(),
+  startedAt = 0,
+  targetRatio = SNAPSHOT_TARGET_COVERAGE_RATIO,
+} = {}) {
+  const requestedSymbols = [...new Set(symbols || [])];
+  const tickBySymbol = new Map(
+    (ticks || [])
+      .filter((tick) => tick?.symbol)
+      .map((tick) => [tick.symbol, tick]),
+  );
+  const symbolMeta = {};
+  let coveredCount = 0;
+  let freshSinceRequestCount = 0;
+  const missingSymbols = [];
+
+  for (const symbol of requestedSymbols) {
+    const tick = tickBySymbol.get(symbol) || null;
+    const tickReceivedAt = Number(tick?.receivedAt || 0);
+    const covered = Boolean(tick);
+    const freshSinceRequest = Boolean(
+      covered
+      && tickReceivedAt > 0
+      && tickReceivedAt >= Number(startedAt || 0),
+    );
+    if (covered) coveredCount += 1;
+    else missingSymbols.push(symbol);
+    if (freshSinceRequest) freshSinceRequestCount += 1;
+    symbolMeta[symbol] = {
+      covered,
+      missing: !covered,
+      ageMs: covered && tickReceivedAt > 0
+        ? Math.max(0, Number(receivedAt) - tickReceivedAt)
+        : null,
+      receivedAt: tickReceivedAt || null,
+      freshSinceRequest,
+      source: tick?.source || null,
+    };
+  }
+
+  const requestedCount = requestedSymbols.length;
+  const targetCount = snapshotCoverageTarget(requestedCount, targetRatio);
+  return {
+    symbolMeta,
+    coverage: {
+      requestedCount,
+      coveredCount,
+      missingCount: missingSymbols.length,
+      freshSinceRequestCount,
+      targetCount,
+      ratio: requestedCount > 0 ? coveredCount / requestedCount : 1,
+      complete: coveredCount === requestedCount,
+      missingSymbols,
+    },
+  };
+}
+
+export function evaluateStocksSnapshotWait({
+  symbols = [],
+  ticks = [],
+  startedAt,
+  deadline,
+  now = Date.now(),
+  collectionMs = SNAPSHOT_COLLECTION_MS,
+  targetRatio = SNAPSHOT_TARGET_COVERAGE_RATIO,
+} = {}) {
+  const metadata = buildStocksSnapshotMetadata({
+    symbols,
+    ticks,
+    receivedAt: now,
+    startedAt,
+    targetRatio,
+  });
+  const freshReceivedTimes = Object.values(metadata.symbolMeta)
+    .filter((item) => item.freshSinceRequest)
+    .map((item) => item.receivedAt);
+  const firstFreshAt = freshReceivedTimes.length > 0
+    ? Math.min(...freshReceivedTimes)
+    : null;
+
+  if (
+    metadata.coverage.targetCount > 0
+    && metadata.coverage.freshSinceRequestCount >= metadata.coverage.targetCount
+  ) {
+    return { resolve: true, reason: 'coverage', firstFreshAt, ...metadata };
+  }
+  if (
+    firstFreshAt !== null
+    && now - firstFreshAt >= Math.max(0, Number(collectionMs) || 0)
+  ) {
+    return { resolve: true, reason: 'collection-window', firstFreshAt, ...metadata };
+  }
+  if (now >= Number(deadline || 0)) {
+    return { resolve: true, reason: 'hard-timeout', firstFreshAt, ...metadata };
+  }
+  return { resolve: false, reason: 'collecting', firstFreshAt, ...metadata };
+}
+
 function waitForFreshStockTicks(symbolSet, startedAt, waitMs = SNAPSHOT_WAIT_MS) {
-  const fresh = getFreshSnapshotTicks(symbolSet);
-  if (fresh.some((tick) => Number(tick?.receivedAt || 0) >= startedAt)) return Promise.resolve(fresh);
   return new Promise((resolve) => {
-    const deadline = Date.now() + waitMs;
+    const deadline = startedAt + Math.max(0, Number(waitMs) || 0);
     const poll = () => {
       const ticks = getFreshSnapshotTicks(symbolSet);
-      if (ticks.some((tick) => Number(tick?.receivedAt || 0) >= startedAt) || Date.now() >= deadline) {
-        resolve(ticks);
+      const now = Date.now();
+      const decision = evaluateStocksSnapshotWait({
+        symbols: [...symbolSet],
+        ticks,
+        startedAt,
+        deadline,
+        now,
+      });
+      if (decision.resolve) {
+        resolve({
+          ticks,
+          reason: decision.reason,
+          waitedMs: Math.max(0, now - startedAt),
+        });
         return;
       }
-      setTimeout(poll, 100);
+      setTimeout(poll, Math.min(SNAPSHOT_POLL_MS, Math.max(1, deadline - now)));
     };
     poll();
   });
@@ -448,7 +721,14 @@ export async function getStocksRealtimeSnapshot({ eodhdKey, symbols, waitMs = SN
   const startedAt = Date.now();
   connectUpstreams();
   resubscribeAllSubscriptions();
-  const ticks = await waitForFreshStockTicks(symbolSet, startedAt, waitMs);
+  const waitResult = await waitForFreshStockTicks(symbolSet, startedAt, waitMs);
+  const receivedAt = Date.now();
+  const metadata = buildStocksSnapshotMetadata({
+    symbols: [...symbolSet],
+    ticks: waitResult.ticks,
+    receivedAt,
+    startedAt,
+  });
   return {
     type: 'stocks_snapshot',
     status: combinedUpstreamStatus(),
@@ -456,7 +736,13 @@ export async function getStocksRealtimeSnapshot({ eodhdKey, symbols, waitMs = SN
     quoteStatus: state.quoteUpstreamStatus,
     source: 'EODHD_WS',
     symbols: [...symbolSet],
-    ticks,
-    receivedAt: Date.now(),
+    ticks: waitResult.ticks,
+    symbolMeta: metadata.symbolMeta,
+    coverage: {
+      ...metadata.coverage,
+      waitReason: waitResult.reason,
+      waitedMs: waitResult.waitedMs,
+    },
+    receivedAt,
   };
 }

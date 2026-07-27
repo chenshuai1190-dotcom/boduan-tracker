@@ -1,6 +1,23 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.398', date: '2026-07-27', latest: true,
+    ver: 'v10.7.9.399', date: '2026-07-28', latest: true,
+    items: [
+      '⚡ iOS 主屏股票行情混合加速',
+      '  - iOS 主屏 Web App 前台改为实时 WebSocket 优先，同时立即启动股票快照兜底；后台暂停，回到前台后重新连接并校准',
+      '  - 首个实时价格等待 4 秒后自动补拉，按股票代码识别缺失覆盖；迟到快照不会覆盖更新的 WebSocket 价格',
+      '  - 服务端 relay 优先连接盘口流，并在 1.3 秒后错峰启动成交流；授权后重新确认订阅，快照同时返回覆盖率、缺失代码与数据年龄',
+      '  - 本次只调整行情传递、兜底与 PWA 生命周期；不修改数据库、持仓、正式交易、收益、比赛或财务计算',
+    ],
+    itemsEn: [
+      '⚡ Faster hybrid stock quotes for the iOS Home Screen app',
+      '  - The iOS Home Screen Web App now prefers the realtime WebSocket while starting an immediate stock-snapshot fallback; it pauses in the background and reconnects with a fresh calibration on resume',
+      '  - A four-second first-tick watchdog starts fallback reads, coverage is tracked per symbol, and a late snapshot cannot overwrite a newer WebSocket price',
+      '  - The server relay connects the quote stream first and staggers the trade stream by 1.3 seconds; subscriptions are reconfirmed after authorization, while snapshots report coverage, missing symbols, and data age',
+      '  - This release only changes quote delivery, fallback behavior, and PWA lifecycle handling; databases, holdings, formal trades, P&L, competitions, and financial calculations are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.398', date: '2026-07-27',
     items: [
       '🎯 个股收益头卡整合目标计划',
       '  - 个股收益详情头卡在原有三排持仓结构下方新增单一目标价、距目标空间和成本进度',
