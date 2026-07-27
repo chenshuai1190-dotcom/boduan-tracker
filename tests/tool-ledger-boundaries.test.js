@@ -15,6 +15,8 @@ const amountDisplaySource = readFileSync(new URL('../src/lib/amountDisplay.js', 
 const waveCurrencyDisplaySource = readFileSync(new URL('../src/lib/waveCurrencyDisplay.js', import.meta.url), 'utf8');
 const i18nSource = readFileSync(new URL('../src/lib/i18n.js', import.meta.url), 'utf8');
 const indexRealtimeSource = readFileSync(new URL('../src/lib/indexRealtime.js', import.meta.url), 'utf8');
+const stockQuoteBootstrapCacheSource = readFileSync(new URL('../src/lib/stockQuoteBootstrapCache.js', import.meta.url), 'utf8');
+const realtimeStartupTraceSource = readFileSync(new URL('../src/lib/realtimeStartupTrace.js', import.meta.url), 'utf8');
 const analysisTabSource = readFileSync(new URL('../src/tabs/AnalysisTab.jsx', import.meta.url), 'utf8');
 const devVisualPreviewSource = readFileSync(new URL('../src/DevVisualPreview.jsx', import.meta.url), 'utf8');
 const waveTrackerPrototypeSource = readFileSync(new URL('../src/dev/WaveTrackerPrototype.jsx', import.meta.url), 'utf8');
@@ -625,8 +627,9 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(indexHtmlSource.includes('color-scheme: dark;'), 'index.html should tell the browser to use a dark startup color scheme');
   assert.equal(manifestJson.background_color, '#05070b', 'PWA manifest background should match the app dark shell');
   assert.equal(manifestJson.theme_color, '#05070b', 'PWA manifest theme color should match the app dark shell');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.400'"), 'visible settings version surfaces should share one source');
-  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.400', date: '2026-07-28', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.401'"), 'visible settings version surfaces should share one source');
+  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.401', date: '2026-07-28', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsChangelogSource.includes('iOS 主屏股票行情启动加速') && settingsChangelogSource.includes('最近 15 分钟、按账户隔离') && settingsChangelogSource.includes('WebSocket 仍为首选') && settingsChangelogSource.includes('缓存不保存数量、成本、盈亏、目标价、交易或账户数据'), 'settings changelog should document the isolated iOS startup acceleration and unchanged ledger boundary');
   assert.ok(settingsChangelogSource.includes('个股收益头卡整合目标计划') && settingsChangelogSource.includes('原有三排持仓结构下方') && settingsChangelogSource.includes('股票趋势原目标价卡继续保留') && settingsChangelogSource.includes('不修改持仓、正式交易、收益计算、比赛账本或数据库结构'), 'settings changelog should document the shared target entry and unchanged financial boundaries');
   assert.ok(settingsChangelogSource.includes('股票趋势模块顺序精简') && settingsChangelogSource.includes('“关键事件”移动到“目标价”上方') && settingsChangelogSource.includes('移除“最近交易记录”卡片') && settingsChangelogSource.includes('正式交易账本及“我的持仓”计算保持不变'), 'settings changelog should document the stock-trend module order and unchanged ledger boundary');
   assert.ok(settingsChangelogSource.includes('季度业绩趋势排版优化') && settingsChangelogSource.includes('最近 6 个完整季度') && settingsChangelogSource.includes('季度柱宽统一为 18px') && settingsChangelogSource.includes('8 季度源数据、缓存和财报计算口径均保持不变'), 'settings changelog should document the six-quarter display window and unchanged data boundaries');
@@ -1102,7 +1105,7 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(settingsChangelogSource.includes('v10.7.9.200'), 'settings changelog should retain the iOS PWA focus freshness mask fix');
   assert.ok(settingsChangelogSource.includes('iOS 主屏滑动现价遮罩修复'), 'settings changelog should describe the iOS PWA focus freshness mask fix');
   assert.ok(appSource.includes('stockFreshnessStartedAt: warmStartedAt'), 'app context should expose the iOS PWA warm start timestamp for earnings reaction freshness checks');
-  assert.ok(appSource.includes('setWarmStartedAt(Date.now())'), 'iOS PWA snapshot warming should record a fresh warm start timestamp');
+  assert.ok(appSource.includes('setWarmStartedAt(freshnessFloorAt)'), 'iOS PWA snapshot warming should share one fresh timestamp with the stock snapshot freshness floor');
   assert.ok(appSource.includes("startSnapshotBurst('auto-ios-pwa-snapshot-focus', { resetFreshness: false })"), 'iOS PWA focus snapshot should not restart the holding price freshness mask');
   assert.ok(appSource.includes("requestIosPwaResumeQuoteRefresh('auto-ios-touch-resume', { resetFreshness: false })"), 'iOS PWA touch fallback should not restart the holding price freshness mask');
   assert.ok(appSource.includes("requestResumeRefresh('auto-ios-resume', { resetFreshness: true })"), 'iOS PWA visibility resume should still restart the holding price freshness mask');
@@ -1669,6 +1672,30 @@ test('realtime quote refresh avoids duplicate requests and hides raw Safari netw
   assert.ok(appSource.includes('auto-ios-visible-heartbeat'), 'iOS standalone app should reconnect stock realtime when visible timers resume');
   assert.equal(homeTabSource.includes("import { isIndexMarketCard } from '../lib/indexRealtime.js';"), false, 'index cards should not import index matching just to render connection badges');
   assert.ok(homeTabSource.includes('{isBtc && realtimeLabel && ('), 'only the BTC market card should render realtime connection status');
+});
+
+test('stock startup acceleration stays isolated from holdings, other market cards, and auth', () => {
+  assert.ok(appSource.includes('const [stockQuoteBootstrapRows] = useState(() => readStockQuoteBootstrapCache({ userId: user.id }))'), 'startup quotes should load through a user-scoped market-only cache');
+  assert.ok(appSource.includes('const [quoteCache, setQuoteCache] = useState([])'), 'cached startup rows must not enter the live quote cache before a new realtime tick');
+  assert.ok(appSource.includes('...(!stockRealtimeUniverseResolved ? localizedStockQuoteBootstrapRows : [])'), 'bootstrap symbols should be temporary and disappear after the cloud universe resolves');
+  assert.ok(appSource.includes(': stockQuoteBootstrapRows;'), 'a new realtime tick may use bootstrap rows only as its previous-close baseline');
+  assert.ok(appSource.includes('writeStockQuoteBootstrapCache({'), 'fresh quote rows should refresh the short-lived startup cache');
+  assert.ok(appSource.includes('stockRealtimeReady = canStartStockRealtime({'), 'only the stock realtime effects should bypass cloud loading when cached symbols exist');
+  assert.ok((appSource.match(/freshnessFloorAt: stockRealtimeRef\.current\.snapshotFreshnessFloorAt/g) || []).length === 2, 'both stock snapshot decisions should ignore pre-resume websocket timestamps');
+  assert.ok(appSource.includes('const indicesRequest = cloudLoadingRef.current'), 'early stock snapshot startup must retain the existing cloud gate for index snapshots');
+  assert.ok(appSource.includes('startRealtimeStartupTraceSession(options.traceTrigger)'), 'a real iOS resume should start a fresh anonymous latency trace');
+  assert.ok(appSource.includes("now - previousStartedAt < 1000"), 'duplicate iOS lifecycle events should not restart the latency trace');
+  assert.ok(appSource.includes('stockRealtimeUniverseResolvedRef.current = true'), 'successful cloud resolution must permanently disable bootstrap insertion for the current account mount');
+  assert.ok(appSource.includes('stockRealtimeUniverseResolvedRef.current\n      && !officialRealtimeBaseRows.some'), 'ticks outside the resolved user universe must be rejected before they touch quote state');
+  assert.ok((appSource.match(/if \(!isCurrentSnapshotSession\(\)\) return;/g) || []).length >= 3, 'pre-resume or cleaned-up stock snapshots must not apply prices or write the current trace');
+  assert.ok(appSource.includes('realtimeStartupMilestonesRef.current.generation === socketTraceGeneration'), 'a stale stock socket must not write milestones into a newer resume trace');
+  assert.ok(appSource.includes('const { data: { session } } = await supabase.auth.getSession();\n        if (stopped || document.hidden) return;'), 'a superseded stock effect must stop after async auth before replacing the current socket');
+  assert.equal(authGateSource.includes('stockQuoteBootstrap'), false, 'stock startup acceleration must not change authentication');
+  assert.equal(homeTabSource.includes('stockQuoteBootstrap'), false, 'presentation and holdings calculations must not consume bootstrap rows directly');
+  assert.equal(tradesTabSource.includes('stockQuoteBootstrap'), false, 'trading must not consume bootstrap rows');
+  assert.equal(stockQuoteBootstrapCacheSource.includes('shares'), false, 'startup cache implementation must not contain holding quantities');
+  assert.equal(stockQuoteBootstrapCacheSource.includes('cost'), false, 'startup cache implementation must not contain cost basis');
+  assert.equal(realtimeStartupTraceSource.includes('access_token'), false, 'startup tracing must not persist authentication tokens');
 });
 
 test('legacy realtime and fear-card placeholders stay out of the runtime shell', () => {
@@ -2549,7 +2576,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.400'"), 'settings version surfaces should remain synchronized through the shared constant');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.401'"), 'settings version surfaces should remain synchronized through the shared constant');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');

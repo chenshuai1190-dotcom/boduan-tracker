@@ -1,6 +1,23 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.400', date: '2026-07-28', latest: true,
+    ver: 'v10.7.9.401', date: '2026-07-28', latest: true,
+    items: [
+      '⚡ iOS 主屏股票行情启动加速',
+      '  - 复用最近 15 分钟、按账户隔离的股票代码与昨收基线，在云端持仓完成前提前建立股票实时连接',
+      '  - WebSocket 仍为首选；只有新实时行情才进入持仓价格，iOS 快照仅在首包缺失或恢复时兜底',
+      '  - 恢复会话按新鲜度与连接世代隔离，旧快照和旧连接不能覆盖新价格或重新写回已删除股票',
+      '  - 缓存不保存数量、成本、盈亏、目标价、交易或账户数据；BTC、指数、财报、认证、数据库和正式账本逻辑均保持不变',
+    ],
+    itemsEn: [
+      '⚡ Faster stock-quote startup in the iOS Home Screen app',
+      '  - A user-scoped 15-minute cache of stock symbols and previous-close baselines can start stock realtime before cloud holdings finish loading',
+      '  - WebSocket remains primary; only a new realtime tick enters holding prices, while iOS snapshots are limited to first-tick and resume fallback',
+      '  - Resume sessions isolate freshness and connection generations so stale snapshots or sockets cannot replace newer prices or restore removed symbols',
+      '  - The cache stores no shares, cost, P&L, targets, trades, or account data; BTC, indices, earnings, authentication, databases, and formal ledgers are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.400', date: '2026-07-28',
     items: [
       '📈 iOS 主屏持仓价格稳定显示',
       '  - 首页与交易页在 Tab 切换、滑动和行情预热期间保留最后一个有效价格，不再短暂显示为空',

@@ -42,6 +42,7 @@ import {
 } from '../src/lib/indexRealtime.js';
 import {
   applyStockTickToQuoteRows,
+  canStartStockRealtime,
   isFreshStockRealtimeTick,
   mergeFreshStockRealtimeRows,
   mergeStockSnapshotPollRequest,
@@ -645,6 +646,25 @@ test('stock realtime symbols are sanitized and capped for user quote streams', (
   assert.deepEqual(selectStockRealtimeSymbols([{ symbol: 'nvda.us' }, { symbol: 'NVDA' }, { symbol: 'MSFT' }]), ['NVDA', 'MSFT']);
 });
 
+test('stock realtime may start during cloud loading only when a cached symbol universe exists', () => {
+  assert.equal(canStartStockRealtime({
+    cloudLoading: true,
+    symbols: [],
+  }), false, 'an empty cold start must retain the existing cloud-loading gate');
+  assert.equal(canStartStockRealtime({
+    cloudLoading: true,
+    symbols: ['NVDA', 'MSFT'],
+  }), true, 'a validated cached symbol universe may start stock realtime early');
+  assert.equal(canStartStockRealtime({
+    cloudLoading: true,
+    symbols: ['invalid symbol'],
+  }), false, 'invalid cached symbols must not bypass cloud loading');
+  assert.equal(canStartStockRealtime({
+    cloudLoading: false,
+    symbols: [],
+  }), true, 'after cloud loading, the existing empty-universe behavior remains available');
+});
+
 test('stock snapshot polling yields to a fresh browser WebSocket tick and resumes when stale', () => {
   const now = 1783000000000;
   assert.equal(shouldPollStockRealtimeSnapshot({ now, lastWebSocketTickAt: 0 }), true);
@@ -678,6 +698,53 @@ test('stock snapshot polling yields to a fresh browser WebSocket tick and resume
     symbols: ['NVDA', 'MSFT', 'META'],
     staleMs: 15_000,
   }), false);
+});
+
+test('stock snapshot polling honors the current resume freshness floor per symbol', () => {
+  const now = 1783000000000;
+  const freshnessFloorAt = now - 1000;
+
+  assert.equal(shouldPollStockRealtimeSnapshot({
+    now,
+    freshnessFloorAt,
+    lastWebSocketTickAtBySymbol: new Map([['NVDA', freshnessFloorAt - 1]]),
+    symbols: ['NVDA'],
+    staleMs: 15_000,
+  }), true, 'a WebSocket tick from before this resume must allow the snapshot fallback');
+  assert.equal(shouldPollStockRealtimeSnapshot({
+    now,
+    freshnessFloorAt,
+    lastWebSocketTickAtBySymbol: new Map([['NVDA', freshnessFloorAt + 1]]),
+    symbols: ['NVDA'],
+    staleMs: 15_000,
+  }), false, 'a fresh WebSocket tick from this resume should suppress the snapshot fallback');
+  assert.equal(shouldPollStockRealtimeSnapshot({
+    now,
+    freshnessFloorAt,
+    lastWebSocketTickAtBySymbol: new Map([['NVDA', freshnessFloorAt]]),
+    symbols: ['NVDA'],
+    staleMs: 15_000,
+  }), false, 'a WebSocket tick exactly on the freshness floor belongs to this resume');
+  assert.equal(shouldPollStockRealtimeSnapshot({
+    now,
+    freshnessFloorAt,
+    lastWebSocketTickAtBySymbol: new Map([
+      ['NVDA', freshnessFloorAt + 10],
+      ['MSFT', freshnessFloorAt - 10],
+    ]),
+    symbols: ['NVDA', 'MSFT'],
+    staleMs: 15_000,
+  }), true, 'one pre-resume symbol must keep the snapshot fallback active');
+  assert.equal(shouldPollStockRealtimeSnapshot({
+    now,
+    freshnessFloorAt,
+    lastWebSocketTickAtBySymbol: new Map([
+      ['NVDA', freshnessFloorAt],
+      ['MSFT', freshnessFloorAt + 10],
+    ]),
+    symbols: ['NVDA', 'MSFT'],
+    staleMs: 15_000,
+  }), false, 'all requested symbols at or after the floor may yield to WebSocket');
 });
 
 test('a late stock snapshot cannot overwrite a newer browser WebSocket tick for the same symbol', () => {

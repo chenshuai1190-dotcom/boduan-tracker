@@ -26,18 +26,29 @@ export function selectStockRealtimeSymbols(rows = [], limit = MAX_STOCK_REALTIME
   return symbols;
 }
 
+export function canStartStockRealtime({
+  cloudLoading = true,
+  symbols = [],
+} = {}) {
+  if (!cloudLoading) return true;
+  return (symbols || []).some((symbol) => Boolean(normalizeStockRealtimeSymbol(symbol)));
+}
+
 export function shouldPollStockRealtimeSnapshot({
   lastWebSocketTickAt = 0,
   lastWebSocketTickAtBySymbol = null,
   symbols = [],
   now = Date.now(),
   staleMs = 15_000,
+  freshnessFloorAt = 0,
 } = {}) {
   const checkedAt = asNumber(now) || Date.now();
   const maxAgeMs = Math.max(0, asNumber(staleMs) || 0);
+  const freshnessFloor = Math.max(0, asNumber(freshnessFloorAt) || 0);
   const isStale = (value) => {
     const tickAt = asNumber(value);
     if (!tickAt || tickAt <= 0) return true;
+    if (freshnessFloor > 0 && tickAt < freshnessFloor) return true;
     if (tickAt - checkedAt > 60_000) return true;
     return checkedAt - tickAt >= maxAgeMs;
   };

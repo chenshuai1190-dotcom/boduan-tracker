@@ -8,7 +8,7 @@ import { MARKET_COLOR_MODE_STORAGE_KEY, normalizeMarketColorMode } from './lib/m
 import { buildLedgerQuoteUniverse } from './lib/stockUniverse.js';
 import { applyBtcTickToMarketCard, resolveBtcSnapshotRealtimeStatus } from './lib/btcRealtime.js';
 import { applyIndexTickToMarketCards, mergeIndexRestCardsIntoMarketCards, shouldAppendIndexIntraday } from './lib/indexRealtime.js';
-import { applyStockTickToQuoteRows, getUsEquityRealtimeSession, isFreshStockRealtimeTick, mergeFreshStockRealtimeRows, mergeStockSnapshotPollRequest, mergeStockTicksIntoQuoteRows, selectStockRealtimeSymbols, shouldApplyStockSnapshotTick, shouldPollStockRealtimeSnapshot } from './lib/stockRealtime.js';
+import { applyStockTickToQuoteRows, canStartStockRealtime, getUsEquityRealtimeSession, isFreshStockRealtimeTick, mergeFreshStockRealtimeRows, mergeStockSnapshotPollRequest, mergeStockTicksIntoQuoteRows, selectStockRealtimeSymbols, shouldApplyStockSnapshotTick, shouldPollStockRealtimeSnapshot } from './lib/stockRealtime.js';
 import { normalizeStrictUserStockSymbol, normalizeUserStockSymbol } from './lib/symbols.js';
 import { getStoredLanguage, isEnglishLanguage, saveStoredLanguage, t } from './lib/i18n.js';
 import { isEarningsPublished } from './lib/earningsCalendarModel.js';
@@ -16,6 +16,8 @@ import { localMonthKey } from './lib/calendarMonth.js';
 import { buildQuoteSymbolBatches } from './lib/quoteRequestBatches.js';
 import { formatWaveCurrencyAmount, formatWaveUsdPrice } from './lib/waveCurrencyDisplay.js';
 import { userScopedStorageKey } from './lib/userScopedStorage.js';
+import { clearStockQuoteBootstrapCache, readStockQuoteBootstrapCache, writeStockQuoteBootstrapCache } from './lib/stockQuoteBootstrapCache.js';
+import { createRealtimeStartupTrace } from './lib/realtimeStartupTrace.js';
 import { resolveBottomTabTap, resolveNavigationScrollTarget } from './lib/bottomTabNavigation.js';
 import ActionModalCard from './components/ActionModalCard.jsx';
 import ConfirmModal from './components/ConfirmModal.jsx';
@@ -1026,6 +1028,21 @@ function buildToolQuoteRows({ trades = [], costBasisData = {}, swingWaves = [] }
   return Array.from(bySymbol.values());
 }
 
+function createRealtimeStartupMilestones(sessionStartedAt = 0, generation = 0) {
+  return {
+    sessionStartedAt,
+    generation,
+    socketConnectStarted: false,
+    socketOpened: false,
+    firstTick: false,
+    pricesApplied: false,
+    snapshotStarted: false,
+    snapshotFirstTick: false,
+    snapshotDone: false,
+    startupComplete: false,
+  };
+}
+
 // ============ 内部主 App 组件(要求已登录) ============
 function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   // ============ 核心状态 ============
@@ -1045,7 +1062,31 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   // 默认为空,新用户登录后看到引导界面 → 点"添加你的第一只股票"
   const [watchlist, setWatchlist] = useState([]);
   const [watchlistOrder, setWatchlistOrder] = useState([]);
+  const [stockQuoteBootstrapRows] = useState(() => readStockQuoteBootstrapCache({ userId: user.id }));
   const [quoteCache, setQuoteCache] = useState([]);
+  const initialQuoteBootstrapCountRef = useRef(stockQuoteBootstrapRows.length);
+  const quoteBootstrapPersistReadyRef = useRef(false);
+  const quoteBootstrapLatestRowsRef = useRef(quoteCache);
+  const quoteBootstrapPersistTimerRef = useRef(null);
+  const stockRealtimeUniverseResolvedRef = useRef(false);
+  const [realtimeStartupTrace] = useState(() => createRealtimeStartupTrace({ userId: user.id }));
+  const realtimeStartupMilestonesRef = useRef(createRealtimeStartupMilestones());
+  const startRealtimeStartupTraceSession = useCallback((trigger = 'startup') => {
+    const now = Date.now();
+    const previousStartedAt = realtimeStartupMilestonesRef.current.sessionStartedAt || 0;
+    if (trigger !== 'startup' && previousStartedAt && now - previousStartedAt < 1000) {
+      return false;
+    }
+    const generation = (realtimeStartupMilestonesRef.current.generation || 0) + 1;
+    realtimeStartupMilestonesRef.current = createRealtimeStartupMilestones(now, generation);
+    const standalone = isIosStandaloneWebApp();
+    realtimeStartupTrace.startSession({
+      runtime: standalone ? 'ios_standalone' : 'browser',
+      standalone,
+      trigger,
+    });
+    return true;
+  }, [realtimeStartupTrace]);
   const [logoCache, setLogoCache] = useState(() => readCachedStockLogos());
   const [editingStock, setEditingStock] = useState(null);
   const [showAddStock, setShowAddStock] = useState(false);
@@ -1415,6 +1456,13 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     const tickAt = Number(tick?.timestamp || tick?.receivedAt || Date.now());
     const key = normalizeSymbolKey(tick?.symbol || tick?.ticker || tick?.displaySymbol);
     if (!key) return;
+    const officialRealtimeBaseRows = quoteRowsRef.current;
+    if (
+      stockRealtimeUniverseResolvedRef.current
+      && !officialRealtimeBaseRows.some((row) => normalizeSymbolKey(row?.symbol) === key)
+    ) {
+      return;
+    }
     const ref = stockRealtimeRef.current;
     const clientReceivedAt = Date.now();
     const enrichedTick = {
@@ -1432,7 +1480,10 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     ref.lastTickIso = new Date(tickAt).toISOString();
     ref.status = realtimeStatus;
     ref.error = null;
-    setQuoteCache((current) => applyStockTickToQuoteRows(current, enrichedTick, realtimeStatus, quoteRowsRef.current));
+    const realtimeBaseRows = officialRealtimeBaseRows.length > 0
+      ? officialRealtimeBaseRows
+      : stockQuoteBootstrapRows;
+    setQuoteCache((current) => applyStockTickToQuoteRows(current, enrichedTick, realtimeStatus, realtimeBaseRows));
     if (key === 'QQQ') {
       setQqqCurrent(price);
       setQqqHigh((prev) => Math.max(prev || 0, price));
@@ -1464,7 +1515,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
         };
       });
     }
-  }, []);
+  }, [stockQuoteBootstrapRows]);
 
   const mergeFreshIndexTicksIntoCards = useCallback((cards) => {
     const ref = indexRealtimeRef.current;
@@ -1713,6 +1764,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     lastTickAt: 0,
     lastWebSocketTickAt: 0,
     lastWebSocketTickAtBySymbol: new Map(),
+    snapshotFreshnessFloorAt: 0,
     lastSnapshotTickAt: 0,
     lastTickIso: null,
     liveAt: 0,
@@ -1738,6 +1790,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   });
   // 云端数据加载状态
   const [cloudLoading, setCloudLoading] = useState(true);
+  const [stockRealtimeUniverseResolved, setStockRealtimeUniverseResolved] = useState(false);
   const [cloudError, setCloudError] = useState(null);
   const [pullRefreshDistance, setPullRefreshDistance] = useState(0);
   const [pullRefreshStatus, setPullRefreshStatus] = useState('idle'); // idle | pulling | ready | refreshing | updating | done
@@ -1748,6 +1801,10 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   const localizedStockTrades = useMemo(() => stockTrades.map(localizeStockNameRow), [stockTrades]);
   const localizedWatchlist = useMemo(() => watchlist.map(localizeStockNameRow), [watchlist]);
   const localizedQuoteCache = useMemo(() => quoteCache.map(localizeStockNameRow), [quoteCache]);
+  const localizedStockQuoteBootstrapRows = useMemo(
+    () => stockQuoteBootstrapRows.map(localizeStockNameRow),
+    [stockQuoteBootstrapRows],
+  );
   const toolQuoteRows = useMemo(() => (
     buildToolQuoteRows({ trades, costBasisData, swingWaves: swingWaveQuoteRows }).map(localizeStockNameRow)
   ), [trades, costBasisData, swingWaveQuoteRows]);
@@ -1766,16 +1823,79 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     return map;
   }, [quoteRows]);
   const stockRealtimePriorityRows = useMemo(() => ([
+    ...(!stockRealtimeUniverseResolved ? localizedStockQuoteBootstrapRows : []),
     ...quoteUniverse.ledgerRows,
     ...quoteUniverse.watchlistRows,
     ...quoteUniverse.toolRows,
     ...quoteUniverse.allRows,
-  ]), [quoteUniverse]);
+  ]), [localizedStockQuoteBootstrapRows, quoteUniverse, stockRealtimeUniverseResolved]);
   const stockRealtimeSymbols = useMemo(() => selectStockRealtimeSymbols(stockRealtimePriorityRows), [stockRealtimePriorityRows]);
   const stockRealtimeSymbolsKey = stockRealtimeSymbols.join(',');
+  const stockRealtimeReady = canStartStockRealtime({
+    cloudLoading,
+    symbols: stockRealtimeSymbols,
+  });
+
+  useEffect(() => {
+    const cachedCount = initialQuoteBootstrapCountRef.current;
+    startRealtimeStartupTraceSession('startup');
+    realtimeStartupTrace.mark('first_render', {
+      cached: cachedCount > 0,
+      count: cachedCount,
+      phase: 'render',
+      source: cachedCount > 0 ? 'cache' : 'client',
+    });
+  }, [realtimeStartupTrace, startRealtimeStartupTraceSession]);
+
   useEffect(() => {
     quoteRowsRef.current = quoteRows;
   }, [quoteRows]);
+
+  useEffect(() => {
+    quoteBootstrapLatestRowsRef.current = quoteCache;
+    if (!quoteBootstrapPersistReadyRef.current) {
+      quoteBootstrapPersistReadyRef.current = true;
+      return undefined;
+    }
+    if (quoteBootstrapPersistTimerRef.current) return undefined;
+    quoteBootstrapPersistTimerRef.current = window.setTimeout(() => {
+      quoteBootstrapPersistTimerRef.current = null;
+      writeStockQuoteBootstrapCache({
+        userId: user.id,
+        rows: quoteBootstrapLatestRowsRef.current,
+      });
+    }, 1000);
+    return undefined;
+  }, [quoteCache, user.id]);
+
+  useEffect(() => () => {
+    if (quoteBootstrapPersistTimerRef.current) {
+      window.clearTimeout(quoteBootstrapPersistTimerRef.current);
+      quoteBootstrapPersistTimerRef.current = null;
+    }
+    writeStockQuoteBootstrapCache({
+      userId: user.id,
+      rows: quoteBootstrapLatestRowsRef.current,
+    });
+  }, [user.id]);
+
+  useEffect(() => {
+    if (!stockRealtimeUniverseResolved) return;
+    const allowedSymbols = new Set(stockRealtimeSymbols);
+    const nextQuoteCache = quoteCache.filter((row) => allowedSymbols.has(normalizeSymbolKey(row?.symbol)));
+    quoteBootstrapLatestRowsRef.current = nextQuoteCache;
+    if (nextQuoteCache.length !== quoteCache.length) {
+      setQuoteCache(nextQuoteCache);
+    }
+    if (allowedSymbols.size === 0) {
+      if (quoteBootstrapPersistTimerRef.current) {
+        window.clearTimeout(quoteBootstrapPersistTimerRef.current);
+        quoteBootstrapPersistTimerRef.current = null;
+      }
+      clearStockQuoteBootstrapCache({ userId: user.id });
+    }
+  }, [quoteCache, stockRealtimeSymbolsKey, stockRealtimeUniverseResolved, user.id]);
+
   const buildSettingsPayload = useCallback((overrides = {}) => ({
     benchmarkSymbol,
     marketColorMode,
@@ -1966,6 +2086,8 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
         console.log('[云端加载] 原始返回:', result);
         if (!mounted) return;
         applyCloudUserData(result, '[云端加载]');
+        stockRealtimeUniverseResolvedRef.current = true;
+        setStockRealtimeUniverseResolved(true);
         quoteRefreshFromCloudResultRef.current?.(result);
       } catch (e) {
         console.error('[云端加载] 失败:', e);
@@ -3862,7 +3984,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   }, [cloudLoading, applyIndexRealtimeTick]);
 
   useEffect(() => {
-    if (cloudLoading || typeof window === 'undefined') return undefined;
+    if (!stockRealtimeReady || typeof window === 'undefined') return undefined;
     const symbolsSnapshot = stockRealtimeSymbols;
     if (symbolsSnapshot.length === 0) {
       stockRealtimeRef.current.status = 'idle';
@@ -3938,9 +4060,19 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
       closeSocket();
       ref.lastConnectAttemptAt = Date.now();
       if (ref.status !== 'live') ref.status = 'connecting';
+      if (!realtimeStartupMilestonesRef.current.socketConnectStarted) {
+        realtimeStartupMilestonesRef.current.socketConnectStarted = true;
+        realtimeStartupTrace.mark('socket_connect_start', {
+          count: symbolsSnapshot.length,
+          phase: 'client',
+          stream: 'stock',
+          transport: 'websocket',
+        });
+      }
 
       try {
         const { data: { session } } = await supabase.auth.getSession();
+        if (stopped || document.hidden) return;
         if (!session?.access_token) {
           ref.status = 'disabled';
           ref.error = '未登录或登录已过期';
@@ -3948,6 +4080,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
         }
 
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const socketTraceGeneration = realtimeStartupMilestonesRef.current.generation;
         const socket = new WebSocket(
           `${protocol}//${window.location.host}/api/stocks-realtime?symbols=${encodeURIComponent(symbolsSnapshot.join(','))}`,
           [STOCKS_REALTIME_PROTOCOL, `${REALTIME_TOKEN_PROTOCOL_PREFIX}${session.access_token}`],
@@ -3955,6 +4088,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
         ref.socket = socket;
 
         socket.addEventListener('open', () => {
+          if (stopped || ref.socket !== socket) return;
           const openedAt = Date.now();
           ref.lastSocketOpenAt = openedAt;
           ref.sessionTickSymbols = new Set();
@@ -3962,6 +4096,18 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
           ref.retryDelayMs = 1000;
           ref.status = 'connecting';
           ref.error = null;
+          if (
+            realtimeStartupMilestonesRef.current.generation === socketTraceGeneration
+            && !realtimeStartupMilestonesRef.current.socketOpened
+          ) {
+            realtimeStartupMilestonesRef.current.socketOpened = true;
+            realtimeStartupTrace.mark('socket_open', {
+              count: symbolsSnapshot.length,
+              phase: 'relay',
+              stream: 'stock',
+              transport: 'websocket',
+            });
+          }
           scheduleFirstTickWatchdog(socket, openedAt);
           requestQuickQuoteRefresh(quoteRowsRef.current, {
             trigger: 'auto-realtime-open',
@@ -3970,6 +4116,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
         });
 
         socket.addEventListener('message', (event) => {
+          if (stopped || ref.socket !== socket) return;
           let payload = null;
           try {
             payload = JSON.parse(event.data);
@@ -3980,7 +4127,43 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
             const tickSymbol = normalizeSymbolKey(payload.symbol || payload.ticker || payload.displaySymbol);
             if (tickSymbol) ref.sessionTickSymbols.add(tickSymbol);
             clearFirstTickTimer();
+            if (
+              realtimeStartupMilestonesRef.current.generation === socketTraceGeneration
+              && !realtimeStartupMilestonesRef.current.firstTick
+            ) {
+              realtimeStartupMilestonesRef.current.firstTick = true;
+              realtimeStartupTrace.mark('first_tick', {
+                count: ref.sessionTickSymbols.size,
+                phase: 'provider',
+                stream: 'stock',
+                transport: 'websocket',
+              });
+            }
             applyStockRealtimeTick(payload, 'live', { transport: 'websocket' });
+            if (
+              realtimeStartupMilestonesRef.current.generation === socketTraceGeneration
+              && !realtimeStartupMilestonesRef.current.pricesApplied
+            ) {
+              realtimeStartupMilestonesRef.current.pricesApplied = true;
+              realtimeStartupTrace.mark('prices_applied', {
+                count: ref.sessionTickSymbols.size,
+                phase: 'render',
+                stream: 'stock',
+                transport: 'websocket',
+              });
+            }
+            if (
+              realtimeStartupMilestonesRef.current.generation === socketTraceGeneration
+              && !realtimeStartupMilestonesRef.current.startupComplete
+            ) {
+              realtimeStartupMilestonesRef.current.startupComplete = true;
+              realtimeStartupTrace.mark('startup_complete', {
+                complete: true,
+                phase: 'render',
+                stream: 'stock',
+                transport: 'websocket',
+              });
+            }
             return;
           }
           if (payload?.type === 'stocks_status' && payload.status) {
@@ -4004,6 +4187,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
         });
 
         socket.addEventListener('error', () => {
+          if (stopped || ref.socket !== socket) return;
           ref.lastWebSocketTickAt = 0;
           ref.error = '股票实时连接中断,正在重连';
         });
@@ -4095,10 +4279,10 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
       closeSocket();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cloudLoading, stockRealtimeSymbolsKey, applyStockRealtimeTick]);
+  }, [stockRealtimeReady, stockRealtimeSymbolsKey, applyStockRealtimeTick, realtimeStartupTrace]);
 
   useEffect(() => {
-    if (cloudLoading || typeof window === 'undefined') return undefined;
+    if (!stockRealtimeReady || typeof window === 'undefined') return undefined;
     if (!isIosStandaloneWebApp()) return undefined;
 
     let stopped = false;
@@ -4128,15 +4312,23 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     };
 
     const markSnapshotWarming = (options = {}) => {
-      if (options?.resetFreshness !== false) {
-        setWarmStartedAt(Date.now());
+      if (options?.traceTrigger) {
+        startRealtimeStartupTraceSession(options.traceTrigger);
       }
-      setIndexRealtimeStatus('warming');
+      if (options?.resetFreshness !== false) {
+        const freshnessFloorAt = Date.now();
+        stockRealtimeRef.current.snapshotFreshnessFloorAt = freshnessFloorAt;
+        setWarmStartedAt(freshnessFloorAt);
+      }
+      if (!cloudLoadingRef.current) {
+        setIndexRealtimeStatus('warming');
+      }
       if (shouldPollStockRealtimeSnapshot({
         lastWebSocketTickAt: stockRealtimeRef.current.lastWebSocketTickAt,
         lastWebSocketTickAtBySymbol: stockRealtimeRef.current.lastWebSocketTickAtBySymbol,
         symbols: stockRealtimeSymbols,
         staleMs: REALTIME_STALE_MS,
+        freshnessFloorAt: stockRealtimeRef.current.snapshotFreshnessFloorAt,
       })) {
         stockRealtimeRef.current.status = 'warming';
       }
@@ -4163,33 +4355,63 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
       if (!forceSnapshot && document.hidden) return;
       if (warmSnapshot) markSnapshotWarming({ resetFreshness });
       inFlight = true;
+      const snapshotSessionGeneration = realtimeStartupMilestonesRef.current.generation;
+      const isCurrentSnapshotSession = () => (
+        !stopped
+        && realtimeStartupMilestonesRef.current.generation === snapshotSessionGeneration
+      );
       const stockSymbolsSnapshot = stockRealtimeSymbols.join(',');
       try {
-        const indicesRequest = fetchRealtimeSnapshot('/api/indices-realtime')
-          .then((response) => parseSnapshotResponse(response, 'indices'))
-          .then((snapshot) => {
-            const ticks = Array.isArray(snapshot?.ticks) ? snapshot.ticks : [];
-            ticks.forEach((tick) => applyIndexRealtimeTick(tick, 'live'));
-            if (ticks.length === 0) {
+        const indicesRequest = cloudLoadingRef.current
+          ? Promise.resolve()
+          : fetchRealtimeSnapshot('/api/indices-realtime')
+            .then((response) => parseSnapshotResponse(response, 'indices'))
+            .then((snapshot) => {
+              if (stopped) return;
+              const ticks = Array.isArray(snapshot?.ticks) ? snapshot.ticks : [];
+              ticks.forEach((tick) => applyIndexRealtimeTick(tick, 'live'));
+              if (ticks.length === 0) {
+                keepPendingStatus(setIndexRealtimeStatus);
+              }
+            })
+            .catch(() => {
               keepPendingStatus(setIndexRealtimeStatus);
-            }
-          })
-          .catch(() => {
-            keepPendingStatus(setIndexRealtimeStatus);
-          });
+            });
 
         const shouldPollStocks = Boolean(stockSymbolsSnapshot) && shouldPollStockRealtimeSnapshot({
           lastWebSocketTickAt: stockRealtimeRef.current.lastWebSocketTickAt,
           lastWebSocketTickAtBySymbol: stockRealtimeRef.current.lastWebSocketTickAtBySymbol,
           symbols: stockRealtimeSymbols,
           staleMs: REALTIME_STALE_MS,
+          freshnessFloorAt: stockRealtimeRef.current.snapshotFreshnessFloorAt,
         });
+        const traceThisStockSnapshot = shouldPollStocks
+          && !realtimeStartupMilestonesRef.current.snapshotStarted;
+        if (traceThisStockSnapshot) {
+          realtimeStartupMilestonesRef.current.snapshotStarted = true;
+          realtimeStartupTrace.mark('snapshot_start', {
+            count: stockRealtimeSymbols.length,
+            phase: 'snapshot',
+            stream: 'stock',
+            transport: 'snapshot',
+          });
+        }
         const stockSnapshotRequestedAt = Date.now();
         const stocksRequest = shouldPollStocks
           ? fetchRealtimeSnapshot('/api/stocks-realtime', { symbols: stockSymbolsSnapshot })
             .then((response) => parseSnapshotResponse(response, 'stocks'))
             .then((snapshot) => {
+              if (!isCurrentSnapshotSession()) return;
               const ticks = Array.isArray(snapshot?.ticks) ? snapshot.ticks : [];
+              if (ticks.length > 0 && !realtimeStartupMilestonesRef.current.snapshotFirstTick) {
+                realtimeStartupMilestonesRef.current.snapshotFirstTick = true;
+                realtimeStartupTrace.mark('snapshot_first_tick', {
+                  count: ticks.length,
+                  phase: 'snapshot',
+                  stream: 'stock',
+                  transport: 'snapshot',
+                });
+              }
               ticks.forEach((tick) => {
                 const symbol = normalizeSymbolKey(tick?.symbol || tick?.ticker || tick?.displaySymbol);
                 const webSocketReceivedAt = symbol
@@ -4201,11 +4423,31 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
                 })) return;
                 applyStockRealtimeTick(tick, 'live', { transport: 'snapshot' });
               });
+              if (ticks.length > 0 && !realtimeStartupMilestonesRef.current.pricesApplied) {
+                realtimeStartupMilestonesRef.current.pricesApplied = true;
+                realtimeStartupTrace.mark('prices_applied', {
+                  count: ticks.length,
+                  phase: 'render',
+                  stream: 'stock',
+                  transport: 'snapshot',
+                });
+              }
+              if (ticks.length > 0 && !realtimeStartupMilestonesRef.current.startupComplete) {
+                realtimeStartupMilestonesRef.current.startupComplete = true;
+                realtimeStartupTrace.mark('startup_complete', {
+                  complete: true,
+                  fallback: true,
+                  phase: 'render',
+                  stream: 'stock',
+                  transport: 'snapshot',
+                });
+              }
               if (ticks.length === 0 && stockRealtimeRef.current.status !== 'warming') {
                 stockRealtimeRef.current.status = 'polling';
               }
             })
             .catch(() => {
+              if (!isCurrentSnapshotSession()) return;
               if (stockRealtimeRef.current.status !== 'warming') {
                 stockRealtimeRef.current.status = 'polling';
               }
@@ -4213,8 +4455,20 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
           : Promise.resolve();
 
         await Promise.allSettled([indicesRequest, stocksRequest]);
+        if (!isCurrentSnapshotSession()) return;
+        if (traceThisStockSnapshot && !realtimeStartupMilestonesRef.current.snapshotDone) {
+          realtimeStartupMilestonesRef.current.snapshotDone = true;
+          realtimeStartupTrace.mark('snapshot_done', {
+            count: stockRealtimeSymbols.length,
+            phase: 'snapshot',
+            stream: 'stock',
+            success: realtimeStartupMilestonesRef.current.snapshotFirstTick,
+            transport: 'snapshot',
+          });
+        }
         setLastFetched(new Date());
       } catch (e) {
+        if (stopped) return;
         console.warn(`[iOS PWA snapshot] ${trigger} failed:`, e?.message || e);
       } finally {
         inFlight = false;
@@ -4233,8 +4487,13 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     const startSnapshotBurst = (trigger = 'auto-ios-pwa-snapshot-burst', options = {}) => {
       if (stopped) return false;
       const resetFreshness = options?.resetFreshness !== false;
+      const traceTrigger = resetFreshness && trigger.includes('online')
+        ? 'online'
+        : (resetFreshness && (trigger.includes('resume') || trigger.includes('focus')))
+          ? 'resume'
+          : null;
       clearBurstTimers();
-      markSnapshotWarming({ resetFreshness });
+      markSnapshotWarming({ resetFreshness, traceTrigger });
       IOS_PWA_REALTIME_SNAPSHOT_BURST_DELAYS_MS.forEach((delayMs, index) => {
         const timerId = window.setTimeout(() => {
           burstTimers.delete(timerId);
@@ -4303,12 +4562,14 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
       window.removeEventListener('online', resumePoll);
     };
   }, [
-    cloudLoading,
+    stockRealtimeReady,
     stockRealtimeSymbolsKey,
     fetchRealtimeSnapshot,
     applyBtcRealtimeTick,
     applyIndexRealtimeTick,
     applyStockRealtimeTick,
+    realtimeStartupTrace,
+    startRealtimeStartupTraceSession,
   ]);
 
   useEffect(() => {
