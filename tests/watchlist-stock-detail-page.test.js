@@ -11,7 +11,8 @@ const valuationCacheSource = readFileSync(new URL('../src/lib/stockValuation.js'
 const valuationCardSource = readFileSync(new URL('../src/components/CompanyValuationCard.jsx', import.meta.url), 'utf8');
 
 test('watchlist detail keeps the existing bottom tabs and shows the symbol beside the stock-trend title', () => {
-  assert.ok(pageSource.includes('pb-[calc(env(safe-area-inset-bottom)+86px)]'));
+  assert.equal(pageSource.includes('pb-[calc(env(safe-area-inset-bottom)+86px)]'), false, 'the page must not duplicate the App bottom-navigation clearance');
+  assert.ok(appSource.includes("hideBottomNavigation ? 'pb-0' : 'pb-24'"), 'the App shell should remain the single owner of bottom-navigation clearance');
   assert.ok(pageSource.includes('data-watchlist-detail-heading="symbol-title"'));
   assert.ok(pageSource.includes('items-baseline justify-center gap-2'));
   assert.ok(pageSource.includes("{symbol || '--'}"));
@@ -169,9 +170,9 @@ test('technical indicators use a borderless daily row plus one detailed weekly M
   assert.ok(pageSource.includes("t(language, 'watchlistDetail.entryIndicator', '建仓指标')"));
   assert.equal(pageSource.includes('distanceMa200Daily'), false);
   assert.ok(pageSource.includes("t(language, 'watchlistDetail.relativeQqq3m', '相对QQQ（3个月）')"));
-  assert.ok(pageSource.includes("t(language, 'watchlistDetail.relativeQqq3mDetail', '个股 {{stock}} · QQQ {{qqq}}'"));
-  assert.ok(pageSource.includes('grid-cols-[0.84fr_0.84fr_1.32fr]'), 'the relative QQQ metric should receive enough width to keep both returns on one line');
-  assert.ok(pageSource.includes('overflow-hidden text-ellipsis whitespace-nowrap text-[11px] text-white/[0.40]">{detail}'), 'metric details should remain single-line at the shared auxiliary size');
+  assert.ok(pageSource.includes("t(language, 'watchlistDetail.relativeQqq3mDetail', '个股{{stock}}·QQQ{{qqq}}'"));
+  assert.ok(pageSource.includes('grid-cols-[0.78fr_0.96fr_1.36fr]'), 'the relative QQQ metric should receive enough width to keep both returns on one line');
+  assert.ok(pageSource.includes('overflow-hidden text-ellipsis whitespace-nowrap text-[11px] tracking-[-0.04em] text-white/[0.50]">{detail}'), 'metric details should remain single-line at the homepage secondary size');
   assert.ok(pageSource.includes('normalizeStockDetailHistory(stockDetail?.relativeReturnHistory)'));
   assert.ok(pageSource.includes("stockDetail?.relativeReturnPriceBasis === 'adjusted_close'"));
   assert.ok(pageSource.includes('deriveThreeMonthQqqRelativeReturn(relativeReturnHistory, qqqComparisonHistory)'));

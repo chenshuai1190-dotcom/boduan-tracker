@@ -143,9 +143,9 @@ export function buildValuationChartGeometry(series = [], summary = {}) {
 function ValuationStat({ label, value, detail, color = 'rgba(255,255,255,0.82)', suffix }) {
   return (
     <div className="min-w-0 px-2 text-center">
-      <div className="overflow-hidden text-ellipsis whitespace-nowrap text-[11px] text-white/[0.40]">
+      <div className="overflow-hidden text-ellipsis whitespace-nowrap text-[12px] text-white/[0.50]">
         {label}
-        {suffix ? <span className="relative -top-[0.38em] ml-0.5 text-[11px] tracking-normal text-white/[0.24]">{suffix}</span> : null}
+        {suffix ? <span className="relative -top-[0.38em] ml-0.5 text-[10px] tracking-normal text-white/[0.40]">{suffix}</span> : null}
       </div>
       <div className="mt-1.5 overflow-hidden text-ellipsis whitespace-nowrap text-[21px] font-normal leading-none tabular-nums" style={{ color, fontFamily: NUMBER_FONT }}>
         {value}

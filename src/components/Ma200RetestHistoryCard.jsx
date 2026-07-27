@@ -188,7 +188,7 @@ function RetestMiniChart({
 function SummaryMetric({ label, value, detail, color }) {
   return (
     <div className="min-w-0 overflow-hidden px-0.5 py-2.5 text-center">
-      <div className="truncate whitespace-nowrap text-[10px] leading-tight text-white/[0.42]">
+      <div className="truncate whitespace-nowrap text-[11px] leading-tight text-white/[0.50]">
         {label}
       </div>
       <div
@@ -197,7 +197,7 @@ function SummaryMetric({ label, value, detail, color }) {
       >
         {value}
       </div>
-      <div className="mt-1 truncate whitespace-nowrap text-[10px] leading-tight text-white/[0.32]">
+      <div className="mt-1 truncate whitespace-nowrap text-[11px] leading-tight text-white/[0.40]">
         {detail}
       </div>
     </div>
@@ -475,7 +475,7 @@ function RetestHistoryDistribution({
             `${observationTradingDays}-session return after trigger`,
           )}
         </div>
-        <div className="shrink-0 text-[10px] text-white/[0.30]">
+        <div className="shrink-0 text-[11px] text-white/[0.40]">
           {copy(
             language,
             `${observationTradingDays}日样本 ${points.length} 次 · 未满${observationTradingDays}日不计`,
@@ -669,7 +669,7 @@ function CurrentCycleStatus({
       data-ma200-current-cycle-status={status}
     >
       <div className="flex min-w-0 items-center justify-between gap-3">
-        <div className="min-w-0 truncate text-[10.5px] text-white/[0.40]">
+        <div className="min-w-0 truncate text-[11px] text-white/[0.40]">
           {copy(language, '当前周期', 'Current cycle')}
           {cycle?.latestTriggerDate ? ` · ${formatDate(cycle.latestTriggerDate, language)}` : ''}
         </div>
@@ -678,7 +678,7 @@ function CurrentCycleStatus({
 
       <div className="mt-2 grid grid-cols-3 gap-2">
         <div className="min-w-0">
-          <div className="text-[10px] text-white/[0.34]">
+          <div className="text-[11px] text-white/[0.40]">
             {copy(language, '当前状态', 'Current status')}
           </div>
           <div
@@ -689,7 +689,7 @@ function CurrentCycleStatus({
           </div>
         </div>
         <div className="min-w-0 text-center">
-          <div className="text-[10px] text-white/[0.34]">
+          <div className="text-[11px] text-white/[0.40]">
             {copy(language, '距MA200', 'vs MA200')}
           </div>
           <div
@@ -703,7 +703,7 @@ function CurrentCycleStatus({
           </div>
         </div>
         <div className="min-w-0 text-right">
-          <div className="text-[10px] text-white/[0.34]">
+          <div className="text-[11px] text-white/[0.40]">
             {copy(language, '重置进度', 'Reset progress')}
           </div>
           <div
@@ -716,7 +716,7 @@ function CurrentCycleStatus({
         </div>
       </div>
 
-      <div className="mt-2 text-[10px] leading-4 text-white/[0.32]">
+      <div className="mt-2 text-[11px] leading-4 text-white/[0.40]">
         {guidance}
       </div>
     </div>
@@ -909,7 +909,7 @@ export default function Ma200RetestHistoryCard({
 
       {data?.asOfDate ? (
         <div
-          className="px-4 pb-4 pt-3 text-center text-[10.5px] tabular-nums text-white/[0.34]"
+          className="px-4 pb-4 pt-3 text-center text-[11px] tabular-nums text-white/[0.40]"
           style={{ fontFamily: NUMBER_FONT }}
           data-ma200-retest-as-of-date={data.asOfDate}
         >

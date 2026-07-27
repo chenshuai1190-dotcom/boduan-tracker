@@ -1,6 +1,23 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.396', date: '2026-07-27', latest: true,
+    ver: 'v10.7.9.397', date: '2026-07-27', latest: true,
+    items: [
+      '🔎 股票趋势辅助文字与底部留白优化',
+      '  - 关键指标、公司估值、财报、目标价与持仓辅助文字统一到首页可读层级',
+      '  - 356px 窄屏下相对 QQQ、MA200 与徽章保持单排完整显示',
+      '  - 移除“我的持仓”后的重复底栏预留；底部导航仍由 App 统一保留安全空间',
+      '  - 仅调整页面样式与间距；不修改行情、指标、财报、目标价、持仓或交易数据',
+    ],
+    itemsEn: [
+      '🔎 Improved stock-trend helper text and bottom spacing',
+      '  - Helper text across key metrics, valuation, earnings, target price, and holdings now follows the readable Home hierarchy',
+      '  - Relative QQQ, MA200, and badges remain complete on one line at the 356px narrow width',
+      '  - Removed duplicate clearance below My Position while the App continues to reserve the bottom-navigation safe area',
+      '  - This only changes presentation and spacing; quotes, indicators, earnings, targets, holdings, and trade data are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.396', date: '2026-07-27',
     items: [
       '🧭 股票趋势模块顺序精简',
       '  - “关键事件”移动到“目标价”上方，财报时间与反应信息优先展示',
