@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { resolveHomeMarketDisplayMetrics } from '../src/lib/homeMarketDisplay.js';
+import { resolveHoldingDisplayPrice, resolveHomeMarketDisplayMetrics } from '../src/lib/homeMarketDisplay.js';
 
 test('home watchlist and holdings use the official close after regular trading', () => {
   const metrics = resolveHomeMarketDisplayMetrics({
@@ -59,14 +59,45 @@ test('regular-session rows keep the live price and change', () => {
   assert.equal(metrics.locked, false);
 });
 
-test('freshness masking still hides an unlocked live price', () => {
+test('an unlocked row preserves the last valid price while a fresh tick is pending', () => {
   const metrics = resolveHomeMarketDisplayMetrics({
     price: 201.25,
     changePercent: 4.2,
     dailyPnlLocked: false,
     week52High: 210,
-  }, { maskLivePrice: true });
+  });
+
+  assert.equal(metrics.price, 201.25);
+  assert.equal(metrics.changePercent, 4.2);
+  assert.ok(Math.abs(metrics.highDrawdown - ((201.25 - 210) / 210)) < 1e-12);
+});
+
+test('an unlocked row without any valid price remains unavailable', () => {
+  const metrics = resolveHomeMarketDisplayMetrics({
+    price: 0,
+    changePercent: 4.2,
+    dailyPnlLocked: false,
+    week52High: 210,
+  });
 
   assert.equal(metrics.price, null);
   assert.equal(metrics.highDrawdown, null);
+});
+
+test('trade holding display keeps current price and only falls back to a locked close', () => {
+  assert.equal(resolveHoldingDisplayPrice({
+    currentPrice: 201.25,
+    dailyPnlPrice: 198.5,
+    dailyPnlLocked: true,
+  }), 201.25);
+  assert.equal(resolveHoldingDisplayPrice({
+    currentPrice: 0,
+    dailyPnlPrice: 198.5,
+    dailyPnlLocked: true,
+  }), 198.5);
+  assert.equal(resolveHoldingDisplayPrice({
+    currentPrice: 0,
+    dailyPnlPrice: 198.5,
+    dailyPnlLocked: false,
+  }), null);
 });

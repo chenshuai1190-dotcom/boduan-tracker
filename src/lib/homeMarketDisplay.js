@@ -9,17 +9,21 @@ function positiveNumber(value) {
   return number !== null && number > 0 ? number : null;
 }
 
+export function resolveHoldingDisplayPrice(position = {}) {
+  return positiveNumber(position?.currentPrice)
+    || (position?.dailyPnlLocked ? positiveNumber(position?.dailyPnlPrice) : null);
+}
+
 export function resolveHomeMarketDisplayMetrics(row = {}, {
   livePrice = row?.price,
   liveChangePercent = row?.changePercent,
   high = row?.week52High || row?.high,
-  maskLivePrice = false,
 } = {}) {
   const locked = Boolean(row?.dailyPnlLocked);
   const lockedPrice = positiveNumber(row?.dailyPnlPrice);
   const price = locked
     ? lockedPrice
-    : (maskLivePrice ? null : positiveNumber(livePrice));
+    : positiveNumber(livePrice);
 
   let changePercent = locked
     ? optionalNumber(row?.dailyPnlChangePercent)

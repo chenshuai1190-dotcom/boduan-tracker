@@ -141,28 +141,6 @@ function sortMetricValue(item, key) {
   return null;
 }
 
-function freshnessTimestamp(row) {
-  const candidates = [row?.clientReceivedAt, row?.receivedAt, row?.realtimeAt];
-  for (const value of candidates) {
-    if (value === null || value === undefined || value === '') continue;
-    const numeric = Number(value);
-    if (Number.isFinite(numeric) && numeric > 0) return numeric < 1000000000000 ? numeric * 1000 : numeric;
-    const parsed = Date.parse(String(value));
-    if (Number.isFinite(parsed) && parsed > 0) return parsed;
-  }
-  return 0;
-}
-
-function shouldMaskFreshPrice(symbol, quoteRow, stockFreshnessStartedAt) {
-  const startedAt = Number(stockFreshnessStartedAt) || 0;
-  if (!startedAt) return false;
-  const normalizedSymbol = String(symbol || '').trim().toUpperCase();
-  if (!normalizedSymbol) return false;
-  const quoteSymbol = String(quoteRow?.symbol || '').trim().toUpperCase();
-  if (!quoteRow || quoteSymbol !== normalizedSymbol) return true;
-  return freshnessTimestamp(quoteRow) < startedAt;
-}
-
 function SortIcon({ active, direction }) {
   return (
     <span className="flex h-4 w-2.5 shrink-0 flex-col items-center justify-center gap-[2px]" aria-hidden="true">
@@ -649,13 +627,6 @@ export default function HomeTab({ ctx }) {
     });
     return map;
   }, [displayWatchlist, positions]);
-  const freshQuoteBySymbol = React.useMemo(() => {
-    const map = new Map();
-    (quoteRows || []).forEach((item) => {
-      if (item?.symbol) map.set(String(item.symbol).toUpperCase(), item);
-    });
-    return map;
-  }, [quoteRows]);
   const popularQuoteBySymbol = React.useMemo(() => {
     const map = new Map();
     (popularQuoteRows || []).forEach((item) => {
@@ -862,7 +833,6 @@ export default function HomeTab({ ctx }) {
     const isPosition = tableTab === 'positions';
     const symbol = row.symbol;
     const quote = quoteBySymbol.get(symbol) || row;
-    const freshQuote = freshQuoteBySymbol.get(String(symbol || '').toUpperCase());
     const position = isPosition ? row : positionsBySymbol.get(symbol);
     const rawPrice = isPosition ? row.currentPrice : row.price;
     const rawChangePct = row.changePercent;
@@ -870,12 +840,10 @@ export default function HomeTab({ ctx }) {
     const pnlPct = position ? (position.holdingPnlPct ?? position.totalPnlPct) : null;
     const pnlDisplayValue = pnlValue === null ? null : pnlValue * displayRate;
     const high = row.high || row.week52High || quote?.high || quote?.week52High;
-    const maskLivePrice = isPosition && shouldMaskFreshPrice(symbol, freshQuote, stockFreshnessStartedAt);
     const marketDisplay = resolveHomeMarketDisplayMetrics(row, {
       livePrice: rawPrice,
       liveChangePercent: rawChangePct,
       high,
-      maskLivePrice,
     });
     const price = marketDisplay.price;
     const changePct = marketDisplay.changePercent;
@@ -905,7 +873,7 @@ export default function HomeTab({ ctx }) {
       logoUrls,
       displayName,
     };
-  }), [rows, tableTab, quoteBySymbol, freshQuoteBySymbol, positionsBySymbol, displayRate, marketColorMode, logoCache, language, stockFreshnessStartedAt]);
+  }), [rows, tableTab, quoteBySymbol, positionsBySymbol, displayRate, marketColorMode, logoCache, language]);
   const tableRows = React.useMemo(() => {
     if (!activeTableSort?.key) return rawTableRows;
     const direction = activeTableSort.direction === 'asc' ? 1 : -1;

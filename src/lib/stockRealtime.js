@@ -78,7 +78,9 @@ export function mergeStockSnapshotPollRequest(current, incoming = {}) {
     trigger: next.trigger || previous.trigger || 'auto-ios-pwa-snapshot-trailing',
     force: previous.force === true || next.force === true,
     warm: previous.warm === true || next.warm === true,
-    resetFreshness: previous.resetFreshness !== false || next.resetFreshness !== false,
+    // The latest lifecycle event owns freshness semantics. A touch/focus request
+    // must not inherit an earlier resume reset and hide already-rendered prices.
+    resetFreshness: next.resetFreshness !== false,
   };
 }
 

@@ -1,6 +1,21 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.399', date: '2026-07-28', latest: true,
+    ver: 'v10.7.9.400', date: '2026-07-28', latest: true,
+    items: [
+      '📈 iOS 主屏持仓价格稳定显示',
+      '  - 首页与交易页在 Tab 切换、滑动和行情预热期间保留最后一个有效价格，不再短暂显示为空',
+      '  - 触摸与恢复快照并发时使用最新事件的新鲜度语义，避免普通触摸继承旧的强制重置',
+      '  - 财报反应继续使用严格的新行情判断；数据库、持仓、正式交易、收益、比赛和财务计算均未修改',
+    ],
+    itemsEn: [
+      '📈 Stable holding prices in the iOS Home Screen app',
+      '  - Home and Trades now retain the last valid price during tab switches, scrolling, and quote warmup instead of briefly showing an empty value',
+      '  - Concurrent touch and resume snapshots now follow the latest event freshness semantics, preventing an ordinary touch from inheriting an earlier forced reset',
+      '  - Earnings reactions keep their strict fresh-quote checks; databases, holdings, formal trades, P&L, competitions, and financial calculations are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.399', date: '2026-07-28',
     items: [
       '⚡ iOS 主屏股票行情混合加速',
       '  - iOS 主屏 Web App 前台改为实时 WebSocket 优先，同时立即启动股票快照兜底；后台暂停，回到前台后重新连接并校准',

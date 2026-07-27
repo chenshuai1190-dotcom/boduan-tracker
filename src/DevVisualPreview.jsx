@@ -2548,7 +2548,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     stockReturnComparisonTooltipPreview,
     stockReturnComparisonVisualPreview: true,
     stockTrades: stockDetailTrades,
-    stockFreshnessStartedAt: freshnessPreviewMode === 'locked' ? Date.now() : 0,
+    stockFreshnessStartedAt: ['locked', 'warming'].includes(freshnessPreviewMode) ? Date.now() : 0,
     supabase: {
       auth: {
         getSession: async () => ({ data: { session: { access_token: 'dev-visual-preview-token', user: { id: earningsResumeSmoke ? earningsResumeUserIdRef.current : 'dev-user' } } } }),
@@ -2702,7 +2702,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     setWaveNotes,
     showAddTrade,
     showConfirm: showPreviewConfirm,
-    stockFreshnessStartedAt: 0,
+    stockFreshnessStartedAt: freshnessPreviewMode === 'warming' ? Date.now() : 0,
     stockTrades: [mockTodayStockTrade, ...mockPnlStockTrades],
     displayStockName: (symbol, name, displayLanguage = language) => {
       const normalizedSymbol = String(symbol || '').trim().toUpperCase();

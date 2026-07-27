@@ -716,6 +716,34 @@ test('overlapping iOS stock snapshot requests coalesce into one immediate traili
     warm: true,
     resetFreshness: true,
   });
+
+  const touched = mergeStockSnapshotPollRequest(merged, {
+    trigger: 'touch-burst',
+    force: true,
+    warm: true,
+    resetFreshness: false,
+  });
+
+  assert.deepEqual(touched, {
+    trigger: 'touch-burst',
+    force: true,
+    warm: true,
+    resetFreshness: false,
+  });
+
+  const touchedAgain = mergeStockSnapshotPollRequest(touched, {
+    trigger: 'focus-burst',
+    force: false,
+    warm: false,
+    resetFreshness: false,
+  });
+
+  assert.deepEqual(touchedAgain, {
+    trigger: 'focus-burst',
+    force: true,
+    warm: true,
+    resetFreshness: false,
+  });
 });
 
 test('normalizeStockTick accepts EODHD US stock WebSocket fields', () => {

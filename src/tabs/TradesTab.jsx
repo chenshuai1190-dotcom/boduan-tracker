@@ -7,6 +7,7 @@ import {
 } from '../lib/marketColorMode.js';
 import { splitCurrencyAmount } from '../lib/amountDisplay.js';
 import { deriveHomeMarginOverview, homeMarginLeverageStatus, normalizeMarginDebtUsd } from '../lib/homeMarginRisk.js';
+import { resolveHoldingDisplayPrice } from '../lib/homeMarketDisplay.js';
 import { isEnglishLanguage, t } from '../lib/i18n.js';
 import { normalizeStrictUserStockSymbol } from '../lib/symbols.js';
 import { formatWaveCurrencyAmount, formatWaveUsdPrice } from '../lib/waveCurrencyDisplay.js';
@@ -75,33 +76,6 @@ function localDateKey(date = new Date()) {
 function normalizeCostBasisSymbol(symbol) {
   const value = String(symbol || '').trim().toUpperCase();
   return /^[A-Z0-9.^-]{1,16}$/.test(value) ? value : '';
-}
-
-function freshnessTimestamp(row) {
-  const candidates = [row?.clientReceivedAt, row?.receivedAt, row?.realtimeAt];
-  for (const value of candidates) {
-    if (value === null || value === undefined || value === '') continue;
-    const numeric = Number(value);
-    if (Number.isFinite(numeric) && numeric > 0) return numeric < 1000000000000 ? numeric * 1000 : numeric;
-    const parsed = Date.parse(String(value));
-    if (Number.isFinite(parsed) && parsed > 0) return parsed;
-  }
-  return 0;
-}
-
-function shouldMaskFreshPrice(symbol, quoteRow, stockFreshnessStartedAt) {
-  const startedAt = Number(stockFreshnessStartedAt) || 0;
-  if (!startedAt) return false;
-  const normalizedSymbol = String(symbol || '').trim().toUpperCase();
-  if (!normalizedSymbol) return false;
-  const quoteSymbol = String(quoteRow?.symbol || '').trim().toUpperCase();
-  if (!quoteRow || quoteSymbol !== normalizedSymbol) return true;
-  return freshnessTimestamp(quoteRow) < startedAt;
-}
-
-function lockedCloseDisplayPrice(position) {
-  const price = toNumber(position?.dailyPnlPrice);
-  return position?.dailyPnlLocked && price > 0 ? price : null;
 }
 
 function formatScenarioInput(value) {
@@ -496,7 +470,6 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
     setWaveNotes,
     showAddTrade,
     showConfirm,
-    stockFreshnessStartedAt = 0,
     stockTrades,
     displayStockName,
     tradeEntryScope,
@@ -1206,10 +1179,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                         const holdingPnl = toNumber(position.holdingPnl ?? position.unrealizedPnl) * displayRate;
                         const holdingPnlPct = position.holdingPnlPct ?? position.unrealizedPct;
                         const allocation = positionsMarketValue > 0 ? toNumber(position.marketValue) / positionsMarketValue : 0;
-                        const quoteRow = quoteBySymbol.get(String(position.symbol || '').toUpperCase());
-                        const maskCurrentPrice = shouldMaskFreshPrice(position.symbol, quoteRow, stockFreshnessStartedAt);
-                        const lockedCurrentPrice = lockedCloseDisplayPrice(position);
-                        const displayCurrentPrice = maskCurrentPrice ? (lockedCurrentPrice || 0) : toNumber(position.currentPrice);
+                        const displayCurrentPrice = resolveHoldingDisplayPrice(position) || 0;
                         const openScenarioFromCell = (event) => {
                           event.preventDefault();
                           event.stopPropagation();
