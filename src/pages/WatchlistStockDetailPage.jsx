@@ -1768,6 +1768,15 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
         language={language}
       />
 
+      <section data-watchlist-detail-section="events" className="mt-3 scroll-mt-20 overflow-hidden rounded-2xl border border-white/[0.09] bg-[#0b0f14] shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]">
+        <SectionHeading title={t(language, 'watchlistDetail.keyEvents', '关键事件')} />
+        <div className="grid grid-cols-3 divide-x divide-white/[0.06] px-1 py-4">
+          <div className="px-3 text-center"><CalendarDays className="mx-auto h-4 w-4 text-white/[0.35]" /><div className="mt-2 text-[11px] text-white/[0.40]">{t(language, 'watchlistDetail.nextEarnings', '下次财报')}</div><div className="mt-1 text-[13px] text-white/[0.72] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{upcomingDate ? formatDate(upcomingDate, language) : '--'}</div><div className="mt-0.5 text-[11px] text-white/[0.40]">{upcomingSession === 'pre' ? t(language, 'watchlistDetail.expectedPreMarket', '预计盘前') : upcomingSession === 'post' ? t(language, 'watchlistDetail.expectedPostMarket', '预计盘后') : t(language, 'watchlistDetail.sessionUnknown', '时间待定')}</div></div>
+          <div className="px-3 text-center"><Clock3 className="mx-auto h-4 w-4 text-white/[0.35]" /><div className="mt-2 text-[11px] text-white/[0.40]">{t(language, 'watchlistDetail.earningsCountdown', '距离财报')}</div><div className="mt-1 text-[13px] text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{countdown === null ? '--' : t(language, 'watchlistDetail.days', '{{days}} 天', { days: countdown })}</div><div className="mt-0.5 text-[11px] text-white/[0.40]">{earnings.upcoming ? quarterLabel(earnings.upcoming, language) : t(language, 'watchlistDetail.noEarnings', '暂无财报日程')}</div></div>
+          <div className="px-3 text-center"><TrendingUp className="mx-auto h-4 w-4 text-white/[0.35]" /><div className="mt-2 text-[11px] text-white/[0.40]">{t(language, 'watchlistDetail.latestEarningsReaction', '最近财报反应')}</div><div className="mt-1 text-[13px] tabular-nums" style={{ color: marketHexColor(latestReaction || 0, marketColorMode), fontFamily: NUMBER_FONT }}>{formatSignedPercent(latestReaction)}</div><div className="mt-0.5 text-[11px] text-white/[0.40]">{latestSession === 'pre' ? t(language, 'watchlistDetail.preMarketMove', '盘前涨跌') : latestSession === 'post' ? t(language, 'watchlistDetail.postMarketMove', '盘后涨跌') : t(language, 'watchlistDetail.sessionUnknown', '时间待定')}</div></div>
+        </div>
+      </section>
+
       <button type="button" data-watchlist-detail-section="target" onClick={() => { setTargetSaveError(false); setShowTargetEditor(true); }} className="mt-3 scroll-mt-20 block w-full overflow-hidden rounded-2xl border border-[#f6b54b]/15 bg-[#0b0f14] text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]" aria-label={t(language, 'watchlistDetail.editTargetAria', '编辑 {{symbol}} 目标价', { symbol })}>
         <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3.5">
           <div className="flex items-center gap-2"><h2 className="text-[15px] font-normal text-white/[0.82]">{t(language, 'watchlistDetail.targetPrice', '目标价')}</h2><span className="rounded-md border border-[#f6b54b]/15 bg-[#f6b54b]/[0.055] px-1.5 py-0.5 text-[10px] text-[#f6b54b]/75">{t(language, 'watchlistDetail.personalPlan', '个人计划')}</span></div>
@@ -1788,15 +1797,6 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
           </div>
         </div>
       </button>
-
-      <section data-watchlist-detail-section="events" className="mt-3 scroll-mt-20 overflow-hidden rounded-2xl border border-white/[0.09] bg-[#0b0f14] shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]">
-        <SectionHeading title={t(language, 'watchlistDetail.keyEvents', '关键事件')} />
-        <div className="grid grid-cols-3 divide-x divide-white/[0.06] px-1 py-4">
-          <div className="px-3 text-center"><CalendarDays className="mx-auto h-4 w-4 text-white/[0.35]" /><div className="mt-2 text-[11px] text-white/[0.40]">{t(language, 'watchlistDetail.nextEarnings', '下次财报')}</div><div className="mt-1 text-[13px] text-white/[0.72] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{upcomingDate ? formatDate(upcomingDate, language) : '--'}</div><div className="mt-0.5 text-[11px] text-white/[0.40]">{upcomingSession === 'pre' ? t(language, 'watchlistDetail.expectedPreMarket', '预计盘前') : upcomingSession === 'post' ? t(language, 'watchlistDetail.expectedPostMarket', '预计盘后') : t(language, 'watchlistDetail.sessionUnknown', '时间待定')}</div></div>
-          <div className="px-3 text-center"><Clock3 className="mx-auto h-4 w-4 text-white/[0.35]" /><div className="mt-2 text-[11px] text-white/[0.40]">{t(language, 'watchlistDetail.earningsCountdown', '距离财报')}</div><div className="mt-1 text-[13px] text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{countdown === null ? '--' : t(language, 'watchlistDetail.days', '{{days}} 天', { days: countdown })}</div><div className="mt-0.5 text-[11px] text-white/[0.40]">{earnings.upcoming ? quarterLabel(earnings.upcoming, language) : t(language, 'watchlistDetail.noEarnings', '暂无财报日程')}</div></div>
-          <div className="px-3 text-center"><TrendingUp className="mx-auto h-4 w-4 text-white/[0.35]" /><div className="mt-2 text-[11px] text-white/[0.40]">{t(language, 'watchlistDetail.latestEarningsReaction', '最近财报反应')}</div><div className="mt-1 text-[13px] tabular-nums" style={{ color: marketHexColor(latestReaction || 0, marketColorMode), fontFamily: NUMBER_FONT }}>{formatSignedPercent(latestReaction)}</div><div className="mt-0.5 text-[11px] text-white/[0.40]">{latestSession === 'pre' ? t(language, 'watchlistDetail.preMarketMove', '盘前涨跌') : latestSession === 'post' ? t(language, 'watchlistDetail.postMarketMove', '盘后涨跌') : t(language, 'watchlistDetail.sessionUnknown', '时间待定')}</div></div>
-        </div>
-      </section>
 
       <section className="mt-3 overflow-hidden rounded-2xl border border-white/[0.09] bg-[#0b0f14] shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]">
         <SectionHeading title={t(language, 'watchlistDetail.myPosition', '我的持仓')} trailing={t(language, 'watchlistDetail.updatedAtClose', '更新于 {{date}} 收盘', { date: formatDate(close.asOfDate, language) })} />
@@ -1823,27 +1823,6 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
         ) : (
           <div className="px-4 py-5 text-center text-[12px] text-white/[0.40]">{t(language, 'watchlistDetail.noPosition', '当前没有持仓')}</div>
         )}
-      </section>
-
-      <section data-watchlist-detail-section="trades" className="mt-3 scroll-mt-20 overflow-hidden rounded-2xl border border-white/[0.09] bg-[#0b0f14] shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]">
-        <SectionHeading title={t(language, 'watchlistDetail.recentTrades', '最近交易记录')} />
-        {rows.trades.length ? (
-          <div className="divide-y divide-white/[0.055] px-4">
-            {rows.trades.slice(0, 5).map((trade) => {
-              const buy = trade?.side !== 'sell';
-              const shares = finiteNumber(trade?.shares) || 0;
-              const priceUsd = finiteNumber(trade?.price);
-              const amountUsd = priceUsd === null ? null : shares * priceUsd;
-              return (
-                <div key={trade?.id || `${trade?.date}-${trade?.side}-${trade?.price}`} className="grid grid-cols-[88px_minmax(0,1fr)_96px] items-center gap-3 py-3">
-                  <div><div className="text-[12px]" style={{ color: marketHexColor(buy ? 1 : -1, marketColorMode) }}>{buy ? t(language, 'watchlistDetail.buy', '买入') : t(language, 'watchlistDetail.sell', '卖出')}</div><div className="mt-1 text-[11px] text-white/[0.40] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{formatDate(trade?.date, language, { year: true })}</div></div>
-                  <div className="text-right"><div className="text-[11.5px] text-white/[0.61] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{formatShares(shares)} {t(language, 'watchlistDetail.shares', '股')}</div><div className="mt-1 text-[11px] text-white/[0.40] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>@ {formatCurrency(priceUsd, stockCurrency)}</div></div>
-                  <div className="text-right text-[11.5px] text-white/[0.62] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{amountUsd === null ? '--' : formatCurrency(buy ? -amountUsd : amountUsd, stockCurrency, 2, { signed: true })}</div>
-                </div>
-              );
-            })}
-          </div>
-        ) : <div className="px-4 py-5 text-center text-[12px] text-white/[0.40]">{t(language, 'watchlistDetail.noTrades', '暂无正式交易记录')}</div>}
       </section>
 
       {showTargetEditor ? (

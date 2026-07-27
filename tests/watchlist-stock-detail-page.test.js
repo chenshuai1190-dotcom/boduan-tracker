@@ -152,7 +152,6 @@ test('production watchlist detail only converts holding asset totals and keeps s
   assert.ok(pageSource.includes('position.marketValueUsd, portfolioCurrency, portfolioRate'));
   assert.ok(pageSource.includes('position.pnlUsd, portfolioCurrency, portfolioRate'));
   assert.ok(pageSource.includes('formatCurrency(position.averageCostUsd, stockCurrency)'));
-  assert.ok(pageSource.includes('formatCurrency(priceUsd, stockCurrency)'));
   assert.equal((pageSource.match(/usdToDisplayCurrency\(/g) || []).length, 2, 'only holding market value and P&L may be converted');
   assert.equal(pageSource.includes('displayCurrencyToUsd'), false, 'target prices must never be reinterpreted through the portfolio currency');
   assert.equal(pageSource.includes('displayRate='), false, 'the stock chart must never receive a portfolio FX rate');
@@ -201,7 +200,7 @@ test('target card keeps whole-card editing without redundant edit chrome or scal
   const targetButtonLine = pageSource.split('\n').find((line) => line.includes('data-watchlist-detail-section="target"')) || '';
   const targetBlock = pageSource.slice(
     pageSource.indexOf('data-watchlist-detail-section="target"'),
-    pageSource.indexOf('data-watchlist-detail-section="events"'),
+    pageSource.indexOf("t(language, 'watchlistDetail.myPosition'"),
   );
   assert.ok(targetButtonLine.includes('setShowTargetEditor(true)'));
   assert.ok(targetButtonLine.includes('editTargetAria'));
@@ -222,13 +221,17 @@ test('target card keeps whole-card editing without redundant edit chrome or scal
   const eventsIndex = pageSource.indexOf('data-watchlist-detail-section="events"');
   const positionIndex = pageSource.indexOf("t(language, 'watchlistDetail.myPosition'");
   const tradesIndex = pageSource.indexOf('data-watchlist-detail-section="trades"');
-  assert.ok(metricsIndex < valuationIndex && valuationIndex < fundamentalsIndex && fundamentalsIndex < earningsIndex && earningsIndex < targetIndex && targetIndex < eventsIndex && eventsIndex < positionIndex && positionIndex < tradesIndex, 'approved module order should be metrics, valuation, fundamentals, published earnings, target, key events, position, then trades');
+  assert.ok(metricsIndex < valuationIndex && valuationIndex < fundamentalsIndex && fundamentalsIndex < earningsIndex && earningsIndex < eventsIndex && eventsIndex < targetIndex && targetIndex < positionIndex, 'approved module order should be metrics, valuation, fundamentals, published earnings, key events, target, then position');
+  assert.equal(tradesIndex, -1, 'recent trades should not appear on the stock-trend page');
 });
 
-test('production watchlist detail only mutates its isolated target and keeps holdings and trades read-only', () => {
+test('production watchlist detail only mutates its isolated target, keeps holdings read-only, and omits recent trades', () => {
   assert.ok(pageSource.includes('saveWatchlistStockTarget(symbol, normalizedTarget)'));
   assert.equal(pageSource.includes('autoRead'), false);
   assert.equal(pageSource.includes('formalLedgerReadOnly'), false);
+  assert.equal(pageSource.includes('data-watchlist-detail-section="trades"'), false);
+  assert.equal(pageSource.includes("t(language, 'watchlistDetail.recentTrades'"), false);
+  assert.equal(pageSource.includes('rows.trades.slice('), false);
   assert.ok(pageSource.includes('targetBoundary'));
   for (const forbidden of [
     'insertStockTrade',

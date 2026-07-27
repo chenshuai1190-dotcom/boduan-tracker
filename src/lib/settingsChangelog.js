@@ -1,6 +1,21 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.395', date: '2026-07-26', latest: true,
+    ver: 'v10.7.9.396', date: '2026-07-27', latest: true,
+    items: [
+      '🧭 股票趋势模块顺序精简',
+      '  - “关键事件”移动到“目标价”上方，财报时间与反应信息优先展示',
+      '  - 股票趋势页移除“最近交易记录”卡片；正式交易账本及“我的持仓”计算保持不变',
+      '  - 仅调整页面展示顺序与模块；不修改目标价保存、财报数据、持仓、交易或比赛数据',
+    ],
+    itemsEn: [
+      '🧭 Simplified the stock-trend module order',
+      '  - Key Events now appears above Target Price so earnings timing and reaction information is presented first',
+      '  - The Recent Trades card is removed from the stock-trend page; the formal trade ledger and My Position calculations remain unchanged',
+      '  - This only changes module visibility and order; target saving, earnings data, holdings, trades, and competition data are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.395', date: '2026-07-26',
     items: [
       '📊 季度业绩趋势恢复卡片内布局',
       '  - 季度图恢复为与年度图一致的画布、柱宽和间距，最近 6 个完整季度全部显示在卡片内',
