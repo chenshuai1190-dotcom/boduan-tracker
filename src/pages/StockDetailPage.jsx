@@ -1,10 +1,18 @@
 import React from 'react';
-import { ArrowLeft, Info } from 'lucide-react';
+import { ArrowLeft, ChevronRight, Info } from 'lucide-react';
 import { marketHexColor, marketTextClass } from '../lib/marketColorMode.js';
 import { t } from '../lib/i18n.js';
 import { buildStockDetailViewModel } from '../lib/stockDetailViewModel.js';
 import { buildStockReturnComparison } from '../lib/stockReturnComparison.js';
+import {
+  findWatchlistStockDetailRows,
+  targetProgressPercent,
+  targetProgressPositionPercent,
+  targetSpacePercent,
+} from '../lib/watchlistStockDetail.js';
+import { stockLogoCandidates } from '../components/StockLogo.jsx';
 import StockReturnComparisonCard from '../components/StockReturnComparisonCard.jsx';
+import TargetEditor from '../components/StockTargetEditor.jsx';
 
 const PAGE_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif';
 const NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif';
@@ -38,6 +46,11 @@ function toNumber(value) {
   return Number.isFinite(n) ? n : 0;
 }
 
+function positiveNumber(value) {
+  const number = Number(value);
+  return Number.isFinite(number) && number > 0 ? number : null;
+}
+
 function fmt(value, digits = 2) {
   return toNumber(value).toLocaleString('en-US', {
     minimumFractionDigits: digits,
@@ -58,6 +71,12 @@ function currency(value, currencyMode = 'USD', digits = 2) {
 function signedPct(value, digits = 2) {
   if (value == null) return '--';
   const n = toNumber(value) * 100;
+  return `${n >= 0 ? '+' : ''}${n.toFixed(digits)}%`;
+}
+
+function signedPercentValue(value, digits = 2) {
+  if (value == null) return '--';
+  const n = toNumber(value);
   return `${n >= 0 ? '+' : ''}${n.toFixed(digits)}%`;
 }
 
@@ -504,14 +523,18 @@ function PnlSparkline({ points, color, emptyText, startDate, endDate, currencyMo
 export default function StockDetailPage({ ctx = {} }) {
   const {
     closeStockDetail,
+    cacheStockLogo,
     db,
     displayStockName,
     fetchPnlBenchmarkRows,
     language = 'zh',
+    logoCache = {},
     marketColorMode,
     portfolioCurrencyMode,
+    saveWatchlistStockTarget,
     stockDetailSymbol,
     stockDetailInitialRange = 'all',
+    stockDetailTargetEditorOpen = false,
     stockReturnComparisonMethodPreview = false,
     stockReturnComparisonSharePreview = false,
     stockReturnComparisonTooltipPreview = false,
@@ -521,6 +544,7 @@ export default function StockDetailPage({ ctx = {} }) {
     usdRate,
     investmentSummary,
     user,
+    watchlist = [],
   } = ctx;
   const [range, setRange] = React.useState(() => (
     ['ytd', '1m', '6m', '1y', 'all'].includes(stockDetailInitialRange)
@@ -537,9 +561,20 @@ export default function StockDetailPage({ ctx = {} }) {
   });
   const [benchmarkLoading, setBenchmarkLoading] = React.useState(false);
   const [benchmarkError, setBenchmarkError] = React.useState('');
+  const [showTargetEditor, setShowTargetEditor] = React.useState(Boolean(stockDetailTargetEditorOpen));
+  const [targetSaving, setTargetSaving] = React.useState(false);
+  const [targetSaveError, setTargetSaveError] = React.useState(false);
+  const [targetOverrideUsd, setTargetOverrideUsd] = React.useState(null);
   const displayCurrency = portfolioCurrencyMode === 'USD' ? 'USD' : 'CNY';
   const displayRate = displayCurrency === 'CNY' ? (toNumber(usdRate) || toNumber(investmentSummary?.usdRate) || USD_CNY_FALLBACK) : 1;
   const symbol = String(stockDetailSymbol || '').trim().toUpperCase();
+
+  React.useEffect(() => {
+    setShowTargetEditor(Boolean(stockDetailTargetEditorOpen));
+    setTargetSaving(false);
+    setTargetSaveError(false);
+    setTargetOverrideUsd(null);
+  }, [stockDetailTargetEditorOpen, symbol]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -692,6 +727,25 @@ export default function StockDetailPage({ ctx = {} }) {
   const displayName = typeof displayStockName === 'function'
     ? displayStockName(view.symbol, view.name, language)
     : (view.name || view.symbol);
+  const targetRows = React.useMemo(
+    () => findWatchlistStockDetailRows({ symbol, watchlist }),
+    [symbol, watchlist],
+  );
+  const targetWatchlistRow = targetRows.watchlistRow;
+  const targetPriceUsd = targetOverrideUsd ?? positiveNumber(targetWatchlistRow?.targetPriceUsd);
+  const targetGap = targetSpacePercent(targetPriceUsd, view.currentPriceUsd);
+  const targetProgress = targetProgressPercent(targetPriceUsd, view.currentPriceUsd, view.avgCostUsd);
+  const targetProgressPosition = targetProgressPositionPercent(targetProgress);
+  const targetEditable = Boolean(targetWatchlistRow && typeof saveWatchlistStockTarget === 'function');
+  const cachedLogoEntry = logoCache instanceof Map ? logoCache.get(symbol) : logoCache?.[symbol];
+  const cachedLogoUrl = cachedLogoEntry?.url || cachedLogoEntry;
+  const targetLogoUrls = stockLogoCandidates(
+    symbol,
+    cachedLogoUrl,
+    targetWatchlistRow?.logoURL,
+    targetWatchlistRow?.logoUrl,
+    targetWatchlistRow?.logo,
+  );
   const totalColor = marketHexColor(view.periodPnlUsd || 0, marketColorMode);
   const totalValue = view.periodPnlUsd == null ? null : view.periodPnlUsd * displayRate;
   const rangeItems = [
@@ -702,6 +756,27 @@ export default function StockDetailPage({ ctx = {} }) {
     ['all', t(language, 'stockDetail.range.all', '全部')],
   ];
   const compactRangeLabel = rangeItems.find(([id]) => id === range)?.[1] || rangeItems[0][1];
+
+  const saveTarget = async (targetUsd) => {
+    if (!(targetUsd > 0) || !targetEditable) {
+      setTargetSaveError(true);
+      return;
+    }
+    setTargetSaving(true);
+    setTargetSaveError(false);
+    try {
+      const normalizedTarget = Number(targetUsd.toFixed(6));
+      const result = await saveWatchlistStockTarget(symbol, normalizedTarget);
+      if (result?.success === false) throw new Error(result.error || 'target save failed');
+      setTargetOverrideUsd(normalizedTarget);
+      setShowTargetEditor(false);
+    } catch (targetSaveFailure) {
+      console.warn('[StockDetail] target save failed:', targetSaveFailure?.message || targetSaveFailure);
+      setTargetSaveError(true);
+    } finally {
+      setTargetSaving(false);
+    }
+  };
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-[430px] bg-[#05070b] pb-[calc(env(safe-area-inset-bottom)+86px)] text-white/[0.72]" style={{ fontFamily: PAGE_FONT }}>
@@ -734,7 +809,10 @@ export default function StockDetailPage({ ctx = {} }) {
         </div>
       </header>
 
-      <section className="mt-3 overflow-hidden rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+      <section
+        className="mt-3 overflow-hidden rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
+        data-stock-detail-summary-card="true"
+      >
         <div className="relative">
           <div className={`flex items-center gap-1.5 text-[12px] ${DETAIL_HEADING_CLASS}`}>
             <span>{t(language, 'stockDetail.totalPnl', '累计盈亏')} ({displayCurrency})</span>
@@ -780,10 +858,99 @@ export default function StockDetailPage({ ctx = {} }) {
               value={view.holdingStartDate ? displayDate(view.holdingStartDate) : '--'}
             />
           </div>
+
+          <button
+            type="button"
+            data-stock-detail-target-plan="true"
+            onClick={() => {
+              if (!targetEditable) return;
+              setTargetSaveError(false);
+              setShowTargetEditor(true);
+            }}
+            disabled={!targetEditable}
+            className="-mx-4 -mb-4 mt-4 block w-[calc(100%+2rem)] border-t border-white/[0.07] bg-[radial-gradient(circle_at_8%_4%,rgba(246,181,75,0.055),transparent_38%)] px-4 py-4 text-left disabled:cursor-default"
+            aria-label={t(language, 'watchlistDetail.editTargetAria', '编辑 {{symbol}} 目标价', { symbol })}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <span className="text-[12px] text-white/[0.50]">
+                  {t(language, 'watchlistDetail.singleTargetPrice', '单一目标价（{{currency}}）', { currency: 'USD' })}
+                </span>
+                <span className="rounded-md border border-[#f6b54b]/15 bg-[#f6b54b]/[0.055] px-1.5 py-0.5 text-[10px] text-[#f6b54b]/75">
+                  {t(language, 'watchlistDetail.personalPlan', '个人计划')}
+                </span>
+              </div>
+              <ChevronRight className={`h-4 w-4 ${targetEditable ? 'text-white/[0.26]' : 'text-transparent'}`} />
+            </div>
+
+            <div className="mt-2 grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3">
+              <div className="whitespace-nowrap text-[27px] font-normal leading-none text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
+                {targetPriceUsd === null ? '--' : currency(targetPriceUsd, 'USD', 2)}
+              </div>
+              <div className="pb-0.5 text-right">
+                <div className="text-[12px] text-white/[0.50]">{t(language, 'watchlistDetail.targetSpace', '距目标空间')}</div>
+                <div
+                  className="mt-1 whitespace-nowrap text-[16px] font-normal tabular-nums"
+                  style={{
+                    color: targetGap === null ? 'rgba(255,255,255,0.32)' : marketHexColor(targetGap, marketColorMode),
+                    fontFamily: NUMBER_FONT,
+                  }}
+                >
+                  {signedPercentValue(targetGap)}
+                </div>
+              </div>
+            </div>
+
+            <div className="relative mt-5 h-1.5 rounded-full bg-gradient-to-r from-[#36c49a] via-[#f6b54b] to-[#ff4b1f]">
+              <span
+                className="absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-[#f6b54b] shadow-[0_0_11px_rgba(246,181,75,0.55)]"
+                style={{ left: `${targetProgressPosition}%`, opacity: targetProgress === null ? 0.35 : 1 }}
+              />
+            </div>
+            <div className="mt-2 grid grid-cols-3 text-[11px] text-white/[0.40]">
+              <span className="whitespace-nowrap">
+                {t(language, 'watchlistDetail.cost', '成本 {{price}}', { price: view.avgCostUsd > 0 ? currency(view.avgCostUsd, 'USD', 2) : '--' })}
+              </span>
+              <span className="whitespace-nowrap text-center text-[#f6b54b]/75">
+                {t(language, 'watchlistDetail.current', '当前 {{price}}', { price: view.currentPriceUsd > 0 ? currency(view.currentPriceUsd, 'USD', 2) : '--' })}
+              </span>
+              <span className="whitespace-nowrap text-right">
+                {t(language, 'watchlistDetail.target', '目标 {{price}}', { price: targetPriceUsd === null ? '--' : currency(targetPriceUsd, 'USD', 2) })}
+              </span>
+            </div>
+            <div className="mt-3 text-right text-[12px] text-white/[0.50]">
+              {t(language, 'watchlistDetail.costToTargetProgress', '成本至目标已完成')}
+              <span className="ml-1 text-white/[0.58] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
+                {targetProgress === null ? '--' : `${targetProgress.toFixed(1)}%`}
+              </span>
+            </div>
+          </button>
         </div>
       </section>
 
-      <section className="mt-3 rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+      {showTargetEditor && targetEditable ? (
+        <TargetEditor
+          language={language}
+          symbol={symbol}
+          name={displayName}
+          logoUrls={targetLogoUrls}
+          onLogoLoad={cacheStockLogo}
+          currency="USD"
+          currentCloseUsd={view.currentPriceUsd}
+          averageCostUsd={view.avgCostUsd}
+          targetPriceUsd={targetPriceUsd}
+          marketColorMode={marketColorMode}
+          saving={targetSaving}
+          error={targetSaveError}
+          onCancel={() => !targetSaving && setShowTargetEditor(false)}
+          onSave={saveTarget}
+        />
+      ) : null}
+
+      <section
+        className="mt-3 rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
+        data-stock-detail-pnl-trend-card="true"
+      >
         <div className="flex items-center gap-1.5">
           <h2 className={`text-[13px] font-semibold ${DETAIL_HEADING_CLASS}`}>{t(language, 'stockDetail.pnlTrend', '收益走势')}</h2>
           <Info className="h-3.5 w-3.5 text-white/[0.28]" />

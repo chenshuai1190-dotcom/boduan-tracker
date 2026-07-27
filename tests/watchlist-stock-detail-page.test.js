@@ -9,6 +9,7 @@ const i18nSource = readFileSync(new URL('../src/lib/i18n.js', import.meta.url), 
 const fundamentalsCacheSource = readFileSync(new URL('../src/lib/stockFundamentals.js', import.meta.url), 'utf8');
 const valuationCacheSource = readFileSync(new URL('../src/lib/stockValuation.js', import.meta.url), 'utf8');
 const valuationCardSource = readFileSync(new URL('../src/components/CompanyValuationCard.jsx', import.meta.url), 'utf8');
+const targetEditorSource = readFileSync(new URL('../src/components/StockTargetEditor.jsx', import.meta.url), 'utf8');
 
 test('watchlist detail keeps the existing bottom tabs and shows the symbol beside the stock-trend title', () => {
   assert.equal(pageSource.includes('pb-[calc(env(safe-area-inset-bottom)+86px)]'), false, 'the page must not duplicate the App bottom-navigation clearance');
@@ -233,7 +234,8 @@ test('production watchlist detail only mutates its isolated target, keeps holdin
   assert.equal(pageSource.includes('data-watchlist-detail-section="trades"'), false);
   assert.equal(pageSource.includes("t(language, 'watchlistDetail.recentTrades'"), false);
   assert.equal(pageSource.includes('rows.trades.slice('), false);
-  assert.ok(pageSource.includes('targetBoundary'));
+  assert.ok(pageSource.includes("import TargetEditor from '../components/StockTargetEditor.jsx'"));
+  assert.ok(targetEditorSource.includes('targetBoundary'));
   for (const forbidden of [
     'insertStockTrade',
     'updateStockTrade',

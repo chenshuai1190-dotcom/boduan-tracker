@@ -1,6 +1,23 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.397', date: '2026-07-27', latest: true,
+    ver: 'v10.7.9.398', date: '2026-07-27', latest: true,
+    items: [
+      '🎯 个股收益头卡整合目标计划',
+      '  - 个股收益详情头卡在原有三排持仓结构下方新增单一目标价、距目标空间和成本进度',
+      '  - 点击目标区域可直接编辑；与股票趋势原目标价卡共用同一份个人目标和保存入口',
+      '  - 股票趋势原目标价卡继续保留；目标价、成本和当前价仍按 USD 口径展示',
+      '  - 不修改持仓、正式交易、收益计算、比赛账本或数据库结构',
+    ],
+    itemsEn: [
+      '🎯 Integrated the personal target into the stock-return summary',
+      '  - The individual return summary now adds target price, remaining upside, and cost progress below the existing three position rows',
+      '  - The target area opens the same editor and persists through the same personal-target path as the Stock Trend card',
+      '  - The original Stock Trend target card remains available; target, cost, and current price continue to use canonical USD',
+      '  - Holdings, formal trades, return calculations, competition ledgers, and database structure are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.397', date: '2026-07-27',
     items: [
       '🔎 股票趋势辅助文字与底部留白优化',
       '  - 关键指标、公司估值、财报、目标价与持仓辅助文字统一到首页可读层级',

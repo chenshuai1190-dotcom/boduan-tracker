@@ -2388,6 +2388,18 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     ? (homeSignalBenchmarkStock.price - homeSignalBenchmarkStock.high) / homeSignalBenchmarkStock.high
     : 0;
 
+  const previewWatchlistWithTarget = homeWatchlist.map((item) => (
+    item.symbol === 'NVDA'
+      ? { ...item, targetPriceUsd: watchlistDetailTargetUsd }
+      : item
+  ));
+  const savePreviewWatchlistTarget = async (targetSymbol, targetPriceUsd) => {
+    if (String(targetSymbol || '').trim().toUpperCase() === 'NVDA') {
+      setWatchlistDetailTargetUsd(Number(targetPriceUsd));
+    }
+    return { success: true, targetPriceUsd: Number(targetPriceUsd) };
+  };
+
   const homeCtx = {
     addStock: async (stock) => {
       const symbol = String(stock?.symbol || '').trim().toUpperCase();
@@ -2516,6 +2528,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
       setHomeWatchlist(next);
       return { success: true };
     },
+    saveWatchlistStockTarget: savePreviewWatchlistTarget,
     saveMarginDebt: async (nextDebtUsd) => {
       setPreviewMarginDebtUsd(Number(nextDebtUsd));
       return { currentMargin: Number(nextDebtUsd), marginLimit: 0 };
@@ -2529,6 +2542,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     showAddStock,
     stockDetailSymbol: 'NVDA',
     stockDetailInitialRange,
+    stockDetailTargetEditorOpen: watchlistDetailTargetEditorOpen,
     stockReturnComparisonMethodPreview,
     stockReturnComparisonSharePreview,
     stockReturnComparisonTooltipPreview,
@@ -2544,7 +2558,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     vix: 15.8,
     vixDataDate: '2026-07-03T00:00:00.000Z',
     vixSignal: 'calm',
-    watchlist: homeWatchlist,
+    watchlist: previewWatchlistWithTarget,
   };
 
   const watchlistDetailCtx = {
@@ -2570,10 +2584,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
       { id: 'watch-detail-2', symbol: 'NVDA', side: 'buy', date: '2026-05-20', shares: 150, price: 191.2 },
       { id: 'watch-detail-3', symbol: 'NVDA', side: 'sell', date: '2026-04-02', shares: 100, price: 178.66 },
     ],
-    saveWatchlistStockTarget: async (_symbol, targetPriceUsd) => {
-      setWatchlistDetailTargetUsd(Number(targetPriceUsd));
-      return { success: true, targetPriceUsd: Number(targetPriceUsd) };
-    },
+    saveWatchlistStockTarget: savePreviewWatchlistTarget,
     watchlistStockDetailDataOverride: ma200LiveStockDetail
       ? { ...mockWatchlistStockDetailData, ...ma200LiveStockDetail }
       : mockWatchlistStockDetailData,
