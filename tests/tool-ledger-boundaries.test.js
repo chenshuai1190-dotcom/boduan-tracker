@@ -627,8 +627,9 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(indexHtmlSource.includes('color-scheme: dark;'), 'index.html should tell the browser to use a dark startup color scheme');
   assert.equal(manifestJson.background_color, '#05070b', 'PWA manifest background should match the app dark shell');
   assert.equal(manifestJson.theme_color, '#05070b', 'PWA manifest theme color should match the app dark shell');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.401'"), 'visible settings version surfaces should share one source');
-  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.401', date: '2026-07-28', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.402'"), 'visible settings version surfaces should share one source');
+  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.402', date: '2026-07-28', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsChangelogSource.includes('波段记录实时价格加速') && settingsChangelogSource.includes('活跃波段优先读取已登录股票实时快照') && settingsChangelogSource.includes('慢响应不能覆盖更新的实时价格') && settingsChangelogSource.includes('加速入口只提供给独立波段记录页面'), 'settings changelog should document the isolated wave snapshot acceleration and stale-response protection');
   assert.ok(settingsChangelogSource.includes('iOS 主屏股票行情启动加速') && settingsChangelogSource.includes('最近 15 分钟、按账户隔离') && settingsChangelogSource.includes('WebSocket 仍为首选') && settingsChangelogSource.includes('缓存不保存数量、成本、盈亏、目标价、交易或账户数据'), 'settings changelog should document the isolated iOS startup acceleration and unchanged ledger boundary');
   assert.ok(settingsChangelogSource.includes('个股收益头卡整合目标计划') && settingsChangelogSource.includes('原有三排持仓结构下方') && settingsChangelogSource.includes('股票趋势原目标价卡继续保留') && settingsChangelogSource.includes('不修改持仓、正式交易、收益计算、比赛账本或数据库结构'), 'settings changelog should document the shared target entry and unchanged financial boundaries');
   assert.ok(settingsChangelogSource.includes('股票趋势模块顺序精简') && settingsChangelogSource.includes('“关键事件”移动到“目标价”上方') && settingsChangelogSource.includes('移除“最近交易记录”卡片') && settingsChangelogSource.includes('正式交易账本及“我的持仓”计算保持不变'), 'settings changelog should document the stock-trend module order and unchanged ledger boundary');
@@ -2591,7 +2592,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.401'"), 'settings version surfaces should remain synchronized through the shared constant');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.402'"), 'settings version surfaces should remain synchronized through the shared constant');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');
