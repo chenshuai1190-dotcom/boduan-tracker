@@ -347,7 +347,7 @@ function StockCard({ group, expanded, filter, onToggle, onAction, tt, displayRat
   );
 }
 
-export default function WaveTrackerPage({ ctx = {} }) {
+export default function WaveTrackerPage({ ctx = {}, fetchSwingWaveRealtimeSnapshot }) {
   const {
     cacheStockLogo,
     closeWaveTracker,
@@ -381,6 +381,7 @@ export default function WaveTrackerPage({ ctx = {} }) {
   const [submitting, setSubmitting] = React.useState(false);
   const submittingRef = React.useRef(false);
   const quoteRequestRef = React.useRef(0);
+  const realtimeSnapshotRequestRef = React.useRef(0);
 
   const activeSymbols = React.useMemo(() => Array.from(new Set(rows
     .filter((wave) => wave?.status === 'active')
@@ -414,6 +415,22 @@ export default function WaveTrackerPage({ ctx = {} }) {
       console.warn('[SwingWaves] quote refresh failed:', error?.message || error);
     }
   }, [fetchPopularStockQuotes]);
+
+  const refreshRealtimeSnapshot = React.useCallback(async (symbols) => {
+    if (typeof fetchSwingWaveRealtimeSnapshot !== 'function') return;
+    const normalizedSymbols = Array.from(new Set((symbols || [])
+      .map((symbol) => normalizeStrictUserStockSymbol(symbol))
+      .filter(Boolean)));
+    const requestId = ++realtimeSnapshotRequestRef.current;
+    if (normalizedSymbols.length === 0) return;
+    try {
+      const result = await fetchSwingWaveRealtimeSnapshot(normalizedSymbols);
+      if (requestId !== realtimeSnapshotRequestRef.current || !Array.isArray(result?.data)) return;
+      setLocalQuotes((current) => mergeSwingWaveQuoteRows(current, result.data));
+    } catch (error) {
+      console.warn('[SwingWaves] realtime snapshot failed:', error?.message || error);
+    }
+  }, [fetchSwingWaveRealtimeSnapshot]);
 
   const loadRows = React.useCallback(async ({ silent = false } = {}) => {
     if (!db?.listSwingWaves) throw new Error(tt('swing.dataUnavailable', '波段数据服务暂不可用'));
@@ -450,10 +467,11 @@ export default function WaveTrackerPage({ ctx = {} }) {
   }, [db, tt, user]);
 
   React.useEffect(() => {
+    refreshRealtimeSnapshot(activeSymbols).catch(() => {});
     refreshQuotes(activeSymbols).catch(() => {});
-    // activeSymbolsKey intentionally limits REST refreshes to membership changes.
+    // activeSymbolsKey intentionally limits snapshot and REST refreshes to membership changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeSymbolsKey, refreshQuotes]);
+  }, [activeSymbolsKey, refreshQuotes, refreshRealtimeSnapshot]);
 
   const activeWaveQuoteRows = React.useMemo(() => {
     const quotesBySymbol = new Map(localQuotes.map((quote) => [
@@ -482,6 +500,8 @@ export default function WaveTrackerPage({ ctx = {} }) {
   }, [activeWaveQuoteRows, syncSwingWaveQuoteRows]);
 
   React.useEffect(() => () => {
+    quoteRequestRef.current += 1;
+    realtimeSnapshotRequestRef.current += 1;
     syncSwingWaveQuoteRows?.([]);
   }, [syncSwingWaveQuoteRows]);
 

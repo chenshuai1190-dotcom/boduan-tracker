@@ -1,6 +1,21 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.401', date: '2026-07-28', latest: true,
+    ver: 'v10.7.9.402', date: '2026-07-28', latest: true,
+    items: [
+      '⚡ 波段记录实时价格加速',
+      '  - 进入波段记录后，活跃波段优先读取已登录股票实时快照，不再等待完整历史行情请求后才显示最新价',
+      '  - 完整行情仍在后台补齐昨收等基线，后续价格继续由 WebSocket 更新；慢响应不能覆盖更新的实时价格',
+      '  - 加速入口只提供给独立波段记录页面；首页、交易页、数据库、正式交易、收益和比赛逻辑均保持不变',
+    ],
+    itemsEn: [
+      '⚡ Faster realtime prices in Swing Records',
+      '  - Active swing records now request an authenticated stock snapshot on entry instead of waiting for the full historical quote response before showing the latest price',
+      '  - Full quotes still fill previous-close baselines in the background and WebSocket ticks continue updates; slower responses cannot replace newer realtime prices',
+      '  - The acceleration entry point is exclusive to the independent Swing Records page; Home, Trades, databases, formal trades, P&L, and competitions are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.401', date: '2026-07-28',
     items: [
       '⚡ iOS 主屏股票行情启动加速',
       '  - 复用最近 15 分钟、按账户隔离的股票代码与昨收基线，在云端持仓完成前提前建立股票实时连接',

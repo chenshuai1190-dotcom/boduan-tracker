@@ -1420,6 +1420,43 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     });
   }, []);
 
+  const fetchSwingWaveRealtimeSnapshot = useCallback(async (symbols = []) => {
+    const normalizedSymbols = Array.from(new Set(
+      (Array.isArray(symbols) ? symbols : [])
+        .map((symbol) => normalizeStrictSymbolKey(symbol))
+        .filter(Boolean),
+    )).slice(0, 50);
+    if (normalizedSymbols.length === 0) return { success: true, data: [], coverage: null };
+
+    const response = await fetchRealtimeSnapshot('/api/stocks-realtime', {
+      symbols: normalizedSymbols.join(','),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || !result?.success) {
+      throw new Error(result?.error || `波段实时快照失败: ${response.status}`);
+    }
+
+    const allowedSymbols = new Set(normalizedSymbols);
+    const data = (Array.isArray(result?.data?.ticks) ? result.data.ticks : [])
+      .map((row) => ({
+        ...row,
+        symbol: normalizeStrictSymbolKey(row?.symbol),
+        realtime: true,
+        realtimeStatus: 'live',
+      }))
+      .filter((row) => (
+        allowedSymbols.has(row.symbol)
+        && row.type === 'stock_tick'
+        && Number(row.price) > 0
+      ));
+
+    return {
+      success: true,
+      data,
+      coverage: result?.data?.coverage || null,
+    };
+  }, [fetchRealtimeSnapshot]);
+
   const applyBtcRealtimeTick = useCallback((tick, realtimeStatus = 'live', options = {}) => {
     const price = Number(tick?.price);
     if (!Number.isFinite(price) || price <= 0) return;
@@ -5439,8 +5476,8 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
                 ? <StockDetailPage ctx={tabCtx} />
                 : isWatchlistStockDetailPage
                   ? <WatchlistStockDetailPage ctx={tabCtx} />
-              : isWaveTrackerPage
-                ? <WaveTrackerPage ctx={tabCtx} />
+                : isWaveTrackerPage
+                  ? <WaveTrackerPage ctx={tabCtx} fetchSwingWaveRealtimeSnapshot={fetchSwingWaveRealtimeSnapshot} />
                 : isCommunityCompetitionPage
                   ? <CommunityCompetitionPage ctx={tabCtx} />
                 : isEarningsCalendarPage

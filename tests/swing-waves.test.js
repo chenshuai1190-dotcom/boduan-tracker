@@ -508,9 +508,50 @@ test('wave quote merging keeps the newest REST or realtime value without droppin
 
   const staleRest = mergeSwingWaveQuoteRows(
     realtime,
-    [{ symbol: 'NVDA', price: 202, waveFetchedAt: now + 1_000 }],
+    [{ symbol: 'NVDA', price: 202, previousClose: 201, waveFetchedAt: now + 1_000 }],
   );
-  assert.equal(staleRest.find((row) => row.symbol === 'NVDA').price, 211);
+  const protectedSnapshot = staleRest.find((row) => row.symbol === 'NVDA');
+  assert.equal(protectedSnapshot.price, 211, 'a slower full REST response must not replace a fresh realtime snapshot');
+  assert.equal(protectedSnapshot.previousClose, 188, 'an existing baseline must remain stable when a slower REST response arrives');
+
+  const restAfterSnapshot = mergeSwingWaveQuoteRows(
+    [{
+      symbol: 'META',
+      type: 'stock_tick',
+      price: 715,
+      receivedAt: now,
+      realtime: true,
+      realtimeStatus: 'live',
+    }],
+    [{ symbol: 'META', price: 707, previousClose: 701, waveFetchedAt: now + 1_000 }],
+  );
+  assert.equal(restAfterSnapshot[0].price, 715, 'REST arriving after a snapshot must keep the realtime price');
+  assert.equal(restAfterSnapshot[0].previousClose, 701, 'REST arriving after a snapshot may fill the missing baseline');
+
+  const snapshotAfterRest = mergeSwingWaveQuoteRows(
+    [{ symbol: 'GOOGL', price: 198, previousClose: 196, waveFetchedAt: now }],
+    [{
+      symbol: 'GOOGL',
+      type: 'stock_tick',
+      price: 203,
+      receivedAt: now + 500,
+      realtime: true,
+      realtimeStatus: 'live',
+    }],
+  );
+  assert.equal(snapshotAfterRest[0].price, 203, 'a realtime snapshot arriving after REST must become the visible price');
+  assert.equal(snapshotAfterRest[0].previousClose, 196, 'snapshot merging must retain the REST baseline');
+
+  const newerWebSocket = mergeSwingWaveQuoteRows(
+    snapshotAfterRest,
+    [{ symbol: 'GOOGL', price: 206, realtime: true, clientReceivedAt: now + 1_000 }],
+  );
+  assert.equal(newerWebSocket[0].price, 206, 'a newer WebSocket tick must replace the snapshot');
+  const lateOlderSnapshot = mergeSwingWaveQuoteRows(
+    newerWebSocket,
+    [{ symbol: 'GOOGL', price: 204, realtime: true, receivedAt: now + 700 }],
+  );
+  assert.equal(lateOlderSnapshot[0].price, 206, 'a late older snapshot must not replace a newer WebSocket tick');
 });
 
 test('swing wave SQL and data layer preserve the independent-tool boundary', () => {
@@ -522,6 +563,7 @@ test('swing wave SQL and data layer preserve the independent-tool boundary', () 
   const rlsProbeSource = readFileSync(new URL('../scripts/verify-rls-rest.mjs', import.meta.url), 'utf8');
   const appSource = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8');
   const tradesTabSource = readFileSync(new URL('../src/tabs/TradesTab.jsx', import.meta.url), 'utf8');
+  const homeTabSource = readFileSync(new URL('../src/tabs/HomeTab.jsx', import.meta.url), 'utf8');
   const pageSource = readFileSync(new URL('../src/pages/WaveTrackerPage.jsx', import.meta.url), 'utf8');
 
   const tableBlock = sql.match(/create table if not exists public\.swing_waves[\s\S]*?\n\);/)?.[0] || '';
@@ -556,7 +598,16 @@ test('swing wave SQL and data layer preserve the independent-tool boundary', () 
   const fetchAllBlock = dbSource.slice(fetchAllStart, fetchAllEnd);
   assert.equal(fetchAllBlock.includes('swing_waves'), false, 'independent wave page must not add swing_waves to global startup fetches');
   assert.ok(appSource.includes("const WaveTrackerPage = lazy(() => import('./pages/WaveTrackerPage.jsx'))"));
-  assert.ok(appSource.includes("activePage === 'wave-tracker'") && appSource.includes('<WaveTrackerPage ctx={tabCtx} />'));
+  assert.ok(
+    appSource.includes("activePage === 'wave-tracker'")
+      && appSource.includes('<WaveTrackerPage ctx={tabCtx} fetchSwingWaveRealtimeSnapshot={fetchSwingWaveRealtimeSnapshot} />'),
+    'the fast snapshot helper must be passed only to the independent wave page',
+  );
+  assert.ok(appSource.includes("fetchRealtimeSnapshot('/api/stocks-realtime'"), 'wave first-price acceleration must reuse the authenticated stock snapshot endpoint');
+  assert.ok(pageSource.includes('refreshRealtimeSnapshot(activeSymbols)'), 'only active wave symbols should request the fast snapshot');
+  assert.ok(pageSource.includes('mergeSwingWaveQuoteRows(current, result.data)'), 'snapshot ticks should only update the wave page local quote layer');
+  assert.equal(homeTabSource.includes('fetchSwingWaveRealtimeSnapshot'), false, 'Home must not consume the wave-only snapshot helper');
+  assert.equal(tradesTabSource.includes('fetchSwingWaveRealtimeSnapshot'), false, 'Trades must not consume the wave-only snapshot helper');
   assert.ok(tradesTabSource.includes('openWaveTracker?.()'), 'trade toolbox should open the independent wave page');
   for (const api of ['listSwingWaves', 'createSwingWave', 'updateSwingWave', 'completeSwingWave', 'deleteSwingWave']) {
     assert.ok(pageSource.includes(`db.${api}`), `production wave page should call ${api}`);

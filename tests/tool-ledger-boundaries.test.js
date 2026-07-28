@@ -2068,7 +2068,10 @@ test('production settings redesign connects isolated account memory without ledg
 test('production V2 wave tracker is an independent real-data page with isolated mutations', () => {
   assert.ok(appSource.includes("const WaveTrackerPage = lazy(() => import('./pages/WaveTrackerPage.jsx'))"), 'V2 page should lazy-load outside TradesTab');
   assert.ok(appSource.includes("setActivePage('wave-tracker')") && appSource.includes("activePage === 'wave-tracker'"), 'App should route V2 through the standalone page state');
-  assert.ok(appSource.includes('<WaveTrackerPage ctx={tabCtx} />'), 'App should render the independent V2 page before the active bottom tab');
+  assert.ok(
+    appSource.includes('<WaveTrackerPage ctx={tabCtx} fetchSwingWaveRealtimeSnapshot={fetchSwingWaveRealtimeSnapshot} />'),
+    'App should give only the independent V2 page its dedicated fast snapshot helper',
+  );
   assert.ok(tradesTabSource.includes("if (item.id === 'waves')") && tradesTabSource.includes('openWaveTracker?.()'), 'wave toolbox tile should open V2 instead of the legacy inline panel');
   assert.ok(devVisualPreviewSource.includes("preview === 'wave-v2' ? 'wave-tracker' : preview === 'community-competition' ? 'community-competition' : ''"), 'local visual preview should render the production page with safe fixtures');
 
@@ -2111,6 +2114,18 @@ test('production V2 wave tracker is an independent real-data page with isolated 
   assert.ok(stockLogoSource.includes("export { stockLogoCandidates } from '../lib/stockLogo.js'"), 'shared logo component should re-export the canonical candidate helper');
   assert.ok(stockLogoCandidatesSource.includes('https://eodhd.com/img/logos/US/') && stockLogoCandidatesSource.includes('financialmodelingprep.com/image-stock/') && stockLogoCandidatesSource.includes('static2.finnhub.io'), 'shared logo chain should keep Home-compatible EODHD, FMP, Finnhub, and ticker fallbacks');
   assert.ok(waveTrackerPageSource.includes('syncSwingWaveQuoteRows') && waveTrackerPageSource.includes('fetchPopularStockQuotes'), 'wave-only symbols should get authenticated REST and existing relay coverage');
+  assert.ok(
+    appSource.includes('const fetchSwingWaveRealtimeSnapshot = useCallback(async (symbols = []) => {')
+      && appSource.includes("fetchRealtimeSnapshot('/api/stocks-realtime'")
+      && waveTrackerPageSource.includes('refreshRealtimeSnapshot(activeSymbols)'),
+    'active waves should get a dedicated authenticated realtime snapshot before the full quote response',
+  );
+  assert.equal(homeTabSource.includes('fetchSwingWaveRealtimeSnapshot'), false, 'wave snapshot acceleration must not affect Home');
+  assert.equal(tradesTabSource.includes('fetchSwingWaveRealtimeSnapshot'), false, 'wave snapshot acceleration must not affect Trades');
+  assert.ok(waveTrackerPageSource.includes('requestId !== realtimeSnapshotRequestRef.current'), 'outdated wave snapshot responses must be ignored');
+  assert.ok(waveTrackerPageSource.includes('realtimeSnapshotRequestRef.current += 1'), 'unmounting the wave page must invalidate in-flight snapshots');
+  assert.equal(waveTrackerPageSource.includes('setQuoteCache'), false, 'wave snapshots must not write the shared trade quote cache directly');
+  assert.equal(waveTrackerPageSource.includes('applyStockRealtimeTick'), false, 'wave snapshots must not enter the global trade tick mutation path');
   assert.ok(waveTrackerPageSource.includes("rows.filter((wave) => wave?.status === 'active')"), 'only active waves may join the realtime quote universe');
   assert.ok(waveTrackerPageSource.includes('mergeSwingWaveQuoteRows(current, nextQuotes)') && waveTrackerPageSource.includes('quoteRequestRef.current'), 'partial or out-of-order REST quote responses must not erase newer wave quotes');
   assert.ok(waveTrackerPageSource.includes('maximumFractionDigits: 6') && waveTrackerPageSource.includes('formatShares(selection.wave.shares)'), 'fractional shares must be displayed without rounding to whole shares');
