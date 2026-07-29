@@ -900,9 +900,9 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
               </div>
             </div>
             <button type="button" onClick={openPnlReport} className="block min-w-0 px-3 text-left transition active:scale-[0.99]">
-              <div className="flex items-center gap-0.5 text-[13px] text-white/50">
+              <div className="flex items-center gap-0.5 whitespace-nowrap text-[13px] text-white/50">
                 <span>{tt('trades.totalPnl', '累计盈亏')}</span>
-                <ChevronRight className="h-3 w-3 text-white/[0.28]" />
+                <ChevronRight className="h-3 w-3 shrink-0 text-white/[0.28]" />
               </div>
               <div className={`mt-2 whitespace-nowrap ${pnlAmountClass} font-normal leading-tight tabular-nums ${pnlClass(displayCumulativePnl, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
                 {signedCurrency(displayCumulativePnl, displayCurrency, 2)}

@@ -335,6 +335,12 @@ test('live financing state stays out of calculators and report UI while P&L only
   assert.ok(tradesTabSource.includes("tt('home.marginDebt', '融资负债')"));
   assert.ok(tradesTabSource.includes("tt('home.leverage', '杠杆')"));
   assert.ok(tradesTabSource.includes('shrink-0 whitespace-nowrap text-[12px]'), 'Trades must mirror the readable Home leverage text size');
+  assert.ok(i18nSource.includes("'home.totalPnl': 'Total'"), 'Home must keep the compact English cumulative P&L label');
+  assert.ok(i18nSource.includes("'trades.totalPnl': 'Total'"), 'Trades must keep the compact English cumulative P&L label');
+  assert.ok(homeTabSource.includes('gap-0.5 whitespace-nowrap text-[13px] text-white/50'), 'Home cumulative P&L title must stay on one line');
+  assert.ok(tradesTabSource.includes('gap-0.5 whitespace-nowrap text-[13px] text-white/50'), 'Trades cumulative P&L title must stay on one line');
+  assert.ok(homeTabSource.includes('h-3 w-3 shrink-0 text-white/[0.28]'), 'Home cumulative P&L chevron must not squeeze its title');
+  assert.ok(tradesTabSource.includes('h-3 w-3 shrink-0 text-white/[0.28]'), 'Trades cumulative P&L chevron must not squeeze its title');
   for (const forbiddenWrite of ['saveMarginDebt', 'setMarginStatus', 'upsertMarginStatus', 'margin_status']) {
     assert.equal(tradesTabSource.includes(forbiddenWrite), false, `Trades must not write through ${forbiddenWrite}`);
   }
