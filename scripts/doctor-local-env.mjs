@@ -9,7 +9,6 @@ const stableDir = path.join(os.homedir(), '.config', 'boduan-tracker');
 const stableLocalEnv = path.join(stableDir, 'local.env');
 const stableEodhdEnv = path.join(stableDir, 'eodhd.env');
 const worktreeEnv = path.join(rootDir, '.env.local');
-const vercelProject = path.join(rootDir, '.vercel', 'project.json');
 
 const REQUIRED_STABLE_LOCAL_KEYS = [
   'VITE_SUPABASE_URL',
@@ -113,7 +112,7 @@ if (!String(stableEodhd.EODHD_API_KEY || '').trim()) {
 }
 
 if (!fs.existsSync(worktreeEnv)) {
-  warnings.push('worktree .env.local missing; run: npm run bootstrap:local-env');
+  warnings.push('worktree .env.local missing; run: npm run setup:local-env');
 } else {
   const worktreeMode = mode(worktreeEnv);
   summary.push(`worktreeEnv=.env.local mode=${worktreeMode}`);
@@ -122,7 +121,7 @@ if (!fs.existsSync(worktreeEnv)) {
   }
   const missingWorktree = missingKeys(worktree, REQUIRED_WORKTREE_KEYS);
   if (missingWorktree.length > 0) {
-    warnings.push(`worktree .env.local missing keys: ${missingWorktree.join(', ')}; run: npm run bootstrap:local-env`);
+    warnings.push(`worktree .env.local missing keys: ${missingWorktree.join(', ')}; run: npm run setup:local-env`);
   } else {
     summary.push(`worktreeEnvKeys=${presentKeys(worktree, REQUIRED_WORKTREE_KEYS).join(',')}`);
   }
@@ -133,20 +132,14 @@ if (sensitivePresent.length > 0) {
   warnings.push(`worktree .env.local contains high-privilege optional keys: ${sensitivePresent.join(', ')}; keep local-only and never print values`);
 }
 
-if (fs.existsSync(vercelProject)) {
-  summary.push('vercelLink=present');
-} else {
-  warnings.push('vercelLink=missing; only needed for Vercel env pull/link workflows');
-}
-
 if (failures.length > 0) {
-  console.error('local env: FAIL');
+  console.error('local env doctor: FAIL');
   for (const item of summary) console.error(`- ${item}`);
   for (const item of warnings) console.error(`WARN: ${item}`);
   for (const item of failures) console.error(`ERROR: ${item}`);
   process.exit(1);
 }
 
-console.log('local env: PASS');
+console.log('local env doctor: PASS');
 for (const item of summary) console.log(`- ${item}`);
 for (const item of warnings) console.log(`WARN: ${item}`);

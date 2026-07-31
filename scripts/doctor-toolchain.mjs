@@ -63,7 +63,6 @@ const requiredCommands = [
   ['rg', ['--version']],
   ['jq', ['--version']],
   ['gh', ['--version']],
-  ['vercel', ['--version']],
 ]
 
 for (const [command, args] of requiredCommands) {
@@ -94,13 +93,6 @@ if (ghUser.error || ghUser.status !== 0) {
   summary.push(`ghUser=${firstLine(ghUser.stdout)}`)
 }
 
-const vercelUser = run('vercel', ['whoami'], { timeout: 20000 })
-if (vercelUser.error || vercelUser.status !== 0) {
-  failures.push('vercel CLI is not authenticated; run: vercel login')
-} else {
-  summary.push(`vercelUser=${firstLine(vercelUser.stdout)}`)
-}
-
 if (fs.existsSync(projectKey)) {
   const lsRemote = run('git', ['ls-remote', '--heads', repoSsh, 'main'], {
     timeout: 20000,
@@ -116,11 +108,11 @@ if (fs.existsSync(projectKey)) {
 }
 
 if (failures.length > 0) {
-  console.error('toolchain: FAIL')
+  console.error('toolchain doctor: FAIL')
   for (const item of summary) console.error(`- ${item}`)
   for (const item of failures) console.error(`ERROR: ${item}`)
   process.exit(1)
 }
 
-console.log('toolchain: PASS')
+console.log('toolchain doctor: PASS')
 for (const item of summary) console.log(`- ${item}`)

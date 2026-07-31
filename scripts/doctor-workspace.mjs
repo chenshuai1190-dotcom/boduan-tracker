@@ -136,7 +136,7 @@ summarizeFile(paths.stableEodhdEnv, 'stableEodhdEnv', {
 
 const hasWorktreeEnv = summarizeFile(paths.worktreeEnv, 'worktreeEnv', {
   privateFile: true,
-  next: 'run: npm run bootstrap:local-env',
+  next: 'run: npm run setup:local-env',
 });
 if (hasWorktreeEnv) {
   const worktreeEnv = readEnvFile(paths.worktreeEnv);
@@ -149,12 +149,6 @@ if (hasWorktreeEnv) {
   const serverKeys = presentKeys(worktreeEnv, ['EODHD_API_KEY']);
   summary.push(`worktreeEnvPublicKeys=${publicKeys.length ? publicKeys.join(',') : 'missing'}`);
   summary.push(`worktreeEnvServerKeys=${serverKeys.length ? serverKeys.join(',') : 'missing'}`);
-}
-
-if (fs.existsSync(paths.vercelProject)) {
-  summary.push('vercelLink=present');
-} else {
-  warnings.push('vercelLink=missing; run: npm run bootstrap:vercel-link only when Vercel env pull/link is needed');
 }
 
 if (fs.existsSync(paths.nodeModules)) {
@@ -175,13 +169,13 @@ summary.push(`viteDev=${devStatus ? `http:${devStatus}` : 'not-running'}`);
 summary.push(`vitePreview=${previewStatus ? `http:${previewStatus}` : 'not-running'}`);
 
 if (failures.length > 0) {
-  console.error('workspace state: FAIL');
+  console.error('workspace doctor: FAIL');
   for (const item of summary) console.error(`- ${item}`);
   for (const item of warnings) console.error(`WARN: ${item}`);
   for (const item of failures) console.error(`ERROR: ${item}`);
   process.exit(1);
 }
 
-console.log('workspace state: PASS');
+console.log('workspace doctor: PASS');
 for (const item of summary) console.log(`- ${item}`);
 for (const item of warnings) console.log(`WARN: ${item}`);

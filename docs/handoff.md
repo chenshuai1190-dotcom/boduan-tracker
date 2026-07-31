@@ -20,9 +20,9 @@
 发布验证：
 
 - `npm run check:full`：`887 / 887` tests PASS，字号下限 PASS，Vite production build PASS，`git diff --check` PASS。
-- `npm run verify:docs-consistency`：PASS。
+- 文档一致性：PASS。
 - `npm audit --audit-level=high`：0 vulnerabilities。
-- `npm run verify:deploy-status -- fa9f926`：PASS。
+- 发布状态核验：`fa9f926` 的 CI、Vercel、生产入口与未登录鉴权边界 PASS。
 - 未登录 `/api/quote?symbols=VIX`、`/api/earnings-calendar?symbols=NVDA`、`/api/earnings-detail?...`、`/api/stocks-realtime?...`、`/api/indices-realtime?...`：均为 `401`。
 - `main` 与 `origin/main` 同步，交接前工作树干净。
 - 本次没有修改数据库、RLS、生产数据、正式交易保存、比赛账本或收益快照。

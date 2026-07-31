@@ -1,6 +1,8 @@
+import { CURRENT_RELEASE } from './releaseMeta.js';
+
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.404', date: '2026-07-31', latest: true,
+    ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
       '🛡️ 行情额度保护与收盘日线缓存',
       '  - 历史日线按“股票代码 + 最新已完成收盘日”复用，同一收盘数据在下一次有效收盘前不再反复请求',

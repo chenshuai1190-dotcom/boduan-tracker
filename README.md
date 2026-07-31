@@ -7,7 +7,7 @@
 日常开发只维护以下三份核心文档，职责不得重复：
 
 1. `README.md`：稳定的产品、架构、环境和安全边界。
-2. `docs/development-process.md`：唯一开发与生产发布流程，只定义 `FAST / FULL`。
+2. `docs/development-process.md`：唯一开发与生产发布流程，只定义 `DOCS / FAST / FULL`。
 3. `docs/handoff.md`：当前已验证的生产运行时、版本、风险和下一步。
 
 历史改动由 Git commit、GitHub Actions、Vercel deployment 和 `src/lib/settingsChangelog.js` 承担，不再维护手工长篇开发日志。专题 runbook 可以保留在 `docs/`，但不属于接手必读链。
@@ -30,14 +30,13 @@ npm ci        # 仅首次工作区、node_modules 缺失或 lockfile 变化
 npm run dev
 ```
 
-以下命令只按需运行，不要在同一工作区反复执行：
+以下命令是故障诊断或首次本地环境准备，不属于日常 gate，同一工作区不得反复执行：
 
 ```bash
-npm run verify:workspace-state   # 首次接手或工作区状态不明
-npm run verify:toolchain         # 首次接手、换机或工具链异常
-npm run verify:local-env         # 任务确实需要真实本地环境
-npm run bootstrap:local-env      # 缺 .env.local 且任务确实需要
-npm run bootstrap:vercel-link    # 任务确实需要 Vercel CLI link/env
+npm run doctor:workspace  # 首次新工作区或状态确实不明
+npm run doctor:toolchain  # 换机、工具缺失或发布权限异常
+npm run doctor:env        # 任务确实需要真实本地环境
+npm run setup:local-env   # 缺 .env.local 且任务确实需要
 ```
 
 任何 presence 检查都不得打印 token 或 `.env` 内容。
@@ -46,9 +45,11 @@ npm run bootstrap:vercel-link    # 任务确实需要 Vercel CLI link/env
 
 ```bash
 npm run check:docs   # 纯文档
-npm run check:fast   # FAST 代码；受影响测试按任务先单独运行
+npm run check:fast   # FAST 代码
+npm run check:fast -- tests/<相关测试>.test.js # 同一次 gate 接入定向测试
 npm run check:full   # FULL 本地完整门禁
 npm run verify:typography # 单独检查字号下限
+npm run release:verify -- <docs|fast|full> <commit> # 一次等待发布结果
 ```
 
 具体判定见 `docs/development-process.md`。
@@ -103,7 +104,7 @@ npm run verify:typography # 单独检查字号下限
 - 新增、保存、删除、同步、导入和导出必须防重复提交，并给出明确成功或失败反馈。
 - 盘中动态价格优先使用已登录 WebSocket；历史日线等已完成收盘数据必须按 `symbol + 最新已完成收盘日` 缓存，同一收盘版本不得被 10 秒轮询、focus、pageshow 或 tab 切换反复读取。Provider 额度异常必须熔断并保留最近有效数据，禁止用 `0` 覆盖。
 - 核心体验使用应用内受控弹窗、菜单和 toast，不使用 `alert`、`confirm`、`prompt` 承载正式流程。
-- 需要交付静态 HTML 或页面截图作为视觉证据时，必须通过 localhost 在本机真实 Xcode iOS Simulator 的 Safari 中打开并截图。桌面浏览器、Codex 内置浏览器、响应式视口以及手工伪造的 iOS 状态栏都不能作为截图证据。纯文案、颜色、图标和简单样式不强制制作截图。
+- 需要交付静态 HTML 或页面截图作为视觉证据时，必须通过 localhost 在本机真实 Xcode iOS Simulator 中打开，并只对最终状态和受影响页面验收一次。普通布局使用 Safari；PWA lifecycle、缓存和恢复必须使用已安装的 Home Screen PWA。复用已启动的服务与 Simulator，不得用桌面浏览器、响应式视口、Codex 内置浏览器或伪造状态栏冒充 iOS 证据。纯文案、颜色、图标和简单样式不强制截图。
 
 ## 环境变量
 
@@ -130,6 +131,7 @@ Server：
 - 收益快照：`api/pnl-report-daily-snapshot.js`、`server/pnl*`
 - 收益比赛：`api/community-competition.js`、`server/communityCompetition*`
 - 数据库/RLS：`supabase/`
+- 当前设置页版本：`src/lib/releaseMeta.js`
 - 部署与 Cron：`vercel.json`
 - 自动验证：`tests/`、`scripts/`
 
