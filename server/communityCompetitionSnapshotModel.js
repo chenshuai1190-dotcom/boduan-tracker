@@ -244,6 +244,56 @@ export function validateCompetitionTargetDateLedger({
   return [...requiredSymbols].sort((a, b) => a.localeCompare(b, 'en-US'));
 }
 
+export function validateCompetitionRolloverBaseline({
+  stockTrades = [],
+  historicalClosesBySymbol = {},
+  targetDate,
+} = {}) {
+  const date = normalizeDate(targetDate);
+  if (!date) fail('invalid_date', '比赛重新入榜基线日期不合法');
+
+  // A rollover accepts the corrected formal ledger as a new forward-only D1
+  // baseline. Unlike a normal daily snapshot, an older row's immutable
+  // `created_at` is not expected to match its corrected `trade_date`. Keep the
+  // ordinary snapshot validator strict and independently enforce every
+  // financial/holdings invariant here.
+  const trades = normalizeTrades(stockTrades, date);
+  const closeMap = normalizeCloseMap(historicalClosesBySymbol);
+  const positions = new Map();
+  const startPositions = new Map();
+  const targetSymbols = new Set();
+
+  trades.forEach((trade) => {
+    if (trade.tradeDate < date) {
+      addPosition(positions, trade.symbol, trade.side === 'buy' ? trade.shares : -trade.shares);
+      return;
+    }
+    targetSymbols.add(trade.symbol);
+  });
+
+  positions.forEach((shares, symbol) => startPositions.set(symbol, shares));
+  trades
+    .filter((trade) => trade.tradeDate === date)
+    .forEach((trade) => {
+      addPosition(positions, trade.symbol, trade.side === 'buy' ? trade.shares : -trade.shares);
+    });
+
+  const requiredSymbols = new Set(targetSymbols);
+  startPositions.forEach((shares, symbol) => {
+    if (shares > EPSILON) requiredSymbols.add(symbol);
+  });
+  positions.forEach((shares, symbol) => {
+    if (shares > EPSILON) requiredSymbols.add(symbol);
+  });
+  requiredSymbols.forEach((symbol) => {
+    if (!exactClose(closeMap.get(symbol) || [], date)) {
+      fail('missing_close', `${symbol} 缺少重新入榜目标日的权威收盘行情`);
+    }
+  });
+
+  return [...requiredSymbols].sort((a, b) => a.localeCompare(b, 'en-US'));
+}
+
 export function buildCompetitionCashFlowSnapshot({
   stockTrades = [],
   historicalClosesBySymbol = {},

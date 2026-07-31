@@ -90,7 +90,8 @@ npm run verify:typography # 单独检查字号下限
 - 个人收益与内部比赛是两条独立链路。比赛只读正式 `stock_trades`，只写比赛表和脱敏 publication marker，不修改正式账本或个人收益快照。
 - 比赛快照使用 ledger revision/hash/CAS 和数据库权威时间；已锁定行不可覆盖或删除。
 - publication marker 只能在目标日 exact complete batch 后推进。部分成员完成、缺 QQQ、缺精确 EOD 或 provider 失败都不得发布新榜。
-- D1 forward-only rebaseline 不写收益；只有下一真实收盘 D2 且账本未变时才可能生成首张锁定快照。
+- 修改正式订单不会取消参赛资格。合法财务字段修正会开启前向新赛段：工作日全天可录入，收盘后及周末变更顺延到下一真实交易日；等待成员暂不进入目标日 exact cohort，但仍保持 active，不能阻塞其他成员发布。
+- D1 forward-only rebaseline / epoch rollover 不写收益，也不改写旧快照；只有下一真实收盘 D2 且账本未变时才可能生成新赛段首张锁定快照。名称和备注等不进入 canonical ledger hash 的修改不会因内容差异直接重设赛段；若收盘后出现未完成快照，仍按前向安全规则处理。
 - 自动收盘任务以 `America/New_York` 为准，正式窗口前不得提前生成当日结果；显式修复日期仍必须验证真实 SPY 交易日和精确收盘。
 
 ## 产品实现规则

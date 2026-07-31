@@ -192,7 +192,7 @@ test('2026-07-14 marker retries at 7 of 8 and publishes only after the exact bat
   }
 });
 
-test('a forward-reset member leaves the target cohort before the unchanged exact gate publishes', async () => {
+test('an epoch-reset member leaves the target cohort before the unchanged exact gate publishes', async () => {
   const env = snapshotEnv();
   configureEnv();
   const originalFetch = globalThis.fetch;

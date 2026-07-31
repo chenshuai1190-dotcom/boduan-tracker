@@ -1,6 +1,23 @@
 export const settingsChangelog = [
   {
-    ver: 'v10.7.9.402', date: '2026-07-28', latest: true,
+    ver: 'v10.7.9.403', date: '2026-07-31', latest: true,
+    items: [
+      '🏆 修改订单后自动重新进入收益比赛',
+      '  - 修改或删除合法的正式交易记录不再永久失去排名资格，也不会阻塞其他参赛成员发布新榜',
+      '  - 工作日全天接受记录修正；收盘后及周末修改顺延到下一真实交易日建立新基线，再于随后一个真实收盘自动重新上榜',
+      '  - 旧排名快照保持锁定且不重算；新基线日不制造收益，名称和备注等非财务修改不会因内容差异直接重设赛段',
+      '  - 超卖、非 USD、无效账本、行情缺失及并发冲突继续严格拒绝，不因自动重新入榜而绕过数据校验',
+    ],
+    itemsEn: [
+      '🏆 Automatic competition re-entry after order corrections',
+      '  - Editing or deleting a valid formal trade no longer causes permanent ranking loss or blocks publication for other participants',
+      '  - Record corrections are accepted throughout weekdays; after-close and weekend changes wait for the next real trading close to anchor a new epoch, then re-enter after the following real close',
+      '  - Locked ranking history is never recalculated; the anchor day creates no return, and non-financial name or note edits do not directly reset the epoch because their content changed',
+      '  - Oversells, non-USD or malformed ledgers, missing market data, and concurrent conflicts remain fail-closed and cannot bypass validation through automatic re-entry',
+    ],
+  },
+  {
+    ver: 'v10.7.9.402', date: '2026-07-28',
     items: [
       '⚡ 波段记录实时价格加速',
       '  - 进入波段记录后，活跃波段优先读取已登录股票实时快照，不再等待完整历史行情请求后才显示最新价',

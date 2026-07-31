@@ -27,6 +27,7 @@ const SERVICE_ONLY_TABLES = [
   { table: 'margin_debt_events', select: 'user_id' },
   { table: 'margin_debt_history_meta', select: 'version' },
   { table: 'community_competition_rebaseline_audit', select: 'operation_key' },
+  { table: 'community_competition_epoch_resets', select: 'operation_key' },
 ];
 const SERVICE_ONLY_RPCS = [
   {
@@ -71,6 +72,24 @@ const SERVICE_ONLY_RPCS = [
       p_expected_current_ledger_revision: 0,
       p_new_eligible_after_snapshot_date: '2026-07-30',
       p_new_eligible_ledger_hash: '0'.repeat(64),
+    },
+  },
+  {
+    name: 'rollover_community_competition_member_epoch',
+    body: {
+      p_user_id: '00000000-0000-0000-0000-000000000000',
+      p_operation_key:
+        'competition-epoch-rollover:00000000-0000-0000-0000-000000000000:2000-01-03:1',
+      p_expected_eligible_after_snapshot_date: '2000-01-01',
+      p_expected_eligible_ledger_hash: '0'.repeat(64),
+      p_expected_eligible_ledger_revision: 0,
+      p_expected_ranking_start_snapshot_date: '2000-01-02',
+      p_expected_ranking_baseline_return_pct: 0,
+      p_expected_current_ledger_revision: 1,
+      p_new_eligible_after_snapshot_date: '2000-01-03',
+      p_new_eligible_ledger_hash: '1'.repeat(64),
+      p_market_close_at: '2000-01-03T21:00:00.000Z',
+      p_reason: 'prior_ledger_hash_mismatch',
     },
   },
 ];

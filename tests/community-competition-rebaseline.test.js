@@ -119,6 +119,8 @@ function createHarness({
   snapshotInsertRace = false,
   snapshots = [],
   rankedRebaselineOutcome = null,
+  epochRolloverOutcome = null,
+  epochRolloverStatus = 200,
 } = {}) {
   const state = {
     member: { ...member },
@@ -127,6 +129,8 @@ function createHarness({
     snapshots: snapshots.map((snapshot) => ({ ...snapshot })),
     rpcBodies: [],
     rankedRpcBodies: [],
+    epochRpcBodies: [],
+    epochResetAudits: new Map(),
     rankingPatches: [],
     snapshotWrites: [],
     spyRequests: 0,
@@ -136,6 +140,71 @@ function createHarness({
 
   const fetch = async (url, options = {}) => {
     const href = String(url);
+    if (href.includes(
+      '/rest/v1/rpc/rollover_community_competition_member_epoch'
+    )) {
+      assert.equal(options.method, 'POST');
+      const body = JSON.parse(options.body);
+      state.epochRpcBodies.push(body);
+      if (epochRolloverStatus !== 200) {
+        return jsonResponse(
+          epochRolloverOutcome || { message: 'epoch rollover temporarily unavailable' },
+          epochRolloverStatus,
+        );
+      }
+      if (epochRolloverOutcome) return jsonResponse(epochRolloverOutcome);
+      const existingAudit = state.epochResetAudits.get(body.p_operation_key);
+      if (existingAudit) {
+        return jsonResponse(
+          JSON.stringify(existingAudit) === JSON.stringify(body)
+            ? 'already_rolled_over'
+            : 'audit_conflict',
+        );
+      }
+      const mutationTime = Date.parse(state.ledgerState.last_mutated_at || '');
+      const marketCloseTime = Date.parse(body.p_market_close_at || '');
+      const immutableSnapshotExists = state.snapshots.length > 0;
+      const rankedSnapshotExists = state.snapshots.some((snapshot) => (
+        snapshot.snapshot_date === state.member.ranking_start_snapshot_date
+      ));
+      const matchesExpectedState = (
+        body.p_user_id === state.member.user_id
+        && body.p_expected_eligible_after_snapshot_date
+          === state.member.eligible_after_snapshot_date
+        && body.p_expected_eligible_ledger_hash === state.member.eligible_ledger_hash
+        && body.p_expected_eligible_ledger_revision
+          === state.member.eligible_ledger_revision
+        && body.p_expected_ranking_start_snapshot_date
+          === state.member.ranking_start_snapshot_date
+        && body.p_expected_ranking_baseline_return_pct
+          === state.member.ranking_baseline_return_pct
+        && body.p_expected_current_ledger_revision === state.ledgerState.revision
+        && state.member.status === 'active'
+        && body.p_new_eligible_after_snapshot_date
+          > state.member.eligible_after_snapshot_date
+        && state.ledgerState.revision > state.member.eligible_ledger_revision
+        && Number.isFinite(mutationTime)
+        && Number.isFinite(marketCloseTime)
+        && mutationTime <= marketCloseTime
+        && (
+          state.member.ranking_start_snapshot_date != null
+            ? rankedSnapshotExists
+            : immutableSnapshotExists
+        )
+        && !state.snapshots.some((snapshot) => (
+          snapshot.snapshot_date >= body.p_new_eligible_after_snapshot_date
+        ))
+      );
+      if (!matchesExpectedState) return jsonResponse('stale_member');
+      state.epochResetAudits.set(body.p_operation_key, body);
+      state.member.eligible_after_snapshot_date = body.p_new_eligible_after_snapshot_date;
+      state.member.eligible_ledger_hash = body.p_new_eligible_ledger_hash;
+      state.member.eligible_ledger_revision = state.ledgerState.revision;
+      state.member.ranking_start_snapshot_date = null;
+      state.member.ranking_baseline_return_pct = null;
+      state.member.updated_at = `${body.p_new_eligible_after_snapshot_date}T21:00:00Z`;
+      return jsonResponse('rolled_over');
+    }
     if (href.includes(
       '/rest/v1/rpc/forward_rebaseline_ranked_community_competition_member'
     )) {
@@ -1001,7 +1070,7 @@ test('a ranked member with a pre-close New York date mismatch is forward-rebasel
   );
 });
 
-test('the same local-date mismatch outside the one-time incident remains fail closed', async () => {
+test('a valid local-date correction outside the legacy incident starts a general new epoch', async () => {
   const originalTrade = makeTrade();
   const futureDatedPattern = {
     ...makeTrade({ price: 100, shares: 1 }),
@@ -1041,10 +1110,568 @@ test('the same local-date mismatch outside the one-time incident remains fail cl
   }));
 
   assert.equal(result.success, true);
-  assert.equal(result.rebaselinedMembers, 0);
-  assert.equal(result.authoritativeRejectionReasons.late_trade, 1);
+  assert.equal(result.rebaselinedMembers, 1);
+  assert.equal(result.authoritativeRejectedMembers, 0);
+  assert.equal(result.deferredReasons.epoch_rollover_waiting_next_close, 1);
   assert.equal(harness.state.rankedRpcBodies.length, 0);
+  assert.equal(harness.state.epochRpcBodies.length, 1);
+  assert.equal(harness.state.epochRpcBodies[0].p_reason, 'late_trade');
+  assert.equal(harness.state.member.eligible_after_snapshot_date, D1);
+  assert.equal(harness.state.member.ranking_start_snapshot_date, null);
+  assert.equal(harness.state.member.ranking_baseline_return_pct, null);
+  assert.deepEqual(
+    harness.state.snapshots.map((snapshot) => snapshot.snapshot_date),
+    [ELIGIBLE_DATE],
+    'the correction starts forward from D1 without changing locked history',
+  );
+});
+
+test('a ranked historical financial correction re-enters on the close after its D1 anchor', async () => {
+  const originalTrade = makeTrade({ price: 100, shares: 10 });
+  const correctedTrade = { ...originalTrade, price: 105 };
+  const oldSnapshot = {
+    user_id: USER_ID,
+    snapshot_date: ELIGIBLE_DATE,
+    daily_return_pct: 0,
+    cumulative_return_pct: 0.25,
+    locked_at: '2026-07-10T21:00:00Z',
+    source_version: 'community_competition_snapshot_v1',
+    ledger_hash: computeCompetitionLedgerHash([originalTrade], ELIGIBLE_DATE),
+    ledger_revision: 1,
+  };
+  const oldSnapshotJson = JSON.stringify(oldSnapshot);
+  const harness = createHarness({
+    member: {
+      user_id: USER_ID,
+      status: 'active',
+      joined_at: '2026-07-08T12:00:00Z',
+      eligible_after_snapshot_date: '2026-07-09',
+      eligible_ledger_hash: computeCompetitionLedgerHash([originalTrade], '2026-07-09'),
+      eligible_ledger_revision: 1,
+      ranking_start_snapshot_date: ELIGIBLE_DATE,
+      ranking_baseline_return_pct: 0,
+    },
+    trades: [correctedTrade],
+    snapshots: [oldSnapshot],
+    ledgerState: {
+      user_id: USER_ID,
+      revision: 2,
+      last_mutated_at: '2026-07-13T19:30:00Z',
+    },
+  });
+
+  const [anchorResult, reentryResult] = await withHarness(harness, async () => [
+    await runCommunityCompetitionScheduledCatchUp({
+      targetDate: D1,
+      now: new Date('2026-07-13T23:00:00Z'),
+    }),
+    await runCommunityCompetitionScheduledCatchUp({
+      targetDate: D2,
+      now: new Date('2026-07-14T23:00:00Z'),
+    }),
+  ]);
+
+  assert.equal(anchorResult.success, true);
+  assert.equal(anchorResult.rebaselinedMembers, 1);
+  assert.equal(anchorResult.writtenSnapshots, 0);
+  assert.equal(anchorResult.deferredReasons.epoch_rollover_waiting_next_close, 1);
+  assert.equal(reentryResult.success, true);
+  assert.equal(reentryResult.writtenSnapshots, 1);
+  assert.equal(harness.state.epochRpcBodies.length, 1);
+  assert.equal(
+    harness.state.epochRpcBodies[0].p_reason,
+    'prior_ledger_hash_mismatch',
+  );
+  assert.equal(harness.state.snapshotWrites[0].snapshot_date, D2);
+  assert.equal(harness.state.member.ranking_start_snapshot_date, D2);
+  assert.equal(harness.state.member.ranking_baseline_return_pct, 0);
+  assert.equal(JSON.stringify(harness.state.snapshots[0]), oldSnapshotJson);
+  assert.deepEqual(
+    harness.state.snapshots.map((snapshot) => snapshot.snapshot_date),
+    [ELIGIBLE_DATE, D2],
+  );
+});
+
+test('another financial edit while waiting advances the anchor and writes no return', async () => {
+  const originalTrade = makeTrade({ price: 100, shares: 10 });
+  const firstCorrection = { ...originalTrade, price: 105 };
+  const oldSnapshot = {
+    user_id: USER_ID,
+    snapshot_date: ELIGIBLE_DATE,
+    daily_return_pct: 0,
+    cumulative_return_pct: 0.25,
+    locked_at: '2026-07-10T21:00:00Z',
+    source_version: 'community_competition_snapshot_v1',
+    ledger_hash: computeCompetitionLedgerHash([originalTrade], ELIGIBLE_DATE),
+    ledger_revision: 1,
+  };
+  const harness = createHarness({
+    member: {
+      user_id: USER_ID,
+      status: 'active',
+      joined_at: '2026-07-08T12:00:00Z',
+      eligible_after_snapshot_date: '2026-07-09',
+      eligible_ledger_hash: computeCompetitionLedgerHash([originalTrade], '2026-07-09'),
+      eligible_ledger_revision: 1,
+      ranking_start_snapshot_date: ELIGIBLE_DATE,
+      ranking_baseline_return_pct: 0,
+    },
+    trades: [firstCorrection],
+    snapshots: [oldSnapshot],
+    ledgerState: {
+      user_id: USER_ID,
+      revision: 2,
+      last_mutated_at: '2026-07-13T19:30:00Z',
+    },
+  });
+
+  const [firstReset, secondReset] = await withHarness(harness, async (state) => {
+    const first = await runCommunityCompetitionScheduledCatchUp({
+      targetDate: D1,
+      now: new Date('2026-07-13T23:00:00Z'),
+    });
+    state.trades = [{ ...state.trades[0], shares: 12 }];
+    state.ledgerState.revision = 3;
+    state.ledgerState.last_mutated_at = '2026-07-14T19:30:00Z';
+    const second = await runCommunityCompetitionScheduledCatchUp({
+      targetDate: D2,
+      now: new Date('2026-07-14T23:00:00Z'),
+    });
+    return [first, second];
+  });
+
+  assert.equal(firstReset.rebaselinedMembers, 1);
+  assert.equal(secondReset.success, true);
+  assert.equal(secondReset.rebaselinedMembers, 1);
+  assert.equal(secondReset.writtenSnapshots, 0);
+  assert.equal(secondReset.deferredReasons.epoch_rollover_waiting_next_close, 1);
+  assert.equal(harness.state.epochRpcBodies.length, 2);
+  assert.equal(harness.state.epochRpcBodies[1].p_expected_ranking_start_snapshot_date, null);
+  assert.equal(harness.state.member.eligible_after_snapshot_date, D2);
+  assert.equal(harness.state.member.ranking_start_snapshot_date, null);
+  assert.deepEqual(
+    harness.state.snapshots.map((snapshot) => snapshot.snapshot_date),
+    [ELIGIBLE_DATE],
+  );
+});
+
+test('a weekend ledger correction waits for Monday D1 and re-enters on Tuesday D2', async () => {
+  const originalTrade = makeTrade({ price: 100, shares: 10 });
+  const correctedTrade = { ...originalTrade, shares: 12 };
+  const harness = createHarness({
+    member: {
+      user_id: USER_ID,
+      status: 'active',
+      joined_at: '2026-07-08T12:00:00Z',
+      eligible_after_snapshot_date: '2026-07-09',
+      eligible_ledger_hash: computeCompetitionLedgerHash([originalTrade], '2026-07-09'),
+      eligible_ledger_revision: 1,
+      ranking_start_snapshot_date: ELIGIBLE_DATE,
+      ranking_baseline_return_pct: 0,
+    },
+    trades: [correctedTrade],
+    snapshots: [{
+      user_id: USER_ID,
+      snapshot_date: ELIGIBLE_DATE,
+      daily_return_pct: 0,
+      cumulative_return_pct: 0,
+      locked_at: '2026-07-10T21:00:00Z',
+      source_version: 'community_competition_snapshot_v1',
+      ledger_hash: computeCompetitionLedgerHash([originalTrade], ELIGIBLE_DATE),
+      ledger_revision: 1,
+    }],
+    ledgerState: {
+      user_id: USER_ID,
+      revision: 2,
+      last_mutated_at: '2026-07-11T15:00:00Z',
+    },
+  });
+
+  const result = await withHarness(harness, () => runCommunityCompetitionScheduledCatchUp({
+    targetDate: D2,
+    now: new Date('2026-07-14T23:00:00Z'),
+  }));
+
+  assert.equal(result.success, true);
+  assert.deepEqual(result.processedDates, [D1, D2]);
+  assert.equal(result.rebaselinedMembers, 1);
+  assert.equal(result.writtenSnapshots, 1);
+  assert.equal(harness.state.epochRpcBodies[0].p_new_eligible_after_snapshot_date, D1);
+  assert.equal(harness.state.snapshotWrites[0].snapshot_date, D2);
+  assert.ok(
+    harness.state.snapshots.every((snapshot) => (
+      snapshot.snapshot_date !== '2026-07-11'
+      && snapshot.snapshot_date !== '2026-07-12'
+    )),
+  );
+});
+
+test('a legacy name-only revision bump does not reset the ranking epoch', async () => {
+  const originalTrade = makeTrade({ price: 100, shares: 10 });
+  const renamedTrade = { ...originalTrade, name: 'NVIDIA Corporation' };
+  const harness = createHarness({
+    member: {
+      user_id: USER_ID,
+      status: 'active',
+      joined_at: '2026-07-08T12:00:00Z',
+      eligible_after_snapshot_date: '2026-07-09',
+      eligible_ledger_hash: computeCompetitionLedgerHash([originalTrade], '2026-07-09'),
+      eligible_ledger_revision: 1,
+      ranking_start_snapshot_date: D1,
+      ranking_baseline_return_pct: 0,
+    },
+    trades: [renamedTrade],
+    snapshots: [{
+      user_id: USER_ID,
+      snapshot_date: D1,
+      daily_return_pct: 0,
+      cumulative_return_pct: 0,
+      locked_at: '2026-07-13T21:00:00Z',
+      source_version: 'community_competition_snapshot_v1',
+      ledger_hash: computeCompetitionLedgerHash([originalTrade], D1),
+      ledger_revision: 1,
+    }],
+    ledgerState: {
+      user_id: USER_ID,
+      revision: 2,
+      last_mutated_at: '2026-07-14T19:30:00Z',
+    },
+  });
+
+  const result = await withHarness(harness, () => runCommunityCompetitionScheduledCatchUp({
+    targetDate: D2,
+    now: new Date('2026-07-14T23:00:00Z'),
+  }));
+
+  assert.equal(result.success, true);
+  assert.equal(result.rebaselinedMembers, 0);
+  assert.equal(result.writtenSnapshots, 1);
+  assert.equal(harness.state.epochRpcBodies.length, 0);
+  assert.equal(harness.state.member.ranking_start_snapshot_date, D1);
+});
+
+test('a transient epoch RPC failure keeps the ranked member unchanged and retryable', async () => {
+  const originalTrade = makeTrade({ price: 100, shares: 10 });
+  const correctedTrade = { ...originalTrade, price: 105 };
+  const harness = createHarness({
+    member: {
+      user_id: USER_ID,
+      status: 'active',
+      joined_at: '2026-07-08T12:00:00Z',
+      eligible_after_snapshot_date: '2026-07-09',
+      eligible_ledger_hash: computeCompetitionLedgerHash([originalTrade], '2026-07-09'),
+      eligible_ledger_revision: 1,
+      ranking_start_snapshot_date: ELIGIBLE_DATE,
+      ranking_baseline_return_pct: 0,
+    },
+    trades: [correctedTrade],
+    snapshots: [{
+      user_id: USER_ID,
+      snapshot_date: ELIGIBLE_DATE,
+      daily_return_pct: 0,
+      cumulative_return_pct: 0,
+      locked_at: '2026-07-10T21:00:00Z',
+      source_version: 'community_competition_snapshot_v1',
+      ledger_hash: computeCompetitionLedgerHash([originalTrade], ELIGIBLE_DATE),
+      ledger_revision: 1,
+    }],
+    ledgerState: {
+      user_id: USER_ID,
+      revision: 2,
+      last_mutated_at: '2026-07-13T19:30:00Z',
+    },
+    epochRolloverStatus: 503,
+  });
+
+  const result = await withHarness(harness, () => runCommunityCompetitionScheduledCatchUp({
+    targetDate: D1,
+    now: new Date('2026-07-13T23:00:00Z'),
+  }));
+
+  assert.equal(result.success, false);
+  assert.equal(result.retryableIncomplete, true);
+  assert.equal(result.rebaselinedMembers, 0);
+  assert.equal(result.writtenSnapshots, 0);
+  assert.equal(harness.state.epochRpcBodies.length, 1);
+  assert.equal(harness.state.epochResetAudits.size, 0);
+  assert.equal(harness.state.member.eligible_after_snapshot_date, '2026-07-09');
   assert.equal(harness.state.member.ranking_start_snapshot_date, ELIGIBLE_DATE);
+});
+
+test('deleting a target-day record after close anchors on the next real close', async () => {
+  const originalTrade = makeTrade({ price: 100, shares: 10 });
+  const harness = createHarness({
+    member: {
+      user_id: USER_ID,
+      status: 'active',
+      joined_at: '2026-07-08T12:00:00Z',
+      eligible_after_snapshot_date: '2026-07-09',
+      eligible_ledger_hash: computeCompetitionLedgerHash([originalTrade], '2026-07-09'),
+      eligible_ledger_revision: 1,
+      ranking_start_snapshot_date: ELIGIBLE_DATE,
+      ranking_baseline_return_pct: 0,
+    },
+    // The D1 row was inserted and then deleted after D1 closed, so the current
+    // authoritative ledger has no row left that could reveal that mutation.
+    trades: [originalTrade],
+    snapshots: [{
+      user_id: USER_ID,
+      snapshot_date: ELIGIBLE_DATE,
+      daily_return_pct: 0,
+      cumulative_return_pct: 0,
+      locked_at: '2026-07-10T21:00:00Z',
+      source_version: 'community_competition_snapshot_v1',
+      ledger_hash: computeCompetitionLedgerHash([originalTrade], ELIGIBLE_DATE),
+      ledger_revision: 1,
+    }],
+    ledgerState: {
+      user_id: USER_ID,
+      revision: 3,
+      last_mutated_at: '2026-07-13T20:30:00Z',
+    },
+  });
+
+  const result = await withHarness(harness, () => runCommunityCompetitionScheduledCatchUp({
+    targetDate: D2,
+    now: new Date('2026-07-14T23:00:00Z'),
+  }));
+
+  assert.equal(result.success, true);
+  assert.deepEqual(result.processedDates, [D1, D2]);
+  assert.equal(result.deferredReasons.ledger_mutated_after_target_close, 1);
+  assert.equal(result.deferredReasons.epoch_rollover_waiting_next_close, 1);
+  assert.equal(result.rebaselinedMembers, 1);
+  assert.equal(result.writtenSnapshots, 0);
+  assert.equal(harness.state.epochRpcBodies.length, 1);
+  assert.equal(
+    harness.state.epochRpcBodies[0].p_reason,
+    'post_close_ledger_change',
+  );
+  assert.equal(harness.state.member.eligible_after_snapshot_date, D2);
+});
+
+test('a ledger edit after an orphan first snapshot is handed to scheduled epoch rollover', async () => {
+  const originalTrade = makeTrade({ price: 100, shares: 10 });
+  const correctedTrade = { ...originalTrade, price: 105 };
+  const orphanSnapshot = {
+    user_id: USER_ID,
+    snapshot_date: D1,
+    daily_return_pct: 0,
+    cumulative_return_pct: 0,
+    locked_at: '2026-07-13T21:00:00Z',
+    source_version: 'community_competition_snapshot_v1',
+    ledger_hash: computeCompetitionLedgerHash([originalTrade], D1),
+    ledger_revision: 1,
+  };
+  const harness = createHarness({
+    member: {
+      user_id: USER_ID,
+      status: 'active',
+      joined_at: '2026-07-08T12:00:00Z',
+      eligible_after_snapshot_date: '2026-07-09',
+      eligible_ledger_hash: computeCompetitionLedgerHash([originalTrade], '2026-07-09'),
+      eligible_ledger_revision: 1,
+      // The first snapshot INSERT committed, but the ranking metadata PATCH did not.
+      ranking_start_snapshot_date: null,
+      ranking_baseline_return_pct: null,
+    },
+    trades: [correctedTrade],
+    snapshots: [orphanSnapshot],
+    ledgerState: {
+      user_id: USER_ID,
+      revision: 2,
+      last_mutated_at: '2026-07-14T19:30:00Z',
+    },
+  });
+
+  const result = await withHarness(harness, () => runCommunityCompetitionScheduledCatchUp({
+    targetDate: D2,
+    now: new Date('2026-07-14T23:00:00Z'),
+  }));
+
+  assert.equal(result.success, true);
+  assert.deepEqual(result.processedDates, [D2]);
+  assert.equal(result.rebaselinedMembers, 1);
+  assert.equal(result.writtenSnapshots, 0);
+  assert.equal(result.authoritativeRejectionReasons.ranking_recovery_ledger_hash_mismatch, undefined);
+  assert.equal(result.deferredReasons.epoch_rollover_waiting_next_close, 1);
+  assert.equal(harness.state.epochRpcBodies.length, 1);
+  assert.equal(harness.state.epochRpcBodies[0].p_reason, 'prior_ledger_hash_mismatch');
+  assert.equal(harness.state.member.eligible_after_snapshot_date, D2);
+  assert.equal(harness.state.member.ranking_start_snapshot_date, null);
+  assert.deepEqual(
+    harness.state.snapshots.map((snapshot) => snapshot.snapshot_date),
+    [D1],
+    'the orphan snapshot stays immutable while the new epoch waits for its next close',
+  );
+});
+
+test('an empty portfolio still detects a skipped SPY session before rolling forward', async () => {
+  const buy = makeTrade({ price: 100, shares: 10 });
+  const sell = {
+    ...makeTrade({ price: 101, shares: 10 }),
+    id: 'formal-trade-2',
+    side: 'sell',
+    trade_date: '2026-07-02',
+    created_at: '2026-07-02T14:00:00Z',
+    updated_at: '2026-07-02T14:00:00Z',
+  };
+  const flatLedger = [buy, sell];
+  const harness = createHarness({
+    member: {
+      user_id: USER_ID,
+      status: 'active',
+      joined_at: '2026-07-08T12:00:00Z',
+      eligible_after_snapshot_date: '2026-07-09',
+      eligible_ledger_hash: computeCompetitionLedgerHash(flatLedger, '2026-07-09'),
+      eligible_ledger_revision: 2,
+      ranking_start_snapshot_date: ELIGIBLE_DATE,
+      ranking_baseline_return_pct: 0,
+    },
+    // A D1 financial row was inserted and deleted after close. The current
+    // ledger is flat again, so only the revision plus SPY continuity reveals it.
+    trades: flatLedger,
+    snapshots: [{
+      user_id: USER_ID,
+      snapshot_date: ELIGIBLE_DATE,
+      daily_return_pct: 0,
+      cumulative_return_pct: 0,
+      locked_at: '2026-07-10T21:00:00Z',
+      source_version: 'community_competition_snapshot_v1',
+      ledger_hash: computeCompetitionLedgerHash(flatLedger, ELIGIBLE_DATE),
+      ledger_revision: 2,
+    }],
+    ledgerState: {
+      user_id: USER_ID,
+      revision: 4,
+      last_mutated_at: '2026-07-13T20:30:00Z',
+    },
+  });
+
+  const result = await withHarness(harness, () => runCommunityCompetitionScheduledCatchUp({
+    targetDate: D2,
+    now: new Date('2026-07-14T23:00:00Z'),
+  }));
+
+  assert.equal(result.success, true);
+  assert.deepEqual(result.processedDates, [D1, D2]);
+  assert.equal(result.deferredReasons.ledger_mutated_after_target_close, 1);
+  assert.equal(result.deferredReasons.epoch_rollover_waiting_next_close, 1);
+  assert.equal(result.rebaselinedMembers, 1);
+  assert.equal(result.writtenSnapshots, 0);
+  assert.equal(harness.state.epochRpcBodies.length, 1);
+  assert.equal(harness.state.epochRpcBodies[0].p_reason, 'post_close_ledger_change');
+  assert.equal(harness.state.member.eligible_after_snapshot_date, D2);
+});
+
+test('an oversold corrected ledger cannot use epoch rollover to re-enter', async () => {
+  const originalTrade = makeTrade({ price: 100, shares: 1 });
+  const oversell = {
+    ...makeTrade({ price: 105, shares: 2 }),
+    id: 'oversold-correction',
+    side: 'sell',
+    trade_date: ELIGIBLE_DATE,
+    created_at: '2026-07-10T19:00:00Z',
+    updated_at: '2026-07-10T19:00:00Z',
+  };
+  const harness = createHarness({
+    member: {
+      user_id: USER_ID,
+      status: 'active',
+      joined_at: '2026-07-08T12:00:00Z',
+      eligible_after_snapshot_date: '2026-07-09',
+      eligible_ledger_hash: computeCompetitionLedgerHash([originalTrade], '2026-07-09'),
+      eligible_ledger_revision: 1,
+      ranking_start_snapshot_date: ELIGIBLE_DATE,
+      ranking_baseline_return_pct: 0,
+    },
+    trades: [originalTrade, oversell],
+    snapshots: [{
+      user_id: USER_ID,
+      snapshot_date: ELIGIBLE_DATE,
+      daily_return_pct: 0,
+      cumulative_return_pct: 0,
+      locked_at: '2026-07-10T21:00:00Z',
+      source_version: 'community_competition_snapshot_v1',
+      ledger_hash: computeCompetitionLedgerHash([originalTrade], ELIGIBLE_DATE),
+      ledger_revision: 1,
+    }],
+    ledgerState: {
+      user_id: USER_ID,
+      revision: 2,
+      last_mutated_at: '2026-07-13T19:30:00Z',
+    },
+  });
+
+  const result = await withHarness(harness, () => runCommunityCompetitionScheduledCatchUp({
+    targetDate: D1,
+    now: new Date('2026-07-13T23:00:00Z'),
+  }));
+
+  assert.equal(result.success, true);
+  assert.equal(result.rebaselinedMembers, 0);
+  assert.equal(result.authoritativeRejectionReasons.oversell, 1);
+  assert.equal(harness.state.epochRpcBodies.length, 0);
+  assert.equal(harness.state.member.ranking_start_snapshot_date, ELIGIBLE_DATE);
+});
+
+test('deleting later trades may restore the old eligibility hash and still requires rollover', async () => {
+  const originalTrade = makeTrade({ price: 100, shares: 10 });
+  const deletedLaterTrade = {
+    ...makeTrade({ price: 110, shares: 2 }),
+    id: 'deleted-later-trade',
+    trade_date: ELIGIBLE_DATE,
+    created_at: '2026-07-10T19:00:00Z',
+    updated_at: '2026-07-10T19:00:00Z',
+  };
+  const originalEligibilityHash = computeCompetitionLedgerHash(
+    [originalTrade],
+    '2026-07-09',
+  );
+  const harness = createHarness({
+    member: {
+      user_id: USER_ID,
+      status: 'active',
+      joined_at: '2026-07-08T12:00:00Z',
+      eligible_after_snapshot_date: '2026-07-09',
+      eligible_ledger_hash: originalEligibilityHash,
+      eligible_ledger_revision: 1,
+      ranking_start_snapshot_date: ELIGIBLE_DATE,
+      ranking_baseline_return_pct: 0,
+    },
+    trades: [originalTrade],
+    snapshots: [{
+      user_id: USER_ID,
+      snapshot_date: ELIGIBLE_DATE,
+      daily_return_pct: 0,
+      cumulative_return_pct: 0,
+      locked_at: '2026-07-10T21:00:00Z',
+      source_version: 'community_competition_snapshot_v1',
+      ledger_hash: computeCompetitionLedgerHash(
+        [originalTrade, deletedLaterTrade],
+        ELIGIBLE_DATE,
+      ),
+      ledger_revision: 1,
+    }],
+    ledgerState: {
+      user_id: USER_ID,
+      revision: 2,
+      last_mutated_at: '2026-07-13T19:30:00Z',
+    },
+  });
+
+  const result = await withHarness(harness, () => runCommunityCompetitionScheduledCatchUp({
+    targetDate: D1,
+    now: new Date('2026-07-13T23:00:00Z'),
+  }));
+
+  assert.equal(result.success, true);
+  assert.equal(result.rebaselinedMembers, 1);
+  assert.equal(harness.state.epochRpcBodies.length, 1);
+  assert.equal(
+    harness.state.epochRpcBodies[0].p_new_eligible_ledger_hash,
+    originalEligibilityHash,
+  );
 });
 
 test('the first close after a ranked reset starts a new epoch and ignores older snapshots', async () => {

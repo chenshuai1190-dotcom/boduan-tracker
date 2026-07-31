@@ -1245,7 +1245,7 @@ test('scheduled catch-up repairs ranking metadata from the earliest locked snaps
   assert.doesNotMatch(JSON.stringify(recovered), /repair-user/);
 });
 
-test('ranking recovery rejects ledger edits at either the earliest or latest locked snapshot', async () => {
+test('ranking recovery rejects an earliest mismatch and hands a latest orphan mismatch to daily', async () => {
   const env = snapshotEnv(ENV_KEYS);
   process.env.SUPABASE_URL = 'https://supabase.test';
   process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-secret';
@@ -1318,6 +1318,12 @@ test('ranking recovery rejects ledger edits at either the earliest or latest loc
         inclusive ? row.snapshot_date <= boundary : row.snapshot_date < boundary
       )));
     }
+    if (href.includes('/api/eod/SPY.US')) {
+      return jsonResponse([
+        { date: '2026-07-09', adjusted_close: 600 },
+        { date: '2026-07-10', adjusted_close: 606 },
+      ]);
+    }
     providerOrSnapshotWriteCalled = true;
     throw new Error(`unexpected fetch: ${href} ${options.method || 'GET'}`);
   };
@@ -1337,10 +1343,12 @@ test('ranking recovery rejects ledger edits at either the earliest or latest loc
   assert.equal(result.retryableIncomplete, false);
   assert.equal(result.authoritativeRejectedMembers, 2);
   assert.equal(result.skippedMembers, 2);
-  assert.equal(result.authoritativeRejectionReasons.ranking_recovery_ledger_hash_mismatch, 2);
-  assert.equal(result.skippedReasons.ranking_recovery_ledger_hash_mismatch, 2);
+  assert.equal(result.authoritativeRejectionReasons.ranking_recovery_ledger_hash_mismatch, 1);
+  assert.equal(result.skippedReasons.ranking_recovery_ledger_hash_mismatch, 1);
+  assert.equal(result.authoritativeRejectionReasons.prior_ledger_hash_mismatch, 1);
+  assert.equal(result.skippedReasons.prior_ledger_hash_mismatch, 1);
   assert.equal(result.initializedMembers, 0);
-  assert.deepEqual(result.processedDates, []);
+  assert.deepEqual(result.processedDates, ['2026-07-10']);
   assert.equal(rankingPatchCalled, false);
   assert.equal(providerOrSnapshotWriteCalled, false);
   assert.doesNotMatch(JSON.stringify(result), /earliest-mismatch-user|latest-mismatch-user/);

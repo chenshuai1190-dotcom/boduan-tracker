@@ -32,6 +32,13 @@ const rankedForwardRebaselineMigrationSql = readFileSync(
   ),
   'utf8',
 );
+const competitionEpochReentryMigrationSql = readFileSync(
+  new URL(
+    '../supabase/community_competition_epoch_reentry_20260731.sql',
+    import.meta.url,
+  ),
+  'utf8',
+);
 
 function createSupabaseStub({ maybeSingleResults = [], singleResults = [] } = {}) {
   const operations = [];
@@ -338,6 +345,66 @@ test('formal stock ledger timestamps and mutation revisions are database-authori
   }
 });
 
+test('canonical stock ledger revisions ignore display-only name and note updates', () => {
+  const sqlSources = [stockTradesSql, aggregateRlsSql, competitionEpochReentryMigrationSql];
+  const functions = sqlSources.map((sql) => sql.match(
+    /create or replace function public\.bump_stock_trade_ledger_revision\(\)[\s\S]*?\n\$\$;/,
+  )?.[0] || '');
+
+  assert.equal(functions[0], functions[1]);
+  assert.equal(functions[0], functions[2]);
+
+  for (const revisionFunction of functions) {
+    const metadataGuard = revisionFunction.match(
+      /if tg_op = 'UPDATE'[\s\S]*?then\s+return new;\s+end if;/,
+    )?.[0] || '';
+    for (const column of [
+      'id',
+      'symbol',
+      'side',
+      'trade_date',
+      'price',
+      'shares',
+      'fee',
+      'currency',
+    ]) {
+      assert.match(
+        metadataGuard,
+        new RegExp(`new\\.${column} is not distinct from old\\.${column}`),
+      );
+    }
+    assert.doesNotMatch(metadataGuard, /new\.name|old\.name|new\.note|old\.note/);
+    assert.ok(
+      revisionFunction.indexOf("if tg_op = 'UPDATE'")
+        < revisionFunction.indexOf('insert into public.stock_trade_ledger_revisions'),
+      'display-only updates must return before locking or bumping the ledger revision',
+    );
+  }
+
+  const migrationTriggerIndex = competitionEpochReentryMigrationSql.indexOf(
+    'create trigger stock_trades_bump_ledger_revision',
+  );
+  const migrationFirstCommitIndex = competitionEpochReentryMigrationSql.indexOf(
+    'commit;',
+    migrationTriggerIndex,
+  );
+  const migrationEpochBeginIndex = competitionEpochReentryMigrationSql.indexOf(
+    'begin;',
+    migrationFirstCommitIndex + 'commit;'.length,
+  );
+  const migrationEpochTableIndex = competitionEpochReentryMigrationSql.indexOf(
+    'create table if not exists public.community_competition_epoch_resets',
+  );
+  assert.ok(
+    competitionEpochReentryMigrationSql.indexOf(
+      'lock table public.stock_trades in share row exclusive mode;',
+    ) < migrationTriggerIndex,
+  );
+  assert.ok(migrationTriggerIndex < migrationFirstCommitIndex);
+  assert.ok(migrationFirstCommitIndex < migrationEpochBeginIndex);
+  assert.ok(migrationEpochBeginIndex < migrationEpochTableIndex);
+});
+
 test('competition eligibility rebaseline is forward-only, zero-snapshot, and service-role-only', () => {
   for (const sql of [
     competitionSql,
@@ -569,11 +636,155 @@ test('ranked competition forward rebaseline is a service-only audited repair for
   }
 });
 
+test('competition epoch rollover is service-only, append-only, forward-only, and concurrency safe', () => {
+  for (const sql of [
+    competitionSql,
+    aggregateRlsSql,
+    competitionEpochReentryMigrationSql,
+  ]) {
+    const rolloverFunction = sql.match(
+      /create or replace function public\.rollover_community_competition_member_epoch\([\s\S]*?\n\$\$;/,
+    )?.[0] || '';
+    assert.match(rolloverFunction, /security definer/);
+    assert.match(rolloverFunction, /set search_path = pg_catalog, public/);
+    assert.match(
+      rolloverFunction,
+      /select revision, last_mutated_at[\s\S]*?from public\.stock_trade_ledger_revisions[\s\S]*?for update/,
+    );
+    assert.match(
+      rolloverFunction,
+      /select \*[\s\S]*?from public\.community_competition_members[\s\S]*?for update/,
+    );
+    assert.ok(
+      rolloverFunction.indexOf('from public.stock_trade_ledger_revisions')
+        < rolloverFunction.indexOf('from public.community_competition_members'),
+      'epoch rollover must lock revision before member',
+    );
+    assert.match(rolloverFunction, /member_row\.status <> 'active'/);
+    assert.match(rolloverFunction, /is distinct from p_expected_current_ledger_revision/);
+    assert.match(rolloverFunction, /is distinct from p_expected_eligible_after_snapshot_date/);
+    assert.match(rolloverFunction, /is distinct from p_expected_eligible_ledger_hash/);
+    assert.match(rolloverFunction, /is distinct from p_expected_eligible_ledger_revision/);
+    assert.match(rolloverFunction, /is distinct from p_expected_ranking_start_snapshot_date/);
+    assert.match(rolloverFunction, /is distinct from p_expected_ranking_baseline_return_pct/);
+    assert.match(
+      rolloverFunction,
+      /snapshot_date = member_row\.ranking_start_snapshot_date/,
+    );
+    assert.match(
+      rolloverFunction,
+      /elsif not exists \([\s\S]*?from public\.community_competition_snapshots[\s\S]*?where user_id = p_user_id[\s\S]*?return 'pending_history_missing'/,
+    );
+    assert.doesNotMatch(
+      rolloverFunction,
+      /snapshot_date < member_row\.eligible_after_snapshot_date/,
+      'a failed first-snapshot ranking PATCH leaves a valid orphan snapshot',
+    );
+    assert.match(
+      rolloverFunction,
+      /p_new_eligible_after_snapshot_date[\s\S]*?<= member_row\.eligible_after_snapshot_date[\s\S]*?return 'date_regression'/,
+    );
+    assert.match(
+      rolloverFunction,
+      /extract\(isodow from p_new_eligible_after_snapshot_date\) in \(6, 7\)/,
+    );
+    assert.match(
+      rolloverFunction,
+      /p_new_eligible_after_snapshot_date \+ time '16:00'[\s\S]*?at time zone 'America\/New_York'/,
+    );
+    assert.match(
+      rolloverFunction,
+      /p_market_close_at is distinct from expected_market_close_at/,
+    );
+    assert.match(
+      rolloverFunction,
+      /current_ledger_revision <= member_row\.eligible_ledger_revision[\s\S]*?return 'ledger_unchanged'/,
+    );
+    assert.doesNotMatch(
+      rolloverFunction,
+      /return 'ledger_hash_unchanged'/,
+      'a valid financial correction may restore the old hash while invalidating later snapshots',
+    );
+    assert.match(
+      rolloverFunction,
+      /current_ledger_last_mutated_at > p_market_close_at[\s\S]*?return 'ledger_mutated_after_close'/,
+    );
+    assert.match(
+      rolloverFunction,
+      /snapshot_date >= p_new_eligible_after_snapshot_date[\s\S]*?return 'snapshot_conflict'/,
+    );
+    assert.match(rolloverFunction, /return 'already_rolled_over'/);
+    assert.match(rolloverFunction, /return 'rolled_over'/);
+    assert.match(
+      rolloverFunction,
+      /insert into public\.community_competition_epoch_resets[\s\S]*?on conflict \(operation_key\) do nothing/,
+    );
+    assert.ok(
+      rolloverFunction.indexOf('insert into public.community_competition_epoch_resets')
+        < rolloverFunction.indexOf('update public.community_competition_members'),
+      'epoch audit and member rollover must commit atomically',
+    );
+    assert.match(rolloverFunction, /ranking_start_snapshot_date = null/);
+    assert.match(rolloverFunction, /ranking_baseline_return_pct = null/);
+    assert.doesNotMatch(rolloverFunction, /delete from public\.community_competition_snapshots/);
+
+    const auditTable = sql.match(
+      /create table if not exists public\.community_competition_epoch_resets \([\s\S]*?\n\);/,
+    )?.[0] || '';
+    assert.match(auditTable, /operation_key text primary key/);
+    assert.match(auditTable, /old_ranking_start_snapshot_date date,/);
+    assert.match(
+      auditTable,
+      /old_ranking_baseline_return_pct numeric\(18, 10\),/,
+    );
+    assert.doesNotMatch(auditTable, /old_ranking_start_snapshot_date date not null/);
+    assert.doesNotMatch(
+      auditTable,
+      /old_ranking_baseline_return_pct numeric\(18, 10\) not null/,
+    );
+    assert.match(auditTable, /market_close_at timestamptz not null/);
+    assert.match(auditTable, /ledger_last_mutated_at timestamptz not null/);
+    assert.match(
+      auditTable,
+      /new_eligible_ledger_revision > old_eligible_ledger_revision/,
+    );
+    assert.match(
+      sql,
+      /alter table public\.community_competition_epoch_resets enable row level security/,
+    );
+    assert.match(
+      sql,
+      /alter table public\.community_competition_epoch_resets force row level security/,
+    );
+    assert.match(
+      sql,
+      /revoke all privileges on table public\.community_competition_epoch_resets[\s\S]*?from public, anon, authenticated, service_role/,
+    );
+    assert.match(
+      sql,
+      /grant select[\s\S]*?on table public\.community_competition_epoch_resets[\s\S]*?to service_role/,
+    );
+    assert.match(
+      sql,
+      /create trigger community_competition_epoch_resets_immutable[\s\S]*?before update or delete on public\.community_competition_epoch_resets/,
+    );
+    assert.match(
+      sql,
+      /revoke execute on function public\.rollover_community_competition_member_epoch\([\s\S]*?from public, anon, authenticated, service_role/,
+    );
+    assert.match(
+      sql,
+      /grant execute on function public\.rollover_community_competition_member_epoch\([\s\S]*?to service_role/,
+    );
+  }
+});
+
 test('standalone competition SQL stays aligned with the aggregate RLS schema', () => {
   for (const table of [
     'community_competition_members',
     'community_competition_snapshots',
     'community_competition_rebaseline_audit',
+    'community_competition_epoch_resets',
   ]) {
     const pattern = new RegExp(`create table if not exists public\\.${table}[\\s\\S]*?\\n\\);`);
     assert.equal(
@@ -589,6 +800,8 @@ test('standalone competition SQL stays aligned with the aggregate RLS schema', (
     'rebaseline_community_competition_member',
     'guard_community_competition_rebaseline_audit_immutable',
     'forward_rebaseline_ranked_community_competition_member',
+    'guard_community_competition_epoch_reset_immutable',
+    'rollover_community_competition_member_epoch',
   ]) {
     const pattern = new RegExp(
       `create or replace function public\\.${functionName}\\([\\s\\S]*?\\n\\$\\$;`,
@@ -609,6 +822,18 @@ test('standalone competition SQL stays aligned with the aggregate RLS schema', (
       rankedForwardRebaselineMigrationSql.match(pattern)?.[0],
       competitionSql.match(pattern)?.[0],
       'incident migration and canonical competition SQL must stay identical',
+    );
+  }
+
+  for (const pattern of [
+    /create table if not exists public\.community_competition_epoch_resets \([\s\S]*?\n\);/,
+    /create or replace function public\.guard_community_competition_epoch_reset_immutable\(\)[\s\S]*?\n\$\$;/,
+    /create or replace function public\.rollover_community_competition_member_epoch\([\s\S]*?\n\$\$;/,
+  ]) {
+    assert.equal(
+      competitionEpochReentryMigrationSql.match(pattern)?.[0],
+      competitionSql.match(pattern)?.[0],
+      'epoch reentry migration and canonical competition SQL must stay identical',
     );
   }
 });
