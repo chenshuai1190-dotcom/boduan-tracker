@@ -14,6 +14,7 @@ import { getStoredLanguage, isEnglishLanguage, saveStoredLanguage, t } from './l
 import { isEarningsPublished } from './lib/earningsCalendarModel.js';
 import { localMonthKey } from './lib/calendarMonth.js';
 import { buildQuoteSymbolBatches } from './lib/quoteRequestBatches.js';
+import { buildQuoteBaselineRows, getQuoteBaselineRefreshDelay, shouldRunQuoteBaselineRefresh } from './lib/quoteRefreshPolicy.js';
 import { formatWaveCurrencyAmount, formatWaveUsdPrice } from './lib/waveCurrencyDisplay.js';
 import { userScopedStorageKey } from './lib/userScopedStorage.js';
 import { clearStockQuoteBootstrapCache, readStockQuoteBootstrapCache, writeStockQuoteBootstrapCache } from './lib/stockQuoteBootstrapCache.js';
@@ -1272,6 +1273,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   const quoteFetchInFlightRef = useRef(false);
   const pendingQuoteRefreshRef = useRef(null);
   const quickQuoteRefreshRef = useRef({ timer: null, lastAt: 0, dueAt: 0, priority: 0 });
+  const quoteBaselineRefreshRef = useRef({ lastAttemptAt: 0, lastSuccessAt: 0 });
   const quoteRefreshFromCloudResultRef = useRef(null);
   const pendingPwaResumeRefreshRef = useRef(null);
   const realtimeResumeReconnectHandlersRef = useRef(new Set());
@@ -1814,6 +1816,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     intentionalCloseSocket: null,
   });
   const quoteRowsRef = useRef([]);
+  const quoteBaselineRowsRef = useRef([]);
   const indexRealtimeRef = useRef({
     socket: null,
     reconnectTimer: null,
@@ -1852,6 +1855,12 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   );
   const quoteRows = quoteUniverse.allRows;
   const homeWatchlist = quoteUniverse.watchlistRows;
+  const quoteBaselineRows = useMemo(() => buildQuoteBaselineRows({
+    candidateRows: quoteRows,
+    stockTrades: localizedStockTrades,
+    watchlist: localizedWatchlist,
+    activeSwingRows: swingWaveQuoteRows,
+  }), [localizedStockTrades, localizedWatchlist, quoteRows, swingWaveQuoteRows]);
   const quoteBySymbol = useMemo(() => {
     const map = new Map();
     quoteRows.forEach((row) => {
@@ -1888,6 +1897,10 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   useEffect(() => {
     quoteRowsRef.current = quoteRows;
   }, [quoteRows]);
+
+  useEffect(() => {
+    quoteBaselineRowsRef.current = quoteBaselineRows;
+  }, [quoteBaselineRows]);
 
   useEffect(() => {
     quoteBootstrapLatestRowsRef.current = quoteCache;
@@ -2972,8 +2985,19 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     const cloudWatchlistRows = Array.isArray(result?.watchlist)
       ? orderWatchlistRows(result.watchlist, normalizeWatchlistOrder(result?.settings?.watchlistOrder)).map(localizeStockNameRow)
       : localizedWatchlist;
-    return buildLedgerQuoteUniverse(cloudStockRows, cloudWatchlistRows, localizedQuoteCache, toolQuoteRows).allRows;
-  }, [localizedQuoteCache, localizedStockTrades, localizedWatchlist, toolQuoteRows]);
+    const cloudQuoteRows = buildLedgerQuoteUniverse(
+      cloudStockRows,
+      cloudWatchlistRows,
+      localizedQuoteCache,
+      toolQuoteRows,
+    ).allRows;
+    return buildQuoteBaselineRows({
+      candidateRows: cloudQuoteRows,
+      stockTrades: cloudStockRows,
+      watchlist: cloudWatchlistRows,
+      activeSwingRows: swingWaveQuoteRows,
+    });
+  }, [localizedQuoteCache, localizedStockTrades, localizedWatchlist, swingWaveQuoteRows, toolQuoteRows]);
 
   // 一键拉取实时行情(从 Vercel API)
   const fetchRealtimePrices = async (rowsOverride = null, options = {}) => {
@@ -2981,9 +3005,19 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     const trigger = requestOptions.trigger || 'auto';
     const notifyOnError = requestOptions.notifyOnError === true;
     const startedAt = Date.now();
+    const forceBaseline = requestOptions.forceBaseline === true;
     let requestedSymbols = [];
     let responseStatus = 0;
     let responseResult = null;
+    if (!shouldRunQuoteBaselineRefresh({
+      session: getUsMarketSession(),
+      now: startedAt,
+      lastSuccessAt: quoteBaselineRefreshRef.current.lastSuccessAt,
+      lastAttemptAt: quoteBaselineRefreshRef.current.lastAttemptAt,
+      force: forceBaseline,
+    })) {
+      return { ok: true, skipped: true, reason: 'baseline-not-due' };
+    }
     if (quoteFetchInFlightRef.current) {
       if (requestOptions.queueIfBusy === true) {
         pendingQuoteRefreshRef.current = {
@@ -2996,17 +3030,18 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
       }
       return { ok: true, skipped: true };
     }
+    quoteBaselineRefreshRef.current.lastAttemptAt = startedAt;
     quoteFetchInFlightRef.current = true;
     const rowsForQuote = Array.isArray(rowsOverride)
       ? rowsOverride
-      : (quoteRowsRef.current.length > 0 ? quoteRowsRef.current : quoteRows);
+      : (quoteBaselineRowsRef.current.length > 0 ? quoteBaselineRowsRef.current : quoteBaselineRows);
     setFetching(true);
     if (notifyOnError) setFetchError(null);
     try {
       // v10.7.9.41: 显式把 QQQ/TQQQ 加进请求 (走完整 stock 接口, 有真实 week52High)
       // 之前只请求 watchlist+VIX+FGI+INDICES, QQQ 数据藏在 INDICES 里但只有 dayHigh 没有 52周高
       // 导致 qqqHigh 永远停在写死的初始值 640.47, 猎手状态回撤算不准
-      // Set 去重: 交易主账本、旧 watchlist、核心标的若重复不会重复请求
+      // Set 去重: 当前持仓、自选、活跃波段与核心标的若重复不会重复请求
       const coreSymbols = ['QQQ', 'TQQQ'];
       const symbolSet = new Set([...rowsForQuote.map(s => normalizeSymbolKey(s?.symbol)).filter(Boolean), ...coreSymbols]);
       requestedSymbols = [...symbolSet, 'VIX', 'FGI', 'INDICES'];
@@ -3046,6 +3081,13 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
       const resultBySymbol = new Map(
         resultRows.map((item) => [String(item?.symbol || '').toUpperCase(), item]),
       );
+      const hasUsableBaselineQuote = [...symbolSet].some((symbol) => {
+        const row = resultBySymbol.get(symbol);
+        return !row?.error && Number(row?.price) > 0;
+      });
+      if (hasUsableBaselineQuote) {
+        quoteBaselineRefreshRef.current.lastSuccessAt = Date.now();
+      }
 
       // 更新股票价格
       // 行情全集写入独立 quoteCache;watchlist 只保存用户主动自选,不能被持仓股票污染。
@@ -3230,6 +3272,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
         trigger: requestOptions.trigger || 'auto-visible',
         notifyOnError: requestOptions.notifyOnError === true,
         queueIfBusy: true,
+        forceBaseline: requestOptions.forceBaseline === true,
       });
     }, delayMs);
   };
@@ -3324,7 +3367,6 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     }
     requestQuickQuoteRefresh(null, {
       trigger: nextTrigger,
-      force: true,
       minIntervalMs: 0,
       notifyOnError: false,
     });
@@ -3431,7 +3473,6 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     }
     requestQuickQuoteRefresh(buildQuoteRowsFromCloudResult(result), {
       trigger: 'auto-start-cloud',
-      force: true,
       minIntervalMs: 0,
     });
   };
@@ -3483,6 +3524,8 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
       await fetchRealtimePrices(buildQuoteRowsFromCloudResult(cloudResult), {
         trigger: 'manual-pull-refresh',
         notifyOnError: true,
+        queueIfBusy: true,
+        forceBaseline: true,
       });
       setPullRefreshStatus('done');
     } catch (e) {
@@ -3621,24 +3664,6 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
       if (pullRefreshResetTimerRef.current) clearTimeout(pullRefreshResetTimerRef.current);
     };
   }, []);
-
-  // 智能刷新: 根据市场状态动态调整刷新频率
-  // - 开盘 (9:30-16:00 ET)  : 10 秒
-  // - 盘前 (4:00-9:30 ET)   : 30 秒
-  // - 盘后 (16:00-20:00 ET) : 30 秒
-  // - 休市                  : 5 分钟
-  // - 页面隐藏              : 暂停 (省电 + 省 API)
-  // - 页面回来              : 立刻拉一次
-  const getMarketRefreshInterval = () => {
-    const session = getUsMarketSession();
-    if (session === 'regular') {
-      return 10 * 1000; // 10 秒
-    }
-    if (session === 'premarket' || session === 'postmarket') {
-      return 30 * 1000; // 30 秒
-    }
-    return 5 * 60 * 1000; // 5 分钟
-  };
 
   const fetchBtcRestFallback = useCallback(async () => {
     const ref = btcRealtimeRef.current;
@@ -4082,9 +4107,8 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
         )) {
           return;
         }
-        requestQuickQuoteRefresh(quoteRowsRef.current, {
+        requestQuickQuoteRefresh(quoteBaselineRowsRef.current, {
           trigger: 'auto-realtime-open',
-          force: true,
           minIntervalMs: 0,
         });
       }, isIosStandaloneWebApp()
@@ -4147,7 +4171,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
             });
           }
           scheduleFirstTickWatchdog(socket, openedAt);
-          requestQuickQuoteRefresh(quoteRowsRef.current, {
+          requestQuickQuoteRefresh(quoteBaselineRowsRef.current, {
             trigger: 'auto-realtime-open',
             minIntervalMs: QUICK_QUOTE_REFRESH_MIN_INTERVAL_MS,
           });
@@ -4623,7 +4647,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     return () => clearInterval(timerId);
   }, [btcMarketCard, cloudLoading, btcRealtimeStatus, fetchBtcRestFallback]);
 
-  // 自动拉取 (智能刷新)
+  // 自动 REST 只做低频完整基线；盘中价格继续由股票/指数 WebSocket 与 iOS 快照突发负责。
   // 🚨 关键: 不能在 cloudLoading=true 时拉, 否则 watchlist=[] 闭包会清空云端数据!
   // 浏览器直连 EODHD WebSocket 已移除;BTC 实时行情只连接已登录服务端 relay。
   useEffect(() => {
@@ -4639,8 +4663,16 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     const scheduleNextFetch = () => {
       if (!isActive) return;
       if (timerId) clearTimeout(timerId);
-      const interval = getMarketRefreshInterval();
-      timerId = setTimeout(runFetchAndReschedule, interval);
+      const remainingMs = getQuoteBaselineRefreshDelay({
+        session: getUsMarketSession(),
+        now: Date.now(),
+        lastSuccessAt: quoteBaselineRefreshRef.current.lastSuccessAt,
+        lastAttemptAt: quoteBaselineRefreshRef.current.lastAttemptAt,
+      });
+      // Re-evaluate the session at least once a minute so a premarket/regular
+      // boundary cannot inherit the previous session's longer timer.
+      const nextCheckMs = Math.max(1000, Math.min(remainingMs || 1000, 60 * 1000));
+      timerId = setTimeout(runFetchAndReschedule, nextCheckMs);
     };
 
     const runFetchAndReschedule = () => {
@@ -4660,7 +4692,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
       scheduleNextFetch();
     };
 
-    // 页面可见性: 隐藏时暂停, 可见/focus/pageshow 时立即拉 + 重启
+    // 页面可见性: 隐藏时暂停；回来时仅在基线到期后补拉，同时重启计时。
     const handleVisibilityChange = () => {
       if (document.hidden) {
         if (timerId) {
@@ -4685,7 +4717,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
       window.removeEventListener('pageshow', handlePageShow);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cloudLoading, quoteRows.length]);
+  }, [cloudLoading]);
 
   // 当前激活的底部 tab
   const [activeTab, setActiveTab] = useState('home');
@@ -5125,7 +5157,12 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     expandedWaves,
     fetchError,
     fetching,
-    fetchRealtimePrices: () => fetchRealtimePrices(null, { trigger: 'manual-button', notifyOnError: true }),
+    fetchRealtimePrices: () => fetchRealtimePrices(null, {
+      trigger: 'manual-button',
+      notifyOnError: true,
+      queueIfBusy: true,
+      forceBaseline: true,
+    }),
     fetchPopularStockQuotes,
     fetchMarketMovers,
     fgi,

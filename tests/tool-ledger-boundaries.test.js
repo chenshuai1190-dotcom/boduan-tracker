@@ -639,8 +639,10 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(indexHtmlSource.includes('color-scheme: dark;'), 'index.html should tell the browser to use a dark startup color scheme');
   assert.equal(manifestJson.background_color, '#05070b', 'PWA manifest background should match the app dark shell');
   assert.equal(manifestJson.theme_color, '#05070b', 'PWA manifest theme color should match the app dark shell');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.403'"), 'visible settings version surfaces should share one source');
-  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.403', date: '2026-07-31', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.404'"), 'visible settings version surfaces should share one source');
+  assert.ok(settingsChangelogSource.includes("ver: 'v10.7.9.404', date: '2026-07-31', latest: true"), 'latest changelog entry should match the visible settings version');
+  assert.ok(settingsChangelogSource.includes('个股收益交易账本即时刷新') && settingsChangelogSource.includes('“交易统计”和“交易记录”立即按当前账本重算') && settingsChangelogSource.includes('实时账本区间以纽约当前日期为上限') && settingsChangelogSource.includes('头部收益、持仓数据、收益走势和相对 QQQ 仍只读取已完成收盘快照'), 'settings changelog should document the live stock-detail ledger sections and unchanged close-snapshot boundary');
+  assert.ok(settingsChangelogSource.includes('行情额度保护与收盘日线缓存') && settingsChangelogSource.includes('股票代码 + 最新已完成收盘日') && settingsChangelogSource.includes('focus 和恢复不再触发全量历史行情风暴') && settingsChangelogSource.includes('已关闭历史记录不再进入常驻 REST 行情全集') && settingsChangelogSource.includes('熔断至下一次 UTC 重置'), 'settings changelog should document quota protection, close-keyed history caching, and the unchanged websocket-first path');
   assert.ok(settingsChangelogSource.includes('波段记录实时价格加速') && settingsChangelogSource.includes('活跃波段优先读取已登录股票实时快照') && settingsChangelogSource.includes('慢响应不能覆盖更新的实时价格') && settingsChangelogSource.includes('加速入口只提供给独立波段记录页面'), 'settings changelog should document the isolated wave snapshot acceleration and stale-response protection');
   assert.ok(settingsChangelogSource.includes('iOS 主屏股票行情启动加速') && settingsChangelogSource.includes('最近 15 分钟、按账户隔离') && settingsChangelogSource.includes('WebSocket 仍为首选') && settingsChangelogSource.includes('缓存不保存数量、成本、盈亏、目标价、交易或账户数据'), 'settings changelog should document the isolated iOS startup acceleration and unchanged ledger boundary');
   assert.ok(settingsChangelogSource.includes('个股收益头卡整合目标计划') && settingsChangelogSource.includes('原有三排持仓结构下方') && settingsChangelogSource.includes('股票趋势原目标价卡继续保留') && settingsChangelogSource.includes('不修改持仓、正式交易、收益计算、比赛账本或数据库结构'), 'settings changelog should document the shared target entry and unchanged financial boundaries');
@@ -2635,7 +2637,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(homeTabSource.includes('viewBox="0 0 160 90" className="h-[76px]'), false, 'CNN gauge should not return to the taller old SVG');
   assert.equal(homeTabSource.includes('strokeWidth="13"'), false, 'CNN gauge should not return to the old thick arcs');
   assert.ok(tradesTabSource.includes('fmtAmount(marketValue, 2)'), 'trade position market value should keep two decimal places like daily and holding pnl');
-  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.403'"), 'settings version surfaces should remain synchronized through the shared constant');
+  assert.ok(settingsTabSource.includes("const SETTINGS_VERSION = 'v10.7.9.404'"), 'settings version surfaces should remain synchronized through the shared constant');
   assert.ok(settingsChangelogSource.includes('v10.7.9.218'), 'settings changelog should document the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('收益报表周期统计'), 'settings changelog should describe the P&L report period stats update');
   assert.ok(settingsChangelogSource.includes('v10.7.9.217'), 'settings changelog should document the P&L calendar visual update');

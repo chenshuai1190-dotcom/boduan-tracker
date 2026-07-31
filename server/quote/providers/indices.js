@@ -1,14 +1,23 @@
 import { providerFetch, QUOTE_TIMEOUTS } from '../http.js';
+import {
+  EODHD_INDEX_COMPLETED_CACHE_TTL_MS,
+  EODHD_INDEX_LIVE_CACHE_TTL_MS,
+  getLatestCompletedUsTradingDate,
+  getUsEasternMarketClock,
+  isUsMarketTradingDate,
+  loadEodhdIndexIntraday,
+} from '../eodhdCache.js';
 
 const MARKET_CARDS = [
   { ticker: 'GSPC.INDX', displaySymbol: '.SPX', name: '标普500', cn: '标普500' },
   { ticker: 'NDX.INDX', displaySymbol: '.NDX', name: '纳斯达克100', cn: '纳斯达克100' },
   { ticker: 'DJI.INDX', displaySymbol: '.DJI', name: '道琼斯', cn: '道琼斯' },
 ];
-const INDEX_INTRADAY_CACHE_TTL_MS = 5 * 60 * 1000;
 const INDEX_INTRADAY_LOOKBACK_DAYS = 7;
 const INDEX_INTRADAY_MAX_POINTS = 80;
-const indexIntradayCache = new Map();
+const INDEX_REGULAR_START_MINUTES = 9 * 60 + 30;
+const INDEX_REGULAR_END_MINUTES = 16 * 60;
+const INDEX_LIVE_BUCKET_MINUTES = 5;
 
 function asNumber(value) {
   const n = Number(value);
@@ -70,7 +79,7 @@ function sampleIntraday(values, maxPoints = INDEX_INTRADAY_MAX_POINTS) {
 }
 
 function parseIntradaySeries(rows) {
-  if (!Array.isArray(rows)) return [];
+  if (!Array.isArray(rows)) return { sessionDate: '', values: [] };
   const points = rows
     .map((row) => ({
       dateKey: intradayDateKey(row),
@@ -78,40 +87,85 @@ function parseIntradaySeries(rows) {
       close: asNumber(row?.close || row?.price || row?.last || row?.c),
     }))
     .filter((row) => row.dateKey && row.close > 0);
-  if (points.length < 2) return [];
+  if (points.length < 2) return { sessionDate: '', values: [] };
   const latestDateKey = points.reduce((latest, row) => (row.dateKey > latest ? row.dateKey : latest), '');
   const latestSessionPoints = points
     .filter((row) => row.dateKey === latestDateKey)
     .sort((a, b) => a.sortKey.localeCompare(b.sortKey))
     .map((row) => row.close);
-  return sampleIntraday(latestSessionPoints);
+  return {
+    sessionDate: latestDateKey,
+    values: sampleIntraday(latestSessionPoints),
+  };
 }
 
-async function fetchIndexIntraday(card, eodhdKey) {
-  const cached = indexIntradayCache.get(card.ticker);
-  const now = Date.now();
-  if (cached && now - cached.cachedAt < INDEX_INTRADAY_CACHE_TTL_MS) return cached.values;
+export function getIndexIntradayCachePolicy(now = Date.now()) {
+  const clock = getUsEasternMarketClock(now);
+  const isRegular = clock
+    && isUsMarketTradingDate(clock.date)
+    && clock.minutes >= INDEX_REGULAR_START_MINUTES
+    && clock.minutes < INDEX_REGULAR_END_MINUTES;
+
+  if (isRegular) {
+    const liveBucket = Math.floor(
+      (clock.minutes - INDEX_REGULAR_START_MINUTES) / INDEX_LIVE_BUCKET_MINUTES,
+    );
+    return {
+      sessionKey: `${clock.date}:regular:${liveBucket}`,
+      expectedDate: clock.date,
+      ttlMs: EODHD_INDEX_LIVE_CACHE_TTL_MS,
+      session: 'regular',
+    };
+  }
+
+  const completedDate = getLatestCompletedUsTradingDate(now);
+  if (completedDate) {
+    return {
+      sessionKey: `${completedDate}:completed`,
+      expectedDate: completedDate,
+      ttlMs: EODHD_INDEX_COMPLETED_CACHE_TTL_MS,
+      session: 'completed',
+    };
+  }
+
+  return {
+    sessionKey: `fallback:${Math.floor(Number(now) / EODHD_INDEX_LIVE_CACHE_TTL_MS)}`,
+    ttlMs: EODHD_INDEX_LIVE_CACHE_TTL_MS,
+    session: 'fallback',
+  };
+}
+
+async function fetchIndexIntraday(card, eodhdKey, now) {
+  const cachePolicy = getIndexIntradayCachePolicy(now);
+  let loadedSessionDate = '';
 
   try {
     const to = Math.floor(now / 1000);
     const from = to - INDEX_INTRADAY_LOOKBACK_DAYS * 24 * 60 * 60;
     const intradayUrl = `https://eodhd.com/api/intraday/${card.ticker}?api_token=${eodhdKey}&fmt=json&interval=5m&from=${from}&to=${to}`;
-    const intradayRes = await providerFetch(intradayUrl, {}, { provider: 'eodhd:index-intraday', timeoutMs: QUOTE_TIMEOUTS.eodhd });
-    if (!intradayRes.ok) {
-      indexIntradayCache.set(card.ticker, { cachedAt: now, values: [] });
-      return [];
-    }
-    const rows = await intradayRes.json();
-    const values = parseIntradaySeries(rows);
-    indexIntradayCache.set(card.ticker, { cachedAt: now, values });
-    return values;
+    return await loadEodhdIndexIntraday({
+      ticker: card.ticker,
+      sessionKey: cachePolicy.sessionKey,
+      ttlMs: cachePolicy.ttlMs,
+      now,
+      shouldCache: () => (
+        !cachePolicy.expectedDate || loadedSessionDate === cachePolicy.expectedDate
+      ),
+      load: async () => {
+        const intradayRes = await providerFetch(intradayUrl, {}, { provider: 'eodhd:index-intraday', timeoutMs: QUOTE_TIMEOUTS.eodhd });
+        if (!intradayRes.ok) throw new Error(`EODHD HTTP ${intradayRes.status}`);
+        const rows = await intradayRes.json();
+        const parsed = parseIntradaySeries(rows);
+        loadedSessionDate = parsed.sessionDate;
+        return parsed.values;
+      },
+    });
   } catch {
-    indexIntradayCache.set(card.ticker, { cachedAt: now, values: [] });
     return [];
   }
 }
 
-async function fetchMarketCard(card, eodhdKey) {
+async function fetchMarketCard(card, eodhdKey, now) {
   try {
     const eodhdUrl = `https://eodhd.com/api/real-time/${card.ticker}?api_token=${eodhdKey}&fmt=json`;
     const eodhdRes = await providerFetch(eodhdUrl, {}, { provider: 'eodhd:index-card', timeoutMs: QUOTE_TIMEOUTS.eodhd });
@@ -125,7 +179,7 @@ async function fetchMarketCard(card, eodhdKey) {
     if (quote.currentPrice <= 0) {
       return { ticker: card.ticker, displaySymbol: card.displaySymbol, name: card.name, cn: card.cn, error: 'EODHD 没返回数据' };
     }
-    const intraday = await fetchIndexIntraday(card, eodhdKey);
+    const intraday = await fetchIndexIntraday(card, eodhdKey, now);
 
     return {
       ticker: card.ticker,
@@ -146,10 +200,10 @@ async function fetchMarketCard(card, eodhdKey) {
   }
 }
 
-export async function fetchIndicesQuote(symbol, { eodhdKey }) {
+export async function fetchIndicesQuote(symbol, { eodhdKey, now = Date.now() }) {
   try {
-    const results = await Promise.all(MARKET_CARDS.map(card => fetchMarketCard(card, eodhdKey)));
-    return { symbol: 'INDICES', data: results, source: 'EODHD', fetchedAt: new Date().toISOString() };
+    const results = await Promise.all(MARKET_CARDS.map(card => fetchMarketCard(card, eodhdKey, now)));
+    return { symbol: 'INDICES', data: results, source: 'EODHD', fetchedAt: new Date(now).toISOString() };
   } catch (e) {
     return { symbol: 'INDICES', error: `指数请求失败: ${e.message}` };
   }

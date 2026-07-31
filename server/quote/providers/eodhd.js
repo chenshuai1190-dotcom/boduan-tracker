@@ -1,4 +1,8 @@
 import { providerFetch, QUOTE_TIMEOUTS } from '../http.js';
+import {
+  getLatestCompletedUsTradingDate,
+  loadEodhdDailyHistory,
+} from '../eodhdCache.js';
 import { buildEodhdStockDetail } from '../stockDetail.js';
 
 const US_EQUITY_REGULAR_START_MINUTES = 9 * 60 + 30;
@@ -7,6 +11,32 @@ const US_EQUITY_PREMARKET_START_MINUTES = 4 * 60;
 const US_EQUITY_POSTMARKET_END_MINUTES = 20 * 60;
 const DEFAULT_STOCK_HISTORY_DAYS = 380;
 const STOCK_DETAIL_HISTORY_YEARS = 10;
+
+async function fetchEodhdDailyRows({
+  symbol,
+  eodhdKey,
+  fromDate,
+  completedDate,
+  provider,
+  now,
+}) {
+  const eodUrl = `https://eodhd.com/api/eod/${encodeURIComponent(symbol)}.US?api_token=${eodhdKey}&from=${fromDate}&period=d&fmt=json`;
+  return loadEodhdDailyHistory({
+    symbol,
+    completedDate,
+    fromDate,
+    now,
+    load: async () => {
+      const response = await providerFetch(
+        eodUrl,
+        {},
+        { provider, timeoutMs: QUOTE_TIMEOUTS.eodhd },
+      );
+      if (!response.ok) throw new Error(`EODHD HTTP ${response.status}`);
+      return response.json();
+    },
+  });
+}
 
 function parseQuoteNumber(value) {
   if (value === null || value === undefined || value === '') return null;
@@ -80,14 +110,7 @@ function isUsEquitySameDayAfterPostClose(now = Date.now()) {
 }
 
 function getLatestCompletedEodCutoffDate(now = Date.now()) {
-  const marketDate = getUsEquityMarketDate(now);
-  if (!marketDate) return '';
-  const quoteSession = getUsEquityQuoteSession(now);
-  if (quoteSession === 'post' || isUsEquitySameDayAfterPostClose(now)) return marketDate;
-  const previousDate = new Date(`${marketDate}T00:00:00Z`);
-  if (Number.isNaN(previousDate.getTime())) return '';
-  previousDate.setUTCDate(previousDate.getUTCDate() - 1);
-  return previousDate.toISOString().slice(0, 10);
+  return getLatestCompletedUsTradingDate(now);
 }
 
 export function findDailyBaselineCloseFromEodRows(rows = [], marketDate = '') {
@@ -251,7 +274,7 @@ export function normalizeEodhdStockQuoteFields(data, {
   };
 }
 
-export async function fetchAnalystQuote(symbol, { eodhdKey }) {
+export async function fetchAnalystQuote(symbol, { eodhdKey, now = Date.now() }) {
   try {
     const stockSym = symbol.split(':')[1];
     if (!stockSym) {
@@ -421,25 +444,26 @@ export async function fetchAnalystQuote(symbol, { eodhdKey }) {
       : ratingNum > 0 ? 'STRONG SELL' : null;
     const totalAnalysts = (ratings.StrongBuy || 0) + (ratings.Buy || 0) + (ratings.Hold || 0) + (ratings.Sell || 0) + (ratings.StrongSell || 0);
 
-    const oneYearAgo = new Date();
+    const oneYearAgo = new Date(now);
     oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
     const fromYearStr = oneYearAgo.toISOString().slice(0, 10);
     let priceHistory = null;
     try {
-      const eodUrl = `https://eodhd.com/api/eod/${stockSym}.US?api_token=${eodhdKey}&from=${fromYearStr}&period=d&fmt=json`;
-      const eodR = await providerFetch(eodUrl, {}, { provider: 'eodhd:analyst-history', timeoutMs: QUOTE_TIMEOUTS.eodhd });
-      if (eodR.ok) {
-        const eodData = await eodR.json();
-        if (Array.isArray(eodData)) {
-          priceHistory = eodData
-            .filter((_, i) => i % 5 === 0)
-            .map(d => ({
-              date: d.date,
-              close: parseFloat(d.adjusted_close || d.close) || null,
-            }))
-            .filter(d => d.close != null);
-        }
-      }
+      const eodData = await fetchEodhdDailyRows({
+        symbol: stockSym,
+        eodhdKey,
+        fromDate: fromYearStr,
+        completedDate: getLatestCompletedEodCutoffDate(now),
+        provider: 'eodhd:analyst-history',
+        now,
+      });
+      priceHistory = eodData
+        .filter((_, i) => i % 5 === 0)
+        .map(d => ({
+          date: d.date,
+          close: parseFloat(d.adjusted_close || d.close) || null,
+        }))
+        .filter(d => d.close != null);
     } catch (e) {
       console.warn('[Fundamentals] 历史日线失败:', e.message);
     }
@@ -585,9 +609,8 @@ export async function fetchAnalystQuote(symbol, { eodhdKey }) {
   }
 }
 
-export async function fetchStockQuote(symbol, { eodhdKey, includeStockDetail = false }) {
+export async function fetchStockQuote(symbol, { eodhdKey, includeStockDetail = false, now = Date.now() }) {
   try {
-    const now = Date.now();
     const marketDate = getUsEquityMarketDate(now);
     const stockDetailCutoffDate = getLatestCompletedEodCutoffDate(now);
     const quoteUrl = `https://eodhd.com/api/us-quote-delayed?s=${encodeURIComponent(symbol)}.US&api_token=${eodhdKey}&fmt=json`;
@@ -602,15 +625,21 @@ export async function fetchStockQuote(symbol, { eodhdKey, includeStockDetail = f
       historyStart.setTime(quoteHistoryStart.getTime());
     }
     const fromDate = historyStart.toISOString().slice(0, 10);
-    const eodUrl = `https://eodhd.com/api/eod/${encodeURIComponent(symbol)}.US?api_token=${eodhdKey}&from=${fromDate}&fmt=json`;
     const splitsUrl = includeStockDetail
       ? `https://eodhd.com/api/splits/${encodeURIComponent(symbol)}.US?api_token=${eodhdKey}&from=${fromDate}&to=${stockDetailCutoffDate}&fmt=json`
       : '';
     const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=5m&range=1d&includePrePost=true`;
 
-    const [quoteRes, eodRes, yahooRes, splitsRes] = await Promise.all([
+    const [quoteRes, eodData, yahooRes, splitsRes] = await Promise.all([
       providerFetch(quoteUrl, {}, { provider: 'eodhd:stock-quote', timeoutMs: QUOTE_TIMEOUTS.eodhd }),
-      providerFetch(eodUrl, {}, { provider: 'eodhd:stock-history', timeoutMs: QUOTE_TIMEOUTS.eodhd }),
+      fetchEodhdDailyRows({
+        symbol,
+        eodhdKey,
+        fromDate,
+        completedDate: stockDetailCutoffDate,
+        provider: 'eodhd:stock-history',
+        now,
+      }).catch(() => null),
       providerFetch(yahooUrl, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -718,9 +747,8 @@ export async function fetchStockQuote(symbol, { eodhdKey, includeStockDetail = f
         }
       }
     }
-    if (eodRes.ok) {
+    if (Array.isArray(eodData)) {
       try {
-        const eodData = await eodRes.json();
         if (Array.isArray(eodData) && eodData.length > 0) {
           if (includeStockDetail) {
             const nextStockDetail = buildEodhdStockDetail(eodData, {

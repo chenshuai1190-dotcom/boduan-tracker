@@ -1,4 +1,4 @@
-import { latestCompletedUsTradingDate } from './pnlReportSnapshots.js';
+import { currentNewYorkDate, latestCompletedUsTradingDate } from './pnlReportSnapshots.js';
 
 function toNumber(value) {
   const n = Number(value);
@@ -367,6 +367,15 @@ export function buildStockDetailViewModel({
   const fallbackStartDate = firstDate([sortedSnapshots[0]?.snapshotDate, firstTradeDate]) || fallbackEndDate;
   const startDate = getRangeStartDate(range, fallbackEndDate, fallbackStartDate);
   const endDate = fallbackEndDate;
+  // Performance values and charts remain locked to completed close snapshots,
+  // while the two ledger-only sections must reflect a saved trade immediately.
+  // Formal trade dates are capped to the New York calendar date at entry time.
+  const tradeLedgerEndDate = currentNewYorkDate(now);
+  const tradeLedgerStartDate = getRangeStartDate(
+    range,
+    tradeLedgerEndDate,
+    firstTradeDate || tradeLedgerEndDate,
+  );
   const boundedSnapshots = sortedSnapshots.filter((snapshot) => {
     const date = String(snapshot.snapshotDate);
     return date >= startDate && date <= endDate;
@@ -381,9 +390,12 @@ export function buildStockDetailViewModel({
     ? null
     : periodReturnBasis(periodLatest, baseline, range, startsInsideRange);
   const periodPnlPct = periodReturnPct(periodPnlUsd, periodBasisUsd);
-  const stats = buildTradeStats(records, startDate, endDate, range);
+  const stats = buildTradeStats(records, tradeLedgerStartDate, tradeLedgerEndDate, range);
   const tradeRecords = records
-    .filter((record) => record.date <= endDate && (range === 'all' || record.date >= startDate))
+    .filter((record) => (
+      record.date <= tradeLedgerEndDate
+      && (range === 'all' || record.date >= tradeLedgerStartDate)
+    ))
     .sort((a, b) => b.date.localeCompare(a.date) || String(b.id || '').localeCompare(String(a.id || '')));
   const trend = boundedSnapshots.map((snapshot) => {
     const pnlUsd = periodSnapshotPnl(snapshot, baseline, range, startsInsideRange);
@@ -402,7 +414,7 @@ export function buildStockDetailViewModel({
   }).filter((point) => point.pnlUsd != null);
   const trendDates = new Set(trend.map((point) => point.date));
   const visibleTradeEvents = tradeRecords
-    .filter((record) => trend.length > 0)
+    .filter((record) => trend.length > 0 && record.date <= endDate)
     .map((record) => {
       const exactDate = trendDates.has(record.date)
         ? record.date
@@ -443,6 +455,8 @@ export function buildStockDetailViewModel({
     axisEndDate: endDate,
     startDate: displayDate(range === 'all' ? fallbackStartDate : startDate),
     endDate: displayDate(endDate),
+    tradeLedgerStartDate,
+    tradeLedgerEndDate,
     periodPnlUsd,
     periodPnlPct,
     periodBasisUsd,

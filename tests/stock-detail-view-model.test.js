@@ -89,6 +89,143 @@ test('builds read-only stock detail with trade stats and sell realized P&L', () 
   assert.equal(detail.tradeEvents[1].markerDate, '2026-07-07');
 });
 
+test('trade stats and records reflect saved ledger changes before the next close snapshot', () => {
+  const snapshot = {
+    snapshotDate: '2026-07-30',
+    symbol: 'NVDA',
+    name: 'NVIDIA',
+    heldShares: 10,
+    avgCostUsd: 100,
+    currentPriceUsd: 110,
+    marketValueUsd: 1100,
+    realizedPnlUsd: 0,
+    unrealizedPnlUsd: 100,
+    cumulativePnlUsd: 100,
+    dailyPnlUsd: 100,
+    totalBuyCostUsd: 1000,
+  };
+  const buy = {
+    id: 'buy',
+    trade_date: '2026-07-30',
+    created_at: '2026-07-30T14:00:00Z',
+    symbol: 'NVDA',
+    name: 'NVIDIA',
+    side: 'buy',
+    shares: 10,
+    price: 100,
+  };
+  const build = (stockTrades) => buildStockDetailViewModel({
+    symbol: 'NVDA',
+    stockTrades,
+    symbolSnapshots: [snapshot],
+    range: 'ytd',
+    // 11:00 America/New_York: July 31 has not produced a close snapshot yet.
+    now: new Date('2026-07-31T15:00:00.000Z'),
+  });
+
+  const added = build([
+    buy,
+    {
+      id: 'sell',
+      trade_date: '2026-07-31',
+      created_at: '2026-07-31T14:00:00Z',
+      symbol: 'NVDA',
+      name: 'NVIDIA',
+      side: 'sell',
+      shares: 2,
+      price: 200,
+    },
+  ]);
+  assert.equal(added.snapshotDate, '2026-07-30');
+  assert.equal(added.trend.at(-1).date, '2026-07-30');
+  assert.equal(added.periodPnlUsd, 100);
+  assert.equal(added.heldShares, 10);
+  assert.equal(added.tradeLedgerEndDate, '2026-07-31');
+  assert.equal(added.stats.buyCount, 1);
+  assert.equal(added.stats.sellCount, 1);
+  assert.equal(added.stats.sellAmountUsd, 400);
+  assert.equal(added.tradeRecords[0].id, 'sell');
+  assert.equal(added.tradeRecords[0].realizedPnlUsd, 200);
+  assert.equal(added.tradeEvents.some((record) => record.id === 'sell'), false);
+
+  const edited = build([
+    buy,
+    {
+      id: 'sell',
+      trade_date: '2026-07-31',
+      created_at: '2026-07-31T14:00:00Z',
+      symbol: 'NVDA',
+      name: 'NVIDIA',
+      side: 'sell',
+      shares: 3,
+      price: 220,
+    },
+  ]);
+  assert.equal(edited.stats.sellAmountUsd, 660);
+  assert.equal(edited.tradeRecords[0].shares, 3);
+  assert.equal(edited.tradeRecords[0].realizedPnlUsd, 360);
+
+  const deleted = build([buy]);
+  assert.equal(deleted.stats.sellCount, 0);
+  assert.equal(deleted.stats.sellAmountUsd, 0);
+  assert.deepEqual(deleted.tradeRecords.map((record) => record.id), ['buy']);
+  assert.equal(deleted.periodPnlUsd, 100);
+  assert.equal(deleted.trend.at(-1).date, '2026-07-30');
+});
+
+test('live trade sections use the New York date and keep future ledger rows hidden', () => {
+  const detail = buildStockDetailViewModel({
+    symbol: 'NVDA',
+    stockTrades: [
+      { id: 'current', trade_date: '2026-07-31', symbol: 'NVDA', side: 'buy', shares: 1, price: 200 },
+      { id: 'future', trade_date: '2026-08-01', symbol: 'NVDA', side: 'buy', shares: 1, price: 210 },
+    ],
+    symbolSnapshots: [],
+    range: 'all',
+    // UTC is already August 1, while New York is still July 31.
+    now: new Date('2026-08-01T01:00:00.000Z'),
+  });
+
+  assert.equal(detail.tradeLedgerEndDate, '2026-07-31');
+  assert.equal(detail.stats.buyCount, 1);
+  assert.equal(detail.stats.buyAmountUsd, 200);
+  assert.deepEqual(detail.tradeRecords.map((record) => record.id), ['current']);
+});
+
+test('live trade ranges are anchored to the current ledger date instead of a stale close', () => {
+  const detail = buildStockDetailViewModel({
+    symbol: 'NVDA',
+    stockTrades: [
+      { id: 'outside', trade_date: '2026-06-18', symbol: 'NVDA', side: 'buy', shares: 1, price: 100 },
+      { id: 'boundary', trade_date: '2026-06-20', symbol: 'NVDA', side: 'buy', shares: 1, price: 110 },
+      { id: 'today', trade_date: '2026-07-20', symbol: 'NVDA', side: 'sell', shares: 1, price: 150 },
+    ],
+    symbolSnapshots: [
+      {
+        snapshotDate: '2026-06-15',
+        symbol: 'NVDA',
+        heldShares: 1,
+        avgCostUsd: 100,
+        currentPriceUsd: 105,
+        marketValueUsd: 105,
+        cumulativePnlUsd: 5,
+        totalBuyCostUsd: 100,
+      },
+    ],
+    range: '1m',
+    now: new Date('2026-07-20T15:00:00.000Z'),
+  });
+
+  assert.equal(detail.tradeLedgerStartDate, '2026-06-20');
+  assert.equal(detail.tradeLedgerEndDate, '2026-07-20');
+  assert.deepEqual(detail.tradeRecords.map((record) => record.id), ['today', 'boundary']);
+  assert.equal(detail.stats.buyAmountUsd, 110);
+  assert.equal(detail.stats.sellAmountUsd, 150);
+  assert.equal(detail.trend.length, 1);
+  assert.equal(detail.trend[0].date, '2026-06-15');
+  assert.equal(detail.snapshotDate, '2026-06-15');
+});
+
 test('separates stock detail giveback from net-asset drawdown rate', () => {
   const detail = buildStockDetailViewModel({
     symbol: 'NVDA',
