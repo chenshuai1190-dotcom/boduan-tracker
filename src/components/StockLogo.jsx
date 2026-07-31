@@ -17,6 +17,7 @@ export default function StockLogo({ symbol, urls = [], onLogoLoad, className = '
     <img
       src={currentUrl}
       alt=""
+      draggable={false}
       loading="lazy"
       decoding="async"
       referrerPolicy="no-referrer"

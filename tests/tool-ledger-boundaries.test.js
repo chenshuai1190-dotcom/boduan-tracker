@@ -2742,6 +2742,26 @@ test('review edit modals use in-app validation instead of native alerts', () => 
   assert.ok(logBlock.includes("setError(tt('review.contentRequired', '请输入内容'))"), 'review log modal should show an in-app validation message');
 });
 
+test('North Star base principal can replace zero without persisting an empty numeric value', () => {
+  assert.ok(
+    reviewTabSource.includes("value={plan.startCapital === '' ? '' : Math.round(startCapital * rate)}"),
+    'base principal must preserve an empty draft while the user replaces zero',
+  );
+  assert.ok(
+    reviewTabSource.includes("startCapital: rawValue === '' ? '' : Number(rawValue) / rate"),
+    'base principal must keep an empty draft instead of immediately restoring a leading zero',
+  );
+  assert.equal(
+    reviewTabSource.includes("startCapital: (parseFloat(event.target.value) || 0) / rate"),
+    false,
+    'base principal must not coerce an empty edit back to zero during onChange',
+  );
+  assert.ok(
+    reviewTabSource.includes('startCapital: toNumber(investmentPlan?.startCapital, 0)'),
+    'saving the plan must normalize an empty base principal before the numeric database write',
+  );
+});
+
 test('account, order, and delete action modals match the approved glass-card design', () => {
   const orderActionStart = tradesTabSource.indexOf('{orderActionTrade && (() => {');
   const orderActionEnd = tradesTabSource.indexOf('{/* 波段记录', orderActionStart);

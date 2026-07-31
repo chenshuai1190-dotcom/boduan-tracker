@@ -1264,7 +1264,12 @@ export default function ReviewTab({ ctx }) {
               label: tt('review.save', '保存'),
               onClick: async () => {
                 try {
-                  await db.upsertInvestmentPlan(investmentPlan);
+                  const normalizedPlan = {
+                    ...investmentPlan,
+                    startCapital: toNumber(investmentPlan?.startCapital, 0),
+                  };
+                  setInvestmentPlan(normalizedPlan);
+                  await db.upsertInvestmentPlan(normalizedPlan);
                   setShowPlanSettings(false);
                 } catch (error) {
                   console.error('[目标页设置] 保存失败:', error);
@@ -1278,8 +1283,19 @@ export default function ReviewTab({ ctx }) {
                 <span className="mb-1 block text-[11px] text-white/50">{tt('review.basePrincipal', '基础本金 ({{symbol}})', { symbol })}</span>
                 <input
                   type="number"
-                  value={Math.round(startCapital * rate)}
-                  onChange={(event) => setInvestmentPlan({ ...plan, startCapital: (parseFloat(event.target.value) || 0) / rate })}
+                  value={plan.startCapital === '' ? '' : Math.round(startCapital * rate)}
+                  onChange={(event) => {
+                    const rawValue = event.target.value;
+                    setInvestmentPlan({
+                      ...plan,
+                      startCapital: rawValue === '' ? '' : Number(rawValue) / rate,
+                    });
+                  }}
+                  onBlur={() => {
+                    if (plan.startCapital === '') {
+                      setInvestmentPlan({ ...plan, startCapital: 0 });
+                    }
+                  }}
                   className="block w-full min-w-0 max-w-full box-border rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2.5 text-[13px] text-white outline-none tabular-nums placeholder:text-white/25 focus:border-[#f6b54b]/70"
                   style={{ colorScheme: 'dark' }}
                 />

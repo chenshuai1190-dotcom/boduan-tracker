@@ -107,7 +107,7 @@ export default function ActionModalCard({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className={`min-h-[232px] ${widthClassName} rounded-[27px] flex max-h-full min-w-0 flex-col overflow-hidden border border-white/[0.17] bg-[linear-gradient(145deg,rgba(25,28,36,0.93),rgba(10,12,18,0.96)_58%,rgba(8,10,15,0.98))] px-[14px] pb-4 pt-[18px] shadow-[0_24px_66px_rgba(0,0,0,0.56),inset_0_1px_0_rgba(255,255,255,0.045)] ${panelClassName}`}
+        className={`ios-interactive-surface min-h-[232px] ${widthClassName} rounded-[27px] flex max-h-full min-w-0 flex-col overflow-hidden border border-white/[0.17] bg-[linear-gradient(145deg,rgba(25,28,36,0.93),rgba(10,12,18,0.96)_58%,rgba(8,10,15,0.98))] px-[14px] pb-4 pt-[18px] shadow-[0_24px_66px_rgba(0,0,0,0.56),inset_0_1px_0_rgba(255,255,255,0.045)] ${panelClassName}`}
         style={panelStyle}
         onClick={(event) => event.stopPropagation()}
         onFocusCapture={(event) => {
