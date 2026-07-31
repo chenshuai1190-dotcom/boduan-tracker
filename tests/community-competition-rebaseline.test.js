@@ -11,6 +11,8 @@ const ELIGIBLE_DATE = '2026-07-10';
 const D1 = '2026-07-13';
 const D2 = '2026-07-14';
 const THURSDAY = '2026-07-16';
+const LEGACY_INCIDENT_DATE = '2026-07-30';
+const LEGACY_INCIDENT_NEXT_DATE = '2026-07-31';
 const USER_ID = 'rebaseline-user';
 const ENV_KEYS = [
   'SUPABASE_URL',
@@ -116,6 +118,7 @@ function createHarness({
   },
   snapshotInsertRace = false,
   snapshots = [],
+  rankedRebaselineOutcome = null,
 } = {}) {
   const state = {
     member: { ...member },
@@ -123,6 +126,7 @@ function createHarness({
     ledgerState: { ...ledgerState },
     snapshots: snapshots.map((snapshot) => ({ ...snapshot })),
     rpcBodies: [],
+    rankedRpcBodies: [],
     rankingPatches: [],
     snapshotWrites: [],
     spyRequests: 0,
@@ -132,6 +136,41 @@ function createHarness({
 
   const fetch = async (url, options = {}) => {
     const href = String(url);
+    if (href.includes(
+      '/rest/v1/rpc/forward_rebaseline_ranked_community_competition_member'
+    )) {
+      assert.equal(options.method, 'POST');
+      const body = JSON.parse(options.body);
+      state.rankedRpcBodies.push(body);
+      if (rankedRebaselineOutcome) return jsonResponse(rankedRebaselineOutcome);
+      const matchesExpectedState = (
+        body.p_user_id === state.member.user_id
+        && body.p_expected_eligible_after_snapshot_date
+          === state.member.eligible_after_snapshot_date
+        && body.p_expected_eligible_ledger_hash === state.member.eligible_ledger_hash
+        && body.p_expected_eligible_ledger_revision
+          === state.member.eligible_ledger_revision
+        && body.p_expected_ranking_start_snapshot_date
+          === state.member.ranking_start_snapshot_date
+        && body.p_expected_ranking_baseline_return_pct
+          === state.member.ranking_baseline_return_pct
+        && body.p_expected_current_ledger_revision === state.ledgerState.revision
+        && state.member.status === 'active'
+        && state.member.ranking_start_snapshot_date != null
+        && state.member.ranking_baseline_return_pct != null
+        && !state.snapshots.some((snapshot) => (
+          snapshot.snapshot_date >= body.p_new_eligible_after_snapshot_date
+        ))
+      );
+      if (!matchesExpectedState) return jsonResponse('stale_member');
+      state.member.eligible_after_snapshot_date = body.p_new_eligible_after_snapshot_date;
+      state.member.eligible_ledger_hash = body.p_new_eligible_ledger_hash;
+      state.member.eligible_ledger_revision = state.ledgerState.revision;
+      state.member.ranking_start_snapshot_date = null;
+      state.member.ranking_baseline_return_pct = null;
+      state.member.updated_at = `${body.p_new_eligible_after_snapshot_date}T21:00:00Z`;
+      return jsonResponse('rebaselined');
+    }
     if (href.includes('/rest/v1/rpc/rebaseline_community_competition_member')) {
       assert.equal(options.method, 'POST');
       const body = JSON.parse(options.body);
@@ -889,6 +928,202 @@ test('a target-day trade written after the New York close cannot be hidden by a 
   assert.equal(harness.state.rpcBodies.length, 0);
   assert.equal(harness.state.snapshotWrites.length, 0);
   assert.equal(harness.state.member.eligible_after_snapshot_date, ELIGIBLE_DATE);
+});
+
+test('a ranked member with a pre-close New York date mismatch is forward-rebaselined', async () => {
+  const originalTrade = makeTrade();
+  const mismatchedTargetTrade = {
+    ...makeTrade({ price: 100, shares: 1 }),
+    id: 'timezone-mismatched-target-trade',
+    trade_date: LEGACY_INCIDENT_DATE,
+    // 07/29 20:12 New York / 07/30 08:12 Shanghai. This is the
+    // production incident caused by the former device-calendar default.
+    created_at: '2026-07-30T00:12:18Z',
+    updated_at: '2026-07-30T00:12:18Z',
+  };
+  const member = {
+    user_id: USER_ID,
+    status: 'active',
+    joined_at: '2026-07-09T12:00:00Z',
+    eligible_after_snapshot_date: '2026-07-09',
+    eligible_ledger_hash: computeCompetitionLedgerHash([originalTrade], '2026-07-09'),
+    eligible_ledger_revision: 1,
+    ranking_start_snapshot_date: ELIGIBLE_DATE,
+    ranking_baseline_return_pct: 0,
+  };
+  const priorSnapshot = {
+    user_id: USER_ID,
+    snapshot_date: ELIGIBLE_DATE,
+    daily_return_pct: 0,
+    cumulative_return_pct: 0,
+    locked_at: '2026-07-10T21:00:00Z',
+    source_version: 'community_competition_snapshot_v1',
+    ledger_hash: computeCompetitionLedgerHash([originalTrade], ELIGIBLE_DATE),
+    ledger_revision: 1,
+  };
+  const harness = createHarness({
+    member,
+    trades: [originalTrade, mismatchedTargetTrade],
+    snapshots: [priorSnapshot],
+    ledgerState: {
+      user_id: USER_ID,
+      revision: 2,
+      last_mutated_at: '2026-07-30T17:00:55Z',
+    },
+    calendarRows: [
+      { date: ELIGIBLE_DATE, adjusted_close: 600 },
+      { date: LEGACY_INCIDENT_DATE, adjusted_close: 606 },
+    ],
+    nvdaRows: [
+      { date: ELIGIBLE_DATE, adjusted_close: 98, high: 101, low: 95 },
+      { date: LEGACY_INCIDENT_DATE, adjusted_close: 100, high: 104, low: 96 },
+    ],
+  });
+
+  const result = await withHarness(harness, () => runCommunityCompetitionScheduledCatchUp({
+    targetDate: LEGACY_INCIDENT_DATE,
+    now: new Date('2026-07-30T23:00:00Z'),
+  }));
+
+  assert.equal(result.success, true);
+  assert.equal(result.rebaselinedMembers, 1);
+  assert.equal(result.authoritativeRejectionReasons.late_trade, 1);
+  assert.equal(result.deferredReasons.forward_rebaseline_waiting_next_close, 1);
+  assert.equal(result.writtenSnapshots, 0);
+  assert.equal(harness.state.rankedRpcBodies.length, 1);
+  assert.equal(harness.state.member.eligible_after_snapshot_date, LEGACY_INCIDENT_DATE);
+  assert.equal(harness.state.member.ranking_start_snapshot_date, null);
+  assert.equal(harness.state.member.ranking_baseline_return_pct, null);
+  assert.deepEqual(
+    harness.state.snapshots.map((snapshot) => snapshot.snapshot_date),
+    [ELIGIBLE_DATE],
+    'the rejected day must not receive a fabricated snapshot',
+  );
+});
+
+test('the same local-date mismatch outside the one-time incident remains fail closed', async () => {
+  const originalTrade = makeTrade();
+  const futureDatedPattern = {
+    ...makeTrade({ price: 100, shares: 1 }),
+    id: 'non-incident-timezone-mismatch',
+    trade_date: D1,
+    created_at: '2026-07-13T00:30:00Z',
+    updated_at: '2026-07-13T00:30:00Z',
+  };
+  const member = {
+    user_id: USER_ID,
+    status: 'active',
+    joined_at: '2026-07-09T12:00:00Z',
+    eligible_after_snapshot_date: '2026-07-09',
+    eligible_ledger_hash: computeCompetitionLedgerHash([originalTrade], '2026-07-09'),
+    eligible_ledger_revision: 1,
+    ranking_start_snapshot_date: ELIGIBLE_DATE,
+    ranking_baseline_return_pct: 0,
+  };
+  const harness = createHarness({
+    member,
+    trades: [originalTrade, futureDatedPattern],
+    snapshots: [{
+      user_id: USER_ID,
+      snapshot_date: ELIGIBLE_DATE,
+      daily_return_pct: 0,
+      cumulative_return_pct: 0,
+      locked_at: '2026-07-10T21:00:00Z',
+      source_version: 'community_competition_snapshot_v1',
+      ledger_hash: computeCompetitionLedgerHash([originalTrade], ELIGIBLE_DATE),
+      ledger_revision: 1,
+    }],
+  });
+
+  const result = await withHarness(harness, () => runCommunityCompetitionScheduledCatchUp({
+    targetDate: D1,
+    now: new Date('2026-07-13T23:00:00Z'),
+  }));
+
+  assert.equal(result.success, true);
+  assert.equal(result.rebaselinedMembers, 0);
+  assert.equal(result.authoritativeRejectionReasons.late_trade, 1);
+  assert.equal(harness.state.rankedRpcBodies.length, 0);
+  assert.equal(harness.state.member.ranking_start_snapshot_date, ELIGIBLE_DATE);
+});
+
+test('the first close after a ranked reset starts a new epoch and ignores older snapshots', async () => {
+  const originalTrade = makeTrade();
+  const mismatchedTargetTrade = {
+    ...makeTrade({ price: 100, shares: 1 }),
+    id: 'timezone-mismatched-target-trade',
+    trade_date: LEGACY_INCIDENT_DATE,
+    created_at: '2026-07-30T00:12:18Z',
+    updated_at: '2026-07-30T00:12:18Z',
+  };
+  const member = {
+    user_id: USER_ID,
+    status: 'active',
+    joined_at: '2026-07-09T12:00:00Z',
+    eligible_after_snapshot_date: '2026-07-09',
+    eligible_ledger_hash: computeCompetitionLedgerHash([originalTrade], '2026-07-09'),
+    eligible_ledger_revision: 1,
+    ranking_start_snapshot_date: ELIGIBLE_DATE,
+    ranking_baseline_return_pct: 0,
+  };
+  const harness = createHarness({
+    member,
+    trades: [originalTrade, mismatchedTargetTrade],
+    snapshots: [{
+      user_id: USER_ID,
+      snapshot_date: ELIGIBLE_DATE,
+      daily_return_pct: 0,
+      cumulative_return_pct: 0.75,
+      locked_at: '2026-07-10T21:00:00Z',
+      source_version: 'community_competition_snapshot_v1',
+      ledger_hash: computeCompetitionLedgerHash([originalTrade], ELIGIBLE_DATE),
+      ledger_revision: 1,
+    }],
+    ledgerState: {
+      user_id: USER_ID,
+      revision: 2,
+      last_mutated_at: '2026-07-30T17:00:55Z',
+    },
+    calendarRows: [
+      { date: ELIGIBLE_DATE, adjusted_close: 600 },
+      { date: LEGACY_INCIDENT_DATE, adjusted_close: 606 },
+      { date: LEGACY_INCIDENT_NEXT_DATE, adjusted_close: 612 },
+    ],
+    nvdaRows: [
+      { date: ELIGIBLE_DATE, adjusted_close: 98, high: 101, low: 95 },
+      { date: LEGACY_INCIDENT_DATE, adjusted_close: 100, high: 104, low: 96 },
+      { date: LEGACY_INCIDENT_NEXT_DATE, adjusted_close: 110, high: 113, low: 103 },
+    ],
+  });
+
+  const [resetResult, nextCloseResult] = await withHarness(harness, async () => {
+    const reset = await runCommunityCompetitionScheduledCatchUp({
+      targetDate: LEGACY_INCIDENT_DATE,
+      now: new Date('2026-07-30T23:00:00Z'),
+    });
+    const next = await runCommunityCompetitionScheduledCatchUp({
+      targetDate: LEGACY_INCIDENT_NEXT_DATE,
+      now: new Date('2026-07-31T23:00:00Z'),
+    });
+    return [reset, next];
+  });
+
+  assert.equal(resetResult.rebaselinedMembers, 1);
+  assert.equal(nextCloseResult.success, true);
+  assert.deepEqual(nextCloseResult.processedDates, [LEGACY_INCIDENT_NEXT_DATE]);
+  assert.equal(nextCloseResult.writtenSnapshots, 1);
+  assert.equal(harness.state.snapshotWrites.length, 1);
+  assert.equal(harness.state.snapshotWrites[0].snapshot_date, LEGACY_INCIDENT_NEXT_DATE);
+  assert.ok(
+    Math.abs(Number(harness.state.snapshotWrites[0].cumulative_return_pct) - 0.1) < 1e-12
+  );
+  assert.equal(harness.state.member.ranking_start_snapshot_date, LEGACY_INCIDENT_NEXT_DATE);
+  assert.equal(harness.state.member.ranking_baseline_return_pct, 0);
+  assert.deepEqual(
+    harness.state.snapshots.map((snapshot) => snapshot.snapshot_date),
+    [ELIGIBLE_DATE, LEGACY_INCIDENT_NEXT_DATE],
+    'the old epoch remains immutable while the new epoch starts after the reset',
+  );
 });
 
 test('a forged pre-close created_at cannot hide an authoritative post-close mutation', async () => {

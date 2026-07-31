@@ -187,6 +187,21 @@ async function fetchEligibleLedgerTrades(userId, throughDate) {
   return fetchPaged(`${url.pathname}${url.search}`);
 }
 
+async function hasCompetitionSnapshotBefore(userId, beforeDate) {
+  const date = String(beforeDate || '').slice(0, 10);
+  const validDate = /^\d{4}-\d{2}-\d{2}$/.test(date);
+  if (!userId || !validDate) return false;
+  const url = new URL('/rest/v1/community_competition_snapshots', 'https://placeholder.local');
+  url.searchParams.set('select', 'snapshot_date');
+  url.searchParams.set('user_id', `eq.${userId}`);
+  url.searchParams.set('snapshot_date', `lt.${date}`);
+  url.searchParams.set('locked_at', 'not.is.null');
+  url.searchParams.set('order', 'snapshot_date.desc');
+  url.searchParams.set('limit', '1');
+  const rows = await supabaseAdminFetch(`${url.pathname}${url.search}`);
+  return Array.isArray(rows) && rows.length > 0;
+}
+
 async function fetchLeaderboardData({ fromDate, asOfDate }) {
   const memberUrl = new URL('/rest/v1/community_competition_members', 'https://placeholder.local');
   memberUrl.searchParams.set('select', [
@@ -329,12 +344,19 @@ export async function getCommunityCompetitionState({ userId, period = 'day', now
     // not the trading date represented by the leaderboard.
     snapshotUpdatedAt: publication?.completedAt || null,
   };
-  if (!membership.ranking_start_snapshot_date) return waiting;
-
   // A member row is not a publication signal: the batch may still be writing
   // other users. Only the durable server completion marker can expose a date.
   const asOfDate = publication?.snapshotDate || null;
-  if (!asOfDate || String(membership.ranking_start_snapshot_date) > asOfDate) return waiting;
+  if (!asOfDate) return waiting;
+  const rankingReady = Boolean(
+    membership.ranking_start_snapshot_date
+    && String(membership.ranking_start_snapshot_date) <= asOfDate
+  );
+  const forwardResetViewer = !rankingReady && await hasCompetitionSnapshotBefore(
+    userId,
+    membership.eligible_after_snapshot_date,
+  );
+  if (!rankingReady && !forwardResetViewer) return waiting;
   const periodStartDate = competitionPeriodStartDate(normalizedPeriod, asOfDate);
   const fetchFromDate = shiftDate(periodStartDate, -BENCHMARK_LOOKBACK_DAYS);
   const data = await fetchLeaderboardData({ fromDate: fetchFromDate, asOfDate });
@@ -343,7 +365,7 @@ export async function getCommunityCompetitionState({ userId, period = 'day', now
     && String(snapshot?.snapshot_date || '').slice(0, 10) === asOfDate
     && snapshot?.locked_at
   ));
-  if (!hasCurrentSelfSnapshot) return waiting;
+  if (rankingReady && !hasCurrentSelfSnapshot) return waiting;
 
   const [benchmarkRows, holdingSymbolsByUser] = await Promise.all([
     fetchBenchmarkRows({ from: fetchFromDate, to: asOfDate }),
@@ -357,8 +379,8 @@ export async function getCommunityCompetitionState({ userId, period = 'day', now
     holdingSymbolsByUser,
     selfUserId: userId,
   });
-  if (!leaderboard.selfCalculationAvailable) return waiting;
-  if (!leaderboard.benchmarkComplete || !leaderboard.self) {
+  if (!forwardResetViewer && !leaderboard.selfCalculationAvailable) return waiting;
+  if (!leaderboard.benchmarkComplete || (!forwardResetViewer && !leaderboard.self)) {
     const error = new Error('收益比赛基准收盘数据尚未完整');
     error.status = 503;
     error.retryable = true;
@@ -375,6 +397,11 @@ export async function getCommunityCompetitionState({ userId, period = 'day', now
     // Backward-compatible cache field. Consumers must use asOfDate when
     // describing the leaderboard's market-data date.
     snapshotUpdatedAt: publication.completedAt,
+    selfRankingPending: forwardResetViewer,
+    viewerProfile: forwardResetViewer ? {
+      nickname: profile.nickname,
+      avatarKey: profile.avatar_key,
+    } : null,
     calculationStartDate: leaderboard.selfCalculationStartDate,
     benchmarkReturnPct: leaderboard.selfBenchmarkReturnPct,
     stats: leaderboard.stats,

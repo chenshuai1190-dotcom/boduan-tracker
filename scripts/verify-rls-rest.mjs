@@ -26,6 +26,7 @@ const SERVICE_ONLY_TABLES = [
   { table: 'snapshot_publication_markers', select: 'channel' },
   { table: 'margin_debt_events', select: 'user_id' },
   { table: 'margin_debt_history_meta', select: 'version' },
+  { table: 'community_competition_rebaseline_audit', select: 'operation_key' },
 ];
 const SERVICE_ONLY_RPCS = [
   {
@@ -55,6 +56,20 @@ const SERVICE_ONLY_RPCS = [
       p_expected_eligible_ledger_revision: 0,
       p_expected_current_ledger_revision: 0,
       p_new_eligible_after_snapshot_date: '2000-01-02',
+      p_new_eligible_ledger_hash: '0'.repeat(64),
+    },
+  },
+  {
+    name: 'forward_rebaseline_ranked_community_competition_member',
+    body: {
+      p_user_id: '00000000-0000-0000-0000-000000000000',
+      p_expected_eligible_after_snapshot_date: '2000-01-01',
+      p_expected_eligible_ledger_hash: '0'.repeat(64),
+      p_expected_eligible_ledger_revision: 0,
+      p_expected_ranking_start_snapshot_date: '2000-01-02',
+      p_expected_ranking_baseline_return_pct: 0,
+      p_expected_current_ledger_revision: 0,
+      p_new_eligible_after_snapshot_date: '2026-07-30',
       p_new_eligible_ledger_hash: '0'.repeat(64),
     },
   },

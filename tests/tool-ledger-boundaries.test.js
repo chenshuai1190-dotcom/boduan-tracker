@@ -335,8 +335,16 @@ test('community competition is an isolated authenticated close-snapshot utility'
   assert.ok(competitionHeroMetricsIndex > competitionSelfAvatarIndex, 'the return metrics should move to the right of the signed-in user avatar');
   assert.ok(communityCompetitionPageSource.includes('data-competition-leaderboard-refresh') && communityCompetitionPageSource.includes('role="status"') && communityCompetitionPageSource.includes('aria-live="polite"'), 'a stale cached leaderboard should expose a compact accessible refresh notice in the self card');
   assert.ok(communityCompetitionPageSource.includes("tt('competition.loadingLatestLeaderboard', '正在加载最新榜单…')"), 'the self-card refresh notice should identify that the latest full leaderboard is loading');
-  assert.ok(communityCompetitionPageSource.includes('const selfAvatar = self?.avatarKey ? getCommunityAvatarOption(self.avatarKey) : null;'), 'the self card must only render an authoritative profile avatar');
-  assert.ok(communityCompetitionPageSource.includes('data-competition-self-nickname') && communityCompetitionPageSource.includes("{self?.nickname || '--'}"), 'the self card should show the authoritative community nickname below the avatar');
+  assert.ok(
+    communityCompetitionPageSource.includes('const selfDisplay = self || (selfRankingPending ? data?.viewerProfile : null);')
+      && communityCompetitionPageSource.includes('getCommunityAvatarOption(selfDisplay.avatarKey)'),
+    'the self card must only render an authoritative profile avatar, including a server-provided reset viewer profile'
+  );
+  assert.ok(
+    communityCompetitionPageSource.includes('data-competition-self-nickname')
+      && communityCompetitionPageSource.includes("{selfDisplay?.nickname || '--'}"),
+    'the self card should show the authoritative community nickname below the avatar'
+  );
   assert.ok(communityCompetitionPageSource.includes('data-competition-self-nickname className="-ml-3 w-[80px] truncate text-center text-[12px] font-semibold leading-4 text-white/[0.72]'), 'the self nickname should use the requested compact size and leaderboard color with the wider avatar-centered safe width');
   assert.ok(communityCompetitionPageSource.includes('<div className="space-y-3 pt-3">'), 'competition cards should not add a second inner horizontal inset');
   assert.ok(communityCompetitionPageSource.includes("<div className={`px-4 ${contentDimmed"), 'competition cards should use the same 16px horizontal gutter as home cards');
@@ -433,7 +441,11 @@ test('community competition is an isolated authenticated close-snapshot utility'
   assert.ok(communityCompetitionCacheSource.includes('PUBLICATION_META_KEY') && communityCompetitionCacheSource.includes("reason: 'observed_publication_advanced'"), 'every period should immediately notice a newer globally observed publication');
   assert.ok(communityCompetitionCacheSource.includes('navigator?.locks') && communityCompetitionCacheSource.includes('CACHE_WRITE_LOCK'), 'cross-tab cache commits should use a Web Lock before enforcing publication monotonicity');
   assert.ok(communityCompetitionPageSource.includes('commitExpectedPublication: true') && communityCompetitionPageSource.includes('await commitCommunityCompetitionCache({'), 'status publication commits should use the monotonic cache writer without clearing other periods');
-  assert.ok(communityCompetitionServerSource.includes('!leaderboard.benchmarkComplete || !leaderboard.self') && communityCompetitionServerSource.includes('error.retryable = true'), 'a marker must not make a personal-period leaderboard with incomplete QQQ closes cacheable as ready');
+  assert.ok(
+    communityCompetitionServerSource.includes('!leaderboard.benchmarkComplete || (!forwardResetViewer && !leaderboard.self)')
+      && communityCompetitionServerSource.includes('error.retryable = true'),
+    'a marker must not make a leaderboard with incomplete QQQ closes cacheable as ready'
+  );
   assert.equal(communityCompetitionCacheSource.includes('stock_trades'), false, 'the browser snapshot cache must remain isolated from the formal trade ledger');
   assert.ok(settingsTabSource.includes('clearCommunityCompetitionCache(user?.id);'), 'saving a new community nickname or avatar should invalidate cached ranking identity');
   assert.ok(devVisualPreviewSource.includes("'community-competition'"), 'local visual preview should support direct community competition smoke checks');
@@ -1745,6 +1757,37 @@ test('position clicks default to buy and trade records use ledger edit/delete fl
   assert.ok(tradesTabSource.includes('const ledgerTradeRecords ='), 'trade records tool should render all stock_trades records');
   assert.ok(tradesTabSource.includes('setOrderActionTrade(trade)'), 'trade records should reuse the order action modal for edit/delete');
   assert.ok(tradesTabSource.includes('deleteStockTradeRecord(trade.id)'), 'trade records delete flow should still use the database-backed stock_trades delete path');
+});
+
+test('formal stock trades use the New York date without changing scoped tools or manual dates', () => {
+  const openLedgerStart = tradesTabSource.indexOf('const openTradeModal =');
+  const openLedgerEnd = tradesTabSource.indexOf('const openPositionScenario =', openLedgerStart);
+  const openLedgerBlock = tradesTabSource.slice(openLedgerStart, openLedgerEnd);
+  const editLedgerStart = tradesTabSource.indexOf('const openTradeEditModal =');
+  const editLedgerEnd = tradesTabSource.indexOf('const openWaveTradeModal =', editLedgerStart);
+  const editLedgerBlock = tradesTabSource.slice(editLedgerStart, editLedgerEnd);
+  const openWaveStart = tradesTabSource.indexOf('const openWaveTradeModal =');
+  const openWaveEnd = tradesTabSource.indexOf('const openCompletedWaves =', openWaveStart);
+  const openWaveBlock = tradesTabSource.slice(openWaveStart, openWaveEnd);
+
+  assert.ok(tradesTabSource.includes("import { currentNewYorkDate } from '../lib/pnlReportSnapshots.js';"), 'trade UI should share the tested New York calendar helper');
+  assert.ok(tradesTabSource.includes('const todayKey = currentNewYorkDate();'), 'today orders must use the New York calendar date');
+  assert.ok(openLedgerBlock.includes('date: currentNewYorkDate(),'), 'new formal ledger entries must default to the New York date');
+  assert.ok(editLedgerBlock.includes('date: trade.date || currentNewYorkDate(),'), 'formal ledger edit fallback must use the New York date');
+  assert.ok(
+    tradesTabSource.includes("max={tradeEntryScope === 'ledger' ? currentNewYorkDate() : undefined}"),
+    'the formal ledger date picker must reject future New York dates without changing the wave picker'
+  );
+  assert.ok(openWaveBlock.includes('date: localDateKey(),'), 'legacy wave entries must retain their existing device-local date behavior');
+  assert.equal(openWaveBlock.includes('currentNewYorkDate()'), false, 'the formal-ledger date repair must not recouple wave entries');
+
+  assert.equal((appSource.match(/date: currentNewYorkDate\(\),/g) || []).length, 2, 'App should use New York dates only for the formal ledger initial value and post-save reset');
+  assert.ok(appSource.includes('date: tradeDraft.date,'), 'formal submit must preserve a manually selected trade date');
+  assert.ok(dbSource.includes('trade_date: trade.date || trade.tradeDate,'), 'database writes must keep transparently persisting the selected trade date');
+
+  assert.ok(devVisualPreviewSource.includes('trade_date: currentNewYorkDate(),'), 'the formal today-order preview fixture must share the New York date');
+  assert.ok(devVisualPreviewSource.includes('date: currentNewYorkDate(),'), 'the formal preview draft must share the New York date');
+  assert.ok(devVisualPreviewSource.includes("date: new Date().toISOString().slice(0, 10)"), 'the independent cost-basis preview must retain its existing date behavior');
 });
 
 test('stock Chinese names are shared by home positions and trade records', () => {

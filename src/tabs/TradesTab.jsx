@@ -11,6 +11,7 @@ import { resolveHoldingDisplayPrice } from '../lib/homeMarketDisplay.js';
 import { isEnglishLanguage, t } from '../lib/i18n.js';
 import { normalizeStrictUserStockSymbol } from '../lib/symbols.js';
 import { formatWaveCurrencyAmount, formatWaveUsdPrice } from '../lib/waveCurrencyDisplay.js';
+import { currentNewYorkDate } from '../lib/pnlReportSnapshots.js';
 import ActionModalCard from '../components/ActionModalCard.jsx';
 import AccountLeverageBadge from '../components/AccountLeverageBadge.jsx';
 import StockLogo, { stockLogoCandidates } from '../components/StockLogo.jsx';
@@ -607,7 +608,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
   const displayTodayPnl = hasTodayPnl ? toNumber(summary.todayPnl) * displayRate : null;
   const displayCumulativePnl = toNumber(summary.cumulativePnl) * displayRate;
   const displayHoldingPnl = toNumber(summary.holdingPnl ?? summary.unrealizedPnl) * displayRate;
-  const todayKey = localDateKey();
+  const todayKey = currentNewYorkDate();
   const todayTradeSummary = React.useMemo(() => {
     const rows = [];
     let buys = 0;
@@ -665,7 +666,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
       symbol,
       name: stockDisplayName(symbol, position?.name),
       side,
-      date: localDateKey(),
+      date: currentNewYorkDate(),
       price: position?.currentPrice ? String(position.currentPrice) : '',
       shares: '',
       batch: '第1批',
@@ -691,7 +692,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
       symbol,
       name: stockDisplayName(symbol, trade.name),
       side: trade.side === 'sell' ? 'sell' : 'buy',
-      date: trade.date || localDateKey(),
+      date: trade.date || currentNewYorkDate(),
       price: trade.price ? String(trade.price) : '',
       shares: trade.shares ? String(trade.shares) : '',
       fee: trade.fee || 0,
@@ -2184,6 +2185,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                     <input
                       type="date"
                       value={newTrade.date}
+                      max={tradeEntryScope === 'ledger' ? currentNewYorkDate() : undefined}
                       onChange={(e) => setNewTrade({ ...newTrade, date: e.target.value })}
                       className={`${tradeModalBaseInput} appearance-none pl-9 pr-8 text-left font-normal tabular-nums`}
                       style={{ ...tradeModalInputStyle, WebkitAppearance: 'none' }}

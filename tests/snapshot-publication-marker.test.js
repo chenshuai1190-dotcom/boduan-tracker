@@ -192,6 +192,49 @@ test('2026-07-14 marker retries at 7 of 8 and publishes only after the exact bat
   }
 });
 
+test('a forward-reset member leaves the target cohort before the unchanged exact gate publishes', async () => {
+  const env = snapshotEnv();
+  configureEnv();
+  const originalFetch = globalThis.fetch;
+  const batch = completedBatch('2026-07-30', 9);
+  batch.snapshots.pop();
+  let durable = null;
+  let publicationCalls = 0;
+  globalThis.fetch = async (url, options = {}) => {
+    const href = String(url);
+    const batchRows = batchRowsForUrl(href, batch);
+    if (batchRows) return response(batchRows);
+    if (!options.method) return response(durable ? [durable] : []);
+    publicationCalls += 1;
+    durable = JSON.parse(options.body);
+    return response([durable], 201);
+  };
+  try {
+    await assert.rejects(
+      publishCommunityCompetitionSnapshotMarker({ snapshotDate: '2026-07-30' }),
+      (error) => (
+        error.code === 'competition_snapshot_batch_incomplete'
+        && error.expectedMembers === 9
+        && error.completeSnapshots === 8
+      ),
+    );
+    assert.equal(publicationCalls, 0);
+
+    const resetMember = batch.members.at(-1);
+    resetMember.eligible_after_snapshot_date = '2026-07-30';
+    resetMember.ranking_start_snapshot_date = null;
+    resetMember.ranking_baseline_return_pct = null;
+    const published = await publishCommunityCompetitionSnapshotMarker({
+      snapshotDate: '2026-07-30',
+    });
+    assert.equal(published.published, true);
+    assert.equal(publicationCalls, 1);
+  } finally {
+    globalThis.fetch = originalFetch;
+    restoreEnv(env);
+  }
+});
+
 test('marker treats a null ranked return as an incomplete exact snapshot', async () => {
   const env = snapshotEnv();
   configureEnv();

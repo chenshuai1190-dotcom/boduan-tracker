@@ -776,7 +776,7 @@ test('scheduled competition catch-up follows real EOD trading dates from each lo
       assert.equal(options.method, undefined);
       return jsonResponse([{
         user_id: 'user-a', status: 'active', joined_at: '2026-07-08T10:00:00Z',
-        eligible_after_snapshot_date: '2026-07-10', eligible_ledger_hash: null,
+        eligible_after_snapshot_date: '2026-07-09', eligible_ledger_hash: null,
         ranking_start_snapshot_date: '2026-07-10', ranking_baseline_return_pct: 0,
       }]);
     }
@@ -979,7 +979,7 @@ test('scheduled catch-up advances an old anchor in bounded batches and resumes n
     if (href.includes('/rest/v1/community_competition_members')) {
       return jsonResponse([{
         user_id: 'old-anchor-user', status: 'active', joined_at: '2026-01-01T10:00:00Z',
-        eligible_after_snapshot_date: '2026-01-02', eligible_ledger_hash: null,
+        eligible_after_snapshot_date: '2026-01-01', eligible_ledger_hash: null,
         ranking_start_snapshot_date: '2026-01-02', ranking_baseline_return_pct: 0,
       }]);
     }
@@ -1082,12 +1082,12 @@ test('scheduled catch-up never lets one member skip a gap while unaffected membe
       return jsonResponse([
         {
           user_id: 'user-a', status: 'active', joined_at: '2026-07-08T10:00:00Z',
-          eligible_after_snapshot_date: '2026-07-10', eligible_ledger_hash: null,
+          eligible_after_snapshot_date: '2026-07-09', eligible_ledger_hash: null,
           ranking_start_snapshot_date: '2026-07-10', ranking_baseline_return_pct: 0,
         },
         {
           user_id: 'user-b', status: 'active', joined_at: '2026-07-08T10:00:00Z',
-          eligible_after_snapshot_date: '2026-07-10', eligible_ledger_hash: null,
+          eligible_after_snapshot_date: '2026-07-09', eligible_ledger_hash: null,
           ranking_start_snapshot_date: '2026-07-10', ranking_baseline_return_pct: 0,
         },
       ]);
@@ -1711,7 +1711,7 @@ test('permanent market-calendar 4xx is operational failure instead of retryable 
     if (href.includes('/rest/v1/community_competition_members')) {
       return jsonResponse([{
         user_id: 'calendar-user', status: 'active', joined_at: '2026-07-08T10:00:00Z',
-        eligible_after_snapshot_date: '2026-07-10', eligible_ledger_hash: null,
+        eligible_after_snapshot_date: '2026-07-09', eligible_ledger_hash: null,
         ranking_start_snapshot_date: '2026-07-10', ranking_baseline_return_pct: 0,
       }]);
     }

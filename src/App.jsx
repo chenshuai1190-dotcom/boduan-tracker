@@ -22,6 +22,7 @@ import { resolveBottomTabTap, resolveNavigationScrollTarget } from './lib/bottom
 import ActionModalCard from './components/ActionModalCard.jsx';
 import ConfirmModal from './components/ConfirmModal.jsx';
 import { normalizeConfirmModalOptions } from './lib/confirmModal.js';
+import { currentNewYorkDate } from './lib/pnlReportSnapshots.js';
 const HomeTab = lazy(() => import('./tabs/HomeTab.jsx'));
 const TradesTab = lazy(() => import('./tabs/TradesTab.jsx'));
 const AnalysisTab = lazy(() => import('./tabs/AnalysisTab.jsx'));
@@ -1151,7 +1152,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     symbol: 'TQQQ',
     name: '3倍纳指',
     side: 'buy',
-    date: new Date().toISOString().split('T')[0],
+    date: currentNewYorkDate(),
     price: '',
     shares: '',
     batch: '第1批',  // 兼容老结构
@@ -2650,7 +2651,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
       symbol: tradeDraft.symbol,          // 保留刚用的代码
       name: tradeDraft.name,              // 保留系统识别名称
       side: 'buy',
-      date: new Date().toISOString().split('T')[0],
+      date: currentNewYorkDate(),
       price: '',                          // 价格清空,等待重新输入
       shares: '',                         // 股数清空
       batch: '第1批',

@@ -25,6 +25,13 @@ const competitionRebaselineMigrationSql = readFileSync(
   new URL('../supabase/community_competition_rebaseline_20260714.sql', import.meta.url),
   'utf8',
 );
+const rankedForwardRebaselineMigrationSql = readFileSync(
+  new URL(
+    '../supabase/community_competition_ranked_forward_rebaseline_20260731.sql',
+    import.meta.url,
+  ),
+  'utf8',
+);
 
 function createSupabaseStub({ maybeSingleResults = [], singleResults = [] } = {}) {
   const operations = [];
@@ -445,8 +452,129 @@ test('competition eligibility rebaseline is forward-only, zero-snapshot, and ser
   }
 });
 
+test('ranked competition forward rebaseline is a service-only audited repair for the 2026-07-30 legacy timezone incident', () => {
+  for (const sql of [
+    competitionSql,
+    aggregateRlsSql,
+    rankedForwardRebaselineMigrationSql,
+  ]) {
+    const forwardFunction = sql.match(
+      /create or replace function public\.forward_rebaseline_ranked_community_competition_member\([\s\S]*?\n\$\$;/,
+    )?.[0] || '';
+    assert.match(forwardFunction, /security definer/);
+    assert.match(forwardFunction, /set search_path = pg_catalog, public/);
+    assert.match(
+      forwardFunction,
+      /incident_date constant date := date '2026-07-30'/,
+    );
+    assert.match(
+      forwardFunction,
+      /p_new_eligible_after_snapshot_date is distinct from incident_date/,
+    );
+    assert.match(
+      forwardFunction,
+      /make_timestamptz\(2026, 7, 30, 16, 0, 0, 'America\/New_York'\)/,
+    );
+    assert.match(
+      forwardFunction,
+      /select revision, last_mutated_at[\s\S]*?for update/,
+    );
+    assert.ok(
+      forwardFunction.indexOf('from public.stock_trade_ledger_revisions')
+        < forwardFunction.indexOf('from public.community_competition_members'),
+      'ranked forward rebaseline must lock revision before member',
+    );
+    assert.match(forwardFunction, /is distinct from p_expected_eligible_after_snapshot_date/);
+    assert.match(forwardFunction, /is distinct from p_expected_eligible_ledger_hash/);
+    assert.match(forwardFunction, /is distinct from p_expected_eligible_ledger_revision/);
+    assert.match(forwardFunction, /is distinct from p_expected_ranking_start_snapshot_date/);
+    assert.match(forwardFunction, /is distinct from p_expected_ranking_baseline_return_pct/);
+    assert.match(forwardFunction, /is distinct from p_expected_current_ledger_revision/);
+    assert.match(forwardFunction, /return 'already_rebaselined'/);
+    assert.match(
+      forwardFunction,
+      /current_ledger_last_mutated_at > incident_close[\s\S]*?return 'incident_not_matched'/,
+    );
+    assert.match(
+      forwardFunction,
+      /trade\.trade_date = incident_date[\s\S]*?at time zone 'Asia\/Shanghai'\)::date = incident_date[\s\S]*?at time zone 'America\/New_York'\)::date[\s\S]*?= incident_prior_new_york_date/,
+    );
+    assert.match(
+      forwardFunction,
+      /trade\.created_at > incident_close[\s\S]*?at time zone 'America\/New_York'\)::date[\s\S]*?<> incident_date[\s\S]*?at time zone 'Asia\/Shanghai'\)::date[\s\S]*?= incident_date/,
+    );
+    assert.match(
+      forwardFunction,
+      /from public\.community_competition_snapshots[\s\S]*?snapshot_date >= incident_date/,
+    );
+    assert.match(
+      forwardFunction,
+      /insert into public\.community_competition_rebaseline_audit[\s\S]*?on conflict \(operation_key\) do nothing/,
+    );
+    assert.ok(
+      forwardFunction.indexOf('insert into public.community_competition_rebaseline_audit')
+        < forwardFunction.indexOf('update public.community_competition_members'),
+      'audit insertion and member reset must commit in one function transaction',
+    );
+    assert.match(forwardFunction, /ranking_start_snapshot_date = null/);
+    assert.match(forwardFunction, /ranking_baseline_return_pct = null/);
+    assert.doesNotMatch(forwardFunction, /delete from public\.community_competition_snapshots/);
+
+    const auditTable = sql.match(
+      /create table if not exists public\.community_competition_rebaseline_audit \([\s\S]*?\n\);/,
+    )?.[0] || '';
+    assert.match(auditTable, /operation_key text primary key/);
+    assert.match(auditTable, /user_id uuid not null/);
+    assert.match(auditTable, /old_eligible_after_snapshot_date date not null/);
+    assert.match(auditTable, /new_eligible_after_snapshot_date date not null/);
+    assert.match(auditTable, /old_eligible_ledger_hash text/);
+    assert.match(auditTable, /new_eligible_ledger_hash text not null/);
+    assert.match(auditTable, /old_eligible_ledger_revision bigint not null/);
+    assert.match(auditTable, /new_eligible_ledger_revision bigint not null/);
+    assert.match(auditTable, /old_ranking_start_snapshot_date date not null/);
+    assert.match(auditTable, /old_ranking_baseline_return_pct numeric\(18, 10\) not null/);
+    assert.match(
+      auditTable,
+      /reason = 'legacy_shanghai_new_york_trade_date_mismatch_2026-07-30'/,
+    );
+    assert.match(auditTable, /created_at timestamptz not null default clock_timestamp\(\)/);
+    assert.match(
+      sql,
+      /alter table public\.community_competition_rebaseline_audit enable row level security/,
+    );
+    assert.match(
+      sql,
+      /alter table public\.community_competition_rebaseline_audit force row level security/,
+    );
+    assert.match(
+      sql,
+      /revoke all privileges on table public\.community_competition_rebaseline_audit[\s\S]*?from public, anon, authenticated, service_role/,
+    );
+    assert.match(
+      sql,
+      /grant select[\s\S]*?on table public\.community_competition_rebaseline_audit[\s\S]*?to service_role/,
+    );
+    assert.match(
+      sql,
+      /create trigger community_competition_rebaseline_audit_immutable[\s\S]*?before update or delete on public\.community_competition_rebaseline_audit/,
+    );
+    assert.match(
+      sql,
+      /revoke execute on function public\.forward_rebaseline_ranked_community_competition_member\([\s\S]*?from public, anon, authenticated/,
+    );
+    assert.match(
+      sql,
+      /grant execute on function public\.forward_rebaseline_ranked_community_competition_member\([\s\S]*?to service_role/,
+    );
+  }
+});
+
 test('standalone competition SQL stays aligned with the aggregate RLS schema', () => {
-  for (const table of ['community_competition_members', 'community_competition_snapshots']) {
+  for (const table of [
+    'community_competition_members',
+    'community_competition_snapshots',
+    'community_competition_rebaseline_audit',
+  ]) {
     const pattern = new RegExp(`create table if not exists public\\.${table}[\\s\\S]*?\\n\\);`);
     assert.equal(
       aggregateRlsSql.match(pattern)?.[0],
@@ -459,6 +587,8 @@ test('standalone competition SQL stays aligned with the aggregate RLS schema', (
     'guard_community_competition_snapshot_insert',
     'join_community_competition_member',
     'rebaseline_community_competition_member',
+    'guard_community_competition_rebaseline_audit_immutable',
+    'forward_rebaseline_ranked_community_competition_member',
   ]) {
     const pattern = new RegExp(
       `create or replace function public\\.${functionName}\\([\\s\\S]*?\\n\\$\\$;`,
@@ -467,6 +597,18 @@ test('standalone competition SQL stays aligned with the aggregate RLS schema', (
       aggregateRlsSql.match(pattern)?.[0],
       competitionSql.match(pattern)?.[0],
       `${functionName} definitions must stay identical`,
+    );
+  }
+
+  for (const pattern of [
+    /create table if not exists public\.community_competition_rebaseline_audit \([\s\S]*?\n\);/,
+    /create or replace function public\.guard_community_competition_rebaseline_audit_immutable\(\)[\s\S]*?\n\$\$;/,
+    /create or replace function public\.forward_rebaseline_ranked_community_competition_member\([\s\S]*?\n\$\$;/,
+  ]) {
+    assert.equal(
+      rankedForwardRebaselineMigrationSql.match(pattern)?.[0],
+      competitionSql.match(pattern)?.[0],
+      'incident migration and canonical competition SQL must stay identical',
     );
   }
 });
