@@ -29,8 +29,8 @@ on public.stock_trades (user_id, trade_date, created_at);
 create index if not exists stock_trades_user_symbol_idx
 on public.stock_trades (user_id, symbol);
 
--- Opaque, server-owned ledger version. Authenticated clients may edit their
--- own trades, but they can neither read nor forge this mutation sequence.
+-- Opaque, server-owned canonical financial-ledger version. Authenticated
+-- clients may edit their own trades, but cannot read or forge this sequence.
 create table if not exists public.stock_trade_ledger_revisions (
   user_id uuid primary key references auth.users(id) on delete cascade,
   revision bigint not null default 0,
@@ -119,6 +119,22 @@ as $$
 declare
   affected_user_id uuid := case when tg_op = 'DELETE' then old.user_id else new.user_id end;
 begin
+  -- Display-only metadata is outside the canonical competition ledger. Keep
+  -- its revision stable so a name/note edit cannot start a new ranking epoch.
+  if tg_op = 'UPDATE' then
+    if new.id is not distinct from old.id
+      and new.symbol is not distinct from old.symbol
+      and new.side is not distinct from old.side
+      and new.trade_date is not distinct from old.trade_date
+      and new.price is not distinct from old.price
+      and new.shares is not distinct from old.shares
+      and new.fee is not distinct from old.fee
+      and new.currency is not distinct from old.currency
+    then
+      return new;
+    end if;
+  end if;
+
   -- An auth.users cascade is deleting the whole account, so there is no ledger
   -- left to version and recreating its revision row would violate the FK.
   if not exists (
