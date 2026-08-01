@@ -486,14 +486,6 @@ test('view model shows missing active quotes as unavailable instead of fake brea
   assert.equal(dashboard.cumulativePnlUsd, null);
 });
 
-test('English wave summary keeps stock and swing counts compact without ambiguous abbreviations', () => {
-  const i18nSource = readFileSync(new URL('../src/lib/i18n.js', import.meta.url), 'utf8');
-  assert.ok(i18nSource.includes("'swing.positions': 'Stocks · Swings'"));
-  assert.ok(i18nSource.includes("'swing.positionsValue': '{{stocks}} · {{waves}}'"));
-  assert.ok(i18nSource.includes("'swing.positions': '持仓数量'"));
-  assert.ok(i18nSource.includes("'swing.positionsValue': '{{stocks}}只 · {{waves}}段'"));
-});
-
 test('wave quote merging keeps the newest REST or realtime value without dropping other symbols', () => {
   const now = Date.now();
   const refreshed = mergeSwingWaveQuoteRows(

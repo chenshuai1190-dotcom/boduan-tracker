@@ -381,11 +381,7 @@ function CompetitionContent({ data, period, language, tt, leaderboardRefreshing 
   const stats = ready ? (data.stats || {}) : {};
   const leaders = ready && Array.isArray(data.leaders) ? data.leaders : [];
   const self = ready ? data.self : null;
-  const selfRankingPending = ready && Boolean(data?.selfRankingPending);
-  const selfDisplay = self || (selfRankingPending ? data?.viewerProfile : null);
-  const selfAvatar = selfDisplay?.avatarKey
-    ? getCommunityAvatarOption(selfDisplay.avatarKey)
-    : null;
+  const selfAvatar = self?.avatarKey ? getCommunityAvatarOption(self.avatarKey) : null;
   const selfLeaderIndex = self
     ? leaders.findIndex((row) => Number(row?.rank) === Number(self.rank) && row?.nickname === self.nickname)
     : -1;
@@ -431,11 +427,6 @@ function CompetitionContent({ data, period, language, tt, leaderboardRefreshing 
           <div className="flex items-end gap-3">
             <div className="text-[12px] text-white/[0.62]">{tt('competition.myRank', '我的排名')}</div>
             <div className="text-[32px] font-semibold leading-none text-[#ffad3a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{isFiniteValue(self?.rank) ? `#${Math.trunc(Number(self.rank))}` : '--'}</div>
-            {selfRankingPending ? (
-              <div className="mb-0.5 whitespace-nowrap rounded-full bg-[#f6b54b]/10 px-2 py-1 text-[10px] text-[#d7b273]">
-                {tt('competition.rankingRestartPending', '等待下次收盘重新上榜')}
-              </div>
-            ) : null}
           </div>
           {leaderboardRefreshing ? (
             <div
@@ -463,7 +454,7 @@ function CompetitionContent({ data, period, language, tt, leaderboardRefreshing 
         </div>
         <div data-competition-update-row className="mt-1.5 grid grid-cols-[56px_minmax(0,1fr)] items-center gap-x-4">
           <div data-competition-self-nickname className="-ml-3 w-[80px] truncate text-center text-[12px] font-semibold leading-4 text-white/[0.72]">
-            {selfDisplay?.nickname || '--'}
+            {self?.nickname || '--'}
           </div>
           <div className="col-start-2 grid min-w-0 grid-cols-3">
             <div data-competition-update-date className="col-start-3 whitespace-nowrap pl-2 text-left text-[11px] leading-5 text-white/40">

@@ -335,16 +335,6 @@ test('live financing state stays out of calculators and report UI while P&L only
   assert.ok(tradesTabSource.includes("tt('home.marginDebt', '融资负债')"));
   assert.ok(tradesTabSource.includes("tt('home.leverage', '杠杆')"));
   assert.ok(tradesTabSource.includes('shrink-0 whitespace-nowrap text-[12px]'), 'Trades must mirror the readable Home leverage text size');
-  assert.ok(i18nSource.includes("'home.totalPnl': 'Total P&L'"), 'Home must keep the complete English cumulative P&L label');
-  assert.ok(i18nSource.includes("'trades.totalPnl': 'Total P&L'"), 'Trades must keep the complete English cumulative P&L label');
-  assert.ok(homeTabSource.includes('className="flex min-w-0 flex-col justify-start px-3'), 'Home cumulative P&L block must align to the top without shrinking its click target');
-  assert.ok(tradesTabSource.includes('className="flex min-w-0 flex-col justify-start px-3'), 'Trades cumulative P&L block must align to the top without shrinking its click target');
-  assert.ok(homeTabSource.includes('className="flex min-w-0 flex-col justify-start pl-3'), 'Home margin block must use the same top-aligned button layout');
-  assert.ok(tradesTabSource.includes('className="flex min-w-0 flex-col justify-start pl-3'), 'Trades margin block must use the same top-aligned button layout');
-  assert.ok(homeTabSource.includes('gap-0.5 whitespace-nowrap text-[13px] text-white/50'), 'Home cumulative P&L title must stay on one line');
-  assert.ok(tradesTabSource.includes('gap-0.5 whitespace-nowrap text-[13px] text-white/50'), 'Trades cumulative P&L title must stay on one line');
-  assert.ok(homeTabSource.includes('h-3 w-3 shrink-0 text-white/[0.28]'), 'Home cumulative P&L chevron must not squeeze its title');
-  assert.ok(tradesTabSource.includes('h-3 w-3 shrink-0 text-white/[0.28]'), 'Trades cumulative P&L chevron must not squeeze its title');
   for (const forbiddenWrite of ['saveMarginDebt', 'setMarginStatus', 'upsertMarginStatus', 'margin_status']) {
     assert.equal(tradesTabSource.includes(forbiddenWrite), false, `Trades must not write through ${forbiddenWrite}`);
   }

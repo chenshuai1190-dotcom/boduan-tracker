@@ -1017,10 +1017,10 @@ export default function HomeTab({ ctx }) {
               )}
             </div>
           </div>
-          <button type="button" onClick={openPnlReport} className="flex min-w-0 flex-col justify-start px-3 text-left transition active:scale-[0.99]">
-            <div className="flex items-center gap-0.5 whitespace-nowrap text-[13px] text-white/50">
+          <button type="button" onClick={openPnlReport} className="block min-w-0 px-3 text-left transition active:scale-[0.99]">
+            <div className="flex items-center gap-0.5 text-[13px] text-white/50">
               <span>{t(language, 'home.totalPnl', '累计盈亏')}</span>
-              <ChevronRight className="h-3 w-3 shrink-0 text-white/[0.28]" />
+              <ChevronRight className="h-3 w-3 text-white/[0.28]" />
             </div>
             <div className={`mt-2 whitespace-nowrap ${pnlAmountClass} font-normal leading-tight tabular-nums ${pnlColor(summary.cumulativePnl, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
               {fmtSignedCurrency(displayCumulativePnl, displayCurrency, 2)}
@@ -1033,7 +1033,7 @@ export default function HomeTab({ ctx }) {
             type="button"
             disabled={!marginStatusReady}
             onClick={openHomeMarginRisk}
-            className="flex min-w-0 flex-col justify-start pl-3 text-left transition active:scale-[0.99] disabled:cursor-wait disabled:opacity-45"
+            className="block min-w-0 pl-3 text-left transition active:scale-[0.99] disabled:cursor-wait disabled:opacity-45"
             data-home-margin-trigger="true"
           >
             <div className="flex items-center gap-0.5 text-[13px] text-white/50">

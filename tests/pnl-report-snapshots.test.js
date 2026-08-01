@@ -6,7 +6,6 @@ import {
   buildPnlReportCloseSnapshotInput,
   buildPnlReportHistoricalSnapshots,
   buildPnlReportSnapshots,
-  currentNewYorkDate,
   latestCompletedUsTradingDate,
   normalizePnlMarginDebtUsd,
   normalizeReportDate,
@@ -439,14 +438,4 @@ test('opens scheduled snapshot dates only after 17:00 America/New_York across DS
   assert.equal(resolveScheduledUsSnapshotDate(new Date('2026-01-14T21:59:00Z')), null);
   assert.equal(resolveScheduledUsSnapshotDate(new Date('2026-01-14T22:00:00Z')), '2026-01-14');
   assert.equal(resolveScheduledUsSnapshotDate(new Date('2026-07-11T12:00:00Z')), '2026-07-10');
-});
-
-test('resolves the New York calendar date independently from Shanghai, UTC, and DST offsets', () => {
-  assert.equal(currentNewYorkDate(new Date('2026-07-30T00:12:18.523Z')), '2026-07-29');
-  assert.equal(currentNewYorkDate(new Date('2026-01-15T00:30:00.000Z')), '2026-01-14');
-
-  assert.equal(currentNewYorkDate(new Date('2026-03-09T03:59:59.000Z')), '2026-03-08');
-  assert.equal(currentNewYorkDate(new Date('2026-03-09T04:00:00.000Z')), '2026-03-09');
-  assert.equal(currentNewYorkDate(new Date('2026-11-02T04:59:59.000Z')), '2026-11-01');
-  assert.equal(currentNewYorkDate(new Date('2026-11-02T05:00:00.000Z')), '2026-11-02');
 });

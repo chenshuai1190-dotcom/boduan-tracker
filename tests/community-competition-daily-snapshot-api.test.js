@@ -776,7 +776,7 @@ test('scheduled competition catch-up follows real EOD trading dates from each lo
       assert.equal(options.method, undefined);
       return jsonResponse([{
         user_id: 'user-a', status: 'active', joined_at: '2026-07-08T10:00:00Z',
-        eligible_after_snapshot_date: '2026-07-09', eligible_ledger_hash: null,
+        eligible_after_snapshot_date: '2026-07-10', eligible_ledger_hash: null,
         ranking_start_snapshot_date: '2026-07-10', ranking_baseline_return_pct: 0,
       }]);
     }
@@ -979,7 +979,7 @@ test('scheduled catch-up advances an old anchor in bounded batches and resumes n
     if (href.includes('/rest/v1/community_competition_members')) {
       return jsonResponse([{
         user_id: 'old-anchor-user', status: 'active', joined_at: '2026-01-01T10:00:00Z',
-        eligible_after_snapshot_date: '2026-01-01', eligible_ledger_hash: null,
+        eligible_after_snapshot_date: '2026-01-02', eligible_ledger_hash: null,
         ranking_start_snapshot_date: '2026-01-02', ranking_baseline_return_pct: 0,
       }]);
     }
@@ -1082,12 +1082,12 @@ test('scheduled catch-up never lets one member skip a gap while unaffected membe
       return jsonResponse([
         {
           user_id: 'user-a', status: 'active', joined_at: '2026-07-08T10:00:00Z',
-          eligible_after_snapshot_date: '2026-07-09', eligible_ledger_hash: null,
+          eligible_after_snapshot_date: '2026-07-10', eligible_ledger_hash: null,
           ranking_start_snapshot_date: '2026-07-10', ranking_baseline_return_pct: 0,
         },
         {
           user_id: 'user-b', status: 'active', joined_at: '2026-07-08T10:00:00Z',
-          eligible_after_snapshot_date: '2026-07-09', eligible_ledger_hash: null,
+          eligible_after_snapshot_date: '2026-07-10', eligible_ledger_hash: null,
           ranking_start_snapshot_date: '2026-07-10', ranking_baseline_return_pct: 0,
         },
       ]);
@@ -1245,7 +1245,7 @@ test('scheduled catch-up repairs ranking metadata from the earliest locked snaps
   assert.doesNotMatch(JSON.stringify(recovered), /repair-user/);
 });
 
-test('ranking recovery rejects an earliest mismatch and hands a latest orphan mismatch to daily', async () => {
+test('ranking recovery rejects ledger edits at either the earliest or latest locked snapshot', async () => {
   const env = snapshotEnv(ENV_KEYS);
   process.env.SUPABASE_URL = 'https://supabase.test';
   process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-secret';
@@ -1318,12 +1318,6 @@ test('ranking recovery rejects an earliest mismatch and hands a latest orphan mi
         inclusive ? row.snapshot_date <= boundary : row.snapshot_date < boundary
       )));
     }
-    if (href.includes('/api/eod/SPY.US')) {
-      return jsonResponse([
-        { date: '2026-07-09', adjusted_close: 600 },
-        { date: '2026-07-10', adjusted_close: 606 },
-      ]);
-    }
     providerOrSnapshotWriteCalled = true;
     throw new Error(`unexpected fetch: ${href} ${options.method || 'GET'}`);
   };
@@ -1343,12 +1337,10 @@ test('ranking recovery rejects an earliest mismatch and hands a latest orphan mi
   assert.equal(result.retryableIncomplete, false);
   assert.equal(result.authoritativeRejectedMembers, 2);
   assert.equal(result.skippedMembers, 2);
-  assert.equal(result.authoritativeRejectionReasons.ranking_recovery_ledger_hash_mismatch, 1);
-  assert.equal(result.skippedReasons.ranking_recovery_ledger_hash_mismatch, 1);
-  assert.equal(result.authoritativeRejectionReasons.prior_ledger_hash_mismatch, 1);
-  assert.equal(result.skippedReasons.prior_ledger_hash_mismatch, 1);
+  assert.equal(result.authoritativeRejectionReasons.ranking_recovery_ledger_hash_mismatch, 2);
+  assert.equal(result.skippedReasons.ranking_recovery_ledger_hash_mismatch, 2);
   assert.equal(result.initializedMembers, 0);
-  assert.deepEqual(result.processedDates, ['2026-07-10']);
+  assert.deepEqual(result.processedDates, []);
   assert.equal(rankingPatchCalled, false);
   assert.equal(providerOrSnapshotWriteCalled, false);
   assert.doesNotMatch(JSON.stringify(result), /earliest-mismatch-user|latest-mismatch-user/);
@@ -1719,7 +1711,7 @@ test('permanent market-calendar 4xx is operational failure instead of retryable 
     if (href.includes('/rest/v1/community_competition_members')) {
       return jsonResponse([{
         user_id: 'calendar-user', status: 'active', joined_at: '2026-07-08T10:00:00Z',
-        eligible_after_snapshot_date: '2026-07-09', eligible_ledger_hash: null,
+        eligible_after_snapshot_date: '2026-07-10', eligible_ledger_hash: null,
         ranking_start_snapshot_date: '2026-07-10', ranking_baseline_return_pct: 0,
       }]);
     }

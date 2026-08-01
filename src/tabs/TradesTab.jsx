@@ -11,7 +11,6 @@ import { resolveHoldingDisplayPrice } from '../lib/homeMarketDisplay.js';
 import { isEnglishLanguage, t } from '../lib/i18n.js';
 import { normalizeStrictUserStockSymbol } from '../lib/symbols.js';
 import { formatWaveCurrencyAmount, formatWaveUsdPrice } from '../lib/waveCurrencyDisplay.js';
-import { currentNewYorkDate } from '../lib/pnlReportSnapshots.js';
 import ActionModalCard from '../components/ActionModalCard.jsx';
 import AccountLeverageBadge from '../components/AccountLeverageBadge.jsx';
 import StockLogo, { stockLogoCandidates } from '../components/StockLogo.jsx';
@@ -608,7 +607,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
   const displayTodayPnl = hasTodayPnl ? toNumber(summary.todayPnl) * displayRate : null;
   const displayCumulativePnl = toNumber(summary.cumulativePnl) * displayRate;
   const displayHoldingPnl = toNumber(summary.holdingPnl ?? summary.unrealizedPnl) * displayRate;
-  const todayKey = currentNewYorkDate();
+  const todayKey = localDateKey();
   const todayTradeSummary = React.useMemo(() => {
     const rows = [];
     let buys = 0;
@@ -666,7 +665,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
       symbol,
       name: stockDisplayName(symbol, position?.name),
       side,
-      date: currentNewYorkDate(),
+      date: localDateKey(),
       price: position?.currentPrice ? String(position.currentPrice) : '',
       shares: '',
       batch: '第1批',
@@ -692,7 +691,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
       symbol,
       name: stockDisplayName(symbol, trade.name),
       side: trade.side === 'sell' ? 'sell' : 'buy',
-      date: trade.date || currentNewYorkDate(),
+      date: trade.date || localDateKey(),
       price: trade.price ? String(trade.price) : '',
       shares: trade.shares ? String(trade.shares) : '',
       fee: trade.fee || 0,
@@ -900,10 +899,10 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                 )}
               </div>
             </div>
-            <button type="button" onClick={openPnlReport} className="flex min-w-0 flex-col justify-start px-3 text-left transition active:scale-[0.99]">
-              <div className="flex items-center gap-0.5 whitespace-nowrap text-[13px] text-white/50">
+            <button type="button" onClick={openPnlReport} className="block min-w-0 px-3 text-left transition active:scale-[0.99]">
+              <div className="flex items-center gap-0.5 text-[13px] text-white/50">
                 <span>{tt('trades.totalPnl', '累计盈亏')}</span>
-                <ChevronRight className="h-3 w-3 shrink-0 text-white/[0.28]" />
+                <ChevronRight className="h-3 w-3 text-white/[0.28]" />
               </div>
               <div className={`mt-2 whitespace-nowrap ${pnlAmountClass} font-normal leading-tight tabular-nums ${pnlClass(displayCumulativePnl, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
                 {signedCurrency(displayCumulativePnl, displayCurrency, 2)}
@@ -916,7 +915,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
               type="button"
               disabled={!marginStatusReady}
               onClick={openHomeMarginRisk}
-              className="flex min-w-0 flex-col justify-start pl-3 text-left transition active:scale-[0.99] disabled:cursor-wait disabled:opacity-45"
+              className="block min-w-0 pl-3 text-left transition active:scale-[0.99] disabled:cursor-wait disabled:opacity-45"
               data-trades-margin-trigger="true"
             >
               <div className="flex items-center gap-0.5 text-[13px] text-white/50">
@@ -2185,7 +2184,6 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                     <input
                       type="date"
                       value={newTrade.date}
-                      max={tradeEntryScope === 'ledger' ? currentNewYorkDate() : undefined}
                       onChange={(e) => setNewTrade({ ...newTrade, date: e.target.value })}
                       className={`${tradeModalBaseInput} appearance-none pl-9 pr-8 text-left font-normal tabular-nums`}
                       style={{ ...tradeModalInputStyle, WebkitAppearance: 'none' }}

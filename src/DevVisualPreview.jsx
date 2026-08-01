@@ -26,7 +26,6 @@ import { normalizeConfirmModalOptions } from './lib/confirmModal.js';
 import { localMonthKey, shiftMonthKey } from './lib/calendarMonth.js';
 import { EARNINGS_GROWTH_SCHEMA_VERSION } from './lib/earningsGrowth.js';
 import { normalizeLanguage, t } from './lib/i18n.js';
-import { currentNewYorkDate } from './lib/pnlReportSnapshots.js';
 
 const AnalysisTab = lazy(() => import('./tabs/AnalysisTab.jsx'));
 const HomeTab = lazy(() => import('./tabs/HomeTab.jsx'));
@@ -1322,8 +1321,8 @@ const mockTodayStockTrade = {
   symbol: 'MSFT',
   name: '微软',
   side: 'buy',
-  trade_date: currentNewYorkDate(),
-  date: currentNewYorkDate(),
+  trade_date: localDateKey(),
+  date: localDateKey(),
   price: 412.07,
   shares: 2300,
   currency: 'USD',
@@ -1703,7 +1702,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     symbol: '',
     name: '',
     side: 'buy',
-    date: currentNewYorkDate(),
+    date: new Date().toISOString().slice(0, 10),
     price: '',
     shares: '',
     batch: '第1批',

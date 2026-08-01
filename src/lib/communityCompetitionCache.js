@@ -4,7 +4,7 @@ import {
   writeUserScopedJson,
 } from './userScopedStorage.js';
 
-export const COMMUNITY_COMPETITION_CACHE_VERSION = 6;
+export const COMMUNITY_COMPETITION_CACHE_VERSION = 5;
 // The server snapshot gate opens at 17:00 New York time. Read ten minutes later
 // so the first cron can lock rows; the only full-read retry follows the final
 // daily cron. While a visible page is stale, only the four-field completion
@@ -18,7 +18,7 @@ const REFRESH_META_KEY_PREFIX = 'bottomline_community_competition_refresh_v1';
 const STATUS_CHECK_META_KEY = 'bottomline_community_competition_status_check_v1';
 const PUBLICATION_META_KEY = 'bottomline_community_competition_publication_v1';
 const INVALIDATION_META_KEY = 'bottomline_community_competition_invalidation_v1';
-const CACHE_WRITE_LOCK = 'bottomline-community-competition-cache-v6';
+const CACHE_WRITE_LOCK = 'bottomline-community-competition-cache-v5';
 const PERIODS = new Set(['day', 'week', 'month', 'year']);
 const VALID_STATES = new Set(['profile_required', 'join_required', 'waiting_snapshot', 'ready']);
 const CACHEABLE_STATES = new Set(['waiting_snapshot', 'ready']);

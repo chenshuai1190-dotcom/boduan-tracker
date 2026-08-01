@@ -2,13 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import handler from '../api/quote.js';
-import { resetEodhdRestCaches } from '../server/quote/eodhdCache.js';
 import { fetchStockQuote } from '../server/quote/providers/eodhd.js';
 import { buildEodhdStockDetail } from '../server/quote/stockDetail.js';
-
-test.beforeEach(() => {
-  resetEodhdRestCaches();
-});
 
 function buildStockDetail(rows, options = {}) {
   return buildEodhdStockDetail(rows, {

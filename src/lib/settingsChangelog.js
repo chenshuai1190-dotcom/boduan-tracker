@@ -4,48 +4,6 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
-      '🛡️ 行情额度保护与收盘日线缓存',
-      '  - 历史日线按“股票代码 + 最新已完成收盘日”复用，同一收盘数据在下一次有效收盘前不再反复请求',
-      '  - 盘中价格继续优先使用 WebSocket；自动 REST 基线刷新改为低频，页面切换、focus 和恢复不再触发全量历史行情风暴',
-      '  - 正式持仓、自选与活跃波段保留在 REST 基线集合；已关闭历史记录不再进入常驻 REST 行情全集',
-      '  - EODHD 日额度耗尽时服务端立即熔断至下一次 UTC 重置，上游失败继续保留最近有效价格，不用 0 覆盖',
-      '⚡ 个股收益交易账本即时刷新',
-      '  - 正式交易新增、修改或删除成功后，个股收益详情的“交易统计”和“交易记录”立即按当前账本重算，不再等待下一份收盘快照',
-      '  - 实时账本区间以纽约当前日期为上限，继续拒绝未来日期；切换本年、近 1 月、近 6 月、近 1 年或全部时同步使用当前账本区间',
-      '  - 头部收益、持仓数据、收益走势和相对 QQQ 仍只读取已完成收盘快照；不修改数据库、正式交易保存逻辑或历史快照',
-    ],
-    itemsEn: [
-      '🛡️ Quote quota protection and close-history caching',
-      '  - Daily history is reused by ticker and latest completed close date, so an unchanged close is not requested repeatedly before the next completed session',
-      '  - Intraday prices still prioritize WebSocket; automatic REST baselines are low-frequency, and tab, focus, and resume events no longer fan out full history refreshes',
-      '  - Current holdings, watchlist names, and active swings stay in the REST baseline set; closed historical records leave the persistent REST universe',
-      '  - When the EODHD daily allowance is exhausted, the server opens a circuit until the next UTC reset and keeps the latest valid prices instead of overwriting them with zero',
-      '⚡ Immediate ledger refresh in individual returns',
-      '  - After a formal trade is added, edited, or deleted successfully, Trade Statistics and Trade Records recalculate from the current ledger without waiting for the next close snapshot',
-      '  - Live ledger ranges end on the current New York date and continue rejecting future dates; YTD, 1M, 6M, 1Y, and All use the same current-ledger boundary',
-      '  - Summary returns, position values, the P&L trend, and relative QQQ remain locked to completed close snapshots; database writes, formal-trade persistence, and historical snapshots are unchanged',
-    ],
-  },
-  {
-    ver: 'v10.7.9.403', date: '2026-07-31',
-    items: [
-      '🏆 修改订单后自动重新进入收益比赛',
-      '  - 修改或删除合法的正式交易记录不再永久失去排名资格，也不会阻塞其他参赛成员发布新榜',
-      '  - 工作日全天接受记录修正；收盘后及周末修改顺延到下一真实交易日建立新基线，再于随后一个真实收盘自动重新上榜',
-      '  - 旧排名快照保持锁定且不重算；新基线日不制造收益，名称和备注等非财务修改不会因内容差异直接重设赛段',
-      '  - 超卖、非 USD、无效账本、行情缺失及并发冲突继续严格拒绝，不因自动重新入榜而绕过数据校验',
-    ],
-    itemsEn: [
-      '🏆 Automatic competition re-entry after order corrections',
-      '  - Editing or deleting a valid formal trade no longer causes permanent ranking loss or blocks publication for other participants',
-      '  - Record corrections are accepted throughout weekdays; after-close and weekend changes wait for the next real trading close to anchor a new epoch, then re-enter after the following real close',
-      '  - Locked ranking history is never recalculated; the anchor day creates no return, and non-financial name or note edits do not directly reset the epoch because their content changed',
-      '  - Oversells, non-USD or malformed ledgers, missing market data, and concurrent conflicts remain fail-closed and cannot bypass validation through automatic re-entry',
-    ],
-  },
-  {
-    ver: 'v10.7.9.402', date: '2026-07-28',
-    items: [
       '⚡ 波段记录实时价格加速',
       '  - 进入波段记录后，活跃波段优先读取已登录股票实时快照，不再等待完整历史行情请求后才显示最新价',
       '  - 完整行情仍在后台补齐昨收等基线，后续价格继续由 WebSocket 更新；慢响应不能覆盖更新的实时价格',

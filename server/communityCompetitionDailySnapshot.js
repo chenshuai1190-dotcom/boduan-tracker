@@ -9,7 +9,6 @@ import {
   CompetitionSnapshotValidationError,
   computeCompetitionLedgerHash,
   deriveCompetitionHoldingSymbols,
-  validateCompetitionRolloverBaseline,
   validateCompetitionTargetDateLedger,
 } from './communityCompetitionSnapshotModel.js';
 import { fetchWithTimeout, QUOTE_TIMEOUTS } from './quote/http.js';
@@ -23,18 +22,10 @@ const SCHEDULED_CATCH_UP_MAX_TRADING_DATES = 5;
 const SCHEDULED_CATCH_UP_MAX_MEMBER_DAYS = 250;
 const MARKET_CALENDAR_SYMBOL = 'SPY';
 const SOURCE_VERSION = 'community_competition_snapshot_v1';
-const LEGACY_RANKED_NY_DATE_REPAIR_DATE = '2026-07-30';
 const RETRYABLE_INCOMPLETE_CODES = new Set([
   'missing_close',
   'snapshot_gap',
   'trade_between_snapshots',
-]);
-const AUTOMATIC_EPOCH_ROLLOVER_CODES = new Set([
-  'prior_ledger_hash_mismatch',
-  'eligible_ledger_hash_mismatch',
-  'trade_before_first_snapshot',
-  'trade_between_snapshots',
-  'late_trade',
 ]);
 
 function firstQueryValue(value) {
@@ -129,23 +120,6 @@ function ledgerStateWasLockedByTargetClose(ledgerState, targetDate) {
     && ledgerState.lastMutatedTime <= closeTime;
 }
 
-function calendarDateInTimeZone(value, timeZone) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return null;
-  try {
-    const parts = new Intl.DateTimeFormat('en-US', {
-      timeZone,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    }).formatToParts(date);
-    const read = (type) => parts.find((part) => part.type === type)?.value || '';
-    return normalizeDate(`${read('year')}-${read('month')}-${read('day')}`);
-  } catch {
-    return null;
-  }
-}
-
 function isProvableCurrentTargetInsert(trade, {
   baselineLockedAtTime,
   targetDate,
@@ -161,28 +135,6 @@ function isProvableCurrentTargetInsert(trade, {
     && createdAtTime > baselineLockedAtTime
     && createdAtTime <= targetCloseTime
     && updatedAtTime === createdAtTime;
-}
-
-function targetTradesMatchLegacyLocalDateIncident(stockTrades, targetDate) {
-  if (targetDate !== LEGACY_RANKED_NY_DATE_REPAIR_DATE) return false;
-  const targetCloseTime = newYorkMarketCloseTime(targetDate);
-  if (!Number.isFinite(targetCloseTime)) return false;
-  const priorNewYorkDate = shiftDate(targetDate, -1);
-  const targetTrades = (Array.isArray(stockTrades) ? stockTrades : []).filter((trade) => (
-    normalizeDate(trade?.trade_date) === targetDate
-  ));
-  let foundLegacyMismatch = false;
-  const allTargetTradesAreValidOrLegacy = targetTrades.every((trade) => {
-    const createdAtTime = Date.parse(trade?.created_at || '');
-    if (!Number.isFinite(createdAtTime) || createdAtTime > targetCloseTime) return false;
-    const newYorkDate = calendarDateInTimeZone(createdAtTime, 'America/New_York');
-    if (newYorkDate === targetDate) return true;
-    const shanghaiDate = calendarDateInTimeZone(createdAtTime, 'Asia/Shanghai');
-    const legacyMismatch = newYorkDate === priorNewYorkDate && shanghaiDate === targetDate;
-    if (legacyMismatch) foundLegacyMismatch = true;
-    return legacyMismatch;
-  });
-  return targetTrades.length > 0 && foundLegacyMismatch && allTargetTradesAreValidOrLegacy;
 }
 
 function getHeader(req, name) {
@@ -384,11 +336,7 @@ async function fetchPriorCompetitionSnapshots(userIds, targetDate) {
   return latestByUser;
 }
 
-async function fetchEarliestCompetitionSnapshots(
-  userIds,
-  throughDate,
-  eligibleAfterByUser = new Map(),
-) {
+async function fetchEarliestCompetitionSnapshots(userIds, throughDate) {
   if (userIds.size === 0) return new Map();
   const ids = [...userIds];
   const earliestByUser = new Map();
@@ -410,14 +358,8 @@ async function fetchEarliestCompetitionSnapshots(
     rows.forEach((row) => {
       const userId = String(row?.user_id || '');
       const snapshotDate = normalizeDate(row?.snapshot_date);
-      const eligibleAfter = normalizeDate(eligibleAfterByUser.get(userId));
       const current = earliestByUser.get(userId);
-      if (
-        userId
-        && snapshotDate
-        && (!eligibleAfter || snapshotDate > eligibleAfter)
-        && (!current || snapshotDate < current.snapshot_date)
-      ) {
+      if (userId && snapshotDate && (!current || snapshotDate < current.snapshot_date)) {
         earliestByUser.set(userId, { ...row, snapshot_date: snapshotDate });
       }
     });
@@ -634,86 +576,6 @@ async function rebaselineMemberBeforeFirstSnapshot({
   return String(body?.outcome || body?.result || 'invalid_response');
 }
 
-async function forwardRebaselineRankedMember({
-  member,
-  targetDate,
-  ledgerHash,
-  ledgerRevision,
-}) {
-  const body = await supabaseAdminFetch(
-    '/rest/v1/rpc/forward_rebaseline_ranked_community_competition_member',
-    {
-      method: 'POST',
-      body: JSON.stringify({
-        p_user_id: member.user_id,
-        p_expected_eligible_after_snapshot_date: member.eligible_after_snapshot_date,
-        p_expected_eligible_ledger_hash: member.eligible_ledger_hash || null,
-        p_expected_eligible_ledger_revision: member.eligible_ledger_revision,
-        p_expected_ranking_start_snapshot_date: member.ranking_start_snapshot_date,
-        p_expected_ranking_baseline_return_pct: member.ranking_baseline_return_pct,
-        p_expected_current_ledger_revision: ledgerRevision,
-        p_new_eligible_after_snapshot_date: targetDate,
-        p_new_eligible_ledger_hash: ledgerHash,
-      }),
-    }
-  );
-  if (typeof body === 'string') return body;
-  return String(body?.outcome || body?.result || 'invalid_response');
-}
-
-async function rolloverMemberCompetitionEpoch({
-  member,
-  targetDate,
-  ledgerHash,
-  ledgerRevision,
-  reason,
-}) {
-  const marketCloseTime = newYorkMarketCloseTime(targetDate);
-  if (!Number.isFinite(marketCloseTime)) {
-    throw new CompetitionSnapshotValidationError(
-      'invalid_date',
-      '比赛重新入榜目标收盘时间不合法'
-    );
-  }
-  const body = await supabaseAdminFetch(
-    '/rest/v1/rpc/rollover_community_competition_member_epoch',
-    {
-      method: 'POST',
-      body: JSON.stringify({
-        p_user_id: member.user_id,
-        p_operation_key: [
-          'competition-epoch-rollover',
-          member.user_id,
-          targetDate,
-          ledgerRevision,
-        ].join(':'),
-        p_expected_eligible_after_snapshot_date: member.eligible_after_snapshot_date,
-        p_expected_eligible_ledger_hash: member.eligible_ledger_hash || null,
-        p_expected_eligible_ledger_revision: member.eligible_ledger_revision,
-        p_expected_ranking_start_snapshot_date:
-          member.ranking_start_snapshot_date || null,
-        p_expected_ranking_baseline_return_pct:
-          member.ranking_baseline_return_pct == null
-            ? null
-            : member.ranking_baseline_return_pct,
-        p_expected_current_ledger_revision: ledgerRevision,
-        p_new_eligible_after_snapshot_date: targetDate,
-        p_new_eligible_ledger_hash: ledgerHash,
-        p_market_close_at: new Date(marketCloseTime).toISOString(),
-        p_reason: reason,
-      }),
-    }
-  );
-  if (typeof body === 'string') return body;
-  return String(body?.outcome || body?.result || 'invalid_response');
-}
-
-function snapshotInCurrentRankingEpoch(member, snapshot) {
-  const eligibleAfter = normalizeDate(member?.eligible_after_snapshot_date);
-  const snapshotDate = normalizeDate(snapshot?.snapshot_date);
-  return Boolean(eligibleAfter && snapshotDate && snapshotDate > eligibleAfter);
-}
-
 function eligibleForSnapshot(member, targetDate, lockedAt) {
   const eligibleAfter = normalizeDate(member?.eligible_after_snapshot_date);
   const joinedAt = Date.parse(member?.joined_at || '');
@@ -772,26 +634,10 @@ export async function runCommunityCompetitionDailySnapshot({
   now = new Date(),
   memberUserIds = null,
   requireTargetCloseConfirmation = false,
-  allowRankedForwardRebaseline = false,
-  expectedPriorTradingDate = null,
 } = {}) {
   const normalizedTargetDate = normalizeDate(targetDate);
   if (!normalizedTargetDate) {
     const error = new Error('目标日期不合法');
-    error.status = 400;
-    throw error;
-  }
-  const normalizedExpectedPriorTradingDate = expectedPriorTradingDate == null
-    ? null
-    : normalizeDate(expectedPriorTradingDate);
-  if (
-    expectedPriorTradingDate != null
-    && (
-      !normalizedExpectedPriorTradingDate
-      || normalizedExpectedPriorTradingDate >= normalizedTargetDate
-    )
-  ) {
-    const error = new Error('前一交易日不合法');
     error.status = 400;
     throw error;
   }
@@ -882,11 +728,9 @@ export async function runCommunityCompetitionDailySnapshot({
   };
   const completedUserIds = new Set();
   const blockedUserIds = new Set();
-  const forwardRebaselinedUserIds = new Set();
   Object.defineProperties(result, {
     _completedUserIds: { value: completedUserIds, enumerable: false },
     _blockedUserIds: { value: blockedUserIds, enumerable: false },
-    _forwardRebaselinedUserIds: { value: forwardRebaselinedUserIds, enumerable: false },
   });
 
   const skip = (reason, userId) => {
@@ -929,18 +773,7 @@ export async function runCommunityCompetitionDailySnapshot({
   for (const member of eligibleMembers) {
     const userId = String(member.user_id);
     const userTrades = tradesByUser.get(userId) || [];
-    const fetchedPrior = priorSnapshotsByUser.get(userId) || null;
-    const prior = snapshotInCurrentRankingEpoch(member, fetchedPrior) ? fetchedPrior : null;
-    const canAutomaticallyRolloverEpoch = Boolean(
-      allowRankedForwardRebaseline
-      && (
-        fetchedPrior
-        || (
-          member.ranking_start_snapshot_date
-          && member.ranking_baseline_return_pct != null
-        )
-      )
-    );
+    const prior = priorSnapshotsByUser.get(userId) || null;
     try {
       const ledgerState = ledgerStatesByUser.get(userId) || null;
       const eligibleLedgerRevision = normalizeLedgerRevision(member.eligible_ledger_revision);
@@ -982,46 +815,12 @@ export async function runCommunityCompetitionDailySnapshot({
         }
         const currentPriorHash = computeCompetitionLedgerHash(userTrades, prior.snapshot_date);
         if (currentPriorHash !== prior.ledger_hash) {
-          if (
-            canAutomaticallyRolloverEpoch
-            && ledgerState.revision > normalizeLedgerRevision(prior.ledger_revision)
-          ) {
-            candidates.push({
-              member,
-              ledgerState,
-              userTrades,
-              prior,
-              priorCumulativeReturnPct,
-              rolloverReason: 'prior_ledger_hash_mismatch',
-              requiredSymbols: requiredSymbolsForSnapshot(userTrades, normalizedTargetDate),
-            });
-            continue;
-          }
           skip('prior_ledger_hash_mismatch', userId);
           continue;
         }
         priorCumulativeReturnPct = Number(prior.cumulative_return_pct);
         if (!Number.isFinite(priorCumulativeReturnPct) || priorCumulativeReturnPct < -1) {
           skip('invalid_prior_cumulative_return', userId);
-          continue;
-        }
-        if (userTrades.some((trade) => (
-          trade.trade_date > prior.snapshot_date
-          && trade.trade_date < normalizedTargetDate
-        ))) {
-          if (canAutomaticallyRolloverEpoch) {
-            candidates.push({
-              member,
-              ledgerState,
-              userTrades,
-              prior,
-              priorCumulativeReturnPct,
-              rolloverReason: 'trade_between_snapshots',
-              requiredSymbols: requiredSymbolsForSnapshot(userTrades, normalizedTargetDate),
-            });
-            continue;
-          }
-          skip('trade_between_snapshots', userId);
           continue;
         }
       } else {
@@ -1033,18 +832,6 @@ export async function runCommunityCompetitionDailySnapshot({
         }
         const currentEligibleLedgerHash = computeCompetitionLedgerHash(userTrades, eligibleDate);
         if (currentEligibleLedgerHash !== eligibleLedgerHash) {
-          if (canAutomaticallyRolloverEpoch) {
-            candidates.push({
-              member,
-              ledgerState,
-              userTrades,
-              prior,
-              priorCumulativeReturnPct,
-              rolloverReason: 'eligible_ledger_hash_mismatch',
-              requiredSymbols: requiredSymbolsForSnapshot(userTrades, normalizedTargetDate),
-            });
-            continue;
-          }
           skip('eligible_ledger_hash_mismatch', userId);
           continue;
         }
@@ -1052,18 +839,6 @@ export async function runCommunityCompetitionDailySnapshot({
           trade.trade_date > eligibleDate
           && trade.trade_date < normalizedTargetDate
         ))) {
-          if (canAutomaticallyRolloverEpoch) {
-            candidates.push({
-              member,
-              ledgerState,
-              userTrades,
-              prior,
-              priorCumulativeReturnPct,
-              rolloverReason: 'trade_before_first_snapshot',
-              requiredSymbols: requiredSymbolsForSnapshot(userTrades, normalizedTargetDate),
-            });
-            continue;
-          }
           skip('trade_before_first_snapshot', userId);
           continue;
         }
@@ -1074,7 +849,6 @@ export async function runCommunityCompetitionDailySnapshot({
         userTrades,
         prior,
         priorCumulativeReturnPct,
-        canAutomaticallyRolloverEpoch,
         requiredSymbols: requiredSymbolsForSnapshot(userTrades, normalizedTargetDate),
       });
     } catch (error) {
@@ -1096,47 +870,6 @@ export async function runCommunityCompetitionDailySnapshot({
   const failedSymbolDetails = new Map(historicalResult.failedSymbolDetails.map((detail) => (
     [detail.symbol, detail]
   )));
-  const performAutomaticEpochRollover = async (candidate, reason) => {
-    const { member, ledgerState, userTrades } = candidate;
-    validateCompetitionRolloverBaseline({
-      stockTrades: userTrades,
-      historicalClosesBySymbol,
-      targetDate: normalizedTargetDate,
-    });
-    const ledgerHash = computeCompetitionLedgerHash(userTrades, normalizedTargetDate);
-    const outcome = await rolloverMemberCompetitionEpoch({
-      member,
-      targetDate: normalizedTargetDate,
-      ledgerHash,
-      ledgerRevision: ledgerState.revision,
-      reason,
-    });
-    if (outcome === 'rolled_over' || outcome === 'already_rolled_over') {
-      if (outcome === 'rolled_over') result.rebaselinedMembers += 1;
-      result.deferredMembers += 1;
-      result.deferredReasons.epoch_rollover_waiting_next_close = (
-        result.deferredReasons.epoch_rollover_waiting_next_close || 0
-      ) + 1;
-      member.eligible_after_snapshot_date = normalizedTargetDate;
-      member.eligible_ledger_hash = ledgerHash;
-      member.eligible_ledger_revision = ledgerState.revision;
-      member.ranking_start_snapshot_date = null;
-      member.ranking_baseline_return_pct = null;
-      forwardRebaselinedUserIds.add(String(member.user_id));
-      return;
-    }
-    if (outcome === 'stale_ledger' || outcome === 'stale_member') {
-      const concurrentReason = 'epoch_rollover_concurrent_change';
-      result.retryableIncomplete = true;
-      result.retryableIncompleteMembers += 1;
-      result.retryableIncompleteReasons[concurrentReason] = (
-        result.retryableIncompleteReasons[concurrentReason] || 0
-      ) + 1;
-      blockedUserIds.add(String(member.user_id));
-      return;
-    }
-    skip(`epoch_rollover_${outcome}`, member.user_id);
-  };
 
   for (const candidate of candidates) {
     const { member, ledgerState, userTrades, prior, priorCumulativeReturnPct } = candidate;
@@ -1151,20 +884,6 @@ export async function runCommunityCompetitionDailySnapshot({
       if (providerFailures.length > 0) {
         skip('missing_close', member.user_id);
         continue;
-      }
-      if (candidate.rolloverReason) {
-        await performAutomaticEpochRollover(candidate, candidate.rolloverReason);
-        continue;
-      }
-      if (
-        prior
-        && normalizedExpectedPriorTradingDate
-        && prior.snapshot_date !== normalizedExpectedPriorTradingDate
-      ) {
-        throw new CompetitionSnapshotValidationError(
-          'snapshot_gap',
-          '上一份比赛快照不是 SPY 日历中的前一交易日'
-        );
       }
       const built = buildCompetitionCashFlowSnapshot({
         stockTrades: userTrades,
@@ -1217,91 +936,8 @@ export async function runCommunityCompetitionDailySnapshot({
       completedUserIds.add(String(member.user_id));
     } catch (error) {
       if (error instanceof CompetitionSnapshotValidationError) {
-        if (!prior && error.code === 'zero_denominator') {
-          defer('not_started');
-        } else if (
-          allowRankedForwardRebaseline
-          && error.code === 'late_trade'
-          && member.ranking_start_snapshot_date
-          && member.ranking_baseline_return_pct != null
-          && ledgerStateWasLockedByTargetClose(ledgerState, normalizedTargetDate)
-          && targetTradesMatchLegacyLocalDateIncident(userTrades, normalizedTargetDate)
-        ) {
-          try {
-            // The reset accepts the current holdings as a new D1 baseline but
-            // writes no return for the rejected target date. Structural ledger
-            // validation still runs, so malformed or oversold books stay blocked.
-            deriveCompetitionHoldingSymbols(userTrades, normalizedTargetDate);
-            const ledgerHash = computeCompetitionLedgerHash(
-              userTrades,
-              normalizedTargetDate
-            );
-            const outcome = await forwardRebaselineRankedMember({
-              member,
-              targetDate: normalizedTargetDate,
-              ledgerHash,
-              ledgerRevision: ledgerState.revision,
-            });
-            if (outcome === 'rebaselined' || outcome === 'already_rebaselined') {
-              const reason = error.code;
-              result.skippedMembers += 1;
-              result.skippedReasons[reason] = (result.skippedReasons[reason] || 0) + 1;
-              result.authoritativeRejectedMembers += 1;
-              result.authoritativeRejectionReasons[reason] = (
-                result.authoritativeRejectionReasons[reason] || 0
-              ) + 1;
-              result.deferredMembers += 1;
-              result.deferredReasons.forward_rebaseline_waiting_next_close = (
-                result.deferredReasons.forward_rebaseline_waiting_next_close || 0
-              ) + 1;
-              if (outcome === 'rebaselined') result.rebaselinedMembers += 1;
-              forwardRebaselinedUserIds.add(String(member.user_id));
-              continue;
-            }
-            if (outcome === 'stale_ledger' || outcome === 'stale_member') {
-              const concurrentReason = 'forward_rebaseline_concurrent_change';
-              result.retryableIncomplete = true;
-              result.retryableIncompleteMembers += 1;
-              result.retryableIncompleteReasons[concurrentReason] = (
-                result.retryableIncompleteReasons[concurrentReason] || 0
-              ) + 1;
-              blockedUserIds.add(String(member.user_id));
-              continue;
-            }
-            skip(`forward_rebaseline_${outcome}`, member.user_id);
-          } catch (rebaselineError) {
-            fail(rebaselineError, member.user_id);
-          }
-        } else if (
-          candidate.canAutomaticallyRolloverEpoch
-          && (
-            AUTOMATIC_EPOCH_ROLLOVER_CODES.has(error.code)
-            || (
-              error.code === 'snapshot_gap'
-              && prior
-              && normalizeLedgerRevision(prior.ledger_revision) != null
-              && ledgerState.revision > normalizeLedgerRevision(prior.ledger_revision)
-            )
-          )
-          && ledgerStateWasLockedByTargetClose(ledgerState, normalizedTargetDate)
-        ) {
-          try {
-            await performAutomaticEpochRollover(
-              candidate,
-              error.code === 'snapshot_gap'
-                ? 'post_close_ledger_change'
-                : error.code,
-            );
-          } catch (rolloverError) {
-            if (rolloverError instanceof CompetitionSnapshotValidationError) {
-              skip(rolloverError.code || rolloverError.message, member.user_id);
-            } else {
-              fail(rolloverError, member.user_id);
-            }
-          }
-        } else {
-          skip(error.code || error.message, member.user_id);
-        }
+        if (!prior && error.code === 'zero_denominator') defer('not_started');
+        else skip(error.code || error.message, member.user_id);
       } else {
         fail(error, member.user_id);
       }
@@ -1334,23 +970,16 @@ export async function runCommunityCompetitionScheduledCatchUp({
     eligibleForSnapshot(member, normalizedTargetDate, lockedAt)
   ));
   const userIds = new Set(targetEligibleMembers.map((member) => String(member.user_id)));
-  const fetchedLatestSnapshots = await fetchPriorCompetitionSnapshots(
+  const latestSnapshots = await fetchPriorCompetitionSnapshots(
     userIds,
     shiftDate(normalizedTargetDate, 1)
   );
-  const latestSnapshots = new Map();
   const anchors = new Map();
   targetEligibleMembers.forEach((member) => {
     const userId = String(member.user_id);
-    const fetchedLatest = fetchedLatestSnapshots.get(userId) || null;
-    const latest = snapshotInCurrentRankingEpoch(member, fetchedLatest)
-      ? fetchedLatest
-      : null;
-    if (latest) latestSnapshots.set(userId, latest);
-    const priorDate = normalizeDate(latest?.snapshot_date);
+    const priorDate = normalizeDate(latestSnapshots.get(userId)?.snapshot_date);
     const eligibleAfter = normalizeDate(member.eligible_after_snapshot_date);
-    const anchor = [priorDate, eligibleAfter].filter(Boolean).sort().at(-1);
-    if (anchor) anchors.set(userId, anchor);
+    if (priorDate || eligibleAfter) anchors.set(userId, priorDate || eligibleAfter);
   });
   const result = {
     success: true,
@@ -1448,7 +1077,6 @@ export async function runCommunityCompetitionScheduledCatchUp({
       const eligibleLedgerRevision = normalizeLedgerRevision(member.eligible_ledger_revision);
       const ledgerState = ledgerStatesByUser.get(userId) || null;
       const userTrades = tradesByUser.get(userId) || [];
-      const historicalSnapshot = fetchedLatestSnapshots.get(userId) || null;
       if (!eligibleDate || !/^[a-f0-9]{64}$/i.test(eligibleLedgerHash)) {
         rejectInitialSearch('missing_eligible_ledger_hash', userId);
         continue;
@@ -1496,16 +1124,11 @@ export async function runCommunityCompetitionScheduledCatchUp({
           ledgerRevisionDelta > 0
           && ledgerRevisionDelta === provableCurrentTargetInsertCount
         );
-        const epochRolloverReason = currentEligibleLedgerHash !== eligibleLedgerHash
-          ? 'eligible_ledger_hash_mismatch'
-          : hasHistoricalPostEligibleTrade
-            ? 'trade_before_first_snapshot'
-            : null;
         const requiresForwardRebaseline = (
-          epochRolloverReason != null
+          currentEligibleLedgerHash !== eligibleLedgerHash
+          || hasHistoricalPostEligibleTrade
           || (
-            !historicalSnapshot
-            && (ledgerRevisionDelta > 0 || ledgerMutatedAfterBaseline)
+            (ledgerRevisionDelta > 0 || ledgerMutatedAfterBaseline)
             && !currentLedgerProvesOnlyTargetInserts
           )
         );
@@ -1539,8 +1162,6 @@ export async function runCommunityCompetitionScheduledCatchUp({
             userTrades,
             ledgerHash: computeCompetitionLedgerHash(userTrades, normalizedTargetDate),
             requiredSymbols: requiredSymbolsForSnapshot(userTrades, normalizedTargetDate),
-            useEpochRollover: Boolean(historicalSnapshot),
-            rolloverReason: epochRolloverReason,
           });
           initialSearchBlockedUserIds.add(userId);
           continue;
@@ -1639,75 +1260,37 @@ export async function runCommunityCompetitionScheduledCatchUp({
         }
 
         try {
-          const validateBaseline = candidate.useEpochRollover
-            ? validateCompetitionRolloverBaseline
-            : validateCompetitionTargetDateLedger;
-          validateBaseline({
+          validateCompetitionTargetDateLedger({
             stockTrades: candidate.userTrades,
             historicalClosesBySymbol: targetQuoteResult.rowsBySymbol,
             targetDate: normalizedTargetDate,
           });
-          const outcome = candidate.useEpochRollover
-            ? await rolloverMemberCompetitionEpoch({
-              member: candidate.member,
-              targetDate: normalizedTargetDate,
-              ledgerHash: candidate.ledgerHash,
-              ledgerRevision: candidate.ledgerState.revision,
-              reason: candidate.rolloverReason,
-            })
-            : await rebaselineMemberBeforeFirstSnapshot({
-              member: candidate.member,
-              targetDate: normalizedTargetDate,
-              ledgerHash: candidate.ledgerHash,
-              ledgerRevision: candidate.ledgerState.revision,
-            });
-          const rebaselineSucceeded = candidate.useEpochRollover
-            ? outcome === 'rolled_over' || outcome === 'already_rolled_over'
-            : outcome === 'rebaselined';
-          if (rebaselineSucceeded) {
-            if (outcome === 'rebaselined' || outcome === 'rolled_over') {
-              result.rebaselinedMembers += 1;
-            }
+          const outcome = await rebaselineMemberBeforeFirstSnapshot({
+            member: candidate.member,
+            targetDate: normalizedTargetDate,
+            ledgerHash: candidate.ledgerHash,
+            ledgerRevision: candidate.ledgerState.revision,
+          });
+          if (outcome === 'rebaselined') {
+            result.rebaselinedMembers += 1;
             result.deferredMembers += 1;
-            const waitingReason = candidate.useEpochRollover
-              ? 'epoch_rollover_waiting_next_close'
-              : 'rebaseline_waiting_next_close';
-            result.deferredReasons[waitingReason] = (
-              result.deferredReasons[waitingReason] || 0
+            result.deferredReasons.rebaseline_waiting_next_close = (
+              result.deferredReasons.rebaseline_waiting_next_close || 0
             ) + 1;
             anchors.set(userId, normalizedTargetDate);
             candidate.member.eligible_after_snapshot_date = normalizedTargetDate;
             candidate.member.eligible_ledger_hash = candidate.ledgerHash;
             candidate.member.eligible_ledger_revision = candidate.ledgerState.revision;
-            if (candidate.useEpochRollover) {
-              candidate.member.ranking_start_snapshot_date = null;
-              candidate.member.ranking_baseline_return_pct = null;
-            }
             continue;
           }
-          if (
-            candidate.useEpochRollover
-            && (outcome === 'stale_member' || outcome === 'stale_ledger')
-          ) {
-            result.retryableIncomplete = true;
-            result.retryableIncompleteMembers += 1;
-            const concurrentReason = 'epoch_rollover_concurrent_change';
-            result.retryableIncompleteReasons[concurrentReason] = (
-              result.retryableIncompleteReasons[concurrentReason] || 0
-            ) + 1;
-            continue;
-          }
-          if (!candidate.useEpochRollover && outcome === 'stale_member') {
+          if (outcome === 'stale_member') {
             result.deferredMembers += 1;
             result.deferredReasons.rebaseline_concurrent_change = (
               result.deferredReasons.rebaseline_concurrent_change || 0
             ) + 1;
             continue;
           }
-          const outcomePrefix = candidate.useEpochRollover
-            ? 'epoch_rollover'
-            : 'rebaseline';
-          rejectInitialSearch(`${outcomePrefix}_${outcome}`, userId);
+          rejectInitialSearch(`rebaseline_${outcome}`, userId);
         } catch (error) {
           if (error instanceof CompetitionSnapshotValidationError) {
             if (error.code === 'missing_close') {
@@ -1740,19 +1323,11 @@ export async function runCommunityCompetitionScheduledCatchUp({
   ));
   if (rankingRecoveryMembers.length > 0) {
     const recoveryUserIds = new Set(rankingRecoveryMembers.map((member) => String(member.user_id)));
-    const recoveryEligibilityByUser = new Map(rankingRecoveryMembers.map((member) => ([
-      String(member.user_id),
-      normalizeDate(member.eligible_after_snapshot_date),
-    ])));
     let earliestSnapshots = new Map();
     let recoveryTradesByUser = new Map();
     try {
       const [fetchedEarliestSnapshots, recoveryTrades] = await Promise.all([
-        fetchEarliestCompetitionSnapshots(
-          recoveryUserIds,
-          normalizedTargetDate,
-          recoveryEligibilityByUser,
-        ),
+        fetchEarliestCompetitionSnapshots(recoveryUserIds, normalizedTargetDate),
         fetchStockTradesForUsers(recoveryUserIds),
       ]);
       earliestSnapshots = fetchedEarliestSnapshots;
@@ -1795,19 +1370,6 @@ export async function runCommunityCompetitionScheduledCatchUp({
         normalizeLedgerRevision(snapshot.ledger_revision) == null
       ))) {
         rejectRankingRecovery('ranking_recovery_missing_ledger_revision', userId);
-        continue;
-      }
-      const latestLedgerHashMismatch = Boolean(
-        latest
-        && computeCompetitionLedgerHash(userTrades, latest.snapshot_date)
-          !== latest.ledger_hash
-      );
-      if (latestLedgerHashMismatch) {
-        // A first snapshot can be durably locked before the best-effort member
-        // metadata PATCH succeeds. If the financial ledger then changes, this
-        // orphan snapshot is still the immutable prior for the scheduled daily
-        // run. Do not permanently quarantine it here: daily validation checks
-        // the authoritative revision and hands the member to epoch rollover.
         continue;
       }
       if (recoverySnapshots.some((snapshot) => (
@@ -1859,11 +1421,7 @@ export async function runCommunityCompetitionScheduledCatchUp({
   let marketTargetMissing = false;
   try {
     marketRows = await fetchEodRowsWithRetry(MARKET_CALENDAR_SYMBOL, {
-      // Include the session before the oldest anchor so every scheduled daily
-      // run receives the actual previous SPY trading date. This also detects a
-      // snapshot gap for an empty portfolio, where symbol-price validation has
-      // no rows from which to infer continuity.
-      from: shiftDate(earliestAnchor, -7),
+      from: earliestAnchor,
       targetDate: marketThroughDate,
       requireTargetClose: true,
     });
@@ -1883,15 +1441,10 @@ export async function runCommunityCompetitionScheduledCatchUp({
     }
   }
 
-  const marketTradingDates = [...new Set(marketRows
+  const tradingDates = [...new Set(marketRows
     .map((row) => normalizeDate(row?.date))
-    .filter((date) => date && date <= marketThroughDate))]
+    .filter((date) => date && date > earliestAnchor && date <= marketThroughDate))]
     .sort();
-  const priorTradingDateByDate = new Map();
-  marketTradingDates.forEach((date, index) => {
-    if (index > 0) priorTradingDateByDate.set(date, marketTradingDates[index - 1]);
-  });
-  const tradingDates = marketTradingDates.filter((date) => date > earliestAnchor);
   const blockedUserIds = new Set([
     ...initialSearchBlockedUserIds,
     ...initialSearchDeferredUserIds,
@@ -1919,8 +1472,6 @@ export async function runCommunityCompetitionScheduledCatchUp({
       targetDate: date,
       now,
       memberUserIds: candidateUserIds,
-      allowRankedForwardRebaseline: true,
-      expectedPriorTradingDate: priorTradingDateByDate.get(date) || null,
     });
     result.processedDates.push(date);
     result.attemptedMemberDays += daily.eligibleMembers;
@@ -1954,10 +1505,6 @@ export async function runCommunityCompetitionScheduledCatchUp({
       failedMembers: daily.failedMembers,
     });
     daily._completedUserIds.forEach((userId) => anchors.set(userId, date));
-    daily._forwardRebaselinedUserIds.forEach((userId) => {
-      anchors.set(userId, date);
-      blockedUserIds.delete(userId);
-    });
     daily._blockedUserIds.forEach((userId) => blockedUserIds.add(userId));
   }
   if (marketTargetMissing) markIncomplete('market_calendar_target_missing');
