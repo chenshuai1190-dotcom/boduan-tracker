@@ -2,7 +2,6 @@ const EODHD_REST_DOMAINS = Object.freeze([
   'eodhd.com',
   'eodhistoricaldata.com',
 ]);
-export const EODHD_QUOTA_COOLDOWN_MS = 30 * 60 * 1000;
 
 let blockedUntilMs = 0;
 let nowImpl = () => Date.now();
@@ -68,11 +67,7 @@ export function assertEodhdQuotaAvailable(url) {
 export function recordEodhdQuotaResponse(url, response) {
   if (!isEodhdRestUrl(url) || Number(response?.status) !== 402) return null;
   const nowMs = currentTimeMs();
-  const cooldownUntilMs = Math.min(
-    nowMs + EODHD_QUOTA_COOLDOWN_MS,
-    nextUtcMidnightMs(nowMs),
-  );
-  blockedUntilMs = Math.max(blockedUntilMs, cooldownUntilMs);
+  blockedUntilMs = Math.max(blockedUntilMs, nextUtcMidnightMs(nowMs));
   return activeBlock(nowMs);
 }
 

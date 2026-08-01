@@ -2,10 +2,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import handler from '../api/quote.js';
-import {
-  QUOTE_API_POLICY_HEADER,
-  QUOTE_API_POLICY_VERSION,
-} from '../src/lib/quoteApiPolicy.js';
 
 function createResponse() {
   return {
@@ -35,7 +31,7 @@ function createResponse() {
 function createRequest(overrides = {}) {
   return {
     method: 'GET',
-    headers: { [QUOTE_API_POLICY_HEADER.toLowerCase()]: QUOTE_API_POLICY_VERSION },
+    headers: {},
     query: { symbols: 'VIX' },
     ...overrides,
   };
@@ -49,30 +45,6 @@ test('quote handler rejects unauthenticated requests by default', async () => {
 
   assert.equal(res.statusCode, 401);
   assert.match(res.body.error, /未授权/);
-});
-
-test('quote handler rejects an old client policy before auth or provider work', async () => {
-  const originalFetch = globalThis.fetch;
-  let fetchCount = 0;
-  globalThis.fetch = async () => {
-    fetchCount += 1;
-    throw new Error('must not fetch');
-  };
-  try {
-    const res = createResponse();
-    await handler(createRequest({
-      headers: {
-        authorization: 'Bearer stale-session',
-        [QUOTE_API_POLICY_HEADER.toLowerCase()]: 'legacy-v404',
-      },
-    }), res);
-
-    assert.equal(res.statusCode, 426);
-    assert.match(res.body.error, /客户端版本已过期/);
-    assert.equal(fetchCount, 0);
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
 });
 
 test('quote handler validates symbols before reading provider keys', async () => {

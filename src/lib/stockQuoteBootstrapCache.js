@@ -1,11 +1,5 @@
 import { userScopedStorageKey } from './userScopedStorage.js';
 import { normalizeUserStockSymbol } from './symbols.js';
-import {
-  getLatestCompletedUsTradingDate,
-  getPreviousUsTradingDate,
-  isUsMarketDateKey,
-  isUsMarketTradingDate,
-} from './usMarketCalendar.js';
 
 export const STOCK_QUOTE_BOOTSTRAP_CACHE_TTL_MS = 15 * 60 * 1000;
 export const STOCK_QUOTE_BOOTSTRAP_CACHE_MAX_ROWS = 50;
@@ -30,27 +24,7 @@ const ALLOWED_ROW_KEYS = new Set([
   'receivedAt',
   'clientReceivedAt',
   'realtimeAt',
-  'dailyPnlPrice',
-  'dailyPnlPriceDate',
-  'dailyPnlBaselineClose',
-  'dailyPnlBaselineDate',
-  'dailyPnlBaselineSource',
-  'dailyPnlSource',
-  'dailyPnlSession',
-  'dailyPnlLocked',
 ]);
-
-const LOCKED_DAILY_PNL_KEYS = Object.freeze([
-  'dailyPnlPrice',
-  'dailyPnlPriceDate',
-  'dailyPnlBaselineClose',
-  'dailyPnlBaselineDate',
-  'dailyPnlBaselineSource',
-  'dailyPnlSource',
-  'dailyPnlSession',
-  'dailyPnlLocked',
-]);
-const LOCKED_DAILY_PNL_SESSIONS = new Set(['post', 'closed']);
 
 function defaultStorage() {
   try {
@@ -133,82 +107,32 @@ function assignOptionalTimestamp(target, key, value) {
   if (normalized !== null) target[key] = normalized;
 }
 
-function normalizeLockedDailyPnl(value, expectedCompletedDate) {
-  if (!value || value.dailyPnlLocked !== true || !isUsMarketDateKey(expectedCompletedDate)) return null;
-  const price = positiveNumber(value.dailyPnlPrice);
-  const baselineClose = positiveNumber(value.dailyPnlBaselineClose);
-  const priceDate = normalizeText(value.dailyPnlPriceDate, 10);
-  const baselineDate = normalizeText(value.dailyPnlBaselineDate, 10);
-  const baselineSource = normalizeText(value.dailyPnlBaselineSource, 80);
-  const source = normalizeText(value.dailyPnlSource, 80);
-  const session = normalizeText(value.dailyPnlSession, 16).toLowerCase();
-  if (
-    price === null
-    || baselineClose === null
-    || priceDate !== expectedCompletedDate
-    || !isUsMarketTradingDate(priceDate)
-    || !isUsMarketTradingDate(baselineDate)
-    || baselineDate !== getPreviousUsTradingDate(priceDate)
-    || !baselineSource
-    || !source.startsWith('locked-')
-    || !LOCKED_DAILY_PNL_SESSIONS.has(session)
-  ) {
-    return null;
-  }
-  return {
-    dailyPnlPrice: price,
-    dailyPnlPriceDate: priceDate,
-    dailyPnlBaselineClose: baselineClose,
-    dailyPnlBaselineDate: baselineDate,
-    dailyPnlBaselineSource: baselineSource,
-    dailyPnlSource: source,
-    dailyPnlSession: session,
-    dailyPnlLocked: true,
-  };
-}
-
-function normalizeQuoteRow(value, expectedCompletedDate) {
+function normalizeQuoteRow(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   const symbol = normalizeSymbol(value.symbol);
   const price = positiveNumber(value.price);
   const previousClose = positiveNumber(value.previousClose)
     || positiveNumber(value.dailyBaselineClose)
     || positiveNumber(value.dailyPnlBaselineClose);
-  const lockedDailyPnl = normalizeLockedDailyPnl(value, expectedCompletedDate);
-  const hasVolatileQuote = price !== null && previousClose !== null;
-  if (!symbol || (!hasVolatileQuote && !lockedDailyPnl)) return null;
+  if (!symbol || price === null || previousClose === null) return null;
 
-  const row = { symbol };
-  if (hasVolatileQuote) {
-    row.price = price;
-    row.previousClose = previousClose;
-    assignOptionalText(row, 'name', value.name, 120);
-    assignOptionalNumber(row, 'change', value.change);
-    assignOptionalNumber(row, 'changePercent', value.changePercent);
-    assignOptionalNumber(row, 'high', value.high, { positive: true });
-    assignOptionalNumber(row, 'week52High', value.week52High, { positive: true });
+  const row = { symbol, price, previousClose };
+  assignOptionalText(row, 'name', value.name, 120);
+  assignOptionalNumber(row, 'change', value.change);
+  assignOptionalNumber(row, 'changePercent', value.changePercent);
+  assignOptionalNumber(row, 'high', value.high, { positive: true });
+  assignOptionalNumber(row, 'week52High', value.week52High, { positive: true });
 
-    const currency = normalizeCurrency(value.currency);
-    if (currency) row.currency = currency;
-    assignOptionalText(row, 'marketStatus', value.marketStatus, 40);
-    assignOptionalText(row, 'source', value.source, 80);
-    assignOptionalText(row, 'priceSource', value.priceSource, 80);
-    assignOptionalTimestamp(row, 'timestamp', value.timestamp);
-    assignOptionalTimestamp(row, 'receivedAt', value.receivedAt);
-    assignOptionalTimestamp(row, 'clientReceivedAt', value.clientReceivedAt);
-    assignOptionalTimestamp(row, 'realtimeAt', value.realtimeAt);
-  }
-  if (lockedDailyPnl) Object.assign(row, lockedDailyPnl);
+  const currency = normalizeCurrency(value.currency);
+  if (currency) row.currency = currency;
+  assignOptionalText(row, 'marketStatus', value.marketStatus, 40);
+  assignOptionalText(row, 'source', value.source, 80);
+  assignOptionalText(row, 'priceSource', value.priceSource, 80);
+  assignOptionalTimestamp(row, 'timestamp', value.timestamp);
+  assignOptionalTimestamp(row, 'receivedAt', value.receivedAt);
+  assignOptionalTimestamp(row, 'clientReceivedAt', value.clientReceivedAt);
+  assignOptionalTimestamp(row, 'realtimeAt', value.realtimeAt);
   return row;
-}
-
-function lockedDailyPnlProjection(row) {
-  if (!row?.dailyPnlLocked) return null;
-  const projection = { symbol: row.symbol };
-  LOCKED_DAILY_PNL_KEYS.forEach((key) => {
-    projection[key] = row[key];
-  });
-  return projection;
 }
 
 function isStrictStoredRow(value, normalized) {
@@ -220,11 +144,11 @@ function isStrictStoredRow(value, normalized) {
   return normalizedKeys.every((key) => Object.hasOwn(value, key) && Object.is(value[key], normalized[key]));
 }
 
-function normalizeRowsForWrite(rows, expectedCompletedDate) {
+function normalizeRowsForWrite(rows) {
   if (!Array.isArray(rows)) return [];
   const bySymbol = new Map();
   rows.forEach((value) => {
-    const row = normalizeQuoteRow(value, expectedCompletedDate);
+    const row = normalizeQuoteRow(value);
     if (!row) return;
     bySymbol.set(row.symbol, row);
   });
@@ -264,6 +188,7 @@ export function readStockQuoteBootstrapCache({
     && savedAt <= currentTime
     && Number.isSafeInteger(expiresAt)
     && expiresAt - savedAt === STOCK_QUOTE_BOOTSTRAP_CACHE_TTL_MS
+    && expiresAt > currentTime
     && Array.isArray(rows)
     && rows.length > 0
     && rows.length <= STOCK_QUOTE_BOOTSTRAP_CACHE_MAX_ROWS
@@ -274,14 +199,8 @@ export function readStockQuoteBootstrapCache({
   }
 
   const normalizedRows = [];
-  const expectedCompletedDate = getLatestCompletedUsTradingDate(currentTime);
-  const expectedCompletedDateAtSave = getLatestCompletedUsTradingDate(savedAt);
-  if (!expectedCompletedDate || expectedCompletedDateAtSave !== expectedCompletedDate) {
-    removeStored(storage, key);
-    return [];
-  }
   for (const value of rows) {
-    const normalized = normalizeQuoteRow(value, expectedCompletedDate);
+    const normalized = normalizeQuoteRow(value);
     if (!isStrictStoredRow(value, normalized)) {
       removeStored(storage, key);
       return [];
@@ -292,14 +211,7 @@ export function readStockQuoteBootstrapCache({
     removeStored(storage, key);
     return [];
   }
-  if (expiresAt > currentTime) return normalizedRows;
-
-  const lockedRows = normalizedRows.map(lockedDailyPnlProjection).filter(Boolean);
-  if (lockedRows.length === 0) {
-    removeStored(storage, key);
-    return [];
-  }
-  return lockedRows;
+  return normalizedRows;
 }
 
 export function writeStockQuoteBootstrapCache({
@@ -312,10 +224,9 @@ export function writeStockQuoteBootstrapCache({
   const key = cacheKey(normalizedUserId);
   if (!key || !storage) return false;
 
-  const savedAt = nowValue(now);
-  const expectedCompletedDate = getLatestCompletedUsTradingDate(savedAt);
-  const normalizedRows = normalizeRowsForWrite(rows, expectedCompletedDate);
+  const normalizedRows = normalizeRowsForWrite(rows);
   if (normalizedRows.length === 0) return false;
+  const savedAt = nowValue(now);
   const payload = {
     schema: CACHE_SCHEMA,
     version: STOCK_QUOTE_BOOTSTRAP_CACHE_SCHEMA_VERSION,
@@ -330,46 +241,6 @@ export function writeStockQuoteBootstrapCache({
   } catch {
     return false;
   }
-}
-
-export function mergeStockQuoteBootstrapLockedFields({
-  quoteRows,
-  cachedRows,
-  now = Date.now,
-} = {}) {
-  if (!Array.isArray(quoteRows) || quoteRows.length === 0 || !Array.isArray(cachedRows)) {
-    return Array.isArray(quoteRows) ? quoteRows : [];
-  }
-  const currentTime = nowValue(now);
-  const expectedCompletedDate = getLatestCompletedUsTradingDate(currentTime);
-  if (!expectedCompletedDate) return quoteRows;
-
-  const lockedBySymbol = new Map();
-  cachedRows.forEach((value) => {
-    const symbol = normalizeSymbol(value?.symbol);
-    const locked = normalizeLockedDailyPnl(value, expectedCompletedDate);
-    if (symbol && locked) lockedBySymbol.set(symbol, locked);
-  });
-  if (lockedBySymbol.size === 0) return quoteRows;
-
-  let changed = false;
-  const mergedRows = quoteRows.map((row) => {
-    const symbol = normalizeSymbol(row?.symbol);
-    const locked = lockedBySymbol.get(symbol);
-    if (!locked) return row;
-    if (normalizeLockedDailyPnl(row, expectedCompletedDate)) return row;
-    const rowSession = normalizeText(row?.dailyPnlSession, 16).toLowerCase();
-    if (
-      row?.dailyPnlLocked === false
-      && (rowSession === 'pre' || rowSession === 'regular')
-      && positiveNumber(row?.dailyPnlPrice) !== null
-    ) {
-      return row;
-    }
-    changed = true;
-    return { ...row, ...locked };
-  });
-  return changed ? mergedRows : quoteRows;
 }
 
 export function clearStockQuoteBootstrapCache({

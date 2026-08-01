@@ -3,10 +3,6 @@ import test from 'node:test';
 
 import handler from '../api/quote.js';
 import {
-  QUOTE_API_POLICY_HEADER,
-  QUOTE_API_POLICY_VERSION,
-} from '../src/lib/quoteApiPolicy.js';
-import {
   buildStockValuation,
   fetchStockValuation,
 } from '../server/quote/valuation.js';
@@ -107,10 +103,7 @@ function createRequest(symbols = 'NVDA', {
 } = {}) {
   return {
     method: 'GET',
-    headers: {
-      [QUOTE_API_POLICY_HEADER.toLowerCase()]: QUOTE_API_POLICY_VERSION,
-      ...(authorization ? { authorization } : {}),
-    },
+    headers: authorization ? { authorization } : {},
     query: { symbols, view },
   };
 }

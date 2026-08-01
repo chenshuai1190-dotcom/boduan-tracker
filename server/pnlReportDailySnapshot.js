@@ -336,10 +336,7 @@ function providerFailure(message, {
 }
 
 function isRetryableHttpStatus(status) {
-  // EODHD uses 402 for an exhausted daily quota. That is not a permanent
-  // request failure: the same request becomes eligible again after the next
-  // UTC quota reset.
-  return status === 402 || status === 408 || status === 429 || status >= 500;
+  return status === 408 || status === 429 || status >= 500;
 }
 
 function getEodhdKey() {
@@ -420,15 +417,11 @@ async function fetchSymbolCloseRows(symbol, {
       }
       return [symbol, rows];
     } catch (error) {
-      const status = Number(error?.status) || 0;
       const normalizedError = typeof error?.retryable === 'boolean'
         ? error
         : providerFailure(`${symbol} provider request failed`, {
-          retryable: status === 402 || status === 0 || isRetryableHttpStatus(status),
-          status: status || null,
-          reason: status === 402
-            ? 'http_402'
-            : (error?.name === 'ProviderTimeoutError' ? 'timeout' : 'network_error'),
+          retryable: true,
+          reason: error?.name === 'ProviderTimeoutError' ? 'timeout' : 'network_error',
         });
       normalizedError.attempts = attempts;
       lastError = normalizedError;
@@ -549,127 +542,28 @@ function buildTradingCalendarFailureResult(error, {
   };
 }
 
-async function fetchSnapshotStatesByUser(userIds, fromDate, targetDate) {
+async function fetchLatestSnapshotDatesByUser(userIds, targetDate) {
   const entries = await Promise.all(userIds.map(async (userId) => {
     const url = new URL('/rest/v1/pnl_report_snapshots', 'https://placeholder.local');
-    url.searchParams.set('select', 'snapshot_date,daily_pnl_usd,daily_pnl_pct,holding_count');
+    url.searchParams.set('select', 'snapshot_date');
     url.searchParams.set('user_id', `eq.${userId}`);
-    url.searchParams.set('snapshot_date', `gte.${fromDate}`);
-    url.searchParams.append('snapshot_date', `lte.${targetDate}`);
-    url.searchParams.set('order', 'snapshot_date.asc');
+    url.searchParams.set('snapshot_date', `lte.${targetDate}`);
+    url.searchParams.set('order', 'snapshot_date.desc');
+    url.searchParams.set('limit', '1');
     const rows = await supabaseAdminFetch(`${url.pathname}${url.search}`);
-    const states = (Array.isArray(rows) ? rows : [])
-      .map((row) => {
-        const snapshotDate = normalizeDateParam(row?.snapshot_date);
-        return snapshotDate ? {
-          snapshotDate,
-          dailyPnlUsd: row?.daily_pnl_usd,
-          dailyPnlPct: row?.daily_pnl_pct,
-          holdingCount: row?.holding_count,
-        } : null;
-      })
-      .filter(Boolean);
-
-    let openSymbolsByDate = null;
-    if (states.length > 0) {
-      const symbolUrl = new URL('/rest/v1/pnl_report_symbol_snapshots', 'https://placeholder.local');
-      symbolUrl.searchParams.set(
-        'select',
-        'snapshot_date,symbol,is_open,current_price_usd,previous_close_usd,daily_pnl_usd'
-      );
-      symbolUrl.searchParams.set('user_id', `eq.${userId}`);
-      symbolUrl.searchParams.set('snapshot_date', `gte.${fromDate}`);
-      symbolUrl.searchParams.append('snapshot_date', `lte.${targetDate}`);
-      symbolUrl.searchParams.set('is_open', 'eq.true');
-      symbolUrl.searchParams.set('order', 'snapshot_date.asc,symbol.asc');
-      const symbolRows = await supabaseAdminFetch(`${symbolUrl.pathname}${symbolUrl.search}`);
-      openSymbolsByDate = new Map();
-      (Array.isArray(symbolRows) ? symbolRows : []).forEach((row) => {
-        const snapshotDate = normalizeDateParam(row?.snapshot_date);
-        const symbol = normalizeSymbol(row?.symbol);
-        if (!snapshotDate || !symbol || row?.is_open !== true) return;
-        if (!openSymbolsByDate.has(snapshotDate)) openSymbolsByDate.set(snapshotDate, []);
-        openSymbolsByDate.get(snapshotDate).push({
-          symbol,
-          currentPriceUsd: row?.current_price_usd,
-          previousCloseUsd: row?.previous_close_usd,
-          dailyPnlUsd: row?.daily_pnl_usd,
-        });
-      });
-    }
-    states.forEach((state) => {
-      state.openSymbols = openSymbolsByDate
-        ? (openSymbolsByDate.get(state.snapshotDate) || [])
-        : null;
-    });
-    return [userId, states];
+    return [userId, normalizeDateParam(Array.isArray(rows) ? rows[0]?.snapshot_date : null)];
   }));
   return new Map(entries);
 }
 
-function snapshotStateRequiresRepair(state, userTrades, snapshotDate) {
-  if (!state) return true;
-  const requiredSymbols = requiredCloseSymbolsForUser(userTrades, snapshotDate);
-  const holdingCount = Number(state.holdingCount);
-  if (!Number.isSafeInteger(holdingCount) || holdingCount !== requiredSymbols.size) return true;
-  if (!Array.isArray(state.openSymbols)) return true;
-
-  const openBySymbol = new Map(state.openSymbols.map((row) => [row.symbol, row]));
-  if (
-    state.openSymbols.length !== requiredSymbols.size
-    || openBySymbol.size !== requiredSymbols.size
-    || [...openBySymbol.keys()].some((symbol) => !requiredSymbols.has(symbol))
-  ) return true;
-
-  // A legitimately empty portfolio has no daily return denominator. Null daily
-  // P&L therefore remains valid, but only after both the portfolio marker and
-  // open-symbol proof exactly agree with the empty ledger.
-  if (requiredSymbols.size === 0) return false;
-  if (state.dailyPnlUsd === null || state.dailyPnlPct === null) return true;
-  if (
-    (state.dailyPnlUsd !== undefined && !Number.isFinite(Number(state.dailyPnlUsd)))
-    || (state.dailyPnlPct !== undefined && !Number.isFinite(Number(state.dailyPnlPct)))
-  ) return true;
-
-  return [...requiredSymbols].some((symbol) => {
-    const row = openBySymbol.get(symbol);
-    return !row
-      || !(Number(row.currentPriceUsd) > 0)
-      || !(Number(row.previousCloseUsd) > 0)
-      || row.dailyPnlUsd === null
-      || row.dailyPnlUsd === undefined
-      || !Number.isFinite(Number(row.dailyPnlUsd));
-  });
-}
-
-function buildPendingSnapshotDatesByUser(groupedByUser, tradingDates, snapshotStatesByUser) {
+function buildPendingSnapshotDatesByUser(groupedByUser, tradingDates, latestDatesByUser) {
   const targetDate = tradingDates.at(-1) || null;
-  const firstTradingDate = tradingDates[0] || null;
   const pendingByUser = new Map();
-  for (const [userId, userTrades] of groupedByUser.entries()) {
-    const states = snapshotStatesByUser.get(userId) || [];
-    // Preserve the bounded first-run behavior: a brand-new ledger establishes
-    // today's marker first. Once any marker exists, the 31-day catch-up window
-    // becomes authoritative and can repair both middle holes and incomplete
-    // rows instead of trusting only the maximum date.
-    if (states.length === 0) {
-      pendingByUser.set(userId, targetDate ? [targetDate] : []);
-      continue;
-    }
-
-    const statesByDate = new Map(states.map((state) => [state.snapshotDate, state]));
-    const firstTradeDate = [...userTrades]
-      .map((trade) => normalizeDateParam(trade?.trade_date))
-      .filter(Boolean)
-      .sort()[0] || firstTradingDate;
-    const repairFromDate = firstTradeDate && firstTradingDate
-      ? (firstTradeDate > firstTradingDate ? firstTradeDate : firstTradingDate)
-      : firstTradingDate;
-    const pendingDates = tradingDates.filter((date) => {
-      if (repairFromDate && date < repairFromDate) return false;
-      const state = statesByDate.get(date);
-      return snapshotStateRequiresRepair(state, userTrades, date);
-    });
+  for (const userId of groupedByUser.keys()) {
+    const latestDate = latestDatesByUser.get(userId) || null;
+    const pendingDates = latestDate
+      ? tradingDates.filter((date) => date > latestDate)
+      : (targetDate ? [targetDate] : []);
     pendingByUser.set(userId, pendingDates);
   }
   return pendingByUser;
@@ -746,55 +640,11 @@ function toSymbolSnapshotRow(snapshot, userId, snapshotDate) {
   };
 }
 
-function incompleteSnapshotError() {
-  const error = new Error('收益报表收盘快照不完整');
-  error.retryable = true;
-  error.reason = 'snapshot_incomplete';
-  return error;
-}
-
-function assertSnapshotCompletionReady(built, requiredOpenSymbols = new Set()) {
-  const portfolio = built?.portfolioSnapshot;
-  const openSymbols = (Array.isArray(built?.symbolSnapshots) ? built.symbolSnapshots : [])
-    .filter((snapshot) => Boolean(snapshot?.isOpen));
-  if (openSymbols.length === 0) {
-    if (requiredOpenSymbols.size > 0) throw incompleteSnapshotError();
-    return;
-  }
-
-  const builtOpenBySymbol = new Map(
-    openSymbols.map((snapshot) => [normalizeSymbol(snapshot?.symbol), snapshot])
-  );
-  const requiredSymbolsComplete = builtOpenBySymbol.size >= requiredOpenSymbols.size
-    && [...requiredOpenSymbols].every((symbol) => builtOpenBySymbol.has(normalizeSymbol(symbol)));
-  const symbolsComplete = openSymbols.every((snapshot) => (
-    Number(snapshot?.currentPriceUsd) > 0
-    && Number(snapshot?.previousCloseUsd) > 0
-    && snapshot?.dailyPnlUsd !== null
-    && snapshot?.dailyPnlUsd !== undefined
-    && Number.isFinite(Number(snapshot?.dailyPnlUsd))
-  ));
-  const portfolioComplete = portfolio?.dailyPnlUsd !== null
-    && portfolio?.dailyPnlUsd !== undefined
-    && Number.isFinite(Number(portfolio?.dailyPnlUsd))
-    && portfolio?.dailyPnlPct !== null
-    && portfolio?.dailyPnlPct !== undefined
-    && Number.isFinite(Number(portfolio?.dailyPnlPct));
-  if (!requiredSymbolsComplete || !symbolsComplete || !portfolioComplete) {
-    throw incompleteSnapshotError();
-  }
-}
-
-async function upsertUserSnapshots(userId, built, requiredOpenSymbols = new Set()) {
+async function upsertUserSnapshots(userId, built) {
   const snapshotDate = built?.portfolioSnapshot?.snapshotDate;
   if (!userId || !snapshotDate || !built?.portfolioSnapshot) {
     throw new Error('缺少收益报表快照数据');
   }
-  // A portfolio row is the durable completion marker. Prove every open symbol
-  // and both portfolio daily P&L fields before touching the existing marker;
-  // an incomplete provider response must remain retryable and may never be
-  // published as a completed close.
-  assertSnapshotCompletionReady(built, requiredOpenSymbols);
 
   // pnl_report_snapshots is the completion marker read by scheduled catch-up.
   // Remove it before any symbol mutation so a partial rerun remains visible
@@ -994,15 +844,14 @@ export async function runPnlReportDailySnapshot({
       };
     }
     const effectiveTargetDate = tradingDates.at(-1);
-    const snapshotStatesByUser = await fetchSnapshotStatesByUser(
+    const latestDatesByUser = await fetchLatestSnapshotDatesByUser(
       [...groupedByUser.keys()],
-      tradingDates[0],
       effectiveTargetDate
     );
     pendingDatesByUser = buildPendingSnapshotDatesByUser(
       groupedByUser,
       tradingDates,
-      snapshotStatesByUser
+      latestDatesByUser
     );
   }
 
@@ -1120,11 +969,7 @@ export async function runPnlReportDailySnapshot({
           result.skippedReasons[reason] = (result.skippedReasons[reason] || 0) + 1;
           continue;
         }
-        await upsertUserSnapshots(
-          userId,
-          built,
-          requiredCloseSymbolsForUser(userTrades, snapshotDate)
-        );
+        await upsertUserSnapshots(userId, built);
         result.writtenSnapshots += 1;
         writtenUsers.add(userId);
       } catch (error) {

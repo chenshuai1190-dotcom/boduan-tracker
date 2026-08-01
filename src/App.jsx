@@ -17,14 +17,13 @@ import { buildQuoteSymbolBatches } from './lib/quoteRequestBatches.js';
 import { buildQuoteBaselineRows, getQuoteBaselineRefreshDelay, shouldRunQuoteBaselineRefresh } from './lib/quoteRefreshPolicy.js';
 import { formatWaveCurrencyAmount, formatWaveUsdPrice } from './lib/waveCurrencyDisplay.js';
 import { userScopedStorageKey } from './lib/userScopedStorage.js';
-import { clearStockQuoteBootstrapCache, mergeStockQuoteBootstrapLockedFields, readStockQuoteBootstrapCache, writeStockQuoteBootstrapCache } from './lib/stockQuoteBootstrapCache.js';
+import { clearStockQuoteBootstrapCache, readStockQuoteBootstrapCache, writeStockQuoteBootstrapCache } from './lib/stockQuoteBootstrapCache.js';
 import { createRealtimeStartupTrace } from './lib/realtimeStartupTrace.js';
 import { resolveBottomTabTap, resolveNavigationScrollTarget } from './lib/bottomTabNavigation.js';
 import ActionModalCard from './components/ActionModalCard.jsx';
 import ConfirmModal from './components/ConfirmModal.jsx';
 import { normalizeConfirmModalOptions } from './lib/confirmModal.js';
 import { currentNewYorkDate } from './lib/pnlReportSnapshots.js';
-import { quoteApiPolicyHeaders } from './lib/quoteApiPolicy.js';
 const HomeTab = lazy(() => import('./tabs/HomeTab.jsx'));
 const TradesTab = lazy(() => import('./tabs/TradesTab.jsx'));
 const AnalysisTab = lazy(() => import('./tabs/AnalysisTab.jsx'));
@@ -1071,7 +1070,6 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   const quoteBootstrapPersistReadyRef = useRef(false);
   const quoteBootstrapLatestRowsRef = useRef(quoteCache);
   const quoteBootstrapPersistTimerRef = useRef(null);
-  const quoteBootstrapLockedRestoreDoneRef = useRef(false);
   const stockRealtimeUniverseResolvedRef = useRef(false);
   const [realtimeStartupTrace] = useState(() => createRealtimeStartupTrace({ userId: user.id }));
   const realtimeStartupMilestonesRef = useRef(createRealtimeStartupMilestones());
@@ -1311,7 +1309,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     const requestOptions = (options && typeof options === 'object') ? options : {};
     const fresh = requestOptions.fresh === true;
     const { data: { session } } = await supabase.auth.getSession();
-    const headers = quoteApiPolicyHeaders();
+    const headers = {};
     if (session?.access_token) {
       headers.Authorization = `Bearer ${session.access_token}`;
     }
@@ -1369,11 +1367,11 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
       if (fresh) params.set('_ts', String(Date.now()));
       const response = await fetch(`/api/quote?${params.toString()}`, {
         cache: 'no-store',
-        headers: quoteApiPolicyHeaders({
+        headers: {
           Authorization: `Bearer ${session.access_token}`,
           'Cache-Control': fresh ? 'no-cache' : 'max-age=0',
           ...(fresh ? { Pragma: 'no-cache' } : {}),
-        }),
+        },
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok || !result?.success) {
@@ -1903,46 +1901,6 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   useEffect(() => {
     quoteBaselineRowsRef.current = quoteBaselineRows;
   }, [quoteBaselineRows]);
-
-  useEffect(() => {
-    if (!stockRealtimeUniverseResolved || quoteBootstrapLockedRestoreDoneRef.current) return;
-    quoteBootstrapLockedRestoreDoneRef.current = true;
-    const lockedSymbols = new Set(stockQuoteBootstrapRows
-      .filter((row) => row?.dailyPnlLocked)
-      .map((row) => normalizeSymbolKey(row?.symbol))
-      .filter(Boolean));
-    if (lockedSymbols.size === 0) return;
-
-    const restoredCloudRows = mergeStockQuoteBootstrapLockedFields({
-      quoteRows: quoteBaselineRows,
-      cachedRows: stockQuoteBootstrapRows,
-    }).filter((row) => lockedSymbols.has(normalizeSymbolKey(row?.symbol)));
-    if (restoredCloudRows.length === 0) return;
-
-    setQuoteCache((current) => {
-      const currentBySymbol = new Map(current.map((row) => [normalizeSymbolKey(row?.symbol), row]));
-      let changed = false;
-      restoredCloudRows.forEach((cloudRow) => {
-        const symbol = normalizeSymbolKey(cloudRow?.symbol);
-        if (!symbol) return;
-        const currentRow = currentBySymbol.get(symbol);
-        if (!currentRow) {
-          currentBySymbol.set(symbol, cloudRow);
-          changed = true;
-          return;
-        }
-        const [mergedRow] = mergeStockQuoteBootstrapLockedFields({
-          quoteRows: [currentRow],
-          cachedRows: stockQuoteBootstrapRows,
-        });
-        if (mergedRow !== currentRow) {
-          currentBySymbol.set(symbol, mergedRow);
-          changed = true;
-        }
-      });
-      return changed ? Array.from(currentBySymbol.values()) : current;
-    });
-  }, [quoteBaselineRows, stockQuoteBootstrapRows, stockRealtimeUniverseResolved]);
 
   useEffect(() => {
     quoteBootstrapLatestRowsRef.current = quoteCache;

@@ -1,5 +1,3 @@
-import { quoteApiPolicyHeaders } from './quoteApiPolicy.js';
-
 export const STOCK_FUNDAMENTALS_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 
 const STORAGE_VERSION = 1;
@@ -157,7 +155,7 @@ export function loadStockFundamentals({
   let requestPromise;
   requestPromise = (async () => {
     const response = await fetchImpl(`/api/quote?symbols=${encodeURIComponent(normalized)}&view=fundamentals`, {
-      headers: quoteApiPolicyHeaders({ Authorization: `Bearer ${token}` }),
+      headers: { Authorization: `Bearer ${token}` },
       cache: 'no-store',
     });
     const body = await response.json().catch(() => null);

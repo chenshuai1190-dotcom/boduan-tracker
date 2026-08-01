@@ -2123,6 +2123,6 @@ test('Vercel keeps P&L and competition storage logic independent behind one clos
   assert.deepEqual(vercelConfig.crons, [
     { path: '/api/close-snapshot-schedule', schedule: '0 21 * * 1-5' },
     { path: '/api/close-snapshot-schedule-retry', schedule: '0 22 * * 1-5' },
-    { path: '/api/close-snapshot-schedule-late-retry', schedule: '10 0 * * 2-6' },
+    { path: '/api/close-snapshot-schedule-late-retry', schedule: '0 23 * * 1-5' },
   ]);
 });

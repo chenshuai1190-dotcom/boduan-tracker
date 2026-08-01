@@ -55,15 +55,6 @@ test('unified resolver gives both jobs one New York close target and stays sched
     ),
     { targetDate: null },
   );
-  assert.deepEqual(
-    resolveCloseSnapshotSchedule(
-      { query: { recoverLatestCompleted: '1' } },
-      // The final Friday recovery runs after the provider's UTC reset, which
-      // is already Saturday UTC but still Friday evening in New York.
-      new Date('2026-08-01T00:10:00Z'),
-    ),
-    { targetDate: '2026-07-31' },
-  );
   assert.throws(
     () => resolveCloseSnapshotSchedule(
       { query: { date: '2026-07-07' } },
@@ -204,27 +195,6 @@ test('runner HTTP 503 errors are retryable even when the provider omitted an exp
     runPnl: async () => {
       const error = new Error('temporarily unavailable');
       error.status = 503;
-      throw error;
-    },
-    runCompetitionCatchUp: async () => ({
-      success: true,
-      retryableIncomplete: false,
-      batchLimited: false,
-      failedMembers: 0,
-    }),
-  });
-  assert.equal(result.complete, false);
-  assert.equal(result.retryable, true);
-  assert.equal(result.permanentFailure, false);
-  assert.equal(result.jobs.pnl.retryable, true);
-});
-
-test('runner HTTP 402 is retryable because the quota resets on the next UTC day', async () => {
-  const result = await runCloseSnapshotSchedule({
-    targetDate: '2026-07-31',
-    runPnl: async () => {
-      const error = new Error('quota exhausted');
-      error.status = 402;
       throw error;
     },
     runCompetitionCatchUp: async () => ({

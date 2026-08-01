@@ -3,7 +3,6 @@ import test from 'node:test';
 
 import {
   clearStockQuoteBootstrapCache,
-  mergeStockQuoteBootstrapLockedFields,
   readStockQuoteBootstrapCache,
   STOCK_QUOTE_BOOTSTRAP_CACHE_BASE_KEY,
   STOCK_QUOTE_BOOTSTRAP_CACHE_MAX_ROWS,
@@ -69,35 +68,6 @@ function quoteRow(overrides = {}) {
   };
 }
 
-function lockedDailyPnlFields(overrides = {}) {
-  return {
-    dailyPnlPrice: 206.84,
-    dailyPnlPriceDate: '2026-07-31',
-    dailyPnlBaselineClose: 208.76,
-    dailyPnlBaselineDate: '2026-07-30',
-    dailyPnlBaselineSource: 'eodhd-adjusted-close',
-    dailyPnlSource: 'locked-latest-eod-close',
-    dailyPnlSession: 'closed',
-    dailyPnlLocked: true,
-    ...overrides,
-  };
-}
-
-function lockedQuoteRow(overrides = {}) {
-  return quoteRow({
-    ...lockedDailyPnlFields(),
-    ...overrides,
-  });
-}
-
-function lockedOnlyRow(overrides = {}) {
-  return {
-    symbol: 'NVDA',
-    ...lockedDailyPnlFields(),
-    ...overrides,
-  };
-}
-
 test('writes only public quote fields, normalizes values, deduplicates symbols, and caps at 50 rows', () => {
   const storage = new FakeStorage();
   const currentTime = Date.parse('2026-07-28T00:00:00.000Z');
@@ -135,13 +105,6 @@ test('writes only public quote fields, normalizes values, deduplicates symbols, 
   assert.equal(Object.hasOwn(cached[0], 'marketValue'), false);
   assert.equal(Object.hasOwn(cached[0], 'holdingPnl'), false);
   assert.equal(Object.hasOwn(cached[0], 'dailyPnlPrice'), false);
-  assert.equal(Object.hasOwn(cached[0], 'dailyPnlPriceDate'), false);
-  assert.equal(Object.hasOwn(cached[0], 'dailyPnlBaselineClose'), false);
-  assert.equal(Object.hasOwn(cached[0], 'dailyPnlBaselineDate'), false);
-  assert.equal(Object.hasOwn(cached[0], 'dailyPnlBaselineSource'), false);
-  assert.equal(Object.hasOwn(cached[0], 'dailyPnlSource'), false);
-  assert.equal(Object.hasOwn(cached[0], 'dailyPnlSession'), false);
-  assert.equal(Object.hasOwn(cached[0], 'dailyPnlLocked'), false);
   assert.equal(Object.hasOwn(cached[0], 'dailyPnlChangePercent'), false);
   assert.equal(Object.hasOwn(cached[0], 'targetPriceUsd'), false);
   assert.equal(Object.hasOwn(cached[0], 'realizedPnl'), false);
@@ -221,186 +184,6 @@ test('15-minute TTL accepts fresh rows and rejects the exact expiry boundary', (
     now: savedAt + STOCK_QUOTE_BOOTSTRAP_CACHE_TTL_MS,
   }), []);
   assert.equal(storage.getItem(key), null, 'expired entries should be removed');
-});
-
-test('validated completed-close fields survive the volatile TTL across a closed weekend', () => {
-  const storage = new FakeStorage();
-  const savedAt = Date.parse('2026-07-31T21:00:00.000Z');
-  const sunday = Date.parse('2026-08-02T12:00:00.000Z');
-  const row = lockedQuoteRow();
-
-  assert.equal(writeStockQuoteBootstrapCache({
-    userId: 'user-a',
-    rows: [row],
-    storage,
-    now: savedAt,
-  }), true);
-
-  const fresh = readStockQuoteBootstrapCache({
-    userId: 'user-a',
-    storage,
-    now: savedAt + 1000,
-  });
-  assert.equal(fresh[0].price, 206.84);
-  assert.deepEqual(
-    Object.fromEntries(Object.entries(fresh[0]).filter(([key]) => key.startsWith('dailyPnl'))),
-    lockedDailyPnlFields(),
-  );
-
-  const closedWeekend = readStockQuoteBootstrapCache({
-    userId: 'user-a',
-    storage,
-    now: sunday,
-  });
-  assert.deepEqual(closedWeekend, [{ symbol: 'NVDA', ...lockedDailyPnlFields() }]);
-  assert.equal(Object.hasOwn(closedWeekend[0], 'price'), false);
-  assert.equal(Object.hasOwn(closedWeekend[0], 'previousClose'), false);
-  assert.equal(Object.hasOwn(closedWeekend[0], 'timestamp'), false);
-  assert.equal(Object.hasOwn(closedWeekend[0], 'accountId'), false);
-  assert.equal(Object.hasOwn(closedWeekend[0], 'trades'), false);
-});
-
-test('a completed-close lock expires when the next NYSE close completes', () => {
-  const storage = new FakeStorage();
-  const savedAt = Date.parse('2026-07-31T21:00:00.000Z');
-  const nextClose = Date.parse('2026-08-03T21:00:00.000Z');
-  const key = userScopedStorageKey(STOCK_QUOTE_BOOTSTRAP_CACHE_BASE_KEY, 'user-a');
-  writeStockQuoteBootstrapCache({
-    userId: 'user-a',
-    rows: [lockedQuoteRow()],
-    storage,
-    now: savedAt,
-  });
-
-  assert.deepEqual(readStockQuoteBootstrapCache({
-    userId: 'user-a',
-    storage,
-    now: nextClose,
-  }), []);
-  assert.equal(storage.getItem(key), null);
-});
-
-test('future, holiday, same-date, and non-positive locked baselines fail closed', () => {
-  const cases = [
-    {
-      now: Date.parse('2026-07-31T21:00:00.000Z'),
-      row: lockedOnlyRow({
-        dailyPnlPriceDate: '2026-08-03',
-        dailyPnlBaselineDate: '2026-07-31',
-      }),
-    },
-    {
-      now: Date.parse('2026-07-06T21:00:00.000Z'),
-      row: lockedOnlyRow({
-        dailyPnlPriceDate: '2026-07-06',
-        dailyPnlBaselineDate: '2026-07-03',
-      }),
-    },
-    {
-      now: Date.parse('2026-07-31T21:00:00.000Z'),
-      row: lockedOnlyRow({ dailyPnlBaselineDate: '2026-07-31' }),
-    },
-    {
-      now: Date.parse('2026-07-31T21:00:00.000Z'),
-      row: lockedOnlyRow({ dailyPnlBaselineDate: '2026-07-29' }),
-    },
-    {
-      now: Date.parse('2026-07-31T21:00:00.000Z'),
-      row: lockedOnlyRow({ dailyPnlBaselineClose: 0 }),
-    },
-  ];
-
-  cases.forEach(({ now, row }, index) => {
-    const storage = new FakeStorage();
-    assert.equal(writeStockQuoteBootstrapCache({
-      userId: `user-${index}`,
-      rows: [row],
-      storage,
-      now,
-    }), false);
-  });
-});
-
-test('the locked baseline is the exact prior NYSE session across weekends and holidays', () => {
-  const cases = [
-    {
-      now: Date.parse('2026-08-03T21:00:00.000Z'),
-      row: lockedOnlyRow({
-        dailyPnlPriceDate: '2026-08-03',
-        dailyPnlBaselineDate: '2026-07-31',
-      }),
-    },
-    {
-      now: Date.parse('2026-07-06T21:00:00.000Z'),
-      row: lockedOnlyRow({
-        dailyPnlPriceDate: '2026-07-06',
-        dailyPnlBaselineDate: '2026-07-02',
-      }),
-    },
-  ];
-
-  cases.forEach(({ now, row }, index) => {
-    const storage = new FakeStorage();
-    assert.equal(writeStockQuoteBootstrapCache({
-      userId: `valid-user-${index}`,
-      rows: [row],
-      storage,
-      now,
-    }), true);
-    assert.deepEqual(readStockQuoteBootstrapCache({
-      userId: `valid-user-${index}`,
-      storage,
-      now,
-    }), [row]);
-  });
-});
-
-test('locked close merges only into cloud-backed rows without replacing a newer live tick', () => {
-  const now = Date.parse('2026-08-02T12:00:00.000Z');
-  const cachedRows = [
-    lockedOnlyRow(),
-    lockedOnlyRow({ symbol: 'MSFT', dailyPnlPrice: 430, dailyPnlBaselineClose: 425 }),
-  ];
-  const nvda = {
-    symbol: 'NVDA',
-    name: 'NVIDIA',
-    price: 212.4,
-    previousClose: 208.76,
-    realtime: true,
-    realtimeAt: now - 1000,
-  };
-  const aapl = { symbol: 'AAPL', price: 220, previousClose: 218 };
-
-  const merged = mergeStockQuoteBootstrapLockedFields({
-    quoteRows: [nvda, aapl],
-    cachedRows,
-    now,
-  });
-  assert.equal(merged.length, 2, 'a cache-only symbol must not create a cloud position');
-  assert.equal(merged[0].price, 212.4, 'the cached close must not replace a newer tick price');
-  assert.equal(merged[0].realtimeAt, now - 1000);
-  assert.deepEqual(
-    Object.fromEntries(Object.entries(merged[0]).filter(([key]) => key.startsWith('dailyPnl'))),
-    lockedDailyPnlFields(),
-  );
-  assert.equal(merged[1], aapl);
-
-  const activeTick = {
-    ...nvda,
-    dailyPnlPrice: 212.4,
-    dailyPnlSession: 'regular',
-    dailyPnlLocked: false,
-  };
-  const activeRows = [activeTick];
-  const protectedRows = mergeStockQuoteBootstrapLockedFields({
-    quoteRows: activeRows,
-    cachedRows,
-    now,
-  });
-  assert.equal(protectedRows, activeRows);
-  assert.equal(protectedRows[0], activeTick);
-  assert.equal(protectedRows[0].dailyPnlLocked, false);
-  assert.equal(protectedRows[0].dailyPnlPrice, 212.4);
 });
 
 test('corrupt JSON, schema drift, invalid rows, duplicate rows, and future timestamps fail closed', () => {

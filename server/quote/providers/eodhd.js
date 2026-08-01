@@ -1,9 +1,6 @@
 import { providerFetch, QUOTE_TIMEOUTS } from '../http.js';
 import {
-  EODHD_DELAYED_QUOTE_EXTENDED_BUCKET_MS,
-  EODHD_DELAYED_QUOTE_REGULAR_BUCKET_MS,
   getLatestCompletedUsTradingDate,
-  loadEodhdDelayedQuote,
   loadEodhdDailyHistory,
 } from '../eodhdCache.js';
 import { buildEodhdStockDetail } from '../stockDetail.js';
@@ -14,32 +11,6 @@ const US_EQUITY_PREMARKET_START_MINUTES = 4 * 60;
 const US_EQUITY_POSTMARKET_END_MINUTES = 20 * 60;
 const DEFAULT_STOCK_HISTORY_DAYS = 380;
 const STOCK_DETAIL_HISTORY_YEARS = 10;
-
-async function fetchEodhdDelayedQuote({ symbol, eodhdKey, quoteSession, now }) {
-  const bucketMs = quoteSession === 'regular'
-    ? EODHD_DELAYED_QUOTE_REGULAR_BUCKET_MS
-    : EODHD_DELAYED_QUOTE_EXTENDED_BUCKET_MS;
-  const currentTime = Number(now);
-  const bucket = Math.floor(currentTime / bucketMs);
-  const ttlMs = ((bucket + 1) * bucketMs) - currentTime;
-  const quoteUrl = `https://eodhd.com/api/us-quote-delayed?s=${encodeURIComponent(symbol)}.US&api_token=${eodhdKey}&fmt=json`;
-  return loadEodhdDelayedQuote({
-    symbol,
-    sessionKey: `${quoteSession}-${bucket}`,
-    now,
-    ttlMs,
-    load: async () => {
-      const response = await providerFetch(
-        quoteUrl,
-        {},
-        { provider: 'eodhd:stock-quote', timeoutMs: QUOTE_TIMEOUTS.eodhd },
-      );
-      if (!response.ok) throw new Error(`EODHD 股票行情请求失败: HTTP ${response.status}`);
-      const json = await response.json();
-      return json?.data?.[`${symbol}.US`] || null;
-    },
-  });
-}
 
 async function fetchEodhdDailyRows({
   symbol,
@@ -228,18 +199,20 @@ export function normalizeEodhdStockQuoteFields(data, {
     dailyPnlSource = providerPreviousClose
       ? 'locked-provider-regular-close'
       : (regularClose ? regularCloseSource || 'locked-eod-regular-close' : 'unavailable');
+  } else if (isUsEquitySameDayAfterPostClose(now)) {
+    dailyPnlPrice = providerPreviousClose || regularClose || 0;
+    dailyPnlPriceDate = providerPreviousClose ? getUsEquityMarketDate(now) : regularCloseDate;
+    dailyPnlLocked = Boolean(dailyPnlPrice);
+    dailyPnlSource = providerPreviousClose
+      ? 'locked-provider-regular-close'
+      : (regularClose ? regularCloseSource || 'locked-eod-regular-close' : 'unavailable');
   } else {
-    const sameDayFallback = isUsEquitySameDayAfterPostClose(now)
-      ? (providerPreviousClose || regularClose || 0)
-      : providerPreviousClose;
-    dailyPnlPrice = closedLockedPrice || sameDayFallback || 0;
-    dailyPnlPriceDate = closedLockedPrice
-      ? closedDailyPnlDate
-      : (sameDayFallback ? getUsEquityMarketDate(now) : '');
+    dailyPnlPrice = closedLockedPrice || providerPreviousClose || 0;
+    dailyPnlPriceDate = closedLockedPrice ? closedDailyPnlDate : '';
     dailyPnlLocked = Boolean(dailyPnlPrice);
     dailyPnlSource = closedLockedPrice
       ? closedDailyPnlSource || 'locked-latest-eod-close'
-      : (sameDayFallback ? 'locked-provider-regular-close' : 'unavailable');
+      : (providerPreviousClose ? 'locked-provider-regular-close' : 'unavailable');
     if (isPositiveNumber(closedLockedBaseline)) {
       dailyPnlBaselineClose = closedLockedBaseline;
       dailyPnlBaselineDate = closedDailyPnlBaselineDate;
@@ -639,8 +612,8 @@ export async function fetchAnalystQuote(symbol, { eodhdKey, now = Date.now() }) 
 export async function fetchStockQuote(symbol, { eodhdKey, includeStockDetail = false, now = Date.now() }) {
   try {
     const marketDate = getUsEquityMarketDate(now);
-    const quoteSession = getUsEquityQuoteSession(now);
     const stockDetailCutoffDate = getLatestCompletedEodCutoffDate(now);
+    const quoteUrl = `https://eodhd.com/api/us-quote-delayed?s=${encodeURIComponent(symbol)}.US&api_token=${eodhdKey}&fmt=json`;
     const today = new Date(now);
     const historyStart = new Date(now);
     const quoteHistoryStart = new Date(now);
@@ -657,10 +630,8 @@ export async function fetchStockQuote(symbol, { eodhdKey, includeStockDetail = f
       : '';
     const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=5m&range=1d&includePrePost=true`;
 
-    const [quoteResult, eodResult, yahooResult, splitsResult] = await Promise.allSettled([
-      quoteSession === 'closed'
-        ? Promise.resolve(null)
-        : fetchEodhdDelayedQuote({ symbol, eodhdKey, quoteSession, now }),
+    const [quoteRes, eodData, yahooRes, splitsRes] = await Promise.all([
+      providerFetch(quoteUrl, {}, { provider: 'eodhd:stock-quote', timeoutMs: QUOTE_TIMEOUTS.eodhd }),
       fetchEodhdDailyRows({
         symbol,
         eodhdKey,
@@ -668,31 +639,35 @@ export async function fetchStockQuote(symbol, { eodhdKey, includeStockDetail = f
         completedDate: stockDetailCutoffDate,
         provider: 'eodhd:stock-history',
         now,
-      }),
+      }).catch(() => null),
       providerFetch(yahooUrl, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
           'Accept': 'application/json',
         },
-      }, { provider: 'yahoo:stock-chart', timeoutMs: QUOTE_TIMEOUTS.yahoo }),
+      }, { provider: 'yahoo:stock-chart', timeoutMs: QUOTE_TIMEOUTS.yahoo }).catch(() => null),
       includeStockDetail
         ? providerFetch(
             splitsUrl,
             {},
             { provider: 'eodhd:stock-splits', timeoutMs: QUOTE_TIMEOUTS.eodhd },
-          )
+          ).catch(() => null)
         : Promise.resolve(null),
     ]);
-    const delayedQuoteData = quoteResult.status === 'fulfilled' ? quoteResult.value : null;
-    const eodData = eodResult.status === 'fulfilled' ? eodResult.value : null;
-    const yahooRes = yahooResult.status === 'fulfilled' ? yahooResult.value : null;
-    const splitsRes = splitsResult.status === 'fulfilled' ? splitsResult.value : null;
 
     let rawEodhdQuoteData = null;
     let eodhdQuote = null;
-    if (delayedQuoteData) {
-      rawEodhdQuoteData = delayedQuoteData;
-      eodhdQuote = normalizeEodhdStockQuoteFields(delayedQuoteData, { now });
+    if (quoteRes.ok) {
+      try {
+        const json = await quoteRes.json();
+        const data = json?.data?.[`${symbol}.US`];
+        if (data) {
+          rawEodhdQuoteData = data;
+          eodhdQuote = normalizeEodhdStockQuoteFields(data, { now });
+        }
+      } catch (e) {
+        /* ignore */
+      }
     }
 
     let intraday = [];
@@ -730,44 +705,13 @@ export async function fetchStockQuote(symbol, { eodhdKey, includeStockDetail = f
       }
     }
 
-    // Outside pre/regular/post sessions, completed EOD rows are authoritative.
-    // Do not require (or even call) delayed quote here: an active quota breaker
-    // may reject provider calls while a valid public EOD history is still in
-    // this instance cache. Both the completed close and its prior-session
-    // baseline must exist; otherwise fail closed instead of using Yahoo or 0.
-    if (quoteSession === 'closed') {
-      const lockedClose = findCloseForMarketDateFromEodRows(eodData, stockDetailCutoffDate);
-      const lockedBaseline = findDailyBaselineCloseFromEodRows(eodData, stockDetailCutoffDate);
-      if (!lockedClose?.close || !lockedBaseline?.close) {
-        return { symbol, error: 'EODHD 已完成收盘历史不完整' };
-      }
-      rawEodhdQuoteData = {
-        lastTradePrice: lockedClose.close,
-        previousClosePrice: lockedBaseline.close,
-        change: lockedClose.close - lockedBaseline.close,
-        changePercent: ((lockedClose.close - lockedBaseline.close) / lockedBaseline.close) * 100,
-      };
-      eodhdQuote = normalizeEodhdStockQuoteFields(rawEodhdQuoteData, {
-        now,
-        dailyBaselineClose: lockedBaseline.close,
-        dailyBaselineDate: lockedBaseline.date,
-        dailyBaselineSource: lockedBaseline.source,
-        closedDailyPnlPrice: lockedClose.close,
-        closedDailyPnlDate: lockedClose.date,
-        closedDailyPnlSource: 'locked-latest-eod-close',
-        closedDailyPnlBaselineClose: lockedBaseline.close,
-        closedDailyPnlBaselineDate: lockedBaseline.date,
-        closedDailyPnlBaselineSource: lockedBaseline.source,
-      });
-    }
-
     const price = eodhdQuote?.price || 0;
     if (price === 0) {
       return {
         symbol,
-        error: quoteResult.status === 'rejected'
-          ? String(quoteResult.reason?.message || 'EODHD 没返回有效股票价格')
-          : 'EODHD 没返回有效股票价格',
+        error: quoteRes?.ok
+          ? 'EODHD 没返回有效股票价格'
+          : `EODHD 股票行情请求失败: HTTP ${quoteRes?.status || '--'}`,
       };
     }
 
@@ -818,7 +762,7 @@ export async function fetchStockQuote(symbol, { eodhdKey, includeStockDetail = f
             : eodData;
           dailyBaseline = findDailyBaselineCloseFromEodRows(quoteEodData, marketDate);
           marketDateClose = findCloseForMarketDateFromEodRows(quoteEodData, marketDate);
-          latestCompletedClose = findCloseForMarketDateFromEodRows(quoteEodData, stockDetailCutoffDate);
+          latestCompletedClose = marketDateClose || dailyBaseline;
           if (latestCompletedClose?.date) {
             latestCompletedBaseline = findDailyBaselineCloseFromEodRows(quoteEodData, latestCompletedClose.date);
           }
@@ -854,21 +798,18 @@ export async function fetchStockQuote(symbol, { eodhdKey, includeStockDetail = f
     }
     if (week52Low === Infinity) week52Low = 0;
 
-    const selectedDailyBaseline = quoteSession === 'closed' ? latestCompletedBaseline : dailyBaseline;
-    if (rawEodhdQuoteData && selectedDailyBaseline?.close) {
+    if (rawEodhdQuoteData && dailyBaseline?.close) {
       eodhdQuote = normalizeEodhdStockQuoteFields(rawEodhdQuoteData, {
         now,
-        dailyBaselineClose: selectedDailyBaseline.close,
-        dailyBaselineDate: selectedDailyBaseline.date,
-        dailyBaselineSource: selectedDailyBaseline.source,
+        dailyBaselineClose: dailyBaseline.close,
+        dailyBaselineDate: dailyBaseline.date,
+        dailyBaselineSource: dailyBaseline.source,
         regularClosePrice: marketDateClose?.close,
         regularCloseDate: marketDateClose?.date || '',
         regularCloseSource: marketDateClose?.source || '',
         closedDailyPnlPrice: latestCompletedClose?.close,
         closedDailyPnlDate: latestCompletedClose?.date || '',
-        // Keep the lock semantic stable for the browser's public completed-close
-        // cache; the response remains EODHD-v2 and the baseline keeps its source.
-        closedDailyPnlSource: latestCompletedClose?.date ? 'locked-latest-eod-close' : '',
+        closedDailyPnlSource: latestCompletedClose?.source || '',
         closedDailyPnlBaselineClose: latestCompletedBaseline?.close,
         closedDailyPnlBaselineDate: latestCompletedBaseline?.date || '',
         closedDailyPnlBaselineSource: latestCompletedBaseline?.source || '',

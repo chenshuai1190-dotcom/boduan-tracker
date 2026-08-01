@@ -2,11 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import handler from '../api/quote.js';
-import {
-  QUOTE_API_POLICY_HEADER,
-  QUOTE_API_POLICY_VERSION,
-} from '../src/lib/quoteApiPolicy.js';
-import { getLatestCompletedUsTradingDate, resetEodhdRestCaches } from '../server/quote/eodhdCache.js';
+import { resetEodhdRestCaches } from '../server/quote/eodhdCache.js';
 import { fetchStockQuote } from '../server/quote/providers/eodhd.js';
 import { buildEodhdStockDetail } from '../server/quote/stockDetail.js';
 
@@ -103,7 +99,7 @@ function createResponse() {
 function createRequest(symbols, view) {
   return {
     method: 'GET',
-    headers: { [QUOTE_API_POLICY_HEADER.toLowerCase()]: QUOTE_API_POLICY_VERSION },
+    headers: {},
     query: {
       symbols,
       ...(view ? { view } : {}),
@@ -1037,7 +1033,9 @@ test('stock-detail view is opt-in, returns real EOD calculations, and does not e
   const originalFetch = globalThis.fetch;
   const originalAuth = process.env.QUOTE_API_AUTH_REQUIRED;
   const originalKey = process.env.EODHD_API_KEY;
-  const endDateKey = getLatestCompletedUsTradingDate(Date.now());
+  const endDate = new Date();
+  endDate.setUTCDate(endDate.getUTCDate() - 10);
+  const endDateKey = endDate.toISOString().slice(0, 10);
   const startDate = new Date(`${endDateKey}T00:00:00Z`);
   startDate.setUTCDate(startDate.getUTCDate() - 219);
   const startDateKey = startDate.toISOString().slice(0, 10);
@@ -1145,7 +1143,7 @@ test('stock-detail view is opt-in, returns real EOD calculations, and does not e
     assert.match(requestedSplits[0].to, /^\d{4}-\d{2}-\d{2}$/);
     assert.ok(requestedEodFrom[1] < requestedEodFrom[0], 'stock-detail must request the longer history window without slowing the default quote path');
     assert.equal(Number(requestedEodFrom[1].slice(0, 4)), new Date().getUTCFullYear() - 10);
-    assert.equal(quote.week52High, 321, 'ten-year detail warmup must not leak into the ordinary completed-EOD quote high');
+    assert.equal(quote.week52High, 325, 'ten-year detail warmup must not leak into the ordinary quote high');
     assert.doesNotMatch(JSON.stringify(detailResponse.body), /test-eodhd-key/);
   } finally {
     globalThis.fetch = originalFetch;
@@ -1200,7 +1198,6 @@ test('stock-detail provider passes non-empty split actions through the complete 
     const quote = await fetchStockQuote('NVDA', {
       eodhdKey: 'test-eodhd-key',
       includeStockDetail: true,
-      now: Date.parse('2024-01-05T15:00:00.000Z'),
     });
 
     assert.equal(quote.error, undefined);
@@ -1278,11 +1275,7 @@ test('stock-detail provider keeps invalid EOD payloads unavailable instead of cl
   };
 
   try {
-    const quote = await fetchStockQuote('MSFT', {
-      eodhdKey: 'test-eodhd-key',
-      includeStockDetail: true,
-      now: Date.parse('2026-07-20T15:00:00.000Z'),
-    });
+    const quote = await fetchStockQuote('MSFT', { eodhdKey: 'test-eodhd-key', includeStockDetail: true });
     assert.equal(quote.stockDetail.indicators.ma200WeeklyStatus, 'unavailable');
     assert.deepEqual(quote.stockDetail.history, []);
     assert.deepEqual(quote.stockDetail.weeklyHistory, []);
@@ -1334,7 +1327,6 @@ test('stock-detail provider fails closed when split metadata is unavailable', as
     const quote = await fetchStockQuote('MSFT', {
       eodhdKey: 'test-eodhd-key',
       includeStockDetail: true,
-      now: Date.parse('2026-07-20T15:00:00.000Z'),
     });
     assert.equal(quote.error, undefined);
     assert.equal(quote.stockDetail.priceBasis, 'split_adjusted_close');
