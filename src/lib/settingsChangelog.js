@@ -4,6 +4,31 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '🛡️ 收盘行情自愈与旧客户端限流',
+      '  - 休市后“今日盈亏”直接使用最新已完成收盘价及上一交易日收盘价，不再因延迟报价接口 402 而整行显示为不可用',
+      '  - 账户隔离的 PWA 行情缓存只保存经过交易日校验的公开收盘字段，周末或节假日重新打开时可继续显示已锁定数字',
+      '  - 旧版客户端在进入鉴权和行情 provider 前被版本门禁阻断；重新打开应用即可加载新的 15/30/60 分钟请求策略',
+      '  - EODHD 402 熔断改为 30 分钟有界冷却，重置后不会因单次 402 再锁死整个 UTC 日；WebSocket、Yahoo 和最近有效行情不受影响',
+      '📅 收益快照完整性与重置后补偿',
+      '  - 收盘快照只有在所有开放持仓都具备当日及上一交易日有效收盘价、且组合与个股收益均完整时才发布完成标记',
+      '  - 补偿任务会在 EODHD UTC 重置后运行，并扫描窗口内缺失或残缺日期，不再只检查最新一日',
+      '  - 本次不修改数据库结构、账户余额、正式交易、持仓数量、成本、比赛账本或历史快照口径',
+    ],
+    itemsEn: [
+      '🛡️ Self-healing close quotes and legacy-client containment',
+      '  - After the market is closed, daily P&L uses the latest completed close and the prior-session close directly, so a delayed-quote HTTP 402 no longer blanks the row',
+      '  - The account-isolated PWA quote cache stores only trading-calendar-validated public close fields, preserving locked values across weekend or holiday reopens',
+      '  - Legacy clients are rejected by a rollout gate before authentication and market providers; reopening the app loads the new 15/30/60-minute request policy',
+      '  - The EODHD HTTP 402 circuit now uses a bounded 30-minute cooldown, avoiding a full UTC-day lockout after reset while leaving WebSocket, Yahoo, and last-known-good quotes intact',
+      '📅 Snapshot completeness and post-reset recovery',
+      '  - A close snapshot publishes completion only when every open position has valid current and prior-session closes and both portfolio and symbol P&L are complete',
+      '  - Recovery runs after the EODHD UTC reset and scans the window for missing or partial dates instead of checking only the latest day',
+      '  - This release does not change the database schema, account balances, formal trades, position quantities, costs, competition ledger, or historical snapshot basis',
+    ],
+  },
+  {
+    ver: 'v10.7.9.404', date: '2026-07-31',
+    items: [
       '🛡️ 行情额度保护与收盘日线缓存',
       '  - 历史日线按“股票代码 + 最新已完成收盘日”复用，同一收盘数据在下一次有效收盘前不再反复请求',
       '  - 盘中价格继续优先使用 WebSocket；自动 REST 基线刷新改为低频，页面切换、focus 和恢复不再触发全量历史行情风暴',

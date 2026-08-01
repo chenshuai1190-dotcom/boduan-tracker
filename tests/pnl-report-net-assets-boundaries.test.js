@@ -119,7 +119,7 @@ test('verified admin repair adds a narrow pre-boundary history anchor and stays 
 
 test('daily snapshot runtime resolves and validates every financing target before any P&L mutation', () => {
   const resolveIndex = snapshotServerSource.indexOf('const marginDebtSnapshotsByUser = await resolveMarginDebtSnapshotTargets');
-  const mutationIndex = snapshotServerSource.indexOf('await upsertUserSnapshots(userId, built)');
+  const mutationIndex = snapshotServerSource.indexOf('await upsertUserSnapshots(');
   assert.ok(resolveIndex >= 0 && mutationIndex > resolveIndex, 'the service-only resolver must run before snapshot mutation');
   assert.ok(snapshotServerSource.includes("typeof row?.known !== 'boolean'"), 'RPC known state must be a strict boolean');
   assert.ok(snapshotServerSource.includes("row.margin_debt_basis === 'default_zero'"), 'zero financing must keep explicit provenance');

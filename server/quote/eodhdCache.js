@@ -1,16 +1,26 @@
+import { isUsMarketDateKey } from '../../src/lib/usMarketCalendar.js';
+
+export {
+  getLatestCompletedUsTradingDate,
+  getUsEasternMarketClock,
+  isUsMarketTradingDate,
+} from '../../src/lib/usMarketCalendar.js';
+
 const MINUTE_MS = 60 * 1000;
 const DAY_MS = 24 * 60 * MINUTE_MS;
 
 export const EODHD_DAILY_HISTORY_CACHE_TTL_MS = 8 * DAY_MS;
 export const EODHD_INDEX_LIVE_CACHE_TTL_MS = 10 * MINUTE_MS;
 export const EODHD_INDEX_COMPLETED_CACHE_TTL_MS = 8 * DAY_MS;
+export const EODHD_DELAYED_QUOTE_REGULAR_BUCKET_MS = 15 * MINUTE_MS;
+export const EODHD_DELAYED_QUOTE_EXTENDED_BUCKET_MS = 30 * MINUTE_MS;
 
 // The browser may split one legal realtime universe into multiple 30-symbol
 // REST batches. Keep enough completed histories for the whole universe so a
 // stable polling order cannot evict batch one while loading later batches.
 const DAILY_HISTORY_CACHE_MAX_ENTRIES = 96;
 const INDEX_INTRADAY_CACHE_MAX_ENTRIES = 96;
-const US_REGULAR_CLOSE_MINUTES = 16 * 60;
+const DELAYED_QUOTE_CACHE_MAX_ENTRIES = 96;
 const PUBLIC_DAILY_ROW_FIELDS = Object.freeze([
   'date',
   'open',
@@ -20,6 +30,17 @@ const PUBLIC_DAILY_ROW_FIELDS = Object.freeze([
   'adjusted_close',
   'volume',
 ]);
+const PUBLIC_DELAYED_QUOTE_FIELDS = Object.freeze([
+  'lastTradePrice',
+  'ethPrice',
+  'previousClosePrice',
+  'change',
+  'changePercent',
+  'high',
+  'low',
+  'open',
+  'timestamp',
+]);
 
 // This cache is deliberately limited to raw public EODHD market data. Route
 // authentication results, user identity, holdings, trades, and account data
@@ -28,132 +49,12 @@ const dailyHistoryCache = new Map();
 const dailyHistoryInflight = new Map();
 const indexIntradayCache = new Map();
 const indexIntradayInflight = new Map();
+const delayedQuoteCache = new Map();
+const delayedQuoteInflight = new Map();
 
 function nowMs(now) {
   const value = typeof now === 'function' ? now() : now;
   return Number.isFinite(Number(value)) ? Number(value) : Date.now();
-}
-
-function isDateKey(value) {
-  return /^\d{4}-\d{2}-\d{2}$/.test(String(value || ''));
-}
-
-function shiftDateKey(dateKey, offsetDays) {
-  const date = new Date(`${dateKey}T00:00:00Z`);
-  if (Number.isNaN(date.getTime())) return '';
-  date.setUTCDate(date.getUTCDate() + offsetDays);
-  return date.toISOString().slice(0, 10);
-}
-
-function isWeekdayDateKey(dateKey) {
-  const day = new Date(`${dateKey}T00:00:00Z`).getUTCDay();
-  return day >= 1 && day <= 5;
-}
-
-function observedFixedHoliday(year, monthIndex, day) {
-  const date = new Date(Date.UTC(year, monthIndex, day));
-  const weekday = date.getUTCDay();
-  if (weekday === 6) date.setUTCDate(date.getUTCDate() - 1);
-  if (weekday === 0) date.setUTCDate(date.getUTCDate() + 1);
-  return date.toISOString().slice(0, 10);
-}
-
-function nthWeekdayOfMonth(year, monthIndex, weekday, occurrence) {
-  const date = new Date(Date.UTC(year, monthIndex, 1));
-  const offset = (weekday - date.getUTCDay() + 7) % 7;
-  date.setUTCDate(1 + offset + (occurrence - 1) * 7);
-  return date.toISOString().slice(0, 10);
-}
-
-function lastWeekdayOfMonth(year, monthIndex, weekday) {
-  const date = new Date(Date.UTC(year, monthIndex + 1, 0));
-  const offset = (date.getUTCDay() - weekday + 7) % 7;
-  date.setUTCDate(date.getUTCDate() - offset);
-  return date.toISOString().slice(0, 10);
-}
-
-function easterSundayDateKey(year) {
-  const a = year % 19;
-  const b = Math.floor(year / 100);
-  const c = year % 100;
-  const d = Math.floor(b / 4);
-  const e = b % 4;
-  const f = Math.floor((b + 8) / 25);
-  const g = Math.floor((b - f + 1) / 3);
-  const h = (19 * a + b - d - g + 15) % 30;
-  const i = Math.floor(c / 4);
-  const k = c % 4;
-  const l = (32 + 2 * e + 2 * i - h - k) % 7;
-  const m = Math.floor((a + 11 * h + 22 * l) / 451);
-  const month = Math.floor((h + l - 7 * m + 114) / 31);
-  const day = ((h + l - 7 * m + 114) % 31) + 1;
-  return new Date(Date.UTC(year, month - 1, day)).toISOString().slice(0, 10);
-}
-
-const marketHolidayCache = new Map();
-
-function marketHolidayDatesForHolidayYear(year) {
-  if (marketHolidayCache.has(year)) return marketHolidayCache.get(year);
-  const dates = new Set([
-    observedFixedHoliday(year, 0, 1),
-    nthWeekdayOfMonth(year, 0, 1, 3),
-    nthWeekdayOfMonth(year, 1, 1, 3),
-    shiftDateKey(easterSundayDateKey(year), -2),
-    lastWeekdayOfMonth(year, 4, 1),
-    observedFixedHoliday(year, 6, 4),
-    nthWeekdayOfMonth(year, 8, 1, 1),
-    nthWeekdayOfMonth(year, 10, 4, 4),
-    observedFixedHoliday(year, 11, 25),
-  ]);
-  if (year >= 2022) dates.add(observedFixedHoliday(year, 5, 19));
-  marketHolidayCache.set(year, dates);
-  return dates;
-}
-
-export function isUsMarketTradingDate(dateKey) {
-  if (!isDateKey(dateKey) || !isWeekdayDateKey(dateKey)) return false;
-  const year = Number(String(dateKey).slice(0, 4));
-  return !marketHolidayDatesForHolidayYear(year).has(dateKey)
-    && !marketHolidayDatesForHolidayYear(year + 1).has(dateKey);
-}
-
-export function getUsEasternMarketClock(now = Date.now()) {
-  try {
-    const parts = new Intl.DateTimeFormat('en-US', {
-      timeZone: 'America/New_York',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      weekday: 'short',
-      hour: '2-digit',
-      minute: '2-digit',
-      hourCycle: 'h23',
-    }).formatToParts(new Date(now));
-    const getPart = (type) => parts.find((part) => part.type === type)?.value || '';
-    const date = `${getPart('year')}-${getPart('month')}-${getPart('day')}`;
-    const hour = Number(getPart('hour'));
-    const minute = Number(getPart('minute'));
-    if (!isDateKey(date) || !Number.isFinite(hour) || !Number.isFinite(minute)) return null;
-    return {
-      date,
-      weekday: getPart('weekday'),
-      minutes: hour * 60 + minute,
-    };
-  } catch {
-    return null;
-  }
-}
-
-export function getLatestCompletedUsTradingDate(now = Date.now()) {
-  const clock = getUsEasternMarketClock(now);
-  if (!clock) return '';
-  if (isUsMarketTradingDate(clock.date) && clock.minutes >= US_REGULAR_CLOSE_MINUTES) {
-    return clock.date;
-  }
-
-  let candidate = shiftDateKey(clock.date, -1);
-  while (candidate && !isUsMarketTradingDate(candidate)) candidate = shiftDateKey(candidate, -1);
-  return candidate;
 }
 
 function normalizeProviderSymbol(value) {
@@ -192,7 +93,7 @@ function trimOldest(map, maxEntries) {
 }
 
 function hasUsableDailyRow(row) {
-  if (!row || !isDateKey(row.date)) return false;
+  if (!row || !isUsMarketDateKey(row.date)) return false;
   const close = Number(row.close);
   const adjustedClose = Number(row.adjusted_close);
   return (Number.isFinite(close) && close > 0)
@@ -229,6 +130,63 @@ function sliceDailyRows(rows, fromDate) {
   return rows.filter((row) => !row?.date || String(row.date) >= fromDate);
 }
 
+function normalizePublicDelayedQuote(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const quote = {};
+  for (const field of PUBLIC_DELAYED_QUOTE_FIELDS) {
+    const fieldValue = value[field];
+    if (fieldValue === null || typeof fieldValue === 'string' || typeof fieldValue === 'number') {
+      quote[field] = fieldValue;
+    }
+  }
+  const hasPrice = [quote.lastTradePrice, quote.ethPrice]
+    .some((fieldValue) => Number.isFinite(Number(fieldValue)) && Number(fieldValue) > 0);
+  return hasPrice ? quote : null;
+}
+
+/** Caches only provider-public delayed quote fields by symbol and session bucket. */
+export function loadEodhdDelayedQuote({
+  symbol,
+  sessionKey,
+  load,
+  now = Date.now,
+  ttlMs = EODHD_DELAYED_QUOTE_REGULAR_BUCKET_MS,
+}) {
+  const normalizedSymbol = normalizeProviderSymbol(symbol);
+  const normalizedSessionKey = normalizeFreshnessKey(sessionKey);
+  if (typeof load !== 'function') throw new TypeError('EODHD delayed quote cache requires a loader');
+
+  const currentTime = nowMs(now);
+  const key = `delayed:${normalizedSymbol}:${normalizedSessionKey}`;
+  pruneExpired(delayedQuoteCache, currentTime);
+  const cached = delayedQuoteCache.get(key);
+  if (cached) {
+    touch(delayedQuoteCache, key, cached);
+    return Promise.resolve({ ...cached.quote });
+  }
+  if (delayedQuoteInflight.has(key)) {
+    return delayedQuoteInflight.get(key).then((quote) => ({ ...quote }));
+  }
+
+  const pending = Promise.resolve()
+    .then(load)
+    .then((value) => {
+      const quote = normalizePublicDelayedQuote(value);
+      if (!quote) throw new Error('EODHD delayed quote returned no usable price');
+      touch(delayedQuoteCache, key, {
+        quote,
+        expiresAt: currentTime + Math.max(1, Number(ttlMs) || 1),
+      });
+      trimOldest(delayedQuoteCache, DELAYED_QUOTE_CACHE_MAX_ENTRIES);
+      return quote;
+    })
+    .finally(() => {
+      if (delayedQuoteInflight.get(key) === pending) delayedQuoteInflight.delete(key);
+    });
+  delayedQuoteInflight.set(key, pending);
+  return pending.then((quote) => ({ ...quote }));
+}
+
 function getCoveringInflight(baseKey, fromDate) {
   const pendingByFrom = dailyHistoryInflight.get(baseKey);
   if (!pendingByFrom) return null;
@@ -253,7 +211,7 @@ export function loadEodhdDailyHistory({
   ttlMs = EODHD_DAILY_HISTORY_CACHE_TTL_MS,
 }) {
   const normalizedSymbol = normalizeProviderSymbol(symbol);
-  if (!isDateKey(completedDate) || !isDateKey(fromDate)) {
+  if (!isUsMarketDateKey(completedDate) || !isUsMarketDateKey(fromDate)) {
     throw new TypeError('EODHD daily history cache requires ISO market dates');
   }
   if (typeof load !== 'function') throw new TypeError('EODHD daily history cache requires a loader');
@@ -278,7 +236,7 @@ export function loadEodhdDailyHistory({
     .then(load)
     .then((rows) => {
       const publicRows = normalizePublicDailyRows(rows).filter((row) => (
-        isDateKey(row.date) && row.date <= completedDate
+        isUsMarketDateKey(row.date) && row.date <= completedDate
       ));
       if (!hasUsableDailyRows(publicRows)) {
         throw new Error('EODHD daily history returned no usable rows');
@@ -375,4 +333,6 @@ export function resetEodhdRestCaches() {
   dailyHistoryInflight.clear();
   indexIntradayCache.clear();
   indexIntradayInflight.clear();
+  delayedQuoteCache.clear();
+  delayedQuoteInflight.clear();
 }

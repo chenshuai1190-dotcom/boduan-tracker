@@ -52,7 +52,7 @@
     },
     {
       "path": "/api/close-snapshot-schedule-late-retry",
-      "schedule": "0 23 * * 1-5"
+      "schedule": "10 0 * * 2-6"
     }
   ]
 }

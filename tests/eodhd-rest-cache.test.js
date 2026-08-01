@@ -4,6 +4,7 @@ import test from 'node:test';
 import {
   getLatestCompletedUsTradingDate,
   loadEodhdDailyHistory,
+  loadEodhdDelayedQuote,
   loadEodhdIndexIntraday,
   resetEodhdRestCaches,
 } from '../server/quote/eodhdCache.js';
@@ -25,6 +26,41 @@ function jsonResponse(body, status = 200) {
 
 test.beforeEach(() => {
   resetEodhdRestCaches();
+});
+
+test('delayed quote cache coalesces one public symbol and session bucket without retaining private fields', async () => {
+  const now = Date.parse('2026-07-31T15:00:00.000Z');
+  let loadCount = 0;
+  let resolveLoad;
+  const args = {
+    symbol: 'nvda',
+    sessionKey: 'regular-123',
+    now,
+    load: () => {
+      loadCount += 1;
+      return new Promise((resolve) => { resolveLoad = resolve; });
+    },
+  };
+  const first = loadEodhdDelayedQuote(args);
+  const second = loadEodhdDelayedQuote(args);
+  await Promise.resolve();
+  assert.equal(loadCount, 1);
+  resolveLoad({
+    lastTradePrice: '105',
+    previousClosePrice: '100',
+    token: 'must-not-be-cached',
+    userId: 'must-not-be-cached',
+  });
+  assert.deepEqual(await first, { lastTradePrice: '105', previousClosePrice: '100' });
+  assert.deepEqual(await second, { lastTradePrice: '105', previousClosePrice: '100' });
+
+  const cached = await loadEodhdDelayedQuote({
+    ...args,
+    load: async () => {
+      throw new Error('cache should satisfy this request');
+    },
+  });
+  assert.deepEqual(cached, { lastTradePrice: '105', previousClosePrice: '100' });
 });
 
 test('daily history reuses a successful symbol and completed-close version and coalesces concurrent loads', async () => {
@@ -384,7 +420,7 @@ test('stock provider shares EOD history across concurrent calls and the weekend 
     assert.equal(first.error, undefined);
     assert.equal(second.error, undefined);
     assert.equal(eodCalls, 1);
-    assert.equal(quoteCalls, 2, 'mutable quote snapshots must stay live and uncached');
+    assert.equal(quoteCalls, 1, 'concurrent delayed quotes share one public session-bucket request');
 
     await fetchStockQuote('NVDA', {
       eodhdKey: 'private-test-key',
@@ -397,7 +433,7 @@ test('stock provider shares EOD history across concurrent calls and the weekend 
       now: Date.parse('2026-08-03T21:00:00.000Z'),
     });
     assert.equal(eodCalls, 2, 'Monday completed close creates a new history version');
-    assert.equal(quoteCalls, 4);
+    assert.equal(quoteCalls, 3, 'pre/regular/post buckets refresh independently');
   } finally {
     globalThis.fetch = originalFetch;
   }

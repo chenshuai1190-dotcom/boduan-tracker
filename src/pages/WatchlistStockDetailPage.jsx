@@ -18,6 +18,7 @@ import { t } from '../lib/i18n.js';
 import { marketHexColor } from '../lib/marketColorMode.js';
 import { loadStockFundamentals } from '../lib/stockFundamentals.js';
 import { loadStockValuation } from '../lib/stockValuation.js';
+import { quoteApiPolicyHeaders } from '../lib/quoteApiPolicy.js';
 import {
   deriveThreeMonthQqqRelativeReturn,
   deriveCloseBasedPosition,
@@ -1224,7 +1225,7 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
             return [];
           });
         const detailPromise = fetch(`/api/quote?symbols=${encodeURIComponent(symbol)}&view=stock-detail`, {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: quoteApiPolicyHeaders({ Authorization: `Bearer ${token}` }),
           cache: 'no-store',
         }).then(async (response) => {
           const body = await response.json().catch(() => null);

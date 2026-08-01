@@ -6,6 +6,14 @@ import {
   findDailyBaselineCloseFromEodRows,
   normalizeEodhdStockQuoteFields,
 } from '../server/quote/providers/eodhd.js';
+import {
+  getLatestCompletedUsTradingDate,
+  isUsMarketTradingDate,
+} from '../server/quote/eodhdCache.js';
+import {
+  QUOTE_API_POLICY_HEADER,
+  QUOTE_API_POLICY_VERSION,
+} from '../src/lib/quoteApiPolicy.js';
 
 function createResponse() {
   return {
@@ -33,7 +41,7 @@ function createResponse() {
 function createRequest(symbols) {
   return {
     method: 'GET',
-    headers: {},
+    headers: { [QUOTE_API_POLICY_HEADER.toLowerCase()]: QUOTE_API_POLICY_VERSION },
     query: { symbols },
   };
 }
@@ -46,6 +54,14 @@ function jsonResponse(body, status = 200) {
       return body;
     },
   };
+}
+
+function previousTradingDate(dateKey) {
+  const date = new Date(`${dateKey}T00:00:00Z`);
+  do {
+    date.setUTCDate(date.getUTCDate() - 1);
+  } while (!isUsMarketTradingDate(date.toISOString().slice(0, 10)));
+  return date.toISOString().slice(0, 10);
 }
 
 async function callQuote(symbols) {
@@ -200,11 +216,14 @@ async function mockProviderFetch(url) {
   }
 
   if (path.includes('/api/eod/')) {
-    const currentYear = new Date().getFullYear();
+    if (path.includes('/NOEOD.US')) return jsonResponse([]);
+    const completedDate = getLatestCompletedUsTradingDate(Date.now());
+    const baselineDate = previousTradingDate(completedDate);
+    const currentYear = completedDate.slice(0, 4);
     return jsonResponse([
       { date: `${currentYear}-01-02`, high: 102, low: 98, close: 100, adjusted_close: 100 },
-      { date: `${currentYear}-06-30`, high: 150, low: 140, close: 145, adjusted_close: 145 },
-      { date: `${currentYear}-07-01`, high: 156, low: 148, close: 150, adjusted_close: 150 },
+      { date: baselineDate, high: 151, low: 140, close: 150, adjusted_close: 150 },
+      { date: completedDate, high: 156, low: 148, close: 155, adjusted_close: 155 },
     ]);
   }
 
@@ -634,7 +653,7 @@ test('stock quote core fields do not fall back to Yahoo chart data', async () =>
   const quote = await callQuote('NOEOD');
 
   assert.equal(quote.symbol, 'NOEOD');
-  assert.equal(quote.error, 'EODHD 没返回有效股票价格');
+  assert.equal(quote.error, 'EODHD 已完成收盘历史不完整');
   assert.equal(quote.source, undefined);
   assert.equal(quote.priceSource, undefined);
 });

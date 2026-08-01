@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { fetchWithTimeout, ProviderTimeoutError } from '../server/quote/http.js';
 import {
   EodhdQuotaExhaustedError,
+  EODHD_QUOTA_COOLDOWN_MS,
   getEodhdQuotaGuardStateForTests,
   resetEodhdQuotaGuardForTests,
   setEodhdQuotaGuardNowForTests,
@@ -53,7 +54,7 @@ test('fetchWithTimeout rejects slow providers with ProviderTimeoutError', async 
   );
 });
 
-test('EODHD REST HTTP 402 blocks later EODHD REST calls until next UTC midnight', async () => {
+test('EODHD REST HTTP 402 cooldown never crosses the next UTC midnight', async () => {
   setEodhdQuotaGuardNowForTests(Date.parse('2026-07-31T23:59:30.000Z'));
   const firstResponse = { ok: false, status: 402 };
   let upstreamCalls = 0;
@@ -101,13 +102,13 @@ test('EODHD REST HTTP 402 blocks later EODHD REST calls until next UTC midnight'
   assert.equal(upstreamCalls, 1);
 });
 
-test('EODHD quota block expires exactly at the next UTC midnight', async () => {
+test('EODHD quota cooldown expires after 30 minutes and a repeated 402 opens a new cooldown', async () => {
   let nowMs = Date.parse('2026-07-31T12:00:00.000Z');
   setEodhdQuotaGuardNowForTests(() => nowMs);
   let upstreamCalls = 0;
   const fetchImpl = async () => {
     upstreamCalls += 1;
-    return upstreamCalls === 1
+    return upstreamCalls <= 2
       ? { ok: false, status: 402 }
       : { ok: true, status: 200 };
   };
@@ -116,14 +117,26 @@ test('EODHD quota block expires exactly at the next UTC midnight', async () => {
     timeoutMs: 50,
     fetchImpl,
   });
-  nowMs = Date.parse('2026-08-01T00:00:00.000Z');
+  assert.equal(
+    getEodhdQuotaGuardStateForTests().blockedUntilMs,
+    nowMs + EODHD_QUOTA_COOLDOWN_MS,
+  );
+  nowMs += EODHD_QUOTA_COOLDOWN_MS;
 
+  const retry402 = await fetchWithTimeout('https://eodhd.com/api/real-time/NVDA.US', {}, {
+    timeoutMs: 50,
+    fetchImpl,
+  });
+  assert.equal(retry402.status, 402);
+  assert.equal(getEodhdQuotaGuardStateForTests().blockedUntilMs, nowMs + EODHD_QUOTA_COOLDOWN_MS);
+
+  nowMs += EODHD_QUOTA_COOLDOWN_MS;
   const response = await fetchWithTimeout('https://eodhd.com/api/real-time/NVDA.US', {}, {
     timeoutMs: 50,
     fetchImpl,
   });
   assert.equal(response.status, 200);
-  assert.equal(upstreamCalls, 2);
+  assert.equal(upstreamCalls, 3);
   assert.equal(getEodhdQuotaGuardStateForTests().blocked, false);
 });
 

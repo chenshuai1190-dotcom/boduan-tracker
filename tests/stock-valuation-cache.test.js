@@ -8,6 +8,10 @@ import {
   resetStockValuationMemoryCache,
   STOCK_VALUATION_CACHE_TTL_MS,
 } from '../src/lib/stockValuation.js';
+import {
+  QUOTE_API_POLICY_HEADER,
+  QUOTE_API_POLICY_VERSION,
+} from '../src/lib/quoteApiPolicy.js';
 
 class FakeStorage {
   constructor() {
@@ -207,7 +211,10 @@ test('six-hour cache survives memory reset, expires on time, and stays user scop
   assert.deepEqual(requests[0], [
     '/api/quote?symbols=NVDA&view=valuation',
     {
-      headers: { Authorization: 'Bearer token-a' },
+      headers: {
+        Authorization: 'Bearer token-a',
+        [QUOTE_API_POLICY_HEADER]: QUOTE_API_POLICY_VERSION,
+      },
       cache: 'no-store',
     },
   ]);

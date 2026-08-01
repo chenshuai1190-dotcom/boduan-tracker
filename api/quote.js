@@ -7,6 +7,18 @@ import { createQuoteResponse } from '../server/quote/response.js';
 import { parseSymbolsParam } from '../server/quote/symbols.js';
 import { fetchStockFundamentals } from '../server/quote/fundamentals.js';
 import { fetchStockValuation } from '../server/quote/valuation.js';
+import {
+  QUOTE_API_POLICY_HEADER,
+  QUOTE_API_POLICY_VERSION,
+} from '../src/lib/quoteApiPolicy.js';
+
+function hasCurrentQuoteApiPolicy(req) {
+  const headers = req?.headers || {};
+  const value = headers[QUOTE_API_POLICY_HEADER.toLowerCase()]
+    ?? headers[QUOTE_API_POLICY_HEADER]
+    ?? (typeof req?.getHeader === 'function' ? req.getHeader(QUOTE_API_POLICY_HEADER) : '');
+  return String(value || '').trim() === QUOTE_API_POLICY_VERSION;
+}
 
 export default async function handler(req, res) {
   setCorsHeaders(req, res);
@@ -23,6 +35,21 @@ export default async function handler(req, res) {
   if (req.method !== 'GET') {
     res.setHeader('Allow', 'GET, OPTIONS');
     return sendError(res, 405, 'Method Not Allowed');
+  }
+
+  // Keep the public unauthenticated boundary stable without making a network
+  // request. A stale client that does present a bearer token is rejected by
+  // the rollout marker below before token verification or provider access.
+  if (authRequired && !String(req?.headers?.authorization || '').startsWith('Bearer ')) {
+    return sendError(res, 401, '未授权: 请先登录后再请求行情接口');
+  }
+
+  // This public, non-secret rollout marker is deliberately checked before
+  // authentication and provider setup. Old cached clients therefore cannot
+  // keep consuming REST quota after a quote-policy rollout.
+  if (!hasCurrentQuoteApiPolicy(req)) {
+    res.setHeader('Upgrade', `${QUOTE_API_POLICY_HEADER}/${QUOTE_API_POLICY_VERSION}`);
+    return sendError(res, 426, '行情客户端版本已过期，请刷新或重新打开应用');
   }
 
   const auth = await requireQuoteAuth(req, res);

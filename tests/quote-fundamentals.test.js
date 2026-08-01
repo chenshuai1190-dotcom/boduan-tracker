@@ -3,6 +3,10 @@ import test from 'node:test';
 
 import handler from '../api/quote.js';
 import { buildStockFundamentals } from '../server/quote/fundamentals.js';
+import {
+  QUOTE_API_POLICY_HEADER,
+  QUOTE_API_POLICY_VERSION,
+} from '../src/lib/quoteApiPolicy.js';
 
 const QUARTER_DATES = [
   '2026-04-30',
@@ -73,7 +77,10 @@ function createResponse() {
 function createRequest(symbols = 'NVDA', { authorization = 'Bearer test-session', view = 'fundamentals' } = {}) {
   return {
     method: 'GET',
-    headers: authorization ? { authorization } : {},
+    headers: {
+      [QUOTE_API_POLICY_HEADER.toLowerCase()]: QUOTE_API_POLICY_VERSION,
+      ...(authorization ? { authorization } : {}),
+    },
     query: { symbols, view },
   };
 }

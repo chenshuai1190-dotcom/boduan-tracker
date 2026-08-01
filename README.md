@@ -93,7 +93,7 @@ npm run release:verify -- <docs|fast|full> <commit> # 一次等待发布结果
 - publication marker 只能在目标日 exact complete batch 后推进。部分成员完成、缺 QQQ、缺精确 EOD 或 provider 失败都不得发布新榜。
 - 修改正式订单不会取消参赛资格。合法财务字段修正会开启前向新赛段：工作日全天可录入，收盘后及周末变更顺延到下一真实交易日；等待成员暂不进入目标日 exact cohort，但仍保持 active，不能阻塞其他成员发布。
 - D1 forward-only rebaseline / epoch rollover 不写收益，也不改写旧快照；只有下一真实收盘 D2 且账本未变时才可能生成新赛段首张锁定快照。名称和备注等不进入 canonical ledger hash 的修改不会因内容差异直接重设赛段；若收盘后出现未完成快照，仍按前向安全规则处理。
-- 自动收盘任务以 `America/New_York` 为准，正式窗口前不得提前生成当日结果；显式修复日期仍必须验证真实 SPY 交易日和精确收盘。
+- 自动收盘任务以 `America/New_York` 为准，正式窗口前不得提前生成当日结果；显式修复日期仍必须验证真实 SPY 交易日和精确收盘。开放持仓的当日/前一交易日收盘价、组合收益或个股收益任一不完整时不得发布完成标记；UTC 额度重置后的补偿任务必须扫描窗口内缺失与残缺日期。
 
 ## 产品实现规则
 
@@ -102,7 +102,8 @@ npm run release:verify -- <docs|fast|full> <commit> # 一次等待发布结果
 - 徽章、图表刻度、tooltip 和紧凑控件允许使用 `10px`，但任何可见文字不得小于 `10px`；禁止重新引入 `8px`、`8.5px`、`9px` 或 `9.5px` 字号。
 - `npm run verify:typography` 是 FAST 与 FULL 的固定门禁，扫描 `src/` 中 Tailwind 任意字号、CSS `font-size` 和内联 `fontSize`。
 - 新增、保存、删除、同步、导入和导出必须防重复提交，并给出明确成功或失败反馈。
-- 盘中动态价格优先使用已登录 WebSocket；历史日线等已完成收盘数据必须按 `symbol + 最新已完成收盘日` 缓存，同一收盘版本不得被 10 秒轮询、focus、pageshow 或 tab 切换反复读取。Provider 额度异常必须熔断并保留最近有效数据，禁止用 `0` 覆盖。
+- 盘中动态价格优先使用已登录 WebSocket；历史日线等已完成收盘数据必须按 `symbol + 最新已完成收盘日` 缓存，同一收盘版本不得被 10 秒轮询、focus、pageshow 或 tab 切换反复读取。客户端必须携带公开的 quote policy 版本头，旧策略客户端必须在 provider 前失败关闭。Provider `402` 使用 30 分钟有界熔断并保留最近有效数据，禁止用 `0` 覆盖。
+- 休市后的今日盈亏只能使用精确匹配最新已完成交易日的收盘价与上一交易日收盘价。PWA 只能按已登录 `user.id` 隔离缓存这组公开行情字段，不得缓存持仓、成本、交易、用户资料或账本盈亏。
 - 核心体验使用应用内受控弹窗、菜单和 toast，不使用 `alert`、`confirm`、`prompt` 承载正式流程。
 - 需要交付静态 HTML 或页面截图作为视觉证据时，必须通过 localhost 在本机真实 Xcode iOS Simulator 中打开，并只对最终状态和受影响页面验收一次。普通布局使用 Safari；PWA lifecycle、缓存和恢复必须使用已安装的 Home Screen PWA。复用已启动的服务与 Simulator，不得用桌面浏览器、响应式视口、Codex 内置浏览器或伪造状态栏冒充 iOS 证据。纯文案、颜色、图标和简单样式不强制截图。
 

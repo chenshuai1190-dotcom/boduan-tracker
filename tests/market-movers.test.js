@@ -3,6 +3,10 @@ import assert from 'node:assert/strict';
 
 import quoteHandler from '../api/quote.js';
 import {
+  QUOTE_API_POLICY_HEADER,
+  QUOTE_API_POLICY_VERSION,
+} from '../src/lib/quoteApiPolicy.js';
+import {
   createCommonStockUniverse,
   fetchMarketMovers,
   MARKET_MOVERS_CONFIG,
@@ -788,7 +792,11 @@ test('quote market-movers view keeps the existing authentication boundary', asyn
     globalThis.fetch = fixture.fetchImpl;
     const success = createResponse();
     await quoteHandler(
-      { method: 'GET', headers: {}, query: { view: 'market-movers' } },
+      {
+        method: 'GET',
+        headers: { [QUOTE_API_POLICY_HEADER.toLowerCase()]: QUOTE_API_POLICY_VERSION },
+        query: { view: 'market-movers' },
+      },
       success
     );
     assert.equal(success.statusCode, 200);
@@ -818,7 +826,11 @@ test('quote market-movers view returns a sanitized gateway error on provider fai
     };
     const res = createResponse();
     await quoteHandler(
-      { method: 'GET', headers: {}, query: { view: 'market-movers' } },
+      {
+        method: 'GET',
+        headers: { [QUOTE_API_POLICY_HEADER.toLowerCase()]: QUOTE_API_POLICY_VERSION },
+        query: { view: 'market-movers' },
+      },
       res
     );
 

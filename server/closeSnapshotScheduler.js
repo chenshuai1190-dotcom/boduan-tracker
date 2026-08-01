@@ -79,7 +79,7 @@ function failedJobSummary(error) {
 function retryableError(error) {
   if (typeof error?.retryable === 'boolean') return error.retryable;
   const status = Number(error?.status) || 0;
-  return status === 0 || status === 408 || status === 429 || status >= 500;
+  return status === 0 || status === 402 || status === 408 || status === 429 || status >= 500;
 }
 
 async function settleJob(run) {

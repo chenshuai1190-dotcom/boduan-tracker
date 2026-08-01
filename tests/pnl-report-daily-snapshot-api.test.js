@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 import handler, { handlePnlReportDailySnapshot } from '../api/pnl-report-daily-snapshot.js';
+import { resetEodhdQuotaGuardForTests } from '../server/quote/eodhdQuotaGuard.js';
 
 function createResponse() {
   return {
@@ -794,6 +795,133 @@ test('daily P&L snapshot does not retry a non-retryable provider 4xx', async () 
   assert.equal(res.body.failedSymbols[0].attempts, 1);
 });
 
+test('EODHD HTTP 402 is retryable after the next UTC reset and never writes a completion marker', async () => {
+  const env = {
+    CRON_SECRET: process.env.CRON_SECRET,
+    SUPABASE_URL: process.env.SUPABASE_URL,
+    VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL,
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    SUPABASE_SERVICE_KEY: process.env.SUPABASE_SERVICE_KEY,
+    EODHD_API_KEY: process.env.EODHD_API_KEY,
+  };
+  const originalFetch = globalThis.fetch;
+  let nvdaNetworkCalls = 0;
+  let completionWrites = 0;
+  process.env.CRON_SECRET = 'cron-secret';
+  process.env.SUPABASE_URL = 'https://supabase.test';
+  delete process.env.VITE_SUPABASE_URL;
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-secret';
+  delete process.env.SUPABASE_SERVICE_KEY;
+  process.env.EODHD_API_KEY = 'eodhd-secret';
+  resetEodhdQuotaGuardForTests();
+
+  globalThis.fetch = withExactSpyClose(async (url, options = {}) => {
+    const href = String(url);
+    if (href.includes('/rest/v1/stock_trades')) {
+      return jsonResponse([
+        { id: 'trade-a', user_id: 'user-a', symbol: 'NVDA', name: 'NVIDIA', side: 'buy', trade_date: '2026-07-01', price: 100, shares: 2, fee: 0, currency: 'USD' },
+      ]);
+    }
+    if (href.includes('/api/eod/NVDA.US')) {
+      nvdaNetworkCalls += 1;
+      return jsonResponse({ error: 'daily quota exhausted' }, 402);
+    }
+    if (href.includes('/rest/v1/pnl_report_snapshots') && options.method === 'POST') {
+      completionWrites += 1;
+      return jsonResponse(null);
+    }
+    throw new Error(`unexpected fetch: ${href}`);
+  });
+
+  const res = createResponse();
+  try {
+    await handler(createRequest({
+      headers: { authorization: 'Bearer cron-secret' },
+      query: { date: '2026-07-08' },
+    }), res);
+  } finally {
+    resetEodhdQuotaGuardForTests();
+    globalThis.fetch = originalFetch;
+    restoreEnv(env);
+  }
+
+  assert.equal(nvdaNetworkCalls, 1, 'the in-instance quota guard must suppress repeated network calls');
+  assert.equal(completionWrites, 0);
+  assert.equal(res.statusCode, 503);
+  assert.equal(res.headers['retry-after'], '300');
+  assert.equal(res.body.complete, false);
+  assert.equal(res.body.retryable, true);
+  assert.deepEqual(res.body.failedSymbols, [{
+    symbol: 'NVDA',
+    retryable: true,
+    status: 402,
+    reason: 'http_402',
+    attempts: 3,
+  }]);
+});
+
+test('open-position completion marker requires positive current and previous closes plus daily P&L', async () => {
+  const env = {
+    CRON_SECRET: process.env.CRON_SECRET,
+    SUPABASE_URL: process.env.SUPABASE_URL,
+    VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL,
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    SUPABASE_SERVICE_KEY: process.env.SUPABASE_SERVICE_KEY,
+    EODHD_API_KEY: process.env.EODHD_API_KEY,
+  };
+  const originalFetch = globalThis.fetch;
+  const mutations = [];
+  process.env.CRON_SECRET = 'cron-secret';
+  process.env.SUPABASE_URL = 'https://supabase.test';
+  delete process.env.VITE_SUPABASE_URL;
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-secret';
+  delete process.env.SUPABASE_SERVICE_KEY;
+  process.env.EODHD_API_KEY = 'eodhd-secret';
+
+  globalThis.fetch = withExactSpyClose(async (url, options = {}) => {
+    const href = String(url);
+    if (href.includes('/rest/v1/stock_trades')) {
+      return jsonResponse([
+        { id: 'trade-a', user_id: 'user-a', symbol: 'NVDA', name: 'NVIDIA', side: 'buy', trade_date: '2026-07-01', price: 100, shares: 2, fee: 0, currency: 'USD' },
+      ]);
+    }
+    if (href.includes('/api/eod/NVDA.US')) {
+      // The target close exists, but there is no previous completed close.
+      // The historical builder can construct a row, while the completion
+      // contract must reject it as retryable incomplete work.
+      return jsonResponse([
+        { date: '2026-07-08', close: 120, adjusted_close: 120 },
+      ]);
+    }
+    if (
+      (href.includes('/rest/v1/pnl_report_snapshots') || href.includes('/rest/v1/pnl_report_symbol_snapshots'))
+      && (options.method === 'DELETE' || options.method === 'POST')
+    ) {
+      mutations.push(`${options.method}:${href}`);
+      return jsonResponse(null);
+    }
+    throw new Error(`unexpected fetch: ${href}`);
+  });
+
+  const res = createResponse();
+  try {
+    await handler(createRequest({
+      headers: { authorization: 'Bearer cron-secret' },
+      query: { date: '2026-07-08' },
+    }), res);
+  } finally {
+    globalThis.fetch = originalFetch;
+    restoreEnv(env);
+  }
+
+  assert.equal(res.statusCode, 503);
+  assert.equal(res.body.complete, false);
+  assert.equal(res.body.retryable, true);
+  assert.equal(res.body.failedSnapshots, 1);
+  assert.equal(res.body.failedReasons.snapshot_write_transient_error, 1);
+  assert.deepEqual(mutations, [], 'an incomplete build must not touch symbols or the completion marker');
+});
+
 test('scheduled no-date P&L snapshot catches an existing user up from 7/10 through the SPY 7/13 and 7/14 closes', async () => {
   const env = {
     CRON_SECRET: process.env.CRON_SECRET,
@@ -875,8 +1003,25 @@ test('scheduled no-date P&L snapshot catches an existing user up from 7/10 throu
     }
     if (href.includes('/rest/v1/pnl_report_snapshots') && !options.method) {
       latestSnapshotReads += 1;
-      if (href.includes('user_id=eq.user-a')) return jsonResponse([{ snapshot_date: '2026-07-10' }]);
+      if (href.includes('user_id=eq.user-a')) {
+        return jsonResponse([{
+          snapshot_date: '2026-07-10',
+          daily_pnl_usd: 4,
+          daily_pnl_pct: 0.02,
+          holding_count: 1,
+        }]);
+      }
       if (href.includes('user_id=eq.user-b')) return jsonResponse([]);
+    }
+    if (href.includes('/rest/v1/pnl_report_symbol_snapshots') && !options.method) {
+      return jsonResponse([{
+        snapshot_date: '2026-07-10',
+        symbol: 'NVDA',
+        is_open: true,
+        current_price_usd: 120,
+        previous_close_usd: 119,
+        daily_pnl_usd: 2,
+      }]);
     }
     if (href.includes('/rest/v1/pnl_report_snapshots') && options.method === 'DELETE') {
       mutationOrder.push('marker-delete');
@@ -1219,7 +1364,23 @@ test('scheduled catch-up blocks a failed user from later dates while other users
       ]);
     }
     if (href.includes('/rest/v1/pnl_report_snapshots') && !options.method) {
-      return jsonResponse([{ snapshot_date: '2026-07-10' }]);
+      return jsonResponse([{
+        snapshot_date: '2026-07-10',
+        daily_pnl_usd: 2,
+        daily_pnl_pct: 0.01,
+        holding_count: 1,
+      }]);
+    }
+    if (href.includes('/rest/v1/pnl_report_symbol_snapshots') && !options.method) {
+      const symbol = href.includes('user_id=eq.user-a') ? 'NVDA' : 'MSFT';
+      return jsonResponse([{
+        snapshot_date: '2026-07-10',
+        symbol,
+        is_open: true,
+        current_price_usd: symbol === 'NVDA' ? 120 : 220,
+        previous_close_usd: symbol === 'NVDA' ? 119 : 219,
+        daily_pnl_usd: symbol === 'NVDA' ? 2 : 1,
+      }]);
     }
     if (href.includes('/rest/v1/pnl_report_snapshots') && options.method === 'DELETE') {
       return jsonResponse(null);
@@ -1421,11 +1582,27 @@ test('a transient symbol write removes an existing completion marker and the nex
     }
     if (href.includes('/rest/v1/pnl_report_snapshots')) {
       const latest = [...markers].sort().at(-1);
-      return jsonResponse(latest ? [{ snapshot_date: latest }] : []);
+      return jsonResponse(latest ? [{
+        snapshot_date: latest,
+        daily_pnl_usd: 2,
+        daily_pnl_pct: 0.01,
+        holding_count: 1,
+      }] : []);
     }
     if (href.includes('/rest/v1/pnl_report_symbol_snapshots') && options.method === 'DELETE') {
       events.push('symbol-delete');
       return jsonResponse(null);
+    }
+    if (href.includes('/rest/v1/pnl_report_symbol_snapshots') && !options.method) {
+      const latest = [...markers].sort().at(-1);
+      return jsonResponse(latest ? [{
+        snapshot_date: latest,
+        symbol: 'NVDA',
+        is_open: true,
+        current_price_usd: latest === '2026-07-08' ? 120 : 119,
+        previous_close_usd: latest === '2026-07-08' ? 119 : 118,
+        daily_pnl_usd: 2,
+      }] : []);
     }
     if (href.includes('/rest/v1/pnl_report_symbol_snapshots')) {
       if (failNextSymbolInsert) {
@@ -1470,6 +1647,461 @@ test('a transient symbol write removes an existing completion marker and the nex
   assert.equal(second.body.writtenSnapshots, 1);
   assert.deepEqual(events.slice(3), ['marker-delete', 'symbol-delete', 'symbol-write', 'marker-write']);
   assert.deepEqual([...markers].sort(), ['2026-07-07', '2026-07-08']);
+});
+
+test('scheduled catch-up rebuilds a missing trading date inside the bounded window', async () => {
+  const env = {
+    CRON_SECRET: process.env.CRON_SECRET,
+    SUPABASE_URL: process.env.SUPABASE_URL,
+    VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL,
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    SUPABASE_SERVICE_KEY: process.env.SUPABASE_SERVICE_KEY,
+    EODHD_API_KEY: process.env.EODHD_API_KEY,
+  };
+  const originalFetch = globalThis.fetch;
+  const marginTargets = [];
+  const portfolioWrites = [];
+  let snapshotReadHref = '';
+  process.env.CRON_SECRET = 'cron-secret';
+  process.env.SUPABASE_URL = 'https://supabase.test';
+  delete process.env.VITE_SUPABASE_URL;
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-secret';
+  delete process.env.SUPABASE_SERVICE_KEY;
+  process.env.EODHD_API_KEY = 'eodhd-secret';
+
+  globalThis.fetch = async (url, options = {}) => {
+    const href = String(url);
+    if (href.includes('/rest/v1/stock_trades')) {
+      return jsonResponse([
+        { id: 'trade-a', user_id: 'user-a', symbol: 'NVDA', name: 'NVIDIA', side: 'buy', trade_date: '2026-07-01', price: 100, shares: 2, fee: 0, currency: 'USD' },
+      ]);
+    }
+    if (href.includes('/api/eod/SPY.US')) {
+      return jsonResponse([
+        { date: '2026-07-10', close: 620, adjusted_close: 620 },
+        { date: '2026-07-13', close: 622, adjusted_close: 622 },
+        { date: '2026-07-14', close: 624, adjusted_close: 624 },
+      ]);
+    }
+    if (href.includes('/rest/v1/pnl_report_snapshots') && !options.method) {
+      snapshotReadHref = href;
+      return jsonResponse([
+        { snapshot_date: '2026-07-10', daily_pnl_usd: 2, daily_pnl_pct: 0.01, holding_count: 1 },
+        { snapshot_date: '2026-07-14', daily_pnl_usd: 4, daily_pnl_pct: 0.02, holding_count: 1 },
+      ]);
+    }
+    if (href.includes('/rest/v1/pnl_report_symbol_snapshots') && !options.method) {
+      return jsonResponse([
+        { snapshot_date: '2026-07-10', symbol: 'NVDA', is_open: true, current_price_usd: 120, previous_close_usd: 118, daily_pnl_usd: 4 },
+        { snapshot_date: '2026-07-14', symbol: 'NVDA', is_open: true, current_price_usd: 123, previous_close_usd: 121, daily_pnl_usd: 4 },
+      ]);
+    }
+    if (href.includes('/rest/v1/rpc/resolve_margin_debt_snapshot_targets')) {
+      const targets = JSON.parse(options.body || '{}').p_targets || [];
+      marginTargets.push(...targets);
+      return jsonResponse(targets.map((target) => ({ ...target, known: false })));
+    }
+    if (href.includes('/api/eod/NVDA.US')) {
+      return jsonResponse([
+        { date: '2026-07-10', close: 120, adjusted_close: 120 },
+        { date: '2026-07-13', close: 121, adjusted_close: 121 },
+        { date: '2026-07-14', close: 123, adjusted_close: 123 },
+      ]);
+    }
+    if (href.includes('/rest/v1/pnl_report_snapshots') && options.method === 'POST') {
+      portfolioWrites.push(JSON.parse(options.body)[0]);
+      return jsonResponse(null);
+    }
+    if (href.includes('/rest/v1/pnl_report_snapshots')) return jsonResponse(null);
+    if (href.includes('/rest/v1/pnl_report_symbol_snapshots')) return jsonResponse(null);
+    throw new Error(`unexpected fetch: ${href}`);
+  };
+
+  const res = createResponse();
+  try {
+    await handlePnlReportDailySnapshot(createRequest({
+      headers: { authorization: 'Bearer cron-secret' },
+      query: {},
+    }), res, { now: new Date('2026-07-14T22:00:00Z') });
+  } finally {
+    globalThis.fetch = originalFetch;
+    restoreEnv(env);
+  }
+
+  assert.equal(res.statusCode, 200);
+  assert.match(snapshotReadHref, /snapshot_date=gte\.2026-07-10/);
+  assert.match(snapshotReadHref, /snapshot_date=lte\.2026-07-14/);
+  assert.equal(res.body.complete, true);
+  assert.equal(res.body.plannedSnapshots, 1);
+  assert.deepEqual(marginTargets, [{ user_id: 'user-a', snapshot_date: '2026-07-13' }]);
+  assert.deepEqual(portfolioWrites.map((row) => row.snapshot_date), ['2026-07-13']);
+});
+
+test('scheduled catch-up rebuilds an open-position marker whose daily P&L is null', async () => {
+  const env = {
+    CRON_SECRET: process.env.CRON_SECRET,
+    SUPABASE_URL: process.env.SUPABASE_URL,
+    VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL,
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    SUPABASE_SERVICE_KEY: process.env.SUPABASE_SERVICE_KEY,
+    EODHD_API_KEY: process.env.EODHD_API_KEY,
+  };
+  const originalFetch = globalThis.fetch;
+  const events = [];
+  process.env.CRON_SECRET = 'cron-secret';
+  process.env.SUPABASE_URL = 'https://supabase.test';
+  delete process.env.VITE_SUPABASE_URL;
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-secret';
+  delete process.env.SUPABASE_SERVICE_KEY;
+  process.env.EODHD_API_KEY = 'eodhd-secret';
+
+  globalThis.fetch = async (url, options = {}) => {
+    const href = String(url);
+    if (href.includes('/rest/v1/stock_trades')) {
+      return jsonResponse([
+        { id: 'trade-a', user_id: 'user-a', symbol: 'MSFT', name: 'Microsoft', side: 'buy', trade_date: '2026-07-01', price: 200, shares: 1, fee: 0, currency: 'USD' },
+      ]);
+    }
+    if (href.includes('/api/eod/SPY.US')) {
+      return jsonResponse([
+        { date: '2026-07-13', close: 622, adjusted_close: 622 },
+        { date: '2026-07-14', close: 624, adjusted_close: 624 },
+      ]);
+    }
+    if (href.includes('/rest/v1/pnl_report_snapshots') && !options.method) {
+      return jsonResponse([
+        { snapshot_date: '2026-07-13', daily_pnl_usd: 1, daily_pnl_pct: 0.005, holding_count: 1 },
+        { snapshot_date: '2026-07-14', daily_pnl_usd: null, daily_pnl_pct: null, holding_count: 1 },
+      ]);
+    }
+    if (href.includes('/rest/v1/pnl_report_symbol_snapshots') && !options.method) {
+      return jsonResponse([
+        { snapshot_date: '2026-07-13', symbol: 'MSFT', is_open: true, current_price_usd: 220, previous_close_usd: 218, daily_pnl_usd: 2 },
+        { snapshot_date: '2026-07-14', symbol: 'MSFT', is_open: true, current_price_usd: 223, previous_close_usd: 220, daily_pnl_usd: 3 },
+      ]);
+    }
+    if (href.includes('/rest/v1/rpc/resolve_margin_debt_snapshot_targets')) {
+      const targets = JSON.parse(options.body || '{}').p_targets || [];
+      return jsonResponse(targets.map((target) => ({ ...target, known: false })));
+    }
+    if (href.includes('/api/eod/MSFT.US')) {
+      return jsonResponse([
+        { date: '2026-07-13', close: 220, adjusted_close: 220 },
+        { date: '2026-07-14', close: 223, adjusted_close: 223 },
+      ]);
+    }
+    if (href.includes('/rest/v1/pnl_report_snapshots') && options.method === 'DELETE') {
+      events.push('marker-delete');
+      return jsonResponse(null);
+    }
+    if (href.includes('/rest/v1/pnl_report_symbol_snapshots') && options.method === 'DELETE') {
+      events.push('symbol-delete');
+      return jsonResponse(null);
+    }
+    if (href.includes('/rest/v1/pnl_report_symbol_snapshots') && options.method === 'POST') {
+      events.push('symbol-write');
+      return jsonResponse(null);
+    }
+    if (href.includes('/rest/v1/pnl_report_snapshots') && options.method === 'POST') {
+      const row = JSON.parse(options.body)[0];
+      assert.notEqual(row.daily_pnl_usd, null);
+      assert.notEqual(row.daily_pnl_pct, null);
+      events.push('marker-write');
+      return jsonResponse(null);
+    }
+    throw new Error(`unexpected fetch: ${href}`);
+  };
+
+  const res = createResponse();
+  try {
+    await handlePnlReportDailySnapshot(createRequest({
+      headers: { authorization: 'Bearer cron-secret' },
+      query: {},
+    }), res, { now: new Date('2026-07-14T22:00:00Z') });
+  } finally {
+    globalThis.fetch = originalFetch;
+    restoreEnv(env);
+  }
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.plannedSnapshots, 1);
+  assert.deepEqual(events, ['marker-delete', 'symbol-delete', 'symbol-write', 'marker-write']);
+});
+
+test('scheduled catch-up rebuilds a marker whose open-symbol proof is incomplete', async () => {
+  const env = {
+    CRON_SECRET: process.env.CRON_SECRET,
+    SUPABASE_URL: process.env.SUPABASE_URL,
+    VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL,
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    SUPABASE_SERVICE_KEY: process.env.SUPABASE_SERVICE_KEY,
+    EODHD_API_KEY: process.env.EODHD_API_KEY,
+  };
+  const originalFetch = globalThis.fetch;
+  const portfolioWrites = [];
+  process.env.CRON_SECRET = 'cron-secret';
+  process.env.SUPABASE_URL = 'https://supabase.test';
+  delete process.env.VITE_SUPABASE_URL;
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-secret';
+  delete process.env.SUPABASE_SERVICE_KEY;
+  process.env.EODHD_API_KEY = 'eodhd-secret';
+
+  globalThis.fetch = async (url, options = {}) => {
+    const href = String(url);
+    if (href.includes('/rest/v1/stock_trades')) {
+      return jsonResponse([
+        { id: 'trade-a', user_id: 'user-a', symbol: 'NVDA', name: 'NVIDIA', side: 'buy', trade_date: '2026-07-01', price: 100, shares: 2, fee: 0, currency: 'USD' },
+        { id: 'trade-b', user_id: 'user-a', symbol: 'MSFT', name: 'Microsoft', side: 'buy', trade_date: '2026-07-01', price: 200, shares: 1, fee: 0, currency: 'USD' },
+      ]);
+    }
+    if (href.includes('/api/eod/SPY.US')) {
+      return jsonResponse([
+        { date: '2026-07-13', close: 622, adjusted_close: 622 },
+        { date: '2026-07-14', close: 624, adjusted_close: 624 },
+      ]);
+    }
+    if (href.includes('/rest/v1/pnl_report_snapshots') && !options.method) {
+      return jsonResponse([
+        { snapshot_date: '2026-07-13', daily_pnl_usd: 3, daily_pnl_pct: 0.005, holding_count: 2 },
+        { snapshot_date: '2026-07-14', daily_pnl_usd: 7, daily_pnl_pct: 0.01, holding_count: 2 },
+      ]);
+    }
+    if (href.includes('/rest/v1/pnl_report_symbol_snapshots') && !options.method) {
+      return jsonResponse([
+        { snapshot_date: '2026-07-13', symbol: 'NVDA', is_open: true, current_price_usd: 120, previous_close_usd: 119, daily_pnl_usd: 2 },
+        { snapshot_date: '2026-07-13', symbol: 'MSFT', is_open: true, current_price_usd: 220, previous_close_usd: 219, daily_pnl_usd: 1 },
+        { snapshot_date: '2026-07-14', symbol: 'NVDA', is_open: true, current_price_usd: 123, previous_close_usd: 120, daily_pnl_usd: 6 },
+        // MSFT is absent on 7/14 even though the authoritative ledger and
+        // portfolio marker both say two positions are open.
+      ]);
+    }
+    if (href.includes('/rest/v1/rpc/resolve_margin_debt_snapshot_targets')) {
+      const targets = JSON.parse(options.body || '{}').p_targets || [];
+      return jsonResponse(targets.map((target) => ({ ...target, known: false })));
+    }
+    if (href.includes('/api/eod/NVDA.US')) {
+      return jsonResponse([
+        { date: '2026-07-13', close: 120, adjusted_close: 120 },
+        { date: '2026-07-14', close: 123, adjusted_close: 123 },
+      ]);
+    }
+    if (href.includes('/api/eod/MSFT.US')) {
+      return jsonResponse([
+        { date: '2026-07-13', close: 220, adjusted_close: 220 },
+        { date: '2026-07-14', close: 223, adjusted_close: 223 },
+      ]);
+    }
+    if (href.includes('/rest/v1/pnl_report_snapshots') && options.method === 'POST') {
+      portfolioWrites.push(JSON.parse(options.body)[0]);
+      return jsonResponse(null);
+    }
+    if (href.includes('/rest/v1/pnl_report_snapshots')) return jsonResponse(null);
+    if (href.includes('/rest/v1/pnl_report_symbol_snapshots')) return jsonResponse(null);
+    throw new Error(`unexpected fetch: ${href}`);
+  };
+
+  const res = createResponse();
+  try {
+    await handlePnlReportDailySnapshot(createRequest({
+      headers: { authorization: 'Bearer cron-secret' },
+      query: {},
+    }), res, { now: new Date('2026-07-14T22:00:00Z') });
+  } finally {
+    globalThis.fetch = originalFetch;
+    restoreEnv(env);
+  }
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.complete, true);
+  assert.equal(res.body.plannedSnapshots, 1);
+  assert.deepEqual(portfolioWrites.map((row) => [row.snapshot_date, row.holding_count]), [
+    ['2026-07-14', 2],
+  ]);
+});
+
+test('scheduled catch-up repairs oversized counts, extra open symbols, and stale open rows after sell-out', async () => {
+  const env = {
+    CRON_SECRET: process.env.CRON_SECRET,
+    SUPABASE_URL: process.env.SUPABASE_URL,
+    VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL,
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    SUPABASE_SERVICE_KEY: process.env.SUPABASE_SERVICE_KEY,
+    EODHD_API_KEY: process.env.EODHD_API_KEY,
+  };
+  const originalFetch = globalThis.fetch;
+  const portfolioWrites = [];
+  process.env.CRON_SECRET = 'cron-secret';
+  process.env.SUPABASE_URL = 'https://supabase.test';
+  delete process.env.VITE_SUPABASE_URL;
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-secret';
+  delete process.env.SUPABASE_SERVICE_KEY;
+  process.env.EODHD_API_KEY = 'eodhd-secret';
+
+  const markerByUser = {
+    'user-count': { snapshot_date: '2026-07-14', daily_pnl_usd: 4, daily_pnl_pct: 0.02, holding_count: 2 },
+    'user-extra': { snapshot_date: '2026-07-14', daily_pnl_usd: 4, daily_pnl_pct: 0.02, holding_count: 1 },
+    'user-empty': { snapshot_date: '2026-07-14', daily_pnl_usd: null, daily_pnl_pct: null, holding_count: 1 },
+  };
+  const openRowsByUser = {
+    'user-count': [
+      { snapshot_date: '2026-07-14', symbol: 'NVDA', is_open: true, current_price_usd: 123, previous_close_usd: 120, daily_pnl_usd: 3 },
+    ],
+    'user-extra': [
+      { snapshot_date: '2026-07-14', symbol: 'NVDA', is_open: true, current_price_usd: 123, previous_close_usd: 120, daily_pnl_usd: 3 },
+      { snapshot_date: '2026-07-14', symbol: 'MSFT', is_open: true, current_price_usd: 223, previous_close_usd: 220, daily_pnl_usd: 3 },
+    ],
+    'user-empty': [
+      { snapshot_date: '2026-07-14', symbol: 'AAPL', is_open: true, current_price_usd: 213, previous_close_usd: 210, daily_pnl_usd: 3 },
+    ],
+  };
+  const requestedUser = (href) => Object.keys(markerByUser)
+    .find((userId) => href.includes(`user_id=eq.${userId}`));
+
+  globalThis.fetch = async (url, options = {}) => {
+    const href = String(url);
+    if (href.includes('/rest/v1/stock_trades')) {
+      return jsonResponse([
+        { id: 'count-buy', user_id: 'user-count', symbol: 'NVDA', name: 'NVIDIA', side: 'buy', trade_date: '2026-07-01', price: 100, shares: 1, fee: 0, currency: 'USD' },
+        { id: 'extra-buy', user_id: 'user-extra', symbol: 'NVDA', name: 'NVIDIA', side: 'buy', trade_date: '2026-07-01', price: 100, shares: 1, fee: 0, currency: 'USD' },
+        { id: 'empty-buy', user_id: 'user-empty', symbol: 'AAPL', name: 'Apple', side: 'buy', trade_date: '2026-07-01', price: 100, shares: 1, fee: 0, currency: 'USD' },
+        { id: 'empty-sell', user_id: 'user-empty', symbol: 'AAPL', name: 'Apple', side: 'sell', trade_date: '2026-07-10', price: 110, shares: 1, fee: 0, currency: 'USD' },
+      ]);
+    }
+    if (href.includes('/api/eod/SPY.US')) {
+      return jsonResponse([{ date: '2026-07-14', close: 624, adjusted_close: 624 }]);
+    }
+    if (href.includes('/rest/v1/pnl_report_snapshots') && !options.method) {
+      const userId = requestedUser(href);
+      return jsonResponse(userId ? [markerByUser[userId]] : []);
+    }
+    if (href.includes('/rest/v1/pnl_report_symbol_snapshots') && !options.method) {
+      const userId = requestedUser(href);
+      return jsonResponse(userId ? openRowsByUser[userId] : []);
+    }
+    if (href.includes('/rest/v1/rpc/resolve_margin_debt_snapshot_targets')) {
+      const targets = JSON.parse(options.body || '{}').p_targets || [];
+      return jsonResponse(targets.map((target) => ({ ...target, known: false })));
+    }
+    if (href.includes('/api/eod/NVDA.US')) {
+      return jsonResponse([
+        { date: '2026-07-13', close: 120, adjusted_close: 120 },
+        { date: '2026-07-14', close: 123, adjusted_close: 123 },
+      ]);
+    }
+    if (href.includes('/api/eod/AAPL.US')) {
+      return jsonResponse([
+        { date: '2026-07-13', close: 210, adjusted_close: 210 },
+        { date: '2026-07-14', close: 213, adjusted_close: 213 },
+      ]);
+    }
+    if (href.includes('/rest/v1/pnl_report_snapshots') && options.method === 'POST') {
+      portfolioWrites.push(JSON.parse(options.body)[0]);
+      return jsonResponse(null);
+    }
+    if (href.includes('/rest/v1/pnl_report_snapshots')) return jsonResponse(null);
+    if (href.includes('/rest/v1/pnl_report_symbol_snapshots')) return jsonResponse(null);
+    throw new Error(`unexpected fetch: ${href}`);
+  };
+
+  const res = createResponse();
+  try {
+    await handlePnlReportDailySnapshot(createRequest({
+      headers: { authorization: 'Bearer cron-secret' },
+      query: {},
+    }), res, { now: new Date('2026-07-14T22:00:00Z') });
+  } finally {
+    globalThis.fetch = originalFetch;
+    restoreEnv(env);
+  }
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.complete, true);
+  assert.equal(res.body.plannedSnapshots, 3);
+  assert.equal(res.body.writtenSnapshots, 3);
+  assert.deepEqual(
+    portfolioWrites
+      .map((row) => [row.user_id, row.snapshot_date, row.holding_count])
+      .sort((a, b) => a[0].localeCompare(b[0])),
+    [
+      ['user-count', '2026-07-14', 1],
+      ['user-empty', '2026-07-14', 0],
+      ['user-extra', '2026-07-14', 1],
+    ]
+  );
+});
+
+test('scheduled catch-up accepts null daily P&L for a legitimately empty portfolio', async () => {
+  const env = {
+    CRON_SECRET: process.env.CRON_SECRET,
+    SUPABASE_URL: process.env.SUPABASE_URL,
+    VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL,
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    SUPABASE_SERVICE_KEY: process.env.SUPABASE_SERVICE_KEY,
+    EODHD_API_KEY: process.env.EODHD_API_KEY,
+  };
+  const originalFetch = globalThis.fetch;
+  let stockCloseCalls = 0;
+  let mutations = 0;
+  process.env.CRON_SECRET = 'cron-secret';
+  process.env.SUPABASE_URL = 'https://supabase.test';
+  delete process.env.VITE_SUPABASE_URL;
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-secret';
+  delete process.env.SUPABASE_SERVICE_KEY;
+  process.env.EODHD_API_KEY = 'eodhd-secret';
+
+  globalThis.fetch = async (url, options = {}) => {
+    const href = String(url);
+    if (href.includes('/rest/v1/stock_trades')) {
+      return jsonResponse([
+        { id: 'buy-a', user_id: 'user-a', symbol: 'AAPL', name: 'Apple', side: 'buy', trade_date: '2026-07-01', price: 100, shares: 1, fee: 0, currency: 'USD' },
+        { id: 'sell-a', user_id: 'user-a', symbol: 'AAPL', name: 'Apple', side: 'sell', trade_date: '2026-07-10', price: 110, shares: 1, fee: 0, currency: 'USD' },
+      ]);
+    }
+    if (href.includes('/api/eod/SPY.US')) {
+      return jsonResponse([
+        { date: '2026-07-13', close: 622, adjusted_close: 622 },
+        { date: '2026-07-14', close: 624, adjusted_close: 624 },
+      ]);
+    }
+    if (href.includes('/rest/v1/pnl_report_snapshots') && !options.method) {
+      return jsonResponse([
+        { snapshot_date: '2026-07-13', daily_pnl_usd: null, daily_pnl_pct: null, holding_count: 0 },
+        { snapshot_date: '2026-07-14', daily_pnl_usd: null, daily_pnl_pct: null, holding_count: 0 },
+      ]);
+    }
+    if (href.includes('/rest/v1/pnl_report_symbol_snapshots') && !options.method) {
+      return jsonResponse([]);
+    }
+    if (href.includes('/api/eod/AAPL.US')) {
+      stockCloseCalls += 1;
+      return jsonResponse([]);
+    }
+    if (
+      (href.includes('/rest/v1/pnl_report_snapshots') || href.includes('/rest/v1/pnl_report_symbol_snapshots'))
+      && (options.method === 'DELETE' || options.method === 'POST')
+    ) {
+      mutations += 1;
+      return jsonResponse(null);
+    }
+    throw new Error(`unexpected fetch: ${href}`);
+  };
+
+  const res = createResponse();
+  try {
+    await handlePnlReportDailySnapshot(createRequest({
+      headers: { authorization: 'Bearer cron-secret' },
+      query: {},
+    }), res, { now: new Date('2026-07-14T22:00:00Z') });
+  } finally {
+    globalThis.fetch = originalFetch;
+    restoreEnv(env);
+  }
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.complete, true);
+  assert.equal(res.body.plannedSnapshots, 0);
+  assert.equal(stockCloseCalls, 0);
+  assert.equal(mutations, 0);
 });
 
 test('a transient Supabase read returns a sanitized 503 while a permanent write 4xx remains 500', async () => {
@@ -1543,12 +2175,12 @@ test('a transient Supabase read returns a sanitized 503 while a permanent write 
   }
 });
 
-test('vercel schedules all-account P&L through the unified close scheduler', () => {
+test('vercel schedules the final recovery after the UTC quota reset', () => {
   const vercelConfig = JSON.parse(readFileSync(new URL('../vercel.json', import.meta.url), 'utf8'));
   assert.deepEqual(vercelConfig.crons, [
     { path: '/api/close-snapshot-schedule', schedule: '0 21 * * 1-5' },
     { path: '/api/close-snapshot-schedule-retry', schedule: '0 22 * * 1-5' },
-    { path: '/api/close-snapshot-schedule-late-retry', schedule: '0 23 * * 1-5' },
+    { path: '/api/close-snapshot-schedule-late-retry', schedule: '10 0 * * 2-6' },
   ]);
   assert.ok(vercelConfig.rewrites.some((rewrite) => (
     rewrite.source === '/api/close-snapshot-schedule'
