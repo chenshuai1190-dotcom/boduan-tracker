@@ -13,6 +13,7 @@ const rlsSource = source('../supabase/rls.sql');
 const snapshotModelSource = source('../src/lib/pnlReportSnapshots.js');
 const snapshotDbSource = source('../src/lib/pnlReportDb.js');
 const snapshotServerSource = source('../server/pnlReportDailySnapshot.js');
+const recalculationServerSource = source('../server/pnlReportRecalculation.js');
 const marginDbSource = source('../src/lib/db.js');
 const pageSource = source('../src/pages/PnlReportPage.jsx');
 const chartSource = source('../src/lib/pnlReportChart.js');
@@ -119,7 +120,7 @@ test('verified admin repair adds a narrow pre-boundary history anchor and stays 
 
 test('daily snapshot runtime resolves and validates every financing target before any P&L mutation', () => {
   const resolveIndex = snapshotServerSource.indexOf('const marginDebtSnapshotsByUser = await resolveMarginDebtSnapshotTargets');
-  const mutationIndex = snapshotServerSource.indexOf('await upsertUserSnapshots(userId, built)');
+  const mutationIndex = snapshotServerSource.indexOf('const write = await writeUserSnapshotIfCurrent');
   assert.ok(resolveIndex >= 0 && mutationIndex > resolveIndex, 'the service-only resolver must run before snapshot mutation');
   assert.ok(snapshotServerSource.includes("typeof row?.known !== 'boolean'"), 'RPC known state must be a strict boolean');
   assert.ok(snapshotServerSource.includes("row.margin_debt_basis === 'default_zero'"), 'zero financing must keep explicit provenance');
@@ -130,8 +131,11 @@ test('daily snapshot runtime resolves and validates every financing target befor
 });
 
 test('browser rebuilds cannot overwrite trusted financing history and current saves activate event capture', () => {
-  assert.ok(snapshotDbSource.includes('snapshot.marginDebtUsd == null && !snapshot.marginDebtBasis'), 'browser rows must omit unknown financing fields');
-  assert.ok(snapshotDbSource.includes('margin_debt_event_id: snapshot.marginDebtEventId == null ? null'), 'known trusted rows must preserve their event pointer');
+  assert.equal(snapshotDbSource.includes('margin_debt_usd:'), false, 'browser code must not serialize authoritative financing history');
+  assert.equal(snapshotDbSource.includes('upsertPnlReportSnapshots'), false, 'browser code must not write report snapshots');
+  assert.equal(snapshotDbSource.includes('clearPnlReportRebuildState'), false, 'browser code must not clear report dirty state');
+  assert.ok(snapshotServerSource.includes('margin_debt_event_id: snapshot.marginDebtEventId == null ? null'), 'trusted server rows must preserve their event pointer');
+  assert.ok(recalculationServerSource.includes('resolveMarginDebtSnapshotTargets'), 'historical rebuilds must use the service-owned financing resolver');
   assert.ok(marginDbSource.includes('logic_version: HOME_MARGIN_LOGIC_VERSION'), 'Home financing writes must activate logic version 2');
   assert.equal(pageSource.includes('marginStatus'), false, 'the report page must not read mutable current financing');
   assert.equal(pageSource.includes('currentMargin'), false, 'the report page must not derive history from the current balance');
@@ -139,7 +143,7 @@ test('browser rebuilds cannot overwrite trusted financing history and current sa
 
 test('the visible segment remains Total Assets Trend while the chart shows exact net and total assets', () => {
   assert.ok(snapshotModelSource.includes("PNL_REPORT_SNAPSHOT_VERSION = 'pnl_snapshot_v2'"));
-  assert.ok(snapshotDbSource.includes("snapshot.sourceVersion || 'pnl_snapshot_v2'"));
+  assert.equal(snapshotDbSource.includes("snapshot.sourceVersion || 'pnl_snapshot_v2'"), false, 'the read-only browser DB layer should not serialize snapshot versions');
   assert.ok(snapshotServerSource.includes("snapshot.sourceVersion || 'pnl_snapshot_v2'"));
   assert.equal(snapshotDbSource.includes("snapshot.sourceVersion || 'pnl_snapshot_v1'"), false);
   assert.equal(snapshotServerSource.includes("snapshot.sourceVersion || 'pnl_snapshot_v1'"), false);

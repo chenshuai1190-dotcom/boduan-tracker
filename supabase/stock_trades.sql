@@ -249,3 +249,176 @@ using (auth.uid() = user_id)
 with check (auth.uid() = user_id);
 
 commit;
+
+-- Install the current P&L-aware revision trigger without rewriting historical
+-- migration definitions that static compatibility tests intentionally retain.
+begin;
+
+set local lock_timeout = '5s';
+
+lock table public.stock_trades in share row exclusive mode;
+
+create or replace function public.bump_stock_trade_ledger_revision()
+returns trigger
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $$
+declare
+  affected_user_id uuid := case when tg_op = 'DELETE' then old.user_id else new.user_id end;
+  affected_from_date date := case
+    when tg_op = 'INSERT' then new.trade_date
+    when tg_op = 'DELETE' then old.trade_date
+    else least(old.trade_date, new.trade_date)
+  end;
+  affected_trade_id uuid := case when tg_op = 'DELETE' then old.id else new.id end;
+  next_revision bigint;
+begin
+  if tg_op = 'UPDATE' then
+    if new.user_id is distinct from old.user_id then
+      raise exception 'stock trade owner cannot be changed'
+        using errcode = '22023';
+    end if;
+
+    if new.id is not distinct from old.id
+      and new.symbol is not distinct from old.symbol
+      and new.side is not distinct from old.side
+      and new.trade_date is not distinct from old.trade_date
+      and new.price is not distinct from old.price
+      and new.shares is not distinct from old.shares
+      and new.fee is not distinct from old.fee
+      and new.currency is not distinct from old.currency
+    then
+      return new;
+    end if;
+  end if;
+
+  if not exists (
+    select 1
+    from auth.users
+    where id = affected_user_id
+  ) then
+    if tg_op = 'DELETE' then
+      return old;
+    end if;
+    return new;
+  end if;
+
+  insert into public.stock_trade_ledger_revisions (
+    user_id,
+    revision,
+    last_mutated_at
+  )
+  values (
+    affected_user_id,
+    1,
+    clock_timestamp()
+  )
+  on conflict (user_id) do update
+  set revision = public.stock_trade_ledger_revisions.revision + 1,
+      last_mutated_at = excluded.last_mutated_at
+  returning revision into next_revision;
+
+  if to_regclass('public.pnl_report_rebuild_state') is not null
+    and exists (
+      select 1
+      from pg_attribute
+      where attrelid = to_regclass('public.pnl_report_rebuild_state')
+        and attname = 'ledger_revision'
+        and not attisdropped
+    )
+    and exists (
+      select 1
+      from pg_attribute
+      where attrelid = to_regclass('public.pnl_report_rebuild_state')
+        and attname = 'generation'
+        and not attisdropped
+    )
+  then
+    insert into public.pnl_report_rebuild_state (
+      user_id,
+      dirty_from_date,
+      ledger_revision,
+      generation,
+      reason,
+      source_trade_id,
+      updated_at
+    )
+    values (
+      affected_user_id,
+      affected_from_date,
+      next_revision,
+      1,
+      case tg_op
+        when 'INSERT' then 'stock_trade_inserted'
+        when 'UPDATE' then 'stock_trade_updated'
+        else 'stock_trade_deleted'
+      end,
+      affected_trade_id,
+      clock_timestamp()
+    )
+    on conflict (user_id) do update
+    set dirty_from_date = least(
+          coalesce(public.pnl_report_rebuild_state.dirty_from_date, excluded.dirty_from_date),
+          excluded.dirty_from_date
+        ),
+        ledger_revision = excluded.ledger_revision,
+        generation = case
+          when public.pnl_report_rebuild_state.ledger_revision
+            is distinct from excluded.ledger_revision
+          then public.pnl_report_rebuild_state.generation + 1
+          else public.pnl_report_rebuild_state.generation
+        end,
+        reason = excluded.reason,
+        source_trade_id = excluded.source_trade_id,
+        updated_at = excluded.updated_at;
+  end if;
+
+  if to_regclass('public.community_competition_rebuild_state') is not null
+    and to_regclass('public.community_competition_members') is not null
+  then
+    if exists (
+      select 1
+      from public.community_competition_members as member
+      where member.user_id = affected_user_id
+        and member.status = 'active'
+    )
+    then
+      insert into public.community_competition_rebuild_state (
+        user_id,
+        dirty_from_date,
+        ledger_revision,
+        requested_at,
+        updated_at
+      )
+      values (
+        affected_user_id,
+        affected_from_date,
+        next_revision,
+        clock_timestamp(),
+        clock_timestamp()
+      )
+      on conflict (user_id) do update
+      set dirty_from_date = least(
+            public.community_competition_rebuild_state.dirty_from_date,
+            excluded.dirty_from_date
+          ),
+          ledger_revision = greatest(
+            public.community_competition_rebuild_state.ledger_revision,
+            excluded.ledger_revision
+          ),
+          updated_at = excluded.updated_at;
+    end if;
+  end if;
+
+  if tg_op = 'DELETE' then
+    return old;
+  end if;
+  return new;
+end;
+$$;
+
+revoke execute on function public.bump_stock_trade_ledger_revision()
+from public, anon, authenticated, service_role;
+
+commit;

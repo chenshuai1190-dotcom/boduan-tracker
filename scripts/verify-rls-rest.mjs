@@ -30,6 +30,10 @@ const SERVICE_ONLY_TABLES = [
   { table: 'community_competition_epoch_resets', select: 'operation_key' },
   { table: 'community_competition_rebuild_state', select: 'user_id' },
   { table: 'community_competition_rebuild_audit', select: 'operation_key' },
+  { table: 'pnl_report_rebuild_jobs', select: 'operation_key' },
+  { table: 'pnl_report_rebuild_portfolio_stage', select: 'operation_key' },
+  { table: 'pnl_report_rebuild_symbol_stage', select: 'operation_key' },
+  { table: 'pnl_report_rebuild_audit', select: 'operation_key' },
 ];
 const SERVICE_ONLY_RPCS = [
   {
@@ -143,6 +147,76 @@ const SERVICE_ONLY_RPCS = [
       p_expected_version: 'competition_old_v1',
       p_new_version: 'competition_new_v1',
       p_republish: true,
+    },
+  },
+  {
+    name: 'cleanup_pnl_report_rebuild_jobs',
+    body: { p_limit: 1 },
+  },
+  {
+    name: 'rotate_pnl_report_rebuild_attempt',
+    body: {
+      p_user_id: '00000000-0000-0000-0000-000000000000',
+      p_expected_ledger_revision: 1,
+      p_expected_generation: 1,
+      p_expected_dirty_from_date: '2000-01-01',
+    },
+  },
+  {
+    name: 'begin_pnl_report_dirty_range',
+    body: {
+      p_user_id: '00000000-0000-0000-0000-000000000000',
+      p_operation_key:
+        `pnl-ledger-rebuild:00000000-0000-0000-0000-000000000000:1:1:2000-01-03:${'0'.repeat(64)}`,
+      p_payload_hash: '0'.repeat(64),
+      p_expected_ledger_revision: 1,
+      p_expected_generation: 1,
+      p_expected_dirty_from_date: '2000-01-01',
+      p_through_date: '2000-01-03',
+      p_expected_portfolio_count: 1,
+      p_expected_symbol_count: 0,
+      p_clear_all: false,
+    },
+  },
+  {
+    name: 'stage_pnl_report_dirty_range',
+    body: {
+      p_user_id: '00000000-0000-0000-0000-000000000000',
+      p_operation_key:
+        `pnl-ledger-rebuild:00000000-0000-0000-0000-000000000000:1:1:2000-01-03:${'0'.repeat(64)}`,
+      p_payload_hash: '0'.repeat(64),
+      p_expected_ledger_revision: 1,
+      p_expected_generation: 1,
+      p_portfolio_rows: [],
+      p_symbol_rows: [],
+    },
+  },
+  {
+    name: 'replace_pnl_report_dirty_range',
+    body: {
+      p_user_id: '00000000-0000-0000-0000-000000000000',
+      p_operation_key:
+        `pnl-ledger-rebuild:00000000-0000-0000-0000-000000000000:1:1:2000-01-03:${'0'.repeat(64)}`,
+      p_payload_hash: '0'.repeat(64),
+      p_expected_ledger_revision: 1,
+      p_expected_generation: 1,
+      p_expected_dirty_from_date: '2000-01-01',
+      p_through_date: '2000-01-03',
+      p_portfolio_rows: [],
+      p_symbol_rows: [],
+      p_clear_all: false,
+    },
+  },
+  {
+    name: 'write_pnl_report_snapshot_if_current',
+    body: {
+      p_user_id: '00000000-0000-0000-0000-000000000000',
+      p_operation_key:
+        'pnl-daily-snapshot:00000000-0000-0000-0000-000000000000:1:2000-01-03',
+      p_expected_ledger_revision: 1,
+      p_snapshot_date: '2000-01-03',
+      p_portfolio_row: {},
+      p_symbol_rows: [],
     },
   },
 ];

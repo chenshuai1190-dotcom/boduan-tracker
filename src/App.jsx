@@ -25,6 +25,7 @@ import {
   recordCommunityCompetitionObservedPublication,
 } from './lib/communityCompetitionCache.js';
 import { COMMUNITY_COMPETITION_PUBLICATION_EVENT } from './lib/communityCompetitionResume.js';
+import { enqueuePnlReportRecalculationAfterLedgerMutation } from './lib/pnlReportRecalculation.js';
 import ActionModalCard from './components/ActionModalCard.jsx';
 import ConfirmModal from './components/ConfirmModal.jsx';
 import { normalizeConfirmModalOptions } from './lib/confirmModal.js';
@@ -1147,6 +1148,8 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   const [trades, setTrades] = useState([]);
   // 主交易账本:独立记录真实股票买入/卖出流水,由 stock_trades 表持久化。
   const [stockTrades, setStockTrades] = useState([]);
+  // 收益报表服务端重算完成后递增，只作为页面重新读取数据库快照的信号。
+  const [pnlReportRefreshVersion, setPnlReportRefreshVersion] = useState(0);
   // V2 波段页面只向全局行情层同步最小 symbol/name 集合;真实记录仍由独立页面按需读取。
   const [swingWaveQuoteRows, setSwingWaveQuoteRows] = useState([]);
   const [showAddTrade, setShowAddTrade] = useState(false);
@@ -2558,6 +2561,21 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     }
   }, [user?.id]);
 
+  const recalculatePnlReportAfterLedgerMutation = useCallback(async () => {
+    if (!String(user?.id || '').trim()) return null;
+    try {
+      return await enqueuePnlReportRecalculationAfterLedgerMutation({ supabase });
+    } catch (error) {
+      // 正式交易已经保存成功；收益快照属于可重试的派生数据，失败不能回滚账本。
+      console.warn('收益报表即时重算暂未完成:', error?.message || error);
+      return null;
+    } finally {
+      // 即使目标收盘尚未生成或请求暂时失败，也要让已经打开的报表
+      // 重新读取 trigger 写入的权威 dirty state，并启用后续前台重试。
+      setPnlReportRefreshVersion((version) => version + 1);
+    }
+  }, [user?.id]);
+
   const addTrade = async (sideOverride = null) => {
     if (tradeSubmittingRef.current) return;
     const tradeDraft = sideOverride
@@ -2672,6 +2690,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
       setStockTrades(current => editingId
         ? current.map(t => String(t.id) === String(editingId) ? tradeRecord : t)
         : [...current, tradeRecord]);
+      void recalculatePnlReportAfterLedgerMutation();
       void recalculateCompetitionAfterLedgerMutation();
     } catch (e) {
       showTradeNotice(
@@ -2781,6 +2800,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     try {
       await db.deleteStockTrade(id);
       setStockTrades(current => current.filter(t => String(t.id) !== String(id)));
+      void recalculatePnlReportAfterLedgerMutation();
       void recalculateCompetitionAfterLedgerMutation();
     } catch (e) {
       alert('删除订单失败:' + e.message);
@@ -5205,6 +5225,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     onLogout,
     openHomeMarginRisk,
     openPnlReport,
+    pnlReportRefreshVersion,
     openStockDetail,
     openWatchlistStockDetail,
     openWaveTracker,

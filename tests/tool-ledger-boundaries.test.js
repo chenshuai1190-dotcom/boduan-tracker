@@ -90,6 +90,7 @@ const stocksRelaySource = readFileSync(new URL('../server/realtime/stocksRelay.j
 const indicesProviderSource = readFileSync(new URL('../server/quote/providers/indices.js', import.meta.url), 'utf8');
 const inviteServerSource = readFileSync(new URL('../server/inviteCodes.js', import.meta.url), 'utf8');
 const pnlDailySnapshotServerSource = readFileSync(new URL('../server/pnlReportDailySnapshot.js', import.meta.url), 'utf8');
+const pnlReportRecalculationServerSource = readFileSync(new URL('../server/pnlReportRecalculation.js', import.meta.url), 'utf8');
 const vercelConfigSource = readFileSync(new URL('../vercel.json', import.meta.url), 'utf8');
 const vercelConfig = JSON.parse(vercelConfigSource);
 const apiServerlessFunctionFiles = readdirSync(new URL('../api/', import.meta.url))
@@ -100,6 +101,8 @@ const communityProfilesSqlSource = readFileSync(new URL('../supabase/community_p
 const communityAvatarOptionsMigrationSource = readFileSync(new URL('../supabase/community_avatar_options_v312.sql', import.meta.url), 'utf8');
 const registrationCommunityProfileMigrationSource = readFileSync(new URL('../supabase/registration_community_profile_v315.sql', import.meta.url), 'utf8');
 const pnlReportSqlSource = readFileSync(new URL('../supabase/pnl_report_snapshots.sql', import.meta.url), 'utf8');
+const pnlReportImmediateRebuildSqlSource = readFileSync(new URL('../supabase/pnl_report_immediate_rebuild_20260801.sql', import.meta.url), 'utf8');
+const pnlReportWriteContractSqlSource = readFileSync(new URL('../supabase/pnl_report_snapshot_write_contract_after_runtime_20260801.sql', import.meta.url), 'utf8');
 const verifyRlsRestSource = readFileSync(new URL('../scripts/verify-rls-rest.mjs', import.meta.url), 'utf8');
 
 function readPngInfo(relativePath) {
@@ -840,8 +843,8 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(pnlDailySnapshotServerSource.includes('SUPABASE_SERVICE_ROLE_KEY'), 'daily P&L snapshot cron should use the server-side Supabase service role');
   assert.ok(pnlDailySnapshotServerSource.includes("backfillMode: 'ledger'"), 'daily P&L snapshot cron should use strict ledger mode');
   assert.ok(pnlDailySnapshotServerSource.includes('stock_trades'), 'daily P&L snapshot cron should read the main stock ledger as source of truth');
-  assert.ok(pnlDailySnapshotServerSource.includes('pnl_report_snapshots'), 'daily P&L snapshot cron should write portfolio snapshots');
-  assert.ok(pnlDailySnapshotServerSource.includes('pnl_report_symbol_snapshots'), 'daily P&L snapshot cron should write symbol snapshots');
+  assert.ok(pnlDailySnapshotServerSource.includes('write_pnl_report_snapshot_if_current'), 'daily P&L snapshot cron should atomically publish portfolio and symbol snapshots');
+  assert.equal(pnlDailySnapshotServerSource.includes("method: 'DELETE'"), false, 'daily P&L snapshot cron must not expose a partial direct-delete write sequence');
   assert.ok(vercelConfigSource.includes('/api/pnl-report-daily-snapshot'), 'Vercel cron should point at the daily P&L snapshot endpoint');
   assert.ok(pnlReportSnapshotsSource.includes('ledgerTradesForSoldSymbols'), 'current-position report backfill should preserve symbols that already have sell records');
   assert.ok(pnlReportSnapshotsSource.includes('sellSymbols.has(position.symbol)'), 'current-position report backfill should only synthesize still-open symbols without sell records');
@@ -849,22 +852,22 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(pnlReportPageSource.includes('grid min-w-[116px] grid-cols-2'), 'P&L report calendar P&L/rate switch should keep a consistent two-column background');
   assert.ok((pnlReportPageSource.match(/bg-white\/\[0\.68\] text-\[#101318\]/g) || []).length >= 3, 'P&L report selected segmented controls should use a dimmed white background instead of pure white');
   assert.ok(pnlReportPageSource.includes('mt-5 grid grid-cols-4 gap-1 text-center'), 'P&L report year calendar should not keep the old white bordered grid');
-  assert.ok(pnlReportPageSource.includes('PNL_REPORT_HISTORY_SNAPSHOT_COUNT = 45'), 'P&L report manual generation should backfill about two months of trading days');
-  assert.ok(pnlReportPageSource.includes('days=${PNL_REPORT_HISTORY_CLOSE_ROWS}'), 'P&L report manual generation should fetch one extra close row for daily baselines');
+  assert.equal(pnlReportPageSource.includes('PNL_REPORT_HISTORY_SNAPSHOT_COUNT'), false, 'the browser page must not own a historical snapshot rebuild window');
+  assert.equal(pnlReportPageSource.includes('PNL_REPORT_HISTORY_CLOSE_ROWS'), false, 'the browser page must not fetch close rows for financial snapshot writes');
   assert.ok(pnlHistoryClosesApiSource.includes('Math.min(90'), 'P&L history close API should allow the longer two-month close window');
   assert.ok(pnlReportSnapshotsSource.includes("backfillMode = 'ledger'"), 'P&L report historical backfill should keep strict ledger mode as the default');
   assert.ok(pnlReportSnapshotsSource.includes('buildCurrentPositionBackfillTrades'), 'P&L report historical backfill should support current-position backfill for manual report testing');
-  assert.ok(pnlReportPageSource.includes("backfillMode: 'currentPositions'"), 'P&L report manual generation should use current-position backfill');
+  assert.equal(pnlReportPageSource.includes("backfillMode: 'currentPositions'"), false, 'the browser page must not choose the authoritative rebuild mode');
   assert.ok(pnlReportPageSource.includes('calendarPickerOpen'), 'P&L report calendar should expose a month picker');
   assert.ok(pnlReportViewModelSource.includes('availableCalendarYears'), 'P&L report view model should expose only years that have snapshot records');
   assert.ok(pnlReportSnapshotsSource.includes('buildPnlReportHistoricalSnapshots'), 'P&L report snapshots should support multi-day historical close backfill');
-  assert.ok(pnlReportPageSource.includes('/api/pnl-history-closes'), 'P&L report manual snapshot generation should fetch server-side historical closes');
+  assert.equal(pnlReportPageSource.includes('/api/pnl-history-closes'), false, 'the browser report page must not assemble its own close history');
   assert.ok(pnlHistoryClosesApiSource.includes('requireQuoteAuth'), 'P&L history close API should require logged-in auth');
   assert.ok(pnlHistoryClosesApiSource.includes('process.env.EODHD_API_KEY'), 'P&L history close API should keep the EODHD token on the server');
   assert.ok(pnlReportViewModelSource.includes('isCompletedCloseSnapshot'), 'P&L report view model should guard against incomplete-day snapshots');
   assert.ok(pnlReportViewModelSource.includes('latestCompletedUsTradingDate(snapshot.lockedAt)'), 'P&L report view model should validate lockedAt against completed US trading dates');
   assert.ok(pnlReportPageSource.includes('Quote Data testing'), 'P&L report header should show the English Quote data testing badge');
-  assert.ok(pnlReportPageSource.includes('buildPnlReportCloseSnapshotInput'), 'P&L report manual snapshot generation should use close-based quote projection');
+  assert.ok(pnlReportPageSource.includes('requestPnlReportRecalculation({ supabase })'), 'the report page should request the authenticated server-owned rebuild');
   assert.ok(pnlReportPageSource.includes('pnlReport.summaryShort'), 'P&L report summary title should follow the selected range');
   assert.ok(pnlReportPageSource.includes('leading-[44px]'), 'P&L report date filter inputs should vertically center date text');
   assert.ok(pnlReportPageSource.includes("`${currentRangeLabel}${benchmarkActionLabel} ${benchmarkName}`"), 'P&L report benchmark label should include range, status, a space, and Nasdaq');
@@ -905,8 +908,8 @@ test('P&L report snapshot page stays independent from live trading pipelines', (
   assert.ok(pnlReportPageSource.includes('buildPnlReportViewModel'), 'P&L report should build display data from report snapshots');
   assert.ok(pnlReportPageSource.includes('db.fetchPnlReportSnapshots'), 'P&L report should read portfolio snapshots through the db boundary');
   assert.ok(pnlReportPageSource.includes('db.fetchPnlReportSymbolSnapshots'), 'P&L report should read symbol snapshots through the db boundary');
-  assert.ok(pnlReportPageSource.includes('db.upsertPnlReportSnapshots'), 'P&L report should expose a controlled manual snapshot generation path');
-  assert.ok(pnlReportPageSource.includes('SHOW_PNL_REPORT_SNAPSHOT_REBUILD_CONTROLS = false'), 'P&L report should hide manual snapshot generation controls from the product page');
+  assert.equal(pnlReportPageSource.includes('db.upsertPnlReportSnapshots'), false, 'the browser report page must not write financial snapshots');
+  assert.equal(pnlReportPageSource.includes('clearPnlReportRebuildState'), false, 'only the service-owned atomic replacement may clear dirty state');
   assert.ok(pnlReportPageSource.includes('/api/pnl-benchmark'), 'P&L report should read Nasdaq benchmark rows through a server API');
   assert.ok(pnlReportPageSource.includes('data-pnl-report-compare-tooltip'), 'P&L report chart should expose a unified comparison tooltip');
   assert.ok(pnlReportPageSource.includes('pnlReport.tooltip.daily'), 'P&L report comparison tooltip should show daily return');
@@ -942,22 +945,53 @@ test('P&L benchmark API keeps provider token server-side and auth-gated', () => 
   assert.equal(pnlBenchmarkApiSource.includes('VITE_EODHD_TOKEN'), false, 'P&L benchmark API must not introduce a frontend EODHD token');
 });
 
-test('P&L report snapshot foundation stays isolated behind stock_trades dirty marks', () => {
+test('P&L report snapshot foundation is trigger-dirtied and service-written only', () => {
   assert.ok(pnlReportSqlSource.includes('create table if not exists public.pnl_report_snapshots'), 'portfolio snapshot SQL should exist');
   assert.ok(pnlReportSqlSource.includes('create table if not exists public.pnl_report_symbol_snapshots'), 'symbol snapshot SQL should exist');
   assert.ok(pnlReportSqlSource.includes('create table if not exists public.pnl_report_rebuild_state'), 'dirty-state SQL should exist');
   assert.ok(pnlReportSqlSource.includes('create or replace function public.mark_pnl_report_dirty'), 'dirty marker RPC should exist');
   assert.ok(rlsSource.includes('alter table public.pnl_report_snapshots enable row level security'), 'portfolio snapshot RLS should be enabled');
-  assert.ok(rlsSource.includes('users can manage own pnl report snapshots'), 'portfolio snapshot policy should be user-scoped');
-  assert.ok(rlsSource.includes('users can manage own pnl report symbol snapshots'), 'symbol snapshot policy should be user-scoped');
-  assert.ok(rlsSource.includes('users can manage own pnl report rebuild state'), 'dirty-state policy should be user-scoped');
+  assert.ok(rlsSource.includes('users can read own pnl report snapshots'), 'portfolio snapshots should be owner-readable only');
+  assert.ok(rlsSource.includes('users can read own pnl report symbol snapshots'), 'symbol snapshots should be owner-readable only');
+  assert.ok(rlsSource.includes('users can read own pnl report rebuild state'), 'dirty state should be owner-readable only');
   assert.ok(verifyRlsRestSource.includes("'pnl_report_snapshots'"), 'RLS REST probe should include portfolio snapshots');
   assert.ok(verifyRlsRestSource.includes("'pnl_report_symbol_snapshots'"), 'RLS REST probe should include symbol snapshots');
   assert.ok(verifyRlsRestSource.includes("'pnl_report_rebuild_state'"), 'RLS REST probe should include dirty state');
-  assert.ok(dbSource.includes('markPnlReportDirtyFromDate'), 'DB layer should expose a dirty marker');
-  assert.ok(dbSource.includes("markPnlReportDirtySafely(data.trade_date, 'stock_trade_inserted'"), 'stock trade insert should dirty the report window');
-  assert.ok(dbSource.includes("markPnlReportDirtySafely(earliestReportDate(existingTrade?.trade_date, data.trade_date), 'stock_trade_updated'"), 'stock trade update should dirty from the earlier affected date');
-  assert.ok(dbSource.includes("markPnlReportDirtySafely(existingTrade?.trade_date, 'stock_trade_deleted'"), 'stock trade delete should dirty from the deleted trade date');
+  for (const privateSurface of [
+    'pnl_report_rebuild_jobs',
+    'pnl_report_rebuild_portfolio_stage',
+    'pnl_report_rebuild_symbol_stage',
+    'pnl_report_rebuild_audit',
+    'cleanup_pnl_report_rebuild_jobs',
+    'rotate_pnl_report_rebuild_attempt',
+    'begin_pnl_report_dirty_range',
+    'stage_pnl_report_dirty_range',
+    'replace_pnl_report_dirty_range',
+    'write_pnl_report_snapshot_if_current',
+  ]) {
+    assert.ok(verifyRlsRestSource.includes(privateSurface), `RLS REST probe should cover ${privateSurface}`);
+  }
+  assert.equal(dbSource.includes('markPnlReportDirty'), false, 'the browser DB layer must not own dirty-state mutation');
+  assert.equal(dbSource.includes('upsertPnlReportSnapshots'), false, 'the browser DB layer must not expose financial snapshot writes');
+  assert.equal(dbSource.includes('clearPnlReportRebuildState'), false, 'the browser DB layer must not clear authoritative dirty state');
+  assert.ok(pnlReportImmediateRebuildSqlSource.includes('create or replace function public.bump_stock_trade_ledger_revision'), 'the formal ledger trigger should atomically advance revision and dirty the report');
+  assert.ok(pnlReportImmediateRebuildSqlSource.includes('least(old.trade_date, new.trade_date)'), 'historical trade updates should dirty from the earlier old/new date');
+  assert.match(
+    pnlReportImmediateRebuildSqlSource,
+    /insert into public\.pnl_report_rebuild_state \(\s*user_id,\s*dirty_from_date,\s*ledger_revision,\s*generation,\s*reason,\s*source_trade_id,\s*updated_at\s*\)\s*values \(/,
+    'the formal ledger trigger should keep one value target for each dirty-state column'
+  );
+  assert.ok(pnlReportImmediateRebuildSqlSource.includes('create or replace function public.begin_pnl_report_dirty_range'), 'service rebuild should use a bounded staging job');
+  assert.ok(pnlReportImmediateRebuildSqlSource.includes('create or replace function public.rotate_pnl_report_rebuild_attempt'), 'bounded scheduled batches should rotate unfinished dirty users fairly');
+  assert.match(pnlReportImmediateRebuildSqlSource, /state_row\.ledger_revision is distinct from p_expected_ledger_revision\s+or state_row\.generation is distinct from p_expected_generation\s+or state_row\.dirty_from_date is distinct from p_expected_dirty_from_date/, 'dirty-user rotation must be CAS-protected against a newer ledger mutation');
+  assert.ok(pnlReportImmediateRebuildSqlSource.includes('create or replace function public.replace_pnl_report_dirty_range'), 'service rebuild should atomically replace the dirty range');
+  assert.ok(pnlReportImmediateRebuildSqlSource.includes('payload_hash text not null'), 'cross-instance staging jobs should bind one SHA-256 financial payload');
+  assert.ok(pnlReportImmediateRebuildSqlSource.includes("split_part(p_operation_key, ':', 6) <> p_payload_hash"), 'the missing-job audit path must still bind the staging operation key to its payload hash');
+  assert.equal(pnlReportImmediateRebuildSqlSource.includes('revoke all privileges on table public.pnl_report_snapshots'), false, 'the additive foundation must not break the previously deployed writer before runtime rollout');
+  assert.ok(pnlReportWriteContractSqlSource.includes('DO NOT apply this file before the runtime'), 'write privilege contraction must remain an explicit after-runtime phase');
+  assert.ok(pnlReportWriteContractSqlSource.includes('revoke all privileges on table public.pnl_report_snapshots'), 'the after-runtime contract must remove direct live snapshot writes');
+  assert.ok(pnlReportImmediateRebuildSqlSource.includes('Intentionally no-op'), 'the legacy dirty RPC must not trust a browser-supplied historical boundary');
+  assert.ok(pnlReportRecalculationServerSource.includes('fetchCommunityCompetitionEodhdHistories'), 'personal report rebuild should reuse the EODHD completed-close cache and quota fuse');
   assert.equal(pnlReportSnapshotsSource.includes('deriveInvestmentSummary'), false, 'snapshot builder should not import the live investment summary');
   assert.equal(pnlReportSnapshotsSource.includes('derivePositionsFromTrades'), false, 'snapshot builder should not import the live position derivation');
 });

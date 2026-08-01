@@ -248,6 +248,7 @@ export async function fetchCommunityCompetitionEodhdHistory({
   if (
     !isDateKey(fromDate)
     || !isDateKey(throughDate)
+    || fromDate > throughDate
     || !isDateKey(requiredThroughDate)
     || fromDate > requiredThroughDate
     || requiredThroughDate > throughDate

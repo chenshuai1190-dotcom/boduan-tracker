@@ -2,7 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-import handler, { handlePnlReportDailySnapshot } from '../api/pnl-report-daily-snapshot.js';
+import handler, {
+  handlePnlReportDailySnapshot,
+  handlePnlReportSelfRecalculation,
+} from '../api/pnl-report-daily-snapshot.js';
 
 function createResponse() {
   return {
@@ -48,8 +51,56 @@ function jsonResponse(body, status = 200) {
   };
 }
 
-function withExactSpyClose(fetchImpl, onSpy = () => {}) {
+const DEFAULT_LEDGER_REVISIONS = [
+  { user_id: 'user-a', revision: 7 },
+  { user_id: 'user-b', revision: 11 },
+  { user_id: 'sold-out-user', revision: 13 },
+];
+
+function withSnapshotDatabase(fetchImpl, {
+  cleanupResponse = { outcome: 'cleaned', deletedJobs: 0 },
+  cleanupStatus = 200,
+  dirtyRows = [],
+  ledgerRevisions = DEFAULT_LEDGER_REVISIONS,
+  dailyWriteOutcome = 'written',
+  onCleanup = () => {},
+  onDatabaseRead = () => {},
+  onDailyWrite = () => {},
+} = {}) {
   return async (url, options = {}) => {
+    const href = String(url);
+    if (href.includes('/rest/v1/rpc/cleanup_pnl_report_rebuild_jobs')) {
+      onCleanup(JSON.parse(options.body || '{}'));
+      return jsonResponse(cleanupResponse, cleanupStatus);
+    }
+    if (href.includes('/rest/v1/pnl_report_rebuild_state')) {
+      onDatabaseRead('dirty_ids', href);
+      return jsonResponse(typeof dirtyRows === 'function' ? dirtyRows(href) : dirtyRows);
+    }
+    if (href.includes('/rest/v1/stock_trade_ledger_revisions')) {
+      onDatabaseRead('ledger_revisions', href);
+      return jsonResponse(ledgerRevisions);
+    }
+    if (href.includes('/rest/v1/stock_trades')) {
+      onDatabaseRead('stock_trades', href);
+    }
+    if (href.includes('/rest/v1/rpc/write_pnl_report_snapshot_if_current')) {
+      const payload = JSON.parse(options.body || '{}');
+      onDailyWrite(payload, href, options);
+      const outcome = typeof dailyWriteOutcome === 'function'
+        ? dailyWriteOutcome(payload)
+        : dailyWriteOutcome;
+      if (outcome && typeof outcome === 'object' && 'status' in outcome) {
+        return jsonResponse(outcome.body, outcome.status);
+      }
+      return jsonResponse(typeof outcome === 'string' ? { outcome } : outcome);
+    }
+    return fetchImpl(url, options);
+  };
+}
+
+function withExactSpyClose(fetchImpl, onSpy = () => {}, databaseOptions = {}) {
+  return withSnapshotDatabase(async (url, options = {}) => {
     const href = String(url);
     if (href.includes('/rest/v1/rpc/resolve_margin_debt_snapshot_targets')) {
       const targets = JSON.parse(options.body || '{}').p_targets || [];
@@ -68,7 +119,7 @@ function withExactSpyClose(fetchImpl, onSpy = () => {}) {
       return jsonResponse([{ date: targetDate, close: 600, adjusted_close: 600 }]);
     }
     return fetchImpl(url, options);
-  };
+  }, databaseOptions);
 }
 
 function restoreEnv(snapshot) {
@@ -77,6 +128,181 @@ function restoreEnv(snapshot) {
     else process.env[key] = value;
   }
 }
+
+test('self P&L recalculation endpoint is POST-only and OPTIONS is side-effect free', async () => {
+  const originalFetch = globalThis.fetch;
+  let fetchCalls = 0;
+  globalThis.fetch = async () => {
+    fetchCalls += 1;
+    throw new Error('method gate must run before authentication');
+  };
+  try {
+    for (const method of ['GET', 'PUT']) {
+      const res = createResponse();
+      await handlePnlReportSelfRecalculation(createRequest({ method }), res);
+      assert.equal(res.statusCode, 405);
+      assert.equal(res.headers.allow, 'POST, OPTIONS');
+      assert.match(res.headers['cache-control'], /private, no-store/);
+    }
+    const options = createResponse();
+    await handlePnlReportSelfRecalculation(createRequest({ method: 'OPTIONS' }), options);
+    assert.equal(options.statusCode, 204);
+    assert.equal(options.ended, true);
+    assert.equal(options.headers['access-control-allow-methods'], 'POST, OPTIONS');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+  assert.equal(fetchCalls, 0);
+});
+
+test('self P&L recalculation always authenticates even when quote auth bypass is disabled', async () => {
+  const env = {
+    QUOTE_API_AUTH_REQUIRED: process.env.QUOTE_API_AUTH_REQUIRED,
+    SUPABASE_URL: process.env.SUPABASE_URL,
+    VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL,
+    SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY,
+    VITE_SUPABASE_ANON_KEY: process.env.VITE_SUPABASE_ANON_KEY,
+  };
+  const originalFetch = globalThis.fetch;
+  process.env.QUOTE_API_AUTH_REQUIRED = 'false';
+  process.env.SUPABASE_URL = 'https://supabase.test';
+  delete process.env.VITE_SUPABASE_URL;
+  process.env.SUPABASE_ANON_KEY = 'anon-secret';
+  delete process.env.VITE_SUPABASE_ANON_KEY;
+  let authCalls = 0;
+  let recalculateCalls = 0;
+  globalThis.fetch = async (url, options = {}) => {
+    authCalls += 1;
+    assert.match(String(url), /\/auth\/v1\/user$/);
+    assert.equal(options.headers.Authorization, 'Bearer expired-token');
+    return jsonResponse({ message: 'expired' }, 401);
+  };
+  try {
+    const missing = createResponse();
+    await handlePnlReportSelfRecalculation(createRequest({
+      method: 'POST',
+      headers: {},
+    }), missing, {
+      recalculate: async () => { recalculateCalls += 1; },
+    });
+    assert.equal(missing.statusCode, 401);
+
+    const expired = createResponse();
+    await handlePnlReportSelfRecalculation(createRequest({
+      method: 'POST',
+      headers: { authorization: 'Bearer expired-token' },
+    }), expired, {
+      recalculate: async () => { recalculateCalls += 1; },
+    });
+    assert.equal(expired.statusCode, 401);
+  } finally {
+    globalThis.fetch = originalFetch;
+    restoreEnv(env);
+  }
+  assert.equal(authCalls, 1);
+  assert.equal(recalculateCalls, 0);
+});
+
+test('self P&L recalculation uses the token user, returns sanitized waiting state, and is never cached', async () => {
+  const env = {
+    SUPABASE_URL: process.env.SUPABASE_URL,
+    VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL,
+    SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY,
+    VITE_SUPABASE_ANON_KEY: process.env.VITE_SUPABASE_ANON_KEY,
+  };
+  const originalFetch = globalThis.fetch;
+  process.env.SUPABASE_URL = 'https://supabase.test';
+  delete process.env.VITE_SUPABASE_URL;
+  process.env.SUPABASE_ANON_KEY = 'anon-secret';
+  delete process.env.VITE_SUPABASE_ANON_KEY;
+  globalThis.fetch = async (url) => {
+    assert.match(String(url), /\/auth\/v1\/user$/);
+    return jsonResponse({ id: 'token-user' });
+  };
+  let received = null;
+  const res = createResponse();
+  try {
+    await handlePnlReportSelfRecalculation(createRequest({
+      method: 'POST',
+      headers: { authorization: 'Bearer valid-token' },
+      body: { userId: 'forged-user', user_id: 'forged-user' },
+    }), res, {
+      now: new Date('2026-07-31T22:00:00Z'),
+      recalculate: async (input) => {
+        received = input;
+        return {
+          state: 'waiting_for_close',
+          fromDate: '2026-07-31',
+          throughDate: null,
+          ledgerRevision: 9,
+          generation: 3,
+          replacedPortfolio: 0,
+          replacedSymbols: 0,
+          providerSecret: 'must-not-leak',
+        };
+      },
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+    restoreEnv(env);
+  }
+
+  assert.equal(res.statusCode, 200);
+  assert.match(res.headers['cache-control'], /private, no-store/);
+  assert.equal(received.userId, 'token-user');
+  assert.equal(received.now.toISOString(), '2026-07-31T22:00:00.000Z');
+  assert.deepEqual(res.body, {
+    success: true,
+    state: 'waiting_for_close',
+    fromDate: '2026-07-31',
+    throughDate: null,
+    ledgerRevision: 9,
+    generation: 3,
+    replacedPortfolio: 0,
+    replacedSymbols: 0,
+  });
+  assert.doesNotMatch(JSON.stringify(res.body), /forged-user|must-not-leak|valid-token/);
+});
+
+test('self P&L recalculation sanitizes retryable provider failures and keeps the old snapshot', async () => {
+  const env = {
+    SUPABASE_URL: process.env.SUPABASE_URL,
+    VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL,
+    SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY,
+    VITE_SUPABASE_ANON_KEY: process.env.VITE_SUPABASE_ANON_KEY,
+  };
+  const originalFetch = globalThis.fetch;
+  process.env.SUPABASE_URL = 'https://supabase.test';
+  delete process.env.VITE_SUPABASE_URL;
+  process.env.SUPABASE_ANON_KEY = 'anon-secret';
+  delete process.env.VITE_SUPABASE_ANON_KEY;
+  globalThis.fetch = async () => jsonResponse({ id: 'token-user' });
+  const providerError = new Error('EODHD body and service-role-secret must stay private');
+  providerError.status = 402;
+  providerError.retryable = true;
+  const res = createResponse();
+  try {
+    await handlePnlReportSelfRecalculation(createRequest({
+      method: 'POST',
+      headers: { authorization: 'Bearer valid-token' },
+    }), res, {
+      recalculate: async () => { throw providerError; },
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+    restoreEnv(env);
+  }
+  assert.equal(res.statusCode, 503);
+  assert.equal(res.headers['retry-after'], '3600');
+  assert.match(res.headers['cache-control'], /private, no-store/);
+  assert.deepEqual(res.body, {
+    success: false,
+    state: 'recalculation_pending',
+    code: 'PNL_RECALCULATION_PENDING',
+    error: '交易已保存，个人收益快照将保留旧数据并稍后重算',
+  });
+  assert.doesNotMatch(JSON.stringify(res.body), /EODHD body|service-role-secret|valid-token/);
+});
 
 test('daily P&L snapshot cron endpoint requires CRON_SECRET', async () => {
   const env = { CRON_SECRET: process.env.CRON_SECRET };
@@ -216,13 +442,16 @@ test('explicit same-day P&L date opens at 17:00 New York across DST', async () =
   globalThis.fetch = withExactSpyClose(async (url) => {
     fetchCalls += 1;
     if (String(url).includes('/rest/v1/stock_trades')) {
-      requestOrder.push('stock_trades');
       return jsonResponse([]);
     }
     throw new Error(`unexpected fetch: ${url}`);
   }, () => {
     spyCalls += 1;
     requestOrder.push('SPY');
+  }, {
+    onDatabaseRead(kind) {
+      requestOrder.push(kind);
+    },
   });
 
   try {
@@ -245,7 +474,10 @@ test('explicit same-day P&L date opens at 17:00 New York across DST', async () =
 
   assert.equal(fetchCalls, 2);
   assert.equal(spyCalls, 2);
-  assert.deepEqual(requestOrder, ['SPY', 'stock_trades', 'SPY', 'stock_trades']);
+  assert.deepEqual(requestOrder, [
+    'SPY', 'dirty_ids', 'ledger_revisions', 'stock_trades', 'dirty_ids',
+    'SPY', 'dirty_ids', 'ledger_revisions', 'stock_trades', 'dirty_ids',
+  ]);
 });
 
 test('explicit future P&L date fails closed without provider access', async () => {
@@ -338,7 +570,7 @@ test('explicit Saturday date returns retryable 503 before reading a sold-out use
     { id: 'buy', user_id: 'sold-out-user', symbol: 'NVDA', side: 'buy', trade_date: '2026-07-01', price: 100, shares: 2, currency: 'USD' },
     { id: 'sell', user_id: 'sold-out-user', symbol: 'NVDA', side: 'sell', trade_date: '2026-07-10', price: 120, shares: 2, currency: 'USD' },
   ];
-  globalThis.fetch = async (url) => {
+  globalThis.fetch = withSnapshotDatabase(async (url) => {
     const href = String(url);
     if (href.includes('/api/eod/SPY.US')) {
       spyAttempts += 1;
@@ -350,7 +582,7 @@ test('explicit Saturday date returns retryable 503 before reading a sold-out use
       return jsonResponse(null);
     }
     throw new Error(`unexpected fetch: ${href}`);
-  };
+  });
 
   const res = createResponse();
   try {
@@ -390,12 +622,7 @@ test('daily P&L snapshot cron builds all-user close snapshots from stock_trades 
   };
   const originalFetch = globalThis.fetch;
   const calls = [];
-  const writes = {
-    portfolios: [],
-    markerDeletes: [],
-    symbols: [],
-    deletes: [],
-  };
+  const atomicWrites = [];
   process.env.CRON_SECRET = 'cron-secret';
   process.env.SUPABASE_URL = 'https://supabase.test';
   delete process.env.VITE_SUPABASE_URL;
@@ -463,23 +690,13 @@ test('daily P&L snapshot cron builds all-user close snapshots from stock_trades 
         { date: '2026-07-08', close: 220, adjusted_close: 220 },
       ]);
     }
-    if (href.includes('/rest/v1/pnl_report_snapshots') && options.method === 'DELETE') {
-      writes.markerDeletes.push(href);
-      return jsonResponse(null);
-    }
-    if (href.includes('/rest/v1/pnl_report_snapshots')) {
-      writes.portfolios.push(JSON.parse(options.body));
-      return jsonResponse(null);
-    }
-    if (href.includes('/rest/v1/pnl_report_symbol_snapshots') && options.method === 'DELETE') {
-      writes.deletes.push(href);
-      return jsonResponse(null);
-    }
-    if (href.includes('/rest/v1/pnl_report_symbol_snapshots')) {
-      writes.symbols.push(JSON.parse(options.body));
-      return jsonResponse(null);
-    }
     throw new Error(`unexpected fetch: ${href}`);
+  }, undefined, {
+    onDailyWrite(payload, href, options) {
+      assert.equal(options.method, 'POST');
+      assert.match(href, /rpc\/write_pnl_report_snapshot_if_current/);
+      atomicWrites.push(payload);
+    },
   });
 
   const res = createResponse();
@@ -502,11 +719,10 @@ test('daily P&L snapshot cron builds all-user close snapshots from stock_trades 
   assert.equal(res.body.attemptedUsers, 2);
   assert.equal(res.body.writtenUsers, 2);
   assert.equal(res.body.symbolsCount, 2);
-  assert.equal(writes.portfolios.length, 2);
-  assert.equal(writes.markerDeletes.length, 2);
-  assert.equal(writes.symbols.length, 2);
-  assert.equal(writes.deletes.length, 2);
-  const portfolioRows = writes.portfolios.flat().sort((a, b) => a.user_id.localeCompare(b.user_id));
+  assert.equal(atomicWrites.length, 2);
+  const portfolioRows = atomicWrites
+    .map((write) => write.p_portfolio_row)
+    .sort((a, b) => a.user_id.localeCompare(b.user_id));
   assert.equal(portfolioRows[0].user_id, 'user-a');
   assert.equal(portfolioRows[0].snapshot_date, '2026-07-08');
   assert.equal(portfolioRows[0].market_value_usd, 1690);
@@ -514,8 +730,30 @@ test('daily P&L snapshot cron builds all-user close snapshots from stock_trades 
   assert.equal(portfolioRows[0].daily_pnl_usd, 70);
   assert.equal(portfolioRows[1].user_id, 'user-b');
   assert.equal(portfolioRows[1].daily_pnl_usd, 25);
-  const symbolRows = writes.symbols.flat();
+  const symbolRows = atomicWrites.flatMap((write) => write.p_symbol_rows);
   assert.ok(symbolRows.some((row) => row.user_id === 'user-a' && row.symbol === 'MSFT' && row.daily_pnl_usd === 20));
+  assert.deepEqual(
+    atomicWrites.map((write) => ({
+      userId: write.p_user_id,
+      revision: write.p_expected_ledger_revision,
+      date: write.p_snapshot_date,
+      operationKey: write.p_operation_key,
+    })).sort((a, b) => a.userId.localeCompare(b.userId)),
+    [
+      {
+        userId: 'user-a',
+        revision: 7,
+        date: '2026-07-08',
+        operationKey: 'pnl-daily-snapshot:user-a:7:2026-07-08',
+      },
+      {
+        userId: 'user-b',
+        revision: 11,
+        date: '2026-07-08',
+        operationKey: 'pnl-daily-snapshot:user-b:11:2026-07-08',
+      },
+    ]
+  );
   assert.doesNotMatch(JSON.stringify(res.body), /service-role-secret|eodhd-secret|cron-secret/);
   assert.ok(calls.some((call) => call.href.includes('api_token=eodhd-secret')), 'EODHD key should only be used in outbound provider request');
 });
@@ -574,13 +812,11 @@ test('daily P&L snapshot retries a transient symbol failure and keeps sold-out s
         { date: '2026-07-08', close: 201, adjusted_close: 201 },
       ]);
     }
-    if (href.includes('/rest/v1/pnl_report_snapshots') && options.method === 'POST') {
-      portfolioWrites += 1;
-      return jsonResponse(null);
-    }
-    if (href.includes('/rest/v1/pnl_report_snapshots')) return jsonResponse(null);
-    if (href.includes('/rest/v1/pnl_report_symbol_snapshots')) return jsonResponse(null);
     throw new Error(`unexpected fetch: ${href}`);
+  }, undefined, {
+    onDailyWrite() {
+      portfolioWrites += 1;
+    },
   });
 
   const res = createResponse();
@@ -701,13 +937,11 @@ test('daily P&L snapshot isolates symbols and reports exhausted target-close gap
         { date: '2026-07-08', close: 220, adjusted_close: 220 },
       ]);
     }
-    if (href.includes('/rest/v1/pnl_report_snapshots') && options.method === 'POST') {
-      writtenUsers.push(JSON.parse(options.body)[0].user_id);
-      return jsonResponse(null);
-    }
-    if (href.includes('/rest/v1/pnl_report_snapshots')) return jsonResponse(null);
-    if (href.includes('/rest/v1/pnl_report_symbol_snapshots')) return jsonResponse(null);
     throw new Error(`unexpected fetch: ${href}`);
+  }, undefined, {
+    onDailyWrite(payload) {
+      writtenUsers.push(payload.p_user_id);
+    },
   });
 
   const res = createResponse();
@@ -809,6 +1043,7 @@ test('scheduled no-date P&L snapshot catches an existing user up from 7/10 throu
   const portfolioWrites = [];
   const marginTargets = [];
   const mutationOrder = [];
+  const databaseOrder = [];
   let latestSnapshotReads = 0;
   process.env.CRON_SECRET = 'cron-secret';
   process.env.SUPABASE_URL = 'https://supabase.test';
@@ -826,7 +1061,7 @@ test('scheduled no-date P&L snapshot catches an existing user up from 7/10 throu
     }
   };
 
-  globalThis.fetch = async (url, options = {}) => {
+  globalThis.fetch = withSnapshotDatabase(async (url, options = {}) => {
     const href = String(url);
     if (href.includes('/rest/v1/rpc/resolve_margin_debt_snapshot_targets')) {
       const targets = JSON.parse(options.body || '{}').p_targets || [];
@@ -878,10 +1113,6 @@ test('scheduled no-date P&L snapshot catches an existing user up from 7/10 throu
       if (href.includes('user_id=eq.user-a')) return jsonResponse([{ snapshot_date: '2026-07-10' }]);
       if (href.includes('user_id=eq.user-b')) return jsonResponse([]);
     }
-    if (href.includes('/rest/v1/pnl_report_snapshots') && options.method === 'DELETE') {
-      mutationOrder.push('marker-delete');
-      return jsonResponse(null);
-    }
     if (href.includes('/api/eod/SPY.US')) {
       return jsonResponse([
         { date: '2026-07-10', close: 620, adjusted_close: 620 },
@@ -903,17 +1134,19 @@ test('scheduled no-date P&L snapshot catches an existing user up from 7/10 throu
         { date: '2026-07-14', close: 223, adjusted_close: 223 },
       ]);
     }
-    if (href.includes('/rest/v1/pnl_report_snapshots') && options.method === 'POST') {
-      mutationOrder.push('marker-write');
-      portfolioWrites.push(JSON.parse(options.body)[0]);
-      return jsonResponse(null);
-    }
-    if (href.includes('/rest/v1/pnl_report_symbol_snapshots')) {
-      mutationOrder.push(options.method === 'DELETE' ? 'symbol-delete' : 'symbol-write');
-      return jsonResponse(null);
-    }
     throw new Error(`unexpected fetch: ${href}`);
-  };
+  }, {
+    onCleanup() {
+      databaseOrder.push('cleanup');
+    },
+    onDatabaseRead(kind) {
+      databaseOrder.push(kind);
+    },
+    onDailyWrite(payload) {
+      mutationOrder.push('atomic-write');
+      portfolioWrites.push(payload.p_portfolio_row);
+    },
+  });
 
   const res = createResponse();
   try {
@@ -989,12 +1222,176 @@ test('scheduled no-date P&L snapshot catches an existing user up from 7/10 throu
     }
   );
   assert.ok(portfolioWrites.every((row) => row.source_version === 'pnl_snapshot_v2'));
+  assert.deepEqual(databaseOrder.slice(0, 5), [
+    'cleanup',
+    'dirty_ids',
+    'dirty_ids',
+    'ledger_revisions',
+    'stock_trades',
+  ]);
   assert.equal(mutationOrder[0], 'margin-rpc');
   assert.equal(mutationOrder.filter((event) => event === 'margin-rpc').length, 1);
-  assert.ok(mutationOrder.slice(1).every((event) => (
-    ['marker-delete', 'symbol-delete', 'symbol-write', 'marker-write'].includes(event)
-  )));
+  assert.deepEqual(mutationOrder.slice(1), ['atomic-write', 'atomic-write', 'atomic-write']);
   assert.doesNotMatch(JSON.stringify(res.body), /user-a|user-b/);
+});
+
+test('scheduled cleanup failure does not block the financial snapshot calculation', async () => {
+  const env = {
+    CRON_SECRET: process.env.CRON_SECRET,
+    SUPABASE_URL: process.env.SUPABASE_URL,
+    VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL,
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    SUPABASE_SERVICE_KEY: process.env.SUPABASE_SERVICE_KEY,
+    EODHD_API_KEY: process.env.EODHD_API_KEY,
+  };
+  const originalFetch = globalThis.fetch;
+  process.env.CRON_SECRET = 'cron-secret';
+  process.env.SUPABASE_URL = 'https://supabase.test';
+  delete process.env.VITE_SUPABASE_URL;
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-secret';
+  delete process.env.SUPABASE_SERVICE_KEY;
+  process.env.EODHD_API_KEY = 'eodhd-secret';
+  let atomicWrites = 0;
+  let cleanupCalls = 0;
+
+  globalThis.fetch = withSnapshotDatabase(async (url, options = {}) => {
+    const href = String(url);
+    if (href.includes('/rest/v1/stock_trades')) {
+      return jsonResponse([
+        { id: 'trade-a', user_id: 'user-a', symbol: 'NVDA', name: 'NVIDIA', side: 'buy', trade_date: '2026-07-01', price: 100, shares: 2, fee: 0, currency: 'USD' },
+      ]);
+    }
+    if (href.includes('/rest/v1/pnl_report_snapshots')) return jsonResponse([]);
+    if (href.includes('/rest/v1/rpc/resolve_margin_debt_snapshot_targets')) {
+      const targets = JSON.parse(options.body || '{}').p_targets || [];
+      return jsonResponse(targets.map((target) => ({
+        ...target,
+        known: false,
+        margin_debt_usd: null,
+        margin_debt_event_id: null,
+        margin_debt_effective_at: null,
+        margin_debt_basis: null,
+      })));
+    }
+    if (href.includes('/api/eod/SPY.US')) {
+      return jsonResponse([{ date: '2026-07-14', close: 624, adjusted_close: 624 }]);
+    }
+    if (href.includes('/api/eod/NVDA.US')) {
+      return jsonResponse([
+        { date: '2026-07-13', close: 121, adjusted_close: 121 },
+        { date: '2026-07-14', close: 123, adjusted_close: 123 },
+      ]);
+    }
+    throw new Error(`unexpected fetch: ${href}`);
+  }, {
+    cleanupResponse: { message: 'cleanup storage detail must stay private' },
+    cleanupStatus: 503,
+    onCleanup() { cleanupCalls += 1; },
+    onDailyWrite() { atomicWrites += 1; },
+  });
+
+  const res = createResponse();
+  try {
+    await handlePnlReportDailySnapshot(createRequest({
+      headers: { authorization: 'Bearer cron-secret' },
+      query: {},
+    }), res, { now: new Date('2026-07-14T22:00:00Z') });
+  } finally {
+    globalThis.fetch = originalFetch;
+    restoreEnv(env);
+  }
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.complete, true);
+  assert.equal(res.body.writtenSnapshots, 1);
+  assert.equal(atomicWrites, 1);
+  assert.equal(cleanupCalls, 1);
+  assert.deepEqual(res.body.dirtyRecalculation.cleanup, {
+    success: false,
+    deletedJobs: 0,
+    retryable: true,
+    reason: 'expired_job_cleanup_failed',
+  });
+  assert.doesNotMatch(JSON.stringify(res.body), /cleanup storage detail|service-role-secret/);
+});
+
+test('the final dirty-state scan turns a concurrent ledger mutation into retryable 503 without another EODHD read', async () => {
+  const env = {
+    CRON_SECRET: process.env.CRON_SECRET,
+    SUPABASE_URL: process.env.SUPABASE_URL,
+    VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL,
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    SUPABASE_SERVICE_KEY: process.env.SUPABASE_SERVICE_KEY,
+    EODHD_API_KEY: process.env.EODHD_API_KEY,
+  };
+  const originalFetch = globalThis.fetch;
+  process.env.CRON_SECRET = 'cron-secret';
+  process.env.SUPABASE_URL = 'https://supabase.test';
+  delete process.env.VITE_SUPABASE_URL;
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-secret';
+  delete process.env.SUPABASE_SERVICE_KEY;
+  process.env.EODHD_API_KEY = 'eodhd-secret';
+  let dirtyReads = 0;
+  let spyReads = 0;
+  let nvdaReads = 0;
+  let atomicWrites = 0;
+  globalThis.fetch = withExactSpyClose(async (url) => {
+    const href = String(url);
+    if (href.includes('/rest/v1/stock_trades')) {
+      return jsonResponse([
+        { id: 'trade-a', user_id: 'user-a', symbol: 'NVDA', name: 'NVIDIA', side: 'buy', trade_date: '2026-07-01', price: 100, shares: 2, fee: 0, currency: 'USD' },
+      ]);
+    }
+    if (href.includes('/api/eod/NVDA.US')) {
+      nvdaReads += 1;
+      return jsonResponse([
+        { date: '2026-07-07', close: 119, adjusted_close: 119 },
+        { date: '2026-07-08', close: 120, adjusted_close: 120 },
+      ]);
+    }
+    throw new Error(`unexpected fetch: ${href}`);
+  }, () => { spyReads += 1; }, {
+    dirtyRows() {
+      dirtyReads += 1;
+      return dirtyReads === 1 ? [] : [{ user_id: 'user-a' }];
+    },
+    onDailyWrite() { atomicWrites += 1; },
+  });
+
+  const res = createResponse();
+  try {
+    await handler(createRequest({
+      headers: { authorization: 'Bearer cron-secret' },
+      query: { date: '2026-07-08' },
+    }), res);
+  } finally {
+    globalThis.fetch = originalFetch;
+    restoreEnv(env);
+  }
+
+  assert.equal(res.statusCode, 503);
+  assert.equal(res.headers['retry-after'], '300');
+  assert.equal(res.body.complete, false);
+  assert.equal(res.body.retryable, true);
+  assert.equal(res.body.excludedDirtyUsers, 1);
+  assert.equal(res.body.writtenSnapshots, 1);
+  assert.equal(dirtyReads, 2);
+  assert.equal(atomicWrites, 1);
+  assert.equal(spyReads, 1);
+  assert.equal(nvdaReads, 1);
+  assert.doesNotMatch(JSON.stringify(res.body), /user-a/);
+});
+
+test('dirty-range finalize uses the dedicated 45-second timeout as a third server-only option', () => {
+  const source = readFileSync(
+    new URL('../server/pnlReportRecalculation.js', import.meta.url),
+    'utf8'
+  );
+  assert.match(source, /const FINALIZE_TIMEOUT_MS = 45_000;/);
+  assert.match(
+    source,
+    /['"]\/rest\/v1\/rpc\/replace_pnl_report_dirty_range['"][\s\S]{0,900}\{ timeoutMs: FINALIZE_TIMEOUT_MS \}\s*\)/
+  );
 });
 
 test('margin snapshot RPC contract failures stop before every P&L mutation', async () => {
@@ -1050,7 +1447,7 @@ test('margin snapshot RPC contract failures stop before every P&L mutation', asy
       let stockProviderCalls = 0;
       let pnlMutations = 0;
       const events = [];
-      globalThis.fetch = async (url, options = {}) => {
+      globalThis.fetch = withSnapshotDatabase(async (url, options = {}) => {
         const href = String(url);
         if (href.includes('/api/eod/SPY.US')) {
           return jsonResponse([
@@ -1079,19 +1476,13 @@ test('margin snapshot RPC contract failures stop before every P&L mutation', asy
             { date: '2026-07-08', close: 120, adjusted_close: 120 },
           ]);
         }
-        if (
-          (
-            href.includes('/rest/v1/pnl_report_snapshots')
-            || href.includes('/rest/v1/pnl_report_symbol_snapshots')
-          )
-          && (options.method === 'DELETE' || options.method === 'POST')
-        ) {
+        throw new Error(`unexpected fetch for ${contractCase.name}: ${href}`);
+      }, {
+        onDailyWrite() {
           pnlMutations += 1;
           events.push('pnl-mutation');
-          return jsonResponse(null);
-        }
-        throw new Error(`unexpected fetch for ${contractCase.name}: ${href}`);
-      };
+        },
+      });
 
       const res = createResponse();
       await handler(createRequest({
@@ -1136,7 +1527,7 @@ test('scheduled catch-up reports a permanent SPY calendar 4xx as non-retryable 5
   delete process.env.SUPABASE_SERVICE_KEY;
   process.env.EODHD_API_KEY = 'eodhd-secret';
 
-  globalThis.fetch = async (url) => {
+  globalThis.fetch = withSnapshotDatabase(async (url) => {
     const href = String(url);
     if (href.includes('/rest/v1/stock_trades')) {
       return jsonResponse([
@@ -1148,7 +1539,7 @@ test('scheduled catch-up reports a permanent SPY calendar 4xx as non-retryable 5
       return jsonResponse({ error: 'not found' }, 404);
     }
     throw new Error(`unexpected fetch: ${href}`);
-  };
+  });
 
   const res = createResponse();
   try {
@@ -1206,7 +1597,7 @@ test('scheduled catch-up blocks a failed user from later dates while other users
     }
   };
 
-  globalThis.fetch = async (url, options = {}) => {
+  globalThis.fetch = withSnapshotDatabase(async (url, options = {}) => {
     const href = String(url);
     if (href.includes('/rest/v1/rpc/resolve_margin_debt_snapshot_targets')) {
       const targets = JSON.parse(options.body || '{}').p_targets || [];
@@ -1220,9 +1611,6 @@ test('scheduled catch-up blocks a failed user from later dates while other users
     }
     if (href.includes('/rest/v1/pnl_report_snapshots') && !options.method) {
       return jsonResponse([{ snapshot_date: '2026-07-10' }]);
-    }
-    if (href.includes('/rest/v1/pnl_report_snapshots') && options.method === 'DELETE') {
-      return jsonResponse(null);
     }
     if (href.includes('/api/eod/SPY.US')) {
       return jsonResponse([
@@ -1245,13 +1633,12 @@ test('scheduled catch-up blocks a failed user from later dates while other users
         { date: '2026-07-14', close: 223, adjusted_close: 223 },
       ]);
     }
-    if (href.includes('/rest/v1/pnl_report_snapshots') && options.method === 'POST') {
-      portfolioWrites.push(JSON.parse(options.body)[0]);
-      return jsonResponse(null);
-    }
-    if (href.includes('/rest/v1/pnl_report_symbol_snapshots')) return jsonResponse(null);
     throw new Error(`unexpected fetch: ${href}`);
-  };
+  }, {
+    onDailyWrite(payload) {
+      portfolioWrites.push(payload.p_portfolio_row);
+    },
+  });
 
   const res = createResponse();
   try {
@@ -1310,7 +1697,7 @@ test('scheduled catch-up retries a stale SPY 200 payload and never falls back to
     }
   };
 
-  globalThis.fetch = async (url) => {
+  globalThis.fetch = withSnapshotDatabase(async (url) => {
     const href = String(url);
     if (href.includes('/rest/v1/stock_trades')) {
       return jsonResponse([
@@ -1325,7 +1712,7 @@ test('scheduled catch-up retries a stale SPY 200 payload and never falls back to
       ]);
     }
     throw new Error(`unexpected fetch: ${href}`);
-  };
+  });
 
   const res = createResponse();
   try {
@@ -1354,7 +1741,7 @@ test('scheduled catch-up retries a stale SPY 200 payload and never falls back to
   }]);
 });
 
-test('a transient symbol write removes an existing completion marker and the next scheduled run repairs it', async () => {
+test('an atomic write failure preserves the last completed snapshot and the next scheduled run repairs it', async () => {
   const env = {
     CRON_SECRET: process.env.CRON_SECRET,
     SUPABASE_URL: process.env.SUPABASE_URL,
@@ -1366,9 +1753,9 @@ test('a transient symbol write removes an existing completion marker and the nex
   const OriginalDate = globalThis.Date;
   const originalFetch = globalThis.fetch;
   const fixedNow = '2026-07-09T00:30:00.000Z';
-  const markers = new Set(['2026-07-07', '2026-07-08']);
+  const markers = new Set(['2026-07-07']);
   const events = [];
-  let failNextSymbolInsert = true;
+  let atomicWriteAttempts = 0;
   process.env.CRON_SECRET = 'cron-secret';
   process.env.SUPABASE_URL = 'https://supabase.test';
   delete process.env.VITE_SUPABASE_URL;
@@ -1385,7 +1772,7 @@ test('a transient symbol write removes an existing completion marker and the nex
     }
   };
 
-  globalThis.fetch = async (url, options = {}) => {
+  globalThis.fetch = withSnapshotDatabase(async (url, options = {}) => {
     const href = String(url);
     if (href.includes('/rest/v1/rpc/resolve_margin_debt_snapshot_targets')) {
       const targets = JSON.parse(options.body || '{}').p_targets || [];
@@ -1408,36 +1795,26 @@ test('a transient symbol write removes an existing completion marker and the nex
         { date: '2026-07-08', close: 120, adjusted_close: 120 },
       ]);
     }
-    if (href.includes('/rest/v1/pnl_report_snapshots') && options.method === 'DELETE') {
-      events.push('marker-delete');
-      markers.delete('2026-07-08');
-      return jsonResponse(null);
-    }
-    if (href.includes('/rest/v1/pnl_report_snapshots') && options.method === 'POST') {
-      events.push('marker-write');
-      const row = JSON.parse(options.body)[0];
-      markers.add(row.snapshot_date);
-      return jsonResponse(null);
-    }
     if (href.includes('/rest/v1/pnl_report_snapshots')) {
       const latest = [...markers].sort().at(-1);
       return jsonResponse(latest ? [{ snapshot_date: latest }] : []);
     }
-    if (href.includes('/rest/v1/pnl_report_symbol_snapshots') && options.method === 'DELETE') {
-      events.push('symbol-delete');
-      return jsonResponse(null);
-    }
-    if (href.includes('/rest/v1/pnl_report_symbol_snapshots')) {
-      if (failNextSymbolInsert) {
-        failNextSymbolInsert = false;
-        events.push('symbol-write-fail');
-        return jsonResponse({ message: 'temporary database detail must stay private' }, 503);
-      }
-      events.push('symbol-write');
-      return jsonResponse(null);
-    }
     throw new Error(`unexpected fetch: ${href}`);
-  };
+  }, {
+    dailyWriteOutcome(payload) {
+      atomicWriteAttempts += 1;
+      if (atomicWriteAttempts === 1) {
+        events.push('atomic-write-fail');
+        return {
+          status: 503,
+          body: { message: 'temporary database detail must stay private' },
+        };
+      }
+      events.push('atomic-write');
+      markers.add(payload.p_snapshot_date);
+      return 'written';
+    },
+  });
 
   const first = createResponse();
   const second = createResponse();
@@ -1449,8 +1826,8 @@ test('a transient symbol write removes an existing completion marker and the nex
     assert.equal(first.statusCode, 503);
     assert.equal(first.headers['retry-after'], '300');
     assert.equal(first.body.retryable, true);
-    assert.equal(first.body.failedReasons.snapshot_write_http_503, 1);
-    assert.deepEqual(events, ['marker-delete', 'symbol-delete', 'symbol-write-fail']);
+    assert.equal(first.body.failedReasons.supabase_http_503, 1);
+    assert.deepEqual(events, ['atomic-write-fail']);
     assert.deepEqual([...markers].sort(), ['2026-07-07']);
     assert.doesNotMatch(JSON.stringify(first.body), /temporary database detail/);
 
@@ -1468,7 +1845,7 @@ test('a transient symbol write removes an existing completion marker and the nex
   assert.equal(second.body.complete, true);
   assert.equal(second.body.plannedSnapshots, 1);
   assert.equal(second.body.writtenSnapshots, 1);
-  assert.deepEqual(events.slice(3), ['marker-delete', 'symbol-delete', 'symbol-write', 'marker-write']);
+  assert.deepEqual(events, ['atomic-write-fail', 'atomic-write']);
   assert.deepEqual([...markers].sort(), ['2026-07-07', '2026-07-08']);
 });
 
@@ -1508,7 +1885,7 @@ test('a transient Supabase read returns a sanitized 503 while a permanent write 
     assert.match(readFailure.body.error, /暂时失败/);
     assert.doesNotMatch(JSON.stringify(readFailure.body), /private database topology/);
 
-    globalThis.fetch = withExactSpyClose(async (url, options = {}) => {
+    globalThis.fetch = withExactSpyClose(async (url) => {
       const href = String(url);
       if (href.includes('/rest/v1/stock_trades')) {
         return jsonResponse([
@@ -1521,11 +1898,12 @@ test('a transient Supabase read returns a sanitized 503 while a permanent write 
           { date: '2026-07-08', close: 120, adjusted_close: 120 },
         ]);
       }
-      if (href.includes('/rest/v1/pnl_report_snapshots')) return jsonResponse(null);
-      if (href.includes('/rest/v1/pnl_report_symbol_snapshots') && options.method === 'DELETE') {
-        return jsonResponse({ message: 'bad request' }, 400);
-      }
       throw new Error(`unexpected fetch: ${href}`);
+    }, undefined, {
+      dailyWriteOutcome: {
+        status: 400,
+        body: { message: 'bad request must stay private' },
+      },
     });
     const permanentFailure = createResponse();
     await handler(createRequest({
@@ -1536,7 +1914,8 @@ test('a transient Supabase read returns a sanitized 503 while a permanent write 
     assert.equal(permanentFailure.headers['retry-after'], undefined);
     assert.equal(permanentFailure.body.complete, false);
     assert.equal(permanentFailure.body.retryable, false);
-    assert.equal(permanentFailure.body.failedReasons.snapshot_write_http_400, 1);
+    assert.equal(permanentFailure.body.failedReasons.supabase_http_400, 1);
+    assert.doesNotMatch(JSON.stringify(permanentFailure.body), /bad request must stay private/);
   } finally {
     globalThis.fetch = originalFetch;
     restoreEnv(env);

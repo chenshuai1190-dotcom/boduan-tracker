@@ -1,6 +1,6 @@
 # boduan-tracker 当前交接
 
-验证时间：`2026-08-01 Asia/Shanghai`
+验证时间：`2026-08-02 Asia/Shanghai`
 
 本文件只保存当前基准、关键风险和下一步。稳定规则看 `README.md`，流程看 `docs/development-process.md`。
 
@@ -10,14 +10,15 @@
 | --- | --- |
 | 仓库 | `chenshuai1190-dotcom/boduan-tracker` |
 | 生产地址 | `https://boduan-tracker.vercel.app` |
-| 运行时代码 | `v10.7.9.408`：v402 稳定应用树 + 收益比赛正式交易即时重算 + 交易持仓 EODHD 收盘估值统一；精确发布提交以 GitHub `main` HEAD 为准 |
-| 数据库 | 保留既有 additive schema，并新增 forward-only `supabase/community_competition_immediate_rebuild_20260801.sql` |
+| 运行时代码 | `v10.7.9.409`：v402 稳定应用树 + 收益比赛即时重算 + 交易持仓 EODHD 收盘估值统一 + 正式交易修改后个人收益正确重算；精确发布提交以 GitHub `main` HEAD 为准 |
+| 数据库 | 保留既有 additive schema，并已按顺序接入比赛 migration、个人收益 foundation `pnl_report_immediate_rebuild_20260801.sql` 与 runtime 后 contract `pnl_report_snapshot_write_contract_after_runtime_20260801.sql` |
 | 发布完成条件 | GitHub `main` 的同一份 runtime 与上述 migration 均已上线并通过聚合 postflight；只完成其中一项不得宣布上线 |
 
 本地发布门禁：
 
 - 收益比赛最终独立审查：`121 / 121` tests PASS，核心实现 `must-fix = 0`。
-- `npm run check:full`：PASS；完整测试、字号下限、Vite production build、whitespace 和三份权威文档一致性均通过。
+- 个人收益正确重算专项：`131 / 131` tests PASS；独立 runtime/SQL 审查 `must-fix = 0`，6 份 SQL 的 PostgreSQL/PLpgSQL 解析、canonical 同步和列值数量检查均通过。
+- `npm run check:full`：`857 / 857` tests PASS；字号下限、Vite production build、whitespace 和三份权威文档一致性均通过。
 - 新的开发、验证和单等待器发布流程继续保留，没有恢复旧六文档或重复验证流程。
 
 ## 交易持仓收盘估值
@@ -27,6 +28,14 @@
 - 新完成收盘暂缺时，估值只保留最近一份明确的 EODHD 完成收盘字段，界面显示不可用；不得回退 delayed `price`，也不得用 `0` 覆盖最近有效估值。
 - 今日盈亏仍独立使用 `dailyPnlPrice - dailyPnlBaselineClose`；个人收益报表仍读取数据库完成收盘快照，本次不修改其计算或数据。
 - 本次没有接入 Yahoo 或其他备用行情源，没有修改 `/api/quote` provider、正式交易、个人收益快照、比赛账本或生产财务数据。
+
+## 个人收益正确重算
+
+- 正式交易新增、删除或金融字段修改成功后，个人收益从最早受影响交易日即时重算；修改名称或备注不触发。
+- 重算只从服务端读取 EODHD 已完成收盘日线，不使用 Yahoo、实时价或其他备用源；正常交易日目标 K 线未到时返回等待并保留 dirty，不回退到旧日期冒充当日结果。
+- 旧报表在分块重建期间保持可见，完整序列通过 ledger revision CAS 原子替换；空账本也通过原子操作明确清空。客户端请求是非阻塞派生动作，失败不会回滚已保存的正式交易。
+- 前台自动重试受 15 分钟门控，手动重试可立即触发；收盘任务会继续消费离线用户的 dirty。个人收益、比赛、实时持仓估值与正式交易账本仍是独立链路。
+- schema 分为 `pnl_report_immediate_rebuild_20260801.sql` foundation 和 `pnl_report_snapshot_write_contract_after_runtime_20260801.sql` contract。生产严格按 foundation migration → 精确 runtime 部署/验证 → contract migration → 聚合 postflight 执行；contract 不得提前执行。
 
 ## 收益比赛当前状态
 
@@ -52,8 +61,9 @@
 ### 已知风险
 
 - 比赛公开行情缓存与 402 熔断是 Vercel 单实例内存态，不是跨实例全局缓存；冷启动或不同实例仍可能分别首次读取一次。
-- v408 只为收益比赛补上共享 EODHD 缓存与熔断，并在客户端统一交易持仓的 EODHD 收盘估值。应用主 `/api/quote` 仍是 v402 行为，没有 v404 的 15/30/60 分钟客户端门控、完整完成收盘缓存和通用 402 熔断，旧客户端或高频页面仍可能再次消耗大量 EODHD 额度。
-- 客户端的即时重算请求是非阻塞派生动作：正式交易保存成功不会因比赛暂时失败而回滚。恢复依赖数据库 dirty state、登录态 GET 和 Cron，不依赖浏览器一直存活。
+- v409 延续收益比赛共享 EODHD 缓存与熔断、交易持仓 EODHD 收盘估值，并新增个人收益正确重算。应用主 `/api/quote` 仍是 v402 行为，没有 v404 的 15/30/60 分钟客户端门控、完整完成收盘缓存和通用 402 熔断，旧客户端或高频页面仍可能再次消耗大量 EODHD 额度。
+- 客户端的即时重算请求是非阻塞派生动作：正式交易保存成功不会因个人收益或比赛暂时失败而回滚。恢复依赖数据库 dirty state、登录态请求和 Cron，不依赖浏览器一直存活。
+- P&L foundation 与 contract 之间旧 PWA 仍保留原直接写权限，因此 runtime 验证后必须尽快执行 contract；任一步失败都只做 forward-fix。跨 Vercel 实例生成不同时间戳时可能留下多个安全隔离的暂存 job，由 24 小时 TTL 清理，不会混合发布。
 
 ## 必须保护的业务边界
 
@@ -65,7 +75,7 @@
 
 ### 下一步
 
-1. 只有在 migration 与精确 GitHub `main` runtime 均完成后，运行一次 FULL 发布等待器并记录 CI、Docs 和 Vercel 结果。
-2. 上线后只做低频、聚合只读回查：marker 日期/版本、dirty 总数、原子 RPC/grant、未登录接口和一条已登录比赛读取；不得循环调用 EODHD。
+1. 低频观察个人收益 dirty 聚合数量、等待原因与重试完成情况；不得读取或披露用户交易明细，不得循环调用 EODHD。
+2. 现场只读核验个人收益 schema/RPC/grant、比赛 publication marker、未登录接口与一条已登录读取；旧证据不能代替本次现场结果。
 3. 观察应用整体 EODHD 调用量。若主 quote 仍有跨实例或旧客户端重复读取，另行恢复 EODHD-only 的通用门控与缓存，不得改变正式价格来源。
 4. 新任务只读 `README.md`、`docs/development-process.md`、`docs/handoff.md`，不要重复旧流程。

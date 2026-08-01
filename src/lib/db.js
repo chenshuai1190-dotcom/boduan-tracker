@@ -2,7 +2,6 @@
 // 所有增删改查都走这里,统一处理错误和缓存
 import { supabase } from './supabase';
 import { scopedDeleteByField, scopedDeleteById, scopedDeleteBySymbol } from './dbGuards';
-import { earliestReportDate, markPnlReportDirtySafely } from './pnlReportDb';
 import { applyAccountSnapshotMutations } from './accountSnapshotMutation.js';
 import {
   HOME_MARGIN_LOGIC_VERSION,
@@ -14,14 +13,11 @@ import { normalizeStrictUserStockSymbol, normalizeUserStockSymbol } from './symb
 import { userScopedStorageKey } from './userScopedStorage.js';
 
 export {
-  clearPnlReportRebuildState,
   fetchPnlReportRebuildState,
   fetchPnlReportSnapshots,
   fetchPnlReportSymbolSnapshotHistory,
   fetchPnlReportSymbolSnapshots,
   mapPnlReportRebuildState,
-  markPnlReportDirtyFromDate,
-  upsertPnlReportSnapshots,
 } from './pnlReportDb';
 
 export {
@@ -250,7 +246,6 @@ export const insertStockTrade = async (trade) => {
     .select()
     .single();
   if (error) throw error;
-  await markPnlReportDirtySafely(data.trade_date, 'stock_trade_inserted', data.id);
   return mapStockTrade(data);
 };
 
@@ -261,14 +256,6 @@ export const updateStockTrade = async (id, trade) => {
 
   const symbol = normalizeStrictUserStockSymbol(trade.symbol);
   if (!symbol) throw new Error('股票代码格式不正确');
-
-  const { data: existingTrade, error: existingError } = await supabase
-    .from('stock_trades')
-    .select('trade_date')
-    .eq('id', id)
-    .eq('user_id', user.id)
-    .maybeSingle();
-  if (existingError) console.warn('读取原交易日期失败:', existingError.message || existingError);
 
   const side = trade.side === 'sell' ? 'sell' : 'buy';
   const { data, error } = await supabase
@@ -289,7 +276,6 @@ export const updateStockTrade = async (id, trade) => {
     .select()
     .single();
   if (error) throw error;
-  await markPnlReportDirtySafely(earliestReportDate(existingTrade?.trade_date, data.trade_date), 'stock_trade_updated', data.id);
   return mapStockTrade(data);
 };
 
@@ -297,17 +283,8 @@ export const deleteStockTrade = async (id) => {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('未登录');
 
-  const { data: existingTrade, error: existingError } = await supabase
-    .from('stock_trades')
-    .select('trade_date')
-    .eq('id', id)
-    .eq('user_id', user.id)
-    .maybeSingle();
-  if (existingError) console.warn('读取待删除交易日期失败:', existingError.message || existingError);
-
   const { error } = await scopedDeleteById(supabase.from('stock_trades'), id, user.id);
   if (error) throw error;
-  await markPnlReportDirtySafely(existingTrade?.trade_date, 'stock_trade_deleted', id);
 };
 
 // ============ WATCHLIST (关注列表) ============

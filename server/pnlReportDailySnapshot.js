@@ -13,12 +13,19 @@ const PNL_CATCH_UP_WINDOW_DAYS = 31;
 const EODHD_MAX_ATTEMPTS = 3;
 const EODHD_RETRY_DELAYS_MS = [250, 750];
 const SHARE_EPSILON = 1e-8;
+const SUPABASE_MAX_TIMEOUT_MS = 45_000;
+const DAILY_SNAPSHOT_WRITE_OUTCOMES = new Set([
+  'written',
+  'already_current',
+  'stale',
+  'dirty_pending',
+]);
 
 function firstQueryValue(value) {
   return Array.isArray(value) ? value[0] : value;
 }
 
-function normalizeDateParam(value) {
+export function normalizeDateParam(value) {
   const raw = String(value || '').trim();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return null;
   const parsed = new Date(`${raw}T00:00:00Z`);
@@ -26,7 +33,7 @@ function normalizeDateParam(value) {
   return raw;
 }
 
-function shiftDate(dateKey, days) {
+export function shiftDate(dateKey, days) {
   const date = new Date(`${dateKey}T00:00:00Z`);
   if (Number.isNaN(date.getTime())) return null;
   date.setUTCDate(date.getUTCDate() + days);
@@ -86,7 +93,13 @@ async function parseJsonSafe(response) {
   }
 }
 
-async function supabaseAdminFetch(path, options = {}) {
+function controlledSupabaseTimeout(timeoutMs) {
+  const requested = Number(timeoutMs);
+  if (!Number.isFinite(requested) || requested <= 0) return QUOTE_TIMEOUTS.default;
+  return Math.min(Math.round(requested), SUPABASE_MAX_TIMEOUT_MS);
+}
+
+export async function supabaseAdminFetch(path, options = {}, { timeoutMs } = {}) {
   const { supabaseUrl, serviceRoleKey } = getSupabaseAdminConfig();
   const url = new URL(path, `${supabaseUrl}/`);
   let response;
@@ -96,7 +109,7 @@ async function supabaseAdminFetch(path, options = {}) {
       headers: adminJsonHeaders(serviceRoleKey, options.headers || {}),
     }, {
       provider: 'supabase-pnl-daily-snapshot',
-      timeoutMs: QUOTE_TIMEOUTS.default,
+      timeoutMs: controlledSupabaseTimeout(timeoutMs),
     });
   } catch (cause) {
     const error = new Error('Supabase REST request failed');
@@ -120,7 +133,7 @@ async function supabaseAdminFetch(path, options = {}) {
   return body;
 }
 
-function mapStockTradeRow(row) {
+export function mapStockTradeRow(row) {
   const symbol = normalizeSymbol(row?.symbol);
   return {
     id: row?.id,
@@ -140,7 +153,7 @@ function mapStockTradeRow(row) {
   };
 }
 
-function isValidTrade(trade) {
+export function isValidTrade(trade) {
   return Boolean(
     trade?.user_id
     && trade?.symbol
@@ -182,6 +195,57 @@ async function fetchAllStockTrades() {
     offset += STOCK_TRADES_PAGE_SIZE;
   }
   return rows.map(mapStockTradeRow).filter(isValidTrade);
+}
+
+function normalizeLedgerRevision(value) {
+  const raw = String(value ?? '').trim();
+  if (!/^\d+$/.test(raw)) return null;
+  const revision = Number(raw);
+  return Number.isSafeInteger(revision) && revision >= 0 ? revision : null;
+}
+
+async function fetchAllStockTradeLedgerRevisions() {
+  const revisions = new Map();
+  let offset = 0;
+  while (true) {
+    const url = new URL('/rest/v1/stock_trade_ledger_revisions', 'https://placeholder.local');
+    url.searchParams.set('select', 'user_id,revision');
+    url.searchParams.set('order', 'user_id.asc');
+    const page = await supabaseAdminFetch(`${url.pathname}${url.search}`, {
+      headers: { Range: `${offset}-${offset + STOCK_TRADES_PAGE_SIZE - 1}` },
+    });
+    const pageRows = Array.isArray(page) ? page : [];
+    pageRows.forEach((row) => {
+      const userId = String(row?.user_id || '');
+      const revision = normalizeLedgerRevision(row?.revision);
+      if (userId && revision != null) revisions.set(userId, revision);
+    });
+    if (pageRows.length < STOCK_TRADES_PAGE_SIZE) break;
+    offset += STOCK_TRADES_PAGE_SIZE;
+  }
+  return revisions;
+}
+
+async function fetchDirtyPnlReportUserIds() {
+  const userIds = new Set();
+  let offset = 0;
+  while (true) {
+    const url = new URL('/rest/v1/pnl_report_rebuild_state', 'https://placeholder.local');
+    url.searchParams.set('select', 'user_id');
+    url.searchParams.set('dirty_from_date', 'not.is.null');
+    url.searchParams.set('order', 'user_id.asc');
+    const page = await supabaseAdminFetch(`${url.pathname}${url.search}`, {
+      headers: { Range: `${offset}-${offset + STOCK_TRADES_PAGE_SIZE - 1}` },
+    });
+    const pageRows = Array.isArray(page) ? page : [];
+    pageRows.forEach((row) => {
+      const userId = String(row?.user_id || '');
+      if (userId) userIds.add(userId);
+    });
+    if (pageRows.length < STOCK_TRADES_PAGE_SIZE) break;
+    offset += STOCK_TRADES_PAGE_SIZE;
+  }
+  return userIds;
 }
 
 function marginSnapshotContractError() {
@@ -245,7 +309,7 @@ function normalizeResolvedMarginSnapshot(row) {
   };
 }
 
-async function resolveMarginDebtSnapshotTargets(pendingDatesByUser) {
+export async function resolveMarginDebtSnapshotTargets(pendingDatesByUser) {
   const targets = [...pendingDatesByUser.entries()].flatMap(([userId, dates]) => (
     (Array.isArray(dates) ? dates : []).map((snapshotDate) => ({
       user_id: userId,
@@ -296,7 +360,7 @@ function groupTradesByUser(stockTrades) {
   return grouped;
 }
 
-function requiredCloseSymbolsForUser(userTrades, targetDate) {
+export function requiredCloseSymbolsForUser(userTrades, targetDate) {
   const sharesBySymbol = new Map();
   [...userTrades].sort((a, b) => (
     String(a?.trade_date || '').localeCompare(String(b?.trade_date || ''))
@@ -436,7 +500,7 @@ async function fetchSymbolCloseRows(symbol, {
   });
 }
 
-async function fetchHistoricalClosesBySymbol(symbols, {
+export async function fetchHistoricalClosesBySymbol(symbols, {
   targetDate,
   fromDate = null,
   requiredDatesBySymbol = null,
@@ -483,8 +547,12 @@ async function fetchHistoricalClosesBySymbol(symbols, {
   return { historicalClosesBySymbol, failedSymbols };
 }
 
-async function fetchUsTradingDatesThroughTarget(targetDate) {
-  const from = shiftDate(targetDate, -PNL_CATCH_UP_WINDOW_DAYS);
+export async function fetchUsTradingDatesThroughTarget(targetDate, {
+  fromDate = null,
+  requireTargetClose = true,
+} = {}) {
+  const from = normalizeDateParam(fromDate)
+    || shiftDate(targetDate, -PNL_CATCH_UP_WINDOW_DAYS);
   if (!from) {
     const error = new Error('目标日期不合法');
     error.status = 400;
@@ -497,7 +565,7 @@ async function fetchUsTradingDatesThroughTarget(targetDate) {
     // Do not let a stale HTTP 200 payload silently move the run backwards.
     // A US holiday can temporarily return 503 here; the following real
     // trading date will include the missed gap in this catch-up window.
-    requiredDates: [targetDate],
+    requiredDates: requireTargetClose ? [targetDate] : [],
   });
   return rows
     .map((row) => row.date)
@@ -583,7 +651,7 @@ function requiredCloseDatesBySymbol(groupedByUser, pendingDatesByUser) {
   return requiredBySymbol;
 }
 
-function toPortfolioSnapshotRow(snapshot, userId) {
+export function toPortfolioSnapshotRow(snapshot, userId) {
   return {
     user_id: userId,
     snapshot_date: snapshot.snapshotDate,
@@ -611,7 +679,7 @@ function toPortfolioSnapshotRow(snapshot, userId) {
   };
 }
 
-function toSymbolSnapshotRow(snapshot, userId, snapshotDate) {
+export function toSymbolSnapshotRow(snapshot, userId, snapshotDate) {
   return {
     user_id: userId,
     snapshot_date: snapshot.snapshotDate || snapshotDate,
@@ -640,53 +708,156 @@ function toSymbolSnapshotRow(snapshot, userId, snapshotDate) {
   };
 }
 
-async function upsertUserSnapshots(userId, built) {
+function normalizeSnapshotWriteOutcome(body) {
+  if (Array.isArray(body)) return normalizeSnapshotWriteOutcome(body[0] || null);
+  if (typeof body === 'string') return { outcome: body };
+  if (!body || typeof body !== 'object') return { outcome: 'invalid_response' };
+  return {
+    ...body,
+    outcome: String(body.outcome || body.result || 'invalid_response'),
+  };
+}
+
+async function writeUserSnapshotIfCurrent(userId, built, expectedLedgerRevision) {
   const snapshotDate = built?.portfolioSnapshot?.snapshotDate;
-  if (!userId || !snapshotDate || !built?.portfolioSnapshot) {
+  if (
+    !userId
+    || !snapshotDate
+    || !built?.portfolioSnapshot
+    || normalizeLedgerRevision(expectedLedgerRevision) == null
+  ) {
     throw new Error('缺少收益报表快照数据');
   }
-
-  // pnl_report_snapshots is the completion marker read by scheduled catch-up.
-  // Remove it before any symbol mutation so a partial rerun remains visible
-  // and repairable. The marker is recreated only after all symbols succeed.
-  const markerDeleteUrl = new URL('/rest/v1/pnl_report_snapshots', 'https://placeholder.local');
-  markerDeleteUrl.searchParams.set('user_id', `eq.${userId}`);
-  markerDeleteUrl.searchParams.set('snapshot_date', `eq.${snapshotDate}`);
-  await supabaseAdminFetch(`${markerDeleteUrl.pathname}${markerDeleteUrl.search}`, {
-    method: 'DELETE',
-    headers: { Prefer: 'return=minimal' },
-  });
-
-  const deleteUrl = new URL('/rest/v1/pnl_report_symbol_snapshots', 'https://placeholder.local');
-  deleteUrl.searchParams.set('user_id', `eq.${userId}`);
-  deleteUrl.searchParams.set('snapshot_date', `eq.${snapshotDate}`);
-  await supabaseAdminFetch(`${deleteUrl.pathname}${deleteUrl.search}`, {
-    method: 'DELETE',
-    headers: { Prefer: 'return=minimal' },
-  });
-
   const symbolRows = (Array.isArray(built.symbolSnapshots) ? built.symbolSnapshots : [])
     .map((snapshot) => toSymbolSnapshotRow(snapshot, userId, snapshotDate))
     .filter((row) => row.symbol && row.snapshot_date);
-  if (symbolRows.length > 0) {
-    const symbolUrl = new URL('/rest/v1/pnl_report_symbol_snapshots', 'https://placeholder.local');
-    symbolUrl.searchParams.set('on_conflict', 'user_id,snapshot_date,symbol');
-    await supabaseAdminFetch(`${symbolUrl.pathname}${symbolUrl.search}`, {
+  const operationKey = [
+    'pnl-daily-snapshot',
+    userId,
+    expectedLedgerRevision,
+    snapshotDate,
+  ].join(':');
+  const body = await supabaseAdminFetch(
+    '/rest/v1/rpc/write_pnl_report_snapshot_if_current',
+    {
       method: 'POST',
-      headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
-      body: JSON.stringify(symbolRows),
-    });
+      body: JSON.stringify({
+        p_user_id: userId,
+        p_operation_key: operationKey,
+        p_expected_ledger_revision: expectedLedgerRevision,
+        p_snapshot_date: snapshotDate,
+        p_portfolio_row: toPortfolioSnapshotRow(built.portfolioSnapshot, userId),
+        p_symbol_rows: symbolRows,
+      }),
+    }
+  );
+  const outcome = normalizeSnapshotWriteOutcome(body);
+  if (!DAILY_SNAPSHOT_WRITE_OUTCOMES.has(outcome.outcome)) {
+    const error = new Error('收益报表原子快照写入返回无效状态');
+    error.status = 503;
+    error.retryable = true;
+    error.reason = 'snapshot_write_invalid_outcome';
+    throw error;
   }
+  return outcome;
+}
 
-  // The portfolio row is the completion marker read by scheduled catch-up.
-  // Write it last so a partial symbol write cannot make the next run skip this date.
-  const portfolioUrl = new URL('/rest/v1/pnl_report_snapshots', 'https://placeholder.local');
-  portfolioUrl.searchParams.set('on_conflict', 'user_id,snapshot_date');
-  await supabaseAdminFetch(`${portfolioUrl.pathname}${portfolioUrl.search}`, {
-    method: 'POST',
-    headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
-    body: JSON.stringify([toPortfolioSnapshotRow(built.portfolioSnapshot, userId)]),
-  });
+function isRetryableScheduledFailure(error) {
+  if (typeof error?.retryable === 'boolean') return error.retryable;
+  const status = Number(error?.status) || 0;
+  return status === 0
+    || status === 402
+    || status === 408
+    || status === 409
+    || status === 429
+    || status >= 500;
+}
+
+function skippedDirtyRecalculation() {
+  return {
+    attempted: 0,
+    recalculated: 0,
+    cleared: 0,
+    alreadyCurrent: 0,
+    waitingForClose: 0,
+    failed: 0,
+    retryableFailures: 0,
+    permanentFailures: 0,
+    batchLimited: false,
+    complete: true,
+    retryable: false,
+    skipped: true,
+  };
+}
+
+async function runScheduledDirtyRecalculation({ catchUp, now }) {
+  if (!catchUp) return skippedDirtyRecalculation();
+  try {
+    // Keep this import dynamic: the recalculation module intentionally reuses
+    // the completed-close serializers in this module.
+    const { recalculateDirtyPnlReportUsers } = await import('./pnlReportRecalculation.js');
+    return {
+      ...(await recalculateDirtyPnlReportUsers({ now })),
+      skipped: false,
+    };
+  } catch (error) {
+    const retryable = isRetryableScheduledFailure(error);
+    return {
+      attempted: 0,
+      recalculated: 0,
+      cleared: 0,
+      alreadyCurrent: 0,
+      waitingForClose: 0,
+      failed: 1,
+      retryableFailures: retryable ? 1 : 0,
+      permanentFailures: retryable ? 0 : 1,
+      batchLimited: false,
+      complete: false,
+      retryable,
+      skipped: false,
+      reason: retryable ? 'dirty_recalculation_transient_error' : 'dirty_recalculation_error',
+    };
+  }
+}
+
+function attachDirtyRecalculation(result, dirtyRecalculation) {
+  const dirty = dirtyRecalculation || skippedDirtyRecalculation();
+  const financialIncomplete = result?.complete === false;
+  // A dirty marker can appear after the bounded batch read. Exclusion keeps
+  // the data safe; surfacing incomplete/retryable makes the next cron finish it.
+  const excludedDirtyIncomplete = Number(result?.excludedDirtyUsers) > 0;
+  const baseIncomplete = financialIncomplete || excludedDirtyIncomplete;
+  const dirtyIncomplete = dirty.complete === false;
+  const complete = !baseIncomplete && !dirtyIncomplete;
+  const hasPermanentFailure = (financialIncomplete && !result?.retryable)
+    || (dirtyIncomplete && !dirty.retryable);
+  const retryable = !complete
+    && !hasPermanentFailure
+    && ((financialIncomplete && Boolean(result?.retryable))
+      || excludedDirtyIncomplete
+      || (dirtyIncomplete && Boolean(dirty.retryable)));
+  return {
+    ...result,
+    success: complete,
+    complete,
+    retryable,
+    dirtyRecalculation: dirty,
+  };
+}
+
+async function finalizeDailyResult(result, dirtyRecalculation, initialDirtyUserIds) {
+  // A formal trade can commit after the first dirty scan. Re-read immediately
+  // before reporting completion so an already-current/no-op daily path cannot
+  // hide a newly dirty ledger. The next invocation will rebuild it.
+  const finalDirtyUserIds = await fetchDirtyPnlReportUserIds();
+  const excludedDirtyUsers = new Set([
+    ...(initialDirtyUserIds || []),
+    ...finalDirtyUserIds,
+  ]).size;
+  return attachDirtyRecalculation({
+    ...result,
+    excludedDirtyUsers,
+  }, dirtyRecalculation);
 }
 
 export function authorizePnlReportDailySnapshot(req) {
@@ -768,11 +939,23 @@ export async function runPnlReportDailySnapshot({
     }
   }
 
-  const stockTrades = await fetchAllStockTrades();
+  // Scheduled invocations must service dirty users even when their last trade
+  // was deleted or they are offline. A failed dirty rebuild never authorizes a
+  // normal append; the atomic daily RPC below independently rejects dirty users.
+  const dirtyRecalculation = await runScheduledDirtyRecalculation({ catchUp, now });
+
+  // The revision read must precede the trade read. A mutation after these
+  // reads is caught by write_pnl_report_snapshot_if_current's ledger CAS.
+  // Users still marked dirty are excluded before any ordinary EODHD fetch;
+  // their old ledger must never enter the append path.
+  const dirtyUserIds = await fetchDirtyPnlReportUserIds();
+  const ledgerRevisionsByUser = await fetchAllStockTradeLedgerRevisions();
+  const stockTrades = (await fetchAllStockTrades())
+    .filter((trade) => !dirtyUserIds.has(trade.user_id));
   const groupedByUser = groupTradesByUser(stockTrades);
   const symbols = [...new Set(stockTrades.map((trade) => trade.symbol).filter(Boolean))].sort();
   if (groupedByUser.size === 0) {
-    return {
+    return finalizeDailyResult({
       success: true,
       complete: true,
       retryable: false,
@@ -792,9 +975,10 @@ export async function runPnlReportDailySnapshot({
       failedSymbolsCount: 0,
       failedSymbols: [],
       optionalFailedSymbolsCount: 0,
+      excludedDirtyUsers: dirtyUserIds.size,
       source: 'EODHD_EOD',
       generatedAt: lockedAt,
-    };
+    }, dirtyRecalculation, dirtyUserIds);
   }
 
   let tradingDates = [requestedTargetDate];
@@ -805,15 +989,15 @@ export async function runPnlReportDailySnapshot({
     try {
       tradingDates = await fetchUsTradingDatesThroughTarget(requestedTargetDate);
     } catch (error) {
-      return buildTradingCalendarFailureResult(error, {
+      return finalizeDailyResult(buildTradingCalendarFailureResult(error, {
         targetDate: requestedTargetDate,
         catchUp: true,
         lockedAt,
         symbolsCount: symbols.length,
-      });
+      }), dirtyRecalculation, dirtyUserIds);
     }
     if (tradingDates.length === 0) {
-      return {
+      return finalizeDailyResult({
         success: false,
         complete: false,
         retryable: true,
@@ -839,9 +1023,10 @@ export async function runPnlReportDailySnapshot({
           attempts: EODHD_MAX_ATTEMPTS,
         }],
         optionalFailedSymbolsCount: 0,
+        excludedDirtyUsers: dirtyUserIds.size,
         source: 'EODHD_EOD',
         generatedAt: lockedAt,
-      };
+      }, dirtyRecalculation, dirtyUserIds);
     }
     const effectiveTargetDate = tradingDates.at(-1);
     const latestDatesByUser = await fetchLatestSnapshotDatesByUser(
@@ -864,7 +1049,7 @@ export async function runPnlReportDailySnapshot({
   const attemptedUserCount = [...pendingDatesByUser.values()]
     .filter((dates) => dates.length > 0).length;
   if (plannedSnapshots === 0) {
-    return {
+    return finalizeDailyResult({
       success: true,
       complete: true,
       retryable: false,
@@ -885,9 +1070,10 @@ export async function runPnlReportDailySnapshot({
       failedSymbolsCount: 0,
       failedSymbols: [],
       optionalFailedSymbolsCount: 0,
+      excludedDirtyUsers: dirtyUserIds.size,
       source: 'EODHD_EOD',
       generatedAt: lockedAt,
-    };
+    }, dirtyRecalculation, dirtyUserIds);
   }
 
   // Resolve every user's historical margin at the database-authoritative
@@ -920,6 +1106,8 @@ export async function runPnlReportDailySnapshot({
     plannedSnapshots,
     attemptedSnapshots: 0,
     writtenSnapshots: 0,
+    alreadyCurrentSnapshots: 0,
+    ensuredSnapshots: 0,
     skippedSnapshots: 0,
     failedSnapshots: 0,
     deferredSnapshots: 0,
@@ -928,6 +1116,7 @@ export async function runPnlReportDailySnapshot({
     failedSymbolsCount: failedSymbols.length,
     failedSymbols,
     optionalFailedSymbolsCount: optionalFailedSymbols.length,
+    excludedDirtyUsers: dirtyUserIds.size,
     source: 'EODHD_EOD',
     generatedAt: lockedAt,
     skippedReasons: {},
@@ -936,8 +1125,10 @@ export async function runPnlReportDailySnapshot({
 
   const blockedUsers = new Set();
   const writtenUsers = new Set();
+  const alreadyCurrentUsers = new Set();
   const skippedUsers = new Set();
   const failedUsers = new Set();
+  const deferredUsers = new Set();
   let retryableSnapshotFailures = 0;
   let permanentSnapshotFailures = 0;
   for (const snapshotDate of plannedDates) {
@@ -950,6 +1141,14 @@ export async function runPnlReportDailySnapshot({
       }
       result.attemptedSnapshots += 1;
       try {
+        const expectedLedgerRevision = ledgerRevisionsByUser.get(userId);
+        if (normalizeLedgerRevision(expectedLedgerRevision) == null) {
+          const error = new Error('个人收益正式交易 revision 不可用');
+          error.status = 503;
+          error.retryable = true;
+          error.reason = 'missing_ledger_revision';
+          throw error;
+        }
         const builtHistory = buildPnlReportHistoricalSnapshots({
           stockTrades: userTrades,
           historicalClosesBySymbol,
@@ -969,9 +1168,34 @@ export async function runPnlReportDailySnapshot({
           result.skippedReasons[reason] = (result.skippedReasons[reason] || 0) + 1;
           continue;
         }
-        await upsertUserSnapshots(userId, built);
-        result.writtenSnapshots += 1;
-        writtenUsers.add(userId);
+        const write = await writeUserSnapshotIfCurrent(
+          userId,
+          built,
+          expectedLedgerRevision
+        );
+        if (write.outcome === 'written') {
+          result.writtenSnapshots += 1;
+          result.ensuredSnapshots += 1;
+          writtenUsers.add(userId);
+          continue;
+        }
+        if (write.outcome === 'already_current') {
+          result.alreadyCurrentSnapshots += 1;
+          result.ensuredSnapshots += 1;
+          alreadyCurrentUsers.add(userId);
+          continue;
+        }
+
+        // A dirty or stale ledger is intentionally left untouched. Do not let
+        // later planned dates for the same user publish a mixed generation.
+        result.deferredSnapshots += 1;
+        deferredUsers.add(userId);
+        blockedUsers.add(userId);
+        retryableSnapshotFailures += 1;
+        const reason = write.outcome === 'dirty_pending'
+          ? 'snapshot_write_dirty_pending'
+          : 'snapshot_write_stale';
+        result.failedReasons[reason] = (result.failedReasons[reason] || 0) + 1;
       } catch (error) {
         result.failedSnapshots += 1;
         failedUsers.add(userId);
@@ -980,22 +1204,26 @@ export async function runPnlReportDailySnapshot({
         const isRetryable = Boolean(error?.retryable);
         if (isRetryable) retryableSnapshotFailures += 1;
         else permanentSnapshotFailures += 1;
-        const reason = status > 0
-          ? `snapshot_write_http_${status}`
-          : (isRetryable ? 'snapshot_write_transient_error' : 'snapshot_write_error');
+        const reason = String(error?.reason || (
+          status > 0
+            ? `snapshot_write_http_${status}`
+            : (isRetryable ? 'snapshot_write_transient_error' : 'snapshot_write_error')
+        )).slice(0, 80);
         result.failedReasons[reason] = (result.failedReasons[reason] || 0) + 1;
       }
     }
   }
 
   result.writtenUsers = writtenUsers.size;
+  result.alreadyCurrentUsers = alreadyCurrentUsers.size;
   result.skippedUsers = skippedUsers.size;
   result.failedUsers = failedUsers.size;
+  result.deferredUsers = deferredUsers.size;
   result.complete = result.failedSymbolsCount === 0
     && result.failedSnapshots === 0
     && result.skippedSnapshots === 0
     && result.deferredSnapshots === 0
-    && result.writtenSnapshots === result.plannedSnapshots;
+    && result.ensuredSnapshots === result.plannedSnapshots;
   const hasRetryableFailure = failedSymbols.some((entry) => entry.retryable)
     || retryableSnapshotFailures > 0
     || (result.failedSymbolsCount === 0 && (result.skippedReasons.missing_close || 0) > 0);
@@ -1005,5 +1233,5 @@ export async function runPnlReportDailySnapshot({
       .some(([reason, count]) => reason !== 'missing_close' && count > 0);
   result.retryable = hasRetryableFailure && !hasPermanentFailure;
   result.success = result.complete;
-  return result;
+  return finalizeDailyResult(result, dirtyRecalculation, dirtyUserIds);
 }

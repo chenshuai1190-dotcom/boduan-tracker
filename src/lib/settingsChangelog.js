@@ -4,6 +4,23 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '📈 正式交易修改后收益报表正确重算',
+      '  - 新增、修改或删除正式交易后，个人收益从最早受影响交易日重建至 EODHD 最新精确完成收盘；修改名称或备注不触发金融重算',
+      '  - 重建期间继续显示上一份完整报表，完整新序列经账本版本校验后原子替换；空账本也会原子清空',
+      '  - 正常交易日精确收盘暂缺时保持等待和 dirty，不拿实时价、Yahoo、备用源或旧日期冒充当日结果',
+      '  - 正式交易保存不因派生报表失败而回滚；前台和收盘任务会安全重试，且不修改比赛、实时持仓、波段或摊薄成本链路',
+    ],
+    itemsEn: [
+      '📈 Correct personal P&L rebuilds after formal-trade changes',
+      '  - Adding, editing, or deleting a formal trade rebuilds personal P&L from the earliest affected trade date through the latest exact completed EODHD close; name-only or note-only edits do not trigger a financial rebuild',
+      '  - The previous complete report remains visible during the rebuild, and the new complete series replaces it atomically after a ledger-version check; an empty ledger is cleared atomically as well',
+      '  - If the exact close for a regular session is not available yet, the report remains pending and dirty instead of substituting realtime prices, Yahoo, backup providers, or an older date',
+      '  - A derived-report failure never rolls back the saved formal trade; foreground and close jobs retry safely without changing competition, live holdings, swing records, or dilution-cost paths',
+    ],
+  },
+  {
+    ver: 'v10.7.9.408', date: '2026-08-01',
+    items: [
       '📊 交易持仓统一使用 EODHD 收盘估值',
       '  - 收盘锁定后，交易页持仓价格、市值、持仓盈亏、累计盈亏、总资产、占比和排序统一使用 EODHD 最新完成收盘价，与首页正式收盘口径一致',
       '  - 盘前和盘中继续保留 EODHD 实时价；交易录入默认价和持仓试算不会被收盘估值字段替换',

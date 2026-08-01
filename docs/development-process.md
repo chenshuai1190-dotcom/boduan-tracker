@@ -96,6 +96,15 @@ FULL 依次执行一次完整测试（其中包含字号门禁）、production b
 
 生产 migration、backfill、删除、覆盖或其他写操作仍必须取得用户明确授权；执行前只读确认精确目标，执行后做隐私安全的聚合 postflight，并说明回滚或 forward-fix。
 
+当新 runtime 与权限收紧互相依赖时，发布必须拆成一条兼容的 forward-only 序列，不能把数据库与 runtime 当成可任意交换顺序的两个动作：
+
+1. 先执行只新增表、字段、trigger 和 service RPC，且仍兼容旧 runtime 的 foundation migration。
+2. 再从 GitHub `main` 部署并核验精确的新 runtime；新代码不得早于其依赖的 foundation RPC 上线。
+3. 新 runtime 验证通过后，立即执行单独的 contract migration，撤销旧浏览器写入口和多余 grant。
+4. 最后只做一次聚合 postflight，核对 schema、RLS、trigger、RPC 签名、dirty 数量及精确部署提交。
+
+contract migration 不得在新 runtime 前执行；foundation、runtime、contract 任一阶段失败都停止后续动作并做 forward-fix，不回滚生产 schema，也不以临时放宽 RLS 作为修复。
+
 ## 六、视觉验收只做最终一轮
 
 - 纯文案、颜色、图标和简单样式不默认截图；用户要求截图时纳入同一任务，不等待再次提醒。

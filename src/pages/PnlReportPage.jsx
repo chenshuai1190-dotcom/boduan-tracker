@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowLeft, BarChart3, ChevronDown, ChevronRight, Filter, RefreshCw, X } from 'lucide-react';
+import { ArrowLeft, BarChart3, ChevronDown, ChevronRight, Filter, X } from 'lucide-react';
 import { marketHexColor, marketTextClass } from '../lib/marketColorMode.js';
 import { isEnglishLanguage, t } from '../lib/i18n.js';
 import {
@@ -8,24 +8,18 @@ import {
   isExplicitUnknownNetAssetPoint,
   splitChartPointSegments,
 } from '../lib/pnlReportChart.js';
-import {
-  buildPnlReportCloseSnapshotInput,
-  buildPnlReportHistoricalSnapshots,
-} from '../lib/pnlReportSnapshots.js';
 import { buildPnlReportViewModel } from '../lib/pnlReportViewModel.js';
+import { requestPnlReportRecalculation } from '../lib/pnlReportRecalculation.js';
 
 const REPORT_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif';
 const NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif';
 const USD_CNY_FALLBACK = 7.2;
-const PNL_REPORT_HISTORY_SNAPSHOT_COUNT = 45;
-const PNL_REPORT_HISTORY_CLOSE_ROWS = PNL_REPORT_HISTORY_SNAPSHOT_COUNT + 1;
 const PNL_CHART_WIDTH = 310;
 const PNL_CHART_HEIGHT = 150;
 const PNL_CHART_PAD = 10;
+const PNL_REPORT_FOREGROUND_RETRY_MIN_INTERVAL_MS = 15 * 60_000;
 const NET_ASSET_COLOR = '#ff5038';
 const TOTAL_ASSET_COLOR = '#f6b54b';
-// Kept for controlled local/testing use; hidden from the product page for now.
-const SHOW_PNL_REPORT_SNAPSHOT_REBUILD_CONTROLS = false;
 
 function toNumber(value) {
   const n = Number(value);
@@ -79,16 +73,6 @@ function displayName(row, englishMode) {
     微软: 'Microsoft',
   };
   return map[row.name] || row.name || row.symbol;
-}
-
-function normalizeSymbol(symbol) {
-  return String(symbol || '').trim().toUpperCase();
-}
-
-function uniqueTradeSymbols(stockTrades = []) {
-  return [...new Set((Array.isArray(stockTrades) ? stockTrades : [])
-    .map((trade) => normalizeSymbol(trade?.symbol))
-    .filter(Boolean))].sort();
 }
 
 function dateKeyToday() {
@@ -554,8 +538,8 @@ export default function PnlReportPage({ ctx = {} }) {
     language = 'zh',
     marketColorMode,
     pnlReportInitialChartMode = 'pnl',
+    pnlReportRefreshVersion = 0,
     pnlReportTooltipDate = '',
-    quoteRows,
     stockTrades,
     supabase,
     usdRate,
@@ -591,6 +575,8 @@ export default function PnlReportPage({ ctx = {} }) {
   const [reportError, setReportError] = React.useState('');
   const [reportMessage, setReportMessage] = React.useState('');
   const [rebuilding, setRebuilding] = React.useState(false);
+  const [rebuildRetryVersion, setRebuildRetryVersion] = React.useState(0);
+  const [snapshotLoadVersion, setSnapshotLoadVersion] = React.useState(0);
   const [benchmarkRows, setBenchmarkRows] = React.useState([]);
   const [benchmarkLoading, setBenchmarkLoading] = React.useState(false);
   const [benchmarkError, setBenchmarkError] = React.useState('');
@@ -603,8 +589,11 @@ export default function PnlReportPage({ ctx = {} }) {
       setPortfolioSnapshots(snapshots);
       const state = db.fetchPnlReportRebuildState ? await db.fetchPnlReportRebuildState() : null;
       setRebuildState(state);
+      setSnapshotLoadVersion((version) => version + 1);
+      return { snapshots, state };
     } catch (error) {
       setReportError(error?.message || String(error));
+      return null;
     } finally {
       setReportLoading(false);
     }
@@ -612,7 +601,115 @@ export default function PnlReportPage({ ctx = {} }) {
 
   React.useEffect(() => {
     loadReportSnapshots();
-  }, [loadReportSnapshots, user?.id]);
+  }, [loadReportSnapshots, pnlReportRefreshVersion, user?.id]);
+
+  const rebuildAttemptKey = rebuildState?.dirtyFromDate
+    ? [
+      String(user?.id || ''),
+      rebuildState.dirtyFromDate,
+      String(rebuildState.ledgerRevision || 0),
+      String(rebuildState.generation || 0),
+    ].join(':')
+    : '';
+  const lastRebuildAttemptKeyRef = React.useRef('');
+  const rebuildInFlightRef = React.useRef(null);
+  const lastForegroundRetryAtRef = React.useRef(0);
+  const reportMessageTimerRef = React.useRef(null);
+
+  const clearReportMessageTimer = React.useCallback(() => {
+    if (reportMessageTimerRef.current != null) {
+      clearTimeout(reportMessageTimerRef.current);
+      reportMessageTimerRef.current = null;
+    }
+  }, []);
+
+  const showTemporaryReportMessage = React.useCallback((message) => {
+    clearReportMessageTimer();
+    setReportMessage(message);
+    reportMessageTimerRef.current = setTimeout(() => {
+      reportMessageTimerRef.current = null;
+      setReportMessage('');
+    }, 3000);
+  }, [clearReportMessageTimer]);
+
+  React.useEffect(() => () => clearReportMessageTimer(), [clearReportMessageTimer]);
+
+  const retryPnlReportRecalculation = React.useCallback(({ automatic = false } = {}) => {
+    if (!rebuildAttemptKey || rebuildInFlightRef.current != null) return false;
+    const now = Date.now();
+    if (
+      automatic
+      && now - lastForegroundRetryAtRef.current < PNL_REPORT_FOREGROUND_RETRY_MIN_INTERVAL_MS
+    ) return false;
+    lastForegroundRetryAtRef.current = now;
+    lastRebuildAttemptKeyRef.current = '';
+    setRebuildRetryVersion((version) => version + 1);
+    return true;
+  }, [rebuildAttemptKey]);
+
+  React.useEffect(() => {
+    if (!rebuildAttemptKey || typeof window === 'undefined') return undefined;
+    const retryOnForeground = () => retryPnlReportRecalculation({ automatic: true });
+    const retryWhenVisible = () => {
+      if (typeof document === 'undefined' || document.visibilityState === 'visible') {
+        retryOnForeground();
+      }
+    };
+    window.addEventListener('focus', retryOnForeground);
+    window.addEventListener('pageshow', retryOnForeground);
+    if (typeof document !== 'undefined') document.addEventListener('visibilitychange', retryWhenVisible);
+    return () => {
+      window.removeEventListener('focus', retryOnForeground);
+      window.removeEventListener('pageshow', retryOnForeground);
+      if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', retryWhenVisible);
+    };
+  }, [rebuildAttemptKey, retryPnlReportRecalculation]);
+
+  React.useEffect(() => {
+    if (!rebuildAttemptKey || !supabase?.auth?.getSession) return undefined;
+    if (lastRebuildAttemptKeyRef.current === rebuildAttemptKey) return undefined;
+    lastRebuildAttemptKeyRef.current = rebuildAttemptKey;
+
+    let cancelled = false;
+    const attemptToken = Symbol(rebuildAttemptKey);
+    rebuildInFlightRef.current = attemptToken;
+    lastForegroundRetryAtRef.current = Date.now();
+    clearReportMessageTimer();
+    setRebuilding(true);
+    setReportError('');
+    setReportMessage(t(language, 'pnlReport.recalculating', '交易已更新，正在按已完成收盘价重算收益报表'));
+
+    requestPnlReportRecalculation({ supabase })
+      .then(async (result) => {
+        if (cancelled) return;
+        if (result?.state === 'waiting_for_close') {
+          clearReportMessageTimer();
+          setReportMessage(t(language, 'pnlReport.waitingForClose', '交易已更新，等待对应交易日完成收盘后自动重算'));
+          return;
+        }
+        if (['recalculated', 'cleared', 'already_current'].includes(result?.state)) {
+          if (rebuildInFlightRef.current === attemptToken) setRebuilding(false);
+          const loaded = await loadReportSnapshots();
+          if (!cancelled && loaded) {
+            showTemporaryReportMessage(t(language, 'pnlReport.recalculated', '收益报表已按最新正式交易重新计算'));
+          }
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setReportError(error?.message || String(error));
+          setReportMessage('');
+        }
+      })
+      .finally(() => {
+        if (rebuildInFlightRef.current === attemptToken) rebuildInFlightRef.current = null;
+        if (!cancelled) setRebuilding(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [clearReportMessageTimer, language, loadReportSnapshots, rebuildAttemptKey, rebuildRetryVersion, showTemporaryReportMessage, supabase]);
 
   const reportData = React.useMemo(() => buildPnlReportViewModel({
     portfolioSnapshots,
@@ -659,7 +756,7 @@ export default function PnlReportPage({ ctx = {} }) {
     return () => {
       cancelled = true;
     };
-  }, [db, reportData.baselineSnapshotDate, reportData.snapshotDate, user?.id]);
+  }, [db, reportData.baselineSnapshotDate, reportData.snapshotDate, snapshotLoadVersion, user?.id]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -709,62 +806,6 @@ export default function PnlReportPage({ ctx = {} }) {
       cancelled = true;
     };
   }, [fetchPnlBenchmarkRows, language, reportData.benchmarkEndDate, reportData.benchmarkStartDate, reportData.hasData, supabase, user?.id]);
-
-  const handleRebuildToday = React.useCallback(async () => {
-    if (!db?.upsertPnlReportSnapshots) return;
-    setRebuilding(true);
-    setReportError('');
-    setReportMessage('');
-    try {
-      const trades = Array.isArray(stockTrades) ? stockTrades : [];
-      if (trades.length === 0) throw new Error(t(language, 'pnlReport.noTrades', '交易账本为空,无法生成收益快照'));
-      const lockedAt = new Date();
-      const reportQuoteInput = buildPnlReportCloseSnapshotInput({
-        quoteRows: Array.isArray(quoteRows) ? quoteRows : [],
-        now: lockedAt,
-      });
-      const symbols = uniqueTradeSymbols(trades);
-      if (symbols.length === 0) throw new Error(t(language, 'pnlReport.noTrades', '交易账本为空,无法生成收益快照'));
-      if (!supabase?.auth?.getSession) throw new Error(t(language, 'pnlReport.benchmarkAuthRequired', '请重新登录后读取基准行情'));
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-      if (!token) throw new Error(t(language, 'pnlReport.benchmarkAuthRequired', '请重新登录后读取基准行情'));
-      const historyRes = await fetch(`/api/pnl-history-closes?symbols=${encodeURIComponent(symbols.join(','))}&to=${encodeURIComponent(reportQuoteInput.snapshotDate)}&days=${PNL_REPORT_HISTORY_CLOSE_ROWS}`, {
-        cache: 'no-store',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      const historyBody = await historyRes.json().catch(() => null);
-      if (!historyRes.ok || historyBody?.success === false) {
-        throw new Error(historyBody?.error || t(language, 'pnlReport.historyFailed', '历史收盘价读取失败'));
-      }
-      const builtHistory = buildPnlReportHistoricalSnapshots({
-        stockTrades: trades,
-        historicalClosesBySymbol: historyBody?.rowsBySymbol || {},
-        quoteRows: Array.isArray(quoteRows) ? quoteRows : [],
-        cashUsd: toNumber(investmentSummary?.cashUsd),
-        toDate: reportQuoteInput.snapshotDate,
-        maxSnapshots: PNL_REPORT_HISTORY_SNAPSHOT_COUNT,
-        lockedAt: lockedAt.toISOString(),
-        backfillMode: 'currentPositions',
-      });
-      if (builtHistory.snapshots.length === 0) {
-        const missingSymbols = [...new Set(builtHistory.skippedDates.flatMap((item) => item.symbols || []))];
-        throw new Error(`${t(language, 'pnlReport.quotesNotReady', '行情未就绪,缺少收盘价')}${missingSymbols.length ? `: ${missingSymbols.join(', ')}` : ''}`);
-      }
-      for (const built of builtHistory.snapshots) {
-        await db.upsertPnlReportSnapshots(built);
-      }
-      if (db.clearPnlReportRebuildState) await db.clearPnlReportRebuildState();
-      await loadReportSnapshots();
-      setReportMessage(t(language, 'pnlReport.rebuildSuccess', '收盘收益快照已生成'));
-    } catch (error) {
-      setReportError(error?.message || String(error));
-    } finally {
-      setRebuilding(false);
-    }
-  }, [db, investmentSummary?.cashUsd, language, loadReportSnapshots, quoteRows, stockTrades, supabase]);
 
   const openDateFilter = React.useCallback(() => {
     const fallbackEnd = customRange?.endDate
@@ -851,17 +892,24 @@ export default function PnlReportPage({ ctx = {} }) {
   const summaryTitle = englishMode
     ? `${currentRangeLabel} ${t(language, 'pnlReport.summaryShort', 'P&L Summary')}`
     : `${currentRangeLabel}${t(language, 'pnlReport.summaryShort', '盈亏总结')}`;
-  const statusText = reportLoading
+  const statusText = rebuilding
+    ? t(language, 'pnlReport.recalculating', '交易已更新，正在按已完成收盘价重算收益报表')
+    : reportLoading && portfolioSnapshots.length === 0
     ? t(language, 'pnlReport.loadingSnapshots', '正在读取收益快照')
     : reportError
       ? reportError
       : reportMessage || (rebuildState?.dirtyFromDate
-        ? `${t(language, 'pnlReport.dirtyNotice', '交易已更新,建议重新生成快照')} · ${rebuildState.dirtyFromDate}`
+        ? `${t(language, 'pnlReport.dirtyNotice', '交易已更新，收益报表等待自动重算')} · ${rebuildState.dirtyFromDate}`
         : reportData.hasData
-          ? t(language, 'pnlReport.snapshotNotice', '当前页面读取数据库收盘收益快照。手动生成只更新最新已完成交易日快照,不影响交易页实时显示。')
+          ? t(language, 'pnlReport.snapshotNotice', '当前页面读取数据库中的已完成收盘收益快照。')
           : range === 'custom'
             ? t(language, 'pnlReport.noSnapshotForRange', '所选日期没有收益快照。页面不会用其他日期数据替代。')
             : t(language, 'pnlReport.noSnapshotNotice', '暂无收益快照。先生成收盘快照后,页面会读取数据库里的真实报表数据。'));
+  const showReportStatus = rebuilding
+    || Boolean(rebuildState?.dirtyFromDate)
+    || Boolean(reportError)
+    || Boolean(reportMessage)
+    || (reportLoading && portfolioSnapshots.length === 0);
   const firstAvailableMonthForYear = React.useCallback((year) => {
     const prefix = `${year}-`;
     return (availableCalendarMonths.find((month) => month.startsWith(prefix)) || `${year}-01`).slice(5, 7);
@@ -927,6 +975,22 @@ export default function PnlReportPage({ ctx = {} }) {
           )}
         </div>
       </header>
+
+      {showReportStatus && (
+        <div className="mx-5 mt-4 flex items-start gap-2.5 rounded-2xl border border-white/10 bg-white/[0.04] px-3.5 py-3 text-[12px] leading-5 text-white/[0.48]">
+          <BarChart3 className={`mt-0.5 h-4 w-4 shrink-0 text-[#f6b54b] ${rebuilding ? 'animate-pulse' : ''}`} />
+          <div className="min-w-0 flex-1">{statusText}</div>
+          {rebuildState?.dirtyFromDate && !rebuilding && (
+            <button
+              type="button"
+              onClick={() => retryPnlReportRecalculation()}
+              className="shrink-0 rounded-full border border-[#f6b54b]/35 bg-[#f6b54b]/10 px-2.5 py-1 text-[11px] leading-4 text-[#ffd18a] transition active:scale-95"
+            >
+              {t(language, 'pnlReport.retryRecalculation', '重试')}
+            </button>
+          )}
+        </div>
+      )}
 
       <section className="pt-5 text-center">
         <div className="relative inline-flex flex-col items-center">
@@ -1217,24 +1281,6 @@ export default function PnlReportPage({ ctx = {} }) {
           })}
         </div>
       </section>
-      {SHOW_PNL_REPORT_SNAPSHOT_REBUILD_CONTROLS && (
-        <div className="mt-4 rounded-2xl border border-dashed border-white/10 bg-white/[0.035] p-4 text-[12px] leading-5 text-white/[0.40]">
-          <div className="flex items-start gap-3">
-            <BarChart3 className="mt-0.5 h-4 w-4 shrink-0 text-[#f6b54b]" />
-            <div className="min-w-0 flex-1">{statusText}</div>
-          </div>
-          <button
-            type="button"
-            onClick={handleRebuildToday}
-            disabled={rebuilding || reportLoading}
-            className="mt-3 inline-flex h-8 items-center justify-center gap-1.5 rounded-full border border-[#f6b54b]/45 bg-[#f6b54b]/12 px-3 text-[12px] font-normal text-[#ffd18a] transition active:scale-95 disabled:opacity-45"
-          >
-            <RefreshCw className={`h-3.5 w-3.5 ${rebuilding ? 'animate-spin' : ''}`} />
-            {rebuilding ? t(language, 'pnlReport.rebuilding', '生成中') : t(language, 'pnlReport.rebuildToday', '生成收盘快照')}
-          </button>
-        </div>
-      )}
-
       {calendarPickerOpen && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/62 backdrop-blur-sm">
           <div className="w-full max-w-[430px] rounded-t-[26px] border border-white/10 bg-[#0b0f14] px-5 pb-[calc(env(safe-area-inset-bottom)+20px)] pt-5 shadow-2xl">
