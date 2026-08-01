@@ -7,13 +7,16 @@ import {
   loadEodhdDailyHistory,
 } from '../eodhdCache.js';
 import { buildEodhdStockDetail } from '../stockDetail.js';
+import {
+  getPreviousUsTradingDate,
+  isUsMarketTradingDate,
+} from '../../../src/lib/usMarketCalendar.js';
 
 const US_EQUITY_REGULAR_START_MINUTES = 9 * 60 + 30;
 const US_EQUITY_REGULAR_END_MINUTES = 16 * 60;
 const US_EQUITY_PREMARKET_START_MINUTES = 4 * 60;
 const US_EQUITY_POSTMARKET_END_MINUTES = 20 * 60;
-const DEFAULT_STOCK_HISTORY_DAYS = 380;
-const STOCK_DETAIL_HISTORY_YEARS = 10;
+const YAHOO_STOCK_DETAIL_SOURCE = 'YAHOO_CHART_10Y';
 
 async function fetchEodhdDelayedQuote({ symbol, eodhdKey, quoteSession, now }) {
   const bucketMs = quoteSession === 'regular'
@@ -49,7 +52,7 @@ async function fetchEodhdDailyRows({
   provider,
   now,
 }) {
-  const eodUrl = `https://eodhd.com/api/eod/${encodeURIComponent(symbol)}.US?api_token=${eodhdKey}&from=${fromDate}&period=d&fmt=json`;
+  const eodUrl = `https://eodhd.com/api/eod/${encodeURIComponent(symbol)}.US?api_token=${eodhdKey}&from=${fromDate}&to=${completedDate}&period=d&fmt=json`;
   return loadEodhdDailyHistory({
     symbol,
     completedDate,
@@ -65,6 +68,57 @@ async function fetchEodhdDailyRows({
       return response.json();
     },
   });
+}
+
+function yahooTimestampDateKey(timestamp, timeZone = 'America/New_York') {
+  const epochSeconds = Number(timestamp);
+  if (!Number.isFinite(epochSeconds) || epochSeconds <= 0) return '';
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(new Date(epochSeconds * 1000));
+    const getPart = (type) => parts.find((part) => part.type === type)?.value || '';
+    const dateKey = `${getPart('year')}-${getPart('month')}-${getPart('day')}`;
+    return /^\d{4}-\d{2}-\d{2}$/.test(dateKey) ? dateKey : '';
+  } catch {
+    return '';
+  }
+}
+
+function parseYahooCompletedDailyRows(payload, completedDate) {
+  const result = payload?.chart?.result?.[0];
+  const timestamps = Array.isArray(result?.timestamp) ? result.timestamp : [];
+  const quote = result?.indicators?.quote?.[0] || {};
+  const adjustedCloses = result?.indicators?.adjclose?.[0]?.adjclose || [];
+  const timeZone = String(result?.meta?.exchangeTimezoneName || 'America/New_York');
+  const byDate = new Map();
+
+  for (let index = 0; index < timestamps.length; index += 1) {
+    const date = yahooTimestampDateKey(timestamps[index], timeZone);
+    if (!date || date > completedDate) continue;
+    const close = parseQuoteNumber(quote?.close?.[index]);
+    if (!isPositiveNumber(close)) continue;
+    const adjustedClose = parseQuoteNumber(adjustedCloses?.[index]);
+    const high = parseQuoteNumber(quote?.high?.[index]);
+    const low = parseQuoteNumber(quote?.low?.[index]);
+    const open = parseQuoteNumber(quote?.open?.[index]);
+    const volume = parseQuoteNumber(quote?.volume?.[index]);
+    byDate.set(date, {
+      date,
+      close,
+      ...(isPositiveNumber(adjustedClose) ? { adjusted_close: adjustedClose } : {}),
+      high: isPositiveNumber(high) ? Math.max(high, close) : close,
+      ...(isPositiveNumber(low) ? { low: Math.min(low, close) } : {}),
+      ...(isPositiveNumber(open) ? { open } : {}),
+      ...(isPositiveNumber(volume) ? { volume } : {}),
+    });
+  }
+
+  const rows = Array.from(byDate.values()).sort((left, right) => left.date.localeCompare(right.date));
+  return rows.at(-1)?.date === completedDate ? rows : [];
 }
 
 function parseQuoteNumber(value) {
@@ -119,6 +173,8 @@ function getUsEquityMarketDate(now = Date.now()) {
 }
 
 function getUsEquityQuoteSession(now = Date.now()) {
+  const marketDate = getUsEquityMarketDate(now);
+  if (!isUsMarketTradingDate(marketDate)) return 'closed';
   const parts = getUsEquityTimeParts(now);
   if (!parts || parts.weekday === 'Sat' || parts.weekday === 'Sun') return 'closed';
   const { minutes } = parts;
@@ -641,32 +697,27 @@ export async function fetchStockQuote(symbol, { eodhdKey, includeStockDetail = f
     const marketDate = getUsEquityMarketDate(now);
     const quoteSession = getUsEquityQuoteSession(now);
     const stockDetailCutoffDate = getLatestCompletedEodCutoffDate(now);
-    const today = new Date(now);
-    const historyStart = new Date(now);
-    const quoteHistoryStart = new Date(now);
-    quoteHistoryStart.setUTCDate(quoteHistoryStart.getUTCDate() - DEFAULT_STOCK_HISTORY_DAYS);
-    const quoteHistoryFromDate = quoteHistoryStart.toISOString().slice(0, 10);
-    if (includeStockDetail) {
-      historyStart.setUTCFullYear(historyStart.getUTCFullYear() - STOCK_DETAIL_HISTORY_YEARS);
-    } else {
-      historyStart.setTime(quoteHistoryStart.getTime());
-    }
-    const fromDate = historyStart.toISOString().slice(0, 10);
-    const splitsUrl = includeStockDetail
-      ? `https://eodhd.com/api/splits/${encodeURIComponent(symbol)}.US?api_token=${eodhdKey}&from=${fromDate}&to=${stockDetailCutoffDate}&fmt=json`
-      : '';
+    const quoteHistoryFromDate = getPreviousUsTradingDate(stockDetailCutoffDate);
     const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=5m&range=1d&includePrePost=true`;
+    const yahooDetailUrl = includeStockDetail
+      ? `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=10y&includePrePost=false&events=div%2Csplits`
+      : '';
 
-    const [quoteResult, eodResult, yahooResult, splitsResult] = await Promise.allSettled([
+    const [
+      quoteResult,
+      quoteEodResult,
+      yahooResult,
+      yahooDetailResult,
+    ] = await Promise.allSettled([
       quoteSession === 'closed'
         ? Promise.resolve(null)
         : fetchEodhdDelayedQuote({ symbol, eodhdKey, quoteSession, now }),
       fetchEodhdDailyRows({
         symbol,
         eodhdKey,
-        fromDate,
+        fromDate: quoteHistoryFromDate,
         completedDate: stockDetailCutoffDate,
-        provider: 'eodhd:stock-history',
+        provider: 'eodhd:stock-quote-history',
         now,
       }),
       providerFetch(yahooUrl, {
@@ -676,17 +727,23 @@ export async function fetchStockQuote(symbol, { eodhdKey, includeStockDetail = f
         },
       }, { provider: 'yahoo:stock-chart', timeoutMs: QUOTE_TIMEOUTS.yahoo }),
       includeStockDetail
-        ? providerFetch(
-            splitsUrl,
-            {},
-            { provider: 'eodhd:stock-splits', timeoutMs: QUOTE_TIMEOUTS.eodhd },
-          )
+        ? providerFetch(yahooDetailUrl, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+              'Accept': 'application/json',
+            },
+          }, { provider: 'yahoo:stock-detail-history', timeoutMs: QUOTE_TIMEOUTS.yahoo })
         : Promise.resolve(null),
     ]);
     const delayedQuoteData = quoteResult.status === 'fulfilled' ? quoteResult.value : null;
-    const eodData = eodResult.status === 'fulfilled' ? eodResult.value : null;
+    const rawEodData = quoteEodResult.status === 'fulfilled' ? quoteEodResult.value : null;
+    const eodData = Array.isArray(rawEodData)
+      ? rawEodData.filter((row) => (
+          row?.date === quoteHistoryFromDate || row?.date === stockDetailCutoffDate
+        ))
+      : null;
     const yahooRes = yahooResult.status === 'fulfilled' ? yahooResult.value : null;
-    const splitsRes = splitsResult.status === 'fulfilled' ? splitsResult.value : null;
+    const yahooDetailRes = yahooDetailResult.status === 'fulfilled' ? yahooDetailResult.value : null;
 
     let rawEodhdQuoteData = null;
     let eodhdQuote = null;
@@ -698,11 +755,17 @@ export async function fetchStockQuote(symbol, { eodhdKey, includeStockDetail = f
     let intraday = [];
     let intradayPoints = [];
     let regularMarketTime = 0;
+    let yahooWeek52High = null;
+    let yahooWeek52Low = null;
     if (yahooRes && yahooRes.ok) {
       try {
         const yahooData = await yahooRes.json();
         const result = yahooData?.chart?.result?.[0];
         const meta = result?.meta || {};
+        yahooWeek52High = parseQuoteNumber(meta.fiftyTwoWeekHigh);
+        yahooWeek52Low = parseQuoteNumber(meta.fiftyTwoWeekLow);
+        if (!isPositiveNumber(yahooWeek52High)) yahooWeek52High = null;
+        if (!isPositiveNumber(yahooWeek52Low)) yahooWeek52Low = null;
         regularMarketTime = meta.currentTradingPeriod?.regular?.start || 0;
         const regularEndTime = meta.currentTradingPeriod?.regular?.end || 0;
 
@@ -730,6 +793,18 @@ export async function fetchStockQuote(symbol, { eodhdKey, includeStockDetail = f
       }
     }
 
+    let yahooDetailRows = [];
+    if (yahooDetailRes?.ok) {
+      try {
+        yahooDetailRows = parseYahooCompletedDailyRows(
+          await yahooDetailRes.json(),
+          stockDetailCutoffDate,
+        );
+      } catch {
+        yahooDetailRows = [];
+      }
+    }
+
     // Outside pre/regular/post sessions, completed EOD rows are authoritative.
     // Do not require (or even call) delayed quote here: an active quota breaker
     // may reject provider calls while a valid public EOD history is still in
@@ -737,7 +812,7 @@ export async function fetchStockQuote(symbol, { eodhdKey, includeStockDetail = f
     // baseline must exist; otherwise fail closed instead of using Yahoo or 0.
     if (quoteSession === 'closed') {
       const lockedClose = findCloseForMarketDateFromEodRows(eodData, stockDetailCutoffDate);
-      const lockedBaseline = findDailyBaselineCloseFromEodRows(eodData, stockDetailCutoffDate);
+      const lockedBaseline = findCloseForMarketDateFromEodRows(eodData, quoteHistoryFromDate);
       if (!lockedClose?.close || !lockedBaseline?.close) {
         return { symbol, error: 'EODHD 已完成收盘历史不完整' };
       }
@@ -773,9 +848,9 @@ export async function fetchStockQuote(symbol, { eodhdKey, includeStockDetail = f
 
     const priceSource = 'EODHD-v2';
 
-    let week52High = 0;
-    let week52Low = Infinity;
-    let highSource = 'fallback';
+    let week52High = yahooWeek52High || 0;
+    let week52Low = yahooWeek52Low || 0;
+    let highSource = yahooWeek52High || yahooWeek52Low ? 'yahoo' : 'unavailable';
     let yearStartPrice = 0;
     let yearStartDate = '';
     let ytdChangePercent = 0;
@@ -784,75 +859,69 @@ export async function fetchStockQuote(symbol, { eodhdKey, includeStockDetail = f
     let latestCompletedClose = null;
     let latestCompletedBaseline = null;
     let stockDetail = null;
-    let stockDetailSplitActions = null;
     if (includeStockDetail) {
       const unavailableDetail = buildEodhdStockDetail([], { asOfDate: stockDetailCutoffDate });
       stockDetail = {
         ...unavailableDetail,
+        source: YAHOO_STOCK_DETAIL_SOURCE,
         indicators: {
           ...unavailableDetail.indicators,
           ma200WeeklyStatus: 'unavailable',
         },
       };
-      if (splitsRes?.ok) {
-        try {
-          const payload = await splitsRes.json();
-          if (Array.isArray(payload)) stockDetailSplitActions = payload;
-        } catch {
-          stockDetailSplitActions = null;
-        }
-      }
     }
     if (Array.isArray(eodData)) {
       try {
         if (Array.isArray(eodData) && eodData.length > 0) {
-          if (includeStockDetail) {
-            const nextStockDetail = buildEodhdStockDetail(eodData, {
-              asOfDate: stockDetailCutoffDate,
-              splitActions: stockDetailSplitActions,
-            });
-            if (nextStockDetail.history.length > 0) stockDetail = nextStockDetail;
-          }
-          const quoteEodData = includeStockDetail
-            ? eodData.filter((day) => String(day?.date || '') >= quoteHistoryFromDate)
-            : eodData;
-          dailyBaseline = findDailyBaselineCloseFromEodRows(quoteEodData, marketDate);
+          const quoteEodData = eodData;
+          dailyBaseline = findCloseForMarketDateFromEodRows(
+            quoteEodData,
+            getPreviousUsTradingDate(marketDate),
+          );
           marketDateClose = findCloseForMarketDateFromEodRows(quoteEodData, marketDate);
           latestCompletedClose = findCloseForMarketDateFromEodRows(quoteEodData, stockDetailCutoffDate);
           if (latestCompletedClose?.date) {
-            latestCompletedBaseline = findDailyBaselineCloseFromEodRows(quoteEodData, latestCompletedClose.date);
+            latestCompletedBaseline = findCloseForMarketDateFromEodRows(
+              quoteEodData,
+              quoteHistoryFromDate,
+            );
           }
-          const currentYearStart = `${today.getFullYear()}-01-01`;
-          const historyRows = quoteEodData
-            .filter((day) => day && day.date)
-            .sort((a, b) => String(a.date).localeCompare(String(b.date)));
-          for (const day of historyRows) {
-            const rawHigh = parseFloat(day.high) || 0;
-            const rawLow = parseFloat(day.low) || 0;
-            const rawClose = parseFloat(day.close) || 0;
-            const adjClose = parseFloat(day.adjusted_close) || 0;
-            const adjFactor = (rawClose > 0 && adjClose > 0) ? (adjClose / rawClose) : 1;
-            const adjHigh = rawHigh * adjFactor;
-            const adjLow = rawLow * adjFactor;
-            if (adjHigh > week52High) week52High = adjHigh;
-            if (adjLow > 0 && adjLow < week52Low) week52Low = adjLow;
-            if (!yearStartPrice && String(day.date || '') >= currentYearStart && adjClose > 0) {
-              yearStartPrice = adjClose;
-              yearStartDate = day.date || '';
-            }
-          }
-          if (price > week52High) week52High = price;
-          if (price > 0 && price < week52Low) week52Low = price;
-          if (yearStartPrice > 0) {
-            ytdChangePercent = ((price - yearStartPrice) / yearStartPrice) * 100;
-          }
-          highSource = 'eodhd-adjusted';
         }
       } catch (e) {
         /* ignore */
       }
     }
-    if (week52Low === Infinity) week52Low = 0;
+
+    if (includeStockDetail && stockDetail?.history?.length === 0 && yahooDetailRows.length > 0) {
+      try {
+        // Yahoo chart OHLC is already split-adjusted. Replaying chart split
+        // events here would adjust pre-split sessions a second time.
+        const yahooDetail = buildEodhdStockDetail(yahooDetailRows, {
+          asOfDate: stockDetailCutoffDate,
+          splitActions: [],
+        });
+        if (yahooDetail.asOfDate === stockDetailCutoffDate && yahooDetail.history.length > 0) {
+          stockDetail = {
+            ...yahooDetail,
+            source: YAHOO_STOCK_DETAIL_SOURCE,
+          };
+        }
+      } catch {
+        /* keep the explicitly unavailable detail */
+      }
+    }
+
+    const detailMetricRows = yahooDetailRows;
+    if (includeStockDetail && Array.isArray(detailMetricRows) && detailMetricRows.length > 0) {
+      const currentYearStart = `${stockDetailCutoffDate.slice(0, 4)}-01-01`;
+      const yearStartRow = detailMetricRows
+        .filter((day) => day && String(day.date || '') >= currentYearStart)
+        .sort((left, right) => String(left.date).localeCompare(String(right.date)))
+        .find((day) => isPositiveNumber(parseQuoteNumber(day.adjusted_close)));
+      yearStartPrice = parseQuoteNumber(yearStartRow?.adjusted_close) || 0;
+      yearStartDate = yearStartRow?.date || '';
+      if (yearStartPrice > 0) ytdChangePercent = ((price - yearStartPrice) / yearStartPrice) * 100;
+    }
 
     const selectedDailyBaseline = quoteSession === 'closed' ? latestCompletedBaseline : dailyBaseline;
     if (rawEodhdQuoteData && selectedDailyBaseline?.close) {

@@ -5,11 +5,16 @@ import {
   latestCompletedUsTradingDate,
   resolveScheduledUsSnapshotDate,
 } from '../src/lib/pnlReportSnapshots.js';
+import {
+  getPreviousUsTradingDate,
+  isUsMarketTradingDate,
+} from '../src/lib/usMarketCalendar.js';
 import { fetchWithTimeout, QUOTE_TIMEOUTS } from './quote/http.js';
 
 const STOCK_TRADES_PAGE_SIZE = 1000;
-const EODHD_LOOKBACK_DAYS = 21;
 const PNL_CATCH_UP_WINDOW_DAYS = 31;
+const EODHD_SAFE_WINDOW_DAYS = 4;
+const EODHD_MAX_WINDOW_CALENDAR_DAYS = 7;
 const EODHD_MAX_ATTEMPTS = 3;
 const EODHD_RETRY_DELAYS_MS = [250, 750];
 const SHARE_EPSILON = 1e-8;
@@ -444,28 +449,34 @@ async function fetchSymbolCloseRows(symbol, {
 }
 
 async function fetchHistoricalClosesBySymbol(symbols, {
-  targetDate,
-  fromDate = null,
   requiredDatesBySymbol = null,
 }) {
   const eodhdKey = getEodhdKey();
-
-  const to = targetDate;
-  const from = normalizeDateParam(fromDate) || shiftDate(targetDate, -EODHD_LOOKBACK_DAYS);
-  if (!from) {
-    const error = new Error('目标日期不合法');
-    error.status = 400;
-    throw error;
-  }
   const settled = await Promise.allSettled(
-    symbols.map((symbol) => fetchSymbolCloseRows(symbol, {
-      eodhdKey,
-      from,
-      to,
-      requiredDates: requiredDatesBySymbol instanceof Map
+    symbols.map(async (symbol) => {
+      const requiredDates = requiredDatesBySymbol instanceof Map
         ? [...(requiredDatesBySymbol.get(symbol) || [])]
-        : [targetDate],
-    }))
+        : [];
+      const windows = buildEodhdRequestWindows(requiredDates);
+      const rowsByDate = new Map();
+      for (const window of windows) {
+        try {
+          const [, rows] = await fetchSymbolCloseRows(symbol, {
+            eodhdKey,
+            from: window.from,
+            to: window.to,
+            requiredDates: window.requiredDates,
+          });
+          rows.forEach((row) => rowsByDate.set(row.date, row));
+        } catch (error) {
+          (Array.isArray(error?.rows) ? error.rows : [])
+            .forEach((row) => rowsByDate.set(row.date, row));
+          error.rows = [...rowsByDate.values()].sort((a, b) => a.date.localeCompare(b.date));
+          throw error;
+        }
+      }
+      return [symbol, [...rowsByDate.values()].sort((a, b) => a.date.localeCompare(b.date))];
+    })
   );
   const historicalClosesBySymbol = {};
   const failedSymbols = [];
@@ -490,63 +501,56 @@ async function fetchHistoricalClosesBySymbol(symbols, {
   return { historicalClosesBySymbol, failedSymbols };
 }
 
-async function fetchUsTradingDatesThroughTarget(targetDate) {
+function buildUsTradingDatesThroughTarget(targetDate) {
   const from = shiftDate(targetDate, -PNL_CATCH_UP_WINDOW_DAYS);
   if (!from) {
     const error = new Error('目标日期不合法');
     error.status = 400;
     throw error;
   }
-  const [, rows] = await fetchSymbolCloseRows('SPY', {
-    eodhdKey: getEodhdKey(),
-    from,
-    to: targetDate,
-    // Do not let a stale HTTP 200 payload silently move the run backwards.
-    // A US holiday can temporarily return 503 here; the following real
-    // trading date will include the missed gap in this catch-up window.
-    requiredDates: [targetDate],
-  });
-  return rows
-    .map((row) => row.date)
-    .filter((date) => date >= from && date <= targetDate)
-    .sort();
+  const tradingDates = [];
+  for (let date = from; date && date <= targetDate; date = shiftDate(date, 1)) {
+    if (isUsMarketTradingDate(date)) tradingDates.push(date);
+  }
+  return tradingDates;
 }
 
-function buildTradingCalendarFailureResult(error, {
-  targetDate,
-  catchUp,
-  lockedAt,
-  symbolsCount = 0,
-}) {
-  return {
-    success: false,
-    complete: false,
-    retryable: Boolean(error?.retryable),
-    targetDate,
-    catchUp: Boolean(catchUp),
-    attemptedUsers: 0,
-    writtenUsers: 0,
-    skippedUsers: 0,
-    failedUsers: 0,
-    plannedSnapshots: 0,
-    attemptedSnapshots: 0,
-    writtenSnapshots: 0,
-    skippedSnapshots: 0,
-    failedSnapshots: 0,
-    deferredSnapshots: 0,
-    symbolsCount,
-    failedSymbolsCount: 1,
-    failedSymbols: [{
-      symbol: 'SPY',
-      retryable: Boolean(error?.retryable),
-      status: Number(error?.status) || null,
-      reason: String(error?.reason || 'calendar_provider_error').slice(0, 80),
-      attempts: Number(error?.attempts) || 1,
-    }],
-    optionalFailedSymbolsCount: 0,
-    source: 'EODHD_EOD',
-    generatedAt: lockedAt,
-  };
+function buildEodhdRequestWindows(requiredTargetDates = []) {
+  const windows = [...new Set(
+    (Array.isArray(requiredTargetDates) ? requiredTargetDates : [])
+      .map(normalizeDateParam)
+      .filter((date) => date && isUsMarketTradingDate(date))
+  )]
+    .sort()
+    .map((targetDate) => {
+      const baselineDate = getPreviousUsTradingDate(targetDate);
+      const safeFromDate = shiftDate(targetDate, -EODHD_SAFE_WINDOW_DAYS);
+      return {
+        from: baselineDate && baselineDate < safeFromDate ? baselineDate : safeFromDate,
+        to: targetDate,
+        requiredDates: [baselineDate, targetDate].filter(Boolean),
+      };
+    });
+
+  return windows.reduce((merged, window) => {
+    const previous = merged.at(-1);
+    const dayAfterPrevious = previous ? shiftDate(previous.to, 1) : null;
+    const mergedTo = previous && previous.to > window.to ? previous.to : window.to;
+    const mergedCalendarDays = previous
+      ? Math.floor((Date.parse(`${mergedTo}T00:00:00Z`) - Date.parse(`${previous.from}T00:00:00Z`)) / 86400000) + 1
+      : 0;
+    if (
+      !previous
+      || window.from > dayAfterPrevious
+      || mergedCalendarDays > EODHD_MAX_WINDOW_CALENDAR_DAYS
+    ) {
+      merged.push({ ...window, requiredDates: [...new Set(window.requiredDates)] });
+      return merged;
+    }
+    previous.to = mergedTo;
+    previous.requiredDates = [...new Set([...previous.requiredDates, ...window.requiredDates])].sort();
+    return merged;
+  }, []);
 }
 
 async function fetchSnapshotStatesByUser(userIds, fromDate, targetDate) {
@@ -649,22 +653,27 @@ function buildPendingSnapshotDatesByUser(groupedByUser, tradingDates, snapshotSt
   for (const [userId, userTrades] of groupedByUser.entries()) {
     const states = snapshotStatesByUser.get(userId) || [];
     // Preserve the bounded first-run behavior: a brand-new ledger establishes
-    // today's marker first. Once any marker exists, the 31-day catch-up window
-    // becomes authoritative and can repair both middle holes and incomplete
-    // rows instead of trusting only the maximum date.
+    // today's marker first. Once a marker exists, the local 31-day calendar is
+    // authoritative from that first durable marker forward, repairing middle
+    // holes and incomplete rows instead of trusting only the maximum date.
     if (states.length === 0) {
       pendingByUser.set(userId, targetDate ? [targetDate] : []);
       continue;
     }
 
     const statesByDate = new Map(states.map((state) => [state.snapshotDate, state]));
+    const firstSnapshotDate = states
+      .map((state) => normalizeDateParam(state?.snapshotDate))
+      .filter(Boolean)
+      .sort()[0] || firstTradingDate;
     const firstTradeDate = [...userTrades]
       .map((trade) => normalizeDateParam(trade?.trade_date))
       .filter(Boolean)
       .sort()[0] || firstTradingDate;
-    const repairFromDate = firstTradeDate && firstTradingDate
-      ? (firstTradeDate > firstTradingDate ? firstTradeDate : firstTradingDate)
-      : firstTradingDate;
+    const repairFromDate = [firstTradingDate, firstTradeDate, firstSnapshotDate]
+      .filter(Boolean)
+      .sort()
+      .at(-1) || firstTradingDate;
     const pendingDates = tradingDates.filter((date) => {
       if (repairFromDate && date < repairFromDate) return false;
       const state = statesByDate.get(date);
@@ -902,20 +911,13 @@ export async function runPnlReportDailySnapshot({
   }
 
   const lockedAt = now instanceof Date ? now.toISOString() : new Date(now).toISOString();
-  // Explicit repair requests do not use the scheduled catch-up calendar path.
-  // Confirm the exact US market close first so a weekend/holiday can never
-  // create a zero-value snapshot, including for users whose positions are empty.
-  // This must stay before every Supabase read and write.
-  if (!catchUp) {
-    try {
-      await fetchUsTradingDatesThroughTarget(requestedTargetDate);
-    } catch (error) {
-      return buildTradingCalendarFailureResult(error, {
-        targetDate: requestedTargetDate,
-        catchUp: false,
-        lockedAt,
-      });
-    }
+  // Explicit repairs must name an exact NYSE trading date. This local calendar
+  // check stays before every Supabase/provider read so weekends and holidays
+  // can never create a completion marker, even for a sold-out ledger.
+  if (!catchUp && !isUsMarketTradingDate(requestedTargetDate)) {
+    const error = new Error('目标日期不是美股交易日');
+    error.status = 400;
+    throw error;
   }
 
   const stockTrades = await fetchAllStockTrades();
@@ -952,21 +954,12 @@ export async function runPnlReportDailySnapshot({
     [...groupedByUser.keys()].map((userId) => [userId, [requestedTargetDate]])
   );
   if (catchUp) {
-    try {
-      tradingDates = await fetchUsTradingDatesThroughTarget(requestedTargetDate);
-    } catch (error) {
-      return buildTradingCalendarFailureResult(error, {
-        targetDate: requestedTargetDate,
-        catchUp: true,
-        lockedAt,
-        symbolsCount: symbols.length,
-      });
-    }
+    tradingDates = buildUsTradingDatesThroughTarget(requestedTargetDate);
     if (tradingDates.length === 0) {
       return {
         success: false,
         complete: false,
-        retryable: true,
+        retryable: false,
         targetDate: requestedTargetDate,
         catchUp: true,
         attemptedUsers: 0,
@@ -982,11 +975,11 @@ export async function runPnlReportDailySnapshot({
         symbolsCount: symbols.length,
         failedSymbolsCount: 1,
         failedSymbols: [{
-          symbol: 'SPY',
-          retryable: true,
+          symbol: 'NYSE_CALENDAR',
+          retryable: false,
           status: null,
           reason: 'missing_trading_calendar',
-          attempts: EODHD_MAX_ATTEMPTS,
+          attempts: 1,
         }],
         optionalFailedSymbolsCount: 0,
         source: 'EODHD_EOD',
@@ -1048,11 +1041,9 @@ export async function runPnlReportDailySnapshot({
   );
   const requiredDatesBySymbol = requiredCloseDatesBySymbol(groupedByUser, pendingDatesByUser);
   const requiredSymbols = new Set(requiredDatesBySymbol.keys());
-  const earliestPlannedDate = plannedDates[0] || effectiveTargetDate;
-  const { historicalClosesBySymbol, failedSymbols: providerFailedSymbols } = symbols.length > 0
-    ? await fetchHistoricalClosesBySymbol(symbols, {
-      targetDate: effectiveTargetDate,
-      fromDate: shiftDate(earliestPlannedDate, -EODHD_LOOKBACK_DAYS),
+  const symbolsToFetch = [...requiredSymbols].sort();
+  const { historicalClosesBySymbol, failedSymbols: providerFailedSymbols } = symbolsToFetch.length > 0
+    ? await fetchHistoricalClosesBySymbol(symbolsToFetch, {
       requiredDatesBySymbol,
     })
     : { historicalClosesBySymbol: {}, failedSymbols: [] };

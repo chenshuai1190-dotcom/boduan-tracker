@@ -920,10 +920,12 @@ test('P&L report snapshot page stays independent from live trading pipelines', (
   assert.equal(pnlReportPageSource.includes('deriveInvestmentSummary'), false, 'P&L report should not reuse the live trading summary pipeline');
 });
 
-test('P&L benchmark API keeps provider token server-side and auth-gated', () => {
+test('P&L benchmark API stays auth-gated and uses completed public Yahoo rows', () => {
   assert.ok(pnlBenchmarkApiSource.includes('requireQuoteAuth'), 'P&L benchmark API should require login auth');
-  assert.ok(pnlBenchmarkApiSource.includes('EODHD_API_KEY'), 'P&L benchmark API should read EODHD from server environment');
-  assert.ok(pnlBenchmarkApiSource.includes('https://eodhd.com/api/eod/'), 'P&L benchmark API should use EODHD daily EOD rows');
+  assert.ok(pnlBenchmarkApiSource.includes('query1.finance.yahoo.com'), 'P&L benchmark API should use public Yahoo completed daily rows');
+  assert.ok(pnlBenchmarkApiSource.includes("source: 'YAHOO_CHART_COMPLETED_DAILY'"), 'P&L benchmark API should label its completed-close source');
+  assert.equal(pnlBenchmarkApiSource.includes('EODHD_API_KEY'), false, 'P&L benchmark API should not depend on the restricted EODHD long-history entitlement');
+  assert.equal(pnlBenchmarkApiSource.includes('https://eodhd.com/api/eod/'), false, 'P&L benchmark API should not request EODHD long-history rows');
   assert.equal(pnlBenchmarkApiSource.includes('VITE_EODHD_TOKEN'), false, 'P&L benchmark API must not introduce a frontend EODHD token');
 });
 

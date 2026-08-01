@@ -245,8 +245,8 @@ test('explicit same-day P&L date opens at 17:00 New York across DST', async () =
   }
 
   assert.equal(fetchCalls, 2);
-  assert.equal(spyCalls, 2);
-  assert.deepEqual(requestOrder, ['SPY', 'stock_trades', 'SPY', 'stock_trades']);
+  assert.equal(spyCalls, 0, 'valid explicit dates must be checked by the local NYSE calendar');
+  assert.deepEqual(requestOrder, ['stock_trades', 'stock_trades']);
 });
 
 test('explicit future P&L date fails closed without provider access', async () => {
@@ -314,10 +314,10 @@ test('valid historical explicit P&L date bypasses the 17:00 gate for CRON_SECRET
   assert.equal(res.body.targetDate, '2026-07-07');
   assert.equal(res.body.deferred, undefined);
   assert.equal(fetchCalls, 1);
-  assert.equal(spyCalls, 1);
+  assert.equal(spyCalls, 0, 'historical repair must not spend an EODHD call on SPY calendar discovery');
 });
 
-test('explicit Saturday date returns retryable 503 before reading a sold-out user ledger', async () => {
+test('explicit Saturday date returns deterministic 400 before provider or ledger access', async () => {
   const env = {
     CRON_SECRET: process.env.CRON_SECRET,
     SUPABASE_URL: process.env.SUPABASE_URL,
@@ -364,20 +364,44 @@ test('explicit Saturday date returns retryable 503 before reading a sold-out use
     restoreEnv(env);
   }
 
-  assert.equal(res.statusCode, 503);
-  assert.equal(res.headers['retry-after'], '300');
-  assert.equal(res.body.complete, false);
-  assert.equal(res.body.retryable, true);
-  assert.equal(res.body.writtenSnapshots, 0);
-  assert.deepEqual(res.body.failedSymbols, [{
-    symbol: 'SPY',
-    retryable: true,
-    status: null,
-    reason: 'missing_target_close',
-    attempts: 3,
-  }]);
-  assert.equal(spyAttempts, 3);
+  assert.equal(res.statusCode, 400);
+  assert.equal(res.headers['retry-after'], undefined);
+  assert.match(res.body.error, /目标日期不合法/);
+  assert.equal(spyAttempts, 0);
   assert.equal(supabaseCalls, 0);
+});
+
+test('explicit recurring and extraordinary NYSE closures are rejected locally without provider access', async () => {
+  const env = { CRON_SECRET: process.env.CRON_SECRET };
+  process.env.CRON_SECRET = 'cron-secret';
+  const originalFetch = globalThis.fetch;
+  let fetchCalls = 0;
+  globalThis.fetch = async () => {
+    fetchCalls += 1;
+    throw new Error('holiday validation must stay local');
+  };
+
+  const observedHolidayRes = createResponse();
+  const extraordinaryClosureRes = createResponse();
+  try {
+    await handlePnlReportDailySnapshot(createRequest({
+      headers: { authorization: 'Bearer cron-secret' },
+      // Independence Day 2026 falls on Saturday and is observed on Friday.
+      query: { date: '2026-07-03' },
+    }), observedHolidayRes, { now: new Date('2026-07-04T18:00:00Z') });
+    await handlePnlReportDailySnapshot(createRequest({
+      headers: { authorization: 'Bearer cron-secret' },
+      // NYSE closed for the Carter National Day of Mourning.
+      query: { date: '2025-01-09' },
+    }), extraordinaryClosureRes, { now: new Date('2026-07-04T18:00:00Z') });
+  } finally {
+    globalThis.fetch = originalFetch;
+    restoreEnv(env);
+  }
+
+  assert.equal(observedHolidayRes.statusCode, 400);
+  assert.equal(extraordinaryClosureRes.statusCode, 400);
+  assert.equal(fetchCalls, 0);
 });
 
 test('daily P&L snapshot cron builds all-user close snapshots from stock_trades and EODHD', async () => {
@@ -596,7 +620,7 @@ test('daily P&L snapshot retries a transient symbol failure and keeps sold-out s
   }
 
   assert.equal(nvdaAttempts, 2);
-  assert.equal(aaplAttempts, 1, 'sold-out symbols should retain a real close when the provider has one');
+  assert.equal(aaplAttempts, 0, 'sold-out symbols must not consume an unnecessary EODHD request');
   assert.equal(tslaAttempts, 1, 'the close requirement must follow the snapshot model trade ordering and oversell clamp');
   assert.equal(portfolioWrites, 1);
   assert.equal(res.body.success, true);
@@ -742,7 +766,7 @@ test('daily P&L snapshot isolates symbols and reports exhausted target-close gap
   assert.equal(res.body.skippedReasons.missing_close, 1);
 });
 
-test('daily P&L snapshot does not retry a non-retryable provider 4xx', async () => {
+test('EODHD HTTP 401 is a permanent explicit failure and is never retried', async () => {
   const env = {
     CRON_SECRET: process.env.CRON_SECRET,
     SUPABASE_URL: process.env.SUPABASE_URL,
@@ -769,7 +793,7 @@ test('daily P&L snapshot does not retry a non-retryable provider 4xx', async () 
     }
     if (href.includes('/api/eod/NVDA.US')) {
       eodAttempts += 1;
-      return jsonResponse({ error: 'not found' }, 404);
+      return jsonResponse({ error: 'unauthorized range' }, 401);
     }
     throw new Error(`unexpected fetch: ${href}`);
   });
@@ -791,7 +815,8 @@ test('daily P&L snapshot does not retry a non-retryable provider 4xx', async () 
   assert.equal(res.body.complete, false);
   assert.equal(res.body.retryable, false);
   assert.equal(res.body.failedSymbolsCount, 1);
-  assert.equal(res.body.failedSymbols[0].status, 404);
+  assert.equal(res.body.failedSymbols[0].status, 401);
+  assert.equal(res.body.failedSymbols[0].reason, 'http_401');
   assert.equal(res.body.failedSymbols[0].attempts, 1);
 });
 
@@ -922,7 +947,7 @@ test('open-position completion marker requires positive current and previous clo
   assert.deepEqual(mutations, [], 'an incomplete build must not touch symbols or the completion marker');
 });
 
-test('scheduled no-date P&L snapshot catches an existing user up from 7/10 through the SPY 7/13 and 7/14 closes', async () => {
+test('scheduled no-date P&L snapshot catches an existing user up through local 7/13 and 7/14 trading dates', async () => {
   const env = {
     CRON_SECRET: process.env.CRON_SECRET,
     SUPABASE_URL: process.env.SUPABASE_URL,
@@ -1263,7 +1288,7 @@ test('margin snapshot RPC contract failures stop before every P&L mutation', asy
   }
 });
 
-test('scheduled catch-up reports a permanent SPY calendar 4xx as non-retryable 500', async () => {
+test('scheduled catch-up scans the local 31-day NYSE calendar and uses a 7/31 short EOD window', async () => {
   const env = {
     CRON_SECRET: process.env.CRON_SECRET,
     SUPABASE_URL: process.env.SUPABASE_URL,
@@ -1274,6 +1299,9 @@ test('scheduled catch-up reports a permanent SPY calendar 4xx as non-retryable 5
   };
   const originalFetch = globalThis.fetch;
   let spyAttempts = 0;
+  let snapshotReadHref = '';
+  let nvdaEodHref = '';
+  const portfolioWrites = [];
   process.env.CRON_SECRET = 'cron-secret';
   process.env.SUPABASE_URL = 'https://supabase.test';
   delete process.env.VITE_SUPABASE_URL;
@@ -1281,7 +1309,7 @@ test('scheduled catch-up reports a permanent SPY calendar 4xx as non-retryable 5
   delete process.env.SUPABASE_SERVICE_KEY;
   process.env.EODHD_API_KEY = 'eodhd-secret';
 
-  globalThis.fetch = async (url) => {
+  globalThis.fetch = async (url, options = {}) => {
     const href = String(url);
     if (href.includes('/rest/v1/stock_trades')) {
       return jsonResponse([
@@ -1290,8 +1318,29 @@ test('scheduled catch-up reports a permanent SPY calendar 4xx as non-retryable 5
     }
     if (href.includes('/api/eod/SPY.US')) {
       spyAttempts += 1;
-      return jsonResponse({ error: 'not found' }, 404);
+      throw new Error('SPY calendar discovery must not be called');
     }
+    if (href.includes('/rest/v1/pnl_report_snapshots') && !options.method) {
+      snapshotReadHref = href;
+      return jsonResponse([]);
+    }
+    if (href.includes('/rest/v1/rpc/resolve_margin_debt_snapshot_targets')) {
+      const targets = JSON.parse(options.body || '{}').p_targets || [];
+      return jsonResponse(targets.map((target) => ({ ...target, known: false })));
+    }
+    if (href.includes('/api/eod/NVDA.US')) {
+      nvdaEodHref = href;
+      return jsonResponse([
+        { date: '2026-07-30', close: 191, adjusted_close: 191 },
+        { date: '2026-07-31', close: 194, adjusted_close: 194 },
+      ]);
+    }
+    if (href.includes('/rest/v1/pnl_report_snapshots') && options.method === 'POST') {
+      portfolioWrites.push(JSON.parse(options.body)[0]);
+      return jsonResponse(null);
+    }
+    if (href.includes('/rest/v1/pnl_report_snapshots')) return jsonResponse(null);
+    if (href.includes('/rest/v1/pnl_report_symbol_snapshots')) return jsonResponse(null);
     throw new Error(`unexpected fetch: ${href}`);
   };
 
@@ -1300,25 +1349,26 @@ test('scheduled catch-up reports a permanent SPY calendar 4xx as non-retryable 5
     await handlePnlReportDailySnapshot(createRequest({
       headers: { authorization: 'Bearer cron-secret' },
       query: {},
-    }), res, { now: new Date('2026-07-14T22:00:00Z') });
+    }), res, { now: new Date('2026-07-31T22:00:00Z') });
   } finally {
     globalThis.fetch = originalFetch;
     restoreEnv(env);
   }
 
-  assert.equal(spyAttempts, 1);
-  assert.equal(res.statusCode, 500);
+  assert.equal(res.statusCode, 200);
   assert.equal(res.headers['retry-after'], undefined);
-  assert.equal(res.body.complete, false);
+  assert.equal(res.body.complete, true);
   assert.equal(res.body.retryable, false);
-  assert.deepEqual(res.body.failedSymbols, [{
-    symbol: 'SPY',
-    retryable: false,
-    status: 404,
-    reason: 'http_404',
-    attempts: 1,
-  }]);
-  assert.doesNotMatch(JSON.stringify(res.body), /user-a/);
+  assert.equal(res.body.tradingDatesCount, 23, 'the observed 7/3 holiday must be absent from the local calendar');
+  assert.equal(spyAttempts, 0);
+  assert.match(snapshotReadHref, /snapshot_date=gte\.2026-06-30/);
+  assert.match(snapshotReadHref, /snapshot_date=lte\.2026-07-31/);
+  const eodUrl = new URL(nvdaEodHref);
+  assert.equal(eodUrl.searchParams.get('from'), '2026-07-27');
+  assert.equal(eodUrl.searchParams.get('to'), '2026-07-31');
+  assert.deepEqual(portfolioWrites.map((row) => [row.user_id, row.snapshot_date]), [
+    ['user-a', '2026-07-31'],
+  ]);
 });
 
 test('scheduled catch-up blocks a failed user from later dates while other users continue', async () => {
@@ -1442,7 +1492,7 @@ test('scheduled catch-up blocks a failed user from later dates while other users
   assert.doesNotMatch(JSON.stringify(res.body), /user-a|user-b/);
 });
 
-test('scheduled catch-up retries a stale SPY 200 payload and never falls back to an older target', async () => {
+test('scheduled catch-up merges adjacent missing dates into one short EOD request per symbol', async () => {
   const env = {
     CRON_SECRET: process.env.CRON_SECRET,
     SUPABASE_URL: process.env.SUPABASE_URL,
@@ -1451,68 +1501,84 @@ test('scheduled catch-up retries a stale SPY 200 payload and never falls back to
     SUPABASE_SERVICE_KEY: process.env.SUPABASE_SERVICE_KEY,
     EODHD_API_KEY: process.env.EODHD_API_KEY,
   };
-  const OriginalDate = globalThis.Date;
   const originalFetch = globalThis.fetch;
-  const fixedNow = '2026-07-15T00:30:00.000Z';
-  let spyAttempts = 0;
+  const eodHrefs = [];
+  const portfolioWrites = [];
   process.env.CRON_SECRET = 'cron-secret';
   process.env.SUPABASE_URL = 'https://supabase.test';
   delete process.env.VITE_SUPABASE_URL;
   process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-secret';
   delete process.env.SUPABASE_SERVICE_KEY;
   process.env.EODHD_API_KEY = 'eodhd-secret';
-  globalThis.Date = class FixedDate extends OriginalDate {
-    constructor(...args) {
-      super(...(args.length > 0 ? args : [fixedNow]));
-    }
 
-    static now() {
-      return OriginalDate.parse(fixedNow);
-    }
-  };
-
-  globalThis.fetch = async (url) => {
+  globalThis.fetch = async (url, options = {}) => {
     const href = String(url);
     if (href.includes('/rest/v1/stock_trades')) {
       return jsonResponse([
         { id: 'trade-a', user_id: 'user-a', symbol: 'NVDA', name: 'NVIDIA', side: 'buy', trade_date: '2026-07-01', price: 100, shares: 2, fee: 0, currency: 'USD' },
       ]);
     }
-    if (href.includes('/api/eod/SPY.US')) {
-      spyAttempts += 1;
+    if (href.includes('/rest/v1/pnl_report_snapshots') && !options.method) {
       return jsonResponse([
-        { date: '2026-07-10', close: 620, adjusted_close: 620 },
-        { date: '2026-07-13', close: 622, adjusted_close: 622 },
+        { snapshot_date: '2026-07-28', daily_pnl_usd: 2, daily_pnl_pct: 0.01, holding_count: 1 },
       ]);
     }
+    if (href.includes('/rest/v1/pnl_report_symbol_snapshots') && !options.method) {
+      return jsonResponse([{
+        snapshot_date: '2026-07-28',
+        symbol: 'NVDA',
+        is_open: true,
+        current_price_usd: 188,
+        previous_close_usd: 186,
+        daily_pnl_usd: 4,
+      }]);
+    }
+    if (href.includes('/rest/v1/rpc/resolve_margin_debt_snapshot_targets')) {
+      const targets = JSON.parse(options.body || '{}').p_targets || [];
+      return jsonResponse(targets.map((target) => ({ ...target, known: false })));
+    }
+    if (href.includes('/api/eod/SPY.US')) throw new Error('SPY must not be requested');
+    if (href.includes('/api/eod/NVDA.US')) {
+      eodHrefs.push(href);
+      return jsonResponse([
+        { date: '2026-07-28', close: 188, adjusted_close: 188 },
+        { date: '2026-07-29', close: 189, adjusted_close: 189 },
+        { date: '2026-07-30', close: 191, adjusted_close: 191 },
+        { date: '2026-07-31', close: 194, adjusted_close: 194 },
+      ]);
+    }
+    if (href.includes('/rest/v1/pnl_report_snapshots') && options.method === 'POST') {
+      portfolioWrites.push(JSON.parse(options.body)[0]);
+      return jsonResponse(null);
+    }
+    if (href.includes('/rest/v1/pnl_report_snapshots')) return jsonResponse(null);
+    if (href.includes('/rest/v1/pnl_report_symbol_snapshots')) return jsonResponse(null);
     throw new Error(`unexpected fetch: ${href}`);
   };
 
   const res = createResponse();
   try {
-    await handler(createRequest({
+    await handlePnlReportDailySnapshot(createRequest({
       headers: { authorization: 'Bearer cron-secret' },
       query: {},
-    }), res);
+    }), res, { now: new Date('2026-07-31T22:00:00Z') });
   } finally {
-    globalThis.Date = OriginalDate;
     globalThis.fetch = originalFetch;
     restoreEnv(env);
   }
 
-  assert.equal(spyAttempts, 3);
-  assert.equal(res.statusCode, 503);
-  assert.equal(res.headers['retry-after'], '300');
-  assert.equal(res.body.targetDate, '2026-07-14');
-  assert.equal(res.body.complete, false);
-  assert.equal(res.body.retryable, true);
-  assert.deepEqual(res.body.failedSymbols, [{
-    symbol: 'SPY',
-    retryable: true,
-    status: null,
-    reason: 'missing_target_close',
-    attempts: 3,
-  }]);
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.complete, true);
+  assert.equal(res.body.plannedSnapshots, 3);
+  assert.equal(eodHrefs.length, 1, 'three adjacent gaps must not become three requests for one symbol');
+  const eodUrl = new URL(eodHrefs[0]);
+  assert.equal(eodUrl.searchParams.get('from'), '2026-07-25');
+  assert.equal(eodUrl.searchParams.get('to'), '2026-07-31');
+  assert.deepEqual(portfolioWrites.map((row) => row.snapshot_date), [
+    '2026-07-29',
+    '2026-07-30',
+    '2026-07-31',
+  ]);
 });
 
 test('a transient symbol write removes an existing completion marker and the next scheduled run repairs it', async () => {
@@ -1729,7 +1795,7 @@ test('scheduled catch-up rebuilds a missing trading date inside the bounded wind
   }
 
   assert.equal(res.statusCode, 200);
-  assert.match(snapshotReadHref, /snapshot_date=gte\.2026-07-10/);
+  assert.match(snapshotReadHref, /snapshot_date=gte\.2026-06-15/);
   assert.match(snapshotReadHref, /snapshot_date=lte\.2026-07-14/);
   assert.equal(res.body.complete, true);
   assert.equal(res.body.plannedSnapshots, 1);

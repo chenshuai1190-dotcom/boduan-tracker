@@ -1,5 +1,23 @@
 const US_REGULAR_CLOSE_MINUTES = 16 * 60;
 
+// Full-session U.S. equity closures outside the recurring Rule 7.2 holiday
+// schedule. Keep this deliberately explicit and evidence-backed: these dates
+// have no official close and must never become quote or P&L snapshot targets.
+// Relevant NYSE records include the 9/17/2001 reopening, the 2012 Sandy
+// closure notices, and the 2018/2025 National Day of Mourning bulletins.
+const EXTRAORDINARY_US_MARKET_CLOSURES = new Set([
+  '2001-09-11',
+  '2001-09-12',
+  '2001-09-13',
+  '2001-09-14',
+  '2004-06-11',
+  '2007-01-02',
+  '2012-10-29',
+  '2012-10-30',
+  '2018-12-05',
+  '2025-01-09',
+]);
+
 export function isUsMarketDateKey(value) {
   return /^\d{4}-\d{2}-\d{2}$/.test(String(value || ''));
 }
@@ -78,6 +96,7 @@ function marketHolidayDatesForHolidayYear(year) {
 
 export function isUsMarketTradingDate(dateKey) {
   if (!isUsMarketDateKey(dateKey) || !isWeekdayDateKey(dateKey)) return false;
+  if (EXTRAORDINARY_US_MARKET_CLOSURES.has(dateKey)) return false;
   const year = Number(String(dateKey).slice(0, 4));
   return !marketHolidayDatesForHolidayYear(year).has(dateKey)
     && !marketHolidayDatesForHolidayYear(year + 1).has(dateKey);

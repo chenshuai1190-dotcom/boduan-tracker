@@ -30,10 +30,15 @@ test('closed session returns cached 7/31 EOD lock while the EODHD breaker is act
   const originalFetch = globalThis.fetch;
   let eodCalls = 0;
   let delayedCalls = 0;
+  const eodRanges = [];
   globalThis.fetch = async (url) => {
     const parsed = new URL(url);
     if (parsed.pathname.includes('/api/eod/')) {
       eodCalls += 1;
+      eodRanges.push({
+        from: parsed.searchParams.get('from'),
+        to: parsed.searchParams.get('to'),
+      });
       return jsonResponse([
         { date: '2026-07-30', open: 99, high: 102, low: 98, close: 100, adjusted_close: 100 },
         { date: '2026-07-31', open: 102, high: 106, low: 101, close: 105, adjusted_close: 105 },
@@ -72,6 +77,7 @@ test('closed session returns cached 7/31 EOD lock while the EODHD breaker is act
     assert.equal(cached.dailyPnlPriceDate, '2026-07-31');
     assert.equal(cached.dailyPnlLocked, true);
     assert.equal(eodCalls, 1);
+    assert.deepEqual(eodRanges, [{ from: '2026-07-30', to: '2026-07-31' }]);
     assert.equal(delayedCalls, 0);
   } finally {
     globalThis.fetch = originalFetch;
@@ -107,6 +113,55 @@ test('closed session with missing completed EOD history fails closed without Yah
     assert.equal(quote.price, undefined);
     assert.equal(quote.source, undefined);
     assert.equal(delayedCalls, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('NYSE holiday midday stays closed, skips delayed quote, and reuses the prior completed close pair', async () => {
+  const originalFetch = globalThis.fetch;
+  const laborDayMidday = Date.parse('2026-09-07T16:00:00.000Z');
+  let delayedCalls = 0;
+  const eodRanges = [];
+  globalThis.fetch = async (url) => {
+    const parsed = new URL(url);
+    if (parsed.pathname.includes('/api/eod/')) {
+      eodRanges.push({
+        from: parsed.searchParams.get('from'),
+        to: parsed.searchParams.get('to'),
+      });
+      return jsonResponse([
+        { date: '2026-09-03', open: 98, high: 101, low: 97, close: 100, adjusted_close: 100 },
+        { date: '2026-09-04', open: 101, high: 106, low: 100, close: 105, adjusted_close: 105 },
+      ]);
+    }
+    if (parsed.pathname.includes('/api/us-quote-delayed')) {
+      delayedCalls += 1;
+      throw new Error('NYSE holidays must not request delayed quotes');
+    }
+    if (parsed.hostname === 'query1.finance.yahoo.com') {
+      return jsonResponse({ chart: { result: [] } });
+    }
+    throw new Error(`unexpected URL: ${url}`);
+  };
+
+  try {
+    const quote = await fetchStockQuote('NVDA', {
+      eodhdKey: 'server-only',
+      now: laborDayMidday,
+    });
+    assert.equal(quote.error, undefined);
+    assert.equal(quote.quoteSession, 'closed');
+    assert.equal(quote.price, 105);
+    assert.equal(quote.previousClose, 100);
+    assert.equal(quote.dailyPnlPrice, 105);
+    assert.equal(quote.dailyPnlPriceDate, '2026-09-04');
+    assert.equal(quote.dailyPnlBaselineClose, 100);
+    assert.equal(quote.dailyPnlBaselineDate, '2026-09-03');
+    assert.equal(quote.dailyPnlLocked, true);
+    assert.equal(quote.dailyPnlSource, 'locked-latest-eod-close');
+    assert.equal(delayedCalls, 0);
+    assert.deepEqual(eodRanges, [{ from: '2026-09-03', to: '2026-09-04' }]);
   } finally {
     globalThis.fetch = originalFetch;
   }
