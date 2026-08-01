@@ -3,13 +3,11 @@ import test from 'node:test';
 
 import {
   getLatestCompletedUsTradingDate,
-  isUsMarketTradingDate,
   loadEodhdDailyHistory,
   loadEodhdDelayedQuote,
   loadEodhdIndexIntraday,
   resetEodhdRestCaches,
 } from '../server/quote/eodhdCache.js';
-import { getPreviousUsTradingDate } from '../src/lib/usMarketCalendar.js';
 import { fetchStockQuote } from '../server/quote/providers/eodhd.js';
 import {
   fetchIndicesQuote,
@@ -373,20 +371,6 @@ test('US market holidays keep the prior completed close key instead of opening l
   assert.equal(getIndexIntradayCachePolicy(laborDayMidday).sessionKey, expectedKey);
   assert.equal(getIndexIntradayCachePolicy(laborDayAfterClose).sessionKey, expectedKey);
   assert.equal(getIndexIntradayCachePolicy(tuesdayPremarket).sessionKey, expectedKey);
-});
-
-test('extraordinary NYSE closures never become completed-close or catch-up targets', () => {
-  // NYSE closed for the Carter National Day of Mourning on 2025-01-09.
-  const mourningDayMidday = Date.parse('2025-01-09T17:00:00.000Z');
-  const fridayPremarket = Date.parse('2025-01-10T13:00:00.000Z');
-
-  assert.equal(isUsMarketTradingDate('2025-01-09'), false);
-  assert.equal(getLatestCompletedUsTradingDate(mourningDayMidday), '2025-01-08');
-  assert.equal(getLatestCompletedUsTradingDate(fridayPremarket), '2025-01-08');
-  assert.equal(getPreviousUsTradingDate('2025-01-10'), '2025-01-08');
-  assert.equal(isUsMarketTradingDate('2018-12-05'), false);
-  assert.equal(isUsMarketTradingDate('2012-10-29'), false);
-  assert.equal(isUsMarketTradingDate('2001-09-14'), false);
 });
 
 test('stock provider shares EOD history across concurrent calls and the weekend but refreshes after a new close', async () => {

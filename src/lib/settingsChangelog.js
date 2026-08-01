@@ -4,27 +4,6 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
-      '📈 收盘价短窗口兼容与历史图恢复',
-      '  - 正式收盘锁定只读取最新完成交易日及其上一交易日，避免当前行情套餐拒绝长历史窗口时把持仓当日盈亏整行清空',
-      '  - 股票趋势五年图按需使用 Yahoo 已完成日线；未来、当日未完成、旧日期和非正数数据均不能进入 MA200、趋势重测或历史成功率',
-      '  - 相对 QQQ 使用已完成的 Yahoo 调整收盘序列，并在服务实例内合并相同公开请求；鉴权、账户、持仓与交易数据不会进入缓存',
-      '📅 7 月 31 日收益快照恢复准备',
-      '  - 快照任务改用本地 NYSE 交易日历，不再额外请求 SPY 探测日期；每只仍持仓股票只读取最多 7 个日历日的必要收盘窗口',
-      '  - 401 不再重试，402 仍按有界退避处理；本次代码发布不自动重写生产快照，也不修改账户、余额、正式交易、持仓、成本或比赛数据',
-    ],
-    itemsEn: [
-      '📈 Short-window close compatibility and history-chart recovery',
-      '  - Formal close locks now request only the latest completed session and its prior session, so the current market-data plan cannot blank holding P&L by rejecting a long history range',
-      '  - Five-year stock trends load completed Yahoo daily rows on demand; future, incomplete-current-day, stale-date, and non-positive rows cannot enter MA200, retest, or historical success calculations',
-      '  - Relative QQQ uses completed Yahoo adjusted closes and merges identical public requests within an instance; authentication, accounts, holdings, and trades are never cached',
-      '📅 July 31 P&L snapshot recovery readiness',
-      '  - Snapshot jobs now use the local NYSE calendar instead of spending a SPY request on date discovery, and each still-held symbol uses only the necessary close window capped at seven calendar days',
-      '  - HTTP 401 is not retried while 402 keeps bounded backoff; this code release does not automatically rewrite production snapshots or change accounts, balances, formal trades, holdings, costs, or competition data',
-    ],
-  },
-  {
-    ver: 'v10.7.9.405', date: '2026-08-01',
-    items: [
       '🛡️ 收盘行情自愈与旧客户端限流',
       '  - 休市后“今日盈亏”直接使用最新已完成收盘价及上一交易日收盘价，不再因延迟报价接口 402 而整行显示为不可用',
       '  - 账户隔离的 PWA 行情缓存只保存经过交易日校验的公开收盘字段，周末或节假日重新打开时可继续显示已锁定数字',

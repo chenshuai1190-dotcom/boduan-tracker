@@ -333,8 +333,6 @@ async function mockProviderFetch(url) {
           meta: {
             chartPreviousClose: 100,
             previousClose: 100,
-            fiftyTwoWeekHigh: 180,
-            fiftyTwoWeekLow: 90,
             marketState: 'REGULAR',
             regularMarketTime: 1783000000,
             regularMarketPrice: 999,
@@ -641,11 +639,8 @@ test('stock quote response shape is stable', async () => {
   assert.equal(typeof quote.week52High, 'number');
   assert.equal(typeof quote.ytdChangePercent, 'number');
   assert.equal(typeof quote.yearStartPrice, 'number');
-  assert.equal(quote.yearStartPrice, 0, 'the two-close EOD lock window must not masquerade as a year-start history');
-  assert.equal(quote.ytdChangePercent, 0);
-  assert.equal(quote.week52High, 180);
-  assert.equal(quote.week52Low, 90);
-  assert.equal(quote.highSource, 'yahoo');
+  assert.equal(quote.yearStartPrice, 100);
+  assert.ok(Math.abs(quote.ytdChangePercent - 55) < 0.000001);
   assert.equal(quote.previousClose, 150);
   assert.equal(quote.dailyBaselineClose, 150);
   assert.ok(Math.abs(quote.changePercent - ((155 - 150) / 150) * 100) < 0.000001);

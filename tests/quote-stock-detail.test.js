@@ -9,10 +9,6 @@ import {
 import { getLatestCompletedUsTradingDate, resetEodhdRestCaches } from '../server/quote/eodhdCache.js';
 import { fetchStockQuote } from '../server/quote/providers/eodhd.js';
 import { buildEodhdStockDetail } from '../server/quote/stockDetail.js';
-import {
-  getPreviousUsTradingDate,
-  isUsMarketTradingDate,
-} from '../src/lib/usMarketCalendar.js';
 
 test.beforeEach(() => {
   resetEodhdRestCaches();
@@ -29,51 +25,6 @@ function dateKeyFrom(startDate, offsetDays) {
   const date = new Date(`${startDate}T00:00:00Z`);
   date.setUTCDate(date.getUTCDate() + offsetDays);
   return date.toISOString().slice(0, 10);
-}
-
-function tradingDateKeys(startDate, count) {
-  const dates = [];
-  let offsetDays = 0;
-  while (dates.length < count) {
-    const date = dateKeyFrom(startDate, offsetDays);
-    if (isUsMarketTradingDate(date)) dates.push(date);
-    offsetDays += 1;
-  }
-  return dates;
-}
-
-function tradingDateRange(startDate, endDate) {
-  const dates = [];
-  for (let date = startDate; date <= endDate; date = dateKeyFrom(date, 1)) {
-    if (isUsMarketTradingDate(date)) dates.push(date);
-  }
-  return dates;
-}
-
-function yahooDailyChart(rows, meta = {}) {
-  return {
-    chart: {
-      result: [{
-        meta: {
-          exchangeTimezoneName: 'America/New_York',
-          ...meta,
-        },
-        timestamp: rows.map((row) => Date.parse(`${row.date}T20:00:00Z`) / 1000),
-        indicators: {
-          quote: [{
-            open: rows.map((row) => row.open ?? row.close),
-            high: rows.map((row) => row.high ?? row.close),
-            low: rows.map((row) => row.low ?? row.close),
-            close: rows.map((row) => row.close),
-            volume: rows.map((row) => row.volume ?? 1_000_000),
-          }],
-          adjclose: [{
-            adjclose: rows.map((row) => row.adjusted_close),
-          }],
-        },
-      }],
-    },
-  };
 }
 
 function weeklyRows(count, { startDate = '2022-01-07', close = (index) => index + 1 } = {}) {
@@ -1082,7 +1033,7 @@ test('five-year weekly output keeps hidden warmup data out of the payload while 
   assert.ok(detail.history.length < rows.length, 'daily payload should stay bounded even when the provider supplies ten years');
 });
 
-test('stock-detail view is opt-in, uses completed Yahoo daily history, and keeps EODHD on the exact two-close window', async () => {
+test('stock-detail view is opt-in, returns real EOD calculations, and does not expose the provider key', async () => {
   const originalFetch = globalThis.fetch;
   const originalAuth = process.env.QUOTE_API_AUTH_REQUIRED;
   const originalKey = process.env.EODHD_API_KEY;
@@ -1100,7 +1051,15 @@ test('stock-detail view is opt-in, uses completed Yahoo daily history, and keeps
       low: close - 2,
     };
   });
-  const requestedEodRanges = [];
+  const oldExtremeRow = {
+    date: '2018-01-05',
+    close: 10_000,
+    adjusted_close: 10_000,
+    high: 20_000,
+    low: 9_000,
+  };
+  const requestedEodFrom = [];
+  const requestedSplits = [];
 
   process.env.QUOTE_API_AUTH_REQUIRED = 'false';
   process.env.EODHD_API_KEY = 'test-eodhd-key';
@@ -1125,25 +1084,22 @@ test('stock-detail view is opt-in, uses completed Yahoo daily history, and keeps
     }
     if (parsed.pathname.includes('/api/eod/')) {
       const requestedFrom = parsed.searchParams.get('from');
-      const requestedTo = parsed.searchParams.get('to');
-      requestedEodRanges.push({ from: requestedFrom, to: requestedTo });
-      return jsonResponse(eodRows.filter((row) => (
-        row.date >= requestedFrom && row.date <= requestedTo
-      )));
+      requestedEodFrom.push(requestedFrom);
+      return jsonResponse([oldExtremeRow, ...eodRows].filter((row) => row.date >= requestedFrom));
     }
     if (parsed.pathname.includes('/api/splits/')) {
-      throw new Error('stock-detail must not call EODHD split or long-history endpoints');
+      requestedSplits.push({
+        pathname: parsed.pathname,
+        from: parsed.searchParams.get('from'),
+        to: parsed.searchParams.get('to'),
+      });
+      return jsonResponse([]);
     }
     if (parsed.hostname === 'query1.finance.yahoo.com') {
-      if (parsed.searchParams.get('interval') === '1d') {
-        return jsonResponse(yahooDailyChart(eodRows));
-      }
       return jsonResponse({
         chart: {
           result: [{
             meta: {
-              fiftyTwoWeekHigh: 321,
-              fiftyTwoWeekLow: 88,
               currentTradingPeriod: {
                 regular: { start: 1782970200, end: 1782993600 },
               },
@@ -1162,12 +1118,13 @@ test('stock-detail view is opt-in, uses completed Yahoo daily history, and keeps
     await handler(createRequest('NVDA'), defaultResponse);
     assert.equal(defaultResponse.statusCode, 200);
     assert.equal(Object.hasOwn(defaultResponse.body.data[0], 'stockDetail'), false);
+    assert.equal(requestedSplits.length, 0, 'ordinary quotes must not request split metadata');
 
     const detailResponse = createResponse();
     await handler(createRequest('NVDA', 'stock-detail'), detailResponse);
     assert.equal(detailResponse.statusCode, 200);
     const quote = detailResponse.body.data[0];
-    assert.equal(quote.stockDetail.source, 'YAHOO_CHART_10Y');
+    assert.equal(quote.stockDetail.source, 'EODHD_EOD_SPLITS');
     assert.equal(quote.stockDetail.priceBasis, 'split_adjusted_close');
     assert.equal(quote.stockDetail.relativeReturnPriceBasis, 'adjusted_close');
     assert.equal(quote.stockDetail.splitActionCount, 0);
@@ -1181,13 +1138,14 @@ test('stock-detail view is opt-in, uses completed Yahoo daily history, and keeps
     assert.equal(typeof quote.stockDetail.indicators.volatility20AnnualizedPct, 'number');
     assert.equal(quote.stockDetail.indicators.ma200WeeklyStatus, 'insufficient_data');
     assert.ok(Array.isArray(quote.stockDetail.weeklyHistory));
-    assert.deepEqual(requestedEodRanges, [{
-      from: getPreviousUsTradingDate(endDateKey),
-      to: endDateKey,
-    }], 'default and detail views must share one exact completed-close EOD request');
-    assert.equal(quote.week52High, 321, 'short EOD rows must not masquerade as a 52-week range');
-    assert.equal(quote.week52Low, 88);
-    assert.equal(quote.highSource, 'yahoo');
+    assert.equal(requestedEodFrom.length, 2);
+    assert.equal(requestedSplits.length, 1);
+    assert.equal(requestedSplits[0].pathname, '/api/splits/NVDA.US');
+    assert.equal(requestedSplits[0].from, requestedEodFrom[1]);
+    assert.match(requestedSplits[0].to, /^\d{4}-\d{2}-\d{2}$/);
+    assert.ok(requestedEodFrom[1] < requestedEodFrom[0], 'stock-detail must request the longer history window without slowing the default quote path');
+    assert.equal(Number(requestedEodFrom[1].slice(0, 4)), new Date().getUTCFullYear() - 10);
+    assert.equal(quote.week52High, 321, 'ten-year detail warmup must not leak into the ordinary completed-EOD quote high');
     assert.doesNotMatch(JSON.stringify(detailResponse.body), /test-eodhd-key/);
   } finally {
     globalThis.fetch = originalFetch;
@@ -1198,138 +1156,8 @@ test('stock-detail view is opt-in, uses completed Yahoo daily history, and keeps
   }
 });
 
-test('stock-detail provider 10-year Yahoo warmup gives the first visible five-year week a real MA200', async () => {
+test('stock-detail provider passes non-empty split actions through the complete provider calculation', async () => {
   const originalFetch = globalThis.fetch;
-  const cutoffDate = '2026-07-10';
-  const baselineDate = getPreviousUsTradingDate(cutoffDate);
-  const providerRows = tradingDateRange('2016-07-11', cutoffDate).map((date, index) => ({
-    date,
-    close: 50 + index * 0.1,
-    adjusted_close: 50 + index * 0.1,
-    high: 51 + index * 0.1,
-    low: 49 + index * 0.1,
-  }));
-  const requestedYahooRanges = [];
-
-  globalThis.fetch = async (url) => {
-    const parsed = new URL(url);
-    if (parsed.pathname.includes('/api/eod/')) {
-      return jsonResponse([
-        { date: baselineDate, close: 100, adjusted_close: 100, high: 101, low: 99 },
-        { date: cutoffDate, close: 105, adjusted_close: 105, high: 106, low: 104 },
-      ]);
-    }
-    if (parsed.pathname.includes('/api/us-quote-delayed')) {
-      throw new Error('weekend detail must not request delayed quote');
-    }
-    if (parsed.pathname.includes('/api/splits/')) {
-      throw new Error('Yahoo detail must not request EODHD splits');
-    }
-    if (parsed.hostname === 'query1.finance.yahoo.com') {
-      if (parsed.searchParams.get('interval') === '1d') {
-        requestedYahooRanges.push(parsed.searchParams.get('range'));
-        return jsonResponse(yahooDailyChart(providerRows));
-      }
-      return jsonResponse({ chart: { result: [] } });
-    }
-    throw new Error(`Unexpected provider URL: ${url}`);
-  };
-
-  try {
-    const quote = await fetchStockQuote('NVDA', {
-      eodhdKey: 'test-eodhd-key',
-      includeStockDetail: true,
-      now: Date.parse('2026-07-11T16:00:00.000Z'),
-    });
-
-    assert.equal(quote.error, undefined);
-    assert.equal(quote.stockDetail.source, 'YAHOO_CHART_10Y');
-    assert.deepEqual(requestedYahooRanges, ['10y']);
-    assert.ok(
-      quote.stockDetail.weeklyHistory.length >= 260
-        && quote.stockDetail.weeklyHistory.length <= 263,
-    );
-    assert.ok(Number.isFinite(quote.stockDetail.weeklyHistory[0].ma200));
-    assert.ok(quote.stockDetail.weeklyHistory.every((row) => Number.isFinite(row.ma200)));
-    assert.equal(quote.stockDetail.indicators.ma200WeeklyStatus, 'ready');
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-});
-
-test('stock-detail provider 10-year Yahoo warmup preserves a retest near the start of the five-year window', async () => {
-  const originalFetch = globalThis.fetch;
-  const cutoffDate = '2026-07-17';
-  const baselineDate = getPreviousUsTradingDate(cutoffDate);
-  const fixture = ma200RatioFixture({ startDate: '2019-01-02' });
-  fixture.appendEvent({ recovered: true });
-  fixture.appendEvent({ recovered: false });
-  const sourceRows = fixture.rows();
-  const secondCycleStart = fixture.triggerIndexes[1] - 5;
-  const oldDates = tradingDateKeys('2019-01-02', secondCycleStart);
-  const fiveYearDates = tradingDateKeys('2021-07-19', sourceRows.length - secondCycleStart);
-  const providerRows = sourceRows.map((row, index) => ({
-    ...row,
-    date: index < secondCycleStart
-      ? oldDates[index]
-      : fiveYearDates[index - secondCycleStart],
-  }));
-  providerRows.push({
-    ...providerRows.at(-1),
-    date: cutoffDate,
-  });
-  const expectedTriggerDate = providerRows[fixture.triggerIndexes[1]].date;
-  const requestedYahooRanges = [];
-
-  globalThis.fetch = async (url) => {
-    const parsed = new URL(url);
-    if (parsed.pathname.includes('/api/eod/')) {
-      return jsonResponse([
-        { date: baselineDate, close: 100, adjusted_close: 100, high: 101, low: 99 },
-        { date: cutoffDate, close: 105, adjusted_close: 105, high: 106, low: 104 },
-      ]);
-    }
-    if (parsed.pathname.includes('/api/us-quote-delayed')) {
-      throw new Error('weekend detail must not request delayed quote');
-    }
-    if (parsed.pathname.includes('/api/splits/')) {
-      throw new Error('Yahoo detail must not request EODHD splits');
-    }
-    if (parsed.hostname === 'query1.finance.yahoo.com') {
-      if (parsed.searchParams.get('interval') === '1d') {
-        requestedYahooRanges.push(parsed.searchParams.get('range'));
-        return jsonResponse(yahooDailyChart(providerRows));
-      }
-      return jsonResponse({ chart: { result: [] } });
-    }
-    throw new Error(`Unexpected provider URL: ${url}`);
-  };
-
-  try {
-    const quote = await fetchStockQuote('NVDA', {
-      eodhdKey: 'test-eodhd-key',
-      includeStockDetail: true,
-      now: Date.parse('2026-07-18T16:00:00.000Z'),
-    });
-
-    const retest = quote.stockDetail.ma200RetestHistory;
-    assert.equal(quote.error, undefined);
-    assert.equal(quote.stockDetail.source, 'YAHOO_CHART_10Y');
-    assert.deepEqual(requestedYahooRanges, ['10y']);
-    assert.equal(retest.status, 'ready');
-    assert.equal(retest.lookbackYears, 5);
-    assert.equal(retest.events.length, 1);
-    assert.equal(retest.events[0].triggerDate, expectedTriggerDate);
-    assert.equal(retest.events[0].status, 'failed');
-    assert.ok(Number.isFinite(retest.events[0].triggerMa200));
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-});
-
-test('stock-detail provider treats Yahoo daily closes as already split-adjusted and never calls EODHD long history or splits', async () => {
-  const originalFetch = globalThis.fetch;
-  const requestedEodRanges = [];
   globalThis.fetch = async (url) => {
     const parsed = new URL(url);
     if (parsed.pathname.includes('/api/us-quote-delayed')) {
@@ -1350,26 +1178,19 @@ test('stock-detail provider treats Yahoo daily closes as already split-adjusted 
       });
     }
     if (parsed.pathname.includes('/api/eod/')) {
-      requestedEodRanges.push({
-        from: parsed.searchParams.get('from'),
-        to: parsed.searchParams.get('to'),
-      });
       return jsonResponse([
+        { date: '2024-01-02', close: 400, adjusted_close: 95, high: 408, low: 392 },
         { date: '2024-01-03', close: 102, adjusted_close: 24, high: 104, low: 99 },
         { date: '2024-01-04', close: 105, adjusted_close: 25, high: 107, low: 101 },
       ]);
     }
     if (parsed.pathname.includes('/api/splits/')) {
-      throw new Error('Yahoo history must not trigger EODHD split requests');
+      assert.equal(parsed.pathname, '/api/splits/NVDA.US');
+      return jsonResponse([
+        { date: '2024-01-03', split: '4.000000/1.000000' },
+      ]);
     }
     if (parsed.hostname === 'query1.finance.yahoo.com') {
-      if (parsed.searchParams.get('interval') === '1d') {
-        return jsonResponse(yahooDailyChart([
-          { date: '2024-01-02', close: 100, adjusted_close: 95, high: 102, low: 98 },
-          { date: '2024-01-03', close: 102, adjusted_close: 24, high: 104, low: 99 },
-          { date: '2024-01-04', close: 105, adjusted_close: 25, high: 107, low: 101 },
-        ]));
-      }
       return jsonResponse({ chart: { result: [] } });
     }
     throw new Error(`Unexpected provider URL: ${url}`);
@@ -1383,9 +1204,7 @@ test('stock-detail provider treats Yahoo daily closes as already split-adjusted 
     });
 
     assert.equal(quote.error, undefined);
-    assert.equal(quote.stockDetail.source, 'YAHOO_CHART_10Y');
-    assert.equal(quote.stockDetail.priceBasis, 'split_adjusted_close');
-    assert.equal(quote.stockDetail.splitActionCount, 0);
+    assert.equal(quote.stockDetail.splitActionCount, 1);
     assert.deepEqual(quote.stockDetail.history, [
       { date: '2024-01-02', close: 100, ma200: null },
       { date: '2024-01-03', close: 102, ma200: null },
@@ -1396,7 +1215,6 @@ test('stock-detail provider treats Yahoo daily closes as already split-adjusted 
       { date: '2024-01-03', close: 24 },
       { date: '2024-01-04', close: 25 },
     ]);
-    assert.deepEqual(requestedEodRanges, [{ from: '2024-01-03', to: '2024-01-04' }]);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -1423,7 +1241,7 @@ test('stock-detail view rejects multi-symbol and special-provider requests befor
   }
 });
 
-test('stock-detail Yahoo fallback rejects a zero completed bar, stale history, and an uncompleted future bar', async () => {
+test('stock-detail provider keeps invalid EOD payloads unavailable instead of claiming short history', async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (url) => {
     const parsed = new URL(url);
@@ -1446,21 +1264,14 @@ test('stock-detail Yahoo fallback rejects a zero completed bar, stale history, a
     }
     if (parsed.pathname.includes('/api/eod/')) {
       return jsonResponse([
-        { date: '2026-07-16', close: 490, adjusted_close: 490, high: 492, low: 488 },
-        { date: '2026-07-17', close: 495, adjusted_close: 495, high: 497, low: 493 },
+        { date: 'invalid', close: 500, adjusted_close: 500, high: 501, low: 499 },
+        { date: '2026-07-17', close: 0, adjusted_close: 0, high: 0, low: 0 },
       ]);
     }
     if (parsed.pathname.includes('/api/splits/')) {
-      throw new Error('stock-detail must not request EODHD split metadata');
+      return jsonResponse([]);
     }
     if (parsed.hostname === 'query1.finance.yahoo.com') {
-      if (parsed.searchParams.get('interval') === '1d') {
-        return jsonResponse(yahooDailyChart([
-          { date: '2026-07-16', close: 490, adjusted_close: 490, high: 492, low: 488 },
-          { date: '2026-07-17', close: 0, adjusted_close: 0, high: 0, low: 0 },
-          { date: '2026-07-20', close: 520, adjusted_close: 520, high: 522, low: 518 },
-        ]));
-      }
       return jsonResponse({ chart: { result: [] } });
     }
     throw new Error(`Unexpected provider URL: ${url}`);
@@ -1472,8 +1283,6 @@ test('stock-detail Yahoo fallback rejects a zero completed bar, stale history, a
       includeStockDetail: true,
       now: Date.parse('2026-07-20T15:00:00.000Z'),
     });
-    assert.equal(quote.error, undefined);
-    assert.equal(quote.stockDetail.source, 'YAHOO_CHART_10Y');
     assert.equal(quote.stockDetail.indicators.ma200WeeklyStatus, 'unavailable');
     assert.deepEqual(quote.stockDetail.history, []);
     assert.deepEqual(quote.stockDetail.weeklyHistory, []);
@@ -1482,17 +1291,8 @@ test('stock-detail Yahoo fallback rejects a zero completed bar, stale history, a
   }
 });
 
-test('stock-detail Yahoo fallback builds only through the exact completed close and drops the current unfinished bar', async () => {
+test('stock-detail provider fails closed when split metadata is unavailable', async () => {
   const originalFetch = globalThis.fetch;
-  const cutoffDate = '2026-07-17';
-  const startDate = dateKeyFrom(cutoffDate, -219);
-  const completedRows = Array.from({ length: 220 }, (_, index) => ({
-    date: dateKeyFrom(startDate, index),
-    close: 300 + index,
-    adjusted_close: 250 + index,
-    high: 301 + index,
-    low: 299 + index,
-  }));
   globalThis.fetch = async (url) => {
     const parsed = new URL(url);
     if (parsed.pathname.includes('/api/us-quote-delayed')) {
@@ -1513,21 +1313,18 @@ test('stock-detail Yahoo fallback builds only through the exact completed close 
       });
     }
     if (parsed.pathname.includes('/api/eod/')) {
-      return jsonResponse([
-        { date: '2026-07-16', close: 490, adjusted_close: 490, high: 492, low: 488 },
-        { date: cutoffDate, close: 495, adjusted_close: 495, high: 497, low: 493 },
-      ]);
+      return jsonResponse(Array.from({ length: 220 }, (_, index) => ({
+        date: dateKeyFrom('2025-12-01', index),
+        close: 300 + index,
+        adjusted_close: 250 + index,
+        high: 301 + index,
+        low: 299 + index,
+      })));
     }
     if (parsed.pathname.includes('/api/splits/')) {
-      throw new Error('stock-detail must not request EODHD split metadata');
+      return jsonResponse({ error: 'temporarily unavailable' }, 503);
     }
     if (parsed.hostname === 'query1.finance.yahoo.com') {
-      if (parsed.searchParams.get('interval') === '1d') {
-        return jsonResponse(yahooDailyChart([
-          ...completedRows,
-          { date: '2026-07-20', close: 999, adjusted_close: 999, high: 1000, low: 998 },
-        ]));
-      }
       return jsonResponse({ chart: { result: [] } });
     }
     throw new Error(`Unexpected provider URL: ${url}`);
@@ -1540,16 +1337,11 @@ test('stock-detail Yahoo fallback builds only through the exact completed close 
       now: Date.parse('2026-07-20T15:00:00.000Z'),
     });
     assert.equal(quote.error, undefined);
-    assert.equal(quote.stockDetail.source, 'YAHOO_CHART_10Y');
     assert.equal(quote.stockDetail.priceBasis, 'split_adjusted_close');
-    assert.equal(quote.stockDetail.asOfDate, cutoffDate);
-    assert.equal(quote.stockDetail.history.length, 220);
-    assert.equal(quote.stockDetail.history.at(-1).date, cutoffDate);
-    assert.equal(quote.stockDetail.history.at(-1).close, 519);
-    assert.equal(quote.stockDetail.history.at(-1).ma200, 419.5);
-    assert.equal(quote.stockDetail.relativeReturnHistory.at(-1).date, cutoffDate);
-    assert.equal(quote.stockDetail.relativeReturnHistory.at(-1).close, 469);
-    assert.equal(quote.stockDetail.history.some((row) => row.date === '2026-07-20'), false);
+    assert.equal(quote.stockDetail.ma200RetestHistory.status, 'unavailable');
+    assert.equal(quote.stockDetail.indicators.ma200WeeklyStatus, 'unavailable');
+    assert.deepEqual(quote.stockDetail.history, []);
+    assert.deepEqual(quote.stockDetail.relativeReturnHistory, []);
   } finally {
     globalThis.fetch = originalFetch;
   }
