@@ -10,6 +10,13 @@ export const COMMUNITY_COMPETITION_STATES = new Set([
   'ready',
 ]);
 
+export const COMMUNITY_COMPETITION_RECALCULATE_STATES = new Set([
+  'recalculated',
+  'already_current',
+  'not_joined',
+  'waiting_snapshot',
+]);
+
 async function getAccessToken(supabase) {
   const { data, error } = await supabase?.auth?.getSession?.();
   if (error) throw error;
@@ -188,8 +195,41 @@ export function joinCommunityCompetition({ supabase, signal } = {}) {
   });
 }
 
+export function recalculateSelfCommunityCompetition({
+  supabase,
+  signal,
+  timeoutMs = COMMUNITY_COMPETITION_REQUEST_TIMEOUT_MS,
+} = {}) {
+  const params = new URLSearchParams({ operation: 'recalculate-self' });
+  return requestCommunityCompetition(
+    supabase,
+    `${COMMUNITY_COMPETITION_ENDPOINT}?${params.toString()}`,
+    {
+      method: 'POST',
+      body: JSON.stringify({}),
+      signal,
+      timeoutMs,
+    },
+    (body) => {
+      if (!body?.success || !COMMUNITY_COMPETITION_RECALCULATE_STATES.has(body?.state)) return false;
+      const allowedFields = new Set([
+        'success', 'state', 'snapshotDate', 'version', 'completedAt',
+      ]);
+      if (!Object.keys(body || {}).every((key) => allowedFields.has(key))) return false;
+      const markerEmpty = body.snapshotDate == null && body.version == null && body.completedAt == null;
+      const markerComplete = isDateKey(body.snapshotDate)
+        && isOpaqueVersion(body.version)
+        && isTimestamp(body.completedAt);
+      return ['recalculated', 'already_current'].includes(body.state)
+        ? markerComplete
+        : markerEmpty;
+    },
+  );
+}
+
 export const communityCompetitionApi = Object.freeze({
   fetch: fetchCommunityCompetition,
   join: joinCommunityCompetition,
+  recalculateSelf: recalculateSelfCommunityCompetition,
   snapshotStatus: fetchCommunityCompetitionSnapshotStatus,
 });

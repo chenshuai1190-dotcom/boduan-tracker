@@ -1,7 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { bindCommunityCompetitionResume } from '../src/lib/communityCompetitionResume.js';
+import {
+  bindCommunityCompetitionResume,
+  COMMUNITY_COMPETITION_PUBLICATION_EVENT,
+} from '../src/lib/communityCompetitionResume.js';
 
 class FakeEventTarget {
   constructor() {
@@ -149,6 +152,18 @@ test('an iOS resume event burst is locally deduplicated before cache evaluation'
   harness.cleanup();
 });
 
+test('same-tab and cross-tab publication signals bypass resume dedupe', () => {
+  const harness = createHarness();
+  harness.windowTarget.dispatch('focus');
+  harness.windowTarget.dispatch(COMMUNITY_COMPETITION_PUBLICATION_EVENT);
+  harness.windowTarget.dispatch('storage', { key: 'unrelated_key' });
+  harness.windowTarget.dispatch('storage', {
+    key: 'bottomline_community_competition_publication_v1__user_user-a',
+  });
+  assert.deepEqual(harness.calls, ['focus', 'publication', 'publication-storage']);
+  harness.cleanup();
+});
+
 test('the delayed visibility retry evaluates the current period rather than the hidden-time period', () => {
   const clock = new FakeClock(1000);
   const windowTarget = new FakeEventTarget();
@@ -202,6 +217,10 @@ test('cleanup removes resume listeners and pending timers', () => {
   harness.clock.advance(10_000);
   harness.windowTarget.dispatch('focus');
   harness.windowTarget.dispatch('online');
+  harness.windowTarget.dispatch(COMMUNITY_COMPETITION_PUBLICATION_EVENT);
+  harness.windowTarget.dispatch('storage', {
+    key: 'bottomline_community_competition_publication_v1__user_user-a',
+  });
   harness.documentTarget.dispatch('visibilitychange');
   assert.deepEqual(harness.calls, []);
 });

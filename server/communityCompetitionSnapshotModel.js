@@ -101,6 +101,83 @@ export function deriveCompetitionHoldingSymbols(stockTrades = [], throughDate) {
     .sort((a, b) => a.localeCompare(b, 'en-US'));
 }
 
+export function deriveCompetitionLedgerSymbols(
+  stockTrades = [],
+  throughDate,
+  eligibilityDate = null,
+) {
+  const date = normalizeDate(throughDate);
+  const eligibleDate = eligibilityDate ? normalizeDate(eligibilityDate) : null;
+  if (!date || (eligibilityDate && !eligibleDate) || (eligibleDate && eligibleDate > date)) {
+    fail('invalid_date', '账本代码日期不合法');
+  }
+  const trades = normalizeTrades(stockTrades, date);
+  if (!eligibleDate) {
+    return [...new Set(trades.map((trade) => trade.symbol))]
+      .sort((a, b) => a.localeCompare(b, 'en-US'));
+  }
+  const eligibilityPositions = new Map();
+  const required = new Set();
+  trades.forEach((trade) => {
+    if (trade.tradeDate <= eligibleDate) {
+      addPosition(
+        eligibilityPositions,
+        trade.symbol,
+        trade.side === 'buy' ? trade.shares : -trade.shares,
+      );
+    } else {
+      required.add(trade.symbol);
+    }
+  });
+  eligibilityPositions.forEach((shares, symbol) => {
+    if (shares > EPSILON) required.add(symbol);
+  });
+  return [...required].sort((a, b) => a.localeCompare(b, 'en-US'));
+}
+
+export function deriveCompetitionRequiredCloseDates({
+  stockTrades = [],
+  eligibilityDate,
+  throughDate,
+  tradingDates = [],
+} = {}) {
+  const eligibleDate = normalizeDate(eligibilityDate);
+  const date = normalizeDate(throughDate);
+  if (!eligibleDate || !date || eligibleDate > date) {
+    fail('invalid_date', '账本行情截止日期不合法');
+  }
+  const dates = [...new Set((Array.isArray(tradingDates) ? tradingDates : [])
+    .map(normalizeDate)
+    .filter((targetDate) => targetDate && targetDate > eligibleDate && targetDate <= date))]
+    .sort();
+  const trades = normalizeTrades(stockTrades, date);
+  const positions = new Map();
+  const requiredThrough = new Map();
+  trades.filter((trade) => trade.tradeDate <= eligibleDate).forEach((trade) => {
+    addPosition(positions, trade.symbol, trade.side === 'buy' ? trade.shares : -trade.shares);
+  });
+
+  let priorDate = eligibleDate;
+  dates.forEach((targetDate) => {
+    positions.forEach((shares, symbol) => {
+      if (shares > EPSILON) requiredThrough.set(symbol, targetDate);
+    });
+    trades.filter((trade) => (
+      trade.tradeDate > priorDate && trade.tradeDate <= targetDate
+    )).forEach((trade) => {
+      requiredThrough.set(trade.symbol, targetDate);
+      addPosition(positions, trade.symbol, trade.side === 'buy' ? trade.shares : -trade.shares);
+    });
+    positions.forEach((shares, symbol) => {
+      if (shares > EPSILON) requiredThrough.set(symbol, targetDate);
+    });
+    priorDate = targetDate;
+  });
+  return Object.fromEntries([...requiredThrough.entries()].sort(([a], [b]) => (
+    a.localeCompare(b, 'en-US')
+  )));
+}
+
 export function deriveVerifiedCompetitionHoldingSymbols({
   stockTrades = [],
   throughDate,
@@ -169,10 +246,12 @@ function newYorkCreatedAtParts(value) {
   return { dateKey, seconds: hour * 3600 + minute * 60 + second };
 }
 
-function validateTargetTrade(trade, closeRow) {
-  const created = newYorkCreatedAtParts(trade.createdAt);
-  if (!created || created.dateKey !== trade.tradeDate || created.seconds > 16 * 3600) {
-    fail('late_trade', `${trade.symbol} 当日交易必须在纽约时间收盘前写入`);
+function validateTargetTrade(trade, closeRow, { historicalCorrectionMode = false } = {}) {
+  if (!historicalCorrectionMode) {
+    const created = newYorkCreatedAtParts(trade.createdAt);
+    if (!created || created.dateKey !== trade.tradeDate || created.seconds > 16 * 3600) {
+      fail('late_trade', `${trade.symbol} 当日交易必须在纽约时间收盘前写入`);
+    }
   }
   if (!closeRow || !(closeRow.close > 0)) {
     fail('missing_close', `${trade.symbol} 缺少目标日权威收盘价`);
@@ -250,6 +329,10 @@ export function buildCompetitionCashFlowSnapshot({
   targetDate,
   priorSnapshotDate = null,
   priorCumulativeReturnPct = 0,
+  historicalCorrectionMode = false,
+  initialRankingStartMode = false,
+  allowInitialEmpty = false,
+  allowTradesBetweenSnapshots = false,
 } = {}) {
   const date = normalizeDate(targetDate);
   const priorDate = priorSnapshotDate ? normalizeDate(priorSnapshotDate) : null;
@@ -262,7 +345,10 @@ export function buildCompetitionCashFlowSnapshot({
   const targetTrades = [];
 
   trades.forEach((trade) => {
-    if (trade.tradeDate < date) {
+    const belongsToStartingPosition = historicalCorrectionMode && priorDate
+      ? trade.tradeDate <= priorDate
+      : trade.tradeDate < date;
+    if (belongsToStartingPosition) {
       addPosition(positions, trade.symbol, trade.side === 'buy' ? trade.shares : -trade.shares);
       return;
     }
@@ -271,7 +357,13 @@ export function buildCompetitionCashFlowSnapshot({
 
   const startPositions = new Map(positions);
   if (priorDate) {
-    const relevantSymbols = new Set(targetTrades.map((trade) => trade.symbol));
+    // A member's first ranked interval may span the eligibility baseline to a
+    // much later first trade. Target-only symbols have no starting position,
+    // so they do not require a close on that old eligibility date. Established
+    // snapshot chains retain the strict per-symbol continuity check.
+    const relevantSymbols = new Set(
+      initialRankingStartMode ? [] : targetTrades.map((trade) => trade.symbol),
+    );
     startPositions.forEach((shares, symbol) => {
       if (shares > EPSILON) relevantSymbols.add(symbol);
     });
@@ -282,7 +374,11 @@ export function buildCompetitionCashFlowSnapshot({
       }
     });
   }
-  if (priorDate && trades.some((trade) => trade.tradeDate > priorDate && trade.tradeDate < date)) {
+  if (
+    priorDate
+    && !allowTradesBetweenSnapshots
+    && trades.some((trade) => trade.tradeDate > priorDate && trade.tradeDate < date)
+  ) {
     fail('trade_between_snapshots', '两次比赛快照之间存在未快照交易日');
   }
   const startValue = positionValue(
@@ -294,7 +390,7 @@ export function buildCompetitionCashFlowSnapshot({
   let sellFlow = 0;
   targetTrades.forEach((trade) => {
     const targetClose = exactClose(closeMap.get(trade.symbol) || [], date);
-    validateTargetTrade(trade, targetClose);
+    validateTargetTrade(trade, targetClose, { historicalCorrectionMode });
     if (trade.side === 'buy') {
       buyFlow += trade.price * trade.shares + trade.fee;
       addPosition(positions, trade.symbol, trade.shares);
@@ -311,7 +407,7 @@ export function buildCompetitionCashFlowSnapshot({
   const denominator = startValue + buyFlow;
   const priorReturnPct = finiteNumber(priorCumulativeReturnPct, '上一份累计收益率');
   const emptyCarry = Boolean(
-    priorDate
+    (priorDate || allowInitialEmpty)
     && Math.abs(startValue) <= EPSILON
     && Math.abs(buyFlow) <= EPSILON
     && Math.abs(sellFlow) <= EPSILON
@@ -340,4 +436,58 @@ export function buildCompetitionCashFlowSnapshot({
     cumulativeReturnPct,
     ledgerHash: computeCompetitionLedgerHash(trades, date),
   };
+}
+
+export function buildCompetitionRecalculatedSnapshotSeries({
+  stockTrades = [],
+  historicalClosesBySymbol = {},
+  tradingDates = [],
+  initialPriorSnapshotDate = null,
+  rankingStartSnapshotDate,
+  rankingBaselineReturnPct = 0,
+} = {}) {
+  const rankingStart = normalizeDate(rankingStartSnapshotDate);
+  const initialPriorDate = initialPriorSnapshotDate
+    ? normalizeDate(initialPriorSnapshotDate)
+    : null;
+  if (
+    !rankingStart
+    || (initialPriorSnapshotDate && !initialPriorDate)
+    || (initialPriorDate && initialPriorDate >= rankingStart)
+  ) fail('invalid_date', '收益比赛排名起始日不合法');
+
+  const dates = [...new Set((Array.isArray(tradingDates) ? tradingDates : [])
+    .map(normalizeDate)
+    .filter(Boolean))]
+    .filter((date) => date >= rankingStart)
+    .sort();
+  if (dates.length === 0 || dates[0] !== rankingStart) {
+    fail('missing_close', '缺少排名起始日的 SPY 已完成收盘');
+  }
+
+  let priorSnapshotDate = initialPriorDate;
+  let priorCumulativeReturnPct = finiteNumber(
+    rankingBaselineReturnPct,
+    '收益比赛排名基准收益率'
+  );
+  return dates.map((targetDate, index) => {
+    const snapshot = buildCompetitionCashFlowSnapshot({
+      stockTrades,
+      historicalClosesBySymbol,
+      targetDate,
+      priorSnapshotDate,
+      priorCumulativeReturnPct,
+      historicalCorrectionMode: true,
+      // The first rebuilt row may start long after the eligibility baseline
+      // because a never-traded member waited for a later first buy. Only that
+      // row may omit a target-only symbol's eligibility-date close. Once it is
+      // written, every later row keeps normal adjacent-close continuity.
+      initialRankingStartMode: index === 0,
+      allowInitialEmpty: true,
+      allowTradesBetweenSnapshots: true,
+    });
+    priorSnapshotDate = targetDate;
+    priorCumulativeReturnPct = snapshot.cumulativeReturnPct;
+    return snapshot;
+  });
 }

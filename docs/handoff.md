@@ -10,48 +10,54 @@
 | --- | --- |
 | 仓库 | `chenshuai1190-dotcom/boduan-tracker` |
 | 生产地址 | `https://boduan-tracker.vercel.app` |
-| 运行时代码 | 回退至 v402 稳定树 `be3748d`；实际发布提交以 GitHub `main` HEAD 为准 |
-| 设置页版本 | `v10.7.9.402` |
-| 数据库 | 未回退；保留线上 additive schema 与 GitHub migration 记录 |
+| 运行时代码 | `v10.7.9.407`：v402 稳定应用树 + 收益比赛正式交易即时重算；精确发布提交以 GitHub `main` HEAD 为准 |
+| 数据库 | 保留既有 additive schema，并新增 forward-only `supabase/community_competition_immediate_rebuild_20260801.sql` |
+| 发布完成条件 | GitHub `main` 的同一份 runtime 与上述 migration 均已上线并通过聚合 postflight；只完成其中一项不得宣布上线 |
 
 本地发布门禁：
 
-- `npm run check:full`：`839 / 839` tests PASS，字号下限 PASS，Vite production build PASS，whitespace PASS。
+- 收益比赛最终独立审查：`121 / 121` tests PASS，核心实现 `must-fix = 0`。
+- `npm run check:full`：PASS；完整测试、字号下限、Vite production build、whitespace 和三份权威文档一致性均通过。
 - 新的开发、验证和单等待器发布流程继续保留，没有恢复旧六文档或重复验证流程。
-- 本次没有修改生产数据库、RLS、生产数据、正式交易、比赛账本或收益快照。
-
-## 回退范围
-
-- 产品 `server/**`、`src/**` 和对应业务测试恢复到 v402 稳定行为。
-- 保留当前 `.github/**`、`README.md`、`docs/development-process.md`、`package.json`、`scripts/**` 开发发布流程。
-- 保留当前 `supabase/**` migration 记录；禁止执行旧 SQL 或回滚生产数据库。
-- v403 的比赛重新入榜运行时代码和 v404 的行情额度保护均不在当前运行时中。
 
 ## 收益比赛当前状态
 
-- v402 运行时不包含 v403 的合法交易修改后自动重新入榜逻辑。
-- 生产数据库保留 additive epoch schema；不得为匹配 v402 而回滚、覆盖或重跑旧 SQL。
+- 已参赛用户可自由新增、修改或删除自己的正式 `stock_trades`；成功后立即触发本人比赛重算，不再因写入时间、收盘后、周末或“下一交易日才重新上榜”而延后。
+- 历史修改严格按 `trade_date` 进入对应完成收盘区间。周末和正常休市日的交易归入下一份真实 SPY 完成收盘，不生成虚构交易日快照。
+- 首次自愿加入仍保持原边界：空账本继续等待；首次有效交易出现后，从对应的下一份真实完成收盘开始排名。已经排名后即使删空账本，也会按完整历史重算并保留合法的 0% 延续。
+- 比赛只使用 EODHD 完成日线，`adjusted_close` 优先；不使用 Yahoo、实时价、浏览器上传价格、旧收盘或其他备用源计算比赛收益。
+- 正常 Cron、即时重算和 QQQ benchmark 共用公开行情内存缓存：key 为 `symbol + 完成收盘日`，同 key singleflight，长历史覆盖短历史，LRU 上限 96，70 股票多批次不会互相淘汰。
+- EODHD 返回 402 后，当前 Vercel 实例熔断至下一 UTC 00:00；旧完整榜单继续保留，不写 0、不继续从该实例请求 EODHD REST。
+- 每次正式交易 mutation 会由数据库 trigger 推进 ledger revision 并写本人 dirty state。客户端即时请求失败后，dirty state 仍由下一次登录态 GET 或收盘 Cron 重试。
+- 本人完整快照序列、ledger revision/hash、dirty state 与同日 publication marker 通过 service-role RPC 原子提交。历史重建失败、并发 mutation、缺精确收盘或 provider 错误都不得发布混合账本榜单。
+- 正式交易、个人收益快照、持仓、实时行情、波段记录和摊薄成本仍与比赛子系统隔离；比赛重算不修改这些数据。
+
+## 数据库与发布边界
+
+- migration 新增 service-only rebuild state、不可变 audit、正式交易 dirty trigger，以及 unpublished snapshot、publication marker、完整个人序列替换三个原子 RPC。
+- 普通用户只能修改 RLS 允许的本人正式交易；不能读取 dirty/audit、直接调用 service RPC、直接写比赛快照或 publication marker。
+- 生产 migration 是写操作，必须取得用户明确授权；执行前做匿名安全和聚合 preflight，执行后运行 `npm run verify:rls:rest` 并只读核对表、trigger、函数签名、grant 与聚合 dirty 数量。
+- migration 为 forward-only。若 runtime 需要回退，保留 additive schema 和 audit；不得回滚生产数据库、删除正式交易或改写历史比赛快照。数据库异常只做新的 forward-fix。
 
 ## 当前风险与下一步
 
-### 已知高风险
+### 已知风险
 
-- v402 会恢复旧的完整 `/api/quote` 自动刷新：正常交易时段约每 10 秒、盘前盘后约每 30 秒、休市约每 5 分钟。
-- 每只股票的完整请求会同时读取 EODHD 延迟行情和历史日线；历史交易代码、波段和其他常驻 symbol 会扩大上游请求量。
-- v402 没有 v404 的完成收盘日线缓存、并发合并、15/30/60 分钟门控和 HTTP 402 熔断，可能再次耗尽 EODHD `100000` 日额度。
-- 生产数据库保留 v403 additive schema，但 v402 运行时不认识比赛 epoch 重入；相关成员后续比赛快照可能 fail-closed，不得直接修改数据库处理。
+- 比赛公开行情缓存与 402 熔断是 Vercel 单实例内存态，不是跨实例全局缓存；冷启动或不同实例仍可能分别首次读取一次。
+- v407 只为收益比赛补上共享 EODHD 缓存与熔断。应用主 `/api/quote` 仍是 v402 行为，没有 v404 的 15/30/60 分钟客户端门控、完整完成收盘缓存和通用 402 熔断，旧客户端或高频页面仍可能再次消耗大量 EODHD 额度。
+- 客户端的即时重算请求是非阻塞派生动作：正式交易保存成功不会因比赛暂时失败而回滚。恢复依赖数据库 dirty state、登录态 GET 和 Cron，不依赖浏览器一直存活。
 
 ## 必须保护的业务边界
 
-- 正式持仓价格、收盘锁定、趋势、相对 QQQ 和收益口径继续只使用 EODHD；不得引入备用行情源计算正式持仓或盈亏。
+- 正式持仓价格、收盘锁定、趋势、相对 QQQ、个人收益和比赛继续只使用规定的 EODHD 正式口径；不得引入备用行情源计算正式持仓或盈亏。
 - 股票趋势 MA200、重测、20 日恢复和 60 日结果只使用已完成收盘价，盘中价不得改变正式信号。
-- iOS Home Screen PWA 继续保持 WebSocket 优先、已登录 snapshot 补齐和旧响应不得覆盖新 tick。
+- iOS Home Screen PWA 继续保持账户隔离缓存首屏、WebSocket 优先、已登录 snapshot 补齐和旧响应不得覆盖新 tick。
 - 财报缺少官方分部、细分结构或地区数据时显示不可用，不得推测。
 - 可见文字不得小于 `10px`。
 
 ### 下一步
 
-1. 发布后只做一次低频登录态验证：交易页收盘锁定、持仓价、三大指数、股票趋势和收益报表。
-2. 观察 EODHD 调用量，禁止循环探针。
-3. 后续若重新优化额度，只做 EODHD-only 的缓存、合并和缺失收盘基线自动补齐；不得再次改变正式持仓和累计盈亏来源。
+1. 只有在 migration 与精确 GitHub `main` runtime 均完成后，运行一次 FULL 发布等待器并记录 CI、Docs 和 Vercel 结果。
+2. 上线后只做低频、聚合只读回查：marker 日期/版本、dirty 总数、原子 RPC/grant、未登录接口和一条已登录比赛读取；不得循环调用 EODHD。
+3. 观察应用整体 EODHD 调用量。若主 quote 仍有跨实例或旧客户端重复读取，另行恢复 EODHD-only 的通用门控与缓存，不得改变正式价格来源。
 4. 新任务只读 `README.md`、`docs/development-process.md`、`docs/handoff.md`，不要重复旧流程。

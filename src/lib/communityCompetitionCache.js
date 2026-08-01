@@ -7,8 +7,9 @@ import {
 export const COMMUNITY_COMPETITION_CACHE_VERSION = 5;
 // The server snapshot gate opens at 17:00 New York time. Read ten minutes later
 // so the first cron can lock rows; the only full-read retry follows the final
-// daily cron. While a visible page is stale, only the four-field completion
-// status is polled; the full leaderboard remains marker-driven.
+// daily cron. A visible page polls only the four-field completion status once
+// per minute, including after the date is current, so an intraday recalculation
+// can republish the same close date. The full leaderboard remains marker-driven.
 export const COMMUNITY_COMPETITION_PRIMARY_REFRESH_MINUTES = 17 * 60 + 10;
 export const COMMUNITY_COMPETITION_RETRY_REFRESH_MINUTES = 19 * 60 + 10;
 export const COMMUNITY_COMPETITION_STATUS_POLL_MS = 60_000;
@@ -16,7 +17,8 @@ export const COMMUNITY_COMPETITION_STATUS_POLL_MS = 60_000;
 const CACHE_KEY_PREFIX = 'bottomline_community_competition_cache_v1';
 const REFRESH_META_KEY_PREFIX = 'bottomline_community_competition_refresh_v1';
 const STATUS_CHECK_META_KEY = 'bottomline_community_competition_status_check_v1';
-const PUBLICATION_META_KEY = 'bottomline_community_competition_publication_v1';
+export const COMMUNITY_COMPETITION_PUBLICATION_STORAGE_KEY_PREFIX = 'bottomline_community_competition_publication_v1';
+const PUBLICATION_META_KEY = COMMUNITY_COMPETITION_PUBLICATION_STORAGE_KEY_PREFIX;
 const INVALIDATION_META_KEY = 'bottomline_community_competition_invalidation_v1';
 const CACHE_WRITE_LOCK = 'bottomline-community-competition-cache-v5';
 const PERIODS = new Set(['day', 'week', 'month', 'year']);
@@ -749,18 +751,35 @@ export function getCommunityCompetitionRefreshDecision({ entry, now = Date.now()
       version: observedPublication.version,
     };
   }
+  const statusCheck = normalized.statusCheck;
   const snapshotCurrent = normalized.data.state === 'ready'
     && isDateKey(normalized.data.asOfDate)
     && normalized.data.asOfDate >= window.targetDate;
   if (snapshotCurrent) {
+    if (!statusCheck || statusCheck.targetDate !== window.targetDate) {
+      return {
+        shouldRefresh: true,
+        reason: 'status_poll_uninitialized',
+        nextCheckAt: nowMs,
+        targetDate: window.targetDate,
+      };
+    }
+    const nextStatusCheckAt = statusCheck.lastCheckedAt + COMMUNITY_COMPETITION_STATUS_POLL_MS;
+    if (nowMs >= nextStatusCheckAt) {
+      return {
+        shouldRefresh: true,
+        reason: 'status_poll_due',
+        nextCheckAt: nowMs,
+        targetDate: window.targetDate,
+      };
+    }
     return {
       shouldRefresh: false,
-      reason: 'snapshot_current',
-      nextCheckAt: nextCommunityCompetitionPrimaryRefreshAt(nowMs),
+      reason: 'status_poll_wait',
+      nextCheckAt: nextStatusCheckAt,
       targetDate: window.targetDate,
     };
   }
-  const statusCheck = normalized.statusCheck;
   // A waiting entry can exhaust its two full-read attempts before a durable
   // marker is published. It must still start the lightweight status poll;
   // otherwise a marker written later leaves a visible PWA asleep until the

@@ -1,7 +1,10 @@
+import { COMMUNITY_COMPETITION_PUBLICATION_STORAGE_KEY_PREFIX } from './communityCompetitionCache.js';
+
 export const COMMUNITY_COMPETITION_RESUME_DEDUPE_MS = 1200;
 export const COMMUNITY_COMPETITION_VISIBLE_RETRY_MS = 120;
 export const COMMUNITY_COMPETITION_VISIBLE_RETRY_MAX_MS = 6000;
 export const COMMUNITY_COMPETITION_VISIBLE_HEARTBEAT_MS = 30_000;
+export const COMMUNITY_COMPETITION_PUBLICATION_EVENT = 'bottomline:community-competition-publication';
 
 function isVisible(documentTarget) {
   if (typeof documentTarget?.hidden === 'boolean') return !documentTarget.hidden;
@@ -75,7 +78,12 @@ export function bindCommunityCompetitionResume({
     }
     stopVisibilityRetry();
     const currentTime = Number(now());
-    if (Number.isFinite(currentTime) && currentTime - lastRecheckAt < Math.max(0, dedupeMs)) return false;
+    const publicationChanged = trigger === 'publication' || trigger === 'publication-storage';
+    if (
+      !publicationChanged
+      && Number.isFinite(currentTime)
+      && currentTime - lastRecheckAt < Math.max(0, dedupeMs)
+    ) return false;
     lastRecheckAt = Number.isFinite(currentTime) ? currentTime : Date.now();
     onVisibleRecheck(trigger);
     return true;
@@ -89,6 +97,13 @@ export function bindCommunityCompetitionResume({
   const handleFocus = () => requestVisibleRecheck('focus');
   const handleOnline = () => requestVisibleRecheck('online');
   const handleInteraction = (event) => requestVisibleRecheck(event?.type || 'interaction');
+  const handlePublication = () => requestVisibleRecheck('publication');
+  const handleStorage = (event) => {
+    const key = String(event?.key || '');
+    if (key.startsWith(`${COMMUNITY_COMPETITION_PUBLICATION_STORAGE_KEY_PREFIX}__user_`)) {
+      requestVisibleRecheck('publication-storage');
+    }
+  };
 
   documentTarget.addEventListener('visibilitychange', handleVisibilityChange);
   windowTarget.addEventListener('pagehide', handlePageHide);
@@ -97,6 +112,8 @@ export function bindCommunityCompetitionResume({
   windowTarget.addEventListener('online', handleOnline);
   windowTarget.addEventListener('pointerdown', handleInteraction, { passive: true });
   windowTarget.addEventListener('touchstart', handleInteraction, { passive: true });
+  windowTarget.addEventListener(COMMUNITY_COMPETITION_PUBLICATION_EVENT, handlePublication);
+  windowTarget.addEventListener('storage', handleStorage);
 
   if (Number.isFinite(Number(heartbeatMs)) && Number(heartbeatMs) > 0) {
     heartbeatTimer = setIntervalFn(
@@ -119,5 +136,7 @@ export function bindCommunityCompetitionResume({
     windowTarget.removeEventListener('online', handleOnline);
     windowTarget.removeEventListener('pointerdown', handleInteraction);
     windowTarget.removeEventListener('touchstart', handleInteraction);
+    windowTarget.removeEventListener(COMMUNITY_COMPETITION_PUBLICATION_EVENT, handlePublication);
+    windowTarget.removeEventListener('storage', handleStorage);
   };
 }

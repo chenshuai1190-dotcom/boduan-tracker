@@ -25,6 +25,18 @@ const competitionRebaselineMigrationSql = readFileSync(
   new URL('../supabase/community_competition_rebaseline_20260714.sql', import.meta.url),
   'utf8',
 );
+const competitionImmediateRebuildMigrationSql = readFileSync(
+  new URL('../supabase/community_competition_immediate_rebuild_20260801.sql', import.meta.url),
+  'utf8',
+);
+
+function extractSqlFunction(sql, functionName) {
+  return sql.match(
+    new RegExp(
+      `create or replace function public\\.${functionName}\\([\\s\\S]*?\\n\\$\\$;`,
+    ),
+  )?.[0] || '';
+}
 
 function createSupabaseStub({ maybeSingleResults = [], singleResults = [] } = {}) {
   const operations = [];
@@ -445,8 +457,180 @@ test('competition eligibility rebaseline is forward-only, zero-snapshot, and ser
   }
 });
 
+test('formal trade mutations dirty active competition members without postponing eligibility', () => {
+  for (const sql of [
+    competitionSql,
+    aggregateRlsSql,
+    competitionImmediateRebuildMigrationSql,
+  ]) {
+    assert.match(sql, /create table if not exists public\.community_competition_rebuild_state/);
+    assert.match(sql, /alter table public\.community_competition_rebuild_state force row level security/);
+    assert.match(sql, /create table if not exists public\.community_competition_rebuild_audit/);
+    assert.match(sql, /alter table public\.community_competition_rebuild_audit force row level security/);
+    assert.match(
+      sql,
+      /revoke all privileges on table public\.community_competition_rebuild_state\s+from public, anon, authenticated, service_role/,
+    );
+    assert.match(
+      sql,
+      /revoke all privileges on table public\.community_competition_rebuild_audit\s+from public, anon, authenticated, service_role/,
+    );
+
+    const revisionFunction = extractSqlFunction(sql, 'bump_stock_trade_ledger_revision');
+    assert.match(revisionFunction, /affected_from_date date := case[\s\S]*?new\.trade_date[\s\S]*?old\.trade_date[\s\S]*?least\(old\.trade_date, new\.trade_date\)/);
+    assert.match(revisionFunction, /new\.user_id is distinct from old\.user_id[\s\S]*?stock trade owner cannot be changed/);
+    assert.match(revisionFunction, /new\.symbol is not distinct from old\.symbol/);
+    assert.match(revisionFunction, /new\.currency is not distinct from old\.currency[\s\S]*?return new/);
+    assert.match(revisionFunction, /member\.status = 'active'/);
+    assert.match(revisionFunction, /insert into public\.community_competition_rebuild_state/);
+    assert.match(revisionFunction, /dirty_from_date = least\(/);
+    assert.match(revisionFunction, /ledger_revision = greatest\(/);
+    assert.doesNotMatch(revisionFunction, /snapshot_publication_markers|latest_marker/);
+
+    assert.match(
+      sql,
+      /member\.ranking_start_snapshot_date is not null\s+and member\.ranking_start_snapshot_date <= marker\.snapshot_date\s+and published_snapshot\.ledger_revision\s+is distinct from revision\.revision/,
+    );
+    assert.match(
+      sql,
+      /member\.ranking_start_snapshot_date is null\s+and snapshot\.first_snapshot_date is not null/,
+    );
+    assert.doesNotMatch(
+      sql,
+      /member\.ranking_start_snapshot_date is not null[\s\S]{0,180}revision\.revision > member\.eligible_ledger_revision/,
+    );
+  }
+});
+
+test('competition rebuild and publication RPCs are atomic, revision-gated, and service-only', () => {
+  for (const sql of [
+    competitionSql,
+    aggregateRlsSql,
+    competitionImmediateRebuildMigrationSql,
+  ]) {
+    const rebuild = extractSqlFunction(sql, 'replace_community_competition_member_snapshots');
+    const revisionLock = rebuild.indexOf('from public.stock_trade_ledger_revisions');
+    const memberLock = rebuild.indexOf('from public.community_competition_members');
+    const dirtyLock = rebuild.indexOf('from public.community_competition_rebuild_state');
+    const markerLock = rebuild.indexOf('lock table public.snapshot_publication_markers');
+    assert.ok(revisionLock >= 0 && revisionLock < memberLock);
+    assert.ok(memberLock < dirtyLock && dirtyLock < markerLock);
+    assert.match(rebuild, /competition-ledger-rebuild:%s:%s:%s/);
+    assert.ok(
+      rebuild.indexOf('from public.community_competition_rebuild_audit')
+        < rebuild.indexOf('if member_row.eligible_after_snapshot_date'),
+      'lost-response audit must be checked before the old membership CAS',
+    );
+    assert.match(rebuild, /delete from public\.community_competition_snapshots[\s\S]*?snapshot_date >= p_new_ranking_start_snapshot_date/);
+    assert.match(rebuild, /first_snapshot_date[\s\S]*?p_new_ranking_start_snapshot_date/);
+    assert.match(rebuild, /last_snapshot_date[\s\S]*?p_expected_marker_snapshot_date/);
+    assert.match(rebuild, /update public\.community_competition_members[\s\S]*?eligible_ledger_revision = p_expected_ledger_revision/);
+    assert.match(rebuild, /delete from public\.community_competition_rebuild_state/);
+    assert.match(rebuild, /insert into public\.community_competition_rebuild_audit/);
+    assert.match(rebuild, /update public\.snapshot_publication_markers[\s\S]*?version = p_new_marker_version/);
+    const waitingBranch = rebuild.slice(
+      rebuild.indexOf('-- A genuine first-join member'),
+      rebuild.indexOf('if p_expected_ranking_start_snapshot_date is not null then'),
+    );
+    assert.match(waitingBranch, /eligible_ledger_hash = p_new_eligible_ledger_hash/);
+    assert.match(waitingBranch, /delete from public\.community_competition_rebuild_state/);
+    assert.match(waitingBranch, /'waiting_snapshot'/);
+    assert.doesNotMatch(waitingBranch, /update public\.snapshot_publication_markers/);
+
+    const unpublished = extractSqlFunction(
+      sql,
+      'upsert_unpublished_community_competition_member_snapshot',
+    );
+    assert.match(unpublished, /p_target_snapshot_date < member_row\.ranking_start_snapshot_date/);
+    assert.match(unpublished, /into dirty_row[\s\S]*?for update/);
+    assert.match(unpublished, /dirty_row\.ledger_revision is distinct from p_expected_ledger_revision/);
+    assert.match(unpublished, /dirty_row\.dirty_from_date <= latest_marker_date/);
+    assert.match(unpublished, /'outcome', 'historical_dirty'/);
+    assert.ok(
+      unpublished.indexOf("'outcome', 'historical_dirty'")
+        < unpublished.indexOf('update public.community_competition_members'),
+      'historical dirty state must return before ranking or snapshot writes',
+    );
+    assert.match(unpublished, /latest_marker_date >= p_target_snapshot_date/);
+    assert.match(
+      unpublished,
+      /p_initialize_ranking_baseline_return_pct[\s\S]*?ranking_start_snapshot_date = p_target_snapshot_date[\s\S]*?ranking_baseline_return_pct = p_initialize_ranking_baseline_return_pct/,
+    );
+    assert.ok(
+      unpublished.indexOf('lock table public.snapshot_publication_markers')
+        < unpublished.indexOf('ranking_start_snapshot_date = p_target_snapshot_date'),
+      'first ranking initialization must happen while the publication lock is held',
+    );
+    assert.ok(
+      unpublished.indexOf('ranking_start_snapshot_date = p_target_snapshot_date')
+        < unpublished.indexOf('insert into public.community_competition_snapshots'),
+      'first ranking pair and first snapshot must share the same RPC transaction',
+    );
+    assert.match(unpublished, /'replaced_unpublished'/);
+    assert.match(
+      unpublished,
+      /delete from public\.community_competition_rebuild_state[\s\S]*?ledger_revision = p_expected_ledger_revision/,
+    );
+    assert.doesNotMatch(
+      unpublished,
+      /delete from public\.community_competition_rebuild_state[\s\S]*?ledger_revision <= p_expected_ledger_revision/,
+    );
+    assert.match(unpublished, /'rankingInitialized', ranking_initialized/);
+
+    const publish = extractSqlFunction(
+      sql,
+      'publish_community_competition_snapshot_marker',
+    );
+    const preMarkerLocks = publish.slice(
+      publish.indexOf('-- Lock every active member'),
+      publish.indexOf('lock table public.snapshot_publication_markers'),
+    );
+    assert.match(publish, /order by revision\.user_id\s+for update of revision/);
+    assert.match(publish, /order by member\.user_id\s+for update of member/);
+    assert.match(preMarkerLocks, /member\.status = 'active'/);
+    assert.match(preMarkerLocks, /member\.eligible_after_snapshot_date < p_snapshot_date/);
+    assert.doesNotMatch(preMarkerLocks, /ranking_start_snapshot_date <= p_snapshot_date/);
+    assert.match(publish, /locked_user_ids := array_append\(locked_user_ids, locked_user_id\)/);
+    assert.match(publish, /locked_profile_ids := array_append\(locked_profile_ids, locked_profile_id\)/);
+    assert.match(
+      publish,
+      /lock table public\.snapshot_publication_markers[\s\S]*?not \(member\.user_id = any\(locked_user_ids\)\)[\s\S]*?not \(profile\.user_id = any\(locked_profile_ids\)\)[\s\S]*?'reason', 'cohort_changed'/,
+    );
+    assert.match(publish, /snapshot\.ledger_revision = revision\.revision/);
+    assert.match(publish, /dirty\.dirty_from_date <= p_snapshot_date/);
+    assert.ok(
+      publish.indexOf('from public.stock_trade_ledger_revisions')
+        < publish.indexOf('lock table public.snapshot_publication_markers'),
+    );
+
+    for (const functionName of [
+      'replace_community_competition_member_snapshots',
+      'upsert_unpublished_community_competition_member_snapshot',
+      'publish_community_competition_snapshot_marker',
+    ]) {
+      assert.match(
+        sql,
+        new RegExp(`revoke execute on function public\\.${functionName}\\([\\s\\S]*?from public, anon, authenticated, service_role`),
+      );
+      assert.match(
+        sql,
+        new RegExp(`grant execute on function public\\.${functionName}\\([\\s\\S]*?to service_role`),
+      );
+    }
+    assert.match(
+      sql,
+      /revoke insert, update\s+on table public\.snapshot_publication_markers\s+from service_role/,
+    );
+  }
+});
+
 test('standalone competition SQL stays aligned with the aggregate RLS schema', () => {
-  for (const table of ['community_competition_members', 'community_competition_snapshots']) {
+  for (const table of [
+    'community_competition_members',
+    'community_competition_snapshots',
+    'community_competition_rebuild_state',
+    'community_competition_rebuild_audit',
+  ]) {
     const pattern = new RegExp(`create table if not exists public\\.${table}[\\s\\S]*?\\n\\);`);
     assert.equal(
       aggregateRlsSql.match(pattern)?.[0],
@@ -459,6 +643,11 @@ test('standalone competition SQL stays aligned with the aggregate RLS schema', (
     'guard_community_competition_snapshot_insert',
     'join_community_competition_member',
     'rebaseline_community_competition_member',
+    'bump_stock_trade_ledger_revision',
+    'guard_community_competition_rebuild_audit_immutable',
+    'upsert_unpublished_community_competition_member_snapshot',
+    'publish_community_competition_snapshot_marker',
+    'replace_community_competition_member_snapshots',
   ]) {
     const pattern = new RegExp(
       `create or replace function public\\.${functionName}\\([\\s\\S]*?\\n\\$\\$;`,
@@ -468,5 +657,13 @@ test('standalone competition SQL stays aligned with the aggregate RLS schema', (
       competitionSql.match(pattern)?.[0],
       `${functionName} definitions must stay identical`,
     );
+    const migrationFunction = competitionImmediateRebuildMigrationSql.match(pattern)?.[0];
+    if (migrationFunction) {
+      assert.equal(
+        migrationFunction,
+        competitionSql.match(pattern)?.[0],
+        `${functionName} migration and canonical definitions must stay identical`,
+      );
+    }
   }
 });

@@ -299,42 +299,46 @@ export async function publishCommunityCompetitionSnapshotMarker({
   }
 
   const existing = await fetchMarker({ snapshotDate: safeSnapshotDate });
-  // Even a same-date no-op must prove the durable row still represents a
-  // complete exact cohort. This prevents a marker created by an older runtime
-  // or a concurrent partial run from bypassing the publication gate forever.
-  await verifyCommunityCompetitionSnapshotBatch({ snapshotDate: safeSnapshotDate });
-  if (existing && !republish) {
-    return { ...existing, published: false };
-  }
-
-  const row = {
-    channel: COMPETITION_SNAPSHOT_CHANNEL,
-    snapshot_date: safeSnapshotDate,
-    version: randomUUID().replace(/-/g, ''),
-    completed_at: safeCompletedAt,
-  };
-  const url = new URL('/rest/v1/snapshot_publication_markers', 'https://placeholder.local');
-  url.searchParams.set('on_conflict', 'channel,snapshot_date');
-  const body = await markerAdminFetch(`${url.pathname}${url.search}`, {
-    method: 'POST',
-    headers: {
-      Prefer: republish
-        ? 'resolution=merge-duplicates,return=representation'
-        : 'resolution=ignore-duplicates,return=representation',
+  const newVersion = randomUUID().replace(/-/g, '');
+  const body = await markerAdminFetch(
+    '/rest/v1/rpc/publish_community_competition_snapshot_marker',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        p_snapshot_date: safeSnapshotDate,
+        p_expected_version: existing?.version || null,
+        p_new_version: newVersion,
+        p_republish: Boolean(republish),
+      }),
     },
-    body: JSON.stringify(row),
+  );
+  const result = Array.isArray(body) ? body[0] : body;
+  const outcome = String(result?.outcome || result?.result || 'invalid_response');
+  const marker = normalizeMarker({
+    channel: COMPETITION_SNAPSHOT_CHANNEL,
+    snapshot_date: result?.snapshotDate,
+    version: result?.version,
+    completed_at: result?.completedAt,
   });
-  const published = normalizeMarker(Array.isArray(body) ? body[0] : body);
-  if (published) return { ...published, published: true };
-
-  // A concurrent successful invocation may have won an ignore-duplicates race.
-  // Read the durable row back instead of rotating the opaque version again.
-  const durable = await fetchMarker({ snapshotDate: safeSnapshotDate });
-  if (!durable) {
-    const error = new Error('快照发布标记写入后不可读');
-    error.status = 503;
-    error.retryable = true;
-    throw error;
+  if (['published', 'republished', 'already_published'].includes(outcome) && marker) {
+    return {
+      ...marker,
+      published: outcome === 'published' || outcome === 'republished',
+    };
   }
-  return { ...durable, published: false };
+  if (outcome === 'incomplete') {
+    throw incompleteBatchError({
+      expectedMembers: Number(result?.expectedMembers) || 0,
+      completeSnapshots: Number(result?.completeSnapshots) || 0,
+    });
+  }
+  const error = new Error(
+    outcome === 'stale_publication'
+      ? '收益比赛快照发布标记发生并发变化'
+      : `收益比赛快照发布提交失败: ${outcome}`,
+  );
+  error.code = outcome;
+  error.status = 503;
+  error.retryable = true;
+  throw error;
 }

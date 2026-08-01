@@ -28,6 +28,8 @@ const SERVICE_ONLY_TABLES = [
   { table: 'margin_debt_history_meta', select: 'version' },
   { table: 'community_competition_rebaseline_audit', select: 'operation_key' },
   { table: 'community_competition_epoch_resets', select: 'operation_key' },
+  { table: 'community_competition_rebuild_state', select: 'user_id' },
+  { table: 'community_competition_rebuild_audit', select: 'operation_key' },
 ];
 const SERVICE_ONLY_RPCS = [
   {
@@ -90,6 +92,57 @@ const SERVICE_ONLY_RPCS = [
       p_new_eligible_ledger_hash: '1'.repeat(64),
       p_market_close_at: '2000-01-03T21:00:00.000Z',
       p_reason: 'prior_ledger_hash_mismatch',
+    },
+  },
+  {
+    name: 'replace_community_competition_member_snapshots',
+    body: {
+      p_user_id: '00000000-0000-0000-0000-000000000000',
+      p_operation_key:
+        'competition-ledger-rebuild:00000000-0000-0000-0000-000000000000:1:2000-01-03',
+      p_expected_ledger_revision: 1,
+      p_expected_dirty_from_date: '2000-01-01',
+      p_expected_eligible_after_snapshot_date: '2000-01-01',
+      p_expected_eligible_ledger_hash: '0'.repeat(64),
+      p_expected_eligible_ledger_revision: 0,
+      p_expected_ranking_start_snapshot_date: '2000-01-02',
+      p_expected_ranking_baseline_return_pct: 0,
+      p_expected_marker_snapshot_date: '2000-01-03',
+      p_expected_marker_version: 'competition_old_v1',
+      p_new_marker_version: 'competition_new_v1',
+      p_new_eligible_after_snapshot_date: '2000-01-01',
+      p_new_eligible_ledger_hash: '1'.repeat(64),
+      p_new_ranking_start_snapshot_date: '2000-01-02',
+      p_new_ranking_baseline_return_pct: 0,
+      p_snapshots: [],
+    },
+  },
+  {
+    name: 'upsert_unpublished_community_competition_member_snapshot',
+    body: {
+      p_user_id: '00000000-0000-0000-0000-000000000000',
+      p_target_snapshot_date: '2000-01-03',
+      p_expected_ledger_revision: 1,
+      p_expected_eligible_after_snapshot_date: '2000-01-01',
+      p_expected_eligible_ledger_hash: '0'.repeat(64),
+      p_expected_eligible_ledger_revision: 0,
+      p_expected_ranking_start_snapshot_date: '2000-01-02',
+      p_expected_ranking_baseline_return_pct: 0,
+      p_initialize_ranking_baseline_return_pct: null,
+      p_daily_return_pct: 0,
+      p_cumulative_return_pct: 0,
+      p_locked_at: '2000-01-03T21:00:00.000Z',
+      p_ledger_hash: '1'.repeat(64),
+      p_source_version: 'community_competition_snapshot_v1',
+    },
+  },
+  {
+    name: 'publish_community_competition_snapshot_marker',
+    body: {
+      p_snapshot_date: '2000-01-03',
+      p_expected_version: 'competition_old_v1',
+      p_new_version: 'competition_new_v1',
+      p_republish: true,
     },
   },
 ];

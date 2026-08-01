@@ -19,6 +19,12 @@ import { userScopedStorageKey } from './lib/userScopedStorage.js';
 import { clearStockQuoteBootstrapCache, readStockQuoteBootstrapCache, writeStockQuoteBootstrapCache } from './lib/stockQuoteBootstrapCache.js';
 import { createRealtimeStartupTrace } from './lib/realtimeStartupTrace.js';
 import { resolveBottomTabTap, resolveNavigationScrollTarget } from './lib/bottomTabNavigation.js';
+import { communityCompetitionApi } from './lib/communityCompetitionApi.js';
+import {
+  invalidateCommunityCompetitionRequests,
+  recordCommunityCompetitionObservedPublication,
+} from './lib/communityCompetitionCache.js';
+import { COMMUNITY_COMPETITION_PUBLICATION_EVENT } from './lib/communityCompetitionResume.js';
 import ActionModalCard from './components/ActionModalCard.jsx';
 import ConfirmModal from './components/ConfirmModal.jsx';
 import { normalizeConfirmModalOptions } from './lib/confirmModal.js';
@@ -2518,6 +2524,40 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   const calmRoomAvgActiveDays = calmRoomActiveCount > 0 ? Math.round(calmRoomActiveDays / calmRoomActiveCount) : 0;
 
   // ============ 操作函数 ============
+  const recalculateCompetitionAfterLedgerMutation = useCallback(async () => {
+    const userId = String(user?.id || '').trim();
+    if (!userId) return null;
+    try {
+      const result = await communityCompetitionApi.recalculateSelf({ supabase });
+      if (!['recalculated', 'already_current'].includes(result?.state)) return result;
+      const publication = {
+        snapshotDate: result.snapshotDate,
+        version: result.version,
+        completedAt: result.completedAt,
+      };
+      const observedPublication = await recordCommunityCompetitionObservedPublication({
+        userId,
+        publication,
+      });
+      if (!observedPublication) return result;
+      invalidateCommunityCompetitionRequests(userId);
+      if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+        const event = typeof CustomEvent === 'function'
+          ? new CustomEvent(COMMUNITY_COMPETITION_PUBLICATION_EVENT, {
+            detail: { publication: observedPublication },
+          })
+          : new Event(COMMUNITY_COMPETITION_PUBLICATION_EVENT);
+        window.dispatchEvent(event);
+      }
+      return result;
+    } catch (error) {
+      // The formal ledger is already authoritative at this point. Competition
+      // refresh is derived state and must never roll back or hide that save.
+      console.warn('收益比赛即时重算暂未完成:', error?.message || error);
+      return null;
+    }
+  }, [user?.id]);
+
   const addTrade = async (sideOverride = null) => {
     if (tradeSubmittingRef.current) return;
     const tradeDraft = sideOverride
@@ -2632,6 +2672,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
       setStockTrades(current => editingId
         ? current.map(t => String(t.id) === String(editingId) ? tradeRecord : t)
         : [...current, tradeRecord]);
+      void recalculateCompetitionAfterLedgerMutation();
     } catch (e) {
       showTradeNotice(
         editingId
@@ -2740,6 +2781,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     try {
       await db.deleteStockTrade(id);
       setStockTrades(current => current.filter(t => String(t.id) !== String(id)));
+      void recalculateCompetitionAfterLedgerMutation();
     } catch (e) {
       alert('删除订单失败:' + e.message);
       throw e;

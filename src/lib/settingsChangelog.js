@@ -4,16 +4,18 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
-      '⚡ 波段记录实时价格加速',
-      '  - 进入波段记录后，活跃波段优先读取已登录股票实时快照，不再等待完整历史行情请求后才显示最新价',
-      '  - 完整行情仍在后台补齐昨收等基线，后续价格继续由 WebSocket 更新；慢响应不能覆盖更新的实时价格',
-      '  - 加速入口只提供给独立波段记录页面；首页、交易页、数据库、正式交易、收益和比赛逻辑均保持不变',
+      '🏆 收益比赛交易修改即时生效',
+      '  - 参赛用户可自由新增、修改或删除自己的正式交易；保存成功后立即重算当前已发布收盘日的比赛成绩，不再等待下一个交易日',
+      '  - 历史修正严格按 trade_date 归入对应收益区间，价格只使用 EODHD 已完成收盘日线，不使用实时价、备用行情或浏览器上传的价格',
+      '  - 个人比赛快照与同日 publication marker 在数据库内原子替换；账本并发变更、EODHD 不可用或写入失败时保留上一份有效榜单并稍后重试',
+      '  - 正式交易、个人收益快照、实时行情、持仓与比赛子系统继续隔离；波段记录和摊薄成本不触发比赛重算',
     ],
     itemsEn: [
-      '⚡ Faster realtime prices in Swing Records',
-      '  - Active swing records now request an authenticated stock snapshot on entry instead of waiting for the full historical quote response before showing the latest price',
-      '  - Full quotes still fill previous-close baselines in the background and WebSocket ticks continue updates; slower responses cannot replace newer realtime prices',
-      '  - The acceleration entry point is exclusive to the independent Swing Records page; Home, Trades, databases, formal trades, P&L, and competitions are unchanged',
+      '🏆 Immediate competition updates after formal-trade changes',
+      '  - Active members may freely add, edit, or delete their own formal trades; a successful save immediately recalculates the currently published close instead of waiting for the next trading day',
+      '  - Historical corrections are assigned by trade_date and use completed EODHD daily closes only, never realtime prices, backup providers, or prices supplied by the browser',
+      '  - The member snapshot series and same-date publication marker are replaced atomically; ledger races, unavailable EODHD data, or storage failures retain the last valid board for a later retry',
+      '  - Formal trades, personal P&L snapshots, realtime quotes, holdings, and the competition subsystem remain isolated; swing records and dilution-cost entries never trigger this recalculation',
     ],
   },
   {

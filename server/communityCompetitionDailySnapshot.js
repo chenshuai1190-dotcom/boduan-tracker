@@ -9,15 +9,14 @@ import {
   CompetitionSnapshotValidationError,
   computeCompetitionLedgerHash,
   deriveCompetitionHoldingSymbols,
-  validateCompetitionTargetDateLedger,
 } from './communityCompetitionSnapshotModel.js';
 import { fetchWithTimeout, QUOTE_TIMEOUTS } from './quote/http.js';
+import { recalculateDirtyCommunityCompetitionMembers } from './communityCompetitionRecalculation.js';
+import { fetchCommunityCompetitionEodhdHistory } from './communityCompetitionEodhd.js';
 
 const PAGE_SIZE = 1000;
 const USER_FILTER_CHUNK_SIZE = 100;
 const EODHD_LOOKBACK_DAYS = 21;
-const EODHD_MAX_ATTEMPTS = 3;
-const EODHD_RETRY_DELAYS_MS = [500, 1500];
 const SCHEDULED_CATCH_UP_MAX_TRADING_DATES = 5;
 const SCHEDULED_CATCH_UP_MAX_MEMBER_DAYS = 250;
 const MARKET_CALENDAR_SYMBOL = 'SPY';
@@ -50,10 +49,6 @@ function shiftDate(dateKey, days) {
   if (Number.isNaN(date.getTime())) return null;
   date.setUTCDate(date.getUTCDate() + days);
   return date.toISOString().slice(0, 10);
-}
-
-function wait(milliseconds) {
-  return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
 function normalizeSymbol(value) {
@@ -89,52 +84,6 @@ function normalizeLedgerState(row) {
     return null;
   }
   return { userId, revision, lastMutatedAt, lastMutatedTime };
-}
-
-function newYorkMarketCloseTime(dateKey) {
-  const date = normalizeDate(dateKey);
-  if (!date) return null;
-  try {
-    const noonUtc = new Date(`${date}T12:00:00Z`);
-    const parts = new Intl.DateTimeFormat('en-US', {
-      timeZone: 'America/New_York',
-      timeZoneName: 'longOffset',
-    }).formatToParts(noonUtc);
-    const offset = parts.find((part) => part.type === 'timeZoneName')?.value || '';
-    const match = offset.match(/^GMT([+-])(\d{2}):(\d{2})$/);
-    if (!match) return null;
-    const offsetMinutes = (Number(match[2]) * 60 + Number(match[3]))
-      * (match[1] === '-' ? -1 : 1);
-    const [year, month, day] = date.split('-').map(Number);
-    return Date.UTC(year, month - 1, day, 16, 0, 0) - offsetMinutes * 60 * 1000;
-  } catch {
-    return null;
-  }
-}
-
-function ledgerStateWasLockedByTargetClose(ledgerState, targetDate) {
-  const closeTime = newYorkMarketCloseTime(targetDate);
-  if (!ledgerState || !Number.isFinite(closeTime)) return false;
-  if (ledgerState.revision === 0 && ledgerState.lastMutatedAt == null) return true;
-  return Number.isFinite(ledgerState.lastMutatedTime)
-    && ledgerState.lastMutatedTime <= closeTime;
-}
-
-function isProvableCurrentTargetInsert(trade, {
-  baselineLockedAtTime,
-  targetDate,
-  targetCloseTime,
-} = {}) {
-  const createdAtTime = Date.parse(trade?.created_at || '');
-  const updatedAtTime = Date.parse(trade?.updated_at || '');
-  return trade?.trade_date === targetDate
-    && Number.isFinite(baselineLockedAtTime)
-    && Number.isFinite(targetCloseTime)
-    && Number.isFinite(createdAtTime)
-    && Number.isFinite(updatedAtTime)
-    && createdAtTime > baselineLockedAtTime
-    && createdAtTime <= targetCloseTime
-    && updatedAtTime === createdAtTime;
 }
 
 function getHeader(req, name) {
@@ -336,109 +285,17 @@ async function fetchPriorCompetitionSnapshots(userIds, targetDate) {
   return latestByUser;
 }
 
-async function fetchEarliestCompetitionSnapshots(userIds, throughDate) {
-  if (userIds.size === 0) return new Map();
-  const ids = [...userIds];
-  const earliestByUser = new Map();
-  for (let offset = 0; offset < ids.length; offset += USER_FILTER_CHUNK_SIZE) {
-    const chunk = ids.slice(offset, offset + USER_FILTER_CHUNK_SIZE);
-    const url = new URL('/rest/v1/community_competition_snapshots', 'https://placeholder.local');
-    url.searchParams.set('select', [
-      'user_id',
-      'snapshot_date',
-      'locked_at',
-      'ledger_hash',
-      'ledger_revision',
-    ].join(','));
-    url.searchParams.set('user_id', `in.(${chunk.join(',')})`);
-    url.searchParams.set('snapshot_date', `lte.${throughDate}`);
-    url.searchParams.set('locked_at', 'not.is.null');
-    url.searchParams.set('order', 'user_id.asc,snapshot_date.asc');
-    const rows = await fetchPaged(`${url.pathname}${url.search}`);
-    rows.forEach((row) => {
-      const userId = String(row?.user_id || '');
-      const snapshotDate = normalizeDate(row?.snapshot_date);
-      const current = earliestByUser.get(userId);
-      if (userId && snapshotDate && (!current || snapshotDate < current.snapshot_date)) {
-        earliestByUser.set(userId, { ...row, snapshot_date: snapshotDate });
-      }
-    });
-  }
-  return earliestByUser;
-}
-
-function parseEodRows(rows) {
-  return (Array.isArray(rows) ? rows : [])
-    .map((row) => {
-      const date = String(row?.date || '').slice(0, 10);
-      const adjustedClose = Number(row?.adjusted_close);
-      const rawClose = Number(row?.close);
-      const close = Number.isFinite(adjustedClose) && adjustedClose > 0 ? adjustedClose : rawClose;
-      const high = Number(row?.high);
-      const low = Number(row?.low);
-      return date && Number.isFinite(close) && close > 0 ? {
-        date,
-        close,
-        adjustedClose: Number.isFinite(adjustedClose) && adjustedClose > 0 ? adjustedClose : null,
-        high: Number.isFinite(high) && high > 0 ? high : null,
-        low: Number.isFinite(low) && low > 0 ? low : null,
-      } : null;
-    })
-    .filter(Boolean)
-    .sort((a, b) => a.date.localeCompare(b.date));
-}
-
-function isRetryableEodhdStatus(status) {
-  return status === 408 || status === 429 || status >= 500;
-}
-
 async function fetchEodRowsWithRetry(symbol, {
   from,
   targetDate,
   requireTargetClose = true,
 } = {}) {
-  const eodhdKey = String(process.env.EODHD_API_KEY || '')
-    .trim()
-    .replace(/[\s\u200B-\u200D\uFEFF]/g, '');
-  if (!eodhdKey) {
-    const error = new Error('收益比赛快照未配置: 缺少 EODHD_API_KEY');
-    error.status = 500;
-    error.retryable = false;
-    throw error;
-  }
-  let lastError = null;
-  for (let attempt = 1; attempt <= EODHD_MAX_ATTEMPTS; attempt += 1) {
-    if (attempt > 1) await wait(EODHD_RETRY_DELAYS_MS[attempt - 2] || 0);
-    try {
-      const url = `https://eodhd.com/api/eod/${encodeURIComponent(symbol)}.US?api_token=${encodeURIComponent(eodhdKey)}&from=${from}&to=${targetDate}&period=d&fmt=json`;
-      const response = await fetchWithTimeout(url, {}, {
-        provider: 'eodhd-community-competition-snapshot',
-        timeoutMs: QUOTE_TIMEOUTS.eodhd,
-      });
-      const body = await response.json().catch(() => null);
-      if (!response.ok) {
-        const error = new Error(`${symbol} HTTP ${response.status}`);
-        error.retryable = isRetryableEodhdStatus(response.status);
-        error.status = response.status;
-        throw error;
-      }
-      const rows = parseEodRows(body);
-      if (rows.length === 0 || (requireTargetClose && !rows.some((row) => row.date === targetDate))) {
-        const error = new Error(`${symbol} missing target close`);
-        error.retryable = true;
-        error.code = 'missing_target_close';
-        error.rows = rows;
-        throw error;
-      }
-      return rows;
-    } catch (error) {
-      lastError = error;
-      const retryable = error?.retryable !== false
-        && (error?.retryable === true || error?.status == null || isRetryableEodhdStatus(error.status));
-      if (!retryable || attempt === EODHD_MAX_ATTEMPTS) break;
-    }
-  }
-  throw lastError || new Error(`${symbol} EODHD unavailable`);
+  return fetchCommunityCompetitionEodhdHistory({
+    symbol,
+    fromDate: from,
+    throughDate: targetDate,
+    requiredThroughDate: requireTargetClose ? targetDate : from,
+  });
 }
 
 async function fetchHistoricalCloses(symbols, targetDate) {
@@ -469,7 +326,8 @@ async function fetchHistoricalCloses(symbols, targetDate) {
   return { rowsBySymbol: Object.fromEntries(entries), failedSymbols, failedSymbolDetails };
 }
 
-function requiredSymbolsForSnapshot(trades, targetDate) {
+function requiredSymbolsForSnapshot(trades, targetDate, priorSnapshotDate = null) {
+  const priorDate = normalizeDate(priorSnapshotDate);
   const startPositions = new Map();
   const endPositions = new Map();
   const targetSymbols = new Set();
@@ -484,7 +342,7 @@ function requiredSymbolsForSnapshot(trades, targetDate) {
     const symbol = normalizeSymbol(trade.symbol);
     if (!symbol) return;
     const delta = trade.side === 'sell' ? -trade.shares : trade.shares;
-    if (trade.trade_date < targetDate) {
+    if (priorDate ? trade.trade_date <= priorDate : trade.trade_date < targetDate) {
       startPositions.set(symbol, (startPositions.get(symbol) || 0) + delta);
       endPositions.set(symbol, (endPositions.get(symbol) || 0) + delta);
       return;
@@ -502,16 +360,61 @@ function requiredSymbolsForSnapshot(trades, targetDate) {
   return required;
 }
 
-async function insertLockedCompetitionSnapshot(row) {
-  const url = new URL('/rest/v1/community_competition_snapshots', 'https://placeholder.local');
-  url.searchParams.set('on_conflict', 'user_id,snapshot_date');
-  const insertedRows = await supabaseAdminFetch(`${url.pathname}${url.search}`, {
-    method: 'POST',
-    headers: { Prefer: 'resolution=ignore-duplicates,return=representation' },
-    body: JSON.stringify([row]),
-  });
-  const inserted = Array.isArray(insertedRows) ? insertedRows[0] || null : insertedRows;
-  if (inserted) return { row: inserted, inserted: true };
+async function writeUnpublishedCompetitionSnapshot({
+  member,
+  row,
+  initializeRankingBaselineReturnPct,
+}) {
+  const body = await supabaseAdminFetch(
+    '/rest/v1/rpc/upsert_unpublished_community_competition_member_snapshot',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        p_user_id: row.user_id,
+        p_target_snapshot_date: row.snapshot_date,
+        p_expected_ledger_revision: row.ledger_revision,
+        p_expected_eligible_after_snapshot_date: member.eligible_after_snapshot_date,
+        p_expected_eligible_ledger_hash: member.eligible_ledger_hash || null,
+        p_expected_eligible_ledger_revision: member.eligible_ledger_revision,
+        p_expected_ranking_start_snapshot_date:
+          member.ranking_start_snapshot_date || null,
+        p_expected_ranking_baseline_return_pct:
+          member.ranking_baseline_return_pct == null
+            ? null
+            : Number(member.ranking_baseline_return_pct),
+        p_initialize_ranking_baseline_return_pct:
+          member.ranking_start_snapshot_date
+            ? null
+            : initializeRankingBaselineReturnPct,
+        p_daily_return_pct: row.daily_return_pct,
+        p_cumulative_return_pct: row.cumulative_return_pct,
+        p_locked_at: row.locked_at,
+        p_ledger_hash: row.ledger_hash,
+        p_source_version: row.source_version,
+      }),
+    },
+  );
+  const result = Array.isArray(body) ? body[0] : body;
+  const outcome = String(result?.outcome || result?.result || 'invalid_response');
+  if (['stale_ledger', 'stale_member', 'historical_dirty'].includes(outcome)) {
+    const error = new Error(`收益比赛未发布快照并发冲突: ${outcome}`);
+    error.code = outcome;
+    error.status = 409;
+    error.retryable = true;
+    throw error;
+  }
+  if (![
+    'inserted',
+    'replaced_unpublished',
+    'already_current',
+    'published',
+  ].includes(outcome)) {
+    const error = new Error(`收益比赛未发布快照写入失败: ${outcome}`);
+    error.code = outcome;
+    error.status = 503;
+    error.retryable = true;
+    throw error;
+  }
 
   const existingUrl = new URL('/rest/v1/community_competition_snapshots', 'https://placeholder.local');
   existingUrl.searchParams.set('select', [
@@ -530,50 +433,12 @@ async function insertLockedCompetitionSnapshot(row) {
   const existingRows = await supabaseAdminFetch(`${existingUrl.pathname}${existingUrl.search}`);
   const existing = Array.isArray(existingRows) ? existingRows[0] || null : null;
   if (!existing) throw new Error('权威收益比赛快照冲突后无法读取');
-  return { row: existing, inserted: false };
-}
-
-async function initializeMemberRanking(member, snapshotDate, baselineReturnPct, updatedAt) {
-  if (member?.ranking_start_snapshot_date || !Number.isFinite(baselineReturnPct)) return false;
-  const url = new URL('/rest/v1/community_competition_members', 'https://placeholder.local');
-  url.searchParams.set('user_id', `eq.${member.user_id}`);
-  url.searchParams.set('status', 'eq.active');
-  url.searchParams.set('ranking_start_snapshot_date', 'is.null');
-  await supabaseAdminFetch(`${url.pathname}${url.search}`, {
-    method: 'PATCH',
-    headers: { Prefer: 'return=minimal' },
-    body: JSON.stringify({
-      ranking_start_snapshot_date: snapshotDate,
-      ranking_baseline_return_pct: baselineReturnPct,
-      updated_at: updatedAt,
-    }),
-  });
-  return true;
-}
-
-async function rebaselineMemberBeforeFirstSnapshot({
-  member,
-  targetDate,
-  ledgerHash,
-  ledgerRevision,
-}) {
-  const body = await supabaseAdminFetch(
-    '/rest/v1/rpc/rebaseline_community_competition_member',
-    {
-      method: 'POST',
-      body: JSON.stringify({
-        p_user_id: member.user_id,
-        p_expected_eligible_after_snapshot_date: member.eligible_after_snapshot_date,
-        p_expected_eligible_ledger_hash: member.eligible_ledger_hash || null,
-        p_expected_eligible_ledger_revision: member.eligible_ledger_revision,
-        p_expected_current_ledger_revision: ledgerRevision,
-        p_new_eligible_after_snapshot_date: targetDate,
-        p_new_eligible_ledger_hash: ledgerHash,
-      }),
-    }
-  );
-  if (typeof body === 'string') return body;
-  return String(body?.outcome || body?.result || 'invalid_response');
+  return {
+    row: existing,
+    inserted: outcome === 'inserted' || outcome === 'replaced_unpublished',
+    outcome,
+    rankingInitialized: Boolean(result?.rankingInitialized),
+  };
 }
 
 function eligibleForSnapshot(member, targetDate, lockedAt) {
@@ -749,10 +614,11 @@ export async function runCommunityCompetitionDailySnapshot({
       ) + 1;
     }
   };
-  const defer = (reason) => {
+  const defer = (reason, userId = null) => {
     const key = String(reason || 'not_started').slice(0, 120);
     result.deferredMembers += 1;
     result.deferredReasons[key] = (result.deferredReasons[key] || 0) + 1;
+    if (userId) blockedUserIds.add(String(userId));
   };
   const fail = (error, userId) => {
     if (userId) blockedUserIds.add(String(userId));
@@ -801,13 +667,6 @@ export async function runCommunityCompetitionDailySnapshot({
           continue;
         }
       }
-      // `created_at` is immutable and therefore cannot prove that a target-day
-      // row was not edited or deleted after the close. The authoritative ledger
-      // revision timestamp closes that gap for both first and later snapshots.
-      if (!ledgerStateWasLockedByTargetClose(ledgerState, normalizedTargetDate)) {
-        defer('ledger_mutated_after_target_close');
-        continue;
-      }
       if (prior) {
         if (!/^[a-f0-9]{64}$/i.test(String(prior.ledger_hash || ''))) {
           skip('missing_prior_ledger_hash', userId);
@@ -835,13 +694,16 @@ export async function runCommunityCompetitionDailySnapshot({
           skip('eligible_ledger_hash_mismatch', userId);
           continue;
         }
-        if (userTrades.some((trade) => (
-          trade.trade_date > eligibleDate
-          && trade.trade_date < normalizedTargetDate
-        ))) {
-          skip('trade_before_first_snapshot', userId);
-          continue;
-        }
+      }
+      // Joining does not manufacture a 0% ranking entry before the first
+      // effective formal trade. Once a member has a locked snapshot, an
+      // intentionally emptied ledger may still carry forward at 0%.
+      if (
+        !prior
+        && !userTrades.some((trade) => trade.trade_date <= normalizedTargetDate)
+      ) {
+        defer('not_started', userId);
+        continue;
       }
       candidates.push({
         member,
@@ -849,7 +711,11 @@ export async function runCommunityCompetitionDailySnapshot({
         userTrades,
         prior,
         priorCumulativeReturnPct,
-        requiredSymbols: requiredSymbolsForSnapshot(userTrades, normalizedTargetDate),
+        requiredSymbols: requiredSymbolsForSnapshot(
+          userTrades,
+          normalizedTargetDate,
+          prior?.snapshot_date || member.eligible_after_snapshot_date,
+        ),
       });
     } catch (error) {
       if (error instanceof CompetitionSnapshotValidationError) {
@@ -889,19 +755,28 @@ export async function runCommunityCompetitionDailySnapshot({
         stockTrades: userTrades,
         historicalClosesBySymbol,
         targetDate: normalizedTargetDate,
-        priorSnapshotDate: prior?.snapshot_date || null,
+        priorSnapshotDate: prior?.snapshot_date
+          || normalizeDate(member.eligible_after_snapshot_date),
         priorCumulativeReturnPct,
+        historicalCorrectionMode: true,
+        initialRankingStartMode: !prior,
+        allowInitialEmpty: Boolean(prior),
+        allowTradesBetweenSnapshots: true,
       });
-      const authoritative = await insertLockedCompetitionSnapshot({
-        user_id: member.user_id,
-        snapshot_date: normalizedTargetDate,
-        daily_return_pct: built.dailyReturnPct,
-        cumulative_return_pct: built.cumulativeReturnPct,
-        locked_at: lockedAt,
-        source_version: SOURCE_VERSION,
-        ledger_hash: built.ledgerHash,
-        ledger_revision: ledgerState.revision,
-        updated_at: lockedAt,
+      const authoritative = await writeUnpublishedCompetitionSnapshot({
+        member,
+        initializeRankingBaselineReturnPct: priorCumulativeReturnPct,
+        row: {
+          user_id: member.user_id,
+          snapshot_date: normalizedTargetDate,
+          daily_return_pct: built.dailyReturnPct,
+          cumulative_return_pct: built.cumulativeReturnPct,
+          locked_at: lockedAt,
+          source_version: SOURCE_VERSION,
+          ledger_hash: built.ledgerHash,
+          ledger_revision: ledgerState.revision,
+          updated_at: lockedAt,
+        },
       });
       const authoritativeDailyReturnPct = authoritative.row?.daily_return_pct == null
         ? null
@@ -925,18 +800,15 @@ export async function runCommunityCompetitionDailySnapshot({
       }
       if (authoritative.inserted) result.writtenSnapshots += 1;
       else result.existingSnapshots += 1;
-      if (await initializeMemberRanking(
-        member,
-        normalizedTargetDate,
-        priorCumulativeReturnPct,
-        lockedAt
-      )) {
+      if (authoritative.rankingInitialized) {
         result.initializedMembers += 1;
+        member.ranking_start_snapshot_date = normalizedTargetDate;
+        member.ranking_baseline_return_pct = priorCumulativeReturnPct;
       }
       completedUserIds.add(String(member.user_id));
     } catch (error) {
       if (error instanceof CompetitionSnapshotValidationError) {
-        if (!prior && error.code === 'zero_denominator') defer('not_started');
+        if (!prior && error.code === 'zero_denominator') defer('not_started', member.user_id);
         else skip(error.code || error.message, member.user_id);
       } else {
         fail(error, member.user_id);
@@ -963,6 +835,16 @@ export async function runCommunityCompetitionScheduledCatchUp({
     const error = new Error('目标日期不合法');
     error.status = 400;
     throw error;
+  }
+  // Formal trades are intentionally mutable. Repair every dirty member against
+  // the latest already-published close before advancing the global close date.
+  // A failed repair writes nothing and the existing snapshot validation below
+  // keeps the newer marker from being published with a mixed ledger cohort.
+  try {
+    await recalculateDirtyCommunityCompetitionMembers({ now });
+  } catch {
+    // The normal snapshot validation remains fail-closed for any member whose
+    // dirty repair could not be loaded. Existing publication stays intact.
   }
   const lockedAt = (now instanceof Date ? now : new Date(now)).toISOString();
   const members = await fetchActiveMembers();
@@ -1033,7 +915,6 @@ export async function runCommunityCompetitionScheduledCatchUp({
   };
   const initialSearchBlockedUserIds = new Set();
   const initialSearchDeferredUserIds = new Set();
-  const initialSearchRebaselineCandidates = [];
   const rejectInitialSearch = (reason, userId) => {
     const key = String(reason || 'initial_search_rejected').slice(0, 120);
     initialSearchBlockedUserIds.add(String(userId));
@@ -1095,96 +976,33 @@ export async function runCommunityCompetitionScheduledCatchUp({
       }
       try {
         const currentEligibleLedgerHash = computeCompetitionLedgerHash(userTrades, eligibleDate);
-        const postEligibleTrades = userTrades.filter((trade) => (
-          trade.trade_date > eligibleDate && trade.trade_date <= normalizedTargetDate
-        ));
-        const hasHistoricalPostEligibleTrade = postEligibleTrades.some((trade) => (
-          trade.trade_date < normalizedTargetDate
-        ));
-        const hasOnlyCurrentTargetTrades = postEligibleTrades.length > 0
-          && postEligibleTrades.every((trade) => trade.trade_date === normalizedTargetDate);
-        const joinedAtTime = Date.parse(member.joined_at || '');
-        const memberUpdatedAtTime = Date.parse(member.updated_at || '');
-        const baselineLockedAtTime = Number.isFinite(memberUpdatedAtTime)
-          ? Math.max(joinedAtTime, memberUpdatedAtTime)
-          : joinedAtTime;
-        const ledgerMutatedAfterBaseline = Number.isFinite(baselineLockedAtTime)
-          && Number.isFinite(ledgerState.lastMutatedTime)
-          && ledgerState.lastMutatedTime > baselineLockedAtTime;
-        const ledgerRevisionDelta = ledgerState.revision - eligibleLedgerRevision;
-        const targetCloseTime = newYorkMarketCloseTime(normalizedTargetDate);
-        const provableCurrentTargetInsertCount = userTrades.filter((trade) => (
-          isProvableCurrentTargetInsert(trade, {
-            baselineLockedAtTime,
-            targetDate: normalizedTargetDate,
-            targetCloseTime,
-          })
-        )).length;
-        const currentLedgerProvesOnlyTargetInserts = (
-          ledgerRevisionDelta > 0
-          && ledgerRevisionDelta === provableCurrentTargetInsertCount
-        );
-        const requiresForwardRebaseline = (
-          currentEligibleLedgerHash !== eligibleLedgerHash
-          || hasHistoricalPostEligibleTrade
-          || (
-            (ledgerRevisionDelta > 0 || ledgerMutatedAfterBaseline)
-            && !currentLedgerProvesOnlyTargetInserts
-          )
-        );
-
-        if (
-          (requiresForwardRebaseline || hasOnlyCurrentTargetTrades)
-          && !ledgerStateWasLockedByTargetClose(ledgerState, normalizedTargetDate)
-        ) {
-          initialSearchDeferredUserIds.add(userId);
-          result.deferredMembers += 1;
-          result.deferredReasons.ledger_mutated_after_target_close = (
-            result.deferredReasons.ledger_mutated_after_target_close || 0
-          ) + 1;
+        if (currentEligibleLedgerHash !== eligibleLedgerHash) {
+          // The dirty-rebuild CAS must refresh this baseline before the normal
+          // cron advances publication. Never silently move the user's range.
+          rejectInitialSearch('eligible_ledger_hash_mismatch', userId);
           continue;
         }
-
-        if (requiresForwardRebaseline) {
-          if (
-            member.ranking_start_snapshot_date
-            || member.ranking_baseline_return_pct != null
-          ) {
-            rejectInitialSearch('untrusted_history_after_eligibility', userId);
+        if (deriveCompetitionHoldingSymbols(userTrades, eligibleDate).length === 0) {
+          const firstLaterTradeDate = userTrades
+            .map((trade) => normalizeDate(trade.trade_date))
+            .filter((tradeDate) => (
+              tradeDate && tradeDate > eligibleDate && tradeDate <= normalizedTargetDate
+            ))
+            .sort()[0];
+          if (!firstLaterTradeDate) {
+            initialSearchDeferredUserIds.add(userId);
+            result.deferredMembers += 1;
+            result.deferredReasons.not_started = (
+              result.deferredReasons.not_started || 0
+            ) + 1;
             continue;
           }
-          // Move the baseline to the current real close. Historical post-join
-          // activity is never reconstructed into a first ranked snapshot.
-          deriveCompetitionHoldingSymbols(userTrades, normalizedTargetDate);
-          initialSearchRebaselineCandidates.push({
-            member,
-            ledgerState,
-            userTrades,
-            ledgerHash: computeCompetitionLedgerHash(userTrades, normalizedTargetDate),
-            requiredSymbols: requiredSymbolsForSnapshot(userTrades, normalizedTargetDate),
-          });
-          initialSearchBlockedUserIds.add(userId);
-          continue;
-        }
-
-        if (deriveCompetitionHoldingSymbols(userTrades, eligibleDate).length > 0) continue;
-        const firstLaterTradeDate = userTrades
-          .map((trade) => normalizeDate(trade.trade_date))
-          .filter((tradeDate) => (
-            tradeDate && tradeDate > eligibleDate && tradeDate <= normalizedTargetDate
-          ))
-          .sort()[0];
-        if (!firstLaterTradeDate) {
-          initialSearchDeferredUserIds.add(userId);
-          result.deferredMembers += 1;
-          result.deferredReasons.not_started = (
-            result.deferredReasons.not_started || 0
-          ) + 1;
-          continue;
-        }
-        const acceleratedAnchor = shiftDate(firstLaterTradeDate, -1);
-        if (acceleratedAnchor && acceleratedAnchor > eligibleDate) {
-          anchors.set(userId, acceleratedAnchor);
+          // Skip empty market days before the first formal trade. A calendar
+          // day anchor also maps weekend trades to the next actual SPY close.
+          const acceleratedAnchor = shiftDate(firstLaterTradeDate, -1);
+          if (acceleratedAnchor && acceleratedAnchor > eligibleDate) {
+            anchors.set(userId, acceleratedAnchor);
+          }
         }
       } catch (error) {
         if (error instanceof CompetitionSnapshotValidationError) {
@@ -1199,202 +1017,18 @@ export async function runCommunityCompetitionScheduledCatchUp({
       }
     }
   }
-  if (initialSearchRebaselineCandidates.length > 0) {
-    let targetCloseConfirmed = false;
-    try {
-      const targetCalendarRows = await fetchEodRowsWithRetry(MARKET_CALENDAR_SYMBOL, {
-        from: shiftDate(normalizedTargetDate, -7),
-        targetDate: normalizedTargetDate,
-        requireTargetClose: true,
-      });
-      targetCloseConfirmed = targetCalendarRows.some((row) => (
-        normalizeDate(row?.date) === normalizedTargetDate
-      ));
-    } catch (error) {
-      const reason = error?.code === 'missing_target_close'
-        ? 'market_calendar_target_missing'
-        : error?.retryable === false
-          ? 'market_calendar_nonretryable_failure'
-          : 'market_calendar_unavailable';
-      if (error?.retryable !== false) {
-        markIncomplete(reason, initialSearchRebaselineCandidates.length);
-        result.retryableIncompleteMembers += initialSearchRebaselineCandidates.length;
-      } else {
-        result.failedMembers += initialSearchRebaselineCandidates.length;
-        result.failedReasons[reason] = (
-          result.failedReasons[reason] || 0
-        ) + initialSearchRebaselineCandidates.length;
-      }
-    }
-
-    if (targetCloseConfirmed) {
-      const rebaselineSymbols = [...new Set(initialSearchRebaselineCandidates.flatMap((candidate) => (
-        [...candidate.requiredSymbols]
-      )))].sort();
-      const targetQuoteResult = await fetchHistoricalCloses(
-        rebaselineSymbols,
-        normalizedTargetDate,
-      );
-      const failedTargetSymbols = new Map(targetQuoteResult.failedSymbolDetails.map((detail) => (
-        [detail.symbol, detail]
-      )));
-      result.symbolsCount += rebaselineSymbols.length;
-      result.failedSymbolsCount += targetQuoteResult.failedSymbols.length;
-
-      for (const candidate of initialSearchRebaselineCandidates) {
-        const userId = String(candidate.member.user_id);
-        const providerFailures = [...candidate.requiredSymbols]
-          .map((symbol) => failedTargetSymbols.get(symbol))
-          .filter(Boolean);
-        if (providerFailures.some((failure) => failure.retryable === false)) {
-          result.failedMembers += 1;
-          result.failedReasons.rebaseline_target_quote_nonretryable_failure = (
-            result.failedReasons.rebaseline_target_quote_nonretryable_failure || 0
-          ) + 1;
-          continue;
-        }
-        if (providerFailures.length > 0) {
-          markIncomplete('rebaseline_target_quote_unavailable');
-          result.retryableIncompleteMembers += 1;
-          continue;
-        }
-
-        try {
-          validateCompetitionTargetDateLedger({
-            stockTrades: candidate.userTrades,
-            historicalClosesBySymbol: targetQuoteResult.rowsBySymbol,
-            targetDate: normalizedTargetDate,
-          });
-          const outcome = await rebaselineMemberBeforeFirstSnapshot({
-            member: candidate.member,
-            targetDate: normalizedTargetDate,
-            ledgerHash: candidate.ledgerHash,
-            ledgerRevision: candidate.ledgerState.revision,
-          });
-          if (outcome === 'rebaselined') {
-            result.rebaselinedMembers += 1;
-            result.deferredMembers += 1;
-            result.deferredReasons.rebaseline_waiting_next_close = (
-              result.deferredReasons.rebaseline_waiting_next_close || 0
-            ) + 1;
-            anchors.set(userId, normalizedTargetDate);
-            candidate.member.eligible_after_snapshot_date = normalizedTargetDate;
-            candidate.member.eligible_ledger_hash = candidate.ledgerHash;
-            candidate.member.eligible_ledger_revision = candidate.ledgerState.revision;
-            continue;
-          }
-          if (outcome === 'stale_member') {
-            result.deferredMembers += 1;
-            result.deferredReasons.rebaseline_concurrent_change = (
-              result.deferredReasons.rebaseline_concurrent_change || 0
-            ) + 1;
-            continue;
-          }
-          rejectInitialSearch(`rebaseline_${outcome}`, userId);
-        } catch (error) {
-          if (error instanceof CompetitionSnapshotValidationError) {
-            if (error.code === 'missing_close') {
-              markIncomplete('rebaseline_target_quote_unavailable');
-              result.retryableIncompleteMembers += 1;
-            } else {
-              rejectInitialSearch(error.code || error.message, userId);
-            }
-            continue;
-          }
-          recordOperationalFailure(error, 'rebaseline_rpc_failed');
-        }
-      }
-    }
-  }
-  const rankingRecoveryBlockedUserIds = new Set();
-  const rejectRankingRecovery = (reason, userId) => {
-    const key = String(reason || 'ranking_recovery_rejected').slice(0, 120);
-    rankingRecoveryBlockedUserIds.add(String(userId));
-    result.skippedMembers += 1;
-    result.authoritativeRejectedMembers += 1;
-    result.skippedReasons[key] = (result.skippedReasons[key] || 0) + 1;
-    result.authoritativeRejectionReasons[key] = (
-      result.authoritativeRejectionReasons[key] || 0
-    ) + 1;
-  };
   const rankingRecoveryMembers = targetEligibleMembers.filter((member) => (
     !member.ranking_start_snapshot_date
     && latestSnapshots.has(String(member.user_id))
   ));
-  if (rankingRecoveryMembers.length > 0) {
-    const recoveryUserIds = new Set(rankingRecoveryMembers.map((member) => String(member.user_id)));
-    let earliestSnapshots = new Map();
-    let recoveryTradesByUser = new Map();
-    try {
-      const [fetchedEarliestSnapshots, recoveryTrades] = await Promise.all([
-        fetchEarliestCompetitionSnapshots(recoveryUserIds, normalizedTargetDate),
-        fetchStockTradesForUsers(recoveryUserIds),
-      ]);
-      earliestSnapshots = fetchedEarliestSnapshots;
-      recoveryTradesByUser = new Map(
-        [...recoveryUserIds].map((userId) => [userId, []])
-      );
-      recoveryTrades.forEach((trade) => recoveryTradesByUser.get(trade.user_id)?.push(trade));
-    } catch (error) {
-      rankingRecoveryMembers.forEach((member) => {
-        rankingRecoveryBlockedUserIds.add(String(member.user_id));
-      });
-      recordOperationalFailure(
-        error,
-        'ranking_initialization_recovery_failed',
-        rankingRecoveryMembers.length,
-      );
-    }
-    for (const member of rankingRecoveryMembers) {
-      const userId = String(member.user_id);
-      if (rankingRecoveryBlockedUserIds.has(userId)) continue;
-      const earliest = earliestSnapshots.get(userId);
-      if (!earliest) {
-        rankingRecoveryBlockedUserIds.add(userId);
-        result.failedMembers += 1;
-        result.failedReasons.ranking_initialization_snapshot_missing = (
-          result.failedReasons.ranking_initialization_snapshot_missing || 0
-        ) + 1;
-        continue;
-      }
-      const latest = latestSnapshots.get(userId);
-      const userTrades = recoveryTradesByUser.get(userId) || [];
-      const recoverySnapshots = [earliest, latest].filter(Boolean);
-      if (recoverySnapshots.some((snapshot) => (
-        !/^[a-f0-9]{64}$/i.test(String(snapshot.ledger_hash || ''))
-      ))) {
-        rejectRankingRecovery('ranking_recovery_missing_ledger_hash', userId);
-        continue;
-      }
-      if (recoverySnapshots.some((snapshot) => (
-        normalizeLedgerRevision(snapshot.ledger_revision) == null
-      ))) {
-        rejectRankingRecovery('ranking_recovery_missing_ledger_revision', userId);
-        continue;
-      }
-      if (recoverySnapshots.some((snapshot) => (
-        computeCompetitionLedgerHash(userTrades, snapshot.snapshot_date)
-        !== snapshot.ledger_hash
-      ))) {
-        rejectRankingRecovery('ranking_recovery_ledger_hash_mismatch', userId);
-        continue;
-      }
-      try {
-        if (await initializeMemberRanking(
-          member,
-          earliest.snapshot_date,
-          0,
-          lockedAt
-        )) {
-          result.initializedMembers += 1;
-          member.ranking_start_snapshot_date = earliest.snapshot_date;
-          member.ranking_baseline_return_pct = 0;
-        }
-      } catch (error) {
-        rankingRecoveryBlockedUserIds.add(userId);
-        recordOperationalFailure(error, 'ranking_initialization_recovery_failed');
-      }
-    }
+  const rankingRecoveryBlockedUserIds = new Set(
+    rankingRecoveryMembers.map((member) => String(member.user_id)),
+  );
+  if (rankingRecoveryBlockedUserIds.size > 0) {
+    // Existing snapshots plus a null ranking pair require the authenticated
+    // dirty full-rebuild RPC. Never recreate the old split PATCH race here.
+    markIncomplete('ranking_rebuild_pending', rankingRecoveryBlockedUserIds.size);
+    result.retryableIncompleteMembers += rankingRecoveryBlockedUserIds.size;
   }
 
   const pendingEntries = [...anchors.entries()].filter(([, date]) => date < normalizedTargetDate);

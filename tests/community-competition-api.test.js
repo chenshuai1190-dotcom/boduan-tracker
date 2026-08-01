@@ -3,6 +3,10 @@ import assert from 'node:assert/strict';
 
 import handler from '../api/community-competition.js';
 import { computeCompetitionLedgerHash } from '../server/communityCompetitionSnapshotModel.js';
+import { resetCommunityCompetitionEodhdStateForTests } from '../server/communityCompetitionEodhd.js';
+
+test.beforeEach(() => resetCommunityCompetitionEodhdStateForTests());
+test.afterEach(() => resetCommunityCompetitionEodhdStateForTests());
 
 function createResponse() {
   return {

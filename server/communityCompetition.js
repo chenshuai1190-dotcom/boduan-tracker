@@ -14,6 +14,8 @@ import {
   COMPETITION_SNAPSHOT_CHANNEL,
   getLatestCommunityCompetitionSnapshotMarker,
 } from './snapshotPublicationMarker.js';
+import { recalculateCommunityCompetitionMember } from './communityCompetitionRecalculation.js';
+import { fetchCommunityCompetitionEodhdHistory } from './communityCompetitionEodhd.js';
 
 const PAGE_SIZE = 1000;
 const BENCHMARK_LOOKBACK_DAYS = 14;
@@ -262,39 +264,11 @@ async function fetchVerifiedHoldingSymbols({ members = [], profiles = [], snapsh
 }
 
 async function fetchBenchmarkRows({ from, to }) {
-  const key = String(process.env.EODHD_API_KEY || '')
-    .trim()
-    .replace(/[\s\u200B-\u200D\uFEFF]/g, '');
-  if (!key) {
-    const error = new Error('收益比赛基准行情未配置');
-    error.status = 500;
-    error.retryable = false;
-    throw error;
-  }
-  const url = `https://eodhd.com/api/eod/QQQ.US?api_token=${encodeURIComponent(key)}&from=${from}&to=${to}&period=d&fmt=json`;
-  try {
-    const response = await fetchWithTimeout(url, {}, {
-      provider: 'eodhd-community-competition-benchmark',
-      timeoutMs: QUOTE_TIMEOUTS.eodhd,
-    });
-    if (!response.ok) {
-      const error = new Error('收益比赛基准行情暂不可用');
-      error.status = response.status;
-      error.retryable = response.status === 408 || response.status === 429 || response.status >= 500;
-      throw error;
-    }
-    const body = await response.json().catch(() => null);
-    if (!Array.isArray(body)) {
-      const error = new Error('收益比赛基准行情回包不完整');
-      error.status = 503;
-      error.retryable = true;
-      throw error;
-    }
-    return body;
-  } catch (error) {
-    if (typeof error?.retryable !== 'boolean') error.retryable = true;
-    throw error;
-  }
+  return fetchCommunityCompetitionEodhdHistory({
+    symbol: 'QQQ',
+    fromDate: from,
+    throughDate: to,
+  });
 }
 
 export async function getCommunityCompetitionState({ userId, period = 'day', now = new Date() } = {}) {
@@ -309,9 +283,26 @@ export async function getCommunityCompetitionState({ userId, period = 'day', now
     return { success: true, state: 'profile_required', period: normalizedPeriod };
   }
 
-  const membership = await fetchMembership(userId);
+  let membership = await fetchMembership(userId);
   if (!membership || membership.status !== 'active') {
     return { success: true, state: 'join_required', period: normalizedPeriod };
+  }
+
+  // A formal-ledger edit marks only this member dirty. Repair it before the
+  // normal leaderboard read; any provider/storage failure keeps the existing
+  // published snapshot readable and is retried by the authenticated mutation
+  // endpoint or close Cron.
+  try {
+    const recalculation = await recalculateCommunityCompetitionMember({ userId, now });
+    if (
+      recalculation.state === 'recalculated'
+      && !membership.ranking_start_snapshot_date
+    ) {
+      membership = await fetchMembership(userId) || membership;
+    }
+  } catch {
+    // Failure is intentionally non-destructive: continue with the last fully
+    // published leaderboard instead of replacing it with an error or zeroes.
   }
 
   const publication = await getLatestCommunityCompetitionSnapshotMarker({ now });

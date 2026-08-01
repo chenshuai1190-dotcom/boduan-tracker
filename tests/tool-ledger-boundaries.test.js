@@ -203,6 +203,29 @@ test('wave record entry writes legacy trades before main ledger stock_trades', (
   assert.ok(insertTradeBlock.includes("throw new Error('股票代码格式不正确')"), 'legacy wave trades should expose the same invalid ticker error');
 });
 
+test('formal ledger mutations request an isolated non-blocking competition recalculation', () => {
+  const helperStart = appSource.indexOf('const recalculateCompetitionAfterLedgerMutation = useCallback');
+  const helperEnd = appSource.indexOf('const addTrade = async', helperStart);
+  const helperBlock = appSource.slice(helperStart, helperEnd);
+  const waveBranch = appSource.indexOf("tradeEntryScope === 'wave'");
+  const formalInsert = appSource.indexOf('await db.insertStockTrade', waveBranch);
+  const firstRecalculation = appSource.indexOf('void recalculateCompetitionAfterLedgerMutation();', formalInsert);
+  const deleteMutation = appSource.indexOf('await db.deleteStockTrade');
+  const deleteRecalculation = appSource.indexOf('void recalculateCompetitionAfterLedgerMutation();', deleteMutation);
+
+  assert.ok(helperStart >= 0 && helperEnd > helperStart, 'app should own one isolated post-ledger competition recalculation helper');
+  assert.ok(helperBlock.includes('communityCompetitionApi.recalculateSelf({ supabase })'), 'the helper should ask the authenticated competition API to reread the authoritative ledger');
+  assert.ok(helperBlock.includes('recordCommunityCompetitionObservedPublication'), 'a completed recalculation should publish its opaque marker into the user-scoped cache metadata');
+  assert.ok(helperBlock.includes('invalidateCommunityCompetitionRequests(userId)'), 'a completed recalculation should invalidate only stale leaderboard requests');
+  assert.equal(helperBlock.includes('clearCommunityCompetitionCache'), false, 'ledger recalculation must preserve the last ready leaderboard while replacement data loads or refresh fails');
+  for (const forbidden of ['fetchRealtimePrices', 'quoteRows', 'stockTrades', 'tradePayload']) {
+    assert.equal(helperBlock.includes(forbidden), false, `competition recalculation must not couple to ${forbidden}`);
+  }
+  assert.ok(firstRecalculation > formalInsert, 'a successful formal insert or update should start recalculation only after Supabase returns');
+  assert.ok(deleteRecalculation > deleteMutation, 'a successful formal delete should start recalculation only after Supabase returns');
+  assert.equal((appSource.match(/void recalculateCompetitionAfterLedgerMutation\(\);/g) || []).length, 2, 'only the shared formal save and delete paths should trigger recalculation');
+});
+
 test('wave P&L follows the shared currency while stock unit prices and the ledger stay USD', () => {
   const waveUiStart = tradesTabSource.indexOf('{/* 波段记录(取代原来的');
   const waveUiEnd = tradesTabSource.indexOf('{/* 旧波段兼容账本的完整交易历史', waveUiStart);
@@ -379,15 +402,17 @@ test('community competition is an isolated authenticated close-snapshot utility'
   assert.ok(communityCompetitionApiSource.includes('Authorization: `Bearer ${token}`'), 'the API client should send the session bearer token');
   assert.ok(communityCompetitionApiSource.includes("method: 'GET'"), 'the API client should load leaderboard state with GET');
   assert.ok(communityCompetitionApiSource.includes("method: 'POST'"), 'the API client should persist voluntary participation with POST');
+  assert.ok(communityCompetitionApiSource.includes("operation: 'recalculate-self'") && communityCompetitionApiSource.includes('body: JSON.stringify({})'), 'self recalculation should send an empty authenticated request instead of browser ledger or quote data');
   assert.equal(communityCompetitionApiSource.includes('.from('), false, 'the API client must not bypass the server aggregation boundary');
   assert.ok(communityCompetitionPageSource.includes('readCommunityCompetitionCache({ userId, period: \'day\' })'), 'competition should synchronously hydrate its first frame from a user-scoped snapshot cache');
-  assert.ok(communityCompetitionPageSource.includes('getCommunityCompetitionRefreshDecision({ entry: cached, now })'), 'competition should avoid a network read before the next close refresh window');
+  assert.ok(communityCompetitionPageSource.includes('getCommunityCompetitionRefreshDecision({ entry: cached, now })'), 'competition should gate full reads and lightweight marker checks through the cache decision');
   assert.ok(communityCompetitionPageSource.includes('bindCommunityCompetitionResume({') && communityCompetitionPageSource.includes('onVisibleRecheck: recheckActiveCompetition'), 'the competition page should bind PWA resume signals only to its active cache decision');
   ['pagehide', 'pageshow', 'focus', 'online', 'pointerdown', 'touchstart'].forEach((eventType) => {
     assert.ok(communityCompetitionResumeSource.includes(`windowTarget.addEventListener('${eventType}'`), `competition resume should listen for ${eventType}`);
     assert.ok(communityCompetitionResumeSource.includes(`windowTarget.removeEventListener('${eventType}'`), `competition resume should clean up ${eventType}`);
   });
   assert.ok(communityCompetitionResumeSource.includes("documentTarget.addEventListener('visibilitychange'") && communityCompetitionResumeSource.includes("documentTarget.removeEventListener('visibilitychange'"), 'competition resume should recheck and clean up visibility changes');
+  assert.ok(communityCompetitionResumeSource.includes('COMMUNITY_COMPETITION_PUBLICATION_EVENT') && communityCompetitionResumeSource.includes("windowTarget.addEventListener('storage'"), 'same-tab and cross-tab publication changes should wake the active cached leaderboard');
   assert.ok(communityCompetitionResumeSource.includes('queueVisibilityRetry(trigger)') && communityCompetitionResumeSource.includes("requestVisibleRecheck('visible-heartbeat')"), 'iOS hidden resume should retain a bounded visibility retry and local-only heartbeat fallback');
   assert.ok(communityCompetitionPageSource.includes('decision.shouldRefresh') && communityCompetitionPageSource.includes('retryNotBefore <= now'), 'resume signals must run the local close-window and failure-cooldown decisions before scheduling a request');
   assert.ok(communityCompetitionPageSource.includes('failedRetryNotBeforeRef') && communityCompetitionPageSource.includes('TRANSIENT_RESUME_RETRY_COOLDOWN_MS'), 'transient PWA resume failures should use a view-scoped cooldown instead of a request loop');
@@ -428,6 +453,7 @@ test('community competition is an isolated authenticated close-snapshot utility'
   assert.ok(communityCompetitionApiSource.includes("cache: 'no-store'") && communityCompetitionApiSource.includes('__competition_read'), 'competition GETs must bypass the iOS WebKit response cache');
   assert.ok(communityCompetitionApiSource.includes('COMPETITION_REQUEST_TIMEOUT') && communityCompetitionApiSource.includes('Promise.race(pending)'), 'a suspended iOS competition request must settle so in-flight deduplication can release it');
   assert.ok(communityCompetitionCacheSource.includes('STATUS_CHECK_META_KEY') && communityCompetitionCacheSource.includes('readStatusCheckMeta'), 'one user-global status timestamp should gate every period without rewriting leaderboard entries');
+  assert.ok(communityCompetitionCacheSource.includes('snapshotCurrent') && communityCompetitionCacheSource.includes('nextStatusCheckAt = statusCheck.lastCheckedAt + COMMUNITY_COMPETITION_STATUS_POLL_MS'), 'a current visible leaderboard should poll only its lightweight marker once per minute so same-date recalculations become observable');
   assert.ok(communityCompetitionCacheSource.includes('PUBLICATION_META_KEY') && communityCompetitionCacheSource.includes("reason: 'observed_publication_advanced'"), 'every period should immediately notice a newer globally observed publication');
   assert.ok(communityCompetitionCacheSource.includes('navigator?.locks') && communityCompetitionCacheSource.includes('CACHE_WRITE_LOCK'), 'cross-tab cache commits should use a Web Lock before enforcing publication monotonicity');
   assert.ok(communityCompetitionPageSource.includes('commitExpectedPublication: true') && communityCompetitionPageSource.includes('await commitCommunityCompetitionCache({'), 'status publication commits should use the monotonic cache writer without clearing other periods');

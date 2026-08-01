@@ -118,10 +118,24 @@ set search_path = pg_catalog, public
 as $$
 declare
   affected_user_id uuid := case when tg_op = 'DELETE' then old.user_id else new.user_id end;
+  affected_from_date date := case
+    when tg_op = 'INSERT' then new.trade_date
+    when tg_op = 'DELETE' then old.trade_date
+    else least(old.trade_date, new.trade_date)
+  end;
+  next_revision bigint;
 begin
   -- Display-only metadata is outside the canonical competition ledger. Keep
-  -- its revision stable so a name/note edit cannot start a new ranking epoch.
+  -- both the revision and competition dirty state stable for name/note edits.
   if tg_op = 'UPDATE' then
+    -- Moving a canonical trade between owners would require atomically bumping
+    -- and dirtying both ledgers. The product never supports that operation, so
+    -- fail closed even for a privileged maintenance client.
+    if new.user_id is distinct from old.user_id then
+      raise exception 'stock trade owner cannot be changed'
+        using errcode = '22023';
+    end if;
+
     if new.id is not distinct from old.id
       and new.symbol is not distinct from old.symbol
       and new.side is not distinct from old.side
@@ -160,7 +174,49 @@ begin
   )
   on conflict (user_id) do update
   set revision = public.stock_trade_ledger_revisions.revision + 1,
-      last_mutated_at = excluded.last_mutated_at;
+      last_mutated_at = excluded.last_mutated_at
+  returning revision into next_revision;
+
+  -- Every canonical mutation of an active member records dirty state. A future
+  -- trade is harmless to the current as-of calculation, but carrying the new
+  -- revision through the rebuilt row closes the snapshot-before-publication
+  -- race and lets the ordinary target-date job include it later.
+  if to_regclass('public.community_competition_rebuild_state') is not null
+    and to_regclass('public.community_competition_members') is not null
+  then
+    if exists (
+      select 1
+      from public.community_competition_members as member
+      where member.user_id = affected_user_id
+        and member.status = 'active'
+    )
+    then
+      insert into public.community_competition_rebuild_state (
+        user_id,
+        dirty_from_date,
+        ledger_revision,
+        requested_at,
+        updated_at
+      )
+      values (
+        affected_user_id,
+        affected_from_date,
+        next_revision,
+        clock_timestamp(),
+        clock_timestamp()
+      )
+      on conflict (user_id) do update
+      set dirty_from_date = least(
+            public.community_competition_rebuild_state.dirty_from_date,
+            excluded.dirty_from_date
+          ),
+          ledger_revision = greatest(
+            public.community_competition_rebuild_state.ledger_revision,
+            excluded.ledger_revision
+          ),
+          updated_at = excluded.updated_at;
+    end if;
+  end if;
 
   if tg_op = 'DELETE' then
     return old;
@@ -170,7 +226,7 @@ end;
 $$;
 
 revoke execute on function public.bump_stock_trade_ledger_revision()
-from public, anon, authenticated;
+from public, anon, authenticated, service_role;
 
 drop trigger if exists stock_trades_bump_ledger_revision
 on public.stock_trades;

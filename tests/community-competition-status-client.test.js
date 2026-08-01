@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
   fetchCommunityCompetition,
   fetchCommunityCompetitionSnapshotStatus,
+  recalculateSelfCommunityCompetition,
 } from '../src/lib/communityCompetitionApi.js';
 
 function supabaseWithToken(token = 'access-token') {
@@ -64,6 +65,68 @@ test('leaderboard GET also bypasses the iOS WebKit response cache', async () => 
       period: 'week',
     });
     assert.equal(result.period, 'week');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('self recalculation sends only an authenticated empty POST and accepts a complete publication', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, options = {}) => {
+    const requestUrl = new URL(String(url), 'https://bottomline.test');
+    assert.equal(requestUrl.pathname, '/api/community-competition');
+    assert.equal(requestUrl.searchParams.get('operation'), 'recalculate-self');
+    assert.equal(requestUrl.searchParams.has('__competition_read'), false);
+    assert.equal(options.method, 'POST');
+    assert.equal(options.headers.Authorization, 'Bearer access-token');
+    assert.equal(options.body, '{}');
+    for (const forbidden of ['userId', 'trade', 'holding', 'quote', 'price', 'shares', 'symbol']) {
+      assert.equal(String(options.body).includes(forbidden), false);
+    }
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        success: true,
+        state: 'recalculated',
+        snapshotDate: '2026-07-31',
+        version: 'snapshot_20260731_recalculated_v1',
+        completedAt: '2026-08-01T04:05:06.123456Z',
+      }),
+    };
+  };
+  try {
+    const result = await recalculateSelfCommunityCompetition({ supabase: supabaseWithToken() });
+    assert.equal(result.state, 'recalculated');
+    assert.equal(result.version, 'snapshot_20260731_recalculated_v1');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('self recalculation accepts null publication only for non-ranked no-op states', async () => {
+  const originalFetch = globalThis.fetch;
+  let state = 'not_joined';
+  globalThis.fetch = async () => ({
+    ok: true,
+    status: 200,
+    json: async () => ({
+      success: true,
+      state,
+      snapshotDate: null,
+      version: null,
+      completedAt: null,
+    }),
+  });
+  try {
+    assert.equal((await recalculateSelfCommunityCompetition({ supabase: supabaseWithToken() })).state, 'not_joined');
+    state = 'waiting_snapshot';
+    assert.equal((await recalculateSelfCommunityCompetition({ supabase: supabaseWithToken() })).state, 'waiting_snapshot');
+    state = 'recalculated';
+    await assert.rejects(
+      recalculateSelfCommunityCompetition({ supabase: supabaseWithToken() }),
+      /INVALID_COMPETITION_STATE/,
+    );
   } finally {
     globalThis.fetch = originalFetch;
   }

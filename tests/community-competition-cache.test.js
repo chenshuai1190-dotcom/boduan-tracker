@@ -143,17 +143,36 @@ test('New York refresh windows are DST-safe and skip weekends', () => {
   assert.equal(resolveCommunityCompetitionRefreshWindow(new Date('2026-07-18T16:00:00Z')).targetDate, '2026-07-17');
 });
 
-test('a current cached snapshot avoids entry reads until the next New York close window', () => {
+test('a current cached snapshot polls only its lightweight marker once per minute', () => {
   const entry = writeCommunityCompetitionCache({
     userId: 'user-a',
     period: 'day',
     data: ready('day', '2026-07-13'),
     now: new Date('2026-07-14T14:00:00Z'),
   });
-  const before = getCommunityCompetitionRefreshDecision({ entry, now: new Date('2026-07-14T21:09:59Z') });
+  const uninitialized = getCommunityCompetitionRefreshDecision({
+    entry,
+    now: new Date('2026-07-14T20:00:00Z'),
+  });
+  assert.equal(uninitialized.shouldRefresh, true);
+  assert.equal(uninitialized.reason, 'status_poll_uninitialized');
+
+  const checked = recordCommunityCompetitionStatusCheck({
+    userId: 'user-a', period: 'day', now: new Date('2026-07-14T20:00:00Z'),
+  });
+  const before = getCommunityCompetitionRefreshDecision({
+    entry: checked,
+    now: new Date('2026-07-14T20:00:59Z'),
+  });
+  const due = getCommunityCompetitionRefreshDecision({
+    entry: checked,
+    now: new Date('2026-07-14T20:01:00Z'),
+  });
   const after = getCommunityCompetitionRefreshDecision({ entry, now: new Date('2026-07-14T21:10:00Z') });
   assert.equal(before.shouldRefresh, false);
-  assert.equal(before.reason, 'snapshot_current');
+  assert.equal(before.reason, 'status_poll_wait');
+  assert.equal(due.shouldRefresh, true);
+  assert.equal(due.reason, 'status_poll_due');
   assert.equal(after.shouldRefresh, true);
   assert.equal(after.reason, 'new_refresh_window');
 });

@@ -12,6 +12,10 @@ import {
   runCommunityCompetitionScheduledCatchUp,
 } from '../server/communityCompetitionDailySnapshot.js';
 import { publishCommunityCompetitionSnapshotMarker } from '../server/snapshotPublicationMarker.js';
+import {
+  isCompetitionRecalculationRetryable,
+  recalculateCommunityCompetitionMember,
+} from '../server/communityCompetitionRecalculation.js';
 
 function firstQueryValue(value) {
   return Array.isArray(value) ? value[0] : value;
@@ -142,6 +146,27 @@ export default async function handler(req, res) {
   if (!user) return;
 
   try {
+    if (firstQueryValue(req.query?.operation) === 'recalculate-self') {
+      if (req.method !== 'POST') {
+        res.setHeader('Allow', 'POST, OPTIONS');
+        return sendError(res, 405, 'Method Not Allowed');
+      }
+      try {
+        const result = await recalculateCommunityCompetitionMember({ userId: user.id });
+        return res.status(200).json(result);
+      } catch (error) {
+        const retryable = isCompetitionRecalculationRetryable(error);
+        if (retryable) res.setHeader('Retry-After', '60');
+        return sendError(
+          res,
+          retryable ? 503 : (Number(error?.status) || 409),
+          retryable
+            ? '交易已保存，收益比赛将保留旧成绩并稍后重试'
+            : (error?.message || '收益比赛账本暂时无法重算'),
+          retryable ? 'recalculation_pending' : 'ledger_invalid'
+        );
+      }
+    }
     if (firstQueryValue(req.query?.operation) === 'snapshot-status') {
       if (req.method !== 'GET') {
         res.setHeader('Allow', 'GET, OPTIONS');
