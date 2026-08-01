@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
+import { resolveHoldingDisplayPrice, resolveHomeMarketDisplayMetrics } from '../src/lib/homeMarketDisplay.js';
 import { deriveInvestmentSummary, derivePositionsFromTrades } from '../src/lib/investmentSummary.js';
 
 const watchlist = [
@@ -128,7 +129,7 @@ test('investment summary can infer daily pnl from realtime change fields when pr
   assert.equal(Number(summary.todayPnl.toFixed(2)), 742.78);
 });
 
-test('investment summary uses locked daily pnl price instead of postmarket display price', () => {
+test('locked close is the single price for home, trade holdings, and investment valuation', () => {
   const summary = deriveInvestmentSummary({
     stockTrades: [
       { id: 1, symbol: 'NVDA', name: '英伟达', side: 'buy', date: '2026-01-03', price: 179.78, shares: 7000 },
@@ -155,10 +156,94 @@ test('investment summary uses locked daily pnl price instead of postmarket displ
   assert.equal(summary.activePositions[0].dailyBaselineClose, 194.8);
   assert.equal(summary.activePositions[0].dailyPnlPrice, 195.55);
   assert.equal(summary.activePositions[0].dailyPnlLocked, true);
-  assert.equal(Number(summary.activePositions[0].marketValue.toFixed(2)), 1366918.00);
+  assert.equal(summary.activePositions[0].currentPrice, 195.274);
+  assert.equal(summary.activePositions[0].valuationPrice, 195.55);
+  assert.equal(resolveHoldingDisplayPrice(summary.activePositions[0]), 195.55);
+  assert.equal(resolveHomeMarketDisplayMetrics({
+    price: 195.274,
+    dailyPnlPrice: 195.55,
+    dailyPnlLocked: true,
+  }).price, 195.55);
+  assert.equal(Number(summary.activePositions[0].marketValue.toFixed(2)), 1368850.00);
+  assert.equal(Number(summary.activePositions[0].unrealizedPnl.toFixed(2)), 110390.00);
+  assert.equal(Number(summary.activePositions[0].holdingPnl.toFixed(2)), 110390.00);
+  assert.equal(Number(summary.cumulativePnl.toFixed(2)), 110390.00);
+  assert.equal(Number(summary.totalAssetsUsd.toFixed(2)), 1368850.00);
   assert.equal(Number(summary.activePositions[0].todayPnl.toFixed(2)), 5250.00);
   assert.equal(Number(summary.todayPnl.toFixed(2)), 5250.00);
   assert.equal(summary.todayPnlLocked, true);
+});
+
+test('unlocked investment valuation keeps the live quote price', () => {
+  const summary = deriveInvestmentSummary({
+    stockTrades: [
+      { id: 1, symbol: 'NVDA', name: '英伟达', side: 'buy', date: '2026-01-03', price: 180, shares: 10 },
+    ],
+    watchlist: [
+      {
+        symbol: 'NVDA',
+        name: '英伟达',
+        price: 201.25,
+        previousClose: 198.5,
+        dailyPnlPrice: 198.5,
+        dailyPnlLocked: false,
+      },
+    ],
+    cashUsd: 100,
+  });
+
+  assert.equal(summary.activePositions[0].currentPrice, 201.25);
+  assert.equal(summary.activePositions[0].valuationPrice, 201.25);
+  assert.equal(resolveHoldingDisplayPrice(summary.activePositions[0]), 201.25);
+  assert.equal(summary.activePositions[0].marketValue, 2012.5);
+  assert.equal(summary.activePositions[0].unrealizedPnl, 212.5);
+  assert.equal(summary.cumulativePnl, 212.5);
+  assert.equal(summary.totalAssetsUsd, 2112.5);
+});
+
+test('locked investment valuation keeps the last explicit completed close when the new close is unavailable', () => {
+  for (const dailyPnlFields of [{ dailyPnlPrice: 0 }, {}]) {
+    const summary = deriveInvestmentSummary({
+      stockTrades: [
+        { id: 1, symbol: 'NVDA', name: '英伟达', side: 'buy', date: '2026-01-03', price: 180, shares: 10 },
+      ],
+      watchlist: [
+        {
+          symbol: 'NVDA',
+          name: '英伟达',
+          price: 201.25,
+          dailyPnlBaselineClose: 198.5,
+          dailyPnlLocked: true,
+          ...dailyPnlFields,
+        },
+      ],
+      cashUsd: 100,
+    });
+
+    assert.equal(summary.activePositions[0].currentPrice, 201.25);
+    assert.equal(summary.activePositions[0].valuationPrice, 198.5);
+    assert.equal(resolveHoldingDisplayPrice(summary.activePositions[0]), null);
+    assert.equal(summary.activePositions[0].marketValue, 1985);
+    assert.notEqual(summary.activePositions[0].marketValue, 2012.5);
+    assert.equal(summary.activePositions[0].todayPnl, null);
+    assert.equal(summary.hasTodayPnl, false);
+  }
+});
+
+test('locked position sorting follows completed-close market value instead of the raw quote', () => {
+  const summary = deriveInvestmentSummary({
+    stockTrades: [
+      { id: 1, symbol: 'NVDA', side: 'buy', date: '2026-01-03', price: 80, shares: 10 },
+      { id: 2, symbol: 'MSFT', side: 'buy', date: '2026-01-03', price: 80, shares: 10 },
+    ],
+    watchlist: [
+      { symbol: 'NVDA', price: 300, dailyPnlPrice: 100, dailyPnlLocked: true },
+      { symbol: 'MSFT', price: 100, dailyPnlPrice: 200, dailyPnlLocked: true },
+    ],
+  });
+
+  assert.deepEqual(summary.activePositions.map((position) => position.symbol), ['MSFT', 'NVDA']);
+  assert.deepEqual(summary.activePositions.map((position) => position.marketValue), [2000, 1000]);
 });
 
 test('investment summary marks daily pnl unavailable when the quote has no daily pnl price', () => {

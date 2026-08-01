@@ -1183,7 +1183,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                         const openScenarioFromCell = (event) => {
                           event.preventDefault();
                           event.stopPropagation();
-                          openPositionScenario(position, displayCurrentPrice);
+                          openPositionScenario(position);
                         };
                         return (
                           <div

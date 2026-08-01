@@ -31,6 +31,19 @@ function inferDailyPnlPrice(quote, currentPrice) {
   return currentPrice;
 }
 
+function inferLastCompletedClose(quote) {
+  const candidates = [
+    quote?.dailyPnlBaselineClose,
+    quote?.dailyBaselineClose,
+    quote?.previousClose,
+  ];
+  for (const candidate of candidates) {
+    const close = toNumber(candidate);
+    if (close > 0) return close;
+  }
+  return 0;
+}
+
 function normalizeSymbol(symbol) {
   return normalizeUserStockSymbol(symbol);
 }
@@ -125,10 +138,20 @@ export function derivePositionsFromTrades(trades = [], watchlist = []) {
       totalBuyCost += shares * price;
     });
 
-    const currentPrice = toNumber(quote?.price);
+    const quotePrice = toNumber(quote?.price);
     const high = toNumber(quote?.high || quote?.week52High);
-    const previousClose = inferPreviousClose(quote, currentPrice);
-    const dailyPnlPrice = inferDailyPnlPrice(quote, currentPrice);
+    const previousClose = inferPreviousClose(quote, quotePrice);
+    const dailyPnlLocked = Boolean(quote?.dailyPnlLocked);
+    const explicitDailyPnlPrice = hasOwn(quote, 'dailyPnlPrice')
+      ? toNumber(quote?.dailyPnlPrice)
+      : 0;
+    const dailyPnlPrice = dailyPnlLocked
+      ? (explicitDailyPnlPrice > 0 ? explicitDailyPnlPrice : 0)
+      : inferDailyPnlPrice(quote, quotePrice);
+    const currentPrice = quotePrice;
+    const valuationPrice = dailyPnlLocked
+      ? (dailyPnlPrice || inferLastCompletedClose(quote))
+      : quotePrice;
     const hasTodayPnl = heldShares > 0 && dailyPnlPrice > 0 && previousClose > 0;
     const changePercent = toNumber(quote?.changePercent);
     const dailyPnlChangePercent = hasTodayPnl ? ((dailyPnlPrice - previousClose) / previousClose) * 100 : null;
@@ -136,7 +159,7 @@ export function derivePositionsFromTrades(trades = [], watchlist = []) {
     const avgCost = heldShares > 0 ? remainingCost / heldShares : 0;
     const effectiveCost = heldShares > 0 ? avgCost - activeRealizedPnl / heldShares : 0;
     const effectiveRemainingCost = heldShares > 0 ? effectiveCost * heldShares : 0;
-    const marketValue = heldShares * currentPrice;
+    const marketValue = heldShares * valuationPrice;
     const unrealizedPnl = heldShares > 0 ? marketValue - remainingCost : 0;
     const holdingPnl = activeRealizedPnl + unrealizedPnl;
     const totalPnl = realizedPnl + unrealizedPnl;
@@ -168,6 +191,7 @@ export function derivePositionsFromTrades(trades = [], watchlist = []) {
       soldCost,
       activeRealizedPnl,
       currentPrice,
+      valuationPrice,
       high,
       previousClose,
       dailyBaselineClose: previousClose,
@@ -178,7 +202,7 @@ export function derivePositionsFromTrades(trades = [], watchlist = []) {
       dailyPnlBaselineDate: quote?.dailyPnlBaselineDate || quote?.dailyBaselineDate || '',
       dailyPnlSource: quote?.dailyPnlSource || '',
       dailyPnlSession: quote?.dailyPnlSession || '',
-      dailyPnlLocked: Boolean(quote?.dailyPnlLocked),
+      dailyPnlLocked,
       hasTodayPnl,
       changePercent,
       dailyPnlChangePercent,

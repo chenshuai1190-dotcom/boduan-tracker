@@ -84,20 +84,23 @@ test('an unlocked row without any valid price remains unavailable', () => {
   assert.equal(metrics.highDrawdown, null);
 });
 
-test('trade holding display keeps current price and only falls back to a locked close', () => {
+test('trade holding display uses the same official close as home after lock', () => {
   assert.equal(resolveHoldingDisplayPrice({
     currentPrice: 201.25,
     dailyPnlPrice: 198.5,
     dailyPnlLocked: true,
-  }), 201.25);
-  assert.equal(resolveHoldingDisplayPrice({
-    currentPrice: 0,
-    dailyPnlPrice: 198.5,
-    dailyPnlLocked: true,
   }), 198.5);
   assert.equal(resolveHoldingDisplayPrice({
-    currentPrice: 0,
+    currentPrice: 201.25,
     dailyPnlPrice: 198.5,
     dailyPnlLocked: false,
+  }), 201.25);
+});
+
+test('trade holding display never exposes a delayed price while a locked close is unavailable', () => {
+  assert.equal(resolveHoldingDisplayPrice({
+    currentPrice: 201.25,
+    dailyPnlPrice: 0,
+    dailyPnlLocked: true,
   }), null);
 });

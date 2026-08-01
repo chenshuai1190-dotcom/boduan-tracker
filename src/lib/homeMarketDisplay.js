@@ -10,8 +10,9 @@ function positiveNumber(value) {
 }
 
 export function resolveHoldingDisplayPrice(position = {}) {
-  return positiveNumber(position?.currentPrice)
-    || (position?.dailyPnlLocked ? positiveNumber(position?.dailyPnlPrice) : null);
+  return position?.dailyPnlLocked
+    ? positiveNumber(position?.dailyPnlPrice)
+    : positiveNumber(position?.currentPrice);
 }
 
 export function resolveHomeMarketDisplayMetrics(row = {}, {

@@ -10,7 +10,7 @@
 | --- | --- |
 | 仓库 | `chenshuai1190-dotcom/boduan-tracker` |
 | 生产地址 | `https://boduan-tracker.vercel.app` |
-| 运行时代码 | `v10.7.9.407`：v402 稳定应用树 + 收益比赛正式交易即时重算；精确发布提交以 GitHub `main` HEAD 为准 |
+| 运行时代码 | `v10.7.9.408`：v402 稳定应用树 + 收益比赛正式交易即时重算 + 交易持仓 EODHD 收盘估值统一；精确发布提交以 GitHub `main` HEAD 为准 |
 | 数据库 | 保留既有 additive schema，并新增 forward-only `supabase/community_competition_immediate_rebuild_20260801.sql` |
 | 发布完成条件 | GitHub `main` 的同一份 runtime 与上述 migration 均已上线并通过聚合 postflight；只完成其中一项不得宣布上线 |
 
@@ -19,6 +19,14 @@
 - 收益比赛最终独立审查：`121 / 121` tests PASS，核心实现 `must-fix = 0`。
 - `npm run check:full`：PASS；完整测试、字号下限、Vite production build、whitespace 和三份权威文档一致性均通过。
 - 新的开发、验证和单等待器发布流程继续保留，没有恢复旧六文档或重复验证流程。
+
+## 交易持仓收盘估值
+
+- 盘前和盘中继续保留 `/api/quote` 返回的 EODHD 实时 `price`，交易录入默认价和持仓试算仍使用这份实时语义。
+- 收盘锁定后新增独立 `valuationPrice`：交易页持仓价格、市值、持仓/累计盈亏、总资产、占比和默认市值排序统一使用 `dailyPnlPrice` 的 EODHD 完成收盘，与首页一致。
+- 新完成收盘暂缺时，估值只保留最近一份明确的 EODHD 完成收盘字段，界面显示不可用；不得回退 delayed `price`，也不得用 `0` 覆盖最近有效估值。
+- 今日盈亏仍独立使用 `dailyPnlPrice - dailyPnlBaselineClose`；个人收益报表仍读取数据库完成收盘快照，本次不修改其计算或数据。
+- 本次没有接入 Yahoo 或其他备用行情源，没有修改 `/api/quote` provider、正式交易、个人收益快照、比赛账本或生产财务数据。
 
 ## 收益比赛当前状态
 
@@ -44,7 +52,7 @@
 ### 已知风险
 
 - 比赛公开行情缓存与 402 熔断是 Vercel 单实例内存态，不是跨实例全局缓存；冷启动或不同实例仍可能分别首次读取一次。
-- v407 只为收益比赛补上共享 EODHD 缓存与熔断。应用主 `/api/quote` 仍是 v402 行为，没有 v404 的 15/30/60 分钟客户端门控、完整完成收盘缓存和通用 402 熔断，旧客户端或高频页面仍可能再次消耗大量 EODHD 额度。
+- v408 只为收益比赛补上共享 EODHD 缓存与熔断，并在客户端统一交易持仓的 EODHD 收盘估值。应用主 `/api/quote` 仍是 v402 行为，没有 v404 的 15/30/60 分钟客户端门控、完整完成收盘缓存和通用 402 熔断，旧客户端或高频页面仍可能再次消耗大量 EODHD 额度。
 - 客户端的即时重算请求是非阻塞派生动作：正式交易保存成功不会因比赛暂时失败而回滚。恢复依赖数据库 dirty state、登录态 GET 和 Cron，不依赖浏览器一直存活。
 
 ## 必须保护的业务边界

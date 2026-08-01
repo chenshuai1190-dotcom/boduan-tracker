@@ -4,6 +4,23 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '📊 交易持仓统一使用 EODHD 收盘估值',
+      '  - 收盘锁定后，交易页持仓价格、市值、持仓盈亏、累计盈亏、总资产、占比和排序统一使用 EODHD 最新完成收盘价，与首页正式收盘口径一致',
+      '  - 盘前和盘中继续保留 EODHD 实时价；交易录入默认价和持仓试算不会被收盘估值字段替换',
+      '  - 新完成收盘暂缺时保留最近一份明确的 EODHD 完成收盘估值，界面不拿延迟价或 0 冒充新收盘',
+      '  - 不接入备用行情源，不修改正式交易、个人收益快照、比赛账本或生产财务数据',
+    ],
+    itemsEn: [
+      '📊 Unified EODHD close valuation for trading positions',
+      '  - After the close locks, holding prices, market value, holding and cumulative P&L, total assets, allocation, and sorting all use the latest completed EODHD close, matching Home',
+      '  - EODHD realtime prices remain available before and during the session; trade-entry defaults and the position scenario tool are not replaced by the close-valuation field',
+      '  - If a new completed close is temporarily unavailable, valuation retains the last explicit completed EODHD close instead of presenting a delayed price or zero as the new close',
+      '  - No backup quote provider is introduced, and formal trades, personal P&L snapshots, competition ledgers, and production financial data remain unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.407', date: '2026-08-01',
+    items: [
       '🏆 收益比赛交易修改即时生效',
       '  - 参赛用户可自由新增、修改或删除自己的正式交易；保存成功后立即重算当前已发布收盘日的比赛成绩，不再等待下一个交易日',
       '  - 历史修正严格按 trade_date 归入对应收益区间，价格只使用 EODHD 已完成收盘日线，不使用实时价、备用行情或浏览器上传的价格',

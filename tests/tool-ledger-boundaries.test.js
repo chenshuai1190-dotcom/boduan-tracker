@@ -729,7 +729,7 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(tradesTabSource.includes('min-w-[604px]'), 'trade positions table should include the v230 columns plus one grid gap set in a single scroll surface');
   assert.ok(tradesTabSource.includes('grid-cols-[92px_88px_76px_118px_144px_66px]'), 'trade positions table should give eight pixels from the name column to market value without changing total width');
   assert.ok(tradesTabSource.includes('overflow-hidden text-right active:bg-white/[0.03]'), 'trade positions table should still clip long holding P&L values in their own column');
-  assert.ok(tradesTabSource.includes('openPositionScenario(position, displayCurrentPrice)'), 'trade positions price cost cell should still open the position scenario calculator');
+  assert.ok(tradesTabSource.includes('openPositionScenario(position);'), 'trade positions price cost cell should still open the position scenario calculator');
   assert.equal(tradesTabSource.includes('grid grid-cols-[minmax(100px,0.72fr)_minmax(0,3.35fr)]'), false, 'trade positions table should not keep the v230 two-pane layout because it creates visual row breaks');
   assert.ok(tradesTabSource.includes('function PositionProfitScenarioSheet'), 'trades page should include the holding return simulator sheet');
   assert.ok(tradesTabSource.includes('position?.effectiveCost || position?.avgCost'), 'holding return simulator should use the same cost basis as the holdings list');
@@ -882,7 +882,8 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(homeTabSource.includes('resolveHomeMarketDisplayMetrics(row, {'), 'home watchlist and holdings should share the close-locked display resolver');
   assert.ok(homeTabSource.includes("hasFiniteMarketValue(item.price) && Number(item.price) > 0 ? fmtMoney(item.price, 2) : '--'"), 'home watchlist and holdings should render only the resolved official-close or live price');
   assert.equal(tradesTabSource.includes('shouldMaskFreshPrice'), false, 'trade holdings should retain the last valid price while realtime freshness is warming');
-  assert.ok(tradesTabSource.includes('const displayCurrentPrice = resolveHoldingDisplayPrice(position) || 0;'), 'trade holdings should retain the current price and use locked close only as a fallback');
+  assert.ok(tradesTabSource.includes('const displayCurrentPrice = resolveHoldingDisplayPrice(position) || 0;'), 'trade holdings should use the official close after lock and the live price before lock');
+  assert.ok(tradesTabSource.includes('openPositionScenario(position);'), 'the holding scenario tool should retain the raw EODHD current price instead of inheriting the locked valuation display');
   assert.ok(tradesTabSource.includes("displayCurrentPrice > 0 ? fmtAmount(displayCurrentPrice, 3) : '--'"), 'trade holdings should show -- only before any valid current or locked price exists');
   assert.ok(devVisualPreviewSource.includes("freshnessPreviewMode === 'locked'"), 'local preview should cover the locked close display fallback');
   assert.ok(i18nSource.includes("'home.holdingsTrades': '{{holdings}} holdings'"), 'English home header should only show holdings');
