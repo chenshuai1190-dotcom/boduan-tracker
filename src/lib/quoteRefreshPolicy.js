@@ -304,11 +304,15 @@ export function buildQuoteBaselineUniverseKey(rows = [], coreSymbols = []) {
   ].filter(Boolean))).sort().join(',');
 }
 
-export function isQuoteBaselineUniverseExpansion(previousKey = '', nextKey = '') {
+export function isQuoteBaselineUniverseExpansion(previousKey = '', nextKey = '', options = {}) {
   const previous = new Set(String(previousKey || '').split(',').filter(Boolean));
   const next = new Set(String(nextKey || '').split(',').filter(Boolean));
   if (previous.size === 0 || next.size === 0) return false;
-  return Array.from(next).some((symbol) => !previous.has(symbol));
+  if (Array.from(next).some((symbol) => !previous.has(symbol))) return true;
+
+  const previousRowCount = Math.max(0, Number(options?.previousRowCount) || 0);
+  const nextRowCount = Math.max(0, Number(options?.nextRowCount) || 0);
+  return previousKey === nextKey && previousRowCount === 0 && nextRowCount > 0;
 }
 
 export function shouldQueueQuoteBaselineExpansion({

@@ -187,6 +187,22 @@ test('a slow cloud bootstrap may expand the core baseline exactly once', () => {
     false,
     'pure symbol removal must not bypass the cadence',
   );
+  assert.equal(
+    isQuoteBaselineUniverseExpansion('QQQ,TQQQ', 'QQQ,TQQQ', {
+      previousRowCount: 0,
+      nextRowCount: 2,
+    }),
+    true,
+    'a QQQ/TQQQ-only cloud ledger still needs one hydration after the core-only request',
+  );
+  assert.equal(
+    isQuoteBaselineUniverseExpansion('QQQ,TQQQ', 'QQQ,TQQQ', {
+      previousRowCount: 2,
+      nextRowCount: 2,
+    }),
+    false,
+    'an already hydrated core-only ledger must not bypass the cadence again',
+  );
   assert.equal(shouldQueueQuoteBaselineExpansion({
     fetchInFlight: true,
     queueIfBusy: true,
@@ -245,6 +261,10 @@ test('App wires the low-frequency gate without replacing iOS snapshot bursts or 
     source.indexOf('// 自动 REST 只做低频完整基线'),
     source.indexOf('// 当前激活的底部 tab'),
   );
+  const cloudRefreshBlock = source.slice(
+    source.indexOf('quoteRefreshFromCloudResultRef.current = (result) => {'),
+    source.indexOf('useEffect(() => () => {', source.indexOf('quoteRefreshFromCloudResultRef.current = (result) => {')),
+  );
 
   assert.match(source, /getQuoteBaselineRefreshDelay\(\{/);
   assert.match(source, /getQuoteBaselineSession\(baselineDate, getUsMarketSession\(baselineDate\)\)/);
@@ -265,6 +285,21 @@ test('App wires the low-frequency gate without replacing iOS snapshot bursts or 
   assert.match(source, /const coreSymbols = \['QQQ', 'TQQQ'\]/);
   assert.match(source, /iosPwaRealtimeSnapshotBurstRef\.current\(nextTrigger, \{ resetFreshness \}\)/);
   assert.match(source, /requestQuickQuoteRefresh\(quoteBaselineRowsRef\.current, \{/);
+  assert.match(source, /document\.hidden && !allowBaselineExpansion/);
+  assert.match(source, /requestOptions\.forceBaseline === true\s*\? 3\s*:\s*\(\(allowBaselineExpansion \|\| requestOptions\.force\) \? 2 : 1\)/);
+  assert.match(cloudRefreshBlock, /const cloudBaselineRows = buildQuoteRowsFromCloudResult\(result\)/);
+  assert.match(cloudRefreshBlock, /const snapshotStarted = iosPwaRealtimeSnapshotBurstRef\.current\(/);
+  assert.match(cloudRefreshBlock, /requestQuickQuoteRefresh\(cloudBaselineRows, \{/);
+  assert.ok(
+    cloudRefreshBlock.indexOf('const snapshotStarted = iosPwaRealtimeSnapshotBurstRef.current(')
+      < cloudRefreshBlock.indexOf('requestQuickQuoteRefresh(cloudBaselineRows, {'),
+    'iOS PWA must start its realtime snapshot burst before the gated completed-close baseline',
+  );
+  assert.doesNotMatch(
+    cloudRefreshBlock,
+    /iosPwaRealtimeSnapshotBurstRef\.current\([^;]+\)\) return;/,
+    'iOS PWA snapshot startup must not suppress the one gated cloud-universe baseline',
+  );
   assert.match(source, /forceBaseline: true/);
   assert.equal(
     source.match(/forceBaseline: true/g)?.length,

@@ -1287,6 +1287,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     lastAttemptSession: '',
     lastCloseSettlementKey: '',
     lastAttemptUniverseKey: '',
+    lastAttemptRowCount: 0,
   });
   const quoteRefreshFromCloudResultRef = useRef(null);
   const pendingPwaResumeRefreshRef = useRef(null);
@@ -3085,6 +3086,10 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
       && isQuoteBaselineUniverseExpansion(
         quoteBaselineRefreshRef.current.lastAttemptUniverseKey,
         baselineUniverseKey,
+        {
+          previousRowCount: quoteBaselineRefreshRef.current.lastAttemptRowCount,
+          nextRowCount: rowsForQuote.length,
+        },
       );
     const queuePendingRefresh = () => {
       const currentPending = pendingQuoteRefreshRef.current;
@@ -3135,6 +3140,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     quoteBaselineRefreshRef.current.lastAttemptAt = startedAt;
     quoteBaselineRefreshRef.current.lastAttemptSession = baselineSession;
     quoteBaselineRefreshRef.current.lastAttemptUniverseKey = baselineUniverseKey;
+    quoteBaselineRefreshRef.current.lastAttemptRowCount = rowsForQuote.length;
     if (closeSettlementKey) {
       quoteBaselineRefreshRef.current.lastCloseSettlementKey = closeSettlementKey;
     }
@@ -3341,8 +3347,12 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   };
 
   const requestQuickQuoteRefresh = (rowsOverride = null, options = {}) => {
-    if (typeof window === 'undefined' || document.hidden) return;
     const requestOptions = (options && typeof options === 'object') ? options : {};
+    const allowBaselineExpansion = requestOptions.allowBaselineExpansion === true;
+    if (
+      typeof window === 'undefined'
+      || (document.hidden && !allowBaselineExpansion)
+    ) return;
     const minIntervalMs = Number.isFinite(requestOptions.minIntervalMs)
       ? requestOptions.minIntervalMs
       : QUICK_QUOTE_REFRESH_MIN_INTERVAL_MS;
@@ -3350,7 +3360,9 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     const elapsed = now - quickQuoteRefreshRef.current.lastAt;
     const delayMs = requestOptions.force ? 0 : Math.max(0, minIntervalMs - elapsed);
     const dueAt = now + delayMs;
-    const priority = requestOptions.force ? 2 : 1;
+    const priority = requestOptions.forceBaseline === true
+      ? 3
+      : ((allowBaselineExpansion || requestOptions.force) ? 2 : 1);
 
     if (quickQuoteRefreshRef.current.timer) {
       const currentDueAt = quickQuoteRefreshRef.current.dueAt || 0;
@@ -3571,12 +3583,23 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   }, []);
 
   quoteRefreshFromCloudResultRef.current = (result) => {
+    const cloudBaselineRows = buildQuoteRowsFromCloudResult(result);
     if (isIosStandaloneWebApp()) {
-      if (iosPwaRealtimeSnapshotBurstRef.current('auto-ios-pwa-snapshot-cloud', { resetFreshness: true })) return;
-      pendingPwaResumeRefreshRef.current = buildPwaResumeRequest('auto-ios-pwa-snapshot-cloud', { resetFreshness: true });
-      return;
+      const snapshotStarted = iosPwaRealtimeSnapshotBurstRef.current(
+        'auto-ios-pwa-snapshot-cloud',
+        { resetFreshness: true },
+      );
+      if (!snapshotStarted) {
+        pendingPwaResumeRefreshRef.current = buildPwaResumeRequest(
+          'auto-ios-pwa-snapshot-cloud',
+          { resetFreshness: true },
+        );
+      }
     }
-    requestQuickQuoteRefresh(buildQuoteRowsFromCloudResult(result), {
+    // Realtime snapshots restore prices, but the full quote baseline also carries
+    // the completed-close fields required by locked daily P&L. The expansion gate
+    // makes this a single startup follow-up only when cloud holdings add missing symbols.
+    requestQuickQuoteRefresh(cloudBaselineRows, {
       trigger: 'auto-start-cloud',
       minIntervalMs: 0,
       allowBaselineExpansion: true,

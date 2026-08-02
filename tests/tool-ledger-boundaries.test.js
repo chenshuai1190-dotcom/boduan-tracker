@@ -880,7 +880,7 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(appSource.includes("startSnapshotBurst('auto-ios-pwa-snapshot-focus', { resetFreshness: false })"), 'iOS PWA focus snapshot should not restart the holding price freshness mask');
   assert.ok(appSource.includes("requestIosPwaResumeQuoteRefresh('auto-ios-touch-resume', { resetFreshness: false })"), 'iOS PWA touch fallback should not restart the holding price freshness mask');
   assert.ok(appSource.includes("requestResumeRefresh('auto-ios-resume', { resetFreshness: true })"), 'iOS PWA visibility resume should still restart the holding price freshness mask');
-  assert.ok(appSource.includes("iosPwaRealtimeSnapshotBurstRef.current('auto-ios-pwa-snapshot-cloud', { resetFreshness: true })"), 'cloud-loaded iOS PWA burst should still restart the holding price freshness mask');
+  assert.ok(appSource.includes('const snapshotStarted = iosPwaRealtimeSnapshotBurstRef.current(') && appSource.includes("'auto-ios-pwa-snapshot-cloud'") && appSource.includes('{ resetFreshness: true }'), 'cloud-loaded iOS PWA burst should still restart the holding price freshness mask');
   assert.equal(homeTabSource.includes('shouldMaskFreshPrice'), false, 'home holdings should retain the last valid price while realtime freshness is warming');
   assert.ok(homeTabSource.includes('resolveHomeMarketDisplayMetrics(row, {'), 'home watchlist and holdings should share the close-locked display resolver');
   assert.ok(homeTabSource.includes("hasFiniteMarketValue(item.price) && Number(item.price) > 0 ? fmtMoney(item.price, 2) : '--'"), 'home watchlist and holdings should render only the resolved official-close or live price');
@@ -1308,7 +1308,7 @@ test('realtime quote refresh avoids duplicate requests and hides raw Safari netw
   assert.ok(appSource.includes('buildQuoteSymbolBatches(requestedSymbols)'), 'main realtime quote refresh should split symbol sets at the API batch boundary');
   assert.ok(appSource.includes("cache: 'no-store'"), 'fresh quote requests should disable the browser HTTP cache');
   assert.ok(quoteApiSource.includes("'private, no-store, max-age=0, must-revalidate'"), 'authenticated quote responses should not be browser-cacheable');
-  assert.ok(appSource.includes('requestQuickQuoteRefresh(buildQuoteRowsFromCloudResult(result)'), 'cloud-loaded ledger rows should enter the shared quote baseline gate');
+  assert.ok(appSource.includes('const cloudBaselineRows = buildQuoteRowsFromCloudResult(result)') && appSource.includes('requestQuickQuoteRefresh(cloudBaselineRows'), 'cloud-loaded ledger rows should enter the shared quote baseline gate');
   assert.ok(appSource.includes("window.addEventListener('focus', handleFocus)"), 'window focus should recheck the shared quote baseline gate');
   assert.ok(appSource.includes("window.addEventListener('pageshow', handlePageShow)"), 'page restore should recheck the shared quote baseline gate');
   assert.ok(appSource.includes("trigger: 'auto-realtime-open'"), 'stock realtime connection open should recheck the gated REST baseline');
@@ -1385,7 +1385,7 @@ test('realtime quote refresh avoids duplicate requests and hides raw Safari netw
   assert.ok(appSource.includes("status === 'live' ? status : 'polling'"), 'iOS standalone snapshot mode should not show reconnecting while polling');
   assert.ok(appSource.includes('const forceSnapshot = options?.force === true;'), 'iOS standalone resume snapshot should be able to bypass stale document.hidden state');
   assert.ok(appSource.includes('iosPwaRealtimeSnapshotBurstRef.current(nextTrigger, { resetFreshness })'), 'iOS standalone resume should prefer realtime snapshot burst over REST quote refresh');
-  assert.ok(appSource.includes("pendingPwaResumeRefreshRef.current = buildPwaResumeRequest('auto-ios-pwa-snapshot-cloud', { resetFreshness: true })"), 'iOS standalone cloud load should wait for realtime snapshot burst instead of falling back to REST quotes');
+  assert.ok(appSource.includes('if (!snapshotStarted)') && appSource.includes("'auto-ios-pwa-snapshot-cloud'") && appSource.includes('pendingPwaResumeRefreshRef.current = buildPwaResumeRequest('), 'iOS standalone cloud load should retain a pending realtime burst when its snapshot path is not ready');
   assert.ok(homeTabSource.includes("'home.market.warming'"), 'market card label should still support warming state for non-BTC snapshot statuses');
   assert.ok(appSource.includes('buildToolQuoteRows({ trades, costBasisData, swingWaves: swingWaveQuoteRows })'), 'legacy tools and V2 swing symbols should join the realtime quote universe');
   assert.ok(appSource.includes('buildLedgerQuoteUniverse(') && appSource.includes('...quoteUniverse.toolRows'), 'tool-only symbols must remain in the WebSocket quote universe');
