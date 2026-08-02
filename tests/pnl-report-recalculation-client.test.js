@@ -151,6 +151,8 @@ test('report page stays read-only on mount and foreground resume while mutations
   assert.equal(pageSource.includes('PNL_REPORT_FOREGROUND_RETRY_MIN_INTERVAL_MS'), false);
   assert.equal(pageSource.includes('onClick={() => retryPnlReportRecalculation()}'), false);
   assert.ok(pageSource.includes('PNL_REPORT_FOREGROUND_READ_MIN_INTERVAL_MS = 60_000'));
+  assert.ok(pageSource.includes('const [reportLoading, setReportLoading] = React.useState(true)'));
+  assert.equal(pageSource.includes('pnlReport.loadingSnapshots'), false);
   assert.ok(pageSource.includes("window.addEventListener('focus', refreshOnForeground)"));
   assert.ok(pageSource.includes("window.addEventListener('pageshow', refreshOnForeground)"));
   assert.ok(pageSource.includes('void loadReportSnapshots()'));

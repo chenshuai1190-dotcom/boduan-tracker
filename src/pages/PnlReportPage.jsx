@@ -569,7 +569,7 @@ export default function PnlReportPage({ ctx = {} }) {
   const [portfolioSnapshots, setPortfolioSnapshots] = React.useState([]);
   const [symbolSnapshots, setSymbolSnapshots] = React.useState([]);
   const [baselineSymbolSnapshots, setBaselineSymbolSnapshots] = React.useState([]);
-  const [reportLoading, setReportLoading] = React.useState(false);
+  const [reportLoading, setReportLoading] = React.useState(true);
   const [reportError, setReportError] = React.useState('');
   const [snapshotLoadVersion, setSnapshotLoadVersion] = React.useState(0);
   const [benchmarkRows, setBenchmarkRows] = React.useState([]);
@@ -577,7 +577,10 @@ export default function PnlReportPage({ ctx = {} }) {
   const [benchmarkError, setBenchmarkError] = React.useState('');
   const lastSnapshotLoadAtRef = React.useRef(0);
   const loadReportSnapshots = React.useCallback(async () => {
-    if (!db?.fetchPnlReportSnapshots) return;
+    if (!db?.fetchPnlReportSnapshots) {
+      setReportLoading(false);
+      return;
+    }
     lastSnapshotLoadAtRef.current = Date.now();
     setReportLoading(true);
     setReportError('');
@@ -799,17 +802,14 @@ export default function PnlReportPage({ ctx = {} }) {
   const summaryTitle = englishMode
     ? `${currentRangeLabel} ${t(language, 'pnlReport.summaryShort', 'P&L Summary')}`
     : `${currentRangeLabel}${t(language, 'pnlReport.summaryShort', '盈亏总结')}`;
-  const statusText = reportLoading && portfolioSnapshots.length === 0
-    ? t(language, 'pnlReport.loadingSnapshots', '正在读取收益快照')
-    : reportError
-      ? reportError
-      : reportData.hasData
-        ? ''
-        : range === 'custom'
-          ? t(language, 'pnlReport.noSnapshotForRange', '所选日期没有收益快照。页面不会用其他日期数据替代。')
-          : t(language, 'pnlReport.noSnapshotNotice', '暂无收益快照。先生成收盘快照后，页面会读取数据库里的真实报表数据。');
+  const statusText = reportError
+    ? reportError
+    : reportData.hasData
+      ? ''
+      : range === 'custom'
+        ? t(language, 'pnlReport.noSnapshotForRange', '所选日期没有收益快照。页面不会用其他日期数据替代。')
+        : t(language, 'pnlReport.noSnapshotNotice', '暂无收益快照。先生成收盘快照后，页面会读取数据库里的真实报表数据。');
   const showReportStatus = Boolean(reportError)
-    || (reportLoading && portfolioSnapshots.length === 0)
     || (!reportLoading && !reportData.hasData);
   const firstAvailableMonthForYear = React.useCallback((year) => {
     const prefix = `${year}-`;
