@@ -80,8 +80,10 @@ test('comparison UI uses system market colors and does not embed production fina
   assert.doesNotMatch(comparisonCardSource, /rounded-\[24px\] border border-white\/12/);
   assert.match(i18nSource, /'stockDetail\.comparison\.rateGap': '收益率差'/);
   assert.match(i18nSource, /'stockDetail\.comparison\.rateGap': 'Return-rate Gap'/);
-  assert.match(i18nSource, /收益率差 = 我的收益率 − QQQ 收益率/);
-  assert.match(i18nSource, /Return-rate gap = my return rate − QQQ return rate/);
+  assert.match(i18nSource, /收益率差 = 当前持仓收益率 − QQQ 收益率/);
+  assert.match(i18nSource, /Return-rate gap = current-position return rate − QQQ return rate/);
+  assert.match(i18nSource, /已卖出部分及其已实现盈亏不再计入整段对比/);
+  assert.match(i18nSource, /the sold portion and its realized P&L are excluded from the entire comparison/);
   assert.ok(shareVisualStart > -1 && shareVisualEnd > shareVisualStart, 'share-card visual source should be detectable');
   assert.match(shareVisualSource, /compactSignedCurrency\(stockAmount/);
   assert.match(shareVisualSource, /compactSignedCurrency\(benchmarkAmount/);
@@ -97,9 +99,9 @@ test('comparison UI uses system market colors and does not embed production fina
   assert.ok(sharePreviewStart > -1 && sharePreviewEnd > sharePreviewStart, 'share preview source should be detectable');
   assert.doesNotMatch(sharePreviewSource, /navigator\.clipboard|copyText|setCopied|samePeriodQqq/);
   assert.doesNotMatch(sharePreviewSource, /复制对比文字|Copy comparison/);
-  assert.match(i18nSource, /'stockDetail\.comparison\.closeBasisShort': '固定起点 · 完整账本重算'/);
-  assert.match(i18nSource, /'stockDetail\.comparison\.previewBasisShort': '固定起点 · 完整账本重算 · 本地只读视觉样例'/);
-  assert.match(i18nSource, /'stockDetail\.comparison\.closeBasisShort': 'Fixed start · full-ledger replay'/);
+  assert.match(i18nSource, /'stockDetail\.comparison\.closeBasisShort': '固定起点 · 仅当前存续仓位'/);
+  assert.match(i18nSource, /'stockDetail\.comparison\.previewBasisShort': '固定起点 · 仅当前存续仓位 · 本地只读视觉样例'/);
+  assert.match(i18nSource, /'stockDetail\.comparison\.closeBasisShort': 'Fixed start · current position only'/);
   assert.doesNotMatch(i18nSource, /stockDetail\.comparison\.(samePeriodQqq|copyText|copied)'\s*:/);
   assert.equal((sharePreviewSource.match(/shrink-0 items-baseline justify-end gap-2 whitespace-nowrap/g) || []).length, 2, 'stock and QQQ amounts should share one non-wrapping baseline with their return rates');
   assert.match(sharePreviewSource, /mt-2 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1/, 'excess amount and rate gap should share one compact row with a narrow-screen wrap fallback');

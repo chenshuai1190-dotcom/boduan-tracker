@@ -259,7 +259,7 @@ function ComparisonChart({ comparison, displayRate, displayCurrency, language, m
   return (
     <div ref={chartRootRef} className="relative mt-4">
       <div className="mb-2 flex items-center gap-5 text-[11px] text-white/[0.42]">
-        <span className="inline-flex items-center gap-1.5"><i className="h-0.5 w-4 rounded-full" style={{ background: MINE_LINE_COLOR }} />{t(language, 'stockDetail.comparison.mineLine', '我的收益线')}</span>
+        <span className="inline-flex items-center gap-1.5"><i className="h-0.5 w-4 rounded-full" style={{ background: MINE_LINE_COLOR }} />{t(language, 'stockDetail.comparison.mineLine', '当前持仓收益线')}</span>
         <span className="inline-flex items-center gap-1.5"><i className="h-0.5 w-4 rounded-full" style={{ background: BENCHMARK_LINE_COLOR }} />{t(language, 'stockDetail.comparison.qqqLine', '基准：QQQ')}</span>
       </div>
       <div
@@ -316,7 +316,7 @@ function ComparisonChart({ comparison, displayRate, displayCurrency, language, m
               {String(selected.date).replaceAll('-', '/')}
             </div>
             <div className="mt-1.5 grid grid-cols-[64px_1fr] gap-x-2 gap-y-1 text-[11px]">
-              <span className="text-white/[0.40]">{t(language, 'stockDetail.comparison.mine', '我的收益')}</span>
+              <span className="text-white/[0.40]">{t(language, 'stockDetail.comparison.mine', '当前持仓收益')}</span>
               <span className="whitespace-nowrap text-right font-medium tabular-nums" style={{ color: valueColor(selected.stockPnlUsd, marketColorMode), fontFamily: NUMBER_FONT }}>{signedCurrency(selected.stockPnlUsd, displayCurrency)}</span>
               <span className="text-white/[0.40]">QQQ</span>
               <span className="whitespace-nowrap text-right font-medium tabular-nums" style={{ color: valueColor(selected.benchmarkPnlUsd, marketColorMode), fontFamily: NUMBER_FONT }}>{signedCurrency(selected.benchmarkPnlUsd, displayCurrency)}</span>
@@ -379,8 +379,8 @@ function SharePreview({ comparison, symbol, displayCurrency, displayRate, langua
         </div>
         <div className="mt-3 text-[11px] leading-4 text-white/[0.30]">
           {String(comparison.baselineDate).replaceAll('-', '/')} - {String(comparison.snapshotDate).replaceAll('-', '/')} · {visualPreview
-            ? t(language, 'stockDetail.comparison.previewBasisShort', '固定起点 · 完整账本重算 · 本地只读视觉样例')
-            : t(language, 'stockDetail.comparison.closeBasisShort', '固定起点 · 完整账本重算')}
+            ? t(language, 'stockDetail.comparison.previewBasisShort', '固定起点 · 仅当前存续仓位 · 本地只读视觉样例')
+            : t(language, 'stockDetail.comparison.closeBasisShort', '固定起点 · 仅当前存续仓位')}
         </div>
       </div>
     </div>
@@ -443,7 +443,7 @@ export default function StockReturnComparisonCard({
 
       {showMethod && (
         <div className="mt-3 rounded-xl border border-[#f6b54b]/15 bg-[#f6b54b]/[0.055] px-3 py-2.5 text-[11px] leading-[18px] text-white/[0.46]">
-          {t(language, 'stockDetail.comparison.methodText', '日线估值中，个股与 QQQ 均使用普通收盘价。收益率差 = 我的收益率 − QQQ 收益率。系统固定本轮对比起点，并在正式交易新增、修改或删除后，从起点按交易日期完整重算；后续买入按实际成交额等额加入 QQQ，卖出按卖出前持仓比例同步减仓。双方收益率统一除以从起点起累计投入本金，卖出不缩小分母。')}
+          {t(language, 'stockDetail.comparison.methodText', '个股与 QQQ 均使用普通完成收盘价。这里仅比较当前仍持有的仓位；已卖出部分、对应 QQQ 仓位及其已实现盈亏会从整段对比中剔除。正式交易变化后，系统会从固定起点按当前存续仓位完整重算。')}
         </div>
       )}
 
@@ -454,16 +454,16 @@ export default function StockReturnComparisonCard({
       ) : (
         <>
           <div className="mt-4 grid grid-cols-3 divide-x divide-white/[0.07]">
-            <Metric label={t(language, 'stockDetail.comparison.mine', '我的收益')} amount={comparison.stockPnlUsd} pct={comparison.stockPnlPct} displayRate={displayRate} displayCurrency={displayCurrency} marketColorMode={marketColorMode} />
-            <Metric label={t(language, 'stockDetail.comparison.samePeriodQqqShort', '同期 QQQ')} amount={comparison.benchmarkPnlUsd} pct={comparison.benchmarkPnlPct} displayRate={displayRate} displayCurrency={displayCurrency} marketColorMode={marketColorMode} />
+            <Metric label={t(language, 'stockDetail.comparison.mine', '当前持仓收益')} amount={comparison.stockPnlUsd} pct={comparison.stockPnlPct} displayRate={displayRate} displayCurrency={displayCurrency} marketColorMode={marketColorMode} />
+            <Metric label={t(language, 'stockDetail.comparison.samePeriodQqqShort', '对应 QQQ')} amount={comparison.benchmarkPnlUsd} pct={comparison.benchmarkPnlPct} displayRate={displayRate} displayCurrency={displayCurrency} marketColorMode={marketColorMode} />
             <Metric label={t(language, 'stockDetail.comparison.excessAmount', '超额金额')} amount={comparison.excessPnlUsd} pct={comparison.excessPnlPct} pctLabel={t(language, 'stockDetail.comparison.rateGapShort', '率差')} displayRate={displayRate} displayCurrency={displayCurrency} marketColorMode={marketColorMode} />
           </div>
           <ComparisonChart comparison={comparison} displayRate={displayRate} displayCurrency={displayCurrency} language={language} marketColorMode={marketColorMode} initialTooltipOpen={initialTooltipOpen} />
           <div className="mt-2 text-[10px] leading-4 text-white/[0.38]">
             <div>{startExplanation}</div>
             <div>{visualPreview
-              ? t(language, 'stockDetail.comparison.previewBasis', '固定起点 · 完整账本重算 · 同步加减仓 · 本地只读样例')
-              : t(language, 'stockDetail.comparison.closeBasis', '固定起点 · 完整账本重算 · 同步加减仓 · 个股/QQQ 普通收盘价')}</div>
+              ? t(language, 'stockDetail.comparison.previewBasis', '固定起点 · 仅当前存续仓位 · 本地只读样例')
+              : t(language, 'stockDetail.comparison.closeBasis', '固定起点 · 仅当前存续仓位 · 个股/QQQ 普通收盘价')}</div>
           </div>
         </>
       )}

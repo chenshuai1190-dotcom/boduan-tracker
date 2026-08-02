@@ -1,3 +1,5 @@
+import { isRegularNyseHoliday } from './quoteRefreshPolicy.js';
+
 const BENCHMARK_SYMBOL = 'QQQ';
 const EXACT_BASELINE_MODE = 'exact';
 const ON_OR_AFTER_BASELINE_MODE = 'on_or_after';
@@ -36,6 +38,7 @@ function unavailable(reason, detail = {}) {
     available: false,
     reason,
     benchmarkSymbol: BENCHMARK_SYMBOL,
+    comparisonScope: 'current_holding_only',
     baselineMode: detail.baselineMode || null,
     positionStartDate: detail.positionStartDate || null,
     requestedBaselineDate: detail.requestedBaselineDate || null,
@@ -128,43 +131,50 @@ function applyBuy(ledger, shares, amountUsd) {
   ledger.contributedCapitalUsd += amountUsd;
 }
 
-function applySell(ledger, requestedShares, price) {
-  if (!(ledger.shares > EPSILON)) return { soldShares: 0, soldRatio: 0 };
-  const preSaleShares = ledger.shares;
-  const soldShares = Math.min(requestedShares, preSaleShares);
-  const soldRatio = soldShares / preSaleShares;
-  const avgCost = ledger.remainingCostUsd / preSaleShares;
-  const soldCost = avgCost * soldShares;
-  ledger.realizedPnlUsd += soldShares * price - soldCost;
-  ledger.remainingCostUsd = Math.max(0, ledger.remainingCostUsd - soldCost);
-  ledger.shares = Math.max(0, preSaleShares - soldShares);
-  if (ledger.shares <= EPSILON) {
-    ledger.shares = 0;
-    ledger.remainingCostUsd = 0;
-  }
-  return { soldShares, soldRatio };
-}
+function buildSurvivingBuyLots(trades) {
+  const lots = [];
+  let heldShares = 0;
 
-function applyMatchedTrade(stockLedger, benchmarkLedger, trade, benchmarkRawClose) {
-  if (trade.side === 'buy') {
-    const amountUsd = trade.shares * trade.price;
-    applyBuy(stockLedger, trade.shares, amountUsd);
-    applyBuy(benchmarkLedger, amountUsd / benchmarkRawClose, amountUsd);
-    return;
-  }
+  trades.forEach((trade) => {
+    if (trade.side === 'buy') {
+      lots.push({
+        date: trade.date,
+        price: trade.price,
+        shares: trade.shares,
+        createdAt: trade.createdAt,
+        orderIndex: trade.orderIndex,
+        id: trade.id,
+      });
+      heldShares += trade.shares;
+      return;
+    }
 
-  const { soldRatio } = applySell(stockLedger, trade.shares, trade.price);
-  if (!(soldRatio > 0) || !(benchmarkLedger.shares > EPSILON)) return;
-  applySell(benchmarkLedger, benchmarkLedger.shares * soldRatio, benchmarkRawClose);
+    if (!(heldShares > EPSILON)) return;
+    const soldShares = Math.min(trade.shares, heldShares);
+    const survivingRatio = Math.max(0, (heldShares - soldShares) / heldShares);
+    lots.forEach((lot) => {
+      lot.shares *= survivingRatio;
+    });
+    heldShares = Math.max(0, heldShares - soldShares);
+    if (heldShares <= EPSILON) {
+      heldShares = 0;
+      lots.length = 0;
+    }
+  });
+
+  return {
+    heldShares: normalizeZero(heldShares),
+    lots: lots.filter((lot) => lot.shares > EPSILON),
+  };
 }
 
 function ledgerMetrics(ledger, marketValueUsd) {
   const pnlUsd = normalizeZero(
     ledger.realizedPnlUsd + marketValueUsd - ledger.remainingCostUsd,
   );
-  // The comparison always replays the complete ledger from one fixed start.
-  // Later buys increase the shared contribution basis; sells realize P&L but
-  // never shrink that basis. This keeps return rates continuous across trims.
+  // This ledger contains only the buy lots that survive in the current holding.
+  // Sold portions (and their realized P&L) are removed before the fixed-start
+  // history is rebuilt, so the basis is exactly the capital still represented.
   const basisUsd = normalizeZero(ledger.contributedCapitalUsd);
   const effectiveCostBasisUsd = normalizeZero(
     ledger.remainingCostUsd - ledger.realizedPnlUsd,
@@ -187,16 +197,39 @@ function sharesMatch(actual, expected) {
   return Math.abs(actual - expected) <= tolerance;
 }
 
+function isNonTradingCalendarDate(dateKey) {
+  const parsed = new Date(`${dateKey}T00:00:00Z`);
+  if (Number.isNaN(parsed.getTime())) return false;
+  return [0, 6].includes(parsed.getUTCDay()) || isRegularNyseHoliday(dateKey);
+}
+
+function tradeSnapshotsMatch(initialShares, trades, points) {
+  let heldShares = initialShares;
+  let tradeIndex = 0;
+  for (const point of points) {
+    while (tradeIndex < trades.length && trades[tradeIndex].date <= point.date) {
+      const trade = trades[tradeIndex];
+      heldShares = trade.side === 'buy'
+        ? heldShares + trade.shares
+        : Math.max(0, heldShares - Math.min(heldShares, trade.shares));
+      tradeIndex += 1;
+    }
+    if (!sharesMatch(heldShares, point.heldShares)) return false;
+  }
+  return true;
+}
+
 /**
- * Build a cash-flow-matched comparison against QQQ.
+ * Build a current-holding-only comparison against QQQ.
  *
  * The first exact unadjusted stock/QQQ close on or after the requested date
  * becomes d0. Personal snapshots contribute only dates and held-share
  * integrity; all market values come from provider rawClose rows.
- * Both ledgers are initialized with the stock's d0 market value, so both lines
- * start at zero. Later stock buys invest the same dollars in QQQ; later sells
- * liquidate the same pre-sale holding ratio from QQQ. Prices are never filled,
- * interpolated, or substituted.
+ * Formal trades first determine which proportional buy-lot shares still exist
+ * at the snapshot. Sold portions and their matched QQQ shares are removed from
+ * the whole history. Both rebuilt ledgers start with the surviving d0 market
+ * value, and each later surviving buy invests the same dollars in QQQ. Prices
+ * are never filled, interpolated, or substituted.
  */
 export function buildStockReturnComparison(stockDetail, qqqRows, stockRawRows) {
   if (!stockDetail || typeof stockDetail !== 'object') {
@@ -281,24 +314,88 @@ export function buildStockReturnComparison(stockDetail, qqqRows, stockRawRows) {
     });
   }
 
+  const trades = normalizeTrades(stockDetail.comparisonTrades)
+    .filter((trade) => trade.date >= positionStartDate && trade.date <= snapshotDate);
+  const integrityPoints = stockTrend.filter((point) => (
+    point.date >= baselineStock.date && point.date <= snapshotDate
+  ));
+  const integrityTrades = trades.filter((trade) => trade.date > baselineStock.date);
+  if (!tradeSnapshotsMatch(baselineStock.heldShares, integrityTrades, integrityPoints)) {
+    return unavailable('stock_trade_snapshot_mismatch', {
+      ...detail,
+      baselineDate: baselineStock.date,
+    });
+  }
+  const survivingPosition = buildSurvivingBuyLots(trades);
+  if (!sharesMatch(survivingPosition.heldShares, snapshotStock.heldShares)) {
+    return unavailable('stock_trade_snapshot_mismatch', {
+      ...detail,
+      baselineDate: baselineStock.date,
+    });
+  }
+  if (!(survivingPosition.heldShares > EPSILON)) {
+    return unavailable('missing_positive_current_position', {
+      ...detail,
+      baselineDate: baselineStock.date,
+    });
+  }
+
+  const initialSurvivingShares = survivingPosition.lots
+    .filter((lot) => lot.date <= baselineStock.date)
+    .reduce((sum, lot) => sum + lot.shares, 0);
+  if (!(initialSurvivingShares > EPSILON)) {
+    return unavailable('missing_positive_baseline_position', {
+      ...detail,
+      baselineDate: baselineStock.date,
+    });
+  }
+
   const stockBaselineRawClose = stockRawByDate.get(baselineStock.date);
   const benchmarkBaselineRawClose = benchmarkByDate.get(baselineStock.date);
-  const initialPrincipalUsd = baselineStock.heldShares * stockBaselineRawClose;
-  const stockLedger = createLedger(baselineStock.heldShares, initialPrincipalUsd);
+  const initialPrincipalUsd = initialSurvivingShares * stockBaselineRawClose;
+  const stockLedger = createLedger(initialSurvivingShares, initialPrincipalUsd);
   const benchmarkLedger = createLedger(
     initialPrincipalUsd / benchmarkBaselineRawClose,
     initialPrincipalUsd,
   );
-  const trades = normalizeTrades(stockDetail.comparisonTrades)
-    .filter((trade) => trade.date > baselineStock.date && trade.date <= snapshotDate);
+  const commonRawCloseDates = stockRows
+    .filter((row) => (
+      row.rawClose !== null
+      && row.date > baselineStock.date
+      && row.date <= snapshotDate
+      && benchmarkByDate.has(row.date)
+    ))
+    .map((row) => row.date);
+  const laterSurvivingBuys = [];
+  for (const lot of survivingPosition.lots.filter((item) => item.date > baselineStock.date)) {
+    if (!isNonTradingCalendarDate(lot.date)) {
+      if (!stockRawByDate.has(lot.date)) {
+        return unavailable('missing_exact_stock_trade_close', {
+          ...detail,
+          baselineDate: baselineStock.date,
+          initialPrincipalUsd,
+        });
+      }
+      if (!benchmarkByDate.has(lot.date)) {
+        return unavailable('missing_exact_benchmark_trade_close', {
+          ...detail,
+          baselineDate: baselineStock.date,
+          initialPrincipalUsd,
+        });
+      }
+      laterSurvivingBuys.push({ ...lot, effectiveDate: lot.date });
+      continue;
+    }
 
-  const missingTradeClose = trades.find((trade) => !benchmarkByDate.has(trade.date));
-  if (missingTradeClose) {
-    return unavailable('missing_exact_benchmark_trade_close', {
-      ...detail,
-      baselineDate: baselineStock.date,
-      initialPrincipalUsd,
-    });
+    const effectiveDate = commonRawCloseDates.find((date) => date > lot.date) || null;
+    if (!effectiveDate) {
+      return unavailable('missing_common_trade_close_on_or_after', {
+        ...detail,
+        baselineDate: baselineStock.date,
+        initialPrincipalUsd,
+      });
+    }
+    laterSurvivingBuys.push({ ...lot, effectiveDate });
   }
 
   const commonPoints = stockTrend.filter((point) => (
@@ -308,20 +405,15 @@ export function buildStockReturnComparison(stockDetail, qqqRows, stockRawRows) {
     && benchmarkByDate.has(point.date)
   ));
   const trend = [];
-  let tradeIndex = 0;
+  let buyIndex = 0;
   for (const point of commonPoints) {
-    while (tradeIndex < trades.length && trades[tradeIndex].date <= point.date) {
-      const trade = trades[tradeIndex];
-      applyMatchedTrade(stockLedger, benchmarkLedger, trade, benchmarkByDate.get(trade.date));
-      tradeIndex += 1;
-    }
-
-    if (!sharesMatch(stockLedger.shares, point.heldShares)) {
-      return unavailable('stock_trade_snapshot_mismatch', {
-        ...detail,
-        baselineDate: baselineStock.date,
-        initialPrincipalUsd,
-      });
+    while (buyIndex < laterSurvivingBuys.length && laterSurvivingBuys[buyIndex].effectiveDate <= point.date) {
+      const buy = laterSurvivingBuys[buyIndex];
+      const amountUsd = buy.shares * buy.price;
+      const benchmarkTradeClose = benchmarkByDate.get(buy.effectiveDate);
+      applyBuy(stockLedger, buy.shares, amountUsd);
+      applyBuy(benchmarkLedger, amountUsd / benchmarkTradeClose, amountUsd);
+      buyIndex += 1;
     }
 
     const stockRawClose = stockRawByDate.get(point.date);
@@ -370,6 +462,7 @@ export function buildStockReturnComparison(stockDetail, qqqRows, stockRawRows) {
     available: true,
     reason: null,
     benchmarkSymbol: BENCHMARK_SYMBOL,
+    comparisonScope: 'current_holding_only',
     baselineMode,
     positionStartDate,
     requestedBaselineDate,

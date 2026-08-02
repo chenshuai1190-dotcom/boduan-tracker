@@ -4,6 +4,23 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '📊 个股与 QQQ 对比只保留当前存续仓位',
+      '  - 固定当前持仓周期的原始起点，但卖出部分、对应 QQQ 仓位及其已实现盈亏会从整段历史对比中剔除',
+      '  - 每次正式交易新增、修改或删除后，系统按交易顺序反推仍存续的买入份额并自动完整重算；既有卖出无需重复提交',
+      '  - 后续买入仅按最终存续成交额等额加入 QQQ；多次减仓、同日交易顺序和全清后重买均按正式账本处理',
+      '  - 该变化只影响个股/QQQ 收益对比；账户累计盈亏、持仓成本、个人收益报表、比赛和 EODHD 行情链路保持不变',
+    ],
+    itemsEn: [
+      '📊 Stock-versus-QQQ comparison now keeps only the current position',
+      '  - The original start of the current holding cycle stays fixed, while sold shares, matched QQQ shares, and their realized P&L are removed from the entire comparison history',
+      '  - Every formal-trade add, edit, or deletion re-derives the surviving buy shares in ledger order and rebuilds automatically; historical sells must not be submitted again',
+      '  - Later buys add only their surviving executed value to QQQ; multiple trims, same-day trade order, and full-close/rebuy cycles follow the formal ledger',
+      '  - This changes only the stock/QQQ comparison; account P&L, holding cost, personal P&L reports, competition, and EODHD market-data paths remain unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.410', date: '2026-08-02',
+    items: [
       '📊 个股与 QQQ 收益对比按固定起点完整重算',
       '  - 当前持仓周期使用同一个原始对比起点；切换本年、近 1 月等页面范围不再重置 QQQ 或丢弃更早现金流',
       '  - 正式交易新增、修改或删除后自动读取现有账本并从起点完整回放，历史卖出无需也不得重复提交',
