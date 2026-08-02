@@ -35,6 +35,8 @@ test('production watchlist detail reads one authenticated daily and weekly histo
   assert.ok(pageSource.includes('indicators?.week52High'));
   assert.ok(pageSource.includes('indicators?.ma200'));
   assert.equal(pageSource.includes('indicators?.ema30'), false, 'EMA30 should remain an API compatibility field, not a visible page metric');
+  assert.ok(pageSource.includes('indicators?.ma50Weekly'));
+  assert.ok(pageSource.includes('indicators?.ma50WeeklyStatus'));
   assert.ok(pageSource.includes('indicators?.ma200Weekly'));
   assert.ok(pageSource.includes('indicators?.ma200WeeklyStatus'));
   assert.equal(pageSource.includes('indicators?.volatility20AnnualizedPct'), false, 'volatility should no longer occupy the approved indicator surface');
@@ -161,10 +163,11 @@ test('production watchlist detail only converts holding asset totals and keeps s
   assert.ok(pageSource.includes("result?.success === false"), 'a failed DB result must not close the target editor optimistically');
 });
 
-test('technical indicators use a borderless daily row plus one detailed weekly MA panel', () => {
+test('technical indicators keep the daily row and show color-matched MA50 and MA200 weekly panels', () => {
   assert.equal(pageSource.includes('metricSummary'), false);
   assert.ok(pageSource.includes('data-watchlist-key-metrics="spacious"'));
   assert.ok(pageSource.includes('data-watchlist-daily-metrics="borderless"'));
+  assert.ok(pageSource.includes('data-watchlist-weekly-ma50-panel="true"'));
   assert.ok(pageSource.includes('data-watchlist-weekly-ma-panel="true"'));
   assert.ok(pageSource.includes('data-watchlist-ma200-entry-indicator="true"'));
   assert.ok(pageSource.includes("t(language, 'watchlistDetail.ma200Entry', 'MA200')"));
@@ -181,11 +184,17 @@ test('technical indicators use a borderless daily row plus one detailed weekly M
   assert.ok(pageSource.includes('relativeReturnHistory.map((row) => ({ date: row.date, adjustedClose: row.close }))'));
   assert.equal(pageSource.includes('distanceEma30'), false);
   assert.ok(pageSource.includes("t(language, 'watchlistDetail.completedWeeksBasis', '基于已完成交易周')"));
+  assert.ok(pageSource.includes("t(language, 'watchlistDetail.ma50Weekly', 'MA50（周）')"));
+  assert.ok(pageSource.includes("t(language, 'watchlistDetail.buffettIndicator', '巴菲特指标')"));
   assert.ok(pageSource.includes("t(language, 'watchlistDetail.longTermTrend', '芒格指标')"));
-  assert.equal((pageSource.match(/<IndicatorBadge>/g) || []).length, 2, 'daily entry and weekly Munger labels should share one badge component');
+  assert.ok(pageSource.includes('<IndicatorBadge indicator="ma50" tone="purple">'));
+  assert.ok(pageSource.includes('<IndicatorBadge indicator="ma200">'));
+  assert.ok(pageSource.includes("'bg-[#a78bfa]/[0.12] text-[#a78bfa]/85'"));
+  assert.ok(pageSource.includes("'bg-[#f6b54b]/[0.1] text-[#f6b54b]/75'"));
   assert.ok(i18nSource.includes("'watchlistDetail.entryIndicator': '建仓指标'"));
   assert.ok(i18nSource.includes("'watchlistDetail.entryIndicator': 'Entry Indicator'"));
   assert.ok(i18nSource.includes("'watchlistDetail.longTermTrend': '芒格指标'"));
+  assert.ok(i18nSource.includes("'watchlistDetail.buffettIndicator': '巴菲特指标'"));
   assert.ok(i18nSource.includes("'watchlistDetail.relativeQqq3m': '相对QQQ（3个月）'"));
   assert.ok(i18nSource.includes("'watchlistDetail.relativeQqq3m': 'vs QQQ (3M)'"));
   assert.equal(pageSource.includes('grid-cols-2 divide-x divide-y'), false);
@@ -248,24 +257,34 @@ test('production watchlist detail only mutates its isolated target, keeps holdin
   assert.ok(appSource.includes('await db.updateWatchlistTargetPrice(symbol, targetPriceUsd)'));
 });
 
-test('production price chart uses real daily MA for short ranges and weekly MA only for five years', () => {
+test('production chart adds weekly MA50 to one-year and five-year views without replacing existing lines', () => {
   assert.ok(pageSource.includes('data-watchlist-stock-detail-header="full-width-chart"'));
   assert.ok(pageSource.includes('data-watchlist-stock-price-chart="true"'));
   assert.ok(pageSource.includes('data-watchlist-stock-price-tooltip="true"'));
   assert.ok(pageSource.includes("stockDetailInitialRange = '5y'"));
   assert.ok(pageSource.includes("RANGE_IDS.includes(stockDetailInitialRange) ? stockDetailInitialRange : '5y'"));
   assert.ok(pageSource.includes('data-watchlist-stock-chart-ranges="five"'));
-  assert.ok(pageSource.includes("data-watchlist-stock-chart-legend={range === '5y' ? 'price-weekly-ma' : 'price-daily-ma'}"));
+  assert.ok(pageSource.includes("? 'price-weekly-ma-weekly-ma50'"));
+  assert.ok(pageSource.includes("? 'price-daily-ma-weekly-ma50'"));
+  assert.ok(pageSource.includes(": 'price-daily-ma'"));
   assert.ok(pageSource.includes("range === '5y'"));
+  assert.ok(pageSource.includes("const showWeeklyMa50 = range === '1y' || range === '5y'"));
   assert.ok(pageSource.includes('visibleWeeklyHistory.map(({ date, close })'));
   assert.ok(pageSource.includes('row?.completed === true && Number.isFinite(row?.ma200)'));
+  assert.ok(pageSource.includes('row?.completed === true && Number.isFinite(row?.ma50)'));
   assert.ok(pageSource.includes("const MA200_DAY_COLOR = '#60a5fa'"));
+  assert.ok(pageSource.includes("const MA200_WEEK_COLOR = '#f6b54b'"));
+  assert.ok(pageSource.includes("const MA50_WEEK_COLOR = '#a78bfa'"));
   assert.ok(pageSource.includes("const maColor = weeklyMa ? MA200_WEEK_COLOR : MA200_DAY_COLOR"));
   assert.ok(pageSource.includes("data-watchlist-daily-ma-line={weeklyMa ? undefined : 'true'}"));
   assert.ok(pageSource.includes("data-watchlist-weekly-ma-line={weeklyMa ? 'true' : undefined}"));
+  assert.ok(pageSource.includes('data-watchlist-weekly-ma50-line="true"'));
   assert.ok(pageSource.includes("Number.isFinite(selectedPoint.ma200) ? selectedPoint : null"));
+  assert.ok(pageSource.includes('findStockDetailWeeklyMa50OnOrBefore(weeklyLookupRows, selectedPoint.date)'));
   assert.ok(pageSource.includes("t(language, 'watchlistDetail.ma200Daily', 'MA200（日）')"));
+  assert.ok(pageSource.includes("t(language, 'watchlistDetail.ma50Weekly', 'MA50（周）')"));
   assert.ok(devPreviewSource.includes('ma200: index >= 199 ? Number((rollingSum / 200).toFixed(4)) : null'));
+  assert.ok(devPreviewSource.includes('ma50: Number(ma50.toFixed(4))'));
   assert.ok(pageSource.includes('strokeWidth="0.95"'));
   assert.ok(pageSource.includes('strokeWidth="1.15"'));
   assert.ok(pageSource.includes('@keyframes watchlist-stock-price-breathe'));

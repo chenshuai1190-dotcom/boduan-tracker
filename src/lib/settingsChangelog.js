@@ -4,6 +4,23 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '📈 股票趋势新增 MA50 周线与巴菲特指标',
+      '  - 1 年视图保留股价和 MA200（日），5 年视图保留股价和 MA200（周），并在两个范围追加紫色 MA50（周）曲线',
+      '  - 关键指标新增 MA50（周）巴菲特指标卡片，原 MA200（周）芒格指标及其金色样式保持不变',
+      '  - MA50 只使用已完成交易周收盘价；进行中周不会推进指标，50 至 199 周历史可独立显示 MA50 而不伪造 MA200',
+      '  - 复用现有 EODHD 历史响应完成计算，不增加行情请求、不接入备用源，也不修改数据库、正式交易或收益口径',
+    ],
+    itemsEn: [
+      '📈 Weekly MA50 and Buffett Indicator for stock trends',
+      '  - The 1Y view retains price and daily MA200, the 5Y view retains price and weekly MA200, and both ranges now add a purple weekly MA50 line',
+      '  - Key indicators now include a weekly MA50 Buffett Indicator card while the existing weekly MA200 Munger Indicator and gold styling remain unchanged',
+      '  - MA50 uses completed trading-week closes only; an in-progress week cannot advance it, and 50 to 199 weeks of history can show MA50 independently without fabricating MA200',
+      '  - The calculation reuses the existing EODHD history response with no extra market-data request, backup provider, database change, formal-trade change, or P&L formula change',
+    ],
+  },
+  {
+    ver: 'v10.7.9.413', date: '2026-08-02',
+    items: [
       '📒 个股交易记录与统计保存后立即更新',
       '  - 正式交易新增、金融字段修改或删除成功后，个股详情的交易记录、买卖金额和买卖次数立即按当前账本重算，不再等待当天收盘快照',
       '  - 交易区间上限统一使用纽约当前日期，纽约尚未到达的未来日期交易不会提前显示，并保持买卖成本顺序和实现盈亏计算一致',

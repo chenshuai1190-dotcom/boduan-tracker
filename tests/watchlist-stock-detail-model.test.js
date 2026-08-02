@@ -5,6 +5,7 @@ import {
   deriveCloseBasedPosition,
   filterStockDetailHistory,
   filterStockDetailWeeklyHistory,
+  findStockDetailWeeklyMa50OnOrBefore,
   findStockDetailWeeklyMaOnOrBefore,
   findWatchlistStockDetailRows,
   fullStockDetailChartWindow,
@@ -205,21 +206,27 @@ test('three-month relative return rejects a sparse window that starts too far af
   ]), null);
 });
 
-test('weekly history preserves missing MA values, filters five years, and resolves the latest locked MA by date', () => {
+test('weekly history keeps independent MA50 and MA200 values and ignores unfinished weeks', () => {
   const rows = normalizeStockDetailWeeklyHistory([
-    { date: '2021-07-09', weekEndDate: '2021-07-09', close: 100, ma200: 80, completed: true },
-    { date: '2026-07-10', weekEndDate: '2026-07-10', close: 200, ma200: 150, completed: true },
-    { date: '2026-07-15', weekEndDate: '2026-07-17', close: 205, ma200: 999, completed: false },
-    { date: 'bad', close: 999, ma200: 999 },
+    { date: '2021-07-09', weekEndDate: '2021-07-09', close: 100, ma50: 90, ma200: 80, completed: true },
+    { date: '2026-06-26', weekEndDate: '2026-06-26', close: 190, ma50: 140, ma200: null, completed: true },
+    { date: '2026-07-10', weekEndDate: '2026-07-10', close: 200, ma50: 160, ma200: 150, completed: true },
+    { date: '2026-07-15', weekEndDate: '2026-07-17', close: 205, ma50: 998, ma200: 999, completed: false },
+    { date: 'bad', close: 999, ma50: 999, ma200: 999 },
   ]);
 
-  assert.equal(rows.length, 3);
+  assert.equal(rows.length, 4);
+  assert.equal(rows.at(-1).ma50, 998, 'normalization should preserve the provider payload for diagnostics');
   assert.equal(rows.at(-1).ma200, 999, 'normalization should preserve the provider payload for diagnostics');
   assert.equal(rows.at(-1).completed, false);
   const visible = filterStockDetailWeeklyHistory(rows, '5y');
-  assert.deepEqual(visible.map((row) => row.date), ['2026-07-10', '2026-07-15']);
-  assert.deepEqual(findStockDetailWeeklyMaOnOrBefore(rows, '2026-07-15'), rows[1], 'tooltips must ignore any MA attached to an unfinished week');
+  assert.deepEqual(visible.map((row) => row.date), ['2026-06-26', '2026-07-10', '2026-07-15']);
+  assert.deepEqual(findStockDetailWeeklyMaOnOrBefore(rows, '2026-07-15'), rows[2], 'MA200 tooltip must ignore an unfinished week');
+  assert.deepEqual(findStockDetailWeeklyMa50OnOrBefore(rows, '2026-07-15'), rows[2], 'MA50 tooltip must ignore an unfinished week');
+  assert.deepEqual(findStockDetailWeeklyMa50OnOrBefore(rows, '2026-07-01'), rows[1], 'MA50 must be available before MA200 reaches 200 weeks');
+  assert.deepEqual(findStockDetailWeeklyMaOnOrBefore(rows, '2026-07-01'), rows[0], 'MA200 lookup must retain its independent readiness');
   assert.equal(findStockDetailWeeklyMaOnOrBefore(rows, '2021-01-01'), null);
+  assert.equal(findStockDetailWeeklyMa50OnOrBefore(rows, '2021-01-01'), null);
 });
 
 test('five-year chart window pinches around its anchor, pans, clamps, and keeps inclusive endpoints', () => {

@@ -4,6 +4,7 @@ const TRADING_DAYS_PER_YEAR = 252;
 const FIFTY_TWO_WEEKS_IN_DAYS = 52 * 7;
 const DAILY_HISTORY_DAYS = 380;
 const DAILY_MA_WINDOW = 200;
+const WEEKLY_MA50_WINDOW = 50;
 const WEEKLY_MA_WINDOW = 200;
 const WEEKLY_MA_TREND_WEEKS = 4;
 const WEEKLY_HISTORY_YEARS = 5;
@@ -82,6 +83,16 @@ function weeklySide(close, movingAverage) {
 
 function emptyWeeklyIndicators() {
   return {
+    ma50Weekly: null,
+    ma50WeeklyClose: null,
+    ma50WeeklyDistancePct: null,
+    ma50WeeklyChange4WeekPct: null,
+    ma50WeeklySide: null,
+    ma50WeeklyStreakWeeks: null,
+    ma50WeeklyAvailableWeeks: 0,
+    ma50WeeklyRequiredWeeks: WEEKLY_MA50_WINDOW,
+    ma50WeeklyAsOfDate: '',
+    ma50WeeklyStatus: 'insufficient_data',
     ma200Weekly: null,
     ma200WeeklyClose: null,
     ma200WeeklyDistancePct: null,
@@ -92,6 +103,52 @@ function emptyWeeklyIndicators() {
     ma200WeeklyRequiredWeeks: WEEKLY_MA_WINDOW,
     ma200WeeklyAsOfDate: '',
     ma200WeeklyStatus: 'insufficient_data',
+  };
+}
+
+function summarizeWeeklyMovingAverage(weeklyRows, completedPoints, field, window) {
+  const completedWithMa = weeklyRows.filter((row) => row.completed && Number.isFinite(row[field]));
+  const latest = completedWithMa.at(-1) || null;
+
+  if (!latest) {
+    return {
+      value: null,
+      close: null,
+      distancePct: null,
+      change4WeekPct: null,
+      side: null,
+      streakWeeks: null,
+      availableWeeks: completedPoints.length,
+      requiredWeeks: window,
+      asOfDate: completedPoints.at(-1)?.date || '',
+      status: 'insufficient_data',
+    };
+  }
+
+  const comparison = completedWithMa.at(-(WEEKLY_MA_TREND_WEEKS + 1)) || null;
+  const change4WeekPct = comparison?.[field] > 0
+    ? ((latest[field] / comparison[field]) - 1) * 100
+    : null;
+  const side = weeklySide(latest.close, latest[field]);
+  let streakWeeks = 0;
+  for (let index = completedWithMa.length - 1; index >= 0; index -= 1) {
+    if (weeklySide(completedWithMa[index].close, completedWithMa[index][field]) !== side) break;
+    streakWeeks += 1;
+  }
+
+  return {
+    value: latest[field],
+    close: latest.close,
+    distancePct: latest[field] > 0
+      ? ((latest.close / latest[field]) - 1) * 100
+      : null,
+    change4WeekPct: Number.isFinite(change4WeekPct) ? change4WeekPct : null,
+    side,
+    streakWeeks,
+    availableWeeks: completedPoints.length,
+    requiredWeeks: window,
+    asOfDate: latest.date,
+    status: 'ready',
   };
 }
 
@@ -115,12 +172,15 @@ function buildWeeklyDetail(normalizedRows, cutoffDate) {
     const hasLaterWeek = index < orderedWeeks.length - 1;
     const completed = row.weekEndDate <= cutoffDate
       && (row.date === row.weekEndDate || hasLaterWeek);
-    if (!completed) return { ...row, ma200: null, completed: false };
+    if (!completed) return { ...row, ma50: null, ma200: null, completed: false };
     completedPoints.push(row);
+    const ma50Window = completedPoints.slice(-WEEKLY_MA50_WINDOW).map((point) => point.close);
     const maWindow = completedPoints.slice(-WEEKLY_MA_WINDOW).map((point) => point.close);
+    const ma50 = ma50Window.length === WEEKLY_MA50_WINDOW ? mean(ma50Window) : null;
     const ma200 = maWindow.length === WEEKLY_MA_WINDOW ? mean(maWindow) : null;
     return {
       ...row,
+      ma50: Number.isFinite(ma50) ? ma50 : null,
       ma200: Number.isFinite(ma200) ? ma200 : null,
       completed: true,
     };
@@ -131,46 +191,42 @@ function buildWeeklyDetail(normalizedRows, cutoffDate) {
   const weeklyHistory = visibleFrom
     ? weeklyRows.filter((row) => row.date >= visibleFrom)
     : [];
-  const completedWithMa = weeklyRows.filter((row) => row.completed && Number.isFinite(row.ma200));
-  const latest = completedWithMa.at(-1) || null;
-
-  if (!latest) {
-    return {
-      weeklyHistory,
-      indicators: {
-        ...emptyWeeklyIndicators(),
-        ma200WeeklyAvailableWeeks: completedPoints.length,
-        ma200WeeklyAsOfDate: completedPoints.at(-1)?.date || '',
-      },
-    };
-  }
-
-  const comparison = completedWithMa.at(-(WEEKLY_MA_TREND_WEEKS + 1)) || null;
-  const change4WeekPct = comparison?.ma200 > 0
-    ? ((latest.ma200 / comparison.ma200) - 1) * 100
-    : null;
-  const side = weeklySide(latest.close, latest.ma200);
-  let streakWeeks = 0;
-  for (let index = completedWithMa.length - 1; index >= 0; index -= 1) {
-    if (weeklySide(completedWithMa[index].close, completedWithMa[index].ma200) !== side) break;
-    streakWeeks += 1;
-  }
+  const ma50 = summarizeWeeklyMovingAverage(
+    weeklyRows,
+    completedPoints,
+    'ma50',
+    WEEKLY_MA50_WINDOW,
+  );
+  const ma200 = summarizeWeeklyMovingAverage(
+    weeklyRows,
+    completedPoints,
+    'ma200',
+    WEEKLY_MA_WINDOW,
+  );
 
   return {
     weeklyHistory,
     indicators: {
-      ma200Weekly: latest.ma200,
-      ma200WeeklyClose: latest.close,
-      ma200WeeklyDistancePct: latest.ma200 > 0
-        ? ((latest.close / latest.ma200) - 1) * 100
-        : null,
-      ma200WeeklyChange4WeekPct: Number.isFinite(change4WeekPct) ? change4WeekPct : null,
-      ma200WeeklySide: side,
-      ma200WeeklyStreakWeeks: streakWeeks,
-      ma200WeeklyAvailableWeeks: completedPoints.length,
-      ma200WeeklyRequiredWeeks: WEEKLY_MA_WINDOW,
-      ma200WeeklyAsOfDate: latest.date,
-      ma200WeeklyStatus: 'ready',
+      ma50Weekly: ma50.value,
+      ma50WeeklyClose: ma50.close,
+      ma50WeeklyDistancePct: ma50.distancePct,
+      ma50WeeklyChange4WeekPct: ma50.change4WeekPct,
+      ma50WeeklySide: ma50.side,
+      ma50WeeklyStreakWeeks: ma50.streakWeeks,
+      ma50WeeklyAvailableWeeks: ma50.availableWeeks,
+      ma50WeeklyRequiredWeeks: ma50.requiredWeeks,
+      ma50WeeklyAsOfDate: ma50.asOfDate,
+      ma50WeeklyStatus: ma50.status,
+      ma200Weekly: ma200.value,
+      ma200WeeklyClose: ma200.close,
+      ma200WeeklyDistancePct: ma200.distancePct,
+      ma200WeeklyChange4WeekPct: ma200.change4WeekPct,
+      ma200WeeklySide: ma200.side,
+      ma200WeeklyStreakWeeks: ma200.streakWeeks,
+      ma200WeeklyAvailableWeeks: ma200.availableWeeks,
+      ma200WeeklyRequiredWeeks: ma200.requiredWeeks,
+      ma200WeeklyAsOfDate: ma200.asOfDate,
+      ma200WeeklyStatus: ma200.status,
     },
   };
 }
@@ -709,7 +765,11 @@ export function buildEodhdStockDetail(rows = [], { asOfDate, splitActions } = {}
         volatility20AnnualizedPct: null,
         ...(
           unavailable
-            ? { ...emptyWeeklyIndicators(), ma200WeeklyStatus: 'unavailable' }
+            ? {
+              ...emptyWeeklyIndicators(),
+              ma50WeeklyStatus: 'unavailable',
+              ma200WeeklyStatus: 'unavailable',
+            }
             : emptyWeeklyIndicators()
         ),
       },

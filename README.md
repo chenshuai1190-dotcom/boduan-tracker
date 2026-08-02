@@ -109,6 +109,7 @@ npm run release:verify -- <docs|fast|full> <commit> # 一次等待发布结果
 - `npm run verify:typography` 是 FAST 与 FULL 的固定门禁，扫描 `src/` 中 Tailwind 任意字号、CSS `font-size` 和内联 `fontSize`。
 - 新增、保存、删除、同步、导入和导出必须防重复提交，并给出明确成功或失败反馈。
 - 盘中动态价格优先使用已登录 WebSocket；历史日线等已完成收盘数据必须按 `symbol + 最新已完成收盘日` 缓存，同一收盘版本不得被 10 秒轮询、focus、pageshow 或 tab 切换反复读取。Provider 额度异常必须熔断并保留最近有效数据，禁止用 `0` 覆盖。
+- 股票趋势的 MA50（周）与 MA200（日/周）只能使用已完成收盘数据；进行中交易周不得推进周线均值、趋势状态或连续周数，盘中价不得改变正式信号。
 - 核心体验使用应用内受控弹窗、菜单和 toast，不使用 `alert`、`confirm`、`prompt` 承载正式流程。
 - 需要交付静态 HTML 或页面截图作为视觉证据时，必须通过 localhost 在本机真实 Xcode iOS Simulator 中打开，并只对最终状态和受影响页面验收一次。普通布局使用 Safari；PWA lifecycle、缓存和恢复必须使用已安装的 Home Screen PWA。复用已启动的服务与 Simulator，不得用桌面浏览器、响应式视口、Codex 内置浏览器或伪造状态栏冒充 iOS 证据。纯文案、颜色、图标和简单样式不强制截图。
 

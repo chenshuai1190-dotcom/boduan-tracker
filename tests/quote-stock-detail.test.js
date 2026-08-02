@@ -136,6 +136,9 @@ test('stock detail strictly keeps valid raw closes, ignores dividend adjustments
   assert.equal(detail.indicators.ma200, null);
   assert.equal(detail.indicators.ema30, null);
   assert.equal(detail.indicators.volatility20AnnualizedPct, null);
+  assert.equal(detail.indicators.ma50Weekly, null);
+  assert.equal(detail.indicators.ma50WeeklyAvailableWeeks, 0);
+  assert.equal(detail.indicators.ma50WeeklyStatus, 'insufficient_data');
   assert.equal(detail.indicators.ma200Weekly, null);
   assert.equal(detail.indicators.ma200WeeklyAvailableWeeks, 0);
   assert.equal(detail.indicators.ma200WeeklyStatus, 'insufficient_data');
@@ -246,6 +249,7 @@ test('stock detail fails closed when split metadata is missing or malformed', ()
     const detail = buildEodhdStockDetail(rows, options);
     assert.equal(detail.priceBasis, 'split_adjusted_close');
     assert.equal(detail.ma200RetestHistory.status, 'unavailable');
+    assert.equal(detail.indicators.ma50WeeklyStatus, 'unavailable');
     assert.equal(detail.indicators.ma200WeeklyStatus, 'unavailable');
     assert.deepEqual(detail.history, []);
   }
@@ -983,6 +987,16 @@ test('stock detail builds a locked 200-week MA from real weekly closes and expos
   const asOfDate = rows.at(-1).date;
   const detail = buildStockDetail(rows, { asOfDate });
 
+  assert.equal(detail.indicators.ma50Weekly, 179.5);
+  assert.equal(detail.indicators.ma50WeeklyClose, 204);
+  assert.equal(detail.indicators.ma50WeeklyDistancePct, ((204 / 179.5) - 1) * 100);
+  assert.equal(detail.indicators.ma50WeeklyChange4WeekPct, ((179.5 / 175.5) - 1) * 100);
+  assert.equal(detail.indicators.ma50WeeklySide, 'above');
+  assert.equal(detail.indicators.ma50WeeklyStreakWeeks, 155);
+  assert.equal(detail.indicators.ma50WeeklyAvailableWeeks, 204);
+  assert.equal(detail.indicators.ma50WeeklyRequiredWeeks, 50);
+  assert.equal(detail.indicators.ma50WeeklyAsOfDate, asOfDate);
+  assert.equal(detail.indicators.ma50WeeklyStatus, 'ready');
   assert.equal(detail.indicators.ma200Weekly, 104.5);
   assert.equal(detail.indicators.ma200WeeklyClose, 204);
   assert.equal(detail.indicators.ma200WeeklyDistancePct, ((204 / 104.5) - 1) * 100);
@@ -993,11 +1007,24 @@ test('stock detail builds a locked 200-week MA from real weekly closes and expos
   assert.equal(detail.indicators.ma200WeeklyRequiredWeeks, 200);
   assert.equal(detail.indicators.ma200WeeklyAsOfDate, asOfDate);
   assert.equal(detail.indicators.ma200WeeklyStatus, 'ready');
+  assert.equal(detail.weeklyHistory.at(-1).ma50, 179.5);
   assert.equal(detail.weeklyHistory.at(-1).ma200, 104.5);
   assert.equal(detail.weeklyHistory.at(-1).completed, true);
 });
 
-test('an in-progress trading week updates the green weekly close but never advances the locked MA200', () => {
+test('a stock with 50 to 199 completed weeks exposes MA50 without fabricating MA200', () => {
+  const rows = weeklyRows(60);
+  const detail = buildStockDetail(rows, { asOfDate: rows.at(-1).date });
+
+  assert.equal(detail.indicators.ma50Weekly, 35.5);
+  assert.equal(detail.indicators.ma50WeeklyRequiredWeeks, 50);
+  assert.equal(detail.indicators.ma50WeeklyStatus, 'ready');
+  assert.equal(detail.indicators.ma200Weekly, null);
+  assert.equal(detail.indicators.ma200WeeklyRequiredWeeks, 200);
+  assert.equal(detail.indicators.ma200WeeklyStatus, 'insufficient_data');
+});
+
+test('an in-progress trading week updates the green close but never advances locked weekly averages', () => {
   const completedRows = weeklyRows(204);
   const lastCompleted = completedRows.at(-1);
   const inProgressDate = dateKeyFrom(lastCompleted.date, 5);
@@ -1008,8 +1035,12 @@ test('an in-progress trading week updates the green weekly close but never advan
 
   assert.equal(detail.weeklyHistory.at(-1).date, inProgressDate);
   assert.equal(detail.weeklyHistory.at(-1).close, 999);
+  assert.equal(detail.weeklyHistory.at(-1).ma50, null);
   assert.equal(detail.weeklyHistory.at(-1).ma200, null);
   assert.equal(detail.weeklyHistory.at(-1).completed, false);
+  assert.equal(detail.indicators.ma50Weekly, 179.5);
+  assert.equal(detail.indicators.ma50WeeklyClose, 204);
+  assert.equal(detail.indicators.ma50WeeklyAsOfDate, lastCompleted.date);
   assert.equal(detail.indicators.ma200Weekly, 104.5);
   assert.equal(detail.indicators.ma200WeeklyClose, 204);
   assert.equal(detail.indicators.ma200WeeklyAsOfDate, lastCompleted.date);
@@ -1020,6 +1051,7 @@ test('five-year weekly output keeps hidden warmup data out of the payload while 
   const detail = buildStockDetail(rows, { asOfDate: rows.at(-1).date });
 
   assert.ok(detail.weeklyHistory.length >= 260 && detail.weeklyHistory.length <= 263);
+  assert.ok(detail.weeklyHistory.every((row) => Number.isFinite(row.ma50)));
   assert.ok(detail.weeklyHistory.every((row) => Number.isFinite(row.ma200)));
   assert.ok(detail.history.length < rows.length, 'daily payload should stay bounded even when the provider supplies ten years');
 });
@@ -1129,6 +1161,7 @@ test('stock-detail view is opt-in, returns real EOD calculations, and does not e
     assert.equal(quote.stockDetail.indicators.ma200, 219.5);
     assert.equal(quote.stockDetail.indicators.ema30, 304.5);
     assert.equal(typeof quote.stockDetail.indicators.volatility20AnnualizedPct, 'number');
+    assert.equal(quote.stockDetail.indicators.ma50WeeklyStatus, 'insufficient_data');
     assert.equal(quote.stockDetail.indicators.ma200WeeklyStatus, 'insufficient_data');
     assert.ok(Array.isArray(quote.stockDetail.weeklyHistory));
     assert.equal(requestedEodFrom.length, 2);
@@ -1271,6 +1304,7 @@ test('stock-detail provider keeps invalid EOD payloads unavailable instead of cl
 
   try {
     const quote = await fetchStockQuote('MSFT', { eodhdKey: 'test-eodhd-key', includeStockDetail: true });
+    assert.equal(quote.stockDetail.indicators.ma50WeeklyStatus, 'unavailable');
     assert.equal(quote.stockDetail.indicators.ma200WeeklyStatus, 'unavailable');
     assert.deepEqual(quote.stockDetail.history, []);
     assert.deepEqual(quote.stockDetail.weeklyHistory, []);
@@ -1326,6 +1360,7 @@ test('stock-detail provider fails closed when split metadata is unavailable', as
     assert.equal(quote.error, undefined);
     assert.equal(quote.stockDetail.priceBasis, 'split_adjusted_close');
     assert.equal(quote.stockDetail.ma200RetestHistory.status, 'unavailable');
+    assert.equal(quote.stockDetail.indicators.ma50WeeklyStatus, 'unavailable');
     assert.equal(quote.stockDetail.indicators.ma200WeeklyStatus, 'unavailable');
     assert.deepEqual(quote.stockDetail.history, []);
     assert.deepEqual(quote.stockDetail.relativeReturnHistory, []);

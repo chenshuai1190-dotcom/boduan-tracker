@@ -706,6 +706,7 @@ export async function fetchStockQuote(symbol, { eodhdKey, includeStockDetail = f
         ...unavailableDetail,
         indicators: {
           ...unavailableDetail.indicators,
+          ma50WeeklyStatus: 'unavailable',
           ma200WeeklyStatus: 'unavailable',
         },
       };

@@ -183,6 +183,7 @@ function buildMockWatchlistWeeklyHistory() {
     const volatility = (2.2 + progress * 7.5)
       * (Math.sin(index * 0.83) * 0.62 + Math.sin(index * 2.17) * 0.25 + Math.sin(index * 0.19) * 0.55);
     const close = Math.max(5, trend + volatility);
+    const ma50 = 16.5 + 155.79 * (progress ** 1.32) + Math.sin(index / 15) * 1.6;
     const ma200 = 9.5 + 113.7 * (progress ** 1.75) + Math.sin(index / 22) * 1.2;
     const date = new Date(start);
     date.setUTCDate(date.getUTCDate() + index * 7);
@@ -191,6 +192,7 @@ function buildMockWatchlistWeeklyHistory() {
       date: dateKey,
       weekEndDate: dateKey,
       close: Number(close.toFixed(4)),
+      ma50: Number(ma50.toFixed(4)),
       ma200: Number(ma200.toFixed(4)),
       completed: true,
     });
@@ -198,6 +200,7 @@ function buildMockWatchlistWeeklyHistory() {
   if (rows.length > 1) rows[rows.length - 2].close = 207.39;
   if (rows.length > 0) {
     rows[rows.length - 1].close = 202.81;
+    rows[rows.length - 1].ma50 = 172.29;
     rows[rows.length - 1].ma200 = 123.2;
   }
   return rows;
@@ -286,6 +289,16 @@ const mockWatchlistStockDetailData = {
     ma200: mockWatchlistDetailHistory.at(-1)?.ma200 || 180.34,
     ema30: 209.58,
     volatility20AnnualizedPct: 23.4,
+    ma50Weekly: 172.29,
+    ma50WeeklyClose: 202.81,
+    ma50WeeklyDistancePct: ((202.81 / 172.29) - 1) * 100,
+    ma50WeeklyChange4WeekPct: 3.62,
+    ma50WeeklySide: 'above',
+    ma50WeeklyStreakWeeks: 18,
+    ma50WeeklyAvailableWeeks: 520,
+    ma50WeeklyRequiredWeeks: 50,
+    ma50WeeklyAsOfDate: '2026-07-17',
+    ma50WeeklyStatus: 'ready',
     ma200Weekly: 123.2,
     ma200WeeklyClose: 202.81,
     ma200WeeklyDistancePct: ((202.81 / 123.2) - 1) * 100,

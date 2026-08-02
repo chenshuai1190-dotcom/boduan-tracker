@@ -93,12 +93,14 @@ export function normalizeStockDetailWeeklyHistory(rows = []) {
     const date = utcDateKey(row?.date);
     const weekEndDate = utcDateKey(row?.weekEndDate);
     const close = positiveNumber(row?.close);
+    const ma50 = positiveNumber(row?.ma50);
     const ma200 = positiveNumber(row?.ma200);
     if (!date || close === null) continue;
     byDate.set(date, {
       date,
       weekEndDate: weekEndDate || date,
       close,
+      ma50,
       ma200,
       completed: row?.completed === true,
     });
@@ -132,15 +134,23 @@ export function filterStockDetailWeeklyHistory(rows = [], range = '5y') {
   return history.filter((row) => row.date >= from);
 }
 
-export function findStockDetailWeeklyMaOnOrBefore(rows = [], date) {
+function findStockDetailWeeklyMovingAverageOnOrBefore(rows = [], date, field) {
   const targetDate = utcDateKey(date);
   if (!targetDate) return null;
   const history = normalizeStockDetailWeeklyHistory(rows);
   for (let index = history.length - 1; index >= 0; index -= 1) {
     const row = history[index];
-    if (row.date <= targetDate && row.completed && row.ma200 !== null) return row;
+    if (row.date <= targetDate && row.completed && row[field] !== null) return row;
   }
   return null;
+}
+
+export function findStockDetailWeeklyMaOnOrBefore(rows = [], date) {
+  return findStockDetailWeeklyMovingAverageOnOrBefore(rows, date, 'ma200');
+}
+
+export function findStockDetailWeeklyMa50OnOrBefore(rows = [], date) {
+  return findStockDetailWeeklyMovingAverageOnOrBefore(rows, date, 'ma50');
 }
 
 export function fullStockDetailChartWindow(pointCount) {
