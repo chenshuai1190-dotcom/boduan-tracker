@@ -1265,7 +1265,7 @@ test('realtime quote refresh avoids duplicate requests and hides raw Safari netw
   assert.ok(appSource.includes("'auto-ios-online'"), 'iOS PWA online resume should be classified as an automatic trigger');
   assert.ok(appSource.includes('pendingQuoteRefreshRef.current'), 'overlapping quick quote refreshes should queue one follow-up request instead of being dropped');
   assert.ok(appSource.includes('function isIosStandaloneWebApp()'), 'runtime should explicitly detect iOS standalone web app mode');
-  assert.ok(appSource.includes('IOS_PWA_RESUME_REFRESH_THROTTLE_MS = 1200'), 'iOS PWA resume should force-refresh quickly while throttling duplicate resume events');
+  assert.ok(appSource.includes('IOS_PWA_RESUME_REFRESH_THROTTLE_MS = 1200'), 'iOS PWA resume should restore realtime quickly while throttling duplicate resume events');
   assert.ok(appSource.includes('IOS_PWA_VISIBLE_RETRY_MS = 120'), 'iOS PWA resume should retry shortly when iOS fires events before document becomes visible');
   assert.ok(appSource.includes('IOS_PWA_VISIBLE_RETRY_MAX_MS = 6000'), 'iOS PWA hidden-state retries should be bounded while the app becomes visible');
   assert.ok(appSource.includes('pwaLastResumeRefreshAtRef'), 'iOS PWA resume should throttle duplicate resume refreshes without depending on a stale heartbeat');
@@ -1280,7 +1280,7 @@ test('realtime quote refresh avoids duplicate requests and hides raw Safari netw
   assert.ok(appSource.includes('if (!isActive) return;'), 'iOS PWA resume should only stop on unmount before passing hidden events into the retry queue');
   assert.ok(appSource.includes('} else if (!pwaHiddenAtRef.current) {'), 'iOS PWA resume should remember hidden-state events instead of dropping them');
   assert.ok(appSource.includes('quickQuoteRefreshRef.current.priority'), 'quick quote scheduler should preserve higher-priority immediate refreshes');
-  assert.ok(appSource.includes('currentPriority > priority'), 'ordinary focus/pageshow refreshes should not overwrite an immediate iOS fresh refresh');
+  assert.ok(appSource.includes('currentPriority > priority'), 'ordinary focus/pageshow scheduling should not overwrite a higher-priority refresh');
   assert.ok(appSource.includes("window.addEventListener('pagehide', handlePageHide)"), 'iOS PWA resume should record pagehide because focus/pageshow can be unreliable');
   assert.ok((appSource.match(/window\.addEventListener\('pagehide', handlePageHide\)/g) || []).length >= 4, 'all realtime sockets should close on pagehide to avoid half-dead iOS connections');
   assert.ok(appSource.includes("window.addEventListener('online', handleOnline)"), 'iOS PWA resume should refresh when network comes back');
@@ -1308,10 +1308,10 @@ test('realtime quote refresh avoids duplicate requests and hides raw Safari netw
   assert.ok(appSource.includes('buildQuoteSymbolBatches(requestedSymbols)'), 'main realtime quote refresh should split symbol sets at the API batch boundary');
   assert.ok(appSource.includes("cache: 'no-store'"), 'fresh quote requests should disable the browser HTTP cache');
   assert.ok(quoteApiSource.includes("'private, no-store, max-age=0, must-revalidate'"), 'authenticated quote responses should not be browser-cacheable');
-  assert.ok(appSource.includes('requestQuickQuoteRefresh(buildQuoteRowsFromCloudResult(result)'), 'cloud-loaded ledger rows should request an immediate quote snapshot before waiting for the polling effect');
-  assert.ok(appSource.includes("window.addEventListener('focus', handleFocus)"), 'window focus should trigger a quick quote refresh');
-  assert.ok(appSource.includes("window.addEventListener('pageshow', handlePageShow)"), 'page restore should trigger a quick quote refresh');
-  assert.ok(appSource.includes("trigger: 'auto-realtime-open'"), 'stock realtime connection open should request a REST quote snapshot');
+  assert.ok(appSource.includes('requestQuickQuoteRefresh(buildQuoteRowsFromCloudResult(result)'), 'cloud-loaded ledger rows should enter the shared quote baseline gate');
+  assert.ok(appSource.includes("window.addEventListener('focus', handleFocus)"), 'window focus should recheck the shared quote baseline gate');
+  assert.ok(appSource.includes("window.addEventListener('pageshow', handlePageShow)"), 'page restore should recheck the shared quote baseline gate');
+  assert.ok(appSource.includes("trigger: 'auto-realtime-open'"), 'stock realtime connection open should recheck the gated REST baseline');
   assert.ok(appSource.includes("entry.mode === 'auto-silent'"), 'diagnostic filter should only suppress automatic silent failures');
   assert.ok(appSource.includes("entry.root === 'browser-network'"), 'diagnostic filter should only suppress browser-network failures');
   assert.ok(appSource.includes('自动网络抖动已忽略'), 'suppressed automatic browser-network failures should remain visible in console for debugging');
@@ -1388,7 +1388,8 @@ test('realtime quote refresh avoids duplicate requests and hides raw Safari netw
   assert.ok(appSource.includes("pendingPwaResumeRefreshRef.current = buildPwaResumeRequest('auto-ios-pwa-snapshot-cloud', { resetFreshness: true })"), 'iOS standalone cloud load should wait for realtime snapshot burst instead of falling back to REST quotes');
   assert.ok(homeTabSource.includes("'home.market.warming'"), 'market card label should still support warming state for non-BTC snapshot statuses');
   assert.ok(appSource.includes('buildToolQuoteRows({ trades, costBasisData, swingWaves: swingWaveQuoteRows })'), 'legacy tools and V2 swing symbols should join the realtime quote universe');
-  assert.ok(appSource.includes('buildLedgerQuoteUniverse(localizedStockTrades, localizedWatchlist, localizedQuoteCache, toolQuoteRows)'), 'tool-only symbols must be included in quote rows for REST and WebSocket quotes');
+  assert.ok(appSource.includes('buildLedgerQuoteUniverse(') && appSource.includes('...quoteUniverse.toolRows'), 'tool-only symbols must remain in the WebSocket quote universe');
+  assert.ok(appSource.includes('const quoteBaselineRows = useMemo(() => buildQuoteBaselineRows({') && appSource.includes('activeSwingRows: swingWaveQuoteRows'), 'full REST baselines must stay limited to current holdings, watchlist, and active waves');
   assert.ok(appSource.includes('quoteBySymbol.get(normalizeSymbolKey(g.symbol))'), 'wave records should read current prices from the realtime quote map');
   assert.ok(tradesTabSource.includes('quoteRows,'), 'trades tools should receive the shared realtime quote rows');
   assert.ok(tradesTabSource.includes('const quoteStock = activeSymbol ? quoteBySymbol.get(activeSymbol) : null'), 'cost-basis tool should prefer realtime quote rows for current price');
