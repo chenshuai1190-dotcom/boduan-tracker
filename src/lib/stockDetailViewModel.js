@@ -426,11 +426,9 @@ export function buildStockDetailViewModel({
     : [];
   const comparisonIntegrityReason = comparisonLedgerPoints.find((point) => point.integrityReason)?.integrityReason || null;
   const comparisonTrend = comparisonIntegrityReason ? [] : comparisonLedgerPoints;
-  const comparisonRequestedStartDate = holdingPeriod.holdingStartDate
-    ? (range === 'all'
-      ? holdingPeriod.holdingStartDate
-      : [holdingPeriod.holdingStartDate, startDate].sort().at(-1))
-    : null;
+  // Return comparison keeps one fixed start for the current holding cycle.
+  // Page range filters must not rebase QQQ or discard earlier cash flows.
+  const comparisonRequestedStartDate = holdingPeriod.holdingStartDate || null;
   const comparisonEndDate = comparisonIntegrityReason ? null : comparisonTrend.at(-1)?.date || null;
 
   const latestName = latest?.name || trades.find((trade) => trade.name)?.name || normalizedSymbol;

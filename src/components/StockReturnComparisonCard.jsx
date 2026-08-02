@@ -379,8 +379,8 @@ function SharePreview({ comparison, symbol, displayCurrency, displayRate, langua
         </div>
         <div className="mt-3 text-[11px] leading-4 text-white/[0.30]">
           {String(comparison.baselineDate).replaceAll('-', '/')} - {String(comparison.snapshotDate).replaceAll('-', '/')} · {visualPreview
-            ? t(language, 'stockDetail.comparison.previewBasisShort', '等额加仓 · 同持仓比例减仓 · 本地只读视觉样例')
-            : t(language, 'stockDetail.comparison.closeBasisShort', '等额加仓 · 同持仓比例减仓')}
+            ? t(language, 'stockDetail.comparison.previewBasisShort', '固定起点 · 完整账本重算 · 本地只读视觉样例')
+            : t(language, 'stockDetail.comparison.closeBasisShort', '固定起点 · 完整账本重算')}
         </div>
       </div>
     </div>
@@ -443,7 +443,7 @@ export default function StockReturnComparisonCard({
 
       {showMethod && (
         <div className="mt-3 rounded-xl border border-[#f6b54b]/15 bg-[#f6b54b]/[0.055] px-3 py-2.5 text-[11px] leading-[18px] text-white/[0.46]">
-          {t(language, 'stockDetail.comparison.methodText', '日线估值中，个股与 QQQ 均使用普通收盘价。收益率差 = 我的收益率 − QQQ 收益率。对比起点按当日收盘市值将双方归零，不改写真实持仓成本；后续买入按实际成交额等额加入 QQQ，并按移动加权平均计算；卖出按卖出前持仓比例同步减仓，已实现盈亏摊薄双方剩余成本。')}
+          {t(language, 'stockDetail.comparison.methodText', '日线估值中，个股与 QQQ 均使用普通收盘价。收益率差 = 我的收益率 − QQQ 收益率。系统固定本轮对比起点，并在正式交易新增、修改或删除后，从起点按交易日期完整重算；后续买入按实际成交额等额加入 QQQ，卖出按卖出前持仓比例同步减仓。双方收益率统一除以从起点起累计投入本金，卖出不缩小分母。')}
         </div>
       )}
 
@@ -462,8 +462,8 @@ export default function StockReturnComparisonCard({
           <div className="mt-2 text-[10px] leading-4 text-white/[0.38]">
             <div>{startExplanation}</div>
             <div>{visualPreview
-              ? t(language, 'stockDetail.comparison.previewBasis', '等额加仓 · 同持仓比例减仓 · 移动均价/摊薄成本 · 本地只读样例')
-              : t(language, 'stockDetail.comparison.closeBasis', '等额加仓 · 同持仓比例减仓 · 移动均价/摊薄成本 · 个股/QQQ 普通收盘价')}</div>
+              ? t(language, 'stockDetail.comparison.previewBasis', '固定起点 · 完整账本重算 · 同步加减仓 · 本地只读样例')
+              : t(language, 'stockDetail.comparison.closeBasis', '固定起点 · 完整账本重算 · 同步加减仓 · 个股/QQQ 普通收盘价')}</div>
           </div>
         </>
       )}

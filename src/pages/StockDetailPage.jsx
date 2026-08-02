@@ -530,6 +530,7 @@ export default function StockDetailPage({ ctx = {} }) {
     language = 'zh',
     logoCache = {},
     marketColorMode,
+    pnlReportRefreshVersion = 0,
     portfolioCurrencyMode,
     saveWatchlistStockTarget,
     stockDetailSymbol,
@@ -601,7 +602,7 @@ export default function StockDetailPage({ ctx = {} }) {
     return () => {
       cancelled = true;
     };
-  }, [db, symbol, user?.id]);
+  }, [db, pnlReportRefreshVersion, symbol, user?.id]);
 
   const view = React.useMemo(() => buildStockDetailViewModel({
     symbol,

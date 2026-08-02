@@ -133,7 +133,7 @@ test('separates stock detail giveback from net-asset drawdown rate', () => {
   assert.equal(Number(detail.trendStats.givebackRate.toFixed(3)), 0.6);
 });
 
-test('uses baseline snapshot for older holdings in selected ranges', () => {
+test('keeps the QQQ comparison at the holding-cycle start in selected ranges', () => {
   const detail = buildStockDetailViewModel({
     symbol: 'MSFT',
     stockTrades: [
@@ -168,9 +168,11 @@ test('uses baseline snapshot for older holdings in selected ranges', () => {
   assert.equal(detail.periodPnlUsd, 450);
   assert.equal(Number(detail.periodPnlPct.toFixed(3)), 0.375);
   assert.equal(detail.periodBasisUsd, 1200);
-  assert.equal(detail.benchmarkBaselineDate, '2026-01-01');
+  assert.equal(detail.benchmarkBaselineDate, '2025-11-10');
   assert.equal(detail.benchmarkBaselineMode, 'on_or_after');
   assert.equal(detail.benchmarkEndDate, '2026-07-08');
+  assert.equal(detail.benchmarkQueryStartDate, '2025-11-10');
+  assert.equal(detail.comparisonPositionStartDate, '2025-11-10');
 });
 
 test('keeps closed positions visible from symbol snapshots and trade ledger', () => {

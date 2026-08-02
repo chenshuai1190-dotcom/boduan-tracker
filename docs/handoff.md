@@ -10,7 +10,7 @@
 | --- | --- |
 | 仓库 | `chenshuai1190-dotcom/boduan-tracker` |
 | 生产地址 | `https://boduan-tracker.vercel.app` |
-| 运行时代码 | `v10.7.9.409`：v402 稳定应用树 + 收益比赛即时重算 + 交易持仓 EODHD 收盘估值统一 + 正式交易修改后个人收益正确重算；精确发布提交以 GitHub `main` HEAD 为准 |
+| 运行时代码 | `v10.7.9.410`：v409 稳定运行时 + 个股/QQQ 固定起点完整账本重算 + 重算后个股详情自动刷新；精确发布提交以 GitHub `main` HEAD 为准 |
 | 数据库 | 保留既有 additive schema，并已按顺序接入比赛 migration、个人收益 foundation `pnl_report_immediate_rebuild_20260801.sql` 与 runtime 后 contract `pnl_report_snapshot_write_contract_after_runtime_20260801.sql` |
 | 发布完成条件 | GitHub `main` 的同一份 runtime 与上述 migration 均已上线并通过聚合 postflight；只完成其中一项不得宣布上线 |
 
@@ -18,7 +18,7 @@
 
 - 收益比赛最终独立审查：`121 / 121` tests PASS，核心实现 `must-fix = 0`。
 - 个人收益正确重算专项：`131 / 131` tests PASS；独立 runtime/SQL 审查 `must-fix = 0`，6 份 SQL 的 PostgreSQL/PLpgSQL 解析、canonical 同步和列值数量检查均通过。
-- `npm run check:full`：`857 / 857` tests PASS；字号下限、Vite production build、whitespace 和三份权威文档一致性均通过。
+- `npm run check:full`：`868 / 868` tests PASS；字号下限、Vite production build、whitespace 和三份权威文档一致性均通过。
 - 新的开发、验证和单等待器发布流程继续保留，没有恢复旧六文档或重复验证流程。
 
 ## 交易持仓收盘估值
@@ -36,6 +36,14 @@
 - 旧报表在分块重建期间保持可见，完整序列通过 ledger revision CAS 原子替换；空账本也通过原子操作明确清空。客户端请求是非阻塞派生动作，失败不会回滚已保存的正式交易。
 - 前台自动重试受 15 分钟门控，手动重试可立即触发；收盘任务会继续消费离线用户的 dirty。个人收益、比赛、实时持仓估值与正式交易账本仍是独立链路。
 - schema 分为 `pnl_report_immediate_rebuild_20260801.sql` foundation 和 `pnl_report_snapshot_write_contract_after_runtime_20260801.sql` contract。生产严格按 foundation migration → 精确 runtime 部署/验证 → contract migration → 聚合 postflight 执行；contract 不得提前执行。
+
+## 个股与 QQQ 收益对比
+
+- 当前持仓周期固定使用最初的正式对比起点。切换本年、近 1 月、近 6 月或近 1 年只影响页面其他报表范围，不得重置 QQQ 对比或丢弃更早现金流。
+- 正式交易新增、修改或删除后，从固定起点按 `trade_date` 完整回放现有 `stock_trades`；既有卖出会自动参与，禁止要求用户重复提交历史交易。
+- 后续买入按实际成交额给 QQQ 等额加仓，卖出按卖出前持仓比例同步减仓。个股与 QQQ 的收益率都以起点市值加后续全部买入金额作为累计投入本金，卖出只实现盈亏，不缩小分母。
+- 个股详情监听个人收益快照重算版本并重新读取权威快照，旧异步响应不得覆盖新结果。行情仍只使用个股与 QQQ 的普通完成收盘价，不修改 EODHD provider、数据库 schema、正式交易保存或持仓成本逻辑。
+- 全部清仓后再次买入会自动建立新的当前持仓周期和新对比起点，不把上一个已结束周期混入新报表。
 
 ## 收益比赛当前状态
 
@@ -61,13 +69,14 @@
 ### 已知风险
 
 - 比赛公开行情缓存与 402 熔断是 Vercel 单实例内存态，不是跨实例全局缓存；冷启动或不同实例仍可能分别首次读取一次。
-- v409 延续收益比赛共享 EODHD 缓存与熔断、交易持仓 EODHD 收盘估值，并新增个人收益正确重算。应用主 `/api/quote` 仍是 v402 行为，没有 v404 的 15/30/60 分钟客户端门控、完整完成收盘缓存和通用 402 熔断，旧客户端或高频页面仍可能再次消耗大量 EODHD 额度。
+- v410 延续收益比赛共享 EODHD 缓存与熔断、交易持仓 EODHD 收盘估值、个人收益正确重算和主 `/api/quote` 的 15/30/60 分钟客户端门控，并新增个股/QQQ 固定起点完整账本重算。服务端仍没有 v404 的通用完成收盘缓存和全局 402 熔断；冷实例首次读取与尚未更新的旧客户端仍可能额外消耗 EODHD 额度。
 - 客户端的即时重算请求是非阻塞派生动作：正式交易保存成功不会因个人收益或比赛暂时失败而回滚。恢复依赖数据库 dirty state、登录态请求和 Cron，不依赖浏览器一直存活。
 - P&L foundation 与 contract 之间旧 PWA 仍保留原直接写权限，因此 runtime 验证后必须尽快执行 contract；任一步失败都只做 forward-fix。跨 Vercel 实例生成不同时间戳时可能留下多个安全隔离的暂存 job，由 24 小时 TTL 清理，不会混合发布。
 
 ## 必须保护的业务边界
 
 - 正式持仓价格、收盘锁定、趋势、相对 QQQ、个人收益和比赛继续只使用规定的 EODHD 正式口径；不得引入备用行情源计算正式持仓或盈亏。
+- 个股与 QQQ 收益对比必须固定当前持仓周期起点并完整回放正式账本；卖出不得缩小累计投入分母，既有交易不得要求用户重复提交。
 - 股票趋势 MA200、重测、20 日恢复和 60 日结果只使用已完成收盘价，盘中价不得改变正式信号。
 - iOS Home Screen PWA 继续保持账户隔离缓存首屏、WebSocket 优先、已登录 snapshot 补齐和旧响应不得覆盖新 tick。
 - 财报缺少官方分部、细分结构或地区数据时显示不可用，不得推测。

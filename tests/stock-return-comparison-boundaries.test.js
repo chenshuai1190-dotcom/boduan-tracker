@@ -19,6 +19,8 @@ const sharePreviewSource = comparisonCardSource.slice(sharePreviewStart, sharePr
 
 test('stock comparison remains read-only and loads both raw-close sides through the authenticated market-data boundary', () => {
   assert.match(stockDetailPageSource, /fetchPnlReportSymbolSnapshotHistory\(symbol, null\)/);
+  assert.match(stockDetailPageSource, /pnlReportRefreshVersion = 0/);
+  assert.match(stockDetailPageSource, /\[db, pnlReportRefreshVersion, symbol, user\?\.id\]/);
   assert.match(stockDetailPageSource, /requestedSymbols = \[\.\.\.new Set\(\[symbol, 'QQQ'\]\)\]/);
   assert.match(stockDetailPageSource, /Promise\.all\(missingSymbols\.map/);
   assert.match(stockDetailPageSource, /\/api\/pnl-benchmark\?symbol=\$\{encodeURIComponent\(requestedSymbol\)\}/);
@@ -95,9 +97,9 @@ test('comparison UI uses system market colors and does not embed production fina
   assert.ok(sharePreviewStart > -1 && sharePreviewEnd > sharePreviewStart, 'share preview source should be detectable');
   assert.doesNotMatch(sharePreviewSource, /navigator\.clipboard|copyText|setCopied|samePeriodQqq/);
   assert.doesNotMatch(sharePreviewSource, /复制对比文字|Copy comparison/);
-  assert.match(i18nSource, /'stockDetail\.comparison\.closeBasisShort': '等额加仓 · 同持仓比例减仓'/);
-  assert.match(i18nSource, /'stockDetail\.comparison\.previewBasisShort': '等额加仓 · 同持仓比例减仓 · 本地只读视觉样例'/);
-  assert.match(i18nSource, /'stockDetail\.comparison\.closeBasisShort': 'Equal-value adds · same-ratio trims'/);
+  assert.match(i18nSource, /'stockDetail\.comparison\.closeBasisShort': '固定起点 · 完整账本重算'/);
+  assert.match(i18nSource, /'stockDetail\.comparison\.previewBasisShort': '固定起点 · 完整账本重算 · 本地只读视觉样例'/);
+  assert.match(i18nSource, /'stockDetail\.comparison\.closeBasisShort': 'Fixed start · full-ledger replay'/);
   assert.doesNotMatch(i18nSource, /stockDetail\.comparison\.(samePeriodQqq|copyText|copied)'\s*:/);
   assert.equal((sharePreviewSource.match(/shrink-0 items-baseline justify-end gap-2 whitespace-nowrap/g) || []).length, 2, 'stock and QQQ amounts should share one non-wrapping baseline with their return rates');
   assert.match(sharePreviewSource, /mt-2 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1/, 'excess amount and rate gap should share one compact row with a narrow-screen wrap fallback');

@@ -87,40 +87,131 @@ test('a later buy uses moving average cost and invests the same dollars in QQQ',
   assertClose(afterBuy.benchmarkPnlUsd, 100);
 });
 
-test('a partial sell mirrors the pre-sale holding ratio and uses diluted cost on both sides', () => {
+test('an existing partial sell is replayed automatically without shrinking either contribution basis', () => {
   const result = buildStockReturnComparison(stockDetail(), qqqRows(), stockRawRows());
   const afterSell = result.trend.find((point) => point.date === '2026-06-19');
 
   // Stock: average cost 110, sell 5 at 150 => realized +200. The remaining
-  // accounting cost is 1,650 and the diluted return basis is 1,450.
+  // accounting cost is 1,650, while the fixed-start contribution basis stays
+  // at the initial 1,000 plus the later 1,200 buy.
   assert.equal(afterSell.stockHeldShares, 15);
   assert.equal(afterSell.stockAvgCostUsd, 110);
   assert.equal(afterSell.stockRealizedPnlUsd, 200);
-  assert.equal(afterSell.stockBasisUsd, 1_450);
+  assert.equal(afterSell.stockBasisUsd, 2_200);
   assert.equal(afterSell.stockPnlUsd, 650);
-  assertClose(afterSell.stockPnlPct, 650 / 1_450);
+  assertClose(afterSell.stockPnlPct, 650 / 2_200);
 
   // Five of twenty stock shares is 25%, so exactly 25% of the QQQ holding is
-  // sold too. Its realized gain also dilutes the remaining QQQ basis.
+  // sold too. Its contribution basis remains identical to the stock side.
   assertClose(afterSell.benchmarkHeldShares, (10 + (1_200 / 110)) * 0.75);
   assertClose(afterSell.benchmarkRealizedPnlUsd, 82.5);
-  assertClose(afterSell.benchmarkBasisUsd, 1_567.5);
+  assertClose(afterSell.benchmarkBasisUsd, 2_200);
   assertClose(afterSell.benchmarkPnlUsd, 330);
-  assertClose(afterSell.benchmarkPnlPct, 330 / 1_567.5);
+  assertClose(afterSell.benchmarkPnlPct, 330 / 2_200);
   assertClose(afterSell.excessPnlUsd, 320);
+});
+
+test('a 50% trim at unchanged prices leaves both return lines continuous', () => {
+  const result = buildStockReturnComparison(stockDetail({
+    benchmarkEndDate: '2026-06-11',
+    comparisonTrend: [
+      { date: '2026-06-01', heldShares: 100 },
+      { date: '2026-06-10', heldShares: 100 },
+      { date: '2026-06-11', heldShares: 50 },
+    ],
+    comparisonTrades: [
+      { id: 'base', date: '2026-06-01', side: 'buy', shares: 100, price: 100 },
+      { id: 'existing-sell', date: '2026-06-11', side: 'sell', shares: 50, price: 150 },
+    ],
+  }), [
+    { date: '2026-06-01', rawClose: 100 },
+    { date: '2026-06-10', rawClose: 120 },
+    { date: '2026-06-11', rawClose: 120 },
+  ], [
+    { date: '2026-06-01', rawClose: 100 },
+    { date: '2026-06-10', rawClose: 150 },
+    { date: '2026-06-11', rawClose: 150 },
+  ]);
+
+  assert.equal(result.available, true);
+  const beforeSell = result.trend.find((point) => point.date === '2026-06-10');
+  const afterSell = result.trend.find((point) => point.date === '2026-06-11');
+  assert.equal(beforeSell.stockPnlUsd, 5_000);
+  assert.equal(afterSell.stockPnlUsd, beforeSell.stockPnlUsd);
+  assert.equal(afterSell.stockPnlPct, beforeSell.stockPnlPct);
+  assert.equal(afterSell.benchmarkPnlUsd, beforeSell.benchmarkPnlUsd);
+  assert.equal(afterSell.benchmarkPnlPct, beforeSell.benchmarkPnlPct);
+  assert.equal(afterSell.excessPnlUsd, beforeSell.excessPnlUsd);
+  assert.equal(afterSell.excessPnlPct, beforeSell.excessPnlPct);
+  assert.equal(afterSell.stockBasisUsd, 10_000);
+  assert.equal(afterSell.benchmarkBasisUsd, 10_000);
+  assertClose(afterSell.stockPnlPct, 0.5);
+  assertClose(afterSell.benchmarkPnlPct, 0.2);
+  assertClose(afterSell.excessPnlPct, 0.3);
+});
+
+test('editing or deleting an existing sell fully replays the same fixed-start ledger', () => {
+  const benchmarkRows = [
+    { date: '2026-06-01', rawClose: 100 },
+    { date: '2026-06-10', rawClose: 110 },
+    { date: '2026-06-19', rawClose: 120 },
+    { date: '2026-06-30', rawClose: 140 },
+  ];
+  const stockRows = [
+    { date: '2026-06-01', rawClose: 100 },
+    { date: '2026-06-10', rawClose: 120 },
+    { date: '2026-06-19', rawClose: 150 },
+    { date: '2026-06-30', rawClose: 170 },
+  ];
+  const baseTrades = [
+    { id: 'base', date: '2026-06-01', side: 'buy', shares: 100, price: 100 },
+    { id: 'add', date: '2026-06-10', side: 'buy', shares: 50, price: 120 },
+  ];
+  const build = (sellShares) => buildStockReturnComparison(stockDetail({
+    comparisonTrend: [
+      { date: '2026-06-01', heldShares: 100 },
+      { date: '2026-06-10', heldShares: 150 },
+      { date: '2026-06-19', heldShares: sellShares === null ? 150 : 150 - sellShares },
+      { date: '2026-06-30', heldShares: sellShares === null ? 150 : 150 - sellShares },
+    ],
+    comparisonTrades: sellShares === null
+      ? baseTrades
+      : [...baseTrades, { id: 'sell', date: '2026-06-19', side: 'sell', shares: sellShares, price: 150 }],
+  }), benchmarkRows, stockRows);
+
+  const originalSell = build(75);
+  assert.equal(originalSell.available, true);
+  assertClose(originalSell.stockPnlUsd, 8_000);
+  assertClose(originalSell.benchmarkPnlUsd, 4_090.909090909092);
+  assertClose(originalSell.excessPnlPct, 0.24431818181818177);
+
+  const editedSell = build(30);
+  assert.equal(editedSell.available, true);
+  assertClose(editedSell.stockPnlUsd, 8_900);
+  assertClose(editedSell.benchmarkPnlUsd, 5_018.181818181816);
+  assertClose(editedSell.excessPnlPct, 0.2426136363636365);
+
+  const deletedSell = build(null);
+  assert.equal(deletedSell.available, true);
+  assertClose(deletedSell.stockPnlUsd, 9_500);
+  assertClose(deletedSell.benchmarkPnlUsd, 5_636.363636363636);
+  assertClose(deletedSell.excessPnlPct, 0.24147727272727273);
+  assert.equal(originalSell.periodBasisUsd, 16_000);
+  assert.equal(editedSell.periodBasisUsd, 16_000);
+  assert.equal(deletedSell.periodBasisUsd, 16_000);
 });
 
 test('final amounts and percentages remain cash-flow matched after add and trim', () => {
   const result = buildStockReturnComparison(stockDetail(), qqqRows(), stockRawRows());
 
   assert.equal(result.stockPnlUsd, 800);
-  assert.equal(result.periodBasisUsd, 1_450);
-  assertClose(result.stockPnlPct, 800 / 1_450);
+  assert.equal(result.periodBasisUsd, 2_200);
+  assertClose(result.stockPnlPct, 800 / 2_200);
   assertClose(result.benchmarkPnlUsd, 502.5);
-  assertClose(result.benchmarkBasisUsd, 1_567.5);
-  assertClose(result.benchmarkPnlPct, 502.5 / 1_567.5);
+  assertClose(result.benchmarkBasisUsd, 2_200);
+  assertClose(result.benchmarkPnlPct, 502.5 / 2_200);
   assertClose(result.excessPnlUsd, 297.5);
-  assertClose(result.excessPnlPct, (800 / 1_450) - (502.5 / 1_567.5));
+  assertClose(result.excessPnlPct, 297.5 / 2_200);
 });
 
 test('keeps excess dollars and return-rate gap as separate honest measures after trims', () => {
@@ -149,12 +240,12 @@ test('keeps excess dollars and return-rate gap as separate honest measures after
 
   assert.equal(result.available, true);
   assertClose(result.stockPnlUsd, 60.5);
-  assertClose(result.stockPnlPct, 60.5 / 99.5);
+  assertClose(result.stockPnlPct, 60.5 / 100);
   assertClose(result.benchmarkPnlUsd, 50);
-  assertClose(result.benchmarkPnlPct, 1);
+  assertClose(result.benchmarkPnlPct, 50 / 100);
   assertClose(result.excessPnlUsd, 10.5);
-  assertClose(result.excessPnlPct, (60.5 / 99.5) - 1);
-  assert.ok(result.excessPnlUsd > 0 && result.excessPnlPct < 0);
+  assertClose(result.excessPnlPct, 10.5 / 100);
+  assert.ok(result.excessPnlUsd > 0 && result.excessPnlPct > 0);
 });
 
 test('personal adjusted snapshot prices never affect the raw/raw comparison', () => {
@@ -178,7 +269,7 @@ test('personal adjusted snapshot prices never affect the raw/raw comparison', ()
   assert.equal(result.stockSnapshotRawClose, 150);
   assert.equal(result.trend.find((point) => point.date === '2026-06-10').stockRawClose, 130);
   assert.equal(result.stockPnlUsd, 800);
-  assertClose(result.stockPnlPct, 800 / 1_450);
+  assertClose(result.stockPnlPct, 800 / 2_200);
 });
 
 test('never starts QQQ before the current position even when the selected range starts earlier', () => {
@@ -282,7 +373,7 @@ test('requires the exact common end date and never fills a nearby close', () => 
   assert.equal(missingQqqEnd.reason, 'missing_exact_benchmark_snapshot');
 });
 
-test('keeps dollar P&L but returns null percentages when realized profit exhausts diluted basis', () => {
+test('keeps finite fixed-start returns after a profitable trim', () => {
   const result = buildStockReturnComparison(stockDetail({
     benchmarkEndDate: '2026-06-10',
     comparisonTrend: [
@@ -303,9 +394,10 @@ test('keeps dollar P&L but returns null percentages when realized profit exhaust
 
   assert.equal(result.available, true);
   assert.equal(result.stockPnlUsd, 2_000);
-  assert.equal(result.periodBasisUsd, -1_700);
-  assert.equal(result.stockPnlPct, null);
-  assert.equal(result.excessPnlPct, null);
+  assert.equal(result.periodBasisUsd, 1_000);
+  assert.equal(result.stockPnlPct, 2);
+  assert.equal(result.benchmarkPnlPct, 0);
+  assert.equal(result.excessPnlPct, 2);
 });
 
 test('full liquidation clamps both ledgers to zero shares without division artifacts', () => {
@@ -332,8 +424,9 @@ test('full liquidation clamps both ledgers to zero shares without division artif
   assert.equal(last.stockHeldShares, 0);
   assert.equal(last.benchmarkHeldShares, 0);
   assert.equal(Number.isFinite(last.stockPnlUsd), true);
-  assert.equal(last.stockPnlPct, null);
-  assert.equal(last.benchmarkPnlPct, null);
+  assert.equal(last.stockPnlPct, 2);
+  assertClose(last.benchmarkPnlPct, 0.1);
+  assertClose(last.excessPnlPct, 1.9);
 });
 
 test('fails closed when formal trades and personal snapshot holdings disagree', () => {
@@ -371,7 +464,7 @@ test('honors created-at order for same-day add and trim cash flows', () => {
   const latest = result.trend.at(-1);
   assert.equal(latest.stockAvgCostUsd, 150);
   assert.equal(latest.stockRealizedPnlUsd, 750);
-  assert.equal(latest.stockBasisUsd, 1_500);
+  assert.equal(latest.stockBasisUsd, 3_000);
 });
 
 test('full close and rebuy integration starts a fresh comparison cycle', () => {

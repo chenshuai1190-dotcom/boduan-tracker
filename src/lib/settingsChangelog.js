@@ -4,6 +4,23 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '📊 个股与 QQQ 收益对比按固定起点完整重算',
+      '  - 当前持仓周期使用同一个原始对比起点；切换本年、近 1 月等页面范围不再重置 QQQ 或丢弃更早现金流',
+      '  - 正式交易新增、修改或删除后自动读取现有账本并从起点完整回放，历史卖出无需也不得重复提交',
+      '  - 后续买入给 QQQ 等额加仓，卖出按卖出前持仓比例同步减仓；双方收益率统一除以累计投入本金，卖出不缩小分母',
+      '  - 个人收益快照重算完成后个股详情自动刷新；价格仍只使用个股与 QQQ 的正式普通收盘价，不修改 EODHD provider、数据库或持仓成本链路',
+    ],
+    itemsEn: [
+      '📊 Full fixed-start rebuilds for stock-versus-QQQ returns',
+      '  - The current holding cycle keeps one original comparison start; page ranges such as YTD or 1M no longer rebase QQQ or discard earlier cash flows',
+      '  - Adding, editing, or deleting a formal trade automatically replays the existing ledger from that start, so historical sells must never be submitted again',
+      '  - Later buys add the same executed value to QQQ, while sells trim QQQ by the same pre-sale holding ratio; both rates use cumulative contributed capital and sells never shrink the denominator',
+      '  - Stock detail refreshes after personal snapshot rebuilding; prices remain ordinary formal closes for the stock and QQQ, with no change to the EODHD provider, database, or holding-cost path',
+    ],
+  },
+  {
+    ver: 'v10.7.9.409', date: '2026-08-02',
+    items: [
       '📈 正式交易修改后收益报表正确重算',
       '  - 新增、修改或删除正式交易后，个人收益从最早受影响交易日重建至 EODHD 最新精确完成收盘；修改名称或备注不触发金融重算',
       '  - 重建期间继续显示上一份完整报表，完整新序列经账本版本校验后原子替换；空账本也会原子清空',

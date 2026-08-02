@@ -118,12 +118,14 @@ function createLedger(shares, principalUsd) {
     shares,
     remainingCostUsd: principalUsd,
     realizedPnlUsd: 0,
+    contributedCapitalUsd: principalUsd,
   };
 }
 
 function applyBuy(ledger, shares, amountUsd) {
   ledger.shares += shares;
   ledger.remainingCostUsd += amountUsd;
+  ledger.contributedCapitalUsd += amountUsd;
 }
 
 function applySell(ledger, requestedShares, price) {
@@ -160,16 +162,19 @@ function ledgerMetrics(ledger, marketValueUsd) {
   const pnlUsd = normalizeZero(
     ledger.realizedPnlUsd + marketValueUsd - ledger.remainingCostUsd,
   );
-  // Realized sale profit dilutes the cost still at risk; a realized loss raises
-  // it. A non-positive diluted basis has a meaningful dollar result but no
-  // mathematically honest percentage return.
-  const basisUsd = normalizeZero(ledger.remainingCostUsd - ledger.realizedPnlUsd);
+  // The comparison always replays the complete ledger from one fixed start.
+  // Later buys increase the shared contribution basis; sells realize P&L but
+  // never shrink that basis. This keeps return rates continuous across trims.
+  const basisUsd = normalizeZero(ledger.contributedCapitalUsd);
+  const effectiveCostBasisUsd = normalizeZero(
+    ledger.remainingCostUsd - ledger.realizedPnlUsd,
+  );
   return {
     pnlUsd,
     pnlPct: basisUsd > EPSILON ? normalizeZero(pnlUsd / basisUsd) : null,
     basisUsd,
     avgCostUsd: ledger.shares > EPSILON ? ledger.remainingCostUsd / ledger.shares : null,
-    effectiveCostUsd: ledger.shares > EPSILON ? basisUsd / ledger.shares : null,
+    effectiveCostUsd: ledger.shares > EPSILON ? effectiveCostBasisUsd / ledger.shares : null,
     realizedPnlUsd: normalizeZero(ledger.realizedPnlUsd),
     remainingCostUsd: normalizeZero(ledger.remainingCostUsd),
     heldShares: normalizeZero(ledger.shares),
