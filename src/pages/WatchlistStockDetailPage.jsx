@@ -321,6 +321,7 @@ function chartWindowLabel(points, language) {
 
 function PriceChart({ rows, weeklyRows, weeklyLookupRows, range, currency, language, marketColorMode, symbol, initialTooltipOpen = false }) {
   const weeklyMa = range === '5y';
+  const chartZoomEnabled = range === '1y' || range === '5y';
   const showWeeklyMa50 = range === '1y' || range === '5y';
   const maLabel = weeklyMa
     ? t(language, 'watchlistDetail.ma200Weekly', 'MA200（周）')
@@ -346,8 +347,8 @@ function PriceChart({ rows, weeklyRows, weeklyLookupRows, range, currency, langu
   );
   const chartWindowRef = React.useRef(effectiveChartWindow);
   const visibleRows = React.useMemo(
-    () => (weeklyMa ? sliceStockDetailChartWindow(rows, effectiveChartWindow) : rows),
-    [effectiveChartWindow, rows, weeklyMa],
+    () => (chartZoomEnabled ? sliceStockDetailChartWindow(rows, effectiveChartWindow) : rows),
+    [chartZoomEnabled, effectiveChartWindow, rows],
   );
   const movingAverageRows = React.useMemo(() => (
     weeklyMa
@@ -363,9 +364,9 @@ function PriceChart({ rows, weeklyRows, weeklyLookupRows, range, currency, langu
     () => chartGeometry(visibleRows, movingAverageRows, weeklyMa50Rows),
     [movingAverageRows, visibleRows, weeklyMa50Rows],
   );
-  const chartWindowZoomed = weeklyMa
+  const chartWindowZoomed = chartZoomEnabled
     && (effectiveChartWindow.start > 0 || effectiveChartWindow.end < rows.length - 1);
-  const pinchEnabled = weeklyMa && rows.length > 26;
+  const pinchEnabled = chartZoomEnabled && rows.length > 26;
 
   const resetChartWindow = React.useCallback(() => {
     if (chartWindowFrameRef.current !== null) {
@@ -418,7 +419,7 @@ function PriceChart({ rows, weeklyRows, weeklyLookupRows, range, currency, langu
   }
 
   const last = chart.pricePoints.at(-1);
-  const latestPointVisible = !weeklyMa || effectiveChartWindow.end === rows.length - 1;
+  const latestPointVisible = !chartZoomEnabled || effectiveChartWindow.end === rows.length - 1;
   const selectedPoint = Number.isInteger(selectedIndex) ? chart.pricePoints[selectedIndex] || null : null;
   const selectedFullIndex = selectedPoint
     ? rows.findIndex((row) => row?.date === selectedPoint.date)
@@ -806,7 +807,9 @@ function MetricCell({ label, value, detail, color = 'rgba(255,255,255,0.82)' }) 
 function IndicatorBadge({ children, indicator, tone = 'gold' }) {
   const toneClass = tone === 'purple'
     ? 'bg-[#a78bfa]/[0.12] text-[#a78bfa]/85'
-    : 'bg-[#f6b54b]/[0.1] text-[#f6b54b]/75';
+    : tone === 'blue'
+      ? 'bg-[#60a5fa]/[0.12] text-[#60a5fa]/85'
+      : 'bg-[#f6b54b]/[0.1] text-[#f6b54b]/75';
   return (
     <span data-watchlist-indicator-badge={indicator} className={`inline-flex shrink-0 items-center rounded-md px-1.5 py-0.5 text-[10px] ${toneClass}`}>
       {children}
@@ -1671,7 +1674,7 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
             label={(
               <span className="inline-flex max-w-full items-center justify-center gap-1" data-watchlist-ma200-entry-indicator="true">
                 <span>{t(language, 'watchlistDetail.ma200Entry', 'MA200')}</span>
-                <IndicatorBadge indicator="entry">{t(language, 'watchlistDetail.entryIndicator', '建仓指标')}</IndicatorBadge>
+                <IndicatorBadge indicator="entry" tone="blue">{t(language, 'watchlistDetail.entryIndicator', '建仓指标')}</IndicatorBadge>
               </span>
             )}
             value={formatSignedPercent(distanceMa200)}

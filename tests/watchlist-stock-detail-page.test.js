@@ -172,6 +172,7 @@ test('technical indicators keep the daily row and show color-matched MA50 and MA
   assert.ok(pageSource.includes('data-watchlist-ma200-entry-indicator="true"'));
   assert.ok(pageSource.includes("t(language, 'watchlistDetail.ma200Entry', 'MA200')"));
   assert.ok(pageSource.includes("t(language, 'watchlistDetail.entryIndicator', '建仓指标')"));
+  assert.ok(pageSource.includes('<IndicatorBadge indicator="entry" tone="blue">'));
   assert.equal(pageSource.includes('distanceMa200Daily'), false);
   assert.ok(pageSource.includes("t(language, 'watchlistDetail.relativeQqq3m', '相对QQQ（3个月）')"));
   assert.ok(pageSource.includes("t(language, 'watchlistDetail.relativeQqq3mDetail', '个股{{stock}}·QQQ{{qqq}}'"));
@@ -189,6 +190,7 @@ test('technical indicators keep the daily row and show color-matched MA50 and MA
   assert.ok(pageSource.includes("t(language, 'watchlistDetail.longTermTrend', '芒格指标')"));
   assert.ok(pageSource.includes('<IndicatorBadge indicator="ma50" tone="purple">'));
   assert.ok(pageSource.includes('<IndicatorBadge indicator="ma200">'));
+  assert.ok(pageSource.includes("'bg-[#60a5fa]/[0.12] text-[#60a5fa]/85'"));
   assert.ok(pageSource.includes("'bg-[#a78bfa]/[0.12] text-[#a78bfa]/85'"));
   assert.ok(pageSource.includes("'bg-[#f6b54b]/[0.1] text-[#f6b54b]/75'"));
   assert.ok(i18nSource.includes("'watchlistDetail.entryIndicator': '建仓指标'"));
@@ -300,8 +302,10 @@ test('production chart adds weekly MA50 to one-year and five-year views without 
   assert.ok(pageSource.includes('window.setTimeout(() => setSelectedIndex(null), 12_000)'));
 });
 
-test('five-year chart pinches and supports single-finger horizontal panning without blocking vertical scroll', () => {
-  assert.ok(pageSource.includes('const pinchEnabled = weeklyMa && rows.length > 26'));
+test('one-year and five-year charts share pinch zoom and horizontal panning without changing MA cadence', () => {
+  assert.ok(pageSource.includes("const weeklyMa = range === '5y'"), 'one-year must keep the daily MA200 cadence');
+  assert.ok(pageSource.includes("const chartZoomEnabled = range === '1y' || range === '5y'"));
+  assert.ok(pageSource.includes('const pinchEnabled = chartZoomEnabled && rows.length > 26'));
   assert.ok(pageSource.includes('touchPointersRef = React.useRef(new Map())'));
   assert.ok(pageSource.includes('singleTouchGestureRef = React.useRef(null)'));
   assert.ok(pageSource.includes('transformStockDetailChartWindow(gesture.startWindow'));
@@ -322,8 +326,8 @@ test('five-year chart pinches and supports single-finger horizontal panning with
   assert.ok(i18nSource.includes("'watchlistDetail.resetZoom': '重置'"));
   assert.ok(i18nSource.includes("'watchlistDetail.resetZoom': 'Reset'"));
   assert.ok(pageSource.includes('rows.findIndex((row) => row?.date === selectedPoint.date)'));
-  assert.ok(pageSource.includes('const latestPointVisible = !weeklyMa || effectiveChartWindow.end === rows.length - 1'));
+  assert.ok(pageSource.includes('const latestPointVisible = !chartZoomEnabled || effectiveChartWindow.end === rows.length - 1'));
   assert.ok(pageSource.includes('{latestPointVisible ? ('));
   assert.ok(pageSource.includes('spanDays <= 370'));
-  assert.ok(pageSource.includes('weeklyMa ? sliceStockDetailChartWindow(rows, effectiveChartWindow) : rows'));
+  assert.ok(pageSource.includes('chartZoomEnabled ? sliceStockDetailChartWindow(rows, effectiveChartWindow) : rows'));
 });

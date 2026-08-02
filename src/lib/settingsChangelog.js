@@ -4,6 +4,23 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '📊 股票趋势一年图支持自由缩放',
+      '  - 1 年视图复用 5 年视图的双指缩放、缩放后单指横向拖动、范围提示和重置逻辑',
+      '  - 1 年图继续使用日线股价、MA200（日）与 MA50（周）；5 年图及 1 月、3 月、6 月视图保持原行为',
+      '  - MA200 建仓指标徽章改为与日均线一致的蓝色，MA50 巴菲特指标紫色和 MA200 周线芒格指标金色保持不变',
+      '  - 本次只复用既有前端图表窗口逻辑，不增加 EODHD 请求，不修改行情、数据库、交易或收益口径',
+    ],
+    itemsEn: [
+      '📊 Free zooming for the one-year stock trend chart',
+      '  - The 1Y view now reuses the 5Y view\'s pinch zoom, post-zoom horizontal pan, visible-range label, and reset behavior',
+      '  - The 1Y chart keeps daily prices, daily MA200, and weekly MA50; the 5Y, 1M, 3M, and 6M views retain their existing behavior',
+      '  - The MA200 entry-indicator badge now matches the daily MA line in blue, while the purple MA50 Buffett badge and gold weekly MA200 Munger badge stay unchanged',
+      '  - This reuses the existing frontend chart-window logic with no extra EODHD request and no market-data, database, trade, or P&L formula change',
+    ],
+  },
+  {
+    ver: 'v10.7.9.414', date: '2026-08-03',
+    items: [
       '📈 股票趋势新增 MA50 周线与巴菲特指标',
       '  - 1 年视图保留股价和 MA200（日），5 年视图保留股价和 MA200（周），并在两个范围追加紫色 MA50（周）曲线',
       '  - 关键指标新增 MA50（周）巴菲特指标卡片，原 MA200（周）芒格指标及其金色样式保持不变',
