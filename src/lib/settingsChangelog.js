@@ -4,6 +4,23 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '📒 个股交易记录与统计保存后立即更新',
+      '  - 正式交易新增、金融字段修改或删除成功后，个股详情的交易记录、买卖金额和买卖次数立即按当前账本重算，不再等待当天收盘快照',
+      '  - 交易区间上限统一使用纽约当前日期，纽约尚未到达的未来日期交易不会提前显示，并保持买卖成本顺序和实现盈亏计算一致',
+      '  - 个股头部收益、持仓数量与金额、收益走势、图表交易节点和相对 QQQ 仍严格锁定最新权威完成收盘快照',
+      '  - 不修改正式交易保存、个人收益快照、EODHD provider、比赛、数据库 schema 或收盘重算任务',
+    ],
+    itemsEn: [
+      '📒 Immediate stock trade records and statistics after saving',
+      '  - After a successful formal-trade add, financial edit, or deletion, stock-detail records, buy/sell amounts, and buy/sell counts rebuild immediately from the current ledger instead of waiting for the same-day close snapshot',
+      '  - The trade range ends on the current New York date, excluding trades dated in New York\'s future while preserving canonical trade order and realized-P&L accounting',
+      '  - Stock headline returns, held shares and value, return trends, chart trade markers, and QQQ comparison remain strictly locked to the latest authoritative completed-close snapshot',
+      '  - Formal-trade persistence, personal P&L snapshots, the EODHD provider, competition, database schema, and close-rebuild jobs are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.412', date: '2026-08-02',
+    items: [
       '📈 收益报表改为只读加载',
       '  - 正式交易新增、金融字段修改或删除成功后，由交易保存链路唯一触发一次已登录即时重算；名称和备注修改仍不触发',
       '  - 打开或重新打开收益报表，以及 focus、pageshow 和恢复前台时，只读取数据库中的权威完成快照，不再触发个人历史重算或 EODHD rebuild',

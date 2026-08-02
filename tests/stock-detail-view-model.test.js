@@ -89,6 +89,103 @@ test('builds read-only stock detail with trade stats and sell realized P&L', () 
   assert.equal(detail.tradeEvents[1].markerDate, '2026-07-07');
 });
 
+test('shows a same-day formal sell immediately while close-derived values stay on the latest snapshot', () => {
+  const detail = buildStockDetailViewModel({
+    symbol: 'MSFT',
+    stockTrades: [
+      { id: 'buy', trade_date: '2026-07-07', symbol: 'MSFT', side: 'buy', shares: 10, price: 100 },
+      { id: 'sell-today', trade_date: '2026-07-08', symbol: 'MSFT', side: 'sell', shares: 2, price: 130 },
+      { id: 'future-sell', trade_date: '2026-07-09', symbol: 'MSFT', side: 'sell', shares: 1, price: 140 },
+    ],
+    symbolSnapshots: [
+      {
+        snapshotDate: '2026-07-07',
+        symbol: 'MSFT',
+        heldShares: 10,
+        avgCostUsd: 100,
+        currentPriceUsd: 110,
+        marketValueUsd: 1100,
+        realizedPnlUsd: 0,
+        unrealizedPnlUsd: 100,
+        cumulativePnlUsd: 100,
+        dailyPnlUsd: 100,
+        totalBuyCostUsd: 1000,
+      },
+    ],
+    range: 'ytd',
+    // UTC is already July 9, while New York is still July 8.
+    now: new Date('2026-07-09T02:00:00.000Z'),
+  });
+
+  assert.equal(detail.snapshotDate, '2026-07-07');
+  assert.equal(detail.endDate, '2026/07/07');
+  assert.equal(detail.periodPnlUsd, 100);
+  assert.equal(detail.realizedPnlUsd, 0);
+  assert.equal(detail.unrealizedPnlUsd, 100);
+  assert.equal(detail.heldShares, 10);
+  assert.equal(detail.marketValueUsd, 1100);
+  assert.equal(detail.benchmarkEndDate, '2026-07-07');
+  assert.deepEqual(detail.trend.map((point) => point.date), ['2026-07-07']);
+  assert.deepEqual(detail.tradeEvents.map((record) => record.id), ['buy']);
+
+  assert.equal(detail.stats.buyCount, 1);
+  assert.equal(detail.stats.sellCount, 1);
+  assert.equal(detail.stats.sellAmountUsd, 260);
+  assert.deepEqual(detail.tradeRecords.map((record) => record.id), ['sell-today', 'buy']);
+  assert.equal(detail.tradeRecords[0].realizedPnlUsd, 60);
+});
+
+test('same-day sell edits and deletions rebuild ledger records immediately without moving close snapshots', () => {
+  const buy = { id: 'buy', trade_date: '2026-07-07', symbol: 'MSFT', side: 'buy', shares: 10, price: 100 };
+  const snapshot = {
+    snapshotDate: '2026-07-07',
+    symbol: 'MSFT',
+    heldShares: 10,
+    avgCostUsd: 100,
+    currentPriceUsd: 110,
+    marketValueUsd: 1100,
+    realizedPnlUsd: 0,
+    unrealizedPnlUsd: 100,
+    cumulativePnlUsd: 100,
+    totalBuyCostUsd: 1000,
+  };
+  const build = (sell) => buildStockDetailViewModel({
+    symbol: 'MSFT',
+    stockTrades: sell ? [buy, sell] : [buy],
+    symbolSnapshots: [snapshot],
+    range: 'ytd',
+    now: new Date('2026-07-09T02:00:00.000Z'),
+  });
+  const assertCloseFieldsStayLocked = (detail) => {
+    assert.equal(detail.snapshotDate, '2026-07-07');
+    assert.equal(detail.periodPnlUsd, 100);
+    assert.equal(detail.heldShares, 10);
+    assert.equal(detail.marketValueUsd, 1100);
+    assert.equal(detail.benchmarkEndDate, '2026-07-07');
+    assert.deepEqual(detail.trend.map((point) => point.date), ['2026-07-07']);
+  };
+
+  const added = build({ id: 'sell', trade_date: '2026-07-08', symbol: 'MSFT', side: 'sell', shares: 2, price: 130 });
+  assert.equal(added.stats.sellAmountUsd, 260);
+  assert.equal(added.tradeRecords[0].realizedPnlUsd, 60);
+  assertCloseFieldsStayLocked(added);
+
+  const edited = build({ id: 'sell', trade_date: '2026-07-08', symbol: 'MSFT', side: 'sell', shares: 3, price: 140 });
+  assert.equal(edited.stats.sellAmountUsd, 420);
+  assert.equal(edited.tradeRecords[0].realizedPnlUsd, 120);
+  assertCloseFieldsStayLocked(edited);
+
+  const movedToFuture = build({ id: 'sell', trade_date: '2026-07-09', symbol: 'MSFT', side: 'sell', shares: 3, price: 140 });
+  assert.equal(movedToFuture.stats.sellCount, 0);
+  assert.deepEqual(movedToFuture.tradeRecords.map((record) => record.id), ['buy']);
+  assertCloseFieldsStayLocked(movedToFuture);
+
+  const deleted = build(null);
+  assert.equal(deleted.stats.sellCount, 0);
+  assert.deepEqual(deleted.tradeRecords.map((record) => record.id), ['buy']);
+  assertCloseFieldsStayLocked(deleted);
+});
+
 test('separates stock detail giveback from net-asset drawdown rate', () => {
   const detail = buildStockDetailViewModel({
     symbol: 'NVDA',

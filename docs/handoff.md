@@ -10,7 +10,7 @@
 | --- | --- |
 | 仓库 | `chenshuai1190-dotcom/boduan-tracker` |
 | 生产地址 | `https://boduan-tracker.vercel.app` |
-| 运行时代码 | `v10.7.9.412`：v411 稳定运行时 + 正式交易 mutation 后一次即时个人收益重算 + 收益报表 mount/focus/pageshow 只读数据库快照；精确发布提交以 GitHub `main` HEAD 为准 |
+| 运行时代码 | `v10.7.9.413`：v412 稳定运行时 + 个股交易记录/统计按纽约当前日即时读取正式账本 + 收盘收益、持仓、走势与 QQQ 继续锁定完成快照；精确发布提交以 GitHub `main` HEAD 为准 |
 | 数据库 | 保留既有 additive schema，并已按顺序接入比赛 migration、个人收益 foundation `pnl_report_immediate_rebuild_20260801.sql` 与 runtime 后 contract `pnl_report_snapshot_write_contract_after_runtime_20260801.sql` |
 | 发布完成条件 | GitHub `main` 的同一份 runtime 与上述 migration 均已上线并通过聚合 postflight；只完成其中一项不得宣布上线 |
 
@@ -20,7 +20,8 @@
 - 个人收益正确重算专项：`131 / 131` tests PASS；独立 runtime/SQL 审查 `must-fix = 0`，6 份 SQL 的 PostgreSQL/PLpgSQL 解析、canonical 同步和列值数量检查均通过。
 - 个股/QQQ 当前存续仓位专项：`35 / 35` tests PASS；多次减仓、同日顺序、周末/常规 NYSE 节假日加仓和全清重买均覆盖，最终独立审查 `must-fix = 0`。
 - 个人收益只读页面专项：`57 / 57` tests PASS；交易 mutation 与收盘 Cron 保留重算所有权，报表 mount/focus/pageshow 不再触发重算或显示常驻重试。
-- `npm run check:full`：`870 / 870` tests PASS；字号下限、Vite production build、whitespace 和三份权威文档一致性均通过。
+- 个股即时交易事实专项：`34 / 34` tests PASS；当天新增、修改、删除和纽约日期上限均覆盖，收盘收益、持仓、趋势、图表节点与 QQQ 边界保持不变。
+- `npm run check:full`：`872 / 872` tests PASS；字号下限、Vite production build、whitespace 和三份权威文档一致性均通过。
 - 新的开发、验证和单等待器发布流程继续保留，没有恢复旧六文档或重复验证流程。
 
 ## 交易持仓收盘估值
@@ -38,6 +39,13 @@
 - 旧报表在分块重建期间保持可见，完整序列通过 ledger revision CAS 原子替换；空账本也通过原子操作明确清空。客户端请求是非阻塞派生动作，失败不会回滚已保存的正式交易。
 - 正式交易新增、金融字段修改或删除成功后，交易保存链路只发起一次已登录即时重算。收益报表打开、重新打开、focus、pageshow 和恢复前台时只读取数据库权威快照，不再触发个人历史重算或 EODHD rebuild，也不显示常驻重试提示；等待或失败时保留 dirty 与上一份完整报表，由收盘任务继续消费。个人收益、比赛、实时持仓估值与正式交易账本仍是独立链路。
 - schema 分为 `pnl_report_immediate_rebuild_20260801.sql` foundation 和 `pnl_report_snapshot_write_contract_after_runtime_20260801.sql` contract。生产严格按 foundation migration → 精确 runtime 部署/验证 → contract migration → 聚合 postflight 执行；contract 不得提前执行。
+
+## 个股收益详情即时账本
+
+- 正式交易新增、金融字段修改或删除成功后，个股详情直接从当前 `stock_trades` 重建交易记录、买入/卖出金额与买入/卖出次数，不等待个人收益快照或当天收盘。
+- 交易事实的区间上限使用 `America/New_York` 当前日期；纽约未来日期的交易不会提前显示。修改数量、价格或日期后立即按完整账本顺序重算实现盈亏，删除后立即移除。
+- 个股头部累计/已实现/未实现收益、持仓数量、持仓金额、收益走势、图表交易节点、持仓周期和相对 QQQ 继续只读取最新权威完成收盘快照；当天尚未进入快照的交易不得映射到上一收盘点，也不得提前改变这些收盘结果。
+- 本次不修改正式交易保存、个人收益重算、EODHD provider、比赛、数据库 schema、收盘任务或缓存策略。
 
 ## 个股与 QQQ 收益对比
 
@@ -72,7 +80,7 @@
 ### 已知风险
 
 - 比赛公开行情缓存与 402 熔断是 Vercel 单实例内存态，不是跨实例全局缓存；冷启动或不同实例仍可能分别首次读取一次。
-- v412 延续收益比赛共享 EODHD 缓存与熔断、交易持仓 EODHD 收盘估值、个人收益正确重算、主 `/api/quote` 的 15/30/60 分钟客户端门控和个股/QQQ 当前存续仓位口径，并把个人收益页面收敛为只读数据库快照。服务端仍没有 v404 的通用完成收盘缓存和全局 402 熔断；冷实例首次读取与尚未更新的旧客户端仍可能额外消耗 EODHD 额度。
+- v413 延续收益比赛共享 EODHD 缓存与熔断、交易持仓 EODHD 收盘估值、个人收益正确重算、主 `/api/quote` 的 15/30/60 分钟客户端门控、个股/QQQ 当前存续仓位口径和个人收益只读页面，并把个股交易记录/统计与收盘收益快照明确分离。服务端仍没有 v404 的通用完成收盘缓存和全局 402 熔断；冷实例首次读取与尚未更新的旧客户端仍可能额外消耗 EODHD 额度。
 - 个人收益的客户端即时重算请求是交易 mutation 后的一次非阻塞派生动作：正式交易保存成功不会因个人收益暂时失败而回滚，恢复依赖数据库 dirty state 和收盘 Cron，不依赖收益报表页面或浏览器一直存活。比赛仍保持其独立重算链路。
 - P&L foundation 与 contract 之间旧 PWA 仍保留原直接写权限，因此 runtime 验证后必须尽快执行 contract；任一步失败都只做 forward-fix。跨 Vercel 实例生成不同时间戳时可能留下多个安全隔离的暂存 job，由 24 小时 TTL 清理，不会混合发布。
 

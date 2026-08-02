@@ -1066,6 +1066,10 @@ test('stock detail page is read-only and separate from trade editing', () => {
   assert.ok(stockDetailPageSource.includes('grid-cols-[96px_112px_158px_158px]'), 'stock detail trade records should keep fixed columns compact while reserving more room for amount and realized P&L');
   assert.ok(stockDetailPageSource.includes('whitespace-nowrap text-right text-[13px]'), 'stock detail amount cells should keep large values on one line');
   assert.ok(stockDetailViewModelSource.includes('annotateTradeRecords'), 'stock detail should compute sell realized P&L from the trade ledger locally');
+  assert.ok(stockDetailViewModelSource.includes('const tradeEndDate = currentNewYorkDate(now);'), 'stock detail trade facts should extend through the current New York date');
+  assert.ok(stockDetailViewModelSource.includes('buildTradeStats(records, tradeStartDate, tradeEndDate, range)'), 'stock detail trade statistics should rebuild from the immediate ledger range');
+  assert.ok(stockDetailViewModelSource.includes('const snapshotTradeRecords = records'), 'stock detail should keep a separate completed-snapshot trade-event range');
+  assert.ok(stockDetailViewModelSource.includes('const visibleTradeEvents = snapshotTradeRecords'), 'unsnapshotted same-day trades must not be mapped onto an older close point');
   assert.ok(stockDetailViewModelSource.includes('latestCompletedUsTradingDate'), 'stock detail should ignore incomplete close snapshots like the report page');
   assert.ok(dbSource.includes('fetchPnlReportSymbolSnapshotHistory'), 'db layer should expose a read-only symbol snapshot history query');
 });

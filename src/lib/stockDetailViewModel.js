@@ -1,4 +1,4 @@
-import { latestCompletedUsTradingDate } from './pnlReportSnapshots.js';
+import { currentNewYorkDate, latestCompletedUsTradingDate } from './pnlReportSnapshots.js';
 
 function toNumber(value) {
   const n = Number(value);
@@ -381,8 +381,16 @@ export function buildStockDetailViewModel({
     ? null
     : periodReturnBasis(periodLatest, baseline, range, startsInsideRange);
   const periodPnlPct = periodReturnPct(periodPnlUsd, periodBasisUsd);
-  const stats = buildTradeStats(records, startDate, endDate, range);
+  // Formal ledger facts are visible through the current New York date as soon
+  // as the save succeeds. Snapshot-derived returns remain bounded by endDate,
+  // which is still the latest completed-close snapshot above.
+  const tradeEndDate = currentNewYorkDate(now);
+  const tradeStartDate = getRangeStartDate(range, tradeEndDate, firstTradeDate);
+  const stats = buildTradeStats(records, tradeStartDate, tradeEndDate, range);
   const tradeRecords = records
+    .filter((record) => record.date <= tradeEndDate && (range === 'all' || record.date >= tradeStartDate))
+    .sort((a, b) => b.date.localeCompare(a.date) || String(b.id || '').localeCompare(String(a.id || '')));
+  const snapshotTradeRecords = records
     .filter((record) => record.date <= endDate && (range === 'all' || record.date >= startDate))
     .sort((a, b) => b.date.localeCompare(a.date) || String(b.id || '').localeCompare(String(a.id || '')));
   const trend = boundedSnapshots.map((snapshot) => {
@@ -401,7 +409,7 @@ export function buildStockDetailViewModel({
     };
   }).filter((point) => point.pnlUsd != null);
   const trendDates = new Set(trend.map((point) => point.date));
-  const visibleTradeEvents = tradeRecords
+  const visibleTradeEvents = snapshotTradeRecords
     .filter((record) => trend.length > 0)
     .map((record) => {
       const exactDate = trendDates.has(record.date)
