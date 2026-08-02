@@ -131,7 +131,7 @@ test('formal ledger client integration is isolated, non-blocking, and server-own
   assert.ok(helperBlock.includes('enqueuePnlReportRecalculationAfterLedgerMutation({ supabase })'));
   assert.ok(helperBlock.includes('} finally {'));
   assert.ok(helperBlock.includes('setPnlReportRefreshVersion'));
-  assert.equal(helperBlock.includes("['recalculated', 'cleared', 'already_current']"), false, 'waiting and failed immediate rebuilds must also refresh an already-open report so it can observe dirty state');
+  assert.equal(helperBlock.includes("['recalculated', 'cleared', 'already_current']"), false, 'every mutation-triggered outcome should refresh an already-open report from authoritative snapshots');
   assert.equal(helperBlock.includes('stockTrades'), false);
   assert.equal(helperBlock.includes('quoteRows'), false);
 
@@ -142,16 +142,19 @@ test('formal ledger client integration is isolated, non-blocking, and server-own
   assert.equal(pageSource.includes('clearPnlReportRebuildState'), false);
 });
 
-test('report page consumes dirty revision safely and exposes bounded foreground/manual retry', () => {
-  assert.ok(pageSource.includes('rebuildState.ledgerRevision'));
-  assert.ok(pageSource.includes('rebuildState.generation'));
-  assert.ok(pageSource.includes('requestPnlReportRecalculation({ supabase })'));
-  assert.ok(pageSource.includes("result?.state === 'waiting_for_close'"));
-  assert.ok(pageSource.includes("window.addEventListener('focus', retryOnForeground)"));
-  assert.ok(pageSource.includes("window.addEventListener('pageshow', retryOnForeground)"));
-  assert.ok(pageSource.includes('PNL_REPORT_FOREGROUND_RETRY_MIN_INTERVAL_MS = 15 * 60_000'));
-  assert.ok(pageSource.includes('onClick={() => retryPnlReportRecalculation()}'));
-  assert.ok(pageSource.includes('reportMessageTimerRef.current = setTimeout'));
+test('report page stays read-only on mount and foreground resume while mutations and Cron own recalculation', () => {
+  assert.equal(pageSource.includes("from '../lib/pnlReportRecalculation.js'"), false);
+  assert.equal(pageSource.includes('requestPnlReportRecalculation'), false);
+  assert.equal(pageSource.includes('fetchPnlReportRebuildState'), false);
+  assert.equal(pageSource.includes('rebuildAttemptKey'), false);
+  assert.equal(pageSource.includes("result?.state === 'waiting_for_close'"), false);
+  assert.equal(pageSource.includes('PNL_REPORT_FOREGROUND_RETRY_MIN_INTERVAL_MS'), false);
+  assert.equal(pageSource.includes('onClick={() => retryPnlReportRecalculation()}'), false);
+  assert.ok(pageSource.includes('PNL_REPORT_FOREGROUND_READ_MIN_INTERVAL_MS = 60_000'));
+  assert.ok(pageSource.includes("window.addEventListener('focus', refreshOnForeground)"));
+  assert.ok(pageSource.includes("window.addEventListener('pageshow', refreshOnForeground)"));
+  assert.ok(pageSource.includes('void loadReportSnapshots()'));
+  assert.ok(pageSource.includes('db.fetchPnlReportSnapshots(null, 370)'));
   assert.ok(pageSource.includes('setPortfolioSnapshots(snapshots)'));
   assert.equal(pageSource.includes('setPortfolioSnapshots([])'), false);
   assert.ok(dbSource.includes('ledgerRevision: Number(state.ledger_revision || 0)'));

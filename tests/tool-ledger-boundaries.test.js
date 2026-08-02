@@ -867,7 +867,8 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(pnlReportViewModelSource.includes('isCompletedCloseSnapshot'), 'P&L report view model should guard against incomplete-day snapshots');
   assert.ok(pnlReportViewModelSource.includes('latestCompletedUsTradingDate(snapshot.lockedAt)'), 'P&L report view model should validate lockedAt against completed US trading dates');
   assert.ok(pnlReportPageSource.includes('Quote Data testing'), 'P&L report header should show the English Quote data testing badge');
-  assert.ok(pnlReportPageSource.includes('requestPnlReportRecalculation({ supabase })'), 'the report page should request the authenticated server-owned rebuild');
+  assert.equal(pnlReportPageSource.includes('requestPnlReportRecalculation'), false, 'the report page must stay read-only and never trigger a rebuild');
+  assert.ok(pnlReportPageSource.includes('db.fetchPnlReportSnapshots(null, 370)'), 'the report page should only read authoritative snapshots');
   assert.ok(pnlReportPageSource.includes('pnlReport.summaryShort'), 'P&L report summary title should follow the selected range');
   assert.ok(pnlReportPageSource.includes('leading-[44px]'), 'P&L report date filter inputs should vertically center date text');
   assert.ok(pnlReportPageSource.includes("`${currentRangeLabel}${benchmarkActionLabel} ${benchmarkName}`"), 'P&L report benchmark label should include range, status, a space, and Nasdaq');

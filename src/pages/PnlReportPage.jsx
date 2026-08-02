@@ -9,7 +9,6 @@ import {
   splitChartPointSegments,
 } from '../lib/pnlReportChart.js';
 import { buildPnlReportViewModel } from '../lib/pnlReportViewModel.js';
-import { requestPnlReportRecalculation } from '../lib/pnlReportRecalculation.js';
 
 const REPORT_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif';
 const NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif';
@@ -17,7 +16,7 @@ const USD_CNY_FALLBACK = 7.2;
 const PNL_CHART_WIDTH = 310;
 const PNL_CHART_HEIGHT = 150;
 const PNL_CHART_PAD = 10;
-const PNL_REPORT_FOREGROUND_RETRY_MIN_INTERVAL_MS = 15 * 60_000;
+const PNL_REPORT_FOREGROUND_READ_MIN_INTERVAL_MS = 60_000;
 const NET_ASSET_COLOR = '#ff5038';
 const TOTAL_ASSET_COLOR = '#f6b54b';
 
@@ -570,27 +569,23 @@ export default function PnlReportPage({ ctx = {} }) {
   const [portfolioSnapshots, setPortfolioSnapshots] = React.useState([]);
   const [symbolSnapshots, setSymbolSnapshots] = React.useState([]);
   const [baselineSymbolSnapshots, setBaselineSymbolSnapshots] = React.useState([]);
-  const [rebuildState, setRebuildState] = React.useState(null);
   const [reportLoading, setReportLoading] = React.useState(false);
   const [reportError, setReportError] = React.useState('');
-  const [reportMessage, setReportMessage] = React.useState('');
-  const [rebuilding, setRebuilding] = React.useState(false);
-  const [rebuildRetryVersion, setRebuildRetryVersion] = React.useState(0);
   const [snapshotLoadVersion, setSnapshotLoadVersion] = React.useState(0);
   const [benchmarkRows, setBenchmarkRows] = React.useState([]);
   const [benchmarkLoading, setBenchmarkLoading] = React.useState(false);
   const [benchmarkError, setBenchmarkError] = React.useState('');
+  const lastSnapshotLoadAtRef = React.useRef(0);
   const loadReportSnapshots = React.useCallback(async () => {
     if (!db?.fetchPnlReportSnapshots) return;
+    lastSnapshotLoadAtRef.current = Date.now();
     setReportLoading(true);
     setReportError('');
     try {
       const snapshots = await db.fetchPnlReportSnapshots(null, 370);
       setPortfolioSnapshots(snapshots);
-      const state = db.fetchPnlReportRebuildState ? await db.fetchPnlReportRebuildState() : null;
-      setRebuildState(state);
       setSnapshotLoadVersion((version) => version + 1);
-      return { snapshots, state };
+      return snapshots;
     } catch (error) {
       setReportError(error?.message || String(error));
       return null;
@@ -603,113 +598,25 @@ export default function PnlReportPage({ ctx = {} }) {
     loadReportSnapshots();
   }, [loadReportSnapshots, pnlReportRefreshVersion, user?.id]);
 
-  const rebuildAttemptKey = rebuildState?.dirtyFromDate
-    ? [
-      String(user?.id || ''),
-      rebuildState.dirtyFromDate,
-      String(rebuildState.ledgerRevision || 0),
-      String(rebuildState.generation || 0),
-    ].join(':')
-    : '';
-  const lastRebuildAttemptKeyRef = React.useRef('');
-  const rebuildInFlightRef = React.useRef(null);
-  const lastForegroundRetryAtRef = React.useRef(0);
-  const reportMessageTimerRef = React.useRef(null);
-
-  const clearReportMessageTimer = React.useCallback(() => {
-    if (reportMessageTimerRef.current != null) {
-      clearTimeout(reportMessageTimerRef.current);
-      reportMessageTimerRef.current = null;
-    }
-  }, []);
-
-  const showTemporaryReportMessage = React.useCallback((message) => {
-    clearReportMessageTimer();
-    setReportMessage(message);
-    reportMessageTimerRef.current = setTimeout(() => {
-      reportMessageTimerRef.current = null;
-      setReportMessage('');
-    }, 3000);
-  }, [clearReportMessageTimer]);
-
-  React.useEffect(() => () => clearReportMessageTimer(), [clearReportMessageTimer]);
-
-  const retryPnlReportRecalculation = React.useCallback(({ automatic = false } = {}) => {
-    if (!rebuildAttemptKey || rebuildInFlightRef.current != null) return false;
-    const now = Date.now();
-    if (
-      automatic
-      && now - lastForegroundRetryAtRef.current < PNL_REPORT_FOREGROUND_RETRY_MIN_INTERVAL_MS
-    ) return false;
-    lastForegroundRetryAtRef.current = now;
-    lastRebuildAttemptKeyRef.current = '';
-    setRebuildRetryVersion((version) => version + 1);
-    return true;
-  }, [rebuildAttemptKey]);
-
   React.useEffect(() => {
-    if (!rebuildAttemptKey || typeof window === 'undefined') return undefined;
-    const retryOnForeground = () => retryPnlReportRecalculation({ automatic: true });
-    const retryWhenVisible = () => {
-      if (typeof document === 'undefined' || document.visibilityState === 'visible') {
-        retryOnForeground();
-      }
+    if (typeof window === 'undefined') return undefined;
+    const refreshOnForeground = () => {
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+      if (Date.now() - lastSnapshotLoadAtRef.current < PNL_REPORT_FOREGROUND_READ_MIN_INTERVAL_MS) return;
+      void loadReportSnapshots();
     };
-    window.addEventListener('focus', retryOnForeground);
-    window.addEventListener('pageshow', retryOnForeground);
-    if (typeof document !== 'undefined') document.addEventListener('visibilitychange', retryWhenVisible);
+    const refreshWhenVisible = () => {
+      if (typeof document === 'undefined' || document.visibilityState === 'visible') refreshOnForeground();
+    };
+    window.addEventListener('focus', refreshOnForeground);
+    window.addEventListener('pageshow', refreshOnForeground);
+    if (typeof document !== 'undefined') document.addEventListener('visibilitychange', refreshWhenVisible);
     return () => {
-      window.removeEventListener('focus', retryOnForeground);
-      window.removeEventListener('pageshow', retryOnForeground);
-      if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', retryWhenVisible);
+      window.removeEventListener('focus', refreshOnForeground);
+      window.removeEventListener('pageshow', refreshOnForeground);
+      if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', refreshWhenVisible);
     };
-  }, [rebuildAttemptKey, retryPnlReportRecalculation]);
-
-  React.useEffect(() => {
-    if (!rebuildAttemptKey || !supabase?.auth?.getSession) return undefined;
-    if (lastRebuildAttemptKeyRef.current === rebuildAttemptKey) return undefined;
-    lastRebuildAttemptKeyRef.current = rebuildAttemptKey;
-
-    let cancelled = false;
-    const attemptToken = Symbol(rebuildAttemptKey);
-    rebuildInFlightRef.current = attemptToken;
-    lastForegroundRetryAtRef.current = Date.now();
-    clearReportMessageTimer();
-    setRebuilding(true);
-    setReportError('');
-    setReportMessage(t(language, 'pnlReport.recalculating', '交易已更新，正在按已完成收盘价重算收益报表'));
-
-    requestPnlReportRecalculation({ supabase })
-      .then(async (result) => {
-        if (cancelled) return;
-        if (result?.state === 'waiting_for_close') {
-          clearReportMessageTimer();
-          setReportMessage(t(language, 'pnlReport.waitingForClose', '交易已更新，等待对应交易日完成收盘后自动重算'));
-          return;
-        }
-        if (['recalculated', 'cleared', 'already_current'].includes(result?.state)) {
-          if (rebuildInFlightRef.current === attemptToken) setRebuilding(false);
-          const loaded = await loadReportSnapshots();
-          if (!cancelled && loaded) {
-            showTemporaryReportMessage(t(language, 'pnlReport.recalculated', '收益报表已按最新正式交易重新计算'));
-          }
-        }
-      })
-      .catch((error) => {
-        if (!cancelled) {
-          setReportError(error?.message || String(error));
-          setReportMessage('');
-        }
-      })
-      .finally(() => {
-        if (rebuildInFlightRef.current === attemptToken) rebuildInFlightRef.current = null;
-        if (!cancelled) setRebuilding(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [clearReportMessageTimer, language, loadReportSnapshots, rebuildAttemptKey, rebuildRetryVersion, showTemporaryReportMessage, supabase]);
+  }, [loadReportSnapshots]);
 
   const reportData = React.useMemo(() => buildPnlReportViewModel({
     portfolioSnapshots,
@@ -892,24 +799,18 @@ export default function PnlReportPage({ ctx = {} }) {
   const summaryTitle = englishMode
     ? `${currentRangeLabel} ${t(language, 'pnlReport.summaryShort', 'P&L Summary')}`
     : `${currentRangeLabel}${t(language, 'pnlReport.summaryShort', '盈亏总结')}`;
-  const statusText = rebuilding
-    ? t(language, 'pnlReport.recalculating', '交易已更新，正在按已完成收盘价重算收益报表')
-    : reportLoading && portfolioSnapshots.length === 0
+  const statusText = reportLoading && portfolioSnapshots.length === 0
     ? t(language, 'pnlReport.loadingSnapshots', '正在读取收益快照')
     : reportError
       ? reportError
-      : reportMessage || (rebuildState?.dirtyFromDate
-        ? `${t(language, 'pnlReport.dirtyNotice', '交易已更新，收益报表等待自动重算')} · ${rebuildState.dirtyFromDate}`
-        : reportData.hasData
-          ? t(language, 'pnlReport.snapshotNotice', '当前页面读取数据库中的已完成收盘收益快照。')
-          : range === 'custom'
-            ? t(language, 'pnlReport.noSnapshotForRange', '所选日期没有收益快照。页面不会用其他日期数据替代。')
-            : t(language, 'pnlReport.noSnapshotNotice', '暂无收益快照。先生成收盘快照后,页面会读取数据库里的真实报表数据。'));
-  const showReportStatus = rebuilding
-    || Boolean(rebuildState?.dirtyFromDate)
-    || Boolean(reportError)
-    || Boolean(reportMessage)
-    || (reportLoading && portfolioSnapshots.length === 0);
+      : reportData.hasData
+        ? ''
+        : range === 'custom'
+          ? t(language, 'pnlReport.noSnapshotForRange', '所选日期没有收益快照。页面不会用其他日期数据替代。')
+          : t(language, 'pnlReport.noSnapshotNotice', '暂无收益快照。先生成收盘快照后，页面会读取数据库里的真实报表数据。');
+  const showReportStatus = Boolean(reportError)
+    || (reportLoading && portfolioSnapshots.length === 0)
+    || (!reportLoading && !reportData.hasData);
   const firstAvailableMonthForYear = React.useCallback((year) => {
     const prefix = `${year}-`;
     return (availableCalendarMonths.find((month) => month.startsWith(prefix)) || `${year}-01`).slice(5, 7);
@@ -978,17 +879,8 @@ export default function PnlReportPage({ ctx = {} }) {
 
       {showReportStatus && (
         <div className="mx-5 mt-4 flex items-start gap-2.5 rounded-2xl border border-white/10 bg-white/[0.04] px-3.5 py-3 text-[12px] leading-5 text-white/[0.48]">
-          <BarChart3 className={`mt-0.5 h-4 w-4 shrink-0 text-[#f6b54b] ${rebuilding ? 'animate-pulse' : ''}`} />
+          <BarChart3 className="mt-0.5 h-4 w-4 shrink-0 text-[#f6b54b]" />
           <div className="min-w-0 flex-1">{statusText}</div>
-          {rebuildState?.dirtyFromDate && !rebuilding && (
-            <button
-              type="button"
-              onClick={() => retryPnlReportRecalculation()}
-              className="shrink-0 rounded-full border border-[#f6b54b]/35 bg-[#f6b54b]/10 px-2.5 py-1 text-[11px] leading-4 text-[#ffd18a] transition active:scale-95"
-            >
-              {t(language, 'pnlReport.retryRecalculation', '重试')}
-            </button>
-          )}
         </div>
       )}
 

@@ -10,7 +10,7 @@
 | --- | --- |
 | 仓库 | `chenshuai1190-dotcom/boduan-tracker` |
 | 生产地址 | `https://boduan-tracker.vercel.app` |
-| 运行时代码 | `v10.7.9.411`：v410 稳定运行时 + 个股/QQQ 仅按当前存续仓位从原起点重算 + 非交易日加仓映射下一共同完成收盘；精确发布提交以 GitHub `main` HEAD 为准 |
+| 运行时代码 | `v10.7.9.412`：v411 稳定运行时 + 正式交易 mutation 后一次即时个人收益重算 + 收益报表 mount/focus/pageshow 只读数据库快照；精确发布提交以 GitHub `main` HEAD 为准 |
 | 数据库 | 保留既有 additive schema，并已按顺序接入比赛 migration、个人收益 foundation `pnl_report_immediate_rebuild_20260801.sql` 与 runtime 后 contract `pnl_report_snapshot_write_contract_after_runtime_20260801.sql` |
 | 发布完成条件 | GitHub `main` 的同一份 runtime 与上述 migration 均已上线并通过聚合 postflight；只完成其中一项不得宣布上线 |
 
@@ -19,6 +19,7 @@
 - 收益比赛最终独立审查：`121 / 121` tests PASS，核心实现 `must-fix = 0`。
 - 个人收益正确重算专项：`131 / 131` tests PASS；独立 runtime/SQL 审查 `must-fix = 0`，6 份 SQL 的 PostgreSQL/PLpgSQL 解析、canonical 同步和列值数量检查均通过。
 - 个股/QQQ 当前存续仓位专项：`35 / 35` tests PASS；多次减仓、同日顺序、周末/常规 NYSE 节假日加仓和全清重买均覆盖，最终独立审查 `must-fix = 0`。
+- 个人收益只读页面专项：`57 / 57` tests PASS；交易 mutation 与收盘 Cron 保留重算所有权，报表 mount/focus/pageshow 不再触发重算或显示常驻重试。
 - `npm run check:full`：`870 / 870` tests PASS；字号下限、Vite production build、whitespace 和三份权威文档一致性均通过。
 - 新的开发、验证和单等待器发布流程继续保留，没有恢复旧六文档或重复验证流程。
 
@@ -35,7 +36,7 @@
 - 正式交易新增、删除或金融字段修改成功后，个人收益从最早受影响交易日即时重算；修改名称或备注不触发。
 - 重算只从服务端读取 EODHD 已完成收盘日线，不使用 Yahoo、实时价或其他备用源；正常交易日目标 K 线未到时返回等待并保留 dirty，不回退到旧日期冒充当日结果。
 - 旧报表在分块重建期间保持可见，完整序列通过 ledger revision CAS 原子替换；空账本也通过原子操作明确清空。客户端请求是非阻塞派生动作，失败不会回滚已保存的正式交易。
-- 前台自动重试受 15 分钟门控，手动重试可立即触发；收盘任务会继续消费离线用户的 dirty。个人收益、比赛、实时持仓估值与正式交易账本仍是独立链路。
+- 正式交易新增、金融字段修改或删除成功后，交易保存链路只发起一次已登录即时重算。收益报表打开、重新打开、focus、pageshow 和恢复前台时只读取数据库权威快照，不再触发个人历史重算或 EODHD rebuild，也不显示常驻重试提示；等待或失败时保留 dirty 与上一份完整报表，由收盘任务继续消费。个人收益、比赛、实时持仓估值与正式交易账本仍是独立链路。
 - schema 分为 `pnl_report_immediate_rebuild_20260801.sql` foundation 和 `pnl_report_snapshot_write_contract_after_runtime_20260801.sql` contract。生产严格按 foundation migration → 精确 runtime 部署/验证 → contract migration → 聚合 postflight 执行；contract 不得提前执行。
 
 ## 个股与 QQQ 收益对比
@@ -71,8 +72,8 @@
 ### 已知风险
 
 - 比赛公开行情缓存与 402 熔断是 Vercel 单实例内存态，不是跨实例全局缓存；冷启动或不同实例仍可能分别首次读取一次。
-- v411 延续收益比赛共享 EODHD 缓存与熔断、交易持仓 EODHD 收盘估值、个人收益正确重算和主 `/api/quote` 的 15/30/60 分钟客户端门控，并把个股/QQQ 对比收敛为固定起点下的当前存续仓位。服务端仍没有 v404 的通用完成收盘缓存和全局 402 熔断；冷实例首次读取与尚未更新的旧客户端仍可能额外消耗 EODHD 额度。
-- 客户端的即时重算请求是非阻塞派生动作：正式交易保存成功不会因个人收益或比赛暂时失败而回滚。恢复依赖数据库 dirty state、登录态请求和 Cron，不依赖浏览器一直存活。
+- v412 延续收益比赛共享 EODHD 缓存与熔断、交易持仓 EODHD 收盘估值、个人收益正确重算、主 `/api/quote` 的 15/30/60 分钟客户端门控和个股/QQQ 当前存续仓位口径，并把个人收益页面收敛为只读数据库快照。服务端仍没有 v404 的通用完成收盘缓存和全局 402 熔断；冷实例首次读取与尚未更新的旧客户端仍可能额外消耗 EODHD 额度。
+- 个人收益的客户端即时重算请求是交易 mutation 后的一次非阻塞派生动作：正式交易保存成功不会因个人收益暂时失败而回滚，恢复依赖数据库 dirty state 和收盘 Cron，不依赖收益报表页面或浏览器一直存活。比赛仍保持其独立重算链路。
 - P&L foundation 与 contract 之间旧 PWA 仍保留原直接写权限，因此 runtime 验证后必须尽快执行 contract；任一步失败都只做 forward-fix。跨 Vercel 实例生成不同时间戳时可能留下多个安全隔离的暂存 job，由 24 小时 TTL 清理，不会混合发布。
 
 ## 必须保护的业务边界

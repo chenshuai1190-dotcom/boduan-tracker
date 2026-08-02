@@ -2590,8 +2590,9 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
       console.warn('收益报表即时重算暂未完成:', error?.message || error);
       return null;
     } finally {
-      // 即使目标收盘尚未生成或请求暂时失败，也要让已经打开的报表
-      // 重新读取 trigger 写入的权威 dirty state，并启用后续前台重试。
+      // The report page remains read-only. After the mutation-triggered attempt,
+      // refresh an already-open report from authoritative snapshots only; any
+      // remaining dirty state is consumed by the scheduled close jobs.
       setPnlReportRefreshVersion((version) => version + 1);
     }
   }, [user?.id]);

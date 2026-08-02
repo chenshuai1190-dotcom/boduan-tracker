@@ -4,6 +4,23 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '📈 收益报表改为只读加载',
+      '  - 正式交易新增、金融字段修改或删除成功后，由交易保存链路唯一触发一次已登录即时重算；名称和备注修改仍不触发',
+      '  - 打开或重新打开收益报表，以及 focus、pageshow 和恢复前台时，只读取数据库中的权威完成快照，不再触发个人历史重算或 EODHD rebuild',
+      '  - 即时重算等待收盘或失败时继续保留 dirty 与上一份完整报表，由既有收盘定时任务补算；页面不再显示常驻重试提示或按钮',
+      '  - 不修改个人收益口径、每日收盘快照、EODHD provider、正式交易、比赛、持仓估值或数据库 schema',
+    ],
+    itemsEn: [
+      '📈 Read-only loading for personal P&L reports',
+      '  - After a successful formal-trade add, financial edit, or deletion, the trade-save path is the only client path that triggers one authenticated immediate rebuild; name-only and note-only edits still do not trigger it',
+      '  - Opening or reopening the report, focus, pageshow, and foreground resume now read only authoritative completed snapshots from the database and never trigger a personal-history rebuild or EODHD rebuild',
+      '  - When the immediate rebuild is waiting for a close or fails, dirty state and the previous complete report remain for the existing scheduled close jobs; the page no longer shows a persistent retry notice or button',
+      '  - Personal P&L formulas, daily close snapshots, the EODHD provider, formal trades, competition, holding valuation, and database schema are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.411', date: '2026-08-02',
+    items: [
       '📊 个股与 QQQ 对比只保留当前存续仓位',
       '  - 固定当前持仓周期的原始起点，但卖出部分、对应 QQQ 仓位及其已实现盈亏会从整段历史对比中剔除',
       '  - 每次正式交易新增、修改或删除后，系统按交易顺序反推仍存续的买入份额并自动完整重算；既有卖出无需重复提交',
