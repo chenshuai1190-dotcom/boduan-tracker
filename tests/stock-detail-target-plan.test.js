@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 const stockDetailSource = readFileSync(new URL('../src/pages/StockDetailPage.jsx', import.meta.url), 'utf8');
 const watchlistDetailSource = readFileSync(new URL('../src/pages/WatchlistStockDetailPage.jsx', import.meta.url), 'utf8');
 const targetEditorSource = readFileSync(new URL('../src/components/StockTargetEditor.jsx', import.meta.url), 'utf8');
+const i18nSource = readFileSync(new URL('../src/lib/i18n.js', import.meta.url), 'utf8');
 
 function sourceSlice(source, startMarker, endMarker) {
   const start = source.indexOf(startMarker);
@@ -48,6 +49,9 @@ test('individual return summary keeps all three approved two-column rows before 
     assert.ok(index > previousIndex, `${marker} must keep the approved summary-card order`);
     previousIndex = index;
   });
+  assert.match(summarySource, /'stockDetail\.avgCost', '会计平均成本'/);
+  assert.match(i18nSource, /'stockDetail\.avgCost': '会计平均成本'/);
+  assert.match(i18nSource, /'stockDetail\.avgCost': 'Accounting Average Cost'/);
 });
 
 test('integrated target editing keeps the isolated watchlist saver and no ledger write path', () => {

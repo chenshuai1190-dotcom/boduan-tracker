@@ -845,7 +845,7 @@ export default function StockDetailPage({ ctx = {} }) {
               value={`${fmt(view.heldShares, 0)} ${t(language, 'stockDetail.shares', '股')}`}
             />
             <StatCell
-              label={t(language, 'stockDetail.avgCost', '当前成本')}
+              label={t(language, 'stockDetail.avgCost', '会计平均成本')}
               value={view.avgCostUsd > 0 ? fmt(view.avgCostUsd, 3) : '--'}
             />
           </div>
