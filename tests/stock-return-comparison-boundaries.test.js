@@ -91,6 +91,7 @@ test('comparison UI uses system market colors and does not embed production fina
   assert.match(shareVisualSource, /signedPct\(comparison\.stockPnlPct\)/);
   assert.match(shareVisualSource, /signedPct\(comparison\.benchmarkPnlPct\)/);
   assert.ok(tooltipVisualStart > -1 && tooltipVisualEnd > tooltipVisualStart, 'chart-tooltip visual source should be detectable');
+  assert.match(tooltipVisualSource, /grid-cols-\[max-content_minmax\(0,1fr\)\]/, 'tooltip labels should keep their natural width instead of wrapping in a fixed column');
   assert.match(tooltipVisualSource, /signedCurrency\(selected\.stockPnlUsd/);
   assert.match(tooltipVisualSource, /signedCurrency\(selected\.benchmarkPnlUsd/);
   assert.match(tooltipVisualSource, /signedPct\(selected\.excessPnlPct\)/);

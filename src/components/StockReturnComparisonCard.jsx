@@ -315,7 +315,7 @@ function ComparisonChart({ comparison, displayRate, displayCurrency, language, m
             >
               {String(selected.date).replaceAll('-', '/')}
             </div>
-            <div className="mt-1.5 grid grid-cols-[64px_1fr] gap-x-2 gap-y-1 text-[11px]">
+            <div className="mt-1.5 grid grid-cols-[max-content_minmax(0,1fr)] gap-x-2 gap-y-1 text-[11px]">
               <span className="text-white/[0.40]">{t(language, 'stockDetail.comparison.mine', '当前持仓收益')}</span>
               <span className="whitespace-nowrap text-right font-medium tabular-nums" style={{ color: valueColor(selected.stockPnlUsd, marketColorMode), fontFamily: NUMBER_FONT }}>{signedCurrency(selected.stockPnlUsd, displayCurrency)}</span>
               <span className="text-white/[0.40]">QQQ</span>
