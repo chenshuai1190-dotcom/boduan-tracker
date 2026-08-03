@@ -20,11 +20,6 @@ function formatDistance(value) {
   return `${number > 0 ? '+' : ''}${number.toFixed(2)}%`;
 }
 
-function formatShortDate(value) {
-  const match = String(value || '').match(/^\d{4}-(\d{2})-(\d{2})$/);
-  return match ? `${match[1]}/${match[2]}` : '';
-}
-
 function SignalRow({ row, language, onOpenStock }) {
   const confirmed = row.status === 'confirmed';
   return (
@@ -97,7 +92,6 @@ export default function HomeMa200BreakdownMonitor({
     ? model.rows
     : model.rows.slice(0, HOME_MA200_DEFAULT_ROWS);
   const englishMode = isEnglishLanguage(language);
-  const date = formatShortDate(model.latestAsOfDate);
   const emptyText = model.watchlistCount === 0
     ? t(language, 'home.noWatchlist', '暂无自选股票。')
     : model.hasIncompleteData
@@ -182,18 +176,6 @@ export default function HomeMa200BreakdownMonitor({
         )}
       </section>
 
-      <section
-        className="mt-3 flex min-h-[44px] items-center justify-end rounded-2xl border border-white/[0.095] bg-[#0b0f14] px-[13px] shadow-[inset_0_1px_0_rgba(255,255,255,0.045),0_18px_44px_rgba(0,0,0,0.14)]"
-        aria-label={date
-          ? t(language, 'home.ma200Monitor.updatedClose', '更新至 {{date}} 收盘', { date })
-          : t(language, 'home.ma200Monitor.awaitingClose', '等待完成收盘')}
-      >
-        <div className={`shrink-0 whitespace-nowrap text-right leading-[1.25] tabular-nums text-white/[0.43] ${englishMode ? 'text-[10px]' : 'text-[11px]'}`} style={{ fontFamily: NUMBER_FONT }}>
-          {date
-            ? t(language, 'home.ma200Monitor.updatedClose', '更新至 {{date}} 收盘', { date })
-            : t(language, 'home.ma200Monitor.awaitingClose', '等待完成收盘')}
-        </div>
-      </section>
     </div>
   );
 }

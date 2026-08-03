@@ -170,6 +170,8 @@ test('home component and App keep MA200 monitoring read-only, co-batched, and di
   assert.ok(componentSource.includes("'watchlistDetail.openAria'"));
   assert.equal(componentSource.includes('最长展示 20 个交易日'), false);
   assert.equal(componentSource.includes('home.ma200Monitor.method'), false);
+  assert.equal(componentSource.includes('home.ma200Monitor.updatedClose'), false);
+  assert.equal(componentSource.includes('home.ma200Monitor.awaitingClose'), false);
 
   const earningsIndex = homeSource.indexOf('<EarningsCalendar');
   const monitorIndex = homeSource.indexOf('<HomeMa200BreakdownMonitor');
