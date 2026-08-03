@@ -204,6 +204,7 @@ test('current TSM quarter uses the verified official management-report snapshot 
   const parsed = knownForeignIssuerBusinessComposition({
     symbol: 'TSM',
     fiscalDate: '2026-06-30',
+    reportDate: '2026-07-16',
   });
   assert.equal(parsed?.status, 'complete');
   assert.equal(parsed?.sections.revenueBreakdown.items.length, 6);
@@ -212,9 +213,16 @@ test('current TSM quarter uses the verified official management-report snapshot 
   assert.equal(knownForeignIssuerBusinessComposition({
     symbol: 'TSM',
     fiscalDate: '2026-03-31',
+    reportDate: '2026-07-16',
   }), null);
   assert.equal(knownForeignIssuerBusinessComposition({
     symbol: 'NOK',
     fiscalDate: '2026-06-30',
+    reportDate: '2026-07-16',
+  }), null);
+  assert.equal(knownForeignIssuerBusinessComposition({
+    symbol: 'TSM',
+    fiscalDate: '2026-06-30',
+    reportDate: '2026-07-01',
   }), null);
 });

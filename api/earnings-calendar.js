@@ -11,6 +11,7 @@ import {
   parseEarningsDetailRequest,
 } from '../server/earnings/secEarningsDetail.js';
 import { fetchSecFinancialHistory } from '../server/earnings/secFinancialHistory.js';
+import { fetchEodhdFinancialHistory } from '../server/earnings/eodhdFinancialHistory.js';
 import {
   fetchOfficialFundComposition,
   isOfficialFundCompositionSupportedSymbol,
@@ -139,7 +140,16 @@ export async function handleEarningsGrowthRequest(req, res) {
   if (!symbol) return sendError(res, 400, '需要合法的 symbol 参数');
 
   try {
-    const history = await fetchSecFinancialHistory({ symbol });
+    let history;
+    if (symbol === 'TSM') {
+      const eodhdKey = (process.env.EODHD_API_KEY || '')
+        .trim()
+        .replace(/[\s\u200B-\u200D\uFEFF]/g, '');
+      if (!eodhdKey) return sendError(res, 500, '业绩趋势服务未配置: 缺少 EODHD_API_KEY');
+      history = await fetchEodhdFinancialHistory({ symbol, eodhdKey });
+    } else {
+      history = await fetchSecFinancialHistory({ symbol });
+    }
     res.setHeader(
       'Cache-Control',
       history.status === 'complete' || history.status === 'partial'

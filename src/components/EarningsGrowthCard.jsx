@@ -537,6 +537,14 @@ export default function EarningsGrowthCard({
     : (english
       ? `${periods.length} quarters · year-over-year`
       : `${periods.length} 个季度 · 同季度同比`);
+  const periodAverageUsd = data.currency === 'USD'
+    && data.originalCurrency === 'TWD'
+    && data.fxBasis === 'period-average';
+  const currencyBasisText = periodAverageUsd
+    ? (english
+      ? 'USD · period-average FX · original statements in TWD'
+      : 'USD（期间平均汇率换算）· 原始报表币种 TWD')
+    : '';
   const subtitle = mode === 'annual'
     ? (english
       ? `Revenue and net income · latest ${periods.length} complete fiscal years`
@@ -639,7 +647,11 @@ export default function EarningsGrowthCard({
             <strong className="truncate whitespace-nowrap text-[11px] font-normal text-white/[0.64]">
               {detailPeriodLabel(selected, mode, language)} · {dateText(selected.endDate, language)}
             </strong>
-            <span className="text-right">{english ? 'Reported' : '公布值'}</span>
+            <span className="text-right">
+              {periodAverageUsd
+                ? (english ? 'Translated USD' : 'USD 折算值')
+                : (english ? 'Reported' : '公布值')}
+            </span>
             <span className="text-right">{english ? 'YoY' : mode === 'annual' ? '较上年' : '同比'}</span>
           </div>
           <DetailRow
@@ -691,8 +703,9 @@ export default function EarningsGrowthCard({
             : '仅展示口径完整且可确认的期间'}
         </div>
       ) : null}
-      <footer className="flex min-h-[42px] items-center border-t border-white/[0.045] px-[15px] text-[10px] text-white/[0.34]">
+      <footer className="flex min-h-[42px] flex-col justify-center gap-0.5 border-t border-white/[0.045] px-[15px] py-2 text-[10px] text-white/[0.34]">
         <span>{rangeText}</span>
+        {currencyBasisText ? <span>{currencyBasisText}</span> : null}
       </footer>
     </section>
   );

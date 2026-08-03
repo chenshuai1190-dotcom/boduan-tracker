@@ -67,6 +67,8 @@ const NVDA_FILING = filing({
   reportDate: '2026-04-26',
 });
 
+const TSMC_Q2_2026_REPORT_URL = 'https://investor.tsmc.com/english/encrypt/files/encrypt_file/reports/2026-07/6f49632674bd2d0fd48cb65aaf89ec6ab510b559/2Q26%20ManagementReport.pdf';
+
 function assertParsedCore(result, status = 'complete') {
   assert.equal(result.currency, 'USD');
   assert.equal(result.status, status);
@@ -754,6 +756,155 @@ test('SEC filing source selects the earnings 6-K when the same fiscal period als
   assert.equal(result.form, '6-K');
   assert.equal(result.accession, earningsAccession);
   assert.ok(result.filingUrl.endsWith(`/${earningsAccession}-index.html`));
+});
+
+test('verified TSM management-report detail keeps available SEC filing provenance', async () => {
+  clearSecEarningsDetailCachesForTests();
+  const cik = '0001046179';
+  const accession = '0001046179-26-000451';
+  const submissions = {
+    tickers: ['TSM'],
+    filings: {
+      recent: {
+        accessionNumber: [accession],
+        form: ['6-K'],
+        filingDate: ['2026-07-16'],
+        reportDate: ['2026-06-30'],
+        primaryDocument: ['tsm-20260716x6k.htm'],
+        acceptanceDateTime: ['2026-07-16T12:00:00.000Z'],
+      },
+    },
+  };
+  const requested = [];
+  const result = await fetchSecEarningsDetail({
+    symbol: 'TSM',
+    fiscalDate: '2026-06-30',
+    reportDate: '2026-07-16',
+    now: new Date('2026-07-17T12:00:00.000Z'),
+    requestIntervalMs: 0,
+    fetchFn: async (url) => {
+      requested.push(new URL(url).pathname);
+      return textResponse(submissions);
+    },
+  });
+
+  assert.equal(result.status, 'complete');
+  assert.equal(result.reason, null);
+  assert.deepEqual(result.period, {
+    start: '2026-04-01',
+    end: '2026-06-30',
+    fiscalDate: '2026-06-30',
+    reportDate: '2026-07-16',
+  });
+  assert.equal(result.sections.reportSegments.items.length, 1);
+  assert.equal(result.sections.revenueBreakdown.items.length, 6);
+  assert.equal(result.sections.geographies.items.length, 5);
+  assert.equal(result.supplemental.technologyBreakdown.items.length, 10);
+  assert.deepEqual(result.source, {
+    provider: 'TSMC',
+    cik,
+    accession,
+    form: '6-K',
+    filedAt: '2026-07-16T12:00:00.000Z',
+    filingUrl: `https://www.sec.gov/Archives/edgar/data/1046179/000104617926000451/${accession}-index.html`,
+    primaryDocumentUrl: TSMC_Q2_2026_REPORT_URL,
+  });
+  assert.deepEqual(requested, [`/submissions/CIK${cik}.json`]);
+});
+
+test('verified TSM management-report detail is not blocked when SEC is unavailable', async () => {
+  clearSecEarningsDetailCachesForTests();
+  let fetchCount = 0;
+  const result = await fetchSecEarningsDetail({
+    symbol: 'TSM',
+    fiscalDate: '2026-06-30',
+    reportDate: '2026-07-16',
+    now: new Date('2026-07-17T12:00:00.000Z'),
+    requestIntervalMs: 0,
+    batchTimeoutMs: 50,
+    fetchFn: async () => {
+      fetchCount += 1;
+      throw new Error('simulated SEC timeout');
+    },
+  });
+
+  assert.equal(fetchCount, 1);
+  assert.equal(result.status, 'complete');
+  assert.equal(result.reason, null);
+  assert.equal(result.sections.reportSegments.items.length, 1);
+  assert.equal(result.sections.revenueBreakdown.items.length, 6);
+  assert.equal(result.sections.geographies.items.length, 5);
+  assert.equal(result.supplemental.technologyBreakdown.items.length, 10);
+  assert.deepEqual(result.source, {
+    provider: 'TSMC',
+    cik: '0001046179',
+    accession: null,
+    form: 'Management Report',
+    filedAt: null,
+    filingUrl: null,
+    primaryDocumentUrl: TSMC_Q2_2026_REPORT_URL,
+  });
+});
+
+test('verified TSM management-report detail remains hidden before its report date', async () => {
+  clearSecEarningsDetailCachesForTests();
+  let fetchCount = 0;
+  const result = await fetchSecEarningsDetail({
+    symbol: 'TSM',
+    fiscalDate: '2026-06-30',
+    reportDate: '2026-07-16',
+    now: new Date('2026-07-15T12:00:00.000Z'),
+    requestIntervalMs: 0,
+    fetchFn: async () => {
+      fetchCount += 1;
+      throw new Error('future reports must not call SEC');
+    },
+  });
+
+  assert.equal(fetchCount, 0);
+  assert.equal(result.status, 'pending');
+  assert.equal(result.reason, 'not-published');
+  assert.equal(result.source, null);
+  assert.ok(Object.values(result.sections).every(section => (
+    section.status === 'pending'
+    && section.reason === 'not-published'
+    && section.items.length === 0
+  )));
+});
+
+test('verified TSM management-report detail rejects an incorrect early report date', async () => {
+  clearSecEarningsDetailCachesForTests();
+  let fetchCount = 0;
+  const result = await fetchSecEarningsDetail({
+    symbol: 'TSM',
+    fiscalDate: '2026-06-30',
+    reportDate: '2026-07-01',
+    now: new Date('2026-07-02T12:00:00.000Z'),
+    requestIntervalMs: 0,
+    batchTimeoutMs: 50,
+    fetchFn: async () => {
+      fetchCount += 1;
+      throw new Error('simulated SEC timeout');
+    },
+  });
+
+  assert.equal(fetchCount, 1);
+  assert.equal(result.status, 'pending');
+  assert.equal(result.reason, 'sec-unavailable');
+  assert.deepEqual(result.source, {
+    provider: 'SEC',
+    cik: '0001046179',
+    accession: null,
+    form: null,
+    filedAt: null,
+    filingUrl: null,
+    primaryDocumentUrl: null,
+  });
+  assert.ok(Object.values(result.sections).every(section => (
+    section.status === 'pending'
+    && section.reason === 'sec-unavailable'
+    && section.items.length === 0
+  )));
 });
 
 test('published report stays pending when SEC has no matching official filing', async () => {

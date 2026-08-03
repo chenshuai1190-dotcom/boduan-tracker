@@ -4,6 +4,23 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '📊 台积电财报详情与美元业绩趋势',
+      '  - TSM 2026 财年 Q2 财报详情接入台积电官方 Management Report，业务平台、地区与制程结构严格使用已披露数据',
+      '  - 业绩趋势从 EODHD Fundamentals 读取 TWD 年度与季度营收、净利润，再按每个财务期间的 USDTWD 平均收盘汇率转换为 USD',
+      '  - USD 转换完成后重新计算年度/季度同比、季度环比与复合增速；净利率保持原始报表口径，并明确标注原始币种 TWD',
+      '  - Fundamentals 与整段历史汇率使用 6 小时缓存、并发合并和 UTC 日 402 熔断；不逐期请求、不使用即时汇率或备用数据源',
+    ],
+    itemsEn: [
+      '📊 TSMC earnings detail and USD performance trends',
+      '  - TSM FY2026 Q2 earnings detail now uses TSMC’s official Management Report for disclosed platform, geography, and process-technology composition',
+      '  - Performance trends read TWD annual and quarterly revenue and net income from EODHD Fundamentals, then translate each fiscal period to USD with its period-average USDTWD closes',
+      '  - Annual and quarterly YoY, quarterly QoQ, and CAGR are recalculated after translation; net margin retains the original statement basis and the original TWD currency remains explicit',
+      '  - Fundamentals and the single historical FX range share a six-hour cache, request coalescing, and the UTC-day 402 breaker, with no per-period requests, spot-rate substitution, or backup source',
+    ],
+  },
+  {
+    ver: 'v10.7.9.417', date: '2026-08-03',
+    items: [
       '⚡ 股票实时稳定版 v10',
       '  - iOS Home Screen PWA 的 EODHD 成交与报价 WebSocket 改为同时启动，不再让成交流等待报价流',
       '  - provider 连接打开后立即发送兼容订阅，同时保留授权确认、错误关闭和安全重订阅',

@@ -4,6 +4,7 @@ const SUPPORTED_SYMBOLS = new Set(['NOK', 'TSM']);
 const NOKIA_CIK = '0000924613';
 const TSMC_CIK = '0001046179';
 const MONEY_TOKEN = '(?:—|\\((?:\\d+(?: \\d{3})*)\\)|(?:\\d+(?: \\d{3})*))';
+const TSMC_Q2_2026_REPORT_DATE = '2026-07-16';
 const TSMC_Q2_2026_MANAGEMENT_REPORT_URL = 'https://investor.tsmc.com/english/encrypt/files/encrypt_file/reports/2026-07/6f49632674bd2d0fd48cb65aaf89ec6ab510b559/2Q26%20ManagementReport.pdf';
 const TSMC_Q2_2026_MANAGEMENT_REPORT_TEXT = `
 TSMC
@@ -193,8 +194,11 @@ export function hasForeignIssuerBusinessCompositionAdapter(symbol) {
 export function knownForeignIssuerBusinessComposition({
   symbol,
   fiscalDate,
+  reportDate,
 } = {}) {
-  if (normalizeSymbol(symbol) !== 'TSM' || dateKey(fiscalDate) !== '2026-06-30') {
+  if (normalizeSymbol(symbol) !== 'TSM'
+    || dateKey(fiscalDate) !== '2026-06-30'
+    || dateKey(reportDate) !== TSMC_Q2_2026_REPORT_DATE) {
     return null;
   }
   return parseForeignIssuerBusinessComposition({

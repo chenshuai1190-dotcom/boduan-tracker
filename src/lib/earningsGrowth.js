@@ -1,11 +1,12 @@
 export const EARNINGS_GROWTH_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+export const EARNINGS_GROWTH_STALE_TTL_MS = 24 * 60 * 60 * 1000;
 export const EARNINGS_GROWTH_TRANSIENT_CACHE_TTL_MS = 5 * 60 * 1000;
 export const EARNINGS_GROWTH_ANNUAL_LIMIT = 6;
 export const EARNINGS_GROWTH_QUARTERLY_LIMIT = 8;
 export const EARNINGS_GROWTH_QUARTERLY_DISPLAY_LIMIT = 6;
 export const EARNINGS_GROWTH_SCHEMA_VERSION = 3;
-export const EARNINGS_GROWTH_STORAGE_VERSION = 2;
-export const EARNINGS_GROWTH_STORAGE_PREFIX = 'xmoney_earnings_growth_v2';
+export const EARNINGS_GROWTH_STORAGE_VERSION = 3;
+export const EARNINGS_GROWTH_STORAGE_PREFIX = 'xmoney_earnings_growth_v3';
 
 const MAX_MEMORY_ENTRIES = 40;
 const VALID_STATUSES = new Set(['complete', 'partial', 'unavailable']);
@@ -67,8 +68,13 @@ function normalizeSource(value) {
     label: safeText(value.label, 80),
     asOfDate: validDateKey(value.asOfDate || value.fetchedAt?.slice?.(0, 10)),
     url,
+    fxSymbol: safeText(value.fxSymbol, 40),
+    fxBasis: safeText(value.fxBasis, 40),
+    fxFromDate: validDateKey(value.fxFromDate),
+    fxToDate: validDateKey(value.fxToDate),
+    fxAsOfDate: validDateKey(value.fxAsOfDate),
   };
-  return source.provider || source.label || source.url ? source : null;
+  return source.provider || source.label || source.url || source.fxSymbol ? source : null;
 }
 
 function normalizePeriod(value, mode) {
@@ -81,6 +87,14 @@ function normalizePeriod(value, mode) {
   const endDate = validDateKey(value.endDate);
   const revenue = finiteOrNull(value.revenue);
   const netIncome = finiteOrNull(value.netIncome);
+  const originalRevenue = finiteOrNull(value.originalRevenue);
+  const originalNetIncome = finiteOrNull(value.originalNetIncome);
+  const originalCurrency = normalizedCurrency(value.originalCurrency);
+  const fxRate = finiteOrNull(value.fxRate);
+  const fxBasis = safeText(value.fxBasis, 40);
+  const hasFxMetadata = Boolean(
+    originalCurrency || fxBasis || originalRevenue !== null || originalNetIncome !== null || fxRate !== null,
+  );
   if (
     fiscalYear === null
     || (mode === 'quarterly' && fiscalQuarter === null)
@@ -90,6 +104,13 @@ function normalizePeriod(value, mode) {
     || revenue === null
     || revenue <= 0
     || netIncome === null
+    || (hasFxMetadata && (
+      originalRevenue === null
+      || originalNetIncome === null
+      || !originalCurrency
+      || !(fxRate > 0)
+      || fxBasis !== 'period-average'
+    ))
   ) {
     return null;
   }
@@ -100,6 +121,13 @@ function normalizePeriod(value, mode) {
     endDate,
     revenue,
     netIncome,
+    ...(hasFxMetadata ? {
+      originalRevenue,
+      originalNetIncome,
+      originalCurrency,
+      fxRate,
+      fxBasis,
+    } : {}),
     netMarginPct: finiteOrNull(value.netMarginPct),
     revenueYoyPct: finiteOrNull(value.revenueYoyPct),
     netIncomeYoyPct: finiteOrNull(value.netIncomeYoyPct),
@@ -116,6 +144,11 @@ function samePeriod(left, right) {
     'endDate',
     'revenue',
     'netIncome',
+    'originalRevenue',
+    'originalNetIncome',
+    'originalCurrency',
+    'fxRate',
+    'fxBasis',
     'netMarginPct',
     'revenueYoyPct',
     'netIncomeYoyPct',
@@ -151,6 +184,32 @@ function normalizeSeries(values, mode, limit) {
     .slice(-limit);
 }
 
+function hasTsmUsdPeriodProvenance(value, mode) {
+  const period = normalizePeriod(value, mode);
+  return Boolean(
+    period
+    && period.originalRevenue !== null
+    && period.originalNetIncome !== null
+    && period.originalCurrency === 'TWD'
+    && period.fxRate > 0
+    && period.fxBasis === 'period-average',
+  );
+}
+
+function hasTsmUsdSourceProvenance(source) {
+  return Boolean(
+    source
+    && source.provider === 'EODHD'
+    && source.fxSymbol === 'USDTWD.FOREX'
+    && source.fxBasis === 'period-average'
+    && source.fxFromDate
+    && source.fxToDate
+    && source.fxAsOfDate
+    && source.fxFromDate <= source.fxAsOfDate
+    && source.fxAsOfDate <= source.fxToDate,
+  );
+}
+
 export function normalizeEarningsGrowthPayload(value, expectedSymbol = '') {
   if (!value || typeof value !== 'object' || Array.isArray(value) || value.success === false) {
     return null;
@@ -162,12 +221,26 @@ export function normalizeEarningsGrowthPayload(value, expectedSymbol = '') {
   const expected = normalizedSymbol(expectedSymbol);
   const status = VALID_STATUSES.has(value.status) ? value.status : '';
   const currency = normalizedCurrency(value.currency);
+  const originalCurrency = normalizedCurrency(value.originalCurrency);
+  const fxBasis = safeText(value.fxBasis, 40);
+  const source = normalizeSource(value.source);
+  const isTsmHistory = status !== 'unavailable' && symbol === 'TSM';
   if (
     schemaVersion !== EARNINGS_GROWTH_SCHEMA_VERSION
     || !symbol
     || (expected && symbol !== expected)
     || !status
     || (status !== 'unavailable' && !currency)
+    || (isTsmHistory && (
+      currency !== 'USD' || originalCurrency !== 'TWD' || fxBasis !== 'period-average'
+    ))
+    || (isTsmHistory && !hasTsmUsdSourceProvenance(source))
+    || (isTsmHistory && !(
+      Array.isArray(value.annual)
+      && value.annual.every((period) => hasTsmUsdPeriodProvenance(period, 'annual'))
+      && Array.isArray(value.quarterly)
+      && value.quarterly.every((period) => hasTsmUsdPeriodProvenance(period, 'quarterly'))
+    ))
   ) {
     return null;
   }
@@ -178,7 +251,9 @@ export function normalizeEarningsGrowthPayload(value, expectedSymbol = '') {
       reason: safeText(value.reason, 160),
       symbol,
       currency,
-      source: normalizeSource(value.source),
+      originalCurrency,
+      fxBasis,
+      source,
       annual: [],
       quarterly: [],
     };
@@ -189,7 +264,9 @@ export function normalizeEarningsGrowthPayload(value, expectedSymbol = '') {
     reason: safeText(value.reason, 160),
     symbol,
     currency,
-    source: normalizeSource(value.source),
+    originalCurrency,
+    fxBasis,
+    source,
     annual: normalizeSeries(value.annual, 'annual', EARNINGS_GROWTH_ANNUAL_LIMIT),
     quarterly: normalizeSeries(value.quarterly, 'quarterly', EARNINGS_GROWTH_QUARTERLY_LIMIT),
   };
@@ -410,25 +487,34 @@ function readCachedGrowth({ identity, symbol, storage, now, allowStale = false }
   const currentTime = nowValue(now);
   const memoryEntry = memoryCache.get(identity);
   if (memoryEntry) {
-    if (allowStale || memoryEntry.expiresAt > currentTime) return memoryEntry.data;
+    if (memoryEntry.expiresAt > currentTime) return memoryEntry.data;
+    if (allowStale && memoryEntry.staleUntil > currentTime) return memoryEntry.data;
+    if (memoryEntry.staleUntil <= currentTime) memoryCache.delete(identity);
   }
   if (!storage) return null;
   try {
     const stored = JSON.parse(storage.getItem(storageKey(identity)) || 'null');
     const data = normalizeEarningsGrowthPayload(stored?.data, symbol);
     const expiresAt = Number(stored?.expiresAt);
+    const staleUntil = Number(stored?.staleUntil);
     if (
       stored?.version !== EARNINGS_GROWTH_STORAGE_VERSION
       || !data
       || !Number.isFinite(expiresAt)
+      || !Number.isFinite(staleUntil)
+      || staleUntil < expiresAt
     ) {
+      removeStored(storage, identity);
+      return null;
+    }
+    if (staleUntil <= currentTime) {
       removeStored(storage, identity);
       return null;
     }
     // Keep a structurally valid expired entry available for the network-error
     // fallback. It is never returned by the normal fresh-cache path.
+    setMemoryEntry(identity, { data, expiresAt, staleUntil });
     if (!allowStale && expiresAt <= currentTime) return null;
-    setMemoryEntry(identity, { data, expiresAt });
     return data;
   } catch {
     removeStored(storage, identity);
@@ -436,13 +522,14 @@ function readCachedGrowth({ identity, symbol, storage, now, allowStale = false }
   }
 }
 
-function writeCachedGrowth({ identity, data, storage, expiresAt }) {
-  const entry = { data, expiresAt };
+function writeCachedGrowth({ identity, data, storage, expiresAt, staleUntil }) {
+  const entry = { data, expiresAt, staleUntil };
   setMemoryEntry(identity, entry);
   try {
     storage?.setItem(storageKey(identity), JSON.stringify({
       version: EARNINGS_GROWTH_STORAGE_VERSION,
       expiresAt,
+      staleUntil,
       data,
     }));
   } catch {
@@ -493,14 +580,30 @@ export function loadEarningsGrowth({
       }
       const data = normalizeEarningsGrowthPayload(body?.data || body, normalized);
       if (!data) throw new Error('earnings growth response invalid');
+      if (data.status === 'unavailable') {
+        const stale = readCachedGrowth({
+          identity,
+          symbol: normalized,
+          storage,
+          now,
+          allowStale: true,
+        });
+        if (stale && ['complete', 'partial'].includes(stale.status)) return stale;
+      }
       const ttl = ['complete', 'partial'].includes(data.status)
         ? EARNINGS_GROWTH_CACHE_TTL_MS
         : EARNINGS_GROWTH_TRANSIENT_CACHE_TTL_MS;
+      const storedAt = nowValue(now);
       writeCachedGrowth({
         identity,
         data,
         storage,
-        expiresAt: nowValue(now) + ttl,
+        expiresAt: storedAt + ttl,
+        staleUntil: storedAt + (
+          ['complete', 'partial'].includes(data.status)
+            ? EARNINGS_GROWTH_STALE_TTL_MS
+            : ttl
+        ),
       });
       return data;
     } catch (error) {

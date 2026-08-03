@@ -80,6 +80,7 @@ export async function fetchSecEarningsDetail({
   const knownForeignComposition = knownForeignIssuerBusinessComposition({
     symbol: normalizedSymbol,
     fiscalDate: normalizedFiscalDate,
+    reportDate: normalizedReportDate,
   });
   const period = {
     start: '',
@@ -102,6 +103,35 @@ export async function fetchSecEarningsDetail({
     requestIntervalMs,
     batchTimeoutMs,
   });
+
+  if (knownForeignComposition
+    && primary.reason !== 'not-published'
+    && primary.reason !== 'invalid-sec-filing-request') {
+    const result = responseBase({
+      status: knownForeignComposition.status,
+      reason: knownForeignComposition.status === 'complete'
+        ? null
+        : 'one-or-more-sections-unavailable',
+      symbol: normalizedSymbol,
+      period: {
+        ...period,
+        start: knownForeignComposition.period.start,
+        end: knownForeignComposition.period.end,
+      },
+      source: sourceFromParsed(primary, knownForeignComposition),
+      sections: knownForeignComposition.sections,
+      currency: knownForeignComposition.currency,
+      supplemental: knownForeignComposition.supplemental,
+    });
+    writeCache(
+      cacheKey,
+      result,
+      SEC_EARNINGS_DETAIL_CACHE_TTL_MS,
+      nowDate.getTime(),
+      cacheEnabled,
+    );
+    return result;
+  }
 
   if (primary.status !== 'complete') {
     const pending = responseBase({
@@ -145,27 +175,26 @@ export async function fetchSecEarningsDetail({
     form: primary.form,
     documentType: primary.documentType,
   };
-  const parsed = knownForeignComposition
-    || (standardAdapterSupported
-      ? parseSecEarningsDetailPrimaryDocument({
+  const parsed = standardAdapterSupported
+    ? parseSecEarningsDetailPrimaryDocument({
+        symbol: normalizedSymbol,
+        fiscalDate: normalizedFiscalDate,
+        html: primary.html,
+        filing,
+      })
+    : usHoldingAdapterSupported
+      ? parseSecUsHoldingBusinessDocument({
           symbol: normalizedSymbol,
           fiscalDate: normalizedFiscalDate,
           html: primary.html,
           filing,
         })
-      : usHoldingAdapterSupported
-        ? parseSecUsHoldingBusinessDocument({
-            symbol: normalizedSymbol,
-            fiscalDate: normalizedFiscalDate,
-            html: primary.html,
-            filing,
-          })
-        : parseForeignIssuerBusinessComposition({
-            symbol: normalizedSymbol,
-            fiscalDate: normalizedFiscalDate,
-            html: primary.html,
-            sourceUrl: primary.primaryDocumentUrl,
-          }));
+      : parseForeignIssuerBusinessComposition({
+          symbol: normalizedSymbol,
+          fiscalDate: normalizedFiscalDate,
+          html: primary.html,
+          sourceUrl: primary.primaryDocumentUrl,
+        });
   const source = sourceFromParsed(primary, parsed);
   if (!parsed) {
     const unavailable = responseBase({
@@ -254,10 +283,14 @@ function sourceFromParsed(primary, parsed) {
   const source = sourceFromPrimary(primary);
   const parsedProvider = String(parsed?.source?.provider || '').trim();
   const parsedUrl = String(parsed?.source?.url || '').trim();
-  if (!source || !parsedProvider || !/^https:\/\//i.test(parsedUrl)) return source;
+  if (!parsedProvider || !/^https:\/\//i.test(parsedUrl)) return source;
   return {
-    ...source,
     provider: parsedProvider,
+    cik: source?.cik || String(parsed?.source?.cik || '').trim() || null,
+    accession: source?.accession || null,
+    form: source?.form || String(parsed?.source?.form || '').trim() || null,
+    filedAt: source?.filedAt || null,
+    filingUrl: source?.filingUrl || null,
     primaryDocumentUrl: parsedUrl,
   };
 }

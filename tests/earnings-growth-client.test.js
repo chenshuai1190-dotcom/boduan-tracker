@@ -8,6 +8,7 @@ import {
   EARNINGS_GROWTH_CACHE_TTL_MS,
   EARNINGS_GROWTH_QUARTERLY_DISPLAY_LIMIT,
   EARNINGS_GROWTH_SCHEMA_VERSION,
+  EARNINGS_GROWTH_STALE_TTL_MS,
   EARNINGS_GROWTH_STORAGE_PREFIX,
   EARNINGS_GROWTH_STORAGE_VERSION,
   EARNINGS_GROWTH_TRANSIENT_CACHE_TTL_MS,
@@ -83,6 +84,36 @@ function payload(overrides = {}) {
   };
 }
 
+function tsmUsdPayload() {
+  const withFx = (row) => ({
+    ...row,
+    originalRevenue: row.revenue * 32,
+    originalNetIncome: row.netIncome * 32,
+    originalCurrency: 'TWD',
+    fxRate: 32,
+    fxBasis: 'period-average',
+  });
+  const result = payload({
+    symbol: 'TSM',
+    currency: 'USD',
+    originalCurrency: 'TWD',
+    fxBasis: 'period-average',
+    source: {
+      provider: 'EODHD',
+      fxSymbol: 'USDTWD.FOREX',
+      fxBasis: 'period-average',
+      fxFromDate: '2019-01-01',
+      fxToDate: '2026-06-30',
+      fxAsOfDate: '2026-06-30',
+    },
+  });
+  return {
+    ...result,
+    annual: result.annual.map(withFx),
+    quarterly: result.quarterly.map(withFx),
+  };
+}
+
 function memoryStorage() {
   const values = new Map();
   return {
@@ -123,6 +154,90 @@ test('earnings growth normalization keeps only complete comparable periods', () 
   assert.equal(normalized.source.provider, 'SEC_COMPANY_FACTS');
 });
 
+test('TSM USD history requires and preserves period-average TWD provenance', () => {
+  const translatedPeriod = (fiscalYear, overrides = {}) => period(fiscalYear, {
+    originalRevenue: 3_200,
+    originalNetIncome: 640,
+    originalCurrency: 'TWD',
+    fxRate: 32,
+    fxBasis: 'period-average',
+    ...overrides,
+  });
+  const translated = payload({
+    symbol: 'TSM',
+    currency: 'USD',
+    originalCurrency: 'TWD',
+    fxBasis: 'period-average',
+    source: {
+      provider: 'EODHD',
+      fxSymbol: 'USDTWD.FOREX',
+      fxBasis: 'period-average',
+      fxFromDate: '2019-01-01',
+      fxToDate: '2026-06-30',
+      fxAsOfDate: '2026-06-30',
+    },
+    annual: [translatedPeriod(2024), translatedPeriod(2025)],
+    quarterly: [
+      translatedPeriod(2025, {
+        fiscalQuarter: 1,
+        startDate: '2025-01-01',
+        endDate: '2025-03-31',
+      }),
+      translatedPeriod(2025, {
+        fiscalQuarter: 2,
+        startDate: '2025-04-01',
+        endDate: '2025-06-30',
+      }),
+    ],
+  });
+  const normalized = normalizeEarningsGrowthPayload(translated, 'TSM');
+  assert.equal(normalized.currency, 'USD');
+  assert.equal(normalized.originalCurrency, 'TWD');
+  assert.equal(normalized.fxBasis, 'period-average');
+  assert.equal(normalized.source.fxSymbol, 'USDTWD.FOREX');
+  assert.equal(normalized.annual[0].originalCurrency, 'TWD');
+  assert.equal(normalized.annual[0].fxRate, 32);
+  assert.equal(normalizeEarningsGrowthPayload({
+    ...translated,
+    originalCurrency: '',
+  }, 'TSM'), null);
+  assert.equal(normalizeEarningsGrowthPayload({
+    ...translated,
+    currency: 'TWD',
+  }, 'TSM'), null);
+  assert.equal(normalizeEarningsGrowthPayload({
+    ...translated,
+    annual: translated.annual.map((row, index) => {
+      if (index !== 0) return row;
+      const { originalRevenue: _originalRevenue, ...withoutOriginalRevenue } = row;
+      return withoutOriginalRevenue;
+    }),
+  }, 'TSM'), null);
+  assert.equal(normalizeEarningsGrowthPayload({
+    ...translated,
+    quarterly: translated.quarterly.map((row, index) => (
+      index === 0 ? { ...row, fxRate: null } : row
+    )),
+  }, 'TSM'), null);
+  assert.equal(normalizeEarningsGrowthPayload({
+    ...translated,
+    source: { ...translated.source, fxSymbol: 'USDJPY.FOREX' },
+  }, 'TSM'), null);
+  assert.equal(normalizeEarningsGrowthPayload({
+    ...translated,
+    source: { ...translated.source, provider: 'Yahoo' },
+  }, 'TSM'), null);
+  assert.equal(normalizeEarningsGrowthPayload({
+    ...translated,
+    source: {
+      ...translated.source,
+      fxFromDate: '2026-07-01',
+      fxToDate: '2026-06-30',
+      fxAsOfDate: '2026-06-30',
+    },
+  }, 'TSM'), null);
+});
+
 test('earnings growth normalization rejects missing or stale response schemas', () => {
   const missingSchema = payload();
   delete missingSchema.schemaVersion;
@@ -137,6 +252,8 @@ test('earnings growth normalization rejects missing or stale response schemas', 
 
 test('earnings growth client and SEC history server require the same schema', () => {
   assert.equal(EARNINGS_GROWTH_SCHEMA_VERSION, 3);
+  assert.equal(EARNINGS_GROWTH_STORAGE_VERSION, 3);
+  assert.equal(EARNINGS_GROWTH_STORAGE_PREFIX, 'xmoney_earnings_growth_v3');
   assert.equal(
     SEC_FINANCIAL_HISTORY_SCHEMA_VERSION,
     EARNINGS_GROWTH_SCHEMA_VERSION,
@@ -346,6 +463,68 @@ test('earnings growth loader bypasses an unexpired v1 cache containing schema 2 
   assert.equal(upgraded.data.schemaVersion, EARNINGS_GROWTH_SCHEMA_VERSION);
 });
 
+test('TSM loader bypasses the previous TWD growth cache after the USD migration', async () => {
+  resetEarningsGrowthMemoryCache();
+  const storage = memoryStorage();
+  const userId = 'user-tsm-usd-migration';
+  storage.setItem(
+    `xmoney_earnings_growth_v2:${userId}:TSM`,
+    JSON.stringify({
+      version: 2,
+      expiresAt: EARNINGS_GROWTH_CACHE_TTL_MS * 2,
+      data: payload({ symbol: 'TSM', currency: 'TWD' }),
+    }),
+  );
+  let requestCount = 0;
+  const fresh = await loadEarningsGrowth({
+    userId,
+    symbol: 'TSM',
+    token: 'session-token',
+    storage,
+    now: () => 1_000,
+    fetchImpl: async () => {
+      requestCount += 1;
+      return {
+        ok: true,
+        async json() {
+          const withFx = (row) => ({
+            ...row,
+            originalRevenue: row.revenue * 32,
+            originalNetIncome: row.netIncome * 32,
+            originalCurrency: 'TWD',
+            fxRate: 32,
+            fxBasis: 'period-average',
+          });
+          const freshPayload = payload({
+            symbol: 'TSM',
+            currency: 'USD',
+            originalCurrency: 'TWD',
+            fxBasis: 'period-average',
+            source: {
+              provider: 'EODHD',
+              fxSymbol: 'USDTWD.FOREX',
+              fxBasis: 'period-average',
+              fxFromDate: '2019-01-01',
+              fxToDate: '2026-06-30',
+              fxAsOfDate: '2026-06-30',
+            },
+          });
+          return {
+            ...freshPayload,
+            annual: freshPayload.annual.map(withFx),
+            quarterly: freshPayload.quarterly.map(withFx),
+          };
+        },
+      };
+    },
+  });
+
+  assert.equal(requestCount, 1);
+  assert.equal(fresh.currency, 'USD');
+  assert.equal(fresh.originalCurrency, 'TWD');
+  assert.ok(storage.getItem(`${EARNINGS_GROWTH_STORAGE_PREFIX}:${userId}:TSM`));
+});
+
 test('earnings growth loader rejects schema 2 inside the current cache key', async () => {
   resetEarningsGrowthMemoryCache();
   const storage = memoryStorage();
@@ -463,6 +642,96 @@ test('expired verified data is used only when a refresh fails', async () => {
   assert.equal(stale.annual.length, 3);
 });
 
+test('a transient unavailable response cannot replace verified TSM USD stale data', async () => {
+  resetEarningsGrowthMemoryCache();
+  const storage = memoryStorage();
+  let currentTime = 2_000;
+  const baseOptions = {
+    userId: 'user-tsm-unavailable-fallback',
+    symbol: 'TSM',
+    token: 'session-token',
+    storage,
+    now: () => currentTime,
+  };
+  await loadEarningsGrowth({
+    ...baseOptions,
+    fetchImpl: async () => ({
+      ok: true,
+      async json() {
+        return tsmUsdPayload();
+      },
+    }),
+  });
+
+  currentTime += EARNINGS_GROWTH_CACHE_TTL_MS + 1;
+  resetEarningsGrowthMemoryCache();
+  const stale = await loadEarningsGrowth({
+    ...baseOptions,
+    fetchImpl: async () => ({
+      ok: true,
+      async json() {
+        return payload({
+          status: 'unavailable',
+          reason: 'eodhd-daily-quota-exhausted',
+          symbol: 'TSM',
+          currency: '',
+          annual: [],
+          quarterly: [],
+        });
+      },
+    }),
+  });
+  const stored = JSON.parse(
+    storage.getItem(`${EARNINGS_GROWTH_STORAGE_PREFIX}:user-tsm-unavailable-fallback:TSM`),
+  );
+  assert.equal(stale.status, 'complete');
+  assert.equal(stale.currency, 'USD');
+  assert.equal(stored.data.status, 'complete');
+  assert.equal(stored.data.currency, 'USD');
+});
+
+test('expired verified data is never reused beyond the 24-hour stale boundary', async () => {
+  resetEarningsGrowthMemoryCache();
+  const storage = memoryStorage();
+  let currentTime = 2_000;
+  const baseOptions = {
+    userId: 'user-stale-boundary',
+    symbol: 'NVDA',
+    token: 'session-token',
+    storage,
+    now: () => currentTime,
+  };
+  await loadEarningsGrowth({
+    ...baseOptions,
+    fetchImpl: async () => ({
+      ok: true,
+      async json() {
+        return payload();
+      },
+    }),
+  });
+
+  currentTime = 2_000 + EARNINGS_GROWTH_STALE_TTL_MS - 1;
+  resetEarningsGrowthMemoryCache();
+  const stale = await loadEarningsGrowth({
+    ...baseOptions,
+    fetchImpl: async () => {
+      throw new Error('provider unavailable');
+    },
+  });
+  assert.equal(stale.symbol, 'NVDA');
+
+  currentTime = 2_000 + EARNINGS_GROWTH_STALE_TTL_MS;
+  resetEarningsGrowthMemoryCache();
+  await assert.rejects(loadEarningsGrowth({
+    ...baseOptions,
+    fetchImpl: async () => {
+      throw new Error('provider unavailable');
+    },
+  }), /provider unavailable/);
+  assert.equal(storage.getItem(`${EARNINGS_GROWTH_STORAGE_PREFIX}:user-stale-boundary:NVDA`), null);
+});
+
 test('earnings growth component keeps the confirmed mobile interaction contract', () => {
   assert.ok(componentSource.includes("IntersectionObserver"));
   assert.ok(componentSource.includes("data-earnings-growth-mode={mode}"));
@@ -485,4 +754,6 @@ test('earnings growth component keeps the confirmed mobile interaction contract'
   assert.ok(componentSource.includes("earningsGrowthVisiblePeriods(data, mode)"));
   assert.equal(componentSource.includes('overflow-x-auto'), false);
   assert.equal(componentSource.includes('scrollLeft ='), false);
+  assert.ok(componentSource.includes('USD（期间平均汇率换算）· 原始报表币种 TWD'));
+  assert.ok(componentSource.includes("english ? 'Translated USD' : 'USD 折算值'"));
 });
