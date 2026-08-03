@@ -4,6 +4,49 @@ const SUPPORTED_SYMBOLS = new Set(['NOK', 'TSM']);
 const NOKIA_CIK = '0000924613';
 const TSMC_CIK = '0001046179';
 const MONEY_TOKEN = '(?:—|\\((?:\\d+(?: \\d{3})*)\\)|(?:\\d+(?: \\d{3})*))';
+const TSMC_Q1_2026_REPORT_DATE = '2026-04-16';
+const TSMC_Q1_2026_MANAGEMENT_REPORT_URL = 'https://investor.tsmc.com/english/encrypt/files/encrypt_file/reports/2026-04/5508a9df8981f587c73dbfaf9f577f142e22bbb1/1Q26ManagementReport.pdf';
+const TSMC_Q1_2026_MANAGEMENT_REPORT_TEXT = `
+TSMC
+April 16, 2026
+1Q26 Quarterly Management Report
+
+Summary:
+1Q26 4Q25 1Q25 QoQ YoY
+Net Revenue (US$ billions) 35.90 33.73 25.53 6.4% 40.6%
+Operating Margin 58.1% 54.0% 48.5%
+
+Wafer Revenue by Technology 1Q26 4Q25 1Q25
+3nm 25% 28% 22%
+5nm 36% 35% 36%
+7nm 13% 14% 15%
+16/20nm 7% 6% 7%
+28nm 7% 6% 7%
+40/45nm 3% 3% 3%
+65nm 4% 4% 4%
+90nm 1% 1% 1%
+0.11/0.13um 1% 1% 2%
+0.15/0.18um 2% 2% 3%
+0.25um and above 1% 0% 0%
+
+Net Revenue by Platform 1Q26 4Q25 1Q25
+High Performance Computing 61% 55% 59%
+Smartphone 26% 32% 28%
+Internet of Things 6% 5% 5%
+Automotive 4% 5% 5%
+Digital Consumer Electronics 1% 1% 1%
+Others 2% 2% 2%
+
+Net Revenue by Geography 1Q26 4Q25 1Q25
+North America 76% 74% 77%
+Asia Pacific 9% 9% 9%
+China 7% 9% 7%
+Japan 4% 4% 4%
+EMEA 4% 4% 3%
+
+Revenue Analysis:
+In the first quarter, revenue increased 6.4% quarter-over-quarter.
+`;
 const TSMC_Q2_2026_REPORT_DATE = '2026-07-16';
 const TSMC_Q2_2026_MANAGEMENT_REPORT_URL = 'https://investor.tsmc.com/english/encrypt/files/encrypt_file/reports/2026-07/6f49632674bd2d0fd48cb65aaf89ec6ab510b559/2Q26%20ManagementReport.pdf';
 const TSMC_Q2_2026_MANAGEMENT_REPORT_TEXT = `
@@ -174,7 +217,25 @@ const TSMC_GEOGRAPHIES = [
   { id: 'emea', label: 'EMEA', labelZh: '欧洲、中东和非洲' },
 ];
 
-const TSMC_TECHNOLOGIES = [
+const TSMC_Q1_2026_TECHNOLOGIES = [
+  { id: '3nm', label: '3nm', labelZh: '3 纳米' },
+  { id: '5nm', label: '5nm', labelZh: '5 纳米' },
+  { id: '7nm', label: '7nm', labelZh: '7 纳米' },
+  { id: '16-20nm', label: '16/20nm', labelZh: '16/20 纳米' },
+  { id: '28nm', label: '28nm', labelZh: '28 纳米' },
+  { id: '40-45nm', label: '40/45nm', labelZh: '40/45 纳米' },
+  { id: '65nm', label: '65nm', labelZh: '65 纳米' },
+  { id: '90nm', label: '90nm', labelZh: '90 纳米' },
+  { id: '0.11-0.13um', label: '0.11/0.13um', labelZh: '0.11/0.13 微米' },
+  { id: '0.15-0.18um', label: '0.15/0.18um', labelZh: '0.15/0.18 微米' },
+  {
+    id: '0.25um-and-above',
+    label: '0.25um and above',
+    labelZh: '0.25 微米及以上',
+  },
+];
+
+const TSMC_Q2_2026_TECHNOLOGIES = [
   { id: '2nm', label: '2nm', labelZh: '2 纳米' },
   { id: '3nm', label: '3nm', labelZh: '3 纳米' },
   { id: '5nm', label: '5nm', labelZh: '5 纳米' },
@@ -187,6 +248,42 @@ const TSMC_TECHNOLOGIES = [
   { id: '0.15um-and-above', label: '≥0.15um', labelZh: '0.15 微米及以上' },
 ];
 
+const TSMC_TECHNOLOGIES_BY_FISCAL_DATE = new Map([
+  ['2026-03-31', TSMC_Q1_2026_TECHNOLOGIES],
+  ['2026-06-30', TSMC_Q2_2026_TECHNOLOGIES],
+]);
+
+const TSMC_Q1_2026_SNAPSHOT = {
+  fiscalDate: '2026-03-31',
+  officialReportDate: TSMC_Q1_2026_REPORT_DATE,
+  publishedAt: '2026-04-16T12:00:18.000Z',
+  sourceText: TSMC_Q1_2026_MANAGEMENT_REPORT_TEXT,
+  sourceUrl: TSMC_Q1_2026_MANAGEMENT_REPORT_URL,
+  summaryActuals: {
+    revenueActualUsd: 35_901_000_000,
+    revenuePreviousYearUsd: 25_525_000_000,
+    ebitActualUsd: 20_860_000_000,
+    ebitPreviousYearUsd: 12_381_000_000,
+    ebitActualBasis: 'operatingIncome',
+    epsActual: 3.49,
+    epsPreviousYear: 2.12,
+    epsCurrency: 'USD',
+    epsUnit: 'USD/ADR',
+    officialActualSource: 'sec-exhibit',
+    secExhibitUrl: 'https://www.sec.gov/Archives/edgar/data/1046179/000104617926000199/a1q26e_withguidancexfinal.htm',
+  },
+};
+
+const TSMC_BUSINESS_COMPOSITION_SNAPSHOTS = new Map([
+  ['2026-03-31|2026-04-15', TSMC_Q1_2026_SNAPSHOT],
+  [`2026-03-31|${TSMC_Q1_2026_REPORT_DATE}`, TSMC_Q1_2026_SNAPSHOT],
+  [`2026-06-30|${TSMC_Q2_2026_REPORT_DATE}`, {
+    fiscalDate: '2026-06-30',
+    sourceText: TSMC_Q2_2026_MANAGEMENT_REPORT_TEXT,
+    sourceUrl: TSMC_Q2_2026_MANAGEMENT_REPORT_URL,
+  }],
+]);
+
 export function hasForeignIssuerBusinessCompositionAdapter(symbol) {
   return SUPPORTED_SYMBOLS.has(normalizeSymbol(symbol));
 }
@@ -196,17 +293,23 @@ export function knownForeignIssuerBusinessComposition({
   fiscalDate,
   reportDate,
 } = {}) {
-  if (normalizeSymbol(symbol) !== 'TSM'
-    || dateKey(fiscalDate) !== '2026-06-30'
-    || dateKey(reportDate) !== TSMC_Q2_2026_REPORT_DATE) {
-    return null;
-  }
-  return parseForeignIssuerBusinessComposition({
+  if (normalizeSymbol(symbol) !== 'TSM') return null;
+  const snapshot = TSMC_BUSINESS_COMPOSITION_SNAPSHOTS.get(
+    `${dateKey(fiscalDate)}|${dateKey(reportDate)}`,
+  );
+  if (!snapshot) return null;
+  const parsed = parseForeignIssuerBusinessComposition({
     symbol: 'TSM',
-    fiscalDate: '2026-06-30',
-    sourceText: TSMC_Q2_2026_MANAGEMENT_REPORT_TEXT,
-    sourceUrl: TSMC_Q2_2026_MANAGEMENT_REPORT_URL,
+    ...snapshot,
   });
+  return parsed
+    ? {
+        ...parsed,
+        officialReportDate: snapshot.officialReportDate || dateKey(reportDate),
+        publishedAt: snapshot.publishedAt || null,
+        summaryActuals: snapshot.summaryActuals || null,
+      }
+    : null;
 }
 
 export function foreignIssuerBusinessCompositionDiscoveryUrl({
@@ -504,12 +607,14 @@ function parseNokiaBusinessComposition({ fiscalDate, sourceText, sourceUrl }) {
 
 function parseTsmcBusinessComposition({ fiscalDate, sourceText, sourceUrl }) {
   const period = exactQuarterPeriod(fiscalDate);
+  const technologyDefinitions = TSMC_TECHNOLOGIES_BY_FISCAL_DATE.get(fiscalDate);
   const text = normalizeSourceText(sourceText);
   const quarterLabel = period
     ? `${period.quarter}Q${String(period.year).slice(-2)}`
     : '';
   const firstReportedQuarter = text.match(/\b[1-4]Q\d{2}\b/)?.[0] || '';
   if (!period
+    || !technologyDefinitions
     || !/\bTSMC\b/.test(text)
     || firstReportedQuarter !== quarterLabel
     || !/\bRevenue Analysis\b/.test(text)) {
@@ -566,7 +671,7 @@ function parseTsmcBusinessComposition({ fiscalDate, sourceText, sourceUrl }) {
   );
   const technologyBreakdown = parsePercentBreakdown(
     technologyBlock,
-    TSMC_TECHNOLOGIES,
+    technologyDefinitions,
     totalRevenue,
   );
   if (!revenueBreakdown || !geographies || !technologyBreakdown) return null;

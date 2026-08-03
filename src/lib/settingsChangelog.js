@@ -4,6 +4,23 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '📊 补齐台积电 2026 财年 Q1 官方财报',
+      '  - 2026-03-31 财报详情将 provider 的 2026-04-15 日历键严格映射到 2026-04-16 官方 Management Report，恢复业务平台、地区及 11 项制程结构',
+      '  - Q1 使用独立官方分类，不虚构 2nm，也不把 90nm、0.11/0.13um、0.15/0.18um 与 0.25um 以上项目错误合并',
+      '  - 顶部营收与经营利润按官方季度平均 USD/NTD 转换，EPS 统一为官方 USD/ADR；详情页定向更新旧缓存，不触发财报日历重算',
+      '  - Q1/Q2 财季与受控发布日期必须精确匹配；不新增 EODHD、备用行情源、数据库或生产数据写入',
+    ],
+    itemsEn: [
+      '📊 Restored TSMC FY2026 Q1 official earnings data',
+      '  - The March 31, 2026 detail strictly maps the provider’s April 15 calendar key to the official April 16 Management Report, restoring platform, geography, and all eleven disclosed process categories',
+      '  - Q1 keeps its own official taxonomy without inventing 2nm or merging the separately disclosed 90nm, 0.11/0.13um, 0.15/0.18um, and 0.25um-and-above rows',
+      '  - Revenue and operating income use TSMC’s official quarter-average USD/NTD rates, EPS uses official USD/ADR, and a targeted detail-cache revision bypasses the older unavailable result without a calendar rebuild',
+      '  - Q1 and Q2 require exact fiscal and controlled publication-date pairs, with no new EODHD call, backup market source, database change, or production-data write',
+    ],
+  },
+  {
+    ver: 'v10.7.9.418', date: '2026-08-03',
+    items: [
       '📊 台积电财报详情与美元业绩趋势',
       '  - TSM 2026 财年 Q2 财报详情接入台积电官方 Management Report，业务平台、地区与制程结构严格使用已披露数据',
       '  - 业绩趋势从 EODHD Fundamentals 读取 TWD 年度与季度营收、净利润，再按每个财务期间的 USDTWD 平均收盘汇率转换为 USD',

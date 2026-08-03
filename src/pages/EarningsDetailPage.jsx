@@ -15,6 +15,7 @@ import {
   earningsPercentChange,
   fetchEarningsDetail,
   formatEarningsDetailMoney,
+  mergeEarningsDetailSummary,
   normalizeEarningsDetailPayload,
 } from '../lib/earningsDetail.js';
 import { earningsResultText } from '../lib/earningsCalendarModel.js';
@@ -395,13 +396,14 @@ export default function EarningsDetailPage({ ctx }) {
   const [error, setError] = React.useState('');
   const [growthSession, setGrowthSession] = React.useState(null);
   const symbol = String(event?.symbol || detail?.symbol || '').trim().toUpperCase();
+  const effectiveEvent = mergeEarningsDetailSummary(event, detail);
   const name = typeof displayStockName === 'function' ? displayStockName(symbol, event?.name, language) : event?.name || symbol;
   const sourceProvider = String(detail?.source?.provider || '').trim().toUpperCase();
   const filingUrl = sourceProvider === 'SEC'
     ? detail?.source?.filingUrl || detail?.source?.primaryDocumentUrl || event?.secFilingUrl || event?.secExhibitUrl
     : detail?.source?.primaryDocumentUrl || detail?.source?.filingUrl || event?.secFilingUrl || event?.secExhibitUrl;
   const cachedLogoUrl = logoCache?.[symbol]?.url;
-  const sourceBadgeKind = earningsDetailSourceBadgeKind(detail, event);
+  const sourceBadgeKind = earningsDetailSourceBadgeKind(detail, effectiveEvent);
   const sourceBadgeClass = sourceBadgeKind === 'official'
     ? 'border border-emerald-400/15 bg-emerald-400/[0.07] text-emerald-300/75'
     : sourceBadgeKind === 'filing'
@@ -522,14 +524,14 @@ export default function EarningsDetailPage({ ctx }) {
                 <span className="text-[11px] text-white/[0.42]">{reportingPeriodText(detail, event, language)}</span>
                 <span className="text-[11px] text-white/[0.40]">{detail?.currency || 'USD'} · {language === 'en' ? 'B/M' : '万/亿'}</span>
               </div>
-              <EarningsSummary event={event} language={language} marketColorMode={marketColorMode} />
+              <EarningsSummary event={effectiveEvent} language={language} marketColorMode={marketColorMode} />
             </div>
           </section>
 
           {loading ? (
             <div className="mt-4 flex h-36 items-center justify-center rounded-[18px] border border-white/[0.07] bg-[#0b0f15] text-[13px] text-white/[0.40]"><Loader2 className="mr-2 h-4 w-4 animate-spin text-[#f6b54b]" />{language === 'en' ? 'Loading official breakdown…' : '正在读取官方细分数据…'}</div>
           ) : detail ? (
-            <DetailSections detail={detail} event={event} language={language} marketColorMode={marketColorMode} />
+            <DetailSections detail={detail} event={effectiveEvent} language={language} marketColorMode={marketColorMode} />
           ) : (
             <div className="mt-4 rounded-[18px] border border-white/[0.07] bg-[#0b0f15] px-4 py-8 text-center text-[13px] text-white/[0.40]">{error}</div>
           )}

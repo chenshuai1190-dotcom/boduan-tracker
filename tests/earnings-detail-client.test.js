@@ -8,6 +8,7 @@ import {
   earningsDetailSourceBadgeKind,
   earningsPercentChange,
   formatEarningsDetailMoney,
+  mergeEarningsDetailSummary,
   normalizeEarningsDetailPayload,
 } from '../src/lib/earningsDetail.js';
 const appSource = fs.readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8');
@@ -90,6 +91,100 @@ test('earnings detail caches complete data for six hours but pending data for on
     }),
     'xmoney_earnings_detail_v1:user-1:GOOGL:2026-06-30:2026-07-22',
   );
+  assert.equal(
+    earningsDetailClientCacheKey({
+      userId: 'user-1',
+      symbol: 'TSM',
+      fiscalDate: '2026-03-31',
+      reportDate: '2026-04-15',
+    }),
+    'xmoney_earnings_detail_tsm_q1_2026_v2:user-1:TSM:2026-03-31:2026-04-15',
+  );
+  assert.equal(
+    earningsDetailClientCacheKey({
+      userId: 'user-1',
+      symbol: 'TSM',
+      fiscalDate: '2026-06-30',
+      reportDate: '2026-07-16',
+    }),
+    'xmoney_earnings_detail_v1:user-1:TSM:2026-06-30:2026-07-16',
+  );
+});
+
+test('TSM Q1 official summary overrides only the matching detail page event', () => {
+  const event = {
+    symbol: 'TSM',
+    fiscalDate: '2026-03-31',
+    reportDate: '2026-04-15',
+    revenueActualUsd: 34_957_000_000,
+    revenueEstimateUsd: 34_500_000_000,
+    ebitActualUsd: 20_260_000_000,
+    epsActual: 3.49,
+    epsEstimate: 3.36,
+    epsCurrency: 'TWD',
+    epsUnit: 'TWD/share',
+  };
+  const detail = normalizeEarningsDetailPayload({
+    success: true,
+    schemaVersion: 2,
+    status: 'complete',
+    symbol: 'TSM',
+    currency: 'USD',
+    period: {
+      start: '2026-01-01',
+      end: '2026-03-31',
+      fiscalDate: '2026-03-31',
+      reportDate: '2026-04-15',
+    },
+    source: {
+      provider: 'TSMC',
+      primaryDocumentUrl: 'https://investor.tsmc.com/english/reports/1Q26ManagementReport.pdf',
+    },
+    sections: {},
+    summaryActuals: {
+      revenueActualUsd: 35_901_000_000,
+      revenuePreviousYearUsd: 25_525_000_000,
+      ebitActualUsd: 20_860_000_000,
+      ebitPreviousYearUsd: 12_381_000_000,
+      ebitActualBasis: 'operatingIncome',
+      epsActual: 3.49,
+      epsPreviousYear: 2.12,
+      epsCurrency: 'USD',
+      epsUnit: 'USD/ADR',
+      officialActualSource: 'sec-exhibit',
+      secExhibitUrl: 'https://www.sec.gov/Archives/edgar/data/1046179/000104617926000199/a1q26e_withguidancexfinal.htm',
+    },
+  });
+  const merged = mergeEarningsDetailSummary(event, detail);
+
+  assert.notEqual(merged, event);
+  assert.equal(merged.revenueActualUsd, 35_901_000_000);
+  assert.equal(merged.revenueEstimateUsd, 34_500_000_000);
+  assert.equal(merged.ebitActualUsd, 20_860_000_000);
+  assert.equal(merged.epsActual, 3.49);
+  assert.equal(merged.epsEstimate, 3.36);
+  assert.equal(merged.epsCurrency, 'USD');
+  assert.equal(merged.epsUnit, 'USD/ADR');
+  assert.equal(
+    merged.revenueActualYoyPercent,
+    earningsPercentChange(35_901_000_000, 25_525_000_000),
+  );
+  assert.equal(
+    merged.ebitActualYoyPercent,
+    earningsPercentChange(20_860_000_000, 12_381_000_000),
+  );
+  assert.equal(merged.epsActualYoyPercent, earningsPercentChange(3.49, 2.12));
+  assert.equal(event.revenueActualUsd, 34_957_000_000);
+  assert.equal(event.epsUnit, 'TWD/share');
+
+  assert.equal(mergeEarningsDetailSummary(event, {
+    ...detail,
+    period: { ...detail.period, reportDate: '2026-04-16' },
+  }), event);
+  assert.equal(mergeEarningsDetailSummary(event, {
+    ...detail,
+    symbol: 'NOK',
+  }), event);
 });
 
 test('earnings source badge distinguishes official actuals from filing provenance', () => {
@@ -147,6 +242,9 @@ test('home earnings preview opens published reports directly and returns to Home
 });
 
 test('production detail renders every official section without screenshot or share controls', () => {
+  assert.ok(detailPageSource.includes('mergeEarningsDetailSummary(event, detail)'));
+  assert.ok(detailPageSource.includes('<EarningsSummary event={effectiveEvent}'));
+  assert.ok(detailPageSource.includes('<DetailSections detail={detail} event={effectiveEvent}'));
   assert.ok(detailPageSource.includes('<DetailSections detail={detail}'));
   assert.ok(detailPageSource.includes("language === 'en' ? 'Reportable segments' : '报告分部'"));
   assert.ok(detailPageSource.includes("language === 'en' ? 'Revenue breakdown' : '细分结构'"));

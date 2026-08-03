@@ -1,6 +1,6 @@
 # boduan-tracker 当前交接
 
-验证时间：`2026-08-03 Asia/Shanghai`
+验证时间：`2026-08-04 Asia/Shanghai`
 
 本文件只保存当前基准、关键风险和下一步。稳定规则看 `README.md`，流程看 `docs/development-process.md`。
 
@@ -10,7 +10,7 @@
 | --- | --- |
 | 仓库 | `chenshuai1190-dotcom/boduan-tracker` |
 | 生产地址 | `https://boduan-tracker.vercel.app` |
-| 运行时代码 | `v10.7.9.418`：TSM 官方财报详情 + EODHD Fundamentals 美元业绩趋势；保留 v417 股票实时稳定版 v10、v416 首页自选 MA200 跌破监控及全部既有正式行情边界；精确发布提交以 GitHub `main` HEAD 为准 |
+| 运行时代码 | `v10.7.9.419`：补齐 TSM 2026 财年 Q1 官方结构、USD actual 与 USD/ADR EPS；保留 v418 TSM 美元业绩趋势、v417 股票实时稳定版 v10、v416 首页自选 MA200 跌破监控及全部既有正式行情边界；精确发布提交以 GitHub `main` HEAD 为准 |
 | 数据库 | 保留既有 additive schema，并已按顺序接入比赛 migration、个人收益 foundation `pnl_report_immediate_rebuild_20260801.sql` 与 runtime 后 contract `pnl_report_snapshot_write_contract_after_runtime_20260801.sql` |
 | 发布完成条件 | GitHub `main` 的同一份 runtime 与上述 migration 均已上线并通过聚合 postflight；只完成其中一项不得宣布上线 |
 
@@ -27,12 +27,13 @@
 
 ## 台积电财报详情与美元业绩趋势
 
-- TSM 2026 财年 Q2 财报详情严格绑定 `fiscalDate=2026-06-30` 与官方 `reportDate=2026-07-16`，业务平台、地区和制程结构只读取台积电 Management Report 的公开披露；SEC 暂时不可用不再阻断已经核验的官方报告，错误提前日期仍 fail closed。
+- TSM 2026 财年 Q1 将 provider 的 `fiscalDate=2026-03-31 + reportDate=2026-04-15` 日历键严格映射到 `2026-04-16` 官方报告日；官方 `04-16` 日历键也可读取同一快照，且 `04-16` 之前保持未发布。Q2 继续严格绑定 `2026-06-30 + 2026-07-16`；其他交叉日期均 fail closed。
+- Q1 保留官方 11 项制程分类且不虚构 2nm；详情页顶部营收和经营利润使用台积电披露的季度平均 USD/NTD 汇率转换，EPS 为官方 USD/ADR。旧的 Q1 不可用缓存通过该财季专属 cache key 失效，只发起原有详情请求，不触发财报日历重算，也不新增 EODHD 或备用源请求。
 - TSM 业绩趋势只请求 `TSM.US` 的 EODHD Fundamentals。Income Statement 必须是 TWD；`2330.TW` 只允许作为返回身份字段核验，不构造台股代码请求，也不读取 EPS 或执行 ADR 推算。
 - 服务端先确定 6 个年度、8 个季度及其同比支撑期，再用一笔完整 `USDTWD.FOREX` 历史日线按每个财务期间计算平均收盘汇率。营收与净利润转换为 USD 后重新计算同比、环比和 CAGR，净利率保持 TWD 原报表比例；界面明确标注原始报表币种 TWD。
 - Fundamentals 与历史汇率作为一份完整结果共用 6 小时实例缓存和 same-key singleflight；只缓存全部转换成功的 USD 公开财务字段。24 小时内刷新失败可保留最近有效 USD 结果；任一上游返回 402 时当前实例熔断至下一 UTC 00:00，不发布 TWD/USD 混合数据。
 - 受控真实读取已确认 6 年、8 季完整返回，最新季度汇率与台积电官方 2026 Q2 Management Report 的平均 USD/NTD 口径一致。读取只执行一次 Fundamentals 和一次完整 FX 区间，没有循环探针、token 输出、数据库或生产数据写入。
-- 当前业务平台、地区和制程结构适配范围只覆盖已经逐项核验的 TSM 2026 财年 Q2；其他 TSM 季度或其他台股若没有对应官方适配器，继续显示不可用，不推测或复制券商数字。
+- 当前业务平台、地区和制程结构适配范围只覆盖已经逐项核验的 TSM 2026 财年 Q1 与 Q2；其他 TSM 季度或其他台股若没有对应官方适配器，继续显示不可用，不推测或复制券商数字。
 
 ## 交易持仓收盘估值
 
@@ -104,7 +105,7 @@
 ### 已知风险
 
 - 比赛公开行情缓存与 402 熔断是 Vercel 单实例内存态，不是跨实例全局缓存；冷启动或不同实例仍可能分别首次读取一次。
-- v418 延续收益比赛共享 EODHD 缓存与熔断、交易持仓 EODHD 收盘估值、个人收益正确重算、主 `/api/quote` 的 15/30/60 分钟客户端门控、个股/QQQ 当前存续仓位口径、个人收益只读页面和股票实时稳定版 v10。TSM 业绩趋势在每个冷实例首次读取时会产生一笔 Fundamentals 与一笔完整历史 FX 请求；6 小时实例缓存和客户端缓存可以避免页面重复打开时逐期读取，但仍不是跨实例全局缓存。服务端仍没有 v404 的通用完成收盘缓存和全局 402 熔断；冷实例首次读取与尚未更新的旧客户端仍可能额外消耗 EODHD 额度。
+- v419 延续收益比赛共享 EODHD 缓存与熔断、交易持仓 EODHD 收盘估值、个人收益正确重算、主 `/api/quote` 的 15/30/60 分钟客户端门控、个股/QQQ 当前存续仓位口径、个人收益只读页面和股票实时稳定版 v10。TSM Q1 结构与 official actual 补齐只读取已核验的公开公司报告及 SEC 文件，不增加 EODHD；TSM 业绩趋势在每个冷实例首次读取时仍会产生一笔 Fundamentals 与一笔完整历史 FX 请求。6 小时实例缓存和客户端缓存可以避免页面重复打开时逐期读取，但仍不是跨实例全局缓存。服务端仍没有 v404 的通用完成收盘缓存和全局 402 熔断；冷实例首次读取与尚未更新的旧客户端仍可能额外消耗 EODHD 额度。
 - 个人收益的客户端即时重算请求是交易 mutation 后的一次非阻塞派生动作：正式交易保存成功不会因个人收益暂时失败而回滚，恢复依赖数据库 dirty state 和收盘 Cron，不依赖收益报表页面或浏览器一直存活。比赛仍保持其独立重算链路。
 - P&L foundation 与 contract 之间旧 PWA 仍保留原直接写权限，因此 runtime 验证后必须尽快执行 contract；任一步失败都只做 forward-fix。跨 Vercel 实例生成不同时间戳时可能留下多个安全隔离的暂存 job，由 24 小时 TTL 清理，不会混合发布。
 

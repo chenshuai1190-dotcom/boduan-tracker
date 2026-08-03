@@ -403,6 +403,7 @@ test('SEC official support list includes Nokia and TSM without broadening unknow
   assert.equal(isSecOfficialActualSupportedSymbol('tsm.us'), true);
   assert.equal(isSecOfficialActualSupportedSymbol('NVDA'), false);
   assert.equal(isSecOfficialActualSupportedEvent('NOK', '2026-06-30'), true);
+  assert.equal(isSecOfficialActualSupportedEvent('TSM', '2026-03-31'), false);
   assert.equal(isSecOfficialActualSupportedEvent('TSM', '2026-06-30'), true);
   assert.equal(isSecOfficialActualSupportedEvent('TSM', '2026-09-30'), false);
 });

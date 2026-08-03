@@ -15,7 +15,7 @@ import {
 
 export { parseSecEarningsDetailPrimaryDocument } from './secEarningsDetailParsers.js';
 
-export const SEC_EARNINGS_DETAIL_SCHEMA_VERSION = 1;
+export const SEC_EARNINGS_DETAIL_SCHEMA_VERSION = 2;
 export const SEC_EARNINGS_DETAIL_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 
 const EARNINGS_SYMBOL_RE = /^[A-Z0-9.-]{1,15}$/;
@@ -88,11 +88,24 @@ export async function fetchSecEarningsDetail({
     fiscalDate: normalizedFiscalDate,
     reportDate: normalizedReportDate,
   };
+  const knownPublishedAt = normalizeDate(knownForeignComposition?.publishedAt);
+  if (knownPublishedAt && nowDate.getTime() < knownPublishedAt.getTime()) {
+    const pending = responseBase({
+      status: 'pending',
+      reason: 'not-published',
+      symbol: normalizedSymbol,
+      period,
+      source: null,
+      sections: pendingSections('pending', 'not-published'),
+    });
+    writeCache(cacheKey, pending, PENDING_CACHE_TTL_MS, nowDate.getTime(), cacheEnabled);
+    return pending;
+  }
 
   const primary = await fetchSecEarningsFilingSource({
     symbol: normalizedSymbol,
     fiscalDate: normalizedFiscalDate,
-    reportDate: normalizedReportDate,
+    reportDate: knownForeignComposition?.officialReportDate || normalizedReportDate,
     includePrimaryDocument: detailAdapterSupported && !knownForeignComposition,
     preferredDocumentTypes: normalizedSymbol === 'IBKR'
       ? ['EX-99.1', 'PRIMARY']
@@ -122,6 +135,7 @@ export async function fetchSecEarningsDetail({
       sections: knownForeignComposition.sections,
       currency: knownForeignComposition.currency,
       supplemental: knownForeignComposition.supplemental,
+      summaryActuals: knownForeignComposition.summaryActuals,
     });
     writeCache(
       cacheKey,
@@ -252,6 +266,7 @@ function responseBase({
   sections,
   currency = 'USD',
   supplemental = {},
+  summaryActuals = null,
 }) {
   return {
     schemaVersion: SEC_EARNINGS_DETAIL_SCHEMA_VERSION,
@@ -263,6 +278,7 @@ function responseBase({
     source,
     sections,
     supplemental,
+    summaryActuals,
   };
 }
 

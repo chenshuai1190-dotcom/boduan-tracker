@@ -186,34 +186,118 @@ test('TSM Management Report parser returns platform, geography, and technology c
   assert.equal(parsed.sections.geographies.items[0].revenue, 31_356_000_000);
 });
 
+test('TSM Q1 Management Report keeps its exact eleven disclosed technology categories', async () => {
+  const parsed = parseForeignIssuerBusinessComposition({
+    symbol: 'TSM',
+    fiscalDate: '2026-03-31',
+    sourceText: await fixture('tsm-q1-2026-management-report.txt'),
+    sourceUrl: 'https://investor.tsmc.com/english/reports/1Q26ManagementReport.pdf',
+  });
+
+  assert.equal(parsed.status, 'complete');
+  assert.equal(parsed.currency, 'USD');
+  assert.deepEqual(parsed.period, {
+    start: '2026-01-01',
+    end: '2026-03-31',
+  });
+  assert.equal(parsed.sections.reportSegments.items.length, 1);
+  assert.equal(parsed.sections.revenueBreakdown.items.length, 6);
+  assert.equal(parsed.sections.geographies.items.length, 5);
+  assert.equal(parsed.supplemental.technologyBreakdown.items.length, 11);
+
+  const foundry = parsed.sections.reportSegments.items[0];
+  assert.equal(foundry.revenue, 35_900_000_000);
+  assert.equal(foundry.previousRevenue, 25_530_000_000);
+  assert.equal(foundry.profit, 20_857_900_000);
+  assert.equal(foundry.previousProfit, 12_382_050_000);
+
+  const hpc = parsed.sections.revenueBreakdown.items[0];
+  assert.equal(hpc.sharePercent, 61);
+  assert.equal(hpc.previousSharePercent, 59);
+  const northAmerica = parsed.sections.geographies.items[0];
+  assert.equal(northAmerica.sharePercent, 76);
+  assert.equal(northAmerica.previousSharePercent, 77);
+  const threeNanometer = parsed.supplemental.technologyBreakdown.items[0];
+  assert.equal(threeNanometer.id, '3nm');
+  assert.equal(threeNanometer.sharePercent, 25);
+  assert.equal(threeNanometer.previousSharePercent, 22);
+  assert.equal(
+    parsed.supplemental.technologyBreakdown.items.at(-1).id,
+    '0.25um-and-above',
+  );
+});
+
 test('TSM parser rejects incomplete official text instead of inventing missing composition', async () => {
-  const source = await fixture('tsm-q2-2026-management-report.txt');
+  const q1Source = await fixture('tsm-q1-2026-management-report.txt');
+  const q2Source = await fixture('tsm-q2-2026-management-report.txt');
   assert.equal(parseForeignIssuerBusinessComposition({
     symbol: 'TSM',
     fiscalDate: '2026-06-30',
-    sourceText: source.replace('North America 78% 76% 75%', ''),
+    sourceText: q2Source.replace('North America 78% 76% 75%', ''),
   }), null);
   assert.equal(parseForeignIssuerBusinessComposition({
     symbol: 'TSM',
     fiscalDate: '2026-03-31',
-    sourceText: source,
+    sourceText: q1Source.replace('0.25um and above 1% 0% 0%', ''),
+  }), null);
+  assert.equal(parseForeignIssuerBusinessComposition({
+    symbol: 'TSM',
+    fiscalDate: '2026-03-31',
+    sourceText: q2Source,
+  }), null);
+  assert.equal(parseForeignIssuerBusinessComposition({
+    symbol: 'TSM',
+    fiscalDate: '2026-06-30',
+    sourceText: q1Source,
   }), null);
 });
 
-test('current TSM quarter uses the verified official management-report snapshot only for its exact period', () => {
-  const parsed = knownForeignIssuerBusinessComposition({
+test('verified TSM snapshots require an exact fiscal and publication date pair', () => {
+  const q1 = knownForeignIssuerBusinessComposition({
+    symbol: 'TSM',
+    fiscalDate: '2026-03-31',
+    reportDate: '2026-04-15',
+  });
+  const q1OfficialDate = knownForeignIssuerBusinessComposition({
+    symbol: 'TSM',
+    fiscalDate: '2026-03-31',
+    reportDate: '2026-04-16',
+  });
+  const q2 = knownForeignIssuerBusinessComposition({
     symbol: 'TSM',
     fiscalDate: '2026-06-30',
     reportDate: '2026-07-16',
   });
-  assert.equal(parsed?.status, 'complete');
-  assert.equal(parsed?.sections.revenueBreakdown.items.length, 6);
-  assert.equal(parsed?.sections.geographies.items.length, 5);
-  assert.equal(parsed?.supplemental.technologyBreakdown.items.length, 10);
+  assert.equal(q1?.status, 'complete');
+  assert.equal(q1?.supplemental.technologyBreakdown.items.length, 11);
+  assert.equal(q1?.officialReportDate, '2026-04-16');
+  assert.equal(q1?.publishedAt, '2026-04-16T12:00:18.000Z');
+  assert.equal(q1?.summaryActuals.revenueActualUsd, 35_901_000_000);
+  assert.equal(q1?.summaryActuals.revenuePreviousYearUsd, 25_525_000_000);
+  assert.equal(q1?.summaryActuals.ebitActualUsd, 20_860_000_000);
+  assert.equal(q1?.summaryActuals.ebitPreviousYearUsd, 12_381_000_000);
+  assert.equal(q1?.summaryActuals.epsActual, 3.49);
+  assert.equal(q1?.summaryActuals.epsPreviousYear, 2.12);
+  assert.equal(q1?.summaryActuals.epsUnit, 'USD/ADR');
+  assert.equal(q1OfficialDate?.status, 'complete');
+  assert.equal(q2?.status, 'complete');
+  assert.equal(q2?.sections.revenueBreakdown.items.length, 6);
+  assert.equal(q2?.sections.geographies.items.length, 5);
+  assert.equal(q2?.supplemental.technologyBreakdown.items.length, 10);
   assert.equal(knownForeignIssuerBusinessComposition({
     symbol: 'TSM',
     fiscalDate: '2026-03-31',
     reportDate: '2026-07-16',
+  }), null);
+  assert.equal(knownForeignIssuerBusinessComposition({
+    symbol: 'TSM',
+    fiscalDate: '2026-03-31',
+    reportDate: '2026-04-14',
+  }), null);
+  assert.equal(knownForeignIssuerBusinessComposition({
+    symbol: 'TSM',
+    fiscalDate: '2026-06-30',
+    reportDate: '2026-04-16',
   }), null);
   assert.equal(knownForeignIssuerBusinessComposition({
     symbol: 'NOK',

@@ -3,6 +3,7 @@ import { dateKey, normalizeEarningsSymbol } from './earningsCalendarModel.js';
 export const EARNINGS_DETAIL_CLIENT_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 export const EARNINGS_DETAIL_PENDING_CACHE_TTL_MS = 5 * 60 * 1000;
 const EARNINGS_DETAIL_CACHE_PREFIX = 'xmoney_earnings_detail_v1';
+const TSMC_Q1_2026_CACHE_PREFIX = 'xmoney_earnings_detail_tsm_q1_2026_v2';
 const EARNINGS_DETAIL_SECTION_KEYS = ['reportSegments', 'revenueBreakdown', 'geographies'];
 const EARNINGS_DETAIL_SUPPLEMENTAL_KEYS = ['customerTypes', 'technologyBreakdown'];
 const inFlightRequests = new Map();
@@ -61,6 +62,40 @@ function normalizeSection(section, sectionKey) {
   return normalized;
 }
 
+function normalizeSummaryActuals(value) {
+  if (!value || typeof value !== 'object') return null;
+  const normalized = {
+    revenueActualUsd: finiteOrNull(value.revenueActualUsd),
+    revenuePreviousYearUsd: finiteOrNull(value.revenuePreviousYearUsd),
+    ebitActualUsd: finiteOrNull(value.ebitActualUsd),
+    ebitPreviousYearUsd: finiteOrNull(value.ebitPreviousYearUsd),
+    ebitActualBasis: safeText(value.ebitActualBasis, 48),
+    epsActual: finiteOrNull(value.epsActual),
+    epsPreviousYear: finiteOrNull(value.epsPreviousYear),
+    epsCurrency: safeText(value.epsCurrency, 12).toUpperCase(),
+    epsUnit: safeText(value.epsUnit, 24).toUpperCase(),
+    officialActualSource: safeText(value.officialActualSource, 32),
+    officialActualStatus: 'complete',
+    secExhibitUrl: safeOfficialDocumentUrl(value.secExhibitUrl),
+  };
+  const complete = [
+    normalized.revenueActualUsd,
+    normalized.revenuePreviousYearUsd,
+    normalized.ebitActualUsd,
+    normalized.ebitPreviousYearUsd,
+    normalized.epsActual,
+    normalized.epsPreviousYear,
+  ].every(Number.isFinite);
+  return complete
+    && normalized.ebitActualBasis
+    && normalized.epsCurrency
+    && normalized.epsUnit
+    && normalized.officialActualSource === 'sec-exhibit'
+    && normalized.secExhibitUrl
+    ? normalized
+    : null;
+}
+
 export function normalizeEarningsDetailPayload(payload) {
   if (!payload || payload.success !== true) throw new Error('财报详情数据无效');
   const symbol = normalizeEarningsSymbol(payload.symbol);
@@ -101,6 +136,7 @@ export function normalizeEarningsDetailPayload(payload) {
     source,
     sections,
     supplemental,
+    summaryActuals: normalizeSummaryActuals(payload.summaryActuals),
   };
 }
 
@@ -127,7 +163,12 @@ export function earningsDetailClientCacheKey({ userId, symbol, fiscalDate, repor
   const fiscal = dateKey(fiscalDate);
   const report = dateKey(reportDate);
   if (!userId || !normalizedSymbol || !fiscal || !report) return '';
-  return `${EARNINGS_DETAIL_CACHE_PREFIX}:${userId}:${normalizedSymbol}:${fiscal}:${report}`;
+  const prefix = normalizedSymbol === 'TSM'
+    && fiscal === '2026-03-31'
+    && ['2026-04-15', '2026-04-16'].includes(report)
+    ? TSMC_Q1_2026_CACHE_PREFIX
+    : EARNINGS_DETAIL_CACHE_PREFIX;
+  return `${prefix}:${userId}:${normalizedSymbol}:${fiscal}:${report}`;
 }
 
 function readCache(key, { allowStale = false } = {}) {
@@ -233,4 +274,38 @@ export function earningsPercentChange(current, previous) {
   const previousNumber = finiteOrNull(previous);
   if (currentNumber === null || previousNumber === null || previousNumber === 0) return null;
   return ((currentNumber / previousNumber) - 1) * 100;
+}
+
+export function mergeEarningsDetailSummary(event, detail) {
+  const summary = detail?.summaryActuals;
+  if (!event || !summary) return event;
+  const eventSymbol = normalizeEarningsSymbol(event.symbol);
+  const detailSymbol = normalizeEarningsSymbol(detail.symbol);
+  const eventFiscalDate = dateKey(event.fiscalDate);
+  const eventReportDate = dateKey(event.reportDate);
+  if (!eventSymbol
+    || eventSymbol !== detailSymbol
+    || eventFiscalDate !== dateKey(detail.period?.fiscalDate)
+    || eventReportDate !== dateKey(detail.period?.reportDate)) {
+    return event;
+  }
+  const merged = {
+    ...event,
+    ...summary,
+  };
+  return {
+    ...merged,
+    revenueActualYoyPercent: earningsPercentChange(
+      merged.revenueActualUsd,
+      merged.revenuePreviousYearUsd,
+    ),
+    ebitActualYoyPercent: earningsPercentChange(
+      merged.ebitActualUsd,
+      merged.ebitPreviousYearUsd,
+    ),
+    epsActualYoyPercent: earningsPercentChange(
+      merged.epsActual,
+      merged.epsPreviousYear,
+    ),
+  };
 }

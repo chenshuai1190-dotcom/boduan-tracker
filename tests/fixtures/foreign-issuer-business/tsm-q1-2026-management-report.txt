@@ -1,0 +1,39 @@
+TSMC
+April 16, 2026
+1Q26 Quarterly Management Report
+
+Summary:
+1Q26 4Q25 1Q25 QoQ YoY
+Net Revenue (US$ billions) 35.90 33.73 25.53 6.4% 40.6%
+Operating Margin 58.1% 54.0% 48.5%
+
+Wafer Revenue by Technology 1Q26 4Q25 1Q25
+3nm 25% 28% 22%
+5nm 36% 35% 36%
+7nm 13% 14% 15%
+16/20nm 7% 6% 7%
+28nm 7% 6% 7%
+40/45nm 3% 3% 3%
+65nm 4% 4% 4%
+90nm 1% 1% 1%
+0.11/0.13um 1% 1% 2%
+0.15/0.18um 2% 2% 3%
+0.25um and above 1% 0% 0%
+
+Net Revenue by Platform 1Q26 4Q25 1Q25
+High Performance Computing 61% 55% 59%
+Smartphone 26% 32% 28%
+Internet of Things 6% 5% 5%
+Automotive 4% 5% 5%
+Digital Consumer Electronics 1% 1% 1%
+Others 2% 2% 2%
+
+Net Revenue by Geography 1Q26 4Q25 1Q25
+North America 76% 74% 77%
+Asia Pacific 9% 9% 9%
+China 7% 9% 7%
+Japan 4% 4% 4%
+EMEA 4% 4% 3%
+
+Revenue Analysis:
+In the first quarter, revenue increased 6.4% quarter-over-quarter.
