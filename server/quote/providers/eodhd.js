@@ -1,4 +1,5 @@
 import { providerFetch, QUOTE_TIMEOUTS } from '../http.js';
+import { deriveMa200Monitor } from '../ma200Monitor.js';
 import { buildEodhdStockDetail } from '../stockDetail.js';
 
 const US_EQUITY_REGULAR_START_MINUTES = 9 * 60 + 30;
@@ -79,7 +80,7 @@ function isUsEquitySameDayAfterPostClose(now = Date.now()) {
   return parts.minutes >= US_EQUITY_POSTMARKET_END_MINUTES;
 }
 
-function getLatestCompletedEodCutoffDate(now = Date.now()) {
+export function getLatestCompletedEodCutoffDate(now = Date.now()) {
   const marketDate = getUsEquityMarketDate(now);
   if (!marketDate) return '';
   const quoteSession = getUsEquityQuoteSession(now);
@@ -585,11 +586,15 @@ export async function fetchAnalystQuote(symbol, { eodhdKey }) {
   }
 }
 
-export async function fetchStockQuote(symbol, { eodhdKey, includeStockDetail = false }) {
+export async function fetchStockQuote(symbol, {
+  eodhdKey,
+  includeStockDetail = false,
+  includeMa200Monitor = false,
+}) {
   try {
     const now = Date.now();
     const marketDate = getUsEquityMarketDate(now);
-    const stockDetailCutoffDate = getLatestCompletedEodCutoffDate(now);
+    const completedEodCutoffDate = getLatestCompletedEodCutoffDate(now);
     const quoteUrl = `https://eodhd.com/api/us-quote-delayed?s=${encodeURIComponent(symbol)}.US&api_token=${eodhdKey}&fmt=json`;
     const today = new Date(now);
     const historyStart = new Date(now);
@@ -604,7 +609,7 @@ export async function fetchStockQuote(symbol, { eodhdKey, includeStockDetail = f
     const fromDate = historyStart.toISOString().slice(0, 10);
     const eodUrl = `https://eodhd.com/api/eod/${encodeURIComponent(symbol)}.US?api_token=${eodhdKey}&from=${fromDate}&fmt=json`;
     const splitsUrl = includeStockDetail
-      ? `https://eodhd.com/api/splits/${encodeURIComponent(symbol)}.US?api_token=${eodhdKey}&from=${fromDate}&to=${stockDetailCutoffDate}&fmt=json`
+      ? `https://eodhd.com/api/splits/${encodeURIComponent(symbol)}.US?api_token=${eodhdKey}&from=${fromDate}&to=${completedEodCutoffDate}&fmt=json`
       : '';
     const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=5m&range=1d&includePrePost=true`;
 
@@ -700,8 +705,11 @@ export async function fetchStockQuote(symbol, { eodhdKey, includeStockDetail = f
     let latestCompletedBaseline = null;
     let stockDetail = null;
     let stockDetailSplitActions = null;
+    let ma200Monitor = includeMa200Monitor
+      ? deriveMa200Monitor([], { asOfDate: completedEodCutoffDate })
+      : null;
     if (includeStockDetail) {
-      const unavailableDetail = buildEodhdStockDetail([], { asOfDate: stockDetailCutoffDate });
+      const unavailableDetail = buildEodhdStockDetail([], { asOfDate: completedEodCutoffDate });
       stockDetail = {
         ...unavailableDetail,
         indicators: {
@@ -723,9 +731,12 @@ export async function fetchStockQuote(symbol, { eodhdKey, includeStockDetail = f
       try {
         const eodData = await eodRes.json();
         if (Array.isArray(eodData) && eodData.length > 0) {
+          if (includeMa200Monitor) {
+            ma200Monitor = deriveMa200Monitor(eodData, { asOfDate: completedEodCutoffDate });
+          }
           if (includeStockDetail) {
             const nextStockDetail = buildEodhdStockDetail(eodData, {
-              asOfDate: stockDetailCutoffDate,
+              asOfDate: completedEodCutoffDate,
               splitActions: stockDetailSplitActions,
             });
             if (nextStockDetail.history.length > 0) stockDetail = nextStockDetail;
@@ -839,6 +850,7 @@ export async function fetchStockQuote(symbol, { eodhdKey, includeStockDetail = f
       quoteSession: eodhdQuote.quoteSession,
       changeSource: eodhdQuote.changeSource,
       source: 'EODHD',
+      ...(includeMa200Monitor ? { ma200Monitor } : {}),
       ...(includeStockDetail ? { stockDetail } : {}),
     };
   } catch (e) {

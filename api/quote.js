@@ -28,7 +28,7 @@ export default async function handler(req, res) {
   const auth = await requireQuoteAuth(req, res);
   if (!auth.ok) return;
 
-  const { symbols, view } = req.query;
+  const { symbols, view, ma200Symbols } = req.query;
   const requestedView = Array.isArray(view) ? view[0] : view;
   const marketMoversRequested = requestedView === 'market-movers';
   const stockDetailRequested = requestedView === 'stock-detail';
@@ -42,6 +42,9 @@ export default async function handler(req, res) {
     && !valuationRequested
   ) {
     return sendError(res, 400, '不支持的 view 参数');
+  }
+  if (ma200Symbols !== undefined && view !== undefined) {
+    return sendError(res, 400, 'ma200Symbols 仅支持普通行情请求');
   }
 
   const eodhdKey = (process.env.EODHD_API_KEY || '').trim().replace(/[\s\u200B-\u200D\uFEFF]/g, '');
@@ -58,6 +61,22 @@ export default async function handler(req, res) {
 
   const parsed = parseSymbolsParam(symbols);
   if (parsed.error) return sendError(res, 400, parsed.error);
+  let ma200SymbolSet = new Set();
+  if (ma200Symbols !== undefined) {
+    const parsedMa200 = parseSymbolsParam(ma200Symbols);
+    if (parsedMa200.error) {
+      return sendError(res, 400, `ma200Symbols 不合法: ${parsedMa200.error}`);
+    }
+    const requestedSymbolSet = new Set(parsed.symbolList);
+    const invalidMa200Symbol = parsedMa200.symbolList.find((symbol) => (
+      !requestedSymbolSet.has(symbol)
+      || providerForSymbol(symbol) !== QUOTE_PROVIDER.STOCK
+    ));
+    if (invalidMa200Symbol) {
+      return sendError(res, 400, 'ma200Symbols 必须是本次 symbols 中的普通美股子集');
+    }
+    ma200SymbolSet = new Set(parsedMa200.symbolList);
+  }
   if ((stockDetailRequested || fundamentalsRequested || valuationRequested) && (
     parsed.symbolList.length !== 1
     || providerForSymbol(parsed.symbolList[0]) !== QUOTE_PROVIDER.STOCK
@@ -92,6 +111,7 @@ export default async function handler(req, res) {
       parsed.symbolList.map(symbol => fetchQuoteForSymbol(symbol, {
         eodhdKey,
         includeStockDetail: stockDetailRequested,
+        includeMa200Monitor: ma200SymbolSet.has(symbol),
       }))
     );
 

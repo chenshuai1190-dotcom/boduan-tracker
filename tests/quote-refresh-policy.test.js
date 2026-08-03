@@ -278,7 +278,7 @@ test('App wires the low-frequency gate without replacing iOS snapshot bursts or 
     'only the cloud bootstrap may bypass cadence for a strict one-time universe expansion',
   );
   assert.ok(
-    source.indexOf('shouldRunQuoteBaselineRefresh({') < source.indexOf("fetchQuote(batch.join(','), { fresh: true })"),
+    source.indexOf('shouldRunQuoteBaselineRefresh({') < source.indexOf("fetchQuote(batch.join(','), { fresh: true, ma200Symbols })"),
     'the central cadence gate must run before any quote batch can reach the network',
   );
   assert.match(source, /Array\.isArray\(quoteBaselineRowsRef\.current\) \? quoteBaselineRowsRef\.current : quoteBaselineRows/);

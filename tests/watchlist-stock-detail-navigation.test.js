@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 
 const appSource = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8');
 const homeTabSource = readFileSync(new URL('../src/tabs/HomeTab.jsx', import.meta.url), 'utf8');
+const homeMa200Source = readFileSync(new URL('../src/components/HomeMa200BreakdownMonitor.jsx', import.meta.url), 'utf8');
 const i18nSource = readFileSync(new URL('../src/lib/i18n.js', import.meta.url), 'utf8');
 
 test('watchlist stock detail has an isolated standalone page route', () => {
@@ -20,7 +21,7 @@ test('watchlist stock detail has an isolated standalone page route', () => {
   assert.ok(appSource.includes('<StockDetailPage ctx={tabCtx} />'), 'the existing P&L stock-detail page must remain intact');
 });
 
-test('Home only opens watchlist detail from the sticky identity cell', () => {
+test('Home opens watchlist detail from the sticky identity cell and MA200 signal rows', () => {
   assert.ok(homeTabSource.includes('openWatchlistStockDetail,'));
   assert.ok(homeTabSource.includes('{isWatchlistTab ? ('), 'the new entry must be limited to the watchlist tab');
   assert.ok(homeTabSource.includes('onClick={() => openWatchlistStockDetail?.(item.symbol)}'));
@@ -30,6 +31,10 @@ test('Home only opens watchlist detail from the sticky identity cell', () => {
   const tableRowIndex = homeTabSource.lastIndexOf('tableRows.map((item)', triggerIndex);
   const nextPriceCellIndex = homeTabSource.indexOf('hasFiniteMarketValue(item.price)', triggerIndex);
   assert.ok(tableRowIndex >= 0 && nextPriceCellIndex > triggerIndex, 'the trigger should stay inside the sticky name/logo cell, before scrolling quote metrics');
+
+  assert.ok(homeTabSource.includes('onOpenStock={openWatchlistStockDetail}'));
+  assert.ok(homeMa200Source.includes('onClick={() => onOpenStock?.(row.symbol)}'));
+  assert.ok(homeMa200Source.includes("'watchlistDetail.openAria'"));
 });
 
 test('watchlist detail return restores the prior Home scroll without replacing double-tap-to-top', () => {

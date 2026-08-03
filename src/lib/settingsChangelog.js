@@ -4,6 +4,23 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '📉 首页新增自选股票 MA200 跌破监控',
+      '  - 财报日历下方显示自选股票的 MA200（日）跌破状态；正式确认仅使用 EODHD 最新完成收盘 adjusted_close，盘中现价只标记等待收盘',
+      '  - 新跌破按盘中、连续 1 日、2 日依次排列，最多保留 20 个完成交易日；默认显示 5 只，超过后可展开全部',
+      '  - 点击股票整行直接进入对应股票趋势页面；收盘价、MA200、距离与确认状态保持首页紧凑布局',
+      '  - 监控数据随现有 /api/quote 批次返回并复用同一份 EODHD 日线响应，不发起卡片专属重复请求，不接入备用源，也不修改数据库、交易或收益口径',
+    ],
+    itemsEn: [
+      '📉 MA200 breakdown monitoring for Home watchlist stocks',
+      '  - A new card below the earnings calendar shows daily-MA200 breakdowns for watchlist stocks; confirmation uses only the latest completed EODHD adjusted close, while live prices remain close-pending observations',
+      '  - Signals sort from intraday to one, two, and later completed sessions, remain visible for up to 20 completed trading days, and show five rows by default with an expand-all control',
+      '  - Tapping any stock row opens its existing Stock Trend page, while close, MA200, distance, and confirmation stay in the compact Home layout',
+      '  - Monitor data travels with the existing /api/quote batch and reuses the same EODHD daily-history response, with no card-specific duplicate request, backup provider, database change, trade change, or P&L formula change',
+    ],
+  },
+  {
+    ver: 'v10.7.9.415', date: '2026-08-03',
+    items: [
       '📊 股票趋势一年图支持自由缩放',
       '  - 1 年视图复用 5 年视图的双指缩放、缩放后单指横向拖动、范围提示和重置逻辑',
       '  - 1 年图继续使用日线股价、MA200（日）与 MA50（周）；5 年图及 1 月、3 月、6 月视图保持原行为',

@@ -13,8 +13,9 @@ import { normalizeStrictUserStockSymbol, normalizeUserStockSymbol } from './lib/
 import { getStoredLanguage, isEnglishLanguage, saveStoredLanguage, t } from './lib/i18n.js';
 import { isEarningsPublished } from './lib/earningsCalendarModel.js';
 import { localMonthKey } from './lib/calendarMonth.js';
+import { selectHomeMa200SymbolsForBatch } from './lib/homeMa200Breakdown.js';
 import { buildQuoteSymbolBatches } from './lib/quoteRequestBatches.js';
-import { buildQuoteBaselineRows, buildQuoteBaselineUniverseKey, getQuoteBaselineRefreshDelay, getQuoteBaselineSession, getQuoteCloseSettlementKey, isQuoteBaselineUniverseExpansion, mergeQuoteBaselineRows, shouldQueueQuoteBaselineExpansion, shouldRunQuoteBaselineRefresh } from './lib/quoteRefreshPolicy.js';
+import { buildQuoteBaselineRows, buildQuoteBaselineUniverseKey, getQuoteBaselineRefreshDelay, getQuoteBaselineSession, getQuoteCloseSettlementKey, isQuoteBaselineUniverseExpansion, mergeMa200Monitor, mergeQuoteBaselineRows, shouldQueueQuoteBaselineExpansion, shouldRunQuoteBaselineRefresh } from './lib/quoteRefreshPolicy.js';
 import { formatWaveCurrencyAmount, formatWaveUsdPrice } from './lib/waveCurrencyDisplay.js';
 import { userScopedStorageKey } from './lib/userScopedStorage.js';
 import { clearStockQuoteBootstrapCache, readStockQuoteBootstrapCache, writeStockQuoteBootstrapCache } from './lib/stockQuoteBootstrapCache.js';
@@ -1333,6 +1334,22 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
       headers.Pragma = 'no-cache';
     }
     const params = new URLSearchParams({ symbols });
+    const requestedSymbols = new Set(
+      String(symbols || '')
+        .split(',')
+        .map(normalizeStrictSymbolKey)
+        .filter(Boolean),
+    );
+    const ma200Symbols = Array.from(new Set(
+      (Array.isArray(requestOptions.ma200Symbols)
+        ? requestOptions.ma200Symbols
+        : String(requestOptions.ma200Symbols || '').split(','))
+        .map(normalizeStrictSymbolKey)
+        .filter((symbol) => symbol && requestedSymbols.has(symbol)),
+    ));
+    if (ma200Symbols.length > 0) {
+      params.set('ma200Symbols', ma200Symbols.join(','));
+    }
     if (fresh) {
       params.set('_ts', String(Date.now()));
     }
@@ -2951,7 +2968,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     }
     let fresh = null;
     try {
-      const r = await fetchQuote(symbol, { fresh: true });
+      const r = await fetchQuote(symbol, { fresh: true, ma200Symbols: [symbol] });
       const result = await r.json().catch(() => ({}));
       if (!r.ok || !result?.success) {
         return {
@@ -3002,6 +3019,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
       changePercent: fresh?.changePercent || 0,
       ytdChangePercent: fresh?.ytdChangePercent || 0,
       intraday: fresh?.intraday || [],
+      ma200Monitor: fresh?.ma200Monitor ?? null,
       ...(logoURL ? { logoURL } : {}),
     };
     // 🚨 立刻同步到云端 (不等防抖,精确单条写入)
@@ -3023,8 +3041,13 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     ));
     setWatchlistOrder(nextOrder);
     setQuoteCache(current => {
+      const existing = current.find(item => item.symbol === symbol);
+      const nextItem = {
+        ...newItem,
+        ma200Monitor: mergeMa200Monitor(existing?.ma200Monitor, newItem.ma200Monitor),
+      };
       const next = current.filter(item => item.symbol !== symbol);
-      return [...next, newItem];
+      return [...next, nextItem];
     });
     db.upsertSettings(buildSettingsPayload({ watchlistOrder: nextOrder }))
       .catch((e) => console.error('[添加股票] 自选排序保存失败:', e));
@@ -3081,6 +3104,9 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     const rowsForQuote = Array.isArray(rowsOverride)
       ? rowsOverride
       : (Array.isArray(quoteBaselineRowsRef.current) ? quoteBaselineRowsRef.current : quoteBaselineRows);
+    const ma200Watchlist = Array.isArray(requestOptions.ma200SymbolsOverride)
+      ? requestOptions.ma200SymbolsOverride
+      : homeWatchlist;
     const coreSymbols = ['QQQ', 'TQQQ'];
     const baselineUniverseKey = buildQuoteBaselineUniverseKey(rowsForQuote, coreSymbols);
     const universeExpanded = requestOptions.allowBaselineExpansion === true
@@ -3157,7 +3183,8 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
       requestedSymbols = [...symbolSet, 'VIX', 'FGI', 'INDICES'];
       const resultRows = [];
       for (const batch of buildQuoteSymbolBatches(requestedSymbols)) {
-        const r = await fetchQuote(batch.join(','), { fresh: true });
+        const ma200Symbols = selectHomeMa200SymbolsForBatch(batch, ma200Watchlist);
+        const r = await fetchQuote(batch.join(','), { fresh: true, ma200Symbols });
         responseStatus = r.status;
         const batchResult = await r.json().catch(() => ({}));
         responseResult = batchResult;
@@ -3247,6 +3274,8 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
               changePercent: fresh.changePercent || 0,
               // 保存年初至今涨跌
               ytdChangePercent: fresh.ytdChangePercent || 0,
+              // 只有本批自选会返回；旧客户端/缺失字段不得清空上一份有效完成收盘监控。
+              ma200Monitor: mergeMa200Monitor(s.ma200Monitor, fresh.ma200Monitor ?? s.ma200Monitor),
             };
           }
           return s;
@@ -3604,6 +3633,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
       trigger: 'auto-start-cloud',
       minIntervalMs: 0,
       allowBaselineExpansion: true,
+      ma200SymbolsOverride: Array.isArray(result?.watchlist) ? result.watchlist : undefined,
     });
   };
 
@@ -3656,6 +3686,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
         notifyOnError: true,
         queueIfBusy: true,
         forceBaseline: true,
+        ma200SymbolsOverride: Array.isArray(cloudResult?.watchlist) ? cloudResult.watchlist : undefined,
       });
       setPullRefreshStatus('done');
     } catch (e) {

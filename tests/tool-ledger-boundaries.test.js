@@ -1087,7 +1087,7 @@ test('home watchlist dialogs and add success notice use normal weights', () => {
   assert.ok(homeTabSource.includes("{ key: 'close', label: t(language, 'home.gotIt', '知道了')"), 'add success acknowledge action should use the shared neutral button');
   assert.equal(homeTabSource.includes('text-[17px] font-black text-white">{t(language, \'home.addWatchlistStock\''), false, 'add watchlist title should not keep the old font-black class');
   assert.equal(homeTabSource.includes('text-[17px] font-black text-white">{addStockNotice.title}'), false, 'add success title should not keep the old font-black class');
-  assert.ok(appSource.includes('fetchQuote(symbol, { fresh: true })'), 'adding a watchlist stock should validate the ticker through the auth-gated quote API');
+  assert.ok(appSource.includes('fetchQuote(symbol, { fresh: true, ma200Symbols: [symbol] })'), 'adding a watchlist stock should validate the ticker and MA200 data through the same auth-gated quote request');
   assert.ok(appSource.includes('const fetchPopularStockQuotes = useCallback(async (symbols = []) => {'), 'popular stock quotes should be fetched through a narrow app helper');
   assert.ok(appSource.includes("const r = await fetchQuote(normalizedSymbols.join(','), { fresh: true });"), 'popular stock quotes should reuse the auth-gated quote API with fresh requests');
   assert.ok(appSource.includes("row.priceSource === 'EODHD-v2'"), 'popular stock quotes should only expose validated stock quote rows');
@@ -1309,7 +1309,7 @@ test('realtime quote refresh avoids duplicate requests and hides raw Safari netw
   assert.ok(appSource.includes('const fresh = requestOptions.fresh === true;'), 'quote fetch helper should support fresh no-cache requests');
   assert.ok(appSource.includes("headers['Cache-Control'] = 'no-cache';"), 'fresh quote requests should ask intermediaries not to reuse cached responses');
   assert.ok(appSource.includes('params.set(\'_ts\', String(Date.now()))'), 'fresh quote requests should append a cache-busting timestamp');
-  assert.ok(appSource.includes("fetchQuote(batch.join(','), { fresh: true })"), 'every main realtime quote batch should bypass browser caches');
+  assert.ok(appSource.includes("fetchQuote(batch.join(','), { fresh: true, ma200Symbols })"), 'every main realtime quote batch should bypass browser caches while carrying only its watchlist MA200 subset');
   assert.ok(appSource.includes('buildQuoteSymbolBatches(requestedSymbols)'), 'main realtime quote refresh should split symbol sets at the API batch boundary');
   assert.ok(appSource.includes("cache: 'no-store'"), 'fresh quote requests should disable the browser HTTP cache');
   assert.ok(quoteApiSource.includes("'private, no-store, max-age=0, must-revalidate'"), 'authenticated quote responses should not be browser-cacheable');
@@ -1824,7 +1824,7 @@ test('production V2 wave tracker is an independent real-data page with isolated 
     'App should give only the independent V2 page its dedicated fast snapshot helper',
   );
   assert.ok(tradesTabSource.includes("if (item.id === 'waves')") && tradesTabSource.includes('openWaveTracker?.()'), 'wave toolbox tile should open V2 instead of the legacy inline panel');
-  assert.ok(devVisualPreviewSource.includes("preview === 'wave-v2' ? 'wave-tracker' : preview === 'community-competition' ? 'community-competition' : ''"), 'local visual preview should render the production page with safe fixtures');
+  assert.ok(devVisualPreviewSource.includes("preview === 'wave-v2' ? 'wave-tracker' : preview === 'community-competition' ? 'community-competition' : preview === 'home-ma200-breakdown' ? 'home' : ''"), 'local visual preview should render the production pages with safe fixtures');
 
   for (const api of ['listSwingWaves', 'createSwingWave', 'updateSwingWave', 'completeSwingWave', 'deleteSwingWave']) {
     assert.ok(waveTrackerPageSource.includes(`db.${api}`), `V2 page must call ${api}`);
