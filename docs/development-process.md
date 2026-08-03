@@ -94,6 +94,28 @@ FULL 依次执行一次完整测试（其中包含字号门禁）、production b
 | 依赖 / lockfile | `npm run audit` |
 | 纯服务端 FULL | 不做 Simulator 截图 |
 
+### 股票实时稳定版 v10 保护基线
+
+`股票实时稳定版 v10` 是实时架构方案名，不是应用 release 版本号。首个经 iPhone Home Screen PWA 真机体验确认的基线为 `v10.7.9.417 / 05696b9`；它只恢复 v382 证明过的低延迟实时路径，不回退当前的 REST 频率、收盘、缓存和旧响应保护。
+
+以下属于不得随手改写的稳定边界：
+
+- 正式股票行情仍以 EODHD 为唯一 provider，不得为提速接入 Yahoo 或其他备用源替代正式价格。
+- EODHD 成交与报价 WebSocket 必须在同一次启动中同时连接，不得再人为延后成交流。provider socket 打开后立即发送兼容订阅，但只能由明确授权响应或合法 tick 将状态确认为 `live`；错误仍必须关闭并退避重连。
+- 已登录 Snapshot 收到本次请求后的首个有效 tick 即可返回；其余股票继续由现有 snapshot burst 补齐。每只股票仍必须比较请求时间与 WebSocket 接收时间，旧 Snapshot 不得覆盖新 tick。
+- 账户隔离的最近行情缓存继续用于首屏。等价的缓存与云端股票集合必须先归一化、去重、排序再生成 key；只因顺序不同不得重启 WebSocket。
+- 完整 `/api/quote` REST 基线保持正常交易时段 `15 分钟`、盘前/盘后 `30 分钟`、休市 `60 分钟`。focus、pageshow、Tab 切换和恢复前台只能在基线到期后补拉；手动刷新可强制执行，不得恢复 v382 的约 `10 秒` 完整 REST 轮询。
+- 近期成交 tick 的优先级、EODHD 完成收盘锁定、缺数显示不可用及禁止用 `0` 覆盖最近有效价格的边界保持不变。
+
+任何修改 `server/realtime/stocksRelay.js`、`src/lib/stockRealtime.js`、`src/lib/quoteRefreshPolicy.js` 或 `src/App.jsx` 中实时启动/PWA 恢复链路的任务，必须：
+
+1. 先与稳定版 v10 基线对比，说明为什么必须改动上述边界；不允许为其他 UI 或业务任务顺手重构。
+2. 定向覆盖双流同时启动、授权状态、首个新 tick、Snapshot 防旧覆盖、稳定 symbol key 和 `15/30/60` REST 门控，最终只运行一次 `npm run check:full`。
+3. 使用已安装的 iOS Home Screen PWA 验收冷启动/重新打开、Tab 切换、上下滑动、focus/pageshow/resume 后的缓存首屏、首个实时价和断线恢复。普通 Safari 或静态测试不能代替这项证据。
+4. 生产只做一次未登录鉴权 smoke 和一轮真实用户体验验收，不得使用高频循环探针制造 EODHD 请求。
+
+若出现“必须手动刷新才有价格”、“重新打开后价格消失”、“同一股票集合重复握手”或“REST 调用量异常放大”，必须优先视为稳定版 v10 回归，不先接入备用 provider 或增加刷新频率。
+
 生产 migration、backfill、删除、覆盖或其他写操作仍必须取得用户明确授权；执行前只读确认精确目标，执行后做隐私安全的聚合 postflight，并说明回滚或 forward-fix。
 
 当新 runtime 与权限收紧互相依赖时，发布必须拆成一条兼容的 forward-only 序列，不能把数据库与 runtime 当成可任意交换顺序的两个动作：
