@@ -42,6 +42,7 @@ import {
 } from '../src/lib/indexRealtime.js';
 import {
   applyStockTickToQuoteRows,
+  buildStockRealtimeSymbolsKey,
   canStartStockRealtime,
   isFreshStockRealtimeTick,
   mergeFreshStockRealtimeRows,
@@ -644,6 +645,8 @@ test('stock realtime symbols are sanitized and capped for user quote streams', (
   const rows = Array.from({ length: 55 }, (_, index) => ({ symbol: `T${index}` }));
   assert.equal(selectStockRealtimeSymbols(rows).length, 50);
   assert.deepEqual(selectStockRealtimeSymbols([{ symbol: 'nvda.us' }, { symbol: 'NVDA' }, { symbol: 'MSFT' }]), ['NVDA', 'MSFT']);
+  assert.equal(buildStockRealtimeSymbolsKey(['MSFT', 'nvda.us', 'NVDA']), 'MSFT,NVDA');
+  assert.equal(buildStockRealtimeSymbolsKey(['NVDA', 'MSFT']), 'MSFT,NVDA');
 });
 
 test('stock realtime may start during cloud loading only when a cached symbol universe exists', () => {

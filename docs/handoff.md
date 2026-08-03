@@ -10,7 +10,7 @@
 | --- | --- |
 | 仓库 | `chenshuai1190-dotcom/boduan-tracker` |
 | 生产地址 | `https://boduan-tracker.vercel.app` |
-| 运行时代码 | `v10.7.9.414`：v413 稳定运行时 + 股票趋势在 1 年/5 年视图追加 MA50（周）与巴菲特指标；原股价、MA200（日/周）和完成收盘口径保持不变；精确发布提交以 GitHub `main` HEAD 为准 |
+| 运行时代码 | `v10.7.9.417`：v416 首页自选 MA200 跌破监控 + 股票实时稳定版 v10；EODHD 成交/报价 WebSocket 同时启动、连接打开即发送兼容订阅，Snapshot 收到首批新 tick 即返回；精确发布提交以 GitHub `main` HEAD 为准 |
 | 数据库 | 保留既有 additive schema，并已按顺序接入比赛 migration、个人收益 foundation `pnl_report_immediate_rebuild_20260801.sql` 与 runtime 后 contract `pnl_report_snapshot_write_contract_after_runtime_20260801.sql` |
 | 发布完成条件 | GitHub `main` 的同一份 runtime 与上述 migration 均已上线并通过聚合 postflight；只完成其中一项不得宣布上线 |
 
@@ -22,7 +22,7 @@
 - 个人收益只读页面专项：`57 / 57` tests PASS；交易 mutation 与收盘 Cron 保留重算所有权，报表 mount/focus/pageshow 不再触发重算或显示常驻重试。
 - 个股即时交易事实专项：`34 / 34` tests PASS；当天新增、修改、删除和纽约日期上限均覆盖，收盘收益、持仓、趋势、图表节点与 QQQ 边界保持不变。
 - 股票趋势 MA50 周线专项：`73 / 73` tests PASS；完成周锁定、50–199 周独立可用、1 年/5 年曲线组合及原曲线保留均覆盖。
-- `npm run check:full`：`873 / 873` tests PASS；字号下限、Vite production build、whitespace 和三份权威文档一致性均通过。
+- `npm run check:full`：PASS；字号下限、Vite production build、whitespace 和三份权威文档一致性均通过。
 - 新的开发、验证和单等待器发布流程继续保留，没有恢复旧六文档或重复验证流程。
 
 ## 交易持仓收盘估值
@@ -32,6 +32,13 @@
 - 新完成收盘暂缺时，估值只保留最近一份明确的 EODHD 完成收盘字段，界面显示不可用；不得回退 delayed `price`，也不得用 `0` 覆盖最近有效估值。
 - 今日盈亏仍独立使用 `dailyPnlPrice - dailyPnlBaselineClose`；个人收益报表仍读取数据库完成收盘快照，本次不修改其计算或数据。
 - 本次没有接入 Yahoo 或其他备用行情源，没有修改 `/api/quote` provider、正式交易、个人收益快照、比赛账本或生产财务数据。
+
+## 股票实时稳定版 v10
+
+- iOS Home Screen PWA 的 EODHD 成交流和报价流改为同时连接，不再人为延后成交流；provider socket 打开后立即发送兼容订阅，授权状态仍只能由正式授权响应或合法 tick 确认。
+- 已登录 Snapshot 收到首批新 tick 后立即返回，不再额外等待批次收集窗口；其余缺失股票仍由已有 snapshot burst 补齐，旧 Snapshot 不得覆盖更新的 WebSocket tick。
+- 等价的本地缓存与云端股票集合使用稳定 key，只因顺序不同不再重启 WebSocket。
+- 保留 EODHD 单一来源、15/30/60 分钟完整 REST 门控、完成收盘锁定、账户隔离启动缓存和新 tick 优先级；本次没有恢复 v382 的 10 秒 REST 轮询，也没有接入备用行情源。
 
 ## 个人收益正确重算
 
@@ -88,7 +95,7 @@
 ### 已知风险
 
 - 比赛公开行情缓存与 402 熔断是 Vercel 单实例内存态，不是跨实例全局缓存；冷启动或不同实例仍可能分别首次读取一次。
-- v414 延续收益比赛共享 EODHD 缓存与熔断、交易持仓 EODHD 收盘估值、个人收益正确重算、主 `/api/quote` 的 15/30/60 分钟客户端门控、个股/QQQ 当前存续仓位口径和个人收益只读页面，并复用 stock detail 同一历史响应计算 MA50（周），不增加 EODHD 请求。服务端仍没有 v404 的通用完成收盘缓存和全局 402 熔断；冷实例首次读取与尚未更新的旧客户端仍可能额外消耗 EODHD 额度。
+- v417 延续收益比赛共享 EODHD 缓存与熔断、交易持仓 EODHD 收盘估值、个人收益正确重算、主 `/api/quote` 的 15/30/60 分钟客户端门控、个股/QQQ 当前存续仓位口径和个人收益只读页面，并复用 stock detail 同一历史响应计算 MA50（周），不增加 EODHD REST 请求。本次稳定版 v10 会同时维持两条 EODHD WebSocket；应观察实际首屏速度、断线重连与 provider 连接数，但不得因此恢复高频 REST。服务端仍没有 v404 的通用完成收盘缓存和全局 402 熔断；冷实例首次读取与尚未更新的旧客户端仍可能额外消耗 EODHD 额度。
 - 个人收益的客户端即时重算请求是交易 mutation 后的一次非阻塞派生动作：正式交易保存成功不会因个人收益暂时失败而回滚，恢复依赖数据库 dirty state 和收盘 Cron，不依赖收益报表页面或浏览器一直存活。比赛仍保持其独立重算链路。
 - P&L foundation 与 contract 之间旧 PWA 仍保留原直接写权限，因此 runtime 验证后必须尽快执行 contract；任一步失败都只做 forward-fix。跨 Vercel 实例生成不同时间戳时可能留下多个安全隔离的暂存 job，由 24 小时 TTL 清理，不会混合发布。
 

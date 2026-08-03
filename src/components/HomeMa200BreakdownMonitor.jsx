@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronDown, Info } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import {
   HOME_MA200_DEFAULT_ROWS,
   buildHomeMa200BreakdownModel,
@@ -182,11 +182,12 @@ export default function HomeMa200BreakdownMonitor({
         )}
       </section>
 
-      <section className="mt-3 flex min-h-[44px] items-center justify-between gap-3 rounded-2xl border border-white/[0.095] bg-[#0b0f14] px-[13px] shadow-[inset_0_1px_0_rgba(255,255,255,0.045),0_18px_44px_rgba(0,0,0,0.14)]" aria-label={t(language, 'home.ma200Monitor.methodAria', 'MA200 口径说明')}>
-        <div className={`flex min-w-0 items-center gap-2 leading-[1.25] text-white/[0.43] ${englishMode ? 'text-[10px]' : 'text-[11px]'}`}>
-          <Info className="h-[17px] w-[17px] shrink-0" strokeWidth={1.8} />
-          <span>{t(language, 'home.ma200Monitor.method', '仅统计自选 · 最长展示 20 个交易日')}</span>
-        </div>
+      <section
+        className="mt-3 flex min-h-[44px] items-center justify-end rounded-2xl border border-white/[0.095] bg-[#0b0f14] px-[13px] shadow-[inset_0_1px_0_rgba(255,255,255,0.045),0_18px_44px_rgba(0,0,0,0.14)]"
+        aria-label={date
+          ? t(language, 'home.ma200Monitor.updatedClose', '更新至 {{date}} 收盘', { date })
+          : t(language, 'home.ma200Monitor.awaitingClose', '等待完成收盘')}
+      >
         <div className={`shrink-0 whitespace-nowrap text-right leading-[1.25] tabular-nums text-white/[0.43] ${englishMode ? 'text-[10px]' : 'text-[11px]'}`} style={{ fontFamily: NUMBER_FONT }}>
           {date
             ? t(language, 'home.ma200Monitor.updatedClose', '更新至 {{date}} 收盘', { date })

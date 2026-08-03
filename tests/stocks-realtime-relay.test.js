@@ -6,7 +6,6 @@ import {
 } from '../server/realtime/stocks.js';
 import {
   buildStocksSnapshotMetadata,
-  createTradeStartScheduler,
   evaluateStocksSnapshotWait,
 } from '../server/realtime/stocksRelay.js';
 
@@ -20,63 +19,6 @@ function stockTick(symbol, receivedAt, price = 100) {
     source: 'EODHD_WS',
   };
 }
-
-test('quote-first scheduler starts trade immediately on readiness and clears the stagger timer', () => {
-  let scheduledCallback = null;
-  let scheduledDelay = null;
-  let cleared = 0;
-  let starts = 0;
-  const timerHandle = { id: 'trade-stagger' };
-  const scheduler = createTradeStartScheduler({
-    delayMs: 1_300,
-    startTrade: () => {
-      starts += 1;
-    },
-    setTimer: (callback, delay) => {
-      scheduledCallback = callback;
-      scheduledDelay = delay;
-      return timerHandle;
-    },
-    clearTimer: (handle) => {
-      assert.equal(handle, timerHandle);
-      cleared += 1;
-    },
-  });
-
-  assert.equal(scheduler.schedule(), true);
-  assert.equal(scheduler.schedule(), false);
-  assert.equal(scheduler.isPending(), true);
-  assert.equal(scheduledDelay, 1_300);
-  assert.equal(typeof scheduledCallback, 'function');
-
-  assert.equal(scheduler.startNow(), true);
-  assert.equal(starts, 1);
-  assert.equal(cleared, 1);
-  assert.equal(scheduler.isPending(), false);
-});
-
-test('quote-first scheduler does not start delayed trade after consumers disappear', () => {
-  let active = true;
-  let scheduledCallback = null;
-  let starts = 0;
-  const scheduler = createTradeStartScheduler({
-    hasConsumers: () => active,
-    startTrade: () => {
-      starts += 1;
-    },
-    setTimer: (callback) => {
-      scheduledCallback = callback;
-      return 1;
-    },
-  });
-
-  assert.equal(scheduler.schedule(), true);
-  active = false;
-  scheduledCallback();
-  assert.equal(starts, 0);
-  assert.equal(scheduler.isPending(), false);
-  assert.equal(scheduler.startNow(), false);
-});
 
 test('stock provider status requires explicit authorization and omits provider message text', () => {
   assert.deepEqual(
@@ -160,41 +102,32 @@ test('stock snapshot metadata reports coverage, missing symbols, and per-symbol 
   assert.equal(metadata.symbolMeta.TSM.ageMs, 700);
 });
 
-test('stock snapshot waits past the first tick, then resolves by coverage or collection window', () => {
+test('stock snapshot returns the first fresh tick without waiting for batch coverage', () => {
   const symbols = ['NVDA', 'MSFT', 'META', 'TSM', 'NOK', 'IBKR'];
   const oneTick = [stockTick('NVDA', 1_050)];
 
-  const stillCollecting = evaluateStocksSnapshotWait({
+  const firstFreshTick = evaluateStocksSnapshotWait({
     symbols,
     ticks: oneTick,
     startedAt: 1_000,
     deadline: 2_800,
-    now: 1_300,
+    now: 1_050,
   });
-  assert.equal(stillCollecting.resolve, false);
-  assert.equal(stillCollecting.reason, 'collecting');
+  assert.equal(firstFreshTick.resolve, true);
+  assert.equal(firstFreshTick.reason, 'first-fresh-tick');
+  assert.equal(firstFreshTick.coverage.freshSinceRequestCount, 1);
 
-  const collectionWindow = evaluateStocksSnapshotWait({
-    symbols,
-    ticks: oneTick,
-    startedAt: 1_000,
-    deadline: 2_800,
-    now: 1_400,
-  });
-  assert.equal(collectionWindow.resolve, true);
-  assert.equal(collectionWindow.reason, 'collection-window');
-
-  const coverage = evaluateStocksSnapshotWait({
+  const fullBatch = evaluateStocksSnapshotWait({
     symbols,
     ticks: symbols.slice(0, 5).map((symbol, index) => stockTick(symbol, 1_050 + index)),
     startedAt: 1_000,
     deadline: 2_800,
     now: 1_100,
   });
-  assert.equal(coverage.coverage.targetCount, 5);
-  assert.equal(coverage.coverage.freshSinceRequestCount, 5);
-  assert.equal(coverage.resolve, true);
-  assert.equal(coverage.reason, 'coverage');
+  assert.equal(fullBatch.coverage.targetCount, 5);
+  assert.equal(fullBatch.coverage.freshSinceRequestCount, 5);
+  assert.equal(fullBatch.resolve, true);
+  assert.equal(fullBatch.reason, 'first-fresh-tick');
 });
 
 test('stock snapshot hard timeout remains bounded when the provider is silent', () => {

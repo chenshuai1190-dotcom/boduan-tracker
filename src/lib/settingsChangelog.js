@@ -4,6 +4,23 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '⚡ 股票实时稳定版 v10',
+      '  - iOS Home Screen PWA 的 EODHD 成交与报价 WebSocket 改为同时启动，不再让成交流等待报价流',
+      '  - provider 连接打开后立即发送兼容订阅，同时保留授权确认、错误关闭和安全重订阅',
+      '  - 已登录 Snapshot 收到首批新行情即返回，其余股票继续由既有 burst 补齐；旧 Snapshot 不得覆盖更新的 WebSocket tick',
+      '  - 保留 EODHD 单一来源、15/30/60 分钟完整 REST 门控、完成收盘锁定和账户隔离缓存，不恢复 v382 的 10 秒 REST 轮询',
+    ],
+    itemsEn: [
+      '⚡ Stock Realtime Stable v10',
+      '  - EODHD trade and quote WebSockets now start together in the iOS Home Screen PWA, so the trade stream no longer waits behind the quote stream',
+      '  - A compatibility subscription is sent immediately when the provider socket opens, while authorization confirmation, error closure, and safe resubscription remain intact',
+      '  - Authenticated snapshots return after the first fresh market tick and the existing burst continues filling the remaining symbols; an older snapshot still cannot overwrite a newer WebSocket tick',
+      '  - EODHD remains the only provider, with the 15/30/60-minute full REST gate, completed-close lock, and account-isolated cache preserved; the v382 ten-second REST polling is not restored',
+    ],
+  },
+  {
+    ver: 'v10.7.9.416', date: '2026-08-03',
+    items: [
       '📉 首页新增自选股票 MA200 跌破监控',
       '  - 财报日历下方显示自选股票的 MA200（日）跌破状态；正式确认仅使用 EODHD 最新完成收盘 adjusted_close，盘中现价只标记等待收盘',
       '  - 新跌破按盘中、连续 1 日、2 日依次排列，最多保留 20 个完成交易日；默认显示 5 只，超过后可展开全部',

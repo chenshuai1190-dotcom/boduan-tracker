@@ -1425,6 +1425,11 @@ test('realtime quote refresh avoids duplicate requests and hides raw Safari netw
   assert.ok(stocksRelaySource.includes('REPLAY_TICK_MAX_AGE_MS'), 'stock relay should not replay stale warm-process ticks to new clients');
   assert.ok(stocksRelaySource.includes('pruneStaleTicks'), 'stock relay should prune stale ticks before replaying cached values');
   assert.ok(stocksRelaySource.includes('resubscribeAllSubscriptions'), 'stock relay should resubscribe current symbols when a new client joins a warm upstream');
+  assert.ok(stocksRelaySource.includes("connectUpstream('trade');\n  connectUpstream('quote');"), 'stable realtime v10 should start trade and quote upstreams together');
+  assert.ok(stocksRelaySource.includes('reconcileSubscriptions(kind, { allowUnconfirmed: true });\n    scheduleStatuslessSubscription'), 'stable realtime v10 should subscribe immediately on provider open while retaining the statusless retry');
+  assert.ok(stocksRelaySource.includes("reason: 'first-fresh-tick'"), 'stable realtime v10 snapshots should return as soon as the first fresh tick arrives');
+  assert.equal(stocksRelaySource.includes('TRADE_START_STAGGER_MS'), false, 'stable realtime v10 must not delay the trade stream behind quote readiness');
+  assert.ok(appSource.includes('buildStockRealtimeSymbolsKey(stockRealtimeSymbols)'), 'equivalent cache and cloud symbol sets should not restart realtime because of ordering alone');
   assert.equal(appSource.includes('STOCK_REALTIME_INITIAL_COVERAGE_RATIO'), false, 'stock realtime should not require initial symbol coverage because sparse premarket streams can be valid');
   assert.ok(appSource.includes('auto-ios-visible-heartbeat'), 'iOS standalone app should reconnect stock realtime when visible timers resume');
   assert.equal(homeTabSource.includes("import { isIndexMarketCard } from '../lib/indexRealtime.js';"), false, 'index cards should not import index matching just to render connection badges');

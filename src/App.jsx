@@ -8,7 +8,7 @@ import { MARKET_COLOR_MODE_STORAGE_KEY, normalizeMarketColorMode } from './lib/m
 import { buildLedgerQuoteUniverse } from './lib/stockUniverse.js';
 import { applyBtcTickToMarketCard, resolveBtcSnapshotRealtimeStatus } from './lib/btcRealtime.js';
 import { applyIndexTickToMarketCards, mergeIndexRestCardsIntoMarketCards, shouldAppendIndexIntraday } from './lib/indexRealtime.js';
-import { applyStockTickToQuoteRows, canStartStockRealtime, getUsEquityRealtimeSession, isFreshStockRealtimeTick, mergeFreshStockRealtimeRows, mergeStockSnapshotPollRequest, mergeStockTicksIntoQuoteRows, selectStockRealtimeSymbols, shouldApplyStockSnapshotTick, shouldPollStockRealtimeSnapshot } from './lib/stockRealtime.js';
+import { applyStockTickToQuoteRows, buildStockRealtimeSymbolsKey, canStartStockRealtime, getUsEquityRealtimeSession, isFreshStockRealtimeTick, mergeFreshStockRealtimeRows, mergeStockSnapshotPollRequest, mergeStockTicksIntoQuoteRows, selectStockRealtimeSymbols, shouldApplyStockSnapshotTick, shouldPollStockRealtimeSnapshot } from './lib/stockRealtime.js';
 import { normalizeStrictUserStockSymbol, normalizeUserStockSymbol } from './lib/symbols.js';
 import { getStoredLanguage, isEnglishLanguage, saveStoredLanguage, t } from './lib/i18n.js';
 import { isEarningsPublished } from './lib/earningsCalendarModel.js';
@@ -1909,7 +1909,9 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     ...quoteUniverse.allRows,
   ]), [localizedStockQuoteBootstrapRows, quoteUniverse, stockRealtimeUniverseResolved]);
   const stockRealtimeSymbols = useMemo(() => selectStockRealtimeSymbols(stockRealtimePriorityRows), [stockRealtimePriorityRows]);
-  const stockRealtimeSymbolsKey = stockRealtimeSymbols.join(',');
+  // Equivalent cache and cloud symbol sets must not restart the socket merely
+  // because their priority order differs during startup hydration.
+  const stockRealtimeSymbolsKey = buildStockRealtimeSymbolsKey(stockRealtimeSymbols);
   const stockRealtimeReady = canStartStockRealtime({
     cloudLoading,
     symbols: stockRealtimeSymbols,

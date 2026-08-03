@@ -196,8 +196,6 @@ const messages = {
     'home.ma200Monitor.emptyClear': '当前自选均在 MA200 上方',
     'home.ma200Monitor.emptyPartial': '暂无已确认跌破 · 部分数据待补齐',
     'home.ma200Monitor.emptyOutsideWindow': '暂无 20 个交易日内的新跌破',
-    'home.ma200Monitor.methodAria': 'MA200 口径说明',
-    'home.ma200Monitor.method': '仅统计自选 · 最长展示 20 个交易日',
     'home.ma200Monitor.updatedClose': '更新至 {{date}} 收盘',
     'home.ma200Monitor.awaitingClose': '等待完成收盘',
 
@@ -1390,8 +1388,6 @@ const messages = {
     'home.ma200Monitor.emptyClear': 'All watchlist stocks are above MA200',
     'home.ma200Monitor.emptyPartial': 'No confirmed break · Some data pending',
     'home.ma200Monitor.emptyOutsideWindow': 'No new break within 20 trading days',
-    'home.ma200Monitor.methodAria': 'MA200 methodology',
-    'home.ma200Monitor.method': 'Watchlist only · Up to 20 trading days',
     'home.ma200Monitor.updatedClose': 'Close through {{date}}',
     'home.ma200Monitor.awaitingClose': 'Awaiting close data',
 

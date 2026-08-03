@@ -12,10 +12,8 @@ const REPLAY_TICK_MAX_AGE_MS = 120_000;
 const SNAPSHOT_HOLD_MS = 45_000;
 const SNAPSHOT_WAIT_MS = 1_800;
 const PROVIDER_AUTH_GRACE_MS = 350;
-const SNAPSHOT_COLLECTION_MS = 350;
 const SNAPSHOT_TARGET_COVERAGE_RATIO = 0.8;
 const SNAPSHOT_POLL_MS = 50;
-const TRADE_START_STAGGER_MS = 1_300;
 
 const STREAMS = {
   trade: {
@@ -73,46 +71,6 @@ const state = {
   snapshotHoldUntil: 0,
   snapshotHoldTimer: null,
 };
-
-export function createTradeStartScheduler({
-  delayMs = TRADE_START_STAGGER_MS,
-  hasConsumers = () => true,
-  startTrade = () => {},
-  setTimer = setTimeout,
-  clearTimer = clearTimeout,
-} = {}) {
-  let timer = null;
-
-  const clear = () => {
-    if (timer === null) return false;
-    clearTimer(timer);
-    timer = null;
-    return true;
-  };
-
-  const startNow = () => {
-    clear();
-    if (!hasConsumers()) return false;
-    startTrade();
-    return true;
-  };
-
-  const schedule = () => {
-    if (timer !== null || !hasConsumers()) return false;
-    timer = setTimer(() => {
-      timer = null;
-      if (hasConsumers()) startTrade();
-    }, Math.max(0, Number(delayMs) || 0));
-    return true;
-  };
-
-  return {
-    clear,
-    schedule,
-    startNow,
-    isPending: () => timer !== null,
-  };
-}
 
 function safeJsonSend(ws, payload) {
   if (ws.readyState !== WebSocket.OPEN) return false;
@@ -213,7 +171,6 @@ function clearPendingBroadcasts() {
 
 function closeUpstreamIfUnused() {
   if (hasActiveConsumers()) return;
-  tradeStartScheduler.clear();
   clearAllReconnectTimers();
   clearAllAuthFallbackTimers();
   clearPendingBroadcasts();
@@ -369,7 +326,6 @@ function confirmProviderReady(kind, upstream) {
   state[stream.statusKey] = 'live';
   state[stream.reconnectDelayKey] = 1000;
   reconcileSubscriptions(kind);
-  if (kind === 'quote') tradeStartScheduler.startNow();
   if (wasLive) return;
 
   broadcastCombinedStatus();
@@ -386,9 +342,8 @@ function scheduleStatuslessSubscription(kind, upstream) {
     state[stream.authFallbackTimerKey] = null;
     if (state[stream.upstreamKey] !== upstream) return;
     if (upstream.readyState !== WebSocket.OPEN || state[stream.providerReadyKey]) return;
-    // Some provider gateways omit the explicit 200 status frame. Subscribe after
-    // a short grace period, but keep the public status as "connecting" until a
-    // valid market-data tick proves that the stream is usable.
+    // Retry the provisional subscription for gateways that omit the explicit
+    // 200 status frame. The first provisional send happens immediately on open.
     reconcileSubscriptions(kind, { allowUnconfirmed: true });
   }, PROVIDER_AUTH_GRACE_MS);
 }
@@ -411,7 +366,6 @@ function handleUpstreamMessage(kind, upstream, rawMessage) {
       broadcastCombinedStatus({
         error: `EODHD 股票实时服务异常 (${parsed.status.statusCode})`,
       });
-      if (kind === 'quote') tradeStartScheduler.startNow();
       try {
         upstream.close(1011, 'provider error');
       } catch {
@@ -472,6 +426,9 @@ function connectUpstream(kind) {
     state[stream.providerReadyKey] = false;
     state[stream.subscribedSymbolsKey].clear();
     broadcastCombinedStatus();
+    // Stable realtime v10: send immediately like the proven v382 path, while
+    // retaining the current authorization state machine and retry protection.
+    reconcileSubscriptions(kind, { allowUnconfirmed: true });
     scheduleStatuslessSubscription(kind, nextUpstream);
   });
 
@@ -488,7 +445,6 @@ function connectUpstream(kind) {
     broadcastCombinedStatus({
       error: stream.errorMessage,
     });
-    if (kind === 'quote') tradeStartScheduler.startNow();
   });
 
   nextUpstream.on('close', () => {
@@ -498,23 +454,15 @@ function connectUpstream(kind) {
     state[stream.subscribedSymbolsKey].clear();
     state[stream.providerReadyKey] = false;
     state[stream.statusKey] = hasActiveConsumers() ? 'reconnecting' : 'idle';
-    if (kind === 'quote') tradeStartScheduler.startNow();
     scheduleReconnect(kind);
   });
 }
 
-const tradeStartScheduler = createTradeStartScheduler({
-  hasConsumers: hasActiveConsumers,
-  startTrade: () => connectUpstream('trade'),
-});
-
 function connectUpstreams() {
+  // Stable realtime v10: start both EODHD streams together. Quote remains only
+  // a sparse-session fallback and cannot replace a recent trade tick.
+  connectUpstream('trade');
   connectUpstream('quote');
-  if (state.quoteUpstreamReady || state.quoteUpstreamStatus === 'error') {
-    tradeStartScheduler.startNow();
-    return;
-  }
-  tradeStartScheduler.schedule();
 }
 
 export function attachStocksRealtimeClient(ws, { eodhdKey, symbols }) {
@@ -650,7 +598,6 @@ export function evaluateStocksSnapshotWait({
   startedAt,
   deadline,
   now = Date.now(),
-  collectionMs = SNAPSHOT_COLLECTION_MS,
   targetRatio = SNAPSHOT_TARGET_COVERAGE_RATIO,
 } = {}) {
   const metadata = buildStocksSnapshotMetadata({
@@ -667,17 +614,8 @@ export function evaluateStocksSnapshotWait({
     ? Math.min(...freshReceivedTimes)
     : null;
 
-  if (
-    metadata.coverage.targetCount > 0
-    && metadata.coverage.freshSinceRequestCount >= metadata.coverage.targetCount
-  ) {
-    return { resolve: true, reason: 'coverage', firstFreshAt, ...metadata };
-  }
-  if (
-    firstFreshAt !== null
-    && now - firstFreshAt >= Math.max(0, Number(collectionMs) || 0)
-  ) {
-    return { resolve: true, reason: 'collection-window', firstFreshAt, ...metadata };
+  if (firstFreshAt !== null) {
+    return { resolve: true, reason: 'first-fresh-tick', firstFreshAt, ...metadata };
   }
   if (now >= Number(deadline || 0)) {
     return { resolve: true, reason: 'hard-timeout', firstFreshAt, ...metadata };

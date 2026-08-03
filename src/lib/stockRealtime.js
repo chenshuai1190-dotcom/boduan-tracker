@@ -26,6 +26,12 @@ export function selectStockRealtimeSymbols(rows = [], limit = MAX_STOCK_REALTIME
   return symbols;
 }
 
+export function buildStockRealtimeSymbolsKey(symbols = []) {
+  return [...new Set(
+    (symbols || []).map(normalizeStockRealtimeSymbol).filter(Boolean),
+  )].sort().join(',');
+}
+
 export function canStartStockRealtime({
   cloudLoading = true,
   symbols = [],
