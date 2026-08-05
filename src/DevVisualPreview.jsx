@@ -2917,6 +2917,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     week52High: item.high,
   }));
   const tradesCtx = {
+    availableCashStatus: previewAvailableCashStatus,
     availableCashStatusReady: true,
     addTrade: async () => {},
     AlertCircle,
@@ -2977,6 +2978,16 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     quoteRows: tradeQuoteRows,
     RefreshCw,
     requestDeleteLegacyTrade,
+    saveAvailableCash: async (nextCashUsd) => {
+      const nextStatus = {
+        availableCashUsd: Number(nextCashUsd),
+        isSet: true,
+        updatedAt: new Date().toISOString(),
+        writeReady: true,
+      };
+      setPreviewAvailableCashStatus(nextStatus);
+      return nextStatus;
+    },
     setCostBasisActiveSymbol,
     setCostBasisData,
     setCostBasisNewSymbol,

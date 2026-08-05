@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '💵 交易页头部同步可用现金',
+      '  - 交易页与首页使用相同的现金金额、默认 ¥0/$0、币种切换和融资列对齐样式',
+      '  - 点击交易页现金复用同一个录入窗口和保存回调；任一页面保存后，首页与交易页立即同步',
+      '  - 交易页总资产继续读取已包含现金的统一资产汇总，不重复加现金；数据库、个人收益和行情链路不变',
+    ],
+    itemsEn: [
+      '💵 Available cash synchronized into the Trades header',
+      '  - Trades now matches Home for the cash amount, ¥0/$0 default, currency switching, and alignment above the margin column',
+      '  - Tapping cash in Trades reuses the same editor and save callback, so either page updates Home and Trades immediately',
+      '  - Trades continues reading the unified asset total that already includes cash, avoiding double counting with no database, personal P&L, or market-data change',
+    ],
+  },
+  {
+    ver: 'v10.7.9.422', date: '2026-08-05',
+    items: [
       '💵 优化首页现金默认值与列对齐',
       '  - 尚未录入现金时直接显示当前币种的 ¥0 或 $0，不再显示“设置”文字；金额区域仍可点击录入',
       '  - 现金与下方融资负债使用同一列起点和左侧间距，总资产及头部卡片原样式保持不变',

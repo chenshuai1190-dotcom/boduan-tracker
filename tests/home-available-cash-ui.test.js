@@ -119,6 +119,33 @@ test('Home adds a compact same-row cash entry without changing its financial led
   assert.equal(cashEditorSource.includes('community_competition'), false);
 });
 
+test('Trades mirrors the Home available-cash display and editor through the shared App state', () => {
+  const totalAssetsStart = tradesSource.indexOf('data-trades-total-assets="true"');
+  const metricGridStart = tradesSource.indexOf('divide-x divide-white/10', totalAssetsStart);
+  const rowBlock = tradesSource.slice(totalAssetsStart, metricGridStart);
+  assert.ok(totalAssetsStart >= 0 && metricGridStart > totalAssetsStart);
+  assert.ok(tradesSource.includes("import AvailableCashEditor from '../components/AvailableCashEditor.jsx'"));
+  assert.ok(tradesSource.includes('availableCashStatus,'));
+  assert.ok(tradesSource.includes('availableCashStatusReady = false'));
+  assert.ok(tradesSource.includes('saveAvailableCash,'));
+  assert.ok(tradesSource.includes('const [showAvailableCashEditor, setShowAvailableCashEditor] = React.useState(false)'));
+  assert.ok(tradesSource.includes('availableCashWriteReady = availableCashStatusReady && availableCashStatus?.writeReady === true'));
+  assert.ok(rowBlock.includes('data-trades-available-cash-trigger="true"'));
+  assert.ok(rowBlock.includes('disabled={!availableCashWriteReady}'));
+  assert.ok(rowBlock.includes("tt('home.cash', '现金')"));
+  assert.ok(rowBlock.includes('col-start-3') && rowBlock.includes('pl-3'));
+  assert.ok(rowBlock.includes('availableCashIsSet ? 2 : 0'));
+  assert.equal(rowBlock.includes("tt('home.availableCashSet', '设置')"), false);
+  assert.ok(tradesSource.includes('<AvailableCashEditor'));
+  assert.ok(tradesSource.includes('onSave={saveAvailableCash}'));
+  assert.ok(tradesSource.includes('usdRate={rate}'));
+  assert.ok(appSource.includes('availableCashStatus,'));
+  assert.ok(appSource.includes('saveAvailableCash,'));
+  assert.equal(tradesSource.includes('summary.totalAssetsUsd + availableCash'), false, 'Trades must not add cash to the already-complete asset total twice');
+  assert.ok(devPreviewSource.includes('availableCashStatus: previewAvailableCashStatus'));
+  assert.ok(devPreviewSource.includes('setPreviewAvailableCashStatus(nextStatus)'));
+});
+
 test('available cash editor keeps currency, persist-first, zero, failure, and iOS keyboard behavior', () => {
   assert.ok(cashEditorSource.includes("currency !== 'CNY'"));
   assert.ok(cashEditorSource.includes('numericAmount / rate'));

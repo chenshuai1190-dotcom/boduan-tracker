@@ -13,6 +13,7 @@ import { normalizeStrictUserStockSymbol } from '../lib/symbols.js';
 import { formatWaveCurrencyAmount, formatWaveUsdPrice } from '../lib/waveCurrencyDisplay.js';
 import ActionModalCard from '../components/ActionModalCard.jsx';
 import AccountLeverageBadge from '../components/AccountLeverageBadge.jsx';
+import AvailableCashEditor from '../components/AvailableCashEditor.jsx';
 import StockLogo, { stockLogoCandidates } from '../components/StockLogo.jsx';
 
 const PORTFOLIO_CURRENCY_STORAGE_KEY = 'xmoney_portfolio_currency';
@@ -416,6 +417,7 @@ function PositionProfitScenarioSheet({
 
 export default function TradesTab({ ctx, initialToolPanel = '' }) {
   const {
+    availableCashStatus,
     availableCashStatusReady = false,
     addTrade,
     AlertCircle,
@@ -453,6 +455,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
     quoteRows,
     RefreshCw,
     requestDeleteLegacyTrade,
+    saveAvailableCash,
     setCostBasisActiveSymbol,
     setCostBasisData,
     setCostBasisNewSymbol,
@@ -504,6 +507,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
   const [colorMenuOpen, setColorMenuOpen] = React.useState(false);
   const [orderActionTrade, setOrderActionTrade] = React.useState(null);
   const [scenarioPosition, setScenarioPosition] = React.useState(null);
+  const [showAvailableCashEditor, setShowAvailableCashEditor] = React.useState(false);
   const [waveView, setWaveView] = React.useState('active');
   const orderActionOpen = !!orderActionTrade;
   const scenarioOpen = !!scenarioPosition;
@@ -594,6 +598,12 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
   const tradeModalInputStyle = { colorScheme: 'dark' };
   const tradeModalBaseInput = 'block w-full max-w-full min-w-0 box-border rounded-xl border border-transparent bg-white/[0.06] px-3.5 py-2.5 text-[14px] text-white outline-none transition placeholder:text-white/[0.28] focus:border-[#f6b54b]/45 focus:bg-white/[0.085]';
   const tradeModalLabelClass = 'mb-1.5 block text-[12px] font-normal text-white/[0.62]';
+  const availableCashIsSet = Boolean(availableCashStatus?.isSet);
+  const availableCashUsd = availableCashStatusReady && Number.isFinite(Number(availableCashStatus?.availableCashUsd))
+    ? Math.max(0, Number(availableCashStatus.availableCashUsd))
+    : 0;
+  const displayAvailableCash = availableCashUsd * displayRate;
+  const availableCashWriteReady = availableCashStatusReady && availableCashStatus?.writeReady === true;
   const marginDebtUsd = normalizeMarginDebtUsd(marginStatus?.currentMargin);
   const assetStatusReady = marginStatusReady && availableCashStatusReady;
   const marginOverview = React.useMemo(() => deriveHomeMarginOverview({
@@ -879,11 +889,28 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
               <span className="text-white/30">--</span>
             )}
           </div>
-          <div className="mt-3 flex items-center gap-2 text-white/[0.42]">
-            <span className="text-[13px]">{tt('trades.totalAssets', '总资产')}</span>
-            <span className="truncate text-[12px] text-white/[0.72] tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>
-              {assetStatusReady ? `${displayCurrency === 'CNY' ? '¥' : '$'}${fmtAmount(displayAssets, 2)}` : '--'}
-            </span>
+          <div className="mt-3 grid min-w-0 grid-cols-[1fr_1.12fr_0.96fr] items-center text-white/[0.42]" data-trades-total-assets="true">
+            <div className="col-span-2 flex min-w-0 items-center gap-1 pr-3">
+              <span className="text-[13px]">{tt('trades.totalAssets', '总资产')}</span>
+              <span className="truncate text-[12px] text-white/[0.72] tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>
+                {assetStatusReady ? `${displayCurrency === 'CNY' ? '¥' : '$'}${fmtAmount(displayAssets, 2)}` : '--'}
+              </span>
+            </div>
+            <button
+              type="button"
+              disabled={!availableCashWriteReady}
+              onClick={() => setShowAvailableCashEditor(true)}
+              className="col-start-3 flex min-w-0 items-center gap-1 pl-3 text-left transition active:scale-[0.99] disabled:cursor-wait disabled:opacity-45"
+              aria-label={tt('home.availableCashBalance', '设置可用现金')}
+              data-trades-available-cash-trigger="true"
+            >
+              <span className="text-[13px]">{tt('home.cash', '现金')}</span>
+              <span className="max-w-[118px] truncate text-[12px] text-white/[0.72] tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>
+                {availableCashStatusReady
+                  ? currencyAmount(displayAvailableCash, displayCurrency, availableCashIsSet ? 2 : 0)
+                  : '--'}
+              </span>
+            </button>
           </div>
 
           <div
@@ -2500,6 +2527,17 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
             </div>
           );
         })()}
+
+        <AvailableCashEditor
+          availableCashUsd={availableCashUsd}
+          currency={displayCurrency}
+          isOpen={showAvailableCashEditor}
+          isSet={availableCashIsSet}
+          language={language}
+          onClose={() => setShowAvailableCashEditor(false)}
+          onSave={saveAvailableCash}
+          usdRate={rate}
+        />
 
         {scenarioPosition && (
           <PositionProfitScenarioSheet
