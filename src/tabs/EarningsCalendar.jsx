@@ -5,6 +5,7 @@ import {
   buildEarningsSymbols,
   classifyEarningsResult,
   dateKey,
+  earningsCalendarRequestRange,
   earningsResultText,
   earningsSessionText,
   groupEarningsByDate,
@@ -1061,12 +1062,10 @@ export default function EarningsCalendar({
       return () => { cancelled = true; };
     }
 
-    const from = new Date();
-    from.setDate(from.getDate() - 7);
-    const to = new Date();
-    to.setDate(to.getDate() + 45);
-    const fromKey = from.toISOString().slice(0, 10);
-    const toKey = to.toISOString().slice(0, 10);
+    const nowValue = typeof now === 'function' ? now() : now;
+    const requestRange = earningsCalendarRequestRange(new Date(nowValue));
+    const fromKey = requestRange.from;
+    const toKey = requestRange.to;
     const includePreviousPublished = true;
     activeCacheKeyRef.current = '';
     refreshReadyRef.current = false;
@@ -1128,7 +1127,7 @@ export default function EarningsCalendar({
     })();
 
     return () => { cancelled = true; };
-  }, [symbols.join(','), supabase, language, watchlist, positions, eventsOverride, requestEventsOverride, commitEvents, setDefaultSelectedDate]);
+  }, [symbols.join(','), supabase, language, watchlist, positions, eventsOverride, requestEventsOverride, commitEvents, setDefaultSelectedDate, now]);
 
   const forceRefreshDueEarnings = React.useCallback(async () => {
     if (Array.isArray(eventsOverride) || !activeCacheKeyRef.current || !supabase?.auth?.getSession) return;

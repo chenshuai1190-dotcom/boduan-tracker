@@ -10,6 +10,8 @@ Official Q2 2026 sources:
 - TSM 2Q25 USD translation: `https://investor.tsmc.com/english/encrypt/files/encrypt_file/qr/phase4_reports/2025-07/98cc58082f7dbc20c9898e6ab77e1bf4c3693298/FS.pdf`
 - GOOGL: `https://www.sec.gov/Archives/edgar/data/1652044/000165204426000066/googexhibit991q22026.htm`
 - IBKR: `https://www.sec.gov/Archives/edgar/data/1381197/000138119726000118/ibkr-ex99_1.htm`
+- AMD 2Q26 release: `https://www.sec.gov/Archives/edgar/data/2488/000000248826000121/q22026991.htm`
+- AMD 2Q26 10-Q / XBRL: `https://www.sec.gov/Archives/edgar/data/2488/000000248826000123/amd-20260627.htm`
 
 `*-submissions.json` and `*-filing-index.{html,json}` preserve only the records needed to discover the matching Item 2.02 8-K or TSM fiscal-quarter 6-K and its EX-99.1 document.
 
@@ -20,7 +22,7 @@ Official Q2 2026 sources:
 - the GAAP revenue, profit and diluted EPS rows;
 - deliberate distractors needed to prevent selecting pre-tax income, year-to-date totals, or adjusted/non-GAAP values.
 
-`*-companyfacts.json` reflects the latest structured 10-Q facts available at fixture capture time. Q2 2026 facts were not yet present, so these files intentionally stop at Q1 2026 and exercise the fallback from Company Facts to the current 8-K exhibit. Each prior-year comparator uses the current filing's accession so a restated or split-adjusted comparator wins over an older filing.
+`*-companyfacts.json` reflects the latest structured 10-Q facts available at fixture capture time. The AMD fixture includes its Q2 2026 10-Q facts; the earlier fixtures intentionally stop at Q1 2026 and exercise the fallback from Company Facts to the current 8-K exhibit. Each prior-year comparator uses the current filing's accession so a restated or split-adjusted comparator wins over an older filing.
 
 `expected.json` is the canonical official result set. In particular:
 

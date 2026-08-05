@@ -331,8 +331,8 @@ test('TSM receives one bounded official-schema migration after the normal two-da
   );
 });
 
-test('NOK receives schema v3 migration and keeps SEC primary EUR metadata after a lower-quality refresh', () => {
-  assert.equal(OFFICIAL_EARNINGS_ACTUAL_SCHEMA_VERSION, 3);
+test('NOK receives the current official schema migration and keeps SEC primary EUR metadata after a lower-quality refresh', () => {
+  assert.equal(OFFICIAL_EARNINGS_ACTUAL_SCHEMA_VERSION, 4);
 
   const staleNok = {
     symbol: 'NOK',
@@ -404,6 +404,20 @@ test('NOK receives schema v3 migration and keeps SEC primary EUR metadata after 
   assert.equal(merged.revenuePreviousYearOriginalCurrency, 'EUR');
   assert.equal(merged.ebitActualOriginalCurrency, 'EUR');
   assert.equal(merged.ebitPreviousYearOriginalCurrency, 'EUR');
+});
+
+test('AMD 8/4 after-market event remains due during the Shanghai 8/5 and New York 8/4 overlap', () => {
+  const candidates = getEarningsRefreshCandidates([{
+    symbol: 'AMD',
+    reportDate: '2026-08-04',
+    fiscalDate: '2026-06-30',
+    session: 'post',
+    epsActual: null,
+    officialActualSchemaVersion: 3,
+    officialActualStatus: 'pending',
+  }], Date.parse('2026-08-05T00:30:00.000Z'));
+
+  assert.deepEqual(candidates.map((event) => event.symbol), ['AMD']);
 });
 
 test('published fundamentals keep refreshing when revenue arrives before operating profit', () => {

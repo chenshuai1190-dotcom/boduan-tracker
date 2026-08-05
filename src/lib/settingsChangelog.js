@@ -4,6 +4,23 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '📊 修复已公布财报与 AMD 8 月 4 日盘后结果',
+      '  - 财报日历统一使用纽约日期，盘后待更新事件在公布后保留两天；客户端与 API 的关注股票上限统一为 30',
+      '  - 已公布 EPS 保持 Calendar 与 Trend 成对口径，History 只在缺失时回退，避免不同来源覆盖后形成混合同比',
+      '  - AMD 使用 SEC 8-K/10-Q 官方 GAAP 实际值，并区分 8 月 4 日公布日、6 月 30 日 provider 财季与 6 月 27 日官方财季',
+      '  - 不新增行情源或数据库；既有 SEC 财报详情分部适配保持不变，缺少专用适配的数据继续显示不可用',
+    ],
+    itemsEn: [
+      '📊 Fixed published earnings and AMD’s August 4 after-market result',
+      '  - The earnings calendar now uses the New York date, retains pending after-market events for two days, and aligns the client and API symbol cap at 30',
+      '  - Published EPS keeps Calendar and Trend on one basis, using History only as a missing-data fallback to avoid mixed-source year-over-year results',
+      '  - AMD now uses official SEC 8-K/10-Q GAAP actuals while separating the August 4 report date, June 30 provider period, and June 27 official fiscal period',
+      '  - No market-data source or database was added; existing SEC detail adapters stay unchanged and unsupported breakdowns remain unavailable',
+    ],
+  },
+  {
+    ver: 'v10.7.9.424', date: '2026-08-05',
+    items: [
       '💵 现金长金额改为向左自适应完整显示',
       '  - 首页与交易页的短现金金额继续从融资负债第三列起点对齐，保留原卡片比例、字号和间距',
       '  - 百万级等较长金额以卡片右侧为锚点自动向左扩展，不再换行、显示省略号或挤出卡片',

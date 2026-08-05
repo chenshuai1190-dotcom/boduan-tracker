@@ -121,6 +121,23 @@ test('Tesla parser reads the real SEC image-alt shape without selecting non-GAAP
   assert.notEqual(parsed?.epsActual, 0.33);
 });
 
+test('AMD parser keeps the official GAAP table and resolves the real irregular quarter end', async () => {
+  const parsed = parseSecExhibitActuals({
+    symbol: 'AMD',
+    fiscalDate: '2026-06-30',
+    html: await fixture('amd-exhibit-99.1.html'),
+  });
+
+  assert.equal(parsed?.fiscalDate, '2026-06-27');
+  assert.equal(parsed?.revenueActual, 11_536_000_000);
+  assert.equal(parsed?.revenuePreviousYear, 7_685_000_000);
+  assert.equal(parsed?.ebitActual, 1_990_000_000);
+  assert.equal(parsed?.ebitPreviousYear, -134_000_000);
+  assert.equal(parsed?.epsActual, 1.38);
+  assert.equal(parsed?.epsPreviousYear, 0.54);
+  assert.notEqual(parsed?.epsActual, 1.66);
+});
+
 test('Nokia primary 6-K parser keeps each official metric on its declared EUR basis', async () => {
   const nokia = parseSecExhibitActuals({
     symbol: 'NOK',
@@ -252,6 +269,134 @@ test('SEC XBRL parser selects a 90-day exact quarter and refuses same-end-date Y
   }), null);
 });
 
+test('SEC XBRL parser matches AMD prior-year quarter within seven days and fails closed on a tie', async () => {
+  const companyFacts = await fixture('amd-companyfacts.json', true);
+  const parsed = parseSecCompanyFactsActuals({
+    symbol: 'AMD',
+    fiscalDate: '2026-06-27',
+    companyFacts,
+    accession: '0000002488-26-000123',
+    filedAt: '2026-08-05',
+  });
+
+  assert.equal(parsed?.revenueActual, 11_536_000_000);
+  assert.equal(parsed?.revenuePreviousYear, 7_685_000_000);
+  assert.equal(parsed?.ebitActual, 1_990_000_000);
+  assert.equal(parsed?.ebitPreviousYear, -134_000_000);
+  assert.equal(parsed?.epsActual, 1.38);
+  assert.equal(parsed?.epsPreviousYear, 0.54);
+
+  const ambiguous = structuredClone(companyFacts);
+  ambiguous.facts['us-gaap'].RevenueFromContractWithCustomerExcludingAssessedTax.units.USD.push({
+    start: '2025-03-28',
+    end: '2025-06-26',
+    val: 1,
+    accn: '0000002488-26-000123',
+    form: '10-Q',
+    filed: '2026-08-05',
+  });
+  assert.equal(parseSecCompanyFactsActuals({
+    symbol: 'AMD',
+    fiscalDate: '2026-06-27',
+    companyFacts: ambiguous,
+    accession: '0000002488-26-000123',
+    filedAt: '2026-08-05',
+  }), null);
+});
+
+test('AMD provider quarter end is reconciled to the SEC 10-Q available after the 8/4 close', async () => {
+  clearSecOfficialCachesForTests();
+  const filenamesByPath = new Map([
+    ['/files/company_tickers.json', 'company-tickers.json'],
+    ['/submissions/CIK0000002488.json', 'amd-submissions.json'],
+    ['/api/xbrl/companyfacts/CIK0000002488.json', 'amd-companyfacts.json'],
+  ]);
+  const requested = [];
+  const fetchFn = async (url) => {
+    const parsed = new URL(url);
+    requested.push(parsed.pathname);
+    const filename = filenamesByPath.get(parsed.pathname);
+    return filename ? textResponse(await fixture(filename)) : textResponse('not found', 404);
+  };
+  const providerEvent = {
+    symbol: 'AMD',
+    reportDate: '2026-08-04',
+    fiscalDate: '2026-06-30',
+    session: 'post',
+    epsEstimate: 1.35,
+    epsActual: 0.27,
+    epsProviderConflict: true,
+  };
+  const official = await fetchSecOfficialActuals({
+    events: [providerEvent],
+    fetchFn,
+    userAgent: 'BoduanTracker test@example.com',
+    now: '2026-08-04T22:00:00Z',
+    requestIntervalMs: 0,
+  });
+  const actual = official.get('AMD|2026-06-30');
+  assert.equal(actual?.officialActualStatus, 'complete');
+  assert.equal(actual?.officialActualSource, 'sec-xbrl');
+  assert.equal(actual?.providerFiscalDate, '2026-06-30');
+  assert.equal(actual?.fiscalDate, '2026-06-27');
+  assert.equal(actual?.epsActual, 1.38);
+  assert.equal(actual?.revenueActual, 11_536_000_000);
+  assert.equal(actual?.ebitActual, 1_990_000_000);
+  assert.ok(requested.includes('/api/xbrl/companyfacts/CIK0000002488.json'));
+
+  const [merged] = mergeSecOfficialActuals([providerEvent], official);
+  assert.equal(merged.providerFiscalDate, '2026-06-30');
+  assert.equal(merged.fiscalDate, '2026-06-27');
+  assert.equal(merged.epsActual, 1.38);
+  assert.equal(merged.epsProviderConflict, false);
+});
+
+test('AMD 8/4 after-market filing yields official actuals before a 10-Q is available', async () => {
+  clearSecOfficialCachesForTests();
+  const submissions = await fixture('amd-submissions.json', true);
+  for (const [key, values] of Object.entries(submissions.filings.recent)) {
+    if (Array.isArray(values)) submissions.filings.recent[key] = values.slice(1);
+  }
+  const responsesByPath = new Map([
+    ['/files/company_tickers.json', await fixture('company-tickers.json')],
+    ['/submissions/CIK0000002488.json', JSON.stringify(submissions)],
+    ['/Archives/edgar/data/2488/000000248826000121/0000002488-26-000121-index.html', await fixture('amd-filing-index.html')],
+    ['/Archives/edgar/data/2488/000000248826000121/q22026991.htm', await fixture('amd-exhibit-99.1.html')],
+  ]);
+  const requested = [];
+  const fetchFn = async (url) => {
+    const pathname = new URL(url).pathname;
+    requested.push(pathname);
+    return responsesByPath.has(pathname)
+      ? textResponse(responsesByPath.get(pathname))
+      : textResponse('not found', 404);
+  };
+  const official = await fetchSecOfficialActuals({
+    events: [{
+      symbol: 'AMD',
+      reportDate: '2026-08-04',
+      fiscalDate: '2026-06-30',
+      session: 'post',
+      epsActual: 0.27,
+    }],
+    fetchFn,
+    userAgent: 'BoduanTracker test@example.com',
+    now: '2026-08-04T22:00:00Z',
+    requestIntervalMs: 0,
+  });
+
+  const actual = official.get('AMD|2026-06-30');
+  assert.equal(actual?.officialActualStatus, 'complete');
+  assert.equal(actual?.officialActualSource, 'sec-exhibit');
+  assert.equal(actual?.providerFiscalDate, '2026-06-30');
+  assert.equal(actual?.fiscalDate, '2026-06-27');
+  assert.equal(actual?.epsActual, 1.38);
+  assert.equal(actual?.revenueActual, 11_536_000_000);
+  assert.equal(actual?.ebitActual, 1_990_000_000);
+  assert.ok(requested.some((pathname) => pathname.endsWith('q22026991.htm')));
+  assert.equal(requested.includes('/api/xbrl/companyfacts/CIK0000002488.json'), false);
+});
+
 test('SEC official reader discovers current 8-K and 6-K exhibits and overrides only actual fields', async () => {
   clearSecOfficialCachesForTests();
   const filenamesByPath = new Map([
@@ -303,13 +448,13 @@ test('SEC official reader discovers current 8-K and 6-K exhibits and overrides o
   assert.equal(official.get('TSM|2026-06-30')?.revenueActual, 40_201_000_000);
   assert.equal(official.get('TSM|2026-06-30')?.ebitActual, 24_259_000_000);
   assert.equal(official.get('TSM|2026-06-30')?.epsActual, 4.31);
-  assert.equal(official.get('TSM|2026-06-30')?.officialActualSchemaVersion, 3);
+  assert.equal(official.get('TSM|2026-06-30')?.officialActualSchemaVersion, 4);
   assert.equal(official.get('TSM|2026-06-30')?.form, '6-K');
   assert.equal(official.get('GOOGL|2026-06-30')?.ebitActual, 40_770_000_000);
   assert.equal(official.get('IBKR|2026-06-30')?.revenueActual, 1_896_000_000);
   assert.equal(official.get('NOK|2026-06-30')?.officialActualStatus, 'complete');
   assert.equal(official.get('NOK|2026-06-30')?.officialActualSource, 'sec-primary');
-  assert.equal(official.get('NOK|2026-06-30')?.officialActualSchemaVersion, 3);
+  assert.equal(official.get('NOK|2026-06-30')?.officialActualSchemaVersion, 4);
   assert.equal(official.get('NOK|2026-06-30')?.form, '6-K');
   assert.equal(official.get('NOK|2026-06-30')?.currency, 'EUR');
   assert.equal(official.get('NOK|2026-06-30')?.revenueActual, 4_815_000_000);
@@ -365,7 +510,7 @@ test('SEC official reader discovers current 8-K and 6-K exhibits and overrides o
   assert.equal(mergedTsm.epsActual, 4.31);
   assert.equal(mergedTsm.epsCurrency, 'USD');
   assert.equal(mergedTsm.epsUnit, 'USD/ADR');
-  assert.equal(mergedTsm.officialActualSchemaVersion, 3);
+  assert.equal(mergedTsm.officialActualSchemaVersion, 4);
 
   const [mergedNok] = mergeSecOfficialActuals([{
     symbol: 'NOK',
@@ -396,13 +541,15 @@ test('SEC official reader discovers current 8-K and 6-K exhibits and overrides o
   );
 });
 
-test('SEC official support list includes Nokia and TSM without broadening unknown symbols', () => {
+test('SEC official support list includes AMD, Nokia and TSM without broadening unknown symbols', () => {
+  assert.equal(isSecOfficialActualSupportedSymbol('AMD'), true);
   assert.equal(isSecOfficialActualSupportedSymbol('NOK'), true);
   assert.equal(isSecOfficialActualSupportedSymbol('nok.us'), true);
   assert.equal(isSecOfficialActualSupportedSymbol('TSM'), true);
   assert.equal(isSecOfficialActualSupportedSymbol('tsm.us'), true);
   assert.equal(isSecOfficialActualSupportedSymbol('NVDA'), false);
   assert.equal(isSecOfficialActualSupportedEvent('NOK', '2026-06-30'), true);
+  assert.equal(isSecOfficialActualSupportedEvent('AMD', '2026-06-30'), true);
   assert.equal(isSecOfficialActualSupportedEvent('TSM', '2026-03-31'), false);
   assert.equal(isSecOfficialActualSupportedEvent('TSM', '2026-06-30'), true);
   assert.equal(isSecOfficialActualSupportedEvent('TSM', '2026-09-30'), false);

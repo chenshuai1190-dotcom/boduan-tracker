@@ -1,4 +1,5 @@
 const SUPPORTED_EXHIBIT_SYMBOLS = new Set([
+  'AMD',
   'TSLA',
   'TSM',
   'GOOG',
@@ -54,6 +55,9 @@ export function parseSecExhibitActuals({ symbol, fiscalDate, html }) {
   if (normalizedSymbol === 'TSLA') {
     return parseTeslaExhibit(html, normalizedFiscalDate);
   }
+  if (normalizedSymbol === 'AMD') {
+    return parseAdvancedMicroDevicesExhibit(html, normalizedFiscalDate);
+  }
   if (normalizedSymbol === 'TSM') {
     return parseTaiwanSemiconductorExhibit(html, normalizedFiscalDate);
   }
@@ -90,6 +94,7 @@ export function parseSecCompanyFactsActuals({
     accession,
     filedAt,
     allowEarlierAccession: true,
+    endToleranceDays: 7,
   };
 
   const financialServices = normalizeSymbol(symbol) === 'IBKR';
@@ -213,6 +218,38 @@ function parseTeslaExhibit(html, fiscalDate) {
     ebitActualBasis: 'operatingIncome',
     epsActual: eps[currentIndex],
     epsPreviousYear: eps[previousIndex],
+    epsActualBasis: 'EarningsPerShareDiluted',
+  });
+}
+
+function parseAdvancedMicroDevicesExhibit(html, fiscalDate) {
+  const text = htmlToText(html);
+  const gaapStart = text.search(/GAAP Quarterly Financial Results/i);
+  const nonGaapStart = text.search(/Non-GAAP\(\*\) Quarterly Financial Results/i);
+  if (!/(?:Advanced Micro Devices|AMD\s*\(NASDAQ\s*:\s*AMD\))/i.test(text)
+    || gaapStart < 0
+    || nonGaapStart <= gaapStart) {
+    return null;
+  }
+  const officialFiscalDate = extractFirstThreeMonthsEndedDate(text);
+  if (!officialFiscalDate || fiscalDateDistanceDays(officialFiscalDate, fiscalDate) > 7) return null;
+
+  const section = text.slice(gaapStart, nonGaapStart);
+  const revenue = extractFinancialSeries(section, 'Revenue ($M)', 2);
+  const operatingIncome = extractFinancialSeries(section, 'Operating income ($M)', 2);
+  const eps = extractFinancialSeries(section, 'Diluted earnings per share', 2);
+  if (!revenue || !operatingIncome || !eps) return null;
+
+  return completeActuals({
+    fiscalDate: officialFiscalDate,
+    revenueActual: scaleMillions(revenue[0]),
+    revenuePreviousYear: scaleMillions(revenue[1]),
+    revenueActualBasis: 'totalRevenue',
+    ebitActual: scaleMillions(operatingIncome[0]),
+    ebitPreviousYear: scaleMillions(operatingIncome[1]),
+    ebitActualBasis: 'operatingIncome',
+    epsActual: eps[0],
+    epsPreviousYear: eps[1],
     epsActualBasis: 'EarningsPerShareDiluted',
   });
 }
@@ -452,6 +489,44 @@ function extractSeries(section, label, count) {
   return null;
 }
 
+function extractFinancialSeries(section, label, count) {
+  const offset = section.toLowerCase().indexOf(label.toLowerCase());
+  if (offset < 0) return null;
+  const tail = section.slice(offset + label.length, offset + label.length + 500);
+  const values = [];
+  for (const match of tail.matchAll(/\$?\(?[-−]?\d[\d,]*(?:\.\d+)?\)?/g)) {
+    const value = parseFinancialNumber(match[0]);
+    if (value === null) continue;
+    values.push(value);
+    if (values.length === count) return values;
+  }
+  return null;
+}
+
+function extractFirstThreeMonthsEndedDate(text) {
+  const match = String(text || '').match(
+    /Three Months Ended\s+(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2}),\s+(\d{4})/i,
+  );
+  if (!match) return '';
+  const months = [
+    'january', 'february', 'march', 'april', 'may', 'june',
+    'july', 'august', 'september', 'october', 'november', 'december',
+  ];
+  const month = months.indexOf(match[1].toLowerCase()) + 1;
+  const day = Number(match[2]);
+  const year = Number(match[3]);
+  if (!month || day < 1 || day > 31 || year < 2000) return '';
+  const value = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  return dateKey(new Date(`${value}T00:00:00.000Z`).toISOString()) === value ? value : '';
+}
+
+function fiscalDateDistanceDays(left, right) {
+  const leftDate = parseDate(left);
+  const rightDate = parseDate(right);
+  if (!leftDate || !rightDate) return Number.POSITIVE_INFINITY;
+  return Math.abs(Math.round((leftDate.getTime() - rightDate.getTime()) / 86400000));
+}
+
 function selectConceptFact(companyFacts, conceptNames, unit, options) {
   for (const conceptName of conceptNames) {
     const entries = companyFacts?.facts?.['us-gaap']?.[conceptName]?.units?.[unit];
@@ -466,23 +541,39 @@ function selectQuarterEntry(entries, {
   accession,
   filedAt,
   allowEarlierAccession = false,
+  endToleranceDays = 0,
 }) {
+  const targetEnd = parseDate(end);
+  if (!targetEnd) return null;
   const candidates = (Array.isArray(entries) ? entries : [])
     .filter((entry) => {
-      if (!finite(entry?.val) || dateKey(entry?.end) !== end) return false;
+      if (!finite(entry?.val)) return false;
       if (!/^10-Q(?:\/A)?$/i.test(String(entry?.form || ''))) return false;
       if (!isQuarterDuration(entry?.start, entry?.end)) return false;
       if (accession && !allowEarlierAccession && entry?.accn !== accession) return false;
       if (filedAt && dateKey(entry?.filed) > dateKey(filedAt)) return false;
       return true;
     })
+    .map((entry) => ({
+      entry,
+      distance: fiscalDateDistanceDays(entry.end, end),
+    }))
+    .filter(({ distance }) => distance <= Math.max(0, Number(endToleranceDays) || 0))
     .sort((a, b) => {
-      const accessionScoreA = accession && a?.accn === accession ? 1 : 0;
-      const accessionScoreB = accession && b?.accn === accession ? 1 : 0;
+      if (a.distance !== b.distance) return a.distance - b.distance;
+      const accessionScoreA = accession && a.entry?.accn === accession ? 1 : 0;
+      const accessionScoreB = accession && b.entry?.accn === accession ? 1 : 0;
       if (accessionScoreA !== accessionScoreB) return accessionScoreB - accessionScoreA;
-      return String(b?.filed || '').localeCompare(String(a?.filed || ''));
+      return String(b.entry?.filed || '').localeCompare(String(a.entry?.filed || ''));
     });
-  return candidates[0] || null;
+  if (candidates.length === 0) return null;
+  const nearestDistance = candidates[0].distance;
+  const nearestEndDates = new Set(
+    candidates
+      .filter((candidate) => candidate.distance === nearestDistance)
+      .map((candidate) => dateKey(candidate.entry?.end)),
+  );
+  return nearestEndDates.size === 1 ? candidates[0].entry : null;
 }
 
 function isQuarterDuration(start, end) {

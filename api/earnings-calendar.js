@@ -21,14 +21,15 @@ import {
   dateKey,
   EARNINGS_PUBLISHED_RETENTION_DAYS,
   isEarningsPublished,
+  MAX_EARNINGS_SYMBOLS,
   normalizeEarningsSession,
   normalizeEarningsSymbol,
   toEodhdUsSymbol,
 } from '../src/lib/earningsCalendarModel.js';
 
-const MAX_EARNINGS_SYMBOLS = 30;
 const MAX_RANGE_DAYS = 90;
 const OFFICIAL_ACTUAL_MIGRATION_DAYS = 30;
+const EODHD_FISCAL_DATE_TOLERANCE_DAYS = 7;
 const INCLUDE_PREVIOUS_PUBLISHED_PARAM = 'includePreviousPublished';
 const PUBLISHED_FUNDAMENTALS_FILTER = [
   'General::Sector',
@@ -497,8 +498,8 @@ export async function enrichPublishedEarningsData({
     const fundamentals = fundamentalsBySymbol.get(event.symbol) || {};
     const incomeRows = fundamentals.incomeRows || [];
     const earningsHistoryRows = fundamentals.earningsHistoryRows || [];
-    const incomeRow = incomeRows.find((row) => dateKey(row.date) === event.fiscalDate) || null;
-    const previousIncomeRow = incomeRows.find((row) => dateKey(row.date) === previousYearDate(event.fiscalDate)) || null;
+    const incomeRow = findUniqueNearestFiscalRow(incomeRows, event.fiscalDate);
+    const previousIncomeRow = findUniqueNearestFiscalRow(incomeRows, previousYearDate(event.fiscalDate));
     const financialServices = isFinancialServicesSector(fundamentals.sector);
     const reportedRevenue = resolveReportedRevenue(incomeRow, previousIncomeRow, fundamentals.sector);
     const reportedEbit = resolveReportedEbit(incomeRow, previousIncomeRow, fundamentals.sector);
@@ -516,6 +517,7 @@ export async function enrichPublishedEarningsData({
       ...event,
       epsActual: reportedEps.actual,
       epsActualSource: reportedEps.source,
+      epsProviderConflict: reportedEps.providerConflict,
       epsPreviousYear: reportedEps.previousYear,
       epsDifference: calculateEpsDifference(reportedEps.actual, event.epsEstimate),
       surprisePercent: calculateEpsSurprisePercent(reportedEps.actual, event.epsEstimate),
@@ -619,19 +621,54 @@ export function resolveReportedEbit(actualRow, previousRow, sector = '') {
 
 export function resolvePublishedEps(event, earningsHistoryRows = []) {
   const fiscalDate = dateKey(event?.fiscalDate || event?.date);
-  const currentRow = earningsHistoryRows.find((row) => dateKey(row?.date) === fiscalDate) || null;
-  const previousRow = earningsHistoryRows.find((row) => dateKey(row?.date) === previousYearDate(fiscalDate)) || null;
+  const currentRow = findUniqueNearestFiscalRow(earningsHistoryRows, fiscalDate);
+  const previousRow = findUniqueNearestFiscalRow(earningsHistoryRows, previousYearDate(fiscalDate));
   const historyActual = parseNumber(currentRow?.epsActual);
   const calendarActual = parseNumber(event?.epsActual);
-  const actual = historyActual ?? calendarActual;
+  const actual = calendarActual ?? historyActual;
   const historyPreviousYear = parseNumber(previousRow?.epsActual);
+  const providerConflict = calendarActual !== null
+    && historyActual !== null
+    && Math.abs(calendarActual - historyActual) > 1e-9;
   return {
     actual,
-    previousYear: historyPreviousYear ?? parseNumber(event?.epsPreviousYear),
-    source: historyActual !== null
-      ? 'eodhd-fundamentals-earnings-history'
-      : (event?.epsActualSource || (calendarActual !== null ? 'eodhd-calendar' : null)),
+    previousYear: parseNumber(event?.epsPreviousYear) ?? historyPreviousYear,
+    source: calendarActual !== null
+      ? (event?.epsActualSource || 'eodhd-calendar')
+      : (historyActual !== null ? 'eodhd-fundamentals-earnings-history' : null),
+    providerConflict,
   };
+}
+
+export function findUniqueNearestFiscalRow(
+  rows,
+  targetDate,
+  toleranceDays = EODHD_FISCAL_DATE_TOLERANCE_DAYS,
+) {
+  const target = parseUtcDate(targetDate);
+  if (!target) return null;
+  const candidates = (Array.isArray(rows) ? rows : [])
+    .map((row) => {
+      const rowDate = parseUtcDate(row?.date);
+      return rowDate
+        ? { row, distance: Math.abs(Math.round((rowDate.getTime() - target.getTime()) / 86400000)) }
+        : null;
+    })
+    .filter((candidate) => candidate && candidate.distance <= Math.max(0, Number(toleranceDays) || 0))
+    .sort((left, right) => (
+      left.distance - right.distance
+      || String(right.row?.filing_date || right.row?.filingDate || '').localeCompare(
+        String(left.row?.filing_date || left.row?.filingDate || ''),
+      )
+    ));
+  if (candidates.length === 0) return null;
+  const nearestDistance = candidates[0].distance;
+  const nearestDates = new Set(
+    candidates
+      .filter((candidate) => candidate.distance === nearestDistance)
+      .map((candidate) => dateKey(candidate.row?.date)),
+  );
+  return nearestDates.size === 1 ? candidates[0].row : null;
 }
 
 function isFinancialServicesSector(value) {
@@ -808,6 +845,13 @@ function parseNumber(value) {
   if (value === null || value === undefined || value === '') return null;
   const parsed = Number(String(value).replace(/[$,%\s,]/g, ''));
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function parseUtcDate(value) {
+  const key = dateKey(value);
+  if (!key) return null;
+  const parsed = new Date(`${key}T00:00:00.000Z`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
 function parseGrowthPercent(value) {

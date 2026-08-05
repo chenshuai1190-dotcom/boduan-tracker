@@ -28,5 +28,10 @@
     "cik_str": 924613,
     "ticker": "NOK",
     "title": "Nokia Oyj"
+  },
+  "6": {
+    "cik_str": 2488,
+    "ticker": "AMD",
+    "title": "Advanced Micro Devices, Inc."
   }
 }

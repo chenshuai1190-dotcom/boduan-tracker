@@ -6,7 +6,7 @@ import {
   parseSecExhibitActuals,
 } from './secOfficialParsers.js';
 
-export const OFFICIAL_ACTUAL_SCHEMA_VERSION = 3;
+export const OFFICIAL_ACTUAL_SCHEMA_VERSION = 4;
 export const DEFAULT_SEC_USER_AGENT = 'BoduanTracker/1.0 chenshuai1190@gmail.com';
 
 const SEC_REQUEST_TIMEOUT_MS = 5500;
@@ -30,6 +30,7 @@ const MISS_CACHE_TTL_MS = 5 * 60 * 1000;
 const SEC_FISCAL_DATE_TOLERANCE_DAYS = 7;
 
 const KNOWN_CIK_BY_SYMBOL = new Map([
+  ['AMD', '0000002488'],
   ['TSLA', '0001318605'],
   ['TSM', '0001046179'],
   ['GOOG', '0001652044'],
@@ -475,6 +476,8 @@ export function mergeSecOfficialActuals(events, officialActuals) {
     return {
       ...event,
       ...provenance,
+      providerFiscalDate: event.providerFiscalDate || event.fiscalDate,
+      fiscalDate: dateKey(official.fiscalDate) || event.fiscalDate,
       epsActual: official.epsActual,
       actual: official.epsActual,
       epsPreviousYear: official.epsPreviousYear,
@@ -485,6 +488,7 @@ export function mergeSecOfficialActuals(events, officialActuals) {
       surprisePercent,
       percent: surprisePercent,
       epsActualSource: source,
+      epsProviderConflict: false,
       epsPreviousYearSource: source,
       epsActualBasis: official.epsActualBasis || 'EarningsPerShareDiluted',
       epsPreviousYearBasis: official.epsActualBasis || 'EarningsPerShareDiluted',
@@ -555,7 +559,7 @@ async function fetchOfficialEvent({ event, cik, context, today }) {
       });
       const parsed = parseSecCompanyFactsActuals({
         symbol: event.symbol,
-        fiscalDate: event.fiscalDate,
+        fiscalDate: tenQ.reportDate || event.fiscalDate,
         companyFacts,
         accession: tenQ.accession,
         filedAt: tenQ.filingDate,
@@ -836,10 +840,28 @@ function selectUniqueNearestFiscalFiling(filings, fiscalDate, today) {
 }
 
 function selectTenQFiling(filings, fiscalDate, today) {
-  return (filings || [])
+  const target = parseDate(fiscalDate);
+  if (!target) return null;
+  const candidates = (filings || [])
     .filter((filing) => /^10-Q(?:\/A)?$/.test(filing.form))
-    .filter((filing) => filing.reportDate === fiscalDate && filing.filingDate <= today)
-    .sort((a, b) => b.filingDate.localeCompare(a.filingDate))[0] || null;
+    .filter((filing) => filingAvailableDate(filing) <= today)
+    .map((filing) => ({
+      filing,
+      distance: Math.abs(dayDifference(target, parseDate(filing.reportDate))),
+    }))
+    .filter(({ distance }) => distance <= SEC_FISCAL_DATE_TOLERANCE_DAYS)
+    .sort((a, b) => (
+      a.distance - b.distance
+      || b.filing.filingDate.localeCompare(a.filing.filingDate)
+    ));
+  if (candidates.length === 0) return null;
+  const nearestDistance = candidates[0].distance;
+  const nearestReportDates = new Set(
+    candidates
+      .filter((candidate) => candidate.distance === nearestDistance)
+      .map((candidate) => candidate.filing.reportDate),
+  );
+  return nearestReportDates.size === 1 ? candidates[0].filing : null;
 }
 
 function selectOriginalTenQFiling(filings, fiscalDate, today) {
@@ -897,6 +919,7 @@ function completeResult({
   return {
     key: event.key,
     symbol: event.symbol,
+    providerFiscalDate: event.fiscalDate,
     fiscalDate: event.fiscalDate,
     reportDate: event.reportDate || null,
     officialActualSchemaVersion: OFFICIAL_ACTUAL_SCHEMA_VERSION,
@@ -914,6 +937,10 @@ function completeResult({
     primaryDocumentUrl,
     ...parsed,
   };
+}
+
+function filingAvailableDate(filing) {
+  return dateKey(filing?.acceptedAt) || dateKey(filing?.filingDate);
 }
 
 function statusResult(event, status, reason, extra = {}) {

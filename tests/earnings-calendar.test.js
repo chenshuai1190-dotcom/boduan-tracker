@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import handler, {
   calculateEarningsMarketReaction,
   enrichPublishedEarningsData,
+  findUniqueNearestFiscalRow,
   mergeEarningsRevenueUsd,
   mergeEarningsTrendData,
   parseEarningsRequest,
@@ -16,11 +17,13 @@ import {
   buildCalendarMonth,
   buildEarningsSymbols,
   classifyEarningsResult,
+  earningsCalendarRequestRange,
   earningsResultText,
   groupEarningsByDate,
   isEarningsVisible,
   normalizeEarningsEvents,
   shouldPromoteEarningsCalendar,
+  todayDateKey,
 } from '../src/lib/earningsCalendarModel.js';
 import { OFFICIAL_ACTUAL_SCHEMA_VERSION } from '../server/earnings/secOfficialActuals.js';
 
@@ -91,6 +94,11 @@ test('earnings calendar request validates symbols and date range', () => {
   assert.match(parseEarningsRequest({ symbols: 'NV DA' }).error, /股票代码不合法/);
   assert.match(parseEarningsRequest({ symbols: 'NVDA', from: '2026-09-01', to: '2026-07-01' }).error, /from 不能晚于 to/);
   assert.match(parseEarningsRequest({ symbols: 'NVDA', from: '2026-01-01', to: '2026-05-01' }).error, /查询区间不能超过/);
+
+  const thirtySymbols = Array.from({ length: 30 }, (_, index) => `S${index}`).join(',');
+  const thirtyOneSymbols = `${thirtySymbols},S30`;
+  assert.equal(parseEarningsRequest({ symbols: thirtySymbols }).symbols.length, 30);
+  assert.match(parseEarningsRequest({ symbols: thirtyOneSymbols }).error, /单次最多请求 30 个/);
 });
 
 test('earnings calendar API rejects unauthenticated requests before provider access', async () => {
@@ -194,6 +202,14 @@ test('earnings model builds deduped symbols and grouped calendar days', () => {
   });
   assert.deepEqual(symbols, ['NVDA', 'MSFT', 'META']);
 
+  const expandedWatchlist = Array.from({ length: 31 }, (_, index) => ({
+    symbol: index === 29 ? 'AMD' : `S${index}`,
+  }));
+  const expandedSymbols = buildEarningsSymbols({ watchlist: expandedWatchlist });
+  assert.equal(expandedSymbols.length, 30);
+  assert.equal(expandedSymbols[29], 'AMD');
+  assert.equal(expandedSymbols.includes('S30'), false);
+
   const events = normalizeEarningsEvents([
     { code: 'NVDA.US', report_date: '2026-07-08', before_after_market: 'before-market' },
     { code: 'META.US', report_date: '2026-07-10', before_after_market: 'after-hours' },
@@ -205,6 +221,16 @@ test('earnings model builds deduped symbols and grouped calendar days', () => {
   const grouped = groupEarningsByDate(events);
   assert.equal(grouped.get('2026-07-08')[0].impact, 'high');
   assert.equal(grouped.get('2026-07-10')[0].session, 'post');
+
+  const [officialAmd] = normalizeEarningsEvents([{
+    code: 'AMD.US',
+    report_date: '2026-08-04',
+    date: '2026-06-30',
+    fiscalDate: '2026-06-27',
+    providerFiscalDate: '2026-06-30',
+  }]);
+  assert.equal(officialAmd.fiscalDate, '2026-06-27');
+  assert.equal(officialAmd.providerFiscalDate, '2026-06-30');
   assert.equal(grouped.get('2026-07-11')[0].impact, 'high');
   assert.equal(buildCalendarMonth('2026-07-01', events).length, 42);
 });
@@ -445,7 +471,24 @@ test('earnings model keeps published reports visible for two days with result st
   assert.equal(isEarningsVisible(published, '2026-07-10'), true);
   assert.equal(isEarningsVisible(published, '2026-07-11'), false);
   assert.equal(isEarningsVisible(unpublished, '2026-07-08'), true);
-  assert.equal(isEarningsVisible(unpublished, '2026-07-09'), false);
+  assert.equal(isEarningsVisible(unpublished, '2026-07-10'), true);
+  assert.equal(isEarningsVisible(unpublished, '2026-07-11'), false);
+});
+
+test('earnings calendar uses the New York day for after-market visibility and request bounds', () => {
+  const shanghaiMorningWhileNewYorkIsPriorDay = new Date('2026-08-05T00:30:00.000Z');
+  assert.equal(todayDateKey(shanghaiMorningWhileNewYorkIsPriorDay), '2026-08-04');
+  assert.deepEqual(earningsCalendarRequestRange(shanghaiMorningWhileNewYorkIsPriorDay), {
+    from: '2026-07-28',
+    to: '2026-09-18',
+  });
+  assert.equal(isEarningsVisible({
+    symbol: 'AMD',
+    reportDate: '2026-08-04',
+    session: 'post',
+    epsActual: null,
+  }, todayDateKey(shanghaiMorningWhileNewYorkIsPriorDay)), true);
+  assert.equal(todayDateKey(new Date('2026-12-15T04:30:00.000Z')), '2026-12-14');
 });
 
 test('earnings financial merge converts EBIT to USD without inventing a forecast', () => {
@@ -586,19 +629,40 @@ test('Tesla Q2 fixture keeps official revenue and operating-profit bases distinc
   assert.ok(Math.abs(event.epsActualYoyPercent - (-3.030303030303033)) < 1e-10);
 });
 
-test('published EPS history overrides a stale calendar actual for the exact fiscal quarter', () => {
+test('published EPS keeps the calendar actual when provider history disagrees', () => {
   assert.deepEqual(resolvePublishedEps({
     fiscalDate: '2026-06-30',
     epsActual: 2.31,
     epsPreviousYear: 2.31,
   }, [
     { date: '2026-06-30', epsActual: 9.11 },
-    { date: '2025-06-30', epsActual: 2.31 },
+    { date: '2025-06-30', epsActual: 8.88 },
   ]), {
-    actual: 9.11,
+    actual: 2.31,
     previousYear: 2.31,
-    source: 'eodhd-fundamentals-earnings-history',
+    source: 'eodhd-calendar',
+    providerConflict: true,
   });
+});
+
+test('published EPS uses a uniquely matched history row only when the calendar actual is absent', () => {
+  assert.deepEqual(resolvePublishedEps({
+    fiscalDate: '2026-06-30',
+    epsActual: null,
+  }, [
+    { date: '2026-06-27', epsActual: 1.38 },
+    { date: '2025-06-28', epsActual: 0.54 },
+  ]), {
+    actual: 1.38,
+    previousYear: 0.54,
+    source: 'eodhd-fundamentals-earnings-history',
+    providerConflict: false,
+  });
+
+  assert.equal(findUniqueNearestFiscalRow([
+    { date: '2026-06-27', value: 'left' },
+    { date: '2026-07-03', value: 'right' },
+  ], '2026-06-30'), null);
 });
 
 test('earnings calendar promotes only for five upcoming followed companies including a holding', () => {
@@ -937,8 +1001,9 @@ test('earnings calendar API enriches published events with actual revenue and ma
     assert.equal(event.publishedFinancialsComplete, true);
     assert.equal(event.publishedUntil, '2026-05-22');
     assert.equal(event.earningsResult, 'beat');
-    assert.equal(event.epsActual, 1.9);
-    assert.equal(event.epsActualSource, 'eodhd-fundamentals-earnings-history');
+    assert.equal(event.epsActual, 1.87);
+    assert.equal(event.epsActualSource, 'eodhd-calendar');
+    assert.equal(event.epsProviderConflict, true);
     assert.equal(event.revenueEstimate, 79115709670);
     assert.equal(event.revenueActual, 81615000000);
     assert.equal(event.revenueActualUsd, 81615000000);
@@ -957,7 +1022,7 @@ test('earnings calendar API enriches published events with actual revenue and ma
     assert.equal(event.ebitPreviousYearBasis, 'operatingIncome');
     assert.ok(Math.abs(event.ebitActualYoyPercent - 136.36363636363635) < 1e-10);
     assert.equal(event.ebitEstimate, undefined);
-    assert.equal(Math.round(event.epsActualYoyPercent * 100) / 100, 134.57);
+    assert.equal(Math.round(event.epsActualYoyPercent * 100) / 100, 130.86);
     assert.equal(event.epsEstimate, 1.7738);
     assert.equal(Math.round(event.epsEstimateYoyPercent * 100) / 100, 118.99);
     assert.equal(event.marketReactionPercent, 5);

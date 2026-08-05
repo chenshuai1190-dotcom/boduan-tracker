@@ -1,6 +1,13 @@
 const EARNINGS_SYMBOL_RE = /^[A-Z0-9.-]{1,15}$/;
 export const EARNINGS_PUBLISHED_RETENTION_DAYS = 2;
+export const MAX_EARNINGS_SYMBOLS = 30;
 const EARNINGS_RESULT_THRESHOLD_PERCENT = 1;
+const NEW_YORK_DATE_FORMATTER = new Intl.DateTimeFormat('en-US', {
+  timeZone: 'America/New_York',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+});
 
 export function normalizeEarningsSymbol(value) {
   const raw = String(value || '').trim().toUpperCase();
@@ -25,13 +32,29 @@ export function dateKey(value) {
 }
 
 export function todayDateKey(now = new Date()) {
-  return dateKey(now.toISOString());
+  const date = now instanceof Date ? now : new Date(now);
+  const safeDate = Number.isNaN(date.getTime()) ? new Date() : date;
+  const parts = Object.fromEntries(
+    NEW_YORK_DATE_FORMATTER
+      .formatToParts(safeDate)
+      .filter((part) => part.type !== 'literal')
+      .map((part) => [part.type, part.value]),
+  );
+  return `${parts.year}-${parts.month}-${parts.day}`;
 }
 
 function addDays(date, days) {
   const base = new Date(`${dateKey(date)}T00:00:00Z`);
   base.setUTCDate(base.getUTCDate() + Number(days || 0));
   return base.toISOString().slice(0, 10);
+}
+
+export function earningsCalendarRequestRange(now = new Date()) {
+  const today = todayDateKey(now);
+  return {
+    from: addDays(today, -7),
+    to: addDays(today, 45),
+  };
 }
 
 function monthKey(value) {
@@ -100,8 +123,7 @@ export function isEarningsVisible(event, today = todayDateKey()) {
   const reportDate = dateKey(event?.reportDate || event?.report_date);
   if (!reportDate) return false;
   const todayKey = dateKey(today) || todayDateKey();
-  if (isEarningsPublished(event)) return todayKey <= addDays(reportDate, EARNINGS_PUBLISHED_RETENTION_DAYS);
-  return reportDate >= todayKey;
+  return todayKey <= addDays(reportDate, EARNINGS_PUBLISHED_RETENTION_DAYS);
 }
 
 export function classifyEarningsResult(event) {
@@ -150,7 +172,7 @@ function normalizeEarningsImpact(value) {
   return '';
 }
 
-export function buildEarningsSymbols({ watchlist = [], positions = [], max = 24 } = {}) {
+export function buildEarningsSymbols({ watchlist = [], positions = [], max = MAX_EARNINGS_SYMBOLS } = {}) {
   const symbols = [];
   const seen = new Set();
   const add = (value) => {
@@ -220,7 +242,8 @@ function normalizeEarningsEvent(raw, context = {}) {
     code: code || `${symbol}.US`,
     name: raw?.name || raw?.company || raw?.companyName || '',
     reportDate,
-    fiscalDate: dateKey(raw?.date || raw?.fiscalDate || raw?.periodDate) || reportDate,
+    fiscalDate: dateKey(raw?.fiscalDate || raw?.date || raw?.periodDate) || reportDate,
+    providerFiscalDate: dateKey(raw?.providerFiscalDate || raw?.calendarFiscalDate || raw?.date),
     session,
     currency: raw?.currency || raw?.Currency || 'USD',
     epsCurrency: raw?.epsCurrency || null,
@@ -228,6 +251,7 @@ function normalizeEarningsEvent(raw, context = {}) {
     epsEstimate: preferredNumeric(raw, 'epsEstimate', 'estimate', 'earningsEstimateAvg'),
     epsActual: preferredNumeric(raw, 'epsActual', 'actual'),
     epsActualSource: raw?.epsActualSource || null,
+    epsProviderConflict: raw?.epsProviderConflict === true,
     epsActualBasis: raw?.epsActualBasis || null,
     epsDifference: preferredNumeric(raw, 'epsDifference', 'difference'),
     surprisePercent: preferredNumeric(raw, 'surprisePercent', 'percent'),

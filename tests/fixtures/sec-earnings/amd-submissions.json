@@ -1,0 +1,39 @@
+{
+  "cik": "0000002488",
+  "name": "Advanced Micro Devices, Inc.",
+  "tickers": [
+    "AMD"
+  ],
+  "filings": {
+    "recent": {
+      "accessionNumber": [
+        "0000002488-26-000123",
+        "0000002488-26-000121"
+      ],
+      "filingDate": [
+        "2026-08-05",
+        "2026-08-04"
+      ],
+      "reportDate": [
+        "2026-06-27",
+        "2026-08-04"
+      ],
+      "acceptanceDateTime": [
+        "2026-08-04T17:40:01.000Z",
+        "2026-08-04T20:16:24.000Z"
+      ],
+      "form": [
+        "10-Q",
+        "8-K"
+      ],
+      "items": [
+        "",
+        "2.02,7.01,9.01"
+      ],
+      "primaryDocument": [
+        "amd-20260627.htm",
+        "amd-20260804.htm"
+      ]
+    }
+  }
+}

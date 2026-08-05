@@ -8,7 +8,7 @@ import {
 } from './earningsCalendarModel.js';
 
 export const EARNINGS_CALENDAR_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
-export const OFFICIAL_EARNINGS_ACTUAL_SCHEMA_VERSION = 3;
+export const OFFICIAL_EARNINGS_ACTUAL_SCHEMA_VERSION = 4;
 export const EARNINGS_CALENDAR_RESUME_DEDUPE_MS = 1200;
 export const EARNINGS_CALENDAR_VISIBLE_RETRY_MS = 120;
 export const EARNINGS_CALENDAR_VISIBLE_RETRY_MAX_MS = 6000;
@@ -16,7 +16,7 @@ export const EARNINGS_CALENDAR_MAX_VISIBLE_POLLS = 12;
 
 const NEW_YORK_TIME_ZONE = 'America/New_York';
 const OFFICIAL_EARNINGS_SCHEMA_MIGRATION_DAYS = 30;
-const OFFICIAL_EARNINGS_SUPPORTED_SYMBOLS = new Set(['TSLA', 'GOOG', 'GOOGL', 'IBKR', 'NOK', 'TSM']);
+const OFFICIAL_EARNINGS_SUPPORTED_SYMBOLS = new Set(['AMD', 'TSLA', 'GOOG', 'GOOGL', 'IBKR', 'NOK', 'TSM']);
 const OFFICIAL_EARNINGS_FIXED_PERIODS = new Map([
   ['TSM', new Set(['2026-06-30'])],
 ]);
@@ -252,6 +252,7 @@ function preserveHigherPriorityActualGroup(merged, current, incoming, group) {
   if (group === 'eps') {
     merged.epsCurrency = current?.epsCurrency ?? merged.epsCurrency;
     merged.epsUnit = current?.epsUnit ?? merged.epsUnit;
+    merged.epsProviderConflict = current?.epsProviderConflict ?? merged.epsProviderConflict;
   }
 }
 
@@ -327,8 +328,11 @@ function mergeEarningsEventPreservingActuals(current, incoming) {
       'officialActualSource',
       'officialActualReason',
       'publishedFinancialsComplete',
+      'fiscalDate',
+      'providerFiscalDate',
       'epsCurrency',
       'epsUnit',
+      'epsProviderConflict',
       'secCik',
       'secAccession',
       'secForm',
