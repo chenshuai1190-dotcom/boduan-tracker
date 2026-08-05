@@ -8,6 +8,10 @@ import {
   parseSecUsHoldingBusinessDocument,
 } from './secUsHoldingBusinessAdapters.js';
 import {
+  canAttemptGenericSecBusinessComposition,
+  parseGenericSecBusinessComposition,
+} from './secGenericBusinessComposition.js';
+import {
   hasForeignIssuerBusinessCompositionAdapter,
   knownForeignIssuerBusinessComposition,
   parseForeignIssuerBusinessComposition,
@@ -15,16 +19,19 @@ import {
 
 export { parseSecEarningsDetailPrimaryDocument } from './secEarningsDetailParsers.js';
 
-export const SEC_EARNINGS_DETAIL_SCHEMA_VERSION = 3;
+export const SEC_EARNINGS_DETAIL_SCHEMA_VERSION = 4;
 export const SEC_EARNINGS_DETAIL_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 export const SEC_EARNINGS_DETAIL_TRANSIENT_CACHE_TTL_MS = 5 * 60 * 1000;
 export const SEC_EARNINGS_DETAIL_UNPARSED_CACHE_TTL_MS = 5 * 60 * 1000;
 
 const EARNINGS_SYMBOL_RE = /^[A-Z0-9.-]{1,15}$/;
 const MAX_REPORT_DELAY_DAYS = 180;
+const MAX_PROVIDER_FISCAL_LEAD_DAYS = 31;
 const RESULT_CACHE_MAX_ENTRIES = 32;
 const VERIFIED_MSFT_Q4_FISCAL_DATE = '2026-06-30';
 const VERIFIED_MSFT_Q4_REPORT_DATE = '2026-07-29';
+const VERIFIED_UNH_Q2_FISCAL_DATE = '2026-06-30';
+const VERIFIED_UNH_Q2_REPORT_DATE = '2026-07-16';
 const resultCache = new Map();
 
 export function parseEarningsDetailRequest(query = {}) {
@@ -37,27 +44,54 @@ export function parseEarningsDetailRequest(query = {}) {
   }
 
   const rawFiscalDate = singleQueryValue(query.fiscalDate);
+  const rawProviderFiscalDate = singleQueryValue(query.providerFiscalDate) || rawFiscalDate;
+  const rawOfficialFiscalDate = singleQueryValue(query.officialFiscalDate)
+    || (singleQueryValue(query.providerFiscalDate) && rawFiscalDate !== rawProviderFiscalDate
+      ? rawFiscalDate
+      : '');
   const rawReportDate = singleQueryValue(query.reportDate);
-  if (!rawFiscalDate) return { error: '需要传 fiscalDate 参数' };
+  if (!rawProviderFiscalDate) return { error: '需要传 fiscalDate 参数' };
   if (!rawReportDate) return { error: '需要传 reportDate 参数' };
 
-  const fiscalDate = validDateKey(rawFiscalDate);
-  if (!fiscalDate) {
+  const providerFiscalDate = validDateKey(rawProviderFiscalDate);
+  if (!providerFiscalDate) {
     return { error: 'fiscalDate 必须是有效财季结束日期' };
+  }
+  const officialFiscalDate = rawOfficialFiscalDate
+    ? validDateKey(rawOfficialFiscalDate)
+    : '';
+  if (rawOfficialFiscalDate && !officialFiscalDate) {
+    return { error: 'officialFiscalDate 必须是有效财季结束日期' };
   }
   const reportDate = validDateKey(rawReportDate);
   if (!reportDate) return { error: 'reportDate 必须是有效日期' };
 
-  const reportDelayDays = daysBetween(fiscalDate, reportDate);
-  if (reportDelayDays < 0 || reportDelayDays > MAX_REPORT_DELAY_DAYS) {
+  const providerReportDelayDays = daysBetween(providerFiscalDate, reportDate);
+  const officialReportDelayDays = officialFiscalDate
+    ? daysBetween(officialFiscalDate, reportDate)
+    : null;
+  if (providerReportDelayDays < -MAX_PROVIDER_FISCAL_LEAD_DAYS
+    || providerReportDelayDays > MAX_REPORT_DELAY_DAYS
+    || (officialFiscalDate && (
+      officialReportDelayDays < 0
+      || officialReportDelayDays > MAX_REPORT_DELAY_DAYS
+    ))) {
     return { error: 'reportDate 与 fiscalDate 不匹配' };
   }
-  return { symbol, fiscalDate, reportDate };
+  return {
+    symbol,
+    fiscalDate: officialFiscalDate || providerFiscalDate,
+    providerFiscalDate,
+    officialFiscalDate: officialFiscalDate || null,
+    reportDate,
+  };
 }
 
 export async function fetchSecEarningsDetail({
   symbol,
   fiscalDate,
+  providerFiscalDate,
+  officialFiscalDate,
   reportDate,
   fetchFn = globalThis.fetch,
   userAgent,
@@ -66,20 +100,31 @@ export async function fetchSecEarningsDetail({
   batchTimeoutMs,
 } = {}) {
   const normalizedSymbol = normalizeSymbol(symbol);
-  const normalizedFiscalDate = dateKey(fiscalDate);
+  const normalizedProviderFiscalDate = dateKey(providerFiscalDate) || dateKey(fiscalDate);
+  const normalizedOfficialFiscalDate = dateKey(officialFiscalDate)
+    || (dateKey(fiscalDate) !== normalizedProviderFiscalDate ? dateKey(fiscalDate) : '');
+  const normalizedFiscalDate = normalizedOfficialFiscalDate || normalizedProviderFiscalDate;
   const normalizedReportDate = dateKey(reportDate);
   const nowDate = normalizeDate(now) || new Date();
   const cacheEnabled = fetchFn === globalThis.fetch;
-  const cacheKey = `${normalizedSymbol}|${normalizedFiscalDate}|${normalizedReportDate}`;
+  const cacheKey = [
+    normalizedSymbol,
+    normalizedProviderFiscalDate,
+    normalizedOfficialFiscalDate || 'auto',
+    normalizedReportDate,
+  ].join('|');
   const cached = readCache(cacheKey, nowDate.getTime(), cacheEnabled);
   if (cached) return cached;
 
   const standardAdapterSupported = hasSecEarningsDetailAdapter(normalizedSymbol);
   const usHoldingAdapterSupported = hasSecUsHoldingBusinessAdapter(normalizedSymbol);
   const foreignAdapterSupported = hasForeignIssuerBusinessCompositionAdapter(normalizedSymbol);
+  const genericAdapterSupported = !foreignAdapterSupported
+    && canAttemptGenericSecBusinessComposition(normalizedSymbol);
   const detailAdapterSupported = standardAdapterSupported
     || usHoldingAdapterSupported
-    || foreignAdapterSupported;
+    || foreignAdapterSupported
+    || genericAdapterSupported;
   const knownForeignComposition = knownForeignIssuerBusinessComposition({
     symbol: normalizedSymbol,
     fiscalDate: normalizedFiscalDate,
@@ -89,6 +134,8 @@ export async function fetchSecEarningsDetail({
     start: '',
     end: normalizedFiscalDate,
     fiscalDate: normalizedFiscalDate,
+    providerFiscalDate: normalizedProviderFiscalDate,
+    officialFiscalDate: normalizedOfficialFiscalDate || null,
     reportDate: normalizedReportDate,
   };
   const knownPublishedAt = normalizeDate(knownForeignComposition?.publishedAt);
@@ -120,7 +167,16 @@ export async function fetchSecEarningsDetail({
       normalizedFiscalDate === VERIFIED_MSFT_Q4_FISCAL_DATE
       || normalizedReportDate === VERIFIED_MSFT_Q4_REPORT_DATE
     );
-  if (mismatchedMicrosoftQ4) {
+  const verifiedUnitedHealthQ2 = normalizedSymbol === 'UNH'
+    && normalizedFiscalDate === VERIFIED_UNH_Q2_FISCAL_DATE
+    && normalizedReportDate === VERIFIED_UNH_Q2_REPORT_DATE;
+  const mismatchedUnitedHealthQ2 = normalizedSymbol === 'UNH'
+    && !verifiedUnitedHealthQ2
+    && (
+      normalizedFiscalDate === VERIFIED_UNH_Q2_FISCAL_DATE
+      || normalizedReportDate === VERIFIED_UNH_Q2_REPORT_DATE
+    );
+  if (mismatchedMicrosoftQ4 || mismatchedUnitedHealthQ2) {
     const unavailable = responseBase({
       status: 'unavailable',
       reason: 'official-event-date-mismatch',
@@ -143,10 +199,12 @@ export async function fetchSecEarningsDetail({
   const primary = await fetchSecEarningsFilingSource({
     symbol: normalizedSymbol,
     fiscalDate: normalizedFiscalDate,
+    providerFiscalDate: normalizedProviderFiscalDate,
+    officialFiscalDate: normalizedOfficialFiscalDate || undefined,
     reportDate: knownForeignComposition?.officialReportDate || normalizedReportDate,
     includePrimaryDocument: detailAdapterSupported && !knownForeignComposition,
-    preferredFilingTypes: verifiedMicrosoftQ4 ? ['8-K'] : [],
-    preferredDocumentTypes: verifiedMicrosoftQ4
+    preferredFilingTypes: verifiedMicrosoftQ4 || verifiedUnitedHealthQ2 ? ['8-K'] : [],
+    preferredDocumentTypes: verifiedMicrosoftQ4 || verifiedUnitedHealthQ2
       ? ['EX-99.1']
       : normalizedSymbol === 'IBKR'
         ? ['EX-99.1', 'PRIMARY']
@@ -188,13 +246,23 @@ export async function fetchSecEarningsDetail({
     return result;
   }
 
+  const resolvedOfficialFiscalDate = dateKey(primary.officialFiscalDate);
+  const resolvedPeriod = resolvedOfficialFiscalDate
+    ? {
+        ...period,
+        end: resolvedOfficialFiscalDate,
+        fiscalDate: resolvedOfficialFiscalDate,
+        officialFiscalDate: resolvedOfficialFiscalDate,
+      }
+    : period;
+
   if (primary.status !== 'complete') {
     const pending = responseBase({
       status: primary.status === 'unsupported' ? 'unavailable' : 'pending',
       reason: primary.reason || 'sec-unavailable',
       failureReason: primary.failureReason || null,
       symbol: normalizedSymbol,
-      period,
+      period: resolvedPeriod,
       source: sourceFromPrimary(primary),
       sections: pendingSections(
         primary.status === 'unsupported' ? 'unavailable' : 'pending',
@@ -220,7 +288,7 @@ export async function fetchSecEarningsDetail({
       status: 'unavailable',
       reason,
       symbol: normalizedSymbol,
-      period,
+      period: resolvedPeriod,
       source: sourceFromPrimary(primary),
       sections: pendingSections('unavailable', reason),
     });
@@ -240,33 +308,50 @@ export async function fetchSecEarningsDetail({
     form: primary.form,
     documentType: primary.documentType,
   };
-  const parsed = standardAdapterSupported
-    ? parseSecEarningsDetailPrimaryDocument({
-        symbol: normalizedSymbol,
-        fiscalDate: normalizedFiscalDate,
-        html: primary.html,
-        filing,
-      })
-    : usHoldingAdapterSupported
-      ? parseSecUsHoldingBusinessDocument({
-          symbol: normalizedSymbol,
-          fiscalDate: normalizedFiscalDate,
-          html: primary.html,
-          filing,
-        })
-      : parseForeignIssuerBusinessComposition({
-          symbol: normalizedSymbol,
-          fiscalDate: normalizedFiscalDate,
-          html: primary.html,
-          sourceUrl: primary.primaryDocumentUrl,
-        });
+  const parserFiscalDate = dateKey(primary.officialFiscalDate)
+    || normalizedOfficialFiscalDate
+    || normalizedFiscalDate;
+  let parsed = null;
+  if (standardAdapterSupported) {
+    parsed = parseSecEarningsDetailPrimaryDocument({
+      symbol: normalizedSymbol,
+      fiscalDate: parserFiscalDate,
+      html: primary.html,
+      filing,
+    });
+  } else if (usHoldingAdapterSupported) {
+    parsed = parseSecUsHoldingBusinessDocument({
+      symbol: normalizedSymbol,
+      fiscalDate: parserFiscalDate,
+      html: primary.html,
+      filing,
+    });
+  } else if (foreignAdapterSupported) {
+    parsed = parseForeignIssuerBusinessComposition({
+      symbol: normalizedSymbol,
+      fiscalDate: normalizedFiscalDate,
+      html: primary.html,
+      sourceUrl: primary.primaryDocumentUrl,
+    });
+  }
+  // A verified company adapter remains authoritative whenever it returns a
+  // parsed result. The generic SEC path is only a document-level null fallback;
+  // it never merges or replaces individual sections from a known adapter.
+  if (!parsed && genericAdapterSupported) {
+    parsed = parseGenericSecBusinessComposition({
+      symbol: normalizedSymbol,
+      fiscalDate: parserFiscalDate,
+      html: primary.html,
+      filing,
+    });
+  }
   const source = sourceFromParsed(primary, parsed);
   if (!parsed) {
     const unavailable = responseBase({
       status: 'unavailable',
       reason: 'official-primary-document-unparsed',
       symbol: normalizedSymbol,
-      period,
+      period: resolvedPeriod,
       source,
       sections: pendingSections('unavailable', 'official-primary-document-unparsed'),
     });
@@ -286,9 +371,13 @@ export async function fetchSecEarningsDetail({
     reason: parsed.status === 'complete' ? null : 'one-or-more-sections-unavailable',
     symbol: normalizedSymbol,
     period: {
-      ...period,
+      ...resolvedPeriod,
       start: parsed.period.start,
       end: parsed.period.end,
+      fiscalDate: parsed.period.end || parserFiscalDate,
+      officialFiscalDate: parsed.period.end || parserFiscalDate,
+      ...(parsed.period.fiscalYear ? { fiscalYear: parsed.period.fiscalYear } : {}),
+      ...(parsed.period.fiscalPeriod ? { fiscalPeriod: parsed.period.fiscalPeriod } : {}),
     },
     source,
     sections: parsed.sections,

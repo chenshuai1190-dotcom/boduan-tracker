@@ -19,9 +19,11 @@ function revenueTotal(items, field = 'revenue') {
 
 test('adapter registry covers the current US ordinary-company holdings and IBKR', () => {
   assert.equal(hasSecUsHoldingBusinessAdapter('AMD'), true);
+  assert.equal(hasSecUsHoldingBusinessAdapter('COST'), true);
   assert.equal(hasSecUsHoldingBusinessAdapter('META'), true);
   assert.equal(hasSecUsHoldingBusinessAdapter('msft.us'), true);
   assert.equal(hasSecUsHoldingBusinessAdapter('IBKR'), true);
+  assert.equal(hasSecUsHoldingBusinessAdapter('UNH'), true);
   assert.equal(hasSecUsHoldingBusinessAdapter('NOK'), false);
   assert.equal(hasSecUsHoldingBusinessAdapter('TQQQ'), false);
 });
@@ -83,6 +85,101 @@ test('AMD official Q2 10-Q returns reconciled segments and disjoint product reve
     accession: '0000002488-26-000123',
     form: '10-Q',
   });
+});
+
+test('COST official Q3 10-Q returns reconciled geographic segments and five revenue leaves', async () => {
+  const parsed = parseSecUsHoldingBusinessDocument({
+    symbol: 'COST',
+    fiscalDate: '2026-05-10',
+    html: await fixture('cost-2026q3.html'),
+    filing: {
+      cik: '909832',
+      accession: '0000909832-26-000051',
+      form: '10-Q',
+    },
+  });
+
+  assert.equal(parsed.status, 'complete');
+  assert.deepEqual(parsed.period, {
+    start: '2026-02-16',
+    end: '2026-05-10',
+    fiscalYear: '2026',
+    fiscalPeriod: 'Q3',
+  });
+  assert.deepEqual(parsed.sections.reportSegments.items.map((item) => [
+    item.id,
+    item.revenue,
+    item.previousRevenue,
+    item.profit,
+    item.previousProfit,
+  ]), [
+    ['united-states', 51_434_000_000, 46_318_000_000, 1_873_000_000, 1_713_000_000],
+    ['canada', 9_410_000_000, 8_321_000_000, 506_000_000, 450_000_000],
+    ['other-international', 9_683_000_000, 8_566_000_000, 436_000_000, 367_000_000],
+  ]);
+  assert.deepEqual(parsed.sections.revenueBreakdown.items.map((item) => [
+    item.id,
+    item.revenue,
+    item.previousRevenue,
+  ]), [
+    ['foods-sundries', 26_533_000_000, 25_149_000_000],
+    ['non-foods', 17_529_000_000, 16_080_000_000],
+    ['fresh-foods', 9_673_000_000, 8_785_000_000],
+    ['warehouse-ancillary-other', 15_419_000_000, 11_951_000_000],
+    ['membership-fees', 1_373_000_000, 1_240_000_000],
+  ]);
+  assert.deepEqual(parsed.sections.geographies.items, [
+    {
+      id: 'united-states',
+      label: 'United States',
+      labelZh: '美国',
+      revenue: 51_434_000_000,
+      previousRevenue: 46_318_000_000,
+    },
+    {
+      id: 'canada',
+      label: 'Canada',
+      labelZh: '加拿大',
+      revenue: 9_410_000_000,
+      previousRevenue: 8_321_000_000,
+    },
+    {
+      id: 'other-international',
+      label: 'Other International',
+      labelZh: '其他国际市场',
+      revenue: 9_683_000_000,
+      previousRevenue: 8_566_000_000,
+    },
+  ]);
+  assert.equal(revenueTotal(parsed.sections.reportSegments.items), 70_527_000_000);
+  assert.equal(revenueTotal(parsed.sections.revenueBreakdown.items), 70_527_000_000);
+  assert.equal(revenueTotal(parsed.sections.geographies.items), 70_527_000_000);
+  assert.deepEqual(parsed.sourceMetadata, {
+    provider: 'SEC',
+    adapterId: 'costco-inline-xbrl',
+    evidence: 'official-primary-inline-xbrl',
+    cik: '0000909832',
+    accession: '0000909832-26-000051',
+    form: '10-Q',
+  });
+});
+
+test('COST fails closed instead of publishing a non-reconciling total', async () => {
+  const html = (await fixture('cost-2026q3.html')).replace(
+    'contextRef="current" scale="6">70,527',
+    'contextRef="current" scale="6">70,528',
+  );
+  const parsed = parseSecUsHoldingBusinessDocument({
+    symbol: 'COST',
+    fiscalDate: '2026-05-10',
+    html,
+    filing: { cik: '0000909832', form: '10-Q' },
+  });
+
+  assert.equal(parsed.status, 'unavailable');
+  assert.equal(parsed.sections.reportSegments.status, 'unavailable');
+  assert.equal(parsed.sections.revenueBreakdown.status, 'unavailable');
+  assert.equal(parsed.sections.geographies.status, 'unavailable');
 });
 
 test('META official 10-Q returns reconciled segments, revenue mix, and geographies', async () => {
@@ -263,6 +360,163 @@ test('MSFT Q4 exhibit fails closed when segment totals do not reconcile', async 
   }), null);
 });
 
+test('UNH official Q1 10-Q returns four segments after exact revenue eliminations', () => {
+  const parsed = parseSecUsHoldingBusinessDocument({
+    symbol: 'UNH',
+    fiscalDate: '2026-03-31',
+    html: unitedHealthTenQFixture(),
+    filing: {
+      cik: '731766',
+      accession: '0000731766-26-000127',
+      form: '10-Q',
+    },
+  });
+
+  assert.equal(parsed.status, 'partial');
+  assert.deepEqual(parsed.period, {
+    start: '2026-01-01',
+    end: '2026-03-31',
+    fiscalYear: '2026',
+    fiscalPeriod: 'Q1',
+  });
+  assert.deepEqual(parsed.sections.reportSegments.items.map((item) => [
+    item.id,
+    item.revenue,
+    item.previousRevenue,
+    item.profit,
+    item.previousProfit,
+  ]), [
+    ['unitedhealthcare', 86_265_000_000, 84_617_000_000, 5_694_000_000, 5_226_000_000],
+    ['optum-health', 24_109_000_000, 24_837_000_000, 1_141_000_000, 1_411_000_000],
+    ['optum-insight', 5_125_000_000, 5_027_000_000, 963_000_000, 1_164_000_000],
+    ['optum-rx', 35_736_000_000, 35_132_000_000, 1_192_000_000, 1_318_000_000],
+  ]);
+  assert.deepEqual(parsed.sections.reportSegments.reconciliation, {
+    id: 'segment-reconciliation',
+    label: 'Eliminations and corporate adjustments',
+    labelZh: '抵销及公司层调整',
+    revenue: -39_514_000_000,
+    previousRevenue: -40_038_000_000,
+  });
+  assert.deepEqual(parsed.sections.revenueBreakdown, {
+    status: 'unavailable',
+    reason: 'quarterly-product-revenue-not-disclosed',
+    items: [],
+  });
+  assert.deepEqual(parsed.sections.geographies, {
+    status: 'unavailable',
+    reason: 'quarterly-geography-not-disclosed',
+    items: [],
+  });
+  assert.deepEqual(parsed.sourceMetadata, {
+    provider: 'SEC',
+    adapterId: 'unitedhealth-inline-xbrl',
+    evidence: 'official-primary-inline-xbrl',
+    cik: '0000731766',
+    accession: '0000731766-26-000127',
+    form: '10-Q',
+  });
+});
+
+test('UNH Q1 fails closed when revenue eliminations no longer reconcile', () => {
+  const html = unitedHealthTenQFixture().replace(
+    'contextRef="current_corporate_elimination" scale="6">-38,293',
+    'contextRef="current_corporate_elimination" scale="6">-38,292',
+  );
+  const parsed = parseSecUsHoldingBusinessDocument({
+    symbol: 'UNH',
+    fiscalDate: '2026-03-31',
+    html,
+    filing: { cik: '0000731766', form: '10-Q' },
+  });
+
+  assert.equal(parsed.status, 'unavailable');
+  assert.equal(parsed.sections.reportSegments.status, 'unavailable');
+});
+
+test('UNH official Q2 8-K EX-99.1 returns four reconciled GAAP segments', async () => {
+  const parsed = parseSecUsHoldingBusinessDocument({
+    symbol: 'UNH',
+    fiscalDate: '2026-06-30',
+    html: await fixture('unh-2026q2-exhibit.html'),
+    filing: {
+      cik: '0000731766',
+      accession: '0000731766-26-000191',
+      form: '8-K',
+      documentType: 'EX-99.1',
+    },
+  });
+
+  assert.equal(parsed.status, 'partial');
+  assert.deepEqual(parsed.period, {
+    start: '2026-04-01',
+    end: '2026-06-30',
+    fiscalYear: '2026',
+    fiscalPeriod: 'Q2',
+  });
+  assert.deepEqual(parsed.sections.reportSegments.items.map((item) => [
+    item.id,
+    item.revenue,
+    item.previousRevenue,
+    item.profit,
+    item.previousProfit,
+  ]), [
+    ['unitedhealthcare', 86_017_000_000, 86_103_000_000, 3_942_000_000, 2_075_000_000],
+    ['optum-health', 23_472_000_000, 24_725_000_000, 1_190_000_000, 429_000_000],
+    ['optum-insight', 5_402_000_000, 5_232_000_000, 1_369_000_000, 1_205_000_000],
+    ['optum-rx', 38_292_000_000, 38_459_000_000, 1_490_000_000, 1_441_000_000],
+  ]);
+  assert.deepEqual(parsed.sections.reportSegments.reconciliation, {
+    id: 'segment-reconciliation',
+    label: 'Eliminations and corporate adjustments',
+    labelZh: '抵销及公司层调整',
+    revenue: -41_151_000_000,
+    previousRevenue: -42_903_000_000,
+  });
+  assert.deepEqual(parsed.sourceMetadata, {
+    provider: 'SEC',
+    adapterId: 'unitedhealth-earnings-release',
+    evidence: 'official-8-k-exhibit-99.1',
+    cik: '0000731766',
+    accession: '0000731766-26-000191',
+    form: '8-K',
+  });
+});
+
+test('UNH Q2 exhibit fails closed on wrong identity or non-reconciling totals', async () => {
+  const html = await fixture('unh-2026q2-exhibit.html');
+  const filing = {
+    cik: '0000731766',
+    accession: '0000731766-26-000191',
+    form: '8-K',
+    documentType: 'EX-99.1',
+  };
+  assert.equal(parseSecUsHoldingBusinessDocument({
+    symbol: 'UNH',
+    fiscalDate: '2026-06-30',
+    html: html.replace('$112,032', '$112,033'),
+    filing,
+  }), null);
+  assert.equal(parseSecUsHoldingBusinessDocument({
+    symbol: 'UNH',
+    fiscalDate: '2026-06-30',
+    html,
+    filing: { ...filing, accession: '0000731766-26-000190' },
+  }), null);
+  assert.equal(parseSecUsHoldingBusinessDocument({
+    symbol: 'UNH',
+    fiscalDate: '2026-06-30',
+    html,
+    filing: { ...filing, documentType: 'PRIMARY' },
+  }), null);
+  assert.equal(parseSecUsHoldingBusinessDocument({
+    symbol: 'UNH',
+    fiscalDate: '2026-03-31',
+    html,
+    filing,
+  }), null);
+});
+
 test('IBKR official 8-K exhibit returns a reconciled revenue mix without inventing extra segments', async () => {
   const parsed = parseSecUsHoldingBusinessDocument({
     symbol: 'IBKR',
@@ -375,6 +629,25 @@ test('all adapters fail closed on mismatched company or fiscal-period identity',
     html: amdHtml,
     filing: { cik: '0000789019', form: '10-Q' },
   }), null);
+  const costHtml = await fixture('cost-2026q3.html');
+  assert.equal(parseSecUsHoldingBusinessDocument({
+    symbol: 'COST',
+    fiscalDate: '2026-05-11',
+    html: costHtml,
+    filing: { cik: '0000909832', form: '10-Q' },
+  }), null);
+  assert.equal(parseSecUsHoldingBusinessDocument({
+    symbol: 'COST',
+    fiscalDate: '2026-05-10',
+    html: costHtml,
+    filing: { cik: '0000731766', form: '10-Q' },
+  }), null);
+  assert.equal(parseSecUsHoldingBusinessDocument({
+    symbol: 'UNH',
+    fiscalDate: '2026-03-31',
+    html: unitedHealthTenQFixture(),
+    filing: { cik: '0000909832', form: '10-Q' },
+  }), null);
 });
 
 function microsoftFixture() {
@@ -436,6 +709,80 @@ function microsoftFixture() {
     '<ix:nonNumeric name="dei:DocumentType">10- Q</ix:nonNumeric>',
     '<ix:nonNumeric name="dei:DocumentPeriodEndDate">March 31, 2026</ix:nonNumeric>',
     '<ix:nonNumeric name="dei:EntityCentralIndexKey">0000789019</ix:nonNumeric>',
+    ...contexts,
+    ...facts,
+    '</body></html>',
+  ].join('');
+}
+
+function unitedHealthTenQFixture() {
+  const current = { start: '2026-01-01', end: '2026-03-31' };
+  const previous = { start: '2025-01-01', end: '2025-03-31' };
+  const segments = [
+    ['unitedhealthcare', 'unh:UnitedhealthcareMember', 86_265, 84_617, 5_694, 5_226],
+    ['optum_health', 'unh:OptumHealthMember', 24_109, 24_837, 1_141, 1_411],
+    ['optum_insight', 'unh:OptumInsightMember', 5_125, 5_027, 963, 1_164],
+    ['optum_rx', 'unh:OptumRxMember', 35_736, 35_132, 1_192, 1_318],
+  ];
+  const contexts = [
+    xbrlContext('current', current),
+    xbrlContext('previous', previous),
+  ];
+  const facts = [
+    xbrlFact('us-gaap:Revenues', 'current', 111_721),
+    xbrlFact('us-gaap:Revenues', 'previous', 109_575),
+    xbrlFact('us-gaap:OperatingIncomeLoss', 'current', 8_990),
+    xbrlFact('us-gaap:OperatingIncomeLoss', 'previous', 9_119),
+  ];
+
+  for (const [id, member, revenue, previousRevenue, profit, previousProfit] of segments) {
+    const currentId = `current_${id}`;
+    const previousId = `previous_${id}`;
+    const members = {
+      'srt:ConsolidationItemsAxis': 'us-gaap:OperatingSegmentsMember',
+      'us-gaap:StatementBusinessSegmentsAxis': member,
+    };
+    contexts.push(xbrlContext(currentId, current, members));
+    contexts.push(xbrlContext(previousId, previous, members));
+    facts.push(
+      xbrlFact('us-gaap:Revenues', currentId, revenue),
+      xbrlFact('us-gaap:Revenues', previousId, previousRevenue),
+      xbrlFact('us-gaap:OperatingIncomeLoss', currentId, profit),
+      xbrlFact('us-gaap:OperatingIncomeLoss', previousId, previousProfit),
+    );
+  }
+
+  const eliminations = [
+    [
+      'intersegment_elimination',
+      'us-gaap:IntersegmentEliminationMember',
+      -1_221,
+      -1_111,
+    ],
+    [
+      'corporate_elimination',
+      'us-gaap:CorporateNonSegmentMember',
+      -38_293,
+      -38_927,
+    ],
+  ];
+  for (const [id, member, revenue, previousRevenue] of eliminations) {
+    const currentId = `current_${id}`;
+    const previousId = `previous_${id}`;
+    const members = { 'srt:ConsolidationItemsAxis': member };
+    contexts.push(xbrlContext(currentId, current, members));
+    contexts.push(xbrlContext(previousId, previous, members));
+    facts.push(
+      xbrlFact('us-gaap:Revenues', currentId, revenue),
+      xbrlFact('us-gaap:Revenues', previousId, previousRevenue),
+    );
+  }
+
+  return [
+    '<!doctype html><html><body>',
+    '<ix:nonNumeric name="dei:DocumentType">10-Q</ix:nonNumeric>',
+    '<ix:nonNumeric name="dei:DocumentPeriodEndDate">March 31, 2026</ix:nonNumeric>',
+    '<ix:nonNumeric name="dei:EntityCentralIndexKey">0000731766</ix:nonNumeric>',
     ...contexts,
     ...facts,
     '</body></html>',

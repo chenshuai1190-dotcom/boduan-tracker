@@ -10,8 +10,8 @@
 | --- | --- |
 | 仓库 | `chenshuai1190-dotcom/boduan-tracker` |
 | 生产地址 | `https://boduan-tracker.vercel.app` |
-| GitHub `main` 基准 | `ecccf0e / v10.7.9.426`：保留每只关注股票的最近已公布财报；生产 runtime 是否一致仍以同提交的 `release:verify` 为准 |
-| 本地待发布候选 | `v10.7.9.427`：恢复全局最新财报和官方结构化详情，新增 AMD 2026 Q2 与 MSFT 2026 Q4 精确适配；当前未提交、未推送、未部署，不能冒充生产版本 |
+| 最近已验证生产基准 | `4c11a30 / v10.7.9.427`：恢复全局最新财报和官方结构化详情；GitHub `main` 与生产 runtime 已由同提交 `release:verify` 验证一致 |
+| 本次发布源码 | 本文件所在提交 / `v10.7.9.428`：在 v427 财期修复上新增严格通用 SEC 10-Q fallback，并补齐 COST、UNH 官方结构；最终提交与生产 runtime 是否一致只以该提交的一次 `release:verify` 为准 |
 | 数据库 | 保留既有 additive schema，并按 `available_cash_foundation_20260805.sql` → 精确 runtime → `available_cash_snapshot_contract_after_runtime_20260805.sql` 增加本人现金状态、不可变事件及个人收益现金快照契约；`swing_wave_partial_exits_20260805.sql` 和既有比赛、个人收益 migration 顺序不变 |
 | 发布完成条件 | GitHub `main` 的同一份 runtime 与上述 migration 均已上线并通过聚合 postflight；只完成其中一项不得宣布上线 |
 
@@ -25,8 +25,8 @@
 - 股票趋势 MA50 周线专项：`73 / 73` tests PASS；完成周锁定、50–199 周独立可用、1 年/5 年曲线组合及原曲线保留均覆盖。
 - 波段部分卖出专项：同一波段多次退出、剩余股数、旧完整卖出兼容、编辑/删除返还、并发超卖与账本隔离均有定向测试覆盖。
 - 可用现金专项：未设置/明确为 0、USD/CNY、保存后更新、失败回退、首页与交易页双向同步、融资/自选股联动、完成收盘现金事件、cash-only 用户及 QQQ/比赛隔离均有定向测试覆盖。
-- v427 财报专项覆盖 provider/官方财期分离、90 天最近已公布边界、SEC 双调度与共享 singleflight、短失败缓存、AMD/MSFT 新适配及既有全部适配器回归；最终 `npm run check:full` 必须 PASS 才允许提交。
-- 一次受控官方数据验收确认 AMD、GOOGL、TSLA、NVDA、META、MSFT、IBKR、NOK、TSM 均能取得各自最新已公布财报及至少一组结构化数据；未读取或输出 token、用户、持仓或交易数据。
+- v428 财报专项覆盖专用适配器优先与 generic fallback、filing/DEI CIK、官方财期、USD unit、当前/同比维度一致、收入与分部经营利润双期唯一精确勾稽、冲突或多解 fail closed，以及既有全部适配器回归；最终 `npm run check:full` 必须 PASS 才允许提交。
+- 受控官方文件回放已覆盖 COST 2026 财年 Q3 与 UNH 2026 财年 Q1/Q2；通用 SEC-only smoke 另确认 AAPL 2026 财年 Q3 返回 5 个报告分部、AMZN 2026 财年 Q2 返回 3 个报告分部。两条通用路径的 EODHD 请求均为 `0`，未读取或输出 token、用户、持仓或交易数据；AAPL 产品层级因存在两套精确解、地区缺少标准收入轴而继续 fail closed。
 - 新的开发、验证和单等待器发布流程继续保留，没有恢复旧六文档或重复验证流程。
 
 ## 可用现金与资产联动
@@ -60,8 +60,10 @@
 - 通用已公布 EPS 优先保留同一 Calendar/Trend 口径；`Earnings::History` 只在对应字段缺失时回退。近似财季只接受 7 天内唯一最近日期，等距歧义 fail closed，不再让另一份 provider 记录静默覆盖当前与同比结果。
 - 每个事件同时保留 `providerFiscalDate` 作为 Calendar/Trend/official-actual 合并键，并将 `fiscalDate` 作为详情页官方精确财期。AMD `reportDate=2026-08-04` 保持盘后公布语义；provider `2026-06-30` 与 SEC `2026-06-27` 不再形成两个季度或请求错误文件。
 - AMD 最新官方 10-Q 返回 3 个会计分部和 4 项不重叠业务收入；季度未披露地区结构，因此地区显示不可用。MSFT 只有 `fiscalDate=2026-06-30 + reportDate=2026-07-29` 精确组合使用 8-K EX-99.1 的 3 个季度分部；历史 Q1-Q3 继续读取 10-Q，交叉日期 fail closed，禁止把 10-K 年度产品或地区数字混进 Q4。
+- 已核验专用适配器保持优先；其他用户请求的美国上市股票会尝试严格解析官方 PRIMARY 10-Q Inline XBRL。通用路径只接受 filing/DEI CIK、官方 `DocumentPeriodEndDate` 与 USD unit 完全一致的季度事实；当前与同比维度必须一致，收入（报告分部还含经营利润）必须双期唯一精确勾稽。冲突、多解、层级重叠、缺少同比或未披露时对应结构显示不可用，不做公司白名单式猜测，也不使用 EODHD 结构数据或券商数字补齐。
+- COST 将 provider `2026-05-31` 映射到官方 `2026-05-10` 的 12 周财期，标题使用 `FY2026 Q3`，返回 `3/5/3`；UNH Q1 读取 10-Q，最新 Q2 严格读取 `2026-07-16` 8-K EX-99.1，均返回 `4/0/0` 并保留官方收入抵销。三坐标继续分别保存 provider 财期、SEC 官方财期和公布日。
 - SEC 财报摘要批量读取与详情读取使用独立 250ms 调度通道，但共享公开响应缓存和同 URL singleflight；两条链路不再互相排队，同一文件仍只读取一次。瞬态失败和官方主文档未解析结果只缓存 5 分钟，旧 pending/unavailable 不得在网络失败时复活。
-- 当前官方结构矩阵：AMD `3/4/0`、GOOGL `3/6/4`、TSLA `2/6/3`、NVDA `2/3/4`、META `2/3/4`、MSFT `3/0/0`、IBKR `0/4/0`、NOK `3/7/3`、TSM `1/6/5`（分部/业务细分/地区）。`0` 表示本季官方未披露或不适用，不得复制券商数字或自行推测。
+- 已核验专用结构矩阵：AMD `3/4/0`、GOOGL `3/6/4`、TSLA `2/6/3`、NVDA `2/3/4`、META `2/3/4`、MSFT `3/0/0`、IBKR `0/4/0`、NOK `3/7/3`、TSM `1/6/5`、COST `3/5/3`、UNH `4/0/0`（分部/业务细分/地区）。通用解析结果按用户请求和官方披露动态返回，不冒充固定全覆盖矩阵；`0` 表示本季官方未披露或不适用。
 
 ## 交易持仓收盘估值
 
@@ -135,7 +137,7 @@
 ### 已知风险
 
 - 比赛公开行情缓存与 402 熔断是 Vercel 单实例内存态，不是跨实例全局缓存；冷启动或不同实例仍可能分别首次读取一次。
-- v427 仍只使用 EODHD 财报日历/趋势与官方 SEC/TSMC 文件；公开 SEC cache 是 Vercel 单实例内存态，不是跨实例全局缓存。90 天历史补齐扩大同一笔日历请求的返回范围但不增加请求次数，需低频观察 EODHD 用量和响应体积；确认异常前不得增加循环探针、备用源或外部缓存。v424 现金长金额、v421 现金资产与个人收益快照、波段部分卖出、交易持仓正式价格及股票实时稳定版 v10 均保持不变。
+- v428 仍只使用 EODHD 财报日历/趋势与官方 SEC/TSMC 文件；通用结构在未命中特例或专用解析器对合规 10-Q 返回空时，按需读取官方 SEC PRIMARY 10-Q，不新增 EODHD 请求，也不与专用解析结果混合分节。公开 SEC cache 是 Vercel 单实例内存态，不是跨实例全局缓存，冷实例可能各自首次读取；非标准、歧义或无法双期精确勾稽的披露显示不可用是预期 fail-closed。90 天历史补齐扩大同一笔日历请求的返回范围但不增加请求次数，需低频观察 EODHD 用量和响应体积；确认异常前不得增加循环探针、备用源或外部缓存。v424 现金长金额、v421 现金资产与个人收益快照、波段部分卖出、交易持仓正式价格及股票实时稳定版 v10 均保持不变。
 - 个人收益的客户端即时重算请求是交易 mutation 后的一次非阻塞派生动作：正式交易保存成功不会因个人收益暂时失败而回滚，恢复依赖数据库 dirty state 和收盘 Cron，不依赖收益报表页面或浏览器一直存活。比赛仍保持其独立重算链路。
 - P&L foundation 与 contract 之间旧 PWA 仍保留原直接写权限，因此 runtime 验证后必须尽快执行 contract；任一步失败都只做 forward-fix。跨 Vercel 实例生成不同时间戳时可能留下多个安全隔离的暂存 job，由 24 小时 TTL 清理，不会混合发布。
 
@@ -150,7 +152,7 @@
 
 ### 下一步
 
-1. v427 只有在最终 `npm run check:full` PASS 且用户再次明确要求部署后，才能提交推送；只调用一次 `npm run release:verify -- full <commit>`，不得直接修改 Vercel。
-2. 发布后只做一次登录态只读验收，核对最新财期和上述结构数量；不输出 token、用户、持仓或交易数据，不循环调用 EODHD/SEC。
+1. v428 只有在最终 `npm run check:full` PASS、提交推送且同一提交的一次 `npm run release:verify -- full <commit>` PASS 后，才能视为上线；不得直接修改 Vercel。
+2. 发布后只做一次登录态只读验收，核对 provider 财期、官方 `fiscalYear/fiscalPeriod` 和已核验结构数量；不输出 token、用户、持仓或交易数据，不循环调用 EODHD/SEC。
 3. 低频观察 90 天日历响应体积、EODHD 调用量及 SEC 脱敏失败原因；确认问题前不得增加请求频率、备用源或猜测性结构。
 4. 新任务只读 `README.md`、`docs/development-process.md`、`docs/handoff.md`，不要重复旧流程。

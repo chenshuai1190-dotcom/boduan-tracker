@@ -233,8 +233,14 @@ function normalizeEarningsEvent(raw, context = {}) {
     || raw?.date
     || raw?.periodDate,
   );
-  const fiscalDate = dateKey(
+  const officialFiscalDate = dateKey(
     raw?.officialFiscalDate
+    || (providerFiscalDate && dateKey(raw?.fiscalDate) !== providerFiscalDate
+      ? raw?.fiscalDate
+      : null),
+  );
+  const fiscalDate = dateKey(
+    officialFiscalDate
     || raw?.fiscalDate
     || providerFiscalDate,
   ) || reportDate;
@@ -255,6 +261,7 @@ function normalizeEarningsEvent(raw, context = {}) {
     reportDate,
     fiscalDate,
     providerFiscalDate: providerFiscalDate || fiscalDate,
+    officialFiscalDate: officialFiscalDate || null,
     session,
     currency: raw?.currency || raw?.Currency || 'USD',
     epsCurrency: raw?.epsCurrency || null,

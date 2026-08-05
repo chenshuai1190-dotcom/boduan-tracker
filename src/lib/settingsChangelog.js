@@ -4,6 +4,25 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '📊 财报详情扩展为按用户请求读取官方结构化细分',
+      '  - 任意美股详情都会尝试解析该公司最新 SEC 官方文件，不再只允许预先列入名单的少数股票读取结构',
+      '  - 通用 XBRL 解析严格核验公司、官方财期、当前与上年同期，并仅发布可唯一识别且能双期勾稽的分部、产品或地区数据',
+      '  - COST 使用 2026-05-10 官方 12 周财期而非 provider 月末，并返回 3 个地理分部和 5 项收入结构；UNH 最新 Q2 严格读取 8-K EX-99.1 的 4 个分部及抵销',
+      '  - provider 财期、SEC 官方财期和公布日分别保存；非自然季度不再因公布日早于月末而报日期不匹配，标题也使用官方财年季度',
+      '  - 本次不增加 EODHD 请求、不新增数据库或备用财报源；无法唯一识别、无法对账或官方未披露的数据继续显示不可用',
+    ],
+    itemsEn: [
+      '📊 Earnings detail now reads official structured breakdowns on demand',
+      '  - Any requested U.S. stock now attempts to parse its latest official SEC filing instead of limiting structures to a small predeclared symbol list',
+      '  - The generic XBRL path verifies company identity, official period, current and prior-year quarters, and publishes only uniquely identifiable sections that reconcile in both periods',
+      '  - Costco uses its official May 10, 2026 twelve-week period and returns three geographic segments plus five revenue categories; UnitedHealth Q2 strictly reads four segments and eliminations from its 8-K Exhibit 99.1',
+      '  - Provider period, exact SEC period, and report date are stored separately, so retail-calendar quarters no longer fail when the announcement precedes the provider month-end and headings use the official fiscal quarter',
+      '  - This release adds no EODHD request, database, or alternate earnings source; ambiguous, unreconciled, and undisclosed structures remain unavailable',
+    ],
+  },
+  {
+    ver: 'v10.7.9.427', date: '2026-08-06',
+    items: [
       '📊 恢复所有已支持股票的最新财报与官方结构化细分',
       '  - 财报列表分离 EODHD provider 财期与 SEC 官方精确财期；同一季度不再重复、串期或回退到错误详情',
       '  - “最近已公布”复用原有日历请求并在 90 天边界内补齐历史，不增加请求次数；下一季尚未公布时仍可读取上一份最新财报',

@@ -94,7 +94,7 @@ test('earnings detail uses a fresh cache namespace and retries transient detail 
       fiscalDate: '2026-06-30',
       reportDate: '2026-07-22',
     }),
-    'xmoney_earnings_detail_v2:user-1:GOOGL:2026-06-30:2026-07-22',
+    'xmoney_earnings_detail_v3:user-1:GOOGL:2026-06-30:auto:2026-07-22',
   );
   assert.equal(
     earningsDetailClientCacheKey({
@@ -103,7 +103,7 @@ test('earnings detail uses a fresh cache namespace and retries transient detail 
       fiscalDate: '2026-03-31',
       reportDate: '2026-04-15',
     }),
-    'xmoney_earnings_detail_tsm_q1_2026_v3:user-1:TSM:2026-03-31:2026-04-15',
+    'xmoney_earnings_detail_tsm_q1_2026_v4:user-1:TSM:2026-03-31:auto:2026-04-15',
   );
   assert.equal(
     earningsDetailClientCacheKey({
@@ -112,7 +112,18 @@ test('earnings detail uses a fresh cache namespace and retries transient detail 
       fiscalDate: '2026-06-30',
       reportDate: '2026-07-16',
     }),
-    'xmoney_earnings_detail_v2:user-1:TSM:2026-06-30:2026-07-16',
+    'xmoney_earnings_detail_v3:user-1:TSM:2026-06-30:auto:2026-07-16',
+  );
+  assert.equal(
+    earningsDetailClientCacheKey({
+      userId: 'user-1',
+      symbol: 'COST',
+      fiscalDate: '2026-05-10',
+      providerFiscalDate: '2026-05-31',
+      officialFiscalDate: '2026-05-10',
+      reportDate: '2026-05-28',
+    }),
+    'xmoney_earnings_detail_v3:user-1:COST:2026-05-31:2026-05-10:2026-05-28',
   );
 });
 
@@ -253,6 +264,8 @@ test('calendar-to-detail request uses the official fiscal period and keeps the p
     },
     symbol: event.symbol,
     fiscalDate: event.fiscalDate,
+    providerFiscalDate: event.providerFiscalDate,
+    officialFiscalDate: event.officialFiscalDate,
     reportDate: event.reportDate,
     fetchImpl: async (url) => {
       requestedUrl = String(url);
@@ -268,6 +281,8 @@ test('calendar-to-detail request uses the official fiscal period and keeps the p
               start: '2026-01-26',
               end: '2026-04-26',
               fiscalDate: '2026-04-26',
+              providerFiscalDate: '2026-04-30',
+              officialFiscalDate: '2026-04-26',
               reportDate: '2026-05-20',
             },
             sections: {
@@ -284,7 +299,10 @@ test('calendar-to-detail request uses the official fiscal period and keeps the p
   const params = new URL(requestedUrl, 'https://local.test').searchParams;
   assert.equal(event.providerFiscalDate, '2026-04-30');
   assert.equal(event.fiscalDate, '2026-04-26');
+  assert.equal(event.officialFiscalDate, '2026-04-26');
   assert.equal(params.get('fiscalDate'), '2026-04-26');
+  assert.equal(params.get('providerFiscalDate'), '2026-04-30');
+  assert.equal(params.get('officialFiscalDate'), '2026-04-26');
   assert.equal(params.get('reportDate'), '2026-05-20');
   assert.equal(detail.period.fiscalDate, '2026-04-26');
 });

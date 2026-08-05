@@ -3,8 +3,8 @@ import { dateKey, normalizeEarningsSymbol } from './earningsCalendarModel.js';
 export const EARNINGS_DETAIL_CLIENT_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 export const EARNINGS_DETAIL_PENDING_CACHE_TTL_MS = 5 * 60 * 1000;
 export const EARNINGS_DETAIL_UNPARSED_CACHE_TTL_MS = 5 * 60 * 1000;
-const EARNINGS_DETAIL_CACHE_PREFIX = 'xmoney_earnings_detail_v2';
-const TSMC_Q1_2026_CACHE_PREFIX = 'xmoney_earnings_detail_tsm_q1_2026_v3';
+const EARNINGS_DETAIL_CACHE_PREFIX = 'xmoney_earnings_detail_v3';
+const TSMC_Q1_2026_CACHE_PREFIX = 'xmoney_earnings_detail_tsm_q1_2026_v4';
 const EARNINGS_DETAIL_SECTION_KEYS = ['reportSegments', 'revenueBreakdown', 'geographies'];
 const EARNINGS_DETAIL_SUPPLEMENTAL_KEYS = ['customerTypes', 'technologyBreakdown'];
 const inFlightRequests = new Map();
@@ -141,6 +141,10 @@ export function normalizeEarningsDetailPayload(payload) {
       start: dateKey(period.start),
       end: dateKey(period.end),
       fiscalDate: dateKey(period.fiscalDate),
+      providerFiscalDate: dateKey(period.providerFiscalDate || period.fiscalDate),
+      officialFiscalDate: dateKey(period.officialFiscalDate),
+      fiscalYear: String(period.fiscalYear || '').match(/^\d{4}$/)?.[0] || '',
+      fiscalPeriod: String(period.fiscalPeriod || '').toUpperCase().match(/^Q[1-4]$/)?.[0] || '',
       reportDate: dateKey(period.reportDate),
     },
     source,
@@ -186,17 +190,34 @@ export function earningsDetailSourceBadgeKind(detail, event) {
   return 'base';
 }
 
-export function earningsDetailClientCacheKey({ userId, symbol, fiscalDate, reportDate }) {
+export function earningsDetailClientCacheKey({
+  userId,
+  symbol,
+  fiscalDate,
+  providerFiscalDate,
+  officialFiscalDate,
+  reportDate,
+}) {
   const normalizedSymbol = normalizeEarningsSymbol(symbol);
-  const fiscal = dateKey(fiscalDate);
+  const providerFiscal = dateKey(providerFiscalDate) || dateKey(fiscalDate);
+  const officialFiscal = dateKey(officialFiscalDate)
+    || (dateKey(fiscalDate) !== providerFiscal ? dateKey(fiscalDate) : '');
+  const fiscal = officialFiscal || providerFiscal;
   const report = dateKey(reportDate);
-  if (!userId || !normalizedSymbol || !fiscal || !report) return '';
+  if (!userId || !normalizedSymbol || !providerFiscal || !fiscal || !report) return '';
   const prefix = normalizedSymbol === 'TSM'
     && fiscal === '2026-03-31'
     && ['2026-04-15', '2026-04-16'].includes(report)
     ? TSMC_Q1_2026_CACHE_PREFIX
     : EARNINGS_DETAIL_CACHE_PREFIX;
-  return `${prefix}:${userId}:${normalizedSymbol}:${fiscal}:${report}`;
+  return [
+    prefix,
+    userId,
+    normalizedSymbol,
+    providerFiscal,
+    officialFiscal || 'auto',
+    report,
+  ].join(':');
 }
 
 function readCache(key, { allowStale = false } = {}) {
@@ -238,14 +259,19 @@ export async function fetchEarningsDetail({
   supabase,
   symbol,
   fiscalDate,
+  providerFiscalDate,
+  officialFiscalDate,
   reportDate,
   fetchImpl = globalThis.fetch,
 }) {
   if (!supabase?.auth?.getSession) throw new Error('请先登录后查看财报详情');
   const normalizedSymbol = normalizeEarningsSymbol(symbol);
-  const fiscal = dateKey(fiscalDate);
+  const providerFiscal = dateKey(providerFiscalDate) || dateKey(fiscalDate);
+  const officialFiscal = dateKey(officialFiscalDate)
+    || (dateKey(fiscalDate) !== providerFiscal ? dateKey(fiscalDate) : '');
+  const fiscal = officialFiscal || providerFiscal;
   const report = dateKey(reportDate);
-  if (!normalizedSymbol || !fiscal || !report) throw new Error('财报详情参数不完整');
+  if (!normalizedSymbol || !providerFiscal || !fiscal || !report) throw new Error('财报详情参数不完整');
   const { data } = await supabase.auth.getSession();
   const token = data?.session?.access_token;
   const userId = data?.session?.user?.id;
@@ -254,6 +280,8 @@ export async function fetchEarningsDetail({
     userId,
     symbol: normalizedSymbol,
     fiscalDate: fiscal,
+    providerFiscalDate: providerFiscal,
+    officialFiscalDate: officialFiscal,
     reportDate: report,
   });
   const cached = readCache(cacheKey);
@@ -264,8 +292,10 @@ export async function fetchEarningsDetail({
     const params = new URLSearchParams({
       symbol: normalizedSymbol,
       fiscalDate: fiscal,
+      providerFiscalDate: providerFiscal,
       reportDate: report,
     });
+    if (officialFiscal) params.set('officialFiscalDate', officialFiscal);
     try {
       const response = await fetchImpl(`/api/earnings-detail?${params.toString()}`, {
         method: 'GET',
@@ -319,10 +349,13 @@ export function mergeEarningsDetailSummary(event, detail) {
   const eventSymbol = normalizeEarningsSymbol(event.symbol);
   const detailSymbol = normalizeEarningsSymbol(detail.symbol);
   const eventFiscalDate = dateKey(event.fiscalDate);
+  const eventProviderFiscalDate = dateKey(event.providerFiscalDate || eventFiscalDate);
   const eventReportDate = dateKey(event.reportDate);
   if (!eventSymbol
     || eventSymbol !== detailSymbol
-    || eventFiscalDate !== dateKey(detail.period?.fiscalDate)
+    || eventProviderFiscalDate !== dateKey(
+      detail.period?.providerFiscalDate || detail.period?.fiscalDate,
+    )
     || eventReportDate !== dateKey(detail.period?.reportDate)) {
     return event;
   }

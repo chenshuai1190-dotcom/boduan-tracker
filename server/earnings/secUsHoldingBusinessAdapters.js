@@ -7,11 +7,15 @@ const SECTION_KEYS = [
 ];
 
 const ADVANCED_MICRO_DEVICES_CIK = '0000002488';
+const COSTCO_CIK = '0000909832';
 const META_CIK = '0001326801';
 const MICROSOFT_CIK = '0000789019';
 const INTERACTIVE_BROKERS_CIK = '0001381197';
+const UNITEDHEALTH_CIK = '0000731766';
+const UNITEDHEALTH_Q2_2026_ACCESSION = '0000731766-26-000191';
 
 const REVENUE_CONCEPT = 'us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax';
+const REVENUES_CONCEPT = 'us-gaap:Revenues';
 const NET_REVENUE_CONCEPT = 'us-gaap:RevenuesNetOfInterestExpense';
 const OPERATING_INCOME_CONCEPT = 'us-gaap:OperatingIncomeLoss';
 const BUSINESS_SEGMENTS_AXIS = 'us-gaap:StatementBusinessSegmentsAxis';
@@ -19,6 +23,8 @@ const PRODUCT_OR_SERVICE_AXIS = 'srt:ProductOrServiceAxis';
 const GEOGRAPHICAL_AXIS = 'srt:StatementGeographicalAxis';
 const CONSOLIDATION_ITEMS_AXIS = 'srt:ConsolidationItemsAxis';
 const OPERATING_SEGMENTS_MEMBER = 'us-gaap:OperatingSegmentsMember';
+const INTERSEGMENT_ELIMINATION_MEMBER = 'us-gaap:IntersegmentEliminationMember';
+const CORPORATE_NON_SEGMENT_MEMBER = 'us-gaap:CorporateNonSegmentMember';
 
 // AMD's Q2 2026 Form 10-Q (0000002488-26-000123) reports three accounting
 // segments. Client and Gaming is one reportable segment, while its two
@@ -87,6 +93,99 @@ const AMD_REVENUE_BREAKDOWN = [
     labelZh: '嵌入式',
     parentId: 'embedded',
     members: AMD_SEGMENTS[2].members,
+  },
+];
+
+// Costco's Q3 2026 reportable segments are its three disclosed geographic
+// operating groups. The same official rows therefore support both the segment
+// and geography sections without inferring country-level revenue.
+const COSTCO_SEGMENTS = [
+  {
+    id: 'united-states',
+    label: 'United States',
+    labelZh: '美国',
+    members: {
+      [CONSOLIDATION_ITEMS_AXIS]: OPERATING_SEGMENTS_MEMBER,
+      [BUSINESS_SEGMENTS_AXIS]: 'cost:UnitedStatesMember',
+    },
+  },
+  {
+    id: 'canada',
+    label: 'Canada',
+    labelZh: '加拿大',
+    members: {
+      [CONSOLIDATION_ITEMS_AXIS]: OPERATING_SEGMENTS_MEMBER,
+      [BUSINESS_SEGMENTS_AXIS]: 'cost:CanadaMember',
+    },
+  },
+  {
+    id: 'other-international',
+    label: 'Other International',
+    labelZh: '其他国际市场',
+    members: {
+      [CONSOLIDATION_ITEMS_AXIS]: OPERATING_SEGMENTS_MEMBER,
+      [BUSINESS_SEGMENTS_AXIS]: 'cost:OtherInternationalMember',
+    },
+  },
+];
+
+const COSTCO_REVENUE_BREAKDOWN = [
+  {
+    id: 'foods-sundries',
+    label: 'Foods and Sundries',
+    labelZh: '食品与杂货',
+    members: { [PRODUCT_OR_SERVICE_AXIS]: 'cost:FoodsAndSundriesMember' },
+  },
+  {
+    id: 'non-foods',
+    label: 'Non-Foods',
+    labelZh: '非食品',
+    members: { [PRODUCT_OR_SERVICE_AXIS]: 'cost:NonFoodsMember' },
+  },
+  {
+    id: 'fresh-foods',
+    label: 'Fresh Foods',
+    labelZh: '生鲜食品',
+    members: { [PRODUCT_OR_SERVICE_AXIS]: 'cost:FreshFoodsMember' },
+  },
+  {
+    id: 'warehouse-ancillary-other',
+    label: 'Warehouse Ancillary and Other Businesses',
+    labelZh: '仓储配套及其他业务',
+    members: { [PRODUCT_OR_SERVICE_AXIS]: 'cost:OtherMember' },
+  },
+  {
+    id: 'membership-fees',
+    label: 'Membership fees',
+    labelZh: '会员费',
+    members: { [PRODUCT_OR_SERVICE_AXIS]: 'us-gaap:MembershipMember' },
+  },
+];
+
+const UNITEDHEALTH_SEGMENTS = [
+  {
+    id: 'unitedhealthcare',
+    label: 'UnitedHealthcare',
+    labelZh: '联合医疗保险',
+    member: 'unh:UnitedhealthcareMember',
+  },
+  {
+    id: 'optum-health',
+    label: 'Optum Health',
+    labelZh: 'Optum 健康',
+    member: 'unh:OptumHealthMember',
+  },
+  {
+    id: 'optum-insight',
+    label: 'Optum Insight',
+    labelZh: 'Optum 洞察',
+    member: 'unh:OptumInsightMember',
+  },
+  {
+    id: 'optum-rx',
+    label: 'Optum Rx',
+    labelZh: 'Optum Rx',
+    member: 'unh:OptumRxMember',
   },
 ];
 
@@ -295,6 +394,15 @@ const INLINE_ADAPTERS = new Map([
     fiscalDateToleranceDays: 7,
     parseSections: parseAdvancedMicroDevicesSections,
   }],
+  ['COST', {
+    id: 'costco-inline-xbrl',
+    cik: COSTCO_CIK,
+    forms: ['10-Q'],
+    fiscalDates: ['2026-05-10'],
+    fiscalYear: '2026',
+    fiscalPeriod: 'Q3',
+    parseSections: parseCostcoSections,
+  }],
   ['META', {
     id: 'meta-inline-xbrl',
     cik: META_CIK,
@@ -306,6 +414,16 @@ const INLINE_ADAPTERS = new Map([
     cik: MICROSOFT_CIK,
     forms: ['10-Q'],
     parseSections: parseMicrosoftSections,
+  }],
+  ['UNH', {
+    id: 'unitedhealth-inline-xbrl',
+    cik: UNITEDHEALTH_CIK,
+    forms: ['10-Q'],
+    fiscalDates: ['2026-03-31'],
+    fiscalYear: '2026',
+    fiscalPeriod: 'Q1',
+    totalConcept: REVENUES_CONCEPT,
+    parseSections: parseUnitedHealthSections,
   }],
 ]);
 
@@ -353,6 +471,17 @@ export function parseSecUsHoldingBusinessDocument({
     }
   }
 
+  if (normalizedSymbol === 'UNH') {
+    const filingForm = normalizeForm(filing.form);
+    if (filingForm === '8-K' || filingForm === 'EX-99.1') {
+      return parseUnitedHealthEarningsRelease({
+        fiscalDate: normalizedFiscalDate,
+        html,
+        filing,
+      });
+    }
+  }
+
   const adapter = INLINE_ADAPTERS.get(normalizedSymbol);
   if (!adapter) return null;
   if (filing.cik && normalizeCik(filing.cik) !== adapter.cik) return null;
@@ -363,6 +492,7 @@ export function parseSecUsHoldingBusinessDocument({
   const documentFiscalDate = normalizeDocumentDate(
     uniqueTextFact(document, 'dei:DocumentPeriodEndDate'),
   );
+  if (adapter.fiscalDates && !adapter.fiscalDates.includes(documentFiscalDate)) return null;
   if (document.malformed || !inlineDocumentIdentityMatches(document, {
     cik: adapter.cik,
     fiscalDate: normalizedFiscalDate,
@@ -372,7 +502,11 @@ export function parseSecUsHoldingBusinessDocument({
     return null;
   }
 
-  const periods = resolveReportedQuarterPeriods(document, documentFiscalDate);
+  const periods = resolveReportedQuarterPeriods(
+    document,
+    documentFiscalDate,
+    adapter.totalConcept || REVENUE_CONCEPT,
+  );
   if (!periods) return null;
   const sections = adapter.parseSections(
     document,
@@ -384,7 +518,11 @@ export function parseSecUsHoldingBusinessDocument({
     adapterId: adapter.id,
     cik: adapter.cik,
     filing,
-    period: periods.period,
+    period: {
+      ...periods.period,
+      ...(adapter.fiscalYear ? { fiscalYear: adapter.fiscalYear } : {}),
+      ...(adapter.fiscalPeriod ? { fiscalPeriod: adapter.fiscalPeriod } : {}),
+    },
     sections,
     evidence: 'official-primary-inline-xbrl',
   });
@@ -494,6 +632,114 @@ function parseAdvancedMicroDevicesSections(document, period, previousPeriod) {
       && reconcilesRevenue(revenueBreakdown, totals)
       ? completeSection(revenueBreakdown)
       : unavailableSection(),
+    geographies: unavailableSection('quarterly-geography-not-disclosed'),
+  };
+}
+
+function parseCostcoSections(document, period, previousPeriod) {
+  const totals = consolidatedRevenueTotals(document, period, previousPeriod);
+  const profitTotals = consolidatedProfitTotals(document, period, previousPeriod);
+  const reportSegments = COSTCO_SEGMENTS.map((definition) => segmentItem({
+    document,
+    period,
+    previousPeriod,
+    revenueConcept: REVENUE_CONCEPT,
+    definition,
+    members: definition.members,
+  }));
+  const revenueBreakdown = COSTCO_REVENUE_BREAKDOWN.map((definition) => revenueItem({
+    document,
+    period,
+    previousPeriod,
+    concept: REVENUE_CONCEPT,
+    definition,
+    members: definition.members,
+  }));
+  const netSalesTotals = {
+    revenue: selectUniqueFact(document, {
+      concept: REVENUE_CONCEPT,
+      period,
+      members: { [PRODUCT_OR_SERVICE_AXIS]: 'us-gaap:ProductMember' },
+    }),
+    previousRevenue: selectUniqueFact(document, {
+      concept: REVENUE_CONCEPT,
+      period: previousPeriod,
+      members: { [PRODUCT_OR_SERVICE_AXIS]: 'us-gaap:ProductMember' },
+    }),
+  };
+  const merchandiseCategories = revenueBreakdown.slice(0, -1);
+  const segmentRowsComplete = reportSegments.every(segmentItemComplete)
+    && reconcilesRevenue(reportSegments, totals)
+    && reconcilesProfit(reportSegments, profitTotals);
+  const revenueRowsComplete = revenueBreakdown.every(revenueItemComplete)
+    && reconcilesRevenue(merchandiseCategories, netSalesTotals)
+    && reconcilesRevenue(revenueBreakdown, totals);
+  const geographies = reportSegments.map((item) => ({
+    id: item.id,
+    label: item.label,
+    labelZh: item.labelZh,
+    revenue: item.revenue,
+    previousRevenue: item.previousRevenue,
+  }));
+
+  return {
+    reportSegments: segmentRowsComplete
+      ? completeSection(reportSegments)
+      : unavailableSection(),
+    revenueBreakdown: revenueRowsComplete
+      ? completeSection(revenueBreakdown)
+      : unavailableSection(),
+    geographies: segmentRowsComplete && geographies.every(revenueItemComplete)
+      && reconcilesRevenue(geographies, totals)
+      ? completeSection(geographies)
+      : unavailableSection(),
+  };
+}
+
+function parseUnitedHealthSections(document, period, previousPeriod) {
+  const totals = consolidatedRevenueTotals(
+    document,
+    period,
+    previousPeriod,
+    REVENUES_CONCEPT,
+  );
+  const profitTotals = consolidatedProfitTotals(document, period, previousPeriod);
+  const reportSegments = UNITEDHEALTH_SEGMENTS.map((definition) => segmentItem({
+    document,
+    period,
+    previousPeriod,
+    revenueConcept: REVENUES_CONCEPT,
+    definition,
+    members: {
+      [CONSOLIDATION_ITEMS_AXIS]: OPERATING_SEGMENTS_MEMBER,
+      [BUSINESS_SEGMENTS_AXIS]: definition.member,
+    },
+  }));
+  const revenueAdjustments = [
+    INTERSEGMENT_ELIMINATION_MEMBER,
+    CORPORATE_NON_SEGMENT_MEMBER,
+  ].map((member) => ({
+    revenue: selectUniqueFact(document, {
+      concept: REVENUES_CONCEPT,
+      period,
+      members: { [CONSOLIDATION_ITEMS_AXIS]: member },
+    }),
+    previousRevenue: selectUniqueFact(document, {
+      concept: REVENUES_CONCEPT,
+      period: previousPeriod,
+      members: { [CONSOLIDATION_ITEMS_AXIS]: member },
+    }),
+  }));
+  const reportSegmentsComplete = reportSegments.every(segmentItemComplete)
+    && revenueAdjustments.every(revenueItemComplete)
+    && reconcilesRevenueWithAdjustments(reportSegments, revenueAdjustments, totals)
+    && reconcilesProfit(reportSegments, profitTotals);
+
+  return {
+    reportSegments: reportSegmentsComplete
+      ? completeSection(reportSegments, revenueReconciliation(revenueAdjustments))
+      : unavailableSection(),
+    revenueBreakdown: unavailableSection('quarterly-product-revenue-not-disclosed'),
     geographies: unavailableSection('quarterly-geography-not-disclosed'),
   };
 }
@@ -760,6 +1006,125 @@ function parseMicrosoftEarningsRelease({ fiscalDate, html, filing }) {
   });
 }
 
+function parseUnitedHealthEarningsRelease({ fiscalDate, html, filing }) {
+  if (fiscalDate !== '2026-06-30'
+    || normalizeCik(filing.cik) !== UNITEDHEALTH_CIK
+    || normalizeForm(filing.form) !== '8-K'
+    || normalizeForm(filing.documentType) !== 'EX-99.1'
+    || normalizeAccession(filing.accession)
+      !== normalizeAccession(UNITEDHEALTH_Q2_2026_ACCESSION)) {
+    return null;
+  }
+
+  const text = htmlToText(html);
+  if (!/UnitedHealth Group Reports Second Quarter 2026 Results/i.test(text)) return null;
+  const revenueAnchor = lastMatchIndex(
+    text,
+    /REVENUES BY BUSINESS\s*-\s*SUPPLEMENTAL FINANCIAL INFORMATION/gi,
+  );
+  const earningsAnchor = lastMatchIndex(
+    text,
+    /EARNINGS BY BUSINESS\s*-\s*SUPPLEMENTAL FINANCIAL INFORMATION/gi,
+  );
+  if (revenueAnchor < 0 || earningsAnchor <= revenueAnchor) return null;
+  const revenueSection = text.slice(revenueAnchor, earningsAnchor);
+  const earningsSection = text.slice(earningsAnchor, earningsAnchor + 12_000);
+  if (!/\(in millions; unaudited\)/i.test(revenueSection)
+    || !/\(in millions, except percentages; unaudited\)/i.test(earningsSection)
+    || !unitedHealthReleaseHeaderMatches(revenueSection)
+    || !unitedHealthReleaseHeaderMatches(earningsSection)) {
+    return null;
+  }
+
+  const currentRevenue = extractUnitedHealthReleaseRow(
+    revenueSection,
+    '2026-06-30',
+    'Total revenues',
+  );
+  const previousRevenue = extractUnitedHealthReleaseRow(
+    revenueSection,
+    '2025-06-30',
+    'Total revenues',
+  );
+  const currentProfit = extractUnitedHealthReleaseRow(
+    earningsSection,
+    '2026-06-30',
+    'Earnings from operations',
+  );
+  const previousProfit = extractUnitedHealthReleaseRow(
+    earningsSection,
+    '2025-06-30',
+    'Earnings from operations',
+  );
+  const eliminations = extractUnitedHealthReleaseEliminations(revenueSection);
+  if (!currentRevenue || !previousRevenue || !currentProfit || !previousProfit || !eliminations) {
+    return null;
+  }
+
+  const reportSegments = UNITEDHEALTH_SEGMENTS.map((definition, index) => ({
+    id: definition.id,
+    label: definition.label,
+    labelZh: definition.labelZh,
+    revenue: currentRevenue[index],
+    previousRevenue: previousRevenue[index],
+    profitMetric: 'operatingIncome',
+    profit: currentProfit[index],
+    previousProfit: previousProfit[index],
+  }));
+  const revenueAdjustments = [
+    {
+      revenue: -eliminations.optum.current,
+      previousRevenue: -eliminations.optum.previous,
+    },
+    {
+      revenue: -eliminations.corporate.current,
+      previousRevenue: -eliminations.corporate.previous,
+    },
+  ];
+  const totals = {
+    revenue: currentRevenue[5],
+    previousRevenue: previousRevenue[5],
+  };
+  const profitTotals = {
+    profit: currentProfit[5],
+    previousProfit: previousProfit[5],
+  };
+  const optumSegments = reportSegments.slice(1);
+  if (!reportSegments.every(segmentItemComplete)
+    || !reconcilesRevenueWithAdjustments(reportSegments, revenueAdjustments, totals)
+    || !reconcilesRevenueWithAdjustments(optumSegments, revenueAdjustments.slice(0, 1), {
+      revenue: currentRevenue[4],
+      previousRevenue: previousRevenue[4],
+    })
+    || !reconcilesProfit(reportSegments, profitTotals)
+    || !reconcilesProfit(optumSegments, {
+      profit: currentProfit[4],
+      previousProfit: previousProfit[4],
+    })) {
+    return null;
+  }
+
+  return parsedResult({
+    adapterId: 'unitedhealth-earnings-release',
+    cik: UNITEDHEALTH_CIK,
+    filing,
+    period: {
+      ...quarterPeriodEnding(fiscalDate),
+      fiscalYear: '2026',
+      fiscalPeriod: 'Q2',
+    },
+    evidence: 'official-8-k-exhibit-99.1',
+    sections: {
+      reportSegments: completeSection(
+        reportSegments,
+        revenueReconciliation(revenueAdjustments),
+      ),
+      revenueBreakdown: unavailableSection('quarterly-product-revenue-not-disclosed'),
+      geographies: unavailableSection('quarterly-geography-not-disclosed'),
+    },
+  });
+}
+
 function parsedResult({
   adapterId,
   cik,
@@ -789,17 +1154,73 @@ function parsedResult({
   };
 }
 
-function consolidatedRevenueTotals(document, period, previousPeriod) {
+function consolidatedRevenueTotals(
+  document,
+  period,
+  previousPeriod,
+  concept = REVENUE_CONCEPT,
+) {
   return {
     revenue: selectUniqueFact(document, {
-      concept: REVENUE_CONCEPT,
+      concept,
       period,
       members: {},
     }),
     previousRevenue: selectUniqueFact(document, {
-      concept: REVENUE_CONCEPT,
+      concept,
       period: previousPeriod,
       members: {},
+    }),
+  };
+}
+
+function consolidatedProfitTotals(document, period, previousPeriod) {
+  return {
+    profit: selectUniqueFact(document, {
+      concept: OPERATING_INCOME_CONCEPT,
+      period,
+      members: {},
+    }),
+    previousProfit: selectUniqueFact(document, {
+      concept: OPERATING_INCOME_CONCEPT,
+      period: previousPeriod,
+      members: {},
+    }),
+  };
+}
+
+function segmentItem({
+  document,
+  period,
+  previousPeriod,
+  revenueConcept,
+  definition,
+  members,
+}) {
+  return {
+    id: definition.id,
+    label: definition.label,
+    labelZh: definition.labelZh,
+    revenue: selectUniqueFact(document, {
+      concept: revenueConcept,
+      period,
+      members,
+    }),
+    previousRevenue: selectUniqueFact(document, {
+      concept: revenueConcept,
+      period: previousPeriod,
+      members,
+    }),
+    profitMetric: 'operatingIncome',
+    profit: selectUniqueFact(document, {
+      concept: OPERATING_INCOME_CONCEPT,
+      period,
+      members,
+    }),
+    previousProfit: selectUniqueFact(document, {
+      concept: OPERATING_INCOME_CONCEPT,
+      period: previousPeriod,
+      members,
     }),
   };
 }
@@ -1061,6 +1482,48 @@ function extractFourPeriodRow(statement, label) {
   return rows.size === 1 ? rows.values().next().value : null;
 }
 
+function unitedHealthReleaseHeaderMatches(section) {
+  return [
+    'UnitedHealthcare',
+    'Optum Health',
+    'Optum Insight',
+    'Optum Rx',
+    'Total Optum',
+    'UnitedHealth Group Consolidated',
+  ].every((label) => new RegExp(escapeRegExp(label), 'i').test(section));
+}
+
+function extractUnitedHealthReleaseRow(section, fiscalDate, label) {
+  const rowStart = String.raw`Three Months Ended\s+${escapeRegExp(englishDate(fiscalDate))}`
+    + String.raw`\s*(?:-\s*)?${escapeRegExp(label)}`;
+  const amount = '\\$?\\s*(\\(?\\s*[\\d,]+(?:\\.\\d+)?\\s*\\)?)';
+  const pattern = new RegExp(
+    rowStart
+      + '(?:\\s|\\.){1,160}'
+      + Array.from({ length: 6 }, () => amount).join('\\s+'),
+    'gi',
+  );
+  const rows = new Map();
+  for (const match of section.matchAll(pattern)) {
+    const values = match.slice(1, 7).map(parseMillions);
+    if (values.every(finite)) rows.set(values.join('|'), values);
+  }
+  return rows.size === 1 ? rows.values().next().value : null;
+}
+
+function extractUnitedHealthReleaseEliminations(section) {
+  const match = section.match(
+    /Optum eliminations of\s+\$?([\d,]+)\s+and\s+\$?([\d,]+);?\s+and corporate eliminations of\s+\$?([\d,]+)\s+and\s+\$?([\d,]+)/i,
+  );
+  if (!match) return null;
+  const values = match.slice(1, 5).map(parseMillions);
+  if (!values.every(finite)) return null;
+  return {
+    optum: { current: values[0], previous: values[1] },
+    corporate: { current: values[2], previous: values[3] },
+  };
+}
+
 function parseMillions(value) {
   const raw = String(value || '').replace(/[,\s]/g, '');
   const parenthesized = raw.startsWith('(') && raw.endsWith(')');
@@ -1074,6 +1537,16 @@ function reconcilesRevenue(items, totals) {
   if (!finite(totals?.revenue) || !finite(totals?.previousRevenue)) return false;
   return items.reduce((sum, item) => sum + item.revenue, 0) === totals.revenue
     && items.reduce((sum, item) => sum + item.previousRevenue, 0) === totals.previousRevenue;
+}
+
+function reconcilesRevenueWithAdjustments(items, adjustments, totals) {
+  if (!finite(totals?.revenue) || !finite(totals?.previousRevenue)) return false;
+  return [...items, ...adjustments].reduce((sum, item) => sum + item.revenue, 0)
+      === totals.revenue
+    && [...items, ...adjustments].reduce(
+      (sum, item) => sum + item.previousRevenue,
+      0,
+    ) === totals.previousRevenue;
 }
 
 function reconcilesProfit(items, totals) {
@@ -1092,11 +1565,25 @@ function membersEqual(actual = {}, expected = {}) {
   ));
 }
 
-function completeSection(items) {
+function revenueReconciliation(adjustments) {
+  return {
+    id: 'segment-reconciliation',
+    label: 'Eliminations and corporate adjustments',
+    labelZh: '抵销及公司层调整',
+    revenue: adjustments.reduce((sum, item) => sum + item.revenue, 0),
+    previousRevenue: adjustments.reduce(
+      (sum, item) => sum + item.previousRevenue,
+      0,
+    ),
+  };
+}
+
+function completeSection(items, reconciliation = null) {
   return {
     status: 'complete',
     reason: null,
     items,
+    ...(reconciliation ? { reconciliation } : {}),
   };
 }
 
@@ -1222,6 +1709,10 @@ function normalizeCik(value) {
   return digits ? digits.padStart(10, '0') : '';
 }
 
+function normalizeAccession(value) {
+  return String(value || '').replace(/\D/g, '');
+}
+
 function normalizeForm(value) {
   return String(value || '').trim().toUpperCase().replace(/\s+/g, '');
 }
@@ -1232,6 +1723,12 @@ function normalizeSymbol(value) {
 
 function safeText(value, maxLength) {
   return String(value || '').trim().slice(0, maxLength);
+}
+
+function lastMatchIndex(value, pattern) {
+  let index = -1;
+  for (const match of String(value || '').matchAll(pattern)) index = match.index;
+  return index;
 }
 
 function escapeRegExp(value) {

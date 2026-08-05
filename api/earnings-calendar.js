@@ -436,6 +436,8 @@ export function mergeEarningsTrendData(events, trends) {
       reportDate: dateKey(event.report_date || event.reportDate || event.date),
       fiscalDate,
       providerFiscalDate: providerFiscalDate || fiscalDate,
+      officialFiscalDate: dateKey(event.officialFiscalDate)
+        || (explicitProviderFiscalDate && fiscalDate !== providerFiscalDate ? fiscalDate : null),
       session: normalizeEarningsSession(event.before_after_market || event.beforeAfterMarket || event.time || event.session),
       epsEstimate,
       epsActual,

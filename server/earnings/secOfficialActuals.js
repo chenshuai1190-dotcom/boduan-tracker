@@ -28,6 +28,9 @@ const FILING_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const RESULT_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const MISS_CACHE_TTL_MS = 5 * 60 * 1000;
 const SEC_FISCAL_DATE_TOLERANCE_DAYS = 7;
+const SEC_PROVIDER_FISCAL_DATE_TOLERANCE_DAYS = 31;
+const SEC_EARNINGS_FILING_LEAD_DAYS = 2;
+const SEC_EARNINGS_FILING_LAG_DAYS = 14;
 
 const KNOWN_CIK_BY_SYMBOL = new Map([
   ['AMD', '0000002488'],
@@ -135,6 +138,8 @@ export async function fetchSecOfficialActuals({
 export async function fetchSecEarningsFilingSource({
   symbol,
   fiscalDate,
+  providerFiscalDate,
+  officialFiscalDate,
   reportDate,
   includePrimaryDocument = true,
   preferredFilingTypes = [],
@@ -147,6 +152,9 @@ export async function fetchSecEarningsFilingSource({
 } = {}) {
   const normalizedSymbol = normalizeSymbol(symbol);
   const normalizedFiscalDate = dateKey(fiscalDate);
+  const normalizedProviderFiscalDate = dateKey(providerFiscalDate) || normalizedFiscalDate;
+  const normalizedOfficialFiscalDate = dateKey(officialFiscalDate);
+  const selectionFiscalDate = normalizedOfficialFiscalDate || normalizedFiscalDate;
   const normalizedReportDate = dateKey(reportDate);
   const normalizedNow = normalizeDate(now) || new Date();
   const today = newYorkDateKey(normalizedNow);
@@ -154,12 +162,15 @@ export async function fetchSecEarningsFilingSource({
     status: 'pending',
     reason: null,
     symbol: normalizedSymbol,
-    fiscalDate: normalizedFiscalDate,
+    fiscalDate: selectionFiscalDate,
+    providerFiscalDate: normalizedProviderFiscalDate,
+    officialFiscalDate: normalizedOfficialFiscalDate || null,
     reportDate: normalizedReportDate,
   };
 
   if (!/^[A-Z0-9.-]{1,15}$/.test(normalizedSymbol)
-    || !normalizedFiscalDate
+    || !selectionFiscalDate
+    || !normalizedProviderFiscalDate
     || !normalizedReportDate) {
     return { ...base, status: 'unsupported', reason: 'invalid-sec-filing-request' };
   }
@@ -212,11 +223,15 @@ export async function fetchSecEarningsFilingSource({
 
     const filing = selectEarningsDetailFiling(
       normalizeRecentFilings(submissions),
-      normalizedFiscalDate,
+      selectionFiscalDate,
       normalizedReportDate,
       today,
       normalizedSymbol,
       preferredFilingTypes,
+      {
+        providerFiscalDate: normalizedProviderFiscalDate,
+        explicitOfficialFiscalDate: normalizedOfficialFiscalDate,
+      },
     );
     if (!filing) {
       return {
@@ -226,10 +241,15 @@ export async function fetchSecEarningsFilingSource({
       };
     }
 
+    const filingOfficialFiscalDate = /^(?:10-Q|10-K|20-F)$/.test(filing.form)
+      ? filing.reportDate
+      : selectionFiscalDate;
     const source = {
       ...base,
       status: 'complete',
       reason: null,
+      fiscalDate: filingOfficialFiscalDate || selectionFiscalDate,
+      officialFiscalDate: filingOfficialFiscalDate || normalizedOfficialFiscalDate || null,
       secCik: cik,
       accession: filing.accession,
       form: filing.form,
@@ -493,6 +513,7 @@ export function mergeSecOfficialActuals(events, officialActuals) {
       ...provenance,
       providerFiscalDate: event.providerFiscalDate || event.fiscalDate,
       fiscalDate: dateKey(official.fiscalDate) || event.fiscalDate,
+      officialFiscalDate: dateKey(official.fiscalDate) || event.officialFiscalDate || null,
       epsActual: official.epsActual,
       actual: official.epsActual,
       epsPreviousYear: official.epsPreviousYear,
@@ -834,6 +855,10 @@ function selectEarningsDetailFiling(
   today,
   symbol,
   preferredFilingTypes = [],
+  {
+    providerFiscalDate = fiscalDate,
+    explicitOfficialFiscalDate = '',
+  } = {},
 ) {
   const filingTypes = normalizePreferredFilingTypes(preferredFilingTypes);
   if (filingTypes.length > 0) {
@@ -849,6 +874,14 @@ function selectEarningsDetailFiling(
           fiscalDate,
           today,
         );
+        if (!preferred && !explicitOfficialFiscalDate) {
+          preferred = selectUniqueProviderAnchoredFiscalFiling(
+            filings.filter((filing) => filing.form === filingType),
+            providerFiscalDate,
+            reportDate,
+            today,
+          );
+        }
       }
       if (preferred) return preferred;
     }
@@ -859,6 +892,15 @@ function selectEarningsDetailFiling(
 
   const periodic = selectUniqueNearestFiscalFiling(filings, fiscalDate, today);
   if (periodic) return periodic;
+  if (!explicitOfficialFiscalDate) {
+    const providerAnchored = selectUniqueProviderAnchoredFiscalFiling(
+      filings,
+      providerFiscalDate,
+      reportDate,
+      today,
+    );
+    if (providerAnchored) return providerAnchored;
+  }
   const foreignEarnings = selectEarnings6KFiling(
     filings,
     reportDate,
@@ -868,6 +910,52 @@ function selectEarningsDetailFiling(
   );
   if (foreignEarnings) return foreignEarnings;
   return selectEarnings8KFiling(filings, reportDate, today);
+}
+
+function selectUniqueProviderAnchoredFiscalFiling(
+  filings,
+  providerFiscalDate,
+  reportDate,
+  today,
+) {
+  const providerTarget = parseDate(providerFiscalDate);
+  const reportTarget = parseDate(reportDate);
+  if (!providerTarget || !reportTarget) return null;
+  const formPriority = new Map([
+    ['10-Q', 0],
+    ['10-K', 1],
+    ['20-F', 2],
+  ]);
+  const candidates = (filings || [])
+    .filter((filing) => formPriority.has(filing.form))
+    .filter((filing) => filing.filingDate <= today)
+    .map((filing) => {
+      const officialPeriod = parseDate(filing.reportDate);
+      const filedAt = parseDate(filingAvailableDate(filing));
+      return {
+        filing,
+        officialPeriod,
+        providerDistance: Math.abs(dayDifference(providerTarget, officialPeriod)),
+        filingDistance: dayDifference(reportTarget, filedAt),
+        formPriority: formPriority.get(filing.form),
+      };
+    })
+    .filter(({ officialPeriod, providerDistance, filingDistance }) => (
+      officialPeriod
+      && officialPeriod <= reportTarget
+      && providerDistance > SEC_FISCAL_DATE_TOLERANCE_DAYS
+      && providerDistance <= SEC_PROVIDER_FISCAL_DATE_TOLERANCE_DAYS
+      && filingDistance >= -SEC_EARNINGS_FILING_LEAD_DAYS
+      && filingDistance <= SEC_EARNINGS_FILING_LAG_DAYS
+    ))
+    .sort((a, b) => (
+      a.providerDistance - b.providerDistance
+      || a.formPriority - b.formPriority
+      || b.filing.filingDate.localeCompare(a.filing.filingDate)
+    ));
+  if (candidates.length === 0) return null;
+  const officialPeriods = new Set(candidates.map(({ filing }) => filing.reportDate));
+  return officialPeriods.size === 1 ? candidates[0].filing : null;
 }
 
 function selectUniqueNearestFiscalFiling(filings, fiscalDate, today) {

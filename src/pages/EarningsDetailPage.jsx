@@ -61,7 +61,10 @@ function displayDate(value, language) {
 
 function reportingPeriodText(detail, event, language) {
   const start = detail?.period?.start;
-  const end = detail?.period?.end || event?.fiscalDate;
+  const end = detail?.period?.end
+    || detail?.period?.officialFiscalDate
+    || event?.officialFiscalDate
+    || event?.fiscalDate;
   if (start && end) {
     return language === 'en'
       ? `Reporting period ${displayDate(start, language)}—${displayDate(end, language)}`
@@ -76,7 +79,17 @@ function reportingPeriodText(detail, event, language) {
 }
 
 function periodLabel(event, detail, language) {
-  const fiscalDate = detail?.period?.fiscalDate || event?.fiscalDate;
+  const fiscalYear = String(detail?.period?.fiscalYear || '').match(/^\d{4}$/)?.[0];
+  const fiscalPeriod = String(detail?.period?.fiscalPeriod || '').toUpperCase().match(/^Q[1-4]$/)?.[0];
+  if (fiscalYear && fiscalPeriod) {
+    return language === 'en'
+      ? `FY ${fiscalYear} ${fiscalPeriod}`
+      : `${fiscalYear} 财年 ${fiscalPeriod}`;
+  }
+  const fiscalDate = detail?.period?.officialFiscalDate
+    || detail?.period?.fiscalDate
+    || event?.officialFiscalDate
+    || event?.fiscalDate;
   if (!detail?.period?.start && fiscalDate) {
     return language === 'en'
       ? `Period ended ${displayDate(fiscalDate, language)}`
@@ -412,7 +425,7 @@ export default function EarningsDetailPage({ ctx }) {
 
   React.useEffect(() => {
     globalThis.scrollTo?.({ top: 0, behavior: 'auto' });
-  }, [symbol, event?.fiscalDate, event?.reportDate]);
+  }, [symbol, event?.providerFiscalDate, event?.officialFiscalDate, event?.fiscalDate, event?.reportDate]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -438,6 +451,8 @@ export default function EarningsDetailPage({ ctx }) {
       supabase,
       symbol: event.symbol,
       fiscalDate: event.fiscalDate,
+      providerFiscalDate: event.providerFiscalDate || event.fiscalDate,
+      officialFiscalDate: event.officialFiscalDate || null,
       reportDate: event.reportDate,
     }).then((payload) => {
       if (!cancelled) setDetail(payload);
