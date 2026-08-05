@@ -98,10 +98,13 @@ test('Home adds a compact same-row cash entry without changing its financial led
   assert.ok(rowBlock.includes('availableCashIsSet ? 2 : 0'), 'an unset balance should render as a compact currency zero');
   assert.match(
     homeSource,
-    /grid-cols-\[1fr_1\.12fr_0\.96fr\][^\n]*data-home-total-assets="true"[\s\S]{0,900}?data-home-available-cash-trigger="true"/,
+    /grid-cols-\[1fr_1\.12fr_0\.96fr\][^\n]*data-home-total-assets="true"[\s\S]{0,1200}?data-home-available-cash-trigger="true"/,
     'cash should use the same third-column start as the margin block below',
   );
-  assert.ok(rowBlock.includes('col-start-3') && rowBlock.includes('pl-3'));
+  assert.ok(rowBlock.includes('col-start-3 flex min-w-0 justify-end') && rowBlock.includes('pl-3'));
+  assert.ok(rowBlock.includes('w-max min-w-full max-w-none shrink-0'));
+  assert.ok(rowBlock.includes('shrink-0 whitespace-nowrap'));
+  assert.equal(rowBlock.includes('max-w-[118px] truncate'), false, 'long Home cash amounts should expand left instead of truncating');
   assert.ok(rowBlock.includes('text-[12px]'), 'the cash amount should match the total-assets amount size');
   assert.ok(homeSource.includes('assetStatusReady = marginStatusReady && availableCashStatusReady'));
   assert.ok(homeSource.includes('availableCashWriteReady = availableCashStatusReady && availableCashStatus?.writeReady === true'));
@@ -133,7 +136,10 @@ test('Trades mirrors the Home available-cash display and editor through the shar
   assert.ok(rowBlock.includes('data-trades-available-cash-trigger="true"'));
   assert.ok(rowBlock.includes('disabled={!availableCashWriteReady}'));
   assert.ok(rowBlock.includes("tt('home.cash', '现金')"));
-  assert.ok(rowBlock.includes('col-start-3') && rowBlock.includes('pl-3'));
+  assert.ok(rowBlock.includes('col-start-3 flex min-w-0 justify-end') && rowBlock.includes('pl-3'));
+  assert.ok(rowBlock.includes('w-max min-w-full max-w-none shrink-0'));
+  assert.ok(rowBlock.includes('shrink-0 whitespace-nowrap'));
+  assert.equal(rowBlock.includes('max-w-[118px] truncate'), false, 'long Trades cash amounts should expand left instead of truncating');
   assert.ok(rowBlock.includes('availableCashIsSet ? 2 : 0'));
   assert.equal(rowBlock.includes("tt('home.availableCashSet', '设置')"), false);
   assert.ok(tradesSource.includes('<AvailableCashEditor'));

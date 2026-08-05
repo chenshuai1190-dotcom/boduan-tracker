@@ -896,21 +896,23 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                 {assetStatusReady ? `${displayCurrency === 'CNY' ? '¥' : '$'}${fmtAmount(displayAssets, 2)}` : '--'}
               </span>
             </div>
-            <button
-              type="button"
-              disabled={!availableCashWriteReady}
-              onClick={() => setShowAvailableCashEditor(true)}
-              className="col-start-3 flex min-w-0 items-center gap-1 pl-3 text-left transition active:scale-[0.99] disabled:cursor-wait disabled:opacity-45"
-              aria-label={tt('home.availableCashBalance', '设置可用现金')}
-              data-trades-available-cash-trigger="true"
-            >
-              <span className="text-[13px]">{tt('home.cash', '现金')}</span>
-              <span className="max-w-[118px] truncate text-[12px] text-white/[0.72] tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>
-                {availableCashStatusReady
-                  ? currencyAmount(displayAvailableCash, displayCurrency, availableCashIsSet ? 2 : 0)
-                  : '--'}
-              </span>
-            </button>
+            <div className="col-start-3 flex min-w-0 justify-end">
+              <button
+                type="button"
+                disabled={!availableCashWriteReady}
+                onClick={() => setShowAvailableCashEditor(true)}
+                className="flex w-max min-w-full max-w-none shrink-0 items-center gap-1 overflow-visible pl-3 text-left transition active:scale-[0.99] disabled:cursor-wait disabled:opacity-45"
+                aria-label={tt('home.availableCashBalance', '设置可用现金')}
+                data-trades-available-cash-trigger="true"
+              >
+                <span className="shrink-0 whitespace-nowrap text-[13px]">{tt('home.cash', '现金')}</span>
+                <span className="shrink-0 whitespace-nowrap text-[12px] text-white/[0.72] tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>
+                  {availableCashStatusReady
+                    ? currencyAmount(displayAvailableCash, displayCurrency, availableCashIsSet ? 2 : 0)
+                    : '--'}
+                </span>
+              </button>
+            </div>
           </div>
 
           <div

@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '💵 现金长金额改为向左自适应完整显示',
+      '  - 首页与交易页的短现金金额继续从融资负债第三列起点对齐，保留原卡片比例、字号和间距',
+      '  - 百万级等较长金额以卡片右侧为锚点自动向左扩展，不再换行、显示省略号或挤出卡片',
+      '  - 本次只调整现金显示布局，不修改现金保存、资产口径、个人收益、数据库或行情链路',
+    ],
+    itemsEn: [
+      '💵 Long cash balances now expand left and remain fully visible',
+      '  - Short cash balances on Home and Trades keep the original third-column alignment with Margin Debt, card proportions, typography, and spacing',
+      '  - Million-scale and other long balances stay anchored to the card’s right edge and expand left without wrapping, ellipsis, or overflow',
+      '  - This is a cash-display layout change only, with no change to cash persistence, asset accounting, personal P&L, the database, or market data',
+    ],
+  },
+  {
+    ver: 'v10.7.9.423', date: '2026-08-05',
+    items: [
       '💵 交易页头部同步可用现金',
       '  - 交易页与首页使用相同的现金金额、默认 ¥0/$0、币种切换和融资列对齐样式',
       '  - 点击交易页现金复用同一个录入窗口和保存回调；任一页面保存后，首页与交易页立即同步',
