@@ -231,6 +231,7 @@ export default function HomeMarginRiskPage({ ctx = {} }) {
     homeMarginScenarioPreview,
     investmentSummary = {},
     language = 'zh',
+    availableCashStatusReady = false,
     marginStatus,
     marginStatusReady = true,
     marketColorMode,
@@ -243,6 +244,7 @@ export default function HomeMarginRiskPage({ ctx = {} }) {
   const positionsMarketValueUsd = Number(investmentSummary?.positionsMarketValue) || 0;
   const cashUsd = Number(investmentSummary?.cashUsd) || 0;
   const marginDebtUsd = normalizeMarginDebtUsd(marginStatus?.currentMargin);
+  const assetStatusReady = marginStatusReady && availableCashStatusReady;
   const initialPanel = homeMarginPreview === 'editor' ? 'editor' : 'risk';
   const initialScenarioPct = Number.isFinite(Number(homeMarginScenarioPreview))
     ? Number(homeMarginScenarioPreview)
@@ -338,6 +340,7 @@ export default function HomeMarginRiskPage({ ctx = {} }) {
   }, [onClose, panel, saving, showLeverageGuide]);
 
   const openEditor = () => {
+    if (!assetStatusReady) return;
     const rate = displayRate(currency, usdRate);
     const displayDebt = overview.marginDebtUsd * rate;
     setDraftDebt(String(Math.round(displayDebt * 100) / 100));
@@ -352,6 +355,7 @@ export default function HomeMarginRiskPage({ ctx = {} }) {
   };
 
   const saveDebt = async () => {
+    if (!assetStatusReady) return;
     const nextDebtUsd = displayMarginDebtToUsd({ amount: draftDebt, currency, usdRate });
     if (nextDebtUsd === null) {
       setSaveError(t(language, 'home.marginBalanceInvalid', '请输入不小于 0 的有效金额'));
@@ -375,10 +379,10 @@ export default function HomeMarginRiskPage({ ctx = {} }) {
   };
 
   const currentCards = [
-    { id: 'total-assets', label: t(language, 'home.totalAssets', '总资产'), value: formatCompactMoneyFromUsd(overview.totalAssetsUsd, currency, usdRate) },
-    { id: 'net-assets', label: t(language, 'home.netAssets', '净资产'), value: formatCompactMoneyFromUsd(overview.netAssetsUsd, currency, usdRate) },
-    { id: 'margin-debt', label: t(language, 'home.marginDebt', '融资负债'), value: formatCompactMoneyFromUsd(overview.marginDebtUsd, currency, usdRate) },
-    { id: 'account-leverage', label: t(language, 'home.leverage', '杠杆'), value: formatLeverage(overview.leverage) },
+    { id: 'total-assets', label: t(language, 'home.totalAssets', '总资产'), value: assetStatusReady ? formatCompactMoneyFromUsd(overview.totalAssetsUsd, currency, usdRate) : '—' },
+    { id: 'net-assets', label: t(language, 'home.netAssets', '净资产'), value: assetStatusReady ? formatCompactMoneyFromUsd(overview.netAssetsUsd, currency, usdRate) : '—' },
+    { id: 'margin-debt', label: t(language, 'home.marginDebt', '融资负债'), value: assetStatusReady ? formatCompactMoneyFromUsd(overview.marginDebtUsd, currency, usdRate) : '—' },
+    { id: 'account-leverage', label: t(language, 'home.leverage', '杠杆'), value: assetStatusReady ? formatLeverage(overview.leverage) : '—' },
   ];
 
   return (
@@ -402,7 +406,7 @@ export default function HomeMarginRiskPage({ ctx = {} }) {
           </div>
           <button
             type="button"
-            disabled={!marginStatusReady}
+            disabled={!assetStatusReady}
             onClick={openEditor}
             className="justify-self-end rounded-full px-1 py-2 text-[11px] text-[#f6b54b] active:bg-[#f6b54b]/10 disabled:opacity-35"
           >
@@ -425,9 +429,12 @@ export default function HomeMarginRiskPage({ ctx = {} }) {
                   aria-expanded={showLeverageGuide}
                   aria-haspopup="dialog"
                   aria-label={t(language, 'home.leverageInfoOpen', '查看账户杠杆说明')}
-                  className="min-w-0 active:bg-white/[0.035]"
+                  disabled={!assetStatusReady}
+                  className="min-w-0 active:bg-white/[0.035] disabled:opacity-45"
                   data-home-margin-leverage-info-trigger="true"
-                  onClick={() => setShowLeverageGuide(true)}
+                  onClick={() => {
+                    if (assetStatusReady) setShowLeverageGuide(true);
+                  }}
                 >
                   <Metric label={card.label} value={card.value} />
                 </button>
@@ -501,16 +508,18 @@ export default function HomeMarginRiskPage({ ctx = {} }) {
                           ? '下降 {{amount}}（{{percent}}）'
                           : '不变 {{amount}}（{{percent}}）',
                       {
-                        amount: formatMoneyFromUsd(Math.abs(stress.assetChangeUsd), currency, usdRate, 2),
-                        percent: formatSignedRatioPercent(item.percent),
+                        amount: assetStatusReady
+                          ? formatMoneyFromUsd(Math.abs(stress.assetChangeUsd), currency, usdRate, 2)
+                          : '—',
+                        percent: assetStatusReady ? formatSignedRatioPercent(item.percent) : '—',
                       },
                     )}
                   </span>
                 </div>
                 <div className="mt-2 flex items-center justify-between gap-2 text-[14px] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
-                  <span className="min-w-0 truncate text-white/48">{formatMoneyFromUsd(item.before, currency, usdRate, 0)}</span>
+                  <span className="min-w-0 truncate text-white/48">{assetStatusReady ? formatMoneyFromUsd(item.before, currency, usdRate, 0) : '—'}</span>
                   <span className="text-white/20">→</span>
-                  <span className={`min-w-0 truncate text-right ${scenarioColorClass}`}>{formatMoneyFromUsd(item.after, currency, usdRate, 0)}</span>
+                  <span className={`min-w-0 truncate text-right ${scenarioColorClass}`}>{assetStatusReady ? formatMoneyFromUsd(item.after, currency, usdRate, 0) : '—'}</span>
                 </div>
               </div>
             ))}
@@ -519,11 +528,11 @@ export default function HomeMarginRiskPage({ ctx = {} }) {
           <div className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-white/[0.03] px-3.5 py-3 text-[12px]">
             <span className="min-w-0 truncate text-white/40">
               {t(language, 'home.marginDebtFixed', '融资负债保持 {{amount}}', {
-                amount: formatMoneyFromUsd(overview.marginDebtUsd, currency, usdRate, 2),
+                amount: assetStatusReady ? formatMoneyFromUsd(overview.marginDebtUsd, currency, usdRate, 2) : '—',
               })}
             </span>
             <span className="shrink-0 text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
-              {formatLeverage(overview.leverage)} → {formatLeverage(stress.stressedLeverage)}
+              {assetStatusReady ? formatLeverage(overview.leverage) : '—'} → {assetStatusReady ? formatLeverage(stress.stressedLeverage) : '—'}
             </span>
           </div>
 
@@ -532,7 +541,7 @@ export default function HomeMarginRiskPage({ ctx = {} }) {
           </p>
       </section>
 
-      {showLeverageGuide && (
+      {showLeverageGuide && assetStatusReady && (
         <div
           className="fixed inset-0 z-[190] flex items-end justify-center bg-black/[0.72] px-2 pb-2 pt-[calc(env(safe-area-inset-top)+18px)] backdrop-blur-[5px]"
           role="dialog"
@@ -625,7 +634,7 @@ export default function HomeMarginRiskPage({ ctx = {} }) {
         </div>
       )}
 
-      {panel === 'editor' && (
+      {panel === 'editor' && assetStatusReady && (
         <div
           className="fixed left-0 right-0 top-0 z-[190] flex h-[100dvh] items-end justify-center overflow-hidden bg-black/72 px-2 pb-2 pt-[calc(env(safe-area-inset-top)+18px)] backdrop-blur-[3px]"
           style={{

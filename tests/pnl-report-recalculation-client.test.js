@@ -162,3 +162,18 @@ test('report page stays read-only on mount and foreground resume while mutations
   assert.ok(dbSource.includes('ledgerRevision: Number(state.ledger_revision || 0)'));
   assert.ok(dbSource.includes('generation: Number(state.generation || 0)'));
 });
+
+test('cash-only reports skip QQQ benchmark loading and cannot retain a stale comparison', () => {
+  assert.ok(pageSource.includes('const hasFormalStockLedger = Array.isArray(stockTrades) && stockTrades.length > 0'));
+  assert.ok(pageSource.includes('benchmarkRows: hasFormalStockLedger ? benchmarkRows : []'));
+
+  const effectStart = pageSource.indexOf('async function loadBenchmarkRows()');
+  const effectEnd = pageSource.indexOf('const openDateFilter', effectStart);
+  const effectBlock = pageSource.slice(effectStart, effectEnd);
+  assert.ok(effectStart >= 0 && effectEnd > effectStart);
+  assert.ok(effectBlock.includes('if (!hasFormalStockLedger || !reportData.hasData'));
+  assert.ok(effectBlock.includes('setBenchmarkRows([])'));
+  assert.ok(effectBlock.includes('setBenchmarkError(\'\')'));
+  assert.ok(effectBlock.includes('setBenchmarkLoading(false)'));
+  assert.ok(effectBlock.includes('hasFormalStockLedger, language'));
+});

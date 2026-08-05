@@ -1168,6 +1168,7 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
     homeWatchlist = [],
     quoteRows = [],
     investmentSummary = {},
+    availableCashStatusReady = false,
     stockTrades = [],
     fetchPnlBenchmarkRows,
     displayStockName,
@@ -1490,8 +1491,8 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
   const position = React.useMemo(() => deriveCloseBasedPosition(
     rows.position,
     close.closeUsd,
-    investmentSummary?.totalAssetsUsd,
-  ), [close.closeUsd, investmentSummary?.totalAssetsUsd, rows.position]);
+    availableCashStatusReady ? investmentSummary?.totalAssetsUsd : null,
+  ), [availableCashStatusReady, close.closeUsd, investmentSummary?.totalAssetsUsd, rows.position]);
   const targetPriceUsd = targetOverrideUsd ?? positiveNumber(rows.watchlistRow?.targetPriceUsd);
   const targetDisplay = targetPriceUsd;
   const targetGap = targetSpacePercent(targetPriceUsd, close.closeUsd);

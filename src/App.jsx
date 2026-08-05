@@ -1215,6 +1215,8 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   });
   const [marginStatus, setMarginStatus] = useState({ currentMargin: 0, marginLimit: 0 });
   const [marginStatusReady, setMarginStatusReady] = useState(false);
+  const [availableCashStatus, setAvailableCashStatus] = useState({ availableCashUsd: 0, isSet: false, updatedAt: null, writeReady: false });
+  const [availableCashStatusReady, setAvailableCashStatusReady] = useState(false);
   const [disciplines, setDisciplines] = useState([]);
   const [reviewLogs, setReviewLogs] = useState([]);
   const [yearlyActuals, setYearlyActuals] = useState([]); // [{year, actualGain, endBalance}]
@@ -2069,6 +2071,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
       snapshots: cloudSnapshots,
       investmentPlan: cloudPlan,
       marginStatus: cloudMargin,
+      availableCashStatus: cloudAvailableCash,
       disciplines: cloudDisciplines,
       reviewLogs: cloudLogs,
       yearlyActuals: cloudActuals,
@@ -2116,6 +2119,17 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     if (cloudMargin !== null && cloudMargin !== undefined) {
       setMarginStatus(cloudMargin);
       setMarginStatusReady(true);
+    }
+    if (cloudAvailableCash !== null && cloudAvailableCash !== undefined) {
+      setAvailableCashStatus(cloudAvailableCash);
+      setAvailableCashStatusReady(true);
+    } else {
+      // A previously observed missing row is not a durable zero balance. If a
+      // fresh read fails and there is no explicit cached amount, fail the asset
+      // cards closed until authority can be refreshed.
+      setAvailableCashStatus(current => ({ ...current, writeReady: false }));
+      setAvailableCashStatusReady(false);
+      console.warn(`${logLabel} ⚠️ availableCashStatus 拉取失败, 暂停资产口径`);
     }
 
     if (cloudDisciplines !== null && cloudDisciplines !== undefined) setDisciplines(cloudDisciplines);
@@ -2406,9 +2420,9 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   const investmentSummary = useMemo(() => deriveInvestmentSummary({
     stockTrades: localizedStockTrades,
     watchlist: quoteRows,
-    cashUsd: 0,
+    cashUsd: availableCashStatusReady ? Number(availableCashStatus?.availableCashUsd) || 0 : 0,
     usdRate,
-  }), [localizedStockTrades, quoteRows, usdRate]);
+  }), [availableCashStatus?.availableCashUsd, availableCashStatusReady, localizedStockTrades, quoteRows, usdRate]);
 
   const saveMarginDebt = useCallback(async (nextDebtUsd) => {
     if (!marginStatusReady) throw new Error('融资余额仍在同步，请稍后重试');
@@ -2426,6 +2440,24 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     setMarginStatus(committedStatus);
     return committedStatus;
   }, [marginStatusReady]);
+
+  const saveAvailableCash = useCallback(async (nextCashUsd) => {
+    if (!availableCashStatusReady || !availableCashStatus?.writeReady) {
+      throw new Error('可用现金仍在同步，请稍后重试');
+    }
+    const numericCashUsd = Number(nextCashUsd);
+    if (!Number.isFinite(numericCashUsd) || numericCashUsd < 0) {
+      throw new Error('可用现金必须是不小于 0 的有效金额');
+    }
+
+    const persistedStatus = await db.upsertAvailableCashStatus({ availableCashUsd: numericCashUsd });
+    setAvailableCashStatus(persistedStatus);
+    setAvailableCashStatusReady(true);
+    // The database event marks the personal report dirty. Cash enters that
+    // read model only through its completed-close snapshot cutoff; this save
+    // must not turn report navigation into a live rebuild or touch competition.
+    return persistedStatus;
+  }, [availableCashStatus?.writeReady, availableCashStatusReady]);
 
   // === 持仓冷静室:把每只股票的交易切成"波段" ===
   // 规则:全部卖完算一个波段结束,下次买入开启新波段
@@ -5348,6 +5380,8 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     marketIndices,
     investmentSummary,
     investmentPlan,
+    availableCashStatus,
+    availableCashStatusReady,
     lastFetched,
     lastSeenAlerts,
     lastSubmitRef,
@@ -5387,6 +5421,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     removeStock,
     reorderWatchlist,
     saveWatchlistStockTarget,
+    saveAvailableCash,
     saveMarginDebt,
     reviewLogs,
     clearQuoteDiagnosticLogs,

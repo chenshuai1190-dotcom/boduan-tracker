@@ -58,6 +58,28 @@ function marginRowsFromRequest(options) {
   }));
 }
 
+function cashRowsFromRequest(options, resolveCash = () => null) {
+  const targets = JSON.parse(options.body || '{}').p_targets || [];
+  return targets.map((target) => {
+    const resolved = resolveCash(target);
+    return resolved ? {
+      ...target,
+      known: true,
+      cash_usd: resolved.cashUsd,
+      cash_event_id: resolved.cashEventId,
+      cash_effective_at: resolved.cashEffectiveAt,
+      cash_basis: 'event',
+    } : {
+      ...target,
+      known: false,
+      cash_usd: 0,
+      cash_event_id: null,
+      cash_effective_at: null,
+      cash_basis: null,
+    };
+  });
+}
+
 function createRecalculationFetch({
   dirtyRows = [{
     user_id: USER_ID,
@@ -67,6 +89,8 @@ function createRecalculationFetch({
   }],
   revisionRows = [{ user_id: USER_ID, revision: 4 }],
   tradeRows = [validTrade()],
+  availableCashRows = [],
+  resolveCash = () => null,
   spyRows = [
     { date: '2026-07-06', close: 620, adjusted_close: 620 },
     { date: '2026-07-07', close: 622, adjusted_close: 622 },
@@ -92,11 +116,17 @@ function createRecalculationFetch({
     if (href.includes('/rest/v1/stock_trade_ledger_revisions')) {
       return jsonResponse(typeof revisionRows === 'function' ? revisionRows() : revisionRows);
     }
+    if (href.includes('/rest/v1/available_cash_status')) {
+      return jsonResponse(availableCashRows);
+    }
     if (href.includes('/rest/v1/stock_trades')) {
       return jsonResponse(typeof tradeRows === 'function' ? tradeRows() : tradeRows);
     }
     if (href.includes('/rest/v1/rpc/resolve_margin_debt_snapshot_targets')) {
       return jsonResponse(marginRowsFromRequest(options));
+    }
+    if (href.includes('/rest/v1/rpc/resolve_available_cash_snapshot_targets')) {
+      return jsonResponse(cashRowsFromRequest(options, resolveCash));
     }
     if (href.includes('/rest/v1/rpc/begin_pnl_report_dirty_range')) {
       const outcome = beginOutcomes[Math.min(beginIndex, beginOutcomes.length - 1)];
@@ -199,6 +229,42 @@ test('empty formal ledger clears all personal P&L snapshots without any provider
   assert.equal(begin.p_expected_portfolio_count, 0);
   assert.equal(finalize.p_clear_all, true);
   assert.equal(finalize.p_through_date, null);
+});
+
+test('cash-only dirty rebuild publishes portfolio rows without requesting stock symbols', async () => {
+  const calls = [];
+  const fetchImpl = createRecalculationFetch({
+    tradeRows: [],
+    availableCashRows: [{ user_id: USER_ID }],
+    resolveCash: () => ({
+      cashUsd: 1250,
+      cashEventId: '77',
+      cashEffectiveAt: '2026-07-05T18:00:00.000Z',
+    }),
+    onCall: (href, options, body) => calls.push({ href, options, body }),
+  });
+  const result = await withRecalculationRuntime(fetchImpl, () => (
+    recalculatePnlReportUser({ userId: USER_ID, now: new Date('2026-07-08T22:00:00Z') })
+  ));
+
+  assert.equal(result.state, 'recalculated');
+  const providerCalls = calls.filter(({ href }) => href.includes('eodhd.com/api/eod/'));
+  assert.deepEqual(providerCalls.map(({ href }) => new URL(href).pathname), ['/api/eod/SPY.US']);
+  const stage = calls.find(({ href }) => href.includes('/stage_pnl_report_dirty_range')).body;
+  assert.equal(stage.p_portfolio_rows.length, 3);
+  assert.equal(stage.p_symbol_rows.length, 0);
+  assert.deepEqual(stage.p_portfolio_rows.map((row) => ({
+    cash: row.cash_usd,
+    sourceVersion: row.source_version,
+  })), Array.from({ length: 3 }, () => ({
+    cash: 1250,
+    sourceVersion: 'pnl_snapshot_v2',
+  })));
+  stage.p_portfolio_rows.forEach((row) => {
+    assert.equal(Object.hasOwn(row, 'cash_event_id'), false);
+    assert.equal(Object.hasOwn(row, 'cash_effective_at'), false);
+    assert.equal(Object.hasOwn(row, 'cash_basis'), false);
+  });
 });
 
 test('non-USD or non-canonical formal trades fail closed before provider or staging access', async () => {

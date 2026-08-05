@@ -485,7 +485,7 @@ export const fetchAllUserData = async () => {
       trades: null, stockTrades: null, watchlist: null, waveNotes: null, settings: null,
       accounts: null, snapshots: null, investmentPlan: null,
       marginStatus: null, disciplines: null, reviewLogs: null,
-      yearlyActuals: null, _failedTables: [],
+      yearlyActuals: null, availableCashStatus: null, _failedTables: [],
     };
   }
 
@@ -507,6 +507,7 @@ export const fetchAllUserData = async () => {
     fetchDisciplines(user),       // 9
     fetchReviewLogs(user),        // 10
     fetchYearlyActuals(user),     // 11
+    fetchAvailableCashStatus(user), // 12
   ]);
 
   // 🔑 关键: 失败时返回 null (非 []/{}) 这样 App 层能区分
@@ -515,7 +516,7 @@ export const fetchAllUserData = async () => {
   const tableNames = [
     'trades', 'stockTrades', 'watchlist', 'waveNotes', 'settings',
     'accounts', 'snapshots', 'investmentPlan', 'marginStatus',
-    'disciplines', 'reviewLogs', 'yearlyActuals',
+    'disciplines', 'reviewLogs', 'yearlyActuals', 'availableCashStatus',
   ];
   const failedTables = [];
 
@@ -539,6 +540,7 @@ export const fetchAllUserData = async () => {
     disciplines:    getValue(9),
     reviewLogs:     getValue(10),
     yearlyActuals:  getValue(11),
+    availableCashStatus: getValue(12),
     _symbolRepair: symbolRepair,
     // 🔑 失败表清单 (App 层决定是否显示警告)
     _failedTables: failedTables,
@@ -883,6 +885,108 @@ export const upsertMarginStatus = async (status) => {
   if (error) throw error;
   cacheSet(user.id, 'margin_status', normalizedStatus);
   return normalizedStatus;
+};
+
+// ============ AVAILABLE_CASH_STATUS (首页可用现金, 每人 1 条) ============
+
+const AVAILABLE_CASH_LOGIC_VERSION = 1;
+const AVAILABLE_CASH_CACHE_KEY = 'available_cash_status_v1';
+
+const emptyAvailableCashStatus = (writeReady = false) => ({
+  availableCashUsd: 0,
+  isSet: false,
+  updatedAt: null,
+  writeReady: Boolean(writeReady),
+});
+
+const mapAvailableCashStatus = (row, { writeReady = false } = {}) => {
+  const availableCashUsd = Number(row?.available_cash_usd);
+  if (
+    !Number.isFinite(availableCashUsd)
+    || availableCashUsd < 0
+    || Number(row?.logic_version) !== AVAILABLE_CASH_LOGIC_VERSION
+  ) {
+    throw new Error('可用现金数据无效');
+  }
+  return {
+    availableCashUsd,
+    isSet: true,
+    updatedAt: row?.updated_at || null,
+    writeReady: Boolean(writeReady),
+  };
+};
+
+const validCachedAvailableCashStatus = (value) => {
+  if (!value || typeof value !== 'object') return null;
+  const availableCashUsd = Number(value.availableCashUsd);
+  // A cached "not set" result is only an old absence observation. If the
+  // database is unavailable later, it must not hide a balance saved from a
+  // different device in the meantime. Only an explicit persisted amount may
+  // serve as a last-known fallback.
+  if (!Number.isFinite(availableCashUsd) || availableCashUsd < 0 || value.isSet !== true) return null;
+  return {
+    availableCashUsd,
+    isSet: true,
+    updatedAt: value.updatedAt || null,
+    writeReady: false,
+  };
+};
+
+export const fetchAvailableCashStatus = async (preUser = null) => {
+  const user = preUser || (await supabase.auth.getUser()).data.user;
+  if (!user) return null;
+
+  const [statusResult, writeContractResult] = await Promise.all([
+    supabase
+      .from('available_cash_status')
+      .select('available_cash_usd,logic_version,updated_at')
+      .eq('user_id', user.id)
+      .maybeSingle(),
+    supabase.rpc('available_cash_write_contract_ready'),
+  ]);
+  const { data, error } = statusResult;
+  if (error) {
+    console.error('fetchAvailableCashStatus 失败:', error);
+    const cachedStatus = validCachedAvailableCashStatus(cacheGet(user.id, AVAILABLE_CASH_CACHE_KEY));
+    if (cachedStatus) return cachedStatus;
+    throw error;
+  }
+
+  const writeReady = writeContractResult?.error == null
+    && writeContractResult?.data === true;
+  if (writeContractResult?.error) {
+    console.error('availableCashWriteContractReady 失败:', writeContractResult.error);
+  }
+
+  const status = data
+    ? mapAvailableCashStatus(data, { writeReady })
+    : emptyAvailableCashStatus(writeReady);
+  cacheSet(user.id, AVAILABLE_CASH_CACHE_KEY, status);
+  return status;
+};
+
+export const upsertAvailableCashStatus = async (status) => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('未登录');
+
+  const availableCashUsd = Number(status?.availableCashUsd);
+  if (!Number.isFinite(availableCashUsd) || availableCashUsd < 0) {
+    throw new Error('可用现金必须是不小于 0 的有效金额');
+  }
+
+  const { data, error } = await supabase
+    .from('available_cash_status')
+    .upsert({
+      user_id: user.id,
+      available_cash_usd: availableCashUsd,
+      logic_version: AVAILABLE_CASH_LOGIC_VERSION,
+    }, { onConflict: 'user_id' })
+    .select('available_cash_usd,logic_version,updated_at')
+    .single();
+  if (error) throw error;
+  const persistedStatus = mapAvailableCashStatus(data, { writeReady: true });
+  cacheSet(user.id, AVAILABLE_CASH_CACHE_KEY, persistedStatus);
+  return persistedStatus;
 };
 
 // ============ DISCIPLINES (投资戒律) ============

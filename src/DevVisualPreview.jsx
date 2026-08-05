@@ -2031,8 +2031,17 @@ function StandardDevVisualPreview({ initialTab = '' }) {
   const homeMarginScenarioPreview = typeof window === 'undefined'
     ? undefined
     : Number(new URLSearchParams(window.location.search).get('homeMarginScenario'));
+  const homeAvailableCashPreview = typeof window === 'undefined'
+    ? ''
+    : new URLSearchParams(window.location.search).get('homeCash') || '';
   const [homeCurrencyMode, setHomeCurrencyMode] = React.useState(stockDetailCurrencyPreview);
   const [previewMarginDebtUsd, setPreviewMarginDebtUsd] = React.useState(3_000_000 / 7.215);
+  const [previewAvailableCashStatus, setPreviewAvailableCashStatus] = React.useState(() => ({
+    availableCashUsd: homeAvailableCashPreview === 'unset' ? 0 : (homeAvailableCashPreview === 'zero' ? 0 : 168_000),
+    isSet: homeAvailableCashPreview !== 'unset',
+    updatedAt: homeAvailableCashPreview === 'unset' ? null : '2026-08-05T08:00:00.000Z',
+    writeReady: true,
+  }));
   const stockReturnComparisonSharePreview = typeof window !== 'undefined'
     && new URLSearchParams(window.location.search).get('stockDetailShare') === '1';
   const stockReturnComparisonMethodPreview = typeof window !== 'undefined'
@@ -2630,6 +2639,9 @@ function StandardDevVisualPreview({ initialTab = '' }) {
   const homeSignalBenchmarkDrawdown = homeSignalBenchmarkStock?.high > 0
     ? (homeSignalBenchmarkStock.price - homeSignalBenchmarkStock.high) / homeSignalBenchmarkStock.high
     : 0;
+  const previewAvailableCashUsd = previewAvailableCashStatus.isSet
+    ? Number(previewAvailableCashStatus.availableCashUsd) || 0
+    : 0;
 
   const previewWatchlistWithTarget = homeWatchlist.map((item) => (
     item.symbol === 'NVDA'
@@ -2659,6 +2671,8 @@ function StandardDevVisualPreview({ initialTab = '' }) {
       setHomeWatchlist((current) => [item, ...current.filter((row) => row.symbol !== symbol)]);
       return { success: true, item };
     },
+    availableCashStatus: previewAvailableCashStatus,
+    availableCashStatusReady: true,
     benchmarkDrawdown: homeSignalBenchmarkDrawdown,
     benchmarkMenuOpen,
     benchmarkOptions: homeSignalBenchmarkOptions,
@@ -2738,9 +2752,9 @@ function StandardDevVisualPreview({ initialTab = '' }) {
       activePositions: previewActivePositions,
       positions: [],
       positionsMarketValue: 3365931,
-      cashUsd: 0,
-      totalAssetsUsd: 3365931,
-      totalAssetsCny: 24285192.165,
+      cashUsd: previewAvailableCashUsd,
+      totalAssetsUsd: 3365931 + previewAvailableCashUsd,
+      totalAssetsCny: (3365931 + previewAvailableCashUsd) * 7.215,
       todayPnl: -1485.6,
       todayPnlPct: -0.0004,
       cumulativePnl: 118433.6,
@@ -2781,6 +2795,16 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     saveMarginDebt: async (nextDebtUsd) => {
       setPreviewMarginDebtUsd(Number(nextDebtUsd));
       return { currentMargin: Number(nextDebtUsd), marginLimit: 0 };
+    },
+    saveAvailableCash: async (nextCashUsd) => {
+      const nextStatus = {
+        availableCashUsd: Number(nextCashUsd),
+        isSet: true,
+        updatedAt: new Date().toISOString(),
+        writeReady: true,
+      };
+      setPreviewAvailableCashStatus(nextStatus);
+      return nextStatus;
     },
     setBenchmarkMenuOpen,
     setBenchmarkSymbol,
@@ -2893,6 +2917,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     week52High: item.high,
   }));
   const tradesCtx = {
+    availableCashStatusReady: true,
     addTrade: async () => {},
     AlertCircle,
     calcCostBasis,
@@ -2918,7 +2943,8 @@ function StandardDevVisualPreview({ initialTab = '' }) {
       activePositions: mockTradeActivePositions,
       positions: mockTradeActivePositions,
       positionsMarketValue: tradePositionsMarketValue,
-      totalAssetsUsd: tradePositionsMarketValue,
+      cashUsd: previewAvailableCashUsd,
+      totalAssetsUsd: tradePositionsMarketValue + previewAvailableCashUsd,
       todayPnl: tradeTodayPnl,
       todayPnlPct: tradePositionsMarketValue > 0 ? tradeTodayPnl / tradePositionsMarketValue : 0,
       cumulativePnl: tradeHoldingPnl,

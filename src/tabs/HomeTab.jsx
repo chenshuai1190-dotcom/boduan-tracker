@@ -17,6 +17,7 @@ import { stockLogoCandidates } from '../lib/stockLogo.js';
 import { deriveHomeMarginOverview, homeMarginLeverageStatus, normalizeMarginDebtUsd } from '../lib/homeMarginRisk.js';
 import ActionModalCard from '../components/ActionModalCard.jsx';
 import AccountLeverageBadge from '../components/AccountLeverageBadge.jsx';
+import AvailableCashEditor from '../components/AvailableCashEditor.jsx';
 import HomeMa200BreakdownMonitor from '../components/HomeMa200BreakdownMonitor.jsx';
 import EarningsCalendar from './EarningsCalendar.jsx';
 
@@ -442,6 +443,8 @@ function FgiGauge({ value, language }) {
 export default function HomeTab({ ctx }) {
   const {
     addStock,
+    availableCashStatus,
+    availableCashStatusReady = false,
     benchmarkDrawdown,
     benchmarkMenuOpen,
     benchmarkOptions,
@@ -490,6 +493,7 @@ export default function HomeTab({ ctx }) {
     quoteRows,
     RefreshCw,
     reorderWatchlist,
+    saveAvailableCash,
     setBenchmarkMenuOpen,
     setBenchmarkSymbol,
     setNewStock,
@@ -516,6 +520,7 @@ export default function HomeTab({ ctx }) {
   const marketMoversRequestIdRef = React.useRef(0);
   const marketMoversLoadedAtRef = React.useRef(0);
   const [promoteEarningsCalendar, setPromoteEarningsCalendar] = React.useState(false);
+  const [showAvailableCashEditor, setShowAvailableCashEditor] = React.useState(false);
   const [showEditWatchlist, setShowEditWatchlist] = React.useState(false);
   const [editWatchlistSearch, setEditWatchlistSearch] = React.useState('');
   const [editActionKey, setEditActionKey] = React.useState(null);
@@ -591,6 +596,13 @@ export default function HomeTab({ ctx }) {
   const displayCurrencyLabel = isCnyMode ? 'CNY' : 'USD';
   const displayRate = isCnyMode ? summary.usdRate : 1;
   const displayAssets = isCnyMode ? summary.totalAssetsCny : summary.totalAssetsUsd;
+  const availableCashIsSet = Boolean(availableCashStatus?.isSet);
+  const availableCashUsd = availableCashStatusReady && Number.isFinite(Number(availableCashStatus?.availableCashUsd))
+    ? Math.max(0, Number(availableCashStatus.availableCashUsd))
+    : 0;
+  const displayAvailableCash = availableCashUsd * displayRate;
+  const availableCashWriteReady = availableCashStatusReady && availableCashStatus?.writeReady === true;
+  const assetStatusReady = marginStatusReady && availableCashStatusReady;
   const marginDebtUsd = normalizeMarginDebtUsd(marginStatus?.currentMargin);
   const marginOverview = React.useMemo(() => deriveHomeMarginOverview({
     totalAssetsUsd: summary.totalAssetsUsd,
@@ -990,7 +1002,7 @@ export default function HomeTab({ ctx }) {
         </div>
 
         <div className="mt-3 overflow-hidden text-ellipsis whitespace-nowrap font-normal leading-none tracking-normal text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT, fontSize: 'clamp(28px, 8.7vw, 34px)' }} data-home-net-assets="true">
-          {marginStatusReady ? (
+          {assetStatusReady ? (
             <>
               <span>{displayAssetMoney.main}</span>
               <span className="ml-0.5 align-baseline text-[20px] font-normal leading-none text-[#ffd18a]/90">{displayAssetMoney.decimal}</span>
@@ -999,9 +1011,30 @@ export default function HomeTab({ ctx }) {
             <span className="text-white/30">--</span>
           )}
         </div>
-        <div className="mt-3 flex items-center gap-2 text-white/[0.42]" data-home-total-assets="true">
-          <span className="text-[13px]">{t(language, 'home.totalAssets', '总资产')}</span>
-          <span className="truncate text-[12px] text-white/[0.72] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{fmtCurrency(displayAssets, displayCurrency, 2)}</span>
+        <div className="mt-3 flex min-w-0 items-center justify-between gap-2 text-white/[0.42]" data-home-total-assets="true">
+          <div className="flex min-w-0 items-center gap-1">
+            <span className="shrink-0 text-[13px]">{t(language, 'home.totalAssets', '总资产')}</span>
+            <span className="truncate text-[12px] text-white/[0.72] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
+              {assetStatusReady ? fmtCurrency(displayAssets, displayCurrency, 2) : '--'}
+            </span>
+          </div>
+          <button
+            type="button"
+            disabled={!availableCashWriteReady}
+            onClick={() => setShowAvailableCashEditor(true)}
+            className="flex min-w-0 shrink-0 items-center gap-1 text-left transition active:scale-[0.99] disabled:cursor-wait disabled:opacity-45"
+            aria-label={t(language, 'home.availableCashBalance', '设置可用现金')}
+            data-home-available-cash-trigger="true"
+          >
+            <span className="text-[13px]">{t(language, 'home.cash', '现金')}</span>
+            <span className={`max-w-[118px] truncate text-[12px] tabular-nums ${availableCashIsSet ? 'text-white/[0.72]' : 'text-[#f6b54b]/85'}`} style={{ fontFamily: NUMBER_FONT }}>
+              {!availableCashStatusReady
+                ? '--'
+                : availableCashIsSet
+                  ? fmtCurrency(displayAvailableCash, displayCurrency, 2)
+                  : t(language, 'home.availableCashSet', '设置')}
+            </span>
+          </button>
         </div>
         <div
           className="mt-4 grid grid-cols-[1fr_1.12fr_0.96fr] divide-x divide-white/10 border-t border-white/[0.07] pt-4"
@@ -1032,7 +1065,7 @@ export default function HomeTab({ ctx }) {
           </button>
           <button
             type="button"
-            disabled={!marginStatusReady}
+            disabled={!assetStatusReady}
             onClick={openHomeMarginRisk}
             className="block min-w-0 pl-3 text-left transition active:scale-[0.99] disabled:cursor-wait disabled:opacity-45"
             data-home-margin-trigger="true"
@@ -1046,9 +1079,9 @@ export default function HomeTab({ ctx }) {
             </div>
             <div className={`mt-1 min-w-0 ${englishMode ? 'flex flex-col items-start gap-1' : 'flex items-center gap-[3px]'}`}>
               <span className="shrink-0 whitespace-nowrap text-[12px] text-white/[0.42] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
-                {t(language, 'home.leverage', '杠杆')} {marginStatusReady ? fmtLeverage(marginOverview.leverage) : '—'}
+                {t(language, 'home.leverage', '杠杆')} {assetStatusReady ? fmtLeverage(marginOverview.leverage) : '—'}
               </span>
-              {marginStatusReady && marginLeverageStatus && (
+              {assetStatusReady && marginLeverageStatus && (
                 <AccountLeverageBadge className="h-[17px] px-1 text-[10px]" language={language} tierId={marginLeverageStatus.id} />
               )}
             </div>
@@ -1762,6 +1795,17 @@ export default function HomeTab({ ctx }) {
           </div>
         </div>
       )}
+
+      <AvailableCashEditor
+        availableCashUsd={availableCashUsd}
+        currency={displayCurrency}
+        isOpen={showAvailableCashEditor}
+        isSet={availableCashIsSet}
+        language={language}
+        onClose={() => setShowAvailableCashEditor(false)}
+        onSave={saveAvailableCash}
+        usdRate={summary.usdRate}
+      />
 
       {addStockNotice && (
         <ActionModalCard

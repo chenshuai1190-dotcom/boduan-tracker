@@ -119,7 +119,7 @@ test('verified admin repair adds a narrow pre-boundary history anchor and stays 
 });
 
 test('daily snapshot runtime resolves and validates every financing target before any P&L mutation', () => {
-  const resolveIndex = snapshotServerSource.indexOf('const marginDebtSnapshotsByUser = await resolveMarginDebtSnapshotTargets');
+  const resolveIndex = snapshotServerSource.indexOf('const [marginDebtSnapshotsByUser, availableCashSnapshotsByUser] = await Promise.all');
   const mutationIndex = snapshotServerSource.indexOf('const write = await writeUserSnapshotIfCurrent');
   assert.ok(resolveIndex >= 0 && mutationIndex > resolveIndex, 'the service-only resolver must run before snapshot mutation');
   assert.ok(snapshotServerSource.includes("typeof row?.known !== 'boolean'"), 'RPC known state must be a strict boolean');
@@ -156,6 +156,7 @@ test('the visible segment remains Total Assets Trend while the chart shows exact
   assert.ok(pageSource.includes('data-pnl-report-asset-tooltip="true"'));
   assert.ok(pageSource.includes("pnlReport.tooltip.netAssets"));
   assert.ok(pageSource.includes("pnlReport.tooltip.totalAssets"));
+  assert.ok(pageSource.includes("pnlReport.tooltip.availableCash"));
 });
 
 test('asset chart gaps and deterministic dev-preview scenarios stay wired to the UI', () => {

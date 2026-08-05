@@ -226,6 +226,28 @@ async function fetchAllStockTradeLedgerRevisions() {
   return revisions;
 }
 
+export async function fetchAvailableCashStatusUserIds(userId = null) {
+  const userIds = new Set();
+  let offset = 0;
+  while (true) {
+    const url = new URL('/rest/v1/available_cash_status', 'https://placeholder.local');
+    url.searchParams.set('select', 'user_id');
+    if (userId) url.searchParams.set('user_id', `eq.${userId}`);
+    url.searchParams.set('order', 'user_id.asc');
+    const page = await supabaseAdminFetch(`${url.pathname}${url.search}`, {
+      headers: { Range: `${offset}-${offset + STOCK_TRADES_PAGE_SIZE - 1}` },
+    });
+    const pageRows = Array.isArray(page) ? page : [];
+    pageRows.forEach((row) => {
+      const normalizedUserId = String(row?.user_id || '');
+      if (normalizedUserId) userIds.add(normalizedUserId);
+    });
+    if (pageRows.length < STOCK_TRADES_PAGE_SIZE) break;
+    offset += STOCK_TRADES_PAGE_SIZE;
+  }
+  return userIds;
+}
+
 async function fetchDirtyPnlReportUserIds() {
   const userIds = new Set();
   let offset = 0;
@@ -348,6 +370,107 @@ export async function resolveMarginDebtSnapshotTargets(pendingDatesByUser) {
   if (seenKeys.size !== targetKeys.size) {
     throw marginSnapshotContractError();
   }
+  return snapshotsByUser;
+}
+
+function availableCashSnapshotContractError() {
+  const error = new Error('可用现金快照解析结果不完整');
+  error.status = 500;
+  error.retryable = true;
+  error.reason = 'available_cash_snapshot_contract_invalid';
+  return error;
+}
+
+function normalizeResolvedAvailableCashSnapshot(row) {
+  if (typeof row?.known !== 'boolean') throw availableCashSnapshotContractError();
+  if (
+    row?.cash_usd === null
+    || row?.cash_usd === undefined
+    || (typeof row.cash_usd === 'string' && row.cash_usd.trim() === '')
+  ) {
+    throw availableCashSnapshotContractError();
+  }
+  const cashUsd = Number(row?.cash_usd);
+  if (!Number.isFinite(cashUsd) || cashUsd < 0) {
+    throw availableCashSnapshotContractError();
+  }
+  if (!row.known) {
+    if (
+      cashUsd !== 0
+      || row?.cash_event_id != null
+      || row?.cash_effective_at != null
+      || row?.cash_basis != null
+    ) {
+      throw availableCashSnapshotContractError();
+    }
+    return {
+      cashUsd: 0,
+      cashEventId: null,
+      cashEffectiveAt: null,
+      cashBasis: null,
+      cashKnown: false,
+    };
+  }
+
+  const eventId = String(row?.cash_event_id ?? '');
+  const effectiveAt = String(row?.cash_effective_at ?? '');
+  if (
+    row?.cash_basis !== 'event'
+    || !/^[1-9]\d*$/.test(eventId)
+    || !effectiveAt
+    || !Number.isFinite(Date.parse(effectiveAt))
+  ) {
+    throw availableCashSnapshotContractError();
+  }
+  return {
+    cashUsd,
+    cashEventId: eventId,
+    cashEffectiveAt: effectiveAt,
+    cashBasis: 'event',
+    cashKnown: true,
+  };
+}
+
+export async function resolveAvailableCashSnapshotTargets(pendingDatesByUser) {
+  const targets = [...pendingDatesByUser.entries()].flatMap(([userId, dates]) => (
+    (Array.isArray(dates) ? dates : []).map((snapshotDate) => ({
+      user_id: userId,
+      snapshot_date: snapshotDate,
+    }))
+  ));
+  if (targets.length === 0) return new Map();
+
+  const rows = await supabaseAdminFetch('/rest/v1/rpc/resolve_available_cash_snapshot_targets', {
+    method: 'POST',
+    headers: { Prefer: 'return=representation' },
+    body: JSON.stringify({ p_targets: targets }),
+  });
+  if (!Array.isArray(rows)) throw availableCashSnapshotContractError();
+
+  const targetKeys = new Set(
+    targets.map((target) => marginSnapshotTargetKey(target.user_id, target.snapshot_date))
+  );
+  if (targetKeys.size !== targets.length || rows.length !== targetKeys.size) {
+    throw availableCashSnapshotContractError();
+  }
+
+  const snapshotsByUser = new Map();
+  const seenKeys = new Set();
+  rows.forEach((row) => {
+    const userId = String(row?.user_id || '');
+    const snapshotDate = normalizeDateParam(row?.snapshot_date);
+    const key = marginSnapshotTargetKey(userId, snapshotDate);
+    if (!userId || !snapshotDate || !targetKeys.has(key) || seenKeys.has(key)) {
+      throw availableCashSnapshotContractError();
+    }
+    seenKeys.add(key);
+    if (!snapshotsByUser.has(userId)) snapshotsByUser.set(userId, new Map());
+    snapshotsByUser.get(userId).set(
+      snapshotDate,
+      normalizeResolvedAvailableCashSnapshot(row)
+    );
+  });
+  if (seenKeys.size !== targetKeys.size) throw availableCashSnapshotContractError();
   return snapshotsByUser;
 }
 
@@ -651,14 +774,25 @@ function requiredCloseDatesBySymbol(groupedByUser, pendingDatesByUser) {
   return requiredBySymbol;
 }
 
+function snapshotAmountAtDatabaseScale(value) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? Number(numeric.toFixed(6)) : 0;
+}
+
 export function toPortfolioSnapshotRow(snapshot, userId) {
+  const cashUsd = snapshotAmountAtDatabaseScale(snapshot.cashUsd);
+  const marketValueUsd = snapshotAmountAtDatabaseScale(snapshot.marketValueUsd);
   return {
     user_id: userId,
     snapshot_date: snapshot.snapshotDate,
     currency: snapshot.currency || 'USD',
-    cash_usd: snapshot.cashUsd || 0,
-    market_value_usd: snapshot.marketValueUsd || 0,
-    total_assets_usd: snapshot.totalAssetsUsd || 0,
+    cash_usd: cashUsd,
+    market_value_usd: marketValueUsd,
+    // Serialize the redundant total from the two values at the database's
+    // numeric(18, 6) scale. Independent rounding of a raw floating-point total
+    // can otherwise differ by one micro-unit and trip the authoritative DB
+    // identity check even though the underlying values are the same.
+    total_assets_usd: snapshotAmountAtDatabaseScale(marketValueUsd + cashUsd),
     margin_debt_usd: snapshot.marginDebtUsd == null ? null : snapshot.marginDebtUsd,
     margin_debt_event_id: snapshot.marginDebtEventId == null ? null : snapshot.marginDebtEventId,
     margin_debt_effective_at: snapshot.marginDebtEffectiveAt || null,
@@ -950,9 +1084,15 @@ export async function runPnlReportDailySnapshot({
   // their old ledger must never enter the append path.
   const dirtyUserIds = await fetchDirtyPnlReportUserIds();
   const ledgerRevisionsByUser = await fetchAllStockTradeLedgerRevisions();
+  const availableCashUserIds = await fetchAvailableCashStatusUserIds();
   const stockTrades = (await fetchAllStockTrades())
     .filter((trade) => !dirtyUserIds.has(trade.user_id));
   const groupedByUser = groupTradesByUser(stockTrades);
+  availableCashUserIds.forEach((userId) => {
+    if (dirtyUserIds.has(userId)) return;
+    if (!groupedByUser.has(userId)) groupedByUser.set(userId, []);
+    if (!ledgerRevisionsByUser.has(userId)) ledgerRevisionsByUser.set(userId, 0);
+  });
   const symbols = [...new Set(stockTrades.map((trade) => trade.symbol).filter(Boolean))].sort();
   if (groupedByUser.size === 0) {
     return finalizeDailyResult({
@@ -1076,15 +1216,20 @@ export async function runPnlReportDailySnapshot({
     }, dirtyRecalculation, dirtyUserIds);
   }
 
-  // Resolve every user's historical margin at the database-authoritative
-  // 17:00 America/New_York cutoff before any completion row is deleted.
-  const marginDebtSnapshotsByUser = await resolveMarginDebtSnapshotTargets(
-    pendingDatesByUser
-  );
+  // Resolve every user's historical financing and cash at the
+  // database-authoritative 17:00 America/New_York cutoff before any
+  // completion row is deleted.
+  const [marginDebtSnapshotsByUser, availableCashSnapshotsByUser] = await Promise.all([
+    resolveMarginDebtSnapshotTargets(pendingDatesByUser),
+    resolveAvailableCashSnapshotTargets(pendingDatesByUser),
+  ]);
   const requiredDatesBySymbol = requiredCloseDatesBySymbol(groupedByUser, pendingDatesByUser);
   const requiredSymbols = new Set(requiredDatesBySymbol.keys());
   const earliestPlannedDate = plannedDates[0] || effectiveTargetDate;
-  const { historicalClosesBySymbol, failedSymbols: providerFailedSymbols } = symbols.length > 0
+  // A cash-only or fully sold-out portfolio needs the SPY trading calendar,
+  // but must not spend provider calls on unrelated individual stock symbols.
+  const symbolsToFetch = requiredSymbols.size > 0 ? symbols : [];
+  const { historicalClosesBySymbol, failedSymbols: providerFailedSymbols } = symbolsToFetch.length > 0
     ? await fetchHistoricalClosesBySymbol(symbols, {
       targetDate: effectiveTargetDate,
       fromDate: shiftDate(earliestPlannedDate, -EODHD_LOOKBACK_DAYS),
@@ -1155,6 +1300,7 @@ export async function runPnlReportDailySnapshot({
           snapshotDates: [snapshotDate],
           toDate: snapshotDate,
           maxSnapshots: 1,
+          cashByDate: availableCashSnapshotsByUser.get(userId),
           marginDebtByDate: marginDebtSnapshotsByUser.get(userId),
           lockedAt,
           backfillMode: 'ledger',

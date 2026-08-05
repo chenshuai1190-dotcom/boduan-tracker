@@ -17,6 +17,9 @@ test('builds independent portfolio and symbol snapshots from stock trades', () =
   const { portfolioSnapshot, symbolSnapshots } = buildPnlReportSnapshots({
     snapshotDate: '2026-01-04',
     cashUsd: 50,
+    cashEventId: 9,
+    cashEffectiveAt: '2026-01-03T20:00:00.000Z',
+    cashBasis: 'event',
     stockTrades: [
       { id: '1', symbol: 'AAPL', name: 'Apple', side: 'buy', date: '2026-01-01', price: 100, shares: 10 },
       { id: '2', symbol: 'AAPL', name: 'Apple', side: 'buy', date: '2026-01-02', price: 110, shares: 10 },
@@ -224,7 +227,17 @@ test('locks known, zero, unknown, and negative-net-asset margin states per histo
       '2026-07-08',
       '2026-07-09',
     ],
-    cashUsd: 1000,
+    cashByDate: new Map([
+      '2026-07-06',
+      '2026-07-07',
+      '2026-07-08',
+      '2026-07-09',
+    ].map((date) => [date, {
+      cashUsd: 1000,
+      cashEventId: 31,
+      cashEffectiveAt: '2026-07-05T20:00:00.000Z',
+      cashBasis: 'event',
+    }])),
     marginDebtByDate: new Map([
       ['2026-07-06', {
         marginDebtUsd: 200,
@@ -287,6 +300,59 @@ test('locks known, zero, unknown, and negative-net-asset margin states per histo
   assert.equal(normalizePnlMarginDebtUsd(0), 0);
   assert.equal(normalizePnlMarginDebtUsd(null), null);
   assert.equal(normalizePnlMarginDebtUsd(-1), null);
+});
+
+test('locks cash per historical date without leaking a current balance backwards', () => {
+  const result = buildPnlReportHistoricalSnapshots({
+    snapshotDates: ['2026-07-06', '2026-07-07', '2026-07-08'],
+    cashUsd: 999999,
+    cashByDate: new Map([
+      ['2026-07-06', {
+        cashUsd: 0,
+        cashEventId: null,
+        cashEffectiveAt: null,
+        cashBasis: null,
+      }],
+      ['2026-07-07', {
+        cashUsd: 0,
+        cashEventId: '51',
+        cashEffectiveAt: '2026-07-07T18:00:00.000Z',
+        cashBasis: 'event',
+      }],
+      ['2026-07-08', {
+        cashUsd: 1250,
+        cashEventId: '52',
+        cashEffectiveAt: '2026-07-08T18:00:00.000Z',
+        cashBasis: 'event',
+      }],
+    ]),
+  });
+  const rows = result.snapshots.map(({ portfolioSnapshot }) => portfolioSnapshot);
+  assert.deepEqual(rows.map((row) => ({
+    cashUsd: row.cashUsd,
+    cashKnown: row.cashKnown,
+    cashBasis: row.cashBasis,
+    totalAssetsUsd: row.totalAssetsUsd,
+  })), [
+    { cashUsd: 0, cashKnown: false, cashBasis: null, totalAssetsUsd: 0 },
+    { cashUsd: 0, cashKnown: true, cashBasis: 'event', totalAssetsUsd: 0 },
+    { cashUsd: 1250, cashKnown: true, cashBasis: 'event', totalAssetsUsd: 1250 },
+  ]);
+});
+
+test('cash history treats missing amounts as unknown instead of explicit zero', () => {
+  const result = buildPnlReportHistoricalSnapshots({
+    snapshotDates: ['2026-07-08'],
+    cashByDate: new Map([['2026-07-08', {
+      cashUsd: null,
+      cashEventId: '52',
+      cashEffectiveAt: '2026-07-08T18:00:00.000Z',
+      cashBasis: 'event',
+    }]]),
+  });
+  assert.equal(result.snapshots[0].portfolioSnapshot.cashUsd, 0);
+  assert.equal(result.snapshots[0].portfolioSnapshot.cashKnown, false);
+  assert.equal(result.snapshots[0].portfolioSnapshot.cashBasis, null);
 });
 
 test('strict ledger historical backfill starts from the actual trade entry date', () => {

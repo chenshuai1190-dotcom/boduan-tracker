@@ -4,6 +4,23 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '💵 首页新增可用现金并联动账户资产',
+      '  - 总资产后新增同字号现金金额；点击即可录入 USD 或 CNY，未设置与明确为 0 保持不同状态，小屏不挤出原卡片',
+      '  - 可用现金计入首页、交易页和融资情景的总资产与净资产，并参与自选股仓位占比；融资负债及原有样式保持不变',
+      '  - 个人收益按现金变更事件和对应完成收盘日生成资产快照，不把当前现金倒灌历史，也不稀释股票收益率或 QQQ 对比',
+      '  - 数据库按 foundation、精确 runtime、contract 顺序开放本人写入；事件由服务端生成且不可直接修改，不接入新行情源或共享缓存',
+    ],
+    itemsEn: [
+      '💵 Available cash on Home with account-asset integration',
+      '  - A same-size cash amount now follows Total Assets and opens a USD/CNY editor; unset and explicit zero remain distinct without squeezing the original card on small screens',
+      '  - Available cash contributes to total and net assets across Home, Trades, and margin scenarios, and to watchlist allocation, while margin debt and existing styling stay unchanged',
+      '  - Personal P&L uses immutable cash-change events at the corresponding completed close, without backfilling current cash into history or diluting stock returns and QQQ comparison',
+      '  - Owner writes open only after the foundation, exact runtime, and contract sequence; events remain server-generated and immutable, with no new market source or shared cache',
+    ],
+  },
+  {
+    ver: 'v10.7.9.420', date: '2026-08-05',
+    items: [
       '🌊 波段记录支持部分卖出',
       '  - 同一波段可分多次卖出；每笔卖出独立进入已完成，未卖股数继续保留在进行中并沿用原波段编号',
       '  - 已完成的单笔卖出可修改或删除，减少或删除后股数自动返还进行中；全部卖完后不再保留进行中记录',

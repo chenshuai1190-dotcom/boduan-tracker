@@ -472,10 +472,27 @@ function SparkArea({
             >
               {currencyAmount(convertUsd(selectedSlot.point?.totalAssetUsd, displayRate), displayCurrency, 2)}
             </div>
+            <div className="inline-flex items-center gap-1.5 text-[12px] text-white/[0.64]">
+              <i className="h-2 w-2 shrink-0 rounded-full bg-white/45" />
+              {t(language, 'pnlReport.tooltip.availableCash', '可用现金')}
+            </div>
+            <div
+              className={`text-right text-[14px] font-medium leading-none tabular-nums ${selectedSlot.point?.cashKnown ? 'text-white/[0.78]' : 'text-white/[0.34]'}`}
+              style={{ fontFamily: NUMBER_FONT }}
+            >
+              {selectedSlot.point?.cashKnown
+                ? currencyAmount(convertUsd(selectedSlot.point?.cashUsd, displayRate), displayCurrency, 2)
+                : '--'}
+            </div>
           </div>
           {!selectedPrimary && (
             <div className="mt-2 text-[10px] leading-4 text-white/[0.38]">
               {t(language, 'pnlReport.tooltip.marginUnavailable', '该日没有融资负债快照')}
+            </div>
+          )}
+          {!selectedSlot.point?.cashKnown && (
+            <div className="mt-1 text-[10px] leading-4 text-white/[0.38]">
+              {t(language, 'pnlReport.tooltip.cashNotIncluded', '该日快照未包含可用现金')}
             </div>
           )}
         </div>
@@ -575,6 +592,7 @@ export default function PnlReportPage({ ctx = {} }) {
   const [benchmarkRows, setBenchmarkRows] = React.useState([]);
   const [benchmarkLoading, setBenchmarkLoading] = React.useState(false);
   const [benchmarkError, setBenchmarkError] = React.useState('');
+  const hasFormalStockLedger = Array.isArray(stockTrades) && stockTrades.length > 0;
   const lastSnapshotLoadAtRef = React.useRef(0);
   const loadReportSnapshots = React.useCallback(async () => {
     if (!db?.fetchPnlReportSnapshots) {
@@ -626,12 +644,12 @@ export default function PnlReportPage({ ctx = {} }) {
     symbolSnapshots,
     baselineSymbolSnapshots,
     stockTrades,
-    benchmarkRows,
+    benchmarkRows: hasFormalStockLedger ? benchmarkRows : [],
     benchmarkSymbol: 'QQQ',
     range,
     customRange,
     calendarDate,
-  }), [baselineSymbolSnapshots, benchmarkRows, calendarDate, customRange, portfolioSnapshots, range, stockTrades, symbolSnapshots]);
+  }), [baselineSymbolSnapshots, benchmarkRows, calendarDate, customRange, hasFormalStockLedger, portfolioSnapshots, range, stockTrades, symbolSnapshots]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -671,9 +689,10 @@ export default function PnlReportPage({ ctx = {} }) {
   React.useEffect(() => {
     let cancelled = false;
     async function loadBenchmarkRows() {
-      if (!reportData.hasData || (!supabase?.auth?.getSession && typeof fetchPnlBenchmarkRows !== 'function')) {
+      if (!hasFormalStockLedger || !reportData.hasData || (!supabase?.auth?.getSession && typeof fetchPnlBenchmarkRows !== 'function')) {
         setBenchmarkRows([]);
         setBenchmarkError('');
+        setBenchmarkLoading(false);
         return;
       }
       const from = reportData.benchmarkStartDate;
@@ -715,7 +734,7 @@ export default function PnlReportPage({ ctx = {} }) {
     return () => {
       cancelled = true;
     };
-  }, [fetchPnlBenchmarkRows, language, reportData.benchmarkEndDate, reportData.benchmarkStartDate, reportData.hasData, supabase, user?.id]);
+  }, [fetchPnlBenchmarkRows, hasFormalStockLedger, language, reportData.benchmarkEndDate, reportData.benchmarkStartDate, reportData.hasData, supabase, user?.id]);
 
   const openDateFilter = React.useCallback(() => {
     const fallbackEnd = customRange?.endDate
@@ -783,6 +802,9 @@ export default function PnlReportPage({ ctx = {} }) {
   const hasBenchmarkTrend = reportData.trend.some(point => Number.isFinite(Number(point?.benchmarkPct)));
   const hasAssetSnapshotsWithoutMargin = reportData.trend.some(
     (point) => isRenderableChartValue(point?.totalAssetUsd) && !isRenderableChartValue(point?.netAssetUsd)
+  );
+  const hasAssetSnapshotsWithoutCash = reportData.trend.some(
+    (point) => isRenderableChartValue(point?.totalAssetUsd) && !point?.cashKnown
   );
   const currentRangeLabel = range === 'custom'
     ? customRangeLabel
@@ -967,6 +989,11 @@ export default function PnlReportPage({ ctx = {} }) {
         {chartMode === 'assets' && hasAssetSnapshotsWithoutMargin && (
           <div className="mt-1 text-center text-[10px] leading-4 text-white/[0.38]">
             {t(language, 'pnlReport.netAssetsHistoryNotice', '净资产自融资负债记录生效日起展示')}
+          </div>
+        )}
+        {chartMode === 'assets' && hasAssetSnapshotsWithoutCash && (
+          <div className="mt-1 text-center text-[10px] leading-4 text-white/[0.38]">
+            {t(language, 'pnlReport.cashHistoryNotice', '部分资产快照未包含可用现金')}
           </div>
         )}
       </section>

@@ -340,10 +340,13 @@ function computePeriodValues(latest, trendSource, baseline, range, { isSingleDay
     const value = snapshot.dailyPnlUsd == null ? 0 : toNumber(snapshot.dailyPnlUsd);
     return sum + value;
   }, 0);
-  const startAssetsUsd = Math.max(toNumber(latest.totalAssetsUsd) - dailyPnlUsd, 1);
+  const latestStockAssetsUsd = isPresentFiniteNumber(latest.marketValueUsd)
+    ? toNumber(latest.marketValueUsd)
+    : Math.max(0, toNumber(latest.totalAssetsUsd) - toNumber(latest.cashUsd));
+  const startStockAssetsUsd = Math.max(latestStockAssetsUsd - dailyPnlUsd, 1);
   return {
     pnlUsd: dailyPnlUsd,
-    pnlPct: dailyPnlUsd / startAssetsUsd,
+    pnlPct: dailyPnlUsd / startStockAssetsUsd,
     baselinePct: latestPnlPct,
   };
 }
@@ -600,13 +603,27 @@ export function buildPnlReportViewModel({
   });
   const trend = trendDates.map((date) => {
     const snapshot = snapshotByDate.get(date);
-    const totalAssetUsd = snapshot ? toNumber(snapshot.totalAssetsUsd) : null;
+    const cashKnown = Boolean(snapshot && (
+      snapshot.cashKnown === true
+      || snapshot.cashBasis === 'event'
+    ));
+    const cashUsd = cashKnown ? toNumber(snapshot?.cashUsd) : 0;
+    const marketValueUsd = snapshot && isPresentFiniteNumber(snapshot.marketValueUsd)
+      ? toNumber(snapshot.marketValueUsd)
+      : null;
+    const totalAssetUsd = snapshot
+      ? (cashKnown && marketValueUsd != null
+        ? marketValueUsd + cashUsd
+        : toNumber(snapshot.totalAssetsUsd))
+      : null;
     const marginDebtUsd = snapshot && isPresentFiniteNumber(snapshot.marginDebtUsd) && toNumber(snapshot.marginDebtUsd) >= 0
       ? toNumber(snapshot.marginDebtUsd)
       : null;
-    const netAssetUsd = snapshot && isPresentFiniteNumber(snapshot.netAssetsUsd)
-      ? toNumber(snapshot.netAssetsUsd)
-      : (totalAssetUsd != null && marginDebtUsd != null ? totalAssetUsd - marginDebtUsd : null);
+    const netAssetUsd = cashKnown && totalAssetUsd != null && marginDebtUsd != null
+      ? totalAssetUsd - marginDebtUsd
+      : (snapshot && isPresentFiniteNumber(snapshot.netAssetsUsd)
+        ? toNumber(snapshot.netAssetsUsd)
+        : (totalAssetUsd != null && marginDebtUsd != null ? totalAssetUsd - marginDebtUsd : null));
     const benchmarkPoint = benchmarkStartClose
       ? findCloseOnOrBefore(benchmark.rows, date)
       : null;
@@ -630,6 +647,12 @@ export function buildPnlReportViewModel({
         : (isFiniteNumber(snapshot?.benchmarkPct) ? toNumber(snapshot.benchmarkPct) : null),
       assetUsd: totalAssetUsd,
       totalAssetUsd,
+      marketValueUsd,
+      cashUsd,
+      cashKnown,
+      cashEventId: cashKnown ? snapshot?.cashEventId || null : null,
+      cashEffectiveAt: cashKnown ? snapshot?.cashEffectiveAt || null : null,
+      cashBasis: cashKnown ? 'event' : null,
       marginDebtUsd,
       netAssetUsd,
     };

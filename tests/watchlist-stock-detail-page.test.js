@@ -163,6 +163,12 @@ test('production watchlist detail only converts holding asset totals and keeps s
   assert.ok(pageSource.includes("result?.success === false"), 'a failed DB result must not close the target editor optimistically');
 });
 
+test('watchlist position allocation fails closed until available cash is authoritative', () => {
+  assert.ok(pageSource.includes('availableCashStatusReady = false'));
+  assert.ok(pageSource.includes('availableCashStatusReady ? investmentSummary?.totalAssetsUsd : null'));
+  assert.ok(pageSource.includes('[availableCashStatusReady, close.closeUsd, investmentSummary?.totalAssetsUsd, rows.position]'));
+});
+
 test('technical indicators keep the daily row and show color-matched MA50 and MA200 weekly panels', () => {
   assert.equal(pageSource.includes('metricSummary'), false);
   assert.ok(pageSource.includes('data-watchlist-key-metrics="spacious"'));

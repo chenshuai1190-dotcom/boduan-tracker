@@ -17,6 +17,69 @@ export function normalizePnlMarginDebtUsd(value) {
   return Number.isFinite(amount) && amount >= 0 ? amount : null;
 }
 
+function unknownCashSnapshot() {
+  return {
+    cashUsd: 0,
+    cashEventId: null,
+    cashEffectiveAt: null,
+    cashBasis: null,
+    cashKnown: false,
+  };
+}
+
+function normalizeCashSnapshot({
+  cashUsd,
+  cashEventId,
+  cashEffectiveAt,
+  cashBasis,
+} = {}) {
+  if (
+    cashUsd === null
+    || cashUsd === undefined
+    || (typeof cashUsd === 'string' && cashUsd.trim() === '')
+  ) {
+    return unknownCashSnapshot();
+  }
+  const amount = Number(cashUsd);
+  const eventId = String(cashEventId ?? '');
+  const effectiveAt = String(cashEffectiveAt ?? '');
+  if (
+    !Number.isFinite(amount)
+    || amount < 0
+    || cashBasis !== 'event'
+    || !/^[1-9]\d*$/.test(eventId)
+    || !effectiveAt
+    || !Number.isFinite(Date.parse(effectiveAt))
+  ) {
+    return unknownCashSnapshot();
+  }
+  return {
+    cashUsd: amount,
+    cashEventId: eventId,
+    cashEffectiveAt: effectiveAt,
+    cashBasis: 'event',
+    cashKnown: true,
+  };
+}
+
+function cashSnapshotForDate(cashByDate, snapshotDate) {
+  let raw = null;
+  if (cashByDate instanceof Map) {
+    raw = cashByDate.get(snapshotDate);
+  } else if (typeof cashByDate === 'function') {
+    raw = cashByDate(snapshotDate);
+  } else if (hasOwn(cashByDate, snapshotDate)) {
+    raw = cashByDate[snapshotDate];
+  }
+  if (!raw || typeof raw !== 'object') return unknownCashSnapshot();
+  return normalizeCashSnapshot({
+    cashUsd: raw.cashUsd ?? raw.cash_usd,
+    cashEventId: raw.cashEventId ?? raw.cash_event_id,
+    cashEffectiveAt: raw.cashEffectiveAt ?? raw.cash_effective_at,
+    cashBasis: raw.cashBasis ?? raw.cash_basis,
+  });
+}
+
 function marginDebtSnapshotForDate(marginDebtByDate, snapshotDate) {
   let raw = null;
   if (marginDebtByDate instanceof Map) {
@@ -484,6 +547,9 @@ export function buildPnlReportSnapshots({
   quoteRows = [],
   snapshotDate = new Date(),
   cashUsd = 0,
+  cashEventId = null,
+  cashEffectiveAt = null,
+  cashBasis = null,
   marginDebtUsd = null,
   marginDebtEventId = null,
   marginDebtEffectiveAt = null,
@@ -513,14 +579,20 @@ export function buildPnlReportSnapshots({
   const positiveCostBasisUsd = returnCostBasisUsd > EPSILON
     ? returnCostBasisUsd
     : openSnapshots.reduce((sum, snapshot) => sum + snapshot.remainingCostUsd, 0);
-  const totalAssetsUsd = marketValueUsd + toNumber(cashUsd);
+  const cashSnapshot = normalizeCashSnapshot({
+    cashUsd,
+    cashEventId,
+    cashEffectiveAt,
+    cashBasis,
+  });
+  const totalAssetsUsd = marketValueUsd + cashSnapshot.cashUsd;
   const normalizedMarginDebtUsd = normalizePnlMarginDebtUsd(marginDebtUsd);
 
   return {
     portfolioSnapshot: {
       snapshotDate: date,
       currency: 'USD',
-      cashUsd: toNumber(cashUsd),
+      ...cashSnapshot,
       marketValueUsd,
       totalAssetsUsd,
       marginDebtUsd: normalizedMarginDebtUsd,
@@ -554,7 +626,7 @@ export function buildPnlReportHistoricalSnapshots({
   snapshotDates = null,
   maxSnapshots = 7,
   toDate = null,
-  cashUsd = 0,
+  cashByDate = null,
   marginDebtByDate = null,
   lockedAt = null,
   backfillMode = 'ledger',
@@ -585,6 +657,7 @@ export function buildPnlReportHistoricalSnapshots({
   const snapshots = [];
 
   targetDates.forEach((date) => {
+    const cashSnapshot = cashSnapshotForDate(cashByDate, date);
     const marginDebtSnapshot = marginDebtSnapshotForDate(marginDebtByDate, date);
     const historicalQuoteRows = symbols.map((symbol) => {
       const rows = closeMap.get(symbol) || [];
@@ -607,7 +680,7 @@ export function buildPnlReportHistoricalSnapshots({
       stockTrades: effectiveStockTrades,
       quoteRows: historicalQuoteRows,
       snapshotDate: date,
-      cashUsd,
+      ...cashSnapshot,
       ...marginDebtSnapshot,
       lockedAt,
     });

@@ -6,6 +6,7 @@ import handler, {
   handlePnlReportDailySnapshot,
   handlePnlReportSelfRecalculation,
 } from '../api/pnl-report-daily-snapshot.js';
+import { toPortfolioSnapshotRow } from '../server/pnlReportDailySnapshot.js';
 
 function createResponse() {
   return {
@@ -57,11 +58,27 @@ const DEFAULT_LEDGER_REVISIONS = [
   { user_id: 'sold-out-user', revision: 13 },
 ];
 
+test('portfolio rows derive total assets at the database numeric scale', () => {
+  const row = toPortfolioSnapshotRow({
+    snapshotDate: '2026-07-08',
+    cashUsd: 0.0000006,
+    marketValueUsd: 1.2345674,
+    totalAssetsUsd: 1.234568,
+  }, 'user-a');
+
+  assert.equal(row.cash_usd, 0.000001);
+  assert.equal(row.market_value_usd, 1.234567);
+  assert.equal(row.total_assets_usd.toFixed(6), (row.market_value_usd + row.cash_usd).toFixed(6));
+});
+
 function withSnapshotDatabase(fetchImpl, {
   cleanupResponse = { outcome: 'cleaned', deletedJobs: 0 },
   cleanupStatus = 200,
   dirtyRows = [],
   ledgerRevisions = DEFAULT_LEDGER_REVISIONS,
+  availableCashRows = [],
+  resolveCash = () => null,
+  resolveCashRows = null,
   dailyWriteOutcome = 'written',
   onCleanup = () => {},
   onDatabaseRead = () => {},
@@ -81,6 +98,10 @@ function withSnapshotDatabase(fetchImpl, {
       onDatabaseRead('ledger_revisions', href);
       return jsonResponse(ledgerRevisions);
     }
+    if (href.includes('/rest/v1/available_cash_status')) {
+      onDatabaseRead('available_cash_status', href);
+      return jsonResponse(availableCashRows);
+    }
     if (href.includes('/rest/v1/stock_trades')) {
       onDatabaseRead('stock_trades', href);
     }
@@ -94,6 +115,30 @@ function withSnapshotDatabase(fetchImpl, {
         return jsonResponse(outcome.body, outcome.status);
       }
       return jsonResponse(typeof outcome === 'string' ? { outcome } : outcome);
+    }
+    if (href.includes('/rest/v1/rpc/resolve_available_cash_snapshot_targets')) {
+      const targets = JSON.parse(options.body || '{}').p_targets || [];
+      if (typeof resolveCashRows === 'function') {
+        return jsonResponse(resolveCashRows(targets));
+      }
+      return jsonResponse(targets.map((target) => {
+        const resolved = resolveCash(target);
+        return resolved ? {
+          ...target,
+          known: true,
+          cash_usd: resolved.cashUsd,
+          cash_event_id: resolved.cashEventId,
+          cash_effective_at: resolved.cashEffectiveAt,
+          cash_basis: 'event',
+        } : {
+          ...target,
+          known: false,
+          cash_usd: 0,
+          cash_event_id: null,
+          cash_effective_at: null,
+          cash_basis: null,
+        };
+      }));
     }
     return fetchImpl(url, options);
   };
@@ -475,8 +520,8 @@ test('explicit same-day P&L date opens at 17:00 New York across DST', async () =
   assert.equal(fetchCalls, 2);
   assert.equal(spyCalls, 2);
   assert.deepEqual(requestOrder, [
-    'SPY', 'dirty_ids', 'ledger_revisions', 'stock_trades', 'dirty_ids',
-    'SPY', 'dirty_ids', 'ledger_revisions', 'stock_trades', 'dirty_ids',
+    'SPY', 'dirty_ids', 'ledger_revisions', 'available_cash_status', 'stock_trades', 'dirty_ids',
+    'SPY', 'dirty_ids', 'ledger_revisions', 'available_cash_status', 'stock_trades', 'dirty_ids',
   ]);
 });
 
@@ -756,6 +801,71 @@ test('daily P&L snapshot cron builds all-user close snapshots from stock_trades 
   );
   assert.doesNotMatch(JSON.stringify(res.body), /service-role-secret|eodhd-secret|cron-secret/);
   assert.ok(calls.some((call) => call.href.includes('api_token=eodhd-secret')), 'EODHD key should only be used in outbound provider request');
+});
+
+test('daily P&L snapshot includes a cash-only user without requesting stock EODHD', async () => {
+  const env = {
+    CRON_SECRET: process.env.CRON_SECRET,
+    SUPABASE_URL: process.env.SUPABASE_URL,
+    VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL,
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    SUPABASE_SERVICE_KEY: process.env.SUPABASE_SERVICE_KEY,
+    EODHD_API_KEY: process.env.EODHD_API_KEY,
+  };
+  const originalFetch = globalThis.fetch;
+  const atomicWrites = [];
+  let spyCalls = 0;
+  process.env.CRON_SECRET = 'cron-secret';
+  process.env.SUPABASE_URL = 'https://supabase.test';
+  delete process.env.VITE_SUPABASE_URL;
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-secret';
+  delete process.env.SUPABASE_SERVICE_KEY;
+  process.env.EODHD_API_KEY = 'eodhd-secret';
+
+  globalThis.fetch = withExactSpyClose(async (url) => {
+    const href = String(url);
+    if (href.includes('/rest/v1/stock_trades')) return jsonResponse([]);
+    throw new Error(`unexpected fetch: ${href}`);
+  }, () => {
+    spyCalls += 1;
+  }, {
+    ledgerRevisions: [],
+    availableCashRows: [{ user_id: 'cash-only-user' }],
+    resolveCash: () => ({
+      cashUsd: 2500,
+      cashEventId: '91',
+      cashEffectiveAt: '2026-07-07T18:00:00.000Z',
+    }),
+    onDailyWrite: (payload) => atomicWrites.push(payload),
+  });
+
+  const res = createResponse();
+  try {
+    await handler(createRequest({
+      headers: { authorization: 'Bearer cron-secret' },
+      query: { date: '2026-07-08' },
+    }), res);
+  } finally {
+    globalThis.fetch = originalFetch;
+    restoreEnv(env);
+  }
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.symbolsCount, 0);
+  assert.equal(spyCalls, 1);
+  assert.equal(atomicWrites.length, 1);
+  assert.equal(atomicWrites[0].p_expected_ledger_revision, 0);
+  assert.equal(atomicWrites[0].p_symbol_rows.length, 0);
+  assert.deepEqual({
+    cashUsd: atomicWrites[0].p_portfolio_row.cash_usd,
+    totalAssetsUsd: atomicWrites[0].p_portfolio_row.total_assets_usd,
+  }, {
+    cashUsd: 2500,
+    totalAssetsUsd: 2500,
+  });
+  assert.equal(Object.hasOwn(atomicWrites[0].p_portfolio_row, 'cash_event_id'), false);
+  assert.equal(Object.hasOwn(atomicWrites[0].p_portfolio_row, 'cash_effective_at'), false);
+  assert.equal(Object.hasOwn(atomicWrites[0].p_portfolio_row, 'cash_basis'), false);
 });
 
 test('daily P&L snapshot retries a transient symbol failure and keeps sold-out symbol closes optional', async () => {
@@ -1222,11 +1332,12 @@ test('scheduled no-date P&L snapshot catches an existing user up from 7/10 throu
     }
   );
   assert.ok(portfolioWrites.every((row) => row.source_version === 'pnl_snapshot_v2'));
-  assert.deepEqual(databaseOrder.slice(0, 5), [
+  assert.deepEqual(databaseOrder.slice(0, 6), [
     'cleanup',
     'dirty_ids',
     'dirty_ids',
     'ledger_revisions',
+    'available_cash_status',
     'stock_trades',
   ]);
   assert.equal(mutationOrder[0], 'margin-rpc');
@@ -1502,6 +1613,106 @@ test('margin snapshot RPC contract failures stop before every P&L mutation', asy
       assert.equal(stockProviderCalls, 0, contractCase.name);
       assert.equal(pnlMutations, 0, contractCase.name);
       assert.deepEqual(events, ['margin-rpc'], contractCase.name);
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+    restoreEnv(env);
+  }
+});
+
+test('available-cash snapshot RPC contract failures stop before every P&L mutation', async () => {
+  const env = {
+    CRON_SECRET: process.env.CRON_SECRET,
+    SUPABASE_URL: process.env.SUPABASE_URL,
+    VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL,
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    SUPABASE_SERVICE_KEY: process.env.SUPABASE_SERVICE_KEY,
+    EODHD_API_KEY: process.env.EODHD_API_KEY,
+  };
+  const originalFetch = globalThis.fetch;
+  process.env.CRON_SECRET = 'cron-secret';
+  process.env.SUPABASE_URL = 'https://supabase.test';
+  delete process.env.VITE_SUPABASE_URL;
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-secret';
+  delete process.env.SUPABASE_SERVICE_KEY;
+  process.env.EODHD_API_KEY = 'eodhd-secret';
+
+  const cases = [
+    { name: 'incomplete', rows: () => [] },
+    {
+      name: 'unknown-with-null-amount',
+      rows: ([target]) => [{
+        ...target,
+        known: false,
+        cash_usd: null,
+        cash_event_id: null,
+        cash_effective_at: null,
+        cash_basis: null,
+      }],
+    },
+    {
+      name: 'unknown-with-value',
+      rows: ([target]) => [{
+        ...target,
+        known: false,
+        cash_usd: 1,
+        cash_event_id: null,
+        cash_effective_at: null,
+        cash_basis: null,
+      }],
+    },
+    {
+      name: 'known-without-provenance',
+      rows: ([target]) => [{
+        ...target,
+        known: true,
+        cash_usd: 100,
+        cash_event_id: null,
+        cash_effective_at: null,
+        cash_basis: 'event',
+      }],
+    },
+  ];
+
+  try {
+    for (const contractCase of cases) {
+      let stockProviderCalls = 0;
+      let pnlMutations = 0;
+      globalThis.fetch = withSnapshotDatabase(async (url) => {
+        const href = String(url);
+        if (href.includes('/api/eod/SPY.US')) {
+          return jsonResponse([{ date: '2026-07-08', close: 620, adjusted_close: 620 }]);
+        }
+        if (href.includes('/rest/v1/stock_trades')) {
+          return jsonResponse([
+            { id: 'trade-a', user_id: 'user-a', symbol: 'NVDA', name: 'NVIDIA', side: 'buy', trade_date: '2026-07-01', price: 100, shares: 2, fee: 0, currency: 'USD' },
+          ]);
+        }
+        if (href.includes('/api/eod/NVDA.US')) {
+          stockProviderCalls += 1;
+          return jsonResponse([{ date: '2026-07-08', close: 120, adjusted_close: 120 }]);
+        }
+        throw new Error(`unexpected fetch for ${contractCase.name}: ${href}`);
+      }, {
+        resolveCashRows: contractCase.rows,
+        onDailyWrite() { pnlMutations += 1; },
+      });
+
+      const res = createResponse();
+      await handler(createRequest({
+        headers: { authorization: 'Bearer cron-secret' },
+        query: { date: '2026-07-08' },
+      }), res);
+
+      assert.equal(res.statusCode, 503, contractCase.name);
+      assert.equal(res.headers['retry-after'], '300', contractCase.name);
+      assert.doesNotMatch(
+        JSON.stringify(res.body),
+        /可用现金快照解析结果|available_cash_snapshot_contract_invalid/,
+        contractCase.name,
+      );
+      assert.equal(stockProviderCalls, 0, contractCase.name);
+      assert.equal(pnlMutations, 0, contractCase.name);
     }
   } finally {
     globalThis.fetch = originalFetch;

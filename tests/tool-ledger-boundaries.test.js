@@ -933,7 +933,8 @@ test('P&L report snapshot page stays independent from live trading pipelines', (
   assert.equal(pnlReportPageSource.includes('pnlReport.simpleWeighted'), false, 'P&L report should not show the unused simple weighted selector');
   assert.equal(pnlReportPageSource.includes('pnlReport.funds'), false, 'P&L report summary should not keep the unused funds tab');
   assert.equal(pnlReportPageSource.includes('pnlReport.ipo'), false, 'P&L report summary should not keep the unused IPO tab');
-  assert.equal(pnlReportPageSource.includes('pnlReport.cash'), false, 'P&L report summary should not keep the unused cash tab');
+  assert.equal(pnlReportPageSource.includes("id: 'cash'"), false, 'P&L report summary should not add a separate cash tab');
+  assert.ok(pnlReportPageSource.includes('pnlReport.tooltip.availableCash'), 'the existing asset tooltip should disclose available cash inside the asset view');
   assert.ok(pnlReportPageSource.includes('pnlReport.stockPnl'), 'P&L report summary should use the stock-only cumulative P&L label');
   assert.equal(pnlReportPageSource.includes("from '../lib/supabase'"), false, 'P&L report page should not import Supabase directly');
   assert.equal(pnlReportPageSource.includes('deriveInvestmentSummary'), false, 'P&L report should not reuse the live trading summary pipeline');

@@ -416,6 +416,7 @@ function PositionProfitScenarioSheet({
 
 export default function TradesTab({ ctx, initialToolPanel = '' }) {
   const {
+    availableCashStatusReady = false,
     addTrade,
     AlertCircle,
     calcCostBasis,
@@ -594,6 +595,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
   const tradeModalBaseInput = 'block w-full max-w-full min-w-0 box-border rounded-xl border border-transparent bg-white/[0.06] px-3.5 py-2.5 text-[14px] text-white outline-none transition placeholder:text-white/[0.28] focus:border-[#f6b54b]/45 focus:bg-white/[0.085]';
   const tradeModalLabelClass = 'mb-1.5 block text-[12px] font-normal text-white/[0.62]';
   const marginDebtUsd = normalizeMarginDebtUsd(marginStatus?.currentMargin);
+  const assetStatusReady = marginStatusReady && availableCashStatusReady;
   const marginOverview = React.useMemo(() => deriveHomeMarginOverview({
     totalAssetsUsd: summary.totalAssetsUsd,
     marginDebtUsd,
@@ -868,7 +870,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
           </div>
 
           <div className="mt-3 overflow-hidden text-ellipsis whitespace-nowrap font-normal leading-none tracking-normal text-[#ffd18a] tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT, fontSize: 'clamp(28px, 8.7vw, 34px)' }}>
-            {marginStatusReady ? (
+            {assetStatusReady ? (
               <>
                 <span>{displayAssetMoney.main}</span>
                 <span className="ml-0.5 align-baseline text-[20px] font-normal leading-none text-[#ffd18a]/90">{displayAssetMoney.decimal}</span>
@@ -880,7 +882,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
           <div className="mt-3 flex items-center gap-2 text-white/[0.42]">
             <span className="text-[13px]">{tt('trades.totalAssets', '总资产')}</span>
             <span className="truncate text-[12px] text-white/[0.72] tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>
-              {`${displayCurrency === 'CNY' ? '¥' : '$'}${fmtAmount(displayAssets, 2)}`}
+              {assetStatusReady ? `${displayCurrency === 'CNY' ? '¥' : '$'}${fmtAmount(displayAssets, 2)}` : '--'}
             </span>
           </div>
 
@@ -913,7 +915,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
             </button>
             <button
               type="button"
-              disabled={!marginStatusReady}
+              disabled={!assetStatusReady}
               onClick={openHomeMarginRisk}
               className="block min-w-0 pl-3 text-left transition active:scale-[0.99] disabled:cursor-wait disabled:opacity-45"
               data-trades-margin-trigger="true"
@@ -927,9 +929,9 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
               </div>
               <div className={`mt-1 min-w-0 ${englishMode ? 'flex flex-col items-start gap-1' : 'flex items-center gap-[3px]'}`}>
                 <span className="shrink-0 whitespace-nowrap text-[12px] text-white/[0.42] tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>
-                  {tt('home.leverage', '杠杆')} {marginStatusReady ? formatLeverage(marginOverview.leverage) : '—'}
+                  {tt('home.leverage', '杠杆')} {assetStatusReady ? formatLeverage(marginOverview.leverage) : '—'}
                 </span>
-                {marginStatusReady && marginLeverageStatus && (
+                {assetStatusReady && marginLeverageStatus && (
                   <AccountLeverageBadge className="h-[17px] px-1 text-[10px]" language={language} tierId={marginLeverageStatus.id} />
                 )}
               </div>

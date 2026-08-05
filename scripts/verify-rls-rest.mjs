@@ -18,6 +18,7 @@ const USER_TABLES = [
   'balance_snapshots',
   'investment_plan',
   'margin_status',
+  'available_cash_status',
   'disciplines',
   'review_logs',
   'yearly_actuals',
@@ -27,6 +28,7 @@ const SERVICE_ONLY_TABLES = [
   { table: 'snapshot_publication_markers', select: 'channel' },
   { table: 'margin_debt_events', select: 'user_id' },
   { table: 'margin_debt_history_meta', select: 'version' },
+  { table: 'available_cash_events', select: 'user_id' },
   { table: 'community_competition_rebaseline_audit', select: 'operation_key' },
   { table: 'community_competition_epoch_resets', select: 'operation_key' },
   { table: 'community_competition_rebuild_state', select: 'user_id' },
@@ -39,6 +41,15 @@ const SERVICE_ONLY_TABLES = [
 const SERVICE_ONLY_RPCS = [
   {
     name: 'resolve_margin_debt_snapshot_targets',
+    body: {
+      p_targets: [{
+        user_id: '00000000-0000-0000-0000-000000000000',
+        snapshot_date: '2000-01-01',
+      }],
+    },
+  },
+  {
+    name: 'resolve_available_cash_snapshot_targets',
     body: {
       p_targets: [{
         user_id: '00000000-0000-0000-0000-000000000000',
@@ -222,6 +233,10 @@ const SERVICE_ONLY_RPCS = [
   },
 ];
 const AUTHENTICATED_USER_RPCS = [
+  {
+    name: 'available_cash_write_contract_ready',
+    body: {},
+  },
   {
     name: 'record_swing_wave_exit',
     body: {

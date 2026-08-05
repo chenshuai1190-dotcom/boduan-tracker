@@ -10,8 +10,8 @@
 | --- | --- |
 | 仓库 | `chenshuai1190-dotcom/boduan-tracker` |
 | 生产地址 | `https://boduan-tracker.vercel.app` |
-| 运行时代码 | `v10.7.9.420`：波段记录支持多次部分卖出、独立完成段及可逆编辑/删除；保留 v419 TSM Q1 官方财报、v417 股票实时稳定版 v10 及全部既有正式行情边界；精确发布提交以 GitHub `main` HEAD 为准 |
-| 数据库 | 保留既有 additive schema，并新增 `swing_wave_partial_exits_20260805.sql` 的独立退出记录与原子 RPC；既有比赛 migration、个人收益 foundation `pnl_report_immediate_rebuild_20260801.sql` 与 runtime 后 contract `pnl_report_snapshot_write_contract_after_runtime_20260801.sql` 顺序不变 |
+| 运行时代码 | `v10.7.9.421`：首页新增可用现金录入并联动总资产、净资产、融资情景、自选股仓位占比及个人收益完成收盘快照；保留 v420 波段部分卖出、v419 TSM Q1 官方财报、v417 股票实时稳定版 v10 及全部既有正式行情边界；精确发布提交以 GitHub `main` HEAD 为准 |
+| 数据库 | 保留既有 additive schema，并按 `available_cash_foundation_20260805.sql` → 精确 runtime → `available_cash_snapshot_contract_after_runtime_20260805.sql` 增加本人现金状态、不可变事件及个人收益现金快照契约；`swing_wave_partial_exits_20260805.sql` 和既有比赛、个人收益 migration 顺序不变 |
 | 发布完成条件 | GitHub `main` 的同一份 runtime 与上述 migration 均已上线并通过聚合 postflight；只完成其中一项不得宣布上线 |
 
 本地发布门禁：
@@ -23,8 +23,17 @@
 - 个股即时交易事实专项：`34 / 34` tests PASS；当天新增、修改、删除和纽约日期上限均覆盖，收盘收益、持仓、趋势、图表节点与 QQQ 边界保持不变。
 - 股票趋势 MA50 周线专项：`73 / 73` tests PASS；完成周锁定、50–199 周独立可用、1 年/5 年曲线组合及原曲线保留均覆盖。
 - 波段部分卖出专项：同一波段多次退出、剩余股数、旧完整卖出兼容、编辑/删除返还、并发超卖与账本隔离均有定向测试覆盖。
+- 可用现金专项：未设置/明确为 0、USD/CNY、保存后更新、失败回退、首页/交易/融资/自选股联动、完成收盘现金事件、cash-only 用户及 QQQ/比赛隔离均有定向测试覆盖。
 - `npm run check:full`：PASS；字号下限、Vite production build、whitespace 和三份权威文档一致性均通过。
 - 新的开发、验证和单等待器发布流程继续保留，没有恢复旧六文档或重复验证流程。
+
+## 可用现金与资产联动
+
+- 首页头部在总资产后显示同字号可用现金；点击金额打开录入窗口，支持 USD 与 CNY。未设置和明确设置为 `0` 是不同状态；小屏只给金额所需宽度，不改变原卡片结构或融资负债样式。
+- 可用现金计入首页、交易页和融资情景的总资产与净资产，并作为自选股仓位占比的资产分母。任何现金或融资状态尚未就绪时，相关金融结果 fail closed，不用 `0` 或旧账户缓存冒充当前值。
+- 每次本人现金金额变化由数据库生成不可变事件并标记个人收益 dirty；客户端只在正式保存成功后更新。事件不能由普通客户端直接写入、修改或删除，缓存按登录用户隔离且缓存回退时禁止写入。
+- 个人收益在符合美东截止时间的最新完成收盘任务中，按每个快照日期解析当时已生效的现金事件。当前现金不得倒灌历史；现金只增加资产与净资产，不稀释股票日收益率、累计收益率或个股/QQQ 对比，也不写正式交易或收益比赛。
+- schema 必须按 `available_cash_foundation_20260805.sql` → 精确 runtime 部署并验证 → `available_cash_snapshot_contract_after_runtime_20260805.sql` 执行。foundation 阶段 readiness 为 false 且普通用户无写权限；contract 只有在匹配 runtime 已上线后才开放本人 insert/update。
 
 ## 波段部分卖出
 
@@ -105,6 +114,7 @@
 
 - migration 新增 service-only rebuild state、不可变 audit、正式交易 dirty trigger，以及 unpublished snapshot、publication marker、完整个人序列替换三个原子 RPC。
 - `swing_wave_partial_exits_20260805.sql` 只增加波段退出表、约束、RLS 和本人原子 mutation RPC，不 backfill、删除或改写既有波段；旧 runtime 仍可读取和完整卖出未产生子退出的波段。
+- 可用现金 migration 只新增本人状态、服务端事件、快照来源列、约束、trigger、函数与 RLS；不 backfill、删除或覆盖既有现金或收益数据。foundation → runtime → contract 不得交换，runtime 回退时保留 additive schema 并只做 forward-fix。
 - 普通用户只能修改 RLS 允许的本人正式交易；不能读取 dirty/audit、直接调用 service RPC、直接写比赛快照或 publication marker。
 - 生产 migration 是写操作，必须取得用户明确授权；执行前做匿名安全和聚合 preflight，执行后运行 `npm run verify:rls:rest` 并只读核对表、trigger、函数签名、grant 与聚合 dirty 数量。
 - migration 为 forward-only。若 runtime 需要回退，保留 additive schema 和 audit；不得回滚生产数据库、删除正式交易或改写历史比赛快照。数据库异常只做新的 forward-fix。
@@ -114,7 +124,7 @@
 ### 已知风险
 
 - 比赛公开行情缓存与 402 熔断是 Vercel 单实例内存态，不是跨实例全局缓存；冷启动或不同实例仍可能分别首次读取一次。
-- v420 只扩展独立波段账本的部分卖出能力，不改变正式交易、收益或 EODHD 行情口径；其余继续保留收益比赛共享 EODHD 缓存与熔断、交易持仓 EODHD 收盘估值、个人收益正确重算、主 `/api/quote` 的 15/30/60 分钟客户端门控、个股/QQQ 当前存续仓位口径、个人收益只读页面和股票实时稳定版 v10。TSM 业绩趋势在每个冷实例首次读取时仍会产生一笔 Fundamentals 与一笔完整历史 FX 请求；6 小时实例缓存仍不是跨实例全局缓存。
+- v421 将可用现金纳入资产与个人收益完成收盘快照，但不改变正式交易、股票收益率、QQQ、比赛或 EODHD 行情口径；其余继续保留波段部分卖出、收益比赛共享 EODHD 缓存与熔断、交易持仓 EODHD 收盘估值、主 `/api/quote` 的 15/30/60 分钟客户端门控、个人收益只读页面和股票实时稳定版 v10。TSM 业绩趋势在每个冷实例首次读取时仍会产生一笔 Fundamentals 与一笔完整历史 FX 请求；6 小时实例缓存仍不是跨实例全局缓存。
 - 个人收益的客户端即时重算请求是交易 mutation 后的一次非阻塞派生动作：正式交易保存成功不会因个人收益暂时失败而回滚，恢复依赖数据库 dirty state 和收盘 Cron，不依赖收益报表页面或浏览器一直存活。比赛仍保持其独立重算链路。
 - P&L foundation 与 contract 之间旧 PWA 仍保留原直接写权限，因此 runtime 验证后必须尽快执行 contract；任一步失败都只做 forward-fix。跨 Vercel 实例生成不同时间戳时可能留下多个安全隔离的暂存 job，由 24 小时 TTL 清理，不会混合发布。
 
@@ -129,7 +139,7 @@
 
 ### 下一步
 
-1. 低频观察个人收益 dirty 聚合数量、等待原因与重试完成情况；不得读取或披露用户交易明细，不得循环调用 EODHD。
+1. 低频观察可用现金变更后的个人收益 dirty 聚合数量及下一份完成收盘任务消费结果；不得读取或披露用户现金、交易或持仓明细，不得循环调用 EODHD。
 2. 现场只读核验个人收益 schema/RPC/grant、比赛 publication marker、未登录接口与一条已登录读取；旧证据不能代替本次现场结果。
 3. 观察应用整体 EODHD 调用量。若主 quote 仍有跨实例或旧客户端重复读取，另行恢复 EODHD-only 的通用门控与缓存，不得改变正式价格来源。
 4. 新任务只读 `README.md`、`docs/development-process.md`、`docs/handoff.md`，不要重复旧流程。

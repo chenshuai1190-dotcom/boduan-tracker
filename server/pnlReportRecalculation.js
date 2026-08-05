@@ -9,10 +9,12 @@ import {
   fetchCommunityCompetitionEodhdHistory,
 } from './communityCompetitionEodhd.js';
 import {
+  fetchAvailableCashStatusUserIds,
   isValidTrade,
   mapStockTradeRow,
   normalizeDateParam,
   requiredCloseSymbolsForUser,
+  resolveAvailableCashSnapshotTargets,
   resolveMarginDebtSnapshotTargets,
   shiftDate,
   supabaseAdminFetch,
@@ -420,16 +422,19 @@ async function buildReplacementPlan({
   now,
 }) {
   if (trades.length === 0) {
-    return {
-      userId,
-      dirtyFromDate,
-      ledgerRevision,
-      generation,
-      throughDate: null,
-      portfolioRows: [],
-      symbolRows: [],
-      clearAll: true,
-    };
+    const availableCashUserIds = await fetchAvailableCashStatusUserIds(userId);
+    if (!availableCashUserIds.has(userId)) {
+      return {
+        userId,
+        dirtyFromDate,
+        ledgerRevision,
+        generation,
+        throughDate: null,
+        portfolioRows: [],
+        symbolRows: [],
+        clearAll: true,
+      };
+    }
   }
 
   const calendar = await fetchTradingCalendar({ dirtyFromDate, now });
@@ -466,9 +471,11 @@ async function buildReplacementPlan({
     : {};
   assertRequiredCloses(historicalClosesBySymbol, requiredDates);
 
-  const marginByUser = await resolveMarginDebtSnapshotTargets(
-    new Map([[userId, calendar.tradingDates]])
-  );
+  const snapshotTargets = new Map([[userId, calendar.tradingDates]]);
+  const [marginByUser, cashByUser] = await Promise.all([
+    resolveMarginDebtSnapshotTargets(snapshotTargets),
+    resolveAvailableCashSnapshotTargets(snapshotTargets),
+  ]);
   const lockedAt = (now instanceof Date ? now : new Date(now)).toISOString();
   const built = buildPnlReportHistoricalSnapshots({
     stockTrades: scopedTrades,
@@ -476,6 +483,7 @@ async function buildReplacementPlan({
     snapshotDates: calendar.tradingDates,
     toDate: throughDate,
     maxSnapshots: calendar.tradingDates.length,
+    cashByDate: cashByUser.get(userId),
     marginDebtByDate: marginByUser.get(userId),
     lockedAt,
     backfillMode: 'ledger',

@@ -7,33 +7,45 @@ const normalizeReportSnapshotDate = (value) => {
   return date.toISOString().slice(0, 10);
 };
 
-const mapPnlReportSnapshot = (snapshot) => ({
-  id: snapshot.id,
-  snapshotDate: snapshot.snapshot_date,
-  currency: snapshot.currency || 'USD',
-  cashUsd: Number(snapshot.cash_usd || 0),
-  marketValueUsd: Number(snapshot.market_value_usd || 0),
-  totalAssetsUsd: Number(snapshot.total_assets_usd || 0),
-  marginDebtUsd: snapshot.margin_debt_usd == null ? null : Number(snapshot.margin_debt_usd),
-  marginDebtEventId: snapshot.margin_debt_event_id == null ? null : String(snapshot.margin_debt_event_id),
-  marginDebtEffectiveAt: snapshot.margin_debt_effective_at || null,
-  marginDebtBasis: snapshot.margin_debt_basis || null,
-  netAssetsUsd: snapshot.net_assets_usd == null ? null : Number(snapshot.net_assets_usd),
-  realizedPnlUsd: Number(snapshot.realized_pnl_usd || 0),
-  unrealizedPnlUsd: Number(snapshot.unrealized_pnl_usd || 0),
-  cumulativePnlUsd: Number(snapshot.cumulative_pnl_usd || 0),
-  cumulativePnlPct: Number(snapshot.cumulative_pnl_pct || 0),
-  dailyPnlUsd: snapshot.daily_pnl_usd == null ? null : Number(snapshot.daily_pnl_usd),
-  dailyPnlPct: snapshot.daily_pnl_pct == null ? null : Number(snapshot.daily_pnl_pct),
-  totalBuyCostUsd: Number(snapshot.total_buy_cost_usd || 0),
-  sellProceedsUsd: Number(snapshot.sell_proceeds_usd || 0),
-  tradeCount: Number(snapshot.trade_count || 0),
-  holdingCount: Number(snapshot.holding_count || 0),
-  sourceVersion: snapshot.source_version || '',
-  lockedAt: snapshot.locked_at || null,
-  createdAt: snapshot.created_at || null,
-  updatedAt: snapshot.updated_at || null,
-});
+const mapPnlReportSnapshot = (snapshot) => {
+  const cashEventId = snapshot.cash_event_id == null ? null : String(snapshot.cash_event_id);
+  const cashEffectiveAt = snapshot.cash_effective_at || null;
+  const cashKnown = snapshot.cash_basis === 'event'
+    && /^[1-9]\d*$/.test(cashEventId || '')
+    && Boolean(cashEffectiveAt)
+    && Number.isFinite(Date.parse(cashEffectiveAt));
+  return {
+    id: snapshot.id,
+    snapshotDate: snapshot.snapshot_date,
+    currency: snapshot.currency || 'USD',
+    cashUsd: cashKnown ? Number(snapshot.cash_usd || 0) : 0,
+    cashEventId: cashKnown ? cashEventId : null,
+    cashEffectiveAt: cashKnown ? cashEffectiveAt : null,
+    cashBasis: cashKnown ? 'event' : null,
+    cashKnown,
+    marketValueUsd: Number(snapshot.market_value_usd || 0),
+    totalAssetsUsd: Number(snapshot.total_assets_usd || 0),
+    marginDebtUsd: snapshot.margin_debt_usd == null ? null : Number(snapshot.margin_debt_usd),
+    marginDebtEventId: snapshot.margin_debt_event_id == null ? null : String(snapshot.margin_debt_event_id),
+    marginDebtEffectiveAt: snapshot.margin_debt_effective_at || null,
+    marginDebtBasis: snapshot.margin_debt_basis || null,
+    netAssetsUsd: snapshot.net_assets_usd == null ? null : Number(snapshot.net_assets_usd),
+    realizedPnlUsd: Number(snapshot.realized_pnl_usd || 0),
+    unrealizedPnlUsd: Number(snapshot.unrealized_pnl_usd || 0),
+    cumulativePnlUsd: Number(snapshot.cumulative_pnl_usd || 0),
+    cumulativePnlPct: Number(snapshot.cumulative_pnl_pct || 0),
+    dailyPnlUsd: snapshot.daily_pnl_usd == null ? null : Number(snapshot.daily_pnl_usd),
+    dailyPnlPct: snapshot.daily_pnl_pct == null ? null : Number(snapshot.daily_pnl_pct),
+    totalBuyCostUsd: Number(snapshot.total_buy_cost_usd || 0),
+    sellProceedsUsd: Number(snapshot.sell_proceeds_usd || 0),
+    tradeCount: Number(snapshot.trade_count || 0),
+    holdingCount: Number(snapshot.holding_count || 0),
+    sourceVersion: snapshot.source_version || '',
+    lockedAt: snapshot.locked_at || null,
+    createdAt: snapshot.created_at || null,
+    updatedAt: snapshot.updated_at || null,
+  };
+};
 
 const mapPnlReportSymbolSnapshot = (snapshot) => ({
   id: snapshot.id,

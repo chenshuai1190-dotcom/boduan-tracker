@@ -589,3 +589,33 @@ test('returns explicit empty report when there are no snapshots', () => {
   assert.equal(report.selectedMonth, '2026/07');
   assert.deepEqual(report.rankings.gain, []);
 });
+
+test('adds known cash to asset lines without diluting stock return percentages', () => {
+  const report = buildPnlReportViewModel({
+    portfolioSnapshots: [{
+      snapshotDate: '2026-07-08',
+      marketValueUsd: 100,
+      cashUsd: 900,
+      cashKnown: true,
+      cashBasis: 'event',
+      cashEventId: '8',
+      cashEffectiveAt: '2026-07-07T18:00:00.000Z',
+      totalAssetsUsd: 9999,
+      marginDebtUsd: 20,
+      netAssetsUsd: 9979,
+      cumulativePnlUsd: 10,
+      cumulativePnlPct: 0.1,
+      dailyPnlUsd: 10,
+      dailyPnlPct: null,
+    }],
+    range: 'custom',
+    customRange: { startDate: '2026-07-08', endDate: '2026-07-08' },
+    now: new Date('2026-07-08T22:00:00Z'),
+  });
+
+  assert.equal(report.totalPnlPct, 10 / 90);
+  assert.equal(report.trend[0].cashUsd, 900);
+  assert.equal(report.trend[0].cashKnown, true);
+  assert.equal(report.trend[0].totalAssetUsd, 1000);
+  assert.equal(report.trend[0].netAssetUsd, 980);
+});
