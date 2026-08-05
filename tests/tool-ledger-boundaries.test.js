@@ -2043,13 +2043,14 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(reviewTabSource.includes('text-[20px] font-normal leading-none text-[#ffd18a]/90'), 'north-star headline decimal suffix should be visually smaller and normal weight');
   assert.ok(devVisualPreviewSource.includes("get('reviewAmountStress') === '1'"), 'local review preview should provide a CNY large-amount stress state');
   assert.ok(devVisualPreviewSource.includes("displayCurrency: reviewAmountStress ? 'CNY' : 'USD'"), 'review amount stress state should exercise the widest currency display');
+  assert.ok(devVisualPreviewSource.includes('actualGain: reviewAmountStress ? 348232 : 70000'), 'review amount stress state should reproduce a long seven-figure CNY actual gain');
   assert.ok(reviewTabSource.includes('function CompoundDetailModal'), 'north-star card should open a compound detail modal');
   assert.ok(reviewTabSource.includes('data-compound-detail="true"'), 'compound detail modal should have a stable visual verification hook');
   assert.ok(reviewTabSource.includes("tt('review.compoundTitle'"), 'compound detail should title itself from the current plan years through i18n');
   assert.ok(reviewTabSource.includes("tt('review.accountCurve'"), 'compound detail should render the account curve section through i18n');
   assert.ok(reviewTabSource.includes("tt('review.actualProgress'"), 'compound detail should compare actual progress with the plan through i18n');
   assert.ok(reviewTabSource.includes("tt('review.yearlyIncome'"), 'compound detail should render the yearly income table through i18n');
-  assert.ok(reviewTabSource.includes('w-[calc(100vw-8px)] max-w-[394px] overflow-y-auto overscroll-contain'), 'compound detail modal should gain only a little width for two-decimal amounts while remaining scrollable on mobile');
+  assert.ok(reviewTabSource.includes('w-[calc(100vw-8px)] max-w-[410px] overflow-y-auto overscroll-contain'), 'compound detail modal should gain enough width for two-decimal amounts while preserving its original inner layout');
   assert.ok(reviewTabSource.includes('border border-[#f6b54b]/35'), 'compound detail modal should use the muted gold reference border instead of a bright white border');
   assert.ok(reviewTabSource.includes('border border-[#232b36]/80'), 'compound inner cards should not use bright white or gold borders');
   assert.ok(reviewTabSource.includes('border-l border-[#232b36]/90'), 'compound summary dividers should use low-contrast dark lines');

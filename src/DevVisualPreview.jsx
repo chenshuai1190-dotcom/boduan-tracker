@@ -2273,7 +2273,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     balance: '',
   });
   const [investmentPlan, setInvestmentPlan] = React.useState({
-    startCapital: 2400000,
+    startCapital: reviewAmountStress ? 2387876 : 2400000,
     targetAnnualRate: 0.20,
     startYear: 2026,
     totalYears: 10,
@@ -2284,7 +2284,11 @@ function StandardDevVisualPreview({ initialTab = '' }) {
   const [disciplines, setDisciplines] = React.useState(() => mockDisciplines);
   const [reviewLogs, setReviewLogs] = React.useState(() => mockReviewLogs);
   const [yearlyActuals, setYearlyActuals] = React.useState(() => [
-    { year: 2026, actualGain: 70000, endBalance: 2470000 },
+    {
+      year: 2026,
+      actualGain: reviewAmountStress ? 348232 : 70000,
+      endBalance: reviewAmountStress ? 2736108 : 2470000,
+    },
   ]);
   const [showPlanSettings, setShowPlanSettings] = React.useState(false);
   const [showAddDiscipline, setShowAddDiscipline] = React.useState(false);

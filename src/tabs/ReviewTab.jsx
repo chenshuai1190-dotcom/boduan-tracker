@@ -292,7 +292,7 @@ function CompoundDetailModal({
     >
       <div
         data-compound-detail="true"
-        className="w-[calc(100vw-8px)] max-w-[394px] overflow-y-auto overscroll-contain rounded-[22px] border border-[#f6b54b]/35 bg-[#0b0f16] px-4 pb-4 pt-4 shadow-[0_26px_90px_rgba(0,0,0,0.74),inset_0_1px_0_rgba(246,181,75,0.12)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="w-[calc(100vw-8px)] max-w-[410px] overflow-y-auto overscroll-contain rounded-[22px] border border-[#f6b54b]/35 bg-[#0b0f16] px-4 pb-4 pt-4 shadow-[0_26px_90px_rgba(0,0,0,0.74),inset_0_1px_0_rgba(246,181,75,0.12)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         style={{ maxHeight: 'calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 28px)' }}
       >
         <div className="relative text-center">
