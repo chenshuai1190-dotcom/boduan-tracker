@@ -2049,7 +2049,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(reviewTabSource.includes("tt('review.accountCurve'"), 'compound detail should render the account curve section through i18n');
   assert.ok(reviewTabSource.includes("tt('review.actualProgress'"), 'compound detail should compare actual progress with the plan through i18n');
   assert.ok(reviewTabSource.includes("tt('review.yearlyIncome'"), 'compound detail should render the yearly income table through i18n');
-  assert.ok(reviewTabSource.includes('w-[calc(100vw-16px)] max-w-[386px] overflow-y-auto overscroll-contain'), 'compound detail modal should be wider while remaining scrollable on mobile');
+  assert.ok(reviewTabSource.includes('w-[calc(100vw-8px)] max-w-[394px] overflow-y-auto overscroll-contain'), 'compound detail modal should gain only a little width for two-decimal amounts while remaining scrollable on mobile');
   assert.ok(reviewTabSource.includes('border border-[#f6b54b]/35'), 'compound detail modal should use the muted gold reference border instead of a bright white border');
   assert.ok(reviewTabSource.includes('border border-[#232b36]/80'), 'compound inner cards should not use bright white or gold borders');
   assert.ok(reviewTabSource.includes('border-l border-[#232b36]/90'), 'compound summary dividers should use low-contrast dark lines');
@@ -2063,10 +2063,9 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(reviewTabSource.includes('stroke="rgba(255,255,255,0.07)"'), false, 'compound chart grid should not use white grid lines');
   assert.ok(reviewTabSource.includes('const xLabelIndexes = chartPoints.map((_, index) => index);'), 'compound chart should show every year label across the full plan');
   assert.ok(reviewTabSource.includes('fontSize="10" fontFamily={NUMBER_FONT}>{point.year}</text>'), 'compound chart year labels should fit all ten years without dropping below the global text floor');
-  assert.ok(reviewTabSource.includes('grid-cols-[1.15fr_1.15fr_0.7fr]'), 'compound summary should reserve more width for its two large amount columns');
-  assert.ok(reviewTabSource.includes('mt-2 whitespace-nowrap text-[12px] font-normal leading-none tracking-[-0.02em] tabular-nums'), 'compound summary numbers should stay compact without dropping below the typography floor');
-  assert.ok(reviewTabSource.includes('mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[12px] text-white/68'), 'compound actual amounts should wrap as complete groups instead of truncating');
-  assert.equal(reviewTabSource.includes('mt-1 truncate text-[12px] text-white/68'), false, 'compound actual amounts must not hide decimal digits');
+  assert.ok(reviewTabSource.includes('mt-4 grid grid-cols-3 rounded-2xl'), 'compound summary should preserve its original three-column structure');
+  assert.ok(reviewTabSource.includes('mt-2 whitespace-nowrap text-[13px] font-normal leading-none tabular-nums'), 'compound summary numbers should preserve their original typography');
+  assert.ok(reviewTabSource.includes('mt-1 truncate text-[12px] text-white/68'), 'compound actual-progress row should preserve its original single-line style');
   assert.ok(reviewTabSource.includes("valueClass: 'text-[#ff4b1f]'"), 'compound accumulated gain should use the home red amount color');
   assert.ok(reviewTabSource.includes("{tt('review.actualGain', '实际收益')} <span className=\"text-[#ff4b1f] tabular-nums\""), 'compound actual gain should use the home red amount color');
   assert.ok(reviewTabSource.includes('text-right text-[#ff4b1f] tabular-nums'), 'compound yearly gains should use the home red amount color');
@@ -2108,7 +2107,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(reviewTabSource.includes("tt('review.achieved', '实现')"), 'current year summary should show the achieved amount');
   assert.ok(reviewTabSource.includes("hasActual ? 'text-[#ff4b1f]' : 'text-white/35'"), 'achieved amount should use the standard system red');
   assert.ok(reviewTabSource.includes("targetGap < 0 ? 'text-[#ff4b1f]' : 'text-emerald-400'"), 'lag should use system green while an exceeded target uses system red');
-  assert.ok(reviewTabSource.includes('grid grid-cols-1 items-start gap-3'), 'current-year headline and amount summary should stack so two-decimal CNY values cannot squeeze out');
+  assert.ok(reviewTabSource.includes('grid grid-cols-[minmax(0,1fr)_172px] items-start gap-2.5'), 'current-year summary should preserve its original two-column style with a slightly wider amount column');
   assert.ok(reviewTabSource.includes('(yearItem.actualGain / yearItem.planTarget) * 100'), 'achieved percentage should use the current annual actual divided by the annual plan');
   assert.ok(reviewTabSource.includes('(Math.abs(targetGap) / yearItem.planTarget) * 100'), 'behind or exceeded percentage should use the absolute annual gap divided by the annual plan');
   assert.ok(reviewTabSource.includes('>100%</span>'), 'annual target summary should keep the target baseline fixed at 100 percent');
