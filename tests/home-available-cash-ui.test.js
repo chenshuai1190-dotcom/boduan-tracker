@@ -93,8 +93,15 @@ test('Home adds a compact same-row cash entry without changing its financial led
   assert.ok(totalAssetsStart >= 0 && metricGridStart > totalAssetsStart);
   assert.ok(rowBlock.includes('data-home-available-cash-trigger="true"'));
   assert.ok(rowBlock.includes("t(language, 'home.cash', '现金')"));
-  assert.ok(rowBlock.includes("t(language, 'home.availableCashSet', '设置')"));
-  assert.ok(rowBlock.includes('fmtCurrency(displayAvailableCash, displayCurrency, 2)'));
+  assert.ok(rowBlock.includes('fmtCurrency(displayAvailableCash, displayCurrency, availableCashIsSet ? 2 : 0)'));
+  assert.equal(rowBlock.includes("t(language, 'home.availableCashSet', '设置')"), false);
+  assert.ok(rowBlock.includes('availableCashIsSet ? 2 : 0'), 'an unset balance should render as a compact currency zero');
+  assert.match(
+    homeSource,
+    /grid-cols-\[1fr_1\.12fr_0\.96fr\][^\n]*data-home-total-assets="true"[\s\S]{0,900}?data-home-available-cash-trigger="true"/,
+    'cash should use the same third-column start as the margin block below',
+  );
+  assert.ok(rowBlock.includes('col-start-3') && rowBlock.includes('pl-3'));
   assert.ok(rowBlock.includes('text-[12px]'), 'the cash amount should match the total-assets amount size');
   assert.ok(homeSource.includes('assetStatusReady = marginStatusReady && availableCashStatusReady'));
   assert.ok(homeSource.includes('availableCashWriteReady = availableCashStatusReady && availableCashStatus?.writeReady === true'));

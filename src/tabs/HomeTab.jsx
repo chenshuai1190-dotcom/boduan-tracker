@@ -1011,8 +1011,8 @@ export default function HomeTab({ ctx }) {
             <span className="text-white/30">--</span>
           )}
         </div>
-        <div className="mt-3 flex min-w-0 items-center justify-between gap-2 text-white/[0.42]" data-home-total-assets="true">
-          <div className="flex min-w-0 items-center gap-1">
+        <div className="mt-3 grid min-w-0 grid-cols-[1fr_1.12fr_0.96fr] items-center text-white/[0.42]" data-home-total-assets="true">
+          <div className="col-span-2 flex min-w-0 items-center gap-1 pr-3">
             <span className="shrink-0 text-[13px]">{t(language, 'home.totalAssets', '总资产')}</span>
             <span className="truncate text-[12px] text-white/[0.72] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
               {assetStatusReady ? fmtCurrency(displayAssets, displayCurrency, 2) : '--'}
@@ -1022,17 +1022,15 @@ export default function HomeTab({ ctx }) {
             type="button"
             disabled={!availableCashWriteReady}
             onClick={() => setShowAvailableCashEditor(true)}
-            className="flex min-w-0 shrink-0 items-center gap-1 text-left transition active:scale-[0.99] disabled:cursor-wait disabled:opacity-45"
+            className="col-start-3 flex min-w-0 items-center gap-1 pl-3 text-left transition active:scale-[0.99] disabled:cursor-wait disabled:opacity-45"
             aria-label={t(language, 'home.availableCashBalance', '设置可用现金')}
             data-home-available-cash-trigger="true"
           >
             <span className="text-[13px]">{t(language, 'home.cash', '现金')}</span>
-            <span className={`max-w-[118px] truncate text-[12px] tabular-nums ${availableCashIsSet ? 'text-white/[0.72]' : 'text-[#f6b54b]/85'}`} style={{ fontFamily: NUMBER_FONT }}>
-              {!availableCashStatusReady
-                ? '--'
-                : availableCashIsSet
-                  ? fmtCurrency(displayAvailableCash, displayCurrency, 2)
-                  : t(language, 'home.availableCashSet', '设置')}
+            <span className="max-w-[118px] truncate text-[12px] text-white/[0.72] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
+              {availableCashStatusReady
+                ? fmtCurrency(displayAvailableCash, displayCurrency, availableCashIsSet ? 2 : 0)
+                : '--'}
             </span>
           </button>
         </div>

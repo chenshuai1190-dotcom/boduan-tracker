@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '💵 优化首页现金默认值与列对齐',
+      '  - 尚未录入现金时直接显示当前币种的 ¥0 或 $0，不再显示“设置”文字；金额区域仍可点击录入',
+      '  - 现金与下方融资负债使用同一列起点和左侧间距，总资产及头部卡片原样式保持不变',
+      '  - 本次只调整首页显示，不修改现金持久化、资产口径、个人收益、数据库或行情链路',
+    ],
+    itemsEn: [
+      '💵 Refined the Home cash default and column alignment',
+      '  - Unset cash now displays ¥0 or $0 in the active currency instead of a Set label, while the amount area remains tappable for entry',
+      '  - Cash now shares the same column start and left spacing as Margin Debt below, with Total Assets and the original header-card styling preserved',
+      '  - This is a Home display-only change with no change to cash persistence, asset accounting, personal P&L, the database, or market data',
+    ],
+  },
+  {
+    ver: 'v10.7.9.421', date: '2026-08-05',
+    items: [
       '💵 首页新增可用现金并联动账户资产',
       '  - 总资产后新增同字号现金金额；点击即可录入 USD 或 CNY，未设置与明确为 0 保持不同状态，小屏不挤出原卡片',
       '  - 可用现金计入首页、交易页和融资情景的总资产与净资产，并参与自选股仓位占比；融资负债及原有样式保持不变',
