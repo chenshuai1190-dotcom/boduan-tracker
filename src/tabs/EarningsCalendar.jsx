@@ -20,6 +20,7 @@ import {
 } from '../lib/earningsCalendarModel.js';
 import {
   bindEarningsCalendarRefresh,
+  EARNINGS_CALENDAR_SCOPE_VERSION,
   fetchEarningsCalendarEvents,
   getEarningsRefreshCandidates,
   mergeEarningsRefreshEvents,
@@ -44,6 +45,7 @@ function earningsCalendarClientCacheKey({ userId, symbols, from, to, includePrev
     from || '',
     to || '',
     includePreviousPublished ? 'previous-published' : 'current-only',
+    EARNINGS_CALENDAR_SCOPE_VERSION,
   ].join('|');
 }
 

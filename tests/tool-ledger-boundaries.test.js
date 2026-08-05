@@ -682,9 +682,10 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(earningsCalendarSource.includes('grid-cols-[minmax(64px,0.82fr)_64px_104px_40px]'), 'earnings calendar modal row should reserve more room for EPS and USD revenue text');
   assert.ok(earningsCalendarSource.includes('whitespace-nowrap text-[12px] text-white/70 tabular-nums'), 'earnings calendar modal revenue should stay on one line with reduced brightness');
   assert.equal(earningsCalendarSource.includes('eventDates.slice(0, 6).map'), false, 'earnings calendar list view should not keep the duplicated date filter row');
-  assert.ok(earningsCalendarSource.includes('const includePreviousPublished = true'), 'earnings calendar should enable the previous published quarter for modal review');
-  assert.ok(earningsCalendarRefreshSource.includes("includePreviousPublished: includePreviousPublished ? '1' : '0'"), 'earnings calendar should pass the previous published quarter query parameter');
-  assert.ok(earningsCalendarSource.includes('events.filter((event) => isEarningsVisible(event, today)).slice(0, 80)'), 'earnings calendar list view should filter out previous-quarter history while keeping the calendar review data');
+  assert.ok(earningsCalendarSource.includes('const includePreviousPublished = true'), 'earnings calendar should request the latest published report for modal and detail review');
+  assert.ok(earningsCalendarRefreshSource.includes("includePreviousPublished: includePreviousPublished ? '1' : '0'"), 'earnings calendar should pass the latest-published query parameter');
+  assert.ok(earningsCalendarRefreshSource.includes("EARNINGS_CALENDAR_SCOPE_VERSION = 'latest-published-v1'"), 'earnings calendar should version the corrected latest-published scope to bypass stale browser responses');
+  assert.ok(earningsCalendarSource.includes('events.filter((event) => isEarningsVisible(event, today)).slice(0, 80)'), 'earnings calendar list view should filter out historical latest reports while keeping the full review data');
   assert.ok(earningsCalendarSource.includes("const [modalView, setModalView] = React.useState(initialView === 'calendar' ? 'calendar' : 'list')"), 'earnings calendar should initialize from its persisted standalone view while defaulting to list view');
   assert.ok(earningsCalendarSource.includes("const openModal = (view = 'list', date = null)"), 'earnings calendar modal should use list view as its default open mode');
   assert.equal(earningsCalendarSource.includes("openModal('calendar', event.reportDate)"), false, 'earnings preview company cards should never force calendar view');
@@ -695,7 +696,8 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(earningsCalendarSource.includes("onClick={() => openModal('calendar')}"), 'the explicit calendar shortcut should continue to open calendar view');
   assert.equal(earningsCalendarSource.includes('const listEvents = React.useMemo(() => events.slice(0, 80), [events]);'), false, 'earnings calendar list view should not render the raw full event set');
   assert.ok(earningsCalendarSource.includes('events={events}'), 'earnings calendar modal should receive the full fetched event set instead of only homepage-visible rows');
-  assert.ok(earningsCalendarApiSource.includes('previousCalendarQuarterRange'), 'earnings calendar API should compute a previous-quarter published window');
+  assert.ok(earningsCalendarApiSource.includes('selectEarningsCalendarRows'), 'earnings calendar API should select each requested symbol latest published report without a calendar-quarter gap');
+  assert.equal(earningsCalendarApiSource.includes('previousCalendarQuarterRange'), false, 'earnings calendar API should not restore the broken previous-calendar-quarter lookup');
   assert.ok(earningsCalendarSource.includes('EARNINGS_CALENDAR_CLIENT_CACHE_TTL_MS = 15 * 60 * 1000'), 'earnings calendar should cache repeated client requests for 15 minutes');
   assert.ok(earningsCalendarSource.includes('getOrStartEarningsCalendarRequest'), 'earnings calendar should dedupe in-flight calendar requests');
   assert.ok(earningsCalendarSource.includes('readEarningsCalendarClientCache(cacheKey)'), 'earnings calendar should read client cache before requesting the API again');
@@ -709,7 +711,7 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(earningsCalendarSource.includes('requestDueEarningsRefresh({'), 'earnings calendar should refresh only the due earnings batch');
   assert.ok(earningsCalendarSource.includes('EARNINGS_LIVE_REACTION_TICK_MS = 30 * 1000'), 'live premarket earnings reactions should have a bounded clock for quote expiry and the market-open cutoff');
   assert.ok(earningsCalendarSource.includes('if (!needsLiveReactionClock) return undefined;'), 'the live reaction clock should run only while a matching published premarket result is visible');
-  assert.ok(earningsCalendarRefreshSource.includes("includePreviousPublished: false"), 'due earnings refreshes should not repeatedly load previous-quarter history');
+  assert.ok(earningsCalendarRefreshSource.includes("includePreviousPublished: false"), 'due earnings refreshes should not repeatedly load latest-published history');
   assert.ok(earningsCalendarSource.includes('shouldRefresh: () => refreshEligibilityRef.current()'), 'earnings refresh eligibility should be recalculated at each lifecycle signal instead of frozen at render time');
   assert.ok(earningsCalendarSource.includes('if (cancelled) return;\n        const token = data?.session?.access_token;'), 'a cancelled calendar load must not overwrite the active user and symbol cache key');
   assert.ok(earningsCalendarSource.includes('refreshReadyRef.current = false;'), 'due refreshes should stay suspended while a new calendar identity is loading');

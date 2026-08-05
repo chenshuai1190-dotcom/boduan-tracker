@@ -8,10 +8,10 @@ import handler, {
   mergeEarningsRevenueUsd,
   mergeEarningsTrendData,
   parseEarningsRequest,
-  previousCalendarQuarterRange,
   resolvePublishedEps,
   resolveReportedEbit,
   resolveReportedRevenue,
+  fetchEodhdEarningsCalendar,
 } from '../api/earnings-calendar.js';
 import {
   buildCalendarMonth,
@@ -88,8 +88,6 @@ test('earnings calendar request validates symbols and date range', () => {
   });
   assert.equal(parseEarningsRequest({ symbols: 'NVDA', includePreviousPublished: '1' }).includePreviousPublished, true);
   assert.equal(parseEarningsRequest({ symbols: 'TSM', refresh: '1' }).forceOfficialRefresh, true);
-  assert.deepEqual(previousCalendarQuarterRange('2026-07-09'), { from: '2026-04-01', to: '2026-06-30' });
-  assert.deepEqual(previousCalendarQuarterRange('2026-01-15'), { from: '2025-10-01', to: '2025-12-31' });
 
   assert.match(parseEarningsRequest({ symbols: 'NV DA' }).error, /股票代码不合法/);
   assert.match(parseEarningsRequest({ symbols: 'NVDA', from: '2026-09-01', to: '2026-07-01' }).error, /from 不能晚于 to/);
@@ -713,6 +711,83 @@ test('earnings calendar promotion dedupes companies and keeps the 15-day boundar
   }), false);
 });
 
+test('published earnings lookup keeps each symbol latest result across the current-quarter date gap', async () => {
+  const originalFetch = globalThis.fetch;
+  const requestedUrls = [];
+
+  globalThis.fetch = async (url) => {
+    requestedUrls.push(String(url));
+    const parsed = new URL(url);
+    assert.equal(parsed.pathname, '/api/calendar/earnings');
+    if (!parsed.searchParams.has('symbols')) {
+      return jsonResponse({ earnings: [] });
+    }
+    assert.equal(parsed.searchParams.get('symbols'), 'GOOGL.US,MSFT.US');
+    return jsonResponse({
+      earnings: [
+        { code: 'GOOGL.US', report_date: '2026-07-22', date: '2026-06-30', actual: null },
+        { code: 'GOOGL.US', report_date: '2026-07-22', date: '2026-06-30', actual: 9.11 },
+        { code: 'GOOGL.US', report_date: '2026-04-29', date: '2026-03-31', actual: 5.11 },
+        { code: 'GOOGL.US', report_date: '2026-08-20', date: '2026-09-30', estimate: 3.1 },
+        { code: 'MSFT.US', report_date: '2026-07-23', date: '2026-06-30', actual: 0 },
+        { code: 'MSFT.US', report_date: '2026-04-30', date: '2026-03-31', actual: 3.46 },
+        { code: 'MSFT.US', report_date: '2026-09-10', date: '2026-09-30', estimate: 4.2 },
+        { code: 'GOOGL.US', report_date: '2026-12-20', date: '2026-12-31', actual: 99 },
+        { code: 'GOOGL.US', date: '2026-07-25', actual: 99 },
+      ],
+    });
+  };
+
+  try {
+    const rows = await fetchEodhdEarningsCalendar({
+      symbols: ['GOOGL', 'MSFT'],
+      from: '2026-07-29',
+      to: '2026-09-19',
+      includePreviousPublished: true,
+      eodhdKey: 'test-eodhd-key',
+      now: new Date('2026-08-05T16:00:00.000Z'),
+    });
+
+    assert.deepEqual(
+      rows
+        .map((row) => `${row.code}|${row.report_date}`)
+        .sort(),
+      [
+        'GOOGL.US|2026-07-22',
+        'GOOGL.US|2026-08-20',
+        'MSFT.US|2026-07-23',
+        'MSFT.US|2026-09-10',
+      ],
+    );
+
+    const calendarUrls = requestedUrls.map((url) => new URL(url));
+    assert.equal(calendarUrls.length, 2);
+    const marketWindowRequest = calendarUrls.find((url) => !url.searchParams.has('symbols'));
+    const symbolHistoryRequest = calendarUrls.find((url) => url.searchParams.has('symbols'));
+    assert.equal(marketWindowRequest.searchParams.get('from'), '2026-07-29');
+    assert.equal(marketWindowRequest.searchParams.get('to'), '2026-08-07');
+    assert.equal(symbolHistoryRequest.searchParams.has('from'), false);
+    assert.equal(symbolHistoryRequest.searchParams.has('to'), false);
+
+    requestedUrls.length = 0;
+    const currentOnlyRows = await fetchEodhdEarningsCalendar({
+      symbols: ['GOOGL', 'MSFT'],
+      from: '2026-07-29',
+      to: '2026-09-19',
+      includePreviousPublished: false,
+      eodhdKey: 'test-eodhd-key',
+      now: new Date('2026-08-05T16:00:00.000Z'),
+    });
+    assert.deepEqual(
+      currentOnlyRows.map((row) => `${row.code}|${row.report_date}`).sort(),
+      ['GOOGL.US|2026-08-20', 'MSFT.US|2026-09-10'],
+    );
+    assert.equal(requestedUrls.length, 2);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test('earnings calendar API reads EODHD calendar and trends through a dedicated endpoint', async () => {
   const originalFetch = globalThis.fetch;
   const originalAuth = process.env.QUOTE_API_AUTH_REQUIRED;
@@ -724,9 +799,14 @@ test('earnings calendar API reads EODHD calendar and trends through a dedicated 
     const parsed = new URL(url);
     if (parsed.pathname === '/api/calendar/earnings') {
       const calendarSymbols = parsed.searchParams.get('symbols');
-      if (calendarSymbols) assert.equal(calendarSymbols, 'NVDA.US,MSFT.US');
-      assert.ok(parsed.searchParams.get('from'));
-      assert.ok(parsed.searchParams.get('to'));
+      if (calendarSymbols) {
+        assert.equal(calendarSymbols, 'NVDA.US,MSFT.US');
+        assert.equal(parsed.searchParams.has('from'), false);
+        assert.equal(parsed.searchParams.has('to'), false);
+      } else {
+        assert.ok(parsed.searchParams.get('from'));
+        assert.ok(parsed.searchParams.get('to'));
+      }
       assert.equal(parsed.searchParams.get('api_token'), 'test-eodhd-key');
       return jsonResponse({
         earnings: [

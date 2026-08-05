@@ -817,6 +817,7 @@ test('forced earnings request bypasses browser cache and carries a five-minute r
   const parsed = new URL(capturedUrl, 'https://local.test');
   assert.equal(parsed.searchParams.get('symbols'), 'ASML');
   assert.equal(parsed.searchParams.get('includePreviousPublished'), '0');
+  assert.equal(parsed.searchParams.get('scopeVersion'), 'latest-published-v1');
   assert.equal(parsed.searchParams.get('refresh'), '1');
   assert.equal(parsed.searchParams.get('refreshBucket'), '123');
   assert.equal(capturedOptions.cache, 'no-store');

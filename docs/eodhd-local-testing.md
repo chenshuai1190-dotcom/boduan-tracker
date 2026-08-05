@@ -52,7 +52,7 @@ Run the real upstream smoke from the repo root:
 npm run smoke:eodhd-calendar -- --symbols=NVDA,MSFT,GOOGL,META,TSM --from=2026-07-01 --to=2026-09-30
 ```
 
-For the previous-quarter published-report review path used by the earnings-calendar modal:
+For a historical provider diagnosis only (the app does not issue this broad historical request):
 
 ```bash
 npm run smoke:eodhd-calendar -- --symbols=NVDA,MSFT,GOOGL,META,TSM --from=2026-04-01 --to=2026-06-30
@@ -61,7 +61,7 @@ npm run smoke:eodhd-calendar -- --symbols=NVDA,MSFT,GOOGL,META,TSM --from=2026-0
 Expected behavior with the current EODHD account:
 
 - `/api/calendar/earnings` returns report rows, dates, EPS fields, and currency, but does not include revenue estimate fields.
-- For historical published reports, `/api/calendar/earnings` can include `actual`, `estimate`, `difference`, and `percent`. Symbol-filtered calendar calls may prefer upcoming rows, so the app uses date-window calendar reads and filters to the requested user symbols.
+- For historical published reports, `/api/calendar/earnings` can include `actual`, `estimate`, `difference`, and `percent`. The app combines the existing short date-window read with a symbol-scoped historical/upcoming read, then filters to the requested user symbols; it never expands a full-market historical window.
 - `/api/calendar/trends` returns `trends` as nested arrays, one inner array per requested symbol.
 - Trend rows include `revenueEstimateAvg` and `revenueEstimateNumberOfAnalysts`.
 - The same fiscal `date` can include both `+1q` and `0q` trend rows. For the report being displayed, prefer `period: "0q"`; otherwise the app may accidentally use the next-quarter estimate.
@@ -69,8 +69,8 @@ Expected behavior with the current EODHD account:
 - Published comparison uses a broker-style basis when data is available: reported value plus year-over-year change next to estimate value plus estimate year-over-year change. Revenue YoY comes from the exact same-quarter prior-year income-statement row; EPS estimate YoY comes from EODHD trends, and EPS actual YoY uses `earningsEstimateYearAgoEps` as the prior-year basis.
 - Published market reaction is derived from EODHD daily EOD closes: pre-market reports use previous trading close to report-date close; after-market reports use report-date close to next trading close.
 - The project merge step should report `revenueMerged` greater than `0`; on 2026-07-09, NVDA/MSFT/GOOGL/META/TSM returned 5 earnings events, 472 trend rows, and 5 merged revenue estimates.
-- For published historical windows such as `--from=2026-04-01 --to=2026-06-30`, the project merge should also show non-zero `publishedMerged`, `actualRevenueMerged`, and `marketReactionMerged` when the requested symbols have already reported. On 2026-07-09, the previous-quarter smoke above returned 5 merged published events for NVDA/MSFT/GOOGL/META/TSM.
-- The app's authenticated `/api/earnings-calendar` request can pass `includePreviousPublished=1`; the handler keeps the normal current/future window and adds the previous completed calendar quarter as a separate server-side published-report window, then filters back to the requested user symbols.
+- For published historical windows such as `--from=2026-04-01 --to=2026-06-30`, the project merge should also show non-zero `publishedMerged`, `actualRevenueMerged`, and `marketReactionMerged` when the requested symbols have already reported. On 2026-07-09, the historical smoke above returned 5 merged published events for NVDA/MSFT/GOOGL/META/TSM.
+- The app's authenticated `/api/earnings-calendar` request can pass `includePreviousPublished=1`; the handler keeps the normal current/future window and adds only the latest genuinely published report for each requested symbol from the symbol-scoped response. It does not issue a previous-quarter full-market request, so a report cannot disappear merely because its announcement date aged past seven days.
 
 The smoke output intentionally prints only status, counts, field names, and merged numeric estimates. It does not print the API key.
 

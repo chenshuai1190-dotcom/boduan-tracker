@@ -391,6 +391,8 @@ export function preservePublishedEarningsEvents(currentEvents = [], incomingEven
   });
 }
 
+export const EARNINGS_CALENDAR_SCOPE_VERSION = 'latest-published-v1';
+
 export async function fetchEarningsCalendarEvents({
   token,
   symbols,
@@ -407,6 +409,7 @@ export async function fetchEarningsCalendarEvents({
     from: from || '',
     to: to || '',
     includePreviousPublished: includePreviousPublished ? '1' : '0',
+    scopeVersion: EARNINGS_CALENDAR_SCOPE_VERSION,
   });
   if (forceRefresh) {
     params.set('refresh', '1');

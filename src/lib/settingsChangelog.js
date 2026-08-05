@@ -4,6 +4,23 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '📊 修复已公布财报跨日期窗口后退到旧季度',
+      '  - 财报日历按每只关注股票保留最近一份真正已公布的财报，不再把“最近已公布”等同于上一个自然季度',
+      '  - GOOGL 等七月已公布 Q2 在超过七天后仍保持为最新财报，不会重新显示四月 Q1',
+      '  - 当前和未来财报窗口保持不变；历史补取只使用既有股票代码请求，并移除全市场上一季度额外读取',
+      '  - 请求范围使用纽约日期，新增缓存版本避免部署后继续命中旧窗口结果；SEC 详情与分部解析边界不变',
+    ],
+    itemsEn: [
+      '📊 Fixed published earnings falling back to an older quarter after leaving the date window',
+      '  - The calendar now retains each followed symbol’s latest genuinely published report instead of equating “latest published” with the previous calendar quarter',
+      '  - July Q2 reports such as GOOGL remain the latest result after seven days and no longer fall back to April Q1',
+      '  - The current and future window is unchanged; history uses the existing symbol-scoped request and removes the extra full-market previous-quarter read',
+      '  - New York dates and a new cache scope prevent stale-window reuse after deployment, while SEC detail and breakdown parsing boundaries remain unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.425', date: '2026-08-05',
+    items: [
       '📊 修复已公布财报与 AMD 8 月 4 日盘后结果',
       '  - 财报日历统一使用纽约日期，盘后待更新事件在公布后保留两天；客户端与 API 的关注股票上限统一为 30',
       '  - 已公布 EPS 保持 Calendar 与 Trend 成对口径，History 只在缺失时回退，避免不同来源覆盖后形成混合同比',

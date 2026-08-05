@@ -223,31 +223,37 @@ export function parseEarningsRequest(query = {}) {
   return { symbols, from, to, includePreviousPublished, forceOfficialRefresh };
 }
 
-export async function fetchEodhdEarningsCalendar({ symbols, from, to, includePreviousPublished = false, eodhdKey }) {
+export async function fetchEodhdEarningsCalendar({
+  symbols,
+  from,
+  to,
+  includePreviousPublished = false,
+  eodhdKey,
+  now = new Date(),
+}) {
   const eodhdSymbols = symbols.map(toEodhdUsSymbol).filter(Boolean);
-  const requested = new Set(eodhdSymbols);
-  const today = new Date().toISOString().slice(0, 10);
+  const today = newYorkDateKey(now) || newYorkDateKey(new Date());
   const recentTo = minDate(to, addUtcDays(today, EARNINGS_PUBLISHED_RETENTION_DAYS));
-  const allowedRanges = [{ from, to }];
   const requests = [];
 
   if (from <= recentTo) {
     requests.push(fetchEodhdEarningsCalendarRows({ from, to: recentTo, eodhdKey }));
   }
   if (eodhdSymbols.length > 0) {
-    requests.push(fetchEodhdEarningsCalendarRows({ symbols: eodhdSymbols, from, to, eodhdKey }));
-  }
-  if (includePreviousPublished) {
-    const previousPublishedRange = previousCalendarQuarterRange(today);
-    allowedRanges.push(previousPublishedRange);
-    requests.push(fetchEodhdEarningsCalendarRows({ ...previousPublishedRange, eodhdKey }));
+    // EODHD documents symbol queries as the historical/upcoming path and ignores
+    // from/to when symbols are present. Keep this request symbol-scoped, then
+    // select only the current window plus each symbol's latest published report.
+    requests.push(fetchEodhdEarningsCalendarRows({ symbols: eodhdSymbols, eodhdKey }));
   }
 
   const payloads = await Promise.all(requests);
-  return dedupeCalendarRows(payloads.flat()).filter((event) => {
-    const eodhdSymbol = toEodhdUsSymbol(event.code || event.symbol);
-    const reportDate = dateKey(event.report_date || event.reportDate || event.date);
-    return requested.has(eodhdSymbol) && allowedRanges.some((range) => reportDate >= range.from && reportDate <= range.to);
+  return selectEarningsCalendarRows({
+    rows: payloads.flat(),
+    symbols: eodhdSymbols,
+    from,
+    to,
+    today,
+    includePreviousPublished,
   });
 }
 
@@ -256,8 +262,8 @@ async function fetchEodhdEarningsCalendarRows({ symbols, from, to, eodhdKey }) {
   url.searchParams.set('api_token', eodhdKey);
   url.searchParams.set('fmt', 'json');
   if (Array.isArray(symbols) && symbols.length) url.searchParams.set('symbols', symbols.join(','));
-  url.searchParams.set('from', from);
-  url.searchParams.set('to', to);
+  if (from) url.searchParams.set('from', from);
+  if (to) url.searchParams.set('to', to);
 
   const response = await fetchWithTimeout(url.toString(), {}, { provider: 'eodhd:earnings-calendar', timeoutMs: QUOTE_TIMEOUTS.eodhd });
   if (!response.ok) throw new Error(`EODHD earnings calendar HTTP ${response.status}`);
@@ -283,6 +289,64 @@ function dedupeCalendarRows(rows) {
     }
   });
   return Array.from(merged.values());
+}
+
+export function selectEarningsCalendarRows({
+  rows,
+  symbols,
+  from,
+  to,
+  today,
+  includePreviousPublished = false,
+} = {}) {
+  const requested = new Set((symbols || []).map(toEodhdUsSymbol).filter(Boolean));
+  const fromKey = dateKey(from);
+  const toKey = dateKey(to);
+  const todayKey = dateKey(today);
+  const currentRows = [];
+  const latestPublishedBySymbol = new Map();
+
+  for (const event of dedupeCalendarRows(rows)) {
+    const eodhdSymbol = toEodhdUsSymbol(event?.code || event?.symbol);
+    const reportDate = dateKey(event?.report_date || event?.reportDate);
+    if (!requested.has(eodhdSymbol) || !reportDate) continue;
+
+    if (fromKey && toKey && reportDate >= fromKey && reportDate <= toKey) {
+      currentRows.push(event);
+    }
+
+    if (
+      !includePreviousPublished
+      || !todayKey
+      || reportDate > todayKey
+      || !isCalendarRowPublished(event)
+    ) {
+      continue;
+    }
+
+    const fiscalDate = dateKey(event?.date || event?.fiscalDate);
+    const previous = latestPublishedBySymbol.get(eodhdSymbol);
+    if (
+      !previous
+      || reportDate > previous.reportDate
+      || (reportDate === previous.reportDate && fiscalDate > previous.fiscalDate)
+    ) {
+      latestPublishedBySymbol.set(eodhdSymbol, { event, reportDate, fiscalDate });
+    }
+  }
+
+  return dedupeCalendarRows([
+    ...currentRows,
+    ...Array.from(latestPublishedBySymbol.values(), ({ event }) => event),
+  ]);
+}
+
+function isCalendarRowPublished(event) {
+  return event?.earningsPublished === true
+    || parseNumber(event?.actual) !== null
+    || parseNumber(event?.epsActual) !== null
+    || parseNumber(event?.revenueActualUsd) !== null
+    || parseNumber(event?.revenueActual) !== null;
 }
 
 export async function fetchEodhdEarningsTrends({ symbols, eodhdKey }) {
@@ -915,22 +979,6 @@ function addUtcDays(date, days) {
   const base = new Date(`${dateKey(date)}T00:00:00Z`);
   base.setUTCDate(base.getUTCDate() + Number(days || 0));
   return base.toISOString().slice(0, 10);
-}
-
-export function previousCalendarQuarterRange(value = new Date().toISOString().slice(0, 10)) {
-  const key = dateKey(value) || new Date().toISOString().slice(0, 10);
-  const date = new Date(`${key}T00:00:00Z`);
-  const year = date.getUTCFullYear();
-  const quarter = Math.floor(date.getUTCMonth() / 3);
-  const previousQuarter = quarter === 0 ? 3 : quarter - 1;
-  const previousYear = quarter === 0 ? year - 1 : year;
-  const startMonth = previousQuarter * 3;
-  const start = new Date(Date.UTC(previousYear, startMonth, 1));
-  const end = new Date(Date.UTC(previousYear, startMonth + 3, 0));
-  return {
-    from: start.toISOString().slice(0, 10),
-    to: end.toISOString().slice(0, 10),
-  };
 }
 
 function minDate(a, b) {
