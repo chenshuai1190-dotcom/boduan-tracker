@@ -49,7 +49,7 @@ function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
 
-function fmtMoney(value, digits = 0) {
+function fmtMoney(value, digits = 2) {
   return toNumber(value).toLocaleString('en-US', {
     minimumFractionDigits: digits,
     maximumFractionDigits: digits,
@@ -310,15 +310,15 @@ function CompoundDetailModal({
           </div>
         </div>
 
-        <div className="mt-4 grid grid-cols-3 rounded-2xl border border-[#232b36]/80 bg-white/[0.032] py-3">
+        <div className="mt-4 grid grid-cols-[1.15fr_1.15fr_0.7fr] rounded-2xl border border-[#232b36]/80 bg-white/[0.032] py-3">
           {[
             { label: tt('review.targetFinal', '目标终值'), value: money(targetValue), valueClass: 'text-[#ffd18a]' },
             { label: tt('review.accumulatedGain', '累计收益'), value: signedMoney(targetGain), valueClass: 'text-[#ff4b1f]' },
             { label: tt('review.compoundMultiple', '复利倍数'), value: `${multiple.toFixed(2)}x`, valueClass: 'text-[#ffd18a]' },
           ].map((item, index) => (
-            <div key={item.label} className={`px-2 text-center ${index > 0 ? 'border-l border-[#232b36]/90' : ''}`}>
+            <div key={item.label} className={`min-w-0 px-1 text-center ${index > 0 ? 'border-l border-[#232b36]/90' : ''}`}>
               <div className="text-[11px] text-[#8a909a]">{item.label}</div>
-              <div className={`mt-2 whitespace-nowrap text-[13px] font-normal leading-none tabular-nums ${item.valueClass}`} style={{ fontFamily: NUMBER_FONT }}>
+              <div className={`mt-2 whitespace-nowrap text-[12px] font-normal leading-none tracking-[-0.02em] tabular-nums ${item.valueClass}`} style={{ fontFamily: NUMBER_FONT }}>
                 {item.value}
               </div>
             </div>
@@ -326,13 +326,16 @@ function CompoundDetailModal({
         </div>
 
         <div className="mt-2.5 rounded-2xl border border-[#232b36]/80 bg-white/[0.025] px-3 py-2.5">
-          <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
               <div className="text-[11px] text-[#8a909a]">{tt('review.actualProgress', '实际进度')}</div>
-              <div className="mt-1 truncate text-[12px] text-white/68">
-                {tt('review.current', '当前')} <span className="text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{money(currentBalance)}</span>
-                <span className="mx-1.5 text-white/22">·</span>
-                {tt('review.actualGain', '实际收益')} <span className="text-[#ff4b1f] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{signedMoney(actualGain)}</span>
+              <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[12px] text-white/68">
+                <span className="whitespace-nowrap">
+                  {tt('review.current', '当前')} <span className="text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{money(currentBalance)}</span>
+                </span>
+                <span className="whitespace-nowrap">
+                  {tt('review.actualGain', '实际收益')} <span className="text-[#ff4b1f] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{signedMoney(actualGain)}</span>
+                </span>
               </div>
             </div>
             <div className="shrink-0 text-right">
@@ -483,8 +486,8 @@ export default function ReviewTab({ ctx }) {
   const symbol = isCNY ? '¥' : '$';
   const thisYear = new Date().getFullYear();
 
-  const money = (usdValue, digits = 0) => `${symbol}${fmtMoney(toNumber(usdValue) * rate, digits)}`;
-  const signedMoney = (usdValue, digits = 0) => {
+  const money = (usdValue, digits = 2) => `${symbol}${fmtMoney(toNumber(usdValue) * rate, digits)}`;
+  const signedMoney = (usdValue, digits = 2) => {
     const n = toNumber(usdValue);
     return `${n >= 0 ? '+' : '-'}${money(Math.abs(n), digits)}`;
   };
@@ -841,7 +844,7 @@ export default function ReviewTab({ ctx }) {
                   onClick={() => setYearAction(yearItem)}
                   className="block w-full rounded-[20px] border border-white/10 bg-[#0b0f14] p-4 text-left shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)]"
                 >
-                  <div className="grid grid-cols-[minmax(0,1fr)_160px] items-start gap-2.5">
+                  <div className="grid grid-cols-1 items-start gap-3">
                     <div className="min-w-0">
                       <div className="flex min-w-0 items-center gap-1.5">
                         <div className="text-[22px] font-semibold leading-none text-white/90 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{yearItem.year}</div>
@@ -884,12 +887,12 @@ export default function ReviewTab({ ctx }) {
                       <div className="text-[11px] text-white/40">{tt('review.yearStart', '年初起点')}</div>
                       <div className="mt-1 text-[12px] font-normal text-white/58 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{money(yearItem.startBalance)}</div>
                     </div>
-                    <div className="px-2 text-white/25">→</div>
+                    <div className="px-1.5 text-white/25">→</div>
                     <div className="text-center">
                       <div className="text-[11px] text-white/40">{tt('review.current', '当前')}</div>
                       <div className="mt-1 text-[12px] font-normal text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{money(yearItem.endBalance)}</div>
                     </div>
-                    <div className="px-2 text-white/25">→</div>
+                    <div className="px-1.5 text-white/25">→</div>
                     <div className="text-right">
                       <div className="text-[11px] text-white/40">{tt('review.yearEnd', '年底目标')}</div>
                       <div className="mt-1 text-[12px] font-normal text-white/82 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{money(currentYearTarget)}</div>
@@ -1293,7 +1296,7 @@ export default function ReviewTab({ ctx }) {
                 />
               </label>
               <div className="rounded-xl border border-[#f6b54b]/15 bg-[#f6b54b]/10 px-3 py-2 text-[11px] text-[#ffd18a]">
-                {tt('review.planReach', '按此计划 {{years}} 年后将达 {{amount}}', { years: totalYears, amount: money(ageGoalAmount) })}
+                {tt('review.planReach', '按此计划 {{years}} 年后将达 {{amount}}', { years: totalYears, amount: money(ageGoalAmountExact) })}
               </div>
             </div>
         </ActionModalCard>

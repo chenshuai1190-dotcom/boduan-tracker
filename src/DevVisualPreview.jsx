@@ -1799,6 +1799,8 @@ function StandardDevVisualPreview({ initialTab = '' }) {
       ? Math.round(value)
       : null;
   }, []);
+  const reviewAmountStress = typeof window !== 'undefined'
+    && new URLSearchParams(window.location.search).get('reviewAmountStress') === '1';
   const [marketColorMode, setMarketColorMode] = React.useState('redUpGreenDown');
   const pnlReportTooltipDate = React.useMemo(() => {
     if (typeof window === 'undefined') return '';
@@ -2277,7 +2279,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     totalYears: 10,
     ageGoalAge: 46,
     motto: '我要变的很有钱! 有钱有钱有钱!',
-    displayCurrency: 'USD',
+    displayCurrency: reviewAmountStress ? 'CNY' : 'USD',
   });
   const [disciplines, setDisciplines] = React.useState(() => mockDisciplines);
   const [reviewLogs, setReviewLogs] = React.useState(() => mockReviewLogs);

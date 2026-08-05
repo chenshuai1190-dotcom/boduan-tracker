@@ -2033,13 +2033,16 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(reviewTabSource.includes('年度目标操作'), 'year cards should open an action panel');
   assert.ok(reviewTabSource.includes('修改年度数据'), 'year action panel should offer editing instead of a trailing edit icon');
   assert.ok(reviewTabSource.includes('SF Pro Display'), 'review money should use the same system number font as the home header');
-  assert.ok(reviewTabSource.includes('fmtMoney(value, digits = 0)'), 'review money should render full comma-separated amounts without dense decimals');
+  assert.ok(reviewTabSource.includes('fmtMoney(value, digits = 2)'), 'review money should render full comma-separated amounts with two decimals');
+  assert.ok(reviewTabSource.includes('const money = (usdValue, digits = 2)'), 'review unsigned amounts should default to two decimals');
+  assert.ok(reviewTabSource.includes('const signedMoney = (usdValue, digits = 2)'), 'review signed amounts should default to two decimals');
   assert.equal(reviewTabSource.includes('fmtWan'), false, 'review money must not return to wan shorthand');
   assert.ok(reviewTabSource.includes('const splitMoney = (usdValue, digits = 2)'), 'north-star headline should split the decimal part for small-type rendering');
-  assert.ok(reviewTabSource.includes('headlineGoalMoney = splitMoney(ageGoalAmountExact, 2)'), 'only the north-star headline should restore two decimals');
+  assert.ok(reviewTabSource.includes('headlineGoalMoney = splitMoney(ageGoalAmountExact, 2)'), 'north-star headline should keep its split two-decimal rendering');
   assert.ok(reviewTabSource.includes('headlineGoalMoney.decimal'), 'north-star headline should render the decimal suffix separately');
   assert.ok(reviewTabSource.includes('text-[20px] font-normal leading-none text-[#ffd18a]/90'), 'north-star headline decimal suffix should be visually smaller and normal weight');
-  assert.equal(reviewTabSource.includes('money(ageGoalAmount, 2)'), false, 'other target amount surfaces should not return to two decimals');
+  assert.ok(devVisualPreviewSource.includes("get('reviewAmountStress') === '1'"), 'local review preview should provide a CNY large-amount stress state');
+  assert.ok(devVisualPreviewSource.includes("displayCurrency: reviewAmountStress ? 'CNY' : 'USD'"), 'review amount stress state should exercise the widest currency display');
   assert.ok(reviewTabSource.includes('function CompoundDetailModal'), 'north-star card should open a compound detail modal');
   assert.ok(reviewTabSource.includes('data-compound-detail="true"'), 'compound detail modal should have a stable visual verification hook');
   assert.ok(reviewTabSource.includes("tt('review.compoundTitle'"), 'compound detail should title itself from the current plan years through i18n');
@@ -2060,7 +2063,10 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(reviewTabSource.includes('stroke="rgba(255,255,255,0.07)"'), false, 'compound chart grid should not use white grid lines');
   assert.ok(reviewTabSource.includes('const xLabelIndexes = chartPoints.map((_, index) => index);'), 'compound chart should show every year label across the full plan');
   assert.ok(reviewTabSource.includes('fontSize="10" fontFamily={NUMBER_FONT}>{point.year}</text>'), 'compound chart year labels should fit all ten years without dropping below the global text floor');
-  assert.ok(reviewTabSource.includes('mt-2 whitespace-nowrap text-[13px] font-normal leading-none tabular-nums'), 'compound summary numbers should stay compact for mobile');
+  assert.ok(reviewTabSource.includes('grid-cols-[1.15fr_1.15fr_0.7fr]'), 'compound summary should reserve more width for its two large amount columns');
+  assert.ok(reviewTabSource.includes('mt-2 whitespace-nowrap text-[12px] font-normal leading-none tracking-[-0.02em] tabular-nums'), 'compound summary numbers should stay compact without dropping below the typography floor');
+  assert.ok(reviewTabSource.includes('mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[12px] text-white/68'), 'compound actual amounts should wrap as complete groups instead of truncating');
+  assert.equal(reviewTabSource.includes('mt-1 truncate text-[12px] text-white/68'), false, 'compound actual amounts must not hide decimal digits');
   assert.ok(reviewTabSource.includes("valueClass: 'text-[#ff4b1f]'"), 'compound accumulated gain should use the home red amount color');
   assert.ok(reviewTabSource.includes("{tt('review.actualGain', '实际收益')} <span className=\"text-[#ff4b1f] tabular-nums\""), 'compound actual gain should use the home red amount color');
   assert.ok(reviewTabSource.includes('text-right text-[#ff4b1f] tabular-nums'), 'compound yearly gains should use the home red amount color');
@@ -2102,7 +2108,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(reviewTabSource.includes("tt('review.achieved', '实现')"), 'current year summary should show the achieved amount');
   assert.ok(reviewTabSource.includes("hasActual ? 'text-[#ff4b1f]' : 'text-white/35'"), 'achieved amount should use the standard system red');
   assert.ok(reviewTabSource.includes("targetGap < 0 ? 'text-[#ff4b1f]' : 'text-emerald-400'"), 'lag should use system green while an exceeded target uses system red');
-  assert.ok(reviewTabSource.includes('grid grid-cols-[minmax(0,1fr)_160px] items-start gap-2.5'), 'three-row annual summary should widen to fit the percentage column without changing the card width');
+  assert.ok(reviewTabSource.includes('grid grid-cols-1 items-start gap-3'), 'current-year headline and amount summary should stack so two-decimal CNY values cannot squeeze out');
   assert.ok(reviewTabSource.includes('(yearItem.actualGain / yearItem.planTarget) * 100'), 'achieved percentage should use the current annual actual divided by the annual plan');
   assert.ok(reviewTabSource.includes('(Math.abs(targetGap) / yearItem.planTarget) * 100'), 'behind or exceeded percentage should use the absolute annual gap divided by the annual plan');
   assert.ok(reviewTabSource.includes('>100%</span>'), 'annual target summary should keep the target baseline fixed at 100 percent');
@@ -2120,6 +2126,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(i18nSource.includes("'review.yearStart': 'Year Start'"), 'English annual cards should include the year-start label');
   assert.ok(i18nSource.includes("'review.yearEnd': 'Year-End Target'"), 'English annual cards should include the year-end target label');
   assert.ok(reviewTabSource.includes('plannedStartBalance'), 'future year cards should show the prior planned target start');
+  assert.ok(reviewTabSource.includes('amount: money(ageGoalAmountExact)'), 'plan settings summary should use the same exact two-decimal target as the north-star card');
   assert.ok(reviewTabSource.includes('border-dashed border-[#f6b54b]/35'), 'annual goal list expand button should keep its reference accent');
   assert.ok(reviewTabSource.includes('mb-4 flex min-h-10 items-center justify-between gap-4'), 'discipline section title row should align with the add button');
   assert.ok(reviewTabSource.includes('text-[15px] font-semibold leading-none tracking-normal text-white">{tt(\'review.disciplines\''), 'discipline section title should match the annual target title size and read from i18n');
