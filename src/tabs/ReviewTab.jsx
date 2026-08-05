@@ -427,7 +427,6 @@ export default function ReviewTab({ ctx }) {
     disciplines,
     Edit2,
     editYearlyActualId,
-    expandedDisciplines,
     filterLevel,
     investmentPlan,
     lastSubmitRef,
@@ -439,7 +438,6 @@ export default function ReviewTab({ ctx }) {
     setEditingDisciplineId,
     setEditingLogId,
     setEditYearlyActualId,
-    setExpandedDisciplines,
     setFilterLevel,
     setInvestmentPlan,
     setReviewLogs,
@@ -1028,9 +1026,6 @@ export default function ReviewTab({ ctx }) {
           <>
             <div className="space-y-2">
               {visibleDisciplines.map((discipline) => {
-                const isLong = (discipline.text || '').length > 60;
-                const isExpanded = Boolean(expandedDisciplines[discipline.id]);
-                const displayText = isLong && !isExpanded ? `${discipline.text.slice(0, 60)}...` : discipline.text;
                 return (
                   <div
                     key={discipline.id}
@@ -1046,30 +1041,10 @@ export default function ReviewTab({ ctx }) {
                     className="block w-full rounded-[22px] border border-white/[0.06] bg-[#0b1119] px-4 py-3.5 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]"
                   >
                     <div className="min-w-0">
-                      <div className="whitespace-pre-wrap break-words text-[14px] font-normal leading-[1.52] text-white/80">{displayText}</div>
+                      <div className="whitespace-pre-wrap break-words text-[14px] font-normal leading-[1.52] text-white/80">{discipline.text}</div>
                       <div className="mt-2.5 flex flex-wrap items-center gap-2 text-[12px] text-white/35">
                         <span className="tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{discipline.date}</span>
                         {discipline.pinned && <span className="rounded-full border border-white/[0.08] bg-white/[0.035] px-2.5 py-0.5 text-[11px] text-white/42">{tt('review.pinned', '置顶')}</span>}
-                        {isLong && (
-                          <span
-                            role="button"
-                            tabIndex={0}
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              setExpandedDisciplines((current) => ({ ...current, [discipline.id]: !current[discipline.id] }));
-                            }}
-                            onKeyDown={(event) => {
-                              if (event.key === 'Enter' || event.key === ' ') {
-                                event.preventDefault();
-                                event.stopPropagation();
-                                setExpandedDisciplines((current) => ({ ...current, [discipline.id]: !current[discipline.id] }));
-                              }
-                            }}
-                            className="inline-flex items-center gap-1 text-white/38"
-                          >
-                            {isExpanded ? tt('review.collapseFullText', '收起全文') : tt('review.expandFullText', '展开全文')} <span className="text-[13px] leading-none text-white/28">›</span>
-                          </span>
-                        )}
                       </div>
                     </div>
                   </div>

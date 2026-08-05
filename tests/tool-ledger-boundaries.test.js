@@ -2144,7 +2144,11 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(reviewTabSource.includes('mt-2.5 flex flex-wrap items-center gap-2 text-[12px] text-white/35'), 'discipline and review metadata should match the detail modal gray treatment');
   assert.ok(reviewTabSource.includes('<span className="tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{discipline.date}</span>'), 'discipline date should use the same muted numeric meta treatment as review details');
   assert.ok(reviewTabSource.includes('rounded-full border border-white/[0.08] bg-white/[0.035] px-2.5 py-0.5 text-[11px] text-white/42'), 'discipline pinned badge should be muted and smaller');
-  assert.ok(reviewTabSource.includes('inline-flex items-center gap-1 text-white/38'), 'discipline expand action should be muted gray');
+  assert.equal(reviewTabSource.includes('(discipline.text || \'\').length > 60'), false, 'discipline article cards should not cap the visible body at 60 characters');
+  assert.equal(reviewTabSource.includes('discipline.text.slice(0, 60)'), false, 'discipline article cards should not truncate the visible body');
+  assert.equal(reviewTabSource.includes("tt('review.expandFullText'"), false, 'discipline article cards should not show an expand-full-text action');
+  assert.equal(reviewTabSource.includes("tt('review.collapseFullText'"), false, 'discipline article cards should not show a collapse-full-text action');
+  assert.ok(reviewTabSource.includes('text-white/80">{discipline.text}</div>'), 'discipline article cards should render the complete body directly');
   assert.equal(reviewTabSource.includes('<span className="text-[15px]">{discipline.level}</span>'), false, 'discipline rows should not render legacy emoji level icons');
   assert.ok(appSource.includes('style={{ backgroundColor: l.ringColor, borderColor: l.ringBorder }}'), 'discipline edit modal should use colored dots for level choices');
   assert.equal(appSource.includes('<span className="text-base">{l.level}</span>'), false, 'discipline edit modal should not render emoji level icons');
