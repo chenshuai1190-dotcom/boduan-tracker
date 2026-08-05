@@ -24,8 +24,11 @@ export {
   completeSwingWave,
   createSwingWave,
   deleteSwingWave,
+  deleteSwingWaveExit,
   listSwingWaves,
+  sellSwingWave,
   updateSwingWave,
+  updateSwingWaveExit,
 } from './swingWavesDb';
 
 export {

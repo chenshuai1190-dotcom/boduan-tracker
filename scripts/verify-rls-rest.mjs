@@ -4,6 +4,7 @@ const USER_TABLES = [
   'stock_trades',
   'stock_trade_ledger_revisions',
   'swing_waves',
+  'swing_wave_exits',
   'community_profiles',
   'community_competition_members',
   'community_competition_snapshots',
@@ -220,6 +221,39 @@ const SERVICE_ONLY_RPCS = [
     },
   },
 ];
+const AUTHENTICATED_USER_RPCS = [
+  {
+    name: 'record_swing_wave_exit',
+    body: {
+      p_wave_id: '00000000-0000-0000-0000-000000000000',
+      p_sell_date: '2000-01-01',
+      p_sell_price_usd: 1,
+      p_sell_shares: 1,
+      p_expected_wave_updated_at: '2000-01-01T00:00:00.000Z',
+    },
+  },
+  {
+    name: 'update_swing_wave_exit',
+    body: {
+      p_wave_id: '00000000-0000-0000-0000-000000000000',
+      p_exit_id: '00000000-0000-0000-0000-000000000000',
+      p_sell_date: '2000-01-01',
+      p_sell_price_usd: 1,
+      p_sell_shares: 1,
+      p_expected_wave_updated_at: '2000-01-01T00:00:00.000Z',
+      p_expected_exit_updated_at: '2000-01-01T00:00:00.000Z',
+    },
+  },
+  {
+    name: 'delete_swing_wave_exit',
+    body: {
+      p_wave_id: '00000000-0000-0000-0000-000000000000',
+      p_exit_id: '00000000-0000-0000-0000-000000000000',
+      p_expected_wave_updated_at: '2000-01-01T00:00:00.000Z',
+      p_expected_exit_updated_at: '2000-01-01T00:00:00.000Z',
+    },
+  },
+];
 
 function unique(values) {
   return [...new Set(values.filter(Boolean))];
@@ -305,7 +339,7 @@ for (const table of [...USER_TABLES, ...SERVICE_ONLY_TABLES]) {
   results.push(await probeAnonymousSelect(config, table));
 }
 const rpcResults = [];
-for (const rpc of SERVICE_ONLY_RPCS) {
+for (const rpc of [...SERVICE_ONLY_RPCS, ...AUTHENTICATED_USER_RPCS]) {
   rpcResults.push(await probeAnonymousRpc(config, rpc));
 }
 
@@ -316,7 +350,7 @@ console.log(JSON.stringify({
   checkedTables: USER_TABLES.length + SERVICE_ONLY_TABLES.length,
   sourceChunks: config.chunks,
   results,
-  checkedRpcs: SERVICE_ONLY_RPCS.length,
+  checkedRpcs: SERVICE_ONLY_RPCS.length + AUTHENTICATED_USER_RPCS.length,
   rpcResults,
   summary: failed.length === 0
     ? 'PASS: anonymous role cannot see user-owned rows via REST probes'

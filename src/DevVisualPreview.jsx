@@ -1635,13 +1635,50 @@ const mockWavesByStock = [{
 }];
 
 const mockSwingWaves = [
-  { id: 'swing-nvda-01', symbol: 'NVDA', name: '英伟达', status: 'active', buyDate: '2026-04-21', buyPriceUsd: 176.2, shares: 600, sellDate: null, sellPriceUsd: null, note: '计划 250 开始分批卖出', createdAt: '2026-04-21T08:00:00.000Z', updatedAt: '2026-07-11T08:00:00.000Z' },
+  {
+    id: 'swing-nvda-01',
+    symbol: 'NVDA',
+    name: '英伟达',
+    status: 'active',
+    buyDate: '2026-04-21',
+    buyPriceUsd: 176.2,
+    shares: 1000,
+    soldShares: 500,
+    remainingShares: 500,
+    sellDate: null,
+    sellPriceUsd: null,
+    exits: [{ id: 'swing-nvda-01-exit-1', waveId: 'swing-nvda-01', shares: 500, sellDate: '2026-07-08', sellPriceUsd: 225.4, createdAt: '2026-07-08T08:00:00.000Z', updatedAt: '2026-07-08T08:00:00.000Z', legacy: false }],
+    note: '计划 250 开始分批卖出',
+    createdAt: '2026-04-21T08:00:00.000Z',
+    updatedAt: '2026-07-11T08:00:00.000Z',
+  },
   { id: 'swing-nvda-02', symbol: 'NVDA', name: '英伟达', status: 'active', buyDate: '2026-05-05', buyPriceUsd: 182.5, shares: 700, sellDate: null, sellPriceUsd: null, note: '跌破 30MA 减仓', createdAt: '2026-05-05T08:00:00.000Z', updatedAt: '2026-07-11T08:00:00.000Z' },
   { id: 'swing-nvda-03', symbol: 'NVDA', name: '英伟达', status: 'active', buyDate: '2026-05-19', buyPriceUsd: 179.1, shares: 700, sellDate: null, sellPriceUsd: null, note: '作为核心波段继续持有', createdAt: '2026-05-19T08:00:00.000Z', updatedAt: '2026-07-11T08:00:00.000Z' },
   { id: 'swing-msft-01', symbol: 'MSFT', name: '微软', status: 'active', buyDate: '2026-03-15', buyPriceUsd: 420.49, shares: 1000, sellDate: null, sellPriceUsd: null, note: '等待基本面修复后再决定', createdAt: '2026-03-15T08:00:00.000Z', updatedAt: '2026-07-11T08:00:00.000Z' },
   { id: 'swing-aapl-01', symbol: 'AAPL', name: '苹果', status: 'active', buyDate: '2026-02-28', buyPriceUsd: 192.4, shares: 1500, sellDate: null, sellPriceUsd: null, note: '观察新产品周期', createdAt: '2026-02-28T08:00:00.000Z', updatedAt: '2026-07-11T08:00:00.000Z' },
   { id: 'swing-tsla-01', symbol: 'TSLA', name: '特斯拉', status: 'completed', buyDate: '2025-11-10', buyPriceUsd: 217.36, shares: 800, sellDate: '2026-02-10', sellPriceUsd: 265.21, note: '达到计划价后一次性卖出', createdAt: '2025-11-10T08:00:00.000Z', updatedAt: '2026-02-10T08:00:00.000Z' },
 ];
+
+function cloneMockSwingWaves(rows = mockSwingWaves) {
+  return rows.map((wave) => ({
+    ...wave,
+    exits: Array.isArray(wave.exits) ? wave.exits.map((exit) => ({ ...exit })) : undefined,
+  }));
+}
+
+function syncMockSwingWave(wave) {
+  const childExits = Array.isArray(wave.exits) ? wave.exits : [];
+  const legacyShares = childExits.length === 0 && wave.sellDate && Number(wave.sellPriceUsd) > 0 ? Number(wave.shares) : 0;
+  const soldShares = childExits.reduce((sum, exit) => sum + Number(exit.shares || 0), 0) + legacyShares;
+  const remainingShares = Math.max(0, Number(wave.shares || 0) - soldShares);
+  return {
+    ...wave,
+    soldShares,
+    remainingShares,
+    status: remainingShares > 1e-9 ? 'active' : 'completed',
+    updatedAt: new Date().toISOString(),
+  };
+}
 
 const mockSwingQuotes = [
   { symbol: 'NVDA', name: '英伟达', price: 210.77, priceSource: 'EODHD-v2' },
@@ -2302,6 +2339,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
   const [showAllYears, setShowAllYears] = React.useState(false);
   const [expandedDisciplines, setExpandedDisciplines] = React.useState({});
   const lastSubmitRef = React.useRef({});
+  const swingPreviewRowsRef = React.useRef(cloneMockSwingWaves());
 
   const db = React.useMemo(() => ({
     insertAccount: async (account) => ({
@@ -2353,24 +2391,31 @@ function StandardDevVisualPreview({ initialTab = '' }) {
       updatedAt: new Date().toISOString(),
     }),
     upsertWaveNote: async () => ({}),
-    listSwingWaves: async () => mockSwingWaves.map((wave) => ({ ...wave })),
-    createSwingWave: async (input) => ({
-      id: `swing-preview-${Date.now()}`,
-      symbol: String(input.symbol || '').toUpperCase(),
-      name: input.name || input.symbol,
-      status: 'active',
-      buyDate: input.buyDate,
-      buyPriceUsd: Number(input.buyPriceUsd),
-      shares: Number(input.shares),
-      sellDate: null,
-      sellPriceUsd: null,
-      note: input.note || '',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    }),
+    listSwingWaves: async () => cloneMockSwingWaves(swingPreviewRowsRef.current),
+    createSwingWave: async (input) => {
+      const created = {
+        id: `swing-preview-${Date.now()}`,
+        symbol: String(input.symbol || '').toUpperCase(),
+        name: input.name || input.symbol,
+        status: 'active',
+        buyDate: input.buyDate,
+        buyPriceUsd: Number(input.buyPriceUsd),
+        shares: Number(input.shares),
+        soldShares: 0,
+        remainingShares: Number(input.shares),
+        exits: [],
+        sellDate: null,
+        sellPriceUsd: null,
+        note: input.note || '',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      swingPreviewRowsRef.current = [created, ...swingPreviewRowsRef.current];
+      return { ...created, exits: [] };
+    },
     updateSwingWave: async (id, input) => {
-      const current = mockSwingWaves.find((wave) => wave.id === id) || {};
-      return {
+      const current = swingPreviewRowsRef.current.find((wave) => wave.id === id) || {};
+      const updated = syncMockSwingWave({
         ...current,
         id,
         symbol: input.symbol || current.symbol,
@@ -2379,25 +2424,83 @@ function StandardDevVisualPreview({ initialTab = '' }) {
         buyPriceUsd: Number(input.buyPriceUsd || current.buyPriceUsd),
         shares: Number(input.shares || current.shares),
         note: input.note ?? current.note,
-        ...(current.status === 'completed' ? {
-          sellDate: input.sellDate || current.sellDate,
-          sellPriceUsd: Number(input.sellPriceUsd || current.sellPriceUsd),
-        } : {}),
-        updatedAt: new Date().toISOString(),
-      };
+      });
+      swingPreviewRowsRef.current = swingPreviewRowsRef.current.map((wave) => (wave.id === id ? updated : wave));
+      return cloneMockSwingWaves([updated])[0];
     },
-    completeSwingWave: async (id, input) => {
-      const current = mockSwingWaves.find((wave) => wave.id === id) || {};
-      return {
-        ...current,
-        id,
-        status: 'completed',
+    sellSwingWave: async (id, input) => {
+      const current = swingPreviewRowsRef.current.find((wave) => wave.id === id) || {};
+      const exit = {
+        id: `swing-preview-exit-${Date.now()}`,
+        waveId: id,
+        shares: Number(input.sellShares),
         sellDate: input.sellDate,
         sellPriceUsd: Number(input.sellPriceUsd),
+        createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
+        legacy: false,
       };
+      const updated = syncMockSwingWave({ ...current, exits: [...(current.exits || []), exit] });
+      swingPreviewRowsRef.current = swingPreviewRowsRef.current.map((wave) => (wave.id === id ? updated : wave));
+      return cloneMockSwingWaves([updated])[0];
     },
-    deleteSwingWave: async () => ({}),
+    updateSwingWaveExit: async (id, exitId, input) => {
+      const current = swingPreviewRowsRef.current.find((wave) => wave.id === id) || {};
+      let next;
+      if (!exitId || exitId === `legacy:${id}`) {
+        if (Number(input.sellShares) >= Number(current.shares) - 1e-9) {
+          next = { ...current, sellDate: input.sellDate, sellPriceUsd: Number(input.sellPriceUsd) };
+        } else {
+          next = {
+            ...current,
+            sellDate: null,
+            sellPriceUsd: null,
+            exits: [{
+              id: `swing-preview-exit-${Date.now()}`,
+              waveId: id,
+              shares: Number(input.sellShares),
+              sellDate: input.sellDate,
+              sellPriceUsd: Number(input.sellPriceUsd),
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              legacy: false,
+            }],
+          };
+        }
+      } else {
+        next = {
+          ...current,
+          exits: (current.exits || []).map((exit) => (exit.id === exitId ? {
+            ...exit,
+            shares: Number(input.sellShares),
+            sellDate: input.sellDate,
+            sellPriceUsd: Number(input.sellPriceUsd),
+            updatedAt: new Date().toISOString(),
+          } : exit)),
+        };
+      }
+      const updated = syncMockSwingWave(next);
+      swingPreviewRowsRef.current = swingPreviewRowsRef.current.map((wave) => (wave.id === id ? updated : wave));
+      return cloneMockSwingWaves([updated])[0];
+    },
+    deleteSwingWaveExit: async (id, exitId) => {
+      const current = swingPreviewRowsRef.current.find((wave) => wave.id === id) || {};
+      const legacyExit = !exitId || exitId === `legacy:${id}`;
+      const updated = syncMockSwingWave(!legacyExit ? {
+        ...current,
+        exits: (current.exits || []).filter((exit) => exit.id !== exitId),
+      } : {
+        ...current,
+        sellDate: null,
+        sellPriceUsd: null,
+      });
+      swingPreviewRowsRef.current = swingPreviewRowsRef.current.map((wave) => (wave.id === id ? updated : wave));
+      return cloneMockSwingWaves([updated])[0];
+    },
+    deleteSwingWave: async (id) => {
+      swingPreviewRowsRef.current = swingPreviewRowsRef.current.filter((wave) => wave.id !== id);
+      return {};
+    },
     deleteCostBasisTrade: async () => ({}),
     deleteCostBasisSymbol: async () => ({}),
     insertCostBasisTrade: async () => ({}),

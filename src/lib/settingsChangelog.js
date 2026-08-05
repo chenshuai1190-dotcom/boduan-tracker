@@ -4,6 +4,23 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '🌊 波段记录支持部分卖出',
+      '  - 同一波段可分多次卖出；每笔卖出独立进入已完成，未卖股数继续保留在进行中并沿用原波段编号',
+      '  - 已完成的单笔卖出可修改或删除，减少或删除后股数自动返还进行中；全部卖完后不再保留进行中记录',
+      '  - 数据库通过独立退出记录与原子 RPC 锁定本人波段，校验日期、旧版本和剩余股数，禁止并发超卖',
+      '  - 既有完整卖出记录继续兼容；波段、正式交易、持仓、收益、比赛和摊薄成本仍保持独立账本',
+    ],
+    itemsEn: [
+      '🌊 Partial exits for swing-wave records',
+      '  - A wave can now be sold in multiple exits; each exit appears separately under Completed while unsold shares remain Active under the original wave number',
+      '  - Each completed exit can be edited or deleted, returning reduced or removed shares to Active; a fully sold wave no longer keeps an Active row',
+      '  - Dedicated exit records and atomic database RPCs lock the user-owned wave and validate dates, stale versions, and remaining shares to prevent concurrent overselling',
+      '  - Existing full-sale records remain compatible, while waves, formal trades, holdings, P&L, competition, and cost-basis ledgers remain isolated',
+    ],
+  },
+  {
+    ver: 'v10.7.9.419', date: '2026-08-04',
+    items: [
       '📊 补齐台积电 2026 财年 Q1 官方财报',
       '  - 2026-03-31 财报详情将 provider 的 2026-04-15 日历键严格映射到 2026-04-16 官方 Management Report，恢复业务平台、地区及 11 项制程结构',
       '  - Q1 使用独立官方分类，不虚构 2nm，也不把 90nm、0.11/0.13um、0.15/0.18um 与 0.25um 以上项目错误合并',

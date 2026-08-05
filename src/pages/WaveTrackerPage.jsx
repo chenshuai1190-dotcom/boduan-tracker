@@ -91,6 +91,23 @@ function shortDate(value) {
   return /^\d{4}-\d{2}-\d{2}$/.test(text) ? text.slice(5) : '--';
 }
 
+function waveRecordId(wave) {
+  return wave?.recordId || wave?.id || '';
+}
+
+function waveExitId(wave) {
+  return wave?.exitId || (wave?.legacyExit ? (wave?.segmentId || wave?.id) : null);
+}
+
+function waveLabel(wave, tt) {
+  const base = tt('swing.waveNumber', '波段 {{number}}', { number: String(wave?.sequence || 0).padStart(2, '0') });
+  if (wave?.status !== 'completed') return base;
+  return tt('swing.completedWaveLabel', '{{wave}} · 第{{number}}次卖出', {
+    wave: base,
+    number: wave?.exitSequence || 1,
+  });
+}
+
 function localDateKey(date = new Date()) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -261,11 +278,11 @@ function WaveRow({ group, wave, onAction, tt, displayRate, displayCurrency }) {
       type="button"
       onClick={() => onAction(group, wave)}
       className="block w-full border-t border-white/[0.075] px-3.5 py-3 text-left outline-none first:border-t-0 active:bg-white/[0.025] focus-visible:bg-white/[0.025] focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-[#f6b54b]/35"
-      aria-label={tt('swing.openWaveActions', '打开 {{symbol}} 波段 {{number}} 操作', { symbol: group.symbol, number: String(wave.sequence).padStart(2, '0') })}
+      aria-label={tt('swing.openWaveActions', '打开 {{symbol}} {{wave}} 操作', { symbol: group.symbol, wave: waveLabel(wave, tt) })}
     >
       <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2.5">
-        <span className="rounded-[7px] border border-[#f6b54b]/55 px-2 py-1 text-[10px] font-normal text-[#f5bd62] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
-          {tt('swing.waveNumber', '波段 {{number}}', { number: String(wave.sequence).padStart(2, '0') })}
+        <span className="whitespace-nowrap rounded-[7px] border border-[#f6b54b]/55 px-2 py-1 text-[10px] font-normal text-[#f5bd62] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+          {waveLabel(wave, tt)}
         </span>
         <div className="flex min-w-0 items-center gap-2 text-[11px] text-white/[0.50]">
           <StatusDot accent={statusAccent(wave.status, wave.returnPct)} pulse={isActive} />
@@ -654,20 +671,23 @@ export default function WaveTrackerPage({ ctx = {}, fetchSwingWaveRealtimeSnapsh
     setModal({ type: 'actions', waveId: wave.id, symbol: group.symbol });
   };
   const openDetail = (wave) => setModal({ type: 'detail', waveId: wave.id });
-  const openEdit = (wave) => {
-    setDraft({
+  const openEdit = (wave, target = wave.status === 'completed' ? 'exit' : 'parent') => {
+    const editingExit = target === 'exit' && wave.status === 'completed';
+    setDraft(editingExit ? {
+      sellPrice: wave.sellPriceUsd ? String(wave.sellPriceUsd) : '',
+      sellShares: String(wave.shares),
+      endDate: wave.sellDate || '',
+    } : {
       symbol: wave.symbol,
       buyPrice: String(wave.buyPriceUsd),
-      shares: String(wave.shares),
+      shares: String(wave.originalShares ?? wave.shares),
       startDate: wave.buyDate,
-      sellPrice: wave.sellPriceUsd ? String(wave.sellPriceUsd) : '',
-      endDate: wave.sellDate || '',
       note: wave.note || '',
     });
-    setModal({ type: 'edit', waveId: wave.id });
+    setModal({ type: 'edit', waveId: wave.id, editTarget: editingExit ? 'exit' : 'parent' });
   };
   const openSell = (wave) => {
-    setDraft({ sellPrice: '', endDate: todayKey });
+    setDraft({ sellPrice: '', sellShares: String(wave.shares), endDate: todayKey });
     setModal({ type: 'sell', waveId: wave.id });
   };
 
@@ -693,6 +713,17 @@ export default function WaveTrackerPage({ ctx = {}, fetchSwingWaveRealtimeSnapsh
 
   const saveEdit = () => {
     if (!selection.wave) return;
+    if (modal?.editTarget === 'exit') {
+      runMutation(async () => {
+        await db.updateSwingWaveExit(waveRecordId(selection.wave), waveExitId(selection.wave), {
+          sellDate: draft.endDate,
+          sellPriceUsd: draft.sellPrice,
+          sellShares: draft.sellShares,
+        });
+        return loadRows({ silent: true });
+      });
+      return;
+    }
     const input = {
       symbol: selection.wave.symbol,
       name: selection.wave.name,
@@ -700,43 +731,49 @@ export default function WaveTrackerPage({ ctx = {}, fetchSwingWaveRealtimeSnapsh
       buyPriceUsd: draft.buyPrice,
       shares: draft.shares,
       note: draft.note || '',
-      ...(selection.wave.status === 'completed' ? {
-        sellDate: draft.endDate,
-        sellPriceUsd: draft.sellPrice,
-      } : {}),
     };
-    runMutation(
-      () => db.updateSwingWave(selection.wave.id, input),
-      (updated) => setRows((current) => current.map((wave) => (wave.id === updated.id ? updated : wave))),
-    );
+    runMutation(async () => {
+      await db.updateSwingWave(waveRecordId(selection.wave), input);
+      return loadRows({ silent: true });
+    });
   };
 
-  const completeWave = () => {
+  const sellWave = () => {
     if (!selection.wave) return;
-    runMutation(
-      () => db.completeSwingWave(selection.wave.id, {
+    runMutation(async () => {
+      await db.sellSwingWave(waveRecordId(selection.wave), {
         sellDate: draft.endDate,
         sellPriceUsd: draft.sellPrice,
-      }),
-      (updated) => setRows((current) => current.map((wave) => (wave.id === updated.id ? updated : wave))),
-    );
+        sellShares: draft.sellShares,
+      });
+      return loadRows({ silent: true });
+    });
   };
 
-  const confirmDelete = () => {
+  const requestDelete = (deleteWholeWave = false) => {
     if (!selection.wave || !selection.group || typeof showConfirm !== 'function') return;
     const { wave, group } = selection;
+    const deletingExit = wave.status === 'completed' && !deleteWholeWave;
     setModal(null);
     showConfirm({
-      title: tt('swing.deleteTitle', '删除这段波段?'),
-      desc: tt('swing.deleteDesc', '只会删除独立波段记录，不影响正式交易、持仓或收益快照。'),
-      info: `${group.symbol} · ${tt('swing.waveNumber', '波段 {{number}}', { number: String(wave.sequence).padStart(2, '0') })}`,
+      title: deletingExit
+        ? tt('swing.deleteExitTitle', '删除这次卖出?')
+        : tt('swing.deleteTitle', '删除整段波段?'),
+      desc: deletingExit
+        ? tt('swing.deleteExitDesc', '只删除这次卖出记录，对应股数将恢复到进行中；不影响正式交易、持仓或收益快照。')
+        : tt('swing.deleteDesc', '将删除整段波段及其所有卖出记录；不影响正式交易、持仓或收益快照。'),
+      info: `${group.symbol} · ${waveLabel(wave, tt)}`,
       confirmText: tt('trades.delete', '删除'),
       confirmStyle: 'danger',
       icon: '🗑',
       onConfirm: async () => {
         try {
-          await db.deleteSwingWave(wave.id);
-          setRows((current) => current.filter((item) => item.id !== wave.id));
+          if (deletingExit) {
+            await db.deleteSwingWaveExit(waveRecordId(wave), waveExitId(wave));
+          } else {
+            await db.deleteSwingWave(waveRecordId(wave));
+          }
+          await loadRows({ silent: true });
         } catch (error) {
           const message = error?.message || tt('swing.saveFailed', '波段记录保存失败');
           if (/其他设备修改|stale/i.test(message)) {
@@ -747,6 +784,8 @@ export default function WaveTrackerPage({ ctx = {}, fetchSwingWaveRealtimeSnapsh
       },
     });
   };
+  const confirmDelete = () => requestDelete(false);
+  const confirmDeleteWholeWave = () => requestDelete(true);
 
   const applyForecastPreset = (preset) => {
     const currentPrice = positive(selection.wave?.currentPriceUsd);
@@ -765,13 +804,28 @@ export default function WaveTrackerPage({ ctx = {}, fetchSwingWaveRealtimeSnapsh
     && positive(draft.buyPrice) > 0
     && positive(draft.shares) > 0
     && draft.startDate;
-  const editReady = positive(draft.buyPrice) > 0
-    && positive(draft.shares) > 0
-    && draft.startDate
-    && (selection.wave?.status !== 'completed' || (
-      positive(draft.sellPrice) > 0 && draft.endDate && draft.endDate >= draft.startDate
-    ));
+  const activeSibling = selection.wave?.status === 'completed'
+    ? selection.group?.waves.find((wave) => wave.status === 'active' && wave.recordId === selection.wave.recordId)
+    : null;
+  const editableExitMaxShares = selection.wave?.status === 'completed'
+    ? number(selection.wave.shares) + number(activeSibling?.shares)
+    : 0;
+  const editingExit = modal?.type === 'edit' && modal?.editTarget === 'exit';
+  const editReady = editingExit
+    ? positive(draft.sellPrice) > 0
+      && positive(draft.sellShares) > 0
+      && positive(draft.sellShares) <= editableExitMaxShares + 1e-9
+      && draft.endDate
+      && draft.endDate >= selection.wave.buyDate
+    : positive(draft.buyPrice) > 0
+      && positive(draft.shares) > 0
+      && draft.startDate;
+  const remainingShares = number(selection.wave?.shares);
+  const sellShares = positive(draft.sellShares);
+  const sellSharesValid = sellShares > 0 && sellShares <= remainingShares + 1e-9;
+  const remainingAfterSell = sellSharesValid ? Math.max(0, remainingShares - sellShares) : remainingShares;
   const sellReady = positive(draft.sellPrice) > 0
+    && sellSharesValid
     && draft.endDate
     && selection.wave
     && draft.endDate >= selection.wave.buyDate;
@@ -851,7 +905,7 @@ export default function WaveTrackerPage({ ctx = {}, fetchSwingWaveRealtimeSnapsh
           ) : visibleGroups.length === 0 ? (
             <div className="rounded-[18px] border border-dashed border-white/[0.1] bg-[#0b0f14] px-4 py-10 text-center">
               <div className="text-[13px] text-white/[0.68]">{filter === 'all' ? tt('swing.empty', '暂无波段记录') : tt('swing.emptyFilter', '当前分类暂无记录')}</div>
-              <div className="mt-1 text-[12px] text-white/[0.50]">{tt('swing.emptyDesc', '每个波段独立记录一次完整买入和完整卖出。')}</div>
+              <div className="mt-1 text-[12px] text-white/[0.50]">{tt('swing.emptyDesc', '每个波段支持分批卖出，卖出批次分别进入已完成。')}</div>
               {filter === 'all' ? <button type="button" onClick={openAdd} className="mt-4 rounded-full bg-[#f6b54b]/[0.09] px-4 py-2 text-[11px] text-[#f6bd61] active:scale-95">{tt('swing.addFirst', '新增第一个波段')}</button> : null}
             </div>
           ) : visibleGroups.map((group) => (
@@ -884,8 +938,8 @@ export default function WaveTrackerPage({ ctx = {}, fetchSwingWaveRealtimeSnapsh
       {modal?.type === 'info' ? (
         <ActionModalCard title={tt('swing.rules', '波段规则')} closeLabel={tt('swing.closeRules', '关闭波段规则')} onClose={() => setModal(null)} actions={[{ key: 'close', label: tt('swing.gotIt', '知道了'), onClick: () => setModal(null) }]}>
           <div className="space-y-2 text-[11.5px] leading-5 text-white/[0.5]">
-            <p>{tt('swing.ruleOne', '每个波段只记录一次完整买入和一次完整卖出。')}</p>
-            <p>{tt('swing.ruleMany', '同一股票可以同时建立多个独立波段；卖出数量固定等于该波段买入数量。')}</p>
+            <p>{tt('swing.ruleOne', '每个波段可分多次卖出；每次卖出的数量和盈亏独立进入已完成。')}</p>
+            <p>{tt('swing.ruleMany', '同一股票可以同时建立多个独立波段；未卖股数继续保留在进行中。')}</p>
             <p>{tt('swing.ruleCurrency', '单价始终按 USD 录入，第一版不计算佣金和手续费。')}</p>
           </div>
         </ActionModalCard>
@@ -900,7 +954,7 @@ export default function WaveTrackerPage({ ctx = {}, fetchSwingWaveRealtimeSnapsh
             <div className="space-y-3">
               <div className="flex items-center gap-2 text-[11px] text-white/[0.42]">
                 <span className="flex h-7 min-w-[40px] shrink-0 items-center justify-center whitespace-nowrap rounded-full border border-[#f6b54b]/25 bg-[#f6b54b]/[0.07] px-2 text-[#f6b54b]">{tt('swing.buyBadge', '买入')}</span>
-                {tt('swing.addHint', '新建一个独立波段，后续需整段完整卖出')}
+                {tt('swing.addHint', '新建一个独立波段，后续可分批卖出')}
               </div>
               <FormField label={tt('swing.symbol', '股票代码')} value={draft.symbol || ''} onChange={(event) => setDraft((current) => ({ ...current, symbol: event.target.value.toUpperCase() }))} placeholder="NVDA" autoCapitalize="characters" />
               <div className="grid min-w-0 grid-cols-1 gap-2.5 min-[360px]:grid-cols-2">
@@ -919,13 +973,14 @@ export default function WaveTrackerPage({ ctx = {}, fetchSwingWaveRealtimeSnapsh
           title={tt('swing.actions', '波段操作')}
           closeLabel={tt('swing.closeActions', '关闭波段操作')}
           onClose={() => setModal(null)}
-          actionGridClassName={selection.wave.status === 'active' ? 'grid-cols-3' : 'grid-cols-2'}
+          actionGridClassName="grid-cols-3"
           widthClassName={selection.wave.status === 'active' ? 'w-[calc(100vw-28px)] max-w-[380px]' : undefined}
           panelClassName={selection.wave.status === 'active' ? 'px-[18px]' : ''}
           contentClassName={selection.wave.status === 'active' ? 'rounded-none border-0 bg-transparent px-0 py-0 shadow-none' : ''}
           actions={[
           { key: 'detail', label: tt('swing.detail', '详情'), onClick: () => openDetail(selection.wave) },
-          { key: 'edit', label: tt('trades.edit', '编辑'), onClick: () => openEdit(selection.wave) },
+          { key: 'edit', label: selection.wave.status === 'active' ? tt('trades.edit', '编辑') : tt('swing.editSellAction', '修改卖出'), onClick: () => openEdit(selection.wave) },
+          ...(selection.wave.status === 'completed' ? [{ key: 'edit-parent', label: tt('swing.editParentAction', '编辑波段'), onClick: () => openEdit(selection.wave, 'parent') }] : []),
           ...(selection.wave.status === 'active' ? [{ key: 'sell', label: tt('trades.sell', '卖出'), onClick: () => openSell(selection.wave) }] : []),
         ]}
         >
@@ -938,7 +993,7 @@ export default function WaveTrackerPage({ ctx = {}, fetchSwingWaveRealtimeSnapsh
                 <span className="text-white/[0.44]">{tt('swing.waveNumber', '波段 {{number}}', { number: String(selection.wave.sequence).padStart(2, '0') })} ·</span>
                 <span style={{ color: tone(selection.wave.returnPct) }}>{tt('trades.active', '进行中')}</span>
               </span>
-            ) : `${tt('swing.waveNumber', '波段 {{number}}', { number: String(selection.wave.sequence).padStart(2, '0') })} · ${tt('trades.completed', '已完成')}`}
+            ) : waveLabel(selection.wave, tt)}
             logoCache={logoCache}
             cacheStockLogo={cacheStockLogo}
           />
@@ -1045,10 +1100,10 @@ export default function WaveTrackerPage({ ctx = {}, fetchSwingWaveRealtimeSnapsh
           { key: 'edit', label: tt('swing.modify', '修改'), onClick: () => openEdit(selection.wave) },
           { key: 'delete', label: tt('trades.delete', '删除'), onClick: confirmDelete },
         ]}>
-          <ModalStockHeader group={selection.group} wave={selection.wave} sideLabel={selection.wave.status === 'active' ? tt('trades.active', '进行中') : tt('trades.completed', '已完成')} logoCache={logoCache} cacheStockLogo={cacheStockLogo} />
+          <ModalStockHeader group={selection.group} wave={selection.wave} sideLabel={selection.wave.status === 'active' ? tt('trades.active', '进行中') : waveLabel(selection.wave, tt)} logoCache={logoCache} cacheStockLogo={cacheStockLogo} />
           <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-white/[0.06] pt-3">
             <Metric label={tt('swing.buyCost', '买入成本价')} value={formatUsdPrice(selection.wave.buyPriceUsd)} />
-            <Metric label={tt('swing.buyShares', '买入数量')} value={tt('swing.sharesValue', '{{shares}} 股', { shares: formatShares(selection.wave.shares) })} align="right" />
+            <Metric label={selection.wave.status === 'active' ? tt('swing.remainingSharesLabel', '剩余数量') : tt('swing.thisSellShares', '本次卖出')} value={tt('swing.sharesValue', '{{shares}} 股', { shares: formatShares(selection.wave.shares) })} align="right" />
             <Metric label={selection.wave.status === 'active' ? tt('swing.currentPrice', '当前价') : tt('swing.sellPrice', '卖出价')} value={formatUsdPrice(selection.wave.exitPriceUsd)} valueColor={tone(selection.wave.returnPct)} />
             <Metric label={selection.wave.status === 'active' ? tt('swing.floatingPnl', '浮动盈亏') : tt('swing.realizedPnl', '已实现盈亏')} value={formatPnl(selection.wave.pnlUsd == null ? null : selection.wave.pnlUsd * displayRate, displayCurrency)} valueColor={tone(selection.wave.pnlUsd)} align="right" />
           </div>
@@ -1060,49 +1115,70 @@ export default function WaveTrackerPage({ ctx = {}, fetchSwingWaveRealtimeSnapsh
       ) : null}
 
       {modal?.type === 'edit' && selection.group && selection.wave ? (
-        <ActionModalCard title={tt('swing.editTitle', '编辑波段')} closeLabel={tt('swing.closeEdit', '关闭编辑波段')} onClose={() => !submitting && setModal(null)} actions={[
+        <ActionModalCard title={editingExit ? tt('swing.editExitTitle', '编辑本次卖出') : tt('swing.editTitle', '编辑波段')} closeLabel={tt('swing.closeEdit', '关闭编辑波段')} onClose={() => !submitting && setModal(null)} actionGridClassName={!editingExit && selection.wave.status === 'completed' ? 'grid-cols-3' : ''} actions={[
           { key: 'cancel', label: tt('trades.cancel', '取消'), onClick: () => setModal(null), disabled: submitting },
+          ...(!editingExit && selection.wave.status === 'completed' ? [{ key: 'delete-wave', label: tt('swing.deleteWholeWave', '删除整段'), onClick: confirmDeleteWholeWave, disabled: submitting }] : []),
           { key: 'save', label: submitting ? tt('swing.processing', '处理中...') : tt('swing.saveChanges', '保存修改'), onClick: saveEdit, disabled: !editReady || submitting },
         ]}>
           <ModalFormScroller>
             <div className="space-y-3">
-              <ModalStockHeader group={selection.group} wave={selection.wave} sideLabel={selection.wave.status === 'active' ? tt('swing.editBuy', '编辑买入') : tt('swing.editRecord', '编辑记录')} logoCache={logoCache} cacheStockLogo={cacheStockLogo} />
-              <div className="grid min-w-0 grid-cols-1 gap-2.5 border-t border-white/[0.06] pt-3 min-[360px]:grid-cols-2">
-                <FormField label={tt('swing.buyPriceUsd', '买入成本价（USD）')} prefix="$" value={draft.buyPrice || ''} onChange={(event) => setDraft((current) => ({ ...current, buyPrice: event.target.value }))} inputMode="decimal" />
-                <FormField label={tt('swing.buyShares', '买入数量')} value={draft.shares || ''} onChange={(event) => setDraft((current) => ({ ...current, shares: event.target.value }))} inputMode="decimal" />
-              </div>
-              <FormField label={tt('swing.startDate', '开始日期')} type="date" value={draft.startDate || ''} onChange={(event) => setDraft((current) => ({ ...current, startDate: event.target.value }))} />
-              {selection.wave.status === 'completed' ? (
-                <div className="grid min-w-0 grid-cols-1 gap-2.5 min-[360px]:grid-cols-2">
-                  <FormField label={tt('swing.sellPriceUsd', '卖出价格（USD）')} prefix="$" value={draft.sellPrice || ''} onChange={(event) => setDraft((current) => ({ ...current, sellPrice: event.target.value }))} inputMode="decimal" />
-                  <FormField label={tt('swing.endDate', '结束日期')} type="date" min={draft.startDate || undefined} value={draft.endDate || ''} onChange={(event) => setDraft((current) => ({ ...current, endDate: event.target.value }))} />
-                </div>
-              ) : null}
-              <FormField label={tt('swing.note', '计划 / 备注')} value={draft.note || ''} onChange={(event) => setDraft((current) => ({ ...current, note: event.target.value }))} />
+              <ModalStockHeader
+                group={selection.group}
+                wave={editingExit ? selection.wave : { ...selection.wave, shares: selection.wave.originalShares ?? selection.wave.shares }}
+                sideLabel={editingExit ? waveLabel(selection.wave, tt) : tt('swing.editBuy', '编辑买入')}
+                logoCache={logoCache}
+                cacheStockLogo={cacheStockLogo}
+              />
+              {editingExit ? (
+                <>
+                  <div className="grid min-w-0 grid-cols-1 gap-2.5 border-t border-white/[0.06] pt-3 min-[360px]:grid-cols-2">
+                    <FormField label={tt('swing.sellPriceUsd', '卖出价格（USD）')} prefix="$" value={draft.sellPrice || ''} onChange={(event) => setDraft((current) => ({ ...current, sellPrice: event.target.value }))} inputMode="decimal" />
+                    <FormField label={tt('swing.sellQuantity', '卖出数量')} value={draft.sellShares || ''} onChange={(event) => setDraft((current) => ({ ...current, sellShares: event.target.value }))} inputMode="decimal" />
+                  </div>
+                  <FormField label={tt('swing.sellDate', '卖出日期')} type="date" min={selection.wave.buyDate} value={draft.endDate || ''} onChange={(event) => setDraft((current) => ({ ...current, endDate: event.target.value }))} />
+                  {positive(draft.sellShares) > editableExitMaxShares + 1e-9 ? <div className="text-[11px]" style={{ color: PROFIT }}>{tt('swing.editSellExceeds', '卖出数量最多可调整为 {{shares}} 股', { shares: formatShares(editableExitMaxShares) })}</div> : null}
+                </>
+              ) : (
+                <>
+                  <div className="grid min-w-0 grid-cols-1 gap-2.5 border-t border-white/[0.06] pt-3 min-[360px]:grid-cols-2">
+                    <FormField label={tt('swing.buyPriceUsd', '买入成本价（USD）')} prefix="$" value={draft.buyPrice || ''} onChange={(event) => setDraft((current) => ({ ...current, buyPrice: event.target.value }))} inputMode="decimal" />
+                    <FormField label={tt('swing.buyShares', '买入数量')} value={draft.shares || ''} onChange={(event) => setDraft((current) => ({ ...current, shares: event.target.value }))} inputMode="decimal" />
+                  </div>
+                  <FormField label={tt('swing.startDate', '开始日期')} type="date" value={draft.startDate || ''} onChange={(event) => setDraft((current) => ({ ...current, startDate: event.target.value }))} />
+                  <FormField label={tt('swing.note', '计划 / 备注')} value={draft.note || ''} onChange={(event) => setDraft((current) => ({ ...current, note: event.target.value }))} />
+                </>
+              )}
             </div>
           </ModalFormScroller>
         </ActionModalCard>
       ) : null}
 
       {modal?.type === 'sell' && selection.group && selection.wave ? (
-        <ActionModalCard title={tt('swing.completeSell', '完整卖出')} closeLabel={tt('swing.closeSell', '关闭完整卖出')} onClose={() => !submitting && setModal(null)} actions={[
+        <ActionModalCard title={tt('swing.sellWave', '卖出波段')} closeLabel={tt('swing.closeSell', '关闭卖出波段')} onClose={() => !submitting && setModal(null)} actions={[
           { key: 'cancel', label: tt('trades.cancel', '取消'), onClick: () => setModal(null), disabled: submitting },
-          { key: 'confirm', label: submitting ? tt('swing.processing', '处理中...') : tt('swing.sellShares', '卖出 {{shares}} 股', { shares: formatShares(selection.wave.shares) }), onClick: completeWave, disabled: !sellReady || submitting },
+          { key: 'confirm', label: submitting ? tt('swing.processing', '处理中...') : tt('swing.sellShares', '卖出 {{shares}} 股', { shares: formatShares(sellShares || 0) }), onClick: sellWave, disabled: !sellReady || submitting },
         ]}>
           <ModalFormScroller>
             <div className="space-y-3">
-              <ModalStockHeader group={selection.group} wave={selection.wave} sideLabel={tt('swing.endWave', '结束波段')} logoCache={logoCache} cacheStockLogo={cacheStockLogo} />
+              <ModalStockHeader group={selection.group} wave={selection.wave} sideLabel={tt('swing.partialSell', '分批卖出')} logoCache={logoCache} cacheStockLogo={cacheStockLogo} />
               <div className="rounded-[11px] border border-[#ff5b50]/15 bg-[#ff5b50]/[0.045] px-3 py-2.5 text-[12px] leading-4 text-white/[0.50]">
-                {tt('swing.fullSellOnly', '波段需一次性卖出，不支持部分卖出。')}
+                {tt('swing.sellHint', '可卖出部分或全部剩余股数；每次卖出都会独立进入已完成。')}
               </div>
               <div className="grid min-w-0 grid-cols-1 gap-2.5 min-[360px]:grid-cols-2">
                 <FormField label={tt('swing.sellPriceUsd', '卖出价格（USD）')} prefix="$" value={draft.sellPrice || ''} onChange={(event) => setDraft((current) => ({ ...current, sellPrice: event.target.value }))} inputMode="decimal" placeholder="0.00" />
-                <FormField label={tt('swing.sellQuantity', '卖出数量')}>
-                  <span className="text-[12.5px] text-white/[0.48] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{tt('swing.sharesValue', '{{shares}} 股', { shares: formatShares(selection.wave.shares) })}</span>
-                </FormField>
+                <FormField label={tt('swing.sellQuantity', '卖出数量')} value={draft.sellShares || ''} onChange={(event) => setDraft((current) => ({ ...current, sellShares: event.target.value }))} inputMode="decimal" placeholder="0" />
               </div>
-              <FormField label={tt('swing.endDate', '结束日期')} type="date" min={selection.wave.buyDate} value={draft.endDate || ''} onChange={(event) => setDraft((current) => ({ ...current, endDate: event.target.value }))} />
+              <FormField label={tt('swing.sellDate', '卖出日期')} type="date" min={selection.wave.buyDate} value={draft.endDate || ''} onChange={(event) => setDraft((current) => ({ ...current, endDate: event.target.value }))} />
               {draft.endDate && draft.endDate < selection.wave.buyDate ? <div className="text-[11px]" style={{ color: PROFIT }}>{tt('swing.endBeforeStart', '结束日期不能早于开始日期')}</div> : null}
+              {sellShares > remainingShares + 1e-9 ? (
+                <div className="text-[11px]" style={{ color: PROFIT }}>{tt('swing.sellExceedsRemaining', '卖出数量不能超过剩余 {{shares}} 股', { shares: formatShares(remainingShares) })}</div>
+              ) : sellSharesValid ? (
+                <div className="text-[11px] text-white/[0.40]">
+                  {remainingAfterSell > 1e-9
+                    ? tt('swing.partialSellRemaining', '卖出后剩余 {{shares}} 股，继续保留在进行中。', { shares: formatShares(remainingAfterSell) })
+                    : tt('swing.sellAllRemaining', '本次卖出后，这段波段将全部卖完。')}
+                </div>
+              ) : null}
               <div className="flex items-center gap-2 text-[11px] text-white/[0.40]">
                 <CalendarDays className="h-3.5 w-3.5" />
                 {tt('swing.noFees', '第一版不计算佣金和手续费')}

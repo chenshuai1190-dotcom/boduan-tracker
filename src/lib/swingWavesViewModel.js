@@ -12,6 +12,11 @@ function positiveNumber(value) {
   return number != null && number > 0 ? number : null;
 }
 
+function nonNegativeNumber(value) {
+  const number = finiteNumber(value);
+  return number != null && number >= 0 ? number : null;
+}
+
 function dateMs(value) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ''))) return null;
   const parsed = Date.parse(`${value}T00:00:00.000Z`);
@@ -146,6 +151,105 @@ function compareStableWaves(left, right) {
     || String(left?.id || '').localeCompare(String(right?.id || ''));
 }
 
+function compareStableExits(left, right) {
+  return String(left?.sellDate || '').localeCompare(String(right?.sellDate || ''))
+    || String(left?.createdAt || '').localeCompare(String(right?.createdAt || ''))
+    || String(left?.id || '').localeCompare(String(right?.id || ''))
+    || (left?.sourceIndex || 0) - (right?.sourceIndex || 0);
+}
+
+function projectLegacySwingWave(wave) {
+  const recordId = wave.id;
+  const originalShares = positiveNumber(wave?.shares) || 0;
+  const completed = wave?.status === 'completed';
+  const id = completed ? `legacy:${recordId}` : recordId;
+
+  return [{
+    ...wave,
+    id,
+    segmentId: id,
+    recordId,
+    exitId: null,
+    exitSequence: completed ? 1 : null,
+    legacyExit: completed,
+    originalShares,
+    parentShares: originalShares,
+    remainingShares: completed ? 0 : originalShares,
+    soldShares: completed ? originalShares : 0,
+    status: completed ? 'completed' : 'active',
+    shares: originalShares,
+  }];
+}
+
+/**
+ * Project one persisted swing-wave record into independently valued display
+ * segments. The parent remains one numbered wave while each sell is an
+ * independently selectable completed segment and any unsold quantity remains
+ * one active segment.
+ */
+export function projectSwingWaveSegments(wave) {
+  if (!wave?.id) return [];
+  if (!Array.isArray(wave.exits)) return projectLegacySwingWave(wave);
+
+  const recordId = wave.id;
+  const originalShares = positiveNumber(wave?.shares) || 0;
+  const orderedExits = wave.exits
+    .map((exit, sourceIndex) => ({ ...exit, sourceIndex }))
+    .sort(compareStableExits);
+  const exitShares = orderedExits.reduce((sum, exit) => (
+    sum + (positiveNumber(exit?.shares) || 0)
+  ), 0);
+  const soldShares = nonNegativeNumber(wave?.soldShares) ?? exitShares;
+  const remainingShares = nonNegativeNumber(wave?.remainingShares)
+    ?? Math.max(0, originalShares - soldShares);
+  const common = {
+    ...wave,
+    recordId,
+    originalShares,
+    parentShares: originalShares,
+    remainingShares,
+    soldShares,
+  };
+  delete common.exits;
+
+  const segments = [];
+  if (remainingShares > 0) {
+    segments.push({
+      ...common,
+      id: recordId,
+      segmentId: recordId,
+      exitId: null,
+      exitSequence: null,
+      legacyExit: false,
+      status: 'active',
+      shares: remainingShares,
+      sellDate: null,
+      sellPriceUsd: null,
+    });
+  }
+
+  orderedExits.forEach((exit, index) => {
+    const exitId = exit?.id || null;
+    const segmentId = exitId || `${recordId}:exit:${index + 1}`;
+    segments.push({
+      ...common,
+      id: segmentId,
+      segmentId,
+      exitId,
+      exitSequence: index + 1,
+      legacyExit: exit?.legacy === true,
+      exitCreatedAt: exit?.createdAt || null,
+      exitUpdatedAt: exit?.updatedAt || null,
+      status: 'completed',
+      shares: positiveNumber(exit?.shares) || 0,
+      sellDate: exit?.sellDate || null,
+      sellPriceUsd: positiveNumber(exit?.sellPriceUsd),
+    });
+  });
+
+  return segments;
+}
+
 function enrichWave(wave, quote, todayKey) {
   const status = wave?.status === 'completed' ? 'completed' : 'active';
   const buyPriceUsd = positiveNumber(wave?.buyPriceUsd) || 0;
@@ -243,10 +347,10 @@ export function buildSwingWaveDashboard(waves = [], quoteRows = [], { todayKey =
     const quote = quotes.get(group.symbol) || null;
     const wavesForGroup = [...group.waves]
       .sort(compareStableWaves)
-      .map((wave, index) => ({
-        ...enrichWave(wave, quote, todayKey),
+      .flatMap((wave, index) => projectSwingWaveSegments(wave).map((segment) => ({
+        ...enrichWave(segment, quote, todayKey),
         sequence: index + 1,
-      }));
+      })));
     return {
       ...group,
       currentPriceUsd: positiveNumber(quote?.price),

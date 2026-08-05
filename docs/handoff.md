@@ -1,6 +1,6 @@
 # boduan-tracker 当前交接
 
-验证时间：`2026-08-04 Asia/Shanghai`
+验证时间：`2026-08-05 Asia/Shanghai`
 
 本文件只保存当前基准、关键风险和下一步。稳定规则看 `README.md`，流程看 `docs/development-process.md`。
 
@@ -10,8 +10,8 @@
 | --- | --- |
 | 仓库 | `chenshuai1190-dotcom/boduan-tracker` |
 | 生产地址 | `https://boduan-tracker.vercel.app` |
-| 运行时代码 | `v10.7.9.419`：补齐 TSM 2026 财年 Q1 官方结构、USD actual 与 USD/ADR EPS；保留 v418 TSM 美元业绩趋势、v417 股票实时稳定版 v10、v416 首页自选 MA200 跌破监控及全部既有正式行情边界；精确发布提交以 GitHub `main` HEAD 为准 |
-| 数据库 | 保留既有 additive schema，并已按顺序接入比赛 migration、个人收益 foundation `pnl_report_immediate_rebuild_20260801.sql` 与 runtime 后 contract `pnl_report_snapshot_write_contract_after_runtime_20260801.sql` |
+| 运行时代码 | `v10.7.9.420`：波段记录支持多次部分卖出、独立完成段及可逆编辑/删除；保留 v419 TSM Q1 官方财报、v417 股票实时稳定版 v10 及全部既有正式行情边界；精确发布提交以 GitHub `main` HEAD 为准 |
+| 数据库 | 保留既有 additive schema，并新增 `swing_wave_partial_exits_20260805.sql` 的独立退出记录与原子 RPC；既有比赛 migration、个人收益 foundation `pnl_report_immediate_rebuild_20260801.sql` 与 runtime 后 contract `pnl_report_snapshot_write_contract_after_runtime_20260801.sql` 顺序不变 |
 | 发布完成条件 | GitHub `main` 的同一份 runtime 与上述 migration 均已上线并通过聚合 postflight；只完成其中一项不得宣布上线 |
 
 本地发布门禁：
@@ -22,8 +22,16 @@
 - 个人收益只读页面专项：`57 / 57` tests PASS；交易 mutation 与收盘 Cron 保留重算所有权，报表 mount/focus/pageshow 不再触发重算或显示常驻重试。
 - 个股即时交易事实专项：`34 / 34` tests PASS；当天新增、修改、删除和纽约日期上限均覆盖，收盘收益、持仓、趋势、图表节点与 QQQ 边界保持不变。
 - 股票趋势 MA50 周线专项：`73 / 73` tests PASS；完成周锁定、50–199 周独立可用、1 年/5 年曲线组合及原曲线保留均覆盖。
+- 波段部分卖出专项：同一波段多次退出、剩余股数、旧完整卖出兼容、编辑/删除返还、并发超卖与账本隔离均有定向测试覆盖。
 - `npm run check:full`：PASS；字号下限、Vite production build、whitespace 和三份权威文档一致性均通过。
 - 新的开发、验证和单等待器发布流程继续保留，没有恢复旧六文档或重复验证流程。
+
+## 波段部分卖出
+
+- `swing_waves.shares` 继续保存原始买入股数；每笔部分卖出写入独立 `swing_wave_exits`，同一波段沿用原编号。每笔退出独立显示在已完成，未卖股数继续显示在进行中，全部卖完后不再进入实时行情订阅集合。
+- 新增、修改和删除退出只能通过 `SECURITY DEFINER` 原子 RPC 完成；数据库锁定父波段并校验本人所有权、买卖日期、预期更新时间和累计卖出股数，禁止旧页面覆盖新结果或并发超卖。
+- 修改退出数量减少或删除退出时，股数自动返还进行中；删除父波段仍删除整个波段及其退出记录。既有父表完整卖出按兼容完成段读取，无需 backfill；首次改为部分卖出时原子转换为子退出。
+- `swing_wave_exits` 只允许已登录用户读取本人数据，普通客户端没有直接写权限。波段记录继续与正式交易、持仓、个人收益、比赛和摊薄成本隔离，不参与这些账本的收益或仓位计算。
 
 ## 台积电财报详情与美元业绩趋势
 
@@ -96,6 +104,7 @@
 ## 数据库与发布边界
 
 - migration 新增 service-only rebuild state、不可变 audit、正式交易 dirty trigger，以及 unpublished snapshot、publication marker、完整个人序列替换三个原子 RPC。
+- `swing_wave_partial_exits_20260805.sql` 只增加波段退出表、约束、RLS 和本人原子 mutation RPC，不 backfill、删除或改写既有波段；旧 runtime 仍可读取和完整卖出未产生子退出的波段。
 - 普通用户只能修改 RLS 允许的本人正式交易；不能读取 dirty/audit、直接调用 service RPC、直接写比赛快照或 publication marker。
 - 生产 migration 是写操作，必须取得用户明确授权；执行前做匿名安全和聚合 preflight，执行后运行 `npm run verify:rls:rest` 并只读核对表、trigger、函数签名、grant 与聚合 dirty 数量。
 - migration 为 forward-only。若 runtime 需要回退，保留 additive schema 和 audit；不得回滚生产数据库、删除正式交易或改写历史比赛快照。数据库异常只做新的 forward-fix。
@@ -105,7 +114,7 @@
 ### 已知风险
 
 - 比赛公开行情缓存与 402 熔断是 Vercel 单实例内存态，不是跨实例全局缓存；冷启动或不同实例仍可能分别首次读取一次。
-- v419 延续收益比赛共享 EODHD 缓存与熔断、交易持仓 EODHD 收盘估值、个人收益正确重算、主 `/api/quote` 的 15/30/60 分钟客户端门控、个股/QQQ 当前存续仓位口径、个人收益只读页面和股票实时稳定版 v10。TSM Q1 结构与 official actual 补齐只读取已核验的公开公司报告及 SEC 文件，不增加 EODHD；TSM 业绩趋势在每个冷实例首次读取时仍会产生一笔 Fundamentals 与一笔完整历史 FX 请求。6 小时实例缓存和客户端缓存可以避免页面重复打开时逐期读取，但仍不是跨实例全局缓存。服务端仍没有 v404 的通用完成收盘缓存和全局 402 熔断；冷实例首次读取与尚未更新的旧客户端仍可能额外消耗 EODHD 额度。
+- v420 只扩展独立波段账本的部分卖出能力，不改变正式交易、收益或 EODHD 行情口径；其余继续保留收益比赛共享 EODHD 缓存与熔断、交易持仓 EODHD 收盘估值、个人收益正确重算、主 `/api/quote` 的 15/30/60 分钟客户端门控、个股/QQQ 当前存续仓位口径、个人收益只读页面和股票实时稳定版 v10。TSM 业绩趋势在每个冷实例首次读取时仍会产生一笔 Fundamentals 与一笔完整历史 FX 请求；6 小时实例缓存仍不是跨实例全局缓存。
 - 个人收益的客户端即时重算请求是交易 mutation 后的一次非阻塞派生动作：正式交易保存成功不会因个人收益暂时失败而回滚，恢复依赖数据库 dirty state 和收盘 Cron，不依赖收益报表页面或浏览器一直存活。比赛仍保持其独立重算链路。
 - P&L foundation 与 contract 之间旧 PWA 仍保留原直接写权限，因此 runtime 验证后必须尽快执行 contract；任一步失败都只做 forward-fix。跨 Vercel 实例生成不同时间戳时可能留下多个安全隔离的暂存 job，由 24 小时 TTL 清理，不会混合发布。
 

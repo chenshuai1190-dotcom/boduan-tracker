@@ -1831,18 +1831,26 @@ test('production V2 wave tracker is an independent real-data page with isolated 
   assert.ok(tradesTabSource.includes("if (item.id === 'waves')") && tradesTabSource.includes('openWaveTracker?.()'), 'wave toolbox tile should open V2 instead of the legacy inline panel');
   assert.ok(devVisualPreviewSource.includes("preview === 'wave-v2' ? 'wave-tracker' : preview === 'community-competition' ? 'community-competition' : preview === 'home-ma200-breakdown' ? 'home' : ''"), 'local visual preview should render the production pages with safe fixtures');
 
-  for (const api of ['listSwingWaves', 'createSwingWave', 'updateSwingWave', 'completeSwingWave', 'deleteSwingWave']) {
+  for (const api of ['listSwingWaves', 'createSwingWave', 'updateSwingWave', 'sellSwingWave', 'updateSwingWaveExit', 'deleteSwingWaveExit', 'deleteSwingWave']) {
     assert.ok(waveTrackerPageSource.includes(`db.${api}`), `V2 page must call ${api}`);
   }
+  assert.equal(waveTrackerPageSource.includes('db.completeSwingWave'), false, 'the production page must use the partial-exit mutation instead of the legacy full-sell path');
   for (const forbidden of ['insertTrade', 'insertStockTrade', 'cost_basis_trades', 'markPnlReportDirty', 'pnl_report_snapshots', 'WaveTrackerPrototype']) {
     assert.equal(waveTrackerPageSource.includes(forbidden), false, `V2 page must stay isolated from ${forbidden}`);
   }
-  const completeStart = waveTrackerPageSource.indexOf('const completeWave = () =>');
-  const completeEnd = waveTrackerPageSource.indexOf('const confirmDelete = () =>', completeStart);
-  const completeBlock = waveTrackerPageSource.slice(completeStart, completeEnd);
-  assert.ok(completeBlock.includes('db.completeSwingWave'));
-  assert.equal(completeBlock.includes('shares:'), false, 'full sell must not submit a partial sell quantity');
-  assert.ok(waveTrackerPageSource.includes('波段需一次性卖出，不支持部分卖出。'));
+  const sellStart = waveTrackerPageSource.indexOf('const sellWave = () =>');
+  const sellEnd = waveTrackerPageSource.indexOf('const confirmDelete = () =>', sellStart);
+  const sellBlock = waveTrackerPageSource.slice(sellStart, sellEnd);
+  assert.ok(sellBlock.includes('db.sellSwingWave'));
+  assert.ok(sellBlock.includes('sellShares: draft.sellShares'), 'each sell must submit the explicitly entered quantity');
+  assert.ok(waveTrackerPageSource.includes('可卖出部分或全部剩余股数；每次卖出都会独立进入已完成。'));
+  assert.ok(waveTrackerPageSource.includes("setDraft({ sellPrice: '', sellShares: String(wave.shares), endDate: todayKey })"), 'sell quantity should default to all remaining shares');
+  assert.ok(waveTrackerPageSource.includes('sellShares <= remainingShares + 1e-9'), 'the form must block overselling before the atomic repository call');
+  assert.ok(waveTrackerPageSource.includes("tt('swing.partialSellRemaining'") && waveTrackerPageSource.includes("tt('swing.sellAllRemaining'"), 'the UI should distinguish a remaining position from a fully closed wave');
+  assert.ok(waveTrackerPageSource.includes("tt('swing.completedWaveLabel'") && waveTrackerPageSource.includes('exitSequence'), 'completed batches should retain the parent wave number and add a sell sequence');
+  assert.ok(waveTrackerPageSource.includes('db.deleteSwingWaveExit(waveRecordId(wave), waveExitId(wave))'), 'deleting one completed batch must return only that batch to Active');
+  assert.ok(waveTrackerPageSource.includes('const confirmDeleteWholeWave = () => requestDelete(true)') && waveTrackerPageSource.includes("tt('swing.deleteWholeWave'"), 'fully sold waves must retain an explicit whole-wave delete path');
+  assert.equal(waveTrackerPageSource.includes('波段需一次性卖出，不支持部分卖出。'), false);
   assert.ok(waveTrackerPageSource.includes('h-full max-h-[52dvh]') && waveTrackerPageSource.includes("WebkitMinLogicalWidth: '0px'"), 'production modal forms should stay inside keyboard-reduced mobile viewports');
   assert.ok(waveTrackerPageSource.includes("const [filter, setFilter] = React.useState('active')"), 'production wave page should default to active waves');
   assert.ok(waveTrackerPageSource.includes("setFilter('active')"), 'creating a wave should keep the active-only home view');
@@ -1893,7 +1901,10 @@ test('production V2 wave tracker is an independent real-data page with isolated 
   assert.ok(appSource.includes('...row,\n        symbol,'), 'wave REST baselines should be preserved when App syncs active quote rows');
   assert.ok(appSource.includes('addSymbol(wave?.symbol, wave?.name, wave)'), 'active wave quote rows should seed price and previous-close data before relay ticks arrive');
   assert.ok(swingWavesViewModelSource.includes('sequence: index + 1') && swingWavesViewModelSource.includes('pnlUsd / totalCostUsd'), 'stable numbering and weighted returns should live in the pure view model');
-  assert.ok(i18nSource.includes("'swing.fullSellOnly': 'A swing must be sold in full. Partial sells are not supported.'"), 'production wave UI must include English system copy');
+  assert.ok(i18nSource.includes("'swing.sellHint': 'Sell some or all remaining shares. Each sale is recorded separately under Completed.'"), 'partial-sell instructions must include English system copy');
+  assert.ok(i18nSource.includes("'swing.completedWaveLabel': '{{wave}} · Sell #{{number}}'"), 'completed sell sequence must include English system copy');
+  assert.ok(i18nSource.includes("'swing.deleteExitDesc': 'Only this sell is deleted and its shares return to Active."), 'exit deletion behavior must be explained in English');
+  assert.equal(i18nSource.includes("'swing.fullSellOnly'"), false, 'obsolete full-sell-only copy must be removed in both languages');
 });
 
 test('asset account list hides zero-balance rows and uses action modal for edit/delete', () => {
