@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 
 import {
   clearSecOfficialCachesForTests,
+  fetchSecEarningsFilingSource,
   fetchSecOfficialActuals,
   isSecOfficialActualSupportedEvent,
   isSecOfficialActualSupportedSymbol,
@@ -582,6 +583,39 @@ test('unsupported future TSM quarters preserve provider actuals without making S
   assert.equal(merged.ebitActual, 25_000_000_000);
 });
 
+test('SEC lookup and merge keys prefer the provider fiscal coordinate when an official date is already attached', async () => {
+  let requests = 0;
+  const event = {
+    symbol: 'AMD',
+    providerFiscalDate: '2026-06-30',
+    fiscalDate: '2026-06-27',
+    reportDate: '2026-08-04',
+  };
+  const pending = await fetchSecOfficialActuals({
+    events: [event],
+    fetchFn: async () => {
+      requests += 1;
+      throw new Error('future events must not request SEC');
+    },
+    now: '2026-08-03T12:00:00Z',
+  });
+  assert.equal(requests, 0);
+  assert.equal(pending.has('AMD|2026-06-30'), true);
+  assert.equal(pending.has('AMD|2026-06-27'), false);
+
+  const [merged] = mergeSecOfficialActuals([event], new Map([[
+    'AMD|2026-06-30',
+    {
+      key: 'AMD|2026-06-30',
+      symbol: 'AMD',
+      officialActualSchemaVersion: 4,
+      officialActualStatus: 'unsupported',
+      officialActualReason: 'test-provider-coordinate',
+    },
+  ]]));
+  assert.equal(merged.officialActualReason, 'test-provider-coordinate');
+});
+
 test('SEC failure is isolated and pending official values fail closed without breaking the event', async () => {
   clearSecOfficialCachesForTests();
   const events = [{
@@ -680,7 +714,7 @@ test('SEC batch deadline includes a stalled response body', async () => {
   assert.equal(official.get('TSLA|2026-06-30')?.officialActualStatus, 'pending');
 });
 
-test('SEC batch deadline also bounds concurrent waits in the global rate-limit queue', async () => {
+test('SEC batch deadline also bounds concurrent waits in the batch rate-limit queue', async () => {
   clearSecOfficialCachesForTests();
   const startedAt = Date.now();
   const batches = await Promise.all(Array.from({ length: 4 }, () => fetchSecOfficialActuals({
@@ -700,4 +734,119 @@ test('SEC batch deadline also bounds concurrent waits in the global rate-limit q
   for (const official of batches) {
     assert.equal(official.get('TSLA|2026-06-30')?.officialActualStatus, 'pending');
   }
+});
+
+test('SEC detail scheduling is isolated from a queued calendar batch lane', async () => {
+  clearSecOfficialCachesForTests();
+  const emptySubmissions = {
+    tickers: ['GOOG', 'GOOGL'],
+    filings: {
+      recent: {
+        accessionNumber: [],
+        form: [],
+        filingDate: [],
+        reportDate: [],
+        primaryDocument: [],
+      },
+    },
+  };
+  const batchFetch = async () => textResponse('unavailable', 503);
+  const batches = Array.from({ length: 4 }, () => fetchSecOfficialActuals({
+    events: [{
+      symbol: 'TSLA',
+      reportDate: '2026-07-22',
+      fiscalDate: '2026-06-30',
+    }],
+    fetchFn: batchFetch,
+    now: '2026-07-23T12:00:00Z',
+    requestIntervalMs: 100,
+    batchTimeoutMs: 50,
+  }));
+
+  let detailFetchCount = 0;
+  const detail = await fetchSecEarningsFilingSource({
+    symbol: 'GOOGL',
+    fiscalDate: '2026-06-30',
+    reportDate: '2026-07-22',
+    includePrimaryDocument: false,
+    fetchFn: async () => {
+      detailFetchCount += 1;
+      return textResponse(emptySubmissions);
+    },
+    now: '2026-07-23T12:00:00Z',
+    requestIntervalMs: 100,
+    batchTimeoutMs: 50,
+  });
+
+  assert.equal(detailFetchCount, 1);
+  assert.equal(detail.reason, 'official-filing-not-found');
+  await Promise.all(batches);
+});
+
+test('SEC calendar and detail lanes share one in-flight response for the same public URL', async () => {
+  clearSecOfficialCachesForTests();
+  const emptySubmissions = {
+    tickers: ['GOOG', 'GOOGL'],
+    filings: {
+      recent: {
+        accessionNumber: [],
+        form: [],
+        filingDate: [],
+        reportDate: [],
+        primaryDocument: [],
+      },
+    },
+  };
+  let releaseSubmissions;
+  let markSubmissionsStarted;
+  const submissionsStarted = new Promise((resolve) => {
+    markSubmissionsStarted = resolve;
+  });
+  let submissionsFetchCount = 0;
+  const fetchFn = async (url) => {
+    const pathname = new URL(url).pathname;
+    if (pathname === '/files/company_tickers.json') {
+      return textResponse({
+        0: { cik_str: 1652044, ticker: 'GOOGL', title: 'Alphabet Inc.' },
+      });
+    }
+    if (pathname === '/submissions/CIK0001652044.json') {
+      submissionsFetchCount += 1;
+      await new Promise((resolve) => {
+        releaseSubmissions = resolve;
+        markSubmissionsStarted();
+      });
+      return textResponse(emptySubmissions);
+    }
+    return textResponse('not found', 404);
+  };
+
+  const batch = fetchSecOfficialActuals({
+    events: [{
+      symbol: 'GOOGL',
+      reportDate: '2026-07-22',
+      fiscalDate: '2026-06-30',
+    }],
+    fetchFn,
+    now: '2026-07-23T12:00:00Z',
+    requestIntervalMs: 0,
+    batchTimeoutMs: 500,
+  });
+  await submissionsStarted;
+  const detail = fetchSecEarningsFilingSource({
+    symbol: 'GOOGL',
+    fiscalDate: '2026-06-30',
+    reportDate: '2026-07-22',
+    includePrimaryDocument: false,
+    fetchFn,
+    now: '2026-07-23T12:00:00Z',
+    requestIntervalMs: 0,
+    batchTimeoutMs: 500,
+  });
+  releaseSubmissions();
+
+  const [batchResult, detailResult] = await Promise.all([batch, detail]);
+  assert.equal(submissionsFetchCount, 1);
+  assert.equal(batchResult.get('GOOGL|2026-06-30')?.officialActualReason, 'official-filing-not-found');
+  assert.equal(detailResult.reason, 'official-filing-not-found');
 });

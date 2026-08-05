@@ -12,6 +12,7 @@ import EarningsGrowthCard from '../components/EarningsGrowthCard.jsx';
 import StockLogo, { stockLogoCandidates } from '../components/StockLogo.jsx';
 import {
   earningsDetailSourceBadgeKind,
+  earningsDetailStructureRevenueTotal,
   earningsPercentChange,
   fetchEarningsDetail,
   formatEarningsDetailMoney,
@@ -302,13 +303,7 @@ function DetailSections({ detail, event, language, marketColorMode }) {
     ...definition,
     section: detail?.supplemental?.[definition.key],
   })).filter(({ section }) => section?.items?.length > 0);
-  const reportRevenue = report.items.reduce(
-    (sum, item) => sum + (numericOrNull(item.revenue) || 0),
-    numericOrNull(report.reconciliation?.revenue) || 0,
-  );
-  const totalRevenue = detail?.currency === 'USD'
-    ? numericOrNull(event?.revenueActualUsd) ?? reportRevenue
-    : reportRevenue;
+  const totalRevenue = earningsDetailStructureRevenueTotal(detail, event);
   const hasAnyOfficialBreakdown = [report, breakdown, regions]
     .some((section) => section.items.length > 0);
   return (

@@ -15,13 +15,16 @@ import {
 
 export { parseSecEarningsDetailPrimaryDocument } from './secEarningsDetailParsers.js';
 
-export const SEC_EARNINGS_DETAIL_SCHEMA_VERSION = 2;
+export const SEC_EARNINGS_DETAIL_SCHEMA_VERSION = 3;
 export const SEC_EARNINGS_DETAIL_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+export const SEC_EARNINGS_DETAIL_TRANSIENT_CACHE_TTL_MS = 5 * 60 * 1000;
+export const SEC_EARNINGS_DETAIL_UNPARSED_CACHE_TTL_MS = 5 * 60 * 1000;
 
 const EARNINGS_SYMBOL_RE = /^[A-Z0-9.-]{1,15}$/;
 const MAX_REPORT_DELAY_DAYS = 180;
-const PENDING_CACHE_TTL_MS = 5 * 60 * 1000;
 const RESULT_CACHE_MAX_ENTRIES = 32;
+const VERIFIED_MSFT_Q4_FISCAL_DATE = '2026-06-30';
+const VERIFIED_MSFT_Q4_REPORT_DATE = '2026-07-29';
 const resultCache = new Map();
 
 export function parseEarningsDetailRequest(query = {}) {
@@ -98,8 +101,43 @@ export async function fetchSecEarningsDetail({
       source: null,
       sections: pendingSections('pending', 'not-published'),
     });
-    writeCache(cacheKey, pending, PENDING_CACHE_TTL_MS, nowDate.getTime(), cacheEnabled);
+    writeCache(
+      cacheKey,
+      pending,
+      SEC_EARNINGS_DETAIL_TRANSIENT_CACHE_TTL_MS,
+      nowDate.getTime(),
+      cacheEnabled,
+    );
     return pending;
+  }
+
+  const verifiedMicrosoftQ4 = normalizedSymbol === 'MSFT'
+    && normalizedFiscalDate === VERIFIED_MSFT_Q4_FISCAL_DATE
+    && normalizedReportDate === VERIFIED_MSFT_Q4_REPORT_DATE;
+  const mismatchedMicrosoftQ4 = normalizedSymbol === 'MSFT'
+    && !verifiedMicrosoftQ4
+    && (
+      normalizedFiscalDate === VERIFIED_MSFT_Q4_FISCAL_DATE
+      || normalizedReportDate === VERIFIED_MSFT_Q4_REPORT_DATE
+    );
+  if (mismatchedMicrosoftQ4) {
+    const unavailable = responseBase({
+      status: 'unavailable',
+      reason: 'official-event-date-mismatch',
+      symbol: normalizedSymbol,
+      period,
+      source: null,
+      sections: pendingSections('unavailable', 'official-event-date-mismatch'),
+    });
+    warnSecEarningsDetailFailure(unavailable, cacheEnabled);
+    writeCache(
+      cacheKey,
+      unavailable,
+      SEC_EARNINGS_DETAIL_CACHE_TTL_MS,
+      nowDate.getTime(),
+      cacheEnabled,
+    );
+    return unavailable;
   }
 
   const primary = await fetchSecEarningsFilingSource({
@@ -107,9 +145,12 @@ export async function fetchSecEarningsDetail({
     fiscalDate: normalizedFiscalDate,
     reportDate: knownForeignComposition?.officialReportDate || normalizedReportDate,
     includePrimaryDocument: detailAdapterSupported && !knownForeignComposition,
-    preferredDocumentTypes: normalizedSymbol === 'IBKR'
-      ? ['EX-99.1', 'PRIMARY']
-      : ['PRIMARY'],
+    preferredFilingTypes: verifiedMicrosoftQ4 ? ['8-K'] : [],
+    preferredDocumentTypes: verifiedMicrosoftQ4
+      ? ['EX-99.1']
+      : normalizedSymbol === 'IBKR'
+        ? ['EX-99.1', 'PRIMARY']
+        : ['PRIMARY'],
     fetchFn,
     userAgent,
     now: nowDate,
@@ -151,6 +192,7 @@ export async function fetchSecEarningsDetail({
     const pending = responseBase({
       status: primary.status === 'unsupported' ? 'unavailable' : 'pending',
       reason: primary.reason || 'sec-unavailable',
+      failureReason: primary.failureReason || null,
       symbol: normalizedSymbol,
       period,
       source: sourceFromPrimary(primary),
@@ -159,7 +201,16 @@ export async function fetchSecEarningsDetail({
         primary.reason || 'sec-unavailable',
       ),
     });
-    writeCache(cacheKey, pending, PENDING_CACHE_TTL_MS, nowDate.getTime(), cacheEnabled);
+    if (pending.reason !== 'not-published') {
+      warnSecEarningsDetailFailure(pending, cacheEnabled);
+    }
+    writeCache(
+      cacheKey,
+      pending,
+      SEC_EARNINGS_DETAIL_TRANSIENT_CACHE_TTL_MS,
+      nowDate.getTime(),
+      cacheEnabled,
+    );
     return pending;
   }
 
@@ -219,10 +270,11 @@ export async function fetchSecEarningsDetail({
       source,
       sections: pendingSections('unavailable', 'official-primary-document-unparsed'),
     });
+    warnSecEarningsDetailFailure(unavailable, cacheEnabled);
     writeCache(
       cacheKey,
       unavailable,
-      SEC_EARNINGS_DETAIL_CACHE_TTL_MS,
+      SEC_EARNINGS_DETAIL_UNPARSED_CACHE_TTL_MS,
       nowDate.getTime(),
       cacheEnabled,
     );
@@ -257,9 +309,36 @@ export function clearSecEarningsDetailCachesForTests() {
   resultCache.clear();
 }
 
+export function secEarningsDetailFailureLogFields(detail) {
+  const sourceForm = String(detail?.source?.form || '').trim().toUpperCase();
+  return {
+    symbol: normalizeSymbol(detail?.symbol),
+    fiscalDate: dateKey(detail?.period?.fiscalDate),
+    reportDate: dateKey(detail?.period?.reportDate),
+    status: safeLogReason(detail?.status, 24),
+    reason: safeLogReason(detail?.reason, 80),
+    failureReason: safeLogReason(detail?.failureReason, 80),
+    sourceForm: /^[0-9A-Z-]+(?:\/A)?$/.test(sourceForm) ? sourceForm : null,
+  };
+}
+
+function warnSecEarningsDetailFailure(detail, enabled) {
+  if (!enabled) return;
+  console.warn(
+    '[earnings-detail] official detail unavailable',
+    secEarningsDetailFailureLogFields(detail),
+  );
+}
+
+function safeLogReason(value, maxLength) {
+  const normalized = String(value || '').trim().toLowerCase().slice(0, maxLength);
+  return /^[a-z0-9][a-z0-9-]*$/.test(normalized) ? normalized : null;
+}
+
 function responseBase({
   status,
   reason,
+  failureReason = null,
   symbol,
   period,
   source,
@@ -272,6 +351,7 @@ function responseBase({
     schemaVersion: SEC_EARNINGS_DETAIL_SCHEMA_VERSION,
     status,
     reason,
+    failureReason,
     symbol,
     currency,
     period,

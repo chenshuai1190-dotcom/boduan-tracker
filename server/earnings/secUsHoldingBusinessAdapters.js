@@ -6,6 +6,7 @@ const SECTION_KEYS = [
   'geographies',
 ];
 
+const ADVANCED_MICRO_DEVICES_CIK = '0000002488';
 const META_CIK = '0001326801';
 const MICROSOFT_CIK = '0000789019';
 const INTERACTIVE_BROKERS_CIK = '0001381197';
@@ -16,6 +17,78 @@ const OPERATING_INCOME_CONCEPT = 'us-gaap:OperatingIncomeLoss';
 const BUSINESS_SEGMENTS_AXIS = 'us-gaap:StatementBusinessSegmentsAxis';
 const PRODUCT_OR_SERVICE_AXIS = 'srt:ProductOrServiceAxis';
 const GEOGRAPHICAL_AXIS = 'srt:StatementGeographicalAxis';
+const CONSOLIDATION_ITEMS_AXIS = 'srt:ConsolidationItemsAxis';
+const OPERATING_SEGMENTS_MEMBER = 'us-gaap:OperatingSegmentsMember';
+
+// AMD's Q2 2026 Form 10-Q (0000002488-26-000123) reports three accounting
+// segments. Client and Gaming is one reportable segment, while its two
+// disjoint product rows are separately tagged under ProductOrServiceAxis.
+const AMD_SEGMENTS = [
+  {
+    id: 'data-center',
+    label: 'Data Center',
+    labelZh: '数据中心',
+    members: {
+      [CONSOLIDATION_ITEMS_AXIS]: OPERATING_SEGMENTS_MEMBER,
+      [BUSINESS_SEGMENTS_AXIS]: 'amd:DataCenterMember',
+    },
+  },
+  {
+    id: 'client-and-gaming',
+    label: 'Client and Gaming',
+    labelZh: '客户端与游戏',
+    members: {
+      [CONSOLIDATION_ITEMS_AXIS]: OPERATING_SEGMENTS_MEMBER,
+      [BUSINESS_SEGMENTS_AXIS]: 'amd:ClientAndGamingMember',
+    },
+  },
+  {
+    id: 'embedded',
+    label: 'Embedded',
+    labelZh: '嵌入式',
+    members: {
+      [CONSOLIDATION_ITEMS_AXIS]: OPERATING_SEGMENTS_MEMBER,
+      [BUSINESS_SEGMENTS_AXIS]: 'amd:EmbeddedMember',
+    },
+  },
+];
+
+const AMD_REVENUE_BREAKDOWN = [
+  {
+    id: 'data-center',
+    label: 'Data Center',
+    labelZh: '数据中心',
+    parentId: 'data-center',
+    members: AMD_SEGMENTS[0].members,
+  },
+  {
+    id: 'client',
+    label: 'Client',
+    labelZh: '客户端',
+    parentId: 'client-and-gaming',
+    members: {
+      [PRODUCT_OR_SERVICE_AXIS]: 'amd:ClientMember',
+      [BUSINESS_SEGMENTS_AXIS]: 'amd:ClientAndGamingMember',
+    },
+  },
+  {
+    id: 'gaming',
+    label: 'Gaming',
+    labelZh: '游戏',
+    parentId: 'client-and-gaming',
+    members: {
+      [PRODUCT_OR_SERVICE_AXIS]: 'amd:GamingMember',
+      [BUSINESS_SEGMENTS_AXIS]: 'amd:ClientAndGamingMember',
+    },
+  },
+  {
+    id: 'embedded',
+    label: 'Embedded',
+    labelZh: '嵌入式',
+    parentId: 'embedded',
+    members: AMD_SEGMENTS[2].members,
+  },
+];
 
 // Member names and disjoint subtotal definitions below were verified against
 // the official 2026 Q1 filings:
@@ -215,14 +288,23 @@ const INTERACTIVE_BROKERS_REVENUE_BREAKDOWN = [
 ];
 
 const INLINE_ADAPTERS = new Map([
+  ['AMD', {
+    id: 'advanced-micro-devices-inline-xbrl',
+    cik: ADVANCED_MICRO_DEVICES_CIK,
+    forms: ['10-Q'],
+    fiscalDateToleranceDays: 7,
+    parseSections: parseAdvancedMicroDevicesSections,
+  }],
   ['META', {
     id: 'meta-inline-xbrl',
     cik: META_CIK,
+    forms: ['10-Q'],
     parseSections: parseMetaSections,
   }],
   ['MSFT', {
     id: 'microsoft-inline-xbrl',
     cik: MICROSOFT_CIK,
+    forms: ['10-Q'],
     parseSections: parseMicrosoftSections,
   }],
 ]);
@@ -258,20 +340,39 @@ export function parseSecUsHoldingBusinessDocument({
     });
   }
 
+  if (normalizedSymbol === 'MSFT') {
+    const filingForm = String(filing.form || '').trim().toUpperCase();
+    if (filingForm === '8-K'
+      || filingForm === 'EX-99.1'
+      || (!filingForm && !/<ix:nonFraction\b/i.test(html))) {
+      return parseMicrosoftEarningsRelease({
+        fiscalDate: normalizedFiscalDate,
+        html,
+        filing,
+      });
+    }
+  }
+
   const adapter = INLINE_ADAPTERS.get(normalizedSymbol);
   if (!adapter) return null;
   if (filing.cik && normalizeCik(filing.cik) !== adapter.cik) return null;
-  if (filing.form && String(filing.form).trim().toUpperCase() !== '10-Q') return null;
+  const filingForm = String(filing.form || '').trim().toUpperCase();
+  if (filingForm && !adapter.forms.includes(filingForm)) return null;
 
   const document = parseInlineXbrlDocument(html);
+  const documentFiscalDate = normalizeDocumentDate(
+    uniqueTextFact(document, 'dei:DocumentPeriodEndDate'),
+  );
   if (document.malformed || !inlineDocumentIdentityMatches(document, {
     cik: adapter.cik,
     fiscalDate: normalizedFiscalDate,
+    forms: adapter.forms,
+    fiscalDateToleranceDays: adapter.fiscalDateToleranceDays,
   })) {
     return null;
   }
 
-  const periods = resolveReportedQuarterPeriods(document, normalizedFiscalDate);
+  const periods = resolveReportedQuarterPeriods(document, documentFiscalDate);
   if (!periods) return null;
   const sections = adapter.parseSections(
     document,
@@ -345,6 +446,56 @@ function parseInteractiveBrokersTenQ({ fiscalDate, html, filing }) {
       geographies: unavailableSection('quarterly-geography-not-disclosed'),
     },
   });
+}
+
+function parseAdvancedMicroDevicesSections(document, period, previousPeriod) {
+  const totals = consolidatedRevenueTotals(document, period, previousPeriod);
+  const reportSegments = AMD_SEGMENTS.map((definition) => ({
+    id: definition.id,
+    label: definition.label,
+    labelZh: definition.labelZh,
+    revenue: selectUniqueFact(document, {
+      concept: REVENUE_CONCEPT,
+      period,
+      members: definition.members,
+    }),
+    previousRevenue: selectUniqueFact(document, {
+      concept: REVENUE_CONCEPT,
+      period: previousPeriod,
+      members: definition.members,
+    }),
+    profitMetric: 'operatingIncome',
+    profit: selectUniqueFact(document, {
+      concept: OPERATING_INCOME_CONCEPT,
+      period,
+      members: definition.members,
+    }),
+    previousProfit: selectUniqueFact(document, {
+      concept: OPERATING_INCOME_CONCEPT,
+      period: previousPeriod,
+      members: definition.members,
+    }),
+  }));
+  const revenueBreakdown = AMD_REVENUE_BREAKDOWN.map((definition) => revenueItem({
+    document,
+    period,
+    previousPeriod,
+    concept: REVENUE_CONCEPT,
+    definition,
+    members: definition.members,
+  }));
+
+  return {
+    reportSegments: reportSegments.every(segmentItemComplete)
+      && reconcilesRevenue(reportSegments, totals)
+      ? completeSection(reportSegments)
+      : unavailableSection(),
+    revenueBreakdown: revenueBreakdown.every(revenueItemComplete)
+      && reconcilesRevenue(revenueBreakdown, totals)
+      ? completeSection(revenueBreakdown)
+      : unavailableSection(),
+    geographies: unavailableSection('quarterly-geography-not-disclosed'),
+  };
 }
 
 function parseMetaSections(document, period, previousPeriod) {
@@ -533,6 +684,82 @@ function parseInteractiveBrokersEarningsRelease({ fiscalDate, html, filing }) {
   });
 }
 
+function parseMicrosoftEarningsRelease({ fiscalDate, html, filing }) {
+  if (filing.cik && normalizeCik(filing.cik) !== MICROSOFT_CIK) return null;
+  const filingForm = String(filing.form || '').trim().toUpperCase();
+  if (filingForm && filingForm !== '8-K' && filingForm !== 'EX-99.1') return null;
+
+  const text = htmlToText(html);
+  const reportedQuarter = new RegExp(
+    String.raw`quarter ended\s+${escapeRegExp(englishDate(fiscalDate))}`,
+    'i',
+  );
+  if (!/MICROSOFT (?:CORP(?:ORATION)?\.?)/i.test(text)
+    || !reportedQuarter.test(text)) {
+    return null;
+  }
+
+  const statementAnchor = text.search(/\bSEGMENT RESULTS\b/i);
+  if (statementAnchor < 0) return null;
+  const statement = text.slice(statementAnchor, statementAnchor + 20_000);
+  const header = statement.slice(0, 2_000);
+  const year = Number(fiscalDate.slice(0, 4));
+  const priorYear = year - 1;
+  const yearSequence = new RegExp(
+    String.raw`${year}\s+${priorYear}\s+${year}\s+${priorYear}`,
+  );
+  if (!/\(In millions\)\s*\(Unaudited\)/i.test(header)
+    || !/Three Months Ended/i.test(header)
+    || !/Twelve Months Ended/i.test(header)
+    || !yearSequence.test(header)) {
+    return null;
+  }
+
+  const segmentBlocks = splitMicrosoftSegmentTable(statement);
+  if (!segmentBlocks) return null;
+  const reportSegments = MICROSOFT_SEGMENTS.map((definition) => {
+    const block = segmentBlocks.get(definition.id);
+    const revenue = extractFourPeriodRow(block, 'Revenue');
+    const profit = extractFourPeriodRow(block, 'Operating income');
+    return {
+      id: definition.id,
+      label: definition.label,
+      labelZh: definition.labelZh,
+      revenue: revenue?.[0] ?? null,
+      previousRevenue: revenue?.[1] ?? null,
+      profitMetric: 'operatingIncome',
+      profit: profit?.[0] ?? null,
+      previousProfit: profit?.[1] ?? null,
+    };
+  });
+  const totalRevenue = extractFourPeriodRow(segmentBlocks.get('total'), 'Revenue');
+  const totalProfit = extractFourPeriodRow(segmentBlocks.get('total'), 'Operating income');
+  if (!reportSegments.every(segmentItemComplete)
+    || !reconcilesRevenue(reportSegments, {
+      revenue: totalRevenue?.[0],
+      previousRevenue: totalRevenue?.[1],
+    })
+    || !reconcilesProfit(reportSegments, {
+      profit: totalProfit?.[0],
+      previousProfit: totalProfit?.[1],
+    })) {
+    return null;
+  }
+
+  return parsedResult({
+    adapterId: 'microsoft-earnings-release',
+    cik: MICROSOFT_CIK,
+    filing,
+    period: quarterPeriodEnding(fiscalDate),
+    evidence: 'official-8-k-exhibit-99.1',
+    sections: {
+      reportSegments: completeSection(reportSegments),
+      revenueBreakdown: unavailableSection('quarterly-product-revenue-not-disclosed'),
+      geographies: unavailableSection('quarterly-geography-not-disclosed'),
+    },
+  });
+}
+
 function parsedResult({
   adapterId,
   cik,
@@ -681,11 +908,19 @@ function parseInlineXbrlDocument(html) {
   };
 }
 
-function inlineDocumentIdentityMatches(document, { cik, fiscalDate }) {
-  return uniqueTextFact(document, 'dei:DocumentType').toUpperCase().replace(/\s+/g, '') === '10-Q'
-    && normalizeDocumentDate(
-      uniqueTextFact(document, 'dei:DocumentPeriodEndDate'),
-    ) === fiscalDate
+function inlineDocumentIdentityMatches(document, {
+  cik,
+  fiscalDate,
+  forms = ['10-Q'],
+  fiscalDateToleranceDays = 0,
+}) {
+  const documentForm = normalizeForm(uniqueTextFact(document, 'dei:DocumentType'));
+  const acceptedForms = forms.map(normalizeForm);
+  const documentFiscalDate = normalizeDocumentDate(
+    uniqueTextFact(document, 'dei:DocumentPeriodEndDate'),
+  );
+  return acceptedForms.includes(documentForm)
+    && datesWithinDays(documentFiscalDate, fiscalDate, fiscalDateToleranceDays)
     && normalizeCik(uniqueTextFact(document, 'dei:EntityCentralIndexKey')) === cik;
 }
 
@@ -778,6 +1013,54 @@ function extractQuarterPair(statement, label) {
   return finite(current) && finite(previous) ? { current, previous } : null;
 }
 
+function splitMicrosoftSegmentTable(statement) {
+  const headings = MICROSOFT_SEGMENTS.map((definition) => ({
+    id: definition.id,
+    label: definition.label,
+    index: statement.search(new RegExp(`\\b${escapeRegExp(definition.label)}\\b`, 'i')),
+  }));
+  if (headings.some((heading) => heading.index < 0)
+    || headings.some((heading, index) => index > 0 && heading.index <= headings[index - 1].index)) {
+    return null;
+  }
+
+  const finalHeading = headings.at(-1);
+  const finalTail = statement.slice(finalHeading.index + finalHeading.label.length);
+  const totalMatch = finalTail.match(/\bTotal\s+Revenue\s+\$?/i);
+  if (!totalMatch || !finite(totalMatch.index)) return null;
+  const totalIndex = finalHeading.index + finalHeading.label.length + totalMatch.index;
+
+  const output = new Map();
+  headings.forEach((heading, index) => {
+    const start = heading.index + heading.label.length;
+    const end = headings[index + 1]?.index ?? totalIndex;
+    output.set(heading.id, statement.slice(start, end));
+  });
+  output.set('total', statement.slice(totalIndex));
+  return output;
+}
+
+function extractFourPeriodRow(statement, label) {
+  if (!statement) return null;
+  const amount = '(\\(?\\s*[\\d,]+(?:\\.\\d+)?\\s*\\)?)';
+  const rowLabel = String(label).toLowerCase() === 'revenue'
+    ? `(?<!Cost of\\s)${escapeRegExp(label)}`
+    : escapeRegExp(label);
+  const pattern = new RegExp(
+    `${rowLabel}\\s+\\$?\\s*${amount}`
+      + `\\s+\\$?\\s*${amount}`
+      + `\\s+\\$?\\s*${amount}`
+      + `\\s+\\$?\\s*${amount}`,
+    'gi',
+  );
+  const rows = new Map();
+  for (const match of statement.matchAll(pattern)) {
+    const values = match.slice(1, 5).map(parseMillions);
+    if (values.every(finite)) rows.set(values.join('|'), values);
+  }
+  return rows.size === 1 ? rows.values().next().value : null;
+}
+
 function parseMillions(value) {
   const raw = String(value || '').replace(/[,\s]/g, '');
   const parenthesized = raw.startsWith('(') && raw.endsWith(')');
@@ -791,6 +1074,12 @@ function reconcilesRevenue(items, totals) {
   if (!finite(totals?.revenue) || !finite(totals?.previousRevenue)) return false;
   return items.reduce((sum, item) => sum + item.revenue, 0) === totals.revenue
     && items.reduce((sum, item) => sum + item.previousRevenue, 0) === totals.previousRevenue;
+}
+
+function reconcilesProfit(items, totals) {
+  if (!finite(totals?.profit) || !finite(totals?.previousProfit)) return false;
+  return items.reduce((sum, item) => sum + item.profit, 0) === totals.profit
+    && items.reduce((sum, item) => sum + item.previousProfit, 0) === totals.previousProfit;
 }
 
 function membersEqual(actual = {}, expected = {}) {
@@ -894,6 +1183,12 @@ function dateDistanceDays(from, to) {
   return Math.round((toDate.getTime() - fromDate.getTime()) / 86400000);
 }
 
+function datesWithinDays(left, right, toleranceDays = 0) {
+  const distance = Math.abs(dateDistanceDays(left, right));
+  const tolerance = Math.max(0, Number(toleranceDays) || 0);
+  return Number.isFinite(distance) && distance <= tolerance;
+}
+
 function parseDate(value) {
   const key = dateKey(value);
   if (!key) return null;
@@ -925,6 +1220,10 @@ function normalizeDocumentDate(value) {
 function normalizeCik(value) {
   const digits = String(value || '').replace(/\D/g, '');
   return digits ? digits.padStart(10, '0') : '';
+}
+
+function normalizeForm(value) {
+  return String(value || '').trim().toUpperCase().replace(/\s+/g, '');
 }
 
 function normalizeSymbol(value) {

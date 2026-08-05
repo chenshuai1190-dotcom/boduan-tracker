@@ -4,11 +4,14 @@ import { readFile } from 'node:fs/promises';
 
 import handler from '../api/earnings-calendar.js';
 import {
+  SEC_EARNINGS_DETAIL_TRANSIENT_CACHE_TTL_MS,
+  SEC_EARNINGS_DETAIL_UNPARSED_CACHE_TTL_MS,
   SEC_EARNINGS_DETAIL_SCHEMA_VERSION,
   clearSecEarningsDetailCachesForTests,
   fetchSecEarningsDetail,
   parseEarningsDetailRequest,
   parseSecEarningsDetailPrimaryDocument,
+  secEarningsDetailFailureLogFields,
 } from '../server/earnings/secEarningsDetail.js';
 import {
   fetchSecEarningsFilingSource,
@@ -499,6 +502,202 @@ test('SEC filing source matches NVDA month-end provider data to the unique offic
     '/submissions/CIK0001045810.json',
     new URL(NVDA_FILING.primaryDocumentUrl).pathname,
   ]);
+});
+
+test('SEC filing source can fail closed to an earnings 8-K exhibit while the default still selects a periodic filing', async () => {
+  const tenKAccession = '0001193125-26-191507';
+  const eightKAccession = '0001193125-26-191500';
+  const exhibitPath = `/Archives/edgar/data/789019/${eightKAccession.replace(/-/g, '')}/msft-fy26q4-ex991.htm`;
+  const submissions = {
+    tickers: ['MSFT'],
+    filings: {
+      recent: {
+        accessionNumber: [tenKAccession, eightKAccession],
+        form: ['10-K', '8-K'],
+        filingDate: ['2026-07-29', '2026-07-29'],
+        reportDate: ['2026-06-30', '2026-07-29'],
+        items: ['', '2.02,9.01'],
+        primaryDocument: ['msft-20260630.htm', 'msft-20260729.htm'],
+        acceptanceDateTime: [
+          '2026-07-29T20:01:00.000Z',
+          '2026-07-29T20:00:00.000Z',
+        ],
+      },
+    },
+  };
+  const releaseHtml = '<html><body>Microsoft FY2026 Q4 official earnings release</body></html>';
+  const fetchFn = async (url) => {
+    const pathname = new URL(url).pathname;
+    if (pathname === '/files/company_tickers.json') {
+      return textResponse({
+        0: { cik_str: 789019, ticker: 'MSFT', title: 'Microsoft Corporation' },
+      });
+    }
+    if (pathname === '/submissions/CIK0000789019.json') return textResponse(submissions);
+    if (pathname.endsWith(`/${eightKAccession}-index.html`)) {
+      return textResponse(`<table><tr><td>EX-99.1</td><td><a href="${exhibitPath}">release</a></td></tr></table>`);
+    }
+    if (pathname === exhibitPath) return textResponse(releaseHtml);
+    return textResponse('not found', 404);
+  };
+
+  const periodic = await fetchSecEarningsFilingSource({
+    symbol: 'MSFT',
+    fiscalDate: '2026-06-30',
+    reportDate: '2026-07-29',
+    includePrimaryDocument: false,
+    fetchFn,
+    now: '2026-07-30T12:00:00Z',
+    requestIntervalMs: 0,
+  });
+  assert.equal(periodic.form, '10-K');
+  assert.equal(periodic.accession, tenKAccession);
+
+  const release = await fetchSecEarningsFilingSource({
+    symbol: 'MSFT',
+    fiscalDate: '2026-06-30',
+    reportDate: '2026-07-29',
+    preferredFilingTypes: ['8-K'],
+    preferredDocumentTypes: ['EX-99.1'],
+    fetchFn,
+    now: '2026-07-30T12:00:00Z',
+    requestIntervalMs: 0,
+  });
+  assert.equal(release.status, 'complete');
+  assert.equal(release.form, '8-K');
+  assert.equal(release.accession, eightKAccession);
+  assert.equal(release.documentType, 'EX-99.1');
+  assert.equal(new URL(release.primaryDocumentUrl).pathname, exhibitPath);
+  assert.equal(release.html, releaseHtml);
+});
+
+test('MSFT Q4 detail orchestration uses the earnings 8-K EX-99.1 instead of the same-day 10-K', async () => {
+  clearSecEarningsDetailCachesForTests();
+  const tenKAccession = '0001193125-26-323633';
+  const eightKAccession = '0001193125-26-323632';
+  const flatEightKAccession = eightKAccession.replace(/-/g, '');
+  const exhibitPath = `/Archives/edgar/data/789019/${flatEightKAccession}/msft-fy26q4-ex991.htm`;
+  const exhibitHtml = await readFile(
+    new URL('./fixtures/sec-us-holding-business/msft-2026q4-exhibit.html', import.meta.url),
+    'utf8',
+  );
+  const submissions = {
+    tickers: ['MSFT'],
+    filings: {
+      recent: {
+        accessionNumber: [tenKAccession, eightKAccession],
+        form: ['10-K', '8-K'],
+        filingDate: ['2026-07-29', '2026-07-29'],
+        reportDate: ['2026-06-30', '2026-07-29'],
+        items: ['', '2.02,9.01'],
+        primaryDocument: ['msft-20260630.htm', 'msft-20260729.htm'],
+        acceptanceDateTime: [
+          '2026-07-29T20:01:00.000Z',
+          '2026-07-29T20:00:00.000Z',
+        ],
+      },
+    },
+  };
+  const requested = [];
+  const result = await fetchSecEarningsDetail({
+    symbol: 'MSFT',
+    fiscalDate: '2026-06-30',
+    reportDate: '2026-07-29',
+    fetchFn: async (url) => {
+      const pathname = new URL(url).pathname;
+      requested.push(pathname);
+      if (pathname === '/files/company_tickers.json') {
+        return textResponse({
+          0: { cik_str: 789019, ticker: 'MSFT', title: 'Microsoft Corporation' },
+        });
+      }
+      if (pathname === '/submissions/CIK0000789019.json') return textResponse(submissions);
+      if (pathname.endsWith(`/${eightKAccession}-index.html`)) {
+        return textResponse(`<table><tr><td>EX-99.1</td><td><a href="${exhibitPath}">release</a></td></tr></table>`);
+      }
+      if (pathname === exhibitPath) return textResponse(exhibitHtml);
+      return textResponse('not found', 404);
+    },
+    now: '2026-07-30T12:00:00Z',
+    requestIntervalMs: 0,
+  });
+
+  assert.equal(result.status, 'partial');
+  assert.equal(result.source?.form, '8-K');
+  assert.equal(result.source?.accession, eightKAccession);
+  assert.equal(new URL(result.source?.primaryDocumentUrl).pathname, exhibitPath);
+  assert.deepEqual(Object.fromEntries(
+    Object.entries(result.sections).map(([key, section]) => [
+      key,
+      [section.status, section.items.length],
+    ]),
+  ), {
+    reportSegments: ['complete', 3],
+    revenueBreakdown: ['unavailable', 0],
+    geographies: ['unavailable', 0],
+  });
+  assert.equal(requested.some((pathname) => pathname.endsWith('/msft-20260630.htm')), false);
+  assert.equal(requested.includes(exhibitPath), true);
+});
+
+test('MSFT Q4 override is exact-event only, preserving historical periodic filings and rejecting crossed dates', async () => {
+  clearSecEarningsDetailCachesForTests();
+  const accession = '0001193125-26-191507';
+  const primaryPath = `/Archives/edgar/data/789019/${accession.replace(/-/g, '')}/msft-20260331.htm`;
+  const submissions = {
+    tickers: ['MSFT'],
+    filings: {
+      recent: {
+        accessionNumber: [accession],
+        form: ['10-Q'],
+        filingDate: ['2026-04-29'],
+        reportDate: ['2026-03-31'],
+        items: [''],
+        primaryDocument: ['msft-20260331.htm'],
+        acceptanceDateTime: ['2026-04-29T20:00:00.000Z'],
+      },
+    },
+  };
+  const requested = [];
+  const historical = await fetchSecEarningsDetail({
+    symbol: 'MSFT',
+    fiscalDate: '2026-03-31',
+    reportDate: '2026-04-29',
+    fetchFn: async (url) => {
+      const pathname = new URL(url).pathname;
+      requested.push(pathname);
+      if (pathname === '/files/company_tickers.json') {
+        return textResponse({
+          0: { cik_str: 789019, ticker: 'MSFT', title: 'Microsoft Corporation' },
+        });
+      }
+      if (pathname === '/submissions/CIK0000789019.json') return textResponse(submissions);
+      if (pathname === primaryPath) return textResponse('<html><body>intentionally minimal 10-Q</body></html>');
+      return textResponse('not found', 404);
+    },
+    now: '2026-04-30T12:00:00Z',
+    requestIntervalMs: 0,
+  });
+  assert.equal(historical.source?.form, '10-Q');
+  assert.equal(historical.source?.accession, accession);
+  assert.equal(requested.includes(primaryPath), true);
+  assert.equal(requested.some((pathname) => pathname.endsWith('-index.html')), false);
+
+  let crossedDateRequests = 0;
+  const crossedDate = await fetchSecEarningsDetail({
+    symbol: 'MSFT',
+    fiscalDate: '2026-06-30',
+    reportDate: '2026-07-30',
+    fetchFn: async () => {
+      crossedDateRequests += 1;
+      throw new Error('crossed dates must fail before SEC');
+    },
+    now: '2026-07-31T12:00:00Z',
+    requestIntervalMs: 0,
+  });
+  assert.equal(crossedDateRequests, 0);
+  assert.equal(crossedDate.status, 'unavailable');
+  assert.equal(crossedDate.reason, 'official-event-date-mismatch');
 });
 
 test('NVDA detail service returns complete official sections and keeps the provider date as the request key', async () => {
@@ -1066,21 +1265,60 @@ test('SEC fetch failure degrades to pending sections instead of throwing a 502',
     fiscalDate: '2026-06-30',
     reportDate: '2026-07-22',
     now: new Date('2026-07-31T12:00:00.000Z'),
-    fetchFn: async () => {
-      throw new Error('simulated SEC timeout');
-    },
+    fetchFn: async () => textResponse('rate limited', 429),
     requestIntervalMs: 0,
     batchTimeoutMs: 50,
   });
 
   assert.equal(result.status, 'pending');
   assert.equal(result.reason, 'sec-unavailable');
+  assert.equal(result.failureReason, 'sec-http-429');
   assert.equal(result.source?.cik, '0001318605');
   assert.ok(Object.values(result.sections).every(section => (
     section.status === 'pending'
     && section.reason === 'sec-unavailable'
     && section.items.length === 0
   )));
+});
+
+test('SEC detail transient and unparsed cache states retry on the conservative five-minute boundary', () => {
+  assert.equal(SEC_EARNINGS_DETAIL_TRANSIENT_CACHE_TTL_MS, 5 * 60 * 1000);
+  assert.equal(SEC_EARNINGS_DETAIL_UNPARSED_CACHE_TTL_MS, 5 * 60 * 1000);
+});
+
+test('SEC detail failure log fields are structured and exclude credentials and URLs', () => {
+  const fields = secEarningsDetailFailureLogFields({
+    symbol: 'GOOGL',
+    status: 'pending',
+    reason: 'sec-unavailable',
+    failureReason: 'sec-http-429',
+    period: {
+      fiscalDate: '2026-06-30',
+      reportDate: '2026-07-22',
+    },
+    source: {
+      form: '10-Q',
+      filingUrl: 'https://www.sec.gov/private?token=do-not-log',
+    },
+    token: 'do-not-log',
+    user: 'do-not-log',
+  });
+
+  assert.deepEqual(fields, {
+    symbol: 'GOOGL',
+    fiscalDate: '2026-06-30',
+    reportDate: '2026-07-22',
+    status: 'pending',
+    reason: 'sec-unavailable',
+    failureReason: 'sec-http-429',
+    sourceForm: '10-Q',
+  });
+  assert.equal(JSON.stringify(fields).includes('do-not-log'), false);
+  assert.equal(JSON.stringify(fields).includes('https://'), false);
+  assert.equal(Object.hasOwn(fields, 'filingUrl'), false);
+  assert.equal(secEarningsDetailFailureLogFields({
+    failureReason: 'request failed https://secret.example/?token=do-not-log',
+  }).failureReason, null);
 });
 
 test('SEC primary reader aborts a chunked response as soon as its UTF-8 bytes exceed the limit', async () => {

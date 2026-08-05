@@ -11,7 +11,7 @@ export const DEFAULT_SEC_USER_AGENT = 'BoduanTracker/1.0 chenshuai1190@gmail.com
 
 const SEC_REQUEST_TIMEOUT_MS = 5500;
 const SEC_BATCH_TIMEOUT_MS = 7000;
-const SEC_REQUEST_INTERVAL_MS = 220;
+const SEC_REQUEST_INTERVAL_MS = 250;
 const SEC_MAX_CONCURRENCY = 3;
 const SEC_MAX_EVENTS_PER_REQUEST = 8;
 const SEC_MAX_INDEX_BYTES = 2_000_000;
@@ -49,10 +49,15 @@ export function isSecOfficialActualSupportedEvent(symbol, fiscalDate) {
     && isSecExhibitActualSupportedEvent({ symbol: normalizedSymbol, fiscalDate });
 }
 
+const SEC_REQUEST_LANE_DETAIL = 'detail';
+const SEC_REQUEST_LANE_BATCH = 'batch';
 const responseCache = new Map();
+const responseInFlight = new Map();
 const resultCache = new Map();
-let requestScheduleTail = Promise.resolve();
-let nextSecRequestAt = 0;
+const requestSchedulers = new Map([
+  [SEC_REQUEST_LANE_DETAIL, { tail: Promise.resolve(), nextRequestAt: 0 }],
+  [SEC_REQUEST_LANE_BATCH, { tail: Promise.resolve(), nextRequestAt: 0 }],
+]);
 
 export async function fetchSecOfficialActuals({
   events,
@@ -91,6 +96,7 @@ export async function fetchSecOfficialActuals({
     fetchFn,
     userAgent: sanitizeUserAgent(userAgent),
     requestIntervalMs: resolveRequestInterval(fetchFn, requestIntervalMs),
+    requestLane: SEC_REQUEST_LANE_BATCH,
     cacheEnabled: fetchFn === globalThis.fetch,
     nowMs: normalizedNow.getTime(),
     deadlineAt: Date.now() + (
@@ -113,8 +119,11 @@ export async function fetchSecOfficialActuals({
     try {
       const result = await fetchOfficialEvent({ event, cik, context, today });
       return [event.key, result];
-    } catch {
-      return [event.key, statusResult(event, 'pending', 'sec-unavailable', { secCik: cik })];
+    } catch (error) {
+      return [event.key, statusResult(event, 'pending', 'sec-unavailable', {
+        secCik: cik,
+        failureReason: sanitizeSecFailureReason(error),
+      })];
     }
   });
 
@@ -128,6 +137,7 @@ export async function fetchSecEarningsFilingSource({
   fiscalDate,
   reportDate,
   includePrimaryDocument = true,
+  preferredFilingTypes = [],
   preferredDocumentTypes = ['PRIMARY'],
   fetchFn = globalThis.fetch,
   userAgent = process.env.SEC_USER_AGENT || DEFAULT_SEC_USER_AGENT,
@@ -161,6 +171,7 @@ export async function fetchSecEarningsFilingSource({
     fetchFn,
     userAgent: sanitizeUserAgent(userAgent),
     requestIntervalMs: resolveRequestInterval(fetchFn, requestIntervalMs),
+    requestLane: SEC_REQUEST_LANE_DETAIL,
     cacheEnabled: fetchFn === globalThis.fetch,
     nowMs: normalizedNow.getTime(),
     deadlineAt: Date.now() + (
@@ -205,6 +216,7 @@ export async function fetchSecEarningsFilingSource({
       normalizedReportDate,
       today,
       normalizedSymbol,
+      preferredFilingTypes,
     );
     if (!filing) {
       return {
@@ -263,10 +275,11 @@ export async function fetchSecEarningsFilingSource({
       status: 'pending',
       reason: 'official-primary-document-missing',
     };
-  } catch {
+  } catch (error) {
     return {
       ...base,
       reason: 'sec-unavailable',
+      failureReason: sanitizeSecFailureReason(error),
       secCik: cik,
     };
   }
@@ -301,6 +314,7 @@ export async function fetchSecCompanyFactsSource({
     fetchFn,
     userAgent: sanitizeUserAgent(userAgent),
     requestIntervalMs: resolveRequestInterval(fetchFn, requestIntervalMs),
+    requestLane: SEC_REQUEST_LANE_DETAIL,
     cacheEnabled: fetchFn === globalThis.fetch,
     nowMs: normalizedNow.getTime(),
     deadlineAt: Date.now() + (
@@ -375,10 +389,11 @@ export async function fetchSecCompanyFactsSource({
         companyFactsUrl,
       },
     };
-  } catch {
+  } catch (error) {
     return {
       ...base,
       reason: 'sec-unavailable',
+      failureReason: sanitizeSecFailureReason(error),
       cik: cik || null,
     };
   }
@@ -516,9 +531,12 @@ export function mergeSecOfficialActuals(events, officialActuals) {
 
 export function clearSecOfficialCachesForTests() {
   responseCache.clear();
+  responseInFlight.clear();
   resultCache.clear();
-  requestScheduleTail = Promise.resolve();
-  nextSecRequestAt = 0;
+  for (const scheduler of requestSchedulers.values()) {
+    scheduler.tail = Promise.resolve();
+    scheduler.nextRequestAt = 0;
+  }
 }
 
 async function fetchOfficialEvent({ event, cik, context, today }) {
@@ -674,6 +692,7 @@ async function fetchTextCached(url, {
   fetchFn,
   userAgent,
   requestIntervalMs,
+  requestLane,
   cacheEnabled,
   nowMs,
   ttlMs,
@@ -683,44 +702,58 @@ async function fetchTextCached(url, {
   const cached = readCache(responseCache, url, nowMs, cacheEnabled);
   if (cached !== null) return cached;
 
+  const existingRequest = responseInFlight.get(url);
+  if (existingRequest?.fetchFn === fetchFn) {
+    return waitForSharedResponse(existingRequest.promise, deadlineAt);
+  }
+
   if (Date.now() >= deadlineAt) throw new Error('SEC batch deadline exceeded');
-  await waitForRequestSlot(requestIntervalMs, deadlineAt);
-  const remainingMs = deadlineAt - Date.now();
-  if (remainingMs <= 0) throw new Error('SEC batch deadline exceeded');
-  const controller = new AbortController();
-  let timeoutId;
-  const requestTimeoutMs = Math.min(SEC_REQUEST_TIMEOUT_MS, remainingMs);
-  const text = await Promise.race([
-    (async () => {
-      const response = await fetchFn(url, {
-        headers: {
-          Accept: 'application/json,text/html;q=0.9,*/*;q=0.1',
-          'User-Agent': userAgent,
-        },
-        signal: controller.signal,
-      });
-      if (!response?.ok) throw new Error(`SEC HTTP ${response?.status || 0}`);
-      const contentLength = Number(response.headers?.get?.('content-length') || 0);
-      if (contentLength > maxBytes) {
-        controller.abort();
-        throw new Error('SEC response too large');
-      }
-      return readResponseTextWithLimit(response, {
-        maxBytes,
-        controller,
-      });
-    })(),
-    new Promise((_, reject) => {
-      timeoutId = setTimeout(() => {
-        controller.abort();
-        reject(new Error('SEC request deadline exceeded'));
-      }, requestTimeoutMs);
-    }),
-  ]).finally(() => {
-    clearTimeout(timeoutId);
-  });
-  writeCache(responseCache, url, text, ttlMs, { cacheEnabled, nowMs });
-  return text;
+  const request = (async () => {
+    await waitForRequestSlot(requestIntervalMs, deadlineAt, requestLane);
+    const remainingMs = deadlineAt - Date.now();
+    if (remainingMs <= 0) throw new Error('SEC batch deadline exceeded');
+    const controller = new AbortController();
+    let timeoutId;
+    const requestTimeoutMs = Math.min(SEC_REQUEST_TIMEOUT_MS, remainingMs);
+    const text = await Promise.race([
+      (async () => {
+        const response = await fetchFn(url, {
+          headers: {
+            Accept: 'application/json,text/html;q=0.9,*/*;q=0.1',
+            'User-Agent': userAgent,
+          },
+          signal: controller.signal,
+        });
+        if (!response?.ok) throw new Error(`SEC HTTP ${response?.status || 0}`);
+        const contentLength = Number(response.headers?.get?.('content-length') || 0);
+        if (contentLength > maxBytes) {
+          controller.abort();
+          throw new Error('SEC response too large');
+        }
+        return readResponseTextWithLimit(response, {
+          maxBytes,
+          controller,
+        });
+      })(),
+      new Promise((_, reject) => {
+        timeoutId = setTimeout(() => {
+          controller.abort();
+          reject(new Error('SEC request deadline exceeded'));
+        }, requestTimeoutMs);
+      }),
+    ]).finally(() => {
+      clearTimeout(timeoutId);
+    });
+    writeCache(responseCache, url, text, ttlMs, { cacheEnabled, nowMs });
+    return text;
+  })();
+  const requestEntry = { fetchFn, promise: request };
+  responseInFlight.set(url, requestEntry);
+  try {
+    return await request;
+  } finally {
+    if (responseInFlight.get(url) === requestEntry) responseInFlight.delete(url);
+  }
 }
 
 async function readResponseTextWithLimit(response, { maxBytes, controller }) {
@@ -794,7 +827,36 @@ function normalizeRecentFilings(submissions) {
   return filings;
 }
 
-function selectEarningsDetailFiling(filings, fiscalDate, reportDate, today, symbol) {
+function selectEarningsDetailFiling(
+  filings,
+  fiscalDate,
+  reportDate,
+  today,
+  symbol,
+  preferredFilingTypes = [],
+) {
+  const filingTypes = normalizePreferredFilingTypes(preferredFilingTypes);
+  if (filingTypes.length > 0) {
+    for (const filingType of filingTypes) {
+      let preferred = null;
+      if (filingType === '8-K') {
+        preferred = selectEarnings8KFiling(filings, reportDate, today);
+      } else if (filingType === '6-K') {
+        preferred = selectEarnings6KFiling(filings, reportDate, fiscalDate, today, symbol);
+      } else {
+        preferred = selectUniqueNearestFiscalFiling(
+          filings.filter((filing) => filing.form === filingType),
+          fiscalDate,
+          today,
+        );
+      }
+      if (preferred) return preferred;
+    }
+    // An explicit preference is a fail-closed filing allowlist. This prevents
+    // a same-date annual filing from silently replacing a quarterly release.
+    return null;
+  }
+
   const periodic = selectUniqueNearestFiscalFiling(filings, fiscalDate, today);
   if (periodic) return periodic;
   const foreignEarnings = selectEarnings6KFiling(
@@ -973,7 +1035,7 @@ function dedupeEvents(events) {
   const unique = new Map();
   for (const event of events || []) {
     const symbol = normalizeSymbol(event?.symbol || event?.code);
-    const fiscalDate = dateKey(event?.fiscalDate || event?.date);
+    const fiscalDate = dateKey(event?.providerFiscalDate || event?.fiscalDate || event?.date);
     const reportDate = dateKey(event?.reportDate || event?.report_date);
     if (!symbol || !fiscalDate) continue;
     const key = `${symbol}|${fiscalDate}`;
@@ -984,7 +1046,7 @@ function dedupeEvents(events) {
 
 function eventKey(event) {
   const symbol = normalizeSymbol(event?.symbol || event?.code);
-  const fiscalDate = dateKey(event?.fiscalDate || event?.date);
+  const fiscalDate = dateKey(event?.providerFiscalDate || event?.fiscalDate || event?.date);
   return `${symbol}|${fiscalDate}`;
 }
 
@@ -1031,20 +1093,61 @@ function writeCache(cache, key, value, ttlMs, context) {
   });
 }
 
-async function waitForRequestSlot(intervalMs, deadlineAt) {
+async function waitForRequestSlot(intervalMs, deadlineAt, requestLane) {
   if (!(intervalMs > 0)) return;
-  const reservation = requestScheduleTail.then(() => {
+  const scheduler = requestSchedulerForLane(requestLane);
+  const reservation = scheduler.tail.then(() => {
     const now = Date.now();
-    const slotAt = Math.max(now, nextSecRequestAt);
+    const slotAt = Math.max(now, scheduler.nextRequestAt);
     if (slotAt >= deadlineAt) throw new Error('SEC batch deadline exceeded');
-    nextSecRequestAt = slotAt + intervalMs;
+    scheduler.nextRequestAt = slotAt + intervalMs;
     return slotAt;
   });
-  requestScheduleTail = reservation.then(() => undefined, () => undefined);
+  scheduler.tail = reservation.then(() => undefined, () => undefined);
   const slotAt = await reservation;
   const waitMs = Math.max(0, slotAt - Date.now());
   if (Date.now() + waitMs >= deadlineAt) throw new Error('SEC batch deadline exceeded');
   if (waitMs > 0) await delay(waitMs);
+}
+
+async function waitForSharedResponse(promise, deadlineAt) {
+  const remainingMs = deadlineAt - Date.now();
+  if (remainingMs <= 0) throw new Error('SEC batch deadline exceeded');
+  let timeoutId;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise((_, reject) => {
+        timeoutId = setTimeout(
+          () => reject(new Error('SEC batch deadline exceeded')),
+          remainingMs,
+        );
+      }),
+    ]);
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+function requestSchedulerForLane(value) {
+  const lane = value === SEC_REQUEST_LANE_BATCH
+    ? SEC_REQUEST_LANE_BATCH
+    : SEC_REQUEST_LANE_DETAIL;
+  return requestSchedulers.get(lane);
+}
+
+function sanitizeSecFailureReason(error) {
+  const message = String(error?.message || error || '').trim();
+  const httpStatus = message.match(/\bSEC HTTP ([1-5][0-9]{2})\b/i)?.[1];
+  if (httpStatus) return `sec-http-${httpStatus}`;
+  if (/SEC batch deadline exceeded/i.test(message)) return 'sec-batch-deadline';
+  if (/SEC request deadline exceeded|AbortError|aborted/i.test(message)) return 'sec-request-timeout';
+  if (/SEC response too large/i.test(message)) return 'sec-response-too-large';
+  if (/JSON|Unexpected token|unterminated/i.test(message)) return 'sec-invalid-response';
+  if (/fetch failed|network|ECONN|ENOTFOUND|EAI_AGAIN|socket/i.test(message)) {
+    return 'sec-network-error';
+  }
+  return 'sec-unavailable';
 }
 
 async function mapLimit(tasks, limit) {
@@ -1107,6 +1210,17 @@ function normalizePreferredDocumentTypes(value) {
     if (!output.includes(normalized)) output.push(normalized);
   }
   return output.length > 0 ? output : ['PRIMARY'];
+}
+
+function normalizePreferredFilingTypes(value) {
+  const input = Array.isArray(value) ? value : [value];
+  const output = [];
+  for (const entry of input) {
+    const normalized = String(entry || '').trim().toUpperCase();
+    if (!['8-K', '6-K', '10-Q', '10-K', '20-F'].includes(normalized)) continue;
+    if (!output.includes(normalized)) output.push(normalized);
+  }
+  return output;
 }
 
 function tickerAliases(value) {

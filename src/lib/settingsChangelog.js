@@ -4,6 +4,25 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '📊 恢复所有已支持股票的最新财报与官方结构化细分',
+      '  - 财报列表分离 EODHD provider 财期与 SEC 官方精确财期；同一季度不再重复、串期或回退到错误详情',
+      '  - “最近已公布”复用原有日历请求并在 90 天边界内补齐历史，不增加请求次数；下一季尚未公布时仍可读取上一份最新财报',
+      '  - SEC 摘要与详情使用独立调度、共享公开响应缓存和同 URL singleflight；瞬态失败及未解析结果五分钟后可重试，并只记录脱敏诊断字段',
+      '  - AMD 2026 Q2 官方 10-Q 返回 3 个分部和 4 项业务结构；MSFT 2026 Q4 严格使用当季 8-K 的 3 个分部，未披露的产品或地区继续显示不可用',
+      '  - 不新增数据库、备用财报源或共享外部缓存，任何无法由官方文件勾稽的结构继续 fail closed',
+    ],
+    itemsEn: [
+      '📊 Restored the latest earnings and official structured breakdowns for every supported stock',
+      '  - Earnings now keep the EODHD provider period separate from the exact official SEC period, preventing duplicate quarters, crossed periods, and incorrect detail fallbacks',
+      '  - Latest published results reuse the existing calendar request with a bounded 90-day history window and no extra request, retaining the prior report until the next quarter is actually published',
+      '  - SEC summary and detail use isolated schedulers with a shared public-response cache and same-URL singleflight; transient and unparsed states retry after five minutes with sanitized diagnostics only',
+      '  - AMD Q2 2026 returns three official 10-Q segments and four business lines; Microsoft Q4 2026 strictly uses the quarterly 8-K for three segments while undisclosed product and geography data remain unavailable',
+      '  - No database, alternate earnings source, or external shared cache was added, and any structure that cannot be reconciled to an official filing continues to fail closed',
+    ],
+  },
+  {
+    ver: 'v10.7.9.426', date: '2026-08-05',
+    items: [
       '📊 修复已公布财报跨日期窗口后退到旧季度',
       '  - 财报日历按每只关注股票保留最近一份真正已公布的财报，不再把“最近已公布”等同于上一个自然季度',
       '  - GOOGL 等七月已公布 Q2 在超过七天后仍保持为最新财报，不会重新显示四月 Q1',

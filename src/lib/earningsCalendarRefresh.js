@@ -112,7 +112,7 @@ function hasMarketReaction(event) {
 function isOfficialSchemaMigrationDue(event, reportDate, clock) {
   const symbol = normalizeEarningsSymbol(event?.symbol || event?.code || event?.ticker);
   const fixedPeriods = OFFICIAL_EARNINGS_FIXED_PERIODS.get(symbol);
-  const fiscalDate = dateKey(event?.fiscalDate || event?.date);
+  const fiscalDate = dateKey(event?.providerFiscalDate || event?.date || event?.fiscalDate);
   return OFFICIAL_EARNINGS_SUPPORTED_SYMBOLS.has(symbol)
     && (!fixedPeriods || fixedPeriods.has(fiscalDate))
     && Number(event?.officialActualSchemaVersion) !== OFFICIAL_EARNINGS_ACTUAL_SCHEMA_VERSION

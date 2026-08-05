@@ -18,11 +18,71 @@ function revenueTotal(items, field = 'revenue') {
 }
 
 test('adapter registry covers the current US ordinary-company holdings and IBKR', () => {
+  assert.equal(hasSecUsHoldingBusinessAdapter('AMD'), true);
   assert.equal(hasSecUsHoldingBusinessAdapter('META'), true);
   assert.equal(hasSecUsHoldingBusinessAdapter('msft.us'), true);
   assert.equal(hasSecUsHoldingBusinessAdapter('IBKR'), true);
   assert.equal(hasSecUsHoldingBusinessAdapter('NOK'), false);
   assert.equal(hasSecUsHoldingBusinessAdapter('TQQQ'), false);
+});
+
+test('AMD official Q2 10-Q returns reconciled segments and disjoint product revenue', async () => {
+  const parsed = parseSecUsHoldingBusinessDocument({
+    symbol: 'AMD',
+    // The calendar provider uses the calendar-quarter date while AMD's official
+    // 10-Q is based on its Saturday fiscal-quarter end.
+    fiscalDate: '2026-06-30',
+    html: await fixture('amd-2026q2.html'),
+    filing: {
+      cik: '2488',
+      accession: '0000002488-26-000123',
+      form: '10-Q',
+    },
+  });
+
+  assert.equal(parsed.status, 'partial');
+  assert.deepEqual(parsed.period, {
+    start: '2026-03-29',
+    end: '2026-06-27',
+  });
+  assert.equal(parsed.sections.reportSegments.status, 'complete');
+  assert.deepEqual(parsed.sections.reportSegments.items.map((item) => [
+    item.id,
+    item.revenue,
+    item.previousRevenue,
+    item.profit,
+    item.previousProfit,
+  ]), [
+    ['data-center', 6_718_000_000, 3_240_000_000, 2_103_000_000, -155_000_000],
+    ['client-and-gaming', 3_841_000_000, 3_621_000_000, 582_000_000, 767_000_000],
+    ['embedded', 977_000_000, 824_000_000, 386_000_000, 275_000_000],
+  ]);
+  assert.deepEqual(parsed.sections.revenueBreakdown.items.map((item) => [
+    item.id,
+    item.revenue,
+    item.previousRevenue,
+    item.parentId,
+  ]), [
+    ['data-center', 6_718_000_000, 3_240_000_000, 'data-center'],
+    ['client', 3_062_000_000, 2_499_000_000, 'client-and-gaming'],
+    ['gaming', 779_000_000, 1_122_000_000, 'client-and-gaming'],
+    ['embedded', 977_000_000, 824_000_000, 'embedded'],
+  ]);
+  assert.equal(revenueTotal(parsed.sections.reportSegments.items), 11_536_000_000);
+  assert.equal(revenueTotal(parsed.sections.revenueBreakdown.items), 11_536_000_000);
+  assert.deepEqual(parsed.sections.geographies, {
+    status: 'unavailable',
+    reason: 'quarterly-geography-not-disclosed',
+    items: [],
+  });
+  assert.deepEqual(parsed.sourceMetadata, {
+    provider: 'SEC',
+    adapterId: 'advanced-micro-devices-inline-xbrl',
+    evidence: 'official-primary-inline-xbrl',
+    cik: '0000002488',
+    accession: '0000002488-26-000123',
+    form: '10-Q',
+  });
 });
 
 test('META official 10-Q returns reconciled segments, revenue mix, and geographies', async () => {
@@ -142,6 +202,67 @@ test('MSFT official 10-Q returns three reportable segments and ten disjoint reve
   assert.equal(parsed.sourceMetadata.accession, '0001193125-26-191507');
 });
 
+test('MSFT official Q4 8-K exhibit returns quarterly segments without annual product data', async () => {
+  const parsed = parseSecUsHoldingBusinessDocument({
+    symbol: 'MSFT',
+    fiscalDate: '2026-06-30',
+    html: await fixture('msft-2026q4-exhibit.html'),
+    filing: {
+      cik: '0000789019',
+      accession: '0001193125-26-323632',
+      form: '8-K',
+    },
+  });
+
+  assert.equal(parsed.status, 'partial');
+  assert.deepEqual(parsed.period, {
+    start: '2026-04-01',
+    end: '2026-06-30',
+  });
+  assert.deepEqual(parsed.sections.reportSegments.items.map((item) => [
+    item.id,
+    item.revenue,
+    item.previousRevenue,
+    item.profit,
+    item.previousProfit,
+  ]), [
+    ['productivity-business-processes', 37_847_000_000, 33_112_000_000, 21_900_000_000, 18_993_000_000],
+    ['intelligent-cloud', 39_306_000_000, 29_878_000_000, 15_955_000_000, 12_140_000_000],
+    ['more-personal-computing', 12_854_000_000, 13_451_000_000, 2_748_000_000, 3_190_000_000],
+  ]);
+  assert.deepEqual(parsed.sections.revenueBreakdown, {
+    status: 'unavailable',
+    reason: 'quarterly-product-revenue-not-disclosed',
+    items: [],
+  });
+  assert.deepEqual(parsed.sections.geographies, {
+    status: 'unavailable',
+    reason: 'quarterly-geography-not-disclosed',
+    items: [],
+  });
+  assert.deepEqual(parsed.sourceMetadata, {
+    provider: 'SEC',
+    adapterId: 'microsoft-earnings-release',
+    evidence: 'official-8-k-exhibit-99.1',
+    cik: '0000789019',
+    accession: '0001193125-26-323632',
+    form: '8-K',
+  });
+});
+
+test('MSFT Q4 exhibit fails closed when segment totals do not reconcile', async () => {
+  const html = (await fixture('msft-2026q4-exhibit.html')).replace(
+    'Revenue $90,007 $76,441',
+    'Revenue $90,008 $76,441',
+  );
+  assert.equal(parseSecUsHoldingBusinessDocument({
+    symbol: 'MSFT',
+    fiscalDate: '2026-06-30',
+    html,
+    filing: { cik: '0000789019', form: '8-K' },
+  }), null);
+});
+
 test('IBKR official 8-K exhibit returns a reconciled revenue mix without inventing extra segments', async () => {
   const parsed = parseSecUsHoldingBusinessDocument({
     symbol: 'IBKR',
@@ -240,6 +361,19 @@ test('all adapters fail closed on mismatched company or fiscal-period identity',
     fiscalDate: '2026-03-31',
     html: await fixture('ibkr-2026q2-exhibit.html'),
     filing: { cik: '0001381197', form: '8-K' },
+  }), null);
+  const amdHtml = await fixture('amd-2026q2.html');
+  assert.equal(parseSecUsHoldingBusinessDocument({
+    symbol: 'AMD',
+    fiscalDate: '2026-07-05',
+    html: amdHtml,
+    filing: { cik: '0000002488', form: '10-Q' },
+  }), null);
+  assert.equal(parseSecUsHoldingBusinessDocument({
+    symbol: 'AMD',
+    fiscalDate: '2026-06-30',
+    html: amdHtml,
+    filing: { cik: '0000789019', form: '10-Q' },
   }), null);
 });
 

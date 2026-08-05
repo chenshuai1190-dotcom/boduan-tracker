@@ -2,8 +2,9 @@ import { dateKey, normalizeEarningsSymbol } from './earningsCalendarModel.js';
 
 export const EARNINGS_DETAIL_CLIENT_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 export const EARNINGS_DETAIL_PENDING_CACHE_TTL_MS = 5 * 60 * 1000;
-const EARNINGS_DETAIL_CACHE_PREFIX = 'xmoney_earnings_detail_v1';
-const TSMC_Q1_2026_CACHE_PREFIX = 'xmoney_earnings_detail_tsm_q1_2026_v2';
+export const EARNINGS_DETAIL_UNPARSED_CACHE_TTL_MS = 5 * 60 * 1000;
+const EARNINGS_DETAIL_CACHE_PREFIX = 'xmoney_earnings_detail_v2';
+const TSMC_Q1_2026_CACHE_PREFIX = 'xmoney_earnings_detail_tsm_q1_2026_v3';
 const EARNINGS_DETAIL_SECTION_KEYS = ['reportSegments', 'revenueBreakdown', 'geographies'];
 const EARNINGS_DETAIL_SUPPLEMENTAL_KEYS = ['customerTypes', 'technologyBreakdown'];
 const inFlightRequests = new Map();
@@ -25,6 +26,13 @@ function safeOfficialDocumentUrl(value) {
 
 function normalizeStatus(value, fallback = 'unavailable') {
   return ['complete', 'partial', 'pending', 'unavailable'].includes(value) ? value : fallback;
+}
+
+function normalizeFailureReason(value) {
+  const normalized = safeText(value, 48).toLowerCase();
+  return /^sec-(?:http-[1-5][0-9]{2}|batch-deadline|request-timeout|response-too-large|invalid-response|network-error|unavailable)$/.test(normalized)
+    ? normalized
+    : null;
 }
 
 function normalizeItem(item, sectionKey) {
@@ -125,6 +133,8 @@ export function normalizeEarningsDetailPayload(payload) {
     success: true,
     schemaVersion: Number(payload.schemaVersion) || 1,
     status: normalizeStatus(payload.status, 'pending'),
+    reason: safeText(payload.reason, 160) || null,
+    failureReason: normalizeFailureReason(payload.failureReason),
     symbol,
     currency: safeText(payload.currency, 12).toUpperCase() || 'USD',
     period: {
@@ -138,6 +148,24 @@ export function normalizeEarningsDetailPayload(payload) {
     supplemental,
     summaryActuals: normalizeSummaryActuals(payload.summaryActuals),
   };
+}
+
+export function earningsDetailStructureRevenueTotal(detail, event) {
+  const reportSegments = detail?.sections?.reportSegments;
+  const items = Array.isArray(reportSegments?.items) ? reportSegments.items : [];
+  if (items.length > 0) {
+    const itemRevenue = items.map((item) => finiteOrNull(item?.revenue));
+    const hasReconciliation = Boolean(reportSegments?.reconciliation);
+    const reconciliation = hasReconciliation
+      ? finiteOrNull(reportSegments.reconciliation.revenue)
+      : 0;
+    if (itemRevenue.every((value) => value !== null)
+      && (!hasReconciliation || reconciliation !== null)) {
+      const total = itemRevenue.reduce((sum, value) => sum + value, 0) + reconciliation;
+      if (Number.isFinite(total) && total > 0) return total;
+    }
+  }
+  return finiteOrNull(event?.revenueActualUsd);
 }
 
 export function earningsDetailSourceBadgeKind(detail, event) {
@@ -178,14 +206,23 @@ function readCache(key, { allowStale = false } = {}) {
     if (!parsed?.savedAt || !parsed?.payload) return null;
     const age = Date.now() - Number(parsed.savedAt);
     const normalized = normalizeEarningsDetailPayload(parsed.payload);
-    const ttl = normalized.status === 'complete' || normalized.status === 'partial'
-      ? EARNINGS_DETAIL_CLIENT_CACHE_TTL_MS
-      : EARNINGS_DETAIL_PENDING_CACHE_TTL_MS;
+    const ttl = earningsDetailCacheTtl(normalized);
     if (!allowStale && age > ttl) return null;
     return normalized;
   } catch {
     return null;
   }
+}
+
+function earningsDetailCacheTtl(detail) {
+  if (detail?.status === 'complete' || detail?.status === 'partial') {
+    return EARNINGS_DETAIL_CLIENT_CACHE_TTL_MS;
+  }
+  if (detail?.reason === 'official-primary-document-unparsed') {
+    return EARNINGS_DETAIL_UNPARSED_CACHE_TTL_MS;
+  }
+  if (detail?.status === 'pending') return EARNINGS_DETAIL_PENDING_CACHE_TTL_MS;
+  return EARNINGS_DETAIL_CLIENT_CACHE_TTL_MS;
 }
 
 function writeCache(key, payload) {
@@ -244,7 +281,7 @@ export async function fetchEarningsDetail({
       return normalized;
     } catch (error) {
       const stale = readCache(cacheKey, { allowStale: true });
-      if (stale) return stale;
+      if (stale && ['complete', 'partial'].includes(stale.status)) return stale;
       throw error;
     } finally {
       inFlightRequests.delete(cacheKey);

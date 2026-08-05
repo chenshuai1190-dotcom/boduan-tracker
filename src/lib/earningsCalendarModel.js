@@ -227,6 +227,17 @@ function normalizeEarningsEvent(raw, context = {}) {
   const symbol = normalizeEarningsSymbol(code);
   const reportDate = dateKey(raw?.report_date || raw?.reportDate || raw?.date);
   if (!symbol || !reportDate) return null;
+  const providerFiscalDate = dateKey(
+    raw?.providerFiscalDate
+    || raw?.calendarFiscalDate
+    || raw?.date
+    || raw?.periodDate,
+  );
+  const fiscalDate = dateKey(
+    raw?.officialFiscalDate
+    || raw?.fiscalDate
+    || providerFiscalDate,
+  ) || reportDate;
 
   const positions = context.positionsBySymbol || new Set();
   const watchlist = context.watchlistBySymbol || new Set();
@@ -242,8 +253,8 @@ function normalizeEarningsEvent(raw, context = {}) {
     code: code || `${symbol}.US`,
     name: raw?.name || raw?.company || raw?.companyName || '',
     reportDate,
-    fiscalDate: dateKey(raw?.fiscalDate || raw?.date || raw?.periodDate) || reportDate,
-    providerFiscalDate: dateKey(raw?.providerFiscalDate || raw?.calendarFiscalDate || raw?.date),
+    fiscalDate,
+    providerFiscalDate: providerFiscalDate || fiscalDate,
     session,
     currency: raw?.currency || raw?.Currency || 'USD',
     epsCurrency: raw?.epsCurrency || null,

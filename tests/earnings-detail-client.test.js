@@ -4,13 +4,17 @@ import test from 'node:test';
 import {
   EARNINGS_DETAIL_CLIENT_CACHE_TTL_MS,
   EARNINGS_DETAIL_PENDING_CACHE_TTL_MS,
+  EARNINGS_DETAIL_UNPARSED_CACHE_TTL_MS,
   earningsDetailClientCacheKey,
+  earningsDetailStructureRevenueTotal,
   earningsDetailSourceBadgeKind,
   earningsPercentChange,
+  fetchEarningsDetail,
   formatEarningsDetailMoney,
   mergeEarningsDetailSummary,
   normalizeEarningsDetailPayload,
 } from '../src/lib/earningsDetail.js';
+import { normalizeEarningsEvents } from '../src/lib/earningsCalendarModel.js';
 const appSource = fs.readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8');
 const calendarSource = fs.readFileSync(new URL('../src/tabs/EarningsCalendar.jsx', import.meta.url), 'utf8');
 const homeTabSource = fs.readFileSync(new URL('../src/tabs/HomeTab.jsx', import.meta.url), 'utf8');
@@ -79,9 +83,10 @@ test('earnings detail uses Chinese wan/yi units and preserves raw report currenc
   assert.equal(Number(earningsPercentChange(24_768, 13_624).toFixed(1)), 81.8);
 });
 
-test('earnings detail caches complete data for six hours but pending data for only five minutes', () => {
+test('earnings detail uses a fresh cache namespace and retries transient detail states after five minutes', () => {
   assert.equal(EARNINGS_DETAIL_CLIENT_CACHE_TTL_MS, 6 * 60 * 60 * 1000);
   assert.equal(EARNINGS_DETAIL_PENDING_CACHE_TTL_MS, 5 * 60 * 1000);
+  assert.equal(EARNINGS_DETAIL_UNPARSED_CACHE_TTL_MS, 5 * 60 * 1000);
   assert.equal(
     earningsDetailClientCacheKey({
       userId: 'user-1',
@@ -89,7 +94,7 @@ test('earnings detail caches complete data for six hours but pending data for on
       fiscalDate: '2026-06-30',
       reportDate: '2026-07-22',
     }),
-    'xmoney_earnings_detail_v1:user-1:GOOGL:2026-06-30:2026-07-22',
+    'xmoney_earnings_detail_v2:user-1:GOOGL:2026-06-30:2026-07-22',
   );
   assert.equal(
     earningsDetailClientCacheKey({
@@ -98,7 +103,7 @@ test('earnings detail caches complete data for six hours but pending data for on
       fiscalDate: '2026-03-31',
       reportDate: '2026-04-15',
     }),
-    'xmoney_earnings_detail_tsm_q1_2026_v2:user-1:TSM:2026-03-31:2026-04-15',
+    'xmoney_earnings_detail_tsm_q1_2026_v3:user-1:TSM:2026-03-31:2026-04-15',
   );
   assert.equal(
     earningsDetailClientCacheKey({
@@ -107,8 +112,181 @@ test('earnings detail caches complete data for six hours but pending data for on
       fiscalDate: '2026-06-30',
       reportDate: '2026-07-16',
     }),
-    'xmoney_earnings_detail_v1:user-1:TSM:2026-06-30:2026-07-16',
+    'xmoney_earnings_detail_v2:user-1:TSM:2026-06-30:2026-07-16',
   );
+});
+
+test('earnings detail keeps only sanitized SEC failure diagnostics', () => {
+  const normalized = normalizeEarningsDetailPayload({
+    success: true,
+    schemaVersion: 3,
+    status: 'pending',
+    reason: 'sec-unavailable',
+    failureReason: 'sec-http-429',
+    symbol: 'GOOGL',
+    period: { fiscalDate: '2026-06-30', reportDate: '2026-07-22' },
+    sections: {},
+  });
+  assert.equal(normalized.reason, 'sec-unavailable');
+  assert.equal(normalized.failureReason, 'sec-http-429');
+
+  const rejected = normalizeEarningsDetailPayload({
+    success: true,
+    status: 'pending',
+    reason: 'sec-unavailable',
+    failureReason: 'SEC failed for https://secret.example/?token=do-not-keep',
+    symbol: 'GOOGL',
+    period: { fiscalDate: '2026-06-30', reportDate: '2026-07-22' },
+    sections: {},
+  });
+  assert.equal(rejected.failureReason, null);
+});
+
+test('a request failure never resurrects stale pending detail but may retain stale complete data', async () => {
+  const originalStorage = globalThis.localStorage;
+  const entries = new Map();
+  globalThis.localStorage = {
+    getItem: (key) => entries.get(key) ?? null,
+    setItem: (key, value) => entries.set(key, value),
+    removeItem: (key) => entries.delete(key),
+  };
+  const request = {
+    supabase: {
+      auth: {
+        getSession: async () => ({
+          data: {
+            session: {
+              access_token: 'test-token',
+              user: { id: 'cache-fallback-user' },
+            },
+          },
+        }),
+      },
+    },
+    symbol: 'GOOGL',
+    fiscalDate: '2026-06-30',
+    reportDate: '2026-07-22',
+    fetchImpl: async () => {
+      throw new Error('offline');
+    },
+  };
+  const cacheKey = earningsDetailClientCacheKey({
+    userId: 'cache-fallback-user',
+    symbol: request.symbol,
+    fiscalDate: request.fiscalDate,
+    reportDate: request.reportDate,
+  });
+  const payload = (status, reason = null) => ({
+    success: true,
+    schemaVersion: 3,
+    status,
+    reason,
+    symbol: 'GOOGL',
+    currency: 'USD',
+    period: {
+      start: '2026-04-01',
+      end: '2026-06-30',
+      fiscalDate: '2026-06-30',
+      reportDate: '2026-07-22',
+    },
+    sections: {},
+  });
+
+  try {
+    entries.set(cacheKey, JSON.stringify({
+      savedAt: Date.now() - EARNINGS_DETAIL_PENDING_CACHE_TTL_MS - 1,
+      payload: payload('pending', 'sec-unavailable'),
+    }));
+    await assert.rejects(fetchEarningsDetail(request), /offline/);
+
+    entries.set(cacheKey, JSON.stringify({
+      savedAt: Date.now() - EARNINGS_DETAIL_CLIENT_CACHE_TTL_MS - 1,
+      payload: payload('complete'),
+    }));
+    const retained = await fetchEarningsDetail(request);
+    assert.equal(retained.status, 'complete');
+  } finally {
+    if (originalStorage === undefined) delete globalThis.localStorage;
+    else globalThis.localStorage = originalStorage;
+  }
+});
+
+test('structured revenue total takes the official section period before a headline quarter', () => {
+  assert.equal(earningsDetailStructureRevenueTotal({
+    sections: {
+      reportSegments: {
+        items: [
+          { revenue: 80 },
+          { revenue: 25 },
+        ],
+        reconciliation: { revenue: -5 },
+      },
+    },
+  }, { revenueActualUsd: 30 }), 100);
+  assert.equal(earningsDetailStructureRevenueTotal({
+    sections: { reportSegments: { items: [] } },
+  }, { revenueActualUsd: 30 }), 30);
+});
+
+test('calendar-to-detail request uses the official fiscal period and keeps the provider period separate', async () => {
+  const [event] = normalizeEarningsEvents([{
+    code: 'NVDA.US',
+    reportDate: '2026-05-20',
+    providerFiscalDate: '2026-04-30',
+    fiscalDate: '2026-04-26',
+    earningsPublished: true,
+    epsActual: 1,
+  }]);
+  let requestedUrl = '';
+  const detail = await fetchEarningsDetail({
+    supabase: {
+      auth: {
+        getSession: async () => ({
+          data: {
+            session: {
+              access_token: 'test-token',
+              user: { id: 'coordinate-test-user' },
+            },
+          },
+        }),
+      },
+    },
+    symbol: event.symbol,
+    fiscalDate: event.fiscalDate,
+    reportDate: event.reportDate,
+    fetchImpl: async (url) => {
+      requestedUrl = String(url);
+      return {
+        ok: true,
+        async json() {
+          return {
+            success: true,
+            status: 'complete',
+            symbol: 'NVDA',
+            currency: 'USD',
+            period: {
+              start: '2026-01-26',
+              end: '2026-04-26',
+              fiscalDate: '2026-04-26',
+              reportDate: '2026-05-20',
+            },
+            sections: {
+              reportSegments: { status: 'complete', items: [] },
+              revenueBreakdown: { status: 'complete', items: [] },
+              geographies: { status: 'complete', items: [] },
+            },
+          };
+        },
+      };
+    },
+  });
+
+  const params = new URL(requestedUrl, 'https://local.test').searchParams;
+  assert.equal(event.providerFiscalDate, '2026-04-30');
+  assert.equal(event.fiscalDate, '2026-04-26');
+  assert.equal(params.get('fiscalDate'), '2026-04-26');
+  assert.equal(params.get('reportDate'), '2026-05-20');
+  assert.equal(detail.period.fiscalDate, '2026-04-26');
 });
 
 test('TSM Q1 official summary overrides only the matching detail page event', () => {

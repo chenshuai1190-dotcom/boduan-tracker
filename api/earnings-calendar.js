@@ -234,19 +234,24 @@ export async function fetchEodhdEarningsCalendar({
   const eodhdSymbols = symbols.map(toEodhdUsSymbol).filter(Boolean);
   const today = newYorkDateKey(now) || newYorkDateKey(new Date());
   const recentTo = minDate(to, addUtcDays(today, EARNINGS_PUBLISHED_RETENTION_DAYS));
-  const requests = [];
-
-  if (from <= recentTo) {
-    requests.push(fetchEodhdEarningsCalendarRows({ from, to: recentTo, eodhdKey }));
-  }
-  if (eodhdSymbols.length > 0) {
-    // EODHD documents symbol queries as the historical/upcoming path and ignores
-    // from/to when symbols are present. Keep this request symbol-scoped, then
-    // select only the current window plus each symbol's latest published report.
-    requests.push(fetchEodhdEarningsCalendarRows({ symbols: eodhdSymbols, eodhdKey }));
-  }
-
-  const payloads = await Promise.all(requests);
+  const publishedHistoryFrom = addUtcDays(
+    today,
+    -(MAX_RANGE_DAYS - EARNINGS_PUBLISHED_RETENTION_DAYS),
+  );
+  const recentFrom = includePreviousPublished
+    ? minDate(from, publishedHistoryFrom)
+    : from;
+  const marketHistoryRequest = recentFrom <= recentTo
+    ? fetchEodhdEarningsCalendarRows({ from: recentFrom, to: recentTo, eodhdKey })
+      .catch(() => [])
+    : Promise.resolve([]);
+  // EODHD documents symbol queries as the historical/upcoming path and ignores
+  // from/to when symbols are present. This request is authoritative for the
+  // complete future window, so it must not fail silently.
+  const symbolRequest = eodhdSymbols.length > 0
+    ? fetchEodhdEarningsCalendarRows({ symbols: eodhdSymbols, eodhdKey })
+    : Promise.resolve([]);
+  const payloads = await Promise.all([marketHistoryRequest, symbolRequest]);
   return selectEarningsCalendarRows({
     rows: payloads.flat(),
     symbols: eodhdSymbols,
@@ -277,7 +282,7 @@ function dedupeCalendarRows(rows) {
     const key = [
       toEodhdUsSymbol(row?.code || row?.symbol),
       dateKey(row?.report_date || row?.reportDate || row?.date),
-      dateKey(row?.date || row?.fiscalDate),
+      dateKey(row?.providerFiscalDate || row?.date || row?.fiscalDate),
     ].join('|');
     if (!key.startsWith('|') && !merged.has(key)) {
       merged.set(key, row);
@@ -324,7 +329,7 @@ export function selectEarningsCalendarRows({
       continue;
     }
 
-    const fiscalDate = dateKey(event?.date || event?.fiscalDate);
+    const fiscalDate = dateKey(event?.providerFiscalDate || event?.date || event?.fiscalDate);
     const previous = latestPublishedBySymbol.get(eodhdSymbol);
     if (
       !previous
@@ -399,6 +404,23 @@ export function mergeEarningsTrendData(events, trends) {
     const candidates = trendsBySymbol.get(symbol) || [];
     const trend = findNearestTrend(event, candidates);
     const currentQuarterTrend = findExactCurrentQuarterEarningsTrend(event, candidates);
+    const explicitProviderFiscalDate = dateKey(
+      event.providerFiscalDate
+      || event.calendarFiscalDate,
+    );
+    const providerFiscalDate = explicitProviderFiscalDate || dateKey(
+      event.date
+      || event.fiscalDate
+      || event.report_date
+      || event.reportDate,
+    );
+    const fiscalDate = dateKey(
+      event.officialFiscalDate
+      || (explicitProviderFiscalDate ? event.fiscalDate : null)
+      || providerFiscalDate
+      || event.report_date
+      || event.reportDate,
+    );
     const calendarEpsEstimate = parseNumber(event.estimate ?? event.epsEstimate);
     const trendEpsEstimate = parseNumber(currentQuarterTrend?.earningsEstimateAvg);
     const epsEstimate = trendEpsEstimate ?? calendarEpsEstimate;
@@ -412,7 +434,8 @@ export function mergeEarningsTrendData(events, trends) {
       symbol,
       code: event.code || `${symbol}.US`,
       reportDate: dateKey(event.report_date || event.reportDate || event.date),
-      fiscalDate: dateKey(event.date || event.fiscalDate || event.report_date || event.reportDate),
+      fiscalDate,
+      providerFiscalDate: providerFiscalDate || fiscalDate,
       session: normalizeEarningsSession(event.before_after_market || event.beforeAfterMarket || event.time || event.session),
       epsEstimate,
       epsActual,
@@ -542,7 +565,7 @@ export async function enrichPublishedEarningsData({
         && reportDate >= officialMigrationFrom
         && isSecOfficialActualSupportedEvent(
           event?.symbol || event?.code,
-          event?.fiscalDate || event?.date,
+          event?.providerFiscalDate || event?.date || event?.fiscalDate,
         )
       );
   });
@@ -642,7 +665,7 @@ function dedupeEarningsEvents(events) {
 
 function earningsActualKey(event) {
   const symbol = normalizeEarningsSymbol(event?.symbol || event?.code);
-  const fiscalDate = dateKey(event?.fiscalDate || event?.date);
+  const fiscalDate = dateKey(event?.providerFiscalDate || event?.date || event?.fiscalDate);
   return symbol && fiscalDate ? `${symbol}|${fiscalDate}` : '';
 }
 
@@ -684,7 +707,7 @@ export function resolveReportedEbit(actualRow, previousRow, sector = '') {
 }
 
 export function resolvePublishedEps(event, earningsHistoryRows = []) {
-  const fiscalDate = dateKey(event?.fiscalDate || event?.date);
+  const fiscalDate = dateKey(event?.providerFiscalDate || event?.date || event?.fiscalDate);
   const currentRow = findUniqueNearestFiscalRow(earningsHistoryRows, fiscalDate);
   const previousRow = findUniqueNearestFiscalRow(earningsHistoryRows, previousYearDate(fiscalDate));
   const historyActual = parseNumber(currentRow?.epsActual);
@@ -871,7 +894,13 @@ function flattenTrendRows(value) {
 
 function findNearestTrend(event, candidates) {
   if (!candidates.length) return null;
-  const eventDate = dateKey(event.date || event.fiscalDate || event.report_date || event.reportDate);
+  const eventDate = dateKey(
+    event.providerFiscalDate
+    || event.date
+    || event.fiscalDate
+    || event.report_date
+    || event.reportDate,
+  );
   if (!eventDate) return candidates[0];
   return [...candidates].sort((a, b) => {
     const aDiff = Math.abs(daysBetween(eventDate, dateKey(a.report_date || a.reportDate || a.date || a.period)));
@@ -881,7 +910,7 @@ function findNearestTrend(event, candidates) {
 }
 
 function findExactCurrentQuarterEarningsTrend(event, candidates) {
-  const fiscalDate = dateKey(event.date || event.fiscalDate);
+  const fiscalDate = dateKey(event.providerFiscalDate || event.date || event.fiscalDate);
   if (!fiscalDate) return null;
   return candidates.find((candidate) => {
     const period = String(candidate?.period || '').trim().toLowerCase();

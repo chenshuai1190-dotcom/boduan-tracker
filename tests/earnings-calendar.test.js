@@ -12,6 +12,7 @@ import handler, {
   resolveReportedEbit,
   resolveReportedRevenue,
   fetchEodhdEarningsCalendar,
+  selectEarningsCalendarRows,
 } from '../api/earnings-calendar.js';
 import {
   buildCalendarMonth,
@@ -193,6 +194,24 @@ test('published ASML uses the exact 0q Trends EPS consensus and recomputes its s
   assert.ok(Math.abs(event.surprisePercent - 9.928358035791971) < 1e-12);
 });
 
+test('calendar events keep the provider fiscal key while exposing the official fiscal period to detail', () => {
+  const [event] = mergeEarningsTrendData([{
+    code: 'AMD.US',
+    report_date: '2026-08-04',
+    date: '2026-06-30',
+    providerFiscalDate: '2026-06-30',
+    fiscalDate: '2026-06-27',
+    actual: '1.24',
+  }], []);
+
+  assert.equal(event.providerFiscalDate, '2026-06-30');
+  assert.equal(event.fiscalDate, '2026-06-27');
+
+  const [normalized] = normalizeEarningsEvents([event]);
+  assert.equal(normalized.providerFiscalDate, '2026-06-30');
+  assert.equal(normalized.fiscalDate, '2026-06-27');
+});
+
 test('earnings model builds deduped symbols and grouped calendar days', () => {
   const symbols = buildEarningsSymbols({
     positions: [{ symbol: ' nvda ' }, { symbol: 'MSFT.US' }],
@@ -358,6 +377,59 @@ test('published earnings enrichment overlays SEC actuals without changing EODHD 
   assert.equal(event.officialActualStatus, 'complete');
   assert.equal(event.officialActualSource, 'sec-exhibit');
   assert.equal(event.publishedFinancialsComplete, true);
+});
+
+test('official enrichment carries the exact fiscal period without losing the provider calendar key', async () => {
+  const [calendarEvent] = mergeEarningsTrendData([{
+    code: 'AMD.US',
+    report_date: '2026-08-04',
+    date: '2026-06-30',
+    before_after_market: 'AfterMarket',
+    estimate: 1.17,
+    actual: 1.24,
+  }], []);
+  const [event] = await enrichPublishedEarningsData({
+    events: [calendarEvent],
+    eodhdKey: 'test-key',
+    now: new Date('2026-08-05T12:00:00.000Z'),
+    fetchPublishedFundamentals: async () => new Map([['AMD', {
+      sector: 'Technology',
+      incomeRows: [],
+      earningsHistoryRows: [],
+    }]]),
+    fetchEodRows: async () => new Map([['AMD', []]]),
+    fetchOfficialActuals: async ({ events }) => {
+      assert.equal(events[0].providerFiscalDate, '2026-06-30');
+      assert.equal(events[0].fiscalDate, '2026-06-30');
+      return new Map([['AMD|2026-06-30', {
+        key: 'AMD|2026-06-30',
+        fiscalDate: '2026-06-27',
+        officialActualSchemaVersion: OFFICIAL_ACTUAL_SCHEMA_VERSION,
+        officialActualStatus: 'complete',
+        officialActualSource: 'sec-exhibit',
+        actualBasis: 'gaap',
+        epsActual: 1.24,
+        epsPreviousYear: 0.48,
+        epsActualBasis: 'EarningsPerShareDiluted',
+        epsCurrency: 'USD',
+        epsUnit: 'USD/share',
+        revenueActual: 9_246_000_000,
+        revenuePreviousYear: 7_685_000_000,
+        revenueActualBasis: 'totalRevenue',
+        ebitActual: 1_273_000_000,
+        ebitPreviousYear: 526_000_000,
+        ebitActualBasis: 'operatingIncome',
+      }]]);
+    },
+  });
+
+  assert.equal(event.providerFiscalDate, '2026-06-30');
+  assert.equal(event.fiscalDate, '2026-06-27');
+  assert.equal(event.actual, 1.24);
+  assert.ok(Math.abs(event.epsDifference - 0.07) < 1e-12);
+  const [normalized] = normalizeEarningsEvents([event]);
+  assert.equal(normalized.providerFiscalDate, '2026-06-30');
+  assert.equal(normalized.fiscalDate, '2026-06-27');
 });
 
 test('official enrichment uses the New York retention date across the UTC evening boundary', async () => {
@@ -720,17 +792,17 @@ test('published earnings lookup keeps each symbol latest result across the curre
     const parsed = new URL(url);
     assert.equal(parsed.pathname, '/api/calendar/earnings');
     if (!parsed.searchParams.has('symbols')) {
-      return jsonResponse({ earnings: [] });
+      return jsonResponse({
+        earnings: [
+          { code: 'GOOGL.US', report_date: '2026-07-22', date: '2026-06-30', actual: 9.11 },
+          { code: 'MSFT.US', report_date: '2026-07-23', date: '2026-06-30', actual: 0 },
+        ],
+      });
     }
     assert.equal(parsed.searchParams.get('symbols'), 'GOOGL.US,MSFT.US');
     return jsonResponse({
       earnings: [
-        { code: 'GOOGL.US', report_date: '2026-07-22', date: '2026-06-30', actual: null },
-        { code: 'GOOGL.US', report_date: '2026-07-22', date: '2026-06-30', actual: 9.11 },
-        { code: 'GOOGL.US', report_date: '2026-04-29', date: '2026-03-31', actual: 5.11 },
         { code: 'GOOGL.US', report_date: '2026-08-20', date: '2026-09-30', estimate: 3.1 },
-        { code: 'MSFT.US', report_date: '2026-07-23', date: '2026-06-30', actual: 0 },
-        { code: 'MSFT.US', report_date: '2026-04-30', date: '2026-03-31', actual: 3.46 },
         { code: 'MSFT.US', report_date: '2026-09-10', date: '2026-09-30', estimate: 4.2 },
         { code: 'GOOGL.US', report_date: '2026-12-20', date: '2026-12-31', actual: 99 },
         { code: 'GOOGL.US', date: '2026-07-25', actual: 99 },
@@ -764,7 +836,7 @@ test('published earnings lookup keeps each symbol latest result across the curre
     assert.equal(calendarUrls.length, 2);
     const marketWindowRequest = calendarUrls.find((url) => !url.searchParams.has('symbols'));
     const symbolHistoryRequest = calendarUrls.find((url) => url.searchParams.has('symbols'));
-    assert.equal(marketWindowRequest.searchParams.get('from'), '2026-07-29');
+    assert.equal(marketWindowRequest.searchParams.get('from'), '2026-05-09');
     assert.equal(marketWindowRequest.searchParams.get('to'), '2026-08-07');
     assert.equal(symbolHistoryRequest.searchParams.has('from'), false);
     assert.equal(symbolHistoryRequest.searchParams.has('to'), false);
@@ -786,6 +858,100 @@ test('published earnings lookup keeps each symbol latest result across the curre
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test('a failed bounded history window preserves the successful symbol-scoped calendar response', async () => {
+  const originalFetch = globalThis.fetch;
+
+  globalThis.fetch = async (url) => {
+    const parsed = new URL(url);
+    if (!parsed.searchParams.has('symbols')) {
+      throw new Error('bounded market history unavailable');
+    }
+    return jsonResponse({
+      earnings: [
+        { code: 'NVDA.US', report_date: '2026-05-20', date: '2026-04-30', actual: 1.23 },
+        { code: 'NVDA.US', report_date: '2026-08-26', date: '2026-07-31', estimate: 1.4 },
+      ],
+    });
+  };
+
+  try {
+    const rows = await fetchEodhdEarningsCalendar({
+      symbols: ['NVDA'],
+      from: '2026-07-29',
+      to: '2026-09-19',
+      includePreviousPublished: true,
+      eodhdKey: 'test-eodhd-key',
+      now: new Date('2026-08-05T16:00:00.000Z'),
+    });
+
+    assert.deepEqual(
+      rows.map((row) => row.report_date).sort(),
+      ['2026-05-20', '2026-08-26'],
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('a failed symbol-scoped calendar request never silently drops the future window', async () => {
+  const originalFetch = globalThis.fetch;
+
+  globalThis.fetch = async (url) => {
+    const parsed = new URL(url);
+    if (parsed.searchParams.has('symbols')) {
+      throw new Error('symbol calendar unavailable');
+    }
+    return jsonResponse({
+      earnings: [
+        { code: 'NVDA.US', report_date: '2026-05-20', date: '2026-04-30', actual: 1.23 },
+      ],
+    });
+  };
+
+  try {
+    await assert.rejects(
+      fetchEodhdEarningsCalendar({
+        symbols: ['NVDA'],
+        from: '2026-07-29',
+        to: '2026-09-19',
+        includePreviousPublished: true,
+        eodhdKey: 'test-eodhd-key',
+        now: new Date('2026-08-05T16:00:00.000Z'),
+      }),
+      /symbol calendar unavailable/,
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('latest-published selection dedupes by the provider fiscal key after an official date correction', () => {
+  const rows = selectEarningsCalendarRows({
+    rows: [{
+      code: 'AMD.US',
+      report_date: '2026-08-04',
+      date: '2026-06-30',
+      actual: null,
+    }, {
+      code: 'AMD.US',
+      reportDate: '2026-08-04',
+      providerFiscalDate: '2026-06-30',
+      fiscalDate: '2026-06-27',
+      actual: 1.24,
+    }],
+    symbols: ['AMD.US'],
+    from: '2026-07-29',
+    to: '2026-09-19',
+    today: '2026-08-05',
+    includePreviousPublished: true,
+  });
+
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].actual, 1.24);
+  assert.equal(rows[0].providerFiscalDate, '2026-06-30');
+  assert.equal(rows[0].fiscalDate, '2026-06-27');
 });
 
 test('earnings calendar API reads EODHD calendar and trends through a dedicated endpoint', async () => {

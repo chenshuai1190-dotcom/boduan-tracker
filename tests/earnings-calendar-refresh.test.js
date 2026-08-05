@@ -302,6 +302,14 @@ test('TSM receives one bounded official-schema migration after the normal two-da
     getEarningsRefreshCandidates([staleTsm], Date.parse('2026-07-23T12:00:00Z')).map((event) => event.symbol),
     ['TSM'],
   );
+  assert.deepEqual(
+    getEarningsRefreshCandidates([{
+      ...staleTsm,
+      providerFiscalDate: '2026-06-30',
+      fiscalDate: '2026-06-27',
+    }], Date.parse('2026-07-23T12:00:00Z')).map((event) => event.symbol),
+    ['TSM'],
+  );
   assert.equal(
     getEarningsRefreshCandidates([{
       ...staleTsm,

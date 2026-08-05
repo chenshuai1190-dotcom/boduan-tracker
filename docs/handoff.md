@@ -1,6 +1,6 @@
 # boduan-tracker 当前交接
 
-验证时间：`2026-08-05 Asia/Shanghai`
+验证时间：`2026-08-06 Asia/Shanghai`
 
 本文件只保存当前基准、关键风险和下一步。稳定规则看 `README.md`，流程看 `docs/development-process.md`。
 
@@ -10,7 +10,8 @@
 | --- | --- |
 | 仓库 | `chenshuai1190-dotcom/boduan-tracker` |
 | 生产地址 | `https://boduan-tracker.vercel.app` |
-| 运行时代码 | `v10.7.9.425`：修复财报日历纽约日期、待更新事件保留、通用已公布 EPS 来源混用及 AMD 2026 Q2 官方实际值；保留 v424 现金长金额自适应、v420 波段部分卖出、v417 股票实时稳定版 v10 及全部既有正式行情边界；精确发布提交以 GitHub `main` HEAD 为准 |
+| GitHub `main` 基准 | `ecccf0e / v10.7.9.426`：保留每只关注股票的最近已公布财报；生产 runtime 是否一致仍以同提交的 `release:verify` 为准 |
+| 本地待发布候选 | `v10.7.9.427`：恢复全局最新财报和官方结构化详情，新增 AMD 2026 Q2 与 MSFT 2026 Q4 精确适配；当前未提交、未推送、未部署，不能冒充生产版本 |
 | 数据库 | 保留既有 additive schema，并按 `available_cash_foundation_20260805.sql` → 精确 runtime → `available_cash_snapshot_contract_after_runtime_20260805.sql` 增加本人现金状态、不可变事件及个人收益现金快照契约；`swing_wave_partial_exits_20260805.sql` 和既有比赛、个人收益 migration 顺序不变 |
 | 发布完成条件 | GitHub `main` 的同一份 runtime 与上述 migration 均已上线并通过聚合 postflight；只完成其中一项不得宣布上线 |
 
@@ -24,8 +25,8 @@
 - 股票趋势 MA50 周线专项：`73 / 73` tests PASS；完成周锁定、50–199 周独立可用、1 年/5 年曲线组合及原曲线保留均覆盖。
 - 波段部分卖出专项：同一波段多次退出、剩余股数、旧完整卖出兼容、编辑/删除返还、并发超卖与账本隔离均有定向测试覆盖。
 - 可用现金专项：未设置/明确为 0、USD/CNY、保存后更新、失败回退、首页与交易页双向同步、融资/自选股联动、完成收盘现金事件、cash-only 用户及 QQQ/比赛隔离均有定向测试覆盖。
-- 财报日历与 AMD 官方实际值专项：`68 / 68` tests PASS；覆盖纽约跨日、公布后两日保留、30 个股票边界、Calendar/History 冲突、AMD 8-K 当晚路径、10-Q/XBRL 路径、6 月 30 日 provider 财季与 6 月 27 日官方财季分离及旧缓存不得回滚。
-- `npm run check:full`：PASS；字号下限、Vite production build、whitespace 和三份权威文档一致性均通过。
+- v427 财报专项覆盖 provider/官方财期分离、90 天最近已公布边界、SEC 双调度与共享 singleflight、短失败缓存、AMD/MSFT 新适配及既有全部适配器回归；最终 `npm run check:full` 必须 PASS 才允许提交。
+- 一次受控官方数据验收确认 AMD、GOOGL、TSLA、NVDA、META、MSFT、IBKR、NOK、TSM 均能取得各自最新已公布财报及至少一组结构化数据；未读取或输出 token、用户、持仓或交易数据。
 - 新的开发、验证和单等待器发布流程继续保留，没有恢复旧六文档或重复验证流程。
 
 ## 可用现金与资产联动
@@ -53,12 +54,14 @@
 - 受控真实读取已确认 6 年、8 季完整返回，最新季度汇率与台积电官方 2026 Q2 Management Report 的平均 USD/NTD 口径一致。读取只执行一次 Fundamentals 和一次完整 FX 区间，没有循环探针、token 输出、数据库或生产数据写入。
 - 当前业务平台、地区和制程结构适配范围只覆盖已经逐项核验的 TSM 2026 财年 Q1 与 Q2；其他 TSM 季度或其他台股若没有对应官方适配器，继续显示不可用，不推测或复制券商数字。
 
-## 财报日历与 AMD 官方实际值
+## 财报日历与官方结构化详情
 
-- 财报日历的“今天”和默认请求范围统一使用 `America/New_York`；盘后事件不会因上海先进入次日而提前隐藏，尚未取得真实 actual 的事件也保留至公布日后两天。持仓与自选合并上限由 24 与 API 对齐为 30，超过边界仍保持明确截断，不增加循环请求。
+- 财报日历的“今天”和默认请求范围统一使用 `America/New_York`；盘后事件不会因上海先进入次日而提前隐藏，尚未取得真实 actual 的事件也保留至公布日后两天。`includePreviousPublished` 在同一笔既有市场日历请求内使用最多 90 天边界补齐上一份已公布财报，并继续用既有 symbol 请求取得未来事件，不新增第三笔请求或循环读取。
 - 通用已公布 EPS 优先保留同一 Calendar/Trend 口径；`Earnings::History` 只在对应字段缺失时回退。近似财季只接受 7 天内唯一最近日期，等距歧义 fail closed，不再让另一份 provider 记录静默覆盖当前与同比结果。
-- AMD `reportDate=2026-08-04` 保持盘后公布语义；EODHD 的 `providerFiscalDate=2026-06-30` 仅保留作来源审计，页面与官方实际值使用 SEC `fiscalDate=2026-06-27`。同日 8-K EX-99.1 和随后 10-Q/XBRL 均可返回 GAAP EPS `1.38`、收入 `$11.536B` 与营业利润 `$1.990B`，旧 REST、旧客户端缓存或 provider 错误值不得覆盖。
-- AMD 本次只接入财报日历摘要 actual，没有加入财报详情分部适配。既有 GOOG/GOOGL、TSLA、NVDA、META、MSFT、IBKR、NOK 与 TSM 详情读取链路不变；缺少经核验专用适配器时继续显示不可用，不从摘要表猜测分部或地区数据。
+- 每个事件同时保留 `providerFiscalDate` 作为 Calendar/Trend/official-actual 合并键，并将 `fiscalDate` 作为详情页官方精确财期。AMD `reportDate=2026-08-04` 保持盘后公布语义；provider `2026-06-30` 与 SEC `2026-06-27` 不再形成两个季度或请求错误文件。
+- AMD 最新官方 10-Q 返回 3 个会计分部和 4 项不重叠业务收入；季度未披露地区结构，因此地区显示不可用。MSFT 只有 `fiscalDate=2026-06-30 + reportDate=2026-07-29` 精确组合使用 8-K EX-99.1 的 3 个季度分部；历史 Q1-Q3 继续读取 10-Q，交叉日期 fail closed，禁止把 10-K 年度产品或地区数字混进 Q4。
+- SEC 财报摘要批量读取与详情读取使用独立 250ms 调度通道，但共享公开响应缓存和同 URL singleflight；两条链路不再互相排队，同一文件仍只读取一次。瞬态失败和官方主文档未解析结果只缓存 5 分钟，旧 pending/unavailable 不得在网络失败时复活。
+- 当前官方结构矩阵：AMD `3/4/0`、GOOGL `3/6/4`、TSLA `2/6/3`、NVDA `2/3/4`、META `2/3/4`、MSFT `3/0/0`、IBKR `0/4/0`、NOK `3/7/3`、TSM `1/6/5`（分部/业务细分/地区）。`0` 表示本季官方未披露或不适用，不得复制券商数字或自行推测。
 
 ## 交易持仓收盘估值
 
@@ -132,7 +135,7 @@
 ### 已知风险
 
 - 比赛公开行情缓存与 402 熔断是 Vercel 单实例内存态，不是跨实例全局缓存；冷启动或不同实例仍可能分别首次读取一次。
-- v425 只修复财报日历日期/来源口径并为 AMD 增加官方摘要 actual；不新增 AMD 详情分部适配、行情源、数据库或缓存服务。v424 现金长金额显示、v421 现金资产与个人收益完成收盘快照、波段部分卖出、收益比赛共享 EODHD 缓存与熔断、交易持仓 EODHD 收盘估值、主 `/api/quote` 的 15/30/60 分钟客户端门控、个人收益只读页面和股票实时稳定版 v10 均保持不变。TSM 业绩趋势在每个冷实例首次读取时仍会产生一笔 Fundamentals 与一笔完整历史 FX 请求；6 小时实例缓存仍不是跨实例全局缓存。
+- v427 仍只使用 EODHD 财报日历/趋势与官方 SEC/TSMC 文件；公开 SEC cache 是 Vercel 单实例内存态，不是跨实例全局缓存。90 天历史补齐扩大同一笔日历请求的返回范围但不增加请求次数，需低频观察 EODHD 用量和响应体积；确认异常前不得增加循环探针、备用源或外部缓存。v424 现金长金额、v421 现金资产与个人收益快照、波段部分卖出、交易持仓正式价格及股票实时稳定版 v10 均保持不变。
 - 个人收益的客户端即时重算请求是交易 mutation 后的一次非阻塞派生动作：正式交易保存成功不会因个人收益暂时失败而回滚，恢复依赖数据库 dirty state 和收盘 Cron，不依赖收益报表页面或浏览器一直存活。比赛仍保持其独立重算链路。
 - P&L foundation 与 contract 之间旧 PWA 仍保留原直接写权限，因此 runtime 验证后必须尽快执行 contract；任一步失败都只做 forward-fix。跨 Vercel 实例生成不同时间戳时可能留下多个安全隔离的暂存 job，由 24 小时 TTL 清理，不会混合发布。
 
@@ -147,7 +150,7 @@
 
 ### 下一步
 
-1. 低频观察可用现金变更后的个人收益 dirty 聚合数量及下一份完成收盘任务消费结果；不得读取或披露用户现金、交易或持仓明细，不得循环调用 EODHD。
-2. 现场只读核验个人收益 schema/RPC/grant、比赛 publication marker、未登录接口与一条已登录读取；旧证据不能代替本次现场结果。
-3. 观察应用整体 EODHD 调用量。若主 quote 仍有跨实例或旧客户端重复读取，另行恢复 EODHD-only 的通用门控与缓存，不得改变正式价格来源。
+1. v427 只有在最终 `npm run check:full` PASS 且用户再次明确要求部署后，才能提交推送；只调用一次 `npm run release:verify -- full <commit>`，不得直接修改 Vercel。
+2. 发布后只做一次登录态只读验收，核对最新财期和上述结构数量；不输出 token、用户、持仓或交易数据，不循环调用 EODHD/SEC。
+3. 低频观察 90 天日历响应体积、EODHD 调用量及 SEC 脱敏失败原因；确认问题前不得增加请求频率、备用源或猜测性结构。
 4. 新任务只读 `README.md`、`docs/development-process.md`、`docs/handoff.md`，不要重复旧流程。
