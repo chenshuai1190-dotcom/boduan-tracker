@@ -56,10 +56,6 @@ function fmtMoney(value, digits = 0) {
   });
 }
 
-function levelMeta(level) {
-  return DISCIPLINE_LEVELS.find((item) => item.level === level) || DISCIPLINE_LEVELS[0];
-}
-
 function UsFlagBackground({ strength = 0.56, shade = 0.36 }) {
   return (
     <div
@@ -1032,7 +1028,6 @@ export default function ReviewTab({ ctx }) {
           <>
             <div className="space-y-2">
               {visibleDisciplines.map((discipline) => {
-                const meta = levelMeta(discipline.level);
                 const isLong = (discipline.text || '').length > 60;
                 const isExpanded = Boolean(expandedDisciplines[discipline.id]);
                 const displayText = isLong && !isExpanded ? `${discipline.text.slice(0, 60)}...` : discipline.text;
@@ -1050,39 +1045,31 @@ export default function ReviewTab({ ctx }) {
                     }}
                     className="block w-full rounded-[22px] border border-white/[0.06] bg-[#0b1119] px-4 py-3.5 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]"
                   >
-                    <div className="flex items-start gap-4">
-                      <div
-                        className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border"
-                        style={{ backgroundColor: meta.ringColor, borderColor: meta.ringBorder }}
-                      >
-                        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: meta.dotColor, boxShadow: `0 0 13px ${meta.dotColor}66` }} />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="whitespace-pre-wrap break-words text-[14px] font-normal leading-[1.52] text-white/80">{displayText}</div>
-                        <div className="mt-2.5 flex flex-wrap items-center gap-2 text-[12px] text-white/35">
-                          <span className="tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{discipline.date}</span>
-                          {discipline.pinned && <span className="rounded-full border border-white/[0.08] bg-white/[0.035] px-2.5 py-0.5 text-[11px] text-white/42">{tt('review.pinned', '置顶')}</span>}
-                          {isLong && (
-                            <span
-                              role="button"
-                              tabIndex={0}
-                              onClick={(event) => {
+                    <div className="min-w-0">
+                      <div className="whitespace-pre-wrap break-words text-[14px] font-normal leading-[1.52] text-white/80">{displayText}</div>
+                      <div className="mt-2.5 flex flex-wrap items-center gap-2 text-[12px] text-white/35">
+                        <span className="tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{discipline.date}</span>
+                        {discipline.pinned && <span className="rounded-full border border-white/[0.08] bg-white/[0.035] px-2.5 py-0.5 text-[11px] text-white/42">{tt('review.pinned', '置顶')}</span>}
+                        {isLong && (
+                          <span
+                            role="button"
+                            tabIndex={0}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setExpandedDisciplines((current) => ({ ...current, [discipline.id]: !current[discipline.id] }));
+                            }}
+                            onKeyDown={(event) => {
+                              if (event.key === 'Enter' || event.key === ' ') {
+                                event.preventDefault();
                                 event.stopPropagation();
                                 setExpandedDisciplines((current) => ({ ...current, [discipline.id]: !current[discipline.id] }));
-                              }}
-                              onKeyDown={(event) => {
-                                if (event.key === 'Enter' || event.key === ' ') {
-                                  event.preventDefault();
-                                  event.stopPropagation();
-                                  setExpandedDisciplines((current) => ({ ...current, [discipline.id]: !current[discipline.id] }));
-                                }
-                              }}
-                              className="inline-flex items-center gap-1 text-white/38"
-                            >
-                              {isExpanded ? tt('review.collapseFullText', '收起全文') : tt('review.expandFullText', '展开全文')} <span className="text-[13px] leading-none text-white/28">›</span>
-                            </span>
-                          )}
-                        </div>
+                              }
+                            }}
+                            className="inline-flex items-center gap-1 text-white/38"
+                          >
+                            {isExpanded ? tt('review.collapseFullText', '收起全文') : tt('review.expandFullText', '展开全文')} <span className="text-[13px] leading-none text-white/28">›</span>
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1131,8 +1118,6 @@ export default function ReviewTab({ ctx }) {
             <div className="space-y-2">
               {visibleLogs.map((log) => {
                 const text = log.text || '';
-                const isLong = text.length > 150;
-                const displayText = isLong ? `${text.slice(0, 150)}...` : text;
                 return (
                   <div
                     key={log.id}
@@ -1147,12 +1132,7 @@ export default function ReviewTab({ ctx }) {
                     }}
                     className="block w-full rounded-[22px] border border-white/[0.06] bg-[#0b1119] px-4 py-3.5 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]"
                   >
-                    <div className="whitespace-pre-wrap break-words text-[14px] font-normal leading-[1.52] text-white/80">{displayText}</div>
-                    {isLong && (
-                      <div className="mt-2 text-[12px] text-white/38">
-                        {tt('review.viewFullText', '查看全文')} <span className="text-[13px] leading-none text-white/28">›</span>
-                      </div>
-                    )}
+                    <div className="whitespace-pre-wrap break-words text-[14px] font-normal leading-[1.52] text-white/80">{text}</div>
                     <div className="mt-2.5 flex flex-wrap items-center gap-2 text-[12px] text-white/35">
                       <span className="tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{log.date}</span>
                       {log.mood && <span className="rounded-full border border-white/[0.08] bg-white/[0.035] px-2.5 py-0.5 text-[11px] text-white/42">{log.mood}</span>}

@@ -2131,7 +2131,8 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(reviewTabSource.includes('mb-4 flex gap-2.5 overflow-x-auto'), 'discipline filters should stay compact enough for the mobile reference row');
   assert.ok(reviewTabSource.includes('flex h-9 min-w-[54px] shrink-0 items-center justify-center gap-2'), 'discipline level filter pills should remain compact on 390px mobile');
   assert.ok(reviewTabSource.includes('className="h-2 w-2 rounded-full" style={{ backgroundColor: item.dotColor'), 'discipline filters should render compact colored dots');
-  assert.ok(reviewTabSource.includes('style={{ backgroundColor: meta.ringColor, borderColor: meta.ringBorder }}'), 'discipline rows should render muted color rings');
+  assert.equal(reviewTabSource.includes('style={{ backgroundColor: meta.ringColor, borderColor: meta.ringBorder }}'), false, 'discipline article rows should not render a leading color ring');
+  assert.equal(reviewTabSource.includes('function levelMeta'), false, 'discipline article rows should not keep unused level-marker rendering metadata');
   assert.ok(reviewTabSource.includes('function UsFlagBackground'), 'review page should define the shared faint US flag background');
   assert.ok(reviewTabSource.includes('data-us-flag-bg'), 'review page should expose a stable marker for the US flag background layer');
   assert.ok(reviewTabSource.includes('scale(1.7)'), 'review flag background should render recognizable larger stars');
@@ -2170,7 +2171,10 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(reviewTabSource.includes('setReviewLogAction(log)'), 'review log cards should open the preview modal');
   assert.ok(reviewTabSource.includes('openReviewLogEdit(reviewLogAction)'), 'review log detail modal should expose edit action');
   assert.ok(reviewTabSource.includes('deleteReviewLog(reviewLogAction)'), 'review log detail modal should expose delete action');
-  assert.ok(reviewTabSource.includes("tt('review.viewFullText'"), 'review log cards should preview longer text with a muted full-text hint through i18n');
+  assert.equal(reviewTabSource.includes('text.length > 150'), false, 'review log cards should not cap the visible body at 150 characters');
+  assert.equal(reviewTabSource.includes('text.slice(0, 150)'), false, 'review log cards should not truncate the visible body');
+  assert.equal(reviewTabSource.includes("tt('review.viewFullText'"), false, 'review log cards should not show a full-text hint after removing the display limit');
+  assert.ok(reviewTabSource.includes('text-white/80">{text}</div>'), 'review log cards should render the complete body directly');
   assert.equal(reviewTabSource.includes('<UsFlagBackground strength={0.18} shade={0.5} />'), false, 'review log cards should not render the flag background');
   assert.equal(reviewTabSource.includes('text-[13px] font-normal leading-[1.62] text-white/72'), false, 'review log cards should not keep the mismatched smaller body style');
   assert.ok(reviewTabSource.includes('role="button"'), 'discipline rows should avoid nested native buttons while remaining clickable');
