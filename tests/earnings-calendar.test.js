@@ -783,7 +783,7 @@ test('earnings calendar promotion dedupes companies and keeps the 15-day boundar
   }), false);
 });
 
-test('published earnings lookup keeps each symbol latest result across the current-quarter date gap', async () => {
+test('calendar uses an explicit current and future window so provider symbol defaults cannot drop upcoming reports', async () => {
   const originalFetch = globalThis.fetch;
   const requestedUrls = [];
 
@@ -791,7 +791,8 @@ test('published earnings lookup keeps each symbol latest result across the curre
     requestedUrls.push(String(url));
     const parsed = new URL(url);
     assert.equal(parsed.pathname, '/api/calendar/earnings');
-    if (!parsed.searchParams.has('symbols')) {
+    assert.equal(parsed.searchParams.has('symbols'), false);
+    if (parsed.searchParams.get('to') === '2026-08-05') {
       return jsonResponse({
         earnings: [
           { code: 'GOOGL.US', report_date: '2026-07-22', date: '2026-06-30', actual: 9.11 },
@@ -799,11 +800,13 @@ test('published earnings lookup keeps each symbol latest result across the curre
         ],
       });
     }
-    assert.equal(parsed.searchParams.get('symbols'), 'GOOGL.US,MSFT.US');
+    assert.equal(parsed.searchParams.get('from'), '2026-07-29');
+    assert.equal(parsed.searchParams.get('to'), '2026-09-19');
     return jsonResponse({
       earnings: [
         { code: 'GOOGL.US', report_date: '2026-08-20', date: '2026-09-30', estimate: 3.1 },
         { code: 'MSFT.US', report_date: '2026-09-10', date: '2026-09-30', estimate: 4.2 },
+        { code: 'AAPL.US', report_date: '2026-08-30', date: '2026-09-30', estimate: 2.4 },
         { code: 'GOOGL.US', report_date: '2026-12-20', date: '2026-12-31', actual: 99 },
         { code: 'GOOGL.US', date: '2026-07-25', actual: 99 },
       ],
@@ -834,12 +837,11 @@ test('published earnings lookup keeps each symbol latest result across the curre
 
     const calendarUrls = requestedUrls.map((url) => new URL(url));
     assert.equal(calendarUrls.length, 2);
-    const marketWindowRequest = calendarUrls.find((url) => !url.searchParams.has('symbols'));
-    const symbolHistoryRequest = calendarUrls.find((url) => url.searchParams.has('symbols'));
-    assert.equal(marketWindowRequest.searchParams.get('from'), '2026-05-09');
-    assert.equal(marketWindowRequest.searchParams.get('to'), '2026-08-07');
-    assert.equal(symbolHistoryRequest.searchParams.has('from'), false);
-    assert.equal(symbolHistoryRequest.searchParams.has('to'), false);
+    const historyWindowRequest = calendarUrls.find((url) => url.searchParams.get('to') === '2026-08-05');
+    const currentFutureWindowRequest = calendarUrls.find((url) => url.searchParams.get('from') === '2026-07-29');
+    assert.equal(historyWindowRequest.searchParams.get('from'), '2026-05-07');
+    assert.equal(currentFutureWindowRequest.searchParams.get('to'), '2026-09-19');
+    assert.ok(calendarUrls.every((url) => !url.searchParams.has('symbols')));
 
     requestedUrls.length = 0;
     const currentOnlyRows = await fetchEodhdEarningsCalendar({
@@ -854,23 +856,25 @@ test('published earnings lookup keeps each symbol latest result across the curre
       currentOnlyRows.map((row) => `${row.code}|${row.report_date}`).sort(),
       ['GOOGL.US|2026-08-20', 'MSFT.US|2026-09-10'],
     );
-    assert.equal(requestedUrls.length, 2);
+    assert.equal(requestedUrls.length, 1);
   } finally {
     globalThis.fetch = originalFetch;
   }
 });
 
-test('a failed bounded history window preserves the successful symbol-scoped calendar response', async () => {
+test('a failed bounded history supplement preserves the authoritative current and future window', async () => {
   const originalFetch = globalThis.fetch;
 
   globalThis.fetch = async (url) => {
     const parsed = new URL(url);
-    if (!parsed.searchParams.has('symbols')) {
+    assert.equal(parsed.searchParams.has('symbols'), false);
+    if (parsed.searchParams.get('to') === '2026-08-05') {
       throw new Error('bounded market history unavailable');
     }
+    assert.equal(parsed.searchParams.get('from'), '2026-07-29');
+    assert.equal(parsed.searchParams.get('to'), '2026-09-19');
     return jsonResponse({
       earnings: [
-        { code: 'NVDA.US', report_date: '2026-05-20', date: '2026-04-30', actual: 1.23 },
         { code: 'NVDA.US', report_date: '2026-08-26', date: '2026-07-31', estimate: 1.4 },
       ],
     });
@@ -888,20 +892,21 @@ test('a failed bounded history window preserves the successful symbol-scoped cal
 
     assert.deepEqual(
       rows.map((row) => row.report_date).sort(),
-      ['2026-05-20', '2026-08-26'],
+      ['2026-08-26'],
     );
   } finally {
     globalThis.fetch = originalFetch;
   }
 });
 
-test('a failed symbol-scoped calendar request never silently drops the future window', async () => {
+test('a failed authoritative current and future window never returns history-only success', async () => {
   const originalFetch = globalThis.fetch;
 
   globalThis.fetch = async (url) => {
     const parsed = new URL(url);
-    if (parsed.searchParams.has('symbols')) {
-      throw new Error('symbol calendar unavailable');
+    assert.equal(parsed.searchParams.has('symbols'), false);
+    if (parsed.searchParams.get('from') === '2026-07-29') {
+      throw new Error('current and future calendar unavailable');
     }
     return jsonResponse({
       earnings: [
@@ -920,7 +925,7 @@ test('a failed symbol-scoped calendar request never silently drops the future wi
         eodhdKey: 'test-eodhd-key',
         now: new Date('2026-08-05T16:00:00.000Z'),
       }),
-      /symbol calendar unavailable/,
+      /current and future calendar unavailable/,
     );
   } finally {
     globalThis.fetch = originalFetch;
@@ -964,15 +969,9 @@ test('earnings calendar API reads EODHD calendar and trends through a dedicated 
     requestedUrls.push(String(url));
     const parsed = new URL(url);
     if (parsed.pathname === '/api/calendar/earnings') {
-      const calendarSymbols = parsed.searchParams.get('symbols');
-      if (calendarSymbols) {
-        assert.equal(calendarSymbols, 'NVDA.US,MSFT.US');
-        assert.equal(parsed.searchParams.has('from'), false);
-        assert.equal(parsed.searchParams.has('to'), false);
-      } else {
-        assert.ok(parsed.searchParams.get('from'));
-        assert.ok(parsed.searchParams.get('to'));
-      }
+      assert.equal(parsed.searchParams.has('symbols'), false);
+      assert.ok(parsed.searchParams.get('from'));
+      assert.ok(parsed.searchParams.get('to'));
       assert.equal(parsed.searchParams.get('api_token'), 'test-eodhd-key');
       return jsonResponse({
         earnings: [

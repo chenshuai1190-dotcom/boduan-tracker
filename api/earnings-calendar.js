@@ -233,25 +233,17 @@ export async function fetchEodhdEarningsCalendar({
 }) {
   const eodhdSymbols = symbols.map(toEodhdUsSymbol).filter(Boolean);
   const today = newYorkDateKey(now) || newYorkDateKey(new Date());
-  const recentTo = minDate(to, addUtcDays(today, EARNINGS_PUBLISHED_RETENTION_DAYS));
-  const publishedHistoryFrom = addUtcDays(
-    today,
-    -(MAX_RANGE_DAYS - EARNINGS_PUBLISHED_RETENTION_DAYS),
-  );
-  const recentFrom = includePreviousPublished
-    ? minDate(from, publishedHistoryFrom)
-    : from;
-  const marketHistoryRequest = recentFrom <= recentTo
-    ? fetchEodhdEarningsCalendarRows({ from: recentFrom, to: recentTo, eodhdKey })
+  const publishedHistoryFrom = addUtcDays(today, -MAX_RANGE_DAYS);
+  // The requested current/future window is authoritative and must fail closed.
+  // EODHD ignores from/to when symbols are present, so always use explicit dates.
+  const currentWindowRequest = fetchEodhdEarningsCalendarRows({ from, to, eodhdKey });
+  // Reuse the second existing Calendar request only for bounded latest-published
+  // history. A history supplement failure must not hide the complete main range.
+  const publishedHistoryRequest = includePreviousPublished
+    ? fetchEodhdEarningsCalendarRows({ from: publishedHistoryFrom, to: today, eodhdKey })
       .catch(() => [])
     : Promise.resolve([]);
-  // EODHD documents symbol queries as the historical/upcoming path and ignores
-  // from/to when symbols are present. This request is authoritative for the
-  // complete future window, so it must not fail silently.
-  const symbolRequest = eodhdSymbols.length > 0
-    ? fetchEodhdEarningsCalendarRows({ symbols: eodhdSymbols, eodhdKey })
-    : Promise.resolve([]);
-  const payloads = await Promise.all([marketHistoryRequest, symbolRequest]);
+  const payloads = await Promise.all([currentWindowRequest, publishedHistoryRequest]);
   return selectEarningsCalendarRows({
     rows: payloads.flat(),
     symbols: eodhdSymbols,
@@ -262,11 +254,10 @@ export async function fetchEodhdEarningsCalendar({
   });
 }
 
-async function fetchEodhdEarningsCalendarRows({ symbols, from, to, eodhdKey }) {
+async function fetchEodhdEarningsCalendarRows({ from, to, eodhdKey }) {
   const url = new URL('https://eodhd.com/api/calendar/earnings');
   url.searchParams.set('api_token', eodhdKey);
   url.searchParams.set('fmt', 'json');
-  if (Array.isArray(symbols) && symbols.length) url.searchParams.set('symbols', symbols.join(','));
   if (from) url.searchParams.set('from', from);
   if (to) url.searchParams.set('to', to);
 

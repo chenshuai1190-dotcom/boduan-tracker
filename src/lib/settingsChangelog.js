@@ -4,6 +4,23 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '📅 恢复未来一个月的财报日历',
+      '  - 财报日历改用明确的完整当前与未来日期区间，不再依赖 provider 的 symbol-only 默认短窗口',
+      '  - 最近已公布财报由第二个最多 90 天的历史窗口补齐，历史补取失败不会清空当前与未来事件',
+      '  - 两个返回都只保留用户请求的股票；主窗口失败时继续 fail closed，不把未来数据缺失冒充为空结果',
+      '  - 仍最多两笔 EODHD Calendar 请求，不增加第三笔请求、循环读取、备用源或数据库',
+    ],
+    itemsEn: [
+      '📅 Restored the next month of upcoming earnings',
+      '  - The calendar now uses an explicit complete current and future date range instead of relying on the provider\'s short symbol-only default window',
+      '  - The latest published report is supplemented by a second history window of at most 90 days, and a history lookup failure no longer clears current or future events',
+      '  - Both responses retain only the user-requested stocks; the authoritative window continues to fail closed instead of presenting missing future data as an empty result',
+      '  - The flow remains capped at two EODHD Calendar requests with no third lookup, loop, alternate source, or database',
+    ],
+  },
+  {
+    ver: 'v10.7.9.428', date: '2026-08-06',
+    items: [
       '📊 财报详情扩展为按用户请求读取官方结构化细分',
       '  - 任意美股详情都会尝试解析该公司最新 SEC 官方文件，不再只允许预先列入名单的少数股票读取结构',
       '  - 通用 XBRL 解析严格核验公司、官方财期、当前与上年同期，并仅发布可唯一识别且能双期勾稽的分部、产品或地区数据',

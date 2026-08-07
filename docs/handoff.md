@@ -1,6 +1,6 @@
 # boduan-tracker 当前交接
 
-验证时间：`2026-08-06 Asia/Shanghai`
+验证时间：`2026-08-07 Asia/Shanghai`
 
 本文件只保存当前基准、关键风险和下一步。稳定规则看 `README.md`，流程看 `docs/development-process.md`。
 
@@ -10,8 +10,8 @@
 | --- | --- |
 | 仓库 | `chenshuai1190-dotcom/boduan-tracker` |
 | 生产地址 | `https://boduan-tracker.vercel.app` |
-| 最近已验证生产基准 | `4c11a30 / v10.7.9.427`：恢复全局最新财报和官方结构化详情；GitHub `main` 与生产 runtime 已由同提交 `release:verify` 验证一致 |
-| 本次发布源码 | 本文件所在提交 / `v10.7.9.428`：在 v427 财期修复上新增严格通用 SEC 10-Q fallback，并补齐 COST、UNH 官方结构；最终提交与生产 runtime 是否一致只以该提交的一次 `release:verify` 为准 |
+| 最近已验证生产基准 | `8d4b704 / v10.7.9.428`：财报详情扩展为按用户请求读取严格官方结构化细分；GitHub `main` 与生产 runtime 已由同提交 `release:verify` 验证一致 |
+| 本次发布源码 | 本文件所在提交 / `v10.7.9.429`：恢复未来一个月的财报日历，改用明确当前/未来日期窗口并保留最多两笔 EODHD Calendar 请求；最终提交与生产 runtime 是否一致只以该提交的一次 `release:verify` 为准 |
 | 数据库 | 保留既有 additive schema，并按 `available_cash_foundation_20260805.sql` → 精确 runtime → `available_cash_snapshot_contract_after_runtime_20260805.sql` 增加本人现金状态、不可变事件及个人收益现金快照契约；`swing_wave_partial_exits_20260805.sql` 和既有比赛、个人收益 migration 顺序不变 |
 | 发布完成条件 | GitHub `main` 的同一份 runtime 与上述 migration 均已上线并通过聚合 postflight；只完成其中一项不得宣布上线 |
 
@@ -25,6 +25,7 @@
 - 股票趋势 MA50 周线专项：`73 / 73` tests PASS；完成周锁定、50–199 周独立可用、1 年/5 年曲线组合及原曲线保留均覆盖。
 - 波段部分卖出专项：同一波段多次退出、剩余股数、旧完整卖出兼容、编辑/删除返还、并发超卖与账本隔离均有定向测试覆盖。
 - 可用现金专项：未设置/明确为 0、USD/CNY、保存后更新、失败回退、首页与交易页双向同步、融资/自选股联动、完成收盘现金事件、cash-only 用户及 QQQ/比赛隔离均有定向测试覆盖。
+- v429 财报日历专项覆盖明确当前/未来日期窗口、最多 90 天历史补齐、一/两笔 Calendar 请求、用户股票过滤、主窗口 fail closed 及历史补取 fail-soft；定向测试 `32 / 32` PASS，最终 `npm run check:full` 必须 PASS 才允许提交。
 - v428 财报专项覆盖专用适配器优先与 generic fallback、filing/DEI CIK、官方财期、USD unit、当前/同比维度一致、收入与分部经营利润双期唯一精确勾稽、冲突或多解 fail closed，以及既有全部适配器回归；最终 `npm run check:full` 必须 PASS 才允许提交。
 - 受控官方文件回放已覆盖 COST 2026 财年 Q3 与 UNH 2026 财年 Q1/Q2；通用 SEC-only smoke 另确认 AAPL 2026 财年 Q3 返回 5 个报告分部、AMZN 2026 财年 Q2 返回 3 个报告分部。两条通用路径的 EODHD 请求均为 `0`，未读取或输出 token、用户、持仓或交易数据；AAPL 产品层级因存在两套精确解、地区缺少标准收入轴而继续 fail closed。
 - 新的开发、验证和单等待器发布流程继续保留，没有恢复旧六文档或重复验证流程。
@@ -56,7 +57,7 @@
 
 ## 财报日历与官方结构化详情
 
-- 财报日历的“今天”和默认请求范围统一使用 `America/New_York`；盘后事件不会因上海先进入次日而提前隐藏，尚未取得真实 actual 的事件也保留至公布日后两天。`includePreviousPublished` 在同一笔既有市场日历请求内使用最多 90 天边界补齐上一份已公布财报，并继续用既有 symbol 请求取得未来事件，不新增第三笔请求或循环读取。
+- 财报日历的“今天”和默认请求范围统一使用 `America/New_York`；盘后事件不会因上海先进入次日而提前隐藏，尚未取得真实 actual 的事件也保留至公布日后两天。完整的明确当前/未来日期窗口是权威主请求；`includePreviousPublished` 只使用第二笔、最多 90 天的明确历史窗口补齐最近已公布财报。两笔 Calendar 请求均不传 `symbols`，服务端最终严格过滤为用户请求股票；不新增第三笔请求或循环读取。
 - 通用已公布 EPS 优先保留同一 Calendar/Trend 口径；`Earnings::History` 只在对应字段缺失时回退。近似财季只接受 7 天内唯一最近日期，等距歧义 fail closed，不再让另一份 provider 记录静默覆盖当前与同比结果。
 - 每个事件同时保留 `providerFiscalDate` 作为 Calendar/Trend/official-actual 合并键，并将 `fiscalDate` 作为详情页官方精确财期。AMD `reportDate=2026-08-04` 保持盘后公布语义；provider `2026-06-30` 与 SEC `2026-06-27` 不再形成两个季度或请求错误文件。
 - AMD 最新官方 10-Q 返回 3 个会计分部和 4 项不重叠业务收入；季度未披露地区结构，因此地区显示不可用。MSFT 只有 `fiscalDate=2026-06-30 + reportDate=2026-07-29` 精确组合使用 8-K EX-99.1 的 3 个季度分部；历史 Q1-Q3 继续读取 10-Q，交叉日期 fail closed，禁止把 10-K 年度产品或地区数字混进 Q4。
@@ -137,7 +138,7 @@
 ### 已知风险
 
 - 比赛公开行情缓存与 402 熔断是 Vercel 单实例内存态，不是跨实例全局缓存；冷启动或不同实例仍可能分别首次读取一次。
-- v428 仍只使用 EODHD 财报日历/趋势与官方 SEC/TSMC 文件；通用结构在未命中特例或专用解析器对合规 10-Q 返回空时，按需读取官方 SEC PRIMARY 10-Q，不新增 EODHD 请求，也不与专用解析结果混合分节。公开 SEC cache 是 Vercel 单实例内存态，不是跨实例全局缓存，冷实例可能各自首次读取；非标准、歧义或无法双期精确勾稽的披露显示不可用是预期 fail-closed。90 天历史补齐扩大同一笔日历请求的返回范围但不增加请求次数，需低频观察 EODHD 用量和响应体积；确认异常前不得增加循环探针、备用源或外部缓存。v424 现金长金额、v421 现金资产与个人收益快照、波段部分卖出、交易持仓正式价格及股票实时稳定版 v10 均保持不变。
+- v429 仍只使用 EODHD 财报日历/趋势与官方 SEC/TSMC 文件；通用结构在未命中特例或专用解析器对合规 10-Q 返回空时，按需读取官方 SEC PRIMARY 10-Q，不新增 EODHD 请求，也不与专用解析结果混合分节。公开 SEC cache 是 Vercel 单实例内存态，不是跨实例全局缓存，冷实例可能各自首次读取；非标准、歧义或无法双期精确勾稽的披露显示不可用是预期 fail-closed。新的明确当前/未来窗口和 90 天历史补齐均为全市场日期请求，仍最多两笔，但响应体可能比旧 symbol-only 请求更大；需低频观察 EODHD 用量、冷启动耗时和响应体积，确认异常前不得增加循环探针、备用源或外部缓存。v424 现金长金额、v421 现金资产与个人收益快照、波段部分卖出、交易持仓正式价格及股票实时稳定版 v10 均保持不变。
 - 个人收益的客户端即时重算请求是交易 mutation 后的一次非阻塞派生动作：正式交易保存成功不会因个人收益暂时失败而回滚，恢复依赖数据库 dirty state 和收盘 Cron，不依赖收益报表页面或浏览器一直存活。比赛仍保持其独立重算链路。
 - P&L foundation 与 contract 之间旧 PWA 仍保留原直接写权限，因此 runtime 验证后必须尽快执行 contract；任一步失败都只做 forward-fix。跨 Vercel 实例生成不同时间戳时可能留下多个安全隔离的暂存 job，由 24 小时 TTL 清理，不会混合发布。
 
@@ -152,7 +153,7 @@
 
 ### 下一步
 
-1. v428 只有在最终 `npm run check:full` PASS、提交推送且同一提交的一次 `npm run release:verify -- full <commit>` PASS 后，才能视为上线；不得直接修改 Vercel。
+1. v429 只有在最终 `npm run check:full` PASS、提交推送且同一提交的一次 `npm run release:verify -- full <commit>` PASS 后，才能视为上线；不得直接修改 Vercel。
 2. 发布后只做一次登录态只读验收，核对 provider 财期、官方 `fiscalYear/fiscalPeriod` 和已核验结构数量；不输出 token、用户、持仓或交易数据，不循环调用 EODHD/SEC。
 3. 低频观察 90 天日历响应体积、EODHD 调用量及 SEC 脱敏失败原因；确认问题前不得增加请求频率、备用源或猜测性结构。
 4. 新任务只读 `README.md`、`docs/development-process.md`、`docs/handoff.md`，不要重复旧流程。

@@ -684,7 +684,7 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.equal(earningsCalendarSource.includes('eventDates.slice(0, 6).map'), false, 'earnings calendar list view should not keep the duplicated date filter row');
   assert.ok(earningsCalendarSource.includes('const includePreviousPublished = true'), 'earnings calendar should request the latest published report for modal and detail review');
   assert.ok(earningsCalendarRefreshSource.includes("includePreviousPublished: includePreviousPublished ? '1' : '0'"), 'earnings calendar should pass the latest-published query parameter');
-  assert.ok(earningsCalendarRefreshSource.includes("EARNINGS_CALENDAR_SCOPE_VERSION = 'latest-published-v1'"), 'earnings calendar should version the corrected latest-published scope to bypass stale browser responses');
+  assert.ok(earningsCalendarRefreshSource.includes("EARNINGS_CALENDAR_SCOPE_VERSION = 'explicit-future-window-v2'"), 'earnings calendar should version the explicit future-window scope to bypass stale browser responses');
   assert.ok(earningsCalendarSource.includes('events.filter((event) => isEarningsVisible(event, today)).slice(0, 80)'), 'earnings calendar list view should filter out historical latest reports while keeping the full review data');
   assert.ok(earningsCalendarSource.includes("const [modalView, setModalView] = React.useState(initialView === 'calendar' ? 'calendar' : 'list')"), 'earnings calendar should initialize from its persisted standalone view while defaulting to list view');
   assert.ok(earningsCalendarSource.includes("const openModal = (view = 'list', date = null)"), 'earnings calendar modal should use list view as its default open mode');

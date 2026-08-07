@@ -391,7 +391,7 @@ export function preservePublishedEarningsEvents(currentEvents = [], incomingEven
   });
 }
 
-export const EARNINGS_CALENDAR_SCOPE_VERSION = 'latest-published-v1';
+export const EARNINGS_CALENDAR_SCOPE_VERSION = 'explicit-future-window-v2';
 
 export async function fetchEarningsCalendarEvents({
   token,
