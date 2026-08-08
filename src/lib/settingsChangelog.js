@@ -4,6 +4,23 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '🎯 复利明细新增每年实际完成对照',
+      '  - 每年收益新增实际完成、实际增幅、当前或实际期末资产、达成率及目标差额，并默认聚焦本年与下一年',
+      '  - 未来预测只显示计划收益、计划期末资产和待填写状态，不再把预测值冒充实际数据',
+      '  - 原有纯计划复利表保留并改名为“模拟年化收益”，固定放在弹窗最底部，与实际记录明确分开',
+      '  - 下一年度继续使用上一年度真实结转余额作为起点；本次不改变年度录入、保存、数据库或结转规则',
+    ],
+    itemsEn: [
+      '🎯 Compound details now compare each year’s actual result',
+      '  - Yearly gains now show actual gain, actual growth, current or actual ending assets, goal completion, and the target gap, with the current and next year shown first',
+      '  - Future projections show only planned gain, planned ending assets, and a pending state instead of presenting projections as actual data',
+      '  - The original plan-only compound table remains available as Simulated Annualized Returns at the bottom of the modal, clearly separated from actual records',
+      '  - Each new year continues from the prior year’s carried ending balance; annual entry, persistence, database, and carryover rules are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.429', date: '2026-08-07',
+    items: [
       '📅 恢复未来一个月的财报日历',
       '  - 财报日历改用明确的完整当前与未来日期区间，不再依赖 provider 的 symbol-only 默认短窗口',
       '  - 最近已公布财报由第二个最多 90 天的历史窗口补齐，历史补取失败不会清空当前与未来事件',

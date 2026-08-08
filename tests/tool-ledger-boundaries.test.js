@@ -2063,16 +2063,16 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(reviewTabSource.includes("tt('review.compoundTitle'"), 'compound detail should title itself from the current plan years through i18n');
   assert.ok(reviewTabSource.includes("tt('review.accountCurve'"), 'compound detail should render the account curve section through i18n');
   assert.ok(reviewTabSource.includes("tt('review.actualProgress'"), 'compound detail should compare actual progress with the plan through i18n');
-  assert.ok(reviewTabSource.includes("tt('review.yearlyIncome'"), 'compound detail should render the yearly income table through i18n');
+  assert.ok(reviewTabSource.includes("tt('review.yearlyIncome'"), 'compound detail should render yearly income details through i18n');
   assert.ok(reviewTabSource.includes('w-[calc(100vw-8px)] max-w-[410px] overflow-y-auto overscroll-contain'), 'compound detail modal should gain enough width for two-decimal amounts while preserving its original inner layout');
   assert.ok(reviewTabSource.includes('border border-[#f6b54b]/35'), 'compound detail modal should use the muted gold reference border instead of a bright white border');
   assert.ok(reviewTabSource.includes('border border-[#232b36]/80'), 'compound inner cards should not use bright white or gold borders');
   assert.ok(reviewTabSource.includes('border-l border-[#232b36]/90'), 'compound summary dividers should use low-contrast dark lines');
-  assert.ok(reviewTabSource.includes('border border-[#202733]'), 'compound chart and yearly table should use muted dark borders');
-  assert.ok(reviewTabSource.includes('divide-y divide-[#202733]'), 'compound yearly rows should use muted dark dividers');
+  assert.ok(reviewTabSource.includes('border border-[#202733]'), 'compound chart and yearly details should use muted dark borders');
+  assert.ok(reviewTabSource.includes('data-compound-year-row={row.year}'), 'compound yearly cards should expose a stable visual verification hook');
   assert.ok(reviewTabSource.includes('text-[11px] text-[#8a909a]'), 'compound summary labels should use muted gray text');
   assert.ok(reviewTabSource.includes('text-[11px] text-[#8a909a]">{tt(\'review.actualProgress\''), 'compound actual-progress label should use muted gray text and i18n');
-  assert.ok(reviewTabSource.includes('border-b border-[#202733] pb-2 text-[11px] text-[#8a909a]'), 'compound yearly table headers should use muted gray text and dividers');
+  assert.ok(reviewTabSource.includes("tt('review.planActualComparison', '计划与实际对比')"), 'compound yearly details should label the plan and actual comparison through i18n');
   assert.equal(reviewTabSource.includes('border border-[#f6b54b]/15 bg-white/[0.032]'), false, 'compound summary card should not keep the overly bright accent border');
   assert.equal(reviewTabSource.includes('divide-y divide-white/[0.055]'), false, 'compound yearly table should not keep white row dividers');
   assert.equal(reviewTabSource.includes('stroke="rgba(255,255,255,0.07)"'), false, 'compound chart grid should not use white grid lines');
@@ -2083,7 +2083,24 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(reviewTabSource.includes('mt-1 truncate text-[12px] text-white/68'), 'compound actual-progress row should preserve its original single-line style');
   assert.ok(reviewTabSource.includes("valueClass: 'text-[#ff4b1f]'"), 'compound accumulated gain should use the home red amount color');
   assert.ok(reviewTabSource.includes("{tt('review.actualGain', '实际收益')} <span className=\"text-[#ff4b1f] tabular-nums\""), 'compound actual gain should use the home red amount color');
-  assert.ok(reviewTabSource.includes('text-right text-[#ff4b1f] tabular-nums'), 'compound yearly gains should use the home red amount color');
+  assert.ok(reviewTabSource.includes('marketTextClass(row.actualGain, marketColorMode)'), 'compound actual gains and growth should respect the shared market color mode');
+  assert.ok(reviewTabSource.includes('yearRows={yearlyFinal}'), 'compound detail should receive the same carried annual rows as the annual goal cards');
+  assert.equal(reviewTabSource.includes('compoundPlanRows'), false, 'compound detail should not rebuild a separate plan-only annual series');
+  assert.ok(reviewTabSource.includes('buildCompoundYearDetailRows(yearRows, { currentYear })'), 'compound detail should derive display-only annual metrics through the tested helper');
+  assert.ok(reviewTabSource.includes("tt('review.currentAssets', '当前资产')"), 'the current year should label its live balance as current assets');
+  assert.ok(reviewTabSource.includes("tt('review.actualEndingAssets', '实际期末资产')"), 'completed years should label their carried balance as actual ending assets');
+  assert.ok(reviewTabSource.includes("tt('review.actualDataPending', '实际数据待填写')"), 'projected rows should explicitly keep actual data pending');
+  assert.ok(i18nSource.includes("'review.actualGrowthRate': 'Actual Growth'"), 'English compound details should include the actual growth label');
+  assert.ok(i18nSource.includes("'review.actualEndingAssets': 'Actual Ending Assets'"), 'English compound details should include actual ending assets');
+  assert.ok(reviewTabSource.includes('data-compound-simulation="true"'), 'the original plan-only annual table should remain as a separate simulation module');
+  assert.ok(reviewTabSource.includes("tt('review.simulatedAnnualizedReturns', '模拟年化收益')"), 'the plan-only annual table should be renamed through i18n');
+  assert.ok(
+    reviewTabSource.lastIndexOf("tt('review.simulatedAnnualizedReturns'") > reviewTabSource.lastIndexOf("tt('review.yearlyIncome'"),
+    'simulated annualized returns should stay below the actual yearly details',
+  );
+  assert.ok(reviewTabSource.includes('const simulationRows = React.useMemo(() => {'), 'the simulation module should preserve an independent target-rate series');
+  assert.ok(reviewTabSource.includes('Math.pow(1 + targetAnnualRate, index + 1)'), 'simulated ending assets should compound at the target annual rate');
+  assert.ok(i18nSource.includes("'review.simulatedAnnualizedReturns': 'Simulated Annualized Returns'"), 'English compound details should name the simulation module');
   assert.ok(reviewTabSource.includes('setShowCompoundDetails(true)'), 'north-star card should open compound details on click');
   assert.ok(reviewTabSource.includes('switchCurrency(item.key);'), 'currency switch should remain available inside the north-star card');
   assert.ok(reviewTabSource.includes('setShowPlanSettings(true);'), 'settings button should remain available inside the north-star card');
@@ -2135,7 +2152,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(reviewTabSource.includes('text-white/82 tabular-nums'), 'neutral target and year-end balances should use brighter white');
   assert.ok(i18nSource.includes("'review.achieved': 'Achieved'"), 'English annual summary should include the achieved label');
   assert.equal(reviewTabSource.includes("{money(currentYearTarget)}</span>\n                      </div>\n                      <div className={`mt-0.5"), false, 'current year summary target should not show the year-end total balance');
-  assert.equal((reviewTabSource.match(/tt\('review\.yearStart', '年初起点'\)/g) || []).length, 2, 'current and projected annual cards should label the opening balance as year start');
+  assert.equal((reviewTabSource.match(/tt\('review\.yearStart', '年初起点'\)/g) || []).length, 3, 'annual goal cards and projected compound details should label the opening balance as year start');
   assert.equal((reviewTabSource.match(/tt\('review\.yearEnd', '年底目标'\)/g) || []).length, 2, 'current and projected annual cards should label the ending balance as the year-end target');
   assert.ok(i18nSource.includes("'review.yearStart': 'Year Start'"), 'English annual cards should include the year-start label');
   assert.ok(i18nSource.includes("'review.yearEnd': 'Year-End Target'"), 'English annual cards should include the year-end target label');

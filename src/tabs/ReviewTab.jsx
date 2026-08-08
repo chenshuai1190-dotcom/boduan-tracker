@@ -1,5 +1,6 @@
 import React from 'react';
 import ActionModalCard from '../components/ActionModalCard.jsx';
+import { buildCompoundYearDetailRows } from '../lib/compoundYearDetails.js';
 import { t } from '../lib/i18n.js';
 import { marketTextClass } from '../lib/marketColorMode.js';
 
@@ -219,10 +220,11 @@ function ReviewLogDetailModal({ log, Edit2, Trash2, X, language = 'zh', onClose,
 function CompoundDetailModal({
   X,
   currentBalance,
+  currentYear,
   language = 'zh',
+  marketColorMode,
   money,
   onClose,
-  planRows,
   progressPct,
   signedMoney,
   startCapital,
@@ -232,13 +234,42 @@ function CompoundDetailModal({
   targetValue,
   totalYears,
   rate,
+  yearRows,
 }) {
   const tt = (key, fallback, values) => t(language, key, fallback, values);
-  const displayRows = planRows.map((row) => ({
-    ...row,
-    displayAnnualGain: row.annualGain * rate,
-    displayEndBalance: row.endBalance * rate,
-  }));
+  const [showAllYearRows, setShowAllYearRows] = React.useState(false);
+  const detailRows = React.useMemo(
+    () => buildCompoundYearDetailRows(yearRows, { currentYear }),
+    [currentYear, yearRows],
+  );
+  const currentRowIndex = detailRows.findIndex((row) => row.isCurrentYear);
+  const nextRowIndex = detailRows.findIndex((row) => row.isFutureYear);
+  const previewStartIndex = currentRowIndex >= 0
+    ? currentRowIndex
+    : nextRowIndex >= 0 ? nextRowIndex : Math.max(0, detailRows.length - 2);
+  const visibleDetailRows = showAllYearRows
+    ? detailRows
+    : detailRows.slice(previewStartIndex, previewStartIndex + 2);
+  const hiddenDetailRowCount = detailRows.length - visibleDetailRows.length;
+  const simulationRows = React.useMemo(() => {
+    let previousEndBalance = startCapital;
+    return Array.from({ length: totalYears }, (_, index) => {
+      const endBalance = Math.round(startCapital * Math.pow(1 + targetAnnualRate, index + 1));
+      const row = {
+        year: startYear + index,
+        annualGain: Math.round(endBalance - previousEndBalance),
+        endBalance,
+      };
+      previousEndBalance = endBalance;
+      return row;
+    });
+  }, [startCapital, startYear, targetAnnualRate, totalYears]);
+  const formatRowMoney = (value, signed = false) => (
+    Number.isFinite(value) ? (signed ? signedMoney(value) : money(value)) : '—'
+  );
+  const formatSignedPercent = (value) => (
+    Number.isFinite(value) ? `${value >= 0 ? '+' : ''}${value.toFixed(1)}%` : '—'
+  );
   const displayStart = startCapital * rate;
   const displayTarget = targetValue * rate;
   const displayCurrent = currentBalance * rate;
@@ -394,22 +425,161 @@ function CompoundDetailModal({
         </div>
 
         <div className="mt-4 rounded-[18px] border border-[#202733] bg-white/[0.035] px-3 py-3">
-          <h3 className="text-[14px] font-semibold text-[#d9dde4]">{tt('review.yearlyIncome', '每年收益')}</h3>
+          <div className="flex items-center justify-between gap-3">
+            <h3 className="text-[14px] font-semibold text-[#d9dde4]">{tt('review.yearlyIncome', '每年收益')}</h3>
+            <span className="text-[10px] text-white/35">{tt('review.planActualComparison', '计划与实际对比')}</span>
+          </div>
+
+          <div className="mt-3 space-y-2.5">
+            {visibleDetailRows.map((row) => {
+              const actualValueClass = row.hasActual
+                ? marketTextClass(row.actualGain, marketColorMode)
+                : 'text-white/28';
+              const statusLabel = row.status === 'reached'
+                ? tt('review.reached', '达标')
+                : row.status === 'behind'
+                  ? tt('review.behind', '未达')
+                  : row.status === 'notStarted'
+                    ? tt('review.notStarted', '未开始')
+                    : tt('review.pending', '待填写');
+              const statusClass = row.status === 'reached'
+                ? 'border-[#ff4b1f]/25 bg-[#ff4b1f]/10 text-[#ff4b1f]'
+                : row.status === 'behind'
+                  ? 'border-emerald-400/25 bg-emerald-400/10 text-emerald-400'
+                  : 'border-sky-400/15 bg-sky-400/10 text-sky-200/70';
+
+              return (
+                <article
+                  key={row.year}
+                  data-compound-year-row={row.year}
+                  className="rounded-[15px] border border-white/[0.065] bg-black/[0.13] px-3 py-3"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-1.5">
+                      <span className={`text-[17px] font-semibold leading-none tabular-nums ${row.hasActual || row.isCurrentYear ? 'text-white/90' : 'text-white/55'}`} style={{ fontFamily: NUMBER_FONT }}>{row.year}</span>
+                      {row.isCurrentYear && (
+                        <span className="rounded-md border border-[#f6b54b]/25 bg-[#f6b54b]/10 px-1.5 py-0.5 text-[10px] leading-none text-[#f6b54b]">{tt('review.thisYear', '本年')}</span>
+                      )}
+                      <span className={`rounded-md border px-1.5 py-0.5 text-[10px] leading-none ${statusClass}`}>{statusLabel}</span>
+                    </div>
+                    <div className={`shrink-0 whitespace-nowrap text-[12px] tabular-nums ${actualValueClass}`} style={{ fontFamily: NUMBER_FONT }}>
+                      <span className="mr-1 text-[10px] text-white/40" style={{ fontFamily: 'inherit' }}>{tt('review.actualGrowthRate', '实际增幅')}</span>
+                      {formatSignedPercent(row.actualGrowthPct)}
+                    </div>
+                  </div>
+
+                  {row.hasActual ? (
+                    <>
+                      <div className="mt-3 grid grid-cols-2 gap-3">
+                        <div className="min-w-0">
+                          <div className={`whitespace-nowrap text-[14px] font-normal leading-none tabular-nums ${actualValueClass}`} style={{ fontFamily: NUMBER_FONT }}>{formatRowMoney(row.actualGain, true)}</div>
+                          <div className="mt-1.5 text-[10px] leading-none text-white/42">{tt('review.actualCompleted', '实际完成')}</div>
+                        </div>
+                        <div className="min-w-0 text-right">
+                          <div className="whitespace-nowrap text-[14px] font-normal leading-none text-white/90 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{formatRowMoney(row.actualEndBalance)}</div>
+                          <div className="mt-1.5 text-[10px] leading-none text-white/42">
+                            {row.assetLabel === 'current'
+                              ? tt('review.currentAssets', '当前资产')
+                              : tt('review.actualEndingAssets', '实际期末资产')}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mt-2.5 grid grid-cols-2 gap-2 border-t border-[#202733]/90 pt-2.5 text-[10px] leading-[1.35] text-white/44">
+                        <span className="min-w-0 whitespace-nowrap">
+                          {tt('review.plannedGain', '计划收益')}{' '}
+                          <span className="text-[11px] text-white/67 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{formatRowMoney(row.planTarget, true)}</span>
+                        </span>
+                        <span className="min-w-0 whitespace-nowrap text-right">
+                          {tt('review.targetEndingAssets', '目标期末')}{' '}
+                          <span className="text-[11px] text-white/67 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{formatRowMoney(row.targetEndBalance)}</span>
+                        </span>
+                      </div>
+
+                      <div className="mt-2 flex items-center justify-between gap-3 text-[10px] text-white/40">
+                        <span>
+                          {tt('review.goalCompletion', '达成率')}{' '}
+                          <span className="text-[11px] text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
+                            {Number.isFinite(row.completionPct) ? `${row.completionPct.toFixed(1)}%` : '—'}
+                          </span>
+                        </span>
+                        {Number.isFinite(row.targetGap) && (
+                          <span className={row.targetGap < 0 ? 'text-[#ff4b1f]' : 'text-emerald-400'}>
+                            {row.targetGap < 0
+                              ? tt('review.exceededAmount', '超额 {{amount}}', { amount: formatRowMoney(Math.abs(row.targetGap)) })
+                              : tt('review.behindAmount', '落后 {{amount}}', { amount: formatRowMoney(Math.abs(row.targetGap)) })}
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-white/[0.07]">
+                        <div
+                          className="progress-shine h-full rounded-full bg-gradient-to-r from-[#f8c46a] via-[#f6b54b] to-[#ffd18a]"
+                          style={{ width: `${clamp(row.completionPct ?? 0, 0, 100)}%` }}
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="mt-3 grid grid-cols-2 gap-3">
+                        <div className="min-w-0">
+                          <div className="whitespace-nowrap text-[14px] font-normal leading-none text-white/64 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{formatRowMoney(row.planTarget, true)}</div>
+                          <div className="mt-1.5 text-[10px] leading-none text-white/42">{tt('review.plannedGain', '计划收益')}</div>
+                        </div>
+                        <div className="min-w-0 text-right">
+                          <div className="whitespace-nowrap text-[14px] font-normal leading-none text-white/64 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{formatRowMoney(row.targetEndBalance)}</div>
+                          <div className="mt-1.5 text-[10px] leading-none text-white/42">{tt('review.plannedEndingAssets', '计划期末资产')}</div>
+                        </div>
+                      </div>
+
+                      <div className="mt-2.5 flex items-center justify-between gap-3 border-t border-[#202733]/90 pt-2.5 text-[10px] text-white/37">
+                        <span className="whitespace-nowrap">
+                          {tt('review.yearStart', '年初起点')}{' '}
+                          <span className="tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{formatRowMoney(row.startBalance)}</span>
+                        </span>
+                        <span className="text-[11px] text-white/33">{tt('review.actualDataPending', '实际数据待填写')}</span>
+                      </div>
+                    </>
+                  )}
+                </article>
+              );
+            })}
+          </div>
+
+          {detailRows.length > 2 && (
+            <button
+              type="button"
+              onClick={() => setShowAllYearRows((value) => !value)}
+              className="mt-2.5 flex w-full items-center justify-center rounded-xl border border-white/[0.06] bg-white/[0.025] py-2 text-[11px] text-white/45 active:scale-[0.99]"
+            >
+              {showAllYearRows
+                ? tt('review.collapse', '收起')
+                : tt('review.expandMoreYears', '展开剩余 {{count}} 年', { count: hiddenDetailRowCount })}
+            </button>
+          )}
+
+          <div className="mt-2 text-center text-[10px] leading-[1.45] text-white/33">{tt('review.currentYearAssetNote', '本年显示“当前资产”；年度结束后显示“实际期末资产”')}</div>
+        </div>
+
+        <div data-compound-simulation="true" className="mt-4 rounded-[18px] border border-[#202733] bg-white/[0.025] px-3 py-3">
+          <div className="flex items-center justify-between gap-3">
+            <h3 className="text-[14px] font-semibold text-[#d9dde4]">{tt('review.simulatedAnnualizedReturns', '模拟年化收益')}</h3>
+            <span className="text-[10px] text-white/35">{tt('review.targetAnnualRateValue', '目标年化 {{rate}}%', { rate: (targetAnnualRate * 100).toFixed(0) })}</span>
+          </div>
           <div className="mt-3 grid grid-cols-[0.75fr_1fr_1.15fr] border-b border-[#202733] pb-2 text-[11px] text-[#8a909a]">
             <span>{tt('review.year', '年份')}</span>
             <span className="text-right">{tt('review.annualGain', '年收益')}</span>
             <span className="text-right">{tt('review.yearEndAssets', '期末资产')}</span>
           </div>
           <div className="divide-y divide-[#202733]">
-            {displayRows.map((row) => (
+            {simulationRows.map((row) => (
               <div key={row.year} className="grid grid-cols-[0.75fr_1fr_1.15fr] py-2 text-[12px] leading-none">
                 <span className="text-white/72 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{row.year}</span>
-                <span className="text-right text-[#ff4b1f] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>+{symbol}{fmtMoney(row.displayAnnualGain)}</span>
-                <span className="text-right text-white/72 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{symbol}{fmtMoney(row.displayEndBalance)}</span>
+                <span className="whitespace-nowrap text-right text-[#ff4b1f] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{formatRowMoney(row.annualGain, true)}</span>
+                <span className="whitespace-nowrap text-right text-white/72 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{formatRowMoney(row.endBalance)}</span>
               </div>
             ))}
           </div>
-          <div className="mt-2 text-center text-[11px] text-white/35">{tt('review.compoundNote', '收益按年复利计算')}</div>
+          <div className="mt-2 text-center text-[10px] leading-[1.45] text-white/33">{tt('review.simulatedAnnualizedNote', '按目标年化率复利模拟，不包含实际完成数据')}</div>
         </div>
       </div>
     </div>
@@ -559,15 +729,6 @@ export default function ReviewTab({ ctx }) {
       return index >= currentYearIndex && index < currentYearIndex + 2;
     });
   const hiddenYearCount = yearlyFinal.length - visibleYears.length;
-  const compoundPlanRows = React.useMemo(() => yearlyFinal.map((yearItem, index) => {
-    const previousPlanEnd = index === 0 ? startCapital : yearlyFinal[index - 1].planEndBalance;
-    return {
-      year: yearItem.year,
-      annualGain: Math.round(yearItem.planEndBalance - previousPlanEnd),
-      endBalance: yearItem.planEndBalance,
-    };
-  }), [startCapital, yearlyFinal]);
-
   const sortedDisciplines = React.useMemo(() => (
     [...(disciplines || [])].sort((a, b) => {
       if (a.pinned && !b.pinned) return -1;
@@ -1129,10 +1290,11 @@ export default function ReviewTab({ ctx }) {
         <CompoundDetailModal
           X={X}
           currentBalance={currentBalance}
+          currentYear={thisYear}
           language={language}
+          marketColorMode={marketColorMode}
           money={money}
           onClose={() => setShowCompoundDetails(false)}
-          planRows={compoundPlanRows}
           progressPct={progressPct}
           signedMoney={signedMoney}
           startCapital={startCapital}
@@ -1142,6 +1304,7 @@ export default function ReviewTab({ ctx }) {
           targetValue={ageGoalAmountExact}
           totalYears={totalYears}
           rate={rate}
+          yearRows={yearlyFinal}
         />
       )}
 
