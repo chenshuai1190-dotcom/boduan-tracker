@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '🎛️ TQQQ交易检查与市场参考进一步收紧纵向高度',
+      '  - 交易前检查同步缩小四列标签、卡片内边距和进度条上下间距，保持现有一行四列与全部数值口径',
+      '  - 市场参考按相同比例收紧VIX与QQQ的标签和说明区域，使两个模块保持一致的视觉密度',
+      '  - 本次仍仅调整TQQQ专属界面；仓位、提醒线、行情请求、交易保存和其他股票均不改变',
+    ],
+    itemsEn: [
+      '🎛️ TQQQ trade checks and market references now use tighter vertical spacing',
+      '  - The four-column labels, card padding, and progress-bar spacing are reduced together while preserving the existing one-row layout and every calculation',
+      '  - VIX and QQQ labels and supporting text are tightened by the same proportion so both sections share the same visual density',
+      '  - This remains a TQQQ-only interface change; allocation, advisory limits, quote requests, trade saving, and other stocks are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.435', date: '2026-08-08',
+    items: [
       '🎛️ TQQQ交易检查与市场参考统一为紧凑横向布局',
       '  - 买入和卖出检查在移动端固定一行四列，移除重复辅助说明，保留同一正式仓位、持仓和提醒线计算',
       '  - 风险预算进度条新增跟随填充位置的真实占用百分比；超过提醒线时保留真实数值且继续只提醒、不强制阻止买入',

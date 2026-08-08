@@ -41,11 +41,11 @@ function formatShares(value) {
 
 function Metric({ label, value, valueClassName = '', className = '' }) {
   return (
-    <div className={`min-w-0 px-1 py-1 text-center ${className}`}>
-      <div className="flex min-h-[30px] items-center justify-center text-[10px] font-normal leading-[14px] text-white/[0.54]">
+    <div className={`min-w-0 px-1 py-0.5 text-center ${className}`}>
+      <div className="flex min-h-[16px] items-center justify-center text-[10px] font-normal leading-[14px] text-white/[0.54]">
         {label}
       </div>
-      <div className={`mt-1.5 whitespace-nowrap text-[16px] font-normal tabular-nums text-white/[0.92] ${valueClassName}`} style={{ fontFamily: NUMBER_FONT }}>
+      <div className={`mt-1 whitespace-nowrap text-[16px] font-normal tabular-nums text-white/[0.92] ${valueClassName}`} style={{ fontFamily: NUMBER_FONT }}>
         {value}
       </div>
     </div>
@@ -133,7 +133,7 @@ function PreviewResult({ preview, tt }) {
 
 function MarketReference({ marketReference, tt }) {
   return (
-    <section className="space-y-2.5" aria-labelledby="tqqq-market-reference-title">
+    <section className="space-y-2" aria-labelledby="tqqq-market-reference-title">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 id="tqqq-market-reference-title" className="text-[16px] font-normal text-white/[0.92]">
           {tt('trades.tqqq.marketReference', '市场参考')}
@@ -141,24 +141,24 @@ function MarketReference({ marketReference, tt }) {
         <span className="text-[10px] text-white/[0.36]">{tt('trades.tqqq.objectiveOnly', '仅展示客观指标,不定义综合市场状态')}</span>
       </div>
 
-      <div className="grid grid-cols-2 rounded-[17px] border border-white/[0.08] bg-white/[0.025] px-2.5 py-3">
-        <div className="min-w-0 border-r border-white/[0.07] px-2 text-center">
-          <div className="flex min-h-[30px] items-center justify-center text-[10px] leading-[14px] text-white/[0.48]">VIX</div>
+      <div className="grid grid-cols-2 rounded-[17px] border border-white/[0.08] bg-white/[0.025] px-2.5 py-2">
+        <div className="min-w-0 border-r border-white/[0.07] px-2 py-0.5 text-center">
+          <div className="flex min-h-[16px] items-center justify-center text-[10px] leading-[14px] text-white/[0.48]">VIX</div>
           <div className="mt-1 text-[16px] font-normal tabular-nums text-white/[0.94]" style={{ fontFamily: NUMBER_FONT }}>
             {marketReference.vixReady ? marketReference.vixValue.toFixed(1) : '--'}
           </div>
-          <div className="mt-1 min-h-[14px] text-[10px] leading-[14px] text-white/[0.28]">
+          <div className="mt-0.5 min-h-[14px] text-[10px] leading-[14px] text-white/[0.28]">
             {marketReference.vixReady
               ? tt('trades.tqqq.dataAsOf', '数据 {{date}}', { date: marketReference.vixDataDate })
               : tt('trades.tqqq.dataUnavailable', '数据暂不可用')}
           </div>
         </div>
-        <div className="min-w-0 px-2 text-center">
-          <div className="flex min-h-[30px] items-center justify-center text-[10px] leading-[14px] text-white/[0.48]">{tt('trades.tqqq.qqqFromHigh', 'QQQ 距52周高点')}</div>
+        <div className="min-w-0 px-2 py-0.5 text-center">
+          <div className="flex min-h-[16px] items-center justify-center text-[10px] leading-[14px] text-white/[0.48]">{tt('trades.tqqq.qqqFromHigh', 'QQQ 距52周高点')}</div>
           <div className="mt-1 text-[16px] font-normal tabular-nums text-white/[0.94]" style={{ fontFamily: NUMBER_FONT }}>
             {formatPercent(marketReference.qqqDistanceFromHigh, 1)}
           </div>
-          <div className="mt-1 min-h-[14px] text-[10px] leading-[14px] text-[#f6b54b]">
+          <div className="mt-0.5 min-h-[14px] text-[10px] leading-[14px] text-[#f6b54b]">
             {marketReference.qqqReady ? tt('trades.tqqq.objectivePosition', '客观位置参考') : tt('trades.tqqq.dataUnavailable', '数据暂不可用')}
           </div>
         </div>
@@ -301,7 +301,7 @@ export default function TqqqTradeEntryPanel({
           </span>
         </div>
 
-        <div className={`rounded-[17px] border p-3.5 ${resultTone}`}>
+        <div className={`rounded-[17px] border p-3 ${resultTone}`}>
           {side === 'buy' ? (
             <div className="grid grid-cols-4">
               <Metric className="border-r border-white/[0.07]" label={tt('trades.tqqq.currentAllocation', '当前仓位')} value={formatPercent(preview.currentAllocation)} />
@@ -318,8 +318,8 @@ export default function TqqqTradeEntryPanel({
             </div>
           )}
 
-          <div className="mt-3.5 border-t border-white/[0.07] pt-3.5">
-            <div className="mb-2 flex items-center justify-between gap-2 text-[10px] text-white/[0.48]">
+          <div className="mt-3 border-t border-white/[0.07] pt-3">
+            <div className="mb-1.5 flex items-center justify-between gap-2 text-[10px] text-white/[0.48]">
               <span>{tt('trades.tqqq.riskBudgetUsed', '风险预算使用')}</span>
               <span className={side === 'sell' ? 'text-emerald-300' : 'text-white/[0.54]'}>
                 {side === 'sell' && Number.isFinite(currentBudgetPct) && Number.isFinite(preview.afterBudgetUsage)
@@ -327,7 +327,7 @@ export default function TqqqTradeEntryPanel({
                   : tt('trades.tqqq.budgetLimit', '提醒线 10%')}
               </span>
             </div>
-            <div className="relative pt-7">
+            <div className="relative pt-6">
               {displayedBudgetReady && (
                 <span
                   className="absolute top-0 z-[1] min-w-[38px] -translate-x-1/2 rounded-[9px] bg-white/[0.90] px-1.5 py-0.5 text-center text-[10px] font-medium leading-[16px] tabular-nums text-[#202228] shadow-[0_3px_9px_rgba(0,0,0,0.26)]"
@@ -344,7 +344,7 @@ export default function TqqqTradeEntryPanel({
                 />
               </div>
             </div>
-            <div className="mt-2 flex items-center justify-between gap-3 text-[10px] text-white/[0.30]">
+            <div className="mt-1.5 flex items-center justify-between gap-3 text-[10px] text-white/[0.30]">
               <span>{side === 'sell' ? tt('trades.tqqq.beforeSell', '卖出前') : '0%'}</span>
               <PreviewResult preview={preview} tt={tt} />
             </div>

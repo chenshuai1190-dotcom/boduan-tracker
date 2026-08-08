@@ -314,7 +314,10 @@ test('shows objective buy references only and keeps sell focused on the formal h
   assert.ok(panelSource.includes(': preview.currentBudgetUsage;'));
   assert.equal(panelSource.includes('grid grid-cols-2 sm:grid-cols-4'), false);
   assert.equal((panelSource.match(/<div className="grid grid-cols-4">/g) || []).length, 2);
-  assert.ok(panelSource.includes('grid grid-cols-2 rounded-[17px] border border-white/[0.08] bg-white/[0.025]'));
+  assert.ok(panelSource.includes('grid grid-cols-2 rounded-[17px] border border-white/[0.08] bg-white/[0.025] px-2.5 py-2'));
+  assert.ok(panelSource.includes('flex min-h-[16px] items-center justify-center text-[10px]'));
+  assert.equal(panelSource.includes('min-h-[30px]'), false);
+  assert.ok(panelSource.includes('rounded-[17px] border p-3 ${resultTone}'));
   assert.ok(panelSource.includes('style={{ left: `clamp(22px, ${displayedBudgetPct}%, calc(100% - 22px))` }}'));
   assert.ok(panelSource.includes('{displayedBudgetLabel}'));
   assert.ok(panelSource.includes('style={{ width: `${displayedBudgetPct}%` }}'));

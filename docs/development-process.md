@@ -20,8 +20,8 @@
 | 任务 | 正常目标 |
 | --- | --- |
 | 精确的小型 UI / 文案，本地完成 | `3–5 分钟` |
-| UI 加一次最终 Simulator 截图 | `5–8 分钟` |
-| UI、最终截图并完成上线核验 | `6–10 分钟` |
+| UI 加一次最终 Simulator `@3x` 无损 PNG | `5–8 分钟` |
+| UI、最终 `@3x` 无损 PNG 并完成上线核验 | `6–10 分钟` |
 | 多页面或需要一次视觉修正的布局 | `10–15 分钟` |
 
 - 预计超过 `10 分钟`时，先说明具体卡点和下一步，不得无状态地继续消耗时间。
@@ -132,9 +132,19 @@ contract migration 不得在新 runtime 前执行；foundation、runtime、contr
 - 纯文案、颜色、图标和简单样式不默认截图；用户要求截图时纳入同一任务，不等待再次提醒。
 - 复用已经启动的 Vite 服务和 QA Simulator；固定使用 `127.0.0.1` / localhost，不为普通页面反复创建新设备。
 - 普通布局通过本机真实 Xcode iOS Simulator Safari 验收；PWA lifecycle、缓存、resume 和实时恢复必须使用已安装的 Home Screen PWA。
+- QA 设备必须是 `@3x` iPhone；统一使用 Simulator 原生屏幕截图能力导出 Simulator 直接生成、未经二次压缩、转码或缩放的原始整屏无损 PNG，不截取 macOS 上的 Simulator 应用窗口。先确认只有目标 QA 设备处于 `Booted`；如同时启动多个设备，必须把命令中的 `booted` 换成目标设备 UDID。标准命令为：
+
+```bash
+xcrun simctl list devices booted
+ios_acceptance_png="/tmp/boduan-ios-acceptance-$(date +%Y%m%d-%H%M%S).png"
+xcrun simctl io booted screenshot --type=png "$ios_acceptance_png"
+sips -g pixelWidth -g pixelHeight -g format "$ios_acceptance_png"
+```
+
+- 交付前必须确认 `format: png`，且像素尺寸等于设备逻辑屏幕尺寸的 3 倍；例如 `402×874 pt` 必须得到 `1206×2622 px`。对话中的缩略预览不能替代原始 PNG 文件。
 - 一次只截图受影响页面和必要的窄宽度边界；不对无关页面或每个中间 patch 重复截图。
 - 不得仅为截图临时改写 Auth、路由或产品逻辑。确需新增稳定 preview fixture 时，把它作为正式可测试的开发基础设施单独实现。
-- 桌面浏览器、响应式视口、Codex 内置浏览器和伪造 iOS 状态栏不能冒充 iOS 证据。
+- 桌面浏览器、响应式视口、Codex 内置浏览器、浏览器 `deviceScaleFactor`、`1x` 图片放大、JPEG/WebP 改后缀、二次缩放和伪造 iOS 状态栏不能冒充 iOS 证据。
 
 ## 七、发布只调用一次等待器
 

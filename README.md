@@ -113,7 +113,8 @@ npm run release:verify -- <docs|fast|full> <commit> # 一次等待发布结果
 - 盘中动态价格优先使用已登录 WebSocket；历史日线等已完成收盘数据必须按 `symbol + 最新已完成收盘日` 缓存，同一收盘版本不得被 10 秒轮询、focus、pageshow 或 tab 切换反复读取。Provider 额度异常必须熔断并保留最近有效数据，禁止用 `0` 覆盖。
 - 股票趋势的 MA50（周）与 MA200（日/周）只能使用已完成收盘数据；进行中交易周不得推进周线均值、趋势状态或连续周数，盘中价不得改变正式信号。
 - 核心体验使用应用内受控弹窗、菜单和 toast，不使用 `alert`、`confirm`、`prompt` 承载正式流程。
-- 需要交付静态 HTML 或页面截图作为视觉证据时，必须通过 localhost 在本机真实 Xcode iOS Simulator 中打开，并只对最终状态和受影响页面验收一次。普通布局使用 Safari；PWA lifecycle、缓存和恢复必须使用已安装的 Home Screen PWA。复用已启动的服务与 Simulator，不得用桌面浏览器、响应式视口、Codex 内置浏览器或伪造状态栏冒充 iOS 证据。纯文案、颜色、图标和简单样式不强制截图。
+- 需要交付静态 HTML 或页面截图作为视觉证据时，必须通过 `127.0.0.1` / localhost 的本机服务在真实 Xcode iOS Simulator 中打开，并只对最终状态和受影响页面验收一次。普通布局使用 Simulator Safari；PWA lifecycle、缓存和恢复必须使用已安装的 Home Screen PWA。纯文案、颜色、图标和简单样式不默认截图。
+- 凡需视觉验收或用户要求截图，统一使用 Simulator 原生屏幕截图能力，在 `@3x` iPhone 上导出并交付 Simulator 直接生成、未经二次压缩、转码或缩放的原始整屏无损 PNG；交付前必须核验真实格式为 PNG，且像素尺寸等于设备逻辑屏幕尺寸的 3 倍，例如 `402×874 pt` 对应 `1206×2622 px`。不得用桌面浏览器、响应式视口、Codex 内置浏览器、浏览器 `deviceScaleFactor`、macOS 上的 Simulator 窗口截图、`1x` 图片放大、JPEG/WebP 改后缀或伪造状态栏冒充 iOS 证据。
 
 ## 环境变量
 
