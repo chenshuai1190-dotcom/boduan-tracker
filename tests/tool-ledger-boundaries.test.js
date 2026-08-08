@@ -2139,7 +2139,8 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal((reviewTabSource.match(/tt\('review\.yearEnd', '年底目标'\)/g) || []).length, 2, 'current and projected annual cards should label the ending balance as the year-end target');
   assert.ok(i18nSource.includes("'review.yearStart': 'Year Start'"), 'English annual cards should include the year-start label');
   assert.ok(i18nSource.includes("'review.yearEnd': 'Year-End Target'"), 'English annual cards should include the year-end target label');
-  assert.ok(reviewTabSource.includes('plannedStartBalance'), 'future year cards should show the prior planned target start');
+  assert.equal(reviewTabSource.includes('plannedStartBalance'), false, 'future year cards should not substitute the prior planned target for the carried end balance');
+  assert.equal((reviewTabSource.match(/\{money\(yearItem\.startBalance\)\}/g) || []).length, 3, 'current and future annual paths should display the same carried year-start balance used by calculations');
   assert.ok(reviewTabSource.includes('amount: money(ageGoalAmountExact)'), 'plan settings summary should use the same exact two-decimal target as the north-star card');
   assert.ok(reviewTabSource.includes('border-dashed border-[#f6b54b]/35'), 'annual goal list expand button should keep its reference accent');
   assert.ok(reviewTabSource.includes('mb-4 flex min-h-10 items-center justify-between gap-4'), 'discipline section title row should align with the add button');

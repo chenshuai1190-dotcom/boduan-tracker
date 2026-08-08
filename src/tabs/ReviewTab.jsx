@@ -809,7 +809,6 @@ export default function ReviewTab({ ctx }) {
 
         <div className="space-y-3">
           {visibleYears.map((yearItem) => {
-            const yearIndex = yearlyFinal.findIndex((item) => item.year === yearItem.year);
             const isCurrent = yearItem.year === thisYear;
             const hasActual = yearItem.actualGain !== null;
             const diff = hasActual ? yearItem.actualGain - yearItem.planTarget : null;
@@ -828,10 +827,6 @@ export default function ReviewTab({ ctx }) {
               ? tt('review.notStarted', '未开始')
               : isOverTarget ? tt('review.reached', '达标') : tt('review.behind', '未达');
             const currentYearTarget = yearItem.startBalance + yearItem.planTarget;
-            const previousYear = yearIndex > 0 ? yearlyFinal[yearIndex - 1] : null;
-            const plannedStartBalance = previousYear
-              ? (previousYear.year === thisYear ? previousYear.startBalance + previousYear.planTarget : previousYear.endBalance)
-              : startCapital;
 
             if (isCurrent) {
               return (
@@ -933,7 +928,7 @@ export default function ReviewTab({ ctx }) {
                 <div className="mt-3 grid grid-cols-[1fr_auto_1fr] items-center rounded-2xl border border-white/[0.06] bg-black/15 px-3 py-3">
                   <div>
                     <div className="text-[11px] text-white/38">{tt('review.yearStart', '年初起点')}</div>
-                    <div className="mt-1 text-[12px] font-normal text-white/35 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{money(plannedStartBalance)}</div>
+                    <div className="mt-1 text-[12px] font-normal text-white/35 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{money(yearItem.startBalance)}</div>
                   </div>
                   <div className="px-4 text-white/25">→</div>
                   <div className="text-right">
@@ -956,7 +951,7 @@ export default function ReviewTab({ ctx }) {
                     <span className="h-2 w-2 rounded-full bg-white" />
                   </div>
                   <div className="mt-1 flex justify-between text-[11px] text-white/35">
-                    <span>{money(plannedStartBalance)}</span>
+                    <span>{money(yearItem.startBalance)}</span>
                     <span>{money(yearItem.endBalance)}</span>
                   </div>
                 </div>
