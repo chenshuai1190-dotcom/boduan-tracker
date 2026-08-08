@@ -4,6 +4,19 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '📊 TQQQ风险预算进度与当前仓位保持同步',
+      '  - 尚未输入交易时，进度条使用当前TQQQ仓位占10%提醒线的比例；输入完成后自动切换为交易后仓位占用',
+      '  - 未形成的“本次交易后”和“距提醒线”显示为不可用，不再将空值错误显示成0.0%；仓位计算与交易保存逻辑不变',
+    ],
+    itemsEn: [
+      '📊 TQQQ risk-budget progress now stays aligned with the current allocation',
+      '  - Before trade input is complete, the bar uses the current TQQQ allocation relative to the 10% advisory line; it switches to projected post-trade usage once input is ready',
+      '  - Unformed post-trade and remaining-capacity values now show as unavailable instead of incorrectly appearing as 0.0%; allocation and trade-save logic are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.433', date: '2026-08-08',
+    items: [
       '🎛️ TQQQ买入面板进一步精简视觉分隔',
       '  - 删除市场参考与日期之间的分割线，保留原有间距；卖出页的必要分隔及全部交易逻辑保持不变',
     ],

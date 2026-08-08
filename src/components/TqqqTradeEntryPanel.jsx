@@ -29,7 +29,9 @@ function formatUsd(value) {
 }
 
 function formatPercent(value, digits = 1) {
-  return Number.isFinite(Number(value)) ? `${(Number(value) * 100).toFixed(digits)}%` : '--';
+  if (value === null || value === undefined || value === '') return '--';
+  const number = Number(value);
+  return Number.isFinite(number) ? `${(number * 100).toFixed(digits)}%` : '--';
 }
 
 function formatShares(value) {
@@ -177,8 +179,11 @@ export default function TqqqTradeEntryPanel({
 }) {
   const side = draft?.side === 'sell' ? 'sell' : 'buy';
   const logoUrls = stockLogoCandidates('TQQQ', logoCache?.TQQQ?.url);
-  const afterBudgetPct = Number.isFinite(preview.afterBudgetUsage)
-    ? Math.min(100, Math.max(0, preview.afterBudgetUsage * 100))
+  const displayedBudgetUsage = Number.isFinite(preview.afterBudgetUsage)
+    ? preview.afterBudgetUsage
+    : preview.currentBudgetUsage;
+  const displayedBudgetPct = Number.isFinite(displayedBudgetUsage)
+    ? Math.min(100, Math.max(0, displayedBudgetUsage * 100))
     : 0;
   const currentBudgetPct = Number.isFinite(preview.currentBudgetUsage)
     ? Math.max(0, preview.currentBudgetUsage * 100)
@@ -320,7 +325,7 @@ export default function TqqqTradeEntryPanel({
             <div className="h-2 overflow-hidden rounded-full bg-white/[0.09]">
               <div
                 className={`h-full rounded-full transition-[width] ${preview.hardBlocked ? 'bg-[#eb5360]' : (preview.overLimit ? 'bg-[#f6b54b]' : 'bg-[linear-gradient(90deg,#32d06b,#c9ce59_72%,#f6b54b)]')}`}
-                style={{ width: `${afterBudgetPct}%` }}
+                style={{ width: `${displayedBudgetPct}%` }}
               />
             </div>
             <div className="mt-2 flex items-center justify-between gap-3 text-[10px] text-white/[0.30]">

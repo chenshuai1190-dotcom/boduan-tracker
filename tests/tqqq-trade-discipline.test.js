@@ -95,6 +95,24 @@ test('projected allocation follows shared valuation price rather than entered ex
   assert.notEqual(cheap.amountUsd, expensive.amountUsd);
 });
 
+test('keeps the current budget usage available while a new trade is still incomplete', () => {
+  const stockTrades = [
+    { id: 't1', symbol: 'TQQQ', side: 'buy', date: '2026-08-01', price: 80, shares: 12 },
+    { id: 'a1', symbol: 'AAPL', side: 'buy', date: '2026-08-01', price: 90, shares: 988 },
+  ];
+  const incomplete = preview({
+    stockTrades,
+    draft: { symbol: 'TQQQ', side: 'buy', date: '2026-08-08', price: '', shares: '' },
+  });
+
+  assert.equal(incomplete.inputReady, false);
+  assert.equal(Number(incomplete.currentAllocation.toFixed(3)), 0.012);
+  assert.equal(Number(incomplete.currentBudgetUsage.toFixed(2)), 0.12);
+  assert.equal(incomplete.afterAllocation, null);
+  assert.equal(incomplete.afterBudgetUsage, null);
+  assert.equal(incomplete.remainingAllocation, null);
+});
+
 test('previews partial and full sells and rejects overselling instead of accepting the clamped result', () => {
   const stockTrades = [
     { id: 't1', symbol: 'TQQQ', side: 'buy', date: '2026-08-01', price: 80, shares: 100 },
@@ -292,6 +310,9 @@ test('shows objective buy references only and keeps sell focused on the formal h
   assert.equal(panelSource.includes("tt('trades.tqqq.buyRules'"), false);
   assert.equal(panelSource.includes('>1</span>'), false);
   assert.equal(panelSource.includes('>2</span>'), false);
+  assert.ok(panelSource.includes("if (value === null || value === undefined || value === '') return '--';"));
+  assert.ok(panelSource.includes(': preview.currentBudgetUsage;'));
+  assert.ok(panelSource.includes('style={{ width: `${displayedBudgetPct}%` }}'));
   assert.ok(panelSource.includes("className={side === 'buy' ? 'pt-3' : 'border-t border-white/[0.08] pt-3'}"));
   assert.ok(panelSource.includes('tqqq-trade-date-input appearance-none pl-9 pr-9 text-center'));
   assert.equal(panelSource.includes('text-[23px]'), false);
