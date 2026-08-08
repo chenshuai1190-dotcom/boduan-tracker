@@ -298,6 +298,11 @@ test('keeps the dedicated UI isolated to formal TQQQ while preserving generic bu
   assert.ok(appSource.includes('const tqqqValidation = deriveTqqqTradePreview({'));
   assert.ok(appSource.indexOf("if (tradeEntryScope === 'wave')") < appSource.indexOf('const tqqqValidation = deriveTqqqTradePreview({'));
   assert.ok(actionModalSource.includes("${action.className || ''}"));
+  assert.ok(panelSource.includes('export const TQQQ_ACTION_TONE_CLASSES'));
+  assert.ok(panelSource.includes('bg-[linear-gradient(135deg,#10b981,#059669)]'));
+  assert.ok(panelSource.includes('bg-[linear-gradient(135deg,#eb5360,#d63c4a)]'));
+  assert.ok(tradesTabSource.includes("TQQQ_ACTION_TONE_CLASSES[newTrade.side === 'sell' ? 'sell' : 'buy'].confirm"));
+  assert.equal(tradesTabSource.includes('!bg-[linear-gradient(135deg,#7c3ff2,#5d2bd0)]'), false);
   assert.ok(tradesTabSource.includes("tt('trades.tqqq.confirmAnyway', '仍然买入')"));
   assert.ok(disciplineSource.includes('const hardBlocked = invalidShares || oversold || breaksLedger;'));
   assert.ok(tradesTabSource.includes("tt('trades.tqqq.confirmUnavailableTitle'"));

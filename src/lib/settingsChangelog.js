@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '🎨 TQQQ买卖操作按钮按交易方向统一配色',
+      '  - 顶部买入选择与底部确认买入统一为绿色，顶部卖出选择与底部确认卖出统一为红色',
+      '  - 两处共用同一套方向色配置，避免后续调整时再次出现颜色分叉',
+      '  - 本次仅调整TQQQ专属呈现；交易校验、保存、仓位、市场配色设置和其他股票均不改变',
+    ],
+    itemsEn: [
+      '🎨 TQQQ buy and sell actions now share direction-consistent colors',
+      '  - The top Buy selection and bottom Confirm Buy action are both green, while the Sell selection and Confirm Sell action are both red',
+      '  - Both locations now share the same direction-tone configuration so future refinements cannot drift apart',
+      '  - This is limited to the TQQQ presentation; validation, saving, allocation, market-color preferences, and other stocks are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.436', date: '2026-08-08',
+    items: [
       '🎛️ TQQQ交易检查与市场参考进一步收紧纵向高度',
       '  - 交易前检查同步缩小四列标签、卡片内边距和进度条上下间距，保持现有一行四列与全部数值口径',
       '  - 市场参考按相同比例收紧VIX与QQQ的标签和说明区域，使两个模块保持一致的视觉密度',

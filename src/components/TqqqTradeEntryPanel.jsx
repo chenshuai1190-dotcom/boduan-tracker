@@ -14,6 +14,17 @@ const NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pr
 const INPUT_CLASS = 'block h-[46px] w-full min-w-0 rounded-xl border border-white/[0.08] bg-white/[0.055] px-3.5 text-[14px] font-normal tabular-nums text-white outline-none transition placeholder:text-white/[0.28] focus:border-[#7c3ff2]/70 focus:bg-white/[0.075]';
 const LABEL_CLASS = 'mb-1.5 block text-[12px] font-normal text-white/[0.60]';
 
+export const TQQQ_ACTION_TONE_CLASSES = Object.freeze({
+  buy: Object.freeze({
+    selected: 'bg-[linear-gradient(135deg,#10b981,#059669)] text-white shadow-[0_6px_18px_rgba(16,185,129,0.22)]',
+    confirm: '!bg-[linear-gradient(135deg,#10b981,#059669)] !shadow-[0_10px_30px_rgba(16,185,129,0.24)]',
+  }),
+  sell: Object.freeze({
+    selected: 'bg-[linear-gradient(135deg,#eb5360,#d63c4a)] text-white shadow-[0_6px_18px_rgba(235,83,96,0.22)]',
+    confirm: '!bg-[linear-gradient(135deg,#eb5360,#d63c4a)] !shadow-[0_10px_30px_rgba(235,83,96,0.24)]',
+  }),
+});
+
 function numberValue(value) {
   const number = Number(value);
   return Number.isFinite(number) ? number : 0;
@@ -220,9 +231,7 @@ export default function TqqqTradeEntryPanel({
         <div className="grid shrink-0 grid-cols-2 gap-1 rounded-[14px] border border-white/[0.08] bg-black/[0.18] p-1 sm:w-[220px]">
           {['buy', 'sell'].map((option) => {
             const selected = side === option;
-            const selectedClass = option === 'buy'
-              ? 'bg-emerald-500 text-white shadow-[0_6px_18px_rgba(16,185,129,0.18)]'
-              : 'bg-[#eb5360] text-white shadow-[0_6px_18px_rgba(235,83,96,0.20)]';
+            const selectedClass = TQQQ_ACTION_TONE_CLASSES[option].selected;
             return (
               <button
                 key={option}

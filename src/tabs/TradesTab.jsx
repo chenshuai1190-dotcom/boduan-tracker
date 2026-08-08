@@ -21,7 +21,7 @@ import ActionModalCard from '../components/ActionModalCard.jsx';
 import AccountLeverageBadge from '../components/AccountLeverageBadge.jsx';
 import AvailableCashEditor from '../components/AvailableCashEditor.jsx';
 import StockLogo, { stockLogoCandidates } from '../components/StockLogo.jsx';
-import TqqqTradeEntryPanel from '../components/TqqqTradeEntryPanel.jsx';
+import TqqqTradeEntryPanel, { TQQQ_ACTION_TONE_CLASSES } from '../components/TqqqTradeEntryPanel.jsx';
 
 const PORTFOLIO_CURRENCY_STORAGE_KEY = 'xmoney_portfolio_currency';
 const TRADE_CURRENCY_STORAGE_KEY = 'xmoney_trade_currency';
@@ -2199,7 +2199,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                 : (newTrade.side === 'sell' ? tt('trades.tqqq.confirmSell', '确认卖出') : tt('trades.tqqq.confirmBuy', '确认买入')),
               disabled: tradeSubmitting || (tqqqTradePreview.inputReady && tqqqTradePreview.hardBlocked),
               onClick: () => confirmTradeSubmit(newTrade.side === 'sell' ? 'sell' : 'buy'),
-              className: '!h-[46px] !rounded-[13px] !border-transparent !bg-[linear-gradient(135deg,#7c3ff2,#5d2bd0)] !text-[14px] !text-white !shadow-[0_10px_30px_rgba(93,43,208,0.24)] disabled:!opacity-40',
+              className: `!h-[46px] !rounded-[13px] !border-transparent !text-[14px] !text-white ${TQQQ_ACTION_TONE_CLASSES[newTrade.side === 'sell' ? 'sell' : 'buy'].confirm} disabled:!opacity-40`,
             }] : [
               { key: 'buy', label: tradeSubmitting ? tt('trades.saving', '保存中...') : tt('trades.buy', '买入'), disabled: tradeSubmitting, onClick: () => confirmTradeSubmit('buy') },
               { key: 'sell', label: tradeSubmitting ? tt('trades.saving', '保存中...') : tt('trades.sell', '卖出'), disabled: tradeSubmitting, onClick: () => confirmTradeSubmit('sell') },
