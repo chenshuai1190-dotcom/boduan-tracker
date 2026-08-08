@@ -39,14 +39,13 @@ function formatShares(value) {
   return number.toLocaleString('en-US', { maximumFractionDigits: 6 });
 }
 
-function Metric({ label, note, value, valueClassName = '', className = '' }) {
+function Metric({ label, value, valueClassName = '', className = '' }) {
   return (
-    <div className={`min-w-0 px-2.5 py-2 text-center ${className}`}>
-      <div className="min-h-[34px] text-[11px] font-normal leading-[16px] text-white/[0.58]">
-        <span className="block">{label}</span>
-        <span className="block text-[10px] text-white/[0.30]">{note}</span>
+    <div className={`min-w-0 px-1 py-1 text-center ${className}`}>
+      <div className="flex min-h-[30px] items-center justify-center text-[10px] font-normal leading-[14px] text-white/[0.54]">
+        {label}
       </div>
-      <div className={`mt-1 whitespace-nowrap text-[16px] font-normal tabular-nums text-white/[0.92] ${valueClassName}`} style={{ fontFamily: NUMBER_FONT }}>
+      <div className={`mt-1.5 whitespace-nowrap text-[16px] font-normal tabular-nums text-white/[0.92] ${valueClassName}`} style={{ fontFamily: NUMBER_FONT }}>
         {value}
       </div>
     </div>
@@ -142,22 +141,24 @@ function MarketReference({ marketReference, tt }) {
         <span className="text-[10px] text-white/[0.36]">{tt('trades.tqqq.objectiveOnly', '仅展示客观指标,不定义综合市场状态')}</span>
       </div>
 
-      <div className="grid grid-cols-2 gap-2.5">
-        <div className="rounded-[15px] border border-white/[0.08] bg-white/[0.035] px-3 py-3.5 text-center">
-          <div className="text-[11px] text-white/[0.48]">VIX</div>
+      <div className="grid grid-cols-2 rounded-[17px] border border-white/[0.08] bg-white/[0.025] px-2.5 py-3">
+        <div className="min-w-0 border-r border-white/[0.07] px-2 text-center">
+          <div className="flex min-h-[30px] items-center justify-center text-[10px] leading-[14px] text-white/[0.48]">VIX</div>
           <div className="mt-1 text-[16px] font-normal tabular-nums text-white/[0.94]" style={{ fontFamily: NUMBER_FONT }}>
             {marketReference.vixReady ? marketReference.vixValue.toFixed(1) : '--'}
           </div>
-          {marketReference.vixReady && (
-            <div className="mt-1 text-[10px] text-white/[0.28]">{tt('trades.tqqq.dataAsOf', '数据 {{date}}', { date: marketReference.vixDataDate })}</div>
-          )}
+          <div className="mt-1 min-h-[14px] text-[10px] leading-[14px] text-white/[0.28]">
+            {marketReference.vixReady
+              ? tt('trades.tqqq.dataAsOf', '数据 {{date}}', { date: marketReference.vixDataDate })
+              : tt('trades.tqqq.dataUnavailable', '数据暂不可用')}
+          </div>
         </div>
-        <div className="rounded-[15px] border border-white/[0.08] bg-white/[0.035] px-3 py-3.5 text-center">
-          <div className="text-[11px] text-white/[0.48]">{tt('trades.tqqq.qqqFromHigh', 'QQQ 距52周高点')}</div>
+        <div className="min-w-0 px-2 text-center">
+          <div className="flex min-h-[30px] items-center justify-center text-[10px] leading-[14px] text-white/[0.48]">{tt('trades.tqqq.qqqFromHigh', 'QQQ 距52周高点')}</div>
           <div className="mt-1 text-[16px] font-normal tabular-nums text-white/[0.94]" style={{ fontFamily: NUMBER_FONT }}>
             {formatPercent(marketReference.qqqDistanceFromHigh, 1)}
           </div>
-          <div className="mt-0.5 text-[10px] text-[#f6b54b]">
+          <div className="mt-1 min-h-[14px] text-[10px] leading-[14px] text-[#f6b54b]">
             {marketReference.qqqReady ? tt('trades.tqqq.objectivePosition', '客观位置参考') : tt('trades.tqqq.dataUnavailable', '数据暂不可用')}
           </div>
         </div>
@@ -182,9 +183,13 @@ export default function TqqqTradeEntryPanel({
   const displayedBudgetUsage = Number.isFinite(preview.afterBudgetUsage)
     ? preview.afterBudgetUsage
     : preview.currentBudgetUsage;
-  const displayedBudgetPct = Number.isFinite(displayedBudgetUsage)
+  const displayedBudgetReady = Number.isFinite(displayedBudgetUsage);
+  const displayedBudgetPct = displayedBudgetReady
     ? Math.min(100, Math.max(0, displayedBudgetUsage * 100))
     : 0;
+  const displayedBudgetLabel = displayedBudgetReady
+    ? `${Math.round(displayedBudgetUsage * 100)}%`
+    : '--';
   const currentBudgetPct = Number.isFinite(preview.currentBudgetUsage)
     ? Math.max(0, preview.currentBudgetUsage * 100)
     : null;
@@ -298,18 +303,18 @@ export default function TqqqTradeEntryPanel({
 
         <div className={`rounded-[17px] border p-3.5 ${resultTone}`}>
           {side === 'buy' ? (
-            <div className="grid grid-cols-2 sm:grid-cols-4">
-              <Metric className="border-b border-r border-white/[0.07] sm:border-b-0" label={tt('trades.tqqq.currentAllocation', '当前TQQQ仓位')} note={tt('trades.tqqq.sameAsTrades', '与交易页一致')} value={formatPercent(preview.currentAllocation)} />
-              <Metric className="border-b border-white/[0.07] sm:border-b-0 sm:border-r" label={tt('trades.tqqq.afterTrade', '本次交易后')} note={tt('trades.tqqq.sameSystemPreview', '同一仓位系统预演')} value={formatPercent(preview.afterAllocation)} />
-              <Metric className="border-r border-white/[0.07]" label={tt('trades.tqqq.disciplineLimit', '纪律提醒线')} note={tt('trades.tqqq.cannotExceed', '建议控制')} value="10.0%" />
-              <Metric label={tt('trades.tqqq.remainingCapacity', '距提醒线')} note={tt('trades.tqqq.limitMinusAfter', '提醒线减交易后')} value={formatPercent(preview.remainingAllocation)} valueClassName={preview.overLimit || preview.allocationUnavailable ? 'text-[#f6b54b]' : 'text-emerald-300'} />
+            <div className="grid grid-cols-4">
+              <Metric className="border-r border-white/[0.07]" label={tt('trades.tqqq.currentAllocation', '当前仓位')} value={formatPercent(preview.currentAllocation)} />
+              <Metric className="border-r border-white/[0.07]" label={tt('trades.tqqq.afterTrade', '交易后')} value={formatPercent(preview.afterAllocation)} />
+              <Metric className="border-r border-white/[0.07]" label={tt('trades.tqqq.disciplineLimit', '提醒线')} value="10.0%" />
+              <Metric label={tt('trades.tqqq.remainingCapacity', '距提醒线')} value={formatPercent(preview.remainingAllocation)} valueClassName={preview.overLimit || preview.allocationUnavailable ? 'text-[#f6b54b]' : 'text-emerald-300'} />
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-4">
-              <Metric className="border-b border-r border-white/[0.07] sm:border-b-0" label={tt('trades.tqqq.currentAllocation', '当前TQQQ仓位')} note={tt('trades.tqqq.sameAsTrades', '与交易页一致')} value={formatPercent(preview.currentAllocation)} />
-              <Metric className="border-b border-white/[0.07] sm:border-b-0 sm:border-r" label={tt('trades.tqqq.thisSell', '本次卖出')} note={tt('trades.tqqq.enteredShares', '输入股数')} value={`${formatShares(preview.requestedShares)}${tt('trades.shares', '股')}`} />
-              <Metric className="border-r border-white/[0.07]" label={tt('trades.tqqq.afterSellRemaining', '卖出后剩余')} note={tt('trades.tqqq.sameHoldingsPreview', '同一持仓系统预演')} value={preview.oversold ? '--' : `${formatShares(preview.remainingShares)}${tt('trades.shares', '股')}`} />
-              <Metric label={tt('trades.tqqq.afterSellAllocation', '卖出后仓位')} note={tt('trades.tqqq.projectedDecrease', '预计降至')} value={preview.oversold ? '--' : formatPercent(preview.afterAllocation)} valueClassName="text-emerald-300" />
+            <div className="grid grid-cols-4">
+              <Metric className="border-r border-white/[0.07]" label={tt('trades.tqqq.currentAllocation', '当前仓位')} value={formatPercent(preview.currentAllocation)} />
+              <Metric className="border-r border-white/[0.07]" label={tt('trades.tqqq.thisSell', '本次卖出')} value={`${formatShares(preview.requestedShares)}${tt('trades.shares', '股')}`} />
+              <Metric className="border-r border-white/[0.07]" label={tt('trades.tqqq.afterSellRemaining', '剩余股数')} value={preview.oversold ? '--' : `${formatShares(preview.remainingShares)}${tt('trades.shares', '股')}`} />
+              <Metric label={tt('trades.tqqq.afterSellAllocation', '卖出后仓位')} value={preview.oversold ? '--' : formatPercent(preview.afterAllocation)} valueClassName="text-emerald-300" />
             </div>
           )}
 
@@ -322,11 +327,22 @@ export default function TqqqTradeEntryPanel({
                   : tt('trades.tqqq.budgetLimit', '提醒线 10%')}
               </span>
             </div>
-            <div className="h-2 overflow-hidden rounded-full bg-white/[0.09]">
-              <div
-                className={`h-full rounded-full transition-[width] ${preview.hardBlocked ? 'bg-[#eb5360]' : (preview.overLimit ? 'bg-[#f6b54b]' : 'bg-[linear-gradient(90deg,#32d06b,#c9ce59_72%,#f6b54b)]')}`}
-                style={{ width: `${displayedBudgetPct}%` }}
-              />
+            <div className="relative pt-7">
+              {displayedBudgetReady && (
+                <span
+                  className="absolute top-0 z-[1] min-w-[38px] -translate-x-1/2 rounded-[9px] bg-white/[0.90] px-1.5 py-0.5 text-center text-[10px] font-medium leading-[16px] tabular-nums text-[#202228] shadow-[0_3px_9px_rgba(0,0,0,0.26)]"
+                  style={{ left: `clamp(22px, ${displayedBudgetPct}%, calc(100% - 22px))` }}
+                >
+                  {displayedBudgetLabel}
+                  <span className="absolute bottom-[-3px] left-1/2 h-1.5 w-1.5 -translate-x-1/2 rotate-45 bg-white/[0.90]" />
+                </span>
+              )}
+              <div className="h-2 overflow-hidden rounded-full bg-white/[0.09]">
+                <div
+                  className={`h-full rounded-full transition-[width] ${preview.hardBlocked ? 'bg-[#eb5360]' : (preview.overLimit ? 'bg-[#f6b54b]' : 'bg-[linear-gradient(90deg,#32d06b,#c9ce59_72%,#f6b54b)]')}`}
+                  style={{ width: `${displayedBudgetPct}%` }}
+                />
+              </div>
             </div>
             <div className="mt-2 flex items-center justify-between gap-3 text-[10px] text-white/[0.30]">
               <span>{side === 'sell' ? tt('trades.tqqq.beforeSell', '卖出前') : '0%'}</span>

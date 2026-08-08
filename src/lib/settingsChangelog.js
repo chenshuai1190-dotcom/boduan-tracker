@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '🎛️ TQQQ交易检查与市场参考统一为紧凑横向布局',
+      '  - 买入和卖出检查在移动端固定一行四列，移除重复辅助说明，保留同一正式仓位、持仓和提醒线计算',
+      '  - 风险预算进度条新增跟随填充位置的真实占用百分比；超过提醒线时保留真实数值且继续只提醒、不强制阻止买入',
+      '  - VIX与QQQ合并到同一个市场参考卡片中左右排列；本次仅调整TQQQ专属界面，不改变行情请求、交易保存或其他股票',
+    ],
+    itemsEn: [
+      '🎛️ TQQQ trade checks and market references now share a compact horizontal layout',
+      '  - Buy and sell checks stay in one four-column row on mobile, with repetitive helper copy removed while preserving the same official allocation, holdings, and advisory calculations',
+      '  - The risk-budget bar now shows the actual usage percentage at the fill position; values above the advisory line remain visible and continue to warn without forcibly blocking a buy',
+      '  - VIX and QQQ now share one two-column market-reference card; this release changes only the TQQQ interface, with no quote request, trade-save, or other-stock changes',
+    ],
+  },
+  {
+    ver: 'v10.7.9.434', date: '2026-08-08',
+    items: [
       '📊 TQQQ风险预算进度与当前仓位保持同步',
       '  - 尚未输入交易时，进度条使用当前TQQQ仓位占10%提醒线的比例；输入完成后自动切换为交易后仓位占用',
       '  - 未形成的“本次交易后”和“距提醒线”显示为不可用，不再将空值错误显示成0.0%；仓位计算与交易保存逻辑不变',

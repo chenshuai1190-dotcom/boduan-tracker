@@ -312,6 +312,11 @@ test('shows objective buy references only and keeps sell focused on the formal h
   assert.equal(panelSource.includes('>2</span>'), false);
   assert.ok(panelSource.includes("if (value === null || value === undefined || value === '') return '--';"));
   assert.ok(panelSource.includes(': preview.currentBudgetUsage;'));
+  assert.equal(panelSource.includes('grid grid-cols-2 sm:grid-cols-4'), false);
+  assert.equal((panelSource.match(/<div className="grid grid-cols-4">/g) || []).length, 2);
+  assert.ok(panelSource.includes('grid grid-cols-2 rounded-[17px] border border-white/[0.08] bg-white/[0.025]'));
+  assert.ok(panelSource.includes('style={{ left: `clamp(22px, ${displayedBudgetPct}%, calc(100% - 22px))` }}'));
+  assert.ok(panelSource.includes('{displayedBudgetLabel}'));
   assert.ok(panelSource.includes('style={{ width: `${displayedBudgetPct}%` }}'));
   assert.ok(panelSource.includes("className={side === 'buy' ? 'pt-3' : 'border-t border-white/[0.08] pt-3'}"));
   assert.ok(panelSource.includes('tqqq-trade-date-input appearance-none pl-9 pr-9 text-center'));
