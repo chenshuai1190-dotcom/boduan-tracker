@@ -278,3 +278,15 @@ export function deriveInvestmentSummary({
     usdRate: rate,
   };
 }
+
+export function derivePositionAllocation(summary, symbol) {
+  const normalizedSymbol = normalizeSymbol(symbol);
+  if (!normalizedSymbol) return null;
+  const position = (summary?.activePositions || []).find((row) => row?.symbol === normalizedSymbol);
+  if (!position) return 0;
+  const positionsMarketValue = Number(summary?.positionsMarketValue);
+  const marketValue = Number(position?.marketValue);
+  if (!Number.isFinite(positionsMarketValue) || positionsMarketValue <= 0) return null;
+  if (!Number.isFinite(marketValue) || marketValue < 0) return null;
+  return marketValue / positionsMarketValue;
+}

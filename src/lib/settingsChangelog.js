@@ -4,6 +4,23 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '🛡️ 正式交易新增TQQQ专属买卖纪律面板',
+      '  - 仅正式交易账本中的TQQQ启用专属界面；其他股票、TQQQ波段记录及其他独立工具保持原逻辑与原界面',
+      '  - 当前与交易后仓位直接复用交易页同一正式账本、完成收盘估值和持仓占比口径，不新增第二套仓位计算',
+      '  - TQQQ买入以10%作为仓位纪律提醒线，超过后明确二次确认但仍允许用户自主买入；VIX与QQQ距52周高点仅作客观参考，不展示市场广度、综合状态或最大回撤',
+      '  - TQQQ卖出隐藏买入信号，不受10%提醒线影响，但会按完整日期账本校验可卖股数并阻止超卖；本次不新增数据库、行情请求或外部数据源',
+    ],
+    itemsEn: [
+      '🛡️ Official trades now include a TQQQ-only discipline panel',
+      '  - The dedicated flow applies only to TQQQ in the official trade ledger; other stocks, TQQQ swing records, and independent tools keep their existing UI and behavior',
+      '  - Current and projected weights reuse the exact official ledger, completed-close valuation, and allocation basis already shown in Trades, with no second position calculation',
+      '  - TQQQ buys use 10% as an advisory discipline line; crossing it adds an explicit second confirmation while preserving the user’s choice to proceed. VIX and QQQ distance from the 52-week high remain objective references with no breadth, aggregate market state, or maximum-drawdown label',
+      '  - TQQQ sells hide buy signals and are unaffected by the 10% reminder, while full dated-ledger replay prevents overselling; no database, quote request, or external data source was added',
+    ],
+  },
+  {
+    ver: 'v10.7.9.430', date: '2026-08-08',
+    items: [
       '🎯 复利明细新增每年实际完成对照',
       '  - 每年收益新增实际完成、实际增幅、当前或实际期末资产、达成率及目标差额，并默认聚焦本年与下一年',
       '  - 未来预测只显示计划收益、计划期末资产和待填写状态，不再把预测值冒充实际数据',

@@ -3,6 +3,7 @@ import { TrendingDown, TrendingUp, Target, AlertCircle, CheckCircle2, Clock, Tra
 import { supabase } from './lib/supabase';
 import * as db from './lib/db';
 import { deriveInvestmentSummary } from './lib/investmentSummary.js';
+import { deriveTqqqTradePreview, isTqqqFormalTradeEntry } from './lib/tqqqTradeDiscipline.js';
 import { normalizeMarginDebtUsd } from './lib/homeMarginRisk.js';
 import { MARKET_COLOR_MODE_STORAGE_KEY, normalizeMarketColorMode } from './lib/marketColorMode.js';
 import { buildLedgerQuoteUniverse } from './lib/stockUniverse.js';
@@ -2679,8 +2680,14 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
       );
       return;
     }
-    const sharesNum = parseInt(tradeDraft.shares);
-    const priceNum = parseFloat(tradeDraft.price);
+    const isTqqqFormalDraft = isTqqqFormalTradeEntry({
+      symbol,
+      scope: tradeEntryScope,
+    });
+    // TQQQ 预演使用 Number 语义，正式写入必须保持一致（包括 number input 接受的科学计数法）。
+    // 其他股票与波段入口继续保留现有 parseInt/parseFloat 行为。
+    const sharesNum = isTqqqFormalDraft ? Number(tradeDraft.shares) : parseInt(tradeDraft.shares);
+    const priceNum = isTqqqFormalDraft ? Number(tradeDraft.price) : parseFloat(tradeDraft.price);
     const editingId = tradeDraft.id || tradeDraft.editingId;
     if (sharesNum <= 0 || priceNum <= 0) {
       showTradeNotice(
@@ -2740,6 +2747,48 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
       });
       setLookupStatus(tradeDraft.symbol === 'TQQQ' ? null : 'found');
       setShowAddTrade(false);
+      return;
+    }
+
+    // 正式 TQQQ 保存前再次使用当前主账本与交易页估值口径校验。
+    // 这道执行层守卫只覆盖 TQQQ；波段入口已在上方返回，其他股票保持原流程。
+    const tqqqValidation = deriveTqqqTradePreview({
+      stockTrades,
+      quoteRows,
+      cashUsd: investmentSummary?.cashUsd,
+      usdRate: investmentSummary?.usdRate || usdRate,
+      currentSummary: investmentSummary,
+      draft: {
+        ...tradeDraft,
+        symbol,
+        side: tradeDraft.side === 'sell' ? 'sell' : 'buy',
+        price: priceNum,
+        shares: tradeDraft.shares,
+      },
+      scope: tradeEntryScope,
+    });
+    if (tqqqValidation.applies && tqqqValidation.hardBlocked) {
+      if (tqqqValidation.blockReason === 'whole-shares-required') {
+        showTradeNotice(
+          t(language, 'trades.tqqq.wholeSharesTitle', 'TQQQ股数需要填写整数'),
+          t(language, 'trades.tqqq.wholeSharesDesc', '正式交易当前按整数股保存,请删除小数后再提交。')
+        );
+      } else if (tqqqValidation.blockReason === 'oversell') {
+        showTradeNotice(
+          t(language, 'trades.tqqq.oversellTitle', '卖出股数超过可卖数量'),
+          t(language, 'trades.tqqq.oversellDesc', 'TQQQ卖出会按正式交易账本完整预演,不能超过该交易日期可安全卖出的股数。'),
+          t(language, 'trades.tqqq.availableShares', '可卖 {{shares}} 股', {
+            shares: tqqqValidation.availableShares.toLocaleString('en-US', { maximumFractionDigits: 6 }),
+          })
+        );
+      } else if (tqqqValidation.blockReason === 'ledger-oversell') {
+        showTradeNotice(
+          t(language, 'trades.tqqq.ledgerConflictTitle', '本次修改会造成TQQQ账本超卖'),
+          t(language, 'trades.tqqq.ledgerConflictDesc', '修改这笔买入后,后续正式卖出将超过当时可卖股数。请保留足够股数或调整交易日期。')
+        );
+      }
+      tradeSubmittingRef.current = false;
+      setTradeSubmitting(false);
       return;
     }
 
@@ -5415,6 +5464,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     pwdLoading,
     pwdMsg,
     quoteDiagnosticLogs,
+    qqqSignalQuote,
     quoteRows,
     RefreshCw,
     requestDeleteLegacyTrade,

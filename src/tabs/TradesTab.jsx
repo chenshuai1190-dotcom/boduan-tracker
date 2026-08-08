@@ -9,12 +9,19 @@ import { splitCurrencyAmount } from '../lib/amountDisplay.js';
 import { deriveHomeMarginOverview, homeMarginLeverageStatus, normalizeMarginDebtUsd } from '../lib/homeMarginRisk.js';
 import { resolveHoldingDisplayPrice } from '../lib/homeMarketDisplay.js';
 import { isEnglishLanguage, t } from '../lib/i18n.js';
+import { derivePositionAllocation } from '../lib/investmentSummary.js';
 import { normalizeStrictUserStockSymbol } from '../lib/symbols.js';
+import {
+  deriveTqqqMarketReference,
+  deriveTqqqTradePreview,
+  isTqqqFormalTradeEntry,
+} from '../lib/tqqqTradeDiscipline.js';
 import { formatWaveCurrencyAmount, formatWaveUsdPrice } from '../lib/waveCurrencyDisplay.js';
 import ActionModalCard from '../components/ActionModalCard.jsx';
 import AccountLeverageBadge from '../components/AccountLeverageBadge.jsx';
 import AvailableCashEditor from '../components/AvailableCashEditor.jsx';
 import StockLogo, { stockLogoCandidates } from '../components/StockLogo.jsx';
+import TqqqTradeEntryPanel from '../components/TqqqTradeEntryPanel.jsx';
 
 const PORTFOLIO_CURRENCY_STORAGE_KEY = 'xmoney_portfolio_currency';
 const TRADE_CURRENCY_STORAGE_KEY = 'xmoney_trade_currency';
@@ -452,6 +459,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
     openCommunityCompetition,
     portfolioCurrencyMode,
     Plus,
+    qqqSignalQuote,
     quoteRows,
     RefreshCw,
     requestDeleteLegacyTrade,
@@ -480,6 +488,8 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
     tradeSubmitting,
     trades,
     usdRate,
+    vix,
+    vixDataDate,
     watchlist,
     waveNotes,
     wavesByStock,
@@ -642,7 +652,24 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
   const showCostTool = toolPanel === 'cost';
   const showTradeRecordsTool = toolPanel === 'records';
   const showMainLedger = !showWaveTool && !showCostTool;
-  const positionsMarketValue = toNumber(summary.positionsMarketValue);
+  const isTqqqTradeEntry = isTqqqFormalTradeEntry({
+    symbol: newTrade?.symbol,
+    scope: tradeEntryScope,
+  });
+  const tqqqTradePreview = React.useMemo(() => deriveTqqqTradePreview({
+    stockTrades,
+    quoteRows,
+    cashUsd: summary.cashUsd,
+    usdRate: summary.usdRate || usdRate,
+    currentSummary: summary,
+    draft: newTrade,
+    scope: tradeEntryScope,
+  }), [newTrade, quoteRows, stockTrades, summary, tradeEntryScope, usdRate]);
+  const tqqqMarketReference = React.useMemo(() => deriveTqqqMarketReference({
+    vix,
+    vixDataDate,
+    qqqQuote: qqqSignalQuote || quoteBySymbol.get('QQQ') || null,
+  }), [qqqSignalQuote, quoteBySymbol, vix, vixDataDate]);
   const stockDisplayName = typeof displayStockName === 'function'
     ? ((symbol, name) => displayStockName(symbol, name, language))
     : ((symbol, name) => String(name || symbol || '').trim());
@@ -823,17 +850,65 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
       );
       return;
     }
+    const tqqqValidation = deriveTqqqTradePreview({
+      stockTrades,
+      quoteRows,
+      cashUsd: summary.cashUsd,
+      usdRate: summary.usdRate || usdRate,
+      currentSummary: summary,
+      draft: { ...tradeDraft, symbol },
+      scope: tradeEntryScope,
+    });
+    if (tqqqValidation.applies && tqqqValidation.hardBlocked) {
+      if (tqqqValidation.blockReason === 'whole-shares-required') {
+        showTradeFormNotice(
+          tt('trades.tqqq.wholeSharesTitle', 'TQQQ股数需要填写整数'),
+          tt('trades.tqqq.wholeSharesDesc', '正式交易当前按整数股保存,请删除小数后再提交。')
+        );
+      } else if (tqqqValidation.blockReason === 'oversell') {
+        showTradeFormNotice(
+          tt('trades.tqqq.oversellTitle', '卖出股数超过可卖数量'),
+          tt('trades.tqqq.oversellDesc', 'TQQQ卖出会按正式交易账本完整预演,不能超过该交易日期可安全卖出的股数。'),
+          tt('trades.tqqq.availableShares', '可卖 {{shares}} 股', { shares: fmtAmount(tqqqValidation.availableShares, 0) })
+        );
+      } else if (tqqqValidation.blockReason === 'ledger-oversell') {
+        showTradeFormNotice(
+          tt('trades.tqqq.ledgerConflictTitle', '本次修改会造成TQQQ账本超卖'),
+          tt('trades.tqqq.ledgerConflictDesc', '修改这笔买入后,后续正式卖出将超过当时可卖股数。请保留足够股数或调整交易日期。')
+        );
+      }
+      return;
+    }
+    const tqqqOverLimitWarning = tqqqValidation.applies
+      && tradeDraft.side === 'buy'
+      && tqqqValidation.overLimit;
+    const tqqqAllocationUnavailableWarning = tqqqValidation.applies
+      && tradeDraft.side === 'buy'
+      && tqqqValidation.allocationUnavailable;
     const currentSideLabel = sideLabel(tradeDraft.side);
+    let confirmTitle = tradeDraft.id || tradeDraft.editingId
+      ? tt('trades.confirmLedgerEditTitle', '确认修改正式交易?')
+      : tt('trades.confirmLedgerSaveTitle', '确认保存正式交易?');
+    let confirmDesc = tt('trades.confirmLedgerSaveDesc', '这笔记录会同步正式主交易账本,并影响持仓、当日订单和盈亏。');
+    let confirmText = tt('trades.confirmSave', '确认保存');
+    if (isWaveEntry) {
+      confirmTitle = tt('trades.confirmWaveSaveTitle', '确认保存到波段记录?');
+      confirmDesc = tt('trades.confirmWaveSaveDesc', '这笔记录只会进入波段记录独立账本,不会进入正式持仓、当日订单或总资产计算。');
+    } else if (tqqqOverLimitWarning) {
+      confirmTitle = tt('trades.tqqq.confirmOverLimitTitle', '买入后超过10%提醒线,仍要继续?');
+      confirmDesc = tt('trades.tqqq.confirmOverLimitDesc', '10%仅作为仓位纪律提醒,不会强制限制你的买入。确认后仍会写入正式交易账本。');
+      confirmText = tt('trades.tqqq.confirmAnyway', '仍然买入');
+    } else if (tqqqAllocationUnavailableWarning) {
+      confirmTitle = tt('trades.tqqq.confirmUnavailableTitle', '当前无法计算10%提醒,仍要继续?');
+      confirmDesc = tt('trades.tqqq.confirmUnavailableDesc', '当前估值未就绪,暂时不能显示10%提醒结果。这不会限制你的自主买入,确认后仍会写入正式交易账本。');
+      confirmText = tt('trades.tqqq.confirmAnyway', '仍然买入');
+    }
     setNewTrade(current => ({ ...current, side: tradeDraft.side }));
     showConfirm({
-      title: isWaveEntry
-        ? tt('trades.confirmWaveSaveTitle', '确认保存到波段记录?')
-        : (tradeDraft.id || tradeDraft.editingId ? tt('trades.confirmLedgerEditTitle', '确认修改正式交易?') : tt('trades.confirmLedgerSaveTitle', '确认保存正式交易?')),
-      desc: isWaveEntry
-        ? tt('trades.confirmWaveSaveDesc', '这笔记录只会进入波段记录独立账本,不会进入正式持仓、当日订单或总资产计算。')
-        : tt('trades.confirmLedgerSaveDesc', '这笔记录会同步正式主交易账本,并影响持仓、当日订单和盈亏。'),
+      title: confirmTitle,
+      desc: confirmDesc,
       info: `${symbol || '--'} · ${currentSideLabel} ${sharesText(shares, 0)} @ ${confirmationPrice}`,
-      confirmText: tt('trades.confirmSave', '确认保存'),
+      confirmText,
       confirmStyle: 'primary',
       icon: 'check',
       onConfirm: async () => {
@@ -1209,7 +1284,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                         const todayPnl = hasPositionTodayPnl ? toNumber(position.todayPnl) * displayRate : null;
                         const holdingPnl = toNumber(position.holdingPnl ?? position.unrealizedPnl) * displayRate;
                         const holdingPnlPct = position.holdingPnlPct ?? position.unrealizedPct;
-                        const allocation = positionsMarketValue > 0 ? toNumber(position.marketValue) / positionsMarketValue : 0;
+                        const allocation = derivePositionAllocation(summary, position.symbol) ?? 0;
                         const displayCurrentPrice = resolveHoldingDisplayPrice(position) || 0;
                         const openScenarioFromCell = (event) => {
                           event.preventDefault();
@@ -2114,13 +2189,34 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
             title={tradeEntryScope === 'wave' ? tt('trades.addWaveRecord', '添加波段记录') : (newTrade.id || newTrade.editingId ? tt('trades.editTrade', '修改交易') : tt('trades.addTrade', '添加交易'))}
             closeLabel={tt('trades.closeTradeForm', '关闭交易表单')}
             onClose={() => !tradeSubmitting && setShowAddTrade(false)}
-            widthClassName="w-[calc(100vw-24px)] max-w-md"
+            widthClassName={isTqqqTradeEntry ? 'w-[calc(100vw-24px)] max-w-[720px]' : 'w-[calc(100vw-24px)] max-w-md'}
             panelClassName="min-h-0"
-            actions={[
+            contentClassName={isTqqqTradeEntry ? '!border-0 !bg-transparent !p-0 !shadow-none' : ''}
+            actions={isTqqqTradeEntry ? [{
+              key: 'tqqq-confirm',
+              label: tradeSubmitting
+                ? tt('trades.saving', '保存中...')
+                : (newTrade.side === 'sell' ? tt('trades.tqqq.confirmSell', '确认卖出') : tt('trades.tqqq.confirmBuy', '确认买入')),
+              disabled: tradeSubmitting || (tqqqTradePreview.inputReady && tqqqTradePreview.hardBlocked),
+              onClick: () => confirmTradeSubmit(newTrade.side === 'sell' ? 'sell' : 'buy'),
+              className: '!h-[52px] !rounded-[13px] !border-transparent !bg-[linear-gradient(135deg,#7c3ff2,#5d2bd0)] !text-[16px] !text-white !shadow-[0_10px_30px_rgba(93,43,208,0.24)] disabled:!opacity-40',
+            }] : [
               { key: 'buy', label: tradeSubmitting ? tt('trades.saving', '保存中...') : tt('trades.buy', '买入'), disabled: tradeSubmitting, onClick: () => confirmTradeSubmit('buy') },
               { key: 'sell', label: tradeSubmitting ? tt('trades.saving', '保存中...') : tt('trades.sell', '卖出'), disabled: tradeSubmitting, onClick: () => confirmTradeSubmit('sell') },
             ]}
           >
+            {isTqqqTradeEntry ? (
+              <TqqqTradeEntryPanel
+                draft={newTrade}
+                onDraftChange={setNewTrade}
+                preview={tqqqTradePreview}
+                marketReference={tqqqMarketReference}
+                lookupStatus={lookupStatus}
+                logoCache={logoCache}
+                cacheStockLogo={cacheStockLogo}
+                tt={tt}
+              />
+            ) : (
               <div className="min-w-0">
                 {/* 股票代码 */}
                 <div className="mb-3 min-w-0 border-b border-white/10 pb-3">
@@ -2238,6 +2334,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                 )}
 
               </div>
+            )}
           </ActionModalCard>
         )}
 

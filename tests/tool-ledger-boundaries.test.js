@@ -630,7 +630,7 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(actionModalCardSource.includes('ref={contentRef}') && actionModalCardSource.includes('flex-1 overflow-y-auto overscroll-contain'), 'shared modal content should retain its normal keyboard-height scroller');
   assert.equal(tradesTabSource.includes("bodyStyle.touchAction = 'none'"), false, 'trade dialog background locking must not disable touch scrolling inside the modal');
   assert.ok(tradesTabSource.includes("bodyStyle.position = 'fixed'") && tradesTabSource.includes("bodyStyle.overflow = 'hidden'"), 'trade dialog should keep the background locked without blocking modal gestures');
-  assert.ok(tradeModalBlock.includes('widthClassName="w-[calc(100vw-24px)] max-w-md"'), 'trade entry should preserve its existing wide mobile geometry');
+  assert.ok(tradeModalBlock.includes("isTqqqTradeEntry ? 'w-[calc(100vw-24px)] max-w-[720px]' : 'w-[calc(100vw-24px)] max-w-md'"), 'generic trade entry should preserve its existing geometry while the isolated TQQQ panel can use its approved wider layout');
   assert.equal(tradeModalBlock.includes('<TrendingUp className="h-4 w-4"'), false, 'shared modal actions should use text-only neutral controls');
   assert.equal(tradeModalBlock.includes('<TrendingDown className="h-4 w-4"'), false, 'shared modal actions should use text-only neutral controls');
   assert.ok(confirmModalSource.includes('items-start justify-center overflow-y-auto') && confirmModalSource.includes('bg-black/[0.62]') && confirmModalSource.includes('pt-[34.5vh]'), 'confirmation modal should match the approved fixed vertical placement over a blurred overlay');

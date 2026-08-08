@@ -145,7 +145,7 @@ export default function ActionModalCard({
                 type="button"
                 onClick={action.onClick}
                 disabled={action.disabled}
-                className={ACTION_MODAL_BUTTON_CLASS}
+                className={`${ACTION_MODAL_BUTTON_CLASS} ${action.className || ''}`}
               >
                 {action.label}
               </button>
