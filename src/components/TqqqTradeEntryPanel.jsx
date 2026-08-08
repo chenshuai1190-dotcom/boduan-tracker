@@ -343,7 +343,7 @@ export default function TqqqTradeEntryPanel({
 
       {side === 'buy' && <MarketReference marketReference={marketReference} tt={tt} />}
 
-      <div className="border-t border-white/[0.08] pt-3">
+      <div className={side === 'buy' ? 'pt-3' : 'border-t border-white/[0.08] pt-3'}>
         <label className={LABEL_CLASS}>{tt('trades.date', '日期')}</label>
         <div className="relative">
           <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/[0.48]" strokeWidth={1.8} />

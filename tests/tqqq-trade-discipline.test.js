@@ -292,6 +292,7 @@ test('shows objective buy references only and keeps sell focused on the formal h
   assert.equal(panelSource.includes("tt('trades.tqqq.buyRules'"), false);
   assert.equal(panelSource.includes('>1</span>'), false);
   assert.equal(panelSource.includes('>2</span>'), false);
+  assert.ok(panelSource.includes("className={side === 'buy' ? 'pt-3' : 'border-t border-white/[0.08] pt-3'}"));
   assert.ok(panelSource.includes('tqqq-trade-date-input appearance-none pl-9 pr-9 text-center'));
   assert.equal(panelSource.includes('text-[23px]'), false);
   assert.equal(panelSource.includes('text-[22px] font-normal tabular-nums'), false);

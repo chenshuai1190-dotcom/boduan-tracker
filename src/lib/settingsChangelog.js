@@ -4,6 +4,17 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '🎛️ TQQQ买入面板进一步精简视觉分隔',
+      '  - 删除市场参考与日期之间的分割线，保留原有间距；卖出页的必要分隔及全部交易逻辑保持不变',
+    ],
+    itemsEn: [
+      '🎛️ The TQQQ buy panel now uses a cleaner visual transition',
+      '  - The divider between Market Reference and Date was removed while preserving spacing; the sell-side separator and all trade logic remain unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.432', date: '2026-08-08',
+    items: [
       '🎛️ TQQQ专属交易面板统一系统视觉层级',
       '  - 输入、仓位、金额、市场参考及确认按钮的数字字号与高度收敛到现有交易系统规格，保留原有仓位计算和买卖逻辑',
       '  - 交易前检查与市场参考取消数字编号，并移除买入规则提示；VIX和QQQ仅保留客观数据参考',
