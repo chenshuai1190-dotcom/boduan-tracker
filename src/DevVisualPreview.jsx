@@ -1838,6 +1838,13 @@ function StandardDevVisualPreview({ initialTab = '' }) {
   }, []);
   const reviewAmountStress = typeof window !== 'undefined'
     && new URLSearchParams(window.location.search).get('reviewAmountStress') === '1';
+  const tqqqTradePreviewSide = React.useMemo(() => {
+    if (typeof window === 'undefined') return '';
+    const value = new URLSearchParams(window.location.search).get('tqqqTrade');
+    return value === 'sell' ? 'sell' : (value === 'buy' ? 'buy' : '');
+  }, []);
+  const tqqqTradePreviewScrollBottom = typeof window !== 'undefined'
+    && new URLSearchParams(window.location.search).get('tqqqScroll') === 'bottom';
   const [marketColorMode, setMarketColorMode] = React.useState('redUpGreenDown');
   const pnlReportTooltipDate = React.useMemo(() => {
     if (typeof window === 'undefined') return '';
@@ -1863,21 +1870,46 @@ function StandardDevVisualPreview({ initialTab = '' }) {
   const [pwdMsg, setPwdMsg] = React.useState(null);
   const [showChangePassword, setShowChangePassword] = React.useState(false);
   const [tradeCurrencyMode, setTradeCurrencyMode] = React.useState('CNY');
-  const [tradeLookupStatus, setTradeLookupStatus] = React.useState(null);
+  const [tradeLookupStatus, setTradeLookupStatus] = React.useState(() => (tqqqTradePreviewSide ? 'found' : null));
   const [tradeEntryScope, setTradeEntryScope] = React.useState('ledger');
-  const [showAddTrade, setShowAddTrade] = React.useState(false);
+  const [showAddTrade, setShowAddTrade] = React.useState(() => Boolean(tqqqTradePreviewSide));
   const [previewConfirmModal, setPreviewConfirmModal] = React.useState(null);
   const [previewConfirmSubmitting, setPreviewConfirmSubmitting] = React.useState(false);
   const previewConfirmSubmittingRef = React.useRef(false);
-  const [newTrade, setNewTrade] = React.useState({
-    symbol: '',
-    name: '',
-    side: 'buy',
-    date: new Date().toISOString().slice(0, 10),
-    price: '',
-    shares: '',
-    batch: '第1批',
-  });
+  const [newTrade, setNewTrade] = React.useState(() => (tqqqTradePreviewSide
+    ? {
+      symbol: 'TQQQ',
+      name: 'TQQQ',
+      side: tqqqTradePreviewSide,
+      date: new Date().toISOString().slice(0, 10),
+      price: '74.29',
+      shares: tqqqTradePreviewSide === 'sell' ? '200' : '500',
+      batch: '第1批',
+    }
+    : {
+      symbol: '',
+      name: '',
+      side: 'buy',
+      date: new Date().toISOString().slice(0, 10),
+      price: '',
+      shares: '',
+      batch: '第1批',
+    }));
+  React.useEffect(() => {
+    if (!tqqqTradePreviewScrollBottom || !showAddTrade || typeof document === 'undefined') return undefined;
+    let secondFrame = 0;
+    const firstFrame = window.requestAnimationFrame(() => {
+      secondFrame = window.requestAnimationFrame(() => {
+        const panel = document.querySelector('[data-tqqq-trade-panel="true"]');
+        const scroller = panel?.parentElement;
+        if (scroller) scroller.scrollTop = scroller.scrollHeight;
+      });
+    });
+    return () => {
+      window.cancelAnimationFrame(firstFrame);
+      window.cancelAnimationFrame(secondFrame);
+    };
+  }, [showAddTrade, tqqqTradePreviewScrollBottom]);
   const [costBasisActiveSymbol, setCostBasisActiveSymbol] = React.useState('');
   const [costBasisData, setCostBasisData] = React.useState({});
   const [costBasisNewSymbol, setCostBasisNewSymbol] = React.useState('');
@@ -2906,16 +2938,57 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     user: { id: 'dev-user', email: 'preview@example.com' },
   };
 
-  const tradePositionsMarketValue = mockTradeActivePositions.reduce((sum, item) => sum + Number(item.marketValue || 0), 0);
-  const tradeHoldingPnl = mockTradeActivePositions.reduce((sum, item) => sum + Number(item.holdingPnl || 0), 0);
-  const tradeTodayPnl = mockTradeActivePositions.reduce((sum, item) => sum + Number(item.todayPnl || 0), 0);
-  const tradeQuoteRows = mockTradeActivePositions.map((item) => ({
+  const tqqqPreviewPosition = {
+    symbol: 'TQQQ',
+    name: 'TQQQ',
+    heldShares: 800,
+    currentPrice: 74.29,
+    avgCost: 68.4,
+    effectiveCost: 68.4,
+    high: 93.46,
+    marketValue: 59_432,
+    holdingPnl: 4_712,
+    holdingPnlPct: 0.0861,
+    todayPnl: 416,
+    todayPnlPct: 0.0071,
+    hasTodayPnl: true,
+  };
+  const tradeActivePositions = tqqqTradePreviewSide
+    ? [...mockTradeActivePositions, tqqqPreviewPosition]
+    : mockTradeActivePositions;
+  const tradePositionsMarketValue = tradeActivePositions.reduce((sum, item) => sum + Number(item.marketValue || 0), 0);
+  const tradeHoldingPnl = tradeActivePositions.reduce((sum, item) => sum + Number(item.holdingPnl || 0), 0);
+  const tradeTodayPnl = tradeActivePositions.reduce((sum, item) => sum + Number(item.todayPnl || 0), 0);
+  const tqqqPreviewQqqQuote = {
+    symbol: 'QQQ',
+    name: 'Invesco QQQ',
+    price: 617.5,
+    valuationPrice: 617.5,
+    dailyPnlPrice: 617.5,
+    dailyPnlSession: 'closed',
+    dailyPnlLocked: true,
+    high: 644.4,
+    week52High: 644.4,
+  };
+  const tradeQuoteRows = [...tradeActivePositions.map((item) => ({
     symbol: item.symbol,
     name: item.name,
     price: item.currentPrice,
     high: item.high,
     week52High: item.high,
-  }));
+  })), ...(tqqqTradePreviewSide ? [tqqqPreviewQqqQuote] : [])];
+  const tradePreviewStockTrades = tqqqTradePreviewSide
+    ? tradeActivePositions.map((item, index) => ({
+      id: `dev_tqqq_panel_trade_${index + 1}`,
+      symbol: item.symbol,
+      name: item.name,
+      side: 'buy',
+      trade_date: '2026-07-15',
+      date: '2026-07-15',
+      price: item.avgCost,
+      shares: item.heldShares,
+    }))
+    : [mockTodayStockTrade, ...mockPnlStockTrades];
   const tradesCtx = {
     availableCashStatus: previewAvailableCashStatus,
     availableCashStatusReady: true,
@@ -2941,8 +3014,8 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     fetchRealtimePrices: async () => {},
     fmt,
     investmentSummary: {
-      activePositions: mockTradeActivePositions,
-      positions: mockTradeActivePositions,
+      activePositions: tradeActivePositions,
+      positions: tradeActivePositions,
       positionsMarketValue: tradePositionsMarketValue,
       cashUsd: previewAvailableCashUsd,
       totalAssetsUsd: tradePositionsMarketValue + previewAvailableCashUsd,
@@ -2951,7 +3024,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
       cumulativePnl: tradeHoldingPnl,
       cumulativePnlPct: 0.064,
       holdingPnl: tradeHoldingPnl,
-      holdingStockCount: mockTradeActivePositions.length,
+      holdingStockCount: tradeActivePositions.length,
       sellTradeCount: 0,
       hasTodayPnl: true,
       usdRate: USD_RATE,
@@ -2975,6 +3048,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     openCommunityCompetition: () => setActiveTab('community-competition'),
     portfolioCurrencyMode: tradeCurrencyMode,
     Plus,
+    qqqSignalQuote: tqqqTradePreviewSide ? tqqqPreviewQqqQuote : null,
     quoteRows: tradeQuoteRows,
     RefreshCw,
     requestDeleteLegacyTrade,
@@ -3007,7 +3081,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     showAddTrade,
     showConfirm: showPreviewConfirm,
     stockFreshnessStartedAt: freshnessPreviewMode === 'warming' ? Date.now() : 0,
-    stockTrades: [mockTodayStockTrade, ...mockPnlStockTrades],
+    stockTrades: tradePreviewStockTrades,
     displayStockName: (symbol, name, displayLanguage = language) => {
       const normalizedSymbol = String(symbol || '').trim().toUpperCase();
       if (normalizeLanguage(displayLanguage) === 'en') return devStockNameEn[normalizedSymbol] || normalizedSymbol;
@@ -3017,6 +3091,8 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     tradeSubmitting: false,
     trades: mockWaveTrades,
     usdRate: USD_RATE,
+    vix: tqqqTradePreviewSide ? 18.6 : null,
+    vixDataDate: tqqqTradePreviewSide ? '2026-08-08' : '',
     user: {
       id: competitionResumeSmoke ? competitionResumeUserIdRef.current : 'dev-user',
       email: 'preview@example.com',

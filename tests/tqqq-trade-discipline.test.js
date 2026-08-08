@@ -289,6 +289,12 @@ test('shows objective buy references only and keeps sell focused on the formal h
   assert.ok(panelSource.includes("{side === 'buy' && <MarketReference"));
   assert.ok(panelSource.includes("{side === 'sell' && ("));
   assert.ok(panelSource.includes("tt('trades.tqqq.sellRuleTitle'"));
+  assert.equal(panelSource.includes("tt('trades.tqqq.buyRules'"), false);
+  assert.equal(panelSource.includes('>1</span>'), false);
+  assert.equal(panelSource.includes('>2</span>'), false);
+  assert.ok(panelSource.includes('tqqq-trade-date-input appearance-none pl-9 pr-9 text-center'));
+  assert.equal(panelSource.includes('text-[23px]'), false);
+  assert.equal(panelSource.includes('text-[22px] font-normal tabular-nums'), false);
   assert.equal(/market breadth|市场广度|maximum drawdown|最大回撤/i.test(panelSource), false);
 });
 

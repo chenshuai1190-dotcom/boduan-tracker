@@ -11,7 +11,7 @@ import {
 import StockLogo, { stockLogoCandidates } from './StockLogo.jsx';
 
 const NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif';
-const INPUT_CLASS = 'block h-[52px] w-full min-w-0 rounded-[14px] border border-white/[0.08] bg-white/[0.055] px-3.5 text-[15px] font-normal tabular-nums text-white outline-none transition placeholder:text-white/[0.28] focus:border-[#7c3ff2]/70 focus:bg-white/[0.075]';
+const INPUT_CLASS = 'block h-[46px] w-full min-w-0 rounded-xl border border-white/[0.08] bg-white/[0.055] px-3.5 text-[14px] font-normal tabular-nums text-white outline-none transition placeholder:text-white/[0.28] focus:border-[#7c3ff2]/70 focus:bg-white/[0.075]';
 const LABEL_CLASS = 'mb-1.5 block text-[12px] font-normal text-white/[0.60]';
 
 function numberValue(value) {
@@ -44,7 +44,7 @@ function Metric({ label, note, value, valueClassName = '', className = '' }) {
         <span className="block">{label}</span>
         <span className="block text-[10px] text-white/[0.30]">{note}</span>
       </div>
-      <div className={`mt-1 whitespace-nowrap text-[22px] font-normal tabular-nums text-white/[0.92] ${valueClassName}`} style={{ fontFamily: NUMBER_FONT }}>
+      <div className={`mt-1 whitespace-nowrap text-[16px] font-normal tabular-nums text-white/[0.92] ${valueClassName}`} style={{ fontFamily: NUMBER_FONT }}>
         {value}
       </div>
     </div>
@@ -131,47 +131,28 @@ function PreviewResult({ preview, tt }) {
 }
 
 function MarketReference({ marketReference, tt }) {
-  const vixCaption = marketReference.vixSignal === 'extreme'
-    ? tt('trades.tqqq.vixExtremeTriggered', '已触发极端恐慌区加倍买入')
-    : (marketReference.vixSignal === 'panic'
-      ? tt('trades.tqqq.vixPanicTriggered', '已触发恐慌区买入')
-      : (marketReference.vixSignal === 'none'
-        ? tt('trades.tqqq.vixNotTriggered', '未触发恐慌买入条件')
-        : tt('trades.tqqq.dataUnavailable', '数据暂不可用')));
-  const ruleResult = marketReference.vixSignal === 'extreme'
-    ? tt('trades.tqqq.extremeRuleActive', '极端恐慌区规则已触发')
-    : (marketReference.vixSignal === 'panic'
-      ? tt('trades.tqqq.panicRuleActive', '恐慌区规则已触发')
-      : (marketReference.vixSignal === 'none'
-        ? tt('trades.tqqq.noRuleActive', '当前未触发加仓条件')
-        : tt('trades.tqqq.ruleUnavailable', '当前无法判断触发条件')));
-
   return (
     <section className="space-y-2.5" aria-labelledby="tqqq-market-reference-title">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#f6b54b] text-[12px] font-normal text-[#1b1203]">2</span>
-          <h3 id="tqqq-market-reference-title" className="text-[16px] font-normal text-white/[0.92]">
-            {tt('trades.tqqq.marketReference', '市场参考')}
-          </h3>
-        </div>
+        <h3 id="tqqq-market-reference-title" className="text-[16px] font-normal text-white/[0.92]">
+          {tt('trades.tqqq.marketReference', '市场参考')}
+        </h3>
         <span className="text-[10px] text-white/[0.36]">{tt('trades.tqqq.objectiveOnly', '仅展示客观指标,不定义综合市场状态')}</span>
       </div>
 
       <div className="grid grid-cols-2 gap-2.5">
         <div className="rounded-[15px] border border-white/[0.08] bg-white/[0.035] px-3 py-3.5 text-center">
           <div className="text-[11px] text-white/[0.48]">VIX</div>
-          <div className="mt-1 text-[23px] font-normal tabular-nums text-white/[0.94]" style={{ fontFamily: NUMBER_FONT }}>
+          <div className="mt-1 text-[16px] font-normal tabular-nums text-white/[0.94]" style={{ fontFamily: NUMBER_FONT }}>
             {marketReference.vixReady ? marketReference.vixValue.toFixed(1) : '--'}
           </div>
-          <div className="mt-0.5 text-[10px] text-[#f6b54b]">{vixCaption}</div>
           {marketReference.vixReady && (
             <div className="mt-1 text-[10px] text-white/[0.28]">{tt('trades.tqqq.dataAsOf', '数据 {{date}}', { date: marketReference.vixDataDate })}</div>
           )}
         </div>
         <div className="rounded-[15px] border border-white/[0.08] bg-white/[0.035] px-3 py-3.5 text-center">
           <div className="text-[11px] text-white/[0.48]">{tt('trades.tqqq.qqqFromHigh', 'QQQ 距52周高点')}</div>
-          <div className="mt-1 text-[23px] font-normal tabular-nums text-white/[0.94]" style={{ fontFamily: NUMBER_FONT }}>
+          <div className="mt-1 text-[16px] font-normal tabular-nums text-white/[0.94]" style={{ fontFamily: NUMBER_FONT }}>
             {formatPercent(marketReference.qqqDistanceFromHigh, 1)}
           </div>
           <div className="mt-0.5 text-[10px] text-[#f6b54b]">
@@ -180,19 +161,6 @@ function MarketReference({ marketReference, tt }) {
         </div>
       </div>
 
-      <div className="rounded-[15px] border border-[#f6b54b]/20 bg-[#f6b54b]/[0.055] px-3.5 py-3">
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#f6b54b]/15 pb-2.5">
-          <span className="inline-flex items-center gap-2 text-[12px] text-[#f6b54b]">
-            <ShieldCheck className="h-4 w-4" />
-            {tt('trades.tqqq.buyRules', '你的TQQQ买入规则')}
-          </span>
-          <span className="text-[10px] text-[#f6b54b]/80">{ruleResult}</span>
-        </div>
-        <div className="grid grid-cols-1 gap-1.5 pt-2.5 text-[10px] text-white/[0.55] sm:grid-cols-2">
-          <span><strong className="font-normal text-white/[0.88]">VIX ≥ 30</strong>　{tt('trades.tqqq.panicBuy', '恐慌区买入')}</span>
-          <span><strong className="font-normal text-white/[0.88]">VIX ≥ 50</strong>　{tt('trades.tqqq.extremeBuy', '极端恐慌区加倍买入')}</span>
-        </div>
-      </div>
     </section>
   );
 }
@@ -220,7 +188,7 @@ export default function TqqqTradeEntryPanel({
     : (preview.overLimit || preview.allocationUnavailable ? 'border-[#f6b54b]/25 bg-[#f6b54b]/[0.055]' : 'border-white/[0.08] bg-white/[0.025]');
 
   return (
-    <div className="min-w-0 space-y-4">
+    <div className="min-w-0 space-y-4" data-tqqq-trade-panel="true">
       <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center">
         <div className="flex min-w-0 flex-1 items-center gap-3">
           <StockLogo
@@ -310,17 +278,14 @@ export default function TqqqTradeEntryPanel({
 
       <div className="flex items-center justify-between gap-3 border-b border-white/[0.08] pb-3 text-[11px] text-white/[0.46]">
         <span>{side === 'sell' ? tt('trades.tqqq.estimatedSellAmount', '预计卖出金额') : tt('trades.tqqq.estimatedTradeAmount', '预计交易额')}</span>
-        <span className="text-[17px] font-normal tabular-nums text-white/[0.76]" style={{ fontFamily: NUMBER_FONT }}>{formatUsd(preview.amountUsd)}</span>
+        <span className="text-[14px] font-normal tabular-nums text-white/[0.76]" style={{ fontFamily: NUMBER_FONT }}>{formatUsd(preview.amountUsd)}</span>
       </div>
 
       <section className="space-y-2.5" aria-labelledby="tqqq-trade-check-title">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <span className={`flex h-7 w-7 items-center justify-center rounded-full text-[12px] font-normal text-white ${side === 'sell' ? 'bg-[#eb5360]' : 'bg-emerald-500'}`}>1</span>
-            <h3 id="tqqq-trade-check-title" className="text-[16px] font-normal text-white/[0.92]">
-              {side === 'sell' ? tt('trades.tqqq.sellCheck', '卖出前检查') : tt('trades.tqqq.tradeCheck', '交易前检查')}
-            </h3>
-          </div>
+          <h3 id="tqqq-trade-check-title" className="text-[16px] font-normal text-white/[0.92]">
+            {side === 'sell' ? tt('trades.tqqq.sellCheck', '卖出前检查') : tt('trades.tqqq.tradeCheck', '交易前检查')}
+          </h3>
           <span className="text-[10px] text-white/[0.42]">
             {side === 'sell' ? tt('trades.tqqq.sellNoLimit', '卖出不受10%仓位提醒影响') : tt('trades.tqqq.hardLimit', '纪律提醒:TQQQ 10%')}
           </span>
@@ -386,7 +351,7 @@ export default function TqqqTradeEntryPanel({
             type="date"
             value={draft?.date || ''}
             onChange={(event) => onDraftChange({ ...draft, date: event.target.value })}
-            className={`${INPUT_CLASS} appearance-none pl-9 pr-8 text-left`}
+            className={`${INPUT_CLASS} tqqq-trade-date-input appearance-none pl-9 pr-9 text-center`}
             style={{ colorScheme: 'dark', WebkitAppearance: 'none' }}
           />
           <ChevronRight className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/[0.38]" strokeWidth={1.8} />

@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '🎛️ TQQQ专属交易面板统一系统视觉层级',
+      '  - 输入、仓位、金额、市场参考及确认按钮的数字字号与高度收敛到现有交易系统规格，保留原有仓位计算和买卖逻辑',
+      '  - 交易前检查与市场参考取消数字编号，并移除买入规则提示；VIX和QQQ仅保留客观数据参考',
+      '  - 日期在Safari中恢复水平与垂直居中；改动仍仅作用于正式TQQQ入口，其他股票与波段记录不受影响',
+    ],
+    itemsEn: [
+      '🎛️ The TQQQ trade panel now matches the system visual hierarchy',
+      '  - Numeric sizing and control heights for inputs, allocations, amounts, market references, and confirmation now match the existing Trades system while preserving all position and trade logic',
+      '  - Numbered section badges and the buy-rule prompt were removed; VIX and QQQ remain objective references only',
+      '  - The date is horizontally and vertically centered in Safari, and the refinement remains isolated to the official TQQQ entry without affecting other stocks or swing records',
+    ],
+  },
+  {
+    ver: 'v10.7.9.431', date: '2026-08-08',
+    items: [
       '🛡️ 正式交易新增TQQQ专属买卖纪律面板',
       '  - 仅正式交易账本中的TQQQ启用专属界面；其他股票、TQQQ波段记录及其他独立工具保持原逻辑与原界面',
       '  - 当前与交易后仓位直接复用交易页同一正式账本、完成收盘估值和持仓占比口径，不新增第二套仓位计算',

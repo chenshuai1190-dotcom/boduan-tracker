@@ -2199,7 +2199,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                 : (newTrade.side === 'sell' ? tt('trades.tqqq.confirmSell', '确认卖出') : tt('trades.tqqq.confirmBuy', '确认买入')),
               disabled: tradeSubmitting || (tqqqTradePreview.inputReady && tqqqTradePreview.hardBlocked),
               onClick: () => confirmTradeSubmit(newTrade.side === 'sell' ? 'sell' : 'buy'),
-              className: '!h-[52px] !rounded-[13px] !border-transparent !bg-[linear-gradient(135deg,#7c3ff2,#5d2bd0)] !text-[16px] !text-white !shadow-[0_10px_30px_rgba(93,43,208,0.24)] disabled:!opacity-40',
+              className: '!h-[46px] !rounded-[13px] !border-transparent !bg-[linear-gradient(135deg,#7c3ff2,#5d2bd0)] !text-[14px] !text-white !shadow-[0_10px_30px_rgba(93,43,208,0.24)] disabled:!opacity-40',
             }] : [
               { key: 'buy', label: tradeSubmitting ? tt('trades.saving', '保存中...') : tt('trades.buy', '买入'), disabled: tradeSubmitting, onClick: () => confirmTradeSubmit('buy') },
               { key: 'sell', label: tradeSubmitting ? tt('trades.saving', '保存中...') : tt('trades.sell', '卖出'), disabled: tradeSubmitting, onClick: () => confirmTradeSubmit('sell') },

@@ -35,6 +35,17 @@ input[type="number"] {
   padding: 0;
 }
 
+.tqqq-trade-date-input::-webkit-date-and-time-value {
+  min-height: 44px;
+  margin: 0;
+  line-height: 44px;
+  text-align: center;
+}
+
+.tqqq-trade-date-input::-webkit-datetime-edit {
+  padding: 0;
+}
+
 /* ============ 暗黑模式 ============ */
 .dark {
   color-scheme: dark;
