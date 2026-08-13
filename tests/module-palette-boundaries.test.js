@@ -8,6 +8,7 @@ const count = (source, pattern) => (source.match(pattern) || []).length;
 const home = read('src/tabs/HomeTab.jsx');
 const trades = read('src/tabs/TradesTab.jsx');
 const assets = read('src/tabs/AnalysisTab.jsx');
+const monthlyAssetTrendChart = read('src/components/MonthlyAssetTrendChart.jsx');
 const review = read('src/tabs/ReviewTab.jsx');
 const settings = read('src/tabs/SettingsTab.jsx');
 const pnlReport = read('src/pages/PnlReportPage.jsx');
@@ -73,5 +74,6 @@ test('sheets, tooltips, and chart markers keep their separate depth colors', () 
   assert.ok(stockComparison.includes('rounded-[24px] border border-white/10 bg-[#0d1118]'));
   assert.ok(valuation.includes('fill="#0b0f14" stroke="#ffd18a"'));
   assert.ok(ma200History.includes('stroke="#0b0f14"'));
-  assert.ok(assets.includes('fill="#0b0f14" stroke={ASSET_PINK}'));
+  assert.ok(monthlyAssetTrendChart.includes('fill="#101318" stroke={CHART_COLOR}'));
+  assert.ok(monthlyAssetTrendChart.includes('fill="#f5f7fb" stroke={CHART_LATEST_COLOR}'));
 });

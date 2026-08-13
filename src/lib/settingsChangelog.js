@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '✨ 资产首页月份详情支持触碰外部自动收起',
+      '  - 点击12个月走势图中的月份后，触碰图表以外的任意区域会立即关闭该月份详情',
+      '  - 图表内部仍可直接切换其他月份，页面卸载时同步清理监听，避免交互状态残留',
+      '  - 图表样式、资产汇总、汇率折算、月度余额、保存和数据库口径均未改变',
+    ],
+    itemsEn: [
+      '✨ Monthly details on the Assets overview now dismiss when you tap outside the chart',
+      '  - After selecting a month on the 12-month chart, tapping anywhere outside the chart immediately closes its detail',
+      '  - Other months remain directly selectable inside the chart, and the listener is cleaned up when the page unmounts',
+      '  - Chart styling, asset aggregation, FX conversion, monthly balances, saving, and database semantics are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.457', date: '2026-08-13',
+    items: [
       '📈 资产首页12个月走势升级为独立页同款宽幅图表',
       '  - 首页与独立资产走势页面共享同一套图表渲染层，绘图区加宽并统一动态纵轴、弱网格和平滑青绿色曲线',
       '  - 首页同步克制的渐变面积、最高点标记和金色最新点，同时保留原有标题、月份点击详情及最低/最高/区间摘要',

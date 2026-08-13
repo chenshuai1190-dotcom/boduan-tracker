@@ -1738,6 +1738,8 @@ test('asset page visual shell and local preview stay debuggable', () => {
   assert.ok(monthlyAssetTrendChartSource.includes('chartLabelIndexes'), 'asset chart x-axis should include intermediate month labels');
   assert.ok(monthlyAssetTrendChartSource.includes('Object.freeze({ left: 48, right: 362, top: 22, bottom: 169 })'), 'asset chart first point should stay clear of y-axis labels');
   assert.ok(analysisTabSource.includes('connectGaps') && analysisTabSource.includes('showSelectedLabel={false}'), 'asset overview should preserve its connected history and compact tap-detail behavior');
+  assert.ok(analysisTabSource.includes('ref={overviewChartInteractionRef}') && analysisTabSource.includes("document.addEventListener('pointerdown', clearSelectedMonthOutsideOverviewChart, true)"), 'touching outside the overview chart should dismiss its selected month detail');
+  assert.ok(analysisTabSource.includes("document.removeEventListener('pointerdown', clearSelectedMonthOutsideOverviewChart, true)"), 'overview chart outside-touch handling should clean up when the page unmounts');
   assert.equal(analysisTabSource.includes('assetChartGlow') || analysisTabSource.includes('stroke={ASSET_PINK} strokeWidth="3"'), false, 'asset overview should remove the old heavy red glow chart');
   assert.ok(analysisTabSource.includes("className=\"flex min-h-[46px] min-w-0 items-center justify-center"), 'asset action buttons should stay compact and readable');
   assert.ok((analysisTabSource.match(/border-white\/\[0\.16\] bg-white\/\[0\.045\]/g) || []).length >= 2, 'fill monthly balance and add account should share the same neutral action style');

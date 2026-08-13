@@ -145,8 +145,22 @@ function AnalysisTab({ ctx }) {
   const [editingAccountId, setEditingAccountId] = React.useState(null);
   const [accountEditDraft, setAccountEditDraft] = React.useState(null);
   const assetOverviewScrollYRef = React.useRef(0);
+  const overviewChartInteractionRef = React.useRef(null);
 
   const tt = React.useCallback((key, fallback, values) => t(language, key, fallback, values), [language]);
+
+  React.useEffect(() => {
+    if (chartSelectedMonthIdx === null) return undefined;
+
+    const clearSelectedMonthOutsideOverviewChart = (event) => {
+      if (overviewChartInteractionRef.current?.contains(event.target)) return;
+      setChartSelectedMonthIdx(null);
+    };
+
+    document.addEventListener('pointerdown', clearSelectedMonthOutsideOverviewChart, true);
+    return () => document.removeEventListener('pointerdown', clearSelectedMonthOutsideOverviewChart, true);
+  }, [chartSelectedMonthIdx, setChartSelectedMonthIdx]);
+
   const ownerLabel = React.useCallback((owner) => {
     if (owner === '我') return tt('analysis.owner.me', '我');
     if (owner === '老婆') return tt('analysis.owner.wife', '老婆');
@@ -754,7 +768,7 @@ function AnalysisTab({ ctx }) {
           )}
 
           <div className="mt-2 px-1">
-            <div className="aspect-[370/206] w-full select-none touch-pan-y">
+            <div ref={overviewChartInteractionRef} className="aspect-[370/206] w-full select-none touch-pan-y">
               <MonthlyAssetTrendChart
                 language={language}
                 months={last12Months}
