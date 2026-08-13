@@ -1,5 +1,9 @@
 import React from 'react';
 import { ChevronRight, Info } from 'lucide-react';
+import MonthlyAssetTrendChart, {
+  MONTHLY_ASSET_CHART_WIDTH,
+  buildMonthlyAssetTrendChartScale,
+} from './MonthlyAssetTrendChart.jsx';
 import { t } from '../lib/i18n.js';
 import {
   buildMonthlyAssetTrend,
@@ -10,11 +14,6 @@ import {
 const NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif';
 const UP_COLOR = '#ff4b1f';
 const DOWN_COLOR = '#50d0a2';
-const CHART_COLOR = '#50d0a2';
-const CHART_LATEST_COLOR = '#f6c56f';
-const CHART_WIDTH = 370;
-const CHART_HEIGHT = 206;
-const CHART_BOUNDS = Object.freeze({ left: 48, right: 362, top: 22, bottom: 169 });
 
 function formatNumber(value, digits = 1) {
   if (!Number.isFinite(value)) return '--';
@@ -57,90 +56,6 @@ function formatSignedPercent(value) {
   return `${value >= 0 ? '+' : ''}${value.toFixed(1)}%`;
 }
 
-function formatMonthAxis(month, language, first = false) {
-  const [year, rawMonth] = String(month || '').split('-');
-  if (!year || !rawMonth) return '--';
-  if (first) return language === 'zh' ? `${year}-${rawMonth}` : `${rawMonth}/${year.slice(-2)}`;
-  return language === 'zh' ? `${rawMonth}月` : rawMonth;
-}
-
-function smoothPath(points) {
-  if (points.length === 0) return '';
-  if (points.length === 1) return `M ${points[0].x} ${points[0].y}`;
-  let path = `M ${points[0].x} ${points[0].y}`;
-  for (let index = 0; index < points.length - 1; index += 1) {
-    const p0 = points[index - 1] || points[index];
-    const p1 = points[index];
-    const p2 = points[index + 1];
-    const p3 = points[index + 2] || p2;
-    const cp1x = p1.x + (p2.x - p0.x) / 6;
-    const cp1y = p1.y + (p2.y - p0.y) / 6;
-    const cp2x = p2.x - (p3.x - p1.x) / 6;
-    const cp2y = p2.y - (p3.y - p1.y) / 6;
-    path += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p2.x} ${p2.y}`;
-  }
-  return path;
-}
-
-function chartScale(model, monthCount) {
-  const values = model.points.map(point => point.balance);
-  const rawMin = values.length > 0 ? Math.min(...values) : 0;
-  const rawMax = values.length > 0 ? Math.max(...values) : 1;
-  const rawRange = Math.max(rawMax - rawMin, rawMax * 0.08, 1);
-  const stepMagnitude = 10 ** Math.floor(Math.log10(rawRange / 4));
-  const normalizedStep = rawRange / 4 / stepMagnitude;
-  const roundedStep = (normalizedStep <= 1 ? 1 : normalizedStep <= 2 ? 2 : normalizedStep <= 5 ? 5 : 10) * stepMagnitude;
-  const min = Math.max(0, Math.floor((rawMin - rawRange * 0.15) / roundedStep) * roundedStep);
-  const max = Math.max(min + roundedStep, Math.ceil((rawMax + rawRange * 0.12) / roundedStep) * roundedStep);
-  const range = max - min;
-  const xForIndex = index => CHART_BOUNDS.left
-    + (index / Math.max(monthCount - 1, 1)) * (CHART_BOUNDS.right - CHART_BOUNDS.left);
-  const yForValue = value => CHART_BOUNDS.bottom
-    - ((value - min) / range) * (CHART_BOUNDS.bottom - CHART_BOUNDS.top);
-  const pointsByIndex = new Map(model.points.map(point => [point.index, {
-    ...point,
-    x: xForIndex(point.index),
-    y: yForValue(point.balance),
-  }]));
-
-  return {
-    min,
-    max,
-    range,
-    xForIndex,
-    yForValue,
-    pointsByIndex,
-    ticks: Array.from({ length: 5 }, (_, index) => max - (range / 4) * index),
-  };
-}
-
-function TrendValueLabel({ x, y, width, children, tone = 'peak' }) {
-  const boxX = Math.max(2, Math.min(CHART_WIDTH - 2 - width, x - width / 2));
-  return (
-    <g pointerEvents="none">
-      <rect
-        x={boxX}
-        y={y}
-        width={width}
-        height="24"
-        rx="7"
-        fill="#101318"
-        stroke={tone === 'latest' ? 'rgba(246,197,111,.42)' : 'rgba(80,208,162,.45)'}
-      />
-      <text
-        x={boxX + width / 2}
-        y={y + 15.5}
-        textAnchor="middle"
-        fill={tone === 'latest' ? 'rgba(255,255,255,.90)' : '#6ce0b6'}
-        fontSize="10"
-        fontFamily={NUMBER_FONT}
-      >
-        {children}
-      </text>
-    </g>
-  );
-}
-
 export default function MonthlyAssetTrendContent({
   language = 'zh',
   months = [],
@@ -169,7 +84,10 @@ export default function MonthlyAssetTrendContent({
     () => buildMonthlyAssetTrend({ months: chartMonths, values: chartValues }),
     [chartMonths, chartValues],
   );
-  const scale = React.useMemo(() => chartScale(chartModel, chartMonths.length), [chartModel, chartMonths.length]);
+  const scale = React.useMemo(
+    () => buildMonthlyAssetTrendChartScale(chartModel, chartMonths.length),
+    [chartModel, chartMonths.length],
+  );
   const visibleSlots = React.useMemo(
     () => visibleMonthlyAssetTrendSlots(detailModel.slots, expanded),
     [detailModel.slots, expanded],
@@ -192,21 +110,15 @@ export default function MonthlyAssetTrendContent({
   }, [selectedIndex]);
 
   const currentSlot = chartModel.currentSlot;
-  const selectedSlot = selectedIndex === null ? null : chartModel.slots[selectedIndex];
-  const selectedPoint = selectedSlot?.hasData ? scale.pointsByIndex.get(selectedIndex) : null;
-  const latestPoint = currentSlot ? scale.pointsByIndex.get(currentSlot.index) : null;
-  const maxPoint = chartModel.maxPoint ? scale.pointsByIndex.get(chartModel.maxPoint.index) : null;
   const comparison = currentSlot?.hasPreviousMonth ? currentSlot : null;
   const comparisonTone = comparison && comparison.changeAmount >= 0 ? UP_COLOR : DOWN_COLOR;
   const primaryMoney = formatPrimaryMoney(currentSlot?.balance, language);
-  const lineSegments = chartModel.segments.map(segment => segment.map(point => scale.pointsByIndex.get(point.index)));
-  const labelIndexes = new Set([0, 2, 4, 6, 8, 10, chartMonths.length - 1].filter(index => index >= 0 && index < chartMonths.length));
 
   const selectNearestPoint = React.useCallback((event) => {
     if (chartModel.points.length === 0) return;
     const bounds = event.currentTarget.getBoundingClientRect();
     if (!bounds.width) return;
-    const viewX = ((event.clientX - bounds.left) / bounds.width) * CHART_WIDTH;
+    const viewX = ((event.clientX - bounds.left) / bounds.width) * MONTHLY_ASSET_CHART_WIDTH;
     let nearest = chartModel.points[0];
     let distance = Number.POSITIVE_INFINITY;
     chartModel.points.forEach((point) => {
@@ -284,100 +196,24 @@ export default function MonthlyAssetTrendContent({
         })}
       >
         {chartModel.points.length > 0 ? (
-          <svg
-            viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
-            className="block h-full w-full overflow-visible"
-            data-monthly-asset-trend-chart="true"
+          <MonthlyAssetTrendChart
+            language={language}
+            months={chartMonths}
+            model={chartModel}
+            scale={scale}
+            selectedIndex={selectedIndex}
+            latestPointIndex={currentSlot?.index ?? null}
+            maxPointIndex={chartModel.maxPoint?.index ?? null}
+            ariaLabel={tt('analysis.assetTrendChartRange', '{{start}} 至 {{end}}资产走势', {
+              start: chartMonths[0] || '--',
+              end: chartMonths.at(-1) || '--',
+            })}
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
             onPointerUp={finishPointerTracking}
             onPointerCancel={finishPointerTracking}
             onLostPointerCapture={finishPointerTracking}
-            style={{ touchAction: 'pan-y' }}
-          >
-            <defs>
-              <linearGradient id="monthlyAssetTrendArea" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={CHART_COLOR} stopOpacity="0.28" />
-                <stop offset="100%" stopColor={CHART_COLOR} stopOpacity="0.015" />
-              </linearGradient>
-              <filter id="monthlyAssetLatestGlow" x="-100%" y="-100%" width="300%" height="300%">
-                <feGaussianBlur stdDeviation="3" result="blur" />
-                <feMerge>
-                  <feMergeNode in="blur" />
-                  <feMergeNode in="SourceGraphic" />
-                </feMerge>
-              </filter>
-            </defs>
-
-            {scale.ticks.map((tick, index) => {
-              const y = CHART_BOUNDS.top + ((CHART_BOUNDS.bottom - CHART_BOUNDS.top) / 4) * index;
-              return (
-                <g key={`${tick}-${index}`}>
-                  <line x1={CHART_BOUNDS.left} x2={CHART_BOUNDS.right} y1={y} y2={y} stroke="rgba(255,255,255,0.07)" strokeWidth="1" />
-                  <text x="0" y={y + 3.5} textAnchor="start" fill="rgba(255,255,255,0.48)" fontSize="10" fontFamily={NUMBER_FONT}>
-                    {formatWan(tick, language, 0)}
-                  </text>
-                </g>
-              );
-            })}
-
-            {lineSegments.map((points, index) => {
-              if (points.length < 2) return null;
-              const path = smoothPath(points);
-              return (
-                <React.Fragment key={`segment-${index}`}>
-                  <path d={`${path} L ${points.at(-1).x} ${CHART_BOUNDS.bottom} L ${points[0].x} ${CHART_BOUNDS.bottom} Z`} fill="url(#monthlyAssetTrendArea)" />
-                  <path d={path} fill="none" stroke={CHART_COLOR} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-                </React.Fragment>
-              );
-            })}
-
-            {chartModel.segments.filter(segment => segment.length === 1).map((segment) => {
-              const point = scale.pointsByIndex.get(segment[0].index);
-              return <circle key={`single-${point.index}`} cx={point.x} cy={point.y} r="2.4" fill={CHART_COLOR} />;
-            })}
-
-            {maxPoint && maxPoint.index !== latestPoint?.index && (
-              <circle cx={maxPoint.x} cy={maxPoint.y} r="5.3" fill="#101318" stroke={CHART_COLOR} strokeWidth="2" />
-            )}
-
-            {latestPoint && (
-              <>
-                <circle cx={latestPoint.x} cy={latestPoint.y} r="8" fill={CHART_LATEST_COLOR} opacity="0.18" filter="url(#monthlyAssetLatestGlow)" />
-                <circle cx={latestPoint.x} cy={latestPoint.y} r="4.5" fill="#f5f7fb" stroke={CHART_LATEST_COLOR} strokeWidth="2" />
-              </>
-            )}
-
-            {selectedPoint && (
-              <>
-                <line x1={selectedPoint.x} x2={selectedPoint.x} y1={CHART_BOUNDS.top} y2={CHART_BOUNDS.bottom} stroke="rgba(255,255,255,.16)" strokeDasharray="3 4" />
-                <circle cx={selectedPoint.x} cy={selectedPoint.y} r="4" fill="#f5f7fb" stroke={CHART_COLOR} strokeWidth="2" />
-                <TrendValueLabel x={selectedPoint.x} y={Math.max(1, selectedPoint.y - 31)} width={language === 'zh' ? 112 : 118} tone="latest">
-                  {`${selectedPoint.month} · ${formatWan(selectedPoint.balance, language)}`}
-                </TrendValueLabel>
-              </>
-            )}
-
-            {chartMonths.map((month, index) => {
-              if (!labelIndexes.has(index)) return null;
-              const first = index === 0;
-              const last = index === chartMonths.length - 1;
-              const labelX = last ? CHART_WIDTH : scale.xForIndex(index) + (index === 2 ? 8 : 0);
-              return (
-                <text
-                  key={month}
-                  x={labelX}
-                  y={CHART_HEIGHT - 12}
-                  textAnchor={first ? 'start' : last ? 'end' : 'middle'}
-                  fill="rgba(255,255,255,0.43)"
-                  fontSize="10"
-                  fontFamily={NUMBER_FONT}
-                >
-                  {formatMonthAxis(month, language, first)}
-                </text>
-              );
-            })}
-          </svg>
+          />
         ) : (
           <div className="flex h-full items-center justify-center text-[12px] text-white/[0.32]">
             {tt('analysis.noData', '无数据')}

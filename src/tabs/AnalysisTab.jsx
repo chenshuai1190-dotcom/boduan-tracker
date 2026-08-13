@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import ActionModalCard from '../components/ActionModalCard.jsx';
 import AccountAssetTrendModal from '../components/AccountAssetTrendModal.jsx';
+import MonthlyAssetTrendChart, { buildMonthlyAssetTrendChartScale } from '../components/MonthlyAssetTrendChart.jsx';
 import MonthlyAssetTrendContent from '../components/MonthlyAssetTrendContent.jsx';
 import { buildAccountAssetTrend } from '../lib/accountAssetTrend.js';
 import { applyAccountSnapshotMutations, buildAccountSnapshotMutations } from '../lib/accountSnapshotMutation.js';
@@ -24,6 +25,7 @@ import { splitCurrencyAmount } from '../lib/amountDisplay.js';
 import { localMonthKey, shiftMonthKey } from '../lib/calendarMonth.js';
 import { t } from '../lib/i18n.js';
 import { marketHexColor } from '../lib/marketColorMode.js';
+import { buildMonthlyAssetTrend } from '../lib/monthlyAssetTrend.js';
 
 const ASSET_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif';
 const ASSET_NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif';
@@ -284,7 +286,6 @@ function AnalysisTab({ ctx }) {
     chartMin,
     chartMax,
     chartRange,
-    chartVisualMax,
     chartNonZeroCount,
   } = React.useMemo(() => {
     const nonZero = chartData.filter(v => v > 0);
@@ -294,10 +295,18 @@ function AnalysisTab({ ctx }) {
       chartMin: min,
       chartMax: max,
       chartRange: max - min || 1,
-      chartVisualMax: Math.max(max, 1),
       chartNonZeroCount: nonZero.length,
     };
   }, [chartData]);
+  const overviewChartModel = React.useMemo(
+    () => buildMonthlyAssetTrend({ months: last12Months, values: chartData }),
+    [chartData, last12Months],
+  );
+  const overviewChartScale = React.useMemo(
+    () => buildMonthlyAssetTrendChartScale(overviewChartModel, last12Months.length),
+    [last12Months.length, overviewChartModel],
+  );
+  const overviewChartLatestIndex = overviewChartModel.points.at(-1)?.index ?? null;
 
   const {
     myAccounts,
@@ -415,40 +424,6 @@ function AnalysisTab({ ctx }) {
     { label: tt('analysis.ytd', '年初至今'), value: ytdChange, pct: ytdChangePct, enabled: totalYearStart > 0 },
     { label: tt('analysis.oneYear', '近一年'), value: yearChange, pct: yearChangePct, enabled: totalYearAgo > 0 },
   ], [monthChange, monthChangePct, totalLast, totalYearAgo, totalYearStart, tt, yearChange, yearChangePct, ytdChange, ytdChangePct]);
-
-  const chartLeft = 64;
-  const chartRight = 306;
-  const chartTop = 18;
-  const chartBottom = 124;
-  const chartWidth = chartRight - chartLeft;
-  const chartHeight = chartBottom - chartTop;
-  const chartLabelIndices = React.useMemo(() => (
-    new Set([0, Math.floor((last12Months.length - 1) / 2), last12Months.length - 1])
-  ), [last12Months.length]);
-  const chartPoints = React.useMemo(() => chartData
-    .map((v, i) => {
-      const x = chartLeft + (i / Math.max(chartData.length - 1, 1)) * chartWidth;
-      const y = chartBottom - (v / chartVisualMax) * chartHeight;
-      return { x, y, v, i };
-    })
-    .filter(p => p.v > 0), [chartBottom, chartData, chartHeight, chartLeft, chartVisualMax, chartWidth]);
-
-  const chartPath = React.useMemo(() => (chartPoints.length > 1
-    ? `M ${chartPoints[0].x} ${chartPoints[0].y} ${chartPoints.slice(1).map(p => `L ${p.x} ${p.y}`).join(' ')}`
-    : ''), [chartPoints]);
-  const chartArea = React.useMemo(() => (chartPath
-    ? `${chartPath} L ${chartPoints[chartPoints.length - 1].x} ${chartBottom} L ${chartPoints[0].x} ${chartBottom} Z`
-    : ''), [chartBottom, chartPath, chartPoints]);
-  const chartPathLength = React.useMemo(() => Math.max(1, chartPoints.reduce((sum, point, idx) => {
-    if (idx === 0) return sum;
-    const prev = chartPoints[idx - 1];
-    return sum + Math.hypot(point.x - prev.x, point.y - prev.y);
-  }, 0)), [chartPoints]);
-  const latestChartPoint = chartPoints[chartPoints.length - 1] || null;
-  const visibleChartMarkerMonthIdx = chartSelectedMonthIdx !== null && chartData[chartSelectedMonthIdx] > 0
-    ? chartSelectedMonthIdx
-    : latestChartPoint?.i ?? null;
-  const selectedChartDotDelay = chartSelectedMonthIdx !== null ? 0 : 900;
 
   const selectedChartValue = chartSelectedMonthIdx !== null ? chartData[chartSelectedMonthIdx] : 0;
   const selectedChartMonth = chartSelectedMonthIdx !== null ? last12Months[chartSelectedMonthIdx] : '';
@@ -748,12 +723,12 @@ function AnalysisTab({ ctx }) {
 
       {chartNonZeroCount >= 2 && (
         <section
-          className="rounded-[20px] border border-transparent p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
+          className="overflow-hidden rounded-[20px] border border-transparent py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
           style={{ background: ASSET_CARD }}
         >
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center justify-between gap-3 px-4">
             <div className="flex items-center gap-1.5 text-[14px] text-white/90">
-              <LineChart className="h-4 w-4" style={{ color: ASSET_PINK }} strokeWidth={1.8} />
+              <LineChart className="h-4 w-4" style={{ color: ASSET_GREEN }} strokeWidth={1.8} />
               <span>{tt('analysis.monthTrend', '12 个月走势')}</span>
             </div>
             <button
@@ -765,7 +740,7 @@ function AnalysisTab({ ctx }) {
           </div>
 
           {selectedChartValue > 0 && (
-            <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.045] px-3 py-2 text-[12px] text-white/60">
+            <div className="mx-4 mt-3 flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.045] px-3 py-2 text-[12px] text-white/60">
               <div className="min-w-0">
                 <div className="tabular-nums" style={{ fontFamily: ASSET_NUMBER_FONT }}>{monthText(selectedChartMonth)}</div>
                 {selectedChartChange !== null && (
@@ -778,103 +753,30 @@ function AnalysisTab({ ctx }) {
             </div>
           )}
 
-          <div className="mt-3">
-            <svg viewBox="0 0 320 138" className="h-[142px] w-full overflow-visible" style={{ '--asset-chart-path-length': chartPathLength }}>
-              <defs>
-                <linearGradient id="assetChartArea" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={ASSET_PINK} stopOpacity="0.36" />
-                  <stop offset="100%" stopColor={ASSET_PINK} stopOpacity="0.02" />
-                </linearGradient>
-                <filter id="assetChartGlow" x="-20%" y="-20%" width="140%" height="140%">
-                  <feGaussianBlur stdDeviation="2.4" result="blur" />
-                  <feMerge>
-                    <feMergeNode in="blur" />
-                    <feMergeNode in="SourceGraphic" />
-                  </feMerge>
-                </filter>
-              </defs>
-              <style>{`
-                @keyframes assetDrawLine {
-                  from { stroke-dashoffset: var(--asset-chart-path-length); }
-                  to { stroke-dashoffset: 0; }
-                }
-                @keyframes assetAreaFadeIn {
-                  from { opacity: 0; transform: translateY(8px); }
-                  to { opacity: 1; transform: translateY(0); }
-                }
-                @keyframes assetDotPop {
-                  0% { opacity: 0; transform: scale(0.52); }
-                  60% { opacity: 1; transform: scale(1.16); }
-                  100% { opacity: 1; transform: scale(1); }
-                }
-                .asset-chart-line {
-                  animation: assetDrawLine 900ms ease-out both;
-                  stroke-dasharray: var(--asset-chart-path-length);
-                  stroke-dashoffset: var(--asset-chart-path-length);
-                }
-                .asset-chart-area {
-                  animation: assetAreaFadeIn 680ms ease-out both;
-                  transform-box: fill-box;
-                  transform-origin: center bottom;
-                }
-                .asset-chart-dot {
-                  animation: assetDotPop 440ms cubic-bezier(0.2, 0.85, 0.28, 1.2) both;
-                  transform-box: fill-box;
-                  transform-origin: center;
-                }
-              `}</style>
-
-              {[0, 0.33, 0.66, 1].map((t) => {
-                const y = chartTop + t * chartHeight;
-                const labelValue = chartVisualMax * (1 - t);
-                return (
-                  <g key={t}>
-                    <line x1={chartLeft} x2={chartRight} y1={y} y2={y} stroke="rgba(255,255,255,0.13)" strokeDasharray="4 5" strokeWidth="0.7" />
-                    <text x="2" y={y + 4} fill="rgba(255,255,255,0.42)" fontSize="8.5" fontFamily={ASSET_NUMBER_FONT}>
-                      {labelValue <= 0 ? '0' : `${fmtWan(labelValue)}万`}
-                    </text>
-                  </g>
-                );
-              })}
-
-              {chartArea && <path d={chartArea} className="asset-chart-area" fill="url(#assetChartArea)" />}
-              {chartPath && <path d={chartPath} className="asset-chart-line" fill="none" stroke={ASSET_PINK} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" filter="url(#assetChartGlow)" />}
-
-              {chartPoints.map((p) => {
-                const selected = visibleChartMarkerMonthIdx === p.i;
-                return (
-                  <g key={p.i}>
-                    {selected && (
-                      <>
-                        <line x1={p.x} x2={p.x} y1={p.y} y2={chartBottom} stroke={ASSET_PINK} strokeOpacity="0.45" strokeDasharray="3 4" />
-                        <circle className="asset-chart-dot" cx={p.x} cy={p.y} r="5.8" fill="#0b0f14" stroke={ASSET_PINK} strokeWidth="2.5" style={{ animationDelay: `${selectedChartDotDelay}ms` }} />
-                        <circle className="asset-chart-dot" cx={p.x} cy={p.y} r="2.2" fill={ASSET_PINK} style={{ animationDelay: `${selectedChartDotDelay + 40}ms` }} />
-                      </>
-                    )}
-                    <circle
-                      cx={p.x}
-                      cy={p.y}
-                      r="13"
-                      fill="transparent"
-                      onClick={() => setChartSelectedMonthIdx(prev => (prev === p.i ? null : p.i))}
-                      style={{ cursor: 'pointer' }}
-                    />
-                  </g>
-                );
-              })}
-              {last12Months.map((month, idx) => {
-                if (!chartLabelIndices.has(idx)) return null;
-                const x = chartLeft + (idx / Math.max(last12Months.length - 1, 1)) * chartWidth;
-                return (
-                  <text key={month} x={x} y="136" fill="rgba(255,255,255,0.45)" fontSize="11" textAnchor="middle" fontFamily={ASSET_NUMBER_FONT}>
-                    {month.slice(5)}月
-                  </text>
-                );
-              })}
-            </svg>
+          <div className="mt-2 px-1">
+            <div className="aspect-[370/206] w-full select-none touch-pan-y">
+              <MonthlyAssetTrendChart
+                language={language}
+                months={last12Months}
+                model={overviewChartModel}
+                scale={overviewChartScale}
+                selectedIndex={chartSelectedMonthIdx}
+                latestPointIndex={overviewChartLatestIndex}
+                maxPointIndex={overviewChartModel.maxPoint?.index ?? null}
+                connectGaps
+                showSelectedLabel={false}
+                animate
+                latestPointDelayMs={780}
+                onPointClick={index => setChartSelectedMonthIdx(prev => (prev === index ? null : index))}
+                ariaLabel={tt('analysis.assetTrendChartRange', '{{start}} 至 {{end}}资产走势', {
+                  start: last12Months[0] || '--',
+                  end: last12Months.at(-1) || '--',
+                })}
+              />
+            </div>
           </div>
 
-          <div className="mt-3 grid grid-cols-3 border-t border-white/10 pt-3 text-center">
+          <div className="mx-4 mt-1 grid grid-cols-3 border-t border-white/10 pt-3 text-center">
             {[
               [tt('analysis.low', '最低'), chartMin],
               [tt('analysis.high', '最高'), chartMax],

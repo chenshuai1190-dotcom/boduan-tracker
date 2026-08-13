@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '📈 资产首页12个月走势升级为独立页同款宽幅图表',
+      '  - 首页与独立资产走势页面共享同一套图表渲染层，绘图区加宽并统一动态纵轴、弱网格和平滑青绿色曲线',
+      '  - 首页同步克制的渐变面积、最高点标记和金色最新点，同时保留原有标题、月份点击详情及最低/最高/区间摘要',
+      '  - 独立页面的拖动选点、触碰外部关闭及缺失月份断线行为保持不变；资产汇总、汇率折算、月度余额、保存和数据库口径均未改变',
+    ],
+    itemsEn: [
+      '📈 The Assets overview now uses the same wide 12-month chart design as the standalone page',
+      '  - The overview and standalone asset-trend page share one chart renderer with a wider plot, dynamic value scale, subtle grid, and smooth teal curve',
+      '  - The overview adopts the restrained area gradient, peak marker, and gold latest point while preserving its title, month-tap detail, and Low/High/Range summary',
+      '  - Standalone drag selection, outside-touch dismissal, and missing-month gaps remain unchanged; asset aggregation, FX conversion, monthly balances, saving, and database semantics are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.456', date: '2026-08-13',
+    items: [
       '✨ 首页、交易与资产头部进一步简化分隔层次',
       '  - 首页和交易页的“今日盈亏 / 累计盈亏 / 融资负债”取消两条列间竖线，保留上方横线和原三列布局',
       '  - 资产页的“较上月 / 年初至今 / 近一年”取消列间竖线，保留原列宽、间距与数值对齐',
