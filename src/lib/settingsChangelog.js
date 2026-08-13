@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '📈 12个月资产走势升级为完整月度分析面板',
+      '  - 当前资产、较上月变化、动态折线、最高点、近12月资产变化和最高资产统一在同一弹窗展示',
+      '  - 月度明细默认显示最近6个月，可展开全部12个月；点击任一月份直接进入该月原有余额补录与修改流程',
+      '  - 缺失月份不跨月连线或计算涨跌，当前月不回退旧数据；现有账户快照、人民币折算、保存和数据库口径均保持不变',
+    ],
+    itemsEn: [
+      '📈 The 12-month asset trend is now a complete monthly analysis panel',
+      '  - Current assets, month-over-month change, a dynamic trend chart, the peak point, 12-month asset change, and highest assets now share one dialog',
+      '  - Monthly details show the latest six months by default and can expand to all twelve; tapping a month opens the existing balance editor for that exact month',
+      '  - Missing months are not bridged or compared, and the current month never falls back to stale data; account snapshots, CNY conversion, saving, and database semantics are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.437', date: '2026-08-08',
+    items: [
       '🎨 TQQQ买卖操作按钮按交易方向统一配色',
       '  - 顶部买入选择与底部确认买入统一为绿色，顶部卖出选择与底部确认卖出统一为红色',
       '  - 两处共用同一套方向色配置，避免后续调整时再次出现颜色分叉',

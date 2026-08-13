@@ -2092,6 +2092,8 @@ function StandardDevVisualPreview({ initialTab = '' }) {
   const accountTrendPreviewId = typeof window === 'undefined'
     ? ''
     : new URLSearchParams(window.location.search).get('accountTrend') || '';
+  const monthlyAssetTrendPreview = typeof window !== 'undefined'
+    && new URLSearchParams(window.location.search).get('monthlyAssetTrend') === '1';
   const accountTrendZeroHistoryPreview = typeof window !== 'undefined'
     && new URLSearchParams(window.location.search).get('accountTrendZeroHistory') === '1';
   const competitionPreviewState = typeof window === 'undefined'
@@ -2115,6 +2117,11 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     }, 250);
     return () => window.clearTimeout(timer);
   }, [accountTrendPreviewId, activeTab]);
+  React.useEffect(() => {
+    if (activeTab !== 'analysis' || !monthlyAssetTrendPreview) return undefined;
+    const timer = window.setTimeout(() => setShowMonthsDetail(true), 180);
+    return () => window.clearTimeout(timer);
+  }, [activeTab, monthlyAssetTrendPreview]);
   const communityCompetitionClient = React.useMemo(() => ({
     fetch: async ({ period }) => {
       const requestedState = {
@@ -2631,6 +2638,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     fillMonth,
     fmt,
     hkdRate: HKD_RATE,
+    language,
     newAccount,
     setAccountDeleteConfirmId,
     setAccounts,

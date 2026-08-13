@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import ActionModalCard from '../components/ActionModalCard.jsx';
 import AccountAssetTrendModal from '../components/AccountAssetTrendModal.jsx';
+import MonthlyAssetTrendContent from '../components/MonthlyAssetTrendContent.jsx';
 import { buildAccountAssetTrend } from '../lib/accountAssetTrend.js';
 import { applyAccountSnapshotMutations, buildAccountSnapshotMutations } from '../lib/accountSnapshotMutation.js';
 import { splitCurrencyAmount } from '../lib/amountDisplay.js';
@@ -343,6 +344,14 @@ function AnalysisTab({ ctx }) {
     setSnapshotDraft({});
     setShowFillSnapshot(false);
   };
+
+  const openMonthlyBalanceEditor = React.useCallback((month) => {
+    setAssetMessage(null);
+    setSnapshotDraft({});
+    setShowMonthsDetail(false);
+    setFillMonth(month);
+    setShowFillSnapshot(true);
+  }, [setFillMonth, setShowFillSnapshot, setShowMonthsDetail, setSnapshotDraft]);
 
   const closeAccountAction = () => {
     setAssetMessage(null);
@@ -1242,49 +1251,18 @@ function AnalysisTab({ ctx }) {
           closeLabel={tt('analysis.closeMonthTrend', '关闭 12 个月资产走势')}
           onClose={() => setShowMonthsDetail(false)}
           widthClassName="w-[calc(100vw-32px)] max-w-[390px]"
-          contentClassName="space-y-2 !border-0 !bg-transparent !p-0 !shadow-none"
-          actions={[
-            {
-              key: 'fill-monthly-balance',
-              label: tt('analysis.fillOrEditMonthlyBalance', '补录/修改月度余额'),
-              onClick: () => {
-                setShowMonthsDetail(false);
-                setFillMonth(localMonthKey());
-                setShowFillSnapshot(true);
-              },
-            },
-          ]}
+          panelClassName="!min-h-0 !bg-[#0b0f15] !pb-3"
+          contentClassName="!min-h-0 !border-0 !bg-transparent !p-0 !shadow-none"
         >
-              {[...last12Months].reverse().map((m, idx) => {
-                const reversedIdx = last12Months.length - 1 - idx;
-                const total = chartData[reversedIdx];
-                const prevTotal = reversedIdx > 0 ? chartData[reversedIdx - 1] : 0;
-                const changeAmt = prevTotal > 0 ? total - prevTotal : null;
-                const changePct = prevTotal > 0 ? (changeAmt / prevTotal) * 100 : null;
-                const hasData = total > 0;
-                const isCurrent = m === currentMonth;
-                return (
-                  <div
-                    key={m}
-                    className={`flex items-center justify-between rounded-[13px] border px-3 py-3 ${isCurrent ? 'border-white/[0.11] bg-white/[0.045]' : 'border-white/[0.055] bg-black/[0.12]'}`}
-                  >
-                    <div>
-                      <div className="text-[13px] tabular-nums text-white/[0.82]" style={{ fontFamily: ASSET_NUMBER_FONT }}>{m}</div>
-                      {isCurrent && <div className="mt-1 text-[11px]" style={{ color: ASSET_GOLD }}>{tt('analysis.thisMonth', '本月')}</div>}
-                    </div>
-                    <div className="text-right">
-                      <div className="text-[14px] tabular-nums text-white/[0.88]" style={{ fontFamily: ASSET_NUMBER_FONT }}>
-                        {hasData ? `¥${fmtWan(total)}万` : tt('analysis.noData', '无数据')}
-                      </div>
-                      {hasData && changeAmt !== null && (
-                        <div className="mt-1 text-[12px] tabular-nums" style={{ color: changeAmt >= 0 ? ASSET_PINK : ASSET_GREEN, fontFamily: ASSET_NUMBER_FONT }}>
-                          {fmtSignedWan(changeAmt)} · {fmtSignedPct(changePct)}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
+          <MonthlyAssetTrendContent
+            language={language}
+            months={last12Months}
+            values={chartData}
+            currentMonth={currentMonth}
+            comparisonStartMonth={yearAgo}
+            comparisonStartValue={totalYearAgo}
+            onEditMonth={openMonthlyBalanceEditor}
+          />
         </ActionModalCard>
       )}
 

@@ -37,7 +37,8 @@ test('shiftMonthKey crosses year boundaries without UTC date parsing', () => {
 
 test('snapshot entry reads and pins the local month at every mutation boundary', () => {
   assert.match(appSource, /useState\(\(\) => localMonthKey\(\)\)/);
-  assert.equal((analysisSource.match(/setFillMonth\(localMonthKey\(\)\)/g) || []).length, 2);
+  assert.equal((analysisSource.match(/setFillMonth\(localMonthKey\(\)\)/g) || []).length, 1);
+  assert.match(analysisSource, /setFillMonth\(month\);/);
   assert.doesNotMatch(analysisSource, /setFillMonth\(currentMonth\)/);
   assert.match(analysisSource, /const editMonth = localMonthKey\(\);/);
   assert.match(analysisSource, /month: editMonth,/);
