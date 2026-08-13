@@ -1119,16 +1119,6 @@ export default function ReviewTab({ ctx }) {
             );
           })}
         </div>
-        {hiddenYearCount > 0 && (
-          <button
-            type="button"
-            onClick={() => setShowAllYears(!showAllYears)}
-            className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-2xl border border-dashed border-[#f6b54b]/35 bg-[#f6b54b]/[0.035] py-3 text-[13px] font-normal text-[#f6b54b]"
-          >
-            {showAllYears ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-            {showAllYears ? tt('review.collapseAnnualGoals', '收起年度目标') : tt('review.expandMoreYears', '展开剩余 {{count}} 年', { count: hiddenYearCount })}
-          </button>
-        )}
       </section>
 
       <section className="mt-5">

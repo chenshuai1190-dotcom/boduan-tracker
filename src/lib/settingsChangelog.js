@@ -4,6 +4,19 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '🎯 年度目标展开入口去重',
+      '  - 删除年度目标列表底部带黄色虚线边框的“展开剩余 X 年”重复按钮',
+      '  - 保留标题右侧的展开与收起入口，年度数据、卡片和计算逻辑保持不变',
+    ],
+    itemsEn: [
+      '🎯 The Annual Goals expand control is no longer duplicated',
+      '  - The repeated full-width “Expand remaining X years” button with the yellow dashed border is removed',
+      '  - The title-row expand and collapse control remains, with annual data, cards, and calculations unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.445', date: '2026-08-13',
+    items: [
       '📈 股票趋势标题统一页面视觉层级',
       '  - “股票趋势”的字号、字重和柔和白色同步个股收益详情页面上方的股票代码标题',
       '  - 股票代码、返回按钮、页面布局、趋势数据和交互逻辑保持不变',
