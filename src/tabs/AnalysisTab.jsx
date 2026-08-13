@@ -705,8 +705,7 @@ function AnalysisTab({ ctx }) {
 
           <button
             onClick={openMonthlyAssetTrend}
-            className="flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-white/10 bg-black/20 px-2.5 text-[11px] active:scale-95 transition"
-            style={{ color: ASSET_GOLD }}
+            className="flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-white/10 bg-black/20 px-2.5 text-[11px] text-white/[0.82] active:scale-95 transition"
             title={tt('analysis.monthTrendTitle', '12 个月资产走势')}
           >
             <CalendarDays className="h-3.5 w-3.5" strokeWidth={1.8} />
@@ -899,8 +898,7 @@ function AnalysisTab({ ctx }) {
             setShowFillSnapshot(true);
           }}
           disabled={accounts.length === 0}
-          className="flex min-h-[46px] min-w-0 items-center justify-center gap-1.5 rounded-xl border px-2 text-[13px] active:scale-95 transition disabled:opacity-35"
-          style={{ borderColor: 'rgba(246,197,111,0.72)', color: ASSET_GOLD, background: 'rgba(246,197,111,0.06)' }}
+          className="flex min-h-[46px] min-w-0 items-center justify-center gap-1.5 rounded-xl border border-white/[0.16] bg-white/[0.045] px-2 text-[13px] text-white/[0.82] active:scale-95 transition disabled:opacity-35"
         >
           <CalendarDays className="h-3.5 w-3.5 shrink-0" strokeWidth={1.8} />
           <span className="truncate">{tt('analysis.addMonthlyBalance', '填月度余额')}</span>

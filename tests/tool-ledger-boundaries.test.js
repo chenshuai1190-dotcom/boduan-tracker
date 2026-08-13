@@ -1702,6 +1702,10 @@ test('asset module redesign keeps database logic while removing legacy controls'
 });
 
 test('asset page visual shell and local preview stay debuggable', () => {
+  const assetMonthEntryStart = analysisTabSource.indexOf('onClick={openMonthlyAssetTrend}');
+  const assetMonthEntryEnd = analysisTabSource.indexOf('</button>', assetMonthEntryStart);
+  const assetMonthEntryBlock = analysisTabSource.slice(assetMonthEntryStart, assetMonthEntryEnd);
+
   assert.ok(appSource.includes("activeTab === 'analysis'"), 'asset tab must use the same dark shell as home and trades');
   assert.ok(authGateSource.includes('import.meta.env.DEV && (!isSupabaseConfigured || isDevVisualPreviewRequested())'), 'local visual preview mode must be development-only');
   assert.ok(authGateSource.includes('<DevVisualPreview />'), 'development missing-env mode should render the asset visual preview');
@@ -1730,6 +1734,10 @@ test('asset page visual shell and local preview stay debuggable', () => {
   assert.ok(analysisTabSource.includes('chartLabelIndices'), 'asset chart x-axis should include a middle month label');
   assert.ok(analysisTabSource.includes('const chartLeft = 64'), 'asset chart first point should stay clear of y-axis labels');
   assert.ok(analysisTabSource.includes("className=\"flex min-h-[46px] min-w-0 items-center justify-center"), 'asset action buttons should stay compact and readable');
+  assert.ok((analysisTabSource.match(/border-white\/\[0\.16\] bg-white\/\[0\.045\]/g) || []).length >= 2, 'fill monthly balance and add account should share the same neutral action style');
+  assert.equal(analysisTabSource.includes("style={{ borderColor: 'rgba(246,197,111,0.72)', color: ASSET_GOLD"), false, 'fill monthly balance should not retain its gold border and text');
+  assert.ok(assetMonthEntryBlock.includes('text-white/[0.82]'), 'the family asset month entry should use neutral white text');
+  assert.equal(assetMonthEntryBlock.includes('color: ASSET_GOLD'), false, 'the family asset month entry should not retain gold text');
   assert.equal(analysisTabSource.includes('text-[48px]'), false, 'asset header number should not return to the oversized mobile font');
 });
 

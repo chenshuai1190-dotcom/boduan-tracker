@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '🎨 资产月度入口统一中性视觉',
+      '  - 家庭总资产右上角的月份入口取消金黄色文字，改为系统柔和白色',
+      '  - “填月度余额”取消黄色文字、边框和底色，与“新增账户”使用同一套中性按钮样式',
+      '  - 本次仅调整视觉；月度余额、缺失月份计算、账户走势、保存和数据库逻辑均保持不变',
+    ],
+    itemsEn: [
+      '🎨 Asset month entries now share the neutral system style',
+      '  - The month entry in Family Net Worth changes from gold to the system soft-white tone',
+      '  - Add Monthly Balance removes its gold text, border, and fill to match the neutral Add Account button',
+      '  - This release changes visuals only; monthly balances, missing-month calculations, account trends, saving, and database behavior are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.446', date: '2026-08-13',
+    items: [
       '🎯 年度目标展开入口去重',
       '  - 删除年度目标列表底部带黄色虚线边框的“展开剩余 X 年”重复按钮',
       '  - 保留标题右侧的展开与收起入口，年度数据、卡片和计算逻辑保持不变',
