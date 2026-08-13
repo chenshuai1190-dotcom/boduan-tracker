@@ -31,7 +31,6 @@ const ASSET_GOLD = '#f6c56f';
 const ASSET_PINK = marketHexColor(-1);
 const ASSET_GREEN = '#50d0a2';
 const ASSET_CARD = '#0b0c0e';
-const ASSET_BORDER = 'rgba(255,255,255,0.10)';
 
 const ACCOUNT_TYPE_OPTIONS = [
   { type: '银行', Icon: Landmark },
@@ -696,7 +695,7 @@ function AnalysisTab({ ctx }) {
     <>
       {showMonthsDetail ? monthlyAssetTrendPage : (
       <div className="space-y-3.5 text-[#f5f7fb]" style={{ fontFamily: ASSET_FONT }}>
-      <section className="rounded-2xl border border-white/10 bg-[#0b0c0e] p-4 shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)]">
+      <section className="rounded-2xl border border-transparent bg-[#0b0c0e] p-4 shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06),inset_1px_0_0_rgba(255,255,255,0.03),inset_-1px_0_0_rgba(255,255,255,0.03),inset_0_-1px_0_rgba(255,255,255,0.01)]">
         <div className="flex min-h-[34px] items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-1.5 text-[14px] font-normal text-white/70">
             <span>{tt('analysis.familyNetWorth', '家庭总资产')}</span>
@@ -749,8 +748,8 @@ function AnalysisTab({ ctx }) {
 
       {chartNonZeroCount >= 2 && (
         <section
-          className="rounded-[20px] border p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
-          style={{ background: ASSET_CARD, borderColor: ASSET_BORDER }}
+          className="rounded-[20px] border border-transparent p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
+          style={{ background: ASSET_CARD }}
         >
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-1.5 text-[14px] text-white/90">
@@ -913,7 +912,7 @@ function AnalysisTab({ ctx }) {
       </div>
 
       {accounts.length === 0 && (
-        <section className="rounded-[22px] border border-white/10 bg-white/[0.04] px-5 py-9 text-center">
+        <section className="rounded-[22px] border border-transparent bg-white/[0.04] px-5 py-9 text-center">
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-black/25 text-white/[0.65]">
             <PiggyBank className="h-7 w-7" strokeWidth={1.8} />
           </div>
@@ -935,8 +934,8 @@ function AnalysisTab({ ctx }) {
         return (
           <section
             key={owner}
-          className="rounded-[20px] border p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
-          style={{ background: ASSET_CARD, borderColor: ASSET_BORDER }}
+          className="rounded-[20px] border border-transparent p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
+          style={{ background: ASSET_CARD }}
         >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">

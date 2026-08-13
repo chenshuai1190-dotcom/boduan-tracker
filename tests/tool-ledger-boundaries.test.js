@@ -1672,8 +1672,11 @@ test('asset module redesign keeps database logic while removing legacy controls'
   assert.equal(analysisTabSource.includes("const ASSET_PINK = '#f56f98';"), false, 'asset page should not keep the old mismatched pink accent');
   assert.ok(analysisTabSource.includes('ASSET_PINK'), 'asset page should keep the system red accent for positive values, owner totals, and progress bars');
   assert.ok(analysisTabSource.includes("const ASSET_CARD = '#0b0c0e';"), 'asset page lower cards should use the same neutral black as the home cards');
-  assert.ok(analysisTabSource.includes("const ASSET_BORDER = 'rgba(255,255,255,0.10)';"), 'asset page lower cards should use the same neutral border opacity as the home cards');
-  assert.ok((analysisTabSource.match(/style=\{\{ background: ASSET_CARD, borderColor: ASSET_BORDER \}\}/g) || []).length >= 2, 'asset trend and owner cards should both use the standard neutral shell');
+  assert.equal(analysisTabSource.includes('const ASSET_BORDER'), false, 'asset overview cards should not keep a visible shared outer-border token');
+  assert.equal((analysisTabSource.match(/style=\{\{ background: ASSET_CARD \}\}/g) || []).length, 2, 'asset trend and owner cards should both retain the standard neutral-black surface');
+  assert.ok(analysisTabSource.includes('rounded-[20px] border border-transparent p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]'), 'the overview trend card should hide its outer outline while preserving the top highlight');
+  assert.ok(analysisTabSource.includes('rounded-[20px] border border-transparent p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]'), 'owner account groups should hide their outer outlines while preserving the top highlight');
+  assert.ok(analysisTabSource.includes('rounded-[22px] border border-transparent bg-white/[0.04] px-5 py-9 text-center'), 'the no-account state should hide only its outer outline');
   assert.ok(analysisTabSource.includes('style={{ color: ASSET_PINK, fontFamily: ASSET_NUMBER_FONT }}'), 'both owner totals should use the system red token');
   assert.ok(analysisTabSource.includes('background: ASSET_PINK'), 'both owner progress bars should use the system red token');
   assert.ok((analysisTabSource.match(/bg-black\/\[0\.18\] text-white\/\[0\.55\]/g) || []).length >= 2, 'account type icons should use the same neutral default color in the asset list and monthly editor');
@@ -1997,11 +2000,10 @@ test('primary asset totals split decimal suffixes consistently', () => {
 });
 
 test('asset header card aligns with home and trade header sizing', () => {
-  const sharedHeaderShell = 'rounded-2xl border border-white/10 bg-[#0b0c0e] p-4 shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)]';
   const borderlessFourEdgeHeaderShell = 'rounded-2xl border border-transparent bg-[#0b0c0e] p-4 shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06),inset_1px_0_0_rgba(255,255,255,0.03),inset_-1px_0_0_rgba(255,255,255,0.03),inset_0_-1px_0_rgba(255,255,255,0.01)]';
   assert.ok(homeTabSource.includes(borderlessFourEdgeHeaderShell), 'home header should keep its borderless shell with 6% top, 3% side, and 1% bottom inner highlights');
   assert.ok(tradesTabSource.includes(borderlessFourEdgeHeaderShell), 'trade header should match the Home borderless shell and four-edge inner highlights');
-  assert.ok(analysisTabSource.includes(sharedHeaderShell), 'asset header should use the same header card shell');
+  assert.ok(analysisTabSource.includes(borderlessFourEdgeHeaderShell), 'asset header should match the Home and Trading borderless shell and four-edge inner highlights');
   assert.ok(homeTabSource.includes('min-w-0 text-[14px] font-normal text-white/70'), 'home net-assets title should remain the header typography baseline');
   assert.ok(tradesTabSource.includes('min-w-0 text-[14px] font-normal text-white/70'), 'trade net-assets title should match the home header baseline');
   assert.ok(homeTabSource.includes('text-[13px]">{t(language, \'home.totalAssets\''), 'home total-assets label should remain the header typography baseline');
@@ -2030,6 +2032,9 @@ test('asset header card aligns with home and trade header sizing', () => {
   assert.equal(tradesTabSource.includes("${index > 0 ? 'border-l border-white/10' : ''}"), false, 'the Trading quick-action module should not restore vertical column dividers');
   assert.ok(tradesTabSource.includes('className="flex min-h-[86px] flex-col items-center justify-center gap-2 active:bg-white/[0.04]"'), 'the Trading quick actions should preserve their equal tap geometry after removing dividers');
   assert.ok(tradesTabSource.includes('border-b border-white/[0.06] px-4 py-3'), 'the positions and orders module should preserve its internal header divider');
+  assert.ok(analysisTabSource.includes('grid w-full grid-cols-[minmax(0,1fr)_auto] items-stretch overflow-hidden rounded-xl border border-white/10 bg-white/[0.035]'), 'asset account rows should retain their interactive boundaries');
+  assert.ok(monthlyAssetTrendContentSource.includes('grid min-h-[64px] grid-cols-2 rounded-[16px] border border-white/[0.075]'), 'the standalone asset-trend summary should retain its approved boundary');
+  assert.ok(monthlyAssetTrendContentSource.includes('mt-3 overflow-hidden rounded-[17px] border border-white/[0.075] bg-black/[0.12]'), 'the standalone monthly-details table should retain its approved boundary');
   assert.ok(earningsCalendarSource.includes("index < previewEvents.length - 1 ? 'border-r border-white/[0.08]' : ''"), 'the earnings preview should preserve internal event dividers');
   assert.ok(homeMa200Source.includes('border-b border-white/[0.06]'), 'the MA200 monitor should preserve its internal header divider');
   assert.ok(analysisTabSource.includes('text-[13px] text-white/50">{item.label}'), 'asset header metric labels should match the home field-label baseline');

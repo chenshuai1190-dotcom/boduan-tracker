@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '🎨 资产总览统一无外边框层次',
+      '  - 家庭总资产头部隐藏外轮廓，并同步顶部6%、左右3%和底部1%的渐弱内高光',
+      '  - 总览中的12个月走势、无账户空态和家庭成员账户分组卡统一隐藏最外层边框',
+      '  - 独立资产走势页面、账户行、操作按钮、内部结构线、弹窗及资产数据和保存逻辑均保持不变',
+    ],
+    itemsEn: [
+      '🎨 The Assets overview now shares a borderless visual hierarchy',
+      '  - The Family Net Worth header hides its outer outline and adds stepped 6% top, 3% side, and 1% bottom inner highlights',
+      '  - The overview trend, empty state, and family-member account groups now hide their outer card outlines',
+      '  - The standalone asset-trend page, account rows, action buttons, internal dividers, dialogs, asset data, and saving logic are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.452', date: '2026-08-13',
+    items: [
       '✨ 交易页快捷入口与持仓卡片进一步轻量化',
       '  - 波段记录、社区比赛、交易记录和全部功能取消列间竖线，保留原有等宽布局与点击区域',
       '  - 持仓分布与当日订单卡片同步顶部6%、左右3%和底部1%的渐弱内高光',
