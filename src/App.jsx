@@ -519,7 +519,7 @@ function readCachedStockLogos() {
 
 function TabFallback() {
   return (
-    <div className="rounded-2xl border border-white/10 bg-[#0b0f14] p-5 mb-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] text-sm text-white/50">
+    <div className="rounded-2xl border border-white/10 bg-[#0b0c0e] p-5 mb-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] text-sm text-white/50">
       <div className="flex items-center justify-center gap-2">
         <Loader2 className="h-4 w-4 animate-spin text-[#f6b54b]" />
         加载中...

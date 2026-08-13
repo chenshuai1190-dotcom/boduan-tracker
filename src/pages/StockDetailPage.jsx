@@ -811,7 +811,7 @@ export default function StockDetailPage({ ctx = {} }) {
       </header>
 
       <section
-        className="mt-3 overflow-hidden rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
+        className="mt-3 overflow-hidden rounded-2xl border border-white/10 bg-[#0b0c0e] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
         data-stock-detail-summary-card="true"
       >
         <div className="relative">
@@ -949,7 +949,7 @@ export default function StockDetailPage({ ctx = {} }) {
       ) : null}
 
       <section
-        className="mt-3 rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
+        className="mt-3 rounded-2xl border border-white/10 bg-[#0b0c0e] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
         data-stock-detail-pnl-trend-card="true"
       >
         <div className="flex items-center gap-1.5">
@@ -986,7 +986,7 @@ export default function StockDetailPage({ ctx = {} }) {
         visualPreview={stockReturnComparisonVisualPreview}
       />
 
-      <section className="mt-3 rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+      <section className="mt-3 rounded-2xl border border-white/10 bg-[#0b0c0e] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
         <h2 className={`text-[13px] font-semibold ${DETAIL_HEADING_CLASS}`}>{t(language, 'stockDetail.tradeStats', '交易统计')}</h2>
         <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-4">
           <StatCell label={t(language, 'stockDetail.buyAmount', '买入金额')} value={currency(view.stats.buyAmountUsd * displayRate, displayCurrency, 2)} />
@@ -996,7 +996,7 @@ export default function StockDetailPage({ ctx = {} }) {
         </div>
       </section>
 
-      <section className="mt-3 rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+      <section className="mt-3 rounded-2xl border border-white/10 bg-[#0b0c0e] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
         <div className="flex items-center justify-between">
           <h2 className={`text-[13px] font-semibold ${DETAIL_HEADING_CLASS}`}>{t(language, 'stockDetail.tradeRecords', '交易记录')}</h2>
           <span className="text-[11px] text-white/[0.34]">{compactRangeLabel}</span>

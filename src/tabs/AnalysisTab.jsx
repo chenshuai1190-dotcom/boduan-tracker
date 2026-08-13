@@ -30,7 +30,7 @@ const ASSET_NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", 
 const ASSET_GOLD = '#f6c56f';
 const ASSET_PINK = marketHexColor(-1);
 const ASSET_GREEN = '#50d0a2';
-const ASSET_CARD = '#0b0f14';
+const ASSET_CARD = '#0b0c0e';
 const ASSET_BORDER = 'rgba(255,255,255,0.10)';
 
 const ACCOUNT_TYPE_OPTIONS = [
@@ -696,7 +696,7 @@ function AnalysisTab({ ctx }) {
     <>
       {showMonthsDetail ? monthlyAssetTrendPage : (
       <div className="space-y-3.5 text-[#f5f7fb]" style={{ fontFamily: ASSET_FONT }}>
-      <section className="rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)]">
+      <section className="rounded-2xl border border-white/10 bg-[#0b0c0e] p-4 shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)]">
         <div className="flex min-h-[34px] items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-1.5 text-[14px] font-normal text-white/70">
             <span>{tt('analysis.familyNetWorth', '家庭总资产')}</span>
@@ -716,11 +716,11 @@ function AnalysisTab({ ctx }) {
         </div>
 
         <div
-          className="mt-3 overflow-hidden text-ellipsis whitespace-nowrap font-normal leading-none tracking-normal text-[#ffd18a] tabular-nums"
+          className="mt-3 overflow-hidden text-ellipsis whitespace-nowrap font-normal leading-none tracking-normal text-white/[0.95] tabular-nums"
           style={{ fontFamily: ASSET_NUMBER_FONT, fontSize: 'clamp(28px, 8.7vw, 34px)' }}
         >
           <span>{totalNowMoney.main}</span>
-          <span className="ml-0.5 align-baseline text-[20px] font-normal leading-none text-[#ffd18a]/90">{totalNowMoney.decimal}</span>
+          <span className="ml-0.5 align-baseline text-[20px] font-normal leading-none text-white/[0.95]">{totalNowMoney.decimal}</span>
         </div>
 
         <div className="mt-6 grid grid-cols-[1fr_1.12fr_0.96fr] divide-x divide-white/10">
@@ -849,7 +849,7 @@ function AnalysisTab({ ctx }) {
                     {selected && (
                       <>
                         <line x1={p.x} x2={p.x} y1={p.y} y2={chartBottom} stroke={ASSET_PINK} strokeOpacity="0.45" strokeDasharray="3 4" />
-                        <circle className="asset-chart-dot" cx={p.x} cy={p.y} r="5.8" fill={ASSET_CARD} stroke={ASSET_PINK} strokeWidth="2.5" style={{ animationDelay: `${selectedChartDotDelay}ms` }} />
+                        <circle className="asset-chart-dot" cx={p.x} cy={p.y} r="5.8" fill="#0b0f14" stroke={ASSET_PINK} strokeWidth="2.5" style={{ animationDelay: `${selectedChartDotDelay}ms` }} />
                         <circle className="asset-chart-dot" cx={p.x} cy={p.y} r="2.2" fill={ASSET_PINK} style={{ animationDelay: `${selectedChartDotDelay + 40}ms` }} />
                       </>
                     )}
@@ -1383,7 +1383,7 @@ function AnalysisTab({ ctx }) {
                     {hasMulti && (
                       <div className="mt-4 flex items-center justify-between text-[12px] text-white/[0.52]">
                         <span>{tt('analysis.monthlyOwnerSummary', '{{owner}} · {{count}} 个账户', { owner: ownerLabel(snapshotTab), count: currentAccs.length })}</span>
-                        <span className="tabular-nums" style={{ color: ASSET_GOLD, fontFamily: ASSET_NUMBER_FONT }}>≈ ¥{fmt(curSum, 0)}</span>
+                        <span className="text-white/[0.95] tabular-nums" style={{ fontFamily: ASSET_NUMBER_FONT }}>≈ ¥{fmt(curSum, 0)}</span>
                       </div>
                     )}
 

@@ -221,7 +221,7 @@ function SegmentCard({ item, index, totalRevenue, language, marketColorMode }) {
     : null;
   const accent = SECTION_ACCENTS[index % SECTION_ACCENTS.length];
   return (
-    <article className="overflow-hidden rounded-[17px] border border-white/[0.075] bg-[#0d1118] shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]">
+    <article className="overflow-hidden rounded-[17px] border border-white/[0.075] bg-[#101114] shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]">
       <div className="px-4 pb-3 pt-3.5">
         <div className="flex min-w-0 items-start gap-3">
           <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full shadow-[0_0_12px_currentColor]" style={{ color: accent, backgroundColor: accent }} />
@@ -345,7 +345,7 @@ function DetailSections({ detail, event, language, marketColorMode }) {
       ) : null}
 
       {breakdown.items.length ? (
-        <section className="mt-4 overflow-hidden rounded-[18px] border border-white/[0.075] bg-[#0b0f15]">
+        <section className="mt-4 overflow-hidden rounded-[18px] border border-white/[0.075] bg-[#0b0c0e]">
           <div className="flex items-end justify-between border-b border-white/[0.055] px-4 py-3.5">
             <div className="flex items-start gap-2.5"><PieChart className="mt-0.5 h-4 w-4 text-[#f6b54b]/65" /><div><h2 className="text-[15px] text-white/[0.80]">{language === 'en' ? 'Revenue breakdown' : '细分结构'}</h2><p className="mt-1 text-[11px] text-white/[0.50]">{language === 'en' ? 'Products and services' : '产品与服务类别，不等同于会计分部'}</p></div></div>
             <span className="text-[11px] text-white/[0.40]">{language === 'en' ? 'Revenue · YoY · Share' : '营收 · 同比 · 占比'}</span>
@@ -355,7 +355,7 @@ function DetailSections({ detail, event, language, marketColorMode }) {
       ) : null}
 
       {regions.items.length ? (
-        <section className="mt-4 overflow-hidden rounded-[18px] border border-white/[0.075] bg-[#0b0f15]">
+        <section className="mt-4 overflow-hidden rounded-[18px] border border-white/[0.075] bg-[#0b0c0e]">
           <div className="flex items-end justify-between border-b border-white/[0.055] px-4 py-3.5">
             <div className="flex items-start gap-2.5"><MapPinned className="mt-0.5 h-4 w-4 text-[#60a5fa]/65" /><div><h2 className="text-[15px] text-white/[0.80]">{language === 'en' ? 'Geographic revenue' : '地区收入'}</h2><p className="mt-1 text-[11px] text-white/[0.50]">{language === 'en' ? 'As officially disclosed' : '按公司官方披露口径'}</p></div></div>
             <span className="text-[11px] text-white/[0.40]">{language === 'en' ? 'YoY · Share' : '同比 · 占比'}</span>
@@ -365,7 +365,7 @@ function DetailSections({ detail, event, language, marketColorMode }) {
       ) : null}
 
       {supplementalSections.map(({ key, icon: Icon, accent, title, subtitle, section }) => (
-        <section key={key} className="mt-4 overflow-hidden rounded-[18px] border border-white/[0.075] bg-[#0b0f15]">
+        <section key={key} className="mt-4 overflow-hidden rounded-[18px] border border-white/[0.075] bg-[#0b0c0e]">
           <div className="flex items-end justify-between border-b border-white/[0.055] px-4 py-3.5">
             <div className="flex items-start gap-2.5">
               <Icon className="mt-0.5 h-4 w-4" style={{ color: accent }} />
@@ -507,7 +507,7 @@ export default function EarningsDetailPage({ ctx }) {
         </header>
 
         <main className="relative z-10 mx-auto w-[calc(100%-32px)] max-w-[430px] pb-[calc(86px+env(safe-area-inset-bottom))] pt-3.5">
-          <section className="w-full overflow-hidden rounded-[20px] border border-white/[0.085] bg-[#0b0f15] shadow-[0_18px_45px_rgba(0,0,0,0.30),inset_0_1px_0_rgba(255,255,255,0.045)]">
+          <section className="w-full overflow-hidden rounded-[20px] border border-white/[0.085] bg-[#0b0c0e] shadow-[0_18px_45px_rgba(0,0,0,0.30),inset_0_1px_0_rgba(255,255,255,0.045)]">
             <div className="px-4 pb-4 pt-4">
               <div className="flex items-center gap-3">
                 <div>
@@ -539,11 +539,11 @@ export default function EarningsDetailPage({ ctx }) {
           </section>
 
           {loading ? (
-            <div className="mt-4 flex h-36 items-center justify-center rounded-[18px] border border-white/[0.07] bg-[#0b0f15] text-[13px] text-white/[0.40]"><Loader2 className="mr-2 h-4 w-4 animate-spin text-[#f6b54b]" />{language === 'en' ? 'Loading official breakdown…' : '正在读取官方细分数据…'}</div>
+            <div className="mt-4 flex h-36 items-center justify-center rounded-[18px] border border-white/[0.07] bg-[#0b0c0e] text-[13px] text-white/[0.40]"><Loader2 className="mr-2 h-4 w-4 animate-spin text-[#f6b54b]" />{language === 'en' ? 'Loading official breakdown…' : '正在读取官方细分数据…'}</div>
           ) : detail ? (
             <DetailSections detail={detail} event={effectiveEvent} language={language} marketColorMode={marketColorMode} />
           ) : (
-            <div className="mt-4 rounded-[18px] border border-white/[0.07] bg-[#0b0f15] px-4 py-8 text-center text-[13px] text-white/[0.40]">{error}</div>
+            <div className="mt-4 rounded-[18px] border border-white/[0.07] bg-[#0b0c0e] px-4 py-8 text-center text-[13px] text-white/[0.40]">{error}</div>
           )}
 
           <EarningsGrowthCard

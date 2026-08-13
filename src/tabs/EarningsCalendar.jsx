@@ -787,7 +787,7 @@ function EarningsModal({
     >
       <div
         className={standalone
-          ? 'flex h-[calc(100dvh-env(safe-area-inset-top)-138px)] min-h-[560px] w-full flex-col rounded-[20px] border border-white/10 bg-[#0b0f14] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]'
+          ? 'flex h-[calc(100dvh-env(safe-area-inset-top)-138px)] min-h-[560px] w-full flex-col rounded-[20px] border border-white/10 bg-[#0b0c0e] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]'
           : 'flex h-[86dvh] max-h-[760px] w-full max-w-[410px] flex-col rounded-[22px] border border-white/10 bg-[#0b0f14] p-4 shadow-[0_24px_72px_rgba(0,0,0,0.68),inset_0_1px_0_rgba(255,255,255,0.06)]'}
         style={{ fontFamily: FONT }}
         data-earnings-calendar-workspace={standalone ? 'standalone' : 'modal'}

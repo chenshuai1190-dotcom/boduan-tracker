@@ -621,7 +621,7 @@ function SettingsTab({ ctx }) {
             setShowCommunityProfile(true);
           }}
           aria-label={t(language, 'settings.editCommunityProfile', '编辑社区资料')}
-          className="mt-1 flex min-h-[176px] w-full flex-col items-center justify-center rounded-[22px] border border-white/[0.09] bg-[radial-gradient(circle_at_50%_35%,rgba(33,65,122,0.13),transparent_45%),linear-gradient(145deg,#0d1118,#0a0d13)] px-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]"
+          className="mt-1 flex min-h-[176px] w-full flex-col items-center justify-center rounded-[22px] border border-white/[0.09] bg-[radial-gradient(circle_at_50%_35%,rgba(33,65,122,0.13),transparent_45%),linear-gradient(145deg,#0b0c0e,#0b0c0e)] px-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]"
         >
           <span className="relative h-[95px] w-[95px] rounded-full border border-white/[0.18] bg-[#080c12] shadow-[0_0_0_3px_rgba(255,255,255,0.025),0_0_24px_rgba(36,90,202,0.18)]">
             <span className="absolute inset-px flex items-center justify-center overflow-hidden rounded-full bg-[#070a0f]">
@@ -640,7 +640,7 @@ function SettingsTab({ ctx }) {
           </span>
         </button>
 
-        <section className="mt-5 overflow-hidden rounded-[22px] border border-white/[0.09] bg-[#0c1016] shadow-[inset_0_1px_0_rgba(255,255,255,0.025)]">
+        <section className="mt-5 overflow-hidden rounded-[22px] border border-white/[0.09] bg-[#0b0c0e] shadow-[inset_0_1px_0_rgba(255,255,255,0.025)]">
           {settingsRows.map((row, index) => (
             <React.Fragment key={row.id}>
               {index > 0 && <div className="mx-5 h-px bg-white/[0.065]" />}
@@ -672,7 +672,7 @@ function SettingsTab({ ctx }) {
           </div>
         </section>
 
-        <section className="mt-5 overflow-hidden rounded-[20px] border border-white/[0.075] bg-[#0b0f15]">
+        <section className="mt-5 overflow-hidden rounded-[20px] border border-white/[0.075] bg-[#0b0c0e]">
           <button
             type="button"
             onClick={() => toggleSection('changelog')}

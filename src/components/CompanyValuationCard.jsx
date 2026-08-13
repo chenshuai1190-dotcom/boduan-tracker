@@ -362,7 +362,7 @@ export default function CompanyValuationCard({
 
   return (
     <section
-      className="mt-3 scroll-mt-20 overflow-hidden rounded-2xl border border-white/[0.09] bg-[#0b0f14] shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]"
+      className="mt-3 scroll-mt-20 overflow-hidden rounded-2xl border border-white/[0.09] bg-[#0b0c0e] shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]"
       data-watchlist-detail-section="valuation"
       data-watchlist-company-valuation="true"
       data-valuation-status={status}

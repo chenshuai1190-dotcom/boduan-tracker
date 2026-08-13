@@ -319,7 +319,7 @@ function StockCard({ group, expanded, filter, onToggle, onAction, tt, displayRat
   const isActive = summary.status === 'active';
   const displayPnl = summary.pnlUsd == null ? null : summary.pnlUsd * displayRate;
   return (
-    <article className="overflow-hidden rounded-[18px] border border-[#1a2530] bg-[linear-gradient(145deg,rgba(15,21,29,0.98),rgba(8,13,19,0.98))] shadow-[0_15px_38px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.025)]">
+    <article className="overflow-hidden rounded-[18px] border border-[#1a2530] bg-[#0b0c0e] shadow-[0_15px_38px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.025)]">
       <button type="button" onClick={onToggle} className="block w-full px-3.5 py-3.5 text-left outline-none active:bg-white/[0.025] focus-visible:ring-1 focus-visible:ring-[#f6b54b]/40" aria-expanded={expanded}>
         <div className="grid grid-cols-[48px_minmax(0,1fr)_auto] items-center gap-3">
           <LogoBadge symbol={group.symbol} logoCache={logoCache} cacheStockLogo={cacheStockLogo} />
@@ -892,7 +892,7 @@ export default function WaveTrackerPage({ ctx = {}, fetchSwingWaveRealtimeSnapsh
 
         <section className="mt-5 space-y-3">
           {loading ? (
-            <div className="flex min-h-48 items-center justify-center rounded-[18px] border border-white/[0.08] bg-[#0b0f14] text-[12px] text-white/[0.45]">
+            <div className="flex min-h-48 items-center justify-center rounded-[18px] border border-white/[0.08] bg-[#0b0c0e] text-[12px] text-white/[0.45]">
               <Loader2 className="mr-2 h-4 w-4 animate-spin text-[#f6b54b]" />
               {tt('swing.loading', '正在读取波段记录')}
             </div>
@@ -903,7 +903,7 @@ export default function WaveTrackerPage({ ctx = {}, fetchSwingWaveRealtimeSnapsh
               <button type="button" onClick={() => loadRows().catch(() => {})} className="mt-4 rounded-full bg-[#f6b54b]/[0.09] px-4 py-2 text-[11px] text-[#f6bd61] active:scale-95">{tt('swing.retry', '重新加载')}</button>
             </div>
           ) : visibleGroups.length === 0 ? (
-            <div className="rounded-[18px] border border-dashed border-white/[0.1] bg-[#0b0f14] px-4 py-10 text-center">
+            <div className="rounded-[18px] border border-dashed border-white/[0.1] bg-[#0b0c0e] px-4 py-10 text-center">
               <div className="text-[13px] text-white/[0.68]">{filter === 'all' ? tt('swing.empty', '暂无波段记录') : tt('swing.emptyFilter', '当前分类暂无记录')}</div>
               <div className="mt-1 text-[12px] text-white/[0.50]">{tt('swing.emptyDesc', '每个波段支持分批卖出，卖出批次分别进入已完成。')}</div>
               {filter === 'all' ? <button type="button" onClick={openAdd} className="mt-4 rounded-full bg-[#f6b54b]/[0.09] px-4 py-2 text-[11px] text-[#f6bd61] active:scale-95">{tt('swing.addFirst', '新增第一个波段')}</button> : null}

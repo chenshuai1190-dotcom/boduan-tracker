@@ -160,7 +160,7 @@ function StateCard({ state, language }) {
   const loading = state === 'deferred' || state === 'loading' || state === 'pending';
   return (
     <section
-      className="mt-4 overflow-hidden rounded-[19px] border border-white/[0.075] bg-[#0b0f15]"
+      className="mt-4 overflow-hidden rounded-[19px] border border-white/[0.075] bg-[#0b0c0e]"
       data-earnings-growth-card="true"
       data-earnings-growth-state={state}
       aria-busy={loading}
@@ -557,7 +557,7 @@ export default function EarningsGrowthCard({
   return (
     <section
       ref={rootRef}
-      className={`mt-4 overflow-hidden rounded-[19px] border border-white/[0.075] bg-[#0b0f15] shadow-[0_18px_45px_rgba(0,0,0,0.16)] ${className}`}
+      className={`mt-4 overflow-hidden rounded-[19px] border border-white/[0.075] bg-[#0b0c0e] shadow-[0_18px_45px_rgba(0,0,0,0.16)] ${className}`}
       data-earnings-growth-card="true"
       data-earnings-growth-state={state}
       data-earnings-growth-mode={mode}

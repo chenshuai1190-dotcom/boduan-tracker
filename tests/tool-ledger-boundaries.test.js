@@ -367,7 +367,7 @@ test('community competition is an isolated authenticated close-snapshot utility'
   assert.ok(communityCompetitionPageSource.includes('<div className="space-y-3 pt-3">'), 'competition cards should not add a second inner horizontal inset');
   assert.ok(communityCompetitionPageSource.includes("<div className={`px-4 ${contentDimmed"), 'competition cards should use the same 16px horizontal gutter as home cards');
   assert.ok(communityCompetitionPageSource.includes('max-w-[462px]'), 'the competition shell should leave room for two 16px gutters around the same 430px maximum card width as home');
-  assert.ok((communityCompetitionPageSource.match(/border-white\/10 bg-\[#0b0f14\]/g) || []).length >= 5, 'competition primary cards should use the same neutral black shell as home cards');
+  assert.ok((communityCompetitionPageSource.match(/border-white\/10 bg-\[#0b0c0e\]/g) || []).length >= 5, 'competition primary cards should use the same neutral black shell as home cards');
   assert.equal(communityCompetitionPageSource.includes('bg-[#0b1017]/98'), false, 'competition primary cards should not retain the old blue-tinted background');
   assert.equal(communityCompetitionPageSource.includes('bg-[#0c1118]/95'), false, 'competition statistics should not retain the old blue-tinted background');
   assert.equal(communityCompetitionPageSource.includes('bg-[linear-gradient(145deg,rgba(16,21,29,0.96),rgba(9,13,20,0.98))]'), false, 'competition rank header should not retain the old blue-gray gradient');
@@ -387,7 +387,7 @@ test('community competition is an isolated authenticated close-snapshot utility'
   assert.ok(communityCompetitionPageSource.includes("tt('competition.rankingTitle', '收益率排行榜')"), 'the leaderboard title should remain the user-approved return ranking label');
   assert.equal(communityCompetitionPageSource.includes('formatCompactSnapshotTime(data?.snapshotUpdatedAt)'), false, 'the UI must not present the publication-marker time as the leaderboard data time');
   assert.ok(communityCompetitionPageSource.includes("tt('competition.participantsRanked', '参赛/上榜')") && communityCompetitionPageSource.includes('rankedParticipants < joinedParticipants'), 'a later-start cohort should show joined/ranked coverage instead of a joined count beside fewer rows');
-  assert.ok(communityCompetitionPageSource.includes('overflow-hidden rounded-[17px] border border-white/10 bg-[#0b0f14] px-3.5 pb-2 pt-3'), 'the self card should reduce only its bottom padding while preserving the top spacing');
+  assert.ok(communityCompetitionPageSource.includes('overflow-hidden rounded-[17px] border border-white/10 bg-[#0b0c0e] px-3.5 pb-2 pt-3'), 'the self card should reduce only its bottom padding while preserving the top spacing');
   assert.ok(communityCompetitionPageSource.includes('data-competition-update-row className="mt-1.5 grid grid-cols-[56px_minmax(0,1fr)] items-center gap-x-4"'), 'the nickname and update label should share one horizontally aligned row');
   assert.ok(communityCompetitionPageSource.includes('data-competition-update-date className="col-start-3 whitespace-nowrap pl-2 text-left text-[11px] leading-5'), 'the update label should keep its third-column position while matching the readable auxiliary size');
   assert.ok(i18nSource.includes("'competition.nasdaq100': 'QQQ benchmark'"), 'English benchmark copy should identify QQQ');
@@ -648,7 +648,7 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(tradesTabSource.includes("icon: 'check'"), 'trade confirmation should use the current check icon token');
   assert.ok(tradeModalBlock.includes("title={tradeEntryScope === 'wave'"), 'trade entry modal title should be supplied by the shared shell');
   assert.equal(tradeModalBlock.includes('text-[14px] text-white ${tradeEntryScope'), false, 'trade entry modal title should not keep the old bold conditional class');
-  assert.ok(tradesTabSource.includes('rounded-full border border-[#f6b54b]/80 bg-[#0b0f14] px-8 py-2.5'), 'trade edit entry should use the same stronger gold-outline tone as the home add button');
+  assert.ok(tradesTabSource.includes('rounded-full border border-[#f6b54b]/80 bg-[#0b0c0e] px-8 py-2.5'), 'trade edit entry should use the same stronger gold-outline tone as the home add button');
   const earlyDarkBackgroundIndex = indexHtmlSource.indexOf('background: #05070b;');
   const appScriptIndex = indexHtmlSource.indexOf('/src/main.jsx');
   assert.ok(indexHtmlSource.includes('<meta name="theme-color" content="#05070b" />'), 'app shell theme color should match the dark startup background');
@@ -1215,7 +1215,8 @@ test('cost basis tool uses dark custom UI without legacy title icon or native al
   assert.ok(costSubmitBlock.includes('const confirmCostBasisTradeSubmit = (typeOverride = costBasisNewTrade.type) =>'), 'cost-basis buy/sell buttons should pass the selected type into the save path');
   assert.ok(costSubmitBlock.includes('const tradeDraft = { ...costBasisNewTrade, type: typeOverride }'), 'cost-basis submit should use a draft with the button-selected type');
   assert.ok(costSubmitBlock.includes("const type = tradeDraft.type === 'sell' ? 'sell' : 'buy'"), 'cost-basis record should use the button-selected type');
-  assert.ok(tradesTabSource.includes('bg-[#0b0f14]'), 'cost-basis tool should use the dark card surface');
+  assert.ok(tradesTabSource.includes('rounded-2xl border border-white/10 bg-[#0b0c0e] p-4 shadow-[0_16px_40px_rgba(0,0,0,0.28)]'), 'cost-basis tool should use the primary neutral-black surface');
+  assert.equal((tradesTabSource.match(/rounded-2xl border border-white\/10 bg-\[#101114\] p-4 shadow-\[0_14px_34px/g) || []).length, 2, 'cost-basis summary cards should use the raised neutral-black surface');
   assert.ok(tradesTabSource.includes('Database'), 'cost-basis stats should use the existing line icon system');
   assert.ok(tradesTabSource.includes('TrendingUp'), 'cost-basis realized PnL should use the existing line icon system');
   assert.equal(tradesTabSource.includes('💼 摊薄成本'), false, 'cost-basis title must not keep the legacy briefcase icon');
@@ -1670,7 +1671,7 @@ test('asset module redesign keeps database logic while removing legacy controls'
   assert.ok(analysisTabSource.includes('const ASSET_PINK = marketHexColor(-1);'), 'asset page red accent should reuse the system market-red token');
   assert.equal(analysisTabSource.includes("const ASSET_PINK = '#f56f98';"), false, 'asset page should not keep the old mismatched pink accent');
   assert.ok(analysisTabSource.includes('ASSET_PINK'), 'asset page should keep the system red accent for positive values, owner totals, and progress bars');
-  assert.ok(analysisTabSource.includes("const ASSET_CARD = '#0b0f14';"), 'asset page lower cards should use the same neutral black as the home cards');
+  assert.ok(analysisTabSource.includes("const ASSET_CARD = '#0b0c0e';"), 'asset page lower cards should use the same neutral black as the home cards');
   assert.ok(analysisTabSource.includes("const ASSET_BORDER = 'rgba(255,255,255,0.10)';"), 'asset page lower cards should use the same neutral border opacity as the home cards');
   assert.ok((analysisTabSource.match(/style=\{\{ background: ASSET_CARD, borderColor: ASSET_BORDER \}\}/g) || []).length >= 2, 'asset trend and owner cards should both use the standard neutral shell');
   assert.ok(analysisTabSource.includes('style={{ color: ASSET_PINK, fontFamily: ASSET_NUMBER_FONT }}'), 'both owner totals should use the system red token');
@@ -1981,15 +1982,15 @@ test('primary asset totals split decimal suffixes consistently', () => {
   assert.ok(analysisTabSource.includes("import { splitCurrencyAmount } from '../lib/amountDisplay.js';"), 'asset tab should use the shared split amount helper');
   assert.ok(analysisTabSource.includes("const totalNowMoney = splitCurrencyAmount(totalNow, 'CNY', 2)"), 'family total assets should split the decimal suffix');
   assert.ok(analysisTabSource.includes('totalNowMoney.decimal'), 'family total assets should render the decimal suffix separately');
-  assert.ok(homeTabSource.includes('text-white/[0.95] tabular-nums'), 'home net-assets headline should use the approved white tone');
-  assert.ok(homeTabSource.includes('text-[20px] font-normal leading-none text-white/[0.95]'), 'home decimal suffix should match the white 12-month asset trend headline while staying smaller and normal weight');
-  assert.ok(tradesTabSource.includes('text-[20px] font-normal leading-none text-[#ffd18a]/90'), 'trades decimal suffix should be smaller and normal weight');
-  assert.ok(analysisTabSource.includes('text-[20px] font-normal leading-none text-[#ffd18a]/90'), 'family asset decimal suffix should keep its gold tone and stay normal weight');
+  assert.ok(homeTabSource.includes('text-white/[0.95] tabular-nums'), 'home net-assets headline should use the approved soft-white amount tone');
+  assert.ok(homeTabSource.includes('text-[20px] font-normal leading-none text-white/[0.95]'), 'home decimal suffix should match the white net-assets headline while staying smaller and normal weight');
+  assert.ok(tradesTabSource.includes('text-[20px] font-normal leading-none text-white/[0.95]'), 'trades decimal suffix should match the white net-assets headline while staying smaller and normal weight');
+  assert.ok(analysisTabSource.includes('text-[20px] font-normal leading-none text-white/[0.95]'), 'family asset decimal suffix should match the white asset headline while staying smaller and normal weight');
 });
 
 test('asset header card aligns with home and trade header sizing', () => {
-  const sharedHeaderShell = 'rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)]';
-  assert.ok(homeTabSource.includes('rounded-2xl border border-white/10 bg-[#0b0c0e] p-4 shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)]'), 'home header should keep the shared sizing while using the approved neutral-black surface');
+  const sharedHeaderShell = 'rounded-2xl border border-white/10 bg-[#0b0c0e] p-4 shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)]';
+  assert.ok(homeTabSource.includes(sharedHeaderShell), 'home header should keep the shared sizing while using the approved neutral-black surface');
   assert.ok(tradesTabSource.includes(sharedHeaderShell), 'trade header should keep the shared header card shell');
   assert.ok(analysisTabSource.includes(sharedHeaderShell), 'asset header should use the same header card shell');
   assert.ok(homeTabSource.includes('min-w-0 text-[14px] font-normal text-white/70'), 'home net-assets title should remain the header typography baseline');
@@ -2016,9 +2017,9 @@ test('asset header card aligns with home and trade header sizing', () => {
 test('asset and review module cards do not keep legacy scale interactions', () => {
   assert.equal(analysisTabSource.includes('text-left active:scale-[0.99] transition'), false, 'asset account rows should not scale on press or hover');
   assert.equal(reviewTabSource.includes('shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)] active:scale-[0.995]'), false, 'north-star card should not keep module-level scale');
-  assert.equal(reviewTabSource.includes('bg-[#0b0f14] p-4 text-left shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)] active:scale-[0.99]'), false, 'current annual target card should not keep module-level scale');
-  assert.equal(reviewTabSource.includes('bg-[#0b0f14] p-4 text-left active:scale-[0.99]'), false, 'future annual target cards should not keep module-level scale');
-  assert.equal(reviewTabSource.includes('bg-[#0b1119] px-4 py-3.5 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.035)] active:scale-[0.99]'), false, 'discipline and review log cards should not keep module-level scale');
+  assert.equal(reviewTabSource.includes('bg-[#0b0c0e] p-4 text-left shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)] active:scale-[0.99]'), false, 'current annual target card should not keep module-level scale');
+  assert.equal(reviewTabSource.includes('bg-[#0b0c0e] p-4 text-left active:scale-[0.99]'), false, 'future annual target cards should not keep module-level scale');
+  assert.equal(reviewTabSource.includes('bg-[#101114] px-4 py-3.5 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.035)] active:scale-[0.99]'), false, 'discipline and review log cards should not keep module-level scale');
   assert.equal(reviewTabSource.includes('border-dashed border-[#f6b54b]/35 bg-[#f6b54b]/[0.035] py-3 text-[13px] font-normal text-[#f6b54b] active:scale-[0.99]'), false, 'full-width annual expand control should not keep card-like scale');
   assert.ok(tradesTabSource.includes('data-trades-margin-trigger="true"'), 'trade header financing area should open the standalone margin risk page');
   assert.ok(tradesTabSource.includes("tt('home.leverage', '杠杆')"), 'trade header should use the shared leverage label');
@@ -2051,7 +2052,7 @@ test('asset and review module cards do not keep legacy scale interactions', () =
 
 test('review target page uses dark mobile cards and click action modals', () => {
   assert.ok(appSource.includes("activeTab === 'review'"), 'review tab must use the same dark shell as home and assets');
-  assert.ok(reviewTabSource.includes("const REVIEW_CARD = '#0b0f14'"), 'review page should share the dark card surface');
+  assert.ok(reviewTabSource.includes("const REVIEW_CARD = '#0b0c0e'"), 'review page should share the primary neutral-black card surface');
   assert.ok(reviewTabSource.includes('年度目标操作'), 'year cards should open an action panel');
   assert.ok(reviewTabSource.includes('修改年度数据'), 'year action panel should offer editing instead of a trailing edit icon');
   assert.ok(reviewTabSource.includes('SF Pro Display'), 'review money should use the same system number font as the home header');
@@ -2132,8 +2133,8 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(reviewTabSource.includes('mt-1 text-[12px] font-normal text-white/35 tabular-nums'), 'future year start and target amounts should use neutral gray');
   assert.ok(reviewTabSource.includes('border-dashed border-white/25'), 'future year growth target guide line should be gray');
   assert.ok(reviewTabSource.includes('h-7 rounded-full px-2.5 text-[11px] font-normal'), 'review currency switch should match the home header size');
-  assert.ok(reviewTabSource.includes('rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-'), 'north-star card should use the same weak border/shadow style as the home header');
-  assert.ok(reviewTabSource.includes('rounded-[20px] border border-white/10 bg-[#0b0f14] p-4 text-left shadow-'), 'current year card should use the same weak border color as the north-star card');
+  assert.ok(reviewTabSource.includes('rounded-2xl border border-white/10 bg-[#0b0c0e] p-4 shadow-'), 'north-star card should use the same weak border/shadow style as the home header');
+  assert.ok(reviewTabSource.includes('rounded-[20px] border border-white/10 bg-[#0b0c0e] p-4 text-left shadow-'), 'current year card should use the same weak border color as the north-star card');
   assert.equal(reviewTabSource.includes('border-[#f6b54b]/65'), false, 'current year card should not keep the bright yellow outline');
   assert.equal(reviewTabSource.includes('bottom-[-78px] h-48 w-48'), false, 'north-star card should not keep the lower-right semicircle decoration');
   assert.ok(reviewTabSource.includes('mt-5 -mx-2'), 'annual target section should expand wider than the page padding');
@@ -2185,7 +2186,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(reviewTabSource.includes('scale(1.7)'), 'review flag background should render recognizable larger stars');
   assert.ok(reviewTabSource.includes('linear-gradient(180deg, rgba(5,7,11,0.42)'), 'review flag background should use the deeper dark readability overlay');
   assert.ok(reviewTabSource.includes('<rect width="360" height="88" fill="#05070b" opacity="0.46" />'), 'review flag background should deepen the top text readability mask');
-  assert.ok(reviewTabSource.includes('className="block w-full rounded-[22px] border border-white/[0.06] bg-[#0b1119] px-4 py-3.5'), 'discipline rows should use the tightened plain card surface');
+  assert.ok(reviewTabSource.includes('className="block w-full rounded-[22px] border border-white/[0.06] bg-[#101114] px-4 py-3.5'), 'discipline rows should use the raised neutral-black card surface');
   assert.equal(reviewTabSource.includes('<UsFlagBackground strength={0.2} shade={0.48} />'), false, 'discipline rows should not render the flag background');
   assert.ok(reviewTabSource.includes('text-[14px] font-normal leading-[1.52] text-white/80'), 'discipline text should use the tightened body size');
   assert.ok(reviewTabSource.includes('mt-2.5 flex flex-wrap items-center gap-2 text-[12px] text-white/35'), 'discipline and review metadata should match the detail modal gray treatment');

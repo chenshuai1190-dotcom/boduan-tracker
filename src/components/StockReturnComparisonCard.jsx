@@ -432,7 +432,7 @@ export default function StockReturnComparisonCard({
       : t(language, 'stockDetail.comparison.insufficient', '双方没有足够的同周期正式收盘数据');
 
   return (
-    <section id="stock-return-comparison" className="mt-3 scroll-mt-[132px] rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+    <section id="stock-return-comparison" className="mt-3 scroll-mt-[132px] rounded-2xl border border-white/10 bg-[#0b0c0e] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-1.5">
           <h2 className="text-[13px] font-semibold text-white/[0.72]">{t(language, 'stockDetail.comparison.title', '收益对比')}</h2>

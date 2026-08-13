@@ -7,7 +7,7 @@ import { marketTextClass } from '../lib/marketColorMode.js';
 const NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif';
 const REVIEW_GOLD = '#f6b54b';
 const REVIEW_BG = '#05070b';
-const REVIEW_CARD = '#0b0f14';
+const REVIEW_CARD = '#0b0c0e';
 const REVIEW_PANEL = '#0b0f16';
 
 const DISCIPLINE_LEVELS = [
@@ -361,7 +361,7 @@ function CompoundDetailModal({
             <div className="min-w-0">
               <div className="text-[11px] text-[#8a909a]">{tt('review.actualProgress', '实际进度')}</div>
               <div className="mt-1 truncate text-[12px] text-white/68">
-                {tt('review.current', '当前')} <span className="text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{money(currentBalance)}</span>
+                {tt('review.current', '当前')} <span className="text-white/[0.95] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{money(currentBalance)}</span>
                 <span className="mx-1.5 text-white/22">·</span>
                 {tt('review.actualGain', '实际收益')} <span className="text-[#ff4b1f] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{signedMoney(actualGain)}</span>
               </div>
@@ -476,7 +476,7 @@ function CompoundDetailModal({
                           <div className="mt-1.5 text-[10px] leading-none text-white/42">{tt('review.actualCompleted', '实际完成')}</div>
                         </div>
                         <div className="min-w-0 text-right">
-                          <div className="whitespace-nowrap text-[14px] font-normal leading-none text-white/90 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{formatRowMoney(row.actualEndBalance)}</div>
+                          <div className="whitespace-nowrap text-[14px] font-normal leading-none text-white/[0.95] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{formatRowMoney(row.actualEndBalance)}</div>
                           <div className="mt-1.5 text-[10px] leading-none text-white/42">
                             {row.assetLabel === 'current'
                               ? tt('review.currentAssets', '当前资产')
@@ -858,7 +858,7 @@ export default function ReviewTab({ ctx }) {
       `}</style>
 
       <section
-        className="relative flex h-[244px] flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)]"
+        className="relative flex h-[244px] flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#0b0c0e] p-4 shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)]"
         role="button"
         tabIndex={0}
         onClick={() => setShowCompoundDetails(true)}
@@ -995,7 +995,7 @@ export default function ReviewTab({ ctx }) {
                   key={yearItem.year}
                   type="button"
                   onClick={() => setYearAction(yearItem)}
-                  className="block w-full rounded-[20px] border border-white/10 bg-[#0b0f14] p-4 text-left shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)]"
+                  className="block w-full rounded-[20px] border border-white/10 bg-[#0b0c0e] p-4 text-left shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)]"
                 >
                   <div className="grid grid-cols-[minmax(0,1fr)_172px] items-start gap-2.5">
                     <div className="min-w-0">
@@ -1043,7 +1043,7 @@ export default function ReviewTab({ ctx }) {
                     <div className="px-2 text-white/25">→</div>
                     <div className="text-center">
                       <div className="text-[11px] text-white/40">{tt('review.current', '当前')}</div>
-                      <div className="mt-1 text-[12px] font-normal text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{money(yearItem.endBalance)}</div>
+                      <div className="mt-1 text-[12px] font-normal text-white/[0.95] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{money(yearItem.endBalance)}</div>
                     </div>
                     <div className="px-2 text-white/25">→</div>
                     <div className="text-right">
@@ -1074,7 +1074,7 @@ export default function ReviewTab({ ctx }) {
                 key={yearItem.year}
                 type="button"
                 onClick={() => setYearAction(yearItem)}
-                className="block w-full rounded-[18px] border border-white/10 bg-[#0b0f14] p-4 text-left"
+                className="block w-full rounded-[18px] border border-white/10 bg-[#0b0c0e] p-4 text-left"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
@@ -1194,7 +1194,7 @@ export default function ReviewTab({ ctx }) {
                         setDisciplineAction(discipline);
                       }
                     }}
-                    className="block w-full rounded-[22px] border border-white/[0.06] bg-[#0b1119] px-4 py-3.5 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]"
+                    className="block w-full rounded-[22px] border border-white/[0.06] bg-[#101114] px-4 py-3.5 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]"
                   >
                     <div className="min-w-0">
                       <div className="whitespace-pre-wrap break-words text-[14px] font-normal leading-[1.52] text-white/80">{discipline.text}</div>
@@ -1261,7 +1261,7 @@ export default function ReviewTab({ ctx }) {
                         setReviewLogAction(log);
                       }
                     }}
-                    className="block w-full rounded-[22px] border border-white/[0.06] bg-[#0b1119] px-4 py-3.5 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]"
+                    className="block w-full rounded-[22px] border border-white/[0.06] bg-[#101114] px-4 py-3.5 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]"
                   >
                     <div className="whitespace-pre-wrap break-words text-[14px] font-normal leading-[1.52] text-white/80">{text}</div>
                     <div className="mt-2.5 flex flex-wrap items-center gap-2 text-[12px] text-white/35">

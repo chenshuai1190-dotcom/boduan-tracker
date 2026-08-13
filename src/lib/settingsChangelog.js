@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '🎨 全站常驻模块统一为系统中性黑色',
+      '  - 交易、资产、目标、设置及股票、收益、比赛、财报和波段详情的常驻卡片统一为主黑与抬升黑两级表面',
+      '  - 首页与交易净资产、家庭总资产及当前实际资产统一为柔和白色；目标、选中、警示和市场涨跌仍保留原有语义色',
+      '  - 设置头像卡保留蓝色径向底光；弹窗、浮层、图表标记、布局和业务逻辑不变',
+    ],
+    itemsEn: [
+      '🎨 Persistent modules across the app now share the neutral system-black palette',
+      '  - Trading, Assets, Goals, Settings, and persistent stock, P&L, competition, earnings, and swing-detail cards now use consistent primary and raised black surfaces',
+      '  - Home and Trading net assets, family assets, and current actual assets now share a soft white tone, while goals, selections, warnings, and market movements retain their semantic colors',
+      '  - The Settings profile card keeps its blue radial glow; dialogs, overlays, chart markers, layout, and business logic are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.442', date: '2026-08-13',
+    items: [
       '🎨 首页卡片统一为系统黑色并突出净资产',
       '  - 首页资产、信号、行情、市场指标、自选、财报日历和MA200监控统一使用中性黑色层级，减少原有藏青色倾向',
       '  - 净资产主数字由金色改为与12个月资产走势一致的白色；金色继续保留给币种选中和当前Tab',

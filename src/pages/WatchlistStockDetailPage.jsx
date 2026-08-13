@@ -850,7 +850,7 @@ function CompanyFundamentalsCard({ data, status, language, marketColorMode }) {
     : marketHexColor(revenueGrowth, marketColorMode);
   return (
     <section
-      className="mt-3 overflow-hidden rounded-2xl border border-white/[0.09] bg-[#0b0f14] shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]"
+      className="mt-3 overflow-hidden rounded-2xl border border-white/[0.09] bg-[#0b0c0e] shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]"
       data-watchlist-company-fundamentals="true"
       data-fundamentals-status={status}
       aria-busy={status === 'loading'}
@@ -1021,7 +1021,7 @@ function PublishedEarningsCard({
       data-watchlist-detail-section="earnings"
       onClick={() => onOpenDetail?.(event, { returnPage: 'watchlist-stock-detail' })}
       disabled={typeof onOpenDetail !== 'function'}
-      className="mt-3 block w-full scroll-mt-20 overflow-hidden rounded-2xl border border-white/[0.09] bg-[#0b0f14] text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.045)] disabled:cursor-default"
+      className="mt-3 block w-full scroll-mt-20 overflow-hidden rounded-2xl border border-white/[0.09] bg-[#0b0c0e] text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.045)] disabled:cursor-default"
       aria-label={t(language, 'watchlistDetail.openEarningsDetailAria', '查看 {{symbol}} 最近财报详情', { symbol: event.symbol })}
     >
       <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3.5">
@@ -1091,7 +1091,7 @@ function FundCompositionCard({ data, status, language }) {
   const isBenchmark = data?.sections?.topHoldings?.basis === 'benchmark-index';
   return (
     <section
-      className="mt-3 overflow-hidden rounded-2xl border border-white/[0.09] bg-[#0b0f14] shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]"
+      className="mt-3 overflow-hidden rounded-2xl border border-white/[0.09] bg-[#0b0c0e] shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]"
       data-watchlist-fund-composition={status}
       data-watchlist-detail-section="fund-composition"
     >
@@ -1600,7 +1600,7 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
         </div>
       </header>
 
-      <section className="mt-3 overflow-hidden rounded-2xl border border-white/[0.09] bg-[#0b0f14] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]" data-watchlist-stock-detail-header="full-width-chart">
+      <section className="mt-3 overflow-hidden rounded-2xl border border-white/[0.09] bg-[#0b0c0e] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]" data-watchlist-stock-detail-header="full-width-chart">
         <div className="flex min-w-0 items-center gap-3">
           <StockLogo symbol={symbol} urls={logoUrls} onLogoLoad={cacheStockLogo} className="h-11 w-11 rounded-[11px]" />
           <div className="min-w-0 flex-1">
@@ -1653,19 +1653,19 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
       </section>
 
       {loading ? (
-        <div className="mt-3 flex items-center justify-center gap-2 rounded-2xl border border-white/[0.08] bg-[#0b0f14] px-4 py-5 text-[12px] text-white/[0.50]">
+        <div className="mt-3 flex items-center justify-center gap-2 rounded-2xl border border-white/[0.08] bg-[#0b0c0e] px-4 py-5 text-[12px] text-white/[0.50]">
           <RefreshCw className="h-3.5 w-3.5 animate-spin text-[#f6b54b]" />
           {t(language, 'watchlistDetail.loading', '正在加载股票详情')}
         </div>
       ) : null}
       {loadError ? (
-        <button type="button" onClick={() => setReloadKey((value) => value + 1)} className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-[#ff4b1f]/20 bg-[#0b0f14] px-4 py-4 text-[12px] text-white/[0.52] active:scale-[0.995]">
+        <button type="button" onClick={() => setReloadKey((value) => value + 1)} className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-[#ff4b1f]/20 bg-[#0b0c0e] px-4 py-4 text-[12px] text-white/[0.52] active:scale-[0.995]">
           <RefreshCw className="h-3.5 w-3.5 text-[#ff4b1f]" />
           {t(language, 'watchlistDetail.loadFailed', '股票详情加载失败')}
         </button>
       ) : null}
 
-      <section data-watchlist-detail-section="weekly-ma" className="mt-3 scroll-mt-20 overflow-hidden rounded-2xl border border-white/[0.09] bg-[#0b0f14] shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]" data-watchlist-key-metrics="spacious">
+      <section data-watchlist-detail-section="weekly-ma" className="mt-3 scroll-mt-20 overflow-hidden rounded-2xl border border-white/[0.09] bg-[#0b0c0e] shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]" data-watchlist-key-metrics="spacious">
         <div className="px-4 pb-2 pt-4">
           <h2 className="text-[15px] font-normal text-white/[0.82]">{t(language, 'watchlistDetail.technicalIndicators', '关键指标')}</h2>
         </div>
@@ -1819,7 +1819,7 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
         language={language}
       />
 
-      <section data-watchlist-detail-section="events" className="mt-3 scroll-mt-20 overflow-hidden rounded-2xl border border-white/[0.09] bg-[#0b0f14] shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]">
+      <section data-watchlist-detail-section="events" className="mt-3 scroll-mt-20 overflow-hidden rounded-2xl border border-white/[0.09] bg-[#0b0c0e] shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]">
         <SectionHeading title={t(language, 'watchlistDetail.keyEvents', '关键事件')} />
         <div className="grid grid-cols-3 divide-x divide-white/[0.06] px-1 py-4">
           <div className="px-3 text-center"><CalendarDays className="mx-auto h-4 w-4 text-white/[0.35]" /><div className="mt-2 text-[12px] text-white/[0.50]">{t(language, 'watchlistDetail.nextEarnings', '下次财报')}</div><div className="mt-1 text-[13px] text-white/[0.72] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{upcomingDate ? formatDate(upcomingDate, language) : '--'}</div><div className="mt-0.5 text-[11px] text-white/[0.40]">{upcomingSession === 'pre' ? t(language, 'watchlistDetail.expectedPreMarket', '预计盘前') : upcomingSession === 'post' ? t(language, 'watchlistDetail.expectedPostMarket', '预计盘后') : t(language, 'watchlistDetail.sessionUnknown', '时间待定')}</div></div>
@@ -1828,7 +1828,7 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
         </div>
       </section>
 
-      <button type="button" data-watchlist-detail-section="target" onClick={() => { setTargetSaveError(false); setShowTargetEditor(true); }} className="mt-3 scroll-mt-20 block w-full overflow-hidden rounded-2xl border border-[#f6b54b]/15 bg-[#0b0f14] text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]" aria-label={t(language, 'watchlistDetail.editTargetAria', '编辑 {{symbol}} 目标价', { symbol })}>
+      <button type="button" data-watchlist-detail-section="target" onClick={() => { setTargetSaveError(false); setShowTargetEditor(true); }} className="mt-3 scroll-mt-20 block w-full overflow-hidden rounded-2xl border border-[#f6b54b]/15 bg-[#0b0c0e] text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]" aria-label={t(language, 'watchlistDetail.editTargetAria', '编辑 {{symbol}} 目标价', { symbol })}>
         <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3.5">
           <div className="flex items-center gap-2"><h2 className="text-[15px] font-normal text-white/[0.82]">{t(language, 'watchlistDetail.targetPrice', '目标价')}</h2><span className="rounded-md border border-[#f6b54b]/15 bg-[#f6b54b]/[0.055] px-1.5 py-0.5 text-[10px] text-[#f6b54b]/75">{t(language, 'watchlistDetail.personalPlan', '个人计划')}</span></div>
         </div>
@@ -1849,7 +1849,7 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
         </div>
       </button>
 
-      <section className="mt-3 overflow-hidden rounded-2xl border border-white/[0.09] bg-[#0b0f14] shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]">
+      <section className="mt-3 overflow-hidden rounded-2xl border border-white/[0.09] bg-[#0b0c0e] shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]">
         <SectionHeading title={t(language, 'watchlistDetail.myPosition', '我的持仓')} trailing={t(language, 'watchlistDetail.updatedAtClose', '更新于 {{date}} 收盘', { date: formatDate(close.asOfDate, language) })} />
         {position.held ? (
           <div className="px-4 py-4">

@@ -954,7 +954,7 @@ export default function PnlReportPage({ ctx = {} }) {
         </div>
       </section>
 
-      <section className="mt-5 rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+      <section className="mt-5 rounded-2xl border border-white/10 bg-[#0b0c0e] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
         <div className="flex items-center justify-start text-[12px] text-white/[0.52]">
           <div className="flex items-center gap-3">
             {chartMode === 'assets' ? (
@@ -999,12 +999,12 @@ export default function PnlReportPage({ ctx = {} }) {
       </section>
 
       <section className="mt-3 grid grid-cols-2 gap-3">
-        <div className="rounded-2xl border border-white/10 bg-[#0b0f14] p-4">
+        <div className="rounded-2xl border border-white/10 bg-[#101114] p-4">
           <div className="text-[12px] text-white/[0.46]">{t(language, 'pnlReport.turnover', '累计成交金额')} ({displayCurrency})</div>
           <div className="mt-3 text-[19px] font-semibold leading-none text-white/[0.86] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{reportData.hasData ? fmt(convertUsd(reportData.turnoverUsd, displayRate), 2) : '--'}</div>
           <div className="mt-2 text-[12px] text-white/[0.42]">{t(language, 'pnlReport.tradeStocks', '交易股票数')} {reportData.tradeStockCount}</div>
         </div>
-        <div className="rounded-2xl border border-white/10 bg-[#0b0f14] p-4">
+        <div className="rounded-2xl border border-white/10 bg-[#101114] p-4">
           <div className="text-[12px] leading-snug text-white/[0.46]">{benchmarkCompareLabel}</div>
           <div className={`mt-3 text-[20px] font-semibold leading-none tabular-nums ${reportData.outperformPct == null ? 'text-white/[0.36]' : marketTextClass(reportData.outperformPct, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
             {benchmarkLoading && reportData.outperformPct == null ? '--' : reportData.outperformPct == null ? '--' : signedPct(reportData.outperformPct, 2)}
@@ -1013,7 +1013,7 @@ export default function PnlReportPage({ ctx = {} }) {
         </div>
       </section>
 
-      <section className="mt-3 rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+      <section className="mt-3 rounded-2xl border border-white/10 bg-[#0b0c0e] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
         <div className="flex items-center justify-between">
           <h2 className="text-[17px] font-semibold text-white/[0.86]">{t(language, 'pnlReport.calendar', '收益日历')} ({displayCurrency})</h2>
           <ChevronRight className="h-4 w-4 text-white/[0.36]" />
@@ -1128,7 +1128,7 @@ export default function PnlReportPage({ ctx = {} }) {
         )}
       </section>
 
-      <section className="mt-3 rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+      <section className="mt-3 rounded-2xl border border-white/10 bg-[#0b0c0e] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
         <div className="flex items-center justify-between">
           <h2 className="text-[17px] font-semibold text-white/[0.86]">{summaryTitle} ({displayCurrency})</h2>
           <span className="text-[12px] text-white/[0.40]">{t(language, 'pnlReport.updatedAt', '更新至')}: {reportData.updatedAt}</span>
@@ -1157,7 +1157,7 @@ export default function PnlReportPage({ ctx = {} }) {
         </div>
       </section>
 
-      <section className="mt-3 rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+      <section className="mt-3 rounded-2xl border border-white/10 bg-[#0b0c0e] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
         <div className="flex items-center justify-between">
           <h2 className="text-[17px] font-semibold text-white/[0.86]">{rankingTitle} ({displayCurrency})</h2>
           <span className="text-[12px] text-white/[0.40]">{t(language, 'pnlReport.updatedAt', '更新至')}: {reportData.updatedAt}</span>

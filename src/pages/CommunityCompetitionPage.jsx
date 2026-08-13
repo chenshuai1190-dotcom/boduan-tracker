@@ -360,7 +360,7 @@ function JoinSheet({ onJoin, onDecline, joining, error, tt }) {
 
 function StatusCard({ icon, title, desc, note, actionLabel, onAction, busy = false }) {
   return (
-    <section className="mt-8 rounded-[20px] border border-white/10 bg-[#0b0f14] px-6 py-12 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+    <section className="mt-8 rounded-[20px] border border-white/10 bg-[#0b0c0e] px-6 py-12 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
       <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#f6b54b]/10 text-[30px]">{icon}</div>
       <h2 className="mt-5 text-[17px] font-semibold text-white/88">{title}</h2>
       <p className="mx-auto mt-3 max-w-[286px] text-[13px] leading-[1.8] text-white/42 [text-wrap:pretty]">{protectHintText(desc)}</p>
@@ -422,7 +422,7 @@ function CompetitionContent({ data, period, language, tt, leaderboardRefreshing 
 
   return (
     <div className="space-y-3 pt-3">
-      <section className="overflow-hidden rounded-[17px] border border-white/10 bg-[#0b0f14] px-3.5 pb-2 pt-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+      <section className="overflow-hidden rounded-[17px] border border-white/10 bg-[#0b0c0e] px-3.5 pb-2 pt-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
         <div className="flex min-h-8 items-start justify-between gap-3">
           <div className="flex items-end gap-3">
             <div className="text-[12px] text-white/[0.62]">{tt('competition.myRank', '我的排名')}</div>
@@ -464,7 +464,7 @@ function CompetitionContent({ data, period, language, tt, leaderboardRefreshing 
         </div>
       </section>
 
-      <section className="grid grid-cols-4 divide-x divide-white/[0.08] rounded-[16px] border border-white/10 bg-[#0b0f14] px-1 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+      <section className="grid grid-cols-4 divide-x divide-white/[0.08] rounded-[16px] border border-white/10 bg-[#0b0c0e] px-1 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
         <StatCard
           label={participantCoverageIncomplete
             ? tt('competition.participantsRanked', '参赛/上榜')
@@ -478,7 +478,7 @@ function CompetitionContent({ data, period, language, tt, leaderboardRefreshing 
         <StatCard label={tt('competition.averageReturn', '平均收益率')} value={formatPercent(stats.averageReturnPct)} color={valueColor(stats.averageReturnPct)} />
       </section>
 
-      <section className="relative overflow-visible rounded-[17px] border border-white/10 bg-[#0b0f14] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+      <section className="relative overflow-visible rounded-[17px] border border-white/10 bg-[#0b0c0e] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
         <div className="grid grid-cols-[minmax(0,1fr)_68px_72px] items-center gap-1.5 px-3.5 py-3">
           <div className="flex items-center gap-1.5 text-[13px] text-white/[0.88]">
             {tt('competition.rankingTitle', '收益率排行榜')}
@@ -499,7 +499,7 @@ function CompetitionContent({ data, period, language, tt, leaderboardRefreshing 
         {selection ? <HoldingPopover selection={selection} periodMetricLabel={periodMetricLabel} snapshotDate={data?.asOfDate} language={language} onClose={() => setSelection(null)} tt={tt} /> : null}
       </section>
 
-      <section className="rounded-[17px] border border-white/10 bg-[#0b0f14] px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+      <section className="rounded-[17px] border border-white/10 bg-[#0b0c0e] px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
         <div className="mb-3 flex items-center justify-between gap-2">
           <div className="flex items-center gap-1.5 text-[14px] text-white/[0.88]">
             {baselineTitle}
