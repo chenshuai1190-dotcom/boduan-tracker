@@ -2025,9 +2025,10 @@ test('asset header card aligns with home and trade header sizing', () => {
   assert.equal((tradesTabSource.match(/rounded-2xl border border-transparent bg-\[#101114\]/g) || []).length, 2, 'both raised Trading utility modules should hide their outer outlines');
   assert.ok(tradesTabSource.includes('mt-3 grid grid-cols-4 overflow-hidden rounded-2xl border border-transparent bg-[#0b0c0e]'), 'the Trading quick-action module should hide its outer outline');
   assert.ok(tradesTabSource.includes('mt-3 rounded-2xl border border-transparent bg-[#0b0c0e] p-4'), 'the Trading records module should hide its outer outline');
-  assert.ok(tradesTabSource.includes('mt-3 overflow-hidden rounded-2xl border border-transparent bg-[#0b0c0e]'), 'the Trading positions and orders module should hide its outer outline');
+  assert.ok(tradesTabSource.includes('mt-3 overflow-hidden rounded-2xl border border-transparent bg-[#0b0c0e] shadow-[inset_0_1px_0_rgba(255,255,255,0.06),inset_1px_0_0_rgba(255,255,255,0.03),inset_-1px_0_0_rgba(255,255,255,0.03),inset_0_-1px_0_rgba(255,255,255,0.01)]'), 'the Trading positions and orders module should match the approved 6% top, 3% side, and 1% bottom inner highlights');
   assert.ok(tradesTabSource.includes('divide-x divide-white/10 border-t border-white/[0.07]'), 'the Trading header should preserve its internal metric dividers');
-  assert.ok(tradesTabSource.includes("${index > 0 ? 'border-l border-white/10' : ''}"), 'the Trading quick-action module should preserve its internal column dividers');
+  assert.equal(tradesTabSource.includes("${index > 0 ? 'border-l border-white/10' : ''}"), false, 'the Trading quick-action module should not restore vertical column dividers');
+  assert.ok(tradesTabSource.includes('className="flex min-h-[86px] flex-col items-center justify-center gap-2 active:bg-white/[0.04]"'), 'the Trading quick actions should preserve their equal tap geometry after removing dividers');
   assert.ok(tradesTabSource.includes('border-b border-white/[0.06] px-4 py-3'), 'the positions and orders module should preserve its internal header divider');
   assert.ok(earningsCalendarSource.includes("index < previewEvents.length - 1 ? 'border-r border-white/[0.08]' : ''"), 'the earnings preview should preserve internal event dividers');
   assert.ok(homeMa200Source.includes('border-b border-white/[0.06]'), 'the MA200 monitor should preserve its internal header divider');

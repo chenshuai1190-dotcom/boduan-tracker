@@ -1049,7 +1049,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
             { id: 'competition', label: tt('competition.toolEntry', '社区比赛'), icon: Trophy },
             { id: 'records', label: tt('trades.tradeLog', '交易记录'), icon: ListChecks },
             { id: 'all', label: tt('trades.allTools', '全部功能'), icon: Grid2X2 },
-          ].map((item, index) => {
+          ].map((item) => {
             const Icon = item.icon;
             const active = item.id !== 'waves' && item.id !== 'competition' && item.id !== 'all' && toolPanel === item.id;
             return (
@@ -1076,7 +1076,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                   }
                   toggleToolPanel(item.id);
                 }}
-                className={`flex min-h-[86px] flex-col items-center justify-center gap-2 active:bg-white/[0.04] ${index > 0 ? 'border-l border-white/10' : ''}`}
+                className="flex min-h-[86px] flex-col items-center justify-center gap-2 active:bg-white/[0.04]"
               >
                 <Icon className={`h-6 w-6 ${active ? 'text-[#f6b54b]' : 'text-white/70'}`} strokeWidth={1.8} />
                 <span className={`text-[12px] font-normal ${active ? 'text-[#f6b54b]' : 'text-white/70'}`}>{item.label}</span>
@@ -1186,7 +1186,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
         )}
 
         {showMainLedger && (
-        <section className="mt-3 overflow-hidden rounded-2xl border border-transparent bg-[#0b0c0e] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+        <section className="mt-3 overflow-hidden rounded-2xl border border-transparent bg-[#0b0c0e] shadow-[inset_0_1px_0_rgba(255,255,255,0.06),inset_1px_0_0_rgba(255,255,255,0.03),inset_-1px_0_0_rgba(255,255,255,0.03),inset_0_-1px_0_rgba(255,255,255,0.01)]">
           <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3">
             <div className="flex items-center gap-5">
               <button type="button" onClick={() => setMainView('positions')} className={`text-[14px] font-normal leading-none ${mainView === 'positions' ? 'text-[#ffd18a]' : 'text-white/40'}`}>{tt('trades.positionsTab', '持仓分布')}</button>

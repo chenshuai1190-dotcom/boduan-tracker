@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '✨ 交易页快捷入口与持仓卡片进一步轻量化',
+      '  - 波段记录、社区比赛、交易记录和全部功能取消列间竖线，保留原有等宽布局与点击区域',
+      '  - 持仓分布与当日订单卡片同步顶部6%、左右3%和底部1%的渐弱内高光',
+      '  - 卡片背景、圆角、内部表格分隔、交互及交易账本和资产逻辑均保持不变',
+    ],
+    itemsEn: [
+      '✨ Trading quick actions and the holdings card now feel lighter',
+      '  - Swing Log, Community, Trade Log, and All Tools remove their vertical column dividers while preserving equal-width layout and tap areas',
+      '  - The Positions and Today’s Orders card now uses stepped 6% top, 3% side, and 1% bottom inner highlights',
+      '  - Card surfaces, rounding, internal table dividers, interactions, trading ledgers, and asset logic are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.451', date: '2026-08-13',
+    items: [
       '🎨 交易页信息模块取消外边框',
       '  - 净资产、快捷功能、交易记录、持仓/当日订单及交易辅助模块统一隐藏卡片外轮廓',
       '  - 交易页头部同步首页的顶部6%、左右3%和底部1%渐弱内高光',
