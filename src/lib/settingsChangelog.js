@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '🎨 交易页信息模块取消外边框',
+      '  - 净资产、快捷功能、交易记录、持仓/当日订单及交易辅助模块统一隐藏卡片外轮廓',
+      '  - 交易页头部同步首页的顶部6%、左右3%和底部1%渐弱内高光',
+      '  - 卡片背景、圆角、内部结构线、按钮、输入框、弹窗及交易账本和资产逻辑均保持不变',
+    ],
+    itemsEn: [
+      '🎨 Trading information modules now use borderless outer shells',
+      '  - Net assets, quick actions, trade records, positions/today’s orders, and trading utility modules now hide their outer card outlines',
+      '  - The Trading header now matches Home with a 6% top, 3% side, and 1% bottom stepped inner highlight',
+      '  - Card surfaces, rounding, internal dividers, buttons, inputs, dialogs, trading ledgers, and asset logic are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.450', date: '2026-08-13',
+    items: [
       '✨ 首页头部卡片完善四向内高光',
       '  - 净资产卡片保持顶部6%高光，并为左右两侧增加3%、底部增加1%的渐弱内高光',
       '  - 外边框继续保持隐藏，四向亮度按顶部、侧边、底部逐级减弱，强化黑色卡片的完整层次',

@@ -925,7 +925,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
   return (
     <>
       <div className="mx-auto max-w-[430px] pb-2 text-white" style={{ fontFamily: TRADE_FONT }}>
-        <section className="overflow-hidden rounded-2xl border border-white/10 bg-[#0b0c0e] p-4 shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)]" data-trades-net-assets-card="true">
+        <section className="overflow-hidden rounded-2xl border border-transparent bg-[#0b0c0e] p-4 shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06),inset_1px_0_0_rgba(255,255,255,0.03),inset_-1px_0_0_rgba(255,255,255,0.03),inset_0_-1px_0_rgba(255,255,255,0.01)]" data-trades-net-assets-card="true">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0 text-[14px] font-normal text-white/70">{tt('home.netAssets', '净资产')} ({displayCurrencyLabel}) <span className="ml-1 text-white/50">◎</span></div>
             <div className="ml-auto flex justify-end">
@@ -1043,7 +1043,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
           </div>
         </section>
 
-        <section className="mt-3 grid grid-cols-4 overflow-hidden rounded-2xl border border-white/10 bg-[#0b0c0e] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+        <section className="mt-3 grid grid-cols-4 overflow-hidden rounded-2xl border border-transparent bg-[#0b0c0e] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
           {[
             { id: 'waves', label: tt('trades.swingLog', '波段记录'), icon: BookOpen },
             { id: 'competition', label: tt('competition.toolEntry', '社区比赛'), icon: Trophy },
@@ -1136,7 +1136,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
         )}
 
         {showTradeRecordsTool && (
-          <section className="mt-3 rounded-2xl border border-white/10 bg-[#0b0c0e] p-4">
+          <section className="mt-3 rounded-2xl border border-transparent bg-[#0b0c0e] p-4">
             <div className="mb-3 flex items-center justify-between">
               <div>
                 <div className="text-[14px] font-normal text-white">{tt('trades.tradeLog', '交易记录')}</div>
@@ -1186,7 +1186,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
         )}
 
         {showMainLedger && (
-        <section className="mt-3 overflow-hidden rounded-2xl border border-white/10 bg-[#0b0c0e] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+        <section className="mt-3 overflow-hidden rounded-2xl border border-transparent bg-[#0b0c0e] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
           <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3">
             <div className="flex items-center gap-5">
               <button type="button" onClick={() => setMainView('positions')} className={`text-[14px] font-normal leading-none ${mainView === 'positions' ? 'text-[#ffd18a]' : 'text-white/40'}`}>{tt('trades.positionsTab', '持仓分布')}</button>
@@ -2357,7 +2357,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
 
           return (
             <div className="mx-auto mt-3 mb-4 max-w-[430px] space-y-3 text-white" style={{ fontFamily: TRADE_FONT }}>
-              <section className="rounded-2xl border border-white/10 bg-[#0b0c0e] p-4 shadow-[0_16px_40px_rgba(0,0,0,0.28)]">
+              <section className="rounded-2xl border border-transparent bg-[#0b0c0e] p-4 shadow-[0_16px_40px_rgba(0,0,0,0.28)]">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <h2 className="text-[16px] font-normal leading-tight text-white">{tt('trades.averagingCost', '摊薄成本')}</h2>
@@ -2395,13 +2395,13 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
               </section>
 
               {!activeSymbol ? (
-                <section className="rounded-2xl border border-white/10 bg-[#0b0c0e] p-6 text-center shadow-[0_16px_40px_rgba(0,0,0,0.24)]">
+                <section className="rounded-2xl border border-transparent bg-[#0b0c0e] p-6 text-center shadow-[0_16px_40px_rgba(0,0,0,0.24)]">
                   <div className="text-[13px] font-normal text-white/75">{tt('trades.noStocks', '还没有股票')}</div>
                   <div className="mt-1 text-[12px] font-normal text-white/50">{tt('trades.noStocksDesc', '点上方新增添加第一只股票。')}</div>
                 </section>
               ) : (
                 <>
-                  <section className="rounded-2xl border border-white/10 bg-[#0b0c0e] p-4 shadow-[0_16px_40px_rgba(0,0,0,0.24)]">
+                  <section className="rounded-2xl border border-transparent bg-[#0b0c0e] p-4 shadow-[0_16px_40px_rgba(0,0,0,0.24)]">
                     <div className="flex items-center justify-between border-b border-white/10 pb-3">
                       <div className="text-[13px] font-normal text-white/70">{tt('trades.holding', '持仓')}</div>
                       <div className="text-[15px] font-normal tabular-nums text-emerald-400" style={{ fontFamily: TRADE_NUMBER_FONT }}>
@@ -2437,7 +2437,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                   </section>
 
                   <div className="grid grid-cols-2 gap-2">
-                    <section className="rounded-2xl border border-white/10 bg-[#101114] p-4 shadow-[0_14px_34px_rgba(0,0,0,0.22)]">
+                    <section className="rounded-2xl border border-transparent bg-[#101114] p-4 shadow-[0_14px_34px_rgba(0,0,0,0.22)]">
                       <Database className="mb-3 h-6 w-6 text-white/60" strokeWidth={1.7} />
                       <div className="text-[11px] font-normal text-white/50">{tt('trades.totalInvested', '累计投入')}</div>
                       <div className="mt-2 text-[20px] font-normal tabular-nums text-white/90" style={{ fontFamily: TRADE_NUMBER_FONT }}>
@@ -2447,7 +2447,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                         {cnyEquivalentText(stats.totalCost)}
                       </div>
                     </section>
-                    <section className="rounded-2xl border border-white/10 bg-[#101114] p-4 shadow-[0_14px_34px_rgba(0,0,0,0.22)]">
+                    <section className="rounded-2xl border border-transparent bg-[#101114] p-4 shadow-[0_14px_34px_rgba(0,0,0,0.22)]">
                       <TrendingUp className={`mb-3 h-6 w-6 ${pnlClass(stats.realizedPnl, marketColorMode)}`} strokeWidth={1.7} />
                       <div className="text-[11px] font-normal text-white/50">{tt('trades.realizedPnl', '已实现盈亏')}</div>
                       <div className={`mt-2 text-[20px] font-normal tabular-nums ${pnlClass(stats.realizedPnl, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
@@ -2459,7 +2459,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                     </section>
                   </div>
 
-                  <section className="rounded-2xl border border-white/10 bg-[#0b0c0e] p-4 shadow-[0_16px_40px_rgba(0,0,0,0.24)]">
+                  <section className="rounded-2xl border border-transparent bg-[#0b0c0e] p-4 shadow-[0_16px_40px_rgba(0,0,0,0.24)]">
                     <div className="mb-3 flex items-center justify-between">
                       <div className="text-[13px] font-normal text-white/75">{tt('trades.tradeCountTitle', '交易记录 ({{count}})', { count: trades.length })}</div>
                       <button

@@ -1215,8 +1215,8 @@ test('cost basis tool uses dark custom UI without legacy title icon or native al
   assert.ok(costSubmitBlock.includes('const confirmCostBasisTradeSubmit = (typeOverride = costBasisNewTrade.type) =>'), 'cost-basis buy/sell buttons should pass the selected type into the save path');
   assert.ok(costSubmitBlock.includes('const tradeDraft = { ...costBasisNewTrade, type: typeOverride }'), 'cost-basis submit should use a draft with the button-selected type');
   assert.ok(costSubmitBlock.includes("const type = tradeDraft.type === 'sell' ? 'sell' : 'buy'"), 'cost-basis record should use the button-selected type');
-  assert.ok(tradesTabSource.includes('rounded-2xl border border-white/10 bg-[#0b0c0e] p-4 shadow-[0_16px_40px_rgba(0,0,0,0.28)]'), 'cost-basis tool should use the primary neutral-black surface');
-  assert.equal((tradesTabSource.match(/rounded-2xl border border-white\/10 bg-\[#101114\] p-4 shadow-\[0_14px_34px/g) || []).length, 2, 'cost-basis summary cards should use the raised neutral-black surface');
+  assert.ok(tradesTabSource.includes('rounded-2xl border border-transparent bg-[#0b0c0e] p-4 shadow-[0_16px_40px_rgba(0,0,0,0.28)]'), 'cost-basis tool should keep the primary neutral-black surface while hiding its outer outline');
+  assert.equal((tradesTabSource.match(/rounded-2xl border border-transparent bg-\[#101114\] p-4 shadow-\[0_14px_34px/g) || []).length, 2, 'cost-basis summary cards should keep the raised neutral-black surface while hiding their outer outlines');
   assert.ok(tradesTabSource.includes('Database'), 'cost-basis stats should use the existing line icon system');
   assert.ok(tradesTabSource.includes('TrendingUp'), 'cost-basis realized PnL should use the existing line icon system');
   assert.equal(tradesTabSource.includes('💼 摊薄成本'), false, 'cost-basis title must not keep the legacy briefcase icon');
@@ -1998,9 +1998,9 @@ test('primary asset totals split decimal suffixes consistently', () => {
 
 test('asset header card aligns with home and trade header sizing', () => {
   const sharedHeaderShell = 'rounded-2xl border border-white/10 bg-[#0b0c0e] p-4 shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)]';
-  const borderlessHomeHeaderShell = 'rounded-2xl border border-transparent bg-[#0b0c0e] p-4 shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06),inset_1px_0_0_rgba(255,255,255,0.03),inset_-1px_0_0_rgba(255,255,255,0.03),inset_0_-1px_0_rgba(255,255,255,0.01)]';
-  assert.ok(homeTabSource.includes(borderlessHomeHeaderShell), 'home header should keep its borderless shell with 6% top, 3% side, and 1% bottom inner highlights');
-  assert.ok(tradesTabSource.includes(sharedHeaderShell), 'trade header should keep the shared header card shell');
+  const borderlessFourEdgeHeaderShell = 'rounded-2xl border border-transparent bg-[#0b0c0e] p-4 shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06),inset_1px_0_0_rgba(255,255,255,0.03),inset_-1px_0_0_rgba(255,255,255,0.03),inset_0_-1px_0_rgba(255,255,255,0.01)]';
+  assert.ok(homeTabSource.includes(borderlessFourEdgeHeaderShell), 'home header should keep its borderless shell with 6% top, 3% side, and 1% bottom inner highlights');
+  assert.ok(tradesTabSource.includes(borderlessFourEdgeHeaderShell), 'trade header should match the Home borderless shell and four-edge inner highlights');
   assert.ok(analysisTabSource.includes(sharedHeaderShell), 'asset header should use the same header card shell');
   assert.ok(homeTabSource.includes('min-w-0 text-[14px] font-normal text-white/70'), 'home net-assets title should remain the header typography baseline');
   assert.ok(tradesTabSource.includes('min-w-0 text-[14px] font-normal text-white/70'), 'trade net-assets title should match the home header baseline');
@@ -2021,6 +2021,14 @@ test('asset header card aligns with home and trade header sizing', () => {
   assert.ok(earningsCalendarSource.includes('rounded-2xl border border-transparent bg-[#0b0c0e] p-3'), 'the Home earnings card should hide its outer outline while retaining the neutral-black surface');
   assert.ok(homeMa200Source.includes('rounded-[19px] border border-transparent bg-[#0b0c0e]'), 'the Home MA200 monitor should hide its outer outline while retaining the neutral-black surface');
   assert.ok(homeTabSource.includes('divide-x divide-white/10 border-t border-white/[0.07]'), 'the Home header should preserve its internal metric dividers');
+  assert.equal((tradesTabSource.match(/rounded-2xl border border-transparent bg-\[#0b0c0e\]/g) || []).length, 8, 'all production Trading primary module shells should hide their outer outlines');
+  assert.equal((tradesTabSource.match(/rounded-2xl border border-transparent bg-\[#101114\]/g) || []).length, 2, 'both raised Trading utility modules should hide their outer outlines');
+  assert.ok(tradesTabSource.includes('mt-3 grid grid-cols-4 overflow-hidden rounded-2xl border border-transparent bg-[#0b0c0e]'), 'the Trading quick-action module should hide its outer outline');
+  assert.ok(tradesTabSource.includes('mt-3 rounded-2xl border border-transparent bg-[#0b0c0e] p-4'), 'the Trading records module should hide its outer outline');
+  assert.ok(tradesTabSource.includes('mt-3 overflow-hidden rounded-2xl border border-transparent bg-[#0b0c0e]'), 'the Trading positions and orders module should hide its outer outline');
+  assert.ok(tradesTabSource.includes('divide-x divide-white/10 border-t border-white/[0.07]'), 'the Trading header should preserve its internal metric dividers');
+  assert.ok(tradesTabSource.includes("${index > 0 ? 'border-l border-white/10' : ''}"), 'the Trading quick-action module should preserve its internal column dividers');
+  assert.ok(tradesTabSource.includes('border-b border-white/[0.06] px-4 py-3'), 'the positions and orders module should preserve its internal header divider');
   assert.ok(earningsCalendarSource.includes("index < previewEvents.length - 1 ? 'border-r border-white/[0.08]' : ''"), 'the earnings preview should preserve internal event dividers');
   assert.ok(homeMa200Source.includes('border-b border-white/[0.06]'), 'the MA200 monitor should preserve its internal header divider');
   assert.ok(analysisTabSource.includes('text-[13px] text-white/50">{item.label}'), 'asset header metric labels should match the home field-label baseline');
