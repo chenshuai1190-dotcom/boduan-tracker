@@ -2063,7 +2063,8 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(reviewTabSource.includes('const splitMoney = (usdValue, digits = 2)'), 'north-star headline should split the decimal part for small-type rendering');
   assert.ok(reviewTabSource.includes('headlineGoalMoney = splitMoney(ageGoalAmountExact, 2)'), 'north-star headline should keep its split two-decimal rendering');
   assert.ok(reviewTabSource.includes('headlineGoalMoney.decimal'), 'north-star headline should render the decimal suffix separately');
-  assert.ok(reviewTabSource.includes('text-[20px] font-normal leading-none text-[#ffd18a]/90'), 'north-star headline decimal suffix should be visually smaller and normal weight');
+  assert.ok(reviewTabSource.includes('text-[20px] font-normal leading-none text-white/[0.95]'), 'north-star headline decimal suffix should match the soft-white amount while staying visually smaller and normal weight');
+  assert.equal(reviewTabSource.includes('<span className="text-[14px] text-[#ffd18a]">★</span>'), false, 'north-star title should not keep the leading star icon');
   assert.ok(devVisualPreviewSource.includes("get('reviewAmountStress') === '1'"), 'local review preview should provide a CNY large-amount stress state');
   assert.ok(devVisualPreviewSource.includes("displayCurrency: reviewAmountStress ? 'CNY' : 'USD'"), 'review amount stress state should exercise the widest currency display');
   assert.ok(devVisualPreviewSource.includes('actualGain: reviewAmountStress ? 348232 : 70000'), 'review amount stress state should reproduce a long seven-figure CNY actual gain');

@@ -877,7 +877,6 @@ export default function ReviewTab({ ctx }) {
         <div className="relative z-10 flex items-center justify-between gap-3">
           <div className="min-w-0">
             <div className="flex items-center gap-2 text-[14px] font-normal text-white/70">
-              <span className="text-[14px] text-[#ffd18a]">★</span>
               <span>{tt('review.polarisGoal', '北极星目标')}</span>
             </div>
           </div>
@@ -902,9 +901,9 @@ export default function ReviewTab({ ctx }) {
           </div>
         </div>
 
-        <div className="relative z-10 mt-3 whitespace-nowrap font-normal leading-[1.1] tracking-normal text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT, fontSize: 'clamp(28px, 8.7vw, 34px)' }}>
+        <div className="relative z-10 mt-3 whitespace-nowrap font-normal leading-[1.1] tracking-normal text-white/[0.95] tabular-nums" style={{ fontFamily: NUMBER_FONT, fontSize: 'clamp(28px, 8.7vw, 34px)' }}>
           <span>{headlineGoalMoney.main}</span>
-          <span className="ml-0.5 align-baseline text-[20px] font-normal leading-none text-[#ffd18a]/90">{headlineGoalMoney.decimal}</span>
+          <span className="ml-0.5 align-baseline text-[20px] font-normal leading-none text-white/[0.95]">{headlineGoalMoney.decimal}</span>
         </div>
         <div className="relative z-10 mt-2 text-[12px] text-white/55">
           {tt('review.goalSubtitle', '{{years}} 年目标 · {{age}} 岁实现', { years: totalYears, age: ageGoalAge || '--' })}

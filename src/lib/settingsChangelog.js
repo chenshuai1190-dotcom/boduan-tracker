@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '🎯 北极星目标同步柔和白色资产数字',
+      '  - 北极星目标主金额及两位小数由金色改为与首页和资产页一致的柔和白色',
+      '  - 取消“北极星目标”标题前的星星图标，保留卡片背景中的轻微星点动效',
+      '  - 目标进度条、完成度、币种选中态、数据和计算逻辑保持不变',
+    ],
+    itemsEn: [
+      '🎯 The Polaris goal now follows the soft-white asset-number style',
+      '  - The Polaris headline amount and its two-decimal suffix change from gold to the same soft white used on Home and Assets',
+      '  - The leading star icon is removed from the Polaris Goal title while the subtle background star animation remains',
+      '  - Goal progress, completion, selected currency, data, and calculations are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.443', date: '2026-08-13',
+    items: [
       '🎨 全站常驻模块统一为系统中性黑色',
       '  - 交易、资产、目标、设置及股票、收益、比赛、财报和波段详情的常驻卡片统一为主黑与抬升黑两级表面',
       '  - 首页与交易净资产、家庭总资产及当前实际资产统一为柔和白色；目标、选中、警示和市场涨跌仍保留原有语义色',

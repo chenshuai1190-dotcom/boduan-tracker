@@ -58,7 +58,9 @@ test('actual asset amounts use soft white while semantic gold and the settings g
   assert.ok(review.includes("<span className=\"text-white/[0.95] tabular-nums\" style={{ fontFamily: NUMBER_FONT }}>{money(currentBalance)}</span>"));
   assert.ok(review.includes('text-white/[0.95] tabular-nums') && review.includes('{formatRowMoney(row.actualEndBalance)}'));
   assert.ok(review.includes('font-normal text-white/[0.95] tabular-nums') && review.includes('{money(yearItem.endBalance)}'));
-  assert.ok(review.includes('tracking-normal text-[#ffd18a] tabular-nums'));
+  assert.ok(review.includes('tracking-normal text-white/[0.95] tabular-nums'));
+  assert.equal(review.includes('<span className="text-[14px] text-[#ffd18a]">★</span>'), false);
+  assert.ok(review.includes('background: \'linear-gradient(90deg, #f8c46a 0%, #f6b54b 58%, #ffd18a 100%)\''));
   assert.ok(settings.includes('radial-gradient(circle_at_50%_35%,rgba(33,65,122,0.13),transparent_45%)'));
 });
 
