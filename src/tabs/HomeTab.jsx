@@ -972,7 +972,7 @@ export default function HomeTab({ ctx }) {
         }
       `}</style>
 
-      <section className="overflow-hidden rounded-2xl border border-transparent bg-[#0b0c0e] p-4 shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)]" data-home-net-assets-card="true">
+      <section className="overflow-hidden rounded-2xl border border-transparent bg-[#0b0c0e] p-4 shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06),inset_1px_0_0_rgba(255,255,255,0.03),inset_-1px_0_0_rgba(255,255,255,0.03),inset_0_-1px_0_rgba(255,255,255,0.01)]" data-home-net-assets-card="true">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0 text-[14px] font-normal text-white/70">{t(language, 'home.netAssets', '净资产')} ({displayCurrencyLabel}) <span className="ml-1 text-white/50">◎</span></div>
           <div className="ml-auto flex justify-end">

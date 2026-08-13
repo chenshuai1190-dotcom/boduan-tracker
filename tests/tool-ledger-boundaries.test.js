@@ -1998,8 +1998,8 @@ test('primary asset totals split decimal suffixes consistently', () => {
 
 test('asset header card aligns with home and trade header sizing', () => {
   const sharedHeaderShell = 'rounded-2xl border border-white/10 bg-[#0b0c0e] p-4 shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)]';
-  const borderlessHomeHeaderShell = 'rounded-2xl border border-transparent bg-[#0b0c0e] p-4 shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)]';
-  assert.ok(homeTabSource.includes(borderlessHomeHeaderShell), 'home header should keep the shared sizing and neutral-black surface while hiding its outer outline');
+  const borderlessHomeHeaderShell = 'rounded-2xl border border-transparent bg-[#0b0c0e] p-4 shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06),inset_1px_0_0_rgba(255,255,255,0.03),inset_-1px_0_0_rgba(255,255,255,0.03),inset_0_-1px_0_rgba(255,255,255,0.01)]';
+  assert.ok(homeTabSource.includes(borderlessHomeHeaderShell), 'home header should keep its borderless shell with 6% top, 3% side, and 1% bottom inner highlights');
   assert.ok(tradesTabSource.includes(sharedHeaderShell), 'trade header should keep the shared header card shell');
   assert.ok(analysisTabSource.includes(sharedHeaderShell), 'asset header should use the same header card shell');
   assert.ok(homeTabSource.includes('min-w-0 text-[14px] font-normal text-white/70'), 'home net-assets title should remain the header typography baseline');

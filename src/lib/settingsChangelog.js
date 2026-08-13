@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '✨ 首页头部卡片完善四向内高光',
+      '  - 净资产卡片保持顶部6%高光，并为左右两侧增加3%、底部增加1%的渐弱内高光',
+      '  - 外边框继续保持隐藏，四向亮度按顶部、侧边、底部逐级减弱，强化黑色卡片的完整层次',
+      '  - 其他首页模块、内部结构线、布局、金额和业务逻辑均保持不变',
+    ],
+    itemsEn: [
+      '✨ The Home header now has balanced four-edge inner highlights',
+      '  - The Net Assets card keeps its 6% top highlight and adds 3% highlights on both sides plus a 1% bottom highlight',
+      '  - The outer outline remains hidden while brightness steps down from top to sides to bottom for a more complete black-card depth',
+      '  - Other Home modules, internal dividers, layout, amounts, and business logic are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.449', date: '2026-08-13',
+    items: [
       '🎨 首页信息模块取消外边框',
       '  - 净资产、当前信号、行情、市场指标、自选/持仓、财报日历和MA200监控统一隐藏卡片外轮廓',
       '  - 卡片背景、圆角、顶部层次、内部结构线及币种、状态和操作控件边框保持不变',
