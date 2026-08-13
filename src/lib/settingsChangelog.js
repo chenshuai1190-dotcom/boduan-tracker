@@ -4,6 +4,23 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '✨ 年度目标卡片层次与信息进一步精简',
+      '  - 当前年度和后续年份计划卡同步顶部6%、左右3%和底部1%的渐弱内高光，同时继续隐藏外轮廓',
+      '  - 北极星头部移除装饰星点及闪烁动画，保留进度条动画与原有操作',
+      '  - 当前年度删除重复的“计划→实际”金额模块，并隐藏“目标/实现/落后”摘要外框',
+      '  - 年度数据、百分比计算、进度条、编辑入口、弹窗和保存逻辑均保持不变',
+    ],
+    itemsEn: [
+      '✨ Annual Goal cards now use a clearer, lighter information hierarchy',
+      '  - Current and future year cards add stepped 6% top, 3% side, and 1% bottom inner highlights while keeping their outer outlines hidden',
+      '  - The Polaris header removes decorative star dots and their twinkling animation while preserving progress animation and actions',
+      '  - The current-year card removes the duplicate Plan-to-Actual amount block and hides the Target/Achieved/Gap summary outline',
+      '  - Annual data, percentage calculations, progress bars, edit entry points, dialogs, and saving logic are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.454', date: '2026-08-13',
+    items: [
       '🎨 目标页统一无外边框层次',
       '  - 北极星目标头部隐藏外轮廓，并同步顶部6%、左右3%和底部1%的渐弱内高光',
       '  - 当前年度、未来年度及投资心得和复盘日志的空态卡片统一隐藏最外层边框',

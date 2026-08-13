@@ -2165,8 +2165,8 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(reviewTabSource.includes('border-dashed border-white/25'), 'future year growth target guide line should be gray');
   assert.ok(reviewTabSource.includes('h-7 rounded-full px-2.5 text-[11px] font-normal'), 'review currency switch should match the home header size');
   assert.ok(reviewTabSource.includes('rounded-2xl border border-transparent bg-[#0b0c0e] p-4 shadow-'), 'north-star card should hide its outer outline while retaining the shared header depth');
-  assert.ok(reviewTabSource.includes('rounded-[20px] border border-transparent bg-[#0b0c0e] p-4 text-left shadow-'), 'current year card should hide its outer outline while retaining its depth');
-  assert.ok(reviewTabSource.includes('rounded-[18px] border border-transparent bg-[#0b0c0e] p-4 text-left'), 'future year cards should hide only their outer outlines');
+  assert.ok(reviewTabSource.includes('rounded-[20px] border border-transparent bg-[#0b0c0e] p-4 text-left shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06),inset_1px_0_0_rgba(255,255,255,0.03),inset_-1px_0_0_rgba(255,255,255,0.03),inset_0_-1px_0_rgba(255,255,255,0.01)]'), 'current year card should retain its depth and add the shared 6/3/1 four-edge inner highlights');
+  assert.ok(reviewTabSource.includes('rounded-[18px] border border-transparent bg-[#0b0c0e] p-4 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.06),inset_1px_0_0_rgba(255,255,255,0.03),inset_-1px_0_0_rgba(255,255,255,0.03),inset_0_-1px_0_rgba(255,255,255,0.01)]'), 'future year cards should add the shared 6/3/1 four-edge inner highlights without restoring an outer outline');
   assert.equal((reviewTabSource.match(/rounded-2xl border border-transparent bg-white\/\[0\.035\] px-4 py-8/g) || []).length, 2, 'review empty states should hide their outer outlines');
   assert.equal((reviewTabSource.match(/rounded-\[22px\] border border-white\/\[0\.06\] bg-\[#101114\] px-4 py-3\.5/g) || []).length, 2, 'discipline and review rows should retain their interactive boundaries');
   assert.equal(reviewTabSource.includes('border-[#f6b54b]/65'), false, 'current year card should not keep the bright yellow outline');
@@ -2174,6 +2174,8 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(reviewTabSource.includes('mt-5 -mx-2'), 'annual target section should expand wider than the page padding');
   assert.ok(reviewTabSource.includes('marketTextClass'), 'review pink/green amount colors should share the home market color helper');
   assert.equal(reviewTabSource.includes('rocket-particle rocket-particle'), false, 'review header should not render loose moving particle strips');
+  assert.equal(reviewTabSource.includes('polar-twinkle'), false, 'north-star header should not keep the twinkling-star animation');
+  assert.equal(reviewTabSource.includes('review-star'), false, 'north-star header should not render decorative star dots');
   assert.ok(appSource.includes('.progress-shine { position: relative; overflow: hidden; }'), 'progress shine must stay clipped inside the progress bar');
   assert.ok(reviewTabSource.includes('.progress-shine {'), 'review local preview should carry its own clipped progress shine styles');
   assert.ok(reviewTabSource.includes('targetGap'), 'current year card should show target gap/lag information');
@@ -2183,11 +2185,14 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(reviewTabSource.includes("hasActual ? 'text-[#ff4b1f]' : 'text-white/35'"), 'achieved amount should use the standard system red');
   assert.ok(reviewTabSource.includes("targetGap < 0 ? 'text-[#ff4b1f]' : 'text-emerald-400'"), 'lag should use system green while an exceeded target uses system red');
   assert.ok(reviewTabSource.includes('grid grid-cols-[minmax(0,1fr)_172px] items-start gap-2.5'), 'current-year summary should preserve its original two-column style with a slightly wider amount column');
+  assert.equal(reviewTabSource.includes("tt('review.planned', '计划')"), false, 'current year card should not repeat the planned amount beside the three-row summary');
+  assert.equal(reviewTabSource.includes("tt('review.actual', '实际')"), false, 'current year card should not repeat the actual amount beside the three-row summary');
+  assert.equal(reviewTabSource.includes('const pnlTextClass ='), false, 'removing the duplicate current-year amount should also remove its unused color helper');
   assert.ok(reviewTabSource.includes('(yearItem.actualGain / yearItem.planTarget) * 100'), 'achieved percentage should use the current annual actual divided by the annual plan');
   assert.ok(reviewTabSource.includes('(Math.abs(targetGap) / yearItem.planTarget) * 100'), 'behind or exceeded percentage should use the absolute annual gap divided by the annual plan');
   assert.ok(reviewTabSource.includes('>100%</span>'), 'annual target summary should keep the target baseline fixed at 100 percent');
   assert.equal(reviewTabSource.includes('annualSummaryPercentPreview'), false, 'annual summary percentages should be production behavior rather than a dev-only preview gate');
-  assert.ok(reviewTabSource.includes('space-y-1 rounded-xl border border-white/[0.06] bg-white/[0.035] px-2.5 py-2.5'), 'three-row annual summary should gain compact vertical space');
+  assert.ok(reviewTabSource.includes('space-y-1 rounded-xl border border-transparent bg-white/[0.035] px-2.5 py-2.5'), 'three-row annual summary should keep its compact surface while hiding the outer border');
   assert.ok(reviewTabSource.includes("isOverTarget ? 'border-[#ff4b1f]/25 bg-[#ff4b1f]/10 text-[#ff4b1f]' : 'border-emerald-400/25 bg-emerald-400/10 text-emerald-400'"), 'current-year reached and behind badges should share the red/green result hierarchy');
   assert.ok(reviewTabSource.includes("text-[#ff4b1f] tabular-nums\" style={{ fontFamily: NUMBER_FONT }}>{progressPct.toFixed(1)}%"), 'overall completion percentage should use system red');
   assert.ok(reviewTabSource.includes("text-[14px] text-[#ff4b1f] tabular-nums\" style={{ fontFamily: NUMBER_FONT }}>{yearProgressPct.toFixed(0)}%"), 'annual completion percentage should use system red');

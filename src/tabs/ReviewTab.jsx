@@ -665,8 +665,6 @@ export default function ReviewTab({ ctx }) {
       decimal: digits > 0 ? `.${decimal}` : '',
     };
   };
-  const pnlTextClass = (value) => marketTextClass(value, marketColorMode);
-
   const yearlyFinal = React.useMemo(() => {
     const rows = [];
     let prevEnd = startCapital;
@@ -816,17 +814,6 @@ export default function ReviewTab({ ctx }) {
   return (
     <div className="mx-auto max-w-[430px] pb-2 text-white" style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif' }}>
       <style>{`
-        @keyframes polar-twinkle {
-          0%, 100% { opacity: 0.28; transform: scale(1); }
-          50% { opacity: 0.9; transform: scale(1.35); }
-        }
-        .review-star {
-          position: absolute;
-          border-radius: 9999px;
-          background: rgba(255, 255, 255, 0.86);
-          animation: polar-twinkle 3.5s ease-in-out infinite;
-          pointer-events: none;
-        }
         @keyframes review-rocket-launch {
           0% { width: 0%; }
           100% { width: var(--target-width); }
@@ -870,10 +857,6 @@ export default function ReviewTab({ ctx }) {
         }}
         aria-label={tt('review.openCompoundDetails', '查看北极星复利明细')}
       >
-        <span className="review-star left-[58%] top-[16%] h-1 w-1" />
-        <span className="review-star left-[74%] top-[34%] h-0.5 w-0.5" style={{ animationDelay: '0.7s' }} />
-        <span className="review-star left-[63%] top-[56%] h-0.5 w-0.5" style={{ animationDelay: '1.4s' }} />
-
         <div className="relative z-10 flex items-center justify-between gap-3">
           <div className="min-w-0">
             <div className="flex items-center gap-2 text-[14px] font-normal text-white/70">
@@ -994,7 +977,7 @@ export default function ReviewTab({ ctx }) {
                   key={yearItem.year}
                   type="button"
                   onClick={() => setYearAction(yearItem)}
-                  className="block w-full rounded-[20px] border border-transparent bg-[#0b0c0e] p-4 text-left shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)]"
+                  className="block w-full rounded-[20px] border border-transparent bg-[#0b0c0e] p-4 text-left shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06),inset_1px_0_0_rgba(255,255,255,0.03),inset_-1px_0_0_rgba(255,255,255,0.03),inset_0_-1px_0_rgba(255,255,255,0.01)]"
                 >
                   <div className="grid grid-cols-[minmax(0,1fr)_172px] items-start gap-2.5">
                     <div className="min-w-0">
@@ -1003,18 +986,8 @@ export default function ReviewTab({ ctx }) {
                         <span className="rounded-md border border-[#f6b54b]/25 bg-[#f6b54b]/10 px-1.5 py-0.5 text-[10px] text-[#f6b54b]">{tt('review.thisYear', '本年')}</span>
                         <span className={`rounded-md border px-1.5 py-0.5 text-[10px] ${isOverTarget ? 'border-[#ff4b1f]/25 bg-[#ff4b1f]/10 text-[#ff4b1f]' : 'border-emerald-400/25 bg-emerald-400/10 text-emerald-400'}`}>{projectedLabel}</span>
                       </div>
-                      <div className="mt-5">
-                        <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-1 text-[12px] text-white/50">
-                          <span className="whitespace-nowrap">{tt('review.planned', '计划')} <span className="text-white/78 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{signedMoney(yearItem.planTarget)}</span></span>
-                          <span className="text-white/25">→</span>
-                          <span>{tt('review.actual', '实际')}</span>
-                        </div>
-                        <div className={`mt-1 whitespace-nowrap text-[20px] font-normal tabular-nums ${hasActual ? pnlTextClass(yearItem.actualGain) : 'text-white/35'}`} style={{ fontFamily: NUMBER_FONT }}>
-                          {hasActual ? signedMoney(yearItem.actualGain) : tt('review.pending', '待填写')}
-                        </div>
-                      </div>
                     </div>
-                    <div className="w-full shrink-0 space-y-1 rounded-xl border border-white/[0.06] bg-white/[0.035] px-2.5 py-2.5 text-[11px] leading-[1.45]">
+                    <div className="w-full shrink-0 space-y-1 rounded-xl border border-transparent bg-white/[0.035] px-2.5 py-2.5 text-[11px] leading-[1.45]">
                       <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 whitespace-nowrap text-white/62">
                         <span>{tt('review.target', '目标')} <span className="text-white/82 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{money(yearItem.planTarget)}</span></span>
                         <span className="text-right text-white/82 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>100%</span>
@@ -1073,7 +1046,7 @@ export default function ReviewTab({ ctx }) {
                 key={yearItem.year}
                 type="button"
                 onClick={() => setYearAction(yearItem)}
-                className="block w-full rounded-[18px] border border-transparent bg-[#0b0c0e] p-4 text-left"
+                className="block w-full rounded-[18px] border border-transparent bg-[#0b0c0e] p-4 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.06),inset_1px_0_0_rgba(255,255,255,0.03),inset_-1px_0_0_rgba(255,255,255,0.03),inset_0_-1px_0_rgba(255,255,255,0.01)]"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
