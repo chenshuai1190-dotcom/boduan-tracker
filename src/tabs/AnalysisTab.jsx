@@ -368,10 +368,9 @@ function AnalysisTab({ ctx }) {
   const openMonthlyBalanceEditor = React.useCallback((month) => {
     setAssetMessage(null);
     setSnapshotDraft({});
-    closeMonthlyAssetTrend();
     setFillMonth(month);
     setShowFillSnapshot(true);
-  }, [closeMonthlyAssetTrend, setFillMonth, setShowFillSnapshot, setSnapshotDraft]);
+  }, [setFillMonth, setShowFillSnapshot, setSnapshotDraft]);
 
   const closeAccountAction = () => {
     setAssetMessage(null);
@@ -661,42 +660,42 @@ function AnalysisTab({ ctx }) {
     await persistFillSnapshot();
   };
 
-  if (showMonthsDetail) {
-    return (
-      <main
-        className="mx-auto w-full max-w-[430px] pb-3 text-[#f5f7fb]"
-        data-monthly-asset-trend-page="true"
-        style={{ fontFamily: ASSET_FONT }}
-      >
-        <header className="relative mb-4 flex min-h-[40px] items-center justify-center">
-          <button
-            type="button"
-            onClick={closeMonthlyAssetTrend}
-            className="absolute left-0 flex h-10 w-10 items-center justify-start text-white/[0.78] active:scale-95 active:text-white transition"
-            aria-label={tt('analysis.backToAssetOverview', '返回资产总览')}
-          >
-            <ChevronLeft className="h-5 w-5" strokeWidth={1.8} />
-          </button>
-          <h1 className="px-12 text-center text-[17px] font-medium leading-6 text-white/[0.94]">
-            {tt('analysis.monthTrendTitle', '12 个月资产走势')}
-          </h1>
-        </header>
+  const monthlyAssetTrendPage = (
+    <main
+      className="mx-auto w-full max-w-[430px] pb-3 text-[#f5f7fb]"
+      data-monthly-asset-trend-page="true"
+      style={{ fontFamily: ASSET_FONT }}
+    >
+      <header className="relative mb-4 flex min-h-[40px] items-center justify-center">
+        <button
+          type="button"
+          onClick={closeMonthlyAssetTrend}
+          className="absolute left-0 flex h-10 w-10 items-center justify-start text-white/[0.78] active:scale-95 active:text-white transition"
+          aria-label={tt('analysis.backToAssetOverview', '返回资产总览')}
+        >
+          <ChevronLeft className="h-5 w-5" strokeWidth={1.8} />
+        </button>
+        <h1 className="px-12 text-center text-[17px] font-medium leading-6 text-white/[0.94]">
+          {tt('analysis.monthTrendTitle', '12 个月资产走势')}
+        </h1>
+      </header>
 
-        <MonthlyAssetTrendContent
-          language={language}
-          months={last12Months}
-          values={chartData}
-          currentMonth={currentMonth}
-          comparisonStartMonth={yearAgo}
-          comparisonStartValue={totalYearAgo}
-          onEditMonth={openMonthlyBalanceEditor}
-        />
-      </main>
-    );
-  }
+      <MonthlyAssetTrendContent
+        language={language}
+        months={last12Months}
+        values={chartData}
+        currentMonth={currentMonth}
+        comparisonStartMonth={yearAgo}
+        comparisonStartValue={totalYearAgo}
+        onEditMonth={openMonthlyBalanceEditor}
+      />
+    </main>
+  );
 
   return (
-    <div className="space-y-3.5 text-[#f5f7fb]" style={{ fontFamily: ASSET_FONT }}>
+    <>
+      {showMonthsDetail ? monthlyAssetTrendPage : (
+      <div className="space-y-3.5 text-[#f5f7fb]" style={{ fontFamily: ASSET_FONT }}>
       <section className="rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)]">
         <div className="flex min-h-[34px] items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-1.5 text-[14px] font-normal text-white/70">
@@ -1299,6 +1298,9 @@ function AnalysisTab({ ctx }) {
         </ActionModalCard>
       )}
 
+      </div>
+      )}
+
       {showFillSnapshot && (
         <ActionModalCard
           title={tt('analysis.addMonthlyBalance', '填月度余额')}
@@ -1431,7 +1433,7 @@ function AnalysisTab({ ctx }) {
             </div>
         </ActionModalCard>
       )}
-    </div>
+    </>
   );
 }
 

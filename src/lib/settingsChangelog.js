@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '📐 12个月资产走势完善图表边距与月度编辑交互',
+      '  - 图表坐标、网格、曲线和数据点统一收回页面边界，在不同iPhone宽度下与下方摘要及月度明细卡片对齐',
+      '  - 月度明细仅右侧箭头进入对应月份余额编辑；关闭、取消或保存后继续停留在当前资产走势页面',
+      '  - 点击图表仍可查看或切换月份，触碰图表外区域会自动收起提示；资产快照、金额计算、保存及数据库口径保持不变',
+    ],
+    itemsEn: [
+      '📐 The 12-month asset trend now has aligned chart spacing and clearer monthly editing interactions',
+      '  - Axis labels, grid lines, curves, and points now stay within the page bounds and align with the summary and monthly-detail cards across iPhone widths',
+      '  - Only a monthly row’s trailing arrow opens that exact month’s balance editor; closing, cancelling, or saving returns to the same asset-trend page',
+      '  - Chart taps still reveal or switch months, while touching outside dismisses the callout; asset snapshots, calculations, saving, and database semantics are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.440', date: '2026-08-13',
+    items: [
       '📈 12个月资产走势升级为资产Tab内的独立宽版页面',
       '  - 取消弹窗、遮罩和整页外框，保留底部五个Tab及资产选中状态；返回键和资产Tab均可回到资产总览',
       '  - 图表、坐标和月度明细按独立页面同步加宽，纵轴与当前资产左对齐，最新月份与环比箭头右对齐',

@@ -14,8 +14,7 @@ const CHART_COLOR = '#50d0a2';
 const CHART_LATEST_COLOR = '#f6c56f';
 const CHART_WIDTH = 370;
 const CHART_HEIGHT = 206;
-const CHART_EDGE_LABEL_OFFSET = 30;
-const CHART_BOUNDS = Object.freeze({ left: 18, right: 392, top: 22, bottom: 169 });
+const CHART_BOUNDS = Object.freeze({ left: 48, right: 362, top: 22, bottom: 169 });
 
 function formatNumber(value, digits = 1) {
   if (!Number.isFinite(value)) return '--';
@@ -152,6 +151,7 @@ export default function MonthlyAssetTrendContent({
   onEditMonth,
 }) {
   const activePointerIdRef = React.useRef(null);
+  const chartInteractionRef = React.useRef(null);
   const [expanded, setExpanded] = React.useState(false);
   const [selectedIndex, setSelectedIndex] = React.useState(null);
   const detailModel = React.useMemo(() => buildMonthlyAssetTrend({ months, values }), [months, values]);
@@ -177,6 +177,19 @@ export default function MonthlyAssetTrendContent({
   const tt = React.useCallback((key, fallback, replacements) => (
     t(language, key, fallback, replacements)
   ), [language]);
+
+  React.useEffect(() => {
+    if (selectedIndex === null) return undefined;
+
+    const clearSelectedPointOutsideChart = (event) => {
+      if (chartInteractionRef.current?.contains(event.target)) return;
+      activePointerIdRef.current = null;
+      setSelectedIndex(null);
+    };
+
+    document.addEventListener('pointerdown', clearSelectedPointOutsideChart, true);
+    return () => document.removeEventListener('pointerdown', clearSelectedPointOutsideChart, true);
+  }, [selectedIndex]);
 
   const currentSlot = chartModel.currentSlot;
   const selectedSlot = selectedIndex === null ? null : chartModel.slots[selectedIndex];
@@ -263,7 +276,8 @@ export default function MonthlyAssetTrendContent({
       </section>
 
       <div
-        className="mt-2 h-[206px] select-none touch-pan-y"
+        ref={chartInteractionRef}
+        className="mt-2 aspect-[370/206] select-none touch-pan-y"
         aria-label={tt('analysis.assetTrendChartRange', '{{start}} 至 {{end}}资产走势', {
           start: chartMonths[0] || '--',
           end: chartMonths.at(-1) || '--',
@@ -300,7 +314,7 @@ export default function MonthlyAssetTrendContent({
               return (
                 <g key={`${tick}-${index}`}>
                   <line x1={CHART_BOUNDS.left} x2={CHART_BOUNDS.right} y1={y} y2={y} stroke="rgba(255,255,255,0.07)" strokeWidth="1" />
-                  <text x={-CHART_EDGE_LABEL_OFFSET} y={y + 3.5} textAnchor="start" fill="rgba(255,255,255,0.48)" fontSize="10" fontFamily={NUMBER_FONT}>
+                  <text x="0" y={y + 3.5} textAnchor="start" fill="rgba(255,255,255,0.48)" fontSize="10" fontFamily={NUMBER_FONT}>
                     {formatWan(tick, language, 0)}
                   </text>
                 </g>
@@ -348,7 +362,7 @@ export default function MonthlyAssetTrendContent({
               if (!labelIndexes.has(index)) return null;
               const first = index === 0;
               const last = index === chartMonths.length - 1;
-              const labelX = last ? CHART_WIDTH + CHART_EDGE_LABEL_OFFSET : scale.xForIndex(index) + (index === 2 ? 8 : 0);
+              const labelX = last ? CHART_WIDTH : scale.xForIndex(index) + (index === 2 ? 8 : 0);
               return (
                 <text
                   key={month}
@@ -423,7 +437,7 @@ export default function MonthlyAssetTrendContent({
           </button>
         </div>
 
-        <div className="grid min-h-[32px] grid-cols-[90px_minmax(74px,1fr)_minmax(72px,0.96fr)_52px_11px] items-center gap-x-0.5 border-y border-white/[0.055] bg-white/[0.035] px-2 text-[10px] text-white/[0.43]">
+        <div className="grid min-h-[32px] grid-cols-[90px_minmax(70px,1fr)_minmax(68px,0.96fr)_49px_18px] items-center gap-x-0.5 border-y border-white/[0.055] bg-white/[0.035] px-2 text-[10px] text-white/[0.43]">
           <span>{tt('analysis.monthColumn', '月份')}</span>
           <span className="text-right">{tt('analysis.monthEndAssets', '月末资产')}</span>
           <span className="text-right">{tt('analysis.monthlyChange', '月度涨跌')}</span>
@@ -435,13 +449,10 @@ export default function MonthlyAssetTrendContent({
           {visibleSlots.map((slot) => {
             const tone = slot.changeAmount >= 0 ? UP_COLOR : DOWN_COLOR;
             return (
-              <button
+              <div
                 key={slot.month}
-                type="button"
                 data-asset-trend-month-row={slot.month}
-                className="grid min-h-[42px] w-full grid-cols-[90px_minmax(74px,1fr)_minmax(72px,0.96fr)_52px_11px] items-center gap-x-0.5 border-0 border-b border-solid border-white/[0.055] bg-transparent px-2 text-left last:border-b-0 active:bg-white/[0.045]"
-                aria-label={tt('analysis.editMonthlyBalanceFor', '修改 {{month}} 月度余额', { month: slot.month })}
-                onClick={() => onEditMonth?.(slot.month)}
+                className="grid min-h-[42px] w-full grid-cols-[90px_minmax(70px,1fr)_minmax(68px,0.96fr)_49px_18px] items-center gap-x-0.5 border-b border-solid border-white/[0.055] px-2 text-left last:border-b-0"
               >
                 <span className="flex min-w-0 items-center gap-1 whitespace-nowrap text-[11px] text-white/[0.86] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
                   <span>{slot.month}</span>
@@ -460,8 +471,16 @@ export default function MonthlyAssetTrendContent({
                 <span className="whitespace-nowrap text-right text-[11px] tabular-nums" style={{ color: Number.isFinite(slot.changePct) ? tone : 'rgba(255,255,255,.28)', fontFamily: NUMBER_FONT }}>
                   {formatSignedPercent(slot.changePct)}
                 </span>
-                <ChevronRight className="h-4 w-4 text-white/[0.44]" strokeWidth={1.8} />
-              </button>
+                <button
+                  type="button"
+                  data-asset-trend-month-edit={slot.month}
+                  aria-label={tt('analysis.editMonthlyBalanceFor', '修改 {{month}} 月度余额', { month: slot.month })}
+                  onClick={() => onEditMonth?.(slot.month)}
+                  className="flex h-[42px] w-[26px] -translate-x-1 items-center justify-end border-0 bg-transparent text-white/[0.44] active:text-white/[0.72]"
+                >
+                  <ChevronRight className="h-4 w-4" strokeWidth={1.8} />
+                </button>
+              </div>
             );
           })}
         </div>
