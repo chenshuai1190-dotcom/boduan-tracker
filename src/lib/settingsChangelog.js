@@ -4,6 +4,23 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '✨ 首页、交易与资产头部进一步简化分隔层次',
+      '  - 首页和交易页的“今日盈亏 / 累计盈亏 / 融资负债”取消两条列间竖线，保留上方横线和原三列布局',
+      '  - 资产页的“较上月 / 年初至今 / 近一年”取消列间竖线，保留原列宽、间距与数值对齐',
+      '  - 12个月走势下方的“最低 / 最高 / 区间”取消列间竖线，同时保留上方横线',
+      '  - 金额、百分比、币种、点击入口、资产计算和交易账本逻辑均保持不变',
+    ],
+    itemsEn: [
+      '✨ Home, Trading, and Assets headers now use a lighter divider hierarchy',
+      '  - Home and Trading remove the two vertical dividers between Today P&L, Total P&L, and Margin Debt while preserving the top divider and three-column layout',
+      '  - Assets removes vertical dividers between Month-over-Month, Year-to-Date, and One Year while preserving column widths, spacing, and number alignment',
+      '  - The Low, High, and Range summary below the 12-month chart removes its vertical dividers while keeping the divider above it',
+      '  - Amounts, percentages, currencies, navigation, asset calculations, and trading-ledger behavior are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.455', date: '2026-08-13',
+    items: [
       '✨ 年度目标卡片层次与信息进一步精简',
       '  - 当前年度和后续年份计划卡同步顶部6%、左右3%和底部1%的渐弱内高光，同时继续隐藏外轮廓',
       '  - 北极星头部移除装饰星点及闪烁动画，保留进度条动画与原有操作',

@@ -124,7 +124,7 @@ test('Home adds a compact same-row cash entry without changing its financial led
 
 test('Trades mirrors the Home available-cash display and editor through the shared App state', () => {
   const totalAssetsStart = tradesSource.indexOf('data-trades-total-assets="true"');
-  const metricGridStart = tradesSource.indexOf('divide-x divide-white/10', totalAssetsStart);
+  const metricGridStart = tradesSource.indexOf('grid-cols-[1fr_1.12fr_0.96fr] border-t border-white/[0.07] pt-4', totalAssetsStart);
   const rowBlock = tradesSource.slice(totalAssetsStart, metricGridStart);
   assert.ok(totalAssetsStart >= 0 && metricGridStart > totalAssetsStart);
   assert.ok(tradesSource.includes("import AvailableCashEditor from '../components/AvailableCashEditor.jsx'"));

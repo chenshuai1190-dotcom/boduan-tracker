@@ -721,7 +721,7 @@ function AnalysisTab({ ctx }) {
           <span className="ml-0.5 align-baseline text-[20px] font-normal leading-none text-white/[0.95]">{totalNowMoney.decimal}</span>
         </div>
 
-        <div className="mt-6 grid grid-cols-[1fr_1.12fr_0.96fr] divide-x divide-white/10">
+        <div className="mt-6 grid grid-cols-[1fr_1.12fr_0.96fr]">
           {metricItems.map((item, idx) => {
             const positive = item.value >= 0;
             const color = positive ? ASSET_PINK : ASSET_GREEN;
@@ -879,8 +879,8 @@ function AnalysisTab({ ctx }) {
               [tt('analysis.low', '最低'), chartMin],
               [tt('analysis.high', '最高'), chartMax],
               [tt('analysis.range', '区间'), chartRange],
-            ].map(([label, value], idx) => (
-              <div key={label} className={idx === 0 ? '' : 'border-l border-white/10'}>
+            ].map(([label, value]) => (
+              <div key={label}>
                 <div className="text-[11px] text-white/[0.42]">{label}</div>
                 <div className="mt-1.5 text-[14px] tabular-nums text-white/[0.88]" style={{ fontFamily: ASSET_NUMBER_FONT }}>¥{fmtWan(value)}万</div>
               </div>

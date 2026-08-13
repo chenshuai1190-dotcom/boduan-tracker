@@ -991,7 +991,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
           </div>
 
           <div
-            className="mt-4 grid grid-cols-[1fr_1.12fr_0.96fr] divide-x divide-white/10 border-t border-white/[0.07] pt-4"
+            className="mt-4 grid grid-cols-[1fr_1.12fr_0.96fr] border-t border-white/[0.07] pt-4"
           >
             <div className="min-w-0 pr-3">
               <div className="text-[13px] text-white/50">{tt('trades.todayPnl', '今日盈亏')}</div>
