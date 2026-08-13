@@ -4,6 +4,19 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '📈 股票趋势标题统一页面视觉层级',
+      '  - “股票趋势”的字号、字重和柔和白色同步个股收益详情页面上方的股票代码标题',
+      '  - 股票代码、返回按钮、页面布局、趋势数据和交互逻辑保持不变',
+    ],
+    itemsEn: [
+      '📈 The Stock Trend title now follows the shared page-heading hierarchy',
+      '  - Its size, weight, and soft-white tone now match the stock-code heading above Stock P&L Detail',
+      '  - The symbol, back button, page layout, trend data, and interactions are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.444', date: '2026-08-13',
+    items: [
       '🎯 北极星目标同步柔和白色资产数字',
       '  - 北极星目标主金额及两位小数由金色改为与首页和资产页一致的柔和白色',
       '  - 取消“北极星目标”标题前的星星图标，保留卡片背景中的轻微星点动效',

@@ -1594,7 +1594,7 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
           </button>
           <div className="flex min-w-0 items-baseline justify-center gap-2 text-center" data-watchlist-detail-heading="symbol-title">
             <div className="shrink-0 text-[12px] font-medium leading-none tracking-[0.08em] text-[#f6b54b]/80">{symbol || '--'}</div>
-            <h1 className="truncate text-[17px] font-normal leading-none tracking-[0.02em] text-white/[0.88]">{t(language, 'watchlistDetail.title', '股票趋势')}</h1>
+            <h1 className="truncate text-[17px] font-semibold leading-tight text-white/[0.78]">{t(language, 'watchlistDetail.title', '股票趋势')}</h1>
           </div>
           <div aria-hidden="true" />
         </div>
