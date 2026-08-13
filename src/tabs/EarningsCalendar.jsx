@@ -1256,7 +1256,7 @@ export default function EarningsCalendar({
   return (
     <section
       id="earnings-calendar"
-      className={`mt-3 rounded-2xl border border-white/10 bg-[#0b0c0e] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ${placementClassName}`}
+      className={`mt-3 rounded-2xl border border-transparent bg-[#0b0c0e] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ${placementClassName}`}
       data-home-earnings-placement={shouldPromote ? 'promoted' : 'default'}
       style={{ fontFamily: FONT }}
     >

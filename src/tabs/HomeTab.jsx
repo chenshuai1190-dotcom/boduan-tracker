@@ -293,7 +293,7 @@ function resolveBtcDisplayRealtimeStatus(item, nextStatus) {
 function MiniMarketCard({ item, marketColorMode, language }) {
   if (item?.error) {
     return (
-      <div className="rounded-xl border border-white/10 bg-[#101114] p-3 min-h-[122px]">
+      <div className="rounded-xl border border-transparent bg-[#101114] p-3 min-h-[122px]">
         <div className="text-[11px] font-normal leading-tight text-white/80">{marketCardName(item, language)}</div>
         <div className="mt-3 text-[11px] text-rose-300">{t(language, 'home.market.fetchFailed', '拉取失败')}</div>
       </div>
@@ -306,7 +306,7 @@ function MiniMarketCard({ item, marketColorMode, language }) {
   const realtimeStatus = item?.realtimeStatus || (item?.realtime ? 'live' : '');
   const realtimeLabel = marketRealtimeLabel(realtimeStatus, language);
   return (
-    <div className={`rounded-xl border border-white/10 bg-[#101114] ${isBtc ? 'p-2' : 'p-2.5'} min-h-[122px] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]`}>
+    <div className={`rounded-xl border border-transparent bg-[#101114] ${isBtc ? 'p-2' : 'p-2.5'} min-h-[122px] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]`}>
       <div className={`flex min-w-0 items-start justify-between ${isBtc ? 'gap-1' : 'gap-1.5'}`}>
         <div className="min-w-0 truncate text-[11px] font-normal leading-tight text-white/80">{marketCardName(item, language)}</div>
         {isBtc && realtimeLabel && (
@@ -972,7 +972,7 @@ export default function HomeTab({ ctx }) {
         }
       `}</style>
 
-      <section className="overflow-hidden rounded-2xl border border-white/10 bg-[#0b0c0e] p-4 shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)]" data-home-net-assets-card="true">
+      <section className="overflow-hidden rounded-2xl border border-transparent bg-[#0b0c0e] p-4 shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)]" data-home-net-assets-card="true">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0 text-[14px] font-normal text-white/70">{t(language, 'home.netAssets', '净资产')} ({displayCurrencyLabel}) <span className="ml-1 text-white/50">◎</span></div>
           <div className="ml-auto flex justify-end">
@@ -1089,7 +1089,7 @@ export default function HomeTab({ ctx }) {
         </div>
       </section>
 
-      <section className="mt-3 rounded-2xl border border-white/10 bg-[#0b0c0e] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+      <section className="mt-3 rounded-2xl border border-transparent bg-[#0b0c0e] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
         <div className="mb-2 flex items-center justify-between">
           <div className="text-[13px] font-semibold text-white/70">{t(language, 'home.currentSignal', '当前信号')}</div>
           <button
@@ -1250,7 +1250,7 @@ export default function HomeTab({ ctx }) {
       )}
 
       <section className="mt-3 grid grid-cols-2 gap-3">
-        <div className="rounded-2xl border border-white/10 bg-[#0b0c0e] px-3.5 py-2.5">
+        <div className="rounded-2xl border border-transparent bg-[#0b0c0e] px-3.5 py-2.5">
           <div className={`flex items-center gap-1.5 ${englishMode ? 'text-[11px]' : 'text-[13px]'} font-normal text-white/60`}>
             {t(language, 'home.vix.title', 'VIX 恐慌指数')}
             {vixDateLabel && <span className="text-[11px] text-white/40">{vixDateLabel} {t(language, 'home.vix.close', '收盘')}</span>}
@@ -1270,7 +1270,7 @@ export default function HomeTab({ ctx }) {
           <div className="mt-1.5 flex justify-between text-[11px] text-white/40"><span>0</span><span>20</span><span>30</span><span>50</span></div>
         </div>
 
-        <div className="rounded-2xl border border-white/10 bg-[#0b0c0e] px-3.5 py-2.5">
+        <div className="rounded-2xl border border-transparent bg-[#0b0c0e] px-3.5 py-2.5">
           <div className={`flex items-center gap-1.5 ${englishMode ? 'text-[11px]' : 'text-[13px]'} font-normal text-white/60`}>
             {t(language, 'home.fgi.title', 'CNN 恐慌贪婪指数')}
             {fgiDateLabel && <span className="text-[11px] text-white/40">{fgiDateLabel}</span>}
@@ -1286,7 +1286,7 @@ export default function HomeTab({ ctx }) {
         </div>
       </section>
 
-      <section className="order-2 mt-3 overflow-hidden rounded-2xl border border-white/10 bg-[#0b0c0e] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+      <section className="order-2 mt-3 overflow-hidden rounded-2xl border border-transparent bg-[#0b0c0e] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
         <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3">
           <div className="flex items-center gap-5">
             <button

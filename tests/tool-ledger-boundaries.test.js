@@ -1998,7 +1998,8 @@ test('primary asset totals split decimal suffixes consistently', () => {
 
 test('asset header card aligns with home and trade header sizing', () => {
   const sharedHeaderShell = 'rounded-2xl border border-white/10 bg-[#0b0c0e] p-4 shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)]';
-  assert.ok(homeTabSource.includes(sharedHeaderShell), 'home header should keep the shared sizing while using the approved neutral-black surface');
+  const borderlessHomeHeaderShell = 'rounded-2xl border border-transparent bg-[#0b0c0e] p-4 shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)]';
+  assert.ok(homeTabSource.includes(borderlessHomeHeaderShell), 'home header should keep the shared sizing and neutral-black surface while hiding its outer outline');
   assert.ok(tradesTabSource.includes(sharedHeaderShell), 'trade header should keep the shared header card shell');
   assert.ok(analysisTabSource.includes(sharedHeaderShell), 'asset header should use the same header card shell');
   assert.ok(homeTabSource.includes('min-w-0 text-[14px] font-normal text-white/70'), 'home net-assets title should remain the header typography baseline');
@@ -2011,11 +2012,17 @@ test('asset header card aligns with home and trade header sizing', () => {
   assert.ok(analysisTabSource.includes("fontSize: 'clamp(28px, 8.7vw, 34px)'"), 'family total amount should match the responsive home amount sizing');
   assert.equal(analysisTabSource.includes('sm:text-[38px]'), false, 'asset header amount should not grow larger than home on wider screens');
   assert.ok(analysisTabSource.includes('mt-6 grid grid-cols-[1fr_1.12fr_0.96fr] divide-x divide-white/10'), 'asset header metrics should match the home/trade metric grid');
-  assert.ok(homeTabSource.includes('rounded-xl border border-white/10 bg-[#101114]'), 'home market cards should use the approved raised neutral-black surface');
+  assert.equal((homeTabSource.match(/rounded-xl border border-transparent bg-\[#101114\]/g) || []).length, 2, 'both market-card states should hide their outer outlines while retaining the raised neutral-black surface');
+  assert.ok(homeTabSource.includes('mt-3 rounded-2xl border border-transparent bg-[#0b0c0e] p-3'), 'the current-signal module should hide its outer outline');
+  assert.equal((homeTabSource.match(/rounded-2xl border border-transparent bg-\[#0b0c0e\] px-3\.5 py-2\.5/g) || []).length, 2, 'VIX and CNN modules should hide their outer outlines');
+  assert.ok(homeTabSource.includes('order-2 mt-3 overflow-hidden rounded-2xl border border-transparent bg-[#0b0c0e]'), 'the watchlist and positions module should hide its outer outline');
   assert.equal((homeTabSource.match(/bg-\[#0b0c0e\]/g) || []).length, 10, 'all approved Home primary surfaces and sticky cells should use neutral black without recoloring Home sheets');
   assert.equal((homeTabSource.match(/bg-\[#101114\]/g) || []).length, 2, 'both normal and error market-card states should use the approved raised surface');
-  assert.ok(earningsCalendarSource.includes('rounded-2xl border border-white/10 bg-[#0b0c0e] p-3'), 'the Home earnings card should use the approved neutral-black surface');
-  assert.ok(homeMa200Source.includes('rounded-[19px] border border-white/[0.095] bg-[#0b0c0e]'), 'the Home MA200 monitor should use the approved neutral-black surface');
+  assert.ok(earningsCalendarSource.includes('rounded-2xl border border-transparent bg-[#0b0c0e] p-3'), 'the Home earnings card should hide its outer outline while retaining the neutral-black surface');
+  assert.ok(homeMa200Source.includes('rounded-[19px] border border-transparent bg-[#0b0c0e]'), 'the Home MA200 monitor should hide its outer outline while retaining the neutral-black surface');
+  assert.ok(homeTabSource.includes('divide-x divide-white/10 border-t border-white/[0.07]'), 'the Home header should preserve its internal metric dividers');
+  assert.ok(earningsCalendarSource.includes("index < previewEvents.length - 1 ? 'border-r border-white/[0.08]' : ''"), 'the earnings preview should preserve internal event dividers');
+  assert.ok(homeMa200Source.includes('border-b border-white/[0.06]'), 'the MA200 monitor should preserve its internal header divider');
   assert.ok(analysisTabSource.includes('text-[13px] text-white/50">{item.label}'), 'asset header metric labels should match the home field-label baseline');
   assert.ok(reviewTabSource.includes('gap-2 text-[14px] font-normal text-white/70'), 'review header title should match the home title size and tone');
   assert.ok(reviewTabSource.includes("fontSize: 'clamp(28px, 8.7vw, 34px)'"), 'review goal amount should match the responsive home amount sizing');

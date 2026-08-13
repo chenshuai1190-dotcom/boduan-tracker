@@ -102,7 +102,7 @@ export default function HomeMa200BreakdownMonitor({
 
   return (
     <div className={placementClassName} data-home-ma200-monitor="true">
-      <section className="mt-3 overflow-hidden rounded-[19px] border border-white/[0.095] bg-[#0b0c0e] shadow-[inset_0_1px_0_rgba(255,255,255,0.045),0_18px_44px_rgba(0,0,0,0.14)]" aria-label={t(language, 'home.ma200Monitor.title', 'MA200 跌破监控')}>
+      <section className="mt-3 overflow-hidden rounded-[19px] border border-transparent bg-[#0b0c0e] shadow-[inset_0_1px_0_rgba(255,255,255,0.045),0_18px_44px_rgba(0,0,0,0.14)]" aria-label={t(language, 'home.ma200Monitor.title', 'MA200 跌破监控')}>
         <header className="flex min-h-[58px] items-center justify-between gap-2 border-b border-white/[0.06] px-3 pb-2 pt-[9px]">
           <div className="min-w-0">
             <div className="flex items-center gap-2">

@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '🎨 首页信息模块取消外边框',
+      '  - 净资产、当前信号、行情、市场指标、自选/持仓、财报日历和MA200监控统一隐藏卡片外轮廓',
+      '  - 卡片背景、圆角、顶部层次、内部结构线及币种、状态和操作控件边框保持不变',
+      '  - 本次仅调整首页视觉；布局、行情、资产金额、信号和业务逻辑均保持不变',
+    ],
+    itemsEn: [
+      '🎨 Home information modules now use borderless outer shells',
+      '  - Net assets, current signal, market tiles, sentiment indicators, watchlist/positions, earnings, and the MA200 monitor now hide their outer card outlines',
+      '  - Card surfaces, rounding, top-layer highlights, internal dividers, and currency, status, and action-control borders remain unchanged',
+      '  - This release changes Home visuals only; layout, quotes, asset amounts, signals, and business logic are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.448', date: '2026-08-13',
+    items: [
       '📈 股票趋势标题代码与文字完整统一',
       '  - 股票代码和“股票趋势”现在共同使用个股收益详情顶部股票代码的字号、字重和柔和白色',
       '  - 取消股票代码原有的小号金色样式，标题整行保持同一视觉层级',
