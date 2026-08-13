@@ -858,7 +858,7 @@ export default function ReviewTab({ ctx }) {
       `}</style>
 
       <section
-        className="relative flex h-[244px] flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#0b0c0e] p-4 shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)]"
+        className="relative flex h-[244px] flex-col overflow-hidden rounded-2xl border border-transparent bg-[#0b0c0e] p-4 shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06),inset_1px_0_0_rgba(255,255,255,0.03),inset_-1px_0_0_rgba(255,255,255,0.03),inset_0_-1px_0_rgba(255,255,255,0.01)]"
         role="button"
         tabIndex={0}
         onClick={() => setShowCompoundDetails(true)}
@@ -994,7 +994,7 @@ export default function ReviewTab({ ctx }) {
                   key={yearItem.year}
                   type="button"
                   onClick={() => setYearAction(yearItem)}
-                  className="block w-full rounded-[20px] border border-white/10 bg-[#0b0c0e] p-4 text-left shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)]"
+                  className="block w-full rounded-[20px] border border-transparent bg-[#0b0c0e] p-4 text-left shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)]"
                 >
                   <div className="grid grid-cols-[minmax(0,1fr)_172px] items-start gap-2.5">
                     <div className="min-w-0">
@@ -1073,7 +1073,7 @@ export default function ReviewTab({ ctx }) {
                 key={yearItem.year}
                 type="button"
                 onClick={() => setYearAction(yearItem)}
-                className="block w-full rounded-[18px] border border-white/10 bg-[#0b0c0e] p-4 text-left"
+                className="block w-full rounded-[18px] border border-transparent bg-[#0b0c0e] p-4 text-left"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
@@ -1164,7 +1164,7 @@ export default function ReviewTab({ ctx }) {
         </div>
 
         {disciplines.length === 0 ? (
-          <div className="rounded-2xl border border-white/10 bg-white/[0.035] px-4 py-8 text-center text-[13px] text-white/45">
+          <div className="rounded-2xl border border-transparent bg-white/[0.035] px-4 py-8 text-center text-[13px] text-white/45">
             {tt('review.noDisciplines', '还没有投资心得')}
           </div>
         ) : (
@@ -1230,7 +1230,7 @@ export default function ReviewTab({ ctx }) {
         </div>
 
         {reviewLogs.length === 0 ? (
-          <div className="rounded-2xl border border-white/10 bg-white/[0.035] px-4 py-8 text-center text-[13px] text-white/45">
+          <div className="rounded-2xl border border-transparent bg-white/[0.035] px-4 py-8 text-center text-[13px] text-white/45">
             {tt('review.noReviewLogs', '还没有复盘')}
           </div>
         ) : (

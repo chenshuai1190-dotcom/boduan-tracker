@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '🎨 目标页统一无外边框层次',
+      '  - 北极星目标头部隐藏外轮廓，并同步顶部6%、左右3%和底部1%的渐弱内高光',
+      '  - 当前年度、未来年度及投资心得和复盘日志的空态卡片统一隐藏最外层边框',
+      '  - 年度内部信息框、心得和复盘记录行、操作按钮、弹窗及目标数据、计算和保存逻辑均保持不变',
+    ],
+    itemsEn: [
+      '🎨 The Goals page now shares a borderless visual hierarchy',
+      '  - The Polaris Goal header hides its outer outline and adds stepped 6% top, 3% side, and 1% bottom inner highlights',
+      '  - Current-year, future-year, and empty Insight and Review cards now hide their outer outlines',
+      '  - Annual inner panels, Insight and Review rows, action buttons, dialogs, goal data, calculations, and saving logic are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.453', date: '2026-08-13',
+    items: [
       '🎨 资产总览统一无外边框层次',
       '  - 家庭总资产头部隐藏外轮廓，并同步顶部6%、左右3%和底部1%的渐弱内高光',
       '  - 总览中的12个月走势、无账户空态和家庭成员账户分组卡统一隐藏最外层边框',

@@ -2004,6 +2004,7 @@ test('asset header card aligns with home and trade header sizing', () => {
   assert.ok(homeTabSource.includes(borderlessFourEdgeHeaderShell), 'home header should keep its borderless shell with 6% top, 3% side, and 1% bottom inner highlights');
   assert.ok(tradesTabSource.includes(borderlessFourEdgeHeaderShell), 'trade header should match the Home borderless shell and four-edge inner highlights');
   assert.ok(analysisTabSource.includes(borderlessFourEdgeHeaderShell), 'asset header should match the Home and Trading borderless shell and four-edge inner highlights');
+  assert.ok(reviewTabSource.includes(borderlessFourEdgeHeaderShell), 'review header should match the shared borderless shell and four-edge inner highlights');
   assert.ok(homeTabSource.includes('min-w-0 text-[14px] font-normal text-white/70'), 'home net-assets title should remain the header typography baseline');
   assert.ok(tradesTabSource.includes('min-w-0 text-[14px] font-normal text-white/70'), 'trade net-assets title should match the home header baseline');
   assert.ok(homeTabSource.includes('text-[13px]">{t(language, \'home.totalAssets\''), 'home total-assets label should remain the header typography baseline');
@@ -2163,8 +2164,11 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(reviewTabSource.includes('mt-1 text-[12px] font-normal text-white/35 tabular-nums'), 'future year start and target amounts should use neutral gray');
   assert.ok(reviewTabSource.includes('border-dashed border-white/25'), 'future year growth target guide line should be gray');
   assert.ok(reviewTabSource.includes('h-7 rounded-full px-2.5 text-[11px] font-normal'), 'review currency switch should match the home header size');
-  assert.ok(reviewTabSource.includes('rounded-2xl border border-white/10 bg-[#0b0c0e] p-4 shadow-'), 'north-star card should use the same weak border/shadow style as the home header');
-  assert.ok(reviewTabSource.includes('rounded-[20px] border border-white/10 bg-[#0b0c0e] p-4 text-left shadow-'), 'current year card should use the same weak border color as the north-star card');
+  assert.ok(reviewTabSource.includes('rounded-2xl border border-transparent bg-[#0b0c0e] p-4 shadow-'), 'north-star card should hide its outer outline while retaining the shared header depth');
+  assert.ok(reviewTabSource.includes('rounded-[20px] border border-transparent bg-[#0b0c0e] p-4 text-left shadow-'), 'current year card should hide its outer outline while retaining its depth');
+  assert.ok(reviewTabSource.includes('rounded-[18px] border border-transparent bg-[#0b0c0e] p-4 text-left'), 'future year cards should hide only their outer outlines');
+  assert.equal((reviewTabSource.match(/rounded-2xl border border-transparent bg-white\/\[0\.035\] px-4 py-8/g) || []).length, 2, 'review empty states should hide their outer outlines');
+  assert.equal((reviewTabSource.match(/rounded-\[22px\] border border-white\/\[0\.06\] bg-\[#101114\] px-4 py-3\.5/g) || []).length, 2, 'discipline and review rows should retain their interactive boundaries');
   assert.equal(reviewTabSource.includes('border-[#f6b54b]/65'), false, 'current year card should not keep the bright yellow outline');
   assert.equal(reviewTabSource.includes('bottom-[-78px] h-48 w-48'), false, 'north-star card should not keep the lower-right semicircle decoration');
   assert.ok(reviewTabSource.includes('mt-5 -mx-2'), 'annual target section should expand wider than the page padding');
