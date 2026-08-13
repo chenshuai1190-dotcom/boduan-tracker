@@ -1592,10 +1592,10 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
           <button type="button" onClick={closeWatchlistStockDetail} className="flex h-9 w-9 items-center justify-center rounded-full border border-white/[0.09] bg-white/[0.045] text-white/[0.66] active:scale-95" aria-label={t(language, 'watchlistDetail.back', '返回首页')}>
             <ArrowLeft className="h-[18px] w-[18px]" strokeWidth={1.8} />
           </button>
-          <div className="flex min-w-0 items-baseline justify-center gap-2 text-center" data-watchlist-detail-heading="symbol-title">
-            <div className="shrink-0 text-[12px] font-medium leading-none tracking-[0.08em] text-[#f6b54b]/80">{symbol || '--'}</div>
-            <h1 className="truncate text-[17px] font-semibold leading-tight text-white/[0.78]">{t(language, 'watchlistDetail.title', '股票趋势')}</h1>
-          </div>
+          <h1 className="flex min-w-0 items-baseline justify-center gap-2 text-center text-[17px] font-semibold leading-tight text-white/[0.78]" data-watchlist-detail-heading="symbol-title">
+            <span className="shrink-0">{symbol || '--'}</span>
+            <span className="truncate">{t(language, 'watchlistDetail.title', '股票趋势')}</span>
+          </h1>
           <div aria-hidden="true" />
         </div>
       </header>

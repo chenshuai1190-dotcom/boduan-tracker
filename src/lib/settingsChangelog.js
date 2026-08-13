@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '📈 股票趋势标题代码与文字完整统一',
+      '  - 股票代码和“股票趋势”现在共同使用个股收益详情顶部股票代码的字号、字重和柔和白色',
+      '  - 取消股票代码原有的小号金色样式，标题整行保持同一视觉层级',
+      '  - 股票数据、图表、指标、返回入口和页面布局逻辑保持不变',
+    ],
+    itemsEn: [
+      '📈 The complete Stock Trend heading now shares one title style',
+      '  - The symbol and Stock Detail text now both use the size, weight, and soft-white tone of the stock-code heading above Stock P&L Detail',
+      '  - The symbol no longer keeps its previous small gold treatment, so the full heading has one visual hierarchy',
+      '  - Stock data, charts, indicators, navigation, and page-layout behavior are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.447', date: '2026-08-13',
+    items: [
       '🎨 资产月度入口统一中性视觉',
       '  - 家庭总资产右上角的月份入口取消金黄色文字，改为系统柔和白色',
       '  - “填月度余额”取消黄色文字、边框和底色，与“新增账户”使用同一套中性按钮样式',

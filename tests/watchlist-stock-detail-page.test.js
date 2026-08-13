@@ -19,9 +19,11 @@ test('watchlist detail keeps the existing bottom tabs and shows the symbol besid
   assert.ok(pageSource.includes("{symbol || '--'}"));
   assert.ok(pageSource.includes("t(language, 'watchlistDetail.title', '股票趋势')"));
   assert.ok(
-    pageSource.includes('<h1 className="truncate text-[17px] font-semibold leading-tight text-white/[0.78]">{t(language, \'watchlistDetail.title\', \'股票趋势\')}</h1>'),
-    'the stock-trend title should share the Stock P&L detail stock-code title treatment',
+    pageSource.includes('<h1 className="flex min-w-0 items-baseline justify-center gap-2 text-center text-[17px] font-semibold leading-tight text-white/[0.78]" data-watchlist-detail-heading="symbol-title">'),
+    'the symbol and stock-trend title should share the Stock P&L detail stock-code title treatment',
   );
+  assert.ok(pageSource.includes('<span className="shrink-0">{symbol || \'--\'}</span>'));
+  assert.equal(pageSource.includes('tracking-[0.08em] text-[#f6b54b]/80'), false, 'the symbol must not retain the old small gold treatment');
   assert.ok(i18nSource.includes("'watchlistDetail.title': '股票趋势'"));
   assert.ok(i18nSource.includes("'watchlistDetail.title': 'Stock Detail'"), 'English title should remain unchanged');
   assert.ok(appSource.includes('hideBottomNavigation = isPnlReportPage;'));
