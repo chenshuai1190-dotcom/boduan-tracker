@@ -12,7 +12,10 @@ const UP_COLOR = '#ff4b1f';
 const DOWN_COLOR = '#50d0a2';
 const CHART_COLOR = '#50d0a2';
 const CHART_LATEST_COLOR = '#f6c56f';
-const CHART_BOUNDS = Object.freeze({ left: 48, right: 348, top: 22, bottom: 162 });
+const CHART_WIDTH = 370;
+const CHART_HEIGHT = 206;
+const CHART_EDGE_LABEL_OFFSET = 30;
+const CHART_BOUNDS = Object.freeze({ left: 18, right: 392, top: 22, bottom: 169 });
 
 function formatNumber(value, digits = 1) {
   if (!Number.isFinite(value)) return '--';
@@ -113,7 +116,7 @@ function chartScale(model, monthCount) {
 }
 
 function TrendValueLabel({ x, y, width, children, tone = 'peak' }) {
-  const boxX = Math.max(2, Math.min(354 - width, x - width / 2));
+  const boxX = Math.max(2, Math.min(CHART_WIDTH - 2 - width, x - width / 2));
   return (
     <g pointerEvents="none">
       <rect
@@ -180,7 +183,6 @@ export default function MonthlyAssetTrendContent({
   const selectedPoint = selectedSlot?.hasData ? scale.pointsByIndex.get(selectedIndex) : null;
   const latestPoint = currentSlot ? scale.pointsByIndex.get(currentSlot.index) : null;
   const maxPoint = chartModel.maxPoint ? scale.pointsByIndex.get(chartModel.maxPoint.index) : null;
-  const maxLabelOverlapsLatest = maxPoint && latestPoint && maxPoint.index === latestPoint.index;
   const comparison = currentSlot?.hasPreviousMonth ? currentSlot : null;
   const comparisonTone = comparison && comparison.changeAmount >= 0 ? UP_COLOR : DOWN_COLOR;
   const primaryMoney = formatPrimaryMoney(currentSlot?.balance, language);
@@ -191,7 +193,7 @@ export default function MonthlyAssetTrendContent({
     if (chartModel.points.length === 0) return;
     const bounds = event.currentTarget.getBoundingClientRect();
     if (!bounds.width) return;
-    const viewX = ((event.clientX - bounds.left) / bounds.width) * 356;
+    const viewX = ((event.clientX - bounds.left) / bounds.width) * CHART_WIDTH;
     let nearest = chartModel.points[0];
     let distance = Number.POSITIVE_INFINITY;
     chartModel.points.forEach((point) => {
@@ -261,7 +263,7 @@ export default function MonthlyAssetTrendContent({
       </section>
 
       <div
-        className="mt-2 h-[199px] select-none touch-pan-y"
+        className="mt-2 h-[206px] select-none touch-pan-y"
         aria-label={tt('analysis.assetTrendChartRange', '{{start}} 至 {{end}}资产走势', {
           start: chartMonths[0] || '--',
           end: chartMonths.at(-1) || '--',
@@ -269,7 +271,7 @@ export default function MonthlyAssetTrendContent({
       >
         {chartModel.points.length > 0 ? (
           <svg
-            viewBox="0 0 356 199"
+            viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
             className="block h-full w-full overflow-visible"
             data-monthly-asset-trend-chart="true"
             onPointerDown={handlePointerDown}
@@ -298,7 +300,7 @@ export default function MonthlyAssetTrendContent({
               return (
                 <g key={`${tick}-${index}`}>
                   <line x1={CHART_BOUNDS.left} x2={CHART_BOUNDS.right} y1={y} y2={y} stroke="rgba(255,255,255,0.07)" strokeWidth="1" />
-                  <text x={CHART_BOUNDS.left - 7} y={y + 3.5} textAnchor="end" fill="rgba(255,255,255,0.48)" fontSize="10" fontFamily={NUMBER_FONT}>
+                  <text x={-CHART_EDGE_LABEL_OFFSET} y={y + 3.5} textAnchor="start" fill="rgba(255,255,255,0.48)" fontSize="10" fontFamily={NUMBER_FONT}>
                     {formatWan(tick, language, 0)}
                   </text>
                 </g>
@@ -321,28 +323,18 @@ export default function MonthlyAssetTrendContent({
               return <circle key={`single-${point.index}`} cx={point.x} cy={point.y} r="2.4" fill={CHART_COLOR} />;
             })}
 
-            {maxPoint && !maxLabelOverlapsLatest && (
-              <>
-                <circle cx={maxPoint.x} cy={maxPoint.y} r="5.3" fill="#101318" stroke={CHART_COLOR} strokeWidth="2" />
-                <TrendValueLabel x={maxPoint.x - 3} y={Math.max(1, maxPoint.y - 31)} width={language === 'zh' ? 102 : 112}>
-                  {tt('analysis.highestAssetShort', '最高 {{amount}}', { amount: formatWan(maxPoint.balance, language) })}
-                </TrendValueLabel>
-              </>
+            {maxPoint && maxPoint.index !== latestPoint?.index && (
+              <circle cx={maxPoint.x} cy={maxPoint.y} r="5.3" fill="#101318" stroke={CHART_COLOR} strokeWidth="2" />
             )}
 
             {latestPoint && (
               <>
                 <circle cx={latestPoint.x} cy={latestPoint.y} r="8" fill={CHART_LATEST_COLOR} opacity="0.18" filter="url(#monthlyAssetLatestGlow)" />
                 <circle cx={latestPoint.x} cy={latestPoint.y} r="4.5" fill="#f5f7fb" stroke={CHART_LATEST_COLOR} strokeWidth="2" />
-                <TrendValueLabel x={latestPoint.x - 30} y={Math.min(169, latestPoint.y + 13)} width={maxLabelOverlapsLatest ? 104 : 78} tone="latest">
-                  {maxLabelOverlapsLatest
-                    ? tt('analysis.highestAssetShort', '最高 {{amount}}', { amount: formatWan(latestPoint.balance, language) })
-                    : formatWan(latestPoint.balance, language)}
-                </TrendValueLabel>
               </>
             )}
 
-            {selectedPoint && selectedPoint.index !== latestPoint?.index && (
+            {selectedPoint && (
               <>
                 <line x1={selectedPoint.x} x2={selectedPoint.x} y1={CHART_BOUNDS.top} y2={CHART_BOUNDS.bottom} stroke="rgba(255,255,255,.16)" strokeDasharray="3 4" />
                 <circle cx={selectedPoint.x} cy={selectedPoint.y} r="4" fill="#f5f7fb" stroke={CHART_COLOR} strokeWidth="2" />
@@ -356,12 +348,12 @@ export default function MonthlyAssetTrendContent({
               if (!labelIndexes.has(index)) return null;
               const first = index === 0;
               const last = index === chartMonths.length - 1;
-              const labelX = scale.xForIndex(index) + (index === 2 ? 8 : 0);
+              const labelX = last ? CHART_WIDTH + CHART_EDGE_LABEL_OFFSET : scale.xForIndex(index) + (index === 2 ? 8 : 0);
               return (
                 <text
                   key={month}
                   x={labelX}
-                  y="187"
+                  y={CHART_HEIGHT - 12}
                   textAnchor={first ? 'start' : last ? 'end' : 'middle'}
                   fill="rgba(255,255,255,0.43)"
                   fontSize="10"
@@ -380,7 +372,7 @@ export default function MonthlyAssetTrendContent({
       </div>
 
       <section
-        className="mx-0.5 grid min-h-[60px] grid-cols-2 rounded-[16px] border border-white/[0.075] bg-white/[0.045] py-[10px]"
+        className="grid min-h-[64px] grid-cols-2 rounded-[16px] border border-white/[0.075] bg-white/[0.045] py-[11px]"
         aria-label={tt('analysis.assetTrendSummary', '资产走势摘要')}
       >
         <div className="min-w-0 px-3">
@@ -407,7 +399,7 @@ export default function MonthlyAssetTrendContent({
         </div>
       </section>
 
-      <section className="mt-[11px] overflow-hidden rounded-[17px] border border-white/[0.075] bg-black/[0.12]">
+      <section className="mt-3 overflow-hidden rounded-[17px] border border-white/[0.075] bg-black/[0.12]">
         <div className="flex min-h-[45px] items-center justify-between gap-2 px-[11px]">
           <div className={`${language === 'en' ? 'flex-col items-start justify-center' : 'items-baseline'} flex min-w-0 gap-[3px] whitespace-nowrap`}>
             <span className="text-[14px] font-medium text-white/[0.91]">{tt('analysis.monthlyDetails', '月度明细')}</span>
@@ -431,7 +423,7 @@ export default function MonthlyAssetTrendContent({
           </button>
         </div>
 
-        <div className="grid min-h-[32px] grid-cols-[86px_minmax(70px,1fr)_minmax(68px,0.96fr)_49px_10px] items-center gap-x-0.5 border-y border-white/[0.055] bg-white/[0.035] px-2 text-[10px] text-white/[0.43]">
+        <div className="grid min-h-[32px] grid-cols-[90px_minmax(74px,1fr)_minmax(72px,0.96fr)_52px_11px] items-center gap-x-0.5 border-y border-white/[0.055] bg-white/[0.035] px-2 text-[10px] text-white/[0.43]">
           <span>{tt('analysis.monthColumn', '月份')}</span>
           <span className="text-right">{tt('analysis.monthEndAssets', '月末资产')}</span>
           <span className="text-right">{tt('analysis.monthlyChange', '月度涨跌')}</span>
@@ -447,7 +439,7 @@ export default function MonthlyAssetTrendContent({
                 key={slot.month}
                 type="button"
                 data-asset-trend-month-row={slot.month}
-                className="grid min-h-[42px] w-full grid-cols-[86px_minmax(70px,1fr)_minmax(68px,0.96fr)_49px_10px] items-center gap-x-0.5 border-0 border-b border-solid border-white/[0.055] bg-transparent px-2 text-left last:border-b-0 active:bg-white/[0.045]"
+                className="grid min-h-[42px] w-full grid-cols-[90px_minmax(74px,1fr)_minmax(72px,0.96fr)_52px_11px] items-center gap-x-0.5 border-0 border-b border-solid border-white/[0.055] bg-transparent px-2 text-left last:border-b-0 active:bg-white/[0.045]"
                 aria-label={tt('analysis.editMonthlyBalanceFor', '修改 {{month}} 月度余额', { month: slot.month })}
                 onClick={() => onEditMonth?.(slot.month)}
               >

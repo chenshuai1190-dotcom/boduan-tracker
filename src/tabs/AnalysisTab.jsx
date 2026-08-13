@@ -143,6 +143,7 @@ function AnalysisTab({ ctx }) {
   const [accountTrendId, setAccountTrendId] = React.useState(null);
   const [editingAccountId, setEditingAccountId] = React.useState(null);
   const [accountEditDraft, setAccountEditDraft] = React.useState(null);
+  const assetOverviewScrollYRef = React.useRef(0);
 
   const tt = React.useCallback((key, fallback, values) => t(language, key, fallback, values), [language]);
   const ownerLabel = React.useCallback((owner) => {
@@ -345,13 +346,32 @@ function AnalysisTab({ ctx }) {
     setShowFillSnapshot(false);
   };
 
+  const openMonthlyAssetTrend = React.useCallback(() => {
+    setAssetMessage(null);
+    if (typeof window !== 'undefined') {
+      assetOverviewScrollYRef.current = window.scrollY || window.pageYOffset || 0;
+    }
+    setShowMonthsDetail(true);
+    if (typeof window !== 'undefined') {
+      window.requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0, behavior: 'auto' }));
+    }
+  }, [setShowMonthsDetail]);
+
+  const closeMonthlyAssetTrend = React.useCallback(() => {
+    setShowMonthsDetail(false);
+    if (typeof window !== 'undefined') {
+      const overviewScrollY = assetOverviewScrollYRef.current;
+      window.requestAnimationFrame(() => window.scrollTo({ top: overviewScrollY, left: 0, behavior: 'auto' }));
+    }
+  }, [setShowMonthsDetail]);
+
   const openMonthlyBalanceEditor = React.useCallback((month) => {
     setAssetMessage(null);
     setSnapshotDraft({});
-    setShowMonthsDetail(false);
+    closeMonthlyAssetTrend();
     setFillMonth(month);
     setShowFillSnapshot(true);
-  }, [setFillMonth, setShowFillSnapshot, setShowMonthsDetail, setSnapshotDraft]);
+  }, [closeMonthlyAssetTrend, setFillMonth, setShowFillSnapshot, setSnapshotDraft]);
 
   const closeAccountAction = () => {
     setAssetMessage(null);
@@ -641,6 +661,40 @@ function AnalysisTab({ ctx }) {
     await persistFillSnapshot();
   };
 
+  if (showMonthsDetail) {
+    return (
+      <main
+        className="mx-auto w-full max-w-[430px] pb-3 text-[#f5f7fb]"
+        data-monthly-asset-trend-page="true"
+        style={{ fontFamily: ASSET_FONT }}
+      >
+        <header className="relative mb-4 flex min-h-[40px] items-center justify-center">
+          <button
+            type="button"
+            onClick={closeMonthlyAssetTrend}
+            className="absolute left-0 flex h-10 w-10 items-center justify-start text-white/[0.78] active:scale-95 active:text-white transition"
+            aria-label={tt('analysis.backToAssetOverview', '返回资产总览')}
+          >
+            <ChevronLeft className="h-5 w-5" strokeWidth={1.8} />
+          </button>
+          <h1 className="px-12 text-center text-[17px] font-medium leading-6 text-white/[0.94]">
+            {tt('analysis.monthTrendTitle', '12 个月资产走势')}
+          </h1>
+        </header>
+
+        <MonthlyAssetTrendContent
+          language={language}
+          months={last12Months}
+          values={chartData}
+          currentMonth={currentMonth}
+          comparisonStartMonth={yearAgo}
+          comparisonStartValue={totalYearAgo}
+          onEditMonth={openMonthlyBalanceEditor}
+        />
+      </main>
+    );
+  }
+
   return (
     <div className="space-y-3.5 text-[#f5f7fb]" style={{ fontFamily: ASSET_FONT }}>
       <section className="rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)]">
@@ -651,7 +705,7 @@ function AnalysisTab({ ctx }) {
           </div>
 
           <button
-            onClick={() => setShowMonthsDetail(true)}
+            onClick={openMonthlyAssetTrend}
             className="flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-white/10 bg-black/20 px-2.5 text-[11px] active:scale-95 transition"
             style={{ color: ASSET_GOLD }}
             title={tt('analysis.monthTrendTitle', '12 个月资产走势')}
@@ -706,7 +760,7 @@ function AnalysisTab({ ctx }) {
               <span>{tt('analysis.monthTrend', '12 个月走势')}</span>
             </div>
             <button
-              onClick={() => setShowMonthsDetail(true)}
+              onClick={openMonthlyAssetTrend}
               className="text-[11px] text-white/[0.45] active:text-white/70"
             >
               {tt('analysis.monthlyTapToView', '月度 · 点击查看')}
@@ -1242,27 +1296,6 @@ function AnalysisTab({ ctx }) {
               </div>
 
             </div>
-        </ActionModalCard>
-      )}
-
-      {showMonthsDetail && (
-        <ActionModalCard
-          title={tt('analysis.monthTrendTitle', '12 个月资产走势')}
-          closeLabel={tt('analysis.closeMonthTrend', '关闭 12 个月资产走势')}
-          onClose={() => setShowMonthsDetail(false)}
-          widthClassName="w-[calc(100vw-32px)] max-w-[390px]"
-          panelClassName="!min-h-0 !border-white/[0.10] !bg-none !bg-[#0b0f14] !pb-3"
-          contentClassName="!min-h-0 !border-0 !bg-transparent !p-0 !shadow-none"
-        >
-          <MonthlyAssetTrendContent
-            language={language}
-            months={last12Months}
-            values={chartData}
-            currentMonth={currentMonth}
-            comparisonStartMonth={yearAgo}
-            comparisonStartValue={totalYearAgo}
-            onEditMonth={openMonthlyBalanceEditor}
-          />
         </ActionModalCard>
       )}
 

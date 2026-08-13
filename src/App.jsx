@@ -5024,6 +5024,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
 
     if (tabId === 'home' && activeTab === 'home' && activePage === null) return;
 
+    setShowMonthsDetail(false);
     setActiveTab(tabId);
     setActivePage(null);
     setStockDetailSymbol('');

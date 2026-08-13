@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '📈 12个月资产走势升级为资产Tab内的独立宽版页面',
+      '  - 取消弹窗、遮罩和整页外框，保留底部五个Tab及资产选中状态；返回键和资产Tab均可回到资产总览',
+      '  - 图表、坐标和月度明细按独立页面同步加宽，纵轴与当前资产左对齐，最新月份与环比箭头右对齐',
+      '  - 最高与当前金额不再默认悬浮显示，点击或拖动图表时才显示所选月份；资产快照、比较、保存及数据库口径保持不变',
+    ],
+    itemsEn: [
+      '📈 The 12-month asset trend is now a wider standalone page within the Assets tab',
+      '  - The dialog, overlay, and full-page outer frame are removed while all five bottom tabs remain visible with Assets selected; Back and the Assets tab both return to the overview',
+      '  - The chart, axes, and monthly details expand together for the page layout, with the value axis aligned to Current Assets and the latest month aligned to the comparison arrow',
+      '  - Peak and current-value callouts are hidden by default and appear only after chart interaction; asset snapshots, comparisons, saving, and database semantics are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.439', date: '2026-08-13',
+    items: [
       '🎨 12个月资产走势统一为系统黑色并修正标题裁切',
       '  - 清除弹窗残留的蓝灰渐变，使用资产页统一黑色卡片背景；最新数据点同步改为系统金色',
       '  - 为“当前资产”标签增加iOS字形安全边距和固定行高，避免首字贴近滚动边界时被裁切',
