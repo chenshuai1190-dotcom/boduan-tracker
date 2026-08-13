@@ -293,7 +293,7 @@ function resolveBtcDisplayRealtimeStatus(item, nextStatus) {
 function MiniMarketCard({ item, marketColorMode, language }) {
   if (item?.error) {
     return (
-      <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3 min-h-[122px]">
+      <div className="rounded-xl border border-white/10 bg-[#101114] p-3 min-h-[122px]">
         <div className="text-[11px] font-normal leading-tight text-white/80">{marketCardName(item, language)}</div>
         <div className="mt-3 text-[11px] text-rose-300">{t(language, 'home.market.fetchFailed', '拉取失败')}</div>
       </div>
@@ -306,7 +306,7 @@ function MiniMarketCard({ item, marketColorMode, language }) {
   const realtimeStatus = item?.realtimeStatus || (item?.realtime ? 'live' : '');
   const realtimeLabel = marketRealtimeLabel(realtimeStatus, language);
   return (
-    <div className={`rounded-xl border border-white/10 bg-white/[0.045] ${isBtc ? 'p-2' : 'p-2.5'} min-h-[122px] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]`}>
+    <div className={`rounded-xl border border-white/10 bg-[#101114] ${isBtc ? 'p-2' : 'p-2.5'} min-h-[122px] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]`}>
       <div className={`flex min-w-0 items-start justify-between ${isBtc ? 'gap-1' : 'gap-1.5'}`}>
         <div className="min-w-0 truncate text-[11px] font-normal leading-tight text-white/80">{marketCardName(item, language)}</div>
         {isBtc && realtimeLabel && (
@@ -972,7 +972,7 @@ export default function HomeTab({ ctx }) {
         }
       `}</style>
 
-      <section className="overflow-hidden rounded-2xl border border-white/10 bg-[#0b0f14] p-4 shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)]" data-home-net-assets-card="true">
+      <section className="overflow-hidden rounded-2xl border border-white/10 bg-[#0b0c0e] p-4 shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)]" data-home-net-assets-card="true">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0 text-[14px] font-normal text-white/70">{t(language, 'home.netAssets', '净资产')} ({displayCurrencyLabel}) <span className="ml-1 text-white/50">◎</span></div>
           <div className="ml-auto flex justify-end">
@@ -1001,11 +1001,11 @@ export default function HomeTab({ ctx }) {
           </div>
         </div>
 
-        <div className="mt-3 overflow-hidden text-ellipsis whitespace-nowrap font-normal leading-none tracking-normal text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT, fontSize: 'clamp(28px, 8.7vw, 34px)' }} data-home-net-assets="true">
+        <div className="mt-3 overflow-hidden text-ellipsis whitespace-nowrap font-normal leading-none tracking-normal text-white/[0.95] tabular-nums" style={{ fontFamily: NUMBER_FONT, fontSize: 'clamp(28px, 8.7vw, 34px)' }} data-home-net-assets="true">
           {assetStatusReady ? (
             <>
               <span>{displayAssetMoney.main}</span>
-              <span className="ml-0.5 align-baseline text-[20px] font-normal leading-none text-[#ffd18a]/90">{displayAssetMoney.decimal}</span>
+              <span className="ml-0.5 align-baseline text-[20px] font-normal leading-none text-white/[0.95]">{displayAssetMoney.decimal}</span>
             </>
           ) : (
             <span className="text-white/30">--</span>
@@ -1089,7 +1089,7 @@ export default function HomeTab({ ctx }) {
         </div>
       </section>
 
-      <section className="mt-3 rounded-2xl border border-white/10 bg-[#0b0f14] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+      <section className="mt-3 rounded-2xl border border-white/10 bg-[#0b0c0e] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
         <div className="mb-2 flex items-center justify-between">
           <div className="text-[13px] font-semibold text-white/70">{t(language, 'home.currentSignal', '当前信号')}</div>
           <button
@@ -1250,7 +1250,7 @@ export default function HomeTab({ ctx }) {
       )}
 
       <section className="mt-3 grid grid-cols-2 gap-3">
-        <div className="rounded-2xl border border-white/10 bg-[#0b0f14] px-3.5 py-2.5">
+        <div className="rounded-2xl border border-white/10 bg-[#0b0c0e] px-3.5 py-2.5">
           <div className={`flex items-center gap-1.5 ${englishMode ? 'text-[11px]' : 'text-[13px]'} font-normal text-white/60`}>
             {t(language, 'home.vix.title', 'VIX 恐慌指数')}
             {vixDateLabel && <span className="text-[11px] text-white/40">{vixDateLabel} {t(language, 'home.vix.close', '收盘')}</span>}
@@ -1270,7 +1270,7 @@ export default function HomeTab({ ctx }) {
           <div className="mt-1.5 flex justify-between text-[11px] text-white/40"><span>0</span><span>20</span><span>30</span><span>50</span></div>
         </div>
 
-        <div className="rounded-2xl border border-white/10 bg-[#0b0f14] px-3.5 py-2.5">
+        <div className="rounded-2xl border border-white/10 bg-[#0b0c0e] px-3.5 py-2.5">
           <div className={`flex items-center gap-1.5 ${englishMode ? 'text-[11px]' : 'text-[13px]'} font-normal text-white/60`}>
             {t(language, 'home.fgi.title', 'CNN 恐慌贪婪指数')}
             {fgiDateLabel && <span className="text-[11px] text-white/40">{fgiDateLabel}</span>}
@@ -1286,7 +1286,7 @@ export default function HomeTab({ ctx }) {
         </div>
       </section>
 
-      <section className="order-2 mt-3 overflow-hidden rounded-2xl border border-white/10 bg-[#0b0f14] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+      <section className="order-2 mt-3 overflow-hidden rounded-2xl border border-white/10 bg-[#0b0c0e] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
         <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3">
           <div className="flex items-center gap-5">
             <button
@@ -1318,7 +1318,7 @@ export default function HomeTab({ ctx }) {
                 className="grid pb-1.5 pt-2 text-[12px] font-medium leading-none"
                 style={{ gridTemplateColumns: homeTableGridTemplate }}
               >
-                <div className="sticky left-0 z-20 bg-[#0b0f14] text-white/40">{t(language, 'home.name', '名称')}</div>
+                <div className="sticky left-0 z-20 bg-[#0b0c0e] text-white/40">{t(language, 'home.name', '名称')}</div>
                 {metricColumns.map((column) => (
                   <SortHeader
                     key={column.key}
@@ -1340,7 +1340,7 @@ export default function HomeTab({ ctx }) {
                       <button
                         type="button"
                         onClick={() => openWatchlistStockDetail?.(item.symbol)}
-                        className="sticky left-0 z-10 flex min-h-[38px] min-w-0 items-center gap-2 bg-[#0b0f14] pr-2 text-left transition active:bg-white/[0.035]"
+                        className="sticky left-0 z-10 flex min-h-[38px] min-w-0 items-center gap-2 bg-[#0b0c0e] pr-2 text-left transition active:bg-white/[0.035]"
                         aria-label={t(language, 'watchlistDetail.openAria', '打开 {{symbol}} 股票详情', { symbol: item.symbol })}
                       >
                         <StockLogo symbol={item.symbol} urls={item.logoUrls} onLogoLoad={cacheStockLogo} className="h-7 w-7 rounded-lg" />
@@ -1350,7 +1350,7 @@ export default function HomeTab({ ctx }) {
                         </span>
                       </button>
                     ) : (
-                      <div className="sticky left-0 z-10 flex min-h-[38px] min-w-0 items-center gap-2 bg-[#0b0f14] pr-2">
+                      <div className="sticky left-0 z-10 flex min-h-[38px] min-w-0 items-center gap-2 bg-[#0b0c0e] pr-2">
                         <StockLogo symbol={item.symbol} urls={item.logoUrls} onLogoLoad={cacheStockLogo} className="h-7 w-7 rounded-lg" />
                         <span className="min-w-0">
                           <span className="block truncate text-[13px] font-normal leading-[14px] text-white/70">{item.symbol}</span>
@@ -1392,7 +1392,7 @@ export default function HomeTab({ ctx }) {
           <button
             type="button"
             onClick={() => setShowAddStock(true)}
-            className="flex h-12 min-w-0 items-center justify-center gap-1.5 rounded-2xl border border-[#f6b54b]/80 bg-[#0b0f14] px-2 text-[13px] font-normal text-[#f6b54b] shadow-[0_0_20px_rgba(246,181,75,0.08)] active:scale-[0.99]"
+            className="flex h-12 min-w-0 items-center justify-center gap-1.5 rounded-2xl border border-[#f6b54b]/80 bg-[#0b0c0e] px-2 text-[13px] font-normal text-[#f6b54b] shadow-[0_0_20px_rgba(246,181,75,0.08)] active:scale-[0.99]"
           >
             <Plus className="h-4 w-4 shrink-0" />
             <span className="truncate">{t(language, 'home.addWatchlistStock', '添加自选股票')}</span>
@@ -1400,7 +1400,7 @@ export default function HomeTab({ ctx }) {
           <button
             type="button"
             onClick={() => setShowEditWatchlist(true)}
-            className="flex h-12 min-w-0 items-center justify-center gap-1.5 rounded-2xl border border-white/10 bg-[#0b0f14] px-2 text-[13px] font-normal text-white/80 shadow-[0_0_20px_rgba(255,255,255,0.04)] active:scale-[0.99]"
+            className="flex h-12 min-w-0 items-center justify-center gap-1.5 rounded-2xl border border-white/10 bg-[#0b0c0e] px-2 text-[13px] font-normal text-white/80 shadow-[0_0_20px_rgba(255,255,255,0.04)] active:scale-[0.99]"
           >
             <Pencil className="h-4 w-4 shrink-0 text-[#f6b54b]" />
             <span className="truncate">{t(language, 'home.editWatchlistStock', '编辑自选股票')}</span>

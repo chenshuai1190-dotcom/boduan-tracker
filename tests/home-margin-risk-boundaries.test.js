@@ -62,7 +62,7 @@ test('Home financing UI exposes a stable standalone page without replacing the c
   assert.ok(cardBlock.includes('<AccountLeverageBadge'));
   assert.equal(cardBlock.includes('data-home-margin-leverage-info-trigger'), false, 'Home should not expose the leverage guide');
   assert.equal(cardBlock.includes("t(language, 'home.positions'"), false, 'only the Home header third metric should stop showing position count');
-  assert.ok(homeTabSource.includes('rounded-2xl border border-white/10 bg-[#0b0f14] p-4'), 'the existing Home header shell must stay intact');
+  assert.ok(homeTabSource.includes('rounded-2xl border border-white/10 bg-[#0b0c0e] p-4'), 'the existing Home header shell must stay intact with the approved neutral-black surface');
 });
 
 test('Home margin risk uses a standalone page while keeping the bottom navigation', () => {

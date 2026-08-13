@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '🎨 首页卡片统一为系统黑色并突出净资产',
+      '  - 首页资产、信号、行情、市场指标、自选、财报日历和MA200监控统一使用中性黑色层级，减少原有藏青色倾向',
+      '  - 净资产主数字由金色改为与12个月资产走势一致的白色；金色继续保留给币种选中和当前Tab',
+      '  - 本次仅调整首页视觉配色；布局、金额计算、行情数据和业务逻辑均保持不变',
+    ],
+    itemsEn: [
+      '🎨 Home cards now use the system black palette with a clearer net-assets headline',
+      '  - Assets, signals, market tiles, sentiment indicators, watchlists, earnings, and the MA200 monitor now share neutral black surface levels without the previous navy cast',
+      '  - The net-assets headline changes from gold to the same white used by the 12-month asset trend, while gold remains for the selected currency and current tab',
+      '  - This release changes Home visuals only; layout, calculations, market data, and business logic are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.441', date: '2026-08-13',
+    items: [
       '📐 12个月资产走势完善图表边距与月度编辑交互',
       '  - 图表坐标、网格、曲线和数据点统一收回页面边界，在不同iPhone宽度下与下方摘要及月度明细卡片对齐',
       '  - 月度明细仅右侧箭头进入对应月份余额编辑；关闭、取消或保存后继续停留在当前资产走势页面',
