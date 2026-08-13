@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '🎨 12个月资产走势统一为系统黑色并修正标题裁切',
+      '  - 清除弹窗残留的蓝灰渐变，使用资产页统一黑色卡片背景；最新数据点同步改为系统金色',
+      '  - 为“当前资产”标签增加iOS字形安全边距和固定行高，避免首字贴近滚动边界时被裁切',
+      '  - 本次仅调整视觉样式；资产快照、金额计算、月度比较、保存和数据库逻辑均保持不变',
+    ],
+    itemsEn: [
+      '🎨 The 12-month asset trend now uses the system black palette with corrected label clipping',
+      '  - The residual blue-gray gradient is removed in favor of the asset-page black card background, and the latest point now uses the system gold accent',
+      '  - The Current Assets label now has an iOS glyph safety inset and fixed line height so its first character is not clipped at the scroll boundary',
+      '  - This release changes visuals only; asset snapshots, calculations, monthly comparisons, saving, and database behavior are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.438', date: '2026-08-13',
+    items: [
       '📈 12个月资产走势升级为完整月度分析面板',
       '  - 当前资产、较上月变化、动态折线、最高点、近12月资产变化和最高资产统一在同一弹窗展示',
       '  - 月度明细默认显示最近6个月，可展开全部12个月；点击任一月份直接进入该月原有余额补录与修改流程',

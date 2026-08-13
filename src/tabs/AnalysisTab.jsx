@@ -1251,7 +1251,7 @@ function AnalysisTab({ ctx }) {
           closeLabel={tt('analysis.closeMonthTrend', '关闭 12 个月资产走势')}
           onClose={() => setShowMonthsDetail(false)}
           widthClassName="w-[calc(100vw-32px)] max-w-[390px]"
-          panelClassName="!min-h-0 !bg-[#0b0f15] !pb-3"
+          panelClassName="!min-h-0 !border-white/[0.10] !bg-none !bg-[#0b0f14] !pb-3"
           contentClassName="!min-h-0 !border-0 !bg-transparent !p-0 !shadow-none"
         >
           <MonthlyAssetTrendContent

@@ -11,7 +11,7 @@ const NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pr
 const UP_COLOR = '#ff4b1f';
 const DOWN_COLOR = '#50d0a2';
 const CHART_COLOR = '#50d0a2';
-const CHART_LATEST_COLOR = '#75a7ff';
+const CHART_LATEST_COLOR = '#f6c56f';
 const CHART_BOUNDS = Object.freeze({ left: 48, right: 348, top: 22, bottom: 162 });
 
 function formatNumber(value, digits = 1) {
@@ -122,14 +122,14 @@ function TrendValueLabel({ x, y, width, children, tone = 'peak' }) {
         width={width}
         height="24"
         rx="7"
-        fill={tone === 'latest' ? '#111a29' : '#101a19'}
-        stroke={tone === 'latest' ? 'rgba(117,167,255,.52)' : 'rgba(80,208,162,.45)'}
+        fill="#101318"
+        stroke={tone === 'latest' ? 'rgba(246,197,111,.42)' : 'rgba(80,208,162,.45)'}
       />
       <text
         x={boxX + width / 2}
         y={y + 15.5}
         textAnchor="middle"
-        fill={tone === 'latest' ? '#eef4ff' : '#6ce0b6'}
+        fill={tone === 'latest' ? 'rgba(255,255,255,.90)' : '#6ce0b6'}
         fontSize="10"
         fontFamily={NUMBER_FONT}
       >
@@ -226,9 +226,9 @@ export default function MonthlyAssetTrendContent({
 
   return (
     <div className="min-w-0" data-monthly-asset-trend="true">
-      <section className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3" aria-label={tt('analysis.currentAssetSummary', '当前资产摘要')}>
+      <section className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3 pt-px" aria-label={tt('analysis.currentAssetSummary', '当前资产摘要')}>
         <div className="min-w-0">
-          <div className="text-[11px] leading-tight text-white/[0.50]">
+          <div className="pl-px text-[11px] leading-[15px] text-white/[0.50]">
             {tt('analysis.currentAssetsForMonth', '当前资产（{{month}}）', { month: currentMonth })}
           </div>
           <div
@@ -298,7 +298,7 @@ export default function MonthlyAssetTrendContent({
               return (
                 <g key={`${tick}-${index}`}>
                   <line x1={CHART_BOUNDS.left} x2={CHART_BOUNDS.right} y1={y} y2={y} stroke="rgba(255,255,255,0.07)" strokeWidth="1" />
-                  <text x={CHART_BOUNDS.left - 7} y={y + 3.5} textAnchor="end" fill="rgba(235,239,245,0.48)" fontSize="10" fontFamily={NUMBER_FONT}>
+                  <text x={CHART_BOUNDS.left - 7} y={y + 3.5} textAnchor="end" fill="rgba(255,255,255,0.48)" fontSize="10" fontFamily={NUMBER_FONT}>
                     {formatWan(tick, language, 0)}
                   </text>
                 </g>
@@ -323,7 +323,7 @@ export default function MonthlyAssetTrendContent({
 
             {maxPoint && !maxLabelOverlapsLatest && (
               <>
-                <circle cx={maxPoint.x} cy={maxPoint.y} r="5.3" fill="#153e32" stroke={CHART_COLOR} strokeWidth="2" />
+                <circle cx={maxPoint.x} cy={maxPoint.y} r="5.3" fill="#101318" stroke={CHART_COLOR} strokeWidth="2" />
                 <TrendValueLabel x={maxPoint.x - 3} y={Math.max(1, maxPoint.y - 31)} width={language === 'zh' ? 102 : 112}>
                   {tt('analysis.highestAssetShort', '最高 {{amount}}', { amount: formatWan(maxPoint.balance, language) })}
                 </TrendValueLabel>
@@ -363,7 +363,7 @@ export default function MonthlyAssetTrendContent({
                   x={labelX}
                   y="187"
                   textAnchor={first ? 'start' : last ? 'end' : 'middle'}
-                  fill="rgba(235,239,245,0.43)"
+                  fill="rgba(255,255,255,0.43)"
                   fontSize="10"
                   fontFamily={NUMBER_FONT}
                 >
