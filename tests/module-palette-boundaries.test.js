@@ -25,7 +25,10 @@ const stockComparison = read('src/components/StockReturnComparisonCard.jsx');
 
 test('persistent production modules share neutral black surface levels', () => {
   assert.ok(trades.includes('data-trades-net-assets-card="true"'));
-  assert.ok(trades.includes('data-trades-net-assets-card="true"') && count(trades, /bg-\[#0b0c0e\]/g) >= 17);
+  assert.ok(
+    trades.includes('data-trades-net-assets-card="true"') && count(trades, /bg-\[#0b0c0e\]/g) >= 16,
+    'Trading should retain its primary neutral surfaces after the edit action adopts the raised borderless style',
+  );
   assert.ok(assets.includes("const ASSET_CARD = '#0b0c0e';"));
   assert.ok(review.includes("const REVIEW_CARD = '#0b0c0e';"));
   assert.equal(count(review, /bg-\[#101114\]/g), 2, 'review notes and logs should use the raised neutral surface');
