@@ -649,7 +649,12 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(tradesTabSource.includes("icon: 'check'"), 'trade confirmation should use the current check icon token');
   assert.ok(tradeModalBlock.includes("title={tradeEntryScope === 'wave'"), 'trade entry modal title should be supplied by the shared shell');
   assert.equal(tradeModalBlock.includes('text-[14px] text-white ${tradeEntryScope'), false, 'trade entry modal title should not keep the old bold conditional class');
-  assert.ok(tradesTabSource.includes('rounded-full border border-[#f6b54b]/80 bg-[#0b0c0e] px-8 py-2.5'), 'trade edit entry should use the same stronger gold-outline tone as the home add button');
+  assert.equal((homeTabSource.match(/h-12 min-w-0 items-center justify-center gap-1\.5 rounded-2xl bg-white\/\[0\.045\] px-2 text-\[13px\] font-normal text-white\/\[0\.82\]/g) || []).length, 2, 'home add and edit watchlist actions should share one neutral borderless style');
+  assert.equal(homeTabSource.includes('rounded-2xl border border-[#f6b54b]/80 bg-[#0b0c0e]'), false, 'home add watchlist action should not restore its gold outline');
+  assert.equal(homeTabSource.includes('<Pencil className="h-4 w-4 shrink-0 text-[#f6b54b]"'), false, 'home edit watchlist icon should stay neutral with its paired action');
+  assert.ok(tradesTabSource.includes('rounded-full bg-white/[0.045] px-8 py-2.5 text-[13px] font-normal text-white/[0.82]'), 'trade edit entry should use the neutral borderless action style');
+  assert.equal(tradesTabSource.includes('rounded-full border border-[#f6b54b]/80 bg-[#0b0c0e] px-8 py-2.5'), false, 'trade edit entry should not restore its gold outline');
+  assert.equal(homeTabSource.includes('shadow-[0_0_20px_rgba(246,181,75,0.08)]') || tradesTabSource.includes('shadow-[0_0_20px_rgba(246,181,75,0.08)]'), false, 'watchlist and trade edit actions should not restore the old gold glow');
   const earlyDarkBackgroundIndex = indexHtmlSource.indexOf('background: #05070b;');
   const appScriptIndex = indexHtmlSource.indexOf('/src/main.jsx');
   assert.ok(indexHtmlSource.includes('<meta name="theme-color" content="#05070b" />'), 'app shell theme color should match the dark startup background');
@@ -2028,7 +2033,7 @@ test('asset header card aligns with home and trade header sizing', () => {
   assert.ok(homeTabSource.includes('mt-3 rounded-2xl border border-transparent bg-[#0b0c0e] p-3'), 'the current-signal module should hide its outer outline');
   assert.equal((homeTabSource.match(/rounded-2xl border border-transparent bg-\[#0b0c0e\] px-3\.5 py-2\.5/g) || []).length, 2, 'VIX and CNN modules should hide their outer outlines');
   assert.ok(homeTabSource.includes('order-2 mt-3 overflow-hidden rounded-2xl border border-transparent bg-[#0b0c0e]'), 'the watchlist and positions module should hide its outer outline');
-  assert.equal((homeTabSource.match(/bg-\[#0b0c0e\]/g) || []).length, 10, 'all approved Home primary surfaces and sticky cells should use neutral black without recoloring Home sheets');
+  assert.equal((homeTabSource.match(/bg-\[#0b0c0e\]/g) || []).length, 8, 'Home primary surfaces and sticky cells should stay neutral black after the two watchlist actions adopt raised borderless surfaces');
   assert.equal((homeTabSource.match(/bg-\[#101114\]/g) || []).length, 2, 'both normal and error market-card states should use the approved raised surface');
   assert.ok(earningsCalendarSource.includes('rounded-2xl border border-transparent bg-[#0b0c0e] p-3'), 'the Home earnings card should hide its outer outline while retaining the neutral-black surface');
   assert.ok(homeMa200Source.includes('rounded-[19px] border border-transparent bg-[#0b0c0e]'), 'the Home MA200 monitor should hide its outer outline while retaining the neutral-black surface');

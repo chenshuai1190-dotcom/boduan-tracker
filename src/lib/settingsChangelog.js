@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '🎨 首页自选操作与交易编辑入口统一为中性无框样式',
+      '  - 首页“添加自选股票”和“编辑自选股票”取消金黄色强调与最外层描边，统一使用中性白色文字和低对比底色',
+      '  - 交易页持仓区“编辑”同步取消金黄色、金色阴影和外框，保留原内边距、圆角、图标及点击入口',
+      '  - 自选列表、交易弹窗、持仓数据、交易账本和保存逻辑均未改变',
+    ],
+    itemsEn: [
+      '🎨 Home watchlist actions and the Trading edit entry now share a neutral borderless style',
+      '  - Add Watchlist Stock and Edit Watchlist remove gold emphasis and outer outlines, using neutral white text on a low-contrast surface',
+      '  - The Positions edit entry also removes its gold color, glow, and outline while preserving its padding, rounding, icon, and action',
+      '  - Watchlist data, trade dialogs, positions, trading ledgers, and saving behavior are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.459', date: '2026-08-14',
+    items: [
       '🎨 资产页操作按钮与账户条目进一步取消外描边',
       '  - “填月度余额”和“新增账户”移除最外层描边，保留原有中性底色、圆角、点击高度和交互反馈',
       '  - 账户条目同步移除可见外框，同时保留账户类型图标边框、名称左侧分隔线、背景和行间距',

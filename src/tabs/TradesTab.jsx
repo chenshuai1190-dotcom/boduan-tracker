@@ -1338,7 +1338,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
               )}
 
               <div className="mt-4 flex justify-center">
-                <button type="button" onClick={() => openTradeModal(null, 'buy')} className="flex items-center gap-2 rounded-full border border-[#f6b54b]/80 bg-[#0b0c0e] px-8 py-2.5 text-[13px] font-normal text-[#f6b54b] shadow-[0_0_20px_rgba(246,181,75,0.08)] active:scale-95">
+                <button type="button" onClick={() => openTradeModal(null, 'buy')} className="flex items-center gap-2 rounded-full bg-white/[0.045] px-8 py-2.5 text-[13px] font-normal text-white/[0.82] active:scale-95">
                   <Edit3 className="h-4 w-4" strokeWidth={2} />
                   {tt('trades.edit', '编辑')}
                 </button>

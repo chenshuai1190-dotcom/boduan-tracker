@@ -1392,7 +1392,7 @@ export default function HomeTab({ ctx }) {
           <button
             type="button"
             onClick={() => setShowAddStock(true)}
-            className="flex h-12 min-w-0 items-center justify-center gap-1.5 rounded-2xl border border-[#f6b54b]/80 bg-[#0b0c0e] px-2 text-[13px] font-normal text-[#f6b54b] shadow-[0_0_20px_rgba(246,181,75,0.08)] active:scale-[0.99]"
+            className="flex h-12 min-w-0 items-center justify-center gap-1.5 rounded-2xl bg-white/[0.045] px-2 text-[13px] font-normal text-white/[0.82] active:scale-[0.99]"
           >
             <Plus className="h-4 w-4 shrink-0" />
             <span className="truncate">{t(language, 'home.addWatchlistStock', '添加自选股票')}</span>
@@ -1400,9 +1400,9 @@ export default function HomeTab({ ctx }) {
           <button
             type="button"
             onClick={() => setShowEditWatchlist(true)}
-            className="flex h-12 min-w-0 items-center justify-center gap-1.5 rounded-2xl border border-white/10 bg-[#0b0c0e] px-2 text-[13px] font-normal text-white/80 shadow-[0_0_20px_rgba(255,255,255,0.04)] active:scale-[0.99]"
+            className="flex h-12 min-w-0 items-center justify-center gap-1.5 rounded-2xl bg-white/[0.045] px-2 text-[13px] font-normal text-white/[0.82] active:scale-[0.99]"
           >
-            <Pencil className="h-4 w-4 shrink-0 text-[#f6b54b]" />
+            <Pencil className="h-4 w-4 shrink-0" />
             <span className="truncate">{t(language, 'home.editWatchlistStock', '编辑自选股票')}</span>
           </button>
         </div>
