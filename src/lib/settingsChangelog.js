@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '🎨 新增交易弹窗进一步统一无边框层次',
+      '  - 通用正式交易的股票识别、价格与股数、日期三段取消多余横向分隔线，改用一致的自然留白组织层次',
+      '  - 弹窗外层与内容区同步隐藏冗余装饰边框，输入框及买入/卖出操作继续保留必要的交互边界',
+      '  - TQQQ 专属交易、波段录入、股票识别、价格日期、交易账本和保存逻辑均未改变',
+    ],
+    itemsEn: [
+      '🎨 Add Trade now follows the cleaner borderless dialog hierarchy',
+      '  - Generic ledger trades remove the redundant dividers below stock lookup, price and shares, and date, using consistent natural spacing instead',
+      '  - The dialog shell and content area also hide redundant decorative outlines while inputs and Buy/Sell actions retain necessary interaction boundaries',
+      '  - TQQQ-specific trading, wave entry, stock lookup, price and date handling, trading ledgers, and saving behavior are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.461', date: '2026-08-14',
+    items: [
       '🎨 资产录入弹窗进一步统一无外边框层次',
       '  - “新增账户”和“填月度余额”弹窗隐藏最外层装饰线及内容区冗余内框，同时保留原尺寸、圆角、背景、阴影和滚动',
       '  - 输入框、类型与币种选项、月份切换、关闭、取消和保存按钮继续保留必要的交互边界',

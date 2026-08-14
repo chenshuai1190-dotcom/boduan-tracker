@@ -616,6 +616,15 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(tradeModalBlock.includes("tt('trades.systemManagedName'"), 'trade input should explain that name and price are system-managed');
   assert.ok(tradesTabSource.includes("const tradeModalBaseInput = 'block w-full max-w-full min-w-0 box-border rounded-xl border border-transparent") && tradesTabSource.includes('focus:border-[#f6b54b]/45'), 'trade inputs should not show a default white outline while keeping a restrained gold focus state');
   assert.ok(tradesTabSource.includes("const tradeModalLabelClass = 'mb-1.5 block text-[12px] font-normal text-white/[0.62]'"), 'trade labels should be readable');
+  assert.ok(tradesTabSource.includes("const isGenericLedgerTradeEntry = tradeEntryScope === 'ledger' && !isTqqqTradeEntry"), 'borderless treatment should stay scoped to generic formal trades');
+  assert.ok(tradesTabSource.includes("? 'min-w-0'\n    : 'mb-3 min-w-0 border-b border-white/10 pb-3'"), 'generic formal trade sections should remove dividers while wave sections preserve their existing boundaries');
+  assert.equal((tradeModalBlock.match(/className=\{genericTradeSectionClass\}/g) || []).length, 3, 'ticker, price, and date should share the divider-free section rhythm');
+  assert.ok(tradeModalBlock.includes("isGenericLedgerTradeEntry ? 'min-w-0 space-y-4' : 'min-w-0'"), 'generic trade sections should use consistent natural spacing after their dividers are removed');
+  assert.ok(tradeModalBlock.includes("panelClassName={isGenericLedgerTradeEntry ? 'min-h-0 !border-transparent' : 'min-h-0'}"), 'generic formal trade panels should match the approved borderless modal shell');
+  assert.ok(tradeModalBlock.includes(": (isGenericLedgerTradeEntry ? '!border-transparent' : '')"), 'generic formal trade content should hide only its redundant inner outline');
+  assert.equal((tradeModalBlock.match(/\bclassName:/g) || []).length, 1, 'only the isolated TQQQ confirm action may override the shared action palette');
+  assert.ok(tradeModalBlock.includes("? '!border-0 !bg-transparent !p-0 !shadow-none'"), 'TQQQ should retain its isolated transparent content shell');
+  assert.ok(actionModalCardSource.includes('border border-white/[0.16] bg-black/[0.18]'), 'shared neutral actions should retain the monthly-balance outline and dark fill');
   assert.ok(tradeModalBlock.includes('text-[11px] text-white/60'), 'system-managed-name helper should be smaller');
   assert.equal(tradeModalBlock.includes('text-[9px] text-rose-200'), false, 'trade modal should not keep numbered step badges');
   assert.equal(tradeModalBlock.includes("tt('trades.nameAuto'"), false, 'main trade input should not show the old Chinese-name field');

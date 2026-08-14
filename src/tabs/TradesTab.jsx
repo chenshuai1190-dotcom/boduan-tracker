@@ -656,6 +656,10 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
     symbol: newTrade?.symbol,
     scope: tradeEntryScope,
   });
+  const isGenericLedgerTradeEntry = tradeEntryScope === 'ledger' && !isTqqqTradeEntry;
+  const genericTradeSectionClass = isGenericLedgerTradeEntry
+    ? 'min-w-0'
+    : 'mb-3 min-w-0 border-b border-white/10 pb-3';
   const tqqqTradePreview = React.useMemo(() => deriveTqqqTradePreview({
     stockTrades,
     quoteRows,
@@ -2190,8 +2194,10 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
             closeLabel={tt('trades.closeTradeForm', '关闭交易表单')}
             onClose={() => !tradeSubmitting && setShowAddTrade(false)}
             widthClassName={isTqqqTradeEntry ? 'w-[calc(100vw-24px)] max-w-[720px]' : 'w-[calc(100vw-24px)] max-w-md'}
-            panelClassName="min-h-0"
-            contentClassName={isTqqqTradeEntry ? '!border-0 !bg-transparent !p-0 !shadow-none' : ''}
+            panelClassName={isGenericLedgerTradeEntry ? 'min-h-0 !border-transparent' : 'min-h-0'}
+            contentClassName={isTqqqTradeEntry
+              ? '!border-0 !bg-transparent !p-0 !shadow-none'
+              : (isGenericLedgerTradeEntry ? '!border-transparent' : '')}
             actions={isTqqqTradeEntry ? [{
               key: 'tqqq-confirm',
               label: tradeSubmitting
@@ -2217,9 +2223,9 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                 tt={tt}
               />
             ) : (
-              <div className="min-w-0">
+              <div className={isGenericLedgerTradeEntry ? 'min-w-0 space-y-4' : 'min-w-0'}>
                 {/* 股票代码 */}
-                <div className="mb-3 min-w-0 border-b border-white/10 pb-3">
+                <div className={genericTradeSectionClass}>
                   <div className="min-w-0">
                     <label className={tradeModalLabelClass}>
                       {tt('trades.stockTicker', '股票代码')}
@@ -2268,7 +2274,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                 </div>
 
                 {/* 价格 + 股数 */}
-                <div className="mb-3 min-w-0 border-b border-white/10 pb-3">
+                <div className={genericTradeSectionClass}>
                   <label className={tradeModalLabelClass}>
                     {tt('trades.priceShares', '价格与股数')}
                   </label>
@@ -2302,7 +2308,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                 </div>
 
                 {/* 日期 */}
-                <div className="mb-3 min-w-0 border-b border-white/10 pb-3">
+                <div className={genericTradeSectionClass}>
                   <label className={tradeModalLabelClass}>
                     {tt('trades.date', '日期')}
                   </label>
