@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '🎨 资产录入弹窗进一步统一无外边框层次',
+      '  - “新增账户”和“填月度余额”弹窗隐藏最外层装饰线及内容区冗余内框，同时保留原尺寸、圆角、背景、阴影和滚动',
+      '  - 输入框、类型与币种选项、月份切换、关闭、取消和保存按钮继续保留必要的交互边界',
+      '  - 账户数据、余额草稿、月度快照、保存删除和数据库逻辑均未改变',
+    ],
+    itemsEn: [
+      '🎨 Asset entry dialogs now share a cleaner borderless hierarchy',
+      '  - Add Account and Fill Monthly Balance hide the decorative panel outline and redundant content outline while preserving sizing, rounding, surfaces, shadows, and scrolling',
+      '  - Inputs, account type and currency choices, month navigation, close, cancel, and save controls retain their necessary interaction boundaries',
+      '  - Account data, balance drafts, monthly snapshots, save and delete behavior, and database logic are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.460', date: '2026-08-14',
+    items: [
       '🎨 首页自选操作与交易编辑入口统一为中性无框样式',
       '  - 首页“添加自选股票”和“编辑自选股票”取消金黄色强调与最外层描边，统一使用中性白色文字和低对比底色',
       '  - 交易页持仓区“编辑”同步取消金黄色、金色阴影和外框，保留原内边距、圆角、图标及点击入口',

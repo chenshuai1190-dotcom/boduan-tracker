@@ -1683,6 +1683,8 @@ test('asset module redesign keeps database logic while removing legacy controls'
   assert.ok(analysisTabSource.includes('overflow-hidden rounded-[20px] border border-transparent py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]'), 'the overview trend card should hide its outer outline while preserving the top highlight and wider chart geometry');
   assert.ok(analysisTabSource.includes('rounded-[20px] border border-transparent p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]'), 'owner account groups should hide their outer outlines while preserving the top highlight');
   assert.ok(analysisTabSource.includes('rounded-[22px] border border-transparent bg-white/[0.04] px-5 py-9 text-center'), 'the no-account state should hide only its outer outline');
+  assert.equal((analysisTabSource.match(/panelClassName="!border-transparent"/g) || []).length, 2, 'only add-account and monthly-balance panels should hide their decorative outer outlines');
+  assert.equal((analysisTabSource.match(/contentClassName="!border-transparent"/g) || []).length, 2, 'only add-account and monthly-balance content surfaces should hide their redundant inner outlines');
   assert.ok(analysisTabSource.includes('style={{ color: ASSET_PINK, fontFamily: ASSET_NUMBER_FONT }}'), 'both owner totals should use the system red token');
   assert.ok(analysisTabSource.includes('background: ASSET_PINK'), 'both owner progress bars should use the system red token');
   assert.ok((analysisTabSource.match(/bg-black\/\[0\.18\] text-white\/\[0\.55\]/g) || []).length >= 2, 'account type icons should use the same neutral default color in the asset list and monthly editor');

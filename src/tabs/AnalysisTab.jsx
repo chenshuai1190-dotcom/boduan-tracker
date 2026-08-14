@@ -929,6 +929,8 @@ function AnalysisTab({ ctx }) {
           closeLabel={tt('analysis.closeAddAccount', '关闭新增账户')}
           onClose={closeAddAccount}
           widthClassName="w-[calc(100vw-32px)] max-w-[420px]"
+          panelClassName="!border-transparent"
+          contentClassName="!border-transparent"
           actions={[
             { key: 'cancel', label: tt('analysis.cancel', '取消'), onClick: closeAddAccount },
             { key: 'save', label: tt('analysis.add', '添加'), onClick: saveNewAccount },
@@ -1220,6 +1222,8 @@ function AnalysisTab({ ctx }) {
           closeLabel={tt('analysis.closeMonthlyBalance', '关闭填月度余额')}
           onClose={closeFillSnapshot}
           widthClassName="w-[calc(100vw-32px)] max-w-[420px]"
+          panelClassName="!border-transparent"
+          contentClassName="!border-transparent"
           actions={[
             { key: 'cancel', label: tt('analysis.cancel', '取消'), onClick: closeFillSnapshot },
             { key: 'save', label: tt('analysis.saveMonth', '保存 {{month}}', { month: fillMonth }), onClick: saveFillSnapshot },
