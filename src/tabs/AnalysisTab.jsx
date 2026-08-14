@@ -813,14 +813,14 @@ function AnalysisTab({ ctx }) {
             setShowFillSnapshot(true);
           }}
           disabled={accounts.length === 0}
-          className="flex min-h-[46px] min-w-0 items-center justify-center gap-1.5 rounded-xl border border-white/[0.16] bg-white/[0.045] px-2 text-[13px] text-white/[0.82] active:scale-95 transition disabled:opacity-35"
+          className="flex min-h-[46px] min-w-0 items-center justify-center gap-1.5 rounded-xl bg-white/[0.045] px-2 text-[13px] text-white/[0.82] active:scale-95 transition disabled:opacity-35"
         >
           <CalendarDays className="h-3.5 w-3.5 shrink-0" strokeWidth={1.8} />
           <span className="truncate">{tt('analysis.addMonthlyBalance', '填月度余额')}</span>
         </button>
         <button
           onClick={openAddAccount}
-          className="flex min-h-[46px] min-w-0 items-center justify-center gap-1.5 rounded-xl border border-white/[0.16] bg-white/[0.045] px-2 text-[13px] text-white/[0.82] active:scale-95 transition"
+          className="flex min-h-[46px] min-w-0 items-center justify-center gap-1.5 rounded-xl bg-white/[0.045] px-2 text-[13px] text-white/[0.82] active:scale-95 transition"
         >
           <Plus className="h-3.5 w-3.5 shrink-0" strokeWidth={1.8} />
           <span className="truncate">{tt('analysis.addAccount', '新增账户')}</span>
@@ -875,7 +875,7 @@ function AnalysisTab({ ctx }) {
                 return (
                   <div
                     key={acc.id}
-                    className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-stretch overflow-hidden rounded-xl border border-white/10 bg-white/[0.035]"
+                    className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-stretch overflow-hidden rounded-xl bg-white/[0.035]"
                   >
                     <button
                       type="button"

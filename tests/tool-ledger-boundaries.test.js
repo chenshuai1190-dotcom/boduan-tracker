@@ -1742,7 +1742,8 @@ test('asset page visual shell and local preview stay debuggable', () => {
   assert.ok(analysisTabSource.includes("document.removeEventListener('pointerdown', clearSelectedMonthOutsideOverviewChart, true)"), 'overview chart outside-touch handling should clean up when the page unmounts');
   assert.equal(analysisTabSource.includes('assetChartGlow') || analysisTabSource.includes('stroke={ASSET_PINK} strokeWidth="3"'), false, 'asset overview should remove the old heavy red glow chart');
   assert.ok(analysisTabSource.includes("className=\"flex min-h-[46px] min-w-0 items-center justify-center"), 'asset action buttons should stay compact and readable');
-  assert.ok((analysisTabSource.match(/border-white\/\[0\.16\] bg-white\/\[0\.045\]/g) || []).length >= 2, 'fill monthly balance and add account should share the same neutral action style');
+  assert.ok((analysisTabSource.match(/rounded-xl bg-white\/\[0\.045\] px-2 text-\[13px\] text-white\/\[0\.82\]/g) || []).length >= 2, 'fill monthly balance and add account should share the same borderless neutral action style');
+  assert.equal(analysisTabSource.includes('rounded-xl border border-white/[0.16] bg-white/[0.045] px-2'), false, 'asset action buttons should not restore their visible outer outlines');
   assert.equal(analysisTabSource.includes("style={{ borderColor: 'rgba(246,197,111,0.72)', color: ASSET_GOLD"), false, 'fill monthly balance should not retain its gold border and text');
   assert.ok(assetMonthEntryBlock.includes('text-white/[0.82]'), 'the family asset month entry should use neutral white text');
   assert.equal(assetMonthEntryBlock.includes('color: ASSET_GOLD'), false, 'the family asset month entry should not retain gold text');
@@ -2043,7 +2044,8 @@ test('asset header card aligns with home and trade header sizing', () => {
   assert.equal(tradesTabSource.includes("${index > 0 ? 'border-l border-white/10' : ''}"), false, 'the Trading quick-action module should not restore vertical column dividers');
   assert.ok(tradesTabSource.includes('className="flex min-h-[86px] flex-col items-center justify-center gap-2 active:bg-white/[0.04]"'), 'the Trading quick actions should preserve their equal tap geometry after removing dividers');
   assert.ok(tradesTabSource.includes('border-b border-white/[0.06] px-4 py-3'), 'the positions and orders module should preserve its internal header divider');
-  assert.ok(analysisTabSource.includes('grid w-full grid-cols-[minmax(0,1fr)_auto] items-stretch overflow-hidden rounded-xl border border-white/10 bg-white/[0.035]'), 'asset account rows should retain their interactive boundaries');
+  assert.ok(analysisTabSource.includes('grid w-full grid-cols-[minmax(0,1fr)_auto] items-stretch overflow-hidden rounded-xl bg-white/[0.035]'), 'asset account rows should keep their raised interactive surfaces without outer outlines');
+  assert.equal(analysisTabSource.includes('items-stretch overflow-hidden rounded-xl border border-white/10 bg-white/[0.035]'), false, 'asset account rows should not restore their visible outer outlines');
   assert.ok(monthlyAssetTrendContentSource.includes('grid min-h-[64px] grid-cols-2 rounded-[16px] border border-white/[0.075]'), 'the standalone asset-trend summary should retain its approved boundary');
   assert.ok(monthlyAssetTrendContentSource.includes('mt-3 overflow-hidden rounded-[17px] border border-white/[0.075] bg-black/[0.12]'), 'the standalone monthly-details table should retain its approved boundary');
   assert.ok(earningsCalendarSource.includes("index < previewEvents.length - 1 ? 'border-r border-white/[0.08]' : ''"), 'the earnings preview should preserve internal event dividers');

@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '🎨 资产页操作按钮与账户条目进一步取消外描边',
+      '  - “填月度余额”和“新增账户”移除最外层描边，保留原有中性底色、圆角、点击高度和交互反馈',
+      '  - 账户条目同步移除可见外框，同时保留账户类型图标边框、名称左侧分隔线、背景和行间距',
+      '  - 账户数据、资产汇总、币种换算、月度余额、编辑保存和数据库逻辑均未改变',
+    ],
+    itemsEn: [
+      '🎨 Asset actions and account rows now use a cleaner borderless treatment',
+      '  - Fill Monthly Balance and Add Account remove their outer outlines while retaining the neutral surface, rounding, tap height, and interaction feedback',
+      '  - Account rows also remove their visible outer outlines while preserving account-type icon borders, the name divider, background, and row spacing',
+      '  - Account data, asset aggregation, currency conversion, monthly balances, editing, saving, and database behavior are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.458', date: '2026-08-14',
+    items: [
       '✨ 资产首页月份详情支持触碰外部自动收起',
       '  - 点击12个月走势图中的月份后，触碰图表以外的任意区域会立即关闭该月份详情',
       '  - 图表内部仍可直接切换其他月份，页面卸载时同步清理监听，避免交互状态残留',
