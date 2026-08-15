@@ -4,6 +4,19 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '🎨 交易快捷入口统一为极简数据图标',
+      '  - “波段记录”改用 Waves 波形图标，“全部功能”改用 LayoutGrid 功能网格，与“社区比赛”和“交易记录”形成一致的轻量线条体系',
+      '  - 四格顺序、24px 尺寸、颜色、触控范围、波段页、比赛页、交易记录及全部功能弹层的行为均未改变',
+    ],
+    itemsEn: [
+      '🎨 Trading shortcuts now share a minimal data-icon system',
+      '  - Swing Log now uses the Waves icon and All Tools uses LayoutGrid, forming one lightweight line-icon system with Community Competition and Trade Log',
+      '  - Four-item order, 24px sizing, color, hit areas, and the behavior of Swing Log, Community Competition, Trade Log, and the All Tools sheet are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.464', date: '2026-08-15',
+    items: [
       '🎨 社区比赛快捷入口更新为排行榜图标',
       '  - 交易页四项快捷入口保持原布局，仅将“社区比赛”从奖杯改为排名柱线图标，使收益排行榜语义更直接',
       '  - 入口文案、尺寸、颜色、点击范围、独立比赛页、比赛数据、正式交易账本及其他三个快捷入口均未改变',

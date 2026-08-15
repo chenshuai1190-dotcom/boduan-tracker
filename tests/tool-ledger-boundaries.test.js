@@ -334,10 +334,14 @@ test('community competition is an isolated authenticated close-snapshot utility'
   assert.ok(appSource.includes('openCommunityCompetition'), 'app should expose an opener for the trade-page utility');
   assert.ok(appSource.includes('closeCommunityCompetition'), 'app should expose a closer for the trade-page utility');
   assert.ok(appSource.includes("${isFullBleedPage ? 'px-0' : 'px-4'}"), 'full-bleed standalone pages should not inherit the home shell padding a second time');
+  assert.ok(tradesTabSource.includes("{ id: 'waves', label: tt('trades.swingLog', '波段记录'), icon: Waves }"), 'trade-page tool grid should expose Swing Log with the approved wave icon');
   assert.ok(tradesTabSource.includes("{ id: 'competition', label: tt('competition.toolEntry', '社区比赛'), icon: BarChart3 }"), 'trade-page tool grid should expose Community Competition with the approved ranking icon');
+  assert.ok(tradesTabSource.includes("{ id: 'records', label: tt('trades.tradeLog', '交易记录'), icon: ListChecks }"), 'trade-page tool grid should retain the approved trade-record icon');
+  assert.ok(tradesTabSource.includes("{ id: 'all', label: tt('trades.allTools', '全部功能'), icon: LayoutGrid }"), 'trade-page tool grid should expose All Tools with the approved layout icon');
+  assert.equal(tradesTabSource.includes('icon: Grid2X2'), false, 'the approved All Tools shortcut should not restore the old grid icon');
   assert.equal(tradesTabSource.includes('Trophy'), false, 'the trade-page shortcut should not keep the uncomfortable trophy icon');
   assert.ok(tradesTabSource.includes('openCommunityCompetition?.();'), 'community competition entry should open the standalone page');
-  assert.ok(tradesTabSource.includes("id: 'all'") && tradesTabSource.includes("tt('trades.allTools', '全部功能')"), 'trade-page tool grid should expose all tools');
+  assert.ok(tradesTabSource.includes('setShowAllToolsModal(true);'), 'All Tools should keep opening the existing sheet');
   assert.ok(tradesTabSource.includes("key: 'cost'") && tradesTabSource.includes("setToolPanel('cost')"), 'averaging tool must remain reachable from all tools');
   assert.ok(i18nSource.includes("'trades.allToolsDesc': '摊薄工具已收录到全部功能里;社区比赛为独立功能,不影响正式交易账本。'"), 'all-tools copy should document the isolated production boundary');
   assert.ok(communityCompetitionPageSource.includes("tt('competition.joinTitle', '加入收益比赛')"), 'first visit should show the voluntary join sheet');
