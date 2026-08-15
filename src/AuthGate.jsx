@@ -21,6 +21,16 @@ function isDevVisualPreviewRequested() {
   }
 }
 
+function isDevStartupLoadingPreviewRequested() {
+  if (!import.meta.env.DEV) return false;
+  try {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('devPreview') === '1' && params.get('startupLoading') === 'cursor';
+  } catch {
+    return false;
+  }
+}
+
 function getSupabaseProjectRef() {
   try {
     return new URL(supabaseUrl).hostname.split('.')[0] || null;
@@ -47,9 +57,27 @@ function hasStoredSupabaseSession() {
 
 function LoadingScreen() {
   return (
-    <div className="min-h-screen bg-[#05070b] flex items-center justify-center">
-      <div className="rounded-2xl border border-white/10 bg-[#0b0f14] px-5 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-        <div className="w-8 h-8 rounded-full border-2 border-white/10 border-t-[#f6b54b] animate-spin" />
+    <div
+      className="flex min-h-screen items-center justify-center bg-[#05070b]"
+      data-startup-loading="cursor"
+    >
+      <div className="flex -translate-y-1 flex-col items-center gap-5" role="status" aria-label="Quote loading">
+        <div
+          className="text-[42px] font-normal leading-none tracking-[-0.035em] text-white/[0.92]"
+          style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}
+        >
+          Quote
+        </div>
+        <div
+          className="h-px w-[92px] overflow-hidden bg-white/[0.11]"
+          data-startup-loading-track
+          aria-hidden="true"
+        >
+          <div
+            className="quote-startup-glint h-px w-[22px] bg-gradient-to-r from-transparent via-[#e9b65e] to-transparent shadow-[0_0_10px_rgba(233,182,94,0.35)]"
+            data-startup-loading-glint
+          />
+        </div>
       </div>
     </div>
   );
@@ -130,6 +158,9 @@ export default function AuthGate() {
   }, [authState.loading, authState.user?.id, isRecovery]);
 
   if (import.meta.env.DEV && (!isSupabaseConfigured || isDevVisualPreviewRequested())) {
+    if (isDevStartupLoadingPreviewRequested()) {
+      return <LoadingScreen />;
+    }
     const DevVisualPreview = lazy(() => import('./DevVisualPreview.jsx'));
     return (
       <Suspense fallback={<LoadingScreen />}>

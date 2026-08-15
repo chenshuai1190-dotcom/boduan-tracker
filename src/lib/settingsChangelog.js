@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '✨ Quote 启动加载升级为极简流光',
+      '  - 认证初始化以及登录页或主应用代码分包等待期间，使用全黑背景、Quote 白色字标和暖金流光细线，替代旧卡片式旋转圈',
+      '  - 流光只表达正在加载，不显示虚假百分比；系统开启“减少动态效果”后自动停为静态暖金短标',
+      '  - Supabase 会话恢复、登录与账户切换、错误处理、PWA 原生启动图及应用数据加载逻辑均未改变',
+    ],
+    itemsEn: [
+      '✨ Quote startup loading now uses a minimal gold glint',
+      '  - During authentication initialization and lazy loading of Login or the main app, a black surface, white Quote wordmark, and warm-gold glint line replace the previous card spinner',
+      '  - The glint only communicates loading and never shows fake progress; Reduce Motion turns it into a static warm-gold marker',
+      '  - Supabase session recovery, sign-in and account switching, error handling, native PWA launch images, and application data-loading behavior are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.462', date: '2026-08-14',
+    items: [
       '🎨 新增交易弹窗进一步统一无边框层次',
       '  - 通用正式交易的股票识别、价格与股数、日期三段取消多余横向分隔线，改用一致的自然留白组织层次',
       '  - 弹窗外层与内容区同步隐藏冗余装饰边框，输入框及买入/卖出操作继续保留必要的交互边界',

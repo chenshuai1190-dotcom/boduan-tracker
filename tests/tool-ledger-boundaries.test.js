@@ -1214,6 +1214,35 @@ test('pwa app icons use opaque dark png assets without white iOS padding', () =>
   }
 });
 
+test('startup loading uses the minimal Quote glint without changing auth timing or native launch images', () => {
+  const loadingStart = authGateSource.indexOf('function LoadingScreen()');
+  const loadingEnd = authGateSource.indexOf('function ConfigMissingScreen()', loadingStart);
+  const loadingBlock = authGateSource.slice(loadingStart, loadingEnd);
+
+  assert.ok(loadingStart > -1 && loadingEnd > loadingStart, 'AuthGate should keep one shared loading screen');
+  assert.ok(loadingBlock.includes('data-startup-loading="cursor"'), 'startup loading should expose the selected cursor concept');
+  assert.ok(loadingBlock.includes('>\n          Quote\n        </div>'), 'startup loading should show the Quote wordmark');
+  assert.ok(loadingBlock.includes('bg-[#05070b]'), 'startup loading should retain the no-flash black surface');
+  assert.ok(loadingBlock.includes('data-startup-loading-track'), 'startup loading should include the restrained line track');
+  assert.ok(loadingBlock.includes('data-startup-loading-glint'), 'startup loading should include one warm-gold glint');
+  assert.equal(loadingBlock.includes('animate-spin'), false, 'startup loading should remove the old circular spinner');
+  assert.equal(loadingBlock.includes('border-white/10'), false, 'startup loading should remove the old outlined card');
+  assert.equal(loadingBlock.includes('setTimeout'), false, 'startup loading must not add an artificial minimum duration');
+  assert.equal(loadingBlock.includes('fetch('), false, 'startup loading must not add network work');
+  assert.equal((authGateSource.match(/fallback=\{<LoadingScreen \/>\}/g) || []).length, 5, 'all existing lazy boundaries should keep sharing the same loading screen');
+
+  assert.ok(indexCssSource.includes('@keyframes quote-startup-glint-sweep'), 'startup glint should use a dedicated transform animation');
+  assert.ok(indexCssSource.includes('transform: translate3d(-22px, 0, 0)'), 'startup glint should begin outside the track without animating layout');
+  assert.ok(indexCssSource.includes('transform: translate3d(92px, 0, 0)'), 'startup glint should sweep beyond the opposite edge');
+  assert.ok(indexCssSource.includes('animation: quote-startup-glint-sweep 1.25s'), 'startup glint should keep the approved restrained loop');
+  assert.ok(indexCssSource.includes('@media (prefers-reduced-motion: reduce)'), 'startup motion should honor the system reduced-motion preference');
+  assert.ok(indexCssSource.includes('animation: none'), 'reduced motion should stop the startup sweep');
+
+  assert.ok(authGateSource.includes("params.get('devPreview') === '1' && params.get('startupLoading') === 'cursor'"), 'local visual QA should expose the production loading screen only behind the DEV preview guard');
+  assert.ok(authGateSource.includes('if (isDevStartupLoadingPreviewRequested()) {\n      return <LoadingScreen />;'), 'the DEV fixture should reuse the production loading component');
+  assert.equal(indexHtmlSource.includes('quote-startup-glint'), false, 'native startup images and the pre-CSS no-flash shell should stay unchanged');
+});
+
 test('cost basis tool uses dark custom UI without legacy title icon or native alerts', () => {
   const costSubmitStart = appSource.indexOf('const confirmCostBasisTradeSubmit =');
   const costSubmitEnd = appSource.indexOf('const deleteStockTradeRecord =', costSubmitStart);

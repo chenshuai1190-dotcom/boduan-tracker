@@ -14,6 +14,38 @@ body {
   transition: background-color 0.3s ease;
 }
 
+@keyframes quote-startup-glint-sweep {
+  0% {
+    opacity: 0;
+    transform: translate3d(-22px, 0, 0);
+  }
+  12% {
+    opacity: 1;
+  }
+  72% {
+    opacity: 1;
+    transform: translate3d(92px, 0, 0);
+  }
+  78%,
+  100% {
+    opacity: 0;
+    transform: translate3d(92px, 0, 0);
+  }
+}
+
+.quote-startup-glint {
+  animation: quote-startup-glint-sweep 1.25s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  will-change: opacity, transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .quote-startup-glint {
+    animation: none;
+    opacity: 0.72;
+    transform: translate3d(35px, 0, 0);
+  }
+}
+
 input[type="number"]::-webkit-outer-spin-button,
 input[type="number"]::-webkit-inner-spin-button {
   -webkit-appearance: none;
