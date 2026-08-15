@@ -4,6 +4,19 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '🎨 社区比赛快捷入口更新为排行榜图标',
+      '  - 交易页四项快捷入口保持原布局，仅将“社区比赛”从奖杯改为排名柱线图标，使收益排行榜语义更直接',
+      '  - 入口文案、尺寸、颜色、点击范围、独立比赛页、比赛数据、正式交易账本及其他三个快捷入口均未改变',
+    ],
+    itemsEn: [
+      '🎨 Community Competition shortcut now uses a clearer ranking icon',
+      '  - The Trading page keeps its four-shortcut layout and changes only Community Competition from Trophy to the BarChart3 ranking icon for clearer leaderboard meaning',
+      '  - Label, sizing, color, hit area, standalone competition page, competition data, formal trading ledger, and the other three shortcuts are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.463', date: '2026-08-15',
+    items: [
       '✨ Quote 启动加载升级为极简流光',
       '  - 认证初始化以及登录页或主应用代码分包等待期间，使用全黑背景、Quote 白色字标和暖金流光细线，替代旧卡片式旋转圈',
       '  - 流光只表达正在加载，不显示虚假百分比；系统开启“减少动态效果”后自动停为静态暖金短标',

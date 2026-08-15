@@ -1,5 +1,5 @@
 import React from 'react';
-import { BookOpen, Calculator, CalendarDays, ChevronRight, Database, Edit3, Grid2X2, ListChecks, Search, Settings2, Trash2, TrendingDown, TrendingUp, Trophy, X } from 'lucide-react';
+import { BarChart3, BookOpen, Calculator, CalendarDays, ChevronRight, Database, Edit3, Grid2X2, ListChecks, Search, Settings2, Trash2, TrendingDown, TrendingUp, X } from 'lucide-react';
 import {
   MARKET_COLOR_MODES,
   marketStrongTextClass,
@@ -1050,7 +1050,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
         <section className="mt-3 grid grid-cols-4 overflow-hidden rounded-2xl border border-transparent bg-[#0b0c0e] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
           {[
             { id: 'waves', label: tt('trades.swingLog', '波段记录'), icon: BookOpen },
-            { id: 'competition', label: tt('competition.toolEntry', '社区比赛'), icon: Trophy },
+            { id: 'competition', label: tt('competition.toolEntry', '社区比赛'), icon: BarChart3 },
             { id: 'records', label: tt('trades.tradeLog', '交易记录'), icon: ListChecks },
             { id: 'all', label: tt('trades.allTools', '全部功能'), icon: Grid2X2 },
           ].map((item) => {

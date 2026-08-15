@@ -334,7 +334,8 @@ test('community competition is an isolated authenticated close-snapshot utility'
   assert.ok(appSource.includes('openCommunityCompetition'), 'app should expose an opener for the trade-page utility');
   assert.ok(appSource.includes('closeCommunityCompetition'), 'app should expose a closer for the trade-page utility');
   assert.ok(appSource.includes("${isFullBleedPage ? 'px-0' : 'px-4'}"), 'full-bleed standalone pages should not inherit the home shell padding a second time');
-  assert.ok(tradesTabSource.includes("id: 'competition'") && tradesTabSource.includes("tt('competition.toolEntry', '社区比赛')"), 'trade-page tool grid should expose the community competition entry');
+  assert.ok(tradesTabSource.includes("{ id: 'competition', label: tt('competition.toolEntry', '社区比赛'), icon: BarChart3 }"), 'trade-page tool grid should expose Community Competition with the approved ranking icon');
+  assert.equal(tradesTabSource.includes('Trophy'), false, 'the trade-page shortcut should not keep the uncomfortable trophy icon');
   assert.ok(tradesTabSource.includes('openCommunityCompetition?.();'), 'community competition entry should open the standalone page');
   assert.ok(tradesTabSource.includes("id: 'all'") && tradesTabSource.includes("tt('trades.allTools', '全部功能')"), 'trade-page tool grid should expose all tools');
   assert.ok(tradesTabSource.includes("key: 'cost'") && tradesTabSource.includes("setToolPanel('cost')"), 'averaging tool must remain reachable from all tools');
@@ -342,6 +343,7 @@ test('community competition is an isolated authenticated close-snapshot utility'
   assert.ok(communityCompetitionPageSource.includes("tt('competition.joinTitle', '加入收益比赛')"), 'first visit should show the voluntary join sheet');
   assert.ok(communityCompetitionPageSource.includes("tt('competition.notJoin', '暂不加入')"), 'join sheet should support declining');
   assert.ok(communityCompetitionPageSource.includes("tt('competition.confirmJoin', '确认加入')"), 'join sheet should support confirming join');
+  assert.ok(communityCompetitionPageSource.includes('<Trophy className="relative h-[68px] w-[68px]'), 'the separate competition join-sheet hero should stay outside the shortcut icon change');
   assert.equal(communityCompetitionPageSource.includes('JOIN_STORAGE_KEY'), false, 'participation must never be persisted in browser localStorage');
   assert.equal(communityCompetitionPageSource.includes('PERIOD_STATS'), false, 'production page must not carry mock period statistics');
   assert.equal(communityCompetitionPageSource.includes('LEADERS'), false, 'production page must not carry mock leaderboard rows');
@@ -607,7 +609,7 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(tradeModalEnd > tradeModalStart, 'missing boundary after trade entry modal');
   assert.ok(appSource.includes('<ConfirmModal'), 'app should render the shared confirmation modal component');
   assert.ok(appSource.includes('normalizeConfirmModalOptions(opts)'), 'app should keep normalizing confirmation options before display');
-  assert.ok(tradesTabSource.includes('import { BookOpen, Calculator, CalendarDays, ChevronRight'), 'trade modal should use lucide date and chevron icons');
+  assert.ok(tradeModalBlock.includes('<CalendarDays ') && tradeModalBlock.includes('<ChevronRight '), 'trade modal should use lucide date and chevron icons');
   assert.ok(tradesTabSource.includes('Search, Settings2, Trash2, TrendingDown, TrendingUp'), 'trade modal should keep search, color settings, and buy/sell trend icons');
   assert.ok(tradeModalBlock.includes("tt('trades.stockTicker'"), 'first row should be stock ticker');
   assert.ok(tradeModalBlock.includes("tt('trades.priceShares'"), 'second row should be price and shares');
