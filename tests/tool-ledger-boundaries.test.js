@@ -14,7 +14,6 @@ const authGateSource = readFileSync(new URL('../src/AuthGate.jsx', import.meta.u
 const confirmModalSource = readFileSync(new URL('../src/components/ConfirmModal.jsx', import.meta.url), 'utf8');
 const confirmModalOptionsSource = readFileSync(new URL('../src/lib/confirmModal.js', import.meta.url), 'utf8');
 const amountDisplaySource = readFileSync(new URL('../src/lib/amountDisplay.js', import.meta.url), 'utf8');
-const homeMa200Source = readFileSync(new URL('../src/components/HomeMa200BreakdownMonitor.jsx', import.meta.url), 'utf8');
 const waveCurrencyDisplaySource = readFileSync(new URL('../src/lib/waveCurrencyDisplay.js', import.meta.url), 'utf8');
 const i18nSource = readFileSync(new URL('../src/lib/i18n.js', import.meta.url), 'utf8');
 const indexRealtimeSource = readFileSync(new URL('../src/lib/indexRealtime.js', import.meta.url), 'utf8');
@@ -1113,7 +1112,7 @@ test('home watchlist dialogs and add success notice use normal weights', () => {
   assert.ok(homeTabSource.includes("{ key: 'close', label: t(language, 'home.gotIt', '知道了')"), 'add success acknowledge action should use the shared neutral button');
   assert.equal(homeTabSource.includes('text-[17px] font-black text-white">{t(language, \'home.addWatchlistStock\''), false, 'add watchlist title should not keep the old font-black class');
   assert.equal(homeTabSource.includes('text-[17px] font-black text-white">{addStockNotice.title}'), false, 'add success title should not keep the old font-black class');
-  assert.ok(appSource.includes('fetchQuote(symbol, { fresh: true, ma200Symbols: [symbol] })'), 'adding a watchlist stock should validate the ticker and MA200 data through the same auth-gated quote request');
+  assert.ok(appSource.includes('fetchQuote(symbol, { fresh: true })'), 'adding a watchlist stock should validate the ticker through the auth-gated quote request');
   assert.ok(appSource.includes('const fetchPopularStockQuotes = useCallback(async (symbols = []) => {'), 'popular stock quotes should be fetched through a narrow app helper');
   assert.ok(appSource.includes("const r = await fetchQuote(normalizedSymbols.join(','), { fresh: true });"), 'popular stock quotes should reuse the auth-gated quote API with fresh requests');
   assert.ok(appSource.includes("row.priceSource === 'EODHD-v2'"), 'popular stock quotes should only expose validated stock quote rows');
@@ -1365,7 +1364,7 @@ test('realtime quote refresh avoids duplicate requests and hides raw Safari netw
   assert.ok(appSource.includes('const fresh = requestOptions.fresh === true;'), 'quote fetch helper should support fresh no-cache requests');
   assert.ok(appSource.includes("headers['Cache-Control'] = 'no-cache';"), 'fresh quote requests should ask intermediaries not to reuse cached responses');
   assert.ok(appSource.includes('params.set(\'_ts\', String(Date.now()))'), 'fresh quote requests should append a cache-busting timestamp');
-  assert.ok(appSource.includes("fetchQuote(batch.join(','), { fresh: true, ma200Symbols })"), 'every main realtime quote batch should bypass browser caches while carrying only its watchlist MA200 subset');
+  assert.ok(appSource.includes("fetchQuote(batch.join(','), { fresh: true })"), 'every main realtime quote batch should bypass browser caches');
   assert.ok(appSource.includes('buildQuoteSymbolBatches(requestedSymbols)'), 'main realtime quote refresh should split symbol sets at the API batch boundary');
   assert.ok(appSource.includes("cache: 'no-store'"), 'fresh quote requests should disable the browser HTTP cache');
   assert.ok(quoteApiSource.includes("'private, no-store, max-age=0, must-revalidate'"), 'authenticated quote responses should not be browser-cacheable');
@@ -1903,7 +1902,7 @@ test('production V2 wave tracker is an independent real-data page with isolated 
     'App should give only the independent V2 page its dedicated fast snapshot helper',
   );
   assert.ok(tradesTabSource.includes("if (item.id === 'waves')") && tradesTabSource.includes('openWaveTracker?.()'), 'wave toolbox tile should open V2 instead of the legacy inline panel');
-  assert.ok(devVisualPreviewSource.includes("preview === 'wave-v2' ? 'wave-tracker' : preview === 'community-competition' ? 'community-competition' : preview === 'home-ma200-breakdown' ? 'home' : ''"), 'local visual preview should render the production pages with safe fixtures');
+  assert.ok(devVisualPreviewSource.includes("preview === 'wave-v2' ? 'wave-tracker' : preview === 'community-competition' ? 'community-competition' : ''"), 'local visual preview should render the production pages with safe fixtures');
 
   for (const api of ['listSwingWaves', 'createSwingWave', 'updateSwingWave', 'sellSwingWave', 'updateSwingWaveExit', 'deleteSwingWaveExit', 'deleteSwingWave']) {
     assert.ok(waveTrackerPageSource.includes(`db.${api}`), `V2 page must call ${api}`);
@@ -2082,7 +2081,6 @@ test('asset header card aligns with home and trade header sizing', () => {
   assert.equal((homeTabSource.match(/bg-\[#0b0c0e\]/g) || []).length, 8, 'Home primary surfaces and sticky cells should stay neutral black after the two watchlist actions adopt raised borderless surfaces');
   assert.equal((homeTabSource.match(/bg-\[#101114\]/g) || []).length, 2, 'both normal and error market-card states should use the approved raised surface');
   assert.ok(earningsCalendarSource.includes('rounded-2xl border border-transparent bg-[#0b0c0e] p-3'), 'the Home earnings card should hide its outer outline while retaining the neutral-black surface');
-  assert.ok(homeMa200Source.includes('rounded-[19px] border border-transparent bg-[#0b0c0e]'), 'the Home MA200 monitor should hide its outer outline while retaining the neutral-black surface');
   assert.ok(homeTabSource.includes('grid-cols-[1fr_1.12fr_0.96fr] border-t border-white/[0.07] pt-4'), 'the Home header should preserve its horizontal divider above today PnL');
   assert.equal(homeTabSource.includes('grid-cols-[1fr_1.12fr_0.96fr] divide-x'), false, 'the Home header should not retain vertical dividers between its three metrics');
   assert.equal((tradesTabSource.match(/rounded-2xl border border-transparent bg-\[#0b0c0e\]/g) || []).length, 8, 'all production Trading primary module shells should hide their outer outlines');
@@ -2100,7 +2098,6 @@ test('asset header card aligns with home and trade header sizing', () => {
   assert.ok(monthlyAssetTrendContentSource.includes('grid min-h-[64px] grid-cols-2 rounded-[16px] border border-white/[0.075]'), 'the standalone asset-trend summary should retain its approved boundary');
   assert.ok(monthlyAssetTrendContentSource.includes('mt-3 overflow-hidden rounded-[17px] border border-white/[0.075] bg-black/[0.12]'), 'the standalone monthly-details table should retain its approved boundary');
   assert.ok(earningsCalendarSource.includes("index < previewEvents.length - 1 ? 'border-r border-white/[0.08]' : ''"), 'the earnings preview should preserve internal event dividers');
-  assert.ok(homeMa200Source.includes('border-b border-white/[0.06]'), 'the MA200 monitor should preserve its internal header divider');
   assert.ok(analysisTabSource.includes('text-[13px] text-white/50">{item.label}'), 'asset header metric labels should match the home field-label baseline');
   assert.ok(reviewTabSource.includes('gap-2 text-[14px] font-normal text-white/70'), 'review header title should match the home title size and tone');
   assert.ok(reviewTabSource.includes("fontSize: 'clamp(28px, 8.7vw, 34px)'"), 'review goal amount should match the responsive home amount sizing');

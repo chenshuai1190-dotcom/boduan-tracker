@@ -386,123 +386,6 @@ const mockHomeWatchlist = [
   { symbol: 'TSLA', name: '特斯拉', price: 323.63, changePercent: 2.12, high: 488.54, ytdChangePercent: -19.2, intraday: mockMarketIntraday.pink },
 ];
 
-const mockHomeMa200BreakdownWatchlist = [
-  {
-    symbol: 'META',
-    name: 'Meta',
-    price: 620.18,
-    changePercent: -1.14,
-    high: 740.91,
-    ytdChangePercent: 12.3,
-    intraday: mockMarketIntraday.green,
-    ma200Monitor: {
-      status: 'ready',
-      source: 'EODHD',
-      priceBasis: 'eodhd_adjusted_close',
-      asOfDate: '2026-07-31',
-      completedClose: 618.42,
-      ma200: 633.37,
-      distancePct: -2.36,
-      belowCompletedDays: 1,
-    },
-  },
-  {
-    symbol: 'TSM',
-    name: '台积电',
-    price: 285.24,
-    changePercent: -0.62,
-    high: 298.85,
-    ytdChangePercent: 26.8,
-    intraday: mockMarketIntraday.green,
-    ma200Monitor: {
-      status: 'ready',
-      source: 'EODHD',
-      priceBasis: 'eodhd_adjusted_close',
-      asOfDate: '2026-07-31',
-      completedClose: 284.10,
-      ma200: 289.37,
-      distancePct: -1.82,
-      belowCompletedDays: 2,
-    },
-  },
-  {
-    symbol: 'MSFT',
-    name: '微软',
-    price: 532.60,
-    changePercent: -0.74,
-    high: 555.45,
-    ytdChangePercent: 18.1,
-    intraday: mockMarketIntraday.green,
-    ma200Monitor: {
-      status: 'ready',
-      source: 'EODHD',
-      priceBasis: 'eodhd_adjusted_close',
-      asOfDate: '2026-07-31',
-      completedClose: 540.12,
-      ma200: 536.57,
-      distancePct: 0.66,
-      belowCompletedDays: 0,
-    },
-  },
-  {
-    symbol: 'AAPL',
-    name: '苹果',
-    price: 208.72,
-    changePercent: -1.02,
-    high: 237.49,
-    ytdChangePercent: -4.8,
-    intraday: mockMarketIntraday.red,
-    ma200Monitor: {
-      status: 'ready',
-      source: 'EODHD',
-      priceBasis: 'eodhd_adjusted_close',
-      asOfDate: '2026-07-31',
-      completedClose: 207.94,
-      ma200: 214.30,
-      distancePct: -2.97,
-      belowCompletedDays: 3,
-    },
-  },
-  {
-    symbol: 'GOOGL',
-    name: '谷歌',
-    price: 189.55,
-    changePercent: -0.48,
-    high: 207.05,
-    ytdChangePercent: 8.4,
-    intraday: mockMarketIntraday.green,
-    ma200Monitor: {
-      status: 'ready',
-      source: 'EODHD',
-      priceBasis: 'eodhd_adjusted_close',
-      asOfDate: '2026-07-31',
-      completedClose: 190.12,
-      ma200: 193.48,
-      distancePct: -1.74,
-      belowCompletedDays: 4,
-    },
-  },
-  {
-    symbol: 'AMZN',
-    name: '亚马逊',
-    price: 221.36,
-    changePercent: -0.83,
-    high: 242.52,
-    ytdChangePercent: 11.7,
-    intraday: mockMarketIntraday.pink,
-    ma200Monitor: {
-      status: 'ready',
-      source: 'EODHD',
-      priceBasis: 'eodhd_adjusted_close',
-      asOfDate: '2026-07-31',
-      completedClose: 225.18,
-      ma200: 223.40,
-      distancePct: 0.80,
-      belowCompletedDays: 0,
-    },
-  },
-];
-
 const mockHomeSignalBenchmarks = [
   { symbol: 'META', name: 'Meta', company: 'Meta', price: 92.7, week52High: 100 },
   { symbol: 'AMZN', name: '亚马逊', company: 'Amazon', price: 94.2, week52High: 100 },
@@ -1800,7 +1683,6 @@ function StandardDevVisualPreview({ initialTab = '' }) {
   const earningsGrowthPreview = earningsPreviewName === 'earnings-growth-prototype';
   const earningsBaseDetailPreview = ['earnings-base-prototype', 'earnings-growth-prototype']
     .includes(earningsPreviewName);
-  const homeMa200BreakdownPreview = earningsPreviewName === 'home-ma200-breakdown';
   const earningsHoldingsDetailPreview = typeof window !== 'undefined'
     && new URLSearchParams(window.location.search).get('preview') === 'earnings-holdings-prototype';
   const earningsNokDetailPreview = typeof window !== 'undefined'
@@ -2300,9 +2182,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     return earningsScenario === 'dense' ? simulatedEvents : simulatedEvents.slice(0, 2);
   }, [earningsLiveSmoke, earningsResumeSmoke, earningsScenario]);
   const [homeWatchlist, setHomeWatchlist] = React.useState(() => (
-    homeMa200BreakdownPreview
-      ? mockHomeMa200BreakdownWatchlist
-      : earningsResumeSmoke || earningsLiveSmoke
+    earningsResumeSmoke || earningsLiveSmoke
       ? [{
         symbol: 'ASML',
         name: '阿斯麦',
@@ -3315,5 +3195,5 @@ export default function DevVisualPreview() {
     return <StandardDevVisualPreview initialTab="earnings-detail" />;
   }
 
-  return <StandardDevVisualPreview initialTab={preview === 'wave-v2' ? 'wave-tracker' : preview === 'community-competition' ? 'community-competition' : preview === 'home-ma200-breakdown' ? 'home' : ''} />;
+  return <StandardDevVisualPreview initialTab={preview === 'wave-v2' ? 'wave-tracker' : preview === 'community-competition' ? 'community-competition' : ''} />;
 }

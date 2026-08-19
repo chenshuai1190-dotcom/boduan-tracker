@@ -21,35 +21,6 @@ const POSITIVE_QUOTE_FIELDS = Object.freeze([
   'providerPreviousClose',
 ]);
 
-function ma200MonitorDate(value) {
-  const date = String(value?.asOfDate || '');
-  return /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : '';
-}
-
-function isReadyMa200Monitor(value) {
-  return value?.status === 'ready'
-    && value?.source === 'EODHD'
-    && value?.priceBasis === 'eodhd_adjusted_close'
-    && ma200MonitorDate(value)
-    && Number(value?.completedClose) > 0
-    && Number(value?.ma200) > 0;
-}
-
-export function mergeMa200Monitor(existing, incoming) {
-  if (incoming === null || incoming === undefined) return existing;
-  if (existing === null || existing === undefined) return incoming;
-
-  const existingReady = isReadyMa200Monitor(existing);
-  const incomingReady = isReadyMa200Monitor(incoming);
-  if (existingReady && !incomingReady) return existing;
-  if (!existingReady && incomingReady) return incoming;
-
-  const existingDate = ma200MonitorDate(existing);
-  const incomingDate = ma200MonitorDate(incoming);
-  if (existingDate && (!incomingDate || incomingDate < existingDate)) return existing;
-  return incoming;
-}
-
 function utcDateKey(date) {
   return date.toISOString().slice(0, 10);
 }
@@ -375,8 +346,6 @@ export function mergeQuoteBaselineRows(currentRows = [], refreshedRows = []) {
         next[field] = existing[field];
       }
     });
-    next.ma200Monitor = mergeMa200Monitor(existing?.ma200Monitor, row?.ma200Monitor);
-    if (next.ma200Monitor === undefined) delete next.ma200Monitor;
     bySymbol.set(symbol, next);
   });
 

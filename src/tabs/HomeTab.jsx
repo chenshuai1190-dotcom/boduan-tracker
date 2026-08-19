@@ -18,7 +18,6 @@ import { deriveHomeMarginOverview, homeMarginLeverageStatus, normalizeMarginDebt
 import ActionModalCard from '../components/ActionModalCard.jsx';
 import AccountLeverageBadge from '../components/AccountLeverageBadge.jsx';
 import AvailableCashEditor from '../components/AvailableCashEditor.jsx';
-import HomeMa200BreakdownMonitor from '../components/HomeMa200BreakdownMonitor.jsx';
 import EarningsCalendar from './EarningsCalendar.jsx';
 
 const PORTFOLIO_CURRENCY_STORAGE_KEY = 'xmoney_portfolio_currency';
@@ -1425,14 +1424,6 @@ export default function HomeTab({ ctx }) {
         onOpenCalendar={openEarningsCalendar}
         onOpenDetail={(event) => openEarningsDetail(event, { returnPage: 'home' })}
         onPromotionChange={setPromoteEarningsCalendar}
-        placementClassName={promoteEarningsCalendar ? 'order-1' : 'order-3'}
-      />
-
-      <HomeMa200BreakdownMonitor
-        watchlist={displayWatchlist}
-        quoteRows={quoteRows}
-        language={language}
-        onOpenStock={openWatchlistStockDetail}
         placementClassName={promoteEarningsCalendar ? 'order-1' : 'order-3'}
       />
 
