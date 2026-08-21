@@ -317,7 +317,12 @@ function WaveRow({ group, wave, onAction, tt, displayRate, displayCurrency }) {
 function StockCard({ group, expanded, filter, onToggle, onAction, tt, displayRate, displayCurrency, logoCache, cacheStockLogo, todayKey }) {
   const summary = summarizeSwingWaveGroup(group, filter, todayKey);
   const isActive = summary.status === 'active';
-  const displayPnl = summary.pnlUsd == null ? null : summary.pnlUsd * displayRate;
+  const displayPnl = summary.performancePnlUsd == null ? null : summary.performancePnlUsd * displayRate;
+  const pnlLabel = filter === 'all'
+    ? tt('swing.cumulativePnl', '累计盈亏')
+    : isActive
+      ? (expanded ? tt('swing.totalUnrealized', '总浮盈') : tt('swing.unrealized', '浮盈'))
+      : tt('swing.realized', '已实现');
   return (
     <article className="overflow-hidden rounded-[18px] border border-[#1a2530] bg-[#0b0c0e] shadow-[0_15px_38px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.025)]">
       <button type="button" onClick={onToggle} className="block w-full px-3.5 py-3.5 text-left outline-none active:bg-white/[0.025] focus-visible:ring-1 focus-visible:ring-[#f6b54b]/40" aria-expanded={expanded}>
@@ -336,8 +341,8 @@ function StockCard({ group, expanded, filter, onToggle, onAction, tt, displayRat
           </div>
           <div className="flex min-w-[54px] items-center justify-end gap-2 text-right">
             <div>
-              <div className="text-[19px] font-normal tabular-nums" style={{ color: tone(summary.returnPct), fontFamily: NUMBER_FONT }}>
-                {formatPct(summary.returnPct)}
+              <div className="text-[19px] font-normal tabular-nums" style={{ color: tone(summary.performanceReturnPct), fontFamily: NUMBER_FONT }}>
+                {formatPct(summary.performanceReturnPct)}
               </div>
               {expanded ? <div className="mt-0.5 text-[11px] text-white/[0.40]">{tt('swing.totalReturn', '总收益率')}</div> : null}
             </div>
@@ -348,8 +353,8 @@ function StockCard({ group, expanded, filter, onToggle, onAction, tt, displayRat
         <div className="mt-3 grid grid-cols-4 gap-2 border-t border-white/[0.075] pt-3">
           <Metric label={expanded && isActive ? tt('swing.totalHeld', '总持仓') : tt('swing.position', '持仓')} value={tt('swing.sharesValue', '{{shares}} 股', { shares: formatShares(summary.shares) })} />
           <Metric label={expanded ? tt('swing.average', '均价') : tt('swing.buyAverage', '买入均价')} value={formatUsdPrice(summary.averageBuyPriceUsd)} />
-          <Metric label={isActive ? tt('swing.latestPrice', '最新价') : tt('swing.sellAverage', '卖出均价')} value={formatUsdPrice(summary.referencePriceUsd)} valueColor={tone(summary.returnPct)} />
-          <Metric label={isActive ? (expanded ? tt('swing.totalUnrealized', '总浮盈') : tt('swing.unrealized', '浮盈')) : tt('swing.realized', '已实现')} value={formatPnl(displayPnl, displayCurrency)} valueColor={tone(displayPnl)} align="right" />
+          <Metric label={isActive ? tt('swing.latestPrice', '最新价') : tt('swing.sellAverage', '卖出均价')} value={formatUsdPrice(summary.referencePriceUsd)} valueColor={tone(summary.performanceReturnPct)} />
+          <Metric label={pnlLabel} value={formatPnl(displayPnl, displayCurrency)} valueColor={tone(displayPnl)} align="right" />
         </div>
       </button>
 

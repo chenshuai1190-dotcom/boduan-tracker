@@ -285,22 +285,29 @@ export function summarizeSwingWaveGroup(group, filter = 'all', todayKey = '') {
       ? group.waves.filter((wave) => wave.status === 'completed')
       : group.waves;
   const activeWaves = visibleWaves.filter((wave) => wave.status === 'active');
-  const source = activeWaves.length > 0 ? activeWaves : visibleWaves;
-  const shares = source.reduce((sum, wave) => sum + (positiveNumber(wave.shares) || 0), 0);
-  const totalCostUsd = source.reduce((sum, wave) => (
+  const positionWaves = activeWaves.length > 0 ? activeWaves : visibleWaves;
+  const shares = positionWaves.reduce((sum, wave) => sum + (positiveNumber(wave.shares) || 0), 0);
+  const positionCostUsd = positionWaves.reduce((sum, wave) => (
     sum + (positiveNumber(wave.buyPriceUsd) || 0) * (positiveNumber(wave.shares) || 0)
   ), 0);
-  const weightedExitUsd = source.reduce((sum, wave) => (
+  const performanceCostUsd = visibleWaves.reduce((sum, wave) => (
+    sum + (positiveNumber(wave.buyPriceUsd) || 0) * (positiveNumber(wave.shares) || 0)
+  ), 0);
+  const weightedExitUsd = positionWaves.reduce((sum, wave) => (
     sum + (positiveNumber(wave.exitPriceUsd) || 0) * (positiveNumber(wave.shares) || 0)
   ), 0);
-  const fullyValued = source.length > 0 && source.every((wave) => finiteNumber(wave.pnlUsd) != null);
-  const pnlUsd = fullyValued
-    ? source.reduce((sum, wave) => sum + Number(wave.pnlUsd), 0)
+  const positionFullyValued = positionWaves.length > 0 && positionWaves.every((wave) => finiteNumber(wave.pnlUsd) != null);
+  const positionPnlUsd = positionFullyValued
+    ? positionWaves.reduce((sum, wave) => sum + Number(wave.pnlUsd), 0)
     : null;
-  const firstDate = source.reduce((earliest, wave) => (
+  const performanceFullyValued = visibleWaves.length > 0 && visibleWaves.every((wave) => finiteNumber(wave.pnlUsd) != null);
+  const performancePnlUsd = performanceFullyValued
+    ? visibleWaves.reduce((sum, wave) => sum + Number(wave.pnlUsd), 0)
+    : null;
+  const firstDate = positionWaves.reduce((earliest, wave) => (
     !earliest || String(wave.buyDate) < earliest ? String(wave.buyDate || '') : earliest
   ), '');
-  const completedEndDate = source.reduce((latest, wave) => (
+  const completedEndDate = positionWaves.reduce((latest, wave) => (
     String(wave.sellDate || '') > latest ? String(wave.sellDate || '') : latest
   ), '');
   const status = activeWaves.length > 0 ? 'active' : 'completed';
@@ -308,20 +315,27 @@ export function summarizeSwingWaveGroup(group, filter = 'all', todayKey = '') {
 
   return {
     activeCount: activeWaves.length,
-    averageBuyPriceUsd: shares > 0 ? totalCostUsd / shares : null,
+    averageBuyPriceUsd: shares > 0 ? positionCostUsd / shares : null,
     endDate,
     firstDate,
     heldDays: status === 'completed'
       ? swingWaveCompletedDays(firstDate, endDate)
       : swingWaveInclusiveDays(firstDate, endDate),
-    pnlUsd,
+    performanceCostUsd,
+    performancePnlUsd,
+    performanceReturnPct: performancePnlUsd != null && performanceCostUsd > 0
+      ? performancePnlUsd / performanceCostUsd
+      : null,
+    positionCostUsd,
+    positionPnlUsd,
+    positionReturnPct: positionPnlUsd != null && positionCostUsd > 0
+      ? positionPnlUsd / positionCostUsd
+      : null,
     referencePriceUsd: status === 'active'
       ? positiveNumber(group.currentPriceUsd)
       : (shares > 0 ? weightedExitUsd / shares : null),
-    returnPct: pnlUsd != null && totalCostUsd > 0 ? pnlUsd / totalCostUsd : null,
     shares,
     status,
-    totalCostUsd,
     visibleWaves,
   };
 }

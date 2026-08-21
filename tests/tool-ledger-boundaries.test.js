@@ -1973,7 +1973,8 @@ test('production V2 wave tracker is an independent real-data page with isolated 
   assert.ok(appSource.includes('...quoteUniverse.ledgerRows') && appSource.includes('...quoteUniverse.toolRows'), 'formal ledger symbols must stay ahead of tool-only symbols at the realtime limit');
   assert.ok(appSource.includes('...row,\n        symbol,'), 'wave REST baselines should be preserved when App syncs active quote rows');
   assert.ok(appSource.includes('addSymbol(wave?.symbol, wave?.name, wave)'), 'active wave quote rows should seed price and previous-close data before relay ticks arrive');
-  assert.ok(swingWavesViewModelSource.includes('sequence: index + 1') && swingWavesViewModelSource.includes('pnlUsd / totalCostUsd'), 'stable numbering and weighted returns should live in the pure view model');
+  assert.ok(swingWavesViewModelSource.includes('sequence: index + 1') && swingWavesViewModelSource.includes('performancePnlUsd / performanceCostUsd'), 'stable numbering and weighted returns should live in the pure view model');
+  assert.ok(waveTrackerPageSource.includes("const pnlLabel = filter === 'all'") && waveTrackerPageSource.includes("tt('swing.cumulativePnl', '累计盈亏')"), 'all-wave cards must label mixed realized and unrealized P&L as cumulative');
   assert.ok(i18nSource.includes("'swing.sellHint': 'Sell some or all remaining shares. Each sale is recorded separately under Completed.'"), 'partial-sell instructions must include English system copy');
   assert.ok(i18nSource.includes("'swing.completedWaveLabel': '{{wave}} · Sell #{{number}}'"), 'completed sell sequence must include English system copy');
   assert.ok(i18nSource.includes("'swing.deleteExitDesc': 'Only this sell is deleted and its shares return to Active."), 'exit deletion behavior must be explained in English');

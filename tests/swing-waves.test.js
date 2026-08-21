@@ -665,6 +665,30 @@ test('partial exits become completed segments while the remainder stays active u
     { id: 'exit-b', recordId: 'nvda-1', status: 'completed', shares: 200, sequence: 1, exitSequence: 2 },
   ]);
 
+  const allSummary = summarizeSwingWaveGroup(group, 'all', '2026-07-13');
+  assert.equal(allSummary.status, 'active');
+  assert.equal(allSummary.shares, 300, 'all filter must still show only the currently held shares');
+  assert.equal(allSummary.averageBuyPriceUsd, 100, 'all filter must keep current-position cost metrics');
+  assert.equal(allSummary.referencePriceUsd, 110, 'all filter must keep the live price for an active position');
+  assert.equal(allSummary.positionCostUsd, 30_000);
+  assert.equal(allSummary.positionPnlUsd, 3_000);
+  assert.equal(allSummary.positionReturnPct, 0.1);
+  assert.equal(allSummary.performanceCostUsd, 100_000, 'all filter return denominator must include every visible segment cost');
+  assert.equal(allSummary.performancePnlUsd, 19_000, 'all filter P&L must include realized exits and unrealized remainder once');
+  assert.equal(allSummary.performanceReturnPct, 0.19);
+  assert.equal(allSummary.performancePnlUsd, dashboard.cumulativePnlUsd);
+
+  const activeSummary = summarizeSwingWaveGroup(group, 'active', '2026-07-13');
+  assert.equal(activeSummary.performanceCostUsd, 30_000);
+  assert.equal(activeSummary.performancePnlUsd, 3_000);
+  assert.equal(activeSummary.performanceReturnPct, 0.1);
+
+  const completedSummary = summarizeSwingWaveGroup(group, 'completed', '2026-07-13');
+  assert.equal(completedSummary.shares, 700);
+  assert.equal(completedSummary.performanceCostUsd, 70_000);
+  assert.equal(completedSummary.performancePnlUsd, 16_000);
+  assert.equal(completedSummary.performanceReturnPct, 16_000 / 70_000);
+
   const fullySold = mapSwingWave({
     id: 'nvda-2', symbol: 'NVDA', buy_date: '2026-05-01', buy_price_usd: 100, shares: 1000,
     sell_date: null, sell_price_usd: null,
@@ -704,8 +728,8 @@ test('view model keeps same-symbol active swings independent with stable numberi
 
   const summary = summarizeSwingWaveGroup(nvda, 'active', '2026-07-11');
   assert.equal(summary.shares, 2000);
-  assert.equal(Math.round(summary.pnlUsd), 62700);
-  assert.ok(Math.abs(summary.returnPct - (62700 / 358840)) < 1e-10, 'group return must be total P&L divided by total cost');
+  assert.equal(Math.round(summary.performancePnlUsd), 62700);
+  assert.ok(Math.abs(summary.performanceReturnPct - (62700 / 358840)) < 1e-10, 'group return must be total P&L divided by total cost');
   assert.deepEqual(summary.visibleWaves.map((wave) => wave.sequence), [1, 2, 3]);
 
   const tsla = dashboard.groups.find((group) => group.symbol === 'TSLA').waves[0];
@@ -713,16 +737,20 @@ test('view model keeps same-symbol active swings independent with stable numberi
   assert.equal(tsla.heldDays, 92);
 });
 
-test('view model shows missing active quotes as unavailable instead of fake break-even values', () => {
+test('view model fails closed when cumulative performance includes an active wave without a quote', () => {
   const dashboard = buildSwingWaveDashboard([
     { id: 'msft-1', symbol: 'MSFT', status: 'active', buyDate: '2026-03-15', buyPriceUsd: 420.49, shares: 1000 },
+    { id: 'msft-2', symbol: 'MSFT', status: 'completed', buyDate: '2026-02-01', buyPriceUsd: 400, shares: 100, sellDate: '2026-03-01', sellPriceUsd: 420 },
   ], [], { todayKey: '2026-07-11' });
-  const wave = dashboard.groups[0].waves[0];
+  const wave = dashboard.groups[0].waves.find((row) => row.status === 'active');
   const summary = summarizeSwingWaveGroup(dashboard.groups[0], 'all', '2026-07-11');
   assert.equal(wave.currentPriceUsd, null);
   assert.equal(wave.pnlUsd, null);
   assert.equal(wave.returnPct, null);
-  assert.equal(summary.pnlUsd, null);
+  assert.equal(summary.performanceCostUsd, 460_490);
+  assert.equal(summary.positionPnlUsd, null);
+  assert.equal(summary.performancePnlUsd, null);
+  assert.equal(summary.performanceReturnPct, null);
   assert.equal(dashboard.cumulativePnlUsd, null);
 });
 
