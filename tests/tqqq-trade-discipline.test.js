@@ -299,9 +299,15 @@ test('keeps the dedicated UI isolated to formal TQQQ while preserving generic bu
   assert.ok(appSource.indexOf("if (tradeEntryScope === 'wave')") < appSource.indexOf('const tqqqValidation = deriveTqqqTradePreview({'));
   assert.ok(actionModalSource.includes("${action.className || ''}"));
   assert.ok(panelSource.includes('export const TQQQ_ACTION_TONE_CLASSES'));
-  assert.ok(panelSource.includes('bg-[linear-gradient(135deg,#10b981,#059669)]'));
-  assert.ok(panelSource.includes('bg-[linear-gradient(135deg,#eb5360,#d63c4a)]'));
+  assert.ok(panelSource.includes('buy: TQQQ_NEUTRAL_ACTION_TONE_CLASSES'));
+  assert.ok(panelSource.includes('sell: TQQQ_NEUTRAL_ACTION_TONE_CLASSES'));
+  assert.ok(panelSource.includes('border border-white/[0.14] bg-[linear-gradient(145deg,rgba(255,255,255,0.105),rgba(255,255,255,0.055))]'));
+  assert.equal(panelSource.includes('bg-[linear-gradient(135deg,#10b981,#059669)]'), false);
+  assert.equal(panelSource.includes('bg-[linear-gradient(135deg,#eb5360,#d63c4a)]'), false);
   assert.ok(tradesTabSource.includes("TQQQ_ACTION_TONE_CLASSES[newTrade.side === 'sell' ? 'sell' : 'buy'].confirm"));
+  assert.ok(panelSource.includes("preview.hardBlocked || preview.overLimit\n    ? 'border-[#ff5b68]/30 bg-[#ff5b68]/[0.065]'"));
+  assert.ok(panelSource.includes("preview.overLimit ? 'text-[#ff6570]'"));
+  assert.ok(panelSource.includes("preview.hardBlocked || preview.overLimit ? 'bg-[#eb5360]'"));
   assert.equal(tradesTabSource.includes('!bg-[linear-gradient(135deg,#7c3ff2,#5d2bd0)]'), false);
   assert.ok(tradesTabSource.includes("tt('trades.tqqq.confirmAnyway', '仍然买入')"));
   assert.ok(disciplineSource.includes('const hardBlocked = invalidShares || oversold || breaksLedger;'));

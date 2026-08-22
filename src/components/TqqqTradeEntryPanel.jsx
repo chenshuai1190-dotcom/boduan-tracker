@@ -14,15 +14,14 @@ const NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pr
 const INPUT_CLASS = 'block h-[46px] w-full min-w-0 rounded-xl border border-white/[0.08] bg-white/[0.055] px-3.5 text-[14px] font-normal tabular-nums text-white outline-none transition placeholder:text-white/[0.28] focus:border-[#7c3ff2]/70 focus:bg-white/[0.075]';
 const LABEL_CLASS = 'mb-1.5 block text-[12px] font-normal text-white/[0.60]';
 
+const TQQQ_NEUTRAL_ACTION_TONE_CLASSES = Object.freeze({
+  selected: 'border border-white/[0.14] bg-[linear-gradient(145deg,rgba(255,255,255,0.105),rgba(255,255,255,0.055))] text-white/[0.90] shadow-[0_8px_22px_rgba(0,0,0,0.18),inset_0_1px_0_rgba(255,255,255,0.055)]',
+  confirm: '!border-white/[0.15] !bg-[linear-gradient(145deg,rgba(255,255,255,0.105),rgba(255,255,255,0.052))] !text-white/[0.88] !shadow-[0_13px_27px_rgba(0,0,0,0.21),inset_0_1px_0_rgba(255,255,255,0.055)]',
+});
+
 export const TQQQ_ACTION_TONE_CLASSES = Object.freeze({
-  buy: Object.freeze({
-    selected: 'bg-[linear-gradient(135deg,#10b981,#059669)] text-white shadow-[0_6px_18px_rgba(16,185,129,0.22)]',
-    confirm: '!bg-[linear-gradient(135deg,#10b981,#059669)] !shadow-[0_10px_30px_rgba(16,185,129,0.24)]',
-  }),
-  sell: Object.freeze({
-    selected: 'bg-[linear-gradient(135deg,#eb5360,#d63c4a)] text-white shadow-[0_6px_18px_rgba(235,83,96,0.22)]',
-    confirm: '!bg-[linear-gradient(135deg,#eb5360,#d63c4a)] !shadow-[0_10px_30px_rgba(235,83,96,0.24)]',
-  }),
+  buy: TQQQ_NEUTRAL_ACTION_TONE_CLASSES,
+  sell: TQQQ_NEUTRAL_ACTION_TONE_CLASSES,
 });
 
 function numberValue(value) {
@@ -102,7 +101,7 @@ function PreviewResult({ preview, tt }) {
   }
   if (preview.blockReason === 'allocation-limit') {
     return (
-      <span className="inline-flex items-center gap-1.5 text-[#f6b54b]">
+      <span className="inline-flex items-center gap-1.5 text-[#ff6570]">
         <AlertCircle className="h-3.5 w-3.5" />
         {tt('trades.tqqq.exceedsLimit', '买入后将超过10%仓位提醒线')}
       </span>
@@ -204,9 +203,19 @@ export default function TqqqTradeEntryPanel({
   const currentBudgetPct = Number.isFinite(preview.currentBudgetUsage)
     ? Math.max(0, preview.currentBudgetUsage * 100)
     : null;
-  const resultTone = preview.hardBlocked
-    ? 'border-[#ff5b68]/20 bg-[#ff5b68]/[0.045]'
-    : (preview.overLimit || preview.allocationUnavailable ? 'border-[#f6b54b]/25 bg-[#f6b54b]/[0.055]' : 'border-white/[0.08] bg-white/[0.025]');
+  const resultTone = preview.hardBlocked || preview.overLimit
+    ? 'border-[#ff5b68]/30 bg-[#ff5b68]/[0.065]'
+    : (preview.allocationUnavailable ? 'border-[#f6b54b]/25 bg-[#f6b54b]/[0.055]' : 'border-white/[0.08] bg-white/[0.025]');
+  const remainingCapacityTone = preview.overLimit
+    ? 'text-[#ff6570]'
+    : (preview.allocationUnavailable ? 'text-[#f6b54b]' : 'text-emerald-300');
+  const budgetLabelTone = side === 'sell'
+    ? 'text-emerald-300'
+    : (preview.overLimit ? 'text-[#ff6570]' : (preview.allocationUnavailable ? 'text-[#f6b54b]' : 'text-white/[0.54]'));
+  const budgetBubbleTone = preview.overLimit
+    ? 'bg-[#eb5360] text-white shadow-[0_4px_13px_rgba(235,83,96,0.22)]'
+    : 'bg-white/[0.90] text-[#202228] shadow-[0_3px_9px_rgba(0,0,0,0.26)]';
+  const budgetBubbleArrowTone = preview.overLimit ? 'bg-[#eb5360]' : 'bg-white/[0.90]';
 
   return (
     <div className="min-w-0 space-y-4" data-tqqq-trade-panel="true">
@@ -305,7 +314,7 @@ export default function TqqqTradeEntryPanel({
           <h3 id="tqqq-trade-check-title" className="text-[16px] font-normal text-white/[0.92]">
             {side === 'sell' ? tt('trades.tqqq.sellCheck', '卖出前检查') : tt('trades.tqqq.tradeCheck', '交易前检查')}
           </h3>
-          <span className="text-[10px] text-white/[0.42]">
+          <span className={`text-[10px] ${preview.overLimit ? 'text-[#ff6570]' : 'text-white/[0.42]'}`}>
             {side === 'sell' ? tt('trades.tqqq.sellNoLimit', '卖出不受10%仓位提醒影响') : tt('trades.tqqq.hardLimit', '纪律提醒:TQQQ 10%')}
           </span>
         </div>
@@ -314,9 +323,9 @@ export default function TqqqTradeEntryPanel({
           {side === 'buy' ? (
             <div className="grid grid-cols-4">
               <Metric className="border-r border-white/[0.07]" label={tt('trades.tqqq.currentAllocation', '当前仓位')} value={formatPercent(preview.currentAllocation)} />
-              <Metric className="border-r border-white/[0.07]" label={tt('trades.tqqq.afterTrade', '交易后')} value={formatPercent(preview.afterAllocation)} />
+              <Metric className="border-r border-white/[0.07]" label={tt('trades.tqqq.afterTrade', '交易后')} value={formatPercent(preview.afterAllocation)} valueClassName={preview.overLimit ? 'text-[#ff6570]' : ''} />
               <Metric className="border-r border-white/[0.07]" label={tt('trades.tqqq.disciplineLimit', '提醒线')} value="10.0%" />
-              <Metric label={tt('trades.tqqq.remainingCapacity', '距提醒线')} value={formatPercent(preview.remainingAllocation)} valueClassName={preview.overLimit || preview.allocationUnavailable ? 'text-[#f6b54b]' : 'text-emerald-300'} />
+              <Metric label={tt('trades.tqqq.remainingCapacity', '距提醒线')} value={formatPercent(preview.remainingAllocation)} valueClassName={remainingCapacityTone} />
             </div>
           ) : (
             <div className="grid grid-cols-4">
@@ -330,7 +339,7 @@ export default function TqqqTradeEntryPanel({
           <div className="mt-3 border-t border-white/[0.07] pt-3">
             <div className="mb-1.5 flex items-center justify-between gap-2 text-[10px] text-white/[0.48]">
               <span>{tt('trades.tqqq.riskBudgetUsed', '风险预算使用')}</span>
-              <span className={side === 'sell' ? 'text-emerald-300' : 'text-white/[0.54]'}>
+              <span className={budgetLabelTone}>
                 {side === 'sell' && Number.isFinite(currentBudgetPct) && Number.isFinite(preview.afterBudgetUsage)
                   ? `${Math.round(currentBudgetPct)}% → ${Math.round(preview.afterBudgetUsage * 100)}%`
                   : tt('trades.tqqq.budgetLimit', '提醒线 10%')}
@@ -339,16 +348,16 @@ export default function TqqqTradeEntryPanel({
             <div className="relative pt-6">
               {displayedBudgetReady && (
                 <span
-                  className="absolute top-0 z-[1] min-w-[38px] -translate-x-1/2 rounded-[9px] bg-white/[0.90] px-1.5 py-0.5 text-center text-[10px] font-medium leading-[16px] tabular-nums text-[#202228] shadow-[0_3px_9px_rgba(0,0,0,0.26)]"
+                  className={`absolute top-0 z-[1] min-w-[38px] -translate-x-1/2 rounded-[9px] px-1.5 py-0.5 text-center text-[10px] font-medium leading-[16px] tabular-nums ${budgetBubbleTone}`}
                   style={{ left: `clamp(22px, ${displayedBudgetPct}%, calc(100% - 22px))` }}
                 >
                   {displayedBudgetLabel}
-                  <span className="absolute bottom-[-3px] left-1/2 h-1.5 w-1.5 -translate-x-1/2 rotate-45 bg-white/[0.90]" />
+                  <span className={`absolute bottom-[-3px] left-1/2 h-1.5 w-1.5 -translate-x-1/2 rotate-45 ${budgetBubbleArrowTone}`} />
                 </span>
               )}
               <div className="h-2 overflow-hidden rounded-full bg-white/[0.09]">
                 <div
-                  className={`h-full rounded-full transition-[width] ${preview.hardBlocked ? 'bg-[#eb5360]' : (preview.overLimit ? 'bg-[#f6b54b]' : 'bg-[linear-gradient(90deg,#32d06b,#c9ce59_72%,#f6b54b)]')}`}
+                  className={`h-full rounded-full transition-[width] ${preview.hardBlocked || preview.overLimit ? 'bg-[#eb5360]' : 'bg-[linear-gradient(90deg,#32d06b,#c9ce59_72%,#f6b54b)]'}`}
                   style={{ width: `${displayedBudgetPct}%` }}
                 />
               </div>
