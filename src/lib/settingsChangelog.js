@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '⚠️ TQQQ 专属交易强化10%仓位提醒',
+      '  - 买入后仓位超过10%时，交易检查区以两次短促红闪持续提醒；系统开启“减少动态效果”后保留静态红色提示',
+      '  - 买入、卖出与确认按钮保持中性系统配色，并移除股票识别提示及卡片、标签和操作区的多余外框',
+      '  - 10%仍只是提醒线，用户可继续二次确认；正式交易账本、仓位计算、卖出校验和市场参考逻辑均未改变',
+    ],
+    itemsEn: [
+      '⚠️ TQQQ trading now gives a stronger 10% allocation reminder',
+      '  - When a buy would push allocation above 10%, the trade-check area repeats a short double red flash; Reduce Motion keeps the warning statically red',
+      '  - Buy, Sell, and Confirm retain neutral system styling, while the redundant lookup notice and decorative outlines around cards, labels, and actions are removed',
+      '  - The 10% line remains advisory and can still be confirmed; the formal ledger, allocation math, sell validation, and market-reference logic are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.465', date: '2026-08-15',
+    items: [
       '🎨 交易快捷入口统一为极简数据图标',
       '  - “波段记录”改用 Waves 波形图标，“全部功能”改用 LayoutGrid 功能网格，与“社区比赛”和“交易记录”形成一致的轻量线条体系',
       '  - 四格顺序、24px 尺寸、颜色、触控范围、波段页、比赛页、交易记录及全部功能弹层的行为均未改变',

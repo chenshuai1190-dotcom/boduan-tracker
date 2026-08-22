@@ -46,6 +46,46 @@ body {
   }
 }
 
+@keyframes tqqq-over-limit-flash {
+  0%,
+  15%,
+  30%,
+  100% {
+    opacity: 0;
+  }
+
+  7%,
+  22% {
+    opacity: 1;
+  }
+}
+
+.tqqq-over-limit-flash::before {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(circle at 52% 44%, rgba(255, 62, 78, 0.24), rgba(255, 62, 78, 0.08) 58%, transparent 100%);
+  box-shadow: 0 0 30px rgba(255, 55, 73, 0.16);
+  content: '';
+  opacity: 0;
+  pointer-events: none;
+  animation: tqqq-over-limit-flash 1.45s steps(1, end) infinite;
+  will-change: opacity;
+}
+
+.tqqq-over-limit-flash > * {
+  position: relative;
+  z-index: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tqqq-over-limit-flash::before {
+    animation: none;
+    opacity: 0;
+  }
+}
+
 input[type="number"]::-webkit-outer-spin-button,
 input[type="number"]::-webkit-inner-spin-button {
   -webkit-appearance: none;

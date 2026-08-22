@@ -22,6 +22,7 @@ const panelSource = readFileSync(new URL('../src/components/TqqqTradeEntryPanel.
 const disciplineSource = readFileSync(new URL('../src/lib/tqqqTradeDiscipline.js', import.meta.url), 'utf8');
 const actionModalSource = readFileSync(new URL('../src/components/ActionModalCard.jsx', import.meta.url), 'utf8');
 const i18nSource = readFileSync(new URL('../src/lib/i18n.js', import.meta.url), 'utf8');
+const indexCssSource = readFileSync(new URL('../src/index.css', import.meta.url), 'utf8');
 
 function preview(options = {}) {
   const stockTrades = options.stockTrades || [];
@@ -301,13 +302,19 @@ test('keeps the dedicated UI isolated to formal TQQQ while preserving generic bu
   assert.ok(panelSource.includes('export const TQQQ_ACTION_TONE_CLASSES'));
   assert.ok(panelSource.includes('buy: TQQQ_NEUTRAL_ACTION_TONE_CLASSES'));
   assert.ok(panelSource.includes('sell: TQQQ_NEUTRAL_ACTION_TONE_CLASSES'));
-  assert.ok(panelSource.includes('border border-white/[0.14] bg-[linear-gradient(145deg,rgba(255,255,255,0.105),rgba(255,255,255,0.055))]'));
+  assert.ok(panelSource.includes("selected: 'bg-[linear-gradient(145deg,rgba(255,255,255,0.105),rgba(255,255,255,0.055))]"));
+  assert.ok(panelSource.includes("confirm: '!border-0 !bg-[linear-gradient(145deg,rgba(255,255,255,0.105),rgba(255,255,255,0.052))]"));
   assert.equal(panelSource.includes('bg-[linear-gradient(135deg,#10b981,#059669)]'), false);
   assert.equal(panelSource.includes('bg-[linear-gradient(135deg,#eb5360,#d63c4a)]'), false);
   assert.ok(tradesTabSource.includes("TQQQ_ACTION_TONE_CLASSES[newTrade.side === 'sell' ? 'sell' : 'buy'].confirm"));
-  assert.ok(panelSource.includes("preview.hardBlocked || preview.overLimit\n    ? 'border-[#ff5b68]/30 bg-[#ff5b68]/[0.065]'"));
+  assert.ok(panelSource.includes("preview.hardBlocked || preview.overLimit\n    ? 'bg-[#ff5b68]/[0.065]"));
   assert.ok(panelSource.includes("preview.overLimit ? 'text-[#ff6570]'"));
   assert.ok(panelSource.includes("preview.hardBlocked || preview.overLimit ? 'bg-[#eb5360]'"));
+  assert.ok(panelSource.includes('const shouldFlashOverLimit = preview.overLimit && !preview.hardBlocked;'));
+  assert.ok(panelSource.includes("shouldFlashOverLimit ? 'tqqq-over-limit-flash' : ''"));
+  assert.ok(indexCssSource.includes('@keyframes tqqq-over-limit-flash'));
+  assert.ok(indexCssSource.includes('animation: tqqq-over-limit-flash 1.45s steps(1, end) infinite;'));
+  assert.match(indexCssSource, /@media \(prefers-reduced-motion: reduce\) \{\s*\.tqqq-over-limit-flash::before \{\s*animation: none;/);
   assert.equal(tradesTabSource.includes('!bg-[linear-gradient(135deg,#7c3ff2,#5d2bd0)]'), false);
   assert.ok(tradesTabSource.includes("tt('trades.tqqq.confirmAnyway', '仍然买入')"));
   assert.ok(disciplineSource.includes('const hardBlocked = invalidShares || oversold || breaksLedger;'));
@@ -325,10 +332,10 @@ test('shows objective buy references only and keeps sell focused on the formal h
   assert.ok(panelSource.includes(': preview.currentBudgetUsage;'));
   assert.equal(panelSource.includes('grid grid-cols-2 sm:grid-cols-4'), false);
   assert.equal((panelSource.match(/<div className="grid grid-cols-4">/g) || []).length, 2);
-  assert.ok(panelSource.includes('grid grid-cols-2 rounded-[17px] border border-white/[0.08] bg-white/[0.025] px-2.5 py-2'));
+  assert.ok(panelSource.includes('grid grid-cols-2 rounded-[17px] bg-white/[0.025] px-2.5 py-2'));
   assert.ok(panelSource.includes('flex min-h-[16px] items-center justify-center text-[10px]'));
   assert.equal(panelSource.includes('min-h-[30px]'), false);
-  assert.ok(panelSource.includes('rounded-[17px] border p-3 ${resultTone}'));
+  assert.ok(panelSource.includes("relative isolate rounded-[17px] p-3 ${shouldFlashOverLimit ? 'tqqq-over-limit-flash' : ''} ${resultTone}"));
   assert.ok(panelSource.includes('style={{ left: `clamp(22px, ${displayedBudgetPct}%, calc(100% - 22px))` }}'));
   assert.ok(panelSource.includes('{displayedBudgetLabel}'));
   assert.ok(panelSource.includes('style={{ width: `${displayedBudgetPct}%` }}'));
@@ -337,6 +344,19 @@ test('shows objective buy references only and keeps sell focused on the formal h
   assert.equal(panelSource.includes('text-[23px]'), false);
   assert.equal(panelSource.includes('text-[22px] font-normal tabular-nums'), false);
   assert.equal(/market breadth|市场广度|maximum drawdown|最大回撤/i.test(panelSource), false);
+});
+
+test('keeps approved TQQQ surfaces borderless and omits the redundant lookup hint', () => {
+  assert.ok(panelSource.includes('className="h-[58px] w-[58px] shrink-0 rounded-[15px]"'));
+  assert.ok(panelSource.includes('rounded-lg bg-[#7c3ff2]/25 px-2 py-1'));
+  assert.ok(panelSource.includes('rounded-[14px] bg-white/[0.025] p-1'));
+  assert.equal(panelSource.includes('rounded-[14px] border border-white/[0.08] bg-black/[0.18]'), false);
+  assert.equal(panelSource.includes("tt('trades.systemManagedName'"), false);
+  assert.equal(panelSource.includes('function LookupStatus'), false);
+  assert.equal(panelSource.includes('lookupStatus'), false);
+  assert.equal(tradesTabSource.includes('lookupStatus={lookupStatus}'), false);
+  assert.ok(tradesTabSource.includes("panelClassName={isTqqqTradeEntry || isGenericLedgerTradeEntry ? 'min-h-0 !border-transparent' : 'min-h-0'}"));
+  assert.ok(panelSource.includes('rounded-[14px] bg-emerald-400/[0.065]'));
 });
 
 test('ships every TQQQ-specific visible message in both Chinese and English dictionaries', () => {

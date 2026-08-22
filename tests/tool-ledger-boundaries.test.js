@@ -625,7 +625,7 @@ test('main trade entry modal uses compact four-step buy sell submission flow', (
   assert.ok(tradesTabSource.includes("? 'min-w-0'\n    : 'mb-3 min-w-0 border-b border-white/10 pb-3'"), 'generic formal trade sections should remove dividers while wave sections preserve their existing boundaries');
   assert.equal((tradeModalBlock.match(/className=\{genericTradeSectionClass\}/g) || []).length, 3, 'ticker, price, and date should share the divider-free section rhythm');
   assert.ok(tradeModalBlock.includes("isGenericLedgerTradeEntry ? 'min-w-0 space-y-4' : 'min-w-0'"), 'generic trade sections should use consistent natural spacing after their dividers are removed');
-  assert.ok(tradeModalBlock.includes("panelClassName={isGenericLedgerTradeEntry ? 'min-h-0 !border-transparent' : 'min-h-0'}"), 'generic formal trade panels should match the approved borderless modal shell');
+  assert.ok(tradeModalBlock.includes("panelClassName={isTqqqTradeEntry || isGenericLedgerTradeEntry ? 'min-h-0 !border-transparent' : 'min-h-0'}"), 'generic and TQQQ formal trade panels should match their approved borderless modal shells');
   assert.ok(tradeModalBlock.includes(": (isGenericLedgerTradeEntry ? '!border-transparent' : '')"), 'generic formal trade content should hide only its redundant inner outline');
   assert.equal((tradeModalBlock.match(/\bclassName:/g) || []).length, 1, 'only the isolated TQQQ confirm action may override the shared action palette');
   assert.ok(tradeModalBlock.includes("? '!border-0 !bg-transparent !p-0 !shadow-none'"), 'TQQQ should retain its isolated transparent content shell');

@@ -2,10 +2,8 @@ import React from 'react';
 import {
   AlertCircle,
   CalendarDays,
-  Check,
   CheckCircle2,
   ChevronRight,
-  RefreshCw,
   ShieldCheck,
 } from 'lucide-react';
 import StockLogo, { stockLogoCandidates } from './StockLogo.jsx';
@@ -15,8 +13,8 @@ const INPUT_CLASS = 'block h-[46px] w-full min-w-0 rounded-xl border border-whit
 const LABEL_CLASS = 'mb-1.5 block text-[12px] font-normal text-white/[0.60]';
 
 const TQQQ_NEUTRAL_ACTION_TONE_CLASSES = Object.freeze({
-  selected: 'border border-white/[0.14] bg-[linear-gradient(145deg,rgba(255,255,255,0.105),rgba(255,255,255,0.055))] text-white/[0.90] shadow-[0_8px_22px_rgba(0,0,0,0.18),inset_0_1px_0_rgba(255,255,255,0.055)]',
-  confirm: '!border-white/[0.15] !bg-[linear-gradient(145deg,rgba(255,255,255,0.105),rgba(255,255,255,0.052))] !text-white/[0.88] !shadow-[0_13px_27px_rgba(0,0,0,0.21),inset_0_1px_0_rgba(255,255,255,0.055)]',
+  selected: 'bg-[linear-gradient(145deg,rgba(255,255,255,0.105),rgba(255,255,255,0.055))] text-white/[0.90] shadow-[0_8px_22px_rgba(0,0,0,0.18),inset_0_1px_0_rgba(255,255,255,0.055)]',
+  confirm: '!border-0 !bg-[linear-gradient(145deg,rgba(255,255,255,0.105),rgba(255,255,255,0.052))] !text-white/[0.88] !shadow-[0_13px_27px_rgba(0,0,0,0.21),inset_0_1px_0_rgba(255,255,255,0.055)]',
 });
 
 export const TQQQ_ACTION_TONE_CLASSES = Object.freeze({
@@ -59,31 +57,6 @@ function Metric({ label, value, valueClassName = '', className = '' }) {
         {value}
       </div>
     </div>
-  );
-}
-
-function LookupStatus({ status, tt }) {
-  if (status === 'loading') {
-    return (
-      <span className="inline-flex shrink-0 items-center gap-1 text-sky-300">
-        <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-        <span>{tt('trades.lookupLoading', '查询中')}</span>
-      </span>
-    );
-  }
-  if (status === 'notfound') {
-    return (
-      <span className="inline-flex shrink-0 items-center gap-1 text-amber-300">
-        <AlertCircle className="h-3.5 w-3.5" />
-        <span>{tt('trades.lookupNotFound', '未找到,可手动填')}</span>
-      </span>
-    );
-  }
-  return (
-    <span className="inline-flex shrink-0 items-center gap-1 text-emerald-300">
-      <CheckCircle2 className="h-3.5 w-3.5" />
-      <span>{tt('trades.lookupFound', '已找到')}</span>
-    </span>
   );
 }
 
@@ -151,7 +124,7 @@ function MarketReference({ marketReference, tt }) {
         <span className="text-[10px] text-white/[0.36]">{tt('trades.tqqq.objectiveOnly', '仅展示客观指标,不定义综合市场状态')}</span>
       </div>
 
-      <div className="grid grid-cols-2 rounded-[17px] border border-white/[0.08] bg-white/[0.025] px-2.5 py-2">
+      <div className="grid grid-cols-2 rounded-[17px] bg-white/[0.025] px-2.5 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.025)]">
         <div className="min-w-0 border-r border-white/[0.07] px-2 py-0.5 text-center">
           <div className="flex min-h-[16px] items-center justify-center text-[10px] leading-[14px] text-white/[0.48]">VIX</div>
           <div className="mt-1 text-[16px] font-normal tabular-nums text-white/[0.94]" style={{ fontFamily: NUMBER_FONT }}>
@@ -183,7 +156,6 @@ export default function TqqqTradeEntryPanel({
   onDraftChange,
   preview,
   marketReference,
-  lookupStatus,
   logoCache,
   cacheStockLogo,
   tt,
@@ -203,9 +175,12 @@ export default function TqqqTradeEntryPanel({
   const currentBudgetPct = Number.isFinite(preview.currentBudgetUsage)
     ? Math.max(0, preview.currentBudgetUsage * 100)
     : null;
+  const shouldFlashOverLimit = preview.overLimit && !preview.hardBlocked;
   const resultTone = preview.hardBlocked || preview.overLimit
-    ? 'border-[#ff5b68]/30 bg-[#ff5b68]/[0.065]'
-    : (preview.allocationUnavailable ? 'border-[#f6b54b]/25 bg-[#f6b54b]/[0.055]' : 'border-white/[0.08] bg-white/[0.025]');
+    ? 'bg-[#ff5b68]/[0.065] shadow-[inset_0_1px_0_rgba(255,101,112,0.045)]'
+    : (preview.allocationUnavailable
+      ? 'bg-[#f6b54b]/[0.055] shadow-[inset_0_1px_0_rgba(246,181,75,0.04)]'
+      : 'bg-white/[0.025] shadow-[inset_0_1px_0_rgba(255,255,255,0.025)]');
   const remainingCapacityTone = preview.overLimit
     ? 'text-[#ff6570]'
     : (preview.allocationUnavailable ? 'text-[#f6b54b]' : 'text-emerald-300');
@@ -225,19 +200,19 @@ export default function TqqqTradeEntryPanel({
             symbol="TQQQ"
             urls={logoUrls}
             onLogoLoad={cacheStockLogo}
-            className="h-[58px] w-[58px] shrink-0 rounded-[15px] border border-white/[0.08]"
+            className="h-[58px] w-[58px] shrink-0 rounded-[15px]"
           />
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-[22px] font-normal tracking-[0.02em] text-white">TQQQ</span>
-              <span className="rounded-lg border border-[#8c55f6]/20 bg-[#7c3ff2]/25 px-2 py-1 text-[10px] text-[#d9c9ff]">
+              <span className="rounded-lg bg-[#7c3ff2]/25 px-2 py-1 text-[10px] text-[#d9c9ff]">
                 {tt('trades.tqqq.toolTag', '极端行情工具')}
               </span>
             </div>
             <div className="mt-0.5 truncate text-[11px] text-white/[0.48]">ProShares UltraPro QQQ · 3x Nasdaq-100</div>
           </div>
         </div>
-        <div className="grid shrink-0 grid-cols-2 gap-1 rounded-[14px] border border-white/[0.08] bg-black/[0.18] p-1 sm:w-[220px]">
+        <div className="grid shrink-0 grid-cols-2 gap-1 rounded-[14px] bg-white/[0.025] p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.025)] sm:w-[220px]">
           {['buy', 'sell'].map((option) => {
             const selected = side === option;
             const selectedClass = TQQQ_ACTION_TONE_CLASSES[option].selected;
@@ -254,14 +229,6 @@ export default function TqqqTradeEntryPanel({
             );
           })}
         </div>
-      </div>
-
-      <div className="flex min-h-9 items-center justify-between gap-2 rounded-xl bg-white/[0.04] px-3 text-[10px] text-white/[0.56]">
-        <span className="inline-flex min-w-0 items-center gap-2 truncate">
-          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-300"><Check className="h-3 w-3" /></span>
-          {tt('trades.systemManagedName', '名称和现价由系统自动识别')}
-        </span>
-        <LookupStatus status={lookupStatus} tt={tt} />
       </div>
 
       <div className="grid min-w-0 grid-cols-2 gap-2.5">
@@ -319,7 +286,7 @@ export default function TqqqTradeEntryPanel({
           </span>
         </div>
 
-        <div className={`rounded-[17px] border p-3 ${resultTone}`}>
+        <div className={`relative isolate rounded-[17px] p-3 ${shouldFlashOverLimit ? 'tqqq-over-limit-flash' : ''} ${resultTone}`}>
           {side === 'buy' ? (
             <div className="grid grid-cols-4">
               <Metric className="border-r border-white/[0.07]" label={tt('trades.tqqq.currentAllocation', '当前仓位')} value={formatPercent(preview.currentAllocation)} />
@@ -370,7 +337,7 @@ export default function TqqqTradeEntryPanel({
         </div>
 
         {side === 'sell' && (
-          <div className="flex items-start gap-2.5 rounded-[14px] border border-emerald-400/15 bg-emerald-400/[0.065] px-3.5 py-3 text-[10px] leading-[16px] text-white/[0.52]">
+          <div className="flex items-start gap-2.5 rounded-[14px] bg-emerald-400/[0.065] px-3.5 py-3 text-[10px] leading-[16px] text-white/[0.52] shadow-[inset_0_1px_0_rgba(110,231,183,0.025)]">
             <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" />
             <span>
               <strong className="block font-normal text-white/[0.86]">{tt('trades.tqqq.sellRuleTitle', '卖出只校验正式持仓与可卖股数')}</strong>

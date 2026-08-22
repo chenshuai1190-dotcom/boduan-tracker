@@ -2194,7 +2194,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
             closeLabel={tt('trades.closeTradeForm', '关闭交易表单')}
             onClose={() => !tradeSubmitting && setShowAddTrade(false)}
             widthClassName={isTqqqTradeEntry ? 'w-[calc(100vw-24px)] max-w-[720px]' : 'w-[calc(100vw-24px)] max-w-md'}
-            panelClassName={isGenericLedgerTradeEntry ? 'min-h-0 !border-transparent' : 'min-h-0'}
+            panelClassName={isTqqqTradeEntry || isGenericLedgerTradeEntry ? 'min-h-0 !border-transparent' : 'min-h-0'}
             contentClassName={isTqqqTradeEntry
               ? '!border-0 !bg-transparent !p-0 !shadow-none'
               : (isGenericLedgerTradeEntry ? '!border-transparent' : '')}
@@ -2217,7 +2217,6 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                 onDraftChange={setNewTrade}
                 preview={tqqqTradePreview}
                 marketReference={tqqqMarketReference}
-                lookupStatus={lookupStatus}
                 logoCache={logoCache}
                 cacheStockLogo={cacheStockLogo}
                 tt={tt}
