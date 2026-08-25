@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '🎨 收益分享图改用红涨绿跌配色',
+      '  - 盈利金额与收益率显示系统红色，亏损显示系统绿色，零值与不可用数据保持中性白色',
+      '  - 分享图顶部移除“隐私分享”文字和锁图标，保留更简洁的 Quote 标识与时间信息',
+      '  - 收益公式、隐私字段白名单、PNG 保存分享、正式交易账本及其他模块均未改变',
+    ],
+    itemsEn: [
+      '🎨 P&L share images now use red-up and green-down colors',
+      '  - Positive amounts and returns use the system red, losses use the system green, and zero or unavailable values remain neutral white',
+      '  - The Privacy Share label and lock icon are removed from the image header, leaving a cleaner Quote mark and timestamp',
+      '  - Return formulas, the privacy field allowlist, PNG saving and sharing, the formal trading ledger, and all other modules are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.467', date: '2026-08-25',
+    items: [
       '📷 交易页新增隐私收益分享图',
       '  - 点击顶部“今日盈亏”可进入独立分享页，切换当日收益、持仓收益或累计盈亏，并生成 1200×1600 高清 PNG',
       '  - 分享图只包含已选收益指标和生成时间，不包含账户、总资产、持仓明细或交易记录',

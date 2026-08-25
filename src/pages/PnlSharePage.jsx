@@ -106,9 +106,8 @@ export default function PnlSharePage({
     locale,
     unavailableText,
   });
-  const { amountText, percentText } = selectedPresentation;
+  const { amountText, percentText, amountTone, percentTone } = selectedPresentation;
   const marketLabel = tt('pnlShare.usMarket', '美股市场');
-  const privacyLabel = tt('pnlShare.privacyLabel', '隐私分享');
   const imageTitle = tt('pnlShare.title', '收益分享');
   const accessibilityLabel = `${imageTitle} · ${metricLabel} · ${amountText} · ${percentText}`;
   const generatedAt = new Date(shareSnapshot.capturedAt);
@@ -129,12 +128,13 @@ export default function PnlSharePage({
   const renderKey = [
     selectedMetric,
     displayCurrency,
-    privacyLabel,
     generatedText,
     marketLabel,
     metricLabel,
     amountText,
     percentText,
+    amountTone,
+    percentTone,
     fileName,
   ].join('\u0000');
 
@@ -148,12 +148,13 @@ export default function PnlSharePage({
 
     try {
       renderPnlShareCanvas(canvas, {
-        privacyLabel,
         generatedText,
         marketLabel,
         metricLabel,
         amountText,
         percentText,
+        amountTone,
+        percentTone,
         accessibilityLabel,
       });
 
@@ -177,7 +178,7 @@ export default function PnlSharePage({
       return undefined;
     }
     return undefined;
-  }, [accessibilityLabel, amountText, fileName, generatedText, marketLabel, metricLabel, percentText, privacyLabel, renderKey]);
+  }, [accessibilityLabel, amountText, amountTone, fileName, generatedText, marketLabel, metricLabel, percentText, percentTone, renderKey]);
 
   const downloadAsset = React.useCallback((asset) => {
     if (!asset?.blob || typeof document === 'undefined' || typeof URL === 'undefined') return false;

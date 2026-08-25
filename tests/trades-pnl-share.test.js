@@ -7,6 +7,7 @@ import {
   createPnlShareRenderModel,
   PNL_SHARE_IMAGE_HEIGHT,
   PNL_SHARE_IMAGE_WIDTH,
+  pnlShareToneColor,
   renderPnlShareCanvas,
 } from '../src/lib/pnlShareImage.js';
 
@@ -36,7 +37,7 @@ function createCanvasRecorder() {
     createRadialGradient() { return gradient; },
     fill() {},
     fillRect() {},
-    fillText(value) { text.push(String(value)); },
+    fillText(value) { text.push({ value: String(value), color: this.fillStyle }); },
     lineTo() {},
     measureText(value) { return { width: String(value).length * 56 }; },
     moveTo() {},
@@ -101,6 +102,8 @@ test('share metrics reuse the formal summary and convert money without changing 
     available: true,
     amountText: '+$10.00',
     percentText: '+2.00%',
+    amountTone: 'gain',
+    percentTone: 'gain',
   });
   assert.deepEqual(buildPnlShareMetricPresentation({
     summary,
@@ -112,11 +115,15 @@ test('share metrics reuse the formal summary and convert money without changing 
     available: true,
     amountText: '+¥1,440.00',
     percentText: '+10.00%',
+    amountTone: 'gain',
+    percentTone: 'gain',
   });
   assert.deepEqual(buildPnlShareMetricPresentation({ summary, metricId: 'total', locale: 'en-US' }), {
     available: true,
     amountText: '+$700.00',
     percentText: '+46.67%',
+    amountTone: 'gain',
+    percentTone: 'gain',
   });
 
   assert.deepEqual(buildPnlShareMetricPresentation({
@@ -127,6 +134,8 @@ test('share metrics reuse the formal summary and convert money without changing 
     available: true,
     amountText: '-$50.00',
     percentText: '-2.50%',
+    amountTone: 'loss',
+    percentTone: 'loss',
   });
   assert.deepEqual(buildPnlShareMetricPresentation({
     summary: { holdingPnl: 0, holdingPnlPct: 0 },
@@ -136,6 +145,8 @@ test('share metrics reuse the formal summary and convert money without changing 
     available: true,
     amountText: '+$0.00',
     percentText: '+0.00%',
+    amountTone: 'neutral',
+    percentTone: 'neutral',
   });
   assert.deepEqual(buildPnlShareMetricPresentation({
     summary: { holdingPnl: -0.001, holdingPnlPct: -0.000001 },
@@ -145,6 +156,31 @@ test('share metrics reuse the formal summary and convert money without changing 
     available: true,
     amountText: '+$0.00',
     percentText: '+0.00%',
+    amountTone: 'neutral',
+    percentTone: 'neutral',
+  });
+
+  assert.deepEqual(buildPnlShareMetricPresentation({
+    summary: { holdingPnl: -0.004, holdingPnlPct: -0.0004 },
+    metricId: 'holding',
+    locale: 'en-US',
+  }), {
+    available: true,
+    amountText: '+$0.00',
+    percentText: '-0.04%',
+    amountTone: 'neutral',
+    percentTone: 'loss',
+  });
+  assert.deepEqual(buildPnlShareMetricPresentation({
+    summary: { holdingPnl: 20, holdingPnlPct: null },
+    metricId: 'holding',
+    locale: 'en-US',
+  }), {
+    available: true,
+    amountText: '+$20.00',
+    percentText: '暂不可用',
+    amountTone: 'gain',
+    percentTone: 'neutral',
   });
 });
 
@@ -159,17 +195,20 @@ test('an unavailable daily result stays unavailable instead of becoming zero', (
     available: false,
     amountText: '—',
     percentText: '暂不可用',
+    amountTone: 'neutral',
+    percentTone: 'neutral',
   });
 });
 
 test('the renderer fixes the PNG canvas at 1200 by 1600 and ignores unknown private fields', () => {
   const input = {
-    privacyLabel: '隐私分享',
     generatedText: '生成于 2026-08-25 21:30',
     marketLabel: '美股',
     metricLabel: '持仓收益',
     amountText: '+$200.00',
     percentText: '+10.00%',
+    amountTone: 'gain',
+    percentTone: 'gain',
     accountName: 'PRIVATE ACCOUNT',
     totalAssets: 'PRIVATE TOTAL ASSETS',
     symbol: 'PRIVATE SYMBOL',
@@ -177,12 +216,13 @@ test('the renderer fixes the PNG canvas at 1200 by 1600 and ignores unknown priv
   };
   const model = createPnlShareRenderModel(input);
   assert.deepEqual(Object.keys(model), [
-    'privacyLabel',
     'generatedText',
     'marketLabel',
     'metricLabel',
     'amountText',
     'percentText',
+    'amountTone',
+    'percentTone',
     'accessibilityLabel',
   ]);
 
@@ -192,9 +232,40 @@ test('the renderer fixes the PNG canvas at 1200 by 1600 and ignores unknown priv
   assert.equal(PNL_SHARE_IMAGE_HEIGHT, 1600);
   assert.equal(canvas.width, 1200);
   assert.equal(canvas.height, 1600);
-  assert.ok(text.includes('+$200.00'));
-  assert.ok(text.includes('+10.00%'));
-  assert.equal(text.some(value => value.includes('PRIVATE')), false);
+  assert.deepEqual(text.find(item => item.value === '+$200.00'), {
+    value: '+$200.00',
+    color: '#ff4b1f',
+  });
+  assert.deepEqual(text.find(item => item.value === '+10.00%'), {
+    value: '+10.00%',
+    color: '#ff4b1f',
+  });
+  assert.equal(text.some(item => item.value.includes('PRIVATE')), false);
+
+  const lossInput = {
+    metricLabel: '持仓收益',
+    amountText: '-$0.01',
+    percentText: '+0.00%',
+    amountTone: 'loss',
+    percentTone: 'neutral',
+  };
+  const lossRecorder = createCanvasRecorder();
+  renderPnlShareCanvas(lossRecorder.canvas, lossInput);
+  assert.deepEqual(lossRecorder.text.find(item => item.value === '-$0.01'), {
+    value: '-$0.01',
+    color: '#22c55e',
+  });
+  assert.deepEqual(lossRecorder.text.find(item => item.value === '+0.00%'), {
+    value: '+0.00%',
+    color: 'rgba(255,255,255,0.94)',
+  });
+});
+
+test('share-image tones use fixed red-up green-down colors and keep neutral values white', () => {
+  assert.equal(pnlShareToneColor('gain'), '#ff4b1f');
+  assert.equal(pnlShareToneColor('loss'), '#22c55e');
+  assert.equal(pnlShareToneColor('neutral'), 'rgba(255,255,255,0.94)');
+  assert.equal(pnlShareToneColor('unknown'), 'rgba(255,255,255,0.94)');
 });
 
 test('sharing is local-only, pre-generates the file, and safely handles iOS cancellation and downloads', () => {
@@ -233,6 +304,8 @@ test('sharing is local-only, pre-generates the file, and safely handles iOS canc
 
   assert.equal(pageSource.includes('让结果留下，让情绪过去'), false);
   assert.equal(pageSource.includes('账户持仓总资产'), false);
+  assert.equal(pageSource.includes("tt('pnlShare.privacyLabel'"), false);
+  assert.equal(imageSource.includes('drawPrivacyLock'), false);
   assert.ok(imageSource.includes('drawWarmGoldMotif'));
   assert.equal(imageSource.includes('收益走势'), false);
 });

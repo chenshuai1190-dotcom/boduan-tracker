@@ -1,3 +1,5 @@
+import { MARKET_COLOR_MODES, marketHexColor } from './marketColorMode.js';
+
 export const PNL_SHARE_IMAGE_WIDTH = 1200;
 export const PNL_SHARE_IMAGE_HEIGHT = 1600;
 export const PNL_SHARE_IMAGE_MIME_TYPE = 'image/png';
@@ -38,6 +40,25 @@ function safeText(value, fallback = '', maxLength = 80) {
   return (text || fallback).slice(0, maxLength);
 }
 
+function normalizeMetricTone(value) {
+  return value === 'gain' || value === 'loss' ? value : 'neutral';
+}
+
+function metricTone(value, multiplier) {
+  const rounded = Number((Number(value) * multiplier).toFixed(2));
+  if (!Number.isFinite(rounded) || rounded === 0) return 'neutral';
+  return rounded > 0 ? 'gain' : 'loss';
+}
+
+export function pnlShareToneColor(tone) {
+  const normalizedTone = normalizeMetricTone(tone);
+  if (normalizedTone === 'neutral') return 'rgba(255,255,255,0.94)';
+  return marketHexColor(
+    normalizedTone === 'gain' ? 1 : -1,
+    MARKET_COLOR_MODES.RED_UP_GREEN_DOWN,
+  );
+}
+
 function roundedRect(context, x, y, width, height, radius) {
   const resolvedRadius = Math.max(0, Math.min(radius, width / 2, height / 2));
   context.beginPath();
@@ -70,20 +91,6 @@ function drawCenteredFittedText(context, text, centerX, y, {
     context.font = `${fontWeight} ${resolvedSize}px ${CANVAS_FONT}`;
   }
   context.fillText(text, centerX, y);
-}
-
-function drawPrivacyLock(context, x, y) {
-  context.save();
-  context.strokeStyle = 'rgba(255,255,255,0.48)';
-  context.fillStyle = 'rgba(255,255,255,0.055)';
-  context.lineWidth = 3;
-  context.beginPath();
-  context.arc(x + 13, y + 12, 9, Math.PI, 0);
-  context.stroke();
-  roundedRect(context, x, y + 11, 26, 22, 7);
-  context.fill();
-  context.stroke();
-  context.restore();
 }
 
 function drawWarmGoldMotif(context) {
@@ -123,12 +130,13 @@ function drawWarmGoldMotif(context) {
  */
 export function createPnlShareRenderModel(input = {}) {
   return Object.freeze({
-    privacyLabel: safeText(input.privacyLabel, '', 32),
     generatedText: safeText(input.generatedText, '', 72),
     marketLabel: safeText(input.marketLabel, '', 40),
     metricLabel: safeText(input.metricLabel, '', 40),
     amountText: safeText(input.amountText, '—', 48),
     percentText: safeText(input.percentText, '—', 28),
+    amountTone: normalizeMetricTone(input.amountTone),
+    percentTone: normalizeMetricTone(input.percentTone),
     accessibilityLabel: safeText(input.accessibilityLabel, '', 120),
   });
 }
@@ -177,6 +185,8 @@ export function buildPnlShareMetricPresentation({
     percentText: available && isFiniteMetric(percent)
       ? formatSignedPercent(percent)
       : safeText(unavailableText, '暂不可用', 40),
+    amountTone: available ? metricTone(amount, displayRate) : 'neutral',
+    percentTone: available && isFiniteMetric(percent) ? metricTone(percent, 100) : 'neutral',
   });
 }
 
@@ -219,11 +229,6 @@ export function renderPnlShareCanvas(canvas, input = {}) {
   context.font = `600 48px ${CANVAS_FONT}`;
   context.fillText('Quote', 130, 172);
 
-  drawPrivacyLock(context, 840, 126);
-  context.fillStyle = 'rgba(255,255,255,0.54)';
-  context.font = `500 27px ${CANVAS_FONT}`;
-  context.fillText(model.privacyLabel, 882, 159);
-
   context.fillStyle = 'rgba(255,255,255,0.34)';
   context.font = `400 25px ${CANVAS_FONT}`;
   context.fillText(model.generatedText, 130, 230);
@@ -241,14 +246,14 @@ export function renderPnlShareCanvas(canvas, input = {}) {
   context.fillText(model.metricLabel, 600, 470);
 
   drawCenteredFittedText(context, model.amountText, 600, 665, {
-    color: 'rgba(255,255,255,0.94)',
+    color: pnlShareToneColor(model.amountTone),
     fontSize: 112,
     fontWeight: 640,
     maxWidth: 880,
     minFontSize: 62,
   });
   drawCenteredFittedText(context, model.percentText, 600, 765, {
-    color: '#f6b54b',
+    color: pnlShareToneColor(model.percentTone),
     fontSize: 48,
     fontWeight: 580,
     maxWidth: 760,
