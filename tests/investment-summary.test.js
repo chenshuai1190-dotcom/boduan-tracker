@@ -53,11 +53,14 @@ test('effective cost is diluted by realized sell profit for remaining shares', (
 });
 
 test('active holding pnl resets after a full close and new buy cycle', () => {
-  const positions = derivePositionsFromTrades([
+  const stockTrades = [
     { id: 1, symbol: 'NVDA', name: '英伟达', side: 'buy', date: '2026-01-01', price: 100, shares: 10 },
     { id: 2, symbol: 'NVDA', name: '英伟达', side: 'sell', date: '2026-01-02', price: 150, shares: 10 },
     { id: 3, symbol: 'NVDA', name: '英伟达', side: 'buy', date: '2026-01-03', price: 200, shares: 10 },
-  ], [{ symbol: 'NVDA', name: '英伟达', price: 220, previousClose: 219 }]);
+  ];
+  const nvdaWatchlist = [{ symbol: 'NVDA', name: '英伟达', price: 220, previousClose: 219 }];
+  const positions = derivePositionsFromTrades(stockTrades, nvdaWatchlist);
+  const summary = deriveInvestmentSummary({ stockTrades, watchlist: nvdaWatchlist });
 
   assert.equal(positions.length, 1);
   assert.equal(positions[0].heldShares, 10);
@@ -67,7 +70,22 @@ test('active holding pnl resets after a full close and new buy cycle', () => {
   assert.equal(positions[0].holdingPnl, 200);
   assert.equal(positions[0].totalPnl, 700);
   assert.equal(positions[0].effectiveCost, 200);
+  assert.equal(positions[0].holdingReturnCostBasis, 2000);
   assert.equal(positions[0].holdingPnlPct, 200 / 2000);
+  assert.equal(summary.holdingPnl, 200);
+  assert.equal(summary.holdingReturnCostBasis, 2000);
+  assert.equal(summary.holdingPnlPct, 0.1);
+  assert.equal(summary.cumulativePnl, 700);
+  assert.equal(summary.cumulativePnlPct, 700 / 1500);
+  assert.notEqual(summary.holdingPnlPct, summary.cumulativePnlPct);
+});
+
+test('investment summary safely returns zero holding rate when holding basis is zero', () => {
+  const summary = deriveInvestmentSummary({ stockTrades: [], watchlist: [] });
+
+  assert.equal(summary.holdingPnl, 0);
+  assert.equal(summary.holdingReturnCostBasis, 0);
+  assert.equal(summary.holdingPnlPct, 0);
 });
 
 test('investment summary counts held stocks and sell records only', () => {
@@ -90,6 +108,8 @@ test('investment summary counts held stocks and sell records only', () => {
   assert.equal(summary.realizedPnl, 80);
   assert.equal(summary.unrealizedPnl, 140);
   assert.equal(summary.holdingPnl, 220);
+  assert.equal(summary.holdingReturnCostBasis, 920);
+  assert.equal(summary.holdingPnlPct, 220 / 920);
   assert.equal(summary.cumulativePnl, 220);
   assert.equal(summary.returnCostBasis, 920);
   assert.equal(summary.cumulativePnlPct, 220 / 920);

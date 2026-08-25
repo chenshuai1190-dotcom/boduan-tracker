@@ -12,8 +12,8 @@ test('watchlist stock detail has an isolated standalone page route', () => {
   assert.ok(appSource.includes("setActivePage('watchlist-stock-detail')"));
   assert.ok(appSource.includes("activePage === 'watchlist-stock-detail'"));
   assert.ok(appSource.includes('<WatchlistStockDetailPage ctx={tabCtx} />'));
-  assert.ok(appSource.includes('isStandalonePage = isPnlReportPage || isHomeMarginRiskPage || isStockDetailPage || isWatchlistStockDetailPage'));
-  assert.ok(appSource.includes('hideBottomNavigation = isPnlReportPage;'), 'only the P&L report should hide the bottom navigation');
+  assert.ok(appSource.includes('isStandalonePage = isPnlReportPage || isPnlSharePage || isHomeMarginRiskPage || isStockDetailPage || isWatchlistStockDetailPage'));
+  assert.ok(appSource.includes('hideBottomNavigation = isPnlReportPage || isPnlSharePage;'), 'only the P&L report and share page should hide the bottom navigation');
   assert.equal(appSource.includes('hideBottomNavigation = isPnlReportPage || isHomeMarginRiskPage'), false, 'margin and watchlist detail pages must keep the bottom navigation');
 
   assert.ok(appSource.includes("setActivePage('stock-detail')"), 'the existing P&L stock-detail route must remain intact');

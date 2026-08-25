@@ -37,6 +37,7 @@ const AnalysisTab = lazy(() => import('./tabs/AnalysisTab.jsx'));
 const ReviewTab = lazy(() => import('./tabs/ReviewTab.jsx'));
 const SettingsTab = lazy(() => import('./tabs/SettingsTab.jsx'));
 const PnlReportPage = lazy(() => import('./pages/PnlReportPage.jsx'));
+const PnlSharePage = lazy(() => import('./pages/PnlSharePage.jsx'));
 const HomeMarginRiskPage = lazy(() => import('./pages/HomeMarginRiskPage.jsx'));
 const StockDetailPage = lazy(() => import('./pages/StockDetailPage.jsx'));
 const WatchlistStockDetailPage = lazy(() => import('./pages/WatchlistStockDetailPage.jsx'));
@@ -5020,6 +5021,12 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   const closePnlReport = useCallback(() => {
     setActivePage(null);
   }, []);
+  const openPnlShare = useCallback(() => {
+    setActivePage('pnl-share');
+  }, []);
+  const closePnlShare = useCallback(() => {
+    setActivePage(null);
+  }, []);
   const openHomeMarginRisk = useCallback(() => {
     setActivePage('home-margin-risk');
   }, []);
@@ -5225,6 +5232,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
 
 
   const isPnlReportPage = activePage === 'pnl-report';
+  const isPnlSharePage = activePage === 'pnl-share';
   const isHomeMarginRiskPage = activePage === 'home-margin-risk';
   const isStockDetailPage = activePage === 'stock-detail';
   const isWatchlistStockDetailPage = activePage === 'watchlist-stock-detail';
@@ -5232,9 +5240,9 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   const isCommunityCompetitionPage = activePage === 'community-competition';
   const isEarningsCalendarPage = activePage === 'earnings-calendar';
   const isEarningsDetailPage = activePage === 'earnings-detail';
-  const isStandalonePage = isPnlReportPage || isHomeMarginRiskPage || isStockDetailPage || isWatchlistStockDetailPage || isWaveTrackerPage || isCommunityCompetitionPage || isEarningsCalendarPage || isEarningsDetailPage;
-  const isFullBleedPage = isCommunityCompetitionPage || isEarningsCalendarPage || isEarningsDetailPage;
-  const hideBottomNavigation = isPnlReportPage;
+  const isStandalonePage = isPnlReportPage || isPnlSharePage || isHomeMarginRiskPage || isStockDetailPage || isWatchlistStockDetailPage || isWaveTrackerPage || isCommunityCompetitionPage || isEarningsCalendarPage || isEarningsDetailPage;
+  const isFullBleedPage = isPnlSharePage || isCommunityCompetitionPage || isEarningsCalendarPage || isEarningsDetailPage;
+  const hideBottomNavigation = isPnlReportPage || isPnlSharePage;
   const ActiveTab = TAB_COMPONENTS[activeTab] || HomeTab;
   const settingsTabCtx = useMemo(() => ({
     accountManager,
@@ -5420,6 +5428,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     onLogout,
     openHomeMarginRisk,
     openPnlReport,
+    openPnlShare,
     pnlReportRefreshVersion,
     openStockDetail,
     openWatchlistStockDetail,
@@ -5730,6 +5739,16 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
         <Suspense fallback={<TabFallback />}>
           {isPnlReportPage
             ? <PnlReportPage ctx={tabCtx} />
+            : isPnlSharePage
+              ? (
+                <PnlSharePage
+                  onClose={closePnlShare}
+                  investmentSummary={investmentSummary}
+                  language={language}
+                  portfolioCurrencyMode={portfolioCurrencyMode}
+                  usdRate={usdRate}
+                />
+              )
             : isHomeMarginRiskPage
               ? <HomeMarginRiskPage ctx={tabCtx} />
               : isStockDetailPage

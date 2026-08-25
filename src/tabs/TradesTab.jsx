@@ -454,6 +454,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
     newTrade,
     openStockDetail,
     openPnlReport,
+    openPnlShare,
     openHomeMarginRisk,
     openWaveTracker,
     openCommunityCompetition,
@@ -997,7 +998,13 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
           <div
             className="mt-4 grid grid-cols-[1fr_1.12fr_0.96fr] border-t border-white/[0.07] pt-4"
           >
-            <div className="min-w-0 pr-3">
+            <button
+              type="button"
+              onClick={openPnlShare}
+              className="block min-w-0 pr-3 text-left transition active:scale-[0.99]"
+              aria-label={tt('trades.openPnlShare', '分享今日盈亏')}
+              data-trades-pnl-share-trigger="true"
+            >
               <div className="text-[13px] text-white/50">{tt('trades.todayPnl', '今日盈亏')}</div>
               <div className={`mt-2 whitespace-nowrap ${pnlAmountClass} font-normal leading-tight tabular-nums ${pnlClass(hasTodayPnl ? displayTodayPnl : 0, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
                 {hasTodayPnl ? signedCurrency(displayTodayPnl, displayCurrency, 2) : '--'}
@@ -1008,7 +1015,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                   <span className="text-[11px] text-[#6f7785]">{tt('trades.pnlLocked', '收盘锁定')}</span>
                 )}
               </div>
-            </div>
+            </button>
             <button type="button" onClick={openPnlReport} className="block min-w-0 px-3 text-left transition active:scale-[0.99]">
               <div className="flex items-center gap-0.5 text-[13px] text-white/50">
                 <span>{tt('trades.totalPnl', '累计盈亏')}</span>

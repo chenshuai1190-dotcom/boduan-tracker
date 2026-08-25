@@ -33,6 +33,7 @@ const ReviewTab = lazy(() => import('./tabs/ReviewTab.jsx'));
 const SettingsTab = lazy(() => import('./tabs/SettingsTab.jsx'));
 const TradesTab = lazy(() => import('./tabs/TradesTab.jsx'));
 const PnlReportPage = lazy(() => import('./pages/PnlReportPage.jsx'));
+const PnlSharePage = lazy(() => import('./pages/PnlSharePage.jsx'));
 const HomeMarginRiskPage = lazy(() => import('./pages/HomeMarginRiskPage.jsx'));
 const StockDetailPage = lazy(() => import('./pages/StockDetailPage.jsx'));
 const WatchlistStockDetailPage = lazy(() => import('./pages/WatchlistStockDetailPage.jsx'));
@@ -1693,7 +1694,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     const params = new URLSearchParams(window.location.search);
     if (['risk', 'editor', 'leverage'].includes(params.get('homeMargin'))) return 'home-margin-risk';
     const requestedTab = params.get('tab');
-    return ['home', 'trades', 'analysis', 'review', 'settings', 'pnl-report', 'home-margin-risk', 'stock-detail', 'watchlist-stock-detail', 'wave-tracker', 'community-competition'].includes(requestedTab) ? requestedTab : 'analysis';
+    return ['home', 'trades', 'analysis', 'review', 'settings', 'pnl-report', 'pnl-share', 'home-margin-risk', 'stock-detail', 'watchlist-stock-detail', 'wave-tracker', 'community-competition'].includes(requestedTab) ? requestedTab : 'analysis';
   });
   const [previewWatchlistDetailSymbol, setPreviewWatchlistDetailSymbol] = React.useState('NVDA');
   const [previewEarningsDetailEvent, setPreviewEarningsDetailEvent] = React.useState(() => (
@@ -2912,6 +2913,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
       cumulativePnl: tradeHoldingPnl,
       cumulativePnlPct: 0.064,
       holdingPnl: tradeHoldingPnl,
+      holdingPnlPct: 0.064,
       holdingStockCount: tradeActivePositions.length,
       sellTradeCount: 0,
       hasTodayPnl: true,
@@ -2930,6 +2932,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
       setActiveTab('settings');
     },
     openPnlReport: () => setActiveTab('pnl-report'),
+    openPnlShare: () => setActiveTab('pnl-share'),
     openHomeMarginRisk: () => setActiveTab('home-margin-risk'),
     openStockDetail: noop,
     openWaveTracker: () => setActiveTab('wave-tracker'),
@@ -3089,9 +3092,9 @@ function StandardDevVisualPreview({ initialTab = '' }) {
 
   return (
     <div
-      className={`min-h-screen bg-[#05070b] text-white ${activeTab === 'pnl-report' ? 'pb-0' : 'pb-24'} ${['pnl-report', 'stock-detail', 'community-competition', 'earnings-detail'].includes(activeTab) ? 'px-0' : 'px-4'}`}
+      className={`min-h-screen bg-[#05070b] text-white ${['pnl-report', 'pnl-share'].includes(activeTab) ? 'pb-0' : 'pb-24'} ${['pnl-report', 'pnl-share', 'stock-detail', 'community-competition', 'earnings-detail'].includes(activeTab) ? 'px-0' : 'px-4'}`}
       style={{
-        paddingTop: ['home-margin-risk', 'wave-tracker', 'community-competition', 'watchlist-stock-detail', 'earnings-detail'].includes(activeTab) ? 0 : 'calc(1rem + env(safe-area-inset-top))',
+        paddingTop: ['pnl-share', 'home-margin-risk', 'wave-tracker', 'community-competition', 'watchlist-stock-detail', 'earnings-detail'].includes(activeTab) ? 0 : 'calc(1rem + env(safe-area-inset-top))',
         ...(visualViewportWidth
           ? { marginInline: 'auto', maxWidth: '100%', width: `${visualViewportWidth}px` }
           : {}),
@@ -3100,6 +3103,16 @@ function StandardDevVisualPreview({ initialTab = '' }) {
       <Suspense fallback={<div className="py-12 text-center text-sm text-white/45">加载本地预览...</div>}>
         {activeTab === 'pnl-report'
           ? <PnlReportPage ctx={homeCtx} />
+          : activeTab === 'pnl-share'
+          ? (
+            <PnlSharePage
+              onClose={() => setActiveTab('trades')}
+              investmentSummary={tradesCtx.investmentSummary}
+              language={language}
+              portfolioCurrencyMode={tradeCurrencyMode}
+              usdRate={USD_RATE}
+            />
+          )
           : activeTab === 'home-margin-risk'
           ? <HomeMarginRiskPage ctx={homeCtx} />
           : activeTab === 'stock-detail'
@@ -3131,7 +3144,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
         onConfirm={submitPreviewConfirm}
       />
 
-      {activeTab !== 'pnl-report' && (
+      {activeTab !== 'pnl-report' && activeTab !== 'pnl-share' && (
       <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/10 bg-[#070a0f] shadow-2xl" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
         <div className="mx-auto max-w-5xl">
           <div className="grid grid-cols-5">
@@ -3195,5 +3208,5 @@ export default function DevVisualPreview() {
     return <StandardDevVisualPreview initialTab="earnings-detail" />;
   }
 
-  return <StandardDevVisualPreview initialTab={preview === 'wave-v2' ? 'wave-tracker' : preview === 'community-competition' ? 'community-competition' : ''} />;
+  return <StandardDevVisualPreview initialTab={preview === 'wave-v2' ? 'wave-tracker' : preview === 'community-competition' ? 'community-competition' : preview === 'pnl-share' ? 'pnl-share' : ''} />;
 }

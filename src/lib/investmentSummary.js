@@ -186,6 +186,7 @@ export function derivePositionsFromTrades(trades = [], watchlist = []) {
       remainingCost,
       effectiveRemainingCost,
       returnCostBasis,
+      holdingReturnCostBasis,
       totalBuyCost,
       sellProceeds,
       soldCost,
@@ -239,6 +240,10 @@ export function deriveInvestmentSummary({
   const cumulativePnl = realizedPnl + unrealizedPnl;
   const totalBuyCost = positions.reduce((sum, position) => sum + position.totalBuyCost, 0);
   const remainingCost = activePositions.reduce((sum, position) => sum + position.remainingCost, 0);
+  const holdingReturnCostBasis = activePositions.reduce(
+    (sum, position) => sum + position.holdingReturnCostBasis,
+    0,
+  );
   const rawReturnCostBasis = positionsMarketValue - cumulativePnl;
   const returnCostBasis = rawReturnCostBasis > 0 ? rawReturnCostBasis : remainingCost;
   const todayPnlUnavailableCount = activePositions.reduce((sum, position) => sum + (position.hasTodayPnl ? 0 : 1), 0);
@@ -267,6 +272,8 @@ export function deriveInvestmentSummary({
     realizedPnl,
     unrealizedPnl,
     holdingPnl,
+    holdingReturnCostBasis,
+    holdingPnlPct: holdingReturnCostBasis > 0 ? holdingPnl / holdingReturnCostBasis : 0,
     cumulativePnl,
     cumulativePnlPct: returnCostBasis > 0 ? cumulativePnl / returnCostBasis : 0,
     holdingStockCount: activePositions.length,

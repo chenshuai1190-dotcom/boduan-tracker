@@ -70,8 +70,8 @@ test('Home margin risk uses a standalone page while keeping the bottom navigatio
   assert.ok(appSource.includes("setActivePage('home-margin-risk')"), 'Home must open the margin experience through page-level navigation');
   assert.ok(appSource.includes("activePage === 'home-margin-risk'"));
   assert.ok(appSource.includes('<HomeMarginRiskPage ctx={tabCtx} />'));
-  assert.ok(appSource.includes('isStandalonePage = isPnlReportPage || isHomeMarginRiskPage'), 'the page must receive the standalone safe-area shell');
-  assert.ok(appSource.includes('hideBottomNavigation = isPnlReportPage;'), 'only the P&L report should hide the bottom tabs');
+  assert.ok(appSource.includes('isStandalonePage = isPnlReportPage || isPnlSharePage || isHomeMarginRiskPage'), 'the page must receive the standalone safe-area shell');
+  assert.ok(appSource.includes('hideBottomNavigation = isPnlReportPage || isPnlSharePage;'), 'only the P&L report and share page should hide the bottom tabs');
   assert.equal(appSource.includes('hideBottomNavigation = isPnlReportPage || isHomeMarginRiskPage'), false, 'the margin page must keep the bottom navigation');
   assert.ok(appSource.includes("hideBottomNavigation ? 'pb-0' : 'pb-24'"));
   assert.ok(appSource.includes('{!hideBottomNavigation && ('), 'the hidden-tab rule must drive the real bottom navigation');

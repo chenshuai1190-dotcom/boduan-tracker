@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '📷 交易页新增隐私收益分享图',
+      '  - 点击顶部“今日盈亏”可进入独立分享页，切换当日收益、持仓收益或累计盈亏，并生成 1200×1600 高清 PNG',
+      '  - 分享图只包含已选收益指标和生成时间，不包含账户、总资产、持仓明细或交易记录',
+      '  - 持仓收益率按当前存续仓位的组合成本口径汇总；原累计盈亏报表、正式交易账本及其他模块均未改变',
+    ],
+    itemsEn: [
+      '📷 Trading now supports private P&L share images',
+      '  - Tap Today P&L in the header to open a standalone share page, switch between Daily Return, Holding Return, and Total P&L, and generate a 1200×1600 high-resolution PNG',
+      '  - The image contains only the selected return metric and generation time, with no account, total-assets, position-detail, or trade-record data',
+      '  - Holding return rate is aggregated from the cost basis of currently open positions; the existing Total P&L report, formal trading ledger, and all other modules are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.466', date: '2026-08-22',
+    items: [
       '⚠️ TQQQ 专属交易强化10%仓位提醒',
       '  - 买入后仓位超过10%时，交易检查区以两次短促红闪持续提醒；系统开启“减少动态效果”后保留静态红色提示',
       '  - 买入、卖出与确认按钮保持中性系统配色，并移除股票识别提示及卡片、标签和操作区的多余外框',
