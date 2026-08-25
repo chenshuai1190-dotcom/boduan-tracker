@@ -4,6 +4,19 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '🕒 收益分享图时间信息进一步精简',
+      '  - 分享图顶部删除“生成于”前缀，仅保留本地日期与时间',
+      '  - 红涨绿跌配色、收益公式、隐私字段白名单、PNG 保存分享及其他模块均未改变',
+    ],
+    itemsEn: [
+      '🕒 P&L share-image timestamps are now more concise',
+      '  - The Generated prefix is removed from the image header, leaving only the local date and time',
+      '  - Red-up and green-down colors, return formulas, the privacy field allowlist, PNG saving and sharing, and all other modules are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.468', date: '2026-08-25',
+    items: [
       '🎨 收益分享图改用红涨绿跌配色',
       '  - 盈利金额与收益率显示系统红色，亏损显示系统绿色，零值与不可用数据保持中性白色',
       '  - 分享图顶部移除“隐私分享”文字和锁图标，保留更简洁的 Quote 标识与时间信息',

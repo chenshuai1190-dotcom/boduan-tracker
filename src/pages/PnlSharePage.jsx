@@ -119,7 +119,7 @@ export default function PnlSharePage({
     minute: '2-digit',
     hour12: false,
   });
-  const generatedText = tt('pnlShare.generatedAt', '生成于 {{time}}', { time: generatedDateTime });
+  const generatedText = tt('pnlShare.generatedAt', '{{time}}', { time: generatedDateTime });
   const rawFileName = tt('pnlShare.fileName', 'Quote-{{metric}}-{{date}}.png', {
     metric: selectedMetric,
     date: localDateKey(generatedAt),

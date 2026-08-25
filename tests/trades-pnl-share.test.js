@@ -202,7 +202,7 @@ test('an unavailable daily result stays unavailable instead of becoming zero', (
 
 test('the renderer fixes the PNG canvas at 1200 by 1600 and ignores unknown private fields', () => {
   const input = {
-    generatedText: '生成于 2026-08-25 21:30',
+    generatedText: '2026-08-25 21:30',
     marketLabel: '美股',
     metricLabel: '持仓收益',
     amountText: '+$200.00',
@@ -304,6 +304,9 @@ test('sharing is local-only, pre-generates the file, and safely handles iOS canc
 
   assert.equal(pageSource.includes('让结果留下，让情绪过去'), false);
   assert.equal(pageSource.includes('账户持仓总资产'), false);
+  assert.equal(pageSource.includes('生成于 {{time}}'), false);
+  assert.equal(i18nSource.includes("'pnlShare.generatedAt': '生成于 {{time}}'"), false);
+  assert.equal(i18nSource.includes("'pnlShare.generatedAt': 'Generated {{time}}'"), false);
   assert.equal(pageSource.includes("tt('pnlShare.privacyLabel'"), false);
   assert.equal(imageSource.includes('drawPrivacyLock'), false);
   assert.ok(imageSource.includes('drawWarmGoldMotif'));
