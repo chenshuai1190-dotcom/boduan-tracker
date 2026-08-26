@@ -145,10 +145,10 @@ export default function PnlSharePage({
     locale,
     unavailableText,
   });
-  const { amountText, percentText, amountTone, percentTone } = selectedPresentation;
+  const { amountText, currencyUnit, percentText, amountTone, percentTone } = selectedPresentation;
   const marketLabel = tt('pnlShare.usMarket', '美股市场');
   const imageTitle = tt('pnlShare.title', '收益分享');
-  const accessibilityLabel = `${imageTitle} · ${identitySnapshot?.nickname || ''} · ${metricLabel} · ${amountText} · ${percentText}`;
+  const accessibilityLabel = `${imageTitle} · ${identitySnapshot?.nickname || ''} · ${metricLabel} · ${amountText} ${currencyUnit} · ${percentText}`;
   const generatedAt = new Date(shareSnapshot.capturedAt);
   const generatedDateTime = generatedAt.toLocaleString(locale, {
     year: 'numeric',
@@ -171,6 +171,7 @@ export default function PnlSharePage({
     marketLabel,
     metricLabel,
     amountText,
+    currencyUnit,
     percentText,
     amountTone,
     percentTone,
@@ -197,6 +198,7 @@ export default function PnlSharePage({
         marketLabel,
         metricLabel,
         amountText,
+        currencyUnit,
         percentText,
         amountTone,
         percentTone,
@@ -223,7 +225,7 @@ export default function PnlSharePage({
       return undefined;
     }
     return undefined;
-  }, [accessibilityLabel, amountText, amountTone, avatarImage, fileName, generatedText, identityReady, identitySnapshot, marketLabel, metricLabel, percentText, percentTone, renderKey]);
+  }, [accessibilityLabel, amountText, amountTone, avatarImage, currencyUnit, fileName, generatedText, identityReady, identitySnapshot, marketLabel, metricLabel, percentText, percentTone, renderKey]);
 
   const downloadAsset = React.useCallback((asset) => {
     if (!asset?.blob || typeof document === 'undefined' || typeof URL === 'undefined') return false;

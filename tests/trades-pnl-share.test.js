@@ -144,7 +144,8 @@ test('share metrics reuse the formal summary and convert money without changing 
 
   assert.deepEqual(buildPnlShareMetricPresentation({ summary, metricId: 'daily', locale: 'en-US' }), {
     available: true,
-    amountText: '+$10.00',
+    amountText: '+10.00',
+    currencyUnit: 'USD',
     percentText: '+2.00%',
     amountTone: 'gain',
     percentTone: 'gain',
@@ -157,14 +158,16 @@ test('share metrics reuse the formal summary and convert money without changing 
     locale: 'en-US',
   }), {
     available: true,
-    amountText: '+¥1,440.00',
+    amountText: '+1,440.00',
+    currencyUnit: 'CNY',
     percentText: '+10.00%',
     amountTone: 'gain',
     percentTone: 'gain',
   });
   assert.deepEqual(buildPnlShareMetricPresentation({ summary, metricId: 'total', locale: 'en-US' }), {
     available: true,
-    amountText: '+$700.00',
+    amountText: '+700.00',
+    currencyUnit: 'USD',
     percentText: '+46.67%',
     amountTone: 'gain',
     percentTone: 'gain',
@@ -176,7 +179,8 @@ test('share metrics reuse the formal summary and convert money without changing 
     locale: 'en-US',
   }), {
     available: true,
-    amountText: '-$50.00',
+    amountText: '-50.00',
+    currencyUnit: 'USD',
     percentText: '-2.50%',
     amountTone: 'loss',
     percentTone: 'loss',
@@ -187,7 +191,8 @@ test('share metrics reuse the formal summary and convert money without changing 
     locale: 'en-US',
   }), {
     available: true,
-    amountText: '+$0.00',
+    amountText: '+0.00',
+    currencyUnit: 'USD',
     percentText: '+0.00%',
     amountTone: 'neutral',
     percentTone: 'neutral',
@@ -198,7 +203,8 @@ test('share metrics reuse the formal summary and convert money without changing 
     locale: 'en-US',
   }), {
     available: true,
-    amountText: '+$0.00',
+    amountText: '+0.00',
+    currencyUnit: 'USD',
     percentText: '+0.00%',
     amountTone: 'neutral',
     percentTone: 'neutral',
@@ -210,7 +216,8 @@ test('share metrics reuse the formal summary and convert money without changing 
     locale: 'en-US',
   }), {
     available: true,
-    amountText: '+$0.00',
+    amountText: '+0.00',
+    currencyUnit: 'USD',
     percentText: '-0.04%',
     amountTone: 'neutral',
     percentTone: 'loss',
@@ -221,7 +228,8 @@ test('share metrics reuse the formal summary and convert money without changing 
     locale: 'en-US',
   }), {
     available: true,
-    amountText: '+$20.00',
+    amountText: '+20.00',
+    currencyUnit: 'USD',
     percentText: '暂不可用',
     amountTone: 'gain',
     percentTone: 'neutral',
@@ -238,6 +246,7 @@ test('an unavailable daily result stays unavailable instead of becoming zero', (
   assert.deepEqual(result, {
     available: false,
     amountText: '—',
+    currencyUnit: '',
     percentText: '暂不可用',
     amountTone: 'neutral',
     percentTone: 'neutral',
@@ -250,7 +259,8 @@ test('the renderer fixes the PNG canvas at 1200 by 1600 and ignores unknown priv
     generatedText: '2026-08-25 21:30',
     marketLabel: '美股',
     metricLabel: '持仓收益',
-    amountText: '+$200.00',
+    amountText: '+200.00',
+    currencyUnit: 'USD',
     percentText: '+10.00%',
     amountTone: 'gain',
     percentTone: 'gain',
@@ -262,12 +272,14 @@ test('the renderer fixes the PNG canvas at 1200 by 1600 and ignores unknown priv
     email: 'PRIVATE EMAIL',
   };
   const model = createPnlShareRenderModel(input);
+  assert.equal(createPnlShareRenderModel({ currencyUnit: 'BTC' }).currencyUnit, '');
   assert.deepEqual(Object.keys(model), [
     'nickname',
     'generatedText',
     'marketLabel',
     'metricLabel',
     'amountText',
+    'currencyUnit',
     'percentText',
     'amountTone',
     'percentTone',
@@ -281,8 +293,12 @@ test('the renderer fixes the PNG canvas at 1200 by 1600 and ignores unknown priv
   assert.equal(PNL_SHARE_IMAGE_HEIGHT, 1600);
   assert.equal(canvas.width, 1200);
   assert.equal(canvas.height, 1600);
-  assert.deepEqual(text.find(item => item.value === '+$200.00'), {
-    value: '+$200.00',
+  assert.deepEqual(text.find(item => item.value === '+200.00'), {
+    value: '+200.00',
+    color: '#ff4b1f',
+  });
+  assert.deepEqual(text.find(item => item.value === 'USD'), {
+    value: 'USD',
     color: '#ff4b1f',
   });
   assert.deepEqual(text.find(item => item.value === '+10.00%'), {
@@ -296,15 +312,20 @@ test('the renderer fixes the PNG canvas at 1200 by 1600 and ignores unknown priv
 
   const lossInput = {
     metricLabel: '持仓收益',
-    amountText: '-$0.01',
+    amountText: '-0.01',
+    currencyUnit: 'CNY',
     percentText: '+0.00%',
     amountTone: 'loss',
     percentTone: 'neutral',
   };
   const lossRecorder = createCanvasRecorder();
   renderPnlShareCanvas(lossRecorder.canvas, lossInput);
-  assert.deepEqual(lossRecorder.text.find(item => item.value === '-$0.01'), {
-    value: '-$0.01',
+  assert.deepEqual(lossRecorder.text.find(item => item.value === '-0.01'), {
+    value: '-0.01',
+    color: '#22c55e',
+  });
+  assert.deepEqual(lossRecorder.text.find(item => item.value === 'CNY'), {
+    value: 'CNY',
     color: '#22c55e',
   });
   assert.deepEqual(lossRecorder.text.find(item => item.value === '+0.00%'), {

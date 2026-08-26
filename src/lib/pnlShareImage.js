@@ -14,13 +14,12 @@ function isFiniteMetric(value) {
     && Number.isFinite(Number(value));
 }
 
-function formatSignedAmount(value, currency, rate, locale) {
+function formatSignedAmount(value, rate, locale) {
   const converted = Number(value) * rate;
   const rounded = Number(converted.toFixed(2));
   const displayValue = Object.is(rounded, -0) ? 0 : rounded;
-  const currencyMark = currency === 'CNY' ? '¥' : '$';
   const sign = displayValue >= 0 ? '+' : '-';
-  return `${sign}${currencyMark}${Math.abs(displayValue).toLocaleString(locale, {
+  return `${sign}${Math.abs(displayValue).toLocaleString(locale, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
@@ -43,6 +42,11 @@ function safeText(value, fallback = '', maxLength = 80) {
 
 function normalizeMetricTone(value) {
   return value === 'gain' || value === 'loss' ? value : 'neutral';
+}
+
+function normalizeCurrencyUnit(value) {
+  const unit = String(value || '').trim().toUpperCase();
+  return unit === 'USD' || unit === 'CNY' ? unit : '';
 }
 
 function metricTone(value, multiplier) {
@@ -92,6 +96,59 @@ function drawCenteredFittedText(context, text, centerX, y, {
     context.font = `${fontWeight} ${resolvedSize}px ${CANVAS_FONT}`;
   }
   context.fillText(text, centerX, y);
+}
+
+function drawCenteredAmountWithUnit(context, amountText, currencyUnit, centerX, y, {
+  color,
+  fontSize,
+  unitFontSize,
+  fontWeight = 600,
+  unitFontWeight = 580,
+  maxWidth,
+  minFontSize = 42,
+}) {
+  const unit = normalizeCurrencyUnit(currencyUnit);
+  if (!unit) {
+    drawCenteredFittedText(context, amountText, centerX, y, {
+      color,
+      fontSize,
+      fontWeight,
+      maxWidth,
+      minFontSize,
+    });
+    return;
+  }
+
+  const unitRatio = unitFontSize / fontSize;
+  let resolvedSize = fontSize;
+  let resolvedUnitSize = unitFontSize;
+  let amountWidth = 0;
+  let unitWidth = 0;
+  let gap = 0;
+
+  const measure = () => {
+    resolvedUnitSize = Math.max(28, Math.round(resolvedSize * unitRatio));
+    gap = Math.max(14, Math.round(resolvedSize * 0.18));
+    context.font = `${fontWeight} ${resolvedSize}px ${CANVAS_FONT}`;
+    amountWidth = context.measureText(amountText).width;
+    context.font = `${unitFontWeight} ${resolvedUnitSize}px ${CANVAS_FONT}`;
+    unitWidth = context.measureText(unit).width;
+  };
+
+  measure();
+  while (resolvedSize > minFontSize && amountWidth + gap + unitWidth > maxWidth) {
+    resolvedSize -= 2;
+    measure();
+  }
+
+  const startX = centerX - ((amountWidth + gap + unitWidth) / 2);
+  context.textAlign = 'left';
+  context.textBaseline = 'alphabetic';
+  context.fillStyle = color;
+  context.font = `${fontWeight} ${resolvedSize}px ${CANVAS_FONT}`;
+  context.fillText(amountText, startX, y);
+  context.font = `${unitFontWeight} ${resolvedUnitSize}px ${CANVAS_FONT}`;
+  context.fillText(unit, startX + amountWidth + gap, y);
 }
 
 function drawLeftFittedText(context, text, x, y, {
@@ -200,6 +257,7 @@ export function createPnlShareRenderModel(input = {}) {
     marketLabel: safeText(input.marketLabel, '', 40),
     metricLabel: safeText(input.metricLabel, '', 40),
     amountText: safeText(input.amountText, '—', 48),
+    currencyUnit: normalizeCurrencyUnit(input.currencyUnit),
     percentText: safeText(input.percentText, '—', 28),
     amountTone: normalizeMetricTone(input.amountTone),
     percentTone: normalizeMetricTone(input.percentTone),
@@ -246,8 +304,9 @@ export function buildPnlShareMetricPresentation({
   return Object.freeze({
     available,
     amountText: available
-      ? formatSignedAmount(amount, normalizedCurrency, displayRate, locale)
+      ? formatSignedAmount(amount, displayRate, locale)
       : '—',
+    currencyUnit: available ? normalizedCurrency : '',
     percentText: available && isFiniteMetric(percent)
       ? formatSignedPercent(percent)
       : safeText(unavailableText, '暂不可用', 40),
@@ -316,10 +375,12 @@ export function renderPnlShareCanvas(canvas, input = {}, avatarImage = null) {
   context.font = `500 36px ${CANVAS_FONT}`;
   context.fillText(model.metricLabel, 600, 470);
 
-  drawCenteredFittedText(context, model.amountText, 600, 665, {
+  drawCenteredAmountWithUnit(context, model.amountText, model.currencyUnit, 600, 665, {
     color: pnlShareToneColor(model.amountTone),
     fontSize: 112,
+    unitFontSize: 46,
     fontWeight: 640,
+    unitFontWeight: 580,
     maxWidth: 880,
     minFontSize: 62,
   });

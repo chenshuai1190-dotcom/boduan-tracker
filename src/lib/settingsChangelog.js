@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '💱 收益分享图增加币种单位',
+      '  - 收益金额右侧以较小字号显示 USD 或 CNY，并与金额基线对齐，整体作为一组保持水平居中',
+      '  - 金额不再重复显示美元或人民币符号；币种继续跟随现有资产显示设置',
+      '  - 收益公式、汇率换算、红涨绿跌配色、头像昵称、正式交易账本及其他模块均未改变',
+    ],
+    itemsEn: [
+      '💱 P&L share images now show the currency unit',
+      '  - USD or CNY appears beside the amount in a smaller baseline-aligned label, with the combined amount and unit kept horizontally centered',
+      '  - The redundant dollar or yuan symbol is removed, while the currency still follows the existing portfolio display setting',
+      '  - Return formulas, exchange-rate conversion, red-up and green-down colors, avatar and nickname display, the formal trading ledger, and all other modules are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.470', date: '2026-08-26',
+    items: [
       '👤 收益分享图接入社区头像与昵称',
       '  - 分享图左上角使用当前用户在设置页保存的社区头像和昵称，日期时间显示在昵称下方',
       '  - 每次进入分享页只读本人的昵称与头像键；资料或头像未安全加载完成前不允许保存或分享',
