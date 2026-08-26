@@ -302,7 +302,7 @@ export default function PnlSharePage({
             type="button"
             onClick={onClose}
             className="flex h-9 w-9 items-center justify-center rounded-full bg-white/[0.055] text-white/[0.72] transition active:scale-95"
-            aria-label={tt('pnlShare.back', '返回交易')}
+            aria-label={tt('pnlShare.back', '返回')}
           >
             <ArrowLeft className="h-5 w-5" strokeWidth={1.8} />
           </button>

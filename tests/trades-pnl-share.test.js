@@ -21,6 +21,7 @@ const read = relativePath => fs.readFileSync(new URL(`../${relativePath}`, impor
 
 const appSource = read('src/App.jsx');
 const devPreviewSource = read('src/DevVisualPreview.jsx');
+const homeSource = read('src/tabs/HomeTab.jsx');
 const tradesSource = read('src/tabs/TradesTab.jsx');
 const pageSource = read('src/pages/PnlSharePage.jsx');
 const imageSource = read('src/lib/pnlShareImage.js');
@@ -69,7 +70,7 @@ function createCanvasRecorder() {
   };
 }
 
-test('Trading opens the share page only from Today P&L and preserves Total P&L reporting', () => {
+test('Home and Trading open one shared image page from Today P&L while preserving Total P&L reporting', () => {
   assert.ok(appSource.includes("lazy(() => import('./pages/PnlSharePage.jsx'))"));
   assert.ok(appSource.includes("setActivePage('pnl-share')"));
   assert.ok(appSource.includes("activePage === 'pnl-share'"));
@@ -85,6 +86,9 @@ test('Trading opens the share page only from Today P&L and preserves Total P&L r
 
   assert.equal((tradesSource.match(/onClick=\{openPnlShare\}/g) || []).length, 1);
   assert.ok(tradesSource.includes('data-trades-pnl-share-trigger="true"'));
+  assert.equal((homeSource.match(/onClick=\{openPnlShare\}/g) || []).length, 1);
+  assert.ok(homeSource.includes('data-home-pnl-share-trigger="true"'));
+  assert.ok(homeSource.includes("t(language, 'home.openPnlShare', '分享今日盈亏')"));
 
   const shareTrigger = tradesSource.indexOf('data-trades-pnl-share-trigger="true"');
   const totalPnlTrigger = tradesSource.indexOf('onClick={openPnlReport}', shareTrigger);
@@ -92,7 +96,13 @@ test('Trading opens the share page only from Today P&L and preserves Total P&L r
   assert.ok(shareTrigger >= 0 && totalPnlTrigger > shareTrigger && marginTrigger > totalPnlTrigger);
   assert.ok(tradesSource.slice(totalPnlTrigger, marginTrigger).includes("tt('trades.totalPnl'"));
 
-  assert.ok(devPreviewSource.includes("openPnlShare: () => setActiveTab('pnl-share')"));
+  const homeShareTrigger = homeSource.indexOf('data-home-pnl-share-trigger="true"');
+  const homeTotalPnlTrigger = homeSource.indexOf('onClick={openPnlReport}', homeShareTrigger);
+  const homeMarginTrigger = homeSource.indexOf('data-home-margin-trigger="true"', homeTotalPnlTrigger);
+  assert.ok(homeShareTrigger >= 0 && homeTotalPnlTrigger > homeShareTrigger && homeMarginTrigger > homeTotalPnlTrigger);
+  assert.ok(homeSource.slice(homeTotalPnlTrigger, homeMarginTrigger).includes("t(language, 'home.totalPnl'"));
+
+  assert.equal((devPreviewSource.match(/openPnlShare: \(\) => setActiveTab\('pnl-share'\)/g) || []).length, 2);
   assert.ok(devPreviewSource.includes("activeTab === 'pnl-share'"));
   assert.ok(devPreviewSource.includes("'pnl-report', 'pnl-share', 'home-margin-risk'"));
   assert.ok(devPreviewSource.includes("preview === 'pnl-share' ? 'pnl-share'"));
@@ -395,6 +405,7 @@ test('sharing is local-only, pre-generates the file, and safely handles iOS canc
 test('share-page system text is bilingual and visible CSS text never drops below 10px', () => {
   for (const key of [
     'trades.openPnlShare',
+    'home.openPnlShare',
     'pnlShare.title',
     'pnlShare.back',
     'pnlShare.selectMetric',

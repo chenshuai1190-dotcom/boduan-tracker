@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '📷 首页今日盈亏接入收益分享',
+      '  - 点击首页资产概览中的“今日盈亏”可进入现有收益分享页，生成同一套 1200×1600 高清 PNG',
+      '  - 首页与交易页复用同一个分享入口、用户头像昵称、收益指标切换和保存分享流程；返回时回到原页面',
+      '  - 今日盈亏、持仓收益、累计盈亏公式、币种换算、正式交易账本及其他首页模块均未改变',
+    ],
+    itemsEn: [
+      '📷 Home Today P&L now opens return sharing',
+      '  - Tap Today P&L in the Home asset overview to open the existing share page and generate the same 1200×1600 high-resolution PNG',
+      '  - Home and Trading reuse one share entry, user avatar and nickname, metric selection, and save/share flow; Back returns to the originating page',
+      '  - Daily, holding, and total return formulas, currency conversion, the formal trading ledger, and all other Home modules are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.471', date: '2026-08-26',
+    items: [
       '💱 收益分享图增加币种单位',
       '  - 收益金额右侧以较小字号显示 USD 或 CNY，并与金额基线对齐，整体作为一组保持水平居中',
       '  - 金额不再重复显示美元或人民币符号；币种继续跟随现有资产显示设置',

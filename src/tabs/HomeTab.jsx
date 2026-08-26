@@ -487,6 +487,7 @@ export default function HomeTab({ ctx }) {
     openEarningsCalendar,
     openEarningsDetail,
     openPnlReport,
+    openPnlShare,
     openWatchlistStockDetail,
     portfolioCurrencyMode,
     quoteRows,
@@ -1038,7 +1039,13 @@ export default function HomeTab({ ctx }) {
         <div
           className="mt-4 grid grid-cols-[1fr_1.12fr_0.96fr] border-t border-white/[0.07] pt-4"
         >
-          <div className="min-w-0 pr-3">
+          <button
+            type="button"
+            onClick={openPnlShare}
+            className="block min-w-0 pr-3 text-left transition active:scale-[0.99]"
+            aria-label={t(language, 'home.openPnlShare', '分享今日盈亏')}
+            data-home-pnl-share-trigger="true"
+          >
             <div className="text-[13px] text-white/50">{t(language, 'home.todayPnl', '今日盈亏')}</div>
             <div className={`mt-2 whitespace-nowrap ${pnlAmountClass} font-normal leading-tight tabular-nums ${pnlColor(hasTodayPnl ? summary.todayPnl : 0, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
               {hasTodayPnl ? fmtSignedCurrency(displayTodayPnl, displayCurrency, 2) : '--'}
@@ -1049,7 +1056,7 @@ export default function HomeTab({ ctx }) {
                 <span className="text-[11px] text-[#6f7785]">{t(language, 'home.pnlLocked', '收盘锁定')}</span>
               )}
             </div>
-          </div>
+          </button>
           <button type="button" onClick={openPnlReport} className="block min-w-0 px-3 text-left transition active:scale-[0.99]">
             <div className="flex items-center gap-0.5 text-[13px] text-white/50">
               <span>{t(language, 'home.totalPnl', '累计盈亏')}</span>

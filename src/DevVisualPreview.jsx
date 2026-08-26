@@ -2694,6 +2694,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     openHomeMarginRisk: () => setActiveTab('home-margin-risk'),
     closeHomeMarginRisk: () => setActiveTab('home'),
     openPnlReport: () => setActiveTab('pnl-report'),
+    openPnlShare: () => setActiveTab('pnl-share'),
     closePnlReport: () => setActiveTab('home'),
     openStockDetail: () => setActiveTab('stock-detail'),
     closeStockDetail: () => setActiveTab('trades'),
