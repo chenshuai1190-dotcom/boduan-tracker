@@ -7,6 +7,7 @@ import {
 } from './communityProfile.js';
 
 const SELECT_COLUMNS = 'user_id,nickname,avatar_key,profile_completed_at,created_at,updated_at';
+const SHARE_IDENTITY_COLUMNS = 'nickname,avatar_key';
 
 export function createCommunityProfilesRepository(client) {
   if (!client?.from) throw new Error('Supabase client is required');
@@ -22,6 +23,20 @@ export function createCommunityProfilesRepository(client) {
       .maybeSingle();
     if (error) throw error;
     return data ? map(data, user) : null;
+  };
+
+  const fetchShareIdentity = async (user) => {
+    if (!user?.id) return null;
+    const { data, error } = await client
+      .from(COMMUNITY_PROFILE_TABLE)
+      .select(SHARE_IDENTITY_COLUMNS)
+      .eq('user_id', user.id)
+      .maybeSingle();
+    if (error) throw error;
+    return data ? {
+      nickname: data.nickname,
+      avatarKey: data.avatar_key,
+    } : null;
   };
 
   const upsert = async (user, profile = {}) => {
@@ -74,6 +89,7 @@ export function createCommunityProfilesRepository(client) {
 
   return {
     fetch,
+    fetchShareIdentity,
     ensure,
     upsert,
   };

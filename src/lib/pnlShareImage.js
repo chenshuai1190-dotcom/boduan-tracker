@@ -1,4 +1,5 @@
 import { MARKET_COLOR_MODES, marketHexColor } from './marketColorMode.js';
+import { sanitizePnlShareNickname } from './pnlShareIdentity.js';
 
 export const PNL_SHARE_IMAGE_WIDTH = 1200;
 export const PNL_SHARE_IMAGE_HEIGHT = 1600;
@@ -93,6 +94,70 @@ function drawCenteredFittedText(context, text, centerX, y, {
   context.fillText(text, centerX, y);
 }
 
+function drawLeftFittedText(context, text, x, y, {
+  color,
+  fontSize,
+  fontWeight = 600,
+  maxWidth,
+  minFontSize = 28,
+}) {
+  let resolvedSize = fontSize;
+  context.textAlign = 'left';
+  context.textBaseline = 'alphabetic';
+  context.fillStyle = color;
+  context.font = `${fontWeight} ${resolvedSize}px ${CANVAS_FONT}`;
+  while (resolvedSize > minFontSize && context.measureText(text).width > maxWidth) {
+    resolvedSize -= 2;
+    context.font = `${fontWeight} ${resolvedSize}px ${CANVAS_FONT}`;
+  }
+  context.fillText(text, x, y);
+}
+
+function drawPnlShareIdentity(context, nickname, avatarImage) {
+  const avatarX = 130;
+  const avatarY = 108;
+  const avatarSize = 112;
+  const sourceWidth = Number(avatarImage?.naturalWidth || avatarImage?.width || avatarSize);
+  const sourceHeight = Number(avatarImage?.naturalHeight || avatarImage?.height || avatarSize);
+  const sourceSize = Math.max(1, Math.min(sourceWidth, sourceHeight));
+  const cropSize = sourceSize / 1.15;
+  const sourceX = Math.max(0, (sourceWidth - cropSize) / 2);
+  const sourceY = Math.max(0, (sourceHeight - cropSize) / 2);
+
+  context.save();
+  context.beginPath();
+  context.arc(avatarX + avatarSize / 2, avatarY + avatarSize / 2, avatarSize / 2, 0, Math.PI * 2);
+  context.clip();
+  context.imageSmoothingEnabled = true;
+  context.imageSmoothingQuality = 'high';
+  context.drawImage(
+    avatarImage,
+    sourceX,
+    sourceY,
+    cropSize,
+    cropSize,
+    avatarX,
+    avatarY,
+    avatarSize,
+    avatarSize,
+  );
+  context.restore();
+
+  context.beginPath();
+  context.arc(avatarX + avatarSize / 2, avatarY + avatarSize / 2, avatarSize / 2, 0, Math.PI * 2);
+  context.strokeStyle = 'rgba(255,255,255,0.12)';
+  context.lineWidth = 3;
+  context.stroke();
+
+  drawLeftFittedText(context, nickname, 270, 154, {
+    color: 'rgba(255,255,255,0.94)',
+    fontSize: 40,
+    fontWeight: 650,
+    maxWidth: 590,
+    minFontSize: 28,
+  });
+}
+
 function drawWarmGoldMotif(context) {
   context.save();
   const glow = context.createRadialGradient(600, 1130, 10, 600, 1130, 430);
@@ -130,6 +195,7 @@ function drawWarmGoldMotif(context) {
  */
 export function createPnlShareRenderModel(input = {}) {
   return Object.freeze({
+    nickname: sanitizePnlShareNickname(input.nickname),
     generatedText: safeText(input.generatedText, '', 72),
     marketLabel: safeText(input.marketLabel, '', 40),
     metricLabel: safeText(input.metricLabel, '', 40),
@@ -190,7 +256,7 @@ export function buildPnlShareMetricPresentation({
   });
 }
 
-export function renderPnlShareCanvas(canvas, input = {}) {
+export function renderPnlShareCanvas(canvas, input = {}, avatarImage = null) {
   if (!canvas || typeof canvas.getContext !== 'function') {
     throw new TypeError('A Canvas element is required');
   }
@@ -223,17 +289,22 @@ export function renderPnlShareCanvas(canvas, input = {}) {
   context.lineWidth = 2;
   context.stroke();
 
+  const hasIdentity = Boolean(model.nickname && avatarImage);
   context.textAlign = 'left';
   context.textBaseline = 'alphabetic';
-  context.fillStyle = 'rgba(255,255,255,0.94)';
-  context.font = `600 48px ${CANVAS_FONT}`;
-  context.fillText('Quote', 130, 172);
+  if (hasIdentity) {
+    drawPnlShareIdentity(context, model.nickname, avatarImage);
+  } else {
+    context.fillStyle = 'rgba(255,255,255,0.94)';
+    context.font = `600 48px ${CANVAS_FONT}`;
+    context.fillText('Quote', 130, 172);
+  }
 
   context.fillStyle = 'rgba(255,255,255,0.34)';
   context.font = `400 25px ${CANVAS_FONT}`;
-  context.fillText(model.generatedText, 130, 230);
+  context.fillText(model.generatedText, hasIdentity ? 270 : 130, hasIdentity ? 202 : 230);
   context.textAlign = 'right';
-  context.fillText(model.marketLabel, 1070, 230);
+  context.fillText(model.marketLabel, 1070, hasIdentity ? 172 : 230);
 
   context.fillStyle = 'rgba(255,255,255,0.075)';
   context.fillRect(130, 282, 940, 2);

@@ -33,6 +33,7 @@ export {
 
 export {
   fetchCommunityProfile,
+  fetchPnlShareIdentity,
   upsertCommunityProfile,
 } from './communityProfilesDb';
 

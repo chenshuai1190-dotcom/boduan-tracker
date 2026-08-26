@@ -1,6 +1,7 @@
 import React from 'react';
 import { ArrowLeft, Download, Loader2, Share2 } from 'lucide-react';
 import { isEnglishLanguage, t } from '../lib/i18n.js';
+import { createPnlShareIdentity, loadPnlShareAvatarImage } from '../lib/pnlShareIdentity.js';
 import {
   buildPnlShareMetricPresentation,
   canvasToPngBlob,
@@ -50,6 +51,8 @@ export default function PnlSharePage({
   language = 'zh',
   portfolioCurrencyMode = 'USD',
   usdRate,
+  communityIdentity = null,
+  communityIdentityStatus = 'loading',
 }) {
   const tt = React.useCallback((key, fallback, values) => t(language, key, fallback, values), [language]);
   const englishMode = isEnglishLanguage(language);
@@ -78,6 +81,14 @@ export default function PnlSharePage({
   const displayRate = displayCurrency === 'CNY'
     ? shareSnapshot.rate
     : 1;
+  const [identitySnapshot, setIdentitySnapshot] = React.useState(() => (
+    communityIdentityStatus === 'ready' ? createPnlShareIdentity(communityIdentity) : null
+  ));
+  const [identityFailure, setIdentityFailure] = React.useState(() => (
+    communityIdentityStatus === 'error' || communityIdentityStatus === 'missing'
+  ));
+  const [avatarImage, setAvatarImage] = React.useState(null);
+  const [avatarFailure, setAvatarFailure] = React.useState(false);
   const [selectedMetric, setSelectedMetric] = React.useState('daily');
   const [shareAsset, setShareAsset] = React.useState(null);
   const [statusKey, setStatusKey] = React.useState('');
@@ -95,6 +106,34 @@ export default function PnlSharePage({
     };
   }, []);
 
+  React.useEffect(() => {
+    if (identitySnapshot) return;
+    if (communityIdentityStatus === 'ready') {
+      const identity = createPnlShareIdentity(communityIdentity);
+      if (identity) setIdentitySnapshot(identity);
+      else setIdentityFailure(true);
+      return;
+    }
+    if (communityIdentityStatus === 'error' || communityIdentityStatus === 'missing') {
+      setIdentityFailure(true);
+    }
+  }, [communityIdentity, communityIdentityStatus, identitySnapshot]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    if (!identitySnapshot?.avatarKey) return () => { cancelled = true; };
+    setAvatarImage(null);
+    setAvatarFailure(false);
+    loadPnlShareAvatarImage(identitySnapshot.avatarKey)
+      .then((image) => {
+        if (!cancelled) setAvatarImage(image);
+      })
+      .catch(() => {
+        if (!cancelled) setAvatarFailure(true);
+      });
+    return () => { cancelled = true; };
+  }, [identitySnapshot?.avatarKey]);
+
   const selectedDefinition = SHARE_METRICS.find(metric => metric.id === selectedMetric) || SHARE_METRICS[0];
   const unavailableText = tt('pnlShare.unavailable', '暂无可用数据');
   const metricLabel = tt(selectedDefinition.labelKey, selectedDefinition.labelFallback);
@@ -109,7 +148,7 @@ export default function PnlSharePage({
   const { amountText, percentText, amountTone, percentTone } = selectedPresentation;
   const marketLabel = tt('pnlShare.usMarket', '美股市场');
   const imageTitle = tt('pnlShare.title', '收益分享');
-  const accessibilityLabel = `${imageTitle} · ${metricLabel} · ${amountText} · ${percentText}`;
+  const accessibilityLabel = `${imageTitle} · ${identitySnapshot?.nickname || ''} · ${metricLabel} · ${amountText} · ${percentText}`;
   const generatedAt = new Date(shareSnapshot.capturedAt);
   const generatedDateTime = generatedAt.toLocaleString(locale, {
     year: 'numeric',
@@ -135,12 +174,17 @@ export default function PnlSharePage({
     percentText,
     amountTone,
     percentTone,
+    identitySnapshot?.nickname || '',
+    identitySnapshot?.avatarKey || '',
     fileName,
   ].join('\u0000');
 
+  const identityReady = Boolean(identitySnapshot && avatarImage && !avatarFailure);
+  const identityUnavailable = Boolean(identityFailure || avatarFailure);
+
   React.useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return undefined;
+    if (!canvas || !identityReady) return undefined;
     const version = renderVersionRef.current + 1;
     renderVersionRef.current = version;
     setShareAsset(null);
@@ -148,6 +192,7 @@ export default function PnlSharePage({
 
     try {
       renderPnlShareCanvas(canvas, {
+        nickname: identitySnapshot.nickname,
         generatedText,
         marketLabel,
         metricLabel,
@@ -156,7 +201,7 @@ export default function PnlSharePage({
         amountTone,
         percentTone,
         accessibilityLabel,
-      });
+      }, avatarImage);
 
       canvasToPngBlob(canvas)
         .then((blob) => {
@@ -178,7 +223,7 @@ export default function PnlSharePage({
       return undefined;
     }
     return undefined;
-  }, [accessibilityLabel, amountText, amountTone, fileName, generatedText, marketLabel, metricLabel, percentText, percentTone, renderKey]);
+  }, [accessibilityLabel, amountText, amountTone, avatarImage, fileName, generatedText, identityReady, identitySnapshot, marketLabel, metricLabel, percentText, percentTone, renderKey]);
 
   const downloadAsset = React.useCallback((asset) => {
     if (!asset?.blob || typeof document === 'undefined' || typeof URL === 'undefined') return false;
@@ -233,12 +278,15 @@ export default function PnlSharePage({
       : (action === 'share' ? 'pnlShare.shareFailed' : 'pnlShare.saveFailed'));
   }, [downloadAsset, imageTitle, renderKey, shareAsset]);
 
-  const ready = Boolean(shareAsset && shareAsset.renderKey === renderKey);
+  const ready = Boolean(identityReady && shareAsset && shareAsset.renderKey === renderKey);
   const statusFallbacks = {
     'pnlShare.shareUnavailable': '当前浏览器不支持系统分享，已下载图片',
     'pnlShare.shareFailed': '分享失败，请稍后重试',
     'pnlShare.saveFailed': '图片保存失败，请稍后重试',
   };
+  const pendingText = identityUnavailable
+    ? tt('pnlShare.identityUnavailableShort', '资料不可用')
+    : tt('pnlShare.generating', '正在生成…');
 
   return (
     <main
@@ -304,7 +352,9 @@ export default function PnlSharePage({
           <span aria-hidden="true"> · </span>
           <span>{ready
             ? tt('pnlShare.saveHint', '高清图片将在系统分享面板中提供保存选项')
-            : tt('pnlShare.generating', '正在生成高清图片…')}</span>
+            : identityUnavailable
+              ? tt('pnlShare.identityUnavailable', '社区头像或昵称暂不可用，请关闭后重试')
+              : tt('pnlShare.generating', '正在生成高清图片…')}</span>
         </p>
 
         {statusKey && (
@@ -320,8 +370,8 @@ export default function PnlSharePage({
             onClick={() => shareOrDownload('save')}
             className="flex h-12 items-center justify-center gap-2 rounded-2xl bg-white/[0.075] text-[13px] font-medium text-white/[0.82] transition active:scale-[0.99] disabled:opacity-35"
           >
-            {ready ? <Download className="h-[18px] w-[18px]" strokeWidth={1.8} /> : <Loader2 className="h-[18px] w-[18px] animate-spin" strokeWidth={1.8} />}
-            {ready ? tt('pnlShare.saveImage', '保存图片') : tt('pnlShare.generating', '正在生成…')}
+            {ready ? <Download className="h-[18px] w-[18px]" strokeWidth={1.8} /> : !identityUnavailable && <Loader2 className="h-[18px] w-[18px] animate-spin" strokeWidth={1.8} />}
+            {ready ? tt('pnlShare.saveImage', '保存图片') : pendingText}
           </button>
           <button
             type="button"
@@ -329,8 +379,8 @@ export default function PnlSharePage({
             onClick={() => shareOrDownload('share')}
             className="flex h-12 items-center justify-center gap-2 rounded-2xl bg-[#f6b54b] text-[13px] font-semibold text-[#121317] transition active:scale-[0.99] disabled:opacity-35"
           >
-            {ready ? <Share2 className="h-[18px] w-[18px]" strokeWidth={1.8} /> : <Loader2 className="h-[18px] w-[18px] animate-spin" strokeWidth={1.8} />}
-            {ready ? tt('pnlShare.share', '分享') : tt('pnlShare.generating', '正在生成…')}
+            {ready ? <Share2 className="h-[18px] w-[18px]" strokeWidth={1.8} /> : !identityUnavailable && <Loader2 className="h-[18px] w-[18px] animate-spin" strokeWidth={1.8} />}
+            {ready ? tt('pnlShare.share', '分享') : pendingText}
           </button>
         </div>
       </section>

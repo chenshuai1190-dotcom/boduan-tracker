@@ -9,6 +9,12 @@ export async function fetchCommunityProfile(preUser = null) {
   return repository.ensure(user);
 }
 
+export async function fetchPnlShareIdentity(preUser = null) {
+  const user = preUser || (await supabase.auth.getUser()).data.user;
+  if (!user) return null;
+  return repository.fetchShareIdentity(user);
+}
+
 export async function upsertCommunityProfile(profile, preUser = null) {
   const user = preUser || (await supabase.auth.getUser()).data.user;
   if (!user) throw new Error('未登录');

@@ -28,6 +28,7 @@ import {
 } from './lib/communityCompetitionCache.js';
 import { COMMUNITY_COMPETITION_PUBLICATION_EVENT } from './lib/communityCompetitionResume.js';
 import { enqueuePnlReportRecalculationAfterLedgerMutation } from './lib/pnlReportRecalculation.js';
+import { createPnlShareIdentity } from './lib/pnlShareIdentity.js';
 import ActionModalCard from './components/ActionModalCard.jsx';
 import ConfirmModal from './components/ConfirmModal.jsx';
 import { normalizeConfirmModalOptions } from './lib/confirmModal.js';
@@ -4944,6 +4945,8 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   const homeScrollTopBeforeEarningsRef = useRef(null);
   const pendingHomeScrollTopRef = useRef(null);
   const [communityProfileFocusRequest, setCommunityProfileFocusRequest] = useState(0);
+  const [pnlShareIdentityState, setPnlShareIdentityState] = useState({ status: 'idle', identity: null });
+  const pnlShareIdentityRequestRef = useRef(0);
   const [stockDetailSymbol, setStockDetailSymbol] = useState('');
   const [watchlistStockDetailSymbol, setWatchlistStockDetailSymbol] = useState('');
   const [watchlistStockDetailFocusSection, setWatchlistStockDetailFocusSection] = useState('');
@@ -5022,9 +5025,32 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     setActivePage(null);
   }, []);
   const openPnlShare = useCallback(() => {
+    const requestId = pnlShareIdentityRequestRef.current + 1;
+    pnlShareIdentityRequestRef.current = requestId;
+    const userId = user?.id || '';
+    setPnlShareIdentityState({ status: 'loading', identity: null });
     setActivePage('pnl-share');
-  }, []);
+    if (!userId) {
+      setPnlShareIdentityState({ status: 'error', identity: null });
+      return;
+    }
+    db.fetchPnlShareIdentity({ id: userId })
+      .then((profile) => {
+        if (pnlShareIdentityRequestRef.current !== requestId) return;
+        const identity = createPnlShareIdentity(profile);
+        setPnlShareIdentityState({
+          status: identity ? 'ready' : 'missing',
+          identity,
+        });
+      })
+      .catch(() => {
+        if (pnlShareIdentityRequestRef.current !== requestId) return;
+        setPnlShareIdentityState({ status: 'error', identity: null });
+      });
+  }, [user?.id]);
   const closePnlShare = useCallback(() => {
+    pnlShareIdentityRequestRef.current += 1;
+    setPnlShareIdentityState({ status: 'idle', identity: null });
     setActivePage(null);
   }, []);
   const openHomeMarginRisk = useCallback(() => {
@@ -5747,6 +5773,8 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
                   language={language}
                   portfolioCurrencyMode={portfolioCurrencyMode}
                   usdRate={usdRate}
+                  communityIdentity={pnlShareIdentityState.identity}
+                  communityIdentityStatus={pnlShareIdentityState.status}
                 />
               )
             : isHomeMarginRiskPage

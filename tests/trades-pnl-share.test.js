@@ -10,6 +10,12 @@ import {
   pnlShareToneColor,
   renderPnlShareCanvas,
 } from '../src/lib/pnlShareImage.js';
+import {
+  createPnlShareIdentity,
+  loadPnlShareAvatarImage,
+  pnlShareAvatarSource,
+  sanitizePnlShareNickname,
+} from '../src/lib/pnlShareIdentity.js';
 
 const read = relativePath => fs.readFileSync(new URL(`../${relativePath}`, import.meta.url), 'utf8');
 
@@ -27,17 +33,20 @@ function translationCount(key) {
 
 function createCanvasRecorder() {
   const text = [];
+  const images = [];
   const gradient = { addColorStop() {} };
   const context = {
     arc() {},
     beginPath() {},
     clearRect() {},
+    clip() {},
     closePath() {},
     createLinearGradient() { return gradient; },
     createRadialGradient() { return gradient; },
     fill() {},
     fillRect() {},
     fillText(value) { text.push({ value: String(value), color: this.fillStyle }); },
+    drawImage(...args) { images.push(args); },
     lineTo() {},
     measureText(value) { return { width: String(value).length * 56 }; },
     moveTo() {},
@@ -56,6 +65,7 @@ function createCanvasRecorder() {
       getContext(kind) { return kind === '2d' ? context : null; },
     },
     text,
+    images,
   };
 }
 
@@ -64,10 +74,12 @@ test('Trading opens the share page only from Today P&L and preserves Total P&L r
   assert.ok(appSource.includes("setActivePage('pnl-share')"));
   assert.ok(appSource.includes("activePage === 'pnl-share'"));
   assert.ok(appSource.includes('<PnlSharePage'));
-  for (const allowedProp of ['onClose={closePnlShare}', 'investmentSummary={investmentSummary}', 'language={language}', 'portfolioCurrencyMode={portfolioCurrencyMode}', 'usdRate={usdRate}']) {
+  for (const allowedProp of ['onClose={closePnlShare}', 'investmentSummary={investmentSummary}', 'language={language}', 'portfolioCurrencyMode={portfolioCurrencyMode}', 'usdRate={usdRate}', 'communityIdentity={pnlShareIdentityState.identity}', 'communityIdentityStatus={pnlShareIdentityState.status}']) {
     assert.ok(appSource.includes(allowedProp), `share page must receive ${allowedProp}`);
   }
   assert.equal(appSource.includes('<PnlSharePage ctx={tabCtx} />'), false);
+  assert.ok(appSource.includes('db.fetchPnlShareIdentity({ id: userId })'));
+  assert.ok(appSource.includes('const identity = createPnlShareIdentity(profile);'));
   assert.ok(appSource.includes('isFullBleedPage = isPnlSharePage || isCommunityCompetitionPage'));
   assert.ok(appSource.includes('hideBottomNavigation = isPnlReportPage || isPnlSharePage;'));
 
@@ -84,7 +96,39 @@ test('Trading opens the share page only from Today P&L and preserves Total P&L r
   assert.ok(devPreviewSource.includes("activeTab === 'pnl-share'"));
   assert.ok(devPreviewSource.includes("'pnl-report', 'pnl-share', 'home-margin-risk'"));
   assert.ok(devPreviewSource.includes("preview === 'pnl-share' ? 'pnl-share'"));
+  assert.ok(devPreviewSource.includes("communityIdentity={{ nickname: '波段玩家1836', avatarKey: 'gold' }}"));
+  assert.ok(devPreviewSource.includes('communityIdentityStatus="ready"'));
   assert.ok(devPreviewSource.includes("activeTab !== 'pnl-report' && activeTab !== 'pnl-share' && ("));
+});
+
+test('share identity accepts only a validated nickname and allowlisted local avatar', async () => {
+  assert.deepEqual(createPnlShareIdentity({
+    nickname: '  陈\u0000 \u202e团团  ',
+    avatarKey: 'cyber-cyan',
+    avatarUrl: 'https://example.com/private.jpg',
+    email: 'private@example.com',
+  }), {
+    nickname: '陈 团团',
+    avatarKey: 'cyber-cyan',
+  });
+  assert.equal(Array.from(sanitizePnlShareNickname('😀'.repeat(17))).length, 16);
+  assert.equal(createPnlShareIdentity({ nickname: '陈团团', avatarKey: '../../private' }), null);
+  assert.equal(createPnlShareIdentity({ nickname: '陈', avatarKey: 'gold' }), null);
+  assert.equal(pnlShareAvatarSource('gold'), '/community-avatars/avatar-human-gold.jpg');
+  assert.equal(pnlShareAvatarSource('https://example.com/a.jpg'), '');
+
+  class FakeImage {
+    set src(value) {
+      this.loadedSrc = value;
+      queueMicrotask(() => this.onload?.());
+    }
+  }
+  const image = await loadPnlShareAvatarImage('gold', { ImageCtor: FakeImage, timeoutMs: 1000 });
+  assert.equal(image.loadedSrc, '/community-avatars/avatar-human-gold.jpg');
+  await assert.rejects(
+    loadPnlShareAvatarImage('data:image/png;base64,private', { ImageCtor: FakeImage, timeoutMs: 1000 }),
+    /not allowlisted/,
+  );
 });
 
 test('share metrics reuse the formal summary and convert money without changing percentages', () => {
@@ -202,6 +246,7 @@ test('an unavailable daily result stays unavailable instead of becoming zero', (
 
 test('the renderer fixes the PNG canvas at 1200 by 1600 and ignores unknown private fields', () => {
   const input = {
+    nickname: '陈团团',
     generatedText: '2026-08-25 21:30',
     marketLabel: '美股',
     metricLabel: '持仓收益',
@@ -213,9 +258,12 @@ test('the renderer fixes the PNG canvas at 1200 by 1600 and ignores unknown priv
     totalAssets: 'PRIVATE TOTAL ASSETS',
     symbol: 'PRIVATE SYMBOL',
     holdings: 'PRIVATE HOLDINGS',
+    avatarUrl: 'PRIVATE AVATAR URL',
+    email: 'PRIVATE EMAIL',
   };
   const model = createPnlShareRenderModel(input);
   assert.deepEqual(Object.keys(model), [
+    'nickname',
     'generatedText',
     'marketLabel',
     'metricLabel',
@@ -226,8 +274,9 @@ test('the renderer fixes the PNG canvas at 1200 by 1600 and ignores unknown priv
     'accessibilityLabel',
   ]);
 
-  const { canvas, text } = createCanvasRecorder();
-  renderPnlShareCanvas(canvas, input);
+  const { canvas, text, images } = createCanvasRecorder();
+  const avatarImage = { naturalWidth: 200, naturalHeight: 160 };
+  renderPnlShareCanvas(canvas, input, avatarImage);
   assert.equal(PNL_SHARE_IMAGE_WIDTH, 1200);
   assert.equal(PNL_SHARE_IMAGE_HEIGHT, 1600);
   assert.equal(canvas.width, 1200);
@@ -240,6 +289,9 @@ test('the renderer fixes the PNG canvas at 1200 by 1600 and ignores unknown priv
     value: '+10.00%',
     color: '#ff4b1f',
   });
+  assert.ok(text.some(item => item.value === '陈团团'));
+  assert.equal(images.length, 1);
+  assert.equal(images[0][0], avatarImage);
   assert.equal(text.some(item => item.value.includes('PRIVATE')), false);
 
   const lossInput = {
@@ -271,7 +323,10 @@ test('share-image tones use fixed red-up green-down colors and keep neutral valu
 test('sharing is local-only, pre-generates the file, and safely handles iOS cancellation and downloads', () => {
   for (const marker of [
     'const [shareSnapshot] = React.useState',
+    'const [identitySnapshot, setIdentitySnapshot] = React.useState',
     'summary: shareSnapshot.summary',
+    'loadPnlShareAvatarImage(identitySnapshot.avatarKey)',
+    'nickname: identitySnapshot.nickname',
     'canvasToPngBlob(canvas)',
     'createPnlSharePngFile(blob, fileName)',
     'navigator.canShare({ files: [file] })',
@@ -297,6 +352,9 @@ test('sharing is local-only, pre-generates the file, and safely handles iOS canc
     'totalAssets',
     'accountManager',
     'user.id',
+    'avatarUrl',
+    'avatarSrc',
+    'email',
   ]) {
     assert.equal(pageSource.includes(forbidden), false, `share page must not consume ${forbidden}`);
     assert.equal(imageSource.includes(forbidden), false, `image renderer must not consume ${forbidden}`);
@@ -321,6 +379,8 @@ test('share-page system text is bilingual and visible CSS text never drops below
     'pnlShare.selectMetric',
     'pnlShare.privacyLabel',
     'pnlShare.generatedAt',
+    'pnlShare.identityUnavailable',
+    'pnlShare.identityUnavailableShort',
     'pnlShare.usMarket',
     'pnlShare.dailyReturn',
     'pnlShare.holdingReturn',

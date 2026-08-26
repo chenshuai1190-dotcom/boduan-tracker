@@ -3111,6 +3111,8 @@ function StandardDevVisualPreview({ initialTab = '' }) {
               language={language}
               portfolioCurrencyMode={tradeCurrencyMode}
               usdRate={USD_RATE}
+              communityIdentity={{ nickname: '波段玩家1836', avatarKey: 'gold' }}
+              communityIdentityStatus="ready"
             />
           )
           : activeTab === 'home-margin-risk'

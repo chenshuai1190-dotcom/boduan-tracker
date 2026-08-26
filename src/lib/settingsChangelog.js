@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '👤 收益分享图接入社区头像与昵称',
+      '  - 分享图左上角使用当前用户在设置页保存的社区头像和昵称，日期时间显示在昵称下方',
+      '  - 每次进入分享页只读本人的昵称与头像键；资料或头像未安全加载完成前不允许保存或分享',
+      '  - 头像仅使用现有18款同源内置资源；收益公式、红涨绿跌配色、正式交易账本、其他模块及数据库结构均未改变',
+    ],
+    itemsEn: [
+      '👤 P&L share images now use the community avatar and nickname',
+      '  - The top-left of the image uses the community avatar and nickname saved by the current user in Settings, with the local date and time below the nickname',
+      '  - Each visit reads only the signed-in user\'s nickname and avatar key; saving and sharing stay disabled until the profile and avatar load safely',
+      '  - Avatars are limited to the existing 18 same-origin built-in assets; return formulas, red-up and green-down colors, the formal trading ledger, other modules, and the database schema are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.469', date: '2026-08-25',
+    items: [
       '🕒 收益分享图时间信息进一步精简',
       '  - 分享图顶部删除“生成于”前缀，仅保留本地日期与时间',
       '  - 红涨绿跌配色、收益公式、隐私字段白名单、PNG 保存分享及其他模块均未改变',

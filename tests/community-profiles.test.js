@@ -118,6 +118,33 @@ test('community avatar catalog exposes eighteen presets and keeps legacy keys va
   }
 });
 
+test('P&L sharing reads only the signed-in nickname and avatar key without creating a profile', async () => {
+  const client = createSupabaseStub({
+    maybeSingleResults: [{
+      data: { nickname: '已保存昵称', avatar_key: 'cyber-cyan' },
+      error: null,
+    }],
+  });
+  const repository = createCommunityProfilesRepository(client);
+
+  const identity = await repository.fetchShareIdentity({ id: 'user-share' });
+
+  assert.deepEqual(identity, { nickname: '已保存昵称', avatarKey: 'cyber-cyan' });
+  assert.deepEqual(client.operations, [{
+    table: 'community_profiles',
+    select: 'nickname,avatar_key',
+    eq: ['user_id', 'user-share'],
+    kind: 'fetch',
+  }]);
+  assert.equal(client.operations.some((operation) => operation.kind === 'insert'), false);
+  assert.equal(client.operations.some((operation) => operation.kind === 'upsert'), false);
+
+  const missingClient = createSupabaseStub();
+  const missingRepository = createCommunityProfilesRepository(missingClient);
+  assert.equal(await missingRepository.fetchShareIdentity({ id: 'user-missing' }), null);
+  assert.equal(missingClient.operations.some((operation) => operation.kind === 'insert'), false);
+});
+
 test('ensure inserts a default profile with a null completion marker', async () => {
   const client = createSupabaseStub();
   const repository = createCommunityProfilesRepository(client);

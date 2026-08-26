@@ -567,10 +567,12 @@ test('community profile settings use a dedicated public identity table without s
   assert.match(communityAvatarOptionsMigrationSource, /add constraint community_profiles_avatar_key_check/);
 
   assert.ok(communityProfilesRepositorySource.includes("from(COMMUNITY_PROFILE_TABLE)"));
+  assert.ok(communityProfilesRepositorySource.includes("SHARE_IDENTITY_COLUMNS = 'nickname,avatar_key'"));
+  assert.ok(communityProfilesRepositorySource.includes('fetchShareIdentity'));
   assert.ok(communityProfilesRepositorySource.includes('.upsert({'));
   assert.ok(communityProfilesRepositorySource.includes("onConflict: 'user_id'"));
   assert.ok(communityProfilesDbSource.includes('supabase.auth.getUser()'));
-  assert.ok(dbSource.includes('fetchCommunityProfile') && dbSource.includes('upsertCommunityProfile'));
+  assert.ok(dbSource.includes('fetchCommunityProfile') && dbSource.includes('fetchPnlShareIdentity') && dbSource.includes('upsertCommunityProfile'));
   assert.ok(appSource.includes('const settingsTabCtx = useMemo(() => ({') && appSource.includes('db,'), 'settings context should receive db methods');
   assert.ok(settingsTabSource.includes("t(language, 'settings.communityProfile', '社区资料')"));
   assert.ok(settingsTabSource.includes('db.fetchCommunityProfile(user)'));
