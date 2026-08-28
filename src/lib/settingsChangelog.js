@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '🎨 普通正式交易弹窗完整对齐模拟股价配色',
+      '  - 移除普通交易内容层残留的蓝灰渐变，让面板、字段间背景与模拟股价统一为纯净近黑层级',
+      '  - 输入框低亮度底色、柔和灰白文字和暖金焦点色现在直接叠加在同一近黑底色上，不再被共享渐变抬亮',
+      '  - 输入尺寸、买入卖出按钮、预计成交额、行情识别、确认保存、正式交易账本、TQQQ及波段均未改变',
+    ],
+    itemsEn: [
+      '🎨 Standard formal trades now fully match the simulated-price palette',
+      '  - The residual blue-gray content gradient is removed so the panel and field surroundings share the same clean near-black depth as simulated price',
+      '  - Low-luminance inputs, soft gray-white text, and the warm-gold focus tone now sit directly on that near-black surface without the shared gradient lifting them',
+      '  - Input sizing, Buy and Sell actions, estimated amount, quote lookup, confirmation and saving, the formal ledger, TQQQ, and swing entry are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.475', date: '2026-08-28',
+    items: [
       '🎛️ 普通正式交易弹窗进一步精简并对齐模拟股价配色',
       '  - 成交价格、交易股数和日期输入框继续缩小，主数字收紧，买入与卖出按钮同步缩小且输入期间始终显示',
       '  - 股票身份区只显示代码与交易类型，不再显示中文公司名称；预计成交额改为上下两行并完整显示金额',

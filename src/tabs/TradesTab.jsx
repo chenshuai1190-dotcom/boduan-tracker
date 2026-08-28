@@ -2215,7 +2215,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
               : (isGenericLedgerTradeEntry ? 'min-h-0 !border-white/10 !bg-[#0b0f14] !bg-none !px-[22px] !pb-5 !pt-[22px] !text-white !shadow-[0_24px_70px_rgba(0,0,0,0.5)]' : 'min-h-0')}
             contentClassName={isTqqqTradeEntry
               ? '!border-0 !bg-transparent !p-0 !shadow-none'
-              : (isGenericLedgerTradeEntry ? '!rounded-none !border-0 !bg-transparent !px-0 !py-0 !shadow-none' : '')}
+              : (isGenericLedgerTradeEntry ? '!rounded-none !border-0 !bg-transparent !bg-none !px-0 !py-0 !shadow-none' : '')}
             headerClassName={isGenericLedgerTradeEntry ? '!mb-[14px] !border-b !border-white/[0.07] !pb-[14px]' : ''}
             closeButtonClassName={isGenericLedgerTradeEntry ? '!h-[42px] !w-[42px] !border-0 !bg-white/[0.06] !text-white/58' : ''}
             actionGridClassName={isGenericLedgerTradeEntry ? 'grid-cols-2 !mt-[11px] !gap-2' : ''}
