@@ -20,6 +20,7 @@ import { formatWaveCurrencyAmount, formatWaveUsdPrice } from '../lib/waveCurrenc
 import ActionModalCard from '../components/ActionModalCard.jsx';
 import AccountLeverageBadge from '../components/AccountLeverageBadge.jsx';
 import AvailableCashEditor from '../components/AvailableCashEditor.jsx';
+import GenericLedgerTradeEntryPanel, { GenericLedgerTradeHeader } from '../components/GenericLedgerTradeEntryPanel.jsx';
 import StockLogo, { stockLogoCandidates } from '../components/StockLogo.jsx';
 import TqqqTradeEntryPanel, { TQQQ_ACTION_TONE_CLASSES } from '../components/TqqqTradeEntryPanel.jsx';
 
@@ -658,9 +659,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
     scope: tradeEntryScope,
   });
   const isGenericLedgerTradeEntry = tradeEntryScope === 'ledger' && !isTqqqTradeEntry;
-  const genericTradeSectionClass = isGenericLedgerTradeEntry
-    ? 'min-w-0'
-    : 'mb-3 min-w-0 border-b border-white/10 pb-3';
+  const genericTradeSectionClass = 'mb-3 min-w-0 border-b border-white/10 pb-3';
   const tqqqTradePreview = React.useMemo(() => deriveTqqqTradePreview({
     stockTrades,
     quoteRows,
@@ -2198,13 +2197,28 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
         {showAddTrade && (
           <ActionModalCard
             title={tradeEntryScope === 'wave' ? tt('trades.addWaveRecord', '添加波段记录') : (newTrade.id || newTrade.editingId ? tt('trades.editTrade', '修改交易') : tt('trades.addTrade', '添加交易'))}
+            headerContent={isGenericLedgerTradeEntry ? (
+              <GenericLedgerTradeHeader
+                draft={newTrade}
+                onDraftChange={setNewTrade}
+                logoCache={logoCache}
+                cacheStockLogo={cacheStockLogo}
+                editing={Boolean(newTrade.id || newTrade.editingId)}
+                tt={tt}
+              />
+            ) : null}
             closeLabel={tt('trades.closeTradeForm', '关闭交易表单')}
             onClose={() => !tradeSubmitting && setShowAddTrade(false)}
             widthClassName={isTqqqTradeEntry ? 'w-[calc(100vw-24px)] max-w-[720px]' : 'w-[calc(100vw-24px)] max-w-md'}
-            panelClassName={isTqqqTradeEntry || isGenericLedgerTradeEntry ? 'min-h-0 !border-transparent' : 'min-h-0'}
+            panelClassName={isTqqqTradeEntry
+              ? 'min-h-0 !border-transparent'
+              : (isGenericLedgerTradeEntry ? 'min-h-0 !border-transparent !px-[22px] !pb-5 !pt-[22px]' : 'min-h-0')}
             contentClassName={isTqqqTradeEntry
               ? '!border-0 !bg-transparent !p-0 !shadow-none'
-              : (isGenericLedgerTradeEntry ? '!border-transparent' : '')}
+              : (isGenericLedgerTradeEntry ? '!rounded-none !border-0 !bg-transparent !px-0 !py-0 !shadow-none' : '')}
+            headerClassName={isGenericLedgerTradeEntry ? '!mb-5 !border-b !border-white/[0.065] !pb-5' : ''}
+            closeButtonClassName={isGenericLedgerTradeEntry ? '!h-[42px] !w-[42px] !border-0 !bg-white/[0.055]' : ''}
+            actionClassName={isGenericLedgerTradeEntry ? '!h-[54px] !rounded-[17px] !border-white/[0.13] !bg-transparent !text-white/[0.68]' : ''}
             actions={isTqqqTradeEntry ? [{
               key: 'tqqq-confirm',
               label: tradeSubmitting
@@ -2229,7 +2243,14 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                 tt={tt}
               />
             ) : (
-              <div className={isGenericLedgerTradeEntry ? 'min-w-0 space-y-4' : 'min-w-0'}>
+              isGenericLedgerTradeEntry ? (
+                <GenericLedgerTradeEntryPanel
+                  draft={newTrade}
+                  onDraftChange={setNewTrade}
+                  tt={tt}
+                />
+              ) : (
+              <div className="min-w-0">
                 {/* 股票代码 */}
                 <div className={genericTradeSectionClass}>
                   <div className="min-w-0">
@@ -2346,6 +2367,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                 )}
 
               </div>
+              )
             )}
           </ActionModalCard>
         )}

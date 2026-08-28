@@ -355,7 +355,7 @@ test('keeps approved TQQQ surfaces borderless and omits the redundant lookup hin
   assert.equal(panelSource.includes('function LookupStatus'), false);
   assert.equal(panelSource.includes('lookupStatus'), false);
   assert.equal(tradesTabSource.includes('lookupStatus={lookupStatus}'), false);
-  assert.ok(tradesTabSource.includes("panelClassName={isTqqqTradeEntry || isGenericLedgerTradeEntry ? 'min-h-0 !border-transparent' : 'min-h-0'}"));
+  assert.ok(tradesTabSource.includes("panelClassName={isTqqqTradeEntry\n              ? 'min-h-0 !border-transparent'"));
   assert.ok(panelSource.includes('rounded-[14px] bg-emerald-400/[0.065]'));
 });
 

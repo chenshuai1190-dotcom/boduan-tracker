@@ -5,11 +5,13 @@ const ACTION_MODAL_BUTTON_CLASS = 'flex h-[46px] items-center justify-center rou
 
 export default function ActionModalCard({
   title,
+  headerContent = null,
   closeLabel,
   onClose,
   children,
   actions = [],
   actionGridClassName = '',
+  actionClassName = '',
   widthClassName = 'w-[calc(100vw-76px)] max-w-[360px]',
   panelClassName = '',
   contentClassName = '',
@@ -18,6 +20,8 @@ export default function ActionModalCard({
   panelStyle,
   showGrabber = false,
   titleClassName = '',
+  headerClassName = '',
+  closeButtonClassName = '',
 }) {
   const actionColumns = actionGridClassName || (actions.length === 1 ? 'grid-cols-1' : 'grid-cols-2');
   const [visualViewportFrame, setVisualViewportFrame] = React.useState(null);
@@ -121,12 +125,16 @@ export default function ActionModalCard({
             aria-hidden="true"
           />
         )}
-        <div className="flex shrink-0 items-center justify-between px-0.5 pb-4">
-          <h2 className={`min-w-0 truncate text-[17px] font-normal leading-[30px] tracking-normal text-white/[0.87] ${titleClassName}`}>{title}</h2>
+        <div className={`flex shrink-0 items-center justify-between gap-3 px-0.5 pb-4 ${headerClassName}`}>
+          {headerContent ? (
+            <div className="min-w-0 flex-1">{headerContent}</div>
+          ) : (
+            <h2 className={`min-w-0 truncate text-[17px] font-normal leading-[30px] tracking-normal text-white/[0.87] ${titleClassName}`}>{title}</h2>
+          )}
           <button
             type="button"
             onClick={onClose}
-            className="flex h-[31px] w-[31px] shrink-0 items-center justify-center rounded-full border border-white/10 bg-black/[0.28] text-white/[0.67] shadow-[inset_0_1px_0_rgba(255,255,255,0.025)] active:scale-90"
+            className={`flex h-[31px] w-[31px] shrink-0 items-center justify-center rounded-full border border-white/10 bg-black/[0.28] text-white/[0.67] shadow-[inset_0_1px_0_rgba(255,255,255,0.025)] active:scale-90 ${closeButtonClassName}`}
             aria-label={closeLabel}
           >
             <X className="h-3.5 w-3.5" strokeWidth={1.7} />
@@ -145,7 +153,7 @@ export default function ActionModalCard({
                 type="button"
                 onClick={action.onClick}
                 disabled={action.disabled}
-                className={`${ACTION_MODAL_BUTTON_CLASS} ${action.className || ''}`}
+                className={`${ACTION_MODAL_BUTTON_CLASS} ${actionClassName} ${action.className || ''}`}
               >
                 {action.label}
               </button>

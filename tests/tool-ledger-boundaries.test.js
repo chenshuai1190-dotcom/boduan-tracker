@@ -5,6 +5,7 @@ import { inflateSync } from 'node:zlib';
 
 const appSource = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8');
 const actionModalCardSource = readFileSync(new URL('../src/components/ActionModalCard.jsx', import.meta.url), 'utf8');
+const genericLedgerTradeEntryPanelSource = readFileSync(new URL('../src/components/GenericLedgerTradeEntryPanel.jsx', import.meta.url), 'utf8');
 const accountAssetTrendModalSource = readFileSync(new URL('../src/components/AccountAssetTrendModal.jsx', import.meta.url), 'utf8');
 const monthlyAssetTrendChartSource = readFileSync(new URL('../src/components/MonthlyAssetTrendChart.jsx', import.meta.url), 'utf8');
 const monthlyAssetTrendContentSource = readFileSync(new URL('../src/components/MonthlyAssetTrendContent.jsx', import.meta.url), 'utf8');
@@ -605,34 +606,53 @@ test('trade and wave form validation avoids native alert dialogs', () => {
   assert.ok(tradesTabSource.includes('showTradeFormNotice'), 'trade tab must intercept invalid form state before submit');
 });
 
-test('main trade entry modal uses compact four-step buy sell submission flow', () => {
+test('main trade entry modal isolates the large stacked formal-trade design', () => {
   const tradeModalStart = tradesTabSource.indexOf('{showAddTrade && (');
   const tradeModalEnd = tradesTabSource.indexOf('{showCostTool && (() => {', tradeModalStart);
   const tradeModalBlock = tradesTabSource.slice(tradeModalStart, tradeModalEnd);
+  const genericHeaderStart = genericLedgerTradeEntryPanelSource.indexOf('export function GenericLedgerTradeHeader');
+  const genericPanelStart = genericLedgerTradeEntryPanelSource.indexOf('export default function GenericLedgerTradeEntryPanel');
+  const genericHeaderBlock = genericLedgerTradeEntryPanelSource.slice(genericHeaderStart, genericPanelStart);
+  const genericPanelBlock = genericLedgerTradeEntryPanelSource.slice(genericPanelStart);
 
   assert.ok(tradeModalStart > -1, 'missing trade entry modal');
   assert.ok(tradeModalEnd > tradeModalStart, 'missing boundary after trade entry modal');
+  assert.ok(genericHeaderStart > -1 && genericPanelStart > genericHeaderStart, 'missing isolated generic formal-trade components');
   assert.ok(appSource.includes('<ConfirmModal'), 'app should render the shared confirmation modal component');
   assert.ok(appSource.includes('normalizeConfirmModalOptions(opts)'), 'app should keep normalizing confirmation options before display');
-  assert.ok(tradeModalBlock.includes('<CalendarDays ') && tradeModalBlock.includes('<ChevronRight '), 'trade modal should use lucide date and chevron icons');
+  assert.ok(genericPanelBlock.includes('<CalendarDays ') && genericPanelBlock.includes('<ChevronRight '), 'formal-trade date should use lucide calendar and chevron icons');
+  assert.equal(genericHeaderBlock.includes('ChevronRight'), false, 'stock identity header must not show a right arrow');
   assert.ok(tradesTabSource.includes('Search, Settings2, Trash2, TrendingDown, TrendingUp'), 'trade modal should keep search, color settings, and buy/sell trend icons');
-  assert.ok(tradeModalBlock.includes("tt('trades.stockTicker'"), 'first row should be stock ticker');
-  assert.ok(tradeModalBlock.includes("tt('trades.priceShares'"), 'second row should be price and shares');
-  assert.ok(tradeModalBlock.includes("tt('trades.date'"), 'third row should be date');
+  assert.ok(genericHeaderBlock.includes('data-generic-ledger-symbol-header="true"') && genericHeaderBlock.includes('<StockLogo'), 'formal trade should put the editable ticker, name, and logo in one identity header');
+  assert.ok(genericHeaderBlock.includes("tt('trades.stockTicker'") && genericHeaderBlock.includes('symbol: event.target.value.toUpperCase()'), 'identity header should retain the editable uppercase ticker binding');
+  assert.ok(genericPanelBlock.includes('data-generic-ledger-trade-entry="true"'), 'formal trade should use its isolated entry panel');
+  assert.ok(genericPanelBlock.includes("tt('trades.executionPrice'") && genericPanelBlock.includes("tt('trades.tradeShares'") && genericPanelBlock.includes("tt('trades.tradeDate'"), 'formal trade should use the approved price, shares, and date labels');
+  assert.ok(genericPanelBlock.includes('min-h-[74px]') && genericLedgerTradeEntryPanelSource.includes('min-h-[68px]') && genericLedgerTradeEntryPanelSource.includes('text-[30px]'), 'price and shares should use large full-width numeric controls');
+  assert.ok(genericPanelBlock.includes('step="0.01"') && genericPanelBlock.includes('inputMode="decimal"') && genericPanelBlock.includes('inputMode="numeric"'), 'price and shares should preserve their numeric input contracts');
+  assert.ok(genericPanelBlock.includes('type="date"') && genericPanelBlock.includes("value={draft?.date || ''}") && genericPanelBlock.includes("WebkitAppearance: 'none'"), 'date should remain a native bound dark-mode date input');
+  assert.ok(genericPanelBlock.includes('price * shares') && genericPanelBlock.includes("tt('trades.estimatedTradeAmount'"), 'estimated amount should be a display-only price-times-shares summary');
   assert.equal(tradeModalBlock.includes("tt('trades.action'"), false, 'trade modal should not show the action section title');
-  assert.ok(tradeModalBlock.includes("tt('trades.systemManagedName'"), 'trade input should explain that name and price are system-managed');
+  assert.equal(genericLedgerTradeEntryPanelSource.includes("tt('trades.systemManagedName'"), false, 'generic formal trade should not show the removed automatic-name hint');
+  assert.equal(genericLedgerTradeEntryPanelSource.includes("tt('trades.lookupLoading'") || genericLedgerTradeEntryPanelSource.includes("tt('trades.lookupFound'") || genericLedgerTradeEntryPanelSource.includes("tt('trades.lookupNotFound'"), false, 'generic formal trade should not restore the lookup-status helper strip');
+  assert.ok(tradeModalBlock.includes("tt('trades.systemManagedName'"), 'wave fallback should preserve its existing lookup helper');
   assert.ok(tradesTabSource.includes("const tradeModalBaseInput = 'block w-full max-w-full min-w-0 box-border rounded-xl border border-transparent") && tradesTabSource.includes('focus:border-[#f6b54b]/45'), 'trade inputs should not show a default white outline while keeping a restrained gold focus state');
   assert.ok(tradesTabSource.includes("const tradeModalLabelClass = 'mb-1.5 block text-[12px] font-normal text-white/[0.62]'"), 'trade labels should be readable');
   assert.ok(tradesTabSource.includes("const isGenericLedgerTradeEntry = tradeEntryScope === 'ledger' && !isTqqqTradeEntry"), 'borderless treatment should stay scoped to generic formal trades');
-  assert.ok(tradesTabSource.includes("? 'min-w-0'\n    : 'mb-3 min-w-0 border-b border-white/10 pb-3'"), 'generic formal trade sections should remove dividers while wave sections preserve their existing boundaries');
-  assert.equal((tradeModalBlock.match(/className=\{genericTradeSectionClass\}/g) || []).length, 3, 'ticker, price, and date should share the divider-free section rhythm');
-  assert.ok(tradeModalBlock.includes("isGenericLedgerTradeEntry ? 'min-w-0 space-y-4' : 'min-w-0'"), 'generic trade sections should use consistent natural spacing after their dividers are removed');
-  assert.ok(tradeModalBlock.includes("panelClassName={isTqqqTradeEntry || isGenericLedgerTradeEntry ? 'min-h-0 !border-transparent' : 'min-h-0'}"), 'generic and TQQQ formal trade panels should match their approved borderless modal shells');
-  assert.ok(tradeModalBlock.includes(": (isGenericLedgerTradeEntry ? '!border-transparent' : '')"), 'generic formal trade content should hide only its redundant inner outline');
+  assert.ok(tradesTabSource.includes("const genericTradeSectionClass = 'mb-3 min-w-0 border-b border-white/10 pb-3'"), 'wave fallback should preserve its existing section dividers');
+  assert.equal((tradeModalBlock.match(/className=\{genericTradeSectionClass\}/g) || []).length, 3, 'wave ticker, price, and date should preserve their prior section rhythm');
+  assert.ok(tradeModalBlock.includes("<GenericLedgerTradeHeader") && tradeModalBlock.includes('<GenericLedgerTradeEntryPanel'), 'generic formal trade should render the new isolated header and body only in its branch');
+  assert.ok(tradeModalBlock.includes("isGenericLedgerTradeEntry ? 'min-h-0 !border-transparent !px-[22px] !pb-5 !pt-[22px]'"), 'generic formal trade should keep the approved borderless shell with deliberate inner spacing');
+  assert.ok(tradeModalBlock.includes("isGenericLedgerTradeEntry ? '!rounded-none !border-0 !bg-transparent !px-0 !py-0 !shadow-none'"), 'generic formal trade should remove the redundant nested content frame');
+  assert.ok(tradeModalBlock.includes("headerClassName={isGenericLedgerTradeEntry ? '!mb-5 !border-b !border-white/[0.065] !pb-5' : ''}"), 'generic identity header should retain only one restrained hierarchy divider');
+  assert.ok(tradeModalBlock.includes("actionClassName={isGenericLedgerTradeEntry ? '!h-[54px] !rounded-[17px] !border-white/[0.13] !bg-transparent !text-white/[0.68]' : ''}"), 'generic buy and sell actions should share one neutral style');
   assert.equal((tradeModalBlock.match(/\bclassName:/g) || []).length, 1, 'only the isolated TQQQ confirm action may override the shared action palette');
   assert.ok(tradeModalBlock.includes("? '!border-0 !bg-transparent !p-0 !shadow-none'"), 'TQQQ should retain its isolated transparent content shell');
   assert.ok(actionModalCardSource.includes('border border-white/[0.16] bg-black/[0.18]'), 'shared neutral actions should retain the monthly-balance outline and dark fill');
-  assert.ok(tradeModalBlock.includes('text-[11px] text-white/60'), 'system-managed-name helper should be smaller');
+  assert.ok(actionModalCardSource.includes('headerContent = null') && actionModalCardSource.includes('{headerContent ? ('), 'shared modal should expose an optional custom header without changing its default title path');
+  assert.equal(genericLedgerTradeEntryPanelSource.includes('text-rose') || genericLedgerTradeEntryPanelSource.includes('text-emerald') || genericLedgerTradeEntryPanelSource.includes('TrendingUp') || genericLedgerTradeEntryPanelSource.includes('TrendingDown'), false, 'generic formal trade should not color-code buy or sell');
+  for (const key of ['trades.formalTradeNewMeta', 'trades.formalTradeEditMeta', 'trades.executionPrice', 'trades.tradeShares', 'trades.tradeDate', 'trades.estimatedTradeAmount', 'trades.clearPrice']) {
+    assert.equal((i18nSource.match(new RegExp(`'${key}':`, 'g')) || []).length, 2, `${key} should have Chinese and English translations`);
+  }
   assert.equal(tradeModalBlock.includes('text-[9px] text-rose-200'), false, 'trade modal should not keep numbered step badges');
   assert.equal(tradeModalBlock.includes("tt('trades.nameAuto'"), false, 'main trade input should not show the old Chinese-name field');
   assert.equal(tradeModalBlock.includes("tt('trades.confirmAdd'"), false, 'trade modal should not keep a duplicate confirm-add button');

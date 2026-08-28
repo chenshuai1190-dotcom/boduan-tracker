@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '⌨️ 普通正式交易弹窗升级为大数字纵向录入',
+      '  - 股票代码、名称与头像合并到顶部身份区，移除股票右箭头和名称自动识别提示条',
+      '  - 成交价格、交易股数与日期改为全宽纵向输入，并增加只读的预计成交额',
+      '  - 买入与卖出继续使用中性同色；行情识别、确认保存、正式交易账本、TQQQ专属交易及波段录入均未改变',
+    ],
+    itemsEn: [
+      '⌨️ Standard formal trades now use large, stacked numeric inputs',
+      '  - The ticker, name, and logo now share one identity header, with the stock arrow and automatic-name hint removed',
+      '  - Execution price, shares, and date now use full-width stacked inputs, plus a read-only estimated amount',
+      '  - Buy and Sell remain neutral and identical; quote lookup, confirmation and saving, the formal ledger, TQQQ entry, and swing entry are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.472', date: '2026-08-26',
+    items: [
       '📷 首页今日盈亏接入收益分享',
       '  - 点击首页资产概览中的“今日盈亏”可进入现有收益分享页，生成同一套 1200×1600 高清 PNG',
       '  - 首页与交易页复用同一个分享入口、用户头像昵称、收益指标切换和保存分享流程；返回时回到原页面',
