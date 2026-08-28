@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '⌨️ 普通正式交易输入与键盘布局进一步收紧',
+      '  - 成交价格、交易股数和日期输入框缩为紧凑高度，数字、币种符号、清除键与股数单位使用固定列对齐',
+      '  - 买入与卖出操作区在数字和日期输入期间继续固定显示，紧凑表单减少iOS键盘阶段的遮挡和错位',
+      '  - 行情识别、预计成交额、确认保存、正式交易账本、TQQQ专属交易及波段录入均未改变',
+    ],
+    itemsEn: [
+      '⌨️ Standard formal-trade inputs and keyboard layout are now more compact',
+      '  - Price, shares, and date controls use a shorter height, with fixed columns aligning numbers, currency, clear control, and share unit',
+      '  - Buy and Sell remain visible while editing numeric and date inputs, while the compact form reduces iOS keyboard overlap and misalignment',
+      '  - Quote lookup, estimated amount, confirmation and saving, the formal ledger, TQQQ entry, and swing entry are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.473', date: '2026-08-28',
+    items: [
       '⌨️ 普通正式交易弹窗升级为大数字纵向录入',
       '  - 股票代码、名称与头像合并到顶部身份区，移除股票右箭头和名称自动识别提示条',
       '  - 成交价格、交易股数与日期改为全宽纵向输入，并增加只读的预计成交额',

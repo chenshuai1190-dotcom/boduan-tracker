@@ -2216,9 +2216,9 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
             contentClassName={isTqqqTradeEntry
               ? '!border-0 !bg-transparent !p-0 !shadow-none'
               : (isGenericLedgerTradeEntry ? '!rounded-none !border-0 !bg-transparent !px-0 !py-0 !shadow-none' : '')}
-            headerClassName={isGenericLedgerTradeEntry ? '!mb-5 !border-b !border-white/[0.065] !pb-5' : ''}
+            headerClassName={isGenericLedgerTradeEntry ? '!mb-[14px] !border-b !border-white/[0.065] !pb-[14px]' : ''}
             closeButtonClassName={isGenericLedgerTradeEntry ? '!h-[42px] !w-[42px] !border-0 !bg-white/[0.055]' : ''}
-            actionClassName={isGenericLedgerTradeEntry ? '!h-[54px] !rounded-[17px] !border-white/[0.13] !bg-transparent !text-white/[0.68]' : ''}
+            actionClassName={isGenericLedgerTradeEntry ? '!h-[48px] !rounded-[15px] !border-white/[0.13] !bg-transparent !text-white/[0.66]' : ''}
             actions={isTqqqTradeEntry ? [{
               key: 'tqqq-confirm',
               label: tradeSubmitting
