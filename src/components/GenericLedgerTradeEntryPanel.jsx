@@ -3,9 +3,9 @@ import { CalendarDays, ChevronRight, X } from 'lucide-react';
 import StockLogo, { stockLogoCandidates } from './StockLogo.jsx';
 
 const NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif';
-const INPUT_SHELL_CLASS = 'grid min-h-[56px] min-w-0 items-center rounded-[14px] border border-white/[0.11] bg-white/[0.055] px-[14px] transition focus-within:border-[#f6b54b]/45 focus-within:bg-white/[0.075] focus-within:shadow-[inset_0_0_0_1px_rgba(246,181,75,0.06)]';
-const NUMBER_INPUT_CLASS = 'h-8 w-full min-w-0 appearance-none border-0 bg-transparent p-0 text-[25px] font-normal leading-8 tracking-[-0.02em] text-white/[0.94] outline-none placeholder:text-white/[0.24] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none';
-const LABEL_CLASS = 'text-[12px] font-normal text-white/[0.61]';
+const INPUT_SHELL_CLASS = 'grid min-h-[45px] min-w-0 items-center rounded-[13px] border border-white/10 bg-white/[0.045] px-[11px] transition focus-within:border-[#f6b54b]/55 focus-within:bg-white/[0.07]';
+const NUMBER_INPUT_CLASS = 'h-[25px] w-full min-w-0 appearance-none border-0 bg-transparent p-0 text-[18px] font-normal leading-[25px] tracking-[-0.015em] text-white outline-none placeholder:text-white/20 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none';
+const LABEL_CLASS = 'text-[12px] font-normal text-white/48';
 
 function normalizedSymbol(value) {
   return String(value || '').trim().toUpperCase();
@@ -20,8 +20,6 @@ export function GenericLedgerTradeHeader({
   tt,
 }) {
   const symbol = normalizedSymbol(draft?.symbol);
-  const rawName = String(draft?.name || '').trim();
-  const displayName = rawName && rawName.toUpperCase() !== symbol ? rawName : '';
   const logoUrls = stockLogoCandidates(symbol, logoCache?.[symbol]?.url);
 
   return (
@@ -33,7 +31,7 @@ export function GenericLedgerTradeHeader({
         className="h-11 w-11 shrink-0 rounded-full"
       />
       <div className="min-w-0 flex-1">
-        <div className="flex min-w-0 items-baseline gap-2.5">
+        <div className="min-w-0">
           <input
             type="text"
             value={draft?.symbol || ''}
@@ -47,13 +45,10 @@ export function GenericLedgerTradeHeader({
               name: '',
               price: '',
             })}
-            className="w-[98px] max-w-[42%] min-w-[70px] rounded-md border-0 bg-transparent px-0 py-0.5 text-[17px] font-medium uppercase leading-tight text-white/[0.94] outline-none placeholder:text-white/[0.34] focus:bg-white/[0.045]"
+            className="w-[98px] max-w-[42%] min-w-[70px] rounded-md border-0 bg-transparent px-0 py-0.5 text-[17px] font-medium uppercase leading-tight text-white outline-none placeholder:text-white/20 focus:bg-white/[0.045]"
           />
-          {displayName ? (
-            <span className="min-w-0 truncate text-[15px] font-normal text-white/[0.79]">{displayName}</span>
-          ) : null}
         </div>
-        <div className="mt-1 truncate text-[11px] font-normal text-white/[0.38]">
+        <div className="mt-1 truncate text-[11px] font-normal text-white/42">
           {editing
             ? tt('trades.formalTradeEditMeta', '修改正式交易 · 美股')
             : tt('trades.formalTradeNewMeta', '新增正式交易 · 美股')}
@@ -77,10 +72,10 @@ export default function GenericLedgerTradeEntryPanel({ draft, onDraftChange, tt 
     <div data-generic-ledger-trade-entry="true" className="min-w-0 space-y-[13px]">
       <div className="grid min-w-0 gap-[7px]">
         <label htmlFor="generic-ledger-trade-price" className={LABEL_CLASS}>
-          {tt('trades.executionPrice', '成交价格')} <span className="text-white/[0.48]">USD</span>
+          {tt('trades.executionPrice', '成交价格')} <span className="text-white/42">USD</span>
         </label>
-        <div className={`${INPUT_SHELL_CLASS} grid-cols-[22px_minmax(0,1fr)_30px] gap-2 bg-white/[0.065]`}>
-          <span className="text-center text-[20px] font-normal text-[#e8ad4c]" aria-hidden="true">$</span>
+        <div className={`${INPUT_SHELL_CLASS} grid-cols-[17px_minmax(0,1fr)_25px] gap-[7px]`}>
+          <span className="text-center text-[15px] font-normal text-[#f6b54b]" aria-hidden="true">$</span>
           <input
             id="generic-ledger-trade-price"
             type="number"
@@ -97,7 +92,7 @@ export default function GenericLedgerTradeEntryPanel({ draft, onDraftChange, tt 
             disabled={!draft?.price}
             onPointerDown={(event) => event.preventDefault()}
             onClick={() => onDraftChange({ ...draft, price: '' })}
-            className={`flex h-[30px] w-[30px] items-center justify-center rounded-full bg-white/[0.045] text-white/[0.34] active:scale-90 ${draft?.price ? '' : 'invisible pointer-events-none'}`}
+            className={`flex h-[25px] w-[25px] items-center justify-center rounded-full bg-white/[0.06] text-[15px] text-white/35 active:scale-90 ${draft?.price ? '' : 'invisible pointer-events-none'}`}
             aria-label={tt('trades.clearPrice', '清除价格')}
           >
             <X className="h-3.5 w-3.5" strokeWidth={1.7} />
@@ -107,7 +102,7 @@ export default function GenericLedgerTradeEntryPanel({ draft, onDraftChange, tt 
 
       <div className="grid min-w-0 gap-[7px]">
         <label htmlFor="generic-ledger-trade-shares" className={LABEL_CLASS}>{tt('trades.tradeShares', '交易股数')}</label>
-        <div className={`${INPUT_SHELL_CLASS} grid-cols-[minmax(0,1fr)_26px] gap-2`}>
+        <div className={`${INPUT_SHELL_CLASS} grid-cols-[minmax(0,1fr)_22px] gap-[7px]`}>
           <input
             id="generic-ledger-trade-shares"
             type="number"
@@ -118,33 +113,38 @@ export default function GenericLedgerTradeEntryPanel({ draft, onDraftChange, tt 
             className={NUMBER_INPUT_CLASS}
             style={{ colorScheme: 'dark', fontFamily: NUMBER_FONT }}
           />
-          <span className="text-right text-[14px] font-normal text-white/[0.48]">{tt('trades.shares', '股')}</span>
+          <span className="text-right text-[14px] font-normal text-white/48">{tt('trades.shares', '股')}</span>
         </div>
       </div>
 
       <div className="grid min-w-0 gap-[7px]">
         <label htmlFor="generic-ledger-trade-date" className={LABEL_CLASS}>{tt('trades.tradeDate', '交易日期')}</label>
         <div className={`${INPUT_SHELL_CLASS} grid-cols-[18px_minmax(0,1fr)_16px] gap-2`}>
-          <CalendarDays className="pointer-events-none h-4 w-4 text-white/[0.4]" strokeWidth={1.7} />
+          <CalendarDays className="pointer-events-none h-4 w-4 text-white/42" strokeWidth={1.7} />
           <input
             id="generic-ledger-trade-date"
             type="date"
             value={draft?.date || ''}
             onChange={(event) => onDraftChange({ ...draft, date: event.target.value })}
-            className="h-8 min-w-0 appearance-none border-0 bg-transparent px-0 text-center text-[16px] font-normal leading-8 tabular-nums text-white/[0.86] outline-none"
+            className="h-[25px] min-w-0 appearance-none border-0 bg-transparent px-0 text-center text-[14px] font-normal leading-[25px] tabular-nums text-white outline-none"
             style={{ colorScheme: 'dark', WebkitAppearance: 'none', fontFamily: NUMBER_FONT }}
           />
-          <ChevronRight className="pointer-events-none h-4 w-4 text-white/[0.28]" strokeWidth={1.7} />
+          <ChevronRight className="pointer-events-none h-4 w-4 text-white/35" strokeWidth={1.7} />
         </div>
       </div>
 
-      <div className="flex min-h-[34px] min-w-0 items-baseline justify-between gap-3 border-t border-white/[0.06] pt-3" aria-label={tt('trades.estimatedTradeAmount', '预计成交额')}>
-        <span className="shrink-0 text-[12px] font-normal text-white/[0.36]">
-          {tt('trades.estimatedTradeAmount', '预计成交额')}
-        </span>
-        <strong className="min-w-0 truncate text-right text-[17px] font-normal tracking-[-0.01em] text-white/[0.82] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
+      <div className="grid min-h-[49px] min-w-0 gap-[5px] border-t border-white/[0.06] px-0.5 pb-px pt-[11px]" aria-label={tt('trades.estimatedTradeAmount', '预计成交额')}>
+        <div className="flex min-w-0 items-center justify-between gap-3">
+          <span className="text-[11px] font-normal text-white/42">
+            {tt('trades.estimatedTradeAmount', '预计成交额')}
+          </span>
+          <small className="text-[10px] font-normal text-white/35">USD</small>
+        </div>
+        <strong
+          className="w-full min-w-0 justify-self-end whitespace-nowrap text-right text-[16px] font-normal leading-[21px] tracking-[-0.01em] text-white tabular-nums"
+          style={{ fontFamily: NUMBER_FONT, fontSize: 'clamp(14px, 4vw, 16px)' }}
+        >
           {estimatedAmountText}
-          {estimatedAmount !== null ? <small className="ml-1 text-[11px] font-normal text-white/[0.36]">USD</small> : null}
         </strong>
       </div>
     </div>

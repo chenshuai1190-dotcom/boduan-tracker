@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '🎛️ 普通正式交易弹窗进一步精简并对齐模拟股价配色',
+      '  - 成交价格、交易股数和日期输入框继续缩小，主数字收紧，买入与卖出按钮同步缩小且输入期间始终显示',
+      '  - 股票身份区只显示代码与交易类型，不再显示中文公司名称；预计成交额改为上下两行并完整显示金额',
+      '  - 面板背景、输入框底色、文字层级和暖金焦点色复用模拟股价的中性黑灰体系；行情识别、确认保存、正式交易账本、TQQQ及波段均未改变',
+    ],
+    itemsEn: [
+      '🎛️ Standard formal trades are now tighter and aligned with the simulated-price palette',
+      '  - Price, shares, and date controls are smaller, primary numerals are tighter, and the smaller Buy and Sell actions remain visible while editing',
+      '  - The identity header now shows only the ticker and trade type, while estimated amount uses two lines and keeps the full value visible',
+      '  - Panel, input, text hierarchy, and warm-gold focus colors reuse the neutral simulated-price system; quote lookup, confirmation and saving, the formal ledger, TQQQ, and swing entry are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.474', date: '2026-08-28',
+    items: [
       '⌨️ 普通正式交易输入与键盘布局进一步收紧',
       '  - 成交价格、交易股数和日期输入框缩为紧凑高度，数字、币种符号、清除键与股数单位使用固定列对齐',
       '  - 买入与卖出操作区在数字和日期输入期间继续固定显示，紧凑表单减少iOS键盘阶段的遮挡和错位',

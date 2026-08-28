@@ -2212,13 +2212,14 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
             widthClassName={isTqqqTradeEntry ? 'w-[calc(100vw-24px)] max-w-[720px]' : 'w-[calc(100vw-24px)] max-w-md'}
             panelClassName={isTqqqTradeEntry
               ? 'min-h-0 !border-transparent'
-              : (isGenericLedgerTradeEntry ? 'min-h-0 !border-transparent !px-[22px] !pb-5 !pt-[22px]' : 'min-h-0')}
+              : (isGenericLedgerTradeEntry ? 'min-h-0 !border-white/10 !bg-[#0b0f14] !bg-none !px-[22px] !pb-5 !pt-[22px] !text-white !shadow-[0_24px_70px_rgba(0,0,0,0.5)]' : 'min-h-0')}
             contentClassName={isTqqqTradeEntry
               ? '!border-0 !bg-transparent !p-0 !shadow-none'
               : (isGenericLedgerTradeEntry ? '!rounded-none !border-0 !bg-transparent !px-0 !py-0 !shadow-none' : '')}
-            headerClassName={isGenericLedgerTradeEntry ? '!mb-[14px] !border-b !border-white/[0.065] !pb-[14px]' : ''}
-            closeButtonClassName={isGenericLedgerTradeEntry ? '!h-[42px] !w-[42px] !border-0 !bg-white/[0.055]' : ''}
-            actionClassName={isGenericLedgerTradeEntry ? '!h-[48px] !rounded-[15px] !border-white/[0.13] !bg-transparent !text-white/[0.66]' : ''}
+            headerClassName={isGenericLedgerTradeEntry ? '!mb-[14px] !border-b !border-white/[0.07] !pb-[14px]' : ''}
+            closeButtonClassName={isGenericLedgerTradeEntry ? '!h-[42px] !w-[42px] !border-0 !bg-white/[0.06] !text-white/58' : ''}
+            actionGridClassName={isGenericLedgerTradeEntry ? 'grid-cols-2 !mt-[11px] !gap-2' : ''}
+            actionClassName={isGenericLedgerTradeEntry ? "!relative !h-[38px] !rounded-[12px] !border-white/10 !bg-white/[0.035] !text-[12px] !text-white/58 after:absolute after:-inset-y-[3px] after:inset-x-0 after:content-['']" : ''}
             actions={isTqqqTradeEntry ? [{
               key: 'tqqq-confirm',
               label: tradeSubmitting
