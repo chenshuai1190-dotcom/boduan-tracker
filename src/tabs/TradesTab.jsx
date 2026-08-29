@@ -2212,7 +2212,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
             widthClassName={isTqqqTradeEntry ? 'w-[calc(100vw-24px)] max-w-[720px]' : 'w-[calc(100vw-24px)] max-w-md'}
             panelClassName={isTqqqTradeEntry
               ? 'min-h-0 !border-transparent'
-              : (isGenericLedgerTradeEntry ? 'min-h-0 !border-white/10 !bg-[#0b0f14] !bg-none !px-[22px] !pb-5 !pt-[22px] !text-white !shadow-[0_24px_70px_rgba(0,0,0,0.5)]' : 'min-h-0')}
+              : (isGenericLedgerTradeEntry ? 'min-h-0 !border-white/10 !bg-[#080808] !bg-none !px-[22px] !pb-5 !pt-[22px] !text-white !shadow-[0_24px_70px_rgba(0,0,0,0.5)]' : 'min-h-0')}
             contentClassName={isTqqqTradeEntry
               ? '!border-0 !bg-transparent !p-0 !shadow-none'
               : (isGenericLedgerTradeEntry ? '!rounded-none !border-0 !bg-transparent !bg-none !px-0 !py-0 !shadow-none' : '')}

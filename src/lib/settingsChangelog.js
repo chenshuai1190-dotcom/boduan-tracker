@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '⬛ 普通正式交易弹窗改为中性纯黑底色',
+      '  - 将仍带藏青倾向的面板底色替换为中性黑色，输入框、文字与按钮层级随之回归纯灰黑体系',
+      '  - 继续保留暖金焦点色、紧凑输入尺寸、预计成交额和始终可见的买入卖出按钮',
+      '  - 共享弹窗、TQQQ专属交易、波段录入、确认保存及正式交易账本均未改变',
+    ],
+    itemsEn: [
+      '⬛ Standard formal trades now use a neutral pure-black surface',
+      '  - The remaining navy-tinted panel base is replaced with neutral black, returning inputs, text, and actions to a pure grayscale hierarchy',
+      '  - The warm-gold focus tone, compact controls, estimated amount, and always-visible Buy and Sell actions remain unchanged',
+      '  - Shared modals, TQQQ entry, swing entry, confirmation and saving, and the formal trade ledger are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.476', date: '2026-08-28',
+    items: [
       '🎨 普通正式交易弹窗完整对齐模拟股价配色',
       '  - 移除普通交易内容层残留的蓝灰渐变，让面板、字段间背景与模拟股价统一为纯净近黑层级',
       '  - 输入框低亮度底色、柔和灰白文字和暖金焦点色现在直接叠加在同一近黑底色上，不再被共享渐变抬亮',
