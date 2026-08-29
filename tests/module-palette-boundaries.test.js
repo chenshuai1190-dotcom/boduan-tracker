@@ -70,7 +70,8 @@ test('actual asset amounts use soft white while semantic gold and the settings g
 
 test('sheets, tooltips, and chart markers keep their separate depth colors', () => {
   assert.equal(count(home, /bg-\[#0b0f14\]/g), 3, 'Home sheets should remain outside the module recolor');
-  assert.equal(count(trades, /bg-\[#0b0f14\]/g), 3, 'trade scenario sheet, standard trade sheet, and chart marker should share the approved depth color');
+  assert.equal(count(trades, /bg-\[#0b0f14\]/g), 2, 'trade scenario sheet and chart marker should keep their approved depth color');
+  assert.equal(count(trades, /bg-\[#080808\]/g), 1, 'the standard formal-trade sheet should use the approved neutral-black surface');
   assert.equal(count(pnlReport, /bg-\[#0b0f14\]/g), 2, 'PnL bottom sheets should keep their existing depth colors');
   assert.equal(count(earningsCalendar, /bg-\[#0b0f14\]/g), 1, 'earnings modal should keep its existing depth color');
   assert.ok(review.includes("const REVIEW_PANEL = '#0b0f16';"));
