@@ -94,6 +94,43 @@ test('cache is isolated by user and period and only persists snapshot states', (
   assert.equal(readCommunityCompetitionCache({ userId: 'user-a', period: 'day' }), null);
 });
 
+test('valid profile and participation states pass through refresh without entering snapshot cache', async () => {
+  for (const state of ['profile_required', 'join_required']) {
+    const userId = `user-${state}`;
+    const data = { success: true, state, period: 'day' };
+    const result = await requestCommunityCompetitionRefresh({
+      userId,
+      period: 'day',
+      fetcher: async () => data,
+    });
+
+    assert.deepEqual(result, {
+      data,
+      entry: null,
+      accepted: false,
+    });
+    assert.equal(readCommunityCompetitionCache({ userId, period: 'day' }), null);
+  }
+});
+
+test('a genuinely superseded response without a period fallback still rejects', async () => {
+  writeCommunityCompetitionCache({
+    userId: 'superseded-user',
+    period: 'day',
+    data: ready('day', '2026-07-15'),
+  });
+
+  await assert.rejects(
+    requestCommunityCompetitionRefresh({
+      userId: 'superseded-user',
+      period: 'week',
+      fetcher: async () => ready('week', '2026-07-14'),
+    }),
+    { code: 'COMPETITION_CACHE_SUPERSEDED' },
+  );
+  assert.equal(readCommunityCompetitionCache({ userId: 'superseded-user', period: 'week' }), null);
+});
+
 test('damaged, old-version, and mismatched-period entries are ignored', () => {
   const key = userScopedStorageKey('bottomline_community_competition_cache_v1_day', 'user-a');
   localStorage.setItem(key, '{not-json');

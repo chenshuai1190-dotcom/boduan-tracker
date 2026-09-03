@@ -868,6 +868,13 @@ export function requestCommunityCompetitionRefresh({ userId, period, now = Date.
         marker,
         expectedGeneration: persistentGeneration,
       });
+      if (committed.reason === 'not_cacheable') {
+        return {
+          data: normalizedData,
+          entry: null,
+          accepted: false,
+        };
+      }
       if (!committed.entry) {
         const error = new Error('COMPETITION_CACHE_SUPERSEDED');
         error.code = committed.reason === 'invalidated'

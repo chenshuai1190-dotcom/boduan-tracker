@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '🏆 新账户可正常打开社区收益比赛',
+      '  - 新注册或尚未参赛的账户首次进入时会显示加入比赛界面，不再把正常参赛状态误报为缓存错误',
+      '  - 社区资料未完成时仍会前往资料设置；加入后的真实收盘快照与排行榜流程保持不变',
+      '  - 正式交易、参赛资格、收益公式、快照发布、旧响应保护及比赛账本均未改变',
+    ],
+    itemsEn: [
+      '🏆 New accounts can now open Community Competition normally',
+      '  - First visits by newly registered or not-yet-joined accounts now show the join flow instead of misreporting a normal participation state as a cache error',
+      '  - Incomplete community profiles still open profile settings, while verified close snapshots and ranking behavior after joining remain unchanged',
+      '  - Formal trades, eligibility, return calculations, snapshot publication, stale-response protection, and the competition ledger are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.478', date: '2026-09-03',
+    items: [
       '🏷️ QQQ 与 TQQQ 持仓名称统一为股票代码',
       '  - 新老账户即使曾保存“纳斯达克100 ETF”等中文别名，首页持仓、交易持仓分布与交易记录也会统一显示 QQQ 或 TQQQ',
       '  - 热门发现页仍保留原有中文说明；名称进入自选或交易链路时才规范化，避免中文长名称再次写入',
