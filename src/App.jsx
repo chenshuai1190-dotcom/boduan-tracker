@@ -11,6 +11,7 @@ import { applyBtcTickToMarketCard, resolveBtcSnapshotRealtimeStatus } from './li
 import { applyIndexTickToMarketCards, mergeIndexRestCardsIntoMarketCards, shouldAppendIndexIntraday } from './lib/indexRealtime.js';
 import { applyStockTickToQuoteRows, buildStockRealtimeSymbolsKey, canStartStockRealtime, getUsEquityRealtimeSession, isFreshStockRealtimeTick, mergeFreshStockRealtimeRows, mergeStockSnapshotPollRequest, mergeStockTicksIntoQuoteRows, selectStockRealtimeSymbols, shouldApplyStockSnapshotTick, shouldPollStockRealtimeSnapshot } from './lib/stockRealtime.js';
 import { normalizeStrictUserStockSymbol, normalizeUserStockSymbol } from './lib/symbols.js';
+import { resolveStockDisplayName } from './lib/stockDisplayName.js';
 import { getStoredLanguage, isEnglishLanguage, saveStoredLanguage, t } from './lib/i18n.js';
 import { isEarningsPublished } from './lib/earningsCalendarModel.js';
 import { localMonthKey } from './lib/calendarMonth.js';
@@ -979,27 +980,15 @@ function normalizeStockSymbolForName(symbol) {
   return normalizeSymbolKey(symbol);
 }
 
-function isPlaceholderStockName(symbol, name) {
-  const normalizedSymbol = normalizeStockSymbolForName(symbol);
-  const raw = String(name || '').trim();
-  if (!raw) return true;
-  const upper = raw.toUpperCase();
-  return upper === normalizedSymbol || upper === `${normalizedSymbol}.US`;
-}
-
 function displayStockName(symbol, name, language = 'zh') {
   const normalizedSymbol = normalizeStockSymbolForName(symbol);
-  if (!normalizedSymbol) return String(name || '').trim();
-  const raw = String(name || '').trim();
-  if (isEnglishLanguage(language)) {
-    const mappedEn = STOCK_NAME_EN[normalizedSymbol];
-    if (mappedEn) return mappedEn;
-    if (raw && !isPlaceholderStockName(normalizedSymbol, raw) && /^[A-Za-z0-9 .,&'()/-]+$/.test(raw)) return raw;
-    return normalizedSymbol;
-  }
-  const mapped = STOCK_NAME_CN[normalizedSymbol];
-  if (mapped && (isPlaceholderStockName(normalizedSymbol, raw) || /^[A-Za-z0-9 .,&'()/-]+$/.test(raw))) return mapped;
-  return raw || mapped || normalizedSymbol;
+  return resolveStockDisplayName({
+    symbol: normalizedSymbol,
+    name,
+    english: isEnglishLanguage(language),
+    chineseName: STOCK_NAME_CN[normalizedSymbol],
+    englishName: STOCK_NAME_EN[normalizedSymbol],
+  });
 }
 
 function localizeStockNameRow(row) {

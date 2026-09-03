@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '🏷️ QQQ 与 TQQQ 持仓名称统一为股票代码',
+      '  - 新老账户即使曾保存“纳斯达克100 ETF”等中文别名，首页持仓、交易持仓分布与交易记录也会统一显示 QQQ 或 TQQQ',
+      '  - 热门发现页仍保留原有中文说明；名称进入自选或交易链路时才规范化，避免中文长名称再次写入',
+      '  - 股票代码、价格、股数、成本、盈亏、账本隔离及真正的纳斯达克100指数名称均未改变',
+    ],
+    itemsEn: [
+      '🏷️ QQQ and TQQQ holdings now consistently use their ticker labels',
+      '  - Home holdings, Trading allocation, and trade records now show QQQ or TQQQ even when an older account stored a Chinese discovery alias',
+      '  - Popular discovery keeps its existing Chinese description; names are canonicalized only when they enter watchlist or trade flows so the long alias is not persisted again',
+      '  - Symbols, prices, shares, costs, returns, ledger isolation, and the real Nasdaq-100 index label remain unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.477', date: '2026-08-29',
+    items: [
       '⬛ 普通正式交易弹窗改为中性纯黑底色',
       '  - 将仍带藏青倾向的面板底色替换为中性黑色，输入框、文字与按钮层级随之回归纯灰黑体系',
       '  - 继续保留暖金焦点色、紧凑输入尺寸、预计成交额和始终可见的买入卖出按钮',

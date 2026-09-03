@@ -293,7 +293,7 @@ test('wave P&L follows the shared currency while stock unit prices and the ledge
 
 test('legacy stock symbols are repaired before quote universe construction', () => {
   const normalizeNameStart = appSource.indexOf('function normalizeStockSymbolForName');
-  const normalizeNameEnd = appSource.indexOf('function isPlaceholderStockName', normalizeNameStart);
+  const normalizeNameEnd = appSource.indexOf('function displayStockName', normalizeNameStart);
   const normalizeNameBlock = appSource.slice(normalizeNameStart, normalizeNameEnd);
   const fetchAllStart = dbSource.indexOf('export const fetchAllUserData = async');
   const fetchAllEnd = dbSource.indexOf('// ============ ACCOUNTS', fetchAllStart);
@@ -1616,7 +1616,7 @@ test('language framework covers settings switch, bottom nav, home page, and stoc
   assert.ok(i18nSource.includes("'settings.language': 'Language'"), 'English dictionary should include settings language controls');
   assert.ok(appSource.includes('const [language, setLanguageState] = useState(() => getStoredLanguage())'), 'App should own the persisted language state');
   assert.ok(appSource.includes('const STOCK_NAME_EN = {'), 'English stock display should use the built-in English company-name map');
-  assert.ok(appSource.includes('const mappedEn = STOCK_NAME_EN[normalizedSymbol]'), 'English stock display should resolve ticker subtitles to company English names');
+  assert.ok(appSource.includes('englishName: STOCK_NAME_EN[normalizedSymbol]'), 'English stock display should pass ticker subtitles into the shared name policy');
   assert.ok(appSource.includes("NVDA: 'NVIDIA'"), 'English stock display should use short company names');
   assert.ok(appSource.includes("MSFT: 'Microsoft'"), 'English stock display should use short Microsoft display name');
   assert.ok(appSource.includes("label: t(language, 'nav.home', '首页')"), 'bottom navigation should read labels from i18n');
@@ -1745,6 +1745,8 @@ test('invite-code registration gate stays server-side and admin-only', () => {
 test('QQQ and TQQQ stay English in the shared stock-name fallback', () => {
   assert.ok(appSource.includes("QQQ: 'QQQ'"), 'QQQ should display as the English code');
   assert.ok(appSource.includes("TQQQ: 'TQQQ'"), 'TQQQ should display as the English code');
+  assert.ok(appSource.includes("import { resolveStockDisplayName } from './lib/stockDisplayName.js';"), 'App should use the executable shared stock-name policy');
+  assert.ok(appSource.includes('return resolveStockDisplayName({'), 'all App stock-name consumers should pass through the shared policy');
   assert.equal(appSource.includes("QQQ: '纳斯达克100'"), false, 'QQQ must not be remapped to the old Chinese display name');
   assert.equal(appSource.includes("TQQQ: '3倍纳指'"), false, 'TQQQ must not be remapped to the old Chinese display name');
   assert.ok(appSource.includes("name: qqqSignalQuote?.name || 'QQQ'"), 'QQQ benchmark option should also display in English');
