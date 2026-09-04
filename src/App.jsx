@@ -1206,7 +1206,13 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   });
   const [marginStatus, setMarginStatus] = useState({ currentMargin: 0, marginLimit: 0 });
   const [marginStatusReady, setMarginStatusReady] = useState(false);
-  const [availableCashStatus, setAvailableCashStatus] = useState({ availableCashUsd: 0, isSet: false, updatedAt: null, writeReady: false });
+  const [availableCashStatus, setAvailableCashStatus] = useState({
+    availableCashUsd: 0,
+    isSet: false,
+    updatedAt: null,
+    writeReady: false,
+    reversalReady: false,
+  });
   const [availableCashStatusReady, setAvailableCashStatusReady] = useState(false);
   const [disciplines, setDisciplines] = useState([]);
   const [reviewLogs, setReviewLogs] = useState([]);
@@ -2102,7 +2108,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
       // A previously observed missing row is not a durable zero balance. If a
       // fresh read fails and there is no explicit cached amount, fail the asset
       // cards closed until authority can be refreshed.
-      setAvailableCashStatus(current => ({ ...current, writeReady: false }));
+      setAvailableCashStatus(current => ({ ...current, writeReady: false, reversalReady: false }));
       setAvailableCashStatusReady(false);
       console.warn(`${logLabel} ⚠️ availableCashStatus 拉取失败, 暂停资产口径`);
     }
@@ -2428,6 +2434,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     try {
       const result = await db.mutateAvailableCash({
         ...mutation,
+        reversalReady: availableCashStatus?.reversalReady === true,
         expectedUpdatedAt: availableCashStatus?.isSet
           ? availableCashStatus?.updatedAt || null
           : null,
@@ -2456,7 +2463,48 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     }
   }, [
     availableCashStatus?.isSet,
+    availableCashStatus?.reversalReady,
     availableCashStatus?.updatedAt,
+    availableCashStatus?.writeReady,
+    availableCashStatusReady,
+  ]);
+
+  const reverseAvailableCashMovement = useCallback(async (reversal) => {
+    if (
+      !availableCashStatusReady
+      || !availableCashStatus?.writeReady
+      || !availableCashStatus?.reversalReady
+      || !availableCashStatus?.isSet
+    ) {
+      throw new Error('可用现金仍在同步，请稍后重试');
+    }
+
+    try {
+      const result = await db.reverseAvailableCashMovement({
+        ...reversal,
+        expectedUpdatedAt: availableCashStatus?.updatedAt || null,
+      });
+      setAvailableCashStatus(result.status);
+      setAvailableCashStatusReady(true);
+      // A reversal is an append-only cash movement. It must not mutate any
+      // trading ledger or synchronously rebuild personal/competition returns.
+      return result;
+    } catch (error) {
+      try {
+        const refreshedStatus = await db.fetchAvailableCashStatus();
+        if (refreshedStatus) {
+          setAvailableCashStatus(refreshedStatus);
+          setAvailableCashStatusReady(true);
+        }
+      } catch {
+        // Keep the last confirmed status if reconciliation is unavailable.
+      }
+      throw error;
+    }
+  }, [
+    availableCashStatus?.isSet,
+    availableCashStatus?.updatedAt,
+    availableCashStatus?.reversalReady,
     availableCashStatus?.writeReady,
     availableCashStatusReady,
   ]);
@@ -5494,6 +5542,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     saveWatchlistStockTarget,
     loadAvailableCashMovements,
     mutateAvailableCash,
+    reverseAvailableCashMovement,
     saveMarginDebt,
     reviewLogs,
     clearQuoteDiagnosticLogs,

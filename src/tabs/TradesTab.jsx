@@ -467,6 +467,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
     requestDeleteLegacyTrade,
     loadAvailableCashMovements,
     mutateAvailableCash,
+    reverseAvailableCashMovement,
     setCostBasisActiveSymbol,
     setCostBasisData,
     setCostBasisNewSymbol,
@@ -617,6 +618,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
     : 0;
   const displayAvailableCash = availableCashUsd * displayRate;
   const availableCashWriteReady = availableCashStatusReady && availableCashStatus?.writeReady === true;
+  const availableCashReversalReady = availableCashWriteReady && availableCashStatus?.reversalReady === true;
   const marginDebtUsd = normalizeMarginDebtUsd(marginStatus?.currentMargin);
   const assetStatusReady = marginStatusReady && availableCashStatusReady;
   const marginOverview = React.useMemo(() => deriveHomeMarginOverview({
@@ -2672,6 +2674,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
           onClose={() => setShowAvailableCashEditor(false)}
           onLoadCashMovements={loadAvailableCashMovements}
           onMutateCash={availableCashWriteReady ? mutateAvailableCash : null}
+          onReverseCashMovement={availableCashReversalReady ? reverseAvailableCashMovement : null}
           usdRate={rate}
         />
 

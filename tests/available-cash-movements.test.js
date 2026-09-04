@@ -57,7 +57,7 @@ test('browser data access uses the RPC and never falls back to a direct status u
   const fetchBlock = dbSource.slice(fetchStart, Math.min(...fetchEndCandidates));
   assert.ok(fetchBlock.includes(".from('available_cash_movements')"));
   assert.ok(fetchBlock.includes(".eq('user_id', user.id)"));
-  assert.ok(fetchBlock.includes(".order('occurred_at', { ascending: false })"));
+  assert.ok(fetchBlock.includes(".order('cash_event_id', { ascending: false, nullsFirst: false })"));
 });
 
 test('App persists every cash mode before visible state and keeps recalculation isolated', () => {

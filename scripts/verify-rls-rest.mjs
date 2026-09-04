@@ -239,6 +239,10 @@ const AUTHENTICATED_USER_RPCS = [
     body: {},
   },
   {
+    name: 'available_cash_reversal_contract_ready',
+    body: {},
+  },
+  {
     name: 'mutate_available_cash',
     body: {
       p_operation_key: '00000000-0000-0000-0000-000000000000',
@@ -250,6 +254,14 @@ const AUTHENTICATED_USER_RPCS = [
       p_usd_rate: 1,
       p_note: '',
       p_destination_label: '',
+    },
+  },
+  {
+    name: 'reverse_available_cash_movement',
+    body: {
+      p_operation_key: '00000000-0000-0000-0000-000000000000',
+      p_movement_id: '00000000-0000-0000-0000-000000000000',
+      p_expected_updated_at: null,
     },
   },
   {

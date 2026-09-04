@@ -1956,6 +1956,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     isSet: homeAvailableCashPreview !== 'unset',
     updatedAt: homeAvailableCashPreview === 'unset' ? null : '2026-08-05T08:00:00.000Z',
     writeReady: true,
+    reversalReady: true,
   }));
   const [previewAvailableCashMovements, setPreviewAvailableCashMovements] = React.useState([]);
   const stockReturnComparisonSharePreview = typeof window !== 'undefined'
@@ -2577,11 +2578,16 @@ function StandardDevVisualPreview({ initialTab = '' }) {
         ? Math.max(0, beforeCashUsd - amountUsd)
         : amountUsd;
     const updatedAt = new Date().toISOString();
+    const cashEventId = previewAvailableCashMovements.reduce(
+      (latest, movement) => Math.max(latest, Number(movement.cashEventId) || 0),
+      0,
+    ) + 1;
     const nextStatus = {
       availableCashUsd: afterCashUsd,
       isSet: true,
       updatedAt,
       writeReady: true,
+      reversalReady: true,
     };
     const movement = {
       id: mutation?.requestId,
@@ -2597,6 +2603,67 @@ function StandardDevVisualPreview({ initialTab = '' }) {
       usdRate: mutation?.usdRate,
       note: mutation?.note || '',
       destinationLabel: mutation?.destinationLabel || '',
+      cashEventId,
+      occurredAt: updatedAt,
+      createdAt: updatedAt,
+    };
+    setPreviewAvailableCashStatus(nextStatus);
+    setPreviewAvailableCashMovements((current) => [movement, ...current]);
+    return { status: nextStatus, movement };
+  };
+  const reversePreviewAvailableCashMovement = async (reversal) => {
+    const reversedMovementIds = new Set(
+      previewAvailableCashMovements
+        .filter((movement) => movement.kind === 'reversal')
+        .map((movement) => movement.reversesMovementId)
+        .filter(Boolean),
+    );
+    const target = previewAvailableCashMovements.find((movement) => (
+      movement.kind !== 'reversal'
+      && Number(movement.deltaUsd) !== 0
+      && movement.cashEventId !== null
+      && movement.cashEventId !== undefined
+      && !reversedMovementIds.has(movement.id)
+    ));
+    const targetBalanceAfterUsd = Number(target?.balanceAfterUsd);
+    if (
+      !target
+      || target.id !== reversal?.movementId
+      || !Number.isFinite(targetBalanceAfterUsd)
+      || Math.abs(previewAvailableCashUsd - targetBalanceAfterUsd) > 0.000001
+    ) {
+      throw new Error('cash_reversal_not_eligible');
+    }
+    const beforeCashUsd = previewAvailableCashUsd;
+    const afterCashUsd = Number(target.balanceBeforeUsd) || 0;
+    const updatedAt = new Date().toISOString();
+    const cashEventId = previewAvailableCashMovements.reduce(
+      (latest, movement) => Math.max(latest, Number(movement.cashEventId) || 0),
+      0,
+    ) + 1;
+    const nextStatus = {
+      availableCashUsd: afterCashUsd,
+      isSet: true,
+      updatedAt,
+      writeReady: true,
+      reversalReady: true,
+    };
+    const movement = {
+      id: reversal?.requestId,
+      operationKey: reversal?.requestId,
+      kind: 'reversal',
+      amountUsd: Math.abs(beforeCashUsd - afterCashUsd),
+      deltaUsd: afterCashUsd - beforeCashUsd,
+      balanceBeforeUsd: beforeCashUsd,
+      balanceAfterUsd: afterCashUsd,
+      balanceWasSetBefore: true,
+      inputCurrency: 'USD',
+      inputAmount: Math.abs(beforeCashUsd - afterCashUsd),
+      usdRate: 1,
+      note: '',
+      destinationLabel: '',
+      reversesMovementId: target.id,
+      cashEventId,
       occurredAt: updatedAt,
       createdAt: updatedAt,
     };
@@ -2761,6 +2828,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     },
     loadAvailableCashMovements: loadPreviewAvailableCashMovements,
     mutateAvailableCash: mutatePreviewAvailableCash,
+    reverseAvailableCashMovement: reversePreviewAvailableCashMovement,
     setBenchmarkMenuOpen,
     setBenchmarkSymbol,
     setLanguage,
@@ -2979,6 +3047,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     requestDeleteLegacyTrade,
     loadAvailableCashMovements: loadPreviewAvailableCashMovements,
     mutateAvailableCash: mutatePreviewAvailableCash,
+    reverseAvailableCashMovement: reversePreviewAvailableCashMovement,
     setCostBasisActiveSymbol,
     setCostBasisData,
     setCostBasisNewSymbol,

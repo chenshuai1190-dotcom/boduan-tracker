@@ -4,6 +4,7 @@ import {
   ArrowLeft,
   ArrowUpFromLine,
   Loader2,
+  RotateCcw,
   SlidersHorizontal,
   X,
 } from 'lucide-react';
@@ -11,7 +12,8 @@ import { t } from '../lib/i18n.js';
 
 const NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif';
 const RECENT_MOVEMENT_LIMIT = 3;
-const ALL_MOVEMENT_LIMIT = 100;
+const ALL_MOVEMENT_LIMIT = 500;
+const RECENT_MOVEMENT_FETCH_LIMIT = ALL_MOVEMENT_LIMIT;
 
 function displayRate(currency, usdRate) {
   if (currency !== 'CNY') return 1;
@@ -51,9 +53,87 @@ function movementKind(movement) {
     || movement?.type
     || '',
   ).toLowerCase();
+  if (rawKind === 'reversal') return 'reversal';
   if (['transfer_in', 'deposit', 'in'].includes(rawKind)) return 'transfer_in';
   if (['transfer_out', 'withdrawal', 'withdraw', 'out'].includes(rawKind)) return 'transfer_out';
   return 'balance_adjustment';
+}
+
+function movementId(movement) {
+  return movement?.id ?? movement?.movement_id ?? null;
+}
+
+function movementReversesMovementId(movement) {
+  return movement?.reversesMovementId
+    ?? movement?.reverses_movement_id
+    ?? movement?.movement_reverses_movement_id
+    ?? null;
+}
+
+function movementBalanceBeforeUsd(movement) {
+  return finiteNumber(
+    movement?.balanceBeforeUsd
+    ?? movement?.balance_before_usd
+    ?? movement?.movement_balance_before_usd,
+  );
+}
+
+function movementDeltaUsd(movement) {
+  return finiteNumber(
+    movement?.deltaUsd
+    ?? movement?.delta_usd
+    ?? movement?.movement_delta_usd,
+  );
+}
+
+function movementCashEventId(movement) {
+  const cashEventId = movement?.cashEventId
+    ?? movement?.cash_event_id
+    ?? movement?.movement_cash_event_id
+    ?? null;
+  return cashEventId === '' ? null : cashEventId;
+}
+
+function groupCashMovements(movements) {
+  const rows = Array.isArray(movements) ? movements : [];
+  const movementById = new Map(rows.map((movement) => [movementId(movement), movement]));
+  const reversalByOriginalId = new Map();
+  rows.forEach((movement) => {
+    if (movementKind(movement) !== 'reversal') return;
+    const originalId = movementReversesMovementId(movement);
+    if (originalId && !reversalByOriginalId.has(originalId)) {
+      reversalByOriginalId.set(originalId, movement);
+    }
+  });
+
+  const groups = [];
+  const groupedOriginalIds = new Set();
+  rows.forEach((movement) => {
+    const kind = movementKind(movement);
+    const originalId = movementReversesMovementId(movement);
+    if (kind === 'reversal') {
+      const original = originalId ? movementById.get(originalId) : null;
+      if (original && movementKind(original) !== 'reversal') {
+        if (!groupedOriginalIds.has(originalId)) {
+          groups.push({ movement: original, reversal: movement, standaloneReversal: false });
+          groupedOriginalIds.add(originalId);
+        }
+        return;
+      }
+      groups.push({ movement, reversal: movement, standaloneReversal: true });
+      return;
+    }
+    const rowId = movementId(movement);
+    if (rowId && groupedOriginalIds.has(rowId)) return;
+    const linkedReversal = reversalByOriginalId.get(rowId) || null;
+    groups.push({
+      movement,
+      reversal: linkedReversal,
+      standaloneReversal: false,
+    });
+    if (linkedReversal && rowId) groupedOriginalIds.add(rowId);
+  });
+  return groups;
 }
 
 function movementAmountUsd(movement) {
@@ -153,6 +233,7 @@ export default function AvailableCashEditor({
   onClose,
   onLoadCashMovements,
   onMutateCash,
+  onReverseCashMovement,
   usdRate = 1,
 }) {
   const [actionKind, setActionKind] = React.useState('overview');
@@ -167,10 +248,13 @@ export default function AvailableCashEditor({
   const [movementsError, setMovementsError] = React.useState('');
   const [movementsHaveMore, setMovementsHaveMore] = React.useState(false);
   const [showAllMovements, setShowAllMovements] = React.useState(false);
+  const [reverseTarget, setReverseTarget] = React.useState(null);
+  const [reverseError, setReverseError] = React.useState('');
   const [visualViewportFrame, setVisualViewportFrame] = React.useState(null);
   const loadRequestRef = React.useRef(0);
   const loadCashMovementsRef = React.useRef(onLoadCashMovements);
   const mutationRequestIdRef = React.useRef('');
+  const reversalRequestIdRef = React.useRef('');
   const normalizedCurrency = currency === 'CNY' ? 'CNY' : 'USD';
   const currencySymbol = normalizedCurrency === 'CNY' ? '¥' : '$';
   const rate = displayRate(normalizedCurrency, usdRate);
@@ -198,7 +282,9 @@ export default function AvailableCashEditor({
       const result = movementResult(await loadCashMovementRows({ limit }), limit);
       if (loadRequestRef.current !== requestId) return;
       setMovements(result.movements);
-      setMovementsHaveMore(result.hasMore);
+      setMovementsHaveMore(
+        result.hasMore || groupCashMovements(result.movements).length > RECENT_MOVEMENT_LIMIT,
+      );
     } catch {
       if (loadRequestRef.current !== requestId) return;
       setMovementsError(t(language, 'home.cashMovementsLoadFailed', '现金流水读取失败，请稍后重试'));
@@ -219,8 +305,11 @@ export default function AvailableCashEditor({
     setAllOut(false);
     setSaveError('');
     setShowAllMovements(false);
+    setReverseTarget(null);
+    setReverseError('');
     mutationRequestIdRef.current = '';
-    void loadMovements(RECENT_MOVEMENT_LIMIT);
+    reversalRequestIdRef.current = '';
+    void loadMovements(RECENT_MOVEMENT_FETCH_LIMIT);
   }, [isOpen, loadMovements]);
 
   React.useEffect(() => {
@@ -264,18 +353,25 @@ export default function AvailableCashEditor({
     if (!isOpen) return undefined;
     const handleKeyDown = (event) => {
       if (event.key === 'Escape' && !saving) {
-        if (confirming) setConfirming(false);
+        if (reverseTarget) {
+          setReverseTarget(null);
+          setReverseError('');
+          reversalRequestIdRef.current = '';
+        } else if (confirming) setConfirming(false);
         else if (actionKind !== 'overview') setActionKind('overview');
         else onClose?.();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [actionKind, confirming, isOpen, onClose, saving]);
+  }, [actionKind, confirming, isOpen, onClose, reverseTarget, saving]);
 
   if (!isOpen) return null;
 
   const openAction = (kind) => {
+    setReverseTarget(null);
+    setReverseError('');
+    reversalRequestIdRef.current = '';
     setActionKind(kind);
     setConfirming(false);
     setNote('');
@@ -398,8 +494,54 @@ export default function AvailableCashEditor({
     }
   };
 
+  const openReverseConfirmation = (movement) => {
+    setReverseTarget(movement);
+    setReverseError('');
+    reversalRequestIdRef.current = '';
+  };
+
+  const saveCashReversal = async () => {
+    const targetId = movementId(reverseTarget);
+    if (!targetId || typeof onReverseCashMovement !== 'function') {
+      setReverseError(t(language, 'home.cashUndoUnavailable', '该笔流水暂时无法撤销，请稍后重试'));
+      return;
+    }
+
+    setSaving(true);
+    setReverseError('');
+    try {
+      const requestId = reversalRequestIdRef.current || cashRequestId();
+      if (!requestId) throw new Error('cash_reversal_request_id_unavailable');
+      reversalRequestIdRef.current = requestId;
+      const result = await onReverseCashMovement({
+        movementId: targetId,
+        requestId,
+      });
+      if (mutationFailed(result)) throw new Error('cash_reversal_failed');
+      if (result?.movement) {
+        setMovements((current) => [
+          result.movement,
+          ...current.filter((movement) => movementId(movement) !== movementId(result.movement)),
+        ]);
+      }
+      await loadMovements(showAllMovements ? ALL_MOVEMENT_LIMIT : RECENT_MOVEMENT_FETCH_LIMIT);
+      setReverseTarget(null);
+      reversalRequestIdRef.current = '';
+    } catch {
+      setReverseError(t(language, 'home.cashUndoFailed', '撤销失败，请稍后重试'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const closeOrBack = () => {
     if (saving) return;
+    if (reverseTarget) {
+      setReverseTarget(null);
+      setReverseError('');
+      reversalRequestIdRef.current = '';
+      return;
+    }
     if (confirming) {
       setConfirming(false);
       return;
@@ -416,9 +558,41 @@ export default function AvailableCashEditor({
     onClose?.();
   };
 
-  const visibleMovements = showAllMovements
-    ? movements
-    : movements.slice(0, RECENT_MOVEMENT_LIMIT);
+  const movementGroups = groupCashMovements(movements);
+  const reversalsByOriginalId = new Map(
+    movements
+      .filter((movement) => movementKind(movement) === 'reversal')
+      .map((movement) => [movementReversesMovementId(movement), movement]),
+  );
+  const latestEligibleMovement = movements.find((movement) => {
+    const candidateId = movementId(movement);
+    const deltaUsd = movementDeltaUsd(movement);
+    return candidateId
+      && movementCashEventId(movement) !== null
+      && movementKind(movement) !== 'reversal'
+      && deltaUsd !== null
+      && deltaUsd !== 0
+      && !reversalsByOriginalId.has(candidateId);
+  }) || null;
+  const reversibleMovement = typeof onReverseCashMovement === 'function'
+    ? latestEligibleMovement
+    : null;
+  const recentMovementGroups = movementGroups.slice(0, RECENT_MOVEMENT_LIMIT);
+  const reversibleMovementId = movementId(reversibleMovement);
+  const reversibleMovementGroup = reversibleMovementId
+    ? movementGroups.find(({ movement }) => movementId(movement) === reversibleMovementId)
+    : null;
+  if (
+    reversibleMovementGroup
+    && !recentMovementGroups.some(({ movement }) => movementId(movement) === reversibleMovementId)
+  ) {
+    recentMovementGroups.push(reversibleMovementGroup);
+  }
+  const visibleMovementGroups = showAllMovements
+    ? movementGroups
+    : recentMovementGroups;
+  const reverseAfterCashUsd = movementBalanceBeforeUsd(reverseTarget);
+  const reverseOriginalDeltaUsd = movementDeltaUsd(reverseTarget);
 
   return (
     <div
@@ -444,7 +618,7 @@ export default function AvailableCashEditor({
       >
         <div className="mx-auto h-1 w-10 rounded-full bg-white/25" />
         <div className="relative mt-3 flex min-h-11 items-center justify-center">
-          {(actionKind !== 'overview' || confirming) && (
+          {(actionKind !== 'overview' || confirming || reverseTarget) && (
             <button
               type="button"
               disabled={saving}
@@ -456,11 +630,13 @@ export default function AvailableCashEditor({
             </button>
           )}
           <h2 className="text-[17px] font-medium text-white/90">
-            {confirming
-              ? t(language, 'home.cashConfirmChange', '确认现金变动')
-              : actionKind === 'overview'
-                ? t(language, 'home.cashManagement', '现金管理')
-                : actionTitle}
+            {reverseTarget
+              ? t(language, 'home.cashUndoTitle', '确认撤销')
+              : confirming
+                ? t(language, 'home.cashConfirmChange', '确认现金变动')
+                : actionKind === 'overview'
+                  ? t(language, 'home.cashManagement', '现金管理')
+                  : actionTitle}
           </h2>
           <button
             type="button"
@@ -473,7 +649,7 @@ export default function AvailableCashEditor({
           </button>
         </div>
 
-        {actionKind === 'overview' && !confirming && (
+        {actionKind === 'overview' && !confirming && !reverseTarget && (
           <>
             <div className="mt-5 rounded-[22px] bg-white/[0.035] px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]">
               <p className="text-[11px] text-white/42">
@@ -556,13 +732,13 @@ export default function AvailableCashEditor({
             </div>
 
             <div className="mt-2 rounded-[20px] bg-white/[0.026] px-4">
-              {movementsLoading && visibleMovements.length === 0 && (
+              {movementsLoading && visibleMovementGroups.length === 0 && (
                 <div className="flex min-h-20 items-center justify-center gap-2 text-[11px] text-white/36">
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
                   {t(language, 'home.cashMovementsLoading', '读取流水中…')}
                 </div>
               )}
-              {!movementsLoading && !movementsError && visibleMovements.length === 0 && (
+              {!movementsLoading && !movementsError && visibleMovementGroups.length === 0 && (
                 <div className="flex min-h-20 items-center justify-center text-[11px] text-white/32">
                   {t(language, 'home.cashMovementsEmpty', '暂无现金流水')}
                 </div>
@@ -572,52 +748,148 @@ export default function AvailableCashEditor({
                   <span className="text-[11px] leading-4 text-white/38">{movementsError}</span>
                   <button
                     type="button"
-                    onClick={() => void loadMovements(showAllMovements ? ALL_MOVEMENT_LIMIT : RECENT_MOVEMENT_LIMIT)}
+                    onClick={() => void loadMovements(showAllMovements ? ALL_MOVEMENT_LIMIT : RECENT_MOVEMENT_FETCH_LIMIT)}
                     className="shrink-0 rounded-full bg-white/[0.055] px-3 py-1.5 text-[10px] text-white/60 active:scale-95"
                   >
                     {t(language, 'home.cashMovementsRetry', '重试')}
                   </button>
                 </div>
               )}
-              {!movementsError && visibleMovements.map((movement, index) => {
+              {!movementsError && visibleMovementGroups.map(({ movement, reversal, standaloneReversal }, index) => {
                 const kind = movementKind(movement);
                 const amount = movementAmountUsd(movement);
                 const balance = movementBalanceUsd(movement);
                 const signedAmount = kind === 'transfer_out' ? -(Math.abs(amount ?? 0)) : Math.abs(amount ?? 0);
+                const rowId = movementId(movement);
+                const canReverse = !standaloneReversal && rowId === movementId(reversibleMovement);
+                const isReversed = !standaloneReversal && Boolean(reversal);
                 const rowTitle = kind === 'transfer_in'
                   ? t(language, 'home.cashTransferIn', '资金转入')
                   : kind === 'transfer_out'
                     ? t(language, 'home.cashTransferOut', '资金转出')
-                    : t(language, 'home.cashBalanceAdjustment', '余额调整');
+                    : kind === 'reversal'
+                      ? t(language, 'home.cashReversalRecord', '撤销记录')
+                      : t(language, 'home.cashBalanceAdjustment', '余额调整');
                 const noteText = movementNote(movement);
-                const bankCardText = kind === 'balance_adjustment'
+                const bankCardText = ['balance_adjustment', 'reversal'].includes(kind)
                   ? ''
                   : t(language, 'home.cashBankCard', '银行卡');
+                const reversalDelta = movementDeltaUsd(reversal);
+                const reversalBalance = movementBalanceUsd(reversal);
+                if (standaloneReversal) {
+                  return (
+                    <div
+                      key={rowId ?? `${movementTimestamp(movement) || 'cash-reversal'}-${index}`}
+                      className="border-b border-white/[0.055] py-3 last:border-b-0"
+                      data-cash-reversal-row="true"
+                    >
+                      <div className="flex items-center justify-between gap-3 rounded-xl bg-white/[0.025] px-3 py-2.5">
+                        <div className="min-w-0">
+                          <p className="flex items-center gap-1.5 text-[10px] text-white/38">
+                            <RotateCcw className="h-3 w-3" strokeWidth={1.6} />
+                            {rowTitle}
+                          </p>
+                          <p className="mt-0.5 text-[10px] text-white/26">
+                            {formatMovementTime(movementTimestamp(movement), language)}
+                          </p>
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <p className="text-[10px] text-white/42 tabular-nums">
+                            {reversalDelta === null
+                              ? '--'
+                              : `${reversalDelta >= 0 ? '+' : '-'}${formatCash(Math.abs(reversalDelta), rate, normalizedCurrency, language)}`}
+                          </p>
+                          {balance !== null && (
+                            <p className="mt-0.5 text-[10px] text-white/25 tabular-nums">
+                              {t(language, 'home.cashMovementBalance', '余额 {{amount}}', {
+                                amount: formatCash(balance, rate, normalizedCurrency, language),
+                              })}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
                 return (
                   <div
-                    key={movement?.id ?? movement?.requestId ?? movement?.request_id ?? `${movementTimestamp(movement) || 'cash'}-${index}`}
-                    className="flex min-h-[66px] items-center justify-between gap-3 border-b border-white/[0.055] py-3 last:border-b-0"
+                    key={rowId ?? movement?.requestId ?? movement?.request_id ?? `${movementTimestamp(movement) || 'cash'}-${index}`}
+                    className="border-b border-white/[0.055] py-3 last:border-b-0"
+                    data-cash-movement-row={rowId || undefined}
                   >
-                    <div className="min-w-0">
-                      <p className="text-[12px] text-white/68">{rowTitle}</p>
-                      <p className="mt-0.5 truncate text-[10px] text-white/32">
-                        {[formatMovementTime(movementTimestamp(movement), language), bankCardText, noteText].filter(Boolean).join(' · ')}
-                      </p>
-                    </div>
-                    <div className="shrink-0 text-right">
-                      <p className="text-[12px] text-white/72 tabular-nums">
-                        {kind === 'balance_adjustment' || amount === null
-                          ? formatCash(balance ?? amount, rate, normalizedCurrency, language)
-                          : `${signedAmount >= 0 ? '+' : '-'}${formatCash(Math.abs(signedAmount), rate, normalizedCurrency, language)}`}
-                      </p>
-                      {balance !== null && kind !== 'balance_adjustment' && (
-                        <p className="mt-0.5 text-[10px] text-white/30 tabular-nums">
-                          {t(language, 'home.cashMovementBalance', '余额 {{amount}}', {
-                            amount: formatCash(balance, rate, normalizedCurrency, language),
-                          })}
+                    <div className={`flex min-h-[58px] items-center justify-between gap-3 ${isReversed ? 'opacity-55' : ''}`}>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="text-[12px] text-white/68">{rowTitle}</p>
+                          {isReversed && (
+                            <span className="rounded-full bg-white/[0.045] px-2 py-0.5 text-[10px] text-white/38">
+                              {t(language, 'home.cashReversed', '已撤销')}
+                            </span>
+                          )}
+                        </div>
+                        <p className="mt-0.5 truncate text-[10px] text-white/32">
+                          {[formatMovementTime(movementTimestamp(movement), language), bankCardText, noteText].filter(Boolean).join(' · ')}
                         </p>
-                      )}
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <p className="text-[12px] text-white/72 tabular-nums">
+                          {kind === 'balance_adjustment' || amount === null
+                            ? formatCash(balance ?? amount, rate, normalizedCurrency, language)
+                            : `${signedAmount >= 0 ? '+' : '-'}${formatCash(Math.abs(signedAmount), rate, normalizedCurrency, language)}`}
+                        </p>
+                        {balance !== null && kind !== 'balance_adjustment' && (
+                          <p className="mt-0.5 text-[10px] text-white/30 tabular-nums">
+                            {t(language, 'home.cashMovementBalance', '余额 {{amount}}', {
+                              amount: formatCash(balance, rate, normalizedCurrency, language),
+                            })}
+                          </p>
+                        )}
+                      </div>
                     </div>
+                    {canReverse && (
+                      <div className="flex justify-end">
+                        <button
+                          type="button"
+                          disabled={saving}
+                          onClick={() => openReverseConfirmation(movement)}
+                          data-cash-reverse-movement={rowId}
+                          className="flex min-h-11 items-center gap-1.5 rounded-full px-2 text-[10px] text-white/42 active:opacity-60 disabled:opacity-30"
+                        >
+                          <RotateCcw className="h-3 w-3" strokeWidth={1.6} />
+                          {t(language, 'home.cashUndo', '撤销')}
+                        </button>
+                      </div>
+                    )}
+                    {reversal && (
+                      <div
+                        className="mt-1 flex items-center justify-between gap-3 rounded-xl bg-white/[0.025] px-3 py-2.5"
+                        data-cash-reversal-row="true"
+                      >
+                        <div className="min-w-0">
+                          <p className="flex items-center gap-1.5 text-[10px] text-white/34">
+                            <RotateCcw className="h-3 w-3" strokeWidth={1.6} />
+                            {t(language, 'home.cashReversalRecord', '撤销记录')}
+                          </p>
+                          <p className="mt-0.5 text-[10px] text-white/24">
+                            {formatMovementTime(movementTimestamp(reversal), language)}
+                          </p>
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <p className="text-[10px] text-white/38 tabular-nums">
+                            {reversalDelta === null
+                              ? '--'
+                              : `${reversalDelta >= 0 ? '+' : '-'}${formatCash(Math.abs(reversalDelta), rate, normalizedCurrency, language)}`}
+                          </p>
+                          {reversalBalance !== null && (
+                            <p className="mt-0.5 text-[10px] text-white/24 tabular-nums">
+                              {t(language, 'home.cashMovementBalance', '余额 {{amount}}', {
+                                amount: formatCash(reversalBalance, rate, normalizedCurrency, language),
+                              })}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -625,7 +897,73 @@ export default function AvailableCashEditor({
           </>
         )}
 
-        {actionKind !== 'overview' && !confirming && (
+        {reverseTarget && (
+          <>
+            <p className="mt-3 text-center text-[11px] leading-5 text-white/42">
+              {t(language, 'home.cashUndoExplanation', '撤销会从现在起恢复撤销前余额，并保留历史记录。')}
+            </p>
+            <div className="mt-5 rounded-[22px] bg-white/[0.035] px-4">
+              <div className="flex min-h-[52px] items-center justify-between border-b border-white/[0.055]">
+                <span className="text-[11px] text-white/38">
+                  {t(language, 'home.cashCurrentBalance', '当前余额')}
+                </span>
+                <span className="text-[13px] text-white/70 tabular-nums">
+                  {formatCash(currentCashUsd, rate, normalizedCurrency, language)}
+                </span>
+              </div>
+              <div className="flex min-h-[52px] items-center justify-between border-b border-white/[0.055]">
+                <span className="text-[11px] text-white/38">
+                  {t(language, 'home.cashUndoOriginalMovement', '原流水变动')}
+                </span>
+                <span className="text-[13px] text-white/65 tabular-nums">
+                  {reverseOriginalDeltaUsd === null
+                    ? '--'
+                    : `${reverseOriginalDeltaUsd >= 0 ? '+' : '-'}${formatCash(Math.abs(reverseOriginalDeltaUsd), rate, normalizedCurrency, language)}`}
+                </span>
+              </div>
+              <div className="flex min-h-[58px] items-center justify-between">
+                <span className="text-[11px] text-white/42">
+                  {t(language, 'home.cashBalanceAfterUndo', '撤销后余额')}
+                </span>
+                <span className="text-[17px] font-medium text-white/88 tabular-nums">
+                  {formatCash(reverseAfterCashUsd, rate, normalizedCurrency, language)} {normalizedCurrency}
+                </span>
+              </div>
+            </div>
+            {reverseError && (
+              <p className="mt-3 rounded-xl bg-rose-300/[0.07] px-3 py-2 text-[11px] leading-4 text-rose-200/80" role="alert">
+                {reverseError}
+              </p>
+            )}
+            <p className="mt-4 text-center text-[10px] leading-4 text-white/32">
+              {t(language, 'home.cashUndoHistoryHint', '原流水不会删除，并会追加一条关联的撤销记录。')}
+            </p>
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                disabled={saving}
+                onClick={closeOrBack}
+                className="h-11 rounded-xl bg-white/[0.045] text-[13px] text-white/52 active:scale-[0.99] disabled:opacity-35"
+              >
+                {t(language, 'home.cancel', '取消')}
+              </button>
+              <button
+                type="button"
+                disabled={saving}
+                onClick={saveCashReversal}
+                data-cash-reverse-confirm="true"
+                className="flex h-11 items-center justify-center gap-2 rounded-xl bg-white/[0.10] text-[13px] font-medium text-white/82 active:scale-[0.99] disabled:opacity-55"
+              >
+                {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                {saving
+                  ? t(language, 'home.cashUndoing', '撤销中…')
+                  : t(language, 'home.cashConfirmUndo', '确认撤销')}
+              </button>
+            </div>
+          </>
+        )}
+
+        {actionKind !== 'overview' && !confirming && !reverseTarget && (
           <>
             <div className="mt-5 flex items-center justify-between rounded-2xl bg-white/[0.03] px-4 py-3">
               <span className="text-[11px] text-white/38">
@@ -756,7 +1094,7 @@ export default function AvailableCashEditor({
           </>
         )}
 
-        {actionKind !== 'overview' && confirming && (
+        {actionKind !== 'overview' && confirming && !reverseTarget && (
           <>
             <p className="mt-2 text-center text-[11px] text-white/38">
               {actionKind === 'balance_adjustment'

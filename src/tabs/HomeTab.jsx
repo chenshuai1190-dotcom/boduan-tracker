@@ -495,6 +495,7 @@ export default function HomeTab({ ctx }) {
     reorderWatchlist,
     loadAvailableCashMovements,
     mutateAvailableCash,
+    reverseAvailableCashMovement,
     setBenchmarkMenuOpen,
     setBenchmarkSymbol,
     setNewStock,
@@ -603,6 +604,7 @@ export default function HomeTab({ ctx }) {
     : 0;
   const displayAvailableCash = availableCashUsd * displayRate;
   const availableCashWriteReady = availableCashStatusReady && availableCashStatus?.writeReady === true;
+  const availableCashReversalReady = availableCashWriteReady && availableCashStatus?.reversalReady === true;
   const assetStatusReady = marginStatusReady && availableCashStatusReady;
   const marginDebtUsd = normalizeMarginDebtUsd(marginStatus?.currentMargin);
   const marginOverview = React.useMemo(() => deriveHomeMarginOverview({
@@ -1804,6 +1806,7 @@ export default function HomeTab({ ctx }) {
         onClose={() => setShowAvailableCashEditor(false)}
         onLoadCashMovements={loadAvailableCashMovements}
         onMutateCash={availableCashWriteReady ? mutateAvailableCash : null}
+        onReverseCashMovement={availableCashReversalReady ? reverseAvailableCashMovement : null}
         usdRate={summary.usdRate}
       />
 

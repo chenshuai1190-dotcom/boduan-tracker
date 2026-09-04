@@ -33,20 +33,21 @@ test('available cash status and movements load independently while writes stay R
   assert.ok(fetchBlock.includes(".from('available_cash_status')"));
   assert.ok(fetchBlock.includes("supabase.rpc('available_cash_write_contract_ready')"));
   assert.ok(fetchBlock.includes(".eq('user_id', user.id)"));
-  assert.ok(fetchBlock.includes('mapAvailableCashStatus(data, { writeReady })'));
-  assert.ok(fetchBlock.includes('emptyAvailableCashStatus(writeReady)'));
+  assert.ok(fetchBlock.includes('mapAvailableCashStatus(data, { writeReady, reversalReady })'));
+  assert.ok(fetchBlock.includes('emptyAvailableCashStatus(writeReady, reversalReady)'));
   assert.ok(fetchBlock.includes('writeContractResult?.data === true'));
   assert.ok(fetchBlock.includes('validCachedAvailableCashStatus'));
   assert.ok(dbSource.includes('isSet: false'));
   assert.ok(dbSource.includes('isSet: true'));
   assert.ok(dbSource.includes('writeReady: Boolean(writeReady)'));
   assert.ok(dbSource.includes('writeReady: false'));
+  assert.ok(dbSource.includes('reversalReady: false'));
   assert.ok(fetchBlock.includes('AVAILABLE_CASH_CACHE_KEY'));
   assert.ok(dbSource.includes('value.isSet !== true'), 'an old cached absence must not masquerade as an authoritative zero balance');
 
   assert.ok(movementBlock.includes(".from('available_cash_movements')"));
   assert.ok(movementBlock.includes(".eq('user_id', user.id)"));
-  assert.ok(movementBlock.includes(".order('occurred_at', { ascending: false })"));
+  assert.ok(movementBlock.includes(".order('cash_event_id', { ascending: false, nullsFirst: false })"));
   assert.ok(movementBlock.includes('.limit(normalizedLimit + 1)'));
   assert.equal(movementBlock.includes('.insert('), false);
   assert.equal(movementBlock.includes('.update('), false);
@@ -89,7 +90,7 @@ test('Home assets consume available cash only after its authority state is ready
   );
   assert.match(
     appSource,
-    /else \{[\s\S]{0,420}?setAvailableCashStatus\(current => \(\{ \.\.\.current, writeReady: false \}\)\);[\s\S]{0,160}?setAvailableCashStatusReady\(false\);/,
+    /else \{[\s\S]{0,420}?setAvailableCashStatus\(current => \(\{ \.\.\.current, writeReady: false, reversalReady: false \}\)\);[\s\S]{0,160}?setAvailableCashStatusReady\(false\);/,
   );
   assert.ok(appSource.includes('cashUsd: availableCashStatusReady ? Number(availableCashStatus?.availableCashUsd) || 0 : 0'));
 

@@ -893,14 +893,15 @@ export const upsertMarginStatus = async (status) => {
 const AVAILABLE_CASH_LOGIC_VERSION = 1;
 const AVAILABLE_CASH_CACHE_KEY = 'available_cash_status_v1';
 
-const emptyAvailableCashStatus = (writeReady = false) => ({
+const emptyAvailableCashStatus = (writeReady = false, reversalReady = false) => ({
   availableCashUsd: 0,
   isSet: false,
   updatedAt: null,
   writeReady: Boolean(writeReady),
+  reversalReady: Boolean(reversalReady),
 });
 
-const mapAvailableCashStatus = (row, { writeReady = false } = {}) => {
+const mapAvailableCashStatus = (row, { writeReady = false, reversalReady = false } = {}) => {
   const availableCashUsd = Number(row?.available_cash_usd);
   if (
     !Number.isFinite(availableCashUsd)
@@ -914,6 +915,7 @@ const mapAvailableCashStatus = (row, { writeReady = false } = {}) => {
     isSet: true,
     updatedAt: row?.updated_at || null,
     writeReady: Boolean(writeReady),
+    reversalReady: Boolean(reversalReady),
   };
 };
 
@@ -930,6 +932,7 @@ const validCachedAvailableCashStatus = (value) => {
     isSet: true,
     updatedAt: value.updatedAt || null,
     writeReady: false,
+    reversalReady: false,
   };
 };
 
@@ -937,13 +940,14 @@ export const fetchAvailableCashStatus = async (preUser = null) => {
   const user = preUser || (await supabase.auth.getUser()).data.user;
   if (!user) return null;
 
-  const [statusResult, writeContractResult] = await Promise.all([
+  const [statusResult, writeContractResult, reversalContractResult] = await Promise.all([
     supabase
       .from('available_cash_status')
       .select('available_cash_usd,logic_version,updated_at')
       .eq('user_id', user.id)
       .maybeSingle(),
     supabase.rpc('available_cash_write_contract_ready'),
+    supabase.rpc('available_cash_reversal_contract_ready'),
   ]);
   const { data, error } = statusResult;
   if (error) {
@@ -958,10 +962,15 @@ export const fetchAvailableCashStatus = async (preUser = null) => {
   if (writeContractResult?.error) {
     console.error('availableCashWriteContractReady 失败:', writeContractResult.error);
   }
+  const reversalReady = reversalContractResult?.error == null
+    && reversalContractResult?.data === true;
+  if (reversalContractResult?.error) {
+    console.error('availableCashReversalContractReady 失败:', reversalContractResult.error);
+  }
 
   const status = data
-    ? mapAvailableCashStatus(data, { writeReady })
-    : emptyAvailableCashStatus(writeReady);
+    ? mapAvailableCashStatus(data, { writeReady, reversalReady })
+    : emptyAvailableCashStatus(writeReady, reversalReady);
   cacheSet(user.id, AVAILABLE_CASH_CACHE_KEY, status);
   return status;
 };
@@ -986,6 +995,7 @@ const mapAvailableCashMovement = (row) => ({
   usdRate: Number(row?.usd_rate ?? row?.movement_usd_rate),
   note: row?.note ?? row?.movement_note ?? '',
   destinationLabel: row?.destination_label ?? row?.movement_destination_label ?? '',
+  reversesMovementId: row?.reverses_movement_id ?? row?.movement_reverses_movement_id ?? null,
   cashEventId: row?.cash_event_id ?? row?.movement_cash_event_id ?? null,
   occurredAt: row?.occurred_at ?? row?.movement_occurred_at ?? null,
   createdAt: row?.created_at ?? row?.movement_created_at ?? null,
@@ -995,13 +1005,14 @@ export const fetchAvailableCashMovements = async ({ limit = 100 } = {}, preUser 
   const user = preUser || (await supabase.auth.getUser()).data.user;
   if (!user) return { movements: [], hasMore: false };
 
-  const normalizedLimit = Math.min(100, Math.max(1, Math.trunc(Number(limit)) || 100));
+  const normalizedLimit = Math.min(500, Math.max(1, Math.trunc(Number(limit)) || 100));
   const { data, error } = await supabase
     .from('available_cash_movements')
-    .select('id,operation_key,kind,amount_usd,delta_usd,balance_before_usd,balance_after_usd,balance_was_set_before,input_currency,input_amount,usd_rate,note,destination_label,cash_event_id,occurred_at,created_at')
+    .select('id,operation_key,kind,amount_usd,delta_usd,balance_before_usd,balance_after_usd,balance_was_set_before,input_currency,input_amount,usd_rate,note,destination_label,reverses_movement_id,cash_event_id,occurred_at,created_at')
     .eq('user_id', user.id)
-    .order('occurred_at', { ascending: false })
+    .order('cash_event_id', { ascending: false, nullsFirst: false })
     .order('created_at', { ascending: false })
+    .order('id', { ascending: false })
     .limit(normalizedLimit + 1);
   if (error) throw error;
 
@@ -1070,7 +1081,37 @@ export const mutateAvailableCash = async (mutation) => {
     available_cash_usd: row.status_available_cash_usd,
     logic_version: AVAILABLE_CASH_LOGIC_VERSION,
     updated_at: row.status_updated_at,
-  }, { writeReady: true });
+  }, { writeReady: true, reversalReady: Boolean(mutation?.reversalReady) });
+  const movement = mapAvailableCashMovement(row);
+  cacheSet(user.id, AVAILABLE_CASH_CACHE_KEY, persistedStatus);
+  return { status: persistedStatus, movement };
+};
+
+export const reverseAvailableCashMovement = async (reversal) => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('未登录');
+
+  const operationKey = String(reversal?.requestId || reversal?.operationKey || '').trim();
+  const movementId = String(reversal?.movementId || '').trim();
+  const uuidV4Pattern = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  if (!uuidV4Pattern.test(operationKey) || !uuidV4Pattern.test(movementId)) {
+    throw new Error('现金撤销标识无效');
+  }
+
+  const { data, error } = await supabase.rpc('reverse_available_cash_movement', {
+    p_operation_key: operationKey,
+    p_movement_id: movementId,
+    p_expected_updated_at: reversal?.expectedUpdatedAt || null,
+  });
+  if (error) throw error;
+
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row) throw new Error('现金撤销未返回结果');
+  const persistedStatus = mapAvailableCashStatus({
+    available_cash_usd: row.status_available_cash_usd,
+    logic_version: AVAILABLE_CASH_LOGIC_VERSION,
+    updated_at: row.status_updated_at,
+  }, { writeReady: true, reversalReady: true });
   const movement = mapAvailableCashMovement(row);
   cacheSet(user.id, AVAILABLE_CASH_CACHE_KEY, persistedStatus);
   return { status: persistedStatus, movement };

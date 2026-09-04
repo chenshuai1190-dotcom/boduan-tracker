@@ -4,6 +4,23 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '💵 可用现金流水支持安全撤销',
+      '  - 最新一笔未撤销的转入、转出或余额调整可在二次确认后撤销，并从当前时点恢复到该笔之前的余额',
+      '  - 原流水会保留并标记为已撤销，同时追加关联的撤销记录；必须按时间倒序逐笔处理',
+      '  - 服务端原子拦截跨账户、重复、过期与并发撤销；不删除历史，不改写过往收益',
+      '  - 正式股票、波段、TQQQ、社区比赛与资产页银行账户均未改变',
+    ],
+    itemsEn: [
+      '💵 Available Cash activity now supports safe undo',
+      '  - The latest unreversed transfer in, transfer out, or balance adjustment can be undone after a second confirmation, restoring the preceding balance as of the current time',
+      '  - The original entry remains visible and marked Reversed while a linked reversal entry is appended; entries must be handled one by one in reverse chronological order',
+      '  - The server atomically rejects cross-account, duplicate, stale, and concurrent undo attempts; history is never deleted and past returns are not rewritten',
+      '  - Formal stocks, Waves, TQQQ, Community Competition, and bank accounts on the Assets tab are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.480', date: '2026-09-04',
+    items: [
       '💵 可用现金新增转入、转出与余额调整流水',
       '  - 现金管理现在可记录资金转入、转出到银行卡和余额校准，并保留不可变的历史流水',
       '  - 转出会在同一笔数据库事务中扣减可用现金，同步更新投资总资产口径，不会发起真实银行转账',
