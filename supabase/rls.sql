@@ -9127,8 +9127,8 @@ begin
       and not pg_index.indisunique
       and pg_index.indnkeyatts = 2
       and pg_get_indexdef(pg_index.indexrelid, 1, true) = 'user_id'
-      and pg_get_indexdef(pg_index.indexrelid, 2, true)
-        like 'cash_event_id DESC%'
+      and pg_get_indexdef(pg_index.indexrelid, 2, true) = 'cash_event_id'
+      and ((pg_index.indoption[1]::integer & 1) = 1)
       and pg_get_expr(pg_index.indpred, pg_index.indrelid)
         like '%kind <> ''reversal''%'
       and pg_get_expr(pg_index.indpred, pg_index.indrelid)

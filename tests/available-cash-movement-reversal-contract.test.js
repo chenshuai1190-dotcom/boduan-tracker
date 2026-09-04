@@ -163,7 +163,14 @@ test('contract, canonical SQL, and anonymous REST probes include reversal bounda
   assert.match(contract, /available_cash_movements_one_reversal_idx/iu);
   assert.match(contract, /indnkeyatts = 1[\s\S]*?pg_get_indexdef\(pg_index\.indexrelid, 1, true\) = 'reverses_movement_id'/iu);
   assert.match(contract, /available_cash_movements_user_reversible_idx/iu);
-  assert.match(contract, /indnkeyatts = 2[\s\S]*?pg_get_indexdef\(pg_index\.indexrelid, 1, true\) = 'user_id'[\s\S]*?cash_event_id DESC/iu);
+  assert.match(
+    contract,
+    /indnkeyatts = 2[\s\S]*?pg_get_indexdef\(pg_index\.indexrelid, 1, true\) = 'user_id'[\s\S]*?pg_get_indexdef\(pg_index\.indexrelid, 2, true\) = 'cash_event_id'[\s\S]*?indoption\[1\]::integer & 1\) = 1/iu,
+  );
+  assert.doesNotMatch(
+    contract,
+    /pg_get_indexdef\(pg_index\.indexrelid, 2, true\)[\s\S]{0,80}?cash_event_id DESC/iu,
+  );
   assert.match(contract, /grant select on table public\.available_cash_movements\s+to authenticated, service_role/iu);
   assert.doesNotMatch(contract, /grant\s+(?:insert|update|delete)[\s\S]{0,120}?available_cash_movements[\s\S]{0,120}?authenticated/iu);
 
