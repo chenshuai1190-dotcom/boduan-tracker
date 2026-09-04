@@ -120,7 +120,7 @@ test('App supplies the optimistic timestamp, reconciles errors, and keeps revers
   assert.ok(appSource.includes('reverseAvailableCashMovement,'));
 });
 
-test('cash UI exposes one neutral LIFO undo with grouped immutable history and two-step confirmation', () => {
+test('cash UI exposes one neutral LIFO undo while hiding reversed display pairs', () => {
   assert.ok(cashEditorSource.includes("if (rawKind === 'reversal') return 'reversal'"));
   assert.ok(cashEditorSource.includes('const latestEligibleMovement = movements.find'));
   assert.ok(cashEditorSource.includes("movementKind(movement) !== 'reversal'"));
@@ -128,14 +128,17 @@ test('cash UI exposes one neutral LIFO undo with grouped immutable history and t
   assert.ok(cashEditorSource.includes('movementCashEventId(movement) !== null'));
   assert.ok(cashEditorSource.includes('!reversalsByOriginalId.has(candidateId)'));
   assert.ok(cashEditorSource.includes('RECENT_MOVEMENT_FETCH_LIMIT = ALL_MOVEMENT_LIMIT'));
+  assert.equal((cashEditorSource.match(/visibleCashMovementGroups\(/g) || []).length, 3);
   assert.ok(cashEditorSource.includes('recentMovementGroups.push(reversibleMovementGroup)'));
-  assert.ok(cashEditorSource.includes('groups.push({ movement: original, reversal: movement, standaloneReversal: false })'));
-  assert.ok(cashEditorSource.includes('groupedOriginalIds.add(originalId)'));
+  assert.ok(cashEditorSource.includes('const reversedOriginalIds = new Set('));
+  assert.ok(cashEditorSource.includes("if (movementKind(movement) === 'reversal') return false;"));
+  assert.ok(cashEditorSource.includes('return !rowId || !reversedOriginalIds.has(rowId);'));
+  assert.ok(cashEditorSource.includes('.map((movement) => ({ movement }))'));
   assert.ok(cashEditorSource.includes('data-cash-reverse-movement={rowId}'));
   assert.ok(cashEditorSource.includes('data-cash-reverse-confirm="true"'));
-  assert.ok(cashEditorSource.includes('data-cash-reversal-row="true"'));
-  assert.ok(cashEditorSource.includes("t(language, 'home.cashReversed', '已撤销')"));
-  assert.ok(cashEditorSource.includes("t(language, 'home.cashReversalRecord', '撤销记录')"));
+  assert.equal(cashEditorSource.includes('data-cash-reversal-row="true"'), false);
+  assert.equal(cashEditorSource.includes("t(language, 'home.cashReversed', '已撤销')"), false);
+  assert.equal(cashEditorSource.includes("t(language, 'home.cashReversalRecord', '撤销记录')"), false);
   assert.ok(cashEditorSource.includes("t(language, 'home.cashUndoExplanation', '撤销会从现在起恢复撤销前余额，并保留历史记录。')"));
   assert.ok(cashEditorSource.includes('const reverseAfterCashUsd = movementBalanceBeforeUsd(reverseTarget)'));
   assert.ok(cashEditorSource.includes('reversalRequestIdRef.current = requestId'));

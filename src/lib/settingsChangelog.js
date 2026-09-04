@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '💵 撤销后的现金流水不再显示',
+      '  - 现金操作撤销成功后，原流水与对应撤销记录会同时从最近流水和全部流水中隐藏',
+      '  - 底层仍保留不可变审计记录，下一笔符合条件的流水继续按时间倒序提供撤销',
+      '  - 仅改变首页与交易页共用现金管理弹窗的展示，不改变现金余额、数据库契约或其他账本',
+    ],
+    itemsEn: [
+      '💵 Undone cash activity is no longer shown',
+      '  - After a cash movement is successfully undone, both the original entry and its reversal disappear from Recent and All Activity',
+      '  - The immutable audit history remains preserved, and the next eligible movement can still be undone in reverse chronological order',
+      '  - This changes only the shared Cash Management display on Home and Trading; balances, database contracts, and all other ledgers are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.483', date: '2026-09-04',
+    items: [
       '💵 修复旧会话不显示现金撤销入口',
       '  - 每次打开现金管理都会刷新撤销能力，已有的有效流水无需退出 App 即可出现“撤销”',
       '  - 流水读取与能力刷新相互独立；能力读取失败时仍保留流水，并安全关闭撤销操作',
