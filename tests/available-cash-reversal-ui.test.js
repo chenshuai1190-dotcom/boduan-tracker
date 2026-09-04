@@ -34,6 +34,44 @@ test('cash reversal readiness is independent from normal cash write readiness', 
   assert.ok(homeSource.includes('onReverseCashMovement={availableCashReversalReady ? reverseAvailableCashMovement : null}'));
   assert.ok(tradesSource.includes('onReverseCashMovement={availableCashReversalReady ? reverseAvailableCashMovement : null}'));
   assert.ok(appSource.includes('!availableCashStatus?.reversalReady'));
+
+  const refreshStart = dbSource.indexOf('export const fetchAvailableCashReversalReady');
+  const refreshEnd = dbSource.indexOf('const roundAvailableCashAmount', refreshStart);
+  const refreshBlock = dbSource.slice(refreshStart, refreshEnd);
+  assert.ok(refreshStart >= 0 && refreshEnd > refreshStart);
+  assert.ok(refreshBlock.includes("supabase.rpc('available_cash_reversal_contract_ready')"));
+  assert.ok(refreshBlock.includes('if (error)'));
+  assert.ok(refreshBlock.includes('throw error'));
+  assert.ok(refreshBlock.includes('return data === true'));
+  assert.equal(refreshBlock.includes('cacheSet('), false);
+});
+
+test('opening the cash ledger refreshes stale reversal capability without hiding readable movements', () => {
+  const loadStart = appSource.indexOf('const loadAvailableCashMovements = useCallback');
+  const loadEnd = appSource.indexOf('const mutateAvailableCash = useCallback', loadStart);
+  const loadBlock = appSource.slice(loadStart, loadEnd);
+  assert.ok(loadStart >= 0 && loadEnd > loadStart);
+  assert.ok(loadBlock.includes('Promise.allSettled(['));
+  assert.ok(loadBlock.includes('db.fetchAvailableCashMovements({ limit })'));
+  assert.ok(loadBlock.includes('db.fetchAvailableCashReversalReady()'));
+  assert.ok(loadBlock.includes('availableCashCapabilityRequestRef.current === capabilityRequestId'));
+  assert.ok(loadBlock.includes('reversalReady: current.writeReady === true'));
+  assert.ok(loadBlock.includes('&& reversalReadyResult.value === true'));
+  assert.equal(/\bwriteReady\s*:/u.test(loadBlock), false);
+  assert.ok(loadBlock.includes('({ ...current, reversalReady: false })'));
+  assert.equal(loadBlock.includes('setAvailableCashStatus(refreshedStatus)'), false);
+  assert.equal(loadBlock.includes('setAvailableCashStatusReady(true)'), false);
+  assert.ok(loadBlock.includes("movementResult.status === 'rejected'"));
+  assert.ok(loadBlock.includes('throw movementResult.reason'));
+  assert.ok(loadBlock.includes('return movementResult.value'));
+
+  const statusIndex = loadBlock.indexOf('reversalReadyResult.status');
+  const movementErrorIndex = loadBlock.indexOf("movementResult.status === 'rejected'");
+  assert.ok(statusIndex >= 0 && movementErrorIndex > statusIndex);
+  assert.ok(homeSource.includes('onLoadCashMovements={loadAvailableCashMovements}'));
+  assert.ok(tradesSource.includes('onLoadCashMovements={loadAvailableCashMovements}'));
+  assert.ok(cashEditorSource.includes('void loadMovements(RECENT_MOVEMENT_FETCH_LIMIT)'));
+  assert.ok(cashEditorSource.includes('}, [isOpen, loadMovements]);'));
 });
 
 test('cash reversal data access is append-only, LIFO ordered, and RPC-only', () => {

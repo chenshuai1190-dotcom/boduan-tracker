@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '💵 修复旧会话不显示现金撤销入口',
+      '  - 每次打开现金管理都会刷新撤销能力，已有的有效流水无需退出 App 即可出现“撤销”',
+      '  - 流水读取与能力刷新相互独立；能力读取失败时仍保留流水，并安全关闭撤销操作',
+      '  - 刷新只更新现金撤销能力标记，不覆盖普通写入能力、较新的余额或更新时间；其他账本均未改变',
+    ],
+    itemsEn: [
+      '💵 Fixed the missing cash undo action in long-lived sessions',
+      '  - Opening Cash Management now refreshes undo capability, so eligible existing entries show Undo without restarting the app',
+      '  - Ledger loading remains independent from capability refresh; entries stay visible while undo fails closed if capability cannot be read',
+      '  - The refresh updates only the cash undo capability and cannot overwrite normal write access, a newer balance, or its timestamp; all other ledgers remain unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.482', date: '2026-09-04',
+    items: [
       '💵 可用现金流水支持安全撤销',
       '  - 最新一笔未撤销的转入、转出或余额调整可在二次确认后撤销，并从当前时点恢复到该笔之前的余额',
       '  - 原流水会保留并标记为已撤销，同时追加关联的撤销记录；必须按时间倒序逐笔处理',

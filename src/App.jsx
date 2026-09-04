@@ -1214,6 +1214,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     reversalReady: false,
   });
   const [availableCashStatusReady, setAvailableCashStatusReady] = useState(false);
+  const availableCashCapabilityRequestRef = useRef(0);
   const [disciplines, setDisciplines] = useState([]);
   const [reviewLogs, setReviewLogs] = useState([]);
   const [yearlyActuals, setYearlyActuals] = useState([]); // [{year, actualGain, endBalance}]
@@ -2422,9 +2423,37 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     return committedStatus;
   }, [marginStatusReady]);
 
-  const loadAvailableCashMovements = useCallback(async ({ limit = 100 } = {}) => (
-    db.fetchAvailableCashMovements({ limit })
-  ), []);
+  const loadAvailableCashMovements = useCallback(async ({ limit = 100 } = {}) => {
+    // Cash reversal capability can change while an installed PWA remains open (for
+    // example after an additive contract is activated). Refresh them whenever
+    // the editor loads its ledger so a stale session cannot hide valid actions.
+    // The movement read remains independent: a reversal readiness failure must
+    // not make an otherwise readable ledger disappear.
+    const capabilityRequestId = availableCashCapabilityRequestRef.current + 1;
+    availableCashCapabilityRequestRef.current = capabilityRequestId;
+    const [movementResult, reversalReadyResult] = await Promise.allSettled([
+      db.fetchAvailableCashMovements({ limit }),
+      db.fetchAvailableCashReversalReady(),
+    ]);
+
+    if (
+      availableCashCapabilityRequestRef.current === capabilityRequestId
+      && reversalReadyResult.status === 'fulfilled'
+    ) {
+      setAvailableCashStatus((current) => ({
+        ...current,
+        reversalReady: current.writeReady === true
+          && reversalReadyResult.value === true,
+      }));
+    } else if (availableCashCapabilityRequestRef.current === capabilityRequestId) {
+      // Preserve the last confirmed write capability so a transient readiness
+      // read cannot disable ordinary transfers, but fail reversal closed.
+      setAvailableCashStatus((current) => ({ ...current, reversalReady: false }));
+    }
+
+    if (movementResult.status === 'rejected') throw movementResult.reason;
+    return movementResult.value;
+  }, []);
 
   const mutateAvailableCash = useCallback(async (mutation) => {
     if (!availableCashStatusReady || !availableCashStatus?.writeReady) {

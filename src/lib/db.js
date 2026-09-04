@@ -975,6 +975,15 @@ export const fetchAvailableCashStatus = async (preUser = null) => {
   return status;
 };
 
+export const fetchAvailableCashReversalReady = async () => {
+  const { data, error } = await supabase.rpc('available_cash_reversal_contract_ready');
+  if (error) {
+    console.error('availableCashReversalContractReady 失败:', error);
+    throw error;
+  }
+  return data === true;
+};
+
 const roundAvailableCashAmount = (value) => {
   const numericValue = Number(value);
   if (!Number.isFinite(numericValue)) return null;
