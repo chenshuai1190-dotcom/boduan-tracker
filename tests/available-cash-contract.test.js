@@ -152,9 +152,24 @@ test('contract preflights the foundation and exposes only owner-scoped status ro
   assert.match(contract, /function public\.available_cash_write_contract_ready\(\)[\s\S]*?select true/iu);
 });
 
-test('the production RLS probe covers cash state, event history, and the service resolver', () => {
+test('the production RLS probe covers cash state, movement history, mutation, and the service resolver', () => {
   assert.match(rlsProbe, /'available_cash_status'/u);
+  assert.match(rlsProbe, /'available_cash_movements'/u);
   assert.match(rlsProbe, /table: 'available_cash_events'/u);
   assert.match(rlsProbe, /name: 'resolve_available_cash_snapshot_targets'/u);
   assert.match(rlsProbe, /name: 'available_cash_write_contract_ready'/u);
+  assert.match(rlsProbe, /name: 'mutate_available_cash'/u);
+  for (const parameter of [
+    'p_operation_key',
+    'p_kind',
+    'p_amount_usd',
+    'p_expected_updated_at',
+    'p_input_currency',
+    'p_input_amount',
+    'p_usd_rate',
+    'p_note',
+    'p_destination_label',
+  ]) {
+    assert.ok(rlsProbe.includes(parameter), `anonymous RPC probe must send ${parameter}`);
+  }
 });

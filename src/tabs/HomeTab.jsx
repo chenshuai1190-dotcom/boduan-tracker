@@ -493,7 +493,8 @@ export default function HomeTab({ ctx }) {
     quoteRows,
     RefreshCw,
     reorderWatchlist,
-    saveAvailableCash,
+    loadAvailableCashMovements,
+    mutateAvailableCash,
     setBenchmarkMenuOpen,
     setBenchmarkSymbol,
     setNewStock,
@@ -1801,7 +1802,8 @@ export default function HomeTab({ ctx }) {
         isSet={availableCashIsSet}
         language={language}
         onClose={() => setShowAvailableCashEditor(false)}
-        onSave={saveAvailableCash}
+        onLoadCashMovements={loadAvailableCashMovements}
+        onMutateCash={availableCashWriteReady ? mutateAvailableCash : null}
         usdRate={summary.usdRate}
       />
 

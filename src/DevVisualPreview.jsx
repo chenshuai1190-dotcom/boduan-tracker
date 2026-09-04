@@ -1957,6 +1957,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     updatedAt: homeAvailableCashPreview === 'unset' ? null : '2026-08-05T08:00:00.000Z',
     writeReady: true,
   }));
+  const [previewAvailableCashMovements, setPreviewAvailableCashMovements] = React.useState([]);
   const stockReturnComparisonSharePreview = typeof window !== 'undefined'
     && new URLSearchParams(window.location.search).get('stockDetailShare') === '1';
   const stockReturnComparisonMethodPreview = typeof window !== 'undefined'
@@ -2563,6 +2564,46 @@ function StandardDevVisualPreview({ initialTab = '' }) {
   const previewAvailableCashUsd = previewAvailableCashStatus.isSet
     ? Number(previewAvailableCashStatus.availableCashUsd) || 0
     : 0;
+  const loadPreviewAvailableCashMovements = async ({ limit = 100 } = {}) => ({
+    movements: previewAvailableCashMovements.slice(0, limit),
+    hasMore: previewAvailableCashMovements.length > limit,
+  });
+  const mutatePreviewAvailableCash = async (mutation) => {
+    const beforeCashUsd = previewAvailableCashUsd;
+    const amountUsd = Number(mutation?.amountUsd) || 0;
+    const afterCashUsd = mutation?.kind === 'transfer_in'
+      ? beforeCashUsd + amountUsd
+      : mutation?.kind === 'transfer_out'
+        ? Math.max(0, beforeCashUsd - amountUsd)
+        : amountUsd;
+    const updatedAt = new Date().toISOString();
+    const nextStatus = {
+      availableCashUsd: afterCashUsd,
+      isSet: true,
+      updatedAt,
+      writeReady: true,
+    };
+    const movement = {
+      id: mutation?.requestId,
+      operationKey: mutation?.requestId,
+      kind: mutation?.kind,
+      amountUsd,
+      deltaUsd: afterCashUsd - beforeCashUsd,
+      balanceBeforeUsd: beforeCashUsd,
+      balanceAfterUsd: afterCashUsd,
+      balanceWasSetBefore: previewAvailableCashStatus.isSet,
+      inputCurrency: mutation?.inputCurrency,
+      inputAmount: mutation?.inputAmount,
+      usdRate: mutation?.usdRate,
+      note: mutation?.note || '',
+      destinationLabel: mutation?.destinationLabel || '',
+      occurredAt: updatedAt,
+      createdAt: updatedAt,
+    };
+    setPreviewAvailableCashStatus(nextStatus);
+    setPreviewAvailableCashMovements((current) => [movement, ...current]);
+    return { status: nextStatus, movement };
+  };
 
   const previewWatchlistWithTarget = homeWatchlist.map((item) => (
     item.symbol === 'NVDA'
@@ -2718,16 +2759,8 @@ function StandardDevVisualPreview({ initialTab = '' }) {
       setPreviewMarginDebtUsd(Number(nextDebtUsd));
       return { currentMargin: Number(nextDebtUsd), marginLimit: 0 };
     },
-    saveAvailableCash: async (nextCashUsd) => {
-      const nextStatus = {
-        availableCashUsd: Number(nextCashUsd),
-        isSet: true,
-        updatedAt: new Date().toISOString(),
-        writeReady: true,
-      };
-      setPreviewAvailableCashStatus(nextStatus);
-      return nextStatus;
-    },
+    loadAvailableCashMovements: loadPreviewAvailableCashMovements,
+    mutateAvailableCash: mutatePreviewAvailableCash,
     setBenchmarkMenuOpen,
     setBenchmarkSymbol,
     setLanguage,
@@ -2944,16 +2977,8 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     quoteRows: tradeQuoteRows,
     RefreshCw,
     requestDeleteLegacyTrade,
-    saveAvailableCash: async (nextCashUsd) => {
-      const nextStatus = {
-        availableCashUsd: Number(nextCashUsd),
-        isSet: true,
-        updatedAt: new Date().toISOString(),
-        writeReady: true,
-      };
-      setPreviewAvailableCashStatus(nextStatus);
-      return nextStatus;
-    },
+    loadAvailableCashMovements: loadPreviewAvailableCashMovements,
+    mutateAvailableCash: mutatePreviewAvailableCash,
     setCostBasisActiveSymbol,
     setCostBasisData,
     setCostBasisNewSymbol,

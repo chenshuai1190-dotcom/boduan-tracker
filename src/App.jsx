@@ -2416,23 +2416,50 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     return committedStatus;
   }, [marginStatusReady]);
 
-  const saveAvailableCash = useCallback(async (nextCashUsd) => {
+  const loadAvailableCashMovements = useCallback(async ({ limit = 100 } = {}) => (
+    db.fetchAvailableCashMovements({ limit })
+  ), []);
+
+  const mutateAvailableCash = useCallback(async (mutation) => {
     if (!availableCashStatusReady || !availableCashStatus?.writeReady) {
       throw new Error('可用现金仍在同步，请稍后重试');
     }
-    const numericCashUsd = Number(nextCashUsd);
-    if (!Number.isFinite(numericCashUsd) || numericCashUsd < 0) {
-      throw new Error('可用现金必须是不小于 0 的有效金额');
-    }
 
-    const persistedStatus = await db.upsertAvailableCashStatus({ availableCashUsd: numericCashUsd });
-    setAvailableCashStatus(persistedStatus);
-    setAvailableCashStatusReady(true);
-    // The database event marks the personal report dirty. Cash enters that
-    // read model only through its completed-close snapshot cutoff; this save
-    // must not turn report navigation into a live rebuild or touch competition.
-    return persistedStatus;
-  }, [availableCashStatus?.writeReady, availableCashStatusReady]);
+    try {
+      const result = await db.mutateAvailableCash({
+        ...mutation,
+        expectedUpdatedAt: availableCashStatus?.isSet
+          ? availableCashStatus?.updatedAt || null
+          : null,
+      });
+      setAvailableCashStatus(result.status);
+      setAvailableCashStatusReady(true);
+      // The status trigger marks the personal report dirty. Cash still enters
+      // that read model only through its completed-close snapshot cutoff; a
+      // movement must not trigger a live rebuild or touch competition.
+      return result;
+    } catch (error) {
+      // A second tab may have committed first. Refresh the authoritative
+      // balance after any rejected/unknown result, but keep the original error
+      // so the editor never reports a failed operation as successful.
+      try {
+        const refreshedStatus = await db.fetchAvailableCashStatus();
+        if (refreshedStatus) {
+          setAvailableCashStatus(refreshedStatus);
+          setAvailableCashStatusReady(true);
+        }
+      } catch {
+        // Preserve the last confirmed state when even the reconciliation read
+        // is unavailable.
+      }
+      throw error;
+    }
+  }, [
+    availableCashStatus?.isSet,
+    availableCashStatus?.updatedAt,
+    availableCashStatus?.writeReady,
+    availableCashStatusReady,
+  ]);
 
   // === 持仓冷静室:把每只股票的交易切成"波段" ===
   // 规则:全部卖完算一个波段结束,下次买入开启新波段
@@ -5465,7 +5492,8 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     removeStock,
     reorderWatchlist,
     saveWatchlistStockTarget,
-    saveAvailableCash,
+    loadAvailableCashMovements,
+    mutateAvailableCash,
     saveMarginDebt,
     reviewLogs,
     clearQuoteDiagnosticLogs,

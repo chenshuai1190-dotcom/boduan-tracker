@@ -19,6 +19,7 @@ const USER_TABLES = [
   'investment_plan',
   'margin_status',
   'available_cash_status',
+  'available_cash_movements',
   'disciplines',
   'review_logs',
   'yearly_actuals',
@@ -236,6 +237,20 @@ const AUTHENTICATED_USER_RPCS = [
   {
     name: 'available_cash_write_contract_ready',
     body: {},
+  },
+  {
+    name: 'mutate_available_cash',
+    body: {
+      p_operation_key: '00000000-0000-0000-0000-000000000000',
+      p_kind: 'balance_adjustment',
+      p_amount_usd: 0,
+      p_expected_updated_at: null,
+      p_input_currency: 'USD',
+      p_input_amount: 0,
+      p_usd_rate: 1,
+      p_note: '',
+      p_destination_label: '',
+    },
   },
   {
     name: 'record_swing_wave_exit',

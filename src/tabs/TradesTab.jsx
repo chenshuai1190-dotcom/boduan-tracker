@@ -465,7 +465,8 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
     quoteRows,
     RefreshCw,
     requestDeleteLegacyTrade,
-    saveAvailableCash,
+    loadAvailableCashMovements,
+    mutateAvailableCash,
     setCostBasisActiveSymbol,
     setCostBasisData,
     setCostBasisNewSymbol,
@@ -2669,7 +2670,8 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
           isSet={availableCashIsSet}
           language={language}
           onClose={() => setShowAvailableCashEditor(false)}
-          onSave={saveAvailableCash}
+          onLoadCashMovements={loadAvailableCashMovements}
+          onMutateCash={availableCashWriteReady ? mutateAvailableCash : null}
           usdRate={rate}
         />
 

@@ -966,28 +966,114 @@ export const fetchAvailableCashStatus = async (preUser = null) => {
   return status;
 };
 
-export const upsertAvailableCashStatus = async (status) => {
+const roundAvailableCashAmount = (value) => {
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue)) return null;
+  return Number(numericValue.toFixed(6));
+};
+
+const mapAvailableCashMovement = (row) => ({
+  id: row?.id ?? row?.movement_id ?? null,
+  operationKey: row?.operation_key ?? row?.movement_operation_key ?? null,
+  kind: row?.kind ?? row?.movement_kind ?? '',
+  amountUsd: Number(row?.amount_usd ?? row?.movement_amount_usd),
+  deltaUsd: Number(row?.delta_usd ?? row?.movement_delta_usd),
+  balanceBeforeUsd: Number(row?.balance_before_usd ?? row?.movement_balance_before_usd),
+  balanceAfterUsd: Number(row?.balance_after_usd ?? row?.movement_balance_after_usd),
+  balanceWasSetBefore: Boolean(row?.balance_was_set_before ?? row?.movement_balance_was_set_before),
+  inputCurrency: row?.input_currency ?? row?.movement_input_currency ?? 'USD',
+  inputAmount: Number(row?.input_amount ?? row?.movement_input_amount),
+  usdRate: Number(row?.usd_rate ?? row?.movement_usd_rate),
+  note: row?.note ?? row?.movement_note ?? '',
+  destinationLabel: row?.destination_label ?? row?.movement_destination_label ?? '',
+  cashEventId: row?.cash_event_id ?? row?.movement_cash_event_id ?? null,
+  occurredAt: row?.occurred_at ?? row?.movement_occurred_at ?? null,
+  createdAt: row?.created_at ?? row?.movement_created_at ?? null,
+});
+
+export const fetchAvailableCashMovements = async ({ limit = 100 } = {}, preUser = null) => {
+  const user = preUser || (await supabase.auth.getUser()).data.user;
+  if (!user) return { movements: [], hasMore: false };
+
+  const normalizedLimit = Math.min(100, Math.max(1, Math.trunc(Number(limit)) || 100));
+  const { data, error } = await supabase
+    .from('available_cash_movements')
+    .select('id,operation_key,kind,amount_usd,delta_usd,balance_before_usd,balance_after_usd,balance_was_set_before,input_currency,input_amount,usd_rate,note,destination_label,cash_event_id,occurred_at,created_at')
+    .eq('user_id', user.id)
+    .order('occurred_at', { ascending: false })
+    .order('created_at', { ascending: false })
+    .limit(normalizedLimit + 1);
+  if (error) throw error;
+
+  const rows = data || [];
+  return {
+    movements: rows.slice(0, normalizedLimit).map(mapAvailableCashMovement),
+    hasMore: rows.length > normalizedLimit,
+  };
+};
+
+export const mutateAvailableCash = async (mutation) => {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('未登录');
 
-  const availableCashUsd = Number(status?.availableCashUsd);
-  if (!Number.isFinite(availableCashUsd) || availableCashUsd < 0) {
-    throw new Error('可用现金必须是不小于 0 的有效金额');
+  const kind = String(mutation?.kind || '').trim().toLowerCase();
+  const operationKey = String(mutation?.requestId || mutation?.operationKey || '').trim();
+  const inputCurrency = String(mutation?.inputCurrency || '').trim().toUpperCase();
+  const inputAmount = roundAvailableCashAmount(mutation?.inputAmount);
+  const usdRate = inputCurrency === 'USD' ? 1 : roundAvailableCashAmount(mutation?.usdRate);
+  const amountUsd = inputCurrency === 'CNY' && inputAmount !== null && usdRate > 0
+    ? roundAvailableCashAmount(inputAmount / usdRate)
+    : roundAvailableCashAmount(mutation?.amountUsd);
+  const expectedUpdatedAt = mutation?.expectedUpdatedAt || null;
+  const note = String(mutation?.note || '').trim();
+  const destinationLabel = String(mutation?.destinationLabel || '').trim().toLowerCase();
+
+  if (!['transfer_in', 'transfer_out', 'balance_adjustment'].includes(kind)) {
+    throw new Error('不支持的现金变动类型');
+  }
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(operationKey)) {
+    throw new Error('现金操作标识无效');
+  }
+  if (!['USD', 'CNY'].includes(inputCurrency) || inputAmount === null || inputAmount < 0) {
+    throw new Error('现金输入金额无效');
+  }
+  if (amountUsd === null || amountUsd < 0 || usdRate === null || usdRate <= 0) {
+    throw new Error('现金折算金额无效');
+  }
+  if (kind !== 'balance_adjustment' && amountUsd <= 0) {
+    throw new Error('现金转入或转出金额必须大于 0');
+  }
+  if (
+    note.length > 500
+    || (kind === 'transfer_out' && destinationLabel !== 'bank_card')
+    || (kind !== 'transfer_out' && destinationLabel !== '')
+  ) {
+    throw new Error('现金变动记录无效');
   }
 
-  const { data, error } = await supabase
-    .from('available_cash_status')
-    .upsert({
-      user_id: user.id,
-      available_cash_usd: availableCashUsd,
-      logic_version: AVAILABLE_CASH_LOGIC_VERSION,
-    }, { onConflict: 'user_id' })
-    .select('available_cash_usd,logic_version,updated_at')
-    .single();
+  const { data, error } = await supabase.rpc('mutate_available_cash', {
+    p_operation_key: operationKey,
+    p_kind: kind,
+    p_amount_usd: amountUsd,
+    p_expected_updated_at: expectedUpdatedAt,
+    p_input_currency: inputCurrency,
+    p_input_amount: inputAmount,
+    p_usd_rate: usdRate,
+    p_note: note,
+    p_destination_label: destinationLabel,
+  });
   if (error) throw error;
-  const persistedStatus = mapAvailableCashStatus(data, { writeReady: true });
+
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row) throw new Error('现金变动未返回结果');
+  const persistedStatus = mapAvailableCashStatus({
+    available_cash_usd: row.status_available_cash_usd,
+    logic_version: AVAILABLE_CASH_LOGIC_VERSION,
+    updated_at: row.status_updated_at,
+  }, { writeReady: true });
+  const movement = mapAvailableCashMovement(row);
   cacheSet(user.id, AVAILABLE_CASH_CACHE_KEY, persistedStatus);
-  return persistedStatus;
+  return { status: persistedStatus, movement };
 };
 
 // ============ DISCIPLINES (投资戒律) ============

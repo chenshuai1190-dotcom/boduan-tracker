@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '💵 可用现金新增转入、转出与余额调整流水',
+      '  - 现金管理现在可记录资金转入、转出到银行卡和余额校准，并保留不可变的历史流水',
+      '  - 转出会在同一笔数据库事务中扣减可用现金，同步更新投资总资产口径，不会发起真实银行转账',
+      '  - 正式股票持仓、股票盈亏和收益率、TQQQ规则、社区比赛及资产页银行账户均未改变',
+    ],
+    itemsEn: [
+      '💵 Available Cash now records transfers in, transfers out, and balance adjustments',
+      '  - Cash Management can now record money in, money out to a bank card, and balance corrections while preserving an immutable movement history',
+      '  - A transfer out subtracts Available Cash and updates total investment assets atomically in one database transaction; it does not initiate a real bank transfer',
+      '  - Formal stock holdings, stock P&L and returns, TQQQ rules, Community Competition, and bank accounts on the Assets tab are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.479', date: '2026-09-03',
+    items: [
       '🏆 新账户可正常打开社区收益比赛',
       '  - 新注册或尚未参赛的账户首次进入时会显示加入比赛界面，不再把正常参赛状态误报为缓存错误',
       '  - 社区资料未完成时仍会前往资料设置；加入后的真实收盘快照与排行榜流程保持不变',
