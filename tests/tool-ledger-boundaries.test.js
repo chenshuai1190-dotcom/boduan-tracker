@@ -2292,12 +2292,17 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.ok(reviewTabSource.includes('>100%</span>'), 'annual target summary should keep the target baseline fixed at 100 percent');
   assert.equal(reviewTabSource.includes('annualSummaryPercentPreview'), false, 'annual summary percentages should be production behavior rather than a dev-only preview gate');
   assert.ok(reviewTabSource.includes('space-y-1 rounded-xl border border-transparent bg-white/[0.035] px-2.5 py-2.5'), 'three-row annual summary should keep its compact surface while hiding the outer border');
-  assert.ok(reviewTabSource.includes("isOverTarget ? 'border-[#ff4b1f]/25 bg-[#ff4b1f]/10 text-[#ff4b1f]' : 'border-emerald-400/25 bg-emerald-400/10 text-emerald-400'"), 'current-year reached and behind badges should share the red/green result hierarchy');
+  assert.ok(reviewTabSource.includes('resolveAnnualGoalStatus(yearItem.actualGain, yearItem.planTarget)'), 'current-year status should compare the source annual amounts at displayed cent precision');
+  assert.ok(reviewTabSource.includes("tt('review.exceeded', '超额')"), 'overachievement should have a dedicated localized badge');
+  assert.ok(reviewTabSource.includes('data-annual-goal-status={annualGoalStatus}'), 'the current-year badge should expose its three-state result');
+  assert.ok(reviewTabSource.includes('isTargetExceeded && TrendingUp'), 'the exceeded badge should include its upward icon');
+  assert.ok(reviewTabSource.includes("annualGoalStatus === 'exceeded'"), 'the exceeded badge should have a distinct gold result style');
   assert.ok(reviewTabSource.includes("text-[#ff4b1f] tabular-nums\" style={{ fontFamily: NUMBER_FONT }}>{progressPct.toFixed(1)}%"), 'overall completion percentage should use system red');
   assert.ok(reviewTabSource.includes("text-[14px] text-[#ff4b1f] tabular-nums\" style={{ fontFamily: NUMBER_FONT }}>{yearProgressPct.toFixed(0)}%"), 'annual completion percentage should use system red');
   assert.ok(reviewTabSource.includes('text-white/58 tabular-nums'), 'year-start balance should use muted white');
   assert.ok(reviewTabSource.includes('text-white/82 tabular-nums'), 'neutral target and year-end balances should use brighter white');
   assert.ok(i18nSource.includes("'review.achieved': 'Achieved'"), 'English annual summary should include the achieved label');
+  assert.ok(i18nSource.includes("'review.exceeded': 'Exceeded'"), 'English annual status should include the exceeded label');
   assert.equal(reviewTabSource.includes("{money(currentYearTarget)}</span>\n                      </div>\n                      <div className={`mt-0.5"), false, 'current year summary target should not show the year-end total balance');
   assert.equal((reviewTabSource.match(/tt\('review\.yearStart', '年初起点'\)/g) || []).length, 3, 'annual goal cards and projected compound details should label the opening balance as year start');
   assert.equal((reviewTabSource.match(/tt\('review\.yearEnd', '年底目标'\)/g) || []).length, 2, 'current and projected annual cards should label the ending balance as the year-end target');

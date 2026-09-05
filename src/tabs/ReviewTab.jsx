@@ -1,5 +1,6 @@
 import React from 'react';
 import ActionModalCard from '../components/ActionModalCard.jsx';
+import { resolveAnnualGoalStatus } from '../lib/annualGoalStatus.js';
 import { buildCompoundYearDetailRows } from '../lib/compoundYearDetails.js';
 import { t } from '../lib/i18n.js';
 import { marketTextClass } from '../lib/marketColorMode.js';
@@ -628,6 +629,7 @@ export default function ReviewTab({ ctx }) {
     Target,
     Pin,
     Trash2,
+    TrendingUp,
     usdRate,
     X,
     YearlyActualModal,
@@ -954,8 +956,6 @@ export default function ReviewTab({ ctx }) {
           {visibleYears.map((yearItem) => {
             const isCurrent = yearItem.year === thisYear;
             const hasActual = yearItem.actualGain !== null;
-            const diff = hasActual ? yearItem.actualGain - yearItem.planTarget : null;
-            const isOverTarget = diff !== null && diff >= 0;
             const targetGap = hasActual ? yearItem.planTarget - yearItem.actualGain : null;
             const actualTargetPct = hasActual && yearItem.planTarget > 0
               ? (yearItem.actualGain / yearItem.planTarget) * 100
@@ -966,9 +966,22 @@ export default function ReviewTab({ ctx }) {
             const yearProgressPct = isCurrent && hasActual && yearItem.planTarget > 0
               ? clamp((yearItem.actualGain / yearItem.planTarget) * 100, 0, 150)
               : 0;
-            const projectedLabel = yearItem.isProjected
+            const annualGoalStatus = yearItem.isProjected
+              ? 'notStarted'
+              : resolveAnnualGoalStatus(yearItem.actualGain, yearItem.planTarget) || 'behind';
+            const isTargetExceeded = annualGoalStatus === 'exceeded';
+            const projectedLabel = annualGoalStatus === 'notStarted'
               ? tt('review.notStarted', '未开始')
-              : isOverTarget ? tt('review.reached', '达标') : tt('review.behind', '未达');
+              : annualGoalStatus === 'exceeded'
+                ? tt('review.exceeded', '超额')
+                : annualGoalStatus === 'reached'
+                  ? tt('review.reached', '达标')
+                  : tt('review.behind', '未达');
+            const annualGoalStatusClass = annualGoalStatus === 'exceeded'
+              ? 'border-[#f6b54b]/30 bg-[#f6b54b]/10 text-[#ffd18a]'
+              : annualGoalStatus === 'reached'
+                ? 'border-[#ff4b1f]/25 bg-[#ff4b1f]/10 text-[#ff4b1f]'
+                : 'border-emerald-400/25 bg-emerald-400/10 text-emerald-400';
             const currentYearTarget = yearItem.startBalance + yearItem.planTarget;
 
             if (isCurrent) {
@@ -984,7 +997,13 @@ export default function ReviewTab({ ctx }) {
                       <div className="flex min-w-0 items-center gap-1.5">
                         <div className="text-[22px] font-semibold leading-none text-white/90 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{yearItem.year}</div>
                         <span className="rounded-md border border-[#f6b54b]/25 bg-[#f6b54b]/10 px-1.5 py-0.5 text-[10px] text-[#f6b54b]">{tt('review.thisYear', '本年')}</span>
-                        <span className={`rounded-md border px-1.5 py-0.5 text-[10px] ${isOverTarget ? 'border-[#ff4b1f]/25 bg-[#ff4b1f]/10 text-[#ff4b1f]' : 'border-emerald-400/25 bg-emerald-400/10 text-emerald-400'}`}>{projectedLabel}</span>
+                        <span
+                          className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] ${annualGoalStatusClass}`}
+                          data-annual-goal-status={annualGoalStatus}
+                        >
+                          {isTargetExceeded && TrendingUp ? <TrendingUp className="h-3 w-3" strokeWidth={1.8} aria-hidden="true" /> : null}
+                          {projectedLabel}
+                        </span>
                       </div>
                     </div>
                     <div className="w-full shrink-0 space-y-1 rounded-xl border border-transparent bg-white/[0.035] px-2.5 py-2.5 text-[11px] leading-[1.45]">
