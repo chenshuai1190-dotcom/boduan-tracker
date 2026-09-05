@@ -1980,6 +1980,8 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     : new URLSearchParams(window.location.search).get('accountTrend') || '';
   const monthlyAssetTrendPreview = typeof window !== 'undefined'
     && new URLSearchParams(window.location.search).get('monthlyAssetTrend') === '1';
+  const monthlyAssetCategoryReportPreview = typeof window !== 'undefined'
+    && new URLSearchParams(window.location.search).get('monthlyAssetCategoryReport') === '1';
   const accountTrendZeroHistoryPreview = typeof window !== 'undefined'
     && new URLSearchParams(window.location.search).get('accountTrendZeroHistory') === '1';
   const competitionPreviewState = typeof window === 'undefined'
@@ -2004,10 +2006,16 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     return () => window.clearTimeout(timer);
   }, [accountTrendPreviewId, activeTab]);
   React.useEffect(() => {
-    if (activeTab !== 'analysis' || !monthlyAssetTrendPreview) return undefined;
-    const timer = window.setTimeout(() => setShowMonthsDetail(true), 180);
-    return () => window.clearTimeout(timer);
-  }, [activeTab, monthlyAssetTrendPreview]);
+    if (activeTab !== 'analysis' || (!monthlyAssetTrendPreview && !monthlyAssetCategoryReportPreview)) return undefined;
+    const trendTimer = window.setTimeout(() => setShowMonthsDetail(true), 180);
+    const reportTimer = monthlyAssetCategoryReportPreview
+      ? window.setTimeout(() => document.querySelector('[data-asset-trend-month-row]')?.click(), 420)
+      : 0;
+    return () => {
+      window.clearTimeout(trendTimer);
+      if (reportTimer) window.clearTimeout(reportTimer);
+    };
+  }, [activeTab, monthlyAssetCategoryReportPreview, monthlyAssetTrendPreview]);
   const communityCompetitionClient = React.useMemo(() => ({
     fetch: async ({ period }) => {
       const requestedState = {

@@ -4,6 +4,23 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '📊 月度明细新增分类资产环比报表',
+      '  - 点击 12 个月资产走势下的任一月度明细整行，即可打开该月与上月的独立分类资产报表',
+      '  - 页面汇总月末资产、净变化、增加与减少合计和最大增益，并以左右发散条直观看出各分类升降',
+      '  - 分类默认按增益金额从高到低排列；严格比较相邻自然月，缺少任一月记录时标记为不可比，不按 0 处理',
+      '  - 报表保持只读且不显示编辑入口；资产修改继续仅在资产总览进行，数据库、汇率来源与其他账本均未改变',
+    ],
+    itemsEn: [
+      '📊 Monthly details now include an asset-category comparison report',
+      '  - Tap anywhere on a monthly row under the 12-month asset trend to open a dedicated category report comparing that month with the previous month',
+      '  - The report summarizes month-end assets, net change, total increases, total decreases, and the largest gain, with diverging bars for each category',
+      '  - Categories default to signed gain amount from highest to lowest; only exact adjacent calendar months are compared, and a missing month is marked not comparable instead of zero',
+      '  - The report is read-only with no edit action; asset changes remain on the asset overview, while the database, exchange-rate sources, and all other ledgers are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.484', date: '2026-09-04',
+    items: [
       '💵 撤销后的现金流水不再显示',
       '  - 现金操作撤销成功后，原流水与对应撤销记录会同时从最近流水和全部流水中隐藏',
       '  - 底层仍保留不可变审计记录，下一笔符合条件的流水继续按时间倒序提供撤销',

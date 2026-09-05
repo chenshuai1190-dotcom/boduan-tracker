@@ -63,12 +63,15 @@ export default function MonthlyAssetTrendContent({
   currentMonth = '',
   comparisonStartMonth = '',
   comparisonStartValue = null,
-  onEditMonth,
+  expanded: controlledExpanded,
+  onExpandedChange,
+  onOpenMonthReport,
 }) {
   const activePointerIdRef = React.useRef(null);
   const chartInteractionRef = React.useRef(null);
-  const [expanded, setExpanded] = React.useState(false);
+  const [internalExpanded, setInternalExpanded] = React.useState(false);
   const [selectedIndex, setSelectedIndex] = React.useState(null);
+  const expanded = typeof controlledExpanded === 'boolean' ? controlledExpanded : internalExpanded;
   const detailModel = React.useMemo(() => buildMonthlyAssetTrend({ months, values }), [months, values]);
   const chartMonths = React.useMemo(() => (
     comparisonStartMonth && comparisonStartMonth !== months[0]
@@ -262,7 +265,11 @@ export default function MonthlyAssetTrendContent({
             data-asset-trend-toggle="true"
             className="flex shrink-0 items-center gap-1 border-0 bg-transparent py-1.5 pl-1.5 text-[10px] text-white/[0.53]"
             aria-expanded={expanded}
-            onClick={() => setExpanded(value => !value)}
+            onClick={() => {
+              const nextExpanded = !expanded;
+              if (typeof onExpandedChange === 'function') onExpandedChange(nextExpanded);
+              else setInternalExpanded(nextExpanded);
+            }}
           >
             <span>
               {expanded
@@ -285,10 +292,14 @@ export default function MonthlyAssetTrendContent({
           {visibleSlots.map((slot) => {
             const tone = slot.changeAmount >= 0 ? UP_COLOR : DOWN_COLOR;
             return (
-              <div
+              <button
+                type="button"
                 key={slot.month}
                 data-asset-trend-month-row={slot.month}
-                className="grid min-h-[42px] w-full grid-cols-[90px_minmax(70px,1fr)_minmax(68px,0.96fr)_49px_18px] items-center gap-x-0.5 border-b border-solid border-white/[0.055] px-2 text-left last:border-b-0"
+                data-open-asset-category-report={slot.month}
+                aria-label={tt('analysis.openAssetCategoryReportFor', '查看 {{month}} 分类资产环比', { month: slot.month })}
+                onClick={() => onOpenMonthReport?.(slot.month)}
+                className="grid min-h-[44px] w-full grid-cols-[90px_minmax(70px,1fr)_minmax(68px,0.96fr)_49px_18px] items-center gap-x-0.5 border-x-0 border-t-0 border-b border-solid border-white/[0.055] bg-transparent px-2 text-left transition last:border-b-0 active:bg-white/[0.035]"
               >
                 <span className="flex min-w-0 items-center gap-1 whitespace-nowrap text-[11px] text-white/[0.86] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
                   <span>{slot.month}</span>
@@ -307,16 +318,8 @@ export default function MonthlyAssetTrendContent({
                 <span className="whitespace-nowrap text-right text-[11px] tabular-nums" style={{ color: Number.isFinite(slot.changePct) ? tone : 'rgba(255,255,255,.28)', fontFamily: NUMBER_FONT }}>
                   {formatSignedPercent(slot.changePct)}
                 </span>
-                <button
-                  type="button"
-                  data-asset-trend-month-edit={slot.month}
-                  aria-label={tt('analysis.editMonthlyBalanceFor', '修改 {{month}} 月度余额', { month: slot.month })}
-                  onClick={() => onEditMonth?.(slot.month)}
-                  className="flex h-[42px] w-[26px] -translate-x-1 items-center justify-end border-0 bg-transparent text-white/[0.44] active:text-white/[0.72]"
-                >
-                  <ChevronRight className="h-4 w-4" strokeWidth={1.8} />
-                </button>
-              </div>
+                <ChevronRight className="h-4 w-4 -translate-x-1 text-white/[0.44]" strokeWidth={1.8} aria-hidden="true" />
+              </button>
             );
           })}
         </div>

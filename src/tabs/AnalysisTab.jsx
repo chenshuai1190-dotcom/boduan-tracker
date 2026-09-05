@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import ActionModalCard from '../components/ActionModalCard.jsx';
 import AccountAssetTrendModal from '../components/AccountAssetTrendModal.jsx';
+import MonthlyAssetCategoryReport from '../components/MonthlyAssetCategoryReport.jsx';
 import MonthlyAssetTrendChart, { buildMonthlyAssetTrendChartScale } from '../components/MonthlyAssetTrendChart.jsx';
 import MonthlyAssetTrendContent from '../components/MonthlyAssetTrendContent.jsx';
 import { buildAccountAssetTrend } from '../lib/accountAssetTrend.js';
@@ -25,6 +26,7 @@ import { splitCurrencyAmount } from '../lib/amountDisplay.js';
 import { localMonthKey, shiftMonthKey } from '../lib/calendarMonth.js';
 import { t } from '../lib/i18n.js';
 import { marketHexColor } from '../lib/marketColorMode.js';
+import { buildMonthlyAssetCategoryReport } from '../lib/monthlyAssetCategoryReport.js';
 import { buildMonthlyAssetTrend } from '../lib/monthlyAssetTrend.js';
 
 const ASSET_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif';
@@ -144,7 +146,10 @@ function AnalysisTab({ ctx }) {
   const [accountTrendId, setAccountTrendId] = React.useState(null);
   const [editingAccountId, setEditingAccountId] = React.useState(null);
   const [accountEditDraft, setAccountEditDraft] = React.useState(null);
+  const [selectedAssetCategoryMonth, setSelectedAssetCategoryMonth] = React.useState('');
+  const [monthlyDetailsExpanded, setMonthlyDetailsExpanded] = React.useState(false);
   const assetOverviewScrollYRef = React.useRef(0);
+  const monthlyTrendScrollYRef = React.useRef(0);
   const overviewChartInteractionRef = React.useRef(null);
 
   const tt = React.useCallback((key, fallback, values) => t(language, key, fallback, values), [language]);
@@ -160,6 +165,12 @@ function AnalysisTab({ ctx }) {
     document.addEventListener('pointerdown', clearSelectedMonthOutsideOverviewChart, true);
     return () => document.removeEventListener('pointerdown', clearSelectedMonthOutsideOverviewChart, true);
   }, [chartSelectedMonthIdx, setChartSelectedMonthIdx]);
+
+  React.useEffect(() => {
+    if (showMonthsDetail) return;
+    setSelectedAssetCategoryMonth('');
+    setMonthlyDetailsExpanded(false);
+  }, [showMonthsDetail]);
 
   const ownerLabel = React.useCallback((owner) => {
     if (owner === '我') return tt('analysis.owner.me', '我');
@@ -296,6 +307,12 @@ function AnalysisTab({ ctx }) {
   const yearChangePct = totalYearAgo > 0 ? (yearChange / totalYearAgo) * 100 : 0;
 
   const chartData = React.useMemo(() => last12Months.map(m => totalAtMonth(m)), [last12Months, totalAtMonth]);
+  const assetCategoryReport = React.useMemo(() => buildMonthlyAssetCategoryReport({
+    accounts,
+    snapshots,
+    month: selectedAssetCategoryMonth,
+    toCNY,
+  }), [accounts, selectedAssetCategoryMonth, snapshots, toCNY]);
   const {
     chartMin,
     chartMax,
@@ -370,6 +387,8 @@ function AnalysisTab({ ctx }) {
 
   const openMonthlyAssetTrend = React.useCallback(() => {
     setAssetMessage(null);
+    setSelectedAssetCategoryMonth('');
+    setMonthlyDetailsExpanded(false);
     if (typeof window !== 'undefined') {
       assetOverviewScrollYRef.current = window.scrollY || window.pageYOffset || 0;
     }
@@ -380,6 +399,8 @@ function AnalysisTab({ ctx }) {
   }, [setShowMonthsDetail]);
 
   const closeMonthlyAssetTrend = React.useCallback(() => {
+    setSelectedAssetCategoryMonth('');
+    setMonthlyDetailsExpanded(false);
     setShowMonthsDetail(false);
     if (typeof window !== 'undefined') {
       const overviewScrollY = assetOverviewScrollYRef.current;
@@ -387,12 +408,25 @@ function AnalysisTab({ ctx }) {
     }
   }, [setShowMonthsDetail]);
 
-  const openMonthlyBalanceEditor = React.useCallback((month) => {
+  const openMonthlyAssetCategoryReport = React.useCallback((month) => {
+    if (!month) return;
     setAssetMessage(null);
-    setSnapshotDraft({});
-    setFillMonth(month);
-    setShowFillSnapshot(true);
-  }, [setFillMonth, setShowFillSnapshot, setSnapshotDraft]);
+    if (typeof window !== 'undefined') {
+      monthlyTrendScrollYRef.current = window.scrollY || window.pageYOffset || 0;
+    }
+    setSelectedAssetCategoryMonth(month);
+    if (typeof window !== 'undefined') {
+      window.requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0, behavior: 'auto' }));
+    }
+  }, []);
+
+  const closeMonthlyAssetCategoryReport = React.useCallback(() => {
+    setSelectedAssetCategoryMonth('');
+    if (typeof window !== 'undefined') {
+      const monthlyTrendScrollY = monthlyTrendScrollYRef.current;
+      window.requestAnimationFrame(() => window.scrollTo({ top: monthlyTrendScrollY, left: 0, behavior: 'auto' }));
+    }
+  }, []);
 
   const closeAccountAction = () => {
     setAssetMessage(null);
@@ -675,14 +709,51 @@ function AnalysisTab({ ctx }) {
         currentMonth={currentMonth}
         comparisonStartMonth={yearAgo}
         comparisonStartValue={totalYearAgo}
-        onEditMonth={openMonthlyBalanceEditor}
+        expanded={monthlyDetailsExpanded}
+        onExpandedChange={setMonthlyDetailsExpanded}
+        onOpenMonthReport={openMonthlyAssetCategoryReport}
+      />
+    </main>
+  );
+
+  const monthlyAssetCategoryReportPage = (
+    <main
+      className="mx-auto w-full max-w-[430px] pb-3 text-[#f5f7fb]"
+      data-monthly-asset-category-report-page="true"
+      style={{ fontFamily: ASSET_FONT }}
+    >
+      <header className="relative mb-4 grid min-h-[44px] grid-cols-[40px_minmax(0,1fr)_40px] items-center">
+        <button
+          type="button"
+          onClick={closeMonthlyAssetCategoryReport}
+          className="flex h-10 w-10 items-center justify-start text-white/[0.78] transition active:scale-95 active:text-white"
+          aria-label={tt('analysis.backToMonthlyAssetTrend', '返回12个月资产走势')}
+        >
+          <ChevronLeft className="h-5 w-5" strokeWidth={1.8} />
+        </button>
+        <div className="min-w-0 text-center">
+          <h1 className="truncate text-[16px] font-medium leading-6 text-white/[0.94]">
+            {tt('analysis.assetCategoryReportTitle', '{{month}} · 分类资产环比', { month: selectedAssetCategoryMonth })}
+          </h1>
+          <div className="mt-0.5 text-[10px] text-white/[0.42] tabular-nums" style={{ fontFamily: ASSET_NUMBER_FONT }}>
+            {tt('analysis.assetCategoryCompareWith', '对比 {{month}}', { month: assetCategoryReport.previousMonth || '--' })}
+          </div>
+        </div>
+        <span className="h-10 w-10" aria-hidden="true" />
+      </header>
+
+      <MonthlyAssetCategoryReport
+        language={language}
+        report={assetCategoryReport}
       />
     </main>
   );
 
   return (
     <>
-      {showMonthsDetail ? monthlyAssetTrendPage : (
+      {showMonthsDetail ? (
+        selectedAssetCategoryMonth ? monthlyAssetCategoryReportPage : monthlyAssetTrendPage
+      ) : (
       <div className="space-y-3.5 text-[#f5f7fb]" style={{ fontFamily: ASSET_FONT }}>
       <section className="rounded-2xl border border-transparent bg-[#0b0c0e] p-4 shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06),inset_1px_0_0_rgba(255,255,255,0.03),inset_-1px_0_0_rgba(255,255,255,0.03),inset_0_-1px_0_rgba(255,255,255,0.01)]">
         <div className="flex min-h-[34px] items-center justify-between gap-3">
