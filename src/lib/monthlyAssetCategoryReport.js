@@ -1,233 +1,244 @@
 import { shiftMonthKey } from './calendarMonth.js';
 
-export const DEFAULT_ASSET_CATEGORY_ORDER = Object.freeze([
-  '银行',
-  '证券',
-  '支付宝',
-  '微信',
-  '定期',
-  '现金',
-  '公积金',
-  '其他',
-]);
+export const DEFAULT_ASSET_OWNER_ORDER = Object.freeze(['我', '老婆']);
 
-function finitePositive(value) {
+function finiteNonNegative(value) {
   const number = Number(value);
-  return Number.isFinite(number) && number > 0 ? number : null;
+  return Number.isFinite(number) && number >= 0 ? number : null;
 }
 
 function emptyReport(month, previousMonth = '') {
   return {
     month,
     previousMonth,
-    categories: [],
+    ownerGroups: [],
+    accounts: [],
     currentTotal: null,
     previousTotal: null,
-    comparableCurrentTotal: null,
-    comparablePreviousTotal: null,
     netChange: null,
     netChangePct: null,
     increaseTotal: null,
     decreaseTotal: null,
-    maxGainCategory: null,
+    maxGainAccount: null,
     maxAbsChange: 0,
     accountCount: 0,
     comparableAccountCount: 0,
     incompleteAccountCount: 0,
+    invalidAccountCount: 0,
     isComplete: false,
   };
 }
 
+function summarizeRows(rows) {
+  const currentTotal = rows.reduce(
+    (sum, row) => sum + (Number.isFinite(row.currentBalance) ? row.currentBalance : 0),
+    0,
+  );
+  const previousTotal = rows.reduce(
+    (sum, row) => sum + (Number.isFinite(row.previousBalance) ? row.previousBalance : 0),
+    0,
+  );
+  const invalidAccountCount = rows.filter(row => !row.isComparable).length;
+  const isComplete = rows.length > 0 && invalidAccountCount === 0;
+  const netChange = isComplete ? currentTotal - previousTotal : null;
+  const netChangePct = isComplete && previousTotal > 0
+    ? (netChange / previousTotal) * 100
+    : null;
+  const increaseTotal = isComplete
+    ? rows.reduce((sum, row) => sum + Math.max(row.changeAmount, 0), 0)
+    : null;
+  const decreaseTotal = isComplete
+    ? rows.reduce((sum, row) => sum + Math.min(row.changeAmount, 0), 0)
+    : null;
+
+  return {
+    currentTotal,
+    previousTotal,
+    netChange,
+    netChangePct,
+    increaseTotal,
+    decreaseTotal,
+    invalidAccountCount,
+    isComplete,
+  };
+}
+
 /**
- * Builds a display-only month-over-month category report from exact account
- * snapshots. A category is comparable only when every account observed in
- * either exact month has a positive snapshot in both months. Accounts absent
- * from both months are ignored; one-sided gaps are never interpreted as zero or
- * bridged from an older month.
+ * Builds a display-only month-over-month report for each current asset account.
+ * A missing or explicit zero snapshot means that account held zero in the exact
+ * month, matching the parent asset total. Only malformed or conflicting rows
+ * fail closed. Accounts at zero in both exact months are omitted.
  */
-export function buildMonthlyAssetCategoryReport({
+export function buildMonthlyAssetAccountReport({
   accounts = [],
   snapshots = [],
   month = '',
   toCNY = value => Number(value),
-  categoryOrder = DEFAULT_ASSET_CATEGORY_ORDER,
+  ownerOrder = DEFAULT_ASSET_OWNER_ORDER,
 } = {}) {
   const previousMonth = shiftMonthKey(month, -1);
   if (!previousMonth) return emptyReport(month);
 
   const normalizedAccounts = Array.isArray(accounts)
-    ? accounts.filter(account => account?.id)
+    ? accounts
+      .map((account, sourceIndex) => ({ ...account, sourceIndex }))
+      .filter(account => account?.id)
     : [];
-  const normalizedOrder = Array.isArray(categoryOrder) && categoryOrder.length > 0
-    ? [...new Set(categoryOrder.filter(Boolean))]
-    : [...DEFAULT_ASSET_CATEGORY_ORDER];
-  if (!normalizedOrder.includes('其他')) normalizedOrder.push('其他');
-  const categorySet = new Set(normalizedOrder);
-  const categoryIndex = new Map(normalizedOrder.map((category, index) => [category, index]));
+  const normalizedOwnerOrder = Array.isArray(ownerOrder)
+    ? [...new Set(ownerOrder.map(owner => String(owner || '').trim()).filter(Boolean))]
+    : [...DEFAULT_ASSET_OWNER_ORDER];
 
   const snapshotsByKey = new Map();
   (Array.isArray(snapshots) ? snapshots : []).forEach((snapshot) => {
     if (!snapshot?.accountId || !snapshot?.month) return;
     const key = `${snapshot.accountId}::${snapshot.month}`;
     if (!snapshotsByKey.has(key)) snapshotsByKey.set(key, []);
-    snapshotsByKey.get(key).push(snapshot.balance);
+    snapshotsByKey.get(key).push(snapshot);
   });
-
-  const groups = new Map(normalizedOrder.map(category => [category, {
-    category,
-    accountCount: 0,
-    comparableAccountCount: 0,
-    currentRecordedCount: 0,
-    previousRecordedCount: 0,
-    currentKnownTotal: 0,
-    previousKnownTotal: 0,
-  }]));
 
   const snapshotState = (account, targetMonth) => {
     const rawRows = snapshotsByKey.get(`${account.id}::${targetMonth}`) || [];
-    const nonZeroRows = rawRows.filter(balance => Number(balance) !== 0);
-    const positiveRows = nonZeroRows.map(finitePositive).filter(value => value !== null);
-    if (nonZeroRows.length === 0) return { observed: false, value: null };
-    if (nonZeroRows.length !== 1 || positiveRows.length !== 1) return { observed: true, value: null };
-    const rawBalance = positiveRows[0];
-    const converted = Number(toCNY(rawBalance, account.currency));
-    return {
-      observed: true,
-      value: Number.isFinite(converted) && converted > 0 ? converted : null,
-    };
+    if (rawRows.length === 0) {
+      return { observed: false, valid: true, value: 0, issue: null };
+    }
+    if (rawRows.length !== 1) {
+      return { observed: true, valid: false, value: null, issue: 'duplicate_snapshot' };
+    }
+
+    const rawBalance = finiteNonNegative(rawRows[0].balance);
+    if (rawBalance === null) {
+      return { observed: true, valid: false, value: null, issue: 'invalid_balance' };
+    }
+
+    try {
+      const converted = Number(toCNY(rawBalance, account.currency));
+      if (!Number.isFinite(converted) || converted < 0) {
+        return { observed: true, valid: false, value: null, issue: 'invalid_conversion' };
+      }
+      return { observed: true, valid: true, value: converted, issue: null };
+    } catch {
+      return { observed: true, valid: false, value: null, issue: 'invalid_conversion' };
+    }
   };
 
-  normalizedAccounts.forEach((account) => {
-    const category = categorySet.has(account.type) ? account.type : '其他';
-    const group = groups.get(category);
+  const reportRows = normalizedAccounts.flatMap((account) => {
+    const owner = String(account.owner || '').trim() || '其他';
     const current = snapshotState(account, month);
     const previous = snapshotState(account, previousMonth);
-    if (!current.observed && !previous.observed) return;
+    if (current.valid && previous.valid && current.value === 0 && previous.value === 0) return [];
 
-    group.accountCount += 1;
-    if (current.value !== null) {
-      group.currentRecordedCount += 1;
-      group.currentKnownTotal += current.value;
+    const isComparable = current.valid && previous.valid;
+    const changeAmount = isComparable ? current.value - previous.value : null;
+    let status = 'invalid';
+    let changePct = null;
+
+    if (isComparable) {
+      if (previous.value === 0 && current.value > 0) {
+        status = 'new';
+      } else if (previous.value > 0 && current.value === 0) {
+        status = 'zeroed';
+        changePct = -100;
+      } else if (changeAmount > 0) {
+        status = 'up';
+        changePct = (changeAmount / previous.value) * 100;
+      } else if (changeAmount < 0) {
+        status = 'down';
+        changePct = (changeAmount / previous.value) * 100;
+      } else {
+        status = 'flat';
+        changePct = previous.value > 0 ? 0 : null;
+      }
     }
-    if (previous.value !== null) {
-      group.previousRecordedCount += 1;
-      group.previousKnownTotal += previous.value;
-    }
-    if (current.value !== null && previous.value !== null) {
-      group.comparableAccountCount += 1;
-    }
+
+    const numericSortOrder = Number(account.sortOrder);
+    return [{
+      accountId: account.id,
+      owner,
+      name: String(account.name || '').trim() || '未命名账户',
+      type: String(account.type || '').trim() || '其他',
+      currency: String(account.currency || '').trim() || 'CNY',
+      sortOrder: Number.isFinite(numericSortOrder) ? numericSortOrder : account.sourceIndex,
+      sourceIndex: account.sourceIndex,
+      previousBalance: previous.valid ? previous.value : null,
+      currentBalance: current.valid ? current.value : null,
+      changeAmount,
+      changePct,
+      status,
+      isComparable,
+      issue: current.issue || previous.issue,
+    }];
   });
 
-  const categories = normalizedOrder
-    .map((category) => {
-      const group = groups.get(category);
-      const hasAnySnapshot = group.accountCount > 0;
-      const isComparable = group.accountCount > 0
-        && group.comparableAccountCount === group.accountCount;
-      const currentBalance = group.currentRecordedCount > 0 ? group.currentKnownTotal : null;
-      const previousBalance = group.previousRecordedCount > 0 ? group.previousKnownTotal : null;
-      const changeAmount = isComparable ? currentBalance - previousBalance : null;
-      const changePct = isComparable && previousBalance > 0
-        ? (changeAmount / previousBalance) * 100
-        : null;
+  const compareRows = (left, right) => {
+    if (left.isComparable !== right.isComparable) return left.isComparable ? -1 : 1;
+    if (left.isComparable && left.changeAmount !== right.changeAmount) {
+      return right.changeAmount - left.changeAmount;
+    }
+    if (left.sortOrder !== right.sortOrder) return left.sortOrder - right.sortOrder;
+    if (left.sourceIndex !== right.sourceIndex) return left.sourceIndex - right.sourceIndex;
+    return String(left.accountId).localeCompare(String(right.accountId));
+  };
 
+  const ownerRank = new Map(normalizedOwnerOrder.map((owner, index) => [owner, index]));
+  const grouped = new Map();
+  reportRows.forEach((row) => {
+    if (!grouped.has(row.owner)) grouped.set(row.owner, []);
+    grouped.get(row.owner).push(row);
+  });
+
+  const ownerGroups = [...grouped.entries()]
+    .map(([owner, rows]) => {
+      const sortedRows = [...rows].sort(compareRows);
+      const groupSummary = summarizeRows(sortedRows);
       return {
-        category,
-        accountCount: group.accountCount,
-        comparableAccountCount: group.comparableAccountCount,
-        missingAccountCount: group.accountCount - group.comparableAccountCount,
-        currentBalance,
-        previousBalance,
-        changeAmount,
-        changePct,
-        isComparable,
-        hasAnySnapshot,
-        trend: !isComparable
-          ? 'incomplete'
-          : changeAmount > 0
-            ? 'up'
-            : changeAmount < 0
-              ? 'down'
-              : 'flat',
+        owner,
+        accounts: sortedRows,
+        accountCount: sortedRows.length,
+        sourceIndex: Math.min(...sortedRows.map(row => row.sourceIndex)),
+        ...groupSummary,
+        changeAmount: groupSummary.netChange,
+        changePct: groupSummary.netChangePct,
       };
     })
-    .filter(category => category.hasAnySnapshot)
     .sort((left, right) => {
-      if (left.isComparable !== right.isComparable) return left.isComparable ? -1 : 1;
-      if (left.isComparable && left.changeAmount !== right.changeAmount) {
-        return right.changeAmount - left.changeAmount;
+      const leftRank = ownerRank.get(left.owner);
+      const rightRank = ownerRank.get(right.owner);
+      if (leftRank !== undefined || rightRank !== undefined) {
+        if (leftRank === undefined) return 1;
+        if (rightRank === undefined) return -1;
+        if (leftRank !== rightRank) return leftRank - rightRank;
       }
-      return (categoryIndex.get(left.category) ?? Number.MAX_SAFE_INTEGER)
-        - (categoryIndex.get(right.category) ?? Number.MAX_SAFE_INTEGER);
-    });
+      return left.sourceIndex - right.sourceIndex;
+    })
+    .map(({ sourceIndex, ...group }) => group);
 
-  const completeCategories = categories.filter(category => category.isComparable);
-  const comparableAccountCount = categories.reduce(
-    (sum, category) => sum + category.comparableAccountCount,
-    0,
-  );
-  const accountCount = categories.reduce((sum, category) => sum + category.accountCount, 0);
-  const incompleteAccountCount = accountCount - comparableAccountCount;
-  const currentRecordedAccountCount = [...groups.values()].reduce(
-    (sum, group) => sum + group.currentRecordedCount,
-    0,
-  );
-  const previousRecordedAccountCount = [...groups.values()].reduce(
-    (sum, group) => sum + group.previousRecordedCount,
-    0,
-  );
-  const currentTotalValue = [...groups.values()].reduce(
-    (sum, group) => sum + group.currentKnownTotal,
-    0,
-  );
-  const previousTotalValue = [...groups.values()].reduce(
-    (sum, group) => sum + group.previousKnownTotal,
-    0,
-  );
-  const comparableCurrentTotal = completeCategories.reduce(
-    (sum, category) => sum + category.currentBalance,
-    0,
-  );
-  const comparablePreviousTotal = completeCategories.reduce(
-    (sum, category) => sum + category.previousBalance,
-    0,
-  );
-  const isComplete = accountCount > 0 && incompleteAccountCount === 0;
-  const netChange = isComplete
-    ? currentTotalValue - previousTotalValue
-    : null;
-  const netChangePct = netChange !== null && previousTotalValue > 0
-    ? (netChange / previousTotalValue) * 100
-    : null;
-  const increaseTotal = isComplete
-    ? completeCategories.reduce((sum, category) => sum + Math.max(category.changeAmount, 0), 0)
-    : null;
-  const decreaseTotal = isComplete
-    ? completeCategories.reduce((sum, category) => sum + Math.min(category.changeAmount, 0), 0)
-    : null;
-  const maxGainCategory = completeCategories.find(category => category.changeAmount > 0) || null;
-  const maxAbsChange = completeCategories.reduce(
-    (maximum, category) => Math.max(maximum, Math.abs(category.changeAmount)),
+  const sortedAccounts = ownerGroups.flatMap(group => group.accounts);
+  if (sortedAccounts.length === 0) return emptyReport(month, previousMonth);
+
+  const summary = summarizeRows(sortedAccounts);
+  const comparableAccounts = sortedAccounts.filter(row => row.isComparable);
+  const maxGainAccount = comparableAccounts
+    .filter(row => row.changeAmount > 0)
+    .sort(compareRows)[0] || null;
+  const maxAbsChange = comparableAccounts.reduce(
+    (maximum, row) => Math.max(maximum, Math.abs(row.changeAmount)),
     0,
   );
 
   return {
     month,
     previousMonth,
-    categories,
-    currentTotal: currentRecordedAccountCount > 0 ? currentTotalValue : null,
-    previousTotal: previousRecordedAccountCount > 0 ? previousTotalValue : null,
-    comparableCurrentTotal: completeCategories.length > 0 ? comparableCurrentTotal : null,
-    comparablePreviousTotal: completeCategories.length > 0 ? comparablePreviousTotal : null,
-    netChange,
-    netChangePct,
-    increaseTotal,
-    decreaseTotal,
-    maxGainCategory,
+    ownerGroups,
+    accounts: sortedAccounts,
+    ...summary,
+    maxGainAccount,
     maxAbsChange,
-    accountCount,
-    comparableAccountCount,
-    incompleteAccountCount,
-    isComplete,
+    accountCount: sortedAccounts.length,
+    comparableAccountCount: comparableAccounts.length,
+    incompleteAccountCount: summary.invalidAccountCount,
   };
 }
+
+// Temporary compatibility export while the approved prototype keeps the
+// existing file boundary used by the asset page.
+export const buildMonthlyAssetCategoryReport = buildMonthlyAssetAccountReport;

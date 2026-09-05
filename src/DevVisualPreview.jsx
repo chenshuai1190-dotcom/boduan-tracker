@@ -1603,23 +1603,38 @@ function DevModal({ title, onCancel }) {
   );
 }
 
-function makeSnapshots(accounts, { zeroHistoryAccountId = '' } = {}) {
+function makeSnapshots(accounts, {
+  zeroHistoryAccountId = '',
+  accountReportTransitions = false,
+} = {}) {
   const currentMonth = localMonthKey();
+  const previousMonth = shiftMonth(currentMonth, -1);
   const monthFactors = [0.34, 0.40, 0.47, 0.45, 0.52, 0.53, 0.59, 0.66, 0.70, 0.96, 0.94, 1.04, 1];
   const wingLungTrendPreview = [219500, 224800, 221600, 228300, 231200, 235900, 238400, 241600, 246900, 250400, 248018, 260436];
   const months = monthFactors.map((_, idx) => shiftMonth(currentMonth, idx - 12));
 
   return months.flatMap((month, idx) =>
-    accounts.map(acc => ({
-      id: `dev_snapshot_${acc.id}_${month}`,
-      accountId: acc.id,
-      month,
-      balance: acc.id === zeroHistoryAccountId
+    accounts.map((acc) => {
+      let balance = acc.id === zeroHistoryAccountId
         ? ([0, 0, 0, 0, 0, 0, 0, 0, 0, 490000, 488000, 485000, 80001][idx] ?? 0)
         : acc.id === 'dev_me_bank_hkd'
-        ? (idx === 0 ? 215000 : wingLungTrendPreview[idx - 1])
-        : Math.round(Number(acc.balance || 0) * monthFactors[idx] * 100) / 100,
-    }))
+          ? (idx === 0 ? 215000 : wingLungTrendPreview[idx - 1])
+          : Math.round(Number(acc.balance || 0) * monthFactors[idx] * 100) / 100;
+
+      if (accountReportTransitions && acc.id === 'dev_me_longbridge' && month === previousMonth) {
+        balance = 0;
+      }
+      if (accountReportTransitions && acc.id === 'dev_wife_eastmoney' && month === currentMonth) {
+        balance = 0;
+      }
+
+      return {
+        id: `dev_snapshot_${acc.id}_${month}`,
+        accountId: acc.id,
+        month,
+        balance,
+      };
+    })
   );
 }
 
@@ -1980,8 +1995,12 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     : new URLSearchParams(window.location.search).get('accountTrend') || '';
   const monthlyAssetTrendPreview = typeof window !== 'undefined'
     && new URLSearchParams(window.location.search).get('monthlyAssetTrend') === '1';
-  const monthlyAssetCategoryReportPreview = typeof window !== 'undefined'
-    && new URLSearchParams(window.location.search).get('monthlyAssetCategoryReport') === '1';
+  const monthlyAssetAccountReportPreview = typeof window !== 'undefined'
+    && new URLSearchParams(window.location.search).get('monthlyAssetAccountReport') === '1';
+  const monthlyAssetCategoryReportPreview = monthlyAssetAccountReportPreview || (
+    typeof window !== 'undefined'
+      && new URLSearchParams(window.location.search).get('monthlyAssetCategoryReport') === '1'
+  );
   const accountTrendZeroHistoryPreview = typeof window !== 'undefined'
     && new URLSearchParams(window.location.search).get('accountTrendZeroHistory') === '1';
   const competitionPreviewState = typeof window === 'undefined'
@@ -2232,6 +2251,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
   const [accounts, setAccounts] = React.useState(() => baseAccounts);
   const [snapshots, setSnapshots] = React.useState(() => makeSnapshots(baseAccounts, {
     zeroHistoryAccountId: accountTrendZeroHistoryPreview ? 'dev_me_bank_cny' : '',
+    accountReportTransitions: monthlyAssetAccountReportPreview,
   }));
   const [showAddAccount, setShowAddAccount] = React.useState(false);
   const [showFillSnapshot, setShowFillSnapshot] = React.useState(false);

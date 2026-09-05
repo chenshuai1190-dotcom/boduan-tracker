@@ -26,7 +26,7 @@ import { splitCurrencyAmount } from '../lib/amountDisplay.js';
 import { localMonthKey, shiftMonthKey } from '../lib/calendarMonth.js';
 import { t } from '../lib/i18n.js';
 import { marketHexColor } from '../lib/marketColorMode.js';
-import { buildMonthlyAssetCategoryReport } from '../lib/monthlyAssetCategoryReport.js';
+import { buildMonthlyAssetAccountReport } from '../lib/monthlyAssetCategoryReport.js';
 import { buildMonthlyAssetTrend } from '../lib/monthlyAssetTrend.js';
 
 const ASSET_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif';
@@ -307,7 +307,7 @@ function AnalysisTab({ ctx }) {
   const yearChangePct = totalYearAgo > 0 ? (yearChange / totalYearAgo) * 100 : 0;
 
   const chartData = React.useMemo(() => last12Months.map(m => totalAtMonth(m)), [last12Months, totalAtMonth]);
-  const assetCategoryReport = React.useMemo(() => buildMonthlyAssetCategoryReport({
+  const assetCategoryReport = React.useMemo(() => buildMonthlyAssetAccountReport({
     accounts,
     snapshots,
     month: selectedAssetCategoryMonth,
@@ -733,7 +733,7 @@ function AnalysisTab({ ctx }) {
         </button>
         <div className="min-w-0 text-center">
           <h1 className="truncate text-[16px] font-medium leading-6 text-white/[0.94]">
-            {tt('analysis.assetCategoryReportTitle', '{{month}} · 分类资产环比', { month: selectedAssetCategoryMonth })}
+            {tt('analysis.assetCategoryReportTitle', '{{month}} · 账户资产环比', { month: selectedAssetCategoryMonth })}
           </h1>
           <div className="mt-0.5 text-[10px] text-white/[0.42] tabular-nums" style={{ fontFamily: ASSET_NUMBER_FONT }}>
             {tt('analysis.assetCategoryCompareWith', '对比 {{month}}', { month: assetCategoryReport.previousMonth || '--' })}

@@ -4,6 +4,23 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '📊 月度资产环比改为按人物分组的账户明细',
+      '  - “我”和“老婆”继续独立分组，每个资产账户单独展示；分类与币种只作为账户标签，不再合并统计',
+      '  - 每个人物组内默认按增益金额从高到低排列，并显示该人物的本月资产与净变化',
+      '  - 空白或 0 余额按该月账户余额 0 计算：新增账户标记“新增”，归零账户显示“已归零 · -100%”，连续两月为 0 的账户不展示',
+      '  - 报表继续只读且没有编辑入口；外币仍按当前汇率折算，账户、月度快照、数据库与其他账本均未改变',
+    ],
+    itemsEn: [
+      '📊 Monthly asset comparisons now show account details grouped by owner',
+      '  - Me and Spouse remain separate groups, with every asset account shown individually; category and currency are labels only and are no longer aggregated',
+      '  - Accounts within each owner group default to signed gain amount from highest to lowest, alongside that owner’s current assets and net change',
+      '  - A blank or zero balance means zero for that account and month: current-only accounts are marked New, previous-only accounts show Zeroed · -100%, and accounts at zero in both months are hidden',
+      '  - The report remains read-only with no edit action; foreign currencies still use current exchange rates, while accounts, monthly snapshots, the database, and all other ledgers are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.485', date: '2026-09-05',
+    items: [
       '📊 月度明细新增分类资产环比报表',
       '  - 点击 12 个月资产走势下的任一月度明细整行，即可打开该月与上月的独立分类资产报表',
       '  - 页面汇总月末资产、净变化、增加与减少合计和最大增益，并以左右发散条直观看出各分类升降',
