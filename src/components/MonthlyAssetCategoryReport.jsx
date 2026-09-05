@@ -218,19 +218,6 @@ export default function MonthlyAssetAccountReport({
       </section>
 
       <section className="mt-5" aria-label={tt('analysis.assetCategoryContribution', '账户变动贡献')}>
-        <div className="mb-2 flex items-end justify-between gap-3">
-          <h2 className="text-[15px] font-medium text-white/[0.92]">
-            {tt('analysis.assetCategoryContribution', '账户变动贡献')}
-          </h2>
-          <div className="flex shrink-0 items-center gap-1.5 text-[10px] text-white/[0.42]">
-            <span className="h-1.5 w-1.5 rounded-full" style={{ background: DOWN_COLOR }} />
-            <span>{tt('analysis.assetCategoryDecrease', '减少')}</span>
-            <span>← 0 →</span>
-            <span className="h-1.5 w-1.5 rounded-full" style={{ background: UP_COLOR }} />
-            <span>{tt('analysis.assetCategoryIncrease', '增加')}</span>
-          </div>
-        </div>
-
         {ownerGroups.length > 0 ? (
           <div data-asset-account-report-groups="true">
             {ownerGroups.map((group, groupIndex) => {

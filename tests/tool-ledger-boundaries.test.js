@@ -2556,6 +2556,9 @@ test('approved modal families share the new shell without widening business boun
     && monthlyAssetCategoryReportSource.includes('group.accounts.map')
     && monthlyAssetCategoryReportSource.includes('data-asset-account-report-row={row.accountId}'), 'the monthly report must render accounts inside stable owner groups');
   assert.equal(monthlyAssetCategoryReportSource.includes('report?.categories') || monthlyAssetCategoryReportSource.includes('categories.map'), false, 'the monthly report must not regress to category aggregation');
+  assert.equal(monthlyAssetCategoryReportSource.includes('<h2')
+    || monthlyAssetCategoryReportSource.includes("analysis.assetCategoryDecrease', '减少'")
+    || monthlyAssetCategoryReportSource.includes("analysis.assetCategoryIncrease', '增加'"), false, 'the account report should open directly on owner groups without a redundant contribution title or legend row');
   assert.ok(devVisualPreviewSource.includes("get('monthlyAssetAccountReport') === '1'")
     && devVisualPreviewSource.includes('accountReportTransitions: monthlyAssetAccountReportPreview')
     && devVisualPreviewSource.includes('accountReportTransitions = false'), 'account transition fixtures must require the explicit account-report preview query');
