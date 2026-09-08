@@ -29,6 +29,14 @@ function comparisonModel({ rising = false } = {}) {
   return { symbols: ['QQQ', 'TQQQ'], principal: 1000000, actualStartDate: dates[0], asOfDate: dates.at(-1), points: dates.map((date, index) => ({ date, values: { QQQ: prices[0][index] * 10000, TQQQ: prices[1][index] * 10000 } })) };
 }
 
+function drawdownHistoryData(qqq, tqqq = qqq) {
+  const points = qqq.map((value, index) => ({
+    date: new Date(Date.UTC(2026, 0, index + 2)).toISOString().slice(0, 10),
+    values: { QQQ: value, TQQQ: tqqq[index] },
+  }));
+  return buildInvestmentDrawdownModel({ symbols: ['QQQ', 'TQQQ'], principal: qqq[0], actualStartDate: points[0].date, asOfDate: points.at(-1).date, points });
+}
+
 test('drawdown view renders real model outcomes, principal risk and bilingual controls without duplicate page settings', () => {
   for (const englishMode of [false, true]) {
     const html = renderToStaticMarkup(React.createElement(InvestmentDrawdownView, { model: comparisonModel(), englishMode }));
@@ -413,27 +421,32 @@ test('instrument selection and episode filters use each symbol analysis and rese
   assert.equal(replay.frames.size, 0, 'old model animation must be cleaned up');
 });
 
-test('drawdown history shows the eight newest starts, including a shallow unresolved episode before older deep declines', () => {
+test('drawdown history filters qualifying episodes before choosing the eight newest starts and keeps a recovered-from-trough open episode', () => {
   const values = [1000000];
   for (let episode = 0; episode < 9; episode += 1) {
     const peak = values.at(-1);
-    const trough = peak * (episode === 0 ? 0.4 : 0.85 + episode * 0.01);
+    const trough = peak * (episode === 0 ? 0.4 : 0.85);
     values.push(trough);
     if (episode === 2) values.push(trough, trough, trough, trough);
     values.push(peak * 1.1);
   }
-  values.push(values.at(-1) * 0.97);
-  const points = values.map((value, index) => ({
-    date: new Date(Date.UTC(2026, 0, index + 2)).toISOString().slice(0, 10),
-    values: { QQQ: value, TQQQ: value },
-  }));
-  const data = buildInvestmentDrawdownModel({ symbols: ['QQQ', 'TQQQ'], principal: 1000000, actualStartDate: points[0].date, asOfDate: points.at(-1).date, points });
+  for (let episode = 0; episode < 9; episode += 1) {
+    const peak = values.at(-1);
+    values.push(peak * 0.95, peak * 1.1);
+  }
+  const latestPeak = values.at(-1);
+  values.push(latestPeak * 0.88, latestPeak * 0.98);
+  const data = drawdownHistoryData(values);
   const analysis = data.analyses.QQQ;
-  assert.equal(analysis.episodes.length, 10);
+  assert.equal(analysis.episodes.length, 19);
   assert.equal(analysis.currentEpisode.recovered, false);
+  assert.ok(analysis.currentDrawdownPct > -10, 'the open episode has rebounded above the threshold');
+  assert.ok(analysis.currentEpisode.drawdownPct < -10, 'its historical trough still qualifies');
   assert.ok(Math.abs(analysis.currentEpisode.drawdownPct) < Math.abs(analysis.maxDrawdownEpisode.drawdownPct));
   const originalIds = analysis.episodes.map(episode => episode.id);
-  const newestEight = [...analysis.episodes].reverse().slice(0, 8);
+  const originalAnalysis = structuredClone(analysis);
+  const eligible = [...analysis.episodes.slice(0, 9), analysis.currentEpisode];
+  const newestEight = [...eligible].reverse().slice(0, 8);
   Object.freeze(analysis.episodes);
   for (const englishMode of [false, true]) {
     hooks.reset();
@@ -446,6 +459,7 @@ test('drawdown history shows the eight newest starts, including a shallow unreso
     assert.ok(rows.every(row => !row.props['aria-label'].includes(analysis.maxDrawdownEpisode.peakDate)), 'older deepest episode should not displace a newer episode in the eight-row history');
     assert.deepEqual(analysis.episodes.map(episode => episode.id), originalIds);
     const historyText = renderToStaticMarkup(classNode(tree, 'ic-dd-history'));
+    assert.match(historyText, englishMode ? /≥10% · 10 episodes/ : /≥10% · 10 段/);
     assert.match(historyText, englishMode ? /(?:latest|most recent).*(?:8|eight)/i : /最近.*8|最新.*8/);
     assert.doesNotMatch(historyText, englishMode ? /eight deepest/i : /按回撤深度/);
     rows[0].props.onClick(); tree = render();
@@ -458,6 +472,57 @@ test('drawdown history shows the eight newest starts, including a shallow unreso
     assert.strictEqual(chooseFilter(0), analysis.maxDrawdownEpisode);
     assert.strictEqual(chooseFilter(1), analysis.longestEpisode);
     assert.deepEqual(analysis.episodes.map(episode => episode.id), originalIds);
+    assert.deepEqual(analysis, originalAnalysis, 'history filtering must not rewrite any model statistics');
+  }
+  hooks.reset();
+});
+
+test('history includes the mathematical 10 percent boundary but excludes 9.999 percent even when it displays as 10.0', () => {
+  // 90 / 100 produces -9.999999999999998 in JavaScript; 90.001 is truly shallower.
+  const data = drawdownHistoryData([100, 90, 100, 90.001, 100, 95]);
+  const analysis = data.analyses.QQQ;
+  assert.equal(analysis.episodes.length, 3);
+  assert.ok(analysis.episodes[0].drawdownPct > -10);
+  assert.ok(Math.abs(analysis.episodes[0].drawdownPct + 10) < Number.EPSILON * 100);
+  assert.equal(analysis.episodes[1].drawdownPct.toFixed(1), '-10.0');
+  hooks.reset();
+  const render = () => hooks.render(DrawdownAnalysis, { data, englishMode: true }, 'threshold-boundary');
+  let tree = render();
+  const rows = findAll(tree, node => node.props.className === 'ic-dd-history-row');
+  assert.equal(rows.length, 1);
+  assert.ok(rows[0].props['aria-label'].includes(analysis.episodes[0].peakDate));
+  assert.match(renderToStaticMarkup(classNode(tree, 'ic-dd-history')), /≥10% · 1 episodes/);
+  rows[0].props.onClick(); tree = render();
+  assert.strictEqual(findAll(tree, node => node.type === DrawdownJourney)[0].props.episode, analysis.episodes[0]);
+  findAll(classNode(tree, 'ic-dd-episode-tabs'), node => node.type === 'button')[2].props.onClick();
+  tree = render();
+  assert.strictEqual(findAll(tree, node => node.type === DrawdownJourney)[0].props.episode, analysis.currentEpisode, 'Latest still includes a shallow episode outside the filtered history');
+  assert.strictEqual(findAll(tree, node => node.type === DrawdownOverview)[0].props.data, data, 'overview retains the full model');
+  hooks.reset();
+});
+
+test('history count and threshold empty state follow the selected symbol in both languages without hiding its ordinary drawdowns', () => {
+  const data = drawdownHistoryData([100, 95, 100, 96, 100, 98], [100, 90, 100, 80, 100, 85]);
+  const original = structuredClone(data);
+  Object.freeze(data.analyses.QQQ.episodes); Object.freeze(data.analyses.TQQQ.episodes);
+  for (const englishMode of [false, true]) {
+    hooks.reset();
+    const render = () => hooks.render(DrawdownAnalysis, { data, englishMode }, 'threshold-language');
+    let tree = render();
+    let history = renderToStaticMarkup(classNode(tree, 'ic-dd-history'));
+    assert.equal(findAll(tree, node => node.props.className === 'ic-dd-history-row').length, 0);
+    assert.match(history, englishMode ? /≥10% · 0 episodes/ : /≥10% · 0 段/);
+    assert.ok(history.includes(englishMode ? 'No drawdown episodes reached 10% in this period.' : '这个区间没有达到 10% 的回撤记录。'));
+    assert.strictEqual(findAll(tree, node => node.type === DrawdownJourney)[0].props.episode, data.analyses.QQQ.maxDrawdownEpisode);
+    assert.strictEqual(findAll(tree, node => node.type === DrawdownOverview)[0].props.data, data);
+    findAll(tree, node => node.props.className === 'ic-dd-metric')[1].props.onClick(); tree = render();
+    history = renderToStaticMarkup(classNode(tree, 'ic-dd-history'));
+    assert.equal(findAll(tree, node => node.props.className === 'ic-dd-history-row').length, 3);
+    assert.match(history, englishMode ? /≥10% · 3 episodes/ : /≥10% · 3 段/);
+    assert.doesNotMatch(history, /No drawdown episodes reached|没有达到 10%/);
+    findAll(tree, node => node.props.className === 'ic-dd-metric')[0].props.onClick(); tree = render();
+    assert.equal(findAll(tree, node => node.props.className === 'ic-dd-history-row').length, 0);
+    assert.deepEqual(data, original);
   }
   hooks.reset();
 });

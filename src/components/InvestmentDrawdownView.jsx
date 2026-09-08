@@ -13,6 +13,7 @@ import './InvestmentDrawdown.css';
 const RED = INVESTMENT_LEADING_COLOR;
 const GREEN = INVESTMENT_TRAILING_COLOR;
 const SPEEDS = [0.1, 0.2, 0.4, 0.8, 1];
+const HISTORY_MIN_DRAWDOWN_PCT = 10;
 const dayCount = (value, englishMode) => Number.isFinite(value)
   ? `${value.toLocaleString('en-US')} ${englishMode ? 'days' : '天'}` : '—';
 const calendarDays = (from, to) => (Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000;
@@ -255,7 +256,11 @@ function DrawdownAnalysis({ data, englishMode }) {
   const activate = React.useCallback(symbol => setSelection({ data, symbol, kind: 'max', episodeId: null }), [data]);
   const episode = current.kind === 'custom' ? analysis.episodes.find(item => item.id === current.episodeId) ?? analysis.maxDrawdownEpisode
     : current.kind === 'longest' ? analysis.longestEpisode : current.kind === 'latest' ? analysis.episodes.at(-1) : analysis.maxDrawdownEpisode;
-  const episodes = React.useMemo(() => [...analysis.episodes].sort((a, b) => b.peakDate.localeCompare(a.peakDate)), [analysis]);
+  // Filter only this list; retain the full history for charts and statistics.
+  // Allow arithmetic noise at exactly 10%, not display-rounded percentages.
+  const episodes = React.useMemo(() => analysis.episodes
+    .filter(item => item.drawdownPct <= -HISTORY_MIN_DRAWDOWN_PCT + Number.EPSILON * 100)
+    .sort((a, b) => b.peakDate.localeCompare(a.peakDate)), [analysis]);
   return <div className="ic-dd-body">
     <section className="ic-dd-comparison" aria-label={englishMode ? 'Drawdown comparison' : '回撤体检'}>{symbols.map(symbol => {
       const item = analyses[symbol], maximum = item.maxDrawdownEpisode;
@@ -272,10 +277,10 @@ function DrawdownAnalysis({ data, englishMode }) {
       {episode ? <DrawdownJourney key={`${active}:${current.kind}:${episode.id}`} analysis={analysis} episode={episode} symbol={active} englishMode={englishMode} /> : <p className="ic-dd-empty">{englishMode ? 'No drawdown occurred in this observed period.' : '这个观察区间尚未发生回撤。'}</p>}
     </section>
     <PrincipalRisk analysis={analysis} symbol={active} englishMode={englishMode} />
-    <details className="ic-dd-history"><summary>{englishMode ? 'Other drawdown episodes' : '其他回撤区间'}<span>{episodes.length} {englishMode ? 'episodes' : '段'}</span></summary>
+    <details className="ic-dd-history"><summary>{englishMode ? 'Other drawdown episodes' : '其他回撤区间'}<span>≥{HISTORY_MIN_DRAWDOWN_PCT}% · {episodes.length} {englishMode ? 'episodes' : '段'}</span></summary>
       {episodes.slice(0, 8).map(item => <button type="button" className="ic-dd-history-row" key={item.id} aria-label={englishMode ? `Replay drawdown from ${item.peakDate}` : `重播 ${item.peakDate} 开始的回撤`} onClick={() => { setSelection({ ...current, kind: 'custom', episodeId: item.id }); journeyRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}><div><strong>{item.peakDate} → {item.recoveryDate ?? (englishMode ? 'Unrecovered' : '尚未修复')}</strong><small>{englishMode ? 'Trough ' : '谷底 '}{item.troughDate} · {dayCount(item.underwaterDays, englishMode)}</small></div><div><strong className="ic-dd-green">{formatInvestmentPercent(item.drawdownPct)}</strong><small>{englishMode ? 'View episode ›' : '查看过程 ›'}</small></div></button>)}
       {episodes.length > 8 && <p className="ic-dd-empty">{englishMode ? 'The latest eight episodes are shown by starting date.' : '按开始日期展示最近 8 段。'}</p>}
-      {episodes.length === 0 && <p className="ic-dd-empty">{englishMode ? 'No drawdown episodes in this period.' : '这个区间没有回撤记录。'}</p>}
+      {episodes.length === 0 && <p className="ic-dd-empty">{englishMode ? 'No drawdown episodes reached 10% in this period.' : '这个区间没有达到 10% 的回撤记录。'}</p>}
     </details>
     <details className="ic-dd-method"><summary>{englishMode ? 'Drawdown calculation methodology' : '回撤计算口径'}</summary>
       <p>{englishMode ? 'Drawdown is the decline from a previous high in adjusted daily closing prices within the selected period. Recovery means reaching that high again, not merely recovering the original principal. These are shown separately.' : '回撤是相对所选区间内此前最高复权收盘价的跌幅；修复指重新达到该高点，不等于回到最初投入本金。这里分别展示两种口径。'}</p>
