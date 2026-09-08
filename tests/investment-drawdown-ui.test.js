@@ -90,6 +90,166 @@ function findAll(node, predicate) {
 }
 const classNode = (tree, className) => findAll(tree, node => node.props.className === className)[0];
 
+function overviewInteraction({ data = buildInvestmentDrawdownModel(comparisonModel()), reset = true } = {}) {
+  if (reset) hooks.reset();
+  const props = { data, active: 'QQQ', colors: { QQQ: '#fff', TQQQ: '#000' }, onActivate() {}, englishMode: true };
+  const captured = new Set();
+  const target = {
+    getBoundingClientRect: () => ({ left: 0, width: 360 }),
+    setPointerCapture: id => captured.add(id),
+    hasPointerCapture: id => captured.has(id),
+    releasePointerCapture: id => captured.delete(id),
+  };
+  const render = () => { const tree = hooks.render(DrawdownOverview, props, 'overview'); hooks.flush(); return tree; };
+  const area = () => findAll(render(), node => node.props.role === 'slider')[0].props;
+  const pointer = (index, overrides = {}) => ({
+    pointerId: 1, pointerType: 'touch', button: 0, buttons: 1, isPrimary: true,
+    clientX: 39 + index / (props.data.analyses.QQQ.points.length - 1) * (360 - 39 - 8), clientY: 100,
+    currentTarget: target, preventDefault: () => assert.fail('inspection must not suppress native vertical scrolling'), ...overrides,
+  });
+  const inspect = index => {
+    area().onPointerDown(pointer(index));
+    area().onPointerUp(pointer(index, { buttons: 0 }));
+    area().onLostPointerCapture(pointer(index, { buttons: 0 }));
+  };
+  const cancel = event => {
+    area().onPointerCancel(event);
+    // The browser implicitly releases pointer capture after pointercancel.
+    captured.delete(event.pointerId);
+    area().onLostPointerCapture(event);
+  };
+  const assertSelection = (index, crosshair = true) => {
+    const tree = render();
+    const date = props.data.analyses.QQQ.points[index].date;
+    const slider = findAll(tree, node => node.props.role === 'slider')[0].props;
+    assert.equal(slider['aria-valuenow'], index);
+    assert.ok(slider['aria-valuetext'].includes(date), 'accessible readout must identify the selected real day');
+    assert.equal(React.Children.toArray(classNode(tree, 'ic-dd-overview-readout').props.children)[0].props.children, date);
+    assert.equal(findAll(tree, node => node.props.className === 'ic-dd-inspection-line').length, crosshair ? 1 : 0);
+  };
+  return { props, render, area, pointer, inspect, cancel, assertSelection, captured };
+}
+
+test('touch inspection stays pinned after release, pointer leave, focus loss and horizontal dragging', () => {
+  const chart = overviewInteraction();
+  chart.assertSelection(5, false);
+  chart.area().onPointerDown(chart.pointer(1));
+  chart.assertSelection(1);
+  chart.area().onPointerUp(chart.pointer(1, { buttons: 0 }));
+  chart.area().onPointerLeave(chart.pointer(1, { buttons: 0 }));
+  chart.area().onBlur({ currentTarget: chart.pointer(1).currentTarget });
+  chart.assertSelection(1);
+  assert.equal(chart.captured.size, 0);
+  chart.area().onPointerDown(chart.pointer(1));
+  chart.area().onPointerMove(chart.pointer(4, { clientY: 103 }));
+  chart.assertSelection(4);
+  chart.area().onPointerUp(chart.pointer(4, { buttons: 0, clientY: 103 }));
+  chart.area().onPointerLeave(chart.pointer(4, { buttons: 0 }));
+  chart.area().onBlur({ currentTarget: chart.pointer(4).currentTarget });
+  chart.assertSelection(4);
+  assert.equal(chart.captured.size, 0);
+});
+
+test('vertical scroll and cancelled gestures restore the previously pinned day without replacing it', () => {
+  const chart = overviewInteraction();
+  chart.inspect(1);
+  const start = chart.pointer(3);
+  chart.area().onPointerDown(start);
+  chart.assertSelection(3);
+  chart.area().onPointerMove({ ...start, clientX: start.clientX + 2, clientY: 145 });
+  chart.assertSelection(1);
+  chart.cancel({ ...start, clientY: 145 });
+  chart.area().onPointerLeave(start);
+  chart.assertSelection(1);
+  assert.equal(chart.captured.size, 0);
+  chart.area().onPointerDown(chart.pointer(4));
+  chart.assertSelection(4);
+  chart.cancel(chart.pointer(4));
+  chart.assertSelection(1);
+  assert.equal(chart.captured.size, 0);
+
+  const unselected = overviewInteraction();
+  unselected.area().onPointerDown(unselected.pointer(2));
+  unselected.area().onPointerMove(unselected.pointer(2, { clientY: 150 }));
+  unselected.cancel(unselected.pointer(2));
+  unselected.assertSelection(5, false);
+});
+
+test('mouse hover is temporary until a click pins a day and free movement cannot replace the pinned selection', () => {
+  const chart = overviewInteraction();
+  const mouse = (index, overrides = {}) => chart.pointer(index, { pointerType: 'mouse', buttons: 0, ...overrides });
+  chart.area().onPointerMove(mouse(2));
+  chart.assertSelection(2);
+  chart.area().onPointerLeave(mouse(2));
+  chart.assertSelection(5, false);
+  chart.area().onPointerMove(mouse(1));
+  chart.area().onBlur({ currentTarget: mouse(1).currentTarget });
+  chart.assertSelection(5, false);
+  chart.area().onPointerDown(mouse(2, { buttons: 1 }));
+  chart.area().onPointerUp(mouse(2));
+  chart.area().onPointerMove(mouse(4));
+  chart.area().onPointerLeave(mouse(4));
+  chart.area().onBlur({ currentTarget: mouse(4).currentTarget });
+  chart.assertSelection(2);
+});
+
+test('keyboard history selection persists while Escape returns to the latest day and normal Tab navigation is preserved', () => {
+  const chart = overviewInteraction();
+  let prevented = 0;
+  for (const [key, expected] of [['Home', 0], ['ArrowRight', 1], ['ArrowLeft', 0], ['ArrowLeft', 0], ['End', 5], ['ArrowRight', 5]]) {
+    chart.area().onKeyDown({ key, preventDefault: () => { prevented += 1; } });
+    chart.area().onBlur({});
+    chart.area().onPointerLeave(chart.pointer(expected));
+    chart.assertSelection(expected);
+  }
+  assert.equal(prevented, 6);
+  chart.area().onKeyDown({ key: 'Home', preventDefault() {} });
+  chart.area().onKeyDown({ key: 'Escape', preventDefault() {} });
+  chart.assertSelection(5, false);
+  chart.area().onKeyDown({ key: 'Tab', preventDefault: () => assert.fail('Tab must retain native focus behavior') });
+  chart.assertSelection(5, false);
+});
+
+test('changing the highlighted symbol retains the selected date while refreshed history clears its old selection', () => {
+  const chart = overviewInteraction();
+  chart.inspect(1);
+  chart.props.active = 'TQQQ';
+  chart.assertSelection(1);
+  const refreshed = comparisonModel();
+  refreshed.points = refreshed.points.slice(0, 3);
+  refreshed.asOfDate = refreshed.points.at(-1).date;
+  chart.props.data = buildInvestmentDrawdownModel(refreshed);
+  chart.assertSelection(2, false);
+  chart.inspect(0);
+  chart.assertSelection(0);
+});
+
+test('the bilingual reset button returns to latest and secondary touches cannot overwrite the selected day', () => {
+  for (const englishMode of [false, true]) {
+    const chart = overviewInteraction();
+    chart.props.englishMode = englishMode;
+    chart.inspect(1);
+    const secondary = chart.pointer(4, { pointerId: 2, isPrimary: false });
+    chart.area().onPointerDown(secondary);
+    chart.area().onPointerMove(secondary);
+    chart.area().onPointerUp({ ...secondary, buttons: 0 });
+    chart.assertSelection(1);
+    chart.area().onPointerDown(chart.pointer(2));
+    chart.area().onPointerDown(secondary);
+    chart.area().onPointerMove(secondary);
+    chart.area().onPointerUp({ ...secondary, buttons: 0 });
+    chart.assertSelection(2);
+    chart.area().onPointerUp(chart.pointer(2, { buttons: 0 }));
+    chart.area().onPointerLeave(chart.pointer(2));
+    chart.assertSelection(2);
+    const reset = classNode(chart.render(), 'ic-dd-reset-inspection');
+    assert.equal(reset.props.children, englishMode ? 'Back to latest' : '回到最新');
+    reset.props.onClick();
+    chart.assertSelection(5, false);
+    assert.equal(classNode(chart.render(), 'ic-dd-reset-inspection'), undefined);
+  }
+});
+
 function replayHost(t) {
   hooks.reset();
   const savedFrame = globalThis.requestAnimationFrame, savedCancel = globalThis.cancelAnimationFrame;
@@ -137,13 +297,15 @@ test('timeline seeking, chart tapping and vertical movement leave an active repl
   classNode(tree, 'ic-dd-scrubber').props.onChange({ target: { value: '2' } }); tree = replay.render();
   assert.equal(classNode(tree, 'ic-dd-scrubber').props.value, 2);
   assert.equal(classNode(tree, 'ic-dd-play').props['aria-pressed'], true);
-  const overviewProps = { data: replay.data, active: 'QQQ', colors: { QQQ: '#fff', TQQQ: '#000' }, onActivate() {}, englishMode: true };
-  const overview = () => hooks.render(DrawdownOverview, overviewProps, 'overview');
-  const area = () => classNode(overview(), 'ic-dd-chart ic-dd-overview').props;
-  const target = { getBoundingClientRect: () => ({ left: 0, width: 360 }) };
-  area().onPointerDown({ clientX: 120, clientY: 100, currentTarget: target });
-  area().onPointerMove({ clientX: 121, clientY: 180, currentTarget: target });
-  area().onPointerLeave();
+  const chart = overviewInteraction({ data: replay.data, reset: false });
+  chart.inspect(2);
+  chart.area().onPointerLeave(chart.pointer(2, { buttons: 0 }));
+  chart.area().onBlur({});
+  chart.assertSelection(2);
+  chart.area().onPointerDown(chart.pointer(3));
+  chart.area().onPointerMove(chart.pointer(3, { clientY: 180 }));
+  chart.cancel(chart.pointer(3));
+  chart.assertSelection(2);
   assert.equal(classNode(replay.render(), 'ic-dd-play').props['aria-pressed'], true);
   assert.match(css, /\.ic-dd-chart\s*\{[^}]*touch-action:\s*pan-y/);
   const journeyChart = hooks.render(JourneyChart, { ...replay.props, index: 2 }, 'chart');
@@ -173,4 +335,69 @@ test('instrument selection and episode filters use each symbol analysis and rese
   assert.equal(classNode(refreshedTree, 'ic-dd-play').props['aria-pressed'], false);
   assert.equal(classNode(refreshedTree, 'ic-dd-scrubber').props.value, replay.props.episode.recoveryIndex);
   assert.equal(replay.frames.size, 0, 'old model animation must be cleaned up');
+});
+
+test('drawdown history shows the eight newest starts, including a shallow unresolved episode before older deep declines', () => {
+  const values = [1000000];
+  for (let episode = 0; episode < 9; episode += 1) {
+    const peak = values.at(-1);
+    const trough = peak * (episode === 0 ? 0.4 : 0.85 + episode * 0.01);
+    values.push(trough);
+    if (episode === 2) values.push(trough, trough, trough, trough);
+    values.push(peak * 1.1);
+  }
+  values.push(values.at(-1) * 0.97);
+  const points = values.map((value, index) => ({
+    date: new Date(Date.UTC(2026, 0, index + 2)).toISOString().slice(0, 10),
+    values: { QQQ: value, TQQQ: value },
+  }));
+  const data = buildInvestmentDrawdownModel({ symbols: ['QQQ', 'TQQQ'], principal: 1000000, actualStartDate: points[0].date, asOfDate: points.at(-1).date, points });
+  const analysis = data.analyses.QQQ;
+  assert.equal(analysis.episodes.length, 10);
+  assert.equal(analysis.currentEpisode.recovered, false);
+  assert.ok(Math.abs(analysis.currentEpisode.drawdownPct) < Math.abs(analysis.maxDrawdownEpisode.drawdownPct));
+  const originalIds = analysis.episodes.map(episode => episode.id);
+  const newestEight = [...analysis.episodes].reverse().slice(0, 8);
+  Object.freeze(analysis.episodes);
+  for (const englishMode of [false, true]) {
+    hooks.reset();
+    const render = () => hooks.render(DrawdownAnalysis, { data, englishMode }, 'chronological-history');
+    let tree = render();
+    const rows = findAll(tree, node => node.props.className === 'ic-dd-history-row');
+    assert.equal(rows.length, 8);
+    assert.deepEqual(rows.map(row => row.props['aria-label'].match(/\d{4}-\d{2}-\d{2}/)[0]), newestEight.map(episode => episode.peakDate));
+    assert.ok(rows[0].props['aria-label'].includes(analysis.currentEpisode.peakDate));
+    assert.ok(rows.every(row => !row.props['aria-label'].includes(analysis.maxDrawdownEpisode.peakDate)), 'older deepest episode should not displace a newer episode in the eight-row history');
+    assert.deepEqual(analysis.episodes.map(episode => episode.id), originalIds);
+    const historyText = renderToStaticMarkup(classNode(tree, 'ic-dd-history'));
+    assert.match(historyText, englishMode ? /(?:latest|most recent).*(?:8|eight)/i : /最近.*8|最新.*8/);
+    assert.doesNotMatch(historyText, englishMode ? /eight deepest/i : /按回撤深度/);
+    rows[0].props.onClick(); tree = render();
+    assert.strictEqual(findAll(tree, node => node.type === DrawdownJourney)[0].props.episode, analysis.currentEpisode);
+    const chooseFilter = index => {
+      findAll(classNode(tree, 'ic-dd-episode-tabs'), node => node.type === 'button')[index].props.onClick();
+      tree = render();
+      return findAll(tree, node => node.type === DrawdownJourney)[0].props.episode;
+    };
+    assert.strictEqual(chooseFilter(0), analysis.maxDrawdownEpisode);
+    assert.strictEqual(chooseFilter(1), analysis.longestEpisode);
+    assert.deepEqual(analysis.episodes.map(episode => episode.id), originalIds);
+  }
+  hooks.reset();
+});
+
+test('selected drawdown cards keep their dark border while retaining pressed-state accessibility', () => {
+  const selectedRule = css.match(/\.ic-dd-metric\[aria-pressed="true"\]\s*\{([^}]*)\}/);
+  assert.ok(selectedRule);
+  assert.doesNotMatch(selectedRule[1], /(?:^|;)\s*border(?:-[\w-]+)?\s*:/);
+  assert.match(css, /\.ic-dd-metric\s*\{[^}]*border:\s*1px solid var\(--ic-border\)/);
+  hooks.reset();
+  const data = buildInvestmentDrawdownModel(comparisonModel());
+  const render = () => hooks.render(DrawdownAnalysis, { data, englishMode: true }, 'metric-border');
+  let cards = findAll(render(), node => node.props.className === 'ic-dd-metric');
+  assert.deepEqual(cards.map(card => card.props['aria-pressed']), [true, false]);
+  cards[1].props.onClick();
+  cards = findAll(render(), node => node.props.className === 'ic-dd-metric');
+  assert.deepEqual(cards.map(card => card.props['aria-pressed']), [false, true]);
+  hooks.reset();
 });

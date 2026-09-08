@@ -36,7 +36,9 @@ function useChartWidth() {
 
 const DrawdownOverview = React.memo(function DrawdownOverview({ data, active, colors, onActivate, englishMode }) {
   const [containerRef, width] = useChartWidth();
-  const [hover, setHover] = React.useState(null);
+  const [inspection, setInspection] = React.useState({ data, selectedIndex: null, hoverIndex: null });
+  const gestureRef = React.useRef(null);
+  const currentInspection = inspection.data === data ? inspection : { data, selectedIndex: null, hoverIndex: null };
   const { symbols, analyses } = data;
   const points = analyses[symbols[0]].points;
   const lastIndex = points.length - 1;
@@ -48,11 +50,43 @@ const DrawdownOverview = React.memo(function DrawdownOverview({ data, active, co
   const selected = analyses[active];
   const lowest = selected.points.reduce((best, point) => point.drawdownPct < best.drawdownPct ? point : best, selected.points[0]);
   const selectedAnchor = x(lowest) > width * 0.7 ? 'end' : 'start';
-  const readoutIndex = Math.max(0, Math.min(lastIndex, hover ?? lastIndex));
-  const inspect = event => {
+  const inspecting = currentInspection.hoverIndex !== null || currentInspection.selectedIndex !== null;
+  const readoutIndex = Math.max(0, Math.min(lastIndex, currentInspection.hoverIndex ?? currentInspection.selectedIndex ?? lastIndex));
+  const updateInspection = patch => setInspection(current => ({ ...(current.data === data ? current : { data, selectedIndex: null, hoverIndex: null }), ...patch }));
+  const indexAtPointer = event => {
     const box = event.currentTarget.getBoundingClientRect();
-    const ratio = Math.max(0, Math.min(1, (event.clientX - box.left - left) / (box.width - left - right)));
-    setHover(Math.round(ratio * lastIndex));
+    const ratio = Math.max(0, Math.min(1, (event.clientX - box.left - left) / Math.max(1, box.width - left - right)));
+    return Math.round(ratio * lastIndex);
+  };
+  const clearPreview = () => updateInspection({ hoverIndex: null });
+  const cancelGesture = () => { gestureRef.current = null; clearPreview(); };
+  const resetInspection = () => { gestureRef.current = null; updateInspection({ selectedIndex: null, hoverIndex: null }); };
+  const pointerDown = event => {
+    if (event.isPrimary === false || (event.button !== undefined && event.button !== 0)) return;
+    gestureRef.current = { data, pointerId: event.pointerId, pointerType: event.pointerType, x: event.clientX, y: event.clientY, direction: null };
+    updateInspection({ hoverIndex: indexAtPointer(event) });
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+  };
+  const pointerMove = event => {
+    const gesture = gestureRef.current;
+    if (gesture?.data === data && gesture.pointerId === event.pointerId) {
+      if (gesture.pointerType !== 'mouse' && !gesture.direction) {
+        const dx = Math.abs(event.clientX - gesture.x), dy = Math.abs(event.clientY - gesture.y);
+        if (Math.max(dx, dy) > 8) gesture.direction = dy > dx ? 'vertical' : 'horizontal';
+      }
+      if (gesture.direction === 'vertical') { clearPreview(); return; }
+      updateInspection({ hoverIndex: indexAtPointer(event) });
+    } else if (event.pointerType === 'mouse' && currentInspection.selectedIndex === null) {
+      updateInspection({ hoverIndex: indexAtPointer(event) });
+    }
+  };
+  const pointerUp = event => {
+    const gesture = gestureRef.current;
+    if (gesture?.data !== data || gesture.pointerId !== event.pointerId) return;
+    if (gesture.direction !== 'vertical') updateInspection({ selectedIndex: indexAtPointer(event), hoverIndex: null });
+    else clearPreview();
+    gestureRef.current = null;
+    if (event.currentTarget.hasPointerCapture?.(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
   };
   const inspectKey = event => {
     let next;
@@ -60,14 +94,16 @@ const DrawdownOverview = React.memo(function DrawdownOverview({ data, active, co
     else if (event.key === 'ArrowRight') next = readoutIndex + 1;
     else if (event.key === 'Home') next = 0;
     else if (event.key === 'End') next = lastIndex;
+    else if (event.key === 'Escape') { event.preventDefault(); resetInspection(); return; }
     else return;
     event.preventDefault();
-    setHover(Math.max(0, Math.min(lastIndex, next)));
+    gestureRef.current = null;
+    updateInspection({ selectedIndex: Math.max(0, Math.min(lastIndex, next)), hoverIndex: null });
   };
   return <section className="ic-dd-overview-section" aria-label={englishMode ? 'Drawdown history' : '回撤历史'}>
-    <div className="ic-dd-section-head"><h2>{englishMode ? 'Distance from the previous high' : '离前高还有多远'}</h2><span>{englishMode ? 'Drawdown %' : '回撤 %'}</span></div>
+    <div className="ic-dd-section-head"><h2>{englishMode ? 'Distance from the previous high' : '离前高还有多远'}</h2>{currentInspection.selectedIndex !== null ? <button type="button" className="ic-dd-reset-inspection" onClick={resetInspection}>{englishMode ? 'Back to latest' : '回到最新'}</button> : <span>{englishMode ? 'Drawdown %' : '回撤 %'}</span>}</div>
     <div className="ic-dd-legend">{symbols.map(symbol => <button key={symbol} type="button" onClick={() => onActivate(symbol)} aria-pressed={active === symbol} aria-label={englishMode ? `View ${symbol} drawdown details` : `查看 ${symbol} 回撤详情`}><i style={{ background: colors[symbol] }} />{symbol}</button>)}</div>
-    <div ref={containerRef} className="ic-dd-chart ic-dd-overview" tabIndex={0} onPointerDown={inspect} onPointerMove={inspect} onPointerLeave={() => setHover(null)} onBlur={() => setHover(null)} onKeyDown={inspectKey} aria-label={englishMode ? 'Inspect daily drawdowns with left and right arrow keys' : '使用左右方向键查看每日回撤'}>
+    <div ref={containerRef} className="ic-dd-chart ic-dd-overview" role="slider" aria-valuemin={0} aria-valuemax={lastIndex} aria-valuenow={readoutIndex} aria-valuetext={`${points[readoutIndex].date}, ${symbols.map(symbol => `${symbol} ${formatInvestmentPercent(analyses[symbol].points[readoutIndex].drawdownPct)}`).join(', ')}`} tabIndex={0} onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={cancelGesture} onLostPointerCapture={cancelGesture} onPointerLeave={clearPreview} onBlur={cancelGesture} onKeyDown={inspectKey} aria-label={englishMode ? 'Inspect daily drawdowns with left and right arrow keys' : '使用左右方向键查看每日回撤'}>
       <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={englishMode ? `${symbols.join(' and ')} drawdown history; zero represents a previous high` : `${symbols.join(' 与 ')} 回撤曲线，零线代表此前最高值`}>
         {[0, floor / 2, floor].map(value => <g key={value}><line className="ic-dd-grid" x1={left} x2={width - right} y1={y(value)} y2={y(value)} /><text x={left - 6} y={y(value) + 4} textAnchor="end">{Math.round(value)}%</text></g>)}
         {symbols.map(symbol => {
@@ -81,7 +117,7 @@ const DrawdownOverview = React.memo(function DrawdownOverview({ data, active, co
         })}
         <circle cx={x(lowest)} cy={y(lowest.drawdownPct)} r="4" fill={colors[active]} />
         <text className="ic-dd-value-label" x={x(lowest) + (selectedAnchor === 'end' ? -8 : 8)} y={Math.max(32, y(lowest.drawdownPct) - 12)} textAnchor={selectedAnchor}>{active} {formatInvestmentPercent(lowest.drawdownPct)}</text>
-        {hover !== null && <g><line x1={x(points[readoutIndex])} x2={x(points[readoutIndex])} y1={top} y2={height - bottom} className="ic-dd-inspection-line" strokeDasharray="3 4" />{symbols.map(symbol => <circle key={symbol} cx={x(points[readoutIndex])} cy={y(analyses[symbol].points[readoutIndex].drawdownPct)} r="3" fill={colors[symbol]} />)}</g>}
+        {inspecting && <g><line x1={x(points[readoutIndex])} x2={x(points[readoutIndex])} y1={top} y2={height - bottom} className="ic-dd-inspection-line" strokeDasharray="3 4" />{symbols.map(symbol => <circle key={symbol} cx={x(points[readoutIndex])} cy={y(analyses[symbol].points[readoutIndex].drawdownPct)} r="3" fill={colors[symbol]} />)}</g>}
       </svg>
     </div>
     <div className="ic-dd-overview-readout"><span>{points[readoutIndex].date}</span>{symbols.map(symbol => <span key={symbol}>{symbol} <b style={{ color: colors[symbol] }}>{formatInvestmentPercent(analyses[symbol].points[readoutIndex].drawdownPct)}</b></span>)}</div>
@@ -206,7 +242,7 @@ function DrawdownAnalysis({ data, englishMode }) {
   const activate = React.useCallback(symbol => setSelection({ data, symbol, kind: 'max', episodeId: null }), [data]);
   const episode = current.kind === 'custom' ? analysis.episodes.find(item => item.id === current.episodeId) ?? analysis.maxDrawdownEpisode
     : current.kind === 'longest' ? analysis.longestEpisode : current.kind === 'latest' ? analysis.episodes.at(-1) : analysis.maxDrawdownEpisode;
-  const episodes = React.useMemo(() => [...analysis.episodes].sort((a, b) => a.drawdownPct - b.drawdownPct), [analysis]);
+  const episodes = React.useMemo(() => [...analysis.episodes].sort((a, b) => b.peakDate.localeCompare(a.peakDate)), [analysis]);
   return <div className="ic-dd-body">
     <section className="ic-dd-comparison" aria-label={englishMode ? 'Drawdown comparison' : '回撤体检'}>{symbols.map(symbol => {
       const item = analyses[symbol], maximum = item.maxDrawdownEpisode;
@@ -225,7 +261,7 @@ function DrawdownAnalysis({ data, englishMode }) {
     <PrincipalRisk analysis={analysis} symbol={active} englishMode={englishMode} />
     <details className="ic-dd-history"><summary>{englishMode ? 'Other drawdown episodes' : '其他回撤区间'}<span>{episodes.length} {englishMode ? 'episodes' : '段'}</span></summary>
       {episodes.slice(0, 8).map(item => <button type="button" className="ic-dd-history-row" key={item.id} aria-label={englishMode ? `Replay drawdown from ${item.peakDate}` : `重播 ${item.peakDate} 开始的回撤`} onClick={() => { setSelection({ ...current, kind: 'custom', episodeId: item.id }); journeyRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}><div><strong>{item.peakDate} → {item.recoveryDate ?? (englishMode ? 'Unrecovered' : '尚未修复')}</strong><small>{englishMode ? 'Trough ' : '谷底 '}{item.troughDate} · {dayCount(item.underwaterDays, englishMode)}</small></div><div><strong className="ic-dd-green">{formatInvestmentPercent(item.drawdownPct)}</strong><small>{englishMode ? 'View episode ›' : '查看过程 ›'}</small></div></button>)}
-      {episodes.length > 8 && <p className="ic-dd-empty">{englishMode ? 'The eight deepest drawdowns are shown.' : '按回撤深度展示前 8 段。'}</p>}
+      {episodes.length > 8 && <p className="ic-dd-empty">{englishMode ? 'The latest eight episodes are shown by starting date.' : '按开始日期展示最近 8 段。'}</p>}
       {episodes.length === 0 && <p className="ic-dd-empty">{englishMode ? 'No drawdown episodes in this period.' : '这个区间没有回撤记录。'}</p>}
     </details>
     <details className="ic-dd-method"><summary>{englishMode ? 'Drawdown calculation methodology' : '回撤计算口径'}</summary>
