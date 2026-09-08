@@ -41,7 +41,7 @@ function linePath(points, symbol, x, y) {
   return points.map((point, index) => `${index ? 'L' : 'M'}${x(point.time).toFixed(2)},${y(point.values[symbol]).toFixed(2)}`).join(' ');
 }
 
-export default function InvestmentComparisonChart({ model, snapshot, hiddenSymbols = [], scale = 'linear', englishMode = false, onPause }) {
+export default function InvestmentComparisonChart({ model, snapshot, hiddenSymbols = [], scale = 'linear', englishMode = false }) {
   const containerRef = React.useRef(null);
   const axisRefs = React.useRef([]);
   const labelRefs = React.useRef({});
@@ -138,7 +138,7 @@ export default function InvestmentComparisonChart({ model, snapshot, hiddenSymbo
   return <div ref={containerRef} className="ic-chart" data-investment-comparison-chart="true">
     <div className="ic-chart-touch" tabIndex={0} role="slider" aria-label={englishMode ? 'Inspect historical portfolio values' : '查看历史投资总资产'} aria-valuemin={0} aria-valuemax={snapshot.index} aria-valuenow={hoverIndex ?? snapshot.index}
       aria-valuetext={`${(hover || currentPoint).date}, ${symbols.map(symbol => `${symbol} ${formatInvestmentAmount((hover || currentPoint).values[symbol], englishMode)} USD`).join(', ')}`}
-      onPointerDown={event => { onPause?.(); gestureRef.current = { id: event.pointerId, x: event.clientX, y: event.clientY, intent: 'pending' }; event.currentTarget.setPointerCapture?.(event.pointerId); selectAt(event); }}
+      onPointerDown={event => { gestureRef.current = { id: event.pointerId, x: event.clientX, y: event.clientY, intent: 'pending' }; event.currentTarget.setPointerCapture?.(event.pointerId); selectAt(event); }}
       onPointerMove={event => {
         const gesture = gestureRef.current;
         if (!gesture) { if (event.pointerType === 'mouse') selectAt(event); return; }
@@ -154,7 +154,7 @@ export default function InvestmentComparisonChart({ model, snapshot, hiddenSymbo
       onKeyDown={event => {
         if (event.key === 'Escape') { setHoverIndex(null); return; }
         if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
-        event.preventDefault(); onPause?.();
+        event.preventDefault();
         setHoverIndex(current => event.key === 'Home' ? 0 : event.key === 'End' ? snapshot.index : Math.max(0, Math.min(snapshot.index, (current ?? snapshot.index) + (event.key === 'ArrowLeft' ? -1 : 1))));
       }}>
       <svg viewBox={`0 0 ${width} ${height}`} width={width} height={height} role="img" aria-label={englishMode ? 'Total assets including principal, based on actual adjusted daily closes' : '包含本金的总资产走势，使用真实复权日线'}>
