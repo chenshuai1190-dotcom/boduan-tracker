@@ -91,6 +91,7 @@
 .ic-sheet-overlay { position: fixed; inset: 0; z-index: 160; display: flex; align-items: flex-end; justify-content: center; background: rgb(0 0 0 / .65); backdrop-filter: blur(3px); }
 .investment-comparison .ic-picker { display: flex; flex-direction: column; width: min(100%,540px); max-height: calc(100% - 20px); padding: 14px 22px max(20px,env(safe-area-inset-bottom)); border: 1px solid var(--ic-border); border-bottom: 0; border-radius: 25px 25px 0 0; background: var(--ic-panel); }
 .investment-comparison .ic-picker-handle { width: 34px; height: 4px; margin: 0 auto 13px; border-radius: 4px; background: var(--ic-border); flex-shrink: 0; }
+.investment-comparison .ic-picker:focus { outline: none; }
 .investment-comparison .ic-picker-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .investment-comparison .ic-picker-head h2 { margin: 0; font-size: 21px; font-weight: 500; letter-spacing: -.4px; }
 .investment-comparison .ic-picker-head .ic-icon-button { background: var(--ic-bg); }
@@ -101,6 +102,14 @@
 .investment-comparison .ic-search-label input::placeholder { color: var(--ic-muted); }
 .investment-comparison .ic-results-heading { display: flex; justify-content: space-between; gap: 8px; margin: 20px 0 7px; color: var(--ic-muted); font-size: 11px; }
 .investment-comparison .ic-results { min-height: 135px; overflow-y: auto; overscroll-behavior: contain; }
+.investment-comparison .ic-preset-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 9px; padding: 5px 0 4px; }
+.investment-comparison .ic-preset { min-width: 0; min-height: 65px; padding: 10px 12px; border: 1px solid var(--ic-border); border-radius: 12px; background: var(--ic-bg); color: var(--ic-text); text-align: left; }
+.investment-comparison .ic-preset[aria-current="true"] { border-color: #687387; }
+.investment-comparison .ic-preset:focus-visible { outline: 1px solid #969faf; outline-offset: 2px; }
+.investment-comparison .ic-preset-title { display: flex; align-items: center; justify-content: space-between; gap: 5px; }
+.investment-comparison .ic-preset-title strong { font-size: 16px; font-weight: 500; }
+.investment-comparison .ic-preset-title span { color: var(--ic-muted); font-size: 10px; }
+.investment-comparison .ic-preset small { display: block; margin-top: 4px; color: var(--ic-muted); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .investment-comparison .ic-result { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 76px; padding: 13px 0; border: 0; border-bottom: 1px solid var(--ic-border); background: transparent; color: var(--ic-text); text-align: left; }
 .investment-comparison .ic-result:last-child { border-bottom: 0; }
 .investment-comparison .ic-result-icon { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 11px; background: var(--ic-bg); color: var(--ic-muted); font-size: 11px; flex-shrink: 0; }

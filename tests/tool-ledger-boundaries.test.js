@@ -5,6 +5,7 @@ import { inflateSync } from 'node:zlib';
 
 const appSource = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8');
 const actionModalCardSource = readFileSync(new URL('../src/components/ActionModalCard.jsx', import.meta.url), 'utf8');
+const tradeToolsCatalogSource = readFileSync(new URL('../src/components/TradeToolsCatalog.jsx', import.meta.url), 'utf8');
 const genericLedgerTradeEntryPanelSource = readFileSync(new URL('../src/components/GenericLedgerTradeEntryPanel.jsx', import.meta.url), 'utf8');
 const accountAssetTrendModalSource = readFileSync(new URL('../src/components/AccountAssetTrendModal.jsx', import.meta.url), 'utf8');
 const monthlyAssetTrendChartSource = readFileSync(new URL('../src/components/MonthlyAssetTrendChart.jsx', import.meta.url), 'utf8');
@@ -343,8 +344,8 @@ test('community competition is an isolated authenticated close-snapshot utility'
   assert.equal(tradesTabSource.includes('Trophy'), false, 'the trade-page shortcut should not keep the uncomfortable trophy icon');
   assert.ok(tradesTabSource.includes('openCommunityCompetition?.();'), 'community competition entry should open the standalone page');
   assert.ok(tradesTabSource.includes('setShowAllToolsModal(true);'), 'All Tools should keep opening the existing sheet');
-  assert.ok(tradesTabSource.includes("key: 'cost'") && tradesTabSource.includes("setToolPanel('cost')"), 'averaging tool must remain reachable from all tools');
-  assert.ok(i18nSource.includes("'trades.allToolsDesc': '摊薄工具已收录到全部功能里;社区比赛为独立功能,不影响正式交易账本。'"), 'all-tools copy should document the isolated production boundary');
+  assert.ok(tradesTabSource.includes('<TradeToolsCatalog') && tradeToolsCatalogSource.includes("id: 'cost'") && tradesTabSource.includes("setToolPanel('cost')"), 'averaging tool must remain reachable from the grouped all-tools catalog');
+  assert.doesNotMatch(tradeToolsCatalogSource, /supabase|stock_trades|cost_basis_trades|swing_waves|\b(?:save|insert|upsert|update|delete)\s*\(/, 'the tool catalog must delegate navigation without accessing or changing any ledger');
   assert.ok(communityCompetitionPageSource.includes("tt('competition.joinTitle', '加入收益比赛')"), 'first visit should show the voluntary join sheet');
   assert.ok(communityCompetitionPageSource.includes("tt('competition.notJoin', '暂不加入')"), 'join sheet should support declining');
   assert.ok(communityCompetitionPageSource.includes("tt('competition.confirmJoin', '确认加入')"), 'join sheet should support confirming join');

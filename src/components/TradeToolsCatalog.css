@@ -1,0 +1,21 @@
+.trade-tools-panel .trade-tools-content { padding: 0 2px 2px; border: 0; background: none; box-shadow: none; border-radius: 0; }
+.trade-tools-catalog { display: flex; flex-direction: column; gap: 22px; }
+.trade-tools-category { display: flex; align-items: center; gap: 7px; margin: 0 0 10px; color: rgb(255 255 255 / .46); font-size: 12px; font-weight: 400; line-height: 18px; }
+.trade-tools-items { display: grid; gap: 9px; }
+.trade-tools-columns { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.trade-tool-card { display: flex; align-items: center; gap: 12px; width: 100%; min-width: 0; min-height: 75px; padding: 13px; border: 1px solid rgb(255 255 255 / .07); border-radius: 15px; background: rgb(255 255 255 / .025); color: rgb(255 255 255 / .87); text-align: left; cursor: pointer; -webkit-tap-highlight-color: transparent; transition: background .15s ease; }
+.trade-tool-card:active { background: rgb(255 255 255 / .07); }
+.trade-tool-card:focus-visible { outline: 2px solid #f6b54b; outline-offset: -2px; }
+.trade-tool-icon { display: flex; align-items: center; justify-content: center; width: 39px; height: 39px; flex-shrink: 0; border-radius: 12px; background: rgb(255 255 255 / .045); color: rgb(255 255 255 / .64); }
+.trade-tool-copy { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 5px; }
+.trade-tool-title { font-size: 14px; font-weight: 400; line-height: 1.4; }
+.trade-tool-description { color: rgb(255 255 255 / .4); font-size: 11px; font-weight: 400; line-height: 1.5; }
+.trade-tool-chevron { flex-shrink: 0; color: rgb(255 255 255 / .25); }
+.trade-tool-featured { min-height: 100px; padding: 17px 13px; border-color: rgb(246 181 75 / .23); background: linear-gradient(110deg, rgb(246 181 75 / .1), rgb(246 181 75 / .025)); }
+.trade-tool-featured .trade-tool-icon { width: 44px; height: 44px; color: #f6b54b; background: rgb(246 181 75 / .12); }
+.trade-tool-featured .trade-tool-title { color: #f6ce8d; font-size: 17px; }
+.trade-tool-featured .trade-tool-description { color: rgb(255 255 255 / .52); }
+.trade-tool-featured .trade-tool-chevron { color: rgb(246 181 75 / .65); }
+.trade-tools-columns .trade-tool-card { position: relative; min-height: 119px; align-items: flex-start; flex-direction: column; gap: 11px; }
+.trade-tools-columns .trade-tool-icon { width: 32px; height: 32px; border-radius: 10px; }
+.trade-tools-columns .trade-tool-chevron { position: absolute; right: 12px; top: 22px; }

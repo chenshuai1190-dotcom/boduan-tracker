@@ -23,6 +23,7 @@ import AvailableCashEditor from '../components/AvailableCashEditor.jsx';
 import GenericLedgerTradeEntryPanel, { GenericLedgerTradeHeader } from '../components/GenericLedgerTradeEntryPanel.jsx';
 import StockLogo, { stockLogoCandidates } from '../components/StockLogo.jsx';
 import TqqqTradeEntryPanel, { TQQQ_ACTION_TONE_CLASSES } from '../components/TqqqTradeEntryPanel.jsx';
+import TradeToolsCatalog from '../components/TradeToolsCatalog.jsx';
 
 const PORTFOLIO_CURRENCY_STORAGE_KEY = 'xmoney_portfolio_currency';
 const TRADE_CURRENCY_STORAGE_KEY = 'xmoney_trade_currency';
@@ -1104,57 +1105,19 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
             title={tt('trades.allTools', '全部功能')}
             closeLabel={tt('trades.closeAllTools', '关闭全部功能')}
             onClose={() => setShowAllToolsModal(false)}
-            actionGridClassName="grid-cols-2"
-            actions={[
-              {
-                key: 'cost',
-                label: tt('trades.averagingTool', '摊薄工具'),
-                onClick: () => {
-                  setShowAllToolsModal(false);
-                  setToolPanel('cost');
-                },
-              },
-              {
-                key: 'records',
-                label: tt('trades.tradeLog', '交易记录'),
-                onClick: () => {
-                  setShowAllToolsModal(false);
-                  setToolPanel('records');
-                },
-              },
-              {
-                key: 'waves',
-                label: tt('trades.swingLog', '波段记录'),
-                onClick: () => {
-                  setShowAllToolsModal(false);
-                  setToolPanel('');
-                  openWaveTracker?.();
-                },
-              },
-              {
-                key: 'competition',
-                label: tt('competition.toolEntry', '社区比赛'),
-                onClick: () => {
-                  setShowAllToolsModal(false);
-                  setToolPanel('');
-                  openCommunityCompetition?.();
-                },
-              },
-              {
-                key: 'investment-comparison',
-                label: tt('trades.investmentComparison', '投资对比'),
-                onClick: () => {
-                  setShowAllToolsModal(false);
-                  setToolPanel('');
-                  openInvestmentComparison?.();
-                },
-              },
-            ]}
+            widthClassName="w-[calc(100vw-32px)] max-w-[440px]"
+            panelClassName="trade-tools-panel"
+            contentClassName="trade-tools-content"
           >
-            <div className="space-y-2 text-[12px] leading-5 text-white/[0.58]">
-              <div className="text-[14px] text-white/[0.86]">{tt('trades.allToolsTitle', '交易辅助工具')}</div>
-              <div>{tt('trades.allToolsDesc', '摊薄工具已收录到全部功能里;社区比赛为独立功能,不影响正式交易账本。')}</div>
-            </div>
+            <TradeToolsCatalog language={language} onSelect={(toolId) => {
+              setShowAllToolsModal(false);
+              if (toolId === 'cost') { setToolPanel('cost'); return; }
+              if (toolId === 'records') { setToolPanel('records'); return; }
+              setToolPanel('');
+              if (toolId === 'investment-comparison') openInvestmentComparison?.();
+              if (toolId === 'waves') openWaveTracker?.();
+              if (toolId === 'competition') openCommunityCompetition?.();
+            }} />
           </ActionModalCard>
         )}
 

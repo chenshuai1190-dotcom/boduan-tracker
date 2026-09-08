@@ -2,6 +2,7 @@ import React from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowLeft, ChevronDown, Pause, Play, RefreshCw, Search, X } from 'lucide-react';
 import InvestmentComparisonChart, { formatInvestmentAmount, formatInvestmentPercent, investmentChangeColor, investmentRank, investmentRankColor } from '../components/InvestmentComparisonChart.jsx';
+import InvestmentSymbolPresets from '../components/InvestmentSymbolPresets.jsx';
 import { loadInvestmentComparison, searchInvestmentSymbols } from '../lib/investmentComparison.js';
 import { buildInvestmentComparisonModel, getInvestmentComparisonSnapshot } from '../lib/investmentComparisonModel.js';
 import '../components/InvestmentComparison.css';
@@ -12,6 +13,7 @@ const PLAYBACK_DAYS_PER_SECOND = 125;
 function instrumentName(item, englishMode) {
   if (item.symbol === 'QQQ') return englishMode ? 'Nasdaq-100 ETF' : '纳斯达克 100 ETF';
   if (item.symbol === 'TQQQ') return englishMode ? '3× Nasdaq-100 ETF' : '三倍纳指 ETF';
+  if (!englishMode && item.nameZh) return item.nameZh;
   return item.name || item.symbol;
 }
 
@@ -31,7 +33,7 @@ function InvestmentSymbolPicker({ side, instruments, userId, englishMode, search
     const previousOverflow = document.body.style.overflow;
     const trigger = document.activeElement;
     document.body.style.overflow = 'hidden';
-    const focusId = window.requestAnimationFrame(() => inputRef.current?.focus());
+    const focusId = window.requestAnimationFrame(() => dialogRef.current?.focus());
     const updateViewport = () => {
       if (window.visualViewport) setViewport({ top: window.visualViewport.offsetTop, height: window.visualViewport.height });
     };
@@ -40,8 +42,8 @@ function InvestmentSymbolPicker({ side, instruments, userId, englishMode, search
       if (event.key !== 'Tab') return;
       const targets = [...(dialogRef.current?.querySelectorAll('button:not(:disabled), input, [tabindex="0"]') || [])];
       const first = targets[0], last = targets.at(-1);
-      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
-      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+      if (event.shiftKey && (document.activeElement === first || document.activeElement === dialogRef.current)) { event.preventDefault(); last?.focus(); }
+      else if (!event.shiftKey && (document.activeElement === last || document.activeElement === dialogRef.current)) { event.preventDefault(); first?.focus(); }
     };
     updateViewport();
     window.visualViewport?.addEventListener('resize', updateViewport);
@@ -84,14 +86,14 @@ function InvestmentSymbolPicker({ side, instruments, userId, englishMode, search
   const title = englishMode ? `Change ${side === 0 ? 'left' : 'right'} investment` : `更换${side === 0 ? '左' : '右'}侧标的`;
 
   return createPortal(<div className="investment-comparison ic-sheet-overlay" style={viewport ? { top: viewport.top, height: viewport.height, bottom: 'auto' } : undefined} onPointerDown={event => { if (event.target === event.currentTarget) onClose(); }}>
-    <section ref={dialogRef} className="ic-picker" role="dialog" aria-modal="true" aria-labelledby="investment-picker-title">
+    <section ref={dialogRef} className="ic-picker" role="dialog" tabIndex={-1} aria-modal="true" aria-labelledby="investment-picker-title">
       <div className="ic-picker-handle" />
       <header className="ic-picker-head"><h2 id="investment-picker-title">{title}</h2><button type="button" className="ic-icon-button" onClick={onClose} aria-label={englishMode ? 'Close stock search' : '关闭股票搜索'}><X size={21} /></button></header>
       <div className="ic-picker-context">{englishMode ? 'Current' : '当前'} <strong>{instruments[side].symbol}</strong><span>·</span>{englishMode ? 'Compared with' : '对比'} <strong>{instruments[1 - side].symbol}</strong></div>
       <label className="ic-search-label"><Search size={18} aria-hidden="true" /><input ref={inputRef} type="search" value={query} onChange={event => { setQuery(event.target.value); setAttempt(0); }} autoComplete="off" autoCapitalize="characters" spellCheck={false} placeholder={englishMode ? 'Search symbol or company name' : '搜索股票代码 / 名称'} aria-label={englishMode ? 'Search US stocks and ETFs' : '搜索美股与 ETF'} /></label>
-      <div className="ic-results-heading"><span>{englishMode ? 'Search results' : '搜索结果'}</span><span>{englishMode ? 'US stocks · USD' : '美股 · USD'}</span></div>
+      <div className="ic-results-heading"><span>{normalizedQuery ? (englishMode ? 'Search results' : '搜索结果') : (englishMode ? 'Magnificent Seven + AVGO' : '美股七姐妹 + AVGO')}</span><span>{englishMode ? 'US stocks · USD' : '美股 · USD'}</span></div>
       <div className="ic-results" aria-busy={state.loading}>
-        {!normalizedQuery ? <div className="ic-search-empty">{englishMode ? 'Enter a symbol or name to search.' : '输入代码或名称，查找美股与 ETF。'}</div>
+        {!normalizedQuery ? <InvestmentSymbolPresets side={side} instruments={instruments} englishMode={englishMode} onSelect={onSelect} />
           : !matchesCurrentQuery || state.loading ? <div className="ic-search-empty" role="status"><RefreshCw size={15} className="ic-spin" />{englishMode ? 'Searching…' : '搜索中…'}</div>
             : state.error ? <div className="ic-search-empty" role="alert"><span>{englishMode ? 'Search is temporarily unavailable.' : '搜索暂时不可用。'}</span><button type="button" onClick={() => setAttempt(value => value + 1)}>{englishMode ? 'Retry' : '重试'}</button></div>
               : results.length === 0 ? <div className="ic-search-empty">{englishMode ? 'No matching USD stock or ETF found.' : '未找到匹配的美元股票或 ETF。'}</div>
