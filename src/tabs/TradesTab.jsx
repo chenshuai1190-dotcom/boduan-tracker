@@ -461,6 +461,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
     openWaveTracker,
     openCommunityCompetition,
     openInvestmentComparison,
+    openPortfolioOverlap,
     portfolioCurrencyMode,
     Plus,
     qqqSignalQuote,
@@ -1115,6 +1116,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
               if (toolId === 'records') { setToolPanel('records'); return; }
               setToolPanel('');
               if (toolId === 'investment-comparison') openInvestmentComparison?.();
+              if (toolId === 'portfolio-overlap') openPortfolioOverlap?.();
               if (toolId === 'waves') openWaveTracker?.();
               if (toolId === 'competition') openCommunityCompetition?.();
             }} />

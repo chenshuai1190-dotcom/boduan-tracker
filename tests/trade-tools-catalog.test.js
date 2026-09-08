@@ -14,12 +14,12 @@ const compiled = transformed.code
   .replace(/from (["'])\.\.\/lib\/i18n\.js\1/g, `from ${JSON.stringify(new URL('../src/lib/i18n.js', import.meta.url).href)}`);
 const { default: TradeToolsCatalog } = await import(`data:text/javascript;base64,${Buffer.from(compiled).toString('base64')}`);
 const expectedGroups = [
-  { key: 'trades.toolsResearch', zh: '对比与测算', tools: ['investment-comparison', 'cost'] },
+  { key: 'trades.toolsResearch', zh: '对比与测算', tools: ['investment-comparison', 'portfolio-overlap', 'cost'] },
   { key: 'trades.toolsReview', zh: '交易复盘', tools: ['records', 'waves'] },
   { key: 'trades.toolsCommunity', zh: '社区互动', tools: ['competition'] },
 ];
 const expectedTools = expectedGroups.flatMap(group => group.tools);
-const titleKeys = ['trades.investmentTimeMachine', 'trades.averagingTool', 'trades.tradeLog', 'trades.swingLog', 'competition.toolEntry'];
+const titleKeys = ['trades.investmentTimeMachine', 'trades.portfolioOverlap', 'trades.averagingTool', 'trades.tradeLog', 'trades.swingLog', 'competition.toolEntry'];
 
 function nodesOfType(node, type) {
   if (!React.isValidElement(node)) return [];
@@ -42,7 +42,7 @@ function renderCatalog(props = {}) {
   return { html, tree };
 }
 
-test('catalog groups five unique tools in the approved order with the time machine first', () => {
+test('catalog groups six unique tools with portfolio overlap immediately after the time machine', () => {
   const { tree } = renderCatalog({ language: 'zh', onSelect() {} });
   const groups = nodesOfType(tree, 'section');
   assert.equal(groups.length, expectedGroups.length);
@@ -54,7 +54,7 @@ test('catalog groups five unique tools in the approved order with the time machi
   });
   const buttons = nodesOfType(tree, 'button');
   assert.deepEqual(buttons.map(button => button.props['data-tool-id']), expectedTools);
-  assert.equal(new Set(buttons.map(button => button.props['data-tool-id'])).size, 5);
+  assert.equal(new Set(buttons.map(button => button.props['data-tool-id'])).size, 6);
 });
 
 test('each tool has a real icon and translated visible text in Chinese and English', () => {

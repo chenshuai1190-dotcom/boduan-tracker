@@ -43,6 +43,7 @@ const PnlSharePage = lazy(() => import('./pages/PnlSharePage.jsx'));
 const HomeMarginRiskPage = lazy(() => import('./pages/HomeMarginRiskPage.jsx'));
 const VixComparisonPage = lazy(() => import('./pages/VixComparisonPage.jsx'));
 const InvestmentComparisonPage = lazy(() => import('./pages/InvestmentComparisonPage.jsx'));
+const PortfolioOverlapPage = lazy(() => import('./pages/PortfolioOverlapPage.jsx'));
 const StockDetailPage = lazy(() => import('./pages/StockDetailPage.jsx'));
 const WatchlistStockDetailPage = lazy(() => import('./pages/WatchlistStockDetailPage.jsx'));
 const WaveTrackerPage = lazy(() => import('./pages/WaveTrackerPage.jsx'));
@@ -1143,6 +1144,9 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   const [trades, setTrades] = useState([]);
   // 主交易账本:独立记录真实股票买入/卖出流水,由 stock_trades 表持久化。
   const [stockTrades, setStockTrades] = useState([]);
+  // Unlike the startup timeout, this flag means the stock ledger actually loaded.
+  const [stockHoldingsReady, setStockHoldingsReady] = useState(false);
+  const [stockHoldingsError, setStockHoldingsError] = useState(null);
   // 收益报表服务端重算完成后递增，只作为页面重新读取数据库快照的信号。
   const [pnlReportRefreshVersion, setPnlReportRefreshVersion] = useState(0);
   // V2 波段页面只向全局行情层同步最小 symbol/name 集合;真实记录仍由独立页面按需读取。
@@ -2079,6 +2083,8 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
 
     if (cloudStockTrades !== null && cloudStockTrades !== undefined) setStockTrades(cloudStockTrades);
     else console.warn(`${logLabel} ⚠️ stockTrades 拉取失败, 保留本地主交易账本`);
+    setStockHoldingsReady(Array.isArray(cloudStockTrades));
+    setStockHoldingsError(Array.isArray(cloudStockTrades) ? null : 'HOLDINGS_UNAVAILABLE');
 
     if (Array.isArray(cloudWatchlist)) {
       const cloudWatchlistOrder = normalizeWatchlistOrder(settings?.watchlistOrder);
@@ -2175,6 +2181,10 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
       } catch (e) {
         console.error('[云端加载] 失败:', e);
         setCloudError(e.message);
+        if (mounted) {
+          setStockHoldingsReady(false);
+          setStockHoldingsError('HOLDINGS_UNAVAILABLE');
+        }
       } finally {
         finishLoading();  // 0.8s 下限保护
       }
@@ -5173,6 +5183,14 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     pendingHomeScrollTopRef.current = homeScrollTopBeforeVixRef.current;
     setActivePage(null);
   }, []);
+  const openPortfolioOverlap = useCallback(() => {
+    setActiveTab('trades');
+    setActivePage('portfolio-overlap');
+  }, []);
+  const closePortfolioOverlap = useCallback(() => {
+    setActiveTab('trades');
+    setActivePage(null);
+  }, []);
   const openInvestmentComparison = useCallback(() => {
     setActiveTab('trades');
     setActivePage('investment-comparison');
@@ -5390,7 +5408,8 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   const isEarningsDetailPage = activePage === 'earnings-detail';
   const isVixComparisonPage = activePage === 'vix-comparison';
   const isInvestmentComparisonPage = activePage === 'investment-comparison';
-  const isStandalonePage = isPnlReportPage || isPnlSharePage || isHomeMarginRiskPage || isStockDetailPage || isWatchlistStockDetailPage || isWaveTrackerPage || isCommunityCompetitionPage || isEarningsCalendarPage || isEarningsDetailPage || isInvestmentComparisonPage || isVixComparisonPage;
+  const isPortfolioOverlapPage = activePage === 'portfolio-overlap';
+  const isStandalonePage = isPnlReportPage || isPnlSharePage || isHomeMarginRiskPage || isStockDetailPage || isWatchlistStockDetailPage || isWaveTrackerPage || isCommunityCompetitionPage || isEarningsCalendarPage || isEarningsDetailPage || isInvestmentComparisonPage || isPortfolioOverlapPage || isVixComparisonPage;
   const isFullBleedPage = isPnlSharePage || isCommunityCompetitionPage || isEarningsCalendarPage || isEarningsDetailPage;
   const hideBottomNavigation = isPnlReportPage || isPnlSharePage;
   const ActiveTab = TAB_COMPONENTS[activeTab] || HomeTab;
@@ -5581,6 +5600,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     closeVixComparison,
     openInvestmentComparison,
     closeInvestmentComparison,
+    openPortfolioOverlap,
     openPnlReport,
     openPnlShare,
     pnlReportRefreshVersion,
@@ -5913,6 +5933,8 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
                 ? <VixComparisonPage ctx={{ ...tabCtx, userId: user?.id || '' }} />
               : isInvestmentComparisonPage
                 ? <InvestmentComparisonPage ctx={{ userId: user?.id || '', language, closeInvestmentComparison }} />
+              : isPortfolioOverlapPage
+                ? <PortfolioOverlapPage key={user?.id || ''} ctx={{ userId: user?.id || '', language, investmentSummary, portfolioReady: stockHoldingsReady, portfolioError: stockHoldingsError, closePortfolioOverlap }} />
               : isStockDetailPage
                 ? <StockDetailPage ctx={tabCtx} />
                 : isWatchlistStockDetailPage

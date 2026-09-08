@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '🔎 全部功能新增独立“持仓重叠体检”，位于投资时光机下方',
+      '  - 默认读取当前账户股票与 ETF 持仓，查看直接持有与 ETF 间接持有的重复标的',
+      '  - QQQ、SPY 使用官方公开成分与披露日期；杠杆 ETF、未知成分和缺失报价明确单列',
+      '  - 支持自定义组合试算，金额仅保留在本页，不修改真实持仓、交易、现金或收益账本',
+    ],
+    itemsEn: [
+      '🔎 Standalone Portfolio Overlap in All Tools, immediately below Investment Time Machine',
+      '  - Reads the current account’s stock and ETF holdings to identify direct and indirect overlap',
+      '  - QQQ and SPY use official holdings and disclosure dates; leveraged ETFs, unknown holdings and missing quotes stay explicit',
+      '  - Custom allocations stay in this page’s memory and never change positions, trades, cash or return ledgers',
+    ],
+  },
+  {
+    ver: 'v10.7.9.489', date: '2026-09-08',
+    items: [
       '📉 投资时光机新增“回撤与修复”分析',
       '  - 与资产增长共用头部、标的、起始年份和本金，在同一页面直接切换',
       '  - 对比最大回撤，回放最大回撤、最长等待及最近一次下跌与修复过程',

@@ -1,0 +1,109 @@
+.investment-comparison.po-page, .investment-comparison.po-modal-root { --po-red:#ff655e; --po-gold:#eebc65; --po-green:#4fd0a1; --po-unknown:#65738a; }
+body.po-overlap-modal-open { overflow:hidden !important; }
+.investment-comparison .po-header { position:relative; min-height:64px; display:flex; justify-content:center; align-items:center; padding:0 42px; text-align:center; }
+.investment-comparison .po-header h1 { margin:0; font-size:21px; font-weight:500; letter-spacing:-.5px; }
+.investment-comparison .po-header p { margin:4px 0 0; font-size:11px; color:var(--ic-muted); }
+.investment-comparison .po-icon-button { display:grid; place-items:center; width:44px; min-height:44px; border:0; background:transparent; color:var(--ic-muted); padding:0; flex-shrink:0; }
+.investment-comparison .po-header .po-back { position:absolute; left:-8px; }
+.investment-comparison .po-header .po-method-button { position:absolute; right:-8px; }
+.investment-comparison .po-tabs { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:4px; padding:4px; margin:12px 0 15px; background:var(--ic-panel); border-radius:12px; }
+.investment-comparison .po-tabs button { min-height:44px; background:transparent; border:0; border-radius:9px; color:var(--ic-muted); font-size:14px; }
+.investment-comparison .po-tabs [aria-selected=true] { background:var(--ic-border); color:var(--ic-text); }
+.investment-comparison .po-note { display:flex; align-items:center; gap:7px; color:var(--po-gold); font-size:11px; margin:0 0 18px; }
+.investment-comparison .po-note svg { flex-shrink:0; }
+.investment-comparison .po-portfolio-button { width:100%; display:flex; align-items:center; gap:11px; padding:0 0 17px; background:transparent; border:0; color:var(--ic-text); text-align:left; }
+.investment-comparison .po-portfolio-icon { width:39px; height:39px; border-radius:11px; display:grid; place-items:center; background:var(--ic-panel); color:var(--po-gold); flex-shrink:0; }
+.investment-comparison .po-portfolio-copy { flex:1; min-width:0; }
+.investment-comparison .po-portfolio-copy strong { font-size:14px; font-weight:500; }
+.investment-comparison .po-portfolio-copy small { display:block; font-size:11px; color:var(--ic-muted); margin-top:3px; }
+.investment-comparison .po-portfolio-button>svg { color:var(--ic-muted); flex-shrink:0; }
+.investment-comparison .po-eyebrow { font-size:12px; color:var(--ic-muted); }
+.investment-comparison .po-hero { border:1px solid var(--ic-border); border-radius:19px; background:linear-gradient(145deg,var(--ic-panel),var(--ic-bg) 85%); overflow:hidden; }
+.investment-comparison .po-hero-main { width:100%; border:0; background:transparent; color:var(--ic-text); text-align:left; padding:19px 18px 17px; }
+.investment-comparison .po-hero-top { display:flex; justify-content:space-between; align-items:center; gap:10px; }
+.investment-comparison .po-source-tag { font-size:10px; color:var(--po-gold); background:rgb(238 188 101 / .08); border-radius:20px; padding:3px 8px; }
+.investment-comparison .po-hero-value { display:flex; align-items:baseline; gap:12px; margin-top:9px; }
+.investment-comparison .po-hero-value strong { font-size:36px; font-weight:500; line-height:1.3; letter-spacing:-1px; }
+.investment-comparison .po-hero-value>span { font-size:16px; font-weight:500; }
+.investment-comparison .po-hero-equation { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:9px; color:var(--ic-muted); font-size:11px; }
+.investment-comparison .po-hero-equation b { font-weight:500; color:var(--ic-text); }
+.investment-comparison .po-dot { display:inline-block; width:6px; height:6px; background:var(--po-source); border-radius:50%; margin-right:5px; flex-shrink:0; }
+.investment-comparison .po-hero-footer { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); border-top:1px solid var(--ic-border); }
+.investment-comparison .po-hero-footer>div { padding:13px 18px; }
+.investment-comparison .po-hero-footer>div+div { border-left:1px solid var(--ic-border); }
+.investment-comparison .po-hero-footer small { font-size:11px; color:var(--ic-muted); display:block; }
+.investment-comparison .po-hero-footer strong { font-size:18px; font-weight:500; display:block; margin-top:3px; }
+.investment-comparison .po-hero-footer strong em { font-size:11px; font-style:normal; color:var(--ic-muted); margin-left:5px; }
+.investment-comparison .po-section-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin:26px 0 6px; }
+.investment-comparison .po-section-head h2 { font-size:16px; font-weight:500; margin:0; }
+.investment-comparison .po-section-head>span { font-size:11px; color:var(--ic-muted); text-align:right; }
+.investment-comparison .po-legend { display:flex; gap:14px; flex-wrap:wrap; font-size:10px; color:var(--ic-muted); margin-bottom:4px; }
+.investment-comparison .po-company-row { width:100%; padding:16px 0 14px; background:transparent; border:0; border-bottom:1px solid var(--ic-border); color:var(--ic-text); text-align:left; }
+.investment-comparison .po-company-line { display:flex; align-items:center; gap:12px; }
+.investment-comparison .po-rank { font-size:11px; color:var(--ic-muted); min-width:17px; }
+.investment-comparison .po-company-name { flex:1; min-width:0; }
+.investment-comparison .po-company-name strong { font-size:16px; font-weight:500; display:block; }
+.investment-comparison .po-company-name small { display:block; font-size:11px; color:var(--ic-muted); margin-top:1px; overflow-wrap:anywhere; }
+.investment-comparison .po-company-number { text-align:right; flex-shrink:0; }
+.investment-comparison .po-company-number strong { font-size:17px; font-weight:500; }
+.investment-comparison .po-company-number small { font-size:10px; color:var(--ic-muted); display:block; margin-top:2px; }
+.investment-comparison .po-company-line>svg { color:var(--ic-muted); margin-left:-6px; flex-shrink:0; }
+.investment-comparison .po-stack-track { margin:11px 25px 0 29px; display:flex; height:6px; border-radius:4px; background:var(--ic-panel); overflow:hidden; }
+.investment-comparison .po-stack-part { height:100%; background:var(--po-source); flex-shrink:0; transition:width .3s ease; }
+.investment-comparison .po-more-button { width:100%; min-height:44px; border:0; background:transparent; color:var(--ic-muted); font-size:12px; margin-top:5px; }
+.investment-comparison .po-coverage { margin-top:26px; border-top:1px solid var(--ic-border); }
+.investment-comparison .po-coverage>summary { min-height:51px; display:flex; align-items:center; justify-content:space-between; gap:10px; cursor:pointer; list-style:none; font-size:12px; }
+.investment-comparison .po-coverage>summary span { display:flex; gap:6px; align-items:center; color:var(--ic-muted); font-size:11px; }
+.investment-comparison .po-coverage[open]>summary svg { transform:rotate(180deg); }
+.investment-comparison .po-coverage-bar { height:6px; display:flex; border-radius:4px; overflow:hidden; margin:0 0 14px; background:var(--ic-panel); }
+.investment-comparison .po-coverage-bar>span { background:var(--po-source); width:var(--po-width); }
+.investment-comparison .po-coverage-line { display:flex; align-items:baseline; justify-content:space-between; padding:8px 0; gap:12px; font-size:12px; }
+.investment-comparison .po-coverage-line span { color:var(--ic-muted); }
+.investment-comparison .po-coverage-line strong { font-weight:400; text-align:right; }
+.investment-comparison .po-method-copy { font-size:12px; color:var(--ic-muted); line-height:1.8; }
+.investment-comparison .po-footnote { font-size:10px; color:var(--ic-muted); margin:19px 0 0; text-align:center; }
+.investment-comparison .po-empty { padding:32px 18px; text-align:center; color:var(--ic-muted); }
+.investment-comparison .po-empty h2 { font-size:17px; font-weight:500; color:var(--ic-text); }
+.investment-comparison .po-state { padding:20px 16px; margin:0 0 18px; border:1px solid var(--ic-border); border-radius:13px; color:var(--ic-muted); font-size:12px; line-height:1.8; }
+.investment-comparison .po-state p { margin:0; }
+.investment-comparison .po-warning { color:var(--po-gold); }
+.investment-comparison .po-refresh-row { display:flex; justify-content:space-between; align-items:center; gap:10px; margin:10px 0 0; color:var(--ic-muted); font-size:10px; }
+.investment-comparison .po-refresh-row button { display:flex; align-items:center; gap:6px; min-height:44px; border:0; background:transparent; color:var(--ic-muted); font-size:11px; flex-shrink:0; }
+.investment-comparison .po-primary { display:block; width:100%; min-height:46px; background:var(--ic-text); color:var(--ic-bg); border:0; border-radius:12px; font-size:14px; font-weight:500; margin-top:22px; }
+.investment-comparison .po-text-button { min-height:44px; padding:0 3px; border:0; background:transparent; color:var(--po-gold); font-size:12px; }
+.investment-comparison .po-modal-overlay { z-index:170; }
+.investment-comparison .po-modal-panel { padding:18px 14px 16px; width:min(calc(100vw - 32px),540px); }
+.investment-comparison .po-modal-title { color:var(--ic-text); font-size:19px; font-weight:500; }
+.investment-comparison .po-modal-close { width:44px; height:44px; }
+.investment-comparison .po-modal-content { padding:16px; }
+.investment-comparison .po-detail-summary { display:flex; justify-content:space-between; align-items:baseline; gap:12px; margin-bottom:8px; }
+.investment-comparison .po-detail-summary strong { font-size:34px; font-weight:500; letter-spacing:-1px; }
+.investment-comparison .po-detail-summary>span { font-size:12px; color:var(--ic-muted); }
+.investment-comparison .po-detail-value { font-size:13px; color:var(--ic-muted); margin:0 0 24px; overflow-wrap:anywhere; }
+.investment-comparison .po-detail-source { margin:19px 0; }
+.investment-comparison .po-detail-source-head { display:flex; justify-content:space-between; align-items:baseline; gap:12px; }
+.investment-comparison .po-detail-source-head strong { font-size:14px; font-weight:500; }
+.investment-comparison .po-detail-source-head>span { font-size:14px; }
+.investment-comparison .po-detail-source p { font-size:11px; color:var(--ic-muted); margin:4px 0 9px; }
+.investment-comparison .po-detail-source .po-stack-track { margin:0; height:8px; }
+.investment-comparison .po-source-link { color:var(--po-gold); font-size:11px; overflow-wrap:anywhere; }
+.investment-comparison .po-detail-total { padding-top:15px; border-top:1px solid var(--ic-border); display:flex; justify-content:space-between; gap:12px; margin-top:24px; }
+.investment-comparison .po-detail-total strong { font-weight:500; font-size:17px; }
+.investment-comparison .po-sheet-note { padding:11px 13px; border-radius:10px; background:var(--ic-panel); color:var(--ic-muted); font-size:11px; line-height:1.8; margin:23px 0 0; }
+.investment-comparison .po-edit-description { font-size:12px; color:var(--ic-muted); margin:0 0 18px; }
+.investment-comparison .po-edit-row { display:grid; grid-template-columns:88px minmax(0,1fr) 44px; gap:9px; align-items:end; margin:12px 0; }
+.investment-comparison .po-edit-row label { font-size:10px; color:var(--ic-muted); min-width:0; }
+.investment-comparison .po-edit-row input { width:100%; height:48px; border:1px solid var(--ic-border); border-radius:9px; background:var(--ic-bg); color:var(--ic-text); padding:9px; font-size:16px; outline-offset:1px; }
+.investment-comparison .po-edit-actions { display:flex; justify-content:space-between; gap:10px; margin-top:17px; }
+.investment-comparison .po-edit-total { display:flex; align-items:center; justify-content:space-between; gap:14px; padding-top:16px; margin-top:16px; border-top:1px solid var(--ic-border); font-size:12px; color:var(--ic-muted); }
+.investment-comparison .po-edit-total strong { color:var(--ic-text); font-size:19px; font-weight:500; }
+.investment-comparison .po-form-error { color:var(--po-red); font-size:12px; margin:12px 0; }
+.investment-comparison .po-position-row { display:flex; align-items:center; justify-content:space-between; gap:14px; padding:13px 0; border-bottom:1px solid var(--ic-border); }
+.investment-comparison .po-position-row strong { font-weight:500; }
+.investment-comparison .po-position-row small { display:block; color:var(--ic-muted); font-size:11px; margin-top:3px; }
+.investment-comparison .po-position-row>div:last-child { text-align:right; }
+.investment-comparison .po-sr-only { position:absolute; width:1px; height:1px; padding:0; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+.investment-comparison.po-page button:focus-visible, .investment-comparison.po-modal-root button:focus-visible, .investment-comparison.po-modal-root a:focus-visible { outline:2px solid var(--po-gold); outline-offset:3px; }
+@media(max-width:520px) { .investment-comparison .po-header h1 { font-size:19px; } }
+@media(max-width:350px) { .investment-comparison .po-hero-main { padding:16px 13px; } .investment-comparison .po-hero-value strong { font-size:32px; } .investment-comparison .po-hero-footer>div { padding:12px; } .investment-comparison .po-edit-row { grid-template-columns:76px minmax(0,1fr) 44px; gap:6px; } .investment-comparison .po-company-line { gap:9px; } .investment-comparison .po-modal-content { padding:12px; } }
+@media(prefers-reduced-motion:reduce) { .investment-comparison .po-stack-part { transition:none; } }
