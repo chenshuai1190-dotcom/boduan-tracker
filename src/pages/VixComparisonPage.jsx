@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowLeft, Info, RefreshCw } from 'lucide-react';
+import { ArrowLeft, RefreshCw } from 'lucide-react';
 import VixComparisonChart, { ETF_LINE_COLOR, VIX_LINE_COLOR } from '../components/VixComparisonChart.jsx';
 import { loadVixComparison } from '../lib/vixComparison.js';
 import { buildVixComparisonModel, formatVixComparisonChangePercent, VIX_COMPARISON_RANGES } from '../lib/vixComparisonChart.js';
@@ -122,15 +122,7 @@ export default function VixComparisonPage({ ctx = {}, previewData }) {
       {model.hasComparison && <div className="mt-2 px-1 text-center text-[10px] text-white/30">{model.from} — {model.to} · {model.rows.length} {englishMode ? 'matched trading days' : '个共同交易日'}</div>}
       {partialHistory && <div className="mt-2 px-1 text-center text-[11px] text-amber-200/65">{englishMode ? `Available history starts ${model.from}; the selected period is not fully covered.` : `可用历史始于 ${model.from}，未覆盖完整所选区间。`}</div>}
 
-      <div className="mt-5 flex gap-2 px-1 text-[11px] leading-[1.75] text-white/40">
-        <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" strokeWidth={1.6} />
-        <div>
-          <p>{englishMode ? `${symbol} tracks the ${symbol === 'SPY' ? 'S&P 500' : 'Nasdaq-100'}; it is an ETF, not the index itself. ETF prices are adjusted for dividends and splits; VIX is shown in index points.` : `${symbol} 为跟踪${symbol === 'SPY' ? '标普 500' : '纳斯达克 100'}的 ETF，并非指数点位。ETF 使用分红、拆股调整后的复权价；VIX 使用指数点位。`}</p>
-          <p className="mt-1.5">{englishMode ? 'Daily changes compare with the previous trading close; ETF changes use adjusted prices. Missing previous closes are shown as —.' : '当日涨跌相对前一交易日收盘计算，ETF 使用复权口径；缺少前收盘时显示 —。'}</p>
-          <p className="mt-1.5">{englishMode ? 'Daily closing data, not live quotes. Chart and period statistics use matched trading days only.' : '日线收盘数据，非实时行情。图表与区间统计仅覆盖共同交易日。'}{data && !demoData ? ' EODHD.' : ''}</p>
-          {stale && data?.expectedAsOfDate && <p className="mt-1.5 text-amber-200/65">{englishMode ? `Latest expected trading date: ${data.expectedAsOfDate}.` : `最近应有交易日：${data.expectedAsOfDate}。`}</p>}
-        </div>
-      </div>
+      {stale && data?.expectedAsOfDate && <p className="mt-3 px-1 text-[11px] text-amber-200/65">{englishMode ? `Latest expected trading date: ${data.expectedAsOfDate}.` : `最近应有交易日：${data.expectedAsOfDate}。`}</p>}
     </div>
   );
 }

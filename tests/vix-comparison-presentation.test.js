@@ -25,3 +25,18 @@ test('compact VIX comparison retains accessible date selection, price units and 
     assert.ok(source.includes('formatVixComparisonChangePercent('), `${name} must retain shared signed-percent formatting`);
   }
 });
+
+test('VIX comparison removes static footer explanations while retaining data-status feedback', () => {
+  for (const text of [
+    'it is an ETF, not the index itself.', '的 ETF，并非指数点位。',
+    'Daily changes compare with the previous trading close;', '当日涨跌相对前一交易日收盘计算，',
+    'Daily closing data, not live quotes.', '日线收盘数据，非实时行情。',
+    ' EODHD.',
+  ]) assert.equal(pageSource.includes(text), false, `removed footer explanation must stay absent: ${text}`);
+  assert.equal(/\bInfo\b/.test(pageSource), false, 'the removed information icon must not remain');
+  assert.ok(pageSource.includes('stale && data?.expectedAsOfDate'));
+  assert.ok(pageSource.includes('Latest expected trading date:') && pageSource.includes('最近应有交易日：'));
+  assert.ok(pageSource.includes('partialHistory &&') && pageSource.includes('Available history starts') && pageSource.includes('可用历史始于'));
+  assert.ok(pageSource.includes('state.error &&') && pageSource.includes('role="alert"'));
+  assert.ok(pageSource.includes('Daily data could not be loaded.') && pageSource.includes('日线数据暂时无法读取。'));
+});
