@@ -86,7 +86,6 @@ body.po-overlap-modal-open { overflow:hidden !important; }
 .investment-comparison .po-detail-source-head>span { font-size:14px; }
 .investment-comparison .po-detail-source p { font-size:11px; color:var(--ic-muted); margin:4px 0 9px; }
 .investment-comparison .po-detail-source .po-stack-track { margin:0; height:8px; }
-.investment-comparison .po-source-link { color:var(--po-gold); font-size:11px; overflow-wrap:anywhere; }
 .investment-comparison .po-detail-total { padding-top:15px; border-top:1px solid var(--ic-border); display:flex; justify-content:space-between; gap:12px; margin-top:24px; }
 .investment-comparison .po-detail-total strong { font-weight:500; font-size:17px; }
 .investment-comparison .po-sheet-note { padding:11px 13px; border-radius:10px; background:var(--ic-panel); color:var(--ic-muted); font-size:11px; line-height:1.8; margin:23px 0 0; }
@@ -103,7 +102,7 @@ body.po-overlap-modal-open { overflow:hidden !important; }
 .investment-comparison .po-position-row small { display:block; color:var(--ic-muted); font-size:11px; margin-top:3px; }
 .investment-comparison .po-position-row>div:last-child { text-align:right; }
 .investment-comparison .po-sr-only { position:absolute; width:1px; height:1px; padding:0; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
-.investment-comparison.po-page button:focus-visible, .investment-comparison.po-modal-root button:focus-visible, .investment-comparison.po-modal-root a:focus-visible { outline:2px solid var(--po-gold); outline-offset:3px; }
+.investment-comparison.po-page button:focus-visible, .investment-comparison.po-modal-root button:focus-visible { outline:2px solid var(--po-gold); outline-offset:3px; }
 @media(max-width:520px) { .investment-comparison .po-header h1 { font-size:19px; } }
 @media(max-width:350px) { .investment-comparison .po-hero-main { padding:16px 13px; } .investment-comparison .po-hero-value strong { font-size:32px; } .investment-comparison .po-hero-footer>div { padding:12px; } .investment-comparison .po-edit-row { grid-template-columns:76px minmax(0,1fr) 44px; gap:6px; } .investment-comparison .po-company-line { gap:9px; } .investment-comparison .po-modal-content { padding:12px; } }
 @media(prefers-reduced-motion:reduce) { .investment-comparison .po-stack-part { transition:none; } }

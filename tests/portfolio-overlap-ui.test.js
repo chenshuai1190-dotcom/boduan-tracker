@@ -100,16 +100,27 @@ test('a missing market quote suppresses concentration cards and never invents a 
   assert.deepEqual(draftOf([{ symbol: 'NVDA', amount: null }]), [{ symbol: 'NVDA', amountText: '' }]);
 });
 
-test('source details show disclosed weights, date and source links rather than invented ETF weights', () => {
+test('source details retain disclosed weights, dates and stale warnings without provider links', () => {
   const model = testModel({ stale: true });
   const company = model.companies.find(item => item.symbol === 'NVDA');
   for (const englishMode of [false, true]) {
     const html = htmlOf(CompanyDetail, { company, model, englishMode });
     assert.match(html, /2026-09-04/); assert.match(html, /20%/);
-    assert.match(html, /href="https:\/\/example.com\/official-fund-holdings"/);
-    assert.match(html, /noopener noreferrer/);
     assert.match(html, englishMode ? /Stale source/ : /来源较旧/);
-    assert.doesNotMatch(html, /模拟成分权重|虚构|NaN/);
+    assert.doesNotMatch(html, /<a\b|href=|po-source-link|View source|查看来源|Test fund issuer|Test identity provider|模拟成分权重|虚构|NaN/);
+  }
+});
+
+test('coverage keeps disclosure dates and incomplete-data warnings without provider links', () => {
+  const model = testModel({ stale: true });
+  for (const englishMode of [false, true]) {
+    const html = htmlOf(PortfolioAnalysis, { model, englishMode, expanded: false });
+    assert.match(html, /2026-09-04/);
+    assert.match(html, /\$300/);
+    assert.match(html, englishMode ? /Disclosed basket 50.0%/ : /披露成分 50.0%/);
+    assert.match(html, englishMode ? /Stale or unavailable/ : /数据较旧或不可用/);
+    assert.match(html, englishMode ? /Some sources are stale or unavailable/ : /部分来源较旧或不可用/);
+    assert.doesNotMatch(html, /<a\b|href=|po-source-link|Test fund issuer|Test identity provider|View source|查看来源/);
   }
 });
 
@@ -149,7 +160,7 @@ const hookUrl = dataUrl(`
   export default {...React,useState,useRef,useMemo,useEffect,useCallback:(callback,deps)=>useMemo(()=>callback,deps)};
 `);
 const hooks = await import(hookUrl);
-const { PortfolioOverlapContent, PortfolioEditor } = await import(dataUrl(compiledPage(hookUrl, { dev: true, extra: internalExports })));
+const { PortfolioOverlapContent, PortfolioEditor, PortfolioOverlapSheet } = await import(dataUrl(compiledPage(hookUrl, { dev: true, extra: internalExports })));
 const elements = (node, predicate) => !React.isValidElement(node) ? [] : [...(predicate(node) ? [node] : []), ...React.Children.toArray(node.props.children).flatMap(child => elements(child, predicate))];
 const button = (tree, label) => elements(tree, node => node.type === 'button' && node.props['aria-label'] === label)[0];
 const settle = () => new Promise(resolve => setImmediate(resolve));
@@ -264,13 +275,127 @@ test('production source guards preview transport and never includes prototype we
   assert.match(source, /state\.key === requestKey/);
 });
 
-test('page uses the existing width contract and modal cleanup is separate from other overflow locks', () => {
+test('page uses the existing width contract and removes the source-link presentation entirely', () => {
   assert.match(source, /investment-comparison ic-page po-page/);
   assert.match(source, /<ActionModalCard/); assert.match(source, /createPortal/);
   assert.match(source, /document\.removeEventListener\('keydown', keydown, true\)/);
   assert.match(source, /body\.classList\.remove\('po-overlap-modal-open'\)/);
-  assert.doesNotMatch(source, /body\.style\.overflow\s*=/);
+  assert.doesNotMatch(source, /po-source-link|View source|查看来源/);
+  assert.doesNotMatch(css, /po-source-link/);
   assert.doesNotMatch(css, /430px|max-width:430/);
   assert.match(css, /min-height:64px/); assert.match(css, /font-size:21px/);
   assert.match(css, /width:44px; min-height:44px/);
+});
+
+function sheetHarness({ alreadyFixed = false } = {}) {
+  hooks.reset();
+  const originalDocument = Object.getOwnPropertyDescriptor(globalThis, 'document');
+  const originalWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
+  const bodyStyle = { overflow: 'auto', position: alreadyFixed ? 'fixed' : 'relative', top: '4px', left: '2px', right: '3px', width: '97%', color: 'red' };
+  const htmlStyle = { overflow: 'scroll', overscrollBehavior: 'contain', color: 'blue' };
+  const initialBody = { ...bodyStyle }, initialHtml = { ...htmlStyle };
+  const classes = new Set(), listeners = new Map(), frames = new Map(), actions = [];
+  const body = { nodeType: 1, style: bodyStyle, classList: { contains: value => classes.has(value), add: value => classes.add(value), remove: value => classes.delete(value) } };
+  const doc = { body, documentElement: { style: htmlStyle }, activeElement: null,
+    querySelectorAll: () => dialogs,
+    addEventListener(type, callback, capture) { listeners.set(type, { callback, capture }); },
+    removeEventListener(type, callback, capture) { const listener = listeners.get(type); assert.equal(listener?.callback, callback); assert.equal(listener?.capture, capture); listeners.delete(type); },
+  };
+  const focusTarget = name => ({ isConnected: true, hidden: false,
+    getClientRects: () => [{ width: 44, height: 44 }],
+    focus(options) { actions.push([`${name}:focus`, options]); doc.activeElement = this; },
+    blur() { actions.push([`${name}:blur`, bodyStyle.position]); doc.activeElement = body; },
+  });
+  const trigger = focusTarget('trigger'), control = focusTarget('control');
+  const dialog = { ...focusTarget('dialog'), setAttribute() {}, querySelectorAll: () => [control], contains: node => node === control || node === dialog };
+  const dialogs = [dialog];
+  doc.activeElement = trigger;
+  let nextFrame = 0;
+  const win = { scrollY: 684, pageYOffset: 684,
+    requestAnimationFrame(callback) { const id = ++nextFrame; frames.set(id, callback); return id; },
+    cancelAnimationFrame(id) { frames.delete(id); },
+    scrollTo(...args) { actions.push(['scrollTo', ...args]); },
+  };
+  Object.defineProperty(globalThis, 'document', { configurable: true, value: doc });
+  Object.defineProperty(globalThis, 'window', { configurable: true, value: win });
+  const restore = () => {
+    try { hooks.reset(); } finally {
+      if (originalDocument) Object.defineProperty(globalThis, 'document', originalDocument); else delete globalThis.document;
+      if (originalWindow) Object.defineProperty(globalThis, 'window', originalWindow); else delete globalThis.window;
+    }
+  };
+  const mount = () => {
+    const portal = hooks.render(PortfolioOverlapSheet, { title: 'Test sheet', englishMode: false, onClose() { actions.push(['close', doc.activeElement]); } });
+    portal.children.ref.current = { querySelector: () => dialog, contains: node => dialog.contains(node) };
+    hooks.flush();
+    for (const [id, callback] of frames) { frames.delete(id); callback(); }
+    return portal.children.props.children;
+  };
+  return { mount, restore, bodyStyle, htmlStyle, initialBody, initialHtml, classes, listeners, actions, doc, trigger, control, dialogs };
+}
+
+test('sheet locks the document at its current scroll and restores styles and focus without a jump', () => {
+  const harness = sheetHarness();
+  try {
+    harness.mount();
+    assert.deepEqual(harness.bodyStyle, { overflow: 'hidden', position: 'fixed', top: '-684px', left: '0', right: '0', width: '100%', color: 'red' });
+    assert.deepEqual(harness.htmlStyle, { overflow: 'hidden', overscrollBehavior: 'none', color: 'blue' });
+    assert.equal(harness.classes.has('po-overlap-modal-open'), true);
+    assert.equal(harness.listeners.has('keydown'), true);
+    harness.doc.activeElement = harness.control;
+    hooks.unmount();
+    assert.deepEqual(harness.bodyStyle, harness.initialBody);
+    assert.deepEqual(harness.htmlStyle, harness.initialHtml);
+    assert.equal(harness.classes.has('po-overlap-modal-open'), false);
+    assert.equal(harness.listeners.size, 0);
+    assert.ok(harness.actions.some(action => action[0] === 'control:blur' && action[1] === 'fixed'), 'focused dialog input is blurred before releasing the fixed body');
+    assert.ok(harness.actions.some(action => action[0] === 'scrollTo' && action[1] === 0 && action[2] === 684), 'original document scroll is restored');
+    assert.deepEqual(harness.actions.filter(action => action[0] === 'trigger:focus'), [['trigger:focus', { preventScroll: true }]]);
+  } finally { harness.restore(); }
+});
+
+test('sheet leaves another modal fixed-body lock intact and does not restore background focus over it', () => {
+  const harness = sheetHarness({ alreadyFixed: true });
+  try {
+    harness.mount();
+    assert.deepEqual(harness.bodyStyle, harness.initialBody);
+    assert.deepEqual(harness.htmlStyle, harness.initialHtml);
+    harness.dialogs.push({});
+    harness.doc.activeElement = harness.control;
+    hooks.unmount();
+    assert.deepEqual(harness.bodyStyle, harness.initialBody);
+    assert.deepEqual(harness.htmlStyle, harness.initialHtml);
+    assert.equal(harness.classes.has('po-overlap-modal-open'), false);
+    assert.equal(harness.listeners.size, 0);
+    assert.equal(harness.actions.some(action => ['scrollTo', 'trigger:focus'].includes(action[0])), false);
+  } finally { harness.restore(); }
+});
+
+test('close-button and Escape requests dismiss a focused dialog input before closing', () => {
+  for (const method of ['button', 'escape']) {
+    const harness = sheetHarness();
+    try {
+      const card = harness.mount();
+      harness.doc.activeElement = harness.control;
+      if (method === 'button') card.props.onClose();
+      else harness.listeners.get('keydown').callback({ key: 'Escape', preventDefault() {}, stopPropagation() {} });
+      const blurIndex = harness.actions.findIndex(action => action[0] === 'control:blur');
+      const closeIndex = harness.actions.findIndex(action => action[0] === 'close');
+      assert.ok(blurIndex >= 0 && closeIndex > blurIndex);
+      assert.notEqual(harness.actions[closeIndex][1], harness.control);
+    } finally { harness.restore(); }
+  }
+});
+
+test('successful editor submit blurs its own input before replacing the sheet', () => {
+  const harness = sheetHarness();
+  try {
+    harness.doc.activeElement = harness.control;
+    const props = { draft: [{ symbol: 'NVDA', amountText: '1250' }], setDraft() {}, englishMode: false, currentHoldings: [],
+      onSubmit(value) { assert.notEqual(harness.doc.activeElement, harness.control); assert.deepEqual(value, [{ symbol: 'NVDA', amount: 1250 }]); harness.actions.push(['submit']); },
+    };
+    const tree = hooks.render(PortfolioEditor, props);
+    tree.props.onSubmit({ preventDefault() {}, currentTarget: { contains: node => node === harness.control } });
+    assert.deepEqual(harness.actions.map(action => action[0]), ['control:blur', 'submit']);
+  } finally { harness.restore(); }
 });

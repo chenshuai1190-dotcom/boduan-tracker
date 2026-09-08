@@ -22,6 +22,10 @@ function PortfolioOverlapSheet({ title, englishMode, onClose, children }) {
   const rootRef = React.useRef(null);
   const closeRef = React.useRef(onClose);
   closeRef.current = onClose;
+  const close = () => {
+    if (rootRef.current?.contains(document.activeElement)) document.activeElement.blur?.();
+    closeRef.current?.();
+  };
   React.useEffect(() => {
     const root = rootRef.current;
     const dialog = root?.querySelector('[role="dialog"]');
@@ -29,15 +33,26 @@ function PortfolioOverlapSheet({ title, englishMode, onClose, children }) {
     const body = document.body;
     const alreadyLocked = body.classList.contains('po-overlap-modal-open');
     const trigger = document.activeElement;
-    // A dedicated class leaves other dialogs' inline overflow locks untouched.
+    const bodyStyle = body.style;
+    const htmlStyle = document.documentElement.style;
+    const scrollY = window.scrollY || window.pageYOffset || 0;
+    const ownsScrollLock = bodyStyle.position !== 'fixed';
+    const previousBody = Object.fromEntries(['overflow', 'position', 'top', 'left', 'right', 'width'].map(key => [key, bodyStyle[key]]));
+    const previousHtml = { overflow: htmlStyle.overflow, overscrollBehavior: htmlStyle.overscrollBehavior };
+    // Match the trading editor's iOS scroll lock, including the pull-refresh guard.
+    // A parent dialog's existing fixed-body lock remains owned by that dialog.
+    if (ownsScrollLock) {
+      Object.assign(bodyStyle, { overflow: 'hidden', position: 'fixed', top: `-${scrollY}px`, left: '0', right: '0', width: '100%' });
+      Object.assign(htmlStyle, { overflow: 'hidden', overscrollBehavior: 'none' });
+    }
     body.classList.add('po-overlap-modal-open');
     dialog.setAttribute('tabindex', '-1');
     const isTopDialog = () => [...document.querySelectorAll('[role="dialog"][aria-modal="true"]')].at(-1) === dialog;
     const focusable = () => [...dialog.querySelectorAll('button:not(:disabled),a[href],input:not(:disabled),select:not(:disabled),textarea:not(:disabled),[tabindex="0"]')].filter(node => !node.hidden && node.getClientRects().length);
-    const frame = window.requestAnimationFrame(() => (focusable()[0] || dialog).focus());
+    const frame = window.requestAnimationFrame(() => (focusable()[0] || dialog).focus({ preventScroll: true }));
     const keydown = event => {
       if (!isTopDialog()) return;
-      if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closeRef.current?.(); return; }
+      if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); close(); return; }
       if (event.key !== 'Tab') return;
       const targets = focusable(), first = targets[0], last = targets.at(-1);
       if (!first) { event.preventDefault(); dialog.focus(); return; }
@@ -48,13 +63,19 @@ function PortfolioOverlapSheet({ title, englishMode, onClose, children }) {
     return () => {
       window.cancelAnimationFrame(frame);
       document.removeEventListener('keydown', keydown, true);
+      if (dialog.contains(document.activeElement)) document.activeElement.blur?.();
       const otherDialog = [...document.querySelectorAll('[role="dialog"][aria-modal="true"]')].some(node => node !== dialog);
       if (!alreadyLocked) body.classList.remove('po-overlap-modal-open');
-      if (!otherDialog && trigger?.isConnected) trigger.focus?.();
+      if (ownsScrollLock) {
+        Object.assign(bodyStyle, previousBody);
+        Object.assign(htmlStyle, previousHtml);
+        window.scrollTo(0, scrollY);
+      }
+      if (!otherDialog && trigger?.isConnected) trigger.focus?.({ preventScroll: true });
     };
   }, []);
   if (typeof document === 'undefined') return null;
-  return createPortal(<div ref={rootRef} className="investment-comparison po-modal-root"><ActionModalCard title={title} closeLabel={englishMode ? 'Close dialog' : '关闭弹窗'} onClose={onClose} widthClassName="" panelClassName="po-modal-panel" overlayClassName="po-modal-overlay" titleClassName="po-modal-title" closeButtonClassName="po-modal-close" contentClassName="po-modal-content">{children}</ActionModalCard></div>, document.body);
+  return createPortal(<div ref={rootRef} className="investment-comparison po-modal-root"><ActionModalCard title={title} closeLabel={englishMode ? 'Close dialog' : '关闭弹窗'} onClose={close} widthClassName="" panelClassName="po-modal-panel" overlayClassName="po-modal-overlay" titleClassName="po-modal-title" closeButtonClassName="po-modal-close" contentClassName="po-modal-content">{children}</ActionModalCard></div>, document.body);
 }
 
 function Methodology({ englishMode }) {
@@ -96,7 +117,6 @@ function CompanyDetail({ company, model, englishMode, onEdit }) {
         <p>{source.kind === 'direct' ? `${source.symbol} ${englishMode ? 'holding' : '持仓'}` : `${dollars(position?.amount)} × ${englishMode ? 'disclosed weight ' : '披露权重 '}${disclosedWeight(source.weightPct)}`} → {dollars(source.amount)}</p>
         <div className="po-stack-track" aria-hidden="true"><span className="po-stack-part" style={{ '--po-source': sourceColor(source), width: `${company.amount > 0 ? source.amount / company.amount * 100 : 0}%` }} /></div>
         <p>{source.kind === 'direct' ? (englishMode ? 'Instrument identity verified' : '证券类型已核验') : `${englishMode ? 'Disclosure date: ' : '成分披露日：'}${source.asOfDate || '—'}`}{metadata?.stale ? (englishMode ? ' · Stale source' : ' · 来源较旧') : ''}</p>
-        {source.source?.url && <a className="po-source-link" href={source.source.url} target="_blank" rel="noopener noreferrer">{source.source.provider} · {englishMode ? 'View source' : '查看来源'} ↗</a>}
       </section>;
     })}
     <div className="po-detail-total"><span>{englishMode ? 'Total identified exposure' : '已识别持有合计'}</span><strong>{dollars(company.amount)}</strong></div>
@@ -116,6 +136,7 @@ function PortfolioEditor({ draft, setDraft, englishMode, currentHoldings, onSubm
     try { normalizePortfolioOverlapSymbols(draft.map(row => row.symbol)); } catch { symbolsValid = false; }
     const invalid = !symbolsValid || draft.length > MAX_CUSTOM_HOLDINGS || draft.some((row, index) => !Number.isFinite(numeric[index]) || numeric[index] < 0 || numeric[index] > 1e9);
     if (invalid) { setError(englishMode ? 'Enter a valid US symbol and an amount from 0 to $1 billion for every row. Missing amounts must be filled in.' : '每项请输入有效美股代码及 0 至 10 亿美元金额；缺失金额需要自行补充。'); return; }
+    if (event.currentTarget?.contains(document.activeElement)) document.activeElement.blur?.();
     onSubmit(draft.map((row, index) => ({ symbol: row.symbol.trim().toUpperCase(), amount: numeric[index] })));
   };
   return <form onSubmit={submit} noValidate>
@@ -151,7 +172,7 @@ function PortfolioAnalysis({ model, englishMode, expanded, setExpanded, onCompan
       {model.valuationComplete && model.total > 0 && <div className="po-coverage-bar" aria-hidden="true">{coverage.map(([label, value, , color]) => <span key={label} style={{ '--po-source': color, '--po-width': `${value}%` }} />)}</div>}
       {coverage.map(([label, value, amount, color]) => <div className="po-coverage-line" key={label}><span><i className="po-dot" style={{ '--po-source': color }} />{label}</span><strong>{percentage(value)} · {formatInvestmentAmount(amount, englishMode)}</strong></div>)}
       {!model.valuationComplete && <p className="po-method-copy">{englishMode ? 'The amounts above cover quoted holdings only. The unpriced portion is additional and cannot yet be measured.' : '上面的金额仅覆盖已有报价的持仓；无报价部分另缺，尚不能衡量。'}</p>}
-      {model.positions.map(position => <div className="po-position-row" key={position.symbol}><div><strong>{position.symbol}</strong><small><InstrumentStatus position={position} englishMode={englishMode} /></small>{position.metadata.asOfDate && <small>{englishMode ? 'Disclosure ' : '披露 '}{position.metadata.asOfDate}</small>}{position.metadata.source?.url && <a className="po-source-link" href={position.metadata.source.url} target="_blank" rel="noopener noreferrer">{position.metadata.source.provider} ↗</a>}</div><div><strong>{dollars(position.amount)}</strong><small>{percentage(position.percent)}</small></div></div>)}
+      {model.positions.map(position => <div className="po-position-row" key={position.symbol}><div><strong>{position.symbol}</strong><small><InstrumentStatus position={position} englishMode={englishMode} /></small>{position.metadata.asOfDate && <small>{englishMode ? 'Disclosure ' : '披露 '}{position.metadata.asOfDate}</small>}</div><div><strong>{dollars(position.amount)}</strong><small>{percentage(position.percent)}</small></div></div>)}
       <p className="po-method-copy">{englishMode ? 'All percentages use the whole portfolio as the denominator. Unexpanded holdings are not treated as zero. Identified security weights and the top-five total only describe the identified portion.' : '占比统一以组合总金额为分母。未穿透部分没有当作零；标的占比和前五合计仅表示已识别部分。'}</p>
     </details>
   </>;
