@@ -52,6 +52,19 @@ const DrawdownOverview = React.memo(function DrawdownOverview({ data, active, co
   const selectedAnchor = x(lowest) > width * 0.7 ? 'end' : 'start';
   const inspecting = currentInspection.hoverIndex !== null || currentInspection.selectedIndex !== null;
   const readoutIndex = Math.max(0, Math.min(lastIndex, currentInspection.hoverIndex ?? currentInspection.selectedIndex ?? lastIndex));
+  React.useEffect(() => {
+    if (currentInspection.selectedIndex === null || typeof document === 'undefined') return undefined;
+    // A completed outside click dismisses inspection; pointerdown/scroll must
+    // not, since they can be the beginning of a native vertical swipe.
+    const dismissOutside = event => {
+      const chart = containerRef.current;
+      if (!chart || chart.contains(event.target)) return;
+      gestureRef.current = null;
+      setInspection({ data, selectedIndex: null, hoverIndex: null });
+    };
+    document.addEventListener('click', dismissOutside, true);
+    return () => document.removeEventListener('click', dismissOutside, true);
+  }, [containerRef, data, currentInspection.selectedIndex]);
   const updateInspection = patch => setInspection(current => ({ ...(current.data === data ? current : { data, selectedIndex: null, hoverIndex: null }), ...patch }));
   const indexAtPointer = event => {
     const box = event.currentTarget.getBoundingClientRect();

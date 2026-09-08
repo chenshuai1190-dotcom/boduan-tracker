@@ -90,17 +90,24 @@ function findAll(node, predicate) {
 }
 const classNode = (tree, className) => findAll(tree, node => node.props.className === className)[0];
 
-function overviewInteraction({ data = buildInvestmentDrawdownModel(comparisonModel()), reset = true } = {}) {
+function overviewInteraction({ data = buildInvestmentDrawdownModel(comparisonModel()), reset = true, mount = false } = {}) {
   if (reset) hooks.reset();
   const props = { data, active: 'QQQ', colors: { QQQ: '#fff', TQQQ: '#000' }, onActivate() {}, englishMode: true };
   const captured = new Set();
+  const inside = {};
   const target = {
     getBoundingClientRect: () => ({ left: 0, width: 360 }),
+    contains: node => node === target || node === inside,
     setPointerCapture: id => captured.add(id),
     hasPointerCapture: id => captured.has(id),
     releasePointerCapture: id => captured.delete(id),
   };
-  const render = () => { const tree = hooks.render(DrawdownOverview, props, 'overview'); hooks.flush(); return tree; };
+  const render = () => {
+    const tree = hooks.render(DrawdownOverview, props, 'overview');
+    if (mount) findAll(tree, node => node.props.role === 'slider')[0].ref.current = target;
+    hooks.flush();
+    return tree;
+  };
   const area = () => findAll(render(), node => node.props.role === 'slider')[0].props;
   const pointer = (index, overrides = {}) => ({
     pointerId: 1, pointerType: 'touch', button: 0, buttons: 1, isPrimary: true,
@@ -127,8 +134,77 @@ function overviewInteraction({ data = buildInvestmentDrawdownModel(comparisonMod
     assert.equal(React.Children.toArray(classNode(tree, 'ic-dd-overview-readout').props.children)[0].props.children, date);
     assert.equal(findAll(tree, node => node.props.className === 'ic-dd-inspection-line').length, crosshair ? 1 : 0);
   };
-  return { props, render, area, pointer, inspect, cancel, assertSelection, captured };
+  return { props, render, area, pointer, inspect, cancel, assertSelection, captured, target, inside };
 }
+
+function documentEvents(t) {
+  const previous = globalThis.document;
+  const listeners = [];
+  globalThis.document = {
+    addEventListener(type, callback, capture) { listeners.push({ type, callback, capture }); },
+    removeEventListener(type, callback, capture) {
+      const index = listeners.findIndex(listener => listener.type === type && listener.callback === callback && listener.capture === capture);
+      assert.notEqual(index, -1, 'effect cleanup must remove the same event, callback and capture flag');
+      listeners.splice(index, 1);
+    },
+  };
+  t.after(() => { hooks.reset(); if (previous === undefined) delete globalThis.document; else globalThis.document = previous; });
+  const dispatch = (type, target, onTarget = () => {}) => {
+    const event = { type, target, preventDefault: () => assert.fail('outside dismissal must preserve the clicked action'), stopPropagation: () => assert.fail('outside dismissal must not swallow clicks') };
+    for (const listener of [...listeners]) if (listener.type === type) listener.callback(event);
+    onTarget(event);
+  };
+  return { listeners, dispatch };
+}
+
+test('outside click clears pinned inspection without swallowing the action, while plot clicks, release, blur and scrolling preserve it', t => {
+  const events = documentEvents(t);
+  const chart = overviewInteraction({ mount: true });
+  chart.assertSelection(5, false);
+  assert.equal(events.listeners.length, 0);
+  chart.area().onPointerMove(chart.pointer(1, { pointerType: 'mouse', buttons: 0 }));
+  chart.assertSelection(1);
+  assert.equal(events.listeners.length, 0, 'temporary mouse hover must not install an outside-click listener');
+  chart.area().onPointerLeave(chart.pointer(1, { pointerType: 'mouse', buttons: 0 }));
+  chart.inspect(2);
+  chart.assertSelection(2);
+  assert.deepEqual(events.listeners.map(({ type, capture }) => ({ type, capture })), [{ type: 'click', capture: true }]);
+  chart.area().onPointerLeave(chart.pointer(2, { buttons: 0 }));
+  chart.area().onBlur({});
+  events.dispatch('pointerdown', {});
+  events.dispatch('scroll', {});
+  events.dispatch('click', chart.inside);
+  chart.assertSelection(2);
+  let clicked = false;
+  events.dispatch('click', {}, () => { clicked = true; });
+  assert.equal(clicked, true);
+  chart.assertSelection(5, false);
+  assert.equal(events.listeners.length, 0);
+});
+
+test('outside-click listener is removed on explicit reset, history replacement and unmount without interrupting replay', t => {
+  const events = documentEvents(t);
+  const replay = replayHost(t);
+  let tree = replay.render(); classNode(tree, 'ic-dd-play').props.onClick(); replay.render();
+  const chart = overviewInteraction({ data: replay.data, reset: false, mount: true });
+  chart.inspect(0);
+  assert.equal(events.listeners.length, 1);
+  classNode(chart.render(), 'ic-dd-reset-inspection').props.onClick();
+  chart.assertSelection(5, false);
+  assert.equal(events.listeners.length, 0);
+  chart.inspect(1);
+  chart.props.data = buildInvestmentDrawdownModel(comparisonModel());
+  chart.assertSelection(5, false);
+  assert.equal(events.listeners.length, 0);
+  chart.inspect(2);
+  events.dispatch('click', {});
+  chart.assertSelection(5, false);
+  assert.equal(classNode(replay.render(), 'ic-dd-play').props['aria-pressed'], true);
+  chart.inspect(1);
+  assert.equal(events.listeners.length, 1);
+  hooks.reset();
+  assert.equal(events.listeners.length, 0);
+});
 
 test('touch inspection stays pinned after release, pointer leave, focus loss and horizontal dragging', () => {
   const chart = overviewInteraction();
