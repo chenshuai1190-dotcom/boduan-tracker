@@ -42,6 +42,7 @@ const PnlReportPage = lazy(() => import('./pages/PnlReportPage.jsx'));
 const PnlSharePage = lazy(() => import('./pages/PnlSharePage.jsx'));
 const HomeMarginRiskPage = lazy(() => import('./pages/HomeMarginRiskPage.jsx'));
 const VixComparisonPage = lazy(() => import('./pages/VixComparisonPage.jsx'));
+const InvestmentComparisonPage = lazy(() => import('./pages/InvestmentComparisonPage.jsx'));
 const StockDetailPage = lazy(() => import('./pages/StockDetailPage.jsx'));
 const WatchlistStockDetailPage = lazy(() => import('./pages/WatchlistStockDetailPage.jsx'));
 const WaveTrackerPage = lazy(() => import('./pages/WaveTrackerPage.jsx'));
@@ -5172,6 +5173,14 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     pendingHomeScrollTopRef.current = homeScrollTopBeforeVixRef.current;
     setActivePage(null);
   }, []);
+  const openInvestmentComparison = useCallback(() => {
+    setActiveTab('trades');
+    setActivePage('investment-comparison');
+  }, []);
+  const closeInvestmentComparison = useCallback(() => {
+    setActiveTab('trades');
+    setActivePage(null);
+  }, []);
   const openStockDetail = useCallback((symbol) => {
     const normalizedSymbol = String(symbol || '').trim().toUpperCase();
     if (!normalizedSymbol) return;
@@ -5380,7 +5389,8 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   const isEarningsCalendarPage = activePage === 'earnings-calendar';
   const isEarningsDetailPage = activePage === 'earnings-detail';
   const isVixComparisonPage = activePage === 'vix-comparison';
-  const isStandalonePage = isPnlReportPage || isPnlSharePage || isHomeMarginRiskPage || isStockDetailPage || isWatchlistStockDetailPage || isWaveTrackerPage || isCommunityCompetitionPage || isEarningsCalendarPage || isEarningsDetailPage || isVixComparisonPage;
+  const isInvestmentComparisonPage = activePage === 'investment-comparison';
+  const isStandalonePage = isPnlReportPage || isPnlSharePage || isHomeMarginRiskPage || isStockDetailPage || isWatchlistStockDetailPage || isWaveTrackerPage || isCommunityCompetitionPage || isEarningsCalendarPage || isEarningsDetailPage || isInvestmentComparisonPage || isVixComparisonPage;
   const isFullBleedPage = isPnlSharePage || isCommunityCompetitionPage || isEarningsCalendarPage || isEarningsDetailPage;
   const hideBottomNavigation = isPnlReportPage || isPnlSharePage;
   const ActiveTab = TAB_COMPONENTS[activeTab] || HomeTab;
@@ -5569,6 +5579,8 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     openHomeMarginRisk,
     openVixComparison,
     closeVixComparison,
+    openInvestmentComparison,
+    closeInvestmentComparison,
     openPnlReport,
     openPnlShare,
     pnlReportRefreshVersion,
@@ -5899,6 +5911,8 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
               ? <HomeMarginRiskPage ctx={tabCtx} />
               : isVixComparisonPage
                 ? <VixComparisonPage ctx={{ ...tabCtx, userId: user?.id || '' }} />
+              : isInvestmentComparisonPage
+                ? <InvestmentComparisonPage ctx={{ userId: user?.id || '', language, closeInvestmentComparison }} />
               : isStockDetailPage
                 ? <StockDetailPage ctx={tabCtx} />
                 : isWatchlistStockDetailPage

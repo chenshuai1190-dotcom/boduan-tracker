@@ -66,11 +66,13 @@ npm run release:verify -- <docs|fast|full> <commit> # 一次等待发布结果
 | 内部收益比赛 | `community_competition_*`、独立 API/Cron、publication marker |
 | 财报日历 | `/api/earnings-calendar` |
 | 行情和涨跌榜 | 已登录 `/api/quote` 与服务端 relay |
+| 投资对比小工具 | 交易 → 全部功能 → 独立页面；只读 `/api/quote?view=investment-comparison` 与 `investment-search`，不连接交易账本 |
 
 这些边界不得为了复用 UI 或保存函数而重新耦合。正式交易、波段和摊薄工具必须使用显式 scope，不能把数据写入错误账本。
 
 - Vercel Hobby 必须保持不超过 12 个独立函数。三个 `/api/close-snapshot-schedule*` 路径通过 rewrite 复用现有受保护 scheduler；不要为同一 Cron 随意新增函数。
 - 所有本地业务缓存必须带 authenticated `user.id`。多账户 session vault 不保存密码，账户切换必须按 user ID remount，禁止上一账户数据短暂渲染到下一账户。
+- 投资对比只接受经服务端验证身份的美元美股普通股和 ETF，使用 EODHD `adjusted_close`；两个标的在所选年份后的首个共同交易日等额一次买入。总资产包含本金，累计盈亏不含本金；年度收益以此前年度最后一个有效收盘为基数，首年从实际买入日计算。允许碎股，不计税费或汇率；缺失、上市前和未完成交易日不能补造价格，旧行情必须明确标记待更新。此工具不创建订单、不保存持仓，也不写收益或比赛快照。
 - 邀请注册必须先原子创建完整 `community_profiles`，再消费邀请码；任一步失败都回滚新 Auth 用户。完成资料不等于自动加入收益比赛。
 
 ## 永久安全规则

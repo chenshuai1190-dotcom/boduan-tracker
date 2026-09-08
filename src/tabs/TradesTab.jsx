@@ -459,6 +459,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
     openHomeMarginRisk,
     openWaveTracker,
     openCommunityCompetition,
+    openInvestmentComparison,
     portfolioCurrencyMode,
     Plus,
     qqqSignalQuote,
@@ -1137,6 +1138,15 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                   setShowAllToolsModal(false);
                   setToolPanel('');
                   openCommunityCompetition?.();
+                },
+              },
+              {
+                key: 'investment-comparison',
+                label: tt('trades.investmentComparison', '投资对比'),
+                onClick: () => {
+                  setShowAllToolsModal(false);
+                  setToolPanel('');
+                  openInvestmentComparison?.();
                 },
               },
             ]}

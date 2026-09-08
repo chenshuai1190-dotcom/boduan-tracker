@@ -4,6 +4,23 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '📈 交易 → 全部功能新增独立投资对比工具',
+      '  - 自定义两只美股或 ETF、起始年份和等额本金，动态回放真实日线与逐年收益',
+      '  - 使用 EODHD 分红拆股复权收盘价，明确区分总资产、累计盈亏与收益率；上市前不虚构历史',
+      '  - 领先红、落后绿，放大曲线并显示动态盈利；搜索与历史保持登录鉴权，缺数或旧数据明确提示',
+      '  - 工具只做假设投资回顾，不写入资金、持仓、交易、个人收益或比赛账本',
+    ],
+    itemsEn: [
+      '📈 Standalone Investment Comparison in Trades → All Tools',
+      '  - Choose two U.S. stocks or ETFs, a start year and equal principal to replay actual daily history and yearly returns',
+      '  - EODHD split- and dividend-adjusted closes distinguish total assets, cumulative profit and return; no invented pre-listing history',
+      '  - Red leader and green laggard curves with dynamic profit labels; authenticated search and history clearly report missing or stale data',
+      '  - Hypothetical investment review only, with no writes to cash, positions, trades, personal returns or competition ledgers',
+    ],
+  },
+  {
+    ver: 'v10.7.9.487', date: '2026-09-08',
+    items: [
       '📈 首页 VIX 新增独立市场走势对比页',
       '  - 点击首页 VIX 卡片，对比 SPY 或 QQQ，支持 1 个月至 5 年历史走势及同日滑动读数',
       '  - 接入 EODHD 真实已完成日线：VIX 使用点位，ETF 使用复权价；顶部和历史选中日期分别显示当日涨跌幅',

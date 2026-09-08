@@ -8,6 +8,7 @@ import { parseSymbolsParam } from '../server/quote/symbols.js';
 import { fetchStockFundamentals } from '../server/quote/fundamentals.js';
 import { fetchStockValuation } from '../server/quote/valuation.js';
 import { fetchVixComparison } from '../server/quote/vixComparison.js';
+import { fetchInvestmentComparison, searchInvestmentSymbols, InvestmentComparisonError } from '../server/quote/investmentComparison.js';
 
 export default async function handler(req, res) {
   setCorsHeaders(req, res);
@@ -36,6 +37,8 @@ export default async function handler(req, res) {
   const fundamentalsRequested = requestedView === 'fundamentals';
   const valuationRequested = requestedView === 'valuation';
   const vixComparisonRequested = requestedView === 'vix-comparison';
+  const investmentComparisonRequested = requestedView === 'investment-comparison';
+  const investmentSearchRequested = requestedView === 'investment-search';
   if (
     view !== undefined
     && !marketMoversRequested
@@ -43,10 +46,27 @@ export default async function handler(req, res) {
     && !fundamentalsRequested
     && !valuationRequested
     && !vixComparisonRequested
+    && !investmentComparisonRequested
+    && !investmentSearchRequested
   ) {
     return sendError(res, 400, '不支持的 view 参数');
   }
   const eodhdKey = (process.env.EODHD_API_KEY || '').trim().replace(/[\s\u200B-\u200D\uFEFF]/g, '');
+  if (investmentComparisonRequested || investmentSearchRequested) {
+    try {
+      if (Array.isArray(view) || Array.isArray(symbols) || Array.isArray(req.query.q)) {
+        throw new InvestmentComparisonError(investmentSearchRequested ? 'INVALID_QUERY' : 'INVALID_SYMBOLS');
+      }
+      if (investmentSearchRequested && symbols !== undefined) throw new InvestmentComparisonError('INVALID_QUERY');
+      const data = investmentSearchRequested
+        ? await searchInvestmentSymbols(req.query.q, { eodhdKey })
+        : await fetchInvestmentComparison(symbols, { eodhdKey });
+      return res.status(200).json({ success: true, data });
+    } catch (cause) {
+      const failure = cause instanceof InvestmentComparisonError ? cause : new InvestmentComparisonError('PROVIDER_UNAVAILABLE');
+      return sendError(res, failure.status, failure.message, { code: failure.code });
+    }
+  }
   if (vixComparisonRequested) {
     if (symbols !== undefined) return sendError(res, 400, 'vix-comparison 不接受 symbols 参数');
     if (!eodhdKey) {

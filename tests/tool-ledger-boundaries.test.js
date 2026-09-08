@@ -2378,7 +2378,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.equal(reviewTabSource.includes('融资杠杆监控'), false, 'leverage monitor card should be removed from the review page UI');
   assert.equal(reviewTabSource.includes('setShowEditMargin'), false, 'review page should not keep a leverage edit entry point');
   assert.equal(reviewTabSource.includes('1 USD = {fxRate.toFixed(2)} RMB'), false, 'review header should not show the fx rate helper text');
-  assert.ok(devVisualPreviewSource.includes("['home', 'trades', 'analysis', 'review', 'settings', 'pnl-report', 'pnl-share', 'home-margin-risk', 'stock-detail', 'watchlist-stock-detail', 'wave-tracker', 'community-competition', 'vix-comparison'].includes(requestedTab)"), 'local visual preview should support all tabs plus the report-style standalone pages directly');
+  assert.ok(devVisualPreviewSource.includes("['home', 'trades', 'analysis', 'review', 'settings', 'pnl-report', 'pnl-share', 'home-margin-risk', 'stock-detail', 'watchlist-stock-detail', 'wave-tracker', 'community-competition', 'vix-comparison', 'investment-comparison'].includes(requestedTab)"), 'local visual preview should support all tabs plus the report-style standalone pages directly');
   assert.ok(authGateSource.includes("get('devPreview') === '1'"), 'local visual preview should be force-openable for screenshot QA even when Supabase env is present');
   assert.ok(devVisualPreviewSource.includes("const HomeTab = lazy(() => import('./tabs/HomeTab.jsx'))"), 'local visual preview should be able to render the home page mock');
   assert.ok(devVisualPreviewSource.includes("const TradesTab = lazy(() => import('./tabs/TradesTab.jsx'))"), 'local visual preview should be able to render the trades page mock');
