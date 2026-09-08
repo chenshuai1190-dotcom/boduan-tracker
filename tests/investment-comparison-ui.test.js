@@ -59,3 +59,11 @@ test('investment search and data loading retain authentication and isolated requ
   assert.ok(pageSource.includes('EODHD · 复权日线') && pageSource.includes('EODHD · Adjusted daily closes'));
   assert.ok(pageSource.includes('计算口径') && pageSource.includes('Calculation method'));
 });
+
+test('investment playback defaults to 0.2x and retains a slower 0.1x option without rounding the speed', () => {
+  assert.ok(pageSource.includes('const [speed, setSpeed] = React.useState(0.2)'));
+  assert.ok(pageSource.includes('[0.1, 0.2, 0.4, 0.6, 0.8, 1, 2, 4].map'));
+  assert.ok(pageSource.includes('setSpeed(Number(event.target.value))'));
+  assert.ok(pageSource.includes('PLAYBACK_DAYS_PER_SECOND * speed'));
+  assert.ok(pageSource.includes('const wholeDays = Math.floor(accumulated)'), 'fractional speed must still advance through actual whole trading days');
+});
