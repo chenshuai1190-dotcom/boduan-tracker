@@ -1,0 +1,101 @@
+.investment-comparison .ic-dd-body { --ic-dd-red: #ff655e; --ic-dd-green: #4fd0a1; --ic-dd-gold: #eebc65; }
+.investment-comparison .ic-dd-body button { color: var(--ic-text); }
+.investment-comparison .ic-dd-body button:focus-visible,
+.investment-comparison .ic-dd-body summary:focus-visible,
+.investment-comparison .ic-dd-chart:focus-visible { outline: 2px solid var(--ic-dd-gold); outline-offset: 3px; }
+.investment-comparison .ic-dd-comparison { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+.investment-comparison .ic-dd-metric { position: relative; width: 100%; text-align: left; padding: 13px 12px; border: 1px solid var(--ic-border); border-radius: 14px; background: transparent; min-width: 0; }
+.investment-comparison .ic-dd-metric[aria-pressed="true"] { background: var(--ic-panel); border-color: var(--ic-muted); }
+.investment-comparison .ic-dd-identity { display: flex; justify-content: space-between; align-items: center; gap: 5px; font-size: 16px; font-weight: 500; }
+.investment-comparison .ic-dd-identity small { font-size: 10px; color: var(--ic-muted); font-weight: 400; }
+.investment-comparison .ic-dd-identity .ic-dd-selected { color: var(--ic-dd-gold); }
+.investment-comparison .ic-dd-label { color: var(--ic-muted); font-size: 11px; margin-top: 12px; }
+.investment-comparison .ic-dd-depth { font-size: 31px; font-weight: 500; letter-spacing: -1px; line-height: 1.4; }
+.investment-comparison .ic-dd-wait { padding-top: 10px; margin-top: 10px; border-top: 1px solid var(--ic-border); display: flex; align-items: baseline; justify-content: space-between; gap: 5px; }
+.investment-comparison .ic-dd-wait span { font-size: 10px; color: var(--ic-muted); }
+.investment-comparison .ic-dd-wait strong { font-size: 15px; font-weight: 500; white-space: nowrap; }
+.investment-comparison .ic-dd-section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+.investment-comparison .ic-dd-section-head h2 { font-size: 16px; font-weight: 500; margin: 0; letter-spacing: -.2px; }
+.investment-comparison .ic-dd-section-head > span { color: var(--ic-muted); font-size: 11px; text-align: right; }
+.investment-comparison .ic-dd-overview-section { margin-top: 28px; }
+.investment-comparison .ic-dd-legend { display: flex; gap: 18px; margin-bottom: 4px; }
+.investment-comparison .ic-dd-legend button { display: flex; gap: 7px; align-items: center; border: 0; background: transparent; padding: 0; min-height: 44px; font-size: 12px; }
+.investment-comparison .ic-dd-legend i { display: inline-block; width: 14px; height: 2px; border-radius: 2px; }
+.investment-comparison .ic-dd-chart { position: relative; margin-left: -6px; width: calc(100% + 6px); touch-action: pan-y; user-select: none; -webkit-user-select: none; outline: none; }
+.investment-comparison .ic-dd-chart svg { display: block; width: 100%; overflow: visible; }
+.investment-comparison .ic-dd-chart text { font-family: inherit; font-size: 11px; fill: var(--ic-muted); }
+.investment-comparison .ic-dd-chart .ic-dd-value-label { font-size: 12px; font-weight: 500; fill: var(--ic-text); paint-order: stroke; stroke: var(--ic-bg); stroke-width: 4px; }
+.investment-comparison .ic-dd-grid { stroke: var(--ic-grid); stroke-width: 1; }
+.investment-comparison .ic-dd-inspection-line,
+.investment-comparison .ic-dd-baseline { stroke: var(--ic-muted); }
+.investment-comparison .ic-dd-overview-readout { min-height: 35px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; font-size: 11px; color: var(--ic-muted); border-bottom: 1px solid var(--ic-border); padding: 7px 0 16px; }
+.investment-comparison .ic-dd-overview-readout span { white-space: nowrap; }
+.investment-comparison .ic-dd-overview-readout b { font-weight: 400; }
+.investment-comparison .ic-dd-journey { margin-top: 27px; scroll-margin-top: 18px; }
+.investment-comparison .ic-dd-episode-tabs { display: flex; gap: 7px; margin: 16px 0 22px; }
+.investment-comparison .ic-dd-episode-tabs button { flex: 1; min-width: 0; min-height: 44px; padding: 5px 6px; font-size: 12px; background: transparent; border: 1px solid var(--ic-border); border-radius: 9px; color: var(--ic-muted); }
+.investment-comparison .ic-dd-episode-tabs button[aria-pressed="true"] { color: var(--ic-text); background: var(--ic-panel); border-color: var(--ic-muted); }
+.investment-comparison .ic-dd-journey-head { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+.investment-comparison .ic-dd-eyebrow { color: var(--ic-muted); font-size: 11px; display: block; }
+.investment-comparison .ic-dd-journey-head strong { display: block; font-size: 24px; font-weight: 500; letter-spacing: -.6px; margin-top: 3px; }
+.investment-comparison .ic-dd-journey-change { text-align: right; }
+.investment-comparison .ic-dd-journey-change strong { font-size: 22px; }
+.investment-comparison .ic-dd-green { color: var(--ic-dd-green); }
+.investment-comparison .ic-dd-red { color: var(--ic-dd-red); }
+.investment-comparison .ic-dd-player { display: flex; gap: 10px; align-items: center; margin-top: 10px; }
+.investment-comparison .ic-dd-body .ic-dd-play { display: flex; align-items: center; justify-content: center; gap: 7px; min-width: 138px; min-height: 44px; border: 0; border-radius: 24px; background: var(--ic-text); color: var(--ic-bg); padding: 10px 18px; font-size: 13px; font-weight: 500; }
+.investment-comparison .ic-dd-play svg { flex-shrink: 0; }
+.investment-comparison .ic-dd-speed { min-height: 44px; padding: 5px; color: var(--ic-muted); border: 0; background: transparent; font-size: 12px; }
+.investment-comparison .ic-dd-player > span { margin-left: auto; color: var(--ic-muted); font-size: 11px; text-align: right; }
+.investment-comparison .ic-dd-scrubber { display: block; width: 100%; min-height: 44px; margin: 4px 0 10px; accent-color: var(--ic-text); }
+.investment-comparison .ic-dd-milestones { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px; margin-top: 7px; position: relative; }
+.investment-comparison .ic-dd-milestone { min-width: 0; border-top: 1px solid var(--ic-border); padding-top: 13px; position: relative; }
+.investment-comparison .ic-dd-milestone::before { position: absolute; content: ''; top: -4px; width: 7px; height: 7px; border-radius: 50%; background: var(--ic-dd-gold); }
+.investment-comparison .ic-dd-milestone:nth-child(2)::before { background: var(--ic-dd-green); }
+.investment-comparison .ic-dd-milestone:nth-child(3)::before { background: var(--ic-dd-red); }
+.investment-comparison .ic-dd-milestone strong { display: block; font-weight: 500; font-size: 12px; margin: 5px 0; }
+.investment-comparison .ic-dd-milestone span { color: var(--ic-muted); font-size: 10px; display: block; }
+.investment-comparison .ic-dd-milestone b { display: block; font-size: 12px; font-weight: 400; }
+.investment-comparison .ic-dd-duration { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; margin: 20px 0 0; padding: 15px 0 20px; border-bottom: 1px solid var(--ic-border); }
+.investment-comparison .ic-dd-duration span { display: block; font-size: 11px; color: var(--ic-muted); }
+.investment-comparison .ic-dd-duration strong { font-size: 17px; font-weight: 500; display: block; margin-top: 5px; }
+.investment-comparison .ic-dd-duration .ic-dd-total { grid-column: 1/-1; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px; border-radius: 10px; background: var(--ic-panel); }
+.investment-comparison .ic-dd-total strong { margin: 0; font-size: 18px; white-space: nowrap; }
+.investment-comparison .ic-dd-principal-section { margin: 27px 0; }
+.investment-comparison .ic-dd-principal-stats { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 14px; margin-top: 18px; }
+.investment-comparison .ic-dd-principal-stats span { display: block; font-size: 11px; color: var(--ic-muted); }
+.investment-comparison .ic-dd-principal-stats strong { display: block; font-size: 20px; font-weight: 500; margin: 5px 0; }
+.investment-comparison .ic-dd-principal-stats small { font-size: 11px; color: var(--ic-muted); }
+.investment-comparison .ic-dd-history,
+.investment-comparison .ic-dd-method { border-top: 1px solid var(--ic-border); }
+.investment-comparison .ic-dd-history summary,
+.investment-comparison .ic-dd-method summary { display: flex; align-items: center; justify-content: space-between; cursor: pointer; min-height: 54px; list-style: none; font-size: 14px; }
+.investment-comparison .ic-dd-history summary::after,
+.investment-comparison .ic-dd-method summary::after { content: '+'; color: var(--ic-muted); font-size: 18px; }
+.investment-comparison .ic-dd-history[open] > summary::after,
+.investment-comparison .ic-dd-method[open] > summary::after { content: '−'; }
+.investment-comparison .ic-dd-history summary > span { margin-left: auto; margin-right: 14px; color: var(--ic-muted); font-size: 11px; white-space: nowrap; }
+.investment-comparison .ic-dd-history-row { display: flex; width: 100%; text-align: left; align-items: center; justify-content: space-between; gap: 12px; border: 0; border-top: 1px solid var(--ic-grid); background: transparent; padding: 13px 0; min-height: 54px; }
+.investment-comparison .ic-dd-history-row strong { display: block; font-size: 13px; font-weight: 400; }
+.investment-comparison .ic-dd-history-row small { font-size: 11px; color: var(--ic-muted); }
+.investment-comparison .ic-dd-history-row > div:last-child { text-align: right; }
+.investment-comparison .ic-dd-method { margin-top: 6px; }
+.investment-comparison .ic-dd-method summary { font-size: 12px; color: var(--ic-muted); }
+.investment-comparison .ic-dd-method p { color: var(--ic-muted); font-size: 11px; line-height: 1.8; }
+.investment-comparison .ic-dd-empty { padding: 30px 0; color: var(--ic-muted); font-size: 12px; }
+@media (min-width:600px) {
+  .investment-comparison .ic-dd-metric { padding: 16px 20px; }
+  .investment-comparison .ic-dd-depth { font-size: 36px; }
+  .investment-comparison .ic-dd-comparison { gap: 20px; }
+}
+@media (max-width:350px) {
+  .investment-comparison .ic-dd-metric { padding: 12px 10px; }
+  .investment-comparison .ic-dd-depth { font-size: 27px; }
+  .investment-comparison .ic-dd-wait { flex-direction: column; gap: 2px; }
+  .investment-comparison .ic-dd-milestones { gap: 6px; }
+  .investment-comparison .ic-dd-milestone strong { font-size: 11px; }
+  .investment-comparison .ic-dd-journey-head strong { font-size: 22px; }
+  .investment-comparison .ic-dd-principal-stats strong { font-size: 18px; }
+  .investment-comparison .ic-dd-play { min-width: 122px; padding: 10px 12px; }
+  .investment-comparison .ic-dd-player { gap: 6px; }
+}

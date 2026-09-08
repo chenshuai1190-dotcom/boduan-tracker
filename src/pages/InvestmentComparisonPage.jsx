@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom';
 import { ArrowLeft, ChevronDown, Pause, Play, RefreshCw, Search, X } from 'lucide-react';
 import InvestmentComparisonChart, { formatInvestmentAmount, formatInvestmentPercent, investmentChangeColor, investmentRank, investmentRankColor } from '../components/InvestmentComparisonChart.jsx';
 import InvestmentSymbolPresets from '../components/InvestmentSymbolPresets.jsx';
+import InvestmentAnalysisTabs from '../components/InvestmentAnalysisTabs.jsx';
+import InvestmentDrawdownView from '../components/InvestmentDrawdownView.jsx';
 import { loadInvestmentComparison, searchInvestmentSymbols } from '../lib/investmentComparison.js';
 import { buildInvestmentComparisonModel, getInvestmentComparisonSnapshot } from '../lib/investmentComparisonModel.js';
 import '../components/InvestmentComparison.css';
@@ -120,6 +122,7 @@ export default function InvestmentComparisonPage({ ctx = {}, previewSource }) {
   const [startYear, setStartYear] = React.useState(2011);
   const [principalText, setPrincipalText] = React.useState('1000000');
   const [scale, setScale] = React.useState('linear');
+  const [analysisView, setAnalysisView] = React.useState('growth');
   const [pickerSide, setPickerSide] = React.useState(null);
   const [hiddenSymbols, setHiddenSymbols] = React.useState([]);
   const [allYears, setAllYears] = React.useState(false);
@@ -221,6 +224,8 @@ export default function InvestmentComparisonPage({ ctx = {}, previewSource }) {
   return <div className="investment-comparison ic-page" data-investment-comparison-page="true">
     <header className="ic-header"><button type="button" className="ic-icon-button ic-back" onClick={closeInvestmentComparison} aria-label={englishMode ? 'Back to Trades' : '返回交易'}><ArrowLeft size={21} /></button><div><h1>{englishMode ? 'Investment Time Machine' : '投资时光机'}</h1><p>{englishMode ? 'One starting amount. Two investment journeys.' : '同一笔本金，不同的投资旅程'}</p></div><button type="button" className="ic-icon-button ic-refresh" disabled={loadState.loading} onClick={refreshHistory} aria-label={englishMode ? 'Refresh historical data' : '刷新历史数据'}><RefreshCw size={16} className={loadState.loading ? 'ic-spin' : ''} /></button></header>
 
+    <InvestmentAnalysisTabs value={analysisView} englishMode={englishMode} onChange={view => { if (view !== analysisView) { setPlaying(false); setAnalysisView(view); } }} />
+
     <div className="ic-settings" role="group" aria-label={englishMode ? 'Comparison settings' : '比较设置'}>
       <div className="ic-versus">{instruments.map((item, index) => <React.Fragment key={index}>{index === 1 && <span className="ic-vs">VS</span>}<button type="button" className="ic-pick-button" onClick={() => setPickerSide(index)} aria-haspopup="dialog" aria-label={englishMode ? `Change ${index === 0 ? 'left' : 'right'} investment ${item.symbol}` : `更换${index === 0 ? '左' : '右'}侧标的 ${item.symbol}`} style={{ '--ic-series': investmentRankColor(investmentRank(item.symbol, symbols, snapshot?.point)) }}><span className="ic-pick-dot" /><span className="ic-pick-identity"><strong>{item.symbol}</strong><small>{instrumentName(item, englishMode)}</small></span><ChevronDown size={17} className="ic-pick-chevron" /></button></React.Fragment>)}</div>
       <label className="ic-field">{englishMode ? 'Starting year' : '起始年份'}<span className="ic-select-control"><select value={startYear} onChange={event => setStartYear(Number(event.target.value))} aria-label={englishMode ? 'Starting year' : '起始年份'}>{years.map(year => <option key={year} value={year}>{year}{englishMode ? '' : ' 年'}</option>)}</select><ChevronDown size={16} aria-hidden="true" /></span></label>
@@ -232,7 +237,8 @@ export default function InvestmentComparisonPage({ ctx = {}, previewSource }) {
     {modelResult.error && <p className="ic-feedback" role="status">{englishMode ? 'The selected investments have insufficient shared history for this starting year.' : '所选标的在该起始年份后暂无足够的共同历史数据。'}</p>}
     {model?.startAdjustmentReason === 'available_history' && <p className="ic-feedback" role="status">{englishMode ? `Shared history starts on ${model.actualStartDate}; both investments begin on that date.` : `共同历史始于 ${model.actualStartDate}，两个标的均从该日开始投入。`}</p>}
 
-    {snapshot ? <>
+    <div id="ic-analysis-panel" role="tabpanel" aria-labelledby={`ic-tab-${analysisView}`} tabIndex={0}>
+    {snapshot ? analysisView === 'drawdown' ? <InvestmentDrawdownView key={cursorKey} model={model} englishMode={englishMode} /> : <>
       <div className="ic-date-row"><div><span className="ic-date">{snapshot.point.date.replaceAll('-', '.')}</span><span className="ic-year-count">{englishMode ? `Year ${snapshot.point.year - model.actualStartYear + 1}` : `第 ${snapshot.point.year - model.actualStartYear + 1} 年`}</span></div><select className="ic-scale" value={scale} onChange={event => setScale(event.target.value)} aria-label={englishMode ? 'Asset axis scale' : '资产坐标刻度'}><option value="linear">{englishMode ? 'Amount scale' : '金额刻度'}</option><option value="log">{englishMode ? 'Log scale' : '对数刻度'}</option></select></div>
       <div className="ic-metrics">{symbols.map(symbol => {
         const rank = investmentRank(symbol, symbols, snapshot.point);
@@ -251,10 +257,11 @@ export default function InvestmentComparisonPage({ ctx = {}, previewSource }) {
         const item = row.bySymbol[symbol];
         return <td key={symbol}><strong>{formatInvestmentAmount(item.end, englishMode)}</strong><small style={{ color: investmentChangeColor(item.profit) }}>{formatInvestmentAmount(item.profit, englishMode, { signed: true })}</small><small style={{ color: investmentChangeColor(item.returnPct) }}>{formatInvestmentPercent(item.returnPct)}</small></td>;
       })}</tr>)}</tbody></table>{annualRows.length > 3 && <button type="button" className="ic-more" onClick={() => setAllYears(value => !value)}>{allYears ? (englishMode ? 'Show fewer years' : '收起年份') : englishMode ? `Show all ${annualRows.length} years` : `展开全部 ${annualRows.length} 年`}</button>}</details>
-      <div className="ic-source"><span>{model.asOfDate}{model.stale ? (englishMode ? ' · Update pending' : ' · 待更新') : ''}</span><span>{englishMode ? 'EODHD · Adjusted daily closes' : 'EODHD · 复权日线'}</span></div>
-      {model.stale && model.expectedAsOfDate && <p className="ic-feedback">{englishMode ? `Latest expected close: ${model.expectedAsOfDate}.` : `最近应有收盘日：${model.expectedAsOfDate}。`}</p>}
       <details className="ic-methodology"><summary>{englishMode ? 'Calculation method' : '计算口径'}</summary><p>{englishMode ? `Each investment starts with the same $${principal.toLocaleString('en-US')} on ${model.actualStartDate}, the first available joint session on or after the requested start, and is held through the playback date.` : `每个标的分别投入相同的 ${principal.toLocaleString('en-US')} 美元，于所选起点后首个可用共同交易日 ${model.actualStartDate} 一次性买入，并持有至回放日期。`}</p><p>{englishMode ? 'Total assets include principal; cumulative profit and return exclude it. Adjusted prices account for dividends and splits. Fractional shares are allowed; taxes, trading fees and currency changes are excluded.' : '总资产包含本金，累计盈亏与收益率不包含本金。复权价已调整分红与拆股；允许碎股，不计税费、交易费和汇率变化。'}</p><p>{englishMode ? 'Playback uses actual daily closes only. This historical comparison does not place trades or change your account records.' : '回放仅使用真实日线收盘数据。本工具用于历史对比，不会下单或改变账户记录。'}</p></details>
     </> : <div className="ic-loading" role="status">{loadState.loading || loadState.key !== requestKey ? <><RefreshCw size={18} className="ic-spin" /><span>{englishMode ? 'Loading shared historical data…' : '正在读取共同历史数据…'}</span></> : <span>{englishMode ? 'Adjust the comparison settings or retry loading.' : '请调整比较设置或重试读取数据。'}</span>}</div>}
+    </div>
+    {model && <><div className="ic-source"><span>{model.asOfDate}{model.stale ? (englishMode ? ' · Update pending' : ' · 待更新') : ''}</span><span>{englishMode ? 'EODHD · Adjusted daily closes' : 'EODHD · 复权日线'}</span></div>
+      {model.stale && model.expectedAsOfDate && <p className="ic-feedback">{englishMode ? `Latest expected close: ${model.expectedAsOfDate}.` : `最近应有收盘日：${model.expectedAsOfDate}。`}</p>}</>}
 
     {pickerSide !== null && <InvestmentSymbolPicker side={pickerSide} instruments={instruments} userId={userId} englishMode={englishMode} searchSource={searchSource} onClose={() => setPickerSide(null)} onSelect={item => { setInstruments(current => current.map((existing, index) => index === pickerSide ? item : existing)); setPickerSide(null); }} />}
   </div>;

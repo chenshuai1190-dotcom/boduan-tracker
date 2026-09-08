@@ -4,6 +4,23 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '📉 投资时光机新增“回撤与修复”分析',
+      '  - 与资产增长共用头部、标的、起始年份和本金，在同一页面直接切换',
+      '  - 对比最大回撤，回放最大回撤、最长等待及最近一次下跌与修复过程',
+      '  - 分开显示恢复前高与回到投入本金，未修复区间按实际收盘日持续计时',
+      '  - 复用已有真实复权日线，切换分析和回放不新增行情请求，也不改动任何账本',
+    ],
+    itemsEn: [
+      '📉 Drawdown & recovery analysis in Investment Time Machine',
+      '  - Switch views in place with one shared header, symbol pair, starting year and principal',
+      '  - Compare maximum drawdowns and replay the deepest decline, longest wait or latest episode',
+      '  - Distinguish recovery to a previous peak from recovery of starting principal; unresolved episodes end at the observed close',
+      '  - Reuses actual adjusted daily history without extra quote requests for analysis or playback, and never changes any ledger',
+    ],
+  },
+  {
+    ver: 'v10.7.9.488', date: '2026-09-08',
+    items: [
       '📈 交易 → 全部功能新增独立投资对比工具',
       '  - 自定义两只美股或 ETF、起始年份和等额本金，动态回放真实日线与逐年收益',
       '  - 使用 EODHD 分红拆股复权收盘价，明确区分总资产、累计盈亏与收益率；上市前不虚构历史',
