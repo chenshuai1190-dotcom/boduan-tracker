@@ -7,6 +7,7 @@ import { createQuoteResponse } from '../server/quote/response.js';
 import { parseSymbolsParam } from '../server/quote/symbols.js';
 import { fetchStockFundamentals } from '../server/quote/fundamentals.js';
 import { fetchStockValuation } from '../server/quote/valuation.js';
+import { fetchVixComparison } from '../server/quote/vixComparison.js';
 
 export default async function handler(req, res) {
   setCorsHeaders(req, res);
@@ -34,16 +35,29 @@ export default async function handler(req, res) {
   const stockDetailRequested = requestedView === 'stock-detail';
   const fundamentalsRequested = requestedView === 'fundamentals';
   const valuationRequested = requestedView === 'valuation';
+  const vixComparisonRequested = requestedView === 'vix-comparison';
   if (
     view !== undefined
     && !marketMoversRequested
     && !stockDetailRequested
     && !fundamentalsRequested
     && !valuationRequested
+    && !vixComparisonRequested
   ) {
     return sendError(res, 400, '不支持的 view 参数');
   }
   const eodhdKey = (process.env.EODHD_API_KEY || '').trim().replace(/[\s\u200B-\u200D\uFEFF]/g, '');
+  if (vixComparisonRequested) {
+    if (symbols !== undefined) return sendError(res, 400, 'vix-comparison 不接受 symbols 参数');
+    if (!eodhdKey) {
+      return sendError(res, 500, 'API key 未配置,请在 Vercel 环境变量里设置 EODHD_API_KEY');
+    }
+    try {
+      return res.status(200).json({ success: true, data: await fetchVixComparison({ eodhdKey }) });
+    } catch {
+      return sendError(res, 502, 'VIX 对比历史暂不可用');
+    }
+  }
   if (marketMoversRequested) {
     if (!eodhdKey) {
       return sendError(res, 500, 'API key 未配置,请在 Vercel 环境变量里设置 EODHD_API_KEY');

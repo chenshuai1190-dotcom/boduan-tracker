@@ -4,6 +4,23 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '📈 首页 VIX 新增独立市场走势对比页',
+      '  - 点击首页 VIX 卡片，对比 SPY 或 QQQ，支持 1 个月至 5 年历史走势及同日滑动读数',
+      '  - 接入 EODHD 真实已完成日线：VIX 使用点位，ETF 使用复权价；顶部和历史选中日期分别显示当日涨跌幅',
+      '  - 按共同交易日对齐，缺少前一交易日时不计算日涨跌；历史缓存按完成收盘日复用，失败时明确提示旧数据',
+      '  - 精简图表辅助文案，保留首页返回位置，不改变交易、现金、资产或收益比赛账本',
+    ],
+    itemsEn: [
+      '📈 A dedicated VIX and market comparison page is now available from Home',
+      '  - Tap the Home VIX card to compare SPY or QQQ over one month to five years, with synchronized historical readings',
+      '  - Uses actual completed EODHD daily closes: VIX in points and ETFs in adjusted prices, with daily changes for the latest close and selected historical date',
+      '  - Aligns common trading dates and leaves daily changes unavailable without the prior trading close; caches history by completed close and clearly flags stale data',
+      '  - Simplifies chart helper text and restores the Home scroll position without changing trading, cash, asset, or competition ledgers',
+    ],
+  },
+  {
+    ver: 'v10.7.9.486', date: '2026-09-05',
+    items: [
       '📊 月度资产环比改为按人物分组的账户明细',
       '  - “我”和“老婆”继续独立分组，每个资产账户单独展示；分类与币种只作为账户标签，不再合并统计',
       '  - 每个人物组内默认按增益金额从高到低排列，并显示该人物的本月资产与净变化',

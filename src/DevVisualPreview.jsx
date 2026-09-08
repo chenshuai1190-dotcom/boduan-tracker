@@ -36,6 +36,7 @@ const TradesTab = lazy(() => import('./tabs/TradesTab.jsx'));
 const PnlReportPage = lazy(() => import('./pages/PnlReportPage.jsx'));
 const PnlSharePage = lazy(() => import('./pages/PnlSharePage.jsx'));
 const HomeMarginRiskPage = lazy(() => import('./pages/HomeMarginRiskPage.jsx'));
+const VixComparisonPage = lazy(() => import('./pages/VixComparisonPage.jsx'));
 const StockDetailPage = lazy(() => import('./pages/StockDetailPage.jsx'));
 const WatchlistStockDetailPage = lazy(() => import('./pages/WatchlistStockDetailPage.jsx'));
 const WaveTrackerPage = lazy(() => import('./pages/WaveTrackerPage.jsx'));
@@ -47,6 +48,32 @@ const WatchlistStockDetailPrototype = lazy(() => import('./dev/WatchlistStockDet
 
 const USD_RATE = 6.77;
 const HKD_RATE = 0.86;
+
+// Deterministic, local-only history for layout and touch interaction checks.
+const mockVixComparisonData = (() => {
+  const series = { VIX: { rows: [] }, SPY: { rows: [] }, QQQ: { rows: [] } };
+  const date = new Date('2021-09-01T00:00:00.000Z');
+  const end = new Date('2026-09-04T00:00:00.000Z');
+  let index = 0;
+  while (date <= end) {
+    if (date.getUTCDay() !== 0 && date.getUTCDay() !== 6) {
+      const stress = Math.exp(-(((index - 290) / 33) ** 2))
+        + Math.exp(-(((index - 755) / 17) ** 2)) * 0.85
+        + Math.exp(-(((index - 1095) / 12) ** 2)) * 1.12
+        + Math.exp(-(((index - 1220) / 9) ** 2)) * 0.46;
+      const dateKey = date.toISOString().slice(0, 10);
+      const values = {
+        VIX: 15.5 + stress * 29 + Math.sin(index * 0.12) * 2.1 + Math.abs(Math.sin(index * 0.31)) * 1.6,
+        SPY: 390 * Math.exp(index * 0.00042) - stress * 66 + Math.sin(index * 0.018) * 13 + Math.sin(index * 0.49) * 2.3,
+        QQQ: 305 * Math.exp(index * 0.00056) - stress * 78 + Math.sin(index * 0.021) * 19 + Math.sin(index * 0.44) * 3.8,
+      };
+      for (const symbol of Object.keys(series)) series[symbol].rows.push({ date: dateKey, close: Number(values[symbol].toFixed(2)) });
+      index += 1;
+    }
+    date.setUTCDate(date.getUTCDate() + 1);
+  }
+  return { series, source: 'DEMO', asOfDate: '2026-09-04', expectedAsOfDate: '2026-09-04', availableFromDate: '2021-09-01', fetchedAt: '2026-09-05T00:00:00.000Z', stale: false };
+})();
 
 function localDateKey(date = new Date()) {
   const year = date.getFullYear();
@@ -1710,7 +1737,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     const params = new URLSearchParams(window.location.search);
     if (['risk', 'editor', 'leverage'].includes(params.get('homeMargin'))) return 'home-margin-risk';
     const requestedTab = params.get('tab');
-    return ['home', 'trades', 'analysis', 'review', 'settings', 'pnl-report', 'pnl-share', 'home-margin-risk', 'stock-detail', 'watchlist-stock-detail', 'wave-tracker', 'community-competition'].includes(requestedTab) ? requestedTab : 'analysis';
+    return ['home', 'trades', 'analysis', 'review', 'settings', 'pnl-report', 'pnl-share', 'home-margin-risk', 'stock-detail', 'watchlist-stock-detail', 'wave-tracker', 'community-competition', 'vix-comparison'].includes(requestedTab) ? requestedTab : 'analysis';
   });
   const [previewWatchlistDetailSymbol, setPreviewWatchlistDetailSymbol] = React.useState('NVDA');
   const [previewEarningsDetailEvent, setPreviewEarningsDetailEvent] = React.useState(() => (
@@ -2830,6 +2857,8 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     newStock,
     openHomeMarginRisk: () => setActiveTab('home-margin-risk'),
     closeHomeMarginRisk: () => setActiveTab('home'),
+    openVixComparison: () => { setActiveTab('vix-comparison'); window.scrollTo(0, 0); },
+    closeVixComparison: () => { setActiveTab('home'); window.scrollTo(0, 0); },
     openPnlReport: () => setActiveTab('pnl-report'),
     openPnlShare: () => setActiveTab('pnl-share'),
     closePnlReport: () => setActiveTab('home'),
@@ -3219,7 +3248,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     <div
       className={`min-h-screen bg-[#05070b] text-white ${['pnl-report', 'pnl-share'].includes(activeTab) ? 'pb-0' : 'pb-24'} ${['pnl-report', 'pnl-share', 'stock-detail', 'community-competition', 'earnings-detail'].includes(activeTab) ? 'px-0' : 'px-4'}`}
       style={{
-        paddingTop: ['pnl-share', 'home-margin-risk', 'wave-tracker', 'community-competition', 'watchlist-stock-detail', 'earnings-detail'].includes(activeTab) ? 0 : 'calc(1rem + env(safe-area-inset-top))',
+        paddingTop: ['pnl-share', 'home-margin-risk', 'wave-tracker', 'community-competition', 'watchlist-stock-detail', 'earnings-detail', 'vix-comparison'].includes(activeTab) ? 0 : 'calc(1rem + env(safe-area-inset-top))',
         ...(visualViewportWidth
           ? { marginInline: 'auto', maxWidth: '100%', width: `${visualViewportWidth}px` }
           : {}),
@@ -3242,6 +3271,8 @@ function StandardDevVisualPreview({ initialTab = '' }) {
           )
           : activeTab === 'home-margin-risk'
           ? <HomeMarginRiskPage ctx={homeCtx} />
+          : activeTab === 'vix-comparison'
+          ? <VixComparisonPage ctx={{ ...homeCtx, englishMode: language === 'en' }} previewData={mockVixComparisonData} />
           : activeTab === 'stock-detail'
           ? <StockDetailPage ctx={homeCtx} />
           : activeTab === 'watchlist-stock-detail'
@@ -3279,6 +3310,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
               const Icon = tab.icon;
               const isActive = tab.id === activeTab
                 || (activeTab === 'home-margin-risk' && tab.id === 'home')
+                || (activeTab === 'vix-comparison' && tab.id === 'home')
                 || (activeTab === 'watchlist-stock-detail' && tab.id === 'home')
                 || (activeTab === 'earnings-detail' && tab.id === 'home')
                 || (['stock-detail', 'wave-tracker', 'community-competition'].includes(activeTab) && tab.id === 'trades');

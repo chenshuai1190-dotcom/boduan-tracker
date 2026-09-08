@@ -484,6 +484,7 @@ export default function HomeTab({ ctx }) {
     marketIndices,
     newStock,
     openHomeMarginRisk,
+    openVixComparison,
     openEarningsCalendar,
     openEarningsDetail,
     openPnlReport,
@@ -1259,13 +1260,19 @@ export default function HomeTab({ ctx }) {
       )}
 
       <section className="mt-3 grid grid-cols-2 gap-3">
-        <div className="rounded-2xl border border-transparent bg-[#0b0c0e] px-3.5 py-2.5">
+        <button
+          type="button"
+          onClick={() => openVixComparison?.()}
+          aria-label={t(language, 'home.vix.compareAria', '查看 VIX 与 SPY、QQQ 走势对比')}
+          className="rounded-2xl border border-transparent bg-[#0b0c0e] px-3.5 py-2.5 text-left transition-colors active:bg-white/[0.06] focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-400/70"
+        >
           <div className={`flex items-center gap-1.5 ${englishMode ? 'text-[11px]' : 'text-[13px]'} font-normal text-white/60`}>
             {t(language, 'home.vix.title', 'VIX 恐慌指数')}
             {vixDateLabel && <span className="text-[11px] text-white/40">{vixDateLabel} {t(language, 'home.vix.close', '收盘')}</span>}
           </div>
-          <div className="mt-2.5">
+          <div className="mt-2.5 flex items-center justify-between">
             <span className="text-2xl font-normal text-emerald-400 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{fmtMoney(vix, 1)}</span>
+            <ChevronRight className="h-4 w-4 text-white/30" aria-hidden="true" />
           </div>
           <div className="mt-1.5 text-[12px] text-white/50">{englishMode ? t(language, 'home.vix.calmDesc', '市场平静, 无操作') : (vixSignal?.desc || '市场平静, 无操作')}</div>
           <div className="mt-3 h-1.5 rounded-full bg-gradient-to-r from-emerald-400 via-amber-300 to-rose-500 shadow-[0_0_10px_rgba(52,211,153,0.18)]">
@@ -1277,7 +1284,7 @@ export default function HomeTab({ ctx }) {
             </div>
           </div>
           <div className="mt-1.5 flex justify-between text-[11px] text-white/40"><span>0</span><span>20</span><span>30</span><span>50</span></div>
-        </div>
+        </button>
 
         <div className="rounded-2xl border border-transparent bg-[#0b0c0e] px-3.5 py-2.5">
           <div className={`flex items-center gap-1.5 ${englishMode ? 'text-[11px]' : 'text-[13px]'} font-normal text-white/60`}>

@@ -41,6 +41,7 @@ const SettingsTab = lazy(() => import('./tabs/SettingsTab.jsx'));
 const PnlReportPage = lazy(() => import('./pages/PnlReportPage.jsx'));
 const PnlSharePage = lazy(() => import('./pages/PnlSharePage.jsx'));
 const HomeMarginRiskPage = lazy(() => import('./pages/HomeMarginRiskPage.jsx'));
+const VixComparisonPage = lazy(() => import('./pages/VixComparisonPage.jsx'));
 const StockDetailPage = lazy(() => import('./pages/StockDetailPage.jsx'));
 const WatchlistStockDetailPage = lazy(() => import('./pages/WatchlistStockDetailPage.jsx'));
 const WaveTrackerPage = lazy(() => import('./pages/WaveTrackerPage.jsx'));
@@ -5036,6 +5037,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   const lastHomeTabTapAtRef = useRef(0);
   const homeScrollTopBeforeWatchlistRef = useRef(null);
   const homeScrollTopBeforeEarningsRef = useRef(null);
+  const homeScrollTopBeforeVixRef = useRef(null);
   const pendingHomeScrollTopRef = useRef(null);
   const [communityProfileFocusRequest, setCommunityProfileFocusRequest] = useState(0);
   const [pnlShareIdentityState, setPnlShareIdentityState] = useState({ status: 'idle', identity: null });
@@ -5074,13 +5076,20 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
       && activePage === 'earnings-detail'
       && earningsDetailReturnPage === 'watchlist-stock-detail'
     );
+    const returnsFromVixToHome = (
+      tabId === 'home'
+      && activeTab === 'home'
+      && activePage === 'vix-comparison'
+    );
     pendingHomeScrollTopRef.current = returnsFromWatchlistDetailToHome
       ? homeScrollTopBeforeWatchlistRef.current
       : returnsFromWatchlistEarningsToHome
         ? homeScrollTopBeforeWatchlistRef.current
         : returnsFromEarningsToHome
         ? homeScrollTopBeforeEarningsRef.current
-        : null;
+        : returnsFromVixToHome
+          ? homeScrollTopBeforeVixRef.current
+          : null;
 
     if (tapAction.shouldScrollHomeToTop) {
       homeScrollTopBeforeWatchlistRef.current = 0;
@@ -5150,6 +5159,17 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     setActivePage('home-margin-risk');
   }, []);
   const closeHomeMarginRisk = useCallback(() => {
+    setActivePage(null);
+  }, []);
+  const openVixComparison = useCallback(() => {
+    if (activeTab === 'home' && activePage === null) {
+      homeScrollTopBeforeVixRef.current = readRootScrollTop();
+    }
+    pendingHomeScrollTopRef.current = null;
+    setActivePage('vix-comparison');
+  }, [activePage, activeTab]);
+  const closeVixComparison = useCallback(() => {
+    pendingHomeScrollTopRef.current = homeScrollTopBeforeVixRef.current;
     setActivePage(null);
   }, []);
   const openStockDetail = useCallback((symbol) => {
@@ -5359,7 +5379,8 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   const isCommunityCompetitionPage = activePage === 'community-competition';
   const isEarningsCalendarPage = activePage === 'earnings-calendar';
   const isEarningsDetailPage = activePage === 'earnings-detail';
-  const isStandalonePage = isPnlReportPage || isPnlSharePage || isHomeMarginRiskPage || isStockDetailPage || isWatchlistStockDetailPage || isWaveTrackerPage || isCommunityCompetitionPage || isEarningsCalendarPage || isEarningsDetailPage;
+  const isVixComparisonPage = activePage === 'vix-comparison';
+  const isStandalonePage = isPnlReportPage || isPnlSharePage || isHomeMarginRiskPage || isStockDetailPage || isWatchlistStockDetailPage || isWaveTrackerPage || isCommunityCompetitionPage || isEarningsCalendarPage || isEarningsDetailPage || isVixComparisonPage;
   const isFullBleedPage = isPnlSharePage || isCommunityCompetitionPage || isEarningsCalendarPage || isEarningsDetailPage;
   const hideBottomNavigation = isPnlReportPage || isPnlSharePage;
   const ActiveTab = TAB_COMPONENTS[activeTab] || HomeTab;
@@ -5546,6 +5567,8 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     newTrade,
     onLogout,
     openHomeMarginRisk,
+    openVixComparison,
+    closeVixComparison,
     openPnlReport,
     openPnlShare,
     pnlReportRefreshVersion,
@@ -5874,6 +5897,8 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
               )
             : isHomeMarginRiskPage
               ? <HomeMarginRiskPage ctx={tabCtx} />
+              : isVixComparisonPage
+                ? <VixComparisonPage ctx={{ ...tabCtx, userId: user?.id || '' }} />
               : isStockDetailPage
                 ? <StockDetailPage ctx={tabCtx} />
                 : isWatchlistStockDetailPage
