@@ -5,6 +5,7 @@ import { transformWithOxc } from 'vite';
 
 const chartSource = readFileSync(new URL('../src/components/InvestmentComparisonChart.jsx', import.meta.url), 'utf8');
 const pageSource = readFileSync(new URL('../src/pages/InvestmentComparisonPage.jsx', import.meta.url), 'utf8');
+const cssSource = readFileSync(new URL('../src/components/InvestmentComparison.css', import.meta.url), 'utf8');
 const transformed = await transformWithOxc(chartSource, 'InvestmentComparisonChart.jsx', { jsx: { runtime: 'classic' } });
 const compiled = transformed.code.replace(/from (["'])react\1/g, `from ${JSON.stringify(import.meta.resolve('react'))}`);
 const { investmentRank, investmentRankColor, investmentChangeColor, formatInvestmentAmount, formatInvestmentPercent } = await import(`data:text/javascript;base64,${Buffer.from(compiled).toString('base64')}`);
@@ -66,4 +67,22 @@ test('investment playback defaults to 0.2x and retains a slower 0.1x option with
   assert.ok(pageSource.includes('setSpeed(Number(event.target.value))'));
   assert.ok(pageSource.includes('PLAYBACK_DAYS_PER_SECOND * speed'));
   assert.ok(pageSource.includes('const wholeDays = Math.floor(accumulated)'), 'fractional speed must still advance through actual whole trading days');
+});
+
+test('year and principal controls share dimensions without changing their input semantics', () => {
+  assert.match(cssSource, /\.ic-settings\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/);
+  const shared = cssSource.match(/\.ic-field input,\s*\.investment-comparison \.ic-field select\s*\{([^}]+)\}/);
+  assert.ok(shared, 'year and principal must use the same sizing rule');
+  for (const [property, value] of Object.entries({ height: '48px', 'min-height': '48px', 'line-height': '24px', padding: '11px 12px', margin: '0', 'flex-shrink': '0', appearance: 'none', '-webkit-appearance': 'none' })) {
+    assert.match(shared[1], new RegExp(`(?:^|;)\\s*${property}:\\s*${value}\\s*(?:;|$)`));
+  }
+  const yearControl = pageSource.match(/<span className="ic-select-control">([\s\S]*?)<\/span>/);
+  assert.ok(yearControl);
+  assert.ok(yearControl[1].includes('<select value={startYear} onChange={event => setStartYear(Number(event.target.value))}'));
+  assert.ok(yearControl[1].includes("aria-label={englishMode ? 'Starting year' : '起始年份'}"));
+  assert.ok(yearControl[1].includes('years.map(year => <option key={year} value={year}>'));
+  assert.match(yearControl[1], /<ChevronDown\b[^>]*aria-hidden="true"/);
+  assert.match(cssSource, /\.ic-select-control\s*>\s*svg\s*\{[^}]*pointer-events:\s*none/);
+  assert.ok(pageSource.includes('value={principalText} onChange={event => setPrincipalText(event.target.value)}'));
+  assert.ok(pageSource.includes('type="number" inputMode="decimal" min="1" max="1000000000" step="any"'));
 });
