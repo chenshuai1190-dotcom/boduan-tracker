@@ -89,3 +89,18 @@ test('the catalog remains presentation-only without ledger, persistence, or prov
   const imports = [...source.matchAll(/\b(?:from\s+|import\s+)(['"])([^'"]+)\1/g)].map(match => match[2]);
   assert.ok(imports.every(module => ['react', 'lucide-react', '../lib/i18n.js', './TradeToolsCatalog.css'].includes(module)), 'catalog imports must remain limited to presentation dependencies');
 });
+
+test('only the DCA tool entry adopts the overlap hero background without needing page-level theme tokens', () => {
+  const read = path => readFileSync(new URL(path, import.meta.url), 'utf8');
+  const css = read('../src/components/TradeToolsCatalog.css');
+  const card = css.match(/\.trade-tool-card\[data-tool-id="dca-lab"\] \{([^}]+)\}/)[1];
+  const theme = read('../src/components/InvestmentComparison.css');
+  const hero = read('../src/components/PortfolioOverlap.css').match(/\.investment-comparison \.po-hero \{([^}]+)\}/)[1];
+  const background = rule => rule.match(/background:\s*([^;]+);/)[1].replace(/\s+/g, '');
+  const resolvedHero = background(hero).replace(/var\((--ic-[\w-]+)\)/g, (_, name) => theme.match(new RegExp(`${name}:\\s*([^;]+);`))[1]);
+  assert.equal(background(card), resolvedHero);
+  assert.doesNotMatch(card, /var\(/, 'the tools catalog lives outside the investment-comparison theme scope');
+  assert.match(card, /border-color:\s*#252b35/);
+  assert.match(css, /\.trade-tool-featured \{[^}]*linear-gradient\(110deg/, 'the first time-machine entry keeps its featured appearance');
+  assert.match(css, /\.trade-tool-card:focus-visible \{[^}]*outline:/);
+});

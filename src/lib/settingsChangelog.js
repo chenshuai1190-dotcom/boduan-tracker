@@ -4,6 +4,23 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '🧪 优化定投实验室选股与金额展示',
+      '  - 投资标的改为同色系自定义选择卡片，按指数 ETF 与美股分组预选',
+      '  - 投资方案、标的弹出卡片及全部功能中的定投入口统一渐变背景',
+      '  - 定投资产与持仓重叠体检金额保留两位小数，计算精度和缺失状态不变',
+      '  - 精简顶部来源提示，保留实验口径，不增加行情请求或修改任何账本',
+    ],
+    itemsEn: [
+      '🧪 Refined DCA Lab instrument selection and asset displays',
+      '  - A themed custom picker groups index ETFs and U.S. stock presets',
+      '  - Matching gradient backgrounds for the plan, instrument picker and DCA entry in All Tools',
+      '  - DCA and Portfolio Overlap asset amounts retain two decimal places without changing calculations or missing-data states',
+      '  - Simplified header source text with methodology retained and no additional market-data requests or ledger changes',
+    ],
+  },
+  {
+    ver: 'v10.7.9.491', date: '2026-09-09',
+    items: [
       '🧪 全部工具新增独立“定投实验室”，紧接投资时光机',
       '  - 使用 EODHD 真实复权历史日线，自选标的、年份、起始投入与每月或每周定投',
       '  - 动态回放资产、累计投入与收益，金额旁同步显示当时日期',

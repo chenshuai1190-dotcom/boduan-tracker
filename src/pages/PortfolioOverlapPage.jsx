@@ -12,7 +12,8 @@ const MAX_CUSTOM_HOLDINGS = 40;
 const SOURCE_COLORS = { direct: '#ff655e', QQQ: '#eebc65', SPY: '#4fd0a1' };
 const percentage = value => Number.isFinite(value) ? `${value.toFixed(1)}%` : '—';
 const disclosedWeight = value => Number.isFinite(value) ? `${value.toLocaleString('en-US', { maximumFractionDigits: 6 })}%` : '—';
-const dollars = value => Number.isFinite(value) ? `$${value.toLocaleString('en-US', { maximumFractionDigits: 2 })}` : '—';
+const dollars = value => Number.isFinite(value) ? `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—';
+const compactDollars = (value, englishMode) => Math.abs(value) >= (englishMode ? 1e3 : 1e4) ? formatInvestmentAmount(value, englishMode, { digits: 2 }) : dollars(value);
 const sourceColor = source => SOURCE_COLORS[source.kind === 'direct' ? 'direct' : source.symbol] || '#95a4c0';
 const totalOf = holdings => holdings.every(row => Number.isFinite(row.amount)) ? holdings.reduce((sum, row) => sum + row.amount, 0) : null;
 const draftOf = holdings => holdings.map(row => ({ symbol: row.symbol, amountText: Number.isFinite(row.amount) ? String(row.amount) : '' }));
@@ -170,7 +171,7 @@ function PortfolioAnalysis({ model, englishMode, expanded, setExpanded, onCompan
     </>}
     <details className="po-coverage"><summary>{englishMode ? 'How much does this analysis cover?' : '这份体检覆盖了多少'}<span>{englishMode ? 'Identified ' : '已识别 '}{percentage(model.identifiedPercent)}<ChevronDown size={14} aria-hidden="true" /></span></summary>
       {model.valuationComplete && model.total > 0 && <div className="po-coverage-bar" aria-hidden="true">{coverage.map(([label, value, , color]) => <span key={label} style={{ '--po-source': color, '--po-width': `${value}%` }} />)}</div>}
-      {coverage.map(([label, value, amount, color]) => <div className="po-coverage-line" key={label}><span><i className="po-dot" style={{ '--po-source': color }} />{label}</span><strong>{percentage(value)} · {formatInvestmentAmount(amount, englishMode)}</strong></div>)}
+      {coverage.map(([label, value, amount, color]) => <div className="po-coverage-line" key={label}><span><i className="po-dot" style={{ '--po-source': color }} />{label}</span><strong>{percentage(value)} · {compactDollars(amount, englishMode)}</strong></div>)}
       {!model.valuationComplete && <p className="po-method-copy">{englishMode ? 'The amounts above cover quoted holdings only. The unpriced portion is additional and cannot yet be measured.' : '上面的金额仅覆盖已有报价的持仓；无报价部分另缺，尚不能衡量。'}</p>}
       {model.positions.map(position => <div className="po-position-row" key={position.symbol}><div><strong>{position.symbol}</strong><small><InstrumentStatus position={position} englishMode={englishMode} /></small>{position.metadata.asOfDate && <small>{englishMode ? 'Disclosure ' : '披露 '}{position.metadata.asOfDate}</small>}</div><div><strong>{dollars(position.amount)}</strong><small>{percentage(position.percent)}</small></div></div>)}
       <p className="po-method-copy">{englishMode ? 'All percentages use the whole portfolio as the denominator. Unexpanded holdings are not treated as zero. Identified security weights and the top-five total only describe the identified portion.' : '占比统一以组合总金额为分母。未穿透部分没有当作零；标的占比和前五合计仅表示已识别部分。'}</p>

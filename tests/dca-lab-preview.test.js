@@ -19,7 +19,8 @@ async function compile(text, file, dev = false, replacements = {}) {
     .replaceAll('import.meta.env.DEV', String(dev));
   return dataUrl(compiled);
 }
-const productionModule = await compile(source, 'DcaLabPage.jsx');
+const pickerModule = await compile(read('src/components/DcaSymbolPicker.jsx'), 'DcaSymbolPicker.jsx');
+const productionModule = await compile(source, 'DcaLabPage.jsx', false, { '../components/DcaSymbolPicker.jsx': pickerModule });
 const { default: DcaLabPage, DcaLabResults } = await import(productionModule);
 const { default: DcaLabPreview } = await import(await compile(preview, 'DcaLabPreview.jsx', false, { '../pages/DcaLabPage.jsx': productionModule }));
 
@@ -56,9 +57,13 @@ function capture(Component, props, overrides = []) {
   } finally { React.useState = original; }
 }
 
-test('production history is labeled accurately and synthetic preview data cannot enter the production page', () => {
+test('the redundant header source row is removed while real-history safeguards and collapsed methodology remain', () => {
   const html = htmlOf(DcaLabPage, { ctx: { userId: 'user-a' } });
-  assert.match(html, /历史回测 · EODHD/);
+  assert.doesNotMatch(html, /历史回测 · EODHD|dl-preview-label/);
+  assert.doesNotMatch(source, /dl-preview-label/);
+  const results = htmlOf(DcaLabResults, { model, plan });
+  assert.match(results, /<details class="dl-method"><summary>实验口径/);
+  assert.match(results, /使用 EODHD 真实历史日线复权收盘价/);
   assert.match(html, /正在读取.*QQQ.*真实历史行情/);
   assert.doesNotMatch(source + preview, /simulateDca|buildDcaSimulation|Math\.random|source:\s*['"]synthetic|本地模拟 · 非真实行情/);
   assert.match(source, /import\.meta\.env\.DEV && previewSource\?\.load \? previewSource\.load : loadDcaHistory/);
@@ -84,8 +89,10 @@ test('loading and failed history never show fabricated zero assets or retained r
 
 test('switching symbols clears a previous explicit refresh without forcing later cached visits', () => {
   const page = capture(DcaLabPage, { ctx: { userId: 'user-a' } }, [plan, false, 1, { key: 'user-a:QQQ', data, loading: false, error: '' }]);
-  const selector = nodes(page.tree, node => node.type === 'select' && node.props['aria-label'] === '投资标的')[0];
-  selector.props.onChange({ target: { value: 'SPY' } });
+  const selector = nodes(page.tree, node => node.type?.name === 'DcaSymbolPicker')[0];
+  assert.ok(selector, 'the symbol uses the controlled custom picker');
+  assert.equal(selector.props.value, 'QQQ');
+  selector.props.onChange('SPY');
   assert.deepEqual(page.changes[0], { stateIndex: 2, next: 0 });
   assert.equal(page.changes[1].next.symbol, 'SPY');
   assert.match(source, /\[key, userId, plan\.symbol, refresh, source\]/);
@@ -93,7 +100,7 @@ test('switching symbols clears a previous explicit refresh without forcing later
 
 test('results distinguish assets, contributed principal and cumulative profit excluding principal', () => {
   const html = htmlOf(DcaLabResults, { model, plan });
-  assert.match(html, /class="dl-total">\$1,320/);
+  assert.match(html, /class="dl-total">\$1,320\.00<\/div>/);
   assert.match(html, /累计收益 \+\$220/);
   assert.match(html, /\+20\.0%/);
   assert.match(html, /累计投入<\/span><strong>\$1,100/);
@@ -113,7 +120,7 @@ test('playback asset amount, cumulative contribution and visible date share the 
     const hero = html.slice(html.indexOf('<section class="dl-hero"'), html.indexOf('<div class="dl-mode"'));
     assert.match(hero, /当时定投资产/);
     assert.match(hero, /<time dateTime="2026-09-04">2026-09-04<\/time>/);
-    assert.match(hero, /class="dl-total">\$1,100/);
+    assert.match(hero, /class="dl-total">\$1,100\.00<\/div>/);
     assert.match(hero, /累计收益 \$0/);
     assert.doesNotMatch(hero, /2026-09-08|\$1,320|\+\$220/);
   }
@@ -167,4 +174,35 @@ test('the tool remains read-only and inherits the existing page width and bottom
   assert.doesNotMatch(chart, /preventDefault|setPlaying|stopPropagation/);
   assert.match(source, /String\(draft\[key\]\)\.trim\(\) === ''/);
   assert.match(source, /min="0" max="100000000"/);
+});
+
+test('asset values display two decimals without rounding the underlying history or changing chart units', () => {
+  const fractional = buildDcaModel({ data: { ...data, rows: [data.rows[0], { ...data.rows[1], close: 120.123456 }] }, plan });
+  const original = JSON.stringify(fractional);
+  const results = capture(DcaLabResults, { model: fractional, plan }, [true]);
+  assert.match(results.html, /class="dl-total">\$1,321\.36<\/div>/);
+  assert.match(results.html, /定投期末资产<\/span><strong[^>]*>\$1,321\.36<\/strong>/);
+  assert.match(results.html, /一次投入期末资产<\/span><strong[^>]*>\$1,321\.36<\/strong>/);
+  assert.match(results.html, /<td>1,321\.36<\/td><\/tr>/, 'annual ending assets retain cents too');
+  const comparison = results.html.slice(results.html.indexOf('class="dl-chart-comparison"'), results.html.indexOf('class="dl-chart"'));
+  assert.equal((comparison.match(/\$1,321\.36/g) || []).length, 2);
+  assert.equal(JSON.stringify(fractional), original);
+  assert.equal(fractional.rows.at(-1).price, 120.123456);
+  const large = buildDcaModel({ data, plan: { ...plan, initial: 10000000, amount: 1000000 } });
+  assert.match(htmlOf(DcaLabResults, { model: large, plan }), /class="dl-total">\$1320\.00万<\/div>/);
+  assert.match(htmlOf(DcaLabResults, { model: large, plan }), /<td>1320\.00万<\/td><\/tr>/);
+  assert.match(htmlOf(DcaLabResults, { model, plan }), /<td>1,320\.00<\/td><\/tr>/);
+});
+
+test('the plan and symbol popup cards use the exact overlap hero background and inherited color tokens', () => {
+  const css = read('src/components/DcaLab.css');
+  const dca = css.match(/\.dca-lab \.dl-plan \{([^}]+)\}/)[1];
+  const menu = css.match(/\.dca-lab \.dl-symbol-menu \{([^}]+)\}/)[1];
+  const overlap = read('src/components/PortfolioOverlap.css').match(/\.investment-comparison \.po-hero \{([^}]+)\}/)[1];
+  const background = rule => rule.match(/background:([^;]+);/)[1];
+  assert.equal(background(dca), background(overlap));
+  assert.equal(background(menu), background(overlap));
+  assert.match(menu, /border:1px solid var\(--ic-border\)/);
+  assert.doesNotMatch(dca, /--ic-(?:panel|bg|border)\s*:|box-shadow/);
+  assert.doesNotMatch(menu, /--ic-(?:panel|bg|border)\s*:|inset/);
 });

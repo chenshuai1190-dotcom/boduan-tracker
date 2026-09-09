@@ -47,11 +47,68 @@ const htmlOf = (Component, props) => renderToStaticMarkup(React.createElement(Co
 test('default page follows real active-position values, not prototype holdings, in both languages', () => {
   for (const language of ['zh', 'en']) {
     const html = htmlOf(PortfolioOverlapPage, { ctx: { ...ctxFor([position()]), language } });
-    assert.match(html, /\$285/);
+    assert.match(html, /\$285\.00/);
     assert.match(html, language === 'en' ? /My holdings/ : /我的持仓/);
     assert.match(html, language === 'en' ? /Reading verified security/ : /正在读取已核验/);
     assert.match(html, /id="po-tab-holdings"[^>]*aria-selected="true"/);
     assert.doesNotMatch(html, /350,000|250,000|虚构|示例持仓|class="po-hero-main"/);
+  }
+});
+
+test('account totals, holding rows and company details retain two USD decimals without changing values', () => {
+  for (const [amount, formatted] of [[0, '$0.00'], [1250, '$1,250.00'], [1250.3, '$1,250.30'], [1250.376, '$1,250.38']]) {
+    const model = buildPortfolioOverlapModel({ holdings: [{ symbol: 'NVDA', amount }], instruments: [stock('NVDA')] });
+    for (const englishMode of [false, true]) {
+      const page = htmlOf(PortfolioOverlapPage, { ctx: { ...ctxFor([position('NVDA', amount)]), language: englishMode ? 'en' : 'zh' } });
+      if (amount > 0) assert.ok(page.includes(` · ${formatted} / `));
+      const holdings = htmlOf(PositionList, { model, holdings: [], metadataReady: true, englishMode });
+      assert.ok(holdings.includes(`<strong>${formatted}</strong>`));
+      if (model.companies.length) {
+        const detail = htmlOf(CompanyDetail, { company: model.companies[0], model, englishMode });
+        assert.ok(detail.includes(` · ${formatted}</p>`));
+        assert.ok(detail.includes(` → ${formatted}</p>`));
+        assert.ok(detail.includes(`<strong>${formatted}</strong>`));
+      }
+    }
+    assert.equal(model.positions[0].amount, amount);
+    assert.equal(model.total, amount);
+  }
+});
+
+test('coverage amounts retain two decimals and the existing Chinese and English compact units', () => {
+  const cases = [
+    [0, '$0.00', '$0.00'],
+    [12.3, '$12.30', '$12.30'],
+    [285, '$285.00', '$285.00'],
+    [285.678, '$285.68', '$285.68'],
+    [1000, '$1,000.00', '$1.00K'],
+    [10000, '$1.00万', '$10.00K'],
+    [12345.67, '$1.23万', '$12.35K'],
+    [1000000, '$100.00万', '$1.00M'],
+    [100000000, '$1.00亿', '$100.00M'],
+    [1000000000, '$10.00亿', '$1.00B'],
+  ];
+  for (const [amount, chinese, english] of cases) {
+    const model = buildPortfolioOverlapModel({ holdings: [{ symbol: 'NVDA', amount }], instruments: [stock('NVDA')] });
+    for (const englishMode of [false, true]) {
+      const html = htmlOf(PortfolioAnalysis, { model, englishMode, expanded: false });
+      const coverageAmounts = [...html.matchAll(/class="po-coverage-line"[\s\S]*?<strong>([^<]+)<\/strong>/g)].map(match => match[1].split(' · ')[1]);
+      assert.deepEqual(coverageAmounts, [englishMode ? english : chinese, '$0.00', '$0.00']);
+    }
+  }
+});
+
+test('unavailable monetary displays remain unavailable instead of showing zero decimals', () => {
+  for (const englishMode of [false, true]) {
+    const model = { ...testModel(), identifiedAmount: null, unexpandedAmount: NaN, leveragedAmount: Infinity };
+    const html = htmlOf(PortfolioAnalysis, { model, englishMode, expanded: false });
+    const coverageAmounts = [...html.matchAll(/class="po-coverage-line"[\s\S]*?<strong>([^<]+)<\/strong>/g)].map(match => match[1].split(' · ')[1]);
+    assert.deepEqual(coverageAmounts, ['—', '—', '—']);
+    for (const amount of [undefined, NaN, Infinity, -Infinity]) {
+      const holdings = htmlOf(PositionList, { holdings: [{ symbol: 'NVDA', amount }], metadataReady: false, englishMode });
+      assert.match(holdings, /<strong>—<\/strong>/);
+      assert.doesNotMatch(holdings, /\$0\.00|NaN|Infinity/);
+    }
   }
 });
 
@@ -132,7 +189,7 @@ test('detail formulas preserve up to six disclosed weight decimals while portfol
   const company = model.companies[0];
   for (const englishMode of [false, true]) {
     const html = htmlOf(CompanyDetail, { company, model, englishMode });
-    assert.match(html, /\$350,000 × /);
+    assert.match(html, /\$350,000\.00 × /);
     assert.match(html, /8\.853648% → \$30,987\.77/);
     assert.match(html, /<strong>8\.9%<\/strong>/);
   }
@@ -264,6 +321,23 @@ test('custom editor preserves missing amounts and rejects malformed server-incom
   const props = { draft: [{ symbol: 'nvda', amountText: '1250' }], setDraft() {}, englishMode: false, currentHoldings: [], onSubmit(value) { result = value; } };
   hooks.render(PortfolioEditor, props).props.onSubmit({ preventDefault() {} });
   assert.deepEqual(result, [{ symbol: 'NVDA', amount: 1250 }]);
+});
+
+test('custom editor formats its total to two decimals while preserving editable and submitted precision', () => {
+  for (const englishMode of [false, true]) {
+    for (const [amountText, formatted] of [['1250', '$1,250.00'], ['1250.3', '$1,250.30'], ['1250.376', '$1,250.38'], ['', '—']]) {
+      hooks.reset(); let submitted;
+      const props = { draft: [{ symbol: 'NVDA', amountText }], setDraft() {}, englishMode, currentHoldings: [], onSubmit(value) { submitted = value; } };
+      const tree = hooks.render(PortfolioEditor, props);
+      const html = renderToStaticMarkup(tree);
+      assert.ok(html.includes(`<strong>${formatted}</strong>`));
+      assert.equal(elements(tree, node => node.type === 'input' && node.props.type === 'number')[0].props.value, amountText);
+      if (amountText) {
+        tree.props.onSubmit({ preventDefault() {} });
+        assert.deepEqual(submitted, [{ symbol: 'NVDA', amount: Number(amountText) }]);
+      }
+    }
+  }
 });
 
 test('production source guards preview transport and never includes prototype weights or persistence', () => {

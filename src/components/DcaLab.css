@@ -1,13 +1,28 @@
 .dca-lab { --dl-red:#ff655e; --dl-green:#4fd0a1; --dl-gold:#eebc65; }
 .dca-lab .dl-header-icon { position:absolute; right:5px; color:var(--ic-muted); }
-.dca-lab .dl-preview-label { display:flex; align-items:center; justify-content:center; gap:6px; color:var(--ic-muted); font-size:11px; margin:8px 0 20px; }
-.dca-lab .dl-preview-label > span { width:5px; height:5px; background:var(--dl-gold); border-radius:50%; }
-.dca-lab .dl-plan { border:1px solid var(--ic-border); border-radius:15px; padding:15px 14px 13px; background:var(--ic-panel); }
+.dca-lab .dl-plan { margin-top:20px; border:1px solid var(--ic-border); border-radius:15px; padding:15px 14px 13px; background:linear-gradient(145deg,var(--ic-panel),var(--ic-bg) 85%); }
 .dca-lab .dl-plan-top { display:flex; align-items:center; justify-content:space-between; gap:12px; }
 .dca-lab .dl-symbol { display:block; position:relative; min-width:0; flex:1; }
-.dca-lab .dl-symbol > span { display:block; font-size:11px; color:var(--ic-muted); margin-bottom:2px; }
-.dca-lab .dl-symbol select { width:100%; min-height:36px; color:var(--ic-text); background:transparent; border:0; appearance:none; -webkit-appearance:none; padding:0 22px 0 0; font-size:16px; font-weight:500; text-overflow:ellipsis; }
-.dca-lab .dl-symbol > svg { position:absolute; bottom:11px; right:0; pointer-events:none; color:var(--ic-muted); }
+.dca-lab .dl-symbol-trigger { display:block; width:100%; min-height:54px; padding:0; color:var(--ic-text); text-align:left; background:transparent; border:0; border-radius:6px; }
+.dca-lab .dl-symbol-caption { display:block; font-size:11px; color:var(--ic-muted); margin-bottom:5px; }
+.dca-lab .dl-symbol-value { display:flex; align-items:center; gap:8px; min-width:0; }
+.dca-lab .dl-symbol-value strong { font-size:18px; font-weight:500; }
+.dca-lab .dl-symbol-value > span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:12px; color:#a6a6ad; }
+.dca-lab .dl-symbol-value > svg { flex-shrink:0; margin-left:auto; color:var(--ic-muted); transition:transform .15s; }
+.dca-lab .dl-symbol-trigger[aria-expanded=true] svg { transform:rotate(180deg); }
+.dca-lab .dl-symbol-menu { position:absolute; z-index:60; top:calc(100% + 11px); left:0; width:min(340px,calc(100vw - 64px)); max-height:min(480px,calc(100svh - 270px)); overflow:auto; overscroll-behavior:contain; padding:14px; border:1px solid var(--ic-border); border-radius:16px; background:linear-gradient(145deg,var(--ic-panel),var(--ic-bg) 85%); box-shadow:0 20px 48px rgb(0 0 0 / .6); }
+.dca-lab .dl-symbol-menu > [role=group] + [role=group] { margin-top:17px; }
+.dca-lab .dl-symbol-group-title { margin:0 0 9px 2px; font-size:11px; color:#909095; }
+.dca-lab .dl-symbol-options { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+.dca-lab .dl-symbol-etfs { grid-template-columns:repeat(3,minmax(0,1fr)); }
+.dca-lab .dl-symbol-option { min-width:0; min-height:62px; padding:9px 10px; border:1px solid #29292b; border-radius:10px; text-align:left; background:#19191b; color:var(--ic-text); }
+.dca-lab .dl-symbol-option > span { display:flex; justify-content:space-between; align-items:center; gap:4px; }
+.dca-lab .dl-symbol-option strong { font-size:15px; font-weight:500; }
+.dca-lab .dl-symbol-option small { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-top:4px; font-size:11px; color:#9a9aa0; }
+.dca-lab .dl-symbol-option[aria-selected=true] { background:#28241c; border-color:#766345; color:#eebc65; }
+.dca-lab .dl-symbol-option[aria-selected=true] small { color:#c5b598; }
+.dca-lab .dl-symbol-option:active { background:#29292b; }
+@media (prefers-reduced-motion:reduce) { .dca-lab .dl-symbol-value > svg { transition:none; } }
 .dca-lab .dl-edit-button { display:flex; align-items:center; gap:6px; flex-shrink:0; min-height:44px; border:0; background:transparent; color:var(--dl-gold); font-size:12px; padding:0; }
 .dca-lab .dl-plan-summary { display:flex; flex-wrap:wrap; gap:6px 12px; margin-top:10px; padding-top:12px; border-top:1px solid var(--ic-border); font-size:11px; color:var(--ic-muted); }
 .dca-lab .dl-plan-summary span { display:flex; gap:5px; align-items:center; }
