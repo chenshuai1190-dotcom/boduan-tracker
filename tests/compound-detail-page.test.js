@@ -622,6 +622,38 @@ test('keyboard year selection is accessible, bounded, and Escape restores the la
   }
 });
 
+test('pointer focus has no chart outline while keyboard focus retains its visible indicator and year controls', () => {
+  const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(match => ({ selector: match[1].trim(), declarations: match[2] }));
+  const baseIndex = rules.findIndex(rule => rule.selector === '.compound-detail-page .cp-chart');
+  const focusIndex = rules.findIndex(rule => rule.selector === '.compound-detail-page .cp-chart:focus');
+  const keyboardIndex = rules.findIndex(rule => rule.selector === '.compound-detail-page .cp-chart:focus-visible');
+  assert.ok(baseIndex >= 0 && focusIndex > baseIndex && keyboardIndex > focusIndex, 'equal-specificity keyboard focus must override the general focus reset');
+  assert.match(rules[baseIndex].declarations, /(?:^|;)\s*outline:\s*none\s*;/);
+  assert.match(rules[focusIndex].declarations, /(?:^|;)\s*outline:\s*none\s*;/);
+  assert.doesNotMatch(rules[focusIndex].declarations, /!important/);
+  assert.match(rules[keyboardIndex].declarations, /outline:\s*1px solid #9696a0\s*;/);
+  assert.match(rules[keyboardIndex].declarations, /outline-offset:\s*4px\s*;/);
+  assert.doesNotMatch(source, /\.blur\s*\(/, 'focus styling must not remove focus from the interactive chart');
+  for (const pointerType of ['touch', 'mouse']) {
+    const page = statefulPage();
+    const svg = chart(page.tree);
+    assert.equal(svg.props.tabIndex, 0);
+    assert.equal(svg.props.role, 'slider');
+    assert.equal(svg.props.onFocus, undefined, 'focus alone must not reset or dismiss chart interaction');
+    for (const eventName of ['onKeyDown', 'onClick', 'onPointerDown', 'onPointerMove', 'onPointerUp', 'onPointerCancel']) {
+      assert.equal(typeof svg.props[eventName], 'function', `${eventName} stays available after the style fix`);
+    }
+    assert.equal(page.pointer('Down', { pointerType, clientX: 430 }), false);
+    assert.equal(page.pointer('Up', { pointerType, clientX: 430 }), false);
+    page.clickChart(430);
+    assert.equal(selectedYear(page.tree), '2028');
+    assert.equal(page.key('ArrowLeft'), true);
+    assert.equal(selectedYear(page.tree), '2027', 'keyboard selection remains available after pointer use');
+    assert.equal(page.key('Escape'), true);
+    assert.equal(selectedYear(page.tree), '2026');
+  }
+});
+
 test('reading the header or page resets chart selection while the closest guard preserves child interactions', () => {
   const modal = statefulPage();
   assert.equal(modal.tree.type, 'main');
@@ -714,7 +746,7 @@ test('current progress and cent-accurate achieved or exceeded statuses follow th
   assert.match(source, /resolveAnnualGoalStatus\(row\.actualGain, row\.planTarget\)/);
 });
 
-test('market colors apply only to financial differences and keep both chart paths neutral', () => {
+test('market colors preserve financial differences and keep both chart paths neutral', () => {
   for (const marketColorMode of Object.values(MARKET_COLOR_MODES)) {
     const { tree, props } = renderPage({ marketColorMode });
     const point = buildCompoundPathModel(props).points[chart(tree).props['aria-valuenow']];
@@ -724,6 +756,51 @@ test('market colors apply only to financial differences and keep both chart path
       for (const node of byClass(tree, className)) {
         assert.equal(node.props.className, className);
         assert.equal(node.props.style, undefined);
+      }
+    }
+  }
+});
+
+test('target and projected cumulative gains follow both market color modes with genuine zero kept neutral', () => {
+  for (const language of ['zh', 'en']) {
+    for (const [marketColorMode, positiveClass, negativeClass] of [
+      [MARKET_COLOR_MODES.RED_UP_GREEN_DOWN, 'text-[#ff4b1f]', 'text-emerald-400'],
+      [MARKET_COLOR_MODES.GREEN_UP_RED_DOWN, 'text-emerald-400', 'text-[#ff4b1f]'],
+    ]) {
+      for (const [targetAnnualRate, targetValue, expectedClass] of [[0.1, 1610.51, positiveClass], [-0.1, 590.49, negativeClass], [0, 1000, '']]) {
+        const { tree, props } = renderPage({ language, marketColorMode, targetAnnualRate, targetValue, yearRows: [], initialView: 'simulation' });
+        const assertGain = (scope, label, amount) => {
+          const dd = detailValue(scope, t(language, label));
+          const spans = nodes(dd, node => node.type === 'span');
+          assert.equal(spans.length, 1, 'gain colors belong on an inner amount span, not the high-specificity neutral dd');
+          assert.equal(spans[0].props.className, expectedClass);
+          assert.equal(textContent(dd), props.signedMoney(amount));
+        };
+        const model = buildCompoundPathModel(props);
+        assertGain(byClass(tree, 'cp-hero')[0], 'review.compoundTargetGain', targetValue - props.startCapital);
+        assert.equal(summary(tree).props['data-compound-selection'], 'future');
+        assertGain(summary(tree), 'review.compoundProjectedGain', model.points.at(-1).plannedValue - props.startCapital);
+        for (const row of model.simulationRows) assertGain(rowForYear(tree, row.year), 'review.compoundTargetGain', row.endBalance - props.startCapital);
+        const initialCapital = detailValue(byClass(tree, 'cp-hero')[0], t(language, 'review.initialCapitalShort'));
+        assert.equal(initialCapital.props.className, undefined, 'principal must not inherit gain colors');
+      }
+    }
+  }
+  assert.match(css, /\.compound-detail-page \.cp-facts dd\s*\{[^}]*color:\s*#bbbcc5;/, 'neutral fact styling stays intact while the child gain span controls its own color');
+});
+
+test('missing or invalid cumulative gain inputs remain neutral and do not become zero or a colored gain', () => {
+  for (const marketColorMode of Object.values(MARKET_COLOR_MODES)) {
+    for (const [field, values] of [['targetValue', [null, undefined, '', ' ', NaN, Infinity]], ['startCapital', [null, undefined, '', ' ', NaN, Infinity]]]) {
+      for (const value of values) {
+        const { tree } = renderPage({ marketColorMode, [field]: value, yearRows: [], initialView: 'simulation' });
+        const gain = detailValue(byClass(tree, 'cp-hero')[0], t('zh', 'review.compoundTargetGain'));
+        assert.equal(textContent(gain), '—', `${field}=${String(value)} must not become a zero gain`);
+        assert.equal(nodes(gain, node => node.type === 'span')[0].props.className, '');
+        if (field === 'startCapital') {
+          assert.equal(nodes(tree, node => node.type === 'details').length, 0, 'invalid principal must not manufacture simulation gains');
+          assert.equal(nodes(summary(tree), node => node.type === 'dt' && textContent(node) === t('zh', 'review.compoundProjectedGain')).length, 0);
+        }
       }
     }
   }

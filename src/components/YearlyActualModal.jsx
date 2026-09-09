@@ -2,10 +2,30 @@ import React, { useState } from 'react';
 import ReviewGoalModal from './ReviewGoalModal.jsx';
 import { t } from '../lib/i18n.js';
 
-export default function YearlyActualModal({ year, initial, language = 'zh', onCancel, onSave, currency, rate }) {
+function referenceNumber(value) {
+  if (typeof value !== 'number' && typeof value !== 'string') return null;
+  if (typeof value === 'string' && value.trim() === '') return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+export default function YearlyActualModal({
+  year, initial, language = 'zh', onCancel, onSave, currency, rate,
+  referenceYear, referenceStartProjected = false,
+}) {
   const isCNY = currency === 'CNY';
   const symbol = isCNY ? '¥' : '$';
   const tt = (key, fallback, values) => t(language, key, fallback, values);
+  const referenceStart = referenceNumber(referenceYear?.startBalance);
+  const referenceGain = referenceNumber(referenceYear?.planTarget);
+  const referenceEnd = referenceStart !== null && referenceGain !== null ? referenceStart + referenceGain : null;
+  const referenceRate = isCNY ? referenceNumber(rate) : 1;
+  const formatReference = value => {
+    if (value === null || !Number.isFinite(value) || referenceRate === null || referenceRate <= 0) return '—';
+    const amount = value * referenceRate;
+    if (!Number.isFinite(amount)) return '—';
+    return `${symbol}${amount.toLocaleString(language === 'en' ? 'en-US' : 'zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
   // 显示时: USD存储 × rate → 展示值
   // 保存时: 展示值 / rate → 存回 USD
   const [actualGain, setActualGain] = useState(initial.actualGain !== null && initial.actualGain !== undefined ? String(Math.round(initial.actualGain * rate)) : '');
@@ -31,6 +51,11 @@ export default function YearlyActualModal({ year, initial, language = 'zh', onCa
       ]}
     >
       <div className="rgm-year-editor">
+        {referenceYear && <dl className="rgm-year-reference" aria-label={tt('review.yearReference', '年度计划参考')}>
+          <div><dt>{referenceStartProjected ? tt('review.yearStartPlanned', '年初起点（计划）') : tt('review.yearStart', '年初起点')}</dt><dd>{formatReference(referenceStart)}</dd></div>
+          <div><dt>{tt('review.yearTargetGain', '年度目标收益')}</dt><dd>{formatReference(referenceGain)}</dd></div>
+          <div><dt>{tt('review.yearTargetEndAssets', '目标期末资产')}</dt><dd>{formatReference(referenceEnd)}</dd></div>
+        </dl>}
         <label className="rgm-field">
           <span>{tt('review.actualGrowth', '实际增长 ({{symbol}})', { symbol })}</span>
           <input

@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '🎯 优化目标页的查看与填写细节',
+      '  - 取消复利曲线点击后的蓝框，累计收益遵循涨跌配色，保留键盘选年',
+      '  - 置顶投资心得默认全部显示，不再受三条折叠限制',
+      '  - 年度实际编辑新增年初起点、目标收益与目标期末资产参考，不改变保存数据',
+    ],
+    itemsEn: [
+      '🎯 Refined Goals viewing and annual data entry',
+      '  - Removed the chart click outline and applied market colors to cumulative gains while retaining keyboard navigation',
+      '  - All pinned investment insights remain visible beyond the three-entry collapsed limit',
+      '  - Read-only starting balance, target gain and ending balance references accompany annual editing without changing saved data',
+    ],
+  },
+  {
+    ver: 'v10.7.9.494', date: '2026-09-09',
+    items: [
       '🎯 目标页统一为简约黑灰风格',
       '  - 北极星、年度计划、心得与复盘，以及设置、编辑和详情窗口统一视觉与操作',
       '  - 复利明细升级独立页面，曲线支持点击和拖动选年、查看差额并定位年度明细',

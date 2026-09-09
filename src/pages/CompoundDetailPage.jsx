@@ -48,6 +48,7 @@ export default function CompoundDetailPage({
   }, [linkedYear, view]);
   const fmt = value => finite(value) ? money(value) : '—';
   const signed = value => finite(value) ? signedMoney(value) : '—';
+  const gainAmount = value => <span className={finite(value) && value !== 0 ? marketTextClass(value, marketColorMode) : ''}>{signed(value)}</span>;
   const percent = value => finite(value) ? `${value >= 0 ? '+' : ''}${value.toFixed(1)}%` : '—';
   const latestIndex = model.latestActualIndex;
   const defaultIndex = latestIndex ?? Math.max(0, model.points.length - 1);
@@ -196,7 +197,7 @@ export default function CompoundDetailPage({
         <dl className="cp-facts">
           <div><dt>{tt('review.initialCapitalShort', '起始本金')}</dt><dd>{fmt(startCapital)}</dd></div>
           <div><dt>{tt('review.assumedAnnualRate', '目标年化')}</dt><dd>{finite(targetAnnualRate) ? `${Number((targetAnnualRate * 100).toFixed(2))}%` : '—'}</dd></div>
-          <div><dt>{tt('review.compoundTargetGain', '目标累计收益')}</dt><dd>{signed(targetGain)}</dd></div>
+          <div><dt>{tt('review.compoundTargetGain', '目标累计收益')}</dt><dd>{gainAmount(targetGain)}</dd></div>
           <div><dt>{tt('review.compoundMultiple', '复利倍数')}</dt><dd>{multiple === null ? '—' : `${multiple.toFixed(2)}×`}</dd></div>
         </dl>
       </section>
@@ -241,7 +242,7 @@ export default function CompoundDetailPage({
           <dl className="cp-selected-asset"><div><dt>{selectedAssetLabel}</dt><dd>{fmt(selectedAsset)}</dd></div></dl>
           {activeKind === 'future' ? <dl className="cp-selected-facts">
             <div><dt>{tt('review.initialCapitalShort', '起始本金')}</dt><dd>{fmt(startCapital)}</dd></div>
-            <div><dt>{tt('review.compoundProjectedGain', '推演累计收益')}</dt><dd>{signed(finite(active?.plannedValue) && finite(startCapital) ? active.plannedValue - startCapital : null)}</dd></div>
+            <div><dt>{tt('review.compoundProjectedGain', '推演累计收益')}</dt><dd>{gainAmount(finite(active?.plannedValue) && finite(startCapital) ? active.plannedValue - startCapital : null)}</dd></div>
           </dl> : activeKind !== 'start' && <dl className="cp-selected-facts">
             <div><dt>{tt('review.compoundPlanAsset', '原始目标资产')}</dt><dd>{fmt(active?.plannedValue)}</dd></div>
             <div><dt>{differenceLabel}</dt><dd className={!currentShortfall && finite(difference) ? marketTextClass(difference, marketColorMode) : ''}>{currentShortfall ? fmt(-difference) : signed(difference)}</dd></div>
@@ -286,7 +287,7 @@ export default function CompoundDetailPage({
           <summary><span className="cp-row-year"><strong>{row.year}</strong><span>{tt('review.yearEndAssets', '期末资产')}</span></span><span className="cp-row-value"><strong>{fmt(row.endBalance)}</strong><span>{tt('review.annualGain', '年收益')} {signed(row.annualGain)}</span></span><ChevronDown size={14} aria-hidden="true" /></summary>
           <dl className="cp-year-facts cp-year-expanded">
             <div><dt>{tt('review.initialCapitalShort', '起始本金')}</dt><dd>{fmt(startCapital)}</dd></div>
-            <div><dt>{tt('review.compoundTargetGain', '目标累计收益')}</dt><dd>{signed(row.endBalance - startCapital)}</dd></div>
+            <div><dt>{tt('review.compoundTargetGain', '目标累计收益')}</dt><dd>{gainAmount(row.endBalance - startCapital)}</dd></div>
           </dl>
         </details>)}
       </section>}

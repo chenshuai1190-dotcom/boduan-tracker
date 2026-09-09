@@ -1664,7 +1664,7 @@ test('language framework covers settings switch, bottom nav, home page, and stoc
   assert.ok(reviewEntryEditorsSource.includes("tt('review.editDiscipline', '编辑心得')"), 'Review investment notes modal should read labels from i18n');
   assert.ok(reviewEntryEditorsSource.includes("function LogModal({ initial, language = 'zh', onCancel, onSave, onDelete })"), 'Review log modal should accept the current language');
   assert.ok(appSource.includes("import { DisciplineModal, LogModal } from './components/ReviewEntryEditors.jsx'"), 'production should import the real translated review editors');
-  assert.ok(yearlyActualModalSource.includes("function YearlyActualModal({ year, initial, language = 'zh', onCancel, onSave, currency, rate })") && appSource.includes("import YearlyActualModal from './components/YearlyActualModal.jsx'"), 'Review yearly actual modal should accept the current language through the extracted real component');
+  assert.ok(/function YearlyActualModal\(\{\s*year, initial, language = 'zh'/.test(yearlyActualModalSource) && appSource.includes("import YearlyActualModal from './components/YearlyActualModal.jsx'"), 'Review yearly actual modal should accept the current language through the extracted real component');
   assert.ok(homeTabSource.includes('overflow-x-auto px-3 [scrollbar-width:none]') && homeTabSource.includes('data-home-market-table="single-grid"'), 'home quote metrics should keep their horizontal scroll contained inside the single-grid table');
   assert.ok(settingsTabSource.includes("setLanguage?.(option.id)"), 'Settings should expose a language switch');
   assert.ok(settingsTabSource.includes("settings.languageDesc"), 'Settings should state that user-written logs and notes are not translated');
@@ -2410,7 +2410,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
     assert.equal((button.match(/<button\b/g) || []).length, 1, 'reading row controls must not nest native buttons');
     assert.ok(button.includes('type="button"'), 'reading row controls must not accidentally submit a form');
   }
-  assert.ok(reviewTabSource.includes('filteredDisciplines.slice(0, 3)') && reviewTabSource.includes('(reviewLogs || []).slice(0, 2)'), 'reading sections should keep a compact default of three notes and two logs');
+  assert.ok(reviewTabSource.includes('filteredDisciplines.filter((item, index) => item.pinned || index < 3)') && reviewTabSource.includes('(reviewLogs || []).slice(0, 2)'), 'reading sections should keep all pinned notes visible and preserve compact defaults for ordinary notes and logs');
   assert.ok(reviewTabSource.includes('setShowAllDisciplines(!showAllDisciplines)') && reviewTabSource.includes('setShowAllLogs(!showAllLogs)'), 'all existing notes and logs must remain reachable through separate expand/collapse controls');
   assert.ok(reviewTabSource.includes("tt('review.viewAllCount', '查看全部 {{count}} 条'") && reviewTabSource.includes("tt('review.collapseRecent', '收起')"), 'reading expand controls should expose localized full counts and collapse labels');
   assert.match(reviewTabCss, /\.review-entry:focus-visible[^{]*\{[^}]*outline:/, 'native reading interactions should retain visible keyboard focus');

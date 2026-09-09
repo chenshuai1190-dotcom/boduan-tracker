@@ -60,6 +60,9 @@ function textContent(node) {
   return React.Children.toArray(node.props.children).map(textContent).join('');
 }
 const inputs = tree => nodes(tree, node => node.type === 'input');
+const byClass = (tree, className) => nodes(tree, node => (node.props.className || '').split(' ').includes(className));
+const referenceValues = tree => nodes(byClass(tree, 'rgm-year-reference')[0], node => node.type === 'dd').map(textContent);
+const referenceFixture = Object.freeze({ year: 2026, startBalance: 1000.25, planTarget: 125.15, endBalance: 99999, isProjected: false, planEndBalance: 88888 });
 const baseProps = { year: 2026, initial: { actualGain: 70000, endBalance: 2470000 }, language: 'zh', currency: 'USD', rate: 1, onSave() {}, onCancel() {} };
 function renderEditor(overrides = {}, Component = YearlyActualModal) {
   const props = { ...baseProps, ...overrides };
@@ -139,6 +142,109 @@ test('both fields are natively labelled and their explanatory text is linked for
     hintIds.push(hintId);
   }
   assert.equal(new Set(hintIds).size, 2);
+});
+
+test('the optional annual reference is a localized read-only definition list above the existing two inputs', () => {
+  for (const referenceYear of [undefined, null]) {
+    assert.equal(byClass(renderEditor({ referenceYear }).tree, 'rgm-year-reference').length, 0);
+  }
+  for (const language of ['zh', 'en']) {
+    for (const [currency, rate, amounts] of [
+      ['USD', 1, ['$1,000.25', '$125.15', '$1,125.40']],
+      ['CNY', 7.2, ['¥7,201.80', '¥901.08', '¥8,102.88']],
+    ]) {
+      for (const referenceStartProjected of [false, true]) {
+        const { tree } = renderEditor({ language, currency, rate, referenceYear: referenceFixture, referenceStartProjected });
+        const reference = byClass(tree, 'rgm-year-reference')[0];
+        assert.equal(reference.type, 'dl');
+        assert.equal(reference.props['aria-label'], t(language, 'review.yearReference'));
+        assert.deepEqual(nodes(reference, node => node.type === 'dt').map(textContent), [
+          t(language, referenceStartProjected ? 'review.yearStartPlanned' : 'review.yearStart'),
+          t(language, 'review.yearTargetGain'),
+          t(language, 'review.yearTargetEndAssets'),
+        ]);
+        assert.deepEqual(referenceValues(tree), amounts, 'the target ending assets use startBalance + planTarget, not an actual or original-plan ending balance');
+        const editorChildren = React.Children.toArray(byClass(tree, 'rgm-year-editor')[0].props.children);
+        assert.equal(editorChildren[0].type, 'dl');
+        assert.equal(editorChildren[1].type, 'label');
+        assert.equal(inputs(tree).length, 2);
+        assert.equal(nodes(reference, node => ['input', 'select', 'textarea', 'button'].includes(node.type)).length, 0);
+        assert.deepEqual(tree.props.actions.map(action => action.key), ['save']);
+      }
+    }
+  }
+});
+
+test('annual reference values preserve genuine zeros and valid numeric strings but never turn missing or invalid values into zero', () => {
+  for (const [currency, rate, symbol] of [['USD', 1, '$'], ['CNY', 7.2, '¥']]) {
+    const zero = renderEditor({ currency, rate, referenceYear: { startBalance: 0, planTarget: 0 } });
+    assert.deepEqual(referenceValues(zero.tree), Array(3).fill(`${symbol}0.00`));
+    const empty = renderEditor({ currency, rate, referenceYear: {} });
+    assert.deepEqual(referenceValues(empty.tree), ['—', '—', '—']);
+    const strings = renderEditor({ currency, rate, referenceYear: { startBalance: ' 1000.25 ', planTarget: '125.15' } });
+    assert.deepEqual(referenceValues(strings.tree), currency === 'USD'
+      ? ['$1,000.25', '$125.15', '$1,125.40'] : ['¥7,201.80', '¥901.08', '¥8,102.88']);
+    for (const field of ['startBalance', 'planTarget']) {
+      for (const value of [null, undefined, '', ' \t ', 'invalid', NaN, Infinity, false, [], {}]) {
+        const { tree, html } = renderEditor({ currency, rate, referenceYear: { ...referenceFixture, [field]: value } });
+        const values = referenceValues(tree);
+        assert.equal(values[field === 'startBalance' ? 0 : 1], '—', `${field}=${String(value)} is unavailable`);
+        assert.equal(values[2], '—', 'a partial reference cannot produce a target ending balance');
+        assert.equal(values[field === 'startBalance' ? 1 : 0], currency === 'USD'
+          ? field === 'startBalance' ? '$125.15' : '$1,000.25'
+          : field === 'startBalance' ? '¥901.08' : '¥7,201.80');
+        assert.doesNotMatch(html, /NaN|Infinity/);
+      }
+    }
+  }
+  const negative = renderEditor({ referenceYear: { startBalance: 1000, planTarget: -12.25 } });
+  assert.deepEqual(referenceValues(negative.tree), ['$1,000.00', '$-12.25', '$987.75']);
+  const overflow = renderEditor({ referenceYear: { startBalance: Number.MAX_VALUE, planTarget: Number.MAX_VALUE } });
+  assert.equal(referenceValues(overflow.tree)[2], '—');
+  assert.doesNotMatch(overflow.html, /NaN|Infinity/);
+});
+
+test('reference conversion uses the selected currency and rejects unusable CNY rates', () => {
+  for (const rate of [undefined, null, '', ' ', 'invalid', NaN, Infinity, 0, -1, false]) {
+    const { tree } = renderEditor({ currency: 'CNY', rate, initial: {}, referenceYear: referenceFixture });
+    assert.deepEqual(referenceValues(tree), ['—', '—', '—']);
+  }
+  const converted = renderEditor({ currency: 'CNY', rate: '7.2', referenceYear: referenceFixture });
+  assert.deepEqual(referenceValues(converted.tree), ['¥7,201.80', '¥901.08', '¥8,102.88']);
+  const usd = renderEditor({ currency: 'USD', rate: 7.2, referenceYear: referenceFixture });
+  assert.deepEqual(referenceValues(usd.tree), ['$1,000.25', '$125.15', '$1,125.40']);
+  assert.deepEqual(inputs(usd.tree).map(input => input.props.value), ['504000', '17784000'], 'the reference addition does not change the existing input initialization policy');
+});
+
+test('adding a reference preserves all input initialization, typed save arguments and supplied records', () => {
+  const snapshot = { ...referenceFixture };
+  for (const [currency, rate] of [['USD', 1], ['CNY', 7.2]]) {
+    for (const initial of [{ actualGain: 12.25, endBalance: 300.75 }, { actualGain: 0, endBalance: 0 }, { actualGain: null, endBalance: undefined }]) {
+      const savedWithout = [];
+      const savedWith = [];
+      const without = renderEditor({ currency, rate, initial, onSave: (...args) => savedWithout.push(args) });
+      const withReference = renderEditor({ currency, rate, initial, referenceYear: referenceFixture, referenceStartProjected: true, onSave: (...args) => savedWith.push(args) });
+      assert.deepEqual(inputs(withReference.tree).map(input => input.props.value), inputs(without.tree).map(input => input.props.value));
+      without.tree.props.actions[0].onClick();
+      withReference.tree.props.actions[0].onClick();
+      assert.deepEqual(savedWith, savedWithout);
+      assert.equal(savedWith[0].length, 2, 'reference fields must not be added to the save payload');
+    }
+    for (const values of [['123.45', '6789.01'], ['0', '0'], ['-12.25', ''], ['', '300.75'], ['', '']]) {
+      const initial = Object.freeze({ actualGain: 12.25, endBalance: 300.75 });
+      const saved = [];
+      const editor = statefulEditor({ currency, rate, initial, referenceYear: referenceFixture, referenceStartProjected: true, onSave: (...args) => saved.push(args) });
+      const before = referenceValues(editor.tree);
+      editor.type(0, values[0]);
+      editor.type(1, values[1]);
+      assert.deepEqual(saved, []);
+      assert.deepEqual(referenceValues(editor.tree), before, 'typing actual data must not rewrite the read-only plan reference');
+      editor.save();
+      assert.deepEqual(saved, [values.map(value => value === '' ? null : parseFloat(value) / rate)]);
+      assert.deepEqual(initial, { actualGain: 12.25, endBalance: 300.75 });
+    }
+  }
+  assert.deepEqual(referenceFixture, snapshot);
 });
 
 test('USD and CNY initialization retain the existing rounded display policy including zero, negative and missing values', () => {
@@ -240,8 +346,11 @@ test('annual edit preview opens only a local fixture and editor-specific styling
   assert.ok(authSource.includes('import.meta.env.DEV && (!isSupabaseConfigured || isDevVisualPreviewRequested())'));
   assert.ok(css.includes('.review-goal-modal .rgm-year-editor'));
   const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(match => ({ selectors: match[1], declarations: match[2] }));
-  for (const rule of rules.filter(rule => /rgm-year-editor|rgm-input-hint|rgm-currency-note/.test(rule.selectors))) {
+  for (const rule of rules.filter(rule => /rgm-year-editor|rgm-year-reference|rgm-input-hint|rgm-currency-note/.test(rule.selectors))) {
     assert.ok(rule.selectors.split(',').every(selector => selector.trim().startsWith('.review-goal-modal ')));
     assert.doesNotMatch(rule.declarations, /position:\s*fixed|z-index\s*:|100dvh|100vh|safe-area-inset|backdrop-filter/);
   }
+  const referenceRules = rules.filter(rule => /rgm-year-reference/.test(rule.selectors));
+  assert.ok(referenceRules.length > 0);
+  for (const rule of referenceRules) assert.doesNotMatch(rule.declarations, /box-shadow|text-shadow|linear-gradient|#f6b54b|#d4af37|gold|amber/i);
 });

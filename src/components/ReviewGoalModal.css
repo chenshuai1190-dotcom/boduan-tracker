@@ -30,6 +30,10 @@
 .review-goal-modal .review-year-facts .rgm-target-row { margin-top: 4px; padding-top: 17px; border-top: 1px solid rgb(255 255 255 / .065); }
 .review-goal-modal button:focus-visible { outline: 1px solid #b5b5ba; outline-offset: 2px; }
 .review-goal-modal .rgm-year-editor { display: grid; gap: 22px; padding: 3px 0 2px; }
+.review-goal-modal .rgm-year-reference { display: grid; gap: 9px; margin: 0; padding: 12px; border: 1px solid rgb(255 255 255 / .04); border-radius: 11px; background: #171819; }
+.review-goal-modal .rgm-year-reference > div { display: flex; justify-content: space-between; align-items: baseline; gap: 14px; min-width: 0; }
+.review-goal-modal .rgm-year-reference dt { min-width: 0; color: #85858f; font-size: 11px; line-height: 1.5; }
+.review-goal-modal .rgm-year-reference dd { min-width: 0; margin: 0; color: #c0c0c8; font-size: 13px; line-height: 1.5; text-align: right; overflow-wrap: anywhere; }
 .review-goal-modal .rgm-year-editor .rgm-field input { min-height: 54px; padding: 13px 14px; font-size: 20px; }
 .review-goal-modal .rgm-year-editor .rgm-field input::placeholder { font-size: 13px; }
 .review-goal-modal .rgm-input-hint { display: block; margin-top: 8px; color: #7e7e88; font-size: 11px; line-height: 1.65; font-weight: 400; overflow-wrap: anywhere; }

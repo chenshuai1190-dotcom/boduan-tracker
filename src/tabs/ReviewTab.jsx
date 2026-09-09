@@ -215,7 +215,9 @@ export default function ReviewTab({ ctx }) {
   const filteredDisciplines = filterLevel === 'all'
     ? sortedDisciplines
     : sortedDisciplines.filter((item) => item.level === filterLevel);
-  const visibleDisciplines = showAllDisciplines ? filteredDisciplines : filteredDisciplines.slice(0, 3);
+  const collapsedDisciplines = filteredDisciplines.filter((item, index) => item.pinned || index < 3);
+  const visibleDisciplines = showAllDisciplines ? filteredDisciplines : collapsedDisciplines;
+  const hasHiddenDisciplines = collapsedDisciplines.length < filteredDisciplines.length;
   const visibleLogs = showAllLogs ? (reviewLogs || []) : (reviewLogs || []).slice(0, 2);
 
   const switchCurrency = async (nextCurrency) => {
@@ -375,7 +377,7 @@ export default function ReviewTab({ ctx }) {
               </button>
             ))}
           </div>
-          {filteredDisciplines.length > 3 && <button type="button" className="review-show-more" onClick={() => setShowAllDisciplines(!showAllDisciplines)}>
+          {hasHiddenDisciplines && <button type="button" className="review-show-more" onClick={() => setShowAllDisciplines(!showAllDisciplines)}>
             {showAllDisciplines ? tt('review.collapseRecent', '收起') : tt('review.viewAllCount', '查看全部 {{count}} 条', { count: filteredDisciplines.length })}
             {showAllDisciplines ? <ChevronUp size={14} aria-hidden="true" /> : <ChevronDown size={14} aria-hidden="true" />}
           </button>}
@@ -625,10 +627,13 @@ export default function ReviewTab({ ctx }) {
       {editYearlyActualId && (() => {
         const year = editYearlyActualId;
         const existing = yearlyActuals.find((item) => item.year === year);
+        const referenceYearIndex = yearlyFinal.findIndex((item) => item.year === year);
         return (
           <YearlyActualModal
             year={year}
             initial={existing || { actualGain: null, endBalance: null }}
+            referenceYear={yearlyFinal[referenceYearIndex]}
+            referenceStartProjected={referenceYearIndex > 0 && yearlyFinal[referenceYearIndex - 1].isProjected}
             currency={displayCurrency}
             language={language}
             rate={isCNY ? rate : 1}

@@ -46,6 +46,7 @@ function fixture(overrides = {}) {
   ].map(name => [name, (...args) => calls.push({ name: `db.${name}`, args })])));
   const year = new Date().getFullYear();
   const ctx = Object.freeze({
+    ChevronDown: components.ChevronRight, ChevronUp: components.ChevronRight,
     language: 'zh', filterLevel: 'all', usdRate: 7.2, marketColorMode: 'red-up',
     investmentPlan: Object.freeze({ startYear: year, totalYears: 10, startCapital: 1000, targetAnnualRate: 0.2, displayCurrency: 'USD', motto: 'Keep the plan' }),
     yearlyActuals: Object.freeze([Object.freeze({ year, actualGain: 150, endBalance: 1150 })]),
@@ -215,4 +216,91 @@ test('entering and returning leave frozen parent data, callbacks and list conten
   assert.equal(JSON.stringify(ctx), before);
   for (const [key, reference] of references) assert.equal(ctx[key], reference, `${key} must remain owned by the parent`);
   assert.deepEqual(calls, [], 'navigation must not call parent setters, persistence or confirmation callbacks');
+});
+
+function insightList(tree) {
+  const section = nodes(tree, 'section').find(node => node.props['aria-labelledby'] === 'review-disciplines-heading');
+  const buttons = nodes(section, 'button');
+  return {
+    entries: buttons.filter(node => node.props.className === 'review-entry'),
+    toggle: buttons.find(node => node.props.className === 'review-show-more'),
+  };
+}
+
+function note(id, pinned = false, level = '🟢') {
+  return Object.freeze({ id, text: id, date: '2026-01-01', pinned, level });
+}
+
+function insightText(entry) {
+  return nodes(entry, 'span').find(node => node.props.className === 'review-entry-body').props.children;
+}
+
+test('all pinned insights remain visible when collapsed, without changing order or persistence', () => {
+  const pinned = Array.from({ length: 5 }, (_, index) => note(`pinned-${index}`, true));
+  const ordinary = [note('ordinary-1'), note('ordinary-2')];
+  const disciplines = Object.freeze([ordinary[0], ...pinned, ordinary[1]]);
+  const { ctx, calls } = fixture({ disciplines, showAllDisciplines: false });
+  const harness = navigationHarness(ctx);
+  harness.render();
+  harness.commit();
+  const list = insightList(harness.tree);
+  assert.deepEqual(list.entries.map(insightText), pinned.map(item => item.id));
+  assert.ok(list.entries.every(node => node.props['data-pinned'] === 'true'));
+  assert.ok(list.toggle, 'ordinary entries still have an expand control');
+  assert.deepEqual(calls, [], 'rendering does not write pin flags or any data');
+  list.toggle.props.onClick();
+  assert.deepEqual(calls, [{ name: 'setShowAllDisciplines', args: [true] }]);
+  assert.deepEqual(disciplines.map(item => item.id), ['ordinary-1', ...pinned.map(item => item.id), 'ordinary-2']);
+});
+
+test('all-pinned lists have no redundant expand control, while ordinary defaults stay at three', () => {
+  for (const pinnedCount of [0, 2, 5]) {
+    const disciplines = Object.freeze(Array.from({ length: 5 }, (_, index) => note(`note-${index}`, index < pinnedCount)));
+    const harness = navigationHarness(fixture({ disciplines, showAllDisciplines: false }).ctx);
+    harness.render();
+    harness.commit();
+    const list = insightList(harness.tree);
+    assert.equal(list.entries.length, Math.max(3, pinnedCount));
+    assert.equal(Boolean(list.toggle), pinnedCount < 5);
+  }
+});
+
+test('insight expansion and level filters preserve pinned visibility without leaking other levels', () => {
+  const pinned = Array.from({ length: 5 }, (_, index) => note(`pinned-${index}`, true, '🔺'));
+  const disciplines = Object.freeze([note('ordinary'), ...pinned, note('important-extra', false, '🔺')]);
+  for (const showAllDisciplines of [false, true]) {
+    const { ctx, calls } = fixture({ disciplines, filterLevel: '🔺', showAllDisciplines });
+    const harness = navigationHarness(ctx);
+    harness.render();
+    harness.commit();
+    const list = insightList(harness.tree);
+    assert.deepEqual(list.entries.map(insightText), [...pinned.map(item => item.id), ...(showAllDisciplines ? ['important-extra'] : [])]);
+    list.toggle.props.onClick();
+    assert.deepEqual(calls, [{ name: 'setShowAllDisciplines', args: [!showAllDisciplines] }]);
+  }
+});
+
+test('annual editor receives the existing rolling start and target as read-only references', async () => {
+  const year = new Date().getFullYear();
+  function YearEditor() { return null; }
+  for (const [offset, previousActuals, expectedStart, projected] of [
+    [0, [], 1000, false],
+    [1, [{ year, actualGain: 150, endBalance: 1150 }], 1150, false],
+    [1, [], 1200, true],
+  ]) {
+    const yearlyActuals = Object.freeze(previousActuals.map(item => Object.freeze(item)));
+    const { ctx, calls } = fixture({ editYearlyActualId: year + offset, YearlyActualModal: YearEditor, yearlyActuals });
+    const harness = navigationHarness(ctx);
+    harness.render();
+    harness.commit();
+    const editor = nodes(harness.tree, YearEditor)[0];
+    assert.equal(editor.props.referenceYear.year, year + offset);
+    assert.equal(editor.props.referenceYear.startBalance, expectedStart);
+    assert.equal(editor.props.referenceYear.planTarget, Math.round(expectedStart * 0.2));
+    assert.equal(editor.props.referenceStartProjected, projected);
+    assert.deepEqual(calls, []);
+    await editor.props.onSave(0, null);
+    assert.deepEqual(calls[0], { name: 'db.upsertYearlyActual', args: [year + offset, 0, null] });
+    assert.deepEqual(editor.props.initial, { actualGain: null, endBalance: null });
+  }
 });
