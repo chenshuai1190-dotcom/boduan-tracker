@@ -1,0 +1,30 @@
+.north-star-card { padding: 18px 20px 0; border: 0; border-radius: 22px; background: #101112; color: #f1f1f2; overflow: hidden; font-variant-numeric: tabular-nums; }
+.north-star-card .ns-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.north-star-card .ns-header h2 { margin: 0; color: #ababaf; font-size: 13px; font-weight: 400; line-height: 20px; }
+.north-star-card .ns-controls { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.north-star-card .ns-currencies { display: flex; align-items: center; gap: 1px; }
+.north-star-card .ns-currencies button { min-height: 36px; padding: 0 8px; border: 0; background: transparent; color: #717177; font: inherit; font-size: 11px; cursor: pointer; }
+.north-star-card .ns-currencies button[aria-pressed=true] { color: #ededee; }
+.north-star-card .ns-settings { display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 0; background: transparent; color: #a0a0a5; cursor: pointer; }
+.north-star-card .ns-overview { display: block; width: 100%; padding: 16px 0 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.north-star-card .ns-goal-amount { display: flex; align-items: baseline; flex-wrap: wrap; column-gap: 2px; font: 400 clamp(25px, 8.2vw, 35px)/1.2 -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif; letter-spacing: -.8px; overflow-wrap: anywhere; }
+.north-star-card .ns-goal-decimal { color: #8b8b91; font-size: 19px; letter-spacing: 0; }
+.north-star-card .ns-horizon { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 5px 14px; margin-top: 10px; color: #85858c; font-size: 11px; line-height: 1.6; }
+.north-star-card .ns-horizon > span:last-child { color: #b0b0b5; }
+.north-star-card .ns-progress-summary { display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 14px; margin-top: 29px; }
+.north-star-card .ns-label { display: block; color: #818188; font-size: 11px; line-height: 1.5; font-weight: 400; }
+.north-star-card .ns-current { min-width: 0; }
+.north-star-card .ns-current strong { display: block; margin-top: 7px; font-size: clamp(17px, 5vw, 20px); font-weight: 400; line-height: 1.2; overflow-wrap: anywhere; }
+.north-star-card .ns-completion { flex-shrink: 0; text-align: right; }
+.north-star-card .ns-completion strong { display: block; margin-top: 6px; color: #ff4b1f; font-size: 25px; font-weight: 400; line-height: 1; letter-spacing: -.6px; }
+.north-star-card .ns-progress-track { display: block; height: 4px; margin-top: 15px; overflow: hidden; border-radius: 4px; background: #27282b; }
+.north-star-card .ns-progress-fill { display: block; height: 100%; border-radius: inherit; background: #ff4b1f; }
+.north-star-card .ns-plan-facts { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 14px 22px; margin-top: 21px; }
+.north-star-card .ns-plan-facts > span:last-child { text-align: right; }
+.north-star-card .ns-plan-facts strong { display: block; margin-top: 5px; color: #bebec3; font-size: 13px; font-weight: 400; line-height: 1.5; overflow-wrap: anywhere; }
+.north-star-card .ns-detail-link { display: flex; justify-content: space-between; align-items: center; min-height: 49px; margin-top: 20px; border-top: 1px solid rgb(255 255 255 / .055); color: #a6a6ad; font-size: 11px; }
+.north-star-card .ns-motto { margin: 0; padding: 0 0 18px; color: #696970; font-size: 11px; line-height: 1.6; overflow-wrap: anywhere; }
+.north-star-card button:focus-visible { outline: 1px solid #b5b5ba; outline-offset: 3px; border-radius: 5px; }
+.north-star-card .ns-settings:active, .north-star-card .ns-currencies button:active { color: #ffffff; }
+.north-star-card .ns-overview:active .ns-detail-link { color: #ffffff; }
+@media (max-width: 350px) { .north-star-card { padding-left: 16px; padding-right: 16px; } .north-star-card .ns-controls { gap: 3px; } .north-star-card .ns-currencies button { padding: 0 6px; } .north-star-card .ns-goal-amount { font-size: 25px; } .north-star-card .ns-goal-decimal { font-size: 16px; } }

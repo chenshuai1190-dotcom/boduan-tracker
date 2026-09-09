@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '🎯 目标页统一为简约黑灰风格',
+      '  - 北极星、年度计划、心得与复盘，以及设置、编辑和详情窗口统一视觉与操作',
+      '  - 复利明细升级独立页面，曲线支持点击和拖动选年、查看差额并定位年度明细',
+      '  - 区分历史记录、本年进行中和未来推演，保留原有年度数据与保存链路',
+    ],
+    itemsEn: [
+      '🎯 A unified minimal monochrome design for Goals',
+      '  - Consistent North Star, annual plans, insights, reviews and their settings, editing and detail views',
+      '  - A dedicated compound-growth page with interactive year selection, target gaps and linked annual details',
+      '  - Distinct historical records, current-year progress and future projections with existing data and save flows preserved',
+    ],
+  },
+  {
+    ver: 'v10.7.9.493', date: '2026-09-09',
+    items: [
       '🧰 全部功能采用简约黑灰列表',
       '  - 去掉逐项边框、彩色强调与多种渐变，统一线性图标和单列留白',
       '  - 保留分类与原有功能顺序，投资时光机、定投实验室和持仓重叠体检依次排列',

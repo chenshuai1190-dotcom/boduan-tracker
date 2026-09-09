@@ -1,0 +1,16 @@
+.review-goal-modal .rgm-entry-form { display: grid; gap: 20px; padding: 2px 0; min-width: 0; }
+.review-goal-modal .rgm-entry-choices { min-width: 0; margin: 0; padding: 0; border: 0; }
+.review-goal-modal .rgm-entry-choices legend { padding: 0; margin-bottom: 9px; color: #9999a1; font-size: 11px; line-height: 1.5; }
+.review-goal-modal .rgm-entry-levels, .review-goal-modal .rgm-entry-moods { display: grid; gap: 6px; }
+.review-goal-modal .rgm-entry-levels { grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 4px; border-radius: 12px; background: #1b1c1e; }
+.review-goal-modal .rgm-entry-moods { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.review-goal-modal .rgm-entry-choices button { min-width: 0; min-height: 37px; padding: 7px 4px; border: 0; border-radius: 8px; background: transparent; color: #888890; font-size: 12px; line-height: 1.45; overflow-wrap: anywhere; }
+.review-goal-modal .rgm-entry-moods button { background: #1b1c1e; }
+.review-goal-modal .rgm-entry-choices button[aria-pressed="true"] { background: #303133; color: #e1e1e6; }
+.review-goal-modal .rgm-entry-custom-mood { margin-top: 8px; }
+.review-goal-modal .rgm-field .rgm-entry-text { min-height: 164px; padding: 13px 14px; font-size: 16px; line-height: 1.85; resize: vertical; }
+.review-goal-modal .rgm-entry-form input[type="date"] { appearance: none; text-align: left; }
+.review-goal-modal .rgm-entry-form input[type="date"]::-webkit-date-and-time-value { text-align: left; }
+.review-goal-modal .rgm-entry-pin { display: flex; align-items: flex-start; gap: 9px; color: #9f9fa8; font-size: 12px; line-height: 1.65; }
+.review-goal-modal .rgm-entry-pin input { width: 16px; height: 16px; margin-top: 2px; flex: 0 0 auto; accent-color: #dedee3; }
+.review-goal-modal .rgm-entry-error { margin-top: -12px; color: #ef8278; font-size: 12px; line-height: 1.5; }

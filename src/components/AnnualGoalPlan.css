@@ -1,0 +1,43 @@
+.annual-goal-plan { margin-top: 28px; color: #f1f1f2; font-variant-numeric: tabular-nums; }
+.annual-goal-plan .ag-section-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 14px; }
+.annual-goal-plan .ag-section-header h2 { margin: 0; font-size: 16px; font-weight: 500; line-height: 1.5; }
+.annual-goal-plan button { font: inherit; color: inherit; text-align: left; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.annual-goal-plan .ag-toggle { display: flex; align-items: center; justify-content: flex-end; gap: 5px; min-height: 36px; padding: 0; border: 0; background: transparent; color: #808087; font-size: 11px; line-height: 1.5; }
+.annual-goal-plan .ag-toggle svg { flex-shrink: 0; }
+.annual-goal-plan .ag-current-card { display: block; width: 100%; border: 0; border-radius: 22px; padding: 20px; background: #101112; }
+.annual-goal-plan .ag-current-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+.annual-goal-plan .ag-year-heading { display: flex; align-items: baseline; gap: 9px; }
+.annual-goal-plan .ag-year-heading strong { font-size: 22px; font-weight: 400; line-height: 1.1; }
+.annual-goal-plan .ag-year-heading > span { color: #909096; font-size: 11px; }
+.annual-goal-plan .ag-current-status { display: flex; align-items: center; gap: 8px; color: #77777e; }
+.annual-goal-plan .ag-status { display: inline-flex; align-items: center; gap: 4px; color: #808087; font-size: 11px; line-height: 1.5; }
+.annual-goal-plan .ag-status[data-annual-goal-status=exceeded], .annual-goal-plan .ag-status[data-annual-goal-status=reached] { color: #c4c4c8; }
+.annual-goal-plan .ag-current-result { display: block; margin-top: 26px; }
+.annual-goal-plan .ag-label { color: #818188; font-size: 11px; font-weight: 400; line-height: 1.5; }
+.annual-goal-plan .ag-gain { display: block; margin-top: 7px; font-size: clamp(25px, 8vw, 32px); font-weight: 400; line-height: 1.2; letter-spacing: -.6px; overflow-wrap: anywhere; }
+.annual-goal-plan .ag-gain.ag-unrecorded { color: #99999f; font-size: 25px; letter-spacing: 0; }
+.annual-goal-plan .ag-current-target { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 5px 16px; margin-top: 17px; }
+.annual-goal-plan .ag-current-target strong { color: #c3c3c8; font-size: 14px; font-weight: 400; overflow-wrap: anywhere; min-width: 0; }
+.annual-goal-plan .ag-gap { display: block; margin-top: 12px; color: #a5a5ac; font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.annual-goal-plan .ag-gap[data-gap-status=pending] { color: #68686f; }
+.annual-goal-plan .ag-progress-summary { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-top: 23px; color: #818188; font-size: 11px; }
+.annual-goal-plan .ag-progress-summary strong { color: #c6c6cb; font-size: 12px; font-weight: 400; }
+.annual-goal-plan .ag-progress-track { display: block; height: 4px; margin-top: 9px; overflow: hidden; border-radius: 4px; background: #27282b; }
+.annual-goal-plan .ag-progress-fill { display: block; height: 100%; border-radius: inherit; background: #ff4b1f; }
+.annual-goal-plan .ag-timeline { margin-top: 8px; }
+.annual-goal-plan .ag-year-row { position: relative; display: block; width: 100%; padding: 21px 2px 21px 23px; border: 0; background: transparent; }
+.annual-goal-plan .ag-year-row::before { content: ''; position: absolute; width: 1px; top: 0; bottom: 0; left: 4px; background: #252629; }
+.annual-goal-plan .ag-year-row:first-child::before { top: 30px; }
+.annual-goal-plan .ag-year-row:last-child::before { bottom: auto; height: 30px; }
+.annual-goal-plan .ag-year-row:only-child::before { display: none; }
+.annual-goal-plan .ag-timeline-dot { position: absolute; top: 28px; left: 1px; width: 7px; height: 7px; border-radius: 50%; background: #717177; }
+.annual-goal-plan .ag-row-head { display: flex; align-items: center; gap: 10px; }
+.annual-goal-plan .ag-row-year { color: #bcbcc2; font-size: 19px; font-weight: 400; line-height: 1.15; }
+.annual-goal-plan .ag-row-head > svg { margin-left: auto; color: #63636b; }
+.annual-goal-plan .ag-row-assets { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 5px 14px; margin-top: 12px; }
+.annual-goal-plan .ag-row-assets strong { color: #c9c9ce; font-size: 16px; font-weight: 400; line-height: 1.35; overflow-wrap: anywhere; min-width: 0; }
+.annual-goal-plan .ag-row-gain { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 5px 14px; margin-top: 6px; color: #717179; font-size: 11px; line-height: 1.5; }
+.annual-goal-plan .ag-row-gain strong { color: #9999a0; font-size: 12px; font-weight: 400; overflow-wrap: anywhere; min-width: 0; }
+.annual-goal-plan button:focus-visible { outline: 1px solid #b5b5ba; outline-offset: 4px; border-radius: 6px; }
+.annual-goal-plan .ag-current-card:active, .annual-goal-plan .ag-year-row:active { opacity: .8; }
+@media (max-width: 350px) { .annual-goal-plan .ag-current-card { padding: 18px 16px; } .annual-goal-plan .ag-gain { font-size: 25px; } .annual-goal-plan .ag-section-header { gap: 8px; } }

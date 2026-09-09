@@ -23,6 +23,8 @@ import {
   X,
 } from 'lucide-react';
 import ConfirmModal from './components/ConfirmModal.jsx';
+import YearlyActualModal from './components/YearlyActualModal.jsx';
+import { DisciplineModal, LogModal } from './components/ReviewEntryEditors.jsx';
 import { normalizeConfirmModalOptions } from './lib/confirmModal.js';
 import { localMonthKey, shiftMonthKey } from './lib/calendarMonth.js';
 import { EARNINGS_GROWTH_SCHEMA_VERSION } from './lib/earningsGrowth.js';
@@ -1768,6 +1770,30 @@ function StandardDevVisualPreview({ initialTab = '' }) {
   }, []);
   const reviewAmountStress = typeof window !== 'undefined'
     && new URLSearchParams(window.location.search).get('reviewAmountStress') === '1';
+  const reviewPanel = typeof window !== 'undefined'
+    ? new URLSearchParams(window.location.search).get('reviewPanel') : null;
+  const reviewSection = typeof window !== 'undefined'
+    ? new URLSearchParams(window.location.search).get('reviewSection') : null;
+  React.useEffect(() => {
+    if (activeTab !== 'review' || !['compound', 'compound-simulation'].includes(reviewPanel)
+      || !['years', 'year-detail', 'curve'].includes(reviewSection)) return undefined;
+    let frame = 0;
+    const observer = new MutationObserver(focusCompoundYears);
+    function focusCompoundYears() {
+      const content = document.querySelector('[data-compound-detail="true"]');
+      const tabs = content?.querySelector('[data-compound-tabs="true"]');
+      if (!tabs) return;
+      observer.disconnect();
+      if (reviewSection === 'year-detail') content.querySelector('details')?.setAttribute('open', '');
+      frame = window.requestAnimationFrame(() => {
+        const target = reviewSection === 'curve' ? content.querySelector('.cp-path-heading') : tabs;
+        target?.scrollIntoView({ block: 'start', behavior: 'instant' });
+      });
+    }
+    observer.observe(document.body, { childList: true, subtree: true });
+    focusCompoundYears();
+    return () => { observer.disconnect(); window.cancelAnimationFrame(frame); };
+  }, [activeTab, reviewPanel, reviewSection]);
   const tqqqTradePreviewSide = React.useMemo(() => {
     if (typeof window === 'undefined') return '';
     const value = new URLSearchParams(window.location.search).get('tqqqTrade');
@@ -2318,12 +2344,12 @@ function StandardDevVisualPreview({ initialTab = '' }) {
       endBalance: reviewAmountStress ? 2736108 : 2470000,
     },
   ]);
-  const [showPlanSettings, setShowPlanSettings] = React.useState(false);
-  const [showAddDiscipline, setShowAddDiscipline] = React.useState(false);
-  const [editingDisciplineId, setEditingDisciplineId] = React.useState(null);
-  const [showAddLog, setShowAddLog] = React.useState(false);
-  const [editingLogId, setEditingLogId] = React.useState(null);
-  const [editYearlyActualId, setEditYearlyActualId] = React.useState(null);
+  const [showPlanSettings, setShowPlanSettings] = React.useState(reviewPanel === 'settings');
+  const [showAddDiscipline, setShowAddDiscipline] = React.useState(reviewPanel === 'discipline-add');
+  const [editingDisciplineId, setEditingDisciplineId] = React.useState(reviewPanel === 'discipline-edit' ? disciplines[0]?.id : null);
+  const [showAddLog, setShowAddLog] = React.useState(reviewPanel === 'log-add');
+  const [editingLogId, setEditingLogId] = React.useState(reviewPanel === 'log-edit' ? reviewLogs[0]?.id : null);
+  const [editYearlyActualId, setEditYearlyActualId] = React.useState(reviewPanel === 'year-edit' ? yearlyActuals[0]?.year : null);
   const [filterLevel, setFilterLevel] = React.useState('all');
   const [showAllDisciplines, setShowAllDisciplines] = React.useState(false);
   const [showAllLogs, setShowAllLogs] = React.useState(false);
@@ -3155,12 +3181,17 @@ function StandardDevVisualPreview({ initialTab = '' }) {
   };
 
   const reviewCtx = {
+    initialReviewYear: reviewPanel === 'annual' ? yearlyActuals[0]?.year : undefined,
+    initialCompoundDetails: reviewPanel === 'compound' || reviewPanel === 'compound-simulation',
+    initialCompoundView: reviewPanel === 'compound-simulation' ? 'simulation' : 'execution',
+    initialDisciplineId: reviewPanel === 'discipline-detail' ? disciplines[0]?.id : undefined,
+    initialReviewLogId: reviewPanel === 'log-detail' ? reviewLogs[0]?.id : undefined,
     BookOpen,
     Calendar,
     ChevronDown,
     ChevronUp,
     db,
-    DisciplineModal: (props) => <DevModal title={props.initial?.isEdit ? t(language, 'review.editDiscipline', '编辑心得') : t(language, 'review.addDiscipline', '添加心得')} onCancel={props.onCancel} />,
+    DisciplineModal,
     disciplines,
     Edit2,
     editingDisciplineId,
@@ -3170,7 +3201,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     filterLevel,
     investmentPlan,
     lastSubmitRef,
-    LogModal: (props) => <DevModal title={props.onDelete ? t(language, 'review.editReview', '编辑复盘') : t(language, 'review.addReview', '写复盘')} onCancel={props.onCancel} />,
+    LogModal,
     marketColorMode,
     reviewLogs,
     setDisciplines,
@@ -3201,7 +3232,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     TrendingUp,
     usdRate: USD_RATE,
     X,
-    YearlyActualModal: (props) => <DevModal title={t(language, 'review.actualDataTitle', '{{year}} 年实际数据', { year: props.year })} onCancel={props.onCancel} />,
+    YearlyActualModal,
     yearlyActuals,
   };
 

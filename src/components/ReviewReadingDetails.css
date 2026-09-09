@@ -1,0 +1,4 @@
+.review-goal-modal .rgm-reading-detail { min-width: 0; padding: 1px 0 4px; }
+.review-goal-modal .rgm-reading-meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: 5px 14px; margin-bottom: 19px; color: #83838d; font-size: 11px; line-height: 1.6; }
+.review-goal-modal .rgm-reading-meta > span { min-width: 0; overflow-wrap: anywhere; }
+.review-goal-modal .rgm-reading-text { min-width: 0; min-height: 96px; color: #d0d0d7; font-size: 14px; font-weight: 400; line-height: 1.8; white-space: pre-wrap; overflow-wrap: anywhere; }

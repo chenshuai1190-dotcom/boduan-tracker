@@ -1,0 +1,25 @@
+.review-page { min-width: 0; --review-surface: #101112; --review-muted: #88888e; }
+.review-page .review-reading-section { margin-top: 30px; }
+.review-page .review-section-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 40px; margin-bottom: 12px; }
+.review-page .review-section-header h2 { display: flex; align-items: center; gap: 8px; min-width: 0; margin: 0; color: #e3e3e6; font-size: 15px; font-weight: 500; line-height: 1.5; }
+.review-page .review-section-header h2 svg { color: #929298; flex-shrink: 0; }
+.review-page .review-text-action { display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-height: 40px; padding: 0 2px 0 8px; flex-shrink: 0; color: #a1a1a8; background: transparent; border: 0; font: inherit; font-size: 12px; cursor: pointer; }
+.review-page .review-filters { display: flex; flex-wrap: wrap; gap: 2px 12px; margin-bottom: 12px; }
+.review-page .review-filters button { min-height: 36px; padding: 0; background: transparent; border: 0; border-bottom: 1px solid transparent; color: #75757d; font: inherit; font-size: 11px; cursor: pointer; }
+.review-page .review-filters button[aria-pressed=true] { border-bottom-color: #bebec4; color: #e5e5e8; }
+.review-page .review-filters button span { margin-left: 2px; font-variant-numeric: tabular-nums; }
+.review-page .review-entry-list { min-width: 0; }
+.review-page .review-entry { display: block; width: 100%; padding: 19px 0; background: transparent; border: 0; border-bottom: 1px solid rgb(255 255 255 / .065); border-radius: 0; color: #d0d0d5; text-align: left; font: inherit; cursor: pointer; }
+.review-page .review-entry[data-pinned=true] { padding: 18px; margin-bottom: 4px; border: 0; border-radius: 18px; background: var(--review-surface); }
+.review-page .review-entry-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 10px; color: var(--review-muted); font-size: 11px; font-variant-numeric: tabular-nums; line-height: 1.5; }
+.review-page .review-entry-arrow { margin-left: auto; flex-shrink: 0; color: #66666d; }
+.review-page .review-pinned { display: inline-flex; align-items: center; gap: 4px; color: #a4a4ab; }
+.review-page .review-entry-body { display: block; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; line-height: 1.8; font-weight: 400; }
+.review-page .review-show-more { display: flex; width: 100%; min-height: 46px; align-items: center; justify-content: center; gap: 6px; margin-top: 5px; padding: 8px; border: 0; background: transparent; color: #95959c; font: inherit; font-size: 12px; cursor: pointer; }
+.review-page .review-empty { padding: 26px 16px; border-radius: 18px; background: var(--review-surface); color: var(--review-muted); text-align: center; font-size: 13px; }
+.review-page .review-year-facts { display: grid; gap: 12px; margin: 16px 0 20px; }
+.review-page .review-year-facts > div { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 5px 12px; }
+.review-page .review-year-facts dt { color: #929298; font-size: 12px; }
+.review-page .review-year-facts dd { margin: 0; color: #d9d9df; font-size: 13px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.review-page .review-entry:focus-visible, .review-page .review-text-action:focus-visible, .review-page .review-filters button:focus-visible, .review-page .review-show-more:focus-visible { outline: 1px solid #b5b5ba; outline-offset: 3px; border-radius: 4px; }
+.review-page .review-entry:active .review-entry-body { color: #f4f4f5; }
