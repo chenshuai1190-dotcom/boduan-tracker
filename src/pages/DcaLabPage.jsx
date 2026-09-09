@@ -7,7 +7,7 @@ import { getInvestmentComparisonExpectedCloseDate } from '../lib/investmentCompa
 import '../components/InvestmentComparison.css';
 import '../components/DcaLab.css';
 
-const DEFAULT_PLAN = { symbol: 'QQQ', startYear: 2020, endYear: Number(getInvestmentComparisonExpectedCloseDate(Date.now()).slice(0, 4)), initial: 10000, amount: 1000, frequency: 'monthly' };
+const DEFAULT_PLAN = { symbol: 'QQQ', startYear: 2020, endYear: Number(getInvestmentComparisonExpectedCloseDate(Date.now()).slice(0, 4)), initial: 10000, amount: 10000, frequency: 'monthly' };
 const money = value => Number.isFinite(value) ? `$${value.toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '—';
 const assetMoney = value => Number.isFinite(value) ? `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—';
 const short = value => Math.abs(value) >= 100000000 ? `${(value / 100000000).toFixed(2)}亿` : Math.abs(value) >= 10000 ? `${(value / 10000).toFixed(1)}万` : Math.round(value).toLocaleString('en-US');

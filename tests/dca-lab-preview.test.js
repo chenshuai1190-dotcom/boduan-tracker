@@ -73,6 +73,20 @@ test('the redundant header source row is removed while real-history safeguards a
   assert.doesNotMatch(source, /\.\.\/dev\//);
 });
 
+test('the default contribution is 10000 while initial capital, frequency and instrument remain unchanged', () => {
+  const overrides = [];
+  overrides[1] = true;
+  const page = capture(DcaLabPage, { ctx: { userId: 'user-a' } }, overrides);
+  assert.match(page.html, /每月 \$10,000<\/span>/);
+  assert.match(page.html, /起投 \$10,000<\/span>/);
+  const editor = nodes(page.tree, node => node.type?.name === 'PlanEditor')[0];
+  assert.equal(editor.props.plan.amount, 10000);
+  assert.equal(editor.props.plan.initial, 10000);
+  assert.equal(editor.props.plan.frequency, 'monthly');
+  assert.equal(editor.props.plan.symbol, 'QQQ');
+  assert.equal(editor.props.plan.startYear, 2020);
+});
+
 test('loading and failed history never show fabricated zero assets or retained results', () => {
   const loading = htmlOf(DcaLabPage, { ctx: { userId: 'user-a' } });
   const failed = capture(DcaLabPage, { ctx: { userId: 'user-a' } }, [plan, false, 0, { key: 'user-a:QQQ', data: null, loading: false, error: '历史行情暂不可用' }]).html;
