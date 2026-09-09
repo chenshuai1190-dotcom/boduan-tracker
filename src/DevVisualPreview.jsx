@@ -38,6 +38,7 @@ const TradesTab = lazy(() => import('./tabs/TradesTab.jsx'));
 const PnlReportPage = lazy(() => import('./pages/PnlReportPage.jsx'));
 const PnlSharePage = lazy(() => import('./pages/PnlSharePage.jsx'));
 const HomeMarginRiskPage = lazy(() => import('./pages/HomeMarginRiskPage.jsx'));
+const DrawdownObservationPreview = lazy(() => import('./dev/DrawdownObservationPreview.jsx'));
 const VixComparisonPage = lazy(() => import('./pages/VixComparisonPage.jsx'));
 const InvestmentComparisonPreview = lazy(() => import('./dev/InvestmentComparisonPreview.jsx'));
 const PortfolioOverlapPreview = lazy(() => import('./dev/PortfolioOverlapPreview.jsx'));
@@ -1743,7 +1744,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     if (['risk', 'editor', 'leverage'].includes(params.get('homeMargin'))) return 'home-margin-risk';
     if (params.get('preview') === 'dca-lab') return 'dca-lab';
     const requestedTab = params.get('tab');
-    return ['home', 'trades', 'analysis', 'review', 'settings', 'pnl-report', 'pnl-share', 'home-margin-risk', 'stock-detail', 'watchlist-stock-detail', 'wave-tracker', 'community-competition', 'vix-comparison', 'investment-comparison', 'portfolio-overlap', 'dca-lab'].includes(requestedTab) ? requestedTab : 'analysis';
+    return ['home', 'trades', 'analysis', 'review', 'settings', 'pnl-report', 'pnl-share', 'home-margin-risk', 'drawdown-observation', 'stock-detail', 'watchlist-stock-detail', 'wave-tracker', 'community-competition', 'vix-comparison', 'investment-comparison', 'portfolio-overlap', 'dca-lab'].includes(requestedTab) ? requestedTab : 'analysis';
   });
   const [previewWatchlistDetailSymbol, setPreviewWatchlistDetailSymbol] = React.useState('NVDA');
   const [previewEarningsDetailEvent, setPreviewEarningsDetailEvent] = React.useState(() => (
@@ -1937,6 +1938,9 @@ function StandardDevVisualPreview({ initialTab = '' }) {
   const benchmarkSheetPreview = typeof window === 'undefined'
     ? ''
     : new URLSearchParams(window.location.search).get('benchmarkSheet') || '';
+  const drawdownInitialSymbol = typeof window === 'undefined'
+    ? ''
+    : new URLSearchParams(window.location.search).get('drawdownSymbol') || '';
   const earningsResumeClockRef = React.useRef(Date.parse(earningsLiveSmoke
     ? '2026-07-15T12:07:00.000Z'
     : '2026-07-15T12:01:00.000Z'));
@@ -2917,6 +2921,11 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     loadAvailableCashMovements: loadPreviewAvailableCashMovements,
     mutateAvailableCash: mutatePreviewAvailableCash,
     reverseAvailableCashMovement: reversePreviewAvailableCashMovement,
+    openDrawdownObservation: () => {
+      setBenchmarkMenuOpen(false);
+      setActiveTab('drawdown-observation');
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    },
     setBenchmarkMenuOpen,
     setBenchmarkSymbol,
     setLanguage,
@@ -3287,7 +3296,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     <div
       className={`min-h-screen bg-[#05070b] text-white ${['pnl-report', 'pnl-share'].includes(activeTab) ? 'pb-0' : 'pb-24'} ${['pnl-report', 'pnl-share', 'stock-detail', 'community-competition', 'earnings-detail'].includes(activeTab) ? 'px-0' : 'px-4'}`}
       style={{
-        paddingTop: ['pnl-share', 'home-margin-risk', 'wave-tracker', 'community-competition', 'watchlist-stock-detail', 'earnings-detail', 'vix-comparison', 'investment-comparison', 'portfolio-overlap', 'dca-lab'].includes(activeTab) ? 0 : 'calc(1rem + env(safe-area-inset-top))',
+        paddingTop: ['pnl-share', 'home-margin-risk', 'drawdown-observation', 'wave-tracker', 'community-competition', 'watchlist-stock-detail', 'earnings-detail', 'vix-comparison', 'investment-comparison', 'portfolio-overlap', 'dca-lab'].includes(activeTab) ? 0 : 'calc(1rem + env(safe-area-inset-top))',
         ...(visualViewportWidth
           ? { marginInline: 'auto', maxWidth: '100%', width: `${visualViewportWidth}px` }
           : {}),
@@ -3310,6 +3319,8 @@ function StandardDevVisualPreview({ initialTab = '' }) {
           )
           : activeTab === 'home-margin-risk'
           ? <HomeMarginRiskPage ctx={homeCtx} />
+          : activeTab === 'drawdown-observation'
+          ? <DrawdownObservationPreview onBack={() => setActiveTab('home')} initialSymbol={drawdownInitialSymbol} />
           : activeTab === 'vix-comparison'
           ? <VixComparisonPage ctx={{ ...homeCtx, englishMode: language === 'en' }} previewData={mockVixComparisonData} />
           : activeTab === 'investment-comparison'
@@ -3355,6 +3366,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
               const Icon = tab.icon;
               const isActive = tab.id === activeTab
                 || (activeTab === 'home-margin-risk' && tab.id === 'home')
+                || (activeTab === 'drawdown-observation' && tab.id === 'home')
                 || (activeTab === 'vix-comparison' && tab.id === 'home')
                 || (activeTab === 'investment-comparison' && tab.id === 'trades')
                 || (activeTab === 'portfolio-overlap' && tab.id === 'trades')

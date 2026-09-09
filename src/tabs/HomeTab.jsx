@@ -484,6 +484,7 @@ export default function HomeTab({ ctx }) {
     marketIndices,
     newStock,
     openHomeMarginRisk,
+    openDrawdownObservation,
     openVixComparison,
     openEarningsCalendar,
     openEarningsDetail,
@@ -1108,7 +1109,7 @@ export default function HomeTab({ ctx }) {
             onClick={() => setBenchmarkMenuOpen(true)}
             className="relative rounded-full px-1.5 py-0.5 text-[11px] font-bold text-white/50 active:scale-95"
           >
-            {t(language, 'home.strategyStatus', '策略状态')}
+            {t(language, 'home.switchBenchmark', '切换基准')}
           </button>
         </div>
         <div className="grid grid-cols-[62px_minmax(0,1fr)_70px] items-center gap-3">
@@ -1122,8 +1123,9 @@ export default function HomeTab({ ctx }) {
           </div>
           <button
             type="button"
-            data-home-signal-trigger
-            onClick={() => setBenchmarkMenuOpen(true)}
+            data-home-drawdown-trigger
+            aria-label={englishMode ? 'Open drawdown observation' : '打开回撤观察'}
+            onClick={() => openDrawdownObservation?.()}
             className="relative w-full text-right active:scale-[0.98]"
           >
             <span
@@ -1138,8 +1140,9 @@ export default function HomeTab({ ctx }) {
         {benchmarkStock && (
           <button
             type="button"
-            data-home-signal-trigger
-            onClick={() => setBenchmarkMenuOpen(true)}
+            data-home-drawdown-trigger
+            aria-label={englishMode ? 'Open drawdown observation' : '打开回撤观察'}
+            onClick={() => openDrawdownObservation?.()}
             className="mt-2.5 flex w-full justify-end whitespace-nowrap text-[11px] text-white/40 tabular-nums active:text-white/55"
             style={{ fontFamily: NUMBER_FONT }}
           >
@@ -1173,7 +1176,7 @@ export default function HomeTab({ ctx }) {
                 <X className="h-5 w-5" />
               </button>
               <h2 id="home-signal-benchmark-title" className="px-11 text-[17px] font-medium tracking-[0.01em] text-white/90">
-                {t(language, 'home.benchmarkSheetTitle', '当前回撤 · 距52周新高')}
+                {t(language, 'home.switchBenchmark', '切换基准')}
               </h2>
               {benchmarkSheetMarketState === 'live' ? (
                 <div className="mt-2 text-[11px] leading-[17px] text-white/42">

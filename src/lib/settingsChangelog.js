@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '📉 首页新增独立回撤观察页',
+      '  - 接入真实历史行情，对照 SPY、QQQ 查看自选与实际持仓距 52 周收盘高点的跌幅',
+      '  - 支持深度筛选、排序、曲线选日，以及反弹与回到高点所需涨幅',
+      '  - 明确数据日期、历史不足与待更新状态；只读分析，不更改首页基准或产生交易',
+    ],
+    itemsEn: [
+      '📉 Independent drawdown observation from Home',
+      '  - Real adjusted-close history for SPY, QQQ, your watchlist and current holdings',
+      '  - Filter and sort drawdowns, inspect daily charts, rebounds and gains needed to regain the high',
+      '  - Explicit dates, short history and stale data; viewing never changes the Home benchmark or creates trades',
+    ],
+  },
+  {
+    ver: 'v10.7.9.497', date: '2026-09-09',
+    items: [
       '🎯 年度目标操作弹卡新增增幅与超额收益',
       '  - 实际收益金额旁直接显示相对年初起点的增幅百分比',
       '  - 超过年度收益目标时显示超额金额，未填写或未来年度不计算实际增幅与超额收益',
