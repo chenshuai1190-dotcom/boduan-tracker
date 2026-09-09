@@ -93,7 +93,17 @@ test('actual asset amounts use soft white while semantic gold and the settings g
 });
 
 test('sheets, tooltips, and chart markers keep their separate depth colors', () => {
-  assert.equal(count(home, /bg-\[#0b0f14\]/g), 3, 'Home sheets should remain outside the module recolor');
+  assert.equal(count(home, /bg-\[#0b0f14\]/g), 2, 'unrelated Home sheets retain their existing palette');
+  const benchmarkSheet = home.slice(home.indexOf('{benchmarkMenuOpen && ('), home.indexOf('{marketCards.length > 0 && ('));
+  assert.ok(benchmarkSheet.includes('bg-[#101112]'), 'benchmark picker shares the approved goal-dialog neutral surface');
+  assert.ok(benchmarkSheet.includes("row.selected ? 'bg-[#1b1c1e]'"));
+  assert.ok(benchmarkSheet.includes('aria-pressed={row.selected}'));
+  assert.ok(benchmarkSheet.includes('row.selected && <Check'));
+  assert.ok(benchmarkSheet.includes("(Number(row.drawdown) >= 0) === (marketColorMode === 'redUpGreenDown')"), 'benchmark drawdowns honor the global up/down convention, not the old risk-depth colors');
+  assert.ok(benchmarkSheet.includes("drawdownUsesRed ? 'text-[#ff604f]' : 'text-[#50c8a0]'"), 'benchmark colors match the new drawdown observation page');
+  assert.doesNotMatch(benchmarkSheet, /text-rose-400|text-emerald-400|Number\(row\.drawdown\) <= -0\.05/);
+  assert.doesNotMatch(benchmarkSheet, /#f6b54b|bg-emerald|rounded-2xl border|<SortIcon/, 'selection and sorting stay neutral without nested bordered cards');
+  assert.ok(benchmarkSheet.includes('min-h-0 space-y-1 overflow-y-auto overscroll-contain'), 'only the options scroll inside the sheet');
   assert.equal(count(trades, /bg-\[#0b0f14\]/g), 2, 'trade scenario sheet and chart marker should keep their approved depth color');
   assert.equal(count(trades, /bg-\[#080808\]/g), 1, 'the standard formal-trade sheet should use the approved neutral-black surface');
   assert.equal(count(pnlReport, /bg-\[#0b0f14\]/g), 2, 'PnL bottom sheets should keep their existing depth colors');

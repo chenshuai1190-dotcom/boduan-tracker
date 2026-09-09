@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowDown, ArrowUp, ChevronRight, Flame, LockKeyhole, Minus, Pencil, Pin, Plus, Search, Trash2, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, Check, ChevronRight, Flame, LockKeyhole, Minus, Pencil, Pin, Plus, Search, Trash2, X } from 'lucide-react';
 import { splitCurrencyAmount } from '../lib/amountDisplay.js';
 import { createBtcPlaceholderMarketCard, isBtcMarketCard } from '../lib/btcRealtime.js';
 import {
@@ -1154,7 +1154,7 @@ export default function HomeTab({ ctx }) {
 
       {benchmarkMenuOpen && (
         <div
-          className="fixed inset-0 z-[120] flex items-end justify-center bg-black/65 backdrop-blur-[2px]"
+          className="fixed inset-0 z-[120] flex items-end justify-center bg-black/65 backdrop-blur-[6px]"
           onClick={(event) => {
             if (event.target === event.currentTarget) setBenchmarkMenuOpen(false);
           }}
@@ -1164,51 +1164,53 @@ export default function HomeTab({ ctx }) {
             aria-modal="true"
             aria-labelledby="home-signal-benchmark-title"
             data-home-signal-sheet
-            className="flex max-h-[82dvh] w-full max-w-[430px] flex-col overflow-hidden rounded-t-[26px] border border-b-0 border-white/10 bg-[#0b0f14] px-4 pb-[calc(14px+env(safe-area-inset-bottom))] pt-5 shadow-[0_-18px_55px_rgba(0,0,0,0.55)]"
+            className="flex max-h-[82dvh] w-full max-w-[430px] flex-col overflow-hidden rounded-t-[26px] bg-[#101112] px-5 pb-[calc(16px+env(safe-area-inset-bottom))] pt-3 shadow-[0_-18px_55px_rgba(0,0,0,0.35)]"
           >
-            <div className="relative border-b border-white/[0.07] pb-4 text-center">
+            <div className="mx-auto mb-5 h-1 w-8 shrink-0 rounded-full bg-white/[0.16]" aria-hidden="true" />
+            <div className="relative shrink-0 pb-4">
               <button
                 type="button"
                 aria-label={t(language, 'home.closeBenchmarkSheet', '关闭当前回撤')}
                 onClick={() => setBenchmarkMenuOpen(false)}
-                className="absolute right-0 top-[-3px] flex h-9 w-9 items-center justify-center rounded-full bg-white/[0.06] text-white/45 active:scale-95 active:bg-white/10"
+                className="absolute right-0 top-[-3px] flex h-9 w-9 items-center justify-center rounded-full bg-[#1b1c1e] text-[#98989f] active:opacity-70 focus-visible:outline focus-visible:outline-1 focus-visible:outline-white/60"
               >
-                <X className="h-5 w-5" />
+                <X className="h-4 w-4" strokeWidth={1.7} />
               </button>
-              <h2 id="home-signal-benchmark-title" className="px-11 text-[17px] font-medium tracking-[0.01em] text-white/90">
+              <h2 id="home-signal-benchmark-title" className="pr-11 text-[17px] font-medium leading-7 text-[#e1e1e6]">
                 {t(language, 'home.switchBenchmark', '切换基准')}
               </h2>
               {benchmarkSheetMarketState === 'live' ? (
-                <div className="mt-2 text-[11px] leading-[17px] text-white/42">
-                  <div className="flex items-center justify-center gap-1.5 text-emerald-300/85">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_7px_rgba(52,211,153,0.65)]" />
-                    <span>{t(language, 'home.realtime', '实时')}</span>
-                  </div>
-                  <div>{t(language, 'home.easternOpenTime', '美东开盘 {{time}}', { time: HOME_SIGNAL_ET_OPEN_TIME })}</div>
+                <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px] leading-[18px] text-white/40">
+                  <span className="h-1 w-1 shrink-0 rounded-full bg-white/45" aria-hidden="true" />
+                  <span>{t(language, 'home.realtime', '实时')}</span>
+                  <span className="mx-0.5 text-white/20" aria-hidden="true">·</span>
+                  <span>{t(language, 'home.easternOpenTime', '美东开盘 {{time}}', { time: HOME_SIGNAL_ET_OPEN_TIME })}</span>
                 </div>
               ) : (
-                <div className="mt-2 flex items-center justify-center gap-1.5 text-[11px] text-white/38">
-                  <LockKeyhole className="h-3 w-3" />
+                <div className="mt-2 flex items-center gap-1.5 text-[11px] leading-[18px] text-white/40">
+                  <LockKeyhole className="h-3 w-3" aria-hidden="true" />
                   <span>{t(language, 'home.pnlLocked', '收盘锁定')}</span>
                 </div>
               )}
             </div>
 
-            <div className="flex items-center justify-between px-1 pb-2 pt-3 text-[11px] text-white/36">
+            <div className="flex shrink-0 items-center justify-between border-t border-white/[0.065] pb-2 pl-3 pr-10 pt-2 text-[11px] text-white/40">
               <span>{t(language, 'home.stock', '股票')}</span>
               <button
                 type="button"
                 aria-label={t(language, 'home.sortDrawdown', '按回撤排序')}
                 onClick={() => setBenchmarkSortDirection((current) => nextHomeSignalBenchmarkSortDirection(current))}
-                className={`flex items-center gap-1 active:scale-95 ${benchmarkSortDirection ? 'text-[#f6b54b]' : 'text-white/36'}`}
+                className={`flex min-h-9 items-center gap-1.5 rounded-md px-1 active:opacity-70 focus-visible:outline focus-visible:outline-1 focus-visible:outline-white/60 ${benchmarkSortDirection ? 'text-white/80' : 'text-white/40'}`}
               >
                 <span>{t(language, 'home.pullback', '回撤')}</span>
-                <SortIcon active={Boolean(benchmarkSortDirection)} direction={benchmarkSortDirection} />
+                {benchmarkSortDirection === 'desc' ? <ArrowDown className="h-3 w-3" aria-hidden="true" />
+                  : benchmarkSortDirection === 'asc' ? <ArrowUp className="h-3 w-3" aria-hidden="true" />
+                    : <ArrowUpDown className="h-3 w-3" aria-hidden="true" />}
               </button>
             </div>
 
-            <div className="min-h-0 overflow-y-auto overscroll-contain rounded-2xl border border-white/[0.07] bg-white/[0.018]">
-              {visibleBenchmarkRows.map((row, index) => {
+            <div className="min-h-0 space-y-1 overflow-y-auto overscroll-contain">
+              {visibleBenchmarkRows.map((row) => {
                 const directoryEntry = POPULAR_US_STOCK_BY_SYMBOL.get(row.symbol) || null;
                 const name = stockDisplayName(row.symbol, row.name || directoryEntry?.name || row.symbol, language);
                 const company = String(row.company || directoryEntry?.company || '').trim();
@@ -1217,21 +1219,24 @@ export default function HomeTab({ ctx }) {
                 const drawdownLabel = row.drawdown === null || !Number.isFinite(Number(row.drawdown))
                   ? '--'
                   : `${(Number(row.drawdown) * 100).toFixed(1)}%`;
+                // Match the new observation page's tones while respecting the
+                // same global up/down convention as the rest of Home.
+                const drawdownUsesRed = (Number(row.drawdown) >= 0) === (marketColorMode === 'redUpGreenDown');
                 const drawdownClass = row.drawdown === null || !Number.isFinite(Number(row.drawdown))
                   ? 'text-white/28'
-                  : Number(row.drawdown) <= -0.05 ? 'text-rose-400' : 'text-emerald-400';
+                  : drawdownUsesRed ? 'text-[#ff604f]' : 'text-[#50c8a0]';
                 return (
                   <button
                     key={row.symbol}
                     type="button"
                     data-home-signal-option={row.symbol}
+                    aria-pressed={row.selected}
                     onClick={() => {
                       setBenchmarkSymbol(row.symbol);
                       setBenchmarkMenuOpen(false);
                     }}
-                    className={`relative flex min-h-[61px] w-full items-center gap-3 px-3 py-2 text-left active:bg-white/[0.055] ${index > 0 ? 'border-t border-white/[0.055]' : ''} ${row.selected ? 'bg-emerald-400/[0.095]' : ''}`}
+                    className={`flex min-h-[70px] w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors active:bg-white/[0.06] focus-visible:outline focus-visible:outline-1 focus-visible:-outline-offset-2 focus-visible:outline-white/60 ${row.selected ? 'bg-[#1b1c1e]' : 'bg-transparent'}`}
                   >
-                    {row.selected && <span className="absolute bottom-2 left-0 top-2 w-[2px] rounded-r-full bg-emerald-400/70" />}
                     <StockLogo
                       symbol={row.symbol}
                       urls={logoUrls}
@@ -1239,11 +1244,14 @@ export default function HomeTab({ ctx }) {
                       className="h-9 w-9 rounded-lg"
                     />
                     <span className="min-w-0 flex-1">
-                      <span className="block text-[14px] font-normal tracking-[0.02em] text-white/85">{row.symbol}</span>
-                      <span className="mt-0.5 block truncate text-[10px] text-white/30">{company || name}</span>
+                      <span className="block text-[15px] font-normal tracking-[0.01em] text-white/85">{row.symbol}</span>
+                      <span className="mt-1 block truncate text-[11px] text-white/40">{company || name}</span>
                     </span>
                     <span className={`shrink-0 text-[15px] font-normal tabular-nums ${drawdownClass}`} style={{ fontFamily: NUMBER_FONT }}>
                       {drawdownLabel}
+                    </span>
+                    <span className="flex h-4 w-4 shrink-0 items-center justify-center text-[#c5c5cb]" aria-hidden="true">
+                      {row.selected && <Check className="h-4 w-4" strokeWidth={1.8} />}
                     </span>
                   </button>
                 );

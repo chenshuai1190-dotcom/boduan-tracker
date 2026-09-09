@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '📉 首页切换基准采用统一黑灰风格',
+      '  - 简化边框与层次，以灰色底色和勾选标记当前基准，优化行距与排序图标',
+      '  - 涨跌色对齐新版回撤观察并遵循全局配色设置，不再按 5% 回撤深度切换颜色',
+      '  - 保留原有基准切换、排序和行情计算方式',
+    ],
+    itemsEn: [
+      '📉 A unified monochrome Home benchmark picker',
+      '  - Simplified surfaces, a subtle selected row and checkmark, with refined spacing and sorting icons',
+      '  - Drawdown tones match the new observation page and respect the global color convention instead of a 5% depth threshold',
+      '  - Benchmark selection, sorting and market calculations remain unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.499', date: '2026-09-09',
+    items: [
       '📉 回撤观察支持缓存恢复与后台更新',
       '  - 再次进入先显示已有行情，保留筛选、排序和滚动位置',
       '  - 新收盘数据后台更新，新增标的按需补齐；更新失败保留数据及截止日期',
