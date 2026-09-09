@@ -44,6 +44,7 @@ const HomeMarginRiskPage = lazy(() => import('./pages/HomeMarginRiskPage.jsx'));
 const VixComparisonPage = lazy(() => import('./pages/VixComparisonPage.jsx'));
 const InvestmentComparisonPage = lazy(() => import('./pages/InvestmentComparisonPage.jsx'));
 const PortfolioOverlapPage = lazy(() => import('./pages/PortfolioOverlapPage.jsx'));
+const DcaLabPage = lazy(() => import('./pages/DcaLabPage.jsx'));
 const StockDetailPage = lazy(() => import('./pages/StockDetailPage.jsx'));
 const WatchlistStockDetailPage = lazy(() => import('./pages/WatchlistStockDetailPage.jsx'));
 const WaveTrackerPage = lazy(() => import('./pages/WaveTrackerPage.jsx'));
@@ -5183,6 +5184,14 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     pendingHomeScrollTopRef.current = homeScrollTopBeforeVixRef.current;
     setActivePage(null);
   }, []);
+  const openDcaLab = useCallback(() => {
+    setActiveTab('trades');
+    setActivePage('dca-lab');
+  }, []);
+  const closeDcaLab = useCallback(() => {
+    setActiveTab('trades');
+    setActivePage(null);
+  }, []);
   const openPortfolioOverlap = useCallback(() => {
     setActiveTab('trades');
     setActivePage('portfolio-overlap');
@@ -5409,7 +5418,8 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   const isVixComparisonPage = activePage === 'vix-comparison';
   const isInvestmentComparisonPage = activePage === 'investment-comparison';
   const isPortfolioOverlapPage = activePage === 'portfolio-overlap';
-  const isStandalonePage = isPnlReportPage || isPnlSharePage || isHomeMarginRiskPage || isStockDetailPage || isWatchlistStockDetailPage || isWaveTrackerPage || isCommunityCompetitionPage || isEarningsCalendarPage || isEarningsDetailPage || isInvestmentComparisonPage || isPortfolioOverlapPage || isVixComparisonPage;
+  const isDcaLabPage = activePage === 'dca-lab';
+  const isStandalonePage = isPnlReportPage || isPnlSharePage || isHomeMarginRiskPage || isStockDetailPage || isWatchlistStockDetailPage || isWaveTrackerPage || isCommunityCompetitionPage || isEarningsCalendarPage || isEarningsDetailPage || isInvestmentComparisonPage || isPortfolioOverlapPage || isDcaLabPage || isVixComparisonPage;
   const isFullBleedPage = isPnlSharePage || isCommunityCompetitionPage || isEarningsCalendarPage || isEarningsDetailPage;
   const hideBottomNavigation = isPnlReportPage || isPnlSharePage;
   const ActiveTab = TAB_COMPONENTS[activeTab] || HomeTab;
@@ -5601,6 +5611,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     openInvestmentComparison,
     closeInvestmentComparison,
     openPortfolioOverlap,
+    openDcaLab,
     openPnlReport,
     openPnlShare,
     pnlReportRefreshVersion,
@@ -5935,6 +5946,8 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
                 ? <InvestmentComparisonPage ctx={{ userId: user?.id || '', language, closeInvestmentComparison }} />
               : isPortfolioOverlapPage
                 ? <PortfolioOverlapPage key={user?.id || ''} ctx={{ userId: user?.id || '', language, investmentSummary, portfolioReady: stockHoldingsReady, portfolioError: stockHoldingsError, closePortfolioOverlap }} />
+              : isDcaLabPage
+                ? <DcaLabPage key={user?.id || ''} ctx={{ userId: user?.id || '', language, closeDcaLab }} />
               : isStockDetailPage
                 ? <StockDetailPage ctx={tabCtx} />
                 : isWatchlistStockDetailPage

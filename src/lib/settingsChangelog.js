@@ -4,6 +4,23 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '🧪 全部工具新增独立“定投实验室”，紧接投资时光机',
+      '  - 使用 EODHD 真实复权历史日线，自选标的、年份、起始投入与每月或每周定投',
+      '  - 动态回放资产、累计投入与收益，金额旁同步显示当时日期',
+      '  - 对比同等最终本金的一次投入，查看年度结果与每笔定投；未完成年份按实际行情截止',
+      '  - 复用行情缓存，调整计划和回放不重复拉行情，不读写个人持仓或交易账本',
+    ],
+    itemsEn: [
+      '🧪 Standalone DCA Lab directly below Investment Time Machine in All Tools',
+      '  - Actual EODHD adjusted daily history with selectable instruments, years, initial capital and monthly or weekly contributions',
+      '  - Replay assets, contributions and profit with the corresponding date beside the balance',
+      '  - Compare lump-sum investing with equal final capital; inspect annual results and each contribution through the actual data cutoff',
+      '  - Reuses history for plan changes and playback without accessing personal holdings or trading ledgers',
+    ],
+  },
+  {
+    ver: 'v10.7.9.490', date: '2026-09-08',
+    items: [
       '🔎 全部功能新增独立“持仓重叠体检”，位于投资时光机下方',
       '  - 默认读取当前账户股票与 ETF 持仓，查看直接持有与 ETF 间接持有的重复标的',
       '  - QQQ、SPY 使用官方公开成分与披露日期；杠杆 ETF、未知成分和缺失报价明确单列',

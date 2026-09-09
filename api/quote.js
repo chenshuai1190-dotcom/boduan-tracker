@@ -8,13 +8,14 @@ import { parseSymbolsParam } from '../server/quote/symbols.js';
 import { fetchStockFundamentals } from '../server/quote/fundamentals.js';
 import { fetchStockValuation } from '../server/quote/valuation.js';
 import { fetchVixComparison } from '../server/quote/vixComparison.js';
-import { fetchInvestmentComparison, searchInvestmentSymbols, InvestmentComparisonError } from '../server/quote/investmentComparison.js';
+import { fetchDcaHistory, fetchInvestmentComparison, searchInvestmentSymbols, InvestmentComparisonError } from '../server/quote/investmentComparison.js';
 import { fetchPortfolioOverlap, PortfolioOverlapError } from '../server/quote/portfolioOverlap.js';
 
 export default async function handler(req, res) {
   setCorsHeaders(req, res);
   const authRequired = process.env.QUOTE_API_AUTH_REQUIRED !== 'false';
-  if (authRequired) {
+  const dcaViewPresent = [req.query?.view].flat().includes('dca-history');
+  if (authRequired || dcaViewPresent) {
     res.setHeader('Cache-Control', 'private, no-store, max-age=0, must-revalidate');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
@@ -40,6 +41,7 @@ export default async function handler(req, res) {
   const vixComparisonRequested = requestedView === 'vix-comparison';
   const investmentComparisonRequested = requestedView === 'investment-comparison';
   const investmentSearchRequested = requestedView === 'investment-search';
+  const dcaHistoryRequested = dcaViewPresent;
   const portfolioOverlapRequested = requestedView === 'portfolio-overlap';
   if (
     view !== undefined
@@ -50,11 +52,25 @@ export default async function handler(req, res) {
     && !vixComparisonRequested
     && !investmentComparisonRequested
     && !investmentSearchRequested
+    && !dcaHistoryRequested
     && !portfolioOverlapRequested
   ) {
     return sendError(res, 400, '不支持的 view 参数');
   }
   const eodhdKey = (process.env.EODHD_API_KEY || '').trim().replace(/[\s\u200B-\u200D\uFEFF]/g, '');
+  if (dcaHistoryRequested) {
+    try {
+      if (Object.values(req.query).some(Array.isArray)
+        || Object.keys(req.query).some((key) => !['view', 'symbol'].includes(key))) {
+        throw new InvestmentComparisonError('INVALID_SYMBOL');
+      }
+      const data = await fetchDcaHistory(req.query.symbol, { eodhdKey });
+      return res.status(200).json({ success: true, data });
+    } catch (cause) {
+      const failure = cause instanceof InvestmentComparisonError ? cause : new InvestmentComparisonError('PROVIDER_UNAVAILABLE');
+      return sendError(res, failure.status, failure.message, { code: failure.code });
+    }
+  }
   if (portfolioOverlapRequested) {
     res.setHeader('Cache-Control', 'private, no-store, max-age=0, must-revalidate');
     try {

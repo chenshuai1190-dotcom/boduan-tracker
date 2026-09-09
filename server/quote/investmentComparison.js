@@ -26,6 +26,7 @@ const identityCache = new Map();
 let quotaCircuitUntil = 0;
 
 const ERROR_MESSAGES = Object.freeze({
+  INVALID_SYMBOL: '请选择一个有效的美股或 ETF 代码',
   INVALID_SYMBOLS: '请选择两个不同的有效美股或 ETF 代码',
   INVALID_QUERY: '请输入有效的股票代码或名称',
   UNSUPPORTED_INSTRUMENT: '仅支持已验证的美元计价美股普通股或 ETF',
@@ -40,7 +41,7 @@ export class InvestmentComparisonError extends Error {
     super(ERROR_MESSAGES[code] || ERROR_MESSAGES.PROVIDER_UNAVAILABLE);
     this.name = 'InvestmentComparisonError';
     this.code = ERROR_MESSAGES[code] ? code : 'PROVIDER_UNAVAILABLE';
-    this.status = ['INVALID_SYMBOLS', 'INVALID_QUERY', 'UNSUPPORTED_INSTRUMENT'].includes(this.code)
+    this.status = ['INVALID_SYMBOL', 'INVALID_SYMBOLS', 'INVALID_QUERY', 'UNSUPPORTED_INSTRUMENT'].includes(this.code)
       ? 400 : this.code === 'NOT_CONFIGURED' ? 500 : this.code === 'QUOTA_EXHAUSTED' ? 503 : 502;
   }
 }
@@ -74,6 +75,12 @@ export function normalizeInvestmentComparisonSymbols(value) {
   const symbols = values.map(supportedSymbol);
   if (symbols.some((symbol) => !symbol) || symbols[0] === symbols[1]) throw error('INVALID_SYMBOLS');
   return symbols;
+}
+
+export function normalizeDcaHistorySymbol(value) {
+  const symbol = supportedSymbol(value);
+  if (!symbol) throw error('INVALID_SYMBOL');
+  return symbol;
 }
 
 export function normalizeInvestmentSearchQuery(value) {
@@ -329,6 +336,23 @@ export async function fetchInvestmentComparison(symbols, options = {}) {
   return buildInvestmentComparisonData(Object.fromEntries(entries.map((entry) => [entry.symbol, entry])), {
     symbols: pair, expectedAsOfDate: expectedDate, now: config.now,
   });
+}
+
+// A DCA run needs exactly one history. Share the existing per-symbol cache and
+// identity verification with comparisons; never fetch an unrelated benchmark.
+export async function fetchDcaHistory(symbol, options = {}) {
+  const selected = normalizeDcaHistorySymbol(symbol);
+  const config = providerOptions(options);
+  const expectedAsOfDate = getVixComparisonExpectedCloseDate(config.now);
+  const instrument = await verifyInstrument(selected, config);
+  const data = await loadInstrumentHistory(instrument, expectedAsOfDate, config);
+  return {
+    version: 1, source: 'EODHD_EOD', symbol: selected, name: instrument.name,
+    type: instrument.type, currency: 'USD', priceBasis: 'adjusted_close',
+    rows: data.rows, availableFromDate: data.rows[0].date, asOfDate: data.asOfDate,
+    expectedAsOfDate, stale: data.stale, staleReason: data.staleReason,
+    fetchedAt: data.fetchedAt,
+  };
 }
 
 export function resetInvestmentComparisonCacheForTests() {

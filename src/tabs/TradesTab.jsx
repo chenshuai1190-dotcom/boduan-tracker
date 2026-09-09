@@ -462,6 +462,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
     openCommunityCompetition,
     openInvestmentComparison,
     openPortfolioOverlap,
+    openDcaLab,
     portfolioCurrencyMode,
     Plus,
     qqqSignalQuote,
@@ -1117,6 +1118,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
               setToolPanel('');
               if (toolId === 'investment-comparison') openInvestmentComparison?.();
               if (toolId === 'portfolio-overlap') openPortfolioOverlap?.();
+              if (toolId === 'dca-lab') openDcaLab?.();
               if (toolId === 'waves') openWaveTracker?.();
               if (toolId === 'competition') openCommunityCompetition?.();
             }} />
