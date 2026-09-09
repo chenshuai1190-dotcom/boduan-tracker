@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '📉 回撤观察支持缓存恢复与后台更新',
+      '  - 再次进入先显示已有行情，保留筛选、排序和滚动位置',
+      '  - 新收盘数据后台更新，新增标的按需补齐；更新失败保留数据及截止日期',
+      '  - 按用户隔离保存有限历史行情，关闭软件后仍可恢复，不保存持仓数量或登录凭据',
+    ],
+    itemsEn: [
+      '📉 Cached drawdown observations with background updates',
+      '  - Reopens with existing prices while retaining filters, sorting and scroll position',
+      '  - Refreshes for new closes and added symbols without blanking the page; failures retain dated data',
+      '  - Bounded, user-isolated history survives app restarts without storing position quantities or credentials',
+    ],
+  },
+  {
+    ver: 'v10.7.9.498', date: '2026-09-09',
+    items: [
       '📉 首页新增独立回撤观察页',
       '  - 接入真实历史行情，对照 SPY、QQQ 查看自选与实际持仓距 52 周收盘高点的跌幅',
       '  - 支持深度筛选、排序、曲线选日，以及反弹与回到高点所需涨幅',

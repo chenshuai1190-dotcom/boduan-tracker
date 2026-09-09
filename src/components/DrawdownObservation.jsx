@@ -162,12 +162,35 @@ export function DrawdownObservationDetail({ row, onBack, observations = [], demo
   </div>;
 }
 
-export default function DrawdownObservation({ onBack, initialSymbol = '', observations = [], demo = false, vix = null, loading = false, error = '', onRefresh, portfolioReady = true, portfolioError = '' }) {
+export default function DrawdownObservation({ onBack, initialSymbol = '', observations = [], demo = false, vix = null, loading = false, refreshing = false, error = '', onRefresh, portfolioReady = true, portfolioError = '', initialViewState = {}, onViewStateChange }) {
   const [selectedSymbol, setSelectedSymbol] = React.useState(() => observations.some(row => row.symbol === initialSymbol) ? initialSymbol : null);
-  const [scope, setScope] = React.useState('watchlist');
-  const [minDepth, setMinDepth] = React.useState(0);
-  const [order, setOrder] = React.useState('deepest');
-  const scrollRef = React.useRef(0);
+  React.useEffect(() => {
+    if (selectedSymbol && !observations.some(row => row.symbol === selectedSymbol)) setSelectedSymbol(null);
+  }, [selectedSymbol, observations]);
+  const [scope, setScope] = React.useState(initialViewState.scope === 'holdings' ? 'holdings' : 'watchlist');
+  const [minDepth, setMinDepth] = React.useState([0, 10, 20].includes(initialViewState.minDepth) ? initialViewState.minDepth : 0);
+  const [order, setOrder] = React.useState(initialViewState.order === 'shallowest' ? 'shallowest' : 'deepest');
+  const scrollRef = React.useRef(Number.isFinite(initialViewState.scrollTop) ? Math.max(0, initialViewState.scrollTop) : 0);
+  const restoredRef = React.useRef(false);
+  const inspectingRef = React.useRef(Boolean(selectedSymbol));
+  inspectingRef.current = Boolean(selectedSymbol);
+  React.useLayoutEffect(() => {
+    if (restoredRef.current || selectedSymbol || loading) return;
+    restoredRef.current = true;
+    if (scrollRef.current > 0) window.scrollTo({ top: scrollRef.current, behavior: 'instant' });
+  }, [selectedSymbol, loading]);
+  React.useEffect(() => {
+    if (!onViewStateChange) return undefined;
+    const save = () => onViewStateChange({ scope, minDepth, order, scrollTop: scrollRef.current });
+    const onScroll = () => {
+      if (inspectingRef.current || !restoredRef.current) return;
+      scrollRef.current = Math.max(0, window.scrollY);
+      save();
+    };
+    save();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => { window.removeEventListener('scroll', onScroll); save(); };
+  }, [scope, minDepth, order, onViewStateChange]);
   const previousSymbol = React.useRef(selectedSymbol);
   React.useLayoutEffect(() => {
     if (previousSymbol.current === selectedSymbol) return;
@@ -184,8 +207,9 @@ export default function DrawdownObservation({ onBack, initialSymbol = '', observ
   const selected = observations.find(row => row.symbol === selectedSymbol);
   if (selected) return <DrawdownObservationDetail key={`${selected.symbol}:${selected.asOfDate}`} row={selected} observations={observations} demo={demo} onBack={() => setSelectedSymbol(null)} />;
   return <div className="do-page" data-drawdown-view="overview">
-    <PreviewHeader title="回撤观察" onBack={onBack} date={dateLabel} demo={demo} onRefresh={onRefresh} loading={loading} />
+    <PreviewHeader title="回撤观察" onBack={onBack} date={dateLabel} demo={demo} onRefresh={onRefresh} loading={loading || refreshing} />
     {loading && <p className="do-status" role="status">正在读取真实历史行情…</p>}
+    {!loading && refreshing && <p className="do-status" role="status">后台更新中，已有数据仍可查看。</p>}
     {error && <p className="do-status" role="alert">{error}</p>}
     <section className="do-markets"><div className="do-section-title"><h2>先看大盘</h2><span>距 52 周收盘高点</span></div><div className="do-market-grid">{observations.filter(row => ['SPY', 'QQQ'].includes(row.symbol)).map(row => <MarketCard key={row.symbol} row={row} onOpen={open} maxDepth={maxDepth} />)}</div></section>
     {Number.isFinite(vix) && <div className="do-vix"><span>VIX<span className="do-vix-name">预期波动</span></span><strong>{vix.toFixed(1)}</strong><span className="do-vix-note">波动不等于方向</span></div>}

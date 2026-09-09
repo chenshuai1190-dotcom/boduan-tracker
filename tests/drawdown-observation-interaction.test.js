@@ -36,11 +36,16 @@ function harness(name, getProps) {
   const observers = [];
   const captures = new Set();
   const scrolls = [];
+  const windowListeners = new Set();
   let cursor = 0;
   let pending = [];
   let dirty = false;
   let tree;
-  const window = { scrollY: 0, scrollTo(value) { scrolls.push(value); this.scrollY = value.top; } };
+  const window = {
+    scrollY: 0, scrollTo(value) { scrolls.push(value); this.scrollY = value.top; },
+    addEventListener(type, listener) { assert.equal(type, 'scroll'); windowListeners.add(listener); },
+    removeEventListener(type, listener) { assert.equal(type, 'scroll'); windowListeners.delete(listener); },
+  };
   const document = {
     addEventListener(type, listener, capture) { listenerEvents.push({ action: 'add', type, listener, capture }); listeners.add(listener); },
     removeEventListener(type, listener, capture) { listenerEvents.push({ action: 'remove', type, listener, capture }); listeners.delete(listener); },
@@ -85,7 +90,7 @@ function harness(name, getProps) {
     releasePointerCapture: id => captures.delete(id),
   };
   const result = {
-    components, window, scrolls, observers, captures, listeners, listenerEvents,
+    components, window, scrolls, observers, captures, listeners, listenerEvents, windowListeners,
     get tree() { return tree; },
     render() {
       for (let attempt = 0; attempt < 4; attempt += 1) {
@@ -107,6 +112,7 @@ function harness(name, getProps) {
       return prevented;
     },
     outside(target) { [...listeners].forEach(listener => listener({ target })); this.render(); },
+    scroll(top) { window.scrollY = top; [...windowListeners].forEach(listener => listener()); this.render(); },
     unmount() { slots.forEach(slot => slot?.cleanup?.()); },
   };
   result.render();
@@ -245,4 +251,49 @@ test('detail outside clicks restore the latest readout and remove the exact capt
     assert.equal(event.capture, true);
     assert.ok(removed.some(item => item.listener === event.listener && item.type === event.type && item.capture === event.capture));
   }
+});
+
+test('overview restores cached filters and scroll, preserving overview position through detail and unmount', () => {
+  let saved = { scope: 'holdings', minDepth: 20, order: 'shallowest', scrollTop: 412 };
+  const changed = next => { saved = next; };
+  const page = harness('DrawdownObservationPreview', () => ({ initialViewState: saved, onViewStateChange: changed }));
+  assert.deepEqual(symbols(page.tree), ['AVGO', 'NVDA']);
+  assert.equal(page.window.scrollY, 412);
+  page.scroll(599);
+  assert.equal(saved.scrollTop, 599);
+  byClass(page.tree, 'do-stock-row')[0].props.onClick();
+  page.render();
+  page.scroll(0);
+  assert.equal(saved.scrollTop, 599, 'scrolling the detail cannot overwrite overview state');
+  page.tree.props.onBack();
+  page.render();
+  assert.equal(page.window.scrollY, 599);
+  page.unmount();
+  assert.equal(page.windowListeners.size, 0);
+  const reopened = harness('DrawdownObservationPreview', () => ({ initialViewState: saved, onViewStateChange: changed }));
+  assert.equal(reopened.window.scrollY, 599);
+  assert.deepEqual(symbols(reopened.tree), ['AVGO', 'NVDA']);
+  reopened.unmount();
+});
+
+test('background refresh keeps actual rows and marks updating without a first-load placeholder', () => {
+  const page = harness('DrawdownObservationPreview', () => ({ refreshing: true, loading: false }));
+  assert.deepEqual(symbols(page.tree), selectObservationRows(observations).map(row => row.symbol));
+  assert.match(textContent(page.tree), /后台更新中/);
+  assert.doesNotMatch(textContent(page.tree), /正在读取真实历史行情/);
+  page.unmount();
+});
+
+test('removing the inspected symbol returns to the current overview without retaining its old detail', () => {
+  let current = observations;
+  const page = harness('DrawdownObservationPreview', () => ({ observations: current }));
+  const symbol = byClass(page.tree, 'do-stock-row')[0].props['aria-label'].split(' ')[1];
+  byClass(page.tree, 'do-stock-row')[0].props.onClick();
+  page.render();
+  assert.equal(page.tree.props.row.symbol, symbol);
+  current = observations.filter(item => item.symbol !== symbol);
+  page.render();
+  assert.equal(page.tree.props['data-drawdown-view'], 'overview');
+  assert.ok(!symbols(page.tree).includes(symbol));
+  page.unmount();
 });
