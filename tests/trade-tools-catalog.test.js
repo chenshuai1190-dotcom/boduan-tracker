@@ -7,6 +7,7 @@ import { transformWithOxc } from 'vite';
 import { t } from '../src/lib/i18n.js';
 
 const source = readFileSync(new URL('../src/components/TradeToolsCatalog.jsx', import.meta.url), 'utf8');
+const css = readFileSync(new URL('../src/components/TradeToolsCatalog.css', import.meta.url), 'utf8');
 const transformed = await transformWithOxc(source, 'TradeToolsCatalog.jsx', { jsx: { runtime: 'classic' } });
 const compiled = transformed.code
   .replace(/import\s*(['"])\.\/TradeToolsCatalog\.css\1;?/g, '')
@@ -90,17 +91,33 @@ test('the catalog remains presentation-only without ledger, persistence, or prov
   assert.ok(imports.every(module => ['react', 'lucide-react', '../lib/i18n.js', './TradeToolsCatalog.css'].includes(module)), 'catalog imports must remain limited to presentation dependencies');
 });
 
-test('only the DCA tool entry adopts the overlap hero background without needing page-level theme tokens', () => {
-  const read = path => readFileSync(new URL(path, import.meta.url), 'utf8');
-  const css = read('../src/components/TradeToolsCatalog.css');
-  const card = css.match(/\.trade-tool-card\[data-tool-id="dca-lab"\] \{([^}]+)\}/)[1];
-  const theme = read('../src/components/InvestmentComparison.css');
-  const hero = read('../src/components/PortfolioOverlap.css').match(/\.investment-comparison \.po-hero \{([^}]+)\}/)[1];
-  const background = rule => rule.match(/background:\s*([^;]+);/)[1].replace(/\s+/g, '');
-  const resolvedHero = background(hero).replace(/var\((--ic-[\w-]+)\)/g, (_, name) => theme.match(new RegExp(`${name}:\\s*([^;]+);`))[1]);
-  assert.equal(background(card), resolvedHero);
-  assert.doesNotMatch(card, /var\(/, 'the tools catalog lives outside the investment-comparison theme scope');
-  assert.match(card, /border-color:\s*#252b35/);
-  assert.match(css, /\.trade-tool-featured \{[^}]*linear-gradient\(110deg/, 'the first time-machine entry keeps its featured appearance');
-  assert.match(css, /\.trade-tool-card:focus-visible \{[^}]*outline:/);
+test('all tools share uniform borderless rows without featured or per-tool styling', () => {
+  const { tree, html } = renderCatalog({ onSelect() {} });
+  const buttons = nodesOfType(tree, 'button');
+  assert.deepEqual([...new Set(buttons.map(button => button.props.className))], ['trade-tool-card']);
+  const itemContainers = nodesOfType(tree, 'div').filter(node => node.props.className?.split(/\s+/).includes('trade-tools-items'));
+  assert.equal(itemContainers.length, expectedGroups.length);
+  assert.ok(itemContainers.every(node => node.props.className === 'trade-tools-items'));
+  assert.doesNotMatch(`${source}\n${css}\n${html}`, /trade-tool-featured|trade-tools-columns/);
+  assert.doesNotMatch(css, /\[data-tool-id\b|:nth-(?:child|of-type)\(/, 'individual tools must not receive a different visual treatment');
+  const card = css.match(/\.trade-tool-card\s*\{([^}]+)\}/)?.[1];
+  assert.ok(card, 'the shared row style must exist');
+  assert.match(card, /\bborder:\s*(?:0|none)\s*;/);
+  assert.match(card, /\bbackground:\s*(?:transparent|none)\s*;/);
+});
+
+test('catalog styles preserve keyboard focus and stay within the tools presentation', () => {
+  // Read leaf rules, including those nested inside media queries.
+  const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(match => ({
+    selectors: match[1].split(',').map(selector => selector.trim()),
+    declarations: match[2],
+  }));
+  const focusRule = rules.find(rule => rule.selectors.includes('.trade-tool-card:focus-visible'));
+  assert.ok(focusRule, 'tool rows must retain a keyboard focus rule');
+  const outline = focusRule.declarations.match(/\boutline\s*:\s*([^;]+);/)?.[1].trim();
+  assert.ok(outline, 'keyboard focus must have an outline');
+  assert.doesNotMatch(outline, /^(?:0(?:px)?|none)(?:\s|$)/);
+  const selectors = rules.flatMap(rule => rule.selectors);
+  assert.ok(selectors.every(selector => /^(?:\[role\s*=\s*['"]dialog['"]\])?\.trade-tools?[-\w]*(?=[\s.:#\[>+~]|$)/.test(selector)), 'catalog rules must remain scoped to tool classes');
+  assert.doesNotMatch(source, /\b(?:window|document)\s*\.|\b(?:addEventListener|removeEventListener|useEffect|useLayoutEffect)\b|visibilitychange|pageshow|pagehide/, 'the catalog must not manage global page lifecycle');
 });

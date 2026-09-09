@@ -1110,6 +1110,9 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
             widthClassName="w-[calc(100vw-32px)] max-w-[440px]"
             panelClassName="trade-tools-panel"
             contentClassName="trade-tools-content"
+            headerClassName="trade-tools-header"
+            titleClassName="trade-tools-title"
+            closeButtonClassName="trade-tools-close"
           >
             <TradeToolsCatalog language={language} onSelect={(toolId) => {
               setShowAllToolsModal(false);

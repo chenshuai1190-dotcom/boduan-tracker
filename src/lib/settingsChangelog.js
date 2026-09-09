@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '🧰 全部功能采用简约黑灰列表',
+      '  - 去掉逐项边框、彩色强调与多种渐变，统一线性图标和单列留白',
+      '  - 保留分类与原有功能顺序，投资时光机、定投实验室和持仓重叠体检依次排列',
+      '  - 优化标题与关闭按钮，窄屏保持可滚动，不改变工具功能或账本',
+    ],
+    itemsEn: [
+      '🧰 A minimal monochrome layout for All Tools',
+      '  - Uniform line icons and single-column spacing replace individual borders, colorful accents and gradients',
+      '  - Categories and tool order stay unchanged, starting with Investment Time Machine, DCA Lab and Portfolio Overlap',
+      '  - Refined heading and close control with scrolling on small screens; tool behavior and ledgers are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.492', date: '2026-09-09',
+    items: [
       '🧪 优化定投实验室选股与金额展示',
       '  - 投资标的改为同色系自定义选择卡片，按指数 ETF 与美股分组预选',
       '  - 投资方案、标的弹出卡片及全部功能中的定投入口统一渐变背景',
