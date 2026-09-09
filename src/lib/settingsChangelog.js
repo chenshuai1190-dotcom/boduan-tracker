@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '🎯 年度目标操作弹卡新增增幅与超额收益',
+      '  - 实际收益金额旁直接显示相对年初起点的增幅百分比',
+      '  - 超过年度收益目标时显示超额金额，未填写或未来年度不计算实际增幅与超额收益',
+      '  - 保留原有年度数据、币种换算与编辑保存方式',
+    ],
+    itemsEn: [
+      '🎯 Annual goal actions now show growth and gains above target',
+      '  - Displays actual growth from the starting balance beside the realized gain',
+      '  - Shows the amount above the annual gain target; missing or future records do not produce actual growth or excess gains',
+      '  - Existing annual data, currency conversion and editing remain unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.496', date: '2026-09-09',
+    items: [
       '🎯 年度计划新增实际增幅百分比',
       '  - 本年已实现金额旁直接显示增幅，按年初起点计算，保留原有目标完成率',
       '  - 缺少实际记录或有效年初起点时显示 —，不改变保存数据',

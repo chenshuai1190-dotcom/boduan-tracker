@@ -126,6 +126,123 @@ function navigationHarness(ctx, initialScroll = 0) {
   };
 }
 
+function textContent(node) {
+  if (typeof node === 'string' || typeof node === 'number') return String(node);
+  if (!React.isValidElement(node)) return '';
+  return React.Children.toArray(node.props.children).map(textContent).join('');
+}
+const growthOf = tree => nodes(tree, 'span').find(node => node.props.className?.split(' ').includes('rgm-actual-growth'));
+const excessOf = tree => nodes(tree, 'div').find(node => node.props.className === 'rgm-excess-row');
+function openAnnualAction(overrides = {}, rowOverride) {
+  const { ctx, calls } = fixture(overrides);
+  const before = JSON.stringify(ctx);
+  const harness = navigationHarness(ctx);
+  harness.render();
+  harness.commit();
+  const annual = nodes(harness.tree, components.AnnualGoalPlan)[0];
+  const row = rowOverride ?? annual.props.visibleYears[0];
+  annual.props.onOpenYear(row);
+  harness.render();
+  harness.commit();
+  const sheet = React.Children.toArray(harness.tree.props.children).find(node => node.props.title === t(ctx.language, 'review.yearActions'));
+  assert.ok(sheet, 'the actual ReviewTab annual-row handler opens its annual action sheet');
+  return { ctx, calls, before, harness, row, sheet };
+}
+
+test('annual action sheets show actual growth rather than target completion and convert excess once in either currency', () => {
+  const year = new Date().getFullYear();
+  for (const language of ['zh', 'en']) {
+    for (const marketColorMode of ['redUpGreenDown', 'greenUpRedDown']) {
+      for (const [displayCurrency, gain, excess] of [['USD', '+$250.00', '+$50.00'], ['CNY', '+¥1,800.00', '+¥360.00']]) {
+        const investmentPlan = Object.freeze({ ...fixture().ctx.investmentPlan, displayCurrency });
+        const yearlyActuals = Object.freeze([Object.freeze({ year, actualGain: 250, endBalance: 1250 })]);
+        const { sheet, row, calls, ctx, before } = openAnnualAction({ language, marketColorMode, investmentPlan, yearlyActuals });
+        assert.deepEqual([row.startBalance, row.planTarget, row.actualGain], [1000, 200, 250]);
+        const growth = growthOf(sheet);
+        assert.equal(growth.props['aria-label'], t(language, 'review.actualGrowthRate'));
+        assert.equal(textContent(growth), '+25.0%');
+        assert.ok(growth.props.className.includes(marketTextClass(25, marketColorMode)));
+        assert.ok(!textContent(sheet).includes('125.0%'), '125% target completion must not replace the 25% gain on starting assets');
+        assert.equal(textContent(nodes(sheet, 'strong').find(node => node.props.className?.split(' ').includes('rgm-result'))), gain);
+        const excessRow = excessOf(sheet);
+        assert.equal(textContent(nodes(excessRow, 'dt')[0]), t(language, 'review.excessGain'));
+        const amount = nodes(nodes(excessRow, 'dd')[0], 'span')[0];
+        assert.equal(textContent(amount), excess);
+        assert.equal(amount.props.className, marketTextClass(50, marketColorMode));
+        assert.deepEqual(sheet.props.actions.map(action => action.key), ['edit']);
+        assert.equal(sheet.props.actions[0].label, t(language, 'review.editYearData'));
+        assert.deepEqual(calls, []);
+        sheet.props.onClose();
+        assert.deepEqual(calls, [], 'opening, reading and closing never save annual data');
+        assert.equal(JSON.stringify(ctx), before);
+      }
+    }
+  }
+});
+
+test('annual action growth and excess respect missing values, future years, valid starting assets and cent-level achievement', () => {
+  const year = new Date().getFullYear();
+  const base = { year, startBalance: 1000, planTarget: 200, actualGain: 250, endBalance: 1250, isProjected: false };
+  const cases = [
+    [{ actualGain: -250 }, '-25.0%', null],
+    [{ actualGain: 0 }, '0.0%', null],
+    [{ actualGain: 150 }, '+15.0%', null],
+    [{ planTarget: 250 }, '+25.0%', null],
+    [{ actualGain: 250.004, planTarget: 250 }, '+25.0%', null],
+    [{ actualGain: 250.01, planTarget: 250 }, '+25.0%', '+$0.01'],
+    [{ actualGain: null }, '—', null],
+    [{ actualGain: undefined }, '—', null],
+    [{ actualGain: NaN }, '—', null],
+    [{ actualGain: Infinity }, '—', null],
+    [{ isProjected: true }, '—', null],
+    [{ year: year + 1 }, '—', null],
+    [{ startBalance: 0 }, '—', '+$50.00'],
+    [{ startBalance: -1000 }, '—', '+$50.00'],
+    [{ startBalance: NaN }, '—', '+$50.00'],
+    [{ startBalance: Infinity }, '—', '+$50.00'],
+    [{ startBalance: Number.MIN_VALUE, actualGain: 1, planTarget: 2 }, '—', null],
+    [{ planTarget: null }, '+25.0%', null],
+    [{ planTarget: NaN }, '+25.0%', null],
+    [{ planTarget: Infinity }, '+25.0%', null],
+    [{ startBalance: Number.MAX_VALUE, actualGain: Number.MAX_VALUE, planTarget: -Number.MAX_VALUE }, '+100.0%', null],
+  ];
+  for (const [fields, expectedGrowth, expectedExcess] of cases) {
+    const row = Object.freeze({ ...base, ...fields });
+    const snapshot = { ...row };
+    const { sheet, calls, ctx, before } = openAnnualAction({ marketColorMode: 'redUpGreenDown' }, row);
+    const growth = growthOf(sheet);
+    assert.equal(textContent(growth), expectedGrowth);
+    assert.equal(growth.props.style, undefined);
+    if (expectedGrowth === '—' || expectedGrowth === '0.0%') assert.equal(growth.props.className.trim(), 'rgm-actual-growth');
+    else assert.ok(growth.props.className.includes(marketTextClass(row.actualGain, 'redUpGreenDown')));
+    const excess = excessOf(sheet);
+    if (expectedExcess === null) assert.equal(excess, undefined, 'unrecorded, unmet, cent-equal or invalid differences have no excess row');
+    else assert.equal(textContent(nodes(excess, 'dd')[0]), expectedExcess);
+    assert.deepEqual(row, snapshot);
+    assert.deepEqual(calls, []);
+    assert.equal(JSON.stringify(ctx), before);
+  }
+});
+
+test('historical annual action metrics use the recorded year and retain the existing edit callback without writes', () => {
+  const year = new Date().getFullYear() - 1;
+  const investmentPlan = Object.freeze({ ...fixture().ctx.investmentPlan, startYear: year });
+  const yearlyActuals = Object.freeze([Object.freeze({ year, actualGain: 250, endBalance: 1250 })]);
+  const { sheet, row, ctx, calls, before, harness } = openAnnualAction({ investmentPlan, yearlyActuals, showAllYears: true });
+  assert.equal(row.year, year);
+  assert.equal(textContent(growthOf(sheet)), '+25.0%');
+  assert.equal(textContent(nodes(excessOf(sheet), 'dd')[0]), '+$50.00');
+  assert.ok(textContent(sheet).includes(t('zh', 'review.pastYear')));
+  sheet.props.actions[0].onClick();
+  assert.deepEqual(calls, [{ name: 'setEditYearlyActualId', args: [year] }]);
+  harness.render();
+  harness.commit();
+  assert.equal(growthOf(harness.tree), undefined, 'editing dismisses the action sheet before the parent opens the editor');
+  assert.equal(ctx.investmentPlan, investmentPlan);
+  assert.equal(ctx.yearlyActuals, yearlyActuals);
+  assert.equal(JSON.stringify(ctx), before);
+});
+
 test('initial ReviewTab rendering does not move the window in the list or direct details preview', () => {
   for (const initialCompoundDetails of [false, true]) {
     const { ctx } = fixture({ initialCompoundDetails });

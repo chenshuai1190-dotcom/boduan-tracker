@@ -185,6 +185,15 @@ export default function ReviewTab({ ctx }) {
   }, [startCapital, startYear, targetAnnualRate, totalYears, yearlyActuals]);
 
   const [yearAction, setYearAction] = React.useState(() => yearlyFinal.find(item => item.year === ctx.initialReviewYear) || null);
+  const yearActionHasActual = yearAction && yearAction.year <= thisYear
+    && !yearAction.isProjected && Number.isFinite(yearAction.actualGain);
+  const rawYearActionGrowth = yearActionHasActual && Number.isFinite(yearAction.startBalance) && yearAction.startBalance > 0
+    ? yearAction.actualGain / yearAction.startBalance * 100 : null;
+  const yearActionGrowth = Number.isFinite(rawYearActionGrowth) ? rawYearActionGrowth : null;
+  const rawYearActionExcess = yearActionHasActual && Number.isFinite(yearAction.planTarget)
+    && resolveAnnualGoalStatus(yearAction.actualGain, yearAction.planTarget) === 'exceeded'
+    ? yearAction.actualGain - yearAction.planTarget : null;
+  const yearActionExcess = Number.isFinite(rawYearActionExcess) ? rawYearActionExcess : null;
 
   const ageGoalAmountExact = startCapital * Math.pow(1 + targetAnnualRate, totalYears);
   const ageGoalAmount = Math.round(ageGoalAmountExact);
@@ -426,14 +435,22 @@ export default function ReviewTab({ ctx }) {
           <div className="rgm-year-summary">
             <div className="rgm-year-heading"><strong>{yearAction.year}</strong><span>{yearAction.year === thisYear ? tt('review.thisYear', '本年') : yearAction.year > thisYear ? tt('review.plannedYear', '计划年度') : tt('review.pastYear', '历史年度')}</span></div>
             <span className="rgm-result-label">{tt('review.actualGain', '实际收益')}</span>
-            <strong className={`rgm-result ${!yearAction.isProjected && yearAction.actualGain !== null ? marketTextClass(yearAction.actualGain, marketColorMode) : ''}`}>
-              {yearAction.isProjected || yearAction.actualGain === null ? tt('review.pending', '待填写') : signedMoney(yearAction.actualGain)}
-            </strong>
+            <div className="rgm-result-row">
+              <strong className={`rgm-result ${!yearAction.isProjected && yearAction.actualGain !== null ? marketTextClass(yearAction.actualGain, marketColorMode) : ''}`}>
+                {yearAction.isProjected || yearAction.actualGain === null ? tt('review.pending', '待填写') : signedMoney(yearAction.actualGain)}
+              </strong>
+              <span className={`rgm-actual-growth ${yearActionGrowth !== null && yearActionGrowth !== 0 ? marketTextClass(yearActionGrowth, marketColorMode) : ''}`} aria-label={tt('review.actualGrowthRate', '实际增幅')}>
+                {yearActionGrowth === null ? '—' : `${yearActionGrowth > 0 ? '+' : ''}${yearActionGrowth.toFixed(1)}%`}
+              </span>
+            </div>
           </div>
           <dl className="review-year-facts">
             <div><dt>{tt('review.yearStart', '年初起点')}</dt><dd>{money(yearAction.startBalance)}</dd></div>
             <div><dt>{yearAction.year === thisYear ? tt('review.currentAssets', '当前资产') : tt('review.actualYearEndAssets', '实际期末资产')}</dt><dd>{yearAction.isProjected ? tt('review.pending', '待填写') : money(yearAction.endBalance)}</dd></div>
             <div><dt>{tt('review.annualProfitTarget', '年度收益目标')}</dt><dd>{money(yearAction.planTarget)}</dd></div>
+            {yearActionExcess !== null && (
+              <div className="rgm-excess-row"><dt>{tt('review.excessGain', '超额收益')}</dt><dd><span className={marketTextClass(yearActionExcess, marketColorMode)}>{signedMoney(yearActionExcess)}</span></dd></div>
+            )}
             <div className="rgm-target-row"><dt>{tt('review.yearEnd', '年底目标')}</dt><dd>{money(yearAction.startBalance + yearAction.planTarget)}</dd></div>
           </dl>
         </ReviewActionSheet>
