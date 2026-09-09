@@ -47,6 +47,7 @@ const byClass = (tree, className) => nodes(tree, node => (node.props.className |
 const current = tree => byClass(tree, 'ag-current-card')[0];
 const progressbar = tree => nodes(tree, node => node.props.role === 'progressbar')[0];
 const currentWith = fields => ({ ...currentYear, ...fields });
+const actualGrowth = tree => nodes(byClass(tree, 'ag-actual-growth')[0], node => node.type === 'strong')[0];
 
 test('annual focus prioritizes realized gain, target and one completion ratio without a repeated asset chain', () => {
   const { tree } = renderPlan();
@@ -59,6 +60,88 @@ test('annual focus prioritizes realized gain, target and one completion ratio wi
   assert.equal(textContent(card).match(/14\.6%/g).length, 1);
   assert.doesNotMatch(textContent(card), /\$2,470,000|\$2,400,000|100%/);
   assert.equal(byClass(tree, 'ag-year-row').length, 1);
+});
+
+test('actual growth and original target completion coexist with unchanged labels, amounts and callbacks in both languages and currencies', () => {
+  const row = Object.freeze(currentWith({ startBalance: 1000, planTarget: 200, actualGain: 250, endBalance: 1250 }));
+  for (const language of ['zh', 'en']) {
+    for (const [symbol, rate, gain, target, gap] of [
+      ['$', 1, '+$250.00', '$200.00', '$50.00'],
+      ['¥', 7.2, '+¥1,800.00', '¥1,440.00', '¥360.00'],
+    ]) {
+      const displayMoney = value => `${symbol}${(value * rate).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      const calls = [];
+      const { tree } = renderPlan({
+        language, visibleYears: Object.freeze([row]),
+        money: displayMoney,
+        signedMoney: value => `${value >= 0 ? '+' : '-'}${displayMoney(Math.abs(value))}`,
+        onOpenYear: value => calls.push(value),
+      });
+      const gainRow = byClass(tree, 'ag-current-gain-row')[0];
+      const growth = byClass(gainRow, 'ag-actual-growth')[0];
+      assert.ok(gainRow);
+      assert.equal(byClass(gainRow, 'ag-gain').length, 1, 'the realized amount and actual-growth metric share one row');
+      assert.equal(growth.type, 'span');
+      assert.equal(byClass(growth, 'ag-label').length, 0, 'the amount row shows only the growth percentage, without an extra label');
+      assert.equal(textContent(growth), '+25.0%');
+      assert.equal(textContent(actualGrowth(tree)), '+25.0%');
+      assert.equal(textContent(byClass(tree, 'ag-gain')[0]), gain);
+      assert.equal(textContent(byClass(tree, 'ag-current-target')[0]), `${t(language, 'review.annualProfitTarget')}${target}`);
+      assert.equal(textContent(byClass(tree, 'ag-progress-summary')[0]), `${t(language, 'review.yearProgress')}125.0%`);
+      assert.equal(progressbar(tree).props['aria-label'], t(language, 'review.yearProgress'));
+      assert.equal(progressbar(tree).props['aria-valuetext'], '125.0%');
+      assert.equal(progressbar(tree).props['aria-valuenow'], 100);
+      assert.equal(byClass(tree, 'ag-progress-fill')[0].props.style.width, '100%');
+      assert.equal(textContent(byClass(tree, 'ag-gap')[0]), t(language, 'review.exceededAmount', undefined, { amount: gap }));
+      assert.equal(byClass(tree, 'ag-status')[0].props['data-annual-goal-status'], 'exceeded');
+      assert.deepEqual(calls, []);
+      current(tree).props.onClick();
+      assert.deepEqual(calls, [row]);
+      assert.equal(calls[0], row);
+    }
+  }
+  assert.deepEqual(row, currentWith({ startBalance: 1000, planTarget: 200, actualGain: 250, endBalance: 1250 }));
+});
+
+test('actual growth formats negative and zero returns and follows each market color mode independently of target progress', () => {
+  for (const marketColorMode of ['redUpGreenDown', 'greenUpRedDown']) {
+    for (const [actualGain, growthLabel, progressLabel] of [[250, '+25.0%', '125.0%'], [-250, '-25.0%', '-125.0%'], [0, '0.0%', '0.0%'], [-0, '0.0%', '0.0%']]) {
+      const { tree } = renderPlan({ marketColorMode, visibleYears: [currentWith({ startBalance: 1000, planTarget: 200, actualGain })] });
+      assert.equal(textContent(actualGrowth(tree)), growthLabel);
+      assert.equal(actualGrowth(tree).props.style.color, actualGain === 0 ? '#f1f1f2' : marketHexColor(actualGain, marketColorMode));
+      assert.equal(progressbar(tree).props['aria-valuetext'], progressLabel);
+      assert.equal(byClass(tree, 'ag-progress-fill')[0].props.style.width, actualGain > 0 ? '100%' : '0%');
+    }
+  }
+});
+
+test('actual growth stays missing for unavailable records, invalid opening balances and nonfinite results without changing target progress', () => {
+  for (const startBalance of [null, undefined, NaN, Infinity, -Infinity, 0, -1000, '', '1000']) {
+    const { tree } = renderPlan({ visibleYears: [currentWith({ startBalance, planTarget: 200, actualGain: 250 })] });
+    assert.equal(textContent(actualGrowth(tree)), '—', `invalid opening balance ${String(startBalance)} cannot produce actual growth`);
+    assert.equal(actualGrowth(tree).props.style, undefined);
+    assert.equal(textContent(byClass(tree, 'ag-gain')[0]), '+$250.00');
+    assert.equal(progressbar(tree).props['aria-valuetext'], '125.0%', 'target completion does not depend on the opening balance');
+  }
+  for (const fields of [{ actualGain: null }, { actualGain: undefined }, { actualGain: NaN }, { actualGain: Infinity }, { actualGain: '' }, { actualGain: '250' }, { actualGain: 250, isProjected: true }]) {
+    const { tree } = renderPlan({ visibleYears: [currentWith({ startBalance: 1000, planTarget: 200, ...fields })] });
+    assert.equal(textContent(actualGrowth(tree)), '—');
+    assert.equal(actualGrowth(tree).props.style, undefined);
+    assert.equal(progressbar(tree).props['aria-valuetext'], t('zh', 'review.pending'));
+    assert.equal(textContent(byClass(tree, 'ag-gain')[0]), t('zh', 'review.pending'));
+  }
+  for (const [startBalance, actualGain, planTarget, targetProgress] of [
+    [Number.MIN_VALUE, 1, 2, '50.0%'],
+    [1, Number.MAX_VALUE, Number.MAX_VALUE, '100.0%'],
+  ]) {
+    const { tree } = renderPlan({ visibleYears: [currentWith({ startBalance, actualGain, planTarget })] });
+    assert.equal(textContent(actualGrowth(tree)), '—', 'both division overflow and percentage multiplication overflow remain unavailable');
+    assert.equal(actualGrowth(tree).props.style, undefined);
+    assert.equal(progressbar(tree).props['aria-valuetext'], targetProgress);
+  }
+  for (const visibleYears of [[], [pastYear], [futureYear]]) {
+    assert.equal(byClass(renderPlan({ visibleYears }).tree, 'ag-actual-growth').length, 0, 'actual growth is only attached to the current-year focus');
+  }
 });
 
 test('realized zero is retained and is distinct from missing and projected annual records', () => {
@@ -245,5 +328,11 @@ test('annual plan remains scoped presentation without persistence, network, proj
   const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(match => ({ selectors: match[1].split(',').map(selector => selector.trim()), declarations: match[2] }));
   assert.ok(rules.every(rule => rule.selectors.every(selector => /^\.annual-goal-plan(?=[\s.:#\[>+~]|$)/.test(selector))));
   assert.ok(rules.find(rule => rule.selectors.includes('.annual-goal-plan button:focus-visible'))?.declarations.includes('outline: 1px solid'));
+  for (const selector of ['.annual-goal-plan .ag-current-gain-row', '.annual-goal-plan .ag-actual-growth']) {
+    const rule = rules.find(item => item.selectors.includes(selector));
+    assert.ok(rule, `the new actual-growth layout stays scoped: ${selector}`);
+    assert.match(rule.declarations, /flex-wrap:\s*wrap/);
+  }
+  assert.doesNotMatch(css, /white-space\s*:\s*nowrap|text-overflow\s*:\s*ellipsis|line-clamp/);
   assert.doesNotMatch(css, /#f6b54b|linear-gradient|animation:|box-shadow:/);
 });

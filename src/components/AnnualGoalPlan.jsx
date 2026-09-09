@@ -34,6 +34,9 @@ export default function AnnualGoalPlan({
   </span>;
   const currentHasActual = currentYear && hasActual(currentYear);
   const currentStatus = currentYear ? statusFor(currentYear) : null;
+  const rawActualGrowth = currentHasActual && Number.isFinite(currentYear.startBalance) && currentYear.startBalance > 0
+    ? currentYear.actualGain / currentYear.startBalance * 100 : null;
+  const actualGrowth = Number.isFinite(rawActualGrowth) ? rawActualGrowth : null;
   const rawProgress = currentHasActual && Number.isFinite(currentYear.planTarget) && currentYear.planTarget > 0
     ? currentYear.actualGain / currentYear.planTarget * 100 : null;
   const progress = Number.isFinite(rawProgress) ? rawProgress : null;
@@ -64,10 +67,17 @@ export default function AnnualGoalPlan({
       </span>
       <span className="ag-current-result">
         <span className="ag-label">{tt('review.annualRealizedGain', '本年已实现')}</span>
-        <strong className={currentHasActual ? 'ag-gain' : 'ag-gain ag-unrecorded'}
-          style={currentHasActual ? { color: currentYear.actualGain === 0 ? '#f1f1f2' : marketHexColor(currentYear.actualGain, marketColorMode) } : undefined}>
-          {currentHasActual ? signedMoney(currentYear.actualGain) : tt('review.pending', '待填写')}
-        </strong>
+        <span className="ag-current-gain-row">
+          <strong className={currentHasActual ? 'ag-gain' : 'ag-gain ag-unrecorded'}
+            style={currentHasActual ? { color: currentYear.actualGain === 0 ? '#f1f1f2' : marketHexColor(currentYear.actualGain, marketColorMode) } : undefined}>
+            {currentHasActual ? signedMoney(currentYear.actualGain) : tt('review.pending', '待填写')}
+          </strong>
+          <span className="ag-actual-growth">
+            <strong style={actualGrowth === null ? undefined : { color: actualGrowth === 0 ? '#f1f1f2' : marketHexColor(actualGrowth, marketColorMode) }}>
+              {actualGrowth === null ? '—' : `${actualGrowth > 0 ? '+' : ''}${actualGrowth.toFixed(1)}%`}
+            </strong>
+          </span>
+        </span>
       </span>
       <span className="ag-current-target"><span className="ag-label">{tt('review.annualProfitTarget', '年度收益目标')}</span>
         <strong>{Number.isFinite(currentYear.planTarget) ? money(currentYear.planTarget) : '—'}</strong>

@@ -4,6 +4,19 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '🎯 年度计划新增实际增幅百分比',
+      '  - 本年已实现金额旁直接显示增幅，按年初起点计算，保留原有目标完成率',
+      '  - 缺少实际记录或有效年初起点时显示 —，不改变保存数据',
+    ],
+    itemsEn: [
+      '🎯 Actual growth percentage in the annual plan',
+      '  - Shows growth beside the realized amount based on the starting balance, with target completion unchanged',
+      '  - Displays an em dash when an actual record or valid starting balance is unavailable; saved data is unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.495', date: '2026-09-09',
+    items: [
       '🎯 优化目标页的查看与填写细节',
       '  - 取消复利曲线点击后的蓝框，累计收益遵循涨跌配色，保留键盘选年',
       '  - 置顶投资心得默认全部显示，不再受三条折叠限制',
