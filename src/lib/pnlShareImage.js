@@ -1,5 +1,5 @@
-import { MARKET_COLOR_MODES, marketHexColor } from './marketColorMode.js';
 import { sanitizePnlShareNickname } from './pnlShareIdentity.js';
+import { drawPnlShareBackground, normalizePnlShareTheme } from './pnlShareThemes.js';
 
 export const PNL_SHARE_IMAGE_WIDTH = 1200;
 export const PNL_SHARE_IMAGE_HEIGHT = 1600;
@@ -57,106 +57,17 @@ function metricTone(value, multiplier) {
 
 export function pnlShareToneColor(tone) {
   const normalizedTone = normalizeMetricTone(tone);
-  if (normalizedTone === 'neutral') return 'rgba(255,255,255,0.94)';
-  return marketHexColor(
-    normalizedTone === 'gain' ? 1 : -1,
-    MARKET_COLOR_MODES.RED_UP_GREEN_DOWN,
-  );
-}
-
-function roundedRect(context, x, y, width, height, radius) {
-  const resolvedRadius = Math.max(0, Math.min(radius, width / 2, height / 2));
-  context.beginPath();
-  context.moveTo(x + resolvedRadius, y);
-  context.lineTo(x + width - resolvedRadius, y);
-  context.quadraticCurveTo(x + width, y, x + width, y + resolvedRadius);
-  context.lineTo(x + width, y + height - resolvedRadius);
-  context.quadraticCurveTo(x + width, y + height, x + width - resolvedRadius, y + height);
-  context.lineTo(x + resolvedRadius, y + height);
-  context.quadraticCurveTo(x, y + height, x, y + height - resolvedRadius);
-  context.lineTo(x, y + resolvedRadius);
-  context.quadraticCurveTo(x, y, x + resolvedRadius, y);
-  context.closePath();
-}
-
-function drawCenteredFittedText(context, text, centerX, y, {
-  color,
-  fontSize,
-  fontWeight = 600,
-  maxWidth,
-  minFontSize = 42,
-}) {
-  let resolvedSize = fontSize;
-  context.textAlign = 'center';
-  context.textBaseline = 'alphabetic';
-  context.fillStyle = color;
-  context.font = `${fontWeight} ${resolvedSize}px ${CANVAS_FONT}`;
-  while (resolvedSize > minFontSize && context.measureText(text).width > maxWidth) {
-    resolvedSize -= 2;
-    context.font = `${fontWeight} ${resolvedSize}px ${CANVAS_FONT}`;
-  }
-  context.fillText(text, centerX, y);
-}
-
-function drawCenteredAmountWithUnit(context, amountText, currencyUnit, centerX, y, {
-  color,
-  fontSize,
-  unitFontSize,
-  fontWeight = 600,
-  unitFontWeight = 580,
-  maxWidth,
-  minFontSize = 42,
-}) {
-  const unit = normalizeCurrencyUnit(currencyUnit);
-  if (!unit) {
-    drawCenteredFittedText(context, amountText, centerX, y, {
-      color,
-      fontSize,
-      fontWeight,
-      maxWidth,
-      minFontSize,
-    });
-    return;
-  }
-
-  const unitRatio = unitFontSize / fontSize;
-  let resolvedSize = fontSize;
-  let resolvedUnitSize = unitFontSize;
-  let amountWidth = 0;
-  let unitWidth = 0;
-  let gap = 0;
-
-  const measure = () => {
-    resolvedUnitSize = Math.max(28, Math.round(resolvedSize * unitRatio));
-    gap = Math.max(14, Math.round(resolvedSize * 0.18));
-    context.font = `${fontWeight} ${resolvedSize}px ${CANVAS_FONT}`;
-    amountWidth = context.measureText(amountText).width;
-    context.font = `${unitFontWeight} ${resolvedUnitSize}px ${CANVAS_FONT}`;
-    unitWidth = context.measureText(unit).width;
-  };
-
-  measure();
-  while (resolvedSize > minFontSize && amountWidth + gap + unitWidth > maxWidth) {
-    resolvedSize -= 2;
-    measure();
-  }
-
-  const startX = centerX - ((amountWidth + gap + unitWidth) / 2);
-  context.textAlign = 'left';
-  context.textBaseline = 'alphabetic';
-  context.fillStyle = color;
-  context.font = `${fontWeight} ${resolvedSize}px ${CANVAS_FONT}`;
-  context.fillText(amountText, startX, y);
-  context.font = `${unitFontWeight} ${resolvedUnitSize}px ${CANVAS_FONT}`;
-  context.fillText(unit, startX + amountWidth + gap, y);
+  if (normalizedTone === 'neutral') return '#e1e1e6';
+  return normalizedTone === 'gain' ? '#ff4b1f' : '#36c49a';
 }
 
 function drawLeftFittedText(context, text, x, y, {
   color,
   fontSize,
-  fontWeight = 600,
+  fontWeight = 400,
   maxWidth,
-  minFontSize = 28,
+  minFontSize = 36,
+  lastLineAtY = false,
 }) {
   let resolvedSize = fontSize;
   context.textAlign = 'left';
@@ -164,16 +75,31 @@ function drawLeftFittedText(context, text, x, y, {
   context.fillStyle = color;
   context.font = `${fontWeight} ${resolvedSize}px ${CANVAS_FONT}`;
   while (resolvedSize > minFontSize && context.measureText(text).width > maxWidth) {
-    resolvedSize -= 2;
+    resolvedSize = Math.max(minFontSize, resolvedSize - 2);
     context.font = `${fontWeight} ${resolvedSize}px ${CANVAS_FONT}`;
   }
-  context.fillText(text, x, y);
+  // Wrap at the minimum size rather than asking Canvas to compress glyphs.
+  const lines = [];
+  let line = '';
+  for (const character of text) {
+    if (line && context.measureText(line + character).width > maxWidth) {
+      lines.push(line);
+      line = character;
+    } else {
+      line += character;
+    }
+  }
+  lines.push(line);
+  const lineHeight = Math.ceil(resolvedSize * 1.3);
+  const firstY = lastLineAtY ? y - (lines.length - 1) * lineHeight : y;
+  lines.forEach((value, index) => context.fillText(value, x, firstY + index * lineHeight));
+  return firstY + (lines.length - 1) * lineHeight;
 }
 
 function drawPnlShareIdentity(context, nickname, avatarImage) {
-  const avatarX = 130;
-  const avatarY = 108;
-  const avatarSize = 112;
+  const avatarX = 96;
+  const avatarY = 112;
+  const avatarSize = 96;
   const sourceWidth = Number(avatarImage?.naturalWidth || avatarImage?.width || avatarSize);
   const sourceHeight = Number(avatarImage?.naturalHeight || avatarImage?.height || avatarSize);
   const sourceSize = Math.max(1, Math.min(sourceWidth, sourceHeight));
@@ -200,50 +126,12 @@ function drawPnlShareIdentity(context, nickname, avatarImage) {
   );
   context.restore();
 
-  context.beginPath();
-  context.arc(avatarX + avatarSize / 2, avatarY + avatarSize / 2, avatarSize / 2, 0, Math.PI * 2);
-  context.strokeStyle = 'rgba(255,255,255,0.12)';
-  context.lineWidth = 3;
-  context.stroke();
-
-  drawLeftFittedText(context, nickname, 270, 154, {
-    color: 'rgba(255,255,255,0.94)',
+  drawLeftFittedText(context, nickname, 224, 174, {
+    color: '#c3c3ca',
     fontSize: 40,
-    fontWeight: 650,
-    maxWidth: 590,
-    minFontSize: 28,
+    maxWidth: 880,
+    minFontSize: 36,
   });
-}
-
-function drawWarmGoldMotif(context) {
-  context.save();
-  const glow = context.createRadialGradient(600, 1130, 10, 600, 1130, 430);
-  glow.addColorStop(0, 'rgba(246,181,75,0.19)');
-  glow.addColorStop(0.48, 'rgba(246,181,75,0.065)');
-  glow.addColorStop(1, 'rgba(246,181,75,0)');
-  context.fillStyle = glow;
-  context.fillRect(160, 690, 880, 800);
-
-  context.translate(600, 1120);
-  context.rotate(-0.22);
-  const lightBand = context.createLinearGradient(-390, 0, 390, 0);
-  lightBand.addColorStop(0, 'rgba(246,181,75,0)');
-  lightBand.addColorStop(0.38, 'rgba(246,181,75,0.12)');
-  lightBand.addColorStop(0.57, 'rgba(255,221,142,0.54)');
-  lightBand.addColorStop(1, 'rgba(246,181,75,0)');
-  context.shadowColor = 'rgba(246,181,75,0.28)';
-  context.shadowBlur = 46;
-  context.fillStyle = lightBand;
-  roundedRect(context, -390, -23, 780, 46, 23);
-  context.fill();
-
-  context.translate(10, 96);
-  context.rotate(0.09);
-  context.shadowBlur = 22;
-  context.globalAlpha = 0.38;
-  roundedRect(context, -310, -6, 620, 12, 6);
-  context.fill();
-  context.restore();
 }
 
 /**
@@ -251,17 +139,20 @@ function drawWarmGoldMotif(context) {
  * property is ignored before anything reaches Canvas.
  */
 export function createPnlShareRenderModel(input = {}) {
+  const showAmount = input.showAmount !== false;
   return Object.freeze({
     nickname: sanitizePnlShareNickname(input.nickname),
     generatedText: safeText(input.generatedText, '', 72),
     marketLabel: safeText(input.marketLabel, '', 40),
     metricLabel: safeText(input.metricLabel, '', 40),
-    amountText: safeText(input.amountText, '—', 48),
-    currencyUnit: normalizeCurrencyUnit(input.currencyUnit),
+    themeId: normalizePnlShareTheme(input.themeId),
+    showAmount,
+    amountText: showAmount ? safeText(input.amountText, '—', 48) : '',
+    currencyUnit: showAmount ? normalizeCurrencyUnit(input.currencyUnit) : '',
     percentText: safeText(input.percentText, '—', 28),
     amountTone: normalizeMetricTone(input.amountTone),
     percentTone: normalizeMetricTone(input.percentTone),
-    accessibilityLabel: safeText(input.accessibilityLabel, '', 120),
+    accessibilityLabel: showAmount ? safeText(input.accessibilityLabel, '', 120) : '',
   });
 }
 
@@ -327,26 +218,9 @@ export function renderPnlShareCanvas(canvas, input = {}, avatarImage = null) {
   canvas.height = PNL_SHARE_IMAGE_HEIGHT;
   context.setTransform(1, 0, 0, 1, 0, 0);
   context.clearRect(0, 0, PNL_SHARE_IMAGE_WIDTH, PNL_SHARE_IMAGE_HEIGHT);
+  if ('letterSpacing' in context) context.letterSpacing = '0px';
 
-  const background = context.createLinearGradient(0, 0, 1200, 1600);
-  background.addColorStop(0, '#040507');
-  background.addColorStop(0.58, '#090a0d');
-  background.addColorStop(1, '#030405');
-  context.fillStyle = background;
-  context.fillRect(0, 0, PNL_SHARE_IMAGE_WIDTH, PNL_SHARE_IMAGE_HEIGHT);
-
-  const topGlow = context.createRadialGradient(930, 20, 0, 930, 20, 480);
-  topGlow.addColorStop(0, 'rgba(246,181,75,0.095)');
-  topGlow.addColorStop(1, 'rgba(246,181,75,0)');
-  context.fillStyle = topGlow;
-  context.fillRect(450, 0, 750, 520);
-
-  roundedRect(context, 72, 72, 1056, 1456, 58);
-  context.fillStyle = 'rgba(10,11,14,0.96)';
-  context.fill();
-  context.strokeStyle = 'rgba(255,255,255,0.075)';
-  context.lineWidth = 2;
-  context.stroke();
+  drawPnlShareBackground(context, model.themeId);
 
   const hasIdentity = Boolean(model.nickname && avatarImage);
   context.textAlign = 'left';
@@ -354,48 +228,64 @@ export function renderPnlShareCanvas(canvas, input = {}, avatarImage = null) {
   if (hasIdentity) {
     drawPnlShareIdentity(context, model.nickname, avatarImage);
   } else {
-    context.fillStyle = 'rgba(255,255,255,0.94)';
-    context.font = `600 48px ${CANVAS_FONT}`;
-    context.fillText('Quote', 130, 172);
+    drawLeftFittedText(context, model.nickname || 'Quote', 96, 174, {
+      color: '#c3c3ca',
+      fontSize: 40,
+      maxWidth: 1008,
+      minFontSize: 36,
+    });
   }
 
-  context.fillStyle = 'rgba(255,255,255,0.34)';
-  context.font = `400 25px ${CANVAS_FONT}`;
-  context.fillText(model.generatedText, hasIdentity ? 270 : 130, hasIdentity ? 202 : 230);
-  context.textAlign = 'right';
-  context.fillText(model.marketLabel, 1070, hasIdentity ? 172 : 230);
-
-  context.fillStyle = 'rgba(255,255,255,0.075)';
-  context.fillRect(130, 282, 940, 2);
-
-  drawWarmGoldMotif(context);
-
-  context.textAlign = 'center';
-  context.fillStyle = 'rgba(255,255,255,0.48)';
-  context.font = `500 36px ${CANVAS_FONT}`;
-  context.fillText(model.metricLabel, 600, 470);
-
-  drawCenteredAmountWithUnit(context, model.amountText, model.currencyUnit, 600, 665, {
-    color: pnlShareToneColor(model.amountTone),
-    fontSize: 112,
-    unitFontSize: 46,
-    fontWeight: 640,
-    unitFontWeight: 580,
-    maxWidth: 880,
-    minFontSize: 62,
-  });
-  drawCenteredFittedText(context, model.percentText, 600, 765, {
-    color: pnlShareToneColor(model.percentTone),
-    fontSize: 48,
-    fontWeight: 580,
-    maxWidth: 760,
+  drawLeftFittedText(context, model.marketLabel, 96, 280, {
+    color: '#8b8b94',
+    fontSize: 36,
+    maxWidth: 1008,
     minFontSize: 36,
   });
 
-  context.textAlign = 'center';
-  context.fillStyle = 'rgba(255,255,255,0.28)';
-  context.font = `500 24px ${CANVAS_FONT}`;
-  context.fillText('Quote', 600, 1442);
+  drawLeftFittedText(context, model.metricLabel, 96, 470, {
+    color: '#a2a2ab',
+    fontSize: 36,
+    maxWidth: 1008,
+    minFontSize: 36,
+  });
+
+  const percentBottom = drawLeftFittedText(context, model.percentText, 96, 668, {
+    color: pnlShareToneColor(model.percentTone),
+    fontSize: 160,
+    maxWidth: 1008,
+    minFontSize: 48,
+  });
+  if (model.showAmount) {
+    const amountBottom = drawLeftFittedText(context, model.amountText, 96, Math.max(828, percentBottom + 150), {
+      color: pnlShareToneColor(model.amountTone),
+      fontSize: 72,
+      maxWidth: 1008,
+      minFontSize: 48,
+    });
+    if (model.currencyUnit) {
+      drawLeftFittedText(context, model.currencyUnit, 96, amountBottom + 62, {
+        color: '#909099',
+        fontSize: 36,
+        maxWidth: 1008,
+        minFontSize: 36,
+      });
+    }
+  }
+
+  drawLeftFittedText(context, model.generatedText, 96, 1428, {
+    color: '#b9bbc4',
+    fontSize: 36,
+    maxWidth: 1008,
+    minFontSize: 36,
+    lastLineAtY: true,
+  });
+  drawLeftFittedText(context, 'Quote', 96, 1510, {
+    color: '#b9bbc4',
+    fontSize: 36,
+    maxWidth: 1008,
+    minFontSize: 36,
+  });
 
   return model;
 }

@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '✨ 收益分享升级为可选风格的高清收益海报',
+      '  - 曜石、极光、暮光、冰川四种背景即时切换，收益率优先展示，数字保持正常字距',
+      '  - 可隐藏收益金额，预览与导出同步；切换风格后不会误分享旧图片',
+      '  - 保留当日、持仓与累计收益口径及 1200 × 1600 高清 PNG，不增加行情请求',
+    ],
+    itemsEn: [
+      '✨ High-resolution return posters with selectable styles',
+      '  - Switch between Obsidian, Aurora, Ember and Glacier, with return rates emphasized and normal letter spacing',
+      '  - Hide return amounts in both the preview and export; style changes cannot share an outdated image',
+      '  - Retains daily, holding and total return definitions and 1200 × 1600 PNG output without extra quote requests',
+    ],
+  },
+  {
+    ver: 'v10.7.9.511', date: '2026-09-10',
+    items: [
       '✨ 波段记录升级为统一黑灰报告视觉',
       '  - 放大累计盈亏，状态筛选直接切换，按股票展开各笔波段，盈亏金额统一保留两位小数',
       '  - 新增、详情、编辑、分批卖出与目标价试算弹窗统一排版，移除重复取消按钮',

@@ -1,7 +1,9 @@
 import React from 'react';
-import { ArrowLeft, Download, Loader2, Share2 } from 'lucide-react';
+import { ArrowLeft, Check, Download, Loader2, Share2 } from 'lucide-react';
+import './PnlSharePage.css';
 import { isEnglishLanguage, t } from '../lib/i18n.js';
 import { createPnlShareIdentity, loadPnlShareAvatarImage } from '../lib/pnlShareIdentity.js';
+import { PNL_SHARE_THEMES } from '../lib/pnlShareThemes.js';
 import {
   buildPnlShareMetricPresentation,
   canvasToPngBlob,
@@ -90,6 +92,8 @@ export default function PnlSharePage({
   const [avatarImage, setAvatarImage] = React.useState(null);
   const [avatarFailure, setAvatarFailure] = React.useState(false);
   const [selectedMetric, setSelectedMetric] = React.useState('daily');
+  const [selectedTheme, setSelectedTheme] = React.useState('obsidian');
+  const [showAmount, setShowAmount] = React.useState(true);
   const [shareAsset, setShareAsset] = React.useState(null);
   const [statusKey, setStatusKey] = React.useState('');
   const canvasRef = React.useRef(null);
@@ -148,7 +152,9 @@ export default function PnlSharePage({
   const { amountText, currencyUnit, percentText, amountTone, percentTone } = selectedPresentation;
   const marketLabel = tt('pnlShare.usMarket', '美股市场');
   const imageTitle = tt('pnlShare.title', '收益分享');
-  const accessibilityLabel = `${imageTitle} · ${identitySnapshot?.nickname || ''} · ${metricLabel} · ${amountText} ${currencyUnit} · ${percentText}`;
+  const themeDefinition = PNL_SHARE_THEMES.find(theme => theme.id === selectedTheme) || PNL_SHARE_THEMES[0];
+  const themeLabel = tt(themeDefinition.labelKey, themeDefinition.labelFallback);
+  const accessibilityLabel = `${imageTitle} · ${themeLabel} · ${identitySnapshot?.nickname || ''} · ${metricLabel} · ${percentText}${showAmount ? ` · ${amountText} ${currencyUnit}` : ''}`;
   const generatedAt = new Date(shareSnapshot.capturedAt);
   const generatedDateTime = generatedAt.toLocaleString(locale, {
     year: 'numeric',
@@ -158,7 +164,7 @@ export default function PnlSharePage({
     minute: '2-digit',
     hour12: false,
   });
-  const generatedText = tt('pnlShare.generatedAt', '{{time}}', { time: generatedDateTime });
+  const generatedText = tt('pnlShare.generatedAt', '生成于 {{time}}', { time: generatedDateTime });
   const rawFileName = tt('pnlShare.fileName', 'Quote-{{metric}}-{{date}}.png', {
     metric: selectedMetric,
     date: localDateKey(generatedAt),
@@ -166,6 +172,8 @@ export default function PnlSharePage({
   const fileName = safeFileName(rawFileName);
   const renderKey = [
     selectedMetric,
+    selectedTheme,
+    showAmount,
     displayCurrency,
     generatedText,
     marketLabel,
@@ -193,6 +201,8 @@ export default function PnlSharePage({
 
     try {
       renderPnlShareCanvas(canvas, {
+        themeId: selectedTheme,
+        showAmount,
         nickname: identitySnapshot.nickname,
         generatedText,
         marketLabel,
@@ -225,7 +235,7 @@ export default function PnlSharePage({
       return undefined;
     }
     return undefined;
-  }, [accessibilityLabel, amountText, amountTone, avatarImage, currencyUnit, fileName, generatedText, identityReady, identitySnapshot, marketLabel, metricLabel, percentText, percentTone, renderKey]);
+  }, [accessibilityLabel, amountText, amountTone, avatarImage, currencyUnit, fileName, generatedText, identityReady, identitySnapshot, marketLabel, metricLabel, percentText, percentTone, renderKey, selectedTheme, showAmount]);
 
   const downloadAsset = React.useCallback((asset) => {
     if (!asset?.blob || typeof document === 'undefined' || typeof URL === 'undefined') return false;
@@ -292,30 +302,30 @@ export default function PnlSharePage({
 
   return (
     <main
-      className="mx-auto min-h-screen w-full max-w-[430px] bg-[#05070b] px-4 pb-[calc(env(safe-area-inset-bottom)+28px)] text-white/[0.86]"
+      className="pnl-share-page"
       style={{ fontFamily: NUMBER_FONT }}
       data-pnl-share-page="true"
     >
-      <header className="sticky top-0 z-20 -mx-4 border-b border-white/[0.07] bg-[#05070b]/92 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+10px)] backdrop-blur-xl">
-        <div className="grid grid-cols-[52px_1fr_52px] items-center">
+      <header className="pnl-share-header">
+        <div className="pnl-share-title-row">
           <button
             type="button"
             onClick={onClose}
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-white/[0.055] text-white/[0.72] transition active:scale-95"
+            className="pnl-share-back"
             aria-label={tt('pnlShare.back', '返回')}
           >
             <ArrowLeft className="h-5 w-5" strokeWidth={1.8} />
           </button>
-          <h1 className="text-center text-[17px] font-semibold text-white/[0.9]">
+          <h1>
             {imageTitle}
           </h1>
           <span aria-hidden="true" />
         </div>
       </header>
 
-      <section className="pt-5">
+      <section className="pnl-share-workspace">
         <div
-          className="grid grid-cols-3 gap-1 rounded-2xl bg-white/[0.045] p-1"
+          className="pnl-share-metrics"
           role="group"
           aria-label={tt('pnlShare.selectMetric', '选择分享内容')}
         >
@@ -327,9 +337,7 @@ export default function PnlSharePage({
                 type="button"
                 aria-pressed={selected}
                 onClick={() => setSelectedMetric(metric.id)}
-                className={`h-10 rounded-xl px-1 text-[12px] transition active:scale-[0.98] ${selected
-                  ? 'bg-white/[0.10] text-white/[0.92] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]'
-                  : 'text-white/[0.42]'}`}
+                className="pnl-share-metric"
               >
                 {tt(metric.labelKey, metric.labelFallback)}
               </button>
@@ -337,40 +345,67 @@ export default function PnlSharePage({
           })}
         </div>
 
-        <div className="mt-5 overflow-hidden rounded-[24px] bg-[#090a0d] shadow-[0_20px_60px_rgba(0,0,0,0.34)]">
+        <div className="pnl-share-themes" role="group" aria-label={tt('pnlShare.chooseTheme', '选择背景风格')}>
+          {PNL_SHARE_THEMES.map(theme => (
+            <button
+              key={theme.id}
+              type="button"
+              aria-pressed={selectedTheme === theme.id}
+              onClick={() => setSelectedTheme(theme.id)}
+              className="pnl-share-theme"
+              data-pnl-share-theme={theme.id}
+            >
+              <span className="pnl-share-theme-swatch" style={{ background: theme.swatchBackground }} aria-hidden="true">
+                {selectedTheme === theme.id && <span className="pnl-share-theme-check"><Check size={12} strokeWidth={2} /></span>}
+              </span>
+              <span>{tt(theme.labelKey, theme.labelFallback)}</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="pnl-share-preview">
           <canvas
             ref={canvasRef}
             width={PNL_SHARE_IMAGE_WIDTH}
             height={PNL_SHARE_IMAGE_HEIGHT}
-            className="block h-auto w-full"
+            className="pnl-share-canvas"
             role="img"
             aria-label={`${tt('pnlShare.previewLabel', '收益分享图片预览')} · ${accessibilityLabel}`}
             data-pnl-share-canvas="true"
           />
+          {!identityReady && (
+            <div className="pnl-share-preview-status" role="status">
+              {!identityUnavailable && <Loader2 size={20} className="pnl-share-spinner" strokeWidth={1.6} />}
+              <span>{identityUnavailable
+                ? tt('pnlShare.identityUnavailable', '社区头像或昵称暂不可用，请关闭后重试')
+                : tt('pnlShare.generating', '正在生成高清图片…')}</span>
+            </div>
+          )}
         </div>
 
-        <p className="mt-3 text-center text-[10px] leading-4 text-white/[0.34]">
-          <span>{tt('pnlShare.imageSpec', '高清图片 · 1200 × 1600')}</span>
-          <span aria-hidden="true"> · </span>
-          <span>{ready
-            ? tt('pnlShare.saveHint', '高清图片将在系统分享面板中提供保存选项')
-            : identityUnavailable
-              ? tt('pnlShare.identityUnavailable', '社区头像或昵称暂不可用，请关闭后重试')
-              : tt('pnlShare.generating', '正在生成高清图片…')}</span>
-        </p>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={showAmount}
+          onClick={() => setShowAmount(value => !value)}
+          className="pnl-share-privacy"
+        >
+          <span>{tt('pnlShare.showAmount', '显示收益金额')}</span>
+          <span className="pnl-share-switch" aria-hidden="true"><span /></span>
+        </button>
 
         {statusKey && (
-          <p className="mt-2 text-center text-[11px] leading-4 text-white/[0.5]" role="status">
+          <p className="pnl-share-status" role="status">
             {tt(statusKey, statusFallbacks[statusKey] || statusKey)}
           </p>
         )}
 
-        <div className="mt-4 grid grid-cols-2 gap-3">
+        <div className="pnl-share-actions">
           <button
             type="button"
             disabled={!ready}
             onClick={() => shareOrDownload('save')}
-            className="flex h-12 items-center justify-center gap-2 rounded-2xl bg-white/[0.075] text-[13px] font-medium text-white/[0.82] transition active:scale-[0.99] disabled:opacity-35"
+            className="pnl-share-action"
           >
             {ready ? <Download className="h-[18px] w-[18px]" strokeWidth={1.8} /> : !identityUnavailable && <Loader2 className="h-[18px] w-[18px] animate-spin" strokeWidth={1.8} />}
             {ready ? tt('pnlShare.saveImage', '保存图片') : pendingText}
@@ -379,12 +414,13 @@ export default function PnlSharePage({
             type="button"
             disabled={!ready}
             onClick={() => shareOrDownload('share')}
-            className="flex h-12 items-center justify-center gap-2 rounded-2xl bg-[#f6b54b] text-[13px] font-semibold text-[#121317] transition active:scale-[0.99] disabled:opacity-35"
+            className="pnl-share-action pnl-share-action-primary"
           >
             {ready ? <Share2 className="h-[18px] w-[18px]" strokeWidth={1.8} /> : !identityUnavailable && <Loader2 className="h-[18px] w-[18px] animate-spin" strokeWidth={1.8} />}
             {ready ? tt('pnlShare.share', '分享') : pendingText}
           </button>
         </div>
+        <p className="pnl-share-image-spec">{tt('pnlShare.imageSpec', '高清图片 · 1200 × 1600')}</p>
       </section>
     </main>
   );
