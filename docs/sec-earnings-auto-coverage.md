@@ -1,15 +1,18 @@
 # 自选 SEC 自动覆盖（阶段 2）
 
-状态（2026-09-10）：生产 foundation SQL 已应用，三表和四函数权限聚合核验、RLS REST 检查通过；`v10.7.9.501 / 241bfdb` 已上线且服务端自动覆盖开关已启用。首轮受保护任务返回 `503`：预算耗尽被误记为 error，已有可验证结果成功保存。预算状态内部 forward-fix 保持 v501，尚待最终发布验证。本阶段解决自动发现、任务去重和跨实例复用，不宣称所有公司已完整解析；精确生产基准见 `docs/handoff.md`。
+状态（2026-09-10）：生产 foundation SQL 已应用，三表和四函数权限聚合核验、RLS REST 检查通过；预算状态内部 forward-fix `v10.7.9.501 / d525407` 已通过最终发布验证，服务端自动覆盖开关已启用。首轮旧 runtime 的预算耗尽误报已修，新 runtime 的一次受保护生产任务 HTTP `200`、`29.17 秒`，正式验收成功；尚未观察自然每日 Cron。本阶段解决自动发现、任务去重和跨实例复用，不宣称所有公司已完整解析；精确生产基准见 `docs/handoff.md`。
 
 ## 本次启用证据与待完成项
 
-- 生产 runtime：`241bfdb54082345f87c22a4542565ecf9d78b317 / v10.7.9.501`；环境开关部署 `5h7pHEaEMmdqFBQwQPY2HDdzCrnm`。解析版本为 `sec-structure-5`。
-- 本地最终 FULL `1660 / 1660` tests PASS；实际 PGlite `12` 组通过。生产 `sec_earnings_auto_coverage_20260909.sql` 已应用，权限聚合核验和 `npm run verify:rls:rest` PASS；没有交易、收益、比赛或个人金额数据变更。
-- `2026-09-10T03:09:52Z`（北京时间 `11:09:52`）首轮受保护有界任务 HTTP `503`，原因 `worker-time-budget` 被归入错误；聚合回查确认共享表保存了 `complete 5 / partial 11` 份结果。它们是结果份数，不是全部自选的成功比例；不能把 HTTP 失败改述为整轮成功。
-- jobs 聚合只有 `1` 个 `worker-time-budget` error，其余为 complete/partial/pending/unavailable；租约均已过期，无卡死租约。公开 AAPL 官方财期 `2026-06-27` 抽查得到 `5` 个报告分部，与同文档公司总收入勾稽 PASS，但整体仍是 partial，不等于所有区块完整。
-- 内部 forward-fix 将修正预算延期的状态表达，按开发流程不升应用版本或新增 changelog；最终 commit、FULL、`release:verify` 与生产验收待补。本页不将尚未完成的修复视作已发布。
-- 尚未观察自然每日 Cron；上述是受保护主动验收，不是自然调度证据。首次自然触发日志确认前，只能说基础链路与开关已启用。
+- 生产 runtime：`d52540741311455062bead1b5b44134c91337f24 / v10.7.9.501`；deployment `GkKfCcknxSsrSkm9AV3F9Xor5NTP`；静态入口 `/assets/index-DKetApCk.js`。解析版本为 `sec-structure-5`，服务端开关已启用。
+- forward-fix 最终 FULL `1666 / 1666` tests PASS，build/docs/whitespace PASS；精确提交单次 `release:verify -- full` PASS（CI + Docs + Vercel）。实际 PGlite `12` 组通过；生产 `sec_earnings_auto_coverage_20260909.sql` 已应用，权限聚合核验和 `npm run verify:rls:rest` PASS；没有交易、收益、比赛或个人金额数据变更。
+- `2026-09-10T03:09:52Z`（北京时间 `11:09:52`）首轮旧 runtime 任务 HTTP `503`，原因 `worker-time-budget` 被归入错误；当时聚合回查确认共享表保存了 `complete 5 / partial 11` 份结果。它们是当时结果份数，不是全部自选的成功比例；该状态问题已修，仍保留原失败事实。
+- 首轮 jobs 聚合只有 `1` 个 `worker-time-budget` error，其余为 complete/partial/pending/unavailable；租约均已过期，无卡死租约。公开 AAPL 官方财期 `2026-06-27` 抽查得到 `5` 个报告分部，与同文档公司总收入勾稽 PASS，但整体仍是 partial，不等于所有区块完整。
+- 内部 forward-fix 不升应用版本或新增 changelog。当前 runtime 的一次受保护生产任务于 `2026-09-10T03:23:35.611Z`（北京 `11:23:35`）HTTP `200`，耗时 `29.17 秒`；日志确认 Production/main、`vercel-cron/1.0`、deployment `dpl_GkKfCcknxSsrSkm9AV3F9Xor5NTP`。未取得的响应计数不填写或推算。
+- 最终只读数据库回查以 `2026-09-10T03:20:00Z` 为本轮边界：已记录 `19` 个任务状态，complete `1`、partial `10`、pending `4`、unavailable `4`，本轮新 error `0`；当前共享缓存累计 `29` 份（complete `7`、partial `22`）。写入/刷新记录不是净新增或公司数；首轮历史 error 可能尚未重试，不能将本轮无新 error 写成全表 error 清零。
+- 尚未观察自然每日 Cron；上述是受保护主动触发验收，不是自然到时调度证据。可以确认基础链路已启用且单次生产任务成功，不能称所有自选已完整自动覆盖。
+
+本次验收与聚合回查已完成；剩余仅是后续自然触发证据，不为补统计重复生产调用或改写队列。文档证据更新走 DOCS，不重复部署 runtime。
 
 ## 行为与数据边界
 

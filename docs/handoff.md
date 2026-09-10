@@ -1,6 +1,6 @@
 # boduan-tracker 当前交接
 
-验证时间：`2026-09-10 Asia/Shanghai`；以下生产证据截至本次首轮受保护任务 `2026-09-10T03:09:52Z` 及其聚合回查，预算状态 forward-fix 尚待最终发布验证。
+验证时间：`2026-09-10 Asia/Shanghai`；预算状态 forward-fix 已完成精确提交的发布验证，新 runtime 的一次受保护任务于 `2026-09-10T03:23:35.611Z`（北京时间 `11:23:35`）返回 HTTP `200`；自然每日 Cron 尚未观察。
 
 本文件只保存当前基准、关键风险和下一步。稳定规则看 `README.md`，流程看 `docs/development-process.md`。
 
@@ -11,21 +11,24 @@
 | 仓库 | `chenshuai1190-dotcom/boduan-tracker` |
 | 生产地址 | `https://boduan-tracker.vercel.app` |
 | 分支与唯一工作区 | `main`；`/Users/chenshuaishuai/Documents/Codex/2026-07-24/boduan-tracker-boduan-tracker-chenshuai1190-dotcom/work/repo` |
-| 当前生产源码 | `241bfdb54082345f87c22a4542565ecf9d78b317 / v10.7.9.501`，发布日期 `2026-09-10`；不是本次待修复版本已完成的证明 |
-| 当前生产 deployment | `5h7pHEaEMmdqFBQwQPY2HDdzCrnm`，包含已启用的服务端 SEC 自动覆盖开关 |
+| 当前生产源码 | `d52540741311455062bead1b5b44134c91337f24 / v10.7.9.501`，发布日期 `2026-09-10`；内部状态修复未升版本或新增 changelog |
+| 当前生产 deployment | `GkKfCcknxSsrSkm9AV3F9Xor5NTP`；`boduan-tracker-rbuad8d4g-chenshuai1190-7580s-projects.vercel.app`；服务端 SEC 自动覆盖开关已启用 |
+| 生产静态入口 | `/assets/index-DKetApCk.js` |
 | 本次数据库 | `supabase/sec_earnings_auto_coverage_20260909.sql` 已应用；新增独立 SEC 队列、请求事件与公开结果表及受保护 RPC；既有现金、波段、正式交易、个人收益和比赛 schema/账本未改 |
-| 首轮真实任务 | `2026-09-10T03:09:52Z`（北京时间 `11:09:52`）受保护有界调用返回 `503`；`worker-time-budget` 被误记为 error，但聚合回查确认已保存 `complete 5 / partial 11` 份公开结果 |
-| 待完成修复 | 预算耗尽应记为延期/部分完成，不误报任务错误；这是内部状态修复，保持 `v10.7.9.501`，不新增应用 changelog。尚待最终 gate、精确提交的 `release:verify` 和生产结果，不得提前写成发布完成 |
+| 首轮已修问题 | `2026-09-10T03:09:52Z`（北京时间 `11:09:52`）旧 runtime 的预算耗尽误报 `503`；当轮已保存 `complete 5 / partial 11` 份公开结果。该状态问题已由当前 forward-fix 修复 |
+| 本次修复与验收 | 预算耗尽改记为延期/部分完成，不误报任务错误；最终 FULL、单次 `release:verify -- full` 和新 runtime 的一次受保护生产任务均通过，任务 HTTP `200`、耗时 `29.17 秒`；自然每日触发尚未观察 |
+| 本次数据库回查 | 本轮 `19` 个任务已记录状态：complete `1`、partial `10`、pending `4`、unavailable `4`，本轮新增 error `0`；当前共享结果累计 `29` 份（complete `7`、partial `22`），不代表全部自选已完整解析 |
 
 ## 本次门禁与验收边界
 
-- v501 初次发布最终 `npm run check:full`：`1660 / 1660` tests PASS，并完成对应 build、字号、文档和 whitespace 检查；该证据不自动覆盖后续 forward-fix diff。
+- forward-fix 最终 `npm run check:full`：`1666 / 1666` tests PASS，并完成对应 build、字号、文档和 whitespace 检查。精确提交 `d52540741311455062bead1b5b44134c91337f24` 的单次 `release:verify -- full` PASS（CI + Docs + Vercel）。
 - 本地 PostgreSQL 18.3 / PGlite 0.5.8：`12` 组通过，涵盖迁移、权限、重复注册、租约 CAS/过期、交错唤醒、结果保留、新申报旧缓存失效和真实解析器 → worker → SQL → selector 链路。单连接确定性交错不等同于多连接压力测试或生产验收。
 - 生产 foundation 已应用，三表和四函数的权限聚合核验 PASS；`npm run verify:rls:rest` PASS。只汇报聚合结论，不输出用户、自选成员、持仓金额、交易或密钥。
-- 首轮真实任务已证明 SEC 公开结果可落库，但 HTTP `503` 不能标为任务全部成功；`complete 5 / partial 11` 是已存结果份数，不代表覆盖的公司数或所有自选已完成。
-- 首轮生产 jobs 聚合只有 `1` 个 error，原因是 `worker-time-budget`；其余为 complete/partial/pending/unavailable。租约均已过期，没有卡死租约。
+- 首轮旧 runtime 已证明 SEC 公开结果可落库，但当时 HTTP `503` 不能改写成整轮成功；`complete 5 / partial 11` 是当时已存结果份数，不代表公司覆盖率。当时唯一 `1` 个 error 为 `worker-time-budget`，其余为 complete/partial/pending/unavailable，租约均已过期、没有卡死；预算状态问题已修。
+- 当前 runtime 的单次生产验收：`2026-09-10T03:23:35.611Z`，HTTP `200`、`29.17 秒`，请求 `p6dt7-1789010615611-e8d9bc826c11`，Production/main，`vercel-cron/1.0`，精确 deployment `dpl_GkKfCcknxSsrSkm9AV3F9Xor5NTP`。已确认任务成功，不填写未取得的响应聚合数字。
+- 最终只读数据库聚合以 `2026-09-10T03:20:00Z` 为本轮边界：`19` 个任务状态已记录，complete `1` / partial `10` / pending `4` / unavailable `4`，没有本轮新 error。当前缓存累计 `29` 份：complete `7` / partial `22`；写入/刷新记录不能当成净新增或公司数。首轮历史 `worker-time-budget` error 可能尚未重试，不能据此宣称全表 error 为 `0`。
 - 公开 AAPL 抽查：官方财期 `2026-06-27`、accession `0000320193-26-000020`、状态 partial，报告分部 `5` 项与同份公司总营收完全勾稽 PASS；[对应 SEC 官方主文档](https://www.sec.gov/Archives/edgar/data/320193/000032019326000020/aapl-20260627.htm)。这只验证该份公开报表，不代表全部公司/全部区块完整。
-- 每日自然 Cron 尚未观察到；一次受保护人工触发不等于自然调度验收。修复后再记录精确 runtime、发布等待器与有界生产结果。
+- 每日自然 Cron 尚未观察到；上述单次是受保护主动触发，虽由 Vercel Cron 执行，也不等同于自然到时调度验收。
 
 ## 可用现金与资产联动
 
@@ -72,7 +75,7 @@
 - 详情先复用未过期共享结果，数据库不可用/失效时回原按需 SEC 解析；按需路径本轮不直接写共享表，只有后台租约完成 RPC 可写。原核验时间与到期时间不因浏览器读取而延长；完整定期报告 `6 小时`，部分结果或公告阶段 `5 分钟`。
 - 每日 UTC `01:00` / 北京时间 `09:00` 配置一次：每轮最多 `36` jobs、每批 `12`、并发 `3`、最多 `100` 次 SEC 请求、`40 秒`软工作预算、`90 秒`租约、函数上限 `60 秒`；后台不新增 EODHD 请求。不承诺分钟级同步，next_scan_at 的短退避不是另一个定时器。
 - 最新两个独立财期按 SEC 身份与申报时间验证；同日无精确时间或最高时间并列不按 accession 字典序猜测。8-K/6-K 不猜财期；需要日历已知财期。`ready/complete`、`partial`、`pending`、不支持与读取失败继续区分。
-- 首轮预算耗尽被误报 error 的内部 forward-fix 尚未验收，应用版本保持 v501；启用与停用步骤、局限和验证脚本见 `docs/sec-earnings-auto-coverage.md`。
+- 首轮预算耗尽被误报 error 的内部 forward-fix 已部署并通过一次真实任务验收，应用版本保持 v501；启用与停用步骤、局限和验证脚本见 `docs/sec-earnings-auto-coverage.md`。
 
 ## 交易持仓收盘估值
 
@@ -148,7 +151,7 @@
 ### 已知风险
 
 - 比赛公开行情缓存与 402 熔断是 Vercel 单实例内存态，不是跨实例全局缓存；冷启动或不同实例仍可能分别首次读取一次。
-- v501 首轮真实任务已存部分可验证结果，但预算耗尽被误记为 error 并返回 `503`。保持 v501 的内部 forward-fix 仍待最终发布验证；不得掩盖失败、清空已有结果、放宽财报校验或回滚数据库来消除报错。
+- 当前生产的预算延期状态修复已验收；任务成功不代表每家公司/每个区块均完整，partial、pending、unavailable 仍是必须保留的真实业务结果。不得为提高成功率清空历史结果、放宽财报校验或回滚数据库。
 - SEC 共享结果已有跨实例复用，但原按需公开响应缓存仍是实例内存态。日扫、每轮公司数与时限均有上限；大任务池、慢 SEC 或冷启动可能需后续轮次，完整缓存过期后用户仍可能按需读取。没有自然 Cron 日志、没有全自选逐项成功证据时，只能称基础链路已启用，不能称全部自动覆盖完成。
 - SEC/TSMC 官方披露仍可能没有季度细分，或不符合现有可验证结构。缺失同比/利润与已核验收入分开；非标准、歧义或不可勾稽结构明确不可用，不接入备用数字、不加循环探针。EODHD 日历仍是最多两笔明确日期请求，低频观察响应体积、provider 用量和 SEC 聚合失败原因。
 - 个人收益的客户端即时重算请求是交易 mutation 后的一次非阻塞派生动作：正式交易保存成功不会因个人收益暂时失败而回滚，恢复依赖数据库 dirty state 和收盘 Cron，不依赖收益报表页面或浏览器一直存活。比赛仍保持其独立重算链路。
@@ -165,7 +168,7 @@
 
 ### 下一步
 
-1. 完成预算状态内部 forward-fix（不升应用版本），对最终 diff 运行 FULL，提交推送后仅运行一次 `npm run release:verify -- full <commit>`；将精确提交、deployment 和结果补回本文件，不提前标记完成。
-2. 新 runtime 验证通过后，复用已授权的有界生产验收，只记录 claimed/processed/stored/reused/failed/deferred 等聚合状态与权限结论，确认预算耗尽不再误报 error；不输出 token、用户、自选列表、持仓或交易数据，不循环调用 EODHD/SEC。
-3. 之后需有自然每日 Cron 的真实日志，才能确认自然调度已运行；未到触发时间不是失败。继续低频观察任务池覆盖、SEC 请求量及不完整原因，不在未明确频率/平台约束时加轮询。
+1. 本次发布、单次受保护任务和只读聚合验收已完成；证据更新仅走 DOCS，不再重复 runtime 部署或生产调用。
+2. 待后续自然每日 Cron 留下真实日志后，才可补记自然调度已运行；未到触发时间不是失败。历史首轮 error 留给后续正常重试，不为清零统计手改队列或重复触发。
+3. 继续低频观察任务池覆盖、SEC 请求量及不完整原因，不在未明确频率/平台约束时加轮询；不反推未取得的响应计数，不输出 token、用户、自选列表、持仓或交易数据。
 4. 新任务只读 `README.md`、`docs/development-process.md`、`docs/handoff.md`，不要重复旧流程。
