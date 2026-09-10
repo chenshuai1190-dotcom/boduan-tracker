@@ -154,7 +154,7 @@ export default function PnlSharePage({
   const imageTitle = tt('pnlShare.title', '收益分享');
   const themeDefinition = PNL_SHARE_THEMES.find(theme => theme.id === selectedTheme) || PNL_SHARE_THEMES[0];
   const themeLabel = tt(themeDefinition.labelKey, themeDefinition.labelFallback);
-  const accessibilityLabel = `${imageTitle} · ${themeLabel} · ${identitySnapshot?.nickname || ''} · ${metricLabel} · ${percentText}${showAmount ? ` · ${amountText} ${currencyUnit}` : ''}`;
+  const accessibilityLabel = `${imageTitle} · ${themeLabel} · ${identitySnapshot?.nickname || ''} · ${metricLabel} · ${showAmount ? `${amountText} ${currencyUnit} · ` : ''}${percentText}`;
   const generatedAt = new Date(shareSnapshot.capturedAt);
   const generatedDateTime = generatedAt.toLocaleString(locale, {
     year: 'numeric',

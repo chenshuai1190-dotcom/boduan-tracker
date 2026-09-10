@@ -559,41 +559,47 @@ test('hidden amounts are removed from both the render model and exported canvas 
   }
 });
 
-test('the share poster prioritizes percentages with normal letter spacing across amount visibility', () => {
+test('all share themes prioritize the amount above the percentage and enlarge only the percentage when the amount is hidden', () => {
   const input = {
     generatedText: '生成于 2026-09-10 21:30', marketLabel: '美股市场', metricLabel: '累计盈亏',
     amountText: '+12,345.67', currencyUnit: 'USD', percentText: '+12.34%',
     amountTone: 'gain', percentTone: 'gain',
   };
-  const visible = createCanvasRecorder();
-  visible.context.letterSpacing = '-2px';
-  renderPnlShareCanvas(visible.canvas, input);
   const fontSize = item => Number(item.font.match(/([\d.]+)px/)[1]);
-  const amount = visible.drawnText.find(item => item.value === input.amountText);
-  const percent = visible.drawnText.find(item => item.value === input.percentText);
-  const unit = visible.drawnText.find(item => item.value === 'USD');
-  assert.ok(fontSize(percent) > fontSize(amount), 'the percentage remains the primary result when the amount is visible');
-  assert.ok(fontSize(amount) > fontSize(unit));
-  assert.ok(percent.y < amount.y);
-  assert.equal(amount.x, percent.x, 'the metric hierarchy shares a readable alignment');
-  assert.ok(visible.fills.some(fill => fill.x === 0 && fill.y === 0 && fill.width === 1200 && fill.height === 1600));
   assert.doesNotMatch(imageSource + themesSource + pageSource + pageCss, /drawWarmGoldMotif|246,\s*181,\s*75|#f6b54b|#ffd18a/);
   assert.doesNotMatch(imageSource, /context\.stroke\(/, 'the poster does not invent a result curve or retain a decorative outer stroke');
   assert.doesNotMatch(pageSource + pageCss, /letter-spacing:\s*-|letterSpacing:\s*['"]?-|tracking-(?:tight|tighter)|tracking-\[-/);
-  for (const item of visible.drawnText) {
-    assert.equal(item.letterSpacing, '0px', 'reused Canvas state must not compress letter spacing');
-    assert.equal(item.maxWidth, undefined, 'Canvas must wrap or resize text instead of horizontally compressing glyphs');
-    assert.match(item.font, /^400 /);
-    assert.ok(fontSize(item) >= 36, 'export metadata remains legible at mobile preview size');
-  }
+  for (const { id: themeId } of PNL_SHARE_THEMES) {
+    const visible = createCanvasRecorder();
+    visible.context.letterSpacing = '-2px';
+    renderPnlShareCanvas(visible.canvas, { ...input, themeId });
+    const amount = visible.drawnText.find(item => item.value === input.amountText);
+    const percent = visible.drawnText.find(item => item.value === input.percentText);
+    const unit = visible.drawnText.find(item => item.value === 'USD');
+    assert.ok(fontSize(amount) > fontSize(percent), `${themeId}: the visible amount is the primary result`);
+    assert.ok(fontSize(percent) > fontSize(unit), `${themeId}: the percentage is secondary and larger than the currency`);
+    assert.ok(amount.y < percent.y, `${themeId}: the amount appears above the percentage`);
+    assert.equal(amount.x, percent.x, 'the metric hierarchy shares a readable alignment');
+    assert.ok(visible.fills.some(fill => fill.x === 0 && fill.y === 0 && fill.width === 1200 && fill.height === 1600));
 
-  const hidden = createCanvasRecorder();
-  renderPnlShareCanvas(hidden.canvas, { ...input, showAmount: false, amountTone: 'loss' });
-  const hiddenPercent = hidden.drawnText.find(item => item.value === input.percentText);
-  assert.equal(fontSize(hiddenPercent), fontSize(percent), 'hiding the amount keeps the primary percentage readable');
-  assert.ok(fontSize(hiddenPercent) > fontSize(amount));
-  assert.doesNotMatch(hidden.text.map(item => item.value).join(' '), /12,345\.67|USD/);
-  assert.equal(backgroundFingerprint(hidden), backgroundFingerprint(visible), 'chosen backgrounds do not depend on financial values or the hidden amount tone');
+    const hidden = createCanvasRecorder();
+    hidden.context.letterSpacing = '-2px';
+    const hiddenModel = renderPnlShareCanvas(hidden.canvas, { ...input, themeId, showAmount: false, amountTone: 'loss' });
+    const hiddenPercent = hidden.drawnText.find(item => item.value === input.percentText);
+    assert.ok(fontSize(hiddenPercent) > fontSize(percent), `${themeId}: hiding the amount enlarges the remaining percentage`);
+    assert.ok(fontSize(hiddenPercent) > fontSize(amount));
+    assert.equal(hiddenModel.amountText, '');
+    assert.equal(hiddenModel.currencyUnit, '');
+    assert.equal(hiddenModel.accessibilityLabel, '');
+    assert.doesNotMatch(hidden.text.map(item => item.value).join(' '), /12,345\.67|USD/);
+    assert.equal(backgroundFingerprint(hidden), backgroundFingerprint(visible), 'chosen backgrounds do not depend on financial values or the hidden amount tone');
+    for (const item of [...visible.drawnText, ...hidden.drawnText]) {
+      assert.equal(item.letterSpacing, '0px', 'reused Canvas state must not compress letter spacing');
+      assert.equal(item.maxWidth, undefined, 'Canvas must wrap or resize text instead of horizontally compressing glyphs');
+      assert.match(item.font, /^400 /);
+      assert.ok(fontSize(item) >= 36, 'export metadata remains legible at mobile preview size');
+    }
+  }
 });
 
 test('share themes are a closed four-theme catalog with deterministic distinct backgrounds and a safe fallback', () => {

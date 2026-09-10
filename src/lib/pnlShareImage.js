@@ -250,16 +250,10 @@ export function renderPnlShareCanvas(canvas, input = {}, avatarImage = null) {
     minFontSize: 36,
   });
 
-  const percentBottom = drawLeftFittedText(context, model.percentText, 96, 668, {
-    color: pnlShareToneColor(model.percentTone),
-    fontSize: 160,
-    maxWidth: 1008,
-    minFontSize: 48,
-  });
   if (model.showAmount) {
-    const amountBottom = drawLeftFittedText(context, model.amountText, 96, Math.max(828, percentBottom + 150), {
+    const amountBottom = drawLeftFittedText(context, model.amountText, 96, 668, {
       color: pnlShareToneColor(model.amountTone),
-      fontSize: 72,
+      fontSize: 120,
       maxWidth: 1008,
       minFontSize: 48,
     });
@@ -271,6 +265,19 @@ export function renderPnlShareCanvas(canvas, input = {}, avatarImage = null) {
         minFontSize: 36,
       });
     }
+    drawLeftFittedText(context, model.percentText, 96, Math.max(876, amountBottom + 188), {
+      color: pnlShareToneColor(model.percentTone),
+      fontSize: 72,
+      maxWidth: 1008,
+      minFontSize: 48,
+    });
+  } else {
+    drawLeftFittedText(context, model.percentText, 96, 668, {
+      color: pnlShareToneColor(model.percentTone),
+      fontSize: 160,
+      maxWidth: 1008,
+      minFontSize: 48,
+    });
   }
 
   drawLeftFittedText(context, model.generatedText, 96, 1428, {
