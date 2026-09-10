@@ -3347,7 +3347,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     <div
       className={`min-h-screen bg-[#05070b] text-white ${['pnl-report', 'pnl-share'].includes(activeTab) ? 'pb-0' : 'pb-24'} ${['pnl-report', 'pnl-share', 'community-competition', 'earnings-detail'].includes(activeTab) ? 'px-0' : 'px-4'}`}
       style={{
-        paddingTop: ['pnl-share', 'home-margin-risk', 'drawdown-observation', 'wave-tracker', 'community-competition', 'watchlist-stock-detail', 'earnings-detail', 'vix-comparison', 'investment-comparison', 'portfolio-overlap', 'dca-lab'].includes(activeTab) ? 0 : 'calc(1rem + env(safe-area-inset-top))',
+        paddingTop: ['pnl-share', 'home-margin-risk', 'drawdown-observation', 'stock-detail', 'wave-tracker', 'community-competition', 'watchlist-stock-detail', 'earnings-detail', 'vix-comparison', 'investment-comparison', 'portfolio-overlap', 'dca-lab'].includes(activeTab) ? 0 : 'calc(1rem + env(safe-area-inset-top))',
         ...(visualViewportWidth
           ? { marginInline: 'auto', maxWidth: '100%', width: `${visualViewportWidth}px` }
           : {}),

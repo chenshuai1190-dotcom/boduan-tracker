@@ -22,7 +22,7 @@ test('stock detail matches drawdown gutters without double padding in production
   const stockRoot = stockCss.match(/\.stock-detail-report\s*\{([^}]+)\}/)?.[1];
   const drawdownRoot = drawdownCss.match(/\.do-page\s*\{([^}]+)\}/)?.[1];
   assert.ok(stockRoot && drawdownRoot);
-  assert.match(stockRoot, /padding:\s*0 0 calc\(env\(safe-area-inset-bottom\) \+ 86px\);/);
+  assert.match(stockRoot, /padding:\s*calc\(12px \+ env\(safe-area-inset-top\)\) 0 calc\(env\(safe-area-inset-bottom\) \+ 86px\);/);
   assert.match(drawdownRoot, /padding:\s*calc\(12px \+ env\(safe-area-inset-top\)\) 0 24px;/);
   assert.equal(stockRoot.match(/max-width:\s*([^;]+);/)?.[1], drawdownRoot.match(/max-width:\s*([^;]+);/)?.[1]);
 
@@ -33,6 +33,13 @@ test('stock detail matches drawdown gutters without double padding in production
   const previewFullBleed = preview.match(/\$\{\[([^\]]+)\]\.includes\(activeTab\) \? 'px-0' : 'px-4'\}/)?.[1];
   assert.ok(previewFullBleed);
   assert.doesNotMatch(previewFullBleed, /'stock-detail'|'drawdown-observation'/, 'preview must not hide a production gutter mismatch');
+
+  const standalonePages = app.match(/const isStandalonePage = ([^;]+);/)?.[1];
+  assert.ok(standalonePages?.includes('isStockDetailPage'));
+  assert.ok(app.includes("paddingTop: isStandalonePage ? 0 :"), 'production standalone pages must own their safe-area spacing');
+  const previewTopInsetOwners = preview.match(/paddingTop:\s*\[([^\]]+)\]\.includes\(activeTab\) \? 0 :/)?.[1];
+  assert.ok(previewTopInsetOwners?.includes("'stock-detail'"), 'stock detail preview must not hide a missing page safe area');
+  assert.ok(previewTopInsetOwners.includes("'drawdown-observation'"));
 });
 
 // Compile the real JSX graph for SSR. Only CSS loading is omitted; financial
