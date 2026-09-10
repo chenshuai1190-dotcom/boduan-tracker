@@ -32,6 +32,7 @@ const watchlistDetail = read('src/pages/WatchlistStockDetailPage.jsx');
 const watchlistDetailCss = read('src/pages/WatchlistStockDetailPage.css');
 const stockDetailReportCss = read('src/components/StockDetailReportSections.css');
 const competition = read('src/pages/CommunityCompetitionPage.jsx');
+const competitionCss = read('src/pages/CommunityCompetitionPage.css');
 const waveTracker = read('src/pages/WaveTrackerPage.jsx');
 const earningsDetail = read('src/pages/EarningsDetailPage.jsx');
 const earningsGrowth = read('src/components/EarningsGrowthCard.jsx');
@@ -69,7 +70,11 @@ test('persistent production modules share neutral black surface levels', () => {
   assert.match(watchlistDetailCss, /\.stock-report-page\s*\{[^}]*background:\s*#08090b;/);
   assert.match(watchlistDetail, /<section className="stock-report-hero"/);
   assert.match(watchlistDetailCss, /\.stock-report-price\s*\{[^}]*color:\s*#f1f1f4;/, 'current price remains neutral while changes and the chart use market direction');
-  assert.equal(count(competition, /bg-\[#0b0c0e\]/g), 5);
+  assert.match(competition, /<main className="cc-page"/, 'community competition should use its scoped continuous report instead of a fixed count of bordered cards');
+  assert.match(competitionCss, /\.cc-page\s*\{[^}]*background:\s*#08090b;[^}]*color:\s*#e4e4e7;/, 'community competition should share the neutral report palette');
+  assert.match(competitionCss, /\.cc-user-card\s*\{[^}]*background:\s*#101112;/, 'competitor details should use a neutral raised surface');
+  assert.match(competitionCss, /\.cc-join-panel\s*\{[^}]*background:\s*#101112;/, 'voluntary participation should share the neutral dialog surface');
+  assert.doesNotMatch(competition + competitionCss, /#f6b54b|#ffd18a|#ffb13d|linear-gradient|radial-gradient/, 'community surfaces should not restore decorative gold or blue-purple gradients');
   assert.ok(waveTracker.includes('border border-[#1a2530] bg-[#0b0c0e]'));
   assert.equal(count(waveTracker, /bg-\[#0b0c0e\]/g), 3);
 

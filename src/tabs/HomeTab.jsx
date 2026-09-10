@@ -286,7 +286,8 @@ function MiniMarketCard({ item, marketColorMode, language }) {
       <div className={`flex min-w-0 items-start justify-between ${isBtc ? 'gap-1' : 'gap-1.5'}`}>
         <div className="min-w-0 truncate text-[11px] font-normal leading-tight text-white/80">{marketCardName(item, language)}</div>
         {isBtc && realtimeLabel && (
-          <span className={`inline-flex shrink-0 items-center rounded-full border px-1 py-[1px] text-[10px] font-normal leading-none ${realtimeStatus === 'live' ? 'border-emerald-300/25 bg-emerald-400/10 text-emerald-300' : 'border-amber-300/25 bg-amber-400/10 text-amber-300'}`}>
+          <span className="home-report-realtime-status" data-state={realtimeStatus}>
+            {realtimeStatus === 'live' && <i className="home-report-live-dot" aria-hidden="true" />}
             {realtimeLabel}
           </span>
         )}

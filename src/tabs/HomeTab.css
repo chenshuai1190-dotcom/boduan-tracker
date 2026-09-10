@@ -31,6 +31,10 @@
 .home-report-quote > div:first-child { min-height: 17px; }
 .home-report-quote > div:first-child > div { font-size: 10.5px; color: #a4a4ae; }
 .home-report-quote > div:first-child > span { font-size: 10px; border: 0; background: none; color: #777780; padding: 0; }
+.home-report-realtime-status { display: inline-flex; flex-shrink: 0; align-items: center; gap: 4px; line-height: 1.2; white-space: nowrap; }
+.home-report-live-dot { display: block; flex: 0 0 4px; width: 4px; height: 4px; border-radius: 50%; background: #50c8a0; animation: home-report-live-pulse 2.4s ease-in-out infinite; }
+@keyframes home-report-live-pulse { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .home-report-live-dot { animation: none; } }
 .home-report-quote-price { margin-top: 8px; color: #dedee4; font-size: clamp(13px, 3.8vw, 17px); line-height: 1.2; font-variant-numeric: tabular-nums; letter-spacing: -.035em; white-space: nowrap; }
 .home-report-quote-change { margin-top: 5px; font-size: 11px; font-variant-numeric: tabular-nums; }
 .home-report-sparkline { position: absolute; width: 100%; height: 20px; right: 0; bottom: 0; opacity: .7; }

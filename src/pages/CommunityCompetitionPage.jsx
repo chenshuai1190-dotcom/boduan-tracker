@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowLeft, Info, Loader2, RefreshCw, Trophy, X } from 'lucide-react';
+import { ArrowLeft, Clock3, Info, Loader2, RefreshCw, Trophy, UserRound, X } from 'lucide-react';
 import {
   clearCommunityCompetitionCache,
   commitCommunityCompetitionCache,
@@ -17,13 +17,13 @@ import { bindCommunityCompetitionResume } from '../lib/communityCompetitionResum
 import { getCommunityAvatarOption } from '../lib/communityProfile.js';
 import { communityCompetitionApi } from '../lib/communityCompetitionApi.js';
 import { t } from '../lib/i18n.js';
+import './CommunityCompetitionPage.css';
 
 const PAGE_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif';
 const NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif';
-const PROFIT = '#ff5b50';
+const PROFIT = '#ff4b1f';
 const LOSS = '#36c49a';
 const NEUTRAL = 'rgba(255,255,255,0.58)';
-const GOLD = '#f6b54b';
 const TRANSIENT_RESUME_RETRY_COOLDOWN_MS = 60_000;
 
 const PERIODS = [
@@ -109,18 +109,18 @@ function isRetryableCompetitionHttpFailure(error) {
 
 function MetricBlock({ label, value, color = NEUTRAL }) {
   return (
-    <div className="min-w-0">
-      <div className="whitespace-nowrap text-[11px] leading-4 text-white/[0.40]">{label}</div>
-      <div className="mt-1.5 whitespace-nowrap text-[15px] tabular-nums" style={{ color, fontFamily: NUMBER_FONT }}>{value}</div>
+    <div className="cc-metric">
+      <div className="cc-label">{label}</div>
+      <div className="cc-metric-value" style={{ color, fontFamily: NUMBER_FONT }}>{value}</div>
     </div>
   );
 }
 
 function StatCard({ label, value, color = 'rgba(255,255,255,0.86)' }) {
   return (
-    <div className="min-w-0 px-2 text-center">
-      <div className="truncate text-[11px] text-white/[0.40]">{label}</div>
-      <div className="mt-1.5 truncate text-[17px] tabular-nums" style={{ color, fontFamily: NUMBER_FONT }}>{value}</div>
+    <div className="cc-stat">
+      <div className="cc-label">{label}</div>
+      <div className="cc-stat-value" style={{ color, fontFamily: NUMBER_FONT }}>{value}</div>
     </div>
   );
 }
@@ -128,15 +128,8 @@ function StatCard({ label, value, color = 'rgba(255,255,255,0.86)' }) {
 function Avatar({ avatarKey, rank }) {
   const avatar = getCommunityAvatarOption(avatarKey);
   const rankValue = Number(rank);
-  const ring = rankValue === 1
-    ? 'border-[#f6b54b]/50'
-    : rankValue === 2
-      ? 'border-[#93a4ff]/40'
-      : rankValue === 3
-        ? 'border-[#d97745]/45'
-        : 'border-[#2a313b]/90';
   return (
-    <div data-rank-avatar className={`h-8 w-8 shrink-0 overflow-hidden rounded-full border bg-[#070a0f] shadow-[0_6px_16px_rgba(0,0,0,0.28)] ${ring}`}>
+    <div data-rank-avatar data-rank={rankValue} className="cc-avatar">
       <img src={avatar.src} alt="" className="h-full w-full scale-[1.15] object-cover" draggable={false} />
     </div>
   );
@@ -146,7 +139,7 @@ function RankRow({ row, self = false, selected = false, onSelect }) {
   if (!row) return null;
   const rank = isFiniteValue(row.rank) ? String(Math.trunc(Number(row.rank))) : '--';
   const rankValue = Number(row.rank);
-  const rankColor = rankValue === 1 ? '#f8c45c' : rankValue === 2 ? '#8ea2ff' : rankValue === 3 ? '#d46b42' : 'rgba(255,255,255,0.64)';
+  const rankColor = rankValue <= 3 ? '#dedee3' : '#85858d';
   return (
     <button
       type="button"
@@ -158,17 +151,18 @@ function RankRow({ row, self = false, selected = false, onSelect }) {
           avatar?.getBoundingClientRect() || event.currentTarget.getBoundingClientRect(),
         );
       }}
-      className={`grid w-full grid-cols-[26px_minmax(0,1fr)_68px_72px] items-center gap-1.5 border-t border-white/[0.045] px-3 py-2.5 text-left outline-none transition-colors active:bg-white/[0.045] focus:outline-none ${self ? 'rounded-xl border-t-0 bg-[#2a241c]/72 shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]' : ''} ${selected ? 'bg-white/[0.055] ring-1 ring-inset ring-white/[0.055]' : ''}`}
+      className={`cc-rank-row ${self ? 'cc-rank-self' : ''} ${selected ? 'cc-rank-selected' : ''}`}
+      data-competition-rank-row
       aria-label={`${row.nickname || '--'} ${formatPercent(row.returnPct)}`}
       aria-expanded={selected}
     >
-      <div className="text-center text-[15px] tabular-nums" style={{ color: rankColor, fontFamily: NUMBER_FONT }}>{rank}</div>
-      <div className="flex min-w-0 items-center gap-2.5">
+      <div className="cc-rank-number" style={{ color: rankColor, fontFamily: NUMBER_FONT }}>{rank}</div>
+      <div className="cc-rank-person">
         <Avatar avatarKey={row.avatarKey} rank={rankValue} />
-        <div className={`truncate text-[13.5px] ${self ? 'text-white/[0.94]' : 'text-white/[0.72]'}`}>{row.nickname || '--'}</div>
+        <div className="cc-rank-name">{row.nickname || '--'}</div>
       </div>
-      <div className="text-right text-[12.5px] tabular-nums" style={{ color: valueColor(row.returnPct), fontFamily: NUMBER_FONT }}>{formatPercent(row.returnPct)}</div>
-      <div className="text-right text-[12.5px] tabular-nums" style={{ color: valueColor(row.outperformancePct), fontFamily: NUMBER_FONT }}>{formatPercent(row.outperformancePct)}</div>
+      <div className="cc-rank-return" style={{ color: valueColor(row.returnPct), fontFamily: NUMBER_FONT }}>{formatPercent(row.returnPct)}</div>
+      <div className="cc-rank-excess" style={{ color: valueColor(row.outperformancePct), fontFamily: NUMBER_FONT }}>{formatPercent(row.outperformancePct)}</div>
     </button>
   );
 }
@@ -217,7 +211,7 @@ function HoldingPopover({ selection, periodMetricLabel, snapshotDate, language, 
       <button type="button" className="fixed inset-0 z-[130] cursor-default bg-transparent" onClick={onClose} aria-label={tt('competition.closeUserCard', '关闭用户资料卡')} />
       <div
         ref={cardRef}
-        className="fixed z-[131] w-[320px] max-w-[calc(100vw-20px)] rounded-[20px] bg-[linear-gradient(135deg,rgba(76,126,158,0.58)_0%,rgba(142,75,112,0.52)_44%,rgba(70,73,82,0.2)_100%)] p-px shadow-[0_22px_70px_rgba(0,0,0,0.7)]"
+        className="cc-user-card"
         style={{
           left: layout?.left ?? 0,
           top: layout?.top ?? 0,
@@ -228,15 +222,16 @@ function HoldingPopover({ selection, periodMetricLabel, snapshotDate, language, 
       >
         {layout ? (
           <span
-            className={`absolute h-3.5 w-3.5 rotate-45 bg-[linear-gradient(135deg,rgba(76,126,158,0.72),rgba(142,75,112,0.62))] p-px ${layout.placement === 'below' ? '-top-[7px]' : '-bottom-[7px]'}`}
+            className={`cc-user-arrow ${layout.placement === 'below' ? '-top-[7px]' : '-bottom-[7px]'}`}
             style={{ left: layout.arrowLeft - 7 }}
           >
-            <span className="block h-full w-full bg-[#181b22]" />
+            <span className="block h-full w-full" />
           </span>
         ) : null}
-        <div className="relative rounded-[19px] bg-[linear-gradient(150deg,rgba(25,28,35,0.99),rgba(12,15,21,0.995))] px-5 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]">
-          <div className="flex items-center gap-3.5">
-            <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full border border-white/[0.12] bg-[#070a0f]">
+        <div className="cc-user-inner">
+          <button type="button" className="cc-user-close" onClick={onClose} aria-label={tt('competition.closeUserCard', '关闭用户资料卡')}><X size={16} /></button>
+          <div className="cc-user-profile">
+            <div className="cc-user-avatar">
               <img src={avatar.src} alt="" className="h-full w-full scale-[1.15] object-cover" draggable={false} />
             </div>
             <div className="min-w-0">
@@ -253,7 +248,7 @@ function HoldingPopover({ selection, periodMetricLabel, snapshotDate, language, 
             ) : holdingSymbols.length ? (
               <div className="flex flex-wrap gap-2">
                 {holdingSymbols.map((symbol) => (
-                  <span key={symbol} className="rounded-lg border border-white/[0.055] bg-white/[0.055] px-2.5 py-1.5 text-[12px] leading-none text-white/[0.74]">{symbol}</span>
+                  <span key={symbol} className="cc-holding-symbol">{symbol}</span>
                 ))}
               </div>
             ) : <div className="text-[12px] text-white/[0.46]">{tt('competition.noHoldings', '当前空仓')}</div>}
@@ -311,7 +306,6 @@ function ProgressLine({ label, value, maxMagnitude }) {
         {hasValue ? (
           <>
             <div className="absolute left-0 top-0 h-full rounded-full" style={{ width: `${width}%`, background: color }} />
-            <span className="absolute top-1/2 h-3.5 w-3.5 -translate-y-1/2 rounded-full border border-white/50 shadow-[0_0_12px_rgba(246,181,75,0.28)]" style={{ left: `calc(${width}% - 7px)`, background: color }} />
           </>
         ) : null}
       </div>
@@ -322,33 +316,30 @@ function ProgressLine({ label, value, maxMagnitude }) {
 
 function JoinSheet({ onJoin, onDecline, joining, error, tt }) {
   return (
-    <div className="fixed inset-0 z-[120] flex items-end justify-center bg-black/[0.48] backdrop-blur-[2px]">
-      <div className="w-full max-w-[430px] rounded-t-[30px] border border-white/[0.08] bg-[linear-gradient(165deg,rgba(28,30,36,0.98),rgba(15,17,23,0.98)_62%,rgba(10,12,18,0.99))] px-6 pb-[calc(env(safe-area-inset-bottom)+22px)] pt-3 shadow-[0_-28px_80px_rgba(0,0,0,0.68),inset_0_1px_0_rgba(255,255,255,0.05)]">
-        <div className="mx-auto h-1 w-11 rounded-full bg-white/[0.18]" />
-        <div className="mt-6 flex items-center justify-center">
-          <div className="flex-1" />
-          <div className="text-[18px] font-semibold text-white/[0.92]">{tt('competition.joinTitle', '加入收益比赛')}</div>
-          <div className="flex flex-1 justify-end">
-            <button type="button" onClick={onDecline} disabled={joining} className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.08] text-white/[0.58] active:scale-95 disabled:opacity-40" aria-label={tt('competition.closeJoin', '关闭加入收益比赛')}>
+    <div className="cc-join-backdrop">
+      <div className="cc-join-panel" role="dialog" aria-modal="true" aria-label={tt('competition.joinTitle', '加入收益比赛')}>
+        <div className="cc-join-header">
+          <div>{tt('competition.joinTitle', '加入收益比赛')}</div>
+          <div>
+            <button type="button" onClick={onDecline} disabled={joining} className="cc-dialog-close" aria-label={tt('competition.closeJoin', '关闭加入收益比赛')}>
               <X className="h-5 w-5" strokeWidth={1.7} />
             </button>
           </div>
         </div>
-        <div className="mt-6 flex justify-center">
-          <div className="relative flex h-[92px] w-[112px] items-center justify-center">
-            <div className="absolute inset-0 rounded-full bg-[#f6b54b]/20 blur-2xl" />
-            <Trophy className="relative h-[68px] w-[68px] text-[#f6bd61] drop-shadow-[0_0_16px_rgba(246,181,75,0.45)]" strokeWidth={1.45} />
+        <div className="cc-join-illustration">
+          <div className="cc-join-icon">
+            <Trophy size={36} strokeWidth={1.3} />
           </div>
         </div>
-        <div className="mx-auto mt-5 max-w-[276px] text-center text-[13px] leading-6 text-white/[0.58] [text-wrap:balance]">
+        <div className="cc-join-description">
           {tt('competition.joinDesc', '自愿加入后即可查看真实收益排行榜，请选择是否加入。')}
         </div>
-        {error ? <div className="mt-4 rounded-xl border border-rose-400/20 bg-rose-400/10 px-3 py-2 text-center text-[12px] text-rose-200">{error}</div> : null}
-        <div className="mt-8 grid grid-cols-2 gap-5">
-          <button type="button" onClick={onDecline} disabled={joining} className="h-[52px] rounded-[13px] border border-[#f6b54b]/65 bg-transparent text-[14px] text-white/[0.82] active:scale-[0.98] disabled:opacity-40">
+        {error ? <div className="cc-join-error" role="alert">{error}</div> : null}
+        <div className="cc-join-actions">
+          <button type="button" onClick={onDecline} disabled={joining} className="cc-secondary-action">
             {tt('competition.notJoin', '暂不加入')}
           </button>
-          <button type="button" onClick={onJoin} disabled={joining} className="flex h-[52px] items-center justify-center gap-2 rounded-[13px] bg-gradient-to-r from-[#ffb13d] to-[#ffab32] text-[14px] font-medium text-[#2d1a05] shadow-[0_12px_30px_rgba(246,181,75,0.22)] active:scale-[0.98] disabled:opacity-55">
+          <button type="button" onClick={onJoin} disabled={joining} className="cc-primary-action">
             {joining ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
             {joining ? tt('competition.joining', '加入中...') : tt('competition.confirmJoin', '确认加入')}
           </button>
@@ -360,13 +351,13 @@ function JoinSheet({ onJoin, onDecline, joining, error, tt }) {
 
 function StatusCard({ icon, title, desc, note, actionLabel, onAction, busy = false }) {
   return (
-    <section className="mt-8 rounded-[20px] border border-white/10 bg-[#0b0c0e] px-6 py-12 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#f6b54b]/10 text-[30px]">{icon}</div>
-      <h2 className="mt-5 text-[17px] font-semibold text-white/88">{title}</h2>
-      <p className="mx-auto mt-3 max-w-[286px] text-[13px] leading-[1.8] text-white/42 [text-wrap:pretty]">{protectHintText(desc)}</p>
-      {note ? <p className="mx-auto mt-3 max-w-[286px] text-[12px] leading-[1.7] text-white/50 [text-wrap:pretty]">{protectHintText(note)}</p> : null}
+    <section className="cc-status" role="status">
+      <div className="cc-status-icon">{icon}</div>
+      <h2>{title}</h2>
+      <p>{protectHintText(desc)}</p>
+      {note ? <p className="cc-status-note">{protectHintText(note)}</p> : null}
       {actionLabel ? (
-        <button type="button" onClick={onAction} disabled={busy} className="mx-auto mt-6 flex h-11 min-w-[148px] items-center justify-center gap-2 rounded-xl border border-[#f6b54b]/25 bg-[#f6b54b]/12 px-5 text-[13px] font-semibold text-[#ffd18a] active:scale-95 disabled:opacity-50">
+        <button type="button" onClick={onAction} disabled={busy} className="cc-primary-action cc-status-action">
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
           {actionLabel}
         </button>
@@ -421,106 +412,97 @@ function CompetitionContent({ data, period, language, tt, leaderboardRefreshing 
   ) * 1.18;
 
   return (
-    <div className="space-y-3 pt-3">
-      <section className="overflow-hidden rounded-[17px] border border-white/10 bg-[#0b0c0e] px-3.5 pb-2 pt-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-        <div className="flex min-h-8 items-start justify-between gap-3">
-          <div className="flex items-end gap-3">
-            <div className="text-[12px] text-white/[0.62]">{tt('competition.myRank', '我的排名')}</div>
-            <div className="text-[32px] font-semibold leading-none text-[#ffad3a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{isFiniteValue(self?.rank) ? `#${Math.trunc(Number(self.rank))}` : '--'}</div>
+    <div className="cc-content">
+      <section className="cc-hero">
+        <div className="cc-hero-top">
+          <div data-competition-self-profile className="cc-self-profile">
+            <div data-competition-self-avatar className="cc-self-avatar">
+              {selfAvatar ? <img src={selfAvatar.src} alt="" draggable={false} /> : null}
+            </div>
+            <div>
+              <div data-competition-self-nickname className="cc-self-nickname">{self?.nickname || '--'}</div>
+              <div className="cc-label">{tt('competition.subtitle', '社区投资者收益排行')}</div>
+            </div>
+          </div>
+          <div className="cc-self-rank">
+            <div className="cc-label">{tt('competition.myRank', '我的排名')}</div>
+            <div className="cc-self-rank-value" style={{ fontFamily: NUMBER_FONT }}>{isFiniteValue(self?.rank) ? `#${Math.trunc(Number(self.rank))}` : '--'}</div>
+          </div>
+        </div>
+        <div data-competition-hero-metrics className="cc-hero-metrics">
+          <div className="cc-hero-return">
+            <div className="cc-label">{periodMetricLabel}</div>
+            <div className="cc-hero-return-value" style={{ color: valueColor(self?.returnPct), fontFamily: NUMBER_FONT }}>{formatPercent(self?.returnPct)}</div>
+          </div>
+          <div className="cc-hero-comparison">
+            <MetricBlock label={tt('competition.nasdaq100', 'QQQ 基准')} value={formatPercent(data?.benchmarkReturnPct)} color={valueColor(data?.benchmarkReturnPct)} />
+            <MetricBlock label={tt('competition.outperformNasdaq', '跑赢 QQQ')} value={formatPercent(self?.outperformancePct)} color={valueColor(self?.outperformancePct)} />
+          </div>
+        </div>
+        <div data-competition-update-row className="cc-update-row">
+          <div data-competition-update-date className="cc-update-date">
+            {ready ? tt('competition.dataAsOfClose', '数据截至 {{date}} 收盘', { date: snapshotDateLabel }) : '--'}
           </div>
           {leaderboardRefreshing ? (
             <div
               data-competition-leaderboard-refresh
               role="status"
               aria-live="polite"
-              className="mt-0.5 flex h-6 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-[#f6b54b]/[0.16] bg-[#f6b54b]/[0.07] px-2 text-[10px] text-[#d7b273]"
+              className="cc-refresh-status"
             >
               <Loader2 className="h-3 w-3 animate-spin" strokeWidth={2} />
               <span>{tt('competition.loadingLatestLeaderboard', '正在加载最新榜单…')}</span>
             </div>
           ) : null}
         </div>
-        <div className="mt-3 grid grid-cols-[56px_minmax(0,1fr)] items-start gap-x-4">
-          <div data-competition-self-profile className="min-w-0">
-            <div data-competition-self-avatar className="h-14 w-14 overflow-hidden rounded-full border border-white/[0.1] bg-[#070a0f] shadow-[0_8px_20px_rgba(0,0,0,0.34)]">
-              {selfAvatar ? <img src={selfAvatar.src} alt="" className="h-full w-full scale-[1.15] object-cover" draggable={false} /> : null}
-            </div>
-          </div>
-          <div data-competition-hero-metrics className="mt-2 grid min-w-0 grid-cols-3 divide-x divide-white/[0.08]">
-            <MetricBlock label={periodMetricLabel} value={formatPercent(self?.returnPct)} color={valueColor(self?.returnPct)} />
-            <div className="pl-2"><MetricBlock label={tt('competition.nasdaq100', 'QQQ 基准')} value={formatPercent(data?.benchmarkReturnPct)} color={valueColor(data?.benchmarkReturnPct)} /></div>
-            <div className="pl-2"><MetricBlock label={tt('competition.outperformNasdaq', '跑赢 QQQ')} value={formatPercent(self?.outperformancePct)} color={valueColor(self?.outperformancePct)} /></div>
-          </div>
-        </div>
-        <div data-competition-update-row className="mt-1.5 grid grid-cols-[56px_minmax(0,1fr)] items-center gap-x-4">
-          <div data-competition-self-nickname className="-ml-3 w-[80px] truncate text-center text-[12px] font-semibold leading-4 text-white/[0.72]">
-            {self?.nickname || '--'}
-          </div>
-          <div className="col-start-2 grid min-w-0 grid-cols-3">
-            <div data-competition-update-date className="col-start-3 whitespace-nowrap pl-2 text-left text-[11px] leading-5 text-white/40">
-              {ready ? tt('competition.dataAsOfClose', '数据截至 {{date}} 收盘', { date: snapshotDateLabel }) : '--'}
-            </div>
-          </div>
-        </div>
       </section>
 
-      <section className="grid grid-cols-4 divide-x divide-white/[0.08] rounded-[16px] border border-white/10 bg-[#0b0c0e] px-1 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-        <StatCard
-          label={participantCoverageIncomplete
-            ? tt('competition.participantsRanked', '参赛/上榜')
-            : tt('competition.participants', '参赛人数')}
-          value={participantCoverageIncomplete
-            ? `${formatInteger(joinedParticipants, language)}/${formatInteger(rankedParticipants, language)}`
-            : formatInteger(joinedParticipants, language)}
-        />
-        <StatCard label={tt('competition.beatNasdaq', '跑赢 QQQ')} value={formatPercent(stats.beatRatePct, 0)} color={valueColor(stats.beatRatePct)} />
-        <StatCard label={tt('competition.profitableAccounts', '赚钱账户')} value={formatPercent(stats.profitableRatePct, 0)} color={valueColor(stats.profitableRatePct)} />
-        <StatCard label={tt('competition.averageReturn', '平均收益率')} value={formatPercent(stats.averageReturnPct)} color={valueColor(stats.averageReturnPct)} />
-      </section>
-
-      <section className="relative overflow-visible rounded-[17px] border border-white/10 bg-[#0b0c0e] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-        <div className="grid grid-cols-[minmax(0,1fr)_68px_72px] items-center gap-1.5 px-3.5 py-3">
-          <div className="flex items-center gap-1.5 text-[13px] text-white/[0.88]">
-            {tt('competition.rankingTitle', '收益率排行榜')}
-            <Info className="h-3.5 w-3.5 text-white/[0.38]" strokeWidth={1.8} />
-          </div>
-          <div className="text-right text-[11px] text-white/[0.44]">{tt('competition.returnRate', '收益率')}</div>
-          <div className="text-right text-[11px] text-white/[0.44]">{tt('competition.outperformShort', '跑赢 QQQ')}</div>
+      <section className="cc-leaderboard">
+        <div className="cc-section-heading">
+          <h2>{tt('competition.rankingTitle', '收益率排行榜')}</h2>
+          <span>{participantCoverageIncomplete
+            ? `${tt('competition.participantsRanked', '参赛/上榜')} ${formatInteger(joinedParticipants, language)}/${formatInteger(rankedParticipants, language)}`
+            : `${tt('competition.participants', '参赛人数')} ${formatInteger(joinedParticipants, language)}`}</span>
         </div>
-        <div className="px-1 pb-1">
+        <div className="cc-rank-head">
+          <span>{language === 'en' ? 'Rank' : '排名'}</span>
+          <span>{tt('competition.returnRate', '收益率')}</span>
+          <span>{tt('competition.outperformShort', '跑赢 QQQ')}</span>
+        </div>
+        <div className="cc-rank-list">
           {leaders.length ? leaders.map((row, index) => <RankRow key={`${row?.rank ?? index}-${row?.nickname ?? ''}`} row={row} self={index === selfLeaderIndex} selected={selection?.row === row} onSelect={selectRow} />) : (
-            <div className="border-t border-white/[0.045] px-4 py-10 text-center text-[12px] text-white/40">{ready ? tt('competition.noRanking', '当前周期暂无有效排行') : '--'}</div>
+            <div className="cc-empty">{ready ? tt('competition.noRanking', '当前周期暂无有效排行') : '--'}</div>
           )}
           {self && selfLeaderIndex < 0 ? <RankRow row={self} self selected={selection?.row === self} onSelect={selectRow} /> : null}
-        </div>
-        <div className="border-t border-white/[0.045] px-4 py-2.5 text-center text-[12px] leading-[1.65] text-white/40 [text-wrap:balance]">
-          {protectHintText(tt('competition.dataDisclosure', '收益基于正式交易记录与服务端收盘价快照，不代表券商认证。'))}
         </div>
         {selection ? <HoldingPopover selection={selection} periodMetricLabel={periodMetricLabel} snapshotDate={data?.asOfDate} language={language} onClose={() => setSelection(null)} tt={tt} /> : null}
       </section>
 
-      <section className="rounded-[17px] border border-white/10 bg-[#0b0c0e] px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-        <div className="mb-3 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-1.5 text-[14px] text-white/[0.88]">
-            {baselineTitle}
-            <Info className="h-3.5 w-3.5 text-white/[0.38]" strokeWidth={1.8} />
-          </div>
-          <div className="whitespace-nowrap text-[11px] text-white/40">
+      <section className="cc-baseline">
+        <div className="cc-section-heading">
+          <h2>{baselineTitle}</h2>
+          <span>
             {ready ? tt('competition.calculationStart', '起算 {{date}}', { date: formatDate(data?.calculationStartDate, language) }) : '--'}
-          </div>
+          </span>
         </div>
-        <div className="grid grid-cols-[98px_minmax(0,1fr)] gap-5">
-          <div className="min-w-0">
-            <div className="text-[12px] text-white/[0.42]">{tt('competition.nasdaq100Index', 'QQQ ETF')}</div>
-            <div className="mt-4 text-[20px] tabular-nums" style={{ color: valueColor(data?.benchmarkReturnPct), fontFamily: NUMBER_FONT }}>{formatPercent(data?.benchmarkReturnPct)}</div>
+        <div className="cc-community-stats">
+          <StatCard label={tt('competition.beatNasdaq', '跑赢 QQQ')} value={formatPercent(stats.beatRatePct, 0)} color={NEUTRAL} />
+          <StatCard label={tt('competition.profitableAccounts', '赚钱账户')} value={formatPercent(stats.profitableRatePct, 0)} color={NEUTRAL} />
+          <StatCard label={tt('competition.averageReturn', '平均收益率')} value={formatPercent(stats.averageReturnPct)} color={valueColor(stats.averageReturnPct)} />
+        </div>
+        <div className="cc-baseline-comparison">
+          <div className="cc-benchmark">
+            <div className="cc-label">{tt('competition.nasdaq100Index', 'QQQ ETF')}</div>
+            <div className="cc-benchmark-value" style={{ color: valueColor(data?.benchmarkReturnPct), fontFamily: NUMBER_FONT }}>{formatPercent(data?.benchmarkReturnPct)}</div>
             <div className="mt-1"><TrendChart benchmark={trend.benchmark} compact /></div>
           </div>
-          <div className="min-w-0 space-y-4 pt-2">
+          <div className="cc-baseline-bars">
             <ProgressLine label={tt('competition.communityAverage', '社区平均')} value={stats.averageReturnPct} maxMagnitude={maxMagnitude} />
             <ProgressLine label={tt('competition.top10Average', 'TOP10 平均')} value={stats.top10AverageReturnPct} maxMagnitude={maxMagnitude} />
           </div>
         </div>
       </section>
+      <div className="cc-disclosure"><Info size={14} aria-hidden="true" /><p>{protectHintText(tt('competition.dataDisclosure', '收益基于正式交易记录与服务端收盘价快照，不代表券商认证。'))}</p></div>
     </div>
   );
 }
@@ -959,17 +941,16 @@ export default function CommunityCompetitionPage({ ctx = {} }) {
   const contentDimmed = view.state === 'join_required';
 
   return (
-    <main className="relative mx-auto min-h-screen w-full max-w-[462px] overflow-x-hidden bg-[radial-gradient(circle_at_50%_-12%,rgba(24,45,70,0.18),transparent_42%),#05070b] pb-[calc(env(safe-area-inset-bottom)+92px)] text-white" style={{ fontFamily: PAGE_FONT }}>
-      <header className="sticky top-0 z-30 border-b border-white/[0.07] bg-[#05070b]/92 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+10px)] backdrop-blur-xl">
-        <div className="flex items-center justify-between gap-3">
-          <button type="button" onClick={closeCommunityCompetition} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-white/[0.72] active:scale-95" aria-label={tt('competition.back', '返回')}>
+    <main className="cc-page" style={{ fontFamily: PAGE_FONT }}>
+      <header className="cc-header">
+        <div className="cc-title-row">
+          <button type="button" onClick={closeCommunityCompetition} className="cc-back" aria-label={tt('competition.back', '返回')}>
             <ArrowLeft className="h-5 w-5" />
           </button>
-          <div className="min-w-0 flex-1">
-            <h1 className="truncate text-[18px] font-normal tracking-[0.01em] text-white/[0.94]">{tt('competition.title', '收益比赛')} <span className="text-[15px]">🏆</span></h1>
-            <div className="mt-0.5 truncate text-[12px] text-white/[0.42]">{tt('competition.subtitle', '社区投资者收益排行')}</div>
-          </div>
-          <div className="grid h-11 w-[164px] grid-cols-4 rounded-full bg-white/[0.055] p-1">
+          <h1>{tt('competition.title', '收益比赛')}</h1>
+          <span className="cc-title-icon" aria-hidden="true"><Trophy size={19} strokeWidth={1.5} /></span>
+        </div>
+          <div className="cc-periods">
             {PERIODS.map(([id, label]) => (
               <button
                 key={id}
@@ -984,26 +965,26 @@ export default function CommunityCompetitionPage({ ctx = {} }) {
                     : { state: 'loading', data: null, error: '' });
                 }}
                 disabled={view.state === 'loading' || joining}
-                className={`rounded-full text-[11px] transition disabled:opacity-50 ${period === id ? 'bg-[#ffb13d] text-[#2a1905] shadow-[0_8px_18px_rgba(246,181,75,0.2)]' : 'text-white/[0.42]'}`}
+                className="cc-period"
+                aria-pressed={period === id}
               >
                 {tt(`competition.period.${id}`, label)}
               </button>
             ))}
           </div>
-        </div>
       </header>
 
-      <div className={`px-4 ${contentDimmed ? 'pointer-events-none select-none blur-[0.5px] brightness-[0.62]' : ''}`}>
+      <div className={`cc-body ${contentDimmed ? 'pointer-events-none select-none blur-[0.5px] brightness-[0.62]' : ''}`}>
         {view.state === 'loading' ? (
-          <StatusCard icon={<Loader2 className="h-7 w-7 animate-spin text-[#f6b54b]" />} title={tt('competition.loading', '正在读取真实收盘快照')} desc={tt('competition.loadingDesc', '正在验证社区资料、参赛状态和已锁定的收盘收益快照。')} />
+          <StatusCard icon={<Loader2 className="h-7 w-7 animate-spin" />} title={tt('competition.loading', '正在读取真实收盘快照')} desc={tt('competition.loadingDesc', '正在验证社区资料、参赛状态和已锁定的收盘收益快照。')} />
         ) : null}
         {view.state === 'profile_required' ? (
-          <StatusCard icon="👤" title={tt('competition.profileRequired', '请先完成社区资料')} desc={tt('competition.profileRequiredDesc', '正在前往设置页，请选择社区昵称和默认头像并保存后再参加比赛。')} />
+          <StatusCard icon={<UserRound size={26} strokeWidth={1.5} />} title={tt('competition.profileRequired', '请先完成社区资料')} desc={tt('competition.profileRequiredDesc', '正在前往设置页，请选择社区昵称和默认头像并保存后再参加比赛。')} />
         ) : null}
         {view.state === 'join_required' ? <CompetitionContent data={null} period={period} language={language} tt={tt} /> : null}
         {view.state === 'waiting_snapshot' ? (
           <StatusCard
-            icon="🕰️"
+            icon={<Clock3 size={26} strokeWidth={1.5} />}
             title={tt('competition.waitingTitle', '等待下一次真实收盘快照')}
             desc={view.data?.eligibleAfterSnapshotDate
               ? tt('competition.waitingEligibleDesc', '已加入收益比赛。排名将在 {{date}} 后的首个收盘快照生成；此前不展示估算或模拟数据。', { date: keepTogether(formatDate(view.data.eligibleAfterSnapshotDate, language)) })

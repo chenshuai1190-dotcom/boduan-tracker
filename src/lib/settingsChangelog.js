@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '✨ 社区收益比赛统一新版黑灰报告视觉',
+      '  - 突出个人收益与排名，排行榜、参赛弹窗和用户持仓卡同步简约排版',
+      '  - 首页 BTC 的 LIVE 状态增加绿色呼吸小圆点，非实时状态不显示圆点',
+      '  - 保留真实收盘数据、排名计算、参赛流程及既有缓存与行情请求策略',
+    ],
+    itemsEn: [
+      '✨ A unified monochrome report design for the community competition',
+      '  - Clearer personal returns and rank, with streamlined leaderboards, opt-in dialogs and public holding cards',
+      '  - A subtle green pulse accompanies BTC LIVE status on Home; non-live states have no dot',
+      '  - Retains authoritative close data, ranking calculations, opt-in flow and existing cache and quote-request policies',
+    ],
+  },
+  {
+    ver: 'v10.7.9.509', date: '2026-09-10',
+    items: [
       '📊 个股收益详情升级为简约报告视觉',
       '  - 突出累计盈亏与持仓事实，放大收益曲线和 QQQ 对比，金额保留两位小数',
       '  - 个人计划、交易明细、口径说明与分享预览统一黑灰风格，交易日期列固定',
