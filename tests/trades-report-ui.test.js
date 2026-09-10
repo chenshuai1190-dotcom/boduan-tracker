@@ -235,8 +235,8 @@ test('positions columns preserve precise widths and horizontally accessible fina
   const firstFour = [minWidth('.tpr-table td:first-child'), minWidth('.tpr-table td:nth-child(2)'),
     minWidth('.tpr-table td:nth-child(3)'), minWidth('.tpr-table td:nth-child(4)')];
   assert.ok(firstFour.every(Number.isFinite));
-  assert.deepEqual(firstFour, [70, 110, 74, 102], 'only market value gains 2px; identity, current price and daily P&L widths are unchanged');
-  assert.equal(firstFour.reduce((sum, width) => sum + width, 0), 356, 'the four column minimums gain exactly 2px in total');
+  assert.deepEqual(firstFour, [70, 111, 75, 102], 'market value and current price each gain 1px; identity and daily P&L widths are unchanged');
+  assert.equal(firstFour.reduce((sum, width) => sum + width, 0), 358, 'the four column minimums gain exactly 2px in total');
   assert.match(rule('.trades-positions-report'), /overflow-x:\s*auto;/, 'narrow screens keep financial columns accessible by horizontal scrolling');
   assert.match(rule('.tpr-table'), /width:\s*max-content;/);
   assert.match(rule('.tpr-table td:first-child'), /(?:^|\n)\s*width:\s*70px;/);

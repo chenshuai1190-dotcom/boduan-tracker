@@ -46,9 +46,9 @@
 }
 .tpr-table th:first-child { z-index: 2; }
 .tpr-table th:nth-child(2),
-.tpr-table td:nth-child(2) { min-width: 110px; text-align: left; }
+.tpr-table td:nth-child(2) { min-width: 111px; text-align: left; }
 .tpr-table th:nth-child(3),
-.tpr-table td:nth-child(3) { min-width: 74px; }
+.tpr-table td:nth-child(3) { min-width: 75px; }
 .tpr-table th:nth-child(4),
 .tpr-table td:nth-child(4) { min-width: 102px; }
 .tpr-table th:nth-child(5),
