@@ -303,11 +303,11 @@ function MiniMarketCard({ item, marketColorMode, language }) {
       <Sparkline values={item?.intraday || []} color={color} className="home-report-sparkline" />
       {!isBtc && (
         <div className="mt-2 flex flex-col gap-0.5 text-[10px] leading-normal text-white/40" data-index-quote-status={indexStatus}>
-          <span>{indexStatus === 'delayed'
-            ? t(language, 'home.market.indexDelayed', '延迟报价')
-            : indexStatus === 'unavailable'
+          {(indexStatus === 'stale' || indexStatus === 'unavailable') && (
+            <span>{indexStatus === 'unavailable'
               ? t(language, 'home.market.indexUnavailable', '暂无报价')
               : t(language, 'home.market.indexStale', '待更新')}</span>
+          )}
           {indexQuoteTime && <time dateTime={item.quoteAt || undefined}>{indexQuoteTime}</time>}
         </div>
       )}

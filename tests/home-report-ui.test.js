@@ -1,6 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { transformWithOxc } from 'vite';
+import { isBtcMarketCard } from '../src/lib/btcRealtime.js';
+import { formatIndexQuoteTime, resolveIndexQuoteStatus } from '../src/lib/indexRealtime.js';
+import { t } from '../src/lib/i18n.js';
 
 const home = readFileSync(new URL('../src/tabs/HomeTab.jsx', import.meta.url), 'utf8');
 const css = readFileSync(new URL('../src/tabs/HomeTab.css', import.meta.url), 'utf8');
@@ -50,4 +56,37 @@ test('BTC has a live-only status dot without replacing readable connection label
   assert.match(css, /@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{\s*\.home-report-live-dot\s*\{\s*animation:\s*none;/);
   assert.ok(home.includes('BTC_STATUS_DISPLAY_GRACE_MS = 60_000'), 'presentation preserves the existing freshness grace');
   assert.ok(home.includes('resolveBtcDisplayRealtimeStatus(resolvedBtcCard, btcRealtimeStatus)'), 'presentation reuses the existing display status');
+});
+
+test('index cards omit the normal status node while retaining quote time and exceptional states', async () => {
+  const source = home.slice(home.indexOf('function MiniMarketCard('), home.indexOf('function fgiLevel('));
+  const { code } = await transformWithOxc(source, 'MiniMarketCard.jsx', { jsx: { runtime: 'classic' } });
+  const dependencies = {
+    React, t, isBtcMarketCard, formatIndexQuoteTime, resolveIndexQuoteStatus,
+    NUMBER_FONT: 'sans-serif', Sparkline: () => null,
+    marketCardName: item => item.displaySymbol,
+    hasFiniteMarketValue: value => value != null && Number.isFinite(Number(value)),
+    marketColor: () => '#ffffff',
+    marketRealtimeLabel: status => status === 'live' ? 'LIVE' : '',
+    fmtOptionalMoney: value => value == null ? '--' : String(value),
+    fmtOptionalMarketPct: value => value == null ? '--' : String(value),
+  };
+  const MiniMarketCard = new Function('dependencies', `const { ${Object.keys(dependencies).join(', ')} } = dependencies; ${code}; return MiniMarketCard;`)(dependencies);
+  const timestamp = Date.now() - 60_000;
+  const quoteAt = new Date(timestamp).toISOString();
+  const item = { symbol: 'GSPC.INDX', displaySymbol: '.SPX', price: 6500, changePercent: .4, timestamp, quoteAt, source: 'EODHD_REST' };
+  const render = (overrides = {}, language = 'zh') => renderToStaticMarkup(React.createElement(MiniMarketCard, { item: { ...item, ...overrides }, language }));
+
+  for (const language of ['zh', 'en']) {
+    const normal = render({}, language);
+    assert.match(normal, /data-index-quote-status="delayed"><time /);
+    assert.ok(normal.includes(`dateTime="${quoteAt}"`));
+    assert.ok(normal.includes(formatIndexQuoteTime(item, language)));
+    assert.doesNotMatch(normal, /<span\b|LIVE|延迟报价|Delayed/);
+  }
+  assert.match(render({ fetchError: true }), /<span>待更新<\/span>/);
+  assert.match(render({ fetchError: true }, 'en'), /<span>Awaiting update<\/span>/);
+  assert.match(render({ price: null, timestamp: null, quoteAt: null }), /<span>暂无报价<\/span>/);
+  assert.match(render({ price: null, timestamp: null, quoteAt: null }, 'en'), /<span>Unavailable<\/span>/);
+  assert.match(render({ symbol: 'BTC-USD.CC', displaySymbol: 'BTCUSD', realtimeStatus: 'live' }), /home-report-live-dot/);
 });
