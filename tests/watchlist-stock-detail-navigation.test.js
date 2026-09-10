@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 
 const appSource = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8');
 const homeTabSource = readFileSync(new URL('../src/tabs/HomeTab.jsx', import.meta.url), 'utf8');
+const watchlistReportSource = readFileSync(new URL('../src/components/HomeWatchlistReport.jsx', import.meta.url), 'utf8');
 const i18nSource = readFileSync(new URL('../src/lib/i18n.js', import.meta.url), 'utf8');
 
 test('watchlist stock detail has an isolated standalone page route', () => {
@@ -23,16 +24,22 @@ test('watchlist stock detail has an isolated standalone page route', () => {
   assert.ok(appSource.includes('<StockDetailPage ctx={tabCtx} />'), 'the existing P&L stock-detail page must remain intact');
 });
 
-test('Home opens watchlist detail from the sticky identity cell', () => {
+test('Home report delegates watchlist-only detail navigation from the stock identity', () => {
   assert.ok(homeTabSource.includes('openWatchlistStockDetail,'));
-  assert.ok(homeTabSource.includes('{isWatchlistTab ? ('), 'the new entry must be limited to the watchlist tab');
-  assert.ok(homeTabSource.includes('onClick={() => openWatchlistStockDetail?.(item.symbol)}'));
-  assert.ok(homeTabSource.includes("aria-label={t(language, 'watchlistDetail.openAria'"));
+  const report = homeTabSource.match(/<HomeWatchlistReport\b[\s\S]*?\n\s*\/>/)?.[0];
+  assert.ok(report, 'the formal Home page must render the report');
+  assert.ok(report.includes('tableTab={tableTab}'));
+  assert.ok(report.includes('rows={tableRows}'));
+  assert.ok(report.includes('onOpenStock={openWatchlistStockDetail}'), 'the presentation component must receive the original production route callback');
+  assert.ok(watchlistReportSource.includes("const isWatchlist = tableTab === 'watchlist'"));
+  assert.ok(watchlistReportSource.includes("const Identity = isWatchlist ? 'button' : 'div'"));
+  assert.match(watchlistReportSource, /const identityProps = isWatchlist \? \{[\s\S]*?onClick: \(\) => onOpenStock\?\.\(item\.symbol\),[\s\S]*?'aria-label':[\s\S]*?\} : \{\};/, 'only watchlist identities expose the labelled stock-detail action; holdings stay noninteractive');
 
-  const triggerIndex = homeTabSource.indexOf('onClick={() => openWatchlistStockDetail?.(item.symbol)}');
-  const tableRowIndex = homeTabSource.lastIndexOf('tableRows.map((item)', triggerIndex);
-  const nextPriceCellIndex = homeTabSource.indexOf('hasFiniteMarketValue(item.price)', triggerIndex);
-  assert.ok(tableRowIndex >= 0 && nextPriceCellIndex > triggerIndex, 'the trigger should stay inside the sticky name/logo cell, before scrolling quote metrics');
+  const identityIndex = watchlistReportSource.indexOf('<Identity className="hwr-identity" {...identityProps}>');
+  const rowIndex = watchlistReportSource.lastIndexOf('rows.map((item)', identityIndex);
+  const identityEnd = watchlistReportSource.indexOf('</Identity>', identityIndex);
+  const priceIndex = watchlistReportSource.indexOf('<span className="hwr-price">', identityEnd);
+  assert.ok(rowIndex >= 0 && identityIndex > rowIndex && identityEnd > identityIndex && priceIndex > identityEnd, 'the detail trigger must stay scoped to name/logo, excluding the price metrics');
 });
 
 test('watchlist detail return restores the prior Home scroll without replacing double-tap-to-top', () => {

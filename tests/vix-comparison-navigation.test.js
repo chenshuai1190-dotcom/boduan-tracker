@@ -12,11 +12,18 @@ test('VIX card opens a lazy read-only standalone page with the authenticated ide
   assert.ok(app.includes("activePage === 'vix-comparison'"));
   assert.ok(app.includes('|| isVixComparisonPage;'));
   assert.ok(app.includes("<VixComparisonPage ctx={{ ...tabCtx, userId: user?.id || '' }} />"));
-  const card = home.slice(home.indexOf('<section className="mt-3 grid grid-cols-2 gap-3">'), home.indexOf("'home.fgi.title'"));
-  assert.ok(card.includes('<button'));
+  const cards = [...home.matchAll(/<button\b[\s\S]*?<\/button>/g)]
+    .map(([block]) => block)
+    .filter((block) => block.includes('onClick={() => openVixComparison?.()}'));
+  assert.equal(cards.length, 1, 'Home report retains one explicit VIX comparison trigger');
+  const [card] = cards;
   assert.ok(card.includes('type="button"'));
   assert.ok(card.includes('onClick={() => openVixComparison?.()}'));
   assert.ok(card.includes("aria-label={t(language, 'home.vix.compareAria'"));
+  assert.ok(card.includes("'home.vix.title', 'VIX 恐慌指数'"));
+  assert.ok(card.includes('fmtOptionalMoney(vix, 1)'), 'the VIX reading remains in the navigation button');
+  assert.ok(card.includes('vixDateLabel'), 'the reading date remains in the navigation button');
+  assert.doesNotMatch(card, /setBenchmarkSymbol|setBenchmarkMenuOpen|fetch\(|supabase|db\./, 'the VIX entry remains navigation-only');
   assert.equal((translations.match(/'home.vix.compareAria':/g) || []).length, 2);
 });
 

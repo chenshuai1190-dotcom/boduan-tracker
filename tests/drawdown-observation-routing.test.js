@@ -26,15 +26,21 @@ test('Home drawdown opens a lazy independent authenticated page backed by user w
 
 test('drawdown viewing and explicit Home benchmark mutation remain separate controls', () => {
   const triggers = [...home.matchAll(/<button\b[^>]*data-home-drawdown-trigger[\s\S]*?<\/button>/g)].map(([block]) => block);
-  assert.equal(triggers.length, 2, 'both percentage and high-price rows should open observation');
+  assert.equal(triggers.length, 1, 'the report combines percentage and high-price context in one observation button');
   for (const block of triggers) {
     assert.ok(block.includes('onClick={() => openDrawdownObservation?.()}'));
     assert.ok(block.includes('aria-label='));
+    assert.ok(block.includes('home-report-drawdown-value'));
+    assert.ok(block.includes('hasFiniteMarketValue(benchmarkDrawdown)'));
+    assert.ok(block.includes('home-report-drawdown-context'));
+    assert.ok(block.includes('fmtOptionalMoney(benchmarkStock.price, 2)'), 'current price remains inside the observation trigger');
+    assert.ok(block.includes('fmtOptionalMoney(benchmarkStock.high, 2)'), '52-week high remains inside the same observation trigger');
     assert.doesNotMatch(block, /setBenchmarkSymbol|setBenchmarkMenuOpen/);
   }
   const selector = home.match(/<button\b[^>]*data-home-signal-trigger[\s\S]*?<\/button>/)[0];
   assert.ok(selector.includes('onClick={() => setBenchmarkMenuOpen(true)}'));
   assert.ok(selector.includes("'home.switchBenchmark', '切换基准'"));
+  assert.doesNotMatch(selector, /openDrawdownObservation|data-home-drawdown-trigger/, 'benchmark selection stays separate from read-only observation');
   const option = home.slice(home.indexOf('data-home-signal-option={row.symbol}'), home.indexOf('data-home-signal-option={row.symbol}') + 400);
   assert.ok(option.includes('setBenchmarkSymbol(row.symbol);'), 'existing benchmark changes remain possible through explicit selection');
 });
