@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
 
-import { GATE_MATRIX } from '../scripts/run-gate.mjs';
+import { GATE_MATRIX, resolveFastTests } from '../scripts/run-gate.mjs';
 import {
   expectedWorkflows,
   extractEntryAsset,
@@ -13,6 +13,24 @@ import { CURRENT_RELEASE } from '../src/lib/releaseMeta.js';
 import { settingsChangelog } from '../src/lib/settingsChangelog.js';
 
 const read = (relativePath) => fs.readFileSync(new URL(`../${relativePath}`, import.meta.url), 'utf8');
+
+test('FAST includes the shared palette contract when watchlist dialog inputs change', () => {
+  const paletteTest = 'tests/module-palette-boundaries.test.js';
+  for (const file of [
+    'src/tabs/HomeTab.jsx',
+    'src/tabs/HomeTab.css',
+    'src/tabs/HomeWatchlistDialogs.css',
+    'src/components/StockReportModal.jsx',
+    'src/components/StockReportModal.css',
+  ]) {
+    assert.deepEqual(resolveFastTests([], [file]), [paletteTest], file);
+  }
+  const watchlistTest = 'tests/home-watchlist-dialogs.test.js';
+  assert.deepEqual(resolveFastTests([watchlistTest], []), [watchlistTest, paletteTest]);
+  assert.deepEqual(resolveFastTests([watchlistTest, paletteTest], ['src/tabs/HomeTab.jsx']), [watchlistTest, paletteTest]);
+  assert.deepEqual(resolveFastTests([], ['src/pages/DcaLabPage.jsx', 'README.md']), []);
+  assert.deepEqual(resolveFastTests(['tests/watchlist-reorder.test.js'], []), ['tests/watchlist-reorder.test.js']);
+});
 
 test('development gates expose one explicit docs, FAST, or FULL path', () => {
   const packageJson = JSON.parse(read('package.json'));

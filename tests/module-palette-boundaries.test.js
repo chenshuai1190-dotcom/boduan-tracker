@@ -7,6 +7,8 @@ const count = (source, pattern) => (source.match(pattern) || []).length;
 
 const home = read('src/tabs/HomeTab.jsx');
 const homeCss = read('src/tabs/HomeTab.css');
+const watchlistDialogCss = read('src/tabs/HomeWatchlistDialogs.css');
+const stockReportModalCss = read('src/components/StockReportModal.css');
 const trades = read('src/tabs/TradesTab.jsx');
 const tradesCss = read('src/tabs/TradesTab.css');
 const assets = read('src/tabs/AnalysisTab.jsx');
@@ -117,7 +119,9 @@ test('actual asset amounts use soft white while semantic gold and the settings g
 });
 
 test('sheets, tooltips, and chart markers keep their separate depth colors', () => {
-  assert.equal(count(home, /bg-\[#0b0f14\]/g), 2, 'unrelated Home sheets retain their existing palette');
+  assert.equal(count(home, /panelClassName="watchlist-dialog watchlist-dialog-(add|edit)"/g), 2, 'both watchlist dialogs opt into the shared report-modal palette');
+  assert.match(stockReportModalCss, /\.stock-report-modal\s*\{[^}]*background:\s*#101112;/, 'watchlist dialogs share the approved neutral-black report surface');
+  assert.doesNotMatch(watchlistDialogCss, /#0b0f14|#f6b54b/, 'watchlist controls do not override the report palette with legacy blue or gold');
   const benchmarkStart = home.indexOf('{benchmarkMenuOpen && (');
   const benchmarkEnd = home.indexOf('<HomeWatchlistReport', benchmarkStart);
   assert.ok(benchmarkStart >= 0 && benchmarkEnd > benchmarkStart, 'benchmark assertions must be bounded to the actual picker');

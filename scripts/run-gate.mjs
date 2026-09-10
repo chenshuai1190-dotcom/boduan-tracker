@@ -12,6 +12,26 @@ export const GATE_MATRIX = Object.freeze({
   full: ['full-tests-including-typography', 'build', 'docs-consistency-if-applicable', 'whitespace'],
 });
 
+const WATCHLIST_PALETTE_INPUTS = new Set([
+  'src/tabs/HomeTab.jsx',
+  'src/tabs/HomeTab.css',
+  'src/tabs/HomeWatchlistDialogs.css',
+  'src/components/StockReportModal.jsx',
+  'src/components/StockReportModal.css',
+  'tests/home-watchlist-dialogs.test.js',
+  'tests/home-watchlist-report-ui.test.js',
+  'tests/home-report-ui.test.js',
+  'tests/module-palette-boundaries.test.js',
+]);
+
+export function resolveFastTests(targetedTests, changedPaths) {
+  const selected = new Set(targetedTests);
+  if ([...targetedTests, ...changedPaths].some((file) => WATCHLIST_PALETTE_INPUTS.has(file))) {
+    selected.add('tests/module-palette-boundaries.test.js');
+  }
+  return [...selected];
+}
+
 function run(command, args, label) {
   const startedAt = performance.now();
   const result = spawnSync(command, args, {
@@ -144,12 +164,14 @@ function main(argv = process.argv.slice(2)) {
   }
 
   const totalStartedAt = performance.now();
+  const changedPaths = changedPathsForGate();
 
   if (scope === 'docs') {
     run('node', ['scripts/verify-docs-consistency.mjs'], 'docs-consistency');
   }
   if (scope === 'fast') {
-    if (targetedTests.length > 0) run('node', ['--test', ...targetedTests], 'targeted-tests');
+    const fastTests = resolveFastTests(targetedTests, changedPaths);
+    if (fastTests.length > 0) run('node', ['--test', ...fastTests], 'targeted-tests');
     run('node', ['scripts/verify-typography.mjs'], 'typography');
     run('npm', ['run', 'build'], 'build');
   }
@@ -158,7 +180,7 @@ function main(argv = process.argv.slice(2)) {
     run('npm', ['run', 'build'], 'build');
   }
 
-  if (!process.env.CI && scope !== 'docs' && docsWorkflowApplies(changedPathsForGate())) {
+  if (!process.env.CI && scope !== 'docs' && docsWorkflowApplies(changedPaths)) {
     run('node', ['scripts/verify-docs-consistency.mjs'], 'docs-consistency');
   }
 

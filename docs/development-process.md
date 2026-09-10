@@ -62,6 +62,8 @@ npm run check:fast -- tests/<相关测试>.test.js
 
 FAST 依次执行最多一次定向测试、字号门禁、production build 和 whitespace check；本地同一 diff 修改权威文档时，再自动补一次 docs consistency。它不运行全量测试、audit、RLS、401、marker、环境巡检或无关 smoke。
 
+首页自选弹窗、Home 样式或共享 `StockReportModal` 的改动，会自动将 `tests/module-palette-boundaries.test.js` 并入同一次定向测试（去重）；手选相关 Home UI 测试时也会补入，防止只跑局部 UI 测试而漏掉共享配色约束。无关页面不触发此补测。
+
 ## 五、FULL：高风险完整门禁
 
 以下任一项必须 FULL：
