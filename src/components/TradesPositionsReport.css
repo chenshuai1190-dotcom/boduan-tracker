@@ -46,11 +46,11 @@
 }
 .tpr-table th:first-child { z-index: 2; }
 .tpr-table th:nth-child(2),
-.tpr-table td:nth-child(2) { min-width: 105px; text-align: left; }
+.tpr-table td:nth-child(2) { min-width: 106px; text-align: left; }
 .tpr-table th:nth-child(3),
-.tpr-table td:nth-child(3) { min-width: 71px; }
+.tpr-table td:nth-child(3) { min-width: 72px; }
 .tpr-table th:nth-child(4),
-.tpr-table td:nth-child(4) { min-width: 99px; }
+.tpr-table td:nth-child(4) { min-width: 100px; }
 .tpr-table th:nth-child(5),
 .tpr-table td:nth-child(5) { min-width: 144px; }
 .tpr-table th:last-child,
