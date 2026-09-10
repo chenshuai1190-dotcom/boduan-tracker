@@ -36,9 +36,9 @@
   position: sticky;
   left: 0;
   z-index: 1;
-  width: 68px;
-  min-width: 68px;
-  max-width: 68px;
+  width: 70px;
+  min-width: 70px;
+  max-width: 70px;
   padding-left: 0;
   padding-right: 8px;
   background: #050609;
@@ -69,7 +69,7 @@
   text-align: inherit;
   -webkit-tap-highlight-color: transparent;
 }
-.tpr-stock { width: 60px; }
+.tpr-stock { width: 62px; }
 .tpr-stock-text { display: block; min-width: 0; }
 .tpr-stock-title,
 .tpr-stock-subtitle {

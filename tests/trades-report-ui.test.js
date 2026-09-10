@@ -235,8 +235,11 @@ test('compact positions columns leave room for daily P&L without shrinking or cl
   const firstFour = [minWidth('.tpr-table td:first-child'), minWidth('.tpr-table td:nth-child(2)'),
     minWidth('.tpr-table td:nth-child(3)'), minWidth('.tpr-table td:nth-child(4)')];
   assert.ok(firstFour.every(Number.isFinite));
-  assert.ok(firstFour.reduce((sum, width) => sum + width, 0) <= 340, 'first-four-column minimums must leave room on a 375px phone');
-  assert.match(rule('.tpr-stock'), /(?:^|\n)\s*width:\s*60px;/, 'long names have a fixed content width instead of expanding the auto-layout table');
+  assert.deepEqual(firstFour, [70, 104, 70, 98], 'only the identity column gains 2px; the other first-screen columns retain their widths');
+  assert.ok(firstFour.reduce((sum, width) => sum + width, 0) <= 342, '342px minimums still fit within the 343px content width of a 375px phone');
+  assert.match(rule('.tpr-table td:first-child'), /(?:^|\n)\s*width:\s*70px;/);
+  assert.match(rule('.tpr-table td:first-child'), /max-width:\s*70px;/);
+  assert.match(rule('.tpr-stock'), /(?:^|\n)\s*width:\s*62px;/, 'the identity content gains the same 2px while preserving its 8px trailing padding');
   assert.match(rule('.tpr-stock-title'), /text-overflow:\s*ellipsis;/);
   assert.match(rule('.tpr-stock-subtitle'), /text-overflow:\s*ellipsis;/);
   assert.match(rule('.tpr-value'), /font-size:\s*13px;/);

@@ -2595,7 +2595,13 @@ test('order actions use the report variant while account and delete modals retai
   assert.ok(orderActionBlock.includes('<StockReportModal') && stockReportModalSource.includes('<ActionModalCard'), 'order action should opt into the report variant while retaining the shared keyboard and close shell');
   assert.ok(orderActionBlock.includes('<StockLogo') && orderActionBlock.includes('orderLogoUrls'), 'order action should render the existing stock logo chain');
   assert.ok(orderActionBlock.includes('className="h-7 w-7 rounded-[6px]"') && orderActionBlock.includes('className="trade-order-logo"'), 'order logo should use the updated report identity sizing');
-  assert.match(tradesDialogsCss, /\.trade-order-side\s*\{[^}]*color:\s*#b5b5bd;/, 'order side should stay neutral instead of implying profit or loss');
+  assert.match(tradesDialogsCss, /\.trade-order-side\s*\{[^}]*color:\s*#b5b5bd;/, 'an unspecified order side should retain its neutral fallback');
+  assert.ok(orderActionBlock.includes('className="trade-order-side" data-side={orderActionTrade.side}'), 'the badge color follows the original order side, not P&L or a market color preference');
+  assert.match(tradesDialogsCss, /\.trade-order-dialog \.trade-order-side\[data-side="buy"\]\s*\{[^}]*background:\s*rgb\(255 75 31 \/ \.12\);[^}]*color:\s*#ff4b1f;/, 'buy badges use a quiet red background only inside the order-action dialog');
+  assert.match(tradesDialogsCss, /\.trade-order-dialog \.trade-order-side\[data-side="sell"\]\s*\{[^}]*background:\s*rgb\(54 196 154 \/ \.12\);[^}]*color:\s*#36c49a;/, 'sell badges use a quiet green background only inside the order-action dialog');
+  const orderActions = orderActionBlock.slice(orderActionBlock.indexOf('actions={['), orderActionBlock.indexOf(']}'));
+  assert.doesNotMatch(orderActions, /className\s*:/, 'edit and delete must share the report modal neutral action style without white or red overrides');
+  assert.doesNotMatch(tradesDialogsCss, /trade-dialog-danger/, 'remove the retired per-action danger tint rather than leaving a conflicting override');
   assert.ok(orderActionBlock.includes('className="trade-order-total-value"') && orderActionBlock.includes('currencyAmount(amount, displayCurrency, 2)'), 'the full order amount should retain selected currency and two-decimal precision');
   assert.match(tradesDialogsCss, /\.trade-order-facts\s*\{[^}]*grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\)/, 'date, shares and execution price should share three bounded report columns');
   assert.ok(orderActionBlock.includes("orderActionTrade.date || '—'") && orderActionBlock.includes('sharesText(orderActionTrade.shares, 0)') && orderActionBlock.includes('fmtAmount(orderActionTrade.price, 2)'), 'order facts should preserve their original date, share and USD execution-price sources');

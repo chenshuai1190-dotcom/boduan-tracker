@@ -1106,13 +1106,11 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                   key: 'edit',
                   label: tt('trades.modify', '修改'),
                   onClick: editOrderFromAction,
-                  className: 'srm-primary',
                 },
                 {
                   key: 'delete',
                   label: tt('trades.delete', '删除'),
                   onClick: deleteOrderFromAction,
-                  className: 'trade-dialog-danger',
                 },
               ]}
             >
@@ -1129,7 +1127,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                   <div className="trade-order-symbol">{orderSymbol || '--'}</div>
                   <div className="trade-order-name">{displayName || orderSymbol || '--'}</div>
                 </div>
-                <span className="trade-order-side">{sideLabel(orderActionTrade.side)}</span>
+                <span className="trade-order-side" data-side={orderActionTrade.side}>{sideLabel(orderActionTrade.side)}</span>
               </div>
               <div className="trade-order-total">
                 <span className="trade-order-label">{tt('trades.amount', '金额')} · {displayCurrency}</span>
