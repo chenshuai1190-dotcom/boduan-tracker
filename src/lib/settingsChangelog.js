@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '✨ 波段记录升级为统一黑灰报告视觉',
+      '  - 放大累计盈亏，状态筛选直接切换，按股票展开各笔波段，盈亏金额统一保留两位小数',
+      '  - 新增、详情、编辑、分批卖出与目标价试算弹窗统一排版，移除重复取消按钮',
+      '  - 保留原有波段数据、收益计算、分批卖出与行情策略，不影响正式持仓和交易账本',
+    ],
+    itemsEn: [
+      '✨ A unified monochrome report design for the Swing Log',
+      '  - Larger total P&L, direct status filters and expandable stock groups, with two-decimal P&L amounts',
+      '  - Consistent create, detail, edit, partial-sell and target-price simulator dialogs without duplicate cancel actions',
+      '  - Retains swing data, calculations, partial exits and quote policies without affecting formal holdings or trade ledgers',
+    ],
+  },
+  {
+    ver: 'v10.7.9.510', date: '2026-09-10',
+    items: [
       '✨ 社区收益比赛统一新版黑灰报告视觉',
       '  - 突出个人收益与排名，排行榜、参赛弹窗和用户持仓卡同步简约排版',
       '  - 首页 BTC 的 LIVE 状态增加绿色呼吸小圆点，非实时状态不显示圆点',

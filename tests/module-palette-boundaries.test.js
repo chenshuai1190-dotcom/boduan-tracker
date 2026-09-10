@@ -34,6 +34,8 @@ const stockDetailReportCss = read('src/components/StockDetailReportSections.css'
 const competition = read('src/pages/CommunityCompetitionPage.jsx');
 const competitionCss = read('src/pages/CommunityCompetitionPage.css');
 const waveTracker = read('src/pages/WaveTrackerPage.jsx');
+const waveTrackerCss = read('src/pages/WaveTrackerPage.css');
+const waveTrackerDialogsCss = read('src/pages/WaveTrackerDialogs.css');
 const earningsDetail = read('src/pages/EarningsDetailPage.jsx');
 const earningsGrowth = read('src/components/EarningsGrowthCard.jsx');
 const earningsCalendar = read('src/tabs/EarningsCalendar.jsx');
@@ -75,8 +77,10 @@ test('persistent production modules share neutral black surface levels', () => {
   assert.match(competitionCss, /\.cc-user-card\s*\{[^}]*background:\s*#101112;/, 'competitor details should use a neutral raised surface');
   assert.match(competitionCss, /\.cc-join-panel\s*\{[^}]*background:\s*#101112;/, 'voluntary participation should share the neutral dialog surface');
   assert.doesNotMatch(competition + competitionCss, /#f6b54b|#ffd18a|#ffb13d|linear-gradient|radial-gradient/, 'community surfaces should not restore decorative gold or blue-purple gradients');
-  assert.ok(waveTracker.includes('border border-[#1a2530] bg-[#0b0c0e]'));
-  assert.equal(count(waveTracker, /bg-\[#0b0c0e\]/g), 3);
+  assert.match(waveTracker, /<main className="wave-page"/, 'wave tracking should use its scoped continuous report surface');
+  assert.match(waveTrackerCss, /\.wave-page\s*\{[^}]*background:\s*#08090b;[^}]*color:\s*#e4e4e7;/, 'wave tracking should share the neutral report palette');
+  assert.match(waveTrackerCss, /\.wave-records\s*\{[^}]*background:\s*#101112;/, 'expanded wave records should use a neutral raised reading surface');
+  assert.doesNotMatch(waveTracker + waveTrackerCss + waveTrackerDialogsCss, /#f6b54b|#ffd18a|#f6bd61|#f5bd62|#1a2530|#05080d|#111720|linear-gradient|radial-gradient/, 'wave pages and dialogs should not restore decorative gold or blue gradients');
 
   assert.equal(count(earningsDetail, /bg-\[#0b0c0e\]/g), 6);
   assert.equal(count(earningsDetail, /bg-\[#101114\]/g), 1);

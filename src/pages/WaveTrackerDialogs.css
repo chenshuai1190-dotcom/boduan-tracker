@@ -1,0 +1,122 @@
+.stock-report-modal.wave-dialog {
+  color: #e1e1e6;
+  font-variant-numeric: tabular-nums;
+}
+
+.wave-dialog .srm-header { padding-bottom: 18px; }
+.wave-dialog .srm-title { overflow: visible; white-space: normal; }
+.wave-dialog .srm-close { width: 44px; height: 44px; }
+.wave-dialog .srm-action { min-height: 48px; height: auto; padding: 12px 8px; line-height: 20px; }
+.wave-dialog-actions > .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+.wave-dialog .wave-dialog-form-scroller {
+  min-width: 0;
+  max-width: 100%;
+  max-height: 56dvh;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 1px 1px 2px;
+}
+
+.wave-dialog .wave-dialog-form { display: grid; gap: 18px; min-width: 0; }
+.wave-dialog .wave-dialog-field-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; min-width: 0; }
+.wave-dialog .wave-dialog-field { display: block; min-width: 0; max-width: 100%; }
+.wave-dialog .wave-dialog-field-label { display: block; margin-bottom: 9px; color: #8e8e96; font-size: 12px; line-height: 18px; }
+.wave-dialog .wave-dialog-field-control {
+  display: flex;
+  align-items: center;
+  height: 50px;
+  min-width: 0;
+  max-width: 100%;
+  padding: 0 13px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: #1b1c1e;
+}
+
+.wave-dialog .wave-dialog-field-control:focus-within,
+.wave-dialog .wave-dialog-target-control:focus-within { border-color: #626268; }
+.wave-dialog .wave-dialog-field-prefix { margin-right: 8px; color: #7e7e86; font-size: 16px; }
+.wave-dialog .wave-dialog-input {
+  display: block;
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  outline: none;
+  background: transparent;
+  color: #e1e1e6;
+  font-size: 16px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  appearance: none;
+}
+
+.wave-dialog .wave-dialog-input::placeholder { color: #5e5e66; opacity: 1; }
+.wave-dialog .wave-form-date-input::-webkit-date-and-time-value { min-height: 48px; line-height: 48px; }
+.wave-dialog .wave-dialog-stock { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 4px 11px; min-width: 0; padding-bottom: 18px; border-bottom: 1px solid #26272a; }
+.wave-dialog .wave-dialog-stock-logo { display: flex; grid-row: 1; align-items: center; justify-content: center; width: 40px; height: 40px; overflow: hidden; border-radius: 12px; background: #1b1c1e; }
+.wave-dialog .wave-dialog-stock-identity { min-width: 0; align-self: center; }
+.wave-dialog .wave-dialog-stock-symbol { color: #e1e1e6; font-size: 16px; font-weight: 500; line-height: 21px; overflow-wrap: anywhere; }
+.wave-dialog .wave-dialog-stock-name { margin-top: 2px; color: #777780; font-size: 11px; line-height: 16px; overflow-wrap: anywhere; }
+.wave-dialog .wave-dialog-stock-position { grid-column: 2; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; min-width: 0; margin-top: 7px; }
+.wave-dialog .wave-dialog-stock-status { min-width: 0; color: #92929b; font-size: 11px; line-height: 18px; overflow-wrap: anywhere; }
+.wave-dialog .wave-dialog-stock-shares { min-width: 0; color: #777780; font-size: 11px; line-height: 18px; overflow-wrap: anywhere; }
+.wave-dialog .wave-dialog-status-line { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }
+.wave-dialog .wave-dialog-badge { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; padding: 3px 7px; border-radius: 6px; background: #222325; color: #a7a7b0; font-size: 10px; line-height: 16px; white-space: nowrap; }
+.wave-dialog .wave-dialog-badge-buy { background: rgb(255 75 31 / .1); color: #ff4b1f; }
+.wave-dialog .wave-dialog-badge-sell { background: rgb(54 196 154 / .1); color: #36c49a; }
+.wave-dialog .wave-dialog-intro { display: flex; align-items: flex-start; gap: 10px; min-width: 0; padding: 0 0 2px; }
+.wave-dialog .wave-dialog-intro p { margin: 0; color: #898992; font-size: 12px; line-height: 21px; }
+
+.wave-dialog .wave-dialog-current-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; padding: 20px 0; }
+.wave-dialog .wave-dialog-current-metrics > div { min-width: 0; }
+.wave-dialog .wave-dialog-metric-label { color: #85858e; font-size: 11px; line-height: 17px; }
+.wave-dialog .wave-dialog-metric-value { margin-top: 7px; color: #dfdfe5; font-size: 17px; line-height: 23px; overflow-wrap: anywhere; }
+.wave-dialog .wave-dialog-forecast { padding-top: 2px; }
+.wave-dialog .wave-dialog-target-control { display: flex; align-items: center; min-width: 0; height: 62px; padding: 0 6px 0 15px; border: 1px solid transparent; border-radius: 14px; background: #1b1c1e; }
+.wave-dialog .wave-dialog-target-prefix { margin-right: 9px; color: #777780; font-size: 24px; }
+.wave-dialog .wave-dialog-target-input { font-size: 27px; }
+.wave-dialog .wave-dialog-clear-target { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 44px; height: 44px; border: 0; border-radius: 10px; color: #8e8e96; background: transparent; font-size: 22px; }
+.wave-dialog .wave-dialog-presets { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; margin-top: 10px; }
+.wave-dialog .wave-dialog-preset { min-width: 0; min-height: 44px; padding: 6px 3px; border: 0; border-radius: 10px; background: #1b1c1e; color: #898992; font-size: 11px; line-height: 16px; font-variant-numeric: tabular-nums; }
+.wave-dialog .wave-dialog-preset.is-active { color: #e1e1e6; background: #333437; }
+.wave-dialog .wave-dialog-preset:disabled { opacity: .35; }
+.wave-dialog .wave-dialog-forecast-result { margin-top: 24px; padding: 18px 15px 15px; border-radius: 14px; background: #1b1c1e; }
+.wave-dialog .wave-dialog-result-values { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 12px; min-width: 0; margin-top: 6px; }
+.wave-dialog .wave-dialog-result-amount { min-width: 0; max-width: 100%; font-size: 30px; font-weight: 400; line-height: 38px; letter-spacing: -.8px; overflow-wrap: anywhere; }
+.wave-dialog .wave-dialog-result-percent { min-width: 0; max-width: 100%; font-size: 16px; line-height: 22px; overflow-wrap: anywhere; }
+.wave-dialog .wave-dialog-forecast-track { position: relative; height: 3px; margin-top: 19px; border-radius: 4px; background: #35363a; }
+.wave-dialog .wave-dialog-forecast-fill { position: absolute; inset: 0 auto 0 0; border-radius: 4px; }
+.wave-dialog .wave-dialog-forecast-thumb { position: absolute; top: 50%; width: 11px; height: 11px; transform: translate(-50%, -50%); border: 2px solid; border-radius: 50%; background: #1b1c1e; }
+.wave-dialog .wave-dialog-forecast-endpoints { display: flex; justify-content: space-between; gap: 16px; margin-top: 11px; color: #777780; font-size: 10px; line-height: 17px; }
+.wave-dialog .wave-dialog-forecast-endpoints > span { min-width: 0; overflow-wrap: anywhere; }
+.wave-dialog .wave-dialog-metrics { display: grid; gap: 22px 14px; padding: 21px 0; }
+.wave-dialog .wave-dialog-completed-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.wave-dialog .wave-dialog-detail-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.wave-dialog .wave-dialog-metrics .truncate { overflow: visible; white-space: normal; text-overflow: clip; overflow-wrap: anywhere; }
+.wave-dialog .wave-dialog-note { display: flex; align-items: flex-start; gap: 9px; padding: 16px 0 2px; border-top: 1px solid #26272a; color: #8d8d96; font-size: 12px; line-height: 20px; }
+.wave-dialog .wave-dialog-note > span { min-width: 0; flex: 1; white-space: pre-wrap; overflow-wrap: anywhere; }
+.wave-dialog .wave-dialog-hint { padding: 12px 14px; border-radius: 12px; background: #1b1c1e; color: #909099; font-size: 12px; line-height: 21px; }
+.wave-dialog .wave-dialog-validation { color: #909099; font-size: 12px; line-height: 20px; overflow-wrap: anywhere; }
+.wave-dialog .wave-dialog-footnote { display: flex; align-items: center; gap: 7px; color: #72727b; font-size: 11px; line-height: 18px; }
+.wave-dialog .wave-dialog-rules { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
+.wave-dialog .wave-dialog-rules > li { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 12px; padding: 16px 0; border-top: 1px solid #26272a; }
+.wave-dialog .wave-dialog-rules > li:first-child { padding-top: 0; border-top: 0; }
+.wave-dialog .wave-dialog-rules > li:last-child { padding-bottom: 2px; }
+.wave-dialog .wave-dialog-rules > li > span { color: #575760; font-size: 11px; line-height: 23px; }
+.wave-dialog .wave-dialog-rules p { margin: 0; color: #9b9ba4; font-size: 13px; line-height: 23px; }
+
+@media (max-width: 359px) {
+  .wave-dialog .wave-dialog-field-pair { grid-template-columns: minmax(0, 1fr); }
+  .wave-dialog .wave-dialog-current-metrics,
+  .wave-dialog .wave-dialog-completed-metrics { gap: 10px; }
+  .wave-dialog .wave-dialog-metric-value { font-size: 15px; }
+  .wave-dialog .wave-dialog-result-amount { font-size: 27px; }
+  .wave-dialog .wave-dialog-presets { gap: 4px; }
+}
