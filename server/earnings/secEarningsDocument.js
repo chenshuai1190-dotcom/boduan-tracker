@@ -2,6 +2,9 @@ import { hasSecEarningsDetailAdapter, parseSecEarningsDetailPrimaryDocument } fr
 import { hasSecUsHoldingBusinessAdapter, parseSecUsHoldingBusinessDocument } from './secUsHoldingBusinessAdapters.js';
 import { hasForeignIssuerBusinessCompositionAdapter, parseForeignIssuerBusinessComposition } from './foreignIssuerBusinessComposition.js';
 import { inspectGenericSecBusinessComposition } from './secGenericBusinessComposition.js';
+import { inspectLillyBusinessComposition } from './secLillyBusinessComposition.js';
+import { inspectRobinhoodBusinessComposition } from './secRobinhoodBusinessComposition.js';
+import { inspectReleaseBusinessComposition } from './secReleaseBusinessComposition.js';
 
 const SECTION_KEYS = ['reportSegments', 'revenueBreakdown', 'geographies'];
 const FILLABLE_REASONS = new Set([
@@ -59,6 +62,22 @@ export function inspectSecEarningsDocument({ symbol, fiscalDate, primary }) {
     documentType: primary.documentType,
   };
   const args = { symbol, fiscalDate, html: primary.html, filing };
+  // These profiles prove an issuer-specific hierarchy in one document. An
+  // invalid hierarchy must not be retried as an arbitrary generic subset.
+  const inspectProfile = symbol === 'LLY' && primary.form === '10-Q'
+    ? inspectLillyBusinessComposition
+    : symbol === 'HOOD' && primary.form === '10-Q'
+      ? inspectRobinhoodBusinessComposition
+      : (symbol === 'AVGO' && primary.form === '8-K') || (symbol === 'ARM' && primary.form === '6-K')
+        ? inspectReleaseBusinessComposition
+        : null;
+  if (inspectProfile) {
+    const inspected = inspectProfile({ ...args, sourceUrl: primary.primaryDocumentUrl });
+    return {
+      ...inspected,
+      parser: inspected.result?.sourceMetadata?.adapterId || 'sec-verified-issuer-profile',
+    };
+  }
   let result = null;
   let parser = null;
   if (hasSecEarningsDetailAdapter(symbol)) {

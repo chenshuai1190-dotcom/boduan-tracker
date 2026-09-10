@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 import handler from '../api/earnings-calendar.js';
+import { EARNINGS_DETAIL_PARSER_VERSION } from '../src/lib/earningsDetailPolicy.js';
 import {
   SEC_EARNINGS_DETAIL_TRANSIENT_CACHE_TTL_MS,
   SEC_EARNINGS_DETAIL_UNPARSED_CACHE_TTL_MS,
@@ -420,7 +421,7 @@ test('SEC reader wraps parsed sections in the versioned public response envelope
   });
 
   assert.equal(result.schemaVersion, SEC_EARNINGS_DETAIL_SCHEMA_VERSION);
-  assert.equal(result.parserVersion, 'sec-structure-5');
+  assert.equal(result.parserVersion, EARNINGS_DETAIL_PARSER_VERSION);
   assert.equal(result.status, 'complete');
   assert.equal(result.reason, null);
   assert.equal(result.symbol, 'GOOGL');

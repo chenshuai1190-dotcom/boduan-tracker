@@ -15,6 +15,7 @@ import {
   normalizeEarningsDetailPayload,
 } from '../src/lib/earningsDetail.js';
 import { normalizeEarningsEvents } from '../src/lib/earningsCalendarModel.js';
+import { EARNINGS_DETAIL_PARSER_VERSION } from '../src/lib/earningsDetailPolicy.js';
 const appSource = fs.readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8');
 const calendarSource = fs.readFileSync(new URL('../src/tabs/EarningsCalendar.jsx', import.meta.url), 'utf8');
 const homeTabSource = fs.readFileSync(new URL('../src/tabs/HomeTab.jsx', import.meta.url), 'utf8');
@@ -94,7 +95,7 @@ test('earnings detail uses a fresh cache namespace and retries transient detail 
       fiscalDate: '2026-06-30',
       reportDate: '2026-07-22',
     }),
-    'xmoney_earnings_detail_sec-structure-5:user-1:GOOGL:2026-06-30:auto:2026-07-22',
+    `xmoney_earnings_detail_${EARNINGS_DETAIL_PARSER_VERSION}:user-1:GOOGL:2026-06-30:auto:2026-07-22`,
   );
   assert.equal(
     earningsDetailClientCacheKey({
@@ -103,7 +104,7 @@ test('earnings detail uses a fresh cache namespace and retries transient detail 
       fiscalDate: '2026-03-31',
       reportDate: '2026-04-15',
     }),
-    'xmoney_earnings_detail_sec-structure-5:user-1:TSM:2026-03-31:auto:2026-04-15',
+    `xmoney_earnings_detail_${EARNINGS_DETAIL_PARSER_VERSION}:user-1:TSM:2026-03-31:auto:2026-04-15`,
   );
   assert.equal(
     earningsDetailClientCacheKey({
@@ -112,7 +113,7 @@ test('earnings detail uses a fresh cache namespace and retries transient detail 
       fiscalDate: '2026-06-30',
       reportDate: '2026-07-16',
     }),
-    'xmoney_earnings_detail_sec-structure-5:user-1:TSM:2026-06-30:auto:2026-07-16',
+    `xmoney_earnings_detail_${EARNINGS_DETAIL_PARSER_VERSION}:user-1:TSM:2026-06-30:auto:2026-07-16`,
   );
   assert.equal(
     earningsDetailClientCacheKey({
@@ -123,7 +124,7 @@ test('earnings detail uses a fresh cache namespace and retries transient detail 
       officialFiscalDate: '2026-05-10',
       reportDate: '2026-05-28',
     }),
-    'xmoney_earnings_detail_sec-structure-5:user-1:COST:2026-05-31:2026-05-10:2026-05-28',
+    `xmoney_earnings_detail_${EARNINGS_DETAIL_PARSER_VERSION}:user-1:COST:2026-05-31:2026-05-10:2026-05-28`,
   );
 });
 

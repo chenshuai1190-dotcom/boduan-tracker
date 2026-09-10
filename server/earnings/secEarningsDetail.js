@@ -217,13 +217,24 @@ async function fetchSecEarningsDetailUnshared({
       ? ['EX-99.1']
       : normalizedSymbol === 'IBKR'
         ? ['EX-99.1', 'PRIMARY']
-        : ['PRIMARY'],
+        : normalizedSymbol === 'ARM'
+          ? ['PRIMARY', 'EX-99.2']
+          : ['PRIMARY'],
     preferEarningsExhibit: !verifiedMicrosoftQ4 && !verifiedUnitedHealthQ2,
-    evaluateDocument: (document) => inspectSecEarningsDocument({
-      symbol: normalizedSymbol,
-      fiscalDate: dateKey(document.officialFiscalDate) || normalizedFiscalDate,
-      primary: document,
-    }),
+    evaluateDocument: (document) => {
+      const inspected = inspectSecEarningsDocument({
+        symbol: normalizedSymbol,
+        fiscalDate: dateKey(document.officialFiscalDate) || normalizedFiscalDate,
+        primary: document,
+      });
+      // Month-end provider dates may resolve to the issuer's actual quarter
+      // end. An explicitly verified official date must still match exactly.
+      if (normalizedOfficialFiscalDate && inspected.result?.period?.end
+        && inspected.result.period.end !== normalizedOfficialFiscalDate) {
+        return { result: null, parser: inspected.parser, reason: 'official-period-mismatch' };
+      }
+      return inspected;
+    },
     fetchFn,
     userAgent,
     now: nowDate,

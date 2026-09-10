@@ -144,23 +144,32 @@ export function extractSecExhibitUrl(indexHtml, filingUrl, documentType) {
   if (typeof indexHtml !== 'string' || !filingUrl) return null;
   const normalizedType = String(documentType || '').trim().toUpperCase();
   if (!/^EX-99\.\d{1,2}$/.test(normalizedType)) return null;
-  const typePattern = new RegExp(`\\b${escapeRegex(normalizedType)}\\b`, 'i');
   const rows = indexHtml.match(/<tr\b[^>]*>[\s\S]*?<\/tr>/gi) || [];
+  const candidates = new Set();
   for (const row of rows) {
-    if (!typePattern.test(htmlToText(row))) continue;
+    // EDGAR index columns are Seq / Description / Document / Type / Size.
+    // A description can itself be exactly another exhibit type, so even a
+    // full-cell match is insufficient outside the actual Type column. Retain
+    // the existing compact Type / Document offline-fixture shape as well.
+    const cells = [...row.matchAll(/<t[dh]\b[^>]*>([\s\S]*?)<\/t[dh]>/gi)]
+      .map((match) => htmlToText(match[1]).trim().toUpperCase());
+    const type = cells.length >= 4 && /^\d+$/.test(cells[0]) ? cells[3]
+      : cells.length === 2 ? cells[0] : '';
+    if (type !== normalizedType) continue;
     const links = Array.from(row.matchAll(/href\s*=\s*["']([^"']+)["']/gi), (match) => match[1]);
     for (const href of links) {
       try {
         const resolved = new URL(href, filingUrl);
         if (!isSecArchiveUrl(resolved)) continue;
         if (!/\.html?$/i.test(resolved.pathname)) continue;
-        return resolved.toString();
+        candidates.add(resolved.toString());
+        if (candidates.size > 1) return null;
       } catch {
         // Ignore malformed filing links and keep looking.
       }
     }
   }
-  return null;
+  return candidates.size === 1 ? [...candidates][0] : null;
 }
 
 export function htmlToText(html) {

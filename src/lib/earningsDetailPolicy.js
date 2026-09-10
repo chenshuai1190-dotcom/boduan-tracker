@@ -1,6 +1,6 @@
 // Shared by the authenticated API and client: incomplete / release-stage
 // results must not block discovery of a subsequently filed periodic report.
-export const EARNINGS_DETAIL_PARSER_VERSION = 'sec-structure-5';
+export const EARNINGS_DETAIL_PARSER_VERSION = 'sec-structure-6';
 export const EARNINGS_DETAIL_COMPLETE_TTL_MS = 6 * 60 * 60 * 1000;
 export const EARNINGS_DETAIL_RETRY_TTL_MS = 5 * 60 * 1000;
 

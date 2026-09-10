@@ -88,6 +88,29 @@ test('all unparsed candidates stay bounded and retain original filing provenance
   assert.equal(result.evaluation.result, null);
 });
 
+test('an explicitly selected shareholder-letter exhibit is not overwritten by EX-99.1', async () => {
+  const mock = sourceMock({ periodic: false });
+  const fetchFn = async (url) => {
+    if (new URL(url).pathname.endsWith('-index.html')) {
+      mock.calls.push(new URL(url).pathname);
+      return response(`<table><tr><td>EX-99.1</td><td><a href="${releasePath}">Announcement</a></td></tr>
+        <tr><td>EX-99.2</td><td><a href="${releasePath.replace('release.htm', 'letter.htm')}">Letter</a></td></tr></table>`);
+    }
+    if (new URL(url).pathname.endsWith('/letter.htm')) {
+      mock.calls.push(new URL(url).pathname);
+      return response('letter');
+    }
+    return mock.fetchFn(url);
+  };
+  const result = await fetchSecEarningsFilingSource({ ...options, fetchFn,
+    preferredDocumentTypes: ['EX-99.2', 'PRIMARY'], preferEarningsExhibit: true,
+    evaluateDocument: (document) => ({ result: document.html === 'letter' ? accepted : null }) });
+  assert.equal(result.documentType, 'EX-99.2');
+  assert.equal(result.html, 'letter');
+  assert.equal(mock.calls.length, 3);
+  assert.ok(!mock.calls.includes(releasePath));
+});
+
 test('server singleflight coalesces matching authenticated-detail work', async () => {
   const originalFetch = globalThis.fetch;
   const html = await readFile(new URL('./fixtures/sec-earnings-detail/googl-10q-primary.html', import.meta.url), 'utf8');

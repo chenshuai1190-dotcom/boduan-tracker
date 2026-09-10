@@ -5,6 +5,7 @@ import handler, { handleEarningsDetailRequest } from '../api/earnings-calendar.j
 import { registerCalendarCoverage, readSharedEarningsDetail } from '../server/earnings/secEarningsCoverageIntegration.js';
 import { createSecEarningsCoverageRepository } from '../server/earnings/secEarningsCoverageRepository.js';
 import { normalizeEarningsDetailPayload, fetchEarningsDetail } from '../src/lib/earningsDetail.js';
+import { EARNINGS_DETAIL_PARSER_VERSION } from '../src/lib/earningsDetailPolicy.js';
 
 const enabled = { SEC_EARNINGS_AUTO_COVERAGE_ENABLED: 'true' };
 const userId = '11111111-1111-1111-1111-111111111111';
@@ -62,7 +63,7 @@ test('client shared expiry cannot be renewed for another full six hours', async 
   const oldStorage = globalThis.localStorage;
   const values = new Map();
   globalThis.localStorage = { getItem: (key) => values.get(key), setItem: (key, value) => values.set(key, value) };
-  const payload = { success: true, status: 'complete', symbol: 'AAPL', parserVersion: 'sec-structure-5', period: { ...event, end: event.fiscalDate, providerFiscalDate: event.fiscalDate }, source: { provider: 'SEC', form: '10-Q' }, sections: {}, cache: { expiresAt: new Date(Date.now() - 1).toISOString() } };
+  const payload = { success: true, status: 'complete', symbol: 'AAPL', parserVersion: EARNINGS_DETAIL_PARSER_VERSION, period: { ...event, end: event.fiscalDate, providerFiscalDate: event.fiscalDate }, source: { provider: 'SEC', form: '10-Q' }, sections: {}, cache: { expiresAt: new Date(Date.now() - 1).toISOString() } };
   assert.ok(normalizeEarningsDetailPayload(payload).cacheExpiresAt);
   let reads = 0;
   const args = { ...event, supabase: { auth: { getSession: async () => ({ data: { session: { access_token: 'test-token', user: { id: userId } } } }) } },
@@ -83,7 +84,7 @@ test('repository sends service credentials only to its configured REST host and 
   assert.equal(calls[0].url.origin, 'https://example.supabase.co');
   assert.equal(calls[0].options.redirect, 'error');
   const body = JSON.parse(calls[0].options.body);
-  assert.equal(body.p_parser_version, 'sec-structure-5');
+  assert.equal(body.p_parser_version, EARNINGS_DETAIL_PARSER_VERSION);
   assert.deepEqual(Object.keys(body.p_events[0]).sort(), ['official_fiscal_date', 'provider_fiscal_date', 'report_date', 'symbol']);
   await repository.claim(99);
   assert.equal(JSON.parse(calls[1].options.body).p_limit, 12);

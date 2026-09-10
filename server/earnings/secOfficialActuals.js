@@ -354,9 +354,11 @@ export async function fetchSecEarningsFilingSource({
       lastSource = source;
       if (!includePrimaryDocument) return source;
 
+      const preferredTypes = normalizePreferredDocumentTypes(preferredDocumentTypes);
+      const preferredExhibits = preferredTypes.filter((type) => type !== 'PRIMARY');
       const documentTypes = preferEarningsExhibit && /^(?:8-K|6-K)(?:\/A)?$/.test(filing.form)
-        ? ['EX-99.1', 'PRIMARY']
-        : normalizePreferredDocumentTypes(preferredDocumentTypes);
+        ? [...(preferredExhibits.length ? preferredExhibits : ['EX-99.1']), 'PRIMARY']
+        : preferredTypes;
       let indexHtml = null;
       for (const documentType of documentTypes) {
         let documentUrl = null;
@@ -1154,6 +1156,19 @@ function selectEarnings6KFiling(filings, reportDate, fiscalDate, today, symbol =
   const target = parseDate(reportDate);
   if (!target || !fiscalDate) return null;
   const normalizedSymbol = normalizeSymbol(symbol);
+  if (normalizedSymbol === 'ARM') {
+    // ARM files the shareholder letter under the announcement date, and may
+    // file a separate quarter-end 6-K on the same day. Read the unique release
+    // accession, not the unrelated 6-K merely matching the quarter-end date.
+    // This only chooses a candidate: its EX-99.2 must independently prove the
+    // issuer, single-quarter dates, currency and reconciled financial tables.
+    const releases = (filings || []).filter((filing) => filing.form === '6-K'
+      && filingAvailableDate(filing) <= today
+      && Math.abs(dayDifference(target, parseDate(filing.reportDate))) <= 1
+      && dayDifference(target, parseDate(filing.filingDate)) >= -2
+      && dayDifference(target, parseDate(filing.filingDate)) <= 14);
+    if (releases.length) return releases.length === 1 ? releases[0] : null;
+  }
   return (filings || [])
     .filter((filing) => /^6-K(?:\/A)?$/.test(filing.form))
     .filter((filing) => (

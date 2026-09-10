@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '📊 修复 LLY、AVGO、ARM、HOOD 财报细分解析',
+      '  - 恢复已核验财期的产品、地区或业务收入结构，正确读取 ARM 股东信与 AVGO 业绩附件',
+      '  - 当期收入与同比独立核验，缺失比较不隐藏当期，未披露数据不补成零',
+      '  - 更新解析缓存版本，保留真实官方财期、来源与原有交易账本',
+    ],
+    itemsEn: [
+      '📊 Fixed earnings breakdowns for LLY, AVGO, ARM and HOOD',
+      '  - Restores verified product, regional or business revenue and selects the correct ARM and AVGO earnings exhibits',
+      '  - Validates current revenue and comparisons independently; missing comparisons do not hide verified revenue or become zero',
+      '  - Refreshes the parser cache version while preserving official periods, provenance and existing trading ledgers',
+    ],
+  },
+  {
+    ver: 'v10.7.9.501', date: '2026-09-10',
+    items: [
       '📊 财报细分扩展与自选自动覆盖',
       '  - 自选公司自动发现官方财报并分批解析，已验证结果可共享复用，减少重复读取',
       '  - 收入、同比和分部利润分别核验；未披露或尚未支持的细分明确保留不可用',
