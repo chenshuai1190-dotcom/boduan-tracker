@@ -243,7 +243,12 @@ test('provider work across a batch never exceeds three concurrent jobs', async (
   assert.equal(peak, 3);
 });
 
-test('batch deadline preserves completed holdings and never drains expired queued work into provider calls', async () => {
+test('batch deadline preserves completed holdings and never drains expired queued work into provider calls', async (t) => {
+  // Timer callbacks and performance.now() need not cross a 5ms boundary in
+  // lockstep. Control the monotonic deadline explicitly so this regression
+  // checks expired work rather than sub-millisecond CI scheduling jitter.
+  let monotonicNow = 1000;
+  t.mock.method(performance, 'now', () => monotonicNow);
   await fetchPortfolioOverlap('QQQ', { now: NOW, fetchImpl: async () => officialResponse(QQQ) });
   const symbols = ['QQQ', ...Array.from({ length: 39 }, (_, index) => `TIMEBATCH${index}`)];
   let release;
@@ -265,6 +270,7 @@ test('batch deadline preserves completed holdings and never drains expired queue
 
   // A fresh caller may safely share already-running public work. The queued
   // jobs retain their old deadline and must not receive a new provider budget.
+  monotonicNow = 1006;
   const second = fetchPortfolioOverlap(symbols, { ...config, batchTimeoutMs: 1000 });
   release();
   const shared = await second;
