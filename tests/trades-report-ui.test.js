@@ -227,7 +227,7 @@ test('compact first-screen spacing preserves financial content and reachable too
   assert.match(positionsCss, /\.trades-positions-report\s*\{[^}]*overflow-x:\s*auto;/);
 });
 
-test('compact positions columns leave room for daily P&L without shrinking or clipping financial text', () => {
+test('positions columns preserve precise widths and horizontally accessible financial text', () => {
   const rule = selector => [...positionsCss.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
     .filter(([, selectors]) => selectors.split(',').some(candidate => candidate.trim() === selector))
     .map(([, , body]) => body).join('\n');
@@ -235,8 +235,10 @@ test('compact positions columns leave room for daily P&L without shrinking or cl
   const firstFour = [minWidth('.tpr-table td:first-child'), minWidth('.tpr-table td:nth-child(2)'),
     minWidth('.tpr-table td:nth-child(3)'), minWidth('.tpr-table td:nth-child(4)')];
   assert.ok(firstFour.every(Number.isFinite));
-  assert.deepEqual(firstFour, [70, 104, 70, 98], 'only the identity column gains 2px; the other first-screen columns retain their widths');
-  assert.ok(firstFour.reduce((sum, width) => sum + width, 0) <= 342, '342px minimums still fit within the 343px content width of a 375px phone');
+  assert.deepEqual(firstFour, [70, 105, 71, 99], 'market value, current price and daily P&L each gain 1px; the identity width is unchanged');
+  assert.equal(firstFour.reduce((sum, width) => sum + width, 0), 345, 'the four column minimums gain exactly 3px in total');
+  assert.match(rule('.trades-positions-report'), /overflow-x:\s*auto;/, 'narrow screens keep financial columns accessible by horizontal scrolling');
+  assert.match(rule('.tpr-table'), /width:\s*max-content;/);
   assert.match(rule('.tpr-table td:first-child'), /(?:^|\n)\s*width:\s*70px;/);
   assert.match(rule('.tpr-table td:first-child'), /max-width:\s*70px;/);
   assert.match(rule('.tpr-stock'), /(?:^|\n)\s*width:\s*62px;/, 'the identity content gains the same 2px while preserving its 8px trailing padding');
