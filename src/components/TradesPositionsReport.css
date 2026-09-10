@@ -1,0 +1,90 @@
+.trades-positions-report {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  color: #e4e4e7;
+  font-variant-numeric: tabular-nums;
+}
+.trades-positions-report::-webkit-scrollbar { display: none; }
+.trades-positions-report:focus-visible { outline: 1px solid #8b8b94; outline-offset: 3px; }
+
+.tpr-table {
+  width: max-content;
+  min-width: 604px;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.tpr-table th,
+.tpr-table td {
+  padding: 0 9px;
+  text-align: right;
+  vertical-align: middle;
+}
+.tpr-table th {
+  height: 40px;
+  color: #777780;
+  font-size: 11px;
+  font-weight: 400;
+  white-space: nowrap;
+}
+.tpr-table td { border-top: 1px solid rgba(255, 255, 255, .045); }
+.tpr-table th:first-child,
+.tpr-table td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  width: 92px;
+  min-width: 92px;
+  max-width: 92px;
+  padding-left: 0;
+  padding-right: 12px;
+  background: #050609;
+  text-align: left;
+}
+.tpr-table th:first-child { z-index: 2; }
+.tpr-table th:nth-child(2),
+.tpr-table td:nth-child(2) { min-width: 104px; text-align: left; }
+.tpr-table th:nth-child(3),
+.tpr-table td:nth-child(3) { min-width: 88px; }
+.tpr-table th:nth-child(4),
+.tpr-table td:nth-child(4) { min-width: 132px; }
+.tpr-table th:nth-child(5),
+.tpr-table td:nth-child(5) { min-width: 144px; }
+.tpr-table th:last-child,
+.tpr-table td:last-child { min-width: 66px; padding-right: 0; }
+
+.tpr-stock,
+.tpr-cell {
+  display: flex;
+  width: 100%;
+  min-height: 67px;
+  flex-direction: column;
+  justify-content: center;
+  padding: 12px 0;
+  background: transparent;
+  border: 0;
+  text-align: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+.tpr-stock-text { display: block; min-width: 0; }
+.tpr-stock-title,
+.tpr-stock-subtitle {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tpr-stock-title { color: #e4e4e7; font-size: 13px; font-weight: 400; line-height: 17px; }
+.tpr-stock-subtitle { margin-top: 4px; color: #777780; font-size: 11px; line-height: 15px; }
+.tpr-cell { align-items: flex-end; color: #d6d6de; }
+.tpr-cell-left { align-items: flex-start; }
+.tpr-value { display: block; white-space: nowrap; font-size: 13px; font-weight: 400; line-height: 17px; }
+.tpr-secondary { display: block; margin-top: 4px; white-space: nowrap; font-size: 11px; font-weight: 400; line-height: 15px; }
+.tpr-cell-left .tpr-secondary,
+[data-position-field="cost"] { color: #777780; }
+.tpr-stock:active,
+.tpr-cell:active { opacity: .65; }
+.trades-positions-report button:focus-visible { outline: 1px solid #8b8b94; outline-offset: -2px; }

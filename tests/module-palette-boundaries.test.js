@@ -6,7 +6,9 @@ const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf
 const count = (source, pattern) => (source.match(pattern) || []).length;
 
 const home = read('src/tabs/HomeTab.jsx');
+const homeCss = read('src/tabs/HomeTab.css');
 const trades = read('src/tabs/TradesTab.jsx');
+const tradesCss = read('src/tabs/TradesTab.css');
 const assets = read('src/tabs/AnalysisTab.jsx');
 const monthlyAssetTrendChart = read('src/components/MonthlyAssetTrendChart.jsx');
 const reviewCss = read('src/tabs/ReviewTab.css');
@@ -36,10 +38,9 @@ const stockComparison = read('src/components/StockReturnComparisonCard.jsx');
 
 test('persistent production modules share neutral black surface levels', () => {
   assert.ok(trades.includes('data-trades-net-assets-card="true"'));
-  assert.ok(
-    trades.includes('data-trades-net-assets-card="true"') && count(trades, /bg-\[#0b0c0e\]/g) >= 16,
-    'Trading should retain its primary neutral surfaces after the edit action adopts the raised borderless style',
-  );
+  assert.ok(trades.includes('<section className="trades-report-hero"'), 'Trading should use its continuous report hero');
+  assert.match(tradesCss, /\.trades-report\s*\{[^}]*color:\s*#e4e4e7;/, 'Trading report should use the neutral text palette');
+  assert.doesNotMatch(tradesCss, /radial-gradient|linear-gradient|box-shadow/, 'Trading report surfaces should stay free of decorative glow');
   assert.ok(assets.includes("const ASSET_CARD = '#0b0c0e';"));
   assert.match(northStarCss, /\.north-star-card\s*\{[^}]*background:\s*#101112;/, 'north-star presentation should use its scoped neutral surface');
   assert.match(annualPlanCss, /\.annual-goal-plan \.ag-current-card\s*\{[^}]*border:\s*0;[^}]*background:\s*#101112;/, 'current annual plan should share the north-star neutral borderless surface');
@@ -90,9 +91,11 @@ test('stock-trend report variants are opt-in neutral sections without recoloring
 
 test('actual asset amounts use soft white while semantic gold and the settings glow remain', () => {
   assert.ok(home.includes('data-home-net-assets="true"'));
-  assert.ok(home.includes('tracking-normal text-white/[0.95] tabular-nums'));
-  assert.ok(home.includes('text-[20px] font-normal leading-none text-white/[0.95]'));
-  assert.ok(trades.includes('tracking-normal text-white/[0.95] tabular-nums'));
+  assert.ok(home.includes('home-report-net-amount text-white/[0.95] tabular-nums'));
+  assert.ok(home.includes('className="home-report-decimal"'));
+  assert.match(homeCss, /\.home-report-decimal\s*\{[^}]*color:\s*#83838c;[^}]*font-size:\s*\.64em;/, 'Home decimal suffix stays neutral and subordinate to the white headline');
+  assert.ok(trades.includes('className="trades-report-net-amount"'));
+  assert.match(tradesCss, /\.trades-report-decimal\s*\{[^}]*color:\s*#83838c;[^}]*font-size:\s*\.64em;/, 'Trading split decimals should match the new Home report hierarchy');
   assert.ok(assets.includes('tracking-normal text-white/[0.95] tabular-nums'));
   assert.ok(assets.includes('text-white/[0.95] tabular-nums') && assets.includes('≈ ¥{fmt(curSum, 0)}'));
   assert.ok(compoundDetail.includes('{fmt(selectedAsset)}'));
@@ -115,7 +118,10 @@ test('actual asset amounts use soft white while semantic gold and the settings g
 
 test('sheets, tooltips, and chart markers keep their separate depth colors', () => {
   assert.equal(count(home, /bg-\[#0b0f14\]/g), 2, 'unrelated Home sheets retain their existing palette');
-  const benchmarkSheet = home.slice(home.indexOf('{benchmarkMenuOpen && ('), home.indexOf('{marketCards.length > 0 && ('));
+  const benchmarkStart = home.indexOf('{benchmarkMenuOpen && (');
+  const benchmarkEnd = home.indexOf('<HomeWatchlistReport', benchmarkStart);
+  assert.ok(benchmarkStart >= 0 && benchmarkEnd > benchmarkStart, 'benchmark assertions must be bounded to the actual picker');
+  const benchmarkSheet = home.slice(benchmarkStart, benchmarkEnd);
   assert.ok(benchmarkSheet.includes('bg-[#101112]'), 'benchmark picker shares the approved goal-dialog neutral surface');
   assert.ok(benchmarkSheet.includes("row.selected ? 'bg-[#1b1c1e]'"));
   assert.ok(benchmarkSheet.includes('aria-pressed={row.selected}'));

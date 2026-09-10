@@ -19,6 +19,8 @@ import ActionModalCard from '../components/ActionModalCard.jsx';
 import AccountLeverageBadge from '../components/AccountLeverageBadge.jsx';
 import AvailableCashEditor from '../components/AvailableCashEditor.jsx';
 import EarningsCalendar from './EarningsCalendar.jsx';
+import HomeWatchlistReport from '../components/HomeWatchlistReport.jsx';
+import './HomeTab.css';
 
 const PORTFOLIO_CURRENCY_STORAGE_KEY = 'xmoney_portfolio_currency';
 const HOME_CURRENCY_STORAGE_KEY = 'xmoney_home_currency';
@@ -142,28 +144,6 @@ function sortMetricValue(item, key) {
   return null;
 }
 
-function SortIcon({ active, direction }) {
-  return (
-    <span className="flex h-4 w-2.5 shrink-0 flex-col items-center justify-center gap-[2px]" aria-hidden="true">
-      <span className={`h-0 w-0 border-x-[4px] border-b-[5px] border-x-transparent ${active && direction === 'asc' ? 'border-b-[#f6b54b]' : 'border-b-white/35'}`} />
-      <span className={`h-0 w-0 border-x-[4px] border-t-[5px] border-x-transparent ${active && direction === 'desc' ? 'border-t-[#f6b54b]' : 'border-t-white/35'}`} />
-    </span>
-  );
-}
-
-function SortHeader({ label, sortKey, sortState, onSort }) {
-  const active = sortState?.key === sortKey;
-  return (
-    <button
-      type="button"
-      onClick={() => onSort(sortKey)}
-      className={`flex min-w-0 items-center justify-end gap-1 text-right active:scale-95 ${active ? 'text-[#f6b54b]' : 'text-white/40'}`}
-    >
-      <span className="truncate">{label}</span>
-      <SortIcon active={active} direction={sortState?.direction} />
-    </button>
-  );
-}
 
 function LogoPlaceholder({ symbol, className = '' }) {
   return (
@@ -200,11 +180,6 @@ function StockLogo({ symbol, urls, onLogoLoad, className = '' }) {
   );
 }
 
-function cleanSignalText(value, language = 'zh') {
-  const text = String(value || '等待中').replace(/^[^\u4e00-\u9fa5A-Za-z0-9]+ */u, '');
-  if (isEnglishLanguage(language) && text === '等待中') return t(language, 'home.waiting', '等待中');
-  return text;
-}
 
 function dataDateLabel(value) {
   if (!value) return null;
@@ -292,7 +267,7 @@ function resolveBtcDisplayRealtimeStatus(item, nextStatus) {
 function MiniMarketCard({ item, marketColorMode, language }) {
   if (item?.error) {
     return (
-      <div className="rounded-xl border border-transparent bg-[#101114] p-3 min-h-[122px]">
+      <div className="home-report-quote">
         <div className="text-[11px] font-normal leading-tight text-white/80">{marketCardName(item, language)}</div>
         <div className="mt-3 text-[11px] text-rose-300">{t(language, 'home.market.fetchFailed', '拉取失败')}</div>
       </div>
@@ -300,12 +275,11 @@ function MiniMarketCard({ item, marketColorMode, language }) {
   }
 
   const color = hasFiniteMarketValue(item?.changePercent) ? marketColor(item?.changePercent, marketColorMode) : '#8b949e';
-  const ticker = item?.displaySymbol || item?.symbol || item?.ticker || '--';
   const isBtc = isBtcMarketCard(item);
   const realtimeStatus = item?.realtimeStatus || (item?.realtime ? 'live' : '');
   const realtimeLabel = marketRealtimeLabel(realtimeStatus, language);
   return (
-    <div className={`rounded-xl border border-transparent bg-[#101114] ${isBtc ? 'p-2' : 'p-2.5'} min-h-[122px] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]`}>
+    <div className="home-report-quote">
       <div className={`flex min-w-0 items-start justify-between ${isBtc ? 'gap-1' : 'gap-1.5'}`}>
         <div className="min-w-0 truncate text-[11px] font-normal leading-tight text-white/80">{marketCardName(item, language)}</div>
         {isBtc && realtimeLabel && (
@@ -314,30 +288,17 @@ function MiniMarketCard({ item, marketColorMode, language }) {
           </span>
         )}
       </div>
-      <div className="mt-1 text-[12px] text-white/40">{ticker}</div>
-      <div className="mt-2 -ml-1 whitespace-nowrap text-[14px] font-normal leading-none tabular-nums" style={{ color, fontFamily: NUMBER_FONT }}>
+      <div className="home-report-quote-price" style={{ fontFamily: NUMBER_FONT }}>
         {fmtOptionalMoney(item?.price, 2)}
       </div>
-      <div className="mt-1 text-[11px] font-normal tabular-nums" style={{ color, fontFamily: NUMBER_FONT }}>
+      <div className="home-report-quote-change" style={{ color, fontFamily: NUMBER_FONT }}>
         {fmtOptionalMarketPct(item?.changePercent)}
       </div>
-      <Sparkline values={item?.intraday || []} color={color} />
+      <Sparkline values={item?.intraday || []} color={color} className="home-report-sparkline" />
     </div>
   );
 }
 
-function RadarVisual({ active }) {
-  return (
-    <div className="relative h-[62px] w-[62px] shrink-0 rounded-full border border-emerald-400/10 bg-emerald-400/[0.03]">
-      <div className="absolute inset-2 rounded-full border border-emerald-400/10" />
-      <div className="absolute inset-[13px] rounded-full border border-emerald-400/10" />
-      <div className="absolute inset-[19px] rounded-full border border-emerald-400/10" />
-      <div className="radar-sweep absolute inset-2 rounded-full" />
-      <span className="absolute left-1/2 top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.9)]" />
-      <span className={`absolute right-2.5 top-2.5 h-3 w-3 rounded-full ${active ? 'bg-emerald-400' : 'bg-amber-400'} shadow-[0_0_12px_rgba(52,211,153,0.75)]`} />
-    </div>
-  );
-}
 
 function fgiLevel(value, language = 'zh') {
   const v = num(value);
@@ -348,96 +309,6 @@ function fgiLevel(value, language = 'zh') {
   return { label: t(language, 'home.fgi.extremeGreed', '极度贪婪'), color: '#16a34a', desc: t(language, 'home.fgi.extremeGreedDesc', '高风险区, 减仓为主') };
 }
 
-function fgiValueToAngle(value) {
-  return 180 - (Math.max(0, Math.min(100, num(value))) / 100) * 180;
-}
-
-function fgiPolarPoint(cx, cy, radiusX, radiusY, angle) {
-  const radians = (angle * Math.PI) / 180;
-  return {
-    x: cx + radiusX * Math.cos(radians),
-    y: cy - radiusY * Math.sin(radians),
-  };
-}
-
-function describeFgiArc(cx, cy, radiusX, radiusY, startValue, endValue) {
-  const startAngle = fgiValueToAngle(startValue);
-  const endAngle = fgiValueToAngle(endValue);
-  const start = fgiPolarPoint(cx, cy, radiusX, radiusY, startAngle);
-  const end = fgiPolarPoint(cx, cy, radiusX, radiusY, endAngle);
-  const largeArcFlag = Math.abs(startAngle - endAngle) > 180 ? 1 : 0;
-  return `M ${start.x.toFixed(2)} ${start.y.toFixed(2)} A ${radiusX} ${radiusY} 0 ${largeArcFlag} 1 ${end.x.toFixed(2)} ${end.y.toFixed(2)}`;
-}
-
-function FgiGauge({ value, language }) {
-  const v = Math.max(0, Math.min(100, num(value)));
-  const cx = 80;
-  const cy = 57;
-  const radiusX = 54;
-  const radiusY = 36;
-  const angle = fgiValueToAngle(v);
-  const level = fgiLevel(v, language);
-  const pointer = fgiPolarPoint(cx, cy, 42, 28, angle);
-  const arcPath = describeFgiArc(cx, cy, radiusX, radiusY, 0, 100);
-  const separators = [20, 50, 80].map((tick) => ({
-    inner: fgiPolarPoint(cx, cy, radiusX - 6, radiusY - 4, fgiValueToAngle(tick)),
-    outer: fgiPolarPoint(cx, cy, radiusX + 1, radiusY + 1, fgiValueToAngle(tick)),
-  }));
-  const labelStyle = {
-    fontFamily: NUMBER_FONT,
-    textShadow: '0 1px 2px #0b0f14, 0 0 4px #0b0f14',
-  };
-  return (
-    <div className="relative h-[54px] w-full" aria-label={t(language, 'home.fgiAria', 'CNN 恐慌贪婪指数 {{value}} {{level}}', { value: Math.round(v), level: level.label })}>
-      <svg viewBox="0 0 160 72" className="absolute inset-x-0 top-0 h-[54px] w-full overflow-visible" aria-hidden="true">
-        <defs>
-          <linearGradient id="fgiArcGradient" x1="26" y1="57" x2="134" y2="57" gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stopColor="#f43f5e" />
-            <stop offset="33%" stopColor="#fb923c" />
-            <stop offset="53%" stopColor="#facc15" />
-            <stop offset="72%" stopColor="#a3e635" />
-            <stop offset="100%" stopColor="#22c55e" />
-          </linearGradient>
-          <linearGradient id="fgiPointerGradient" x1={cx} y1={cy} x2={pointer.x} y2={pointer.y} gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stopColor={level.color} stopOpacity="0.55" />
-            <stop offset="100%" stopColor="#f8fafc" stopOpacity="0.95" />
-          </linearGradient>
-          <filter id="fgiGaugeGlow" x="-30%" y="-40%" width="160%" height="170%">
-            <feGaussianBlur stdDeviation="2.4" result="blur" />
-            <feMerge>
-              <feMergeNode in="blur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-          <filter id="fgiPointGlow" x="-120%" y="-120%" width="340%" height="340%">
-            <feGaussianBlur stdDeviation="2.8" result="blur" />
-            <feMerge>
-              <feMergeNode in="blur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-        </defs>
-        <path d={arcPath} fill="none" stroke="url(#fgiArcGradient)" strokeWidth="7.5" strokeLinecap="round" opacity="0.24" filter="url(#fgiGaugeGlow)" />
-        <path d={arcPath} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="8" strokeLinecap="round" />
-        <path d={arcPath} fill="none" stroke="url(#fgiArcGradient)" strokeWidth="6" strokeLinecap="round" filter="url(#fgiGaugeGlow)" />
-        {separators.map((tick, index) => (
-          <line key={index} x1={tick.inner.x} y1={tick.inner.y} x2={tick.outer.x} y2={tick.outer.y} stroke="#0b0f14" strokeWidth="1.2" strokeLinecap="round" opacity="0.8" />
-        ))}
-        <line x1={cx} y1={cy} x2={pointer.x} y2={pointer.y} stroke="url(#fgiPointerGradient)" strokeWidth="1.7" strokeLinecap="round" filter="url(#fgiGaugeGlow)" />
-        <circle cx={cx} cy={cy} r="11" fill="none" stroke={level.color} strokeOpacity="0.08" />
-        <circle cx={cx} cy={cy} r="7.5" fill="none" stroke={level.color} strokeOpacity="0.14" />
-        <circle cx={cx} cy={cy} r="5" fill={level.color} fillOpacity="0.22" filter="url(#fgiPointGlow)" />
-        <circle cx={cx} cy={cy} r="3.2" fill="#f8fafc" />
-        <circle cx={pointer.x} cy={pointer.y} r="6.2" fill={level.color} fillOpacity="0.26" filter="url(#fgiPointGlow)" />
-        <circle cx={pointer.x} cy={pointer.y} r="4" fill={level.color} stroke="#f8fafc" strokeWidth="1.4" />
-        <text x="80" y="53" textAnchor="middle" fill={level.color} fontSize="14" fontWeight="600" style={{ fontFamily: NUMBER_FONT }}>{Math.round(v)}</text>
-      </svg>
-      <span className="pointer-events-none absolute bottom-[3px] -translate-x-1/2 text-[10px] font-medium leading-none text-[#8f98a6]" style={{ ...labelStyle, left: '21%' }}>0</span>
-      <span className="pointer-events-none absolute left-1/2 top-[4px] -translate-x-1/2 text-[10px] font-medium leading-none text-[#8f98a6]" style={labelStyle}>50</span>
-      <span className="pointer-events-none absolute bottom-[3px] -translate-x-1/2 text-[10px] font-medium leading-none text-[#8f98a6]" style={{ ...labelStyle, left: '81.5%' }}>100</span>
-    </div>
-  );
-}
 
 export default function HomeTab({ ctx }) {
   const {
@@ -447,7 +318,6 @@ export default function HomeTab({ ctx }) {
     benchmarkDrawdown,
     benchmarkMenuOpen,
     benchmarkOptions,
-    benchmarkStatus,
     benchmarkStock,
     benchmarkSymbol,
     btcMarketCard,
@@ -461,16 +331,10 @@ export default function HomeTab({ ctx }) {
     earningsCalendarEvents,
     earningsCalendarNow,
     earningsCalendarRequest,
-    fetchRealtimePrices,
-    fetching,
     fetchPopularStockQuotes,
     fetchMarketMovers,
     fgi,
     fgiDataDate,
-    fgiMonth,
-    fgiPrev,
-    fgiWeek,
-    fgiYear,
     fmtPct,
     homeWatchlist,
     indices,
@@ -508,7 +372,6 @@ export default function HomeTab({ ctx }) {
     supabase,
     vix,
     vixDataDate,
-    vixSignal,
     watchlist,
   } = ctx;
 
@@ -523,7 +386,6 @@ export default function HomeTab({ ctx }) {
   const [marketMoversStatus, setMarketMoversStatus] = React.useState('idle');
   const marketMoversRequestIdRef = React.useRef(0);
   const marketMoversLoadedAtRef = React.useRef(0);
-  const [promoteEarningsCalendar, setPromoteEarningsCalendar] = React.useState(false);
   const [showAvailableCashEditor, setShowAvailableCashEditor] = React.useState(false);
   const [showEditWatchlist, setShowEditWatchlist] = React.useState(false);
   const [editWatchlistSearch, setEditWatchlistSearch] = React.useState('');
@@ -594,10 +456,8 @@ export default function HomeTab({ ctx }) {
     };
     return [...indexCards, btcCard];
   }, [resolvedIndexCards, resolvedBtcCard, btcRealtimeStatus, btcRealtimeLastTick]);
-  const signalIsCalm = num(benchmarkDrawdown) > -0.05;
   const isCnyMode = currencyMode === 'CNY';
   const displayCurrency = isCnyMode ? 'CNY' : 'USD';
-  const displayCurrencyLabel = isCnyMode ? 'CNY' : 'USD';
   const displayRate = isCnyMode ? summary.usdRate : 1;
   const displayAssets = isCnyMode ? summary.totalAssetsCny : summary.totalAssetsUsd;
   const availableCashIsSet = Boolean(availableCashStatus?.isSet);
@@ -620,7 +480,7 @@ export default function HomeTab({ ctx }) {
   const hasTodayPnl = summary.hasTodayPnl !== false;
   const displayTodayPnl = hasTodayPnl ? summary.todayPnl * displayRate : null;
   const displayCumulativePnl = summary.cumulativePnl * displayRate;
-  const pnlAmountClass = 'text-[13px]';
+  const pnlAmountClass = 'home-report-pnl-amount';
 
   React.useEffect(() => {
     try {
@@ -710,19 +570,6 @@ export default function HomeTab({ ctx }) {
   );
   const isAddingStock = Boolean(addingStockSymbol);
   const activeTableSort = tableSorts[tableTab] || { key: null, direction: 'desc' };
-  const showPnlColumn = tableTab === 'positions';
-  const metricMinWidth = showPnlColumn ? 470 : 322;
-  const homeTableGridTemplate = showPnlColumn
-    ? '92px 68px 74px 92px 88px 148px'
-    : '92px 68px 74px 92px 88px';
-  const homeTableMinWidth = 92 + metricMinWidth;
-  const metricColumns = React.useMemo(() => [
-    { key: 'price', label: t(language, 'home.price', '价格') },
-    { key: 'change', label: t(language, 'home.change', '涨跌幅') },
-    { key: 'drawdown', label: t(language, 'home.drawdown52w', '52周跌幅') },
-    { key: 'ytd', label: t(language, 'home.ytd', '年初至今') },
-    ...(showPnlColumn ? [{ key: 'pnl', label: t(language, 'home.holdingPnl', '持仓盈亏') }] : []),
-  ], [language, showPnlColumn]);
   const handleTableSort = (key) => {
     setTableSorts((current) => {
       const previous = current[tableTab] || { key: null, direction: 'desc' };
@@ -964,192 +811,120 @@ export default function HomeTab({ ctx }) {
   };
 
   return (
-    <div className="mx-auto max-w-[430px] overflow-x-hidden flex flex-col pb-2 text-white" style={{ fontFamily: HOME_FONT }}>
-      <style>{`
-        @keyframes radarSpin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-        .radar-sweep {
-          background: conic-gradient(from 0deg, rgba(34,197,94,0.42), rgba(34,197,94,0.06) 52deg, transparent 96deg);
-          animation: radarSpin 4.8s linear infinite;
-          opacity: 0.9;
-        }
-      `}</style>
-
-      <section className="overflow-hidden rounded-2xl border border-transparent bg-[#0b0c0e] p-4 shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06),inset_1px_0_0_rgba(255,255,255,0.03),inset_-1px_0_0_rgba(255,255,255,0.03),inset_0_-1px_0_rgba(255,255,255,0.01)]" data-home-net-assets-card="true">
-        <div className="flex items-center justify-between gap-3">
-          <div className="min-w-0 text-[14px] font-normal text-white/70">{t(language, 'home.netAssets', '净资产')} ({displayCurrencyLabel}) <span className="ml-1 text-white/50">◎</span></div>
-          <div className="ml-auto flex justify-end">
-            <div className="flex rounded-full border border-white/10 bg-black/20 p-0.5">
-              {['USD', 'CNY'].map((mode) => (
-                <button
-                  key={mode}
-                  type="button"
-                  onClick={() => setCurrencyMode(mode)}
-                  className={`h-7 rounded-full px-2.5 text-[11px] font-normal active:scale-95 ${currencyMode === mode ? 'bg-[#f6b54b] text-[#101318]' : 'text-white/45'}`}
-                >
-                  {mode}
-                </button>
-              ))}
-            </div>
-            <button
-              type="button"
-              onClick={fetchRealtimePrices}
-              disabled={fetching}
-              className="hidden"
-              aria-hidden="true"
-              tabIndex={-1}
-            >
-              <RefreshCw className={`h-3.5 w-3.5 ${fetching ? 'animate-spin' : ''}`} />
-            </button>
+    <div className="home-report mx-auto max-w-[430px] flex flex-col pb-2 text-white" style={{ fontFamily: HOME_FONT }}>
+      <section className="home-report-hero" data-home-net-assets-card="true">
+        <div className="home-report-hero-header">
+          <span className="home-report-label">{t(language, 'home.netAssets', '净资产')}</span>
+          <div className="home-report-currency" aria-label={englishMode ? 'Display currency' : '显示币种'}>
+            {['USD', 'CNY'].map((mode) => (
+              <button key={mode} type="button" aria-pressed={currencyMode === mode} onClick={() => setCurrencyMode(mode)}>
+                {mode}
+              </button>
+            ))}
           </div>
         </div>
-
-        <div className="mt-3 overflow-hidden text-ellipsis whitespace-nowrap font-normal leading-none tracking-normal text-white/[0.95] tabular-nums" style={{ fontFamily: NUMBER_FONT, fontSize: 'clamp(28px, 8.7vw, 34px)' }} data-home-net-assets="true">
+        <div className="home-report-net-amount text-white/[0.95] tabular-nums" style={{ fontFamily: NUMBER_FONT }} data-home-net-assets="true">
           {assetStatusReady ? (
-            <>
-              <span>{displayAssetMoney.main}</span>
-              <span className="ml-0.5 align-baseline text-[20px] font-normal leading-none text-white/[0.95]">{displayAssetMoney.decimal}</span>
-            </>
-          ) : (
-            <span className="text-white/30">--</span>
-          )}
+            <><span>{displayAssetMoney.main}</span><span className="home-report-decimal">{displayAssetMoney.decimal}</span></>
+          ) : <span className="text-white/30">--</span>}
         </div>
-        <div className="mt-3 grid min-w-0 grid-cols-[1fr_1.12fr_0.96fr] items-center text-white/[0.42]" data-home-total-assets="true">
-          <div className="col-span-2 flex min-w-0 items-center gap-1 pr-3">
-            <span className="shrink-0 text-[13px]">{t(language, 'home.totalAssets', '总资产')}</span>
-            <span className="truncate text-[12px] text-white/[0.72] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
-              {assetStatusReady ? fmtCurrency(displayAssets, displayCurrency, 2) : '--'}
-            </span>
-          </div>
-          <div className="col-start-3 flex min-w-0 justify-end">
-            <button
-              type="button"
-              disabled={!availableCashWriteReady}
-              onClick={() => setShowAvailableCashEditor(true)}
-              className="flex w-max min-w-full max-w-none shrink-0 items-center gap-1 overflow-visible pl-3 text-left transition active:scale-[0.99] disabled:cursor-wait disabled:opacity-45"
-              aria-label={t(language, 'home.availableCashBalance', '设置可用现金')}
-              data-home-available-cash-trigger="true"
-            >
-              <span className="shrink-0 whitespace-nowrap text-[13px]">{t(language, 'home.cash', '现金')}</span>
-              <span className="shrink-0 whitespace-nowrap text-[12px] text-white/[0.72] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
-                {availableCashStatusReady
-                  ? fmtCurrency(displayAvailableCash, displayCurrency, availableCashIsSet ? 2 : 0)
-                  : '--'}
-              </span>
-            </button>
-          </div>
-        </div>
-        <div
-          className="mt-4 grid grid-cols-[1fr_1.12fr_0.96fr] border-t border-white/[0.07] pt-4"
-        >
-          <button
-            type="button"
-            onClick={openPnlShare}
-            className="block min-w-0 pr-3 text-left transition active:scale-[0.99]"
-            aria-label={t(language, 'home.openPnlShare', '分享今日盈亏')}
-            data-home-pnl-share-trigger="true"
-          >
-            <div className="text-[13px] text-white/50">{t(language, 'home.todayPnl', '今日盈亏')}</div>
-            <div className={`mt-2 whitespace-nowrap ${pnlAmountClass} font-normal leading-tight tabular-nums ${pnlColor(hasTodayPnl ? summary.todayPnl : 0, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
+
+        <div className="home-report-pnl-grid">
+          <button type="button" onClick={openPnlShare} aria-label={t(language, 'home.openPnlShare', '分享今日盈亏')} data-home-pnl-share-trigger="true">
+            <span className="home-report-label">{t(language, 'home.todayPnl', '今日盈亏')}</span>
+            <span className={`${pnlAmountClass} ${pnlColor(hasTodayPnl ? summary.todayPnl : 0, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
               {hasTodayPnl ? fmtSignedCurrency(displayTodayPnl, displayCurrency, 2) : '--'}
-            </div>
-            <div className={`mt-1 flex min-w-0 flex-wrap items-center gap-x-1 text-[12px] font-normal tabular-nums ${pnlColor(hasTodayPnl ? summary.todayPnl : 0, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
-              <span>{hasTodayPnl ? fmtSignedPct(summary.todayPnlPct, 2) : '--'}</span>
-              {hasTodayPnl && summary.todayPnlLocked && (
-                <span className="text-[11px] text-[#6f7785]">{t(language, 'home.pnlLocked', '收盘锁定')}</span>
-              )}
-            </div>
+            </span>
+            <span className={`home-report-pnl-percent ${pnlColor(hasTodayPnl ? summary.todayPnl : 0, marketColorMode)}`}>
+              {hasTodayPnl ? fmtSignedPct(summary.todayPnlPct, 2) : '--'}
+              {hasTodayPnl && summary.todayPnlLocked && <small>{t(language, 'home.pnlLocked', '收盘锁定')}</small>}
+            </span>
           </button>
-          <button type="button" onClick={openPnlReport} className="block min-w-0 px-3 text-left transition active:scale-[0.99]">
-            <div className="flex items-center gap-0.5 text-[13px] text-white/50">
-              <span>{t(language, 'home.totalPnl', '累计盈亏')}</span>
-              <ChevronRight className="h-3 w-3 text-white/[0.28]" />
-            </div>
-            <div className={`mt-2 whitespace-nowrap ${pnlAmountClass} font-normal leading-tight tabular-nums ${pnlColor(summary.cumulativePnl, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
+          <button type="button" onClick={openPnlReport}>
+            <span className="home-report-label">{t(language, 'home.totalPnl', '累计盈亏')}<ChevronRight size={12} /></span>
+            <span className={`${pnlAmountClass} ${pnlColor(summary.cumulativePnl, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
               {fmtSignedCurrency(displayCumulativePnl, displayCurrency, 2)}
-            </div>
-            <div className={`mt-1 text-[12px] font-normal tabular-nums ${pnlColor(summary.cumulativePnl, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
-              {fmtSignedPct(summary.cumulativePnlPct, 2)}
-            </div>
+            </span>
+            <span className={`home-report-pnl-percent ${pnlColor(summary.cumulativePnl, marketColorMode)}`}>{fmtSignedPct(summary.cumulativePnlPct, 2)}</span>
           </button>
-          <button
-            type="button"
-            disabled={!assetStatusReady}
-            onClick={openHomeMarginRisk}
-            className="block min-w-0 pl-3 text-left transition active:scale-[0.99] disabled:cursor-wait disabled:opacity-45"
-            data-home-margin-trigger="true"
-          >
-            <div className="flex items-center gap-0.5 text-[13px] text-white/50">
-              <span>{t(language, 'home.marginDebt', '融资负债')}</span>
-              <ChevronRight className="h-3 w-3 text-white/[0.28]" />
-            </div>
-            <div className={`mt-2 truncate ${englishMode ? 'text-[11px]' : 'text-[12px]'} font-normal leading-tight text-white/90 tabular-nums`} style={{ fontFamily: NUMBER_FONT }}>
-              {marginStatusReady ? fmtCurrency(displayMarginDebt, displayCurrency, 2) : '--'}
-            </div>
-            <div className={`mt-1 min-w-0 ${englishMode ? 'flex flex-col items-start gap-1' : 'flex items-center gap-[3px]'}`}>
-              <span className="shrink-0 whitespace-nowrap text-[12px] text-white/[0.42] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
-                {t(language, 'home.leverage', '杠杆')} {assetStatusReady ? fmtLeverage(marginOverview.leverage) : '—'}
+        </div>
+
+        <div className="home-report-balances" data-home-total-assets="true">
+          <div className="home-report-balance">
+            <span className="home-report-label">{t(language, 'home.totalAssets', '总资产')}</span>
+            <span className="home-report-balance-value" style={{ fontFamily: NUMBER_FONT }}>{assetStatusReady ? fmtCurrency(displayAssets, displayCurrency, 2) : '--'}</span>
+          </div>
+          <button type="button" disabled={!availableCashWriteReady} onClick={() => setShowAvailableCashEditor(true)}
+            className="home-report-balance" aria-label={t(language, 'home.availableCashBalance', '设置可用现金')} data-home-available-cash-trigger="true">
+            <span className="home-report-label">{t(language, 'home.cash', '现金')}<ChevronRight size={12} /></span>
+            <span className="home-report-balance-value" style={{ fontFamily: NUMBER_FONT }}>
+              {availableCashStatusReady ? fmtCurrency(displayAvailableCash, displayCurrency, availableCashIsSet ? 2 : 0) : '--'}
+            </span>
+          </button>
+          <button type="button" disabled={!assetStatusReady} onClick={openHomeMarginRisk}
+            className="home-report-financing" data-home-margin-trigger="true">
+            <span className="home-report-balance">
+              <span className="home-report-label">{t(language, 'home.marginDebt', '融资负债')}<ChevronRight size={12} /></span>
+              <span className="home-report-balance-value" style={{ fontFamily: NUMBER_FONT }}>{marginStatusReady ? fmtCurrency(displayMarginDebt, displayCurrency, 2) : '--'}</span>
+            </span>
+            <span className="home-report-balance">
+              <span className="home-report-label">{t(language, 'home.leverage', '杠杆')}</span>
+              <span className="home-report-leverage">
+                <span className="home-report-balance-value">{assetStatusReady ? fmtLeverage(marginOverview.leverage) : '—'}</span>
+                {assetStatusReady && marginLeverageStatus && <AccountLeverageBadge className="h-[17px] px-1 text-[10px]" language={language} tierId={marginLeverageStatus.id} />}
               </span>
-              {assetStatusReady && marginLeverageStatus && (
-                <AccountLeverageBadge className="h-[17px] px-1 text-[10px]" language={language} tierId={marginLeverageStatus.id} />
-              )}
-            </div>
+            </span>
           </button>
         </div>
       </section>
 
-      <section className="mt-3 rounded-2xl border border-transparent bg-[#0b0c0e] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-        <div className="mb-2 flex items-center justify-between">
-          <div className="text-[13px] font-semibold text-white/70">{t(language, 'home.currentSignal', '当前信号')}</div>
-          <button
-            type="button"
-            data-home-signal-trigger
-            onClick={() => setBenchmarkMenuOpen(true)}
-            className="relative rounded-full px-1.5 py-0.5 text-[11px] font-bold text-white/50 active:scale-95"
-          >
-            {t(language, 'home.switchBenchmark', '切换基准')}
-          </button>
-        </div>
-        <div className="grid grid-cols-[62px_minmax(0,1fr)_70px] items-center gap-3">
-          <RadarVisual active={signalIsCalm} />
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center">
-              <div className="truncate text-base font-normal text-white/80">{cleanSignalText(benchmarkStatus?.text, language)}</div>
-            </div>
-            <div className="mt-1.5 text-[12px] text-white/50">{englishMode ? t(language, 'home.pullbackStayCash', '回撤<5%, 空仓等待') : (benchmarkStatus?.desc || '回撤<5%, 空仓等待')}</div>
-            <div className="mt-2.5 truncate text-[12px] text-white/40">{t(language, 'home.waitHigherProbability', '耐心等待更高胜率机会')}</div>
+      <section className="home-report-market" data-home-market-overview="true">
+        <div className="home-report-section-heading"><h2>{englishMode ? 'Market overview' : '市场观察'}</h2></div>
+        {marketCards.length > 0 && <div className="home-report-quotes">
+          {marketCards.map((item) => <MiniMarketCard key={item?.ticker || item?.displaySymbol || item?.name} item={item} marketColorMode={marketColorMode} language={language} />)}
+        </div>}
+
+        <div className="home-report-market-position">
+          <div className="home-report-position-header">
+            <span className="home-report-label">{englishMode ? 'Distance from 52-week high' : '距 52 周高点'}</span>
+            <button type="button" data-home-signal-trigger onClick={() => setBenchmarkMenuOpen(true)} className="home-report-benchmark"
+              aria-label={t(language, 'home.switchBenchmark', '切换基准')}>
+              {benchmarkStock?.symbol || benchmarkSymbol || 'QQQ'}
+              <span>{t(language, 'home.switchBenchmark', '切换基准')}</span><ChevronRight size={12} />
+            </button>
           </div>
-          <button
-            type="button"
-            data-home-drawdown-trigger
-            aria-label={englishMode ? 'Open drawdown observation' : '打开回撤观察'}
-            onClick={() => openDrawdownObservation?.()}
-            className="relative w-full text-right active:scale-[0.98]"
-          >
-            <span
-              className={`block text-[19px] font-normal leading-none tabular-nums ${pnlColor(benchmarkDrawdown, marketColorMode)}`}
-              style={{ fontFamily: NUMBER_FONT }}
-            >
-              {fmtPct ? fmtPct(benchmarkDrawdown) : fmtSignedPct(benchmarkDrawdown, 1)}
+          <button type="button" data-home-drawdown-trigger onClick={() => openDrawdownObservation?.()}
+            aria-label={englishMode ? 'Open drawdown observation' : '打开回撤观察'} className="home-report-drawdown">
+            <span className={`home-report-drawdown-value ${pnlColor(benchmarkDrawdown, marketColorMode)}`}>
+              {hasFiniteMarketValue(benchmarkDrawdown) ? (fmtPct ? fmtPct(benchmarkDrawdown) : fmtSignedPct(benchmarkDrawdown, 1)) : '--'}
             </span>
-            <span className="mt-1.5 block text-[11px] text-white/50">{benchmarkStock?.symbol || benchmarkSymbol || 'QQQ'} {t(language, 'home.pullback', '回撤')}</span>
+            <span className="home-report-drawdown-context">
+              <span>{englishMode ? 'Drawdown observation' : '回撤观察'}<ChevronRight size={13} /></span>
+              {benchmarkStock && <small>
+                ${fmtOptionalMoney(benchmarkStock.price, 2)} / {t(language, 'home.week52High', '52周高')} ${fmtOptionalMoney(benchmarkStock.high, 2)}
+              </small>}
+            </span>
           </button>
         </div>
-        {benchmarkStock && (
-          <button
-            type="button"
-            data-home-drawdown-trigger
-            aria-label={englishMode ? 'Open drawdown observation' : '打开回撤观察'}
-            onClick={() => openDrawdownObservation?.()}
-            className="mt-2.5 flex w-full justify-end whitespace-nowrap text-[11px] text-white/40 tabular-nums active:text-white/55"
-            style={{ fontFamily: NUMBER_FONT }}
-          >
-            ${fmtMoney(benchmarkStock.price, 2)} / {t(language, 'home.week52High', '52周高')} ${fmtMoney(benchmarkStock.high, 2)}
-            <ChevronRight className="ml-1 inline h-3.5 w-3.5 align-[-2px] text-white/25" />
+
+        <div className="home-report-sentiment">
+          <button type="button" onClick={() => openVixComparison?.()} aria-label={t(language, 'home.vix.compareAria', '查看 VIX 与 SPY、QQQ 走势对比')}>
+            <span className="home-report-label">{t(language, 'home.vix.title', 'VIX 恐慌指数')}<ChevronRight size={12} /></span>
+            <span className="home-report-sentiment-reading">{fmtOptionalMoney(vix, 1)}</span>
+            <span className="home-report-meter" aria-hidden="true">
+              {hasFiniteMarketValue(vix) && <i style={{ left: `${Math.max(0, Math.min(100, (Number(vix) / 50) * 100))}%` }} />}
+            </span>
+            <span className="home-report-sentiment-date">{vixDateLabel ? `${vixDateLabel} ${t(language, 'home.vix.close', '收盘')}` : '—'}</span>
           </button>
-        )}
+          <div>
+            <span className="home-report-label">{englishMode ? 'Fear & Greed' : '恐慌贪婪指数'}<small>CNN</small></span>
+            <span className="home-report-sentiment-reading">{hasFiniteMarketValue(fgi) ? Math.round(Number(fgi)) : '--'}<small>{hasFiniteMarketValue(fgi) ? fgiInfo.label : ''}</small></span>
+            <span className="home-report-meter" aria-hidden="true">
+              {hasFiniteMarketValue(fgi) && <i style={{ left: `${Math.max(0, Math.min(100, Number(fgi)))}%` }} />}
+            </span>
+            <span className="home-report-sentiment-date">{fgiDateLabel || '—'}</span>
+          </div>
+        </div>
       </section>
 
       {benchmarkMenuOpen && (
@@ -1264,178 +1039,27 @@ export default function HomeTab({ ctx }) {
         </div>
       )}
 
-      {marketCards.length > 0 && (
-      <section className="mt-3 grid grid-cols-4 gap-2">
-        {marketCards.map((item) => <MiniMarketCard key={item?.ticker || item?.displaySymbol || item?.name} item={item} marketColorMode={marketColorMode} language={language} />)}
-      </section>
-      )}
-
-      <section className="mt-3 grid grid-cols-2 gap-3">
-        <button
-          type="button"
-          onClick={() => openVixComparison?.()}
-          aria-label={t(language, 'home.vix.compareAria', '查看 VIX 与 SPY、QQQ 走势对比')}
-          className="rounded-2xl border border-transparent bg-[#0b0c0e] px-3.5 py-2.5 text-left transition-colors active:bg-white/[0.06] focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-400/70"
-        >
-          <div className={`flex items-center gap-1.5 ${englishMode ? 'text-[11px]' : 'text-[13px]'} font-normal text-white/60`}>
-            {t(language, 'home.vix.title', 'VIX 恐慌指数')}
-            {vixDateLabel && <span className="text-[11px] text-white/40">{vixDateLabel} {t(language, 'home.vix.close', '收盘')}</span>}
-          </div>
-          <div className="mt-2.5 flex items-center justify-between">
-            <span className="text-2xl font-normal text-emerald-400 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{fmtMoney(vix, 1)}</span>
-            <ChevronRight className="h-4 w-4 text-white/30" aria-hidden="true" />
-          </div>
-          <div className="mt-1.5 text-[12px] text-white/50">{englishMode ? t(language, 'home.vix.calmDesc', '市场平静, 无操作') : (vixSignal?.desc || '市场平静, 无操作')}</div>
-          <div className="mt-3 h-1.5 rounded-full bg-gradient-to-r from-emerald-400 via-amber-300 to-rose-500 shadow-[0_0_10px_rgba(52,211,153,0.18)]">
-            <div className="relative h-1.5">
-              <span
-                className="absolute top-1/2 h-3.5 w-3.5 -translate-y-1/2 rounded-full border-2 border-white bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.75)]"
-                style={{ left: `${Math.max(0, Math.min(100, (num(vix) / 50) * 100))}%`, transform: 'translate(-50%, -50%)' }}
-              />
-            </div>
-          </div>
-          <div className="mt-1.5 flex justify-between text-[11px] text-white/40"><span>0</span><span>20</span><span>30</span><span>50</span></div>
-        </button>
-
-        <div className="rounded-2xl border border-transparent bg-[#0b0c0e] px-3.5 py-2.5">
-          <div className={`flex items-center gap-1.5 ${englishMode ? 'text-[11px]' : 'text-[13px]'} font-normal text-white/60`}>
-            {t(language, 'home.fgi.title', 'CNN 恐慌贪婪指数')}
-            {fgiDateLabel && <span className="text-[11px] text-white/40">{fgiDateLabel}</span>}
-          </div>
-          <div className="mt-2.5 flex items-baseline gap-2">
-            <span className="text-2xl font-normal tabular-nums" style={{ color: fgiInfo.color, fontFamily: NUMBER_FONT }}>{Math.round(num(fgi))}</span>
-            <span className="text-sm font-normal" style={{ color: fgiInfo.color }}>{fgiInfo.label}</span>
-          </div>
-          <div className="mt-1.5 text-[12px] text-white/50">{fgiInfo.desc}</div>
-          <div className="mt-0">
-            <FgiGauge value={fgi} language={language} />
-          </div>
-        </div>
-      </section>
-
-      <section className="order-2 mt-3 overflow-hidden rounded-2xl border border-transparent bg-[#0b0c0e] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-        <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3">
-          <div className="flex items-center gap-5">
-            <button
-              type="button"
-              onClick={() => setTableTab('watchlist')}
-              className={`text-[14px] font-normal leading-none ${tableTab === 'watchlist' ? 'text-white/80' : 'text-white/40'}`}
-            >
-              {t(language, 'home.watchlist', '自选')}
-            </button>
-            <button
-              type="button"
-              onClick={() => setTableTab('positions')}
-              className={`text-[14px] font-normal leading-none ${tableTab === 'positions' ? 'text-white/80' : 'text-white/40'}`}
-            >
-              {t(language, 'home.holdings', '持仓')}
-            </button>
-          </div>
-          <span className="h-5 w-14" aria-hidden="true" />
-        </div>
-
-        {tableRows.length === 0 ? (
-          <div className="px-4 py-8 text-center text-[14px] text-white/40">
-            {tableTab === 'positions' ? t(language, 'home.noPositions', '暂无持仓记录, 先在交易页添加买入记录。') : t(language, 'home.noWatchlist', '暂无自选股票。')}
-          </div>
-        ) : (
-          <div className="overflow-x-auto px-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" data-home-market-table="single-grid">
-            <div style={{ minWidth: `${homeTableMinWidth}px` }}>
-              <div
-                className="grid pb-1.5 pt-2 text-[12px] font-medium leading-none"
-                style={{ gridTemplateColumns: homeTableGridTemplate }}
-              >
-                <div className="sticky left-0 z-20 bg-[#0b0c0e] text-white/40">{t(language, 'home.name', '名称')}</div>
-                {metricColumns.map((column) => (
-                  <SortHeader
-                    key={column.key}
-                    label={column.label}
-                    sortKey={column.key}
-                    sortState={activeTableSort}
-                    onSort={handleTableSort}
-                  />
-                ))}
-              </div>
-              <div className="divide-y divide-white/[0.06]">
-                {tableRows.map((item) => (
-                  <div
-                    key={item.symbol}
-                    className="grid min-h-[54px] w-full items-center py-2 text-left"
-                    style={{ gridTemplateColumns: homeTableGridTemplate }}
-                  >
-                    {isWatchlistTab ? (
-                      <button
-                        type="button"
-                        onClick={() => openWatchlistStockDetail?.(item.symbol)}
-                        className="sticky left-0 z-10 flex min-h-[38px] min-w-0 items-center gap-2 bg-[#0b0c0e] pr-2 text-left transition active:bg-white/[0.035]"
-                        aria-label={t(language, 'watchlistDetail.openAria', '打开 {{symbol}} 股票详情', { symbol: item.symbol })}
-                      >
-                        <StockLogo symbol={item.symbol} urls={item.logoUrls} onLogoLoad={cacheStockLogo} className="h-7 w-7 rounded-lg" />
-                        <span className="min-w-0">
-                          <span className="block truncate text-[13px] font-normal leading-[14px] text-white/70">{item.symbol}</span>
-                          <span className="block truncate text-[11px] leading-[13px] text-white/35">{item.displayName}</span>
-                        </span>
-                      </button>
-                    ) : (
-                      <div className="sticky left-0 z-10 flex min-h-[38px] min-w-0 items-center gap-2 bg-[#0b0c0e] pr-2">
-                        <StockLogo symbol={item.symbol} urls={item.logoUrls} onLogoLoad={cacheStockLogo} className="h-7 w-7 rounded-lg" />
-                        <span className="min-w-0">
-                          <span className="block truncate text-[13px] font-normal leading-[14px] text-white/70">{item.symbol}</span>
-                          <span className="block truncate text-[11px] leading-[13px] text-white/35">{item.displayName}</span>
-                        </span>
-                      </div>
-                    )}
-                    <span className="text-right text-[13px] tabular-nums text-white/80" style={{ fontFamily: NUMBER_FONT }}>{hasFiniteMarketValue(item.price) && Number(item.price) > 0 ? fmtMoney(item.price, 2) : '--'}</span>
-                    <span className="text-right text-[13px] font-medium tabular-nums" style={{ color: item.color, fontFamily: NUMBER_FONT }}>{fmtOptionalMarketPct(item.changePct)}</span>
-                    <span className={`text-right text-[13px] font-medium tabular-nums ${item.highDrawdown === null ? 'text-white/25' : pnlColor(item.highDrawdown, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
-                      {fmtDrawdownPct(item.highDrawdown)}
-                    </span>
-                    <span className="text-right text-[13px] font-medium tabular-nums" style={{ color: item.ytdColor, fontFamily: NUMBER_FONT }}>
-                      {fmtOptionalMarketPct(item.ytdChangePercent)}
-                    </span>
-                    {showPnlColumn && (
-                      <span className="overflow-hidden text-right tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
-                        {item.pnlValue === null ? (
-                          <span className="block whitespace-nowrap text-[13px] font-normal text-white/25">--</span>
-                        ) : (
-                          <>
-                            <span className={`block overflow-hidden text-ellipsis whitespace-nowrap text-[13px] font-normal leading-[15px] ${pnlColor(item.pnlValue, marketColorMode)}`}>{fmtSignedCurrency(item.pnlDisplayValue, displayCurrency, 2)}</span>
-                            <span className={`mt-1 block overflow-hidden text-ellipsis whitespace-nowrap text-[11px] font-normal leading-[13px] ${pnlColor(item.pnlPct, marketColorMode)}`}>{fmtSignedPct(item.pnlPct, 2)}</span>
-                          </>
-                        )}
-                      </span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-      </section>
-
-      {isWatchlistTab && (
-        <div className="order-2 mt-3 grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            onClick={() => setShowAddStock(true)}
-            className="flex h-12 min-w-0 items-center justify-center gap-1.5 rounded-2xl bg-white/[0.045] px-2 text-[13px] font-normal text-white/[0.82] active:scale-[0.99]"
-          >
-            <Plus className="h-4 w-4 shrink-0" />
-            <span className="truncate">{t(language, 'home.addWatchlistStock', '添加自选股票')}</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowEditWatchlist(true)}
-            className="flex h-12 min-w-0 items-center justify-center gap-1.5 rounded-2xl bg-white/[0.045] px-2 text-[13px] font-normal text-white/[0.82] active:scale-[0.99]"
-          >
-            <Pencil className="h-4 w-4 shrink-0" />
-            <span className="truncate">{t(language, 'home.editWatchlistStock', '编辑自选股票')}</span>
-          </button>
-        </div>
-      )}
+      <HomeWatchlistReport
+        language={language}
+        tableTab={tableTab}
+        onTabChange={setTableTab}
+        rows={tableRows}
+        sortState={activeTableSort}
+        onSort={handleTableSort}
+        onAdd={() => setShowAddStock(true)}
+        onEdit={() => setShowEditWatchlist(true)}
+        onOpenStock={openWatchlistStockDetail}
+        renderLogo={(item) => <StockLogo symbol={item.symbol} urls={item.logoUrls} onLogoLoad={cacheStockLogo} className="h-8 w-8 rounded-lg" />}
+        formatPrice={(value) => hasFiniteMarketValue(value) && Number(value) > 0 ? fmtMoney(value, 2) : '--'}
+        formatChange={fmtOptionalMarketPct}
+        formatDrawdown={fmtDrawdownPct}
+        formatPnl={(value) => fmtSignedCurrency(value, displayCurrency, 2)}
+        formatPnlPct={(value) => fmtSignedPct(value, 2)}
+        marketColor={(value) => marketColor(value, marketColorMode)}
+      />
 
       <EarningsCalendar
+        visualVariant="report"
         watchlist={displayWatchlist}
         positions={positions}
         quoteRows={quoteRows}
@@ -1451,8 +1075,6 @@ export default function HomeTab({ ctx }) {
         now={earningsCalendarNow || Date.now}
         onOpenCalendar={openEarningsCalendar}
         onOpenDetail={(event) => openEarningsDetail(event, { returnPage: 'home' })}
-        onPromotionChange={setPromoteEarningsCalendar}
-        placementClassName={promoteEarningsCalendar ? 'order-1' : 'order-3'}
       />
 
       {showAddStock && isWatchlistTab && (

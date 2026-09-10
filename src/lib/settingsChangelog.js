@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '🏠 首页与交易页统一简约报告视觉',
+      '  - 统一资产头部的尺寸、字号与间距，压缩交易功能区域，让首屏更快看到持仓',
+      '  - 保留持仓左右滑动表格与固定名称列，精简分隔线和重复币种文字',
+      '  - 自选列表与横排财报日历同步新版风格，沿用真实数据、现有操作与收益口径',
+    ],
+    itemsEn: [
+      '🏠 A unified, minimal report style for Home and Trades',
+      '  - Consistent asset-header sizing, typography and spacing, with compact tools that bring positions into the first screen',
+      '  - Keeps horizontally scrolling positions and pinned names while simplifying dividers and redundant currency labels',
+      '  - Updated watchlist and horizontal earnings calendar retain real data, existing actions and return calculations',
+    ],
+  },
+  {
+    ver: 'v10.7.9.503', date: '2026-09-10',
+    items: [
       '📈 股票趋势升级为简约观察报告',
       '  - 放大并加宽走势图，浮层名称与数值同排显示；选中历史点后可点击外部或回到最新退出',
       '  - 均线、重测、估值、财报与个人计划统一黑灰风格，详细指标可按需展开',

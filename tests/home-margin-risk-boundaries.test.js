@@ -10,7 +10,9 @@ const appSource = source('../src/App.jsx');
 const devPreviewSource = source('../src/DevVisualPreview.jsx');
 const dbSource = source('../src/lib/db.js');
 const homeTabSource = source('../src/tabs/HomeTab.jsx');
+const homeCss = source('../src/tabs/HomeTab.css');
 const tradesTabSource = source('../src/tabs/TradesTab.jsx');
+const tradesCss = source('../src/tabs/TradesTab.css');
 const marginPageSource = source('../src/pages/HomeMarginRiskPage.jsx');
 const accountLeverageBadgeSource = source('../src/components/AccountLeverageBadge.jsx');
 const i18nSource = source('../src/lib/i18n.js');
@@ -35,7 +37,7 @@ function countTranslationKey(key) {
   return (i18nSource.match(new RegExp(`['"]${escaped}['"]\\s*:`, 'g')) || []).length;
 }
 
-test('Home financing UI exposes a stable standalone page without replacing the card shell', () => {
+test('Home financing UI exposes a stable standalone page from the report header', () => {
   const combined = `${homeTabSource}\n${marginPageSource}`;
   for (const marker of [
     'data-home-net-assets-card="true"',
@@ -58,11 +60,13 @@ test('Home financing UI exposes a stable standalone page without replacing the c
   assert.ok(cardBlock.includes("t(language, 'home.totalAssets'"));
   assert.ok(cardBlock.includes("t(language, 'home.marginDebt'"));
   assert.ok(cardBlock.includes("t(language, 'home.leverage'"));
-  assert.ok(cardBlock.includes('shrink-0 whitespace-nowrap text-[12px]'), 'Home must keep the enlarged readable leverage text size');
+  assert.ok(cardBlock.includes('className="home-report-leverage"'), 'Home must keep leverage grouped with its account badge');
+  assert.match(homeCss, /\.home-report-balance-value\s*\{[^}]*font-size:\s*14px;/, 'leverage should share the readable balance amount size');
   assert.ok(cardBlock.includes('<AccountLeverageBadge'));
   assert.equal(cardBlock.includes('data-home-margin-leverage-info-trigger'), false, 'Home should not expose the leverage guide');
   assert.equal(cardBlock.includes("t(language, 'home.positions'"), false, 'only the Home header third metric should stop showing position count');
-  assert.ok(homeTabSource.includes('rounded-2xl border border-transparent bg-[#0b0c0e] p-4'), 'the Home header must keep its neutral-black surface and geometry while hiding the outer outline');
+  assert.ok(homeTabSource.includes('<section className="home-report-hero"'), 'the Home header should use its continuous report section');
+  assert.match(homeCss, /\.home-report-financing\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/, 'debt and leverage should share two aligned columns');
 });
 
 test('Home margin risk uses a standalone page while keeping the bottom navigation', () => {
@@ -334,7 +338,8 @@ test('live financing state stays out of calculators and report UI while P&L only
   assert.ok(tradesTabSource.includes("tt('trades.totalAssets', '总资产')"));
   assert.ok(tradesTabSource.includes("tt('home.marginDebt', '融资负债')"));
   assert.ok(tradesTabSource.includes("tt('home.leverage', '杠杆')"));
-  assert.ok(tradesTabSource.includes('shrink-0 whitespace-nowrap text-[12px]'), 'Trades must mirror the readable Home leverage text size');
+  assert.ok(tradesTabSource.includes('className="trades-report-leverage"'), 'Trades should keep leverage grouped with its account badge');
+  assert.match(tradesCss, /\.trades-report-balance-value\s*\{[^}]*font-size:\s*14px;/, 'Trades leverage should share the readable report balance typography');
   for (const forbiddenWrite of ['saveMarginDebt', 'setMarginStatus', 'upsertMarginStatus', 'margin_status']) {
     assert.equal(tradesTabSource.includes(forbiddenWrite), false, `Trades must not write through ${forbiddenWrite}`);
   }

@@ -1,0 +1,65 @@
+.home-report { color: #e4e4e7; --home-report-line: rgb(255 255 255 / .075); }
+.home-report button { -webkit-tap-highlight-color: transparent; }
+.home-report button:focus-visible { outline: 1px solid #96969e; outline-offset: 3px; }
+.home-report button:disabled { cursor: wait; opacity: .45; }
+.home-report-hero { padding: 2px 2px 12px; font-variant-numeric: tabular-nums; }
+.home-report-hero-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.home-report-currency { display: flex; gap: 3px; }
+.home-report-currency button { height: 30px; padding: 0 10px; border-radius: 8px; color: #72727c; font-size: 11px; }
+.home-report-currency button[aria-pressed="true"] { background: #1a1b1e; color: #d7d7dd; }
+.home-report-net-amount { margin-top: 8px; font-size: clamp(28px, 8.8vw, 40px); font-weight: 400; line-height: 1.18; letter-spacing: -.045em; overflow-wrap: anywhere; }
+.home-report-decimal { color: #83838c; font-size: .64em; letter-spacing: -.025em; }
+.home-report-label { display: flex; align-items: center; gap: 5px; color: #85858f; font-size: 12px; font-weight: 400; line-height: 1.5; }
+.home-report-label svg { flex-shrink: 0; opacity: .65; }
+.home-report-label small { margin-left: auto; font-size: 10px; color: #64646e; }
+.home-report-pnl-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; margin-top: 12px; }
+.home-report-pnl-grid button { min-width: 0; text-align: left; }
+.home-report-pnl-amount { display: block; margin-top: 4px; font-size: clamp(17px, 5.25vw, 23px); line-height: 1.3; font-variant-numeric: tabular-nums; letter-spacing: -.045em; overflow-wrap: anywhere; }
+.home-report-pnl-percent { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin-top: 2px; font-size: 12px; line-height: 1.5; font-variant-numeric: tabular-nums; }
+.home-report-pnl-percent small { font-size: 10px; color: #71717d; }
+.home-report-balances { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 20px; margin-top: 12px; padding-top: 10px; }
+.home-report-balance { display: block; min-width: 0; text-align: left; }
+.home-report-balance-value { display: block; margin-top: 3px; color: #bebec7; font-size: 14px; line-height: 1.5; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.home-report-financing { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; text-align: left; }
+.home-report-leverage { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 3px; }
+.home-report-leverage .home-report-balance-value { margin-top: 0; }
+.home-report-market { padding: 21px 0 22px; border-top: 1px solid var(--home-report-line); }
+.home-report-section-heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.home-report-section-heading h2 { font-size: 17px; font-weight: 500; letter-spacing: -.3px; }
+.home-report-quotes { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 13px; }
+.home-report-quote { position: relative; min-width: 0; padding-bottom: 29px; }
+.home-report-quote > div:first-child { min-height: 17px; }
+.home-report-quote > div:first-child > div { font-size: 10.5px; color: #a4a4ae; }
+.home-report-quote > div:first-child > span { font-size: 10px; border: 0; background: none; color: #777780; padding: 0; }
+.home-report-quote-price { margin-top: 8px; color: #dedee4; font-size: clamp(13px, 3.8vw, 17px); line-height: 1.2; font-variant-numeric: tabular-nums; letter-spacing: -.035em; white-space: nowrap; }
+.home-report-quote-change { margin-top: 5px; font-size: 11px; font-variant-numeric: tabular-nums; }
+.home-report-sparkline { position: absolute; width: 100%; height: 20px; right: 0; bottom: 0; opacity: .7; }
+.home-report-sparkline path:first-child { opacity: 0; }
+.home-report-market-position { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--home-report-line); }
+.home-report-position-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.home-report-benchmark { display: flex; align-items: center; gap: 6px; color: #d0d0d7; font-size: 12px; }
+.home-report-benchmark > span { font-size: 10px; color: #777780; }
+.home-report-benchmark svg { color: #777780; }
+.home-report-drawdown { display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 10px; margin-top: 10px; text-align: left; }
+.home-report-drawdown-value { font-size: 31px; line-height: 1.2; font-variant-numeric: tabular-nums; letter-spacing: -.04em; }
+.home-report-drawdown-context { min-width: 0; text-align: right; }
+.home-report-drawdown-context > span { display: flex; gap: 4px; align-items: center; justify-content: flex-end; font-size: 12px; color: #b2b2bb; }
+.home-report-drawdown-context small { display: block; margin-top: 6px; color: #6f6f7a; font-size: 10px; line-height: 1.5; }
+.home-report-sentiment { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--home-report-line); }
+.home-report-sentiment > button, .home-report-sentiment > div { min-width: 0; text-align: left; }
+.home-report-sentiment-reading { display: flex; align-items: baseline; gap: 9px; margin-top: 8px; color: #dedee4; font-size: 25px; font-variant-numeric: tabular-nums; line-height: 1.3; }
+.home-report-sentiment-reading small { font-size: 12px; color: #85858f; }
+.home-report-meter { position: relative; display: block; margin: 13px 3px 9px; height: 2px; background: #2b2c31; }
+.home-report-meter::before { content: ''; position: absolute; top: -1px; bottom: -1px; left: 50%; width: 1px; background: #55555e; }
+.home-report-meter i { position: absolute; top: 50%; width: 6px; height: 6px; border-radius: 50%; background: #b9b9c2; transform: translate(-50%, -50%); }
+.home-report-sentiment-date { display: block; color: #666670; font-size: 10px; line-height: 1.5; }
+.home-report > .home-watchlist-report { margin-top: 2px; padding-top: 25px; border-top: 1px solid var(--home-report-line); }
+.home-report > .home-earnings-report { margin-top: 26px; }
+@media (max-width: 350px) {
+  .home-report-hero { padding-inline: 0; }
+  .home-report-pnl-grid, .home-report-balances, .home-report-financing { column-gap: 14px; }
+  .home-report-quotes { column-gap: 9px; }
+  .home-report-sentiment { column-gap: 18px; }
+  .home-report-benchmark > span { display: none; }
+  .home-report-balance-value { font-size: 13px; }
+}

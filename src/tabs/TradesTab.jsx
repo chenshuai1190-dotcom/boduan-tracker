@@ -24,6 +24,8 @@ import GenericLedgerTradeEntryPanel, { GenericLedgerTradeHeader } from '../compo
 import StockLogo, { stockLogoCandidates } from '../components/StockLogo.jsx';
 import TqqqTradeEntryPanel, { TQQQ_ACTION_TONE_CLASSES } from '../components/TqqqTradeEntryPanel.jsx';
 import TradeToolsCatalog from '../components/TradeToolsCatalog.jsx';
+import TradesPositionsReport from '../components/TradesPositionsReport.jsx';
+import './TradesTab.css';
 
 const PORTFOLIO_CURRENCY_STORAGE_KEY = 'xmoney_portfolio_currency';
 const TRADE_CURRENCY_STORAGE_KEY = 'xmoney_trade_currency';
@@ -588,7 +590,6 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
   }, [quoteRows]);
   const rate = toNumber(summary.usdRate || usdRate) || 7.2;
   const displayCurrency = currencyMode === 'CNY' ? 'CNY' : 'USD';
-  const displayCurrencyLabel = currencyMode === 'CNY' ? 'CNY' : 'USD';
   const displayRate = currencyMode === 'CNY' ? rate : 1;
   const signedWaveCurrencyAmount = (value, digits = 2) => formatWaveCurrencyAmount(value, {
     currency: displayCurrency,
@@ -612,7 +613,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
     if (englishMode) return `≈ ${sign}¥${fmtAmount(absValue, 0)}`;
     return `≈ ${sign}¥${(absValue / 10000).toLocaleString('zh-CN', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}万`;
   }, [englishMode, rate]);
-  const pnlAmountClass = 'text-[13px]';
+  const pnlAmountClass = 'trades-report-pnl-amount';
   const tradeModalInputStyle = { colorScheme: 'dark' };
   const tradeModalBaseInput = 'block w-full max-w-full min-w-0 box-border rounded-xl border border-transparent bg-white/[0.06] px-3.5 py-2.5 text-[14px] text-white outline-none transition placeholder:text-white/[0.28] focus:border-[#f6b54b]/45 focus:bg-white/[0.085]';
   const tradeModalLabelClass = 'mb-1.5 block text-[12px] font-normal text-white/[0.62]';
@@ -933,134 +934,97 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
     setToolPanel((current) => (current === panel ? '' : panel));
   };
 
+  // Presentation only: preserve the existing valuation and formatting formulas.
+  const positionReportRows = positions.map((position) => {
+    const nameParts = stockNameParts(position.symbol, position.name);
+    const cost = toNumber(position.effectiveCost || position.avgCost);
+    const marketValue = toNumber(position.marketValue) * displayRate;
+    const hasPositionTodayPnl = position.hasTodayPnl !== false;
+    const todayPnl = hasPositionTodayPnl ? toNumber(position.todayPnl) * displayRate : null;
+    const holdingPnl = toNumber(position.holdingPnl ?? position.unrealizedPnl) * displayRate;
+    const holdingPnlPct = position.holdingPnlPct ?? position.unrealizedPct;
+    const allocation = derivePositionAllocation(summary, position.symbol) ?? 0;
+    const displayCurrentPrice = resolveHoldingDisplayPrice(position) || 0;
+    return {
+      position, symbol: position.symbol, title: nameParts.title,
+      subtitle: nameParts.subtitle,
+      marketValue: currencyAmount(marketValue, displayCurrency, 2),
+      quantity: fmtAmount(position.heldShares, 0),
+      price: displayCurrentPrice > 0 ? fmtAmount(displayCurrentPrice, 3) : '--',
+      cost: fmtAmount(cost, 3),
+      todayPnl: hasPositionTodayPnl ? signedCurrency(todayPnl, displayCurrency, 2) : '--',
+      todayPnlPct: hasPositionTodayPnl ? signedPct(position.todayPnlPct, 2) : '--',
+      todayPnlClass: hasPositionTodayPnl ? pnlClass(todayPnl, marketColorMode) : '',
+      todayPnlPctClass: hasPositionTodayPnl ? pnlClass(toNumber(position.todayPnlPct), marketColorMode) : '',
+      holdingPnl: signedCurrency(holdingPnl, displayCurrency, 2),
+      holdingPnlPct: signedPct(holdingPnlPct, 2),
+      holdingPnlClass: pnlClass(holdingPnl, marketColorMode),
+      holdingPnlPctClass: pnlClass(holdingPnlPct, marketColorMode),
+      allocation: `${(allocation * 100).toFixed(1)}%`,
+    };
+  });
+  const renderOrderRow = (trade, showDate = false) => {
+    const amount = toNumber(trade.price) * toNumber(trade.shares) * displayRate;
+    const displayName = stockDisplayName(trade.symbol, trade.name);
+    return (
+      <button key={trade.id} type="button" className="trades-report-order" onClick={() => setOrderActionTrade(trade)}>
+        <span className="trades-report-order-main">
+          <span className="trades-report-order-identity"><strong>{trade.symbol}</strong><small>{displayName}</small></span>
+          <span className="trades-report-order-amount">{currencyAmount(amount, displayCurrency, 2)}</span>
+          <ChevronRight size={14} aria-hidden="true" />
+        </span>
+        <span className="trades-report-order-meta">
+          <span>{showDate && <time>{(trade.date || '--').slice(5) || '--'} · </time>}<span data-order-side={trade.side}>{sideLabel(trade.side)}</span> · {sharesText(trade.shares, 0)}</span>
+          <span>{englishMode ? 'Price' : '成交价'} ${fmtAmount(trade.price, 2)}</span>
+        </span>
+      </button>
+    );
+  };
+
   return (
     <>
-      <div className="mx-auto max-w-[430px] pb-2 text-white" style={{ fontFamily: TRADE_FONT }}>
-        <section className="overflow-hidden rounded-2xl border border-transparent bg-[#0b0c0e] p-4 shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06),inset_1px_0_0_rgba(255,255,255,0.03),inset_-1px_0_0_rgba(255,255,255,0.03),inset_0_-1px_0_rgba(255,255,255,0.01)]" data-trades-net-assets-card="true">
-          <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0 text-[14px] font-normal text-white/70">{tt('home.netAssets', '净资产')} ({displayCurrencyLabel}) <span className="ml-1 text-white/50">◎</span></div>
-            <div className="ml-auto flex justify-end">
-              <div className="flex rounded-full border border-white/10 bg-black/20 p-0.5">
-                {['USD', 'CNY'].map((mode) => (
-                  <button
-                    key={mode}
-                    type="button"
-                    onClick={() => setCurrencyMode(mode)}
-                    className={`h-7 rounded-full px-2.5 text-[11px] font-normal active:scale-95 ${currencyMode === mode ? 'bg-[#f6b54b] text-[#101318]' : 'text-white/45'}`}
-                  >
-                    {mode}
-                  </button>
-                ))}
-              </div>
-              <button
-                type="button"
-                onClick={fetchRealtimePrices}
-                disabled={fetching}
-                className="hidden"
-                aria-hidden="true"
-                tabIndex={-1}
-              >
-                <RefreshCw className={`h-3.5 w-3.5 ${fetching ? 'animate-spin' : ''}`} />
-              </button>
+      <div className="trades-report mx-auto max-w-[430px] pb-2 text-white" style={{ fontFamily: TRADE_FONT }}>
+        <section className="trades-report-hero" data-trades-net-assets-card="true">
+          <div className="trades-report-hero-header">
+            <span className="trades-report-label">{tt('home.netAssets', '净资产')}</span>
+            <div className="trades-report-currency" aria-label={englishMode ? 'Display currency' : '显示币种'}>
+              {['USD', 'CNY'].map((mode) => <button key={mode} type="button" aria-pressed={currencyMode === mode} onClick={() => setCurrencyMode(mode)}>{mode}</button>)}
             </div>
           </div>
-
-          <div className="mt-3 overflow-hidden text-ellipsis whitespace-nowrap font-normal leading-none tracking-normal text-white/[0.95] tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT, fontSize: 'clamp(28px, 8.7vw, 34px)' }}>
-            {assetStatusReady ? (
-              <>
-                <span>{displayAssetMoney.main}</span>
-                <span className="ml-0.5 align-baseline text-[20px] font-normal leading-none text-white/[0.95]">{displayAssetMoney.decimal}</span>
-              </>
-            ) : (
-              <span className="text-white/30">--</span>
-            )}
+          <div className="trades-report-net-amount" data-trades-net-assets="true">
+            {assetStatusReady ? <><span>{displayAssetMoney.main}</span><span className="trades-report-decimal">{displayAssetMoney.decimal}</span></> : <span className="text-white/30">--</span>}
           </div>
-          <div className="mt-3 grid min-w-0 grid-cols-[1fr_1.12fr_0.96fr] items-center text-white/[0.42]" data-trades-total-assets="true">
-            <div className="col-span-2 flex min-w-0 items-center gap-1 pr-3">
-              <span className="text-[13px]">{tt('trades.totalAssets', '总资产')}</span>
-              <span className="truncate text-[12px] text-white/[0.72] tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>
-                {assetStatusReady ? `${displayCurrency === 'CNY' ? '¥' : '$'}${fmtAmount(displayAssets, 2)}` : '--'}
-              </span>
-            </div>
-            <div className="col-start-3 flex min-w-0 justify-end">
-              <button
-                type="button"
-                disabled={!availableCashWriteReady}
-                onClick={() => setShowAvailableCashEditor(true)}
-                className="flex w-max min-w-full max-w-none shrink-0 items-center gap-1 overflow-visible pl-3 text-left transition active:scale-[0.99] disabled:cursor-wait disabled:opacity-45"
-                aria-label={tt('home.availableCashBalance', '设置可用现金')}
-                data-trades-available-cash-trigger="true"
-              >
-                <span className="shrink-0 whitespace-nowrap text-[13px]">{tt('home.cash', '现金')}</span>
-                <span className="shrink-0 whitespace-nowrap text-[12px] text-white/[0.72] tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>
-                  {availableCashStatusReady
-                    ? currencyAmount(displayAvailableCash, displayCurrency, availableCashIsSet ? 2 : 0)
-                    : '--'}
-                </span>
-              </button>
-            </div>
-          </div>
-
-          <div
-            className="mt-4 grid grid-cols-[1fr_1.12fr_0.96fr] border-t border-white/[0.07] pt-4"
-          >
-            <button
-              type="button"
-              onClick={openPnlShare}
-              className="block min-w-0 pr-3 text-left transition active:scale-[0.99]"
-              aria-label={tt('trades.openPnlShare', '分享今日盈亏')}
-              data-trades-pnl-share-trigger="true"
-            >
-              <div className="text-[13px] text-white/50">{tt('trades.todayPnl', '今日盈亏')}</div>
-              <div className={`mt-2 whitespace-nowrap ${pnlAmountClass} font-normal leading-tight tabular-nums ${pnlClass(hasTodayPnl ? displayTodayPnl : 0, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
-                {hasTodayPnl ? signedCurrency(displayTodayPnl, displayCurrency, 2) : '--'}
-              </div>
-              <div className={`mt-1 flex min-w-0 flex-wrap items-center gap-x-1 text-[12px] font-normal tabular-nums ${pnlClass(hasTodayPnl ? displayTodayPnl : 0, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
+          <div className="trades-report-pnl-grid">
+            <button type="button" onClick={openPnlShare} aria-label={tt('trades.openPnlShare', '分享今日盈亏')} data-trades-pnl-share-trigger="true">
+              <span className="trades-report-label">{tt('trades.todayPnl', '今日盈亏')}</span>
+              <span className={`${pnlAmountClass} ${pnlClass(hasTodayPnl ? displayTodayPnl : 0, marketColorMode)}`}>{hasTodayPnl ? signedCurrency(displayTodayPnl, displayCurrency, 2) : '--'}</span>
+              <span className={`trades-report-pnl-percent ${pnlClass(hasTodayPnl ? displayTodayPnl : 0, marketColorMode)}`}>
                 <span>{hasTodayPnl ? signedPct(summary.todayPnlPct, 2) : '--'}</span>
-                {hasTodayPnl && summary.todayPnlLocked && (
-                  <span className="text-[11px] text-[#6f7785]">{tt('trades.pnlLocked', '收盘锁定')}</span>
-                )}
-              </div>
+                {hasTodayPnl && summary.todayPnlLocked && <small>{tt('trades.pnlLocked', '收盘锁定')}</small>}
+              </span>
             </button>
-            <button type="button" onClick={openPnlReport} className="block min-w-0 px-3 text-left transition active:scale-[0.99]">
-              <div className="flex items-center gap-0.5 text-[13px] text-white/50">
-                <span>{tt('trades.totalPnl', '累计盈亏')}</span>
-                <ChevronRight className="h-3 w-3 text-white/[0.28]" />
-              </div>
-              <div className={`mt-2 whitespace-nowrap ${pnlAmountClass} font-normal leading-tight tabular-nums ${pnlClass(displayCumulativePnl, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
-                {signedCurrency(displayCumulativePnl, displayCurrency, 2)}
-              </div>
-              <div className={`mt-1 text-[12px] font-normal tabular-nums ${pnlClass(displayCumulativePnl, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
-                {signedPct(summary.cumulativePnlPct, 2)}
-              </div>
+            <button type="button" onClick={openPnlReport}>
+              <span className="trades-report-label">{tt('trades.totalPnl', '累计盈亏')}<ChevronRight size={12} /></span>
+              <span className={`${pnlAmountClass} ${pnlClass(displayCumulativePnl, marketColorMode)}`}>{signedCurrency(displayCumulativePnl, displayCurrency, 2)}</span>
+              <span className={`trades-report-pnl-percent ${pnlClass(displayCumulativePnl, marketColorMode)}`}>{signedPct(summary.cumulativePnlPct, 2)}</span>
             </button>
-            <button
-              type="button"
-              disabled={!assetStatusReady}
-              onClick={openHomeMarginRisk}
-              className="block min-w-0 pl-3 text-left transition active:scale-[0.99] disabled:cursor-wait disabled:opacity-45"
-              data-trades-margin-trigger="true"
-            >
-              <div className="flex items-center gap-0.5 text-[13px] text-white/50">
-                <span>{tt('home.marginDebt', '融资负债')}</span>
-                <ChevronRight className="h-3 w-3 text-white/[0.28]" />
-              </div>
-              <div className={`mt-2 truncate ${englishMode ? 'text-[11px]' : 'text-[12px]'} font-normal leading-tight text-white/90 tabular-nums`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
-                {marginStatusReady ? `${displayCurrency === 'CNY' ? '¥' : '$'}${fmtAmount(displayMarginDebt, 2)}` : '--'}
-              </div>
-              <div className={`mt-1 min-w-0 ${englishMode ? 'flex flex-col items-start gap-1' : 'flex items-center gap-[3px]'}`}>
-                <span className="shrink-0 whitespace-nowrap text-[12px] text-white/[0.42] tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>
-                  {tt('home.leverage', '杠杆')} {assetStatusReady ? formatLeverage(marginOverview.leverage) : '—'}
-                </span>
-                {assetStatusReady && marginLeverageStatus && (
-                  <AccountLeverageBadge className="h-[17px] px-1 text-[10px]" language={language} tierId={marginLeverageStatus.id} />
-                )}
-              </div>
+          </div>
+          <div className="trades-report-balances" data-trades-total-assets="true">
+            <div className="trades-report-balance"><span className="trades-report-label">{tt('trades.totalAssets', '总资产')}</span><span className="trades-report-balance-value">{assetStatusReady ? currencyAmount(displayAssets, displayCurrency, 2) : '--'}</span></div>
+            <button type="button" disabled={!availableCashWriteReady} onClick={() => setShowAvailableCashEditor(true)} className="trades-report-balance" aria-label={tt('home.availableCashBalance', '设置可用现金')} data-trades-available-cash-trigger="true">
+              <span className="trades-report-label">{tt('home.cash', '现金')}<ChevronRight size={12} /></span>
+              <span className="trades-report-balance-value">{availableCashStatusReady ? currencyAmount(displayAvailableCash, displayCurrency, availableCashIsSet ? 2 : 0) : '--'}</span>
+            </button>
+            <button type="button" disabled={!assetStatusReady} onClick={openHomeMarginRisk} className="trades-report-financing" data-trades-margin-trigger="true">
+              <span className="trades-report-balance"><span className="trades-report-label">{tt('home.marginDebt', '融资负债')}<ChevronRight size={12} /></span><span className="trades-report-balance-value">{marginStatusReady ? currencyAmount(displayMarginDebt, displayCurrency, 2) : '--'}</span></span>
+              <span className="trades-report-balance"><span className="trades-report-label">{tt('home.leverage', '杠杆')}</span><span className="trades-report-leverage">
+                <span className="trades-report-balance-value">{assetStatusReady ? formatLeverage(marginOverview.leverage) : '—'}</span>
+                {assetStatusReady && marginLeverageStatus && <AccountLeverageBadge className="h-[17px] px-1 text-[10px]" language={language} tierId={marginLeverageStatus.id} />}
+              </span></span>
             </button>
           </div>
         </section>
-
-        <section className="mt-3 grid grid-cols-4 overflow-hidden rounded-2xl border border-transparent bg-[#0b0c0e] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+        <section className="trades-report-tools" aria-label={englishMode ? 'Trading tools' : '交易工具'}>
           {[
             { id: 'waves', label: tt('trades.swingLog', '波段记录'), icon: Waves },
             { id: 'competition', label: tt('competition.toolEntry', '社区比赛'), icon: BarChart3 },
@@ -1068,52 +1032,20 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
             { id: 'all', label: tt('trades.allTools', '全部功能'), icon: LayoutGrid },
           ].map((item) => {
             const Icon = item.icon;
-            const active = item.id !== 'waves' && item.id !== 'competition' && item.id !== 'all' && toolPanel === item.id;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => {
-                  if (item.id === 'waves') {
-                    setColorMenuOpen(false);
-                    setToolPanel('');
-                    openWaveTracker?.();
-                    return;
-                  }
-                  if (item.id === 'competition') {
-                    setColorMenuOpen(false);
-                    setToolPanel('');
-                    openCommunityCompetition?.();
-                    return;
-                  }
-                  if (item.id === 'all') {
-                    setColorMenuOpen(false);
-                    setShowAllToolsModal(true);
-                    return;
-                  }
-                  toggleToolPanel(item.id);
-                }}
-                className="flex min-h-[86px] flex-col items-center justify-center gap-2 active:bg-white/[0.04]"
-              >
-                <Icon className={`h-6 w-6 ${active ? 'text-[#f6b54b]' : 'text-white/70'}`} strokeWidth={1.8} />
-                <span className={`text-[12px] font-normal ${active ? 'text-[#f6b54b]' : 'text-white/70'}`}>{item.label}</span>
-              </button>
-            );
+            const active = item.id === 'records' && toolPanel === item.id;
+            return <button key={item.id} type="button" aria-pressed={active} onClick={() => {
+              setColorMenuOpen(false);
+              if (item.id === 'waves') { setToolPanel(''); openWaveTracker?.(); return; }
+              if (item.id === 'competition') { setToolPanel(''); openCommunityCompetition?.(); return; }
+              if (item.id === 'all') { setShowAllToolsModal(true); return; }
+              toggleToolPanel(item.id);
+            }}><Icon size={21} strokeWidth={1.6} aria-hidden="true" /><span>{item.label}</span></button>;
           })}
         </section>
-
         {showAllToolsModal && (
-          <ActionModalCard
-            title={tt('trades.allTools', '全部功能')}
-            closeLabel={tt('trades.closeAllTools', '关闭全部功能')}
-            onClose={() => setShowAllToolsModal(false)}
-            widthClassName="w-[calc(100vw-32px)] max-w-[440px]"
-            panelClassName="trade-tools-panel"
-            contentClassName="trade-tools-content"
-            headerClassName="trade-tools-header"
-            titleClassName="trade-tools-title"
-            closeButtonClassName="trade-tools-close"
-          >
+          <ActionModalCard title={tt('trades.allTools', '全部功能')} closeLabel={tt('trades.closeAllTools', '关闭全部功能')}
+            onClose={() => setShowAllToolsModal(false)} widthClassName="w-[calc(100vw-32px)] max-w-[440px]"
+            panelClassName="trade-tools-panel" contentClassName="trade-tools-content" headerClassName="trade-tools-header" titleClassName="trade-tools-title" closeButtonClassName="trade-tools-close">
             <TradeToolsCatalog language={language} onSelect={(toolId) => {
               setShowAllToolsModal(false);
               if (toolId === 'cost') { setToolPanel('cost'); return; }
@@ -1127,253 +1059,45 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
             }} />
           </ActionModalCard>
         )}
-
         {showTradeRecordsTool && (
-          <section className="mt-3 rounded-2xl border border-transparent bg-[#0b0c0e] p-4">
-            <div className="mb-3 flex items-center justify-between">
-              <div>
-                <div className="text-[14px] font-normal text-white">{tt('trades.tradeLog', '交易记录')}</div>
-                <div className="mt-1 text-[11px] text-white/40">{tt('trades.tradeRecordsSubtitle', '全部主交易账本 · 点击记录修改或删除')}</div>
-              </div>
-              <button
-                type="button"
-                onClick={() => openTradeModal(null, 'buy')}
-                className="rounded-full border border-[#f6b54b]/40 px-3 py-1.5 text-[12px] font-normal text-[#f6b54b] active:scale-95"
-              >
-                {tt('trades.addTrade', '新增交易')}
-              </button>
-            </div>
-            {ledgerTradeRecords.length === 0 ? (
-              <div className="rounded-xl border border-white/[0.07] bg-white/[0.03] px-3 py-5 text-center text-[12px] text-white/40">{tt('trades.noTradeRecords', '还没有交易记录,先新增一笔买入。')}</div>
-            ) : (
-              <div className="max-h-[360px] divide-y divide-white/[0.06] overflow-y-auto [scrollbar-width:none]" data-pull-refresh-block="true">
-                {ledgerTradeRecords.map((trade) => {
-                  const isSell = trade.side === 'sell';
-                  const amount = toNumber(trade.price) * toNumber(trade.shares) * displayRate;
-                  const displayName = stockDisplayName(trade.symbol, trade.name);
-                  return (
-                    <button
-                      key={trade.id}
-                      type="button"
-                      onClick={() => setOrderActionTrade(trade)}
-                      className="grid w-full grid-cols-[54px_minmax(0,1fr)_auto_16px] items-center gap-3 py-3 text-left active:bg-white/[0.03]"
-                    >
-                      <div className="whitespace-nowrap text-[11px] font-normal tabular-nums text-white/45" style={{ fontFamily: TRADE_NUMBER_FONT }}>
-                        {(trade.date || '--').slice(5) || '--'}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="truncate text-[13px] font-normal text-white">{trade.symbol}</div>
-                        <div className="mt-1 truncate text-[11px] font-normal text-white/50">{displayName}</div>
-                      </div>
-                      <div className="shrink-0 text-right">
-                        <div className={`text-[13px] font-normal ${isSell ? 'text-emerald-400' : 'text-[#ff4b1f]'}`}>{sideLabel(trade.side)} {sharesText(trade.shares, 0)}</div>
-                        <div className="mt-1 text-[11px] font-normal text-white/40 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{currencyAmount(amount, displayCurrency, 2)} @ {fmtAmount(trade.price, 2)}</div>
-                      </div>
-                      <span className="text-right text-[22px] leading-none text-white/26">›</span>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
+          <section className="trades-report-records">
+            <div className="trades-report-section-heading"><h2>{tt('trades.tradeLog', '交易记录')}</h2><button type="button" className="trades-report-text-action" onClick={() => setToolPanel('')} aria-label={englishMode ? 'Close trade records' : '收起交易记录'}><X size={16} /></button></div>
+            <p className="trades-report-note">{tt('trades.tradeRecordsSubtitle', '全部主交易账本 · 点击记录修改或删除')}</p>
+            {ledgerTradeRecords.length === 0 ? <div className="trades-report-empty">{tt('trades.noTradeRecords', '还没有交易记录,先新增一笔买入。')}</div>
+              : <div className="trades-report-record-list" data-pull-refresh-block="true">{ledgerTradeRecords.map((trade) => renderOrderRow(trade, true))}</div>}
+            <button type="button" className="trades-report-add" onClick={() => openTradeModal(null, 'buy')}><Edit3 size={15} />{tt('trades.addTrade', '新增交易')}</button>
           </section>
         )}
-
         {showMainLedger && (
-        <section className="mt-3 overflow-hidden rounded-2xl border border-transparent bg-[#0b0c0e] shadow-[inset_0_1px_0_rgba(255,255,255,0.06),inset_1px_0_0_rgba(255,255,255,0.03),inset_-1px_0_0_rgba(255,255,255,0.03),inset_0_-1px_0_rgba(255,255,255,0.01)]">
-          <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3">
-            <div className="flex items-center gap-5">
-              <button type="button" onClick={() => setMainView('positions')} className={`text-[14px] font-normal leading-none ${mainView === 'positions' ? 'text-[#ffd18a]' : 'text-white/40'}`}>{tt('trades.positionsTab', '持仓分布')}</button>
-              <button type="button" onClick={() => setMainView('orders')} className={`text-[14px] font-normal leading-none ${mainView === 'orders' ? 'text-[#ffd18a]' : 'text-white/40'}`}>{tt('trades.todayOrdersTab', '当日订单 ({{buys}}/{{sells}})', { buys: todayBuys, sells: todaySells })}</button>
-            </div>
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setColorMenuOpen((value) => !value)}
-                className="text-white/55 active:scale-95"
-                aria-label={tt('trades.colorSettings', '股票涨跌颜色设置')}
-              >
-              <Settings2 className="h-5 w-5" strokeWidth={1.8} />
-              </button>
-              {colorMenuOpen && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setColorMenuOpen(false)} />
-                  <div className="absolute right-0 top-full z-50 mt-2 w-40 overflow-hidden rounded-xl border border-white/10 bg-[#111820] p-1.5 shadow-2xl">
-                    {colorModeOptions.map((option) => {
-                      const active = marketColorMode === option.id;
-                      return (
-                        <button
-                          key={option.id}
-                          type="button"
-                          onClick={() => {
-                            setMarketColorMode(option.id);
-                            setColorMenuOpen(false);
-                          }}
-                          className={`flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-left text-[12px] font-normal ${active ? 'bg-[#f6b54b] text-[#101318]' : 'text-white/66 active:bg-white/[0.05]'}`}
-                        >
-                          <span>{option.label}</span>
-                          <span className="flex items-center gap-1">
-                            <span className={`h-2.5 w-2.5 rounded-full ${option.upClass}`} />
-                            <span className={`h-2.5 w-2.5 rounded-full ${option.downClass}`} />
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-
-          {mainView === 'positions' ? (
-            <div className="px-2 py-4">
-              <div className="mb-4 flex items-center justify-between">
-                <div>
-                  <div className="flex items-center gap-2 text-[16px] font-normal text-white">
-                    <span>🇺🇸</span>
-                    <span>{tt('trades.usStocks', '美股')}</span>
-                    <span className="text-white/76 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{currencyAmount(toNumber(summary.positionsMarketValue) * displayRate, displayCurrency, 2)}</span>
-                  </div>
-                </div>
-                <button type="button" onClick={() => setToolPanel(toolPanel ? '' : 'records')} className="text-white/45 active:scale-95">⌃</button>
+          <section className="trades-report-ledger">
+            <div className="trades-report-section-heading">
+              <div className="trades-report-tabs" role="tablist" aria-label={englishMode ? 'Holdings and orders' : '持仓与订单'}>
+                <button type="button" role="tab" aria-selected={mainView === 'positions'} onClick={() => setMainView('positions')}>{tt('trades.positionsTab', '持仓分布')}</button>
+                <button type="button" role="tab" aria-selected={mainView === 'orders'} onClick={() => setMainView('orders')}>{englishMode ? 'Today’s orders' : '当日订单'}<small>{todayBuys + todaySells}</small></button>
               </div>
-
-              <div className="mb-4 grid grid-cols-3 gap-2">
-                <div>
-                  <div className="text-[11px] text-white/40">{tt('trades.marketValue', '持仓市值')}</div>
-                  <div className="mt-1 text-[13px] font-normal text-white tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{currencyAmount(toNumber(summary.positionsMarketValue) * displayRate, displayCurrency, 2)}</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-[11px] text-white/40">{tt('trades.positionPnl', '持仓盈亏')}</div>
-                  <div className={`mt-1 text-[13px] font-normal tabular-nums ${pnlClass(displayHoldingPnl, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{signedCurrency(displayHoldingPnl, displayCurrency, 2)}</div>
-                </div>
-                <div className="text-right">
-                  <div className="text-[11px] text-white/40">{tt('trades.dailyPnl', '当日盈亏')}</div>
-                  <div className={`mt-1 text-[13px] font-normal tabular-nums ${pnlClass(hasTodayPnl ? displayTodayPnl : 0, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{hasTodayPnl ? signedCurrency(displayTodayPnl, displayCurrency, 2) : '--'}</div>
-                </div>
-              </div>
-
-              {positions.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-white/10 px-4 py-8 text-center">
-                  <div className="text-[13px] font-normal text-white/60">{tt('trades.noPositions', '还没有持仓')}</div>
-                  <button type="button" onClick={() => openTradeModal(null, 'buy')} className="mt-3 rounded-full border border-[#f6b54b]/45 px-4 py-2 text-[12px] font-normal text-[#f6b54b] active:scale-95">{tt('trades.recordFirstBuy', '记录第一笔买入')}</button>
-                </div>
-              ) : (
-                <div className="overflow-x-auto border-t border-white/[0.06] [scrollbar-width:none]" data-trade-positions-table="v230-single-grid">
-                  <div className="min-w-[604px]">
-                    <div className="grid grid-cols-[92px_88px_76px_118px_144px_66px] gap-1 px-0 pb-2 pt-3 text-[11px] font-medium leading-none text-white/36">
-                      <span className="sticky left-0 z-20 bg-[#0b0c0e] pr-1.5 text-left">{tt('trades.nameTicker', '名称/代码')}</span>
-                      <span className="text-left">{tt('trades.valueQty', '市值/数量')}</span>
-                      <span className="text-right">{tt('trades.priceCost', '现价/成本')}</span>
-                      <span className="text-right">{tt('trades.dailyPnl', '当日盈亏')}</span>
-                      <span className="text-right">{tt('trades.positionPnl', '持仓盈亏')}</span>
-                      <span className="text-right">{tt('trades.allocation', '占比')}</span>
-                    </div>
-                    <div className="divide-y divide-white/[0.06]">
-                      {positions.map((position) => {
-                        const nameParts = stockNameParts(position.symbol, position.name);
-                        const cost = toNumber(position.effectiveCost || position.avgCost);
-                        const marketValue = toNumber(position.marketValue) * displayRate;
-                        const hasPositionTodayPnl = position.hasTodayPnl !== false;
-                        const todayPnl = hasPositionTodayPnl ? toNumber(position.todayPnl) * displayRate : null;
-                        const holdingPnl = toNumber(position.holdingPnl ?? position.unrealizedPnl) * displayRate;
-                        const holdingPnlPct = position.holdingPnlPct ?? position.unrealizedPct;
-                        const allocation = derivePositionAllocation(summary, position.symbol) ?? 0;
-                        const displayCurrentPrice = resolveHoldingDisplayPrice(position) || 0;
-                        const openScenarioFromCell = (event) => {
-                          event.preventDefault();
-                          event.stopPropagation();
-                          openPositionScenario(position);
-                        };
-                        return (
-                          <div
-                            key={position.symbol}
-                            className="grid min-h-[60px] w-full grid-cols-[92px_88px_76px_118px_144px_66px] items-center gap-1 py-3 text-left"
-                          >
-                            <button
-                              type="button"
-                              onClick={() => (typeof openStockDetail === 'function' ? openStockDetail(position.symbol) : openTradeModal(position, 'buy'))}
-                              className="sticky left-0 z-10 flex min-h-[36px] min-w-0 flex-col justify-center bg-[#0b0c0e] pr-1.5 text-left active:bg-white/[0.03]"
-                              aria-label={tt('stockDetail.openAria', '打开个股收益详情')}
-                            >
-                              <span className="block truncate text-[13px] font-normal leading-[15px] text-white">{nameParts.title}</span>
-                              <span className="mt-1 block truncate text-[11px] leading-[13px] text-white/40">{nameParts.subtitle}</span>
-                            </button>
-                            <button type="button" onClick={() => openTradeModal(position, 'buy')} className="block min-w-0 text-left active:bg-white/[0.03]">
-                              <span className="block max-w-full truncate text-[12px] font-normal leading-[15px] text-white/86 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{fmtAmount(marketValue, 2)}</span>
-                              <span className="mt-1 block text-[11px] leading-[13px] text-white/45 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{fmtAmount(position.heldShares, 0)}</span>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={openScenarioFromCell}
-                              className="-mr-1 block rounded-lg px-1 py-1 text-right active:bg-white/[0.03] focus:outline-none"
-                              aria-label={tt('trades.openScenarioAria', '打开持仓收益试算')}
-                            >
-                              <span className="block text-[13px] font-normal leading-[15px] text-white/86 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{displayCurrentPrice > 0 ? fmtAmount(displayCurrentPrice, 3) : '--'}</span>
-                              <span className="mt-1 block text-[11px] leading-[13px] text-white/45 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{fmtAmount(cost, 3)}</span>
-                            </button>
-                            <button type="button" onClick={() => openTradeModal(position, 'buy')} className="text-right active:bg-white/[0.03]">
-                              <span className={`block whitespace-nowrap text-[13px] font-normal leading-[15px] tabular-nums ${pnlClass(hasPositionTodayPnl ? todayPnl : 0, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{hasPositionTodayPnl ? signedCurrency(todayPnl, displayCurrency, 2) : '--'}</span>
-                              <span className={`mt-1 block whitespace-nowrap text-[11px] font-normal leading-[13px] tabular-nums ${pnlClass(hasPositionTodayPnl ? toNumber(position.todayPnlPct) : 0, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{hasPositionTodayPnl ? signedPct(position.todayPnlPct, 2) : '--'}</span>
-                            </button>
-                            <button type="button" onClick={() => openTradeModal(position, 'buy')} className="overflow-hidden text-right active:bg-white/[0.03]">
-                              <span className={`block overflow-hidden text-ellipsis whitespace-nowrap text-[13px] font-normal leading-[15px] tabular-nums ${pnlClass(holdingPnl, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{signedCurrency(holdingPnl, displayCurrency, 2)}</span>
-                              <span className={`mt-1 block overflow-hidden text-ellipsis whitespace-nowrap text-[11px] font-normal leading-[13px] tabular-nums ${pnlClass(holdingPnlPct, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{signedPct(holdingPnlPct, 2)}</span>
-                            </button>
-                            <button type="button" onClick={() => openTradeModal(position, 'buy')} className="text-right active:bg-white/[0.03]">
-                              <span className="block text-[13px] font-normal leading-[15px] text-white/80 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{(allocation * 100).toFixed(1)}%</span>
-                            </button>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div className="mt-4 flex justify-center">
-                <button type="button" onClick={() => openTradeModal(null, 'buy')} className="flex items-center gap-2 rounded-full bg-white/[0.045] px-8 py-2.5 text-[13px] font-normal text-white/[0.82] active:scale-95">
-                  <Edit3 className="h-4 w-4" strokeWidth={2} />
-                  {tt('trades.edit', '编辑')}
-                </button>
+              <div className="trades-report-settings">
+                <button type="button" className="trades-report-icon-button" onClick={() => setColorMenuOpen((value) => !value)} aria-label={tt('trades.colorSettings', '股票涨跌颜色设置')} aria-expanded={colorMenuOpen}><Settings2 size={17} strokeWidth={1.6} /></button>
+                {colorMenuOpen && <><div className="fixed inset-0 z-40" onClick={() => setColorMenuOpen(false)} /><div className="trades-report-color-menu">
+                  {colorModeOptions.map((option) => <button key={option.id} type="button" aria-pressed={marketColorMode === option.id} onClick={() => { setMarketColorMode(option.id); setColorMenuOpen(false); }}><span>{option.label}</span><span className="flex items-center gap-1"><i className={`h-2 w-2 rounded-full ${option.upClass}`} /><i className={`h-2 w-2 rounded-full ${option.downClass}`} /></span></button>)}
+                </div></>}
               </div>
             </div>
-          ) : (
-            <div className="p-4">
-              {todayTrades.length === 0 ? (
-                <div className="rounded-xl border border-white/[0.07] bg-white/[0.03] px-4 py-8 text-center">
-                  <div className="text-[13px] font-normal text-white/55">{tt('trades.noOrdersToday', '今日暂无订单')}</div>
-                  <button type="button" onClick={() => openTradeModal(null, 'buy')} className="mt-3 rounded-full border border-[#f6b54b]/45 px-4 py-2 text-[12px] font-normal text-[#f6b54b] active:scale-95">{tt('trades.recordOrder', '记录订单')}</button>
-                </div>
-              ) : (
-                <div className="divide-y divide-white/[0.06]">
-                  {todayTrades.map((trade) => {
-                    const isSell = trade.side === 'sell';
-                    const amount = toNumber(trade.price) * toNumber(trade.shares) * displayRate;
-                    const displayName = stockDisplayName(trade.symbol, trade.name);
-                    return (
-                      <button
-                        key={trade.id}
-                        type="button"
-                        onClick={() => setOrderActionTrade(trade)}
-                        className="grid w-full grid-cols-[minmax(0,1fr)_auto_16px] items-center gap-3 py-3 text-left active:bg-white/[0.03]"
-                      >
-                        <div className="min-w-0">
-                          <div className="truncate text-[13px] font-normal text-white">{trade.symbol}</div>
-                          <div className="mt-1 text-[11px] text-white/60">{displayName}</div>
-                        </div>
-                        <div className="text-right">
-                          <div className={`text-[13px] font-normal ${isSell ? 'text-emerald-400' : 'text-[#ff4b1f]'}`}>{sideLabel(trade.side)} {sharesText(trade.shares, 0)}</div>
-                          <div className="mt-1 text-[11px] font-normal text-white/40 tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{currencyAmount(amount, displayCurrency, 2)} @ {fmtAmount(trade.price, 2)}</div>
-                        </div>
-                        <span className="text-right text-[22px] leading-none text-white/26">›</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-        </section>
+            {mainView === 'positions' ? <>
+              <div className="trades-report-holdings-summary">
+                <div><span className="trades-report-label">{tt('trades.marketValue', '持仓市值')}</span><span className="trades-report-holdings-value">{currencyAmount(toNumber(summary.positionsMarketValue) * displayRate, displayCurrency, 2)}</span></div>
+                <div><span className="trades-report-label">{tt('trades.positionPnl', '持仓盈亏')}</span><span className={`trades-report-holdings-pnl ${pnlClass(displayHoldingPnl, marketColorMode)}`}>{signedCurrency(displayHoldingPnl, displayCurrency, 2)}</span></div>
+              </div>
+              {positions.length === 0 ? <div className="trades-report-empty"><p>{tt('trades.noPositions', '还没有持仓')}</p><button type="button" className="trades-report-add" onClick={() => openTradeModal(null, 'buy')}>{tt('trades.recordFirstBuy', '记录第一笔买入')}</button></div>
+                : <TradesPositionsReport rows={positionReportRows} tt={tt}
+                  onOpenStock={(row) => (typeof openStockDetail === 'function' ? openStockDetail(row.symbol) : openTradeModal(row.position, 'buy'))}
+                  onScenario={(row) => openPositionScenario(row.position)} onTrade={(row) => openTradeModal(row.position, 'buy')} />}
+              {positions.length > 0 && <button type="button" className="trades-report-add" onClick={() => openTradeModal(null, 'buy')}><Edit3 size={15} />{tt('trades.addTrade', '新增交易')}</button>}
+            </> : <>
+              <div className="trades-report-order-summary"><span>{englishMode ? 'Buys' : '买入'} {todayBuys}<span className="trades-report-order-separator">·</span>{englishMode ? 'Sells' : '卖出'} {todaySells}</span><button type="button" className="trades-report-text-action" onClick={() => openTradeModal(null, 'buy')}>{tt('trades.addTrade', '新增交易')}<ChevronRight size={13} /></button></div>
+              {todayTrades.length === 0 ? <div className="trades-report-empty"><p>{tt('trades.noOrdersToday', '今日暂无订单')}</p><button type="button" className="trades-report-add" onClick={() => openTradeModal(null, 'buy')}>{tt('trades.recordOrder', '记录订单')}</button></div>
+                : <div className="trades-report-orders">{todayTrades.map((trade) => renderOrderRow(trade))}</div>}
+            </>}
+          </section>
         )}
       </div>
 

@@ -1,0 +1,122 @@
+.home-earnings-report {
+  min-width: 0;
+  padding: 18px 0 0;
+  border: 0;
+  border-top: 1px solid #242529;
+  background: transparent;
+  color: #d9d9df;
+  font-variant-numeric: tabular-nums;
+}
+
+.home-earnings-report .her-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+.home-earnings-report .her-heading h2 {
+  margin: 0;
+  font-size: 17px;
+  line-height: 24px;
+  font-weight: 500;
+  color: #dedee3;
+}
+
+.home-earnings-report .her-all {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  min-height: 32px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #85858f;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.home-earnings-report .her-events {
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  padding: 4px 0 8px;
+  scrollbar-width: none;
+}
+
+.home-earnings-report .her-events::-webkit-scrollbar { display: none; }
+
+.home-earnings-report .her-event {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 74px;
+  align-items: center;
+  min-width: 0;
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
+  text-align: center;
+  scroll-snap-align: start;
+}
+
+.home-earnings-report .her-date {
+  color: #7e7e88;
+  font-size: 11px;
+  line-height: 16px;
+  white-space: nowrap;
+}
+
+.home-earnings-report .her-logo {
+  width: 28px;
+  height: 28px;
+  margin-top: 8px;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.home-earnings-report .her-symbol {
+  color: #d9d9df;
+  max-width: 100%;
+  margin-top: 7px;
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 400;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-earnings-report .her-session {
+  color: #8f8f98;
+  margin-top: 4px;
+  font-size: 11px;
+  line-height: 15px;
+  white-space: nowrap;
+}
+
+.home-earnings-report .her-session[data-published=true] {
+  color: #b0b0b8;
+}
+
+.home-earnings-report .her-empty {
+  margin: 0;
+  padding: 24px 0;
+  color: #898992;
+  font-size: 13px;
+  line-height: 21px;
+}
+
+.home-earnings-report button:active {
+  opacity: .72;
+}
+
+.home-earnings-report button:focus-visible {
+  outline: 1px solid #8d8d96;
+  outline-offset: -1px;
+  border-radius: 4px;
+}

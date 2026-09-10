@@ -11,9 +11,11 @@ const cashEditorSource = source('../src/components/AvailableCashEditor.jsx');
 const dbSource = source('../src/lib/db.js');
 const devPreviewSource = source('../src/DevVisualPreview.jsx');
 const homeSource = source('../src/tabs/HomeTab.jsx');
+const homeCss = source('../src/tabs/HomeTab.css');
 const marginRiskSource = source('../src/pages/HomeMarginRiskPage.jsx');
 const i18nSource = source('../src/lib/i18n.js');
 const tradesSource = source('../src/tabs/TradesTab.jsx');
+const tradesCss = source('../src/tabs/TradesTab.css');
 
 function translationCount(key) {
   const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -111,9 +113,9 @@ test('Home assets consume available cash only after its authority state is ready
   assert.ok(appSource.includes('db.fetchAvailableCashMovements({ limit })'));
 });
 
-test('Home adds a compact same-row cash entry without changing its financial ledger boundary', () => {
+test('Home pairs total assets and cash in the report balance grid without changing its financial ledger boundary', () => {
   const totalAssetsStart = homeSource.indexOf('data-home-total-assets="true"');
-  const metricGridStart = homeSource.indexOf('grid-cols-[1fr_1.12fr_0.96fr]', totalAssetsStart);
+  const metricGridStart = homeSource.indexOf('className="home-report-financing"', totalAssetsStart);
   const rowBlock = homeSource.slice(totalAssetsStart, metricGridStart);
   assert.ok(totalAssetsStart >= 0 && metricGridStart > totalAssetsStart);
   assert.ok(rowBlock.includes('data-home-available-cash-trigger="true"'));
@@ -121,16 +123,10 @@ test('Home adds a compact same-row cash entry without changing its financial led
   assert.ok(rowBlock.includes('fmtCurrency(displayAvailableCash, displayCurrency, availableCashIsSet ? 2 : 0)'));
   assert.equal(rowBlock.includes("t(language, 'home.availableCashSet', '设置')"), false);
   assert.ok(rowBlock.includes('availableCashIsSet ? 2 : 0'), 'an unset balance should render as a compact currency zero');
-  assert.match(
-    homeSource,
-    /grid-cols-\[1fr_1\.12fr_0\.96fr\][^\n]*data-home-total-assets="true"[\s\S]{0,1200}?data-home-available-cash-trigger="true"/,
-    'cash should use the same third-column start as the margin block below',
-  );
-  assert.ok(rowBlock.includes('col-start-3 flex min-w-0 justify-end') && rowBlock.includes('pl-3'));
-  assert.ok(rowBlock.includes('w-max min-w-full max-w-none shrink-0'));
-  assert.ok(rowBlock.includes('shrink-0 whitespace-nowrap'));
-  assert.equal(rowBlock.includes('max-w-[118px] truncate'), false, 'long Home cash amounts should expand left instead of truncating');
-  assert.ok(rowBlock.includes('text-[12px]'), 'the cash amount should match the total-assets amount size');
+  assert.match(homeCss, /\.home-report-balances\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/, 'cash and total assets should share a two-column grid');
+  assert.equal((rowBlock.match(/className="home-report-balance-value"/g) || []).length, 2, 'cash and total assets should use the same readable amount typography');
+  assert.match(homeCss, /\.home-report-balance-value\s*\{[^}]*font-size:\s*14px;[^}]*overflow-wrap:\s*anywhere;/, 'long balances must remain readable without clipping');
+  assert.equal(rowBlock.includes('truncate'), false, 'cash and total assets must not truncate financial amounts');
   assert.ok(homeSource.includes('assetStatusReady = marginStatusReady && availableCashStatusReady'));
   assert.ok(homeSource.includes('availableCashWriteReady = availableCashStatusReady && availableCashStatus?.writeReady === true'));
   assert.ok(homeSource.includes('disabled={!availableCashWriteReady}'));
@@ -149,7 +145,7 @@ test('Home adds a compact same-row cash entry without changing its financial led
 
 test('Trades mirrors the Home available-cash display and editor through the shared App state', () => {
   const totalAssetsStart = tradesSource.indexOf('data-trades-total-assets="true"');
-  const metricGridStart = tradesSource.indexOf('grid-cols-[1fr_1.12fr_0.96fr] border-t border-white/[0.07] pt-4', totalAssetsStart);
+  const metricGridStart = tradesSource.indexOf('className="trades-report-financing"', totalAssetsStart);
   const rowBlock = tradesSource.slice(totalAssetsStart, metricGridStart);
   assert.ok(totalAssetsStart >= 0 && metricGridStart > totalAssetsStart);
   assert.ok(tradesSource.includes("import AvailableCashEditor from '../components/AvailableCashEditor.jsx'"));
@@ -162,10 +158,10 @@ test('Trades mirrors the Home available-cash display and editor through the shar
   assert.ok(rowBlock.includes('data-trades-available-cash-trigger="true"'));
   assert.ok(rowBlock.includes('disabled={!availableCashWriteReady}'));
   assert.ok(rowBlock.includes("tt('home.cash', '现金')"));
-  assert.ok(rowBlock.includes('col-start-3 flex min-w-0 justify-end') && rowBlock.includes('pl-3'));
-  assert.ok(rowBlock.includes('w-max min-w-full max-w-none shrink-0'));
-  assert.ok(rowBlock.includes('shrink-0 whitespace-nowrap'));
-  assert.equal(rowBlock.includes('max-w-[118px] truncate'), false, 'long Trades cash amounts should expand left instead of truncating');
+  assert.match(tradesCss, /\.trades-report-balances\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/, 'cash and total assets should share the report two-column layout');
+  assert.equal((rowBlock.match(/className="trades-report-balance-value"/g) || []).length, 2, 'cash and total assets should share the same value typography');
+  assert.match(tradesCss, /\.trades-report-balance-value\s*\{[^}]*overflow-wrap:\s*anywhere;/, 'long cash amounts should wrap instead of clipping digits');
+  assert.equal(rowBlock.includes('truncate'), false, 'cash amounts must stay fully visible');
   assert.ok(rowBlock.includes('availableCashIsSet ? 2 : 0'));
   assert.equal(rowBlock.includes("tt('home.availableCashSet', '设置')"), false);
   assert.ok(tradesSource.includes('<AvailableCashEditor'));

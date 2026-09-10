@@ -1,0 +1,185 @@
+.home-watchlist-report {
+  --hwr-text: #e4e4e7;
+  --hwr-muted: #85858d;
+  --hwr-columns: minmax(0, 1fr) minmax(74px, max-content) minmax(73px, max-content);
+  min-width: 0;
+  color: var(--hwr-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.home-watchlist-report button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.home-watchlist-report button:focus-visible {
+  outline: 1px solid #8b8b94;
+  outline-offset: 4px;
+}
+
+.hwr-heading,
+.hwr-tabs,
+.hwr-actions {
+  display: flex;
+  align-items: center;
+}
+
+.hwr-heading { justify-content: space-between; gap: 16px; }
+.hwr-tabs { gap: 22px; }
+.hwr-actions { gap: 6px; }
+
+.hwr-tab {
+  padding: 10px 0;
+  border: 0;
+  background: transparent;
+  color: #66666f;
+  font-size: 17px;
+  font-weight: 500;
+  line-height: 24px;
+}
+
+.hwr-tab.is-active { color: var(--hwr-text); }
+
+.hwr-icon-button {
+  display: flex;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 50%;
+  background: #161719;
+  color: #a6a6af;
+}
+
+.hwr-icon-button:active { background: #242529; }
+
+.hwr-metric-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 10px 0 12px;
+}
+
+.hwr-metric-chip {
+  min-height: 29px;
+  padding: 5px 9px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #73737d;
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 19px;
+  white-space: nowrap;
+}
+
+.hwr-metric-chip.is-active { background: #1a1b1e; color: #c4c4ca; }
+
+.hwr-column-headings,
+.hwr-row-main {
+  display: grid;
+  grid-template-columns: var(--hwr-columns);
+  gap: 8px;
+  min-width: 0;
+  align-items: center;
+}
+
+.hwr-column-headings { padding: 2px 0 9px; }
+
+.hwr-sort {
+  display: flex;
+  min-width: 0;
+  min-height: 28px;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 3px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #66666f;
+  font-size: 10px;
+  font-weight: 400;
+  line-height: 16px;
+  white-space: nowrap;
+}
+
+.hwr-sort svg { flex-shrink: 0; }
+.hwr-sort.is-active { color: #d7d7dd; }
+.hwr-aux-sort { justify-content: flex-start; white-space: normal; text-align: left; }
+
+.hwr-row {
+  padding: 14px 0 12px;
+  border-top: 1px solid rgba(255, 255, 255, .07);
+}
+
+.hwr-row-main { min-height: 36px; }
+
+.hwr-identity {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 9px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+}
+
+button.hwr-identity:active { opacity: .65; }
+
+.hwr-logo {
+  display: flex;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 8px;
+  color: #85858d;
+  font-size: 10px;
+}
+
+.hwr-logo > * { max-width: 100%; max-height: 100%; }
+.hwr-stock-name { display: block; min-width: 0; }
+
+.hwr-symbol,
+.hwr-company {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hwr-symbol { color: var(--hwr-text); font-size: 16px; font-weight: 400; line-height: 21px; }
+.hwr-company { margin-top: 2px; color: var(--hwr-muted); font-size: 10px; line-height: 14px; }
+.hwr-price { color: var(--hwr-text); font-size: 16px; line-height: 23px; text-align: right; white-space: nowrap; }
+.hwr-change { color: var(--hwr-muted); font-size: 13px; line-height: 20px; text-align: right; white-space: nowrap; }
+
+.hwr-row-secondary {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 8px;
+  padding-left: 37px;
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.hwr-aux-label { flex-shrink: 0; color: #65656f; }
+.hwr-aux-value { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 2px 8px; min-width: 0; color: var(--hwr-muted); text-align: right; overflow-wrap: anywhere; }
+.hwr-aux-percent { opacity: .8; }
+.hwr-empty { padding: 30px 0 26px; color: var(--hwr-muted); font-size: 13px; line-height: 22px; text-align: center; }
+
+@media (max-width: 359px) {
+  .home-watchlist-report { --hwr-columns: minmax(0, 1fr) minmax(66px, max-content) minmax(62px, max-content); }
+  .hwr-column-headings, .hwr-row-main { gap: 6px; }
+  .hwr-identity { gap: 7px; }
+  .hwr-logo { width: 24px; height: 24px; }
+  .hwr-symbol, .hwr-price { font-size: 14px; }
+  .hwr-change { font-size: 12px; }
+  .hwr-row-secondary { padding-left: 31px; }
+  .hwr-metric-chip { padding-inline: 8px; }
+}

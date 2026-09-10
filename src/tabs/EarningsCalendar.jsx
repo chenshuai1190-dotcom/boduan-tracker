@@ -30,6 +30,7 @@ import {
 import { resolveEarningsReactionDisplay } from '../lib/earningsReactionDisplay.js';
 import { t } from '../lib/i18n.js';
 import { marketTextClass } from '../lib/marketColorMode.js';
+import './EarningsCalendarReport.css';
 
 const FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif';
 const NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif';
@@ -952,6 +953,7 @@ export default function EarningsCalendar({
   onPromotionChange,
   placementClassName = '',
   variant = 'home',
+  visualVariant = 'default',
   initialView = 'list',
   initialSelectedDate = '',
   onOpenCalendar,
@@ -1250,6 +1252,72 @@ export default function EarningsCalendar({
         loading={loading}
         onOpenDetail={onOpenDetail}
       />
+    );
+  }
+
+  if (visualVariant === 'report') {
+    return (
+      <section
+        id="earnings-calendar"
+        className={`home-earnings-report ${placementClassName}`}
+        data-home-earnings-placement="fixed"
+        style={{ fontFamily: FONT }}
+      >
+        <div className="her-heading">
+          <h2>{t(language, 'earningsCalendar.title', '财报日历')}</h2>
+          <button type="button" onClick={() => openModal('list')} className="her-all">
+            {t(language, 'earningsCalendar.all', '全部')}
+            <ChevronRight size={15} aria-hidden="true" />
+          </button>
+        </div>
+
+        {previewEvents.length === 0 ? (
+          <p className="her-empty" role="status">
+            {loading ? t(language, 'earningsCalendar.loading', '正在读取财报日历') : error || t(language, 'earningsCalendar.noEvents', '暂无关注股票财报')}
+          </p>
+        ) : (
+          <div className="her-events" role="group" aria-label={language === 'en' ? 'Upcoming earnings' : '近期财报'}>
+            {previewEvents.map((event) => {
+              const published = isEarningsPublished(event);
+              return (
+                <button key={event.id} type="button" className="her-event" onClick={() => openPreviewEvent(event)}
+                  aria-label={`${shortDateLabel(event.reportDate)} ${event.symbol} ${eventDisplayName(event, displayStockName, language)} ${published ? (language === 'en' ? 'Published' : '已发布') : earningsSessionText(event.session, language)}`}>
+                  <time className="her-date" dateTime={event.reportDate}>{shortDateLabel(event.reportDate)}</time>
+                  <EarningsLogo
+                    symbol={event.symbol}
+                    urls={logoUrls(event.symbol, logoCache?.[event.symbol]?.url)}
+                    onLogoLoad={cacheStockLogo}
+                    className="her-logo"
+                  />
+                  <span className="her-symbol">{event.symbol}</span>
+                  <span className="her-session" data-published={published}>
+                    {published ? (language === 'en' ? 'Published' : '已发布') : earningsSessionText(event.session, language)}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        <EarningsModal
+          open={modalOpen}
+          onClose={() => setModalOpen(false)}
+          events={events}
+          quoteBySymbol={quoteBySymbol}
+          now={now}
+          stockFreshnessStartedAt={stockFreshnessStartedAt}
+          selectedDate={selectedDate}
+          setSelectedDate={setUserSelectedDate}
+          view={modalView}
+          setView={setModalView}
+          logoCache={logoCache}
+          cacheStockLogo={cacheStockLogo}
+          displayStockName={displayStockName}
+          language={language}
+          marketColorMode={marketColorMode}
+          loading={loading}
+        />
+      </section>
     );
   }
 
