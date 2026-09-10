@@ -221,6 +221,108 @@ test('unlocked investment valuation keeps the live quote price', () => {
   assert.equal(summary.totalAssetsUsd, 2112.5);
 });
 
+const lockSummaryTrades = [
+  { id: 1, symbol: 'AAPL', side: 'buy', date: '2026-01-03', price: 100, shares: 10 },
+  { id: 2, symbol: 'MSFT', side: 'buy', date: '2026-01-03', price: 200, shares: 2 },
+];
+
+test('mixed live and locked positions do not label the entire account close-locked', () => {
+  const summary = deriveInvestmentSummary({
+    stockTrades: lockSummaryTrades,
+    watchlist: [
+      { symbol: 'AAPL', price: 121, previousClose: 118, dailyPnlPrice: 120, dailyPnlLocked: true },
+      { symbol: 'MSFT', price: 211, previousClose: 205, dailyPnlPrice: 211, dailyPnlLocked: false },
+    ],
+  });
+
+  assert.equal(summary.hasTodayPnl, true);
+  assert.equal(summary.todayPnlLocked, false);
+  assert.equal(summary.todayPnl, 32);
+  assert.equal(summary.positionsMarketValue, 1622);
+  assert.equal(summary.cumulativePnl, 222);
+  assert.equal(summary.activePositions.find((position) => position.symbol === 'AAPL').valuationPrice, 120);
+  assert.equal(summary.activePositions.find((position) => position.symbol === 'MSFT').valuationPrice, 211);
+});
+
+test('the account is close-locked only when every active position has available locked daily pnl', () => {
+  const summary = deriveInvestmentSummary({
+    stockTrades: lockSummaryTrades,
+    watchlist: [
+      { symbol: 'AAPL', price: 121, previousClose: 118, dailyPnlPrice: 120, dailyPnlLocked: true },
+      { symbol: 'MSFT', price: 211, previousClose: 205, dailyPnlPrice: 210, dailyPnlLocked: true },
+    ],
+  });
+
+  assert.equal(summary.hasTodayPnl, true);
+  assert.equal(summary.todayPnlLocked, true);
+  assert.equal(summary.todayPnl, 30);
+  assert.equal(summary.positionsMarketValue, 1620);
+});
+
+test('an unavailable locked daily pnl prevents an account-wide close-locked label', () => {
+  for (const unavailableQuote of [
+    { symbol: 'MSFT', price: 211, previousClose: 205, dailyPnlPrice: 0, dailyPnlLocked: true },
+    { symbol: 'MSFT', price: 211, dailyPnlPrice: 210, dailyPnlLocked: true },
+  ]) {
+    const summary = deriveInvestmentSummary({
+      stockTrades: lockSummaryTrades,
+      watchlist: [
+        { symbol: 'AAPL', price: 121, previousClose: 118, dailyPnlPrice: 120, dailyPnlLocked: true },
+        unavailableQuote,
+      ],
+    });
+
+    assert.equal(summary.activePositions.every((position) => position.dailyPnlLocked), true);
+    assert.equal(summary.hasTodayPnl, false);
+    assert.equal(summary.todayPnl, null);
+    assert.equal(summary.todayPnlPct, null);
+    assert.equal(summary.todayPnlUnavailableCount, 1);
+    assert.equal(summary.todayPnlLocked, false);
+  }
+});
+
+test('an empty account is not close-locked and keeps its valid zero daily pnl', () => {
+  const summary = deriveInvestmentSummary({ stockTrades: [], watchlist: [] });
+
+  assert.equal(summary.todayPnlLocked, false);
+  assert.equal(summary.hasTodayPnl, true);
+  assert.equal(summary.todayPnl, 0);
+  assert.equal(summary.todayPnlUnavailableCount, 0);
+});
+
+test('valid zero daily pnl remains close-locked when all active prices are locked', () => {
+  const summary = deriveInvestmentSummary({
+    stockTrades: lockSummaryTrades,
+    watchlist: [
+      { symbol: 'AAPL', price: 121, previousClose: 120, dailyPnlPrice: 120, dailyPnlLocked: true },
+      { symbol: 'MSFT', price: 211, previousClose: 210, dailyPnlPrice: 210, dailyPnlLocked: true },
+    ],
+  });
+
+  assert.equal(summary.todayPnlLocked, true);
+  assert.equal(summary.hasTodayPnl, true);
+  assert.equal(summary.todayPnl, 0);
+  assert.equal(summary.todayPnlPct, 0);
+  assert.equal(summary.todayPnlUnavailableCount, 0);
+});
+
+test('closed positions do not prevent remaining locked holdings from being close-locked', () => {
+  const summary = deriveInvestmentSummary({
+    stockTrades: [
+      ...lockSummaryTrades,
+      { id: 3, symbol: 'MSFT', side: 'sell', date: '2026-01-04', price: 210, shares: 2 },
+    ],
+    watchlist: [
+      { symbol: 'AAPL', price: 121, previousClose: 118, dailyPnlPrice: 120, dailyPnlLocked: true },
+      { symbol: 'MSFT', price: 211, previousClose: 205, dailyPnlPrice: 211, dailyPnlLocked: false },
+    ],
+  });
+
+  assert.equal(summary.activePositions.length, 1);
+  assert.equal(summary.todayPnlLocked, true);
+  assert.equal(summary.todayPnl, 20);
+});
+
 test('locked investment valuation keeps the last explicit completed close when the new close is unavailable', () => {
   for (const dailyPnlFields of [{ dailyPnlPrice: 0 }, {}]) {
     const summary = deriveInvestmentSummary({

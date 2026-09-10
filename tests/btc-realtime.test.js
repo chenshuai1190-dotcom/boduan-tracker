@@ -882,7 +882,7 @@ test('stock realtime tick updates quote cache and can insert a held-only row', (
     timestamp: 1783000000123,
     source: 'EODHD_WS',
   };
-  const updated = applyStockTickToQuoteRows([], tick, 'live', baseRows);
+  const updated = applyStockTickToQuoteRows([], tick, 'live', baseRows, { now: tick.timestamp });
 
   assert.equal(updated.length, 1);
   assert.equal(updated[0].symbol, 'NVDA');
@@ -896,7 +896,7 @@ test('stock realtime tick updates quote cache and can insert a held-only row', (
   assert.equal(updated[0].marketStatus, 'open');
   assert.deepEqual(updated[0].intraday, [178, 180, 188.42]);
 
-  const next = applyStockTickToQuoteRows(updated, { ...tick, price: 189 }, 'live', baseRows);
+  const next = applyStockTickToQuoteRows(updated, { ...tick, price: 189 }, 'live', baseRows, { now: tick.timestamp });
   assert.equal(next.length, 1);
   assert.equal(next[0].price, 189);
 });
@@ -914,7 +914,7 @@ test('stock realtime tick keeps previous close from base quote rows when tick on
     price: 390.83,
     timestamp: 1783000000123,
     source: 'EODHD_WS',
-  }, 'live', baseRows);
+  }, 'live', baseRows, { now: 1783000000123 });
 
   assert.equal(updated[0].price, 390.83);
   assert.equal(updated[0].previousClose, 390.507);
@@ -936,7 +936,7 @@ test('stock quote websocket midpoint can update premarket quote rows with baseli
     marketStatus: 'premarket',
     timestamp: Date.UTC(2026, 6, 7, 8, 10, 55),
     source: 'EODHD_WS_QUOTE',
-  }, 'live', baseRows);
+  }, 'live', baseRows, { now: Date.UTC(2026, 6, 7, 8, 10, 55) });
 
   assert.equal(updated[0].price, 194.04975);
   assert.equal(updated[0].previousClose, 195.55);
@@ -964,7 +964,7 @@ test('stock realtime tick waits for previous close before replacing daily pnl st
     timestamp: 1783000000123,
     source: 'EODHD_WS',
   };
-  const unchanged = applyStockTickToQuoteRows(currentRows, tick, 'live', baseRows);
+  const unchanged = applyStockTickToQuoteRows(currentRows, tick, 'live', baseRows, { now: tick.timestamp });
 
   assert.equal(unchanged[0], currentRows[0]);
   assert.equal(unchanged[0].price, 385.73);
@@ -973,7 +973,7 @@ test('stock realtime tick waits for previous close before replacing daily pnl st
   const refreshedRows = [
     { symbol: 'MSFT', name: '微软', price: 384.169, previousClose: 390.49, changePercent: -1.62, high: 391 },
   ];
-  const merged = mergeStockTicksIntoQuoteRows(refreshedRows, [tick], 'live', refreshedRows);
+  const merged = mergeStockTicksIntoQuoteRows(refreshedRows, [tick], 'live', refreshedRows, { now: tick.timestamp });
 
   assert.equal(merged[0].price, 384.169);
   assert.equal(merged[0].previousClose, 390.49);
@@ -994,7 +994,7 @@ test('stock realtime tick recomputes stale percent from base previous close', ()
     changePercent: 4.96,
     timestamp: 1783000000123,
     source: 'EODHD_WS',
-  }, 'live', baseRows);
+  }, 'live', baseRows, { now: 1783000000123 });
 
   assert.equal(updated[0].price, 12.7);
   assert.equal(updated[0].previousClose, 12.07);
@@ -1104,6 +1104,7 @@ test('extended-hours stock realtime tick preserves locked broker-style daily bas
       dailyPnlPriceDate: '2026-07-06',
       dailyPnlBaselineDate: '2026-07-02',
       dailyPnlLocked: true,
+      dailyPnlSource: 'locked-provider-regular-close',
       changePercent: 0.38,
       high: 197.55,
     },
@@ -1118,7 +1119,7 @@ test('extended-hours stock realtime tick preserves locked broker-style daily bas
     timestamp: Date.UTC(2026, 6, 6, 23, 39, 0),
     source: 'EODHD_WS',
   };
-  const updated = applyStockTickToQuoteRows(currentRows, tick, 'live');
+  const updated = applyStockTickToQuoteRows(currentRows, tick, 'live', [], { now: tick.timestamp });
 
   assert.equal(updated[0].price, 195.274);
   assert.equal(updated[0].previousClose, 194.8);

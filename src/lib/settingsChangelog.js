@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '📊 修复盘前今日盈亏的收盘锁定切换',
+      '  - 旧成交和乱序行情不再倒退当前交易时段或覆盖较新的价格',
+      '  - 独立保留已确认收盘价与日期基准，避免延迟刷新混入旧数据',
+      '  - 全部有效持仓锁定后才显示收盘锁定，保留盘前正常价格波动',
+    ],
+    itemsEn: [
+      '📊 Fixed premarket daily P&L switching to a locked close',
+      '  - Delayed and out-of-order quotes no longer reverse the current session or overwrite newer prices',
+      '  - Keeps confirmed closes and dated baselines separate from live prices and delayed refreshes',
+      '  - Shows the account close lock only when every valid holding is locked, preserving normal premarket price changes',
+    ],
+  },
+  {
+    ver: 'v10.7.9.504', date: '2026-09-10',
+    items: [
       '🏠 首页与交易页统一简约报告视觉',
       '  - 统一资产头部的尺寸、字号与间距，压缩交易功能区域，让首屏更快看到持仓',
       '  - 保留持仓左右滑动表格与固定名称列，精简分隔线和重复币种文字',

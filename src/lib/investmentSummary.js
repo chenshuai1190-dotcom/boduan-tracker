@@ -252,7 +252,9 @@ export function deriveInvestmentSummary({
     ? activePositions.reduce((sum, position) => sum + toNumber(position.todayPnl), 0)
     : null;
   const previousMarketValue = activePositions.reduce((sum, position) => sum + position.previousMarketValue, 0);
-  const todayPnlLocked = activePositions.length > 0 && activePositions.some((position) => position.dailyPnlLocked);
+  const todayPnlLocked = activePositions.length > 0
+    && hasTodayPnl
+    && activePositions.every((position) => position.dailyPnlLocked);
   const sellTradeCount = ledgerTrades.reduce((sum, trade) => sum + (trade.side === 'sell' ? 1 : 0), 0);
   const totalAssetsUsd = positionsMarketValue + toNumber(cashUsd);
   const rate = toNumber(usdRate) || 7.2;

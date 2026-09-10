@@ -9,7 +9,7 @@ import { MARKET_COLOR_MODE_STORAGE_KEY, normalizeMarketColorMode } from './lib/m
 import { buildLedgerQuoteUniverse } from './lib/stockUniverse.js';
 import { applyBtcTickToMarketCard, resolveBtcSnapshotRealtimeStatus } from './lib/btcRealtime.js';
 import { applyIndexTickToMarketCards, mergeIndexRestCardsIntoMarketCards, shouldAppendIndexIntraday } from './lib/indexRealtime.js';
-import { applyStockTickToQuoteRows, buildStockRealtimeSymbolsKey, canStartStockRealtime, getUsEquityRealtimeSession, isFreshStockRealtimeTick, mergeFreshStockRealtimeRows, mergeStockSnapshotPollRequest, mergeStockTicksIntoQuoteRows, selectStockRealtimeSymbols, shouldApplyStockSnapshotTick, shouldPollStockRealtimeSnapshot } from './lib/stockRealtime.js';
+import { applyStockTickToQuoteRows, buildStockRealtimeSymbolsKey, canStartStockRealtime, isFreshStockRealtimeTick, mergeFreshStockRealtimeRows, mergeStockSnapshotPollRequest, mergeStockTicksIntoQuoteRows, selectStockRealtimeSymbols, shouldAcceptStockRealtimeTick, shouldApplyStockSnapshotTick, shouldPollStockRealtimeSnapshot } from './lib/stockRealtime.js';
 import { normalizeStrictUserStockSymbol, normalizeUserStockSymbol } from './lib/symbols.js';
 import { resolveStockDisplayName } from './lib/stockDisplayName.js';
 import { getStoredLanguage, isEnglishLanguage, saveStoredLanguage, t } from './lib/i18n.js';
@@ -1300,6 +1300,13 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     }
     const ref = stockRealtimeRef.current;
     const clientReceivedAt = Date.now();
+    const currentRow = officialRealtimeBaseRows.find((row) => normalizeSymbolKey(row?.symbol) === key)
+      || stockQuoteBootstrapRows.find((row) => normalizeSymbolKey(row?.symbol) === key) || {};
+    const lastAcceptedTick = ref.lastTicks.get(key);
+    if (!shouldAcceptStockRealtimeTick(currentRow, tick, { now: clientReceivedAt })
+        || (lastAcceptedTick && !shouldAcceptStockRealtimeTick({ realtimeAt: lastAcceptedTick.timestamp || lastAcceptedTick.realtimeAt }, tick, { now: clientReceivedAt }))) {
+      return;
+    }
     const enrichedTick = {
       ...tick,
       clientReceivedAt,
@@ -1318,36 +1325,13 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     const realtimeBaseRows = officialRealtimeBaseRows.length > 0
       ? officialRealtimeBaseRows
       : stockQuoteBootstrapRows;
-    setQuoteCache((current) => applyStockTickToQuoteRows(current, enrichedTick, realtimeStatus, realtimeBaseRows));
+    setQuoteCache((current) => applyStockTickToQuoteRows(current, enrichedTick, realtimeStatus, realtimeBaseRows, { now: clientReceivedAt }));
     if (key === 'QQQ') {
       setQqqCurrent(price);
       setQqqHigh((prev) => Math.max(prev || 0, price));
       setQqqSignalQuote((current) => {
-        const marketStatus = String(tick?.marketStatus || current?.marketStatus || '').toLowerCase();
-        const dailyPnlSession = getUsEquityRealtimeSession({
-          ...current,
-          marketStatus,
-        }, tickAt);
-        const explicitlyLive = dailyPnlSession === 'pre' || dailyPnlSession === 'regular';
-        const explicitlyLocked = dailyPnlSession === 'post' || dailyPnlSession === 'closed';
-        const high = Math.max(Number(current?.high) || 0, Number(current?.week52High) || 0, price);
-        return {
-          ...current,
-          ...tick,
-          symbol: 'QQQ',
-          name: current?.name || 'QQQ',
-          price,
-          high,
-          week52High: high,
-          realtime: true,
-          realtimeStatus,
-          realtimeAt: tickAt,
-          clientReceivedAt,
-          dailyPnlSession,
-          dailyPnlPrice: explicitlyLive ? price : (Number(current?.dailyPnlPrice) || 0),
-          dailyPnlLocked: explicitlyLocked ? true : (explicitlyLive ? false : Boolean(current?.dailyPnlLocked)),
-          dailyPnlSource: explicitlyLive ? 'realtime-tick' : (current?.dailyPnlSource || 'locked-regular-close'),
-        };
+        const base = { ...current, symbol: 'QQQ', name: current?.name || 'QQQ' };
+        return applyStockTickToQuoteRows([base], enrichedTick, realtimeStatus, realtimeBaseRows, { now: clientReceivedAt })[0];
       });
     }
   }, [stockQuoteBootstrapRows]);

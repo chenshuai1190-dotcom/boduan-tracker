@@ -68,5 +68,5 @@ test('toggles drawdown sort direction without adding a third implicit order', ()
 test('resolves quote-only QQQ ticks from the New York session across the close boundary', () => {
   assert.equal(getUsEquityRealtimeSession({ marketStatus: 'quote' }, Date.parse('2026-07-17T14:00:00Z')), 'regular');
   assert.equal(getUsEquityRealtimeSession({ marketStatus: 'quote' }, Date.parse('2026-07-17T21:00:00Z')), 'post');
-  assert.equal(getUsEquityRealtimeSession({ marketStatus: 'closed' }, Date.parse('2026-07-17T14:00:00Z')), 'closed');
+  assert.equal(getUsEquityRealtimeSession({ marketStatus: 'closed' }, Date.parse('2026-07-17T14:00:00Z')), 'regular', 'an old provider session cannot override the current clock');
 });

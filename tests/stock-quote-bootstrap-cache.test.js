@@ -330,7 +330,7 @@ test('bootstrap rows accelerate only the stock channel and join the portfolio af
   const now = Date.parse('2026-07-28T00:00:00.000Z');
   writeStockQuoteBootstrapCache({
     userId: 'user-a',
-    rows: [quoteRow()],
+    rows: [quoteRow({ timestamp: now - 1000, realtimeAt: now - 1000, receivedAt: now - 900, clientReceivedAt: now - 800 })],
     storage,
     now,
   });
@@ -355,7 +355,7 @@ test('bootstrap rows accelerate only the stock channel and join the portfolio af
     price: 207.5,
     timestamp: now,
     source: 'EODHD_WS',
-  }, 'live', bootstrapRows);
+  }, 'live', bootstrapRows, { now });
   assert.equal(liveQuoteRows.length, 1);
   assert.equal(liveQuoteRows[0].price, 207.5);
   assert.equal(liveQuoteRows[0].previousClose, 208.76);

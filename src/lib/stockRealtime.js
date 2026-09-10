@@ -101,7 +101,7 @@ export function mergeStockSnapshotPollRequest(current, incoming = {}) {
   };
 }
 
-export function applyStockTickToQuoteRows(rows = [], tick, realtimeStatus = 'live', baseRows = []) {
+export function applyStockTickToQuoteRows(rows = [], tick, realtimeStatus = 'live', baseRows = [], { now = Date.now() } = {}) {
   const symbol = normalizeStockRealtimeSymbol(tick?.symbol || tick?.ticker || tick?.displaySymbol);
   const price = asNumber(tick?.price);
   if (!symbol || !price || price <= 0) return rows;
@@ -111,22 +111,24 @@ export function applyStockTickToQuoteRows(rows = [], tick, realtimeStatus = 'liv
   const nextRows = (rows || []).map((row) => {
     if (normalizeStockRealtimeSymbol(row?.symbol) !== symbol) return row;
     found = true;
+    if (!shouldAcceptStockRealtimeTick(row, tick, { now })) return row;
     const baseline = mergeQuoteBaseline(row, baseRow);
     if (!hasRealtimeDailyBaseline(baseline, tick)) return row;
-    return createStockQuoteRow(baseline, { ...tick, symbol }, realtimeStatus);
+    return createStockQuoteRow(baseline, { ...tick, symbol }, realtimeStatus, now);
   });
 
   if (found) return nextRows;
 
   if (!baseRow) return nextRows;
+  if (!shouldAcceptStockRealtimeTick(baseRow, tick, { now })) return nextRows;
   if (!hasRealtimeDailyBaseline(baseRow, tick)) return nextRows;
-  return [...nextRows, createStockQuoteRow(baseRow, { ...tick, symbol }, realtimeStatus)];
+  return [...nextRows, createStockQuoteRow(baseRow, { ...tick, symbol }, realtimeStatus, now)];
 }
 
-export function mergeStockTicksIntoQuoteRows(rows = [], ticks = [], realtimeStatus = 'live', baseRows = []) {
+export function mergeStockTicksIntoQuoteRows(rows = [], ticks = [], realtimeStatus = 'live', baseRows = [], options = {}) {
   let next = rows;
   for (const tick of ticks || []) {
-    next = applyStockTickToQuoteRows(next, tick, realtimeStatus, baseRows);
+    next = applyStockTickToQuoteRows(next, tick, realtimeStatus, baseRows, options);
   }
   return next;
 }
@@ -139,6 +141,12 @@ export function mergeFreshStockRealtimeRows(rows = [], realtimeRows = [], {
   let next = rows || [];
   for (const row of realtimeRows || []) {
     const symbol = normalizeStockRealtimeSymbol(row?.symbol);
+    // Dated baselines and completed closes are not expiring live ticks. Keep
+    // the newer facts even when REST returns late or the live price has aged.
+    if (symbol) {
+      next = next.map(candidate => normalizeStockRealtimeSymbol(candidate?.symbol) === symbol
+        ? mergeDatedQuoteFacts(candidate, row) : candidate);
+    }
     const price = asNumber(row?.price);
     const realtimeAt = normalizeTimestampMs(row?.clientReceivedAt)
       || normalizeTimestampMs(row?.receivedAt)
@@ -151,9 +159,12 @@ export function mergeFreshStockRealtimeRows(rows = [], realtimeRows = [], {
       && realtimeAt
       && now - realtimeAt <= freshWindowMs;
     if (!isFreshRealtime) continue;
-    next = applyStockTickToQuoteRows(next, row, row?.realtimeStatus || 'live', rows);
+    next = applyStockTickToQuoteRows(next, { ...row, timestamp: row.realtimeAt || row.timestamp }, row?.realtimeStatus || 'live', rows, { now });
   }
-  return next;
+  // A session boundary still applies when no new tick is eligible. In
+  // particular, the positive-value REST merge must not freeze a live price
+  // as a close when the provider explicitly has no confirmed close yet.
+  return next.map(row => restoreCompletedDailyPnl(row, now));
 }
 
 export function isFreshStockRealtimeTick(tick = {}, {
@@ -177,8 +188,34 @@ function findStockRealtimeRow(rows = [], symbol) {
   return (rows || []).find((row) => normalizeStockRealtimeSymbol(row?.symbol) === symbol) || null;
 }
 
+function mergeDatedQuoteFacts(row = {}, baseRow = null) {
+  if (!baseRow) return row || {};
+  // Quote prices and completed-close facts have separate lifetimes. Select the
+  // dated baseline as a bundle so an old cache cannot resurrect yesterday's
+  // previous-close denominator after a new REST baseline has arrived.
+  const completedDailyPnl = latestCompletedDailyPnl(row, baseRow);
+  const rowBaselineDate = row?.dailyBaselineDate || row?.dailyPnlBaselineDate || '';
+  const baseBaselineDate = baseRow?.dailyBaselineDate || baseRow?.dailyPnlBaselineDate || '';
+  if (baseBaselineDate && baseBaselineDate > rowBaselineDate) {
+    row = { ...row };
+    for (const key of [
+      'previousClose', 'dailyBaselineClose', 'dailyBaselineDate', 'dailyBaselineSource',
+      'dailyPnlBaselineClose', 'dailyPnlBaselineDate', 'dailyPnlBaselineSource',
+      'sessionPreviousClose', 'providerPreviousClose',
+    ]) row[key] = baseRow[key];
+    // A newer denominator is durable; its cached live price is not. Keep the
+    // chosen quote's price and lock state, then recalculate against that base.
+    const baseline = asNumber(row.dailyPnlBaselineClose);
+    const price = asNumber(row.dailyPnlPrice);
+    row.dailyPnlChange = price > 0 && baseline > 0 ? price - baseline : null;
+    row.dailyPnlChangePercent = row.dailyPnlChange === null ? null : row.dailyPnlChange / baseline * 100;
+  }
+  return completedDailyPnl ? { ...row, completedDailyPnl } : row;
+}
+
 function mergeQuoteBaseline(row = {}, baseRow = null) {
   if (!baseRow) return row || {};
+  row = mergeDatedQuoteFacts(row, baseRow);
   const rowDailyBaseline = asNumber(row?.dailyBaselineClose);
   const baseDailyBaseline = asNumber(baseRow?.dailyBaselineClose);
   const rowPreviousClose = asNumber(row?.previousClose);
@@ -203,7 +240,7 @@ function mergeQuoteBaseline(row = {}, baseRow = null) {
     dailyPnlBaselineSource: row?.dailyPnlBaselineSource || baseRow?.dailyPnlBaselineSource || row?.dailyBaselineSource || baseRow?.dailyBaselineSource || '',
     dailyPnlChange: asNumber(row?.dailyPnlChange) ?? asNumber(baseRow?.dailyPnlChange) ?? null,
     dailyPnlChangePercent: asNumber(row?.dailyPnlChangePercent) ?? asNumber(baseRow?.dailyPnlChangePercent) ?? null,
-    dailyPnlLocked: Boolean(row?.dailyPnlLocked || baseRow?.dailyPnlLocked),
+    dailyPnlLocked: typeof row?.dailyPnlLocked === 'boolean' ? row.dailyPnlLocked : Boolean(baseRow?.dailyPnlLocked),
     dailyPnlSession: row?.dailyPnlSession || baseRow?.dailyPnlSession || '',
     dailyPnlSource: row?.dailyPnlSource || baseRow?.dailyPnlSource || '',
     sessionPreviousClose: asNumber(row?.sessionPreviousClose) || asNumber(baseRow?.sessionPreviousClose) || 0,
@@ -213,6 +250,7 @@ function mergeQuoteBaseline(row = {}, baseRow = null) {
     ytdChangePercent: asNumber(row?.ytdChangePercent) || asNumber(baseRow?.ytdChangePercent) || 0,
     intraday: Array.isArray(row?.intraday) && row.intraday.length > 0 ? row.intraday : (baseRow?.intraday || []),
     marketStatus: row?.marketStatus || baseRow?.marketStatus || null,
+    completedDailyPnl: latestCompletedDailyPnl(row, baseRow),
   };
 }
 
@@ -228,44 +266,11 @@ function hasRealtimeDailyBaseline(row = {}, tick = {}) {
 }
 
 function isExtendedStockRealtimeRow(row, now) {
-  const status = String(row?.marketStatus || '').trim().toLowerCase();
-  if (status.includes('open') || status.includes('regular')) {
-    return false;
-  }
-  if (
-    status.includes('extended')
-    || status.includes('pre')
-    || status.includes('post')
-  ) {
-    return true;
-  }
-  return isUsExtendedTradingHours(now);
+  const session = getUsEquityRealtimeSession(row, now);
+  return session === 'pre' || session === 'post';
 }
 
-function isUsExtendedTradingHours(now) {
-  try {
-    const parts = new Intl.DateTimeFormat('en-US', {
-      timeZone: 'America/New_York',
-      weekday: 'short',
-      hour: '2-digit',
-      minute: '2-digit',
-      hourCycle: 'h23',
-    }).formatToParts(new Date(now));
-    const getPart = (type) => parts.find((part) => part.type === type)?.value || '';
-    const weekday = getPart('weekday');
-    if (weekday === 'Sat' || weekday === 'Sun') return false;
-    const hour = Number(getPart('hour'));
-    const minute = Number(getPart('minute'));
-    if (!Number.isFinite(hour) || !Number.isFinite(minute)) return false;
-    const minutes = hour * 60 + minute;
-    return (minutes >= 4 * 60 && minutes < 9 * 60 + 30)
-      || (minutes >= 16 * 60 && minutes < 20 * 60);
-  } catch {
-    return false;
-  }
-}
-
-function getRealtimeTimestampMs(tick = {}) {
+function getRealtimeTimestampMs(tick = {}, fallback = Date.now()) {
   const timestamp = asNumber(tick?.timestamp);
   if (timestamp && timestamp > 0) {
     return timestamp < 1_000_000_000_000 ? Math.round(timestamp * 1000) : Math.round(timestamp);
@@ -274,15 +279,12 @@ function getRealtimeTimestampMs(tick = {}) {
   if (realtimeAt && realtimeAt > 0) return Math.round(realtimeAt);
   const receivedAt = asNumber(tick?.receivedAt);
   if (receivedAt && receivedAt > 0) return Math.round(receivedAt);
-  return Date.now();
+  return fallback;
 }
 
-export function getUsEquityRealtimeSession(row, now) {
-  const status = String(row?.marketStatus || '').trim().toLowerCase();
-  if (status.includes('post')) return 'post';
-  if (status.includes('pre')) return 'pre';
-  if (status.includes('open') || status.includes('regular')) return 'regular';
-  if (status.includes('closed')) return 'closed';
+// Match the existing REST clock, not a provider message's historical trade
+// session. A late trade or a switch between trade/quote streams is not a clock.
+export function getUsEquityRealtimeSession(_row, now = Date.now()) {
   try {
     const parts = new Intl.DateTimeFormat('en-US', {
       timeZone: 'America/New_York',
@@ -307,10 +309,94 @@ export function getUsEquityRealtimeSession(row, now) {
   }
 }
 
-function createStockQuoteRow(row, tick, realtimeStatus) {
+function marketDateAt(now) {
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit',
+    }).formatToParts(new Date(now));
+    const part = type => parts.find(item => item.type === type)?.value || '';
+    return `${part('year')}-${part('month')}-${part('day')}`;
+  } catch { return ''; }
+}
+
+export function shouldAcceptStockRealtimeTick(row = {}, tick = {}, { now = Date.now() } = {}) {
+  if (!Number.isFinite(now) || now <= 0) return false;
+  if (!(asNumber(tick?.price) > 0)) return false;
+  const tickTime = getRealtimeTimestampMs(tick, now);
+  const session = getUsEquityRealtimeSession(null, now);
+  const maxAge = session === 'pre' || session === 'post'
+    ? STOCK_REALTIME_EXTENDED_ROW_MAX_AGE_MS : STOCK_REALTIME_ROW_MAX_AGE_MS;
+  if (now - tickTime > maxAge || tickTime - now > 60_000) return false;
+  if (marketDateAt(tickTime) !== marketDateAt(now)) return false;
+  // Do not bootstrap a newly opened session with a tick from the prior one.
+  if (getUsEquityRealtimeSession(null, tickTime) !== session) return false;
+  const previousTickTime = normalizeTimestampMs(row?.realtimeAt);
+  return !previousTickTime || tickTime >= previousTickTime;
+}
+
+function completedDailyPnlFrom(row = {}) {
+  const stored = row.completedDailyPnl;
+  const source = String(row.dailyPnlSource || '');
+  const official = ['locked-provider-regular-close', 'locked-eod-regular-close', 'locked-latest-eod-close', 'eodhd-adjusted-close', 'eodhd-close'].includes(source);
+  const current = row.dailyPnlLocked && official ? {
+    price: Number(row.dailyPnlPrice), date: row.dailyPnlPriceDate, source,
+    baselineClose: Number(row.dailyPnlBaselineClose) || 0,
+    baselineDate: row.dailyPnlBaselineDate || '', baselineSource: row.dailyPnlBaselineSource || '',
+  } : null;
+  return [current, stored].filter(item => item && Number.isFinite(item.price) && item.price > 0
+    && /^\d{4}-\d{2}-\d{2}$/.test(item.date || '')).sort((a, b) => b.date.localeCompare(a.date))[0] || null;
+}
+
+function latestCompletedDailyPnl(...rows) {
+  return rows.reverse().map(completedDailyPnlFrom).filter(Boolean).sort((a, b) => b.date.localeCompare(a.date))[0] || null;
+}
+
+function needsSameDayClose(now) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York', weekday: 'short', hour: '2-digit', hourCycle: 'h23',
+  }).formatToParts(new Date(now));
+  const weekday = parts.find(part => part.type === 'weekday')?.value;
+  return weekday !== 'Sat' && weekday !== 'Sun' && Number(parts.find(part => part.type === 'hour')?.value) >= 16;
+}
+
+function completedCloseAt(row, now) {
+  const completed = latestCompletedDailyPnl(row);
+  const date = marketDateAt(now);
+  return completed && completed.date <= date && (!needsSameDayClose(now) || completed.date === date) ? completed : null;
+}
+
+function restoreCompletedDailyPnl(row, now) {
+  const session = getUsEquityRealtimeSession(null, now);
+  if (session === 'pre' || session === 'regular') return row;
+  const close = completedCloseAt(row, now);
+  if (!close) return { ...row, dailyPnlPrice: 0, dailyPnlPriceDate: '',
+    dailyPnlChange: null, dailyPnlChangePercent: null,
+    dailyPnlSession: session, dailyPnlLocked: true, dailyPnlSource: 'unavailable' };
+  const change = close.baselineClose > 0 ? close.price - close.baselineClose : null;
+  return { ...row, dailyPnlPrice: close.price, dailyPnlPriceDate: close.date,
+    dailyPnlBaselineClose: close.baselineClose, dailyPnlBaselineDate: close.baselineDate,
+    dailyPnlBaselineSource: close.baselineSource, dailyPnlSource: close.source,
+    dailyPnlSession: session, dailyPnlLocked: true, dailyPnlChange: change,
+    dailyPnlChangePercent: change === null ? null : change / close.baselineClose * 100 };
+}
+
+function createStockQuoteRow(row, tick, realtimeStatus, now) {
   const symbol = normalizeStockRealtimeSymbol(tick?.symbol) || normalizeStockRealtimeSymbol(row?.symbol);
   const price = asNumber(tick?.price) || 0;
-  const tickTime = getRealtimeTimestampMs(tick);
+  const tickTime = getRealtimeTimestampMs(tick, now);
+  const dailyPnlSession = getUsEquityRealtimeSession(null, now);
+  const marketDate = marketDateAt(now);
+  const shouldRealtimeUpdateDailyPnl = dailyPnlSession === 'pre' || dailyPnlSession === 'regular';
+  const completedDailyPnl = latestCompletedDailyPnl(row);
+  // The prior session's confirmed close becomes this session's denominator,
+  // even when its fresh tick beats the first scheduled REST response.
+  if (shouldRealtimeUpdateDailyPnl && completedDailyPnl?.date < marketDate
+      && completedDailyPnl.date > (row.dailyBaselineDate || row.dailyPnlBaselineDate || '')) {
+    row = { ...row, previousClose: completedDailyPnl.price, dailyBaselineClose: completedDailyPnl.price,
+      dailyBaselineDate: completedDailyPnl.date, dailyBaselineSource: completedDailyPnl.source,
+      dailyPnlBaselineClose: completedDailyPnl.price, dailyPnlBaselineDate: completedDailyPnl.date,
+      dailyPnlBaselineSource: completedDailyPnl.source };
+  }
   const previousIntraday = Array.isArray(row?.intraday) ? row.intraday : [];
   const intraday = [...previousIntraday, price].slice(-80);
   const tickDailyBaselineClose = asNumber(tick?.dailyBaselineClose);
@@ -320,10 +406,7 @@ function createStockQuoteRow(row, tick, realtimeStatus) {
   const rowDailyBaselineClose = asNumber(row?.dailyBaselineClose);
   const rowPreviousClose = asNumber(row?.previousClose);
   const hasLockedRowBaseline = rowDailyBaselineClose && rowDailyBaselineClose > 0;
-  const extendedTick = isExtendedStockRealtimeRow({
-    ...row,
-    marketStatus: tick?.marketStatus || row?.marketStatus,
-  }, tickTime);
+  const extendedTick = dailyPnlSession === 'pre' || dailyPnlSession === 'post';
   const fallbackPreviousClose = extendedTick
     ? (rowPreviousClose && rowPreviousClose > 0 ? rowPreviousClose : tickPreviousClose)
     : (tickPreviousClose && tickPreviousClose > 0 ? tickPreviousClose : rowPreviousClose);
@@ -338,21 +421,12 @@ function createStockQuoteRow(row, tick, realtimeStatus) {
   const changePercent = previousClose && previousClose > 0
     ? ((price - previousClose) / previousClose) * 100
     : (tickChangePercent ?? asNumber(row?.changePercent) ?? 0);
-  const rowDailyPnlPrice = asNumber(row?.dailyPnlPrice);
   const rowDailyPnlBaselineClose = asNumber(row?.dailyPnlBaselineClose);
-  const dailyPnlBaselineClose = rowDailyPnlBaselineClose || previousClose || 0;
-  const dailyPnlSession = getUsEquityRealtimeSession({
-    ...row,
-    marketStatus: tick?.marketStatus || row?.marketStatus,
-  }, tickTime);
-  const shouldRealtimeUpdateDailyPnl = dailyPnlSession === 'pre' || dailyPnlSession === 'regular';
-  const lockedDailyPnlPrice = rowDailyPnlPrice
-    || asNumber(row?.providerPreviousClose)
-    || asNumber(row?.sessionPreviousClose)
-    || tickPreviousClose
-    || 0;
-  const dailyPnlPrice = shouldRealtimeUpdateDailyPnl ? price : lockedDailyPnlPrice;
-  const dailyPnlLocked = !shouldRealtimeUpdateDailyPnl && Boolean(dailyPnlPrice);
+  const lockedClose = completedCloseAt(row, now);
+  const dailyPnlBaselineClose = shouldRealtimeUpdateDailyPnl
+    ? (rowDailyPnlBaselineClose || previousClose || 0) : (lockedClose?.baselineClose || 0);
+  const dailyPnlPrice = shouldRealtimeUpdateDailyPnl ? price : (lockedClose?.price || 0);
+  const dailyPnlLocked = !shouldRealtimeUpdateDailyPnl;
   const hasDailyPnl = dailyPnlPrice && dailyPnlPrice > 0 && dailyPnlBaselineClose && dailyPnlBaselineClose > 0;
   const dailyPnlChange = hasDailyPnl ? dailyPnlPrice - dailyPnlBaselineClose : null;
   const dailyPnlChangePercent = hasDailyPnl ? (dailyPnlChange / dailyPnlBaselineClose) * 100 : null;
@@ -374,15 +448,16 @@ function createStockQuoteRow(row, tick, realtimeStatus) {
     dailyBaselineDate: row?.dailyBaselineDate || tick?.dailyBaselineDate || '',
     dailyBaselineSource: row?.dailyBaselineSource || tick?.dailyBaselineSource || '',
     dailyPnlPrice: dailyPnlPrice || 0,
-    dailyPnlPriceDate: row?.dailyPnlPriceDate || tick?.dailyPnlPriceDate || '',
+    dailyPnlPriceDate: shouldRealtimeUpdateDailyPnl ? marketDate : (lockedClose?.date || ''),
     dailyPnlBaselineClose,
-    dailyPnlBaselineDate: row?.dailyPnlBaselineDate || row?.dailyBaselineDate || tick?.dailyPnlBaselineDate || '',
-    dailyPnlBaselineSource: row?.dailyPnlBaselineSource || row?.dailyBaselineSource || tick?.dailyPnlBaselineSource || '',
+    dailyPnlBaselineDate: shouldRealtimeUpdateDailyPnl ? (row?.dailyPnlBaselineDate || row?.dailyBaselineDate || '') : (lockedClose?.baselineDate || ''),
+    dailyPnlBaselineSource: shouldRealtimeUpdateDailyPnl ? (row?.dailyPnlBaselineSource || row?.dailyBaselineSource || '') : (lockedClose?.baselineSource || ''),
     dailyPnlChange,
     dailyPnlChangePercent,
     dailyPnlLocked,
     dailyPnlSession,
-    dailyPnlSource: shouldRealtimeUpdateDailyPnl ? 'realtime-tick' : (row?.dailyPnlSource || 'locked-regular-close'),
+    dailyPnlSource: shouldRealtimeUpdateDailyPnl ? 'realtime-tick' : (lockedClose?.source || 'unavailable'),
+    completedDailyPnl,
     sessionPreviousClose: asNumber(tick?.sessionPreviousClose) || asNumber(row?.sessionPreviousClose) || tickPreviousClose || 0,
     providerPreviousClose: asNumber(tick?.providerPreviousClose) || asNumber(row?.providerPreviousClose) || tickPreviousClose || 0,
     change,
