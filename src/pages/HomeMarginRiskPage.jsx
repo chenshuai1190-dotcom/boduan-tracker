@@ -526,6 +526,11 @@ export default function HomeMarginRiskPage({ ctx = {} }) {
                         percent: assetStatusReady ? formatSignedRatioPercent(item.percent) : '—',
                       },
                     )}
+                    {assetStatusReady && (
+                      <div className="margin-report-money-reference" data-home-margin-change-reference="true">
+                        {formatWanReferenceFromUsd(Math.abs(stress.assetChangeUsd), currency, usdRate, language)}
+                      </div>
+                    )}
                   </div>
               </div>
             ))}

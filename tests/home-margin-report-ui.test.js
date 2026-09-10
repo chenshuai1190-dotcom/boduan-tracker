@@ -129,6 +129,39 @@ test('reference formatting preserves negative and zero amounts without treating 
   assert.doesNotMatch(renderPage({ availableCashStatusReady: false }).html, /margin-report-money-reference/);
 });
 
+test('scenario change amounts have their own absolute wan reference for increases, decreases and zero', () => {
+  for (const [scenario, direction, reference] of [[20, '增加', '约 $1.60 万'], [-20, '下降', '约 $1.60 万'], [0, '不变', '约 $0.00 万']]) {
+    const { tree } = renderPage({ homeMarginScenarioPreview: scenario });
+    for (const key of ['net', 'total']) {
+      const row = result(tree, key);
+      const change = nodes(row, node => node.props.className?.startsWith('margin-report-result-change'))[0];
+      const references = nodes(change, node => node.props['data-home-margin-change-reference']);
+      assert.equal(references.length, 1);
+      assert.equal(references[0].props.children, reference);
+      assert.match(renderToStaticMarkup(change), new RegExp(`${direction} \\$${scenario === 0 ? '0\\.00' : '16,000\\.00'}`));
+      assert.doesNotMatch(renderToStaticMarkup(references[0]), /-\$/);
+    }
+  }
+});
+
+test('change references use the display currency rate and stay absent until account data is ready', () => {
+  const investmentSummary = { ...account.investmentSummary, usdRate: 7.1234 };
+  for (const scenario of [-20, 20]) {
+    const { tree } = renderPage({ portfolioCurrencyMode: 'CNY', investmentSummary, homeMarginScenarioPreview: scenario });
+    const change = nodes(result(tree, 'net'), node => node.props.className?.startsWith('margin-report-result-change'))[0];
+    assert.match(renderToStaticMarkup(change), /¥113,974\.40/);
+    assert.equal(nodes(change, node => node.props['data-home-margin-change-reference'])[0].props.children, '约 ¥11.40 万');
+    assert.doesNotMatch(renderToStaticMarkup(change), /\$/);
+  }
+  const english = renderPage({ language: 'en', portfolioCurrencyMode: 'CNY', homeMarginScenarioPreview: 20 });
+  assert.equal(nodes(english.tree, node => node.props['data-home-margin-change-reference'])[0].props.children, '≈ ¥11.20 × 10k');
+  for (const readiness of [{ availableCashStatusReady: false }, { marginStatusReady: false }]) {
+    const { html, tree } = renderPage({ ...readiness, homeMarginScenarioPreview: -20 });
+    assert.equal(nodes(tree, node => node.props['data-home-margin-change-reference']).length, 0);
+    assert.doesNotMatch(html, /[$¥]\d/);
+  }
+});
+
 test('report styling keeps financial text untruncated and gives mobile controls neutral, readable surfaces', () => {
   assert.doesNotMatch(pageSource, /truncate|font-semibold|font-medium|radial-gradient/);
   assert.match(css, /\.margin-report-current\s*\{[^}]*repeat\(2, minmax\(0, 1fr\)\)/);

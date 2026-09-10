@@ -4,6 +4,19 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '✨ 持仓收益试算统一新版黑灰视觉',
+      '  - 模拟股价、快捷价位和盈亏结果重新排版，保留原计算与涨跌配色',
+      '  - 融资情景增加、下降金额下方补充万级参考，方便快速阅读',
+    ],
+    itemsEn: [
+      '✨ Updated monochrome holding-return simulator',
+      '  - Clearer simulated prices, shortcuts and P&L results with unchanged calculations and market colors',
+      '  - Margin scenario changes now include a 10k-unit reference for easier reading',
+    ],
+  },
+  {
+    ver: 'v10.7.9.507', date: '2026-09-10',
+    items: [
       '✨ 交易操作统一新版视觉与金额阅读体验',
       '  - 交易记录限制为纵向滚动，修正行末溢出与金额布局，保留持仓表左右滑动',
       '  - 新增正式交易、股票入口交易表单及订单操作统一简约黑灰风格',

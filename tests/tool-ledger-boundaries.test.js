@@ -93,6 +93,7 @@ const reviewReadingDetailsCss = readFileSync(new URL('../src/components/ReviewRe
 const settingsTabSource = readFileSync(new URL('../src/tabs/SettingsTab.jsx', import.meta.url), 'utf8');
 const tradesTabSource = readFileSync(new URL('../src/tabs/TradesTab.jsx', import.meta.url), 'utf8');
 const tradesTabCss = readFileSync(new URL('../src/tabs/TradesTab.css', import.meta.url), 'utf8');
+const positionProfitScenarioCss = readFileSync(new URL('../src/tabs/PositionProfitScenario.css', import.meta.url), 'utf8');
 const tradesPositionsSource = readFileSync(new URL('../src/components/TradesPositionsReport.jsx', import.meta.url), 'utf8');
 const tradesPositionsCss = readFileSync(new URL('../src/components/TradesPositionsReport.css', import.meta.url), 'utf8');
 const dbSource = readFileSync(new URL('../src/lib/db.js', import.meta.url), 'utf8');
@@ -848,14 +849,21 @@ test('main trade entry modal isolates the compact stacked formal-trade design', 
   assert.ok(tradesTabSource.includes('profitPerDollar = quantity * displayRate'), 'holding return simulator should compute per-dollar impact from shares and display FX rate');
   assert.ok(tradesTabSource.includes("label: tt('trades.scenarioWeek52High', '52周高')"), 'holding return simulator should include a 52-week-high shortcut');
   assert.ok(tradesTabSource.includes('bg-black/60') && tradesTabSource.includes('backdrop-blur-md'), 'holding return simulator should use a translucent frosted-glass backdrop');
-  assert.ok(tradesTabSource.includes("resultTone === 'flat' ? 'text-[#f6b54b]'"), 'holding return simulator should show flat P&L in the gold neutral state');
+  assert.ok(tradesTabSource.includes("resultTone === 'flat' ? 'pps-flat'"), 'holding return simulator should show flat P&L in its scoped neutral state');
+  for (const className of ['pps-panel', 'pps-input-shell', 'pps-shortcut', 'pps-profit', 'pps-delta', 'pps-facts']) {
+    assert.ok(tradesTabSource.includes(className), `holding return simulator should use its scoped ${className} report section`);
+  }
+  assert.ok(tradesTabSource.includes('aria-pressed={active}'), 'price shortcuts should expose the selected state without a colored trading signal');
+  assert.match(positionProfitScenarioCss, /\.pps-panel\s*\{[^}]*background:\s*#101112;/, 'holding return simulator should use the shared neutral-black report surface');
+  assert.match(positionProfitScenarioCss, /\.pps-input-shell\s*\{[^}]*background:\s*#1a1b1d;/, 'holding return simulator input should use a neutral raised surface');
+  assert.doesNotMatch(positionProfitScenarioCss, /#f6b54b|#ffd166|#ffd18a|#0b0f14|linear-gradient|radial-gradient/, 'holding return simulator should not restore legacy gold, navy, or decorative gradient styles');
   assert.ok(tradesTabSource.includes("profit < 0 ? 'loss'") && tradesTabSource.includes('strongPnlClass(profit, marketColorMode)'), 'holding return simulator should keep loss and profit result colors driven by the market color mode');
   assert.equal(tradesTabSource.includes('Rocket'), false, 'holding return simulator should not keep the rejected rocket marker');
   assert.ok(tradesTabSource.includes('@keyframes scenario-marker-breathe') && tradesTabSource.includes('scenario-marker-breathe'), 'holding return simulator should use a subtle breathing animation for the current-price marker');
   assert.ok(tradesTabSource.includes('scenario-marker-anchor pointer-events-none absolute top-1/2 -translate-x-1/2 -translate-y-1/2'), 'holding return simulator should keep current marker positioning independent from the breathing animation');
-  assert.ok(tradesTabSource.includes('block h-[9px] w-[9px] rounded-full border border-[#ffd166]/95 bg-[#f6b54b]'), 'holding return simulator should use a fixed gold current-price marker without the rejected smile face');
+  assert.ok(tradesTabSource.includes('scenario-marker-breathe pps-current-marker'), 'holding return simulator should use its neutral current-price marker without the rejected smile face');
   assert.equal(tradesTabSource.includes('scenario-marker-smile'), false, 'holding return simulator should not keep the rejected smile marker structure');
-  assert.ok(tradesTabSource.includes("markerGlowRgb = '246 181 75'") && tradesTabSource.includes('--scenario-marker-glow'), 'holding return simulator should use a fixed gold breathing glow for the current-price marker');
+  assert.ok(tradesTabSource.includes("markerGlowRgb = '210 212 215'") && tradesTabSource.includes('--scenario-marker-glow'), 'holding return simulator should keep the breathing marker neutral rather than imply an investment direction');
   assert.ok(tradesTabSource.includes('const pointLeftPct = (value) => Math.min(100, Math.max(0, ((value - low) / range) * 100));'), 'holding return simulator should expose numeric price positions for labels and markers');
   assert.ok(tradesTabSource.includes('const pricePositionItems = [') && tradesTabSource.includes("id: 'current'") && tradesTabSource.includes('leftPct: pointLeftPct(item.value)'), 'holding return simulator should build price-position markers from shared point data');
   assert.ok(tradesTabSource.includes('const simulatedMatchesCurrent = validPrice && currentPrice > 0 && sameScenarioPrice(inputPrice, currentPrice);'), 'holding return simulator should detect when simulated price overlaps the current price');
