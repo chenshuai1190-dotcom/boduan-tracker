@@ -223,6 +223,9 @@ export default function AccountAssetTrendModal({
               >
                 {(trend?.slots || []).map((slot) => {
                   const selected = selectedSlot?.month === slot.month;
+                  const barColor = slot.hasPreviousMonth && Number.isFinite(slot.changeAmount) && slot.changeAmount !== 0
+                    ? marketHexColor(slot.changeAmount, marketColorMode)
+                    : '#777780';
                   const height = slot.hasData
                     ? `${Math.max(slot.balance === 0 ? 3 : 5, (slot.balance / axisMax) * 100)}%`
                     : '0%';
@@ -231,7 +234,7 @@ export default function AccountAssetTrendModal({
                       {slot.hasData && (
                         <div
                           className={`account-trend-bar${selected ? ' is-selected' : ''}`}
-                          style={{ height }}
+                          style={{ height, backgroundColor: barColor }}
                           aria-hidden="true"
                         />
                       )}
