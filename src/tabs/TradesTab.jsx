@@ -18,6 +18,7 @@ import {
 } from '../lib/tqqqTradeDiscipline.js';
 import { formatWaveCurrencyAmount, formatWaveUsdPrice } from '../lib/waveCurrencyDisplay.js';
 import ActionModalCard from '../components/ActionModalCard.jsx';
+import StockReportModal from '../components/StockReportModal.jsx';
 import AccountLeverageBadge from '../components/AccountLeverageBadge.jsx';
 import AvailableCashEditor from '../components/AvailableCashEditor.jsx';
 import GenericLedgerTradeEntryPanel, { GenericLedgerTradeHeader } from '../components/GenericLedgerTradeEntryPanel.jsx';
@@ -26,6 +27,7 @@ import TqqqTradeEntryPanel, { TQQQ_ACTION_TONE_CLASSES } from '../components/Tqq
 import TradeToolsCatalog from '../components/TradeToolsCatalog.jsx';
 import TradesPositionsReport from '../components/TradesPositionsReport.jsx';
 import './TradesTab.css';
+import './TradesDialogs.css';
 
 const PORTFOLIO_CURRENCY_STORAGE_KEY = 'xmoney_portfolio_currency';
 const TRADE_CURRENCY_STORAGE_KEY = 'xmoney_trade_currency';
@@ -1107,42 +1109,51 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
           const orderSymbol = String(orderActionTrade.symbol || '').trim().toUpperCase();
           const orderLogoUrls = stockLogoCandidates(orderSymbol, logoCache?.[orderSymbol]?.url);
           return (
-            <ActionModalCard
+            <StockReportModal
               title={tt('trades.orderActions', '订单操作')}
               closeLabel={tt('trades.closeOrderActions', '关闭订单操作')}
               onClose={() => setOrderActionTrade(null)}
+              panelClassName="trade-order-dialog"
               actions={[
                 {
                   key: 'edit',
                   label: tt('trades.modify', '修改'),
                   onClick: editOrderFromAction,
+                  className: 'srm-primary',
                 },
                 {
                   key: 'delete',
                   label: tt('trades.delete', '删除'),
                   onClick: deleteOrderFromAction,
+                  className: 'trade-dialog-danger',
                 },
               ]}
             >
-              <div className="grid min-h-[58px] grid-cols-[38px_minmax(0,1fr)_auto] items-center gap-2.5">
-                <div className="flex h-[38px] w-[38px] shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/[0.13] bg-black/[0.38] shadow-[0_7px_18px_rgba(0,0,0,0.27)]">
+              <div className="trade-order-identity">
+                <div className="trade-order-logo">
                   <StockLogo
                     symbol={orderSymbol}
                     urls={orderLogoUrls}
                     onLogoLoad={cacheStockLogo}
-                    className="h-6 w-6 rounded-[4px]"
+                    className="h-7 w-7 rounded-[6px]"
                   />
                 </div>
                 <div className="min-w-0">
-                  <div className="truncate text-[15px] font-normal leading-5 text-white/[0.82]">{orderSymbol || '--'}</div>
-                  <div className="mt-[3px] truncate text-[11.5px] font-normal leading-4 text-white/[0.42]">{displayName || orderSymbol || '--'}</div>
+                  <div className="trade-order-symbol">{orderSymbol || '--'}</div>
+                  <div className="trade-order-name">{displayName || orderSymbol || '--'}</div>
                 </div>
-                <div className="min-w-[116px] shrink-0 text-right">
-                  <div className="whitespace-nowrap text-[13.5px] font-normal leading-[18px] text-white/[0.48]">{sideLabel(orderActionTrade.side)} {sharesText(orderActionTrade.shares, 0)}</div>
-                  <div className="mt-0.5 whitespace-nowrap text-[11.5px] font-normal leading-[15px] text-white/[0.37] tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>{currencyAmount(amount, displayCurrency, 2)} @ {fmtAmount(orderActionTrade.price, 2)}</div>
-                </div>
+                <span className="trade-order-side">{sideLabel(orderActionTrade.side)}</span>
               </div>
-            </ActionModalCard>
+              <div className="trade-order-total">
+                <span className="trade-order-label">{tt('trades.amount', '金额')} · {displayCurrency}</span>
+                <div className="trade-order-total-value" style={{ fontFamily: TRADE_NUMBER_FONT }}>{currencyAmount(amount, displayCurrency, 2)}</div>
+              </div>
+              <dl className="trade-order-facts">
+                <div><dt>{tt('trades.date', '日期')}</dt><dd>{orderActionTrade.date || '—'}</dd></div>
+                <div><dt>{tt('trades.quantity', '股数')}</dt><dd>{sharesText(orderActionTrade.shares, 0)}</dd></div>
+                <div><dt>{englishMode ? 'Price · USD' : '成交价 · USD'}</dt><dd>${fmtAmount(orderActionTrade.price, 2)}</dd></div>
+              </dl>
+            </StockReportModal>
           );
         })()}
 
@@ -1916,17 +1927,17 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
             ) : null}
             closeLabel={tt('trades.closeTradeForm', '关闭交易表单')}
             onClose={() => !tradeSubmitting && setShowAddTrade(false)}
-            widthClassName={isTqqqTradeEntry ? 'w-[calc(100vw-24px)] max-w-[720px]' : 'w-[calc(100vw-24px)] max-w-md'}
+            widthClassName={isTqqqTradeEntry ? 'w-[calc(100vw-24px)] max-w-[720px]' : (isGenericLedgerTradeEntry ? 'w-[calc(100vw-32px)] max-w-[398px]' : 'w-[calc(100vw-24px)] max-w-md')}
             panelClassName={isTqqqTradeEntry
               ? 'min-h-0 !border-transparent'
-              : (isGenericLedgerTradeEntry ? 'min-h-0 !border-white/10 !bg-[#080808] !bg-none !px-[22px] !pb-5 !pt-[22px] !text-white !shadow-[0_24px_70px_rgba(0,0,0,0.5)]' : 'min-h-0')}
+              : (isGenericLedgerTradeEntry ? 'stock-report-modal formal-trade-dialog' : 'min-h-0')}
             contentClassName={isTqqqTradeEntry
               ? '!border-0 !bg-transparent !p-0 !shadow-none'
-              : (isGenericLedgerTradeEntry ? '!rounded-none !border-0 !bg-transparent !bg-none !px-0 !py-0 !shadow-none' : '')}
-            headerClassName={isGenericLedgerTradeEntry ? '!mb-[14px] !border-b !border-white/[0.07] !pb-[14px]' : ''}
-            closeButtonClassName={isGenericLedgerTradeEntry ? '!h-[42px] !w-[42px] !border-0 !bg-white/[0.06] !text-white/58' : ''}
-            actionGridClassName={isGenericLedgerTradeEntry ? 'grid-cols-2 !mt-[11px] !gap-2' : ''}
-            actionClassName={isGenericLedgerTradeEntry ? "!relative !h-[38px] !rounded-[12px] !border-white/10 !bg-white/[0.035] !text-[12px] !text-white/58 after:absolute after:-inset-y-[3px] after:inset-x-0 after:content-['']" : ''}
+              : (isGenericLedgerTradeEntry ? 'srm-content' : '')}
+            headerClassName={isGenericLedgerTradeEntry ? 'srm-header' : ''}
+            closeButtonClassName={isGenericLedgerTradeEntry ? 'srm-close' : ''}
+            actionGridClassName={isGenericLedgerTradeEntry ? 'grid-cols-2' : ''}
+            actionClassName={isGenericLedgerTradeEntry ? 'srm-action formal-trade-action' : ''}
             actions={isTqqqTradeEntry ? [{
               key: 'tqqq-confirm',
               label: tradeSubmitting

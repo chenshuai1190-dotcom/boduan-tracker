@@ -1,0 +1,30 @@
+.ledger-entry-identity { display: flex; align-items: center; min-width: 0; gap: 12px; }
+.ledger-entry-logo { width: 40px; height: 40px; flex-shrink: 0; border-radius: 11px; }
+.ledger-entry-symbol { display: block; width: 100%; min-width: 0; padding: 0; border: 0; border-radius: 4px; outline: none; background: transparent; color: #e9e9ee; font-size: 20px; line-height: 28px; font-weight: 400; text-transform: uppercase; }
+.ledger-entry-symbol::placeholder { color: #74747e; font-size: 16px; }
+.ledger-entry-symbol:focus-visible { box-shadow: 0 1px 0 #69696f; }
+.ledger-entry-meta { margin-top: 3px; color: #81818b; font-size: 11px; line-height: 17px; font-weight: 400; }
+.ledger-entry-form { display: grid; min-width: 0; gap: 17px; }
+.ledger-entry-group { display: grid; min-width: 0; gap: 8px; }
+.ledger-entry-label { display: flex; align-items: baseline; gap: 6px; color: #9797a1; font-size: 12px; line-height: 18px; font-weight: 400; }
+.ledger-entry-label > span { color: #73737d; font-size: 11px; }
+.ledger-entry-field { display: grid; align-items: center; min-width: 0; min-height: 49px; gap: 8px; padding: 0 12px; border: 1px solid transparent; border-radius: 12px; background: #1a1b1d; color: #83838d; transition: border-color .16s ease; }
+.ledger-entry-field:focus-within { border-color: #69696f; }
+.ledger-entry-price-field { grid-template-columns: 17px minmax(0, 1fr) 30px; }
+.ledger-entry-shares-field { grid-template-columns: minmax(0, 1fr) auto; }
+.ledger-entry-date-field { grid-template-columns: 18px minmax(0, 1fr) 16px; }
+.ledger-entry-input { display: block; width: 100%; max-width: 100%; min-width: 0; height: 46px; margin: 0; padding: 0; appearance: none; -webkit-appearance: none; border: 0; border-radius: 0; outline: none; background: transparent; color: #e5e5eb; font-size: 18px; line-height: 26px; font-weight: 400; font-variant-numeric: tabular-nums; }
+.ledger-entry-input::placeholder { color: #666670; font-size: 16px; }
+.ledger-entry-input::-webkit-inner-spin-button, .ledger-entry-input::-webkit-outer-spin-button { appearance: none; -webkit-appearance: none; margin: 0; }
+.ledger-entry-currency { font-size: 16px; color: #9696a0; text-align: center; }
+.ledger-entry-unit { font-size: 12px; white-space: nowrap; color: #83838d; }
+.ledger-entry-clear { display: grid; place-items: center; width: 30px; height: 44px; border-radius: 8px; color: #8e8e98; -webkit-tap-highlight-color: transparent; }
+.ledger-entry-clear:active { color: #dddde3; }
+.ledger-entry-clear:focus-visible { outline: 1px solid #b5b5ba; outline-offset: 1px; }
+.ledger-entry-date { font-size: 16px; text-align: left; }
+.ledger-entry-date::-webkit-date-and-time-value { min-height: 1em; text-align: left; }
+.ledger-entry-estimate { display: grid; min-width: 0; gap: 9px; margin-top: 2px; padding-top: 17px; border-top: 1px solid rgb(255 255 255 / .07); }
+.ledger-entry-estimate-label { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: #8c8c96; font-size: 12px; line-height: 18px; }
+.ledger-entry-estimate-label small { color: #73737d; font-size: 11px; }
+.ledger-entry-estimate-value { display: block; min-width: 0; color: #e5e5eb; font-size: clamp(21px, 6vw, 26px); line-height: 1.35; font-weight: 400; letter-spacing: -.025em; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+@media (prefers-reduced-motion: reduce) { .ledger-entry-field { transition: none; } }

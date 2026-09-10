@@ -127,6 +127,35 @@ test('stock details, scenario and record-trade actions stay separate and preserv
   }
 });
 
+test('trade records have a vertical-only viewport and rows fit without clipping their monetary values', () => {
+  const list = css.match(/\.trades-report-record-list\s*\{([^}]+)\}/)?.[1];
+  assert.ok(list);
+  assert.match(list, /overflow-x:\s*hidden;/);
+  assert.match(list, /overflow-y:\s*auto;/);
+  assert.match(list, /touch-action:\s*pan-y;/);
+  assert.match(list, /max-width:\s*100%;/);
+  const row = css.match(/\.trades-report-order\s*\{([^}]+)\}/)?.[1];
+  assert.ok(row);
+  assert.match(row, /width:\s*100%;/);
+  assert.match(row, /min-width:\s*0;/);
+  assert.match(row, /max-width:\s*100%;/);
+  assert.match(row, /appearance:\s*none;/, 'WebKit buttons must use the same explicit row geometry');
+  const main = css.match(/\.trades-report-order-main\s*\{([^}]+)\}/)?.[1];
+  assert.match(main, /grid-template-columns:\s*minmax\(0, 1fr\) minmax\(0, 1\.5fr\) 14px;/,
+    'reserve the entire 14px arrow and prioritize long amounts over company names');
+  const start = trades.indexOf('const renderOrderRow =');
+  const end = trades.indexOf('return (\n    <>', start);
+  const render = trades.slice(start, end);
+  assert.ok(start >= 0 && end > start);
+  assert.ok(render.includes('<ChevronRight size={14}'));
+  assert.ok(render.includes('currencyAmount(amount, displayCurrency, 2)'));
+  assert.match(css, /\.trades-report-order-amount\s*\{[^}]*overflow-wrap:\s*anywhere;/);
+  assert.doesNotMatch(css, /\.trades-report-order-amount\s*\{[^}]*(?:text-overflow|overflow:\s*hidden)/,
+    'the full amount must remain readable, not just hide the overflow');
+  assert.match(positionsCss, /\.trades-positions-report\s*\{[^}]*overflow-x:\s*auto;/,
+    'record drift fix must not disable horizontal holdings scrolling');
+});
+
 test('Trading report keeps one horizontal holdings table, fixed identity column and untouched page shell', () => {
   assert.ok(positionsView.includes('data-trade-positions-table="horizontal"'));
   assert.match(positionsCss, /\.trades-positions-report\s*\{[^}]*overflow-x:\s*auto;/);

@@ -1,0 +1,15 @@
+.formal-trade-dialog { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif; }
+.stock-report-modal .formal-trade-action { background: #252628; color: #e1e1e5; }
+.trade-order-identity { display: grid; grid-template-columns: 42px minmax(0, 1fr) auto; align-items: center; gap: 12px; }
+.trade-order-logo { display: flex; align-items: center; justify-content: center; width: 42px; height: 42px; background: #1a1b1d; border-radius: 12px; }
+.trade-order-symbol { color: #ededf0; font-size: 19px; line-height: 1.3; overflow-wrap: anywhere; }
+.trade-order-name { margin-top: 3px; color: #888891; font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; }
+.trade-order-side { padding: 5px 9px; border-radius: 7px; background: #1b1c1e; color: #b5b5bd; font-size: 12px; }
+.trade-order-total { padding: 24px 0 20px; }
+.trade-order-label { color: #85858f; font-size: 12px; }
+.trade-order-total-value { margin-top: 7px; color: #ededf0; font-size: clamp(23px, 7vw, 30px); line-height: 1.3; letter-spacing: -.035em; overflow-wrap: anywhere; }
+.trade-order-facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 0; padding-top: 16px; border-top: 1px solid rgb(255 255 255 / .07); }
+.trade-order-facts > div { min-width: 0; }
+.trade-order-facts dt { color: #85858f; font-size: 11px; }
+.trade-order-facts dd { margin: 6px 0 0; color: #c7c7cf; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+.stock-report-modal .srm-action.trade-dialog-danger { color: #f17d79; background: #272021; }

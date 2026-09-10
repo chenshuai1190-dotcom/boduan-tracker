@@ -136,7 +136,9 @@ test('sheets, tooltips, and chart markers keep their separate depth colors', () 
   assert.doesNotMatch(benchmarkSheet, /#f6b54b|bg-emerald|rounded-2xl border|<SortIcon/, 'selection and sorting stay neutral without nested bordered cards');
   assert.ok(benchmarkSheet.includes('min-h-0 space-y-1 overflow-y-auto overscroll-contain'), 'only the options scroll inside the sheet');
   assert.equal(count(trades, /bg-\[#0b0f14\]/g), 2, 'trade scenario sheet and chart marker should keep their approved depth color');
-  assert.equal(count(trades, /bg-\[#080808\]/g), 1, 'the standard formal-trade sheet should use the approved neutral-black surface');
+  assert.ok(trades.includes("isGenericLedgerTradeEntry ? 'stock-report-modal formal-trade-dialog'"), 'formal trades opt into the shared neutral-black report surface without changing TQQQ or wave shells');
+  assert.ok(trades.includes('panelClassName="trade-order-dialog"'), 'order actions also opt into the report-modal surface');
+  assert.equal(count(trades, /bg-\[#080808\]/g), 0, 'formal trades must not restore the superseded independent black panel');
   assert.equal(count(pnlReport, /bg-\[#0b0f14\]/g), 2, 'PnL bottom sheets should keep their existing depth colors');
   assert.equal(count(earningsCalendar, /bg-\[#0b0f14\]/g), 1, 'earnings modal should keep its existing depth color');
   assert.match(reviewGoalModalCss, /\.review-goal-modal\s*\{[^}]*background:\s*#101112;/, 'approved review dialogs should share the scoped neutral-black goal surface');

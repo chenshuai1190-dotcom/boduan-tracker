@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '✨ 交易操作统一新版视觉与金额阅读体验',
+      '  - 交易记录限制为纵向滚动，修正行末溢出与金额布局，保留持仓表左右滑动',
+      '  - 新增正式交易、股票入口交易表单及订单操作统一简约黑灰风格',
+      '  - 融资情景金额保留两位小数，并增加万级参考；原交易与测算口径不变',
+    ],
+    itemsEn: [
+      '✨ Unified trade dialogs and clearer monetary values',
+      '  - Trade records scroll vertically with corrected row and amount sizing; holdings retain horizontal scrolling',
+      '  - Formal trade entry, stock-specific entry and order actions share a minimal monochrome design',
+      '  - Margin scenarios show two decimal places and a 10k-unit reference; trade and calculation rules are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.506', date: '2026-09-10',
+    items: [
       '✨ 自选管理与融资测算统一新版视觉',
       '  - 添加、编辑自选采用简约黑灰弹窗，搜索、行情和操作层次更清晰',
       '  - 自选支持把手拖拽排序与边缘滚动，松手保存，保留置顶与删除确认',

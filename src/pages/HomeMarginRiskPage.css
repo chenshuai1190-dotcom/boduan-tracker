@@ -18,6 +18,7 @@
 .margin-report-metric { min-width: 0; text-align: left; }
 .margin-report-label { color: var(--margin-muted); font-size: 12px; line-height: 1.5; }
 .margin-report-metric-value { margin-top: 7px; color: #dedee3; font-size: clamp(19px, 5.8vw, 23px); font-weight: 400; line-height: 1.25; letter-spacing: -.035em; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.margin-report-money-reference { margin-top: 5px; color: var(--margin-muted); font-size: 11px; font-weight: 400; line-height: 1.5; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .margin-report-leverage-trigger { min-width: 0; border: 0; background: transparent; text-align: left; }
 .margin-report-scenario { padding: 24px 0 19px; border-top: 1px solid var(--margin-line); }
 .margin-report-scenario-heading { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 12px; }

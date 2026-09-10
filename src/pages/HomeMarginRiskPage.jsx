@@ -33,34 +33,31 @@ function displayRate(currency, usdRate) {
   return currency === 'CNY' && Number.isFinite(rate) && rate > 0 ? rate : 1;
 }
 
-function formatMoneyFromUsd(value, currency, usdRate, digits = 2) {
+function formatMoneyFromUsd(value, currency, usdRate) {
+  if (value === null || value === undefined || value === '') return '—';
   const numeric = Number(value);
-  const safeValue = Number.isFinite(numeric) ? numeric : 0;
-  const converted = safeValue * displayRate(currency, usdRate);
+  if (!Number.isFinite(numeric)) return '—';
+  const converted = numeric * displayRate(currency, usdRate);
   const sign = converted < 0 ? '-' : '';
   const symbol = currency === 'CNY' ? '¥' : '$';
   return `${sign}${symbol}${Math.abs(converted).toLocaleString('en-US', {
-    minimumFractionDigits: digits,
-    maximumFractionDigits: digits,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   })}`;
 }
 
-function formatCompactMoneyFromUsd(value, currency, usdRate) {
+function formatWanReferenceFromUsd(value, currency, usdRate, language) {
+  if (value === null || value === undefined || value === '') return '—';
   const numeric = Number(value);
-  const safeValue = Number.isFinite(numeric) ? numeric : 0;
-  const converted = safeValue * displayRate(currency, usdRate);
-  const absoluteValue = Math.abs(converted);
+  if (!Number.isFinite(numeric)) return '—';
+  const converted = numeric * displayRate(currency, usdRate);
   const sign = converted < 0 ? '-' : '';
-
-  if (currency === 'CNY' && absoluteValue >= 10_000) {
-    const wan = absoluteValue / 10_000;
-    const digits = Math.abs(wan - Math.round(wan)) < 0.001 ? 0 : 1;
-    return `${sign}¥${wan.toFixed(digits)}万`;
-  }
-  if (currency !== 'CNY' && absoluteValue >= 1_000_000) {
-    return `${sign}$${(absoluteValue / 1_000_000).toFixed(2)}M`;
-  }
-  return formatMoneyFromUsd(safeValue, currency, usdRate, 0);
+  const symbol = currency === 'CNY' ? '¥' : '$';
+  const wan = (Math.abs(converted) / 10_000).toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  return language === 'en' ? `≈ ${sign}${symbol}${wan} × 10k` : `约 ${sign}${symbol}${wan} 万`;
 }
 
 function formatSignedRatioPercent(value) {
@@ -80,11 +77,12 @@ function formatLeverage(value) {
   return Number.isFinite(value) ? `${value.toFixed(2)}×` : '—';
 }
 
-function Metric({ label, value }) {
+function Metric({ label, value, reference }) {
   return (
     <div className="margin-report-metric">
       <div className="margin-report-label">{label}</div>
       <div className="margin-report-metric-value" style={{ fontFamily: NUMBER_FONT }}>{value}</div>
+      {reference && <div className="margin-report-money-reference">{reference}</div>}
     </div>
   );
 }
@@ -256,7 +254,7 @@ export default function HomeMarginRiskPage({ ctx = {} }) {
   const [draftDebt, setDraftDebt] = React.useState(() => {
     if (normalizedInitialPanel !== 'editor') return '';
     const displayedDebt = Number(marginDebtUsd) * displayRate(currencyMode, usdRate);
-    return String(Math.round(displayedDebt * 100) / 100);
+    return (Math.round(displayedDebt * 100) / 100).toFixed(2);
   });
   const [saving, setSaving] = React.useState(false);
   const [saveError, setSaveError] = React.useState('');
@@ -344,7 +342,7 @@ export default function HomeMarginRiskPage({ ctx = {} }) {
     if (!assetStatusReady) return;
     const rate = displayRate(currency, usdRate);
     const displayDebt = overview.marginDebtUsd * rate;
-    setDraftDebt(String(Math.round(displayDebt * 100) / 100));
+    setDraftDebt((Math.round(displayDebt * 100) / 100).toFixed(2));
     setSaveError('');
     setPanel('editor');
   };
@@ -379,10 +377,14 @@ export default function HomeMarginRiskPage({ ctx = {} }) {
     }
   };
 
+  const moneyReading = (value, ready = assetStatusReady) => ({
+    value: ready ? formatMoneyFromUsd(value, currency, usdRate) : '—',
+    reference: ready ? formatWanReferenceFromUsd(value, currency, usdRate, language) : undefined,
+  });
   const currentCards = [
-    { id: 'total-assets', label: t(language, 'home.totalAssets', '总资产'), value: assetStatusReady ? formatCompactMoneyFromUsd(overview.totalAssetsUsd, currency, usdRate) : '—' },
-    { id: 'net-assets', label: t(language, 'home.netAssets', '净资产'), value: assetStatusReady ? formatCompactMoneyFromUsd(overview.netAssetsUsd, currency, usdRate) : '—' },
-    { id: 'margin-debt', label: t(language, 'home.marginDebt', '融资负债'), value: assetStatusReady ? formatCompactMoneyFromUsd(overview.marginDebtUsd, currency, usdRate) : '—' },
+    { id: 'total-assets', label: t(language, 'home.totalAssets', '总资产'), ...moneyReading(overview.totalAssetsUsd) },
+    { id: 'net-assets', label: t(language, 'home.netAssets', '净资产'), ...moneyReading(overview.netAssetsUsd) },
+    { id: 'margin-debt', label: t(language, 'home.marginDebt', '融资负债'), ...moneyReading(overview.marginDebtUsd) },
     { id: 'account-leverage', label: t(language, 'home.leverage', '杠杆'), value: assetStatusReady ? formatLeverage(overview.leverage) : '—' },
   ];
 
@@ -438,7 +440,7 @@ export default function HomeMarginRiskPage({ ctx = {} }) {
                   <Metric label={card.label} value={card.value} />
                 </button>
               ) : (
-                <Metric key={card.id} label={card.label} value={card.value} />
+                <Metric key={card.id} label={card.label} value={card.value} reference={card.reference} />
               )
             ))}
           </div>
@@ -496,11 +498,14 @@ export default function HomeMarginRiskPage({ ctx = {} }) {
               <div key={item.key} className="margin-report-result" data-home-margin-result={item.key}>
                 <div className="margin-report-result-heading">
                   <span className="margin-report-label">{item.label}</span>
-                  <span className="margin-report-before">{language === 'en' ? 'Current' : '当前'} {assetStatusReady ? formatMoneyFromUsd(item.before, currency, usdRate, 0) : '—'}</span>
+                  <span className="margin-report-before">{language === 'en' ? 'Current' : '当前'} {assetStatusReady ? formatMoneyFromUsd(item.before, currency, usdRate) : '—'}</span>
                 </div>
                 <div className={`margin-report-result-value ${scenarioColorClass}`} style={{ fontFamily: NUMBER_FONT }}>
-                  {assetStatusReady ? formatMoneyFromUsd(item.after, currency, usdRate, 0) : '—'}
+                  {assetStatusReady ? formatMoneyFromUsd(item.after, currency, usdRate) : '—'}
                 </div>
+                {assetStatusReady && (
+                  <div className="margin-report-money-reference">{formatWanReferenceFromUsd(item.after, currency, usdRate, language)}</div>
+                )}
                   <div className={`margin-report-result-change ${scenarioColorClass}`}>
                     {t(
                       language,
@@ -516,7 +521,7 @@ export default function HomeMarginRiskPage({ ctx = {} }) {
                           : '不变 {{amount}}（{{percent}}）',
                       {
                         amount: assetStatusReady
-                          ? formatMoneyFromUsd(Math.abs(stress.assetChangeUsd), currency, usdRate, 2)
+                          ? formatMoneyFromUsd(Math.abs(stress.assetChangeUsd), currency, usdRate)
                           : '—',
                         percent: assetStatusReady ? formatSignedRatioPercent(item.percent) : '—',
                       },
@@ -529,7 +534,7 @@ export default function HomeMarginRiskPage({ ctx = {} }) {
           <div className="margin-report-debt-note">
             <span>
               {t(language, 'home.marginDebtFixed', '融资负债保持 {{amount}}', {
-                amount: assetStatusReady ? formatMoneyFromUsd(overview.marginDebtUsd, currency, usdRate, 2) : '—',
+                amount: assetStatusReady ? formatMoneyFromUsd(overview.marginDebtUsd, currency, usdRate) : '—',
               })}
             </span>
             <span className="margin-report-leverage-change">
@@ -680,7 +685,7 @@ export default function HomeMarginRiskPage({ ctx = {} }) {
               type="button"
               disabled={saving}
               onClick={() => {
-                setDraftDebt('0');
+                setDraftDebt('0.00');
                 setSaveError('');
               }}
               className="margin-report-text-action"
@@ -714,11 +719,14 @@ export default function HomeMarginRiskPage({ ctx = {} }) {
               style={{ fontFamily: NUMBER_FONT }}
             />
           </div>
+          {draftDebtUsd !== null && (
+            <div className="margin-report-money-reference">{formatWanReferenceFromUsd(draftDebtUsd, currency, usdRate, language)}</div>
+          )}
 
           <div className="margin-report-draft-metrics">
-            <Metric label={t(language, 'home.totalAssets', '总资产')} value={formatMoneyFromUsd(draftOverview.totalAssetsUsd, currency, usdRate, 0)} />
-            <Metric label={t(language, 'home.netAssets', '净资产')} value={formatMoneyFromUsd(draftOverview.netAssetsUsd, currency, usdRate, 0)} />
-            <Metric label={t(language, 'home.leverage', '杠杆')} value={formatLeverage(draftOverview.leverage)} />
+            <Metric label={t(language, 'home.totalAssets', '总资产')} {...moneyReading(draftOverview.totalAssetsUsd)} />
+            <Metric label={t(language, 'home.netAssets', '净资产')} {...moneyReading(draftOverview.netAssetsUsd, draftDebtUsd !== null)} />
+            <Metric label={t(language, 'home.leverage', '杠杆')} value={draftDebtUsd !== null ? formatLeverage(draftOverview.leverage) : '—'} />
           </div>
           {draftDebtUsd !== null && draftOverview.netAssetsUsd <= 0 && (
             <p className="margin-report-feedback margin-report-warning">

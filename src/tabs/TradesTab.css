@@ -50,14 +50,14 @@
 .trades-report-text-action { display: inline-flex; align-items: center; gap: 5px; min-height: 32px; color: #a1a1ad; font-size: 12px; }
 .trades-report-empty { padding: 28px 0; color: #85858f; text-align: center; font-size: 13px; line-height: 1.7; }
 .trades-report-note { color: #85858f; margin-top: 7px; margin-bottom: 12px; font-size: 11px; line-height: 1.5; }
-.trades-report-record-list { max-height: 360px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; }
-.trades-report-order { display: block; width: 100%; border-bottom: 1px solid var(--trades-report-line); padding: 18px 0; text-align: left; }
-.trades-report-order-main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 12px; align-items: center; gap: 9px; }
+.trades-report-record-list { width: 100%; min-width: 0; max-width: 100%; max-height: 360px; overflow-x: hidden; overflow-y: auto; touch-action: pan-y; overscroll-behavior: contain; scrollbar-width: none; }
+.trades-report-order { display: block; box-sizing: border-box; width: 100%; min-width: 0; max-width: 100%; appearance: none; -webkit-appearance: none; border-bottom: 1px solid var(--trades-report-line); padding: 18px 0; text-align: left; white-space: normal; }
+.trades-report-order-main { display: grid; width: 100%; min-width: 0; max-width: 100%; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) 14px; align-items: center; gap: 9px; }
 .trades-report-order-main > svg { color: #73737d; }
 .trades-report-order-identity { min-width: 0; }
 .trades-report-order-identity strong { display: block; font-size: 15px; font-weight: 400; color: #e1e1e7; }
 .trades-report-order-identity small { display: block; margin-top: 4px; color: #85858f; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.trades-report-order-amount { text-align: right; color: #d7d7df; font-size: 15px; overflow-wrap: anywhere; }
+.trades-report-order-amount { min-width: 0; text-align: right; color: #d7d7df; font-size: 15px; overflow-wrap: anywhere; }
 .trades-report-order-meta { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 6px 16px; margin-top: 11px; color: #85858f; font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; }
 .trades-report-order-meta [data-order-side] { color: #bcbcc6; }
 .trades-report-order-summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 0 7px; color: #85858f; font-size: 12px; }
