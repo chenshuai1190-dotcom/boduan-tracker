@@ -127,6 +127,16 @@ test('financial labels and values wrap instead of being truncated', () => {
   assert.match(rule(css, '.wave-record:first-child'), /border-top:\s*0;/);
 });
 
+test('wave report numbers retain normal tracking across filters and dialogs', () => {
+  for (const selector of ['.wave-hero-value', '.wave-stock-pnl', '.wave-record-profit']) {
+    assert.match(rule(css, selector), /letter-spacing:\s*normal;/, `${selector} must not squeeze financial digits`);
+  }
+  assert.match(rule(dialogs, '.wave-dialog .wave-dialog-result-amount'), /letter-spacing:\s*normal;/);
+  assert.doesNotMatch(css + dialogs, /letter-spacing:\s*-/, 'do not reintroduce negative tracking, including responsive overrides');
+  assert.doesNotMatch(page, /letterSpacing:\s*(?:['"]-|-\d)|tracking-(?:tight|tighter|\[-)/);
+  assert.match(rule(css, '.wave-page'), /font-variant-numeric:\s*tabular-nums;/);
+});
+
 test('wave report forms retain the shared modal and iOS keyboard safeguards', () => {
   assert.ok(page.includes("import StockReportModal from '../components/StockReportModal.jsx'"));
   assert.ok(modal.includes('<ActionModalCard'));

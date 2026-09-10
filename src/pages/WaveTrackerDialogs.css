@@ -89,7 +89,7 @@
 .wave-dialog .wave-dialog-preset:disabled { opacity: .35; }
 .wave-dialog .wave-dialog-forecast-result { margin-top: 24px; padding: 18px 15px 15px; border-radius: 14px; background: #1b1c1e; }
 .wave-dialog .wave-dialog-result-values { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 12px; min-width: 0; margin-top: 6px; }
-.wave-dialog .wave-dialog-result-amount { min-width: 0; max-width: 100%; font-size: 30px; font-weight: 400; line-height: 38px; letter-spacing: -.8px; overflow-wrap: anywhere; }
+.wave-dialog .wave-dialog-result-amount { min-width: 0; max-width: 100%; font-size: 30px; font-weight: 400; line-height: 38px; letter-spacing: normal; overflow-wrap: anywhere; }
 .wave-dialog .wave-dialog-result-percent { min-width: 0; max-width: 100%; font-size: 16px; line-height: 22px; overflow-wrap: anywhere; }
 .wave-dialog .wave-dialog-forecast-track { position: relative; height: 3px; margin-top: 19px; border-radius: 4px; background: #35363a; }
 .wave-dialog .wave-dialog-forecast-fill { position: absolute; inset: 0 auto 0 0; border-radius: 4px; }
