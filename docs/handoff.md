@@ -1,6 +1,6 @@
 # boduan-tracker 当前交接
 
-验证时间：`2026-09-10 Asia/Shanghai`；LLY / AVGO / ARM / HOOD 财报细分修复 v502 已完成精确提交的发布验证，线上版本与财报未登录 `401` 核验通过。本轮未触发 Cron 或改写数据库；下文 v501 任务记录为历史启用证据，自然每日 Cron 未新增观察。
+验证时间：`2026-09-10 Asia/Shanghai`；股票趋势观察报告 v503 已完成精确提交的发布验证，线上版本与页面产物核对通过。本轮未触发 Cron、读取生产私有数据或改写数据库；下文 v502 财报修复和 v501 任务记录均为历史证据，自然每日 Cron 未新增观察。
 
 本文件只保存当前基准、关键风险和下一步。稳定规则看 `README.md`，流程看 `docs/development-process.md`。
 
@@ -11,16 +11,18 @@
 | 仓库 | `chenshuai1190-dotcom/boduan-tracker` |
 | 生产地址 | `https://boduan-tracker.vercel.app` |
 | 分支与唯一工作区 | `main`；`/Users/chenshuaishuai/Documents/Codex/2026-07-24/boduan-tracker-boduan-tracker-chenshuai1190-dotcom/work/repo` |
-| 当前生产源码 | `fdc4b07ee6c17e14b08771a63762d212d74bd121 / v10.7.9.502`，发布日期 `2026-09-10` |
-| 当前生产 deployment | `BidQFH34fkQjAdvU62hfrGeV9pSo`；[Vercel 精确部署](https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/BidQFH34fkQjAdvU62hfrGeV9pSo)；未改服务端环境配置 |
-| 生产静态入口 | `/assets/index-t5XBVdnO.js`；版本模块 `/assets/releaseMeta-BgRbljjI.js` 已读取并确认 v502 |
+| 当前生产源码 | `c36ae49edf9b04c432bd6f0faee35cd1a17ff217 / v10.7.9.503`，发布日期 `2026-09-10` |
+| 当前生产 deployment | `3twDckKNTJjmJQUD3KnEQRYkpD7d`；[Vercel 精确部署](https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/3twDckKNTJjmJQUD3KnEQRYkpD7d)；未改服务端环境配置 |
+| 生产静态入口 | `/assets/index-DE9i2bp2.js`；版本模块 `/assets/releaseMeta-DqU3aFYY.js` 已读取并确认 v503；股票趋势产物 `/assets/WatchlistStockDetailPage-BEiAN6zC.js` 与本地构建 SHA-256 一致 |
 | 本次数据库 | 无 migration、backfill 或人工生产写入；沿用已应用的 `supabase/sec_earnings_auto_coverage_20260909.sql`；现金、波段、正式交易、个人收益和比赛 schema/账本未改 |
 | 首轮已修问题 | `2026-09-10T03:09:52Z`（北京时间 `11:09:52`）旧 runtime 的预算耗尽误报 `503`；当轮已保存 `complete 5 / partial 11` 份公开结果。该状态问题已由当前 forward-fix 修复 |
-| 本次修复与验收 | LLY 披露表层级、HOOD 跨 concept 收入结构、AVGO EX-99.1 和 ARM EX-99.2 已接入；真实文件回放、完整测试、CI / Docs / Vercel 均通过；未将离线回放冒充生产登录态逐家公司验收 |
-| 数据库回查边界 | 本轮未重查任务池。v501 历史验收为 `19` 个任务已记录状态、缓存累计 `29` 份；这些不是 v502 的实时计数或全部自选覆盖率 |
+| 本次修复与验收 | 股票趋势整页采用黑灰报告风格，走势图加高加宽，300px 上限浮层保持标签与数字同排，均线与历史统计可展开；FAST、CI、Vercel 与线上静态产物核验通过；沿用真实行情、已完成收盘、持仓和目标保存链路 |
+| 数据库回查边界 | 本轮未重查任务池。v501 历史验收为 `19` 个任务已记录状态、缓存累计 `29` 份；这些不是当前实时计数或全部自选覆盖率 |
 
 ## 本次门禁与验收边界
 
+- v503 最终 `npm run check:fast`：`57 / 57` 定向 tests PASS，build、字号和 whitespace PASS；单次 `release:verify -- fast c36ae49edf9b04c432bd6f0faee35cd1a17ff217` 确认 CI / Vercel 成功。线上入口 → App → 股票趋势/版本模块关系、版本 v503 和页面文件哈希核对通过；本轮未请求行情/财报 API。
+- 本地 iPhone 17 Pro Simulator 已核对首屏、均线/估值区和 320px 预览浮层，原生 PNG 为 `1206×2622`；这是布局证据，不是完整手势或生产登录态验收。自动触控连接不可用，未宣称已完成多指交互回归。演示 fixture 仅由 `import.meta.env.DEV` 分支注入，正式 App 不传 override；本次不改变全局滚动、底栏、PWA 或数据请求策略。
 - v502 最终 `npm run check:full`：`1731 / 1731` tests PASS，build、字号、文档和 whitespace PASS。精确提交 `fdc4b07ee6c17e14b08771a63762d212d74bd121` 的单次 `release:verify -- full` PASS（CI + Docs + Vercel）；一次静态版本核验 v502、一次未登录财报详情 `401` PASS。
 - 四家公司真实 SEC 夹具经过选文 → 解析 → 客户端归一化 → worker 序列化 → 共享缓存选择：LLY Q2 产品 `11` / 地区 `5`，HOOD Q2 收入 `3`，AVGO Q3 分部 `2`，ARM FY2027 Q1 收入 `2`。缺失同比置 null，不覆盖 GAAP/non-GAAP EPS；仅证明这些已验证文件和格式，不承诺所有财期。
 - 本地 PostgreSQL 18.3 / PGlite 0.5.8：`12` 组通过，涵盖迁移、权限、重复注册、租约 CAS/过期、交错唤醒、结果保留、新申报旧缓存失效和真实解析器 → worker → SQL → selector 链路。单连接确定性交错不等同于多连接压力测试或生产验收。
@@ -169,7 +171,7 @@
 
 ### 下一步
 
-1. v502 发布、静态版本和财报 `401` 核验已完成；四家公司实数证据来自官方文件离线回放。本轮不重复受保护任务或生产数据库读取；证据更新仅走 DOCS，不再部署 runtime。
+1. v503 股票趋势发布与静态产物核验已完成；正式页面沿用原有真实数据链路。下一轮优先根据实际手机反馈做局部调整，不为单纯证据更新重复部署 runtime。v502 四家公司实数证据仍来自官方文件离线回放，不重复受保护任务或生产数据库读取。
 2. 待后续自然每日 Cron 留下真实日志后，才可补记自然调度已运行；未到触发时间不是失败。历史首轮 error 留给后续正常重试，不为清零统计手改队列或重复触发。
 3. 继续低频观察任务池覆盖、SEC 请求量及不完整原因，不在未明确频率/平台约束时加轮询；不反推未取得的响应计数，不输出 token、用户、自选列表、持仓或交易数据。
 4. 新任务只读 `README.md`、`docs/development-process.md`、`docs/handoff.md`，不要重复旧流程。
