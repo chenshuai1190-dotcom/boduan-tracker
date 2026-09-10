@@ -469,9 +469,9 @@ function AnalysisTab({ ctx }) {
   ], [monthChange, monthChangePct, totalLast, totalYearAgo, totalYearStart, tt, yearChange, yearChangePct, ytdChange, ytdChangePct]);
 
   const requestedChartSlot = overviewChartModel.slots[chartSelectedMonthIdx];
-  const overviewChartReading = requestedChartSlot?.hasData
+  const overviewChartReading = requestedChartSlot?.hasData && requestedChartSlot.month !== currentMonth
     ? requestedChartSlot
-    : overviewChartModel.slots[overviewChartLatestIndex] || null;
+    : null;
   const selectedChartValue = overviewChartReading?.balance ?? null;
   const selectedChartMonth = overviewChartReading?.month || '--';
   const selectedChartChange = overviewChartReading?.changeAmount ?? null;
@@ -842,7 +842,12 @@ function AnalysisTab({ ctx }) {
           </div>
 
           <div ref={overviewChartInteractionRef} className="asset-report-chart-explorer">
-            <div className="asset-report-chart-reading" data-asset-chart-month={selectedChartMonth}>
+            {overviewChartReading && (
+            <div
+              className="asset-report-chart-reading"
+              data-asset-chart-month={selectedChartMonth}
+              data-side={chartSelectedMonthIdx < last12Months.length / 2 ? 'right' : 'left'}
+            >
               <div className="asset-report-chart-month">{selectedChartMonth}</div>
               <div className="asset-report-chart-amount" style={{ fontFamily: ASSET_NUMBER_FONT }}>
                 <span>{selectedChartMoney.main}</span><span className="asset-report-decimal">{selectedChartMoney.decimal}</span>
@@ -861,6 +866,7 @@ function AnalysisTab({ ctx }) {
                 )}
               </div>
             </div>
+            )}
 
             <div className="asset-report-chart">
               <div className="aspect-[370/206] w-full select-none touch-pan-y">
