@@ -2,9 +2,11 @@
 
 状态（2026-09-10）：生产 foundation SQL 已应用，三表和四函数权限聚合核验、RLS REST 检查通过；预算状态内部 forward-fix `v10.7.9.501 / d525407` 已通过最终发布验证，服务端自动覆盖开关已启用。首轮旧 runtime 的预算耗尽误报已修，新 runtime 的一次受保护生产任务 HTTP `200`、`29.17 秒`，正式验收成功；尚未观察自然每日 Cron。本阶段解决自动发现、任务去重和跨实例复用，不宣称所有公司已完整解析；精确生产基准见 `docs/handoff.md`。
 
-## 本次启用证据与待完成项
+## v501 首次启用证据与待完成项
 
-- 生产 runtime：`d52540741311455062bead1b5b44134c91337f24 / v10.7.9.501`；deployment `GkKfCcknxSsrSkm9AV3F9Xor5NTP`；静态入口 `/assets/index-DKetApCk.js`。解析版本为 `sec-structure-5`，服务端开关已启用。
+以下保留 v501 的历史验收，不是当前运行时或实时任务计数。v502 已发布四家公司解析修复并升级 `sec-structure-6`；未再次触发任务或改写数据库，精确生产部署见 `docs/handoff.md`。
+
+- 首次启用 runtime：`d52540741311455062bead1b5b44134c91337f24 / v10.7.9.501`；deployment `GkKfCcknxSsrSkm9AV3F9Xor5NTP`；静态入口 `/assets/index-DKetApCk.js`。当时解析版本为 `sec-structure-5`，服务端开关已启用。
 - forward-fix 最终 FULL `1666 / 1666` tests PASS，build/docs/whitespace PASS；精确提交单次 `release:verify -- full` PASS（CI + Docs + Vercel）。实际 PGlite `12` 组通过；生产 `sec_earnings_auto_coverage_20260909.sql` 已应用，权限聚合核验和 `npm run verify:rls:rest` PASS；没有交易、收益、比赛或个人金额数据变更。
 - `2026-09-10T03:09:52Z`（北京时间 `11:09:52`）首轮旧 runtime 任务 HTTP `503`，原因 `worker-time-budget` 被归入错误；当时聚合回查确认共享表保存了 `complete 5 / partial 11` 份结果。它们是当时结果份数，不是全部自选的成功比例；该状态问题已修，仍保留原失败事实。
 - 首轮 jobs 聚合只有 `1` 个 `worker-time-budget` error，其余为 complete/partial/pending/unavailable；租约均已过期，无卡死租约。公开 AAPL 官方财期 `2026-06-27` 抽查得到 `5` 个报告分部，与同文档公司总收入勾稽 PASS，但整体仍是 partial，不等于所有区块完整。
