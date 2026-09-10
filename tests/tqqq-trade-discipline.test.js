@@ -312,13 +312,15 @@ test('keeps the dedicated UI isolated to formal TQQQ while preserving generic bu
   assert.ok(panelSource.includes('data-over-limit={preview.overLimit || preview.hardBlocked}'));
   assert.ok(panelSource.includes("preview.overLimit ? 'text-[#ff6570]'"));
   assert.ok(panelSource.includes('data-alert={preview.hardBlocked || preview.overLimit}'));
-  assert.match(panelCss, /\.tqqq-entry-budget-fill\[data-alert="true"\]\s*\{[^}]*background:\s*#eb5360;/, 'an over-limit or blocked trade retains a visible red warning line');
+  assert.match(panelCss, /\.tqqq-entry-budget-fill\[data-alert="true"\]\s*\{[^}]*background:\s*#ff4b1f;/, 'an over-limit or blocked trade retains a prominent red warning line');
+  assert.match(panelCss, /\.tqqq-entry-budget-track\s*\{[^}]*height:\s*5px;/, 'normal budget progress should retain its compact track');
+  assert.match(panelCss, /\.tqqq-entry-check\[data-over-limit="true"\] \.tqqq-entry-budget-track\s*\{[^}]*height:\s*8px;/, 'an over-limit or blocked trade should thicken the warning track');
   assert.ok(panelSource.includes("tt('trades.tqqq.exceedsLimit', '买入后将超过10%仓位提醒线')") && panelSource.includes('<PreviewResult preview={preview} tt={tt} />'), 'the explicit 10% warning text must remain visible beside the budget treatment');
   assert.ok(panelSource.includes('data-warning-pulse={preview.overLimit && !preview.hardBlocked}'), 'only a non-blocking over-limit reminder should pulse');
-  const pulseSelectors = [...panelCss.matchAll(/([^{}]+)\{[^{}]*animation:\s*tqqq-warning-pulse 1\.8s ease-in-out infinite;[^{}]*\}/g)]
+  const pulseSelectors = [...panelCss.matchAll(/([^{}]+)\{[^{}]*animation:\s*tqqq-warning-pulse 1\.2s ease-in-out infinite;[^{}]*\}/g)]
     .flatMap((match) => match[1].split(',').map((selector) => selector.trim()));
   assert.deepEqual(pulseSelectors, ['.tqqq-entry-check[data-warning-pulse="true"] .tqqq-entry-budget-fill', '.tqqq-entry-check[data-warning-pulse="true"] .tqqq-entry-result svg'], 'the gentle pulse must affect only the warning line and icon, leaving the card and text static');
-  assert.match(panelCss, /@keyframes tqqq-warning-pulse\s*\{\s*0%, 100%\s*\{\s*opacity:\s*1;\s*\}\s*50%\s*\{\s*opacity:\s*\.45;\s*\}\s*\}/);
+  assert.match(panelCss, /@keyframes tqqq-warning-pulse\s*\{\s*0%, 100%\s*\{\s*opacity:\s*1;\s*\}\s*50%\s*\{\s*opacity:\s*\.3;\s*\}\s*\}/);
   assert.match(panelCss, /@media \(prefers-reduced-motion: reduce\)\s*\{[\s\S]*\.tqqq-entry-check\[data-warning-pulse="true"\] \.tqqq-entry-budget-fill,\s*\.tqqq-entry-check\[data-warning-pulse="true"\] \.tqqq-entry-result svg\s*\{\s*animation:\s*none;/, 'reduced motion should leave both warning indicators static');
   assert.doesNotMatch(panelSource + panelCss, /shouldFlashOverLimit|tqqq-over-limit-flash|box-shadow|drop-shadow|steps\(1, end\)/, 'the reminder should not restore whole-card glow or abrupt flashing');
   assert.equal(tradesTabSource.includes('!bg-[linear-gradient(135deg,#7c3ff2,#5d2bd0)]'), false);
