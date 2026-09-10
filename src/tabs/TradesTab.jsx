@@ -1914,17 +1914,18 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
             ) : null}
             closeLabel={tt('trades.closeTradeForm', '关闭交易表单')}
             onClose={() => !tradeSubmitting && setShowAddTrade(false)}
-            widthClassName={isTqqqTradeEntry ? 'w-[calc(100vw-24px)] max-w-[720px]' : (isGenericLedgerTradeEntry ? 'w-[calc(100vw-32px)] max-w-[398px]' : 'w-[calc(100vw-24px)] max-w-md')}
+            widthClassName={isTqqqTradeEntry ? 'w-[calc(100vw-32px)] max-w-[440px]' : (isGenericLedgerTradeEntry ? 'w-[calc(100vw-32px)] max-w-[398px]' : 'w-[calc(100vw-24px)] max-w-md')}
             panelClassName={isTqqqTradeEntry
-              ? 'min-h-0 !border-transparent'
+              ? 'stock-report-modal tqqq-trade-dialog'
               : (isGenericLedgerTradeEntry ? 'stock-report-modal formal-trade-dialog' : 'min-h-0')}
             contentClassName={isTqqqTradeEntry
-              ? '!border-0 !bg-transparent !p-0 !shadow-none'
+              ? 'srm-content'
               : (isGenericLedgerTradeEntry ? 'srm-content' : '')}
-            headerClassName={isGenericLedgerTradeEntry ? 'srm-header' : ''}
-            closeButtonClassName={isGenericLedgerTradeEntry ? 'srm-close' : ''}
+            headerClassName={isTqqqTradeEntry || isGenericLedgerTradeEntry ? 'srm-header' : ''}
+            titleClassName={isTqqqTradeEntry ? 'srm-title' : ''}
+            closeButtonClassName={isTqqqTradeEntry || isGenericLedgerTradeEntry ? 'srm-close' : ''}
             actionGridClassName={isGenericLedgerTradeEntry ? 'grid-cols-2' : ''}
-            actionClassName={isGenericLedgerTradeEntry ? 'srm-action formal-trade-action' : ''}
+            actionClassName={isTqqqTradeEntry ? 'srm-action tqqq-trade-action' : (isGenericLedgerTradeEntry ? 'srm-action formal-trade-action' : '')}
             actions={isTqqqTradeEntry ? [{
               key: 'tqqq-confirm',
               label: tradeSubmitting
@@ -1932,7 +1933,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                 : (newTrade.side === 'sell' ? tt('trades.tqqq.confirmSell', '确认卖出') : tt('trades.tqqq.confirmBuy', '确认买入')),
               disabled: tradeSubmitting || (tqqqTradePreview.inputReady && tqqqTradePreview.hardBlocked),
               onClick: () => confirmTradeSubmit(newTrade.side === 'sell' ? 'sell' : 'buy'),
-              className: `!h-[46px] !rounded-[13px] !text-[14px] ${TQQQ_ACTION_TONE_CLASSES[newTrade.side === 'sell' ? 'sell' : 'buy'].confirm} disabled:!opacity-40`,
+              className: TQQQ_ACTION_TONE_CLASSES[newTrade.side === 'sell' ? 'sell' : 'buy'].confirm,
             }] : [
               { key: 'buy', label: tradeSubmitting ? tt('trades.saving', '保存中...') : tt('trades.buy', '买入'), disabled: tradeSubmitting, onClick: () => confirmTradeSubmit('buy') },
               { key: 'sell', label: tradeSubmitting ? tt('trades.saving', '保存中...') : tt('trades.sell', '卖出'), disabled: tradeSubmitting, onClick: () => confirmTradeSubmit('sell') },

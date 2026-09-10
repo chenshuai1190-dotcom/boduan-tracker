@@ -19,10 +19,10 @@ const quoteRows = [
 const appSource = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8');
 const tradesTabSource = readFileSync(new URL('../src/tabs/TradesTab.jsx', import.meta.url), 'utf8');
 const panelSource = readFileSync(new URL('../src/components/TqqqTradeEntryPanel.jsx', import.meta.url), 'utf8');
+const panelCss = readFileSync(new URL('../src/components/TqqqTradeEntryPanel.css', import.meta.url), 'utf8');
 const disciplineSource = readFileSync(new URL('../src/lib/tqqqTradeDiscipline.js', import.meta.url), 'utf8');
 const actionModalSource = readFileSync(new URL('../src/components/ActionModalCard.jsx', import.meta.url), 'utf8');
 const i18nSource = readFileSync(new URL('../src/lib/i18n.js', import.meta.url), 'utf8');
-const indexCssSource = readFileSync(new URL('../src/index.css', import.meta.url), 'utf8');
 
 function preview(options = {}) {
   const stockTrades = options.stockTrades || [];
@@ -302,23 +302,32 @@ test('keeps the dedicated UI isolated to formal TQQQ while preserving generic bu
   assert.ok(panelSource.includes('export const TQQQ_ACTION_TONE_CLASSES'));
   assert.ok(panelSource.includes('buy: TQQQ_NEUTRAL_ACTION_TONE_CLASSES'));
   assert.ok(panelSource.includes('sell: TQQQ_NEUTRAL_ACTION_TONE_CLASSES'));
-  assert.ok(panelSource.includes("selected: 'bg-[linear-gradient(145deg,rgba(255,255,255,0.105),rgba(255,255,255,0.055))]"));
-  assert.ok(panelSource.includes("confirm: '!border-0 !bg-[linear-gradient(145deg,rgba(255,255,255,0.105),rgba(255,255,255,0.052))]"));
+  assert.ok(panelSource.includes("selected: 'tqqq-entry-side-selected'"));
+  assert.ok(panelSource.includes("confirm: 'tqqq-entry-confirm'"));
+  assert.match(panelCss, /\.tqqq-entry-side \.tqqq-entry-side-selected\s*\{[^}]*background:\s*#303133;/);
+  assert.match(panelCss, /\.stock-report-modal \.tqqq-entry-confirm\s*\{[^}]*background:\s*#252628;/);
   assert.equal(panelSource.includes('bg-[linear-gradient(135deg,#10b981,#059669)]'), false);
   assert.equal(panelSource.includes('bg-[linear-gradient(135deg,#eb5360,#d63c4a)]'), false);
   assert.ok(tradesTabSource.includes("TQQQ_ACTION_TONE_CLASSES[newTrade.side === 'sell' ? 'sell' : 'buy'].confirm"));
-  assert.ok(panelSource.includes("preview.hardBlocked || preview.overLimit\n    ? 'bg-[#ff5b68]/[0.065]"));
+  assert.ok(panelSource.includes('data-over-limit={preview.overLimit || preview.hardBlocked}'));
   assert.ok(panelSource.includes("preview.overLimit ? 'text-[#ff6570]'"));
-  assert.ok(panelSource.includes("preview.hardBlocked || preview.overLimit ? 'bg-[#eb5360]'"));
-  assert.ok(panelSource.includes('const shouldFlashOverLimit = preview.overLimit && !preview.hardBlocked;'));
-  assert.ok(panelSource.includes("shouldFlashOverLimit ? 'tqqq-over-limit-flash' : ''"));
-  assert.ok(indexCssSource.includes('@keyframes tqqq-over-limit-flash'));
-  assert.ok(indexCssSource.includes('animation: tqqq-over-limit-flash 1.45s steps(1, end) infinite;'));
-  assert.match(indexCssSource, /@media \(prefers-reduced-motion: reduce\) \{\s*\.tqqq-over-limit-flash::before \{\s*animation: none;/);
+  assert.ok(panelSource.includes('data-alert={preview.hardBlocked || preview.overLimit}'));
+  assert.match(panelCss, /\.tqqq-entry-budget-fill\[data-alert="true"\]\s*\{[^}]*background:\s*#eb5360;/, 'an over-limit or blocked trade retains a visible red warning line');
+  assert.ok(panelSource.includes("tt('trades.tqqq.exceedsLimit', '买入后将超过10%仓位提醒线')") && panelSource.includes('<PreviewResult preview={preview} tt={tt} />'), 'the explicit 10% warning text must remain visible beside the budget treatment');
+  assert.ok(panelSource.includes('data-warning-pulse={preview.overLimit && !preview.hardBlocked}'), 'only a non-blocking over-limit reminder should pulse');
+  const pulseSelectors = [...panelCss.matchAll(/([^{}]+)\{[^{}]*animation:\s*tqqq-warning-pulse 1\.8s ease-in-out infinite;[^{}]*\}/g)]
+    .flatMap((match) => match[1].split(',').map((selector) => selector.trim()));
+  assert.deepEqual(pulseSelectors, ['.tqqq-entry-check[data-warning-pulse="true"] .tqqq-entry-budget-fill', '.tqqq-entry-check[data-warning-pulse="true"] .tqqq-entry-result svg'], 'the gentle pulse must affect only the warning line and icon, leaving the card and text static');
+  assert.match(panelCss, /@keyframes tqqq-warning-pulse\s*\{\s*0%, 100%\s*\{\s*opacity:\s*1;\s*\}\s*50%\s*\{\s*opacity:\s*\.45;\s*\}\s*\}/);
+  assert.match(panelCss, /@media \(prefers-reduced-motion: reduce\)\s*\{[\s\S]*\.tqqq-entry-check\[data-warning-pulse="true"\] \.tqqq-entry-budget-fill,\s*\.tqqq-entry-check\[data-warning-pulse="true"\] \.tqqq-entry-result svg\s*\{\s*animation:\s*none;/, 'reduced motion should leave both warning indicators static');
+  assert.doesNotMatch(panelSource + panelCss, /shouldFlashOverLimit|tqqq-over-limit-flash|box-shadow|drop-shadow|steps\(1, end\)/, 'the reminder should not restore whole-card glow or abrupt flashing');
   assert.equal(tradesTabSource.includes('!bg-[linear-gradient(135deg,#7c3ff2,#5d2bd0)]'), false);
   assert.ok(tradesTabSource.includes("tt('trades.tqqq.confirmAnyway', '仍然买入')"));
   assert.ok(disciplineSource.includes('const hardBlocked = invalidShares || oversold || breaksLedger;'));
   assert.ok(tradesTabSource.includes("tt('trades.tqqq.confirmUnavailableTitle'"));
+  assert.ok(tradesTabSource.includes('disabled: tradeSubmitting || (tqqqTradePreview.inputReady && tqqqTradePreview.hardBlocked)'));
+  assert.ok(tradesTabSource.includes("onClick: () => confirmTradeSubmit(newTrade.side === 'sell' ? 'sell' : 'buy')"));
+  assert.ok(tradesTabSource.includes('onClose={() => !tradeSubmitting && setShowAddTrade(false)}'));
 });
 
 test('shows objective buy references only and keeps sell focused on the formal holdings check', () => {
@@ -331,32 +340,54 @@ test('shows objective buy references only and keeps sell focused on the formal h
   assert.ok(panelSource.includes("if (value === null || value === undefined || value === '') return '--';"));
   assert.ok(panelSource.includes(': preview.currentBudgetUsage;'));
   assert.equal(panelSource.includes('grid grid-cols-2 sm:grid-cols-4'), false);
-  assert.equal((panelSource.match(/<div className="grid grid-cols-4">/g) || []).length, 2);
-  assert.ok(panelSource.includes('grid grid-cols-2 rounded-[17px] bg-white/[0.025] px-2.5 py-2'));
-  assert.ok(panelSource.includes('flex min-h-[16px] items-center justify-center text-[10px]'));
+  assert.equal((panelSource.match(/<div className="tqqq-entry-metrics">/g) || []).length, 2);
+  assert.match(panelCss, /\.tqqq-entry-metrics\s*\{[^}]*grid-template-columns:\s*repeat\(4, minmax\(0, 1fr\)\);/);
+  assert.match(panelCss, /\.tqqq-entry-market-grid\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
+  assert.match(panelCss, /\.tqqq-entry-metric\s*\{[^}]*text-align:\s*left;/);
   assert.equal(panelSource.includes('min-h-[30px]'), false);
-  assert.ok(panelSource.includes("relative isolate rounded-[17px] p-3 ${shouldFlashOverLimit ? 'tqqq-over-limit-flash' : ''} ${resultTone}"));
-  assert.ok(panelSource.includes('style={{ left: `clamp(22px, ${displayedBudgetPct}%, calc(100% - 22px))` }}'));
-  assert.ok(panelSource.includes('{displayedBudgetLabel}'));
+  assert.doesNotMatch(panelCss, /\.tqqq-entry-(?:check|market-grid|sell-rule)\s*\{[^}]*(?:background:|box-shadow:|border-radius:)/, 'checks, market references and sell guidance should remain unboxed report sections');
+  assert.doesNotMatch(panelSource, /budgetBubble|left: `clamp\(22px/, 'the budget reading should not return to a floating bubble');
+  assert.ok(panelSource.includes('<span className="tqqq-entry-budget-value">{displayedBudgetLabel}</span>'));
+  assert.ok(panelSource.includes('`${Math.round(displayedBudgetUsage * 100)}%`') && panelSource.includes('Math.min(100, Math.max(0, displayedBudgetUsage * 100))'), 'only the drawn track is clamped; the numeric budget reading retains its actual value');
   assert.ok(panelSource.includes('style={{ width: `${displayedBudgetPct}%` }}'));
-  assert.ok(panelSource.includes("className={side === 'buy' ? 'pt-3' : 'border-t border-white/[0.08] pt-3'}"));
+  const dateStart = panelSource.indexOf('className="tqqq-entry-date"');
+  assert.ok(dateStart > panelSource.indexOf('className="tqqq-entry-fields"') && dateStart < panelSource.indexOf('className="tqqq-entry-amount"'), 'the date field belongs with the inputs before the preview amount');
   assert.ok(panelSource.includes('tqqq-trade-date-input appearance-none pl-9 pr-9 text-center'));
-  assert.equal(panelSource.includes('text-[23px]'), false);
-  assert.equal(panelSource.includes('text-[22px] font-normal tabular-nums'), false);
+  assert.ok(panelSource.includes("splitCurrencyAmount(preview.amountUsd, 'USD', 2)"));
+  assert.ok(panelSource.includes('{preview.inputReady ? <>{amountParts.main}<span className="tqqq-entry-amount-decimal">{amountParts.decimal}</span></> : \'—\'}'), 'an incomplete draft should not show a fabricated zero estimate');
+  assert.match(panelCss, /\.tqqq-entry-amount-decimal\s*\{[^}]*font-size:\s*\.64em;/);
+  assert.doesNotMatch(panelCss, /letter-spacing:\s*-|scaleX\s*\(|font-weight:\s*(?:[5-9]00|bold)/, 'report numbers should retain normal weight, spacing and width');
   assert.equal(/market breadth|市场广度|maximum drawdown|最大回撤/i.test(panelSource), false);
 });
 
-test('keeps approved TQQQ surfaces borderless and omits the redundant lookup hint', () => {
-  assert.ok(panelSource.includes('className="h-[58px] w-[58px] shrink-0 rounded-[15px]"'));
-  assert.ok(panelSource.includes('rounded-lg bg-[#7c3ff2]/25 px-2 py-1'));
-  assert.ok(panelSource.includes('rounded-[14px] bg-white/[0.025] p-1'));
+test('keeps TQQQ report surfaces and controlled inputs consistent while omitting the redundant lookup hint', () => {
+  assert.match(panelCss, /\.tqqq-entry-logo\s*\{[^}]*width:\s*44px;[^}]*height:\s*44px;/);
+  assert.match(panelCss, /\.tqqq-entry-tag\s*\{[^}]*background:\s*#1b1c1e;/);
+  assert.match(panelCss, /\.tqqq-entry-side\s*\{[^}]*background:\s*#191a1c;/);
+  assert.match(panelCss, /\.tqqq-entry-input\s*\{[^}]*height:\s*46px;[^}]*background:\s*#1b1c1e;[^}]*font-size:\s*18px;[^}]*font-weight:\s*400;[^}]*letter-spacing:\s*normal;/);
+  assert.doesNotMatch(panelCss, /linear-gradient|radial-gradient|box-shadow/);
   assert.equal(panelSource.includes('rounded-[14px] border border-white/[0.08] bg-black/[0.18]'), false);
   assert.equal(panelSource.includes("tt('trades.systemManagedName'"), false);
   assert.equal(panelSource.includes('function LookupStatus'), false);
   assert.equal(panelSource.includes('lookupStatus'), false);
   assert.equal(tradesTabSource.includes('lookupStatus={lookupStatus}'), false);
-  assert.ok(tradesTabSource.includes("panelClassName={isTqqqTradeEntry\n              ? 'min-h-0 !border-transparent'"));
-  assert.ok(panelSource.includes('rounded-[14px] bg-emerald-400/[0.065]'));
+  assert.ok(tradesTabSource.includes("panelClassName={isTqqqTradeEntry\n              ? 'stock-report-modal tqqq-trade-dialog'"));
+  assert.ok(panelSource.includes('className="tqqq-entry-sell-rule"'));
+  assert.ok(panelSource.includes('aria-pressed={selected}') && panelSource.includes('onClick={() => onDraftChange({ ...draft, side: option })}'));
+  const inputs = panelSource.match(/<input\b[\s\S]*?\/>/g) || [];
+  assert.equal(inputs.length, 3);
+  for (const [field, attributes] of [
+    ['price', ['type="number"', 'min="0"', 'step="0.01"', 'inputMode="decimal"']],
+    ['shares', ['type="number"', 'min="0"', 'step="1"', 'inputMode="numeric"', "max={side === 'sell' ? preview.availableShares : undefined}", "aria-invalid={preview.blockReason === 'oversell' || preview.blockReason === 'whole-shares-required'}"]],
+    ['date', ['type="date"', "WebkitAppearance: 'none'"]],
+  ]) {
+    const input = inputs.find((element) => element.includes(`id="tqqq-entry-${field}"`));
+    assert.ok(input, `the ${field} input must remain accessible`);
+    for (const attribute of attributes) assert.ok(input.includes(attribute), `${field} must retain ${attribute}`);
+    assert.ok(input.includes(`value={draft?.${field} || ''}`) && input.includes(`onDraftChange({ ...draft, ${field}: event.target.value })`), `${field} must retain its controlled draft binding`);
+    assert.ok(input.includes("colorScheme: 'dark'"));
+    assert.ok(panelSource.includes(`htmlFor="tqqq-entry-${field}"`));
+  }
 });
 
 test('ships every TQQQ-specific visible message in both Chinese and English dictionaries', () => {
