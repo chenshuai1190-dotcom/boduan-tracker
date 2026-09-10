@@ -8,7 +8,8 @@ import { normalizeMarginDebtUsd } from './lib/homeMarginRisk.js';
 import { MARKET_COLOR_MODE_STORAGE_KEY, normalizeMarketColorMode } from './lib/marketColorMode.js';
 import { buildLedgerQuoteUniverse } from './lib/stockUniverse.js';
 import { applyBtcTickToMarketCard, resolveBtcSnapshotRealtimeStatus } from './lib/btcRealtime.js';
-import { applyIndexTickToMarketCards, mergeIndexRestCardsIntoMarketCards, shouldAppendIndexIntraday } from './lib/indexRealtime.js';
+import { mergeIndexRestCardsIntoMarketCards, shouldAppendIndexIntraday } from './lib/indexRealtime.js';
+import { createIndexQuotePoller } from './lib/indexQuoteRefresh.js';
 import { applyStockTickToQuoteRows, buildStockRealtimeSymbolsKey, canStartStockRealtime, isFreshStockRealtimeTick, mergeFreshStockRealtimeRows, mergeStockSnapshotPollRequest, mergeStockTicksIntoQuoteRows, selectStockRealtimeSymbols, shouldAcceptStockRealtimeTick, shouldApplyStockSnapshotTick, shouldPollStockRealtimeSnapshot } from './lib/stockRealtime.js';
 import { normalizeStrictUserStockSymbol, normalizeUserStockSymbol } from './lib/symbols.js';
 import { resolveStockDisplayName } from './lib/stockDisplayName.js';
@@ -59,7 +60,6 @@ const STOCK_LOGO_CACHE_STORAGE_KEY = 'xmoney_stock_logo_cache_v1';
 const DEFAULT_USD_CNY_RATE = 7.20;
 const DEFAULT_HKD_CNY_RATE = 0.87;
 const BTC_REALTIME_PROTOCOL = 'xmoney-btc';
-const INDICES_REALTIME_PROTOCOL = 'xmoney-indices';
 const STOCKS_REALTIME_PROTOCOL = 'xmoney-stocks';
 const REALTIME_TOKEN_PROTOCOL_PREFIX = 'supabase.';
 const REALTIME_STALE_MS = 15_000;
@@ -1271,20 +1271,6 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     setBtcMarketCard((current) => applyBtcTickToMarketCard(current, tick, realtimeStatus));
   }, []);
 
-  const applyIndexRealtimeTick = useCallback((tick, realtimeStatus = 'live') => {
-    const price = Number(tick?.price);
-    if (!Number.isFinite(price) || price <= 0) return;
-    const tickAt = Number(tick?.timestamp || tick?.receivedAt || Date.now());
-    const key = String(tick?.symbol || tick?.ticker || tick?.displaySymbol || '').toUpperCase();
-    if (!key) return;
-    indexRealtimeRef.current.lastTicks.set(key, tick);
-    indexRealtimeRef.current.lastTickAt = Date.now();
-    setIndexRealtimeStatus(realtimeStatus);
-    setIndexRealtimeLastTick(new Date(tickAt).toISOString());
-    setIndexRealtimeError(null);
-    setMarketIndices((current) => applyIndexTickToMarketCards(current, tick, realtimeStatus, getIndexChartOptions()));
-  }, []);
-
   const applyStockRealtimeTick = useCallback((tick, realtimeStatus = 'live', options = {}) => {
     const price = Number(tick?.price);
     if (!Number.isFinite(price) || price <= 0) return;
@@ -1335,17 +1321,6 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
       });
     }
   }, [stockQuoteBootstrapRows]);
-
-  const mergeFreshIndexTicksIntoCards = useCallback((cards) => {
-    const ref = indexRealtimeRef.current;
-    if (!ref.lastTickAt || Date.now() - ref.lastTickAt > REALTIME_STALE_MS) return cards;
-    let next = cards;
-    const chartOptions = getIndexChartOptions();
-    for (const tick of ref.lastTicks.values()) {
-      next = applyIndexTickToMarketCards(next, tick, 'live', chartOptions);
-    }
-    return next;
-  }, []);
 
   const mergeFreshStockTicksIntoQuoteRows = useCallback((rows) => {
     const ref = stockRealtimeRef.current;
@@ -1596,18 +1571,6 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   });
   const quoteRowsRef = useRef([]);
   const quoteBaselineRowsRef = useRef(null);
-  const indexRealtimeRef = useRef({
-    socket: null,
-    reconnectTimer: null,
-    staleTimer: null,
-    retryDelayMs: 1000,
-    lastTicks: new Map(),
-    lastTickAt: 0,
-    liveAt: 0,
-    lastConnectAttemptAt: 0,
-    lastForceReconnectAt: 0,
-    intentionalCloseSocket: null,
-  });
   // 云端数据加载状态
   const [cloudLoading, setCloudLoading] = useState(true);
   const [stockRealtimeUniverseResolved, setStockRealtimeUniverseResolved] = useState(false);
@@ -3101,7 +3064,8 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
       // 导致 qqqHigh 永远停在写死的初始值 640.47, 猎手状态回撤算不准
       // Set 去重: 当前持仓、自选、活跃波段与核心标的若重复不会重复请求
       const symbolSet = new Set([...rowsForQuote.map(s => normalizeSymbolKey(s?.symbol)).filter(Boolean), ...coreSymbols]);
-      requestedSymbols = [...symbolSet, 'VIX', 'FGI', 'INDICES'];
+      // 指数由独立缓存快照刷新，不随股票完整基线重复请求。
+      requestedSymbols = [...symbolSet, 'VIX', 'FGI'];
       const resultRows = [];
       for (const batch of buildQuoteSymbolBatches(requestedSymbols)) {
         const r = await fetchQuote(batch.join(','), { fresh: true });
@@ -3247,15 +3211,6 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
         if (fgiData.monthAgo !== null) setFgiMonth(fgiData.monthAgo);
         if (fgiData.yearAgo !== null) setFgiYear(fgiData.yearAgo);
         if (fgiData.dataDate) setFgiDataDate(fgiData.dataDate);
-      }
-
-      // 更新三大指数
-      const indicesData = resultBySymbol.get('INDICES');
-      if (indicesData?.data && Array.isArray(indicesData.data)) {
-        const chartOptions = getIndexChartOptions();
-        setMarketIndices((current) => mergeFreshIndexTicksIntoCards(
-          mergeIndexRestCardsIntoMarketCards(current, indicesData.data, 'fallback', chartOptions),
-        ));
       }
 
       setLastFetched(new Date());
@@ -3933,195 +3888,62 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     };
   }, [cloudLoading, applyBtcRealtimeTick]);
 
+  // 指数只消费有原始报价时间的延迟快照；不向美股交易 WS 订阅 .INDX。
   useEffect(() => {
-    if (cloudLoading || typeof window === 'undefined') return;
-    if (isIosStandaloneWebApp()) {
-      const ref = indexRealtimeRef.current;
-      if (ref.reconnectTimer) {
-        clearTimeout(ref.reconnectTimer);
-        ref.reconnectTimer = null;
-      }
-      if (ref.staleTimer) {
-        clearInterval(ref.staleTimer);
-        ref.staleTimer = null;
-      }
-      if (ref.socket) {
-        try {
-          ref.socket.close(1000, 'ios pwa snapshot mode');
-        } catch {}
-        ref.socket = null;
-      }
-      setIndexRealtimeStatus((status) => (status === 'live' ? status : 'polling'));
-      setIndexRealtimeError(null);
-      return undefined;
-    }
-
-    let stopped = false;
-    const ref = indexRealtimeRef.current;
-
-    const clearReconnectTimer = () => {
-      if (ref.reconnectTimer) {
-        clearTimeout(ref.reconnectTimer);
-        ref.reconnectTimer = null;
-      }
-    };
-
-    const closeSocket = () => {
-      if (ref.socket) {
-        const closingSocket = ref.socket;
-        ref.intentionalCloseSocket = closingSocket;
-        try {
-          closingSocket.close(1000, 'client reconnect');
-        } catch {}
-        ref.socket = null;
-      }
-    };
-
-    const scheduleReconnect = (connect) => {
-      if (stopped || document.hidden) return;
-      clearReconnectTimer();
-      const delay = ref.retryDelayMs;
-      ref.retryDelayMs = Math.min(ref.retryDelayMs * 2, REALTIME_RECONNECT_MAX_MS);
-      ref.reconnectTimer = setTimeout(connect, delay);
-    };
-
-    const connect = async () => {
-      if (stopped || document.hidden) return;
-      clearReconnectTimer();
-      closeSocket();
-      ref.lastConnectAttemptAt = Date.now();
-      setIndexRealtimeStatus((status) => (status === 'live' ? status : 'connecting'));
-
-      try {
+    if (cloudLoading || !user?.id || typeof window === 'undefined') return undefined;
+    const poller = createIndexQuotePoller({
+      isVisible: () => !document.hidden,
+      getIntervalMs: () => {
+        const date = new Date();
+        return getQuoteBaselineSession(date, getUsMarketSession(date)) === 'regular' ? 60_000 : 15 * 60_000;
+      },
+      fetchSnapshot: async ({ signal }) => {
         const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.access_token) {
-          setIndexRealtimeStatus('disabled');
-          setIndexRealtimeError('未登录或登录已过期');
-          return;
-        }
-
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const socket = new WebSocket(
-          `${protocol}//${window.location.host}/api/indices-realtime`,
-          [INDICES_REALTIME_PROTOCOL, `${REALTIME_TOKEN_PROTOCOL_PREFIX}${session.access_token}`],
-        );
-        ref.socket = socket;
-
-        socket.addEventListener('open', () => {
-          ref.retryDelayMs = 1000;
-          setIndexRealtimeStatus('connecting');
-          setIndexRealtimeError(null);
+        if (signal.aborted) throw new Error('指数请求已取消');
+        if (!session?.access_token || session.user?.id !== user.id) throw new Error('未登录或登录已过期');
+        const response = await fetch('/api/indices-realtime?snapshot=1', {
+          signal,
+          cache: 'no-store',
+          headers: { Authorization: `Bearer ${session.access_token}`, 'Cache-Control': 'no-cache' },
         });
-
-        socket.addEventListener('message', (event) => {
-          let payload = null;
-          try {
-            payload = JSON.parse(event.data);
-          } catch {
-            return;
-          }
-          if (payload?.type === 'index_tick') {
-            applyIndexRealtimeTick(payload, 'live');
-            return;
-          }
-          if (payload?.type === 'indices_status' && payload.status) {
-            if (payload.status === 'live') ref.liveAt = Date.now();
-            setIndexRealtimeStatus(payload.status);
-            if (payload.error) setIndexRealtimeError(payload.error);
-          }
-        });
-
-        socket.addEventListener('close', () => {
-          if (ref.socket === socket) ref.socket = null;
-          if (ref.intentionalCloseSocket === socket) {
-            ref.intentionalCloseSocket = null;
-            return;
-          }
-          if (stopped || document.hidden) return;
-          setIndexRealtimeStatus((status) => (status === 'live' ? 'stale' : 'reconnecting'));
-          scheduleReconnect(connect);
-        });
-
-        socket.addEventListener('error', () => {
-          setIndexRealtimeError('指数实时连接中断,正在重连');
-        });
-      } catch (e) {
-        setIndexRealtimeStatus('error');
-        setIndexRealtimeError(e.message || '指数实时连接失败');
-        scheduleReconnect(connect);
-      }
-    };
-
-    const pauseRealtime = () => {
-      clearReconnectTimer();
-      closeSocket();
-      setIndexRealtimeStatus('paused');
-    };
-
-    const requestResumeReconnect = ({ force = false } = {}) => {
-      if (document.hidden) return;
-      const now = Date.now();
-      if (force) {
-        if (ref.lastForceReconnectAt && now - ref.lastForceReconnectAt < REALTIME_FORCE_RECONNECT_THROTTLE_MS) return;
-        ref.lastForceReconnectAt = now;
-        connect();
-        return;
-      }
-      if (ref.lastConnectAttemptAt && now - ref.lastConnectAttemptAt < REALTIME_RESUME_RECONNECT_THROTTLE_MS) return;
-      const lastActivityAt = ref.lastTickAt || ref.liveAt;
-      if (ref.socket && lastActivityAt && now - lastActivityAt < REALTIME_RESUME_RECONNECT_STALE_MS) return;
-      connect();
-    };
-
-    const handleRealtimeStale = () => {
-      const lastActivityAt = ref.lastTickAt || ref.liveAt;
-      if (!lastActivityAt) return;
-      if (Date.now() - lastActivityAt > REALTIME_STALE_MS) {
-        setIndexRealtimeStatus((status) => (status === 'live' ? 'stale' : status));
-        requestResumeReconnect();
-      }
-    };
-
-    const registeredResumeReconnect = (options = {}) => {
-      requestResumeReconnect({ force: options?.force === true });
-    };
-    realtimeResumeReconnectHandlersRef.current.add(registeredResumeReconnect);
-
-    ref.staleTimer = setInterval(handleRealtimeStale, 5000);
-
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        pauseRealtime();
-      } else {
-        requestResumeReconnect({ force: isIosStandaloneWebApp() });
-      }
-    };
-    const handlePageHide = () => pauseRealtime();
-    const handleResumeReconnect = () => requestResumeReconnect({ force: isIosStandaloneWebApp() });
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+        const result = await response.json().catch(() => null);
+        if (!response.ok || !result?.success || !Array.isArray(result?.data?.ticks)) throw new Error('指数报价暂时不可用');
+        return result.data;
+      },
+      onSnapshot: (snapshot) => {
+        setMarketIndices((current) => mergeIndexRestCardsIntoMarketCards(current, snapshot.ticks, 'delayed', getIndexChartOptions()));
+        setIndexRealtimeStatus(snapshot.status || 'stale');
+        setIndexRealtimeError(snapshot.errors?.length ? '部分指数报价暂时不可用' : null);
+        const timestamps = snapshot.ticks.map((tick) => Number(tick.timestamp)).filter((value) => Number.isFinite(value) && value > 0);
+        if (timestamps.length) setIndexRealtimeLastTick(new Date(Math.max(...timestamps)).toISOString());
+      },
+      onError: () => {
+        setIndexRealtimeStatus('stale');
+        setIndexRealtimeError('指数报价暂时不可用');
+        // 失败只更新状态，不用空值覆盖已有报价。
+        setMarketIndices((current) => current.map((card) => ({ ...card, fetchError: true })));
+      },
+    });
+    const handleVisibility = () => document.hidden ? poller.pause() : poller.resume();
+    const handleResume = () => poller.resume();
+    const handlePageHide = () => poller.pause();
+    realtimeResumeReconnectHandlersRef.current.add(handleResume);
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('pageshow', handleResume);
+    window.addEventListener('focus', handleResume);
+    window.addEventListener('online', handleResume);
     window.addEventListener('pagehide', handlePageHide);
-    window.addEventListener('pageshow', handleResumeReconnect);
-    window.addEventListener('focus', handleResumeReconnect);
-    window.addEventListener('online', handleResumeReconnect);
-    connect();
-
+    poller.start();
     return () => {
-      stopped = true;
-      clearReconnectTimer();
-      if (ref.staleTimer) {
-        clearInterval(ref.staleTimer);
-        ref.staleTimer = null;
-      }
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      poller.dispose();
+      realtimeResumeReconnectHandlersRef.current.delete(handleResume);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('pageshow', handleResume);
+      window.removeEventListener('focus', handleResume);
+      window.removeEventListener('online', handleResume);
       window.removeEventListener('pagehide', handlePageHide);
-      window.removeEventListener('pageshow', handleResumeReconnect);
-      window.removeEventListener('focus', handleResumeReconnect);
-      window.removeEventListener('online', handleResumeReconnect);
-      realtimeResumeReconnectHandlersRef.current.delete(registeredResumeReconnect);
-      closeSocket();
     };
-  }, [cloudLoading, applyIndexRealtimeTick]);
+  }, [cloudLoading, user?.id]);
 
   useEffect(() => {
     if (!stockRealtimeReady || typeof window === 'undefined') return undefined;
@@ -4459,9 +4281,6 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
         stockRealtimeRef.current.snapshotFreshnessFloorAt = freshnessFloorAt;
         setWarmStartedAt(freshnessFloorAt);
       }
-      if (!cloudLoadingRef.current) {
-        setIndexRealtimeStatus('warming');
-      }
       if (shouldPollStockRealtimeSnapshot({
         lastWebSocketTickAt: stockRealtimeRef.current.lastWebSocketTickAt,
         lastWebSocketTickAtBySymbol: stockRealtimeRef.current.lastWebSocketTickAtBySymbol,
@@ -4471,10 +4290,6 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
       })) {
         stockRealtimeRef.current.status = 'warming';
       }
-    };
-
-    const keepPendingStatus = (setter) => {
-      setter((status) => (status === 'live' || status === 'warming' ? status : 'polling'));
     };
 
     const runSnapshotPoll = async (trigger = 'auto-ios-pwa-snapshot', options = {}) => {
@@ -4501,22 +4316,6 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
       );
       const stockSymbolsSnapshot = stockRealtimeSymbols.join(',');
       try {
-        const indicesRequest = cloudLoadingRef.current
-          ? Promise.resolve()
-          : fetchRealtimeSnapshot('/api/indices-realtime')
-            .then((response) => parseSnapshotResponse(response, 'indices'))
-            .then((snapshot) => {
-              if (stopped) return;
-              const ticks = Array.isArray(snapshot?.ticks) ? snapshot.ticks : [];
-              ticks.forEach((tick) => applyIndexRealtimeTick(tick, 'live'));
-              if (ticks.length === 0) {
-                keepPendingStatus(setIndexRealtimeStatus);
-              }
-            })
-            .catch(() => {
-              keepPendingStatus(setIndexRealtimeStatus);
-            });
-
         const shouldPollStocks = Boolean(stockSymbolsSnapshot) && shouldPollStockRealtimeSnapshot({
           lastWebSocketTickAt: stockRealtimeRef.current.lastWebSocketTickAt,
           lastWebSocketTickAtBySymbol: stockRealtimeRef.current.lastWebSocketTickAtBySymbol,
@@ -4593,7 +4392,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
             })
           : Promise.resolve();
 
-        await Promise.allSettled([indicesRequest, stocksRequest]);
+        await Promise.allSettled([stocksRequest]);
         if (!isCurrentSnapshotSession()) return;
         if (traceThisStockSnapshot && !realtimeStartupMilestonesRef.current.snapshotDone) {
           realtimeStartupMilestonesRef.current.snapshotDone = true;
@@ -4705,7 +4504,6 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     stockRealtimeSymbolsKey,
     fetchRealtimeSnapshot,
     applyBtcRealtimeTick,
-    applyIndexRealtimeTick,
     applyStockRealtimeTick,
     realtimeStartupTrace,
     startRealtimeStartupTraceSession,

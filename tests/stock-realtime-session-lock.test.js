@@ -373,7 +373,7 @@ test('session clock follows New York DST and weekends rather than message market
 test('App rejects obsolete stock ticks before writing replay or freshness refs and QQQ uses the same merge helper', () => {
   const source = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8');
   const start = source.indexOf('const applyStockRealtimeTick = useCallback(');
-  const end = source.indexOf('const mergeFreshIndexTicksIntoCards = useCallback(', start);
+  const end = source.indexOf('const mergeFreshStockTicksIntoQuoteRows = useCallback(', start);
   assert.ok(start >= 0 && end > start);
   const block = source.slice(start, end);
   const acceptance = block.indexOf('if (!shouldAcceptStockRealtimeTick(');

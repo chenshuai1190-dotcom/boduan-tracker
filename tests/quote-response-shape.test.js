@@ -572,7 +572,8 @@ test('INDICES quote response shape is stable', async () => {
   const quote = await callQuote('INDICES');
 
   assert.equal(quote.symbol, 'INDICES');
-  assert.equal(quote.source, 'EODHD');
+  assert.equal(quote.source, 'EODHD_REST');
+  assert.equal(quote.realtime, false);
   assert.equal(Array.isArray(quote.data), true);
   assert.equal(quote.data.length, 3);
   assert.deepEqual(Object.keys(quote.data[0]).sort(), [
@@ -582,18 +583,31 @@ test('INDICES quote response shape is stable', async () => {
     'dayHigh',
     'dayLow',
     'displaySymbol',
+    'fetchedAt',
     'intraday',
     'name',
     'previousClose',
     'price',
+    'quoteAt',
+    'realtime',
+    'realtimeStatus',
+    'receivedAt',
     'source',
+    'symbol',
     'ticker',
+    'timestamp',
+    'type',
   ]);
   assert.deepEqual(quote.data.map((item) => item.ticker), ['GSPC.INDX', 'NDX.INDX', 'DJI.INDX']);
   assert.equal(quote.data.some((item) => item.ticker === 'BTC-USD.CC'), false);
   assert.equal(quote.data[0].price, 5435.21);
   assert.deepEqual(quote.data[0].intraday, [5440, 5438.25, 5436.8, 5435.21]);
-  assert.equal(quote.data[0].source, 'EODHD');
+  assert.equal(quote.data[0].source, 'EODHD_REST');
+  assert.equal(quote.data[0].timestamp, 1783000000000);
+  assert.equal(quote.data[0].quoteAt, new Date(1783000000000).toISOString());
+  assert.equal(typeof quote.data[0].fetchedAt, 'string');
+  assert.equal(quote.data[0].realtime, false);
+  assert.notEqual(quote.data[0].realtimeStatus, 'live');
 });
 
 test('ANALYST quote response shape is stable', async () => {

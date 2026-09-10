@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '📊 修复市场洞察三大指数更新停滞',
+      '  - 保留标普 500、纳斯达克 100 和道琼斯原始指数，独立刷新真实延迟报价',
+      '  - 显示实际报价时间；失败保留有效数值并标记待更新，旧报价不覆盖新报价',
+      '  - 合并重复请求并限制刷新频率，不改变 BTC、个股实时行情或交易账本',
+    ],
+    itemsEn: [
+      '📊 Restore quote updates for the three Market Insights indices',
+      '  - Independently refresh genuine delayed quotes for the S&P 500, Nasdaq 100 and Dow Jones indices',
+      '  - Show provider quote times; retain valid values on failure, mark them stale and reject older quotes',
+      '  - Deduplicate and rate-limit requests without changing BTC, individual stock streams or trade ledgers',
+    ],
+  },
+  {
+    ver: 'v10.7.9.512', date: '2026-09-10',
+    items: [
       '✨ 收益分享升级为可选风格的高清收益海报',
       '  - 曜石、极光、暮光、冰川四种背景即时切换，收益率优先展示，数字保持正常字距',
       '  - 可隐藏收益金额，预览与导出同步；切换风格后不会误分享旧图片',

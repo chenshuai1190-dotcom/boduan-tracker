@@ -4,11 +4,75 @@ const INDEX_CARD_MATCHERS = [
   { symbol: 'DJI.INDX', ticker: 'DJI.INDX', displaySymbol: '.DJI', name: '道琼斯' },
 ];
 const MAX_INDEX_INTRADAY_POINTS = 80;
-const STATIC_INDEX_INTRADAY_POINTS = 14;
+const INDEX_DELAYED_MAX_AGE_MS = 30 * 60 * 1000;
+const INDEX_WS_MAX_AGE_MS = 15 * 1000;
+const ET_TIME_PARTS = new Intl.DateTimeFormat('en-US', {
+  timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit',
+  hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+});
 
 function asNumber(value) {
+  if (value === null || value === undefined || value === '') return null;
   const n = Number(value);
   return Number.isFinite(n) ? n : null;
+}
+
+function providerTimestamp(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const numeric = Number(value);
+  const timestamp = Number.isFinite(numeric) ? numeric : Date.parse(String(value));
+  return Number.isFinite(timestamp) && timestamp > 0 && Number.isFinite(new Date(timestamp).getTime())
+    ? timestamp : null;
+}
+
+// Arrival, fetch and legacy realtimeAt fields are deliberately not quote times.
+function quoteTimestamp(card) {
+  return providerTimestamp(card?.timestamp)
+    ?? providerTimestamp(card?.quoteTimestamp)
+    ?? providerTimestamp(card?.quoteAt);
+}
+
+function etParts(timestamp) {
+  return Object.fromEntries(ET_TIME_PARTS.formatToParts(new Date(timestamp))
+    .map(({ type, value }) => [type, value]));
+}
+
+function quoteSessionKey(timestamp) {
+  if (!timestamp) return '';
+  const parts = etParts(timestamp);
+  const minutes = Number(parts.hour) * 60 + Number(parts.minute);
+  const session = minutes >= 570 && minutes < 960 ? 'regular'
+    : minutes >= 240 && minutes < 570 ? 'premarket'
+      : minutes >= 960 && minutes < 1200 ? 'postmarket' : 'closed';
+  return `${parts.year}-${parts.month}-${parts.day}:${session}`;
+}
+
+export function resolveIndexQuoteStatus(card, { now = Date.now() } = {}) {
+  if (!(asNumber(card?.price) > 0)) return 'unavailable';
+  if (card?.fetchError) return 'stale';
+  const timestamp = quoteTimestamp(card);
+  const age = Number(now) - timestamp;
+  if (!timestamp || !Number.isFinite(age) || age < 0 || age > INDEX_DELAYED_MAX_AGE_MS) return 'stale';
+  if (card?.source === 'EODHD_WS' && age <= INDEX_WS_MAX_AGE_MS) return 'live';
+  return 'delayed';
+}
+
+export function formatIndexQuoteTime(card, language = 'zh') {
+  const timestamp = quoteTimestamp(card);
+  if (!timestamp) return '';
+  const parts = etParts(timestamp);
+  const date = String(language).toLowerCase().startsWith('en')
+    ? `${parts.month}/${parts.day}` : `${parts.month}-${parts.day}`;
+  return `${date} ${parts.hour}:${parts.minute} ET`;
+}
+
+function canAcceptQuote(card, incoming, options = {}) {
+  if (incoming?.error || incoming?.success === false || !(asNumber(incoming?.price) > 0)) return false;
+  const currentTimestamp = quoteTimestamp(card);
+  const incomingTimestamp = quoteTimestamp(incoming);
+  const now = asNumber(options.now) ?? Date.now();
+  if (incomingTimestamp !== null && incomingTimestamp > now) return false;
+  return !currentTimestamp || (incomingTimestamp !== null && incomingTimestamp >= currentTimestamp);
 }
 
 function normalize(value) {
@@ -50,6 +114,10 @@ export function createIndexPlaceholderMarketCards(realtimeStatus = 'connecting')
     realtime: false,
     realtimeStatus,
     realtimeAt: null,
+    timestamp: null,
+    quoteTimestamp: null,
+    quoteAt: null,
+    intradaySessionKey: '',
   }));
 }
 
@@ -61,22 +129,23 @@ export function mergeIndexCardsWithPlaceholders(cards = [], realtimeStatus = 'co
     return {
       ...placeholder,
       ...current,
-      intraday: normalizeIntraday(current.intraday),
+      intraday: current.intradayMode === 'static-locked' ? [] : normalizeIntraday(current.intraday),
     };
   });
 }
 
 export function applyIndexTickToMarketCards(cards = [], tick, realtimeStatus = 'live', options = {}) {
   const price = asNumber(tick?.price);
-  if (!price || price <= 0) return cards;
+  if (!price || price <= 0 || tick?.error || tick?.success === false) return cards;
 
   const sourceCards = Array.isArray(cards) ? cards : [];
   const nonIndexCards = sourceCards.filter((card) => !isIndexMarketCard(card));
   let found = false;
   const nextCards = mergeIndexCardsWithPlaceholders(sourceCards, realtimeStatus).map((card) => {
     if (!matchesTick(card, tick)) return card;
+    if (!canAcceptQuote(card, tick, options)) return card;
     found = true;
-    return createIndexMarketCard(card, tick, realtimeStatus, options);
+    return createIndexMarketCard(card, tick, options);
   });
 
   if (found) return [...nextCards, ...nonIndexCards];
@@ -89,43 +158,11 @@ export function mergeIndexRestCardsIntoMarketCards(currentCards = [], restCards 
 
   return baseCards.map((card) => {
     const incoming = incomingCards.find((item) => matchesTick(card, item));
-    if (!incoming) return card;
-    const price = asNumber(incoming.price);
-    if (!price || price <= 0) return card;
-    const matcher = matcherFor(incoming.symbol) || matcherFor(incoming.ticker) || matcherFor(incoming.displaySymbol) || matcherFor(card.symbol);
-    const intraday = createRestSampledIntraday(card, incoming, price, options);
-    const currentRealtimeStatus = card.realtimeStatus === 'live' ? 'live' : realtimeStatus;
-    const incomingIntraday = normalizeIntraday(incoming?.intraday);
-    const previousIntraday = normalizeIntraday(card?.intraday);
-    const appendIntraday = options?.appendIntraday !== false;
-    const preservesLockedHistory = !appendIntraday
-      && incomingIntraday.length < 2
-      && previousIntraday.length >= 2
-      && (card?.intradayMode === 'static-locked' || card?.intradayMode === 'session-history');
-    const chartMode = preservesLockedHistory
-      ? card.intradayMode
-      : (incomingIntraday.length >= 2 ? 'session-history' : (appendIntraday ? 'live-sampled' : 'static-locked'));
-    return {
-      ...card,
-      ...incoming,
-      symbol: matcher?.symbol || incoming.symbol || card.symbol,
-      ticker: matcher?.ticker || incoming.ticker || card.ticker,
-      displaySymbol: matcher?.displaySymbol || incoming.displaySymbol || card.displaySymbol,
-      name: matcher?.name || incoming.name || card.name,
-      cn: matcher?.name || incoming.cn || card.cn,
-      price,
-      change: incoming.change ?? card.change ?? null,
-      changePercent: incoming.changePercent ?? card.changePercent ?? null,
-      previousClose: incoming.previousClose ?? card.previousClose ?? null,
-      dayHigh: incoming.dayHigh ?? card.dayHigh ?? null,
-      dayLow: incoming.dayLow ?? card.dayLow ?? null,
-      intraday,
-      intradayMode: chartMode,
-      source: incoming.source || 'EODHD',
-      realtime: card.realtime === true,
-      realtimeStatus: currentRealtimeStatus,
-      realtimeAt: card.realtimeAt || null,
-    };
+    if (!incoming || !canAcceptQuote(card, incoming, options)) {
+      if (!(asNumber(card.price) > 0)) return { ...card, realtime: false, realtimeStatus: 'unavailable' };
+      return { ...card, fetchError: true, realtime: false, realtimeStatus: 'stale' };
+    }
+    return createIndexMarketCard(card, incoming, options);
   });
 }
 
@@ -147,70 +184,54 @@ function normalizeIntraday(values) {
     .slice(-MAX_INDEX_INTRADAY_POINTS);
 }
 
-function createRestSampledIntraday(card, incoming, price, options = {}) {
-  const incomingIntraday = normalizeIntraday(incoming?.intraday);
-  if (incomingIntraday.length >= 2) return incomingIntraday;
-  const previousIntraday = normalizeIntraday(card?.intraday);
-  const appendIntraday = options?.appendIntraday !== false;
-  if (!appendIntraday) {
-    if (previousIntraday.length >= 2 && (card?.intradayMode === 'static-locked' || card?.intradayMode === 'session-history')) return previousIntraday;
-    return createStaticIndexIntraday(card, incoming, price);
-  }
-  if (previousIntraday.length === 0) {
-    const previousClose = asNumber(incoming?.previousClose ?? incoming?.prevClose ?? incoming?.close ?? card?.previousClose);
-    const seed = previousClose && previousClose > 0 ? [previousClose, price] : [price, price];
-    return seed.slice(-MAX_INDEX_INTRADAY_POINTS);
-  }
-  return [...previousIntraday, price].slice(-MAX_INDEX_INTRADAY_POINTS);
-}
-
-function createStaticIndexIntraday(card, incoming, price) {
-  const previousClose = asNumber(incoming?.previousClose ?? incoming?.prevClose ?? incoming?.close ?? card?.previousClose);
-  const dayHigh = asNumber(incoming?.dayHigh ?? incoming?.high ?? card?.dayHigh);
-  const dayLow = asNumber(incoming?.dayLow ?? incoming?.low ?? card?.dayLow);
-  const start = previousClose && previousClose > 0 ? previousClose : price;
-  const end = price;
-  const high = dayHigh && dayHigh > 0 ? Math.max(dayHigh, start, end) : Math.max(start, end);
-  const low = dayLow && dayLow > 0 ? Math.min(dayLow, start, end) : Math.min(start, end);
-  const range = Math.max(high - low, Math.abs(end - start), start * 0.001, 1);
-  const points = [];
-
-  for (let index = 0; index < STATIC_INDEX_INTRADAY_POINTS; index += 1) {
-    const progress = index / (STATIC_INDEX_INTRADAY_POINTS - 1);
-    const baseline = start + (end - start) * progress;
-    const wave = Math.sin(progress * Math.PI * 3) * range * 0.14;
-    const softPull = Math.sin(progress * Math.PI) * (end >= start ? -1 : 1) * range * 0.05;
-    const value = Math.min(high, Math.max(low, baseline + wave + softPull));
-    points.push(Number(value.toFixed(4)));
-  }
-  points[0] = Number(start.toFixed(4));
-  points[points.length - 1] = Number(end.toFixed(4));
-  return points;
-}
-
-function createIndexMarketCard(card, tick, realtimeStatus, options = {}) {
+function createIndexMarketCard(card, tick, options = {}) {
   const price = asNumber(tick?.price);
-  const previousIntraday = normalizeIntraday(card?.intraday);
-  const appendIntraday = options?.appendIntraday !== false;
-  const intraday = appendIntraday
-    ? [...previousIntraday, price].slice(-MAX_INDEX_INTRADAY_POINTS)
-    : previousIntraday;
+  const timestamp = quoteTimestamp(tick);
+  if (timestamp !== null && timestamp === quoteTimestamp(card)) {
+    // A successful repeat can recover transport state, never rewrite that quote.
+    const next = { ...card, fetchError: Boolean(tick.fetchError) };
+    if (tick?.fetchedAt != null) next.fetchedAt = tick.fetchedAt;
+    const realtimeStatus = resolveIndexQuoteStatus(next, { now: options.now ?? Date.now() });
+    return { ...next, realtimeStatus, realtime: realtimeStatus === 'live' };
+  }
+  const sessionKey = quoteSessionKey(timestamp);
+  const previousSessionKey = card.intradaySessionKey || quoteSessionKey(quoteTimestamp(card));
+  const sameSession = sessionKey === previousSessionKey;
+  const previousIntraday = sameSession && card.intradayMode !== 'static-locked'
+    ? normalizeIntraday(card.intraday) : [];
+  const incomingIntraday = tick?.intradayMode === 'static-locked' ? [] : normalizeIntraday(tick?.intraday);
+  const appendIntraday = options?.appendIntraday !== false && timestamp !== null;
+  const intraday = incomingIntraday.length > 0
+    ? incomingIntraday
+    : appendIntraday ? [...previousIntraday, price].slice(-MAX_INDEX_INTRADAY_POINTS) : previousIntraday;
+  const intradayMode = incomingIntraday.length > 0
+    ? 'session-history'
+    : intraday.length > 0 ? (appendIntraday ? 'quote-sampled' : card.intradayMode) : 'empty';
   const matcher = matcherFor(tick?.symbol) || matcherFor(tick?.ticker) || matcherFor(tick?.displaySymbol);
-  return {
+  const next = {
     ...card,
+    ...tick,
     symbol: matcher?.symbol || tick?.symbol || card?.symbol,
     ticker: matcher?.ticker || tick?.ticker || card?.ticker,
     displaySymbol: matcher?.displaySymbol || tick?.displaySymbol || card?.displaySymbol,
     name: matcher?.name || tick?.name || card?.name,
     cn: matcher?.name || tick?.cn || card?.cn,
     price,
-    change: tick?.change ?? card?.change ?? 0,
-    changePercent: tick?.changePercent ?? card?.changePercent ?? 0,
+    change: asNumber(tick?.change),
+    changePercent: asNumber(tick?.changePercent),
+    previousClose: asNumber(tick?.previousClose),
+    dayHigh: asNumber(tick?.dayHigh),
+    dayLow: asNumber(tick?.dayLow),
     intraday,
-    intradayMode: appendIntraday ? 'live-sampled' : (card?.intradayMode || 'static-locked'),
-    source: tick?.source || 'EODHD_WS',
-    realtime: tick?.source === 'EODHD_WS' || realtimeStatus === 'live',
-    realtimeStatus,
-    realtimeAt: tick?.timestamp || tick?.receivedAt || Date.now(),
+    intradayMode,
+    intradaySessionKey: sessionKey,
+    source: tick?.source || 'EODHD_REST',
+    timestamp,
+    quoteTimestamp: timestamp,
+    quoteAt: timestamp === null ? null : new Date(timestamp).toISOString(),
+    realtimeAt: timestamp,
+    fetchError: Boolean(tick.fetchError),
   };
+  const realtimeStatus = resolveIndexQuoteStatus(next, { now: options.now ?? Date.now() });
+  return { ...next, realtimeStatus, realtime: realtimeStatus === 'live' };
 }

@@ -1479,8 +1479,9 @@ test('realtime quote refresh avoids duplicate requests and hides raw Safari netw
   assert.ok(appSource.includes('REALTIME_FORCE_RECONNECT_THROTTLE_MS = 1000'), 'forced iOS realtime reconnects should still be lightly throttled within the same event burst');
   assert.ok(appSource.includes('lastConnectAttemptAt'), 'realtime resume reconnect should not tear down a connection just opened by another resume event');
   assert.ok(appSource.includes('lastForceReconnectAt'), 'forced realtime reconnects should track their own short throttle');
-  assert.ok((appSource.match(/requestResumeReconnect\(\);/g) || []).length >= 3, 'stale BTC, index, and stock sockets should actively reconnect instead of only marking stale');
-  assert.ok((appSource.match(/realtimeResumeReconnectHandlersRef\.current\.add\(registeredResumeReconnect\)/g) || []).length === 3, 'BTC, index, and stock sockets should all register forced resume reconnect handlers');
+  assert.ok((appSource.match(/requestResumeReconnect\(\);/g) || []).length >= 2, 'stale BTC and stock sockets should actively reconnect instead of only marking stale');
+  assert.ok((appSource.match(/realtimeResumeReconnectHandlersRef\.current\.add\(registeredResumeReconnect\)/g) || []).length === 2, 'BTC and stock sockets should retain their forced resume reconnect handlers');
+  assert.ok(appSource.includes('realtimeResumeReconnectHandlersRef.current.add(handleResume)'), 'indices should resume their independent TTL-gated poller instead of reconnecting a socket');
   assert.ok(appSource.includes("window.addEventListener('online', handleResumeReconnect)"), 'realtime sockets should reconnect when the device comes back online');
   assert.ok(appSource.includes('const fresh = requestOptions.fresh === true;'), 'quote fetch helper should support fresh no-cache requests');
   assert.ok(appSource.includes("headers['Cache-Control'] = 'no-cache';"), 'fresh quote requests should ask intermediaries not to reuse cached responses');
@@ -1506,22 +1507,23 @@ test('realtime quote refresh avoids duplicate requests and hides raw Safari netw
   assert.equal(settingsTabSource.includes('quoteDiagnosticLogs'), false, 'settings presentation should not receive quote diagnostic entries');
   assert.equal(settingsTabSource.includes('clearQuoteDiagnosticLogs'), false, 'settings presentation should not expose a diagnostic clear action');
   assert.ok(appSource.includes('/api/indices-realtime'), 'home indices should connect to the server-side indices realtime relay');
-  assert.ok(appSource.includes('INDICES_REALTIME_PROTOCOL'), 'indices realtime relay should use an explicit WebSocket subprotocol');
-  assert.ok(appSource.includes('applyIndexTickToMarketCards'), 'index realtime ticks should update existing market cards');
+  assert.equal(appSource.includes('INDICES_REALTIME_PROTOCOL'), false, 'unsupported .INDX subscriptions must not use the stock WebSocket');
+  assert.ok(appSource.includes('createIndexQuotePoller({'), 'index snapshots must have an independent bounded refresh loop');
   assert.ok(appSource.includes('const [marketIndices, setMarketIndices] = useState([]);'), 'home index cards should have their own state outside the BTC card');
   assert.ok(appSource.includes('const [btcMarketCard, setBtcMarketCard] = useState(null);'), 'BTC card should have its own state outside the index cards');
   assert.ok(appSource.includes('setBtcMarketCard((current) => applyBtcTickToMarketCard(current, tick, realtimeStatus))'), 'BTC ticks should update only the BTC market card');
   assert.ok(appSource.includes('function getIndexChartOptions'), 'home index chart updates should be controlled by the current US market session');
   assert.ok(appSource.includes('appendIntraday: shouldAppendIndexIntraday(session)'), 'home index charts should append points only during regular session');
-  assert.ok(appSource.includes('applyIndexTickToMarketCards(current, tick, realtimeStatus, getIndexChartOptions())'), 'index realtime ticks should update price while respecting session chart mode');
-  assert.ok(appSource.includes("mergeIndexRestCardsIntoMarketCards(current, indicesData.data, 'fallback', chartOptions)"), 'INDICES REST data should seed or lock index chart samples with session chart options');
+  assert.ok(appSource.includes("mergeIndexRestCardsIntoMarketCards(current, snapshot.ticks, 'delayed', getIndexChartOptions())"), 'index snapshots must merge by provider time with session chart options');
+  assert.ok(appSource.includes("requestedSymbols = [...symbolSet, 'VIX', 'FGI'];"), 'the full stock baseline must not duplicate independent index requests');
+  assert.equal(appSource.includes('mergeFreshIndexTicksIntoCards'), false, 'cached index ticks must not replay over a newer REST quote');
   assert.ok(homeTabSource.includes('marketIndices,'), 'home tab should receive separated index cards');
   assert.ok(homeTabSource.includes('btcMarketCard,'), 'home tab should receive a separated BTC card');
   assert.ok(homeTabSource.includes("mergeIndexCardsWithPlaceholders(rawIndexCards, 'connecting')"), 'home market row should keep three fixed index slots before REST data arrives');
   assert.ok(indexRealtimeSource.includes('createIndexPlaceholderMarketCards'), 'index realtime helper should expose fixed index placeholders');
   assert.ok(indexRealtimeSource.includes('shouldAppendIndexIntraday'), 'index realtime helper should expose the regular-session append boundary');
-  assert.ok(indexRealtimeSource.includes('createRestSampledIntraday'), 'index REST cards should seed a local sparkline from EODHD previous close and price');
-  assert.ok(indexRealtimeSource.includes('static-locked'), 'index realtime helper should lock static curves outside the regular session');
+  assert.ok(indexRealtimeSource.includes('quoteTimestamp'), 'index quotes must retain their original provider timestamp');
+  assert.equal(indexRealtimeSource.includes('Math.sin'), false, 'index curves must not invent a price path');
   assert.ok(devVisualPreviewSource.includes("indicesPreviewMode === 'placeholder'"), 'local preview should reproduce the first-paint index placeholder path');
   assert.ok(homeTabSource.includes("!['idle', 'disabled'].includes(btcRealtimeStatus)"), 'home BTC placeholder should show a real connection state instead of an idle blank badge');
   assert.ok(homeTabSource.includes('createBtcPlaceholderMarketCard(placeholderStatus)'), 'home market row should keep the BTC slot visible before the first BTC tick');
@@ -1529,7 +1531,7 @@ test('realtime quote refresh avoids duplicate requests and hides raw Safari netw
   assert.equal(indicesProviderSource.includes("ticker: 'BTC-USD.CC'"), false, 'INDICES quote provider must not include the BTC card');
   assert.equal(indicesProviderSource.includes('query1.finance.yahoo.com'), false, 'INDICES quote provider should not request Yahoo chart data');
   assert.equal(indicesProviderSource.includes("source: 'Yahoo'"), false, 'INDICES quote provider should not mark index cards as Yahoo-sourced');
-  assert.ok(indicesProviderSource.includes("provider: 'eodhd:index-card'"), 'INDICES quote provider should use EODHD for index cards');
+  assert.ok(indicesProviderSource.includes('loadIndexQuotes'), 'INDICES compatibility baseline must reuse the bounded EODHD quote loader');
   assert.ok(indicesProviderSource.includes('/api/intraday/${card.ticker}'), 'INDICES quote provider should use EODHD intraday data for static index curves');
   assert.ok(indicesProviderSource.includes("provider: 'eodhd:index-intraday'"), 'INDICES quote provider should keep index chart history on EODHD');
   assert.ok(appSource.includes('/api/stocks-realtime'), 'held stock quotes should connect to the server-side stock realtime relay');
@@ -1554,7 +1556,8 @@ test('realtime quote refresh avoids duplicate requests and hides raw Safari netw
   assert.ok(homeTabSource.includes('item?.realtimeReceivedAt || item?.realtimeAt'), 'BTC market card freshness should prefer the local receive timestamp');
   assert.ok(homeTabSource.includes('resolveBtcDisplayRealtimeStatus(resolvedBtcCard, btcRealtimeStatus)'), 'BTC market card should preserve the previous live badge during transient connecting states');
   assert.ok(homeTabSource.includes('realtimeTransportStatus: btcRealtimeStatus'), 'BTC market card should retain raw transport status separately from the displayed badge');
-  assert.ok(appSource.includes("fetchRealtimeSnapshot('/api/indices-realtime')"), 'iOS standalone mode should poll the indices snapshot endpoint');
+  assert.ok(appSource.includes("fetch('/api/indices-realtime?snapshot=1'"), 'all platforms should read authenticated index snapshots');
+  assert.equal(iosSnapshotBlock.includes('/api/indices-realtime'), false, 'the stock snapshot burst must not repeatedly request indices');
   assert.ok(appSource.includes("fetchRealtimeSnapshot('/api/stocks-realtime'"), 'iOS standalone mode should poll the stock snapshot endpoint');
   assert.ok(appSource.includes("applyStockRealtimeTick(payload, 'live', { transport: 'websocket' })"), 'iOS standalone stock quotes should keep the authenticated browser relay as the preferred transport');
   assert.equal(appSource.includes("ref.socket.close(1000, 'ios pwa stock snapshot mode')"), false, 'iOS standalone must not disable the stock WebSocket when entering snapshot fallback');
@@ -1562,8 +1565,8 @@ test('realtime quote refresh avoids duplicate requests and hides raw Safari netw
   assert.ok(appSource.includes('shouldApplyStockSnapshotTick({'), 'a delayed iOS stock snapshot must not overwrite a newer browser WebSocket tick for the same symbol');
   assert.ok(appSource.includes('trailingPoll = mergeStockSnapshotPollRequest'), 'overlapping iOS snapshot bursts should retain one immediate trailing poll instead of dropping it');
   assert.ok(appSource.includes("applyStockRealtimeTick(tick, 'live', { transport: 'snapshot' })"), 'stock snapshot freshness must remain separate from browser WebSocket freshness');
-  assert.ok(appSource.includes("ref.socket.close(1000, 'ios pwa snapshot mode')"), 'iOS standalone index mode should still close its browser socket before switching to index snapshots');
-  assert.ok(appSource.includes("status === 'live' ? status : 'polling'"), 'iOS standalone snapshot mode should not show reconnecting while polling');
+  assert.ok(appSource.includes("=== 'regular' ? 60_000 : 15 * 60_000"), 'indices should use a bounded one-minute regular-session and fifteen-minute idle refresh');
+  assert.ok(appSource.includes('poller.dispose()'), 'index refresh must dispose and reject stale callbacks on account cleanup');
   assert.ok(appSource.includes('const forceSnapshot = options?.force === true;'), 'iOS standalone resume snapshot should be able to bypass stale document.hidden state');
   assert.ok(appSource.includes('iosPwaRealtimeSnapshotBurstRef.current(nextTrigger, { resetFreshness })'), 'iOS standalone resume should prefer realtime snapshot burst over REST quote refresh');
   assert.ok(appSource.includes('if (!snapshotStarted)') && appSource.includes("'auto-ios-pwa-snapshot-cloud'") && appSource.includes('pendingPwaResumeRefreshRef.current = buildPwaResumeRequest('), 'iOS standalone cloud load should retain a pending realtime burst when its snapshot path is not ready');
@@ -1609,7 +1612,8 @@ test('realtime quote refresh avoids duplicate requests and hides raw Safari netw
   assert.equal(appSource.includes('STOCK_REALTIME_INITIAL_COVERAGE_RATIO'), false, 'stock realtime should not require initial symbol coverage because sparse premarket streams can be valid');
   assert.ok(appSource.includes('auto-ios-visible-heartbeat'), 'iOS standalone app should reconnect stock realtime when visible timers resume');
   assert.equal(homeTabSource.includes("import { isIndexMarketCard } from '../lib/indexRealtime.js';"), false, 'index cards should not import index matching just to render connection badges');
-  assert.ok(homeTabSource.includes('{isBtc && realtimeLabel && ('), 'only the BTC market card should render realtime connection status');
+  assert.ok(homeTabSource.includes('{isBtc && realtimeLabel && ('), 'only BTC should render a LIVE connection badge');
+  assert.ok(homeTabSource.includes('data-index-quote-status={indexStatus}') && homeTabSource.includes('formatIndexQuoteTime(item, language)'), 'index cards should separately expose actual quote time and freshness');
 });
 
 test('stock startup acceleration stays isolated from holdings, other market cards, and auth', () => {
@@ -1620,7 +1624,7 @@ test('stock startup acceleration stays isolated from holdings, other market card
   assert.ok(appSource.includes('writeStockQuoteBootstrapCache({'), 'fresh quote rows should refresh the short-lived startup cache');
   assert.ok(appSource.includes('stockRealtimeReady = canStartStockRealtime({'), 'only the stock realtime effects should bypass cloud loading when cached symbols exist');
   assert.ok((appSource.match(/freshnessFloorAt: stockRealtimeRef\.current\.snapshotFreshnessFloorAt/g) || []).length === 2, 'both stock snapshot decisions should ignore pre-resume websocket timestamps');
-  assert.ok(appSource.includes('const indicesRequest = cloudLoadingRef.current'), 'early stock snapshot startup must retain the existing cloud gate for index snapshots');
+  assert.ok(appSource.includes("if (cloudLoading || !user?.id || typeof window === 'undefined') return undefined;"), 'the independent index poller should remain cloud- and identity-gated without blocking early stock startup');
   assert.ok(appSource.includes('startRealtimeStartupTraceSession(options.traceTrigger)'), 'a real iOS resume should start a fresh anonymous latency trace');
   assert.ok(appSource.includes("now - previousStartedAt < 1000"), 'duplicate iOS lifecycle events should not restart the latency trace');
   assert.ok(appSource.includes('stockRealtimeUniverseResolvedRef.current = true'), 'successful cloud resolution must permanently disable bootstrap insertion for the current account mount');
