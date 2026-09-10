@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '📈 股票趋势升级为简约观察报告',
+      '  - 放大并加宽走势图，浮层名称与数值同排显示；选中历史点后可点击外部或回到最新退出',
+      '  - 均线、重测、估值、财报与个人计划统一黑灰风格，详细指标可按需展开',
+      '  - 曲线按区间涨跌与全局配色显示，沿用真实行情、已完成收盘口径与现有持仓数据',
+    ],
+    itemsEn: [
+      '📈 A simpler stock-trend observation report',
+      '  - Larger edge-to-edge charts and wider single-line metric tooltips; dismiss historical selection outside the chart or return to latest',
+      '  - Unified monochrome moving averages, retests, valuation, earnings and personal plans with expandable details',
+      '  - Range-direction chart colors respect your market convention; live data sources, completed-close rules and holdings remain unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.502', date: '2026-09-10',
+    items: [
       '📊 修复 LLY、AVGO、ARM、HOOD 财报细分解析',
       '  - 恢复已核验财期的产品、地区或业务收入结构，正确读取 ARM 股东信与 AVGO 业绩附件',
       '  - 当期收入与同比独立核验，缺失比较不隐藏当期，未披露数据不补成零',

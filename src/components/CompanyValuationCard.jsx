@@ -1,5 +1,6 @@
 import React from 'react';
 import { t } from '../lib/i18n.js';
+import './StockDetailReportSections.css';
 
 const NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif';
 const CHART_WIDTH = 360;
@@ -337,7 +338,9 @@ export default function CompanyValuationCard({
   status,
   language,
   initialTooltipOpen = false,
+  presentation = 'card',
 }) {
+  const reportPresentation = presentation === 'report';
   const chartReady = status === 'ready' && Array.isArray(data?.series) && data.series.length >= 2;
   const asOfDate = validDateKey(data?.asOfDate);
   const summary = data?.summary || {};
@@ -365,6 +368,7 @@ export default function CompanyValuationCard({
       className="mt-3 scroll-mt-20 overflow-hidden rounded-2xl border border-white/[0.09] bg-[#0b0c0e] shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]"
       data-watchlist-detail-section="valuation"
       data-watchlist-company-valuation="true"
+      data-stock-detail-report-section={reportPresentation ? 'valuation' : undefined}
       data-valuation-status={status}
       aria-busy={status === 'loading'}
       aria-live="polite"
@@ -408,12 +412,24 @@ export default function CompanyValuationCard({
             <span className="inline-flex items-center gap-1.5 whitespace-nowrap"><i className="h-px w-4 border-t border-dashed border-white/35" />{t(language, 'watchlistDetail.valuationAverage', '五年平均 {{value}}', { value: formatPe(summary.average) })}</span>
             <span className="inline-flex items-center gap-1.5 whitespace-nowrap"><i className="h-2 w-4 rounded-[3px] border border-[#f6b54b]/15 bg-[#f6b54b]/[0.08]" />{t(language, 'watchlistDetail.valuationQuartileBand', 'P25–P75 区间')}</span>
           </div>
-          <div
-            className="mx-4 mb-4 mt-3 border-t border-white/[0.06] pt-3 text-center text-[11px] leading-[1.55] text-white/[0.40]"
-            data-watchlist-valuation-summary="true"
-          >
-            {summaryParts.length ? <div>{summaryParts.join(' · ')}</div> : null}
-          </div>
+          {reportPresentation ? (
+            <details className="stock-detail-report-disclosure" data-stock-detail-report-disclosure="valuation">
+              <summary>
+                <span>{language === 'en' ? 'Historical statistics' : '历史统计明细'}</span>
+                <span className="stock-detail-report-disclosure-indicator" aria-hidden="true" />
+              </summary>
+              <div className="stock-detail-report-statistics" data-watchlist-valuation-summary="true">
+                {summaryParts.map((part) => <div key={part}>{part}</div>)}
+              </div>
+            </details>
+          ) : (
+            <div
+              className="mx-4 mb-4 mt-3 border-t border-white/[0.06] pt-3 text-center text-[11px] leading-[1.55] text-white/[0.40]"
+              data-watchlist-valuation-summary="true"
+            >
+              {summaryParts.length ? <div>{summaryParts.join(' · ')}</div> : null}
+            </div>
+          )}
         </>
       ) : (
         <div className="px-4 pb-7 pt-5 text-center">

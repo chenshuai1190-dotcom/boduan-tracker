@@ -29,6 +29,7 @@ import { normalizeConfirmModalOptions } from './lib/confirmModal.js';
 import { localMonthKey, shiftMonthKey } from './lib/calendarMonth.js';
 import { EARNINGS_GROWTH_SCHEMA_VERSION } from './lib/earningsGrowth.js';
 import { normalizeLanguage, t } from './lib/i18n.js';
+import { buildEodhdStockDetail } from '../server/quote/stockDetail.js';
 
 const AnalysisTab = lazy(() => import('./tabs/AnalysisTab.jsx'));
 const HomeTab = lazy(() => import('./tabs/HomeTab.jsx'));
@@ -271,6 +272,55 @@ const mockNvdaValuationSeries = [
   ['2026-07-23', 31.95],
 ].map(([date, peTtm]) => ({ date, peTtm }));
 
+function buildMockWatchlistMa200RetestHistory() {
+  // 模拟数据，仅用于本地布局与交互验收；不是 NVDA 的真实重测记录。
+  // Reuse the ratio-fixture construction from quote-stock-detail.test.js and
+  // the pure production model; no provider, credentials, clock or randomness.
+  const closes = Array.from({ length: 199 }, () => 190);
+  const appendAtMaRatio = (ratio) => {
+    const priorWindowSum = closes.slice(-199).reduce((sum, close) => sum + close, 0);
+    closes.push((ratio * priorWindowSum) / (200 - ratio));
+  };
+  const scenarios = [
+    { recoveryDay: 8, observedDays: 60 },
+    { recoveryDay: null, observedDays: 60 },
+    { recoveryDay: 12, observedDays: 60 },
+    { recoveryDay: 5, observedDays: 60 },
+    { recoveryDay: null, observedDays: 8 },
+  ];
+  for (const { recoveryDay, observedDays } of scenarios) {
+    for (let day = 0; day < 5; day += 1) appendAtMaRatio(1.05);
+    appendAtMaRatio(0.985);
+    for (let day = 1; day <= observedDays; day += 1) {
+      const ratio = recoveryDay === null
+        ? 0.95 - Math.sin((day / 60) * Math.PI) * 0.05
+        : day < recoveryDay
+          ? 0.97 - Math.sin((day / recoveryDay) * Math.PI) * 0.06
+          : 1.01 + Math.min((day - recoveryDay) * 0.0005, 0.025);
+      appendAtMaRatio(ratio);
+    }
+  }
+  const asOfDate = '2026-07-17';
+  const dates = [];
+  const cursor = new Date(`${asOfDate}T00:00:00Z`);
+  while (dates.length < closes.length) {
+    if (cursor.getUTCDay() !== 0 && cursor.getUTCDay() !== 6) {
+      dates.push(cursor.toISOString().slice(0, 10));
+    }
+    cursor.setUTCDate(cursor.getUTCDate() - 1);
+  }
+  dates.reverse();
+  const rows = closes.map((close, index) => ({ date: dates[index], close, high: close * 1.01, adjusted_close: close }));
+  return {
+    ...buildEodhdStockDetail(rows, { asOfDate, splitActions: [] }).ma200RetestHistory,
+    // These historical examples are independent of the page's daily chart.
+    // Do not present their synthetic endpoint as the stock's current cycle.
+    currentCycle: null,
+    previewOnly: true,
+    previewLabel: '模拟数据 · 仅供本地视觉预览',
+  };
+}
+
 const mockWatchlistStockDetailData = {
   source: 'EODHD_EOD_SPLITS',
   priceBasis: 'split_adjusted_close',
@@ -281,6 +331,7 @@ const mockWatchlistStockDetailData = {
   relativeReturnHistory: mockWatchlistDetailHistory.map(({ date, close }) => ({ date, close })),
   qqqHistory: mockWatchlistQqqHistory,
   weeklyHistory: buildMockWatchlistWeeklyHistory(),
+  ma200RetestHistory: buildMockWatchlistMa200RetestHistory(),
   fundamentals: {
     symbol: 'NVDA',
     currency: 'USD',

@@ -1,0 +1,127 @@
+.stock-report-page {
+  max-width: 760px;
+  color: #e4e4e7;
+  background: #08090b;
+  padding-bottom: 24px;
+  --sr-muted: #85858d;
+  --sr-line: rgba(255, 255, 255, .075);
+}
+.stock-report-header {
+  padding: calc(env(safe-area-inset-top) + 10px) 0 18px;
+}
+.stock-report-header > div { height: 48px; }
+.stock-report-header h1 { font-size: 18px; font-weight: 500; color: #dedee3; }
+.stock-report-back {
+  display: grid; place-items: center; width: 40px; height: 44px;
+  color: #a2a2a9; background: transparent; border: 0;
+}
+.stock-report-hero { padding: 8px 0 25px; }
+.stock-report-hero > div:first-child img { border-radius: 10px; }
+.stock-report-price {
+  font-size: clamp(36px, 10vw, 43px); font-weight: 400;
+  line-height: 1.15; letter-spacing: -.04em; color: #f1f1f4;
+}
+.stock-report-hero [data-watchlist-stock-chart-ranges] {
+  margin-top: 26px; margin-bottom: 18px; gap: 5px;
+}
+.stock-report-range {
+  height: 35px; border: 0; border-radius: 8px; font-size: 12px;
+  color: #81818a; background: transparent; transition: background .15s, color .15s;
+}
+.stock-report-range[aria-pressed="true"] { background: #1a1b1e; color: #e4e4e7; }
+.stock-report-chart-svg, .stock-report-chart-empty { height: 308px; }
+.stock-report-chart { margin-inline: -8px; }
+.stock-report-price-tooltip { width: min(300px, calc(100% - 16px)); }
+.stock-report-tooltip-row {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; margin-top: 8px; font-size: 12px; line-height: 1.5;
+}
+.stock-report-tooltip-row > span { white-space: nowrap; }
+.stock-report-tooltip-row > span:first-child { flex-shrink: 0; }
+.stock-report-tooltip-row > span:last-child { text-align: right; }
+.stock-report-page [data-watchlist-stock-price-chart]:focus-visible {
+  outline: 1px solid #74747c; box-shadow: none;
+}
+.stock-report-page [data-watchlist-stock-price-tooltip],
+.stock-report-page [data-watchlist-stock-chart-zoom-controls] { background: rgba(20, 21, 23, .97); }
+.stock-report-page [data-watchlist-stock-chart-reset] { color: #d4d4d8; }
+.stock-report-chart-latest {
+  position: absolute; right: 4px; bottom: -28px; z-index: 2;
+  font-size: 11px; color: #adadb4; padding: 4px 0; background: #08090b;
+}
+.stock-report-page [data-watchlist-stock-chart-legend] { margin-top: 14px; justify-content: flex-start; gap: 16px; }
+.stock-report-technicals { border-top: 1px solid var(--sr-line); padding-top: 25px; scroll-margin-top: 24px; }
+.stock-report-technicals > div:first-child { padding: 0; }
+.stock-report-technicals > div:first-child h2 { font-size: 16px; color: #e4e4e7; }
+.stock-report-page [data-watchlist-daily-metrics] {
+  grid-template-columns: .9fr .95fr 1.25fr; gap: 10px; padding: 19px 0 24px;
+}
+.stock-report-page [data-watchlist-daily-metrics] > div { text-align: left; overflow: visible; }
+.stock-report-page [data-watchlist-daily-metrics] > div > div:first-child { font-size: 11px; color: var(--sr-muted); }
+.stock-report-page [data-watchlist-daily-metrics] > div > div:nth-child(2) { font-size: 20px; letter-spacing: -.035em; margin-top: 9px; }
+.stock-report-page [data-watchlist-daily-metrics] > div:last-child > div:nth-child(2) { font-size: 17px; line-height: 28px; }
+.stock-report-page [data-watchlist-daily-metrics] > div > div:last-child { font-size: 10px; color: #777780; margin-top: 6px; }
+.stock-report-page [data-watchlist-indicator-badge] { color: var(--sr-muted); background: none; padding: 0; border-radius: 0; }
+.stock-report-ma-heading { border-top: 1px solid var(--sr-line); padding: 23px 0 4px; font-size: 16px; }
+.stock-report-ma-row { border-bottom: 1px solid var(--sr-line); }
+.stock-report-ma-row > summary {
+  display: flex; align-items: center; gap: 15px; padding: 19px 0;
+  list-style: none; cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.stock-report-ma-row > summary::-webkit-details-marker { display: none; }
+.stock-report-ma-name { display: flex; gap: 10px; align-items: center; font-size: 15px; }
+.stock-report-ma-name i { width: 3px; height: 26px; border-radius: 2px; opacity: .8; }
+.stock-report-ma-name small, .stock-report-ma-reading small { display: block; margin-top: 5px; font-size: 11px; font-weight: 400; color: var(--sr-muted); }
+.stock-report-ma-reading { margin-left: auto; text-align: right; }
+.stock-report-ma-reading strong { font-size: 21px; font-weight: 400; font-variant-numeric: tabular-nums; }
+.stock-report-ma-row > summary > svg { color: #686870; flex-shrink: 0; transition: transform .2s; }
+.stock-report-ma-row[open] > summary > svg { transform: rotate(180deg); }
+.stock-report-ma-row:last-child { border-bottom: 0; }
+.stock-report-ma-expanded { padding: 3px 0 20px 13px; }
+.stock-report-ma-expanded > div:first-child h3 { font-size: 12px; }
+.stock-report-ma-expanded > p { color: #74747e; font-size: 11px; margin-top: 14px; }
+.stock-report-daily-detail { display: flex; justify-content: space-between; padding: 7px 0; color: #acacb3; font-size: 13px; }
+.stock-report-page > [data-watchlist-company-fundamentals],
+.stock-report-page > [data-watchlist-detail-section="earnings"],
+.stock-report-page > [data-watchlist-detail-section="fund-composition"],
+.stock-report-page > [data-watchlist-detail-section="events"],
+.stock-report-page > [data-watchlist-detail-section="target"],
+.stock-report-page > [data-watchlist-detail-section="position"] {
+  margin-top: 28px; border: 0; border-radius: 0; box-shadow: none;
+  background: transparent; border-top: 1px solid var(--sr-line); padding-top: 24px;
+  scroll-margin-top: 24px;
+}
+.stock-report-page > [data-watchlist-company-fundamentals] { margin-top: 0; border-top: 0; padding-top: 0; }
+.stock-report-page > [data-watchlist-company-fundamentals] > div { padding-left: 0; padding-right: 0; text-align: left; }
+.stock-report-page > [data-watchlist-company-fundamentals] > div:first-child { padding-top: 8px; }
+.stock-report-page > [data-watchlist-company-fundamentals] > div:last-child { padding-top: 14px; }
+.stock-report-page > [data-watchlist-detail-section="earnings"] > div,
+.stock-report-page > [data-watchlist-detail-section="fund-composition"] > div,
+.stock-report-page > [data-watchlist-detail-section="events"] > div,
+.stock-report-page > [data-watchlist-detail-section="target"] > div,
+.stock-report-page > [data-watchlist-detail-section="position"] > div { padding-left: 0; padding-right: 0; }
+.stock-report-page > [data-watchlist-detail-section="earnings"] > div:first-child,
+.stock-report-page > [data-watchlist-detail-section="events"] > div:first-child,
+.stock-report-page > [data-watchlist-detail-section="fund-composition"] > div:first-child,
+.stock-report-page > [data-watchlist-detail-section="position"] > div:first-child {
+  padding-top: 0; padding-bottom: 14px; border-bottom: 0;
+}
+.stock-report-page [data-watchlist-published-earnings] > div:first-child > span { border: 0; background: none; color: #92929b; padding: 0; }
+.stock-report-page [data-watchlist-published-earnings] > div:first-child > span i { background: #777780; }
+.stock-report-page [data-watchlist-published-earnings] > div:last-child > div:first-child > span { color: #92929b; }
+.stock-report-page [data-watchlist-detail-section="events"] > div:last-child { border: 0; text-align: left; }
+.stock-report-page [data-watchlist-detail-section="events"] > div:last-child > div { border: 0; padding: 0; text-align: left; }
+.stock-report-page [data-watchlist-detail-section="events"] > div:last-child svg { margin-left: 0; }
+.stock-report-page [data-watchlist-detail-section="events"] > div:last-child > div:nth-child(2) > div:nth-child(3) { color: #d4d4db; }
+.stock-report-page [data-watchlist-detail-section="target"] > div:first-child { color: #e4e4e7; border: 0; padding-top: 0; }
+.stock-report-page [data-watchlist-detail-section="target"] > div:first-child > span:last-child { color: #9b9ba4; }
+.stock-report-target-track { position: relative; height: 3px; background: #333339; border-radius: 2px; }
+.stock-report-target-track > span { position: absolute; top: 50%; width: 9px; height: 9px; transform: translate(-50%, -50%); border-radius: 50%; background: #d4d4d8; border: 2px solid #08090b; }
+.stock-report-page [data-watchlist-detail-section="position"] > div:last-child > div:last-child > div { background: #a1a1aa; }
+@media (min-width: 600px) {
+  .stock-report-chart-svg, .stock-report-chart-empty { height: 340px; }
+}
+@media (max-width: 360px) {
+  .stock-report-page [data-watchlist-daily-metrics] { gap: 6px; }
+  .stock-report-page [data-watchlist-daily-metrics] > div:last-child > div:nth-child(2) { font-size: 15px; }
+}

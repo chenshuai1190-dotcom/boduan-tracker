@@ -1,6 +1,7 @@
 import React from 'react';
 import Ma200RetestDetailModal from './Ma200RetestDetailModal.jsx';
 import { marketHexColor } from '../lib/marketColorMode.js';
+import './StockDetailReportSections.css';
 
 const NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif';
 const TABLE_GRID = 'grid-cols-[15px_62px_42px_minmax(76px,1fr)_47px_30px_44px]';
@@ -751,7 +752,9 @@ export default function Ma200RetestHistoryCard({
   language = 'zh',
   marketColorMode,
   symbol = '',
+  presentation = 'card',
 }) {
+  const reportPresentation = presentation === 'report';
   const summary = data?.summary || {};
   const events = Array.isArray(data?.events) ? data.events : [];
   const visibleEvents = events.slice(0, 5);
@@ -813,6 +816,7 @@ export default function Ma200RetestHistoryCard({
         className="mt-3 scroll-mt-20 overflow-hidden rounded-2xl border border-white/[0.09] bg-[#0b0c0e] shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]"
         data-watchlist-detail-section="ma200-retest"
         data-watchlist-ma200-retest-history="daily"
+        data-stock-detail-report-section={reportPresentation ? 'ma200-retest' : undefined}
       >
       <div className="flex min-w-0 items-center justify-between gap-3 border-b border-white/[0.06] px-4 py-3.5">
         <div className="min-w-0">
@@ -889,19 +893,43 @@ export default function Ma200RetestHistoryCard({
             />
           </div>
 
-          <RetestEventsTable
-            events={visibleEvents}
-            language={language}
-            marketColorMode={marketColorMode}
-            onOpenDetail={(event) => setSelectedTriggerDate(event?.triggerDate || '')}
-            recentReboundTradingDays={recentReboundTradingDays}
-          />
-          <RetestHistoryDistribution
-            events={visibleEvents}
-            language={language}
-            marketColorMode={marketColorMode}
-            observationTradingDays={observationTradingDays}
-          />
+          {reportPresentation ? (
+            <details className="stock-detail-report-disclosure" data-stock-detail-report-disclosure="ma200-retest">
+              <summary>
+                <span>{copy(language, '查看重测明细', 'View retest details')}</span>
+                <span className="stock-detail-report-disclosure-indicator" aria-hidden="true" />
+              </summary>
+              <RetestEventsTable
+                events={visibleEvents}
+                language={language}
+                marketColorMode={marketColorMode}
+                onOpenDetail={(event) => setSelectedTriggerDate(event?.triggerDate || '')}
+                recentReboundTradingDays={recentReboundTradingDays}
+              />
+              <RetestHistoryDistribution
+                events={visibleEvents}
+                language={language}
+                marketColorMode={marketColorMode}
+                observationTradingDays={observationTradingDays}
+              />
+            </details>
+          ) : (
+            <>
+              <RetestEventsTable
+                events={visibleEvents}
+                language={language}
+                marketColorMode={marketColorMode}
+                onOpenDetail={(event) => setSelectedTriggerDate(event?.triggerDate || '')}
+                recentReboundTradingDays={recentReboundTradingDays}
+              />
+              <RetestHistoryDistribution
+                events={visibleEvents}
+                language={language}
+                marketColorMode={marketColorMode}
+                observationTradingDays={observationTradingDays}
+              />
+            </>
+          )}
         </>
       ) : (
         <EmptyState language={language} status={data?.status} />

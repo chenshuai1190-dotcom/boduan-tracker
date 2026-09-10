@@ -23,6 +23,8 @@ const settings = read('src/tabs/SettingsTab.jsx');
 const pnlReport = read('src/pages/PnlReportPage.jsx');
 const stockDetail = read('src/pages/StockDetailPage.jsx');
 const watchlistDetail = read('src/pages/WatchlistStockDetailPage.jsx');
+const watchlistDetailCss = read('src/pages/WatchlistStockDetailPage.css');
+const stockDetailReportCss = read('src/components/StockDetailReportSections.css');
 const competition = read('src/pages/CommunityCompetitionPage.jsx');
 const waveTracker = read('src/pages/WaveTrackerPage.jsx');
 const earningsDetail = read('src/pages/EarningsDetailPage.jsx');
@@ -53,7 +55,10 @@ test('persistent production modules share neutral black surface levels', () => {
   assert.equal(count(pnlReport, /bg-\[#0b0c0e\]/g), 4);
   assert.equal(count(pnlReport, /bg-\[#101114\]/g), 2);
   assert.equal(count(stockDetail, /bg-\[#0b0c0e\]/g), 4);
-  assert.equal(count(watchlistDetail, /bg-\[#0b0c0e\]/g), 10);
+  assert.match(watchlistDetail, /<main className="stock-report-page\b/, 'stock trends use the scoped continuous report surface, not a fixed count of boxed cards');
+  assert.match(watchlistDetailCss, /\.stock-report-page\s*\{[^}]*background:\s*#08090b;/);
+  assert.match(watchlistDetail, /<section className="stock-report-hero"/);
+  assert.match(watchlistDetailCss, /\.stock-report-price\s*\{[^}]*color:\s*#f1f1f4;/, 'current price remains neutral while changes and the chart use market direction');
   assert.equal(count(competition, /bg-\[#0b0c0e\]/g), 5);
   assert.ok(waveTracker.includes('border border-[#1a2530] bg-[#0b0c0e]'));
   assert.equal(count(waveTracker, /bg-\[#0b0c0e\]/g), 3);
@@ -65,6 +70,22 @@ test('persistent production modules share neutral black surface levels', () => {
   assert.ok(valuation.includes('rounded-2xl border border-white/[0.09] bg-[#0b0c0e]'));
   assert.ok(ma200History.includes('rounded-2xl border border-white/[0.09] bg-[#0b0c0e]'));
   assert.ok(stockComparison.includes('id="stock-return-comparison" className="mt-3 scroll-mt-[132px] rounded-2xl border border-white/10 bg-[#0b0c0e]'));
+});
+
+test('stock-trend report variants are opt-in neutral sections without recoloring other card consumers', () => {
+  for (const [component, section] of [[valuation, 'valuation'], [ma200History, 'ma200-retest']]) {
+    assert.ok(component.includes("presentation = 'card'"), 'existing consumers retain their card presentation');
+    assert.ok(component.includes("presentation === 'report'"));
+    assert.ok(component.includes(`data-stock-detail-report-section={reportPresentation ? '${section}' : undefined}`));
+  }
+  assert.match(watchlistDetail, /<CompanyValuationCard\s+presentation="report"/);
+  assert.match(watchlistDetail, /<Ma200RetestHistoryCard\s+presentation="report"/);
+  const reportSurface = stockDetailReportCss.match(/section\[data-stock-detail-report-section\]\s*\{([^}]+)\}/)?.[1];
+  assert.ok(reportSurface);
+  assert.match(reportSurface, /border:\s*0;/);
+  assert.match(reportSurface, /border-radius:\s*0;/);
+  assert.match(reportSurface, /background:\s*transparent;/);
+  assert.match(reportSurface, /box-shadow:\s*none;/);
 });
 
 test('actual asset amounts use soft white while semantic gold and the settings glow remain', () => {

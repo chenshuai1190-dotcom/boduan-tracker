@@ -2,6 +2,7 @@ import React from 'react';
 import {
   ArrowLeft,
   CalendarDays,
+  ChevronDown,
   ChevronRight,
   Clock3,
   RefreshCw,
@@ -11,6 +12,7 @@ import CompanyValuationCard from '../components/CompanyValuationCard.jsx';
 import Ma200RetestHistoryCard from '../components/Ma200RetestHistoryCard.jsx';
 import StockLogo, { stockLogoCandidates } from '../components/StockLogo.jsx';
 import TargetEditor from '../components/StockTargetEditor.jsx';
+import './WatchlistStockDetailPage.css';
 import { fetchEarningsCalendarEvents, getNewYorkEarningsClock } from '../lib/earningsCalendarRefresh.js';
 import { dateKey, isEarningsPublished, normalizeEarningsSession } from '../lib/earningsCalendarModel.js';
 import { earningsDetailSourceBadgeKind, formatEarningsDetailMoney } from '../lib/earningsDetail.js';
@@ -44,15 +46,21 @@ import {
 
 const NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif';
 const PAGE_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Segoe UI", sans-serif';
-const PRICE_LINE_COLOR = '#22c55e';
 const MA200_DAY_COLOR = '#60a5fa';
 const MA200_WEEK_COLOR = '#f6b54b';
 const MA50_WEEK_COLOR = '#a78bfa';
 const CHART_WIDTH = 352;
-const CHART_HEIGHT = 184;
+const CHART_HEIGHT = 308;
 const RANGE_IDS = ['1m', '3m', '6m', '1y', '5y'];
 const QQQ_BENCHMARK_CACHE_TTL_MS = 15 * 60 * 1000;
 const qqqBenchmarkRowsCache = new Map();
+
+function rangePriceColor(rows, marketColorMode) {
+  const first = rows[0]?.close;
+  const last = rows.at(-1)?.close;
+  if (rows.length < 2 || !Number.isFinite(first) || !Number.isFinite(last) || first === last) return '#a1a1aa';
+  return marketHexColor(last - first, marketColorMode);
+}
 
 function loadCachedQqqBenchmarkRows(key, loader) {
   const cached = qqqBenchmarkRowsCache.get(key);
@@ -212,9 +220,9 @@ function quarterLabel(event, language) {
 
 function chartGeometry(rows, movingAverageRows, weeklyMa50Rows = []) {
   if (!Array.isArray(rows) || rows.length === 0) return null;
-  const left = 30;
-  const right = 10;
-  const top = 10;
+  const left = 4;
+  const right = 4;
+  const top = 18;
   const bottom = 25;
   const plotWidth = CHART_WIDTH - left - right;
   const plotHeight = CHART_HEIGHT - top - bottom;
@@ -319,7 +327,7 @@ function chartWindowLabel(points, language) {
   return `${label(points[0])}–${label(points.at(-1))}`;
 }
 
-function PriceChart({ rows, weeklyRows, weeklyLookupRows, range, currency, language, marketColorMode, symbol, initialTooltipOpen = false }) {
+function PriceChart({ rows, weeklyRows, weeklyLookupRows, range, currency, language, marketColorMode, symbol, priceColor, initialTooltipOpen = false }) {
   const weeklyMa = range === '5y';
   const chartZoomEnabled = range === '1y' || range === '5y';
   const showWeeklyMa50 = range === '1y' || range === '5y';
@@ -398,11 +406,6 @@ function PriceChart({ rows, weeklyRows, weeklyLookupRows, range, currency, langu
     if (chartWindowFrameRef.current !== null) window.cancelAnimationFrame(chartWindowFrameRef.current);
   }, []);
   React.useEffect(() => {
-    if (selectedIndex == null) return undefined;
-    const timerId = window.setTimeout(() => setSelectedIndex(null), 12_000);
-    return () => window.clearTimeout(timerId);
-  }, [selectedIndex]);
-  React.useEffect(() => {
     const closeOutside = (event) => {
       if (!chartRef.current?.contains(event.target)) setSelectedIndex(null);
     };
@@ -412,7 +415,7 @@ function PriceChart({ rows, weeklyRows, weeklyLookupRows, range, currency, langu
 
   if (!chart || chart.pricePoints.length < 2) {
     return (
-      <div className="flex h-[184px] items-center justify-center rounded-xl bg-black/[0.08] text-[12px] text-white/[0.50]">
+      <div className="stock-report-chart-empty flex items-center justify-center text-[12px] text-white/[0.50]">
         {t(language, 'watchlistDetail.noCloseHistory', '暂无足够的收盘数据')}
       </div>
     );
@@ -641,7 +644,7 @@ function PriceChart({ rows, weeklyRows, weeklyLookupRows, range, currency, langu
 
   return (
     <div
-      className="relative min-w-0"
+      className="stock-report-chart relative min-w-0"
       data-watchlist-stock-chart-pinch={pinchEnabled ? 'enabled' : undefined}
       data-watchlist-stock-chart-viewport={chartWindowZoomed ? 'zoomed' : 'full'}
     >
@@ -664,6 +667,7 @@ function PriceChart({ rows, weeklyRows, weeklyLookupRows, range, currency, langu
         onPointerCancel={(event) => finishPointer(event, { cancelled: true })}
         onLostPointerCapture={(event) => finishPointer(event, { cancelled: true, lostCapture: true })}
         onKeyDown={(event) => {
+          if (event.key === 'Escape') { setSelectedIndex(null); return; }
           if (event.key !== 'Enter' && event.key !== ' ') return;
           event.preventDefault();
           setSelectedIndex(chart.pricePoints.length - 1);
@@ -671,7 +675,8 @@ function PriceChart({ rows, weeklyRows, weeklyLookupRows, range, currency, langu
       >
       <svg
         viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
-        className="h-[184px] w-full overflow-visible"
+        preserveAspectRatio="none"
+        className="stock-report-chart-svg w-full overflow-visible"
         role="img"
         aria-label={showWeeklyMa50
           ? t(language, 'watchlistDetail.chartImageAriaWithMa50', '{{range}} 收盘价、{{maLabel}}与MA50（周）走势', { range: range.toUpperCase(), maLabel })
@@ -708,14 +713,14 @@ function PriceChart({ rows, weeklyRows, weeklyLookupRows, range, currency, langu
             `}
           </style>
           <linearGradient id="watchlist-stock-detail-area" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor={PRICE_LINE_COLOR} stopOpacity="0.14" />
-            <stop offset="100%" stopColor={PRICE_LINE_COLOR} stopOpacity="0" />
+            <stop offset="0%" stopColor={priceColor} stopOpacity="0.12" />
+            <stop offset="100%" stopColor={priceColor} stopOpacity="0" />
           </linearGradient>
         </defs>
         {chart.priceLines.map((line) => (
           <g key={line.y}>
             <line x1={chart.left} x2={CHART_WIDTH - chart.right} y1={line.y} y2={line.y} stroke="rgba(255,255,255,0.052)" strokeDasharray="2 4" />
-            <text x={chart.left - 6} y={line.y + 3} textAnchor="end" fill="rgba(255,255,255,0.38)" fontSize="10" style={{ fontFamily: NUMBER_FONT }}>
+            <text x={chart.left + 1} y={line.y - 5} textAnchor="start" fill="rgba(255,255,255,0.38)" fontSize="10" style={{ fontFamily: NUMBER_FONT }}>
               {formatNumber(line.value, line.value >= 1000 ? 0 : 1)}
             </text>
           </g>
@@ -723,18 +728,18 @@ function PriceChart({ rows, weeklyRows, weeklyLookupRows, range, currency, langu
         <path d={chart.areaPath} fill="url(#watchlist-stock-detail-area)" />
         {chart.maPoints.length >= 2 ? <path data-watchlist-daily-ma-line={weeklyMa ? undefined : 'true'} data-watchlist-weekly-ma-line={weeklyMa ? 'true' : undefined} d={chart.maPath} fill="none" stroke={maColor} strokeWidth="1.15" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" /> : null}
         {chart.ma50Points.length >= 2 ? <path data-watchlist-weekly-ma50-line="true" d={chart.ma50Path} fill="none" stroke={MA50_WEEK_COLOR} strokeWidth="1.15" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" /> : null}
-        <path d={chart.pricePath} fill="none" stroke={PRICE_LINE_COLOR} strokeWidth="0.95" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+        <path data-watchlist-price-line="range-direction" d={chart.pricePath} fill="none" stroke={priceColor} strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
         {latestPointVisible ? (
           <>
-            <circle data-watchlist-endpoint-breathe-ring="true" className="watchlist-stock-price-breathe-ring" cx={last.x} cy={last.y} r="4.4" fill={PRICE_LINE_COLOR} pointerEvents="none" />
-            <circle cx={last.x} cy={last.y} r="2.2" fill={PRICE_LINE_COLOR} stroke="#d6fff0" strokeWidth="0.65" />
+            <circle data-watchlist-endpoint-breathe-ring="true" className="watchlist-stock-price-breathe-ring" cx={last.x} cy={last.y} r="4.4" fill={priceColor} pointerEvents="none" />
+            <circle cx={last.x} cy={last.y} r="2.2" fill={priceColor} stroke="#e4e4e7" strokeWidth="0.65" />
           </>
         ) : null}
         {selectedPoint ? (
           <g aria-hidden="true">
             <line x1={selectedPoint.x} x2={selectedPoint.x} y1={chart.top} y2={CHART_HEIGHT - chart.bottom} stroke="rgba(255,255,255,0.24)" strokeWidth="0.8" strokeDasharray="3 3" />
-            <circle cx={selectedPoint.x} cy={selectedPoint.y} r="8" fill="#f6b54b" opacity="0.13" />
-            <circle cx={selectedPoint.x} cy={selectedPoint.y} r="3.8" fill="#05070b" stroke="#ffd18a" strokeWidth="1.25" />
+            <circle cx={selectedPoint.x} cy={selectedPoint.y} r="8" fill={priceColor} opacity="0.13" />
+            <circle cx={selectedPoint.x} cy={selectedPoint.y} r="3.8" fill="#08090b" stroke={priceColor} strokeWidth="1.25" />
             {selectedMaPoint ? <circle cx={selectedMaPoint.x} cy={selectedMaPoint.y} r="2.8" fill="#05070b" stroke={maColor} strokeWidth="1.1" /> : null}
             {selectedMa50Point ? <circle cx={selectedMa50Point.x} cy={selectedMa50Point.y} r="2.8" fill="#05070b" stroke={MA50_WEEK_COLOR} strokeWidth="1.1" /> : null}
           </g>
@@ -746,24 +751,24 @@ function PriceChart({ rows, weeklyRows, weeklyLookupRows, range, currency, langu
       {selectedPoint ? (
         <div
           data-watchlist-stock-price-tooltip="true"
-          className={`pointer-events-none absolute top-2 w-[188px] rounded-xl border border-white/10 bg-[#121821]/95 px-3 py-2.5 text-left shadow-[0_12px_28px_rgba(0,0,0,0.48)] backdrop-blur ${selectedPoint.x > CHART_WIDTH * 0.56 ? 'left-8' : 'right-2'}`}
+          className={`stock-report-price-tooltip pointer-events-none absolute top-2 rounded-xl border border-white/10 bg-[#121821]/95 px-3 py-3 text-left shadow-[0_12px_28px_rgba(0,0,0,0.48)] backdrop-blur ${selectedPoint.x > CHART_WIDTH * 0.56 ? 'left-2' : 'right-2'}`}
         >
-          <div className="text-[11px] text-white/[0.45]">{formatDate(selectedPoint.date, language, { year: true })} · {t(language, 'watchlistDetail.chartClose', '收盘')}</div>
-          <div className="mt-1 text-[18px] font-normal text-white/[0.88] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{formatCurrency(selectedPoint.close, currency)}</div>
-          <div className="mt-1 flex items-center justify-between gap-2 text-[11px]">
+          <div className="whitespace-nowrap text-[12px] text-white/[0.45]">{formatDate(selectedPoint.date, language, { year: true })} · {t(language, 'watchlistDetail.chartClose', '收盘')}</div>
+          <div className="mt-1 text-[20px] font-normal text-white/[0.88] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{formatCurrency(selectedPoint.close, currency)}</div>
+          <div className="stock-report-tooltip-row">
             <span className="text-white/[0.40]">{range === '5y' ? t(language, 'watchlistDetail.weeklyChange', '周涨跌') : t(language, 'watchlistDetail.dailyChange', '当日涨跌')}</span>
             <span className="whitespace-nowrap tabular-nums" style={{ color: marketHexColor(selectedChange || 0, marketColorMode), fontFamily: NUMBER_FONT }}>
               {selectedChange === null ? '--' : `${selectedChange >= 0 ? '+' : ''}${formatNumber(selectedChange)}  ${formatSignedPercent(selectedChangePct)}`}
             </span>
           </div>
-          <div className="mt-1.5 flex items-center justify-between gap-2 text-[11px]">
+          <div className="stock-report-tooltip-row">
             <span className="text-white/[0.40]">{maLabel}</span>
             <span className="whitespace-nowrap tabular-nums" style={{ color: maColor, fontFamily: NUMBER_FONT }}>
               {selectedMaRow?.ma200 > 0 ? `${formatCurrency(selectedMaRow.ma200, currency)} · ${formatSignedPercent(selectedMaDistance)}` : '--'}
             </span>
           </div>
           {showWeeklyMa50 ? (
-            <div className="mt-1.5 flex items-center justify-between gap-2 text-[11px]">
+            <div className="stock-report-tooltip-row">
               <span className="text-white/[0.40]">{ma50Label}</span>
               <span className="whitespace-nowrap tabular-nums" style={{ color: MA50_WEEK_COLOR, fontFamily: NUMBER_FONT }}>
                 {selectedMa50Row?.ma50 > 0 ? `${formatCurrency(selectedMa50Row.ma50, currency)} · ${formatSignedPercent(selectedMa50Distance)}` : '--'}
@@ -773,6 +778,7 @@ function PriceChart({ rows, weeklyRows, weeklyLookupRows, range, currency, langu
         </div>
       ) : null}
       </div>
+      {selectedPoint ? <button type="button" className="stock-report-chart-latest" onClick={() => setSelectedIndex(null)}>{language === 'en' ? 'Back to latest' : '回到最新'}</button> : null}
       {chartWindowZoomed && !selectedPoint ? (
         <div
           data-watchlist-stock-chart-zoom-controls="true"
@@ -1428,7 +1434,10 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
   React.useEffect(() => {
     if (!watchlistStockDetailFocusSection) return undefined;
     const frameId = window.requestAnimationFrame(() => {
-      document.querySelector(`[data-watchlist-detail-section="${watchlistStockDetailFocusSection}"]`)?.scrollIntoView({ block: 'start' });
+      const section = document.querySelector(`[data-watchlist-detail-section="${watchlistStockDetailFocusSection}"]`);
+      const disclosure = section?.closest('details');
+      if (disclosure) disclosure.open = true;
+      section?.scrollIntoView({ block: 'start' });
     });
     return () => window.cancelAnimationFrame(frameId);
   }, [loading, stockDetail?.ma200RetestHistory, watchlistStockDetailFocusSection]);
@@ -1488,6 +1497,7 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
   const closeDisplay = close.closeUsd;
   const changeDisplay = close.changeUsd;
   const closeColor = marketHexColor(close.changeUsd || 0, marketColorMode);
+  const chartPriceColor = rangePriceColor(visibleHistory, marketColorMode);
   const position = React.useMemo(() => deriveCloseBasedPosition(
     rows.position,
     close.closeUsd,
@@ -1586,10 +1596,10 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
   };
 
   return (
-    <main className="mx-auto min-h-screen w-full max-w-[430px] bg-[#05070b] text-white" data-watchlist-stock-detail-page="production" style={{ fontFamily: PAGE_FONT }}>
-      <header className="sticky top-0 z-30 -mx-4 border-b border-white/[0.07] bg-[#05070b]/92 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+10px)] backdrop-blur-xl">
+    <main className="stock-report-page mx-auto min-h-screen w-full text-white" data-watchlist-stock-detail-page="production" style={{ fontFamily: PAGE_FONT }}>
+      <header className="stock-report-header">
         <div className="grid h-10 grid-cols-[40px_minmax(0,1fr)_40px] items-center">
-          <button type="button" onClick={closeWatchlistStockDetail} className="flex h-9 w-9 items-center justify-center rounded-full border border-white/[0.09] bg-white/[0.045] text-white/[0.66] active:scale-95" aria-label={t(language, 'watchlistDetail.back', '返回首页')}>
+          <button type="button" onClick={closeWatchlistStockDetail} className="stock-report-back" aria-label={t(language, 'watchlistDetail.back', '返回首页')}>
             <ArrowLeft className="h-[18px] w-[18px]" strokeWidth={1.8} />
           </button>
           <h1 className="flex min-w-0 items-baseline justify-center gap-2 text-center text-[17px] font-semibold leading-tight text-white/[0.78]" data-watchlist-detail-heading="symbol-title">
@@ -1600,7 +1610,7 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
         </div>
       </header>
 
-      <section className="mt-3 overflow-hidden rounded-2xl border border-white/[0.09] bg-[#0b0c0e] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]" data-watchlist-stock-detail-header="full-width-chart">
+      <section className="stock-report-hero" data-watchlist-stock-detail-header="full-width-chart">
         <div className="flex min-w-0 items-center gap-3">
           <StockLogo symbol={symbol} urls={logoUrls} onLogoLoad={cacheStockLogo} className="h-11 w-11 rounded-[11px]" />
           <div className="min-w-0 flex-1">
@@ -1608,16 +1618,12 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
               <span className="text-[18px] font-normal text-white/[0.9]">{symbol || '--'}</span>
               <span className="truncate text-[13px] text-white/[0.45]">{displayName}</span>
             </div>
-            <div className="mt-1 flex items-center gap-1.5 text-[11px] text-white/[0.40]">
-              <span className="rounded-md bg-white/[0.045] px-1.5 py-0.5">{t(language, 'watchlistDetail.usStock', '美股')}</span>
-            </div>
           </div>
-          <div className="shrink-0 rounded-full border border-white/[0.07] bg-white/[0.035] px-2 py-1 text-[10px] text-white/[0.40]">{t(language, 'watchlistDetail.regularClose', '收盘')}</div>
         </div>
 
         <div className="mt-4">
           <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
-            <span className="text-[29px] font-normal leading-none tracking-[-0.02em] text-white/[0.92]">{formatCurrency(closeDisplay, stockCurrency)}</span>
+            <span className="stock-report-price">{formatCurrency(closeDisplay, stockCurrency)}</span>
             <span className="text-[15px]" style={{ color: closeColor }}>{formatSignedPercent(close.changePercent)}</span>
             <span className="text-[13px] opacity-75" style={{ color: closeColor }}>{changeDisplay === null ? '(--)' : `(${changeDisplay >= 0 ? '+' : ''}${formatNumber(changeDisplay)})`}</span>
           </div>
@@ -1628,13 +1634,13 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
 
         <div className="mt-4 grid grid-cols-5 gap-1" data-watchlist-stock-chart-ranges="five">
           {RANGE_IDS.map((item) => (
-            <button key={item} type="button" onClick={() => setRange(item)} className={`h-8 rounded-lg border px-1.5 text-[11px] transition active:scale-95 ${range === item ? 'border-[#f6b54b]/20 bg-[#f6b54b]/[0.11] text-[#ffd18a]' : 'border-transparent text-white/[0.40]'}`}>
+            <button key={item} type="button" onClick={() => setRange(item)} aria-pressed={range === item} className="stock-report-range">
               {t(language, `watchlistDetail.range.${item}`, item.toUpperCase())}
             </button>
           ))}
         </div>
         <div className="mt-2 min-w-0">
-          <PriceChart rows={visibleHistory} weeklyRows={visibleWeeklyHistory} weeklyLookupRows={weeklyHistory} range={range} currency={stockCurrency} language={language} marketColorMode={marketColorMode} symbol={symbol} initialTooltipOpen={watchlistStockDetailChartTooltipOpen} />
+          <PriceChart rows={visibleHistory} weeklyRows={visibleWeeklyHistory} weeklyLookupRows={weeklyHistory} range={range} currency={stockCurrency} language={language} marketColorMode={marketColorMode} symbol={symbol} priceColor={chartPriceColor} initialTooltipOpen={watchlistStockDetailChartTooltipOpen} />
         </div>
         <div
           className="mt-1 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[11px] text-white/[0.40]"
@@ -1644,7 +1650,7 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
               ? 'price-daily-ma-weekly-ma50'
               : 'price-daily-ma'}
         >
-          <span className="inline-flex items-center gap-1.5"><i className="h-0.5 w-4 rounded-full bg-[#22c55e]" />{t(language, 'watchlistDetail.priceLegend', '股价')}</span>
+          <span className="inline-flex items-center gap-1.5"><i className="h-0.5 w-4 rounded-full" style={{ backgroundColor: chartPriceColor }} />{t(language, 'watchlistDetail.priceLegend', '股价')}</span>
           <span className="inline-flex items-center gap-1.5"><i className="h-0.5 w-4 rounded-full" style={{ backgroundColor: range === '5y' ? MA200_WEEK_COLOR : MA200_DAY_COLOR }} />{range === '5y' ? t(language, 'watchlistDetail.ma200Weekly', 'MA200（周）') : t(language, 'watchlistDetail.ma200Daily', 'MA200（日）')}</span>
           {range === '1y' || range === '5y' ? (
             <span className="inline-flex items-center gap-1.5"><i className="h-0.5 w-4 rounded-full" style={{ backgroundColor: MA50_WEEK_COLOR }} />{t(language, 'watchlistDetail.ma50Weekly', 'MA50（周）')}</span>
@@ -1665,9 +1671,9 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
         </button>
       ) : null}
 
-      <section data-watchlist-detail-section="weekly-ma" className="mt-3 scroll-mt-20 overflow-hidden rounded-2xl border border-white/[0.09] bg-[#0b0c0e] shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]" data-watchlist-key-metrics="spacious">
+      <section data-watchlist-detail-section="weekly-ma" className="stock-report-technicals" data-watchlist-key-metrics="spacious">
         <div className="px-4 pb-2 pt-4">
-          <h2 className="text-[15px] font-normal text-white/[0.82]">{t(language, 'watchlistDetail.technicalIndicators', '关键指标')}</h2>
+          <h2 className="text-[15px] font-normal text-white/[0.82]">{language === 'en' ? 'Where is the price now?' : '现在处于什么位置'}</h2>
         </div>
         <div className="grid grid-cols-[0.78fr_0.96fr_1.36fr] gap-1 px-4 pb-4 pt-2" data-watchlist-daily-metrics="borderless">
           <MetricCell label={t(language, 'watchlistDetail.distance52High', '距52周高点')} value={formatSignedPercent(distance52)} detail={t(language, 'watchlistDetail.highValue', '高点 {{price}}', { price: formatCurrency(high52, stockCurrency) })} color={marketHexColor(distance52 || 0, marketColorMode)} />
@@ -1684,7 +1690,7 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
           />
           <MetricCell
             label={t(language, 'watchlistDetail.relativeQqq3m', '相对QQQ（3个月）')}
-            value={formatSignedPercent(qqqRelativeReturn?.relativeReturnPercent)}
+            value={qqqRelativeReturn ? `${formatSignedPercent(qqqRelativeReturn.relativeReturnPercent).replace('%', '')} ${language === 'en' ? 'pp' : '百分点'}` : '--'}
             detail={qqqRelativeReturn
               ? t(language, 'watchlistDetail.relativeQqq3mDetail', '个股{{stock}}·QQQ{{qqq}}', {
                 stock: formatSignedPercent(qqqRelativeReturn.stockReturnPercent, 1),
@@ -1695,7 +1701,26 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
           />
         </div>
 
-        <div className="mx-4 mb-3 rounded-[14px] bg-[#f6b54b]/[0.055] px-4 py-3.5" data-watchlist-weekly-ma50-panel="true">
+        <div className="stock-report-ma-heading">{language === 'en' ? 'Moving averages' : '均线观察'}</div>
+        <details className="stock-report-ma-row" data-watchlist-daily-ma-panel="true">
+          <summary>
+            <span className="stock-report-ma-name"><i style={{ background: MA200_DAY_COLOR }} /><span>MA200（日）<small>{language === 'en' ? 'Entry indicator' : '建仓指标'}</small></span></span>
+            <span className="stock-report-ma-reading"><strong style={{ color: marketHexColor(distanceMa200 || 0, marketColorMode) }}>{formatSignedPercent(distanceMa200)}</strong><small>{distanceMa200 === null ? (language === 'en' ? 'Unavailable' : '暂不可用') : distanceMa200 >= 0 ? (language === 'en' ? 'Above average' : '位于均线上方') : (language === 'en' ? 'Below average' : '位于均线下方')}</small></span>
+            <ChevronDown size={15} />
+          </summary>
+          <div className="stock-report-ma-expanded">
+            <div className="stock-report-daily-detail"><span>{language === 'en' ? '200-day average' : '200日均线'}</span><span>{formatCurrency(ma200, stockCurrency)}</span></div>
+            <div className="stock-report-daily-detail"><span>{language === 'en' ? 'Latest close' : '最近收盘'}</span><span>{formatCurrency(closeDisplay, stockCurrency)}</span></div>
+            <p>{language === 'en' ? 'Daily close · ' : '日收盘口径 · '}{formatDate(close.asOfDate, language, { year: true })}</p>
+          </div>
+        </details>
+        <details className="stock-report-ma-row" data-watchlist-weekly-ma50-panel="true">
+          <summary>
+            <span className="stock-report-ma-name"><i style={{ background: MA50_WEEK_COLOR }} /><span>MA50（周）<small>{language === 'en' ? 'Buffett indicator' : '巴菲特指标'}</small></span></span>
+            <span className="stock-report-ma-reading"><strong style={{ color: marketHexColor(ma50WeeklyDistance || 0, marketColorMode) }}>{ma50WeeklyPanelReady ? formatSignedPercent(ma50WeeklyDistance) : '--'}</strong><small>{loading ? (language === 'en' ? 'Loading' : '读取中') : ma50WeeklyPanelReady ? ma50WeeklyStreakLabel : ma50WeeklyStatus === 'insufficient_data' ? (language === 'en' ? 'Insufficient history' : '历史不足') : (language === 'en' ? 'Unavailable' : '暂不可用')}</small></span>
+            <ChevronDown size={15} />
+          </summary>
+          <div className="stock-report-ma-expanded">
           <div className="flex min-w-0 items-center gap-2">
             <h3 className="text-[13px] font-normal text-white/[0.76]">{t(language, 'watchlistDetail.ma50Weekly', 'MA50（周）')}</h3>
             <IndicatorBadge indicator="ma50" tone="purple">{t(language, 'watchlistDetail.buffettIndicator', '巴菲特指标')}</IndicatorBadge>
@@ -1735,9 +1760,16 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
               <div className="mt-1.5 text-[11px] text-white/[0.40]">{t(language, 'watchlistDetail.noSyntheticWeekly', '不会补造均线或趋势结论')}</div>
             </div>
           )}
-        </div>
+          </div>
+        </details>
 
-        <div className="mx-4 mb-4 rounded-[14px] bg-[#f6b54b]/[0.055] px-4 py-3.5" data-watchlist-weekly-ma-panel="true">
+        <details className="stock-report-ma-row" data-watchlist-weekly-ma-panel="true">
+          <summary>
+            <span className="stock-report-ma-name"><i style={{ background: MA200_WEEK_COLOR }} /><span>MA200（周）<small>{language === 'en' ? 'Munger indicator' : '芒格指标'}</small></span></span>
+            <span className="stock-report-ma-reading"><strong style={{ color: marketHexColor(ma200WeeklyDistance || 0, marketColorMode) }}>{weeklyPanelReady ? formatSignedPercent(ma200WeeklyDistance) : '--'}</strong><small>{loading ? (language === 'en' ? 'Loading' : '读取中') : weeklyPanelReady ? weeklyStreakLabel : ma200WeeklyStatus === 'insufficient_data' ? (language === 'en' ? 'Insufficient history' : '历史不足') : (language === 'en' ? 'Unavailable' : '暂不可用')}</small></span>
+            <ChevronDown size={15} />
+          </summary>
+          <div className="stock-report-ma-expanded">
           <div className="flex min-w-0 items-center gap-2">
             <h3 className="text-[13px] font-normal text-white/[0.76]">{t(language, 'watchlistDetail.ma200Weekly', 'MA200（周）')}</h3>
             <IndicatorBadge indicator="ma200">{t(language, 'watchlistDetail.longTermTrend', '芒格指标')}</IndicatorBadge>
@@ -1777,10 +1809,12 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
               <div className="mt-1.5 text-[11px] text-white/[0.40]">{t(language, 'watchlistDetail.noSyntheticWeekly', '不会补造均线或趋势结论')}</div>
             </div>
           )}
-        </div>
+          </div>
+        </details>
       </section>
 
       <Ma200RetestHistoryCard
+        presentation="report"
         currency={stockCurrency}
         data={stockDetail?.ma200RetestHistory}
         initialDetailDate={watchlistStockDetailMa200DetailDate}
@@ -1790,6 +1824,7 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
       />
 
       <CompanyValuationCard
+        presentation="report"
         data={valuation}
         status={valuationStatus}
         language={language}
@@ -1830,18 +1865,19 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
 
       <button type="button" data-watchlist-detail-section="target" onClick={() => { setTargetSaveError(false); setShowTargetEditor(true); }} className="mt-3 scroll-mt-20 block w-full overflow-hidden rounded-2xl border border-[#f6b54b]/15 bg-[#0b0c0e] text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]" aria-label={t(language, 'watchlistDetail.editTargetAria', '编辑 {{symbol}} 目标价', { symbol })}>
         <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3.5">
-          <div className="flex items-center gap-2"><h2 className="text-[15px] font-normal text-white/[0.82]">{t(language, 'watchlistDetail.targetPrice', '目标价')}</h2><span className="rounded-md border border-[#f6b54b]/15 bg-[#f6b54b]/[0.055] px-1.5 py-0.5 text-[10px] text-[#f6b54b]/75">{t(language, 'watchlistDetail.personalPlan', '个人计划')}</span></div>
+          <div className="flex items-center gap-2"><h2 className="text-[15px] font-normal text-white/[0.82]">{t(language, 'watchlistDetail.targetPrice', '目标价')}</h2><span className="text-[11px] text-white/40">{t(language, 'watchlistDetail.personalPlan', '个人计划')}</span></div>
+          <span className="flex items-center gap-1 text-[12px]">{language === 'en' ? 'Edit' : '编辑'}<ChevronRight size={14} /></span>
         </div>
         <div className="px-4 py-4">
           <div className="grid grid-cols-[1fr_auto] items-end gap-3">
-            <div><div className="text-[12px] text-white/[0.50]">{t(language, 'watchlistDetail.singleTargetPrice', '单一目标价（{{currency}}）', { currency: stockCurrency })}</div><div className="mt-1.5 text-[27px] font-normal text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{formatCurrency(targetDisplay, stockCurrency)}</div></div>
+            <div><div className="text-[12px] text-white/[0.50]">{t(language, 'watchlistDetail.singleTargetPrice', '单一目标价（{{currency}}）', { currency: stockCurrency })}</div><div className="mt-1.5 text-[30px] font-normal text-white/90 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{formatCurrency(targetDisplay, stockCurrency)}</div></div>
             <div className="pb-1 text-right"><div className="text-[12px] text-white/[0.50]">{t(language, 'watchlistDetail.targetSpace', '距目标空间')}</div><div className="mt-1 text-[16px] tabular-nums" style={{ color: marketHexColor(targetGap || 0, marketColorMode), fontFamily: NUMBER_FONT }}>{formatSignedPercent(targetGap)}</div></div>
           </div>
           <div className="mt-5">
-            <div className="relative h-1.5 rounded-full bg-gradient-to-r from-[#36c49a] via-[#f6b54b] to-[#ff4b1f]"><span className="absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-[#f6b54b] shadow-[0_0_11px_rgba(246,181,75,0.55)]" style={{ left: `${targetProgressPosition}%`, opacity: targetProgress === null ? 0.35 : 1 }} /></div>
+            <div className="stock-report-target-track"><span style={{ left: `${targetProgressPosition}%`, opacity: targetProgress === null ? 0.35 : 1 }} /></div>
             <div className="mt-2 grid grid-cols-3 text-[11px] text-white/[0.40]">
               <span>{t(language, 'watchlistDetail.cost', '成本 {{price}}', { price: formatCurrency(position.averageCostUsd, stockCurrency) })}</span>
-              <span className="text-center text-[#f6b54b]/75">{t(language, 'watchlistDetail.current', '当前 {{price}}', { price: formatCurrency(closeDisplay, stockCurrency) })}</span>
+              <span className="text-center text-white/70">{t(language, 'watchlistDetail.current', '当前 {{price}}', { price: formatCurrency(closeDisplay, stockCurrency) })}</span>
               <span className="text-right">{t(language, 'watchlistDetail.target', '目标 {{price}}', { price: formatCurrency(targetDisplay, stockCurrency) })}</span>
             </div>
             <div className="mt-3 text-right text-[12px] text-white/[0.50]">{t(language, 'watchlistDetail.costToTargetProgress', '成本至目标已完成')} <span className="ml-1 text-white/[0.58] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{targetProgress === null ? '--' : `${targetProgress.toFixed(1)}%`}</span></div>
@@ -1849,7 +1885,7 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
         </div>
       </button>
 
-      <section className="mt-3 overflow-hidden rounded-2xl border border-white/[0.09] bg-[#0b0c0e] shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]">
+      <section data-watchlist-detail-section="position" className="mt-3 overflow-hidden rounded-2xl border border-white/[0.09] bg-[#0b0c0e] shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]">
         <SectionHeading title={t(language, 'watchlistDetail.myPosition', '我的持仓')} trailing={t(language, 'watchlistDetail.updatedAtClose', '更新于 {{date}} 收盘', { date: formatDate(close.asOfDate, language) })} />
         {position.held ? (
           <div className="px-4 py-4">

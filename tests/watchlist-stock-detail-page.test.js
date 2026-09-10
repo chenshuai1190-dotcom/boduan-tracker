@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
+import { buildEodhdStockDetail } from '../server/quote/stockDetail.js';
+import { deriveMa200RetestDetail } from '../src/lib/ma200RetestDetail.js';
+import { marketHexColor } from '../src/lib/marketColorMode.js';
 
 const pageSource = readFileSync(new URL('../src/pages/WatchlistStockDetailPage.jsx', import.meta.url), 'utf8');
 const appSource = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8');
@@ -10,6 +13,7 @@ const fundamentalsCacheSource = readFileSync(new URL('../src/lib/stockFundamenta
 const valuationCacheSource = readFileSync(new URL('../src/lib/stockValuation.js', import.meta.url), 'utf8');
 const valuationCardSource = readFileSync(new URL('../src/components/CompanyValuationCard.jsx', import.meta.url), 'utf8');
 const targetEditorSource = readFileSync(new URL('../src/components/StockTargetEditor.jsx', import.meta.url), 'utf8');
+const pageCssSource = readFileSync(new URL('../src/pages/WatchlistStockDetailPage.css', import.meta.url), 'utf8');
 
 test('watchlist detail keeps the existing bottom tabs and shows the symbol beside the stock-trend title', () => {
   assert.equal(pageSource.includes('pb-[calc(env(safe-area-inset-bottom)+86px)]'), false, 'the page must not duplicate the App bottom-navigation clearance');
@@ -175,7 +179,7 @@ test('watchlist position allocation fails closed until available cash is authori
   assert.ok(pageSource.includes('[availableCashStatusReady, close.closeUsd, investmentSummary?.totalAssetsUsd, rows.position]'));
 });
 
-test('technical indicators keep the daily row and show color-matched MA50 and MA200 weekly panels', () => {
+test('technical indicators retain the daily facts and expose three independently expandable moving-average rows', () => {
   assert.equal(pageSource.includes('metricSummary'), false);
   assert.ok(pageSource.includes('data-watchlist-key-metrics="spacious"'));
   assert.ok(pageSource.includes('data-watchlist-daily-metrics="borderless"'));
@@ -212,6 +216,18 @@ test('technical indicators keep the daily row and show color-matched MA50 and MA
   assert.ok(i18nSource.includes("'watchlistDetail.relativeQqq3m': '相对QQQ（3个月）'"));
   assert.ok(i18nSource.includes("'watchlistDetail.relativeQqq3m': 'vs QQQ (3M)'"));
   assert.equal(pageSource.includes('grid-cols-2 divide-x divide-y'), false);
+  const movingAverageRows = [...pageSource.matchAll(/<details\b[^>]*data-watchlist-(daily-ma|weekly-ma50|weekly-ma)-panel="true"[^>]*>[\s\S]*?<\/details>/g)].map((match) => match[0]);
+  assert.equal(movingAverageRows.length, 3);
+  for (const row of movingAverageRows) {
+    assert.match(row, /className="stock-report-ma-row"/);
+    assert.match(row, /<summary>/);
+    assert.match(row, /className="stock-report-ma-expanded"/);
+    assert.doesNotMatch(row.split('>')[0], /\bopen(?:=|\s|$)/, 'moving-average explanations should start collapsed');
+  }
+  assert.match(movingAverageRows[0], /MA200_DAY_COLOR/);
+  assert.match(movingAverageRows[1], /MA50_WEEK_COLOR/);
+  assert.match(movingAverageRows[2], /MA200_WEEK_COLOR/);
+  assert.ok(pageSource.includes("language === 'en' ? 'pp' : '百分点'"), 'relative QQQ outperformance is a percentage-point difference, not an extra return');
 });
 
 test('production detail shares the Home logo candidate chain and reads the persisted cache URL', () => {
@@ -221,17 +237,18 @@ test('production detail shares the Home logo candidate chain and reads the persi
   assert.ok(pageSource.includes('onLogoLoad={cacheStockLogo}'));
 });
 
-test('target card keeps whole-card editing without redundant edit chrome or scale animation', () => {
-  const targetButtonLine = pageSource.split('\n').find((line) => line.includes('data-watchlist-detail-section="target"')) || '';
+test('target report keeps whole-section editing with one quiet affordance and no scale animation', () => {
+  const targetButtonSource = pageSource.match(/<button\b(?:(?!<button)[\s\S])*?data-watchlist-detail-section="target"[\s\S]*?<\/button>/)?.[0] || '';
   const targetBlock = pageSource.slice(
     pageSource.indexOf('data-watchlist-detail-section="target"'),
     pageSource.indexOf("t(language, 'watchlistDetail.myPosition'"),
   );
-  assert.ok(targetButtonLine.includes('setShowTargetEditor(true)'));
-  assert.ok(targetButtonLine.includes('editTargetAria'));
-  assert.equal(targetButtonLine.includes('scale-'), false);
+  assert.ok(targetButtonSource.includes('setShowTargetEditor(true)'));
+  assert.ok(targetButtonSource.includes('editTargetAria'));
+  assert.equal(targetButtonSource.includes('scale-'), false);
   assert.equal(targetBlock.includes('<Pencil'), false);
-  assert.equal(targetBlock.includes('<ChevronRight'), false);
+  assert.equal((targetButtonSource.match(/<ChevronRight\b/g) || []).length, 1);
+  assert.ok(targetButtonSource.includes("language === 'en' ? 'Edit' : '编辑'"));
   assert.equal(targetBlock.includes("t(language, 'watchlistDetail.edit', '编辑')"), false);
   assert.ok(pageSource.includes('targetProgressPositionPercent(targetProgress)'));
   assert.ok(pageSource.includes("t(language, 'watchlistDetail.costToTargetProgress', '成本至目标已完成')"));
@@ -299,19 +316,94 @@ test('production chart adds weekly MA50 to one-year and five-year views without 
   assert.ok(pageSource.includes("t(language, 'watchlistDetail.ma50Weekly', 'MA50（周）')"));
   assert.ok(devPreviewSource.includes('ma200: index >= 199 ? Number((rollingSum / 200).toFixed(4)) : null'));
   assert.ok(devPreviewSource.includes('ma50: Number(ma50.toFixed(4))'));
-  assert.ok(pageSource.includes('strokeWidth="0.95"'));
+  assert.ok(pageSource.includes('data-watchlist-price-line="range-direction"'));
+  assert.match(pageSource, /data-watchlist-price-line="range-direction"[^>]*stroke=\{priceColor\}[^>]*strokeWidth="1\.3"/);
   assert.ok(pageSource.includes('strokeWidth="1.15"'));
   assert.ok(pageSource.includes('@keyframes watchlist-stock-price-breathe'));
   assert.ok(pageSource.includes('animation: watchlist-stock-price-breathe 3.2s ease-in-out infinite'));
   assert.ok(pageSource.includes('@media (prefers-reduced-motion: reduce)'));
   assert.ok(pageSource.includes('data-watchlist-endpoint-breathe-ring="true"'));
-  assert.ok(pageSource.includes('r="4.4" fill={PRICE_LINE_COLOR} pointerEvents="none"'));
-  assert.ok(pageSource.includes('r="2.2" fill={PRICE_LINE_COLOR} stroke="#d6fff0" strokeWidth="0.65"'), 'the endpoint body should keep its existing size and styling');
+  assert.ok(pageSource.includes('r="4.4" fill={priceColor} pointerEvents="none"'));
+  assert.ok(pageSource.includes('r="2.2" fill={priceColor} stroke="#e4e4e7" strokeWidth="0.65"'), 'the endpoint should share the range direction and keep its compact size');
   assert.equal(pageSource.includes('price-glow'), false);
   assert.equal(pageSource.includes('formatCurrency(last.close, currency)'), false, 'the chart endpoint should not repeat the latest stock price');
   assert.equal(pageSource.includes('chart.points'), false);
   assert.ok(pageSource.includes('setSelectedIndex(nearestIndex)'));
-  assert.ok(pageSource.includes('window.setTimeout(() => setSelectedIndex(null), 12_000)'));
+  assert.equal(pageSource.includes('window.setTimeout(() => setSelectedIndex(null), 12_000)'), false);
+});
+
+test('the larger report chart follows the selected range direction and the configured market colors', () => {
+  assert.ok(pageSource.includes('const CHART_HEIGHT = 308'));
+  assert.ok(pageSource.includes('className="stock-report-chart-svg w-full overflow-visible"'));
+  assert.match(pageCssSource, /\.stock-report-chart-svg(?:\s*,\s*\.stock-report-chart-empty)?\s*\{[^}]*height:\s*308px/);
+  assert.ok(pageSource.includes('rangePriceColor(visibleHistory, marketColorMode)'));
+  assert.ok(pageSource.includes('priceColor={chartPriceColor}'));
+  assert.ok(pageSource.includes('style={{ backgroundColor: chartPriceColor }}'));
+  assert.equal(pageSource.includes('const PRICE_LINE_COLOR'), false, 'the price line must not remain hard-coded green');
+  const colorFunction = pageSource.match(/^function rangePriceColor\(rows, marketColorMode\) \{[\s\S]*?^\}/m)?.[0];
+  assert.ok(colorFunction);
+  const resolveColor = new Function('marketHexColor', `return (${colorFunction});`)(marketHexColor);
+  const rise = [{ close: 100 }, { close: 110 }];
+  const fall = [{ close: 110 }, { close: 100 }];
+  assert.equal(resolveColor(rise, 'redUpGreenDown'), '#ff4b1f');
+  assert.equal(resolveColor(fall, 'redUpGreenDown'), '#22c55e');
+  assert.equal(resolveColor(rise, 'greenUpRedDown'), '#22c55e');
+  assert.equal(resolveColor(fall, 'greenUpRedDown'), '#ff4b1f');
+  for (const rows of [[], [{ close: 100 }], [{ close: 100 }, { close: 100 }], [{ close: null }, { close: 100 }]]) {
+    assert.equal(resolveColor(rows, 'redUpGreenDown'), '#a1a1aa');
+  }
+});
+
+test('price tooltip has wider mobile-bounded single-line metric rows', () => {
+  const tooltipSource = pageSource.slice(pageSource.indexOf('data-watchlist-stock-price-tooltip="true"'), pageSource.indexOf('{showWeeklyMa50 ?', pageSource.indexOf('data-watchlist-stock-price-tooltip="true"')) + 400);
+  assert.ok(tooltipSource.includes('stock-report-price-tooltip'));
+  assert.ok(tooltipSource.includes("? 'left-2' : 'right-2'"));
+  assert.equal(tooltipSource.includes('w-[188px]'), false);
+  assert.equal((tooltipSource.match(/className="stock-report-tooltip-row"/g) || []).length, 3);
+  assert.match(pageCssSource, /\.stock-report-price-tooltip\s*\{\s*width:\s*min\(300px,\s*calc\(100% - 16px\)\)/);
+  assert.match(pageCssSource, /\.stock-report-tooltip-row > span\s*\{\s*white-space:\s*nowrap/);
+  assert.match(pageCssSource, /\.stock-report-tooltip-row > span:first-child\s*\{\s*flex-shrink:\s*0/);
+});
+
+test('historical price selection persists until outside interaction, Escape, or Back to latest', () => {
+  const chartSource = pageSource.slice(pageSource.indexOf('function PriceChart('), pageSource.indexOf('\nfunction MetricCell('));
+  assert.doesNotMatch(chartSource, /setTimeout\(/, 'selection must not disappear on an elapsed timer');
+  assert.ok(chartSource.includes('if (!chartRef.current?.contains(event.target)) setSelectedIndex(null)'));
+  assert.ok(chartSource.includes("document.addEventListener('pointerdown', closeOutside)"));
+  assert.ok(chartSource.includes("document.removeEventListener('pointerdown', closeOutside)"));
+  assert.ok(chartSource.includes("if (event.key === 'Escape') { setSelectedIndex(null); return; }"));
+  assert.match(chartSource, /selectedPoint\s*\?\s*<button[^>]*className="stock-report-chart-latest"[^>]*onClick=\{\(\) => setSelectedIndex\(null\)\}/);
+  assert.ok(chartSource.includes("language === 'en' ? 'Back to latest' : '回到最新'"));
+});
+
+test('the default local MA200 fixture is deterministic, explicitly simulated, and uses the production result schema', () => {
+  assert.ok(devPreviewSource.includes('ma200RetestHistory: buildMockWatchlistMa200RetestHistory()'));
+  assert.ok(devPreviewSource.includes('{ ...mockWatchlistStockDetailData, ...ma200LiveStockDetail }'), 'an explicitly requested real local preview must retain precedence');
+  const fixtureFunction = devPreviewSource.match(/^function buildMockWatchlistMa200RetestHistory\(\) \{[\s\S]*?^\}/m)?.[0];
+  assert.ok(fixtureFunction);
+  assert.doesNotMatch(fixtureFunction, /fetch\(|process\.env|Math\.random|Date\.now/);
+  const createHistory = new Function('buildEodhdStockDetail', `return (${fixtureFunction})();`);
+  const history = createHistory(buildEodhdStockDetail);
+  assert.deepEqual(history, createHistory(buildEodhdStockDetail));
+  assert.equal(history.previewOnly, true);
+  assert.match(history.previewLabel, /模拟数据/);
+  assert.equal(history.algorithmVersion, 'daily-ma200-retest-v5');
+  assert.equal(history.basis, 'split_adjusted_close');
+  assert.equal(history.asOfDate, '2026-07-17');
+  assert.equal(history.status, 'ready');
+  assert.equal(history.events.length, 5);
+  assert.deepEqual(history.events.map((event) => event.status), ['observing', 'recovered', 'recovered', 'failed', 'recovered']);
+  assert.equal(history.summary.resolvedSampleSize, 4);
+  assert.equal(history.summary.recoveryRatePct, 75);
+  assert.equal(history.currentCycle, null, 'independent historical examples must not claim a current price or cycle inconsistent with the page daily series');
+  assert.equal(history.events[0].recentRetestDepthPct, null);
+  assert.equal(history.events[0].forwardReturnPct, null);
+  for (const event of history.events) {
+    const detail = deriveMa200RetestDetail(event, history.observationTradingDays);
+    assert.equal(detail.trigger.date, event.triggerDate);
+    assert.equal(detail.complete, event.status !== 'observing');
+    if (detail.complete) assert.equal(detail.endpoint.returnPct, event.forwardReturnPct);
+  }
 });
 
 test('one-year and five-year charts share pinch zoom and horizontal panning without changing MA cadence', () => {
