@@ -1,12 +1,16 @@
 import React from 'react';
-import { Copy, Info, X } from 'lucide-react';
+import { Copy, Info } from 'lucide-react';
 import { marketHexColor, marketTextClass } from '../lib/marketColorMode.js';
 import { t } from '../lib/i18n.js';
+import StockReportModal from './StockReportModal.jsx';
+import './StockReturnComparisonCard.css';
 
 const NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif';
-const MINE_LINE_COLOR = '#f6b54b';
-const BENCHMARK_LINE_COLOR = '#9aa4b2';
+const BENCHMARK_LINE_COLOR = '#85858f';
 const CHART_TOOLTIP_HOLD_MS = 12000;
+const CHART_WIDTH = 360;
+const CHART_HEIGHT = 270;
+const CHART_PAD = { left: 38, right: 8, top: 24, bottom: 30 };
 
 function finite(value) {
   if (value === null || value === undefined || value === '' || typeof value === 'boolean') return false;
@@ -30,20 +34,6 @@ function signedCurrency(value, currency = 'USD', digits = 2) {
   const amount = Number(value);
   const symbol = currency === 'CNY' ? '¥' : '$';
   return `${amount >= 0 ? '+' : '-'}${symbol}${fmt(Math.abs(amount), digits)}`;
-}
-
-function compactSignedCurrency(value, currency = 'USD') {
-  if (!finite(value)) return '--';
-  const amount = Number(value);
-  const abs = Math.abs(amount);
-  const sign = amount >= 0 ? '+' : '-';
-  const symbol = currency === 'CNY' ? '¥' : '$';
-  if (currency === 'CNY' && abs >= 10000) {
-    return `${sign}${symbol}${(abs / 10000).toFixed(abs >= 100000 ? 0 : 1)}万`;
-  }
-  if (abs >= 1000000) return `${sign}${symbol}${(abs / 1000000).toFixed(abs >= 10000000 ? 0 : 1)}M`;
-  if (abs >= 1000) return `${sign}${symbol}${(abs / 1000).toFixed(abs >= 10000 ? 0 : 1)}K`;
-  return `${sign}${symbol}${abs.toFixed(0)}`;
 }
 
 function signedPct(value, digits = 2) {
@@ -87,8 +77,8 @@ function axisMoney(value, currency) {
   return `${sign}${abs.toFixed(0)}`;
 }
 
-function chartGeometry(points, width = 320, height = 176) {
-  const pad = { left: 42, right: 12, top: 16, bottom: 30 };
+function chartGeometry(points, width = CHART_WIDTH, height = CHART_HEIGHT) {
+  const pad = CHART_PAD;
   const rows = (Array.isArray(points) ? points : [])
     .filter((point) => point?.date && finite(point?.stockPnlUsd) && finite(point?.benchmarkPnlUsd));
   if (rows.length < 2) return { rows, minePath: '', benchmarkPath: '', ticks: [] };
@@ -134,17 +124,17 @@ function chartGeometry(points, width = 320, height = 176) {
   };
 }
 
-function Metric({ label, amount, pct, pctLabel = '', displayRate, displayCurrency, marketColorMode }) {
+function Metric({ metric, label, amount, pct, pctLabel = '', displayRate, displayCurrency, marketColorMode }) {
   const displayedAmount = finite(amount) ? Number(amount) * displayRate : null;
   const tone = valueClass(amount, marketColorMode);
   return (
-    <div className="min-w-0 px-2 first:pl-0 last:pr-0">
-      <div className="truncate text-[11px] text-white/[0.42]">{label}</div>
-      <div className={`mt-2 truncate text-[18px] font-semibold leading-none tabular-nums ${tone}`} style={{ fontFamily: NUMBER_FONT }}>
-        {compactSignedCurrency(displayedAmount, displayCurrency)}
+    <div className="stock-comparison-metric" data-stock-comparison-metric={metric}>
+      <div className="stock-comparison-metric-label">{label}</div>
+      <div data-stock-comparison-metric-amount className={`stock-comparison-metric-amount ${tone}`} style={{ fontFamily: NUMBER_FONT }}>
+        {signedCurrency(displayedAmount, displayCurrency)}
       </div>
-      <div className={`mt-2 text-[12px] font-medium leading-4 tabular-nums ${valueClass(pct, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
-        {pctLabel ? <span className="mr-1 text-white/[0.32]">{pctLabel}</span> : null}
+      <div data-stock-comparison-metric-pct className={`stock-comparison-metric-pct ${valueClass(pct, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
+        {pctLabel ? <span>{pctLabel}</span> : null}
         {signedPct(pct, 2)}
       </div>
     </div>
@@ -160,7 +150,9 @@ function ComparisonChart({ comparison, displayRate, displayCurrency, language, m
       excessPnlUsd: finite(point.excessPnlUsd) ? Number(point.excessPnlUsd) * displayRate : null,
     }))
   ), [comparison?.trend, displayRate]);
-  const chart = React.useMemo(() => chartGeometry(points), [points]);
+  const [chartWidth, setChartWidth] = React.useState(CHART_WIDTH);
+  const chart = React.useMemo(() => chartGeometry(points, chartWidth), [points, chartWidth]);
+  const mineLineColor = valueColor(comparison?.stockPnlUsd, marketColorMode);
   const [selectedIndex, setSelectedIndex] = React.useState(() => (
     initialTooltipOpen && chart.rows.length > 0 ? Math.floor(chart.rows.length / 2) : null
   ));
@@ -184,6 +176,20 @@ function ComparisonChart({ comparison, displayRate, displayCurrency, language, m
   const middleDate = firstMs != null && lastMs != null
     ? new Date(firstMs + ((lastMs - firstMs) / 2)).toISOString().slice(0, 10)
     : firstDate;
+
+  React.useEffect(() => {
+    const root = chartRootRef.current;
+    if (!root) return undefined;
+    const measure = () => {
+      const width = root.getBoundingClientRect().width;
+      if (Number.isFinite(width) && width > 0) setChartWidth(width);
+    };
+    measure();
+    if (typeof ResizeObserver === 'undefined') return undefined;
+    const observer = new ResizeObserver(measure);
+    observer.observe(root);
+    return () => observer.disconnect();
+  }, [chart.rows.length > 1]);
 
   React.useEffect(() => {
     setSelectedIndex(initialTooltipOpen && chart.rows.length > 0 ? Math.floor(chart.rows.length / 2) : null);
@@ -214,7 +220,7 @@ function ComparisonChart({ comparison, displayRate, displayCurrency, language, m
   const selectNearest = React.useCallback((event) => {
     if (chart.rows.length === 0) return;
     const rect = event.currentTarget.getBoundingClientRect();
-    const cursorX = ((event.clientX - rect.left) / Math.max(rect.width, 1)) * 320;
+    const cursorX = ((event.clientX - rect.left) / Math.max(rect.width, 1)) * chartWidth;
     let index = 0;
     let distance = Number.POSITIVE_INFINITY;
     chart.rows.forEach((point, pointIndex) => {
@@ -226,7 +232,7 @@ function ComparisonChart({ comparison, displayRate, displayCurrency, language, m
     });
     setSelectedIndex(index);
     keepSelectedPointVisible();
-  }, [chart.rows, keepSelectedPointVisible]);
+  }, [chart.rows, chartWidth, keepSelectedPointVisible]);
 
   const handlePointerDown = React.useCallback((event) => {
     if (event.isPrimary === false) return;
@@ -250,20 +256,20 @@ function ComparisonChart({ comparison, displayRate, displayCurrency, language, m
 
   if (!chart.minePath || !chart.benchmarkPath) {
     return (
-      <div className="mt-4 flex h-[154px] items-center justify-center rounded-xl bg-white/[0.025] px-4 text-center text-[12px] leading-5 text-white/[0.34]">
+      <div className="stock-comparison-empty stock-comparison-chart-empty">
         {t(language, 'stockDetail.comparison.noCommonTrend', '双方没有足够的同日收盘快照，暂不绘制对比曲线')}
       </div>
     );
   }
 
   return (
-    <div ref={chartRootRef} className="relative mt-4">
-      <div className="mb-2 flex items-center gap-5 text-[11px] text-white/[0.42]">
-        <span className="inline-flex items-center gap-1.5"><i className="h-0.5 w-4 rounded-full" style={{ background: MINE_LINE_COLOR }} />{t(language, 'stockDetail.comparison.mineLine', '当前持仓收益线')}</span>
-        <span className="inline-flex items-center gap-1.5"><i className="h-0.5 w-4 rounded-full" style={{ background: BENCHMARK_LINE_COLOR }} />{t(language, 'stockDetail.comparison.qqqLine', '基准：QQQ')}</span>
+    <div ref={chartRootRef} className="stock-comparison-chart-section">
+      <div className="stock-comparison-legend">
+        <span><i style={{ background: mineLineColor }} />{t(language, 'stockDetail.comparison.mineLine', '当前持仓收益线')}</span>
+        <span><i className="stock-comparison-benchmark-key" style={{ borderColor: BENCHMARK_LINE_COLOR }} />{t(language, 'stockDetail.comparison.qqqLine', '基准：QQQ')}</span>
       </div>
       <div
-        className="relative h-[190px] select-none"
+        className="stock-comparison-chart"
         data-stock-return-comparison-chart="true"
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
@@ -272,58 +278,57 @@ function ComparisonChart({ comparison, displayRate, displayCurrency, language, m
         onLostPointerCapture={finishPointerTracking}
         style={{ touchAction: 'pan-y' }}
       >
-        <svg viewBox="0 0 320 176" className="h-full w-full overflow-visible">
+        <svg viewBox={`0 0 ${chartWidth} ${CHART_HEIGHT}`} preserveAspectRatio="none" className="stock-comparison-chart-svg">
           <defs>
             <linearGradient id="stockReturnComparisonArea" x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0%" stopColor={MINE_LINE_COLOR} stopOpacity="0.16" />
-              <stop offset="100%" stopColor={MINE_LINE_COLOR} stopOpacity="0" />
+              <stop offset="0%" stopColor={mineLineColor} stopOpacity="0.1" />
+              <stop offset="100%" stopColor={mineLineColor} stopOpacity="0" />
             </linearGradient>
           </defs>
           {chart.ticks.map((tick) => (
             <React.Fragment key={`${tick.value}-${tick.y}`}>
-              <line x1="42" y1={tick.y} x2="308" y2={tick.y} stroke="rgba(255,255,255,0.07)" strokeDasharray="4 6" />
-              <text x="0" y={Math.min(148, Math.max(14, tick.y + 3))} fontSize="9" fill="rgba(255,255,255,0.32)">{axisMoney(tick.value, displayCurrency)}</text>
+              <line x1={CHART_PAD.left} y1={tick.y} x2={chartWidth - CHART_PAD.right} y2={tick.y} stroke="rgba(255,255,255,0.065)" />
+              <text x="0" y={Math.min(CHART_HEIGHT - CHART_PAD.bottom, Math.max(14, tick.y + 3))} fontSize="10" fill="#74747e">{axisMoney(tick.value, displayCurrency)}</text>
             </React.Fragment>
           ))}
-          <line x1="42" y1="14" x2="42" y2="146" stroke={MINE_LINE_COLOR} strokeWidth="0.8" strokeDasharray="2 4" opacity="0.38" />
-          <text x="48" y="11" fontSize="7.5" fill="rgba(246,181,75,0.62)">{comparisonStartLabel}</text>
+          <text x={CHART_PAD.left} y="12" fontSize="10" fill="#85858f">{comparisonStartLabel}</text>
           {chart.minePath && (
             <path
-              d={`${chart.minePath} L${chart.rows.at(-1).x.toFixed(2)} 146 L${chart.rows[0].x.toFixed(2)} 146 Z`}
+              d={`${chart.minePath} L${chart.rows.at(-1).x.toFixed(2)} ${CHART_HEIGHT - CHART_PAD.bottom} L${chart.rows[0].x.toFixed(2)} ${CHART_HEIGHT - CHART_PAD.bottom} Z`}
               fill="url(#stockReturnComparisonArea)"
             />
           )}
-          <path d={chart.benchmarkPath} fill="none" stroke={BENCHMARK_LINE_COLOR} strokeWidth="1.35" strokeLinecap="round" strokeLinejoin="round" opacity="0.86" />
-          <path d={chart.minePath} fill="none" stroke={MINE_LINE_COLOR} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+          <path data-stock-comparison-benchmark-path d={chart.benchmarkPath} fill="none" stroke={BENCHMARK_LINE_COLOR} strokeWidth="1.4" strokeDasharray="4 4" strokeLinecap="round" strokeLinejoin="round" />
+          <path data-stock-comparison-mine-path d={chart.minePath} fill="none" stroke={mineLineColor} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
           {selected && (
             <>
-              <line x1={selected.x} y1="12" x2={selected.x} y2="146" stroke="rgba(255,255,255,0.25)" strokeDasharray="3 5" />
-              <circle cx={selected.x} cy={selected.mineY} r="4" fill="#05070b" stroke={MINE_LINE_COLOR} strokeWidth="1.8" />
-              <circle cx={selected.x} cy={selected.benchmarkY} r="4" fill="#05070b" stroke={BENCHMARK_LINE_COLOR} strokeWidth="1.8" />
+              <line x1={selected.x} y1={CHART_PAD.top} x2={selected.x} y2={CHART_HEIGHT - CHART_PAD.bottom} stroke="rgba(255,255,255,0.25)" strokeDasharray="3 5" />
+              <circle cx={selected.x} cy={selected.mineY} r="4" fill="#08090b" stroke={mineLineColor} strokeWidth="1.8" />
+              <circle cx={selected.x} cy={selected.benchmarkY} r="4" fill="#08090b" stroke={BENCHMARK_LINE_COLOR} strokeWidth="1.8" />
             </>
           )}
-          <text x="42" y="171" fontSize="9" fill="rgba(255,255,255,0.34)">{axisDate(firstDate)}</text>
-          <text x="175" y="171" textAnchor="middle" fontSize="9" fill="rgba(255,255,255,0.34)">{axisDate(middleDate)}</text>
-          <text x="308" y="171" textAnchor="end" fontSize="9" fill="rgba(255,255,255,0.34)">{axisDate(lastDate)}</text>
+          <text x={CHART_PAD.left} y={CHART_HEIGHT - 6} fontSize="10" fill="#74747e">{axisDate(firstDate)}</text>
+          <text x={(CHART_PAD.left + chartWidth - CHART_PAD.right) / 2} y={CHART_HEIGHT - 6} textAnchor="middle" fontSize="10" fill="#74747e">{axisDate(middleDate)}</text>
+          <text x={chartWidth - CHART_PAD.right} y={CHART_HEIGHT - 6} textAnchor="end" fontSize="10" fill="#74747e">{axisDate(lastDate)}</text>
         </svg>
         {selected && (
-          <div className="pointer-events-none absolute left-1/2 top-1 z-10 w-[252px] -translate-x-1/2 rounded-xl border border-white/10 bg-[#121821]/95 px-3 py-2.5 shadow-xl backdrop-blur">
+          <div className="stock-comparison-tooltip">
             <div
               key={`stock-return-comparison-tooltip-date-${selected.date}`}
-              className="text-[11px] tabular-nums text-white/[0.68]"
+              className="stock-comparison-tooltip-date"
               data-stock-return-comparison-tooltip-date={selected.date}
             >
               {String(selected.date).replaceAll('-', '/')}
             </div>
-            <div className="mt-1.5 grid grid-cols-[max-content_minmax(0,1fr)] gap-x-2 gap-y-1 text-[11px]">
-              <span className="text-white/[0.40]">{t(language, 'stockDetail.comparison.mine', '当前持仓收益')}</span>
-              <span className="whitespace-nowrap text-right font-medium tabular-nums" style={{ color: valueColor(selected.stockPnlUsd, marketColorMode), fontFamily: NUMBER_FONT }}>{signedCurrency(selected.stockPnlUsd, displayCurrency)}</span>
-              <span className="text-white/[0.40]">QQQ</span>
-              <span className="whitespace-nowrap text-right font-medium tabular-nums" style={{ color: valueColor(selected.benchmarkPnlUsd, marketColorMode), fontFamily: NUMBER_FONT }}>{signedCurrency(selected.benchmarkPnlUsd, displayCurrency)}</span>
-              <span className="text-white/[0.40]">{t(language, 'stockDetail.comparison.excessAmount', '超额金额')}</span>
-              <span className="whitespace-nowrap text-right font-medium tabular-nums" style={{ color: valueColor(selected.excessPnlUsd, marketColorMode), fontFamily: NUMBER_FONT }}>{signedCurrency(selected.excessPnlUsd, displayCurrency)}</span>
-              <span className="text-white/[0.40]">{t(language, 'stockDetail.comparison.rateGap', '收益率差')}</span>
-              <span className="whitespace-nowrap text-right font-medium tabular-nums" style={{ color: valueColor(selected.excessPnlPct, marketColorMode), fontFamily: NUMBER_FONT }}>{signedPct(selected.excessPnlPct)}</span>
+            <div className="stock-comparison-tooltip-readings">
+              <span>{t(language, 'stockDetail.comparison.mine', '当前持仓收益')}</span>
+              <span style={{ color: valueColor(selected.stockPnlUsd, marketColorMode), fontFamily: NUMBER_FONT }}>{signedCurrency(selected.stockPnlUsd, displayCurrency)}</span>
+              <span>QQQ</span>
+              <span style={{ color: valueColor(selected.benchmarkPnlUsd, marketColorMode), fontFamily: NUMBER_FONT }}>{signedCurrency(selected.benchmarkPnlUsd, displayCurrency)}</span>
+              <span>{t(language, 'stockDetail.comparison.excessAmount', '超额金额')}</span>
+              <span style={{ color: valueColor(selected.excessPnlUsd, marketColorMode), fontFamily: NUMBER_FONT }}>{signedCurrency(selected.excessPnlUsd, displayCurrency)}</span>
+              <span>{t(language, 'stockDetail.comparison.rateGap', '收益率差')}</span>
+              <span style={{ color: valueColor(selected.excessPnlPct, marketColorMode), fontFamily: NUMBER_FONT }}>{signedPct(selected.excessPnlPct)}</span>
             </div>
           </div>
         )}
@@ -343,47 +348,43 @@ function SharePreview({ comparison, symbol, displayCurrency, displayRate, langua
       ? t(language, 'stockDetail.comparison.outperform', '收益金额跑赢 QQQ')
       : t(language, 'stockDetail.comparison.underperform', '收益金额跑输 QQQ');
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/72 px-3 pb-[calc(env(safe-area-inset-bottom)+92px)] pt-[calc(env(safe-area-inset-top)+18px)] backdrop-blur-sm" role="dialog" aria-modal="true" aria-label={t(language, 'stockDetail.comparison.sharePreview', '收益对比分享预览')}>
-      <button type="button" className="absolute inset-0" onClick={onClose} aria-label={t(language, 'stockDetail.comparison.closePreview', '关闭分享预览')} />
-      <div className="relative max-h-[calc(100dvh-env(safe-area-inset-top)-116px)] w-full max-w-[410px] overflow-y-auto rounded-[24px] border border-white/10 bg-[#0d1118] p-5 shadow-2xl">
-        <div className="flex items-center justify-between">
-          <h3 className="text-[18px] font-semibold text-white/[0.88]">{t(language, 'stockDetail.comparison.activeValue', '主动投资价值')}</h3>
-          <button type="button" onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-full bg-white/[0.06] text-white/[0.52]" aria-label={t(language, 'stockDetail.comparison.closePreview', '关闭分享预览')}><X className="h-4 w-4" /></button>
-        </div>
-        <div className="mt-5 rounded-2xl border border-white/[0.08] bg-white/[0.025] p-4">
-          <div className="text-[11px] text-white/[0.38]">{t(language, 'stockDetail.comparison.yourResult', '你的结果')}</div>
-          <div className="mt-2 flex items-baseline justify-between gap-3">
-            <span className="min-w-0 truncate text-[17px] font-semibold text-white/[0.82]">{symbol}</span>
-            <span className="flex shrink-0 items-baseline justify-end gap-2 whitespace-nowrap">
-              <span className={`text-[21px] font-semibold tabular-nums ${valueClass(comparison.stockPnlUsd, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>{compactSignedCurrency(stockAmount, displayCurrency)}</span>
-              <span className={`text-[12px] font-medium tabular-nums ${valueClass(comparison.stockPnlPct, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>{signedPct(comparison.stockPnlPct)}</span>
-            </span>
-          </div>
-          <div className="mt-4 flex items-baseline justify-between gap-3 border-t border-white/[0.06] pt-4">
-            <span className="text-[15px] text-white/[0.68]">QQQ</span>
-            <span className="flex shrink-0 items-baseline justify-end gap-2 whitespace-nowrap">
-              <span className={`text-[19px] font-semibold tabular-nums ${valueClass(comparison.benchmarkPnlUsd, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>{compactSignedCurrency(benchmarkAmount, displayCurrency)}</span>
-              <span className={`text-[12px] font-medium tabular-nums ${valueClass(comparison.benchmarkPnlPct, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>{signedPct(comparison.benchmarkPnlPct)}</span>
-            </span>
-          </div>
-          <div className="mt-4 border-t border-white/[0.06] pt-4">
-            <div className="text-[11px] text-white/[0.38]">{action}</div>
-            <div className="mt-2 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-              <div className={`whitespace-nowrap text-[24px] font-semibold tabular-nums ${valueClass(comparison.excessPnlUsd, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>{compactSignedCurrency(excessAmount, displayCurrency)}</div>
-              <div className={`shrink-0 whitespace-nowrap text-[12px] font-medium tabular-nums ${valueClass(comparison.excessPnlPct, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
-                <span className="mr-1 text-white/[0.34]">{t(language, 'stockDetail.comparison.rateGap', '收益率差')}</span>
-                {signedPct(comparison.excessPnlPct)}
-              </div>
-            </div>
+    <StockReportModal
+      title={t(language, 'stockDetail.comparison.activeValue', '主动投资价值')}
+      closeLabel={t(language, 'stockDetail.comparison.closePreview', '关闭分享预览')}
+      onClose={onClose}
+      panelClassName="stock-comparison-dialog"
+    >
+      <div data-stock-comparison-share-dialog="true">
+        <div className="stock-comparison-share-label">{t(language, 'stockDetail.comparison.yourResult', '你的结果')}</div>
+        <div className="stock-comparison-share-row">
+          <span className="stock-comparison-share-symbol">{symbol}</span>
+          <div className="stock-comparison-share-readings">
+            <span className={valueClass(comparison.stockPnlUsd, marketColorMode)} style={{ fontFamily: NUMBER_FONT }}>{signedCurrency(stockAmount, displayCurrency)}</span>
+            <small className={valueClass(comparison.stockPnlPct, marketColorMode)} style={{ fontFamily: NUMBER_FONT }}>{signedPct(comparison.stockPnlPct)}</small>
           </div>
         </div>
-        <div className="mt-3 text-[11px] leading-4 text-white/[0.30]">
+        <div className="stock-comparison-share-row">
+          <span className="stock-comparison-share-symbol">QQQ</span>
+          <div className="stock-comparison-share-readings">
+            <span className={valueClass(comparison.benchmarkPnlUsd, marketColorMode)} style={{ fontFamily: NUMBER_FONT }}>{signedCurrency(benchmarkAmount, displayCurrency)}</span>
+            <small className={valueClass(comparison.benchmarkPnlPct, marketColorMode)} style={{ fontFamily: NUMBER_FONT }}>{signedPct(comparison.benchmarkPnlPct)}</small>
+          </div>
+        </div>
+        <div className="stock-comparison-share-excess">
+          <div className="stock-comparison-share-label">{action}</div>
+          <div className={`stock-comparison-share-excess-amount ${valueClass(comparison.excessPnlUsd, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>{signedCurrency(excessAmount, displayCurrency)}</div>
+          <div className={`stock-comparison-metric-pct ${valueClass(comparison.excessPnlPct, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
+            <span>{t(language, 'stockDetail.comparison.rateGap', '收益率差')}</span>
+            {signedPct(comparison.excessPnlPct)}
+          </div>
+        </div>
+        <div className="stock-comparison-basis">
           {String(comparison.baselineDate).replaceAll('-', '/')} - {String(comparison.snapshotDate).replaceAll('-', '/')} · {visualPreview
             ? t(language, 'stockDetail.comparison.previewBasisShort', '固定起点 · 仅当前存续仓位 · 本地只读视觉样例')
             : t(language, 'stockDetail.comparison.closeBasisShort', '固定起点 · 仅当前存续仓位')}
         </div>
       </div>
-    </div>
+    </StockReportModal>
   );
 }
 
@@ -432,34 +433,41 @@ export default function StockReturnComparisonCard({
       : t(language, 'stockDetail.comparison.insufficient', '双方没有足够的同周期正式收盘数据');
 
   return (
-    <section id="stock-return-comparison" className="mt-3 scroll-mt-[132px] rounded-2xl border border-white/10 bg-[#0b0c0e] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-1.5">
-          <h2 className="text-[13px] font-semibold text-white/[0.72]">{t(language, 'stockDetail.comparison.title', '收益对比')}</h2>
-          <button type="button" onClick={() => setShowMethod((value) => !value)} className="-m-2 flex h-8 w-8 items-center justify-center text-white/[0.28] transition active:scale-90" aria-expanded={showMethod} aria-label={t(language, 'stockDetail.comparison.method', '查看收益对比口径')}><Info className="h-3.5 w-3.5" /></button>
+    <section id="stock-return-comparison" className="stock-comparison-report">
+      <div className="stock-comparison-heading">
+        <div className="stock-comparison-heading-title">
+          <h2>{t(language, 'stockDetail.comparison.title', '收益对比')}</h2>
+          <button type="button" onClick={() => setShowMethod((value) => !value)} className="stock-comparison-info-button" aria-expanded={showMethod} aria-label={t(language, 'stockDetail.comparison.method', '查看收益对比口径')}><Info className="h-4 w-4" /></button>
         </div>
-        <button type="button" onClick={() => setShowShare(true)} disabled={!available} className="flex h-8 w-8 items-center justify-center rounded-full border border-white/[0.08] bg-white/[0.035] text-white/[0.42] transition enabled:active:scale-90 disabled:opacity-25" aria-label={t(language, 'stockDetail.comparison.openShare', '打开收益对比分享预览')}><Copy className="h-4 w-4" /></button>
+        <button type="button" onClick={() => setShowShare(true)} disabled={!available} className="stock-comparison-share-button" aria-label={t(language, 'stockDetail.comparison.openShare', '打开收益对比分享预览')}><Copy className="h-4 w-4" /></button>
       </div>
 
       {showMethod && (
-        <div className="mt-3 rounded-xl border border-[#f6b54b]/15 bg-[#f6b54b]/[0.055] px-3 py-2.5 text-[11px] leading-[18px] text-white/[0.46]">
-          {t(language, 'stockDetail.comparison.methodText', '个股与 QQQ 均使用普通完成收盘价。这里仅比较当前仍持有的仓位；已卖出部分、对应 QQQ 仓位及其已实现盈亏会从整段对比中剔除。正式交易变化后，系统会从固定起点按当前存续仓位完整重算。')}
-        </div>
+        <StockReportModal
+          title={t(language, 'stockDetail.comparison.method', '查看收益对比口径')}
+          closeLabel={t(language, 'trades.close', '关闭')}
+          onClose={() => setShowMethod(false)}
+          panelClassName="stock-comparison-dialog"
+        >
+          <p data-stock-comparison-method-dialog="true" className="stock-comparison-method-copy">
+            {t(language, 'stockDetail.comparison.methodText', '个股与 QQQ 均使用普通完成收盘价。这里仅比较当前仍持有的仓位；已卖出部分、对应 QQQ 仓位及其已实现盈亏会从整段对比中剔除。正式交易变化后，系统会从固定起点按当前存续仓位完整重算。')}
+          </p>
+        </StockReportModal>
       )}
 
       {!available ? (
-        <div className="mt-4 flex h-[218px] items-center justify-center rounded-xl border border-dashed border-white/[0.08] bg-white/[0.02] px-6 text-center text-[12px] leading-5 text-white/[0.34]">
+        <div className="stock-comparison-empty">
           {unavailableText}
         </div>
       ) : (
         <>
-          <div className="mt-4 grid grid-cols-3 divide-x divide-white/[0.07]">
-            <Metric label={t(language, 'stockDetail.comparison.mine', '当前持仓收益')} amount={comparison.stockPnlUsd} pct={comparison.stockPnlPct} displayRate={displayRate} displayCurrency={displayCurrency} marketColorMode={marketColorMode} />
-            <Metric label={t(language, 'stockDetail.comparison.samePeriodQqqShort', '对应 QQQ')} amount={comparison.benchmarkPnlUsd} pct={comparison.benchmarkPnlPct} displayRate={displayRate} displayCurrency={displayCurrency} marketColorMode={marketColorMode} />
-            <Metric label={t(language, 'stockDetail.comparison.excessAmount', '超额金额')} amount={comparison.excessPnlUsd} pct={comparison.excessPnlPct} pctLabel={t(language, 'stockDetail.comparison.rateGapShort', '率差')} displayRate={displayRate} displayCurrency={displayCurrency} marketColorMode={marketColorMode} />
+          <div className="stock-comparison-metrics">
+            <Metric metric="mine" label={t(language, 'stockDetail.comparison.mine', '当前持仓收益')} amount={comparison.stockPnlUsd} pct={comparison.stockPnlPct} displayRate={displayRate} displayCurrency={displayCurrency} marketColorMode={marketColorMode} />
+            <Metric metric="benchmark" label={t(language, 'stockDetail.comparison.samePeriodQqqShort', '对应 QQQ')} amount={comparison.benchmarkPnlUsd} pct={comparison.benchmarkPnlPct} displayRate={displayRate} displayCurrency={displayCurrency} marketColorMode={marketColorMode} />
+            <Metric metric="excess" label={t(language, 'stockDetail.comparison.excessAmount', '超额金额')} amount={comparison.excessPnlUsd} pct={comparison.excessPnlPct} pctLabel={t(language, 'stockDetail.comparison.rateGapShort', '率差')} displayRate={displayRate} displayCurrency={displayCurrency} marketColorMode={marketColorMode} />
           </div>
           <ComparisonChart comparison={comparison} displayRate={displayRate} displayCurrency={displayCurrency} language={language} marketColorMode={marketColorMode} initialTooltipOpen={initialTooltipOpen} />
-          <div className="mt-2 text-[10px] leading-4 text-white/[0.38]">
+          <div className="stock-comparison-basis">
             <div>{startExplanation}</div>
             <div>{visualPreview
               ? t(language, 'stockDetail.comparison.previewBasis', '固定起点 · 仅当前存续仓位 · 本地只读样例')

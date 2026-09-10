@@ -27,6 +27,7 @@ const reviewReadingDetailsCss = read('src/components/ReviewReadingDetails.css');
 const settings = read('src/tabs/SettingsTab.jsx');
 const pnlReport = read('src/pages/PnlReportPage.jsx');
 const stockDetail = read('src/pages/StockDetailPage.jsx');
+const stockDetailCss = read('src/pages/StockDetailPage.css');
 const watchlistDetail = read('src/pages/WatchlistStockDetailPage.jsx');
 const watchlistDetailCss = read('src/pages/WatchlistStockDetailPage.css');
 const stockDetailReportCss = read('src/components/StockDetailReportSections.css');
@@ -38,6 +39,7 @@ const earningsCalendar = read('src/tabs/EarningsCalendar.jsx');
 const valuation = read('src/components/CompanyValuationCard.jsx');
 const ma200History = read('src/components/Ma200RetestHistoryCard.jsx');
 const stockComparison = read('src/components/StockReturnComparisonCard.jsx');
+const stockComparisonCss = read('src/components/StockReturnComparisonCard.css');
 
 test('persistent production modules share neutral black surface levels', () => {
   assert.ok(trades.includes('data-trades-net-assets-card="true"'));
@@ -58,7 +60,11 @@ test('persistent production modules share neutral black surface levels', () => {
 
   assert.equal(count(pnlReport, /bg-\[#0b0c0e\]/g), 4);
   assert.equal(count(pnlReport, /bg-\[#101114\]/g), 2);
-  assert.equal(count(stockDetail, /bg-\[#0b0c0e\]/g), 4);
+  assert.match(stockDetail, /<main className="stock-detail-report"/, 'individual returns should use a continuous scoped report, not nested exterior cards');
+  assert.match(stockDetailCss, /\.stock-detail-report\s*\{[^}]*max-width:\s*760px;[^}]*background:\s*#08090b;[^}]*color:\s*#e4e4e7;/);
+  assert.match(stockDetailCss, /\.sdp-target-price\s*\{[^}]*color:\s*#e4e4e7;/, 'target amount should be a neutral personal plan, not a gold investment signal');
+  assert.match(stockDetailCss, /\.sdp-range\[aria-pressed="true"\]\s*\{[^}]*background:\s*#1a1b1e;[^}]*color:\s*#e4e4e7;/);
+  assert.doesNotMatch(stockDetailCss, /#0b0f14|#f6b54b|#ffd18a|linear-gradient|radial-gradient|box-shadow/);
   assert.match(watchlistDetail, /<main className="stock-report-page\b/, 'stock trends use the scoped continuous report surface, not a fixed count of boxed cards');
   assert.match(watchlistDetailCss, /\.stock-report-page\s*\{[^}]*background:\s*#08090b;/);
   assert.match(watchlistDetail, /<section className="stock-report-hero"/);
@@ -73,7 +79,9 @@ test('persistent production modules share neutral black surface levels', () => {
   assert.ok(earningsCalendar.includes("? 'flex h-[calc(100dvh-env(safe-area-inset-top)-138px)] min-h-[560px] w-full flex-col rounded-[20px] border border-white/10 bg-[#0b0c0e]"));
   assert.ok(valuation.includes('rounded-2xl border border-white/[0.09] bg-[#0b0c0e]'));
   assert.ok(ma200History.includes('rounded-2xl border border-white/[0.09] bg-[#0b0c0e]'));
-  assert.ok(stockComparison.includes('id="stock-return-comparison" className="mt-3 scroll-mt-[132px] rounded-2xl border border-white/10 bg-[#0b0c0e]'));
+  assert.ok(stockComparison.includes('id="stock-return-comparison" className="stock-comparison-report"'));
+  assert.match(stockComparisonCss, /\.stock-comparison-report\s*\{[^}]*border-top:\s*1px solid rgb\(255 255 255 \/ \.075\);[^}]*color:\s*#e4e4e7;/);
+  assert.doesNotMatch(stockComparisonCss, /#0b0f14|#0d1118|#f6b54b|#ffd18a|linear-gradient|radial-gradient/);
 });
 
 test('stock-trend report variants are opt-in neutral sections without recoloring other card consumers', () => {
@@ -157,7 +165,9 @@ test('sheets, tooltips, and chart markers keep their separate depth colors', () 
   assert.match(reviewGoalModalCss, /\.review-goal-modal\s*\{[^}]*background:\s*#101112;/, 'approved review dialogs should share the scoped neutral-black goal surface');
   assert.equal(count(reviewReadingDetails, /<ReviewGoalModal/g), 2, 'both reading details should use the goal-dialog palette');
   assert.doesNotMatch(reviewReadingDetails + reviewReadingDetailsCss, /UsFlagBackground|linear-gradient|radial-gradient|#f6b54b/, 'reading details should not add independent flag, gradient, or gold decorations');
-  assert.ok(stockComparison.includes('rounded-[24px] border border-white/10 bg-[#0d1118]'));
+  assert.ok(stockComparison.includes("import StockReportModal from './StockReportModal.jsx'"));
+  assert.equal(count(stockComparison, /panelClassName="stock-comparison-dialog"/g), 2, 'method and share overlays must both opt into the same neutral report-dialog surface');
+  assert.match(stockComparisonCss, /\.stock-comparison-tooltip\s*\{[^}]*background:\s*rgb\(24 25 27 \/ \.97\);/, 'comparison tooltip retains a raised neutral depth without restoring blue');
   assert.ok(valuation.includes('fill="#0b0f14" stroke="#ffd18a"'));
   assert.ok(ma200History.includes('stroke="#0b0f14"'));
   assert.ok(monthlyAssetTrendChart.includes('fill="#101318" stroke={CHART_COLOR}'));

@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '📊 个股收益详情升级为简约报告视觉',
+      '  - 突出累计盈亏与持仓事实，放大收益曲线和 QQQ 对比，金额保留两位小数',
+      '  - 个人计划、交易明细、口径说明与分享预览统一黑灰风格，交易日期列固定',
+      '  - 沿用真实收盘快照、即时交易记录与现有收益计算，不改变交易保存和数据口径',
+    ],
+    itemsEn: [
+      '📊 A minimal report design for stock return details',
+      '  - Clearer cumulative P&L and holding facts, larger return and QQQ charts, and two-decimal monetary values',
+      '  - Unified monochrome plans, trade records, methodology and share previews with a pinned trade-date column',
+      '  - Retains authoritative close snapshots, current trade records and existing calculations without changing trade saves or data rules',
+    ],
+  },
+  {
+    ver: 'v10.7.9.508', date: '2026-09-10',
+    items: [
       '✨ 持仓收益试算统一新版黑灰视觉',
       '  - 模拟股价、快捷价位和盈亏结果重新排版，保留原计算与涨跌配色',
       '  - 融资情景增加、下降金额下方补充万级参考，方便快速阅读',

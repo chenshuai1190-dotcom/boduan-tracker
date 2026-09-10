@@ -1,0 +1,18 @@
+.stock-detail-pnl-chart { min-width: 0; width: 100%; }
+.stock-detail-pnl-viewport { position: relative; width: 100%; min-width: 0; margin-top: 12px; user-select: none; -webkit-user-select: none; }
+.stock-detail-pnl-svg { display: block; width: 100%; height: 100%; overflow: visible; font-variant-numeric: tabular-nums; }
+.stock-detail-pnl-empty { position: absolute; inset: 0; display: grid; place-items: center; color: #797983; font-size: 12px; line-height: 1.6; }
+.stock-detail-pnl-tooltip { position: absolute; z-index: 10; max-width: calc(100% - 16px); padding: 12px 14px; border: 1px solid rgb(255 255 255 / .07); border-radius: 14px; background: rgb(23 24 26 / .97); color: #dedee3; box-shadow: 0 10px 30px rgb(0 0 0 / .28); pointer-events: none; text-align: left; }
+.stock-detail-pnl-tooltip-date { color: #c2c2ca; font-size: 12px; line-height: 18px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.stock-detail-pnl-tooltip-readings { display: grid; grid-template-columns: max-content minmax(0, 1fr); align-items: baseline; gap: 5px 12px; margin-top: 9px; font-size: 12px; line-height: 18px; }
+.stock-detail-pnl-tooltip-label { color: #85858f; white-space: nowrap; }
+.stock-detail-pnl-tooltip-value { min-width: 0; font-weight: 400; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.stock-detail-pnl-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 22px; margin-top: 21px; padding: 22px 0 2px; border-top: 1px solid rgb(255 255 255 / .065); }
+.stock-detail-pnl-metric { display: grid; min-width: 0; align-content: start; gap: 7px; }
+.stock-detail-pnl-metric-label { color: #85858f; font-size: 11px; line-height: 1.5; }
+.stock-detail-pnl-metric-value { min-width: 0; font-size: clamp(16px, 4.8vw, 19px); font-weight: 400; line-height: 1.35; letter-spacing: -.025em; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+@media (max-width: 350px) {
+  .stock-detail-pnl-tooltip { padding-inline: 11px; }
+  .stock-detail-pnl-tooltip-readings { gap: 5px 9px; font-size: 11px; }
+  .stock-detail-pnl-metrics { column-gap: 16px; }
+}

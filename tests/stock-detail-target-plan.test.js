@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const stockDetailSource = readFileSync(new URL('../src/pages/StockDetailPage.jsx', import.meta.url), 'utf8');
+const stockDetailCss = readFileSync(new URL('../src/pages/StockDetailPage.css', import.meta.url), 'utf8');
 const watchlistDetailSource = readFileSync(new URL('../src/pages/WatchlistStockDetailPage.jsx', import.meta.url), 'utf8');
 const targetEditorSource = readFileSync(new URL('../src/components/StockTargetEditor.jsx', import.meta.url), 'utf8');
 const i18nSource = readFileSync(new URL('../src/lib/i18n.js', import.meta.url), 'utf8');
@@ -15,24 +16,18 @@ function sourceSlice(source, startMarker, endMarker) {
   return source.slice(start, end);
 }
 
-test('individual return summary keeps all three approved two-column rows before the integrated target plan', () => {
+test('individual return report preserves all six facts and moves the isolated target plan below both charts', () => {
   const summarySource = sourceSlice(
     stockDetailSource,
     'data-stock-detail-summary-card="true"',
-    "t(language, 'stockDetail.pnlTrend', '收益走势')",
+    'data-stock-detail-pnl-trend-card="true"',
   );
 
-  assert.match(summarySource, /data-stock-detail-target-plan="true"/);
-  assert.equal(
-    (summarySource.match(/className="mt-4 grid grid-cols-2 border-t border-white\/\[0\.06\] pt-3"/g) || []).length,
-    1,
-    'the realized P&L row must keep its original top spacing',
-  );
-  assert.equal(
-    (summarySource.match(/className="mt-3 grid grid-cols-2 border-t border-white\/\[0\.06\] pt-3"/g) || []).length,
-    2,
-    'the holding and holding-days rows must keep their original vertical structure',
-  );
+  assert.doesNotMatch(summarySource, /data-stock-detail-target-plan="true"/, 'the target plan should not crowd the summary before the primary chart');
+  assert.match(summarySource, /className="sdp-pnl-breakdown"/);
+  assert.match(summarySource, /className="sdp-holding-facts"/);
+  assert.match(stockDetailCss, /\.sdp-pnl-breakdown\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
+  assert.match(stockDetailCss, /\.sdp-holding-facts\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
 
   const approvedOrder = [
     "'stockDetail.realizedPnl'",
@@ -41,7 +36,6 @@ test('individual return summary keeps all three approved two-column rows before 
     "'stockDetail.avgCost'",
     "'stockDetail.holdingDays'",
     "'stockDetail.firstEntry'",
-    'data-stock-detail-target-plan="true"',
   ];
   let previousIndex = -1;
   approvedOrder.forEach((marker) => {
@@ -52,6 +46,16 @@ test('individual return summary keeps all three approved two-column rows before 
   assert.match(summarySource, /'stockDetail\.avgCost', '会计平均成本'/);
   assert.match(i18nSource, /'stockDetail\.avgCost': '会计平均成本'/);
   assert.match(i18nSource, /'stockDetail\.avgCost': 'Accounting Average Cost'/);
+
+  const chartIndex = stockDetailSource.indexOf('data-stock-detail-pnl-trend-card="true"');
+  const comparisonIndex = stockDetailSource.indexOf('<StockReturnComparisonCard', chartIndex);
+  const targetIndex = stockDetailSource.indexOf('data-stock-detail-target-plan="true"', comparisonIndex);
+  const statsIndex = stockDetailSource.indexOf('data-stock-detail-trade-stats="true"', targetIndex);
+  assert.ok(chartIndex >= 0 && comparisonIndex > chartIndex && targetIndex > comparisonIndex && statsIndex > targetIndex, 'the report should place both returns charts before the single target plan, followed by trading facts');
+  assert.equal((stockDetailSource.match(/data-stock-detail-target-plan="true"/g) || []).length, 1, 'there must still be only one editable target plan');
+  assert.match(stockDetailSource, /value=\{view\.hasData \? signedCurrency\(view\.realizedPnlUsd/);
+  assert.match(stockDetailSource, /value=\{view\.hasData \? signedCurrency\(view\.unrealizedPnlUsd/);
+  assert.match(stockDetailSource, /value=\{view\.hasData \? `\$\{fmt\(view\.heldShares, 0\)\}/, 'missing close snapshots must not display invented zero holdings');
 });
 
 test('target editor uses the neutral report dialog with one save action and guarded close', () => {

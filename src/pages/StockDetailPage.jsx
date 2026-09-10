@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowLeft, ChevronRight, Info } from 'lucide-react';
+import { ArrowLeft, ChevronRight } from 'lucide-react';
 import { marketHexColor, marketTextClass } from '../lib/marketColorMode.js';
 import { t } from '../lib/i18n.js';
 import { buildStockDetailViewModel } from '../lib/stockDetailViewModel.js';
@@ -10,16 +10,17 @@ import {
   targetProgressPositionPercent,
   targetSpacePercent,
 } from '../lib/watchlistStockDetail.js';
-import { stockLogoCandidates } from '../components/StockLogo.jsx';
+import StockLogo, { stockLogoCandidates } from '../components/StockLogo.jsx';
 import StockReturnComparisonCard from '../components/StockReturnComparisonCard.jsx';
 import TargetEditor from '../components/StockTargetEditor.jsx';
+import './StockDetailPage.css';
+import './StockDetailPnlChart.css';
 
 const PAGE_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif';
 const NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif';
 const USD_CNY_FALLBACK = 7.2;
 const DETAIL_LABEL_CLASS = 'text-white/40';
 const DETAIL_VALUE_CLASS = 'text-white/[0.86]';
-const DETAIL_HEADING_CLASS = 'text-white/[0.72]';
 const DETAIL_MUTED_VALUE_CLASS = 'text-white/[0.86]';
 const CHART_TOOLTIP_HOLD_MS = 12000;
 const BENCHMARK_CACHE_TTL_MS = 15 * 60 * 1000;
@@ -129,22 +130,33 @@ function sideLabel(language, side) {
     : t(language, 'stockDetail.buy', '买入');
 }
 
-function buildLineChart(points, { startDate, endDate, width = 320, height = 186 } = {}) {
-  const padLeft = 42;
-  const padRight = 16;
-  const padTop = 18;
-  const padBottom = 34;
+const PNL_CHART_GEOMETRY = Object.freeze({
+  width: 360,
+  height: 292,
+  padLeft: 44,
+  padRight: 10,
+  padTop: 24,
+  padBottom: 32,
+  tooltipWidth: 276,
+  tooltipHeight: 174,
+  tooltipGutter: 8,
+});
+
+function buildLineChart(points, { startDate, endDate, width = PNL_CHART_GEOMETRY.width, height = PNL_CHART_GEOMETRY.height } = {}) {
+  const { padLeft, padRight, padTop, padBottom } = PNL_CHART_GEOMETRY;
+  const bounds = { width, height, plotLeft: padLeft, plotRight: width - padRight, plotTop: padTop, plotBottom: height - padBottom };
   const valid = (Array.isArray(points) ? points : [])
     .map((point, index) => ({ point, index, value: Number(point?.pnlUsd) }))
     .filter(({ value }) => Number.isFinite(value));
   if (valid.length === 0) return {
+    ...bounds,
     path: '',
     areaPath: '',
     points: [],
     ticks: [],
     peakPoint: null,
     currentPoint: null,
-    yLines: [28, 66, 104, 142],
+    yLines: [0, 1 / 3, 2 / 3, 1].map((ratio) => padTop + ratio * (height - padTop - padBottom)),
   };
   const values = valid.map(({ value }) => value);
   const min = Math.min(...values, 0);
@@ -187,6 +199,7 @@ function buildLineChart(points, { startDate, endDate, width = 320, height = 186 
   }));
   const peakPoint = plottedPoints.reduce((best, point) => (point.value > best.value ? point : best), plottedPoints[0]);
   return {
+    ...bounds,
     path,
     areaPath,
     points: plottedPoints,
@@ -199,9 +212,9 @@ function buildLineChart(points, { startDate, endDate, width = 320, height = 186 
 
 function StatCell({ label, value, valueClass = DETAIL_VALUE_CLASS }) {
   return (
-    <div className="min-w-0">
-      <div className={`text-[11px] leading-4 ${DETAIL_LABEL_CLASS}`}>{label}</div>
-      <div className={`mt-1 truncate text-[14px] font-normal leading-5 tabular-nums ${valueClass}`} style={{ fontFamily: NUMBER_FONT }}>
+    <div className="sdp-stat">
+      <div className={`sdp-stat-label ${DETAIL_LABEL_CLASS}`}>{label}</div>
+      <div className={`sdp-stat-value ${valueClass}`} style={{ fontFamily: NUMBER_FONT }}>
         {value}
       </div>
     </div>
@@ -213,11 +226,8 @@ function RangePill({ active, children, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className={`shrink-0 border-b-2 px-1 pb-2 pt-1 text-[13px] font-normal transition active:scale-95 ${
-        active
-          ? 'border-[#f6b54b] text-[#ffd18a]'
-          : 'border-transparent text-white/[0.48]'
-      }`}
+      className="sdp-range"
+      aria-pressed={active}
     >
       {children}
     </button>
@@ -225,14 +235,16 @@ function RangePill({ active, children, onClick }) {
 }
 
 function PnlSparkline({ points, color, emptyText, startDate, endDate, currencyMode, marketColorMode, displayRate, language, trendStats }) {
+  const [chartWidth, setChartWidth] = React.useState(PNL_CHART_GEOMETRY.width);
   const pointsKey = React.useMemo(() => (
     (Array.isArray(points) ? points : [])
       .map((point) => `${point?.date || ''}:${Number(point?.pnlUsd || 0).toFixed(4)}`)
       .join('|')
   ), [points]);
-  const chart = React.useMemo(() => buildLineChart(points, { startDate, endDate }), [points, startDate, endDate]);
+  const chart = React.useMemo(() => buildLineChart(points, { startDate, endDate, width: chartWidth }), [points, startDate, endDate, chartWidth]);
   const [selection, setSelection] = React.useState(null);
   const chartRootRef = React.useRef(null);
+  const chartViewportRef = React.useRef(null);
   const hideTimerRef = React.useRef(null);
   const activePointerIdRef = React.useRef(null);
   const startMs = parseDateMs(startDate);
@@ -246,24 +258,26 @@ function PnlSparkline({ points, color, emptyText, startDate, endDate, currencyMo
   const selectedPoint = selection?.type === 'point' ? chart.points[selection.index] || null : null;
   const hasSelection = selection != null;
   const selectedPointColor = selectedPoint ? marketHexColor(selectedPoint.value, marketColorMode) : color;
+  const peakPointColor = chart.peakPoint ? marketHexColor(chart.peakPoint.value, marketColorMode) : color;
+  const tooltipWidth = Math.min(PNL_CHART_GEOMETRY.tooltipWidth, chart.width - PNL_CHART_GEOMETRY.tooltipGutter * 2);
   const selectedPointLeft = selectedPoint
-    ? `clamp(8px, calc(${(selectedPoint.x / 320) * 100}% - 103px), calc(100% - 214px))`
-    : '8px';
+    ? Math.max(PNL_CHART_GEOMETRY.tooltipGutter, Math.min(selectedPoint.x - tooltipWidth / 2, chart.width - tooltipWidth - PNL_CHART_GEOMETRY.tooltipGutter))
+    : PNL_CHART_GEOMETRY.tooltipGutter;
   const selectedPointTop = selectedPoint
-    ? `clamp(8px, calc(${(selectedPoint.y / 186) * 100}% - 126px), calc(100% - 138px))`
-    : '8px';
+    ? Math.max(PNL_CHART_GEOMETRY.tooltipGutter, Math.min(selectedPoint.y - PNL_CHART_GEOMETRY.tooltipHeight - 12, chart.height - PNL_CHART_GEOMETRY.tooltipHeight - PNL_CHART_GEOMETRY.tooltipGutter))
+    : PNL_CHART_GEOMETRY.tooltipGutter;
   const peakText = chart.peakPoint ? compactSignedCurrency(chart.peakPoint.value, currencyMode) : '--';
   const peakMetricUsd = trendStats?.peakPnlUsd == null ? null : toNumber(trendStats.peakPnlUsd);
   const peakMetricText = peakMetricUsd == null
     ? '--'
-    : compactSignedCurrency(peakMetricUsd * displayRate, currencyMode);
+    : signedCurrency(peakMetricUsd * displayRate, currencyMode);
   const peakMetricClass = peakMetricUsd == null
     ? 'text-white/[0.34]'
     : marketTextClass(peakMetricUsd, marketColorMode);
   const maxGivebackUsd = trendStats?.maxGivebackUsd ?? trendStats?.maxDrawdownUsd;
   const maxGivebackText = maxGivebackUsd == null
     ? '--'
-    : compactSignedCurrency(toNumber(maxGivebackUsd) * displayRate, currencyMode);
+    : signedCurrency(toNumber(maxGivebackUsd) * displayRate, currencyMode);
   const drawdownRateText = trendStats?.drawdownRate == null
     ? ''
     : signedPct(trendStats.drawdownRate, 1);
@@ -271,7 +285,24 @@ function PnlSparkline({ points, color, emptyText, startDate, endDate, currencyMo
     ? ''
     : `${Math.abs(toNumber(trendStats.givebackRate) * 100).toFixed(1)}%`;
   const showPeakCallout = Boolean(chart.peakPoint && chart.currentPoint);
-  const peakCalloutOnRight = Boolean(chart.peakPoint && chart.peakPoint.x > 260);
+  const peakCalloutOnRight = Boolean(chart.peakPoint && chart.peakPoint.x > chart.plotRight - 100);
+
+  React.useEffect(() => {
+    const viewport = chartViewportRef.current;
+    if (!viewport) return undefined;
+    const updateWidth = () => {
+      const width = viewport.getBoundingClientRect().width;
+      if (width > 0) setChartWidth((current) => Math.abs(current - width) < 0.5 ? current : width);
+    };
+    updateWidth();
+    const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(updateWidth) : null;
+    observer?.observe(viewport);
+    window.addEventListener('resize', updateWidth);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('resize', updateWidth);
+    };
+  }, []);
 
   React.useEffect(() => {
     setSelection(null);
@@ -307,7 +338,7 @@ function PnlSparkline({ points, color, emptyText, startDate, endDate, currencyMo
     if (!chart.points.length) return;
     const rect = event.currentTarget.getBoundingClientRect();
     if (!rect.width) return;
-    const x = ((event.clientX - rect.left) / rect.width) * 320;
+    const x = ((event.clientX - rect.left) / rect.width) * chart.width;
     let nextIndex = 0;
     let nextDistance = Number.POSITIVE_INFINITY;
     chart.points.forEach((point, index) => {
@@ -323,7 +354,7 @@ function PnlSparkline({ points, color, emptyText, startDate, endDate, currencyMo
         : { type: 'point', index: nextIndex }
     ));
     keepSelectedPointVisible();
-  }, [chart.points, keepSelectedPointVisible]);
+  }, [chart.points, chart.width, keepSelectedPointVisible]);
 
   const handlePointerDown = React.useCallback((event) => {
     if (event.isPrimary === false) return;
@@ -346,23 +377,24 @@ function PnlSparkline({ points, color, emptyText, startDate, endDate, currencyMo
   }, []);
 
   return (
-    <div ref={chartRootRef} className="relative">
+    <div ref={chartRootRef} className="stock-detail-pnl-chart">
       <div
-        className="relative mt-2 h-[218px] select-none"
+        ref={chartViewportRef}
+        className="stock-detail-pnl-viewport"
         data-stock-detail-pnl-chart="true"
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={finishPointerTracking}
         onPointerCancel={finishPointerTracking}
         onLostPointerCapture={finishPointerTracking}
-        style={{ touchAction: 'pan-y' }}
+        style={{ touchAction: 'pan-y', height: PNL_CHART_GEOMETRY.height }}
       >
         {!chart.path && (
-          <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-white/[0.02] text-[12px] text-white/[0.32]">
+          <div className="stock-detail-pnl-empty">
             {emptyText}
           </div>
         )}
-        <svg viewBox="0 0 320 186" className="h-full w-full overflow-visible">
+        <svg viewBox={`0 0 ${chart.width} ${chart.height}`} preserveAspectRatio="none" className="stock-detail-pnl-svg" aria-label={t(language, 'stockDetail.totalPnl', '累计盈亏')}>
           <defs>
             <style>
               {`
@@ -394,9 +426,9 @@ function PnlSparkline({ points, color, emptyText, startDate, endDate, currencyMo
               `}
             </style>
             <linearGradient id="stockDetailPnlArea" x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0%" stopColor="#f6b54b" stopOpacity="0.22" />
-              <stop offset="58%" stopColor="#f6b54b" stopOpacity="0.07" />
-              <stop offset="100%" stopColor="#f6b54b" stopOpacity="0.01" />
+              <stop offset="0%" stopColor={color} stopOpacity="0.15" />
+              <stop offset="58%" stopColor={color} stopOpacity="0.04" />
+              <stop offset="100%" stopColor={color} stopOpacity="0" />
             </linearGradient>
             <filter id="stockDetailPnlGlow" x="-18%" y="-60%" width="136%" height="220%">
               <feGaussianBlur stdDeviation="0.45" result="coloredBlur" />
@@ -407,15 +439,15 @@ function PnlSparkline({ points, color, emptyText, startDate, endDate, currencyMo
             </filter>
           </defs>
           {chart.yLines.map((y) => (
-            <line key={y} x1="42" y1={y} x2="304" y2={y} stroke="rgba(255,255,255,0.075)" strokeDasharray="4 6" />
+            <line key={y} x1={chart.plotLeft} y1={y} x2={chart.plotRight} y2={y} stroke="rgba(255,255,255,0.065)" />
           ))}
           {chart.ticks.map((tick) => (
-            <text key={`${tick.y}-${tick.value}`} x="0" y={Math.min(150, Math.max(16, tick.y + 3))} fontSize="9" fill="rgba(255,255,255,0.34)">
+            <text key={`${tick.y}-${tick.value}`} x="0" y={Math.min(chart.plotBottom + 4, Math.max(chart.plotTop, tick.y + 4))} fontSize="11" fill="#74747e">
               {formatAxisMoney(tick.value, currencyMode)}
             </text>
           ))}
           {chart.areaPath && <path d={chart.areaPath} fill="url(#stockDetailPnlArea)" />}
-          {chart.path && <path d={chart.path} fill="none" stroke={color} strokeWidth="1.15" strokeLinecap="round" strokeLinejoin="round" filter="url(#stockDetailPnlGlow)" />}
+          {chart.path && <path d={chart.path} fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" filter="url(#stockDetailPnlGlow)" />}
           {showPeakCallout && (
             <>
               <circle
@@ -423,16 +455,16 @@ function PnlSparkline({ points, color, emptyText, startDate, endDate, currencyMo
                 cx={chart.peakPoint.x}
                 cy={chart.peakPoint.y}
                 r="7"
-                fill="#f6b54b"
+                fill={peakPointColor}
                 pointerEvents="none"
               />
-              <circle cx={chart.peakPoint.x} cy={chart.peakPoint.y} r="3.6" fill="#ffd18a" stroke="#05070b" strokeWidth="1.4" />
+              <circle cx={chart.peakPoint.x} cy={chart.peakPoint.y} r="3.6" fill={peakPointColor} stroke="#08090b" strokeWidth="1.4" />
               <text
                 x={peakCalloutOnRight ? chart.peakPoint.x - 5 : chart.peakPoint.x + 4}
                 y={Math.max(12, chart.peakPoint.y - 9)}
                 textAnchor={peakCalloutOnRight ? 'end' : 'start'}
-                fontSize="9"
-                fill="rgba(255,255,255,0.50)"
+                fontSize="11"
+                fill={peakPointColor}
               >
                 {t(language, 'stockDetail.peakLabel', '峰值')} {peakText}
               </text>
@@ -442,79 +474,79 @@ function PnlSparkline({ points, color, emptyText, startDate, endDate, currencyMo
             <>
               <line
                 x1={selectedPoint.x}
-                y1="16"
+                y1={chart.plotTop}
                 x2={selectedPoint.x}
-                y2="150"
+                y2={chart.plotBottom}
                 stroke="rgba(255,255,255,0.24)"
                 strokeDasharray="4 5"
               />
-              <circle cx={selectedPoint.x} cy={selectedPoint.y} r="10" fill="#f6b54b" opacity="0.13" />
-              <circle cx={selectedPoint.x} cy={selectedPoint.y} r="5" fill="#05070b" stroke="#ffd18a" strokeWidth="1.6" />
+              <circle cx={selectedPoint.x} cy={selectedPoint.y} r="10" fill={selectedPointColor} opacity="0.13" />
+              <circle cx={selectedPoint.x} cy={selectedPoint.y} r="5" fill="#08090b" stroke={selectedPointColor} strokeWidth="1.6" />
             </>
           )}
-          <text x="42" y="180" fontSize="9" fill="rgba(255,255,255,0.36)">{first}</text>
-          <text x="172" y="180" textAnchor="middle" fontSize="9" fill="rgba(255,255,255,0.36)">{middle}</text>
-          <text x="304" y="180" textAnchor="end" fontSize="9" fill="rgba(255,255,255,0.36)">{last}</text>
+          <text x={chart.plotLeft} y={chart.height - 5} fontSize="11" fill="#74747e">{first}</text>
+          <text x={(chart.plotLeft + chart.plotRight) / 2} y={chart.height - 5} textAnchor="middle" fontSize="11" fill="#74747e">{middle}</text>
+          <text x={chart.plotRight} y={chart.height - 5} textAnchor="end" fontSize="11" fill="#74747e">{last}</text>
         </svg>
         {selectedPoint && (
           <div
-            className="pointer-events-none absolute z-10 w-[206px] rounded-xl border border-white/10 bg-[#121821]/95 px-3 py-2.5 text-left shadow-xl backdrop-blur"
+            className="stock-detail-pnl-tooltip"
+            data-stock-detail-pnl-tooltip="true"
             style={{
+              width: tooltipWidth,
               left: selectedPointLeft,
               top: selectedPointTop,
             }}
           >
             <div
               key={`stock-detail-tooltip-date-${selectedPoint.date}`}
-              className="whitespace-nowrap text-[11px] leading-4 tabular-nums text-white/[0.72]"
+              className="stock-detail-pnl-tooltip-date"
               data-stock-detail-tooltip-date={selectedPoint.date}
             >
               {displayDate(selectedPoint.date)}
             </div>
-            <div className="mt-1 grid grid-cols-[58px_1fr] gap-x-2 gap-y-1 text-[11px] leading-4">
-              <span className="text-white/[0.42]">{t(language, 'stockDetail.totalPnl', '累计盈亏')}</span>
-              <span className="whitespace-nowrap text-right font-semibold tabular-nums" style={{ color: selectedPointColor, fontFamily: NUMBER_FONT }}>{signedCurrency(selectedPoint.value, currencyMode, 2)}</span>
-              <span className="text-white/[0.42]">{t(language, 'stockDetail.dailyPnl', '当日盈亏')}</span>
-              <span className={`whitespace-nowrap text-right tabular-nums ${selectedPoint.point.dailyPnlUsd == null ? 'text-white/[0.34]' : marketTextClass(selectedPoint.point.dailyPnlUsd, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
+            <div className="stock-detail-pnl-tooltip-readings">
+              <span className="stock-detail-pnl-tooltip-label">{t(language, 'stockDetail.totalPnl', '累计盈亏')}</span>
+              <span className="stock-detail-pnl-tooltip-value" style={{ color: selectedPointColor, fontFamily: NUMBER_FONT }}>{signedCurrency(selectedPoint.value, currencyMode, 2)}</span>
+              <span className="stock-detail-pnl-tooltip-label">{t(language, 'stockDetail.dailyPnl', '当日盈亏')}</span>
+              <span className={`stock-detail-pnl-tooltip-value ${selectedPoint.point.dailyPnlUsd == null ? 'text-white/[0.34]' : marketTextClass(selectedPoint.point.dailyPnlUsd, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
                 {selectedPoint.point.dailyPnlUsd == null ? '--' : signedCurrency(selectedPoint.point.dailyPnlUsd * displayRate, currencyMode, 2)}
               </span>
-              <span className="text-white/[0.42]">{t(language, 'stockDetail.returnRate', '收益率')}</span>
-              <span className="whitespace-nowrap text-right tabular-nums text-[#ffd18a]" style={{ fontFamily: NUMBER_FONT }}>{signedPct(selectedPoint.point.returnPct, 2)}</span>
-              <span className="text-white/[0.42]">{t(language, 'stockDetail.marketValue', '持仓市值')}</span>
-              <span className="whitespace-nowrap text-right tabular-nums text-white/[0.82]" style={{ fontFamily: NUMBER_FONT }}>{currency(selectedPoint.point.marketValueUsd * displayRate, currencyMode, 2)}</span>
-              <span className="text-white/[0.42]">{t(language, 'stockDetail.closePrice', '收盘价')}</span>
-              <span className="whitespace-nowrap text-right tabular-nums text-white/[0.82]" style={{ fontFamily: NUMBER_FONT }}>${fmt(selectedPoint.point.closePriceUsd, 2)}</span>
+              <span className="stock-detail-pnl-tooltip-label">{t(language, 'stockDetail.returnRate', '收益率')}</span>
+              <span className={`stock-detail-pnl-tooltip-value ${selectedPoint.point.returnPct == null ? 'text-white/[0.34]' : marketTextClass(selectedPoint.point.returnPct, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>{signedPct(selectedPoint.point.returnPct, 2)}</span>
+              <span className="stock-detail-pnl-tooltip-label">{t(language, 'stockDetail.marketValue', '持仓市值')}</span>
+              <span className="stock-detail-pnl-tooltip-value" style={{ fontFamily: NUMBER_FONT }}>{currency(selectedPoint.point.marketValueUsd * displayRate, currencyMode, 2)}</span>
+              <span className="stock-detail-pnl-tooltip-label">{t(language, 'stockDetail.closePrice', '收盘价')}</span>
+              <span className="stock-detail-pnl-tooltip-value" style={{ fontFamily: NUMBER_FONT }}>${fmt(selectedPoint.point.closePriceUsd, 2)}</span>
             </div>
           </div>
         )}
       </div>
-      <div className="mt-3 border-t border-white/[0.06] pt-3">
-        <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-          <div className="flex min-w-0 items-baseline gap-1.5">
-            <span className="shrink-0 text-[11px] text-white/[0.36]">{t(language, 'stockDetail.peak', '峰值')}</span>
-            <span className={`min-w-0 truncate text-[16px] font-normal tabular-nums ${peakMetricClass}`} style={{ fontFamily: NUMBER_FONT }}>
+      <div className="stock-detail-pnl-metrics" data-stock-detail-pnl-metrics="true">
+          <div className="stock-detail-pnl-metric">
+            <span className="stock-detail-pnl-metric-label">{t(language, 'stockDetail.peak', '峰值')}</span>
+            <span className={`stock-detail-pnl-metric-value ${peakMetricClass}`} style={{ fontFamily: NUMBER_FONT }}>
               {peakMetricText}
             </span>
           </div>
-          <div className="flex min-w-0 items-baseline gap-1.5">
-            <span className="shrink-0 text-[11px] text-white/[0.36]">{t(language, 'stockDetail.maxGiveback', '最大回吐')}</span>
-            <span className={`min-w-0 truncate text-[16px] font-normal tabular-nums ${marketTextClass(toNumber(maxGivebackUsd || 0), marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
+          <div className="stock-detail-pnl-metric">
+            <span className="stock-detail-pnl-metric-label">{t(language, 'stockDetail.maxGiveback', '最大回吐')}</span>
+            <span className={`stock-detail-pnl-metric-value ${maxGivebackUsd == null ? 'text-white/[0.34]' : marketTextClass(toNumber(maxGivebackUsd), marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
               {maxGivebackText}
             </span>
           </div>
-          <div className="flex min-w-0 items-baseline gap-1.5">
-            <span className="shrink-0 text-[11px] text-white/[0.36]">{t(language, 'stockDetail.drawdownRate', '回撤率')}</span>
-            <span className={`min-w-0 truncate text-[15px] font-normal tabular-nums ${marketTextClass(toNumber(trendStats?.drawdownRate || 0), marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
+          <div className="stock-detail-pnl-metric">
+            <span className="stock-detail-pnl-metric-label">{t(language, 'stockDetail.drawdownRate', '回撤率')}</span>
+            <span className={`stock-detail-pnl-metric-value ${trendStats?.drawdownRate == null ? 'text-white/[0.34]' : marketTextClass(toNumber(trendStats.drawdownRate), marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
               {drawdownRateText || '--'}
             </span>
           </div>
-          <div className="flex min-w-0 items-baseline gap-1.5">
-            <span className="shrink-0 text-[11px] text-white/[0.36]">{t(language, 'stockDetail.givebackRate', '回吐率')}</span>
-            <span className={`min-w-0 truncate text-[15px] font-normal tabular-nums ${marketTextClass(toNumber(maxGivebackUsd || 0), marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
+          <div className="stock-detail-pnl-metric">
+            <span className="stock-detail-pnl-metric-label">{t(language, 'stockDetail.givebackRate', '回吐率')}</span>
+            <span className={`stock-detail-pnl-metric-value ${trendStats?.givebackRate == null ? 'text-white/[0.34]' : marketTextClass(toNumber(maxGivebackUsd || 0), marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
               {givebackRateText || '--'}
             </span>
           </div>
-        </div>
       </div>
     </div>
   );
@@ -780,76 +812,71 @@ export default function StockDetailPage({ ctx = {} }) {
   };
 
   return (
-    <main className="mx-auto min-h-screen w-full max-w-[430px] bg-[#05070b] pb-[calc(env(safe-area-inset-bottom)+86px)] text-white/[0.72]" style={{ fontFamily: PAGE_FONT }}>
-      <header className="sticky top-0 z-20 -mx-4 border-b border-white/10 bg-[#05070b]/90 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+10px)] backdrop-blur-xl">
-        <div className="flex items-center justify-between gap-3">
+    <main className="stock-detail-report" style={{ fontFamily: PAGE_FONT }}>
+      <header className="sdp-header">
           <button
             type="button"
             onClick={closeStockDetail}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-white/[0.72] transition active:scale-95"
+            className="sdp-back"
             aria-label={t(language, 'stockDetail.back', '返回')}
           >
             <ArrowLeft className="h-5 w-5" />
           </button>
-          <div className="min-w-0 flex-1 text-center">
-            <h1 className="truncate text-[17px] font-semibold leading-tight text-white/[0.78]">
-              {view.symbol || '--'} {displayName && displayName !== view.symbol ? displayName : ''}
-            </h1>
-            <div className="mt-0.5 text-[11px] text-white/[0.34]">
+            <h1>
               {t(language, 'stockDetail.subtitle', '个股收益详情')}
-            </div>
-          </div>
-          <div className="h-9 w-9 shrink-0" aria-hidden="true" />
-        </div>
-        <div className="mt-4 grid grid-cols-5 gap-4">
+            </h1>
+          <span className="sdp-header-currency">{displayCurrency}</span>
+      </header>
+
+      <nav className="sdp-ranges" aria-label={language === 'en' ? 'Return period' : '收益区间'}>
           {rangeItems.map(([id, label]) => (
             <RangePill key={id} active={range === id} onClick={() => setRange(id)}>
               {label}
             </RangePill>
           ))}
-        </div>
-      </header>
+      </nav>
 
       <section
-        className="mt-3 overflow-hidden rounded-2xl border border-white/10 bg-[#0b0c0e] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
+        className="sdp-summary"
         data-stock-detail-summary-card="true"
       >
-        <div className="relative">
-          <div className={`flex items-center gap-1.5 text-[12px] ${DETAIL_HEADING_CLASS}`}>
-            <span>{t(language, 'stockDetail.totalPnl', '累计盈亏')} ({displayCurrency})</span>
-            <Info className="h-3.5 w-3.5 text-white/[0.28]" />
+          <div className="sdp-identity">
+            <StockLogo symbol={symbol} urls={targetLogoUrls} onLogoLoad={cacheStockLogo} className="sdp-logo" />
+            <div>
+              <div className="sdp-symbol">{view.symbol || '--'}</div>
+              <div className="sdp-company">{displayName && displayName !== view.symbol ? displayName : ''}</div>
+            </div>
           </div>
-          <div className="mt-3 text-[30px] font-semibold leading-none tracking-normal tabular-nums" style={{ color: totalColor, fontFamily: NUMBER_FONT }}>
+          <div className="sdp-pnl-label">{t(language, 'stockDetail.totalPnl', '累计盈亏')}</div>
+          <div className="sdp-total" data-stock-detail-total-pnl style={{ color: totalColor, fontFamily: NUMBER_FONT }}>
             {totalValue == null ? '--' : signedCurrency(totalValue, displayCurrency, 2)}
           </div>
-          <div className={`mt-2 text-[14px] font-semibold tabular-nums ${view.periodPnlPct == null ? 'text-white/[0.32]' : marketTextClass(view.periodPnlUsd || 0, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
+          <div className={`sdp-total-percent ${view.periodPnlPct == null ? 'text-white/[0.32]' : marketTextClass(view.periodPnlUsd || 0, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
             {signedPct(view.periodPnlPct, 2)}
           </div>
-          <div className={`mt-1 text-[12px] ${DETAIL_LABEL_CLASS}`}>{view.startDate} - {view.endDate}</div>
+          <div className="sdp-period">{view.startDate} — {view.endDate}</div>
 
-          <div className="mt-4 grid grid-cols-2 border-t border-white/[0.06] pt-3">
+          <div className="sdp-pnl-breakdown">
             <StatCell
               label={t(language, 'stockDetail.realizedPnl', '已实现盈亏')}
-              value={signedCurrency(view.realizedPnlUsd * displayRate, displayCurrency, 2)}
+              value={view.hasData ? signedCurrency(view.realizedPnlUsd * displayRate, displayCurrency, 2) : '--'}
               valueClass={marketTextClass(view.realizedPnlUsd, marketColorMode)}
             />
             <StatCell
               label={t(language, 'stockDetail.unrealizedPnl', '未实现盈亏')}
-              value={signedCurrency(view.unrealizedPnlUsd * displayRate, displayCurrency, 2)}
+              value={view.hasData ? signedCurrency(view.unrealizedPnlUsd * displayRate, displayCurrency, 2) : '--'}
               valueClass={marketTextClass(view.unrealizedPnlUsd, marketColorMode)}
             />
           </div>
-          <div className="mt-3 grid grid-cols-2 border-t border-white/[0.06] pt-3">
+          <div className="sdp-holding-facts">
             <StatCell
               label={t(language, 'stockDetail.heldShares', '持仓数量')}
-              value={`${fmt(view.heldShares, 0)} ${t(language, 'stockDetail.shares', '股')}`}
+              value={view.hasData ? `${fmt(view.heldShares, 0)} ${t(language, 'stockDetail.shares', '股')}` : '--'}
             />
             <StatCell
               label={t(language, 'stockDetail.avgCost', '会计平均成本')}
-              value={view.avgCostUsd > 0 ? fmt(view.avgCostUsd, 3) : '--'}
+              value={view.avgCostUsd > 0 ? `$${fmt(view.avgCostUsd, 3)}` : '--'}
             />
-          </div>
-          <div className="mt-3 grid grid-cols-2 border-t border-white/[0.06] pt-3">
             <StatCell
               label={t(language, 'stockDetail.holdingDays', '持仓天数')}
               value={view.holdingDays != null ? `${fmt(view.holdingDays, 0)} ${t(language, 'stockDetail.days', '天')}` : '--'}
@@ -859,74 +886,6 @@ export default function StockDetailPage({ ctx = {} }) {
               value={view.holdingStartDate ? displayDate(view.holdingStartDate) : '--'}
             />
           </div>
-
-          <button
-            type="button"
-            data-stock-detail-target-plan="true"
-            onClick={() => {
-              if (!targetEditable) return;
-              setTargetSaveError(false);
-              setShowTargetEditor(true);
-            }}
-            disabled={!targetEditable}
-            className="-mx-4 -mb-4 mt-4 block w-[calc(100%+2rem)] border-t border-white/[0.07] bg-[radial-gradient(circle_at_8%_4%,rgba(246,181,75,0.055),transparent_38%)] px-4 py-4 text-left disabled:cursor-default"
-            aria-label={t(language, 'watchlistDetail.editTargetAria', '编辑 {{symbol}} 目标价', { symbol })}
-          >
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <span className="text-[12px] text-white/[0.50]">
-                  {t(language, 'watchlistDetail.singleTargetPrice', '单一目标价（{{currency}}）', { currency: 'USD' })}
-                </span>
-                <span className="rounded-md border border-[#f6b54b]/15 bg-[#f6b54b]/[0.055] px-1.5 py-0.5 text-[10px] text-[#f6b54b]/75">
-                  {t(language, 'watchlistDetail.personalPlan', '个人计划')}
-                </span>
-              </div>
-              <ChevronRight className={`h-4 w-4 ${targetEditable ? 'text-white/[0.26]' : 'text-transparent'}`} />
-            </div>
-
-            <div className="mt-2 grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3">
-              <div className="whitespace-nowrap text-[27px] font-normal leading-none text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
-                {targetPriceUsd === null ? '--' : currency(targetPriceUsd, 'USD', 2)}
-              </div>
-              <div className="pb-0.5 text-right">
-                <div className="text-[12px] text-white/[0.50]">{t(language, 'watchlistDetail.targetSpace', '距目标空间')}</div>
-                <div
-                  className="mt-1 whitespace-nowrap text-[16px] font-normal tabular-nums"
-                  style={{
-                    color: targetGap === null ? 'rgba(255,255,255,0.32)' : marketHexColor(targetGap, marketColorMode),
-                    fontFamily: NUMBER_FONT,
-                  }}
-                >
-                  {signedPercentValue(targetGap)}
-                </div>
-              </div>
-            </div>
-
-            <div className="relative mt-5 h-1.5 rounded-full bg-gradient-to-r from-[#36c49a] via-[#f6b54b] to-[#ff4b1f]">
-              <span
-                className="absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-[#f6b54b] shadow-[0_0_11px_rgba(246,181,75,0.55)]"
-                style={{ left: `${targetProgressPosition}%`, opacity: targetProgress === null ? 0.35 : 1 }}
-              />
-            </div>
-            <div className="mt-2 grid grid-cols-3 text-[11px] text-white/[0.40]">
-              <span className="whitespace-nowrap">
-                {t(language, 'watchlistDetail.cost', '成本 {{price}}', { price: view.avgCostUsd > 0 ? currency(view.avgCostUsd, 'USD', 2) : '--' })}
-              </span>
-              <span className="whitespace-nowrap text-center text-[#f6b54b]/75">
-                {t(language, 'watchlistDetail.current', '当前 {{price}}', { price: view.currentPriceUsd > 0 ? currency(view.currentPriceUsd, 'USD', 2) : '--' })}
-              </span>
-              <span className="whitespace-nowrap text-right">
-                {t(language, 'watchlistDetail.target', '目标 {{price}}', { price: targetPriceUsd === null ? '--' : currency(targetPriceUsd, 'USD', 2) })}
-              </span>
-            </div>
-            <div className="mt-3 text-right text-[12px] text-white/[0.50]">
-              {t(language, 'watchlistDetail.costToTargetProgress', '成本至目标已完成')}
-              <span className="ml-1 text-white/[0.58] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
-                {targetProgress === null ? '--' : `${targetProgress.toFixed(1)}%`}
-              </span>
-            </div>
-          </button>
-        </div>
       </section>
 
       {showTargetEditor && targetEditable ? (
@@ -949,17 +908,16 @@ export default function StockDetailPage({ ctx = {} }) {
       ) : null}
 
       <section
-        className="mt-3 rounded-2xl border border-white/10 bg-[#0b0c0e] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
+        className="sdp-section sdp-trend"
         data-stock-detail-pnl-trend-card="true"
       >
-        <div className="flex items-center gap-1.5">
-          <h2 className={`text-[13px] font-semibold ${DETAIL_HEADING_CLASS}`}>{t(language, 'stockDetail.pnlTrend', '收益走势')}</h2>
-          <Info className="h-3.5 w-3.5 text-white/[0.28]" />
+        <div className="sdp-section-heading">
+          <h2>{t(language, 'stockDetail.pnlTrend', '收益走势')}</h2>
+          <span>{compactRangeLabel}</span>
         </div>
-        <div className="mt-2 text-[12px] text-[#ffd18a]">{t(language, 'stockDetail.myPnlLine', '我的收益线')}</div>
         <PnlSparkline
           points={view.trend.map((point) => ({ ...point, pnlUsd: point.pnlUsd * displayRate }))}
-          color="#f6b54b"
+          color={totalColor}
           emptyText={loading ? t(language, 'stockDetail.loading', '正在读取快照') : t(language, 'stockDetail.noTrend', '暂无足够快照')}
           startDate={view.axisStartDate}
           endDate={view.axisEndDate}
@@ -986,9 +944,55 @@ export default function StockDetailPage({ ctx = {} }) {
         visualPreview={stockReturnComparisonVisualPreview}
       />
 
-      <section className="mt-3 rounded-2xl border border-white/10 bg-[#0b0c0e] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-        <h2 className={`text-[13px] font-semibold ${DETAIL_HEADING_CLASS}`}>{t(language, 'stockDetail.tradeStats', '交易统计')}</h2>
-        <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-4">
+      <section className="sdp-section sdp-target-section">
+        <button
+          type="button"
+          data-stock-detail-target-plan="true"
+          onClick={() => {
+            if (!targetEditable) return;
+            setTargetSaveError(false);
+            setShowTargetEditor(true);
+          }}
+          disabled={!targetEditable}
+          className="sdp-target-plan"
+          aria-label={t(language, 'watchlistDetail.editTargetAria', '编辑 {{symbol}} 目标价', { symbol })}
+        >
+          <div className="sdp-section-heading">
+            <h2>{t(language, 'watchlistDetail.personalPlan', '个人计划')}</h2>
+            <ChevronRight className={`h-4 w-4 ${targetEditable ? 'text-white/[0.40]' : 'text-transparent'}`} />
+          </div>
+          <div className="sdp-target-numbers">
+            <div>
+              <div className="sdp-stat-label">{t(language, 'watchlistDetail.singleTargetPrice', '单一目标价（{{currency}}）', { currency: 'USD' })}</div>
+              <div className="sdp-target-price" style={{ fontFamily: NUMBER_FONT }}>
+                {targetPriceUsd === null ? '--' : currency(targetPriceUsd, 'USD', 2)}
+              </div>
+            </div>
+            <div className="sdp-target-gap">
+              <div className="sdp-stat-label">{t(language, 'watchlistDetail.targetSpace', '距目标空间')}</div>
+              <div className="sdp-target-percent" style={{ color: targetGap === null ? '#85858d' : marketHexColor(targetGap, marketColorMode), fontFamily: NUMBER_FONT }}>
+                {signedPercentValue(targetGap)}
+              </div>
+            </div>
+          </div>
+          <div className="sdp-target-track">
+            <span style={{ left: `${targetProgressPosition}%`, opacity: targetProgress === null ? 0.35 : 1 }} />
+          </div>
+          <div className="sdp-target-references">
+            <span>{t(language, 'watchlistDetail.cost', '成本 {{price}}', { price: view.avgCostUsd > 0 ? currency(view.avgCostUsd, 'USD', 2) : '--' })}</span>
+            <span>{t(language, 'watchlistDetail.current', '当前 {{price}}', { price: view.currentPriceUsd > 0 ? currency(view.currentPriceUsd, 'USD', 2) : '--' })}</span>
+            <span>{t(language, 'watchlistDetail.target', '目标 {{price}}', { price: targetPriceUsd === null ? '--' : currency(targetPriceUsd, 'USD', 2) })}</span>
+          </div>
+          <div className="sdp-target-progress">
+            {t(language, 'watchlistDetail.costToTargetProgress', '成本至目标已完成')}
+            <span>{targetProgress === null ? '--' : `${targetProgress.toFixed(1)}%`}</span>
+          </div>
+        </button>
+      </section>
+
+      <section className="sdp-section" data-stock-detail-trade-stats="true">
+        <div className="sdp-section-heading"><h2>{t(language, 'stockDetail.tradeStats', '交易统计')}</h2></div>
+        <div className="sdp-trade-stats">
           <StatCell label={t(language, 'stockDetail.buyAmount', '买入金额')} value={currency(view.stats.buyAmountUsd * displayRate, displayCurrency, 2)} />
           <StatCell label={t(language, 'stockDetail.sellAmount', '卖出金额')} value={currency(view.stats.sellAmountUsd * displayRate, displayCurrency, 2)} />
           <StatCell label={t(language, 'stockDetail.buyCount', '买入次数')} value={`${view.stats.buyCount} ${t(language, 'stockDetail.tradesCount', '笔')}`} />
@@ -996,50 +1000,48 @@ export default function StockDetailPage({ ctx = {} }) {
         </div>
       </section>
 
-      <section className="mt-3 rounded-2xl border border-white/10 bg-[#0b0c0e] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-        <div className="flex items-center justify-between">
-          <h2 className={`text-[13px] font-semibold ${DETAIL_HEADING_CLASS}`}>{t(language, 'stockDetail.tradeRecords', '交易记录')}</h2>
-          <span className="text-[11px] text-white/[0.34]">{compactRangeLabel}</span>
+      <section className="sdp-section" data-stock-detail-records="true">
+        <div className="sdp-section-heading">
+          <h2>{t(language, 'stockDetail.tradeRecords', '交易记录')}</h2>
+          <span>{compactRangeLabel}</span>
         </div>
         {view.tradeRecords.length === 0 ? (
-          <div className="mt-4">
-            <div className="py-8 text-center text-[12px] text-white/[0.34]">
+          <div className="sdp-empty">
               {t(language, 'stockDetail.noTrades', '当前周期暂无交易记录')}
-            </div>
           </div>
         ) : (
           <div
-            className="stock-detail-trade-records-scroll mt-4 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            className="stock-detail-trade-records-scroll"
             data-pull-refresh-block="true"
             style={{ WebkitOverflowScrolling: 'touch' }}
           >
-            <div className="min-w-[560px]">
-              <div className="grid grid-cols-[96px_112px_158px_158px] gap-3 border-b border-white/[0.06] pb-2 text-[11px] text-white/[0.30]">
-                <span className="whitespace-nowrap">{t(language, 'stockDetail.dateAction', '日期 / 操作')}</span>
-                <span className="whitespace-nowrap text-right">{t(language, 'stockDetail.qtyPrice', '数量 / 价格')}</span>
-                <span className="whitespace-nowrap text-right">{t(language, 'stockDetail.amount', '成交额')}</span>
-                <span className="whitespace-nowrap text-right">{t(language, 'stockDetail.realized', '实现盈亏')}</span>
+            <div className="sdp-records-table" role="table" aria-label={t(language, 'stockDetail.tradeRecords', '交易记录')}>
+              <div className="sdp-record-head sdp-record-row" role="row">
+                <span className="sdp-record-date" role="columnheader">{t(language, 'stockDetail.dateAction', '日期 / 操作')}</span>
+                <span role="columnheader">{t(language, 'stockDetail.qtyPrice', '数量 / 价格')}</span>
+                <span role="columnheader">{t(language, 'stockDetail.amount', '成交额')}</span>
+                <span role="columnheader">{t(language, 'stockDetail.realized', '实现盈亏')}</span>
               </div>
-              <div className="divide-y divide-white/[0.06]">
+              <div role="rowgroup">
                 {view.tradeRecords.map((record) => {
                   const isSell = record.side === 'sell';
                   const realizedValue = record.realizedPnlUsd == null ? null : record.realizedPnlUsd * displayRate;
                   return (
-                    <div key={`${record.id || record.date}-${record.side}-${record.shares}`} className="grid grid-cols-[96px_112px_158px_158px] gap-3 py-3">
-                      <div className="min-w-0">
-                        <div className={`whitespace-nowrap text-[12px] tabular-nums ${DETAIL_MUTED_VALUE_CLASS}`} style={{ fontFamily: NUMBER_FONT }}>{displayDate(record.date)}</div>
-                        <div className={`mt-1 text-[13px] font-normal ${isSell ? marketTextClass(-1, marketColorMode) : marketTextClass(1, marketColorMode)}`}>
+                    <div key={`${record.id || record.date}-${record.side}-${record.shares}`} className="sdp-record-row" role="row">
+                      <div className="sdp-record-date" role="cell">
+                        <div className={DETAIL_MUTED_VALUE_CLASS} style={{ fontFamily: NUMBER_FONT }}>{displayDate(record.date)}</div>
+                        <div className={`sdp-record-secondary ${isSell ? marketTextClass(-1, marketColorMode) : marketTextClass(1, marketColorMode)}`}>
                           {sideLabel(language, record.side)}
                         </div>
                       </div>
-                      <div className="text-right">
-                        <div className={`whitespace-nowrap text-[13px] ${DETAIL_MUTED_VALUE_CLASS} tabular-nums`} style={{ fontFamily: NUMBER_FONT }}>{fmt(record.shares, 0)} {t(language, 'stockDetail.shares', '股')}</div>
-                        <div className="mt-1 whitespace-nowrap text-[11px] text-white/[0.30] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>@ {fmt(record.price, 2)}</div>
+                      <div role="cell">
+                        <div className={DETAIL_MUTED_VALUE_CLASS} style={{ fontFamily: NUMBER_FONT }}>{fmt(record.shares, 0)} {t(language, 'stockDetail.shares', '股')}</div>
+                        <div className="sdp-record-secondary sdp-record-price" style={{ fontFamily: NUMBER_FONT }}>@ ${fmt(record.price, 2)}</div>
                       </div>
-                      <div className={`whitespace-nowrap text-right text-[13px] ${DETAIL_MUTED_VALUE_CLASS} tabular-nums`} style={{ fontFamily: NUMBER_FONT }}>
+                      <div className={DETAIL_MUTED_VALUE_CLASS} role="cell" style={{ fontFamily: NUMBER_FONT }}>
                         {currency(record.amountUsd * displayRate, displayCurrency, 2)}
                       </div>
-                      <div className={`whitespace-nowrap text-right text-[13px] tabular-nums ${realizedValue == null ? 'text-white/[0.34]' : marketTextClass(realizedValue, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
+                      <div className={realizedValue == null ? 'text-white/[0.34]' : marketTextClass(realizedValue, marketColorMode)} role="cell" style={{ fontFamily: NUMBER_FONT }}>
                         {realizedValue == null ? '--' : signedCurrency(realizedValue, displayCurrency, 2)}
                       </div>
                     </div>
@@ -1052,7 +1054,7 @@ export default function StockDetailPage({ ctx = {} }) {
       </section>
 
       {(error || (!view.hasData && !loading)) && (
-        <div className="mt-3 rounded-2xl border border-dashed border-white/10 bg-white/[0.035] p-4 text-[12px] leading-5 text-white/[0.38]">
+        <div className="sdp-status" role="status">
           {error || t(language, 'stockDetail.noSnapshotNotice', '暂无该股票收盘快照。页面只读取已有快照和交易账本,不会使用假数据替代。')}
         </div>
       )}
