@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '✨ 自选管理与融资测算统一新版视觉',
+      '  - 添加、编辑自选采用简约黑灰弹窗，搜索、行情和操作层次更清晰',
+      '  - 自选支持把手拖拽排序与边缘滚动，松手保存，保留置顶与删除确认',
+      '  - 融资情景优先展示净资产变化，统一余额编辑与杠杆说明，原有测算口径不变',
+    ],
+    itemsEn: [
+      '✨ Unified watchlist management and margin scenario design',
+      '  - Minimal monochrome add and edit dialogs with clearer search, quotes and actions',
+      '  - Drag handles and list-edge scrolling reorder stocks on release, retaining pinning and delete confirmation',
+      '  - Margin scenarios prioritize net asset changes with matching balance and leverage dialogs; calculations are unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.505', date: '2026-09-10',
+    items: [
       '📊 修复盘前今日盈亏的收盘锁定切换',
       '  - 旧成交和乱序行情不再倒退当前交易时段或覆盖较新的价格',
       '  - 独立保留已确认收盘价与日期基准，避免延迟刷新混入旧数据',

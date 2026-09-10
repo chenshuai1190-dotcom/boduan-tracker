@@ -42,6 +42,7 @@ const earningsCalendarRefreshSource = readFileSync(new URL('../src/lib/earningsC
 const earningsReactionDisplaySource = readFileSync(new URL('../src/lib/earningsReactionDisplay.js', import.meta.url), 'utf8');
 const homeTabSource = readFileSync(new URL('../src/tabs/HomeTab.jsx', import.meta.url), 'utf8');
 const homeTabCss = readFileSync(new URL('../src/tabs/HomeTab.css', import.meta.url), 'utf8');
+const homeWatchlistDialogsCss = readFileSync(new URL('../src/tabs/HomeWatchlistDialogs.css', import.meta.url), 'utf8');
 const homeWatchlistSource = readFileSync(new URL('../src/components/HomeWatchlistReport.jsx', import.meta.url), 'utf8');
 const homeWatchlistCss = readFileSync(new URL('../src/components/HomeWatchlistReport.css', import.meta.url), 'utf8');
 const homeEarningsCss = readFileSync(new URL('../src/tabs/EarningsCalendarReport.css', import.meta.url), 'utf8');
@@ -1169,14 +1170,27 @@ test('stock detail page is read-only and separate from trade editing', () => {
 });
 
 test('home watchlist dialogs and add success notice use normal weights', () => {
-  assert.ok(homeTabSource.includes(`<h3 className="text-[17px] font-normal text-white">{t(language, 'home.addWatchlistStock', '添加自选股票')}</h3>`), 'add watchlist title should not be bold');
-  assert.ok(homeTabSource.includes(`<h3 className="text-[17px] font-normal text-white">{t(language, 'home.editWatchlistStock', '编辑自选股票')}</h3>`), 'edit watchlist title should not be bold');
-  assert.ok(homeTabSource.includes('bg-transparent text-sm font-normal text-white'), 'watchlist search fields should use normal weight');
-  assert.ok(homeTabSource.includes('text-[12px] font-normal text-[#f6b54b]'), 'popular filter chip should not be bold');
-  assert.ok(homeTabSource.includes('mt-4 flex shrink-0 items-start gap-2 text-[12px] font-normal text-white/55'), 'popular stocks section title should not be bold');
-  assert.ok(homeTabSource.includes('<span className="text-[14px] font-normal text-white">{symbol}</span>'), 'watchlist ticker codes should not be bold');
+  assert.ok(homeTabSource.includes("import StockReportModal from '../components/StockReportModal.jsx';"), 'watchlist dialogs should reuse the shared report modal');
+  assert.ok(homeTabSource.includes("import './HomeWatchlistDialogs.css';"), 'watchlist dialog presentation should stay scoped');
+  const dialogs = [...homeTabSource.matchAll(/<StockReportModal\b([\s\S]*?)>/g)].map((match) => match[1]);
+  for (const [key, label, close, variant] of [
+    ['addWatchlistStock', '添加自选股票', 'closeAddStockSheet', 'add'],
+    ['editWatchlistStock', '编辑自选股票', 'closeEditWatchlist', 'edit'],
+  ]) {
+    const dialog = dialogs.find((props) => props.includes(`title={t(language, 'home.${key}', '${label}')}`));
+    assert.ok(dialog, `${variant} watchlist should use the shared modal title`);
+    assert.ok(dialog.includes(`onClose={${close}}`), `${variant} watchlist should retain its existing close guard`);
+    assert.ok(dialog.includes(`panelClassName="watchlist-dialog watchlist-dialog-${variant}"`), `${variant} watchlist should use the scoped dialog presentation`);
+  }
+  for (const selector of ['.watchlist-dialog .srm-title', '.watchlist-search-input', '.watchlist-discovery-tab', '.watchlist-list-heading', '.watchlist-symbol']) {
+    const rule = [...homeWatchlistDialogsCss.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+      .find(([, selectors]) => selectors.split(',').some((candidate) => candidate.trim() === selector));
+    assert.ok(rule, `${selector} needs a scoped style`);
+    assert.match(rule[2], /font-weight:\s*400\s*;/, `${selector} should use normal weight`);
+  }
+  assert.match(homeWatchlistDialogsCss, /\.watchlist-discovery-tab\[aria-pressed="true"\]\s*\{[^}]*background:\s*#28292c;[^}]*color:\s*#e5e5ea;/, 'selected discovery tabs should use the neutral report palette');
+  assert.match(homeTabSource, /\{canAddCustomStock\s*&&\s*\(\s*<button\b[^>]*onClick=\{\(\) => handleAddStock\(\{ symbol: normalizedSearch, name: newStock\.name \|\| normalizedSearch \}\)\}[^>]*className="watchlist-custom-row"/, 'custom tickers should retain their eligible add row and original callback');
   assert.ok(homeTabSource.includes('<span className="block text-[14px] font-normal text-white">{normalizedSearch}</span>'), 'custom ticker code should not be bold');
-  assert.ok(homeTabSource.includes('mt-4 flex h-12 w-full shrink-0 items-center justify-center gap-2 rounded-xl border border-[#f6b54b]/70 bg-transparent text-[14px] font-normal text-[#f6b54b]'), 'add custom stock button should not be bold');
   assert.ok(homeTabSource.includes('title={addStockNotice.title}'), 'add success title should use the shared normal-weight modal title');
   assert.ok(homeTabSource.includes("{ key: 'close', label: t(language, 'home.gotIt', '知道了')"), 'add success acknowledge action should use the shared neutral button');
   assert.equal(homeTabSource.includes('text-[17px] font-black text-white">{t(language, \'home.addWatchlistStock\''), false, 'add watchlist title should not keep the old font-black class');
@@ -1189,8 +1203,9 @@ test('home watchlist dialogs and add success notice use normal weights', () => {
   assert.ok(popularStocksSource.includes("symbol: 'PANW'"), 'popular stock candidates should cover more than the old eight fixed rows');
   assert.ok(homeTabSource.includes("if (!showAddStock || !isWatchlistTab || typeof fetchPopularStockQuotes !== 'function') return undefined;"), 'popular quote loading must be gated by the add-stock modal being open');
   assert.ok(homeTabSource.includes('fetchPopularStockQuotes(POPULAR_US_STOCKS.map((item) => item.symbol))'), 'popular quote loading should only request the modal candidate pool');
-  assert.ok(homeTabSource.includes(') : isAdded ? (\n                            <Minus className="h-4 w-4" />'), 'already-added popular stocks should show a minus icon instead of a plus icon');
-  assert.ok(homeTabSource.includes('disabled={isAdded || isAddingStock}'), 'the already-added minus icon should remain non-interactive');
+  assert.match(homeTabSource, /isAdded\s*\?\s*\(\s*<Check\b/, 'already-added discovery stocks should show a check mark');
+  assert.ok(homeTabSource.includes('data-added={isAdded}'), 'already-added discovery stocks should expose their visual state');
+  assert.ok(homeTabSource.includes('disabled={isAdded || isAddingStock}'), 'already-added discovery stocks should remain non-interactive');
   assert.ok(appSource.includes("t(language, 'home.stockNotFound', '未找到这个美股代码,暂不能添加')"), 'unknown or non-US tickers should be rejected with a user-facing message');
   assert.ok(appSource.includes("!fresh || fresh.error || !(Number(fresh.price) > 0) || fresh.priceSource !== 'EODHD-v2'"), 'watchlist add should reject non-stock quote rows and rows without a valid positive price');
   assert.equal(appSource.includes('console.warn(`[添加自选 ${symbol}] 行情预拉取失败:`, e.message);\n    }\n    const price = parseFloat(draft.price) || fresh?.price || 0;'), false, 'watchlist add should not continue after quote validation failure');
@@ -1213,7 +1228,7 @@ test('add-watchlist discovery exposes real close-only market mover lists', () =>
   assert.ok(homeTabSource.includes("t(language, 'home.marketMoversUniverse'"), 'market movers should disclose the ordinary-stock universe');
   assert.ok(i18nSource.includes("'home.marketMoversUniverse': 'NASDAQ / NYSE / NYSE American 普通股'"), 'Chinese mode should disclose the exact common-stock venue scope');
   assert.ok(i18nSource.includes("'home.marketMoversUniverse': 'NASDAQ / NYSE / NYSE American common stocks'"), 'English mode should disclose the exact common-stock venue scope');
-  assert.ok(homeTabSource.includes('englishMode ? (isMarketMoversTab ? item.name : item.symbol) : item.name'), 'English mover rows should show the company name without changing the popular-list subtitle');
+  assert.ok(homeTabSource.includes('englishMode ? (item.company || item.name) : item.name'), 'English discovery rows should show the company name with the existing name fallback');
   assert.ok(i18nSource.includes("'home.marketGainers': 'Top Gainers'"), 'English mode should translate the gainers tab');
   assert.ok(i18nSource.includes("'home.marketMoversUnavailable': 'Market movers unavailable'"), 'English mode should translate the unavailable state');
   assert.ok(devVisualPreviewSource.includes("source: 'dev-visual-preview'"), 'local iOS visual QA may use an explicitly preview-only, real-shaped fixture');
@@ -1659,7 +1674,7 @@ test('language framework covers settings switch, bottom nav, home page, and stoc
   assert.match(homeWatchlistCss, /--hwr-columns:\s*minmax\(0, 1fr\)/, 'English names should have a shrinkable identity column instead of widening the page');
   assert.match(homeWatchlistCss, /\.hwr-company\s*\{[^}]*[\s\S]*?text-overflow:\s*ellipsis;/, 'company names should truncate without clipping financial values');
   assert.ok(homeTabSource.includes('row.name || quote?.name, language'), 'home table rows should pass language into stock display names');
-  assert.ok(homeTabSource.includes('englishMode ? (isMarketMoversTab ? item.name : item.symbol) : item.name'), 'popular stock subtitle should keep ticker abbreviations in English mode while mover rows show company names');
+  assert.ok(homeTabSource.includes('englishMode ? (item.company || item.name) : item.name'), 'watchlist subtitle should use the English company name below its separate ticker');
   assert.ok(tradesTabSource.includes("import { isEnglishLanguage, t } from '../lib/i18n.js';"), 'Trades tab should use the i18n helper');
   assert.ok(tradesTabSource.includes("const englishMode = isEnglishLanguage(language);"), 'Trades tab should keep user-authored notes in their original language');
   assert.ok(tradesTabSource.includes("displayStockName(symbol, name, language)"), 'Trades tab should pass language into stock display names');

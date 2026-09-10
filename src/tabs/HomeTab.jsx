@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowDown, ArrowUp, ArrowUpDown, Check, ChevronRight, Flame, LockKeyhole, Minus, Pencil, Pin, Plus, Search, Trash2, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, Check, ChevronRight, Flame, GripVertical, LockKeyhole, Pencil, Pin, Plus, Search, Trash2, X } from 'lucide-react';
 import { splitCurrencyAmount } from '../lib/amountDisplay.js';
 import { createBtcPlaceholderMarketCard, isBtcMarketCard } from '../lib/btcRealtime.js';
 import {
@@ -16,11 +16,14 @@ import { POPULAR_US_STOCKS, POPULAR_US_STOCK_SYMBOLS } from '../lib/popularStock
 import { stockLogoCandidates } from '../lib/stockLogo.js';
 import { deriveHomeMarginOverview, homeMarginLeverageStatus, normalizeMarginDebtUsd } from '../lib/homeMarginRisk.js';
 import ActionModalCard from '../components/ActionModalCard.jsx';
+import StockReportModal from '../components/StockReportModal.jsx';
+import { useWatchlistReorder } from '../components/useWatchlistReorder.js';
 import AccountLeverageBadge from '../components/AccountLeverageBadge.jsx';
 import AvailableCashEditor from '../components/AvailableCashEditor.jsx';
 import EarningsCalendar from './EarningsCalendar.jsx';
 import HomeWatchlistReport from '../components/HomeWatchlistReport.jsx';
 import './HomeTab.css';
+import './HomeWatchlistDialogs.css';
 
 const PORTFOLIO_CURRENCY_STORAGE_KEY = 'xmoney_portfolio_currency';
 const HOME_CURRENCY_STORAGE_KEY = 'xmoney_home_currency';
@@ -657,7 +660,7 @@ export default function HomeTab({ ctx }) {
     resetNewStock();
   };
   const closeEditWatchlist = () => {
-    if (editActionKey) return;
+    if (editActionKey || watchlistReorder.draggingSymbol || watchlistReorder.isReordering) return;
     setShowEditWatchlist(false);
     setEditWatchlistSearch('');
     setPendingDeleteSymbol(null);
@@ -809,6 +812,31 @@ export default function HomeTab({ ctx }) {
     }
     setEditActionKey(null);
   };
+
+  const watchlistReorder = useWatchlistReorder({
+    rows: editWatchlistRows,
+    disabled: !showEditWatchlist || Boolean(editSearchKey || editActionKey || pendingDeleteSymbol),
+    onReorder: async (orderedRows) => {
+      if (editActionKey) return { success: false };
+      // Only reorder current source objects; never save enriched or stale quote rows.
+      const sourceRows = new Map((watchlist || []).map((row) => [String(row.symbol).toUpperCase(), row]));
+      const next = orderedRows.map((row) => sourceRows.get(row.symbol));
+      if (next.length !== sourceRows.size || next.some((row) => !row) || new Set(next).size !== sourceRows.size) return { success: false };
+      setEditActionKey('watchlist:drag');
+      setEditNotice(null);
+      try {
+        const result = await reorderWatchlist(next);
+        if (!result?.success) throw new Error(result?.error || t(language, 'home.saveFailed', '保存失败'));
+        setEditNotice({ type: 'success', title: t(language, 'home.sortSaved', '排序已保存'), desc: englishMode ? 'Watchlist order updated' : '自选顺序已更新' });
+        return result;
+      } catch (error) {
+        setEditNotice({ type: 'error', title: t(language, 'home.saveFailed', '保存失败'), desc: error?.message || t(language, 'home.saveFailed', '保存失败') });
+        return { success: false };
+      } finally {
+        setEditActionKey(null);
+      }
+    },
+  });
 
   return (
     <div className="home-report mx-auto max-w-[430px] flex flex-col pb-2 text-white" style={{ fontFamily: HOME_FONT }}>
@@ -1078,26 +1106,13 @@ export default function HomeTab({ ctx }) {
       />
 
       {showAddStock && isWatchlistTab && (
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center overflow-hidden bg-black/70 px-3 py-[calc(env(safe-area-inset-top)+0.75rem)] pb-[calc(env(safe-area-inset-bottom)+0.75rem)] backdrop-blur-[2px]"
-          onClick={(event) => {
-            if (event.target === event.currentTarget) closeAddStockSheet();
-          }}
+        <StockReportModal
+          title={t(language, 'home.addWatchlistStock', '添加自选股票')}
+          closeLabel={englishMode ? 'Close add stocks' : '关闭添加自选'}
+          onClose={closeAddStockSheet}
+          panelClassName="watchlist-dialog watchlist-dialog-add"
         >
-          <div className="flex max-h-[min(76dvh,620px)] w-full max-w-[400px] flex-col rounded-[22px] border border-white/10 bg-[#0b0f14] p-4 shadow-[0_24px_58px_rgba(0,0,0,0.62),inset_0_1px_0_rgba(255,255,255,0.06)]">
-            <div className="mb-4 flex shrink-0 items-center justify-between">
-              <h3 className="text-[17px] font-normal text-white">{t(language, 'home.addWatchlistStock', '添加自选股票')}</h3>
-              <button
-                type="button"
-                onClick={closeAddStockSheet}
-                disabled={isAddingStock}
-                className="flex h-8 w-8 items-center justify-center rounded-full bg-white/[0.08] text-white/55 active:scale-95 disabled:opacity-40"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            <label className="flex h-12 shrink-0 items-center gap-2 rounded-xl border border-white/10 bg-black/30 px-3 text-white/70 focus-within:border-[#f6b54b]/70">
+            <label className="watchlist-search">
               <Search className="h-4 w-4 shrink-0 text-white/35" />
               <input
                 value={stockSearch}
@@ -1110,15 +1125,18 @@ export default function HomeTab({ ctx }) {
                 autoCapitalize="characters"
                 autoCorrect="off"
                 spellCheck={false}
-                className="min-w-0 flex-1 bg-transparent text-sm font-normal text-white outline-none placeholder:text-white/25"
+                aria-label={t(language, 'home.searchStock', '搜索股票名称或代码')}
+                className="watchlist-search-input"
               />
+              {stockSearch && <button type="button" onClick={() => setStockSearch('')} aria-label={englishMode ? 'Clear search' : '清空搜索'}><X size={15} /></button>}
             </label>
 
-            <div className="mt-3 flex shrink-0 gap-2">
+            <div className="watchlist-discovery-tabs" aria-label={englishMode ? 'Discover stocks' : '发现股票'}>
               <button
                 type="button"
                 onClick={() => setStockDiscoveryTab('trending')}
-                className={`flex h-9 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg border px-2 text-[12px] font-normal active:scale-[0.98] ${stockDiscoveryTab === 'trending' ? 'border-[#f6b54b]/60 bg-[#f6b54b]/10 text-[#f6b54b]' : 'border-white/10 bg-white/[0.05] text-white/55'}`}
+                className="watchlist-discovery-tab"
+                aria-pressed={stockDiscoveryTab === 'trending'}
               >
                 <Flame className="h-3.5 w-3.5 shrink-0" />
                 <span className="truncate">{t(language, 'home.trending', '热门')}</span>
@@ -1126,7 +1144,8 @@ export default function HomeTab({ ctx }) {
               <button
                 type="button"
                 onClick={() => setStockDiscoveryTab('gainers')}
-                className={`flex h-9 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg border px-2 text-[12px] font-normal active:scale-[0.98] ${stockDiscoveryTab === 'gainers' ? 'border-[#f6b54b]/60 bg-[#f6b54b]/10 text-[#f6b54b]' : 'border-white/10 bg-white/[0.05] text-white/55'}`}
+                className="watchlist-discovery-tab"
+                aria-pressed={stockDiscoveryTab === 'gainers'}
               >
                 <ArrowUp className="h-3.5 w-3.5 shrink-0" />
                 <span className="truncate">{t(language, 'home.marketGainers', '涨幅榜')}</span>
@@ -1134,14 +1153,15 @@ export default function HomeTab({ ctx }) {
               <button
                 type="button"
                 onClick={() => setStockDiscoveryTab('losers')}
-                className={`flex h-9 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg border px-2 text-[12px] font-normal active:scale-[0.98] ${stockDiscoveryTab === 'losers' ? 'border-[#f6b54b]/60 bg-[#f6b54b]/10 text-[#f6b54b]' : 'border-white/10 bg-white/[0.05] text-white/55'}`}
+                className="watchlist-discovery-tab"
+                aria-pressed={stockDiscoveryTab === 'losers'}
               >
                 <ArrowDown className="h-3.5 w-3.5 shrink-0" />
                 <span className="truncate">{t(language, 'home.marketLosers', '跌幅榜')}</span>
               </button>
             </div>
 
-            <div className="mt-4 flex shrink-0 items-start gap-2 text-[12px] font-normal text-white/55">
+            <div className="watchlist-list-heading">
               <span className="shrink-0 leading-4">
                 {normalizedSearch
                   ? t(language, 'home.searchResults', '搜索结果')
@@ -1165,7 +1185,7 @@ export default function HomeTab({ ctx }) {
               ) : null}
             </div>
 
-            <div className="mt-2 min-h-[160px] flex-1 overflow-y-auto overscroll-contain rounded-xl border border-white/[0.06] bg-white/[0.025]">
+            <div className="watchlist-scroll-list" aria-busy={isAddingStock}>
               {isMarketMoversTab && !normalizedSearch && marketMoversStatus === 'loading' ? (
                 <div className="flex min-h-[160px] items-center justify-center gap-2 px-4 text-[13px] text-white/35">
                   {Loader2 ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : null}
@@ -1197,20 +1217,17 @@ export default function HomeTab({ ctx }) {
                     const color = marketColor(quote?.changePercent, marketColorMode);
                     const logoUrls = stockLogoCandidates(symbol, item?.logo, quote?.logo, logoCache?.[symbol]?.url);
                     return (
-                      <div key={`${stockDiscoveryTab}-${symbol}`} className="flex min-h-[61px] items-center gap-3 border-b border-white/[0.06] px-3 py-2 last:border-b-0">
-                        <StockLogo symbol={symbol} urls={logoUrls} onLogoLoad={cacheStockLogo} className="h-9 w-9 rounded-lg" />
+                      <div key={`${stockDiscoveryTab}-${symbol}`} className="watchlist-discovery-row">
+                        <StockLogo symbol={symbol} urls={logoUrls} onLogoLoad={cacheStockLogo} className="watchlist-logo" />
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-baseline gap-1.5">
-                            <span className="text-[14px] font-normal text-white">{symbol}</span>
-                            <span className="truncate text-[12px] font-normal text-white/55">{englishMode ? (isMarketMoversTab ? item.name : item.symbol) : item.name}</span>
-                          </div>
-                          <div className="mt-0.5 truncate text-[11px] text-white/35">{item.company}</div>
+                          <div className="watchlist-symbol">{symbol}</div>
+                          <div className="watchlist-company">{englishMode ? (item.company || item.name) : item.name}</div>
                         </div>
-                        <div className="w-[74px] text-right">
-                          <div className="text-[13px] font-semibold tabular-nums text-white/78" style={{ fontFamily: NUMBER_FONT }}>
+                        <div className="watchlist-quote">
+                          <div className="watchlist-price" style={{ fontFamily: NUMBER_FONT }}>
                             {quotePrice ? fmtMoney(quotePrice, 2) : '--'}
                           </div>
-                          <div className="mt-0.5 text-[12px] font-semibold tabular-nums" style={{ color, fontFamily: NUMBER_FONT }}>
+                          <div className="watchlist-change" style={{ color, fontFamily: NUMBER_FONT }}>
                             {hasFiniteMarketValue(quote?.changePercent) ? fmtMarketPct(quote.changePercent) : '--'}
                           </div>
                         </div>
@@ -1218,17 +1235,14 @@ export default function HomeTab({ ctx }) {
                           type="button"
                           disabled={isAdded || isAddingStock}
                           onClick={() => handleAddStock({ symbol, name: item.name })}
-                          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border active:scale-95 disabled:active:scale-100 ${
-                            isAdded
-                              ? 'border-white/10 bg-white/[0.04] text-white/25'
-                              : 'border-[#f6b54b]/70 bg-[#f6b54b]/10 text-[#f6b54b]'
-                          }`}
+                          className="watchlist-add-button"
+                          data-added={isAdded}
                           aria-label={isAdded ? t(language, 'home.alreadyAdded', '{{symbol}} 已添加', { symbol }) : t(language, 'home.addSymbol', '添加 {{symbol}}', { symbol })}
                         >
                           {addingStockSymbol === symbol && Loader2 ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
                           ) : isAdded ? (
-                            <Minus className="h-4 w-4" />
+                            <Check className="h-4 w-4" />
                           ) : (
                             <Plus className="h-4 w-4" />
                           )}
@@ -1241,14 +1255,14 @@ export default function HomeTab({ ctx }) {
                       type="button"
                       disabled={isAddingStock}
                       onClick={() => handleAddStock({ symbol: normalizedSearch, name: newStock.name || normalizedSearch })}
-                      className="flex min-h-[58px] w-full items-center gap-3 px-3 py-2 text-left active:bg-white/[0.04] disabled:opacity-50"
+                      className="watchlist-custom-row"
                     >
-                      <LogoPlaceholder symbol={normalizedSearch} className="h-9 w-9 rounded-lg" />
+                      <LogoPlaceholder symbol={normalizedSearch} className="watchlist-logo" />
                       <span className="min-w-0 flex-1">
                         <span className="block text-[14px] font-normal text-white">{normalizedSearch}</span>
                         <span className="block truncate text-[11px] text-white/35">{t(language, 'home.addCustomTicker', '添加自定义股票代码')}</span>
                       </span>
-                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#f6b54b]/70 bg-[#f6b54b]/10 text-[#f6b54b]">
+                      <span className="watchlist-add-button">
                         {addingStockSymbol === normalizedSearch && Loader2 ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
@@ -1261,50 +1275,17 @@ export default function HomeTab({ ctx }) {
               )}
             </div>
 
-            <button
-              type="button"
-              disabled={!canAddCustomStock || isAddingStock}
-              onClick={() => handleAddStock({ symbol: normalizedSearch, name: newStock.name || normalizedSearch })}
-              className="mt-4 flex h-12 w-full shrink-0 items-center justify-center gap-2 rounded-xl border border-[#f6b54b]/70 bg-transparent text-[14px] font-normal text-[#f6b54b] active:scale-[0.99] disabled:border-white/10 disabled:text-white/25"
-            >
-              {isAddingStock && Loader2 ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-              {isAddingStock ? t(language, 'home.adding', '添加中...') : (normalizedSearch ? t(language, 'home.addSymbol', '添加 {{symbol}}', { symbol: normalizedSearch }) : t(language, 'home.addCustomStock', '添加自定义股票'))}
-            </button>
-          </div>
-        </div>
+        </StockReportModal>
       )}
 
       {showEditWatchlist && isWatchlistTab && (
-        <div
-          className="fixed inset-0 z-[110] flex items-center justify-center overflow-hidden bg-black/70 px-3 py-[calc(env(safe-area-inset-top)+0.75rem)] pb-[calc(env(safe-area-inset-bottom)+0.75rem)] backdrop-blur-[2px]"
-          onClick={(event) => {
-            if (event.target === event.currentTarget) closeEditWatchlist();
-          }}
+        <StockReportModal
+          title={t(language, 'home.editWatchlistStock', '编辑自选股票')}
+          closeLabel={englishMode ? 'Close edit watchlist' : '关闭编辑自选'}
+          onClose={closeEditWatchlist}
+          panelClassName="watchlist-dialog watchlist-dialog-edit"
         >
-          <div className="flex max-h-[min(78dvh,650px)] w-full max-w-[400px] flex-col rounded-[22px] border border-white/10 bg-[#0b0f14] p-4 shadow-[0_24px_58px_rgba(0,0,0,0.62),inset_0_1px_0_rgba(255,255,255,0.06)]">
-            <div className="mb-4 flex shrink-0 items-center justify-between">
-              <h3 className="text-[17px] font-normal text-white">{t(language, 'home.editWatchlistStock', '编辑自选股票')}</h3>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={closeEditWatchlist}
-                  disabled={Boolean(editActionKey)}
-                  className="h-8 rounded-full px-3 text-[12px] font-normal text-[#f6b54b] active:scale-95 disabled:opacity-40"
-                >
-                  {t(language, 'home.done', '完成')}
-                </button>
-                <button
-                  type="button"
-                  onClick={closeEditWatchlist}
-                  disabled={Boolean(editActionKey)}
-                  className="flex h-8 w-8 items-center justify-center rounded-full bg-white/[0.08] text-white/55 active:scale-95 disabled:opacity-40"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-
-            <label className="flex h-11 shrink-0 items-center gap-2 rounded-xl border border-white/10 bg-black/30 px-3 text-white/70 focus-within:border-[#f6b54b]/70">
+            <label className="watchlist-search">
               <Search className="h-4 w-4 shrink-0 text-white/35" />
               <input
                 value={editWatchlistSearch}
@@ -1317,46 +1298,46 @@ export default function HomeTab({ ctx }) {
                 autoCapitalize="characters"
                 autoCorrect="off"
                 spellCheck={false}
-                className="min-w-0 flex-1 bg-transparent text-sm font-normal text-white outline-none placeholder:text-white/25"
+                aria-label={t(language, 'home.searchStock', '搜索股票名称或代码')}
+                className="watchlist-search-input"
               />
+              {editWatchlistSearch && <button type="button" onClick={() => setEditWatchlistSearch('')} aria-label={englishMode ? 'Clear search' : '清空搜索'}><X size={15} /></button>}
             </label>
 
             {editNotice && (
-              <div className={`mt-3 shrink-0 rounded-xl border px-3 py-2 text-[12px] leading-5 ${
-                editNotice.type === 'success'
-                  ? 'border-emerald-400/25 bg-emerald-400/10 text-emerald-200'
-                  : 'border-rose-400/25 bg-rose-400/10 text-rose-200'
-              }`}>
+              <div className="watchlist-notice" data-status={editNotice.type} role="status">
                 <div className="font-normal">{editNotice.title}</div>
                 <div className="text-white/60">{editNotice.desc}</div>
               </div>
             )}
 
-            <div className="mt-3 shrink-0 text-[12px] font-normal text-white/55">
-              {t(language, 'home.currentWatchlistCount', '当前自选 · {{count}} 只', { count: editWatchlistRows.length })}
+            <div className="watchlist-list-heading">
+              <span>{t(language, 'home.currentWatchlistCount', '当前自选 · {{count}} 只', { count: editWatchlistRows.length })}</span>
+              <span className="watchlist-drag-hint" id="watchlist-drag-hint">
+                {editSearchKey ? (englishMode ? 'Clear search to reorder' : '清空搜索后排序') : (englishMode ? 'Drag to reorder' : '按住拖动排序')}
+              </span>
             </div>
 
-            <div className="mt-2 min-h-[210px] flex-1 overflow-y-auto overscroll-contain rounded-xl border border-white/[0.06] bg-white/[0.025]">
+            <div className="watchlist-scroll-list" ref={watchlistReorder.listRef} aria-busy={Boolean(editActionKey)}>
               {editWatchlistRows.length === 0 ? (
                 <div className="px-4 py-10 text-center text-[13px] text-white/35">{t(language, 'home.noWatchlist', '暂无自选股票。')}</div>
               ) : filteredEditWatchlistRows.length === 0 ? (
                 <div className="px-4 py-10 text-center text-[13px] text-white/35">{t(language, 'home.noMatches', '没有匹配结果')}</div>
               ) : (
-                filteredEditWatchlistRows.map((item) => {
+                (editSearchKey ? filteredEditWatchlistRows : watchlistReorder.orderedRows).map((item) => {
                   const symbol = item.symbol;
                   const fullIndex = editWatchlistRows.findIndex((row) => row.symbol === symbol);
                   const isFirst = fullIndex <= 0;
-                  const isLast = fullIndex === editWatchlistRows.length - 1;
                   const deletePending = pendingDeleteSymbol === symbol;
-                  const busy = Boolean(editActionKey);
+                  const busy = Boolean(editActionKey || watchlistReorder.draggingSymbol || watchlistReorder.isReordering);
                   const rowBusy = editActionKey?.startsWith(`${symbol}:`);
                   return (
-                    <div key={symbol} className="flex min-h-[64px] items-center gap-3 border-b border-white/[0.06] px-3 py-2 last:border-b-0">
-                      <StockLogo symbol={symbol} urls={item.logoUrls} onLogoLoad={cacheStockLogo} className="h-9 w-9 rounded-lg" />
+                    <div key={symbol} className="watchlist-edit-row" data-watchlist-reorder-symbol={symbol} data-dragging={watchlistReorder.draggingSymbol === symbol}>
+                      <StockLogo symbol={symbol} urls={item.logoUrls} onLogoLoad={cacheStockLogo} className="watchlist-logo" />
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-baseline gap-1.5">
-                          <span className="text-[14px] font-normal text-white">{symbol}</span>
-                          <span className="truncate text-[12px] font-normal text-white/55">{item.displayName}</span>
+                        <div className="watchlist-edit-identity">
+                          <span className="watchlist-symbol">{symbol}</span>
+                          <span className="watchlist-company">{item.displayName}</span>
                         </div>
                         <div className="mt-0.5 flex items-center gap-2 text-[11px] text-white/35">
                           <span className="tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
@@ -1367,15 +1348,21 @@ export default function HomeTab({ ctx }) {
                           </span>
                         </div>
                       </div>
+                      <button
+                        {...watchlistReorder.getHandleProps(item)}
+                        className="watchlist-drag-handle"
+                        aria-label={englishMode ? `Reorder ${symbol}, drag or use arrow keys` : `调整 ${symbol} 顺序，拖动或使用上下方向键`}
+                        aria-describedby="watchlist-drag-hint"
+                      ><GripVertical size={20} /></button>
 
                       {deletePending ? (
-                        <div className="flex shrink-0 items-center gap-1.5">
-                          <span className="text-[11px] font-bold text-rose-200">{t(language, 'home.confirmDelete', '确认删除?')}</span>
+                        <div className="watchlist-row-actions watchlist-delete-confirm">
+                          <span>{t(language, 'home.confirmDelete', '确认删除?')}</span>
                           <button
                             type="button"
                             disabled={busy}
                             onClick={() => setPendingDeleteSymbol(null)}
-                            className="h-8 rounded-full border border-white/10 px-2.5 text-[11px] font-bold text-white/55 active:scale-95 disabled:opacity-40"
+                            className="watchlist-text-action"
                           >
                             {t(language, 'home.cancel', '取消')}
                           </button>
@@ -1383,46 +1370,31 @@ export default function HomeTab({ ctx }) {
                             type="button"
                             disabled={busy}
                             onClick={() => confirmDeleteWatchlistItem(symbol)}
-                            className="flex h-8 min-w-[2rem] items-center justify-center rounded-full border border-rose-400/30 bg-rose-400/10 px-2.5 text-[11px] font-black text-rose-200 active:scale-95 disabled:opacity-40"
+                            className="watchlist-text-action watchlist-destructive"
                           >
                             {rowBusy && Loader2 ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : t(language, 'home.delete', '删除')}
                           </button>
                         </div>
                       ) : (
-                        <div className="flex shrink-0 items-center gap-1">
+                        <div className="watchlist-row-actions">
                           <button
                             type="button"
                             disabled={busy || isFirst}
                             onClick={() => moveWatchlistItem(symbol, 'pin')}
-                            className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/55 active:scale-95 disabled:opacity-25"
+                            className="watchlist-text-action watchlist-pin"
                             title={t(language, 'home.pin', '置顶')}
+                            aria-label={`${symbol} ${t(language, 'home.pin', '置顶')}`}
                           >
                             <Pin className="h-3.5 w-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            disabled={busy || isFirst}
-                            onClick={() => moveWatchlistItem(symbol, 'up')}
-                            className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/55 active:scale-95 disabled:opacity-25"
-                            title={t(language, 'home.moveUp', '上移')}
-                          >
-                            <ArrowUp className="h-3.5 w-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            disabled={busy || isLast}
-                            onClick={() => moveWatchlistItem(symbol, 'down')}
-                            className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/55 active:scale-95 disabled:opacity-25"
-                            title={t(language, 'home.moveDown', '下移')}
-                          >
-                            <ArrowDown className="h-3.5 w-3.5" />
+                            <span>{t(language, 'home.pin', '置顶')}</span>
                           </button>
                           <button
                             type="button"
                             disabled={busy}
                             onClick={() => setPendingDeleteSymbol(symbol)}
-                            className="flex h-8 w-8 items-center justify-center rounded-full border border-rose-400/20 bg-rose-400/10 text-rose-200 active:scale-95 disabled:opacity-40"
+                            className="watchlist-icon-action watchlist-remove"
                             title={t(language, 'home.delete', '删除')}
+                            aria-label={`${symbol} ${t(language, 'home.delete', '删除')}`}
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
@@ -1433,8 +1405,7 @@ export default function HomeTab({ ctx }) {
                 })
               )}
             </div>
-          </div>
-        </div>
+        </StockReportModal>
       )}
 
       <AvailableCashEditor

@@ -14,10 +14,11 @@ import {
 import { t } from '../lib/i18n.js';
 import { marketHexColor, marketTextClass } from '../lib/marketColorMode.js';
 import AccountLeverageBadge from '../components/AccountLeverageBadge.jsx';
+import './HomeMarginRiskPage.css';
 
 const NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif';
 const SCENARIO_PRESETS = [-40, -20, -10, 10, 20, 40];
-const NEUTRAL_SCENARIO_COLOR = '#8d96a3';
+const NEUTRAL_SCENARIO_COLOR = '#929298';
 const LEVERAGE_TIER_DESCRIPTION = Object.freeze({
   none: ['home.leverageTier.noneDesc', '全部为自有权益'],
   low: ['home.leverageTier.lowDesc', '少量融资'],
@@ -81,9 +82,9 @@ function formatLeverage(value) {
 
 function Metric({ label, value }) {
   return (
-    <div className="min-w-0 px-1 text-center">
-      <div className="text-[13px] text-white/50">{label}</div>
-      <div className="mt-1 truncate text-[12px] font-medium text-white/[0.82] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{value}</div>
+    <div className="margin-report-metric">
+      <div className="margin-report-label">{label}</div>
+      <div className="margin-report-metric-value" style={{ fontFamily: NUMBER_FONT }}>{value}</div>
     </div>
   );
 }
@@ -115,7 +116,7 @@ function InfiniteScenarioSlider({ language, value, color, onChange }) {
 
   return (
     <div
-      className="mt-3 w-full select-none rounded-2xl border border-white/[0.07] bg-white/[0.025] px-3 pb-2 pt-2"
+      className="margin-report-slider select-none"
       style={{ WebkitUserSelect: 'none', WebkitTouchCallout: 'none' }}
     >
       <div
@@ -209,12 +210,12 @@ function InfiniteScenarioSlider({ language, value, color, onChange }) {
           }}
         />
       </div>
-      <div className="mt-1 grid grid-cols-[1fr_auto_1fr] items-center gap-2 text-[10px] text-white/30">
+      <div className="margin-report-slider-labels">
         <span>{t(language, 'home.marginDownsideFloor', '下跌最低 -100%')}</span>
         <button
           type="button"
           onClick={() => commitValue(0)}
-          className="h-[22px] min-w-10 rounded-full border border-white/[0.09] bg-white/[0.035] px-2 text-[10px] text-white/50 active:scale-95"
+          className="margin-report-reset"
         >
           {t(language, 'home.marginScenarioReset', '归零')}
         </button>
@@ -387,40 +388,38 @@ export default function HomeMarginRiskPage({ ctx = {} }) {
 
   return (
     <main
-      className="mx-auto min-h-screen w-full max-w-[430px] bg-[#05070b] pb-[calc(env(safe-area-inset-bottom)+28px)] text-white/[0.86]"
+      className="margin-report-page mx-auto min-h-screen w-full pb-[calc(env(safe-area-inset-bottom)+28px)]"
       style={{ fontFamily: NUMBER_FONT }}
       data-home-margin-risk-page="true"
     >
-      <header className="sticky top-0 z-20 -mx-4 border-b border-white/10 bg-[#05070b]/88 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+4px)] backdrop-blur-xl">
-        <div className="grid grid-cols-[64px_1fr_64px] items-center">
+      <header className="margin-report-header sticky top-0 z-20">
+        <div className="margin-report-header-row">
           <button
             type="button"
             onClick={onClose}
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-white/[0.72] transition active:scale-95"
+            className="margin-report-back"
             aria-label={t(language, 'home.closeMarginRisk', '返回首页')}
           >
             <ArrowLeft className="h-5 w-5" />
           </button>
-          <div className="text-center">
-            <h1 className="text-[17px] font-semibold leading-tight text-white/[0.86]">{t(language, 'home.marginRisk', '融资情景测算')}</h1>
-          </div>
+          <h1>{t(language, 'home.marginRisk', '融资情景测算')}</h1>
           <button
             type="button"
             disabled={!assetStatusReady}
             onClick={openEditor}
-            className="justify-self-end rounded-full px-1 py-2 text-[11px] text-[#f6b54b] active:bg-[#f6b54b]/10 disabled:opacity-35"
+            className="margin-report-text-action"
           >
             {t(language, 'home.setMarginBalance', '设置余额')}
           </button>
         </div>
       </header>
 
-      <section className="pb-6 pt-5" data-home-margin-risk-content="true">
-        <p className="text-center text-[12px] text-white/50">
+      <section className="margin-report-content" data-home-margin-risk-content="true">
+        <p className="margin-report-subtitle">
           {t(language, 'home.marginRiskSubtitle', '假设全部股票同步涨跌，融资负债保持不变')}
         </p>
 
-          <div className="mt-4 grid grid-cols-4 divide-x divide-white/[0.07] rounded-2xl border border-white/[0.07] bg-white/[0.035] py-3">
+          <div className="margin-report-current" aria-label={language === 'en' ? 'Current account' : '当前账户'}>
             {currentCards.map((card) => (
               card.id === 'account-leverage' ? (
                 <button
@@ -430,7 +429,7 @@ export default function HomeMarginRiskPage({ ctx = {} }) {
                   aria-haspopup="dialog"
                   aria-label={t(language, 'home.leverageInfoOpen', '查看账户杠杆说明')}
                   disabled={!assetStatusReady}
-                  className="min-w-0 active:bg-white/[0.035] disabled:opacity-45"
+                  className="margin-report-leverage-trigger"
                   data-home-margin-leverage-info-trigger="true"
                   onClick={() => {
                     if (assetStatusReady) setShowLeverageGuide(true);
@@ -444,21 +443,22 @@ export default function HomeMarginRiskPage({ ctx = {} }) {
             ))}
           </div>
 
-          <div className="mt-5 flex items-end justify-between">
-            <div className="text-[12px] text-white/50">{t(language, 'home.stockPortfolioMove', '股票组合涨跌')}</div>
-            <div className={`text-[21px] font-medium tabular-nums ${scenarioColorClass}`} style={{ fontFamily: NUMBER_FONT }}>
+        <section className="margin-report-scenario" aria-labelledby="home-margin-scenario-title">
+          <div className="margin-report-scenario-heading">
+            <h2 id="home-margin-scenario-title">{t(language, 'home.stockPortfolioMove', '股票组合涨跌')}</h2>
+            <div className={`margin-report-scenario-value ${scenarioColorClass}`} style={{ fontFamily: NUMBER_FONT }}>
               {formatScenarioPercent(stress.normalizedScenarioPct)}
             </div>
           </div>
-          <div className="mt-3 grid grid-cols-6 gap-1">
+          <div className="margin-report-presets grid grid-cols-6">
             {SCENARIO_PRESETS.map((value) => (
               <button
                 key={value}
                 type="button"
                 onClick={() => setScenarioPct(value)}
-                className={`h-9 rounded-xl border px-0 text-[11px] tabular-nums active:scale-95 ${scenarioPct === value ? '' : 'border-white/[0.08] bg-white/[0.035] text-white/50'}`}
+                aria-pressed={scenarioPct === value}
+                className="margin-report-preset"
                 style={scenarioPct === value ? {
-                  borderColor: `${scenarioColor}66`,
                   backgroundColor: `${scenarioColor}18`,
                   color: scenarioColor,
                 } : undefined}
@@ -473,16 +473,11 @@ export default function HomeMarginRiskPage({ ctx = {} }) {
             color={scenarioColor}
             onChange={setScenarioPct}
           />
+        </section>
 
-          <div className="mt-5 overflow-hidden rounded-2xl border border-white/[0.08] bg-black/15">
+        <section className="margin-report-results" aria-labelledby="home-margin-results-title" data-home-margin-scenario-results="true">
+          <h2 id="home-margin-results-title">{language === 'en' ? 'Scenario results' : '情景测算结果'}</h2>
             {[
-              {
-                key: 'total',
-                label: t(language, 'home.totalAssets', '总资产'),
-                before: stress.totalAssetsUsd,
-                after: stress.stressedTotalAssetsUsd,
-                percent: stress.totalAssetsChangePct,
-              },
               {
                 key: 'net',
                 label: t(language, 'home.netAssets', '净资产'),
@@ -490,11 +485,23 @@ export default function HomeMarginRiskPage({ ctx = {} }) {
                 after: stress.stressedNetAssetsUsd,
                 percent: stress.netAssetsChangePct,
               },
-            ].map((item, index) => (
-              <div key={item.key} className={`px-4 py-3.5 ${index ? 'border-t border-white/[0.07]' : ''}`}>
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-[12px] text-white/65">{item.label}</span>
-                  <span className={`text-right text-[10px] ${scenarioColorClass}`}>
+              {
+                key: 'total',
+                label: t(language, 'home.totalAssets', '总资产'),
+                before: stress.totalAssetsUsd,
+                after: stress.stressedTotalAssetsUsd,
+                percent: stress.totalAssetsChangePct,
+              },
+            ].map((item) => (
+              <div key={item.key} className="margin-report-result" data-home-margin-result={item.key}>
+                <div className="margin-report-result-heading">
+                  <span className="margin-report-label">{item.label}</span>
+                  <span className="margin-report-before">{language === 'en' ? 'Current' : '当前'} {assetStatusReady ? formatMoneyFromUsd(item.before, currency, usdRate, 0) : '—'}</span>
+                </div>
+                <div className={`margin-report-result-value ${scenarioColorClass}`} style={{ fontFamily: NUMBER_FONT }}>
+                  {assetStatusReady ? formatMoneyFromUsd(item.after, currency, usdRate, 0) : '—'}
+                </div>
+                  <div className={`margin-report-result-change ${scenarioColorClass}`}>
                     {t(
                       language,
                       scenarioDirection > 0
@@ -514,36 +521,31 @@ export default function HomeMarginRiskPage({ ctx = {} }) {
                         percent: assetStatusReady ? formatSignedRatioPercent(item.percent) : '—',
                       },
                     )}
-                  </span>
-                </div>
-                <div className="mt-2 flex items-center justify-between gap-2 text-[14px] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
-                  <span className="min-w-0 truncate text-white/48">{assetStatusReady ? formatMoneyFromUsd(item.before, currency, usdRate, 0) : '—'}</span>
-                  <span className="text-white/20">→</span>
-                  <span className={`min-w-0 truncate text-right ${scenarioColorClass}`}>{assetStatusReady ? formatMoneyFromUsd(item.after, currency, usdRate, 0) : '—'}</span>
-                </div>
+                  </div>
               </div>
             ))}
-          </div>
+        </section>
 
-          <div className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-white/[0.03] px-3.5 py-3 text-[12px]">
-            <span className="min-w-0 truncate text-white/40">
+          <div className="margin-report-debt-note">
+            <span>
               {t(language, 'home.marginDebtFixed', '融资负债保持 {{amount}}', {
                 amount: assetStatusReady ? formatMoneyFromUsd(overview.marginDebtUsd, currency, usdRate, 2) : '—',
               })}
             </span>
-            <span className="shrink-0 text-[#ffd18a] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
-              {assetStatusReady ? formatLeverage(overview.leverage) : '—'} → {assetStatusReady ? formatLeverage(stress.stressedLeverage) : '—'}
+            <span className="margin-report-leverage-change">
+              <span>{t(language, 'home.leverage', '杠杆')}</span>
+              <span style={{ fontFamily: NUMBER_FONT }}>{assetStatusReady ? formatLeverage(overview.leverage) : '—'} → {assetStatusReady ? formatLeverage(stress.stressedLeverage) : '—'}</span>
             </span>
           </div>
 
-          <p className="mt-4 text-center text-[11px] leading-4 text-white/40">
+          <p className="margin-report-boundary">
             {t(language, 'home.marginRiskBoundary', '仅用于个人融资情景测算，不影响比赛、收益报表和交易记录。')}
           </p>
       </section>
 
       {showLeverageGuide && assetStatusReady && (
         <div
-          className="fixed inset-0 z-[190] flex items-end justify-center bg-black/[0.72] px-2 pb-2 pt-[calc(env(safe-area-inset-top)+18px)] backdrop-blur-[5px]"
+          className="margin-report-overlay fixed inset-0 z-[190] flex items-end justify-center bg-black/[0.72] px-2 pb-2 pt-[calc(env(safe-area-inset-top)+18px)] backdrop-blur-[5px]"
           role="dialog"
           aria-modal="true"
           aria-labelledby="home-margin-leverage-info-title"
@@ -553,32 +555,30 @@ export default function HomeMarginRiskPage({ ctx = {} }) {
           }}
         >
           <section
-            className="max-h-[82dvh] w-full max-w-[430px] overflow-y-auto overscroll-contain rounded-[28px] border border-white/10 bg-[#0d131b] px-5 pb-5 pt-3 shadow-[0_-28px_80px_rgba(0,0,0,0.68),inset_0_1px_0_rgba(255,255,255,0.06)]"
+            className="margin-report-sheet max-h-[82dvh] w-full max-w-[430px] overflow-y-auto overscroll-contain"
             data-home-margin-leverage-info-sheet="true"
-            style={{ backgroundImage: 'radial-gradient(circle at 76% -12%, rgba(246,181,75,0.09), transparent 38%)' }}
           >
-            <div className="mx-auto h-1 w-10 rounded-full bg-white/30" />
-            <div className="relative mt-3 flex min-h-9 items-center justify-center">
-              <h2 id="home-margin-leverage-info-title" className="text-[17px] font-medium text-white/90">
+            <div className="margin-report-sheet-header">
+              <h2 id="home-margin-leverage-info-title">
                 {t(language, 'home.leverageInfoTitle', '账户杠杆说明')}
               </h2>
               <button
                 type="button"
                 onClick={() => setShowLeverageGuide(false)}
-                className="absolute right-0 flex h-8 w-8 items-center justify-center rounded-full bg-white/[0.07] text-white/[0.55] active:scale-95"
+                className="margin-report-close"
                 aria-label={t(language, 'home.cancel', '关闭')}
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <p className="mt-0.5 text-center text-[12px] text-white/50">
+            <p className="margin-report-subtitle">
               {t(language, 'home.leverageInfoSubtitle', '杠杆越高，市场波动对净资产的放大越明显')}
             </p>
 
-            <div className="mt-4 flex items-center justify-between gap-4 rounded-2xl border border-[#f6b54b]/20 bg-[#f6b54b]/[0.045] px-4 py-3.5">
+            <div className="margin-report-guide-overview">
               <div>
-                <div className="text-[12px] text-white/50">{t(language, 'home.currentLeverage', '当前账户杠杆')}</div>
-                <div className="mt-1 text-[20px] text-white/[0.88] tabular-nums">{formatLeverage(overview.leverage)}</div>
+                <div className="margin-report-label">{t(language, 'home.currentLeverage', '当前账户杠杆')}</div>
+                <div className="margin-report-guide-value">{formatLeverage(overview.leverage)}</div>
               </div>
               <div className="text-right">
                 {leverageStatus && (
@@ -592,19 +592,19 @@ export default function HomeMarginRiskPage({ ctx = {} }) {
               </div>
             </div>
 
-            <div className="mx-2 mt-4 grid grid-cols-[88px_68px_1fr] gap-2 text-[11px] text-white/40">
+            <div className="margin-report-tier-heading">
               <span>{t(language, 'home.leverageRange', '账户杠杆 / 融资占比')}</span>
               <span>{t(language, 'home.leverageState', '状态')}</span>
               <span>{t(language, 'home.leverageDescription', '说明')}</span>
             </div>
-            <div className="mt-2 grid gap-1.5">
+            <div className="margin-report-tier-list">
               {HOME_MARGIN_LEVERAGE_TIERS.map((tier) => {
                 const [descriptionKey, descriptionFallback] = LEVERAGE_TIER_DESCRIPTION[tier.id];
                 const isCurrent = leverageStatus?.id === tier.id;
                 return (
                   <div
                     key={tier.id}
-                    className={`grid min-h-[49px] grid-cols-[88px_68px_1fr] items-center gap-2 rounded-xl border px-3 py-2 ${isCurrent ? 'border-[#f6b54b]/30 bg-[#f6b54b]/[0.065] shadow-[inset_3px_0_0_rgba(246,181,75,0.68)]' : 'border-white/[0.055] bg-white/[0.02]'}`}
+                    className={`margin-report-tier ${isCurrent ? 'is-current' : ''}`}
                     data-home-margin-leverage-tier={tier.id}
                   >
                     <div>
@@ -612,7 +612,7 @@ export default function HomeMarginRiskPage({ ctx = {} }) {
                       <div className="mt-1 whitespace-nowrap text-[11px] text-white/35">{tier.financingShareRange}</div>
                     </div>
                     <AccountLeverageBadge className="min-h-[22px] px-1.5 text-[10px]" language={language} tierId={tier.id} />
-                    <div className="text-[12px] leading-[1.4] text-white/50">
+                    <div className="margin-report-tier-description">
                       {t(language, descriptionKey, descriptionFallback)}
                     </div>
                   </div>
@@ -620,7 +620,7 @@ export default function HomeMarginRiskPage({ ctx = {} }) {
               })}
             </div>
 
-            <div className="mt-3 grid gap-2 rounded-xl bg-white/[0.026] px-3.5 py-3 text-[11px] text-white/40">
+            <div className="margin-report-formulas">
               <div className="flex items-center justify-between gap-3">
                 <span>{t(language, 'home.leverageFormula', '账户杠杆')}</span>
                 <span className="text-white/50">{t(language, 'home.leverageFormulaValue', '总资产 ÷ 净资产')}</span>
@@ -636,7 +636,7 @@ export default function HomeMarginRiskPage({ ctx = {} }) {
 
       {panel === 'editor' && assetStatusReady && (
         <div
-          className="fixed left-0 right-0 top-0 z-[190] flex h-[100dvh] items-end justify-center overflow-hidden bg-black/72 px-2 pb-2 pt-[calc(env(safe-area-inset-top)+18px)] backdrop-blur-[3px]"
+          className="margin-report-overlay fixed left-0 right-0 top-0 z-[190] flex h-[100dvh] items-end justify-center overflow-hidden bg-black/72 px-2 pb-2 pt-[calc(env(safe-area-inset-top)+18px)] backdrop-blur-[3px]"
           style={{
             paddingBottom: 'max(8px, env(safe-area-inset-bottom))',
             ...(visualViewportFrame ? {
@@ -652,29 +652,28 @@ export default function HomeMarginRiskPage({ ctx = {} }) {
           }}
         >
           <section
-            className="max-h-full w-full max-w-[430px] overflow-y-auto overscroll-contain rounded-[28px] border border-white/10 bg-[linear-gradient(165deg,rgba(23,27,34,0.99),rgba(11,15,20,0.995)_66%)] px-5 pb-5 pt-3 shadow-[0_-28px_80px_rgba(0,0,0,0.68),inset_0_1px_0_rgba(255,255,255,0.06)]"
+            className="margin-report-sheet max-h-full w-full max-w-[430px] overflow-y-auto overscroll-contain"
             style={{ scrollPaddingBottom: '96px' }}
             data-home-margin-balance-editor="true"
           >
-          <div className="mx-auto h-1 w-10 rounded-full bg-white/30" />
-          <div className="relative mt-3 flex min-h-9 items-center justify-center">
-            <h2 className="text-[17px] font-medium text-white/90">{t(language, 'home.marginBalance', '设置融资余额')}</h2>
+          <div className="margin-report-sheet-header">
+            <h2>{t(language, 'home.marginBalance', '设置融资余额')}</h2>
             <button
               type="button"
               disabled={saving}
               onClick={closeEditor}
-              className="absolute right-0 flex h-8 w-8 items-center justify-center rounded-full bg-white/[0.07] text-white/55 active:scale-95 disabled:opacity-35"
+              className="margin-report-close"
               aria-label={t(language, 'home.cancel', '取消')}
             >
               <X className="h-4 w-4" />
             </button>
           </div>
-          <p className="mt-0.5 text-center text-[12px] text-white/50">
+          <p className="margin-report-subtitle">
             {t(language, 'home.marginBalanceSubtitle', '只调整个人融资负债，总资产保持不变')}
           </p>
 
-          <div className="mt-5 flex items-center justify-between">
-            <label htmlFor="home-margin-debt-input" className="text-[12px] text-white/50">
+          <div className="margin-report-field-heading">
+            <label htmlFor="home-margin-debt-input" className="margin-report-label">
               {t(language, 'home.marginBalanceLabel', '融资余额（{{currency}}）', { currency })}
             </label>
             <button
@@ -684,13 +683,13 @@ export default function HomeMarginRiskPage({ ctx = {} }) {
                 setDraftDebt('0');
                 setSaveError('');
               }}
-              className="rounded-full border border-white/[0.08] px-2.5 py-1 text-[10px] text-white/48 active:scale-95 disabled:opacity-35"
+              className="margin-report-text-action"
             >
               {t(language, 'home.marginSetZero', '设为 0')}
             </button>
           </div>
-          <div className="mt-2 flex h-14 items-center rounded-2xl border border-[#f6b54b]/35 bg-black/20 px-4 focus-within:border-[#f6b54b]/70">
-            <span className="mr-2 text-[21px] text-[#ffd18a]">{currencySymbol}</span>
+          <div className="margin-report-debt-input">
+            <span>{currencySymbol}</span>
             <input
               id="home-margin-debt-input"
               type="text"
@@ -711,34 +710,34 @@ export default function HomeMarginRiskPage({ ctx = {} }) {
                 const input = event.currentTarget;
                 window.setTimeout(() => input.scrollIntoView({ block: 'center', behavior: 'smooth' }), 180);
               }}
-              className="min-w-0 flex-1 bg-transparent text-[24px] font-medium text-white/90 outline-none tabular-nums disabled:opacity-45"
+              className="margin-report-debt-field"
               style={{ fontFamily: NUMBER_FONT }}
             />
           </div>
 
-          <div className="mt-4 grid grid-cols-3 divide-x divide-white/[0.07] rounded-2xl border border-white/[0.07] bg-white/[0.035] py-3.5">
+          <div className="margin-report-draft-metrics">
             <Metric label={t(language, 'home.totalAssets', '总资产')} value={formatMoneyFromUsd(draftOverview.totalAssetsUsd, currency, usdRate, 0)} />
             <Metric label={t(language, 'home.netAssets', '净资产')} value={formatMoneyFromUsd(draftOverview.netAssetsUsd, currency, usdRate, 0)} />
             <Metric label={t(language, 'home.leverage', '杠杆')} value={formatLeverage(draftOverview.leverage)} />
           </div>
           {draftDebtUsd !== null && draftOverview.netAssetsUsd <= 0 && (
-            <p className="mt-3 rounded-xl border border-amber-300/15 bg-amber-300/[0.07] px-3 py-2 text-[11px] leading-4 text-amber-200/75">
+            <p className="margin-report-feedback margin-report-warning">
               {t(language, 'home.marginNetInsufficient', '融资负债已达到或超过总资产，净资产不足，账户杠杆不再显示。')}
             </p>
           )}
           {saveError && (
-            <p className="mt-3 rounded-xl border border-rose-300/15 bg-rose-300/[0.07] px-3 py-2 text-[11px] leading-4 text-rose-200/80" role="alert">{saveError}</p>
+            <p className="margin-report-feedback margin-report-error" role="alert">{saveError}</p>
           )}
 
-          <p className="mt-4 text-center text-[11px] leading-4 text-white/40">
+          <p className="margin-report-boundary">
             {t(language, 'home.marginBalanceBoundary', '融资余额仅当前登录用户可见，不写入股票交易、比赛或收益报表。')}
           </p>
-          <div className="mt-5 grid grid-cols-2 gap-3">
+          <div className="margin-report-actions">
             <button
               type="button"
               disabled={saving}
               onClick={closeEditor}
-              className="h-11 rounded-xl border border-white/[0.09] bg-white/[0.035] text-[13px] text-white/55 active:scale-[0.99] disabled:opacity-35"
+              className="margin-report-action"
             >
               {t(language, 'home.cancel', '取消')}
             </button>
@@ -747,7 +746,7 @@ export default function HomeMarginRiskPage({ ctx = {} }) {
               disabled={saving}
               onClick={saveDebt}
               data-home-margin-save="true"
-              className="flex h-11 items-center justify-center gap-2 rounded-xl bg-[#f6b54b] text-[13px] font-medium text-[#101318] active:scale-[0.99] disabled:opacity-55"
+              className="margin-report-action margin-report-primary"
             >
               {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
               {saving ? t(language, 'home.marginSaving', '保存中…') : t(language, 'home.marginSave', '保存')}
