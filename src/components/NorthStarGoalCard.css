@@ -1,4 +1,4 @@
-.north-star-card { padding: 18px 20px 0; border: 0; border-radius: 22px; background: #101112; color: #f1f1f2; overflow: hidden; font-variant-numeric: tabular-nums; }
+.north-star-card { padding: 2px 2px 0; border: 0; border-radius: 0; background: transparent; color: #f1f1f2; font-variant-numeric: tabular-nums; }
 .north-star-card .ns-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .north-star-card .ns-header h2 { margin: 0; color: #ababaf; font-size: 13px; font-weight: 400; line-height: 20px; }
 .north-star-card .ns-controls { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
@@ -27,4 +27,4 @@
 .north-star-card button:focus-visible { outline: 1px solid #b5b5ba; outline-offset: 3px; border-radius: 5px; }
 .north-star-card .ns-settings:active, .north-star-card .ns-currencies button:active { color: #ffffff; }
 .north-star-card .ns-overview:active .ns-detail-link { color: #ffffff; }
-@media (max-width: 350px) { .north-star-card { padding-left: 16px; padding-right: 16px; } .north-star-card .ns-controls { gap: 3px; } .north-star-card .ns-currencies button { padding: 0 6px; } .north-star-card .ns-goal-amount { font-size: 25px; } .north-star-card .ns-goal-decimal { font-size: 16px; } }
+@media (max-width: 350px) { .north-star-card { padding-left: 0; padding-right: 0; } .north-star-card .ns-controls { gap: 3px; } .north-star-card .ns-currencies button { padding: 0 6px; } .north-star-card .ns-goal-amount { font-size: 25px; } .north-star-card .ns-goal-decimal { font-size: 16px; } }

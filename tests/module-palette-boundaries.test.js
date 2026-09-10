@@ -54,11 +54,11 @@ test('persistent production modules share neutral black surface levels', () => {
   assert.ok(assets.includes('<section className="asset-report-hero"'), 'Assets should use its continuous report hero');
   assert.match(assetsCss, /\.asset-report\s*\{[^}]*color:\s*#e4e4e7;/, 'Assets should share the neutral report palette');
   assert.doesNotMatch(assetsCss, /radial-gradient|linear-gradient|box-shadow/, 'Assets should not retain decorative card glow');
-  assert.match(northStarCss, /\.north-star-card\s*\{[^}]*background:\s*#101112;/, 'north-star presentation should use its scoped neutral surface');
-  assert.match(annualPlanCss, /\.annual-goal-plan \.ag-current-card\s*\{[^}]*border:\s*0;[^}]*background:\s*#101112;/, 'current annual plan should share the north-star neutral borderless surface');
-  assert.match(reviewCss, /\.review-page\s*\{[^}]*--review-surface:\s*#101112;/, 'review reading sections should use the same scoped neutral surface');
+  assert.match(northStarCss, /\.north-star-card\s*\{[^}]*border:\s*0;[^}]*border-radius:\s*0;[^}]*background:\s*transparent;/, 'north-star presentation should share the flat report surface');
+  assert.match(annualPlanCss, /\.annual-goal-plan \.ag-current-card\s*\{[^}]*border:\s*0;[^}]*border-radius:\s*0;[^}]*background:\s*transparent;/, 'current annual plan should share the transparent north-star report surface');
+  assert.match(reviewCss, /\.min-h-screen:has\(\.review-page\)\s*\{[^}]*background:\s*#08090b;/, 'the neutral report background should be scoped to the target overview shell');
   assert.match(reviewCss, /\.review-page \.review-entry\s*\{[^}]*background:\s*transparent;[^}]*border:\s*0;/, 'normal notes and logs should use quiet transparent reading rows');
-  assert.match(reviewCss, /\.review-page \.review-entry\[data-pinned=true\]\s*\{[^}]*background:\s*var\(--review-surface\);/, 'pinned notes alone should use the raised neutral reading surface');
+  assert.doesNotMatch(reviewCss, /\.review-page \.review-entry\[data-pinned=true\]\s*\{|\.review-page \.review-empty\s*\{[^}]*(?:background|border-radius):/, 'pinned notes and empty states should not retain independent panel backgrounds or rounded shells');
   assert.ok(compoundDetail.includes('<main className="compound-detail-page"'), 'compound details should use their independent page surface');
   assert.doesNotMatch(compoundDetail, /ReviewGoalModal|ActionModalCard/, 'compound details should not retain a dialog surface');
   assert.doesNotMatch(compoundDetail + compoundDetailCss, /UsFlagBackground|linearGradient|linear-gradient|radial-gradient|#f6b54b|#ffd18a/, 'compound details should not restore the old gold border or chart gradients');

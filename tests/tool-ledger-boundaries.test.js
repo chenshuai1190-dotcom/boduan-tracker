@@ -2238,7 +2238,7 @@ test('Home, Trading, and Assets use continuous scoped reports', () => {
   assert.equal(tradesTabSource.includes(borderlessFourEdgeHeaderShell), false, 'Trading should not restore its old raised header shell');
   assert.ok(analysisTabSource.includes('<section className="asset-report-hero"'), 'Assets should use the approved report hero');
   assert.equal(analysisTabSource.includes(borderlessFourEdgeHeaderShell), false, 'Assets should not restore the raised four-edge header shell');
-  assert.match(northStarGoalCardCss, /\.north-star-card\s*\{[^}]*border:\s*0;[^}]*background:\s*#101112;/, 'north-star header should keep its scoped neutral surface without an outer outline');
+  assert.match(northStarGoalCardCss, /\.north-star-card\s*\{[^}]*border:\s*0;[^}]*border-radius:\s*0;[^}]*background:\s*transparent;/, 'north-star header should share the flat report surface without a panel outline');
   assert.ok(homeTabSource.includes('className="home-report-label">{t(language, \'home.netAssets\''), 'Home net-assets title should match the compact Trading report label');
   assert.ok(tradesTabSource.includes('className="trades-report-label">{tt(\'home.netAssets\''), 'Trading net-assets title should use the shared report label');
   assert.ok(homeTabSource.includes('className="home-report-label">{t(language, \'home.totalAssets\''), 'Home balance labels should use the shared report label style');
@@ -2326,9 +2326,9 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.ok(settingsTabSource.includes('EODHD Core + Yahoo Charts'), 'settings data source should distinguish core EODHD quotes from Yahoo chart visuals');
 });
 
-test('review target page uses dark mobile cards and click action modals', () => {
+test('review target page uses a flat dark report and preserves click action modals', () => {
   assert.ok(appSource.includes("activeTab === 'review'"), 'review tab must use the same dark shell as home and assets');
-  assert.match(reviewTabCss, /\.review-page\s*\{[^}]*--review-surface:\s*#101112;/, 'review page should share the scoped north-star neutral-black surface');
+  assert.match(reviewTabCss, /\.min-h-screen:has\(\.review-page\)\s*\{[^}]*background:\s*#08090b;/, 'the target overview should use a scoped neutral-black report background');
   assert.ok(reviewTabSource.includes('年度目标操作'), 'year cards should open an action panel');
   assert.ok(reviewTabSource.includes('修改年度数据'), 'year action panel should offer editing instead of a trailing edit icon');
   assert.ok(northStarGoalCardCss.includes('SF Pro Display'), 'review headline money should use the same system number font as the home header');
@@ -2431,7 +2431,7 @@ test('review target page uses dark mobile cards and click action modals', () => 
   assert.match(annualGoalPlanCss, /\.ag-year-row\s*\{[^}]*border:\s*0;[^}]*background:\s*transparent;/, 'future rows should stay a light borderless timeline instead of repeated heavy cards');
   assert.ok(northStarGoalCardSource.includes('aria-pressed={displayCurrency === currency}'), 'north-star currency buttons should expose the selected currency');
   assert.match(northStarGoalCardCss, /button:focus-visible\s*\{[^}]*outline:/, 'north-star independent buttons should retain a visible keyboard focus indicator');
-  assert.match(annualGoalPlanCss, /\.ag-current-card\s*\{[^}]*border:\s*0;[^}]*border-radius:\s*22px;[^}]*background:\s*#101112;/, 'current year card should match the north-star borderless neutral surface');
+  assert.match(annualGoalPlanCss, /\.ag-current-card\s*\{[^}]*border:\s*0;[^}]*border-radius:\s*0;[^}]*background:\s*transparent;/, 'the current year should share the flat north-star report surface');
   assert.equal((reviewTabSource.match(/className="review-empty"/g) || []).length, 2, 'both reading sections should keep explicit empty states');
   assert.equal((reviewTabSource.match(/type="button" className="review-entry"/g) || []).length, 2, 'notes and logs should retain separate native interactive reading rows');
   assert.equal(reviewTabSource.includes('border-[#f6b54b]/65'), false, 'current year card should not keep the bright yellow outline');
