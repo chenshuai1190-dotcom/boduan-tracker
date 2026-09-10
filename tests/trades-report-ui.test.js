@@ -227,16 +227,21 @@ test('compact first-screen spacing preserves financial content and reachable too
   assert.match(positionsCss, /\.trades-positions-report\s*\{[^}]*overflow-x:\s*auto;/);
 });
 
-test('positions columns preserve precise widths and horizontally accessible financial text', () => {
+test('positions financial columns share first-screen space while preserving minimum widths and horizontally accessible text', () => {
   const rule = selector => [...positionsCss.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
     .filter(([, selectors]) => selectors.split(',').some(candidate => candidate.trim() === selector))
     .map(([, , body]) => body).join('\n');
   const minWidth = selector => Number(rule(selector).match(/min-width:\s*(\d+)px;/)?.[1]);
   const firstFour = [minWidth('.tpr-table td:first-child'), minWidth('.tpr-table td:nth-child(2)'),
     minWidth('.tpr-table td:nth-child(3)'), minWidth('.tpr-table td:nth-child(4)')];
-  assert.ok(firstFour.every(Number.isFinite));
-  assert.deepEqual(firstFour, [70, 112, 76, 103], 'market value, current price and daily P&L each gain 1px; the identity width is unchanged');
-  assert.equal(firstFour.reduce((sum, width) => sum + width, 0), 361, 'the four column minimums gain exactly 3px in total');
+  assert.deepEqual(firstFour, [70, 112, 76, 103], 'identity and financial columns retain their approved minimum widths and fallbacks');
+  assert.deepEqual([minWidth('.tpr-table td:nth-child(5)'), minWidth('.tpr-table td:last-child')], [144, 66], 'offscreen financial columns retain their approved minimum widths');
+  assert.match(rule('.trades-positions-report'), /container-type:\s*inline-size;/, 'remaining first-screen space must use the visible report container, not the full overflow table');
+  assert.match(rule('.tpr-table'), /--tpr-column-extra:\s*max\(0px,\s*calc\(\(100cqw - 361px\) \/ 3\)\);/, 'the three financial columns should share excess first-screen width equally without shrinking their minimums');
+  for (const [column, base] of [[2, 112], [3, 76], [4, 103]]) {
+    assert.ok(rule(`.tpr-table td:nth-child(${column})`).includes(`min-width: calc(${base}px + var(--tpr-column-extra));`), `financial column ${column} should add the same shared increment to its approved minimum`);
+  }
+  assert.match(rule('.tpr-table td:nth-child(4)'), /padding-right:\s*0;/, 'right-aligned daily P&L should reach the first-screen content edge');
   assert.match(rule('.trades-positions-report'), /overflow-x:\s*auto;/, 'narrow screens keep financial columns accessible by horizontal scrolling');
   assert.match(rule('.tpr-table'), /width:\s*max-content;/);
   assert.match(rule('.tpr-table td:first-child'), /(?:^|\n)\s*width:\s*70px;/);

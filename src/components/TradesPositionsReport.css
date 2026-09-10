@@ -1,6 +1,7 @@
 .trades-positions-report {
   min-width: 0;
   max-width: 100%;
+  container-type: inline-size;
   overflow-x: auto;
   overscroll-behavior-x: contain;
   scrollbar-width: none;
@@ -11,6 +12,7 @@
 .trades-positions-report:focus-visible { outline: 1px solid #8b8b94; outline-offset: 3px; }
 
 .tpr-table {
+  --tpr-column-extra: max(0px, calc((100cqw - 361px) / 3));
   width: max-content;
   min-width: 550px;
   border-collapse: separate;
@@ -46,11 +48,22 @@
 }
 .tpr-table th:first-child { z-index: 2; }
 .tpr-table th:nth-child(2),
-.tpr-table td:nth-child(2) { min-width: 112px; text-align: left; }
+.tpr-table td:nth-child(2) {
+  min-width: 112px;
+  min-width: calc(112px + var(--tpr-column-extra));
+  text-align: left;
+}
 .tpr-table th:nth-child(3),
-.tpr-table td:nth-child(3) { min-width: 76px; }
+.tpr-table td:nth-child(3) {
+  min-width: 76px;
+  min-width: calc(76px + var(--tpr-column-extra));
+}
 .tpr-table th:nth-child(4),
-.tpr-table td:nth-child(4) { min-width: 103px; }
+.tpr-table td:nth-child(4) {
+  min-width: 103px;
+  min-width: calc(103px + var(--tpr-column-extra));
+  padding-right: 0;
+}
 .tpr-table th:nth-child(5),
 .tpr-table td:nth-child(5) { min-width: 144px; }
 .tpr-table th:last-child,

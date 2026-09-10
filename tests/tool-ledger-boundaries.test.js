@@ -2282,9 +2282,9 @@ test('Home, Trading, and Assets use continuous scoped reports', () => {
   assert.ok(monthlyAssetTrendContentSource.includes('mt-3 overflow-hidden rounded-[17px] border border-white/[0.075] bg-black/[0.12]'), 'the standalone monthly-details table should retain its approved boundary');
   assert.ok(earningsCalendarSource.includes("index < previewEvents.length - 1 ? 'border-r border-white/[0.08]' : ''"), 'the earnings preview should preserve internal event dividers');
   assert.ok(analysisTabSource.includes('className="asset-report-label">{item.label}'), 'asset metric labels should use the shared report label style');
-  assert.match(northStarGoalCardCss, /\.ns-header h2\s*\{[^}]*font-weight:\s*400;/, 'north-star title should keep normal weight');
-  assert.match(northStarGoalCardCss, /\.ns-goal-amount\s*\{[^}]*clamp\(/, 'north-star goal amount should remain responsive');
-  assert.match(northStarGoalCardCss, /\.ns-goal-amount\s*\{[^}]*flex-wrap:\s*wrap;[^}]*overflow-wrap:\s*anywhere;/, 'north-star large amounts should wrap without clipping their glyphs');
+  assert.ok(/\.ns-header h2\s*\{[^}]*font-size:\s*12px;[^}]*font-weight:\s*400;[^}]*line-height:\s*1\.5;/.test(northStarGoalCardCss) && /\.home-report-label\s*\{[^}]*font-size:\s*12px;[^}]*font-weight:\s*400;[^}]*line-height:\s*1\.5;/.test(homeTabCss) && /\.ns-currencies button\s*\{[^}]*min-height:\s*30px;/.test(northStarGoalCardCss) && /\.ns-settings\s*\{[^}]*width:\s*30px;[^}]*height:\s*30px;/.test(northStarGoalCardCss) && /\.home-report-currency button\s*\{[^}]*height:\s*30px;/.test(homeTabCss), 'north-star title and top controls should match the Home header height and normal-weight label');
+  assert.ok(/\.ns-overview\s*\{[^}]*padding:\s*8px 0 0;/.test(northStarGoalCardCss) && /\.ns-goal-amount\s*\{[^}]*font-size:\s*clamp\(28px,\s*8\.8vw,\s*40px\);[^}]*font-weight:\s*400;[^}]*line-height:\s*1\.18;/.test(northStarGoalCardCss) && /\.home-report-net-amount\s*\{[^}]*margin-top:\s*8px;[^}]*font-size:\s*clamp\(28px,\s*8\.8vw,\s*40px\);[^}]*font-weight:\s*400;[^}]*line-height:\s*1\.18;/.test(homeTabCss), 'north-star goal amount should match the Home headline scale, line height and top spacing');
+  assert.match(northStarGoalCardCss, /\.ns-goal-amount\s*\{[^}]*display:\s*block;[^}]*letter-spacing:\s*normal;[^}]*overflow-wrap:\s*anywhere;/, 'north-star headline should keep continuous naturally spaced digits that wrap without clipping');
 });
 
 test('asset and review module cards do not keep legacy scale interactions', () => {
@@ -2340,7 +2340,7 @@ test('review target page uses a flat dark report and preserves click action moda
   assert.ok(reviewTabSource.includes('headlineGoalMoney = splitMoney(ageGoalAmountExact, 2)'), 'north-star headline should keep its split two-decimal rendering');
   assert.ok(reviewTabSource.includes('goalMoney={headlineGoalMoney}'), 'north-star headline should receive the existing split two-decimal amount');
   assert.ok(northStarGoalCardSource.includes('goalMoney.main') && northStarGoalCardSource.includes('goalMoney.decimal'), 'north-star headline should render the decimal suffix separately');
-  assert.match(northStarGoalCardCss, /\.ns-goal-decimal\s*\{[^}]*font-size:\s*19px;/, 'north-star headline should keep a smaller decimal suffix');
+  assert.ok(/\.ns-goal-decimal\s*\{[^}]*font-size:\s*\.64em;/.test(northStarGoalCardCss) && /\.home-report-decimal\s*\{[^}]*font-size:\s*\.64em;/.test(homeTabCss), 'north-star headline should match the Home proportional decimal suffix');
   assert.doesNotMatch(northStarGoalCardSource, /★|<Star\b/, 'north-star title should not keep the leading star icon');
   assert.ok(reviewTabSource.includes('currentMoney={money(currentBalance)}') && reviewTabSource.includes('progressPct={progressPct}'), 'north-star display should receive the existing current balance and completion calculations');
   assert.ok(reviewTabSource.includes('yearsLeft={yearsLeft}') && reviewTabSource.includes('principalMoney={money(startCapital)}'), 'north-star display should preserve the existing remaining years and principal');
