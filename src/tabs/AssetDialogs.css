@@ -1,0 +1,47 @@
+.asset-dialog { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif; letter-spacing: normal; }
+.asset-dialog .srm-title { font-weight: 400; }
+.asset-dialog .srm-action.asset-dialog-primary { background: #303133; color: #ededf0; }
+.asset-dialog-form { display: grid; gap: 16px; }
+.asset-dialog-label { display: block; margin-bottom: 8px; color: #85858f; font-size: 12px; line-height: 1.5; }
+.asset-dialog-input { display: block; box-sizing: border-box; width: 100%; min-width: 0; max-width: 100%; min-height: 46px; padding: 11px 12px; border: 1px solid transparent; border-radius: 10px; background: #1b1c1e; color: #e4e4e7; font-size: 16px; line-height: 1.4; outline: none; font-variant-numeric: tabular-nums; }
+.asset-dialog-input::placeholder { color: #67676f; font-size: 13px; }
+.asset-dialog-input:focus { border-color: #69696f; }
+.asset-dialog-segments { display: flex; gap: 4px; padding: 4px; border-radius: 10px; background: #18191b; }
+.asset-dialog-segments button { display: flex; flex: 1; align-items: center; justify-content: center; gap: 6px; min-width: 0; min-height: 36px; padding: 7px 8px; border-radius: 7px; color: #888891; font-size: 13px; line-height: 1.5; }
+.asset-dialog-segments button[aria-pressed="true"] { background: #303133; color: #e4e4e7; }
+.asset-dialog-types { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.asset-dialog-types button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; min-height: 60px; padding: 9px 3px; border: 1px solid transparent; border-radius: 10px; background: #1b1c1e; color: #8f8f98; font-size: 12px; line-height: 1.4; }
+.asset-dialog-types button[aria-pressed="true"] { border-color: #626267; background: #292a2d; color: #ededf0; }
+.asset-dialog-presets { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 9px; }
+.asset-dialog-presets:empty { margin-bottom: 0; }
+.asset-dialog-presets button { min-height: 32px; padding: 6px 10px; border-radius: 7px; background: #1b1c1e; color: #92929b; font-size: 12px; line-height: 1.5; }
+.asset-dialog-presets button[aria-pressed="true"] { background: #303133; color: #e4e4e7; }
+.asset-dialog-error { margin-top: 12px; padding: 10px 12px; border-radius: 9px; background: #232021; color: #e7aaa3; font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.asset-dialog-hint { margin-top: 9px; color: #777780; font-size: 11px; line-height: 1.6; }
+.asset-dialog-identity { display: flex; align-items: center; gap: 12px; }
+.asset-dialog-identity > div:last-child { min-width: 0; }
+.asset-dialog-logo { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 40px; height: 40px; overflow: hidden; border-radius: 11px; background: #1b1c1e; color: #93939d; }
+.asset-dialog-account-name { color: #e1e1e6; font-size: 17px; line-height: 1.45; overflow-wrap: anywhere; }
+.asset-dialog-account-meta { margin-top: 4px; color: #85858f; font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; }
+.asset-dialog-account-value { padding: 24px 0 6px; }
+.asset-dialog-account-amount { color: #ededf0; font-size: clamp(25px, 7.4vw, 32px); line-height: 1.3; overflow-wrap: anywhere; }
+.asset-dialog-month-picker { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.asset-dialog-month-picker button { display: grid; place-items: center; flex-shrink: 0; width: 40px; height: 40px; border-radius: 10px; background: #1b1c1e; color: #aaaab2; }
+.asset-dialog-month-value { color: #e1e1e6; font-size: 20px; line-height: 1.4; }
+.asset-dialog-month-status { margin-top: 3px; color: #777780; font-size: 11px; line-height: 1.5; }
+.asset-dialog-count { color: #85858f; font-size: 11px; }
+.asset-dialog-month-summary { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 12px; margin-top: 20px; padding-bottom: 10px; border-bottom: 1px solid rgb(255 255 255 / .075); color: #85858f; font-size: 12px; line-height: 1.5; }
+.asset-dialog-month-summary > span:last-child { color: #dcdce2; font-size: 14px; overflow-wrap: anywhere; }
+.asset-dialog-balance-row { display: grid; grid-template-columns: 26px minmax(0, 1fr) minmax(120px, .95fr); align-items: center; gap: 9px; padding: 14px 0; border-bottom: 1px solid rgb(255 255 255 / .075); }
+.asset-dialog-balance-row:last-child { border-bottom: 0; }
+.asset-dialog-balance-icon { display: grid; place-items: center; color: #8a8a94; }
+.asset-dialog-balance-name { overflow: hidden; color: #d4d4dc; font-size: 13px; line-height: 1.5; text-overflow: ellipsis; white-space: nowrap; }
+.asset-dialog-balance-input { text-align: right; padding-inline: 9px; }
+.asset-confirm-description { color: #9999a2; font-size: 13px; line-height: 1.7; }
+.asset-confirm-info { margin-top: 16px; padding: 12px 0 2px; border-top: 1px solid rgb(255 255 255 / .075); color: #ceced6; font-size: 13px; line-height: 1.7; overflow-wrap: anywhere; }
+.asset-confirm-dialog .srm-action.asset-confirm-danger { background: #302324; color: #f0aaa2; }
+@media (max-width: 350px) {
+  .asset-dialog-form { gap: 17px; }
+  .asset-dialog-types { gap: 6px; }
+  .asset-dialog-balance-row { grid-template-columns: 20px minmax(0, 1fr) minmax(110px, 1fr); gap: 7px; }
+}

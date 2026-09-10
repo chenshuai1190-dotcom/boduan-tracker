@@ -1,5 +1,6 @@
 import React from 'react';
 import { AlertCircle, AlertTriangle, CheckCircle2, Trash2 } from 'lucide-react';
+import StockReportModal from './StockReportModal.jsx';
 
 function ConfirmIcon({ modal }) {
   if (React.isValidElement(modal.icon)) return modal.icon;
@@ -17,8 +18,33 @@ export default function ConfirmModal({
   submitting = false,
   onCancel,
   onConfirm,
+  variant = 'default',
 }) {
   if (!modal) return null;
+
+  if (variant === 'asset-report') {
+    return (
+      <StockReportModal
+        title={modal.title}
+        closeLabel={modal.cancelText}
+        onClose={() => { if (!submitting) onCancel?.(); }}
+        panelClassName="asset-dialog asset-confirm-dialog"
+        actions={[
+          ...(modal.showCancel ? [{ key: 'cancel', label: modal.cancelText, onClick: onCancel, disabled: submitting }] : []),
+          {
+            key: 'confirm',
+            label: submitting ? modal.submittingText : modal.confirmText,
+            onClick: onConfirm,
+            disabled: submitting,
+            className: modal.confirmStyle === 'danger' ? 'asset-confirm-danger' : 'asset-dialog-primary',
+          },
+        ]}
+      >
+        <p className="asset-confirm-description">{modal.desc}</p>
+        {modal.info && <div className="asset-confirm-info">{modal.info}</div>}
+      </StockReportModal>
+    );
+  }
 
   return (
     <div

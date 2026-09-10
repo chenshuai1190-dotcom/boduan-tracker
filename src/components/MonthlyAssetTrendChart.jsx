@@ -1,8 +1,8 @@
 import React from 'react';
 
 const NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif';
-const CHART_COLOR = '#50d0a2';
-const CHART_LATEST_COLOR = '#f6c56f';
+const CHART_COLOR = 'var(--monthly-asset-chart-line, #50d0a2)';
+const CHART_LATEST_COLOR = 'var(--monthly-asset-chart-latest, #f6c56f)';
 
 export const MONTHLY_ASSET_CHART_WIDTH = 370;
 export const MONTHLY_ASSET_CHART_HEIGHT = 206;
@@ -155,7 +155,7 @@ export default function MonthlyAssetTrendChart({
     >
       <defs>
         <linearGradient id={areaId} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={CHART_COLOR} stopOpacity="0.28" />
+          <stop offset="0%" stopColor={CHART_COLOR} stopOpacity="var(--monthly-asset-chart-area-opacity, 0.28)" />
           <stop offset="100%" stopColor={CHART_COLOR} stopOpacity="0.015" />
         </linearGradient>
         <filter id={latestGlowId} x="-100%" y="-100%" width="300%" height="300%">
@@ -232,7 +232,7 @@ export default function MonthlyAssetTrendChart({
 
       {latestPoint && (
         <g className={animate ? 'monthly-asset-point-animated' : undefined} style={animate ? { animationDelay: `${latestPointDelayMs}ms` } : undefined}>
-          <circle cx={latestPoint.x} cy={latestPoint.y} r="8" fill={CHART_LATEST_COLOR} opacity="0.18" filter={`url(#${latestGlowId})`} />
+          <circle cx={latestPoint.x} cy={latestPoint.y} r="8" fill={CHART_LATEST_COLOR} opacity="var(--monthly-asset-chart-glow-opacity, 0.18)" filter={`url(#${latestGlowId})`} />
           <circle cx={latestPoint.x} cy={latestPoint.y} r="4.5" fill="#f5f7fb" stroke={CHART_LATEST_COLOR} strokeWidth="2" />
         </g>
       )}

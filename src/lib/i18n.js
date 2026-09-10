@@ -717,6 +717,7 @@ const messages = {
     'swing.dataUnavailable': '波段数据服务暂不可用',
 
     'analysis.familyNetWorth': '家庭总资产',
+    'analysis.accountsTitle': '资产账户',
     'analysis.vsLastMonth': '较上月',
     'analysis.ytd': '年初至今',
     'analysis.oneYear': '近一年',
@@ -2219,6 +2220,7 @@ const messages = {
     'swing.dataUnavailable': 'Swing data service is unavailable',
 
     'analysis.familyNetWorth': 'Family Net Worth',
+    'analysis.accountsTitle': 'Asset Accounts',
     'analysis.vsLastMonth': 'vs Last Month',
     'analysis.ytd': 'YTD',
     'analysis.oneYear': '1Y',

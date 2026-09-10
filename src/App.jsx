@@ -5047,6 +5047,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     fmt,
     hkdRate,
     language,
+    marketColorMode,
     newAccount,
     setAccounts,
     setChartSelectedMonthIdx,
@@ -5073,6 +5074,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     fmt,
     hkdRate,
     language,
+    marketColorMode,
     newAccount,
     showAddAccount,
     showConfirm,
@@ -5557,6 +5559,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
 
 
         <ConfirmModal
+          variant={activeTab === 'analysis' ? 'asset-report' : 'default'}
           modal={confirmModal}
           submitting={confirmSubmitting}
           onCancel={closeConfirmModal}

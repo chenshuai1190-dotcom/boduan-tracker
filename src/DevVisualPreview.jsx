@@ -2663,6 +2663,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     fmt,
     hkdRate: HKD_RATE,
     language,
+    marketColorMode,
     newAccount,
     setAccountDeleteConfirmId,
     setAccounts,
@@ -3403,6 +3404,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
       </Suspense>
 
       <ConfirmModal
+        variant={activeTab === 'analysis' ? 'asset-report' : 'default'}
         modal={previewConfirmModal}
         submitting={previewConfirmSubmitting}
         onCancel={closePreviewConfirm}

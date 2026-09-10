@@ -7,15 +7,13 @@ import {
   CircleDollarSign,
   Coins,
   Home,
-  Info,
   Landmark,
-  LineChart,
   MessageCircle,
   PiggyBank,
   Plus,
   WalletCards,
 } from 'lucide-react';
-import ActionModalCard from '../components/ActionModalCard.jsx';
+import StockReportModal from '../components/StockReportModal.jsx';
 import AccountAssetTrendModal from '../components/AccountAssetTrendModal.jsx';
 import MonthlyAssetCategoryReport from '../components/MonthlyAssetCategoryReport.jsx';
 import MonthlyAssetTrendChart, { buildMonthlyAssetTrendChartScale } from '../components/MonthlyAssetTrendChart.jsx';
@@ -28,13 +26,11 @@ import { t } from '../lib/i18n.js';
 import { marketHexColor } from '../lib/marketColorMode.js';
 import { buildMonthlyAssetAccountReport } from '../lib/monthlyAssetCategoryReport.js';
 import { buildMonthlyAssetTrend } from '../lib/monthlyAssetTrend.js';
+import './AnalysisTab.css';
+import './AssetDialogs.css';
 
 const ASSET_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif';
 const ASSET_NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif';
-const ASSET_GOLD = '#f6c56f';
-const ASSET_PINK = marketHexColor(-1);
-const ASSET_GREEN = '#50d0a2';
-const ASSET_CARD = '#0b0c0e';
 
 const ACCOUNT_TYPE_OPTIONS = [
   { type: '银行', Icon: Landmark },
@@ -58,7 +54,7 @@ const ACCOUNT_PRESETS = {
   其他: ['房产', '车', '黄金', '保险'],
 };
 
-const inputClassName = 'w-full min-w-0 max-w-full box-border rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2.5 text-[13px] text-[#f5f7fb] outline-none placeholder:text-[#6f7887] focus:border-[#f6c56f]';
+const inputClassName = 'asset-dialog-input';
 
 function numberValue(value) {
   const n = Number(value);
@@ -86,7 +82,7 @@ function AccountLogo({ account }) {
   React.useEffect(() => setFailed(false), [logoUrl]);
 
   return (
-    <div className="flex h-[38px] w-[38px] shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/[0.13] bg-black/[0.38] text-white/[0.55] shadow-[0_7px_18px_rgba(0,0,0,0.27)]">
+    <div className="asset-dialog-logo">
       {logoUrl && !failed ? (
         <img
           src={logoUrl}
@@ -120,6 +116,7 @@ function AnalysisTab({ ctx }) {
     fmt,
     hkdRate,
     language = 'zh',
+    marketColorMode = 'redUpGreenDown',
     newAccount,
     setAccounts,
     setChartSelectedMonthIdx,
@@ -500,13 +497,13 @@ function AnalysisTab({ ctx }) {
   const accountBalanceText = (account) => {
     if (!account) return '--';
     const bal = getBalance(account.id, currentMonth);
-    return account.currency === 'CNY' ? `¥${fmtWan(bal)}万` : `${currencyPrefix(account.currency)}${fmt(bal, 0)}`;
+    return `${currencyPrefix(account.currency)}${fmt(bal, 2)}`;
   };
 
   const accountApproxText = (account) => {
     if (!account || account.currency === 'CNY') return '';
     const balCNY = balanceAtMonthCNY(account.id, currentMonth);
-    return `≈¥${fmtWan(balCNY)}万`;
+    return `≈¥${fmt(balCNY, 2)}`;
   };
 
   const confirmDeleteAccount = (account) => {
@@ -754,91 +751,68 @@ function AnalysisTab({ ctx }) {
       {showMonthsDetail ? (
         selectedAssetCategoryMonth ? monthlyAssetCategoryReportPage : monthlyAssetTrendPage
       ) : (
-      <div className="space-y-3.5 text-[#f5f7fb]" style={{ fontFamily: ASSET_FONT }}>
-      <section className="rounded-2xl border border-transparent bg-[#0b0c0e] p-4 shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06),inset_1px_0_0_rgba(255,255,255,0.03),inset_-1px_0_0_rgba(255,255,255,0.03),inset_0_-1px_0_rgba(255,255,255,0.01)]">
-        <div className="flex min-h-[34px] items-center justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-1.5 text-[14px] font-normal text-white/70">
-            <span>{tt('analysis.familyNetWorth', '家庭总资产')}</span>
-            <Info className="h-3.5 w-3.5 text-white/50" strokeWidth={1.8} />
-          </div>
-
+      <div className="asset-report" style={{ fontFamily: ASSET_FONT }}>
+      <section className="asset-report-hero">
+        <div className="asset-report-hero-header">
+          <span className="asset-report-label">{tt('analysis.familyNetWorth', '家庭总资产')}</span>
           <button
+            type="button"
             onClick={openMonthlyAssetTrend}
-            className="flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-white/10 bg-black/20 px-2.5 text-[11px] text-white/[0.82] active:scale-95 transition"
+            className="asset-report-month"
             title={tt('analysis.monthTrendTitle', '12 个月资产走势')}
           >
-            <CalendarDays className="h-3.5 w-3.5" strokeWidth={1.8} />
-            <span className="tabular-nums" style={{ fontFamily: ASSET_NUMBER_FONT }}>{currentMonth}</span>
-            <ChevronRight className="h-3.5 w-3.5" strokeWidth={1.8} />
+            <CalendarDays size={14} strokeWidth={1.8} />
+            <span>{currentMonth}</span>
+            <ChevronRight size={13} strokeWidth={1.8} />
           </button>
         </div>
 
-        <div
-          className="mt-3 overflow-hidden text-ellipsis whitespace-nowrap font-normal leading-none tracking-normal text-white/[0.95] tabular-nums"
-          style={{ fontFamily: ASSET_NUMBER_FONT, fontSize: 'clamp(28px, 8.7vw, 34px)' }}
-        >
-          <span>{totalNowMoney.main}</span>
-          <span className="ml-0.5 align-baseline text-[20px] font-normal leading-none text-white/[0.95]">{totalNowMoney.decimal}</span>
+        <div className="asset-report-total" style={{ fontFamily: ASSET_NUMBER_FONT }}>
+          <span>{totalNowMoney.main}</span><span className="asset-report-decimal">{totalNowMoney.decimal}</span>
         </div>
 
-        <div className="mt-6 grid grid-cols-[1fr_1.12fr_0.96fr]">
-          {metricItems.map((item, idx) => {
-            const positive = item.value >= 0;
-            const color = positive ? ASSET_PINK : ASSET_GREEN;
-            return (
-              <div key={item.label} className={idx === 0 ? 'min-w-0 pr-3' : idx === metricItems.length - 1 ? 'min-w-0 pl-3' : 'min-w-0 px-3'}>
-                <div className="text-[13px] text-white/50">{item.label}</div>
-                {item.enabled ? (
-                  <div className="mt-2 space-y-1">
-                    <div className="whitespace-nowrap text-[13px] font-normal leading-tight tabular-nums" style={{ color, fontFamily: ASSET_NUMBER_FONT }}>
-                      <span className="whitespace-nowrap">{fmtSignedWan(item.value)}</span>
-                    </div>
-                    <div className="text-[12px] font-normal tabular-nums" style={{ color, fontFamily: ASSET_NUMBER_FONT }}>
-                      {fmtSignedPct(item.pct)}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="mt-2 text-[12px] text-white/25">{tt('analysis.noData', '无数据')}</div>
-                )}
-              </div>
-            );
-          })}
+        <div className="asset-report-metrics">
+          {metricItems.map(item => (
+            <div key={item.label} className="asset-report-metric">
+              <div className="asset-report-label">{item.label}</div>
+              {item.enabled ? (
+                <div style={{ color: marketHexColor(item.value, marketColorMode), fontFamily: ASSET_NUMBER_FONT }}>
+                  <div className="asset-report-metric-value">{fmtSignedWan(item.value)}</div>
+                  <div className="asset-report-metric-percent">{fmtSignedPct(item.pct)}</div>
+                </div>
+              ) : (
+                <div className="asset-report-unavailable">{tt('analysis.noData', '无数据')}</div>
+              )}
+            </div>
+          ))}
         </div>
       </section>
 
       {chartNonZeroCount >= 2 && (
-        <section
-          className="overflow-hidden rounded-[20px] border border-transparent py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
-          style={{ background: ASSET_CARD }}
-        >
-          <div className="flex items-center justify-between gap-3 px-4">
-            <div className="flex items-center gap-1.5 text-[14px] text-white/90">
-              <LineChart className="h-4 w-4" style={{ color: ASSET_GREEN }} strokeWidth={1.8} />
-              <span>{tt('analysis.monthTrend', '12 个月走势')}</span>
-            </div>
-            <button
-              onClick={openMonthlyAssetTrend}
-              className="text-[11px] text-white/[0.45] active:text-white/70"
-            >
-              {tt('analysis.monthlyTapToView', '月度 · 点击查看')}
+        <section className="asset-report-trend">
+          <div className="asset-report-section-heading">
+            <h2>{tt('analysis.monthTrend', '12 个月走势')}</h2>
+            <button type="button" onClick={openMonthlyAssetTrend} className="asset-report-text-link">
+              {tt('analysis.monthlyDetails', '月度明细')}
+              <ChevronRight size={14} strokeWidth={1.8} />
             </button>
           </div>
 
           {selectedChartValue > 0 && (
-            <div className="mx-4 mt-3 flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.045] px-3 py-2 text-[12px] text-white/60">
-              <div className="min-w-0">
-                <div className="tabular-nums" style={{ fontFamily: ASSET_NUMBER_FONT }}>{monthText(selectedChartMonth)}</div>
+            <div className="asset-report-selection">
+              <div>
+                <div>{monthText(selectedChartMonth)}</div>
                 {selectedChartChange !== null && (
-                  <div className="mt-1 truncate tabular-nums" style={{ color: selectedChartChange >= 0 ? ASSET_PINK : ASSET_GREEN, fontFamily: ASSET_NUMBER_FONT }}>
+                  <div className="asset-report-selection-change" style={{ color: marketHexColor(selectedChartChange, marketColorMode) }}>
                     {tt('analysis.vsLastMonth', '较上月')} {fmtSignedWan(selectedChartChange)} · {fmtSignedPct(selectedChartChangePct)}
                   </div>
                 )}
               </div>
-              <span className="shrink-0 text-[13px] tabular-nums" style={{ color: ASSET_PINK, fontFamily: ASSET_NUMBER_FONT }}>¥{fmtWan(selectedChartValue)}万</span>
+              <span className="asset-report-selection-value">¥{fmt(selectedChartValue, 2)}</span>
             </div>
           )}
 
-          <div className="mt-2 px-1">
+          <div className="asset-report-chart">
             <div ref={overviewChartInteractionRef} className="aspect-[370/206] w-full select-none touch-pan-y">
               <MonthlyAssetTrendChart
                 language={language}
@@ -861,163 +835,144 @@ function AnalysisTab({ ctx }) {
             </div>
           </div>
 
-          <div className="mx-4 mt-1 grid grid-cols-3 border-t border-white/10 pt-3 text-center">
+          <div className="asset-report-range">
             {[
               [tt('analysis.low', '最低'), chartMin],
               [tt('analysis.high', '最高'), chartMax],
               [tt('analysis.range', '区间'), chartRange],
             ].map(([label, value]) => (
               <div key={label}>
-                <div className="text-[11px] text-white/[0.42]">{label}</div>
-                <div className="mt-1.5 text-[14px] tabular-nums text-white/[0.88]" style={{ fontFamily: ASSET_NUMBER_FONT }}>¥{fmtWan(value)}万</div>
+                <span className="asset-report-label">{label}</span>
+                <span className="asset-report-range-value">¥{fmtWan(value)}万</span>
               </div>
             ))}
           </div>
         </section>
       )}
 
-      <div className="grid grid-cols-2 gap-3">
-        <button
-          onClick={() => {
-            setAssetMessage(null);
-            setFillMonth(localMonthKey());
-            setShowFillSnapshot(true);
-          }}
-          disabled={accounts.length === 0}
-          className="flex min-h-[46px] min-w-0 items-center justify-center gap-1.5 rounded-xl bg-white/[0.045] px-2 text-[13px] text-white/[0.82] active:scale-95 transition disabled:opacity-35"
-        >
-          <CalendarDays className="h-3.5 w-3.5 shrink-0" strokeWidth={1.8} />
-          <span className="truncate">{tt('analysis.addMonthlyBalance', '填月度余额')}</span>
-        </button>
-        <button
-          onClick={openAddAccount}
-          className="flex min-h-[46px] min-w-0 items-center justify-center gap-1.5 rounded-xl bg-white/[0.045] px-2 text-[13px] text-white/[0.82] active:scale-95 transition"
-        >
-          <Plus className="h-3.5 w-3.5 shrink-0" strokeWidth={1.8} />
-          <span className="truncate">{tt('analysis.addAccount', '新增账户')}</span>
-        </button>
-      </div>
-
-      {accounts.length === 0 && (
-        <section className="rounded-[22px] border border-transparent bg-white/[0.04] px-5 py-9 text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-black/25 text-white/[0.65]">
-            <PiggyBank className="h-7 w-7" strokeWidth={1.8} />
-          </div>
-          <div className="text-[16px] text-white/[0.88]">{tt('analysis.noAccounts', '还没有账户')}</div>
-          <div className="mt-2 text-[12px] text-white/[0.45]">{tt('analysis.noAccountsDesc', '添加你和家人的账户,记录每月余额')}</div>
+      <section className="asset-report-accounts">
+        <div className="asset-report-section-heading">
+          <h2>{tt('analysis.accountsTitle', '资产账户')}</h2>
+        </div>
+        <div className="asset-report-actions">
           <button
-            onClick={openAddAccount}
-            className="mt-5 rounded-xl border px-5 py-2.5 text-[13px] active:scale-95 transition"
-            style={{ borderColor: 'rgba(246,197,111,0.6)', color: ASSET_GOLD, background: 'rgba(246,197,111,0.08)' }}
+            type="button"
+            onClick={() => {
+              setAssetMessage(null);
+              setFillMonth(localMonthKey());
+              setShowFillSnapshot(true);
+            }}
+            disabled={accounts.length === 0}
           >
-            {tt('analysis.addFirstAccount', '添加第一个账户')}
+            <CalendarDays size={15} strokeWidth={1.8} />
+            <span>{tt('analysis.addMonthlyBalance', '填月度余额')}</span>
           </button>
-        </section>
-      )}
+          <button type="button" onClick={openAddAccount}>
+            <Plus size={16} strokeWidth={1.8} />
+            <span>{tt('analysis.addAccount', '新增账户')}</span>
+          </button>
+        </div>
 
-      {ownerGroups.map(({ owner, accounts: ownerAccs, total, pct }) => {
-        const visibleOwnerAccs = currentVisibleAccounts(ownerAccs);
-        if (visibleOwnerAccs.length === 0) return null;
-        return (
-          <section
-            key={owner}
-          className="rounded-[20px] border border-transparent p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
-          style={{ background: ASSET_CARD }}
-        >
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <div className="text-[16px] leading-none text-white/[0.92]">{ownerGroupLabel(owner)}</div>
-                <div className="mt-2 text-[12px] text-white/[0.45]">{tt('analysis.accountsSummary', '{{count}} 个账户 · 占总资产 {{pct}}%', { count: visibleOwnerAccs.length, pct: pct.toFixed(0) })}</div>
+        {accounts.length === 0 && (
+          <div className="asset-report-empty">
+            <PiggyBank size={28} strokeWidth={1.5} />
+            <div>{tt('analysis.noAccounts', '还没有账户')}</div>
+            <p>{tt('analysis.noAccountsDesc', '添加你和家人的账户,记录每月余额')}</p>
+            <button type="button" onClick={openAddAccount}>
+              {tt('analysis.addFirstAccount', '添加第一个账户')}
+            </button>
+          </div>
+        )}
+
+        {ownerGroups.map(({ owner, accounts: ownerAccs, total, pct }) => {
+          const visibleOwnerAccs = currentVisibleAccounts(ownerAccs);
+          if (visibleOwnerAccs.length === 0) return null;
+          return (
+            <section key={owner} className="asset-report-owner">
+              <div className="asset-report-owner-header">
+                <h3>{ownerGroupLabel(owner)}</h3>
+                <div className="asset-report-owner-total" style={{ fontFamily: ASSET_NUMBER_FONT }}>¥{fmt(total, 2)}</div>
+                <div className="asset-report-owner-summary">
+                  {tt('analysis.accountsSummary', '{{count}} 个账户 · 占总资产 {{pct}}%', { count: visibleOwnerAccs.length, pct: pct.toFixed(0) })}
+                </div>
               </div>
-              <div className="text-right text-[21px] leading-none tabular-nums" style={{ color: ASSET_PINK, fontFamily: ASSET_NUMBER_FONT }}>
-                ¥{fmtWan(total)}万
-              </div>
-            </div>
 
-            <div className="mt-5 h-1.5 overflow-hidden rounded-full bg-white/[0.055]">
-              <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(100, Math.max(0, pct))}%`, background: ASSET_PINK }} />
-            </div>
-
-            <div className="mt-4 space-y-2">
-              {visibleOwnerAccs.map(acc => {
-                const bal = getBalance(acc.id, currentMonth);
-                const balCNY = toCNY(bal, acc.currency);
-                const displayName = accountNameLabel(acc.name);
-                return (
-                  <div
-                    key={acc.id}
-                    className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-stretch overflow-hidden rounded-xl bg-white/[0.035]"
-                  >
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setAssetMessage(null);
-                        setAccountTrendId(acc.id);
-                      }}
-                      className="flex min-w-0 items-center gap-2.5 px-3 py-2.5 text-left transition active:bg-white/[0.025]"
-                      aria-label={tt('analysis.viewAccountTrend', '查看{{name}}资产走势', { name: displayName })}
-                      data-open-account-trend={acc.id}
-                    >
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-black/[0.18] text-white/[0.55]">
-                        <AccountTypeIcon type={acc.type} className="h-4 w-4" />
-                      </div>
-                      <div className="min-w-0 flex-1 border-l border-white/10 pl-2.5">
-                        <div className="truncate text-[13px] text-white/[0.88]">{displayName}</div>
-                        <div className="mt-1 text-[11px] text-white/[0.42]">{accountTypeLabel(acc.type)}{acc.currency !== 'CNY' ? ` · ${acc.currency}` : ''}</div>
-                      </div>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setAssetMessage(null);
-                        setAccountActionId(acc.id);
-                      }}
-                      className="flex shrink-0 items-center gap-2 px-2.5 py-2.5 text-right transition active:bg-white/[0.025]"
-                      aria-label={tt('analysis.openAccountActionsFor', '打开{{name}}修改和删除', { name: displayName })}
-                      data-open-account-actions={acc.id}
-                    >
-                      <span className="shrink-0">
-                        <span className="block whitespace-nowrap text-[13px] tabular-nums text-white/[0.88]" style={{ fontFamily: ASSET_NUMBER_FONT }}>
-                          {acc.currency === 'CNY' ? `¥${fmtWan(bal)}万` : `${currencyPrefix(acc.currency)}${fmt(bal, 0)}`}
+              <div className="asset-report-account-list">
+                {visibleOwnerAccs.map(acc => {
+                  const bal = getBalance(acc.id, currentMonth);
+                  const balCNY = toCNY(bal, acc.currency);
+                  const displayName = accountNameLabel(acc.name);
+                  return (
+                    <div key={acc.id} className="asset-report-account">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAssetMessage(null);
+                          setAccountTrendId(acc.id);
+                        }}
+                        className="asset-report-account-identity"
+                        aria-label={tt('analysis.viewAccountTrend', '查看{{name}}资产走势', { name: displayName })}
+                        data-open-account-trend={acc.id}
+                      >
+                        <span className="asset-report-account-icon">
+                          <AccountTypeIcon type={acc.type} className="h-[18px] w-[18px]" />
                         </span>
-                        {acc.currency !== 'CNY' && (
-                          <span className="mt-1 block whitespace-nowrap text-[11px] tabular-nums text-white/40" style={{ fontFamily: ASSET_NUMBER_FONT }}>≈¥{fmtWan(balCNY)}万</span>
-                        )}
-                      </span>
-                      <ChevronRight className="h-4 w-4 shrink-0 text-white/35" strokeWidth={1.8} />
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-        );
-      })}
+                        <span className="asset-report-account-description">
+                          <span className="asset-report-account-name">{displayName}</span>
+                          <span className="asset-report-account-type">{accountTypeLabel(acc.type)}{acc.currency !== 'CNY' ? ` · ${acc.currency}` : ''}</span>
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAssetMessage(null);
+                          setAccountActionId(acc.id);
+                        }}
+                        className="asset-report-account-balance"
+                        aria-label={tt('analysis.openAccountActionsFor', '打开{{name}}修改和删除', { name: displayName })}
+                        data-open-account-actions={acc.id}
+                      >
+                        <span>
+                          <span className="asset-report-account-amount" style={{ fontFamily: ASSET_NUMBER_FONT }}>
+                            {currencyPrefix(acc.currency)}{fmt(bal, 2)}
+                          </span>
+                          {acc.currency !== 'CNY' && (
+                            <span className="asset-report-account-equivalent" style={{ fontFamily: ASSET_NUMBER_FONT }}>≈¥{fmt(balCNY, 2)}</span>
+                          )}
+                        </span>
+                        <ChevronRight size={14} strokeWidth={1.8} />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          );
+        })}
+      </section>
 
       {showAddAccount && (
-        <ActionModalCard
+        <StockReportModal
           title={tt('analysis.addAccount', '新增账户')}
           closeLabel={tt('analysis.closeAddAccount', '关闭新增账户')}
           onClose={closeAddAccount}
           widthClassName="w-[calc(100vw-32px)] max-w-[420px]"
-          panelClassName="!border-transparent"
-          contentClassName="!border-transparent"
+          panelClassName="asset-dialog"
           actions={[
-            { key: 'cancel', label: tt('analysis.cancel', '取消'), onClick: closeAddAccount },
-            { key: 'save', label: tt('analysis.add', '添加'), onClick: saveNewAccount },
+            { key: 'save', label: tt('analysis.add', '添加'), onClick: saveNewAccount, className: 'asset-dialog-primary' },
           ]}
         >
             <div className="min-w-0">
-              <div className="space-y-5">
+              <div className="asset-dialog-form">
                 <div>
-                  <label className="mb-2 block text-[12px] text-white/[0.55]">{tt('analysis.owner', '拥有人')}</label>
-                  <div className="grid grid-cols-2 rounded-xl border border-white/10 bg-black/[0.22] p-1">
+                  <label className="asset-dialog-label">{tt('analysis.owner', '拥有人')}</label>
+                  <div className="asset-dialog-segments">
                     {['我', '老婆'].map(owner => (
                       <button
                         key={owner}
                         onClick={() => setNewAccount({ ...newAccount, owner })}
-                        className="rounded-lg py-2.5 text-[13px] transition"
-                        style={newAccount.owner === owner ? { background: 'rgba(255,255,255,0.08)', color: '#f7fbff', boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.12)' } : { color: 'rgba(255,255,255,0.52)' }}
+                        type="button"
+                        aria-pressed={newAccount.owner === owner}
                       >
                         {ownerLabel(owner)}
                       </button>
@@ -1026,18 +981,16 @@ function AnalysisTab({ ctx }) {
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-[12px] text-white/[0.55]">{tt('analysis.type', '类型')}</label>
-                  <div className="grid grid-cols-4 gap-2">
+                  <label className="asset-dialog-label">{tt('analysis.type', '类型')}</label>
+                  <div className="asset-dialog-types">
                     {ACCOUNT_TYPE_OPTIONS.map(({ type, Icon }) => {
                       const active = newAccount.type === type;
                       return (
                         <button
                           key={type}
                           onClick={() => setNewAccount({ ...newAccount, type, icon: type })}
-                          className="flex aspect-square min-h-[68px] flex-col items-center justify-center gap-1.5 rounded-xl border text-[12px] transition"
-                          style={active
-                            ? { borderColor: 'rgba(246,197,111,0.38)', color: ASSET_GOLD, background: 'rgba(246,197,111,0.07)' }
-                            : { borderColor: 'rgba(255,255,255,0.10)', color: 'rgba(255,255,255,0.70)', background: 'rgba(255,255,255,0.035)' }}
+                          type="button"
+                          aria-pressed={active}
                         >
                           <Icon className="h-5 w-5" strokeWidth={1.7} />
                           <span>{accountTypeLabel(type)}</span>
@@ -1048,14 +1001,14 @@ function AnalysisTab({ ctx }) {
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-[12px] text-white/[0.55]">{tt('analysis.accountName', '账户名')}</label>
-                  <div className="mb-2 flex flex-wrap gap-2">
+                  <label className="asset-dialog-label">{tt('analysis.accountName', '账户名')}</label>
+                  <div className="asset-dialog-presets">
                     {(ACCOUNT_PRESETS[newAccount.type] || []).map(name => (
                       <button
                         key={name}
                         onClick={() => setNewAccount({ ...newAccount, name })}
-                        className="rounded-lg border border-white/10 bg-white/[0.045] px-3 py-1.5 text-[12px] text-white/[0.65] active:scale-95 transition"
-                        style={newAccount.name === name ? { color: ASSET_GOLD, borderColor: 'rgba(246,197,111,0.45)', background: 'rgba(246,197,111,0.08)' } : undefined}
+                        type="button"
+                        aria-pressed={newAccount.name === name}
                       >
                         {accountNameLabel(name)}
                       </button>
@@ -1071,16 +1024,14 @@ function AnalysisTab({ ctx }) {
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-[12px] text-white/[0.55]">{tt('analysis.currency', '币种')}</label>
-                  <div className="grid grid-cols-3 gap-3">
+                  <label className="asset-dialog-label">{tt('analysis.currency', '币种')}</label>
+                  <div className="asset-dialog-segments">
                     {['CNY', 'USD', 'HKD'].map(currency => (
                       <button
                         key={currency}
                         onClick={() => setNewAccount({ ...newAccount, currency })}
-                        className="rounded-xl border py-2.5 text-[13px] tabular-nums transition"
-                        style={newAccount.currency === currency
-                          ? { borderColor: 'rgba(246,197,111,0.38)', color: '#f7fbff', background: 'rgba(246,197,111,0.07)' }
-                          : { borderColor: 'rgba(255,255,255,0.10)', color: 'rgba(255,255,255,0.56)', background: 'rgba(255,255,255,0.035)' }}
+                        type="button"
+                        aria-pressed={newAccount.currency === currency}
                       >
                         {currency}
                       </button>
@@ -1089,7 +1040,7 @@ function AnalysisTab({ ctx }) {
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-[12px] text-white/[0.55]">{tt('analysis.currentBalanceOptional', '当前余额 (可稍后填)')}</label>
+                  <label className="asset-dialog-label">{tt('analysis.currentBalanceOptional', '当前余额 (可稍后填)')}</label>
                   <input
                     type="number"
                     inputMode="decimal"
@@ -1103,14 +1054,14 @@ function AnalysisTab({ ctx }) {
                 </div>
 
                 {assetMessage && (
-                  <div className="rounded-xl border border-rose-400/25 bg-rose-400/10 px-3 py-2 text-[13px] text-rose-100">
+                  <div role="alert" className="asset-dialog-error">
                     {assetMessage.text}
                   </div>
                 )}
               </div>
 
             </div>
-        </ActionModalCard>
+        </StockReportModal>
       )}
 
       {selectedTrendAccount && selectedAccountTrend && (
@@ -1119,16 +1070,18 @@ function AnalysisTab({ ctx }) {
           accountName={accountNameLabel(selectedTrendAccount.name)}
           accountType={accountTypeLabel(selectedTrendAccount.type)}
           language={language}
+          marketColorMode={marketColorMode}
           trend={selectedAccountTrend}
           onClose={closeAccountTrend}
         />
       )}
 
       {selectedActionAccount && (
-        <ActionModalCard
+        <StockReportModal
           title={tt('analysis.accountActions', '账户操作')}
           closeLabel={tt('analysis.closeAccountActions', '关闭账户操作')}
           onClose={closeAccountAction}
+          panelClassName="asset-dialog asset-account-dialog"
           actions={[
             {
               key: 'edit',
@@ -1142,46 +1095,47 @@ function AnalysisTab({ ctx }) {
             },
           ]}
         >
-          <div className="grid min-h-[58px] grid-cols-[38px_minmax(0,1fr)_auto] items-center gap-2.5">
+          <div className="asset-dialog-identity">
             <AccountLogo account={selectedActionAccount} />
-            <div className="min-w-0">
-              <div className="truncate text-[15px] font-normal leading-5 text-white/[0.82]">{accountNameLabel(selectedActionAccount.name)}</div>
-              <div className="mt-[3px] truncate text-[11.5px] font-normal leading-4 text-white/[0.42]">
+            <div>
+              <div className="asset-dialog-account-name">{accountNameLabel(selectedActionAccount.name)}</div>
+              <div className="asset-dialog-account-meta">
                 {ownerLabel(selectedActionAccount.owner)} · {accountTypeLabel(selectedActionAccount.type)} · {selectedActionAccount.currency || 'CNY'}
               </div>
             </div>
-            <div className="shrink-0 text-right">
-              <div className="whitespace-nowrap text-[16px] font-normal tracking-normal text-white/[0.78] tabular-nums" style={{ fontFamily: ASSET_NUMBER_FONT }}>{accountBalanceText(selectedActionAccount)}</div>
-              {accountApproxText(selectedActionAccount) && (
-                <div className="mt-1 whitespace-nowrap text-[10.5px] text-white/[0.37] tabular-nums" style={{ fontFamily: ASSET_NUMBER_FONT }}>{accountApproxText(selectedActionAccount)}</div>
-              )}
-            </div>
           </div>
-        </ActionModalCard>
+          <div className="asset-dialog-account-value">
+            <div className="asset-dialog-label">{tt('analysis.currentMonthBalance', '本月余额')}</div>
+            <div className="asset-dialog-account-amount" style={{ fontFamily: ASSET_NUMBER_FONT }}>{accountBalanceText(selectedActionAccount)}</div>
+            {accountApproxText(selectedActionAccount) && (
+              <div className="asset-dialog-account-meta" style={{ fontFamily: ASSET_NUMBER_FONT }}>{accountApproxText(selectedActionAccount)}</div>
+            )}
+          </div>
+        </StockReportModal>
       )}
 
       {editingAccount && accountEditDraft && (
-        <ActionModalCard
+        <StockReportModal
           title={tt('analysis.editAccount', '修改账户')}
           closeLabel={tt('analysis.closeEditAccount', '关闭修改账户')}
           onClose={closeAccountEdit}
+          panelClassName="asset-dialog"
           widthClassName="w-[calc(100vw-32px)] max-w-[420px]"
           actions={[
-            { key: 'cancel', label: tt('analysis.cancel', '取消'), onClick: closeAccountEdit },
-            { key: 'save', label: tt('analysis.saveChanges', '保存修改'), onClick: saveAccountEdit },
+            { key: 'save', label: tt('analysis.saveChanges', '保存修改'), onClick: saveAccountEdit, className: 'asset-dialog-primary' },
           ]}
         >
             <div className="min-w-0">
-              <div className="space-y-5">
+              <div className="asset-dialog-form">
                 <div>
-                  <label className="mb-2 block text-[12px] text-white/[0.55]">{tt('analysis.owner', '拥有人')}</label>
-                  <div className="grid grid-cols-2 rounded-xl border border-white/10 bg-black/[0.22] p-1">
+                  <label className="asset-dialog-label">{tt('analysis.owner', '拥有人')}</label>
+                  <div className="asset-dialog-segments">
                     {['我', '老婆'].map(owner => (
                       <button
                         key={owner}
                         onClick={() => setAccountEditDraft({ ...accountEditDraft, owner })}
-                        className="rounded-lg py-2.5 text-[13px] transition"
-                        style={accountEditDraft.owner === owner ? { background: 'rgba(255,255,255,0.08)', color: '#f7fbff', boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.12)' } : { color: 'rgba(255,255,255,0.52)' }}
+                        type="button"
+                        aria-pressed={accountEditDraft.owner === owner}
                       >
                         {ownerLabel(owner)}
                       </button>
@@ -1190,18 +1144,16 @@ function AnalysisTab({ ctx }) {
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-[12px] text-white/[0.55]">{tt('analysis.type', '类型')}</label>
-                  <div className="grid grid-cols-4 gap-2">
+                  <label className="asset-dialog-label">{tt('analysis.type', '类型')}</label>
+                  <div className="asset-dialog-types">
                     {ACCOUNT_TYPE_OPTIONS.map(({ type, Icon }) => {
                       const active = accountEditDraft.type === type;
                       return (
                         <button
                           key={type}
                           onClick={() => setAccountEditDraft({ ...accountEditDraft, type, icon: type })}
-                          className="flex aspect-square min-h-[68px] flex-col items-center justify-center gap-1.5 rounded-xl border text-[12px] transition"
-                          style={active
-                            ? { borderColor: 'rgba(246,197,111,0.38)', color: ASSET_GOLD, background: 'rgba(246,197,111,0.07)' }
-                            : { borderColor: 'rgba(255,255,255,0.10)', color: 'rgba(255,255,255,0.70)', background: 'rgba(255,255,255,0.035)' }}
+                          type="button"
+                          aria-pressed={active}
                         >
                           <Icon className="h-5 w-5" strokeWidth={1.7} />
                           <span>{accountTypeLabel(type)}</span>
@@ -1212,14 +1164,14 @@ function AnalysisTab({ ctx }) {
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-[12px] text-white/[0.55]">{tt('analysis.accountName', '账户名')}</label>
-                  <div className="mb-2 flex flex-wrap gap-2">
+                  <label className="asset-dialog-label">{tt('analysis.accountName', '账户名')}</label>
+                  <div className="asset-dialog-presets">
                     {(ACCOUNT_PRESETS[accountEditDraft.type] || []).map(name => (
                       <button
                         key={name}
                         onClick={() => setAccountEditDraft({ ...accountEditDraft, name })}
-                        className="rounded-lg border border-white/10 bg-white/[0.045] px-3 py-1.5 text-[12px] text-white/[0.65] active:scale-95 transition"
-                        style={accountEditDraft.name === name ? { color: ASSET_GOLD, borderColor: 'rgba(246,197,111,0.45)', background: 'rgba(246,197,111,0.08)' } : undefined}
+                        type="button"
+                        aria-pressed={accountEditDraft.name === name}
                       >
                         {accountNameLabel(name)}
                       </button>
@@ -1235,16 +1187,14 @@ function AnalysisTab({ ctx }) {
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-[12px] text-white/[0.55]">{tt('analysis.currency', '币种')}</label>
-                  <div className="grid grid-cols-3 gap-3">
+                  <label className="asset-dialog-label">{tt('analysis.currency', '币种')}</label>
+                  <div className="asset-dialog-segments">
                     {['CNY', 'USD', 'HKD'].map(currency => (
                       <button
                         key={currency}
                         onClick={() => setAccountEditDraft({ ...accountEditDraft, currency })}
-                        className="rounded-xl border py-2.5 text-[13px] tabular-nums transition"
-                        style={accountEditDraft.currency === currency
-                          ? { borderColor: 'rgba(246,197,111,0.38)', color: '#f7fbff', background: 'rgba(246,197,111,0.07)' }
-                          : { borderColor: 'rgba(255,255,255,0.10)', color: 'rgba(255,255,255,0.56)', background: 'rgba(255,255,255,0.035)' }}
+                        type="button"
+                        aria-pressed={accountEditDraft.currency === currency}
                       >
                         {currency}
                       </button>
@@ -1253,7 +1203,7 @@ function AnalysisTab({ ctx }) {
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-[12px] text-white/[0.55]">{tt('analysis.currentMonthBalance', '本月余额')}</label>
+                  <label className="asset-dialog-label">{tt('analysis.currentMonthBalance', '本月余额')}</label>
                   <input
                     type="number"
                     inputMode="decimal"
@@ -1268,63 +1218,61 @@ function AnalysisTab({ ctx }) {
                     className={`${inputClassName} tabular-nums`}
                     style={{ colorScheme: 'dark', fontFamily: ASSET_NUMBER_FONT }}
                   />
-                  <div className="mt-2 text-[11px] leading-4 text-white/[0.38]">
+                  <div className="asset-dialog-hint">
                     {tt('analysis.zeroDeletesSnapshot', '填 0 或清空后保存，将删除该月记录')}
                   </div>
                 </div>
 
                 {assetMessage && (
-                  <div className="rounded-xl border border-rose-400/25 bg-rose-400/10 px-3 py-2 text-[13px] text-rose-100">
+                  <div role="alert" className="asset-dialog-error">
                     {assetMessage.text}
                   </div>
                 )}
               </div>
 
             </div>
-        </ActionModalCard>
+        </StockReportModal>
       )}
 
       </div>
       )}
 
       {showFillSnapshot && (
-        <ActionModalCard
+        <StockReportModal
           title={tt('analysis.addMonthlyBalance', '填月度余额')}
           closeLabel={tt('analysis.closeMonthlyBalance', '关闭填月度余额')}
           onClose={closeFillSnapshot}
           widthClassName="w-[calc(100vw-32px)] max-w-[420px]"
-          panelClassName="!border-transparent"
-          contentClassName="!border-transparent"
+          panelClassName="asset-dialog"
           actions={[
-            { key: 'cancel', label: tt('analysis.cancel', '取消'), onClick: closeFillSnapshot },
-            { key: 'save', label: tt('analysis.saveMonth', '保存 {{month}}', { month: fillMonth }), onClick: saveFillSnapshot },
+            { key: 'save', label: tt('analysis.saveMonth', '保存 {{month}}', { month: fillMonth }), onClick: saveFillSnapshot, className: 'asset-dialog-primary' },
           ]}
         >
             <div className="min-w-0">
-              <div className="rounded-xl border border-white/10 bg-white/[0.035] p-3">
-                <div className="mb-3 text-[12px] text-white/[0.52]">{tt('analysis.selectMonth', '选择月份')}</div>
-                <div className="flex items-center gap-3">
+              <div className="asset-dialog-month">
+                <div className="asset-dialog-label">{tt('analysis.selectMonth', '选择月份')}</div>
+                <div className="asset-dialog-month-picker">
                   <button
                     onClick={() => {
                       setFillMonth(shiftMonth(fillMonth, -1));
                       setSnapshotDraft({});
                     }}
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-black/20 text-white/75 active:scale-95 transition"
+                    type="button"
                   >
                     <ChevronLeft className="h-4 w-4" strokeWidth={1.8} />
                   </button>
                   <div className="min-w-0 flex-1 text-center">
-                    <div className="text-[17px] tabular-nums" style={{ color: ASSET_GOLD, fontFamily: ASSET_NUMBER_FONT }}>{fillMonth}</div>
-                    {fillMonth === currentMonth && <div className="mt-1 text-[11px] text-blue-300">{tt('analysis.thisMonth', '本月')}</div>}
-                    {fillMonth > currentMonth && <div className="mt-1 text-[11px] text-amber-300">{tt('analysis.futureMonth', '未来月')}</div>}
-                    {fillMonth < currentMonth && <div className="mt-1 text-[11px] text-white/[0.42]">{tt('analysis.historyMonth', '历史月')}</div>}
+                    <div className="asset-dialog-month-value" style={{ fontFamily: ASSET_NUMBER_FONT }}>{fillMonth}</div>
+                    {fillMonth === currentMonth && <div className="asset-dialog-month-status">{tt('analysis.thisMonth', '本月')}</div>}
+                    {fillMonth > currentMonth && <div className="asset-dialog-month-status">{tt('analysis.futureMonth', '未来月')}</div>}
+                    {fillMonth < currentMonth && <div className="asset-dialog-month-status">{tt('analysis.historyMonth', '历史月')}</div>}
                   </div>
                   <button
                     onClick={() => {
                       setFillMonth(shiftMonth(fillMonth, 1));
                       setSnapshotDraft({});
                     }}
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-black/20 text-white/75 active:scale-95 transition"
+                    type="button"
                   >
                     <ChevronRight className="h-4 w-4" strokeWidth={1.8} />
                   </button>
@@ -1347,7 +1295,7 @@ function AnalysisTab({ ctx }) {
                 return (
                   <div className="mt-4">
                     {hasMulti && (
-                      <div className="grid grid-cols-2 rounded-xl border border-white/10 bg-black/[0.22] p-1">
+                      <div className="asset-dialog-segments">
                         {[
                           { owner: '我', accs: myAccs },
                           { owner: '老婆', accs: wifeAccs },
@@ -1357,11 +1305,11 @@ function AnalysisTab({ ctx }) {
                             <button
                               key={owner}
                               onClick={() => setSnapshotTab(owner)}
-                              className="flex items-center justify-center gap-2 rounded-lg py-2.5 text-[13px] transition"
-                              style={active ? { background: 'rgba(255,255,255,0.08)', color: '#f7fbff' } : { color: 'rgba(255,255,255,0.52)' }}
+                              type="button"
+                              aria-pressed={active}
                             >
                               <span>{ownerLabel(owner)}</span>
-                              <span className="rounded-full bg-white/10 px-2 py-0.5 text-[11px]">{accs.length}</span>
+                              <span className="asset-dialog-count">{accs.length}</span>
                             </button>
                           );
                         })}
@@ -1369,24 +1317,24 @@ function AnalysisTab({ ctx }) {
                     )}
 
                     {hasMulti && (
-                      <div className="mt-4 flex items-center justify-between text-[12px] text-white/[0.52]">
+                      <div className="asset-dialog-month-summary">
                         <span>{tt('analysis.monthlyOwnerSummary', '{{owner}} · {{count}} 个账户', { owner: ownerLabel(snapshotTab), count: currentAccs.length })}</span>
-                        <span className="text-white/[0.95] tabular-nums" style={{ fontFamily: ASSET_NUMBER_FONT }}>≈ ¥{fmt(curSum, 0)}</span>
+                        <span className="text-white/[0.95] tabular-nums" style={{ fontFamily: ASSET_NUMBER_FONT }}>≈ ¥{fmt(curSum, 2)}</span>
                       </div>
                     )}
 
-                    <div className="mt-3 space-y-2">
+                    <div className="asset-dialog-balance-list">
                       {currentAccs.map(acc => {
                         const currentBal = getSnapshotBalance(acc.id, fillMonth);
                         const draftVal = snapshotDraft[acc.id] ?? (Number(currentBal) > 0 ? currentBal : '');
                         return (
-                          <div key={acc.id} className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.035] p-3">
-                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-black/[0.18] text-white/[0.55]">
+                          <div key={acc.id} className="asset-dialog-balance-row">
+                            <div className="asset-dialog-balance-icon">
                               <AccountTypeIcon type={acc.type} className="h-4 w-4" />
                             </div>
                             <div className="min-w-0 flex-1">
-                              <div className="truncate text-[13px] text-white/[0.86]">{accountNameLabel(acc.name)}</div>
-                              <div className="mt-1 text-[11px] text-white/[0.42]">{acc.currency}</div>
+                              <div className="asset-dialog-balance-name">{accountNameLabel(acc.name)}</div>
+                              <div className="asset-dialog-month-status">{acc.currency}</div>
                             </div>
                             <input
                               type="number"
@@ -1398,14 +1346,15 @@ function AnalysisTab({ ctx }) {
                                 [acc.id]: e.target.value,
                               }))}
                               placeholder="0"
-                              className="w-[116px] min-w-0 max-w-full box-border rounded-lg border border-white/10 bg-black/20 px-3 py-2.5 text-right text-[13px] text-[#f5f7fb] outline-none placeholder:text-[#6f7887] focus:border-[#f6c56f]"
+                              aria-label={`${accountNameLabel(acc.name)} · ${acc.currency}`}
+                              className="asset-dialog-input asset-dialog-balance-input"
                               style={{ colorScheme: 'dark', fontFamily: ASSET_NUMBER_FONT }}
                             />
                           </div>
                         );
                       })}
                     </div>
-                    <div className="mt-2 px-1 text-[11px] leading-4 text-white/[0.38]">
+                    <div className="asset-dialog-hint">
                       {tt('analysis.zeroDeletesSnapshot', '填 0 或清空后保存，将删除该月记录')}
                     </div>
                   </div>
@@ -1413,13 +1362,13 @@ function AnalysisTab({ ctx }) {
               })()}
 
               {assetMessage && (
-                <div className="mt-4 rounded-xl border border-rose-400/25 bg-rose-400/10 px-3 py-2 text-[13px] text-rose-100">
+                <div role="alert" className="asset-dialog-error">
                   {assetMessage.text}
                 </div>
               )}
 
             </div>
-        </ActionModalCard>
+        </StockReportModal>
       )}
     </>
   );

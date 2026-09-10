@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '✨ 资产首页与弹窗统一新版黑灰报告设计',
+      '  - 突出家庭总资产，铺宽月度走势，按人物展示账户明细与完整两位小数金额',
+      '  - 新增、修改、账户操作、月度余额、账户走势及删除确认弹窗统一黑灰控件，移除重复取消按钮',
+      '  - 涨跌颜色尊重个人设置，保留现有资产数据、余额保存与删除规则',
+    ],
+    itemsEn: [
+      '✨ A unified monochrome report design for Assets and its dialogs',
+      '  - Emphasize family assets, widen the monthly chart and group accounts by owner with full two-decimal amounts',
+      '  - Unify add, edit, account actions, monthly balances, account trends and deletion dialogs with consistent controls',
+      '  - Respect preferred market colors and retain existing asset data, balance saving and deletion rules',
+    ],
+  },
+  {
+    ver: 'v10.7.9.514', date: '2026-09-10',
+    items: [
       '📈 恢复市场洞察三大指数的当日分时曲线',
       '  - 首页指数报价与曲线统一读取 Yahoo Finance 的同日真实数据，首次打开即可加载已有走势',
       '  - 移除指数状态与时间提示文字，保留价格、涨跌幅和图表',

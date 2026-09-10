@@ -1,0 +1,66 @@
+/* The existing app shell continues to own gutters, scrolling and safe areas. */
+.min-h-screen:has(.asset-report) { background: #08090b; }
+.asset-report { color: #e4e4e7; font-weight: 400; letter-spacing: normal; --asset-report-line: rgb(255 255 255 / .075); --asset-report-muted: #85858f; }
+.asset-report button { -webkit-tap-highlight-color: transparent; }
+.asset-report button:focus-visible { outline: 1px solid #96969e; outline-offset: 3px; }
+.asset-report button:disabled { opacity: .35; }
+.asset-report-hero { padding: 2px 2px 24px; font-variant-numeric: tabular-nums; }
+.asset-report-hero-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.asset-report-label { color: var(--asset-report-muted); font-size: 12px; font-weight: 400; line-height: 1.5; }
+.asset-report-month { display: flex; align-items: center; gap: 6px; min-height: 30px; padding: 0 9px; border-radius: 8px; background: #1b1c1e; color: #b5b5be; font-size: 11px; }
+.asset-report-month svg { flex-shrink: 0; color: #85858f; }
+.asset-report-total { margin-top: 8px; color: #ededf0; font-size: clamp(28px, 8.8vw, 40px); font-weight: 400; line-height: 1.18; overflow-wrap: anywhere; }
+.asset-report-decimal { color: #83838c; font-size: .64em; }
+.asset-report-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 22px; }
+.asset-report-metric { min-width: 0; }
+.asset-report-metric-value { margin-top: 6px; font-size: clamp(14px, 4.1vw, 18px); line-height: 1.4; overflow-wrap: anywhere; }
+.asset-report-metric-percent { margin-top: 2px; font-size: 12px; line-height: 1.5; }
+.asset-report-unavailable { margin-top: 8px; color: #666670; font-size: 12px; }
+.asset-report-trend { padding: 22px 0 24px; border-top: 1px solid var(--asset-report-line); }
+.asset-report-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.asset-report-section-heading h2 { font-size: 17px; font-weight: 500; line-height: 1.5; }
+.asset-report-text-link { display: flex; align-items: center; justify-content: flex-end; gap: 3px; min-height: 30px; color: var(--asset-report-muted); font-size: 11px; text-align: right; }
+.asset-report-text-link svg { flex-shrink: 0; }
+.asset-report-chart { margin-top: 14px; --monthly-asset-chart-line: #b9bbc4; --monthly-asset-chart-latest: #dedee4; --monthly-asset-chart-area-opacity: .12; --monthly-asset-chart-glow-opacity: 0; }
+.asset-report-selection { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; margin-top: 14px; padding: 10px 12px; border-radius: 9px; background: #101112; color: #91919b; font-size: 11px; font-variant-numeric: tabular-nums; }
+.asset-report-selection-change { margin-top: 4px; }
+.asset-report-selection-value { color: #e4e4e7; font-size: 15px; overflow-wrap: anywhere; }
+.asset-report-range { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 12px; font-variant-numeric: tabular-nums; }
+.asset-report-range > div { min-width: 0; }
+.asset-report-range-value { display: block; margin-top: 5px; color: #bebec7; font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
+.asset-report-accounts { padding-top: 22px; border-top: 1px solid var(--asset-report-line); }
+.asset-report-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
+.asset-report-actions button, .asset-report-empty button { display: flex; align-items: center; justify-content: center; gap: 7px; min-height: 42px; padding: 9px 10px; border-radius: 10px; background: #1b1c1e; color: #cdced6; font-size: 13px; line-height: 1.5; }
+.asset-report-actions svg { flex-shrink: 0; color: #91919b; }
+.asset-report-actions button:active, .asset-report-empty button:active { background: #252629; }
+.asset-report-owner { padding: 24px 0 4px; }
+.asset-report-owner + .asset-report-owner { margin-top: 18px; border-top: 1px solid var(--asset-report-line); }
+.asset-report-owner-header { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: 6px 12px; }
+.asset-report-owner-header h3 { font-size: 16px; font-weight: 400; line-height: 1.5; overflow-wrap: anywhere; }
+.asset-report-owner-total { max-width: 100%; color: #e4e4e7; font-size: clamp(18px, 5.3vw, 22px); line-height: 1.4; text-align: right; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.asset-report-owner-summary { grid-column: 1 / -1; color: #71717c; font-size: 11px; line-height: 1.5; }
+.asset-report-account-list { margin-top: 14px; }
+.asset-report-account { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: stretch; width: 100%; border-bottom: 1px solid var(--asset-report-line); }
+.asset-report-account:last-child { border-bottom: 0; }
+.asset-report-account-identity { display: flex; align-items: center; gap: 10px; min-width: 0; min-height: 70px; padding: 12px 8px 12px 0; text-align: left; }
+.asset-report-account-icon { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 34px; height: 34px; border-radius: 10px; background: #141517; color: #91919b; }
+.asset-report-account-description { min-width: 0; }
+.asset-report-account-name { display: block; overflow: hidden; color: #dcdce2; font-size: 14px; line-height: 1.5; text-overflow: ellipsis; white-space: nowrap; }
+.asset-report-account-type { display: block; margin-top: 3px; color: #71717c; font-size: 11px; line-height: 1.5; }
+.asset-report-account-balance { display: flex; align-items: center; justify-content: flex-end; gap: 7px; padding: 12px 0 12px 8px; text-align: right; font-variant-numeric: tabular-nums; }
+.asset-report-account-amount { display: block; color: #dedee4; font-size: 15px; line-height: 1.5; white-space: nowrap; }
+.asset-report-account-equivalent { display: block; margin-top: 3px; color: #71717c; font-size: 11px; line-height: 1.5; white-space: nowrap; }
+.asset-report-account-balance > svg { flex-shrink: 0; color: #5e5e68; }
+.asset-report-account button:active { background: rgb(255 255 255 / .025); }
+.asset-report-empty { padding: 34px 12px 16px; text-align: center; color: #b9b9c2; font-size: 15px; }
+.asset-report-empty > svg { margin: 0 auto 14px; color: #71717c; }
+.asset-report-empty p { margin-top: 8px; color: #71717c; font-size: 12px; line-height: 1.6; }
+.asset-report-empty button { margin: 18px auto 0; padding-inline: 20px; }
+@media (max-width: 350px) {
+  .asset-report-hero { padding-inline: 0; }
+  .asset-report-metrics, .asset-report-range { gap: 9px; }
+  .asset-report-account-identity { gap: 7px; }
+  .asset-report-account-icon { width: 28px; height: 32px; }
+  .asset-report-account-amount { font-size: 13px; }
+  .asset-report-account-balance { gap: 3px; padding-left: 4px; }
+}

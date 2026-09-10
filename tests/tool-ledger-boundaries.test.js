@@ -13,6 +13,7 @@ const stockReportModalSource = readFileSync(new URL('../src/components/StockRepo
 const stockReportModalCss = readFileSync(new URL('../src/components/StockReportModal.css', import.meta.url), 'utf8');
 const tradesDialogsCss = readFileSync(new URL('../src/tabs/TradesDialogs.css', import.meta.url), 'utf8');
 const accountAssetTrendModalSource = readFileSync(new URL('../src/components/AccountAssetTrendModal.jsx', import.meta.url), 'utf8');
+const accountAssetTrendModalCss = readFileSync(new URL('../src/components/AccountAssetTrendModal.css', import.meta.url), 'utf8');
 const monthlyAssetTrendChartSource = readFileSync(new URL('../src/components/MonthlyAssetTrendChart.jsx', import.meta.url), 'utf8');
 const monthlyAssetTrendContentSource = readFileSync(new URL('../src/components/MonthlyAssetTrendContent.jsx', import.meta.url), 'utf8');
 const monthlyAssetCategoryReportSource = readFileSync(new URL('../src/components/MonthlyAssetCategoryReport.jsx', import.meta.url), 'utf8');
@@ -28,6 +29,8 @@ const indexRealtimeSource = readFileSync(new URL('../src/lib/indexRealtime.js', 
 const stockQuoteBootstrapCacheSource = readFileSync(new URL('../src/lib/stockQuoteBootstrapCache.js', import.meta.url), 'utf8');
 const realtimeStartupTraceSource = readFileSync(new URL('../src/lib/realtimeStartupTrace.js', import.meta.url), 'utf8');
 const analysisTabSource = readFileSync(new URL('../src/tabs/AnalysisTab.jsx', import.meta.url), 'utf8');
+const analysisTabCss = readFileSync(new URL('../src/tabs/AnalysisTab.css', import.meta.url), 'utf8');
+const assetDialogsCss = readFileSync(new URL('../src/tabs/AssetDialogs.css', import.meta.url), 'utf8');
 const devVisualPreviewSource = readFileSync(new URL('../src/DevVisualPreview.jsx', import.meta.url), 'utf8');
 const waveTrackerPrototypeSource = readFileSync(new URL('../src/dev/WaveTrackerPrototype.jsx', import.meta.url), 'utf8');
 const settingsRedesignPrototypeSource = readFileSync(new URL('../src/dev/SettingsRedesignPrototype.jsx', import.meta.url), 'utf8');
@@ -1852,30 +1855,28 @@ test('QQQ and TQQQ stay English in the shared stock-name fallback', () => {
 });
 
 test('asset module redesign keeps database logic while removing legacy controls', () => {
-  assert.ok(analysisTabSource.includes('ASSET_GOLD'), 'asset page should use the redesigned dark/gold theme tokens');
   assert.ok(analysisTabSource.includes("import { marketHexColor } from '../lib/marketColorMode.js';"), 'asset page should reuse the home market color helper');
-  assert.ok(analysisTabSource.includes('const ASSET_PINK = marketHexColor(-1);'), 'asset page red accent should reuse the system market-red token');
+  assert.ok(analysisTabSource.includes('marketHexColor(item.value, marketColorMode)'), 'asset changes should respect the selected market color convention');
   assert.equal(analysisTabSource.includes("const ASSET_PINK = '#f56f98';"), false, 'asset page should not keep the old mismatched pink accent');
-  assert.ok(analysisTabSource.includes('ASSET_PINK'), 'asset page should keep the system red accent for positive values, owner totals, and progress bars');
-  assert.ok(analysisTabSource.includes("const ASSET_CARD = '#0b0c0e';"), 'asset page lower cards should use the same neutral black as the home cards');
+  assert.ok(analysisTabSource.includes("import './AnalysisTab.css';") && analysisTabSource.includes('className="asset-report"'), 'asset overview should opt into its scoped continuous report');
+  assert.match(analysisTabCss, /\.asset-report\s*\{[^}]*color:\s*#e4e4e7;/, 'asset overview should share the neutral report palette');
   assert.equal(analysisTabSource.includes('const ASSET_BORDER'), false, 'asset overview cards should not keep a visible shared outer-border token');
-  assert.equal((analysisTabSource.match(/style=\{\{ background: ASSET_CARD \}\}/g) || []).length, 2, 'asset trend and owner cards should both retain the standard neutral-black surface');
-  assert.ok(analysisTabSource.includes('overflow-hidden rounded-[20px] border border-transparent py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]'), 'the overview trend card should hide its outer outline while preserving the top highlight and wider chart geometry');
-  assert.ok(analysisTabSource.includes('rounded-[20px] border border-transparent p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]'), 'owner account groups should hide their outer outlines while preserving the top highlight');
-  assert.ok(analysisTabSource.includes('rounded-[22px] border border-transparent bg-white/[0.04] px-5 py-9 text-center'), 'the no-account state should hide only its outer outline');
-  assert.equal((analysisTabSource.match(/panelClassName="!border-transparent"/g) || []).length, 2, 'only add-account and monthly-balance panels should hide their decorative outer outlines');
-  assert.equal((analysisTabSource.match(/contentClassName="!border-transparent"/g) || []).length, 2, 'only add-account and monthly-balance content surfaces should hide their redundant inner outlines');
-  assert.ok(analysisTabSource.includes('style={{ color: ASSET_PINK, fontFamily: ASSET_NUMBER_FONT }}'), 'both owner totals should use the system red token');
-  assert.ok(analysisTabSource.includes('background: ASSET_PINK'), 'both owner progress bars should use the system red token');
-  assert.ok((analysisTabSource.match(/bg-black\/\[0\.18\] text-white\/\[0\.55\]/g) || []).length >= 2, 'account type icons should use the same neutral default color in the asset list and monthly editor');
+  assert.doesNotMatch(analysisTabCss, /box-shadow|radial-gradient|linear-gradient/, 'asset overview should not restore decorative card shadows or gradients');
+  assert.ok(analysisTabSource.includes('className="asset-report-owner"'), 'owners should remain separate readable report groups');
+  assert.match(analysisTabCss, /\.asset-report-owner-total\s*\{[^}]*color:\s*#e4e4e7;/, 'owner asset totals should use the neutral report text tone');
+  assert.equal(analysisTabSource.includes('background: ASSET_PINK'), false, 'owner groups should not retain the decorative red progress bars');
+  assert.equal((analysisTabSource.match(/<StockReportModal/g) || []).length, 4, 'all four asset editor and action dialogs should share the report modal');
+  assert.equal(analysisTabSource.includes('<ActionModalCard'), false, 'asset dialogs should not retain the superseded direct card presentation');
+  assert.ok(analysisTabSource.includes('AccountTypeIcon type={acc.type}'), 'account identity rows should retain their account type icons');
   assert.equal(analysisTabSource.includes("borderColor: accent === ASSET_GOLD ? 'rgba(246,197,111,0.38)'"), false, 'owner cards must not keep the gold/red border split');
   assert.equal(analysisTabSource.includes('style={{ color: accent }}'), false, 'account type icons must not inherit an owner accent');
   assert.ok(analysisTabSource.includes('ACCOUNT_TYPE_OPTIONS'), 'asset accounts should use the custom line-icon type grid');
   assert.ok(analysisTabSource.includes('Landmark'), 'bank accounts should use lucide line icons rather than emoji');
   assert.ok(analysisTabSource.includes('WalletCards'), 'payment accounts should use lucide line icons rather than emoji');
-  assert.ok(analysisTabSource.includes('<ActionModalCard') && actionModalCardSource.includes('bg-black/[0.62]'), 'asset modals should use the shared centered dark in-app overlay');
-  assert.ok(analysisTabSource.includes('text-[#f5f7fb]'), 'asset modal inputs should force visible dark-theme text');
-  assert.ok(analysisTabSource.includes('placeholder:text-[#6f7887]'), 'asset modal placeholders should stay visible on iOS keyboards');
+  assert.ok(analysisTabSource.includes('<StockReportModal') && stockReportModalSource.includes('<ActionModalCard'), 'asset report modals should retain the shared iOS keyboard and close shell');
+  assert.ok(analysisTabSource.includes("import './AssetDialogs.css';") && analysisTabSource.includes('asset-dialog-input'), 'asset modal inputs should opt into the scoped neutral form style');
+  assert.match(assetDialogsCss, /\.asset-dialog-input\s*\{[^}]*background:\s*#1b1c1e;[^}]*color:\s*#e4e4e7;/, 'asset inputs should share the neutral raised form surface with visible text');
+  assert.match(assetDialogsCss, /\.asset-dialog-input::placeholder\s*\{[^}]*color:\s*#67676f;/, 'asset input placeholders should remain visible on dark surfaces');
   assert.ok(analysisTabSource.includes('db.insertAccount'), 'add account must keep the existing account insert path');
   assert.ok(analysisTabSource.includes('db.upsertSnapshot'), 'monthly balance saves must keep the existing snapshot upsert path');
   assert.ok(analysisTabSource.includes('db.deleteSnapshot'), 'zero or blank monthly balances must use the database-backed snapshot delete path');
@@ -1928,11 +1929,10 @@ test('asset page visual shell and local preview stay debuggable', () => {
   assert.ok(analysisTabSource.includes('ref={overviewChartInteractionRef}') && analysisTabSource.includes("document.addEventListener('pointerdown', clearSelectedMonthOutsideOverviewChart, true)"), 'touching outside the overview chart should dismiss its selected month detail');
   assert.ok(analysisTabSource.includes("document.removeEventListener('pointerdown', clearSelectedMonthOutsideOverviewChart, true)"), 'overview chart outside-touch handling should clean up when the page unmounts');
   assert.equal(analysisTabSource.includes('assetChartGlow') || analysisTabSource.includes('stroke={ASSET_PINK} strokeWidth="3"'), false, 'asset overview should remove the old heavy red glow chart');
-  assert.ok(analysisTabSource.includes("className=\"flex min-h-[46px] min-w-0 items-center justify-center"), 'asset action buttons should stay compact and readable');
-  assert.ok((analysisTabSource.match(/rounded-xl bg-white\/\[0\.045\] px-2 text-\[13px\] text-white\/\[0\.82\]/g) || []).length >= 2, 'fill monthly balance and add account should share the same borderless neutral action style');
+  assert.match(analysisTabCss, /\.asset-report-actions button, \.asset-report-empty button\s*\{[^}]*min-height:\s*42px;/, 'asset report actions should retain a compact readable touch target');
   assert.equal(analysisTabSource.includes('rounded-xl border border-white/[0.16] bg-white/[0.045] px-2'), false, 'asset action buttons should not restore their visible outer outlines');
   assert.equal(analysisTabSource.includes("style={{ borderColor: 'rgba(246,197,111,0.72)', color: ASSET_GOLD"), false, 'fill monthly balance should not retain its gold border and text');
-  assert.ok(assetMonthEntryBlock.includes('text-white/[0.82]'), 'the family asset month entry should use neutral white text');
+  assert.ok(assetMonthEntryBlock.includes('asset-report-'), 'the family asset month entry should share the scoped neutral report controls');
   assert.equal(assetMonthEntryBlock.includes('color: ASSET_GOLD'), false, 'the family asset month entry should not retain gold text');
   assert.equal(analysisTabSource.includes('text-[48px]'), false, 'asset header number should not return to the oversized mobile font');
 });
@@ -2125,6 +2125,11 @@ test('asset account list hides zero-balance rows and uses action modal for edit/
   const accountActionStart = analysisTabSource.indexOf('{selectedActionAccount && (');
   const accountActionEnd = analysisTabSource.indexOf('{editingAccount && accountEditDraft && (', accountActionStart);
   const accountActionBlock = analysisTabSource.slice(accountActionStart, accountActionEnd);
+  const assetConfirmStart = confirmModalSource.indexOf("if (variant === 'asset-report') {");
+  const defaultConfirmStart = confirmModalSource.indexOf('\n  return (', assetConfirmStart);
+  const assetConfirmBlock = confirmModalSource.slice(assetConfirmStart, defaultConfirmStart);
+  const defaultConfirmBlock = confirmModalSource.slice(defaultConfirmStart);
+  const accountDeleteBlock = analysisTabSource.slice(analysisTabSource.indexOf('const confirmDeleteAccount ='), analysisTabSource.indexOf('const saveAccountEdit ='));
 
   assert.ok(appSource.includes("type: ''"), 'new account state should not preselect bank type');
   assert.ok(analysisTabSource.includes("setNewAccount({ owner: '我', type: '', name: '', currency: 'CNY', icon: '', balance: '' })"), 'opening add account should reset to no selected type');
@@ -2136,24 +2141,36 @@ test('asset account list hides zero-balance rows and uses action modal for edit/
   assert.ok(analysisTabSource.includes('setAccountActionId(acc.id)'), 'clicking an account row should open the action modal');
   assert.ok(analysisTabSource.includes('账户操作'), 'asset account action modal should be present');
   assert.ok(accountActionStart > -1 && accountActionEnd > accountActionStart, 'missing account action modal boundary');
-  assert.ok(accountActionBlock.includes('<ActionModalCard'), 'account action should use the approved shared card shell');
+  assert.ok(accountActionBlock.includes('<StockReportModal'), 'account action should use the approved report modal shell');
   assert.ok(accountActionBlock.includes("key: 'edit'") && accountActionBlock.includes("key: 'delete'"), 'account action should keep separate edit and delete commands');
-  assert.ok(actionModalCardSource.includes('border border-white/[0.16] bg-black/[0.18]'), 'account action commands should use the approved neutral pill style');
+  assert.ok(stockReportModalSource.includes('actionClassName="srm-action"'), 'account action commands should use the shared neutral report action style');
   assert.equal(accountActionBlock.includes('修改账户'), false, 'account action edit label should stay compact');
   assert.equal(accountActionBlock.includes('删除账户'), false, 'account action delete label should stay compact');
   assert.equal(accountActionBlock.includes('min-h-[48px]'), false, 'account action buttons should not keep oversized card height');
   assert.equal(accountActionBlock.includes('min-h-[42px]'), false, 'account action modal should not keep a bottom cancel button');
   assert.ok(analysisTabSource.includes('保存修改'), 'asset account edit modal should save changes');
   assert.equal(analysisTabSource.includes('title="删除"'), false, 'owner account rows must not keep a direct trailing delete button');
+  assert.ok(assetConfirmStart > -1 && defaultConfirmStart > assetConfirmStart, 'asset confirmation should have an opt-in branch before the existing default shell');
+  assert.ok(confirmModalSource.includes("variant = 'default'") && assetConfirmBlock.includes('<StockReportModal'), 'asset confirmation should use the report style while other callers retain the default');
+  assert.ok(appSource.includes("variant={activeTab === 'analysis' ? 'asset-report' : 'default'}") && devVisualPreviewSource.includes("variant={activeTab === 'analysis' ? 'asset-report' : 'default'}"), 'production and local preview should scope the report confirmation to the asset tab');
+  assert.ok(assetConfirmBlock.includes("...(modal.showCancel ? [{ key: 'cancel', label: modal.cancelText, onClick: onCancel, disabled: submitting }] : [])"), 'asset confirmation should preserve the caller cancellation setting and disable cancel during submission');
+  assert.ok(assetConfirmBlock.includes('onClose={() => { if (!submitting) onCancel?.(); }}'), 'asset confirmation must reject top-right and backdrop closure while submitting');
+  assert.ok(assetConfirmBlock.includes("key: 'confirm'") && assetConfirmBlock.includes('onClick: onConfirm,\n            disabled: submitting,'), 'asset confirmation must keep the original confirm callback and block duplicate submission');
+  assert.ok(assetConfirmBlock.includes('submitting ? modal.submittingText : modal.confirmText') && assetConfirmBlock.includes('{modal.desc}') && assetConfirmBlock.includes('{modal.info}'), 'asset confirmation must retain the original progress text and deletion details');
+  assert.ok(defaultConfirmBlock.includes('modal.showCancel && (') && defaultConfirmBlock.includes('onClick={onCancel}') && defaultConfirmBlock.includes('onClick={onConfirm}') && (defaultConfirmBlock.match(/disabled=\{submitting\}/g) || []).length === 2, 'the default confirmation must retain its existing cancellation and submission controls');
+  assert.ok(accountDeleteBlock.includes('showConfirm({') && accountDeleteBlock.includes('onConfirm: async () => {') && accountDeleteBlock.includes('await db.deleteAccount(account.id);'), 'account deletion must remain inside the original confirmed database callback');
+  assert.ok(accountDeleteBlock.includes('setAccounts(accounts.filter(a => a.id !== account.id));') && accountDeleteBlock.includes('setSnapshots(snapshots.filter(s => s.accountId !== account.id));'), 'confirmed account deletion must retain its exact-account local cleanup');
 });
 
 test('exact account trend stays read-only while the amount keeps edit and delete actions', () => {
   assert.ok(analysisTabSource.includes('data-open-account-trend={acc.id}') && analysisTabSource.includes('setAccountTrendId(acc.id)'), 'the account identity area should open only that exact account trend');
   assert.ok(analysisTabSource.includes('data-open-account-actions={acc.id}') && analysisTabSource.includes('setAccountActionId(acc.id)'), 'the amount area should retain the existing account action flow');
   assert.ok(analysisTabSource.includes('buildAccountAssetTrend({') && analysisTabSource.includes('accountId: selectedTrendAccount.id'), 'trend calculations should be scoped by exact account id');
-  assert.ok(accountAssetTrendModalSource.includes("import ActionModalCard from './ActionModalCard.jsx'"), 'the trend should reuse the shared iOS-safe modal shell');
-  assert.ok(accountAssetTrendModalSource.includes('!border-0 !bg-transparent !p-0 !shadow-none'), 'the trend content should not add the rejected inner frame');
-  assert.ok(accountAssetTrendModalSource.includes('h-[76px]') && accountAssetTrendModalSource.includes('h-[128px]'), 'the tooltip band must stay separate from the shorter bar plot');
+  assert.ok(accountAssetTrendModalSource.includes("import StockReportModal from './StockReportModal.jsx'"), 'the trend should use the report presentation over the shared iOS-safe modal shell');
+  assert.doesNotMatch(accountAssetTrendModalCss, /box-shadow|drop-shadow|radial-gradient|letter-spacing:\s*-|scaleX\s*\(/, 'the account trend should use natural typography and neutral chart surfaces without decorative glow');
+  assert.match(accountAssetTrendModalCss, /\.account-trend-bar\s*\{[^}]*background:\s*#85858d;/, 'account snapshot bars should use a neutral gray fill');
+  assert.match(accountAssetTrendModalCss, /\.account-trend-selection-band\s*\{[^}]*min-height:\s*76px;/, 'the tooltip should retain its separate selection band');
+  assert.match(accountAssetTrendModalCss, /\.account-trend-plot\s*\{[^}]*height:\s*128px;/, 'the account trend should retain the compact bar plot height');
   assert.ok(accountAssetTrendModalSource.includes("touchAction: 'pan-y'") && accountAssetTrendModalSource.includes('setPointerCapture'), 'the twelve-month bars should support continuous iOS pointer selection without blocking vertical scroll');
   assert.ok(accountAssetTrendModalSource.includes('const [selectedMonth, setSelectedMonth] = React.useState(null);'), 'the month comparison tooltip should stay closed when the account trend first opens');
   assert.equal(accountAssetTrendModalSource.includes('|| dataSlots[dataSlots.length - 1]'), false, 'an empty selection must not fall back to the latest month tooltip');
@@ -2195,17 +2212,19 @@ test('primary asset totals split decimal suffixes consistently', () => {
   assert.match(homeTabCss, /\.home-report-decimal\s*\{[^}]*color:\s*#83838c;[^}]*font-size:\s*\.64em;/, 'Home decimal suffix should be smaller and neutral without discarding precision');
   assert.ok(tradesTabSource.includes('className="trades-report-decimal"'), 'Trading must render decimal precision separately');
   assert.match(tradesTabCss, /\.trades-report-decimal\s*\{[^}]*color:\s*#83838c;[^}]*font-size:\s*\.64em;/, 'Trading decimal suffix should match the new Home neutral hierarchy');
-  assert.ok(analysisTabSource.includes('text-[20px] font-normal leading-none text-white/[0.95]'), 'family asset decimal suffix should match the white asset headline while staying smaller and normal weight');
+  assert.ok(analysisTabSource.includes('className="asset-report-decimal"'), 'family assets should render decimal precision independently');
+  assert.match(analysisTabCss, /\.asset-report-decimal\s*\{[^}]*color:\s*#83838c;[^}]*font-size:\s*\.64em;/, 'family asset decimals should match the neutral Home hierarchy without discarding precision');
 });
 
-test('Home and Trading use continuous reports while Assets retains its scoped card sizing', () => {
+test('Home, Trading, and Assets use continuous scoped reports', () => {
   const borderlessFourEdgeHeaderShell = 'rounded-2xl border border-transparent bg-[#0b0c0e] p-4 shadow-[0_18px_44px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06),inset_1px_0_0_rgba(255,255,255,0.03),inset_-1px_0_0_rgba(255,255,255,0.03),inset_0_-1px_0_rgba(255,255,255,0.01)]';
   assert.ok(homeTabSource.includes('<section className="home-report-hero"'), 'Home should use a continuous report hero');
   assert.equal(homeTabSource.includes(borderlessFourEdgeHeaderShell), false, 'Home should not restore the raised four-edge header shell');
   assert.doesNotMatch(homeTabCss, /box-shadow|radial-gradient|conic-gradient/, 'report modules should not restore decorative glow');
   assert.ok(tradesTabSource.includes('<section className="trades-report-hero"'), 'Trading should use the approved report hero');
   assert.equal(tradesTabSource.includes(borderlessFourEdgeHeaderShell), false, 'Trading should not restore its old raised header shell');
-  assert.ok(analysisTabSource.includes(borderlessFourEdgeHeaderShell), 'the existing asset header should retain its scoped card shell');
+  assert.ok(analysisTabSource.includes('<section className="asset-report-hero"'), 'Assets should use the approved report hero');
+  assert.equal(analysisTabSource.includes(borderlessFourEdgeHeaderShell), false, 'Assets should not restore the raised four-edge header shell');
   assert.match(northStarGoalCardCss, /\.north-star-card\s*\{[^}]*border:\s*0;[^}]*background:\s*#101112;/, 'north-star header should keep its scoped neutral surface without an outer outline');
   assert.ok(homeTabSource.includes('className="home-report-label">{t(language, \'home.netAssets\''), 'Home net-assets title should match the compact Trading report label');
   assert.ok(tradesTabSource.includes('className="trades-report-label">{tt(\'home.netAssets\''), 'Trading net-assets title should use the shared report label');
@@ -2214,12 +2233,13 @@ test('Home and Trading use continuous reports while Assets retains its scoped ca
   assert.ok(homeTabSource.includes('className="home-report-balance-value"'), 'Home balance values should use the report value style');
   assert.match(homeTabCss, /\.home-report-balance-value\s*\{[^}]*color:\s*#bebec7;[^}]*font-size:\s*14px;/, 'Home balance values should be neutral and readable');
   assert.match(tradesTabCss, /\.trades-report-balance-value\s*\{[^}]*font-size:\s*14px;[^}]*overflow-wrap:\s*anywhere;/, 'Trading balances should match the readable report value hierarchy');
-  assert.ok(analysisTabSource.includes('gap-1.5 text-[14px] font-normal text-white/70'), 'asset header title should match the home title size and tone');
-  assert.ok(analysisTabSource.includes("fontSize: 'clamp(28px, 8.7vw, 34px)'"), 'family total amount should match the responsive home amount sizing');
+  assert.ok(analysisTabSource.includes('className="asset-report-label"'), 'asset labels should share the compact neutral report hierarchy');
+  assert.match(analysisTabCss, /\.asset-report-total\s*\{[^}]*font-size:\s*clamp\(28px,\s*8\.8vw,\s*40px\);/, 'family total amount should match the responsive Home amount sizing');
+  assert.doesNotMatch(analysisTabCss, /letter-spacing:\s*-|scaleX\s*\(/, 'asset figures must retain their natural spacing and width');
   assert.equal(analysisTabSource.includes('sm:text-[38px]'), false, 'asset header amount should not grow larger than home on wider screens');
-  assert.ok(analysisTabSource.includes('mt-6 grid grid-cols-[1fr_1.12fr_0.96fr]'), 'asset header metrics should preserve the shared three-column geometry');
+  assert.match(analysisTabCss, /\.asset-report-metrics\s*\{[^}]*grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\);/, 'the three asset comparisons should retain equal shrinkable report columns');
   assert.equal(analysisTabSource.includes('mt-6 grid grid-cols-[1fr_1.12fr_0.96fr] divide-x'), false, 'the asset header should not retain vertical dividers between its three metrics');
-  assert.ok(analysisTabSource.includes('mx-4 mt-1 grid grid-cols-3 border-t border-white/10 pt-3 text-center'), 'the asset trend range summary should preserve its horizontal divider and card inset');
+  assert.ok(analysisTabSource.includes("tt('analysis.low', '最低')") && analysisTabSource.includes("tt('analysis.high', '最高')") && analysisTabSource.includes("tt('analysis.range', '区间')"), 'the asset trend summary should retain its low, high, and range readings');
   assert.equal(analysisTabSource.includes("className={idx === 0 ? '' : 'border-l border-white/10'}"), false, 'the low, high, and range summary should not retain vertical dividers');
   assert.equal((homeTabSource.match(/className="home-report-quote"/g) || []).length, 2, 'normal and failed market quotes should share the same unboxed report layout');
   assert.ok(homeTabSource.includes('data-home-market-overview="true"'), 'quotes, drawdown and sentiment should belong to one market section');
@@ -2239,12 +2259,14 @@ test('Home and Trading use continuous reports while Assets retains its scoped ca
   assert.match(tradesTabCss, /\.trades-report-tools\s*\{[^}]*grid-template-columns:\s*repeat\(4, minmax\(0, 1fr\)\)/, 'all four quick actions must retain equal width');
   assert.match(tradesTabCss, /\.trades-report-tools button\s*\{[^}]*min-height:\s*44px;/, 'compact quick actions should retain sufficient tap height');
   assert.doesNotMatch(tradesTabCss, /\.trades-report-balances\s*\{[^}]*border-top:/, 'the approved compact Trading hero should not regain an extra inner separator');
-  assert.ok(analysisTabSource.includes('grid w-full grid-cols-[minmax(0,1fr)_auto] items-stretch overflow-hidden rounded-xl bg-white/[0.035]'), 'asset account rows should keep their raised interactive surfaces without outer outlines');
+  assert.ok(analysisTabSource.includes('className="asset-report-account"'), 'asset accounts should use report rows');
+  assert.match(analysisTabCss, /\.asset-report-account\s*\{[^}]*border-bottom:\s*1px solid/, 'asset account rows should retain a quiet horizontal separator');
+  assert.ok(analysisTabSource.includes('className="asset-report-account-identity"') && analysisTabSource.includes('className="asset-report-account-balance"'), 'account identity and balance should remain distinct interactive areas');
   assert.equal(analysisTabSource.includes('items-stretch overflow-hidden rounded-xl border border-white/10 bg-white/[0.035]'), false, 'asset account rows should not restore their visible outer outlines');
   assert.ok(monthlyAssetTrendContentSource.includes('grid min-h-[64px] grid-cols-2 rounded-[16px] border border-white/[0.075]'), 'the standalone asset-trend summary should retain its approved boundary');
   assert.ok(monthlyAssetTrendContentSource.includes('mt-3 overflow-hidden rounded-[17px] border border-white/[0.075] bg-black/[0.12]'), 'the standalone monthly-details table should retain its approved boundary');
   assert.ok(earningsCalendarSource.includes("index < previewEvents.length - 1 ? 'border-r border-white/[0.08]' : ''"), 'the earnings preview should preserve internal event dividers');
-  assert.ok(analysisTabSource.includes('text-[13px] text-white/50">{item.label}'), 'asset header metric labels should match the home field-label baseline');
+  assert.ok(analysisTabSource.includes('className="asset-report-label">{item.label}'), 'asset metric labels should use the shared report label style');
   assert.match(northStarGoalCardCss, /\.ns-header h2\s*\{[^}]*font-weight:\s*400;/, 'north-star title should keep normal weight');
   assert.match(northStarGoalCardCss, /\.ns-goal-amount\s*\{[^}]*clamp\(/, 'north-star goal amount should remain responsive');
   assert.match(northStarGoalCardCss, /\.ns-goal-amount\s*\{[^}]*flex-wrap:\s*wrap;[^}]*overflow-wrap:\s*anywhere;/, 'north-star large amounts should wrap without clipping their glyphs');
@@ -2587,7 +2609,7 @@ test('review edit modals use in-app validation instead of native alerts', () => 
   assert.ok(logDeleteBlock.includes('showConfirm({') && logDeleteBlock.includes('onConfirm: async () => {\n        await db.deleteReviewLog(logId);'), 'review-log deletion must still pass through the parent confirmation before its original database call');
 });
 
-test('order actions use the report variant while account and delete modals retain their shared shell', () => {
+test('order and account actions use the report variant while retaining the shared shell and danger confirmation', () => {
   const orderActionStart = tradesTabSource.indexOf('{orderActionTrade && (() => {');
   const orderActionEnd = tradesTabSource.indexOf('{/* 波段记录', orderActionStart);
   const orderActionBlock = tradesTabSource.slice(orderActionStart, orderActionEnd);
@@ -2620,7 +2642,7 @@ test('order actions use the report variant while account and delete modals retai
   assert.match(tradesDialogsCss, /\.trade-order-facts\s*\{[^}]*grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\)/, 'date, shares and execution price should share three bounded report columns');
   assert.ok(orderActionBlock.includes("orderActionTrade.date || '—'") && orderActionBlock.includes('sharesText(orderActionTrade.shares, 0)') && orderActionBlock.includes('fmtAmount(orderActionTrade.price, 2)'), 'order facts should preserve their original date, share and USD execution-price sources');
   assert.ok(orderActionBlock.includes('onClick: editOrderFromAction') && orderActionBlock.includes('onClick: deleteOrderFromAction'), 'redesigned order actions must still route through the existing edit and delete handlers');
-  assert.ok(accountActionBlock.includes('<ActionModalCard'), 'account action should use the shared approved card shell');
+  assert.ok(accountActionBlock.includes('<StockReportModal') && stockReportModalSource.includes('<ActionModalCard'), 'account actions should use the report variant over the shared keyboard and close shell');
   assert.ok(accountActionBlock.includes('<AccountLogo account={selectedActionAccount} />'), 'account action should render account logo support');
   assert.ok(analysisTabSource.includes('const candidates = [account?.logoURL, account?.logoUrl, account?.icon]'), 'account logo should accept existing optional URL fields without a schema change');
   assert.ok(analysisTabSource.includes('<AccountTypeIcon type={account?.type}'), 'account logo should fall back to the account type icon');
@@ -2651,7 +2673,8 @@ test('approved modal families share the new shell without widening business boun
   const homeNoticeBlock = homeTabSource.slice(homeTabSource.indexOf('{addStockNotice && ('), homeTabSource.lastIndexOf('</div>'));
 
   assert.ok(tradeEntryBlock.includes('<ActionModalCard') && costBasisDialogsBlock.match(/<ActionModalCard/g)?.length === 2, 'transaction and cost-basis dialogs should cover the three approved transaction families');
-  assert.equal(assetDialogsBlock.match(/<ActionModalCard/g)?.length, 4, 'asset add, account action, edit, and monthly balance dialogs should reuse the shared shell');
+  assert.equal(assetDialogsBlock.match(/<StockReportModal/g)?.length, 4, 'asset add, account action, edit, and monthly balance dialogs should use the report presentation over the shared shell');
+  assert.doesNotMatch(assetDialogsBlock, /key:\s*['"]cancel['"]/, 'asset editors should use top-right close without duplicate footer cancellation');
   assert.ok(assetTrendPageStart > -1 && assetTrendPageEnd > assetTrendPageStart, 'asset month trend should have a dedicated in-tab page boundary');
   assert.ok(assetCategoryReportPageStart > assetTrendPageStart && assetCategoryReportPageEnd > assetCategoryReportPageStart, 'monthly account changes should have a dedicated nested page boundary');
   assert.ok(assetTrendPageBlock.includes('data-monthly-asset-trend-page="true"') && assetTrendPageBlock.includes('mx-auto w-full max-w-[430px]'), 'asset month trend should use the full asset-page width instead of modal geometry');

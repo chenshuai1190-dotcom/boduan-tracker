@@ -1,0 +1,45 @@
+.account-trend-modal .srm-title { font-weight: 400; letter-spacing: normal; }
+.account-trend-report {
+  min-width: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: normal;
+}
+.account-trend-meta {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  color: #777780; font-size: 12px; line-height: 18px;
+}
+.account-trend-meta > :first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.account-trend-meta > :last-child { flex-shrink: 0; }
+.account-trend-summary { padding-top: 17px; }
+.account-trend-amount {
+  overflow-wrap: anywhere; color: #e8e8ec; font-size: 30px; font-weight: 400;
+  line-height: 1.2;
+}
+.account-trend-growth { display: flex; flex-wrap: wrap; align-items: baseline; gap: 5px 9px; margin-top: 9px; color: #777780; font-size: 12px; line-height: 18px; }
+.account-trend-growth-value { font-size: 13px; font-weight: 400; }
+.account-trend-chart { margin-top: 16px; }
+.account-trend-selection-band { min-height: 76px; padding: 0 0 12px 38px; }
+.account-trend-selection { pointer-events: none; text-align: right; }
+.account-trend-selection-month { color: #777780; font-size: 11px; line-height: 16px; }
+.account-trend-selection-amount { margin-top: 4px; color: #d6d6dc; font-size: 18px; line-height: 23px; overflow-wrap: anywhere; }
+.account-trend-selection-change { margin-top: 4px; font-size: 11px; line-height: 16px; }
+.account-trend-chart-grid { display: grid; grid-template-columns: 38px minmax(0, 1fr); }
+.account-trend-axis { display: flex; flex-direction: column; justify-content: space-between; padding: 2px 8px 23px 0; color: #64646e; font-size: 10px; text-align: right; white-space: nowrap; }
+.account-trend-plot {
+  position: relative; display: grid; height: 128px; grid-template-columns: repeat(12, minmax(0, 1fr));
+  align-items: end; gap: 3px; padding: 6px 2px 22px; user-select: none;
+  border-bottom: 1px solid #303034;
+  background: repeating-linear-gradient(to bottom, transparent 0, transparent 24px, rgb(255 255 255 / .05) 25px, transparent 26px);
+}
+.account-trend-slot { position: relative; display: flex; height: 100%; align-items: end; justify-content: center; }
+.account-trend-bar { width: min(12px, 75%); min-height: 3px; border-radius: 3px 3px 0 0; background: #85858d; transition: background-color 150ms; }
+.account-trend-bar.is-selected { background: #d7d7de; }
+.account-trend-month { position: absolute; bottom: -19px; left: 50%; transform: translateX(-50%); color: #777780; font-size: 10px; line-height: 1; }
+.account-trend-empty { display: flex; min-height: 128px; align-items: center; justify-content: center; border-bottom: 1px solid #29292d; color: #777780; font-size: 12px; }
+.account-trend-extremes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 24px; padding-top: 17px; border-top: 1px solid #29292d; }
+.account-trend-extreme { min-width: 0; }
+.account-trend-extreme + .account-trend-extreme { border-left: 1px solid #29292d; padding-left: 16px; }
+.account-trend-extreme-label { color: #777780; font-size: 11px; line-height: 16px; }
+.account-trend-extreme-amount { margin-top: 8px; overflow-wrap: anywhere; color: #c9c9d0; font-size: 15px; font-weight: 400; line-height: 20px; }
+.account-trend-extreme-month { margin-top: 5px; color: #64646e; font-size: 10px; line-height: 16px; }
