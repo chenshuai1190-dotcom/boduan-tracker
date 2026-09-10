@@ -1,12 +1,12 @@
 import React from 'react';
-import ActionModalCard from './ActionModalCard.jsx';
+import StockReportModal from './StockReportModal.jsx';
+import './Ma200RetestDetailModal.css';
 import { deriveMa200RetestDetail } from '../lib/ma200RetestDetail.js';
 import { marketHexColor } from '../lib/marketColorMode.js';
 
 const NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif';
-const PRICE_LINE_COLOR = '#38c98a';
-const MA_LINE_COLOR = '#62a8ff';
-const ACCENT_COLOR = '#f3b34f';
+const MA_LINE_COLOR = '#60a5fa';
+const ACCENT_COLOR = '#b4b4bc';
 
 function copy(language, zh, en) {
   return language === 'en' ? en : zh;
@@ -92,15 +92,15 @@ function buildPath(points, xForIndex, yForValue, key) {
 
 function Metric({ label, value, detail, color = 'rgba(255,255,255,0.88)' }) {
   return (
-    <div className="min-w-0 rounded-[13px] bg-white/[0.026] px-3 py-[11px]">
-      <div className="text-[11px] font-normal leading-none text-white/[0.40]">{label}</div>
+    <div className="stock-retest-metric">
+      <div className="stock-retest-metric-label">{label}</div>
       <div
-        className="mt-[7px] truncate text-[19px] font-normal leading-none tabular-nums"
+        className="stock-retest-metric-value"
         style={{ color, fontFamily: NUMBER_FONT }}
       >
         {value}
       </div>
-      <div className="mt-[7px] truncate text-[10.5px] font-normal leading-none text-white/[0.37]">
+      <div className="stock-retest-metric-note">
         {detail}
       </div>
     </div>
@@ -138,15 +138,16 @@ function RetestChart({
 
   if (series.length < 2) {
     return (
-      <div className="flex h-[224px] items-center justify-center rounded-[16px] bg-white/[0.022] text-[12px] text-white/[0.40]">
+      <div className="stock-retest-chart-empty">
         {copy(language, '暂无完整走势', 'Complete path unavailable')}
       </div>
     );
   }
 
   const width = 354;
-  const height = 224;
-  const padding = { left: 34, right: 12, top: 20, bottom: 30 };
+  const height = 256;
+  const padding = { left: 8, right: 8, top: 20, bottom: 30 };
+  const priceColor = valueColor(series.at(-1).close - series[0].close, marketColorMode);
   const values = series.flatMap((point) => [finiteNumber(point.close), finiteNumber(point.ma200)])
     .filter((value) => value !== null);
   const minimum = Math.min(...values);
@@ -184,12 +185,12 @@ function RetestChart({
   return (
     <div
       ref={chartRootRef}
-      className="relative h-[224px] overflow-hidden rounded-[16px] bg-white/[0.022]"
+      className="stock-retest-chart"
       data-ma200-retest-detail-chart="true"
     >
       {selectedPoint && (
         <div
-          className="pointer-events-none absolute left-[9px] top-[9px] z-10 w-[184px] rounded-[12px] border border-white/[0.11] bg-[#141b24]/[0.97] px-[10px] py-[9px] shadow-[0_12px_28px_rgba(0,0,0,0.44)]"
+          className="stock-retest-tooltip"
           data-ma200-retest-detail-tooltip={selectedPoint.date}
         >
           <div className="flex items-center justify-between gap-2 text-[10.5px] text-white/[0.47]">
@@ -229,6 +230,7 @@ function RetestChart({
       <svg
         className="h-full w-full touch-pan-y select-none"
         viewBox={`0 0 ${width} ${height}`}
+        preserveAspectRatio="none"
         role="img"
         aria-label={copy(
           language,
@@ -242,8 +244,8 @@ function RetestChart({
       >
         <defs>
           <linearGradient id="ma200-retest-detail-area" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor={PRICE_LINE_COLOR} stopOpacity="0.16" />
-            <stop offset="100%" stopColor={PRICE_LINE_COLOR} stopOpacity="0" />
+            <stop offset="0%" stopColor={priceColor} stopOpacity="0.12" />
+            <stop offset="100%" stopColor={priceColor} stopOpacity="0" />
           </linearGradient>
         </defs>
 
@@ -279,7 +281,7 @@ function RetestChart({
           fill="url(#ma200-retest-detail-area)"
         />
         <path d={maPath} fill="none" stroke={MA_LINE_COLOR} strokeWidth="1.55" strokeLinecap="round" strokeLinejoin="round" />
-        <path d={closePath} fill="none" stroke={PRICE_LINE_COLOR} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <path d={closePath} fill="none" stroke={priceColor} strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" />
 
         {selectedPoint && (
           <>
@@ -295,8 +297,8 @@ function RetestChart({
               cx={xForIndex(selectedIndex)}
               cy={yForValue(selectedPoint.close)}
               r="5"
-              fill="#101720"
-              stroke={selectedPoint.date === detail?.lowestClose?.date ? ACCENT_COLOR : PRICE_LINE_COLOR}
+              fill="#101112"
+              stroke={selectedPoint.date === detail?.lowestClose?.date ? ACCENT_COLOR : priceColor}
               strokeWidth="2"
             />
           </>
@@ -323,7 +325,7 @@ function RetestChart({
 
       <div className="pointer-events-none absolute bottom-[31px] right-[13px] flex items-center gap-[11px] text-[10px] text-white/[0.42]">
         <span className="flex items-center gap-1.5">
-          <i className="h-[2px] w-[13px] rounded-full" style={{ background: PRICE_LINE_COLOR }} />
+          <i className="h-[2px] w-[13px] rounded-full" style={{ background: priceColor }} />
           {copy(language, '收盘价', 'Close')}
         </span>
         <span className="flex items-center gap-1.5">
@@ -358,32 +360,20 @@ export default function Ma200RetestDetailModal({
   const latestDate = detail?.endpoint?.date || detail?.asOfDate || '';
 
   return (
-    <ActionModalCard
+    <StockReportModal
       title={`${symbol} · ${copy(language, '重测详情', 'Retest details')}`}
       closeLabel={copy(language, '关闭重测详情', 'Close retest details')}
       onClose={onClose}
-      widthClassName="w-full max-w-[430px]"
-      overlayClassName="!items-end !px-[10px] !bg-black/[0.66] !backdrop-blur-[5px]"
-      overlayStyle={{
-        paddingTop: 'calc(env(safe-area-inset-top) + 8px)',
-        paddingBottom: 'calc(env(safe-area-inset-bottom) + 68px)',
-      }}
-      panelClassName="!min-h-0 !rounded-[27px] !border-white/[0.13] !bg-[#0b1016] !px-[14px] !pb-3 !pt-2 !shadow-[0_-28px_74px_rgba(0,0,0,0.64),inset_0_1px_0_rgba(255,255,255,0.05)]"
-      panelStyle={{
-        maxHeight: 'calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 82px)',
-      }}
-      contentClassName="!min-h-0 !overflow-y-auto !rounded-none !border-0 !bg-transparent !p-0 !shadow-none"
-      titleClassName="!flex-1 !pl-[31px] !text-center !text-[19px] !font-medium !tracking-[-0.2px]"
-      showGrabber
+      panelClassName="stock-retest-modal"
     >
       <div className="min-w-0" data-ma200-retest-detail-modal={event?.triggerDate || ''}>
-        <div className="mb-[10px] flex min-h-[42px] items-center justify-between gap-3 rounded-[13px] bg-white/[0.025] px-3">
+        <div className="stock-retest-overview">
           <div className="min-w-0">
             <div
-              className="truncate text-[12px] font-medium text-white/[0.76]"
+              className="stock-retest-trigger"
               data-ma200-retest-detail-trigger={event?.triggerDate || ''}
             >
-              {symbol} · {formatDate(event?.triggerDate, language)} {copy(language, '触发', 'trigger')}
+              {formatDate(event?.triggerDate, language)} {copy(language, '触发', 'trigger')}
             </div>
             <div className="mt-1 text-[10px] text-white/[0.37]">
               {copy(
@@ -438,7 +428,7 @@ export default function Ma200RetestDetailModal({
               symbol={symbol}
             />
 
-            <div className="mt-[9px] grid grid-cols-2 gap-2">
+            <div className="stock-retest-metrics">
               <Metric
                 label={copy(language, '触发收盘', 'Trigger close')}
                 value={formatPrice(detail.trigger?.close, currency)}
@@ -480,7 +470,7 @@ export default function Ma200RetestDetailModal({
             </div>
           </>
         ) : (
-          <div className="flex min-h-[360px] items-center justify-center rounded-[16px] bg-white/[0.022] px-8 text-center text-[12px] leading-5 text-white/[0.42]">
+          <div className="stock-retest-empty">
             {copy(
               language,
               '完整重测走势暂不可用，不补造缺失数据。',
@@ -490,7 +480,7 @@ export default function Ma200RetestDetailModal({
         )}
 
         {latestDate ? (
-          <div className="pb-1 pt-[10px] text-center text-[10px] text-white/[0.31]">
+          <div className="stock-retest-asof">
             {copy(
               language,
               `数据截至 ${formatDate(latestDate, language)}`,
@@ -499,6 +489,6 @@ export default function Ma200RetestDetailModal({
           </div>
         ) : null}
       </div>
-    </ActionModalCard>
+    </StockReportModal>
   );
 }

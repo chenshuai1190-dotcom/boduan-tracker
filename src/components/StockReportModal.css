@@ -1,0 +1,25 @@
+.stock-report-modal {
+  padding: 20px; min-height: 0; border: 0; border-radius: 24px;
+  background: #101112; box-shadow: 0 24px 64px rgb(0 0 0 / .35);
+  color: #ececef; font-variant-numeric: tabular-nums;
+}
+.stock-report-modal .srm-header { padding: 0 0 20px; }
+.stock-report-modal .srm-title { font-size: 17px; font-weight: 500; line-height: 28px; color: #e1e1e6; }
+.stock-report-modal .srm-close {
+  width: 34px; height: 34px; border: 0; background: #1b1c1e;
+  box-shadow: none; color: #98989f;
+}
+.stock-report-modal .srm-content {
+  min-height: 0; padding: 0; border: 0; border-radius: 0;
+  background: transparent; box-shadow: none;
+}
+.stock-report-modal .srm-action {
+  height: 46px; border: 0; border-radius: 12px; background: #1b1c1e;
+  box-shadow: none; color: #b4b4bb; font-size: 14px; transform: none;
+}
+.stock-report-modal .srm-action.srm-primary { background: #e0e0e3; color: #171719; }
+.stock-report-modal .srm-action:disabled { opacity: .45; }
+.stock-report-modal .srm-action:not(:disabled):active,
+.stock-report-modal .srm-close:active { transform: none; opacity: .8; }
+.stock-report-modal button:focus-visible { outline: 1px solid #b5b5ba; outline-offset: 2px; }
+@media (max-width: 350px) { .stock-report-modal { padding: 17px; } }

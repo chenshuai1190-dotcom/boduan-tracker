@@ -54,6 +54,20 @@ test('individual return summary keeps all three approved two-column rows before 
   assert.match(i18nSource, /'stockDetail\.avgCost': 'Accounting Average Cost'/);
 });
 
+test('target editor uses the neutral report dialog with one save action and guarded close', () => {
+  assert.ok(targetEditorSource.includes("import StockReportModal from './StockReportModal.jsx'"));
+  assert.ok(targetEditorSource.includes('<StockReportModal'));
+  assert.ok(targetEditorSource.includes('onClose={() => !saving && onCancel()}'));
+  assert.equal(targetEditorSource.includes("key: 'cancel'"), false);
+  assert.ok(targetEditorSource.includes("key: 'save'"));
+  assert.ok(targetEditorSource.includes("className: 'srm-primary'"));
+  assert.ok(targetEditorSource.includes('disabled: value === null || saving'));
+  assert.ok(targetEditorSource.includes('onClick: () => onSave(targetUsd)'));
+  assert.ok(targetEditorSource.includes('onClick={() => adjust(-1)}'));
+  assert.ok(targetEditorSource.includes('onClick={() => adjust(1)}'));
+  assert.ok(targetEditorSource.includes("'watchlistDetail.targetBoundary'"));
+});
+
 test('integrated target editing keeps the isolated watchlist saver and no ledger write path', () => {
   assert.match(stockDetailSource, /import TargetEditor from '\.\.\/components\/StockTargetEditor\.jsx'/);
   assert.match(watchlistDetailSource, /import TargetEditor from '\.\.\/components\/StockTargetEditor\.jsx'/);

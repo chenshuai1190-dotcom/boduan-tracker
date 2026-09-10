@@ -1,0 +1,31 @@
+.stock-retest-overview {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 16px; padding: 0 0 20px; margin-bottom: 12px;
+  border-bottom: 1px solid rgb(255 255 255 / .065);
+}
+.stock-retest-trigger { font-size: 14px; line-height: 1.5; color: #d5d5dc; }
+.stock-retest-overview > div:first-child > div:last-child { font-size: 11px; line-height: 1.6; color: #81818a; margin-top: 6px; }
+.stock-retest-overview > div:last-child { padding-top: 3px; }
+.stock-retest-overview > div:last-child > div { font-size: 11px; line-height: 1.5; font-weight: 400; }
+.stock-retest-chart { position: relative; height: 256px; margin-inline: -4px; }
+.stock-retest-chart-empty { display: grid; place-items: center; height: 256px; color: #81818a; font-size: 12px; }
+.stock-retest-tooltip {
+  position: absolute; pointer-events: none; left: 8px; top: 8px; z-index: 10;
+  width: min(250px, calc(100% - 16px)); padding: 12px;
+  border: 1px solid rgb(255 255 255 / .07); border-radius: 12px;
+  background: rgb(27 28 30 / .97); box-shadow: 0 12px 28px rgb(0 0 0 / .3);
+}
+.stock-retest-tooltip > div { font-size: 11px; line-height: 1.5; gap: 8px; }
+.stock-retest-tooltip > div > span { white-space: nowrap; }
+.stock-retest-tooltip > div > span:first-child { flex-shrink: 0; }
+.stock-retest-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 22px; margin-top: 16px; }
+.stock-retest-metric { min-width: 0; padding: 18px 0; border-top: 1px solid rgb(255 255 255 / .065); }
+.stock-retest-metric-label { color: #91919a; font-size: 11px; line-height: 1.5; }
+.stock-retest-metric-value { margin-top: 9px; font-size: 22px; font-weight: 400; line-height: 1.2; letter-spacing: -.4px; overflow-wrap: anywhere; }
+.stock-retest-metric-note { margin-top: 8px; color: #7d7d87; font-size: 11px; line-height: 1.65; overflow-wrap: anywhere; }
+.stock-retest-asof { border-top: 1px solid rgb(255 255 255 / .065); padding: 16px 0 0; color: #777780; font-size: 11px; line-height: 1.5; }
+.stock-retest-empty { display: grid; place-items: center; min-height: 260px; padding: 32px 20px; text-align: center; font-size: 12px; line-height: 1.7; color: #85858e; }
+@media (max-width: 350px) {
+  .stock-retest-overview { gap: 10px; }
+  .stock-retest-metrics { column-gap: 14px; }
+}

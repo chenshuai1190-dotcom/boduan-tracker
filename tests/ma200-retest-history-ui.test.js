@@ -174,10 +174,31 @@ test('MA200 detail modal derives the full path and keeps lowest close distinct f
   assert.ok(modalSource.includes("document.addEventListener('pointerdown', clearOutsideChart, true)"));
   assert.ok(modalSource.includes('onPointerDown={selectNearestPoint}'));
   assert.ok(modalSource.includes('onPointerMove={(event) =>'));
-  assert.ok(modalSource.includes('titleClassName="!flex-1 !pl-[31px] !text-center'));
+  assert.ok(modalSource.includes('<StockReportModal'));
+  assert.equal(modalSource.includes('!bg-[#0b1016]'), false);
   assert.ok(modalSource.includes("copy(language, '重测详情', 'Retest details')"));
   assert.equal(/text-\\[(?:8|8\\.5|9|9\\.5)px\\]/.test(modalSource), false);
   assert.equal(/fontSize=["'](?:8|8\\.5|9|9\\.5)["']/.test(modalSource), false);
+});
+
+test('stock detail dialogs share the scoped neutral report shell without replacing dialog behavior', () => {
+  const shell = readFileSync(new URL('../src/components/StockReportModal.jsx', import.meta.url), 'utf8');
+  const shellCss = readFileSync(new URL('../src/components/StockReportModal.css', import.meta.url), 'utf8');
+  const retestCss = readFileSync(new URL('../src/components/Ma200RetestDetailModal.css', import.meta.url), 'utf8');
+  assert.ok(shell.includes('<ActionModalCard'));
+  assert.ok(shell.includes('onClose={onClose}'));
+  assert.ok(shell.includes('actions={actions}'));
+  assert.ok(shell.includes("w-[calc(100vw-32px)] max-w-[398px]"));
+  assert.ok(shellCss.includes('background: #101112'));
+  assert.ok(shellCss.includes('.stock-report-modal .srm-content'));
+  assert.ok(shellCss.includes('.stock-report-modal .srm-action:disabled'));
+  assert.equal(modalSource.includes('overlayStyle='), false);
+  assert.equal(modalSource.includes('showGrabber'), false);
+  assert.ok(modalSource.includes('valueColor(series.at(-1).close - series[0].close, marketColorMode)'));
+  assert.equal(modalSource.includes('PRICE_LINE_COLOR'), false);
+  assert.ok(retestCss.includes('width: min(250px, calc(100% - 16px))'));
+  assert.ok(retestCss.includes('white-space: nowrap'));
+  assert.ok(retestCss.includes('overflow-wrap: anywhere'));
 });
 
 test('daily MA200 mini chart is calculated from real event series with zero, low, and rebound segments', () => {
