@@ -134,7 +134,9 @@ test('Home pairs total assets and cash in the report balance grid without changi
   assert.ok(marginRiskSource.includes('availableCashStatusReady = false'));
   assert.ok(marginRiskSource.includes('assetStatusReady = marginStatusReady && availableCashStatusReady'));
   assert.ok(marginRiskSource.includes('disabled={!assetStatusReady}'));
-  assert.ok(marginRiskSource.includes("value: assetStatusReady ? formatCompactMoneyFromUsd(overview.totalAssetsUsd"));
+  assert.ok(marginRiskSource.includes('...moneyReading(overview.totalAssetsUsd)'), 'total assets use the full-precision presentation helper');
+  assert.match(marginRiskSource, /const moneyReading = \(value, ready = assetStatusReady\) => \(\{[^}]*value: ready \? formatMoneyFromUsd\(value, currency, usdRate\) : '—',[^}]*reference: ready \? formatWanReferenceFromUsd\(value, currency, usdRate, language\) : undefined,/,
+    'both full amounts and 10k-unit references remain gated by the combined asset readiness');
   assert.ok(marginRiskSource.includes("showLeverageGuide && assetStatusReady"));
   assert.ok(marginRiskSource.includes("panel === 'editor' && assetStatusReady"));
   assert.ok(homeSource.includes('<AvailableCashEditor'));

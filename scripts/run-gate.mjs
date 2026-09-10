@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { spawnSync } from 'node:child_process';
+import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -8,7 +9,7 @@ import { docsWorkflowApplies } from './release-verify-core.mjs';
 
 export const GATE_MATRIX = Object.freeze({
   docs: ['docs-consistency', 'whitespace'],
-  fast: ['targeted-tests-if-provided', 'typography', 'build', 'docs-consistency-if-applicable', 'whitespace'],
+  fast: ['targeted-and-related-tests', 'typography', 'build', 'docs-consistency-if-applicable', 'whitespace'],
   full: ['full-tests-including-typography', 'build', 'docs-consistency-if-applicable', 'whitespace'],
 });
 
@@ -24,12 +25,27 @@ const WATCHLIST_PALETTE_INPUTS = new Set([
   'tests/module-palette-boundaries.test.js',
 ]);
 
-export function resolveFastTests(targetedTests, changedPaths) {
+export function resolveFastTests(targetedTests, changedPaths, testSources = {}) {
   const selected = new Set(targetedTests);
   if ([...targetedTests, ...changedPaths].some((file) => WATCHLIST_PALETTE_INPUTS.has(file))) {
     selected.add('tests/module-palette-boundaries.test.js');
   }
+  const sourcePaths = changedPaths.filter((file) => /^(src|scripts)\//.test(file));
+  for (const [testFile, source] of Object.entries(testSources)) {
+    if (!/^tests\/[^/]+\.test\.js$/.test(testFile)) continue;
+    if (changedPaths.includes(testFile) || sourcePaths.some((file) => source.includes(file))) {
+      selected.add(testFile);
+    }
+  }
   return [...selected];
+}
+
+function readTestSources() {
+  return Object.fromEntries(readdirSync('tests', { withFileTypes: true })
+    .filter((entry) => entry.isFile() && entry.name.endsWith('.test.js'))
+    .map((entry) => `tests/${entry.name}`)
+    .sort()
+    .map((file) => [file, readFileSync(file, 'utf8')]));
 }
 
 function run(command, args, label) {
@@ -123,7 +139,7 @@ function changedPathsForGate() {
       encoding: 'utf8',
     });
   } else {
-    result = spawnSync('git', ['status', '--porcelain=v1'], {
+    result = spawnSync('git', ['status', '--porcelain=v1', '--untracked-files=all'], {
       cwd: process.cwd(),
       encoding: 'utf8',
     });
@@ -170,7 +186,8 @@ function main(argv = process.argv.slice(2)) {
     run('node', ['scripts/verify-docs-consistency.mjs'], 'docs-consistency');
   }
   if (scope === 'fast') {
-    const fastTests = resolveFastTests(targetedTests, changedPaths);
+    const fastTests = resolveFastTests(targetedTests, changedPaths, readTestSources());
+    if (fastTests.length > 0) console.log(`gate targeted-tests: ${fastTests.join(', ')}`);
     if (fastTests.length > 0) run('node', ['--test', ...fastTests], 'targeted-tests');
     run('node', ['scripts/verify-typography.mjs'], 'typography');
     run('npm', ['run', 'build'], 'build');

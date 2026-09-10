@@ -54,13 +54,13 @@ npm run check:docs
 npm run check:fast
 ```
 
-存在直接相关测试时，将它们接入同一次 gate，不再先后重复执行：
+存在相关测试时，可以手动补入同一次 gate，不再先后重复执行：
 
 ```bash
 npm run check:fast -- tests/<相关测试>.test.js
 ```
 
-FAST 依次执行最多一次定向测试、字号门禁、production build 和 whitespace check；本地同一 diff 修改权威文档时，再自动补一次 docs consistency。它不运行全量测试、audit、RLS、401、marker、环境巡检或无关 smoke。
+FAST 会扫描 `tests/*.test.js`，将直接引用本次变更的 `src/`、`scripts/` 文件路径的测试，以及本次新增或修改的测试，与手选测试去重后合并执行一次，再执行字号门禁、production build 和 whitespace check。本地同一 diff 修改权威文档时，再自动补一次 docs consistency。它不运行全量测试、audit、RLS、401、marker、环境巡检或无关 smoke。此补测仅覆盖直接文本引用；间接依赖仍须按风险补选或走 FULL。干净工作树检查已提交改动时须提供 `BASE_SHA`。
 
 首页自选弹窗、Home 样式或共享 `StockReportModal` 的改动，会自动将 `tests/module-palette-boundaries.test.js` 并入同一次定向测试（去重）；手选相关 Home UI 测试时也会补入，防止只跑局部 UI 测试而漏掉共享配色约束。无关页面不触发此补测。
 

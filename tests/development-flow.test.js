@@ -32,11 +32,35 @@ test('FAST includes the shared palette contract when watchlist dialog inputs cha
   assert.deepEqual(resolveFastTests(['tests/watchlist-reorder.test.js'], []), ['tests/watchlist-reorder.test.js']);
 });
 
+test('FAST selects direct cross-module source references and changed tests without running unrelated tests', () => {
+  const changedFile = 'src/pages/HomeMarginRiskPage.jsx';
+  const cashTest = 'tests/home-available-cash-ui.test.js';
+  const marginTest = 'tests/home-margin-report-ui.test.js';
+  const sources = {
+    [cashTest]: read(cashTest),
+    [marginTest]: read(marginTest),
+    'tests/development-flow.test.js': "import { GATE_MATRIX } from '../scripts/run-gate.mjs';",
+    'tests/unrelated.test.js': "read('src/pages/DcaLabPage.jsx');",
+    'tests/new-display.test.js': "test('new presentation', () => {});",
+  };
+  assert.deepEqual(resolveFastTests([marginTest], [changedFile], sources), [marginTest, cashTest]);
+  assert.deepEqual(resolveFastTests([], ['tests/new-display.test.js'], sources), ['tests/new-display.test.js']);
+  assert.deepEqual(resolveFastTests([], ['scripts/run-gate.mjs'], sources), ['tests/development-flow.test.js']);
+  assert.deepEqual(resolveFastTests([], ['README.md'], sources), []);
+  assert.deepEqual(resolveFastTests([], ['tests/deleted.test.js'], sources), []);
+  assert.deepEqual(resolveFastTests([cashTest], [changedFile], sources), [cashTest, marginTest]);
+  assert.ok(read('scripts/run-gate.mjs').includes('resolveFastTests(targetedTests, changedPaths, readTestSources())'),
+    'the real FAST entry must load repository tests into the resolver');
+  assert.ok(read('scripts/run-gate.mjs').includes("['status', '--porcelain=v1', '--untracked-files=all']"),
+    'new source directories must expose individual untracked file paths');
+  assert.ok(read('scripts/run-gate.mjs').includes('gate targeted-tests:'), 'print selected tests so the scope is auditable');
+});
+
 test('development gates expose one explicit docs, FAST, or FULL path', () => {
   const packageJson = JSON.parse(read('package.json'));
 
   assert.deepEqual(GATE_MATRIX.docs, ['docs-consistency', 'whitespace']);
-  assert.deepEqual(GATE_MATRIX.fast, ['targeted-tests-if-provided', 'typography', 'build', 'docs-consistency-if-applicable', 'whitespace']);
+  assert.deepEqual(GATE_MATRIX.fast, ['targeted-and-related-tests', 'typography', 'build', 'docs-consistency-if-applicable', 'whitespace']);
   assert.deepEqual(GATE_MATRIX.full, ['full-tests-including-typography', 'build', 'docs-consistency-if-applicable', 'whitespace']);
   assert.equal(packageJson.scripts['check:docs'], 'node scripts/run-gate.mjs docs');
   assert.equal(packageJson.scripts['check:fast'], 'node scripts/run-gate.mjs fast');
