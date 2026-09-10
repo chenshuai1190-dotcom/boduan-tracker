@@ -1,6 +1,6 @@
 # boduan-tracker 当前交接
 
-验证时间：`2026-08-07 Asia/Shanghai`
+验证时间：`2026-09-10 Asia/Shanghai`；以下生产证据截至本次首轮受保护任务 `2026-09-10T03:09:52Z` 及其聚合回查，预算状态 forward-fix 尚待最终发布验证。
 
 本文件只保存当前基准、关键风险和下一步。稳定规则看 `README.md`，流程看 `docs/development-process.md`。
 
@@ -10,25 +10,22 @@
 | --- | --- |
 | 仓库 | `chenshuai1190-dotcom/boduan-tracker` |
 | 生产地址 | `https://boduan-tracker.vercel.app` |
-| 最近已验证生产基准 | `8d4b704 / v10.7.9.428`：财报详情扩展为按用户请求读取严格官方结构化细分；GitHub `main` 与生产 runtime 已由同提交 `release:verify` 验证一致 |
-| 本次发布源码 | 本文件所在提交 / `v10.7.9.429`：恢复未来一个月的财报日历，改用明确当前/未来日期窗口并保留最多两笔 EODHD Calendar 请求；最终提交与生产 runtime 是否一致只以该提交的一次 `release:verify` 为准 |
-| 数据库 | 保留既有 additive schema，并按 `available_cash_foundation_20260805.sql` → 精确 runtime → `available_cash_snapshot_contract_after_runtime_20260805.sql` 增加本人现金状态、不可变事件及个人收益现金快照契约；`swing_wave_partial_exits_20260805.sql` 和既有比赛、个人收益 migration 顺序不变 |
-| 发布完成条件 | GitHub `main` 的同一份 runtime 与上述 migration 均已上线并通过聚合 postflight；只完成其中一项不得宣布上线 |
+| 分支与唯一工作区 | `main`；`/Users/chenshuaishuai/Documents/Codex/2026-07-24/boduan-tracker-boduan-tracker-chenshuai1190-dotcom/work/repo` |
+| 当前生产源码 | `241bfdb54082345f87c22a4542565ecf9d78b317 / v10.7.9.501`，发布日期 `2026-09-10`；不是本次待修复版本已完成的证明 |
+| 当前生产 deployment | `5h7pHEaEMmdqFBQwQPY2HDdzCrnm`，包含已启用的服务端 SEC 自动覆盖开关 |
+| 本次数据库 | `supabase/sec_earnings_auto_coverage_20260909.sql` 已应用；新增独立 SEC 队列、请求事件与公开结果表及受保护 RPC；既有现金、波段、正式交易、个人收益和比赛 schema/账本未改 |
+| 首轮真实任务 | `2026-09-10T03:09:52Z`（北京时间 `11:09:52`）受保护有界调用返回 `503`；`worker-time-budget` 被误记为 error，但聚合回查确认已保存 `complete 5 / partial 11` 份公开结果 |
+| 待完成修复 | 预算耗尽应记为延期/部分完成，不误报任务错误；这是内部状态修复，保持 `v10.7.9.501`，不新增应用 changelog。尚待最终 gate、精确提交的 `release:verify` 和生产结果，不得提前写成发布完成 |
 
-本地发布门禁：
+## 本次门禁与验收边界
 
-- 收益比赛最终独立审查：`121 / 121` tests PASS，核心实现 `must-fix = 0`。
-- 个人收益正确重算专项：`131 / 131` tests PASS；独立 runtime/SQL 审查 `must-fix = 0`，6 份 SQL 的 PostgreSQL/PLpgSQL 解析、canonical 同步和列值数量检查均通过。
-- 个股/QQQ 当前存续仓位专项：`35 / 35` tests PASS；多次减仓、同日顺序、周末/常规 NYSE 节假日加仓和全清重买均覆盖，最终独立审查 `must-fix = 0`。
-- 个人收益只读页面专项：`57 / 57` tests PASS；交易 mutation 与收盘 Cron 保留重算所有权，报表 mount/focus/pageshow 不再触发重算或显示常驻重试。
-- 个股即时交易事实专项：`34 / 34` tests PASS；当天新增、修改、删除和纽约日期上限均覆盖，收盘收益、持仓、趋势、图表节点与 QQQ 边界保持不变。
-- 股票趋势 MA50 周线专项：`73 / 73` tests PASS；完成周锁定、50–199 周独立可用、1 年/5 年曲线组合及原曲线保留均覆盖。
-- 波段部分卖出专项：同一波段多次退出、剩余股数、旧完整卖出兼容、编辑/删除返还、并发超卖与账本隔离均有定向测试覆盖。
-- 可用现金专项：未设置/明确为 0、USD/CNY、保存后更新、失败回退、首页与交易页双向同步、融资/自选股联动、完成收盘现金事件、cash-only 用户及 QQQ/比赛隔离均有定向测试覆盖。
-- v429 财报日历专项覆盖明确当前/未来日期窗口、最多 90 天历史补齐、一/两笔 Calendar 请求、用户股票过滤、主窗口 fail closed 及历史补取 fail-soft；定向测试 `32 / 32` PASS，最终 `npm run check:full` 必须 PASS 才允许提交。
-- v428 财报专项覆盖专用适配器优先与 generic fallback、filing/DEI CIK、官方财期、USD unit、当前/同比维度一致、收入与分部经营利润双期唯一精确勾稽、冲突或多解 fail closed，以及既有全部适配器回归；最终 `npm run check:full` 必须 PASS 才允许提交。
-- 受控官方文件回放已覆盖 COST 2026 财年 Q3 与 UNH 2026 财年 Q1/Q2；通用 SEC-only smoke 另确认 AAPL 2026 财年 Q3 返回 5 个报告分部、AMZN 2026 财年 Q2 返回 3 个报告分部。两条通用路径的 EODHD 请求均为 `0`，未读取或输出 token、用户、持仓或交易数据；AAPL 产品层级因存在两套精确解、地区缺少标准收入轴而继续 fail closed。
-- 新的开发、验证和单等待器发布流程继续保留，没有恢复旧六文档或重复验证流程。
+- v501 初次发布最终 `npm run check:full`：`1660 / 1660` tests PASS，并完成对应 build、字号、文档和 whitespace 检查；该证据不自动覆盖后续 forward-fix diff。
+- 本地 PostgreSQL 18.3 / PGlite 0.5.8：`12` 组通过，涵盖迁移、权限、重复注册、租约 CAS/过期、交错唤醒、结果保留、新申报旧缓存失效和真实解析器 → worker → SQL → selector 链路。单连接确定性交错不等同于多连接压力测试或生产验收。
+- 生产 foundation 已应用，三表和四函数的权限聚合核验 PASS；`npm run verify:rls:rest` PASS。只汇报聚合结论，不输出用户、自选成员、持仓金额、交易或密钥。
+- 首轮真实任务已证明 SEC 公开结果可落库，但 HTTP `503` 不能标为任务全部成功；`complete 5 / partial 11` 是已存结果份数，不代表覆盖的公司数或所有自选已完成。
+- 首轮生产 jobs 聚合只有 `1` 个 error，原因是 `worker-time-budget`；其余为 complete/partial/pending/unavailable。租约均已过期，没有卡死租约。
+- 公开 AAPL 抽查：官方财期 `2026-06-27`、accession `0000320193-26-000020`、状态 partial，报告分部 `5` 项与同份公司总营收完全勾稽 PASS；[对应 SEC 官方主文档](https://www.sec.gov/Archives/edgar/data/320193/000032019326000020/aapl-20260627.htm)。这只验证该份公开报表，不代表全部公司/全部区块完整。
+- 每日自然 Cron 尚未观察到；一次受保护人工触发不等于自然调度验收。修复后再记录精确 runtime、发布等待器与有界生产结果。
 
 ## 可用现金与资产联动
 
@@ -61,10 +58,21 @@
 - 通用已公布 EPS 优先保留同一 Calendar/Trend 口径；`Earnings::History` 只在对应字段缺失时回退。近似财季只接受 7 天内唯一最近日期，等距歧义 fail closed，不再让另一份 provider 记录静默覆盖当前与同比结果。
 - 每个事件同时保留 `providerFiscalDate` 作为 Calendar/Trend/official-actual 合并键，并将 `fiscalDate` 作为详情页官方精确财期。AMD `reportDate=2026-08-04` 保持盘后公布语义；provider `2026-06-30` 与 SEC `2026-06-27` 不再形成两个季度或请求错误文件。
 - AMD 最新官方 10-Q 返回 3 个会计分部和 4 项不重叠业务收入；季度未披露地区结构，因此地区显示不可用。MSFT 只有 `fiscalDate=2026-06-30 + reportDate=2026-07-29` 精确组合使用 8-K EX-99.1 的 3 个季度分部；历史 Q1-Q3 继续读取 10-Q，交叉日期 fail closed，禁止把 10-K 年度产品或地区数字混进 Q4。
-- 已核验专用适配器保持优先；其他用户请求的美国上市股票会尝试严格解析官方 PRIMARY 10-Q Inline XBRL。通用路径只接受 filing/DEI CIK、官方 `DocumentPeriodEndDate` 与 USD unit 完全一致的季度事实；当前与同比维度必须一致，收入（报告分部还含经营利润）必须双期唯一精确勾稽。冲突、多解、层级重叠、缺少同比或未披露时对应结构显示不可用，不做公司白名单式猜测，也不使用 EODHD 结构数据或券商数字补齐。
+- 已核验专用适配器保持优先；其他美国上市股票可尝试严格解析官方 PRIMARY Inline XBRL，并不等于所有自选已支持。filing、DEI 与每个参与事实的 context CIK、官方财期、USD unit 必须一致；重复 context、跨公司、错币种、冲突、多解或层级重叠仍 fail closed。
+- 当期收入唯一勾稽后可独立展示；缺少同比保留 `previousRevenue=null`，缺少或不能勾稽的分部经营利润保留 null，不牵连已验证收入，不混用利润口径。10-K 仅允许明确 DEI Q4 且直接披露的当季事实，不把全年/累计值变成季度，不猜测差分或抵销数。
+- 通用结果只可补齐同一文档、同期间、同币种且公司级收入总额一致的明确缺失/未支持区块；专用解析存在歧义时不能绕过，不能跨文件混拼。定期报告不可解析时最多尝试一份匹配业绩公告；8-K/6-K 优先财报附件，共用 SEC 时限与限速，不使用 EODHD 结构、券商或估算填空。
 - COST 将 provider `2026-05-31` 映射到官方 `2026-05-10` 的 12 周财期，标题使用 `FY2026 Q3`，返回 `3/5/3`；UNH Q1 读取 10-Q，最新 Q2 严格读取 `2026-07-16` 8-K EX-99.1，均返回 `4/0/0` 并保留官方收入抵销。三坐标继续分别保存 provider 财期、SEC 官方财期和公布日。
 - SEC 财报摘要批量读取与详情读取使用独立 250ms 调度通道，但共享公开响应缓存和同 URL singleflight；两条链路不再互相排队，同一文件仍只读取一次。瞬态失败和官方主文档未解析结果只缓存 5 分钟，旧 pending/unavailable 不得在网络失败时复活。
-- 已核验专用结构矩阵：AMD `3/4/0`、GOOGL `3/6/4`、TSLA `2/6/3`、NVDA `2/3/4`、META `2/3/4`、MSFT `3/0/0`、IBKR `0/4/0`、NOK `3/7/3`、TSM `1/6/5`、COST `3/5/3`、UNH `4/0/0`（分部/业务细分/地区）。通用解析结果按用户请求和官方披露动态返回，不冒充固定全覆盖矩阵；`0` 表示本季官方未披露或不适用。
+- 既有公司/财季夹具只证明对应官方文件，不将旧的结构数量矩阵当成新季度覆盖承诺。缺少明确抵销行的报告不得按“总额减分部”伪造差额；每个区块分别保留未披露、未支持、勾稽失败或临时读取失败原因，不能统称为没有数据。
+
+## 自选 SEC 自动覆盖
+
+- 生产 `SEC_EARNINGS_AUTO_COVERAGE_ENABLED=true`；共享解析版本为 `sec-structure-5`。后台只从当前 `watchlist` 读取去重证券代码；日历事件注册必须再次匹配已认证用户的当前自选，共享表不保存用户 ID、自选成员、金额、数量或凭据。
+- 共享结果按代码、官方财期、accession、文档类型与解析器版本隔离。同财期发现新申报后，在同一租约完成事务中使旧 accession 过期，历史 payload 保留；新一次失败不得继承上次 complete 状态。租约失效或进程中断不表示检查已完成。
+- 详情先复用未过期共享结果，数据库不可用/失效时回原按需 SEC 解析；按需路径本轮不直接写共享表，只有后台租约完成 RPC 可写。原核验时间与到期时间不因浏览器读取而延长；完整定期报告 `6 小时`，部分结果或公告阶段 `5 分钟`。
+- 每日 UTC `01:00` / 北京时间 `09:00` 配置一次：每轮最多 `36` jobs、每批 `12`、并发 `3`、最多 `100` 次 SEC 请求、`40 秒`软工作预算、`90 秒`租约、函数上限 `60 秒`；后台不新增 EODHD 请求。不承诺分钟级同步，next_scan_at 的短退避不是另一个定时器。
+- 最新两个独立财期按 SEC 身份与申报时间验证；同日无精确时间或最高时间并列不按 accession 字典序猜测。8-K/6-K 不猜财期；需要日历已知财期。`ready/complete`、`partial`、`pending`、不支持与读取失败继续区分。
+- 首轮预算耗尽被误报 error 的内部 forward-fix 尚未验收，应用版本保持 v501；启用与停用步骤、局限和验证脚本见 `docs/sec-earnings-auto-coverage.md`。
 
 ## 交易持仓收盘估值
 
@@ -114,6 +122,7 @@
 
 ## 收益比赛当前状态
 
+- 本次 SEC 发布未修改收益比赛代码、表、publication marker 或自然收盘调度；本轮没有重新读取最新比赛 marker，不将以下稳定业务边界当成本日比赛发布状态证明。
 - 已参赛用户可自由新增、修改或删除自己的正式 `stock_trades`；成功后立即触发本人比赛重算，不再因写入时间、收盘后、周末或“下一交易日才重新上榜”而延后。
 - 历史修改严格按 `trade_date` 进入对应完成收盘区间。周末和正常休市日的交易归入下一份真实 SPY 完成收盘，不生成虚构交易日快照。
 - 首次自愿加入仍保持原边界：空账本继续等待；首次有效交易出现后，从对应的下一份真实完成收盘开始排名。已经排名后即使删空账本，也会按完整历史重算并保留合法的 0% 延续。
@@ -126,7 +135,8 @@
 
 ## 数据库与发布边界
 
-- migration 新增 service-only rebuild state、不可变 audit、正式交易 dirty trigger，以及 unpublished snapshot、publication marker、完整个人序列替换三个原子 RPC。
+- 本次唯一新增 schema 为独立 SEC 自动覆盖 foundation：普通用户无共享三表直读写或 RPC 执行权限，service_role 仅 SELECT 加三个受保护写 RPC；私有事件校验函数不对外开放。迁移不添加 watchlist trigger、不 backfill、不修改任何金融账本。
+- 既有收益 migration 建立的 service-only rebuild state、不可变 audit、正式交易 dirty trigger，以及 unpublished snapshot、publication marker、完整个人序列替换三个原子 RPC 继续保留；不是本次 SEC 新增或修改的账本能力。
 - `swing_wave_partial_exits_20260805.sql` 只增加波段退出表、约束、RLS 和本人原子 mutation RPC，不 backfill、删除或改写既有波段；旧 runtime 仍可读取和完整卖出未产生子退出的波段。
 - 可用现金 migration 只新增本人状态、服务端事件、快照来源列、约束、trigger、函数与 RLS；不 backfill、删除或覆盖既有现金或收益数据。foundation → runtime → contract 不得交换，runtime 回退时保留 additive schema 并只做 forward-fix。
 - 普通用户只能修改 RLS 允许的本人正式交易；不能读取 dirty/audit、直接调用 service RPC、直接写比赛快照或 publication marker。
@@ -138,9 +148,11 @@
 ### 已知风险
 
 - 比赛公开行情缓存与 402 熔断是 Vercel 单实例内存态，不是跨实例全局缓存；冷启动或不同实例仍可能分别首次读取一次。
-- v429 仍只使用 EODHD 财报日历/趋势与官方 SEC/TSMC 文件；通用结构在未命中特例或专用解析器对合规 10-Q 返回空时，按需读取官方 SEC PRIMARY 10-Q，不新增 EODHD 请求，也不与专用解析结果混合分节。公开 SEC cache 是 Vercel 单实例内存态，不是跨实例全局缓存，冷实例可能各自首次读取；非标准、歧义或无法双期精确勾稽的披露显示不可用是预期 fail-closed。新的明确当前/未来窗口和 90 天历史补齐均为全市场日期请求，仍最多两笔，但响应体可能比旧 symbol-only 请求更大；需低频观察 EODHD 用量、冷启动耗时和响应体积，确认异常前不得增加循环探针、备用源或外部缓存。v424 现金长金额、v421 现金资产与个人收益快照、波段部分卖出、交易持仓正式价格及股票实时稳定版 v10 均保持不变。
+- v501 首轮真实任务已存部分可验证结果，但预算耗尽被误记为 error 并返回 `503`。保持 v501 的内部 forward-fix 仍待最终发布验证；不得掩盖失败、清空已有结果、放宽财报校验或回滚数据库来消除报错。
+- SEC 共享结果已有跨实例复用，但原按需公开响应缓存仍是实例内存态。日扫、每轮公司数与时限均有上限；大任务池、慢 SEC 或冷启动可能需后续轮次，完整缓存过期后用户仍可能按需读取。没有自然 Cron 日志、没有全自选逐项成功证据时，只能称基础链路已启用，不能称全部自动覆盖完成。
+- SEC/TSMC 官方披露仍可能没有季度细分，或不符合现有可验证结构。缺失同比/利润与已核验收入分开；非标准、歧义或不可勾稽结构明确不可用，不接入备用数字、不加循环探针。EODHD 日历仍是最多两笔明确日期请求，低频观察响应体积、provider 用量和 SEC 聚合失败原因。
 - 个人收益的客户端即时重算请求是交易 mutation 后的一次非阻塞派生动作：正式交易保存成功不会因个人收益暂时失败而回滚，恢复依赖数据库 dirty state 和收盘 Cron，不依赖收益报表页面或浏览器一直存活。比赛仍保持其独立重算链路。
-- P&L foundation 与 contract 之间旧 PWA 仍保留原直接写权限，因此 runtime 验证后必须尽快执行 contract；任一步失败都只做 forward-fix。跨 Vercel 实例生成不同时间戳时可能留下多个安全隔离的暂存 job，由 24 小时 TTL 清理，不会混合发布。
+- 既有 P&L foundation → runtime → contract 的顺序不能颠倒；如未来再有兼容窗口，runtime 核验后须完成对应权限收紧，失败只做 forward-fix。本次未重新核验历史 P&L 迁移窗口，不将旧交接中的待执行步骤当成当前生产状态。跨 Vercel 实例的安全隔离暂存 job 继续按既有 24 小时 TTL 清理，不混合发布。
 
 ## 必须保护的业务边界
 
@@ -153,7 +165,7 @@
 
 ### 下一步
 
-1. v429 只有在最终 `npm run check:full` PASS、提交推送且同一提交的一次 `npm run release:verify -- full <commit>` PASS 后，才能视为上线；不得直接修改 Vercel。
-2. 发布后只做一次登录态只读验收，核对 provider 财期、官方 `fiscalYear/fiscalPeriod` 和已核验结构数量；不输出 token、用户、持仓或交易数据，不循环调用 EODHD/SEC。
-3. 低频观察 90 天日历响应体积、EODHD 调用量及 SEC 脱敏失败原因；确认问题前不得增加请求频率、备用源或猜测性结构。
+1. 完成预算状态内部 forward-fix（不升应用版本），对最终 diff 运行 FULL，提交推送后仅运行一次 `npm run release:verify -- full <commit>`；将精确提交、deployment 和结果补回本文件，不提前标记完成。
+2. 新 runtime 验证通过后，复用已授权的有界生产验收，只记录 claimed/processed/stored/reused/failed/deferred 等聚合状态与权限结论，确认预算耗尽不再误报 error；不输出 token、用户、自选列表、持仓或交易数据，不循环调用 EODHD/SEC。
+3. 之后需有自然每日 Cron 的真实日志，才能确认自然调度已运行；未到触发时间不是失败。继续低频观察任务池覆盖、SEC 请求量及不完整原因，不在未明确频率/平台约束时加轮询。
 4. 新任务只读 `README.md`、`docs/development-process.md`、`docs/handoff.md`，不要重复旧流程。

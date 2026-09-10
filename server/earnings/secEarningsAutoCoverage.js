@@ -7,6 +7,7 @@ import { EARNINGS_DETAIL_PARSER_VERSION, earningsDetailCacheTtl } from '../../sr
 
 export const SEC_COVERAGE_RUN_LIMITS = Object.freeze({ jobs: 36, claim: 12, concurrency: 3, budgetMs: 40_000, eventBudgetMs: 7000, requests: 100 });
 const SECTION_KEYS = ['reportSegments', 'revenueBreakdown', 'geographies'];
+const isCoverageBudgetReason = (reason) => reason === 'worker-time-budget' || reason === 'sec-request-budget';
 const safeReason = (value) => /^[a-z][a-z0-9-]{0,119}$/.test(value || '') ? value : 'sec-coverage-unavailable';
 const nyDate = (date) => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
 
@@ -88,7 +89,11 @@ export async function runSecEarningsAutoCoverage({
     const turn = requestQueue.then(async () => {
       const delay = Math.max(0, 250 - (Date.now() - lastRequestAt));
       if (delay) await new Promise((resolve) => setTimeout(resolve, delay));
-      if (options.signal?.aborted || clock() >= deadline - 4000 || report.secRequests >= SEC_COVERAGE_RUN_LIMITS.requests) {
+      if (options.signal?.aborted) {
+        // An individual request timeout is not the worker's normal run limit.
+        throw Object.assign(new Error('sec-request-timeout'), { code: 'sec-request-timeout' });
+      }
+      if (clock() >= deadline - 4000 || report.secRequests >= SEC_COVERAGE_RUN_LIMITS.requests) {
         throw Object.assign(new Error('sec-request-budget'), { code: 'sec-request-budget' });
       }
       report.secRequests += 1;
@@ -98,6 +103,11 @@ export async function runSecEarningsAutoCoverage({
     await turn;
     return fetchFn(url.href, { ...options, method: 'GET', redirect: 'error' });
   };
+  function recordCompletion(outcome) {
+    if (outcome?.outcome === 'stale') report.staleWrites += 1;
+    else if (outcome?.outcome === 'completed') { report.processed += 1; report.stored += Number(outcome.stored) || 0; }
+    else throw Object.assign(new Error('sec-coverage-store-invalid-response'), { code: 'sec-coverage-store-invalid-response' });
+  }
   async function processJob(job) {
     let status = 'unavailable';
     let reason = null;
@@ -105,7 +115,7 @@ export async function runSecEarningsAutoCoverage({
     const events = [];
     let discovery;
     try {
-      if (clock() >= deadline - 8000) {
+      if (clock() >= deadline - 8000 || report.secRequests >= SEC_COVERAGE_RUN_LIMITS.requests) {
         // Do not spend another 4–8 seconds per unstarted job draining a batch.
         // Its 90-second lease expires safely; a later run can claim it again.
         report.deferred += 1;
@@ -157,16 +167,34 @@ export async function runSecEarningsAutoCoverage({
         && !(discovery.reason === 'needs-calendar-period' && resolvedRelease))) {
         status = usable ? 'partial' : 'pending';
         reason = exhausted ? 'worker-time-budget' : safeReason(discovery.reason);
-        if (exhausted) report.deferred += 1;
+        if (exhausted || isCoverageBudgetReason(discovery.reason)) report.deferred += 1;
       }
       const outcome = await repository.complete(job, {
         status, reason, results, events,
         delaySeconds: status === 'complete' ? 21600 : status === 'unavailable' ? 86400 : 3600,
       });
-      if (outcome?.outcome === 'stale') report.staleWrites += 1;
-      else if (outcome?.outcome === 'completed') { report.processed += 1; report.stored += Number(outcome.stored) || 0; }
-      else throw new Error('sec-coverage-store-invalid-response');
+      recordCompletion(outcome);
     } catch (error) {
+      if (isCoverageBudgetReason(error?.code)) {
+        // Expected backpressure is pending work, not a failed run. Keep any
+        // verified quarter and accession markers, without extending the run
+        // past its deadline merely to clear leases from the remainder.
+        report.deferred += 1;
+        if (clock() >= deadline) return;
+        try {
+          const outcome = await repository.complete(job, {
+            status: results.length || events.some((event) => ['complete', 'partial'].includes(event.status)) ? 'partial' : 'pending',
+            reason: error.code, delaySeconds: 3600, results,
+            events: events.map((event) => event.status === 'pending' ? { ...event, reason: error.code } : event),
+          });
+          recordCompletion(outcome);
+        } catch {
+          // A real database/response failure while saving a deferral must
+          // still produce 503; the lease remains recoverable after expiry.
+          report.failed += 1;
+        }
+        return;
+      }
       report.failed += 1;
       if (clock() >= deadline) { report.deferred += 1; return; }
       const delay = Math.min(21600, 900 * 2 ** Math.min(5, Math.max(0, Number(job.attempt_count || 1) - 1)));
@@ -177,7 +205,7 @@ export async function runSecEarningsAutoCoverage({
       } catch { /* The expiring lease permits recovery; never log credentials or raw bodies. */ }
     }
   }
-  while (report.claimed < cap && clock() < deadline - 10_000) {
+  while (report.claimed < cap && clock() < deadline - 10_000 && report.secRequests < SEC_COVERAGE_RUN_LIMITS.requests) {
     const jobs = await repository.claim(Math.min(SEC_COVERAGE_RUN_LIMITS.claim, cap - report.claimed));
     if (!jobs.length) break;
     report.claimed += jobs.length;
@@ -186,7 +214,8 @@ export async function runSecEarningsAutoCoverage({
       while (cursor < jobs.length) await processJob(jobs[cursor++]);
     }));
   }
-  report.bounded = report.claimed >= cap || clock() >= deadline - 10_000;
+  report.bounded = report.claimed >= cap || clock() >= deadline - 10_000
+    || report.secRequests >= SEC_COVERAGE_RUN_LIMITS.requests || report.deferred > 0;
   report.success = report.failed === 0;
   return report;
 }

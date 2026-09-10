@@ -166,7 +166,7 @@ test('budget exit retains the completed quarter but marks the unfinished job par
   assert.equal(report.deferred, 1);
 });
 
-test('a later parse exception retains completed results and the pending accession marker for retry', async () => {
+test('a later SEC request budget exit retains completed results without failing the run', async () => {
   const previous = event({ fiscalDate: '2026-03-31', providerFiscalDate: '2026-03-31', officialFiscalDate: '2026-03-31', reportDate: '2026-05-01', filedAt: '2026-05-01T16:00:00Z', accession: OLD_ACCESSION });
   const mock = repositoryMock();
   let parsed = 0;
@@ -179,8 +179,13 @@ test('a later parse exception retains completed results and the pending accessio
     },
   });
   const completion = mock.calls.complete[0].payload;
-  assert.equal(report.failed, 1);
-  assert.equal(completion.status, 'error');
+  assert.equal(report.failed, 0);
+  assert.equal(report.success, true);
+  assert.equal(report.deferred, 1);
+  assert.equal(report.processed, 1);
+  assert.equal(report.stored, 1);
+  assert.equal(report.bounded, true);
+  assert.equal(completion.status, 'partial');
   assert.equal(completion.reason, 'sec-request-budget');
   assert.ok(completion.delaySeconds <= 3600);
   assert.equal(completion.results.length, 1);
@@ -191,6 +196,83 @@ test('a later parse exception retains completed results and the pending accessio
   assert.equal(completion.events[1].expected_accession, OLD_ACCESSION);
   assert.equal(completion.events[1].reason, 'sec-request-budget');
   assert.ok(!JSON.stringify(completion).includes('Raw private diagnostics'));
+});
+
+test('inputs finishing at the start-budget boundary defer instead of failing, and no write starts after forty seconds', async () => {
+  for (const [finishedAt, expectedStatus, expectedParsed] of [
+    [31_999, 'complete', 1], [32_000, 'pending', 0], [39_999, 'pending', 0], [40_000, null, 0],
+  ]) {
+    let milliseconds = 0;
+    let parsed = 0;
+    let discovered = 0;
+    const mock = repositoryMock({ inputs: () => { milliseconds = finishedAt; return { events: [], results: [] }; } });
+    const report = await run(mock, {
+      clock: () => milliseconds,
+      discover: async () => { discovered += 1; return { status: 'ready', events: [event()], hasUnresolvedRelease: false }; },
+      fetchDetail: async (request) => { parsed += 1; return detail(request); },
+    });
+    assert.equal(report.success, true, `input finished at ${finishedAt}`);
+    assert.equal(report.failed, 0);
+    assert.equal(report.deferred, expectedParsed ? 0 : 1);
+    assert.equal(parsed, expectedParsed);
+    assert.equal(discovered, expectedParsed);
+    assert.equal(mock.calls.complete.length, expectedStatus ? 1 : 0);
+    if (expectedStatus) {
+      assert.equal(mock.calls.complete[0].payload.status, expectedStatus);
+      assert.equal(report.processed, 1);
+      if (expectedStatus === 'pending') {
+        assert.equal(mock.calls.complete[0].payload.reason, 'worker-time-budget');
+        assert.deepEqual(mock.calls.complete[0].payload.results, []);
+      }
+    } else assert.equal(report.processed, 0);
+  }
+});
+
+test('a failed or invalid deferral write remains a failed run; stale leases are not reported as persisted', async () => {
+  for (const mode of ['store-error', 'invalid-response', 'stale']) {
+    let milliseconds = 0;
+    const mock = repositoryMock({ inputs: () => { milliseconds = 32_000; return { events: [], results: [] }; } });
+    mock.repository.complete = async () => {
+      if (mode === 'store-error') throw Object.assign(new Error('private database body'), { code: 'sec-coverage-store-unavailable' });
+      return mode === 'stale' ? { outcome: 'stale', stored: 0 } : { outcome: 'unexpected' };
+    };
+    const report = await run(mock, { clock: () => milliseconds });
+    assert.equal(report.deferred, 1);
+    assert.equal(report.processed, 0);
+    assert.equal(report.stored, 0);
+    assert.equal(report.failed, mode === 'stale' ? 0 : 1);
+    assert.equal(report.success, mode === 'stale');
+    assert.equal(report.staleWrites, mode === 'stale' ? 1 : 0);
+    assert.ok(!JSON.stringify(report).includes('private database body'));
+  }
+});
+
+test('only explicit worker budgets are soft exits; real parse/network exceptions remain failures', async () => {
+  for (const code of ['sec-network-error', 'sec-request-timeout', 'sec-coverage-store-unavailable', 'unexpected-parser-error']) {
+    const mock = repositoryMock();
+    const report = await run(mock, { fetchDetail: async () => {
+      throw Object.assign(new Error('private parse or network diagnostics'), { code });
+    } });
+    assert.equal(report.failed, 1, code);
+    assert.equal(report.success, false, code);
+    assert.equal(report.deferred, 0, code);
+    assert.equal(mock.calls.complete[0].payload.status, 'error');
+    assert.equal(mock.calls.complete[0].payload.reason, code);
+    assert.ok(!JSON.stringify(report).includes('private parse or network diagnostics'));
+  }
+});
+
+test('structured pending discovery budget remains deferred without becoming a failure', async () => {
+  const mock = repositoryMock();
+  const report = await run(mock, {
+    discover: async () => ({ status: 'pending', reason: 'sec-request-budget', events: [], hasUnresolvedRelease: false }),
+  });
+  assert.equal(report.failed, 0);
+  assert.equal(report.success, true);
+  assert.equal(report.deferred, 1);
+  assert.equal(report.bounded, true);
+  assert.equal(mock.calls.complete[0].payload.status, 'pending');
+  assert.equal(mock.calls.complete[0].payload.reason, 'sec-request-budget');
 });
 
 test('max jobs, claim batch and active discovery concurrency stay bounded', async () => {
@@ -228,6 +310,7 @@ test('late errors allow one bounded final write before forty seconds and no new 
     const report = await run(mock, { clock: () => milliseconds });
     assert.equal(mock.calls.complete.length, expectedWrites);
     assert.equal(report.failed, 1);
+    assert.equal(report.success, false);
     assert.equal(report.deferred, expectedWrites ? 0 : 1);
     assert.equal(report.processed, 0);
     assert.ok(milliseconds <= 44_000);
@@ -413,7 +496,29 @@ test('one run cannot send more than 100 SEC requests even when an injected disco
   assert.equal(requests, 100);
   assert.equal(report.secRequests, SEC_COVERAGE_RUN_LIMITS.requests);
   assert.equal(mock.calls.complete[0].payload.reason, 'sec-request-budget');
-  assert.equal(mock.calls.complete[0].payload.status, 'error');
+  assert.equal(mock.calls.complete[0].payload.status, 'pending');
+  assert.equal(report.success, true);
+  assert.equal(report.failed, 0);
+  assert.equal(report.deferred, 1);
+  assert.equal(report.bounded, true);
+  assert.equal(mock.calls.claim.length, 1);
+});
+
+test('an aborted individual SEC request is not mislabeled as the worker budget', async () => {
+  const mock = repositoryMock();
+  const controller = new AbortController();
+  controller.abort();
+  const report = await run(mock, {
+    fetchFn: async () => assert.fail('aborted request must not reach the network'),
+    discover: async ({ fetchFn }) => {
+      await fetchFn('https://data.sec.gov/submissions/CIK0000320193.json', { signal: controller.signal });
+    },
+  });
+  assert.equal(report.failed, 1);
+  assert.equal(report.success, false);
+  assert.equal(report.deferred, 0);
+  assert.equal(report.secRequests, 0);
+  assert.equal(mock.calls.complete[0].payload.reason, 'sec-request-timeout');
 });
 
 function responseMock() {
@@ -457,4 +562,26 @@ test('authorized enabled schedule executes and sanitizes worker failures', async
   await handleSecEarningsCoverageSchedule(req, failed, { env, run: async () => { throw new Error('secret-provider-raw-body'); } });
   assert.equal(failed.statusCode, 503);
   assert.ok(!JSON.stringify(failed.body).includes('secret-provider-raw-body'));
+});
+
+test('schedule returns 200 for a normal time-budget deferral and 503 for a real store error at the same boundary', async () => {
+  const env = { CRON_SECRET: 'synthetic-cron-secret', SEC_EARNINGS_AUTO_COVERAGE_ENABLED: 'true' };
+  const req = { method: 'GET', headers: { authorization: 'Bearer synthetic-cron-secret' } };
+  for (const storeFails of [false, true]) {
+    let milliseconds = 0;
+    const mock = repositoryMock({ inputs: () => {
+      milliseconds = 32_000;
+      if (storeFails) throw Object.assign(new Error('private store error'), { code: 'sec-coverage-store-unavailable' });
+      return { events: [], results: [] };
+    } });
+    const res = responseMock();
+    await handleSecEarningsCoverageSchedule(req, res, {
+      env, run: () => run(mock, { clock: () => milliseconds }),
+    });
+    assert.equal(res.statusCode, storeFails ? 503 : 200);
+    assert.equal(res.body.failed, storeFails ? 1 : 0);
+    assert.equal(res.body.success, !storeFails);
+    assert.equal(res.body.enabled, true);
+    assert.ok(!JSON.stringify(res.body).includes('private store error'));
+  }
 });
