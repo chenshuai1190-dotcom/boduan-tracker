@@ -130,7 +130,7 @@ test('stock details, scenario and record-trade actions stay separate and preserv
 test('Trading report keeps one horizontal holdings table, fixed identity column and untouched page shell', () => {
   assert.ok(positionsView.includes('data-trade-positions-table="horizontal"'));
   assert.match(positionsCss, /\.trades-positions-report\s*\{[^}]*overflow-x:\s*auto;/);
-  assert.match(positionsCss, /\.tpr-table\s*\{[^}]*min-width:\s*604px;/);
+  assert.match(positionsCss, /\.tpr-table\s*\{[^}]*min-width:\s*550px;/);
   assert.match(positionsCss, /\.tpr-table td:first-child\s*\{[^}]*position:\s*sticky;[^}]*left:\s*0;[^}]*background:\s*#050609;/);
   const columns = ['trades.nameTicker', 'trades.valueQty', 'trades.priceCost', 'trades.dailyPnl', 'trades.positionPnl', 'trades.allocation'];
   const indexes = columns.map((key) => positionsView.indexOf(`tt('${key}'`));
@@ -196,6 +196,26 @@ test('compact first-screen spacing preserves financial content and reachable too
   assert.match(rule('.trades-report-pnl-grid'), /grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
   assert.ok(positionsView.includes('data-trade-positions-table="horizontal"'));
   assert.match(positionsCss, /\.trades-positions-report\s*\{[^}]*overflow-x:\s*auto;/);
+});
+
+test('compact positions columns leave room for daily P&L without shrinking or clipping financial text', () => {
+  const rule = selector => [...positionsCss.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+    .filter(([, selectors]) => selectors.split(',').some(candidate => candidate.trim() === selector))
+    .map(([, , body]) => body).join('\n');
+  const minWidth = selector => Number(rule(selector).match(/min-width:\s*(\d+)px;/)?.[1]);
+  const firstFour = [minWidth('.tpr-table td:first-child'), minWidth('.tpr-table td:nth-child(2)'),
+    minWidth('.tpr-table td:nth-child(3)'), minWidth('.tpr-table td:nth-child(4)')];
+  assert.ok(firstFour.every(Number.isFinite));
+  assert.ok(firstFour.reduce((sum, width) => sum + width, 0) <= 340, 'first-four-column minimums must leave room on a 375px phone');
+  assert.match(rule('.tpr-stock'), /(?:^|\n)\s*width:\s*60px;/, 'long names have a fixed content width instead of expanding the auto-layout table');
+  assert.match(rule('.tpr-stock-title'), /text-overflow:\s*ellipsis;/);
+  assert.match(rule('.tpr-stock-subtitle'), /text-overflow:\s*ellipsis;/);
+  assert.match(rule('.tpr-value'), /font-size:\s*13px;/);
+  assert.match(rule('.tpr-secondary'), /font-size:\s*11px;/);
+  for (const selector of ['.tpr-value', '.tpr-secondary']) {
+    assert.match(rule(selector), /white-space:\s*nowrap;/);
+    assert.doesNotMatch(rule(selector), /overflow:\s*hidden|text-overflow:\s*ellipsis/);
+  }
 });
 
 test('Trading report retains two main tool separators without extra financial or holdings container borders', () => {

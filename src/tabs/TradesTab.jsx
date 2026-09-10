@@ -991,13 +991,13 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
               {['USD', 'CNY'].map((mode) => <button key={mode} type="button" aria-pressed={currencyMode === mode} onClick={() => setCurrencyMode(mode)}>{mode}</button>)}
             </div>
           </div>
-          <div className="trades-report-net-amount" data-trades-net-assets="true">
+          <div className="trades-report-net-amount" style={{ fontFamily: TRADE_NUMBER_FONT }} data-trades-net-assets="true">
             {assetStatusReady ? <><span>{displayAssetMoney.main}</span><span className="trades-report-decimal">{displayAssetMoney.decimal}</span></> : <span className="text-white/30">--</span>}
           </div>
           <div className="trades-report-pnl-grid">
             <button type="button" onClick={openPnlShare} aria-label={tt('trades.openPnlShare', '分享今日盈亏')} data-trades-pnl-share-trigger="true">
               <span className="trades-report-label">{tt('trades.todayPnl', '今日盈亏')}</span>
-              <span className={`${pnlAmountClass} ${pnlClass(hasTodayPnl ? displayTodayPnl : 0, marketColorMode)}`}>{hasTodayPnl ? signedCurrency(displayTodayPnl, displayCurrency, 2) : '--'}</span>
+              <span className={`${pnlAmountClass} ${pnlClass(hasTodayPnl ? displayTodayPnl : 0, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{hasTodayPnl ? signedCurrency(displayTodayPnl, displayCurrency, 2) : '--'}</span>
               <span className={`trades-report-pnl-percent ${pnlClass(hasTodayPnl ? displayTodayPnl : 0, marketColorMode)}`}>
                 <span>{hasTodayPnl ? signedPct(summary.todayPnlPct, 2) : '--'}</span>
                 {hasTodayPnl && summary.todayPnlLocked && <small>{tt('trades.pnlLocked', '收盘锁定')}</small>}
@@ -1005,18 +1005,18 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
             </button>
             <button type="button" onClick={openPnlReport}>
               <span className="trades-report-label">{tt('trades.totalPnl', '累计盈亏')}<ChevronRight size={12} /></span>
-              <span className={`${pnlAmountClass} ${pnlClass(displayCumulativePnl, marketColorMode)}`}>{signedCurrency(displayCumulativePnl, displayCurrency, 2)}</span>
+              <span className={`${pnlAmountClass} ${pnlClass(displayCumulativePnl, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{signedCurrency(displayCumulativePnl, displayCurrency, 2)}</span>
               <span className={`trades-report-pnl-percent ${pnlClass(displayCumulativePnl, marketColorMode)}`}>{signedPct(summary.cumulativePnlPct, 2)}</span>
             </button>
           </div>
           <div className="trades-report-balances" data-trades-total-assets="true">
-            <div className="trades-report-balance"><span className="trades-report-label">{tt('trades.totalAssets', '总资产')}</span><span className="trades-report-balance-value">{assetStatusReady ? currencyAmount(displayAssets, displayCurrency, 2) : '--'}</span></div>
+            <div className="trades-report-balance"><span className="trades-report-label">{tt('trades.totalAssets', '总资产')}</span><span className="trades-report-balance-value" style={{ fontFamily: TRADE_NUMBER_FONT }}>{assetStatusReady ? currencyAmount(displayAssets, displayCurrency, 2) : '--'}</span></div>
             <button type="button" disabled={!availableCashWriteReady} onClick={() => setShowAvailableCashEditor(true)} className="trades-report-balance" aria-label={tt('home.availableCashBalance', '设置可用现金')} data-trades-available-cash-trigger="true">
               <span className="trades-report-label">{tt('home.cash', '现金')}<ChevronRight size={12} /></span>
-              <span className="trades-report-balance-value">{availableCashStatusReady ? currencyAmount(displayAvailableCash, displayCurrency, availableCashIsSet ? 2 : 0) : '--'}</span>
+              <span className="trades-report-balance-value" style={{ fontFamily: TRADE_NUMBER_FONT }}>{availableCashStatusReady ? currencyAmount(displayAvailableCash, displayCurrency, availableCashIsSet ? 2 : 0) : '--'}</span>
             </button>
             <button type="button" disabled={!assetStatusReady} onClick={openHomeMarginRisk} className="trades-report-financing" data-trades-margin-trigger="true">
-              <span className="trades-report-balance"><span className="trades-report-label">{tt('home.marginDebt', '融资负债')}<ChevronRight size={12} /></span><span className="trades-report-balance-value">{marginStatusReady ? currencyAmount(displayMarginDebt, displayCurrency, 2) : '--'}</span></span>
+              <span className="trades-report-balance"><span className="trades-report-label">{tt('home.marginDebt', '融资负债')}<ChevronRight size={12} /></span><span className="trades-report-balance-value" style={{ fontFamily: TRADE_NUMBER_FONT }}>{marginStatusReady ? currencyAmount(displayMarginDebt, displayCurrency, 2) : '--'}</span></span>
               <span className="trades-report-balance"><span className="trades-report-label">{tt('home.leverage', '杠杆')}</span><span className="trades-report-leverage">
                 <span className="trades-report-balance-value">{assetStatusReady ? formatLeverage(marginOverview.leverage) : '—'}</span>
                 {assetStatusReady && marginLeverageStatus && <AccountLeverageBadge className="h-[17px] px-1 text-[10px]" language={language} tierId={marginLeverageStatus.id} />}

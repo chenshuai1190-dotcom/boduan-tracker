@@ -13,12 +13,12 @@
 .trades-report-label svg { flex-shrink: 0; opacity: .65; }
 .trades-report-pnl-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; margin-top: 12px; }
 .trades-report-pnl-grid button { min-width: 0; text-align: left; }
-.trades-report-pnl-amount { display: block; margin-top: 4px; font-size: clamp(17px, 5.25vw, 23px); line-height: 1.3; letter-spacing: -.045em; overflow-wrap: anywhere; }
-.trades-report-pnl-percent { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin-top: 2px; font-size: 12px; line-height: 1.5; }
+.trades-report-pnl-amount { display: block; margin-top: 4px; font-size: clamp(17px, 5.25vw, 23px); line-height: 1.3; font-variant-numeric: tabular-nums; letter-spacing: -.045em; overflow-wrap: anywhere; }
+.trades-report-pnl-percent { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin-top: 2px; font-size: 12px; line-height: 1.5; font-variant-numeric: tabular-nums; }
 .trades-report-pnl-percent small { font-size: 10px; color: #71717d; }
 .trades-report-balances { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 20px; margin-top: 12px; padding-top: 10px; }
 .trades-report-balance { display: block; min-width: 0; text-align: left; }
-.trades-report-balance-value { display: block; margin-top: 3px; color: #bebec7; font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
+.trades-report-balance-value { display: block; margin-top: 3px; color: #bebec7; font-size: 14px; line-height: 1.5; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .trades-report-financing { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; text-align: left; }
 .trades-report-leverage { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 3px; }
 .trades-report-leverage .trades-report-balance-value { margin-top: 0; }

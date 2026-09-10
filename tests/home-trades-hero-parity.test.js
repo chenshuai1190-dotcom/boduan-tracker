@@ -70,3 +70,23 @@ test('Home and Trading keep matching hero insets, columns and balance fonts belo
   }
   assertParity('balance-value', ['font-size'], { narrow: true });
 });
+
+test('Trading header numbers explicitly match Home fonts and tabular widths inside buttons', () => {
+  for (const suffix of ['pnl-amount', 'pnl-percent', 'balance-value']) {
+    assertParity(suffix, ['font-variant-numeric']);
+    assert.equal(declarations(trades, `.trades-report-${suffix}`)['font-variant-numeric'], 'tabular-nums',
+      'button font defaults must not reset tabular digits through ancestor-only inheritance');
+  }
+  const homeJsx = readFileSync(new URL('../src/tabs/HomeTab.jsx', import.meta.url), 'utf8');
+  const tradesJsx = readFileSync(new URL('../src/tabs/TradesTab.jsx', import.meta.url), 'utf8');
+  assert.equal(homeJsx.match(/const NUMBER_FONT = '([^']+)'/)[1], tradesJsx.match(/const TRADE_NUMBER_FONT = '([^']+)'/)[1]);
+  for (const [source, prefix, numberFont] of [[homeJsx, 'home', 'NUMBER_FONT'], [tradesJsx, 'trades', 'TRADE_NUMBER_FONT']]) {
+    const start = source.indexOf(`<section className="${prefix}-report-hero"`);
+    const hero = source.slice(start, source.indexOf('</section>', start));
+    const amounts = [...hero.matchAll(/<(?:div|span)\s+className=(?:"[^"\n]+"|\{`[^`]+`\})[^>]*>/g)]
+      .map(([tag]) => tag).filter(tag => tag.includes('report-net-amount') || tag.includes('pnlAmountClass') || tag.includes('report-balance-value'));
+    assert.equal(amounts.length, 7, 'net assets, two P&L values, three balances and leverage stay visible');
+    for (const tag of amounts.slice(0, 6)) assert.ok(tag.includes(`style={{ fontFamily: ${numberFont} }}`), `${prefix} amount must use the numeric font directly`);
+    assert.ok(!amounts[6].includes('fontFamily'), 'leverage retains the Home text-font baseline');
+  }
+});

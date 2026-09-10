@@ -12,14 +12,14 @@
 
 .tpr-table {
   width: max-content;
-  min-width: 604px;
+  min-width: 550px;
   border-collapse: separate;
   border-spacing: 0;
 }
 
 .tpr-table th,
 .tpr-table td {
-  padding: 0 9px;
+  padding: 0 7px;
   text-align: right;
   vertical-align: middle;
 }
@@ -36,11 +36,11 @@
   position: sticky;
   left: 0;
   z-index: 1;
-  width: 92px;
-  min-width: 92px;
-  max-width: 92px;
+  width: 68px;
+  min-width: 68px;
+  max-width: 68px;
   padding-left: 0;
-  padding-right: 12px;
+  padding-right: 8px;
   background: #050609;
   text-align: left;
 }
@@ -48,9 +48,9 @@
 .tpr-table th:nth-child(2),
 .tpr-table td:nth-child(2) { min-width: 104px; text-align: left; }
 .tpr-table th:nth-child(3),
-.tpr-table td:nth-child(3) { min-width: 88px; }
+.tpr-table td:nth-child(3) { min-width: 70px; }
 .tpr-table th:nth-child(4),
-.tpr-table td:nth-child(4) { min-width: 132px; }
+.tpr-table td:nth-child(4) { min-width: 98px; }
 .tpr-table th:nth-child(5),
 .tpr-table td:nth-child(5) { min-width: 144px; }
 .tpr-table th:last-child,
@@ -69,6 +69,7 @@
   text-align: inherit;
   -webkit-tap-highlight-color: transparent;
 }
+.tpr-stock { width: 60px; }
 .tpr-stock-text { display: block; min-width: 0; }
 .tpr-stock-title,
 .tpr-stock-subtitle {
