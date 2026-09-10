@@ -1,5 +1,5 @@
 import React from 'react';
-import { BarChart3, BookOpen, Calculator, CalendarDays, ChevronRight, Database, Edit3, LayoutGrid, ListChecks, Search, Settings2, Trash2, TrendingDown, TrendingUp, Waves, X } from 'lucide-react';
+import { BarChart3, BookOpen, Calculator, CalendarDays, ChevronRight, Database, Edit3, Layers, LayoutGrid, ListChecks, Search, Settings2, Trash2, TrendingDown, TrendingUp, Waves, X } from 'lucide-react';
 import {
   MARKET_COLOR_MODES,
   marketStrongTextClass,
@@ -1018,6 +1018,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
             { id: 'waves', label: tt('trades.swingLog', '波段记录'), icon: Waves },
             { id: 'competition', label: tt('competition.toolEntry', '社区比赛'), icon: BarChart3 },
             { id: 'records', label: tt('trades.tradeLog', '交易记录'), icon: ListChecks },
+            { id: 'portfolio-overlap', label: tt('trades.portfolioOverlapShort', '重叠体检'), icon: Layers },
             { id: 'all', label: tt('trades.allTools', '全部功能'), icon: LayoutGrid },
           ].map((item) => {
             const Icon = item.icon;
@@ -1026,9 +1027,10 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
               setColorMenuOpen(false);
               if (item.id === 'waves') { setToolPanel(''); openWaveTracker?.(); return; }
               if (item.id === 'competition') { setToolPanel(''); openCommunityCompetition?.(); return; }
+              if (item.id === 'portfolio-overlap') { setToolPanel(''); openPortfolioOverlap?.(); return; }
               if (item.id === 'all') { setShowAllToolsModal(true); return; }
               toggleToolPanel(item.id);
-            }}><Icon size={21} strokeWidth={1.6} aria-hidden="true" /><span>{item.label}</span></button>;
+            }}><span className="trades-report-tool-content"><Icon size={21} strokeWidth={1.6} aria-hidden="true" /><span>{item.label}</span></span></button>;
           })}
         </section>
         {showAllToolsModal && (
@@ -1073,7 +1075,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
             </div>
             {mainView === 'positions' ? <>
               <div className="trades-report-holdings-summary">
-                <div><span className="trades-report-label">{tt('trades.marketValue', '持仓市值')}</span><span className="trades-report-holdings-value">{currencyAmount(toNumber(summary.positionsMarketValue) * displayRate, displayCurrency, 2)}</span></div>
+                <div><span className="trades-report-label"><span>{tt('trades.marketValue', '持仓市值')}</span><span className="trades-report-market-flag" role="img" aria-label={englishMode ? 'United States' : '美国'}>🇺🇸</span></span><span className="trades-report-holdings-value">{currencyAmount(toNumber(summary.positionsMarketValue) * displayRate, displayCurrency, 2)}</span></div>
                 <div><span className="trades-report-label">{tt('trades.positionPnl', '持仓盈亏')}</span><span className={`trades-report-holdings-pnl ${pnlClass(displayHoldingPnl, marketColorMode)}`}>{signedCurrency(displayHoldingPnl, displayCurrency, 2)}</span></div>
               </div>
               {positions.length === 0 ? <div className="trades-report-empty"><p>{tt('trades.noPositions', '还没有持仓')}</p><button type="button" className="trades-report-add" onClick={() => openTradeModal(null, 'buy')}>{tt('trades.recordFirstBuy', '记录第一笔买入')}</button></div>

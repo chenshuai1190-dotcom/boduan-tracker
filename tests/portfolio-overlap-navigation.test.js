@@ -25,7 +25,7 @@ test('all tools closes before entering overlap and no other destination changes'
     'portfolio-overlap', value => calls.push(['sheet', value]), value => calls.push(['panel', value]), () => calls.push(['overlap']),
   );
   assert.deepEqual(calls, [['sheet', false], ['panel', ''], ['overlap']]);
-  assert.equal((trades.match(/openPortfolioOverlap\?\.\(\)/g) || []).length, 1);
+  assert.equal((trades.match(/openPortfolioOverlap\?\.\(\)/g) || []).length, 2, 'the shortcut and All Tools should share the existing overlap destination');
 });
 
 test('metadata route reuses authenticated API and sends only symbols to provider', () => {

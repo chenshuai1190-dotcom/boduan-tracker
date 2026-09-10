@@ -22,8 +22,9 @@
 .trades-report-financing { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; text-align: left; }
 .trades-report-leverage { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 3px; }
 .trades-report-leverage .trades-report-balance-value { margin-top: 0; }
-.trades-report-tools { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 1px solid rgba(255, 255, 255, .06); border-bottom: 1px solid rgba(255, 255, 255, .06); padding: 9px 0; gap: 8px; }
-.trades-report-tools button { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 44px; gap: 5px; color: #9696a0; font-size: 11px; line-height: 1.4; text-align: center; }
+.trades-report-tools { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); border-top: 1px solid rgba(255, 255, 255, .06); border-bottom: 1px solid rgba(255, 255, 255, .06); padding: 9px 0; gap: 8px; }
+.trades-report-tools button { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; min-height: 44px; gap: 5px; color: #9696a0; font-size: 11px; line-height: 1.4; text-align: left; }
+.trades-report-tool-content { display: flex; flex-direction: column; align-items: center; max-width: 100%; gap: 5px; text-align: center; }
 .trades-report-tools button[aria-pressed="true"] { color: #ededf0; }
 .trades-report-tools button:active { opacity: .65; }
 .trades-report-ledger { padding-top: 12px; }
@@ -42,6 +43,7 @@
 .trades-report-color-menu button[aria-pressed="true"] { background: #25262b; color: #e1e1e6; }
 .trades-report-holdings-summary { display: grid; grid-template-columns: minmax(0, 1.12fr) minmax(0, 1fr); gap: 20px; margin: 10px 0 12px; }
 .trades-report-holdings-summary > div { min-width: 0; }
+.trades-report-market-flag { flex-shrink: 0; font-size: 14px; line-height: 1; }
 .trades-report-holdings-summary > div:last-child { text-align: right; }
 .trades-report-holdings-summary > div:last-child .trades-report-label { justify-content: flex-end; }
 .trades-report-holdings-value, .trades-report-holdings-pnl { display: block; margin-top: 4px; font-size: 17px; line-height: 1.4; letter-spacing: -.025em; overflow-wrap: anywhere; }

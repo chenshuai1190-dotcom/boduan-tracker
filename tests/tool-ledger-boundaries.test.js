@@ -2271,7 +2271,7 @@ test('Home, Trading, and Assets use continuous scoped reports', () => {
   assert.match(tradesTabCss, /\.trades-report-pnl-grid\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/, 'Trading P&L should use two equal report columns');
   assert.equal(tradesTabSource.includes('grid-cols-[1fr_1.12fr_0.96fr] divide-x'), false, 'the Trading header should not retain vertical dividers between its three metrics');
   assert.equal(tradesTabSource.includes("${index > 0 ? 'border-l border-white/10' : ''}"), false, 'the Trading quick-action module should not restore vertical column dividers');
-  assert.match(tradesTabCss, /\.trades-report-tools\s*\{[^}]*grid-template-columns:\s*repeat\(4, minmax\(0, 1fr\)\)/, 'all four quick actions must retain equal width');
+  assert.match(tradesTabCss, /\.trades-report-tools\s*\{[^}]*grid-template-columns:\s*repeat\(5, minmax\(0, 1fr\)\)/, 'all five quick actions must retain equal width');
   assert.match(tradesTabCss, /\.trades-report-tools button\s*\{[^}]*min-height:\s*44px;/, 'compact quick actions should retain sufficient tap height');
   assert.doesNotMatch(tradesTabCss, /\.trades-report-balances\s*\{[^}]*border-top:/, 'the approved compact Trading hero should not regain an extra inner separator');
   assert.ok(analysisTabSource.includes('className="asset-report-account"'), 'asset accounts should use report rows');

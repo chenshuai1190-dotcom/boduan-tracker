@@ -41,7 +41,7 @@ const position = (overrides = {}) => ({
   holdingPnlPct: .23456, unrealizedPct: .9, ...overrides,
 });
 
-test('Trading report preserves its financial readiness, actions, currency and four tool entries', () => {
+test('Trading report preserves its financial readiness, actions, currency and five aligned tool entries', () => {
   const order = ['data-trades-net-assets-card="true"', 'className="trades-report-tools"', 'className="trades-report-ledger"', '<TradesPositionsReport'];
   const indexes = order.map((marker) => trades.indexOf(marker));
   assert.ok(indexes.every((index, offset) => index >= 0 && (!offset || index > indexes[offset - 1])));
@@ -59,10 +59,17 @@ test('Trading report preserves its financial readiness, actions, currency and fo
     'onReverseCashMovement={availableCashReversalReady ? reverseAvailableCashMovement : null}',
     'aria-pressed={currencyMode === mode} onClick={() => setCurrencyMode(mode)}',
   ]) assert.ok(trades.includes(invariant), `Trading must retain ${invariant}`);
-  for (const id of ['waves', 'competition', 'records', 'all']) {
-    assert.ok(trades.includes(`{ id: '${id}', label:`), `tool entry ${id} must stay reachable`);
-  }
-  assert.match(css, /\.trades-report-tools\s*\{[^}]*grid-template-columns:\s*repeat\(4, minmax\(0, 1fr\)\)/);
+  const toolsStart = trades.indexOf('<section className="trades-report-tools"');
+  const toolsSection = trades.slice(toolsStart, trades.indexOf('</section>', toolsStart));
+  const toolIndexes = ['waves', 'competition', 'records', 'portfolio-overlap', 'all']
+    .map((id) => toolsSection.indexOf(`{ id: '${id}', label:`));
+  assert.ok(toolIndexes.every((index, offset) => index >= 0 && (!offset || index > toolIndexes[offset - 1])), 'all five tool entries must retain their approved order');
+  assert.ok(toolsSection.includes("tt('trades.portfolioOverlapShort', '重叠体检')"), 'the overlap shortcut must use its compact localized label');
+  assert.match(toolsSection, /if \(item\.id === 'portfolio-overlap'\)\s*\{[^}]*openPortfolioOverlap\?\.\(\);[^}]*return;/, 'the overlap shortcut must use the existing read-only tool entry callback');
+  assert.equal(i18n.split("'trades.portfolioOverlapShort':").length - 1, 2, 'the overlap shortcut label must exist in Chinese and English');
+  assert.match(css, /\.trades-report-tools\s*\{[^}]*grid-template-columns:\s*repeat\(5, minmax\(0, 1fr\)\)/);
+  assert.match(css, /\.trades-report-tools button\s*\{[^}]*align-items:\s*flex-start;[^}]*text-align:\s*left;/, 'each shortcut content group should start at the left of its equal-width column');
+  assert.ok(/<span className="trades-report-tool-content"><Icon\b[^>]*\/><span>\{item\.label\}<\/span><\/span>/.test(toolsSection) && /\.trades-report-tool-content\s*\{[^}]*display:\s*flex;[^}]*flex-direction:\s*column;[^}]*align-items:\s*center;[^}]*max-width:\s*100%;[^}]*text-align:\s*center;/.test(css), 'each icon should sit centered above its label within the shared content group');
 });
 
 test('position presentation preserves every existing numeric source, precision, FX conversion and original row', () => {
@@ -194,9 +201,10 @@ test('compact first-screen spacing preserves financial content and reachable too
   const hero = '.trades-report-hero';
   const tools = '.trades-report-tools';
   const toolButton = '.trades-report-tools button';
+  const toolContent = '.trades-report-tool-content';
   const summary = '.trades-report-holdings-summary';
   const blocks = [hero, '.trades-report-net-amount', '.trades-report-pnl-grid', '.trades-report-pnl-amount',
-    '.trades-report-pnl-percent', '.trades-report-balances', '.trades-report-balance-value', tools, toolButton,
+    '.trades-report-pnl-percent', '.trades-report-balances', '.trades-report-balance-value', tools, toolButton, toolContent,
     '.trades-report-ledger', summary, '.trades-report-holdings-value', '.trades-report-holdings-pnl'];
   const compactRules = blocks.map(rule).join('\n');
 
@@ -218,7 +226,7 @@ test('compact first-screen spacing preserves financial content and reachable too
   assert.ok(verticalEdges(pixels(tools, 'padding')) <= 20);
   assert.ok(pixels(toolButton, 'min-height')[0] >= 44, 'compact tools retain a usable touch target');
   assert.ok(pixels(toolButton, 'min-height')[0] <= 48);
-  assert.ok(pixels(toolButton, 'gap')[0] <= 6);
+  assert.ok(pixels(toolContent, 'gap')[0] <= 6);
   assert.doesNotMatch(compactRules, /(?:display:\s*none|visibility:\s*hidden|opacity:\s*0(?:[;\s])|overflow:\s*hidden|max-height:)/,
     'first-screen density must come from spacing, not hiding or clipping financial data');
   assert.match(rule('.trades-report-balances'), /grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
