@@ -501,7 +501,7 @@ test('UNH Q2 exhibit fails closed on wrong identity or non-reconciling totals', 
     symbol: 'UNH',
     fiscalDate: '2026-06-30',
     html,
-    filing: { ...filing, accession: '0000731766-26-000190' },
+    filing: { ...filing, cik: '0000909832' },
   }), null);
   assert.equal(parseSecUsHoldingBusinessDocument({
     symbol: 'UNH',
@@ -516,6 +516,125 @@ test('UNH Q2 exhibit fails closed on wrong identity or non-reconciling totals', 
     filing,
   }), null);
 });
+
+test('COST synthetic adjacent-quarter and next-year variants use document fiscal focus', async () => {
+  const original = await fixture('cost-2026q3.html');
+  for (const target of [
+    { fiscalDate: '2026-02-15', fiscalYear: '2026', fiscalPeriod: 'Q2', start: '2025-11-24', previousStart: '2024-11-25', previousEnd: '2025-02-16' },
+    { fiscalDate: '2027-05-09', fiscalYear: '2027', fiscalPeriod: 'Q3', start: '2027-02-15', previousStart: '2026-02-16', previousEnd: '2026-05-10' },
+  ]) {
+    const dates = { '2026-02-16': target.start, '2026-05-10': target.fiscalDate, '2025-02-17': target.previousStart, '2025-05-11': target.previousEnd };
+    const html = syntheticMonetaryIdentity(original.replace(/202[56]-\d{2}-\d{2}/g, (value) => dates[value] || value)
+      .replace('May 10, 2026', target.fiscalDate), { cik: '0000909832', ...target });
+    const parsed = parseSecUsHoldingBusinessDocument({ symbol: 'COST', fiscalDate: target.fiscalDate, html, filing: { cik: '909832', form: '10-Q' } });
+    assert.equal(parsed?.status, 'complete');
+    assert.deepEqual(parsed.period, { start: target.start, end: target.fiscalDate, fiscalYear: target.fiscalYear, fiscalPeriod: target.fiscalPeriod });
+  }
+});
+
+test('previously verified COST and UNH periods do not bypass currency or context identity', async () => {
+  for (const [symbol, fiscalDate, cik, html] of [
+    ['COST', '2026-05-10', '0000909832', await fixture('cost-2026q3.html')],
+    ['UNH', '2026-03-31', '0000731766', unitedHealthTenQFixture()],
+  ]) {
+    const parse = (source) => parseSecUsHoldingBusinessDocument({ symbol, fiscalDate, html: source, filing: { cik, form: '10-Q' } });
+    assert.ok(['complete', 'partial'].includes(parse(html)?.status));
+    assert.equal(parse(html.replace('iso4217:USD', 'iso4217:EUR')), null);
+    assert.equal(parse(html.replace(new RegExp(`(<xbrli:identifier\\b[^>]*>)${cik}`, 'g'), '$10001111111')), null);
+    assert.equal(parse(html.replace(/<xbrli:unit id="USD">[\s\S]*?<\/xbrli:unit>/, '')), null);
+    assert.equal(parse(html.replace(/<ix:nonNumeric name="dei:DocumentFiscalPeriodFocus">[^<]+<\/ix:nonNumeric>/, '')), null);
+  }
+});
+
+test('UNH synthetic quarterly roll-forward requires fiscal focus, USD and context identity', () => {
+  for (const [year, month, day, quarter] of [[2026, '06', '30', 'Q2'], [2027, '09', '30', 'Q3']]) {
+    const fiscalDate = `${year}-${month}-${day}`;
+    const startMonth = month === '06' ? '04' : '07';
+    const dates = { '2026-01-01': `${year}-${startMonth}-01`, '2026-03-31': fiscalDate, '2025-01-01': `${year - 1}-${startMonth}-01`, '2025-03-31': `${year - 1}-${month}-${day}` };
+    const html = syntheticMonetaryIdentity(unitedHealthTenQFixture()
+      .replace(/202[56]-\d{2}-\d{2}/g, (value) => dates[value] || value)
+      .replace('March 31, 2026', fiscalDate), { cik: '0000731766', fiscalYear: String(year), fiscalPeriod: quarter });
+    const parse = (source) => parseSecUsHoldingBusinessDocument({ symbol: 'UNH', fiscalDate, html: source, filing: { cik: '731766', form: '10-Q' } });
+    assert.equal(parse(html)?.sections.reportSegments.status, 'complete');
+    assert.equal(parse(html)?.period.fiscalPeriod, quarter);
+    for (const malformed of [
+      html.replace('iso4217:USD', 'iso4217:EUR'),
+      html.replace(/unitRef="USD"/g, ''),
+      html.replace(/<xbrli:identifier[^>]*>0000731766/g, '<xbrli:identifier>0000909832'),
+      html.replace(/http:\/\/www.sec.gov\/CIK/g, 'http://unrelated.example/entity'),
+      html.replace('<xbrli:unit id="USD">', '<xbrli:unit id="USD"><xbrli:measure>iso4217:EUR</xbrli:measure>'),
+      html.replace(`>${quarter}</ix:nonNumeric>`, '>FY</ix:nonNumeric>'),
+      html.replace(`>${quarter}</ix:nonNumeric>`, '>Q1</ix:nonNumeric>'),
+      html.replace(/<ix:nonNumeric name="dei:DocumentFiscalYearFocus">[^<]+<\/ix:nonNumeric>/, ''),
+      html.replace('<body>', '<body><ix:nonNumeric name="dei:DocumentFiscalPeriodFocus">Q1</ix:nonNumeric>'),
+    ]) assert.equal(parse(malformed), null);
+    assert.equal(parse(html.replace('contextRef="current_corporate_elimination"', 'contextRef="missing_current_elimination"'))?.sections.reportSegments.status, 'unavailable');
+    assert.equal(parse(html.replace('<xbrli:context id="current">', '<xbrli:context id="current"><xbrldi:typedMember>unknown</xbrldi:typedMember>')), null);
+  }
+});
+
+test('COST new-period synthetic variants reject missing focus, annual periods and non-reconciling rows', async () => {
+  const original = (await fixture('cost-2026q3.html')).replace(/2026/g, '2027').replace(/2025/g, '2026');
+  const fiscalDate = '2027-05-10';
+  const html = syntheticMonetaryIdentity(original, { cik: '0000909832', fiscalYear: '2027', fiscalPeriod: 'Q3' });
+  const parse = (source, date = fiscalDate) => parseSecUsHoldingBusinessDocument({ symbol: 'COST', fiscalDate: date, html: source, filing: { cik: '909832', form: '10-Q' } });
+  assert.equal(parse(original.replace(/<ix:nonNumeric name="dei:DocumentFiscal(?:Year|Period)Focus">[^<]+<\/ix:nonNumeric>/g, '')), null);
+  assert.equal(parse(html)?.status, 'complete');
+  assert.equal(parse(html.replace('>Q3</ix:nonNumeric>', '>FY</ix:nonNumeric>')), null);
+  assert.equal(parse(html.replace(/2027-02-16/g, '2026-09-01')), null);
+  assert.equal(parse(html, '2027-05-11'), null);
+  assert.equal(parse(html.replace('>51,434<', '>51,435<'))?.sections.reportSegments.status, 'unavailable');
+});
+
+test('UNH synthetic new-quarter release uses report identity instead of a single accession', async () => {
+  for (const [year, quarterWord, month, day, quarterNumber] of [[2026, 'Third', 'September', '30', 3], [2027, 'First', 'March', '31', 1]]) {
+    const html = (await fixture('unh-2026q2-exhibit.html'))
+      .replace(/2026|2025/g, (value) => String(Number(value) + year - 2026))
+      .replace(/June 30/g, `${month} ${day}`)
+      .replace('Second Quarter', `${quarterWord} Quarter`);
+    const fiscalDate = `${year}-${String(quarterNumber * 3).padStart(2, '0')}-${day}`;
+    const filing = { cik: '731766', accession: 'synthetic-quarter-variant', form: '8-K', documentType: 'EX-99.1' };
+    const parse = (source, metadata = filing) => parseSecUsHoldingBusinessDocument({ symbol: 'UNH', fiscalDate, html: source, filing: metadata });
+    const parsed = parse(html);
+    assert.equal(parsed?.sections.reportSegments.status, 'complete');
+    assert.equal(parsed.period.fiscalYear, String(year));
+    assert.equal(parsed.period.fiscalPeriod, `Q${quarterNumber}`);
+    for (const malformed of [
+      html.replace(`${quarterWord} Quarter`, 'Second Quarter'),
+      html.replace(`Quarter Ended ${month}`, 'Quarter Ended December'),
+      html.replace(/Three Months Ended/g, 'Six Months Ended'),
+      html.replace('for the three months ended', 'for the six months ended'),
+      html.replace(`<th>Optum Health</th><th>Optum Insight</th>`, '<th>Optum Insight</th><th>Optum Health</th>'),
+      html.replace('$112,032', '$112,033'),
+      html.replace(/\$/g, '').replace('<body>', '<body><p>All financial amounts are in EUR.</p>'),
+      html.replace('<body>', '<body><p>All financial amounts are in EUR.</p>'),
+      html.replace(/\$/g, ''),
+      html.replace(/<tbody>/g, '<tbody><tr><th></th><th>UnitedHealthcare</th><th>Optum Insight</th><th>Optum Health</th><th>Optum Rx</th><th>Total Optum</th><th>UnitedHealth Group Consolidated</th></tr>')
+        .replace('<td>$23,472</td><td>$5,402</td>', '<td>$5,402</td><td>$23,472</td>')
+        .replace('<td>$1,190</td><td>$1,369</td>', '<td>$1,369</td><td>$1,190</td>'),
+    ]) assert.equal(parse(malformed), null);
+    assert.equal(parse(html.replace(/\$/g, '').replace('<body>', '<body><p>All financial amounts are in USD.</p>'))?.sections.reportSegments.status, 'complete');
+    assert.equal(parse(html, { ...filing, documentType: 'PRIMARY' }), null);
+    assert.equal(parse(html, { ...filing, cik: '909832' }), null);
+  }
+});
+
+// Explicitly synthetic identity/period variants: historical fixture amounts
+// remain unchanged and are NOT evidence of actual subsequent-quarter results.
+function syntheticMonetaryIdentity(html, { cik, fiscalYear, fiscalPeriod }) {
+  const identifier = `<xbrli:identifier scheme="http://www.sec.gov/CIK">${cik}</xbrli:identifier>`;
+  return html.replace(/<ix:nonNumeric name="dei:DocumentFiscal(?:Year|Period)Focus">[^<]+<\/ix:nonNumeric>/g, '')
+    .replace(/<xbrli:unit id="USD">[\s\S]*?<\/xbrli:unit>/g, '')
+    .replace(/ unitRef="USD"/g, '')
+    .replace(/<xbrli:identifier\b[^>]*>[^<]*<\/xbrli:identifier>/g, '')
+    .replace('<body>', `<body><ix:nonNumeric name="dei:DocumentFiscalYearFocus">${fiscalYear}</ix:nonNumeric><ix:nonNumeric name="dei:DocumentFiscalPeriodFocus">${fiscalPeriod}</ix:nonNumeric><xbrli:unit id="USD"><xbrli:measure>iso4217:USD</xbrli:measure></xbrli:unit>`)
+    .replace(/<xbrli:context\b([^>]*)>([\s\S]*?)<\/xbrli:context>/g, (_match, attributes, body) => {
+      const identified = body.includes('<xbrli:entity>')
+        ? body.replace('<xbrli:entity>', `<xbrli:entity>${identifier}`)
+        : `<xbrli:entity>${identifier}</xbrli:entity>${body}`;
+      return `<xbrli:context${attributes}>${identified}</xbrli:context>`;
+    }).replace(/<ix:nonFraction\b/g, '<ix:nonFraction unitRef="USD"');
+}
 
 test('IBKR official 8-K exhibit returns a reconciled revenue mix without inventing extra segments', async () => {
   const parsed = parseSecUsHoldingBusinessDocument({
@@ -778,7 +897,7 @@ function unitedHealthTenQFixture() {
     );
   }
 
-  return [
+  return syntheticMonetaryIdentity([
     '<!doctype html><html><body>',
     '<ix:nonNumeric name="dei:DocumentType">10-Q</ix:nonNumeric>',
     '<ix:nonNumeric name="dei:DocumentPeriodEndDate">March 31, 2026</ix:nonNumeric>',
@@ -786,7 +905,7 @@ function unitedHealthTenQFixture() {
     ...contexts,
     ...facts,
     '</body></html>',
-  ].join('');
+  ].join(''), { cik: '0000731766', fiscalYear: '2026', fiscalPeriod: 'Q1' });
 }
 
 function interactiveBrokersTenQFixture() {

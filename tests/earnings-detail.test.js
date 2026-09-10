@@ -419,7 +419,8 @@ test('SEC reader wraps parsed sections in the versioned public response envelope
     requestIntervalMs: 0,
   });
 
-  assert.equal(result.schemaVersion, expected.schemaVersion);
+  assert.equal(result.schemaVersion, SEC_EARNINGS_DETAIL_SCHEMA_VERSION);
+  assert.equal(result.parserVersion, 'sec-structure-5');
   assert.equal(result.status, 'complete');
   assert.equal(result.reason, null);
   assert.equal(result.symbol, 'GOOGL');
@@ -437,6 +438,8 @@ test('SEC reader wraps parsed sections in the versioned public response envelope
     cik: '0001652044',
     accession: GOOGL_FILING.accession,
     form: '10-Q',
+    documentType: 'PRIMARY',
+    parser: 'sec-company-primary',
     filedAt: '2026-07-30T20:00:00.000Z',
     filingUrl: GOOGL_FILING.filingUrl,
     primaryDocumentUrl: GOOGL_FILING.primaryDocumentUrl,
@@ -1267,6 +1270,7 @@ test('verified TSM management-report detail rejects an incorrect early report da
     cik: '0001046179',
     accession: null,
     form: null,
+    documentType: null,
     filedAt: null,
     filingUrl: null,
     primaryDocumentUrl: null,
@@ -1581,13 +1585,15 @@ test('stocks without a dedicated adapter still attempt the verified SEC primary 
     '/Archives/edgar/data/320193/000032019326000080/aapl-20260627.htm',
   ]);
   assert.equal(result.status, 'unavailable');
-  assert.equal(result.reason, 'official-primary-document-unparsed');
+  assert.equal(result.reason, 'inline-xbrl-not-found');
   assert.equal(result.symbol, 'AAPL');
   assert.deepEqual(result.source, {
     provider: 'SEC',
     cik: '0000320193',
     accession,
     form: '10-Q',
+    documentType: 'PRIMARY',
+    parser: 'sec-generic-inline-xbrl',
     filedAt: '2026-07-30T20:00:00.000Z',
     filingUrl: `https://www.sec.gov/Archives/edgar/data/320193/000032019326000080/${accession}-index.html`,
     primaryDocumentUrl: 'https://www.sec.gov/Archives/edgar/data/320193/000032019326000080/aapl-20260627.htm',
@@ -1602,12 +1608,12 @@ test('stocks without a dedicated adapter still attempt the verified SEC primary 
   });
   assert.deepEqual(Object.values(result.sections), Array.from({ length: 3 }, () => ({
     status: 'unavailable',
-    reason: 'official-primary-document-unparsed',
+    reason: 'inline-xbrl-not-found',
     items: [],
   })));
 });
 
-test('a known adapter null falls back to generic SEC parsing without section merging', async () => {
+test('a known adapter null falls back to generic SEC parsing and retains verified revenue without profit', async () => {
   clearSecEarningsDetailCachesForTests();
   const primaryHtml = (await fixture('nvda-10q-primary.html'))
     .replace(
@@ -1615,6 +1621,12 @@ test('a known adapter null falls back to generic SEC parsing without section mer
       '<body><xbrli:unit id="USD"><xbrli:measure>iso4217:USD</xbrli:measure></xbrli:unit>',
     )
     .replaceAll('<ix:nonFraction ', '<ix:nonFraction unitRef="USD" ')
+    // Synthetic metadata completion for this reduced fixture only. Official
+    // numerical facts and periods are unchanged; this is not a fresh filing.
+    .replace(/(<xbrli:context\b[^>]*>)([\s\S]*?)(<\/xbrli:context>)/g, (_, open, body, close) => {
+      const segment = body.match(/<xbrli:segment>[\s\S]*?<\/xbrli:segment>/)?.[0] || '';
+      return `${open}<xbrli:entity><xbrli:identifier scheme="http://www.sec.gov/CIK">0001045810</xbrli:identifier>${segment}</xbrli:entity>${body.replace(segment, '')}${close}`;
+    })
     .replace(
       '  <ix:nonNumeric name="dei:DocumentFiscalPeriodFocus">Q1</ix:nonNumeric>\n',
       '',
@@ -1657,9 +1669,10 @@ test('a known adapter null falls back to generic SEC parsing without section mer
     },
   });
 
-  assert.equal(result.status, 'partial');
-  assert.equal(result.reason, 'one-or-more-sections-unavailable');
-  assert.equal(result.sections.reportSegments.status, 'unavailable');
+  assert.equal(result.status, 'complete');
+  assert.equal(result.reason, null);
+  assert.equal(result.sections.reportSegments.status, 'complete');
+  assert.ok(result.sections.reportSegments.items.every((item) => item.profit === null));
   assert.equal(result.sections.revenueBreakdown.status, 'complete');
   assert.equal(result.sections.revenueBreakdown.items.length, 3);
   assert.equal(result.sections.geographies.status, 'complete');

@@ -57,7 +57,11 @@ export function canAttemptGenericSecBusinessComposition(symbol) {
   return Boolean(normalizeSymbol(symbol));
 }
 
-export function parseGenericSecBusinessComposition({
+export function parseGenericSecBusinessComposition(options = {}) {
+  return inspectGenericSecBusinessComposition(options).result;
+}
+
+export function inspectGenericSecBusinessComposition({
   symbol,
   fiscalDate,
   html,
@@ -68,19 +72,18 @@ export function parseGenericSecBusinessComposition({
   const filingForm = normalizeForm(filing.form);
   const documentType = String(filing.documentType || '').trim().toUpperCase();
   const filingCik = normalizeCik(filing.cik);
+  const rejected = (reason) => ({ result: null, reason });
   if (!normalizedSymbol
     || !normalizedFiscalDate
-    || filingForm !== '10-Q'
-    || documentType !== 'PRIMARY'
-    || !filingCik
-    || typeof html !== 'string'
-    || html.length < 100
-    || !/<ix:nonFraction\b/i.test(html)) {
-    return null;
+    || !filingCik) return rejected('invalid-filing-identity');
+  if (!['10-Q', '10-K'].includes(filingForm)) return rejected('unsupported-filing-form');
+  if (documentType !== 'PRIMARY') return rejected('unsupported-document-type');
+  if (typeof html !== 'string' || html.length < 100 || !/<ix:nonFraction\b/i.test(html)) {
+    return rejected('inline-xbrl-not-found');
   }
 
-  const document = parseInlineXbrlDocument(html);
-  if (document.malformed) return null;
+  const document = parseInlineXbrlDocument(html, filingCik);
+  if (document.malformed) return rejected('malformed-inline-xbrl');
 
   const documentForm = normalizeForm(uniqueIdentityFact(document, 'dei:DocumentType'));
   const documentFiscalDate = normalizeDate(
@@ -89,64 +92,77 @@ export function parseGenericSecBusinessComposition({
   const documentCik = normalizeCik(
     uniqueIdentityFact(document, 'dei:EntityCentralIndexKey'),
   );
-  if (documentForm !== '10-Q'
+  if (documentForm !== filingForm
     || documentFiscalDate !== normalizedFiscalDate
     || documentCik !== filingCik) {
-    return null;
+    return rejected('document-identity-or-period-mismatch');
+  }
+  const fiscalYear = uniqueFiscalYear(document);
+  const fiscalPeriod = uniqueFiscalPeriod(document);
+  // A normal 10-K says FY and contains annual facts. Never relabel those facts
+  // as Q4 or infer Q4 by subtraction. Only an explicit DEI Q4 and an exact
+  // 70-105 day root duration ending on the official fiscal date are eligible.
+  if (filingForm === '10-K' && (fiscalPeriod !== 'Q4' || !fiscalYear)) {
+    return rejected('annual-filing-without-explicit-quarter');
   }
 
   const resolved = resolveUniqueQuarterPair(document, documentFiscalDate);
-  if (!resolved) return null;
+  if (!resolved.value) return rejected(resolved.reason);
+  const quarter = resolved.value;
 
   const sections = Object.fromEntries(SECTION_DEFINITIONS.map((definition) => [
     definition.key,
-    buildAxisSection(document, resolved, definition),
+    buildAxisSection(document, quarter, definition),
   ]));
   const completeCount = SECTION_KEYS.filter(
     (key) => sections[key]?.status === 'complete',
   ).length;
-  const fiscalYear = uniqueFiscalYear(document);
-  const fiscalPeriod = uniqueFiscalPeriod(document);
-
-  return {
+  const result = {
     status: completeCount === SECTION_KEYS.length
       ? 'complete'
       : completeCount > 0
         ? 'partial'
         : 'unavailable',
     currency: 'USD',
+    totalRevenue: quarter.revenue,
+    previousTotalRevenue: quarter.previousRevenue,
     period: {
-      ...resolved.period,
+      ...quarter.period,
       ...(fiscalYear ? { fiscalYear } : {}),
       ...(fiscalPeriod ? { fiscalPeriod } : {}),
     },
     sections,
     sourceMetadata: {
       provider: 'SEC',
-      adapterId: 'generic-sec-inline-xbrl-v1',
+      adapterId: 'generic-sec-inline-xbrl-v2',
       evidence: 'official-primary-inline-xbrl',
       cik: filingCik,
       accession: safeText(filing.accession, 40) || null,
-      form: '10-Q',
+      form: filingForm,
     },
   };
+  return { result, reason: null };
 }
 
 function buildAxisSection(document, resolved, definition) {
   const axisResults = definition.axes
     .map((axis) => buildSingleAxisSection(document, resolved, axis, definition.key));
-  if (axisResults.some((result) => result.status === 'ambiguous')) {
-    return unavailableSection();
-  }
+  const ambiguous = axisResults.find((result) => result.status === 'ambiguous');
+  if (ambiguous) return unavailableSection(ambiguous.reason);
   const complete = axisResults.filter((result) => result.status === 'complete');
   return complete.length === 1
     ? completeSection(
         complete[0].items,
-        complete[0].reconciliation
-          ? { reconciliation: complete[0].reconciliation }
-          : {},
+        {
+          ...(complete[0].reconciliation
+            ? { reconciliation: complete[0].reconciliation }
+            : {}),
+          metricStatus: complete[0].metricStatus,
+        },
       )
-    : unavailableSection();
+    : unavailableSection(complete.length > 1
+      ? 'ambiguous-section-axes'
+      : 'missing-supported-axis-facts');
 }
 
 function buildSingleAxisSection(document, resolved, axis, sectionKey) {
@@ -158,7 +174,7 @@ function buildSingleAxisSection(document, resolved, axis, sectionKey) {
     if (!context) continue;
     const periodKind = samePeriod(context, resolved.period)
       ? 'current'
-      : samePeriod(context, resolved.previousPeriod)
+      : resolved.previousPeriod && samePeriod(context, resolved.previousPeriod)
         ? 'previous'
         : '';
     if (!periodKind) continue;
@@ -185,24 +201,28 @@ function buildSingleAxisSection(document, resolved, axis, sectionKey) {
   for (const configuration of configurations.values()) {
     const currentValues = new Set(configuration.current);
     const previousValues = new Set(configuration.previous);
-    if (currentValues.size !== 1 || previousValues.size !== 1) {
-      return { status: 'ambiguous', items: [] };
+    if (currentValues.size > 1 || previousValues.size > 1) {
+      return ambiguousSection('conflicting-dimensional-revenue');
     }
+    // A discontinued prior-year member is not a current revenue component.
+    // Its absence is never filled with zero; prior comparability is checked
+    // against the company total after the current structure is resolved.
+    if (currentValues.size === 0) continue;
     const memberKey = configuration.member.toLowerCase();
     if (memberConfigurations.has(memberKey)) {
-      return { status: 'ambiguous', items: [] };
+      return ambiguousSection('ambiguous-member-dimensions');
     }
     memberConfigurations.add(memberKey);
     const label = humanizeQName(configuration.member);
     const id = qnameId(configuration.member);
-    if (!label || !id || ids.has(id)) return { status: 'ambiguous', items: [] };
+    if (!label || !id || ids.has(id)) return ambiguousSection('ambiguous-member-labels');
     ids.add(id);
     candidates.push({
       id,
       label,
       labelZh: '',
       revenue: currentValues.values().next().value,
-      previousRevenue: previousValues.values().next().value,
+      previousRevenue: previousValues.size === 1 ? previousValues.values().next().value : null,
       ...(sectionKey === 'reportSegments'
         ? {
             profitMetric: 'operatingIncome',
@@ -211,55 +231,144 @@ function buildSingleAxisSection(document, resolved, axis, sectionKey) {
               period: resolved.period,
               members: configuration.members,
             }).value,
-            previousProfit: strictFact(document, {
+            previousProfit: resolved.previousPeriod ? strictFact(document, {
               concept: OPERATING_INCOME_CONCEPT,
               period: resolved.previousPeriod,
               members: configuration.members,
-            }).value,
+            }).value : null,
           }
         : {}),
     });
   }
 
   if (candidates.length < 2 || candidates.length > MAX_RECONCILIATION_ITEMS) {
-    return { status: 'ambiguous', items: [] };
+    return ambiguousSection('unsupported-component-count');
   }
   const reconciliationCandidates = sectionKey === 'reportSegments'
     ? reportSegmentReconciliationCandidates(document, resolved)
     : { status: 'complete', items: [] };
   if (reconciliationCandidates.status !== 'complete') {
-    return { status: 'ambiguous', items: [] };
+    return ambiguousSection(reconciliationCandidates.reason);
   }
-  const allCandidates = [...candidates, ...reconciliationCandidates.items];
-  if (allCandidates.length > MAX_RECONCILIATION_ITEMS) {
-    return { status: 'ambiguous', items: [] };
+  if (candidates.length + reconciliationCandidates.items.length > MAX_RECONCILIATION_ITEMS) {
+    return ambiguousSection('unsupported-component-count');
   }
-  const solutions = findReconciliationSolutions(allCandidates, {
+  // Profit-only adjustments do not help identify a revenue hierarchy. Adding
+  // them here would create duplicate revenue solutions merely by adding zero.
+  const revenueAdjustments = reconciliationCandidates.items.filter((item) => item.revenue !== 0);
+  const allCandidates = [...candidates, ...revenueAdjustments];
+  const comparableCandidates = Number.isSafeInteger(resolved.previousRevenue)
+    && allCandidates.every((item) => Number.isSafeInteger(item.previousRevenue));
+  const currentSolutions = findReconciliationSolutions(allCandidates, {
     revenue: resolved.revenue,
-    previousRevenue: resolved.previousRevenue,
-    ...(sectionKey === 'reportSegments'
-      ? {
-          profit: resolved.profit,
-          previousProfit: resolved.previousProfit,
-        }
-      : {}),
+    previousRevenue: null,
   });
+  const comparableSolutions = comparableCandidates ? findReconciliationSolutions(allCandidates, {
+    revenue: resolved.revenue, previousRevenue: resolved.previousRevenue,
+  }) : [];
+  const solutions = comparableSolutions.length === 1 ? comparableSolutions : currentSolutions;
   if (solutions.length !== 1 || solutions[0].length < 2) {
-    return { status: 'ambiguous', items: [] };
+    return ambiguousSection(solutions.length > 1
+      ? 'ambiguous-revenue-hierarchy'
+      : 'revenue-reconciliation-failed');
   }
   const selectedSegments = solutions[0]
     .filter((index) => index < candidates.length)
     .map((index) => candidates[index]);
-  if (selectedSegments.length < 2) return { status: 'ambiguous', items: [] };
+  if (selectedSegments.length < 2) return ambiguousSection('unsupported-component-count');
   const selectedReconciliation = solutions[0]
     .filter((index) => index >= candidates.length)
     .map((index) => allCandidates[index]);
+  const selectedItems = [...selectedSegments, ...selectedReconciliation];
+  const previousComplete = Number.isSafeInteger(resolved.previousRevenue)
+    && selectedItems.every((item) => Number.isSafeInteger(item.previousRevenue))
+    && selectedItems.reduce((sum, item) => sum + item.previousRevenue, 0) === resolved.previousRevenue;
+  const metricStatus = {
+    revenue: { status: 'complete', reason: null },
+    previousRevenue: {
+      status: previousComplete ? 'complete' : 'unavailable',
+      reason: previousComplete ? null : 'prior-revenue-unavailable-or-not-comparable',
+    },
+  };
+  if (!previousComplete) {
+    for (const item of selectedItems) item.previousRevenue = null;
+  }
+  let profitReconciliation = [];
+  if (sectionKey === 'reportSegments') {
+    const optionalAdjustments = reconciliationCandidates.items.filter((item) => item.revenue === 0);
+    const currentProfit = resolveSegmentProfit({
+      items: selectedItems,
+      adjustments: optionalAdjustments,
+      total: resolved.profit,
+      metric: 'profit',
+      conflicted: reconciliationCandidates.profitConflict,
+    });
+    let previousProfit = previousComplete ? resolveSegmentProfit({
+      items: selectedItems,
+      adjustments: optionalAdjustments.filter((item) => item.previousRevenue === 0),
+      total: resolved.previousProfit,
+      metric: 'previousProfit',
+      conflicted: reconciliationCandidates.previousProfitConflict,
+    }) : { status: 'unavailable', reason: 'prior-revenue-unavailable-or-not-comparable', adjustments: [] };
+    if (currentProfit.status === 'complete' && previousProfit.status === 'complete'
+      && currentProfit.adjustments.map((item) => item.id).sort().join('|')
+        !== previousProfit.adjustments.map((item) => item.id).sort().join('|')) {
+      previousProfit = {
+        status: 'unavailable', reason: 'operating-income-reconciliation-not-comparable', adjustments: [],
+      };
+    }
+    metricStatus.profit = { status: currentProfit.status, reason: currentProfit.reason };
+    metricStatus.previousProfit = { status: previousProfit.status, reason: previousProfit.reason };
+    if (currentProfit.status !== 'complete') {
+      for (const item of selectedItems) item.profit = null;
+    }
+    if (previousProfit.status !== 'complete') {
+      for (const item of selectedItems) item.previousProfit = null;
+    }
+    const adjustmentIds = new Set([
+      ...currentProfit.adjustments.map((item) => item.id),
+      ...previousProfit.adjustments.map((item) => item.id),
+    ]);
+    profitReconciliation = optionalAdjustments.filter((item) => adjustmentIds.has(item.id)).map((item) => ({
+      ...item,
+      previousRevenue: previousComplete ? item.previousRevenue : null,
+      profit: currentProfit.status === 'complete'
+        ? item.profit
+        : null,
+      previousProfit: previousProfit.status === 'complete'
+        ? item.previousProfit
+        : null,
+    }));
+  }
+  const allReconciliation = [...selectedReconciliation, ...profitReconciliation];
   return {
     status: 'complete',
     items: selectedSegments,
-    ...(selectedReconciliation.length > 0
-      ? { reconciliation: aggregateReconciliation(selectedReconciliation) }
+    metricStatus,
+    ...(allReconciliation.length > 0
+      ? { reconciliation: aggregateReconciliation(allReconciliation) }
       : {}),
+  };
+}
+
+function resolveSegmentProfit({ items, adjustments, total, metric, conflicted }) {
+  const unavailable = (reason) => ({ status: 'unavailable', reason, adjustments: [] });
+  if (conflicted) return unavailable('conflicting-operating-income');
+  if (!Number.isSafeInteger(total)
+    || !items.every((item) => Number.isSafeInteger(item[metric]))) {
+    return unavailable('operating-income-not-disclosed');
+  }
+  const usableAdjustments = adjustments.filter((item) => Number.isSafeInteger(item[metric]));
+  const remaining = total - items.reduce((sum, item) => sum + item[metric], 0);
+  const solutions = findReconciliationSolutions(usableAdjustments.map((item) => ({
+    revenue: item[metric], previousRevenue: null,
+  })), { revenue: remaining, previousRevenue: null }, { allowEmpty: true });
+  if (solutions.length !== 1) return unavailable(solutions.length > 1
+    ? 'ambiguous-operating-income-reconciliation'
+    : 'operating-income-reconciliation-failed');
+  return {
+    status: 'complete', reason: null,
+    adjustments: solutions[0].map((index) => usableAdjustments[index]),
   };
 }
 
@@ -276,7 +385,7 @@ function reportSegmentReconciliationCandidates(document, resolved) {
     }
     const periodKind = samePeriod(context, resolved.period)
       ? 'current'
-      : samePeriod(context, resolved.previousPeriod)
+      : resolved.previousPeriod && samePeriod(context, resolved.previousPeriod)
         ? 'previous'
         : '';
     if (!periodKind) continue;
@@ -295,40 +404,37 @@ function reportSegmentReconciliationCandidates(document, resolved) {
 
   const items = [];
   const ids = new Set();
+  let profitConflict = false;
+  let previousProfitConflict = false;
   for (const configuration of configurations.values()) {
-    const hasAnyProfit = configuration.currentProfit.size > 0
-      || configuration.previousProfit.size > 0;
-    if (!hasAnyProfit) continue;
-    if (configuration.currentProfit.size !== 1 || configuration.previousProfit.size !== 1) {
-      return { status: 'ambiguous', items: [] };
+    if (!configuration.currentRevenue.size && !configuration.currentProfit.size) continue;
+    if (configuration.currentRevenue.size > 1 || configuration.previousRevenue.size > 1) {
+      return ambiguousSection('conflicting-consolidation-revenue');
     }
-    const revenuesMissing = configuration.currentRevenue.size === 0
-      && configuration.previousRevenue.size === 0;
-    const revenuesComplete = configuration.currentRevenue.size === 1
-      && configuration.previousRevenue.size === 1;
-    if (!revenuesMissing && !revenuesComplete) {
-      return { status: 'ambiguous', items: [] };
-    }
+    profitConflict ||= configuration.currentProfit.size > 1;
+    previousProfitConflict ||= configuration.previousProfit.size > 1;
     const id = qnameId(configuration.member);
     const label = humanizeQName(configuration.member);
-    if (!id || !label || ids.has(id)) return { status: 'ambiguous', items: [] };
+    if (!id || !label || ids.has(id)) return ambiguousSection('ambiguous-consolidation-labels');
     ids.add(id);
     items.push({
       id,
       label,
       labelZh: '',
-      revenue: revenuesComplete
+      revenue: configuration.currentRevenue.size === 1
         ? configuration.currentRevenue.values().next().value
         : 0,
-      previousRevenue: revenuesComplete
+      previousRevenue: configuration.previousRevenue.size === 1
         ? configuration.previousRevenue.values().next().value
-        : 0,
+        : configuration.previousProfit.size > 0 ? 0 : null,
       profitMetric: 'operatingIncome',
-      profit: configuration.currentProfit.values().next().value,
-      previousProfit: configuration.previousProfit.values().next().value,
+      profit: configuration.currentProfit.size === 1
+        ? configuration.currentProfit.values().next().value : null,
+      previousProfit: configuration.previousProfit.size === 1
+        ? configuration.previousProfit.values().next().value : null,
     });
   }
-  return { status: 'complete', items };
+  return { status: 'complete', items, profitConflict, previousProfitConflict };
 }
 
 function aggregateReconciliation(items) {
@@ -337,12 +443,18 @@ function aggregateReconciliation(items) {
     id: 'consolidation-adjustments',
     label: items.map((item) => item.label).join(' + ').slice(0, 120),
     labelZh: '',
-    revenue: items.reduce((sum, item) => sum + item.revenue, 0),
-    previousRevenue: items.reduce((sum, item) => sum + item.previousRevenue, 0),
+    revenue: sumCompleteMetric(items, 'revenue'),
+    previousRevenue: sumCompleteMetric(items, 'previousRevenue'),
     profitMetric: 'operatingIncome',
-    profit: items.reduce((sum, item) => sum + item.profit, 0),
-    previousProfit: items.reduce((sum, item) => sum + item.previousProfit, 0),
+    profit: sumCompleteMetric(items, 'profit'),
+    previousProfit: sumCompleteMetric(items, 'previousProfit'),
   };
+}
+
+function sumCompleteMetric(items, metric) {
+  return items.every((item) => Number.isSafeInteger(item[metric]))
+    ? items.reduce((sum, item) => sum + item[metric], 0)
+    : null;
 }
 
 function isConsolidationItemsAxis(dimension) {
@@ -374,7 +486,9 @@ function resolveUniqueQuarterPair(document, fiscalDate) {
       concept,
       end: fiscalDate,
     });
-    if (currentInspection.ambiguous) return null;
+    if (currentInspection.ambiguous) {
+      return { value: null, reason: 'conflicting-current-quarter-revenue' };
+    }
     const periods = currentInspection.periods;
     if (periods.length !== 1) continue;
     const period = periods[0];
@@ -391,39 +505,43 @@ function resolveUniqueQuarterPair(document, fiscalDate) {
         && endDistance <= MAX_PRIOR_YEAR_DAYS
         && durationDifference <= MAX_QUARTER_DURATION_DIFFERENCE_DAYS;
     });
-    if (previousInspection.ambiguous) return null;
+    if (previousInspection.ambiguous) {
+      return { value: null, reason: 'conflicting-prior-quarter-revenue' };
+    }
     const previousPeriods = previousInspection.periods;
-    if (previousPeriods.length !== 1) continue;
-    const previousPeriod = previousPeriods[0];
-    const previousRevenueFact = strictFact(document, {
+    const previousPeriod = previousPeriods.length === 1 ? previousPeriods[0] : null;
+    const previousRevenueFact = previousPeriod ? strictFact(document, {
       concept,
       period: previousPeriod,
       members: {},
-    });
-    if (previousRevenueFact.status !== 'complete' || previousRevenueFact.value <= 0) continue;
+    }) : { status: 'missing', value: null };
     const profitFact = strictFact(document, {
       concept: OPERATING_INCOME_CONCEPT,
       period,
       members: {},
     });
-    const previousProfitFact = strictFact(document, {
+    const previousProfitFact = previousPeriod ? strictFact(document, {
       concept: OPERATING_INCOME_CONCEPT,
       period: previousPeriod,
       members: {},
-    });
+    }) : { status: 'missing', value: null };
     solutions.push({
       concept,
       period,
       previousPeriod,
       revenue: revenueFact.value,
-      previousRevenue: previousRevenueFact.value,
+      previousRevenue: previousRevenueFact.value > 0 ? previousRevenueFact.value : null,
       profit: profitFact.status === 'complete' ? profitFact.value : null,
       previousProfit: previousProfitFact.status === 'complete'
         ? previousProfitFact.value
         : null,
     });
   }
-  return solutions.length === 1 ? solutions[0] : null;
+  return solutions.length === 1
+    ? { value: solutions[0], reason: null }
+    : { value: null, reason: solutions.length > 1
+        ? 'ambiguous-consolidated-revenue-concepts'
+        : 'missing-exact-usd-quarter-revenue' };
 }
 
 function inspectRootPeriods(document, { concept, end = '' }, filter = () => true) {
@@ -469,13 +587,8 @@ function strictFact(document, { concept, period, members }) {
     : { status: values.size ? 'ambiguous' : 'missing', value: null };
 }
 
-function findReconciliationSolutions(items, totals) {
-  const includeProfit = Number.isSafeInteger(totals.profit)
-    && Number.isSafeInteger(totals.previousProfit)
-    && items.every((item) => (
-      Number.isSafeInteger(item.profit) && Number.isSafeInteger(item.previousProfit)
-    ));
-  if (Object.hasOwn(totals, 'profit') && !includeProfit) return [];
+function findReconciliationSolutions(items, totals, { allowEmpty = false } = {}) {
+  const includePrevious = Number.isSafeInteger(totals.previousRevenue);
   const midpoint = Math.floor(items.length / 2);
   const left = enumerateSubsets(items.slice(0, midpoint), 0);
   const right = enumerateSubsets(items.slice(midpoint), midpoint);
@@ -483,7 +596,7 @@ function findReconciliationSolutions(items, totals) {
 
   const rightByTotals = new Map();
   for (const subset of right) {
-    const key = reconciliationKey(subset, includeProfit);
+    const key = reconciliationKey(subset, includePrevious);
     const matches = rightByTotals.get(key) || [];
     if (matches.length < 2) matches.push(subset.indices);
     rightByTotals.set(key, matches);
@@ -493,17 +606,15 @@ function findReconciliationSolutions(items, totals) {
   const solutionKeys = new Set();
   for (const subset of left) {
     const neededRevenue = totals.revenue - subset.revenue;
-    const neededPreviousRevenue = totals.previousRevenue - subset.previousRevenue;
+    const neededPreviousRevenue = includePrevious ? totals.previousRevenue - subset.previousRevenue : 0;
     const needed = {
       revenue: neededRevenue,
       previousRevenue: neededPreviousRevenue,
-      profit: includeProfit ? totals.profit - subset.profit : 0,
-      previousProfit: includeProfit ? totals.previousProfit - subset.previousProfit : 0,
     };
-    const matches = rightByTotals.get(reconciliationKey(needed, includeProfit)) || [];
+    const matches = rightByTotals.get(reconciliationKey(needed, includePrevious)) || [];
     for (const match of matches) {
       const indices = [...subset.indices, ...match];
-      if (indices.length === 0) continue;
+      if (indices.length === 0 && !allowEmpty) continue;
       const key = indices.join(',');
       if (solutionKeys.has(key)) continue;
       solutionKeys.add(key);
@@ -520,35 +631,26 @@ function enumerateSubsets(items, indexOffset) {
   for (let mask = 0; mask < count; mask += 1) {
     let revenue = 0;
     let previousRevenue = 0;
-    let profit = 0;
-    let previousProfit = 0;
     const indices = [];
     for (let index = 0; index < items.length; index += 1) {
       if ((mask & (2 ** index)) === 0) continue;
       revenue += items[index].revenue;
-      previousRevenue += items[index].previousRevenue;
-      profit += Number.isSafeInteger(items[index].profit) ? items[index].profit : 0;
-      previousProfit += Number.isSafeInteger(items[index].previousProfit)
-        ? items[index].previousProfit
-        : 0;
+      previousRevenue += Number.isSafeInteger(items[index].previousRevenue)
+        ? items[index].previousRevenue : 0;
       indices.push(index + indexOffset);
     }
     if (!Number.isSafeInteger(revenue)
-      || !Number.isSafeInteger(previousRevenue)
-      || !Number.isSafeInteger(profit)
-      || !Number.isSafeInteger(previousProfit)) return null;
-    subsets.push({ revenue, previousRevenue, profit, previousProfit, indices });
+      || !Number.isSafeInteger(previousRevenue)) return null;
+    subsets.push({ revenue, previousRevenue, indices });
   }
   return subsets;
 }
 
-function reconciliationKey(value, includeProfit) {
-  return includeProfit
-    ? `${value.revenue}|${value.previousRevenue}|${value.profit}|${value.previousProfit}`
-    : `${value.revenue}|${value.previousRevenue}`;
+function reconciliationKey(value, includePrevious) {
+  return includePrevious ? `${value.revenue}|${value.previousRevenue}` : `${value.revenue}`;
 }
 
-function parseInlineXbrlDocument(html) {
+function parseInlineXbrlDocument(html, filingCik) {
   const units = new Map();
   let malformed = false;
   for (const match of html.matchAll(/<xbrli:unit\b([^>]*)>([\s\S]*?)<\/xbrli:unit>/gi)) {
@@ -564,15 +666,28 @@ function parseInlineXbrlDocument(html) {
   }
 
   const contexts = new Map();
+  const seenContextIds = new Set();
   for (const match of html.matchAll(
     /<xbrli:context\b([^>]*)>([\s\S]*?)<\/xbrli:context>/gi,
   )) {
     const attributes = parseAttributes(match[1]);
-    if (!attributes.id || contexts.has(attributes.id)) {
+    if (!attributes.id || seenContextIds.has(attributes.id)) {
       malformed = true;
       continue;
     }
+    seenContextIds.add(attributes.id);
     const body = match[2];
+    // The DEI identity validates the document, not every context. An official
+    // filing can include facts about another entity; those facts must never
+    // be attributed to this issuer merely because their periods line up.
+    const entities = [...body.matchAll(/<xbrli:entity\b[^>]*>([\s\S]*?)<\/xbrli:entity>/gi)];
+    if (entities.length !== 1) continue;
+    const identifiers = [...entities[0][1].matchAll(
+      /<xbrli:identifier\b([^>]*)>([^<]+)<\/xbrli:identifier>/gi,
+    )];
+    if (identifiers.length !== 1
+      || parseAttributes(identifiers[0][1]).scheme !== 'http://www.sec.gov/CIK'
+      || normalizeCik(htmlToText(identifiers[0][2])) !== filingCik) continue;
     const start = normalizeDate(elementText(body, 'xbrli:startDate'));
     const end = normalizeDate(
       elementText(body, 'xbrli:endDate') || elementText(body, 'xbrli:instant'),
@@ -793,10 +908,14 @@ function completeSection(items, extra = {}) {
   };
 }
 
-function unavailableSection() {
+function ambiguousSection(reason) {
+  return { status: 'ambiguous', reason, items: [] };
+}
+
+function unavailableSection(reason = 'ambiguous-or-missing-xbrl-facts') {
   return {
     status: 'unavailable',
-    reason: 'ambiguous-or-missing-xbrl-facts',
+    reason,
     items: [],
   };
 }

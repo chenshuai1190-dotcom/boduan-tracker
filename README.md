@@ -91,7 +91,8 @@ npm run release:verify -- <docs|fast|full> <commit> # 一次等待发布结果
 ## 金融与比赛不变量
 
 - 正式收益、持仓、汇率、QQQ 对比和比赛排名只使用权威账本与真实 provider 数据；缺数据必须 fail closed，不使用 mock、估算、实时价或旧收盘价冒充正式结果。
-- 美国上市公司财报结构只读取 SEC EDGAR 官方文件：已核验专用适配器优先，其他股票仅在 PRIMARY 10-Q Inline XBRL 的 filing CIK、DEI CIK、`DocumentPeriodEndDate`、USD unit 与官方财期严格一致时尝试通用解析；当前与同比季度的维度必须逐项一致，收入（报告分部还含经营利润）必须双期唯一精确勾稽。冲突、多解、层级重叠、缺少同比或未披露时对应结构或整份详情 fail closed，不使用 EODHD 结构化财务、年度/累计期、adjusted/non-GAAP、券商数字或推测补齐。
+- 美国上市公司财报结构只读取 SEC EDGAR 官方文件：已核验专用适配器优先，通用解析要求 PRIMARY Inline XBRL 的 filing/DEI CIK、官方财期与 USD unit 一致。10-Q 支持严格当季事实；10-K 只有明确 DEI Q4 及直接披露的当季事实才允许，不能把全年/累计期改称单季或猜测差分。当期收入独立唯一勾稽后即可展示；同比、分部经营利润分别校验，缺失或不能证明可比时保留 null，不牵连已验证收入、不冒用不同利润口径。仅同一文档、同期间/币种/收入总额且原因明确未支持/未识别的区块可由通用结果补齐，不能绕过专用解析的歧义拒绝。冲突、多解、层级重叠仍 fail closed，不使用 EODHD 结构化财务、adjusted/non-GAAP、券商数字或推测补齐。定期报告无法解析时最多尝试一份匹配的业绩公告，8-K/6-K 优先财报附件；共用 SEC 请求时限与限速，不跨文件混拼数据。详情不完整结果及业绩公告阶段缓存 5 分钟，完整定期报告 6 小时；实例内并发请求合并、浏览器缓存按用户和解析器版本隔离。
+- 自选 SEC 自动覆盖使用独立 service-only 队列和公开结果缓存，不读取或修改持仓金额；注册事件必须匹配已认证用户的当前自选，后台仅扫描去重代码。`SEC_EARNINGS_AUTO_COVERAGE_ENABLED` 默认关闭，必须先获准应用 foundation SQL、部署并验收后才能启用。每日有界扫描不代表分钟级同步，也不代表所有公司都解析成功；新申报发现后旧 accession 过期，不完整/不支持/临时失败仍明确区分。启用、成本和验证边界见 `docs/sec-earnings-auto-coverage.md`。
 - TSM 业绩趋势只由服务端读取 `TSM.US` 的 EODHD Fundamentals TWD Income Statement，并用单次 `USDTWD.FOREX` 历史序列按各财年/季度期间平均收盘汇率转换为 USD；转换后重新计算同比、环比与复合增速，净利率保持原报表口径。公司身份、报表币种、filing date、连续期间或汇率覆盖冲突时必须 fail closed，不得使用即时汇率、`2330.TW` 请求或其他备用源。业务平台、地区和制程结构只能读取台积电官方 Management Report，缺少官方披露时显示不可用，不得推测。
 - 盘前和盘中持仓展示可使用 EODHD 实时价；收盘锁定后，交易页持仓价格、市值、持仓/累计盈亏、总资产、占比和排序必须统一使用 EODHD 明确完成收盘价。原始实时价只保留给交易录入默认值和试算等实时语义，不得混入收盘估值。
 - 个股收益详情必须分离即时账本事实与收盘收益事实：正式交易新增、金融字段修改或删除成功后，交易记录与交易统计立即按当前 `stock_trades` 重算，区间上限使用 `America/New_York` 当前日期且不得提前显示未来交易；个股头部收益、持仓数量与金额、收益走势、图表交易节点、相对 QQQ 和历史收益快照仍只能使用最新权威完成收盘快照，不得被当天盘中交易提前改写。
@@ -131,6 +132,7 @@ Server：
 
 - `EODHD_API_KEY`
 - `SEC_USER_AGENT`（SEC EDGAR 公平访问标识；建议包含应用名与可联系邮箱）
+- `SEC_EARNINGS_AUTO_COVERAGE_ENABLED`（仅服务端，默认关闭；foundation/启用流程见专项文档）
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `CRON_SECRET`
 - `QUOTE_API_AUTH_REQUIRED=true`

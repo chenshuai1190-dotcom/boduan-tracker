@@ -445,6 +445,8 @@ export function convertForeignBusinessCompositionCurrency(
     return null;
   }
   const moneyKeys = new Set([
+    'totalRevenue',
+    'previousTotalRevenue',
     'revenue',
     'previousRevenue',
     'profit',
@@ -480,6 +482,9 @@ function parseNokiaBusinessComposition({ fiscalDate, sourceText, sourceUrl }) {
     || !/\bMobile Infrastructure\b/.test(text)) {
     return null;
   }
+  const currentQuarter = `Q${period.quarter}'${String(period.year).slice(-2)}`;
+  const previousQuarter = `Q${period.quarter}'${String(period.year - 1).slice(-2)}`;
+  const headerFor = (label) => `${label} ${currentQuarter} ${previousQuarter}`;
 
   const segmentBlocks = new Map();
   let segmentSearchOffset = 0;
@@ -498,6 +503,9 @@ function parseNokiaBusinessComposition({ fiscalDate, sourceText, sourceUrl }) {
       ? segmentSearchOffset
       : sectionEndIndex;
     segmentBlocks.set(definition.id, block);
+    // Validate the actual columns of every table; a current-quarter mention
+    // elsewhere in the report must not relabel annual/YTD or prior-year rows.
+    if (!block.startsWith(headerFor(definition.sectionStart))) return null;
     const revenue = parseMoneyPair(block, 'Net sales');
     const profit = parseMoneyPair(block, definition.profitLabel);
     if (!revenue || !profit) return null;
@@ -516,7 +524,7 @@ function parseNokiaBusinessComposition({ fiscalDate, sourceText, sourceUrl }) {
 
   const groupBlock = sliceBetween(
     text,
-    "Net sales by region EUR million Q2'26",
+    headerFor('Net sales by region EUR million'),
     'Reconciliation of reported operating profit',
   );
   const totalRevenue = parseMoneyPair(groupBlock, 'Total');
@@ -550,7 +558,7 @@ function parseNokiaBusinessComposition({ fiscalDate, sourceText, sourceUrl }) {
 
   const customerBlock = sliceBetween(
     groupBlock,
-    "Net sales by customer type EUR million Q2'26",
+    headerFor('Net sales by customer type EUR million'),
     'Reconciliation of reported operating profit',
   );
   const customerTypes = NOKIA_CUSTOMER_TYPES.map((definition) => {
@@ -566,24 +574,37 @@ function parseNokiaBusinessComposition({ fiscalDate, sourceText, sourceUrl }) {
 
   const reportRevenueSum = sumMoney(reportSegments, 'revenue');
   const previousReportRevenueSum = sumMoney(reportSegments, 'previousRevenue');
-  const reconciliation = {
-    id: 'eliminations-unallocated-rounding',
-    label: 'Eliminations, unallocated items & rounding',
-    labelZh: '抵销、未分配项目及四舍五入',
-    revenue: totalRevenue[0] - reportRevenueSum,
-    previousRevenue: totalRevenue[1] - previousReportRevenueSum,
-  };
+  const groupCommonBlock = sliceBetween(
+    text,
+    headerFor('Group Common and Other EUR million'),
+    'Net sales by region EUR million',
+  );
+  const groupRevenueProvided = /\bNet sales\b/i.test(groupCommonBlock);
+  const disclosedGroupRevenue = parseNokiaGroupRevenue(groupCommonBlock);
+  const reconciliation = disclosedGroupRevenue ? {
+    id: 'group-common-other',
+    label: 'Group Common and Other',
+    labelZh: '集团共同及其他项目',
+    revenue: disclosedGroupRevenue[0],
+    previousRevenue: disclosedGroupRevenue[1],
+  } : null;
+  // A residual is not a disclosed elimination. Only an explicit report row
+  // may bridge segment totals; otherwise leave this section unavailable.
+  const reportSegmentsVerified = (!groupRevenueProvided || Boolean(disclosedGroupRevenue))
+    && reportRevenueSum + (reconciliation?.revenue || 0) === totalRevenue[0]
+    && previousReportRevenueSum + (reconciliation?.previousRevenue || 0) === totalRevenue[1];
 
-  if (!reconcilesWithinRounding(reportSegments, totalRevenue, reconciliation)
-    || !reconcilesWithinRounding(revenueBreakdown, totalRevenue)
+  if (!reconcilesWithinRounding(revenueBreakdown, totalRevenue)
     || !reconcilesWithinRounding(geographies, totalRevenue)
     || !reconcilesWithinRounding(customerTypes, totalRevenue)) {
     return null;
   }
 
   return {
-    status: 'complete',
+    status: reportSegmentsVerified ? 'complete' : 'partial',
     currency: 'EUR',
+    totalRevenue: totalRevenue[0],
+    previousTotalRevenue: totalRevenue[1],
     period: {
       start: period.start,
       end: period.end,
@@ -595,7 +616,9 @@ function parseNokiaBusinessComposition({ fiscalDate, sourceText, sourceUrl }) {
       url: safeOfficialUrl(sourceUrl, 'www.sec.gov'),
     },
     sections: {
-      reportSegments: completeSection(reportSegments, { reconciliation }),
+      reportSegments: reportSegmentsVerified
+        ? completeSection(reportSegments, reconciliation ? { reconciliation } : {})
+        : { status: 'unavailable', reason: 'segment-revenue-reconciliation-not-disclosed', items: [] },
       revenueBreakdown: completeSection(revenueBreakdown),
       geographies: completeSection(geographies),
     },
@@ -698,6 +721,16 @@ function parseTsmcBusinessComposition({ fiscalDate, sourceText, sourceUrl }) {
       technologyBreakdown: completeSection(technologyBreakdown),
     },
   };
+}
+
+function parseNokiaGroupRevenue(block) {
+  const pattern = new RegExp(`(?:^|\\s)Net sales\\s+(${MONEY_TOKEN})\\s+(${MONEY_TOKEN})(?=\\s+(?:Operating|Reconciliation|Net sales)\\b|$)`, 'gi');
+  const pairs = new Map();
+  for (const match of block.matchAll(pattern)) {
+    const values = [parseMillions(match[1]), parseMillions(match[2])];
+    if (values.every(Number.isFinite)) pairs.set(values.join('|'), values);
+  }
+  return pairs.size === 1 ? pairs.values().next().value : null;
 }
 
 function parsePercentBreakdown(block, definitions, totalRevenue) {

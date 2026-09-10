@@ -11,6 +11,9 @@ import {
   parseEarningsDetailRequest,
 } from '../server/earnings/secEarningsDetail.js';
 import { fetchSecFinancialHistory } from '../server/earnings/secFinancialHistory.js';
+import { handleSecEarningsCoverageSchedule } from '../server/earnings/secEarningsAutoCoverage.js';
+import { readSharedEarningsDetail, registerCalendarCoverage } from '../server/earnings/secEarningsCoverageIntegration.js';
+import { earningsDetailCacheTtl } from '../src/lib/earningsDetailPolicy.js';
 import { fetchEodhdFinancialHistory } from '../server/earnings/eodhdFinancialHistory.js';
 import {
   fetchOfficialFundComposition,
@@ -55,6 +58,10 @@ export default async function handler(req, res) {
     return sendError(res, 405, 'Method Not Allowed');
   }
 
+  if (singleQueryValue(req.query?.operation) === 'sec-coverage-schedule') {
+    return handleSecEarningsCoverageSchedule(req, res);
+  }
+
   const auth = await requireQuoteAuth(req, res);
   if (!auth.ok) return;
 
@@ -97,6 +104,7 @@ export default async function handler(req, res) {
       eodhdKey,
     });
     const normalized = mergeEarningsRevenueUsd(enriched, fxRates);
+    await registerCalendarCoverage({ userId: auth.user?.id, events: normalized });
 
     res.setHeader('Cache-Control', 'private, max-age=900, stale-while-revalidate=1800');
     return res.status(200).json({
@@ -112,23 +120,25 @@ export default async function handler(req, res) {
   }
 }
 
-export async function handleEarningsDetailRequest(req, res) {
+export async function handleEarningsDetailRequest(req, res, {
+  readShared = readSharedEarningsDetail, fetchDetail = fetchSecEarningsDetail,
+} = {}) {
   res.setHeader('Cache-Control', 'private, no-store');
   const parsed = parseEarningsDetailRequest(req.query);
   if (parsed.error) return sendError(res, 400, parsed.error);
 
   try {
-    const detail = await fetchSecEarningsDetail(parsed);
+    const detail = await readShared(parsed) || await fetchDetail(parsed);
+    const sharedRemaining = detail.cache?.source === 'shared-sec'
+      ? Math.max(0, Date.parse(detail.cache.expiresAt) - Date.now()) : Infinity;
     res.setHeader(
       'Cache-Control',
-      detail.status === 'complete' || detail.status === 'partial'
-        ? 'private, max-age=21600, stale-while-revalidate=1800'
-        : 'private, max-age=300',
+      `private, max-age=${Math.floor(Math.min(earningsDetailCacheTtl(detail), sharedRemaining) / 1000) || 0}`,
     );
     return res.status(200).json({
       success: true,
       ...detail,
-      fetchedAt: new Date().toISOString(),
+      fetchedAt: detail.fetchedAt || new Date().toISOString(),
     });
   } catch {
     return sendError(res, 502, '财报详情读取失败');

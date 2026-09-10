@@ -12,7 +12,6 @@ const META_CIK = '0001326801';
 const MICROSOFT_CIK = '0000789019';
 const INTERACTIVE_BROKERS_CIK = '0001381197';
 const UNITEDHEALTH_CIK = '0000731766';
-const UNITEDHEALTH_Q2_2026_ACCESSION = '0000731766-26-000191';
 
 const REVENUE_CONCEPT = 'us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax';
 const REVENUES_CONCEPT = 'us-gaap:Revenues';
@@ -398,9 +397,8 @@ const INLINE_ADAPTERS = new Map([
     id: 'costco-inline-xbrl',
     cik: COSTCO_CIK,
     forms: ['10-Q'],
-    fiscalDates: ['2026-05-10'],
-    fiscalYear: '2026',
-    fiscalPeriod: 'Q3',
+    verifiedLegacyPeriod: { end: '2026-05-10', fiscalYear: '2026', fiscalPeriod: 'Q3' },
+    requireFiscalFocus: true,
     parseSections: parseCostcoSections,
   }],
   ['META', {
@@ -419,9 +417,9 @@ const INLINE_ADAPTERS = new Map([
     id: 'unitedhealth-inline-xbrl',
     cik: UNITEDHEALTH_CIK,
     forms: ['10-Q'],
-    fiscalDates: ['2026-03-31'],
-    fiscalYear: '2026',
-    fiscalPeriod: 'Q1',
+    verifiedLegacyPeriod: { end: '2026-03-31', fiscalYear: '2026', fiscalPeriod: 'Q1' },
+    requireFiscalFocus: true,
+    calendarFiscalYear: true,
     totalConcept: REVENUES_CONCEPT,
     parseSections: parseUnitedHealthSections,
   }],
@@ -492,7 +490,6 @@ export function parseSecUsHoldingBusinessDocument({
   const documentFiscalDate = normalizeDocumentDate(
     uniqueTextFact(document, 'dei:DocumentPeriodEndDate'),
   );
-  if (adapter.fiscalDates && !adapter.fiscalDates.includes(documentFiscalDate)) return null;
   if (document.malformed || !inlineDocumentIdentityMatches(document, {
     cik: adapter.cik,
     fiscalDate: normalizedFiscalDate,
@@ -500,6 +497,17 @@ export function parseSecUsHoldingBusinessDocument({
     fiscalDateToleranceDays: adapter.fiscalDateToleranceDays,
   })) {
     return null;
+  }
+
+  const fiscalFocus = adapter.requireFiscalFocus
+    ? resolveAdapterFiscalFocus(document, adapter, documentFiscalDate)
+    : {};
+  if (!fiscalFocus) return null;
+  // Every report, including a previously seen period, must prove its actual
+  // monetary/context identity. A familiar date is never an identity shortcut.
+  if (adapter.requireFiscalFocus) {
+    if (normalizeCik(filing.cik) !== adapter.cik) return null;
+    document.requiredMonetaryCik = adapter.cik;
   }
 
   const periods = resolveReportedQuarterPeriods(
@@ -520,8 +528,7 @@ export function parseSecUsHoldingBusinessDocument({
     filing,
     period: {
       ...periods.period,
-      ...(adapter.fiscalYear ? { fiscalYear: adapter.fiscalYear } : {}),
-      ...(adapter.fiscalPeriod ? { fiscalPeriod: adapter.fiscalPeriod } : {}),
+      ...fiscalFocus,
     },
     sections,
     evidence: 'official-primary-inline-xbrl',
@@ -1007,17 +1014,23 @@ function parseMicrosoftEarningsRelease({ fiscalDate, html, filing }) {
 }
 
 function parseUnitedHealthEarningsRelease({ fiscalDate, html, filing }) {
-  if (fiscalDate !== '2026-06-30'
+  const date = parseDate(fiscalDate);
+  const quarterNumber = date ? Math.ceil((date.getUTCMonth() + 1) / 3) : NaN;
+  const quarterEnd = date && new Date(Date.UTC(date.getUTCFullYear(), quarterNumber * 3, 0));
+  if (!date || !quarterEnd || date.getTime() !== quarterEnd.getTime()
     || normalizeCik(filing.cik) !== UNITEDHEALTH_CIK
     || normalizeForm(filing.form) !== '8-K'
-    || normalizeForm(filing.documentType) !== 'EX-99.1'
-    || normalizeAccession(filing.accession)
-      !== normalizeAccession(UNITEDHEALTH_Q2_2026_ACCESSION)) {
+    || normalizeForm(filing.documentType) !== 'EX-99.1') {
     return null;
   }
 
   const text = htmlToText(html);
-  if (!/UnitedHealth Group Reports Second Quarter 2026 Results/i.test(text)) return null;
+  const year = date.getUTCFullYear();
+  const quarterWord = ['First', 'Second', 'Third', 'Fourth'][quarterNumber - 1];
+  const title = new RegExp(`UnitedHealth Group Reports ${quarterWord} Quarter ${year} Results`, 'i');
+  const reportedQuarter = new RegExp(`\\bQuarter Ended\\s+${escapeRegExp(englishDate(fiscalDate))}\\b`, 'i');
+  if (!title.test(text) || !reportedQuarter.test(text)) return null;
+  const previousFiscalDate = `${year - 1}${fiscalDate.slice(4)}`;
   const revenueAnchor = lastMatchIndex(
     text,
     /REVENUES BY BUSINESS\s*-\s*SUPPLEMENTAL FINANCIAL INFORMATION/gi,
@@ -1031,6 +1044,8 @@ function parseUnitedHealthEarningsRelease({ fiscalDate, html, filing }) {
   const earningsSection = text.slice(earningsAnchor, earningsAnchor + 12_000);
   if (!/\(in millions; unaudited\)/i.test(revenueSection)
     || !/\(in millions, except percentages; unaudited\)/i.test(earningsSection)
+    || !unitedHealthReleaseUsesUsd(text, revenueSection, earningsSection)
+    || !unitedHealthReleaseTableHeadersMatch(html)
     || !unitedHealthReleaseHeaderMatches(revenueSection)
     || !unitedHealthReleaseHeaderMatches(earningsSection)) {
     return null;
@@ -1038,25 +1053,25 @@ function parseUnitedHealthEarningsRelease({ fiscalDate, html, filing }) {
 
   const currentRevenue = extractUnitedHealthReleaseRow(
     revenueSection,
-    '2026-06-30',
+    fiscalDate,
     'Total revenues',
   );
   const previousRevenue = extractUnitedHealthReleaseRow(
     revenueSection,
-    '2025-06-30',
+    previousFiscalDate,
     'Total revenues',
   );
   const currentProfit = extractUnitedHealthReleaseRow(
     earningsSection,
-    '2026-06-30',
+    fiscalDate,
     'Earnings from operations',
   );
   const previousProfit = extractUnitedHealthReleaseRow(
     earningsSection,
-    '2025-06-30',
+    previousFiscalDate,
     'Earnings from operations',
   );
-  const eliminations = extractUnitedHealthReleaseEliminations(revenueSection);
+  const eliminations = extractUnitedHealthReleaseEliminations(revenueSection, fiscalDate);
   if (!currentRevenue || !previousRevenue || !currentProfit || !previousProfit || !eliminations) {
     return null;
   }
@@ -1110,8 +1125,8 @@ function parseUnitedHealthEarningsRelease({ fiscalDate, html, filing }) {
     filing,
     period: {
       ...quarterPeriodEnding(fiscalDate),
-      fiscalYear: '2026',
-      fiscalPeriod: 'Q2',
+      fiscalYear: String(year),
+      fiscalPeriod: `Q${quarterNumber}`,
     },
     evidence: 'official-8-k-exhibit-99.1',
     sections: {
@@ -1262,6 +1277,9 @@ function selectUniqueFact(document, {
       || !membersEqual(context.members, members)) {
       continue;
     }
+    if (document.requiredMonetaryCik
+      && (context.cik !== document.requiredMonetaryCik || !fact.usdUnit
+        || context.unsupportedDimensions)) return null;
     values.add(fact.value);
   }
   return values.size === 1 ? values.values().next().value : null;
@@ -1295,7 +1313,25 @@ function parseInlineXbrlDocument(html) {
       }
       members[dimension] = member;
     }
-    if (!ambiguous && end) contexts.set(id, { start, end, members });
+    const identifiers = [...body.matchAll(/<xbrli:identifier\b([^>]*)>([^<]+)<\/xbrli:identifier>/gi)];
+    const cik = identifiers.length === 1
+      && parseAttributes(identifiers[0][1]).scheme === 'http://www.sec.gov/CIK'
+      ? normalizeCik(htmlToText(identifiers[0][2])) : '';
+    if (!ambiguous && end) contexts.set(id, {
+      start, end, members, cik,
+      unsupportedDimensions: /<xbrldi:typedMember\b|<xbrli:scenario\b/i.test(body),
+    });
+  }
+
+  const units = new Map();
+  for (const match of html.matchAll(/<xbrli:unit\b([^>]*)>([\s\S]*?)<\/xbrli:unit>/gi)) {
+    const id = parseAttributes(match[1]).id;
+    if (!id) continue;
+    if (units.has(id)) { malformed = true; continue; }
+    const measures = [...match[2].matchAll(/<xbrli:measure\b[^>]*>([^<]+)<\/xbrli:measure>/gi)];
+    units.set(id, measures.length === 1
+      && htmlToText(measures[0][1]) === 'iso4217:USD'
+      && !/<xbrli:divide\b/i.test(match[2]));
   }
 
   const numericFacts = [];
@@ -1308,6 +1344,7 @@ function parseInlineXbrlDocument(html) {
       concept: attributes.name,
       contextRef: attributes.contextref,
       value,
+      usdUnit: units.get(attributes.unitref) === true,
     });
   }
 
@@ -1327,6 +1364,21 @@ function parseInlineXbrlDocument(html) {
     nonNumericFacts,
     malformed,
   };
+}
+
+function resolveAdapterFiscalFocus(document, adapter, fiscalDate) {
+  const fiscalYear = uniqueTextFact(document, 'dei:DocumentFiscalYearFocus');
+  const fiscalPeriod = uniqueTextFact(document, 'dei:DocumentFiscalPeriodFocus');
+  const legacy = adapter.verifiedLegacyPeriod;
+  if (!/^\d{4}$/.test(fiscalYear) || !/^Q[1-3]$/.test(fiscalPeriod)) return null;
+  const year = Number(fiscalDate.slice(0, 4));
+  if (Number(fiscalYear) < year || Number(fiscalYear) > year + 1) return null;
+  if (adapter.calendarFiscalYear
+    && (Number(fiscalYear) !== year
+      || fiscalPeriod !== `Q${Math.ceil(Number(fiscalDate.slice(5, 7)) / 3)}`)) return null;
+  if (fiscalDate === legacy.end
+    && (fiscalYear !== legacy.fiscalYear || fiscalPeriod !== legacy.fiscalPeriod)) return null;
+  return { fiscalYear, fiscalPeriod };
 }
 
 function inlineDocumentIdentityMatches(document, {
@@ -1483,14 +1535,45 @@ function extractFourPeriodRow(statement, label) {
 }
 
 function unitedHealthReleaseHeaderMatches(section) {
-  return [
+  const firstRow = section.search(/Three Months Ended/i);
+  if (firstRow < 0) return false;
+  const columns = [
     'UnitedHealthcare',
     'Optum Health',
     'Optum Insight',
     'Optum Rx',
     'Total Optum',
     'UnitedHealth Group Consolidated',
-  ].every((label) => new RegExp(escapeRegExp(label), 'i').test(section));
+  ].map(escapeRegExp).join('\\s+');
+  return new RegExp(columns, 'i').test(section.slice(0, firstRow));
+}
+
+function unitedHealthReleaseUsesUsd(text, revenueSection, earningsSection) {
+  // This adapter publishes USD. Reject explicit conflicting currencies even
+  // if an unrelated dollar amount appears elsewhere in the same release.
+  if (/\b(?:EUR|GBP|CAD|AUD|HKD|TWD|JPY|CNY|RMB|euros?|pounds?\s+sterling)\b|(?:HK|NT|C|A)\$|[€£¥]/i.test(text)) return false;
+  const explicitUsd = /\b(?:USD|US\s+dollars?|U\.S\.\s+dollars?|United States\s+dollars?)\b/i.test(text);
+  const dollarAmount = /(?:US)?\$\s*\(?\s*[\d,]+/i;
+  return explicitUsd || (dollarAmount.test(revenueSection) && dollarAmount.test(earningsSection));
+}
+
+function unitedHealthReleaseTableHeadersMatch(html) {
+  const expected = [
+    'UnitedHealthcare', 'Optum Health', 'Optum Insight', 'Optum Rx',
+    'Total Optum', 'UnitedHealth Group Consolidated',
+  ].map((label) => label.toLowerCase());
+  let matched = 0;
+  for (const row of html.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)) {
+    const cells = [...row[1].matchAll(/<t[hd]\b[^>]*>([\s\S]*?)<\/t[hd]>/gi)]
+      .map((cell) => htmlToText(cell[1]).replace(/\s+/g, ' ').trim().toLowerCase())
+      .filter(Boolean);
+    if (!cells.some((cell) => expected.includes(cell))) continue;
+    // A second/repeated header can redefine the following row's columns.
+    // Fail closed on ANY conflicting header, not just accept the first one.
+    if (cells.length !== expected.length || cells.some((cell, index) => cell !== expected[index])) return false;
+    matched += 1;
+  }
+  return matched >= 2;
 }
 
 function extractUnitedHealthReleaseRow(section, fiscalDate, label) {
@@ -1511,13 +1594,21 @@ function extractUnitedHealthReleaseRow(section, fiscalDate, label) {
   return rows.size === 1 ? rows.values().next().value : null;
 }
 
-function extractUnitedHealthReleaseEliminations(section) {
-  const match = section.match(
-    /Optum eliminations of\s+\$?([\d,]+)\s+and\s+\$?([\d,]+);?\s+and corporate eliminations of\s+\$?([\d,]+)\s+and\s+\$?([\d,]+)/i,
+function extractUnitedHealthReleaseEliminations(section, fiscalDate) {
+  const priorYear = Number(fiscalDate.slice(0, 4)) - 1;
+  const pattern = new RegExp(
+    `Optum and consolidated revenues for the three months ended\\s+${escapeRegExp(englishDate(fiscalDate))}`
+      + `\\s+and\\s+${priorYear}\\s+include Optum eliminations of\\s+\\$?([\\d,]+)\\s+and\\s+\\$?([\\d,]+);?`
+      + '\\s+and corporate eliminations of\\s+\\$?([\\d,]+)\\s+and\\s+\\$?([\\d,]+)',
+    'gi',
   );
-  if (!match) return null;
-  const values = match.slice(1, 5).map(parseMillions);
-  if (!values.every(finite)) return null;
+  const candidates = new Map();
+  for (const match of section.matchAll(pattern)) {
+    const values = match.slice(1, 5).map(parseMillions);
+    if (values.every(finite)) candidates.set(values.join('|'), values);
+  }
+  if (candidates.size !== 1) return null;
+  const values = candidates.values().next().value;
   return {
     optum: { current: values[0], previous: values[1] },
     corporate: { current: values[2], previous: values[3] },
@@ -1707,10 +1798,6 @@ function normalizeDocumentDate(value) {
 function normalizeCik(value) {
   const digits = String(value || '').replace(/\D/g, '');
   return digits ? digits.padStart(10, '0') : '';
-}
-
-function normalizeAccession(value) {
-  return String(value || '').replace(/\D/g, '');
 }
 
 function normalizeForm(value) {

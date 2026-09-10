@@ -7,7 +7,9 @@ import {
   Loader2,
   MapPinned,
   PieChart,
+  RefreshCw,
 } from 'lucide-react';
+import { earningsDetailStateText } from '../lib/earningsDetailPolicy.js';
 import EarningsGrowthCard from '../components/EarningsGrowthCard.jsx';
 import StockLogo, { stockLogoCandidates } from '../components/StockLogo.jsx';
 import {
@@ -197,15 +199,7 @@ function Metric({ label, value, detail, color = 'rgba(255,255,255,0.78)', align 
 }
 
 function SectionState({ status, reason, language }) {
-  const unsupported = [
-    'official-detail-adapter-not-supported',
-    'official-detail-fiscal-period-not-supported',
-  ].includes(reason);
-  const text = status === 'pending'
-    ? (language === 'en' ? 'Official breakdown is syncing' : '官方细分数据同步中')
-    : unsupported
-      ? (language === 'en' ? 'Official breakdown is not available for this company yet' : '该公司的官方细分数据暂未接入')
-      : (language === 'en' ? 'No unambiguous structured disclosure' : '本期没有可确认的结构化披露');
+  const text = earningsDetailStateText(status, reason, language);
   return <div className="rounded-[16px] border border-dashed border-white/[0.07] bg-white/[0.018] px-4 py-8 text-center text-[12px] text-white/[0.40]">{text}</div>;
 }
 
@@ -402,6 +396,8 @@ export default function EarningsDetailPage({ ctx }) {
   });
   const [loading, setLoading] = React.useState(!earningsDetailDataOverride);
   const [error, setError] = React.useState('');
+  const [refreshSequence, setRefreshSequence] = React.useState(0);
+  const refreshPending = React.useRef(false);
   const [growthSession, setGrowthSession] = React.useState(null);
   const symbol = String(event?.symbol || detail?.symbol || '').trim().toUpperCase();
   const effectiveEvent = mergeEarningsDetailSummary(event, detail);
@@ -447,6 +443,8 @@ export default function EarningsDetailPage({ ctx }) {
     }
     setLoading(true);
     setError('');
+    const skipClientCache = refreshPending.current;
+    refreshPending.current = false;
     fetchEarningsDetail({
       supabase,
       symbol: event.symbol,
@@ -454,15 +452,19 @@ export default function EarningsDetailPage({ ctx }) {
       providerFiscalDate: event.providerFiscalDate || event.fiscalDate,
       officialFiscalDate: event.officialFiscalDate || null,
       reportDate: event.reportDate,
+      skipClientCache,
     }).then((payload) => {
       if (!cancelled) setDetail(payload);
     }).catch((fetchError) => {
-      if (!cancelled) setError(fetchError?.message || (language === 'en' ? 'Failed to load earnings detail' : '财报详情读取失败'));
+      if (!cancelled) {
+        setDetail(null);
+        setError(fetchError?.message || (language === 'en' ? 'Failed to load earnings detail' : '财报详情读取失败'));
+      }
     }).finally(() => {
       if (!cancelled) setLoading(false);
     });
     return () => { cancelled = true; };
-  }, [earningsDetailDataOverride, event, language, supabase]);
+  }, [earningsDetailDataOverride, event, language, supabase, refreshSequence]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -502,7 +504,12 @@ export default function EarningsDetailPage({ ctx }) {
               <h1 className="text-[17px] font-normal tracking-[0.02em] text-white/[0.86]">{symbol} {language === 'en' ? 'Earnings detail' : '财报详情'}</h1>
               <p className="mt-0.5 text-[11px] text-white/[0.40]">{periodLabel(event, detail, language)} · {earningsResultText(event?.earningsResult, language)}</p>
             </div>
-            <span aria-hidden="true" className="h-9 w-9" />
+            <button type="button" disabled={loading || Boolean(earningsDetailDataOverride)}
+              aria-label={language === 'en' ? 'Refresh official breakdown' : '刷新官方细分'}
+              onClick={() => { refreshPending.current = true; setRefreshSequence((sequence) => sequence + 1); }}
+              className="flex h-9 w-9 items-center justify-center rounded-full text-white/[0.50] disabled:opacity-40">
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            </button>
           </div>
         </header>
 
@@ -538,6 +545,7 @@ export default function EarningsDetailPage({ ctx }) {
             </div>
           </section>
 
+          {detail?.stale ? <p role="status" className="mt-3 text-[12px] text-white/[0.50]">{language === 'en' ? 'Showing the last verified data; update unavailable' : '暂时无法更新，显示上次已验证数据'}</p> : null}
           {loading ? (
             <div className="mt-4 flex h-36 items-center justify-center rounded-[18px] border border-white/[0.07] bg-[#0b0c0e] text-[13px] text-white/[0.40]"><Loader2 className="mr-2 h-4 w-4 animate-spin text-[#f6b54b]" />{language === 'en' ? 'Loading official breakdown…' : '正在读取官方细分数据…'}</div>
           ) : detail ? (

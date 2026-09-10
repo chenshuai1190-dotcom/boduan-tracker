@@ -1,25 +1,23 @@
 import { fetchSecEarningsFilingSource } from './secOfficialActuals.js';
 import {
   hasSecEarningsDetailAdapter,
-  parseSecEarningsDetailPrimaryDocument,
 } from './secEarningsDetailParsers.js';
 import {
   hasSecUsHoldingBusinessAdapter,
-  parseSecUsHoldingBusinessDocument,
 } from './secUsHoldingBusinessAdapters.js';
 import {
   canAttemptGenericSecBusinessComposition,
-  parseGenericSecBusinessComposition,
 } from './secGenericBusinessComposition.js';
 import {
   hasForeignIssuerBusinessCompositionAdapter,
   knownForeignIssuerBusinessComposition,
-  parseForeignIssuerBusinessComposition,
 } from './foreignIssuerBusinessComposition.js';
+import { inspectSecEarningsDocument } from './secEarningsDocument.js';
+import { EARNINGS_DETAIL_PARSER_VERSION, earningsDetailCacheTtl } from '../../src/lib/earningsDetailPolicy.js';
 
 export { parseSecEarningsDetailPrimaryDocument } from './secEarningsDetailParsers.js';
 
-export const SEC_EARNINGS_DETAIL_SCHEMA_VERSION = 4;
+export const SEC_EARNINGS_DETAIL_SCHEMA_VERSION = 5;
 export const SEC_EARNINGS_DETAIL_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 export const SEC_EARNINGS_DETAIL_TRANSIENT_CACHE_TTL_MS = 5 * 60 * 1000;
 export const SEC_EARNINGS_DETAIL_UNPARSED_CACHE_TTL_MS = 5 * 60 * 1000;
@@ -33,6 +31,7 @@ const VERIFIED_MSFT_Q4_REPORT_DATE = '2026-07-29';
 const VERIFIED_UNH_Q2_FISCAL_DATE = '2026-06-30';
 const VERIFIED_UNH_Q2_REPORT_DATE = '2026-07-16';
 const resultCache = new Map();
+const inFlightDetails = new Map();
 
 export function parseEarningsDetailRequest(query = {}) {
   const rawSymbol = singleQueryValue(query.symbol);
@@ -87,7 +86,22 @@ export function parseEarningsDetailRequest(query = {}) {
   };
 }
 
-export async function fetchSecEarningsDetail({
+export async function fetchSecEarningsDetail(options = {}) {
+  if (options.fetchFn && options.fetchFn !== globalThis.fetch) return fetchSecEarningsDetailUnshared(options);
+  const key = [EARNINGS_DETAIL_PARSER_VERSION, normalizeSymbol(options.symbol),
+    dateKey(options.fiscalDate), dateKey(options.providerFiscalDate),
+    dateKey(options.officialFiscalDate), dateKey(options.reportDate)].join('|');
+  if (inFlightDetails.has(key)) return inFlightDetails.get(key);
+  const request = fetchSecEarningsDetailUnshared(options);
+  inFlightDetails.set(key, request);
+  try {
+    return await request;
+  } finally {
+    if (inFlightDetails.get(key) === request) inFlightDetails.delete(key);
+  }
+}
+
+async function fetchSecEarningsDetailUnshared({
   symbol,
   fiscalDate,
   providerFiscalDate,
@@ -108,6 +122,7 @@ export async function fetchSecEarningsDetail({
   const nowDate = normalizeDate(now) || new Date();
   const cacheEnabled = fetchFn === globalThis.fetch;
   const cacheKey = [
+    EARNINGS_DETAIL_PARSER_VERSION,
     normalizedSymbol,
     normalizedProviderFiscalDate,
     normalizedOfficialFiscalDate || 'auto',
@@ -170,13 +185,7 @@ export async function fetchSecEarningsDetail({
   const verifiedUnitedHealthQ2 = normalizedSymbol === 'UNH'
     && normalizedFiscalDate === VERIFIED_UNH_Q2_FISCAL_DATE
     && normalizedReportDate === VERIFIED_UNH_Q2_REPORT_DATE;
-  const mismatchedUnitedHealthQ2 = normalizedSymbol === 'UNH'
-    && !verifiedUnitedHealthQ2
-    && (
-      normalizedFiscalDate === VERIFIED_UNH_Q2_FISCAL_DATE
-      || normalizedReportDate === VERIFIED_UNH_Q2_REPORT_DATE
-    );
-  if (mismatchedMicrosoftQ4 || mismatchedUnitedHealthQ2) {
+  if (mismatchedMicrosoftQ4) {
     const unavailable = responseBase({
       status: 'unavailable',
       reason: 'official-event-date-mismatch',
@@ -209,6 +218,12 @@ export async function fetchSecEarningsDetail({
       : normalizedSymbol === 'IBKR'
         ? ['EX-99.1', 'PRIMARY']
         : ['PRIMARY'],
+    preferEarningsExhibit: !verifiedMicrosoftQ4 && !verifiedUnitedHealthQ2,
+    evaluateDocument: (document) => inspectSecEarningsDocument({
+      symbol: normalizedSymbol,
+      fiscalDate: dateKey(document.officialFiscalDate) || normalizedFiscalDate,
+      primary: document,
+    }),
     fetchFn,
     userAgent,
     now: nowDate,
@@ -302,58 +317,24 @@ export async function fetchSecEarningsDetail({
     return unavailable;
   }
 
-  const filing = {
-    cik: primary.secCik,
-    accession: primary.accession,
-    form: primary.form,
-    documentType: primary.documentType,
-  };
   const parserFiscalDate = dateKey(primary.officialFiscalDate)
     || normalizedOfficialFiscalDate
     || normalizedFiscalDate;
-  let parsed = null;
-  if (standardAdapterSupported) {
-    parsed = parseSecEarningsDetailPrimaryDocument({
-      symbol: normalizedSymbol,
-      fiscalDate: parserFiscalDate,
-      html: primary.html,
-      filing,
-    });
-  } else if (usHoldingAdapterSupported) {
-    parsed = parseSecUsHoldingBusinessDocument({
-      symbol: normalizedSymbol,
-      fiscalDate: parserFiscalDate,
-      html: primary.html,
-      filing,
-    });
-  } else if (foreignAdapterSupported) {
-    parsed = parseForeignIssuerBusinessComposition({
-      symbol: normalizedSymbol,
-      fiscalDate: normalizedFiscalDate,
-      html: primary.html,
-      sourceUrl: primary.primaryDocumentUrl,
-    });
-  }
-  // A verified company adapter remains authoritative whenever it returns a
-  // parsed result. The generic SEC path is only a document-level null fallback;
-  // it never merges or replaces individual sections from a known adapter.
-  if (!parsed && genericAdapterSupported) {
-    parsed = parseGenericSecBusinessComposition({
-      symbol: normalizedSymbol,
-      fiscalDate: parserFiscalDate,
-      html: primary.html,
-      filing,
-    });
-  }
+  const evaluation = primary.evaluation || inspectSecEarningsDocument({
+    symbol: normalizedSymbol, fiscalDate: parserFiscalDate, primary,
+  });
+  const parsed = evaluation.result;
   const source = sourceFromParsed(primary, parsed);
+  if (source) source.parser = evaluation.parser;
   if (!parsed) {
+    const reason = evaluation.reason || 'official-primary-document-unparsed';
     const unavailable = responseBase({
       status: 'unavailable',
-      reason: 'official-primary-document-unparsed',
+      reason,
       symbol: normalizedSymbol,
       period: resolvedPeriod,
       source,
-      sections: pendingSections('unavailable', 'official-primary-document-unparsed'),
+      sections: pendingSections('unavailable', reason),
     });
     warnSecEarningsDetailFailure(unavailable, cacheEnabled);
     writeCache(
@@ -381,6 +362,7 @@ export async function fetchSecEarningsDetail({
     },
     source,
     sections: parsed.sections,
+    totalRevenue: parsed.totalRevenue,
     currency: parsed.currency,
     supplemental: parsed.supplemental,
   });
@@ -396,6 +378,7 @@ export async function fetchSecEarningsDetail({
 
 export function clearSecEarningsDetailCachesForTests() {
   resultCache.clear();
+  inFlightDetails.clear();
 }
 
 export function secEarningsDetailFailureLogFields(detail) {
@@ -435,9 +418,11 @@ function responseBase({
   currency = 'USD',
   supplemental = {},
   summaryActuals = null,
+  totalRevenue = null,
 }) {
   return {
     schemaVersion: SEC_EARNINGS_DETAIL_SCHEMA_VERSION,
+    parserVersion: EARNINGS_DETAIL_PARSER_VERSION,
     status,
     reason,
     failureReason,
@@ -448,6 +433,7 @@ function responseBase({
     sections,
     supplemental,
     summaryActuals,
+    totalRevenue: Number.isFinite(totalRevenue) && totalRevenue > 0 ? totalRevenue : null,
   };
 }
 
@@ -458,6 +444,7 @@ function sourceFromPrimary(primary) {
     cik: primary.secCik,
     accession: primary.accession || null,
     form: primary.form || null,
+    documentType: primary.documentType || null,
     filedAt: primary.filedAt || null,
     filingUrl: primary.filingUrl || null,
     primaryDocumentUrl: primary.primaryDocumentUrl || null,
@@ -470,6 +457,7 @@ function sourceFromParsed(primary, parsed) {
   const parsedUrl = String(parsed?.source?.url || '').trim();
   if (!parsedProvider || !/^https:\/\//i.test(parsedUrl)) return source;
   return {
+    ...(parsedProvider === 'SEC' ? source : {}),
     provider: parsedProvider,
     cik: source?.cik || String(parsed?.source?.cik || '').trim() || null,
     accession: source?.accession || null,
@@ -517,7 +505,7 @@ function writeCache(key, value, ttlMs, nowMs, enabled) {
   }
   resultCache.set(key, {
     value,
-    expiresAt: nowMs + ttlMs,
+    expiresAt: nowMs + Math.min(ttlMs, earningsDetailCacheTtl(value)),
   });
 }
 

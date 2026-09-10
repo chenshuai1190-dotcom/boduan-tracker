@@ -94,7 +94,7 @@ test('earnings detail uses a fresh cache namespace and retries transient detail 
       fiscalDate: '2026-06-30',
       reportDate: '2026-07-22',
     }),
-    'xmoney_earnings_detail_v3:user-1:GOOGL:2026-06-30:auto:2026-07-22',
+    'xmoney_earnings_detail_sec-structure-5:user-1:GOOGL:2026-06-30:auto:2026-07-22',
   );
   assert.equal(
     earningsDetailClientCacheKey({
@@ -103,7 +103,7 @@ test('earnings detail uses a fresh cache namespace and retries transient detail 
       fiscalDate: '2026-03-31',
       reportDate: '2026-04-15',
     }),
-    'xmoney_earnings_detail_tsm_q1_2026_v4:user-1:TSM:2026-03-31:auto:2026-04-15',
+    'xmoney_earnings_detail_sec-structure-5:user-1:TSM:2026-03-31:auto:2026-04-15',
   );
   assert.equal(
     earningsDetailClientCacheKey({
@@ -112,7 +112,7 @@ test('earnings detail uses a fresh cache namespace and retries transient detail 
       fiscalDate: '2026-06-30',
       reportDate: '2026-07-16',
     }),
-    'xmoney_earnings_detail_v3:user-1:TSM:2026-06-30:auto:2026-07-16',
+    'xmoney_earnings_detail_sec-structure-5:user-1:TSM:2026-06-30:auto:2026-07-16',
   );
   assert.equal(
     earningsDetailClientCacheKey({
@@ -123,7 +123,7 @@ test('earnings detail uses a fresh cache namespace and retries transient detail 
       officialFiscalDate: '2026-05-10',
       reportDate: '2026-05-28',
     }),
-    'xmoney_earnings_detail_v3:user-1:COST:2026-05-31:2026-05-10:2026-05-28',
+    'xmoney_earnings_detail_sec-structure-5:user-1:COST:2026-05-31:2026-05-10:2026-05-28',
   );
 });
 
@@ -449,7 +449,7 @@ test('production detail renders every official section without screenshot or sha
   assert.ok(detailPageSource.includes("language === 'en' ? 'Base data' : '基础数据'"));
   assert.ok(detailPageSource.includes("language === 'en' ? 'SEC filing' : 'SEC 文件'"));
   assert.ok(detailPageSource.includes('Period ended'));
-  assert.ok(detailPageSource.includes('该公司的官方细分数据暂未接入'));
+  assert.ok(detailPageSource.includes('earningsDetailStateText(status, reason, language)'));
   assert.equal(detailPageSource.includes('shareEarningsDetailImage'), false);
   assert.equal(detailPageSource.includes('Share2'), false);
   assert.equal(detailPageSource.includes('data-earnings-export-page'), false);

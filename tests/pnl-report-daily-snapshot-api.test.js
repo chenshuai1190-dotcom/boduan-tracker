@@ -2135,7 +2135,7 @@ test('a transient Supabase read returns a sanitized 503 while a permanent write 
 
 test('vercel schedules all-account P&L through the unified close scheduler', () => {
   const vercelConfig = JSON.parse(readFileSync(new URL('../vercel.json', import.meta.url), 'utf8'));
-  assert.deepEqual(vercelConfig.crons, [
+  assert.deepEqual(vercelConfig.crons.filter(({ path }) => path.startsWith('/api/close-snapshot-schedule')), [
     { path: '/api/close-snapshot-schedule', schedule: '0 21 * * 1-5' },
     { path: '/api/close-snapshot-schedule-retry', schedule: '0 22 * * 1-5' },
     { path: '/api/close-snapshot-schedule-late-retry', schedule: '0 23 * * 1-5' },

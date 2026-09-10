@@ -38,8 +38,38 @@ const SERVICE_ONLY_TABLES = [
   { table: 'pnl_report_rebuild_portfolio_stage', select: 'operation_key' },
   { table: 'pnl_report_rebuild_symbol_stage', select: 'operation_key' },
   { table: 'pnl_report_rebuild_audit', select: 'operation_key' },
+  { table: 'sec_earnings_watch_jobs', select: 'symbol' },
+  { table: 'sec_earnings_requested_events', select: 'symbol' },
+  { table: 'sec_earnings_shared_results', select: 'symbol' },
 ];
 const SERVICE_ONLY_RPCS = [
+  // Permission denial must precede validation. Invalid write inputs keep these
+  // probes side-effect-free even if an EXECUTE grant accidentally regresses.
+  {
+    name: 'register_sec_earnings_requested_events',
+    body: { p_user_id: null, p_events: [], p_parser_version: 'rls-probe' },
+  },
+  {
+    name: 'claim_sec_earnings_watch_jobs',
+    body: { p_limit: 0, p_lease_seconds: 10 },
+  },
+  {
+    name: 'complete_sec_earnings_watch_job',
+    body: {
+      p_symbol: 'RLS-PROBE', p_lease_token: null, p_parser_version: 'rls-probe',
+      p_status: 'idle', p_reason: null, p_next_delay_seconds: 60,
+      p_results: [], p_events: [],
+    },
+  },
+  {
+    // This pure validator is private even to service_role. A 200/400 response
+    // would still be a failure: anonymous callers must not execute it at all.
+    name: 'sec_earnings_normalize_event',
+    body: {
+      p_event: { symbol: 'RLS-PROBE', provider_fiscal_date: '2000-01-01', report_date: '2000-01-02' },
+      p_symbol: 'RLS-PROBE',
+    },
+  },
   {
     name: 'resolve_margin_debt_snapshot_targets',
     body: {

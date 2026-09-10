@@ -62,6 +62,83 @@ const requestSchedulers = new Map([
   [SEC_REQUEST_LANE_BATCH, { tail: Promise.resolve(), nextRequestAt: 0 }],
 ]);
 
+// Public SEC metadata only. This bounded discovery reader deliberately does not
+// download documents/company facts or change the existing detail selection path.
+export async function fetchSecWatchlistSubmissionsSource({
+  symbol,
+  fetchFn = globalThis.fetch,
+  userAgent = process.env.SEC_USER_AGENT || DEFAULT_SEC_USER_AGENT,
+  now = new Date(),
+  requestIntervalMs,
+  batchTimeoutMs = SEC_BATCH_TIMEOUT_MS,
+} = {}) {
+  const normalizedSymbol = normalizeSymbol(symbol);
+  const normalizedNow = normalizeDate(now);
+  const base = { symbol: normalizedSymbol, secCik: null, filings: [] };
+  if (!/^[A-Z0-9][A-Z0-9.-]{0,14}$/.test(normalizedSymbol)
+    || !normalizedNow || typeof fetchFn !== 'function') {
+    return { ...base, status: 'unavailable', reason: 'invalid-sec-discovery-request' };
+  }
+  const interval = resolveRequestInterval(fetchFn, requestIntervalMs);
+  const context = {
+    fetchFn,
+    userAgent: sanitizeUserAgent(userAgent),
+    requestIntervalMs: fetchFn === globalThis.fetch
+      ? Math.max(SEC_REQUEST_INTERVAL_MS, interval) : interval,
+    requestLane: SEC_REQUEST_LANE_BATCH,
+    cacheEnabled: fetchFn === globalThis.fetch,
+    nowMs: normalizedNow.getTime(),
+    deadlineAt: Date.now() + Math.min(
+      Number.isFinite(batchTimeoutMs) && batchTimeoutMs > 0 ? batchTimeoutMs : SEC_BATCH_TIMEOUT_MS,
+      SEC_BATCH_TIMEOUT_MS,
+    ),
+  };
+  try {
+    let cik = KNOWN_CIK_BY_SYMBOL.get(normalizedSymbol) || '';
+    if (!cik) cik = (await fetchTickerCikMap(context)).get(normalizedSymbol) || '';
+    if (!cik) return { ...base, status: 'unavailable', reason: 'sec-cik-not-found' };
+    const submissions = await fetchJsonCached(`https://data.sec.gov/submissions/CIK${cik}.json`, {
+      ...context,
+      ttlMs: SUBMISSIONS_CACHE_TTL_MS,
+      maxBytes: SEC_MAX_COMPANY_FACTS_BYTES,
+    });
+    if (!submissionsMatchesSymbol(submissions, normalizedSymbol)) {
+      return { ...base, status: 'unavailable', reason: 'sec-ticker-mismatch' };
+    }
+    const payloadCik = String(submissions?.cik ?? '').trim();
+    if (!/^\d{1,10}$/.test(payloadCik) || payloadCik.padStart(10, '0') !== cik) {
+      return { ...base, status: 'unavailable', reason: 'sec-cik-mismatch' };
+    }
+    const recent = submissions?.filings?.recent;
+    const fields = ['accessionNumber', 'form', 'filingDate', 'reportDate'];
+    const count = recent?.accessionNumber?.length;
+    if (!Number.isInteger(count) || count > 10_000
+      || fields.some((field) => !Array.isArray(recent?.[field]) || recent[field].length !== count)
+      || ['acceptanceDateTime', 'items'].some((field) => recent[field] !== undefined
+        && (!Array.isArray(recent[field]) || recent[field].length !== count))) {
+      return { ...base, status: 'unavailable', reason: 'sec-invalid-submissions' };
+    }
+    const filings = [];
+    for (let index = 0; index < count; index += 1) {
+      const form = String(recent.form[index] || '').trim().toUpperCase();
+      if (!['10-Q', '10-K', '20-F', '8-K', '6-K'].includes(form)) continue;
+      // Keep explicit malformed dates intact for the discovery validator to
+      // reject; normalizing a bad acceptedAt to blank would bypass that check.
+      filings.push({
+        accession: String(recent.accessionNumber[index] || '').trim(),
+        form,
+        filingDate: String(recent.filingDate[index] || '').trim(),
+        reportDate: String(recent.reportDate[index] || '').trim(),
+        acceptedAt: String(recent.acceptanceDateTime?.[index] || '').trim(),
+        items: String(recent.items?.[index] || '').trim(),
+      });
+    }
+    return { ...base, status: 'ready', reason: null, secCik: cik, filings };
+  } catch (error) {
+    return { ...base, status: 'pending', reason: sanitizeSecFailureReason(error) };
+  }
+}
+
 export async function fetchSecOfficialActuals({
   events,
   fetchFn = globalThis.fetch,
@@ -144,6 +221,8 @@ export async function fetchSecEarningsFilingSource({
   includePrimaryDocument = true,
   preferredFilingTypes = [],
   preferredDocumentTypes = ['PRIMARY'],
+  preferEarningsExhibit = false,
+  evaluateDocument,
   fetchFn = globalThis.fetch,
   userAgent = process.env.SEC_USER_AGENT || DEFAULT_SEC_USER_AGENT,
   now = new Date(),
@@ -221,8 +300,9 @@ export async function fetchSecEarningsFilingSource({
       };
     }
 
+    const recentFilings = normalizeRecentFilings(submissions);
     const filing = selectEarningsDetailFiling(
-      normalizeRecentFilings(submissions),
+      recentFilings,
       selectionFiscalDate,
       normalizedReportDate,
       today,
@@ -241,57 +321,91 @@ export async function fetchSecEarningsFilingSource({
       };
     }
 
-    const filingOfficialFiscalDate = /^(?:10-Q|10-K|20-F)$/.test(filing.form)
-      ? filing.reportDate
-      : selectionFiscalDate;
-    const source = {
-      ...base,
-      status: 'complete',
-      reason: null,
-      fiscalDate: filingOfficialFiscalDate || selectionFiscalDate,
-      officialFiscalDate: filingOfficialFiscalDate || normalizedOfficialFiscalDate || null,
-      secCik: cik,
-      accession: filing.accession,
-      form: filing.form,
-      filedAt: filing.acceptedAt || filing.filingDate,
-      filingUrl: buildFilingIndexUrl(cik, filing.accession),
-    };
-    if (!includePrimaryDocument) return source;
-
-    const documentTypes = normalizePreferredDocumentTypes(preferredDocumentTypes);
-    let indexHtml = null;
-    for (const documentType of documentTypes) {
-      let documentUrl = null;
-      let maxBytes = SEC_MAX_PRIMARY_DOCUMENT_BYTES;
-      if (documentType === 'PRIMARY') {
-        documentUrl = buildPrimaryDocumentUrl(cik, filing);
-      } else {
-        if (indexHtml === null) {
-          indexHtml = await fetchTextCached(source.filingUrl, {
-            ...context,
-            ttlMs: FILING_CACHE_TTL_MS,
-            maxBytes: SEC_MAX_INDEX_BYTES,
-          });
-        }
-        documentUrl = extractSecExhibitUrl(indexHtml, source.filingUrl, documentType);
-        maxBytes = SEC_MAX_EXHIBIT_BYTES;
-      }
-      if (!documentUrl) continue;
-      const html = await fetchTextCached(documentUrl, {
-        ...context,
-        ttlMs: FILING_CACHE_TTL_MS,
-        maxBytes,
-      });
-      return {
-        ...source,
-        documentType,
-        primaryDocumentUrl: documentUrl,
-        html,
+    // At most one periodic filing and one earnings release, under the SAME
+    // existing SEC deadline / rate limit. A parse failure is not permission to
+    // scan arbitrary filings or to mix numbers from different documents.
+    const filingsToRead = [filing];
+    if (typeof evaluateDocument === 'function' && preferredFilingTypes.length === 0
+      && /^(?:10-Q|10-K|20-F)$/.test(filing.form)) {
+      const release = selectEarnings6KFiling(recentFilings, normalizedReportDate, selectionFiscalDate, today, normalizedSymbol)
+        || selectEarnings8KFiling(recentFilings, normalizedReportDate, today);
+      if (release && release.accession !== filing.accession) filingsToRead.push(release);
+    }
+    let firstDocument = null;
+    let lastSource = null;
+    const attempts = [];
+    for (const candidateFiling of filingsToRead) {
+      const filing = candidateFiling;
+      const filingOfficialFiscalDate = /^(?:10-Q|10-K|20-F)$/.test(filing.form)
+        ? filing.reportDate
+        : selectionFiscalDate;
+      const source = {
+        ...base,
+        status: 'complete',
+        reason: null,
+        fiscalDate: filingOfficialFiscalDate || selectionFiscalDate,
+        officialFiscalDate: filingOfficialFiscalDate || normalizedOfficialFiscalDate || null,
+        secCik: cik,
+        accession: filing.accession,
+        form: filing.form,
+        filedAt: filing.acceptedAt || filing.filingDate,
+        filingUrl: buildFilingIndexUrl(cik, filing.accession),
       };
+      lastSource = source;
+      if (!includePrimaryDocument) return source;
+
+      const documentTypes = preferEarningsExhibit && /^(?:8-K|6-K)(?:\/A)?$/.test(filing.form)
+        ? ['EX-99.1', 'PRIMARY']
+        : normalizePreferredDocumentTypes(preferredDocumentTypes);
+      let indexHtml = null;
+      for (const documentType of documentTypes) {
+        let documentUrl = null;
+        let maxBytes = SEC_MAX_PRIMARY_DOCUMENT_BYTES;
+        if (documentType === 'PRIMARY') {
+          documentUrl = buildPrimaryDocumentUrl(cik, filing);
+        } else {
+          if (indexHtml === null) {
+            indexHtml = await fetchTextCached(source.filingUrl, {
+              ...context,
+              ttlMs: FILING_CACHE_TTL_MS,
+              maxBytes: SEC_MAX_INDEX_BYTES,
+            });
+          }
+          documentUrl = extractSecExhibitUrl(indexHtml, source.filingUrl, documentType);
+          maxBytes = SEC_MAX_EXHIBIT_BYTES;
+        }
+        if (!documentUrl) continue;
+        const html = await fetchTextCached(documentUrl, {
+          ...context,
+          ttlMs: FILING_CACHE_TTL_MS,
+          maxBytes,
+        });
+        const document = {
+          ...source,
+          documentType,
+          primaryDocumentUrl: documentUrl,
+          html,
+        };
+        if (typeof evaluateDocument !== 'function') return document;
+        const evaluation = evaluateDocument(document);
+        attempts.push({
+          accession: filing.accession,
+          form: filing.form,
+          documentType,
+          reason: evaluation?.reason || null,
+        });
+        const evaluated = { ...document, evaluation };
+        if (!firstDocument) firstDocument = evaluated;
+        if (Object.values(evaluation?.result?.sections || {}).some((section) => section.items?.length > 0)) {
+          return { ...evaluated, attempts };
+        }
+      }
     }
 
+    if (firstDocument) return { ...firstDocument, attempts };
+
     return {
-      ...source,
+      ...lastSource,
       status: 'pending',
       reason: 'official-primary-document-missing',
     };

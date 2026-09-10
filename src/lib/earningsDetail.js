@@ -1,10 +1,10 @@
 import { dateKey, normalizeEarningsSymbol } from './earningsCalendarModel.js';
+import { EARNINGS_DETAIL_PARSER_VERSION, earningsDetailCacheTtl } from './earningsDetailPolicy.js';
 
 export const EARNINGS_DETAIL_CLIENT_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 export const EARNINGS_DETAIL_PENDING_CACHE_TTL_MS = 5 * 60 * 1000;
 export const EARNINGS_DETAIL_UNPARSED_CACHE_TTL_MS = 5 * 60 * 1000;
-const EARNINGS_DETAIL_CACHE_PREFIX = 'xmoney_earnings_detail_v3';
-const TSMC_Q1_2026_CACHE_PREFIX = 'xmoney_earnings_detail_tsm_q1_2026_v4';
+const EARNINGS_DETAIL_CACHE_PREFIX = `xmoney_earnings_detail_${EARNINGS_DETAIL_PARSER_VERSION}`;
 const EARNINGS_DETAIL_SECTION_KEYS = ['reportSegments', 'revenueBreakdown', 'geographies'];
 const EARNINGS_DETAIL_SUPPLEMENTAL_KEYS = ['customerTypes', 'technologyBreakdown'];
 const inFlightRequests = new Map();
@@ -64,6 +64,13 @@ function normalizeSection(section, sectionKey) {
     reason: safeText(source.reason, 160) || null,
     items,
   };
+  if (source.metricStatus && typeof source.metricStatus === 'object') {
+    normalized.metricStatus = Object.fromEntries(['revenue', 'previousRevenue', 'profit', 'previousProfit'].map((key) => [key, {
+      status: normalizeStatus(source.metricStatus[key]?.status),
+      reason: safeText(source.metricStatus[key]?.reason, 160) || null,
+    }]));
+  }
+  if (source.parser) normalized.parser = safeText(source.parser, 80);
   if (sectionKey === 'reportSegments' && source.reconciliation) {
     normalized.reconciliation = normalizeItem(source.reconciliation, 'revenueBreakdown');
   }
@@ -115,6 +122,8 @@ export function normalizeEarningsDetailPayload(payload) {
         cik: safeText(payload.source.cik, 24),
         accession: safeText(payload.source.accession, 40),
         form: safeText(payload.source.form, 20),
+        documentType: safeText(payload.source.documentType, 20),
+        parser: safeText(payload.source.parser, 80),
         filedAt: dateKey(payload.source.filedAt),
         filingUrl: safeOfficialDocumentUrl(payload.source.filingUrl),
         primaryDocumentUrl: safeOfficialDocumentUrl(payload.source.primaryDocumentUrl),
@@ -132,11 +141,15 @@ export function normalizeEarningsDetailPayload(payload) {
   return {
     success: true,
     schemaVersion: Number(payload.schemaVersion) || 1,
+    parserVersion: safeText(payload.parserVersion, 40),
+    fetchedAt: safeText(payload.fetchedAt, 40) || null,
+    cacheExpiresAt: safeText(payload.cache?.expiresAt || payload.cacheExpiresAt, 40) || null,
     status: normalizeStatus(payload.status, 'pending'),
     reason: safeText(payload.reason, 160) || null,
     failureReason: normalizeFailureReason(payload.failureReason),
     symbol,
     currency: safeText(payload.currency, 12).toUpperCase() || 'USD',
+    totalRevenue: finiteOrNull(payload.totalRevenue),
     period: {
       start: dateKey(period.start),
       end: dateKey(period.end),
@@ -155,6 +168,8 @@ export function normalizeEarningsDetailPayload(payload) {
 }
 
 export function earningsDetailStructureRevenueTotal(detail, event) {
+  const verifiedTotal = finiteOrNull(detail?.totalRevenue);
+  if (verifiedTotal !== null && verifiedTotal > 0) return verifiedTotal;
   const reportSegments = detail?.sections?.reportSegments;
   const items = Array.isArray(reportSegments?.items) ? reportSegments.items : [];
   if (items.length > 0) {
@@ -205,13 +220,8 @@ export function earningsDetailClientCacheKey({
   const fiscal = officialFiscal || providerFiscal;
   const report = dateKey(reportDate);
   if (!userId || !normalizedSymbol || !providerFiscal || !fiscal || !report) return '';
-  const prefix = normalizedSymbol === 'TSM'
-    && fiscal === '2026-03-31'
-    && ['2026-04-15', '2026-04-16'].includes(report)
-    ? TSMC_Q1_2026_CACHE_PREFIX
-    : EARNINGS_DETAIL_CACHE_PREFIX;
   return [
-    prefix,
+    EARNINGS_DETAIL_CACHE_PREFIX,
     userId,
     normalizedSymbol,
     providerFiscal,
@@ -226,24 +236,16 @@ function readCache(key, { allowStale = false } = {}) {
     const parsed = JSON.parse(localStorage.getItem(key) || 'null');
     if (!parsed?.savedAt || !parsed?.payload) return null;
     const age = Date.now() - Number(parsed.savedAt);
+    if (!Number.isFinite(age) || age < 0) return null;
     const normalized = normalizeEarningsDetailPayload(parsed.payload);
     const ttl = earningsDetailCacheTtl(normalized);
-    if (!allowStale && age > ttl) return null;
+    if (!allowStale && age >= ttl) return null;
+    if (!allowStale && normalized.cacheExpiresAt
+      && (!Number.isFinite(Date.parse(normalized.cacheExpiresAt)) || Date.now() >= Date.parse(normalized.cacheExpiresAt))) return null;
     return normalized;
   } catch {
     return null;
   }
-}
-
-function earningsDetailCacheTtl(detail) {
-  if (detail?.status === 'complete' || detail?.status === 'partial') {
-    return EARNINGS_DETAIL_CLIENT_CACHE_TTL_MS;
-  }
-  if (detail?.reason === 'official-primary-document-unparsed') {
-    return EARNINGS_DETAIL_UNPARSED_CACHE_TTL_MS;
-  }
-  if (detail?.status === 'pending') return EARNINGS_DETAIL_PENDING_CACHE_TTL_MS;
-  return EARNINGS_DETAIL_CLIENT_CACHE_TTL_MS;
 }
 
 function writeCache(key, payload) {
@@ -263,6 +265,7 @@ export async function fetchEarningsDetail({
   officialFiscalDate,
   reportDate,
   fetchImpl = globalThis.fetch,
+  skipClientCache = false,
 }) {
   if (!supabase?.auth?.getSession) throw new Error('请先登录后查看财报详情');
   const normalizedSymbol = normalizeEarningsSymbol(symbol);
@@ -284,7 +287,15 @@ export async function fetchEarningsDetail({
     officialFiscalDate: officialFiscal,
     reportDate: report,
   });
-  const cached = readCache(cacheKey);
+  const matchesRequest = (payload) => payload?.symbol === normalizedSymbol
+    && payload.period?.providerFiscalDate === providerFiscal
+    && payload.period?.reportDate === report
+    && (!officialFiscal || payload.period?.officialFiscalDate === officialFiscal);
+  const readMatchingCache = (options) => {
+    const value = readCache(cacheKey, options);
+    return matchesRequest(value) ? value : null;
+  };
+  const cached = skipClientCache ? null : readMatchingCache();
   if (cached) return cached;
   if (inFlightRequests.has(cacheKey)) return inFlightRequests.get(cacheKey);
 
@@ -296,22 +307,32 @@ export async function fetchEarningsDetail({
       reportDate: report,
     });
     if (officialFiscal) params.set('officialFiscalDate', officialFiscal);
+    let allowStale = true; // Network failure before an HTTP response only.
     try {
       const response = await fetchImpl(`/api/earnings-detail?${params.toString()}`, {
         method: 'GET',
         headers: { Authorization: `Bearer ${token}` },
         cache: 'no-store',
       });
+      allowStale = false;
       if (!response.ok) {
+        allowStale = response.status >= 500 || response.status === 429;
         const body = await response.json().catch(() => null);
         throw new Error(body?.error || `财报详情读取失败 (${response.status})`);
       }
       const normalized = normalizeEarningsDetailPayload(await response.json());
+      if (!matchesRequest(normalized)) {
+        throw new Error('财报详情身份或财期不匹配');
+      }
+      if (normalized.status === 'pending' && normalized.reason === 'sec-unavailable') {
+        const retained = readMatchingCache({ allowStale: true });
+        if (retained && ['complete', 'partial'].includes(retained.status)) return { ...retained, stale: true };
+      }
       writeCache(cacheKey, normalized);
       return normalized;
     } catch (error) {
-      const stale = readCache(cacheKey, { allowStale: true });
-      if (stale && ['complete', 'partial'].includes(stale.status)) return stale;
+      const stale = allowStale ? readMatchingCache({ allowStale: true }) : null;
+      if (stale && ['complete', 'partial'].includes(stale.status)) return { ...stale, stale: true };
       throw error;
     } finally {
       inFlightRequests.delete(cacheKey);

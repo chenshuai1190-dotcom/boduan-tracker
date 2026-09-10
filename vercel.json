@@ -1,5 +1,12 @@
 {
+  "functions": {
+    "api/earnings-calendar.js": { "maxDuration": 60 }
+  },
   "rewrites": [
+    {
+      "source": "/api/earnings-coverage-schedule",
+      "destination": "/api/earnings-calendar?operation=sec-coverage-schedule"
+    },
     {
       "source": "/api/earnings-detail",
       "destination": "/api/earnings-calendar?operation=detail"
@@ -42,6 +49,10 @@
     }
   ],
   "crons": [
+    {
+      "path": "/api/earnings-coverage-schedule",
+      "schedule": "0 1 * * *"
+    },
     {
       "path": "/api/close-snapshot-schedule",
       "schedule": "0 21 * * 1-5"

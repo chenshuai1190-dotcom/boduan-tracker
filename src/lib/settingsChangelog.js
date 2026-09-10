@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '📊 财报细分扩展与自选自动覆盖',
+      '  - 自选公司自动发现官方财报并分批解析，已验证结果可共享复用，减少重复读取',
+      '  - 收入、同比和分部利润分别核验；未披露或尚未支持的细分明确保留不可用',
+      '  - 新申报不冒用旧结果，详情支持刷新及过期提示；不修改自选、持仓或交易账本',
+    ],
+    itemsEn: [
+      '📊 Broader earnings breakdowns and automatic watchlist coverage',
+      '  - Discovers official watchlist filings and processes bounded batches, reusing verified public results',
+      '  - Revenue, comparisons and segment profit are verified independently; undisclosed or unsupported data stays unavailable',
+      '  - New filings never masquerade as older results; refresh and stale states preserve watchlists, positions and ledgers',
+    ],
+  },
+  {
+    ver: 'v10.7.9.500', date: '2026-09-09',
+    items: [
       '📉 首页切换基准采用统一黑灰风格',
       '  - 简化边框与层次，以灰色底色和勾选标记当前基准，优化行距与排序图标',
       '  - 涨跌色对齐新版回撤观察并遵循全局配色设置，不再按 5% 回撤深度切换颜色',

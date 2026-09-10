@@ -74,7 +74,7 @@ test('TSM keeps exact fiscal-period matching so a monthly revenue 6-K is not sel
   }), false);
 });
 
-test('NOK official report parser returns reportable segments, business units, regions, and customer mix', async () => {
+test('NOK official report parser retains verified breakdowns without inventing segment reconciliation', async () => {
   const parsed = parseForeignIssuerBusinessComposition({
     symbol: 'NOK',
     fiscalDate: '2026-06-30',
@@ -82,7 +82,7 @@ test('NOK official report parser returns reportable segments, business units, re
     sourceUrl: 'https://www.sec.gov/Archives/edgar/data/924613/example/nok-6k.htm',
   });
 
-  assert.equal(parsed.status, 'complete');
+  assert.equal(parsed.status, 'partial');
   assert.equal(parsed.currency, 'EUR');
   assert.deepEqual(parsed.period, {
     start: '2026-04-01',
@@ -90,24 +90,15 @@ test('NOK official report parser returns reportable segments, business units, re
   });
   assert.equal(parsed.source.provider, 'SEC');
   assert.equal(parsed.source.form, '6-K');
-  assert.equal(parsed.sections.reportSegments.items.length, 3);
+  assert.deepEqual(parsed.sections.reportSegments, {
+    status: 'unavailable', reason: 'segment-revenue-reconciliation-not-disclosed', items: [],
+  });
   assert.equal(parsed.sections.revenueBreakdown.items.length, 7);
   assert.equal(parsed.sections.geographies.items.length, 3);
   assert.equal(parsed.supplemental.customerTypes.items.length, 4);
 
-  assert.deepEqual(parsed.sections.reportSegments.items[0], {
-    id: 'network-infrastructure',
-    label: 'Network Infrastructure',
-    labelZh: '网络基础设施',
-    revenue: 2_037_000_000,
-    previousRevenue: 1_825_000_000,
-    profitMetric: 'operatingIncome',
-    profit: 166_000_000,
-    previousProfit: 117_000_000,
-  });
-  assert.equal(parsed.sections.reportSegments.items[2].previousProfit, -11_000_000);
-  assert.equal(parsed.sections.reportSegments.reconciliation.revenue, 4_000_000);
-  assert.equal(parsed.sections.reportSegments.reconciliation.previousRevenue, -2_000_000);
+  assert.equal(parsed.totalRevenue, 4_815_000_000);
+  assert.equal(parsed.previousTotalRevenue, 4_443_000_000);
   assert.equal(parsed.sections.revenueBreakdown.items[3].revenue, 507_000_000);
   assert.equal(parsed.sections.geographies.items[0].revenue, 1_778_000_000);
   assert.equal(parsed.supplemental.customerTypes.items[1].previousRevenue, 220_000_000);
@@ -121,6 +112,57 @@ test('NOK parser fails closed for a mismatched fiscal quarter', async () => {
   }), null);
 });
 
+test('NOK synthetic adjacent-quarter and next-year headers remain period-bound', async () => {
+  const original = await fixture('nok-q2-2026.txt');
+  // Deliberately synthetic roll-forward: amounts are unchanged historical
+  // fixture values, not a claim about actual later Nokia financial reports.
+  for (const [year, quarter, fiscalDate] of [[2026, 3, '2026-09-30'], [2027, 1, '2027-03-31']]) {
+    const current = `Q${quarter}'${String(year).slice(-2)}`;
+    const prior = `Q${quarter}'${String(year - 1).slice(-2)}`;
+    const sourceText = original.replace(/Q2'26|Q2'25/g, (value) => value === "Q2'26" ? current : prior);
+    const parse = (text) => parseForeignIssuerBusinessComposition({ symbol: 'NOK', fiscalDate, sourceText: text });
+    assert.equal(parse(sourceText)?.status, 'partial');
+    assert.equal(parse(sourceText)?.period.end, fiscalDate);
+    for (const malformed of [
+      sourceText.replace(`Network Infrastructure EUR million ${current} ${prior}`, `Network Infrastructure EUR million ${prior} ${current}`),
+      sourceText.replace(`Mobile Infrastructure EUR million ${current}`, 'Mobile Infrastructure EUR million YTD'),
+      sourceText.replace(`Net sales by region EUR million ${current} ${prior}`, `Net sales by region EUR million ${current} Q4'20`),
+      sourceText.replace(`Net sales by customer type EUR million ${current}`, 'Net sales by customer type EUR million FY'),
+      sourceText.replace('Nokia Corporation', 'Unrelated Corporation'),
+      sourceText.replace('Total 4 815 4 443', 'Total 8 000 4 443'),
+    ]) assert.equal(parse(malformed), null);
+  }
+});
+
+test('NOK requires an explicit segment reconciliation row and never manufactures a balancing residual', async () => {
+  const original = await fixture('nok-q2-2026.txt');
+  const parse = (sourceText) => parseForeignIssuerBusinessComposition({ symbol: 'NOK', fiscalDate: '2026-06-30', sourceText });
+  const corrupted = parse(original.replace('Net sales 2 037', 'Net sales 9 999'));
+  assert.equal(corrupted?.status, 'partial');
+  assert.equal(corrupted.sections.reportSegments.status, 'unavailable');
+  assert.deepEqual(corrupted.sections.reportSegments.items, []);
+  assert.equal(corrupted.sections.reportSegments.reconciliation, undefined);
+  assert.equal(corrupted.sections.revenueBreakdown.status, 'complete');
+  // Synthetic explicit-disclosure variant, NOT a claim that the compact
+  // official source includes this row or these group-level reported amounts.
+  const explicit = original.replace("Group Common and Other EUR million Q2'26 Q2'25", "Group Common and Other EUR million Q2'26 Q2'25\nNet sales 4 (2)");
+  const verified = parse(explicit);
+  assert.equal(verified?.status, 'complete');
+  assert.equal(verified.sections.reportSegments.reconciliation.revenue, 4_000_000);
+  assert.equal(verified.sections.reportSegments.reconciliation.previousRevenue, -2_000_000);
+  assert.equal(parse(explicit.replace('Net sales 2 037', 'Net sales 9 999'))?.sections.reportSegments.status, 'unavailable');
+  assert.equal(parse(explicit.replace('Net sales 4 (2)', 'Net sales 5 (2)'))?.sections.reportSegments.status, 'unavailable');
+  assert.equal(parse(explicit.replace('Net sales 4 (2)', 'Net sales 5 (2)\nNet sales 4 (2)'))?.sections.reportSegments.status, 'unavailable');
+});
+
+test('unknown future TSM quarters remain unavailable without verified official report support', async () => {
+  assert.equal(knownForeignIssuerBusinessComposition({ symbol: 'TSM', fiscalDate: '2026-09-30', reportDate: '2026-10-15' }), null);
+  assert.equal(parseForeignIssuerBusinessComposition({
+    symbol: 'TSM', fiscalDate: '2026-09-30',
+    sourceText: (await fixture('tsm-q2-2026-management-report.txt')).replace(/2Q26/g, '3Q26'),
+  }), null);
+});
+
 test('NOK composition can be converted to USD without mutating labels or percentages', async () => {
   const parsed = parseForeignIssuerBusinessComposition({
     symbol: 'NOK',
@@ -129,8 +171,10 @@ test('NOK composition can be converted to USD without mutating labels or percent
   });
   const converted = convertForeignBusinessCompositionCurrency(parsed, { rate: 1.14 });
   assert.equal(converted.currency, 'USD');
-  assert.equal(converted.sections.reportSegments.items[0].revenue, 2_322_180_000);
-  assert.equal(converted.sections.reportSegments.items[0].labelZh, '网络基础设施');
+  assert.equal(converted.sections.revenueBreakdown.items[0].revenue, 989_520_000);
+  assert.equal(converted.sections.revenueBreakdown.items[0].labelZh, '光网络');
+  assert.equal(converted.totalRevenue, 5_489_100_000);
+  assert.equal(converted.previousTotalRevenue, 5_065_020_000);
   assert.equal(parsed.currency, 'EUR');
   assert.equal(convertForeignBusinessCompositionCurrency(parsed, { rate: 0 }), null);
 });
