@@ -469,7 +469,7 @@ function AnalysisTab({ ctx }) {
   ], [monthChange, monthChangePct, totalLast, totalYearAgo, totalYearStart, tt, yearChange, yearChangePct, ytdChange, ytdChangePct]);
 
   const requestedChartSlot = overviewChartModel.slots[chartSelectedMonthIdx];
-  const overviewChartReading = requestedChartSlot?.hasData && requestedChartSlot.month !== currentMonth
+  const overviewChartReading = chartSelectedMonthIdx !== null && requestedChartSlot?.hasData
     ? requestedChartSlot
     : null;
   const selectedChartValue = overviewChartReading?.balance ?? null;
