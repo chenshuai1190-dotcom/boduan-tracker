@@ -13,6 +13,28 @@ const comparisonUrl = new URL('../src/components/StockReturnComparisonCard.jsx',
 const moduleCache = new Map();
 const moduleUrl = code => `data:text/javascript;base64,${Buffer.from(code).toString('base64')}`;
 
+test('stock detail matches drawdown gutters without double padding in production or preview', () => {
+  const read = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
+  const stockCss = read('src/pages/StockDetailPage.css');
+  const drawdownCss = read('src/components/DrawdownObservation.css');
+  const app = read('src/App.jsx');
+  const preview = read('src/DevVisualPreview.jsx');
+  const stockRoot = stockCss.match(/\.stock-detail-report\s*\{([^}]+)\}/)?.[1];
+  const drawdownRoot = drawdownCss.match(/\.do-page\s*\{([^}]+)\}/)?.[1];
+  assert.ok(stockRoot && drawdownRoot);
+  assert.match(stockRoot, /padding:\s*0 0 calc\(env\(safe-area-inset-bottom\) \+ 86px\);/);
+  assert.match(drawdownRoot, /padding:\s*calc\(12px \+ env\(safe-area-inset-top\)\) 0 24px;/);
+  assert.equal(stockRoot.match(/max-width:\s*([^;]+);/)?.[1], drawdownRoot.match(/max-width:\s*([^;]+);/)?.[1]);
+
+  const productionFullBleed = app.match(/const isFullBleedPage = ([^;]+);/)?.[1];
+  assert.ok(productionFullBleed);
+  assert.doesNotMatch(productionFullBleed, /isStockDetailPage|isDrawdownObservationPage/);
+  assert.ok(app.includes("${isFullBleedPage ? 'px-0' : 'px-4'}"), 'both production pages must retain the shared 16px shell gutter');
+  const previewFullBleed = preview.match(/\$\{\[([^\]]+)\]\.includes\(activeTab\) \? 'px-0' : 'px-4'\}/)?.[1];
+  assert.ok(previewFullBleed);
+  assert.doesNotMatch(previewFullBleed, /'stock-detail'|'drawdown-observation'/, 'preview must not hide a production gutter mismatch');
+});
+
 // Compile the real JSX graph for SSR. Only CSS loading is omitted; financial
 // helpers, React state initialization and nested report components stay real.
 async function compileModule(url) {
