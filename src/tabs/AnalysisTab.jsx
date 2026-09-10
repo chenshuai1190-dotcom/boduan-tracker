@@ -16,7 +16,7 @@ import {
 import StockReportModal from '../components/StockReportModal.jsx';
 import AccountAssetTrendModal from '../components/AccountAssetTrendModal.jsx';
 import MonthlyAssetCategoryReport from '../components/MonthlyAssetCategoryReport.jsx';
-import MonthlyAssetTrendChart, { buildMonthlyAssetTrendChartScale } from '../components/MonthlyAssetTrendChart.jsx';
+import MonthlyAssetTrendChart, { MONTHLY_ASSET_CHART_WIDTH, buildMonthlyAssetTrendChartScale } from '../components/MonthlyAssetTrendChart.jsx';
 import MonthlyAssetTrendContent from '../components/MonthlyAssetTrendContent.jsx';
 import { buildAccountAssetTrend } from '../lib/accountAssetTrend.js';
 import { applyAccountSnapshotMutations, buildAccountSnapshotMutations } from '../lib/accountSnapshotMutation.js';
@@ -103,10 +103,6 @@ function currencyPrefix(currency) {
   return '¥';
 }
 
-function monthText(monthKey) {
-  return String(monthKey || '').replace('-', '-');
-}
-
 function AnalysisTab({ ctx }) {
   const {
     accounts,
@@ -148,6 +144,7 @@ function AnalysisTab({ ctx }) {
   const assetOverviewScrollYRef = React.useRef(0);
   const monthlyTrendScrollYRef = React.useRef(0);
   const overviewChartInteractionRef = React.useRef(null);
+  const overviewChartPointerIdRef = React.useRef(null);
 
   const tt = React.useCallback((key, fallback, values) => t(language, key, fallback, values), [language]);
 
@@ -156,6 +153,7 @@ function AnalysisTab({ ctx }) {
 
     const clearSelectedMonthOutsideOverviewChart = (event) => {
       if (overviewChartInteractionRef.current?.contains(event.target)) return;
+      overviewChartPointerIdRef.current = null;
       setChartSelectedMonthIdx(null);
     };
 
@@ -470,13 +468,58 @@ function AnalysisTab({ ctx }) {
     { label: tt('analysis.oneYear', '近一年'), value: yearChange, pct: yearChangePct, enabled: totalYearAgo > 0 },
   ], [monthChange, monthChangePct, totalLast, totalYearAgo, totalYearStart, tt, yearChange, yearChangePct, ytdChange, ytdChangePct]);
 
-  const selectedChartValue = chartSelectedMonthIdx !== null ? chartData[chartSelectedMonthIdx] : 0;
-  const selectedChartMonth = chartSelectedMonthIdx !== null ? last12Months[chartSelectedMonthIdx] : '';
-  const selectedChartPrevValue = chartSelectedMonthIdx !== null && chartSelectedMonthIdx > 0
-    ? chartData[chartSelectedMonthIdx - 1]
-    : 0;
-  const selectedChartChange = selectedChartPrevValue > 0 ? selectedChartValue - selectedChartPrevValue : null;
-  const selectedChartChangePct = selectedChartPrevValue > 0 ? (selectedChartChange / selectedChartPrevValue) * 100 : null;
+  const requestedChartSlot = overviewChartModel.slots[chartSelectedMonthIdx];
+  const overviewChartReading = requestedChartSlot?.hasData
+    ? requestedChartSlot
+    : overviewChartModel.slots[overviewChartLatestIndex] || null;
+  const selectedChartValue = overviewChartReading?.balance ?? null;
+  const selectedChartMonth = overviewChartReading?.month || '--';
+  const selectedChartChange = overviewChartReading?.changeAmount ?? null;
+  const selectedChartChangePct = overviewChartReading?.changePct ?? null;
+  const selectedChartMoney = Number.isFinite(selectedChartValue)
+    ? splitCurrencyAmount(selectedChartValue, 'CNY', 2)
+    : { main: '--', decimal: '' };
+  const selectedChartChangeMoney = Number.isFinite(selectedChartChange)
+    ? splitCurrencyAmount(Math.abs(selectedChartChange), 'CNY', 2)
+    : { main: '--', decimal: '' };
+
+  const selectNearestOverviewMonth = React.useCallback((event) => {
+    if (overviewChartModel.points.length === 0) return;
+    const bounds = event.currentTarget.getBoundingClientRect();
+    if (!bounds.width) return;
+    const viewX = ((event.clientX - bounds.left) / bounds.width) * MONTHLY_ASSET_CHART_WIDTH;
+    let nearest = overviewChartModel.points[0];
+    let distance = Number.POSITIVE_INFINITY;
+    overviewChartModel.points.forEach((point) => {
+      const candidateDistance = Math.abs(overviewChartScale.xForIndex(point.index) - viewX);
+      if (candidateDistance < distance) {
+        nearest = point;
+        distance = candidateDistance;
+      }
+    });
+    setChartSelectedMonthIdx(nearest.index);
+  }, [overviewChartModel.points, overviewChartScale, setChartSelectedMonthIdx]);
+
+  const handleOverviewPointerDown = React.useCallback((event) => {
+    if (event.isPrimary === false || (event.pointerType === 'mouse' && event.button !== 0)) return;
+    overviewChartPointerIdRef.current = event.pointerId;
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    selectNearestOverviewMonth(event);
+  }, [selectNearestOverviewMonth]);
+
+  const handleOverviewPointerMove = React.useCallback((event) => {
+    if (overviewChartPointerIdRef.current !== event.pointerId) return;
+    selectNearestOverviewMonth(event);
+  }, [selectNearestOverviewMonth]);
+
+  const finishOverviewPointerTracking = React.useCallback((event) => {
+    if (overviewChartPointerIdRef.current !== event.pointerId) return;
+    overviewChartPointerIdRef.current = null;
+    if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
+      event.currentTarget.releasePointerCapture?.(event.pointerId);
+    }
+  }, []);
+
   const selectedTrendAccount = accountById.get(accountTrendId);
   const selectedAccountTrend = React.useMemo(() => (
     selectedTrendAccount
@@ -798,40 +841,53 @@ function AnalysisTab({ ctx }) {
             </button>
           </div>
 
-          {selectedChartValue > 0 && (
-            <div className="asset-report-selection">
-              <div>
-                <div>{monthText(selectedChartMonth)}</div>
-                {selectedChartChange !== null && (
-                  <div className="asset-report-selection-change" style={{ color: marketHexColor(selectedChartChange, marketColorMode) }}>
-                    {tt('analysis.vsLastMonth', '较上月')} {fmtSignedWan(selectedChartChange)} · {fmtSignedPct(selectedChartChangePct)}
-                  </div>
+          <div ref={overviewChartInteractionRef} className="asset-report-chart-explorer">
+            <div className="asset-report-chart-reading" data-asset-chart-month={selectedChartMonth}>
+              <div className="asset-report-chart-month">{selectedChartMonth}</div>
+              <div className="asset-report-chart-amount" style={{ fontFamily: ASSET_NUMBER_FONT }}>
+                <span>{selectedChartMoney.main}</span><span className="asset-report-decimal">{selectedChartMoney.decimal}</span>
+              </div>
+              <div className="asset-report-chart-change" style={{ fontFamily: ASSET_NUMBER_FONT }}>
+                <span className="asset-report-label">{tt('analysis.vsLastMonth', '较上月')}</span>
+                {Number.isFinite(selectedChartChange) ? (
+                  <span className="asset-report-chart-change-values" style={{ color: marketHexColor(selectedChartChange, marketColorMode) }}>
+                    <span className="asset-report-chart-change-amount">
+                      <span>{selectedChartChange >= 0 ? '+' : '-'}{selectedChartChangeMoney.main}</span><span className="asset-report-chart-change-decimal">{selectedChartChangeMoney.decimal}</span>
+                    </span>
+                    <span className="asset-report-chart-change-percent">{Number.isFinite(selectedChartChangePct) ? fmtSignedPct(selectedChartChangePct) : '--'}</span>
+                  </span>
+                ) : (
+                  <span className="asset-report-label">--</span>
                 )}
               </div>
-              <span className="asset-report-selection-value">¥{fmt(selectedChartValue, 2)}</span>
             </div>
-          )}
 
-          <div className="asset-report-chart">
-            <div ref={overviewChartInteractionRef} className="aspect-[370/206] w-full select-none touch-pan-y">
-              <MonthlyAssetTrendChart
-                language={language}
-                months={last12Months}
-                model={overviewChartModel}
-                scale={overviewChartScale}
-                selectedIndex={chartSelectedMonthIdx}
-                latestPointIndex={overviewChartLatestIndex}
-                maxPointIndex={overviewChartModel.maxPoint?.index ?? null}
-                connectGaps
-                showSelectedLabel={false}
-                animate
-                latestPointDelayMs={780}
-                onPointClick={index => setChartSelectedMonthIdx(prev => (prev === index ? null : index))}
-                ariaLabel={tt('analysis.assetTrendChartRange', '{{start}} 至 {{end}}资产走势', {
-                  start: last12Months[0] || '--',
-                  end: last12Months.at(-1) || '--',
-                })}
-              />
+            <div className="asset-report-chart">
+              <div className="aspect-[370/206] w-full select-none touch-pan-y">
+                <MonthlyAssetTrendChart
+                  language={language}
+                  months={last12Months}
+                  model={overviewChartModel}
+                  scale={overviewChartScale}
+                  selectedIndex={chartSelectedMonthIdx}
+                  latestPointIndex={overviewChartLatestIndex}
+                  maxPointIndex={overviewChartModel.maxPoint?.index ?? null}
+                  connectGaps
+                  showSelectedLabel={false}
+                  highlightSelectedMonth
+                  animate
+                  latestPointDelayMs={780}
+                  onPointerDown={handleOverviewPointerDown}
+                  onPointerMove={handleOverviewPointerMove}
+                  onPointerUp={finishOverviewPointerTracking}
+                  onPointerCancel={finishOverviewPointerTracking}
+                  onLostPointerCapture={finishOverviewPointerTracking}
+                  ariaLabel={tt('analysis.assetTrendChartRange', '{{start}} 至 {{end}}资产走势', {
+                    start: last12Months[0] || '--',
+                    end: last12Months.at(-1) || '--',
+                  })}
+                />
+              </div>
             </div>
           </div>
 

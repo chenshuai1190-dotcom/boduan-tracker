@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '📈 资产走势升级固定读数与滑动选月',
+      '  - 主金额与首页统一排版，保留两位小数，环比金额在上、百分比在下',
+      '  - 拖选后保留月份，点击图外恢复最新读数，顶部家庭总资产保持当前值',
+      '  - 采用绿色曲线、金色最新点和低饱和柱图，我与老婆的账户合计用红色强调',
+    ],
+    itemsEn: [
+      '📈 Persistent asset-chart readings and drag-to-select months',
+      '  - Match Home amount typography with two decimals and show the monthly change amount above its percentage',
+      '  - Retain the selected month after dragging and restore the latest reading on an outside tap, keeping the family total current',
+      '  - Use a green curve, gold latest point and muted bars, with red owner totals',
+    ],
+  },
+  {
+    ver: 'v10.7.9.515', date: '2026-09-10',
+    items: [
       '✨ 资产首页与弹窗统一新版黑灰报告设计',
       '  - 突出家庭总资产，铺宽月度走势，按人物展示账户明细与完整两位小数金额',
       '  - 新增、修改、账户操作、月度余额、账户走势及删除确认弹窗统一黑灰控件，移除重复取消按钮',

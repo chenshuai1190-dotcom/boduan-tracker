@@ -117,6 +117,7 @@ export default function MonthlyAssetTrendChart({
   maxPointIndex = null,
   connectGaps = false,
   showSelectedLabel = true,
+  highlightSelectedMonth = false,
   animate = false,
   latestPointDelayMs = 0,
   onPointClick,
@@ -139,6 +140,12 @@ export default function MonthlyAssetTrendChart({
     .map(segment => segment.map(point => scale.pointsByIndex.get(point.index)).filter(Boolean))
     .filter(segment => segment.length > 0);
   const labelIndexes = chartLabelIndexes(months.length);
+  if (highlightSelectedMonth && selectedPoint) {
+    labelIndexes.forEach((index) => {
+      if (Math.abs(index - selectedPoint.index) < 2) labelIndexes.delete(index);
+    });
+    labelIndexes.add(selectedPoint.index);
+  }
 
   return (
     <svg
@@ -247,7 +254,7 @@ export default function MonthlyAssetTrendChart({
             stroke="rgba(255,255,255,.16)"
             strokeDasharray="3 4"
           />
-          <circle cx={selectedPoint.x} cy={selectedPoint.y} r="4" fill="#f5f7fb" stroke={CHART_COLOR} strokeWidth="2" />
+          <circle cx={selectedPoint.x} cy={selectedPoint.y} r="4" fill="#f5f7fb" stroke={highlightSelectedMonth && selectedPoint.index === latestPoint?.index ? CHART_LATEST_COLOR : CHART_COLOR} strokeWidth="2" />
           {showSelectedLabel && (
             <TrendValueLabel x={selectedPoint.x} y={Math.max(1, selectedPoint.y - 31)} width={language === 'zh' ? 112 : 118}>
               {`${selectedPoint.month} · ${formatWan(selectedPoint.balance, language)}`}
@@ -282,7 +289,7 @@ export default function MonthlyAssetTrendChart({
             x={labelX}
             y={MONTHLY_ASSET_CHART_HEIGHT - 12}
             textAnchor={first ? 'start' : last ? 'end' : 'middle'}
-            fill="rgba(255,255,255,0.43)"
+            fill={highlightSelectedMonth && selectedPoint?.index === index ? CHART_COLOR : 'rgba(255,255,255,0.43)'}
             fontSize="10"
             fontFamily={NUMBER_FONT}
           >

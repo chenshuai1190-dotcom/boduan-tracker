@@ -33,8 +33,8 @@
   background: repeating-linear-gradient(to bottom, transparent 0, transparent 24px, rgb(255 255 255 / .05) 25px, transparent 26px);
 }
 .account-trend-slot { position: relative; display: flex; height: 100%; align-items: end; justify-content: center; }
-.account-trend-bar { width: min(12px, 75%); min-height: 3px; border-radius: 3px 3px 0 0; background: #85858d; transition: background-color 150ms; }
-.account-trend-bar.is-selected { background: #d7d7de; }
+.account-trend-bar { width: min(12px, 75%); min-height: 3px; border-radius: 3px 3px 0 0; background: #4f8e7e; transition: background-color 150ms; }
+.account-trend-bar.is-selected { background: #77cfb2; }
 .account-trend-month { position: absolute; bottom: -19px; left: 50%; transform: translateX(-50%); color: #777780; font-size: 10px; line-height: 1; }
 .account-trend-empty { display: flex; min-height: 128px; align-items: center; justify-content: center; border-bottom: 1px solid #29292d; color: #777780; font-size: 12px; }
 .account-trend-extremes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 24px; padding-top: 17px; border-top: 1px solid #29292d; }
