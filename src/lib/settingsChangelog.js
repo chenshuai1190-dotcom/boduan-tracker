@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '📈 恢复市场洞察三大指数的当日分时曲线',
+      '  - 首页指数报价与曲线统一读取 Yahoo Finance 的同日真实数据，首次打开即可加载已有走势',
+      '  - 移除指数状态与时间提示文字，保留价格、涨跌幅和图表',
+      '  - 合并并缓存重复请求，失败保留有效数据；不改变 BTC、个股行情或交易账本',
+    ],
+    itemsEn: [
+      '📈 Restore same-day intraday charts for the three Market Insights indices',
+      '  - Load index quotes and existing intraday history together from Yahoo Finance on first opening',
+      '  - Remove index status and timestamp labels while retaining prices, changes and charts',
+      '  - Cache and deduplicate requests and preserve valid data on failure; BTC, stock quotes and trade ledgers remain unchanged',
+    ],
+  },
+  {
+    ver: 'v10.7.9.513', date: '2026-09-10',
+    items: [
       '📊 修复市场洞察三大指数更新停滞',
       '  - 保留标普 500、纳斯达克 100 和道琼斯原始指数，独立刷新真实延迟报价',
       '  - 显示实际报价时间；失败保留有效数值并标记待更新，旧报价不覆盖新报价',

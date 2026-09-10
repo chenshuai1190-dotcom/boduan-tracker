@@ -184,12 +184,108 @@ function normalizeIntraday(values) {
     .slice(-MAX_INDEX_INTRADAY_POINTS);
 }
 
+function etDate(timestamp) {
+  const parts = etParts(timestamp);
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
+function chartSession(data, timestamp) {
+  if (timestamp === null) return null;
+  const date = String(data?.intradayDate || '');
+  const start = providerTimestamp(data?.sessionStart);
+  const end = providerTimestamp(data?.sessionEnd);
+  // Closing quotes may arrive just after 16:00. Their bars still belong to
+  // today's regular session, but no bar may extend beyond its close endpoint.
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !start || !end || end <= start
+    || etDate(timestamp) !== date || etDate(start) !== date || etDate(end) !== date
+    || timestamp < start) return null;
+  return { date, start, end };
+}
+
+function normalizeChartPoints(values, session, timestamp, now) {
+  if (!session || !Array.isArray(values)) return [];
+  const points = new Map();
+  for (const value of values) {
+    const time = providerTimestamp(value?.timestamp);
+    const price = asNumber(value?.price);
+    if (!time || !(price > 0) || time < session.start || time > session.end
+      || time > timestamp || time > now || points.has(time)) continue;
+    points.set(time, { timestamp: time, price });
+  }
+  return [...points.values()].sort((a, b) => a.timestamp - b.timestamp);
+}
+
+function sampleChartPoints(points) {
+  if (points.length <= MAX_INDEX_INTRADAY_POINTS) return points.map(({ price }) => price);
+  // Keep the entire session in the tiny chart, including its open and latest
+  // real point. The complete timestamped history remains on the market card.
+  return Array.from({ length: MAX_INDEX_INTRADAY_POINTS }, (_, index) => (
+    points[Math.round(index * (points.length - 1) / (MAX_INDEX_INTRADAY_POINTS - 1))].price
+  ));
+}
+
+function yahooChartHistory(card, tick, options) {
+  const timestamp = quoteTimestamp(tick);
+  const now = asNumber(options.now) ?? Date.now();
+  const sameQuote = timestamp !== null && timestamp === quoteTimestamp(card);
+  const previousSession = card.source === 'YAHOO_CHART'
+    && (!card.intradaySource || card.intradaySource === 'YAHOO_CHART')
+    && card.intradayMode !== 'static-locked' ? chartSession(card, timestamp) : null;
+  let incomingSession = chartSession(tick, timestamp);
+  if (sameQuote && incomingSession && previousSession
+    && (incomingSession.start !== previousSession.start || incomingSession.end !== previousSession.end)) {
+    incomingSession = null;
+  }
+  const session = incomingSession || previousSession;
+  const sameSession = session && previousSession
+    && session.date === previousSession.date && session.start === previousSession.start
+    && session.end === previousSession.end;
+  const previousPoints = sameSession
+    ? normalizeChartPoints(card.intradayPoints, session, quoteTimestamp(card), now) : [];
+  const incomingPoints = tick.intradayMode === 'static-locked' ? []
+    : normalizeChartPoints(tick.intradayPoints, incomingSession, timestamp, now);
+  const points = new Map(previousPoints.map((point) => [point.timestamp, point]));
+  for (const point of incomingPoints) {
+    // A repeat can fill missing history, not revise already accepted values.
+    // A genuinely newer snapshot may finalize its current provider bar.
+    if (!sameQuote || !points.has(point.timestamp)) points.set(point.timestamp, point);
+  }
+  const intradayPoints = [...points.values()].sort((a, b) => a.timestamp - b.timestamp);
+  return {
+    intraday: sampleChartPoints(intradayPoints),
+    intradayPoints,
+    intradaySource: 'YAHOO_CHART',
+    intradayDate: session?.date || null,
+    sessionStart: session?.start || null,
+    sessionEnd: session?.end || null,
+    intradayMode: intradayPoints.length ? 'session-history' : 'empty',
+    intradaySessionKey: session ? `${session.date}:regular` : quoteSessionKey(timestamp),
+  };
+}
+
 function createIndexMarketCard(card, tick, options = {}) {
   const price = asNumber(tick?.price);
   const timestamp = quoteTimestamp(tick);
-  if (timestamp !== null && timestamp === quoteTimestamp(card)) {
-    // A successful repeat can recover transport state, never rewrite that quote.
-    const next = { ...card, fetchError: Boolean(tick.fetchError) };
+  const source = tick?.source || 'EODHD_REST';
+  const sameQuote = timestamp !== null && timestamp === quoteTimestamp(card);
+  if (sameQuote && source === 'YAHOO_CHART' && card.source === source
+    && ['price', 'change', 'changePercent', 'previousClose', 'dayHigh', 'dayLow'].some((field) => {
+      const previous = asNumber(card[field]);
+      const incoming = asNumber(tick[field]);
+      return previous !== null && incoming !== null && previous !== incoming;
+    })) {
+    // A conflicting repeat cannot supply a curve for a different financial
+    // observation while retaining the previously accepted headline quote.
+    return { ...card, fetchError: true, realtime: false, realtimeStatus: 'stale' };
+  }
+  const chartHistory = source === 'YAHOO_CHART' ? yahooChartHistory(card, tick, options) : null;
+  // At an equal provider time, an approved provider migration replaces the
+  // entire quote together with its history; never display a mixed-source card.
+  const switchingToYahoo = source === 'YAHOO_CHART' && card.source !== source;
+  if (sameQuote && !switchingToYahoo) {
+    // A repeat may recover transport state or fill real history, never rewrite
+    // the quote's financial fields, timestamp or original source.
+    const next = { ...card, ...chartHistory, fetchError: Boolean(tick.fetchError) };
     if (tick?.fetchedAt != null) next.fetchedAt = tick.fetchedAt;
     const realtimeStatus = resolveIndexQuoteStatus(next, { now: options.now ?? Date.now() });
     return { ...next, realtimeStatus, realtime: realtimeStatus === 'live' };
@@ -197,7 +293,8 @@ function createIndexMarketCard(card, tick, options = {}) {
   const sessionKey = quoteSessionKey(timestamp);
   const previousSessionKey = card.intradaySessionKey || quoteSessionKey(quoteTimestamp(card));
   const sameSession = sessionKey === previousSessionKey;
-  const previousIntraday = sameSession && card.intradayMode !== 'static-locked'
+  const previousIntraday = sameSession && (card.intradaySource || card.source) !== 'YAHOO_CHART'
+    && card.intradayMode !== 'static-locked'
     ? normalizeIntraday(card.intraday) : [];
   const incomingIntraday = tick?.intradayMode === 'static-locked' ? [] : normalizeIntraday(tick?.intraday);
   const appendIntraday = options?.appendIntraday !== false && timestamp !== null;
@@ -225,7 +322,13 @@ function createIndexMarketCard(card, tick, options = {}) {
     intraday,
     intradayMode,
     intradaySessionKey: sessionKey,
-    source: tick?.source || 'EODHD_REST',
+    intradayPoints: [],
+    intradaySource: source,
+    intradayDate: null,
+    sessionStart: null,
+    sessionEnd: null,
+    ...chartHistory,
+    source,
     timestamp,
     quoteTimestamp: timestamp,
     quoteAt: timestamp === null ? null : new Date(timestamp).toISOString(),

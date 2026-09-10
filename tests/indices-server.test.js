@@ -9,6 +9,7 @@ import {
 } from '../server/realtime/indexQuotes.js';
 import { createIndicesRealtimeRelay, getIndicesRealtimeSnapshot } from '../server/realtime/indicesRelay.js';
 import { fetchIndicesQuote } from '../server/quote/providers/indices.js';
+import indicesServer from '../api/indices-realtime.js';
 
 const NOW = Date.parse('2026-09-10T13:38:00Z');
 const quote = (card, at = NOW, extra = {}) => normalizeIndexRestQuote({
@@ -17,6 +18,40 @@ const quote = (card, at = NOW, extra = {}) => normalizeIndexRestQuote({
 }, card, { fetchedAt: Math.max(NOW, at) });
 const jsonResponse = (body, status = 200) => ({ ok: status >= 200 && status < 300, status, json: async () => body });
 const failure = statusCode => Object.assign(new Error('untrusted provider URL private-key'), { statusCode });
+const chartResponse = (symbol) => ({
+  chart: { error: null, result: [{
+    meta: {
+      symbol, instrumentType: 'INDEX', currency: 'USD', exchangeTimezoneName: 'America/New_York',
+      regularMarketPrice: 6500, regularMarketTime: NOW / 1000, previousClose: 6450,
+      currentTradingPeriod: { regular: { start: Date.parse('2026-09-10T13:30:00Z') / 1000, end: Date.parse('2026-09-10T20:00:00Z') / 1000 } },
+    },
+    timestamp: [NOW / 1000 - 120, NOW / 1000 - 60, NOW / 1000],
+    indicators: { quote: [{ close: [6470, 6480, 6500] }] },
+  }] },
+});
+
+function emitHttpRequest(method, url, headers = {}) {
+  return new Promise((resolve) => {
+    const responseHeaders = {};
+    const response = {
+      statusCode: 200,
+      setHeader(name, value) { responseHeaders[name] = value; },
+      end(body) { resolve({ statusCode: this.statusCode, headers: responseHeaders, body: JSON.parse(body) }); },
+    };
+    indicesServer.emit('request', { method, url, headers: { host: 'localhost:4173', ...headers } }, response);
+  });
+}
+
+function emitUpgrade(headers = {}) {
+  return new Promise((resolve) => {
+    let written = '';
+    const socket = {
+      write(value) { written += value; },
+      destroy() { resolve(written); },
+    };
+    indicesServer.emit('upgrade', { method: 'GET', url: '/api/indices-realtime', headers: { host: 'localhost:4173', ...headers } }, socket, Buffer.alloc(0));
+  });
+}
 
 test('index REST quotes preserve actual quote time independently of fetching and never claim live', () => {
   assert.deepEqual(INDEX_QUOTE_CARDS.map(card => card.ticker), ['GSPC.INDX', 'NDX.INDX', 'DJI.INDX']);
@@ -231,46 +266,73 @@ test('empty failures remain unavailable without zero ticks or fabricated fresh t
   assert.equal(calls, 3);
 });
 
-test('the existing snapshot and ordinary INDICES provider share one quote cache without history in snapshots', async () => {
-  let calls = 0;
+test('home snapshots use Yahoo charts while the ordinary INDICES provider retains a separate EODHD cache', async () => {
+  const calls = { yahoo: 0, eodhd: 0 };
   const fetchImpl = async url => {
-    calls += 1;
+    if (url.origin === 'https://query1.finance.yahoo.com') {
+      calls.yahoo += 1;
+      assert.match(url.pathname, /^\/v8\/finance\/chart\/%5E(GSPC|NDX|DJI)$/);
+      assert.equal(url.searchParams.get('range'), '1d');
+      assert.equal(url.searchParams.get('interval'), '1m');
+      assert.equal(url.searchParams.has('api_token'), false);
+      return jsonResponse(chartResponse(decodeURIComponent(url.pathname.split('/').at(-1))));
+    }
+    calls.eodhd += 1;
+    assert.equal(url.origin, 'https://eodhd.com');
     assert.match(url.pathname, /^\/api\/real-time\/(GSPC|NDX|DJI)\.INDX$/);
-    return jsonResponse({ code: url.pathname.split('/').at(-1), close: 5000, timestamp: Date.now() / 1000 });
+    assert.equal(url.searchParams.get('api_token'), 'isolated-eodhd-integration-key');
+    return jsonResponse({ code: url.pathname.split('/').at(-1), close: 5000, timestamp: NOW / 1000 });
   };
-  const options = { eodhdKey: 'shared-integration-key', fetchImpl };
-  const [snapshot, baseline] = await Promise.all([
-    getIndicesRealtimeSnapshot(options), fetchIndicesQuote('INDICES', { ...options, includeIntraday: false }),
-  ]);
-  assert.equal(calls, 3);
-  assert.equal(snapshot.type, 'indices_snapshot');
-  assert.equal(snapshot.source, 'EODHD_REST');
-  assert.equal(snapshot.realtime, false);
-  assert.equal(snapshot.ticks.length, 3);
-  assert.equal(snapshot.status, 'delayed');
-  assert.deepEqual(baseline.data.map(({ intraday, ...tick }) => tick), snapshot.ticks);
-  assert.ok(baseline.data.every(tick => tick.intraday.length === 0));
-  await getIndicesRealtimeSnapshot(options);
-  assert.equal(calls, 3);
+  const realNow = Date.now;
+  Date.now = () => NOW;
+  try {
+    const [snapshot, baseline] = await Promise.all([
+      getIndicesRealtimeSnapshot({ fetchImpl }),
+      fetchIndicesQuote('INDICES', { eodhdKey: 'isolated-eodhd-integration-key', fetchImpl, includeIntraday: false }),
+    ]);
+    assert.deepEqual(calls, { yahoo: 3, eodhd: 3 });
+    assert.equal(snapshot.type, 'indices_snapshot');
+    assert.equal(snapshot.source, 'YAHOO_CHART');
+    assert.equal(snapshot.realtime, false);
+    assert.equal(snapshot.status, 'delayed');
+    assert.deepEqual(snapshot.ticks.map(tick => tick.ticker), ['GSPC.INDX', 'NDX.INDX', 'DJI.INDX']);
+    assert.ok(snapshot.ticks.every(tick => tick.source === 'YAHOO_CHART' && tick.price === 6500 && tick.intradayPoints.length === 3));
+    assert.ok(snapshot.ticks.every(tick => !Object.hasOwn(tick, 'intraday')), 'home receives timestamped source history, not the generic EODHD chart');
+    assert.equal(baseline.source, 'EODHD_REST');
+    assert.ok(baseline.data.every(tick => tick.source === 'EODHD_REST' && tick.price === 5000 && tick.intraday.length === 0));
+    await Promise.all([
+      getIndicesRealtimeSnapshot({ fetchImpl }),
+      fetchIndicesQuote('INDICES', { eodhdKey: 'isolated-eodhd-integration-key', fetchImpl, includeIntraday: false }),
+    ]);
+    assert.deepEqual(calls, { yahoo: 3, eodhd: 3 }, 'each source retains its own cache without a second provider fanout');
+  } finally {
+    Date.now = realNow;
+  }
 });
 
-test('legacy index WS clients receive bounded REST ticks and no provider WS connection or live status', async () => {
+test('legacy index WS clients receive bounded Yahoo chart snapshots without upstream WS or live status', async () => {
   const timers = new Map();
   let timerId = 0;
   let loads = 0;
   const relay = createIndicesRealtimeRelay({
-    loadQuotes: async () => { loads += 1; return { ticks: INDEX_QUOTE_CARDS.map(card => quote(card)), status: 'delayed', source: 'EODHD_REST', realtime: false, receivedAt: NOW }; },
+    loadQuotes: async () => {
+      loads += 1;
+      return {
+        ticks: INDEX_QUOTE_CARDS.map(card => ({ ...quote(card), source: 'YAHOO_CHART', intradayPoints: [{ timestamp: NOW, price: 5435.21 }] })),
+        status: 'delayed', source: 'YAHOO_CHART', realtime: false, receivedAt: NOW,
+      };
+    },
     setIntervalImpl: (callback, delay) => { const id = ++timerId; timers.set(id, { callback, delay }); return id; },
     clearIntervalImpl: id => { timers.delete(id); },
   });
   const socket = new EventEmitter();
   const messages = [];
   Object.assign(socket, { readyState: 1, send: value => messages.push(JSON.parse(value)), ping() {}, terminate() {} });
-  const detach = relay.attachClient(socket, { eodhdKey: 'key' });
+  const detach = relay.attachClient(socket);
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(loads, 1);
   assert.equal(messages.filter(message => message.type === 'index_tick').length, 3);
-  assert.ok(messages.every(message => message.source === 'EODHD_REST' && message.realtime === false && message.status !== 'live'));
+  assert.ok(messages.every(message => message.source === 'YAHOO_CHART' && message.realtime === false && message.status !== 'live'));
   const poll = [...timers.values()].find(timer => timer.delay === 60_000);
   assert.ok(poll);
   await poll.callback();
@@ -279,4 +341,78 @@ test('legacy index WS clients receive bounded REST ticks and no provider WS conn
   assert.equal(timers.size, 0);
   const source = readFileSync(new URL('../server/realtime/indicesRelay.js', import.meta.url), 'utf8');
   assert.doesNotMatch(source, /wss:\/\/|new WebSocket|status:\s*['"]live['"]/);
+});
+
+test('index HTTP and legacy WS keep authentication and origin boundaries without requiring an EODHD key', async () => {
+  const originalFetch = globalThis.fetch;
+  const keys = ['EODHD_API_KEY', 'QUOTE_API_AUTH_REQUIRED'];
+  const previousEnv = Object.fromEntries(keys.map(key => [key, process.env[key]]));
+  let upstreamCalls = 0;
+  delete process.env.EODHD_API_KEY;
+  delete process.env.QUOTE_API_AUTH_REQUIRED;
+  globalThis.fetch = async () => { upstreamCalls += 1; throw new Error('unexpected upstream work'); };
+  try {
+    const anonymous = await emitHttpRequest('GET', '/api/indices-realtime?snapshot=1');
+    assert.equal(anonymous.statusCode, 401, 'absence of a retired provider key must not mask the real auth requirement with 500');
+    assert.equal(anonymous.headers['Cache-Control'], 'no-store');
+    assert.equal(anonymous.body.success, false);
+    assert.equal(upstreamCalls, 0, 'even a populated public quote cache requires authentication before access');
+    const plain = await emitHttpRequest('GET', '/api/indices-realtime');
+    assert.equal(plain.statusCode, 426);
+    assert.equal(plain.headers['Cache-Control'], 'no-store');
+    const modifying = await emitHttpRequest('POST', '/api/indices-realtime?snapshot=1');
+    assert.equal(modifying.statusCode, 405);
+    assert.equal(modifying.headers.Allow, 'GET');
+    assert.equal(modifying.headers['Cache-Control'], 'no-store');
+    assert.match(await emitUpgrade({ origin: 'https://untrusted.invalid' }), /^HTTP\/1\.1 403 Forbidden\r\n/);
+    assert.match(await emitUpgrade({ origin: 'http://localhost:4173' }), /^HTTP\/1\.1 401 Unauthorized\r\n/);
+    assert.equal(upstreamCalls, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+    for (const [key, value] of Object.entries(previousEnv)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+});
+
+test('authenticated home index HTTP snapshots work without any EODHD key or EODHD request', async () => {
+  const originalFetch = globalThis.fetch;
+  const originalNow = Date.now;
+  const keys = ['EODHD_API_KEY', 'QUOTE_API_AUTH_REQUIRED', 'SUPABASE_URL', 'SUPABASE_ANON_KEY'];
+  const previousEnv = Object.fromEntries(keys.map(key => [key, process.env[key]]));
+  let authCalls = 0;
+  delete process.env.EODHD_API_KEY;
+  process.env.QUOTE_API_AUTH_REQUIRED = 'true';
+  process.env.SUPABASE_URL = 'https://index-auth.fixture.invalid';
+  process.env.SUPABASE_ANON_KEY = 'mock-public-anon';
+  Date.now = () => NOW;
+  globalThis.fetch = async (input, options) => {
+    const url = new URL(input);
+    if (url.origin === 'https://index-auth.fixture.invalid') {
+      authCalls += 1;
+      assert.equal(url.pathname, '/auth/v1/user');
+      assert.equal(options.headers.Authorization, 'Bearer mock-index-access');
+      return jsonResponse({ id: 'mock-index-reader' });
+    }
+    assert.equal(url.origin, 'https://query1.finance.yahoo.com', 'the authenticated home route cannot fall back to a paid EODHD provider');
+    return jsonResponse(chartResponse(decodeURIComponent(url.pathname.split('/').at(-1))));
+  };
+  try {
+    const result = await emitHttpRequest('GET', '/api/indices-realtime?snapshot=1', { authorization: 'Bearer mock-index-access' });
+    assert.equal(authCalls, 1, 'the original Supabase authentication still executes before the public cache');
+    assert.equal(result.statusCode, 200);
+    assert.equal(result.headers['Cache-Control'], 'no-store');
+    assert.equal(result.body.success, true);
+    assert.equal(result.body.data.source, 'YAHOO_CHART');
+    assert.equal(result.body.data.ticks.length, 3);
+    assert.ok(result.body.data.ticks.every(tick => tick.source === 'YAHOO_CHART' && tick.realtime === false));
+  } finally {
+    globalThis.fetch = originalFetch;
+    Date.now = originalNow;
+    for (const [key, value] of Object.entries(previousEnv)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
 });

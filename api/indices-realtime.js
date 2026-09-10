@@ -7,7 +7,6 @@ import {
   selectRealtimeProtocol,
 } from '../server/realtime/auth.js';
 import { attachIndicesRealtimeClient, getIndicesRealtimeSnapshot } from '../server/realtime/indicesRelay.js';
-import { sanitizeEodhdKey } from '../server/realtime/btc.js';
 
 function writeHttpResponse(res, statusCode, body) {
   const payload = JSON.stringify(body);
@@ -41,11 +40,6 @@ function isSnapshotRequest(req) {
 }
 
 async function handleSnapshotRequest(req, res) {
-  const eodhdKey = sanitizeEodhdKey(process.env.EODHD_API_KEY);
-  if (!eodhdKey) {
-    return writeHttpResponse(res, 500, { success: false, error: 'EODHD_API_KEY Missing' });
-  }
-
   if (process.env.QUOTE_API_AUTH_REQUIRED !== 'false') {
     const authHeader = req.headers.authorization || '';
     const token = authHeader.startsWith('Bearer ') ? authHeader.slice('Bearer '.length) : '';
@@ -55,15 +49,15 @@ async function handleSnapshotRequest(req, res) {
     }
   }
 
-  const snapshot = await getIndicesRealtimeSnapshot({ eodhdKey });
+  const snapshot = await getIndicesRealtimeSnapshot();
   return writeHttpResponse(res, 200, { success: true, data: snapshot });
 }
 
 const server = createServer((req, res) => {
   if (req.method === 'GET') {
     if (isSnapshotRequest(req)) {
-      handleSnapshotRequest(req, res).catch((error) => {
-        writeHttpResponse(res, 500, { success: false, error: error?.message || 'indices snapshot failed' });
+      handleSnapshotRequest(req, res).catch(() => {
+        writeHttpResponse(res, 500, { success: false, error: 'indices snapshot failed' });
       });
       return;
     }
@@ -87,12 +81,6 @@ server.on('upgrade', async (req, socket, head) => {
     return;
   }
 
-  const eodhdKey = sanitizeEodhdKey(process.env.EODHD_API_KEY);
-  if (!eodhdKey) {
-    rejectUpgrade(socket, 500, 'EODHD_API_KEY Missing');
-    return;
-  }
-
   if (process.env.QUOTE_API_AUTH_REQUIRED !== 'false') {
     const token = extractRealtimeAccessToken(req);
     const auth = await authenticateAccessToken(token);
@@ -103,12 +91,12 @@ server.on('upgrade', async (req, socket, head) => {
   }
 
   wss.handleUpgrade(req, socket, head, (ws) => {
-    wss.emit('connection', ws, req, { eodhdKey });
+    wss.emit('connection', ws, req);
   });
 });
 
-wss.on('connection', (ws, _req, context) => {
-  attachIndicesRealtimeClient(ws, { eodhdKey: context?.eodhdKey });
+wss.on('connection', (ws) => {
+  attachIndicesRealtimeClient(ws);
 });
 
 export default server;

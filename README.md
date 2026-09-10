@@ -84,7 +84,7 @@ npm run release:verify -- <docs|fast|full> <commit> # 一次等待发布结果
 - SEC EDGAR 只能由服务端访问；可选 `SEC_USER_AGENT` 覆盖值不得放入任何 `VITE_` 变量或客户端代码。
 - `/api/quote`、`/api/earnings-calendar`、P&L、比赛和 realtime relay 必须保持登录鉴权；Cron 和修复入口必须保持 `CRON_SECRET` 保护。
 - 浏览器不得直连或暴露付费行情 token。BTC、指数和股票 realtime 统一走已登录服务端 relay。
-- 市场洞察三大指数保留 `GSPC.INDX / NDX.INDX / DJI.INDX`，不使用 ETF 冒充指数，不再向美股成交 WebSocket 订阅这些代码。指数独立读取已鉴权的 EODHD 延迟报价快照，盘中前台最多每 60 秒一轮、其他时段每 15 分钟；服务端同实例短缓存和并发合并，额度耗尽后熔断至下一 UTC 日。按供应商原始时间判断延迟或待更新，接收时间不得冒充报价时间，旧值不可覆盖新值，失败不清空有效报价；曲线只显示实际样本，不生成模拟走势。此链路不参与股票/BTC 实时启动、收益计算或交易账本。
+- 首页市场洞察三大指数保留内部标识 `GSPC.INDX / NDX.INDX / DJI.INDX`，仅此展示链路通过已鉴权服务端快照读取 Yahoo Finance `^GSPC / ^NDX / ^DJI` 的报价和 1 分钟分时数据，不使用 ETF 冒充指数。报价、昨收和曲线来自同一响应，核验指数身份、币种、美东交易日期及交易时段；首次打开即可读取已有真实走势，不拼接不同来源或日期，不生成模拟价格。盘中前台最多每 60 秒一轮、其他时段每 15 分钟；服务端同实例缓存及并发合并，失败短暂退避、限流延长退避，保留最后有效数据且不倒退报价时间。Yahoo 公共数据接口可能限流或不可用，不保证逐笔实时；接收时间不得冒充报价时间。此变更不影响通用 EODHD 指数兼容接口、BTC、个股实时行情、收益计算或任何交易账本。
 - 所有用户表必须保持 owner scope。任何 `auth.uid()`、`user_id`、grant、policy、SECURITY DEFINER、trigger、schema 或 migration 变化都属于 FULL。
 - 提交 SQL 文件不会自动修改生产数据库。生产 migration/backfill 必须明确授权，执行前后都要有聚合级 preflight/postflight 和回滚方案。
 - 生产验证不得输出 user id、邮箱、持仓、交易明细、密钥或完整财务金额。

@@ -1587,8 +1587,12 @@ test('realtime quote refresh avoids duplicate requests and hides raw Safari netw
   assert.ok(appSource.includes('if (ref.lastWebSocketTickAt >= requestedAt) return;'), 'a late BTC REST response must not overwrite a newer WebSocket tick, including same-millisecond arrivals');
   assert.ok(homeTabSource.includes("return 'BTC';"), 'the compact BTC market card title should leave room for the text-only status badge');
   assert.ok(indicesRealtimeApiSource.includes('authenticateAccessToken'), 'indices realtime relay must require the same Supabase token boundary');
-  assert.ok(indicesRealtimeApiSource.includes('attachIndicesRealtimeClient'), 'indices realtime endpoint should attach the server-side EODHD relay');
+  assert.ok(indicesRealtimeApiSource.includes('attachIndicesRealtimeClient'), 'indices endpoint should retain the authenticated legacy relay contract');
   assert.ok(indicesRealtimeApiSource.includes('getIndicesRealtimeSnapshot'), 'indices realtime endpoint should expose authenticated snapshot mode');
+  assert.equal(indicesRealtimeApiSource.includes('EODHD_API_KEY'), false, 'the Home-only index chart source must not require or expose an EODHD key');
+  assert.ok(indicesRealtimeApiSource.includes('isAllowedRealtimeOrigin'), 'legacy index upgrades must retain the origin boundary');
+  assert.ok(indicesRelaySource.includes('loadIndexChartQuotes'), 'Home index snapshots should load coherent Yahoo index quotes and intraday history');
+  assert.equal(indicesRelaySource.includes('loadIndexQuotes('), false, 'Home-only source changes must not redirect the generic EODHD quote loader');
   assert.ok(stocksRealtimeApiSource.includes('authenticateAccessToken'), 'stock realtime relay must require the same Supabase token boundary');
   assert.ok(stocksRealtimeApiSource.includes('attachStocksRealtimeClient'), 'stock realtime endpoint should attach the server-side EODHD relay');
   assert.ok(stocksRealtimeApiSource.includes('getStocksRealtimeSnapshot'), 'stock realtime endpoint should expose authenticated snapshot mode');
@@ -1613,7 +1617,8 @@ test('realtime quote refresh avoids duplicate requests and hides raw Safari netw
   assert.ok(appSource.includes('auto-ios-visible-heartbeat'), 'iOS standalone app should reconnect stock realtime when visible timers resume');
   assert.equal(homeTabSource.includes("import { isIndexMarketCard } from '../lib/indexRealtime.js';"), false, 'index cards should not import index matching just to render connection badges');
   assert.ok(homeTabSource.includes('{isBtc && realtimeLabel && ('), 'only BTC should render a LIVE connection badge');
-  assert.ok(homeTabSource.includes('data-index-quote-status={indexStatus}') && homeTabSource.includes('formatIndexQuoteTime(item, language)'), 'index cards should separately expose actual quote time and freshness');
+  assert.equal(homeTabSource.includes('data-index-quote-status={indexStatus}') || homeTabSource.includes('formatIndexQuoteTime(item, language)'), false, 'index cards should not render the removed status and quote-time block');
+  assert.ok(homeTabSource.includes('showUnavailableText={isBtc}'), 'index cards should retain chart space without a textual missing-chart placeholder, while BTC keeps its existing treatment');
 });
 
 test('stock startup acceleration stays isolated from holdings, other market cards, and auth', () => {

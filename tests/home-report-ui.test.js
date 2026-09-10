@@ -5,7 +5,6 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { transformWithOxc } from 'vite';
 import { isBtcMarketCard } from '../src/lib/btcRealtime.js';
-import { formatIndexQuoteTime, resolveIndexQuoteStatus } from '../src/lib/indexRealtime.js';
 import { t } from '../src/lib/i18n.js';
 
 const home = readFileSync(new URL('../src/tabs/HomeTab.jsx', import.meta.url), 'utf8');
@@ -58,12 +57,13 @@ test('BTC has a live-only status dot without replacing readable connection label
   assert.ok(home.includes('resolveBtcDisplayRealtimeStatus(resolvedBtcCard, btcRealtimeStatus)'), 'presentation reuses the existing display status');
 });
 
-test('index cards omit the normal status node while retaining quote time and exceptional states', async () => {
-  const source = home.slice(home.indexOf('function MiniMarketCard('), home.indexOf('function fgiLevel('));
+test('index cards show actual charts without status or time text, and reserve blank chart space when absent', async () => {
+  const source = home.slice(home.indexOf('function Sparkline('), home.indexOf('function marketCardName('))
+    + home.slice(home.indexOf('function MiniMarketCard('), home.indexOf('function fgiLevel('));
   const { code } = await transformWithOxc(source, 'MiniMarketCard.jsx', { jsx: { runtime: 'classic' } });
   const dependencies = {
-    React, t, isBtcMarketCard, formatIndexQuoteTime, resolveIndexQuoteStatus,
-    NUMBER_FONT: 'sans-serif', Sparkline: () => null,
+    React, t, isBtcMarketCard,
+    NUMBER_FONT: 'sans-serif',
     marketCardName: item => item.displaySymbol,
     hasFiniteMarketValue: value => value != null && Number.isFinite(Number(value)),
     marketColor: () => '#ffffff',
@@ -74,19 +74,27 @@ test('index cards omit the normal status node while retaining quote time and exc
   const MiniMarketCard = new Function('dependencies', `const { ${Object.keys(dependencies).join(', ')} } = dependencies; ${code}; return MiniMarketCard;`)(dependencies);
   const timestamp = Date.now() - 60_000;
   const quoteAt = new Date(timestamp).toISOString();
-  const item = { symbol: 'GSPC.INDX', displaySymbol: '.SPX', price: 6500, changePercent: .4, timestamp, quoteAt, source: 'EODHD_REST' };
+  const item = { symbol: 'GSPC.INDX', displaySymbol: '.SPX', price: 6500, changePercent: .4, timestamp, quoteAt, source: 'EODHD_REST', intraday: [6500, 6510, 6490] };
   const render = (overrides = {}, language = 'zh') => renderToStaticMarkup(React.createElement(MiniMarketCard, { item: { ...item, ...overrides }, language }));
 
   for (const language of ['zh', 'en']) {
-    const normal = render({}, language);
-    assert.match(normal, /data-index-quote-status="delayed"><time /);
-    assert.ok(normal.includes(`dateTime="${quoteAt}"`));
-    assert.ok(normal.includes(formatIndexQuoteTime(item, language)));
-    assert.doesNotMatch(normal, /<span\b|LIVE|延迟报价|Delayed/);
+    for (const overrides of [{}, { fetchError: true }, { timestamp: timestamp - 3600_000 }]) {
+      const normal = render(overrides, language);
+      assert.match(normal, /<svg\b/);
+      assert.equal((normal.match(/<path\b/g) || []).length, 2);
+      assert.match(normal, /d="M 0\.0,17\.0 L 50\.0,0\.0 L 100\.0,34\.0"/);
+      assert.doesNotMatch(normal, /<time\b|data-index-quote-status|LIVE|延迟报价|待更新|暂无报价|Delayed|Awaiting update|Unavailable/);
+    }
   }
-  assert.match(render({ fetchError: true }), /<span>待更新<\/span>/);
-  assert.match(render({ fetchError: true }, 'en'), /<span>Awaiting update<\/span>/);
-  assert.match(render({ price: null, timestamp: null, quoteAt: null }), /<span>暂无报价<\/span>/);
-  assert.match(render({ price: null, timestamp: null, quoteAt: null }, 'en'), /<span>Unavailable<\/span>/);
-  assert.match(render({ symbol: 'BTC-USD.CC', displaySymbol: 'BTCUSD', realtimeStatus: 'live' }), /home-report-live-dot/);
+  for (const intraday of [[], [6500]]) {
+    const empty = render({ intraday, fetchError: true });
+    assert.match(empty, /<div class="home-report-sparkline" aria-hidden="true"><\/div>/);
+    assert.doesNotMatch(empty, /<svg\b|<path\b|--|<time\b|待更新|暂无报价/);
+  }
+  const unavailable = render({ price: null, changePercent: null, timestamp: null, quoteAt: null, intraday: [] });
+  assert.match(unavailable, /home-report-quote-price[^>]*>--<\/div>/);
+  assert.doesNotMatch(unavailable, /<svg\b|<path\b|>0(?:\.00)?<|<time\b/);
+  const btc = render({ symbol: 'BTC-USD.CC', displaySymbol: 'BTCUSD', realtimeStatus: 'live', intraday: [] });
+  assert.match(btc, /home-report-live-dot/);
+  assert.match(btc, /home-report-sparkline[^>]*>--<\/div>/);
 });

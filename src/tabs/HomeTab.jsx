@@ -10,7 +10,7 @@ import {
 } from '../lib/homeSignalBenchmark.js';
 import { resolveHomeMarketDisplayMetrics } from '../lib/homeMarketDisplay.js';
 import { isEnglishLanguage, t } from '../lib/i18n.js';
-import { formatIndexQuoteTime, mergeIndexCardsWithPlaceholders, resolveIndexQuoteStatus } from '../lib/indexRealtime.js';
+import { mergeIndexCardsWithPlaceholders } from '../lib/indexRealtime.js';
 import { marketHexColor, marketTextClass } from '../lib/marketColorMode.js';
 import { POPULAR_US_STOCKS, POPULAR_US_STOCK_SYMBOLS } from '../lib/popularStocks.js';
 import { stockLogoCandidates } from '../lib/stockLogo.js';
@@ -191,9 +191,10 @@ function dataDateLabel(value) {
   return `${d.getMonth() + 1}/${d.getDate()}`;
 }
 
-function Sparkline({ values = [], color = '#22c55e', className = 'h-9' }) {
+function Sparkline({ values = [], color = '#22c55e', className = 'h-9', showUnavailableText = true }) {
   const series = values.filter((v) => Number.isFinite(Number(v))).map(Number);
   if (series.length < 2) {
+    if (!showUnavailableText) return <div className={className} aria-hidden="true" />;
     return <div className={`${className} flex items-center justify-center text-[10px] text-white/25`}>--</div>;
   }
 
@@ -281,8 +282,6 @@ function MiniMarketCard({ item, marketColorMode, language }) {
   const isBtc = isBtcMarketCard(item);
   const realtimeStatus = item?.realtimeStatus || (item?.realtime ? 'live' : '');
   const realtimeLabel = marketRealtimeLabel(realtimeStatus, language);
-  const indexStatus = isBtc ? null : resolveIndexQuoteStatus(item);
-  const indexQuoteTime = isBtc ? '' : formatIndexQuoteTime(item, language);
   return (
     <div className="home-report-quote">
       <div className={`flex min-w-0 items-start justify-between ${isBtc ? 'gap-1' : 'gap-1.5'}`}>
@@ -300,17 +299,7 @@ function MiniMarketCard({ item, marketColorMode, language }) {
       <div className="home-report-quote-change" style={{ color, fontFamily: NUMBER_FONT }}>
         {fmtOptionalMarketPct(item?.changePercent)}
       </div>
-      <Sparkline values={item?.intraday || []} color={color} className="home-report-sparkline" />
-      {!isBtc && (
-        <div className="mt-2 flex flex-col gap-0.5 text-[10px] leading-normal text-white/40" data-index-quote-status={indexStatus}>
-          {(indexStatus === 'stale' || indexStatus === 'unavailable') && (
-            <span>{indexStatus === 'unavailable'
-              ? t(language, 'home.market.indexUnavailable', '暂无报价')
-              : t(language, 'home.market.indexStale', '待更新')}</span>
-          )}
-          {indexQuoteTime && <time dateTime={item.quoteAt || undefined}>{indexQuoteTime}</time>}
-        </div>
-      )}
+      <Sparkline values={item?.intraday || []} color={color} className="home-report-sparkline" showUnavailableText={isBtc} />
     </div>
   );
 }

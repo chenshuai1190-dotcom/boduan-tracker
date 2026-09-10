@@ -1,5 +1,6 @@
 import { INDEX_REALTIME_SYMBOLS } from './indices.js';
-import { INDEX_QUOTE_TTL_MS, loadIndexQuotes } from './indexQuotes.js';
+import { INDEX_QUOTE_TTL_MS } from './indexQuotes.js';
+import { INDEX_CHART_SOURCE, loadIndexChartQuotes } from './indexChartQuotes.js';
 
 const CLIENT_HEARTBEAT_MS = 25_000;
 
@@ -9,30 +10,29 @@ function safeJsonSend(ws, payload) {
 }
 
 export function createIndicesRealtimeRelay({
-  loadQuotes = loadIndexQuotes,
+  loadQuotes = loadIndexChartQuotes,
   setIntervalImpl = setInterval,
   clearIntervalImpl = clearInterval,
 } = {}) {
   const clients = new Set();
-  let eodhdKey = '';
   let refreshTimer = null;
   let refreshInFlight = null;
 
   async function getSnapshot(options = {}) {
-    const result = await loadQuotes({ eodhdKey: options.eodhdKey || eodhdKey, fetchImpl: options.fetchImpl });
+    const result = await loadQuotes({ fetchImpl: options.fetchImpl });
     return { ...result, type: 'indices_snapshot' };
   }
 
   function refreshClients() {
     if (refreshInFlight || clients.size === 0) return refreshInFlight;
     const pending = getSnapshot().then(snapshot => {
-      const status = { type: 'indices_status', status: snapshot.status, source: 'EODHD_REST', realtime: false, symbols: INDEX_REALTIME_SYMBOLS };
+      const status = { type: 'indices_status', status: snapshot.status, source: snapshot.source, realtime: false, symbols: INDEX_REALTIME_SYMBOLS };
       for (const client of clients) {
         safeJsonSend(client, status);
         for (const tick of snapshot.ticks) safeJsonSend(client, tick);
       }
     }).catch(() => {
-      for (const client of clients) safeJsonSend(client, { type: 'indices_status', status: 'unavailable', source: 'EODHD_REST', realtime: false });
+      for (const client of clients) safeJsonSend(client, { type: 'indices_status', status: 'unavailable', source: INDEX_CHART_SOURCE, realtime: false });
     }).finally(() => {
       if (refreshInFlight === pending) refreshInFlight = null;
     });
@@ -40,8 +40,7 @@ export function createIndicesRealtimeRelay({
     return pending;
   }
 
-  function attachClient(ws, options = {}) {
-    if (options.eodhdKey) eodhdKey = options.eodhdKey;
+  function attachClient(ws) {
     clients.add(ws);
     ws.isAlive = true;
     const heartbeat = setIntervalImpl(() => {
@@ -62,7 +61,7 @@ export function createIndicesRealtimeRelay({
     ws.on('pong', () => { ws.isAlive = true; });
     ws.on('close', detach);
     ws.on('error', detach);
-    safeJsonSend(ws, { type: 'indices_status', status: 'polling', source: 'EODHD_REST', realtime: false, symbols: INDEX_REALTIME_SYMBOLS });
+    safeJsonSend(ws, { type: 'indices_status', status: 'polling', source: INDEX_CHART_SOURCE, realtime: false, symbols: INDEX_REALTIME_SYMBOLS });
     if (refreshTimer === null) {
       refreshTimer = setIntervalImpl(refreshClients, INDEX_QUOTE_TTL_MS);
       refreshTimer?.unref?.();
