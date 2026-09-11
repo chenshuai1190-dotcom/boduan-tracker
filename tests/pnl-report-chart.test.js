@@ -2,7 +2,10 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   buildAreaPathFromPoints,
+  buildChartDomain,
+  buildLinePoints,
   buildLinePathFromPoints,
+  isRenderableChartValue,
   isExplicitUnknownNetAssetPoint,
   splitChartPointSegments,
 } from '../src/lib/pnlReportChart.js';
@@ -74,4 +77,40 @@ test('zero financing and negative net assets remain renderable rather than becom
   assert.equal(isExplicitUnknownNetAssetPoint({ totalAssetUsd: 100, netAssetUsd: 100 }), false);
   assert.equal(isExplicitUnknownNetAssetPoint({ totalAssetUsd: 100, netAssetUsd: -20 }), false);
   assert.equal(isExplicitUnknownNetAssetPoint({ totalAssetUsd: null, netAssetUsd: null }), false);
+});
+
+test('portfolio and benchmark use the same dynamic percentage domain and map equal returns equally', () => {
+  const data = [
+    { pnlPct: -0.3, benchmarkPct: 0.4 },
+    { pnlPct: 1.2, benchmarkPct: 1.2 },
+    { pnlPct: null, benchmarkPct: 1.8 },
+  ];
+  const domain = buildChartDomain(data, ['pnlPct', 'benchmarkPct'], 'percentage');
+  assert.ok(domain.min < -0.3 && domain.max > 1.8);
+  const mine = buildLinePoints(data, 'pnlPct', domain);
+  const benchmark = buildLinePoints(data, 'benchmarkPct', domain);
+  assert.equal(mine[1].x, benchmark[1].x);
+  assert.equal(mine[1].y, benchmark[1].y);
+  assert.deepEqual(mine.map(point => point.value), [-0.3, 1.2]);
+  assert.ok([...mine, ...benchmark].every(point => point.y >= 8 && point.y <= 202));
+  const small = buildChartDomain([{ pnlPct: 0.01, benchmarkPct: 0.02 }], ['pnlPct', 'benchmarkPct']);
+  assert.ok(small.max < 0.03, 'small actual returns must not inherit the old 78.48% hardcoded axis');
+});
+
+test('dynamic chart geometry keeps missing data absent and renders zero/negative/constant asset observations', () => {
+  for (const value of [null, undefined, '', ' ', false, true, NaN, Infinity]) assert.equal(isRenderableChartValue(value), false);
+  assert.equal(buildChartDomain([{ pnlPct: null }], ['pnlPct', 'benchmarkPct']), null);
+  assert.deepEqual(buildLinePoints([{ pnlPct: null }], 'pnlPct', null), []);
+  const data = [
+    { totalAssetUsd: 100, netAssetUsd: -20 },
+    { totalAssetUsd: 100, netAssetUsd: null },
+    { totalAssetUsd: 100, netAssetUsd: 0 },
+  ];
+  const domain = buildChartDomain(data, ['netAssetUsd', 'totalAssetUsd'], 'assets');
+  const points = buildLinePoints(data, 'netAssetUsd', domain);
+  assert.deepEqual(points.map(point => point.value), [-20, 0]);
+  assert.deepEqual(splitChartPointSegments(data, points, isExplicitUnknownNetAssetPoint).map(segment => segment.map(point => point.index)), [[0], [2]]);
+  const constant = buildChartDomain([{ totalAssetUsd: 100 }], ['totalAssetUsd'], 'assets');
+  assert.ok(constant.min < 100 && constant.max > 100);
+  assert.equal(buildLinePoints([{ totalAssetUsd: 100 }], 'totalAssetUsd', constant)[0].x, 155);
 });

@@ -28,11 +28,12 @@
 .asset-report-chart-reading[data-side="left"] { right: auto; left: 14%; }
 .asset-report-chart-month { color: #91919b; font-size: 11px; line-height: 16px; }
 .asset-report-chart-amount { color: #ededf0; font-size: 22px; font-weight: 400; line-height: 1.18; overflow-wrap: anywhere; }
+.asset-report-chart-amount .asset-report-decimal { color: inherit; font-size: inherit; }
 .asset-report-chart-change { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: baseline; gap: 8px; margin-top: 3px; }
 .asset-report-chart-change > .asset-report-label { font-size: 10px; }
 .asset-report-chart-change-values { display: grid; gap: 2px; min-width: 0; }
 .asset-report-chart-change-amount { font-size: 13px; font-weight: 400; line-height: 1.3; overflow-wrap: anywhere; }
-.asset-report-chart-change-decimal { font-size: .64em; opacity: .7; }
+.asset-report-chart-change-decimal { font-size: inherit; opacity: 1; }
 .asset-report-chart-change-percent { font-size: 11px; line-height: 1.5; opacity: .8; }
 .asset-report-range { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 12px; font-variant-numeric: tabular-nums; }
 .asset-report-range > div { min-width: 0; }

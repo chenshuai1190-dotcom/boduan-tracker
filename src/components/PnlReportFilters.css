@@ -1,0 +1,71 @@
+.pnl-report-filter {
+  background: #101112;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif;
+  font-weight: 400;
+  letter-spacing: normal;
+}
+.pnl-report-filter .srm-title { font-weight: 400; }
+.pnl-report-filter button { font-weight: 400; letter-spacing: normal; }
+.pnl-report-filter .srm-action.pnl-report-filter-primary { background: #303133; color: #ededf0; }
+.pnl-report-filter-label { display: block; margin-bottom: 8px; color: #85858f; font-size: 12px; line-height: 18px; }
+.pnl-report-filter-calendar { display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: 14px; }
+.pnl-report-filter-calendar-column { min-width: 0; }
+.pnl-report-filter-years { display: grid; gap: 6px; max-height: 184px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; }
+.pnl-report-filter-years::-webkit-scrollbar { display: none; }
+.pnl-report-filter-months { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.pnl-report-filter-years button,
+.pnl-report-filter-months button {
+  min-width: 0;
+  height: 40px;
+  padding: 6px 4px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: #1b1c1e;
+  color: #9999a2;
+  font-size: 13px;
+  line-height: 20px;
+  font-variant-numeric: tabular-nums;
+}
+.pnl-report-filter-years button[aria-pressed='true'],
+.pnl-report-filter-months button[aria-pressed='true'] { border-color: #606066; background: #303133; color: #ededf0; }
+.pnl-report-filter-months button:disabled { background: #171819; color: #484850; cursor: default; }
+.pnl-report-filter-segments { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; padding: 4px; border-radius: 10px; background: #18191b; }
+.pnl-report-filter-segments button { min-height: 36px; padding: 7px 10px; border: 0; border-radius: 7px; background: transparent; color: #888891; font-size: 13px; line-height: 20px; }
+.pnl-report-filter-segments button[aria-pressed='true'] { background: #303133; color: #e4e4e7; }
+.pnl-report-filter-dates { min-width: 0; margin-top: 20px; }
+.pnl-report-filter-date-range { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.pnl-report-filter-date-range > div { min-width: 0; }
+.pnl-report-filter-input {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  height: 46px;
+  margin: 0;
+  padding: 0 10px;
+  appearance: none;
+  -webkit-appearance: none;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: #1b1c1e;
+  color: #e4e4e7;
+  color-scheme: dark;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: normal;
+  line-height: 44px;
+  text-align: left;
+  outline: none;
+}
+.pnl-report-filter-input:focus { border-color: #69696f; }
+.pnl-report-filter-input::-webkit-date-and-time-value { min-width: 0; text-align: left; }
+.pnl-report-filter-input::-webkit-calendar-picker-indicator { opacity: .55; }
+.pnl-report-filter-hint { margin-top: 14px; color: #777780; font-size: 11px; line-height: 17px; }
+.pnl-report-filter-empty { padding: 20px 0; color: #777780; font-size: 12px; line-height: 18px; text-align: center; }
+@media (max-width: 350px) {
+  .pnl-report-filter-calendar { grid-template-columns: 72px minmax(0, 1fr); gap: 12px; }
+  .pnl-report-filter-date-range { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+}

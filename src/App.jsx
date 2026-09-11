@@ -5016,7 +5016,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   const isPortfolioOverlapPage = activePage === 'portfolio-overlap';
   const isDcaLabPage = activePage === 'dca-lab';
   const isStandalonePage = isPnlReportPage || isPnlSharePage || isHomeMarginRiskPage || isDrawdownObservationPage || isStockDetailPage || isWatchlistStockDetailPage || isWaveTrackerPage || isCommunityCompetitionPage || isEarningsCalendarPage || isEarningsDetailPage || isInvestmentComparisonPage || isPortfolioOverlapPage || isDcaLabPage || isVixComparisonPage || isFearGreedPage;
-  const isFullBleedPage = isPnlSharePage || isCommunityCompetitionPage || isEarningsCalendarPage || isEarningsDetailPage;
+  const isFullBleedPage = isPnlSharePage || isCommunityCompetitionPage || isEarningsCalendarPage || isEarningsDetailPage || isPnlReportPage;
   const hideBottomNavigation = isPnlReportPage || isPnlSharePage;
   const ActiveTab = TAB_COMPONENTS[activeTab] || HomeTab;
   const settingsTabCtx = useMemo(() => ({
@@ -5410,7 +5410,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
 
   return (
     <div
-      className={`min-h-screen ${isFullBleedPage ? 'px-0' : 'px-4'} ${hideBottomNavigation ? 'pb-0' : 'pb-24'} ${isFearGreedPage ? 'bg-[#08090b]' : darkShell ? 'bg-[#05070b]' : 'bg-slate-50'}`}
+      className={`min-h-screen ${isFullBleedPage ? 'px-0' : 'px-4'} ${hideBottomNavigation ? 'pb-0' : 'pb-24'} ${isFearGreedPage || isPnlReportPage ? 'bg-[#08090b]' : darkShell ? 'bg-[#05070b]' : 'bg-slate-50'}`}
       style={{ paddingTop: isStandalonePage ? 0 : 'calc(1rem + env(safe-area-inset-top))' }}
     >
       {pullRefreshStatus !== 'idle' && (

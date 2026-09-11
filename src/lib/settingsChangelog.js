@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '📊 收益报表统一新版黑灰报告设计',
+      '  - 收益金额左对齐，完整显示两位小数，日历、收益贡献与筛选弹窗统一排版',
+      '  - 走势图铺宽，收益与纳斯达克使用同一刻度，选中读数显示在图表上方',
+      '  - 盈亏总额及资产12个月走势弹窗的小数，与整数保持相同字号和亮度',
+    ],
+    itemsEn: [
+      '📊 A unified neutral-black P&L report',
+      '  - Left-aligned returns with full decimal precision, consistent calendars, contributions and filters',
+      '  - Wider charts with a shared return scale for the portfolio and Nasdaq, and readings above the plot',
+      '  - Full-size, full-brightness decimals for total P&L and the 12-month asset-chart tooltip',
+    ],
+  },
+  {
+    ver: 'v10.7.9.517', date: '2026-09-11',
+    items: [
       '📊 新增 CNN 恐慌与贪婪独立页面',
       '  - 从首页 CNN 指数进入，查看五档彩色仪表盘与前收盘、一周、一月、一年前的对比',
       '  - 历史走势支持一月、三月与一年切换，点击或拖动后保留所选日期和读数',

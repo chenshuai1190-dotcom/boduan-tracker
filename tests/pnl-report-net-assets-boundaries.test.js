@@ -16,6 +16,8 @@ const snapshotServerSource = source('../server/pnlReportDailySnapshot.js');
 const recalculationServerSource = source('../server/pnlReportRecalculation.js');
 const marginDbSource = source('../src/lib/db.js');
 const pageSource = source('../src/pages/PnlReportPage.jsx');
+const trendChartSource = source('../src/components/PnlReportTrendChart.jsx');
+const trendChartCss = source('../src/components/PnlReportTrendChart.css');
 const chartSource = source('../src/lib/pnlReportChart.js');
 const devPreviewSource = source('../src/DevVisualPreview.jsx');
 const i18nSource = source('../src/lib/i18n.js');
@@ -150,25 +152,27 @@ test('the visible segment remains Total Assets Trend while the chart shows exact
   assert.ok(pageSource.includes("pnlReport.assetTrend', '总资产走势'"), 'the requested Chinese segment name must remain unchanged');
   assert.ok(i18nSource.includes("'pnlReport.assetTrend': '总资产走势'"));
   assert.ok(i18nSource.includes("'pnlReport.assetTrend': 'Total Assets Trend'"));
-  assert.ok(pageSource.includes("const NET_ASSET_COLOR = '#ff5038'"));
-  assert.ok(pageSource.includes("const TOTAL_ASSET_COLOR = '#f6b54b'"));
-  assert.ok(pageSource.includes("buildChartDomain(data, ['netAssetUsd', 'totalAssetUsd'], 'assets')"), 'both lines must share one amount axis');
-  assert.ok(pageSource.includes('data-pnl-report-asset-tooltip="true"'));
-  assert.ok(pageSource.includes("pnlReport.tooltip.netAssets"));
-  assert.ok(pageSource.includes("pnlReport.tooltip.totalAssets"));
-  assert.ok(pageSource.includes("pnlReport.tooltip.availableCash"));
+  assert.ok(trendChartSource.includes("const NET_ASSET_COLOR = '#ff5038'"));
+  assert.ok(trendChartSource.includes("const TOTAL_ASSET_COLOR = '#f6b54b'"));
+  assert.ok(trendChartSource.includes("buildChartDomain(data, ['netAssetUsd', 'totalAssetUsd'], 'assets')"), 'both lines must share one amount axis');
+  assert.ok(trendChartSource.includes('readoutSlot && readoutTotalAsset && mode === \'assets\' && <div data-pnl-report-asset-tooltip="true">'));
+  assert.ok(trendChartSource.includes('const readoutSlot = selectedSlot || latestReadoutSlot;'), 'readout must default to the latest real observation');
+  assert.ok(trendChartSource.includes("selectedSlot && (selectedPrimary || selectedTotalAsset || (mode === 'pnl' && selectedBenchmark))"), 'chart markers must still require an explicit selection');
+  assert.ok(trendChartSource.includes("pnlReport.tooltip.netAssets"));
+  assert.ok(trendChartSource.includes("pnlReport.tooltip.totalAssets"));
+  assert.ok(trendChartSource.includes("pnlReport.tooltip.availableCash"));
 });
 
 test('asset chart gaps and deterministic dev-preview scenarios stay wired to the UI', () => {
-  assert.ok(pageSource.includes('splitChartPointSegments(data, primaryPoints, isExplicitUnknownNetAssetPoint)'));
-  assert.ok(pageSource.includes('primaryPaths.map'));
-  assert.ok(pageSource.includes('areaPaths.map'));
-  assert.ok(chartSource.includes('isRenderableNumber(point?.totalAssetUsd)'));
-  assert.ok(chartSource.includes('!isRenderableNumber(point?.netAssetUsd)'));
+  assert.ok(trendChartSource.includes('splitChartPointSegments(data, primaryPoints, isExplicitUnknownNetAssetPoint)'));
+  assert.ok(trendChartSource.includes('primaryPaths.map'));
+  assert.ok(trendChartSource.includes('areaPaths.map'));
+  assert.ok(chartSource.includes('isRenderableChartValue(point?.totalAssetUsd)'));
+  assert.ok(chartSource.includes('!isRenderableChartValue(point?.netAssetUsd)'));
   assert.ok(pageSource.includes("pnlReportInitialChartMode === 'assets' ? 'assets' : 'pnl'"));
-  assert.ok(pageSource.includes("selectableSlots.find((slot) => slot?.point?.date === initialSelectedDate)"));
-  assert.ok(pageSource.includes("document.addEventListener('pointerdown', closeOnOutsidePointer, true)"));
-  assert.ok(pageSource.includes("document.removeEventListener('pointerdown', closeOnOutsidePointer, true)"));
+  assert.match(trendChartSource, /selectableSlots\.find\(\(?slot\)? => slot\?\.point\?\.date === initialSelectedDate\)/);
+  assert.ok(trendChartSource.includes("document.addEventListener('pointerdown', closeOnOutsidePointer, true)"));
+  assert.ok(trendChartSource.includes("document.removeEventListener('pointerdown', closeOnOutsidePointer, true)"));
 
   assert.ok(devPreviewSource.includes("get('pnlReportChart') === 'assets'"));
   assert.ok(devPreviewSource.includes("get('pnlReportAssetScenario')"));
@@ -184,9 +188,12 @@ test('asset chart gaps and deterministic dev-preview scenarios stay wired to the
 });
 
 test('P&L report chart text respects the 10px minimum', () => {
-  assert.equal(pageSource.includes('fontSize="9"'), false);
-  assert.equal(pageSource.includes('text-[8.5px]'), false);
-  assert.ok(pageSource.includes('fontSize="10"'));
+  for (const componentSource of [pageSource, trendChartSource]) {
+    assert.equal(componentSource.includes('fontSize="9"'), false);
+    assert.equal(componentSource.includes('text-[8.5px]'), false);
+  }
+  const chartFontSizes = [...trendChartCss.matchAll(/\bfont-size:\s*(\d+(?:\.\d+)?)px/g)].map(match => Number(match[1]));
+  assert.ok(chartFontSizes.includes(10) && chartFontSizes.every(size => size >= 10));
   assert.ok(pageSource.includes('text-[10px]'));
 });
 

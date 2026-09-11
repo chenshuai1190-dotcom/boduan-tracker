@@ -1,0 +1,19 @@
+.pnl-trend-chart { min-width: 0; margin-top: 14px; background: #08090b; color: #c4c4cc; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif; font-variant-numeric: tabular-nums; letter-spacing: normal; }
+.pnl-trend-readout { min-height: 100px; padding-bottom: 12px; }
+.pnl-trend-readout[data-mode="assets"] { min-height: 146px; }
+.pnl-trend-readout-heading { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; color: #81818b; font-size: 11px; line-height: 18px; }
+.pnl-trend-compare { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; column-gap: 18px; row-gap: 5px; margin-top: 5px; font-size: 12px; line-height: 18px; text-align: right; }
+.pnl-trend-column-label { color: #777781; font-size: 10px; }
+.pnl-trend-series-label { display: inline-flex; align-items: center; gap: 6px; min-width: 0; color: #a4a4af; text-align: left; font-size: 11px; }
+.pnl-trend-series-label i { width: 5px; height: 5px; flex-shrink: 0; border-radius: 50%; }
+.pnl-trend-cash-dot { background: #82828c; }
+.pnl-trend-asset-readout { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; column-gap: 12px; row-gap: 4px; margin-top: 8px; text-align: right; font-size: 14px; line-height: 20px; }
+.pnl-trend-asset-readout > span:nth-child(even) { white-space: nowrap; }
+.pnl-trend-missing { color: #777781; }
+.pnl-trend-missing-note { margin-top: 3px; color: #777781; font-size: 10px; line-height: 14px; }
+.pnl-trend-plot-layout { display: grid; grid-template-columns: minmax(0, 1fr) max-content; column-gap: 9px; row-gap: 10px; }
+.pnl-trend-plot { min-width: 0; height: 220px; user-select: none; }
+.pnl-trend-plot svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.pnl-trend-axis { position: relative; min-width: 38px; color: #71717c; font-size: 10px; line-height: 14px; text-align: right; }
+.pnl-trend-axis span { position: absolute; right: 0; transform: translateY(-50%); white-space: nowrap; }
+.pnl-trend-dates { display: flex; justify-content: space-between; gap: 8px; min-width: 0; padding: 0 7px; color: #71717c; font-size: 10px; line-height: 15px; }

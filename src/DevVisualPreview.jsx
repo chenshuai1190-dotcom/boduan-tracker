@@ -3348,9 +3348,9 @@ function StandardDevVisualPreview({ initialTab = '' }) {
 
   return (
     <div
-      className={`min-h-screen ${activeTab === 'fear-greed' ? 'bg-[#08090b]' : 'bg-[#05070b]'} text-white ${['pnl-report', 'pnl-share'].includes(activeTab) ? 'pb-0' : 'pb-24'} ${['pnl-report', 'pnl-share', 'community-competition', 'earnings-detail'].includes(activeTab) ? 'px-0' : 'px-4'}`}
+      className={`min-h-screen ${['fear-greed', 'pnl-report'].includes(activeTab) ? 'bg-[#08090b]' : 'bg-[#05070b]'} text-white ${['pnl-report', 'pnl-share'].includes(activeTab) ? 'pb-0' : 'pb-24'} ${['pnl-report', 'pnl-share', 'community-competition', 'earnings-detail'].includes(activeTab) ? 'px-0' : 'px-4'}`}
       style={{
-        paddingTop: ['pnl-share', 'home-margin-risk', 'drawdown-observation', 'stock-detail', 'wave-tracker', 'community-competition', 'watchlist-stock-detail', 'earnings-detail', 'vix-comparison', 'fear-greed', 'investment-comparison', 'portfolio-overlap', 'dca-lab'].includes(activeTab) ? 0 : 'calc(1rem + env(safe-area-inset-top))',
+        paddingTop: ['pnl-report', 'pnl-share', 'home-margin-risk', 'drawdown-observation', 'stock-detail', 'wave-tracker', 'community-competition', 'watchlist-stock-detail', 'earnings-detail', 'vix-comparison', 'fear-greed', 'investment-comparison', 'portfolio-overlap', 'dca-lab'].includes(activeTab) ? 0 : 'calc(1rem + env(safe-area-inset-top))',
         ...(visualViewportWidth
           ? { marginInline: 'auto', maxWidth: '100%', width: `${visualViewportWidth}px` }
           : {}),

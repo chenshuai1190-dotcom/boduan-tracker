@@ -28,6 +28,9 @@ const reviewReadingDetails = read('src/components/ReviewReadingDetails.jsx');
 const reviewReadingDetailsCss = read('src/components/ReviewReadingDetails.css');
 const settings = read('src/tabs/SettingsTab.jsx');
 const pnlReport = read('src/pages/PnlReportPage.jsx');
+const pnlReportCss = read('src/pages/PnlReportPage.css');
+const pnlReportFilters = read('src/components/PnlReportFilters.jsx');
+const pnlReportFiltersCss = read('src/components/PnlReportFilters.css');
 const stockDetail = read('src/pages/StockDetailPage.jsx');
 const stockDetailCss = read('src/pages/StockDetailPage.css');
 const watchlistDetail = read('src/pages/WatchlistStockDetailPage.jsx');
@@ -65,8 +68,10 @@ test('persistent production modules share neutral black surface levels', () => {
   assert.ok(settings.includes('linear-gradient(145deg,#0b0c0e,#0b0c0e)'));
   assert.equal(count(settings, /bg-\[#0b0c0e\]/g), 2, 'settings rows and changelog should use the primary neutral surface');
 
-  assert.equal(count(pnlReport, /bg-\[#0b0c0e\]/g), 4);
-  assert.equal(count(pnlReport, /bg-\[#101114\]/g), 2);
+  assert.match(pnlReport, /<main className="pnl-report-page"/, 'P&L reports should use the continuous scoped report surface');
+  assert.match(pnlReportCss, /\.pnl-report-page\s*\{[^}]*background:\s*#08090b;[^}]*color:\s*#e4e4e7;/);
+  assert.doesNotMatch(pnlReport, /bg-\[#(?:0b0c0e|101114|0b0f14)\]/, 'P&L sections should not restore the old nested card surfaces');
+  assert.doesNotMatch(pnlReportCss, /linear-gradient|radial-gradient|box-shadow|letter-spacing:\s*-|scaleX\(/, 'P&L report surfaces and number widths should remain undecorated and natural');
   assert.match(stockDetail, /<main className="stock-detail-report"/, 'individual returns should use a continuous scoped report, not nested exterior cards');
   assert.match(stockDetailCss, /\.stock-detail-report\s*\{[^}]*max-width:\s*760px;[^}]*background:\s*#08090b;[^}]*color:\s*#e4e4e7;/);
   assert.match(stockDetailCss, /\.sdp-target-price\s*\{[^}]*color:\s*#e4e4e7;/, 'target amount should be a neutral personal plan, not a gold investment signal');
@@ -122,6 +127,9 @@ test('actual asset amounts use soft white while semantic gold and the settings g
   assert.match(tradesCss, /\.trades-report-decimal\s*\{[^}]*color:\s*#83838c;[^}]*font-size:\s*\.64em;/, 'Trading split decimals should match the new Home report hierarchy');
   assert.ok(assets.includes('className="asset-report-total"'));
   assert.match(assetsCss, /\.asset-report-decimal\s*\{[^}]*color:\s*#83838c;[^}]*font-size:\s*\.64em;/, 'asset decimal precision should share the Home neutral hierarchy');
+  assert.ok(pnlReport.includes('reportAmount.main') && pnlReport.includes('reportAmount.decimal'), 'P&L headline amounts should preserve split decimal precision');
+  assert.match(pnlReportCss, /\.pnl-report-amount\s*\{[^}]*font-weight:\s*400;[^}]*letter-spacing:\s*normal;/, 'P&L headline numbers should keep normal weight and natural width');
+  assert.match(pnlReportCss, /\.pnl-report-amount > span\s*\{[^}]*font-size:\s*inherit;[^}]*opacity:\s*1;/, 'P&L headline decimals should use the same size and brightness as the integer amount');
   assert.ok(assets.includes('className="asset-dialog-month-summary"') && assets.includes('≈ ¥{fmt(curSum, 2)}'), 'monthly asset totals should preserve their two-decimal precision');
   assert.match(assetDialogsCss, /\.asset-dialog-month-summary > span:last-child\s*\{[^}]*color:\s*#dcdce2;/, 'monthly totals should use the neutral report amount tone');
   assert.ok(compoundDetail.includes('{fmt(selectedAsset)}'));
@@ -175,7 +183,10 @@ test('sheets, tooltips, and chart markers keep their separate depth colors', () 
   assert.ok(trades.includes("isGenericLedgerTradeEntry ? 'stock-report-modal formal-trade-dialog'"), 'formal trades opt into the shared neutral-black report surface without changing TQQQ or wave shells');
   assert.ok(trades.includes('panelClassName="trade-order-dialog"'), 'order actions also opt into the report-modal surface');
   assert.equal(count(trades, /bg-\[#080808\]/g), 0, 'formal trades must not restore the superseded independent black panel');
-  assert.equal(count(pnlReport, /bg-\[#0b0f14\]/g), 2, 'PnL bottom sheets should keep their existing depth colors');
+  assert.equal(count(pnlReportFilters, /<StockReportModal\b/g), 2, 'both P&L filters should reuse the report-modal surface');
+  assert.match(pnlReportFiltersCss, /\.pnl-report-filter\s*\{[^}]*background:\s*#101112;/);
+  assert.match(pnlReportFiltersCss, /\.pnl-report-filter-input\s*\{[^}]*height:\s*46px;[^}]*background:\s*#1b1c1e;/);
+  assert.doesNotMatch(pnlReportFilters + pnlReportFiltersCss, /#0b0f14|#10151c|#f6b54b|linear-gradient|radial-gradient|box-shadow/, 'P&L filters should not restore navy panels or gold glow');
   assert.equal(count(earningsCalendar, /bg-\[#0b0f14\]/g), 1, 'earnings modal should keep its existing depth color');
   assert.match(reviewGoalModalCss, /\.review-goal-modal\s*\{[^}]*background:\s*#101112;/, 'approved review dialogs should share the scoped neutral-black goal surface');
   assert.equal(count(reviewReadingDetails, /<ReviewGoalModal/g), 2, 'both reading details should use the goal-dialog palette');
