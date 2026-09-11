@@ -324,6 +324,29 @@ function buildMockWatchlistMa200RetestHistory() {
   };
 }
 
+function buildMockWatchlistDailyMaHistory() {
+  // Explicit local fixture: interpolate synthetic weekly prices into daily
+  // closes, then use the production 200-trading-day calculation and warmup.
+  const weekly = buildMockWatchlistWeeklyHistory();
+  const start = new Date(`${weekly[0].date}T00:00:00Z`);
+  start.setUTCFullYear(start.getUTCFullYear() - 1);
+  const end = new Date(`${weekly.at(-1).date}T00:00:00Z`);
+  const rows = [];
+  let index = 0;
+  for (const day = new Date(start); day <= end; day.setUTCDate(day.getUTCDate() + 1)) {
+    if (day.getUTCDay() === 0 || day.getUTCDay() === 6) continue;
+    const date = day.toISOString().slice(0, 10);
+    while (index < weekly.length - 1 && weekly[index + 1].date <= date) index += 1;
+    const previous = weekly[index];
+    const next = weekly[Math.min(index + 1, weekly.length - 1)];
+    const elapsed = day.getTime() - Date.parse(`${previous.date}T00:00:00Z`);
+    const fraction = Math.max(0, Math.min(1, elapsed / (7 * 86_400_000)));
+    const close = previous.close + (next.close - previous.close) * fraction;
+    rows.push({ date, close, high: close, adjusted_close: close });
+  }
+  return buildEodhdStockDetail(rows, { asOfDate: weekly.at(-1).date, splitActions: [] }).ma200DailyHistory;
+}
+
 const mockWatchlistStockDetailData = {
   source: 'EODHD_EOD_SPLITS',
   priceBasis: 'split_adjusted_close',
@@ -331,6 +354,7 @@ const mockWatchlistStockDetailData = {
   currency: 'USD',
   asOfDate: '2026-07-17',
   history: mockWatchlistDetailHistory,
+  ma200DailyHistory: buildMockWatchlistDailyMaHistory(),
   relativeReturnHistory: mockWatchlistDetailHistory.map(({ date, close }) => ({ date, close })),
   qqqHistory: mockWatchlistQqqHistory,
   weeklyHistory: buildMockWatchlistWeeklyHistory(),

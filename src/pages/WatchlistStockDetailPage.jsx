@@ -26,7 +26,6 @@ import {
   displayCurrencyRate,
   filterStockDetailHistory,
   filterStockDetailWeeklyHistory,
-  findStockDetailWeeklyMa50OnOrBefore,
   findStockDetailWeeklyMaOnOrBefore,
   findWatchlistStockDetailRows,
   fullStockDetailChartWindow,
@@ -218,7 +217,7 @@ function quarterLabel(event, language) {
   });
 }
 
-function chartGeometry(rows, movingAverageRows, weeklyMa50Rows = []) {
+function chartGeometry(rows, movingAverageRows, dailyMaRows = []) {
   if (!Array.isArray(rows) || rows.length === 0) return null;
   const left = 4;
   const right = 4;
@@ -232,13 +231,13 @@ function chartGeometry(rows, movingAverageRows, weeklyMa50Rows = []) {
   const maRows = (Array.isArray(movingAverageRows) ? movingAverageRows : [])
     .filter((row) => Number.isFinite(row?.ma200))
     .filter((row) => row.date >= rows[0].date && row.date <= rows.at(-1).date);
-  const ma50Rows = (Array.isArray(weeklyMa50Rows) ? weeklyMa50Rows : [])
-    .filter((row) => Number.isFinite(row?.ma50))
+  const dailyRows = (Array.isArray(dailyMaRows) ? dailyMaRows : [])
+    .filter((row) => Number.isFinite(row?.ma200))
     .filter((row) => row.date >= rows[0].date && row.date <= rows.at(-1).date);
   const values = [
     ...rows.map((row) => row.close),
     ...maRows.map((row) => row.ma200),
-    ...ma50Rows.map((row) => row.ma50),
+    ...dailyRows.map((row) => row.ma200),
   ];
   const low = Math.min(...values);
   const high = Math.max(...values);
@@ -252,13 +251,13 @@ function chartGeometry(rows, movingAverageRows, weeklyMa50Rows = []) {
   const yForValue = (value) => top + ((max - value) / Math.max(0.01, max - min)) * plotHeight;
   const pricePoints = rows.map((row) => ({ ...row, x: xForDate(row.date), y: yForValue(row.close) }));
   const maPoints = maRows.map((row) => ({ ...row, x: xForDate(row.date), y: yForValue(row.ma200) }));
-  const ma50Points = ma50Rows.map((row) => ({ ...row, x: xForDate(row.date), y: yForValue(row.ma50) }));
+  const dailyMaPoints = dailyRows.map((row) => ({ ...row, x: xForDate(row.date), y: yForValue(row.ma200) }));
   const pathFor = (points) => points
     .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`)
     .join(' ');
   const pricePath = pathFor(pricePoints, 'close');
   const maPath = pathFor(maPoints, 'ma200');
-  const ma50Path = pathFor(ma50Points, 'ma50');
+  const dailyMaPath = pathFor(dailyMaPoints, 'ma200');
   const floorY = top + plotHeight;
   const areaPath = `${pricePath} L ${pricePoints.at(-1).x.toFixed(2)} ${floorY.toFixed(2)} L ${pricePoints[0].x.toFixed(2)} ${floorY.toFixed(2)} Z`;
   const priceLines = [0, 0.33, 0.66, 1].map((ratio) => ({
@@ -274,10 +273,10 @@ function chartGeometry(rows, movingAverageRows, weeklyMa50Rows = []) {
     plotHeight,
     pricePoints,
     maPoints,
-    ma50Points,
+    dailyMaPoints,
     pricePath,
     maPath,
-    ma50Path,
+    dailyMaPath,
     areaPath,
     priceLines,
   };
@@ -327,14 +326,14 @@ function chartWindowLabel(points, language) {
   return `${label(points[0])}–${label(points.at(-1))}`;
 }
 
-function PriceChart({ rows, weeklyRows, weeklyLookupRows, range, currency, language, marketColorMode, symbol, priceColor, initialTooltipOpen = false }) {
+function PriceChart({ rows, dailyRows, weeklyRows, weeklyLookupRows, range, currency, language, marketColorMode, symbol, priceColor, initialTooltipOpen = false }) {
   const weeklyMa = range === '5y';
   const chartZoomEnabled = range === '1y' || range === '5y';
-  const showWeeklyMa50 = range === '1y' || range === '5y';
+  const showDailyMa = range === '5y';
   const maLabel = weeklyMa
     ? t(language, 'watchlistDetail.ma200Weekly', 'MA200（周）')
     : t(language, 'watchlistDetail.ma200Daily', 'MA200（日）');
-  const ma50Label = t(language, 'watchlistDetail.ma50Weekly', 'MA50（周）');
+  const dailyMaLabel = t(language, 'watchlistDetail.ma200Daily', 'MA200（日）');
   const maColor = weeklyMa ? MA200_WEEK_COLOR : MA200_DAY_COLOR;
   const chartRef = React.useRef(null);
   const activePointerIdRef = React.useRef(null);
@@ -363,14 +362,12 @@ function PriceChart({ rows, weeklyRows, weeklyLookupRows, range, currency, langu
       ? weeklyRows.filter((row) => row?.completed === true && Number.isFinite(row?.ma200))
       : rows.filter((row) => Number.isFinite(row?.ma200))
   ), [rows, weeklyMa, weeklyRows]);
-  const weeklyMa50Rows = React.useMemo(() => (
-    showWeeklyMa50
-      ? weeklyRows.filter((row) => row?.completed === true && Number.isFinite(row?.ma50))
-      : []
-  ), [showWeeklyMa50, weeklyRows]);
+  const dailyMaRows = React.useMemo(() => (
+    showDailyMa ? dailyRows.filter((row) => Number.isFinite(row?.ma200)) : []
+  ), [dailyRows, showDailyMa]);
   const chart = React.useMemo(
-    () => chartGeometry(visibleRows, movingAverageRows, weeklyMa50Rows),
-    [movingAverageRows, visibleRows, weeklyMa50Rows],
+    () => chartGeometry(visibleRows, movingAverageRows, dailyMaRows),
+    [movingAverageRows, visibleRows, dailyMaRows],
   );
   const chartWindowZoomed = chartZoomEnabled
     && (effectiveChartWindow.start > 0 || effectiveChartWindow.end < rows.length - 1);
@@ -443,14 +440,14 @@ function PriceChart({ rows, weeklyRows, weeklyLookupRows, range, currency, langu
   const selectedMaPoint = selectedMaRow
     ? chart.maPoints.find((point) => point.date === selectedMaRow.date) || null
     : null;
-  const selectedMa50Row = selectedPoint && showWeeklyMa50
-    ? findStockDetailWeeklyMa50OnOrBefore(weeklyLookupRows, selectedPoint.date)
+  const selectedDailyMaRow = selectedPoint && showDailyMa
+    ? dailyRows.find((row) => row.date === selectedPoint.date && Number.isFinite(row.ma200)) || null
     : null;
-  const selectedMa50Distance = selectedPoint && selectedMa50Row?.ma50 > 0
-    ? ((selectedPoint.close / selectedMa50Row.ma50) - 1) * 100
+  const selectedDailyMaDistance = selectedPoint && selectedDailyMaRow?.ma200 > 0
+    ? ((selectedPoint.close / selectedDailyMaRow.ma200) - 1) * 100
     : null;
-  const selectedMa50Point = selectedMa50Row
-    ? chart.ma50Points.find((point) => point.date === selectedMa50Row.date) || null
+  const selectedDailyMaPoint = selectedDailyMaRow
+    ? chart.dailyMaPoints.find((point) => point.date === selectedDailyMaRow.date) || null
     : null;
   const labels = chartDateLabels(chart.pricePoints, language, range);
   const visibleWindowLabel = chartWindowLabel(chart.pricePoints, language);
@@ -678,8 +675,8 @@ function PriceChart({ rows, weeklyRows, weeklyLookupRows, range, currency, langu
         preserveAspectRatio="none"
         className="stock-report-chart-svg w-full overflow-visible"
         role="img"
-        aria-label={showWeeklyMa50
-          ? t(language, 'watchlistDetail.chartImageAriaWithMa50', '{{range}} 收盘价、{{maLabel}}与MA50（周）走势', { range: range.toUpperCase(), maLabel })
+        aria-label={showDailyMa
+          ? t(language, 'watchlistDetail.chartImageAriaWithDailyMa', '{{range}} 收盘价、{{maLabel}}与MA200（日）走势', { range: range.toUpperCase(), maLabel })
           : t(language, 'watchlistDetail.chartImageAria', '{{range}} 收盘价与{{maLabel}}走势', { range: range.toUpperCase(), maLabel })}
       >
         <defs>
@@ -727,7 +724,7 @@ function PriceChart({ rows, weeklyRows, weeklyLookupRows, range, currency, langu
         ))}
         <path d={chart.areaPath} fill="url(#watchlist-stock-detail-area)" />
         {chart.maPoints.length >= 2 ? <path data-watchlist-daily-ma-line={weeklyMa ? undefined : 'true'} data-watchlist-weekly-ma-line={weeklyMa ? 'true' : undefined} d={chart.maPath} fill="none" stroke={maColor} strokeWidth="1.15" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" /> : null}
-        {chart.ma50Points.length >= 2 ? <path data-watchlist-weekly-ma50-line="true" d={chart.ma50Path} fill="none" stroke={MA50_WEEK_COLOR} strokeWidth="1.15" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" /> : null}
+        {chart.dailyMaPoints.length >= 2 ? <path data-watchlist-daily-ma-line="true" d={chart.dailyMaPath} fill="none" stroke={MA200_DAY_COLOR} strokeWidth="1.15" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" /> : null}
         <path data-watchlist-price-line="range-direction" d={chart.pricePath} fill="none" stroke={priceColor} strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
         {latestPointVisible ? (
           <>
@@ -741,7 +738,7 @@ function PriceChart({ rows, weeklyRows, weeklyLookupRows, range, currency, langu
             <circle cx={selectedPoint.x} cy={selectedPoint.y} r="8" fill={priceColor} opacity="0.13" />
             <circle cx={selectedPoint.x} cy={selectedPoint.y} r="3.8" fill="#08090b" stroke={priceColor} strokeWidth="1.25" />
             {selectedMaPoint ? <circle cx={selectedMaPoint.x} cy={selectedMaPoint.y} r="2.8" fill="#05070b" stroke={maColor} strokeWidth="1.1" /> : null}
-            {selectedMa50Point ? <circle cx={selectedMa50Point.x} cy={selectedMa50Point.y} r="2.8" fill="#05070b" stroke={MA50_WEEK_COLOR} strokeWidth="1.1" /> : null}
+            {selectedDailyMaPoint ? <circle cx={selectedDailyMaPoint.x} cy={selectedDailyMaPoint.y} r="2.8" fill="#05070b" stroke={MA200_DAY_COLOR} strokeWidth="1.1" /> : null}
           </g>
         ) : null}
         {labels.map(({ index, point, label }) => (
@@ -767,11 +764,11 @@ function PriceChart({ rows, weeklyRows, weeklyLookupRows, range, currency, langu
               {selectedMaRow?.ma200 > 0 ? `${formatCurrency(selectedMaRow.ma200, currency)} · ${formatSignedPercent(selectedMaDistance)}` : '--'}
             </span>
           </div>
-          {showWeeklyMa50 ? (
+          {showDailyMa ? (
             <div className="stock-report-tooltip-row">
-              <span className="text-white/[0.40]">{ma50Label}</span>
-              <span className="whitespace-nowrap tabular-nums" style={{ color: MA50_WEEK_COLOR, fontFamily: NUMBER_FONT }}>
-                {selectedMa50Row?.ma50 > 0 ? `${formatCurrency(selectedMa50Row.ma50, currency)} · ${formatSignedPercent(selectedMa50Distance)}` : '--'}
+              <span className="text-white/[0.40]">{dailyMaLabel}</span>
+              <span className="whitespace-nowrap tabular-nums" style={{ color: MA200_DAY_COLOR, fontFamily: NUMBER_FONT }}>
+                {selectedDailyMaRow?.ma200 > 0 ? `${formatCurrency(selectedDailyMaRow.ma200, currency)} · ${formatSignedPercent(selectedDailyMaDistance)}` : '--'}
               </span>
             </div>
           ) : null}
@@ -1443,6 +1440,10 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
   }, [loading, stockDetail?.ma200RetestHistory, watchlistStockDetailFocusSection]);
 
   const history = React.useMemo(() => normalizeStockDetailHistory(stockDetail?.history), [stockDetail?.history]);
+  const dailyMaHistory = React.useMemo(
+    () => normalizeStockDetailHistory(stockDetail?.ma200DailyHistory ?? stockDetail?.history),
+    [stockDetail?.ma200DailyHistory, stockDetail?.history],
+  );
   const relativeReturnHistory = React.useMemo(
     () => (
       stockDetail?.relativeReturnPriceBasis === 'adjusted_close'
@@ -1465,6 +1466,7 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
     [stockDetail?.weeklyHistory],
   );
   const visibleDailyHistory = React.useMemo(() => filterStockDetailHistory(history, range), [history, range]);
+  const visibleDailyMaHistory = React.useMemo(() => filterStockDetailHistory(dailyMaHistory, range), [dailyMaHistory, range]);
   const visibleWeeklyHistory = React.useMemo(
     () => filterStockDetailWeeklyHistory(weeklyHistory, range),
     [range, weeklyHistory],
@@ -1640,20 +1642,18 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
           ))}
         </div>
         <div className="mt-2 min-w-0">
-          <PriceChart rows={visibleHistory} weeklyRows={visibleWeeklyHistory} weeklyLookupRows={weeklyHistory} range={range} currency={stockCurrency} language={language} marketColorMode={marketColorMode} symbol={symbol} priceColor={chartPriceColor} initialTooltipOpen={watchlistStockDetailChartTooltipOpen} />
+          <PriceChart rows={visibleHistory} dailyRows={visibleDailyMaHistory} weeklyRows={visibleWeeklyHistory} weeklyLookupRows={weeklyHistory} range={range} currency={stockCurrency} language={language} marketColorMode={marketColorMode} symbol={symbol} priceColor={chartPriceColor} initialTooltipOpen={watchlistStockDetailChartTooltipOpen} />
         </div>
         <div
           className="mt-1 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[11px] text-white/[0.40]"
           data-watchlist-stock-chart-legend={range === '5y'
-            ? 'price-weekly-ma-weekly-ma50'
-            : range === '1y'
-              ? 'price-daily-ma-weekly-ma50'
-              : 'price-daily-ma'}
+            ? 'price-weekly-ma-daily-ma'
+            : 'price-daily-ma'}
         >
           <span className="inline-flex items-center gap-1.5"><i className="h-0.5 w-4 rounded-full" style={{ backgroundColor: chartPriceColor }} />{t(language, 'watchlistDetail.priceLegend', '股价')}</span>
           <span className="inline-flex items-center gap-1.5"><i className="h-0.5 w-4 rounded-full" style={{ backgroundColor: range === '5y' ? MA200_WEEK_COLOR : MA200_DAY_COLOR }} />{range === '5y' ? t(language, 'watchlistDetail.ma200Weekly', 'MA200（周）') : t(language, 'watchlistDetail.ma200Daily', 'MA200（日）')}</span>
-          {range === '1y' || range === '5y' ? (
-            <span className="inline-flex items-center gap-1.5"><i className="h-0.5 w-4 rounded-full" style={{ backgroundColor: MA50_WEEK_COLOR }} />{t(language, 'watchlistDetail.ma50Weekly', 'MA50（周）')}</span>
+          {range === '5y' ? (
+            <span className="inline-flex items-center gap-1.5"><i className="h-0.5 w-4 rounded-full" style={{ backgroundColor: MA200_DAY_COLOR }} />{t(language, 'watchlistDetail.ma200Daily', 'MA200（日）')}</span>
           ) : null}
         </div>
       </section>

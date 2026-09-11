@@ -111,7 +111,7 @@ test('every watchlistDetail translation key has both Chinese and English entries
     'technicalIndicators',
     'range.5y',
     'priceLegend',
-    'chartImageAriaWithMa50',
+    'chartImageAriaWithDailyMa',
     'ma200Daily',
     'ma50Weekly',
     'buffettIndicator',

@@ -4,6 +4,15 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '股票走势图将 MA50 周线替换为蓝色 MA200 日线；5 年视图保留金色 MA200 周线，显示完整 5 年日均线，图例与点选读数同步更新。',
+    ],
+    itemsEn: [
+      'Stock charts replace the weekly MA50 with a blue daily MA200. The five-year view retains the gold weekly MA200 and shows the full five years of daily averages, with matching legends and selected-point readings.',
+    ],
+  },
+  {
+    ver: 'v10.7.9.520', date: '2026-09-11',
+    items: [
       '启动时首页与交易页的头部资产等待完整有效数据后显示，避免旧价格造成短暂错误金额。',
     ],
     itemsEn: [

@@ -288,30 +288,37 @@ test('production watchlist detail only mutates its isolated target, keeps holdin
   assert.ok(appSource.includes('await db.updateWatchlistTargetPrice(symbol, targetPriceUsd)'));
 });
 
-test('production chart adds weekly MA50 to one-year and five-year views without replacing existing lines', () => {
+test('production chart pairs daily and weekly MA200 in five-year view without duplicating daily MA200 elsewhere', () => {
+  const chartSource = pageSource.slice(pageSource.indexOf('function PriceChart('), pageSource.indexOf('\nfunction MetricCell('));
   assert.ok(pageSource.includes('data-watchlist-stock-detail-header="full-width-chart"'));
   assert.ok(pageSource.includes('data-watchlist-stock-price-chart="true"'));
   assert.ok(pageSource.includes('data-watchlist-stock-price-tooltip="true"'));
   assert.ok(pageSource.includes("stockDetailInitialRange = '5y'"));
   assert.ok(pageSource.includes("RANGE_IDS.includes(stockDetailInitialRange) ? stockDetailInitialRange : '5y'"));
   assert.ok(pageSource.includes('data-watchlist-stock-chart-ranges="five"'));
-  assert.ok(pageSource.includes("? 'price-weekly-ma-weekly-ma50'"));
-  assert.ok(pageSource.includes("? 'price-daily-ma-weekly-ma50'"));
+  assert.ok(pageSource.includes("? 'price-weekly-ma-daily-ma'"));
   assert.ok(pageSource.includes(": 'price-daily-ma'"));
   assert.ok(pageSource.includes("range === '5y'"));
-  assert.ok(pageSource.includes("const showWeeklyMa50 = range === '1y' || range === '5y'"));
+  assert.ok(chartSource.includes("const showDailyMa = range === '5y'"), 'the additional daily line appears only beside the five-year weekly line');
   assert.ok(pageSource.includes('visibleWeeklyHistory.map(({ date, close })'));
+  assert.ok(pageSource.includes('dailyRows={visibleDailyMaHistory}'), 'the extra daily average must come from the full daily-MA history rather than relabeling weekly values');
+  assert.ok(pageSource.includes('stockDetail?.ma200DailyHistory ?? stockDetail?.history'), 'older payloads retain the existing daily-history fallback');
   assert.ok(pageSource.includes('row?.completed === true && Number.isFinite(row?.ma200)'));
-  assert.ok(pageSource.includes('row?.completed === true && Number.isFinite(row?.ma50)'));
   assert.ok(pageSource.includes("const MA200_DAY_COLOR = '#60a5fa'"));
   assert.ok(pageSource.includes("const MA200_WEEK_COLOR = '#f6b54b'"));
   assert.ok(pageSource.includes("const MA50_WEEK_COLOR = '#a78bfa'"));
   assert.ok(pageSource.includes("const maColor = weeklyMa ? MA200_WEEK_COLOR : MA200_DAY_COLOR"));
   assert.ok(pageSource.includes("data-watchlist-daily-ma-line={weeklyMa ? undefined : 'true'}"));
   assert.ok(pageSource.includes("data-watchlist-weekly-ma-line={weeklyMa ? 'true' : undefined}"));
-  assert.ok(pageSource.includes('data-watchlist-weekly-ma50-line="true"'));
+  assert.match(chartSource, /data-watchlist-daily-ma-line="true"[^>]*d=\{chart\.dailyMaPath\}[^>]*stroke=\{MA200_DAY_COLOR\}/);
+  assert.ok(chartSource.includes('chart.dailyMaPoints.length >= 2'));
+  assert.doesNotMatch(chartSource, /showWeeklyMa50|weekly-ma50-line|selectedMa50|ma50Label|MA50_WEEK_COLOR/,
+    'weekly MA50 stays in the report below, not in the chart or tooltip');
   assert.ok(pageSource.includes("Number.isFinite(selectedPoint.ma200) ? selectedPoint : null"));
-  assert.ok(pageSource.includes('findStockDetailWeeklyMa50OnOrBefore(weeklyLookupRows, selectedPoint.date)'));
+  const selectedDailyMa = chartSource.match(/const selectedDailyMaRow = ([\s\S]*?);/)?.[1];
+  assert.ok(selectedDailyMa?.includes('dailyRows.find('));
+  assert.match(selectedDailyMa, /row\??\.date === selectedPoint\.date/);
+  assert.match(selectedDailyMa, /Number\.isFinite\(row\??\.ma200\)/);
   assert.ok(pageSource.includes("t(language, 'watchlistDetail.ma200Daily', 'MA200（日）')"));
   assert.ok(pageSource.includes("t(language, 'watchlistDetail.ma50Weekly', 'MA50（周）')"));
   assert.ok(devPreviewSource.includes('ma200: index >= 199 ? Number((rollingSum / 200).toFixed(4)) : null'));
@@ -355,11 +362,15 @@ test('the larger report chart follows the selected range direction and the confi
 });
 
 test('price tooltip has wider mobile-bounded single-line metric rows', () => {
-  const tooltipSource = pageSource.slice(pageSource.indexOf('data-watchlist-stock-price-tooltip="true"'), pageSource.indexOf('{showWeeklyMa50 ?', pageSource.indexOf('data-watchlist-stock-price-tooltip="true"')) + 400);
+  const tooltipStart = pageSource.indexOf('data-watchlist-stock-price-tooltip="true"');
+  const tooltipSource = pageSource.slice(tooltipStart, pageSource.indexOf('\nfunction MetricCell(', tooltipStart));
   assert.ok(tooltipSource.includes('stock-report-price-tooltip'));
   assert.ok(tooltipSource.includes("? 'left-2' : 'right-2'"));
   assert.equal(tooltipSource.includes('w-[188px]'), false);
   assert.equal((tooltipSource.match(/className="stock-report-tooltip-row"/g) || []).length, 3);
+  assert.ok(tooltipSource.includes('{showDailyMa ?'));
+  assert.ok(tooltipSource.includes('selectedDailyMaRow.ma200'));
+  assert.doesNotMatch(tooltipSource, /MA50|ma50|Ma50/);
   assert.match(pageCssSource, /\.stock-report-price-tooltip\s*\{\s*width:\s*min\(300px,\s*calc\(100% - 16px\)\)/);
   assert.match(pageCssSource, /\.stock-report-tooltip-row > span\s*\{\s*white-space:\s*nowrap/);
   assert.match(pageCssSource, /\.stock-report-tooltip-row > span:first-child\s*\{\s*flex-shrink:\s*0/);

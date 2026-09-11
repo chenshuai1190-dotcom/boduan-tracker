@@ -170,6 +170,7 @@ test('stock detail calculates MA200, seeded EMA30, and 20-return sample annualiz
   assert.equal(detail.history[198].ma200, null);
   assert.equal(detail.history[199].ma200, 100.5);
   assert.equal(detail.history[200].ma200, 101.5);
+  assert.deepEqual(detail.ma200DailyHistory, detail.history, 'a short listing retains its real daily rows and null MA warmup');
   assert.equal(detail.indicators.week52High, 202);
   assert.equal(detail.indicators.ma200, 101.5);
   assert.equal(detail.indicators.ema30, 186.5);
@@ -252,6 +253,7 @@ test('stock detail fails closed when split metadata is missing or malformed', ()
     assert.equal(detail.indicators.ma50WeeklyStatus, 'unavailable');
     assert.equal(detail.indicators.ma200WeeklyStatus, 'unavailable');
     assert.deepEqual(detail.history, []);
+    assert.deepEqual(detail.ma200DailyHistory, []);
   }
 });
 
@@ -276,6 +278,36 @@ test('daily MA200 uses hidden ten-year warmup before the bounded history payload
   assert.ok(sourceIndex >= 199, 'the hidden provider rows should be available as warmup');
   assert.equal(firstVisible.ma200, expectedMa);
   assert.equal(detail.history.at(-1).ma200, detail.indicators.ma200);
+});
+
+test('five-year daily MA200 history uses 200 daily closes before trimming, independently of weekly averages', () => {
+  const rows = [];
+  for (let offset = 0; rows.length < 1950; offset += 1) {
+    const date = dateKeyFrom('2018-01-02', offset);
+    if ([0, 6].includes(new Date(`${date}T00:00:00Z`).getUTCDay())) continue;
+    const close = 100 + rows.length;
+    rows.push({ date, close, adjusted_close: close / 2, high: close + 1 });
+  }
+  const detail = buildStockDetail(rows, { asOfDate: rows.at(-1).date });
+  const from = new Date(`${rows.at(-1).date}T00:00:00Z`);
+  from.setUTCFullYear(from.getUTCFullYear() - 5);
+  const fromKey = from.toISOString().slice(0, 10);
+  const expectedRows = rows.filter(row => row.date >= fromKey);
+  assert.deepEqual(detail.ma200DailyHistory.map(row => row.date), expectedRows.map(row => row.date));
+  assert.ok(detail.ma200DailyHistory.length > 1200, 'five years retain daily granularity rather than weekly points');
+  for (const point of [detail.ma200DailyHistory[0], detail.ma200DailyHistory.at(-1)]) {
+    const sourceIndex = rows.findIndex(row => row.date === point.date);
+    assert.ok(sourceIndex >= 199, 'the first visible point still receives the hidden 199-session warmup');
+    const expectedMa200 = rows.slice(sourceIndex - 199, sourceIndex + 1)
+      .reduce((sum, row) => sum + row.close, 0) / 200;
+    assert.equal(point.close, rows[sourceIndex].close, 'dividend-adjusted close must not replace the existing split-only price basis');
+    assert.equal(point.ma200, expectedMa200);
+    assert.deepEqual(Object.keys(point).sort(), ['close', 'date', 'ma200']);
+  }
+  assert.equal(detail.ma200DailyHistory.at(-1).ma200, detail.indicators.ma200);
+  assert.notEqual(detail.ma200DailyHistory.at(-1).ma200, detail.indicators.ma50Weekly);
+  assert.ok(detail.history.length < 300, 'the existing 380-calendar-day price history stays bounded');
+  assert.ok(detail.weeklyHistory.length >= 260 && detail.weeklyHistory.length <= 263);
 });
 
 test('daily MA200 retest uses split-adjusted closes without dividends, a 60-session outcome window, and a separate 20-session recent window', () => {
@@ -1158,14 +1190,15 @@ test('stock-detail view is opt-in, returns real EOD calculations, and does not e
     assert.equal(quote.stockDetail.history.length, 220);
     assert.equal(quote.stockDetail.relativeReturnHistory.length, 220);
     assert.equal(quote.stockDetail.history.at(-1).ma200, 219.5);
+    assert.deepEqual(quote.stockDetail.ma200DailyHistory, quote.stockDetail.history);
     assert.equal(quote.stockDetail.indicators.ma200, 219.5);
     assert.equal(quote.stockDetail.indicators.ema30, 304.5);
     assert.equal(typeof quote.stockDetail.indicators.volatility20AnnualizedPct, 'number');
     assert.equal(quote.stockDetail.indicators.ma50WeeklyStatus, 'insufficient_data');
     assert.equal(quote.stockDetail.indicators.ma200WeeklyStatus, 'insufficient_data');
     assert.ok(Array.isArray(quote.stockDetail.weeklyHistory));
-    assert.equal(requestedEodFrom.length, 2);
-    assert.equal(requestedSplits.length, 1);
+    assert.equal(requestedEodFrom.length, 2, 'the added five-year daily curve reuses the ordinary and detail EOD requests');
+    assert.equal(requestedSplits.length, 1, 'the daily curve reuses the existing detail split metadata');
     assert.equal(requestedSplits[0].pathname, '/api/splits/NVDA.US');
     assert.equal(requestedSplits[0].from, requestedEodFrom[1]);
     assert.match(requestedSplits[0].to, /^\d{4}-\d{2}-\d{2}$/);

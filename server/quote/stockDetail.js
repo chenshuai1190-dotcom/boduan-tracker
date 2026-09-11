@@ -4,6 +4,7 @@ const TRADING_DAYS_PER_YEAR = 252;
 const FIFTY_TWO_WEEKS_IN_DAYS = 52 * 7;
 const DAILY_HISTORY_DAYS = 380;
 const DAILY_MA_WINDOW = 200;
+const DAILY_MA_HISTORY_YEARS = 5;
 const WEEKLY_MA50_WINDOW = 50;
 const WEEKLY_MA_WINDOW = 200;
 const WEEKLY_MA_TREND_WEEKS = 4;
@@ -752,6 +753,7 @@ export function buildEodhdStockDetail(rows = [], { asOfDate, splitActions } = {}
       currency: 'USD',
       asOfDate: '',
       history: [],
+      ma200DailyHistory: [],
       relativeReturnHistory: [],
       weeklyHistory: [],
       ma200RetestHistory: emptyMa200RetestHistory(
@@ -785,6 +787,10 @@ export function buildEodhdStockDetail(rows = [], { asOfDate, splitActions } = {}
   const history = dailyHistoryFrom
     ? allHistory.filter((row) => row.date >= dailyHistoryFrom)
     : [];
+  const ma200DailyHistoryFrom = latestDate ? shiftYearKey(latestDate, -DAILY_MA_HISTORY_YEARS) : '';
+  const ma200DailyHistory = ma200DailyHistoryFrom
+    ? allHistory.filter((row) => row.date >= ma200DailyHistoryFrom)
+    : [];
   const relativeReturnHistoryCandidate = dailyHistoryFrom
     ? normalizedRows
       .filter((row) => row.date >= dailyHistoryFrom && Number.isFinite(row.totalReturnClose))
@@ -815,6 +821,7 @@ export function buildEodhdStockDetail(rows = [], { asOfDate, splitActions } = {}
     currency: 'USD',
     asOfDate: latestDate,
     history,
+    ma200DailyHistory,
     relativeReturnHistory,
     weeklyHistory: weeklyDetail.weeklyHistory,
     ma200RetestHistory,
