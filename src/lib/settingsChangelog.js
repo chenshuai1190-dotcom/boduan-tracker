@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '📊 新增 CNN 恐慌与贪婪独立页面',
+      '  - 从首页 CNN 指数进入，查看五档彩色仪表盘与前收盘、一周、一月、一年前的对比',
+      '  - 历史走势支持一月、三月与一年切换，点击或拖动后保留所选日期和读数',
+      '  - 七项情绪指标按需展开真实原始曲线，市场动量与 VIX 保留各自均线',
+    ],
+    itemsEn: [
+      '📊 A dedicated CNN Fear & Greed page',
+      '  - Open from Home to view a five-color gauge and comparisons with the previous close, week, month and year',
+      '  - Switch between one month, three months and one year, with persistent date and value selection',
+      '  - Expand seven sentiment indicators to view their original data, including moving averages for market momentum and VIX',
+    ],
+  },
+  {
+    ver: 'v10.7.9.516', date: '2026-09-10',
+    items: [
       '📈 资产走势升级固定读数与滑动选月',
       '  - 主金额与首页统一排版，保留两位小数，环比金额在上、百分比在下',
       '  - 拖选后保留月份，点击图外恢复最新读数，顶部家庭总资产保持当前值',

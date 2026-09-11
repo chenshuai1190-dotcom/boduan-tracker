@@ -1,4 +1,4 @@
-import { requireQuoteAuth, setCorsHeaders } from '../server/quote/auth.js';
+import { authenticateAccessToken, requireQuoteAuth, setCorsHeaders } from '../server/quote/auth.js';
 import { sendError } from '../server/quote/errors.js';
 import { fetchQuoteForSymbol } from '../server/quote/providerHandlers.js';
 import { fetchMarketMovers } from '../server/quote/marketMovers.js';
@@ -10,12 +10,14 @@ import { fetchStockValuation } from '../server/quote/valuation.js';
 import { fetchVixComparison } from '../server/quote/vixComparison.js';
 import { fetchDcaHistory, fetchInvestmentComparison, searchInvestmentSymbols, InvestmentComparisonError } from '../server/quote/investmentComparison.js';
 import { fetchPortfolioOverlap, PortfolioOverlapError } from '../server/quote/portfolioOverlap.js';
+import { fetchFearGreed, FearGreedError } from '../server/quote/fearGreed.js';
 
 export default async function handler(req, res) {
   setCorsHeaders(req, res);
   const authRequired = process.env.QUOTE_API_AUTH_REQUIRED !== 'false';
   const dcaViewPresent = [req.query?.view].flat().includes('dca-history');
-  if (authRequired || dcaViewPresent) {
+  const fearGreedViewPresent = [req.query?.view].flat().includes('fear-greed');
+  if (authRequired || dcaViewPresent || fearGreedViewPresent) {
     res.setHeader('Cache-Control', 'private, no-store, max-age=0, must-revalidate');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
@@ -29,8 +31,15 @@ export default async function handler(req, res) {
     return sendError(res, 405, 'Method Not Allowed');
   }
 
-  const auth = await requireQuoteAuth(req, res);
-  if (!auth.ok) return;
+  if (fearGreedViewPresent) {
+    // This view stays private even when legacy quote authentication is disabled locally.
+    const header = req.headers.authorization || '';
+    const auth = await authenticateAccessToken(header.startsWith('Bearer ') ? header.slice(7) : '');
+    if (!auth.ok) return sendError(res, auth.status, auth.error);
+  } else {
+    const auth = await requireQuoteAuth(req, res);
+    if (!auth.ok) return;
+  }
 
   const { symbols, view } = req.query;
   const requestedView = Array.isArray(view) ? view[0] : view;
@@ -43,6 +52,7 @@ export default async function handler(req, res) {
   const investmentSearchRequested = requestedView === 'investment-search';
   const dcaHistoryRequested = dcaViewPresent;
   const portfolioOverlapRequested = requestedView === 'portfolio-overlap';
+  const fearGreedRequested = fearGreedViewPresent;
   if (
     view !== undefined
     && !marketMoversRequested
@@ -54,8 +64,20 @@ export default async function handler(req, res) {
     && !investmentSearchRequested
     && !dcaHistoryRequested
     && !portfolioOverlapRequested
+    && !fearGreedRequested
   ) {
     return sendError(res, 400, '不支持的 view 参数');
+  }
+  if (fearGreedRequested) {
+    try {
+      if (view !== 'fear-greed' || Object.keys(req.query).some(key => key !== 'view')) {
+        throw new FearGreedError('INVALID_PARAMETERS');
+      }
+      return res.status(200).json({ success: true, data: await fetchFearGreed() });
+    } catch (cause) {
+      const failure = cause instanceof FearGreedError ? cause : new FearGreedError();
+      return sendError(res, failure.status, failure.message, { code: failure.code });
+    }
   }
   const eodhdKey = (process.env.EODHD_API_KEY || '').trim().replace(/[\s\u200B-\u200D\uFEFF]/g, '');
   if (dcaHistoryRequested) {

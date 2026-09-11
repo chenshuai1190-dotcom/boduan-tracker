@@ -355,6 +355,7 @@ export default function HomeTab({ ctx }) {
     openHomeMarginRisk,
     openDrawdownObservation,
     openVixComparison,
+    openFearGreed,
     openEarningsCalendar,
     openEarningsDetail,
     openPnlReport,
@@ -946,14 +947,14 @@ export default function HomeTab({ ctx }) {
             </span>
             <span className="home-report-sentiment-date">{vixDateLabel ? `${vixDateLabel} ${t(language, 'home.vix.close', '收盘')}` : '—'}</span>
           </button>
-          <div>
-            <span className="home-report-label">{englishMode ? 'Fear & Greed' : '恐慌贪婪指数'}<small>CNN</small></span>
+          <button type="button" onClick={() => openFearGreed?.()} aria-label={englishMode ? 'Open CNN Fear & Greed' : '查看 CNN 恐慌与贪婪指数'}>
+            <span className="home-report-label">{englishMode ? 'Fear & Greed' : '恐慌贪婪指数'}<small>CNN</small><ChevronRight size={12} /></span>
             <span className="home-report-sentiment-reading">{hasFiniteMarketValue(fgi) ? Math.round(Number(fgi)) : '--'}<small>{hasFiniteMarketValue(fgi) ? fgiInfo.label : ''}</small></span>
             <span className="home-report-meter" aria-hidden="true">
               {hasFiniteMarketValue(fgi) && <i style={{ left: `${Math.max(0, Math.min(100, Number(fgi)))}%` }} />}
             </span>
             <span className="home-report-sentiment-date">{fgiDateLabel || '—'}</span>
-          </div>
+          </button>
         </div>
       </section>
 

@@ -46,6 +46,7 @@ const PnlSharePage = lazy(() => import('./pages/PnlSharePage.jsx'));
 const HomeMarginRiskPage = lazy(() => import('./pages/HomeMarginRiskPage.jsx'));
 const DrawdownObservationPage = lazy(() => import('./pages/DrawdownObservationPage.jsx'));
 const VixComparisonPage = lazy(() => import('./pages/VixComparisonPage.jsx'));
+const FearGreedPage = lazy(() => import('./pages/FearGreedPage.jsx'));
 const InvestmentComparisonPage = lazy(() => import('./pages/InvestmentComparisonPage.jsx'));
 const PortfolioOverlapPage = lazy(() => import('./pages/PortfolioOverlapPage.jsx'));
 const DcaLabPage = lazy(() => import('./pages/DcaLabPage.jsx'));
@@ -4604,6 +4605,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   const homeScrollTopBeforeWatchlistRef = useRef(null);
   const homeScrollTopBeforeEarningsRef = useRef(null);
   const homeScrollTopBeforeVixRef = useRef(null);
+  const homeScrollTopBeforeFearGreedRef = useRef(null);
   const homeScrollTopBeforeDrawdownRef = useRef(null);
   const pendingHomeScrollTopRef = useRef(null);
   const [communityProfileFocusRequest, setCommunityProfileFocusRequest] = useState(0);
@@ -4648,6 +4650,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
       && activeTab === 'home'
       && activePage === 'vix-comparison'
     );
+    const returnsFromFearGreedToHome = tabId === 'home' && activeTab === 'home' && activePage === 'fear-greed';
     const returnsFromDrawdownToHome = (
       tabId === 'home'
       && activeTab === 'home'
@@ -4659,6 +4662,8 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
         ? homeScrollTopBeforeWatchlistRef.current
         : returnsFromEarningsToHome
         ? homeScrollTopBeforeEarningsRef.current
+        : returnsFromFearGreedToHome
+          ? homeScrollTopBeforeFearGreedRef.current
         : returnsFromVixToHome
           ? homeScrollTopBeforeVixRef.current
           : returnsFromDrawdownToHome
@@ -4758,6 +4763,19 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   }, [activePage, activeTab]);
   const closeVixComparison = useCallback(() => {
     pendingHomeScrollTopRef.current = homeScrollTopBeforeVixRef.current;
+    setActivePage(null);
+  }, []);
+  const openFearGreed = useCallback(() => {
+    if (activeTab === 'home' && activePage === null) {
+      homeScrollTopBeforeFearGreedRef.current = readRootScrollTop();
+    }
+    pendingHomeScrollTopRef.current = null;
+    setActiveTab('home');
+    setActivePage('fear-greed');
+  }, [activePage, activeTab]);
+  const closeFearGreed = useCallback(() => {
+    pendingHomeScrollTopRef.current = homeScrollTopBeforeFearGreedRef.current;
+    setActiveTab('home');
     setActivePage(null);
   }, []);
   const openDcaLab = useCallback(() => {
@@ -4993,10 +5011,11 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   const isEarningsCalendarPage = activePage === 'earnings-calendar';
   const isEarningsDetailPage = activePage === 'earnings-detail';
   const isVixComparisonPage = activePage === 'vix-comparison';
+  const isFearGreedPage = activePage === 'fear-greed';
   const isInvestmentComparisonPage = activePage === 'investment-comparison';
   const isPortfolioOverlapPage = activePage === 'portfolio-overlap';
   const isDcaLabPage = activePage === 'dca-lab';
-  const isStandalonePage = isPnlReportPage || isPnlSharePage || isHomeMarginRiskPage || isDrawdownObservationPage || isStockDetailPage || isWatchlistStockDetailPage || isWaveTrackerPage || isCommunityCompetitionPage || isEarningsCalendarPage || isEarningsDetailPage || isInvestmentComparisonPage || isPortfolioOverlapPage || isDcaLabPage || isVixComparisonPage;
+  const isStandalonePage = isPnlReportPage || isPnlSharePage || isHomeMarginRiskPage || isDrawdownObservationPage || isStockDetailPage || isWatchlistStockDetailPage || isWaveTrackerPage || isCommunityCompetitionPage || isEarningsCalendarPage || isEarningsDetailPage || isInvestmentComparisonPage || isPortfolioOverlapPage || isDcaLabPage || isVixComparisonPage || isFearGreedPage;
   const isFullBleedPage = isPnlSharePage || isCommunityCompetitionPage || isEarningsCalendarPage || isEarningsDetailPage;
   const hideBottomNavigation = isPnlReportPage || isPnlSharePage;
   const ActiveTab = TAB_COMPONENTS[activeTab] || HomeTab;
@@ -5188,6 +5207,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     openDrawdownObservation,
     openVixComparison,
     closeVixComparison,
+    openFearGreed,
     openInvestmentComparison,
     closeInvestmentComparison,
     openPortfolioOverlap,
@@ -5390,7 +5410,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
 
   return (
     <div
-      className={`min-h-screen ${isFullBleedPage ? 'px-0' : 'px-4'} ${hideBottomNavigation ? 'pb-0' : 'pb-24'} ${darkShell ? 'bg-[#05070b]' : 'bg-slate-50'}`}
+      className={`min-h-screen ${isFullBleedPage ? 'px-0' : 'px-4'} ${hideBottomNavigation ? 'pb-0' : 'pb-24'} ${isFearGreedPage ? 'bg-[#08090b]' : darkShell ? 'bg-[#05070b]' : 'bg-slate-50'}`}
       style={{ paddingTop: isStandalonePage ? 0 : 'calc(1rem + env(safe-area-inset-top))' }}
     >
       {pullRefreshStatus !== 'idle' && (
@@ -5524,6 +5544,8 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
                 ? <DrawdownObservationPage key={user?.id || ''} ctx={{ userId: user?.id || '', language, marketColorMode, watchlist: localizedWatchlist, positions: investmentSummary.positions.map(({ symbol, name, heldShares }) => ({ symbol, name, quantity: heldShares })), portfolioReady: stockHoldingsReady, portfolioError: stockHoldingsError, closeDrawdownObservation }} />
               : isVixComparisonPage
                 ? <VixComparisonPage ctx={{ ...tabCtx, userId: user?.id || '' }} />
+              : isFearGreedPage
+                ? <FearGreedPage key={user?.id || ''} ctx={{ userId: user?.id || '', language, closeFearGreed }} />
               : isInvestmentComparisonPage
                 ? <InvestmentComparisonPage ctx={{ userId: user?.id || '', language, closeInvestmentComparison }} />
               : isPortfolioOverlapPage

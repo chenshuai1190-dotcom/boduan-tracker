@@ -10,7 +10,7 @@ const translations = readFileSync(new URL('../src/lib/i18n.js', import.meta.url)
 test('VIX card opens a lazy read-only standalone page with the authenticated identity', () => {
   assert.ok(app.includes("lazy(() => import('./pages/VixComparisonPage.jsx'))"));
   assert.ok(app.includes("activePage === 'vix-comparison'"));
-  assert.ok(app.includes('|| isVixComparisonPage;'));
+  assert.match(app, /const isStandalonePage = [^;]*\bisVixComparisonPage\b/);
   assert.ok(app.includes("<VixComparisonPage ctx={{ ...tabCtx, userId: user?.id || '' }} />"));
   const cards = [...home.matchAll(/<button\b[\s\S]*?<\/button>/g)]
     .map(([block]) => block)
