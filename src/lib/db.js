@@ -205,7 +205,8 @@ const mapStockTrade = (trade) => ({
   note: trade.note || '',
 });
 
-export const fetchStockTrades = async (preUser = null) => {
+export const fetchStockTrades = async (preUser = null, { onReadSource } = {}) => {
+  onReadSource?.(false);
   const user = preUser || (await supabase.auth.getUser()).data.user;
   if (!user) return [];
 
@@ -223,6 +224,7 @@ export const fetchStockTrades = async (preUser = null) => {
   }
   const stockTrades = (data || []).map(mapStockTrade);
   cacheSet(user.id, 'stock_trades', stockTrades);
+  onReadSource?.(true);
   return stockTrades;
 };
 
@@ -473,6 +475,7 @@ export const upsertSettings = async (settings) => {
 // 🚨 容错设计: 用 Promise.allSettled 代替 Promise.all
 // 任何一个表 404 或出错, 不影响其他表的数据加载
 export const fetchAllUserData = async () => {
+  const headerAssetAuthority = { holdings: false, margin: false, cash: false };
   // 🔧 关键修复 (v10.7.8.8):
   // 之前: 每个 fetch 函数内部都调 supabase.auth.getUser()
   //       Promise.all 11 个并发请求 → 11 个同时抢 auth lock
@@ -487,6 +490,7 @@ export const fetchAllUserData = async () => {
       accounts: null, snapshots: null, investmentPlan: null,
       marginStatus: null, disciplines: null, reviewLogs: null,
       yearlyActuals: null, availableCashStatus: null, _failedTables: [],
+      _headerAssetAuthority: headerAssetAuthority,
     };
   }
 
@@ -497,18 +501,18 @@ export const fetchAllUserData = async () => {
 
   const results = await Promise.allSettled([
     fetchTrades(user),            // 0
-    fetchStockTrades(user),       // 1
+    fetchStockTrades(user, { onReadSource: (confirmed) => { headerAssetAuthority.holdings = confirmed; } }), // 1
     fetchWatchlist(user),         // 2
     fetchWaveNotes(user),         // 3
     fetchSettings(user),          // 4
     fetchAccounts(user),          // 5
     fetchSnapshots(user),         // 6
     fetchInvestmentPlan(user),    // 7
-    fetchMarginStatus(user),      // 8
+    fetchMarginStatus(user, { onReadSource: (confirmed) => { headerAssetAuthority.margin = confirmed; } }), // 8
     fetchDisciplines(user),       // 9
     fetchReviewLogs(user),        // 10
     fetchYearlyActuals(user),     // 11
-    fetchAvailableCashStatus(user), // 12
+    fetchAvailableCashStatus(user, { onReadSource: (confirmed) => { headerAssetAuthority.cash = confirmed; } }), // 12
   ]);
 
   // 🔑 关键: 失败时返回 null (非 []/{}) 这样 App 层能区分
@@ -543,6 +547,8 @@ export const fetchAllUserData = async () => {
     yearlyActuals:  getValue(11),
     availableCashStatus: getValue(12),
     _symbolRepair: symbolRepair,
+    // Header totals require this read to be cloud-confirmed, including an empty ledger.
+    _headerAssetAuthority: headerAssetAuthority,
     // 🔑 失败表清单 (App 层决定是否显示警告)
     _failedTables: failedTables,
   };
@@ -834,7 +840,8 @@ const resetLegacyHomeMarginStatus = async (user, legacyRow, retryCount = 0) => {
   return resetLegacyHomeMarginStatus(user, latestRow, retryCount + 1);
 };
 
-export const fetchMarginStatus = async (preUser = null) => {
+export const fetchMarginStatus = async (preUser = null, { onReadSource } = {}) => {
+  onReadSource?.(false);
   const user = preUser || (await supabase.auth.getUser()).data.user;
   if (!user) return null;
 
@@ -855,6 +862,7 @@ export const fetchMarginStatus = async (preUser = null) => {
       : mapHomeMarginStatus(data))
     : emptyHomeMarginStatus();
   cacheSet(user.id, 'margin_status', status);
+  onReadSource?.(true);
   return status;
 };
 
@@ -936,7 +944,8 @@ const validCachedAvailableCashStatus = (value) => {
   };
 };
 
-export const fetchAvailableCashStatus = async (preUser = null) => {
+export const fetchAvailableCashStatus = async (preUser = null, { onReadSource } = {}) => {
+  onReadSource?.(false);
   const user = preUser || (await supabase.auth.getUser()).data.user;
   if (!user) return null;
 
@@ -972,6 +981,7 @@ export const fetchAvailableCashStatus = async (preUser = null) => {
     ? mapAvailableCashStatus(data, { writeReady, reversalReady })
     : emptyAvailableCashStatus(writeReady, reversalReady);
   cacheSet(user.id, AVAILABLE_CASH_CACHE_KEY, status);
+  onReadSource?.(true);
   return status;
 };
 

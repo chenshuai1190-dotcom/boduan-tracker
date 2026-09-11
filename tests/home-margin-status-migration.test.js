@@ -18,7 +18,7 @@ assert.ok(migrationEnd > migrationStart, 'margin status loader must remain befor
 
 const migrationSource = dbSource
   .slice(migrationStart, migrationEnd)
-  .replace('export const fetchMarginStatus = async (preUser = null) => {', 'const fetchMarginStatus = async (preUser = null) => {');
+  .replace('export const fetchMarginStatus', 'const fetchMarginStatus');
 
 const extractedModule = await import(
   `data:text/javascript;base64,${Buffer.from(`

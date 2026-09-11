@@ -23,7 +23,7 @@ test('Home report has one stable asset, market, watchlist and earnings hierarchy
 test('Home reuses financial readiness and existing cash, P&L and margin actions', () => {
   for (const invariant of [
     'assetStatusReady ?', 'displayAssetMoney.main', 'displayAssetMoney.decimal',
-    'hasTodayPnl ?', 'summary.todayPnlLocked', 'onClick={openPnlShare}',
+    'hasTodayPnl ?', 'headerSummary.todayPnlLocked', 'onClick={openPnlShare}',
     'onClick={openPnlReport}', 'onClick={openHomeMarginRisk}',
     'disabled={!availableCashWriteReady}', 'availableCashStatusReady ?',
     'availableCashIsSet ? 2 : 0', 'onLoadCashMovements={loadAvailableCashMovements}',

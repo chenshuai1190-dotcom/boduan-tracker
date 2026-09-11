@@ -3,6 +3,7 @@ import { TrendingDown, TrendingUp, Target, AlertCircle, CheckCircle2, Clock, Tra
 import { supabase } from './lib/supabase';
 import * as db from './lib/db';
 import { deriveInvestmentSummary } from './lib/investmentSummary.js';
+import { useHeaderAssetSnapshot } from './lib/useHeaderAssetSnapshot.js';
 import { deriveTqqqTradePreview, isTqqqFormalTradeEntry } from './lib/tqqqTradeDiscipline.js';
 import { normalizeMarginDebtUsd } from './lib/homeMarginRisk.js';
 import { MARKET_COLOR_MODE_STORAGE_KEY, normalizeMarketColorMode } from './lib/marketColorMode.js';
@@ -921,6 +922,8 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   const [stockTrades, setStockTrades] = useState([]);
   // Unlike the startup timeout, this flag means the stock ledger actually loaded.
   const [stockHoldingsReady, setStockHoldingsReady] = useState(false);
+  const [headerAssetAuthority, setHeaderAssetAuthority] = useState(null);
+  const [headerFxDateKey, setHeaderFxDateKey] = useState('');
   const [stockHoldingsError, setStockHoldingsError] = useState(null);
   // 收益报表服务端重算完成后递增，只作为页面重新读取数据库快照的信号。
   const [pnlReportRefreshVersion, setPnlReportRefreshVersion] = useState(0);
@@ -1366,6 +1369,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
 
     if (cached?.rates) {
       applyFxRates(cached.rates);
+      if (validRate(cached.rates.CNY)) setHeaderFxDateKey(cached.dateKey);
       if (!force && cached.dateKey === todayKey) return cached;
     }
 
@@ -1401,6 +1405,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
         localStorage.setItem(FX_RATES_STORAGE_KEY, JSON.stringify(next));
       } catch {}
       applyFxRates(nextRates);
+      if (validRate(nextRates.CNY)) setHeaderFxDateKey(todayKey);
       return next;
     } catch (e) {
       console.warn('[FX] 每日汇率拉取失败,保留缓存/默认值:', e.message);
@@ -1787,6 +1792,8 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
       yearlyActuals: cloudActuals,
       _failedTables,
     } = result || {};
+
+    setHeaderAssetAuthority(result?._headerAssetAuthority || null);
 
     console.log(`${logLabel} cloudWatchlist:`, cloudWatchlist, '长度:', cloudWatchlist?.length);
     console.log(`${logLabel} accounts:`, cloudAccounts?.length, 'snapshots:', cloudSnapshots?.length);
@@ -3083,6 +3090,9 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
         if (Array.isArray(batchResult.data)) resultRows.push(...batchResult.data);
       }
       const result = { success: true, data: resultRows };
+      // Preserve the official response only for header display validation.
+      // Shared quote merging, realtime startup and report inputs stay unchanged.
+      acceptHeaderBaselineQuotes(resultRows);
       responseStatus = 200;
       responseResult = result;
 
@@ -4692,6 +4702,21 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   const setPortfolioCurrencyMode = useCallback((nextCurrency) => {
     setPortfolioCurrencyModeState(normalizePortfolioCurrency(nextCurrency));
   }, []);
+  const { snapshot: headerAssetSnapshot, acceptBaselineQuotes: acceptHeaderBaselineQuotes } = useHeaderAssetSnapshot({
+    userId: user.id,
+    stockTrades,
+    cashUsd: availableCashStatus?.availableCashUsd,
+    marginDebtUsd: marginStatus?.currentMargin,
+    usdRate,
+    ready: stockHoldingsReady && availableCashStatusReady && marginStatusReady
+      && headerAssetAuthority?.holdings === true
+      && headerAssetAuthority?.cash === true
+      && headerAssetAuthority?.margin === true,
+    currency: portfolioCurrencyMode,
+    fxDateKey: headerFxDateKey,
+    quoteRows: quoteCache,
+  });
+
   const waveDisplayCurrency = normalizePortfolioCurrency(portfolioCurrencyMode);
   const waveDisplayRate = waveDisplayCurrency === 'CNY' ? (validRate(usdRate) || DEFAULT_USD_CNY_RATE) : 1;
   const signedWaveCurrencyAmount = useCallback((value, digits = 2) => formatWaveCurrencyAmount(value, {
@@ -5185,6 +5210,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     marketIndices,
     investmentSummary,
     investmentPlan,
+    headerAssetSnapshot,
     availableCashStatus,
     availableCashStatusReady,
     lastFetched,

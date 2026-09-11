@@ -419,6 +419,10 @@ export default function HomeTab({ ctx }) {
     if (typeof setPortfolioCurrencyMode === 'function') setPortfolioCurrencyMode(normalized);
   }, [setPortfolioCurrencyMode]);
   const summary = investmentSummary || emptySummary;
+  const headerSnapshotProvided = Object.hasOwn(ctx, 'headerAssetSnapshot');
+  const headerSnapshot = ctx.headerAssetSnapshot;
+  const headerSnapshotReady = !headerSnapshotProvided || Boolean(headerSnapshot?.summary);
+  const headerSummary = headerSnapshotProvided ? (headerSnapshot?.summary || {}) : summary;
   const englishMode = isEnglishLanguage(language);
   const positions = summary.activePositions || [];
   const stockDisplayName = typeof displayStockName === 'function'
@@ -465,27 +469,29 @@ export default function HomeTab({ ctx }) {
   const isCnyMode = currencyMode === 'CNY';
   const displayCurrency = isCnyMode ? 'CNY' : 'USD';
   const displayRate = isCnyMode ? summary.usdRate : 1;
-  const displayAssets = isCnyMode ? summary.totalAssetsCny : summary.totalAssetsUsd;
+  const headerDisplayRate = isCnyMode && headerSnapshotReady ? headerSummary.usdRate : displayRate;
+  const displayAssets = isCnyMode ? headerSummary.totalAssetsCny : headerSummary.totalAssetsUsd;
   const availableCashIsSet = Boolean(availableCashStatus?.isSet);
   const availableCashUsd = availableCashStatusReady && Number.isFinite(Number(availableCashStatus?.availableCashUsd))
     ? Math.max(0, Number(availableCashStatus.availableCashUsd))
     : 0;
-  const displayAvailableCash = availableCashUsd * displayRate;
+  const displayAvailableCash = availableCashUsd * headerDisplayRate;
   const availableCashWriteReady = availableCashStatusReady && availableCashStatus?.writeReady === true;
   const availableCashReversalReady = availableCashWriteReady && availableCashStatus?.reversalReady === true;
-  const assetStatusReady = marginStatusReady && availableCashStatusReady;
+  const assetStatusReady = marginStatusReady && availableCashStatusReady && headerSnapshotReady;
   const marginDebtUsd = normalizeMarginDebtUsd(marginStatus?.currentMargin);
+  const headerMarginDebtUsd = headerSnapshot?.summary ? normalizeMarginDebtUsd(headerSnapshot.marginDebtUsd) : marginDebtUsd;
   const marginOverview = React.useMemo(() => deriveHomeMarginOverview({
-    totalAssetsUsd: summary.totalAssetsUsd,
-    marginDebtUsd,
-  }), [marginDebtUsd, summary.totalAssetsUsd]);
+    totalAssetsUsd: headerSummary.totalAssetsUsd,
+    marginDebtUsd: headerMarginDebtUsd,
+  }), [headerMarginDebtUsd, headerSummary.totalAssetsUsd]);
   const marginLeverageStatus = React.useMemo(() => homeMarginLeverageStatus(marginOverview), [marginOverview]);
-  const displayNetAssets = marginOverview.netAssetsUsd * displayRate;
+  const displayNetAssets = marginOverview.netAssetsUsd * headerDisplayRate;
   const displayAssetMoney = splitSignedCurrencyAmount(displayNetAssets, displayCurrency, 2);
-  const displayMarginDebt = marginOverview.marginDebtUsd * displayRate;
-  const hasTodayPnl = summary.hasTodayPnl !== false;
-  const displayTodayPnl = hasTodayPnl ? summary.todayPnl * displayRate : null;
-  const displayCumulativePnl = summary.cumulativePnl * displayRate;
+  const displayMarginDebt = marginDebtUsd * headerDisplayRate;
+  const hasTodayPnl = headerSnapshotReady && headerSummary.hasTodayPnl !== false;
+  const displayTodayPnl = hasTodayPnl ? headerSummary.todayPnl * headerDisplayRate : null;
+  const displayCumulativePnl = headerSummary.cumulativePnl * headerDisplayRate;
   const pnlAmountClass = 'home-report-pnl-amount';
 
   React.useEffect(() => {
@@ -861,22 +867,22 @@ export default function HomeTab({ ctx }) {
         </div>
 
         <div className="home-report-pnl-grid">
-          <button type="button" onClick={openPnlShare} aria-label={t(language, 'home.openPnlShare', '分享今日盈亏')} data-home-pnl-share-trigger="true">
+          <button type="button" disabled={!headerSnapshotReady} onClick={openPnlShare} aria-label={t(language, 'home.openPnlShare', '分享今日盈亏')} data-home-pnl-share-trigger="true">
             <span className="home-report-label">{t(language, 'home.todayPnl', '今日盈亏')}</span>
-            <span className={`${pnlAmountClass} ${pnlColor(hasTodayPnl ? summary.todayPnl : 0, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
+            <span className={`${pnlAmountClass} ${pnlColor(hasTodayPnl ? headerSummary.todayPnl : 0, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
               {hasTodayPnl ? fmtSignedCurrency(displayTodayPnl, displayCurrency, 2) : '--'}
             </span>
-            <span className={`home-report-pnl-percent ${pnlColor(hasTodayPnl ? summary.todayPnl : 0, marketColorMode)}`}>
-              {hasTodayPnl ? fmtSignedPct(summary.todayPnlPct, 2) : '--'}
-              {hasTodayPnl && summary.todayPnlLocked && <small>{t(language, 'home.pnlLocked', '收盘锁定')}</small>}
+            <span className={`home-report-pnl-percent ${pnlColor(hasTodayPnl ? headerSummary.todayPnl : 0, marketColorMode)}`}>
+              {hasTodayPnl ? fmtSignedPct(headerSummary.todayPnlPct, 2) : '--'}
+              {hasTodayPnl && headerSummary.todayPnlLocked && <small>{t(language, 'home.pnlLocked', '收盘锁定')}</small>}
             </span>
           </button>
           <button type="button" onClick={openPnlReport}>
             <span className="home-report-label">{t(language, 'home.totalPnl', '累计盈亏')}<ChevronRight size={12} /></span>
-            <span className={`${pnlAmountClass} ${pnlColor(summary.cumulativePnl, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
-              {fmtSignedCurrency(displayCumulativePnl, displayCurrency, 2)}
+            <span className={`${pnlAmountClass} ${pnlColor(headerSummary.cumulativePnl, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
+              {headerSnapshotReady ? fmtSignedCurrency(displayCumulativePnl, displayCurrency, 2) : '--'}
             </span>
-            <span className={`home-report-pnl-percent ${pnlColor(summary.cumulativePnl, marketColorMode)}`}>{fmtSignedPct(summary.cumulativePnlPct, 2)}</span>
+            <span className={`home-report-pnl-percent ${pnlColor(headerSummary.cumulativePnl, marketColorMode)}`}>{headerSnapshotReady ? fmtSignedPct(headerSummary.cumulativePnlPct, 2) : '--'}</span>
           </button>
         </div>
 
@@ -901,7 +907,7 @@ export default function HomeTab({ ctx }) {
             <span className="home-report-balance">
               <span className="home-report-label">{t(language, 'home.leverage', '杠杆')}</span>
               <span className="home-report-leverage">
-                <span className="home-report-balance-value">{assetStatusReady ? fmtLeverage(marginOverview.leverage) : '—'}</span>
+                <span className="home-report-balance-value">{assetStatusReady ? fmtLeverage(marginOverview.leverage) : '--'}</span>
                 {assetStatusReady && marginLeverageStatus && <AccountLeverageBadge className="h-[17px] px-1 text-[10px]" language={language} tierId={marginLeverageStatus.id} />}
               </span>
             </span>

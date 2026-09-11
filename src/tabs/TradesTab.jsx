@@ -568,6 +568,10 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
   }, [showAddTrade, orderActionOpen, scenarioOpen]);
 
   const summary = investmentSummary || {};
+  const headerSnapshotProvided = Object.hasOwn(ctx, 'headerAssetSnapshot');
+  const headerSnapshot = ctx.headerAssetSnapshot;
+  const headerSnapshotReady = !headerSnapshotProvided || Boolean(headerSnapshot?.summary);
+  const headerSummary = headerSnapshotProvided ? (headerSnapshot?.summary || {}) : summary;
   const positions = summary.activePositions || [];
   const quoteBySymbol = React.useMemo(() => {
     const map = new Map();
@@ -580,6 +584,9 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
   const rate = toNumber(summary.usdRate || usdRate) || 7.2;
   const displayCurrency = currencyMode === 'CNY' ? 'CNY' : 'USD';
   const displayRate = currencyMode === 'CNY' ? rate : 1;
+  const headerDisplayRate = currencyMode === 'CNY' && headerSnapshotReady
+    ? (toNumber(headerSummary.usdRate) || displayRate)
+    : displayRate;
   const signedWaveCurrencyAmount = (value, digits = 2) => formatWaveCurrencyAmount(value, {
     currency: displayCurrency,
     rate: displayRate,
@@ -610,23 +617,24 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
   const availableCashUsd = availableCashStatusReady && Number.isFinite(Number(availableCashStatus?.availableCashUsd))
     ? Math.max(0, Number(availableCashStatus.availableCashUsd))
     : 0;
-  const displayAvailableCash = availableCashUsd * displayRate;
+  const displayAvailableCash = availableCashUsd * headerDisplayRate;
   const availableCashWriteReady = availableCashStatusReady && availableCashStatus?.writeReady === true;
   const availableCashReversalReady = availableCashWriteReady && availableCashStatus?.reversalReady === true;
   const marginDebtUsd = normalizeMarginDebtUsd(marginStatus?.currentMargin);
-  const assetStatusReady = marginStatusReady && availableCashStatusReady;
+  const headerMarginDebtUsd = headerSnapshot?.summary ? normalizeMarginDebtUsd(headerSnapshot.marginDebtUsd) : marginDebtUsd;
+  const assetStatusReady = marginStatusReady && availableCashStatusReady && headerSnapshotReady;
   const marginOverview = React.useMemo(() => deriveHomeMarginOverview({
-    totalAssetsUsd: summary.totalAssetsUsd,
-    marginDebtUsd,
-  }), [marginDebtUsd, summary.totalAssetsUsd]);
+    totalAssetsUsd: headerSummary.totalAssetsUsd,
+    marginDebtUsd: headerMarginDebtUsd,
+  }), [headerMarginDebtUsd, headerSummary.totalAssetsUsd]);
   const marginLeverageStatus = React.useMemo(() => homeMarginLeverageStatus(marginOverview), [marginOverview]);
-  const displayAssets = toNumber(summary.totalAssetsUsd) * displayRate;
-  const displayNetAssets = marginOverview.netAssetsUsd * displayRate;
-  const displayMarginDebt = marginOverview.marginDebtUsd * displayRate;
+  const displayAssets = toNumber(headerSummary.totalAssetsUsd) * headerDisplayRate;
+  const displayNetAssets = marginOverview.netAssetsUsd * headerDisplayRate;
+  const displayMarginDebt = marginDebtUsd * headerDisplayRate;
   const displayAssetMoney = splitSignedCurrencyAmount(displayNetAssets, displayCurrency, 2);
-  const hasTodayPnl = summary.hasTodayPnl !== false;
-  const displayTodayPnl = hasTodayPnl ? toNumber(summary.todayPnl) * displayRate : null;
-  const displayCumulativePnl = toNumber(summary.cumulativePnl) * displayRate;
+  const hasTodayPnl = headerSnapshotReady && headerSummary.hasTodayPnl !== false;
+  const displayTodayPnl = hasTodayPnl ? toNumber(headerSummary.todayPnl) * headerDisplayRate : null;
+  const displayCumulativePnl = toNumber(headerSummary.cumulativePnl) * headerDisplayRate;
   const displayHoldingPnl = toNumber(summary.holdingPnl ?? summary.unrealizedPnl) * displayRate;
   const todayKey = localDateKey();
   const todayTradeSummary = React.useMemo(() => {
@@ -984,18 +992,18 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
             {assetStatusReady ? <><span>{displayAssetMoney.main}</span><span className="trades-report-decimal">{displayAssetMoney.decimal}</span></> : <span className="text-white/30">--</span>}
           </div>
           <div className="trades-report-pnl-grid">
-            <button type="button" onClick={openPnlShare} aria-label={tt('trades.openPnlShare', '分享今日盈亏')} data-trades-pnl-share-trigger="true">
+            <button type="button" disabled={!headerSnapshotReady} onClick={openPnlShare} aria-label={tt('trades.openPnlShare', '分享今日盈亏')} data-trades-pnl-share-trigger="true">
               <span className="trades-report-label">{tt('trades.todayPnl', '今日盈亏')}</span>
               <span className={`${pnlAmountClass} ${pnlClass(hasTodayPnl ? displayTodayPnl : 0, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{hasTodayPnl ? signedCurrency(displayTodayPnl, displayCurrency, 2) : '--'}</span>
               <span className={`trades-report-pnl-percent ${pnlClass(hasTodayPnl ? displayTodayPnl : 0, marketColorMode)}`}>
-                <span>{hasTodayPnl ? signedPct(summary.todayPnlPct, 2) : '--'}</span>
-                {hasTodayPnl && summary.todayPnlLocked && <small>{tt('trades.pnlLocked', '收盘锁定')}</small>}
+                <span>{hasTodayPnl ? signedPct(headerSummary.todayPnlPct, 2) : '--'}</span>
+                {hasTodayPnl && headerSummary.todayPnlLocked && <small>{tt('trades.pnlLocked', '收盘锁定')}</small>}
               </span>
             </button>
             <button type="button" onClick={openPnlReport}>
               <span className="trades-report-label">{tt('trades.totalPnl', '累计盈亏')}<ChevronRight size={12} /></span>
-              <span className={`${pnlAmountClass} ${pnlClass(displayCumulativePnl, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{signedCurrency(displayCumulativePnl, displayCurrency, 2)}</span>
-              <span className={`trades-report-pnl-percent ${pnlClass(displayCumulativePnl, marketColorMode)}`}>{signedPct(summary.cumulativePnlPct, 2)}</span>
+              <span className={`${pnlAmountClass} ${pnlClass(displayCumulativePnl, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>{headerSnapshotReady ? signedCurrency(displayCumulativePnl, displayCurrency, 2) : '--'}</span>
+              <span className={`trades-report-pnl-percent ${pnlClass(displayCumulativePnl, marketColorMode)}`}>{headerSnapshotReady ? signedPct(headerSummary.cumulativePnlPct, 2) : '--'}</span>
             </button>
           </div>
           <div className="trades-report-balances" data-trades-total-assets="true">
@@ -1007,7 +1015,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
             <button type="button" disabled={!assetStatusReady} onClick={openHomeMarginRisk} className="trades-report-financing" data-trades-margin-trigger="true">
               <span className="trades-report-balance"><span className="trades-report-label">{tt('home.marginDebt', '融资负债')}<ChevronRight size={12} /></span><span className="trades-report-balance-value" style={{ fontFamily: TRADE_NUMBER_FONT }}>{marginStatusReady ? currencyAmount(displayMarginDebt, displayCurrency, 2) : '--'}</span></span>
               <span className="trades-report-balance"><span className="trades-report-label">{tt('home.leverage', '杠杆')}</span><span className="trades-report-leverage">
-                <span className="trades-report-balance-value">{assetStatusReady ? formatLeverage(marginOverview.leverage) : '—'}</span>
+                <span className="trades-report-balance-value">{assetStatusReady ? formatLeverage(marginOverview.leverage) : '--'}</span>
                 {assetStatusReady && marginLeverageStatus && <AccountLeverageBadge className="h-[17px] px-1 text-[10px]" language={language} tierId={marginLeverageStatus.id} />}
               </span></span>
             </button>

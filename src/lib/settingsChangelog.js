@@ -4,6 +4,15 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '启动时首页与交易页的头部资产等待完整有效数据后显示，避免旧价格造成短暂错误金额。',
+    ],
+    itemsEn: [
+      'Home and Trades asset totals now wait for complete, valid data on startup, preventing brief incorrect amounts from old prices.',
+    ],
+  },
+  {
+    ver: 'v10.7.9.519', date: '2026-09-11',
+    items: [
       '✨ 底部导航与设置页统一新版黑灰设计',
       '  - 五个导航栏目等宽居中，统一图标与文字大小，选中状态使用柔和金色',
       '  - 设置页采用左对齐头像、简洁列表和细分隔线，减少大卡片与重复版本信息',

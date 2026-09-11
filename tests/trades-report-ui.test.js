@@ -53,7 +53,7 @@ test('Trading report preserves its financial readiness, actions, currency and fi
     'availableCashReversalReady = availableCashWriteReady && availableCashStatus?.reversalReady === true',
     'disabled={!availableCashWriteReady}', 'onClick={() => setShowAvailableCashEditor(true)}',
     'onClick={openPnlShare}', 'onClick={openPnlReport}', 'onClick={openHomeMarginRisk}',
-    'hasTodayPnl && summary.todayPnlLocked', 'availableCashStatusReady ? currencyAmount(displayAvailableCash',
+    'hasTodayPnl && headerSummary.todayPnlLocked', 'availableCashStatusReady ? currencyAmount(displayAvailableCash',
     'availableCashIsSet ? 2 : 0', 'onLoadCashMovements={loadAvailableCashMovements}',
     'onMutateCash={availableCashWriteReady ? mutateAvailableCash : null}',
     'onReverseCashMovement={availableCashReversalReady ? reverseAvailableCashMovement : null}',
