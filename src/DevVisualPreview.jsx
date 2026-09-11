@@ -34,7 +34,6 @@ import { buildEodhdStockDetail } from '../server/quote/stockDetail.js';
 
 const AnalysisTab = lazy(() => import('./tabs/AnalysisTab.jsx'));
 const HomeTab = lazy(() => import('./tabs/HomeTab.jsx'));
-const HeaderAssetStartupPreview = lazy(() => import('./dev/HeaderAssetStartupPreview.jsx'));
 const ReviewTab = lazy(() => import('./tabs/ReviewTab.jsx'));
 const SettingsTab = lazy(() => import('./tabs/SettingsTab.jsx'));
 const TradesTab = lazy(() => import('./tabs/TradesTab.jsx'));
@@ -3383,9 +3382,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
       }}
     >
       <Suspense fallback={<div className="py-12 text-center text-sm text-white/45">加载本地预览...</div>}>
-        {earningsPreviewName === 'header-startup' && ['home', 'trades'].includes(activeTab)
-          ? <HeaderAssetStartupPreview ctx={activeTab === 'home' ? homeCtx : tradesCtx} tab={activeTab} />
-          : activeTab === 'pnl-report'
+        {activeTab === 'pnl-report'
           ? <PnlReportPage ctx={homeCtx} />
           : activeTab === 'pnl-share'
           ? (

@@ -79,7 +79,7 @@ test('available cash status and movements load independently while writes stay R
   const fetchAllStart = dbSource.indexOf('export const fetchAllUserData');
   const fetchAllEnd = dbSource.indexOf('// ============ ACCOUNTS', fetchAllStart);
   const fetchAllBlock = dbSource.slice(fetchAllStart, fetchAllEnd);
-  assert.match(fetchAllBlock, /fetchAvailableCashStatus\(user,\s*\{\s*onReadSource:/);
+  assert.ok(fetchAllBlock.includes('fetchAvailableCashStatus(user)'));
   assert.ok(fetchAllBlock.includes('availableCashStatus: getValue(12)'));
 });
 

@@ -4,6 +4,15 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '按要求恢复 v519 的资产头部与启动逻辑，保留 v521 股票趋势的蓝色 MA200 日线、金色 MA200 周线及完整 5 年日均线。',
+    ],
+    itemsEn: [
+      'Restore the v519 asset header and startup behavior while retaining the v521 stock-chart changes: blue daily MA200, gold weekly MA200, and five years of daily averages.',
+    ],
+  },
+  {
+    ver: 'v10.7.9.522', date: '2026-09-11',
+    items: [
       '修复盘前持仓已有实时价格时首页与交易页头部金额不显示的问题，正确合并当前有效价格与官方昨收基线，并保留旧行情防覆盖。',
     ],
     itemsEn: [

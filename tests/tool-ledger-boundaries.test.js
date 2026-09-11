@@ -1037,9 +1037,9 @@ test('main trade entry modal isolates the compact stacked formal-trade design', 
   assert.equal(i18nSource.includes('{{holdings}} holdings · {{trades}} trades'), false, 'English header should not show the trade count');
   assert.equal(homeTabSource.includes("gridTemplateColumns: '0.95fr 1fr 1.3fr'"), false, 'English home header should use the same metric columns as Chinese');
   assert.equal(tradesTabSource.includes("gridTemplateColumns: '0.95fr 1fr 1.3fr'"), false, 'English trade header should use the same metric columns as Chinese');
-  assert.ok(homeTabSource.includes("headerSummary.todayPnlLocked && <small>{t(language, 'home.pnlLocked'"), 'Home should retain the authoritative close-lock label');
+  assert.ok(homeTabSource.includes("summary.todayPnlLocked && <small>{t(language, 'home.pnlLocked'"), 'Home should retain the authoritative close-lock label');
   assert.match(homeTabCss, /\.home-report-pnl-percent small\s*\{[^}]*font-size:\s*10px;[^}]*color:\s*#71717d;/, 'Home close-lock text should use the neutral report helper style');
-  assert.ok(tradesTabSource.includes("headerSummary.todayPnlLocked && <small>{tt('trades.pnlLocked'"), 'the authoritative close-lock label must remain visible when locked');
+  assert.ok(tradesTabSource.includes("summary.todayPnlLocked && <small>{tt('trades.pnlLocked'"), 'the authoritative close-lock label must remain visible when locked');
   assert.match(tradesTabCss, /\.trades-report-pnl-percent small\s*\{[^}]*font-size:\s*10px;[^}]*color:\s*#71717d;/, 'the close-lock label should share Home report helper styling');
 });
 
