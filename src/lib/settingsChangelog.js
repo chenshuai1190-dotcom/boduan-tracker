@@ -4,6 +4,15 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '修复交易持仓年初至今涨跌幅在线上显示为空的问题，补齐行情整理环节遗漏的年初基准字段。',
+    ],
+    itemsEn: [
+      'Fix missing YTD percentages in the holdings table by preserving the year-end baseline during quote updates.',
+    ],
+  },
+  {
+    ver: 'v10.7.9.524', date: '2026-09-11',
+    items: [
       '交易持仓表在占比后新增个股年初至今涨跌幅，保留两位小数并沿用涨跌配色；以去年末复权收盘为基准，跟随现价与收盘锁定口径，缺失数据保留为空。',
     ],
     itemsEn: [

@@ -3160,6 +3160,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
               changePercent: fresh.changePercent || 0,
               // 保存年初至今涨跌
               ytdChangePercent: fresh.ytdChangePercent || 0,
+              stockYtdBaseline: fresh.stockYtdBaseline ?? null,
             };
           }
           return s;
