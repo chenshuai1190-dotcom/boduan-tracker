@@ -98,6 +98,42 @@ function validBaseline(row, context) {
     && OFFICIAL_CLOSE_SOURCES.has(row.dailyPnlBaselineSource);
 }
 
+// A live price and its dated completed-close denominator have independent
+// lifetimes. Before 04:00 the P&L denominator belongs to the previous close's
+// day; the ordinary daily baseline already contains yesterday's close.
+function currentBaselineFields(row, context) {
+  if (!row || row.error) return null;
+  const prefix = validBaseline(row, context) ? 'dailyPnlBaseline'
+    : positive(row.dailyBaselineClose) && row.dailyBaselineDate === context.baselineDate
+      && OFFICIAL_CLOSE_SOURCES.has(row.dailyBaselineSource) ? 'dailyBaseline' : '';
+  if (!prefix) return null;
+  return { dailyPnlBaselineClose: Number(row[`${prefix}Close`]),
+    dailyPnlBaselineDate: row[`${prefix}Date`], dailyPnlBaselineSource: row[`${prefix}Source`] };
+}
+
+function officialBaselineFacts(rows, context, now) {
+  const facts = new Map();
+  for (const row of Array.isArray(rows) ? rows : []) {
+    const receivedAt = timestamp(row?.headerReceivedAt);
+    const symbol = normalizeUserStockSymbol(row?.symbol);
+    const baseline = currentBaselineFields(row, context);
+    if (row?.source !== 'EODHD' || !symbol || !baseline || !receivedAt
+        || receivedAt > now + 60_000 || now - receivedAt > MAX_CACHE_AGE_MS) continue;
+    const previous = facts.get(symbol);
+    if (!previous || receivedAt > previous.receivedAt) facts.set(symbol, { baseline, receivedAt });
+  }
+  return facts;
+}
+
+function withLiveBaseline(row, context, facts) {
+  if (!context.live || !RUNTIME_SOURCES.has(row?.source)) return row;
+  const baseline = currentBaselineFields(row, context)
+    || facts.get(normalizeUserStockSymbol(row.symbol))?.baseline;
+  // Copy only completed-close facts. A REST response's arrival time must never
+  // relabel its old price as a current tick or replace the stream's price time.
+  return baseline ? { ...row, ...baseline } : row;
+}
+
 function quoteTime(row) { return timestamp(row.realtimeAt) || timestamp(row.timestamp); }
 
 function verifiedQuote(row, context, now, rest = false) {
@@ -134,10 +170,10 @@ function verifiedQuote(row, context, now, rest = false) {
     dailyPnlSession: context.session };
 }
 
-function quoteCandidates(rows, context, now, rest) {
+function quoteCandidates(rows, context, now, rest, baselineFacts = new Map()) {
   const result = new Map();
   for (const row of Array.isArray(rows) ? rows : []) {
-    const quote = verifiedQuote(row, context, now, rest);
+    const quote = verifiedQuote(rest ? row : withLiveBaseline(row, context, baselineFacts), context, now, rest);
     if (!quote) continue;
     const old = result.get(quote.symbol);
     if (!old || quoteTime(quote) >= quoteTime(old)) result.set(quote.symbol, quote);
@@ -151,7 +187,8 @@ export function buildHeaderAssetSnapshot({ userId, stockTrades, cashUsd, marginD
   const context = headerAssetSessionContext(now);
   if (ready !== true || !basisKey || !context) return null;
   const active = derivePositionsFromTrades(stockTrades).filter(position => position.heldShares > 0);
-  const runtime = quoteCandidates(quoteRows, context, Number(now), false);
+  const baselineFacts = officialBaselineFacts(baselineRows, context, Number(now));
+  const runtime = quoteCandidates(quoteRows, context, Number(now), false, baselineFacts);
   const rest = quoteCandidates(baselineRows, context, Number(now), true);
   const quotes = [];
   for (const position of active) {

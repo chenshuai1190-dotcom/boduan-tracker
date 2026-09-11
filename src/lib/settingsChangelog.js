@@ -4,6 +4,15 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '修复盘前持仓已有实时价格时首页与交易页头部金额不显示的问题，正确合并当前有效价格与官方昨收基线，并保留旧行情防覆盖。',
+    ],
+    itemsEn: [
+      'Fix missing Home and Trades header amounts when premarket holding prices are available, combining valid current prices with the official previous close while preventing older quotes from overwriting newer data.',
+    ],
+  },
+  {
+    ver: 'v10.7.9.521', date: '2026-09-11',
+    items: [
       '股票走势图将 MA50 周线替换为蓝色 MA200 日线；5 年视图保留金色 MA200 周线，显示完整 5 年日均线，图例与点选读数同步更新。',
     ],
     itemsEn: [
