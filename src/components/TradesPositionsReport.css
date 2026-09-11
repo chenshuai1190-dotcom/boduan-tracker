@@ -66,8 +66,10 @@
 }
 .tpr-table th:nth-child(5),
 .tpr-table td:nth-child(5) { min-width: 144px; }
-.tpr-table th:last-child,
-.tpr-table td:last-child { min-width: 66px; padding-right: 0; }
+.tpr-table th:nth-child(6),
+.tpr-table td:nth-child(6) { min-width: 66px; padding-right: 0; }
+.tpr-table th:nth-child(7),
+.tpr-table td:nth-child(7) { min-width: 90px; padding-left: 18px; padding-right: 0; }
 
 .tpr-stock,
 .tpr-cell {
@@ -100,5 +102,5 @@
 .tpr-cell-left .tpr-secondary,
 [data-position-field="cost"] { color: #777780; }
 .tpr-stock:active,
-.tpr-cell:active { opacity: .65; }
+button.tpr-cell:active { opacity: .65; }
 .trades-positions-report button:focus-visible { outline: 1px solid #8b8b94; outline-offset: -2px; }

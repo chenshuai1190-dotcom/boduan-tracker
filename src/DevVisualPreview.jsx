@@ -31,6 +31,7 @@ import { localMonthKey, shiftMonthKey } from './lib/calendarMonth.js';
 import { EARNINGS_GROWTH_SCHEMA_VERSION } from './lib/earningsGrowth.js';
 import { normalizeLanguage, t } from './lib/i18n.js';
 import { buildEodhdStockDetail } from '../server/quote/stockDetail.js';
+import { currentNewYorkDate, latestCompletedUsTradingDate } from './lib/pnlReportSnapshots.js';
 
 const AnalysisTab = lazy(() => import('./tabs/AnalysisTab.jsx'));
 const HomeTab = lazy(() => import('./tabs/HomeTab.jsx'));
@@ -3137,12 +3138,20 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     high: 644.4,
     week52High: 644.4,
   };
+  // Visual fixture only: independent yearly prices, unrelated to purchase cost.
+  const previewYtdYear = Number(currentNewYorkDate().slice(0, 4));
+  const previewYtdDate = latestCompletedUsTradingDate(new Date(`${previewYtdYear}-01-01T12:00:00Z`));
+  const previewYtdPrices = { NVDA: 175, MSFT: 440, META: 570 };
   const tradeQuoteRows = [...tradeActivePositions.map((item) => ({
     symbol: item.symbol,
     name: item.name,
     price: item.currentPrice,
     high: item.high,
     week52High: item.high,
+    stockYtdBaseline: previewYtdPrices[item.symbol] ? {
+      year: previewYtdYear, date: previewYtdDate,
+      close: previewYtdPrices[item.symbol], source: 'eodhd-adjusted-close',
+    } : null,
   })), ...(tqqqTradePreviewSide ? [tqqqPreviewQqqQuote] : [])];
   const tradePreviewStockTrades = tqqqTradePreviewSide
     ? tradeActivePositions.map((item, index) => ({

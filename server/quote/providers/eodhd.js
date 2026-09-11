@@ -1,5 +1,6 @@
 import { providerFetch, QUOTE_TIMEOUTS } from '../http.js';
 import { buildEodhdStockDetail } from '../stockDetail.js';
+import { isRegularNyseHoliday } from '../../../src/lib/quoteRefreshPolicy.js';
 
 const US_EQUITY_REGULAR_START_MINUTES = 9 * 60 + 30;
 const US_EQUITY_REGULAR_END_MINUTES = 16 * 60;
@@ -105,6 +106,32 @@ export function findDailyBaselineCloseFromEodRows(rows = [], marketDate = '') {
     .filter(Boolean)
     .sort((a, b) => a.date.localeCompare(b.date));
   return candidates[candidates.length - 1] || null;
+}
+
+// This extra display baseline does not change the existing quote/YTD fields.
+// The previous year's final exchange session is required, including for IPOs.
+export function buildStockYtdBaseline(rows, marketDate) {
+  if (!Array.isArray(rows) || typeof marketDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(marketDate)) return null;
+  const marketDay = new Date(`${marketDate}T00:00:00Z`);
+  if (!Number.isFinite(marketDay.getTime()) || marketDay.toISOString().slice(0, 10) !== marketDate) return null;
+  const year = Number(marketDate.slice(0, 4));
+  if (year < 2) return null;
+  const finalSession = new Date(`${String(year - 1).padStart(4, '0')}-12-31T00:00:00Z`);
+  while ([0, 6].includes(finalSession.getUTCDay()) || isRegularNyseHoliday(finalSession.toISOString().slice(0, 10))) {
+    finalSession.setUTCDate(finalSession.getUTCDate() - 1);
+  }
+  const date = finalSession.toISOString().slice(0, 10);
+  const matching = rows.filter(row => row?.date === date);
+  if (matching.length === 0) return null;
+  let close = null;
+  for (const row of matching) {
+    const raw = row.adjusted_close;
+    const parsed = typeof raw === 'number' ? raw
+      : typeof raw === 'string' && /^(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i.test(raw.trim()) ? Number(raw) : NaN;
+    if (!isPositiveNumber(parsed) || (close !== null && close !== parsed)) return null;
+    close = parsed;
+  }
+  return { year, date, close, source: 'eodhd-adjusted-close' };
 }
 
 function findCloseForMarketDateFromEodRows(rows = [], marketDate = '') {
@@ -697,6 +724,7 @@ export async function fetchStockQuote(symbol, {
     let yearStartPrice = 0;
     let yearStartDate = '';
     let ytdChangePercent = 0;
+    let stockYtdBaseline = null;
     let dailyBaseline = null;
     let marketDateClose = null;
     let latestCompletedClose = null;
@@ -736,6 +764,7 @@ export async function fetchStockQuote(symbol, {
           const quoteEodData = includeStockDetail
             ? eodData.filter((day) => String(day?.date || '') >= quoteHistoryFromDate)
             : eodData;
+          stockYtdBaseline = buildStockYtdBaseline(quoteEodData, marketDate);
           dailyBaseline = findDailyBaselineCloseFromEodRows(quoteEodData, marketDate);
           marketDateClose = findCloseForMarketDateFromEodRows(quoteEodData, marketDate);
           latestCompletedClose = marketDateClose || dailyBaseline;
@@ -812,6 +841,7 @@ export async function fetchStockQuote(symbol, {
       yearStartPrice,
       yearStartDate,
       ytdChangePercent,
+      stockYtdBaseline,
       high: week52High,
       low: week52Low,
       highSource,

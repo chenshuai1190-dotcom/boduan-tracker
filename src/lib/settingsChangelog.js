@@ -4,6 +4,15 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '交易持仓表在占比后新增个股年初至今涨跌幅，保留两位小数并沿用涨跌配色；以去年末复权收盘为基准，跟随现价与收盘锁定口径，缺失数据保留为空。',
+    ],
+    itemsEn: [
+      'The holdings table adds each stock’s YTD change after Weight, with two decimal places and the selected market colors. It uses the previous year-end adjusted close and the table’s current or locked closing price, leaving missing data unavailable.',
+    ],
+  },
+  {
+    ver: 'v10.7.9.523', date: '2026-09-11',
+    items: [
       '按要求恢复 v519 的资产头部与启动逻辑，保留 v521 股票趋势的蓝色 MA200 日线、金色 MA200 周线及完整 5 年日均线。',
     ],
     itemsEn: [

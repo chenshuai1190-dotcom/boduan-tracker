@@ -8,6 +8,7 @@ import {
 import { splitCurrencyAmount } from '../lib/amountDisplay.js';
 import { deriveHomeMarginOverview, homeMarginLeverageStatus, normalizeMarginDebtUsd } from '../lib/homeMarginRisk.js';
 import { resolveHoldingDisplayPrice } from '../lib/homeMarketDisplay.js';
+import { deriveHoldingStockYtdPercent } from '../lib/holdingStockYtd.js';
 import { isEnglishLanguage, t } from '../lib/i18n.js';
 import { derivePositionAllocation } from '../lib/investmentSummary.js';
 import { normalizeStrictUserStockSymbol } from '../lib/symbols.js';
@@ -934,6 +935,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
     const holdingPnlPct = position.holdingPnlPct ?? position.unrealizedPct;
     const allocation = derivePositionAllocation(summary, position.symbol) ?? 0;
     const displayCurrentPrice = resolveHoldingDisplayPrice(position) || 0;
+    const ytdPercent = deriveHoldingStockYtdPercent(quoteBySymbol.get(position.symbol), displayCurrentPrice);
     return {
       position, symbol: position.symbol, title: nameParts.title,
       subtitle: nameParts.subtitle,
@@ -950,6 +952,8 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
       holdingPnlClass: pnlClass(holdingPnl, marketColorMode),
       holdingPnlPctClass: pnlClass(holdingPnlPct, marketColorMode),
       allocation: `${(allocation * 100).toFixed(1)}%`,
+      ytdChangePct: ytdPercent === null ? '--' : Math.abs(ytdPercent) < 0.005 ? '0.00%' : signedPct(ytdPercent / 100, 2),
+      ytdChangePctClass: ytdPercent === null || Math.abs(ytdPercent) < 0.005 ? '' : pnlClass(ytdPercent, marketColorMode),
     };
   });
   const renderOrderRow = (trade, showDate = false) => {

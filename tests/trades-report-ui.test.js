@@ -1,8 +1,12 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { transformWithOxc } from 'vite';
 import { resolveHoldingDisplayPrice } from '../src/lib/homeMarketDisplay.js';
 import { derivePositionAllocation } from '../src/lib/investmentSummary.js';
+import { deriveHoldingStockYtdPercent } from '../src/lib/holdingStockYtd.js';
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 const trades = read('src/tabs/TradesTab.jsx');
@@ -15,7 +19,7 @@ const modelEnd = trades.indexOf('const renderOrderRow =', modelStart);
 assert.ok(modelStart >= 0 && modelEnd > modelStart, 'the report view model must remain bounded in TradesTab');
 const modelSource = trades.slice(modelStart, modelEnd);
 
-function deriveRows(positions, { currency = 'USD', rate = 1 } = {}) {
+function deriveRows(positions, { currency = 'USD', rate = 1, quotes = [], now = Date.parse('2026-09-11T15:00:00Z') } = {}) {
   const summary = { activePositions: positions, positionsMarketValue: 5000 };
   const dependencies = {
     positions, summary, displayRate: rate, displayCurrency: currency,
@@ -24,6 +28,8 @@ function deriveRows(positions, { currency = 'USD', rate = 1 } = {}) {
     stockLogoCandidates: (symbol) => [`local-logo:${symbol}`],
     toNumber: (value) => Number.isFinite(Number(value)) ? Number(value) : 0,
     resolveHoldingDisplayPrice, derivePositionAllocation,
+    quoteBySymbol: new Map(quotes.map(quote => [quote.symbol, quote])),
+    deriveHoldingStockYtdPercent: (quote, price) => deriveHoldingStockYtdPercent(quote, price, now),
     currencyAmount: (value, currency, digits) => ({ value, currency, digits }),
     signedCurrency: (value, currency, digits) => ({ value, currency, digits, signed: true }),
     fmtAmount: (value, digits) => ({ value, digits }),
@@ -116,6 +122,23 @@ test('unavailable daily P&L and quotes remain missing while valid zero and unrea
   assert.deepEqual(deriveRows([]), []);
 });
 
+test('YTD uses the displayed stock price and prior-year baseline independently of FX and holding return', () => {
+  const quotes = [{ symbol: 'NVDA', stockYtdBaseline: { year: 2026, date: '2025-12-31', close: 100, source: 'eodhd-adjusted-close' } }];
+  for (const [currency, rate] of [['USD', 1], ['CNY', 7]]) {
+    const [row] = deriveRows([position({ dailyPnlPrice: 125, holdingPnlPct: -0.5 })], { currency, rate, quotes });
+    assert.deepEqual(row.ytdChangePct, { value: 0.25, digits: 2, percent: true });
+    assert.equal(row.ytdChangePctClass, 'redUpGreenDown:25');
+    assert.deepEqual(row.holdingPnlPct, { value: -0.5, digits: 2, percent: true });
+  }
+  const [missing] = deriveRows([position({ ytdChangePercent: 0 })]);
+  assert.equal(missing.ytdChangePct, '--');
+  assert.equal(missing.ytdChangePctClass, '');
+  const [zero] = deriveRows([position({ dailyPnlPrice: 100 })], { quotes });
+  assert.equal(zero.ytdChangePct, '0.00%');
+  assert.equal(zero.ytdChangePctClass, '');
+  assert.equal(i18n.split("'trades.ytdChange':").length - 1, 2);
+});
+
 test('stock details, scenario and record-trade actions stay separate and preserve formal ledger mutations', () => {
   assert.ok(trades.includes("onOpenStock={(row) => (typeof openStockDetail === 'function' ? openStockDetail(row.symbol) : openTradeModal(row.position, 'buy'))}"));
   assert.ok(trades.includes('onScenario={(row) => openPositionScenario(row.position)}'));
@@ -168,20 +191,38 @@ test('Trading report keeps one horizontal holdings table, fixed identity column 
   assert.match(positionsCss, /\.trades-positions-report\s*\{[^}]*overflow-x:\s*auto;/);
   assert.match(positionsCss, /\.tpr-table\s*\{[^}]*min-width:\s*550px;/);
   assert.match(positionsCss, /\.tpr-table td:first-child\s*\{[^}]*position:\s*sticky;[^}]*left:\s*0;[^}]*background:\s*#050609;/);
-  const columns = ['trades.nameTicker', 'trades.valueQty', 'trades.priceCost', 'trades.dailyPnl', 'trades.positionPnl', 'trades.allocation'];
+  const columns = ['trades.nameTicker', 'trades.valueQty', 'trades.priceCost', 'trades.dailyPnl', 'trades.positionPnl', 'trades.allocation', 'trades.ytdChange'];
   const indexes = columns.map((key) => positionsView.indexOf(`tt('${key}'`));
-  assert.equal((positionsView.match(/<th scope="col">/g) || []).length, 6);
+  assert.equal((positionsView.match(/<th scope="col">/g) || []).length, 7);
   assert.ok(indexes.every((index, offset) => index >= 0 && (!offset || index > indexes[offset - 1])));
   assert.doesNotMatch(css, /overflow-x:\s*(?:auto|scroll)/);
   assert.doesNotMatch(css + positionsCss, /(?:^|[}\n])\s*(?:html|body|#root|nav)\s*\{/);
   assert.doesNotMatch(css, /100vh|100dvh|position:\s*fixed|box-shadow|linear-gradient|radial-gradient/);
-  for (const field of ['market-value', 'holding-pnl', 'holding-pnl-pct', 'today-pnl', 'today-pnl-pct', 'quantity', 'price', 'cost', 'allocation']) {
+  for (const field of ['market-value', 'holding-pnl', 'holding-pnl-pct', 'today-pnl', 'today-pnl-pct', 'quantity', 'price', 'cost', 'allocation', 'ytd-change-pct']) {
     assert.ok(positionsView.includes(`data-position-field="${field}"`), `report must preserve ${field}`);
   }
   for (const match of (css + positionsCss).matchAll(/font-size:\s*([\d.]+)px/g)) assert.ok(Number(match[1]) >= 10);
   assert.match(css, /\.trades-report-pnl-amount\s*\{[^}]*overflow-wrap:\s*anywhere;/);
   assert.match(positionsCss, /\.tpr-value\s*\{[^}]*white-space:\s*nowrap;/);
   assert.doesNotMatch(positionsCss, /\.tpr-(?:value|secondary)\s*\{[^}]*(?:overflow:\s*hidden|text-overflow:)/);
+});
+
+test('the final YTD column displays the supplied percentage and missing state without adding an action', async () => {
+  const { code } = await transformWithOxc(positionsView, 'TradesPositionsReport.jsx', { jsx: { runtime: 'classic' } });
+  const compiled = code.replace(/^import[^\n]*\n/gm, '').replace('export default function', 'function');
+  const Report = new Function('React', `${compiled}\nreturn TradesPositionsReport;`)(React);
+  for (const [percentage, color] of [['+23.45%', 'positive-color'], ['-3.21%', 'negative-color'], ['0.00%', ''], ['--', '']]) {
+    const html = renderToStaticMarkup(React.createElement(Report, {
+      rows: [{ symbol: 'NVDA', title: '英伟达', subtitle: 'NVDA', allocation: '24.7%', ytdChangePct: percentage, ytdChangePctClass: color }],
+    }));
+    const cells = [...html.matchAll(/<td>([\s\S]*?)<\/td>/g)].map(match => match[1]);
+    assert.equal(cells.length, 7);
+    assert.match(cells[5], /data-position-field="allocation"/);
+    assert.ok(cells[6].includes(`class="tpr-value ${color}"`));
+    assert.ok(cells[6].includes(`data-position-field="ytd-change-pct">${percentage}</span>`));
+    assert.match(cells[6], /^<div class="tpr-cell">/);
+    assert.doesNotMatch(cells[6], /<button|role="button"|tabindex=/);
+  }
 });
 
 test('compact first-screen spacing preserves financial content and reachable tools above the horizontal table', () => {
@@ -243,7 +284,10 @@ test('positions financial columns share first-screen space while preserving mini
   const firstFour = [minWidth('.tpr-table td:first-child'), minWidth('.tpr-table td:nth-child(2)'),
     minWidth('.tpr-table td:nth-child(3)'), minWidth('.tpr-table td:nth-child(4)')];
   assert.deepEqual(firstFour, [70, 112, 76, 103], 'identity and financial columns retain their approved minimum widths and fallbacks');
-  assert.deepEqual([minWidth('.tpr-table td:nth-child(5)'), minWidth('.tpr-table td:last-child')], [144, 66], 'offscreen financial columns retain their approved minimum widths');
+  assert.deepEqual([minWidth('.tpr-table td:nth-child(5)'), minWidth('.tpr-table td:nth-child(6)')], [144, 66], 'offscreen financial columns retain their approved minimum widths');
+  assert.equal(minWidth('.tpr-table td:nth-child(7)'), 90, 'YTD receives its own width after allocation');
+  assert.match(rule('.tpr-table td:nth-child(6)'), /padding-right:\s*0;/, 'the original allocation column keeps its approved spacing');
+  assert.match(rule('.tpr-table td:nth-child(7)'), /padding-left:\s*18px;[^}]*padding-right:\s*0;/);
   assert.match(rule('.trades-positions-report'), /container-type:\s*inline-size;/, 'remaining first-screen space must use the visible report container, not the full overflow table');
   assert.match(rule('.tpr-table'), /--tpr-column-extra:\s*max\(0px,\s*calc\(\(100cqw - 361px\) \/ 3\)\);/, 'the three financial columns should share excess first-screen width equally without shrinking their minimums');
   for (const [column, base] of [[2, 112], [3, 76], [4, 103]]) {
