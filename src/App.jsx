@@ -32,6 +32,7 @@ import { COMMUNITY_COMPETITION_PUBLICATION_EVENT } from './lib/communityCompetit
 import { enqueuePnlReportRecalculationAfterLedgerMutation } from './lib/pnlReportRecalculation.js';
 import { createPnlShareIdentity } from './lib/pnlShareIdentity.js';
 import ActionModalCard from './components/ActionModalCard.jsx';
+import './components/ReportBottomNav.css';
 import YearlyActualModal from './components/YearlyActualModal.jsx';
 import { DisciplineModal, LogModal } from './components/ReviewEntryEditors.jsx';
 import ConfirmModal from './components/ConfirmModal.jsx';
@@ -5581,7 +5582,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
 
 
         <ConfirmModal
-          variant={activeTab === 'analysis' ? 'asset-report' : 'default'}
+          variant={activeTab === 'analysis' ? 'asset-report' : activeTab === 'settings' ? 'settings-report' : 'default'}
           modal={confirmModal}
           submitting={confirmSubmitting}
           onCancel={closeConfirmModal}
@@ -5695,11 +5696,11 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
         {/* 底部 5 tab 导航栏 */}
         {!hideBottomNavigation && (
         <div
-          className={`fixed bottom-0 left-0 right-0 shadow-2xl z-50 ${darkShell ? 'bg-[#070a0f] border-t border-white/10' : 'bg-white border-t border-slate-200'}`}
+          className={`report-bottom-nav fixed bottom-0 left-0 right-0 z-50 ${darkShell ? '' : 'report-bottom-nav-light'}`}
           style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
         >
           <div className="max-w-5xl mx-auto">
-            <div className="grid grid-cols-5">
+            <div className="report-bottom-nav-grid grid grid-cols-5">
               {[
                 { id: 'home',     label: t(language, 'nav.home', '首页'), icon: Home },
                 { id: 'trades',   label: t(language, 'nav.trades', '交易'), icon: ListChecks },
@@ -5713,14 +5714,12 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
                   <button
                     key={tab.id}
                     onClick={() => handleBottomTabClick(tab.id)}
-                    className={`flex flex-col items-center justify-center py-2 active:scale-95 transition ${
-                      darkShell
-                        ? (isActive ? 'text-[#f6a524]' : 'text-white/40')
-                        : (isActive ? 'text-blue-600' : 'text-slate-400')
-                    }`}
+                    type="button"
+                    className="report-bottom-nav-tab"
+                    aria-current={isActive ? 'page' : undefined}
                   >
-                    <Icon className={`w-5 h-5 mb-0.5 ${isActive ? 'stroke-[2.5]' : ''}`} />
-                    <span className={`text-[10px] ${isActive ? 'font-bold' : 'font-medium'}`}>{tab.label}</span>
+                    <Icon className="report-bottom-nav-icon" strokeWidth={1.8} aria-hidden="true" />
+                    <span className="report-bottom-nav-label">{tab.label}</span>
                   </button>
                 );
               })}

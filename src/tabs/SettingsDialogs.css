@@ -1,0 +1,161 @@
+.settings-report-dialog {
+  background: #101112;
+  color: #e2e2e6;
+  letter-spacing: normal;
+}
+
+.settings-report-dialog .srm-title {
+  font-weight: 400;
+  letter-spacing: normal;
+}
+
+.settings-report-dialog .settings-report-input {
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  height: 46px;
+  padding: 0 14px;
+  border: 1px solid #2a2b2e;
+  border-radius: 12px;
+  outline: none;
+  background: #1b1c1e;
+  color: #e2e2e6;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: normal;
+  letter-spacing: normal;
+  box-shadow: none;
+}
+
+.settings-report-dialog .settings-report-input::placeholder {
+  color: #68686f;
+}
+
+.settings-report-dialog .settings-report-input:focus {
+  border-color: #818188;
+}
+
+.settings-report-dialog .settings-report-input:disabled {
+  opacity: .5;
+}
+
+.settings-report-dialog .settings-report-avatar-option {
+  position: relative;
+  min-width: 0;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  background: #1b1c1e;
+  box-shadow: none;
+  opacity: .6;
+  transform: none;
+  transition: border-color 140ms ease, opacity 140ms ease;
+}
+
+.settings-report-dialog .settings-report-avatar-option[aria-pressed="true"] {
+  border-color: #d0d0d6;
+  opacity: 1;
+}
+
+.settings-report-dialog .settings-report-avatar-option:not(:disabled):active {
+  opacity: .8;
+  transform: none;
+}
+
+.settings-report-dialog .settings-report-avatar-option:disabled {
+  opacity: .4;
+}
+
+.settings-report-dialog .settings-report-avatar-selection-mark {
+  position: absolute;
+  right: 32%;
+  bottom: 2px;
+  left: 32%;
+  height: 2px;
+  border-radius: 2px;
+  background: #e2e2e6;
+}
+
+.settings-report-dialog .settings-report-account-item {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 62px;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid #27282b;
+  border-radius: 12px;
+  background: transparent;
+}
+
+.settings-report-dialog .settings-report-account-item[data-current="true"] {
+  border-color: #35363a;
+  background: #1b1c1e;
+}
+
+.settings-report-dialog .settings-report-account-icon {
+  display: flex;
+  flex: 0 0 34px;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #242528;
+  color: #a0a0a8;
+}
+
+.settings-report-dialog .settings-report-account-status {
+  display: block;
+  margin-top: 3px;
+  color: #85858d;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: normal;
+}
+
+.settings-report-dialog .srm-action {
+  background: #252629;
+  color: #dedee3;
+  font-weight: 400;
+  letter-spacing: normal;
+  box-shadow: none;
+  transform: none;
+}
+
+.settings-report-dialog .srm-action.srm-danger {
+  background: #1b1c1e;
+  color: #ec918c;
+}
+
+.settings-report-dialog .srm-action:disabled {
+  opacity: .4;
+}
+
+.settings-report-dialog.settings-confirm-dialog .asset-confirm-description {
+  color: #9999a2;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.7;
+  letter-spacing: normal;
+}
+
+.settings-report-dialog.settings-confirm-dialog .asset-confirm-info {
+  margin-top: 16px;
+  padding: 12px 0 2px;
+  border-top: 1px solid rgb(255 255 255 / .075);
+  color: #ceced6;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.7;
+  letter-spacing: normal;
+  overflow-wrap: anywhere;
+}
+
+.settings-report-dialog.settings-confirm-dialog .srm-action.asset-confirm-danger {
+  background: #302324;
+  color: #f0aaa2;
+}

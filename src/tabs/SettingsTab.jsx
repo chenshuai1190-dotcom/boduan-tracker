@@ -17,9 +17,10 @@ import {
   Ticket,
   Trash2,
   UserPlus,
-  X,
 } from 'lucide-react';
-import ActionModalCard from '../components/ActionModalCard.jsx';
+import StockReportModal from '../components/StockReportModal.jsx';
+import './SettingsTab.css';
+import './SettingsDialogs.css';
 import { clearCommunityCompetitionCache } from '../lib/communityCompetitionCache.js';
 import {
   COMMUNITY_AVATAR_OPTIONS,
@@ -36,26 +37,27 @@ function communityAvatarImageClass() {
 
 function DetailShell({ children }) {
   return (
-    <div className="mx-5 border-t border-white/[0.06] pb-5 pt-4">
+    <div className="settings-report-detail">
       {children}
     </div>
   );
 }
 
-function SettingsRow({ badge, badgeClass = '', expanded, icon: Icon, label, onClick, rowRef, value, valueClass = 'text-white/42' }) {
+function SettingsRow({ badge, badgeClass = '', expanded, icon: Icon, label, onClick, rowRef, value, valueClass = '' }) {
   return (
     <button
       ref={rowRef}
       type="button"
       onClick={onClick}
-      className="flex min-h-[73px] w-full min-w-0 items-center gap-3.5 px-5 text-left outline-none transition active:bg-white/[0.025] focus-visible:bg-white/[0.025]"
+      className="settings-report-row"
+      aria-expanded={expanded}
     >
-      <Icon className="h-[20px] w-[20px] shrink-0 stroke-[1.8] text-white/55" />
-      <span className="min-w-0 flex-1 text-[15px] font-medium tracking-[0.01em] text-white/[0.88]">{label}</span>
-      {value && <span className={`max-w-[108px] truncate text-[12px] ${valueClass}`}>{value}</span>}
+      <Icon className="settings-report-row-icon" strokeWidth={1.8} />
+      <span className="settings-report-row-label">{label}</span>
+      {value && <span className={`settings-report-row-value ${valueClass}`}>{value}</span>}
       {badge && (
-        <span className={`shrink-0 rounded-full border px-2 py-1 text-[10px] font-medium ${badgeClass}`}>
-          <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-current align-[1px]" />
+        <span className={`settings-report-row-badge ${badgeClass}`}>
+          <span className="settings-report-status-dot" />
           {badge}
         </span>
       )}
@@ -68,12 +70,7 @@ function SettingsRow({ badge, badgeClass = '', expanded, icon: Icon, label, onCl
 
 function StatusMessage({ message, className = '' }) {
   if (!message) return null;
-  const tone = message.type === 'error'
-    ? 'border-rose-400/25 bg-rose-400/10 text-rose-200'
-    : message.type === 'info'
-      ? 'border-[#f6a524]/25 bg-[#f6a524]/10 text-[#ffd18a]'
-      : 'border-emerald-400/25 bg-emerald-400/10 text-emerald-200';
-  return <div className={`rounded-xl border px-3 py-2 text-[11px] leading-5 ${tone} ${className}`}>{message.text}</div>;
+  return <div className={`settings-report-status ${className}`} data-tone={message.type}>{message.text}</div>;
 }
 
 function SettingsTab({ ctx }) {
@@ -400,7 +397,8 @@ function SettingsTab({ ctx }) {
                   key={option.id}
                   type="button"
                   onClick={() => setLanguage?.(option.id)}
-                  className={`flex min-h-[46px] items-center justify-between rounded-xl border px-3.5 text-[13px] outline-none transition active:scale-[0.99] ${active ? 'border-[#f2a83a]/40 bg-[#f2a83a]/[0.07] text-[#f5ba62]' : 'border-white/[0.08] bg-white/[0.025] text-white/50'}`}
+                  className="settings-report-option"
+                  aria-pressed={active}
                 >
                   {option.label} {active && <Check className="h-4 w-4" />}
                 </button>
@@ -429,13 +427,14 @@ function SettingsTab({ ctx }) {
                   key={option.id}
                   type="button"
                   onClick={() => setMarketColorMode?.(option.id)}
-                  className={`flex min-h-[48px] w-full items-center rounded-xl border px-3.5 text-[13px] outline-none ${active ? 'border-[#f2a83a]/35 bg-[#f2a83a]/[0.06] text-white/80' : 'border-white/[0.07] bg-white/[0.02] text-white/48'}`}
+                  className="settings-report-option settings-report-display-option"
+                  aria-pressed={active}
                 >
                   <span className="mr-3 h-2.5 w-2.5 rounded-full" style={{ backgroundColor: option.up }} />
                   <span className="flex-1 text-left">{option.label}</span>
                   <span className="mr-2 text-[11px]" style={{ color: option.up }}>+8.8%</span>
                   <span className="text-[11px]" style={{ color: option.down }}>-3.2%</span>
-                  {active && <Check className="ml-3 h-4 w-4 text-[#f2b65d]" />}
+                  {active && <Check className="ml-3 h-4 w-4 text-[#bfc0c7]" />}
                 </button>
               );
             })}
@@ -455,7 +454,7 @@ function SettingsTab({ ctx }) {
             <button
               type="button"
               onClick={() => setShowChangePassword(true)}
-              className="shrink-0 rounded-xl border border-white/[0.09] bg-white/[0.025] px-3 py-2 text-[11px] text-white/55 active:bg-white/[0.05]"
+              className="settings-report-small-button"
             >
               {t(language, 'settings.changePassword', '修改密码')}
             </button>
@@ -481,7 +480,7 @@ function SettingsTab({ ctx }) {
             maxLength={24}
             placeholder={t(language, 'settings.communityNicknamePlaceholder', '请输入 2-16 个字符')}
             disabled={communityLoading || communitySaving}
-            className="mt-2 block h-12 w-full min-w-0 max-w-full box-border rounded-xl border border-white/[0.09] bg-[#080b11] px-3.5 text-[14px] font-normal text-white/85 outline-none placeholder:text-white/20 focus:border-[#f2a83a]/35 disabled:opacity-60"
+            className="settings-report-input mt-2"
           />
           <p className={`mt-2 text-[11px] ${communityNicknameValidation.valid || !communityDraft.nickname ? 'text-white/40' : 'text-rose-300'}`}>
             {t(language, 'settings.communityNicknameRule', '2-16 个字符，用于排行榜公开展示')}
@@ -503,10 +502,11 @@ function SettingsTab({ ctx }) {
                   }}
                   disabled={communityLoading || communitySaving}
                   aria-label={currentLanguage === 'en' ? avatar.labelEn : avatar.labelZh}
-                  className={`relative aspect-square min-w-0 overflow-hidden rounded-full border bg-[#070a0f] transition active:scale-95 disabled:opacity-60 ${active ? 'border-[#f6b54b] shadow-[0_0_12px_rgba(246,181,75,0.22)]' : 'border-transparent opacity-65'}`}
+                  className="settings-report-avatar-option"
+                  aria-pressed={active}
                 >
                   <img src={avatar.src} alt="" className={`h-full w-full object-cover ${communityAvatarImageClass(avatar.key)}`} draggable={false} />
-                  {active && <span className="absolute inset-x-[32%] bottom-0 h-0.5 rounded-full bg-[#f6b54b]" />}
+                  {active && <span className="settings-report-avatar-selection-mark" />}
                 </button>
               );
             })}
@@ -528,7 +528,7 @@ function SettingsTab({ ctx }) {
               type="button"
               onClick={generateInviteCode}
               disabled={inviteLoading}
-              className="flex min-h-[38px] shrink-0 items-center gap-1.5 rounded-xl border border-[#f2a83a]/25 px-3 text-[11px] text-[#f2b65d] active:scale-95 disabled:opacity-50"
+              className="settings-report-small-button"
             >
               {inviteLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
               {t(language, 'settings.inviteGenerate', '生成')}
@@ -537,7 +537,7 @@ function SettingsTab({ ctx }) {
           <StatusMessage message={inviteMessage} className="mb-3" />
           <div className="space-y-2">
             {inviteCodes.length === 0 ? (
-              <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] px-3 py-3 text-[12px] text-white/38">
+              <div className="settings-report-empty">
                 {inviteLoading ? t(language, 'settings.inviteLoading', '加载中...') : t(language, 'settings.inviteEmpty', '还没有邀请码')}
               </div>
             ) : inviteCodes.slice(0, 8).map((invite) => {
@@ -554,7 +554,7 @@ function SettingsTab({ ctx }) {
                       setInviteMessage({ type: 'success', text: invite.code });
                     }
                   }}
-                  className="flex w-full min-w-0 items-center rounded-xl border border-white/[0.07] bg-white/[0.02] px-3 py-3 text-left"
+                  className="settings-report-invite-row"
                 >
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-mono text-[12px] tracking-[0.08em] text-white/70">{invite.code}</span>
@@ -585,7 +585,7 @@ function SettingsTab({ ctx }) {
       icon: Languages,
       label: t(language, 'settings.languageSettings', '语言设置'),
       value: currentLanguage === 'en' ? 'English' : '简体中文',
-      valueClass: 'text-[#f4b44f]',
+      valueClass: '',
     },
     {
       id: 'display',
@@ -600,20 +600,20 @@ function SettingsTab({ ctx }) {
       icon: ShieldCheck,
       label: t(language, 'settings.account', '账户设置'),
       badge: t(language, 'settings.loggedIn', '已登录'),
-      badgeClass: 'border-[#2cce91]/20 bg-[#2cce91]/10 text-[#49daa7]',
+      badgeClass: 'settings-report-connected',
     },
     ...(isInviteAdmin ? [{
       id: 'invite',
       icon: Ticket,
       label: t(language, 'settings.inviteTitle', '邀请码管理'),
       badge: t(language, 'settings.admin', '管理员'),
-      badgeClass: 'border-[#f2a83a]/20 bg-[#f2a83a]/10 text-[#f2b65d]',
+      badgeClass: '',
     }] : []),
   ];
 
   return (
     <>
-      <div className="mx-auto w-full max-w-[430px] text-white" data-settings-redesign="phase-1-production">
+      <div className="settings-report" data-settings-redesign="phase-1-production">
         <button
           type="button"
           onClick={() => {
@@ -621,29 +621,31 @@ function SettingsTab({ ctx }) {
             setShowCommunityProfile(true);
           }}
           aria-label={t(language, 'settings.editCommunityProfile', '编辑社区资料')}
-          className="mt-1 flex min-h-[176px] w-full flex-col items-center justify-center rounded-[22px] border border-white/[0.09] bg-[radial-gradient(circle_at_50%_35%,rgba(33,65,122,0.13),transparent_45%),linear-gradient(145deg,#0b0c0e,#0b0c0e)] px-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]"
+          className="settings-report-identity"
         >
-          <span className="relative h-[95px] w-[95px] rounded-full border border-white/[0.18] bg-[#080c12] shadow-[0_0_0_3px_rgba(255,255,255,0.025),0_0_24px_rgba(36,90,202,0.18)]">
-            <span className="absolute inset-px flex items-center justify-center overflow-hidden rounded-full bg-[#070a0f]">
+          <span className="settings-report-avatar">
+            <span className="settings-report-avatar-image">
               {communityHydrating
                 ? <Loader2 className="h-5 w-5 animate-spin text-white/22" />
                 : <img src={selectedCommunityAvatar.src} alt="" className={`h-full w-full object-cover ${communityAvatarImageClass(selectedCommunityAvatar.key)}`} draggable={false} />}
             </span>
             {!communityHydrating && (
-              <span className="absolute -bottom-0.5 -right-0.5 flex h-[21px] w-[21px] items-center justify-center rounded-full border border-white/[0.12] bg-[#11161f] text-[#f2b65d] shadow-[0_4px_10px_rgba(0,0,0,0.45)]">
+              <span className="settings-report-avatar-edit">
                 <Pencil className="h-2.5 w-2.5" strokeWidth={1.8} />
               </span>
             )}
           </span>
-          <span className="mt-3 max-w-full truncate text-[16px] font-medium tracking-[0.02em] text-white/[0.92]">
-            {communityHydrating ? t(language, 'settings.loading', '加载中...') : communityDisplayName}
+          <span className="settings-report-identity-text">
+            <span className="settings-report-name">{communityHydrating ? t(language, 'settings.loading', '加载中...') : communityDisplayName}</span>
+            <span className="settings-report-profile-label">{t(language, 'settings.communityProfile', '社区资料')}</span>
           </span>
+          <ChevronRight className="settings-report-profile-chevron" size={16} />
         </button>
 
-        <section className="mt-5 overflow-hidden rounded-[22px] border border-white/[0.09] bg-[#0b0c0e] shadow-[inset_0_1px_0_rgba(255,255,255,0.025)]">
+        <section className="settings-report-preferences">
           {settingsRows.map((row, index) => (
             <React.Fragment key={row.id}>
-              {index > 0 && <div className="mx-5 h-px bg-white/[0.065]" />}
+              {index > 0 && <div className="settings-report-row-divider" />}
               <SettingsRow
                 {...row}
                 expanded={expandedSection === row.id}
@@ -653,41 +655,36 @@ function SettingsTab({ ctx }) {
             </React.Fragment>
           ))}
 
-          <div className="mx-5 h-px bg-white/[0.065]" />
-          <div className="grid grid-cols-2 gap-3 px-4 py-4">
+          <div className="settings-report-row-divider" />
+          <div className="settings-report-account-actions">
             <button
               type="button"
               onClick={openAccountSwitcher}
-              className="flex min-h-[52px] items-center justify-center gap-2 rounded-[14px] border border-white/[0.09] bg-white/[0.025] text-[13px] text-white/65 active:bg-white/[0.05]"
+              className="settings-report-account-action"
             >
               <RefreshCw className="h-4 w-4" /> {t(language, 'settings.switchAccount', '切换账户')}
             </button>
             <button
               type="button"
               onClick={requestLogout}
-              className="flex min-h-[52px] items-center justify-center gap-2 rounded-[14px] border border-[#e04d5e]/20 bg-[#8f1f2c]/20 text-[13px] text-[#f08391] active:bg-[#8f1f2c]/28"
+              className="settings-report-account-action settings-report-logout"
             >
               <LogOut className="h-4 w-4" /> {t(language, 'settings.logout', '退出登录')}
             </button>
           </div>
         </section>
 
-        <section className="mt-5 overflow-hidden rounded-[20px] border border-white/[0.075] bg-[#0b0c0e]">
-          <button
-            type="button"
+        <section className="settings-report-changelog">
+          <SettingsRow
+            icon={Globe2}
+            label={t(language, 'settings.changelog', '更新日志')}
+            value={SETTINGS_VERSION}
+            expanded={expandedSection === 'changelog'}
             onClick={() => toggleSection('changelog')}
-            className="flex min-h-[62px] w-full items-center gap-3 px-5 text-left"
-          >
-            <Globe2 className="h-[18px] w-[18px] text-white/42" />
-            <span className="flex-1 text-[13px] text-white/68">{t(language, 'settings.changelog', '更新日志')}</span>
-            <span className="text-[10px] text-white/35">{SETTINGS_VERSION}</span>
-            {expandedSection === 'changelog'
-              ? <ChevronDown className="h-4 w-4 text-white/30" />
-              : <ChevronRight className="h-4 w-4 text-white/30" />}
-          </button>
+          />
 
           {expandedSection === 'changelog' && (
-            <div className="border-t border-white/[0.06] px-5 pb-5 pt-4">
+            <div className="settings-report-changelog-detail">
               {changelogLoadError ? (
                 <StatusMessage message={{ type: 'error', text: t(language, 'settings.changelogLoadFailed', '更新日志加载失败，请稍后重试') }} />
               ) : !Array.isArray(changelog) ? (
@@ -699,15 +696,15 @@ function SettingsTab({ ctx }) {
                   {visibleChangelog.map((log, index, rows) => (
                     <div key={log.ver} className={`py-3 ${index !== rows.length - 1 ? 'border-b border-white/[0.07]' : ''} ${index === 0 ? 'pt-0' : ''}`}>
                       <div className="mb-1.5 flex items-center gap-2">
-                        <span className={`rounded border px-2 py-0.5 font-mono text-[10px] ${log.latest ? 'border-emerald-400/25 bg-emerald-400/10 text-emerald-300' : 'border-[#f6a524]/20 bg-[#f6a524]/10 text-[#f6a524]'}`}>
+                        <span className="settings-report-log-version" data-latest={Boolean(log.latest)}>
                           {log.ver}
                         </span>
-                        <span className="font-mono text-[10px] text-white/35">{log.date}</span>
+                        <span className="settings-report-log-date">{log.date}</span>
                       </div>
                       <ul className="space-y-0.5">
                         {(currentLanguage === 'en' && Array.isArray(log.itemsEn) ? log.itemsEn : log.items).map((item, itemIndex) => (
-                          <li key={itemIndex} className="relative pl-3 text-[11px] leading-5 text-white/52">
-                            <span className="absolute left-0 text-[#f6a524]">·</span>{item}
+                          <li key={itemIndex} className="relative pl-3 text-[12px] leading-5 text-white/55">
+                            <span className="absolute left-0 text-white/30">·</span>{item}
                           </li>
                         ))}
                       </ul>
@@ -717,7 +714,7 @@ function SettingsTab({ ctx }) {
                     <button
                       type="button"
                       onClick={() => setChangelogExpanded(!changelogExpanded)}
-                      className="mt-2 flex min-h-[42px] w-full items-center justify-center gap-1.5 rounded-xl border border-white/[0.08] bg-white/[0.025] text-[11px] text-[#f2b65d]"
+                      className="settings-report-history-button"
                     >
                       {changelogExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
                       {changelogExpanded
@@ -735,21 +732,16 @@ function SettingsTab({ ctx }) {
           )}
         </section>
 
-        <p className="mt-4 text-center text-[10px] tracking-[0.06em] text-white/18">Quote · {SETTINGS_VERSION}</p>
+        <p className="settings-report-brand">Quote</p>
       </div>
 
       {showCommunityProfile && (
-        <ActionModalCard
+        <StockReportModal
+          panelClassName="settings-report-dialog"
           title={t(language, 'settings.communityProfile', '社区资料')}
           closeLabel={t(language, 'settings.closeCommunityProfile', '关闭社区资料')}
           onClose={closeCommunityProfile}
           actions={[
-            {
-              key: 'cancel',
-              label: t(language, 'common.cancel', '取消'),
-              onClick: closeCommunityProfile,
-              disabled: communitySaving,
-            },
             {
               key: 'save',
               label: communitySaving
@@ -767,21 +759,16 @@ function SettingsTab({ ctx }) {
           ]}
         >
           {renderExpandedPanel('community')}
-        </ActionModalCard>
+        </StockReportModal>
       )}
 
       {showAccountSwitcher && (
-        <ActionModalCard
+        <StockReportModal
+          panelClassName="settings-report-dialog"
           title={t(language, 'settings.switchAccount', '切换账户')}
           closeLabel={t(language, 'settings.closeAccountSwitcher', '关闭账户切换')}
           onClose={() => { if (!accountSwitchingId) setShowAccountSwitcher(false); }}
           actions={[
-            {
-              key: 'cancel',
-              label: t(language, 'common.cancel', '取消'),
-              disabled: Boolean(accountSwitchingId),
-              onClick: () => setShowAccountSwitcher(false),
-            },
             {
               key: 'add',
               label: t(language, 'settings.addAccount', '添加账户'),
@@ -804,19 +791,19 @@ function SettingsTab({ ctx }) {
               const current = account.userId === user?.id;
               const switching = accountSwitchingId === account.userId;
               return (
-                <div key={account.userId} className={`flex min-h-[54px] items-center gap-2 rounded-xl border px-3 ${current ? 'border-[#f2a83a]/25 bg-[#f2a83a]/[0.07]' : 'border-white/[0.07] bg-black/20'}`}>
+                <div key={account.userId} className="settings-report-account-item" data-current={current}>
                   <button
                     type="button"
                     onClick={() => selectRememberedAccount(account)}
                     disabled={current || Boolean(accountSwitchingId)}
                     className="flex min-w-0 flex-1 items-center gap-3 text-left disabled:cursor-default"
                   >
-                    <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${current ? 'bg-[#f2a83a]/15 text-[#f2b65d]' : 'bg-white/[0.05] text-white/45'}`}>
+                    <span className="settings-report-account-icon">
                       {switching ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[12px] text-white/75">{account.email}</span>
-                      <span className={`mt-0.5 block text-[11px] ${current ? 'text-[#f2b65d]' : 'text-white/40'}`}>
+                      <span className="settings-report-account-status">
                         {current ? t(language, 'settings.currentAccount', '当前账户') : t(language, 'settings.tapToSwitch', '点击直接切换')}
                       </span>
                     </span>
@@ -842,17 +829,17 @@ function SettingsTab({ ctx }) {
             )}
             <StatusMessage message={accountSwitchMessage} className="mt-2" />
           </div>
-        </ActionModalCard>
+        </StockReportModal>
       )}
 
       {showChangePassword && (
-        <ActionModalCard
+        <StockReportModal
+          panelClassName="settings-report-dialog"
           title={t(language, 'settings.changePassword', '修改密码')}
           closeLabel={t(language, 'settings.closePassword', '关闭修改密码')}
           onClose={closeChangePassword}
           widthClassName="w-[calc(100vw-32px)] max-w-md"
           actions={[
-            { key: 'cancel', label: t(language, 'settings.cancel', '取消'), onClick: closeChangePassword },
             {
               key: 'save',
               label: pwdLoading ? t(language, 'settings.saving', '保存中...') : t(language, 'settings.saveNewPassword', '保存新密码'),
@@ -869,12 +856,12 @@ function SettingsTab({ ctx }) {
               value={newPwd}
               onChange={(event) => setNewPwd(event.target.value)}
               placeholder={t(language, 'settings.passwordPlaceholder', '至少 6 位')}
-              className="block h-12 w-full min-w-0 max-w-full box-border rounded-xl border border-white/10 bg-black/30 px-3.5 text-sm text-white outline-none placeholder:text-white/25 focus:border-[#f6a524]/50"
+              className="settings-report-input"
             />
             <p className="mt-3 text-[11px] leading-5 text-white/35">{t(language, 'settings.passwordChangeHint', '修改后，下次登录请使用新密码。')}</p>
             {pwdMsg && <StatusMessage message={pwdMsg} className="mt-3" />}
           </div>
-        </ActionModalCard>
+        </StockReportModal>
       )}
     </>
   );

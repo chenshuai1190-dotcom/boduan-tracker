@@ -27,6 +27,8 @@ const reviewGoalModalCss = read('src/components/ReviewGoalModal.css');
 const reviewReadingDetails = read('src/components/ReviewReadingDetails.jsx');
 const reviewReadingDetailsCss = read('src/components/ReviewReadingDetails.css');
 const settings = read('src/tabs/SettingsTab.jsx');
+const settingsCss = read('src/tabs/SettingsTab.css');
+const settingsDialogsCss = read('src/tabs/SettingsDialogs.css');
 const pnlReport = read('src/pages/PnlReportPage.jsx');
 const pnlReportCss = read('src/pages/PnlReportPage.css');
 const pnlReportFilters = read('src/components/PnlReportFilters.jsx');
@@ -65,8 +67,9 @@ test('persistent production modules share neutral black surface levels', () => {
   assert.ok(compoundDetail.includes('<main className="compound-detail-page"'), 'compound details should use their independent page surface');
   assert.doesNotMatch(compoundDetail, /ReviewGoalModal|ActionModalCard/, 'compound details should not retain a dialog surface');
   assert.doesNotMatch(compoundDetail + compoundDetailCss, /UsFlagBackground|linearGradient|linear-gradient|radial-gradient|#f6b54b|#ffd18a/, 'compound details should not restore the old gold border or chart gradients');
-  assert.ok(settings.includes('linear-gradient(145deg,#0b0c0e,#0b0c0e)'));
-  assert.equal(count(settings, /bg-\[#0b0c0e\]/g), 2, 'settings rows and changelog should use the primary neutral surface');
+  assert.ok(settings.includes('className="settings-report"'), 'Settings should use its scoped continuous report surface');
+  assert.match(settingsCss, /\.settings-report\s*\{[^}]*color:\s*#e4e4e7;/, 'Settings should share the neutral report text palette');
+  assert.doesNotMatch(settings + settingsCss + settingsDialogsCss, /radial-gradient|linear-gradient/, 'Settings should not retain decorative profile glow or colored card gradients');
 
   assert.match(pnlReport, /<main className="pnl-report-page"/, 'P&L reports should use the continuous scoped report surface');
   assert.match(pnlReportCss, /\.pnl-report-page\s*\{[^}]*background:\s*#08090b;[^}]*color:\s*#e4e4e7;/);
@@ -118,7 +121,7 @@ test('stock-trend report variants are opt-in neutral sections without recoloring
   assert.match(reportSurface, /box-shadow:\s*none;/);
 });
 
-test('actual asset amounts use soft white while semantic gold and the settings glow remain', () => {
+test('actual asset amounts use soft white while semantic emphasis remains purposeful', () => {
   assert.ok(home.includes('data-home-net-assets="true"'));
   assert.ok(home.includes('home-report-net-amount text-white/[0.95] tabular-nums'));
   assert.ok(home.includes('className="home-report-decimal"'));
@@ -147,7 +150,7 @@ test('actual asset amounts use soft white while semantic gold and the settings g
   assert.match(northStarCss, /\.ns-progress-fill\s*\{[^}]*background:\s*#ff4b1f;/, 'north-star progress fill should match its completion value');
   assert.match(annualPlanCss, /\.annual-goal-plan \.ag-progress-fill\s*\{[^}]*background:\s*#ff4b1f;/, 'annual progress should share the quiet system-red north-star progress treatment');
   assert.doesNotMatch(annualPlanCss, /linear-gradient|radial-gradient|box-shadow/, 'annual presentation should not reintroduce decorative glow or gradients');
-  assert.ok(settings.includes('radial-gradient(circle_at_50%_35%,rgba(33,65,122,0.13),transparent_45%)'));
+  assert.doesNotMatch(settingsCss, /letter-spacing:\s*-|scaleX\(/, 'Settings text should retain natural widths and tracking');
 });
 
 test('sheets, tooltips, and chart markers keep their separate depth colors', () => {

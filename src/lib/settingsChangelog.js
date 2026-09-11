@@ -4,6 +4,21 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '✨ 底部导航与设置页统一新版黑灰设计',
+      '  - 五个导航栏目等宽居中，统一图标与文字大小，选中状态使用柔和金色',
+      '  - 设置页采用左对齐头像、简洁列表和细分隔线，减少大卡片与重复版本信息',
+      '  - 社区资料、账户切换、密码与操作确认弹窗同步统一黑灰控件和排版',
+    ],
+    itemsEn: [
+      '✨ A unified neutral-black design for navigation and Settings',
+      '  - Five equally spaced tabs with consistent icons and labels, and a muted gold active state',
+      '  - Left-aligned profile, simple settings rows and fine dividers, with fewer card frames and no repeated version',
+      '  - Consistent controls and typography across profile, account switching, password and confirmation dialogs',
+    ],
+  },
+  {
+    ver: 'v10.7.9.518', date: '2026-09-11',
+    items: [
       '📊 收益报表统一新版黑灰报告设计',
       '  - 收益金额左对齐，完整显示两位小数，日历、收益贡献与筛选弹窗统一排版',
       '  - 走势图铺宽，收益与纳斯达克使用同一刻度，选中读数显示在图表上方',

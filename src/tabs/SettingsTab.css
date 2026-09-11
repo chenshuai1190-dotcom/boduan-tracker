@@ -1,0 +1,60 @@
+/* The existing app shell continues to own gutters, scrolling and safe areas. */
+.min-h-screen:has(.settings-report) { background: #08090b; }
+.settings-report {
+  width: 100%;
+  max-width: 430px;
+  margin: 0 auto;
+  color: #e4e4e7;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif;
+  font-weight: 400;
+  letter-spacing: normal;
+  --settings-line: rgb(255 255 255 / .075);
+}
+.settings-report button { -webkit-tap-highlight-color: transparent; }
+.settings-report button:focus-visible { outline: 1px solid #9999a2; outline-offset: 3px; }
+.settings-report button:disabled { opacity: .45; }
+.settings-report-identity { display: flex; align-items: center; gap: 20px; width: 100%; padding: 8px 2px 30px; text-align: left; }
+.settings-report-avatar { position: relative; flex-shrink: 0; width: 95px; height: 95px; border: 1px solid rgb(255 255 255 / .12); border-radius: 50%; background: #151618; }
+.settings-report-avatar-image { position: absolute; inset: 1px; display: flex; align-items: center; justify-content: center; overflow: hidden; border-radius: 50%; background: #101112; }
+.settings-report-avatar-edit { position: absolute; right: -1px; bottom: -1px; display: grid; place-items: center; width: 24px; height: 24px; border: 2px solid #08090b; border-radius: 50%; background: #25262a; color: #b2b2bb; }
+.settings-report-identity-text { display: flex; flex: 1; flex-direction: column; gap: 8px; min-width: 0; }
+.settings-report-name { color: #ededf0; font-size: 20px; font-weight: 400; line-height: 1.35; overflow-wrap: anywhere; }
+.settings-report-profile-label { color: #7d7e88; font-size: 12px; line-height: 18px; }
+.settings-report-profile-chevron { flex-shrink: 0; color: #696a74; }
+.settings-report-preferences { border-top: 1px solid var(--settings-line); }
+.settings-report-row { display: flex; align-items: center; gap: 12px; width: 100%; min-width: 0; min-height: 66px; padding: 0 2px; text-align: left; }
+.settings-report-row:active { opacity: .72; }
+.settings-report-row-icon { flex-shrink: 0; width: 20px; height: 20px; color: #898a94; }
+.settings-report-row-label { flex: 1; min-width: 0; color: #d7d7df; font-size: 15px; font-weight: 400; line-height: 22px; }
+.settings-report-row-value { max-width: 44%; overflow: hidden; color: #8b8c95; font-size: 12px; line-height: 18px; text-overflow: ellipsis; white-space: nowrap; }
+.settings-report-row-badge { display: inline-flex; flex-shrink: 0; align-items: center; gap: 5px; color: #8b8c95; font-size: 11px; font-weight: 400; line-height: 18px; }
+.settings-report-status-dot { width: 4px; height: 4px; border-radius: 50%; background: #939c98; }
+.settings-report-row-divider { height: 1px; margin-left: 34px; background: var(--settings-line); }
+.settings-report-detail { margin: 0 2px 0 34px; padding: 0 0 20px; }
+.settings-report-option { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; min-height: 46px; padding: 10px 12px; border: 1px solid transparent; border-radius: 10px; background: #1b1c1e; color: #90919b; font-size: 13px; font-weight: 400; }
+.settings-report-option[aria-pressed="true"] { border-color: #5a5b63; background: #27282c; color: #e4e4e7; }
+.settings-report-option svg { flex-shrink: 0; }
+.settings-report-display-option { width: 100%; gap: 0; }
+.settings-report-small-button { display: inline-flex; flex-shrink: 0; align-items: center; justify-content: center; gap: 6px; min-height: 38px; padding: 8px 12px; border-radius: 9px; background: #1b1c1e; color: #b9bac2; font-size: 12px; font-weight: 400; }
+.settings-report-account-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding: 20px 0 26px; }
+.settings-report-account-action { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; border-radius: 10px; background: #1b1c1e; color: #b6b7c0; font-size: 13px; }
+.settings-report-account-action:active { background: #25262a; }
+.settings-report-logout { color: #d29a9b; }
+.settings-report-changelog { border-top: 1px solid var(--settings-line); border-bottom: 1px solid var(--settings-line); }
+.settings-report-changelog-detail { margin: 0 2px 0 34px; padding-bottom: 22px; }
+.settings-report-log-version { color: #9d9ea8; font-size: 12px; font-variant-numeric: tabular-nums; }
+.settings-report-log-version[data-latest="true"] { color: #dedee5; }
+.settings-report-log-date { margin-left: auto; color: #6e6f7a; font-size: 11px; font-variant-numeric: tabular-nums; }
+.settings-report-history-button { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; min-height: 42px; margin-top: 12px; border-radius: 10px; background: #1b1c1e; color: #a6a7b1; font-size: 12px; }
+.settings-report-brand { margin: 25px 0 8px; color: #51525e; font-size: 11px; line-height: 18px; text-align: center; }
+.settings-report-invite-row { display: flex; align-items: center; width: 100%; min-width: 0; padding: 12px 0; border-bottom: 1px solid var(--settings-line); text-align: left; }
+.settings-report-empty { padding: 14px 0; color: #757680; font-size: 12px; line-height: 20px; }
+.settings-report-status { color: #999aa5; font-size: 12px; line-height: 20px; }
+.settings-report-status[data-tone="error"] { color: #e6a09b; }
+.settings-report-status[data-tone="success"] { color: #8eb7a1; }
+@media (max-width: 374px) {
+  .settings-report-identity { gap: 14px; }
+  .settings-report-name { font-size: 18px; }
+  .settings-report-detail, .settings-report-changelog-detail { margin-left: 0; }
+  .settings-report-row { gap: 10px; }
+}

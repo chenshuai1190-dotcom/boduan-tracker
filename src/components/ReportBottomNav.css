@@ -1,0 +1,40 @@
+/* Presentation only: the existing app shell owns navigation and safe-area clearance. */
+.report-bottom-nav {
+  --report-nav-muted: #7e8089;
+  --report-nav-active: #d8b77a;
+  background: #0d0e10;
+  border-top: 1px solid rgb(255 255 255 / .075);
+  color: var(--report-nav-muted);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif;
+  letter-spacing: normal;
+}
+.report-bottom-nav-light {
+  --report-nav-muted: #7a7c85;
+  --report-nav-active: #2563eb;
+  background: #fff;
+  border-top-color: #e2e8f0;
+}
+.report-bottom-nav-grid { height: 56px; }
+.report-bottom-nav-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-width: 0;
+  height: 56px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--report-nav-muted);
+  -webkit-tap-highlight-color: transparent;
+  transition: color 160ms ease, opacity 120ms ease;
+}
+.report-bottom-nav-tab[aria-current="page"] { color: var(--report-nav-active); }
+.report-bottom-nav-tab:active { opacity: .72; }
+.report-bottom-nav-tab:focus-visible { outline: 1px solid currentColor; outline-offset: -5px; border-radius: 8px; }
+.report-bottom-nav-icon { display: block; flex-shrink: 0; width: 22px; height: 22px; }
+.report-bottom-nav-label { font-size: 11px; font-weight: 400; line-height: 16px; letter-spacing: normal; white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) {
+  .report-bottom-nav-tab { transition: none; }
+}

@@ -23,6 +23,7 @@ import {
   X,
 } from 'lucide-react';
 import ConfirmModal from './components/ConfirmModal.jsx';
+import './components/ReportBottomNav.css';
 import YearlyActualModal from './components/YearlyActualModal.jsx';
 import { DisciplineModal, LogModal } from './components/ReviewEntryEditors.jsx';
 import { normalizeConfirmModalOptions } from './lib/confirmModal.js';
@@ -3408,7 +3409,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
       </Suspense>
 
       <ConfirmModal
-        variant={activeTab === 'analysis' ? 'asset-report' : 'default'}
+        variant={activeTab === 'analysis' ? 'asset-report' : activeTab === 'settings' ? 'settings-report' : 'default'}
         modal={previewConfirmModal}
         submitting={previewConfirmSubmitting}
         onCancel={closePreviewConfirm}
@@ -3416,9 +3417,9 @@ function StandardDevVisualPreview({ initialTab = '' }) {
       />
 
       {activeTab !== 'pnl-report' && activeTab !== 'pnl-share' && (
-      <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/10 bg-[#070a0f] shadow-2xl" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+      <div className="report-bottom-nav fixed bottom-0 left-0 right-0 z-50" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
         <div className="mx-auto max-w-5xl">
-          <div className="grid grid-cols-5">
+          <div className="report-bottom-nav-grid grid grid-cols-5">
             {nav.map(tab => {
               const Icon = tab.icon;
               const isActive = tab.id === activeTab
@@ -3436,11 +3437,12 @@ function StandardDevVisualPreview({ initialTab = '' }) {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex flex-col items-center justify-center py-2 transition ${isActive ? 'text-[#f6a524]' : 'text-white/40'}`}
+                  className="report-bottom-nav-tab"
+                  aria-current={isActive ? 'page' : undefined}
                   type="button"
                 >
-                  <Icon className={`mb-0.5 h-5 w-5 ${isActive ? 'stroke-[2.5]' : ''}`} />
-                  <span className="text-[10px] font-medium">{tab.label}</span>
+                  <Icon className="report-bottom-nav-icon" strokeWidth={1.8} aria-hidden="true" />
+                  <span className="report-bottom-nav-label">{tab.label}</span>
                 </button>
               );
             })}

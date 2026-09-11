@@ -22,13 +22,13 @@ export default function ConfirmModal({
 }) {
   if (!modal) return null;
 
-  if (variant === 'asset-report') {
+  if (variant === 'asset-report' || variant === 'settings-report') {
     return (
       <StockReportModal
         title={modal.title}
         closeLabel={modal.cancelText}
         onClose={() => { if (!submitting) onCancel?.(); }}
-        panelClassName="asset-dialog asset-confirm-dialog"
+        panelClassName={variant === 'settings-report' ? 'settings-report-dialog settings-confirm-dialog' : 'asset-dialog asset-confirm-dialog'}
         actions={[
           ...(modal.showCancel ? [{ key: 'cancel', label: modal.cancelText, onClick: onCancel, disabled: submitting }] : []),
           {

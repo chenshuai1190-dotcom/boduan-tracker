@@ -104,6 +104,8 @@ const reviewEntryEditorsSource = readFileSync(new URL('../src/components/ReviewE
 const reviewReadingDetailsSource = readFileSync(new URL('../src/components/ReviewReadingDetails.jsx', import.meta.url), 'utf8');
 const reviewReadingDetailsCss = readFileSync(new URL('../src/components/ReviewReadingDetails.css', import.meta.url), 'utf8');
 const settingsTabSource = readFileSync(new URL('../src/tabs/SettingsTab.jsx', import.meta.url), 'utf8');
+const settingsTabCss = readFileSync(new URL('../src/tabs/SettingsTab.css', import.meta.url), 'utf8');
+const settingsDialogsCss = readFileSync(new URL('../src/tabs/SettingsDialogs.css', import.meta.url), 'utf8');
 const tradesTabSource = readFileSync(new URL('../src/tabs/TradesTab.jsx', import.meta.url), 'utf8');
 const tradesTabCss = readFileSync(new URL('../src/tabs/TradesTab.css', import.meta.url), 'utf8');
 const positionProfitScenarioCss = readFileSync(new URL('../src/tabs/PositionProfitScenario.css', import.meta.url), 'utf8');
@@ -346,7 +348,7 @@ test('legacy stock symbols are repaired before quote universe construction', () 
   assert.ok(appSource.includes('const sym = normalizeStrictSymbolKey(costBasisNewSymbol);'), 'cost-basis new symbol input should reject whitespace instead of repairing it');
 });
 
-test('active Home double tap scrolls the existing page without changing bottom-nav layout or data state', () => {
+test('active Home double tap preserves navigation behavior with the shared report bottom-nav presentation', () => {
   const bottomNavStart = appSource.indexOf('{/* 底部 5 tab 导航栏 */}');
   const bottomNavEnd = appSource.indexOf('{/* 拉取错误提示(浮在导航栏上方) */}', bottomNavStart);
   const bottomNavBlock = appSource.slice(bottomNavStart, bottomNavEnd);
@@ -354,7 +356,13 @@ test('active Home double tap scrolls the existing page without changing bottom-n
   assert.ok(appSource.includes("if (tabId === 'home' && activeTab === 'home' && activePage === null) return;"), 'only the active Home root should consume taps without navigating');
   assert.ok(appSource.includes("window.scrollTo({ top: 0, behavior: 'smooth' });"), 'the completed Home double tap should smoothly scroll the real page root');
   assert.ok(bottomNavBlock.includes('onClick={() => handleBottomTabClick(tab.id)}'), 'the existing bottom tabs should use the guarded tap handler');
-  assert.ok(bottomNavBlock.includes('className={`flex flex-col items-center justify-center py-2 active:scale-95 transition ${'), 'bottom-tab sizing and layout classes should remain unchanged');
+  assert.ok(bottomNavBlock.includes('fixed bottom-0 left-0 right-0 z-50'), 'the global bottom navigation should remain fixed to the viewport');
+  assert.ok(bottomNavBlock.includes("paddingBottom: 'env(safe-area-inset-bottom)'"), 'the bottom navigation should retain its existing iPhone safe-area ownership');
+  assert.ok(bottomNavBlock.includes('className="report-bottom-nav-tab"') && bottomNavBlock.includes("aria-current={isActive ? 'page' : undefined}"), 'the shared report style should identify the active tab without changing its tap handler');
+  for (const source of [appSource, devVisualPreviewSource]) {
+    assert.ok(source.includes("import './components/ReportBottomNav.css';"), 'production and preview should use the same bottom-navigation styles');
+    assert.ok(source.includes('report-bottom-nav-grid') && source.includes('report-bottom-nav-icon') && source.includes('report-bottom-nav-label'), 'production and preview should share the grid, icon and label styling');
+  }
   assert.equal(bottomNavBlock.includes('onDoubleClick='), false, 'iOS touch handling should not depend on the unreliable dblclick event');
 });
 
@@ -619,10 +627,12 @@ test('community profile settings use a dedicated public identity table without s
   assert.ok(settingsTabSource.includes('db.fetchCommunityProfile(user)'));
   assert.ok(settingsTabSource.includes('db.upsertCommunityProfile({'));
   assert.ok(settingsTabSource.includes('COMMUNITY_AVATAR_OPTIONS.map'), 'settings page should render the preset avatar picker');
-  assert.ok(settingsTabSource.includes('absolute inset-px flex items-center justify-center overflow-hidden rounded-full bg-[#070a0f]'), 'the avatar image itself should remain borderless inside the settings-only outer frame');
-  assert.ok(settingsTabSource.includes("'border-transparent opacity-65'"), 'inactive community avatar options should not add a white CSS border');
+  assert.ok(settingsTabSource.includes('className="settings-report-avatar-image"'), 'the avatar image should keep its independent crop inside the settings-only outer frame');
+  assert.ok(settingsTabSource.includes('settings-report-avatar-option') && settingsTabSource.includes('aria-pressed={active}'), 'community avatar selection should expose the actual selected option');
+  assert.match(settingsDialogsCss, /\.settings-report-avatar-option\s*\{[^}]*border:\s*[^;]*transparent;/, 'inactive community avatar options should not add a white border');
   assert.ok(settingsTabSource.includes("return 'scale-[1.15]'"), 'the replacement community avatar set should crop past the source white edge');
-  assert.ok(settingsTabSource.includes('relative h-[95px] w-[95px] rounded-full border border-white/[0.18]'), 'the settings identity avatar should gain a dedicated border and another twenty percent of size');
+  assert.ok(settingsTabSource.includes('className="settings-report-avatar"'), 'the settings identity avatar should retain its dedicated scoped frame');
+  assert.match(settingsTabCss, /\.settings-report-avatar\s*\{[^}]*width:\s*95px;[^}]*height:\s*95px;/, 'the settings identity avatar should preserve the approved 95px size');
   assert.ok(communityCompetitionPageSource.includes('scale-[1.15]'), 'the competition avatar crop should remain unchanged by the settings-only outer frame');
   assert.equal(settingsTabSource.includes('supabase.storage'), false, 'settings page should not upload avatars in this release');
   assert.ok(devVisualPreviewSource.includes('fetchCommunityProfile: async () => {'), 'local visual preview should mock community profile reads');
@@ -2029,11 +2039,13 @@ test('settings redesign phase-one prototype stays development-only and keeps req
 
 test('production settings redesign connects isolated account memory without ledger changes', () => {
   assert.ok(settingsTabSource.includes('data-settings-redesign="phase-1-production"'), 'production settings should use the approved redesign shell');
-  assert.ok(settingsTabSource.includes('mx-5 border-t border-white/[0.06] pb-5 pt-4'), 'expanded settings should avoid a second rounded card');
+  assert.ok(settingsTabSource.includes('className="settings-report-detail"'), 'expanded settings should use the scoped inline report detail without a second card');
   assert.ok(settingsTabSource.includes("id: 'language'") && settingsTabSource.includes("id: 'display'") && settingsTabSource.includes("id: 'account'"), 'language display and account settings should remain clickable accordion rows');
   assert.equal(settingsTabSource.includes("id: 'community'"), false, 'production settings should remove the duplicate community accordion row');
   assert.ok(settingsTabSource.includes('setShowCommunityProfile(true)') && settingsTabSource.includes("renderExpandedPanel('community')"), 'the production identity card should open the real community profile editor directly');
-  assert.ok(settingsTabSource.includes('<ActionModalCard') && settingsTabSource.includes("title={t(language, 'settings.communityProfile', '社区资料')}"), 'the real community profile editor should use the shared action modal style');
+  assert.ok(settingsTabSource.includes('<StockReportModal') && settingsTabSource.includes("title={t(language, 'settings.communityProfile', '社区资料')}"), 'the real community profile editor should use the current shared report modal');
+  assert.equal((settingsTabSource.match(/panelClassName="settings-report-dialog"/g) || []).length, 3, 'community, account switcher, and password dialogs should share the scoped report presentation');
+  assert.doesNotMatch(settingsTabSource, /key:\s*['"]cancel['"]/, 'settings dialogs should use their top-right close without duplicate footer cancellation');
   assert.ok(settingsTabSource.includes("id: 'invite'") && settingsTabSource.includes('isInviteAdmin'), 'invite management should remain admin-only inside the accordion');
   assert.ok(settingsTabSource.includes('MARKET_COLOR_MODES.RED_UP_GREEN_DOWN') && settingsTabSource.includes('setMarketColorMode?.(option.id)'), 'display settings should control the existing global market color mode');
   assert.ok(appSource.includes('marketColorMode,') && appSource.includes('setMarketColorMode,'), 'settings context should receive the existing market color state and setter');
@@ -2149,7 +2161,7 @@ test('asset account list hides zero-balance rows and uses action modal for edit/
   const accountActionStart = analysisTabSource.indexOf('{selectedActionAccount && (');
   const accountActionEnd = analysisTabSource.indexOf('{editingAccount && accountEditDraft && (', accountActionStart);
   const accountActionBlock = analysisTabSource.slice(accountActionStart, accountActionEnd);
-  const assetConfirmStart = confirmModalSource.indexOf("if (variant === 'asset-report') {");
+  const assetConfirmStart = confirmModalSource.indexOf("if (variant === 'asset-report' || variant === 'settings-report') {");
   const defaultConfirmStart = confirmModalSource.indexOf('\n  return (', assetConfirmStart);
   const assetConfirmBlock = confirmModalSource.slice(assetConfirmStart, defaultConfirmStart);
   const defaultConfirmBlock = confirmModalSource.slice(defaultConfirmStart);
@@ -2174,9 +2186,10 @@ test('asset account list hides zero-balance rows and uses action modal for edit/
   assert.equal(accountActionBlock.includes('min-h-[42px]'), false, 'account action modal should not keep a bottom cancel button');
   assert.ok(analysisTabSource.includes('保存修改'), 'asset account edit modal should save changes');
   assert.equal(analysisTabSource.includes('title="删除"'), false, 'owner account rows must not keep a direct trailing delete button');
-  assert.ok(assetConfirmStart > -1 && defaultConfirmStart > assetConfirmStart, 'asset confirmation should have an opt-in branch before the existing default shell');
-  assert.ok(confirmModalSource.includes("variant = 'default'") && assetConfirmBlock.includes('<StockReportModal'), 'asset confirmation should use the report style while other callers retain the default');
-  assert.ok(appSource.includes("variant={activeTab === 'analysis' ? 'asset-report' : 'default'}") && devVisualPreviewSource.includes("variant={activeTab === 'analysis' ? 'asset-report' : 'default'}"), 'production and local preview should scope the report confirmation to the asset tab');
+  assert.ok(assetConfirmStart > -1 && defaultConfirmStart > assetConfirmStart, 'asset and settings confirmations should share an opt-in branch before the existing default shell');
+  assert.ok(confirmModalSource.includes("variant = 'default'") && assetConfirmBlock.includes('<StockReportModal'), 'asset and settings confirmations should use the report style while other callers retain the default');
+  assert.ok(appSource.includes("variant={activeTab === 'analysis' ? 'asset-report' : activeTab === 'settings' ? 'settings-report' : 'default'}") && devVisualPreviewSource.includes("variant={activeTab === 'analysis' ? 'asset-report' : activeTab === 'settings' ? 'settings-report' : 'default'}"), 'production and local preview should scope report confirmations to the asset and settings tabs');
+  assert.ok(assetConfirmBlock.includes("panelClassName={variant === 'settings-report' ? 'settings-report-dialog settings-confirm-dialog' : 'asset-dialog asset-confirm-dialog'}"), 'settings confirmation styling should remain isolated from asset confirmation styling');
   assert.ok(assetConfirmBlock.includes("...(modal.showCancel ? [{ key: 'cancel', label: modal.cancelText, onClick: onCancel, disabled: submitting }] : [])"), 'asset confirmation should preserve the caller cancellation setting and disable cancel during submission');
   assert.ok(assetConfirmBlock.includes('onClose={() => { if (!submitting) onCancel?.(); }}'), 'asset confirmation must reject top-right and backdrop closure while submitting');
   assert.ok(assetConfirmBlock.includes("key: 'confirm'") && assetConfirmBlock.includes('onClick: onConfirm,\n            disabled: submitting,'), 'asset confirmation must keep the original confirm callback and block duplicate submission');
@@ -2757,7 +2770,7 @@ test('approved modal families share the new shell without widening business boun
   assert.equal(assetDialogsBlock.includes("key: 'fill-monthly-balance'"), false, 'asset month trend should not keep the duplicate bottom edit action');
   assert.equal(monthlyAssetTrendContentSource.includes('MoreHorizontal') || monthlyAssetTrendContentSource.includes('MoreVertical') || monthlyAssetTrendContentSource.includes('Ellipsis'), false, 'asset month trend should not add a redundant three-dot menu');
   assert.equal(assetDialogsBlock.includes('fixed inset-0 z-[100]'), false, 'asset month trend should remove its legacy custom overlay');
-  assert.ok(passwordDialogBlock.includes('<ActionModalCard') && passwordDialogBlock.includes('passwordChangeHint'), 'password editor should use the shared shell and preserve the approved hint spacing');
+  assert.ok(passwordDialogBlock.includes('<StockReportModal') && passwordDialogBlock.includes('passwordChangeHint'), 'password editor should use the shared report shell and preserve its approved hint');
   const yearActionShell = reviewTabSource.slice(reviewTabSource.indexOf('function ReviewActionSheet'), reviewTabSource.indexOf('export default function ReviewTab'));
   const northStarSettings = reviewTabSource.slice(reviewTabSource.indexOf('{showPlanSettings && ('), reviewTabSource.indexOf('{(showAddDiscipline || ctx.editingDisciplineId)'));
   assert.ok(yearActionShell.includes('<ReviewGoalModal') && northStarSettings.includes('<ReviewGoalModal') && northStarSettings.includes("title={tt('review.planSettings', '北极星设置')}"), 'year actions and North Star settings should use the scoped goal-modal presentation');
