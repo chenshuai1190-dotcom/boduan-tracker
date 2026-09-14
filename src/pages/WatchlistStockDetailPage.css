@@ -54,9 +54,11 @@
 .stock-report-technicals > div:first-child { padding: 0; }
 .stock-report-technicals > div:first-child h2 { font-size: 16px; color: #e4e4e7; }
 .stock-report-page [data-watchlist-daily-metrics] {
-  grid-template-columns: .9fr .95fr 1.25fr; gap: 10px; padding: 19px 0 24px;
+  grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; padding: 19px 0 24px;
 }
 .stock-report-page [data-watchlist-daily-metrics] > div { text-align: left; overflow: visible; }
+.stock-report-page [data-watchlist-daily-metrics] > div:nth-child(2) { text-align: center; }
+.stock-report-page [data-watchlist-daily-metrics] > div:last-child { text-align: right; }
 .stock-report-page [data-watchlist-daily-metrics] > div > div:first-child { font-size: 11px; color: var(--sr-muted); }
 .stock-report-page [data-watchlist-daily-metrics] > div > div:nth-child(2) { font-size: 20px; letter-spacing: -.035em; margin-top: 9px; }
 .stock-report-page [data-watchlist-daily-metrics] > div > div:last-child { font-size: 10px; color: #777780; margin-top: 6px; }
@@ -65,7 +67,7 @@
   color: var(--stock-rsi-color); font-size: 20px; font-weight: 400;
   line-height: 28px; letter-spacing: normal; font-variant-numeric: tabular-nums;
 }
-.stock-report-rsi-status { display: flex; flex-wrap: wrap; align-items: baseline; gap: 3px 5px; line-height: 16px; letter-spacing: normal; }
+.stock-report-rsi-status { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: flex-end; gap: 3px 5px; line-height: 16px; letter-spacing: normal; }
 .stock-report-rsi-zone { color: var(--stock-rsi-color); white-space: nowrap; }
 .stock-report-rsi-metric[data-rsi-zone="neutral"] .stock-report-rsi-zone { color: var(--sr-muted); }
 [data-watchlist-rsi-divergence] { display: inline-flex; align-items: baseline; gap: 5px; color: #d5ad72; white-space: nowrap; }

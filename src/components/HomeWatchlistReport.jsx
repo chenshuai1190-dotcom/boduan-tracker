@@ -8,6 +8,19 @@ const AUXILIARY_METRICS = {
   positions: ['pnl', 'drawdown', 'ytd'],
 };
 
+function updateScrollClipping({ currentTarget: table }) {
+  const pinned = table.querySelector('.hwr-aux-sort');
+  const price = table.querySelector('.hwr-price-sort');
+  if (!pinned || !price) return;
+  const gap = parseFloat(getComputedStyle(price.parentElement).columnGap) || 0;
+  const priceLeft = Math.min(price.getBoundingClientRect().left,
+    ...Array.from(table.querySelectorAll('.hwr-price'), cell => cell.getBoundingClientRect().left));
+  const obscured = table.scrollLeft > 0
+    && priceLeft < pinned.getBoundingClientRect().right + gap;
+  // Keep the grid track, but never show a partial price against the fixed name.
+  if (table.dataset.priceObscured !== String(obscured)) table.dataset.priceObscured = String(obscured);
+}
+
 function SortControl({ label, sortKey, sortState, onSort, language, className = '' }) {
   const active = sortState?.key === sortKey;
   const ascending = active && sortState.direction === 'asc';
@@ -111,11 +124,11 @@ export default function HomeWatchlistReport({
             : (english ? 'No holdings yet. Add a buy in Trades to get started.' : '暂无持仓记录，先在交易页添加买入记录。')}
         </div>
       ) : (
-        <div className={`hwr-table-scroll${showRsi ? ' has-rsi' : ''}`} tabIndex={showRsi ? 0 : undefined} aria-label={showRsi ? (english ? 'Watchlist, scroll horizontally for RSI and bearish divergence' : '自选列表，可左右滑动查看 RSI 和顶背离') : undefined}>
+        <div className={`hwr-table-scroll${showRsi ? ' has-rsi' : ''}`} onScroll={showRsi ? updateScrollClipping : undefined} tabIndex={showRsi ? 0 : undefined} aria-label={showRsi ? (english ? 'Watchlist, scroll horizontally for RSI and bearish divergence' : '自选列表，可左右滑动查看 RSI 和顶背离') : undefined}>
           <div className="hwr-table-content">
           <div className="hwr-column-headings">
             <SortControl label={labels[auxiliaryMetric]} sortKey={auxiliaryMetric} sortState={sortState} onSort={onSort} language={language} className="hwr-aux-sort" />
-            <SortControl label={labels.price} sortKey="price" sortState={sortState} onSort={onSort} language={language} />
+            <SortControl label={labels.price} sortKey="price" sortState={sortState} onSort={onSort} language={language} className="hwr-price-sort" />
             <SortControl label={labels.change} sortKey="change" sortState={sortState} onSort={onSort} language={language} />
             {showRsi && <span className="hwr-rsi-heading">RSI<span className="hwr-rsi-period">(6)</span></span>}
             {showRsi && <span className="hwr-divergence-heading">{english ? 'Bearish div.' : '顶背离'}</span>}

@@ -119,6 +119,121 @@ test('watchlist has separate RSI and divergence after Today while holdings keep 
   assert.equal(holdingsScroll.props['aria-label'], undefined);
 });
 
+test('the pinned stock identity cannot stretch over Today when the indicator columns are revealed', () => {
+  const pinnedRule = css.match(/\.has-rsi \.hwr-identity,\s*\.has-rsi \.hwr-aux-sort\s*\{([^}]+)\}/)?.[1];
+  assert.ok(pinnedRule, 'stock identity and its heading need the same bounded sticky surface');
+  assert.match(pinnedRule, /position:\s*sticky/);
+  assert.match(pinnedRule, /justify-self:\s*start/);
+  assert.match(pinnedRule, /width:\s*min\(100%,\s*var\(--hwr-pinned-width\)\)/);
+
+  const mediaRules = [...css.matchAll(/@media\s*\(max-width:\s*(\d+)px\)\s*\{/g)].map(match => {
+    let depth = 1;
+    let end = match.index + match[0].length;
+    const start = end;
+    while (depth && end < css.length) {
+      if (css[end] === '{') depth++;
+      if (css[end] === '}') depth--;
+      end++;
+    }
+    return { maxWidth: Number(match[1]), body: css.slice(start, end - 1) };
+  });
+  const baseRules = css.slice(0, css.indexOf('@media'));
+  for (const viewport of [320, 356, 359, 360, 389, 390, 420, 421, 440]) {
+    const rules = [baseRules, ...mediaRules.filter(rule => viewport <= rule.maxWidth).map(rule => rule.body)].join('\n');
+    const sizes = Object.fromEntries([...rules.matchAll(/--hwr-(rsi-width|divergence-width|pinned-width):\s*(\d+)px/g)]
+      .map(match => [match[1], Number(match[2])]));
+    const tracks = [...rules.matchAll(/--hwr-columns:\s*minmax\(0,\s*1fr\)\s+minmax\((\d+)px,\s*max-content\)\s+minmax\((\d+)px,\s*max-content\)/g)].at(-1);
+    assert.ok(tracks, 'the approved initial price and Today tracks must remain available');
+    const extraGap = Number([...rules.matchAll(/--hwr-extra-width:\s*calc\(var\(--hwr-rsi-width\)\s*\+\s*var\(--hwr-divergence-width\)\s*\+\s*(\d+)px\)/g)].at(-1)?.[1]);
+    const contentWidth = viewport - 32;
+    const extraWidth = sizes['rsi-width'] + sizes['divergence-width'] + extraGap;
+    const todayStartAfterScroll = contentWidth - Number(tracks[2]) - extraWidth;
+    assert.ok(todayStartAfterScroll >= sizes['pinned-width'] + 6,
+      `${viewport}px: the complete Today track must clear the pinned stock surface, including a readable gap`);
+  }
+});
+
+test('horizontal scrolling hides the complete price column at the pinned boundary and restores it on return', t => {
+  const computedStyleDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'getComputedStyle');
+  const heading = {};
+  Object.defineProperty(globalThis, 'getComputedStyle', { configurable: true, value: element => {
+    assert.equal(element, heading);
+    return { columnGap: '8px' };
+  } });
+  t.after(() => {
+    if (computedStyleDescriptor) Object.defineProperty(globalThis, 'getComputedStyle', computedStyleDescriptor);
+    else delete globalThis.getComputedStyle;
+  });
+
+  const h = harness({ rows: [row({ stockRsi: signal() })] });
+  const onScroll = byClass(h.render(), 'hwr-table-scroll')[0].props.onScroll;
+  assert.equal(typeof onScroll, 'function');
+  let priceLeft = 0;
+  let longPriceLeft = null;
+  let writes = 0;
+  const table = {
+    scrollLeft: 0,
+    dataset: new Proxy({}, { set(target, key, value) { writes++; target[key] = value; return true; } }),
+    querySelector(selector) {
+      if (selector === '.hwr-aux-sort') return { getBoundingClientRect: () => ({ right: 112 }) };
+      if (selector === '.hwr-price-sort') return { parentElement: heading, getBoundingClientRect: () => ({ left: priceLeft }) };
+      assert.fail(`unexpected selector ${selector}`);
+    },
+    querySelectorAll(selector) {
+      assert.equal(selector, '.hwr-price');
+      return [
+        { getBoundingClientRect: () => ({ left: priceLeft }) },
+        { getBoundingClientRect: () => ({ left: longPriceLeft ?? priceLeft }) },
+      ];
+    },
+  };
+  for (const [scrollLeft, left, expected, expectedWrites] of [
+    [0, 0, 'false', 1],
+    [96, 120, 'false', 1],
+    [97, 119.5, 'true', 2],
+    [140, 75, 'true', 2],
+    [50, 130, 'false', 3],
+    [0, 60, 'false', 3],
+  ]) {
+    table.scrollLeft = scrollLeft;
+    priceLeft = left;
+    onScroll({ currentTarget: table });
+    assert.equal(table.dataset.priceObscured, expected, `scrollLeft ${scrollLeft}, price left ${left}`);
+    assert.equal(writes, expectedWrites, 'repeated scroll events must not rewrite an unchanged visibility state');
+  }
+  table.scrollLeft = 80;
+  priceLeft = 130;
+  longPriceLeft = 116;
+  onScroll({ currentTarget: table });
+  assert.equal(table.dataset.priceObscured, 'true', 'a wider price value must hide the whole column before its narrower heading overlaps');
+  assert.equal(writes, 4);
+  longPriceLeft = 121;
+  onScroll({ currentTarget: table });
+  assert.equal(table.dataset.priceObscured, 'false', 'prices return once every row clears the pinned boundary');
+  assert.equal(writes, 5);
+  const clippingRule = css.match(/\.has-rsi\[data-price-obscured="true"\] \.hwr-price,\s*\.has-rsi\[data-price-obscured="true"\] \.hwr-price-sort\s*\{([^}]+)\}/)?.[1];
+  assert.ok(clippingRule, 'the price heading and all price values must disappear together');
+  assert.match(clippingRule, /visibility:\s*hidden/);
+  assert.doesNotMatch(clippingRule, /display:\s*none|width:|grid-template/);
+  assert.equal(text(sortControl(h.render(), 'change')).trim(), '今日涨跌');
+  assert.equal(text(byClass(h.render(), 'hwr-change')[0]), '-0.91%');
+  h.props.tableTab = 'positions';
+  assert.equal(byClass(h.render(), 'hwr-table-scroll')[0].props.onScroll, undefined);
+});
+
+test('narrow indicator columns keep long English labels inside the cell and preserve full stock accessibility', () => {
+  const zoneRules = [...css.matchAll(/\.hwr-rsi-zone\s*\{([^}]+)\}/g)].map(match => match[1]).join('\n');
+  assert.match(zoneRules, /max-width:\s*100%/);
+  assert.match(zoneRules, /white-space:\s*normal/);
+  const h = harness({ language: 'en', onOpenStock: () => {}, rows: [row({
+    symbol: 'LONGSYMBOL', displayName: 'Long Company Name Incorporated', stockRsi: signal({ value: 95 }),
+  })] });
+  const identity = byClass(h.render(), 'hwr-identity')[0];
+  assert.equal(identity.props['aria-label'], 'Open LONGSYMBOL stock details');
+  assert.equal(text(byClass(h.render(), 'hwr-rsi-zone')[0]), 'Very overbought');
+  assert.equal(text(sortControl(h.render(), 'change')).trim(), 'Today');
+});
+
 test('invalid signal values and metadata stay missing instead of becoming neutral or no divergence', () => {
   const invalidSignals = [
     null, undefined, {},
