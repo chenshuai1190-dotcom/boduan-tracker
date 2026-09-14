@@ -1,5 +1,5 @@
 import React from 'react';
-import { BarChart3, BookOpen, Calculator, CalendarDays, ChevronRight, Database, Edit3, Layers, LayoutGrid, ListChecks, Search, Settings2, Trash2, TrendingDown, TrendingUp, Waves, X } from 'lucide-react';
+import { BarChart3, BookOpen, Calculator, CalendarDays, ChevronRight, Database, Layers, LayoutGrid, ListChecks, Search, Settings2, Trash2, TrendingDown, TrendingUp, Waves, X } from 'lucide-react';
 import {
   MARKET_COLOR_MODES,
   marketStrongTextClass,
@@ -1060,7 +1060,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
             <p className="trades-report-note">{tt('trades.tradeRecordsSubtitle', '全部主交易账本 · 点击记录修改或删除')}</p>
             {ledgerTradeRecords.length === 0 ? <div className="trades-report-empty">{tt('trades.noTradeRecords', '还没有交易记录,先新增一笔买入。')}</div>
               : <div className="trades-report-record-list" data-pull-refresh-block="true">{ledgerTradeRecords.map((trade) => renderOrderRow(trade, true))}</div>}
-            <button type="button" className="trades-report-add" onClick={() => openTradeModal(null, 'buy')}><Edit3 size={15} />{tt('trades.addTrade', '新增交易')}</button>
+            <button type="button" className="trades-report-add" onClick={() => openTradeModal(null, 'buy')}>{tt('trades.addTrade', '新增交易')}</button>
           </section>
         )}
         {showMainLedger && (
@@ -1086,9 +1086,9 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                 : <TradesPositionsReport rows={positionReportRows} tt={tt}
                   onOpenStock={(row) => (typeof openStockDetail === 'function' ? openStockDetail(row.symbol) : openTradeModal(row.position, 'buy'))}
                   onScenario={(row) => openPositionScenario(row.position)} onTrade={(row) => openTradeModal(row.position, 'buy')} />}
-              {positions.length > 0 && <button type="button" className="trades-report-add" onClick={() => openTradeModal(null, 'buy')}><Edit3 size={15} />{tt('trades.addTrade', '新增交易')}</button>}
+              {positions.length > 0 && <button type="button" className="trades-report-add" onClick={() => openTradeModal(null, 'buy')}>{tt('trades.addTrade', '新增交易')}</button>}
             </> : <>
-              <div className="trades-report-order-summary"><span>{englishMode ? 'Buys' : '买入'} {todayBuys}<span className="trades-report-order-separator">·</span>{englishMode ? 'Sells' : '卖出'} {todaySells}</span><button type="button" className="trades-report-text-action" onClick={() => openTradeModal(null, 'buy')}>{tt('trades.addTrade', '新增交易')}<ChevronRight size={13} /></button></div>
+              <div className="trades-report-order-summary"><span>{englishMode ? 'Buys' : '买入'} {todayBuys}<span className="trades-report-order-separator">·</span>{englishMode ? 'Sells' : '卖出'} {todaySells}</span><button type="button" className="trades-report-text-action" onClick={() => openTradeModal(null, 'buy')}>{tt('trades.addTrade', '新增交易')}</button></div>
               {todayTrades.length === 0 ? <div className="trades-report-empty"><p>{tt('trades.noOrdersToday', '今日暂无订单')}</p><button type="button" className="trades-report-add" onClick={() => openTradeModal(null, 'buy')}>{tt('trades.recordOrder', '记录订单')}</button></div>
                 : <div className="trades-report-orders">{todayTrades.map((trade) => renderOrderRow(trade))}</div>}
             </>}

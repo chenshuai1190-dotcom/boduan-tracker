@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowDown, ArrowDownUp, ArrowUp, Pencil, Plus } from 'lucide-react';
+import { ArrowDown, ArrowDownUp, ArrowUp, Minus, Plus } from 'lucide-react';
 import { stockRsiPresentation } from '../lib/stockRsiPresentation.js';
 import './HomeWatchlistReport.css';
 
@@ -97,7 +97,7 @@ export default function HomeWatchlistReport({
               <Plus size={17} strokeWidth={1.6} aria-hidden="true" />
             </button>
             <button type="button" className="hwr-icon-button" onClick={onEdit} aria-label={english ? 'Edit watchlist' : '编辑自选股票'}>
-              <Pencil size={14} strokeWidth={1.6} aria-hidden="true" />
+              <Minus size={17} strokeWidth={1.6} aria-hidden="true" />
             </button>
           </div>
         )}
