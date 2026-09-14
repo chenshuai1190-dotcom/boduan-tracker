@@ -4,6 +4,19 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '全部功能新增独立股票决策工具，位于摊薄工具上方，输入股票代码查看趋势、位置、量能与动量四项判断。',
+      '微软、英伟达和 Meta 接入自动财报估值，随最新财报与已核验指引滚动预测未来四个财季，提供三档 EPS 和 PE 情景参考；待更新数据不沿用过期估值。',
+      '工具独立按需加载，不增加首页请求，不改动个人持仓、交易和收益计算。',
+    ],
+    itemsEn: [
+      'All Tools adds an independent Stock Decision tool above Cost Averaging. Enter a ticker to review trend, price levels, volume and momentum.',
+      'Microsoft, NVIDIA and Meta gain automatic earnings valuation. Verified reports and guidance roll the forecast across the next four fiscal quarters, with three EPS and PE scenarios. Pending updates do not reuse expired valuations.',
+      'The tool loads on demand without additional Home requests or changes to personal holdings, transactions or P&L calculations.',
+    ],
+  },
+  {
+    ver: 'v10.7.9.527', date: '2026-09-14',
+    items: [
       '股票趋势将“相对 QQQ”替换为 RSI(6)、区间和顶背离组合，数字与配色沿用首页设计。',
       '复用同一次详情请求的完成日线指标，移除本页 QQQ 基准读取；数据缺失或日期不一致时保留为空，不影响资产和盈亏计算。',
     ],

@@ -1,0 +1,33 @@
+.stock-decision-preview .sd-valuation { padding: 24px 0 14px; border-bottom: 1px solid var(--sd-line); }
+.stock-decision-preview .sd-valuation-empty { display: flex; justify-content: space-between; align-items: center; gap: 12px; min-height: 65px; color: var(--sd-muted); font-size: 12px; line-height: 20px; }
+.stock-decision-preview .sd-valuation-empty button { background: #1b1c1e; color: #dedee0; border: 0; border-radius: 6px; padding: 10px 14px; flex-shrink: 0; }
+.stock-decision-preview .sd-valuation-scenarios { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 3px; margin-top: 18px; background: #131416; border-radius: 8px; }
+.stock-decision-preview .sd-valuation-scenarios button { min-height: 36px; border: 0; border-radius: 6px; color: #85868c; background: none; font-size: 12px; }
+.stock-decision-preview .sd-valuation-scenarios button[aria-pressed='true'] { background: #252628; color: #e3e1dc; }
+.stock-decision-preview .sd-valuation-earnings { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-top: 21px; }
+.stock-decision-preview .sd-valuation-earnings > span { font-size: 12px; color: #a0a1a7; }
+.stock-decision-preview .sd-valuation-earnings strong { font-size: 28px; line-height: 36px; color: #e7e7e9; }
+.stock-decision-preview .sd-valuation-period { margin-top: 3px; color: var(--sd-muted); font-size: 11px; line-height: 18px; }
+.stock-decision-preview .sd-valuation-close { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-top: 22px; font-size: 11px; line-height: 20px; color: #929398; }
+.stock-decision-preview .sd-valuation-close strong { font-size: 15px; color: #d0b788; white-space: nowrap; }
+.stock-decision-preview .sd-valuation-scale { position: relative; height: 22px; margin-top: 4px; }
+.stock-decision-preview .sd-valuation-track { position: absolute; top: 10px; left: 0; right: 0; height: 2px; background: #25272b; }
+.stock-decision-preview .sd-valuation-track::after { content: ''; display: block; margin: 0 16.666667%; height: 2px; background: linear-gradient(90deg, #6f7276, #b7a17c); }
+.stock-decision-preview .sd-valuation-tick { position: absolute; top: 7px; height: 8px; width: 1px; background: #8a8b90; }
+.stock-decision-preview .sd-valuation-marker { position: absolute; top: 6px; width: 10px; height: 10px; transform: translateX(-50%); border-radius: 50%; background: #d0b788; border: 2px solid #08090b; box-shadow: 0 0 0 1px #d0b788; }
+.stock-decision-preview .sd-valuation-prices { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; text-align: center; }
+.stock-decision-preview .sd-valuation-prices > div { display: flex; flex-direction: column; gap: 5px; }
+.stock-decision-preview .sd-valuation-prices span { color: #88898f; font-size: 11px; line-height: 18px; }
+.stock-decision-preview .sd-valuation-prices strong { color: #d8d8de; font-size: 16px; line-height: 24px; white-space: nowrap; }
+.stock-decision-preview .sd-valuation-note { margin-top: 17px; font-size: 11px; line-height: 18px; color: #818288; }
+.stock-decision-preview .sd-valuation-details-toggle { display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 44px; padding: 5px 0; margin-top: 5px; border: 0; color: #acadb2; background: none; font-size: 12px; }
+.stock-decision-preview .sd-valuation-details-toggle[aria-expanded='true'] svg { transform: rotate(180deg); }
+.stock-decision-preview .sd-valuation-details { padding-bottom: 10px; font-size: 12px; line-height: 21px; color: #96979e; }
+.stock-decision-preview .sd-valuation-details > p + p { margin-top: 12px; }
+.stock-decision-preview .sd-valuation-details dl { margin: 16px 0; }
+.stock-decision-preview .sd-valuation-details dl > div { display: flex; align-items: baseline; justify-content: space-between; gap: 20px; padding: 7px 0; border-bottom: 1px solid #1b1c1f; }
+.stock-decision-preview .sd-valuation-details dd { margin: 0; text-align: right; color: #cacad0; }
+.stock-decision-preview .sd-valuation-provenance { display: flex; flex-direction: column; gap: 3px; margin-top: 16px; color: #808188; font-size: 11px; }
+.stock-decision-preview .sd-valuation-sources { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; font-size: 11px; overflow-wrap: anywhere; }
+.stock-decision-preview .sd-valuation-sources a { color: #b8a584; text-decoration: underline; text-underline-offset: 3px; }
+@media (max-width: 359px) { .stock-decision-preview .sd-valuation-prices strong { font-size: 14px; } }

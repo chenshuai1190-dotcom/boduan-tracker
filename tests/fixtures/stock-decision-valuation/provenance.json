@@ -1,0 +1,103 @@
+{
+  "fetchedAt": "2026-09-14T16:05:59.530Z",
+  "description": "Public official sources fetched through SEC readers; test fixtures retain relevant original facts and normalize HTML to text without changing numbers.",
+  "sources": [
+    {
+      "symbol": "NVDA",
+      "companyfacts": {
+        "url": "https://data.sec.gov/api/xbrl/companyfacts/CIK0001045810.json",
+        "file": "NVDA-companyfacts.json"
+      },
+      "submissions": {
+        "url": "https://data.sec.gov/submissions/CIK0001045810.json",
+        "file": "NVDA-submissions.json"
+      }
+    },
+    {
+      "symbol": "NVDA",
+      "url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000051/q1fy27pr.htm",
+      "file": "NVDA-2026-05-20-document.json",
+      "indexUrl": "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000051/0001045810-26-000051-index.html",
+      "indexFile": "NVDA-2026-05-20-index.html"
+    },
+    {
+      "symbol": "NVDA",
+      "url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000073/q2fy27pr.htm",
+      "file": "NVDA-2026-08-26-document.json",
+      "indexUrl": "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000073/0001045810-26-000073-index.html",
+      "indexFile": "NVDA-2026-08-26-index.html"
+    },
+    {
+      "symbol": "MSFT",
+      "companyfacts": {
+        "url": "https://data.sec.gov/api/xbrl/companyfacts/CIK0000789019.json",
+        "file": "MSFT-companyfacts.json"
+      },
+      "submissions": {
+        "url": "https://data.sec.gov/submissions/CIK0000789019.json",
+        "file": "MSFT-submissions.json"
+      }
+    },
+    {
+      "symbol": "MSFT",
+      "url": "https://www.sec.gov/Archives/edgar/data/789019/000119312526191457/msft-ex99_1.htm",
+      "file": "MSFT-2026-04-29-document.json",
+      "indexUrl": "https://www.sec.gov/Archives/edgar/data/789019/000119312526191457/0001193125-26-191457-index.html",
+      "indexFile": "MSFT-2026-04-29-index.html"
+    },
+    {
+      "symbol": "MSFT",
+      "url": "https://www.sec.gov/Archives/edgar/data/789019/000119312526323632/msft-ex99_1.htm",
+      "file": "MSFT-2026-07-29-document.json",
+      "indexUrl": "https://www.sec.gov/Archives/edgar/data/789019/000119312526323632/0001193125-26-323632-index.html",
+      "indexFile": "MSFT-2026-07-29-index.html"
+    },
+    {
+      "symbol": "META",
+      "companyfacts": {
+        "url": "https://data.sec.gov/api/xbrl/companyfacts/CIK0001326801.json",
+        "file": "META-companyfacts.json"
+      },
+      "submissions": {
+        "url": "https://data.sec.gov/submissions/CIK0001326801.json",
+        "file": "META-submissions.json"
+      }
+    },
+    {
+      "symbol": "META",
+      "url": "https://www.sec.gov/Archives/edgar/data/1326801/000162828026028364/meta-03312026xexhibit991.htm",
+      "file": "META-2026-04-29-document.json",
+      "indexUrl": "https://www.sec.gov/Archives/edgar/data/1326801/000162828026028364/0001628280-26-028364-index.html",
+      "indexFile": "META-2026-04-29-index.html"
+    },
+    {
+      "symbol": "META",
+      "url": "https://www.sec.gov/Archives/edgar/data/1326801/000162828026050596/meta-06302026xexhibit991.htm",
+      "file": "META-2026-07-29-document.json",
+      "indexUrl": "https://www.sec.gov/Archives/edgar/data/1326801/000162828026050596/0001628280-26-050596-index.html",
+      "indexFile": "META-2026-07-29-index.html"
+    },
+    {
+      "symbol": "MSFT",
+      "url": "https://www.microsoft.com/en-us/investor/events/fy-2026/earnings-fy-2026-q3",
+      "file": "MSFT-FY2026-Q3-call.html"
+    },
+    {
+      "symbol": "MSFT",
+      "url": "https://www.microsoft.com/en-us/investor/events/fy-2026/earnings-fy-2026-q4",
+      "file": "MSFT-FY2026-Q4-call.html"
+    },
+    {
+      "symbol": "NVDA",
+      "url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000078/nvda-20260902.htm",
+      "file": "NVDA-post-report-action.json",
+      "fetchedAt": "2026-09-14T16:10:20.192Z"
+    },
+    {
+      "symbol": "MSFT",
+      "url": "https://www.sec.gov/Archives/edgar/data/789019/000119312526380280/d291965d8k.htm",
+      "file": "MSFT-post-report-action.json",
+      "fetchedAt": "2026-09-14T16:10:20.362Z"
+    }
+  ]
+}

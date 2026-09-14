@@ -11,13 +11,17 @@ import { fetchVixComparison } from '../server/quote/vixComparison.js';
 import { fetchDcaHistory, fetchInvestmentComparison, searchInvestmentSymbols, InvestmentComparisonError } from '../server/quote/investmentComparison.js';
 import { fetchPortfolioOverlap, PortfolioOverlapError } from '../server/quote/portfolioOverlap.js';
 import { fetchFearGreed, FearGreedError } from '../server/quote/fearGreed.js';
+import { fetchStockDecision, StockDecisionError } from '../server/quote/stockDecision.js';
+import { getStockValuation } from '../server/quote/stockDecisionValuation.js';
 
 export default async function handler(req, res) {
   setCorsHeaders(req, res);
   const authRequired = process.env.QUOTE_API_AUTH_REQUIRED !== 'false';
   const dcaViewPresent = [req.query?.view].flat().includes('dca-history');
   const fearGreedViewPresent = [req.query?.view].flat().includes('fear-greed');
-  if (authRequired || dcaViewPresent || fearGreedViewPresent) {
+  const stockDecisionViewPresent = [req.query?.view].flat().includes('stock-decision');
+  const stockValuationViewPresent = [req.query?.view].flat().includes('stock-valuation');
+  if (authRequired || dcaViewPresent || fearGreedViewPresent || stockDecisionViewPresent || stockValuationViewPresent) {
     res.setHeader('Cache-Control', 'private, no-store, max-age=0, must-revalidate');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
@@ -31,7 +35,7 @@ export default async function handler(req, res) {
     return sendError(res, 405, 'Method Not Allowed');
   }
 
-  if (fearGreedViewPresent) {
+  if (fearGreedViewPresent || stockDecisionViewPresent || stockValuationViewPresent) {
     // This view stays private even when legacy quote authentication is disabled locally.
     const header = req.headers.authorization || '';
     const auth = await authenticateAccessToken(header.startsWith('Bearer ') ? header.slice(7) : '');
@@ -65,6 +69,8 @@ export default async function handler(req, res) {
     && !dcaHistoryRequested
     && !portfolioOverlapRequested
     && !fearGreedRequested
+    && !stockDecisionViewPresent
+    && !stockValuationViewPresent
   ) {
     return sendError(res, 400, '不支持的 view 参数');
   }
@@ -79,7 +85,27 @@ export default async function handler(req, res) {
       return sendError(res, failure.status, failure.message, { code: failure.code });
     }
   }
+  if (stockValuationViewPresent) {
+    if (view !== 'stock-valuation' || Object.values(req.query).some(Array.isArray)
+      || Object.keys(req.query).some(key => !['view', 'symbol'].includes(key))
+      || typeof req.query.symbol !== 'string' || !/^[A-Za-z][A-Za-z0-9.-]{0,17}$/.test(req.query.symbol)) {
+      return sendError(res, 400, 'Invalid valuation parameters', { code: 'INVALID_PARAMETERS' });
+    }
+    return res.status(200).json({ success: true, data: await getStockValuation({ symbol: req.query.symbol }) });
+  }
   const eodhdKey = (process.env.EODHD_API_KEY || '').trim().replace(/[\s\u200B-\u200D\uFEFF]/g, '');
+  if (stockDecisionViewPresent) {
+    try {
+      if (view !== 'stock-decision' || Object.values(req.query).some(Array.isArray)
+        || Object.keys(req.query).some((key) => !['view', 'symbol'].includes(key))) {
+        throw new StockDecisionError('INVALID_PARAMETERS');
+      }
+      return res.status(200).json({ success: true, data: await fetchStockDecision(req.query.symbol, { eodhdKey }) });
+    } catch (cause) {
+      const problem = cause instanceof StockDecisionError ? cause : new StockDecisionError();
+      return sendError(res, problem.status, problem.message, { code: problem.code });
+    }
+  }
   if (dcaHistoryRequested) {
     try {
       if (Object.values(req.query).some(Array.isArray)
