@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { transformWithOxc } from 'vite';
 
 import { deriveInvestmentSummary, derivePositionAllocation } from '../src/lib/investmentSummary.js';
 import {
@@ -23,6 +26,50 @@ const panelCss = readFileSync(new URL('../src/components/TqqqTradeEntryPanel.css
 const disciplineSource = readFileSync(new URL('../src/lib/tqqqTradeDiscipline.js', import.meta.url), 'utf8');
 const actionModalSource = readFileSync(new URL('../src/components/ActionModalCard.jsx', import.meta.url), 'utf8');
 const i18nSource = readFileSync(new URL('../src/lib/i18n.js', import.meta.url), 'utf8');
+
+const moduleUrl = code => `data:text/javascript;base64,${Buffer.from(code).toString('base64')}`;
+const resolvePackages = code => code.replace(/from (["'])(react|lucide-react)\1/g,
+  (_match, _quote, name) => `from ${JSON.stringify(import.meta.resolve(name))}`);
+const shellCode = await transformWithOxc(actionModalSource, 'ActionModalCard.jsx', { jsx: { runtime: 'classic' } });
+const { default: ActionModalCard } = await import(moduleUrl(resolvePackages(shellCode.code)));
+const logoSource = readFileSync(new URL('../src/components/StockLogo.jsx', import.meta.url), 'utf8');
+const logoCode = await transformWithOxc(logoSource, 'StockLogo.jsx', { jsx: { runtime: 'classic' } });
+const logoUrl = moduleUrl(resolvePackages(logoCode.code).replace(/from (["'])\.\.\/lib\/stockLogo\.js\1/g,
+  `from ${JSON.stringify(new URL('../src/lib/stockLogo.js', import.meta.url).href)}`));
+const panelCode = await transformWithOxc(panelSource, 'TqqqTradeEntryPanel.jsx', { jsx: { runtime: 'classic' } });
+const compiledPanel = resolvePackages(panelCode.code)
+  .replace(/import\s*(["'])\.\/TqqqTradeEntryPanel\.css\1;?/g, '')
+  .replace(/from (["'])\.\/StockLogo\.jsx\1/g, `from ${JSON.stringify(logoUrl)}`)
+  .replace(/from (["'])\.\.\/lib\/amountDisplay\.js\1/g,
+    `from ${JSON.stringify(new URL('../src/lib/amountDisplay.js', import.meta.url).href)}`);
+const { default: TqqqTradeEntryPanel, TqqqTradeAmount } = await import(moduleUrl(compiledPanel));
+
+function nodes(node, predicate) {
+  if (!React.isValidElement(node)) return [];
+  return [...(predicate(node) ? [node] : []), ...React.Children.toArray(node.props.children).flatMap(child => nodes(child, predicate))];
+}
+const hasClass = (node, name) => (node.props.className || '').split(' ').includes(name);
+const byClass = (node, name) => nodes(node, child => hasClass(child, name));
+const tt = (_key, fallback) => fallback;
+
+function renderShell(props) {
+  let tree;
+  function CaptureShell() {
+    tree = ActionModalCard({ title: '添加交易', closeLabel: '关闭交易表单', ...props });
+    return tree;
+  }
+  const html = renderToStaticMarkup(React.createElement(CaptureShell));
+  return { tree, html };
+}
+
+function renderTrade(draft) {
+  const tradePreview = preview({ draft });
+  const form = TqqqTradeEntryPanel({ draft, preview: tradePreview, onDraftChange() {},
+    marketReference: deriveTqqqMarketReference({}), logoCache: {}, tt });
+  const amount = TqqqTradeAmount({ preview: tradePreview, side: draft.side, tt });
+  return { ...renderShell({ children: form, footerContent: amount,
+    actions: [{ key: 'confirm', label: '确认交易', onClick() {} }] }), tradePreview };
+}
 
 function preview(options = {}) {
   const stockTrades = options.stockTrades || [];
@@ -353,13 +400,68 @@ test('shows objective buy references only and keeps sell focused on the formal h
   assert.ok(panelSource.includes('`${Math.round(displayedBudgetUsage * 100)}%`') && panelSource.includes('Math.min(100, Math.max(0, displayedBudgetUsage * 100))'), 'only the drawn track is clamped; the numeric budget reading retains its actual value');
   assert.ok(panelSource.includes('style={{ width: `${displayedBudgetPct}%` }}'));
   const dateStart = panelSource.indexOf('className="tqqq-entry-date"');
-  assert.ok(dateStart > panelSource.indexOf('className="tqqq-entry-fields"') && dateStart < panelSource.indexOf('className="tqqq-entry-amount"'), 'the date field belongs with the inputs before the preview amount');
+  const amountExportStart = panelSource.indexOf('export function TqqqTradeAmount');
+  assert.ok(amountExportStart > dateStart && dateStart > panelSource.indexOf('className="tqqq-entry-fields"'), 'the date remains in the scrollable inputs while the estimate is exported separately');
+  assert.doesNotMatch(panelSource.slice(0, amountExportStart), /className="tqqq-entry-amount"/, 'the scrollable form must not duplicate the fixed estimate');
+  assert.match(tradesTabSource, /footerContent=\{isTqqqTradeEntry\s*\?\s*(?:\(\s*)?<TqqqTradeAmount\b[\s\S]*?preview=\{tqqqTradePreview\}[\s\S]*?side=\{newTrade\.side\}[\s\S]*?tt=\{tt\}[\s\S]*?: null\}/, 'only the TQQQ entry opts into the fixed estimate with its existing preview');
   assert.ok(panelSource.includes('tqqq-trade-date-input appearance-none pl-9 pr-9 text-center'));
   assert.ok(panelSource.includes("splitCurrencyAmount(preview.amountUsd, 'USD', 2)"));
   assert.ok(panelSource.includes('{preview.inputReady ? <>{amountParts.main}<span className="tqqq-entry-amount-decimal">{amountParts.decimal}</span></> : \'—\'}'), 'an incomplete draft should not show a fabricated zero estimate');
   assert.match(panelCss, /\.tqqq-entry-amount-decimal\s*\{[^}]*font-size:\s*\.64em;/);
   assert.doesNotMatch(panelCss, /letter-spacing:\s*-|scaleX\s*\(|font-weight:\s*(?:[5-9]00|bold)/, 'report numbers should retain normal weight, spacing and width');
   assert.equal(/market breadth|市场广度|maximum drawdown|最大回撤/i.test(panelSource), false);
+});
+
+test('the real TQQQ modal renders its estimate once outside the scroller and before the actions', () => {
+  const { tree, html } = renderTrade({ symbol: 'TQQQ', side: 'buy', date: '2026-09-14', price: '74.29', shares: '11' });
+  const dialog = nodes(tree, node => node.props.role === 'dialog')[0];
+  const children = React.Children.toArray(dialog.props.children);
+  const scrollerIndex = children.findIndex(node => hasClass(node, 'overflow-y-auto'));
+  const footerIndex = children.findIndex(node => node.props['data-action-modal-footer'] === 'true');
+  const actionIndex = children.findIndex(node => nodes(node, child => child.type === 'button' && child.props.children === '确认交易').length > 0);
+  assert.ok(scrollerIndex >= 0 && footerIndex > scrollerIndex && actionIndex > footerIndex);
+  assert.ok(hasClass(children[footerIndex], 'shrink-0'));
+  assert.ok(hasClass(children[footerIndex], 'min-w-0'));
+  assert.equal(byClass(children[scrollerIndex], 'tqqq-entry-amount').length, 0);
+  assert.equal(byClass(children[footerIndex], 'tqqq-entry-amount').length, 1);
+  assert.equal(byClass(tree, 'tqqq-entry-amount').length, 1);
+  assert.equal((html.match(/class="tqqq-entry-amount"/g) || []).length, 1);
+  assert.equal(nodes(children[scrollerIndex], node => node.type === 'input').length, 3, 'price, quantity and date remain in the original internal scroller');
+});
+
+test('fixed TQQQ estimates follow the real draft preview, preserving cents, sell labels and incomplete inputs', () => {
+  for (const [price, shares, expected] of [
+    ['74.29', '11', '$817.19'],
+    ['95.125', '8', '$761.00'],
+    ['0.001', '1', '$0.00'],
+    ['0', '11', '—'],
+    ['-74.29', '11', '—'],
+    ['74.29', '0', '—'],
+    ['74.29', '-1', '—'],
+    ['', '11', '—'],
+    ['74.29', '', '—'],
+  ]) {
+    const { tree } = renderTrade({ symbol: 'TQQQ', side: 'buy', date: '2026-09-14', price, shares });
+    const amount = byClass(tree, 'tqqq-entry-amount-value')[0];
+    const text = renderToStaticMarkup(amount).replace(/<[^>]*>/g, '');
+    assert.equal(text, expected, `${price} × ${shares}`);
+  }
+  const { tree } = renderTrade({ symbol: 'TQQQ', side: 'sell', date: '2026-09-14', price: '74.29', shares: '11' });
+  const estimate = byClass(tree, 'tqqq-entry-amount')[0];
+  const text = renderToStaticMarkup(estimate).replace(/<[^>]*>/g, '');
+  assert.equal(text, '预计卖出金额$817.19');
+});
+
+test('the shared modal adds no footer DOM when the optional slot is omitted or null', () => {
+  const props = { children: React.createElement('p', null, '原表单'),
+    actions: [{ key: 'save', label: '保存', onClick() {} }] };
+  const omitted = renderShell(props);
+  const explicitNull = renderShell({ ...props, footerContent: null });
+  assert.equal(omitted.html, explicitNull.html);
+  assert.doesNotMatch(omitted.html, /data-action-modal-footer/);
+  assert.equal(nodes(omitted.tree, node => node.props['data-action-modal-footer'] === 'true').length, 0);
+  assert.match(omitted.html, /原表单/);
+  assert.match(omitted.html, />保存<\/button>/);
 });
 
 test('keeps TQQQ report surfaces and controlled inputs consistent while omitting the redundant lookup hint', () => {

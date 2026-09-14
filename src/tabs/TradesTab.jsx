@@ -24,7 +24,7 @@ import AccountLeverageBadge from '../components/AccountLeverageBadge.jsx';
 import AvailableCashEditor from '../components/AvailableCashEditor.jsx';
 import GenericLedgerTradeEntryPanel, { GenericLedgerTradeHeader } from '../components/GenericLedgerTradeEntryPanel.jsx';
 import StockLogo, { stockLogoCandidates } from '../components/StockLogo.jsx';
-import TqqqTradeEntryPanel, { TQQQ_ACTION_TONE_CLASSES } from '../components/TqqqTradeEntryPanel.jsx';
+import TqqqTradeEntryPanel, { TQQQ_ACTION_TONE_CLASSES, TqqqTradeAmount } from '../components/TqqqTradeEntryPanel.jsx';
 import TradeToolsCatalog from '../components/TradeToolsCatalog.jsx';
 import TradesPositionsReport from '../components/TradesPositionsReport.jsx';
 import './TradesTab.css';
@@ -1930,6 +1930,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
             closeButtonClassName={isTqqqTradeEntry || isGenericLedgerTradeEntry ? 'srm-close' : ''}
             actionGridClassName={isGenericLedgerTradeEntry ? 'grid-cols-2' : ''}
             actionClassName={isTqqqTradeEntry ? 'srm-action tqqq-trade-action' : (isGenericLedgerTradeEntry ? 'srm-action formal-trade-action' : '')}
+            footerContent={isTqqqTradeEntry ? <TqqqTradeAmount preview={tqqqTradePreview} side={newTrade.side} tt={tt} /> : null}
             actions={isTqqqTradeEntry ? [{
               key: 'tqqq-confirm',
               label: tradeSubmitting

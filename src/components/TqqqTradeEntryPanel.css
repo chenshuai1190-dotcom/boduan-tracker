@@ -19,7 +19,7 @@
 .tqqq-entry-input:focus { border-color: #69696f; }
 .tqqq-entry-date { margin-top: 14px; }
 .tqqq-entry-date input { font-size: 16px; }
-.tqqq-entry-amount { padding: 20px 0; }
+.tqqq-entry-amount { padding: 12px 0 0; border-top: 1px solid rgb(255 255 255 / .075); }
 .tqqq-entry-amount-value { margin-top: 6px; color: #ededf0; font-size: clamp(25px, 7vw, 30px); font-weight: 400; line-height: 1.25; overflow-wrap: anywhere; }
 .tqqq-entry-amount-decimal { color: #85858f; font-size: .64em; }
 .tqqq-entry-section { padding-top: 18px; border-top: 1px solid rgb(255 255 255 / .075); }

@@ -9,6 +9,7 @@ export default function ActionModalCard({
   closeLabel,
   onClose,
   children,
+  footerContent = null,
   actions = [],
   actionGridClassName = '',
   actionClassName = '',
@@ -144,6 +145,12 @@ export default function ActionModalCard({
         <div ref={contentRef} className={`min-h-[84px] min-w-0 max-w-full flex-1 overflow-y-auto overscroll-contain rounded-[13px] border border-white/[0.025] bg-[linear-gradient(112deg,rgba(20,23,31,0.78),rgba(14,16,23,0.52))] px-3 py-[13px] shadow-[inset_0_1px_0_rgba(255,255,255,0.018)] ${contentClassName}`}>
           {children}
         </div>
+
+        {footerContent && (
+          <div className="min-w-0 shrink-0" data-action-modal-footer="true">
+            {footerContent}
+          </div>
+        )}
 
         {actions.length > 0 && (
           <div className={`mt-4 grid shrink-0 gap-2.5 ${actionColumns}`}>

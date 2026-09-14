@@ -168,7 +168,6 @@ export default function TqqqTradeEntryPanel({
   const currentBudgetPct = Number.isFinite(preview.currentBudgetUsage)
     ? Math.max(0, preview.currentBudgetUsage * 100)
     : null;
-  const amountParts = splitCurrencyAmount(preview.amountUsd, 'USD', 2);
   const remainingCapacityTone = preview.overLimit
     ? 'text-[#ff6570]'
     : (preview.allocationUnavailable ? 'text-[#f6b54b]' : 'text-emerald-300');
@@ -273,13 +272,6 @@ export default function TqqqTradeEntryPanel({
         </div>
       </div>
 
-      <div className="tqqq-entry-amount">
-        <span className="tqqq-entry-metric-label">{side === 'sell' ? tt('trades.tqqq.estimatedSellAmount', '预计卖出金额') : tt('trades.tqqq.estimatedTradeAmount', '预计交易额')}</span>
-        <div className="tqqq-entry-amount-value" style={{ fontFamily: NUMBER_FONT }}>
-          {preview.inputReady ? <>{amountParts.main}<span className="tqqq-entry-amount-decimal">{amountParts.decimal}</span></> : '—'}
-        </div>
-      </div>
-
       <section className="tqqq-entry-section" aria-labelledby="tqqq-trade-check-title">
         <div className="tqqq-entry-section-heading">
           <h3 id="tqqq-trade-check-title" className="tqqq-entry-section-title">
@@ -343,6 +335,18 @@ export default function TqqqTradeEntryPanel({
       </section>
 
       {side === 'buy' && <MarketReference marketReference={marketReference} tt={tt} />}
+    </div>
+  );
+}
+
+export function TqqqTradeAmount({ preview, side, tt }) {
+  const amountParts = splitCurrencyAmount(preview.amountUsd, 'USD', 2);
+  return (
+    <div className="tqqq-entry-amount">
+      <span className="tqqq-entry-metric-label">{side === 'sell' ? tt('trades.tqqq.estimatedSellAmount', '预计卖出金额') : tt('trades.tqqq.estimatedTradeAmount', '预计交易额')}</span>
+      <div className="tqqq-entry-amount-value" style={{ fontFamily: NUMBER_FONT }}>
+        {preview.inputReady ? <>{amountParts.main}<span className="tqqq-entry-amount-decimal">{amountParts.decimal}</span></> : '—'}
+      </div>
     </div>
   );
 }
