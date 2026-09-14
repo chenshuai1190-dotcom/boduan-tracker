@@ -41,6 +41,10 @@ const sortControl = (tree, key) => {
   const element = nodes(tree, node => node.props.sortKey === key)[0];
   return element?.type(element.props);
 };
+const signal = overrides => ({
+  period: 6, value: 82.6, asOf: '2026-09-11', priceBasis: 'adjusted_close',
+  bearishDivergence: 'none', divergenceDate: null, ...overrides,
+});
 const row = overrides => ({
   symbol: 'NVDA', displayName: '英伟达', price: 223.674321, changePct: -0.91,
   highDrawdown: -5.44, ytdChangePercent: 13.37,
@@ -63,10 +67,13 @@ test('the report stays presentation-only and keeps narrow-screen values untrunca
   assert.doesNotMatch(source, /\b(?:fetch|insert|upsert|update|delete)\s*\(|supabase|localStorage|sessionStorage|stock_trades|cost_basis_trades|service_role|EODHD_API_KEY/);
   const imports = [...source.matchAll(/\b(?:from\s+|import\s+)(['"])([^'"]+)\1/g)].map(match => match[2]);
   assert.ok(imports.every(module => ['react', 'lucide-react', './HomeWatchlistReport.css'].includes(module)));
-  assert.doesNotMatch(source, /\.sort\(|\.toFixed\(|displayRate|exchangeRate|Math\.round/);
+  assert.doesNotMatch(source.replace('rsi.value.toFixed(1)', 'rsiDisplayValue'), /\.sort\(|\.toFixed\(|displayRate|exchangeRate|Math\.round/);
   assert.match(css, /@media\s*\(max-width:\s*359px\)/);
   assert.match(css, /--hwr-columns:\s*minmax\(0,\s*1fr\)/);
-  assert.doesNotMatch(css, /overflow-x:\s*(?:auto|scroll)/);
+  const defaultScrollRule = css.match(/\.hwr-table-scroll\s*\{([^}]+)\}/)?.[1];
+  assert.ok(defaultScrollRule, 'the default table wrapper must stay inert');
+  assert.doesNotMatch(defaultScrollRule, /overflow-x:\s*(?:auto|scroll)/);
+  assert.match(css, /\.hwr-table-scroll\.has-rsi\s*\{[^}]*overflow-x:\s*auto/);
   for (const match of css.matchAll(/font-size:\s*(\d+(?:\.\d+)?)px/g)) {
     assert.ok(Number(match[1]) >= 10, 'all financial and helper text must meet the 10px minimum');
   }
@@ -76,6 +83,112 @@ test('the report stays presentation-only and keeps narrow-screen values untrunca
     assert.doesNotMatch(rule, /text-overflow:\s*ellipsis|overflow:\s*hidden/);
   }
   assert.match(css, /\.hwr-aux-value\s*\{[^}]*flex-wrap:\s*wrap[^}]*overflow-wrap:\s*anywhere/);
+});
+
+test('watchlist has separate RSI and divergence after Today while holdings keep three columns', () => {
+  const h = harness({ rows: [row({ stockRsi: signal() })] });
+  const tree = h.render();
+  const cells = React.Children.toArray(byClass(tree, 'hwr-row-main')[0].props.children);
+  assert.deepEqual(cells.map(cell => cell.props.className), ['hwr-identity', 'hwr-price', 'hwr-change', 'hwr-rsi', 'hwr-divergence']);
+  assert.equal(text(cells[0]), 'NVNVDA英伟达');
+  assert.equal(text(cells[1]), '$223.674321');
+  assert.equal(text(cells[2]), '-0.91%');
+  assert.deepEqual(cells[2].props.style, { color: '#53d0a4' });
+  const headings = React.Children.toArray(byClass(tree, 'hwr-column-headings')[0].props.children);
+  assert.deepEqual(headings.slice(0, 3).map(heading => heading.props.sortKey), ['drawdown', 'price', 'change']);
+  assert.equal(text(headings[3]), 'RSI(6)');
+  assert.equal(text(headings[4]), '顶背离');
+  const scroll = byClass(tree, 'hwr-table-scroll')[0];
+  assert.match(scroll.props.className, /\bhas-rsi\b/);
+  assert.equal(scroll.props.tabIndex, 0);
+  assert.match(scroll.props['aria-label'], /左右滑动/);
+  assert.match(css, /--hwr-extra-width:\s*calc\(var\(--hwr-rsi-width\) \+ var\(--hwr-divergence-width\) \+ 16px\)/);
+  assert.match(css, /--hwr-extra-width:\s*calc\(var\(--hwr-rsi-width\) \+ var\(--hwr-divergence-width\) \+ 12px\)/);
+  assert.match(css, /grid-template-columns:\s*var\(--hwr-columns\) var\(--hwr-rsi-width\) var\(--hwr-divergence-width\)/);
+
+  h.props.tableTab = 'positions';
+  const holdings = h.render();
+  assert.equal(byClass(holdings, 'hwr-rsi').length, 0);
+  assert.equal(byClass(holdings, 'hwr-divergence').length, 0);
+  assert.equal(React.Children.toArray(byClass(holdings, 'hwr-row-main')[0].props.children).length, 3);
+  const holdingsScroll = byClass(holdings, 'hwr-table-scroll')[0];
+  assert.doesNotMatch(holdingsScroll.props.className, /\bhas-rsi\b/);
+  assert.equal(holdingsScroll.props.tabIndex, undefined);
+  assert.equal(holdingsScroll.props['aria-label'], undefined);
+});
+
+test('invalid signal values and metadata stay missing instead of becoming neutral or no divergence', () => {
+  const invalidSignals = [
+    null, undefined, {},
+    ...[null, undefined, '', ' ', '82.6', true, false, Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, -1, 100.1]
+      .map(value => signal({ value })),
+    ...[14, '6', null].map(period => signal({ period })),
+    ...['close', '', null].map(priceBasis => signal({ priceBasis })),
+    ...['2026-02-30', '2026-13-01', '2026-9-11', '', null].map(asOf => signal({ asOf })),
+  ];
+  for (const stockRsi of invalidSignals) {
+    const tree = harness({ rows: [row({ stockRsi })] }).render();
+    assert.equal(text(byClass(tree, 'hwr-rsi-value')[0]), '—');
+    assert.equal(byClass(tree, 'hwr-rsi-zone').length, 0);
+    assert.equal(byClass(tree, 'hwr-rsi')[0].props['data-rsi-zone'], undefined);
+    assert.equal(text(byClass(tree, 'hwr-divergence')[0]), '—');
+  }
+  const tree = harness({ rows: [
+    row({ stockRsi: Object.freeze(signal({ value: 0 })) }),
+    row({ symbol: 'AAPL' }),
+    row({ symbol: 'TSLA', stockRsi: Object.freeze(signal({ value: 100 })) }),
+  ] }).render();
+  assert.deepEqual(byClass(tree, 'hwr-rsi-value').map(text), ['0.0', '—', '100.0']);
+  assert.deepEqual(byClass(tree, 'hwr-divergence').map(text), ['无', '—', '无']);
+});
+
+test('RSI zones honor the approved inclusive boundaries without using rounded display values', () => {
+  const cases = [
+    [0, 'oversold', '超卖'], [20, 'oversold', '超卖'], [20.01, 'neutral', '中性'],
+    [79.99, 'neutral', '中性'], [80, 'overbought', '超买'], [89.99, 'overbought', '超买'],
+    [90, 'severe-overbought', '严重超买'], [100, 'severe-overbought', '严重超买'],
+  ];
+  for (const [value, zone, label] of cases) {
+    const tree = harness({ rows: [row({ stockRsi: signal({ value }) })] }).render();
+    assert.equal(text(byClass(tree, 'hwr-rsi-value')[0]), value.toFixed(1));
+    assert.equal(byClass(tree, 'hwr-rsi')[0].props['data-rsi-zone'], zone);
+    assert.equal(text(byClass(tree, 'hwr-rsi-zone')[0]), label);
+    assert.equal(byClass(tree, 'hwr-rsi')[0].props.title, '日线 RSI(6) · 2026-09-11');
+  }
+});
+
+test('divergence stays independent of current RSI and distinguishes absent from unassessed', () => {
+  for (const value of [0, 42, 79.9, 80, 90, 100]) {
+    const tree = harness({ rows: [row({ stockRsi: signal({ value, bearishDivergence: 'confirmed', divergenceDate: '2026-09-10' }) })] }).render();
+    assert.equal(text(byClass(tree, 'hwr-divergence')[0]), '顶背离');
+    assert.equal(byClass(tree, 'hwr-divergence')[0].props['data-divergence'], 'confirmed');
+    assert.equal(byClass(tree, 'hwr-divergence')[0].props.title, '确认于 2026-09-10');
+    assert.doesNotMatch(text(byClass(tree, 'hwr-rsi')[0]), /顶背离/);
+  }
+  for (const overrides of [
+    { bearishDivergence: 'insufficient_data' }, { bearishDivergence: null }, { bearishDivergence: 'pending' },
+    { bearishDivergence: 'confirmed', divergenceDate: null },
+    { bearishDivergence: 'confirmed', divergenceDate: '2026-09-12' },
+    { bearishDivergence: 'confirmed', divergenceDate: '2026-02-30' },
+  ]) {
+    const tree = harness({ rows: [row({ stockRsi: signal(overrides) })] }).render();
+    assert.equal(text(byClass(tree, 'hwr-rsi-value')[0]), '82.6');
+    assert.equal(text(byClass(tree, 'hwr-divergence')[0]), '—');
+  }
+  const english = harness({ language: 'en', rows: [row({ displayName: 'NVIDIA', stockRsi: signal({ value: 91.2, bearishDivergence: 'confirmed', divergenceDate: '2026-09-10' }) })] });
+  assert.equal(text(byClass(english.render(), 'hwr-rsi-zone')[0]), 'Very overbought');
+  assert.equal(text(byClass(english.render(), 'hwr-divergence')[0]), 'Confirmed');
+  assert.doesNotMatch(english.html(), /[\u3400-\u9fff]/);
+});
+
+test('development fixtures use the real row contract without introducing production preview fallbacks', () => {
+  const app = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8');
+  const preview = readFileSync(new URL('../src/DevVisualPreview.jsx', import.meta.url), 'utf8');
+  assert.match(source, /const rsi = item\.stockRsi/);
+  assert.doesNotMatch(source, /rsiPreviewBySymbol|homeWatchlistRsiPreview|mockHomeWatchlistRsi/);
+  assert.match(preview, /stockRsi:\s*mockHomeWatchlistRsi\[row\.symbol\]\s*\?\?\s*null/);
+  assert.doesNotMatch(preview, /homeWatchlistRsiPreview/);
+  assert.doesNotMatch(app, /rsiPreviewBySymbol|homeWatchlistRsiPreview|mockHomeWatchlistRsi/);
 });
 
 test('null, undefined, empty and non-finite market data stay missing without calling formatters', () => {

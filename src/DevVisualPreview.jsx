@@ -492,12 +492,20 @@ const mockTqqqFundComposition = {
   },
 };
 
+// Local design samples only, including a divergence state; not live market signals.
+const mockHomeWatchlistRsi = Object.fromEntries(Object.entries({
+  NVDA: { value: 83.6, bearishDivergence: 'confirmed', divergenceDate: '2026-09-10' },
+  MSFT: { value: 78.5, bearishDivergence: 'none', divergenceDate: null },
+  AAPL: { value: 17.3, bearishDivergence: 'none', divergenceDate: null },
+  TSLA: { value: 91.2, bearishDivergence: 'none', divergenceDate: null },
+}).map(([symbol, signal]) => [symbol, { period: 6, asOf: '2026-09-11', priceBasis: 'adjusted_close', ...signal }]));
+
 const mockHomeWatchlist = [
   { symbol: 'NVDA', name: 'NVIDIA', price: 184.08, changePercent: 1.92, high: 195.95, ytdChangePercent: 32.4, intraday: mockMarketIntraday.pink },
   { symbol: 'MSFT', name: '微软', price: 496.42, changePercent: 0.74, high: 505.21, ytdChangePercent: 18.1, intraday: mockMarketIntraday.red },
   { symbol: 'AAPL', name: '苹果', price: 213.55, changePercent: -0.46, high: 237.49, ytdChangePercent: -4.8, intraday: mockMarketIntraday.green },
   { symbol: 'TSLA', name: '特斯拉', price: 323.63, changePercent: 2.12, high: 488.54, ytdChangePercent: -19.2, intraday: mockMarketIntraday.pink },
-];
+].map((row) => ({ ...row, stockRsi: mockHomeWatchlistRsi[row.symbol] ?? null }));
 
 const mockHomeSignalBenchmarks = [
   { symbol: 'META', name: 'Meta', company: 'Meta', price: 92.7, week52High: 100 },

@@ -739,6 +739,7 @@ export default function HomeTab({ ctx }) {
       pnlDisplayValue,
       highDrawdown,
       ytdChangePercent,
+      stockRsi: isPosition ? null : row.stockRsi ?? null,
       color,
       ytdColor,
       logoUrls,

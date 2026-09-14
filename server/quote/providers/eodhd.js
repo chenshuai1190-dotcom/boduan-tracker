@@ -1,5 +1,6 @@
 import { providerFetch, QUOTE_TIMEOUTS } from '../http.js';
 import { buildEodhdStockDetail } from '../stockDetail.js';
+import { buildStockRsi } from '../stockRsi.js';
 import { isRegularNyseHoliday } from '../../../src/lib/quoteRefreshPolicy.js';
 
 const US_EQUITY_REGULAR_START_MINUTES = 9 * 60 + 30;
@@ -725,6 +726,7 @@ export async function fetchStockQuote(symbol, {
     let yearStartDate = '';
     let ytdChangePercent = 0;
     let stockYtdBaseline = null;
+    let stockRsi = null;
     let dailyBaseline = null;
     let marketDateClose = null;
     let latestCompletedClose = null;
@@ -796,6 +798,9 @@ export async function fetchStockQuote(symbol, {
             ytdChangePercent = ((price - yearStartPrice) / yearStartPrice) * 100;
           }
           highSource = 'eodhd-adjusted';
+          // Reuse the already-fetched daily history. This display-only signal
+          // adds no provider request and never participates in quote valuation.
+          stockRsi = buildStockRsi(quoteEodData, { completedCutoffDate: completedEodCutoffDate });
         }
       } catch (e) {
         /* ignore */
@@ -842,6 +847,7 @@ export async function fetchStockQuote(symbol, {
       yearStartDate,
       ytdChangePercent,
       stockYtdBaseline,
+      stockRsi,
       high: week52High,
       low: week52Low,
       highSource,

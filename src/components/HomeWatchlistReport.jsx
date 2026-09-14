@@ -7,6 +7,28 @@ const AUXILIARY_METRICS = {
   positions: ['pnl', 'drawdown', 'ytd'],
 };
 
+function validSignalDate(value) {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const timestamp = Date.parse(`${value}T00:00:00Z`);
+  return Number.isFinite(timestamp) && new Date(timestamp).toISOString().slice(0, 10) === value;
+}
+
+function rsiPresentation(signal, english) {
+  const available = signal?.period === 6 && signal?.priceBasis === 'adjusted_close'
+    && typeof signal.value === 'number' && Number.isFinite(signal.value)
+    && signal.value >= 0 && signal.value <= 100 && validSignalDate(signal.asOf);
+  if (!available) return { available: false, zone: null, zoneLabel: null, divergence: 'unknown' };
+  const zone = signal.value >= 90 ? 'severe-overbought'
+    : signal.value >= 80 ? 'overbought' : signal.value <= 20 ? 'oversold' : 'neutral';
+  const labels = english
+    ? { 'severe-overbought': 'Very overbought', overbought: 'Overbought', oversold: 'Oversold', neutral: 'Neutral' }
+    : { 'severe-overbought': '严重超买', overbought: '超买', oversold: '超卖', neutral: '中性' };
+  const divergence = signal.bearishDivergence === 'none' ? 'none'
+    : signal.bearishDivergence === 'confirmed' && validSignalDate(signal.divergenceDate) && signal.divergenceDate <= signal.asOf
+      ? 'confirmed' : 'unknown';
+  return { available: true, zone, zoneLabel: labels[zone], divergence };
+}
+
 function SortControl({ label, sortKey, sortState, onSort, language, className = '' }) {
   const active = sortState?.key === sortKey;
   const ascending = active && sortState.direction === 'asc';
@@ -49,6 +71,7 @@ export default function HomeWatchlistReport({
 }) {
   const english = language === 'en';
   const isWatchlist = tableTab === 'watchlist';
+  const showRsi = isWatchlist;
   const [metricByTab, setMetricByTab] = React.useState({ watchlist: 'drawdown', positions: 'pnl' });
   const auxiliaryMetric = metricByTab[tableTab] || (isWatchlist ? 'drawdown' : 'pnl');
   const labels = english
@@ -109,11 +132,14 @@ export default function HomeWatchlistReport({
             : (english ? 'No holdings yet. Add a buy in Trades to get started.' : '暂无持仓记录，先在交易页添加买入记录。')}
         </div>
       ) : (
-        <>
+        <div className={`hwr-table-scroll${showRsi ? ' has-rsi' : ''}`} tabIndex={showRsi ? 0 : undefined} aria-label={showRsi ? (english ? 'Watchlist, scroll horizontally for RSI and bearish divergence' : '自选列表，可左右滑动查看 RSI 和顶背离') : undefined}>
+          <div className="hwr-table-content">
           <div className="hwr-column-headings">
             <SortControl label={labels[auxiliaryMetric]} sortKey={auxiliaryMetric} sortState={sortState} onSort={onSort} language={language} className="hwr-aux-sort" />
             <SortControl label={labels.price} sortKey="price" sortState={sortState} onSort={onSort} language={language} />
             <SortControl label={labels.change} sortKey="change" sortState={sortState} onSort={onSort} language={language} />
+            {showRsi && <span className="hwr-rsi-heading">RSI<span className="hwr-rsi-period">(6)</span></span>}
+            {showRsi && <span className="hwr-divergence-heading">{english ? 'Bearish div.' : '顶背离'}</span>}
           </div>
           <div className="hwr-list">
             {rows.map((item) => {
@@ -126,6 +152,11 @@ export default function HomeWatchlistReport({
               const auxiliaryValue = auxiliaryMetric === 'pnl'
                 ? item.pnlValue
                 : auxiliaryMetric === 'drawdown' ? item.highDrawdown : item.ytdChangePercent;
+              const rsi = item.stockRsi;
+              const rsiDisplay = rsiPresentation(rsi, english);
+              const rsiDateLabel = rsiDisplay.available ? `${english ? 'Daily RSI(6)' : '日线 RSI(6)'} · ${rsi.asOf}` : undefined;
+              const divergenceLabel = rsiDisplay.divergence === 'confirmed' ? (english ? 'Confirmed' : '顶背离')
+                : rsiDisplay.divergence === 'none' ? (english ? 'None' : '无') : '—';
 
               return (
                 <div key={item.symbol} className="hwr-row">
@@ -139,6 +170,17 @@ export default function HomeWatchlistReport({
                     </Identity>
                     <span className="hwr-price">{missing(item.price) || Number(item.price) <= 0 ? '—' : formatted(formatPrice, item.price)}</span>
                     <span className="hwr-change" style={{ color: item.color || colorFor(item.changePct) }}>{formatted(formatChange, item.changePct)}</span>
+                    {showRsi && (
+                      <span className="hwr-rsi" data-rsi-zone={rsiDisplay.zone ?? undefined} title={rsiDateLabel}>
+                        <span className="hwr-rsi-value">{rsiDisplay.available ? rsi.value.toFixed(1) : '—'}</span>
+                        {rsiDisplay.available && <span className="hwr-rsi-zone">{rsiDisplay.zoneLabel}</span>}
+                      </span>
+                    )}
+                    {showRsi && (
+                      <span className="hwr-divergence" data-divergence={rsiDisplay.divergence}
+                        title={rsiDisplay.divergence === 'confirmed' ? `${english ? 'Confirmed on' : '确认于'} ${rsi.divergenceDate}` : undefined}
+                      >{divergenceLabel}</span>
+                    )}
                   </div>
                   <div className="hwr-row-secondary">
                     <span className="hwr-aux-label">{labels[auxiliaryMetric]}</span>
@@ -159,7 +201,8 @@ export default function HomeWatchlistReport({
               );
             })}
           </div>
-        </>
+          </div>
+        </div>
       )}
     </section>
   );

@@ -4,6 +4,17 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '首页自选在今日涨跌后新增 RSI(6) 与独立顶背离两列，支持左右滑动；显示严重超买、超买、中性和超卖区间，保持原有今日涨跌位置。',
+      '指标复用已有完成日线，不增加行情请求，也不参与资产和盈亏计算；顶背离按已确认高点判断，缺失数据保留为空。',
+    ],
+    itemsEn: [
+      'The Home watchlist adds RSI(6) and a separate bearish-divergence column after Today, accessible by horizontal scrolling. RSI shows very overbought, overbought, neutral and oversold zones while Today keeps its original position.',
+      'Indicators reuse existing completed daily history without additional quote requests or changes to asset and P&L calculations. Divergence uses confirmed highs; missing data stays unavailable.',
+    ],
+  },
+  {
+    ver: 'v10.7.9.525', date: '2026-09-11',
+    items: [
       '修复交易持仓年初至今涨跌幅在线上显示为空的问题，补齐行情整理环节遗漏的年初基准字段。',
     ],
     itemsEn: [
