@@ -77,7 +77,7 @@ async function loadStockDetail(symbol) {
     const data = {
       symbol,
       fetchedAt: new Date().toISOString(),
-      stockDetail: quote.stockDetail,
+      stockDetail: { ...quote.stockDetail, stockRsi: quote.stockRsi ?? null },
     };
     detailCache.set(symbol, { data });
     return data;

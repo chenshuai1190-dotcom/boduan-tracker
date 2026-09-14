@@ -4,6 +4,17 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '股票趋势将“相对 QQQ”替换为 RSI(6)、区间和顶背离组合，数字与配色沿用首页设计。',
+      '复用同一次详情请求的完成日线指标，移除本页 QQQ 基准读取；数据缺失或日期不一致时保留为空，不影响资产和盈亏计算。',
+    ],
+    itemsEn: [
+      'Stock Trend replaces relative QQQ performance with RSI(6), its zone and bearish divergence, using the Home typography and colors.',
+      'Reuse completed-daily indicators from the same stock-detail response and remove this page’s QQQ benchmark request. Missing or mismatched dates stay unavailable without affecting assets or P&L.',
+    ],
+  },
+  {
+    ver: 'v10.7.9.526', date: '2026-09-14',
+    items: [
       '首页自选在今日涨跌后新增 RSI(6) 与独立顶背离两列，支持左右滑动；显示严重超买、超买、中性和超卖区间，保持原有今日涨跌位置。',
       '指标复用已有完成日线，不增加行情请求，也不参与资产和盈亏计算；顶背离按已确认高点判断，缺失数据保留为空。',
     ],

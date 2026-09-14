@@ -246,10 +246,6 @@ function buildMockWatchlistWeeklyHistory() {
 }
 
 const mockWatchlistDetailHistory = buildMockWatchlistDetailHistory();
-const mockWatchlistQqqHistory = mockWatchlistDetailHistory.map((row, index) => ({
-  date: row.date,
-  adjustedClose: Number((430 + index * 0.34 + Math.sin(index / 13) * 4.5).toFixed(4)),
-}));
 
 const mockNvdaValuationSeries = [
   ['2021-07-30', 92.07], ['2021-08-31', 79.68], ['2021-09-30', 73.74],
@@ -353,10 +349,11 @@ const mockWatchlistStockDetailData = {
   relativeReturnPriceBasis: 'adjusted_close',
   currency: 'USD',
   asOfDate: '2026-07-17',
+  // Local layout sample for the RSI/confirmed-divergence combination, not a live signal.
+  stockRsi: { period: 6, value: 83.6, asOf: '2026-07-17', priceBasis: 'adjusted_close', bearishDivergence: 'confirmed', divergenceDate: '2026-07-15' },
   history: mockWatchlistDetailHistory,
   ma200DailyHistory: buildMockWatchlistDailyMaHistory(),
   relativeReturnHistory: mockWatchlistDetailHistory.map(({ date, close }) => ({ date, close })),
-  qqqHistory: mockWatchlistQqqHistory,
   weeklyHistory: buildMockWatchlistWeeklyHistory(),
   ma200RetestHistory: buildMockWatchlistMa200RetestHistory(),
   fundamentals: {
@@ -3084,8 +3081,19 @@ function StandardDevVisualPreview({ initialTab = '' }) {
       { id: 'watch-detail-3', symbol: 'NVDA', side: 'sell', date: '2026-04-02', shares: 100, price: 178.66 },
     ],
     saveWatchlistStockTarget: savePreviewWatchlistTarget,
-    watchlistStockDetailDataOverride: ma200LiveStockDetail
-      ? { ...mockWatchlistStockDetailData, ...ma200LiveStockDetail }
+    watchlistStockDetailDataOverride: ma200LivePreview
+      ? {
+        ...mockWatchlistStockDetailData,
+        // A requested real preview must not flash or fall back to sample prices/signals.
+        asOfDate: null,
+        history: [],
+        ma200DailyHistory: [],
+        weeklyHistory: [],
+        ma200RetestHistory: null,
+        indicators: {},
+        stockRsi: null,
+        ...ma200LiveStockDetail,
+      }
       : mockWatchlistStockDetailData,
     watchlistStockDetailEarningsOverride: mockWatchlistStockDetailEarnings,
     watchlistStockDetailFundCompositionOverride: watchlistFundCompositionPreview

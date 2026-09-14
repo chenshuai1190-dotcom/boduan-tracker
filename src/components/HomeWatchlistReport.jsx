@@ -1,33 +1,12 @@
 import React from 'react';
 import { ArrowDown, ArrowDownUp, ArrowUp, Pencil, Plus } from 'lucide-react';
+import { stockRsiPresentation } from '../lib/stockRsiPresentation.js';
 import './HomeWatchlistReport.css';
 
 const AUXILIARY_METRICS = {
   watchlist: ['drawdown', 'ytd'],
   positions: ['pnl', 'drawdown', 'ytd'],
 };
-
-function validSignalDate(value) {
-  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  const timestamp = Date.parse(`${value}T00:00:00Z`);
-  return Number.isFinite(timestamp) && new Date(timestamp).toISOString().slice(0, 10) === value;
-}
-
-function rsiPresentation(signal, english) {
-  const available = signal?.period === 6 && signal?.priceBasis === 'adjusted_close'
-    && typeof signal.value === 'number' && Number.isFinite(signal.value)
-    && signal.value >= 0 && signal.value <= 100 && validSignalDate(signal.asOf);
-  if (!available) return { available: false, zone: null, zoneLabel: null, divergence: 'unknown' };
-  const zone = signal.value >= 90 ? 'severe-overbought'
-    : signal.value >= 80 ? 'overbought' : signal.value <= 20 ? 'oversold' : 'neutral';
-  const labels = english
-    ? { 'severe-overbought': 'Very overbought', overbought: 'Overbought', oversold: 'Oversold', neutral: 'Neutral' }
-    : { 'severe-overbought': '严重超买', overbought: '超买', oversold: '超卖', neutral: '中性' };
-  const divergence = signal.bearishDivergence === 'none' ? 'none'
-    : signal.bearishDivergence === 'confirmed' && validSignalDate(signal.divergenceDate) && signal.divergenceDate <= signal.asOf
-      ? 'confirmed' : 'unknown';
-  return { available: true, zone, zoneLabel: labels[zone], divergence };
-}
 
 function SortControl({ label, sortKey, sortState, onSort, language, className = '' }) {
   const active = sortState?.key === sortKey;
@@ -153,7 +132,7 @@ export default function HomeWatchlistReport({
                 ? item.pnlValue
                 : auxiliaryMetric === 'drawdown' ? item.highDrawdown : item.ytdChangePercent;
               const rsi = item.stockRsi;
-              const rsiDisplay = rsiPresentation(rsi, english);
+              const rsiDisplay = stockRsiPresentation(rsi, english);
               const rsiDateLabel = rsiDisplay.available ? `${english ? 'Daily RSI(6)' : '日线 RSI(6)'} · ${rsi.asOf}` : undefined;
               const divergenceLabel = rsiDisplay.divergence === 'confirmed' ? (english ? 'Confirmed' : '顶背离')
                 : rsiDisplay.divergence === 'none' ? (english ? 'None' : '无') : '—';

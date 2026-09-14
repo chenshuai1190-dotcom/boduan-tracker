@@ -329,7 +329,7 @@ test('daily MA200 card keeps one outer frame and uses borderless inset sections'
 test('development screenshot path loads a sanitized real local provider result', () => {
   assert.ok(devPreviewSource.includes("get('ma200Live') === '1'"));
   assert.ok(devPreviewSource.includes('window.location.hostname}:4175/stock-detail?symbol=NVDA'));
-  assert.ok(devPreviewSource.includes('{ ...mockWatchlistStockDetailData, ...ma200LiveStockDetail }'));
+  assert.match(devPreviewSource, /watchlistStockDetailDataOverride:\s*ma200LivePreview\s*\?\s*\{[\s\S]*?ma200RetestHistory:\s*null,[\s\S]*?\.\.\.ma200LiveStockDetail/);
   assert.ok(devPreviewSource.includes("get('visualWidth')"));
   assert.ok(devPreviewSource.includes("width: `${visualViewportWidth}px`"));
 });

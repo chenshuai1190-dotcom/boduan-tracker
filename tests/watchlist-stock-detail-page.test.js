@@ -52,15 +52,70 @@ test('production watchlist detail reads one authenticated daily and weekly histo
   assert.equal(pageSource.includes('indicators?.volatility20AnnualizedPct'), false, 'volatility should no longer occupy the approved indicator surface');
 });
 
-test('production watchlist detail reads an optional authenticated QQQ benchmark without blocking the page', () => {
-  assert.ok(pageSource.includes('/api/pnl-benchmark?symbol=QQQ&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}'));
-  assert.ok(pageSource.includes("fetchRows({ symbol: 'QQQ', from, to })"));
-  assert.ok(pageSource.includes('QQQ_BENCHMARK_CACHE_TTL_MS = 15 * 60 * 1000'));
-  assert.ok(pageSource.includes('headers: { Authorization: `Bearer ${token}` }'));
-  assert.ok(pageSource.includes("cache: 'no-store'"));
+test('stock trend reuses the detail response for RSI without requesting a separate benchmark or indicator', () => {
+  assert.doesNotMatch(pageSource, /QQQ_BENCHMARK_CACHE|qqqBenchmarkRowsCache|fetchQqqBenchmarkRows|qqqPromise|fetchPnlBenchmarkRows|qqqHistory|qqqRelativeReturn/);
+  assert.doesNotMatch(pageSource, /\/api\/pnl-benchmark|\/api\/technical|function=rsi/);
+  assert.equal((pageSource.match(/\/api\/quote\?symbols=/g) || []).length, 1, 'the existing stock-detail response is the only quote read');
   assert.ok(pageSource.includes('const [nextDetail, nextEarnings] = await Promise.all([detailPromise, earningsPromise])'));
-  assert.ok(pageSource.includes('void qqqPromise.then((nextQqqHistory) => {'));
-  assert.ok(pageSource.includes("console.warn('[WatchlistStockDetail] QQQ benchmark unavailable:'"));
+  assert.ok(pageSource.includes('setStockDetail(nextDetail)'));
+  assert.match(pageSource, /stockRsiPresentation\(rsiSignal, language === 'en'\)/);
+  assert.doesNotMatch(pageSource, /(?:rows\.(?:quoteRow|watchlistRow)|quoteRows|homeWatchlist)\??\.stockRsi/, 'the metric must not mix a cached quote signal with a different detail history');
+  assert.ok(pageSource.includes("['QQQ', 'TQQQ'].includes(symbol)"), 'the independent fund-composition feature remains available');
+  assert.ok(pageSource.includes('fetchFundComposition({ token, symbol })'));
+});
+
+// Execute the actual response callback: the production API returns stockRsi
+// beside stockDetail, so checking the metric alone would miss a dropped field.
+async function projectStockDetailResponse(body, { ok = true, symbol = 'META' } = {}) {
+  const start = pageSource.indexOf('const detailPromise = fetch(');
+  const callbackStart = pageSource.indexOf('.then(async (response) => {', start);
+  const callbackEnd = pageSource.indexOf('\n        });', callbackStart);
+  assert.ok(start >= 0 && callbackStart > start && callbackEnd > callbackStart, 'the authenticated detail response projection must be testable');
+  const callbackBody = pageSource.slice(callbackStart + '.then(async (response) => {'.length, callbackEnd);
+  const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
+  return new AsyncFunction('response', 'symbol', callbackBody)({ ok, json: async () => body }, symbol);
+}
+
+test('the actual detail response projection keeps RSI paired with the selected stock history', async () => {
+  const stockDetail = Object.freeze({ history: [{ date: '2026-09-11', close: 648.03 }], currency: 'USD' });
+  const stockRsi = Object.freeze({ period: 6, value: 78.540061933, asOf: '2026-09-11', priceBasis: 'adjusted_close', bearishDivergence: 'none', divergenceDate: null });
+  const result = await projectStockDetailResponse({ success: true, data: [
+    { symbol: 'NVDA', stockDetail: { history: [] }, stockRsi: { ...stockRsi, value: 12 } },
+    { symbol: 'META', stockDetail, stockRsi },
+  ] });
+  assert.deepEqual(result, { ...stockDetail, stockRsi });
+  assert.equal(result.history, stockDetail.history, 'the existing daily/weekly payload is not rebuilt or reinterpreted');
+  assert.equal(result.stockRsi, stockRsi);
+  assert.equal(Object.hasOwn(stockDetail, 'stockRsi'), false, 'the provider payload is not mutated');
+
+  for (const freshSignal of [null, undefined]) {
+    const missing = await projectStockDetailResponse({ data: [{
+      symbol: 'META', stockDetail: { ...stockDetail, stockRsi }, stockRsi: freshSignal,
+    }] });
+    assert.equal(missing.stockRsi, null, 'an absent fresh signal cannot inherit a stale signal from another object');
+  }
+  for (const body of [
+    { data: [{ symbol: 'NVDA', stockDetail, stockRsi }] },
+    { data: [{ symbol: 'META', stockRsi }] },
+    { success: false, error: 'request failed', data: [{ symbol: 'META', stockDetail, stockRsi }] },
+  ]) {
+    await assert.rejects(projectStockDetailResponse(body));
+  }
+  await assert.rejects(projectStockDetailResponse({ data: [{ symbol: 'META', stockDetail, stockRsi }] }, { ok: false }));
+});
+
+test('the trend metric waits for its completed chart date and cannot show an old symbol signal while loading', () => {
+  const expression = pageSource.match(/const rsiSignal = ([\s\S]*?);/)?.[1];
+  assert.ok(expression, 'the chart/signal pairing guard must precede presentation');
+  const selectSignal = new Function('loading', 'stockDetail', 'close', `return (${expression});`);
+  const stockRsi = { period: 6, value: 82.6, asOf: '2026-09-11', priceBasis: 'adjusted_close', bearishDivergence: 'confirmed', divergenceDate: '2026-09-10' };
+  assert.equal(selectSignal(false, { stockRsi }, { asOfDate: '2026-09-11' }), stockRsi);
+  assert.equal(selectSignal(true, { stockRsi }, { asOfDate: '2026-09-11' }), null);
+  assert.equal(selectSignal(false, { stockRsi }, { asOfDate: '2026-09-10' }), null, 'a later RSI date must not be paired with an older chart close');
+  assert.equal(selectSignal(false, { stockRsi }, { asOfDate: '2026-09-14' }), null, 'an older RSI date must not be promoted to the latest chart close');
+  assert.equal(selectSignal(false, {}, { asOfDate: '2026-09-11' }), null);
+  assert.equal(selectSignal(false, null, { asOfDate: null }), null);
+  assert.equal(selectSignal(false, null, {}), null);
 });
 
 test('company fundamentals load independently, cache per user for six hours, and fail closed inside their own card', () => {
@@ -190,15 +245,12 @@ test('technical indicators retain the daily facts and expose three independently
   assert.ok(pageSource.includes("t(language, 'watchlistDetail.entryIndicator', '建仓指标')"));
   assert.ok(pageSource.includes('<IndicatorBadge indicator="entry" tone="blue">'));
   assert.equal(pageSource.includes('distanceMa200Daily'), false);
-  assert.ok(pageSource.includes("t(language, 'watchlistDetail.relativeQqq3m', '相对QQQ（3个月）')"));
-  assert.ok(pageSource.includes("t(language, 'watchlistDetail.relativeQqq3mDetail', '个股{{stock}}·QQQ{{qqq}}'"));
-  assert.ok(pageSource.includes('grid-cols-[0.78fr_0.96fr_1.36fr]'), 'the relative QQQ metric should receive enough width to keep both returns on one line');
-  assert.ok(pageSource.includes('overflow-hidden text-ellipsis whitespace-nowrap text-[11px] tracking-[-0.04em] text-white/[0.50]">{detail}'), 'metric details should remain single-line at the homepage secondary size');
-  assert.ok(pageSource.includes('normalizeStockDetailHistory(stockDetail?.relativeReturnHistory)'));
-  assert.ok(pageSource.includes("stockDetail?.relativeReturnPriceBasis === 'adjusted_close'"));
-  assert.ok(pageSource.includes('deriveThreeMonthQqqRelativeReturn(relativeReturnHistory, qqqComparisonHistory)'));
-  assert.equal(pageSource.includes('deriveThreeMonthQqqRelativeReturn(history, qqqComparisonHistory)'), false);
-  assert.ok(pageSource.includes('relativeReturnHistory.map((row) => ({ date: row.date, adjustedClose: row.close }))'));
+  assert.ok(pageSource.includes('data-watchlist-rsi-metric="true"'));
+  assert.ok(pageSource.includes('stock-report-rsi-metric'));
+  assert.ok(pageSource.includes('data-rsi-zone='));
+  assert.ok(pageSource.includes('data-watchlist-rsi-divergence="true"'));
+  assert.doesNotMatch(pageSource, /watchlistDetail\.relativeQqq3m|relativeReturnHistory|deriveThreeMonthQqqRelativeReturn/);
+  assert.match(pageSource, /whitespace-nowrap text-\[11px\][^>]*>\{detail\}/, 'existing metric details remain single-line and readable');
   assert.equal(pageSource.includes('distanceEma30'), false);
   assert.ok(pageSource.includes("t(language, 'watchlistDetail.completedWeeksBasis', '基于已完成交易周')"));
   assert.ok(pageSource.includes("t(language, 'watchlistDetail.ma50Weekly', 'MA50（周）')"));
@@ -213,8 +265,6 @@ test('technical indicators retain the daily facts and expose three independently
   assert.ok(i18nSource.includes("'watchlistDetail.entryIndicator': 'Entry Indicator'"));
   assert.ok(i18nSource.includes("'watchlistDetail.longTermTrend': '芒格指标'"));
   assert.ok(i18nSource.includes("'watchlistDetail.buffettIndicator': '巴菲特指标'"));
-  assert.ok(i18nSource.includes("'watchlistDetail.relativeQqq3m': '相对QQQ（3个月）'"));
-  assert.ok(i18nSource.includes("'watchlistDetail.relativeQqq3m': 'vs QQQ (3M)'"));
   assert.equal(pageSource.includes('grid-cols-2 divide-x divide-y'), false);
   const movingAverageRows = [...pageSource.matchAll(/<details\b[^>]*data-watchlist-(daily-ma|weekly-ma50|weekly-ma)-panel="true"[^>]*>[\s\S]*?<\/details>/g)].map((match) => match[0]);
   assert.equal(movingAverageRows.length, 3);
@@ -227,7 +277,6 @@ test('technical indicators retain the daily facts and expose three independently
   assert.match(movingAverageRows[0], /MA200_DAY_COLOR/);
   assert.match(movingAverageRows[1], /MA50_WEEK_COLOR/);
   assert.match(movingAverageRows[2], /MA200_WEEK_COLOR/);
-  assert.ok(pageSource.includes("language === 'en' ? 'pp' : '百分点'"), 'relative QQQ outperformance is a percentage-point difference, not an extra return');
 });
 
 test('production detail shares the Home logo candidate chain and reads the persisted cache URL', () => {
@@ -389,7 +438,7 @@ test('historical price selection persists until outside interaction, Escape, or 
 
 test('the default local MA200 fixture is deterministic, explicitly simulated, and uses the production result schema', () => {
   assert.ok(devPreviewSource.includes('ma200RetestHistory: buildMockWatchlistMa200RetestHistory()'));
-  assert.ok(devPreviewSource.includes('{ ...mockWatchlistStockDetailData, ...ma200LiveStockDetail }'), 'an explicitly requested real local preview must retain precedence');
+  assert.match(devPreviewSource, /watchlistStockDetailDataOverride:\s*ma200LivePreview\s*\?/, 'a requested real preview must select its branch before the provider response arrives');
   const fixtureFunction = devPreviewSource.match(/^function buildMockWatchlistMa200RetestHistory\(\) \{[\s\S]*?^\}/m)?.[0];
   assert.ok(fixtureFunction);
   assert.doesNotMatch(fixtureFunction, /fetch\(|process\.env|Math\.random|Date\.now/);
@@ -414,6 +463,70 @@ test('the default local MA200 fixture is deterministic, explicitly simulated, an
     assert.equal(detail.trigger.date, event.triggerDate);
     assert.equal(detail.complete, event.status !== 'observing');
     if (detail.complete) assert.equal(detail.endpoint.returnPct, event.forwardReturnPct);
+  }
+});
+
+function selectLocalStockDetailOverride(ma200LivePreview, ma200LiveStockDetail, mockWatchlistStockDetailData) {
+  const expression = devPreviewSource.match(/watchlistStockDetailDataOverride:\s*([\s\S]*?),\n\s*watchlistStockDetailEarningsOverride:/)?.[1];
+  assert.ok(expression, 'the actual preview override must be available for behavioral verification');
+  return new Function('ma200LivePreview', 'ma200LiveStockDetail', 'mockWatchlistStockDetailData', `return (${expression});`)(
+    ma200LivePreview, ma200LiveStockDetail, mockWatchlistStockDetailData,
+  );
+}
+
+test('requested real stock-trend preview never falls back to sample series or RSI while pending or failed', () => {
+  const sample = Object.freeze({
+    asOfDate: '2026-07-17',
+    history: [{ date: '2026-07-17', close: 185 }],
+    ma200DailyHistory: [{ date: '2026-07-17', close: 185, ma200: 160 }],
+    weeklyHistory: [{ date: '2026-07-17', close: 185 }],
+    ma200RetestHistory: { previewOnly: true, events: [{ status: 'recovered' }] },
+    indicators: { ma200: 160, week52High: 195 },
+    stockRsi: { period: 6, value: 83.6, asOf: '2026-07-17', priceBasis: 'adjusted_close', bearishDivergence: 'confirmed' },
+  });
+  assert.equal(selectLocalStockDetailOverride(false, null, sample), sample, 'ordinary visual fixtures remain unchanged');
+  for (const missing of [null, undefined]) {
+    const actual = selectLocalStockDetailOverride(true, missing, sample);
+    assert.equal(actual.asOfDate, null);
+    for (const key of ['history', 'ma200DailyHistory', 'weeklyHistory']) {
+      assert.deepEqual(actual[key], [], `${key} cannot inherit simulated prices during a real-data load`);
+    }
+    assert.equal(actual.ma200RetestHistory, null);
+    assert.deepEqual(actual.indicators, {});
+    assert.equal(actual.stockRsi, null, 'neither a pending nor failed real request may display the 83.6 sample');
+  }
+});
+
+test('real preview retains its provider history and paired RSI without filling an absent signal from the sample', () => {
+  const sample = { stockRsi: { value: 83.6 }, history: [{ date: '2026-07-17', close: 185 }] };
+  const signal = Object.freeze({ period: 6, value: 78.540061933, asOf: '2026-09-11', priceBasis: 'adjusted_close', bearishDivergence: 'none' });
+  const live = Object.freeze({ asOfDate: '2026-09-11', history: [{ date: '2026-09-11', close: 648.03 }], stockRsi: signal });
+  const actual = selectLocalStockDetailOverride(true, live, sample);
+  assert.equal(actual.history, live.history);
+  assert.equal(actual.stockRsi, signal);
+  assert.equal(actual.stockRsi.asOf, actual.asOfDate);
+  assert.equal(actual.history.at(-1).date, actual.stockRsi.asOf);
+  const absent = selectLocalStockDetailOverride(true, { asOfDate: live.asOfDate, history: live.history }, sample);
+  assert.equal(absent.stockRsi, null, 'an older local artifact without the new field must remain missing');
+});
+
+test('the actual local preview server projection carries the sibling RSI field into its stock-detail payload', () => {
+  const serverSource = readFileSync(new URL('../scripts/ma200-retest-preview-server.mjs', import.meta.url), 'utf8');
+  const dataExpression = serverSource.match(/const data = (\{[\s\S]*?\n    \});/)?.[1];
+  assert.ok(dataExpression, 'the actual sanitized preview response projection must be testable');
+  const project = new Function('quote', 'symbol', `return (${dataExpression});`);
+  const signal = Object.freeze({ period: 6, value: 78.540061933, asOf: '2026-09-11', priceBasis: 'adjusted_close' });
+  const history = Object.freeze([{ date: '2026-09-11', close: 648.03 }]);
+  const detail = Object.freeze({ history, asOfDate: signal.asOf });
+  const actual = project({ stockDetail: detail, stockRsi: signal }, 'META');
+  assert.equal(actual.symbol, 'META');
+  assert.equal(actual.stockDetail.stockRsi, signal);
+  assert.equal(actual.stockDetail.history, history);
+  assert.equal(actual.stockDetail.asOfDate, signal.asOf);
+  assert.equal(Object.hasOwn(detail, 'stockRsi'), false);
+  for (const missing of [null, undefined]) {
+    const withoutSignal = project({ stockDetail: { ...detail, stockRsi: signal }, stockRsi: missing }, 'META');
+    assert.equal(withoutSignal.stockDetail.stockRsi, null, 'missing provider RSI cannot inherit a signal nested in another payload');
   }
 });
 

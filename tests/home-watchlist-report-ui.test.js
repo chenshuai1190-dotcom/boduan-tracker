@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { transformWithOxc } from 'vite';
+import { stockRsiPresentation } from '../src/lib/stockRsiPresentation.js';
 
 const source = readFileSync(new URL('../src/components/HomeWatchlistReport.jsx', import.meta.url), 'utf8');
 const css = readFileSync(new URL('../src/components/HomeWatchlistReport.css', import.meta.url), 'utf8');
@@ -23,6 +24,7 @@ const hooksUrl = dataUrl(`
 `);
 const compiled = transformed.code
   .replace(/import\s*(['"])\.\/HomeWatchlistReport\.css\1;?/g, '')
+  .replace(/from (["'])\.\.\/lib\/stockRsiPresentation\.js\1/g, `from ${JSON.stringify(new URL('../src/lib/stockRsiPresentation.js', import.meta.url).href)}`)
   .replace(/from (["'])(react|lucide-react)\1/g, (_, _quote, module) => `from ${JSON.stringify(module === 'react' ? hooksUrl : import.meta.resolve(module))}`);
 const hooks = await import(hooksUrl);
 const { default: HomeWatchlistReport } = await import(dataUrl(compiled));
@@ -66,7 +68,7 @@ function harness(overrides = {}) {
 test('the report stays presentation-only and keeps narrow-screen values untruncated', () => {
   assert.doesNotMatch(source, /\b(?:fetch|insert|upsert|update|delete)\s*\(|supabase|localStorage|sessionStorage|stock_trades|cost_basis_trades|service_role|EODHD_API_KEY/);
   const imports = [...source.matchAll(/\b(?:from\s+|import\s+)(['"])([^'"]+)\1/g)].map(match => match[2]);
-  assert.ok(imports.every(module => ['react', 'lucide-react', './HomeWatchlistReport.css'].includes(module)));
+  assert.ok(imports.every(module => ['react', 'lucide-react', '../lib/stockRsiPresentation.js', './HomeWatchlistReport.css'].includes(module)));
   assert.doesNotMatch(source.replace('rsi.value.toFixed(1)', 'rsiDisplayValue'), /\.sort\(|\.toFixed\(|displayRate|exchangeRate|Math\.round/);
   assert.match(css, /@media\s*\(max-width:\s*359px\)/);
   assert.match(css, /--hwr-columns:\s*minmax\(0,\s*1fr\)/);
@@ -155,6 +157,17 @@ test('RSI zones honor the approved inclusive boundaries without using rounded di
     assert.equal(text(byClass(tree, 'hwr-rsi-zone')[0]), label);
     assert.equal(byClass(tree, 'hwr-rsi')[0].props.title, '日线 RSI(6) · 2026-09-11');
   }
+});
+
+test('the shared RSI palette stays consistent with the Home watchlist colors', () => {
+  for (const value of [0, 20, 80, 89.99, 90, 100]) {
+    const presentation = stockRsiPresentation(signal({ value }));
+    const colorRule = css.match(new RegExp(`\\.hwr-rsi\\[data-rsi-zone="${presentation.zone}"\\]\\s*\\{([^}]+)\\}`))?.[1];
+    assert.ok(colorRule?.includes(`--hwr-rsi-color: ${presentation.color}`));
+  }
+  assert.equal(stockRsiPresentation(signal({ value: 42 })).color, '#e4e4e7');
+  assert.match(css, /--hwr-text:\s*#e4e4e7/);
+  assert.equal(stockRsiPresentation(null).color, '#85858d');
 });
 
 test('divergence stays independent of current RSI and distinguishes absent from unassessed', () => {

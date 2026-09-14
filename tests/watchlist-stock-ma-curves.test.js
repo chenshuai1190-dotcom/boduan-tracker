@@ -16,7 +16,7 @@ import {
 const source = readFileSync(new URL('../src/pages/WatchlistStockDetailPage.jsx', import.meta.url), 'utf8');
 // Keep production geometry, selection, formatting and SVG together; omit the
 // page's network effects and unrelated report sections from this small SSR test.
-const chartSource = source.slice(source.indexOf('const NUMBER_FONT ='), source.indexOf('const QQQ_BENCHMARK_CACHE_TTL_MS'))
+const chartSource = source.slice(source.indexOf('const NUMBER_FONT ='), source.indexOf('function rangePriceColor('))
   + source.slice(source.indexOf('function finiteNumber('), source.indexOf('\nfunction MetricCell('));
 const { code } = await transformWithOxc(chartSource, 'WatchlistStockMaCurves.jsx', { jsx: { runtime: 'classic' } });
 const dependencies = {

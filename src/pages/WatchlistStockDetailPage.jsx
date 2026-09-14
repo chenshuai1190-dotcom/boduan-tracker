@@ -20,8 +20,8 @@ import { t } from '../lib/i18n.js';
 import { marketHexColor } from '../lib/marketColorMode.js';
 import { loadStockFundamentals } from '../lib/stockFundamentals.js';
 import { loadStockValuation } from '../lib/stockValuation.js';
+import { stockRsiPresentation } from '../lib/stockRsiPresentation.js';
 import {
-  deriveThreeMonthQqqRelativeReturn,
   deriveCloseBasedPosition,
   displayCurrencyRate,
   filterStockDetailHistory,
@@ -51,56 +51,12 @@ const MA50_WEEK_COLOR = '#a78bfa';
 const CHART_WIDTH = 352;
 const CHART_HEIGHT = 308;
 const RANGE_IDS = ['1m', '3m', '6m', '1y', '5y'];
-const QQQ_BENCHMARK_CACHE_TTL_MS = 15 * 60 * 1000;
-const qqqBenchmarkRowsCache = new Map();
 
 function rangePriceColor(rows, marketColorMode) {
   const first = rows[0]?.close;
   const last = rows.at(-1)?.close;
   if (rows.length < 2 || !Number.isFinite(first) || !Number.isFinite(last) || first === last) return '#a1a1aa';
   return marketHexColor(last - first, marketColorMode);
-}
-
-function loadCachedQqqBenchmarkRows(key, loader) {
-  const cached = qqqBenchmarkRowsCache.get(key);
-  if (cached?.rows && cached.expiresAt > Date.now()) return Promise.resolve(cached.rows);
-  if (cached?.promise) return cached.promise;
-  qqqBenchmarkRowsCache.delete(key);
-
-  const promise = Promise.resolve()
-    .then(loader)
-    .then((rows) => {
-      if (!Array.isArray(rows) || rows.length === 0) throw new Error('benchmark rows unavailable');
-      qqqBenchmarkRowsCache.set(key, {
-        rows,
-        expiresAt: Date.now() + QQQ_BENCHMARK_CACHE_TTL_MS,
-      });
-      return rows;
-    })
-    .catch((error) => {
-      if (qqqBenchmarkRowsCache.get(key)?.promise === promise) qqqBenchmarkRowsCache.delete(key);
-      throw error;
-    });
-  qqqBenchmarkRowsCache.set(key, { promise, expiresAt: 0 });
-  return promise;
-}
-
-async function fetchQqqBenchmarkRows({ token, from, to, fetchRows }) {
-  if (typeof fetchRows === 'function') {
-    const rows = await fetchRows({ symbol: 'QQQ', from, to });
-    if (!Array.isArray(rows) || rows.length === 0) throw new Error('benchmark rows unavailable');
-    return rows;
-  }
-  const cacheKey = `QQQ:${from}:${to}`;
-  return loadCachedQqqBenchmarkRows(cacheKey, async () => {
-    const response = await fetch(`/api/pnl-benchmark?symbol=QQQ&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, {
-      headers: { Authorization: `Bearer ${token}` },
-      cache: 'no-store',
-    });
-    const body = await response.json().catch(() => null);
-    if (!response.ok || body?.success === false) throw new Error(body?.error || 'benchmark request failed');
-    return body?.rows;
-  });
 }
 
 async function fetchFundComposition({ token, symbol }) {
@@ -1173,7 +1129,6 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
     investmentSummary = {},
     availableCashStatusReady = false,
     stockTrades = [],
-    fetchPnlBenchmarkRows,
     displayStockName,
     logoCache = {},
     cacheStockLogo,
@@ -1210,7 +1165,6 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
     RANGE_IDS.includes(stockDetailInitialRange) ? stockDetailInitialRange : '5y',
   );
   const [stockDetail, setStockDetail] = React.useState(() => watchlistStockDetailDataOverride?.stockDetail || watchlistStockDetailDataOverride || null);
-  const [qqqHistory, setQqqHistory] = React.useState(() => watchlistStockDetailDataOverride?.qqqHistory || []);
   const [fundamentals, setFundamentals] = React.useState(() => initialFundamentals || null);
   const [fundamentalsStatus, setFundamentalsStatus] = React.useState(() => (
     hasFundamentalsOverride ? (initialFundamentals ? 'ready' : 'unavailable') : 'loading'
@@ -1256,14 +1210,12 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
   React.useEffect(() => {
     if (watchlistStockDetailDataOverride) {
       setStockDetail(watchlistStockDetailDataOverride.stockDetail || watchlistStockDetailDataOverride);
-      setQqqHistory(watchlistStockDetailDataOverride.qqqHistory || []);
       setEarningsEvents(watchlistStockDetailEarningsOverride || []);
       setLoading(false);
       setLoadError(false);
       return undefined;
     }
     if (!symbol || !supabase?.auth?.getSession) {
-      setQqqHistory([]);
       setLoading(false);
       setLoadError(true);
       return undefined;
@@ -1271,24 +1223,12 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
     let active = true;
     setLoading(true);
     setLoadError(false);
-    setQqqHistory([]);
     (async () => {
       try {
         const { data } = await supabase.auth.getSession();
         const token = data?.session?.access_token;
         if (!token) throw new Error('missing session');
         const marketDate = getNewYorkEarningsClock(Date.now()).date;
-        const qqqPromise = symbol === 'QQQ'
-          ? null
-          : fetchQqqBenchmarkRows({
-            token,
-            from: addUtcDays(marketDate, -130),
-            to: marketDate,
-            fetchRows: fetchPnlBenchmarkRows,
-          }).catch((error) => {
-            console.warn('[WatchlistStockDetail] QQQ benchmark unavailable:', error?.message || error);
-            return [];
-          });
         const detailPromise = fetch(`/api/quote?symbols=${encodeURIComponent(symbol)}&view=stock-detail`, {
           headers: { Authorization: `Bearer ${token}` },
           cache: 'no-store',
@@ -1297,7 +1237,7 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
           if (!response.ok || body?.success === false) throw new Error(body?.error || 'stock detail request failed');
           const quote = body?.data?.find((item) => item?.symbol === symbol);
           if (!quote?.stockDetail) throw new Error('stock detail unavailable');
-          return quote.stockDetail;
+          return { ...quote.stockDetail, stockRsi: quote.stockRsi ?? null };
         });
         const earningsPromise = fetchEarningsCalendarEvents({
           token,
@@ -1310,11 +1250,6 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
         if (!active) return;
         setStockDetail(nextDetail);
         setEarningsEvents(nextEarnings);
-        if (qqqPromise) {
-          void qqqPromise.then((nextQqqHistory) => {
-            if (active) setQqqHistory(nextQqqHistory);
-          });
-        }
       } catch (error) {
         console.warn('[WatchlistStockDetail] load failed:', error?.message || error);
         if (active) setLoadError(true);
@@ -1323,7 +1258,7 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
       }
     })();
     return () => { active = false; };
-  }, [fetchPnlBenchmarkRows, reloadKey, supabase, symbol, watchlistStockDetailDataOverride, watchlistStockDetailEarningsOverride]);
+  }, [reloadKey, supabase, symbol, watchlistStockDetailDataOverride, watchlistStockDetailEarningsOverride]);
 
   React.useEffect(() => {
     if (hasFundamentalsOverride) {
@@ -1444,23 +1379,6 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
     () => normalizeStockDetailHistory(stockDetail?.ma200DailyHistory ?? stockDetail?.history),
     [stockDetail?.ma200DailyHistory, stockDetail?.history],
   );
-  const relativeReturnHistory = React.useMemo(
-    () => (
-      stockDetail?.relativeReturnPriceBasis === 'adjusted_close'
-        ? normalizeStockDetailHistory(stockDetail?.relativeReturnHistory)
-        : []
-    ),
-    [stockDetail?.relativeReturnHistory, stockDetail?.relativeReturnPriceBasis],
-  );
-  const qqqComparisonHistory = React.useMemo(() => (
-    symbol === 'QQQ'
-      ? relativeReturnHistory.map((row) => ({ date: row.date, adjustedClose: row.close }))
-      : qqqHistory
-  ), [qqqHistory, relativeReturnHistory, symbol]);
-  const qqqRelativeReturn = React.useMemo(
-    () => deriveThreeMonthQqqRelativeReturn(relativeReturnHistory, qqqComparisonHistory),
-    [qqqComparisonHistory, relativeReturnHistory],
-  );
   const weeklyHistory = React.useMemo(
     () => normalizeStockDetailWeeklyHistory(stockDetail?.weeklyHistory),
     [stockDetail?.weeklyHistory],
@@ -1477,6 +1395,8 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
       : visibleDailyHistory
   ), [range, visibleDailyHistory, visibleWeeklyHistory]);
   const close = React.useMemo(() => resolveStockDetailClose(history), [history]);
+  const rsiSignal = !loading && stockDetail?.stockRsi?.asOf && stockDetail.stockRsi.asOf === close.asOfDate ? stockDetail.stockRsi : null;
+  const rsiDisplay = stockRsiPresentation(rsiSignal, language === 'en');
   const indicators = stockDetail?.indicators || {};
   const portfolioCurrency = String(portfolioCurrencyMode || '').toUpperCase() === 'CNY' ? 'CNY' : 'USD';
   const portfolioRate = displayCurrencyRate(portfolioCurrency, usdRate);
@@ -1688,17 +1608,25 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
             detail={t(language, 'watchlistDetail.ma200DailyValue', '日线 {{price}}', { price: formatCurrency(ma200, stockCurrency) })}
             color={marketHexColor(distanceMa200 || 0, marketColorMode)}
           />
-          <MetricCell
-            label={t(language, 'watchlistDetail.relativeQqq3m', '相对QQQ（3个月）')}
-            value={qqqRelativeReturn ? `${formatSignedPercent(qqqRelativeReturn.relativeReturnPercent).replace('%', '')} ${language === 'en' ? 'pp' : '百分点'}` : '--'}
-            detail={qqqRelativeReturn
-              ? t(language, 'watchlistDetail.relativeQqq3mDetail', '个股{{stock}}·QQQ{{qqq}}', {
-                stock: formatSignedPercent(qqqRelativeReturn.stockReturnPercent, 1),
-                qqq: formatSignedPercent(qqqRelativeReturn.qqqReturnPercent, 1),
-              })
-              : '--'}
-            color={marketHexColor(qqqRelativeReturn?.relativeReturnPercent || 0, marketColorMode)}
-          />
+          <div className="stock-report-rsi-metric" data-watchlist-rsi-metric="true"
+            data-rsi-zone={rsiDisplay.zone ?? undefined} style={{ '--stock-rsi-color': rsiDisplay.color }}
+            title={rsiDisplay.available ? `${language === 'en' ? 'Daily RSI(6)' : '日线 RSI(6)'} · ${rsiSignal.asOf}` : undefined}
+          >
+            <div>RSI<span className="stock-report-rsi-period">(6)</span></div>
+            <div className="stock-report-rsi-value" style={{ fontFamily: NUMBER_FONT }}>{rsiDisplay.available ? rsiSignal.value.toFixed(1) : '—'}</div>
+            <div className="stock-report-rsi-status">
+              {rsiDisplay.available ? (
+                <>
+                  <span className="stock-report-rsi-zone">{rsiDisplay.zoneLabel}</span>
+                  {rsiDisplay.divergence === 'confirmed' && (
+                    <span data-watchlist-rsi-divergence="true" title={`${language === 'en' ? 'Confirmed on' : '确认于'} ${rsiSignal.divergenceDate}`}>
+                      <span aria-hidden="true">·</span>{language === 'en' ? 'Bearish div.' : '顶背离'}
+                    </span>
+                  )}
+                </>
+              ) : '—'}
+            </div>
+          </div>
         </div>
 
         <div className="stock-report-ma-heading">{language === 'en' ? 'Moving averages' : '均线观察'}</div>
