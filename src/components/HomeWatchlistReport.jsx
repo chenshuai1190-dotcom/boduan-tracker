@@ -7,6 +7,7 @@ const AUXILIARY_METRICS = {
   watchlist: ['drawdown', 'ytd'],
   positions: ['pnl', 'drawdown', 'ytd'],
 };
+const ROW_TAP_MOVEMENT_LIMIT = 8;
 
 function updateScrollClipping({ currentTarget: table }) {
   const pinned = table.querySelector('.hwr-aux-sort');
@@ -65,6 +66,7 @@ export default function HomeWatchlistReport({
   const isWatchlist = tableTab === 'watchlist';
   const showRsi = isWatchlist;
   const [metricByTab, setMetricByTab] = React.useState({ watchlist: 'drawdown', positions: 'pnl' });
+  const rowGesture = React.useRef(null);
   const auxiliaryMetric = metricByTab[tableTab] || (isWatchlist ? 'drawdown' : 'pnl');
   const labels = english
     ? { watchlist: 'Watchlist', positions: 'Holdings', price: 'Price', change: 'Today', drawdown: 'From 52W high', ytd: 'Year to date', pnl: 'Holding P&L' }
@@ -135,11 +137,38 @@ export default function HomeWatchlistReport({
           </div>
           <div className="hwr-list">
             {rows.map((item) => {
-              const Identity = isWatchlist ? 'button' : 'div';
-              const identityProps = isWatchlist ? {
-                type: 'button',
-                onClick: () => onOpenStock?.(item.symbol),
+              const rowProps = isWatchlist ? {
+                role: 'button',
+                tabIndex: 0,
                 'aria-label': english ? `Open ${item.symbol} stock details` : `打开 ${item.symbol} 股票详情`,
+                'aria-describedby': `hwr-main-${item.symbol} hwr-secondary-${item.symbol}`,
+                onPointerDown: (event) => {
+                  const scroller = event.currentTarget.closest('.hwr-table-scroll');
+                  rowGesture.current = { symbol: item.symbol, pointerId: event.pointerId,
+                    x: event.clientX, y: event.clientY, cancelled: false,
+                    scroller, scrollLeft: scroller?.scrollLeft ?? 0 };
+                },
+                onPointerMove: (event) => {
+                  const gesture = rowGesture.current;
+                  if (gesture?.pointerId === event.pointerId
+                    && Math.hypot(event.clientX - gesture.x, event.clientY - gesture.y) > ROW_TAP_MOVEMENT_LIMIT) {
+                    gesture.cancelled = true;
+                  }
+                },
+                onPointerCancel: () => { if (rowGesture.current) rowGesture.current.cancelled = true; },
+                onClick: (event) => {
+                  const gesture = rowGesture.current;
+                  // Keep native horizontal/vertical scrolling. Only a tap opens
+                  // details; keyboard and assistive clicks have detail === 0.
+                  if (event.detail !== 0 && gesture?.symbol === item.symbol
+                    && (gesture.cancelled || Math.abs((gesture.scroller?.scrollLeft ?? 0) - gesture.scrollLeft) > 1)) return;
+                  onOpenStock?.(item.symbol);
+                },
+                onKeyDown: (event) => {
+                  if (event.target !== event.currentTarget || !['Enter', ' '].includes(event.key)) return;
+                  event.preventDefault();
+                  if (!event.repeat) onOpenStock?.(item.symbol);
+                },
               } : {};
               const auxiliaryValue = auxiliaryMetric === 'pnl'
                 ? item.pnlValue
@@ -150,15 +179,15 @@ export default function HomeWatchlistReport({
               const divergenceLabel = rsiDisplay.momentumLabel;
 
               return (
-                <div key={item.symbol} className="hwr-row">
-                  <div className="hwr-row-main">
-                    <Identity className="hwr-identity" {...identityProps}>
+                <div key={item.symbol} className="hwr-row" {...rowProps}>
+                  <div className="hwr-row-main" id={isWatchlist ? `hwr-main-${item.symbol}` : undefined}>
+                    <div className="hwr-identity">
                       <span className="hwr-logo" aria-hidden="true">{renderLogo?.(item) || item.symbol?.slice(0, 2)}</span>
                       <span className="hwr-stock-name">
                         <span className="hwr-symbol">{item.symbol}</span>
                         <span className="hwr-company">{item.displayName}</span>
                       </span>
-                    </Identity>
+                    </div>
                     <span className="hwr-price">{missing(item.price) || Number(item.price) <= 0 ? '—' : formatted(formatPrice, item.price)}</span>
                     <span className="hwr-change" style={{ color: item.color || colorFor(item.changePct) }}>{formatted(formatChange, item.changePct)}</span>
                     {showRsi && (
@@ -173,7 +202,7 @@ export default function HomeWatchlistReport({
                       >{divergenceLabel}</span>
                     )}
                   </div>
-                  <div className="hwr-row-secondary">
+                  <div className="hwr-row-secondary" id={isWatchlist ? `hwr-secondary-${item.symbol}` : undefined}>
                     <span className="hwr-aux-label">{labels[auxiliaryMetric]}</span>
                     <span className={`hwr-aux-value${auxiliaryMetric === 'pnl' ? ' hwr-pnl-value' : ''}`} style={{ color: colorFor(auxiliaryValue) }}>
                       {auxiliaryMetric === 'pnl' ? (

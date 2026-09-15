@@ -4,6 +4,15 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '首页自选支持点击股票整行进入股票趋势，右侧价格、今日涨跌和空白区域均可操作，方便单手使用；保留原有布局并加入滑动防误触。',
+    ],
+    itemsEn: [
+      'Tap anywhere on a Home watchlist row, including the price, daily change and empty space, to open Stock Trend. The existing layout is preserved, with swipe protection for one-handed use.',
+    ],
+  },
+  {
+    ver: 'v10.7.9.533', date: '2026-09-15',
+    items: [
       '补充顶背离“确认后失效”：收盘价再突破第二高点至少 0.5%，且 RSI(6) 恢复至第一高点读数的 2 点以内时转为失效，同时保留历史确认记录。',
       '已兑现事件不再反转为失效；确认状态最多保留 20 个完整交易日，重复回撤不续期。首页自选、股票趋势与决策工具同步，均线算法及页面布局保持不变。',
     ],

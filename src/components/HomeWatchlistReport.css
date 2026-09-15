@@ -11,7 +11,8 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-.home-watchlist-report button:focus-visible {
+.home-watchlist-report button:focus-visible,
+.hwr-row[role="button"]:focus-visible {
   outline: 1px solid #8b8b94;
   outline-offset: 4px;
 }
@@ -125,7 +126,8 @@
   text-align: left;
 }
 
-button.hwr-identity:active { opacity: .65; }
+.hwr-row[role="button"] { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.hwr-row[role="button"]:active .hwr-identity { opacity: .65; }
 
 .hwr-logo {
   display: flex;

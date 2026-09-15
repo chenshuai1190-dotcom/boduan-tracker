@@ -21,7 +21,11 @@ const hooksUrl = dataUrl(`
     const slot = slots[index] ||= { value: typeof initial === 'function' ? initial() : initial };
     return [slot.value, next => { slot.value = typeof next === 'function' ? next(slot.value) : next; }];
   }
-  export default { ...React, useState };
+  function useRef(initial) {
+    const index = cursor++;
+    return slots[index] ||= { current: initial };
+  }
+  export default { ...React, useState, useRef };
 `);
 const compiled = transformed.code
   .replace(/import\s*(['"])\.\/HomeWatchlistReport\.css\1;?/g, '')
@@ -40,6 +44,14 @@ function text(node) {
   return React.Children.toArray(node.props?.children).map(text).join('');
 }
 const byClass = (tree, name) => nodes(tree, node => node.props.className?.split(/\s+/).includes(name));
+function bubbleClick(node, target, event = {}) {
+  if (!React.isValidElement(node)) return false;
+  // Children.toArray normalizes element keys; its clones keep the same props.
+  const containsTarget = node.props === target.props
+    || React.Children.toArray(node.props.children).some(child => bubbleClick(child, target, event));
+  if (containsTarget) node.props.onClick?.({ detail: 1, ...event, target, currentTarget: node });
+  return containsTarget;
+}
 const sortControl = (tree, key) => {
   const element = nodes(tree, node => node.props.sortKey === key)[0];
   return element?.type(element.props);
@@ -226,8 +238,8 @@ test('narrow indicator columns keep long English labels inside the cell and pres
   const h = harness({ language: 'en', onOpenStock: () => {}, rows: [row({
     symbol: 'LONGSYMBOL', displayName: 'Long Company Name Incorporated', stockRsi: signal({ value: 95 }),
   })] });
-  const identity = byClass(h.render(), 'hwr-identity')[0];
-  assert.equal(identity.props['aria-label'], 'Open LONGSYMBOL stock details');
+  const stockRow = byClass(h.render(), 'hwr-row')[0];
+  assert.equal(stockRow.props['aria-label'], 'Open LONGSYMBOL stock details');
   assert.equal(text(byClass(h.render(), 'hwr-rsi-zone')[0]), 'Overbought');
   assert.equal(text(sortControl(h.render(), 'change')).trim(), 'Today');
 });
@@ -382,9 +394,15 @@ test('watchlist alone exposes add, edit and detail callbacks while tab selection
   const add = nodes(tree, node => node.props['aria-label'] === '添加自选股票')[0];
   const edit = nodes(tree, node => node.props['aria-label'] === '编辑自选股票')[0];
   const identity = byClass(tree, 'hwr-identity')[0];
-  assert.equal(identity.type, 'button');
-  assert.equal(identity.props['aria-label'], '打开 NVDA 股票详情');
-  add.props.onClick(); edit.props.onClick(); identity.props.onClick();
+  const stockRow = byClass(tree, 'hwr-row')[0];
+  assert.equal(identity.type, 'div');
+  assert.equal(identity.props.onClick, undefined);
+  assert.equal(stockRow.props.role, 'button');
+  assert.equal(stockRow.props.tabIndex, 0);
+  assert.equal(stockRow.props['aria-label'], '打开 NVDA 股票详情');
+  assert.equal(nodes(stockRow, node => node.type === 'button').length, 0, 'row action must not contain nested buttons');
+  add.props.onClick(); edit.props.onClick();
+  bubbleClick(tree, byClass(tree, 'hwr-symbol')[0]);
   nodes(tree, node => node.props.role === 'tab')[1].props.onClick();
   assert.deepEqual(actions, ['add', 'edit', 'NVDA', 'positions']);
   assert.equal(nodes(h.render(), node => node.props.role === 'tab')[0].props['aria-selected'], true);
@@ -392,7 +410,81 @@ test('watchlist alone exposes add, edit and detail callbacks while tab selection
   tree = h.render();
   assert.equal(byClass(tree, 'hwr-identity')[0].type, 'div');
   assert.equal(byClass(tree, 'hwr-identity')[0].props.onClick, undefined);
+  for (const key of ['role', 'tabIndex', 'onClick', 'onPointerDown', 'onKeyDown']) {
+    assert.equal(byClass(tree, 'hwr-row')[0].props[key], undefined, `holdings must remain inert: ${key}`);
+  }
   assert.equal(byClass(tree, 'hwr-actions').length, 0);
+});
+
+test('watchlist price, daily change, RSI and lower-row values open their own stock exactly once', () => {
+  const opened = [];
+  const tree = harness({ rows: [row(), row({ symbol: 'MSFT' })], onOpenStock: symbol => opened.push(symbol) }).render();
+  for (const className of ['hwr-price', 'hwr-change', 'hwr-rsi-value', 'hwr-divergence', 'hwr-aux-value']) {
+    const target = byClass(tree, className)[1];
+    assert.ok(bubbleClick(tree, target), `${className} must belong to the actionable row`);
+    assert.equal(opened.length, ['hwr-price', 'hwr-change', 'hwr-rsi-value', 'hwr-divergence', 'hwr-aux-value'].indexOf(className) + 1);
+  }
+  assert.deepEqual(opened, ['MSFT', 'MSFT', 'MSFT', 'MSFT', 'MSFT']);
+});
+
+test('horizontal and vertical swipes stay cancelled after returning to the starting point and rerendering', () => {
+  const opened = [];
+  const h = harness({ onOpenStock: symbol => opened.push(symbol) });
+  const scroller = { scrollLeft: 0 };
+  const currentTarget = { closest: () => scroller };
+  for (const movement of [{ clientX: 109, clientY: 100 }, { clientX: 100, clientY: 109 }]) {
+    let stockRow = byClass(h.render(), 'hwr-row')[0];
+    stockRow.props.onPointerDown({ pointerId: 1, clientX: 100, clientY: 100, currentTarget });
+    stockRow.props.onPointerMove({ pointerId: 1, ...movement });
+    stockRow.props.onPointerMove({ pointerId: 1, clientX: 100, clientY: 100 });
+    stockRow = byClass(h.render(), 'hwr-row')[0];
+    stockRow.props.onClick({ detail: 1 });
+  }
+  assert.deepEqual(opened, [], 'a swipe must not navigate even when the pointer returns before release');
+  const stockRow = byClass(h.render(), 'hwr-row')[0];
+  stockRow.props.onPointerDown({ pointerId: 2, clientX: 100, clientY: 100, currentTarget });
+  stockRow.props.onPointerMove({ pointerId: 2, clientX: 104, clientY: 102 });
+  stockRow.props.onClick({ detail: 1 });
+  assert.deepEqual(opened, ['NVDA'], 'the following clean tap must work despite previous cancelled gestures');
+});
+
+test('native pointer cancellation and horizontal scroll movement suppress touch navigation', () => {
+  const opened = [];
+  const tree = harness({ onOpenStock: symbol => opened.push(symbol) }).render();
+  const stockRow = byClass(tree, 'hwr-row')[0];
+  const scroller = { scrollLeft: 0 };
+  const currentTarget = { closest: () => scroller };
+  stockRow.props.onPointerDown({ pointerId: 1, clientX: 100, clientY: 100, currentTarget });
+  stockRow.props.onPointerCancel();
+  bubbleClick(tree, byClass(tree, 'hwr-change')[0]);
+  stockRow.props.onPointerDown({ pointerId: 2, clientX: 100, clientY: 100, currentTarget });
+  scroller.scrollLeft = 60;
+  bubbleClick(tree, byClass(tree, 'hwr-rsi-value')[0]);
+  assert.deepEqual(opened, []);
+  stockRow.props.onPointerDown({ pointerId: 3, clientX: 100, clientY: 100, currentTarget });
+  bubbleClick(tree, byClass(tree, 'hwr-rsi-value')[0]);
+  assert.deepEqual(opened, ['NVDA'], 'tapping a value after scrolling has stopped must open details');
+});
+
+test('keyboard and assistive actions bypass cancelled pointer gestures without repeated-key navigation', () => {
+  const opened = [];
+  const tree = harness({ onOpenStock: symbol => opened.push(symbol) }).render();
+  const stockRow = byClass(tree, 'hwr-row')[0];
+  const currentTarget = { closest: () => ({ scrollLeft: 0 }) };
+  stockRow.props.onPointerDown({ pointerId: 1, clientX: 100, clientY: 100, currentTarget });
+  stockRow.props.onPointerCancel();
+  let prevented = 0;
+  for (const key of ['Enter', ' ']) {
+    const event = { target: currentTarget, currentTarget, key, repeat: false, preventDefault: () => { prevented++; } };
+    stockRow.props.onKeyDown(event);
+    stockRow.props.onKeyDown({ ...event, repeat: true });
+  }
+  assert.equal(prevented, 4, 'Enter and Space prevent their default action including repeated keys');
+  assert.deepEqual(opened, ['NVDA', 'NVDA'], 'each deliberate key action navigates once');
+  stockRow.props.onKeyDown({ target: {}, currentTarget, key: 'Enter', preventDefault: assert.fail });
+  stockRow.props.onKeyDown({ target: currentTarget, currentTarget, key: 'ArrowRight', preventDefault: assert.fail });
+  stockRow.props.onClick({ detail: 0 });
+  assert.deepEqual(opened, ['NVDA', 'NVDA', 'NVDA'], 'assistive clicks remain available after a cancelled touch gesture');
 });
 
 test('auxiliary metric remembers each tab and delegates visible sort state to the parent', () => {
