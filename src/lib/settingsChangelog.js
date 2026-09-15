@@ -4,6 +4,19 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '股票趋势按当前均线结构显示多头强化／减弱、空头强化／减弱或结构改善／转弱，避免状态文案相互冲突。',
+      'MA30 与 MA60 交叉加入 0.1% 确认阈值，优先显示最近五个完整交易日的转强／转弱事件；均线微小波动不重复刷新交叉日期。',
+      '沿用已有完整日线和均线计算，统一配置判断阈值，保持页面布局与视觉风格。',
+    ],
+    itemsEn: [
+      'Stock Trend describes strengthening or weakening in the context of bullish, bearish or mixed MA structures, keeping the two status labels consistent.',
+      'MA30/MA60 crossovers require a 0.1% confirmation gap and take priority for five completed trading sessions. Minor fluctuations do not refresh the crossover date.',
+      'Existing completed daily history, moving-average calculations and page styling are retained, with centralized decision thresholds.',
+    ],
+  },
+  {
+    ver: 'v10.7.9.530', date: '2026-09-15',
+    items: [
       '股票趋势分别展示“均线结构”和“趋势变化”：当前结构使用最新完成日线，变化方向比较五个交易日前的数据，昨日到今日的均线交叉优先显示。',
       '结构改善、趋势修复与转强转弱依据历史变化判断；数据不足保留为空，复用已有历史数据，不增加行情请求。',
     ],

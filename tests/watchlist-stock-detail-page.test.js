@@ -3,8 +3,9 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { buildEodhdStockDetail } from '../server/quote/stockDetail.js';
 import { deriveMa200RetestDetail } from '../src/lib/ma200RetestDetail.js';
-import { marketHexColor } from '../src/lib/marketColorMode.js';
+import { MARKET_COLOR_MODES, marketHexColor } from '../src/lib/marketColorMode.js';
 import { deriveStockMaStructure, deriveStockMaTrend } from '../src/lib/stockMaStructure.js';
+import { t } from '../src/lib/i18n.js';
 
 const pageSource = readFileSync(new URL('../src/pages/WatchlistStockDetailPage.jsx', import.meta.url), 'utf8');
 const appSource = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8');
@@ -136,7 +137,7 @@ test('MA structure and trend change independently consume the current complete d
     deriveStockMaStructure, deriveStockMaTrend, loading, loadError, { history: rows }, { asOfDate: dates.at(-1) },
   );
   assert.equal(read(structure, history).status, 'long_term_up');
-  assert.equal(read(trend, history).status, 'repairing');
+  assert.equal(read(trend, history).status, 'improving');
   assert.equal(read(structure, history.slice(-1)).status, 'long_term_up');
   assert.equal(read(trend, history.slice(-1)).status, 'unavailable', 'a valid current structure does not prove any direction');
   for (const select of [structure, trend]) {
@@ -166,6 +167,31 @@ test('current MA structure and historical trend direction have separate labeled 
   assert.match(pageCssSource, /\.stock-report-ma-assessment\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/);
   assert.match(pageCssSource, /\.stock-report-ma-structure-value\s*\{[^}]*letter-spacing:\s*normal/);
   assert.doesNotMatch(i18nSource, /watchlistDetail\.maStructure\.(repair|weakening|long_term_risk|transition)'/);
+  assert.doesNotMatch(i18nSource, /watchlistDetail\.maTrend\.(repairing|deteriorating|direction_unclear)'/);
+});
+
+test('contextual trend labels preserve the existing market-color preference for improving and weakening signals', () => {
+  const expression = pageSource.match(/const maTrendColor = ([\s\S]*?);/)?.[1];
+  assert.ok(expression);
+  const color = new Function('maTrend', 'marketColorMode', 'marketHexColor', `return (${expression});`);
+  const cases = [
+    ['bullish_strengthening', '多头强化', 1],
+    ['bullish_weakening', '多头减弱', -1],
+    ['bearish_strengthening', '空头强化', -1],
+    ['bearish_weakening', '空头减弱', 1],
+    ['improving', '结构改善', 1],
+    ['structural_weakening', '结构转弱', -1],
+    ['strengthening', '短中期转强', 1],
+    ['weakening', '短中期转弱', -1],
+    ['stable', '趋势稳定', 0],
+  ];
+  for (const [status, label, direction] of cases) {
+    assert.equal(t('zh', `watchlistDetail.maTrend.${status}`), label);
+    for (const mode of Object.values(MARKET_COLOR_MODES)) {
+      assert.equal(color({ status }, mode, marketHexColor), direction ? marketHexColor(direction, mode) : '#a1a1aa');
+    }
+  }
+  assert.equal(color({ status: 'unavailable' }, MARKET_COLOR_MODES.RED_UP_GREEN_DOWN, marketHexColor), '#a1a1aa');
 });
 
 test('company fundamentals load independently, cache per user for six hours, and fail closed inside their own card', () => {

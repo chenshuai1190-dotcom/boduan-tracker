@@ -1450,11 +1450,11 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
     : ['bearish', 'long_term_down'].includes(maStructure.status)
       ? marketHexColor(-1, marketColorMode)
       : '#a1a1aa';
-  const maTrendColor = ['strengthening', 'improving'].includes(maTrend.status)
+  const maTrendColor = ['strengthening', 'improving', 'bullish_strengthening', 'bearish_weakening'].includes(maTrend.status)
     ? marketHexColor(1, marketColorMode)
-    : ['weakening', 'deteriorating'].includes(maTrend.status)
+    : ['weakening', 'structural_weakening', 'bullish_weakening', 'bearish_strengthening'].includes(maTrend.status)
       ? marketHexColor(-1, marketColorMode)
-      : maTrend.status === 'repairing' ? '#d5b67a' : '#a1a1aa';
+      : '#a1a1aa';
   const indicators = stockDetail?.indicators || {};
   const portfolioCurrency = String(portfolioCurrencyMode || '').toUpperCase() === 'CNY' ? 'CNY' : 'USD';
   const portfolioRate = displayCurrencyRate(portfolioCurrency, usdRate);

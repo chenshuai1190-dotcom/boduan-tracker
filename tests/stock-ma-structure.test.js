@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { deriveStockMaStructure, deriveStockMaTrend, STOCK_MA_STABILITY_PRICE_RATIO } from '../src/lib/stockMaStructure.js';
+import { deriveStockMaStructure, deriveStockMaTrend, STOCK_MA_TREND_CONFIG } from '../src/lib/stockMaStructure.js';
 
 const asOfDate = '2026-09-15';
 const bullishRow = Object.freeze({ date: asOfDate, close: 120, ma30: 110, ma60: 100, ma200: 90 });
@@ -87,76 +87,190 @@ test('classification does not use quote, weekly, or older-row substitutes and le
   assert.deepEqual(deriveStockMaStructure(bullishRow, { asOfDate }), { status: 'bullish', asOfDate });
 });
 
-const tradingDates = ['2026-09-08', '2026-09-09', '2026-09-10', '2026-09-11', '2026-09-14', asOfDate];
-
 function trendHistory(pairs, latest = {}) {
+  const dates = [];
+  const cursor = new Date(asOfDate + 'T00:00:00Z');
+  while (dates.length < pairs.length) {
+    if (![0, 6].includes(cursor.getUTCDay())) dates.unshift(cursor.toISOString().slice(0, 10));
+    cursor.setUTCDate(cursor.getUTCDate() - 1);
+  }
   return pairs.map(([ma30, ma60], index) => ({
-    date: tradingDates[index], ma30, ma60,
-    ...(index === 5 ? { close: 1000, ma200: 900, ...latest } : {}),
+    date: dates[index], ma30, ma60,
+    ...(index === pairs.length - 1 ? { close: 1200, ma200: 900, ...latest } : {}),
   }));
 }
 
-function trend(pairs, latest) {
-  return deriveStockMaTrend(trendHistory(pairs, latest), { asOfDate });
+function trend(pairs, latest, config) {
+  return deriveStockMaTrend(trendHistory(pairs, latest), { asOfDate, config });
 }
 
-test('identical user-supplied META latest structure can be repairing or deteriorating depending on its actual history', () => {
-  const today = { close: 665.60, ma200: 623.49 };
-  const rising = trendHistory([[580, 595], [582, 595.4], [584, 595.8], [586, 596.2], [588, 596.5], [590.39, 596.73]], today);
-  const falling = trendHistory([[610, 610], [605, 607], [600, 603], [596, 600], [593, 598], [590.39, 596.73]], today);
-  assert.deepEqual(rising.at(-1), falling.at(-1));
-  assert.deepEqual(deriveStockMaStructure(rising.at(-1), { asOfDate }), { status: 'long_term_up', asOfDate });
-  assert.deepEqual(deriveStockMaStructure(falling.at(-1), { asOfDate }), { status: 'long_term_up', asOfDate });
-  assert.equal(deriveStockMaTrend(rising, { asOfDate }).status, 'repairing');
-  const decline = deriveStockMaTrend(falling, { asOfDate });
-  assert.equal(decline.status, 'deteriorating');
-  assert.equal(decline.comparisonDate, '2026-09-08', 'five trading sessions include the intervening weekend');
-  assert.deepEqual([decline.ma30Slope, decline.ma60Slope, decline.gapToday, decline.gap5dAgo, decline.gapChange].map(value => Number(value.toFixed(2))), [-19.61, -13.27, -6.34, 0, -6.34]);
-});
+function linearPairs(first, last, count = 6) {
+  return Array.from({ length: count }, (_, index) => first.map((value, field) => (
+    value + (last[field] - value) * index / (count - 1)
+  )));
+}
 
-test('the latest strict crossover overrides opposite five-session slopes and gap movement', () => {
-  const strengthening = trend([[130, 100], [120, 105], [115, 108], [108, 110], [110, 110], [111, 110]]);
-  assert.equal(strengthening.status, 'strengthening');
-  assert.ok(strengthening.ma30Slope < 0 && strengthening.gapChange < 0);
-  const weakening = trend([[90, 110], [95, 110], [100, 110], [105, 110], [110, 110], [109, 110]]);
-  assert.equal(weakening.status, 'weakening');
-  assert.ok(weakening.ma30Slope > 0 && weakening.gapChange > 0);
-  assert.equal(trend([[100, 100], [100, 100], [100, 100], [100, 100], [100, 100], [100.1, 100]]).status, 'strengthening');
-  assert.equal(trend([[110, 100], [108, 100], [106, 100], [104, 100], [102, 100], [100, 100]]).status, 'deteriorating',
-    'touching zero today is not a strict crossover');
-});
+const contextualCases = [
+  ['bullish_strengthening', [105, 100], [115, 102], { close: 130, ma200: 90 }],
+  ['bullish_weakening', [125, 110], [115, 105], { close: 130, ma200: 90 }],
+  ['bearish_strengthening', [110, 125], [100, 120], { close: 80, ma200: 130 }],
+  ['bearish_weakening', [90, 115], [100, 120], { close: 80, ma200: 130 }],
+  ['improving', [100, 120], [110, 122], { close: 150, ma200: 130 }],
+  ['structural_weakening', [110, 122], [100, 120], { close: 150, ma200: 130 }],
+  ['stable', [110, 100], [110, 100], { close: 120, ma200: 90 }],
+];
 
-test('stable uses the named close-scaled tolerance with matching rising, falling, or flat directions', () => {
-  assert.equal(STOCK_MA_STABILITY_PRICE_RATIO, 0.001);
-  for (const pairs of [
-    [[110, 100], [112, 102], [114, 104], [116, 106], [118, 108], [120, 110]],
-    [[120, 110], [118, 108], [116, 106], [114, 104], [112, 102], [110, 100]],
-    [[110, 100], [110, 100], [110, 100], [110, 100], [110, 100], [110, 100]],
-    [[110, 100], [112, 102], [114, 104], [116, 106], [118, 108], [120, 109]],
-    [[110, 100], [110, 100], [110, 100], [110, 100], [110, 100], [111, 100]],
-  ]) {
-    const result = trend(pairs);
-    assert.equal(result.stabilityThreshold, 1);
-    assert.equal(result.status, 'stable');
+test('seven contextual outcomes distinguish strengthening bears from strengthening bulls', () => {
+  for (const [status, first, last, latest] of contextualCases) {
+    const result = trend(linearPairs(first, last), latest);
+    assert.equal(result.status, status);
+    assert.equal(result.crossDate, '');
+    assert.equal(result.crossDirection, null);
   }
-  assert.equal(trend([[110, 100], [112, 102], [114, 104], [116, 106], [118, 108], [120, 108.99]]).status, 'improving');
-  assert.equal(trend([[110, 100], [110, 100], [110, 100], [110, 100], [110, 100], [111.5, 100.75]]).status, 'improving',
-    'one rising MA and one flat MA are not stable even inside the gap tolerance');
 });
 
-test('repair needs a negative gap and price above MA200; mixed evidence remains direction unclear', () => {
-  const improvingBelow = [[100, 120], [102, 120], [104, 120], [106, 120], [108, 120], [110, 120]];
-  assert.equal(trend(improvingBelow).status, 'repairing');
-  assert.equal(trend(improvingBelow, { close: 800 }).status, 'improving');
-  assert.equal(trend(improvingBelow, { close: 900 }).status, 'improving');
-  assert.equal(trend([[110, 100], [112, 100], [114, 100], [116, 100], [118, 100], [120, 100]]).status, 'improving');
-  assert.equal(trend([[120, 100], [118, 100], [116, 100], [114, 100], [112, 100], [110, 100]]).status, 'deteriorating');
-  assert.equal(trend([[110, 100], [110, 101], [110, 102], [110, 103], [110, 104], [110, 105]]).status, 'direction_unclear');
-  assert.equal(trend([[110, 100], [111, 102], [112, 104], [113, 106], [114, 108], [115, 110]]).status, 'direction_unclear');
+test('identical user-supplied META latest structure can improve or weaken depending on normalized history', () => {
+  const latest = { close: 665.60, ma200: 623.49 };
+  const rising = trendHistory(linearPairs([580, 595], [590.39, 596.73]), latest);
+  const falling = trendHistory([[611, 612], ...linearPairs([610, 610], [590.39, 596.73])], latest);
+  assert.deepEqual(rising.at(-1), falling.at(-1));
+  assert.equal(deriveStockMaStructure(rising.at(-1), { asOfDate }).status, 'long_term_up');
+  assert.equal(deriveStockMaTrend(rising, { asOfDate }).status, 'improving');
+  const result = deriveStockMaTrend(falling, { asOfDate });
+  assert.equal(result.status, 'structural_weakening');
+  assert.equal(result.comparisonDate, '2026-09-08');
+  assert.ok(Math.abs(result.ma30Slope - (590.39 - 610) / 610) < 1e-12);
+  assert.ok(Math.abs(result.ma60Slope - (596.73 - 610) / 610) < 1e-12);
+  assert.ok(Math.abs(result.gapToday - (590.39 - 596.73) / 596.73) < 1e-12);
+  assert.equal(result.gapAtComparison, 0);
+  assert.equal(result.gapChange, result.gapToday);
+  assert.equal(result.crossAge, null);
+  assert.equal(result.crossDirection, null, 'the historical negative baseline prevents a false new down-cross after touching zero');
 });
 
-test('trend needs six ordered records with the exact latest date, without sorting or duplicate removal', () => {
-  const valid = trendHistory([[100, 120], [102, 120], [104, 120], [106, 120], [108, 120], [110, 120]]);
+test('proportional price scaling preserves decisions, normalized diagnostics, and crossing thresholds', () => {
+  const histories = [
+    ...contextualCases.map(([, first, last, latest]) => trendHistory(linearPairs(first, last), latest)),
+    trendHistory([[998, 1000], [998, 1000], [998, 1000], [998, 1000], [998, 1000], [1001, 1000]]),
+  ];
+  for (const history of histories) {
+    const expected = deriveStockMaTrend(history, { asOfDate });
+    for (const scale of [0.01, 0.1, 100, 1e6]) {
+      const scaled = history.map((row) => Object.fromEntries(Object.entries(row).map(([key, value]) => [
+        key, ['close', 'ma30', 'ma60', 'ma200'].includes(key) ? value * scale : value,
+      ])));
+      const actual = deriveStockMaTrend(scaled, { asOfDate });
+      assert.equal(actual.status, expected.status);
+      assert.equal(actual.crossDate, expected.crossDate);
+      assert.equal(actual.crossAge, expected.crossAge);
+      for (const field of ['ma30Slope', 'ma60Slope', 'gapToday', 'gapAtComparison', 'gapChange']) {
+        assert.ok(Math.abs(actual[field] - expected[field]) < 1e-12, field);
+      }
+    }
+  }
+});
+
+test('ordinary decisions use strict ratio thresholds and the matching long-term structure', () => {
+  assert.equal(trend(linearPairs([1000, 900], [1001, 900]), { ma200: 800 }).status, 'stable');
+  assert.equal(trend(linearPairs([1000, 900], [1001.001, 900]), { ma200: 800 }).status, 'bullish_strengthening');
+  assert.equal(trend(linearPairs([1100, 1000], [1101, 1000]), {}, { slopeThreshold: 0.0001 }).status, 'stable');
+  assert.equal(trend(linearPairs([1100, 1000], [1101.001, 1000]), {}, { slopeThreshold: 0.0001 }).status, 'bullish_strengthening');
+  assert.equal(trend(linearPairs([110, 100], [112, 99]), { close: 130, ma200: 90 }).status, 'stable',
+    'a falling MA60 prevents bullish strengthening');
+  assert.equal(trend(linearPairs([90, 100], [89, 105]), { close: 80, ma200: 110 }).status, 'stable',
+    'a rising MA60 prevents bearish strengthening');
+  for (const pairs of [linearPairs([110, 100], [112, 104]), linearPairs([110, 100], [108, 95])]) {
+    assert.equal(trend(pairs, { close: 150, ma200: 130 }).status, 'structural_weakening', 'long-term up uses either weakening input');
+    assert.equal(trend(pairs, { close: 120, ma200: 130 }).status, 'stable', 'long-term down requires both weakening inputs');
+    assert.equal(trend(pairs, { close: 130, ma200: 130 }).status, 'stable');
+  }
+  assert.equal(trend(linearPairs([112, 104], [110, 104]), { close: 120, ma200: 130 }).status, 'structural_weakening');
+});
+
+test('confirmed crossings include both threshold boundaries and override contrary five-record slopes', () => {
+  const up = trend([[1300, 1000], [1200, 1000], [1100, 1000], [998, 1000], [999.5, 1000], [1001, 1000]]);
+  assert.equal(up.status, 'strengthening');
+  assert.ok(up.ma30Slope < 0 && up.gapChange < 0);
+  assert.equal(up.crossDate, asOfDate);
+  assert.equal(up.crossAge, 0);
+  const down = trend([[900, 1000], [950, 1000], [980, 1000], [1002, 1000], [1000.5, 1000], [999, 1000]]);
+  assert.equal(down.status, 'weakening');
+  assert.ok(down.ma30Slope > 0 && down.gapChange > 0);
+  assert.equal(down.crossDirection, 'down');
+  for (const [start, end] of [[998, 1000.999], [1002, 999.001]]) {
+    const result = trend([[start, 1000], [start, 1000], [start, 1000], [start, 1000], [start, 1000], [end, 1000]]);
+    assert.equal(result.crossDirection, null);
+    assert.notEqual(result.status, 'strengthening');
+    assert.notEqual(result.status, 'weakening');
+  }
+});
+
+test('first records only initialize a side, while zero or small opposite baselines can later confirm a crossing', () => {
+  for (const value of [1001, 999, 1000.5, 999.5]) {
+    const result = trend(Array.from({ length: 6 }, () => [value, 1000]));
+    assert.equal(result.crossDate, '');
+    assert.equal(result.crossDirection, null);
+  }
+  for (const [start, end, status] of [
+    [1000, 1001, 'strengthening'], [999.5, 1001, 'strengthening'],
+    [1000, 999, 'weakening'], [1000.5, 999, 'weakening'],
+  ]) {
+    assert.equal(trend([[start, 1000], [start, 1000], [start, 1000], [start, 1000], [start, 1000], [end, 1000]]).status, status);
+  }
+  const sameSide = trend([[1000.5, 1000], [999.5, 1000], [1000, 1000], [999.5, 1000], [1000.5, 1000], [1001, 1000]]);
+  assert.equal(sameSide.crossDirection, null, 'band-only zero crossings do not change the original side');
+});
+
+test('crossings are recent on trading-record ages zero through four and expire at age five', () => {
+  for (let age = 0; age <= 5; age += 1) {
+    for (const [before, after, status] of [[998, 1001, 'strengthening'], [1002, 999, 'weakening']]) {
+      const pairs = [...Array.from({ length: 5 }, () => [before, 1000]), ...Array.from({ length: age + 1 }, () => [after, 1000])];
+      const result = trend(pairs);
+      assert.equal(result.crossAge, age);
+      if (age < 5) assert.equal(result.status, status);
+      else assert.equal(result.status, 'stable');
+    }
+  }
+});
+
+test('band oscillations neither display the old cross nor refresh its date when the confirmed side returns', () => {
+  const pairs = [[998, 1000], [998, 1000], [998, 1000], [998, 1000], [998, 1000], [1001, 1000],
+    [1000.5, 1000], [999.5, 1000], [1000.5, 1000], [999.5, 1000], [1001, 1000]];
+  const rows = trendHistory(pairs);
+  for (const length of [6, 7, 8, 11]) {
+    const prefix = rows.slice(0, length).map((row, index) => index === length - 1 ? { ...row, close: 1200, ma200: 900 } : row);
+    const result = deriveStockMaTrend(prefix, { asOfDate: prefix.at(-1).date });
+    assert.equal(result.crossDate, rows[5].date);
+    assert.equal(result.crossAge, length - 6);
+    if (length === 6) assert.equal(result.status, 'strengthening');
+    else assert.notEqual(result.status, 'strengthening');
+  }
+  const reentry = trend(pairs.slice(0, 8).concat([[1001, 1000]]));
+  assert.equal(reentry.status, 'strengthening');
+  assert.equal(reentry.crossAge, 3, 'in-band reentry uses the original confirmation date');
+});
+
+test('a later reverse cross always replaces the earlier event', () => {
+  const result = trend([[998, 1000], [998, 1000], [998, 1000], [998, 1000], [998, 1000],
+    [1001, 1000], [1000.5, 1000], [999, 1000], [999.5, 1000], [999, 1000]]);
+  assert.equal(result.status, 'weakening');
+  assert.equal(result.crossDirection, 'down');
+  assert.equal(result.crossAge, 2);
+});
+
+test('historical gaps reset both crossing baseline and events without bridging the gap', () => {
+  const valid = trendHistory([[998, 1000], [998, 1000], [1001, 1000], [1001, 1000],
+    [1001, 1000], [1001, 1000], [1001, 1000], [1001, 1000]]);
+  for (const missing of [{ ...valid[1], ma30: null }, { ...valid[1], date: 'bad' }, null]) {
+    const result = deriveStockMaTrend([valid[0], missing, ...valid.slice(2)], { asOfDate, config: { crossLookback: 10 } });
+    assert.equal(result.status, 'stable');
+    assert.equal(result.crossDate, '');
+    assert.equal(result.crossDirection, null);
+  }
+});
+
+test('trend requires its current complete ordered window and never fills missing MAs from older records', () => {
+  const valid = trendHistory(linearPairs([100, 120], [110, 120]));
   for (const rows of [
     null, [], valid.slice(1), [...valid].reverse(),
     valid.map((row, index) => index === 3 ? { ...row, date: valid[2].date } : row),
@@ -170,12 +284,6 @@ test('trend needs six ordered records with the exact latest date, without sortin
     assert.equal(result.gapToday, null);
     assert.equal(result.ma30Slope, null);
   }
-  assert.equal(deriveStockMaTrend(valid, { asOfDate: '2026-09-16' }).status, 'unavailable');
-  assert.equal(deriveStockMaTrend(valid).status, 'unavailable');
-});
-
-test('missing MAs inside the six-record window cannot be replaced with older values or missing-as-zero', () => {
-  const valid = trendHistory([[100, 120], [102, 120], [104, 120], [106, 120], [108, 120], [110, 120]]);
   const older = { date: '2026-09-04', ma30: 98, ma60: 120 };
   for (let index = 0; index < 6; index += 1) {
     for (const field of ['ma30', 'ma60']) {
@@ -188,16 +296,30 @@ test('missing MAs inside the six-record window cannot be replaced with older val
   for (const field of ['close', 'ma200']) {
     assert.equal(deriveStockMaTrend(valid.map((row, index) => index === 5 ? { ...row, [field]: null } : row), { asOfDate }).status, 'unavailable');
   }
+  assert.equal(deriveStockMaTrend(valid, { asOfDate: '2026-09-16' }).status, 'unavailable');
+  assert.equal(deriveStockMaTrend(valid).status, 'unavailable');
+  const frozen = Object.freeze([Object.freeze({ date: '2026-09-04', ma30: null, ma60: null }), ...valid.map(Object.freeze)]);
+  assert.equal(deriveStockMaTrend(frozen, { asOfDate }).status, 'improving');
+  assert.equal(frozen[1].close, undefined);
+  assert.equal(frozen[1].ma200, undefined);
 });
 
-test('historical close and MA200 are unnecessary, and valid earlier warmup rows are not part of the trend window', () => {
-  const valid = trendHistory([[100, 120], [102, 120], [104, 120], [106, 120], [108, 120], [110, 120]]);
-  const history = Object.freeze([
-    Object.freeze({ date: '2026-09-04', ma30: null, ma60: null }),
-    ...valid.map(Object.freeze),
-  ]);
-  assert.equal(deriveStockMaTrend(history, { asOfDate }).status, 'repairing');
-  assert.equal(history[1].close, undefined);
-  assert.equal(history[1].ma200, undefined);
-  assert.equal(history.length, 7);
+test('frozen ratio configuration permits validated partial overrides without mutating the defaults', () => {
+  assert.equal(Object.isFrozen(STOCK_MA_TREND_CONFIG), true);
+  assert.deepEqual(STOCK_MA_TREND_CONFIG, {
+    lookback: 5, crossLookback: 5, crossThreshold: 0.001, slopeThreshold: 0.001, gapChangeThreshold: 0.001,
+  });
+  const pairs = linearPairs([105, 100], [115, 102], 3);
+  assert.equal(trend(pairs).status, 'unavailable');
+  assert.equal(trend(pairs, { close: 130, ma200: 90 }, { lookback: 2 }).status, 'bullish_strengthening');
+  assert.equal(trend(pairs, { close: 130, ma200: 90 }, { lookback: 2, slopeThreshold: 0.2 }).status, 'stable');
+  const cross = [[998, 1000], [998, 1000], [998, 1000], [998, 1000], [1001, 1000], [1001, 1000]];
+  assert.equal(trend(cross, {}, { crossLookback: 1 }).status, 'bullish_strengthening');
+  assert.equal(trend(cross, {}, { crossThreshold: 0.01 }).crossDirection, null);
+  for (const config of [null, false, [], { unknown: 5 }, { lookback: 0 }, { lookback: 1.5 },
+    { crossLookback: Infinity }, { crossLookback: -1 }, { slopeThreshold: '0.001' },
+    { gapChangeThreshold: undefined }, { crossThreshold: 0 }, { crossThreshold: NaN }]) {
+    assert.equal(trend(linearPairs([105, 100], [115, 102]), {}, config).status, 'unavailable');
+  }
+  assert.equal(STOCK_MA_TREND_CONFIG.lookback, 5);
 });

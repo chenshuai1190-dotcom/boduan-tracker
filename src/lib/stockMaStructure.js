@@ -10,9 +10,37 @@ function positiveNumber(value) {
   return Number.isFinite(value) && value > 0;
 }
 
-// Initial strategy parameter, not a market standard: 0.1% of the latest close
-// is the tolerance for five-session gap stability and near-zero MA changes.
-export const STOCK_MA_STABILITY_PRICE_RATIO = 0.001;
+// Initial strategy parameters, not market standards. Thresholds are ratios;
+// lookbacks count supplied trading records rather than calendar days.
+export const STOCK_MA_TREND_CONFIG = Object.freeze({
+  lookback: 5,
+  crossLookback: 5,
+  crossThreshold: 0.001,
+  slopeThreshold: 0.001,
+  gapChangeThreshold: 0.001,
+});
+
+function trendConfig(overrides) {
+  if (overrides !== undefined && (!overrides || typeof overrides !== 'object' || Array.isArray(overrides))) return null;
+  if (overrides && Object.keys(overrides).some((key) => !Object.hasOwn(STOCK_MA_TREND_CONFIG, key))) return null;
+  const config = { ...STOCK_MA_TREND_CONFIG, ...overrides };
+  if (!['lookback', 'crossLookback'].every((key) => Number.isSafeInteger(config[key]) && config[key] > 0)) return null;
+  if (!['crossThreshold', 'slopeThreshold', 'gapChangeThreshold'].every((key) => positiveNumber(config[key]))) return null;
+  return config;
+}
+
+// Absorb only floating-point subtraction noise at a threshold, so multiplying
+// every price by the same factor cannot turn a mathematical equality into a cross.
+function compareRatio(value, threshold) {
+  const tolerance = Math.min(Number.EPSILON * 8, Math.abs(threshold) * 1e-8);
+  return Math.abs(value - threshold) <= tolerance ? 0 : value > threshold ? 1 : -1;
+}
+
+function gapRatio(row) {
+  return positiveNumber(row?.ma30) && positiveNumber(row?.ma60)
+    ? (row.ma30 - row.ma60) / row.ma60
+    : null;
+}
 
 // The caller supplies the latest completed trading date and one daily row whose
 // close and moving averages share the split-adjusted-close basis.
@@ -34,10 +62,11 @@ export function deriveStockMaStructure(row, { asOfDate } = {}) {
 }
 
 // History must contain consecutive provider trading records, oldest first.
-// No sorting, deduplication or missing-row replacement is performed here.
-// Slopes are five-session changes in price units: MA(t) - MA(t-5).
-export function deriveStockMaTrend(history, { asOfDate } = {}) {
+// Invalid historical records reset cross tracking; they are never skipped to
+// fill the current comparison window. Dates alone cannot identify market holidays.
+export function deriveStockMaTrend(history, { asOfDate, config: overrides } = {}) {
   const date = validDateKey(asOfDate);
+  const config = trendConfig(overrides);
   const unavailable = {
     status: 'unavailable',
     asOfDate: date,
@@ -46,46 +75,83 @@ export function deriveStockMaTrend(history, { asOfDate } = {}) {
     ma60Slope: null,
     gapToday: null,
     gapYesterday: null,
-    gap5dAgo: null,
+    gapAtComparison: null,
     gapChange: null,
-    stabilityThreshold: null,
+    crossDate: '',
+    crossAge: null,
+    crossDirection: null,
   };
-  if (!date || !Array.isArray(history) || history.length < 6) return unavailable;
+  if (!date || !config || !Array.isArray(history) || history.length < config.lookback + 1) return unavailable;
 
+  const today = history.at(-1);
+  const structure = deriveStockMaStructure(today, { asOfDate: date });
+  if (structure.status === 'unavailable') return unavailable;
+  const window = history.slice(-config.lookback - 1);
+  if (window.some((row) => !validDateKey(row?.date) || !Number.isFinite(gapRatio(row)))) return unavailable;
+
+  let confirmedSide = null;
+  let latestCross = null;
   let previousDate = '';
-  for (const row of history) {
+  for (let index = 0; index < history.length; index += 1) {
+    const row = history[index];
     const rowDate = validDateKey(row?.date);
-    if (!rowDate || rowDate <= previousDate) return unavailable;
-    previousDate = rowDate;
+    if (rowDate && rowDate <= previousDate) return unavailable;
+    if (rowDate) previousDate = rowDate;
+    const gap = gapRatio(row);
+    if (!rowDate || !Number.isFinite(gap)) {
+      confirmedSide = null;
+      latestCross = null;
+      continue;
+    }
+    if (confirmedSide === null) {
+      // The first observation establishes a baseline, even inside the band.
+      // It cannot by itself prove a cross. After initialization, only a
+      // confirmed threshold on the other side can change this baseline.
+      confirmedSide = Math.sign(gap);
+      continue;
+    }
+    const side = compareRatio(gap, config.crossThreshold) >= 0 ? 1
+      : compareRatio(gap, -config.crossThreshold) <= 0 ? -1 : 0;
+    if (side !== 0 && side !== confirmedSide) {
+      latestCross = { date: rowDate, index, direction: side === 1 ? 'up' : 'down' };
+      confirmedSide = side;
+    }
   }
   if (previousDate !== date) return unavailable;
 
-  const window = history.slice(-6);
-  if (window.some((row) => !positiveNumber(row.ma30) || !positiveNumber(row.ma60))) return unavailable;
-  const today = window.at(-1);
-  if (!positiveNumber(today.close) || !positiveNumber(today.ma200)) return unavailable;
   const yesterday = window.at(-2);
   const first = window[0];
-  const ma30Slope = today.ma30 - first.ma30;
-  const ma60Slope = today.ma60 - first.ma60;
-  const gapToday = today.ma30 - today.ma60;
-  const gapYesterday = yesterday.ma30 - yesterday.ma60;
-  const gap5dAgo = first.ma30 - first.ma60;
-  const gapChange = gapToday - gap5dAgo;
-  const stabilityThreshold = today.close * STOCK_MA_STABILITY_PRICE_RATIO;
-  if (![ma30Slope, ma60Slope, gapToday, gapYesterday, gap5dAgo, gapChange, stabilityThreshold].every(Number.isFinite)) {
+  const ma30Slope = (today.ma30 - first.ma30) / first.ma30;
+  const ma60Slope = (today.ma60 - first.ma60) / first.ma60;
+  const gapToday = gapRatio(today);
+  const gapYesterday = gapRatio(yesterday);
+  const gapAtComparison = gapRatio(first);
+  const gapChange = gapToday - gapAtComparison;
+  if (![ma30Slope, ma60Slope, gapToday, gapYesterday, gapAtComparison, gapChange].every(Number.isFinite)) {
     return unavailable;
   }
 
-  const direction = (change) => Math.abs(change) <= stabilityThreshold ? 0 : Math.sign(change);
-  let status = 'direction_unclear';
-  if (gapYesterday <= 0 && gapToday > 0) status = 'strengthening';
-  else if (gapYesterday >= 0 && gapToday < 0) status = 'weakening';
-  else if (Math.abs(gapChange) <= stabilityThreshold && direction(ma30Slope) === direction(ma60Slope)) {
-    status = 'stable';
-  } else if (ma30Slope > 0 && gapChange > 0) {
-    status = gapToday < 0 && today.close > today.ma200 ? 'repairing' : 'improving';
-  } else if (ma30Slope < 0 && gapChange < 0) status = 'deteriorating';
+  const crossAge = latestCross ? history.length - 1 - latestCross.index : null;
+  const recentCross = latestCross && crossAge < config.crossLookback;
+  const ma30Up = compareRatio(ma30Slope, config.slopeThreshold) > 0;
+  const ma30Down = compareRatio(ma30Slope, -config.slopeThreshold) < 0;
+  const gapUp = compareRatio(gapChange, config.gapChangeThreshold) > 0;
+  const gapDown = compareRatio(gapChange, -config.gapChangeThreshold) < 0;
+  let status = 'stable';
+  if (recentCross && latestCross.direction === 'up' && compareRatio(gapToday, config.crossThreshold) >= 0) {
+    status = 'strengthening';
+  } else if (recentCross && latestCross.direction === 'down' && compareRatio(gapToday, -config.crossThreshold) <= 0) {
+    status = 'weakening';
+  } else if (structure.status === 'bullish') {
+    if (ma30Up && compareRatio(ma60Slope, -config.slopeThreshold) >= 0 && gapUp) status = 'bullish_strengthening';
+    else if (ma30Down || gapDown) status = 'bullish_weakening';
+  } else if (structure.status === 'bearish') {
+    if (ma30Down && compareRatio(ma60Slope, config.slopeThreshold) <= 0 && gapDown) status = 'bearish_strengthening';
+    else if (ma30Up || gapUp) status = 'bearish_weakening';
+  } else if (ma30Up && gapUp) status = 'improving';
+  else if (structure.status === 'long_term_up' ? ma30Down || gapDown : ma30Down && gapDown) {
+    status = 'structural_weakening';
+  }
 
   return {
     status,
@@ -95,8 +161,10 @@ export function deriveStockMaTrend(history, { asOfDate } = {}) {
     ma60Slope,
     gapToday,
     gapYesterday,
-    gap5dAgo,
+    gapAtComparison,
     gapChange,
-    stabilityThreshold,
+    crossDate: latestCross?.date || '',
+    crossAge,
+    crossDirection: latestCross?.direction || null,
   };
 }
