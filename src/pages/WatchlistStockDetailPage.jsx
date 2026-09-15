@@ -1676,16 +1676,12 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
             <div>RSI<span className="stock-report-rsi-period">(6)</span></div>
             <div className="stock-report-rsi-value" style={{ fontFamily: NUMBER_FONT }}>{rsiDisplay.available ? rsiSignal.value.toFixed(1) : '—'}</div>
             <div className="stock-report-rsi-status">
-              {rsiDisplay.available ? (
-                <>
-                  <span className="stock-report-rsi-zone">{rsiDisplay.zoneLabel}</span>
-                  {rsiDisplay.divergence === 'confirmed' && (
-                    <span data-watchlist-rsi-divergence="true" title={`${language === 'en' ? 'Confirmed on' : '确认于'} ${rsiSignal.divergenceDate}`}>
-                      <span aria-hidden="true">·</span>{language === 'en' ? 'Bearish div.' : '顶背离'}
-                    </span>
-                  )}
-                </>
-              ) : '—'}
+              <span className="stock-report-rsi-zone">{rsiDisplay.zoneLabel || '—'}</span>
+              <span data-watchlist-rsi-divergence={rsiDisplay.divergence}
+                title={rsiDisplay.momentumAvailable && rsiSignal.divergenceDate ? `${rsiDisplay.momentumLabel} · ${rsiSignal.divergenceDate}` : undefined}
+              >
+                <span aria-hidden="true">·</span>{rsiDisplay.momentumLabel}
+              </span>
             </div>
           </div>
         </div>

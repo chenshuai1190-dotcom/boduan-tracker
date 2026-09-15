@@ -1,4 +1,5 @@
 import React, { lazy, Suspense } from 'react';
+import { rsiLifecyclePreview } from './dev/stockRsiFixtures.js';
 import {
   AlertCircle,
   BookOpen,
@@ -359,7 +360,7 @@ const mockWatchlistStockDetailData = {
   currency: 'USD',
   asOfDate: '2026-07-17',
   // Local layout sample for the RSI/confirmed-divergence combination, not a live signal.
-  stockRsi: { period: 6, value: 83.6, asOf: '2026-07-17', priceBasis: 'adjusted_close', bearishDivergence: 'confirmed', divergenceDate: '2026-07-15' },
+  stockRsi: rsiLifecyclePreview(83.6, '2026-07-17', 'FORMING'),
   history: mockWatchlistDetailHistory,
   ma200DailyHistory: buildMockWatchlistDailyMaHistory(),
   relativeReturnHistory: mockWatchlistDetailHistory.map(({ date, close }) => ({ date, close })),
@@ -500,11 +501,11 @@ const mockTqqqFundComposition = {
 
 // Local design samples only, including a divergence state; not live market signals.
 const mockHomeWatchlistRsi = Object.fromEntries(Object.entries({
-  NVDA: { value: 83.6, bearishDivergence: 'confirmed', divergenceDate: '2026-09-10' },
-  MSFT: { value: 78.5, bearishDivergence: 'none', divergenceDate: null },
-  AAPL: { value: 17.3, bearishDivergence: 'none', divergenceDate: null },
-  TSLA: { value: 91.2, bearishDivergence: 'none', divergenceDate: null },
-}).map(([symbol, signal]) => [symbol, { period: 6, asOf: '2026-09-11', priceBasis: 'adjusted_close', ...signal }]));
+  NVDA: { value: 30.3, state: 'REALIZED' },
+  MSFT: { value: 78.5, state: 'NONE' },
+  AAPL: { value: 17.3, state: 'NONE' },
+  TSLA: { value: 91.2, state: 'FORMING' },
+}).map(([symbol, signal]) => [symbol, rsiLifecyclePreview(signal.value, '2026-09-11', signal.state)]));
 
 const mockHomeWatchlist = [
   { symbol: 'NVDA', name: 'NVIDIA', price: 184.08, changePercent: 1.92, high: 195.95, ytdChangePercent: 32.4, intraday: mockMarketIntraday.pink },

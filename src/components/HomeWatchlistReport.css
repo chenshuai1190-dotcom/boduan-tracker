@@ -170,6 +170,14 @@ button.hwr-identity:active { opacity: .65; }
 
 .hwr-aux-label { flex-shrink: 0; color: #65656f; }
 .hwr-aux-value { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 2px 8px; min-width: 0; color: var(--hwr-muted); text-align: right; overflow-wrap: anywhere; }
+.hwr-pnl-value {
+  display: grid;
+  flex: 1;
+  grid-template-columns: minmax(0, 1fr) 8ch;
+  justify-content: stretch;
+  column-gap: 12px;
+  text-align: left;
+}
 .hwr-aux-percent { opacity: .8; }
 .hwr-empty { padding: 30px 0 26px; color: var(--hwr-muted); font-size: 13px; line-height: 22px; text-align: center; }
 
@@ -217,14 +225,13 @@ button.hwr-identity:active { opacity: .65; }
 .hwr-rsi { display: flex; min-width: 0; flex-direction: column; align-items: flex-end; gap: 2px; text-align: right; white-space: nowrap; }
 .hwr-rsi-value { color: var(--hwr-text); font-size: 16px; font-weight: 400; line-height: 21px; }
 .hwr-rsi-zone { max-width: 100%; color: var(--hwr-muted); font-size: 10px; font-weight: 400; line-height: 13px; white-space: normal; }
-.hwr-rsi[data-rsi-zone="severe-overbought"] { --hwr-rsi-color: #ef8267; }
 .hwr-rsi[data-rsi-zone="overbought"] { --hwr-rsi-color: #d5ad72; }
 .hwr-rsi[data-rsi-zone="oversold"] { --hwr-rsi-color: #68b8a5; }
-.hwr-rsi[data-rsi-zone="severe-overbought"] .hwr-rsi-value,
 .hwr-rsi[data-rsi-zone="overbought"] .hwr-rsi-value,
 .hwr-rsi[data-rsi-zone="oversold"] .hwr-rsi-value,
 .hwr-rsi-zone { color: var(--hwr-rsi-color, var(--hwr-muted)); }
-.hwr-divergence { align-self: start; padding-top: 1px; color: var(--hwr-muted); font-size: 12px; font-weight: 400; line-height: 21px; text-align: right; white-space: nowrap; }
+.hwr-divergence { min-width: 0; align-self: start; padding-top: 1px; color: var(--hwr-muted); font-size: 12px; font-weight: 400; line-height: 21px; text-align: right; overflow-wrap: anywhere; }
+.hwr-divergence[data-divergence="forming"],
 .hwr-divergence[data-divergence="confirmed"] { color: #d5ad72; }
 
 @media (max-width: 420px) {

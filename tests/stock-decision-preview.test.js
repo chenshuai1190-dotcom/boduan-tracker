@@ -25,7 +25,7 @@ test('mock scenarios keep chart, price and daily change coherent without planned
   }
 });
 
-test('all localized samples contain exactly four complete checks with no removed event content', () => {
+test('all localized samples contain four checks without the removed calendar-event dimension', () => {
   for (const { symbol } of STOCK_DECISION_SAMPLES) {
     for (const language of ['zh', 'en']) {
       const sample = lookupStockDecision(symbol, language);
@@ -34,11 +34,13 @@ test('all localized samples contain exactly four complete checks with no removed
         ? ['趋势', '位置', '量能', '动量'] : ['Trend', 'Position', 'Volume', 'Momentum']);
       assert.ok(sample.checks.every(check => ['clear', 'caution', 'neutral', 'missing'].includes(check.status)
         && check.reading && check.metric && check.detail));
-      assert.doesNotMatch(JSON.stringify(sample), /财报|事件|earnings|"events?"/i);
+      assert.doesNotMatch(JSON.stringify(sample), /财报|财报事件|earnings|"events?"\s*:/i);
     }
   }
   const fixtures = readFileSync(new URL('../src/dev/stockDecisionFixtures.js', import.meta.url), 'utf8');
-  assert.doesNotMatch(fixtures, /财报|事件|earnings|\bevents?\b/i, 'the fifth sample row and text are deleted, not hidden');
+  // A price-derived divergence event is part of momentum, not a fifth calendar check.
+  assert.doesNotMatch(fixtures, /财报|earnings|\b(?:id|label)\s*:\s*['"]events?['"]/i,
+    'the calendar row and earnings text are deleted, not hidden');
   const statuses = [...fixtures.matchAll(/statuses:\s*\[([^\]]+)\]/g)];
   assert.equal(statuses.length, STOCK_DECISION_SAMPLES.length);
   assert.ok(statuses.every(match => match[1].split(',').filter(value => value.trim()).length === 4));

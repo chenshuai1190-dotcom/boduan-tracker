@@ -201,23 +201,62 @@ test('unused calendar inputs cannot change any of the four technical verdicts or
   }
 });
 
-test('the decision model reuses the established daily RSI and divergence implementation exactly', () => {
-  const rows = history([...Array(130).fill(100), 110, 120, 115, 110, 116, 119, 121, 118, 116]);
-  const expected = buildStockRsi(rows.map(({ date, close }) => ({ date, adjusted_close: close })), { completedCutoffDate: rows.at(-1).date });
+test('the decision model forwards adjusted intraday highs while preserving the exact daily RSI lifecycle', () => {
+  const rows = history([...Array(130).fill(100), 110, 120, 115, 110, 116, 119, 121, 120.7, 120.5, 120.3]);
+  const expected = buildStockRsi(rows.map(({ date, close, high }) => ({ date, close, high, adjusted_close: close })), { completedCutoffDate: rows.at(-1).date });
   const result = calculate(rows);
   assert.deepEqual(result.momentum, expected);
-  assert.equal(result.momentum.bearishDivergence, 'confirmed');
-  assert.ok(result.reasons.includes('bearish_divergence'));
+  assert.equal(result.momentum.divergenceState, 'FORMING');
+  assert.equal(result.momentum.divergenceEvent.high2.price, rows.at(-4).high);
+  assert.equal(Object.hasOwn(result.momentum, 'bearishDivergence'), false);
+  const earlierWick = rows.map(row => ({ ...row }));
+  earlierWick[131].high = 123;
+  const changed = calculate(earlierWick);
+  assert.equal(changed.momentum.value, result.momentum.value, 'RSI still uses completed closes');
+  assert.equal(changed.momentum.divergenceState, 'NONE', 'a lower intraday high is not a new higher-high divergence');
 });
 
-test('RSI at least 80 with confirmed divergence pauses even below the extreme RSI threshold', () => {
-  const rows = history([...Array(130).fill(100), 110, 120, 119, 118, 119, 120, 121, 120.9, 120.8]);
+test('RSI at least 80 with forming divergence pauses before a price drawdown confirms it', () => {
+  const rows = history([...Array(130).fill(100), 110, 120, 119, 118, 118.5, 119.7, 121, 120.9, 120.8, 120.7]);
   const result = calculate(rows);
   assert.ok(result.momentum.value >= 80 && result.momentum.value < 90);
-  assert.equal(result.momentum.bearishDivergence, 'confirmed');
+  assert.equal(result.momentum.divergenceState, 'FORMING');
   assert.equal(result.verdict, 'pause');
   assert.equal(result.reasons[0], 'overbought_divergence');
   assert.equal(result.reasons.includes('rsi_extreme'), false);
+});
+
+test('forming below 80 waits, confirmed weakness pauses even after RSI falls below 80', () => {
+  const prefix = Array.from({ length: 130 }, (_, index) => 100 + [0, 0.1, 0, -0.1][index % 4]);
+  const closes = [...prefix, 110, 120, 115, 110, 116, 119, 121, 120.7, 120.5, 120.3];
+  const forming = calculate(history(closes));
+  assert.equal(forming.momentum.divergenceState, 'FORMING');
+  assert.ok(forming.momentum.value < 80);
+  assert.equal(forming.verdict, 'wait');
+  assert.ok(forming.reasons.includes('bearish_divergence_forming'));
+  const confirmed = calculate(history([...closes, 117.2]));
+  assert.equal(confirmed.momentum.divergenceState, 'CONFIRMED');
+  assert.ok(confirmed.momentum.value < 80);
+  assert.equal(confirmed.verdict, 'pause');
+  assert.equal(confirmed.reasons[0], 'bearish_divergence_confirmed');
+  assert.equal(confirmed.reasons.includes('overbought_divergence'), false);
+});
+
+test('realized and invalidated events stop contributing old divergence pause risks', () => {
+  const prefix = Array.from({ length: 130 }, (_, index) => 100 + [0, 0.1, 0, -0.1][index % 4]);
+  const closes = [...prefix, 110, 120, 115, 110, 116, 119, 121, 120.7, 120.5, 120.3];
+  const realized = calculate(history([...closes, 117.2, 111]));
+  assert.equal(realized.momentum.divergenceState, 'REALIZED');
+  assert.equal(realized.verdict, 'wait');
+  const invalidated = calculate(history([...closes, 500]));
+  assert.equal(invalidated.momentum.divergenceState, 'INVALIDATED');
+  assert.equal(invalidated.verdict, 'pause', 'independent extreme RSI still applies after invalidation');
+  assert.ok(invalidated.reasons.includes('rsi_extreme'));
+  for (const result of [realized, invalidated]) {
+    assert.equal(result.reasons.includes('overbought_divergence'), false);
+    assert.equal(result.reasons.includes('bearish_divergence_confirmed'), false);
+    assert.equal(result.reasons.includes('bearish_divergence_forming'), false);
+  }
 });
 
 test('price pivots older than the 120-bar observation window expire without invented replacement levels', () => {

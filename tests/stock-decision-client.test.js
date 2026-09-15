@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { loadStockDecision, normalizeStockDecisionData, normalizeStockDecisionSymbol } from '../src/lib/stockDecision.js';
 import { getInvestmentComparisonExpectedCloseDate } from '../src/lib/investmentComparison.js';
+import { STOCK_RSI_DIVERGENCE_VERSION } from '../src/lib/stockRsiConfig.js';
 
 const timestamp = Date.parse('2026-09-14T19:00:00Z');
 const session = userId => async () => ({ data: { session: { user: { id: userId }, access_token: `test-token-${userId}` } } });
@@ -29,9 +30,26 @@ function payload(symbol = 'AAPL', now = timestamp) {
       position: { state: 'above_support', atr: 2, resistance: null, brokenSupport: null,
         support: { lower: 89, upper: 91, touches: 1, pivots: [{ date: dates.at(-10), confirmedAt: dates.at(-7), price: 90 }] } },
       volume: { state: 'neutral', ratio: 1, medianRatio: 1, breakout: null },
-      momentum: { period: 6, priceBasis: 'adjusted_close', value: 55, asOf, bearishDivergence: 'none', divergenceDate: null },
+      momentum: { period: 6, priceBasis: 'adjusted_close', value: 55, asOf,
+        divergenceVersion: STOCK_RSI_DIVERGENCE_VERSION, divergenceState: 'NONE', divergenceDate: null,
+        divergenceConfirmationStrength: null, divergenceEvent: null },
     },
   };
+}
+
+function lifecycle(data, state, rsi = 55) {
+  const dates = data.model.history.map(row => row.date);
+  const formedAt = dates.at(-4);
+  const confirmedAt = ['CONFIRMED', 'REALIZED'].includes(state) ? dates.at(-2) : null;
+  const realizedAt = state === 'REALIZED' ? dates.at(-1) : null;
+  const invalidatedAt = state === 'INVALIDATED' ? dates.at(-1) : null;
+  data.model.momentum = { ...data.model.momentum, value: rsi, divergenceState: state,
+    divergenceDate: realizedAt || invalidatedAt || confirmedAt || formedAt,
+    divergenceConfirmationStrength: confirmedAt ? 'BASIC' : null,
+    divergenceEvent: { high1: { date: dates.at(-16), price: 100, rsi: 95 }, high2: { date: dates.at(-7), price: 110, rsi: 80 },
+      formedAt, confirmedAt, realizedAt, invalidatedAt, maxDrawdownPct: state === 'REALIZED' ? 9 : state === 'CONFIRMED' ? 4 : 1 } };
+  data.model.verdict = state === 'CONFIRMED' || state === 'FORMING' && rsi >= 80 ? 'pause' : state === 'FORMING' ? 'wait' : 'observe';
+  return data;
 }
 
 test('stock symbols normalize US tickers and reject paths, foreign suffixes and query fragments', () => {
@@ -60,12 +78,63 @@ test('normalization enforces schema, basis, symbol and causal close dates', () =
     data => { data.model.history[1].date = data.model.history[0].date; },
     data => { data.model.position.support.pivots[0].confirmedAt = '2026-09-15'; },
     data => { data.fetchedAt = '2030-01-01T00:00:00Z'; },
-    data => { data.model.momentum.bearishDivergence = 'confirmed'; data.model.momentum.divergenceDate = '2026-09-15'; },
+    data => { data.model.momentum.divergenceState = 'CONFIRMED'; data.model.momentum.divergenceDate = '2026-09-15'; },
   ];
   for (const [index, mutate] of mutations.entries()) {
     const data = payload(); mutate(data);
     assert.equal(normalizeStockDecisionData(data, { symbol: 'AAPL', now: timestamp }) === null, true, `invalid contract case ${index}`);
   }
+});
+
+test('all lifecycle states validate their event dates and cannot disguise mandatory pause conditions', () => {
+  for (const state of ['FORMING', 'CONFIRMED', 'REALIZED', 'INVALIDATED']) {
+    const data = lifecycle(payload(), state);
+    assert.ok(normalizeStockDecisionData(data, { symbol: 'AAPL', now: timestamp }), state);
+  }
+  for (const data of [lifecycle(payload(), 'FORMING', 81), lifecycle(payload(), 'CONFIRMED', 52)]) {
+    assert.ok(normalizeStockDecisionData(data, { symbol: 'AAPL', now: timestamp }));
+    data.model.verdict = 'observe';
+    assert.equal(normalizeStockDecisionData(data, { symbol: 'AAPL', now: timestamp }), null);
+    data.model.verdict = 'wait';
+    assert.equal(normalizeStockDecisionData(data, { symbol: 'AAPL', now: timestamp }), null);
+  }
+  const forming = lifecycle(payload(), 'FORMING', 65);
+  forming.model.verdict = 'observe';
+  assert.equal(normalizeStockDecisionData(forming, { symbol: 'AAPL', now: timestamp }), null);
+  for (const mutate of [
+    data => { data.model.momentum.divergenceVersion = 'rsi6-old'; },
+    data => { data.model.momentum.divergenceEvent = null; },
+    data => { data.model.momentum.divergenceEvent.high1.price = null; },
+    data => { data.model.momentum.divergenceEvent.high2.rsi = 100; },
+    data => { data.model.momentum.divergenceEvent.formedAt = '2026-09-15'; },
+    data => { data.model.momentum.divergenceEvent.confirmedAt = null; },
+    data => { data.model.momentum.divergenceConfirmationStrength = null; },
+    data => { data.model.momentum.divergenceDate = data.model.momentum.divergenceEvent.formedAt; },
+    data => { data.model.momentum.divergenceEvent.invalidatedAt = data.asOf; },
+  ]) {
+    const data = lifecycle(payload(), 'CONFIRMED');
+    mutate(data);
+    assert.equal(normalizeStockDecisionData(data, { symbol: 'AAPL', now: timestamp }), null);
+  }
+});
+
+test('legacy boolean-era divergence payloads cannot become accepted or cached lifecycle history', async () => {
+  const old = payload();
+  old.model.momentum = { period: 6, priceBasis: 'adjusted_close', value: 55, asOf: old.asOf,
+    bearishDivergence: 'confirmed', divergenceDate: old.asOf };
+  assert.equal(normalizeStockDecisionData(old, { symbol: 'AAPL', now: timestamp }), null);
+  let clock = timestamp;
+  let calls = 0;
+  const config = options('client-legacy-rsi-lifecycle', { now: () => clock, fetchImpl: async () => {
+    calls += 1;
+    return response(calls === 1 ? old : payload('AAPL', clock));
+  } });
+  await assert.rejects(loadStockDecision(config), { code: 'INVALID_DATA' });
+  clock += 60000;
+  const fresh = await loadStockDecision(config);
+  assert.equal(fresh.model.momentum.divergenceState, 'NONE');
+  assert.equal(fresh.model.momentum.divergenceVersion, STOCK_RSI_DIVERGENCE_VERSION);
+  assert.equal(calls, 2, 'legacy payload must not be retained as a six-hour valid report');
 });
 
 test('valuation close retains its separate unadjusted basis without changing the technical report or input quote', () => {
@@ -109,7 +178,9 @@ test('missing numbers stay null while real zero values remain valid', () => {
   data.model.trend = { state: 'insufficient', lastHigh: null, lastLow: null };
   data.model.position = { state: 'unavailable', atr: null, support: null, resistance: null, brokenSupport: null };
   data.model.volume = { state: 'insufficient', ratio: null, medianRatio: null, breakout: null };
-  data.model.momentum = { period: 6, priceBasis: 'adjusted_close', value: null, asOf: null, bearishDivergence: 'insufficient_data', divergenceDate: null };
+  data.model.momentum = { period: 6, priceBasis: 'adjusted_close', value: null, asOf: null,
+    divergenceVersion: STOCK_RSI_DIVERGENCE_VERSION, divergenceState: null, divergenceDate: null,
+    divergenceConfirmationStrength: null, divergenceEvent: null };
   const normalized = normalizeStockDecisionData(data, { symbol: 'AAPL', now: timestamp });
   assert.ok(normalized);
   assert.deepEqual([
@@ -134,7 +205,7 @@ test('observe cannot claim a usable setup while its required analysis data is ab
   const mutations = [
     ['trend', data => { data.model.trend.state = 'insufficient'; }],
     ['momentum', data => { data.model.momentum.value = null; }],
-    ['divergence coverage', data => { data.model.momentum.bearishDivergence = 'insufficient_data'; }],
+    ['divergence coverage', data => { data.model.momentum.divergenceState = null; }],
     ['volume state', data => { data.model.volume.state = 'insufficient'; }],
     ['price position', data => { data.model.position.state = 'unavailable'; data.model.position.support = null; }],
     ['ATR', data => { data.model.position.atr = null; }],

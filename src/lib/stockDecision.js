@@ -1,4 +1,6 @@
 import { getInvestmentComparisonExpectedCloseDate } from './investmentComparison.js';
+import { isStockRsiLifecycleSignal } from './stockRsiSignal.js';
+import { STOCK_RSI_DIVERGENCE_VERSION, STOCK_RSI_RULES } from './stockRsiConfig.js';
 
 const snapshots = new Map();
 const pending = new Map();
@@ -71,13 +73,13 @@ export function normalizeStockDecisionData(value, { symbol, now = Date.now() } =
       || !finite(event.ratio) || event.ratio < 1.2 || typeof event.active !== 'boolean') return null;
   }
   const momentum = model.momentum;
-  if (!momentum || momentum.period !== 6 || momentum.priceBasis !== 'adjusted_close'
-    || !nullableNumber(momentum.value) || (momentum.value !== null && (momentum.value < 0 || momentum.value > 100))
-    || (momentum.value !== null && momentum.asOf !== value.asOf)
-    || !['confirmed', 'none', 'insufficient_data'].includes(momentum.bearishDivergence)
-    || (momentum.bearishDivergence === 'confirmed' && (!date(momentum.divergenceDate) || momentum.divergenceDate > value.asOf))) return null;
+  if (!isStockRsiLifecycleSignal(momentum, { asOf: value.asOf })
+    || (momentum.value !== null && momentum.asOf !== value.asOf)) return null;
+  const lifecycleRequiresPause = momentum.divergenceState === 'CONFIRMED'
+    || momentum.divergenceState === 'FORMING' && momentum.value !== null && momentum.value >= STOCK_RSI_RULES.RSI_OVERBOUGHT;
+  if (lifecycleRequiresPause && model.verdict !== 'pause') return null;
   if (model.verdict === 'observe' && (model.price === null || model.trend.state === 'insufficient'
-    || momentum.value === null || momentum.bearishDivergence === 'insufficient_data'
+    || momentum.value === null || momentum.divergenceState === null || momentum.divergenceState === 'FORMING'
     || volume.state === 'insufficient' || volume.ratio === null || volume.medianRatio === null
     || position.state === 'unavailable' || position.atr === null || position.atr <= 0)) return null;
   return { ...value, valuationClose: normalizeValuationClose(value.valuationClose, value.asOf), expectedAsOfDate: expected, stale: value.stale || value.asOf < expected };
@@ -130,7 +132,7 @@ export async function loadStockDecision({ userId, symbol, force = false, signal,
   };
   const session = await assertSession();
   const timestamp = now();
-  const key = `${userId}:${selected}:${getInvestmentComparisonExpectedCloseDate(timestamp)}`;
+  const key = `${STOCK_RSI_DIVERGENCE_VERSION}:${userId}:${selected}:${getInvestmentComparisonExpectedCloseDate(timestamp)}`;
   const cached = snapshots.get(key);
   if (failures.get(key)?.until > timestamp) {
     if (cached) return { ...cached.data, stale: true };

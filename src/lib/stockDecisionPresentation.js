@@ -1,4 +1,5 @@
 import { stockRsiPresentation } from './stockRsiPresentation.js';
+import { STOCK_RSI_RULES } from './stockRsiConfig.js';
 
 const money = value => typeof value === 'number' && Number.isFinite(value)
   ? `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—';
@@ -18,9 +19,10 @@ const REASONS = {
   insufficient_structure: ['尚未形成足够的已确认高低点', 'Too few confirmed price pivots'], insufficient_momentum: ['动量数据不足', 'Momentum data is incomplete'],
   insufficient_volume: ['量能基准不足', 'Volume baseline is incomplete'],
   support_broken: ['收盘失守原支撑区域', 'The close lost the former support zone'], recent_closing_low: ['收盘创近期新低', 'The close made a recent low'],
-  rsi_extreme: ['RSI (6) 进入严重超买区', 'RSI (6) is extremely overbought'], overbought_divergence: ['超买与有效顶背离同时出现', 'Overbought RSI coincides with active bearish divergence'],
+  rsi_extreme: ['RSI (6) 达到90，触发极高读数条件', 'RSI (6) reaches 90, triggering the extreme-reading condition'], overbought_divergence: ['超买与潜在背离同时出现', 'Overbought RSI coincides with forming divergence'],
   rsi_overbought: ['RSI (6) 进入超买区', 'RSI (6) is overbought'], rsi_oversold: ['RSI (6) 进入超卖区，止跌仍待确认', 'RSI (6) is oversold; stabilization is unconfirmed'],
-  bearish_divergence: ['存在有效顶背离', 'Bearish divergence remains active'],
+  bearish_divergence_forming: ['潜在背离仍待价格确认', 'Forming divergence awaits price confirmation'],
+  bearish_divergence_confirmed: ['动量已确认转弱', 'Momentum weakness is confirmed'],
   near_resistance: ['价格接近上方压力区域', 'Price is approaching resistance'], low_volume_rebound: ['反弹成交量低于此前常态', 'Rebound volume is below its recent baseline'],
   volume_weakness: ['价格走弱伴随成交放大', 'Price weakness is accompanied by higher volume'], downtrend: ['下行结构尚未扭转', 'The declining structure has not yet reversed'],
   mixed_structure: ['价格结构尚未确认方向', 'Price structure has no confirmed direction'], breakout_holding: ['前次放量突破尚未失效', 'The previous volume-backed breakout is still holding'],
@@ -47,17 +49,18 @@ export function stockDecisionPresentation(data, english = false) {
     volumeEvent ? text(`${volumeEvent.date} 放量突破 ${money(volumeEvent.upper)}，当时 ${multiple(volumeEvent.ratio)}；距今 ${volumeEvent.ageBars} 个交易日，${volumeEvent.active ? '尚未失效' : '已失效或到期'}`, `${volumeEvent.date} breakout above ${money(volumeEvent.upper)} on ${multiple(volumeEvent.ratio)} volume; ${volumeEvent.ageBars} sessions ago, ${volumeEvent.active ? 'still active' : 'invalidated or expired'}`) : '',
     text('突破后的成交量回落不直接否定突破；后续检查价格区域，最长保留 10 个后续交易日。', 'Lower volume after a breakout does not invalidate it by itself. The price zone is checked for up to 10 subsequent sessions.'),
   ].filter(Boolean).join('。');
-  const momentumReading = rsi.available ? `RSI (6) ${rsi.zoneLabel}${rsi.divergence === 'confirmed' ? text(' · 顶背离', ' · divergence') : ''}` : text('动量资料不足', 'Momentum unavailable');
-  const momentumDetail = text('使用完成复权日线的 Wilder RSI(6)。20 / 80 / 90 为超卖、超买、严重超买分界。', 'Wilder RSI(6) uses completed adjusted closes. The oversold, overbought and extreme thresholds are 20 / 80 / 90.')
-    + (rsi.divergence === 'confirmed' ? text(` 顶背离确认于 ${momentum.divergenceDate}。`, ` Bearish divergence confirmed on ${momentum.divergenceDate}.`)
-      : rsi.divergence === 'none' ? text(' 未出现有效顶背离。', ' No active bearish divergence.') : text(' 顶背离资料不足。', ' Divergence data is incomplete.'));
+  const activeMomentum = ['FORMING', 'CONFIRMED'].includes(momentum.divergenceState);
+  const momentumReading = rsi.available ? `RSI (6) ${rsi.zoneLabel} · ${rsi.momentumLabel}` : text('动量资料不足', 'Momentum unavailable');
+  const momentumDetail = text('使用完成复权日线的 Wilder RSI(6)。20 / 80 划分超卖、中性、超买；达到90是独立的暂缓条件。', 'Wilder RSI(6) uses completed adjusted closes. The 20 / 80 boundaries define oversold, neutral and overbought; reaching 90 is a separate pause condition.')
+    + (rsi.momentumAvailable ? text(` 动量状态：${rsi.momentumLabel}${momentum.divergenceDate ? `，进入日期 ${momentum.divergenceDate}` : ''}。`, ` Momentum: ${rsi.momentumLabel}${momentum.divergenceDate ? `, entered on ${momentum.divergenceDate}` : ''}.`)
+      : text(' 动量状态资料不足。', ' Momentum-state data is incomplete.'));
   const summary = model.reasons.map(reason => REASONS[reason]?.[english ? 1 : 0]).filter(Boolean).slice(0, 2).join(text('；', '; '));
   const nextSteps = [];
   if (position.brokenSupport) nextSteps.push(text(`观察收盘能否收复 ${zoneText(position.brokenSupport)} 的原支撑区`, `Watch whether a close reclaims former support at ${zoneText(position.brokenSupport)}`));
   else if (volumeEvent?.active) nextSteps.push(text(`观察后续收盘能否守住突破区 ${money(volumeEvent.lower)} – ${money(volumeEvent.upper)}`, `Watch whether closes hold the breakout zone ${money(volumeEvent.lower)} – ${money(volumeEvent.upper)}`));
   else if (position.resistance) nextSteps.push(text(`观察 ${zoneText(position.resistance)} 压力附近的价格与量能配合`, `Watch price and volume around resistance at ${zoneText(position.resistance)}`));
   else if (position.support) nextSteps.push(text(`观察回踩时 ${zoneText(position.support)} 是否保持有效`, `Watch whether support at ${zoneText(position.support)} holds during pullbacks`));
-  if (rsi.available && (momentum.value >= 80 || rsi.divergence === 'confirmed')) nextSteps.push(text('观察超买与顶背离条件是否解除', 'Watch whether overbought and divergence conditions clear'));
+  if (rsi.available && (momentum.value >= STOCK_RSI_RULES.RSI_OVERBOUGHT || activeMomentum)) nextSteps.push(text('观察超买条件及动量状态的后续变化', 'Watch subsequent changes in the overbought condition and momentum state'));
   else nextSteps.push(text('观察后续高低点及回踩量能，不要求每天重复放量', 'Watch subsequent pivots and pullback volume; daily volume spikes are not required'));
   return {
     symbol: data.symbol, name: data.name, asOf: data.asOf, price, changePct: model.changePct,
@@ -78,7 +81,7 @@ export function stockDecisionPresentation(data, english = false) {
         ].join(' ') },
       { id: 'volume', label: text('量能', 'Volume'), status: volume.state === 'insufficient' ? 'missing' : ['weakness', 'low_rebound', 'pullback'].includes(volume.state) ? 'caution' : 'neutral', reading: label(volume.state),
         metric: text(`当日 ${multiple(volume.ratio)}${volumeEvent?.active ? ` · ${volumeEvent.date.slice(5)} 放量突破` : ''}`, `Session ${multiple(volume.ratio)}${volumeEvent?.active ? ` · ${volumeEvent.date.slice(5)} breakout` : ''}`), detail: volumeDetail },
-      { id: 'momentum', label: text('动量', 'Momentum'), status: !rsi.available || rsi.divergence === 'unknown' ? 'missing' : momentum.value >= 80 || rsi.divergence === 'confirmed' ? 'caution' : 'neutral', reading: momentumReading,
+      { id: 'momentum', label: text('动量', 'Momentum'), status: !rsi.available || !rsi.momentumAvailable ? 'missing' : momentum.value >= STOCK_RSI_RULES.RSI_OVERBOUGHT || activeMomentum ? 'caution' : 'neutral', reading: momentumReading,
         metric: rsi.available ? momentum.value.toFixed(1) : '—', detail: momentumDetail },
     ],
     nextSteps: nextSteps.slice(0, 2),

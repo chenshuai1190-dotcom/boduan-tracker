@@ -8,10 +8,32 @@ import { isRegularNyseHoliday, mergeQuoteBaselineRows } from '../src/lib/quoteRe
 import { mergeFreshStockRealtimeRows, mergeStockTicksIntoQuoteRows } from '../src/lib/stockRealtime.js';
 
 const now = Date.parse('2026-09-11T15:00:00Z');
+const divergenceStates = ['NONE', 'FORMING', 'CONFIRMED', 'REALIZED', 'INVALIDATED'];
 const signal = {
   period: 6, value: 82.6, asOf: '2026-09-10', priceBasis: 'adjusted_close',
-  bearishDivergence: 'confirmed', divergenceDate: '2026-09-09',
+  divergenceVersion: 'rsi6-lifecycle-v2', divergenceState: 'CONFIRMED', divergenceDate: '2026-09-09',
+  divergenceConfirmationStrength: 'STRONG',
+  divergenceEvent: {
+    high1: { date: '2026-08-20', price: 120, rsi: 90 },
+    high2: { date: '2026-09-07', price: 125, rsi: 82.6 },
+    formedAt: '2026-09-07', confirmedAt: '2026-09-09', realizedAt: null,
+    invalidatedAt: null, maxDrawdownPct: 1.6,
+  },
 };
+
+function lifecycleSignal(state, strength = 'BASIC') {
+  const event = state && state !== 'NONE' ? structuredClone(signal.divergenceEvent) : null;
+  if (event && state === 'FORMING') event.confirmedAt = null;
+  if (event && state === 'REALIZED') { event.realizedAt = '2026-09-10'; event.maxDrawdownPct = 8; }
+  if (event && state === 'INVALIDATED') event.invalidatedAt = '2026-09-10';
+  return {
+    ...signal, divergenceState: state,
+    divergenceDate: !event ? null : state === 'FORMING' ? event.formedAt
+      : state === 'CONFIRMED' ? event.confirmedAt : event.realizedAt || event.invalidatedAt,
+    divergenceConfirmationStrength: !event || state === 'FORMING' ? null : strength,
+    divergenceEvent: event,
+  };
+}
 
 // Exercise App's real REST projection before the shared cache/universe helpers.
 // A provider-only test would miss a new field dropped by that explicit mapping.
@@ -86,7 +108,9 @@ test('ordinary provider quote calculates RSI from existing adjusted daily closes
   assert.equal(quote.stockRsi?.priceBasis, 'adjusted_close');
   // Independently calculated Wilder(6) result for the deterministic 180-close fixture.
   assert.ok(Math.abs(quote.stockRsi.value - 97.22502669309888) < 1e-9);
-  assert.ok(['none', 'confirmed'].includes(quote.stockRsi.bearishDivergence));
+  assert.equal(quote.stockRsi.divergenceVersion, 'rsi6-lifecycle-v2');
+  assert.ok(divergenceStates.includes(quote.stockRsi.divergenceState));
+  assert.equal(Object.hasOwn(quote.stockRsi, 'bearishDivergence'), false);
   assert.equal(quote.price, 145.25);
   assert.equal(quote.dailyPnlBaselineClose, rows.at(-1).adjusted_close);
   assert.equal(quote.dailyPnlPrice, 145.25);
@@ -111,7 +135,9 @@ test('unavailable or malformed indicator history never hides the valid quote or 
   for (const [payload, historyStatus] of [[[], 200], [{ error: 'unavailable' }, 200], [null, 503], [malformed, 200]]) {
     const quote = await providerQuote(payload, { historyStatus });
     assert.equal(quote.stockRsi?.value ?? null, null, 'missing data cannot become an RSI number');
-    assert.notEqual(quote.stockRsi?.bearishDivergence, 'none', 'missing history cannot assert no divergence');
+    assert.equal(quote.stockRsi?.divergenceState ?? null, null, 'missing history cannot assert NONE');
+    assert.equal(quote.stockRsi?.divergenceEvent ?? null, null);
+    assert.equal(quote.stockRsi?.divergenceConfirmationStrength ?? null, null);
     assert.equal(quote.price, 145.25);
     assert.equal(quote.previousClose, 142.618815);
     assert.equal(quote.dailyPnlPrice, 145.25);
@@ -139,6 +165,27 @@ test('RSI survives actual App REST projection, cache, live ticks and the home wa
   }), 'display-only indicator metadata must not alter asset totals or personal returns');
 });
 
+test('all five lifecycle states and nested event evidence survive REST cache and WS price updates', () => {
+  const watchlist = [{ symbol: 'NVDA', name: 'NVIDIA', price: 90 }];
+  const signals = divergenceStates.map(state => lifecycleSignal(state));
+  signals.push(lifecycleSignal('CONFIRMED', 'STRONG'));
+  signals.push({ ...lifecycleSignal(null), value: null, asOf: null });
+  for (const stockRsi of signals) {
+    const fresh = { symbol: 'NVDA', price: 120, previousClose: 110, dailyBaselineClose: 110,
+      dailyBaselineDate: '2026-09-10', stockRsi };
+    const cached = refreshAppCache([], [fresh], watchlist);
+    assert.deepEqual(cached[0].stockRsi, stockRsi, `${stockRsi.divergenceState}: App must project the full event object`);
+    for (const price of [100, 140]) {
+      const ticked = mergeStockTicksIntoQuoteRows(cached,
+        [{ symbol: 'NVDA', price, timestamp: now, source: 'EODHD_WS' }], 'live', cached, { now });
+      const { watchlistRows } = buildLedgerQuoteUniverse([], watchlist, ticked);
+      assert.equal(watchlistRows[0].price, price);
+      assert.deepEqual(watchlistRows[0].stockRsi, stockRsi, 'ticks cannot form, realize or invalidate a completed-daily state');
+      assert.equal(Object.hasOwn(watchlistRows[0].stockRsi, 'bearishDivergence'), false);
+    }
+  }
+});
+
 test('new REST RSI replaces cached metadata while the newer websocket price keeps precedence', () => {
   for (const cachedSignal of [null, { ...signal, value: 55, asOf: '2026-09-09' }]) {
     const current = { symbol: 'NVDA', price: 125, previousClose: 110, dailyBaselineClose: 110,
@@ -147,6 +194,18 @@ test('new REST RSI replaces cached metadata while the newer websocket price keep
     const [merged] = refreshAppCache([current], [{ ...current, price: 120, stockRsi: signal }]);
     assert.equal(merged.price, 125, 'RSI must not change the existing realtime price precedence');
     assert.deepEqual(merged.stockRsi, signal);
+  }
+});
+
+test('a newly completed lifecycle result atomically replaces the previous event and strength', () => {
+  const current = { symbol: 'NVDA', price: 125, previousClose: 110, dailyBaselineClose: 110,
+    dailyBaselineDate: '2026-09-10', realtime: true, realtimeAt: now, clientReceivedAt: now,
+    source: 'EODHD_WS', stockRsi: signal };
+  for (const state of divergenceStates) {
+    const nextSignal = lifecycleSignal(state);
+    const [merged] = refreshAppCache([current], [{ ...current, price: 120, stockRsi: nextSignal }]);
+    assert.equal(merged.price, 125);
+    assert.deepEqual(merged.stockRsi, nextSignal, `${state}: old event timestamps and STRONG strength must not leak into a new result`);
   }
 });
 
@@ -172,6 +231,6 @@ test('Home prepares the watchlist row signal independently of holding metadata a
     'an active position overlay must not shadow the real watchlist daily indicator');
   assert.doesNotMatch(source, /(?:header|summary|bootstrap|ready|loading)\w*\s*[:=][^;\n]*stockRsi/i);
   const cache = readFileSync(new URL('../src/lib/stockQuoteBootstrapCache.js', import.meta.url), 'utf8');
-  assert.doesNotMatch(cache, /stockRsi|bearishDivergence/,
+  assert.doesNotMatch(cache, /stockRsi|bearishDivergence|divergenceVersion|divergenceState|divergenceEvent/,
     'this indicator must not broaden the restored header bootstrap cache contract');
 });

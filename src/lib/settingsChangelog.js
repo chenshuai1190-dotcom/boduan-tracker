@@ -4,6 +4,19 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '首页自选与股票趋势同步使用 RSI(6) 顶背离生命周期，区分形成、确认、已兑现、失效和动量正常；兑现与失效提示到期后自动结束。',
+      'RSI 区间与动量状态独立显示，股票决策同步调整追高限制；复用已有完整日线，不增加行情请求，不改变均线系统。',
+      '股票趋势固定保留“区间 · 动量状态”，首页持仓盈亏金额和收益率分别左对齐，改善数字排列。',
+    ],
+    itemsEn: [
+      'Home Watchlist and Stock Trend share the RSI(6) bearish-divergence lifecycle: forming, confirmed, realized, invalidated and normal momentum. Realized and invalidated notices expire automatically.',
+      'RSI zones and momentum states are displayed independently, with matching chase-risk rules in Stock Decision. Existing completed daily history is reused without extra quote requests or changes to the MA system.',
+      'Stock Trend always retains the zone and momentum fields. Home holdings align P&L amounts and percentages in separate left-aligned columns.',
+    ],
+  },
+  {
+    ver: 'v10.7.9.531', date: '2026-09-15',
+    items: [
       '股票趋势按当前均线结构显示多头强化／减弱、空头强化／减弱或结构改善／转弱，避免状态文案相互冲突。',
       'MA30 与 MA60 交叉加入 0.1% 确认阈值，优先显示最近五个完整交易日的转强／转弱事件；均线微小波动不重复刷新交叉日期。',
       '沿用已有完整日线和均线计算，统一配置判断阈值，保持页面布局与视觉风格。',

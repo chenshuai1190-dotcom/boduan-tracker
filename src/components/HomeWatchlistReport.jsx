@@ -147,8 +147,7 @@ export default function HomeWatchlistReport({
               const rsi = item.stockRsi;
               const rsiDisplay = stockRsiPresentation(rsi, english);
               const rsiDateLabel = rsiDisplay.available ? `${english ? 'Daily RSI(6)' : '日线 RSI(6)'} · ${rsi.asOf}` : undefined;
-              const divergenceLabel = rsiDisplay.divergence === 'confirmed' ? (english ? 'Confirmed' : '顶背离')
-                : rsiDisplay.divergence === 'none' ? (english ? 'None' : '无') : '—';
+              const divergenceLabel = rsiDisplay.momentumLabel;
 
               return (
                 <div key={item.symbol} className="hwr-row">
@@ -170,13 +169,13 @@ export default function HomeWatchlistReport({
                     )}
                     {showRsi && (
                       <span className="hwr-divergence" data-divergence={rsiDisplay.divergence}
-                        title={rsiDisplay.divergence === 'confirmed' ? `${english ? 'Confirmed on' : '确认于'} ${rsi.divergenceDate}` : undefined}
+                        title={rsiDisplay.momentumAvailable && rsi.divergenceDate ? `${divergenceLabel} · ${rsi.divergenceDate}` : undefined}
                       >{divergenceLabel}</span>
                     )}
                   </div>
                   <div className="hwr-row-secondary">
                     <span className="hwr-aux-label">{labels[auxiliaryMetric]}</span>
-                    <span className="hwr-aux-value" style={{ color: colorFor(auxiliaryValue) }}>
+                    <span className={`hwr-aux-value${auxiliaryMetric === 'pnl' ? ' hwr-pnl-value' : ''}`} style={{ color: colorFor(auxiliaryValue) }}>
                       {auxiliaryMetric === 'pnl' ? (
                         missing(item.pnlValue) ? '—' : (
                           <>

@@ -70,7 +70,9 @@
 .stock-report-rsi-status { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: flex-end; gap: 3px 5px; line-height: 16px; letter-spacing: normal; }
 .stock-report-rsi-zone { color: var(--stock-rsi-color); white-space: nowrap; }
 .stock-report-rsi-metric[data-rsi-zone="neutral"] .stock-report-rsi-zone { color: var(--sr-muted); }
-[data-watchlist-rsi-divergence] { display: inline-flex; align-items: baseline; gap: 5px; color: #d5ad72; white-space: nowrap; }
+[data-watchlist-rsi-divergence] { display: inline-flex; align-items: baseline; gap: 5px; color: #777780; white-space: nowrap; }
+[data-watchlist-rsi-divergence="forming"],
+[data-watchlist-rsi-divergence="confirmed"] { color: #d5ad72; }
 .stock-report-ma-assessment {
   display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 20px; padding: 0 0 24px;

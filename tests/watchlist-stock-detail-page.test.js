@@ -6,6 +6,7 @@ import { deriveMa200RetestDetail } from '../src/lib/ma200RetestDetail.js';
 import { MARKET_COLOR_MODES, marketHexColor } from '../src/lib/marketColorMode.js';
 import { deriveStockMaStructure, deriveStockMaTrend } from '../src/lib/stockMaStructure.js';
 import { t } from '../src/lib/i18n.js';
+import { lifecycleSignal } from './fixtures/stock-rsi-lifecycle.js';
 
 const pageSource = readFileSync(new URL('../src/pages/WatchlistStockDetailPage.jsx', import.meta.url), 'utf8');
 const appSource = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8');
@@ -80,7 +81,7 @@ async function projectStockDetailResponse(body, { ok = true, symbol = 'META' } =
 
 test('the actual detail response projection keeps RSI paired with the selected stock history', async () => {
   const stockDetail = Object.freeze({ history: [{ date: '2026-09-11', close: 648.03 }], currency: 'USD' });
-  const stockRsi = Object.freeze({ period: 6, value: 78.540061933, asOf: '2026-09-11', priceBasis: 'adjusted_close', bearishDivergence: 'none', divergenceDate: null });
+  const stockRsi = Object.freeze(lifecycleSignal('NONE', { value: 78.540061933 }));
   const result = await projectStockDetailResponse({ success: true, data: [
     { symbol: 'NVDA', stockDetail: { history: [] }, stockRsi: { ...stockRsi, value: 12 } },
     { symbol: 'META', stockDetail, stockRsi },
@@ -110,7 +111,7 @@ test('the trend metric waits for its completed chart date and cannot show an old
   const expression = pageSource.match(/const rsiSignal = ([\s\S]*?);/)?.[1];
   assert.ok(expression, 'the chart/signal pairing guard must precede presentation');
   const selectSignal = new Function('loading', 'stockDetail', 'close', `return (${expression});`);
-  const stockRsi = { period: 6, value: 82.6, asOf: '2026-09-11', priceBasis: 'adjusted_close', bearishDivergence: 'confirmed', divergenceDate: '2026-09-10' };
+  const stockRsi = lifecycleSignal('CONFIRMED');
   assert.equal(selectSignal(false, { stockRsi }, { asOfDate: '2026-09-11' }), stockRsi);
   assert.equal(selectSignal(true, { stockRsi }, { asOfDate: '2026-09-11' }), null);
   assert.equal(selectSignal(false, { stockRsi }, { asOfDate: '2026-09-10' }), null, 'a later RSI date must not be paired with an older chart close');
@@ -324,7 +325,7 @@ test('technical indicators retain the daily facts and expose three independently
   assert.ok(pageSource.includes('data-watchlist-rsi-metric="true"'));
   assert.ok(pageSource.includes('stock-report-rsi-metric'));
   assert.ok(pageSource.includes('data-rsi-zone='));
-  assert.ok(pageSource.includes('data-watchlist-rsi-divergence="true"'));
+  assert.ok(pageSource.includes('data-watchlist-rsi-divergence={rsiDisplay.divergence}'));
   assert.doesNotMatch(pageSource, /watchlistDetail\.relativeQqq3m|relativeReturnHistory|deriveThreeMonthQqqRelativeReturn/);
   assert.match(pageSource, /whitespace-nowrap text-\[11px\][^>]*>\{detail\}/, 'existing metric details remain single-line and readable');
   assert.equal(pageSource.includes('distanceEma30'), false);
@@ -606,7 +607,7 @@ test('requested real stock-trend preview never falls back to sample series or RS
 
 test('real preview retains its provider history and paired RSI without filling an absent signal from the sample', () => {
   const sample = { stockRsi: { value: 83.6 }, history: [{ date: '2026-07-17', close: 185 }] };
-  const signal = Object.freeze({ period: 6, value: 78.540061933, asOf: '2026-09-11', priceBasis: 'adjusted_close', bearishDivergence: 'none' });
+  const signal = Object.freeze(lifecycleSignal('NONE', { value: 78.540061933 }));
   const live = Object.freeze({ asOfDate: '2026-09-11', history: [{ date: '2026-09-11', close: 648.03 }], stockRsi: signal });
   const actual = selectLocalStockDetailOverride(true, live, sample);
   assert.equal(actual.history, live.history);

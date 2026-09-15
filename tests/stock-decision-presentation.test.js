@@ -115,7 +115,7 @@ test('stale reports retain the historical close date in the assessment and chart
 
 test('confirmed severe price and momentum risks stay primary in the four-check decision', () => {
   const scenarios = [
-    { rows: breakoutHistory([120, 130, 140, 150, 160, 170, 180]), reason: 'rsi_extreme', checkId: 'momentum', zh: /严重超买/, en: /extremely overbought/i },
+    { rows: breakoutHistory([120, 130, 140, 150, 160, 170, 180]), reason: 'rsi_extreme', checkId: 'momentum', zh: /达到90/, en: /reaches 90/i },
     { rows: breakoutHistory([115, 108], [100, 400]), reason: 'support_broken', checkId: 'position', zh: /失守原支撑/, en: /lost the former support/i },
   ];
   for (const scenario of scenarios) {
@@ -132,6 +132,53 @@ test('confirmed severe price and momentum risks stay primary in the four-check d
       assert.doesNotMatch(JSON.stringify(report), /财报|事件|earnings|"events?"/i);
     }
   }
+});
+
+test('momentum reading keeps the fixed RSI zone separate from all lifecycle labels', () => {
+  const cases = [
+    ['FORMING', 81, 'pause', 'overbought_divergence', '超买 · 顶背离形成', 'Overbought · Divergence forming'],
+    ['CONFIRMED', 55, 'pause', 'bearish_divergence_confirmed', '中性 · 顶背离确认', 'Neutral · Divergence confirmed'],
+    ['REALIZED', 55, 'observe', 'structure_improving', '中性 · 顶背离已兑现', 'Neutral · Divergence realized'],
+    ['INVALIDATED', 55, 'observe', 'structure_improving', '中性 · 顶背离失效', 'Neutral · Divergence invalidated'],
+  ];
+  for (const [state, value, verdict, reason, zh, en] of cases) {
+    const data = reportData(breakoutHistory());
+    const dates = data.model.history.map(row => row.date);
+    const formedAt = dates.at(-4);
+    const confirmedAt = ['CONFIRMED', 'REALIZED'].includes(state) ? dates.at(-2) : null;
+    const realizedAt = state === 'REALIZED' ? dates.at(-1) : null;
+    const invalidatedAt = state === 'INVALIDATED' ? dates.at(-1) : null;
+    Object.assign(data.model, { verdict, reasons: [reason] });
+    Object.assign(data.model.momentum, { value, divergenceState: state,
+      divergenceDate: realizedAt || invalidatedAt || confirmedAt || formedAt,
+      divergenceConfirmationStrength: confirmedAt ? 'BASIC' : null,
+      divergenceEvent: { high1: { date: dates.at(-16), price: 100, rsi: 95 }, high2: { date: dates.at(-7), price: 110, rsi: 80 },
+        formedAt, confirmedAt, realizedAt, invalidatedAt, maxDrawdownPct: state === 'REALIZED' ? 9 : state === 'CONFIRMED' ? 4 : 1 } });
+    assert.ok(normalizeStockDecisionData(data, { symbol: 'MSFT', now }));
+    for (const english of [false, true]) {
+      const report = stockDecisionPresentation(data, english);
+      const momentum = check(report, 'momentum');
+      assert.equal(momentum.reading, `RSI (6) ${english ? en : zh}`);
+      assert.equal(momentum.status, ['FORMING', 'CONFIRMED'].includes(state) ? 'caution' : 'neutral');
+      assert.ok(momentum.detail.includes(data.model.momentum.divergenceDate));
+      assert.doesNotMatch(momentum.detail, /20 \/ 80 \/ 90|严重超买分界|卖出|sell/i);
+      if (state === 'REALIZED' || state === 'INVALIDATED') assert.doesNotMatch(report.nextSteps.join(' '), /动量状态|momentum state/);
+    }
+  }
+  const extreme = reportData(breakoutHistory([120, 130, 140, 150, 160, 170, 180]));
+  const display = check(stockDecisionPresentation(extreme), 'momentum');
+  assert.match(display.reading, /RSI \(6\) 超买 · /);
+  assert.doesNotMatch(display.reading, /严重超买/);
+});
+
+test('an old divergence label cannot masquerade as valid lifecycle evidence in presentation', () => {
+  const data = reportData(breakoutHistory());
+  data.model.momentum = { period: 6, value: 55, asOf: data.asOf, priceBasis: 'adjusted_close',
+    bearishDivergence: 'confirmed', divergenceDate: data.asOf };
+  const momentum = check(stockDecisionPresentation(data), 'momentum');
+  assert.equal(momentum.status, 'missing');
+  assert.equal(momentum.reading, 'RSI (6) 中性 · —');
+  assert.doesNotMatch(momentum.reading, /顶背离确认/);
 });
 
 test('missing momentum, volume and change remain missing rather than showing zero readings', () => {

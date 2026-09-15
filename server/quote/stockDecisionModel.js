@@ -1,4 +1,5 @@
 import { buildStockRsi } from './stockRsi.js';
+import { STOCK_RSI_RULES } from '../../src/lib/stockRsiConfig.js';
 
 // These are explicit v1 strategy parameters, not empirically optimal thresholds.
 export const STOCK_DECISION_RULES = Object.freeze({
@@ -14,8 +15,8 @@ export const STOCK_DECISION_RULES = Object.freeze({
   breakoutActiveBars: 10,
   reboundComparisonBars: 3,
   closingLowBars: 20,
-  rsiOversold: 20,
-  rsiOverbought: 80,
+  rsiOversold: STOCK_RSI_RULES.RSI_OVERSOLD,
+  rsiOverbought: STOCK_RSI_RULES.RSI_OVERBOUGHT,
   rsiExtreme: 90,
 });
 
@@ -228,7 +229,7 @@ function volumeResult(rows, trend, position, breakout) {
 /** Read-only v1 assessment. Input OHLCV must share the adjusted close basis. */
 export function buildStockDecisionModel({ rows: input, asOf } = {}) {
   const rows = normalizeRows(input, asOf);
-  const momentum = buildStockRsi((rows ?? []).map(row => ({ date: row.date, adjusted_close: row.close })), { completedCutoffDate: asOf });
+  const momentum = buildStockRsi((rows ?? []).map(row => ({ date: row.date, close: row.close, high: row.high, adjusted_close: row.close })), { completedCutoffDate: asOf });
   const result = {
     version: 'stock-decision-v1', asOf: rows?.at(-1)?.date ?? null,
     price: rows?.at(-1)?.close ?? null,
@@ -255,15 +256,16 @@ export function buildStockDecisionModel({ rows: input, asOf } = {}) {
   if (rows.length < R.minimumHistoryBars) missing.push('insufficient_history');
   if (result.asOf !== asOf) missing.push('stale_history');
   if (result.trend.state === 'insufficient' || result.position.state === 'unavailable') missing.push('insufficient_structure');
-  if (momentum.value === null || momentum.bearishDivergence === 'insufficient_data') missing.push('insufficient_momentum');
+  if (momentum.value === null || momentum.divergenceState === null) missing.push('insufficient_momentum');
   if (result.volume.ratio === null || result.volume.medianRatio === null) missing.push('insufficient_volume');
   if (result.position.brokenSupport) pause.push('support_broken');
   if (rows.length > R.closingLowBars && result.price < Math.min(...rows.slice(-R.closingLowBars - 1, -1).map(row => row.close))) pause.push('recent_closing_low');
   if (momentum.value !== null && momentum.value >= R.rsiExtreme) pause.push('rsi_extreme');
-  else if (momentum.value !== null && momentum.value >= R.rsiOverbought && momentum.bearishDivergence === 'confirmed') pause.push('overbought_divergence');
+  if (momentum.divergenceState === 'CONFIRMED') pause.push('bearish_divergence_confirmed');
+  else if (momentum.value !== null && momentum.value >= R.rsiOverbought && momentum.divergenceState === 'FORMING') pause.push('overbought_divergence');
   else {
     if (momentum.value !== null && momentum.value >= R.rsiOverbought) wait.push('rsi_overbought');
-    if (momentum.bearishDivergence === 'confirmed') wait.push('bearish_divergence');
+    if (momentum.divergenceState === 'FORMING') wait.push('bearish_divergence_forming');
   }
   if (momentum.value !== null && momentum.value <= R.rsiOversold) wait.push('rsi_oversold');
   if (result.position.state === 'near_resistance' || (result.position.state === 'inside_zone' && result.position.resistance && result.price >= result.position.resistance.lower)) wait.push('near_resistance');

@@ -5,6 +5,7 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { transformWithOxc } from 'vite';
 import { stockRsiPresentation } from '../src/lib/stockRsiPresentation.js';
+import { lifecycleSignal } from './fixtures/stock-rsi-lifecycle.js';
 
 const source = readFileSync(new URL('../src/components/HomeWatchlistReport.jsx', import.meta.url), 'utf8');
 const css = readFileSync(new URL('../src/components/HomeWatchlistReport.css', import.meta.url), 'utf8');
@@ -43,10 +44,7 @@ const sortControl = (tree, key) => {
   const element = nodes(tree, node => node.props.sortKey === key)[0];
   return element?.type(element.props);
 };
-const signal = overrides => ({
-  period: 6, value: 82.6, asOf: '2026-09-11', priceBasis: 'adjusted_close',
-  bearishDivergence: 'none', divergenceDate: null, ...overrides,
-});
+const signal = overrides => lifecycleSignal('NONE', overrides);
 const row = overrides => ({
   symbol: 'NVDA', displayName: '英伟达', price: 223.674321, changePct: -0.91,
   highDrawdown: -5.44, ytdChangePercent: 13.37,
@@ -230,7 +228,7 @@ test('narrow indicator columns keep long English labels inside the cell and pres
   })] });
   const identity = byClass(h.render(), 'hwr-identity')[0];
   assert.equal(identity.props['aria-label'], 'Open LONGSYMBOL stock details');
-  assert.equal(text(byClass(h.render(), 'hwr-rsi-zone')[0]), 'Very overbought');
+  assert.equal(text(byClass(h.render(), 'hwr-rsi-zone')[0]), 'Overbought');
   assert.equal(text(sortControl(h.render(), 'change')).trim(), 'Today');
 });
 
@@ -256,14 +254,14 @@ test('invalid signal values and metadata stay missing instead of becoming neutra
     row({ symbol: 'TSLA', stockRsi: Object.freeze(signal({ value: 100 })) }),
   ] }).render();
   assert.deepEqual(byClass(tree, 'hwr-rsi-value').map(text), ['0.0', '—', '100.0']);
-  assert.deepEqual(byClass(tree, 'hwr-divergence').map(text), ['无', '—', '无']);
+  assert.deepEqual(byClass(tree, 'hwr-divergence').map(text), ['动量正常', '—', '动量正常']);
 });
 
 test('RSI zones honor the approved inclusive boundaries without using rounded display values', () => {
   const cases = [
     [0, 'oversold', '超卖'], [20, 'oversold', '超卖'], [20.01, 'neutral', '中性'],
     [79.99, 'neutral', '中性'], [80, 'overbought', '超买'], [89.99, 'overbought', '超买'],
-    [90, 'severe-overbought', '严重超买'], [100, 'severe-overbought', '严重超买'],
+    [90, 'overbought', '超买'], [100, 'overbought', '超买'],
   ];
   for (const [value, zone, label] of cases) {
     const tree = harness({ rows: [row({ stockRsi: signal({ value }) })] }).render();
@@ -285,27 +283,27 @@ test('the shared RSI palette stays consistent with the Home watchlist colors', (
   assert.equal(stockRsiPresentation(null).color, '#85858d');
 });
 
-test('divergence stays independent of current RSI and distinguishes absent from unassessed', () => {
+test('momentum lifecycle stays independent of the RSI zone and keeps normal momentum visible', () => {
   for (const value of [0, 42, 79.9, 80, 90, 100]) {
-    const tree = harness({ rows: [row({ stockRsi: signal({ value, bearishDivergence: 'confirmed', divergenceDate: '2026-09-10' }) })] }).render();
-    assert.equal(text(byClass(tree, 'hwr-divergence')[0]), '顶背离');
+    const tree = harness({ rows: [row({ stockRsi: lifecycleSignal('CONFIRMED', { value }) })] }).render();
+    assert.equal(text(byClass(tree, 'hwr-divergence')[0]), '顶背离确认');
     assert.equal(byClass(tree, 'hwr-divergence')[0].props['data-divergence'], 'confirmed');
-    assert.equal(byClass(tree, 'hwr-divergence')[0].props.title, '确认于 2026-09-10');
+    assert.equal(byClass(tree, 'hwr-divergence')[0].props.title, '顶背离确认 · 2026-09-09');
     assert.doesNotMatch(text(byClass(tree, 'hwr-rsi')[0]), /顶背离/);
   }
   for (const overrides of [
-    { bearishDivergence: 'insufficient_data' }, { bearishDivergence: null }, { bearishDivergence: 'pending' },
-    { bearishDivergence: 'confirmed', divergenceDate: null },
-    { bearishDivergence: 'confirmed', divergenceDate: '2026-09-12' },
-    { bearishDivergence: 'confirmed', divergenceDate: '2026-02-30' },
+    { divergenceState: null }, { divergenceState: 'pending' }, { divergenceVersion: 'old' },
+    { divergenceState: 'CONFIRMED', divergenceDate: null },
+    { divergenceState: 'CONFIRMED', divergenceDate: '2026-09-12' },
+    { divergenceState: 'CONFIRMED', divergenceDate: '2026-02-30' },
   ]) {
     const tree = harness({ rows: [row({ stockRsi: signal(overrides) })] }).render();
     assert.equal(text(byClass(tree, 'hwr-rsi-value')[0]), '82.6');
     assert.equal(text(byClass(tree, 'hwr-divergence')[0]), '—');
   }
-  const english = harness({ language: 'en', rows: [row({ displayName: 'NVIDIA', stockRsi: signal({ value: 91.2, bearishDivergence: 'confirmed', divergenceDate: '2026-09-10' }) })] });
-  assert.equal(text(byClass(english.render(), 'hwr-rsi-zone')[0]), 'Very overbought');
-  assert.equal(text(byClass(english.render(), 'hwr-divergence')[0]), 'Confirmed');
+  const english = harness({ language: 'en', rows: [row({ displayName: 'NVIDIA', stockRsi: lifecycleSignal('CONFIRMED', { value: 91.2 }) })] });
+  assert.equal(text(byClass(english.render(), 'hwr-rsi-zone')[0]), 'Overbought');
+  assert.equal(text(byClass(english.render(), 'hwr-divergence')[0]), 'Divergence confirmed');
   assert.doesNotMatch(english.html(), /[\u3400-\u9fff]/);
 });
 
