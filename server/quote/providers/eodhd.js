@@ -1,6 +1,7 @@
 import { providerFetch, QUOTE_TIMEOUTS } from '../http.js';
 import { buildEodhdStockDetail } from '../stockDetail.js';
 import { buildStockRsi } from '../stockRsi.js';
+import { buildStockRsiRisk } from '../stockRsiRisk.js';
 import { isRegularNyseHoliday } from '../../../src/lib/quoteRefreshPolicy.js';
 
 const US_EQUITY_REGULAR_START_MINUTES = 9 * 60 + 30;
@@ -801,6 +802,16 @@ export async function fetchStockQuote(symbol, {
           // Reuse the already-fetched daily history. This display-only signal
           // adds no provider request and never participates in quote valuation.
           stockRsi = buildStockRsi(quoteEodData, { completedCutoffDate: completedEodCutoffDate });
+          // Read-only second layer. Ordinary quotes do not fetch split/MA data
+          // for scoring; an active event without verified MA context stays unscored.
+          stockRsi = {
+            ...stockRsi,
+            ...buildStockRsiRisk(stockRsi, {
+              eodRows: quoteEodData,
+              stockDetail,
+              completedCutoffDate: completedEodCutoffDate,
+            }),
+          };
         }
       } catch (e) {
         /* ignore */

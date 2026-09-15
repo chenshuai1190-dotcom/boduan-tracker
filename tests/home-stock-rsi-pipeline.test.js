@@ -7,6 +7,9 @@ import { buildLedgerQuoteUniverse } from '../src/lib/stockUniverse.js';
 import { isRegularNyseHoliday, mergeQuoteBaselineRows } from '../src/lib/quoteRefreshPolicy.js';
 import { mergeFreshStockRealtimeRows, mergeStockTicksIntoQuoteRows } from '../src/lib/stockRealtime.js';
 import { STOCK_RSI_DIVERGENCE_VERSION } from '../src/lib/stockRsiConfig.js';
+import { buildStockRsi } from '../server/quote/stockRsi.js';
+import { buildStockRsiRisk } from '../server/quote/stockRsiRisk.js';
+import { stockRsiPresentation } from '../src/lib/stockRsiPresentation.js';
 
 const now = Date.parse('2026-09-11T15:00:00Z');
 const divergenceStates = ['NONE', 'FORMING', 'CONFIRMED', 'REALIZED', 'INVALIDATED'];
@@ -66,7 +69,7 @@ function completedDailyRows(count = 180) {
   });
 }
 
-async function providerQuote(eodRows, { clock = now, historyStatus = 200 } = {}) {
+async function providerQuote(eodRows, { clock = now, historyStatus = 200, includeStockDetail = false, splitStatus = 200 } = {}) {
   const originalFetch = globalThis.fetch;
   const originalNow = Date.now;
   const requests = [];
@@ -79,20 +82,22 @@ async function providerQuote(eodRows, { clock = now, historyStatus = 200 } = {})
       lastTradePrice: '145.25', ethPrice: '145.25', previousClosePrice: '142.618815', timestamp: clock / 1000,
     } } });
     if (parsed.pathname === '/api/eod/NVDA.US') return response(eodRows, historyStatus);
+    if (parsed.pathname === '/api/splits/NVDA.US') return response([], splitStatus);
     if (parsed.hostname === 'query1.finance.yahoo.com') return response({ chart: { result: [] } });
     throw new Error('Unexpected provider request in RSI integration');
   };
   try {
-    const quote = await fetchStockQuote('NVDA', { eodhdKey: 'mock-only' });
-    assert.equal(requests.length, 3, 'RSI must reuse the existing quote, EOD and intraday requests');
+    const quote = await fetchStockQuote('NVDA', { eodhdKey: 'mock-only', includeStockDetail });
+    assert.equal(requests.length, includeStockDetail ? 4 : 3, 'risk must reuse existing requests');
     assert.deepEqual(requests.map(request => request.path).sort(), [
-      '/api/eod/NVDA.US', '/api/us-quote-delayed', '/v8/finance/chart/NVDA',
+      '/api/eod/NVDA.US', ...(includeStockDetail ? ['/api/splits/NVDA.US'] : []),
+      '/api/us-quote-delayed', '/v8/finance/chart/NVDA',
     ]);
     assert.equal(requests.filter(request => request.path.includes('/technical')).length, 0);
     const expectedStart = new Date(clock);
     expectedStart.setUTCDate(expectedStart.getUTCDate() - 380);
-    assert.equal(requests.find(request => request.path.includes('/api/eod/')).from, expectedStart.toISOString().slice(0, 10),
-      'the homepage indicator must not expand the ordinary quote history window');
+    if (!includeStockDetail) assert.equal(requests.find(request => request.path.includes('/api/eod/')).from,
+      expectedStart.toISOString().slice(0, 10), 'the homepage indicator must not expand the ordinary quote history window');
     assert.equal(quote.error, undefined);
     return quote;
   } finally {
@@ -256,4 +261,40 @@ test('Home prepares the watchlist row signal independently of holding metadata a
   const cache = readFileSync(new URL('../src/lib/stockQuoteBootstrapCache.js', import.meta.url), 'utf8');
   assert.doesNotMatch(cache, /stockRsi|bearishDivergence|divergenceVersion|divergenceState|divergenceEvent/,
     'this indicator must not broaden the restored header bootstrap cache contract');
+});
+
+test('detail risk reuses verified MA history while ordinary quotes keep active risk unavailable', async () => {
+  const closes = [...Array(240).fill(100), 110, 120, 115, 110, 116, 119, 121, 120.7, 120.5, 120.3];
+  const rows = completedDailyRows(closes.length).map((row, index) => ({
+    ...row, close: closes[index], high: closes[index], low: closes[index] * 0.99,
+    adjusted_close: closes[index],
+  }));
+  const original = buildStockRsi(rows, { completedCutoffDate: '2026-09-10' });
+  assert.equal(original.divergenceState, 'FORMING');
+  const ordinary = await providerQuote(rows);
+  const detail = await providerQuote(rows, { includeStockDetail: true });
+  const missingSplits = await providerQuote(rows, { includeStockDetail: true, splitStatus: 503 });
+  assert.equal(ordinary.stockRsi.divergenceRiskScore, null);
+  assert.equal(ordinary.stockRsi.divergenceRiskLevel, null);
+  assert.equal(missingSplits.stockRsi.divergenceRiskLevel, null);
+  assert.equal(typeof detail.stockRsi.divergenceRiskScore, 'number');
+  assert.ok(['NONE', 'LOW', 'MEDIUM', 'HIGH'].includes(detail.stockRsi.divergenceRiskLevel));
+  assert.deepEqual(detail.stockRsi, { ...original, ...buildStockRsiRisk(original, {
+    eodRows: rows, stockDetail: detail.stockDetail, completedCutoffDate: '2026-09-10',
+  }) });
+  for (const quote of [ordinary, detail, missingSplits]) {
+    for (const [key, value] of Object.entries(original)) assert.deepEqual(quote.stockRsi[key], value, key);
+    assert.deepEqual(stockRsiPresentation(quote.stockRsi), stockRsiPresentation(original),
+      'internal risk must not change the current RSI text or colors');
+    assert.equal(quote.price, ordinary.price);
+    assert.equal(quote.dailyPnlPrice, ordinary.dailyPnlPrice);
+  }
+  const unfinished = { date: '2026-09-11', close: 9999, high: 9999, adjusted_close: 9999 };
+  const intraday = await providerQuote([...rows, unfinished], { includeStockDetail: true });
+  assert.deepEqual(intraday.stockRsi, detail.stockRsi, 'all risk inputs must exclude incomplete daily bars');
+  const cached = refreshAppCache([], [detail], [{ symbol: 'NVDA', price: 100 }]);
+  const ticked = mergeStockTicksIntoQuoteRows(cached,
+    [{ symbol: 'NVDA', price: 125, timestamp: now, source: 'EODHD_WS' }], 'live', cached, { now });
+  assert.deepEqual(ticked[0].stockRsi.divergenceDebug, detail.stockRsi.divergenceDebug,
+    'debug contributions survive real REST projection and remain completed-day data after ticks');
 });
