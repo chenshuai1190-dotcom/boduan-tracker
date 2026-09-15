@@ -4,6 +4,17 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '股票趋势默认显示近 6 个月，1 个月至 1 年视图叠加 MA30、MA60、MA200 日均线，点击图表可查看对应日期的均线数值。',
+      '均线复用已有拆股调整收盘数据，不增加行情请求；5 年视图保留原长期均线组合。',
+    ],
+    itemsEn: [
+      'Stock Trend now defaults to six months. One-month through one-year views show daily MA30, MA60 and MA200, with values for the selected chart date.',
+      'Moving averages reuse existing split-adjusted closing prices without additional quote requests. The five-year view retains its long-term moving averages.',
+    ],
+  },
+  {
+    ver: 'v10.7.9.528', date: '2026-09-15',
+    items: [
       '全部功能新增独立股票决策工具，位于摊薄工具上方，输入股票代码查看趋势、位置、量能与动量四项判断。',
       '微软、英伟达和 Meta 接入自动财报估值，随最新财报与已核验指引滚动预测未来四个财季，提供三档 EPS 和 PE 情景参考；待更新数据不沿用过期估值。',
       '工具独立按需加载，不增加首页请求，不改动个人持仓、交易和收益计算。',

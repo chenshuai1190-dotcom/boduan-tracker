@@ -81,6 +81,8 @@ export function normalizeStockDetailHistory(rows = []) {
     byDate.set(date, {
       date,
       close,
+      ma30: positiveNumber(row?.ma30),
+      ma60: positiveNumber(row?.ma60),
       ma200: positiveNumber(row?.ma200),
     });
   }

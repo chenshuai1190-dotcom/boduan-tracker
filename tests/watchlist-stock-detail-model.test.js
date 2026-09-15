@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import {
   deriveThreeMonthQqqRelativeReturn,
@@ -31,12 +32,12 @@ test('stock detail history is normalized and ranges use the latest completed clo
     { date: '2026-07-17', close: 202, ma200: 180 },
     { date: 'bad', close: 999 },
     { date: '2026-06-17', close: 180, ma200: null },
-    { date: '2026-07-17', close: 203, ma200: 181.5 },
+    { date: '2026-07-17', close: 203, ma30: '198.25', ma60: 192.5, ma200: 181.5 },
     { date: '2026-07-16', close: 0 },
   ]);
   assert.deepEqual(rows, [
-    { date: '2026-06-17', close: 180, ma200: null },
-    { date: '2026-07-17', close: 203, ma200: 181.5 },
+    { date: '2026-06-17', close: 180, ma30: null, ma60: null, ma200: null },
+    { date: '2026-07-17', close: 203, ma30: 198.25, ma60: 192.5, ma200: 181.5 },
   ]);
   assert.equal(filterStockDetailHistory(rows, '1m').length, 2);
   assert.deepEqual(resolveStockDetailClose(rows), {
@@ -52,13 +53,43 @@ test('daily history range keeps the real MA field and clamps end-of-month subtra
   const visible = filterStockDetailHistory([
     { date: '2026-02-27', close: 100, ma200: 90 },
     { date: '2026-02-28', close: 101, ma200: null },
-    { date: '2026-03-31', close: 110, ma200: 95 },
+    { date: '2026-03-31', close: 110, ma30: 104, ma60: 99, ma200: 95 },
   ], '1m');
 
   assert.deepEqual(visible, [
-    { date: '2026-02-28', close: 101, ma200: null },
-    { date: '2026-03-31', close: 110, ma200: 95 },
+    { date: '2026-02-28', close: 101, ma30: null, ma60: null, ma200: null },
+    { date: '2026-03-31', close: 110, ma30: 104, ma60: 99, ma200: 95 },
   ]);
+});
+
+test('missing or invalid daily moving averages stay null without removing a valid close', () => {
+  for (const value of [undefined, null, '', 0, -1, Infinity, NaN]) {
+    const [row] = normalizeStockDetailHistory([
+      { date: '2026-07-17', close: 203, ma30: value, ma60: value, ma200: 181.5 },
+    ]);
+    assert.deepEqual(row, {
+      date: '2026-07-17', close: 203, ma30: null, ma60: null, ma200: 181.5,
+    });
+  }
+});
+
+test('stock detail preview calculates daily MA30 and MA60 from its own complete close series', () => {
+  const previewSource = readFileSync(new URL('../src/DevVisualPreview.jsx', import.meta.url), 'utf8');
+  const start = previewSource.indexOf('function buildMockWatchlistDetailHistory()');
+  const end = previewSource.indexOf('function buildMockWatchlistWeeklyHistory()', start);
+  assert.ok(start >= 0 && end > start);
+  const rows = new Function(`${previewSource.slice(start, end)}; return buildMockWatchlistDetailHistory();`)();
+
+  assert.ok(rows.length >= 200);
+  assert.ok(Number.isFinite(rows[0].ma30), 'the first visible point includes hidden warmup');
+  assert.ok(Number.isFinite(rows[0].ma60), 'the first visible point includes hidden warmup');
+  for (const period of [30, 60, 200]) {
+    for (const index of [period - 1, rows.length - 1]) {
+      const mean = rows.slice(index - period + 1, index + 1)
+        .reduce((sum, row) => sum + row.close, 0) / period;
+      assert.equal(rows[index][`ma${period}`], Number(mean.toFixed(4)));
+    }
+  }
 });
 
 test('three-month relative return aligns common dates and uses adjusted QQQ closes only', () => {

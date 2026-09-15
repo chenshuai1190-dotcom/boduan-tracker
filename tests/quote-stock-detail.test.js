@@ -127,9 +127,9 @@ test('stock detail strictly keeps valid raw closes, ignores dividend adjustments
   ], { asOfDate: '2026-07-17' });
 
   assert.deepEqual(detail.history, [
-    { date: '2026-07-14', close: 11, ma200: null },
-    { date: '2026-07-15', close: 10, ma200: null },
-    { date: '2026-07-16', close: 10, ma200: null },
+    { date: '2026-07-14', close: 11, ma30: null, ma60: null, ma200: null },
+    { date: '2026-07-15', close: 10, ma30: null, ma60: null, ma200: null },
+    { date: '2026-07-16', close: 10, ma30: null, ma60: null, ma200: null },
   ]);
   assert.equal(detail.asOfDate, '2026-07-16');
   assert.equal(detail.indicators.week52High, 13);
@@ -167,6 +167,12 @@ test('stock detail calculates MA200, seeded EMA30, and 20-return sample annualiz
   const expectedVolatility = Math.sqrt(sampleVariance) * Math.sqrt(252) * 100;
 
   assert.equal(detail.history.length, 201);
+  assert.equal(detail.history[28].ma30, null);
+  assert.equal(detail.history[29].ma30, 15.5);
+  assert.equal(detail.history[30].ma30, 16.5);
+  assert.equal(detail.history[58].ma60, null);
+  assert.equal(detail.history[59].ma60, 30.5);
+  assert.equal(detail.history[60].ma60, 31.5);
   assert.equal(detail.history[198].ma200, null);
   assert.equal(detail.history[199].ma200, 100.5);
   assert.equal(detail.history[200].ma200, 101.5);
@@ -175,6 +181,28 @@ test('stock detail calculates MA200, seeded EMA30, and 20-return sample annualiz
   assert.equal(detail.indicators.ma200, 101.5);
   assert.equal(detail.indicators.ema30, 186.5);
   assert.ok(Math.abs(detail.indicators.volatility20AnnualizedPct - expectedVolatility) < 1e-12);
+});
+
+test('daily MA30 and MA60 use simple averages of split-only closes rather than EMA or dividend-adjusted closes', () => {
+  const rows = Array.from({ length: 61 }, (_, index) => ({
+    date: dateKeyFrom('2026-01-01', index),
+    close: index < 30 ? 400 : index === 60 ? 220 : 100,
+    adjusted_close: index === 60 ? 110 : 50,
+  }));
+  const detail = buildStockDetail(rows, {
+    asOfDate: rows.at(-1).date,
+    splitActions: [{ date: rows[30].date, split: '4/1' }],
+  });
+
+  assert.equal(detail.history[29].ma30, 100);
+  assert.equal(detail.history[59].ma60, 100);
+  assert.equal(detail.history.at(-1).close, 220);
+  assert.equal(detail.history.at(-1).ma30, 104);
+  assert.equal(detail.history.at(-1).ma60, 102);
+  assert.equal(detail.history.at(-1).ma200, null);
+  assert.notEqual(detail.history.at(-1).ma30, detail.indicators.ema30);
+  assert.equal(detail.relativeReturnHistory.at(-1).close, 110);
+  assert.equal(rows[0].close, 400, 'normalization must not mutate raw provider rows');
 });
 
 test('stock detail derives split-only prices from raw EOD rows and applies a split only to earlier sessions', () => {
@@ -192,9 +220,9 @@ test('stock detail derives split-only prices from raw EOD rows and applies a spl
   assert.equal(detail.relativeReturnPriceBasis, 'adjusted_close');
   assert.equal(detail.splitActionCount, 1);
   assert.deepEqual(detail.history, [
-    { date: '2024-01-02', close: 100, ma200: null },
-    { date: '2024-01-03', close: 102, ma200: null },
-    { date: '2024-01-04', close: 105, ma200: null },
+    { date: '2024-01-02', close: 100, ma30: null, ma60: null, ma200: null },
+    { date: '2024-01-03', close: 102, ma30: null, ma60: null, ma200: null },
+    { date: '2024-01-04', close: 105, ma30: null, ma60: null, ma200: null },
   ]);
   assert.deepEqual(detail.relativeReturnHistory, [
     { date: '2024-01-02', close: 95 },
@@ -277,6 +305,11 @@ test('daily MA200 uses hidden ten-year warmup before the bounded history payload
   assert.ok(detail.history.length < rows.length, 'the response should keep its existing bounded daily payload');
   assert.ok(sourceIndex >= 199, 'the hidden provider rows should be available as warmup');
   assert.equal(firstVisible.ma200, expectedMa);
+  for (const period of [30, 60]) {
+    const expected = rows.slice(sourceIndex - period + 1, sourceIndex + 1)
+      .reduce((sum, row) => sum + row.close, 0) / period;
+    assert.equal(firstVisible[`ma${period}`], expected, 'short daily averages must also be computed before trimming');
+  }
   assert.equal(detail.history.at(-1).ma200, detail.indicators.ma200);
 });
 
@@ -302,7 +335,12 @@ test('five-year daily MA200 history uses 200 daily closes before trimming, indep
       .reduce((sum, row) => sum + row.close, 0) / 200;
     assert.equal(point.close, rows[sourceIndex].close, 'dividend-adjusted close must not replace the existing split-only price basis');
     assert.equal(point.ma200, expectedMa200);
-    assert.deepEqual(Object.keys(point).sort(), ['close', 'date', 'ma200']);
+    for (const period of [30, 60]) {
+      const expected = rows.slice(sourceIndex - period + 1, sourceIndex + 1)
+        .reduce((sum, row) => sum + row.close, 0) / period;
+      assert.equal(point[`ma${period}`], expected);
+    }
+    assert.deepEqual(Object.keys(point).sort(), ['close', 'date', 'ma200', 'ma30', 'ma60']);
   }
   assert.equal(detail.ma200DailyHistory.at(-1).ma200, detail.indicators.ma200);
   assert.notEqual(detail.ma200DailyHistory.at(-1).ma200, detail.indicators.ma50Weekly);
@@ -1190,6 +1228,8 @@ test('stock-detail view is opt-in, returns real EOD calculations, and does not e
     assert.equal(quote.stockDetail.history.length, 220);
     assert.equal(quote.stockDetail.relativeReturnHistory.length, 220);
     assert.equal(quote.stockDetail.history.at(-1).ma200, 219.5);
+    assert.equal(quote.stockDetail.history.at(-1).ma30, 304.5);
+    assert.equal(quote.stockDetail.history.at(-1).ma60, 289.5);
     assert.deepEqual(quote.stockDetail.ma200DailyHistory, quote.stockDetail.history);
     assert.equal(quote.stockDetail.indicators.ma200, 219.5);
     assert.equal(quote.stockDetail.indicators.ema30, 304.5);
@@ -1264,9 +1304,9 @@ test('stock-detail provider passes non-empty split actions through the complete 
     assert.equal(quote.error, undefined);
     assert.equal(quote.stockDetail.splitActionCount, 1);
     assert.deepEqual(quote.stockDetail.history, [
-      { date: '2024-01-02', close: 100, ma200: null },
-      { date: '2024-01-03', close: 102, ma200: null },
-      { date: '2024-01-04', close: 105, ma200: null },
+      { date: '2024-01-02', close: 100, ma30: null, ma60: null, ma200: null },
+      { date: '2024-01-03', close: 102, ma30: null, ma60: null, ma200: null },
+      { date: '2024-01-04', close: 105, ma30: null, ma60: null, ma200: null },
     ]);
     assert.deepEqual(quote.stockDetail.relativeReturnHistory, [
       { date: '2024-01-02', close: 95 },

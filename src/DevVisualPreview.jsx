@@ -195,11 +195,19 @@ function buildMockWatchlistDetailHistory() {
   if (allRows.length > 1) allRows[allRows.length - 2].close = 207.39;
   if (allRows.length > 0) allRows[allRows.length - 1].close = 202.81;
   let rollingSum = 0;
+  let rollingSum30 = 0;
+  let rollingSum60 = 0;
   const rowsWithMa = allRows.map((row, index) => {
+    rollingSum30 += row.close;
+    rollingSum60 += row.close;
+    if (index >= 30) rollingSum30 -= allRows[index - 30].close;
+    if (index >= 60) rollingSum60 -= allRows[index - 60].close;
     rollingSum += row.close;
     if (index >= 200) rollingSum -= allRows[index - 200].close;
     return {
       ...row,
+      ma30: index >= 29 ? Number((rollingSum30 / 30).toFixed(4)) : null,
+      ma60: index >= 59 ? Number((rollingSum60 / 60).toFixed(4)) : null,
       ma200: index >= 199 ? Number((rollingSum / 200).toFixed(4)) : null,
     };
   });

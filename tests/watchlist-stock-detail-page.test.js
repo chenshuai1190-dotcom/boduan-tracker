@@ -337,17 +337,23 @@ test('production watchlist detail only mutates its isolated target, keeps holdin
   assert.ok(appSource.includes('await db.updateWatchlistTargetPrice(symbol, targetPriceUsd)'));
 });
 
-test('production chart pairs daily and weekly MA200 in five-year view without duplicating daily MA200 elsewhere', () => {
+test('production chart defaults to six months with three daily MAs and keeps the five-year weekly overlay', () => {
   const chartSource = pageSource.slice(pageSource.indexOf('function PriceChart('), pageSource.indexOf('\nfunction MetricCell('));
   assert.ok(pageSource.includes('data-watchlist-stock-detail-header="full-width-chart"'));
   assert.ok(pageSource.includes('data-watchlist-stock-price-chart="true"'));
   assert.ok(pageSource.includes('data-watchlist-stock-price-tooltip="true"'));
-  assert.ok(pageSource.includes("stockDetailInitialRange = '5y'"));
-  assert.ok(pageSource.includes("RANGE_IDS.includes(stockDetailInitialRange) ? stockDetailInitialRange : '5y'"));
+  assert.ok(pageSource.includes("stockDetailInitialRange = '6m'"));
+  assert.ok(pageSource.includes("RANGE_IDS.includes(stockDetailInitialRange) ? stockDetailInitialRange : '6m'"));
   assert.ok(pageSource.includes('data-watchlist-stock-chart-ranges="five"'));
   assert.ok(pageSource.includes("? 'price-weekly-ma-daily-ma'"));
-  assert.ok(pageSource.includes(": 'price-daily-ma'"));
+  assert.ok(pageSource.includes(": 'price-ma30-ma60-ma200'"));
   assert.ok(pageSource.includes("range === '5y'"));
+  assert.ok(pageSource.includes("{ key: 'ma30', period: 30"));
+  assert.ok(pageSource.includes("{ key: 'ma60', period: 60"));
+  assert.ok(chartSource.includes('chartGeometry(visibleRows, movingAverageRows, dailyMaRows, weeklyMa ? [] : dailyRows)'));
+  assert.ok(chartSource.includes('data-watchlist-short-daily-ma-line={series.key}'));
+  assert.ok(chartSource.includes('data-watchlist-short-daily-ma-value={series.key}'));
+  assert.ok(chartSource.includes('item.date === selectedPoint.date'), 'hovered moving averages must belong to the selected price date');
   assert.ok(chartSource.includes("const showDailyMa = range === '5y'"), 'the additional daily line appears only beside the five-year weekly line');
   assert.ok(pageSource.includes('visibleWeeklyHistory.map(({ date, close })'));
   assert.ok(pageSource.includes('dailyRows={visibleDailyMaHistory}'), 'the extra daily average must come from the full daily-MA history rather than relabeling weekly values');
@@ -416,7 +422,7 @@ test('price tooltip has wider mobile-bounded single-line metric rows', () => {
   assert.ok(tooltipSource.includes('stock-report-price-tooltip'));
   assert.ok(tooltipSource.includes("? 'left-2' : 'right-2'"));
   assert.equal(tooltipSource.includes('w-[188px]'), false);
-  assert.equal((tooltipSource.match(/className="stock-report-tooltip-row"/g) || []).length, 3);
+  assert.equal((tooltipSource.match(/className="stock-report-tooltip-row"/g) || []).length, 4);
   assert.ok(tooltipSource.includes('{showDailyMa ?'));
   assert.ok(tooltipSource.includes('selectedDailyMaRow.ma200'));
   assert.doesNotMatch(tooltipSource, /MA50|ma50|Ma50/);
@@ -434,6 +440,31 @@ test('historical price selection persists until outside interaction, Escape, or 
   assert.ok(chartSource.includes("if (event.key === 'Escape') { setSelectedIndex(null); return; }"));
   assert.match(chartSource, /selectedPoint\s*\?\s*<button[^>]*className="stock-report-chart-latest"[^>]*onClick=\{\(\) => setSelectedIndex\(null\)\}/);
   assert.ok(chartSource.includes("language === 'en' ? 'Back to latest' : '回到最新'"));
+});
+
+test('daily chart geometry aligns each MA by date and includes all overlays in its price scale', () => {
+  const geometrySource = pageSource.match(/^function chartGeometry\([\s\S]*?^\}/m)?.[0];
+  assert.ok(geometrySource);
+  const geometry = new Function('CHART_WIDTH', 'CHART_HEIGHT', 'SHORT_DAILY_MAS', `return (${geometrySource});`)(352, 308, [
+    { key: 'ma30', period: 30 }, { key: 'ma60', period: 60 },
+  ]);
+  const rows = [
+    { date: '2026-09-10', close: 100, ma30: 120, ma60: null, ma200: 80 },
+    { date: '2026-09-11', close: 105, ma30: 125, ma60: 90, ma200: 81 },
+    { date: '2026-09-14', close: 110, ma30: 130, ma60: 92, ma200: 82 },
+  ];
+  const chart = geometry(rows, rows, [], [{ date: '2026-09-09', close: 5, ma30: 9000 }, ...rows]);
+  assert.deepEqual(chart.shortDailyMaSeries.map((series) => series.points.length), [3, 2]);
+  for (const series of chart.shortDailyMaSeries) {
+    assert.ok(series.path.startsWith('M '));
+    assert.doesNotMatch(series.path, /NaN|Infinity/);
+    for (const point of series.points) {
+      assert.equal(point.x, chart.pricePoints.find((price) => price.date === point.date).x);
+      assert.ok(point.y >= chart.top && point.y <= 308 - chart.bottom);
+    }
+  }
+  assert.ok(chart.priceLines[0].value > 130 && chart.priceLines[0].value < 150, 'off-screen history must not distort the price scale');
+  assert.equal(chart.shortDailyMaSeries[1].points[0].date, '2026-09-11', 'missing warmup must not become zero');
 });
 
 test('the default local MA200 fixture is deterministic, explicitly simulated, and uses the production result schema', () => {

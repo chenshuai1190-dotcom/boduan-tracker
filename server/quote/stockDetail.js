@@ -317,7 +317,15 @@ function normalizeRows(rows, splitActions, asOfDate) {
 
 function buildDailyHistory(normalizedRows) {
   let rollingSum = 0;
+  let rollingSum30 = 0;
+  let rollingSum60 = 0;
   return normalizedRows.map((row, index) => {
+    rollingSum30 += row.close;
+    rollingSum60 += row.close;
+    if (index >= 30) rollingSum30 -= normalizedRows[index - 30].close;
+    if (index >= 60) rollingSum60 -= normalizedRows[index - 60].close;
+    const ma30 = index >= 29 ? rollingSum30 / 30 : null;
+    const ma60 = index >= 59 ? rollingSum60 / 60 : null;
     rollingSum += row.close;
     if (index >= DAILY_MA_WINDOW) rollingSum -= normalizedRows[index - DAILY_MA_WINDOW].close;
     const ma200 = index >= DAILY_MA_WINDOW - 1
@@ -326,6 +334,8 @@ function buildDailyHistory(normalizedRows) {
     return {
       date: row.date,
       close: row.close,
+      ma30: Number.isFinite(ma30) ? ma30 : null,
+      ma60: Number.isFinite(ma60) ? ma60 : null,
       ma200: Number.isFinite(ma200) ? ma200 : null,
     };
   });
