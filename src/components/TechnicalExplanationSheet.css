@@ -52,15 +52,17 @@
 .tes-content { min-height: 0; overflow-y: auto; overscroll-behavior-y: contain; -webkit-overflow-scrolling: touch; padding: 0 22px calc(24px + env(safe-area-inset-bottom)); }
 .tes-section-label, .tes-section h3 { margin: 0 0 10px; color: #8e8f96; font-size: 12px; line-height: 19px; font-weight: 400; }
 .tes-status { color: #e3e3e7; font-size: 22px; line-height: 31px; font-weight: 400; overflow-wrap: anywhere; }
-.tes-summary { margin: 0; color: #e3e3e7; font-size: 16px; line-height: 25px; overflow-wrap: anywhere; }
+.tes-summary { margin: 0; color: #e3e3e7; font-size: 16px; line-height: 25px; overflow-wrap: anywhere; text-wrap: balance; }
 .tes-date { margin-top: 5px; color: #77787f; font-size: 11px; line-height: 18px; }
 .tes-incomplete { margin: 9px 0 0; color: #9b9ca2; font-size: 12px; line-height: 19px; }
 .tes-values { margin: 18px 0 0; }
 .tes-values > div { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 5px 0; }
 .tes-values dt { color: #898a91; font-size: 12px; line-height: 20px; }
 .tes-values dd { margin: 0; color: #c8c8ce; font-size: 14px; line-height: 21px; text-align: right; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.tes-values > .tes-value-narrative { flex-direction: column; align-items: stretch; gap: 4px; }
+.tes-value-narrative dd { min-width: 0; text-align: left; text-wrap: pretty; }
 .tes-section { margin-top: 21px; padding-top: 19px; border-top: 1px solid rgba(255, 255, 255, .07); }
-.tes-section p { margin: 8px 0 0; color: #b9b9c0; font-size: 14px; line-height: 23px; font-weight: 400; overflow-wrap: anywhere; }
+.tes-section p { margin: 8px 0 0; color: #b9b9c0; font-size: 14px; line-height: 23px; font-weight: 400; overflow-wrap: anywhere; text-wrap: pretty; }
 .tes-details { margin-top: 18px; border-top: 1px solid rgba(255, 255, 255, .07); }
 .tes-details summary { display: flex; align-items: center; justify-content: space-between; min-height: 48px; padding: 10px 0; color: #a6a6ad; font-size: 13px; line-height: 21px; cursor: pointer; list-style: none; -webkit-tap-highlight-color: transparent; }
 .tes-details summary::-webkit-details-marker { display: none; }

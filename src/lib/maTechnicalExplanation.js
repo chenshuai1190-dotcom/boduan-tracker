@@ -316,12 +316,12 @@ export function buildMaTechnicalExplanation(options = {}) {
   };
   if (!isStructure) {
     const detailRows = [];
-    const add = (group, label, value) => detailRows.push({ label: `${group} · ${label}`, value });
+    const add = (group, label, value, layout) => detailRows.push({ label: `${group} · ${label}`, value, ...(layout ? { layout } : {}) });
     const observation = text('系统观察', 'System observation');
     const dataGroup = text('当前数据', 'Current data');
     const ruleGroup = text('系统规则', 'System rule');
     const observationText = {
-      bullish_strengthening: text('多头排列中的MA30是否继续走高并扩大相对领先优势。', 'Whether MA30 keeps rising and extends its relative lead within a bullish alignment.'),
+      bullish_strengthening: text('MA30是否走高，并扩大相对MA60的领先优势。', 'Whether MA30 rises and extends its lead over MA60.'),
       bullish_weakening: down
         ? text('多头排列中的MA30是否明显回落。', 'Whether MA30 falls materially within a bullish alignment.')
         : text('多头排列中的相对领先幅度是否持续收窄。', 'Whether the relative lead narrows persistently within a bullish alignment.'),
@@ -334,7 +334,7 @@ export function buildMaTechnicalExplanation(options = {}) {
       stable: text('当前结构的强化、减弱或近期交叉条件是否齐备。', 'Whether strengthening, weakening, or recent crossover criteria are met for the current structure.'),
     };
     if (!detailed.incomplete && observationText[state.status]) {
-      detailRows.push({ label: observation, value: observationText[state.status] });
+      detailRows.push({ label: observation, value: observationText[state.status], layout: 'narrative' });
     }
     // Absolute prices belong to the structure explanation, not these directional rules.
     for (const row of detailed.rows.filter(row => !['完整日收盘价', 'Completed daily close', 'MA30', 'MA60', 'MA200'].includes(row.label))) {
@@ -348,7 +348,8 @@ export function buildMaTechnicalExplanation(options = {}) {
     const ma30DownRule = text(`MA30最近${rules.lookback}日 < −${slope}`, `MA30 over ${rules.lookback} days < −${slope}`);
     const gapUpRule = text(`相对位置变化 > +${gap}`, `Relative-position change > +${gap}`);
     const gapDownRule = text(`相对位置变化 < −${gap}`, `Relative-position change < −${gap}`);
-    const addRule = (zhLabel, enLabel, value) => add(ruleGroup, text(zhLabel, enLabel), value);
+    const narrativeRules = new Set(['条件关系', '持续性要求', '有效期限', '判断优先级', '近期交叉', '未满足多头强化', '持续性结果', '未满足空头强化', '未触发空头减弱', '未满足结构改善', '未满足结构转弱', '转弱条件关系']);
+    const addRule = (zhLabel, enLabel, value) => add(ruleGroup, text(zhLabel, enLabel), value, narrativeRules.has(zhLabel) ? 'narrative' : undefined);
     const contractionRules = () => {
       addRule(`${rules.lookback}日领先幅度收窄`, `${rules.lookback}-day relative-lead contraction`, `> ${gap}`);
       addRule('有效收窄次数', 'Meaningful contraction count', text(`≥ ${rules.contractionMinDays} / ${rules.contractionLookback - 1}次`, `≥ ${rules.contractionMinDays} / ${rules.contractionLookback - 1} comparisons`));
@@ -428,7 +429,7 @@ export function buildMaTechnicalExplanation(options = {}) {
           break;
         }
       }
-      if (state.status && state.status !== 'stable') add(dataGroup, text('判断结果', 'Result'), text(`当前满足上述条件，因此判断为${detailed.status}。`, `The current data meet the conditions above, giving a judgment of ${detailed.status}.`));
+      if (state.status && state.status !== 'stable') add(dataGroup, text('判断结果', 'Result'), text(`当前满足上述条件，因此判断为${detailed.status}。`, `The current data meet the conditions above, giving a judgment of ${detailed.status}.`), 'narrative');
     }
     result.ruleDetails = { rows: detailRows, lines: [
       ...(detailed.incomplete ? detailed.why : []),
@@ -486,13 +487,13 @@ export function buildMaTechnicalExplanation(options = {}) {
   }
 
   const meaning = {
-    bullish_strengthening: ['多头结构仍在，而且MA30相对MA60的领先优势正在扩大。', 'The bullish structure remains, and MA30 is extending its relative lead over MA60.'],
+    bullish_strengthening: ['多头结构仍在，短期领先优势扩大。', 'The bullish structure remains, with a widening short-term lead.'],
     bullish_weakening: down
       ? ['多头结构仍在，但MA30近期已明显回落。', 'The bullish structure remains, but MA30 has recently declined materially.']
       : ['多头结构仍在，但MA30相对MA60的领先优势正在收窄。', 'The bullish structure remains, but MA30’s relative lead over MA60 is narrowing.'],
     bearish_strengthening: ['空头结构仍在，而且MA30相对MA60正在进一步走弱。', 'The bearish structure remains, and MA30 is weakening further relative to MA60.'],
     bearish_weakening: ['空头结构仍在，但短期弱势正在缓和。', 'The bearish structure remains, but short-term weakness is easing.'],
-    improving: ['当前还没有形成完整强势排列，但短中期结构正在改善。', 'A complete bullish alignment has not formed, but the shorter-term structure is improving.'],
+    improving: ['尚未形成完整多头排列，短中期结构正在改善。', 'The shorter-term structure is improving, without a complete bullish alignment yet.'],
     structural_weakening: ['当前还没有形成完整空头排列，但短中期结构正在走弱。', 'A complete bearish alignment has not formed, but the shorter-term structure is weakening.'],
     strengthening: ['MA30近期有效上穿MA60，短中期趋势出现明确转强。', 'MA30 recently confirmed a cross above MA60, marking a clear short/medium-term strengthening event.'],
     weakening: ['MA30近期有效下穿MA60，短中期趋势出现明确转弱。', 'MA30 recently confirmed a cross below MA60, marking a clear short/medium-term weakening event.'],
@@ -502,7 +503,7 @@ export function buildMaTechnicalExplanation(options = {}) {
   switch (state.status) {
     case 'bullish_strengthening':
       result.why = [text('MA30继续走高，相对MA60的领先幅度扩大。', 'MA30 continued rising and extended its relative lead over MA60.')];
-      result.plain = [text('当前保持多头排列，短期均线相对中期进一步走强，趋势正在增强。', 'The bullish alignment remains, while the short-term average strengthens relative to the medium-term average.')];
+      result.plain = [text('MA30相对MA60进一步走强，多头趋势正在增强。', 'MA30 is strengthening relative to MA60, reinforcing the bullish trend.')];
       break;
     case 'bullish_weakening':
       if (down) {

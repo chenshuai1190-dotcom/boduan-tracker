@@ -60,7 +60,7 @@ test('English labels and unavailable inputs are explicit without inventing zero'
 
 test('rules and event evidence are separate native disclosures and start collapsed', t => {
   const model = { ...explanation, currentView: ['当前价格已收复部分跌幅。'],
-    ruleDetails: { rows: [{ label: '五日领先幅度变化', value: '-0.2474个百分点' }], lines: ['至少3次有效收窄。'] },
+    ruleDetails: { rows: [{ label: '系统观察', value: 'MA30是否走高，并扩大相对MA60的领先优势。', layout: 'narrative' }, { label: '五日领先幅度变化', value: '-0.2474个百分点' }], lines: ['至少3次有效收窄。'] },
     eventDetails: { rows: [{ label: '确认日期', value: '2026-09-02' }], lines: ['这是此前确认的事件。'] } };
   const html = renderToStaticMarkup(renderSheet(t, { explanation: model }));
   assert.equal((html.match(/<details /g) || []).length, 2);
@@ -71,6 +71,8 @@ test('rules and event evidence are separate native disclosures and start collaps
   assert.match(primary, /当前怎么看[\s\S]*当前价格已收复部分跌幅/);
   assert.doesNotMatch(primary, /-0.2474|2026-09-02|至少3次/);
   assert.match(source, /FOCUSABLE\s*=\s*'[^']*summary/);
+  assert.match(html, /<div class="tes-value-narrative"><dt>系统观察<\/dt><dd>MA30是否走高，并扩大相对MA60的领先优势。<\/dd><\/div>/);
+  assert.match(html, /<div><dt>五日领先幅度变化<\/dt><dd>-0.2474个百分点<\/dd><\/div>/);
 });
 
 test('empty details and empty narrative sections do not leave misleading empty entries', t => {

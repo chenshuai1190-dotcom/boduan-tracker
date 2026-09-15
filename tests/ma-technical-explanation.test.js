@@ -154,7 +154,11 @@ test('expansion counts are observations and are never imposed as a strengthening
   const data = input(gapPairs([0.1, 0.1, 0.1, 0.1, 0.1, 0.102]));
   assert.equal(data.technicalState.maTrend.status, 'bullish_strengthening');
   const result = buildMaTechnicalExplanation(data);
-  assert.equal(result.summary, '多头结构仍在，而且MA30相对MA60的领先优势正在扩大。');
+  assert.equal(result.summary, '多头结构仍在，短期领先优势扩大。');
+  assert.equal(result.ruleDetails.rows.find(row => row.label === '系统观察').layout, 'narrative');
+  assert.equal(ruleRow(result, '条件关系').layout, 'narrative');
+  assert.equal(ruleRow(result, '判断结果').layout, 'narrative');
+  assert.equal(ruleRow(result, 'MA30变化').layout, undefined, 'numeric comparisons retain their two-column layout');
   const observation = result.ruleDetails.rows.find(row => row.label.includes('有效扩大'));
   assert.match(observation.label, /仅观察/);
   assert.equal(observation.value, '1 / 4次');

@@ -82,7 +82,7 @@ function ExplanationSection({ title, lines }) {
 
 function ExplanationValues({ rows }) {
   if (!rows?.length) return null;
-  return <dl className="tes-values">{rows.map((row, index) => <div key={index}><dt>{row.label}</dt><dd>{row.value ?? '—'}</dd></div>)}</dl>;
+  return <dl className="tes-values">{rows.map((row, index) => <div key={index} className={row.layout === 'narrative' ? 'tes-value-narrative' : undefined}><dt>{row.label}</dt><dd>{row.value ?? '—'}</dd></div>)}</dl>;
 }
 
 function ExplanationDetails({ title, content, type }) {
