@@ -24,7 +24,7 @@ test('watchlist stock detail has an isolated standalone page route', () => {
   assert.ok(appSource.includes('<StockDetailPage ctx={tabCtx} />'), 'the existing P&L stock-detail page must remain intact');
 });
 
-test('Home report delegates watchlist-only detail navigation from the whole stock row', () => {
+test('Home report delegates watchlist-only detail navigation from the enlarged stock identity', () => {
   assert.ok(homeTabSource.includes('openWatchlistStockDetail,'));
   const report = homeTabSource.match(/<HomeWatchlistReport\b[\s\S]*?\n\s*\/>/)?.[0];
   assert.ok(report, 'the formal Home page must render the report');
@@ -32,10 +32,10 @@ test('Home report delegates watchlist-only detail navigation from the whole stoc
   assert.ok(report.includes('rows={tableRows}'));
   assert.ok(report.includes('onOpenStock={openWatchlistStockDetail}'), 'the presentation component must receive the original production route callback');
   assert.ok(watchlistReportSource.includes("const isWatchlist = tableTab === 'watchlist'"));
-  assert.match(watchlistReportSource, /const rowProps = isWatchlist \? \{[\s\S]*?role: 'button',[\s\S]*?tabIndex: 0,[\s\S]*?'aria-label':[\s\S]*?onClick:[\s\S]*?onOpenStock\?\.\(item\.symbol\)[\s\S]*?\} : \{\};/, 'only watchlist rows expose the labelled stock-detail action; holdings stay noninteractive');
-  assert.match(watchlistReportSource, /<div key=\{item\.symbol\} className="hwr-row" \{\.\.\.rowProps\}>/);
-  assert.match(watchlistReportSource, /<div className="hwr-identity">/);
-  assert.doesNotMatch(watchlistReportSource, /identityProps|<Identity\b/);
+  assert.match(watchlistReportSource, /const identityProps = isWatchlist \? \{[\s\S]*?role: 'button',[\s\S]*?tabIndex: 0,[\s\S]*?'aria-label':[\s\S]*?onClick:[\s\S]*?onOpenStock\?\.\(item\.symbol\)[\s\S]*?\} : \{\};/, 'only watchlist identities expose the labelled stock-detail action; holdings stay noninteractive');
+  assert.match(watchlistReportSource, /<div key=\{item\.symbol\} className="hwr-row">/);
+  assert.match(watchlistReportSource, /<div className="hwr-identity" \{\.\.\.identityProps\}>/);
+  assert.doesNotMatch(watchlistReportSource, /rowProps|aria-describedby|hwr-main-\$\{|hwr-secondary-\$\{/);
 });
 
 test('watchlist detail return restores the prior Home scroll without replacing double-tap-to-top', () => {

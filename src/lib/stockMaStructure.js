@@ -1,3 +1,7 @@
+import { STOCK_MA_TREND_CONFIG } from './stockMaTrendConfig.js';
+
+export { STOCK_MA_TREND_CONFIG };
+
 function validDateKey(value) {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return '';
   const date = new Date(`${value}T00:00:00Z`);
@@ -10,22 +14,13 @@ function positiveNumber(value) {
   return Number.isFinite(value) && value > 0;
 }
 
-// Initial strategy parameters, not market standards. Thresholds are ratios;
-// lookbacks count supplied trading records rather than calendar days.
-export const STOCK_MA_TREND_CONFIG = Object.freeze({
-  lookback: 5,
-  crossLookback: 5,
-  crossThreshold: 0.001,
-  slopeThreshold: 0.001,
-  gapChangeThreshold: 0.001,
-});
-
 function trendConfig(overrides) {
   if (overrides !== undefined && (!overrides || typeof overrides !== 'object' || Array.isArray(overrides))) return null;
   if (overrides && Object.keys(overrides).some((key) => !Object.hasOwn(STOCK_MA_TREND_CONFIG, key))) return null;
   const config = { ...STOCK_MA_TREND_CONFIG, ...overrides };
-  if (!['lookback', 'crossLookback'].every((key) => Number.isSafeInteger(config[key]) && config[key] > 0)) return null;
-  if (!['crossThreshold', 'slopeThreshold', 'gapChangeThreshold'].every((key) => positiveNumber(config[key]))) return null;
+  if (!['lookback', 'crossLookback', 'contractionLookback', 'contractionMinDays'].every((key) => Number.isSafeInteger(config[key]) && config[key] > 0)) return null;
+  if (config.contractionMinDays >= config.contractionLookback) return null;
+  if (!['crossThreshold', 'slopeThreshold', 'gapChangeThreshold', 'dailyGapChangeMin'].every((key) => positiveNumber(config[key]))) return null;
   return config;
 }
 
@@ -40,6 +35,20 @@ function gapRatio(row) {
   return positiveNumber(row?.ma30) && positiveNumber(row?.ma60)
     ? (row.ma30 - row.ma60) / row.ma60
     : null;
+}
+
+function contractionEvidence(history, config) {
+  const rows = history.slice(-config.contractionLookback);
+  if (rows.length < config.contractionLookback
+    || rows.some((row) => !validDateKey(row?.date) || !Number.isFinite(gapRatio(row)))) {
+    return { contractingDays: null, contractionPersistent: null };
+  }
+  let contractingDays = 0;
+  for (let index = 1; index < rows.length; index += 1) {
+    const decrease = gapRatio(rows[index - 1]) - gapRatio(rows[index]);
+    if (compareRatio(decrease, config.dailyGapChangeMin) >= 0) contractingDays += 1;
+  }
+  return { contractingDays, contractionPersistent: contractingDays >= config.contractionMinDays };
 }
 
 // The caller supplies the latest completed trading date and one daily row whose
@@ -77,6 +86,8 @@ export function deriveStockMaTrend(history, { asOfDate, config: overrides } = {}
     gapYesterday: null,
     gapAtComparison: null,
     gapChange: null,
+    contractingDays: null,
+    contractionPersistent: null,
     crossDate: '',
     crossAge: null,
     crossDirection: null,
@@ -137,6 +148,7 @@ export function deriveStockMaTrend(history, { asOfDate, config: overrides } = {}
   const ma30Down = compareRatio(ma30Slope, -config.slopeThreshold) < 0;
   const gapUp = compareRatio(gapChange, config.gapChangeThreshold) > 0;
   const gapDown = compareRatio(gapChange, -config.gapChangeThreshold) < 0;
+  const contraction = contractionEvidence(history, config);
   let status = 'stable';
   if (recentCross && latestCross.direction === 'up' && compareRatio(gapToday, config.crossThreshold) >= 0) {
     status = 'strengthening';
@@ -144,7 +156,8 @@ export function deriveStockMaTrend(history, { asOfDate, config: overrides } = {}
     status = 'weakening';
   } else if (structure.status === 'bullish') {
     if (ma30Up && compareRatio(ma60Slope, -config.slopeThreshold) >= 0 && gapUp) status = 'bullish_strengthening';
-    else if (ma30Down || gapDown) status = 'bullish_weakening';
+    else if (ma30Down || (gapDown && contraction.contractionPersistent)) status = 'bullish_weakening';
+    else if (gapDown && contraction.contractionPersistent === null) return unavailable;
   } else if (structure.status === 'bearish') {
     if (ma30Down && compareRatio(ma60Slope, config.slopeThreshold) <= 0 && gapDown) status = 'bearish_strengthening';
     else if (ma30Up || gapUp) status = 'bearish_weakening';
@@ -163,6 +176,7 @@ export function deriveStockMaTrend(history, { asOfDate, config: overrides } = {}
     gapYesterday,
     gapAtComparison,
     gapChange,
+    ...contraction,
     crossDate: latestCross?.date || '',
     crossAge,
     crossDirection: latestCross?.direction || null,

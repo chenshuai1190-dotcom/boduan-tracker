@@ -110,6 +110,127 @@ function linearPairs(first, last, count = 6) {
   )));
 }
 
+function normalizedGapPairs(gaps, { ma60Start = 100, ma60Step = 1 } = {}) {
+  return gaps.map((gap, index) => {
+    const ma60 = ma60Start + ma60Step * index;
+    return [ma60 * (1 + gap), ma60];
+  });
+}
+
+test('a material MA30 decline weakens bulls without requiring persistent gap contraction', () => {
+  const result = trend(linearPairs([120, 110], [115, 100]), { close: 130, ma200: 90 });
+  assert.ok(result.ma30Slope < -STOCK_MA_TREND_CONFIG.slopeThreshold);
+  assert.ok(result.gapChange > 0, 'the independent MA30-down path can coexist with an expanding gap');
+  assert.equal(result.contractingDays, 0);
+  assert.equal(result.contractionPersistent, false);
+  assert.equal(result.status, 'bullish_weakening');
+});
+
+test('rising bullish averages weaken only after at least three meaningful adjacent contractions', () => {
+  const result = trend(normalizedGapPairs([0.1, 0.1, 0.0996, 0.0992, 0.0988, 0.0988]), { close: 130, ma200: 90 });
+  assert.ok(result.ma30Slope > 0 && result.ma60Slope > 0);
+  assert.ok(result.gapChange < -STOCK_MA_TREND_CONFIG.gapChangeThreshold);
+  assert.equal(result.contractingDays, 3);
+  assert.equal(result.contractionPersistent, true);
+  assert.equal(result.status, 'bullish_weakening');
+});
+
+test('only two meaningful contractions keep rising bullish averages stable', () => {
+  const result = trend(normalizedGapPairs([0.1, 0.1, 0.1, 0.1, 0.0994, 0.0988]), { close: 130, ma200: 90 });
+  assert.ok(result.ma30Slope > 0 && result.gapChange < -STOCK_MA_TREND_CONFIG.gapChangeThreshold);
+  assert.equal(result.contractingDays, 2);
+  assert.equal(result.contractionPersistent, false);
+  assert.equal(result.status, 'stable');
+});
+
+test('daily contractions smaller than 0.02 percentage points do not accumulate persistence', () => {
+  const result = trend(normalizedGapPairs([0.102, 0.1007, 0.1006, 0.1005, 0.1004, 0.1003]), { close: 130, ma200: 90 });
+  assert.ok(result.ma30Slope > 0 && result.gapChange < -STOCK_MA_TREND_CONFIG.gapChangeThreshold);
+  assert.equal(result.contractingDays, 0, 'an older large drop cannot substitute for four small recent changes');
+  assert.equal(result.contractionPersistent, false);
+  assert.equal(result.status, 'stable');
+});
+
+test('expanding bullish structure still strengthens without contraction evidence', () => {
+  const result = trend(normalizedGapPairs([0.1, 0.1004, 0.1008, 0.1012, 0.1016, 0.102]), { close: 130, ma200: 90 });
+  assert.equal(result.contractingDays, 0);
+  assert.equal(result.contractionPersistent, false);
+  assert.equal(result.status, 'bullish_strengthening');
+});
+
+test('the daily contraction threshold includes exact equality and excludes genuinely smaller changes', () => {
+  for (const [thirdGap, expectedCount, status] of [
+    [0.0994, 3, 'bullish_weakening'],
+    [0.099400001, 2, 'stable'],
+    [0.099399999, 3, 'bullish_weakening'],
+  ]) {
+    const pairs = normalizedGapPairs([0.101, 0.1, 0.0998, 0.0996, thirdGap, thirdGap]);
+    for (const scale of [0.01, 1, 1e6]) {
+      const result = trend(pairs.map(pair => pair.map(value => value * scale)), {
+        close: 130 * scale, ma200: 90 * scale,
+      });
+      assert.equal(result.contractingDays, expectedCount);
+      assert.equal(result.contractionPersistent, expectedCount >= 3);
+      assert.equal(result.status, status);
+    }
+  }
+});
+
+test('five contraction records mean four adjacent comparisons, excluding the sixth-record boundary', () => {
+  const pairs = normalizedGapPairs([0.101, 0.1005, 0.1005, 0.1005, 0.0999, 0.0993]);
+  const result = trend(pairs, { close: 130, ma200: 90 });
+  assert.equal(result.contractingDays, 2, 'counting the comparison from record six would incorrectly produce three');
+  assert.equal(result.contractionPersistent, false);
+  assert.equal(result.status, 'stable');
+  const allFour = trend(normalizedGapPairs([0.102, 0.1, 0.0997, 0.0994, 0.0991, 0.0988]), { close: 130, ma200: 90 });
+  assert.equal(allFour.contractingDays, 4);
+  assert.equal(allFour.contractionPersistent, true);
+  assert.equal(allFour.status, 'bullish_weakening');
+});
+
+test('recent crossings retain priority over contraction persistence and contrary MA30 slopes', () => {
+  const up = trend(normalizedGapPairs([0.1, -0.01, 0.004, 0.0036, 0.0032, 0.0028], { ma60Step: 0 }), { close: 130, ma200: 90 });
+  assert.ok(up.ma30Slope < 0 && up.gapChange < 0);
+  assert.equal(up.contractingDays, 3);
+  assert.equal(up.contractionPersistent, true);
+  assert.equal(up.crossAge, 3);
+  assert.equal(up.status, 'strengthening');
+  const down = trend(normalizedGapPairs([0.01, 0.005, 0.002, 0.0005, -0.002, -0.003]), { close: 130, ma200: 90 });
+  assert.equal(down.status, 'weakening');
+  assert.equal(down.crossAge, 1);
+});
+
+test('contraction persistence does not filter non-bullish structural weakening or strengthening bears', () => {
+  const gaps = [0.1, 0.1, 0.1, 0.1, 0.0994, 0.0988];
+  const longTermUp = trend(normalizedGapPairs(gaps), { close: 150, ma200: 120 });
+  assert.equal(longTermUp.contractingDays, 2);
+  assert.equal(longTermUp.contractionPersistent, false);
+  assert.equal(longTermUp.status, 'structural_weakening');
+  const bearish = trend(normalizedGapPairs([-0.1, -0.1, -0.1, -0.1, -0.1006, -0.1012], { ma60Step: -1 }), { close: 80, ma200: 110 });
+  assert.equal(bearish.contractingDays, 2);
+  assert.equal(bearish.contractionPersistent, false);
+  assert.equal(bearish.status, 'bearish_strengthening');
+});
+
+test('SNOW completed observations have three normalized contractions despite only two absolute-gap contractions', () => {
+  const rows = [
+    { date: '2026-09-04', close: 337.18, ma30: 319.07033333333345, ma60: 286.5861666666669, ma200: 218.947 },
+    { date: '2026-09-08', close: 335.5, ma30: 321.15633333333346, ma60: 288.17133333333356, ma200: 219.35195 },
+    { date: '2026-09-09', close: 331.48, ma30: 323.1936666666668, ma60: 289.81633333333355, ma200: 219.74445 },
+    { date: '2026-09-10', close: 329.72, ma30: 324.7543333333334, ma60: 291.2986666666669, ma200: 220.16975 },
+    { date: '2026-09-11', close: 328.99, ma30: 325.78400000000005, ma60: 292.80983333333364, ma200: 220.64454999999998 },
+    { date: '2026-09-14', close: 332.35, ma30: 327.0863333333334, ma60: 294.4403333333336, ma200: 221.09634999999997 },
+  ];
+  const result = deriveStockMaTrend(rows, { asOfDate: '2026-09-14' });
+  assert.ok(result.ma30Slope > 0 && result.ma60Slope > 0);
+  const absoluteGap = row => row.ma30 - row.ma60;
+  assert.ok(absoluteGap(rows.at(-1)) > absoluteGap(rows[0]));
+  assert.equal(rows.slice(-4).filter((row, index) => absoluteGap(row) < absoluteGap(rows[index + 1])).length, 2);
+  assert.equal(result.contractingDays, 3);
+  assert.equal(result.contractionPersistent, true);
+  assert.equal(result.status, 'bullish_weakening');
+});
+
 const contextualCases = [
   ['bullish_strengthening', [105, 100], [115, 102], { close: 130, ma200: 90 }],
   ['bullish_weakening', [125, 110], [115, 105], { close: 130, ma200: 90 }],
@@ -163,6 +284,8 @@ test('proportional price scaling preserves decisions, normalized diagnostics, an
       assert.equal(actual.status, expected.status);
       assert.equal(actual.crossDate, expected.crossDate);
       assert.equal(actual.crossAge, expected.crossAge);
+      assert.equal(actual.contractingDays, expected.contractingDays);
+      assert.equal(actual.contractionPersistent, expected.contractionPersistent);
       for (const field of ['ma30Slope', 'ma60Slope', 'gapToday', 'gapAtComparison', 'gapChange']) {
         assert.ok(Math.abs(actual[field] - expected[field]) < 1e-12, field);
       }
@@ -308,18 +431,40 @@ test('frozen ratio configuration permits validated partial overrides without mut
   assert.equal(Object.isFrozen(STOCK_MA_TREND_CONFIG), true);
   assert.deepEqual(STOCK_MA_TREND_CONFIG, {
     lookback: 5, crossLookback: 5, crossThreshold: 0.001, slopeThreshold: 0.001, gapChangeThreshold: 0.001,
+    contractionLookback: 5, contractionMinDays: 3, dailyGapChangeMin: 0.0002,
   });
   const pairs = linearPairs([105, 100], [115, 102], 3);
   assert.equal(trend(pairs).status, 'unavailable');
   assert.equal(trend(pairs, { close: 130, ma200: 90 }, { lookback: 2 }).status, 'bullish_strengthening');
+  assert.equal(trend(pairs, { close: 130, ma200: 90 }, { lookback: 2 }).contractingDays, null);
+  assert.equal(trend(pairs, { close: 130, ma200: 90 }, { lookback: 2 }).contractionPersistent, null,
+    'missing optional contraction history must not block independent strengthening');
   assert.equal(trend(pairs, { close: 130, ma200: 90 }, { lookback: 2, slopeThreshold: 0.2 }).status, 'stable');
   const cross = [[998, 1000], [998, 1000], [998, 1000], [998, 1000], [1001, 1000], [1001, 1000]];
   assert.equal(trend(cross, {}, { crossLookback: 1 }).status, 'bullish_strengthening');
   assert.equal(trend(cross, {}, { crossThreshold: 0.01 }).crossDirection, null);
   for (const config of [null, false, [], { unknown: 5 }, { lookback: 0 }, { lookback: 1.5 },
     { crossLookback: Infinity }, { crossLookback: -1 }, { slopeThreshold: '0.001' },
-    { gapChangeThreshold: undefined }, { crossThreshold: 0 }, { crossThreshold: NaN }]) {
+    { gapChangeThreshold: undefined }, { crossThreshold: 0 }, { crossThreshold: NaN },
+    { contractionLookback: 1 }, { contractionLookback: 2.5 }, { contractionLookback: Infinity },
+    { contractionMinDays: 0 }, { contractionMinDays: 5 }, { contractionMinDays: 1.5 },
+    { dailyGapChangeMin: 0 }, { dailyGapChangeMin: -0.0002 }, { dailyGapChangeMin: '0.0002' }]) {
     assert.equal(trend(linearPairs([105, 100], [115, 102]), {}, config).status, 'unavailable');
   }
   assert.equal(STOCK_MA_TREND_CONFIG.lookback, 5);
+});
+
+test('missing contraction evidence stays unknown only when the bullish contraction path needs it', () => {
+  const config = { contractionLookback: 7 };
+  const latest = { close: 130, ma200: 90 };
+  const converging = linearPairs([110, 100], [112, 104]);
+  assert.equal(trend(converging, latest, config).status, 'unavailable');
+  assert.equal(trend(linearPairs([115, 105], [110, 100]), latest, config).status, 'bullish_weakening',
+    'direct MA30 decline never depends on contraction evidence');
+  assert.equal(trend(linearPairs([110, 100], [110, 100]), latest, config).status, 'stable');
+  assert.equal(trend(linearPairs([105, 100], [115, 102]), latest, config).status, 'bullish_strengthening');
+  const rows = trendHistory(converging, latest);
+  assert.equal(deriveStockMaTrend([{ date: '2026-09-07', ma30: null, ma60: null }, ...rows], {
+    asOfDate, config,
+  }).status, 'unavailable', 'missing data inside the longer contraction window cannot become stability');
 });

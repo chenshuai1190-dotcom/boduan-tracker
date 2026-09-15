@@ -14,7 +14,7 @@ const end = page.indexOf('\n        </div>\n\n        <div className="stock-repo
 assert.ok(start >= 0 && end > start);
 const metricJsx = page.slice(start, end).trim();
 const transformed = await transformWithOxc(`import React from ${JSON.stringify(import.meta.resolve('react'))};
-export default function Metric({ rsiSignal, rsiDisplay, language }) { const NUMBER_FONT = 'system-ui'; return (${metricJsx}); }`, 'Metric.jsx', { jsx: { runtime: 'classic' } });
+export default function Metric({ rsiSignal, rsiDisplay, language }) { const NUMBER_FONT = 'system-ui'; const explanationTrigger = () => ({}); return (${metricJsx}); }`, 'Metric.jsx', { jsx: { runtime: 'classic' } });
 const { default: Metric } = await import(`data:text/javascript;base64,${Buffer.from(transformed.code).toString('base64')}`);
 const render = (signal, language = 'zh') => renderToStaticMarkup(React.createElement(Metric, {
   rsiSignal: signal, rsiDisplay: stockRsiPresentation(signal, language === 'en'), language,
@@ -43,17 +43,17 @@ test('the actual stock-trend RSI markup always renders its number, zone and life
     const html = render(signal);
     assert.equal((html.match(/data-watchlist-rsi-divergence=/g) || []).length, 1);
     assert.equal((html.match(/class="stock-report-rsi-status"/g) || []).length, 1);
-    assert.equal(plain(html), `RSI(6)${value.toFixed(1)}${expected}`);
+    assert.equal(plain(html), `RSI(6)›${value.toFixed(1)}${expected}`);
     assert.doesNotMatch(html, /无顶背离|严重超买/);
   }
 });
 
 test('missing or old lifecycle metadata retains the fixed fields without inventing normal momentum', () => {
-  assert.equal(plain(render(null)), 'RSI(6)——·—');
+  assert.equal(plain(render(null)), 'RSI(6)›——·—');
   const old = { period: 6, value: 30.3, asOf: '2026-09-11', priceBasis: 'adjusted_close', bearishDivergence: 'confirmed', divergenceDate: '2026-09-10' };
-  assert.equal(plain(render(old)), 'RSI(6)30.3中性·—');
+  assert.equal(plain(render(old)), 'RSI(6)›30.3中性·—');
   assert.equal(isStockRsiLifecycleSignal(old), false);
-  assert.equal(plain(render(lifecycleSignal(null, { value: 30.3 }))), 'RSI(6)30.3中性·—');
+  assert.equal(plain(render(lifecycleSignal(null, { value: 30.3 }))), 'RSI(6)›30.3中性·—');
   assert.equal(isStockRsiLifecycleSignal(lifecycleSignal(null, { value: null, asOf: null })), true);
   const oldLifecycle = lifecycleSignal('CONFIRMED', { divergenceVersion: 'rsi6-lifecycle-v2' });
   assert.equal(isStockRsiLifecycleSignal(oldLifecycle), false, 'v2 confirmation semantics must not survive the version change');
@@ -66,7 +66,7 @@ test('the actual stock-trend markup shows invalidated after either historical co
     const original = structuredClone(signal);
     assert.equal(isStockRsiLifecycleSignal(signal), true);
     const html = render(signal);
-    assert.equal(plain(html), 'RSI(6)76.2中性·顶背离失效');
+    assert.equal(plain(html), 'RSI(6)›76.2中性·顶背离失效');
     assert.match(html, /data-watchlist-rsi-divergence="invalidated"/);
     assert.doesNotMatch(plain(html), /顶背离确认/);
     assert.equal(stockRsiPresentation(signal, true).momentumLabel, 'Divergence invalidated');

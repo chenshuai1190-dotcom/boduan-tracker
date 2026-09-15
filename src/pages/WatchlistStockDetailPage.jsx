@@ -12,6 +12,7 @@ import CompanyValuationCard from '../components/CompanyValuationCard.jsx';
 import Ma200RetestHistoryCard from '../components/Ma200RetestHistoryCard.jsx';
 import StockLogo, { stockLogoCandidates } from '../components/StockLogo.jsx';
 import TargetEditor from '../components/StockTargetEditor.jsx';
+import TechnicalExplanationSheet from '../components/TechnicalExplanationSheet.jsx';
 import './WatchlistStockDetailPage.css';
 import { fetchEarningsCalendarEvents, getNewYorkEarningsClock } from '../lib/earningsCalendarRefresh.js';
 import { dateKey, isEarningsPublished, normalizeEarningsSession } from '../lib/earningsCalendarModel.js';
@@ -22,6 +23,7 @@ import { loadStockFundamentals } from '../lib/stockFundamentals.js';
 import { loadStockValuation } from '../lib/stockValuation.js';
 import { stockRsiPresentation } from '../lib/stockRsiPresentation.js';
 import { deriveStockMaStructure, deriveStockMaTrend } from '../lib/stockMaStructure.js';
+import { buildTechnicalExplanation } from '../lib/technicalExplanation.js';
 import {
   deriveCloseBasedPosition,
   displayCurrencyRate,
@@ -378,6 +380,7 @@ function PriceChart({ rows, dailyRows, weeklyRows, weeklyLookupRows, range, curr
   }, []);
   React.useEffect(() => {
     const closeOutside = (event) => {
+      if (event.target?.closest?.('[data-technical-explanation-trigger], .tes-overlay')) return;
       if (!chartRef.current?.contains(event.target)) setSelectedIndex(null);
     };
     document.addEventListener('pointerdown', closeOutside);
@@ -1229,6 +1232,21 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
   const [targetSaving, setTargetSaving] = React.useState(false);
   const [targetSaveError, setTargetSaveError] = React.useState(false);
   const [targetOverrideUsd, setTargetOverrideUsd] = React.useState(null);
+  const [explanationType, setExplanationType] = React.useState(null);
+  const closeExplanation = React.useCallback(() => setExplanationType(null), []);
+  const explanationTrigger = (type) => ({
+    role: 'button',
+    tabIndex: 0,
+    'aria-haspopup': 'dialog',
+    'aria-expanded': explanationType === type,
+    'data-technical-explanation-trigger': type,
+    onClick: () => setExplanationType(type),
+    onKeyDown: (event) => {
+      if (event.target !== event.currentTarget || !['Enter', ' '].includes(event.key)) return;
+      event.preventDefault();
+      if (!event.repeat) setExplanationType(type);
+    },
+  });
 
   const rows = React.useMemo(() => findWatchlistStockDetailRows({
     symbol,
@@ -1245,6 +1263,7 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
     previousSymbolRef.current = symbol;
     setTargetOverrideUsd(null);
     setShowTargetEditor(false);
+    setExplanationType(null);
   }, [symbol]);
 
   React.useEffect(() => {
@@ -1459,6 +1478,16 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
   const portfolioCurrency = String(portfolioCurrencyMode || '').toUpperCase() === 'CNY' ? 'CNY' : 'USD';
   const portfolioRate = displayCurrencyRate(portfolioCurrency, usdRate);
   const stockCurrency = String(stockDetail?.currency || 'USD').toUpperCase() === 'CNY' ? 'CNY' : 'USD';
+  const technicalExplanation = React.useMemo(() => buildTechnicalExplanation({
+    ticker: symbol, indicatorType: explanationType, language,
+    currentData: {
+      asOfDate: close.asOfDate, currency: stockCurrency,
+      history: loading || loadError ? [] : stockDetail?.history,
+      latestRow: loading || loadError ? null : stockDetail?.history?.at(-1),
+      rsiSignal: loadError ? null : rsiSignal,
+    },
+    technicalState: { maStructure, maTrend },
+  }), [symbol, explanationType, language, close.asOfDate, stockCurrency, stockDetail?.history, loading, loadError, rsiSignal, maStructure, maTrend]);
   const displayName = typeof displayStockName === 'function'
     ? displayStockName(symbol, rows.watchlistRow?.name || rows.quoteRow?.name || symbol, language)
     : (rows.watchlistRow?.name || rows.quoteRow?.name || symbol);
@@ -1670,10 +1699,11 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
             color={marketHexColor(distanceMa200 || 0, marketColorMode)}
           />
           <div className="stock-report-rsi-metric" data-watchlist-rsi-metric="true"
+            {...explanationTrigger('rsi')}
             data-rsi-zone={rsiDisplay.zone ?? undefined} style={{ '--stock-rsi-color': rsiDisplay.color }}
             title={rsiDisplay.available ? `${language === 'en' ? 'Daily RSI(6)' : '日线 RSI(6)'} · ${rsiSignal.asOf}` : undefined}
           >
-            <div>RSI<span className="stock-report-rsi-period">(6)</span></div>
+            <div>RSI<span className="stock-report-rsi-period">(6)</span><span className="stock-report-explanation-hint" aria-hidden="true">›</span></div>
             <div className="stock-report-rsi-value" style={{ fontFamily: NUMBER_FONT }}>{rsiDisplay.available ? rsiSignal.value.toFixed(1) : '—'}</div>
             <div className="stock-report-rsi-status">
               <span className="stock-report-rsi-zone">{rsiDisplay.zoneLabel || '—'}</span>
@@ -1688,17 +1718,19 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
 
         <div className="stock-report-ma-assessment" data-watchlist-ma-assessment="structure-and-change">
           <div className="stock-report-ma-structure" data-watchlist-ma-structure={maStructure.status}
+            {...explanationTrigger('maStructure')}
             title={maStructure.status !== 'unavailable' ? `${language === 'en' ? 'Daily close' : '日收盘'} · ${maStructure.asOfDate}` : undefined}
           >
-            <div>{t(language, 'watchlistDetail.maStructure', '均线结构')}</div>
+            <div>{t(language, 'watchlistDetail.maStructure', '均线结构')}<span className="stock-report-explanation-hint" aria-hidden="true">›</span></div>
             <strong className="stock-report-ma-structure-value" style={{ color: maStructureColor }}>
               {maStructure.status === 'unavailable' ? '—' : t(language, `watchlistDetail.maStructure.${maStructure.status}`, '—')}
             </strong>
           </div>
           <div className="stock-report-ma-trend" data-watchlist-ma-trend={maTrend.status}
+            {...explanationTrigger('trendChange')}
             title={maTrend.status !== 'unavailable' ? `${maTrend.comparisonDate} – ${maTrend.asOfDate}` : undefined}
           >
-            <div>{t(language, 'watchlistDetail.maTrend', '趋势变化')}</div>
+            <div>{t(language, 'watchlistDetail.maTrend', '趋势变化')}<span className="stock-report-explanation-hint" aria-hidden="true">›</span></div>
             <strong className="stock-report-ma-structure-value" style={{ color: maTrendColor }}>
               {maTrend.status === 'unavailable' ? '—' : t(language, `watchlistDetail.maTrend.${maTrend.status}`, '—')}
             </strong>
@@ -1915,6 +1947,11 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
           <div className="px-4 py-5 text-center text-[12px] text-white/[0.40]">{t(language, 'watchlistDetail.noPosition', '当前没有持仓')}</div>
         )}
       </section>
+
+      {technicalExplanation ? (
+        <TechnicalExplanationSheet ticker={symbol} language={language}
+          explanation={technicalExplanation} onClose={closeExplanation} />
+      ) : null}
 
       {showTargetEditor ? (
         <TargetEditor

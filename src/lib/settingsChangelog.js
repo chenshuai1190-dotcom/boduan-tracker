@@ -4,6 +4,19 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '股票趋势的 RSI(6)、均线结构和趋势变化支持点击查看技术解释；先展示核心结论与关键数据，规则和事件详情分别展开，风险评分构成以表格呈现。',
+      '多头减弱加入相对均线领先幅度的持续收窄确认，保留 MA30 明确下降与近期有效交叉的原有判断优先级。',
+      '首页自选仅股票代码区域可点击进入趋势页，点击区域不覆盖价格列，取消点击变色并保留滑动防误触。',
+    ],
+    itemsEn: [
+      'Tap RSI(6), MA Structure or Trend Change in Stock Trend for a concise explanation. Rule and event details expand separately, with existing risk-score contributions displayed in a table.',
+      'Bullish weakening now requires persistent contraction of the relative MA lead, while preserving direct MA30 decline and recent confirmed crossover priorities.',
+      'Home watchlist navigation is limited to the stock identity area before the price column, without tap color feedback and with swipe protection retained.',
+    ],
+  },
+  {
+    ver: 'v10.7.9.534', date: '2026-09-15',
+    items: [
       '首页自选支持点击股票整行进入股票趋势，右侧价格、今日涨跌和空白区域均可操作，方便单手使用；保留原有布局并加入滑动防误触。',
     ],
     itemsEn: [

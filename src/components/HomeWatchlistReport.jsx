@@ -9,7 +9,12 @@ const AUXILIARY_METRICS = {
 };
 const ROW_TAP_MOVEMENT_LIMIT = 8;
 
+function syncIdentityHitWidth(table) {
+  if (table) table.style.setProperty('--hwr-scroll-left', `${Math.max(0, table.scrollLeft)}px`);
+}
+
 function updateScrollClipping({ currentTarget: table }) {
+  syncIdentityHitWidth(table);
   const pinned = table.querySelector('.hwr-aux-sort');
   const price = table.querySelector('.hwr-price-sort');
   if (!pinned || !price) return;
@@ -126,7 +131,7 @@ export default function HomeWatchlistReport({
             : (english ? 'No holdings yet. Add a buy in Trades to get started.' : '暂无持仓记录，先在交易页添加买入记录。')}
         </div>
       ) : (
-        <div className={`hwr-table-scroll${showRsi ? ' has-rsi' : ''}`} onScroll={showRsi ? updateScrollClipping : undefined} tabIndex={showRsi ? 0 : undefined} aria-label={showRsi ? (english ? 'Watchlist, scroll horizontally for RSI and bearish divergence' : '自选列表，可左右滑动查看 RSI 和顶背离') : undefined}>
+        <div ref={showRsi ? syncIdentityHitWidth : undefined} className={`hwr-table-scroll${showRsi ? ' has-rsi' : ''}`} onScroll={showRsi ? updateScrollClipping : undefined} tabIndex={showRsi ? 0 : undefined} aria-label={showRsi ? (english ? 'Watchlist, scroll horizontally for RSI and bearish divergence' : '自选列表，可左右滑动查看 RSI 和顶背离') : undefined}>
           <div className="hwr-table-content">
           <div className="hwr-column-headings">
             <SortControl label={labels[auxiliaryMetric]} sortKey={auxiliaryMetric} sortState={sortState} onSort={onSort} language={language} className="hwr-aux-sort" />
@@ -137,11 +142,10 @@ export default function HomeWatchlistReport({
           </div>
           <div className="hwr-list">
             {rows.map((item) => {
-              const rowProps = isWatchlist ? {
+              const identityProps = isWatchlist ? {
                 role: 'button',
                 tabIndex: 0,
                 'aria-label': english ? `Open ${item.symbol} stock details` : `打开 ${item.symbol} 股票详情`,
-                'aria-describedby': `hwr-main-${item.symbol} hwr-secondary-${item.symbol}`,
                 onPointerDown: (event) => {
                   const scroller = event.currentTarget.closest('.hwr-table-scroll');
                   rowGesture.current = { symbol: item.symbol, pointerId: event.pointerId,
@@ -179,9 +183,9 @@ export default function HomeWatchlistReport({
               const divergenceLabel = rsiDisplay.momentumLabel;
 
               return (
-                <div key={item.symbol} className="hwr-row" {...rowProps}>
-                  <div className="hwr-row-main" id={isWatchlist ? `hwr-main-${item.symbol}` : undefined}>
-                    <div className="hwr-identity">
+                <div key={item.symbol} className="hwr-row">
+                  <div className="hwr-row-main">
+                    <div className="hwr-identity" {...identityProps}>
                       <span className="hwr-logo" aria-hidden="true">{renderLogo?.(item) || item.symbol?.slice(0, 2)}</span>
                       <span className="hwr-stock-name">
                         <span className="hwr-symbol">{item.symbol}</span>
@@ -202,7 +206,7 @@ export default function HomeWatchlistReport({
                       >{divergenceLabel}</span>
                     )}
                   </div>
-                  <div className="hwr-row-secondary" id={isWatchlist ? `hwr-secondary-${item.symbol}` : undefined}>
+                  <div className="hwr-row-secondary">
                     <span className="hwr-aux-label">{labels[auxiliaryMetric]}</span>
                     <span className={`hwr-aux-value${auxiliaryMetric === 'pnl' ? ' hwr-pnl-value' : ''}`} style={{ color: colorFor(auxiliaryValue) }}>
                       {auxiliaryMetric === 'pnl' ? (

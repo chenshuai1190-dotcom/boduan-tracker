@@ -129,12 +129,14 @@ test('watchlist has separate RSI and divergence after Today while holdings keep 
   assert.equal(holdingsScroll.props['aria-label'], undefined);
 });
 
-test('the pinned stock identity cannot stretch over Today when the indicator columns are revealed', () => {
+test('the enlarged identity stays within the name track and shrinks to the pinned width while scrolling', () => {
   const pinnedRule = css.match(/\.has-rsi \.hwr-identity,\s*\.has-rsi \.hwr-aux-sort\s*\{([^}]+)\}/)?.[1];
   assert.ok(pinnedRule, 'stock identity and its heading need the same bounded sticky surface');
   assert.match(pinnedRule, /position:\s*sticky/);
   assert.match(pinnedRule, /justify-self:\s*start/);
   assert.match(pinnedRule, /width:\s*min\(100%,\s*var\(--hwr-pinned-width\)\)/);
+  assert.match(css, /\.has-rsi \.hwr-identity\s*\{[^}]*width:\s*clamp\(min\(100%,\s*var\(--hwr-pinned-width\)\),\s*calc\(100%\s*-\s*var\(--hwr-scroll-left,\s*0px\)\),\s*100%\)/);
+  assert.match(css, /\.has-rsi \.hwr-stock-name\s*\{[^}]*max-width:\s*calc\(var\(--hwr-pinned-width\)\s*-\s*var\(--hwr-logo-and-gap\)\)/);
 
   const mediaRules = [...css.matchAll(/@media\s*\(max-width:\s*(\d+)px\)\s*\{/g)].map(match => {
     let depth = 1;
@@ -176,13 +178,22 @@ test('horizontal scrolling hides the complete price column at the pinned boundar
   });
 
   const h = harness({ rows: [row({ stockRsi: signal() })] });
-  const onScroll = byClass(h.render(), 'hwr-table-scroll')[0].props.onScroll;
+  const scrollElement = byClass(h.render(), 'hwr-table-scroll')[0];
+  const onScroll = scrollElement.props.onScroll;
+  const onMount = scrollElement.ref;
   assert.equal(typeof onScroll, 'function');
+  assert.equal(typeof onMount, 'function');
   let priceLeft = 0;
   let longPriceLeft = null;
   let writes = 0;
+  let hitWidthScroll = 'stale';
   const table = {
     scrollLeft: 0,
+    style: { setProperty(name, value) {
+      assert.equal(name, '--hwr-scroll-left');
+      assert.equal(value, `${table.scrollLeft}px`);
+      hitWidthScroll = value;
+    } },
     dataset: new Proxy({}, { set(target, key, value) { writes++; target[key] = value; return true; } }),
     querySelector(selector) {
       if (selector === '.hwr-aux-sort') return { getBoundingClientRect: () => ({ right: 112 }) };
@@ -197,6 +208,8 @@ test('horizontal scrolling hides the complete price column at the pinned boundar
       ];
     },
   };
+  onMount(table);
+  assert.equal(hitWidthScroll, '0px', 'initial stock-code hit area must fill the name track');
   for (const [scrollLeft, left, expected, expectedWrites] of [
     [0, 0, 'false', 1],
     [96, 120, 'false', 1],
@@ -229,6 +242,14 @@ test('horizontal scrolling hides the complete price column at the pinned boundar
   assert.equal(text(byClass(h.render(), 'hwr-change')[0]), '-0.91%');
   h.props.tableTab = 'positions';
   assert.equal(byClass(h.render(), 'hwr-table-scroll')[0].props.onScroll, undefined);
+  assert.equal(byClass(h.render(), 'hwr-table-scroll')[0].ref, null);
+  h.props.tableTab = 'watchlist';
+  table.scrollLeft = 0;
+  const remount = byClass(h.render(), 'hwr-table-scroll')[0].ref;
+  assert.equal(remount, onMount, 'mount callback must be stable across renders');
+  remount(table);
+  assert.equal(hitWidthScroll, '0px', 'returning from Holdings must restore the expanded hit area at the actual scroll position');
+  assert.doesNotThrow(() => remount(null));
 });
 
 test('narrow indicator columns keep long English labels inside the cell and preserve full stock accessibility', () => {
@@ -238,8 +259,8 @@ test('narrow indicator columns keep long English labels inside the cell and pres
   const h = harness({ language: 'en', onOpenStock: () => {}, rows: [row({
     symbol: 'LONGSYMBOL', displayName: 'Long Company Name Incorporated', stockRsi: signal({ value: 95 }),
   })] });
-  const stockRow = byClass(h.render(), 'hwr-row')[0];
-  assert.equal(stockRow.props['aria-label'], 'Open LONGSYMBOL stock details');
+  const identity = byClass(h.render(), 'hwr-identity')[0];
+  assert.equal(identity.props['aria-label'], 'Open LONGSYMBOL stock details');
   assert.equal(text(byClass(h.render(), 'hwr-rsi-zone')[0]), 'Overbought');
   assert.equal(text(sortControl(h.render(), 'change')).trim(), 'Today');
 });
@@ -396,11 +417,12 @@ test('watchlist alone exposes add, edit and detail callbacks while tab selection
   const identity = byClass(tree, 'hwr-identity')[0];
   const stockRow = byClass(tree, 'hwr-row')[0];
   assert.equal(identity.type, 'div');
-  assert.equal(identity.props.onClick, undefined);
-  assert.equal(stockRow.props.role, 'button');
-  assert.equal(stockRow.props.tabIndex, 0);
-  assert.equal(stockRow.props['aria-label'], '打开 NVDA 股票详情');
-  assert.equal(nodes(stockRow, node => node.type === 'button').length, 0, 'row action must not contain nested buttons');
+  assert.equal(identity.props.role, 'button');
+  assert.equal(identity.props.tabIndex, 0);
+  assert.equal(identity.props['aria-label'], '打开 NVDA 股票详情');
+  assert.equal(stockRow.props.onClick, undefined);
+  assert.equal(stockRow.props.role, undefined);
+  assert.equal(nodes(identity, node => node.type === 'button').length, 0, 'identity action must not contain nested buttons');
   add.props.onClick(); edit.props.onClick();
   bubbleClick(tree, byClass(tree, 'hwr-symbol')[0]);
   nodes(tree, node => node.props.role === 'tab')[1].props.onClick();
@@ -412,19 +434,32 @@ test('watchlist alone exposes add, edit and detail callbacks while tab selection
   assert.equal(byClass(tree, 'hwr-identity')[0].props.onClick, undefined);
   for (const key of ['role', 'tabIndex', 'onClick', 'onPointerDown', 'onKeyDown']) {
     assert.equal(byClass(tree, 'hwr-row')[0].props[key], undefined, `holdings must remain inert: ${key}`);
+    assert.equal(byClass(tree, 'hwr-identity')[0].props[key], undefined, `holding identities must remain inert: ${key}`);
   }
   assert.equal(byClass(tree, 'hwr-actions').length, 0);
 });
 
-test('watchlist price, daily change, RSI and lower-row values open their own stock exactly once', () => {
+test('only the enlarged stock identity opens details; price and other metrics stay noninteractive', () => {
   const opened = [];
   const tree = harness({ rows: [row(), row({ symbol: 'MSFT' })], onOpenStock: symbol => opened.push(symbol) }).render();
   for (const className of ['hwr-price', 'hwr-change', 'hwr-rsi-value', 'hwr-divergence', 'hwr-aux-value']) {
     const target = byClass(tree, className)[1];
-    assert.ok(bubbleClick(tree, target), `${className} must belong to the actionable row`);
-    assert.equal(opened.length, ['hwr-price', 'hwr-change', 'hwr-rsi-value', 'hwr-divergence', 'hwr-aux-value'].indexOf(className) + 1);
+    assert.ok(bubbleClick(tree, target), `${className} must remain in the rendered table`);
+    assert.deepEqual(opened, [], `${className} must not navigate`);
   }
-  assert.deepEqual(opened, ['MSFT', 'MSFT', 'MSFT', 'MSFT', 'MSFT']);
+  bubbleClick(tree, byClass(tree, 'hwr-row')[1]);
+  assert.deepEqual(opened, [], 'row whitespace outside the stock identity must not navigate');
+  for (const className of ['hwr-symbol', 'hwr-company', 'hwr-logo', 'hwr-identity']) {
+    bubbleClick(tree, byClass(tree, className)[1]);
+  }
+  assert.deepEqual(opened, ['MSFT', 'MSFT', 'MSFT', 'MSFT'], 'each identity-region tap must open its stock exactly once');
+});
+
+test('the stock identity keeps keyboard focus but has no pressed color or opacity feedback', () => {
+  assert.match(css, /\.hwr-identity\[role="button"\]:focus-visible/);
+  assert.match(css, /\.hwr-identity\[role="button"\][^{]*\{[^}]*-webkit-tap-highlight-color:\s*transparent/);
+  assert.doesNotMatch(css, /[^{}]*(?:hwr-identity|hwr-row)[^{}]*:active[^{}]*\{[^}]*\b(?:opacity|color|background|filter)\s*:/);
+  assert.doesNotMatch(css, /[^{}]*:active[^{}]*(?:hwr-identity|hwr-row)[^{}]*\{[^}]*\b(?:opacity|color|background|filter)\s*:/);
 });
 
 test('horizontal and vertical swipes stay cancelled after returning to the starting point and rerendering', () => {
@@ -433,15 +468,15 @@ test('horizontal and vertical swipes stay cancelled after returning to the start
   const scroller = { scrollLeft: 0 };
   const currentTarget = { closest: () => scroller };
   for (const movement of [{ clientX: 109, clientY: 100 }, { clientX: 100, clientY: 109 }]) {
-    let stockRow = byClass(h.render(), 'hwr-row')[0];
+    let stockRow = byClass(h.render(), 'hwr-identity')[0];
     stockRow.props.onPointerDown({ pointerId: 1, clientX: 100, clientY: 100, currentTarget });
     stockRow.props.onPointerMove({ pointerId: 1, ...movement });
     stockRow.props.onPointerMove({ pointerId: 1, clientX: 100, clientY: 100 });
-    stockRow = byClass(h.render(), 'hwr-row')[0];
+    stockRow = byClass(h.render(), 'hwr-identity')[0];
     stockRow.props.onClick({ detail: 1 });
   }
   assert.deepEqual(opened, [], 'a swipe must not navigate even when the pointer returns before release');
-  const stockRow = byClass(h.render(), 'hwr-row')[0];
+  const stockRow = byClass(h.render(), 'hwr-identity')[0];
   stockRow.props.onPointerDown({ pointerId: 2, clientX: 100, clientY: 100, currentTarget });
   stockRow.props.onPointerMove({ pointerId: 2, clientX: 104, clientY: 102 });
   stockRow.props.onClick({ detail: 1 });
@@ -451,25 +486,25 @@ test('horizontal and vertical swipes stay cancelled after returning to the start
 test('native pointer cancellation and horizontal scroll movement suppress touch navigation', () => {
   const opened = [];
   const tree = harness({ onOpenStock: symbol => opened.push(symbol) }).render();
-  const stockRow = byClass(tree, 'hwr-row')[0];
+  const stockRow = byClass(tree, 'hwr-identity')[0];
   const scroller = { scrollLeft: 0 };
   const currentTarget = { closest: () => scroller };
   stockRow.props.onPointerDown({ pointerId: 1, clientX: 100, clientY: 100, currentTarget });
   stockRow.props.onPointerCancel();
-  bubbleClick(tree, byClass(tree, 'hwr-change')[0]);
+  bubbleClick(tree, byClass(tree, 'hwr-symbol')[0]);
   stockRow.props.onPointerDown({ pointerId: 2, clientX: 100, clientY: 100, currentTarget });
   scroller.scrollLeft = 60;
-  bubbleClick(tree, byClass(tree, 'hwr-rsi-value')[0]);
+  bubbleClick(tree, byClass(tree, 'hwr-company')[0]);
   assert.deepEqual(opened, []);
   stockRow.props.onPointerDown({ pointerId: 3, clientX: 100, clientY: 100, currentTarget });
-  bubbleClick(tree, byClass(tree, 'hwr-rsi-value')[0]);
-  assert.deepEqual(opened, ['NVDA'], 'tapping a value after scrolling has stopped must open details');
+  bubbleClick(tree, byClass(tree, 'hwr-identity')[0]);
+  assert.deepEqual(opened, ['NVDA'], 'tapping a stock identity after scrolling has stopped must open details');
 });
 
 test('keyboard and assistive actions bypass cancelled pointer gestures without repeated-key navigation', () => {
   const opened = [];
   const tree = harness({ onOpenStock: symbol => opened.push(symbol) }).render();
-  const stockRow = byClass(tree, 'hwr-row')[0];
+  const stockRow = byClass(tree, 'hwr-identity')[0];
   const currentTarget = { closest: () => ({ scrollLeft: 0 }) };
   stockRow.props.onPointerDown({ pointerId: 1, clientX: 100, clientY: 100, currentTarget });
   stockRow.props.onPointerCancel();

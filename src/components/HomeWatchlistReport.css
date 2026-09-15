@@ -12,7 +12,7 @@
 }
 
 .home-watchlist-report button:focus-visible,
-.hwr-row[role="button"]:focus-visible {
+.hwr-identity[role="button"]:focus-visible {
   outline: 1px solid #8b8b94;
   outline-offset: 4px;
 }
@@ -126,8 +126,14 @@
   text-align: left;
 }
 
-.hwr-row[role="button"] { cursor: pointer; -webkit-tap-highlight-color: transparent; }
-.hwr-row[role="button"]:active .hwr-identity { opacity: .65; }
+.hwr-identity[role="button"] {
+  padding-block: 4px;
+  margin-block: -4px;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
 
 .hwr-logo {
   display: flex;
@@ -188,6 +194,7 @@
   --hwr-rsi-width: 96px;
   --hwr-divergence-width: 82px;
   --hwr-pinned-width: 112px;
+  --hwr-logo-and-gap: 37px;
   --hwr-extra-width: calc(var(--hwr-rsi-width) + var(--hwr-divergence-width) + 16px);
   overflow-x: auto;
   overscroll-behavior-x: contain;
@@ -207,6 +214,12 @@
   width: min(100%, var(--hwr-pinned-width));
   background: #05070b;
 }
+/* Expand only into the name column's empty space. As the table scrolls,
+   stop before the price track until only the fixed name area remains. */
+.has-rsi .hwr-identity {
+  width: clamp(min(100%, var(--hwr-pinned-width)), calc(100% - var(--hwr-scroll-left, 0px)), 100%);
+}
+.has-rsi .hwr-stock-name { max-width: calc(var(--hwr-pinned-width) - var(--hwr-logo-and-gap)); }
 .has-rsi[data-price-obscured="true"] .hwr-price,
 .has-rsi[data-price-obscured="true"] .hwr-price-sort { visibility: hidden; }
 .has-rsi .hwr-aux-label { position: sticky; left: 37px; z-index: 1; background: #05070b; }
@@ -257,6 +270,7 @@
     --hwr-rsi-width: 64px;
     --hwr-divergence-width: 54px;
     --hwr-pinned-width: 78px;
+    --hwr-logo-and-gap: 31px;
     --hwr-extra-width: calc(var(--hwr-rsi-width) + var(--hwr-divergence-width) + 12px);
   }
   .hwr-rsi-value { font-size: 14px; }
