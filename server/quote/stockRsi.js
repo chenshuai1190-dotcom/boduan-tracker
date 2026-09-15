@@ -118,6 +118,8 @@ function dailyMa30(rows) {
 }
 
 function advanceEvent(active, rows, values, ma30, index, rules) {
+  // Terminal outcomes belong to this event's history, even if price later reverses.
+  if (active.state === 'REALIZED' || active.state === 'INVALIDATED') return;
   const event = active.event;
   const close = rows[index].close;
   const rsi = values[index];
@@ -150,6 +152,13 @@ function advanceEvent(active, rows, values, ma30, index, rules) {
       active.state = 'REALIZED';
       active.enteredIndex = observableIndex;
       event.realizedAt = observableDate;
+    } else if (compareNumbers(close, event.high2.price * (1 + rules.INVALIDATION_PRICE_THRESHOLD)) >= 0
+      && compareNumbers(rsi, event.high1.rsi - rules.RSI_RECOVERY_TOLERANCE) >= 0) {
+      active.state = 'INVALIDATED';
+      active.enteredIndex = observableIndex;
+      event.invalidatedAt = observableDate;
+      // Retain confirmedAt and its strength: historical confirmation and
+      // the event's current validity are different facts.
     }
   }
 }
@@ -168,6 +177,10 @@ function divergenceLifecycle(rows, values, rules) {
     // Today's completed facts belong to the existing event before a newly
     // observable pair is considered. A candidate must not hide today's risk.
     if (active) advanceEvent(active, rows, values, ma30, current, rules);
+    // Outcomes on the boundary day take priority over expiry. A confirmation
+    // otherwise lasts 20 completed observations, including its entry day;
+    // another drawdown of the same event does not refresh that clock.
+    if (active?.state === 'CONFIRMED' && current - active.enteredIndex >= rules.CONFIRMED_MAX_AGE) active = null;
 
     // A pivot is considered once, only when all right-hand bars have closed.
     // That makes each pair single-use, including after its terminal display expires.

@@ -6,12 +6,13 @@ import { deriveInvestmentSummary } from '../src/lib/investmentSummary.js';
 import { buildLedgerQuoteUniverse } from '../src/lib/stockUniverse.js';
 import { isRegularNyseHoliday, mergeQuoteBaselineRows } from '../src/lib/quoteRefreshPolicy.js';
 import { mergeFreshStockRealtimeRows, mergeStockTicksIntoQuoteRows } from '../src/lib/stockRealtime.js';
+import { STOCK_RSI_DIVERGENCE_VERSION } from '../src/lib/stockRsiConfig.js';
 
 const now = Date.parse('2026-09-11T15:00:00Z');
 const divergenceStates = ['NONE', 'FORMING', 'CONFIRMED', 'REALIZED', 'INVALIDATED'];
 const signal = {
   period: 6, value: 82.6, asOf: '2026-09-10', priceBasis: 'adjusted_close',
-  divergenceVersion: 'rsi6-lifecycle-v2', divergenceState: 'CONFIRMED', divergenceDate: '2026-09-09',
+  divergenceVersion: STOCK_RSI_DIVERGENCE_VERSION, divergenceState: 'CONFIRMED', divergenceDate: '2026-09-09',
   divergenceConfirmationStrength: 'STRONG',
   divergenceEvent: {
     high1: { date: '2026-08-20', price: 120, rsi: 90 },
@@ -108,7 +109,7 @@ test('ordinary provider quote calculates RSI from existing adjusted daily closes
   assert.equal(quote.stockRsi?.priceBasis, 'adjusted_close');
   // Independently calculated Wilder(6) result for the deterministic 180-close fixture.
   assert.ok(Math.abs(quote.stockRsi.value - 97.22502669309888) < 1e-9);
-  assert.equal(quote.stockRsi.divergenceVersion, 'rsi6-lifecycle-v2');
+  assert.equal(quote.stockRsi.divergenceVersion, STOCK_RSI_DIVERGENCE_VERSION);
   assert.ok(divergenceStates.includes(quote.stockRsi.divergenceState));
   assert.equal(Object.hasOwn(quote.stockRsi, 'bearishDivergence'), false);
   assert.equal(quote.price, 145.25);
@@ -206,6 +207,28 @@ test('a newly completed lifecycle result atomically replaces the previous event 
     const [merged] = refreshAppCache([current], [{ ...current, price: 120, stockRsi: nextSignal }]);
     assert.equal(merged.price, 125);
     assert.deepEqual(merged.stockRsi, nextSignal, `${state}: old event timestamps and STRONG strength must not leak into a new result`);
+  }
+});
+
+test('confirmed-then-invalidated metadata keeps its confirmation history through App cache and later WS ticks', () => {
+  const watchlist = [{ symbol: 'MSFT', name: 'Microsoft', price: 120 }];
+  const confirmed = { symbol: 'MSFT', price: 124, previousClose: 110, dailyBaselineClose: 110,
+    dailyBaselineDate: '2026-09-10', stockRsi: lifecycleSignal('CONFIRMED', 'STRONG') };
+  const current = refreshAppCache([], [confirmed], watchlist);
+  const invalidated = { ...lifecycleSignal('INVALIDATED', 'STRONG'), value: 91 };
+  const refreshed = refreshAppCache(current, [{ ...confirmed, price: 126, stockRsi: invalidated }]);
+  assert.equal(refreshed[0].stockRsi.divergenceState, 'INVALIDATED');
+  assert.equal(refreshed[0].stockRsi.divergenceDate, '2026-09-10');
+  assert.equal(refreshed[0].stockRsi.divergenceEvent.confirmedAt, '2026-09-09');
+  assert.equal(refreshed[0].stockRsi.divergenceEvent.invalidatedAt, '2026-09-10');
+  assert.equal(refreshed[0].stockRsi.divergenceEvent.realizedAt, null);
+  for (const price of [100, 140]) {
+    const ticked = mergeStockTicksIntoQuoteRows(refreshed,
+      [{ symbol: 'MSFT', price, timestamp: now, source: 'EODHD_WS' }], 'live', refreshed, { now });
+    const { watchlistRows } = buildLedgerQuoteUniverse([], watchlist, ticked);
+    assert.equal(watchlistRows[0].price, price);
+    assert.deepEqual(watchlistRows[0].stockRsi, invalidated,
+      'a later intraday tick must not resurrect CONFIRMED, erase its confirmedAt or manufacture REALIZED');
   }
 });
 

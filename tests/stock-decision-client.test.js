@@ -137,6 +137,40 @@ test('legacy boolean-era divergence payloads cannot become accepted or cached li
   assert.equal(calls, 2, 'legacy payload must not be retained as a six-hour valid report');
 });
 
+test('decision client accepts invalidated confirmation history and rejects old or inconsistent semantics', () => {
+  const afterConfirmation = () => {
+    const data = lifecycle(payload(), 'CONFIRMED', 55);
+    data.model.verdict = 'observe';
+    data.model.reasons = ['structure_improving'];
+    Object.assign(data.model.momentum, { divergenceState: 'INVALIDATED', divergenceDate: data.asOf });
+    data.model.momentum.divergenceEvent.invalidatedAt = data.asOf;
+    return data;
+  };
+  for (const strength of ['BASIC', 'STRONG']) {
+    const data = afterConfirmation();
+    data.model.momentum.divergenceConfirmationStrength = strength;
+    const normalized = normalizeStockDecisionData(data, { symbol: 'AAPL', now: timestamp });
+    assert.ok(normalized);
+    assert.equal(normalized.model.verdict, 'observe');
+    assert.equal(normalized.model.momentum.divergenceState, 'INVALIDATED');
+    assert.equal(normalized.model.momentum.divergenceConfirmationStrength, strength);
+    assert.equal(normalized.model.momentum.divergenceEvent.confirmedAt, data.model.momentum.divergenceEvent.confirmedAt);
+  }
+  for (const mutate of [
+    data => { data.model.momentum.divergenceVersion = 'rsi6-lifecycle-v2'; },
+    data => { data.model.momentum.divergenceConfirmationStrength = null; },
+    data => { data.model.momentum.divergenceEvent.realizedAt = data.asOf; },
+    data => {
+      data.model.momentum.divergenceEvent.invalidatedAt = data.model.momentum.divergenceEvent.formedAt;
+      data.model.momentum.divergenceDate = data.model.momentum.divergenceEvent.formedAt;
+    },
+  ]) {
+    const data = afterConfirmation();
+    mutate(data);
+    assert.equal(normalizeStockDecisionData(data, { symbol: 'AAPL', now: timestamp }), null);
+  }
+});
+
 test('valuation close retains its separate unadjusted basis without changing the technical report or input quote', () => {
   const data = payload();
   data.valuationClose = { price: 105, date: data.asOf, basis: 'unadjusted_close', providerExtra: 'discard' };

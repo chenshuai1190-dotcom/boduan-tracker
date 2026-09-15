@@ -21,6 +21,14 @@ const render = (signal, language = 'zh') => renderToStaticMarkup(React.createEle
 }));
 const plain = html => html.replace(/<[^>]+>/g, '');
 
+function invalidatedAfterConfirmation(strength = 'BASIC') {
+  const signal = lifecycleSignal('INVALIDATED', { value: 76.2 });
+  signal.divergenceConfirmationStrength = strength;
+  signal.divergenceDate = '2026-09-10';
+  Object.assign(signal.divergenceEvent, { confirmedAt: '2026-09-09', invalidatedAt: '2026-09-10', maxDrawdownPct: 4 });
+  return signal;
+}
+
 test('the actual stock-trend RSI markup always renders its number, zone and lifecycle field', () => {
   for (const [state, value, expected] of [
     ['FORMING', 83.6, '超买·顶背离形成'],
@@ -47,6 +55,48 @@ test('missing or old lifecycle metadata retains the fixed fields without inventi
   assert.equal(isStockRsiLifecycleSignal(old), false);
   assert.equal(plain(render(lifecycleSignal(null, { value: 30.3 }))), 'RSI(6)30.3中性·—');
   assert.equal(isStockRsiLifecycleSignal(lifecycleSignal(null, { value: null, asOf: null })), true);
+  const oldLifecycle = lifecycleSignal('CONFIRMED', { divergenceVersion: 'rsi6-lifecycle-v2' });
+  assert.equal(isStockRsiLifecycleSignal(oldLifecycle), false, 'v2 confirmation semantics must not survive the version change');
+  assert.equal(stockRsiPresentation(oldLifecycle).momentumLabel, '—');
+});
+
+test('the actual stock-trend markup shows invalidated after either historical confirmation strength', () => {
+  for (const strength of ['BASIC', 'STRONG']) {
+    const signal = invalidatedAfterConfirmation(strength);
+    const original = structuredClone(signal);
+    assert.equal(isStockRsiLifecycleSignal(signal), true);
+    const html = render(signal);
+    assert.equal(plain(html), 'RSI(6)76.2中性·顶背离失效');
+    assert.match(html, /data-watchlist-rsi-divergence="invalidated"/);
+    assert.doesNotMatch(plain(html), /顶背离确认/);
+    assert.equal(stockRsiPresentation(signal, true).momentumLabel, 'Divergence invalidated');
+    assert.deepEqual(signal, original, 'displaying the current state must retain confirmation history');
+  }
+  const sameDay = invalidatedAfterConfirmation();
+  sameDay.divergenceEvent.confirmedAt = sameDay.divergenceEvent.invalidatedAt;
+  assert.equal(isStockRsiLifecycleSignal(sameDay), true, 'same-day observable confirmation and invalidation have ordered equal dates');
+  assert.equal(isStockRsiLifecycleSignal(lifecycleSignal('INVALIDATED')), true, 'direct forming invalidation still has no confirmation history');
+});
+
+test('invalidation rejects reversed history, dual terminal states and inconsistent confirmation strength', () => {
+  const changes = [
+    signal => { signal.divergenceEvent.confirmedAt = '2026-09-11'; },
+    signal => { signal.divergenceEvent.invalidatedAt = '2026-09-08'; signal.divergenceDate = '2026-09-08'; },
+    signal => { signal.divergenceEvent.realizedAt = '2026-09-10'; },
+    signal => { signal.divergenceEvent.invalidatedAt = null; },
+    signal => { signal.divergenceEvent.confirmedAt = null; },
+    signal => { delete signal.divergenceEvent.confirmedAt; },
+    signal => { signal.divergenceConfirmationStrength = null; },
+    signal => { signal.divergenceConfirmationStrength = 'FORMING'; },
+    signal => { delete signal.divergenceConfirmationStrength; },
+    signal => { signal.divergenceDate = signal.divergenceEvent.confirmedAt; },
+  ];
+  for (const change of changes) {
+    const signal = invalidatedAfterConfirmation();
+    change(signal);
+    assert.equal(isStockRsiLifecycleSignal(signal), false);
+    assert.equal(stockRsiPresentation(signal).momentumLabel, '—');
+  }
 });
 
 test('RSI zone thresholds do not round early or introduce a fourth zone', () => {

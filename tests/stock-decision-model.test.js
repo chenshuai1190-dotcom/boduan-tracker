@@ -259,6 +259,25 @@ test('realized and invalidated events stop contributing old divergence pause ris
   }
 });
 
+test('an invalidated confirmation keeps its history but cannot keep the decision paused for old weakness', () => {
+  const prefix = Array.from({ length: 130 }, (_, index) => 100 + [0, 0.1, 0, -0.1][index % 4]);
+  const closes = [...prefix, 110, 120, 115, 110, 116, 119, 121, 120.7, 120.5, 120.3, 117.2];
+  const confirmed = calculate(history(closes));
+  assert.equal(confirmed.momentum.divergenceState, 'CONFIRMED');
+  assert.equal(confirmed.verdict, 'pause');
+  const invalidated = calculate(history([...closes, 500, 400]));
+  assert.equal(invalidated.momentum.divergenceState, 'INVALIDATED');
+  assert.equal(invalidated.momentum.divergenceEvent.confirmedAt, confirmed.momentum.divergenceEvent.confirmedAt);
+  assert.equal(invalidated.momentum.divergenceConfirmationStrength, confirmed.momentum.divergenceConfirmationStrength);
+  assert.ok(invalidated.momentum.divergenceEvent.invalidatedAt > invalidated.momentum.divergenceEvent.confirmedAt);
+  assert.equal(invalidated.momentum.divergenceEvent.realizedAt, null);
+  assert.ok(invalidated.momentum.value < 90);
+  assert.notEqual(invalidated.verdict, 'pause');
+  assert.equal(invalidated.reasons.includes('bearish_divergence_confirmed'), false);
+  assert.equal(invalidated.reasons.includes('bearish_divergence_forming'), false);
+  assert.equal(invalidated.reasons.includes('overbought_divergence'), false);
+});
+
 test('price pivots older than the 120-bar observation window expire without invented replacement levels', () => {
   const result = calculate(history([...baseCloses, ...Array(130).fill(105)]));
   assert.equal(result.position.support, null);

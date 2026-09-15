@@ -1,9 +1,11 @@
+import { STOCK_RSI_DIVERGENCE_VERSION } from '../../src/lib/stockRsiConfig.js';
+
 export function lifecycleSignal(state = 'NONE', overrides = {}) {
   const entered = { FORMING: '2026-09-08', CONFIRMED: '2026-09-09', REALIZED: '2026-09-10', INVALIDATED: '2026-09-09' };
   const confirmed = ['CONFIRMED', 'REALIZED'].includes(state);
   return {
     period: 6, value: 82.6, asOf: '2026-09-11', priceBasis: 'adjusted_close',
-    divergenceVersion: 'rsi6-lifecycle-v2', divergenceState: state,
+    divergenceVersion: STOCK_RSI_DIVERGENCE_VERSION, divergenceState: state,
     divergenceDate: entered[state] || null,
     divergenceConfirmationStrength: confirmed ? 'BASIC' : null,
     divergenceEvent: entered[state] ? {

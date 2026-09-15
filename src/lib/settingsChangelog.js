@@ -4,6 +4,17 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '补充顶背离“确认后失效”：收盘价再突破第二高点至少 0.5%，且 RSI(6) 恢复至第一高点读数的 2 点以内时转为失效，同时保留历史确认记录。',
+      '已兑现事件不再反转为失效；确认状态最多保留 20 个完整交易日，重复回撤不续期。首页自选、股票趋势与决策工具同步，均线算法及页面布局保持不变。',
+    ],
+    itemsEn: [
+      'Confirmed bearish divergence can now be invalidated when a completed close exceeds the second high by at least 0.5% and RSI(6) recovers to within two points of the first high’s reading, while retaining its confirmation history.',
+      'Realized events remain terminal. Confirmations expire after 20 completed trading observations without renewing on repeated pullbacks. Home Watchlist, Stock Trend and Stock Decision stay synchronized, with MA algorithms and layouts unchanged.',
+    ],
+  },
+  {
+    ver: 'v10.7.9.532', date: '2026-09-15',
+    items: [
       '首页自选与股票趋势同步使用 RSI(6) 顶背离生命周期，区分形成、确认、已兑现、失效和动量正常；兑现与失效提示到期后自动结束。',
       'RSI 区间与动量状态独立显示，股票决策同步调整追高限制；复用已有完整日线，不增加行情请求，不改变均线系统。',
       '股票趋势固定保留“区间 · 动量状态”，首页持仓盈亏金额和收益率分别左对齐，改善数字排列。',

@@ -41,7 +41,7 @@ test('daily RSI(6) preserves Wilder smoothing against an independent high-precis
   assert.equal(result.period, 6);
   assert.equal(result.priceBasis, 'adjusted_close');
   assert.equal(result.asOf, rows.at(-1).date);
-  assert.equal(result.divergenceVersion, 'rsi6-lifecycle-v2');
+  assert.equal(result.divergenceVersion, STOCK_RSI_DIVERGENCE_VERSION);
   assert.equal(Object.hasOwn(result, 'bearishDivergence'), false);
 });
 
@@ -169,14 +169,16 @@ test('forming confirms at three percent; basic and strong confirmation preserve 
   assert.equal(strong.divergenceState, 'CONFIRMED');
   assert.equal(strong.divergenceConfirmationStrength, 'STRONG');
   const recovered = extend(strongCloses, [140]);
-  assert.equal(recovered.divergenceState, 'CONFIRMED');
+  assert.equal(recovered.divergenceState, 'INVALIDATED');
   assert.equal(recovered.divergenceConfirmationStrength, 'STRONG');
-  assert.equal(recovered.divergenceDate, strong.divergenceDate);
+  assert.equal(recovered.divergenceEvent.confirmedAt, strong.divergenceDate);
+  assert.equal(recovered.divergenceDate, recovered.asOf);
 });
 
 test('a BASIC confirmation only upgrades below MA30 while the three-percent drawdown still holds', () => {
   const closes = [...formingCloses(), 117.2, ...Array(20).fill(150), 120];
-  const config = { REALIZED_RSI_THRESHOLD: 0, REALIZED_DRAWDOWN: 0.5 };
+  const config = { REALIZED_RSI_THRESHOLD: 0, REALIZED_DRAWDOWN: 0.5,
+    CONFIRMED_MAX_AGE: 40, INVALIDATION_PRICE_THRESHOLD: 0.9 };
   const rows = history(closes);
   const rebound = calculate(rows, rows.at(-1).date, config);
   assert.ok(closes.at(-1) < closes.slice(-30).reduce((sum, close) => sum + close, 0) / 30);
@@ -250,7 +252,7 @@ test('the High2 bar itself can confirm or realize a long upper wick before the r
   }
 });
 
-test('forming invalidation needs both a new price high and recovered first-pivot RSI; confirmed events do not regress', () => {
+test('forming invalidation retains its existing price and RSI conditions', () => {
   const base = formingCloses(130, true);
   const initial = calculate(history(base));
   assert.equal(extend(base, [121]).divergenceState, 'FORMING');
@@ -263,7 +265,128 @@ test('forming invalidation needs both a new price high and recovered first-pivot
   assert.equal(invalidated.divergenceConfirmationStrength, null);
   assert.equal(invalidated.divergenceEvent.confirmedAt, null);
   assert.equal(invalidated.divergenceEvent.invalidatedAt, invalidated.asOf);
-  assert.equal(extend(base, [117.2, 1000]).divergenceState, 'CONFIRMED');
+  const afterConfirmation = extend(base, [117.2, 1000]);
+  assert.equal(afterConfirmation.divergenceState, 'INVALIDATED');
+  assert.ok(afterConfirmation.divergenceEvent.confirmedAt < afterConfirmation.divergenceEvent.invalidatedAt);
+});
+
+function recoveryCloseAtRsi(closes, target) {
+  let lower = closes.at(-1);
+  let upper = lower * 100;
+  for (let i = 0; i < 60; i += 1) {
+    const midpoint = (lower + upper) / 2;
+    if (extend(closes, [midpoint]).value < target) lower = midpoint;
+    else upper = midpoint;
+  }
+  return (lower + upper) / 2;
+}
+
+test('confirmed invalidation accepts RSI recovery within two points and retains historical confirmation', () => {
+  const base = [...formingCloses(130, true), 117.2];
+  const confirmed = calculate(history(base));
+  for (const [difference, state] of [[2.0001, 'CONFIRMED'], [2, 'INVALIDATED'], [1.9999, 'INVALIDATED']]) {
+    const target = confirmed.divergenceEvent.high1.rsi - difference;
+    const price = recoveryCloseAtRsi(base, target);
+    const result = extend(base, [price]);
+    assert.ok(price > confirmed.divergenceEvent.high2.price * 1.005);
+    assert.ok(Math.abs(result.value - target) < 1e-10);
+    assert.equal(result.divergenceState, state);
+    assert.equal(result.divergenceEvent.confirmedAt, confirmed.divergenceDate);
+    assert.equal(result.divergenceConfirmationStrength, confirmed.divergenceConfirmationStrength);
+    assert.equal(result.divergenceEvent.realizedAt, null);
+    if (state === 'INVALIDATED') {
+      assert.equal(result.divergenceDate, result.asOf);
+      assert.equal(result.divergenceEvent.invalidatedAt, result.asOf);
+    }
+  }
+});
+
+test('confirmed price recovery requires the inclusive half-percent threshold, not a tiny new high', () => {
+  const base = [...formingCloses(130, true), 117.2];
+  const confirmed = calculate(history(base));
+  const threshold = confirmed.divergenceEvent.high2.price * 1.005;
+  // Isolate the price gate while retaining a separately verified recovered RSI.
+  for (const [price, state] of [[threshold - 0.000001, 'CONFIRMED'], [threshold, 'INVALIDATED'], [threshold + 0.000001, 'INVALIDATED']]) {
+    const rows = history([...base, price]);
+    const result = calculate(rows, rows.at(-1).date, { RSI_RECOVERY_TOLERANCE: 25 });
+    assert.ok(result.value >= confirmed.divergenceEvent.high1.rsi - 25);
+    assert.equal(result.divergenceState, state);
+  }
+});
+
+test('price-only, RSI-only and incomplete rebounds keep the confirmed event active', () => {
+  const base = [...formingCloses(130, true), 117.2];
+  const confirmed = calculate(history(base));
+  const priceOnly = extend(base, [125]);
+  assert.ok(125 >= confirmed.divergenceEvent.high2.price * 1.005);
+  assert.ok(priceOnly.value < confirmed.divergenceEvent.high1.rsi - 2);
+  assert.equal(priceOnly.divergenceState, 'CONFIRMED');
+  const rsiOnly = extend(base, [...Array(12).fill(117.2), 117.7, 118.2, 118.7, 119.2, 119.7, 120.2]);
+  assert.ok(rsiOnly.value >= confirmed.divergenceEvent.high1.rsi - 2);
+  assert.ok(120.2 < confirmed.divergenceEvent.high2.price);
+  assert.equal(rsiOnly.divergenceState, 'CONFIRMED');
+  assert.equal(extend(base, [118, 119, 120]).divergenceState, 'CONFIRMED');
+});
+
+test('realized outcomes are terminal even when a later rally satisfies both invalidation conditions', () => {
+  const base = [...formingCloses(130, true), 117.2, 105];
+  const realized = calculate(history(base));
+  assert.equal(realized.divergenceState, 'REALIZED');
+  for (const age of [1, 2, 4]) {
+    const result = extend(base, Array(age).fill(1000));
+    assert.ok(result.value >= realized.divergenceEvent.high1.rsi - 2);
+    assert.equal(result.divergenceState, 'REALIZED');
+    assert.deepEqual(result.divergenceEvent, realized.divergenceEvent);
+    assert.equal(result.divergenceDate, realized.divergenceDate);
+  }
+  assertEmpty(extend(base, Array(5).fill(1000)), 'NONE');
+});
+
+test('a confirmed then invalidated event cannot later become realized and expires after three observations', () => {
+  const base = [...formingCloses(130, true), 117.2, 1000];
+  const invalidated = calculate(history(base));
+  assert.equal(invalidated.divergenceState, 'INVALIDATED');
+  assert.ok(invalidated.divergenceEvent.confirmedAt);
+  for (const age of [1, 2]) {
+    const result = extend(base, Array(age).fill(50));
+    assert.equal(result.divergenceState, 'INVALIDATED');
+    assert.deepEqual(result.divergenceEvent, invalidated.divergenceEvent);
+  }
+  assertEmpty(extend(base, Array(3).fill(50)), 'NONE');
+});
+
+test('confirmation expires after 20 completed observations without refreshing or reviving the same pair', () => {
+  const base = [...formingCloses(130, true), 117.2];
+  const confirmed = calculate(history(base));
+  for (const age of [1, 19, 20, 40]) {
+    const result = extend(base, Array(age).fill(117.2));
+    if (age < 20) {
+      assert.equal(result.divergenceState, 'CONFIRMED');
+      assert.equal(result.divergenceDate, confirmed.divergenceDate);
+    } else assertEmpty(result, 'NONE');
+  }
+  const rows = history([...base, ...Array(3).fill(117.2)]);
+  assertEmpty(calculate(rows, rows.at(-1).date, { CONFIRMED_MAX_AGE: 3 }), 'NONE');
+  const newPair = extend([...base, ...Array(20).fill(117.2)], [125, 140, 132, 125, 133, 137, 142, 141.7, 141.5, 141.3]);
+  assert.equal(newPair.divergenceState, 'FORMING');
+  assert.equal(newPair.divergenceEvent.high2.price, 142);
+  assert.ok(newPair.divergenceEvent.formedAt > confirmed.divergenceDate);
+});
+
+test('realization and invalidation on the expiry boundary take priority over removing a confirmation', () => {
+  const base = [...formingCloses(130, true), 117.2, ...Array(19).fill(117.2)];
+  assert.equal(calculate(history(base)).divergenceState, 'CONFIRMED');
+  assert.equal(extend(base, [105]).divergenceState, 'REALIZED');
+  assert.equal(extend(base, [1000]).divergenceState, 'INVALIDATED');
+  assertEmpty(extend(base, [117.2]), 'NONE');
+});
+
+test('unfinished bars cannot invalidate or expire a confirmed event', () => {
+  const base = [...formingCloses(130, true), 117.2, ...Array(19).fill(117.2)];
+  const completed = history(base);
+  const future = history([...base, 1000, 50]);
+  assert.deepEqual(calculate(future, completed.at(-1).date), calculate(completed));
+  assert.equal(calculate(future, future.at(-2).date).divergenceState, 'INVALIDATED');
 });
 
 test('REALIZED displays on entry day through day four, then NONE without reviving the old pair', () => {
@@ -416,15 +539,20 @@ test('local confirmation MA30 neither mutates input prices nor changes stock-det
 
 test('the shared lifecycle configuration is frozen and validated while RSI6 and its 60-close warmup stay fixed', () => {
   assert.equal(Object.isFrozen(STOCK_RSI_RULES), true);
-  assert.equal(STOCK_RSI_DIVERGENCE_VERSION, 'rsi6-lifecycle-v2');
+  assert.equal(STOCK_RSI_DIVERGENCE_VERSION, 'rsi6-lifecycle-v3');
   assert.equal(STOCK_RSI_RULES.RSI_PERIOD, 6);
   assert.equal(STOCK_RSI_RULES.PIVOT_WINDOW, 3);
+  assert.equal(STOCK_RSI_RULES.INVALIDATION_PRICE_THRESHOLD, 0.005);
+  assert.equal(STOCK_RSI_RULES.RSI_RECOVERY_TOLERANCE, 2);
+  assert.equal(STOCK_RSI_RULES.CONFIRMED_MAX_AGE, 20);
   assert.equal(resolveStockRsiRules({ PIVOT_WINDOW: 4 }).PIVOT_WINDOW, 4);
   const rows = history(formingCloses());
   for (const config of [null, [], { UNKNOWN: 3 }, { RSI_PERIOD: 14 }, { RSI_WARMUP_CLOSES: 59 },
     { PIVOT_WINDOW: 0 }, { MIN_PIVOT_DISTANCE: 61 }, { REALIZED_DISPLAY_WINDOW: 1.5 },
     { MIN_RSI_DIFFERENCE: NaN }, { RSI_OVERBOUGHT: 101 }, { CONFIRMATION_DRAWDOWN: 0.5 },
-    { PRICE_HIGHER_HIGH_THRESHOLD: '0.005' }]) {
+    { PRICE_HIGHER_HIGH_THRESHOLD: '0.005' }, { INVALIDATION_PRICE_THRESHOLD: 0 },
+    { RSI_RECOVERY_TOLERANCE: -1 }, { RSI_RECOVERY_TOLERANCE: 101 },
+    { CONFIRMED_MAX_AGE: 0 }, { CONFIRMED_MAX_AGE: 1.5 }]) {
     assert.equal(resolveStockRsiRules(config), null);
     assertEmpty(calculate(rows, rows.at(-1).date, config), null);
   }

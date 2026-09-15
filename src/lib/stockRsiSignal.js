@@ -42,8 +42,11 @@ export function isStockRsiLifecycleSignal(signal, { asOf } = {}) {
   }
   if (state === 'FORMING') return signal.divergenceDate === event.formedAt
     && event.confirmedAt === null && event.realizedAt === null && event.invalidatedAt === null && strength === null;
-  if (state === 'INVALIDATED') return signal.divergenceDate === event.invalidatedAt
-    && event.confirmedAt === null && event.realizedAt === null && strength === null;
+  if (state === 'INVALIDATED') {
+    if (signal.divergenceDate !== event.invalidatedAt || event.realizedAt !== null) return false;
+    return event.confirmedAt === null ? strength === null
+      : ['BASIC', 'STRONG'].includes(strength) && event.invalidatedAt >= event.confirmedAt;
+  }
   if (!['BASIC', 'STRONG'].includes(strength) || event.confirmedAt === null || event.invalidatedAt !== null) return false;
   if (state === 'CONFIRMED') return signal.divergenceDate === event.confirmedAt && event.realizedAt === null;
   return event.realizedAt !== null && event.realizedAt >= event.confirmedAt && signal.divergenceDate === event.realizedAt;

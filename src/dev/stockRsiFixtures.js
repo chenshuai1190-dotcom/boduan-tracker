@@ -1,3 +1,5 @@
+import { STOCK_RSI_DIVERGENCE_VERSION } from '../lib/stockRsiConfig.js';
+
 // Fictional visual fixtures only. This helper is never used by production data.
 export function rsiLifecyclePreview(value, asOf, state = 'NONE') {
   const dateBefore = days => new Date(Date.parse(`${asOf}T00:00:00Z`) - days * 86400000).toISOString().slice(0, 10);
@@ -11,7 +13,7 @@ export function rsiLifecyclePreview(value, asOf, state = 'NONE') {
     maxDrawdownPct: state === 'REALIZED' ? 9 : confirmed ? 4 : 1,
   };
   return {
-    period: 6, value, asOf, priceBasis: 'adjusted_close', divergenceVersion: 'rsi6-lifecycle-v2',
+    period: 6, value, asOf, priceBasis: 'adjusted_close', divergenceVersion: STOCK_RSI_DIVERGENCE_VERSION,
     divergenceState: state, divergenceEvent: event,
     divergenceConfirmationStrength: confirmed ? 'BASIC' : null,
     divergenceDate: state === 'NONE' ? null : state === 'FORMING' ? event.formedAt
