@@ -21,6 +21,7 @@ import { marketHexColor } from '../lib/marketColorMode.js';
 import { loadStockFundamentals } from '../lib/stockFundamentals.js';
 import { loadStockValuation } from '../lib/stockValuation.js';
 import { stockRsiPresentation } from '../lib/stockRsiPresentation.js';
+import { deriveStockMaStructure, deriveStockMaTrend } from '../lib/stockMaStructure.js';
 import {
   deriveCloseBasedPosition,
   displayCurrencyRate,
@@ -1436,6 +1437,24 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
   const close = React.useMemo(() => resolveStockDetailClose(history), [history]);
   const rsiSignal = !loading && stockDetail?.stockRsi?.asOf && stockDetail.stockRsi.asOf === close.asOfDate ? stockDetail.stockRsi : null;
   const rsiDisplay = stockRsiPresentation(rsiSignal, language === 'en');
+  const maStructure = React.useMemo(() => deriveStockMaStructure(
+    loading || loadError ? null : stockDetail?.history?.at(-1),
+    { asOfDate: close.asOfDate },
+  ), [close.asOfDate, stockDetail?.history, loading, loadError]);
+  const maTrend = React.useMemo(() => deriveStockMaTrend(
+    loading || loadError ? [] : stockDetail?.history,
+    { asOfDate: close.asOfDate },
+  ), [close.asOfDate, stockDetail?.history, loading, loadError]);
+  const maStructureColor = ['bullish', 'long_term_up'].includes(maStructure.status)
+    ? marketHexColor(1, marketColorMode)
+    : ['bearish', 'long_term_down'].includes(maStructure.status)
+      ? marketHexColor(-1, marketColorMode)
+      : '#a1a1aa';
+  const maTrendColor = ['strengthening', 'improving'].includes(maTrend.status)
+    ? marketHexColor(1, marketColorMode)
+    : ['weakening', 'deteriorating'].includes(maTrend.status)
+      ? marketHexColor(-1, marketColorMode)
+      : maTrend.status === 'repairing' ? '#d5b67a' : '#a1a1aa';
   const indicators = stockDetail?.indicators || {};
   const portfolioCurrency = String(portfolioCurrencyMode || '').toUpperCase() === 'CNY' ? 'CNY' : 'USD';
   const portfolioRate = displayCurrencyRate(portfolioCurrency, usdRate);
@@ -1637,7 +1656,7 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
         <div className="px-4 pb-2 pt-4">
           <h2 className="text-[15px] font-normal text-white/[0.82]">{language === 'en' ? 'Where is the price now?' : '现在处于什么位置'}</h2>
         </div>
-        <div className="grid grid-cols-[0.78fr_0.96fr_1.36fr] gap-1 px-4 pb-4 pt-2" data-watchlist-daily-metrics="borderless">
+        <div className="grid grid-cols-3 gap-2 px-4 pb-4 pt-2" data-watchlist-daily-metrics="borderless">
           <MetricCell label={t(language, 'watchlistDetail.distance52High', '距52周高点')} value={formatSignedPercent(distance52)} detail={t(language, 'watchlistDetail.highValue', '高点 {{price}}', { price: formatCurrency(high52, stockCurrency) })} color={marketHexColor(distance52 || 0, marketColorMode)} />
           <MetricCell
             label={(
@@ -1668,6 +1687,25 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
                 </>
               ) : '—'}
             </div>
+          </div>
+        </div>
+
+        <div className="stock-report-ma-assessment" data-watchlist-ma-assessment="structure-and-change">
+          <div className="stock-report-ma-structure" data-watchlist-ma-structure={maStructure.status}
+            title={maStructure.status !== 'unavailable' ? `${language === 'en' ? 'Daily close' : '日收盘'} · ${maStructure.asOfDate}` : undefined}
+          >
+            <div>{t(language, 'watchlistDetail.maStructure', '均线结构')}</div>
+            <strong className="stock-report-ma-structure-value" style={{ color: maStructureColor }}>
+              {maStructure.status === 'unavailable' ? '—' : t(language, `watchlistDetail.maStructure.${maStructure.status}`, '—')}
+            </strong>
+          </div>
+          <div className="stock-report-ma-trend" data-watchlist-ma-trend={maTrend.status}
+            title={maTrend.status !== 'unavailable' ? `${maTrend.comparisonDate} – ${maTrend.asOfDate}` : undefined}
+          >
+            <div>{t(language, 'watchlistDetail.maTrend', '趋势变化')}</div>
+            <strong className="stock-report-ma-structure-value" style={{ color: maTrendColor }}>
+              {maTrend.status === 'unavailable' ? '—' : t(language, `watchlistDetail.maTrend.${maTrend.status}`, '—')}
+            </strong>
           </div>
         </div>
 

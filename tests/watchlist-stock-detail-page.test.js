@@ -4,6 +4,7 @@ import test from 'node:test';
 import { buildEodhdStockDetail } from '../server/quote/stockDetail.js';
 import { deriveMa200RetestDetail } from '../src/lib/ma200RetestDetail.js';
 import { marketHexColor } from '../src/lib/marketColorMode.js';
+import { deriveStockMaStructure, deriveStockMaTrend } from '../src/lib/stockMaStructure.js';
 
 const pageSource = readFileSync(new URL('../src/pages/WatchlistStockDetailPage.jsx', import.meta.url), 'utf8');
 const appSource = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8');
@@ -116,6 +117,55 @@ test('the trend metric waits for its completed chart date and cannot show an old
   assert.equal(selectSignal(false, {}, { asOfDate: '2026-09-11' }), null);
   assert.equal(selectSignal(false, null, { asOfDate: null }), null);
   assert.equal(selectSignal(false, null, {}), null);
+});
+
+test('MA structure and trend change independently consume the current complete daily payload', () => {
+  const hook = (name) => {
+    const expression = pageSource.match(new RegExp(`const ${name} = React\\.useMemo\\(\\(\\) => ([\\s\\S]*?), \\[close\\.asOfDate, stockDetail\\?\\.history, loading, loadError\\]\\);`))?.[1];
+    assert.ok(expression, `${name} must pair with the chart close date`);
+    assert.doesNotMatch(expression, /visibleHistory|range|selectedPoint|quoteRow|weeklyHistory|indicators/);
+    return new Function('deriveStockMaStructure', 'deriveStockMaTrend', 'loading', 'loadError', 'stockDetail', 'close', `return (${expression});`);
+  };
+  const structure = hook('maStructure');
+  const trend = hook('maTrend');
+  const dates = ['2026-09-04', '2026-09-08', '2026-09-09', '2026-09-10', '2026-09-11', '2026-09-14'];
+  const history = dates.map((date, index) => ({
+    date, close: 665.6, ma30: index === 5 ? 590.39 : 580 + index * 2, ma60: 596.73, ma200: 623.49,
+  }));
+  const read = (select, rows, loading = false, loadError = false) => select(
+    deriveStockMaStructure, deriveStockMaTrend, loading, loadError, { history: rows }, { asOfDate: dates.at(-1) },
+  );
+  assert.equal(read(structure, history).status, 'long_term_up');
+  assert.equal(read(trend, history).status, 'repairing');
+  assert.equal(read(structure, history.slice(-1)).status, 'long_term_up');
+  assert.equal(read(trend, history.slice(-1)).status, 'unavailable', 'a valid current structure does not prove any direction');
+  for (const select of [structure, trend]) {
+    assert.equal(read(select, history, true).status, 'unavailable');
+    assert.equal(read(select, history, false, true).status, 'unavailable');
+    assert.equal(read(select, history.slice(0, -1)).status, 'unavailable', 'never substitute yesterday for the latest chart date');
+    assert.equal(read(select, [...history.slice(0, -1), { ...history.at(-1), close: null }]).status, 'unavailable', 'raw latest rows cannot be dropped by chart normalization to reveal an older classification');
+    assert.equal(read(select, []).status, 'unavailable');
+  }
+  const incompleteWindow = history.map((row, index) => index === 3 ? { ...row, ma30: null } : row);
+  assert.equal(read(structure, incompleteWindow).status, 'long_term_up');
+  assert.equal(read(trend, incompleteWindow).status, 'unavailable', 'missing intermediate sessions must not be skipped to build a different window');
+});
+
+test('current MA structure and historical trend direction have separate labeled values in the report', () => {
+  const assessment = pageSource.slice(
+    pageSource.indexOf('data-watchlist-ma-assessment="structure-and-change"'),
+    pageSource.indexOf('<div className="stock-report-ma-heading">'),
+  );
+  assert.ok(assessment.includes('data-watchlist-ma-structure={maStructure.status}'));
+  assert.ok(assessment.includes('data-watchlist-ma-trend={maTrend.status}'));
+  assert.ok(assessment.includes("t(language, 'watchlistDetail.maStructure', '均线结构')"));
+  assert.ok(assessment.includes("t(language, 'watchlistDetail.maTrend', '趋势变化')"));
+  assert.ok(assessment.includes("maStructure.status === 'unavailable' ? '—'"));
+  assert.ok(assessment.includes("maTrend.status === 'unavailable' ? '—'"));
+  assert.equal((assessment.match(/<strong\b/g) || []).length, 2);
+  assert.match(pageCssSource, /\.stock-report-ma-assessment\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/);
+  assert.match(pageCssSource, /\.stock-report-ma-structure-value\s*\{[^}]*letter-spacing:\s*normal/);
+  assert.doesNotMatch(i18nSource, /watchlistDetail\.maStructure\.(repair|weakening|long_term_risk|transition)'/);
 });
 
 test('company fundamentals load independently, cache per user for six hours, and fail closed inside their own card', () => {

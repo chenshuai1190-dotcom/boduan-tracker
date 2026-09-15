@@ -4,6 +4,17 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '股票趋势分别展示“均线结构”和“趋势变化”：当前结构使用最新完成日线，变化方向比较五个交易日前的数据，昨日到今日的均线交叉优先显示。',
+      '结构改善、趋势修复与转强转弱依据历史变化判断；数据不足保留为空，复用已有历史数据，不增加行情请求。',
+    ],
+    itemsEn: [
+      'Stock Trend separates MA Structure from Trend Change. Structure uses the latest completed daily close, while direction compares five trading sessions ago and prioritizes crossovers since the previous session.',
+      'Improvement, recovery, strengthening and weakening are based on historical changes. Missing data stays unavailable, and existing history is reused without additional quote requests.',
+    ],
+  },
+  {
+    ver: 'v10.7.9.529', date: '2026-09-15',
+    items: [
       '股票趋势默认显示近 6 个月，1 个月至 1 年视图叠加 MA30、MA60、MA200 日均线，点击图表可查看对应日期的均线数值。',
       '均线复用已有拆股调整收盘数据，不增加行情请求；5 年视图保留原长期均线组合。',
     ],
