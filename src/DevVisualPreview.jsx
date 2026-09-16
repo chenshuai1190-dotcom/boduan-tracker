@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import ConfirmModal from './components/ConfirmModal.jsx';
 import './components/ReportBottomNav.css';
+import ReportBottomNavIcon from './components/ReportBottomNavIcon.jsx';
 import YearlyActualModal from './components/YearlyActualModal.jsx';
 import { DisciplineModal, LogModal } from './components/ReviewEntryEditors.jsx';
 import { normalizeConfirmModalOptions } from './lib/confirmModal.js';
@@ -3483,7 +3484,6 @@ function StandardDevVisualPreview({ initialTab = '' }) {
         <div className="mx-auto max-w-5xl">
           <div className="report-bottom-nav-grid grid grid-cols-5">
             {nav.map(tab => {
-              const Icon = tab.icon;
               const isActive = tab.id === activeTab
                 || (activeTab === 'home-margin-risk' && tab.id === 'home')
                 || (activeTab === 'drawdown-observation' && tab.id === 'home')
@@ -3504,7 +3504,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
                   aria-current={isActive ? 'page' : undefined}
                   type="button"
                 >
-                  <Icon className="report-bottom-nav-icon" strokeWidth={1.8} aria-hidden="true" />
+                  <ReportBottomNavIcon tabId={tab.id} className="report-bottom-nav-icon" />
                   <span className="report-bottom-nav-label">{tab.label}</span>
                 </button>
               );

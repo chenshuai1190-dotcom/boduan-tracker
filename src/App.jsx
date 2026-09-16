@@ -33,6 +33,7 @@ import { enqueuePnlReportRecalculationAfterLedgerMutation } from './lib/pnlRepor
 import { createPnlShareIdentity } from './lib/pnlShareIdentity.js';
 import ActionModalCard from './components/ActionModalCard.jsx';
 import './components/ReportBottomNav.css';
+import ReportBottomNavIcon from './components/ReportBottomNavIcon.jsx';
 import YearlyActualModal from './components/YearlyActualModal.jsx';
 import { DisciplineModal, LogModal } from './components/ReviewEntryEditors.jsx';
 import ConfirmModal from './components/ConfirmModal.jsx';
@@ -5723,7 +5724,6 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
                 { id: 'review',   label: t(language, 'nav.review', '目标'), icon: Target },
                 { id: 'settings', label: t(language, 'nav.settings', '设置'), icon: Settings },
               ].map(tab => {
-                const Icon = tab.icon;
                 const isActive = activeTab === tab.id;
                 return (
                   <button
@@ -5733,7 +5733,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
                     className="report-bottom-nav-tab"
                     aria-current={isActive ? 'page' : undefined}
                   >
-                    <Icon className="report-bottom-nav-icon" strokeWidth={1.8} aria-hidden="true" />
+                    <ReportBottomNavIcon tabId={tab.id} className="report-bottom-nav-icon" />
                     <span className="report-bottom-nav-label">{tab.label}</span>
                   </button>
                 );
