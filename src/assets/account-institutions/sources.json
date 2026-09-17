@@ -1,0 +1,11 @@
+{
+  "description": "Original institution artwork. Wordmarks are clipped to the brand symbol only in CSS; source files are unchanged.",
+  "assets": {
+    "alipay-favicon.ico": "https://i.alipayobjects.com/common/favicon/favicon.ico",
+    "cmb-favicon.ico": "https://www.cmbchina.com/cmb.ico",
+    "ibkr-logo-icon.png": "https://www.interactivebrokers.com/images/web/ibg-llc.png",
+    "winglung-logo-original.png": "https://www.cmbwinglungbank.com/wlb_corporate/files/hk/img/logo.png",
+    "longbridge-icon-152.png": "https://assets.wbrks.com/assets/manifest-icons/icon-152x152.png",
+    "boci-logo-original.png": "https://www.bocionline.com/front/images/h5/logo.png"
+  }
+}

@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import StockReportModal from '../components/StockReportModal.jsx';
 import AccountAssetTrendModal from '../components/AccountAssetTrendModal.jsx';
+import AccountInstitutionIcon from '../components/AccountInstitutionIcon.jsx';
 import MonthlyAssetCategoryReport from '../components/MonthlyAssetCategoryReport.jsx';
 import MonthlyAssetTrendChart, { MONTHLY_ASSET_CHART_WIDTH, buildMonthlyAssetTrendChartScale } from '../components/MonthlyAssetTrendChart.jsx';
 import MonthlyAssetTrendContent from '../components/MonthlyAssetTrendContent.jsx';
@@ -91,7 +92,7 @@ function AccountLogo({ account }) {
           onError={() => setFailed(true)}
         />
       ) : (
-        <AccountTypeIcon type={account?.type} className="h-[19px] w-[19px]" />
+        <AccountInstitutionIcon account={account} fallback={<AccountTypeIcon type={account?.type} className="h-[19px] w-[19px]" />} />
       )}
     </div>
   );
@@ -977,7 +978,7 @@ function AnalysisTab({ ctx }) {
                         data-open-account-trend={acc.id}
                       >
                         <span className="asset-report-account-icon">
-                          <AccountTypeIcon type={acc.type} className="h-[18px] w-[18px]" />
+                          <AccountInstitutionIcon account={acc} fallback={<AccountTypeIcon type={acc.type} className="h-[18px] w-[18px]" />} />
                         </span>
                         <span className="asset-report-account-description">
                           <span className="asset-report-account-name">{displayName}</span>
