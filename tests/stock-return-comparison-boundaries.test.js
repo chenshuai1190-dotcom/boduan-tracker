@@ -31,6 +31,7 @@ test('stock detail reads only its completed cycle snapshots without depending on
   assert.match(stockDetailPageSource, /stockPnlPct:\s*point\.returnPct/);
   assert.match(stockDetailPageSource, /filterReviewRange\(cycleTrend, activeRange\)/, 'display-range changes should slice the cycle rather than rebase its return');
   assert.match(stockDetailPageSource, /<ComparisonChart\b[^>]*stockOnly/, 'the shared chart must explicitly select its stock-only path');
+  assert.match(stockDetailPageSource, /<ComparisonChart\b[^>]*mode="amount"/, 'the detail page should always display monetary cycle returns');
   assert.doesNotMatch(stockDetailPageSource, /stock_trades[^\n]*(insert|update|delete|upsert)/i);
   assert.match(benchmarkApiSource, /requireQuoteAuth/, 'the independent benchmark API must remain authenticated for its other consumers');
   assert.match(benchmarkApiSource, /rawClose/, 'the independent comparison API retains its raw-close convention');

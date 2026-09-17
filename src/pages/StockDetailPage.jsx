@@ -561,7 +561,6 @@ export default function StockDetailPage({ ctx = {} }) {
       ? stockDetailInitialRange
       : null
   ));
-  const [chartMode, setChartMode] = React.useState('percent');
   const [selectedTradeEvent, setSelectedTradeEvent] = React.useState(null);
   const [snapshots, setSnapshots] = React.useState([]);
   const [loading, setLoading] = React.useState(false);
@@ -671,7 +670,8 @@ export default function StockDetailPage({ ctx = {} }) {
     { label: label('本轮首次建仓', 'Cycle first buy'), value: cycle.startDate ? displayDate(cycle.startDate) : '--' },
   ];
   const rangeItems = [
-    ['1m', '1M'], ['3m', '3M'], ['6m', '6M'], ['all', label('全部', 'All')],
+    ['1m', label('1个月', '1 month')], ['3m', label('3个月', '3 months')],
+    ['6m', label('6个月', '6 months')], ['all', label('全部', 'All')],
   ];
 
   const saveTarget = async (targetUsd) => {
@@ -723,7 +723,7 @@ export default function StockDetailPage({ ctx = {} }) {
               <div className="sdp-company">{displayName && displayName !== view.symbol ? displayName : ''}</div>
             </div>
           </div>
-          <div className="sdp-pnl-label">{label('本轮总收益', 'Current cycle return')}</div>
+          <div className="sdp-pnl-label">{label('累积总收益', 'Cumulative total return')}</div>
           <div className="sdp-total" data-stock-detail-total-pnl style={{ color: totalColor, fontFamily: NUMBER_FONT }}>
             {totalValue == null ? '--' : signedCurrency(totalValue, displayCurrency, 2)}
           </div>
@@ -800,28 +800,17 @@ export default function StockDetailPage({ ctx = {} }) {
           <StatCell label={label('收益最低日期', 'Lowest return date')} value={mae?.observedDate ? displayDate(mae.observedDate) : '--'} />
           <StatCell label={label('持仓天数', 'Holding days')} value={holdingDetails[4].value} />
         </div>
-        <details className="sdp-review-definitions">
-          <summary>{label('查看指标口径', 'Metric definitions')}</summary>
-          <p>{label('浮盈、浮亏按本轮累计总收益统计，包含已实现与未实现收益；历史峰谷只取已有收盘记录。', 'Profit excursions use this cycle’s realized plus unrealized return, across available closing records.')}</p>
-          <p>{label('最大回撤按持仓市值峰谷计算，不以利润为分母；加减仓也会影响这一数值。', 'Drawdown uses position market-value peaks, not profit peaks. Position size changes also affect this measure.')}</p>
-          <p>{label('利润保留率 = 当前本轮收益 ÷ 历史最高本轮收益；峰值不为正时不计算。', 'Profit capture divides current cycle profit by its positive historical peak.')}</p>
-          <p>{label('沿用现有账本与收盘价口径；拆股等公司行动尚未自动回放。股数或价格口径不一致时，不能据此判断回撤。', 'Uses existing ledger and closing-price conventions. Corporate actions are not automatically replayed; inconsistent share or price bases cannot establish drawdown.')}</p>
-        </details>
       </section>
 
       <section className="sdp-section sdp-trend" data-stock-detail-pnl-trend-card="true">
-        <div className="sdp-section-heading"><h2>{t(language, 'stockDetail.pnlTrend', '收益走势')}</h2><span>{chartMode === 'percent' ? '%' : displayCurrency}</span></div>
-        <div className="sdp-review-mode" role="group" aria-label={label('图表显示方式', 'Chart display')}>
-          <RangePill active={chartMode === 'percent'} onClick={() => setChartMode('percent')}>{label('收益率 %', 'Return %')}</RangePill>
-          <RangePill active={chartMode === 'amount'} onClick={() => setChartMode('amount')}>{label('盈亏金额', 'P&L')} {displayCurrency === 'CNY' ? '¥' : '$'}</RangePill>
-        </div>
+        <div className="sdp-section-heading"><h2>{t(language, 'stockDetail.pnlTrend', '收益走势')}</h2><span>{displayCurrency}</span></div>
         <div className="sdp-review-legend">
-          <span style={{ color: totalColor }}><i />{symbol} {chartMode === 'percent' ? signedPct(cycle.returnPct) : moneyOrMissing(cycle.currentTotalPnlUsd)}</span>
+          <span style={{ color: totalColor }}><i />{symbol} {moneyOrMissing(cycle.currentTotalPnlUsd)}</span>
         </div>
         <nav className="sdp-ranges sdp-review-ranges" aria-label={label('图表时间范围', 'Chart range')}>
           {rangeItems.map(([id, text]) => <RangePill key={id} active={activeRange === id} onClick={() => setRange(id)}>{text}</RangePill>)}
         </nav>
-        <ComparisonChart stockOnly comparison={stockSeries} displayRate={displayRate} displayCurrency={displayCurrency} language={language} marketColorMode={marketColorMode} mode={chartMode} tradeMarkers={tradeMarkers} onSelectTradeMarker={setSelectedTradeEvent} initialTooltipOpen={stockReturnComparisonTooltipPreview} />
+        <ComparisonChart stockOnly comparison={stockSeries} displayRate={displayRate} displayCurrency={displayCurrency} language={language} marketColorMode={marketColorMode} mode="amount" tradeMarkers={tradeMarkers} onSelectTradeMarker={setSelectedTradeEvent} initialTooltipOpen={stockReturnComparisonTooltipPreview} />
         <div className="sdp-review-note">{label('本轮累计收益 · 已实现 + 未实现；切换时间范围不重置收益。', 'Current-cycle realized + unrealized return; changing the range does not rebase returns.')}</div>
         <div className="sdp-review-marker-key"><span style={{ color: marketHexColor(-1, marketColorMode) }}>B {label('买入', 'Buy')}</span><span style={{ color: marketHexColor(1, marketColorMode) }}>S {label('卖出', 'Sell')}</span><span>{label('点击标记查看成交', 'Tap a marker for trades')}</span></div>
       </section>

@@ -5,11 +5,11 @@ export const settingsChangelog = [
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
       '个股收益详情按本轮交易汇总已实现与未实现收益，保留交易质量和个人计划；移除当前持仓对比与 QQQ 曲线，收益走势只展示当前个股。',
-      '收益图支持收益率与金额切换、时间范围选择和真实买卖标记，点击可查看成交详情；收益最高日期与收益最低日期采用更直观的名称。',
+      '收益图以盈亏金额展示，保留时间范围选择和真实买卖标记，点击可查看成交详情；顶部显示累积总收益，并使用收益最高日期与收益最低日期等直观名称。',
     ],
     itemsEn: [
       'Stock return details combine realized and unrealized P&L for the current holding cycle, with trade quality and the personal plan retained. The holdings comparison and QQQ curve are removed.',
-      'The single-stock chart supports return/amount modes, time ranges and actual buy/sell markers with trade details. Return extrema are labeled Highest return date and Lowest return date.',
+      'The single-stock chart shows P&L amounts, with time ranges and actual buy/sell markers opening trade details. The headline reads Cumulative total return; extrema are labeled Highest return date and Lowest return date.',
     ],
   },
   {

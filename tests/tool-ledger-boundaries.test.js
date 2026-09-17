@@ -1170,7 +1170,7 @@ test('stock detail page is read-only and separate from trade editing', () => {
   assert.ok(stockDetailPageSource.includes("const DETAIL_VALUE_CLASS = 'text-white/[0.86]'"), 'stock detail neutral values should match the trade current-price white tier with stable opacity syntax');
   assert.match(stockDetailPageCss, /\.sdp-section-heading h2\s*\{[^}]*color:\s*#e4e4e7;[^}]*font-size:\s*16px;[^}]*font-weight:\s*400;/, 'report section headings should share restrained neutral typography');
   assert.ok(stockDetailPageSource.includes('className="sdp-pnl-label"'), 'stock detail total P&L label should use the report label tier');
-  assert.ok(stockDetailPageSource.includes("label('本轮总收益', 'Current cycle return')") && stockDetailPageSource.includes('cycle.currentTotalPnlUsd'), 'the primary return must use the current cycle rather than the former all-history headline');
+  assert.ok(stockDetailPageSource.includes("label('累积总收益',") && stockDetailPageSource.includes('cycle.currentTotalPnlUsd'), 'the renamed cumulative return must retain its existing current-cycle calculation');
   assert.ok(stockDetailPageSource.includes('moneyOrMissing(cycle.realizedPnlUsd)') && stockDetailPageSource.includes('moneyOrMissing(cycle.unrealizedPnlUsd)'), 'the current-cycle headline must retain its realized and unrealized breakdown');
   assert.ok(stockDetailPageSource.includes("<h2>{t(language, 'stockDetail.pnlTrend'") && stockDetailPageSource.includes("<h2>{label('交易质量', 'Trade quality')}</h2>"), 'return trend and trade quality should retain shared section-heading typography');
   assert.ok(stockDetailPageSource.includes('const cycleTrend = cycleReady ? cycle.trend : [];'), 'trade quality must not calculate from an unavailable cycle');
@@ -1212,9 +1212,9 @@ test('stock detail page is read-only and separate from trade editing', () => {
   assert.ok(stockDetailPageSource.includes("stockDetail.givebackRate', '回吐率'"), 'stock detail chart should show giveback rate');
   assert.ok(stockDetailViewModelSource.includes('drawdownRate'), 'stock detail view model should calculate net-asset drawdown rate');
   assert.ok(stockDetailViewModelSource.includes('givebackRate'), 'stock detail view model should calculate peak-profit giveback rate');
-  assert.match(stockDetailPageSource, /<ComparisonChart\b[^>]*comparison=\{stockSeries\}[^>]*mode=\{chartMode\}[^>]*tradeMarkers=\{tradeMarkers\}[^>]*onSelectTradeMarker=\{setSelectedTradeEvent\}/, 'the current-cycle chart must share display mode and pass selected grouped markers into trade details');
+  assert.match(stockDetailPageSource, /<ComparisonChart\b[^>]*comparison=\{stockSeries\}[^>]*mode="amount"[^>]*tradeMarkers=\{tradeMarkers\}[^>]*onSelectTradeMarker=\{setSelectedTradeEvent\}/, 'the current-cycle amount chart must pass selected grouped markers into trade details');
   assert.match(stockDetailPageSource, /<ComparisonChart\b[^>]*stockOnly/, 'the cycle chart must render independently of benchmark data');
-  assert.ok(stockDetailPageSource.includes("React.useState('percent')") && stockDetailPageSource.includes("setChartMode('amount')"), 'the stock chart should default to return rate and retain the amount toggle');
+  assert.doesNotMatch(stockDetailPageSource, /chartMode|sdp-review-mode/, 'the fixed amount chart should not retain the removed mode state or controls');
   assert.doesNotMatch(stockDetailPageSource, /<StockReturnComparisonCard\b|QQQ|fetchPnlBenchmarkRows|\/api\/pnl-benchmark/, 'the detail page should neither display nor load the removed QQQ comparison');
   assert.ok(comparisonCardSource.includes('plottedMarkers.map') && comparisonCardSource.includes('data-stock-comparison-trade-marker={marker.side}') && comparisonCardSource.includes('onSelectTradeMarker?.(marker)'), 'buy/sell markers should provide a read-only trade-details action');
   assert.ok(comparisonCardSource.includes('marker.records.length') && comparisonCardSource.includes("marker.side === 'sell' ? 'S' : 'B/S'"), 'the shared chart should preserve grouped same-day trades instead of overlapping independent markers');

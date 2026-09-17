@@ -55,8 +55,8 @@ test('trade review preserves accounting facts and the isolated target plan after
   const eventsIndex = stockDetailSource.indexOf('<StockTradeEvents');
   const targetIndex = stockDetailSource.indexOf('data-stock-detail-target-plan="true"');
   assert.ok(summaryIndex >= 0 && qualityIndex > summaryIndex && chartIndex > qualityIndex && eventsIndex > chartIndex && targetIndex > eventsIndex, 'cycle summary, quality, stock-only review chart, trade events and the target plan retain the approved hierarchy');
-  const modeIndex = stockDetailSource.indexOf('className="sdp-review-mode"');
-  assert.ok(modeIndex > chartIndex && modeIndex < eventsIndex, 'return-rate and amount controls belong inside the stock chart section');
+  assert.match(stockDetailSource, /<ComparisonChart\b[^>]*mode="amount"/, 'the stock chart must use fixed amount mode');
+  assert.doesNotMatch(stockDetailSource, /sdp-review-mode|setChartMode|sdp-review-definitions|查看指标口径/, 'removed mode controls and metric definitions must not remain in the page');
   assert.doesNotMatch(stockDetailSource, /<StockReturnComparisonCard\b|胜出 QQQ 天数|Days ahead of QQQ/, 'the page must not retain its removed QQQ summary or quality metric');
   assert.equal((stockDetailSource.match(/data-stock-detail-target-plan="true"/g) || []).length, 1, 'there must still be only one editable target plan');
   assert.match(stockDetailSource, /value=\{moneyOrMissing\(cycle\.realizedPnlUsd\)\}/);

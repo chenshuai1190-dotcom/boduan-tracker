@@ -249,6 +249,7 @@ test('stock detail initial render preserves unavailable headline and the read-on
   } });
   assert.match(html, /stock-detail-report/);
   assert.match(html, /data-stock-detail-summary-card="true"/);
+  assert.match(html, /累积总收益/);
   assert.match(html, /暂无足够的本轮收盘记录/);
   assert.doesNotMatch(html, /QQQ|当前持仓对比|胜出.*天数/);
   const chartNode = nodes(tree, node => node.type === ComparisonChart)[0];
@@ -277,14 +278,14 @@ test('stock detail initial render preserves unavailable headline and the read-on
   assert.equal(externalCalls, 0);
 });
 
-test('loaded stock detail plots its own cycle totals, keeps quality and switches chart mode without any benchmark dependency', async () => {
+test('loaded stock detail keeps monetary cycle totals and quality while range changes never rebase returns or depend on a benchmark', async () => {
   pageHooks.reset();
   const stockTrades = [
-    { id: 'cycle-buy', trade_date: '2026-06-01', symbol: 'NVDA', side: 'buy', shares: 10, price: 100 },
+    { id: 'cycle-buy', trade_date: '2026-04-01', symbol: 'NVDA', side: 'buy', shares: 10, price: 100 },
     { id: 'cycle-sell', trade_date: '2026-06-30', symbol: 'NVDA', side: 'sell', shares: 2, price: 130 },
   ];
   const snapshots = [
-    ['2026-06-01', 100, 10, 0], ['2026-06-15', 150, 10, 0], ['2026-06-30', 130, 8, 60],
+    ['2026-04-01', 100, 10, 0], ['2026-05-15', 120, 10, 0], ['2026-06-15', 150, 10, 0], ['2026-06-30', 130, 8, 60],
   ].map(([snapshotDate, price, shares, realized]) => ({
     snapshotDate, symbol: 'NVDA', heldShares: shares, avgCostUsd: 100, currentPriceUsd: price,
     marketValueUsd: shares * price, totalBuyCostUsd: 1000, realizedPnlUsd: realized,
@@ -317,7 +318,7 @@ test('loaded stock detail plots its own cycle totals, keeps quality and switches
     assert.equal(snapshotReads, 1);
     assert.equal(benchmarkReads, 0);
     assert.equal(chart.props.stockOnly, true);
-    assert.equal(chart.props.mode, 'percent');
+    assert.equal(chart.props.mode, 'amount');
     assert.equal(chart.props.comparison.available, true);
     assert.equal(chart.props.comparison.baselineDate, expected.startDate);
     assert.equal(chart.props.comparison.stockPnlUsd, expected.currentTotalPnlUsd);
@@ -325,25 +326,42 @@ test('loaded stock detail plots its own cycle totals, keeps quality and switches
     assert.deepEqual(chart.props.comparison.trend.map(point => [point.date, point.stockPnlUsd, point.stockPnlPct]),
       expected.trend.map(point => [point.date, point.totalPnlUsd, point.returnPct]));
     assert.equal(text(nodes(tree, node => node.props['data-stock-detail-total-pnl'] !== undefined)[0]), '+$300.00');
+    assert.equal(text(nodes(tree, node => node.props.className === 'sdp-pnl-label')[0]), '累积总收益');
     const quality = nodes(tree, node => node.props['data-stock-detail-trade-quality'] !== undefined)[0];
     assert.ok(quality);
     for (const label of ['最大浮盈 MFE', '最大浮亏 MAE', '最大回撤', '利润保留率', '收益最高日期', '收益最低日期', '持仓天数']) {
       assert.equal(nodes(quality, node => node.props.label === label).length, 1, `${label} must remain present`);
     }
-    const trendSection = nodes(tree, node => node.props['data-stock-detail-pnl-trend-card'] !== undefined)[0];
-    const mode = nodes(trendSection, node => node.props['aria-label'] === '图表显示方式')[0];
-    assert.ok(mode, 'mode controls must be inside the chart section');
-    const amounts = nodes(mode, node => typeof node.props.onClick === 'function' && text(node).includes('盈亏金额'))[0];
-    assert.ok(amounts);
-    amounts.props.onClick();
-    tree = renderPage();
-    chart = chartOf(tree);
-    assert.equal(chart.props.mode, 'amount');
-    assert.equal(chart.props.comparison.trend.at(-1).stockPnlUsd, 300, 'changing mode must not alter cycle return');
+    assert.equal(nodes(quality, node => node.type === 'details').length, 0, 'the metric definitions disclosure has been removed');
+    const rangeButtons = value => {
+      const section = nodes(value, node => node.props['data-stock-detail-pnl-trend-card'] !== undefined)[0];
+      assert.equal(nodes(section, node => node.props['aria-label'] === '图表显示方式' || node.props.className === 'sdp-review-mode').length, 0, 'the amount chart has no mode selector');
+      const ranges = nodes(section, node => node.type === 'nav')[0];
+      return nodes(ranges, node => typeof node.props.onClick === 'function');
+    };
+    assert.deepEqual(rangeButtons(tree).map(text), ['1个月', '3个月', '6个月', '全部']);
+    for (const rangeLabel of ['1个月', '3个月', '6个月', '全部']) {
+      rangeButtons(tree).find(node => text(node) === rangeLabel).props.onClick();
+      tree = renderPage();
+      chart = chartOf(tree);
+      assert.equal(chart.props.mode, 'amount');
+      assert.equal(chart.props.comparison.baselineDate, '2026-04-01', 'the original cycle baseline survives every display range');
+      assert.equal(chart.props.comparison.stockPnlUsd, 300);
+      assert.equal(chart.props.comparison.trend.at(-1).stockPnlUsd, 300, 'changing the time range must not rebase the cycle return');
+      assert.equal(text(nodes(tree, node => node.props['data-stock-detail-total-pnl'] !== undefined)[0]), '+$300.00');
+      const legend = nodes(tree, node => node.props.className === 'sdp-review-legend')[0];
+      assert.equal(text(legend), 'NVDA +$300.00', 'the legend always reports the same monetary return as the headline');
+      if (rangeLabel === '1个月') {
+        assert.deepEqual(chart.props.comparison.trend.map(point => point.date), ['2026-06-15', '2026-06-30']);
+        assert.equal(chart.props.comparison.trend[0].stockPnlUsd, 500, 'a trimmed range starts at its original cycle value, not zero');
+      } else assert.equal(chart.props.comparison.trend.length, 4);
+    }
     const rendered = renderToStaticMarkup(tree);
     assert.match(rendered, /data-stock-comparison-mine-path/);
-    assert.doesNotMatch(rendered, /QQQ|当前持仓对比|胜出.*天数|data-stock-comparison-benchmark-path/);
+    assert.doesNotMatch(rendered, /QQQ|当前持仓对比|胜出.*天数|data-stock-comparison-benchmark-path|查看指标口径|图表显示方式/);
     assert.deepEqual(chart.props.tradeMarkers.flatMap(marker => marker.records.map(record => record.id)), ['cycle-buy', 'cycle-sell']);
+    ctx.language = 'en';
+    assert.deepEqual(rangeButtons(renderPage()).map(text), ['1 month', '3 months', '6 months', 'All']);
     assert.equal(snapshotReads, 1);
     assert.equal(benchmarkReads, 0, 'the ready chart must never wait for a benchmark success');
   } finally {
