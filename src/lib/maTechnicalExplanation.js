@@ -493,7 +493,7 @@ export function buildMaTechnicalExplanation(options = {}) {
       : ['多头结构仍在，但MA30相对MA60的领先优势正在收窄。', 'The bullish structure remains, but MA30’s relative lead over MA60 is narrowing.'],
     bearish_strengthening: ['空头结构仍在，而且MA30相对MA60正在进一步走弱。', 'The bearish structure remains, and MA30 is weakening further relative to MA60.'],
     bearish_weakening: ['空头结构仍在，但短期弱势正在缓和。', 'The bearish structure remains, but short-term weakness is easing.'],
-    improving: ['尚未形成完整多头排列，短中期结构正在改善。', 'The shorter-term structure is improving, without a complete bullish alignment yet.'],
+    improving: ['MA30正在回升，短中期均线关系正在改善，但尚未形成完整多头排列。', 'The shorter-term structure is improving, without a complete bullish alignment yet.'],
     structural_weakening: ['当前还没有形成完整空头排列，但短中期结构正在走弱。', 'A complete bearish alignment has not formed, but the shorter-term structure is weakening.'],
     strengthening: ['MA30近期有效上穿MA60，短中期趋势出现明确转强。', 'MA30 recently confirmed a cross above MA60, marking a clear short/medium-term strengthening event.'],
     weakening: ['MA30近期有效下穿MA60，短中期趋势出现明确转弱。', 'MA30 recently confirmed a cross below MA60, marking a clear short/medium-term weakening event.'],
@@ -532,10 +532,18 @@ export function buildMaTechnicalExplanation(options = {}) {
         ? text('当前仍是空头排列，但MA30正在追近MA60，原有下跌动能有所减弱。', 'The bearish alignment remains, but MA30 is moving closer to MA60 and the prior downward momentum has eased.')
         : text('当前仍是空头排列，MA30回升使短期弱势有所缓和，但相对MA60的位置改善还不够明显。', 'The bearish alignment remains. MA30’s rise eases short-term weakness, while its position relative to MA60 has not improved materially.')];
       break;
-    case 'improving':
-      result.why = [text('MA30回升，同时相对MA60的位置改善。', 'MA30 rose and improved its position relative to MA60.')];
-      result.plain = [text(`${positionChange}两条均线的关系向更强的方向发展，短期结构正在修复。`, `${positionChange} The relationship between the averages is strengthening as the shorter-term structure recovers.`).trim()];
+    case 'improving': {
+      const improvingMeaning = belowToAbove
+        ? 'MA30已从MA60下方回升至上方，短中期均线关系有所改善，但尚未形成完整多头排列。'
+        : positionKnown && t.gapToday < 0
+          ? 'MA30正在回升并接近MA60，短期弱势有所缓和，但尚未形成完整多头排列。'
+          : positionKnown && t.gapToday > 0
+            ? 'MA30继续回升，相对MA60的领先幅度扩大，但股价与主要均线尚未形成完整多头排列。'
+            : 'MA30正在回升，与MA60的均线关系有所改善，但尚未形成完整多头排列。';
+      result.why = [text('MA30近5日回升，同时相对MA60的位置上移。', 'MA30 rose and improved its position relative to MA60.')];
+      result.plain = [text(improvingMeaning, `${positionChange} The relationship between the averages is strengthening as the shorter-term structure recovers.`).trim()];
       break;
+    }
     case 'structural_weakening':
       result.why = [text([down && 'MA30明显回落', gapDown && '相对MA60的位置走弱'].filter(Boolean).join('，') + '。',
         [down && 'MA30 fell materially', gapDown && 'its position relative to MA60 weakened'].filter(Boolean).join('; ') + '.')];

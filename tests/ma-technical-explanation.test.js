@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { buildMaTechnicalExplanation } from '../src/lib/maTechnicalExplanation.js';
-import { deriveStockMaStructure, deriveStockMaTrend } from '../src/lib/stockMaStructure.js';
+import { deriveStockMaStructure, deriveStockMaTrend, STOCK_MA_TREND_CONFIG } from '../src/lib/stockMaStructure.js';
 
 const asOfDate = '2026-09-14';
 const dates = ['2026-09-04', '2026-09-08', '2026-09-09', '2026-09-10', '2026-09-11', asOfDate];
@@ -95,6 +95,64 @@ test('all nine trend outcomes explain existing decisions in Chinese and English 
     assert.deepEqual(data, before, status + ': explanations must be read-only');
   }
 });
+
+for (const scenario of [
+  {
+    name: 'MA30 below MA60 and approaching it',
+    pairs: linear([100, 120], [110, 122]), overrides: { close: 150, ma200: 130 }, signs: [-1, -1],
+    plain: 'MA30正在回升并接近MA60，短期弱势有所缓和，但尚未形成完整多头排列。',
+    englishPosition: 'MA30’s relative shortfall to MA60 narrowed.',
+  },
+  {
+    name: 'MA30 above MA60 and extending its lead without a complete bullish alignment',
+    pairs: linear([105, 100], [110, 101]), overrides: { close: 105, ma200: 90 }, signs: [1, 1],
+    plain: 'MA30继续回升，相对MA60的领先幅度扩大，但股价与主要均线尚未形成完整多头排列。',
+    englishPosition: 'MA30’s relative lead over MA60 widened.',
+  },
+  {
+    name: 'MA30 moving above MA60 without reaching the crossover confirmation threshold',
+    pairs: linear([998, 1000], [1000.5, 1000]), overrides: { close: 1500, ma200: 1300 }, signs: [-1, 1],
+    plain: 'MA30已从MA60下方回升至上方，短中期均线关系有所改善，但尚未形成完整多头排列。',
+    englishPosition: 'MA30 moved from below MA60 to above it.',
+  },
+  {
+    name: 'MA30 recovering to exact equality with MA60',
+    pairs: linear([998, 1000], [1000, 1000]), overrides: { close: 1500, ma200: 1300 }, signs: [-1, 0],
+    plain: 'MA30正在回升，与MA60的均线关系有所改善，但尚未形成完整多头排列。',
+    englishPosition: 'MA30’s relative shortfall to MA60 narrowed.',
+  },
+]) {
+  test(`improving copy follows the actual relative position: ${scenario.name}`, () => {
+    const data = input(scenario.pairs, scenario.overrides);
+    const trend = data.technicalState.maTrend;
+    assert.equal(data.technicalState.maStructure.status, 'long_term_up');
+    assert.equal(trend.status, 'improving', 'the real trend calculation must still choose ordinary structural improvement');
+    assert.equal(trend.crossDirection, null, 'relative-position changes must not invent a confirmed crossover');
+    assert.deepEqual([Math.sign(trend.gapAtComparison), Math.sign(trend.gapToday)], scenario.signs);
+    assert.ok(trend.ma30Slope > STOCK_MA_TREND_CONFIG.slopeThreshold);
+    assert.ok(trend.gapChange > STOCK_MA_TREND_CONFIG.gapChangeThreshold);
+    if (scenario.signs[0] < 0 && scenario.signs[1] > 0) {
+      assert.ok(trend.gapToday < STOCK_MA_TREND_CONFIG.crossThreshold, 'this positive gap deliberately remains inside the crossover confirmation band');
+    }
+    const before = structuredClone(data);
+    const chinese = buildMaTechnicalExplanation({ ...data, language: 'zh' });
+    assert.equal(chinese.status, '结构改善');
+    assert.equal(chinese.incomplete, false);
+    assert.equal(chinese.summary, 'MA30正在回升，短中期均线关系正在改善，但尚未形成完整多头排列。');
+    assert.deepEqual(chinese.why, ['MA30近5日回升，同时相对MA60的位置上移。']);
+    assert.deepEqual(chinese.plain, [scenario.plain]);
+    assert.doesNotMatch([chinese.summary, ...chinese.why, ...chinese.plain].join(' '), /有效上穿|确认上穿|短中期转强|快速缩小/);
+
+    const english = buildMaTechnicalExplanation({ ...data, language: 'en' });
+    assert.equal(english.status, 'Structure improving');
+    assert.equal(english.incomplete, false);
+    assert.equal(english.summary, 'The shorter-term structure is improving, without a complete bullish alignment yet.');
+    assert.deepEqual(english.why, ['MA30 rose and improved its position relative to MA60.']);
+    assert.deepEqual(english.plain, [`${scenario.englishPosition} The relationship between the averages is strengthening as the shorter-term structure recovers.`]);
+    assert.doesNotMatch(allText(english), /[\u4e00-\u9fff]/);
+    assert.deepEqual(data, before, 'copy selection must not alter the supplied trend or its evidence');
+  });
+}
 
 test('MA30-down weakening is explained independently of persistence', () => {
   const data = input(linear([120, 110], [115, 100]));
