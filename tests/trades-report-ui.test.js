@@ -4,7 +4,7 @@ import test from 'node:test';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { transformWithOxc } from 'vite';
-import { resolveHoldingDisplayPrice } from '../src/lib/homeMarketDisplay.js';
+import { resolveHoldingDisplayPrice, resolveHomeMarketDisplayMetrics } from '../src/lib/homeMarketDisplay.js';
 import { derivePositionAllocation } from '../src/lib/investmentSummary.js';
 import { deriveHoldingStockYtdPercent } from '../src/lib/holdingStockYtd.js';
 
@@ -27,7 +27,7 @@ function deriveRows(positions, { currency = 'USD', rate = 1, quotes = [], now = 
     stockNameParts: (symbol, name) => ({ title: name, subtitle: symbol }),
     stockLogoCandidates: (symbol) => [`local-logo:${symbol}`],
     toNumber: (value) => Number.isFinite(Number(value)) ? Number(value) : 0,
-    resolveHoldingDisplayPrice, derivePositionAllocation,
+    resolveHoldingDisplayPrice, resolveHomeMarketDisplayMetrics, derivePositionAllocation,
     quoteBySymbol: new Map(quotes.map(quote => [quote.symbol, quote])),
     deriveHoldingStockYtdPercent: (quote, price) => deriveHoldingStockYtdPercent(quote, price, now),
     currencyAmount: (value, currency, digits) => ({ value, currency, digits }),
@@ -139,6 +139,40 @@ test('YTD uses the displayed stock price and prior-year baseline independently o
   assert.equal(i18n.split("'trades.ytdChange':").length - 1, 2);
 });
 
+test('52-week drawdown matches Home price locking and high precedence without FX or row-order changes', () => {
+  const quotes = [{ symbol: 'NVDA', high: 240, week52High: 250 }];
+  const holdings = [
+    position({ dailyPnlPrice: 180, high: 200, week52High: 210 }),
+    position({ symbol: 'MSFT', dailyPnlLocked: false, currentPrice: 90, week52High: 100 }),
+  ];
+  for (const [currency, rate] of [['USD', 1], ['CNY', 7]]) {
+    const rows = deriveRows(holdings, { currency, rate, quotes });
+    assert.deepEqual(rows.map(row => row.symbol), ['NVDA', 'MSFT']);
+    for (const [index, row] of rows.entries()) {
+      const expected = resolveHomeMarketDisplayMetrics(holdings[index], {
+        livePrice: holdings[index].currentPrice,
+        high: holdings[index].high || holdings[index].week52High,
+      }).highDrawdown;
+      assert.equal(expected, -0.1);
+      assert.deepEqual(row.highDrawdownPct, { value: expected, digits: 2, percent: true });
+      assert.equal(row.highDrawdownPctClass, 'redUpGreenDown:-0.1');
+    }
+  }
+  const [fallback] = deriveRows([position({ dailyPnlPrice: 180 })], { quotes });
+  assert.equal(fallback.highDrawdownPct.value, -0.25, 'use the existing quote high when absent from the holding');
+});
+
+test('52-week drawdown preserves missing data and true zero at the high', () => {
+  for (const overrides of [{ high: null }, { high: 0 }, { high: -1 }, { high: 200, dailyPnlPrice: null }]) {
+    const [row] = deriveRows([position(overrides)]);
+    assert.equal(row.highDrawdownPct, '--');
+    assert.equal(row.highDrawdownPctClass, '');
+  }
+  const [zero] = deriveRows([position({ high: 200, dailyPnlPrice: 200 })]);
+  assert.equal(zero.highDrawdownPct, '0.00%');
+  assert.equal(zero.highDrawdownPctClass, '');
+});
+
 test('stock details, scenario and record-trade actions stay separate and preserve formal ledger mutations', () => {
   assert.ok(trades.includes("onOpenStock={(row) => (typeof openStockDetail === 'function' ? openStockDetail(row.symbol) : openTradeModal(row.position, 'buy'))}"));
   assert.ok(trades.includes('onScenario={(row) => openPositionScenario(row.position)}'));
@@ -191,14 +225,14 @@ test('Trading report keeps one horizontal holdings table, fixed identity column 
   assert.match(positionsCss, /\.trades-positions-report\s*\{[^}]*overflow-x:\s*auto;/);
   assert.match(positionsCss, /\.tpr-table\s*\{[^}]*min-width:\s*550px;/);
   assert.match(positionsCss, /\.tpr-table td:first-child\s*\{[^}]*position:\s*sticky;[^}]*left:\s*0;[^}]*background:\s*#050609;/);
-  const columns = ['trades.nameTicker', 'trades.valueQty', 'trades.priceCost', 'trades.dailyPnl', 'trades.positionPnl', 'trades.allocation', 'trades.ytdChange'];
+  const columns = ['trades.nameTicker', 'trades.valueQty', 'trades.priceCost', 'trades.dailyPnl', 'trades.positionPnl', 'trades.allocation', 'trades.ytdChange', 'trades.high52Drawdown'];
   const indexes = columns.map((key) => positionsView.indexOf(`tt('${key}'`));
-  assert.equal((positionsView.match(/<th scope="col">/g) || []).length, 7);
+  assert.equal((positionsView.match(/<th scope="col">/g) || []).length, 8);
   assert.ok(indexes.every((index, offset) => index >= 0 && (!offset || index > indexes[offset - 1])));
   assert.doesNotMatch(css, /overflow-x:\s*(?:auto|scroll)/);
   assert.doesNotMatch(css + positionsCss, /(?:^|[}\n])\s*(?:html|body|#root|nav)\s*\{/);
   assert.doesNotMatch(css, /100vh|100dvh|position:\s*fixed|box-shadow|linear-gradient|radial-gradient/);
-  for (const field of ['market-value', 'holding-pnl', 'holding-pnl-pct', 'today-pnl', 'today-pnl-pct', 'quantity', 'price', 'cost', 'allocation', 'ytd-change-pct']) {
+  for (const field of ['market-value', 'holding-pnl', 'holding-pnl-pct', 'today-pnl', 'today-pnl-pct', 'quantity', 'price', 'cost', 'allocation', 'ytd-change-pct', 'high52-drawdown-pct']) {
     assert.ok(positionsView.includes(`data-position-field="${field}"`), `report must preserve ${field}`);
   }
   for (const match of (css + positionsCss).matchAll(/font-size:\s*([\d.]+)px/g)) assert.ok(Number(match[1]) >= 10);
@@ -207,21 +241,25 @@ test('Trading report keeps one horizontal holdings table, fixed identity column 
   assert.doesNotMatch(positionsCss, /\.tpr-(?:value|secondary)\s*\{[^}]*(?:overflow:\s*hidden|text-overflow:)/);
 });
 
-test('the final YTD column displays the supplied percentage and missing state without adding an action', async () => {
+test('YTD and the appended 52-week drawdown display percentages and missing states without adding actions', async () => {
   const { code } = await transformWithOxc(positionsView, 'TradesPositionsReport.jsx', { jsx: { runtime: 'classic' } });
   const compiled = code.replace(/^import[^\n]*\n/gm, '').replace('export default function', 'function');
   const Report = new Function('React', `${compiled}\nreturn TradesPositionsReport;`)(React);
   for (const [percentage, color] of [['+23.45%', 'positive-color'], ['-3.21%', 'negative-color'], ['0.00%', ''], ['--', '']]) {
     const html = renderToStaticMarkup(React.createElement(Report, {
-      rows: [{ symbol: 'NVDA', title: '英伟达', subtitle: 'NVDA', allocation: '24.7%', ytdChangePct: percentage, ytdChangePctClass: color }],
+      rows: [{ symbol: 'NVDA', title: '英伟达', subtitle: 'NVDA', allocation: '24.7%', ytdChangePct: percentage, ytdChangePctClass: color, highDrawdownPct: percentage, highDrawdownPctClass: color }],
     }));
     const cells = [...html.matchAll(/<td>([\s\S]*?)<\/td>/g)].map(match => match[1]);
-    assert.equal(cells.length, 7);
+    assert.equal(cells.length, 8);
     assert.match(cells[5], /data-position-field="allocation"/);
     assert.ok(cells[6].includes(`class="tpr-value ${color}"`));
     assert.ok(cells[6].includes(`data-position-field="ytd-change-pct">${percentage}</span>`));
     assert.match(cells[6], /^<div class="tpr-cell">/);
     assert.doesNotMatch(cells[6], /<button|role="button"|tabindex=/);
+    assert.ok(cells[7].includes(`class="tpr-value ${color}"`));
+    assert.ok(cells[7].includes(`data-position-field="high52-drawdown-pct">${percentage}</span>`));
+    assert.match(cells[7], /^<div class="tpr-cell">/);
+    assert.doesNotMatch(cells[7], /<button|role="button"|tabindex=/);
   }
 });
 

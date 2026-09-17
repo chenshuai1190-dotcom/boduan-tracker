@@ -21,6 +21,7 @@ export default function TradesPositionsReport({
             <th scope="col">{tt('trades.positionPnl', '持仓盈亏')}</th>
             <th scope="col">{tt('trades.allocation', '占比')}</th>
             <th scope="col">{tt('trades.ytdChange', '年初至今')}</th>
+            <th scope="col">{tt('trades.high52Drawdown', '52周高点跌幅')}</th>
           </tr>
         </thead>
         <tbody>
@@ -77,6 +78,11 @@ export default function TradesPositionsReport({
           <td>
             <div className="tpr-cell">
               <span className={`tpr-value ${row.ytdChangePctClass || ''}`} data-position-field="ytd-change-pct">{row.ytdChangePct}</span>
+            </div>
+          </td>
+          <td>
+            <div className="tpr-cell">
+              <span className={`tpr-value ${row.highDrawdownPctClass || ''}`} data-position-field="high52-drawdown-pct">{row.highDrawdownPct}</span>
             </div>
           </td>
         </tr>

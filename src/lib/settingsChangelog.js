@@ -4,6 +4,17 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '交易持仓表新增52周高点跌幅，紧跟年初至今，横向滑动查看；保留原有列顺序、宽度和股票排序。',
+      '复用首页的价格与52周高点口径，支持收盘价格锁定；缺少数据时显示 --，不增加行情请求。',
+    ],
+    itemsEn: [
+      'The Trading positions table adds 52-week high drawdown after YTD. Scroll horizontally to view it, with existing column order, widths and stock order preserved.',
+      'Uses the same price and 52-week high basis as Home, including locked closing prices. Missing values remain --, with no additional quote requests.',
+    ],
+  },
+  {
+    ver: 'v10.7.9.536', date: '2026-09-17',
+    items: [
       '个股收益详情按本轮交易汇总已实现与未实现收益，保留交易质量和个人计划；移除当前持仓对比与 QQQ 曲线，收益走势只展示当前个股。',
       '收益图以盈亏金额展示，保留时间范围选择和真实买卖标记，点击可查看成交详情；顶部显示累积总收益，并使用收益最高日期与收益最低日期等直观名称。',
     ],
