@@ -1,36 +1,13 @@
 import React from 'react';
-import {
-  BarChart3,
-  CalendarDays,
-  CircleDollarSign,
-  Coins,
-  Home,
-  Info,
-  Landmark,
-  MessageCircle,
-  Minus,
-  TrendingDown,
-  TrendingUp,
-  WalletCards,
-} from 'lucide-react';
+import { Info, Minus, TrendingDown, TrendingUp } from 'lucide-react';
 import { t } from '../lib/i18n.js';
 import AccountInstitutionIcon from './AccountInstitutionIcon.jsx';
+import AccountCategoryIcon from './AccountCategoryIcon.jsx';
 
 const NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif';
 const UP_COLOR = '#ff4b1f';
 const DOWN_COLOR = '#50d0a2';
 const FLAT_COLOR = 'rgba(255,255,255,.62)';
-
-const CATEGORY_ICONS = {
-  银行: Landmark,
-  证券: BarChart3,
-  支付宝: WalletCards,
-  微信: MessageCircle,
-  定期: CalendarDays,
-  现金: Coins,
-  公积金: Home,
-  其他: CircleDollarSign,
-};
 
 function formatNumber(value, digits = 1) {
   if (!Number.isFinite(value)) return '--';
@@ -69,11 +46,6 @@ function changeTone(changeAmount) {
   if (changeAmount > 0) return UP_COLOR;
   if (changeAmount < 0) return DOWN_COLOR;
   return FLAT_COLOR;
-}
-
-function CategoryIcon({ category }) {
-  const Icon = CATEGORY_ICONS[category] || CircleDollarSign;
-  return <Icon className="h-[15px] w-[15px]" strokeWidth={1.8} />;
 }
 
 function AccountStatus({ row, tt }) {
@@ -263,7 +235,7 @@ export default function MonthlyAssetAccountReport({
                         <div className="flex items-start justify-between gap-2.5">
                           <div className="flex min-w-0 items-start gap-2.5">
                             <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-[9px] bg-white/[0.055] text-white/[0.70]">
-                              <AccountInstitutionIcon account={row} fallback={<CategoryIcon category={row.type} />} />
+                              <AccountInstitutionIcon account={row} fallback={<AccountCategoryIcon account={row} className="h-[15px] w-[15px]" />} />
                             </span>
                             <div className="min-w-0">
                               <div className="truncate text-[13px] font-medium text-white/[0.91]">{accountNameLabel(row.name)}</div>

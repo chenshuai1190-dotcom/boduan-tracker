@@ -1884,7 +1884,7 @@ test('asset module redesign keeps database logic while removing legacy controls'
   assert.equal(analysisTabSource.includes('background: ASSET_PINK'), false, 'owner groups should not retain the decorative red progress bars');
   assert.equal((analysisTabSource.match(/<StockReportModal/g) || []).length, 4, 'all four asset editor and action dialogs should share the report modal');
   assert.equal(analysisTabSource.includes('<ActionModalCard'), false, 'asset dialogs should not retain the superseded direct card presentation');
-  assert.ok(analysisTabSource.includes('AccountTypeIcon type={acc.type}'), 'account identity rows should retain their account type icons');
+  assert.ok(analysisTabSource.includes('AccountInstitutionIcon account={acc}') && analysisTabSource.includes('AccountCategoryIcon account={acc}'), 'account identity rows should show institution artwork with a neutral category fallback');
   assert.equal(analysisTabSource.includes("borderColor: accent === ASSET_GOLD ? 'rgba(246,197,111,0.38)'"), false, 'owner cards must not keep the gold/red border split');
   assert.equal(analysisTabSource.includes('style={{ color: accent }}'), false, 'account type icons must not inherit an owner accent');
   assert.ok(analysisTabSource.includes('ACCOUNT_TYPE_OPTIONS'), 'asset accounts should use the custom line-icon type grid');
@@ -2684,7 +2684,7 @@ test('order and account actions use the report variant while retaining the share
   assert.ok(accountActionBlock.includes('<StockReportModal') && stockReportModalSource.includes('<ActionModalCard'), 'account actions should use the report variant over the shared keyboard and close shell');
   assert.ok(accountActionBlock.includes('<AccountLogo account={selectedActionAccount} />'), 'account action should render account logo support');
   assert.ok(analysisTabSource.includes('const candidates = [account?.logoURL, account?.logoUrl, account?.icon]'), 'account logo should accept existing optional URL fields without a schema change');
-  assert.ok(analysisTabSource.includes('<AccountTypeIcon type={account?.type}'), 'account logo should fall back to the account type icon');
+  assert.ok(analysisTabSource.includes('<AccountCategoryIcon account={account}'), 'account logo should fall back to the preset or account type icon');
   assert.ok(confirmModalSource.includes('h-[52px] rounded-[17px]') && confirmModalSource.includes('bg-[linear-gradient(145deg,#a7232a,#8e1d24)]'), 'delete confirmation should reserve red for the final danger action');
   assert.ok(devVisualPreviewSource.includes('mockTodayStockTrade'), 'local preview should expose a deterministic current-day order for screenshot QA');
   assert.ok(devVisualPreviewSource.includes('showConfirm: showPreviewConfirm'), 'local preview should render the real shared confirmation card instead of auto-confirming');

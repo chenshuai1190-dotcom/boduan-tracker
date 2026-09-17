@@ -7,6 +7,16 @@
     "winglung-logo-original.png": "https://www.cmbwinglungbank.com/wlb_corporate/files/hk/img/logo.png",
     "longbridge-icon-152.png": "https://assets.wbrks.com/assets/manifest-icons/icon-152x152.png",
     "boci-logo-original.png": "https://www.bocionline.com/front/images/h5/logo.png",
-    "eastmoney-apple-icon.png": "https://g1.dfcfw.com/g1/special/Apple_ico.png"
+    "eastmoney-apple-icon.png": "https://g1.dfcfw.com/g1/special/Apple_ico.png",
+    "futu-official.png": "https://static.futunn.com/futuhk_common/images/logo_hk.png",
+    "tiger-official.png": "https://c1.itigergrowtha.com/portal5/static/media/logo.152.1b48fddb.png",
+    "htsc-official.svg": "https://www.htsc.com.cn/static/js/app.6139323d5df2beb510fc.js",
+    "icbc-official.png": "https://v.icbc.com.cn/userfiles/Resources/ICBC/shouye/images/2017/logo.png",
+    "ccb-official.png": "https://image4.ccb.com/cn/home/company/v3/images/img/20150828_1440745919/20151201084052927594.png",
+    "boc-official.png": "https://www.boc.cn/images/boc2013_logo.png",
+    "wechat-official.ico": "https://res.wx.qq.com/a/wx_fed/assets/res/NTI4MWU5.ico"
+  },
+  "notes": {
+    "htsc-official.svg": "Original symbol#HTSClogo3 paths and colors from the official JS bundle, wrapped in standalone SVG without scripts or external references."
   }
 }

@@ -16,6 +16,7 @@ import {
 import StockReportModal from '../components/StockReportModal.jsx';
 import AccountAssetTrendModal from '../components/AccountAssetTrendModal.jsx';
 import AccountInstitutionIcon from '../components/AccountInstitutionIcon.jsx';
+import AccountCategoryIcon from '../components/AccountCategoryIcon.jsx';
 import MonthlyAssetCategoryReport from '../components/MonthlyAssetCategoryReport.jsx';
 import MonthlyAssetTrendChart, { MONTHLY_ASSET_CHART_WIDTH, buildMonthlyAssetTrendChartScale } from '../components/MonthlyAssetTrendChart.jsx';
 import MonthlyAssetTrendContent from '../components/MonthlyAssetTrendContent.jsx';
@@ -66,12 +67,6 @@ function shiftMonth(monthKey, offset) {
   return shiftMonthKey(monthKey, offset);
 }
 
-function AccountTypeIcon({ type, className = 'h-5 w-5' }) {
-  const found = ACCOUNT_TYPE_OPTIONS.find(item => item.type === type);
-  const Icon = found?.Icon || CircleDollarSign;
-  return <Icon className={className} strokeWidth={1.8} />;
-}
-
 function accountLogoUrl(account) {
   const candidates = [account?.logoURL, account?.logoUrl, account?.icon];
   return candidates.find(value => /^https?:\/\//i.test(String(value || '').trim())) || '';
@@ -92,7 +87,7 @@ function AccountLogo({ account }) {
           onError={() => setFailed(true)}
         />
       ) : (
-        <AccountInstitutionIcon account={account} fallback={<AccountTypeIcon type={account?.type} className="h-[19px] w-[19px]" />} />
+        <AccountInstitutionIcon account={account} fallback={<AccountCategoryIcon account={account} className="h-[19px] w-[19px]" />} />
       )}
     </div>
   );
@@ -978,7 +973,7 @@ function AnalysisTab({ ctx }) {
                         data-open-account-trend={acc.id}
                       >
                         <span className="asset-report-account-icon">
-                          <AccountInstitutionIcon account={acc} fallback={<AccountTypeIcon type={acc.type} className="h-[18px] w-[18px]" />} />
+                          <AccountInstitutionIcon account={acc} fallback={<AccountCategoryIcon account={acc} className="h-[18px] w-[18px]" />} />
                         </span>
                         <span className="asset-report-account-description">
                           <span className="asset-report-account-name">{displayName}</span>
@@ -1393,7 +1388,7 @@ function AnalysisTab({ ctx }) {
                         return (
                           <div key={acc.id} className="asset-dialog-balance-row">
                             <div className="asset-dialog-balance-icon">
-                              <AccountTypeIcon type={acc.type} className="h-4 w-4" />
+                              <AccountInstitutionIcon account={acc} fallback={<AccountCategoryIcon account={acc} className="h-4 w-4" />} />
                             </div>
                             <div className="min-w-0 flex-1">
                               <div className="asset-dialog-balance-name">{accountNameLabel(acc.name)}</div>

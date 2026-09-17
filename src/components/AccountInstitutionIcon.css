@@ -56,3 +56,26 @@
   height: 200%;
   object-fit: fill;
 }
+
+.account-institution-logo[data-institution="futu"] .account-institution-logo-window,
+.account-institution-logo[data-institution="htsc"] .account-institution-logo-window { width: 100%; height: 100%; }
+
+.account-institution-logo[data-institution="icbc"] img {
+  left: -207.8947%;
+  top: -3.9474%;
+  width: 826.3158%;
+  height: 107.8947%;
+  object-fit: fill;
+}
+
+.account-institution-logo[data-institution="ccb"] img {
+  width: 500%;
+  height: 100%;
+  object-fit: fill;
+}
+
+.account-institution-logo[data-institution="boc"] img {
+  width: 357.1429%;
+  height: 100%;
+  object-fit: fill;
+}

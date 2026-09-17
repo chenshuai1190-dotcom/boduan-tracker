@@ -2,6 +2,9 @@
 const INSTITUTION_ALIASES = {
   alipay: ['支付宝', '支付寶', 'alipay'],
   cmb: ['招商银行', '招商銀行', '招行', 'cmb', 'china merchants bank'],
+  icbc: ['工商银行', '工商銀行', '中国工商银行', '中國工商銀行', '工行', 'icbc'],
+  ccb: ['建设银行', '建設銀行', '中国建设银行', '中國建設銀行', '建行', 'ccb'],
+  boc: ['中国银行', '中國銀行', '中行', 'bank of china', 'boc'],
   ibkr: ['ibkr', 'interactive brokers', '盈透', '盈透证券', '盈透證券'],
   winglung: [
     '招商永隆银行', '招商永隆銀行', '招商永隆',
@@ -11,6 +14,10 @@ const INSTITUTION_ALIASES = {
   longbridge: ['长桥证券', '長橋證券', '长桥', '長橋', 'longbridge', 'longbridge securities'],
   boci: ['中银国际', '中銀國際', '中银国际证券', '中銀國際證券', 'boci', 'boci securities', 'bank of china international'],
   eastmoney: ['东方财富', '东方财富证券', '東方財富', '東方財富證券', 'east money', 'eastmoney', 'eastmoney securities'],
+  futu: ['富途', '富途证券', '富途證券', 'futu', 'futu securities'],
+  tiger: ['老虎', '老虎证券', '老虎證券', 'tiger brokers'],
+  htsc: ['华泰证券', '華泰證券', 'htsc', 'huatai securities'],
+  wechat: ['微信钱包', '微信錢包', '微信零钱通', '微信零錢通', '微信理财', '微信理財', '微信', 'wechat', 'weixin'],
 };
 
 function normalizeName(name) {
