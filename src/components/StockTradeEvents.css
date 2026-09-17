@@ -1,0 +1,31 @@
+.stock-trade-events { min-width: 0; color: #d4d4dc; }
+.ste-tabs { display: inline-flex; gap: 4px; margin-bottom: 15px; padding: 3px; border-radius: 11px; background: #111214; }
+.ste-tabs button { border: 0; border-radius: 8px; padding: 8px 13px; background: transparent; color: #86868f; font-size: 12px; line-height: 18px; font-weight: 400; }
+.ste-tabs button[aria-selected="true"] { color: #dedee4; background: #1b1c1e; }
+.stock-trade-events button { -webkit-tap-highlight-color: transparent; }
+.stock-trade-events button:focus-visible { outline: 1px solid #85858e; outline-offset: 3px; }
+.ste-event { display: flex; width: 100%; align-items: center; gap: 12px; border: 0; border-bottom: 1px solid rgb(255 255 255 / .07); padding: 17px 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
+.ste-marker { flex: 0 0 24px; text-align: center; font-size: 13px; line-height: 24px; }
+.ste-event-description { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 5px; font-size: 13px; line-height: 20px; }
+.ste-event-description small { margin-left: 7px; color: #909099; font-size: 11px; }
+.ste-event-secondary { color: #82828d; font-size: 11px; line-height: 18px; overflow-wrap: anywhere; }
+.ste-event-amount { display: flex; align-items: center; justify-content: flex-end; gap: 10px; max-width: 48%; font-size: 14px; line-height: 21px; text-align: right; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.ste-event-amount-content { display: flex; min-width: 0; flex-direction: column; gap: 5px; }
+.ste-event-realized { font-size: 11px; line-height: 18px; }
+.ste-event-chevron { flex-shrink: 0; color: #73737d; }
+.ste-empty { padding: 25px 0; color: #85858f; font-size: 12px; line-height: 20px; text-align: center; }
+.ste-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; margin: 6px 0 0; }
+.ste-facts dt { color: #85858f; font-size: 11px; line-height: 18px; }
+.ste-facts dd { margin: 6px 0 0; color: #c4c4ce; font-size: 15px; line-height: 22px; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.ste-summary-label { margin-top: 24px; padding-top: 20px; border-top: 1px solid rgb(255 255 255 / .07); color: #93939e; font-size: 12px; line-height: 19px; }
+.ste-summary { margin-top: 16px; }
+.ste-sheet-root > div { align-items: flex-end; padding: max(16px, env(safe-area-inset-top)) 0 0 !important; background: rgb(0 0 0 / .38); backdrop-filter: none; }
+.ste-sheet-panel.stock-report-modal { width: 100%; max-width: 600px; min-height: 0; max-height: 75vh; max-height: 75dvh; border-radius: 24px 24px 0 0; padding: 20px 22px calc(24px + env(safe-area-inset-bottom)); box-shadow: none; }
+.ste-sheet-panel .srm-title { font-weight: 400; }
+.ste-sheet-panel .srm-content { overflow-y: auto; overscroll-behavior: contain; }
+.ste-detail + .ste-detail { margin-top: 20px; padding-top: 20px; border-top: 1px solid rgb(255 255 255 / .07); }
+.ste-detail-heading { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; color: #b9b9c3; font-size: 13px; line-height: 20px; }
+.ste-detail dl { margin: 0; }
+.ste-detail dl > div { display: flex; align-items: baseline; justify-content: space-between; gap: 20px; padding: 7px 0; }
+.ste-detail dt { color: #898993; font-size: 12px; line-height: 19px; }
+.ste-detail dd { min-width: 0; margin: 0; color: #d0d0d8; font-size: 14px; line-height: 21px; text-align: right; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }

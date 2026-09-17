@@ -1144,14 +1144,17 @@ test('P&L report snapshot foundation is trigger-dirtied and service-written only
 });
 
 test('stock detail page is read-only and separate from trade editing', () => {
+  const tradeEventsSource = readFileSync(new URL('../src/components/StockTradeEvents.jsx', import.meta.url), 'utf8');
+  const tradeEventsCss = readFileSync(new URL('../src/components/StockTradeEvents.css', import.meta.url), 'utf8');
+  const comparisonCardSource = readFileSync(new URL('../src/components/StockReturnComparisonCard.jsx', import.meta.url), 'utf8');
   assert.ok(appSource.includes("const StockDetailPage = lazy(() => import('./pages/StockDetailPage.jsx'))"), 'stock detail should be lazy-loaded as an independent page');
   assert.ok(appSource.includes("setActivePage('stock-detail')"), 'stock detail should have an explicit page route');
   assert.ok(appSource.includes('<StockDetailPage ctx={tabCtx} />'), 'stock detail should render outside the active bottom tab component');
   assert.ok(tradesTabSource.includes("onOpenStock={(row) => (typeof openStockDetail === 'function' ? openStockDetail(row.symbol) : openTradeModal(row.position, 'buy'))}"), 'trade position identity should preserve stock detail navigation and its original buy fallback');
   assert.ok(stockDetailPageSource.includes('buildStockDetailViewModel'), 'stock detail should build display data from a pure view model');
   assert.ok(stockDetailPageSource.includes('db.fetchPnlReportSymbolSnapshotHistory'), 'stock detail should read symbol snapshot history through the db boundary');
-  assert.ok(stockDetailPageSource.includes("stockDetail.holdingDays', '持仓天数'"), 'stock detail should display holding days in the top summary card');
-  assert.ok(stockDetailPageSource.includes("stockDetail.firstEntry', '首次建仓'"), 'stock detail should display the current holding cycle first entry date');
+  assert.ok(stockDetailPageSource.includes("label('持仓天数', 'Holding days')") && stockDetailPageSource.includes('cycle.holdingDays'), 'stock detail should display current-cycle holding days in the top summary card');
+  assert.ok(stockDetailPageSource.includes("label('本轮首次建仓', 'Cycle first buy')") && stockDetailPageSource.includes('cycle.startDate ? displayDate(cycle.startDate)'), 'stock detail should display the current holding cycle first entry date');
   assert.ok(stockDetailViewModelSource.includes('buildCurrentHoldingPeriod'), 'stock detail view model should derive holding period from the main ledger');
   assert.ok(stockDetailViewModelSource.includes('inclusiveCalendarDays'), 'stock detail holding days should use inclusive calendar-day counting');
   assert.equal(stockDetailPageSource.includes('Edit3'), false, 'stock detail should not keep the old edit affordance in the read-only view');
@@ -1159,16 +1162,21 @@ test('stock detail page is read-only and separate from trade editing', () => {
   assert.equal(stockDetailPageSource.includes('insertStockTrade'), false, 'stock detail must not write the main trade ledger');
   assert.equal(stockDetailPageSource.includes('updateStockTrade'), false, 'stock detail must not edit the main trade ledger');
   assert.equal(stockDetailPageSource.includes('deleteStockTrade'), false, 'stock detail must not delete the main trade ledger');
+  for (const operation of ['insertStockTrade', 'updateStockTrade', 'deleteStockTrade']) {
+    assert.equal(tradeEventsSource.includes(operation), false, 'the extracted trade event presentation must not mutate the main trade ledger');
+    assert.equal(comparisonCardSource.includes(operation), false, 'the shared comparison chart must not mutate the main trade ledger');
+  }
   assert.ok(stockDetailPageSource.includes("const DETAIL_LABEL_CLASS = 'text-white/40'"), 'stock detail labels should match the trade page medium-gray label tier');
   assert.ok(stockDetailPageSource.includes("const DETAIL_VALUE_CLASS = 'text-white/[0.86]'"), 'stock detail neutral values should match the trade current-price white tier with stable opacity syntax');
   assert.match(stockDetailPageCss, /\.sdp-section-heading h2\s*\{[^}]*color:\s*#e4e4e7;[^}]*font-size:\s*16px;[^}]*font-weight:\s*400;/, 'report section headings should share restrained neutral typography');
   assert.ok(stockDetailPageSource.includes('className="sdp-pnl-label"'), 'stock detail total P&L label should use the report label tier');
-  assert.ok(stockDetailPageSource.includes("stockDetail.totalPnl', '累计盈亏'"), 'stock detail total P&L title should remain present');
-  for (const key of ['pnlTrend', 'tradeStats', 'tradeRecords']) {
-    assert.ok(stockDetailPageSource.includes(`<h2>{t(language, 'stockDetail.${key}'`), `${key} should retain its title under the shared scoped section-heading typography`);
-  }
-  assert.ok(stockDetailPageSource.includes('className={DETAIL_MUTED_VALUE_CLASS} style={{ fontFamily: NUMBER_FONT }}>{displayDate(record.date)}'), 'stock detail trade record dates should match the amount value color tier');
-  assert.equal(stockDetailPageSource.includes('text-white/[0.36]" style={{ fontFamily: NUMBER_FONT }}>{displayDate(record.date)}'), false, 'stock detail trade record dates should not keep the old gray date color');
+  assert.ok(stockDetailPageSource.includes("label('本轮总收益', 'Current cycle return')") && stockDetailPageSource.includes('cycle.currentTotalPnlUsd'), 'the primary return must use the current cycle rather than the former all-history headline');
+  assert.ok(stockDetailPageSource.includes('moneyOrMissing(cycle.realizedPnlUsd)') && stockDetailPageSource.includes('moneyOrMissing(cycle.unrealizedPnlUsd)'), 'the current-cycle headline must retain its realized and unrealized breakdown');
+  assert.ok(stockDetailPageSource.includes("<h2>{t(language, 'stockDetail.pnlTrend'") && stockDetailPageSource.includes("<h2>{label('交易质量', 'Trade quality')}</h2>"), 'return trend and trade quality should retain shared section-heading typography');
+  assert.ok(stockDetailPageSource.includes('const cycleTrend = cycleReady ? cycle.trend : [];'), 'trade quality must not calculate from an unavailable cycle');
+  assert.ok(stockDetailPageSource.includes('calculateMFE(cycleTrend)') && stockDetailPageSource.includes('calculateMAE(cycleTrend)') && stockDetailPageSource.includes('calculateProfitCapture(cycle.currentTotalPnlUsd, mfe?.valueUsd)'), 'trade quality should consume current-cycle data through the existing pure helpers');
+  assert.ok(tradeEventsSource.includes('className="ste-event-description"><span>{record.date ||'), 'the event list should retain the original ledger date in its readable primary text');
+  assert.match(tradeEventsCss, /\.stock-trade-events\s*\{[^}]*color:\s*#d4d4dc;/, 'event primary facts should retain a readable neutral value tier');
   assert.ok(stockDetailPageSource.includes('chartRootRef'), 'stock detail chart should keep a root ref for outside-click dismissal');
   assert.ok(stockDetailPageSource.includes('stockDetailPnlArea') && stockDetailPageSource.includes('stopColor={color}'), 'stock detail chart area should follow the same market-direction color as the line');
   assert.ok(stockDetailPageSource.includes('@keyframes stock-detail-peak-breathe'), 'stock detail chart should define the peak-only breathing animation');
@@ -1198,15 +1206,18 @@ test('stock detail page is read-only and separate from trade editing', () => {
   assert.ok(stockDetailPageSource.includes('givebackRateText'), 'stock detail chart should show giveback rate based on peak profit');
   assert.ok(stockDetailPageSource.includes('peakMetricClass'), 'stock detail chart should color the peak metric through the market color system');
   assert.ok(stockDetailPageSource.includes('marketTextClass(peakMetricUsd, marketColorMode)'), 'stock detail peak metric should follow the user selected up/down color mode');
-  assert.equal(stockDetailPageSource.includes('markerEvents.map'), false, 'stock detail chart should hide dense buy/sell markers until overlap handling is implemented');
+  assert.ok(stockDetailPageSource.includes('const tradeMarkers = buildTradeMarkers(reviewRecords, stockSeries.trend);'), 'trade markers should be grouped and mapped to visible current-cycle dates before rendering');
   assert.ok(stockDetailPageSource.includes("stockDetail.maxGiveback', '最大回吐'"), 'stock detail chart should show max giveback');
   assert.ok(stockDetailPageSource.includes("stockDetail.drawdownRate', '回撤率'"), 'stock detail chart should show drawdown rate');
   assert.ok(stockDetailPageSource.includes("stockDetail.givebackRate', '回吐率'"), 'stock detail chart should show giveback rate');
   assert.ok(stockDetailViewModelSource.includes('drawdownRate'), 'stock detail view model should calculate net-asset drawdown rate');
   assert.ok(stockDetailViewModelSource.includes('givebackRate'), 'stock detail view model should calculate peak-profit giveback rate');
-  assert.equal(stockDetailPageSource.includes('tradeEvents={view.tradeEvents}'), false, 'stock detail chart should not pass trade events to the frontend marker layer while markers are hidden');
-  assert.equal(stockDetailPageSource.includes("bg-[#e44858] text-[9px]"), false, 'stock detail chart should not render the unused buy marker legend');
-  assert.equal(stockDetailPageSource.includes("bg-[#22c989] text-[9px]"), false, 'stock detail chart should not render the unused sell marker legend');
+  assert.match(stockDetailPageSource, /<ComparisonChart\b[^>]*comparison=\{stockSeries\}[^>]*mode=\{chartMode\}[^>]*tradeMarkers=\{tradeMarkers\}[^>]*onSelectTradeMarker=\{setSelectedTradeEvent\}/, 'the current-cycle chart must share display mode and pass selected grouped markers into trade details');
+  assert.match(stockDetailPageSource, /<ComparisonChart\b[^>]*stockOnly/, 'the cycle chart must render independently of benchmark data');
+  assert.ok(stockDetailPageSource.includes("React.useState('percent')") && stockDetailPageSource.includes("setChartMode('amount')"), 'the stock chart should default to return rate and retain the amount toggle');
+  assert.doesNotMatch(stockDetailPageSource, /<StockReturnComparisonCard\b|QQQ|fetchPnlBenchmarkRows|\/api\/pnl-benchmark/, 'the detail page should neither display nor load the removed QQQ comparison');
+  assert.ok(comparisonCardSource.includes('plottedMarkers.map') && comparisonCardSource.includes('data-stock-comparison-trade-marker={marker.side}') && comparisonCardSource.includes('onSelectTradeMarker?.(marker)'), 'buy/sell markers should provide a read-only trade-details action');
+  assert.ok(comparisonCardSource.includes('marker.records.length') && comparisonCardSource.includes("marker.side === 'sell' ? 'S' : 'B/S'"), 'the shared chart should preserve grouped same-day trades instead of overlapping independent markers');
   assert.ok(stockDetailViewModelSource.includes('markerDate'), 'stock detail view model should map trade records onto visible trend dates');
   assert.equal(stockDetailPageSource.includes("stockDetail.realizedPnlLine',"), false, 'stock detail chart should not expose unrealized curve switches before they are implemented');
   assert.equal(stockDetailPageSource.includes("stockDetail.compareLine',"), false, 'stock detail chart should not expose compare-line controls before they are implemented');
@@ -1214,13 +1225,16 @@ test('stock detail page is read-only and separate from trade editing', () => {
   assert.ok(stockDetailPageSource.includes('!chartRootRef.current?.contains(event.target)'), 'stock detail chart outside-click handler should ignore taps inside the chart');
   assert.equal(stockDetailPageSource.includes("const DETAIL_LABEL_CLASS = 'text-white/[0.30]'"), false, 'stock detail labels should not return to the too-dark tier');
   assert.equal(stockDetailPageSource.includes("const DETAIL_VALUE_CLASS = 'text-white/[0.64]'"), false, 'stock detail neutral values should not return to the too-dark tier');
-  assert.ok(stockDetailPageSource.includes('stock-detail-trade-records-scroll'), 'stock detail trade records should have a dedicated horizontal scroll wrapper');
-  assert.match(stockDetailPageCss, /\.sdp-records-table\s*\{[^}]*min-width:\s*560px;/, 'stock detail trade records should retain a dedicated compact horizontal table');
-  assert.match(stockDetailPageCss, /\.sdp-record-row\s*\{[^}]*grid-template-columns:\s*96px 112px minmax\(158px, 1fr\) minmax\(158px, 1fr\);/, 'the amount and realized-P&L columns must retain their space');
-  assert.match(stockDetailPageCss, /\.sdp-record-row > \*\s*\{[^}]*text-align:\s*right;[^}]*white-space:\s*nowrap;/, 'stock detail amount cells should keep large values on one line');
-  assert.match(stockDetailPageCss, /\.sdp-record-row > \.sdp-record-date\s*\{[^}]*position:\s*sticky;[^}]*left:\s*0;[^}]*background:\s*#08090b;/, 'the date/action column should remain identifiable while amounts scroll');
-  assert.match(stockDetailPageCss, /\.stock-detail-trade-records-scroll\s*\{[^}]*overflow-x:\s*auto;/, 'only the explicit trade table owns horizontal scrolling');
+  assert.match(stockDetailPageSource, /<StockTradeEvents\s+records=\{reviewRecords\}[^>]*selectedEvent=\{selectedTradeEvent\}[^>]*onSelectEvent=\{setSelectedTradeEvent\}/, 'the event list and chart should open the same read-only detail selection');
+  assert.ok(stockDetailPageSource.includes('holdingDetails={holdingDetails}') && tradeEventsSource.includes("['events', 'holdings']"), 'the event component should retain a separate supplied holding-facts view');
+  assert.ok(tradeEventsSource.includes('money(record.amountUsd, displayCurrency, displayRate)') && tradeEventsSource.includes("record.side === 'sell' && <span className=\"ste-event-realized\""), 'the event list should show every trade amount and a separate realized return only for sells');
+  assert.ok(tradeEventsSource.includes('money(record.realizedPnlUsd, displayCurrency, displayRate, true)'), 'sell returns must use the annotated ledger fact instead of recomputing P&L in the UI');
+  assert.ok(tradeEventsSource.includes('Array.isArray(event?.records)') && tradeEventsSource.includes('quantity(record.heldSharesAfter)'), 'grouped marker details should retain all supplied trades and their post-trade holdings');
+  assert.match(tradeEventsCss, /\.ste-event\s*\{[^}]*width:\s*100%;/, 'trade event rows should fit the page rather than require the retired wide table');
+  assert.match(tradeEventsCss, /\.ste-event-amount\s*\{[^}]*overflow-wrap:\s*anywhere;/, 'large financial readings must remain fully visible by wrapping');
+  assert.match(tradeEventsCss, /\.ste-sheet-panel \.srm-content\s*\{[^}]*overflow-y:\s*auto;/, 'same-day grouped trades should remain readable in the internally scrollable detail sheet');
   assert.doesNotMatch(stockDetailPageSource, /\btruncate\b/, 'financial readings must not be visually replaced by ellipses');
+  assert.doesNotMatch(tradeEventsSource, /\btruncate\b/, 'extracted trade facts must not be visually replaced by ellipses');
   assert.ok(stockDetailViewModelSource.includes('annotateTradeRecords'), 'stock detail should compute sell realized P&L from the trade ledger locally');
   assert.ok(stockDetailViewModelSource.includes('const tradeEndDate = currentNewYorkDate(now);'), 'stock detail trade facts should extend through the current New York date');
   assert.ok(stockDetailViewModelSource.includes('buildTradeStats(records, tradeStartDate, tradeEndDate, range)'), 'stock detail trade statistics should rebuild from the immediate ledger range');

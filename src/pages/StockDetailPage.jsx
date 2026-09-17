@@ -3,7 +3,6 @@ import { ArrowLeft, ChevronRight } from 'lucide-react';
 import { marketHexColor, marketTextClass } from '../lib/marketColorMode.js';
 import { t } from '../lib/i18n.js';
 import { buildStockDetailViewModel } from '../lib/stockDetailViewModel.js';
-import { buildStockReturnComparison } from '../lib/stockReturnComparison.js';
 import {
   findWatchlistStockDetailRows,
   targetProgressPercent,
@@ -11,7 +10,9 @@ import {
   targetSpacePercent,
 } from '../lib/watchlistStockDetail.js';
 import StockLogo, { stockLogoCandidates } from '../components/StockLogo.jsx';
-import StockReturnComparisonCard from '../components/StockReturnComparisonCard.jsx';
+import { ComparisonChart } from '../components/StockReturnComparisonCard.jsx';
+import StockTradeEvents from '../components/StockTradeEvents.jsx';
+import { calculateMFE, calculateMAE, calculateMaxDrawdown, calculateProfitCapture, buildTradeMarkers, filterReviewRange, defaultReviewRange } from '../lib/stockTradeReview.js';
 import TargetEditor from '../components/StockTargetEditor.jsx';
 import './StockDetailPage.css';
 import './StockDetailPnlChart.css';
@@ -23,25 +24,6 @@ const DETAIL_LABEL_CLASS = 'text-white/40';
 const DETAIL_VALUE_CLASS = 'text-white/[0.86]';
 const DETAIL_MUTED_VALUE_CLASS = 'text-white/[0.86]';
 const CHART_TOOLTIP_HOLD_MS = 12000;
-const BENCHMARK_CACHE_TTL_MS = 15 * 60 * 1000;
-const comparisonRawRowsCache = new Map();
-
-function readCachedComparisonRawRows(key) {
-  const cached = comparisonRawRowsCache.get(key);
-  if (!cached || cached.expiresAt <= Date.now()) {
-    comparisonRawRowsCache.delete(key);
-    return null;
-  }
-  return cached.rows;
-}
-
-function cacheComparisonRawRows(key, rows) {
-  comparisonRawRowsCache.set(key, {
-    rows,
-    expiresAt: Date.now() + BENCHMARK_CACHE_TTL_MS,
-  });
-}
-
 function toNumber(value) {
   const n = Number(value);
   return Number.isFinite(n) ? n : 0;
@@ -558,7 +540,6 @@ export default function StockDetailPage({ ctx = {} }) {
     cacheStockLogo,
     db,
     displayStockName,
-    fetchPnlBenchmarkRows,
     language = 'zh',
     logoCache = {},
     marketColorMode,
@@ -566,34 +547,25 @@ export default function StockDetailPage({ ctx = {} }) {
     portfolioCurrencyMode,
     saveWatchlistStockTarget,
     stockDetailSymbol,
-    stockDetailInitialRange = 'all',
+    stockDetailInitialRange,
     stockDetailTargetEditorOpen = false,
-    stockReturnComparisonMethodPreview = false,
-    stockReturnComparisonSharePreview = false,
     stockReturnComparisonTooltipPreview = false,
-    stockReturnComparisonVisualPreview = false,
     stockTrades,
-    supabase,
     usdRate,
     investmentSummary,
     user,
     watchlist = [],
   } = ctx;
   const [range, setRange] = React.useState(() => (
-    ['ytd', '1m', '6m', '1y', 'all'].includes(stockDetailInitialRange)
+    ['1m', '3m', '6m', 'all'].includes(stockDetailInitialRange)
       ? stockDetailInitialRange
-      : 'all'
+      : null
   ));
+  const [chartMode, setChartMode] = React.useState('percent');
+  const [selectedTradeEvent, setSelectedTradeEvent] = React.useState(null);
   const [snapshots, setSnapshots] = React.useState([]);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState('');
-  const [comparisonMarketRows, setComparisonMarketRows] = React.useState({
-    key: '',
-    qqqRows: [],
-    stockRawRows: [],
-  });
-  const [benchmarkLoading, setBenchmarkLoading] = React.useState(false);
-  const [benchmarkError, setBenchmarkError] = React.useState('');
   const [showTargetEditor, setShowTargetEditor] = React.useState(Boolean(stockDetailTargetEditorOpen));
   const [targetSaving, setTargetSaving] = React.useState(false);
   const [targetSaveError, setTargetSaveError] = React.useState(false);
@@ -640,122 +612,8 @@ export default function StockDetailPage({ ctx = {} }) {
     symbol,
     stockTrades,
     symbolSnapshots: snapshots,
-    range,
-  }), [range, snapshots, stockTrades, symbol]);
-
-  React.useEffect(() => {
-    let cancelled = false;
-    const controller = new AbortController();
-
-    async function loadComparisonMarketRows() {
-      const from = view.benchmarkQueryStartDate;
-      const to = view.benchmarkQueryEndDate;
-      if (!view.hasData || !symbol || !from || !to) {
-        setComparisonMarketRows({ key: '', qqqRows: [], stockRawRows: [] });
-        setBenchmarkError('');
-        setBenchmarkLoading(false);
-        return;
-      }
-
-      const comparisonKey = `${symbol}:${from}:${to}`;
-      const requestedSymbols = [...new Set([symbol, 'QQQ'])];
-      const rowsBySymbol = new Map();
-      const missingSymbols = [];
-      requestedSymbols.forEach((requestedSymbol) => {
-        const cacheKey = `${requestedSymbol}:${from}:${to}`;
-        const cachedRows = readCachedComparisonRawRows(cacheKey);
-        if (cachedRows) rowsBySymbol.set(requestedSymbol, cachedRows);
-        else missingSymbols.push(requestedSymbol);
-      });
-
-      setBenchmarkLoading(true);
-      setBenchmarkError('');
-      setComparisonMarketRows({ key: '', qqqRows: [], stockRawRows: [] });
-      try {
-        let token = '';
-        if (missingSymbols.length > 0 && typeof fetchPnlBenchmarkRows !== 'function') {
-          if (!supabase?.auth?.getSession) throw new Error('benchmark_auth_unavailable');
-          const { data: { session } } = await supabase.auth.getSession();
-          token = session?.access_token;
-          if (!token) throw new Error('benchmark_auth_required');
-        }
-
-        const fetchedEntries = await Promise.all(missingSymbols.map(async (requestedSymbol) => {
-          let rows;
-          if (typeof fetchPnlBenchmarkRows === 'function') {
-            rows = await fetchPnlBenchmarkRows({
-              symbol: requestedSymbol,
-              from,
-              to,
-              signal: controller.signal,
-            });
-          } else {
-            const response = await fetch(`/api/pnl-benchmark?symbol=${encodeURIComponent(requestedSymbol)}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, {
-              cache: 'no-store',
-              signal: controller.signal,
-              headers: { Authorization: `Bearer ${token}` },
-            });
-            const body = await response.json().catch(() => null);
-            if (!response.ok || body?.success === false) throw new Error('benchmark_request_failed');
-            rows = body?.rows;
-          }
-          if (!Array.isArray(rows) || rows.length === 0) {
-            throw new Error('benchmark_rows_missing');
-          }
-          return [requestedSymbol, rows];
-        }));
-
-        // Only publish or cache the pair after every required symbol succeeds.
-        // This keeps a partial provider response from mixing with the other side.
-        fetchedEntries.forEach(([requestedSymbol, rows]) => {
-          rowsBySymbol.set(requestedSymbol, rows);
-        });
-        const qqqRows = rowsBySymbol.get('QQQ');
-        const stockRawRows = rowsBySymbol.get(symbol);
-        if (!Array.isArray(qqqRows) || qqqRows.length === 0
-          || !Array.isArray(stockRawRows) || stockRawRows.length === 0) {
-          throw new Error('benchmark_rows_missing');
-        }
-        fetchedEntries.forEach(([requestedSymbol, rows]) => {
-          cacheComparisonRawRows(`${requestedSymbol}:${from}:${to}`, rows);
-        });
-        if (!cancelled) {
-          setComparisonMarketRows({ key: comparisonKey, qqqRows, stockRawRows });
-        }
-      } catch (benchmarkLoadError) {
-        if (cancelled || benchmarkLoadError?.name === 'AbortError') return;
-        setComparisonMarketRows({ key: '', qqqRows: [], stockRawRows: [] });
-        setBenchmarkError(benchmarkLoadError?.message || 'benchmark_request_failed');
-      } finally {
-        if (!cancelled) setBenchmarkLoading(false);
-      }
-    }
-
-    loadComparisonMarketRows();
-    return () => {
-      cancelled = true;
-      controller.abort();
-    };
-  }, [fetchPnlBenchmarkRows, supabase, symbol, user?.id, view.benchmarkQueryEndDate, view.benchmarkQueryStartDate, view.hasData]);
-
-  const expectedComparisonMarketKey = view.hasData
-    && symbol
-    && view.benchmarkQueryStartDate
-    && view.benchmarkQueryEndDate
-    ? `${symbol}:${view.benchmarkQueryStartDate}:${view.benchmarkQueryEndDate}`
-    : '';
-  const comparisonRowsReady = Boolean(
-    expectedComparisonMarketKey && comparisonMarketRows.key === expectedComparisonMarketKey,
-  );
-
-  const comparison = React.useMemo(
-    () => buildStockReturnComparison(
-      view,
-      comparisonRowsReady ? comparisonMarketRows.qqqRows : [],
-      comparisonRowsReady ? comparisonMarketRows.stockRawRows : [],
-    ),
-    [comparisonMarketRows, comparisonRowsReady, view],
-  );
+    range: 'all',
+  }), [snapshots, stockTrades, symbol]);
 
   const displayName = typeof displayStockName === 'function'
     ? displayStockName(view.symbol, view.name, language)
@@ -779,16 +637,42 @@ export default function StockDetailPage({ ctx = {} }) {
     targetWatchlistRow?.logoUrl,
     targetWatchlistRow?.logo,
   );
-  const totalColor = marketHexColor(view.periodPnlUsd || 0, marketColorMode);
-  const totalValue = view.periodPnlUsd == null ? null : view.periodPnlUsd * displayRate;
-  const rangeItems = [
-    ['ytd', t(language, 'stockDetail.range.ytd', '本年')],
-    ['1m', t(language, 'stockDetail.range.1m', '近 1 月')],
-    ['6m', t(language, 'stockDetail.range.6m', '近 6 月')],
-    ['1y', t(language, 'stockDetail.range.1y', '近 1 年')],
-    ['all', t(language, 'stockDetail.range.all', '全部')],
+  const label = (zh, en) => language === 'en' ? en : zh;
+  const cycle = view.cycleReview || {};
+  const cycleReady = cycle.available === true;
+  const cycleTrend = cycleReady ? cycle.trend : [];
+  const totalColor = marketHexColor(cycle.currentTotalPnlUsd || 0, marketColorMode);
+  const totalValue = cycle.currentTotalPnlUsd == null ? null : cycle.currentTotalPnlUsd * displayRate;
+  const activeRange = range || defaultReviewRange(cycle.startDate && cycle.endDate && cycle.startDate < cycle.endDate
+    ? [{ date: cycle.startDate }, { date: cycle.endDate }] : cycleTrend);
+  const stockSeries = {
+    symbol,
+    available: cycleReady,
+    baselineDate: cycle.startDate,
+    stockPnlUsd: cycle.currentTotalPnlUsd,
+    stockPnlPct: cycle.returnPct,
+    trend: filterReviewRange(cycleTrend, activeRange).map(point => ({
+      ...point, stockPnlUsd: point.totalPnlUsd, stockPnlPct: point.returnPct,
+    })),
+  };
+  const reviewRecords = cycle.startDate ? cycle.tradeRecords : view.tradeRecords;
+  const tradeMarkers = buildTradeMarkers(reviewRecords, stockSeries.trend);
+  const mfe = calculateMFE(cycleTrend);
+  const mae = calculateMAE(cycleTrend);
+  const drawdown = calculateMaxDrawdown(cycleTrend.map(point => ({ date: point.date, equity: point.marketValueUsd })));
+  const profitCapture = calculateProfitCapture(cycle.currentTotalPnlUsd, mfe?.valueUsd);
+  const moneyOrMissing = value => value == null ? '--' : signedCurrency(value * displayRate, displayCurrency, 2);
+  const holdingDetails = [
+    { label: label('持仓数量', 'Shares'), value: view.hasData ? `${fmt(view.heldShares, 0)} ${label('股', 'shares')}` : '--' },
+    { label: label('会计平均成本', 'Average cost'), value: view.avgCostUsd > 0 ? `$${fmt(view.avgCostUsd, 3)}` : '--' },
+    { label: label('最新收盘价', 'Latest close'), value: view.currentPriceUsd > 0 ? `$${fmt(view.currentPriceUsd, 2)}` : '--' },
+    { label: label('盈亏平衡价', 'Break-even price'), value: cycle.breakEvenPriceUsd == null ? '--' : `$${fmt(cycle.breakEvenPriceUsd, 3)}` },
+    { label: label('持仓天数', 'Holding days'), value: cycle.holdingDays == null ? '--' : `${cycle.holdingDays} ${label('天', 'days')}` },
+    { label: label('本轮首次建仓', 'Cycle first buy'), value: cycle.startDate ? displayDate(cycle.startDate) : '--' },
   ];
-  const compactRangeLabel = rangeItems.find(([id]) => id === range)?.[1] || rangeItems[0][1];
+  const rangeItems = [
+    ['1m', '1M'], ['3m', '3M'], ['6m', '6M'], ['all', label('全部', 'All')],
+  ];
 
   const saveTarget = async (targetUsd) => {
     if (!(targetUsd > 0) || !targetEditable) {
@@ -828,14 +712,6 @@ export default function StockDetailPage({ ctx = {} }) {
           <span className="sdp-header-currency">{displayCurrency}</span>
       </header>
 
-      <nav className="sdp-ranges" aria-label={language === 'en' ? 'Return period' : '收益区间'}>
-          {rangeItems.map(([id, label]) => (
-            <RangePill key={id} active={range === id} onClick={() => setRange(id)}>
-              {label}
-            </RangePill>
-          ))}
-      </nav>
-
       <section
         className="sdp-summary"
         data-stock-detail-summary-card="true"
@@ -847,25 +723,25 @@ export default function StockDetailPage({ ctx = {} }) {
               <div className="sdp-company">{displayName && displayName !== view.symbol ? displayName : ''}</div>
             </div>
           </div>
-          <div className="sdp-pnl-label">{t(language, 'stockDetail.totalPnl', '累计盈亏')}</div>
+          <div className="sdp-pnl-label">{label('本轮总收益', 'Current cycle return')}</div>
           <div className="sdp-total" data-stock-detail-total-pnl style={{ color: totalColor, fontFamily: NUMBER_FONT }}>
             {totalValue == null ? '--' : signedCurrency(totalValue, displayCurrency, 2)}
           </div>
-          <div className={`sdp-total-percent ${view.periodPnlPct == null ? 'text-white/[0.32]' : marketTextClass(view.periodPnlUsd || 0, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
-            {signedPct(view.periodPnlPct, 2)}
+          <div className={`sdp-total-percent ${cycle.returnPct == null ? 'text-white/[0.32]' : marketTextClass(cycle.currentTotalPnlUsd || 0, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
+            {signedPct(cycle.returnPct, 2)}
           </div>
-          <div className="sdp-period">{view.startDate} — {view.endDate}</div>
+          <div className="sdp-period">{cycle.startDate ? displayDate(cycle.startDate) : '--'} — {view.endDate} · {label('收盘', 'Close')}</div>
 
           <div className="sdp-pnl-breakdown">
             <StatCell
               label={t(language, 'stockDetail.realizedPnl', '已实现盈亏')}
-              value={view.hasData ? signedCurrency(view.realizedPnlUsd * displayRate, displayCurrency, 2) : '--'}
-              valueClass={marketTextClass(view.realizedPnlUsd, marketColorMode)}
+              value={moneyOrMissing(cycle.realizedPnlUsd)}
+              valueClass={marketTextClass(cycle.realizedPnlUsd, marketColorMode)}
             />
             <StatCell
               label={t(language, 'stockDetail.unrealizedPnl', '未实现盈亏')}
-              value={view.hasData ? signedCurrency(view.unrealizedPnlUsd * displayRate, displayCurrency, 2) : '--'}
-              valueClass={marketTextClass(view.unrealizedPnlUsd, marketColorMode)}
+              value={moneyOrMissing(cycle.unrealizedPnlUsd)}
+              valueClass={marketTextClass(cycle.unrealizedPnlUsd, marketColorMode)}
             />
           </div>
           <div className="sdp-holding-facts">
@@ -878,14 +754,20 @@ export default function StockDetailPage({ ctx = {} }) {
               value={view.avgCostUsd > 0 ? `$${fmt(view.avgCostUsd, 3)}` : '--'}
             />
             <StatCell
-              label={t(language, 'stockDetail.holdingDays', '持仓天数')}
-              value={view.holdingDays != null ? `${fmt(view.holdingDays, 0)} ${t(language, 'stockDetail.days', '天')}` : '--'}
+              label={label('最新收盘价', 'Latest close')}
+              value={view.currentPriceUsd > 0 ? `$${fmt(view.currentPriceUsd, 2)}` : '--'}
             />
             <StatCell
-              label={t(language, 'stockDetail.firstEntry', '首次建仓')}
-              value={view.holdingStartDate ? displayDate(view.holdingStartDate) : '--'}
+              label={label('盈亏平衡价', 'Break-even price')}
+              value={cycle.breakEvenPriceUsd == null ? '--' : `$${fmt(cycle.breakEvenPriceUsd, 3)}`}
             />
+            <StatCell label={label('持仓天数', 'Holding days')} value={holdingDetails[4].value} />
+            <StatCell label={label('本轮首次建仓', 'Cycle first buy')} value={holdingDetails[5].value} />
           </div>
+          <div className="sdp-review-note">{label('盈亏平衡价扣除本轮已实现收益，与会计成本分开。', 'Break-even price deducts this cycle’s realized return from remaining cost.')}</div>
+          {view.hasData && !cycleReady && !loading && <div className="sdp-review-note" role="status">{cycle.reason === 'no_active_cycle'
+            ? label('当前没有存续持仓，本轮收益暂不显示。', 'No active position; current-cycle returns are unavailable.')
+            : label('本轮账本与收盘记录未能完整匹配，收益与风险指标暂不显示。', 'Cycle ledger and closing records do not fully match; return and risk metrics are unavailable.')}</div>}
       </section>
 
       {showTargetEditor && targetEditable ? (
@@ -907,42 +789,44 @@ export default function StockDetailPage({ ctx = {} }) {
         />
       ) : null}
 
-      <section
-        className="sdp-section sdp-trend"
-        data-stock-detail-pnl-trend-card="true"
-      >
-        <div className="sdp-section-heading">
-          <h2>{t(language, 'stockDetail.pnlTrend', '收益走势')}</h2>
-          <span>{compactRangeLabel}</span>
+      <section className="sdp-section" data-stock-detail-trade-quality="true">
+        <div className="sdp-section-heading"><h2>{label('交易质量', 'Trade quality')}</h2><span>{label('本轮 · 收盘记录', 'Current cycle · closes')}</span></div>
+        <div className="sdp-quality-grid">
+          <StatCell label={label('最大浮盈 MFE', 'Maximum profit · MFE')} value={moneyOrMissing(mfe?.valueUsd)} valueClass={marketTextClass(mfe?.valueUsd, marketColorMode)} />
+          <StatCell label={label('最大浮亏 MAE', 'Maximum loss · MAE')} value={moneyOrMissing(mae?.valueUsd)} valueClass={marketTextClass(mae?.valueUsd, marketColorMode)} />
+          <StatCell label={label('最大回撤', 'Maximum drawdown')} value={signedPct(drawdown?.drawdownPct)} valueClass={marketTextClass(drawdown?.drawdownPct, marketColorMode)} />
+          <StatCell label={label('利润保留率', 'Profit capture')} value={profitCapture == null ? '--' : `${fmt(profitCapture * 100, 2)}%`} />
+          <StatCell label={label('收益最高日期', 'Highest return date')} value={mfe?.observedDate ? displayDate(mfe.observedDate) : '--'} />
+          <StatCell label={label('收益最低日期', 'Lowest return date')} value={mae?.observedDate ? displayDate(mae.observedDate) : '--'} />
+          <StatCell label={label('持仓天数', 'Holding days')} value={holdingDetails[4].value} />
         </div>
-        <PnlSparkline
-          points={view.trend.map((point) => ({ ...point, pnlUsd: point.pnlUsd * displayRate }))}
-          color={totalColor}
-          emptyText={loading ? t(language, 'stockDetail.loading', '正在读取快照') : t(language, 'stockDetail.noTrend', '暂无足够快照')}
-          startDate={view.axisStartDate}
-          endDate={view.axisEndDate}
-          currencyMode={displayCurrency}
-          marketColorMode={marketColorMode}
-          displayRate={displayRate}
-          language={language}
-          trendStats={view.trendStats}
-        />
+        <details className="sdp-review-definitions">
+          <summary>{label('查看指标口径', 'Metric definitions')}</summary>
+          <p>{label('浮盈、浮亏按本轮累计总收益统计，包含已实现与未实现收益；历史峰谷只取已有收盘记录。', 'Profit excursions use this cycle’s realized plus unrealized return, across available closing records.')}</p>
+          <p>{label('最大回撤按持仓市值峰谷计算，不以利润为分母；加减仓也会影响这一数值。', 'Drawdown uses position market-value peaks, not profit peaks. Position size changes also affect this measure.')}</p>
+          <p>{label('利润保留率 = 当前本轮收益 ÷ 历史最高本轮收益；峰值不为正时不计算。', 'Profit capture divides current cycle profit by its positive historical peak.')}</p>
+          <p>{label('沿用现有账本与收盘价口径；拆股等公司行动尚未自动回放。股数或价格口径不一致时，不能据此判断回撤。', 'Uses existing ledger and closing-price conventions. Corporate actions are not automatically replayed; inconsistent share or price bases cannot establish drawdown.')}</p>
+        </details>
       </section>
 
-      <StockReturnComparisonCard
-        comparison={comparison}
-        loading={benchmarkLoading || loading || Boolean(expectedComparisonMarketKey && !comparisonRowsReady && !benchmarkError)}
-        error={benchmarkError}
-        symbol={view.symbol}
-        language={language}
-        marketColorMode={marketColorMode}
-        displayCurrency={displayCurrency}
-        displayRate={displayRate}
-        initialMethodOpen={stockReturnComparisonMethodPreview}
-        initialShareOpen={stockReturnComparisonSharePreview}
-        initialTooltipOpen={stockReturnComparisonTooltipPreview}
-        visualPreview={stockReturnComparisonVisualPreview}
-      />
+      <section className="sdp-section sdp-trend" data-stock-detail-pnl-trend-card="true">
+        <div className="sdp-section-heading"><h2>{t(language, 'stockDetail.pnlTrend', '收益走势')}</h2><span>{chartMode === 'percent' ? '%' : displayCurrency}</span></div>
+        <div className="sdp-review-mode" role="group" aria-label={label('图表显示方式', 'Chart display')}>
+          <RangePill active={chartMode === 'percent'} onClick={() => setChartMode('percent')}>{label('收益率 %', 'Return %')}</RangePill>
+          <RangePill active={chartMode === 'amount'} onClick={() => setChartMode('amount')}>{label('盈亏金额', 'P&L')} {displayCurrency === 'CNY' ? '¥' : '$'}</RangePill>
+        </div>
+        <div className="sdp-review-legend">
+          <span style={{ color: totalColor }}><i />{symbol} {chartMode === 'percent' ? signedPct(cycle.returnPct) : moneyOrMissing(cycle.currentTotalPnlUsd)}</span>
+        </div>
+        <nav className="sdp-ranges sdp-review-ranges" aria-label={label('图表时间范围', 'Chart range')}>
+          {rangeItems.map(([id, text]) => <RangePill key={id} active={activeRange === id} onClick={() => setRange(id)}>{text}</RangePill>)}
+        </nav>
+        <ComparisonChart stockOnly comparison={stockSeries} displayRate={displayRate} displayCurrency={displayCurrency} language={language} marketColorMode={marketColorMode} mode={chartMode} tradeMarkers={tradeMarkers} onSelectTradeMarker={setSelectedTradeEvent} initialTooltipOpen={stockReturnComparisonTooltipPreview} />
+        <div className="sdp-review-note">{label('本轮累计收益 · 已实现 + 未实现；切换时间范围不重置收益。', 'Current-cycle realized + unrealized return; changing the range does not rebase returns.')}</div>
+        <div className="sdp-review-marker-key"><span style={{ color: marketHexColor(-1, marketColorMode) }}>B {label('买入', 'Buy')}</span><span style={{ color: marketHexColor(1, marketColorMode) }}>S {label('卖出', 'Sell')}</span><span>{label('点击标记查看成交', 'Tap a marker for trades')}</span></div>
+      </section>
+
+      <StockTradeEvents records={reviewRecords} selectedEvent={selectedTradeEvent} onSelectEvent={setSelectedTradeEvent} onCloseEvent={() => setSelectedTradeEvent(null)} language={language} displayCurrency={displayCurrency} displayRate={displayRate} marketColorMode={marketColorMode} holdingDetails={holdingDetails} />
 
       <section className="sdp-section sdp-target-section">
         <button
@@ -988,69 +872,6 @@ export default function StockDetailPage({ ctx = {} }) {
             <span>{targetProgress === null ? '--' : `${targetProgress.toFixed(1)}%`}</span>
           </div>
         </button>
-      </section>
-
-      <section className="sdp-section" data-stock-detail-trade-stats="true">
-        <div className="sdp-section-heading"><h2>{t(language, 'stockDetail.tradeStats', '交易统计')}</h2></div>
-        <div className="sdp-trade-stats">
-          <StatCell label={t(language, 'stockDetail.buyAmount', '买入金额')} value={currency(view.stats.buyAmountUsd * displayRate, displayCurrency, 2)} />
-          <StatCell label={t(language, 'stockDetail.sellAmount', '卖出金额')} value={currency(view.stats.sellAmountUsd * displayRate, displayCurrency, 2)} />
-          <StatCell label={t(language, 'stockDetail.buyCount', '买入次数')} value={`${view.stats.buyCount} ${t(language, 'stockDetail.tradesCount', '笔')}`} />
-          <StatCell label={t(language, 'stockDetail.sellCount', '卖出次数')} value={`${view.stats.sellCount} ${t(language, 'stockDetail.tradesCount', '笔')}`} />
-        </div>
-      </section>
-
-      <section className="sdp-section" data-stock-detail-records="true">
-        <div className="sdp-section-heading">
-          <h2>{t(language, 'stockDetail.tradeRecords', '交易记录')}</h2>
-          <span>{compactRangeLabel}</span>
-        </div>
-        {view.tradeRecords.length === 0 ? (
-          <div className="sdp-empty">
-              {t(language, 'stockDetail.noTrades', '当前周期暂无交易记录')}
-          </div>
-        ) : (
-          <div
-            className="stock-detail-trade-records-scroll"
-            data-pull-refresh-block="true"
-            style={{ WebkitOverflowScrolling: 'touch' }}
-          >
-            <div className="sdp-records-table" role="table" aria-label={t(language, 'stockDetail.tradeRecords', '交易记录')}>
-              <div className="sdp-record-head sdp-record-row" role="row">
-                <span className="sdp-record-date" role="columnheader">{t(language, 'stockDetail.dateAction', '日期 / 操作')}</span>
-                <span role="columnheader">{t(language, 'stockDetail.qtyPrice', '数量 / 价格')}</span>
-                <span role="columnheader">{t(language, 'stockDetail.amount', '成交额')}</span>
-                <span role="columnheader">{t(language, 'stockDetail.realized', '实现盈亏')}</span>
-              </div>
-              <div role="rowgroup">
-                {view.tradeRecords.map((record) => {
-                  const isSell = record.side === 'sell';
-                  const realizedValue = record.realizedPnlUsd == null ? null : record.realizedPnlUsd * displayRate;
-                  return (
-                    <div key={`${record.id || record.date}-${record.side}-${record.shares}`} className="sdp-record-row" role="row">
-                      <div className="sdp-record-date" role="cell">
-                        <div className={DETAIL_MUTED_VALUE_CLASS} style={{ fontFamily: NUMBER_FONT }}>{displayDate(record.date)}</div>
-                        <div className={`sdp-record-secondary ${isSell ? marketTextClass(-1, marketColorMode) : marketTextClass(1, marketColorMode)}`}>
-                          {sideLabel(language, record.side)}
-                        </div>
-                      </div>
-                      <div role="cell">
-                        <div className={DETAIL_MUTED_VALUE_CLASS} style={{ fontFamily: NUMBER_FONT }}>{fmt(record.shares, 0)} {t(language, 'stockDetail.shares', '股')}</div>
-                        <div className="sdp-record-secondary sdp-record-price" style={{ fontFamily: NUMBER_FONT }}>@ ${fmt(record.price, 2)}</div>
-                      </div>
-                      <div className={DETAIL_MUTED_VALUE_CLASS} role="cell" style={{ fontFamily: NUMBER_FONT }}>
-                        {currency(record.amountUsd * displayRate, displayCurrency, 2)}
-                      </div>
-                      <div className={realizedValue == null ? 'text-white/[0.34]' : marketTextClass(realizedValue, marketColorMode)} role="cell" style={{ fontFamily: NUMBER_FONT }}>
-                        {realizedValue == null ? '--' : signedCurrency(realizedValue, displayCurrency, 2)}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        )}
       </section>
 
       {(error || (!view.hasData && !loading)) && (

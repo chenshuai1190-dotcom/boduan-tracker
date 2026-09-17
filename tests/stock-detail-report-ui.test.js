@@ -44,31 +44,51 @@ test('stock detail matches drawdown gutters without double padding in production
 
 // Compile the real JSX graph for SSR. Only CSS loading is omitted; financial
 // helpers, React state initialization and nested report components stay real.
-async function compileModule(url) {
-  if (moduleCache.has(url.href)) return moduleCache.get(url.href);
+async function compileModule(url, reactOverride = null) {
+  const cacheKey = `${url.href}:${reactOverride || ''}`;
+  if (moduleCache.has(cacheKey)) return moduleCache.get(cacheKey);
   const loading = (async () => {
     let source = readFileSync(url, 'utf8').replace(/^import\s+['"][^'"]+\.css['"];?\s*$/gm, '');
     if (url.href === pageUrl.href) source += '\nexport { PnlSparkline, buildLineChart };';
-    if (url.href === comparisonUrl.href) source += '\nexport { ComparisonChart, SharePreview };';
+    if (url.href === comparisonUrl.href) source += '\nexport { SharePreview };';
     const transformed = await transformWithOxc(source, url.pathname, { jsx: { runtime: 'classic' } });
     let code = transformed.code;
     const imports = [...code.matchAll(/(from\s+)(['"])([^'"]+)\2/g)];
     for (const match of imports.reverse()) {
       const specifier = match[3];
       const resolved = specifier.startsWith('.') ? new URL(specifier, url) : null;
-      const target = resolved?.pathname.endsWith('.jsx')
-        ? await compileModule(resolved)
-        : resolved?.href || import.meta.resolve(specifier);
+      const target = specifier === 'react' && reactOverride ? reactOverride
+        : resolved?.pathname.endsWith('.jsx')
+          ? await compileModule(resolved)
+          : resolved?.href || import.meta.resolve(specifier);
       code = code.slice(0, match.index) + match[1] + JSON.stringify(target) + code.slice(match.index + match[0].length);
     }
     return moduleUrl(`${code}\n//# sourceURL=${url.href}`);
   })();
-  moduleCache.set(url.href, loading);
+  moduleCache.set(cacheKey, loading);
   return loading;
 }
 
 const { default: StockDetailPage, PnlSparkline, buildLineChart } = await import(await compileModule(pageUrl));
 const { default: StockReturnComparisonCard, ComparisonChart, SharePreview } = await import(await compileModule(comparisonUrl));
+
+// Only the page's hooks are controlled. Its view model, fetched snapshot facts,
+// child chart and event components stay real so chart/headline agreement is
+// checked after the actual asynchronous snapshot-loading effect completes.
+const pageHooksUrl = moduleUrl(`
+import React from ${JSON.stringify(import.meta.resolve('react'))};
+let slots = [], cursor = 0, effects = [];
+export function reset() { for (const slot of slots) slot?.cleanup?.(); slots = []; effects = []; }
+export function render(Component, props) { cursor = 0; return Component(props); }
+export async function flush() { for (const job of effects.splice(0)) { job.slot.cleanup?.(); job.slot.cleanup = job.effect(); } await new Promise(resolve => setImmediate(resolve)); }
+function useState(initial) { const slot = slots[cursor++] ||= { value: typeof initial === 'function' ? initial() : initial }; return [slot.value, next => { slot.value = typeof next === 'function' ? next(slot.value) : next; }]; }
+function useEffect(effect, deps) { const index = cursor++, previous = slots[index]; if (previous && deps && deps.every((value, i) => Object.is(value, previous.deps[i]))) return; const slot = slots[index] = { deps, cleanup: previous?.cleanup }; effects.push({ slot, effect }); }
+function useMemo(factory) { cursor++; return factory(); }
+function useRef(initial) { return slots[cursor++] ||= { current: initial }; }
+export default { ...React, useState, useEffect, useMemo, useRef, useCallback: (callback) => { cursor++; return callback; } };
+`);
+const pageHooks = await import(pageHooksUrl);
+const { default: InteractiveStockDetailPage } = await import(await compileModule(pageUrl, pageHooksUrl));
 
 function nodes(node, predicate) {
   if (!React.isValidElement(node)) return [];
@@ -229,7 +249,12 @@ test('stock detail initial render preserves unavailable headline and the read-on
   } });
   assert.match(html, /stock-detail-report/);
   assert.match(html, /data-stock-detail-summary-card="true"/);
-  assert.match(html, /暂无足够快照/);
+  assert.match(html, /暂无足够的本轮收盘记录/);
+  assert.doesNotMatch(html, /QQQ|当前持仓对比|胜出.*天数/);
+  const chartNode = nodes(tree, node => node.type === ComparisonChart)[0];
+  assert.equal(chartNode.props.stockOnly, true);
+  assert.deepEqual(chartNode.props.comparison.trend, []);
+  assert.equal(chartNode.props.comparison.available, false);
   const headline = nodes(tree, node => node.props['data-stock-detail-total-pnl'] !== undefined);
   assert.equal(headline.length, 1);
   assert.equal(text(headline[0]), '--', 'missing snapshots must not become a zero headline');
@@ -241,20 +266,87 @@ test('stock detail initial render preserves unavailable headline and the read-on
   assert.ok(html.includes('¥7,123.40'), 'buy amount should retain precise fractional CNY conversion');
   assert.ok(html.includes('¥1,852.08'), 'sell amount should retain precise fractional CNY conversion');
   assert.ok(html.includes('+¥427.40'), 'formal realized sell P&L should retain precise fractional CNY conversion');
-  assert.match(html, /stock-detail-trade-records-scroll/);
-  const table = nodes(tree, node => node.props.role === 'table');
-  assert.equal(table.length, 1);
-  const rows = nodes(table[0], node => node.props.role === 'row');
-  assert.equal(rows.length, 3, 'the read-only ledger should show its header plus both formal records');
-  for (const row of rows) {
-    const cells = React.Children.toArray(row.props.children);
-    assert.equal(cells.length, 4);
-    assert.equal(cells[0].props.className, 'sdp-record-date', 'the sticky first column must identify every row');
-  }
-  assert.ok(html.includes('@ $130.00'), 'unit prices remain USD even while trade totals use CNY');
+  assert.match(html, /stock-trade-events/);
+  assert.equal((html.match(/class="ste-event"/g) || []).length, 2, 'both formal trades remain reachable in the new event list');
+  for (const date of ['2026-06-01', '2026-06-30']) assert.ok(html.includes(date));
+  assert.ok(html.includes('$130.00'), 'execution prices remain USD while trade amounts use CNY');
   const target = nodes(tree, node => node.props['data-stock-detail-target-plan'] !== undefined);
   assert.equal(target.length, 1);
   assert.equal(target[0].props.disabled, false, 'the isolated watchlist target saver remains reachable');
   assert.ok(text(target[0]).includes('$180.00'));
   assert.equal(externalCalls, 0);
+});
+
+test('loaded stock detail plots its own cycle totals, keeps quality and switches chart mode without any benchmark dependency', async () => {
+  pageHooks.reset();
+  const stockTrades = [
+    { id: 'cycle-buy', trade_date: '2026-06-01', symbol: 'NVDA', side: 'buy', shares: 10, price: 100 },
+    { id: 'cycle-sell', trade_date: '2026-06-30', symbol: 'NVDA', side: 'sell', shares: 2, price: 130 },
+  ];
+  const snapshots = [
+    ['2026-06-01', 100, 10, 0], ['2026-06-15', 150, 10, 0], ['2026-06-30', 130, 8, 60],
+  ].map(([snapshotDate, price, shares, realized]) => ({
+    snapshotDate, symbol: 'NVDA', heldShares: shares, avgCostUsd: 100, currentPriceUsd: price,
+    marketValueUsd: shares * price, totalBuyCostUsd: 1000, realizedPnlUsd: realized,
+    unrealizedPnlUsd: (price - 100) * shares, cumulativePnlUsd: realized + (price - 100) * shares,
+  }));
+  const expected = buildStockDetailViewModel({ symbol: 'NVDA', stockTrades, symbolSnapshots: snapshots, range: 'all' }).cycleReview;
+  assert.equal(expected.available, true, 'the fixture must pass the real completed-cycle integrity checks');
+  assert.equal(expected.currentTotalPnlUsd, 300, 'the cycle includes $60 realized plus $240 unrealized, not a surviving-position comparison');
+  let snapshotReads = 0, benchmarkReads = 0;
+  const ctx = {
+    stockDetailSymbol: 'NVDA', stockDetailInitialRange: 'all', stockTrades,
+    portfolioCurrencyMode: 'USD', marketColorMode: 'redUpGreenDown', language: 'zh',
+    db: { async fetchPnlReportSymbolSnapshotHistory(symbol, start) {
+      snapshotReads++;
+      assert.equal(symbol, 'NVDA');
+      assert.equal(start, null);
+      return snapshots;
+    } },
+  };
+  for (const property of ['fetchPnlBenchmarkRows', 'supabase']) Object.defineProperty(ctx, property, {
+    get() { benchmarkReads++; throw new Error('stock-only detail must not read benchmark providers or auth'); },
+  });
+  const renderPage = () => pageHooks.render(InteractiveStockDetailPage, { ctx });
+  const chartOf = tree => nodes(tree, node => node.type === ComparisonChart)[0];
+  try {
+    renderPage();
+    await pageHooks.flush();
+    let tree = renderPage();
+    let chart = chartOf(tree);
+    assert.equal(snapshotReads, 1);
+    assert.equal(benchmarkReads, 0);
+    assert.equal(chart.props.stockOnly, true);
+    assert.equal(chart.props.mode, 'percent');
+    assert.equal(chart.props.comparison.available, true);
+    assert.equal(chart.props.comparison.baselineDate, expected.startDate);
+    assert.equal(chart.props.comparison.stockPnlUsd, expected.currentTotalPnlUsd);
+    assert.equal(chart.props.comparison.stockPnlPct, expected.returnPct);
+    assert.deepEqual(chart.props.comparison.trend.map(point => [point.date, point.stockPnlUsd, point.stockPnlPct]),
+      expected.trend.map(point => [point.date, point.totalPnlUsd, point.returnPct]));
+    assert.equal(text(nodes(tree, node => node.props['data-stock-detail-total-pnl'] !== undefined)[0]), '+$300.00');
+    const quality = nodes(tree, node => node.props['data-stock-detail-trade-quality'] !== undefined)[0];
+    assert.ok(quality);
+    for (const label of ['最大浮盈 MFE', '最大浮亏 MAE', '最大回撤', '利润保留率', '收益最高日期', '收益最低日期', '持仓天数']) {
+      assert.equal(nodes(quality, node => node.props.label === label).length, 1, `${label} must remain present`);
+    }
+    const trendSection = nodes(tree, node => node.props['data-stock-detail-pnl-trend-card'] !== undefined)[0];
+    const mode = nodes(trendSection, node => node.props['aria-label'] === '图表显示方式')[0];
+    assert.ok(mode, 'mode controls must be inside the chart section');
+    const amounts = nodes(mode, node => typeof node.props.onClick === 'function' && text(node).includes('盈亏金额'))[0];
+    assert.ok(amounts);
+    amounts.props.onClick();
+    tree = renderPage();
+    chart = chartOf(tree);
+    assert.equal(chart.props.mode, 'amount');
+    assert.equal(chart.props.comparison.trend.at(-1).stockPnlUsd, 300, 'changing mode must not alter cycle return');
+    const rendered = renderToStaticMarkup(tree);
+    assert.match(rendered, /data-stock-comparison-mine-path/);
+    assert.doesNotMatch(rendered, /QQQ|当前持仓对比|胜出.*天数|data-stock-comparison-benchmark-path/);
+    assert.deepEqual(chart.props.tradeMarkers.flatMap(marker => marker.records.map(record => record.id)), ['cycle-buy', 'cycle-sell']);
+    assert.equal(snapshotReads, 1);
+    assert.equal(benchmarkReads, 0, 'the ready chart must never wait for a benchmark success');
+  } finally {
+    pageHooks.reset();
+  }
 });

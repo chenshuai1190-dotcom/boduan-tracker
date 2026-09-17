@@ -4,6 +4,17 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '个股收益详情按本轮交易汇总已实现与未实现收益，保留交易质量和个人计划；移除当前持仓对比与 QQQ 曲线，收益走势只展示当前个股。',
+      '收益图支持收益率与金额切换、时间范围选择和真实买卖标记，点击可查看成交详情；收益最高日期与收益最低日期采用更直观的名称。',
+    ],
+    itemsEn: [
+      'Stock return details combine realized and unrealized P&L for the current holding cycle, with trade quality and the personal plan retained. The holdings comparison and QQQ curve are removed.',
+      'The single-stock chart supports return/amount modes, time ranges and actual buy/sell markers with trade details. Return extrema are labeled Highest return date and Lowest return date.',
+    ],
+  },
+  {
+    ver: 'v10.7.9.535', date: '2026-09-15',
+    items: [
       '股票趋势的 RSI(6)、均线结构和趋势变化支持点击查看技术解释；先展示核心结论与关键数据，规则和事件详情分别展开，风险评分构成以表格呈现。',
       '多头减弱加入相对均线领先幅度的持续收窄确认，保留 MA30 明确下降与近期有效交叉的原有判断优先级。',
       '首页自选仅股票代码区域可点击进入趋势页，点击区域不覆盖价格列，取消点击变色并保留滑动防误触。',

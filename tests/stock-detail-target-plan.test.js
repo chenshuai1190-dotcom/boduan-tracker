@@ -16,7 +16,7 @@ function sourceSlice(source, startMarker, endMarker) {
   return source.slice(start, end);
 }
 
-test('individual return report preserves all six facts and moves the isolated target plan below both charts', () => {
+test('trade review preserves accounting facts and the isolated target plan after the new review sections', () => {
   const summarySource = sourceSlice(
     stockDetailSource,
     'data-stock-detail-summary-card="true"',
@@ -34,8 +34,10 @@ test('individual return report preserves all six facts and moves the isolated ta
     "'stockDetail.unrealizedPnl'",
     "'stockDetail.heldShares'",
     "'stockDetail.avgCost'",
-    "'stockDetail.holdingDays'",
-    "'stockDetail.firstEntry'",
+    "label('最新收盘价'",
+    "label('盈亏平衡价'",
+    "label('持仓天数'",
+    "label('本轮首次建仓'",
   ];
   let previousIndex = -1;
   approvedOrder.forEach((marker) => {
@@ -47,14 +49,18 @@ test('individual return report preserves all six facts and moves the isolated ta
   assert.match(i18nSource, /'stockDetail\.avgCost': '会计平均成本'/);
   assert.match(i18nSource, /'stockDetail\.avgCost': 'Accounting Average Cost'/);
 
+  const summaryIndex = stockDetailSource.indexOf('data-stock-detail-summary-card="true"');
+  const qualityIndex = stockDetailSource.indexOf('data-stock-detail-trade-quality="true"');
   const chartIndex = stockDetailSource.indexOf('data-stock-detail-pnl-trend-card="true"');
-  const comparisonIndex = stockDetailSource.indexOf('<StockReturnComparisonCard', chartIndex);
-  const targetIndex = stockDetailSource.indexOf('data-stock-detail-target-plan="true"', comparisonIndex);
-  const statsIndex = stockDetailSource.indexOf('data-stock-detail-trade-stats="true"', targetIndex);
-  assert.ok(chartIndex >= 0 && comparisonIndex > chartIndex && targetIndex > comparisonIndex && statsIndex > targetIndex, 'the report should place both returns charts before the single target plan, followed by trading facts');
+  const eventsIndex = stockDetailSource.indexOf('<StockTradeEvents');
+  const targetIndex = stockDetailSource.indexOf('data-stock-detail-target-plan="true"');
+  assert.ok(summaryIndex >= 0 && qualityIndex > summaryIndex && chartIndex > qualityIndex && eventsIndex > chartIndex && targetIndex > eventsIndex, 'cycle summary, quality, stock-only review chart, trade events and the target plan retain the approved hierarchy');
+  const modeIndex = stockDetailSource.indexOf('className="sdp-review-mode"');
+  assert.ok(modeIndex > chartIndex && modeIndex < eventsIndex, 'return-rate and amount controls belong inside the stock chart section');
+  assert.doesNotMatch(stockDetailSource, /<StockReturnComparisonCard\b|胜出 QQQ 天数|Days ahead of QQQ/, 'the page must not retain its removed QQQ summary or quality metric');
   assert.equal((stockDetailSource.match(/data-stock-detail-target-plan="true"/g) || []).length, 1, 'there must still be only one editable target plan');
-  assert.match(stockDetailSource, /value=\{view\.hasData \? signedCurrency\(view\.realizedPnlUsd/);
-  assert.match(stockDetailSource, /value=\{view\.hasData \? signedCurrency\(view\.unrealizedPnlUsd/);
+  assert.match(stockDetailSource, /value=\{moneyOrMissing\(cycle\.realizedPnlUsd\)\}/);
+  assert.match(stockDetailSource, /value=\{moneyOrMissing\(cycle\.unrealizedPnlUsd\)\}/);
   assert.match(stockDetailSource, /value=\{view\.hasData \? `\$\{fmt\(view\.heldShares, 0\)\}/, 'missing close snapshots must not display invented zero holdings');
 });
 

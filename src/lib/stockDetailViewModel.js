@@ -1,4 +1,5 @@
 import { currentNewYorkDate, latestCompletedUsTradingDate } from './pnlReportSnapshots.js';
+import { calculateTotalPnL } from './stockTradeReview.js';
 
 function toNumber(value) {
   const n = Number(value);
@@ -158,6 +159,7 @@ function annotateTradeRecords(symbolTrades) {
       price: trade.price,
       amountUsd,
       realizedPnlUsd,
+      heldSharesAfter: heldShares,
     };
   });
 }
@@ -220,6 +222,7 @@ function buildComparisonLedgerPoint(cycleTrades, snapshot) {
   let heldShares = 0;
   let remainingCostUsd = 0;
   let activeRealizedPnlUsd = 0;
+  let totalBuyCostUsd = 0;
 
   cycleTrades.forEach((trade) => {
     if (trade.date > snapshotDate) return;
@@ -244,6 +247,7 @@ function buildComparisonLedgerPoint(cycleTrades, snapshot) {
     // remain excluded until those two existing production paths are unified.
     heldShares += trade.shares;
     remainingCostUsd += trade.shares * trade.price;
+    totalBuyCostUsd += trade.shares * trade.price;
   });
 
   if (heldShares <= 0.000001) return null;
@@ -268,6 +272,62 @@ function buildComparisonLedgerPoint(cycleTrades, snapshot) {
     effectiveCostUsd,
     effectiveRemainingCostUsd,
     returnCostBasisUsd,
+    totalBuyCostUsd,
+  };
+}
+
+function buildCycleReview({ holdingPeriod, snapshots, ledgerPoints, records, endDate, tradeEndDate, integrityReason }) {
+  const startDate = holdingPeriod.holdingStartDate;
+  const tradeRecords = startDate
+    ? records.slice(holdingPeriod.startIndex).filter(record => record.date <= tradeEndDate)
+    : [];
+  const unavailable = (reason) => ({
+    available: false, reason, startDate, endDate: endDate || null,
+    holdingDays: holdingPeriod.holdingDays,
+    currentTotalPnlUsd: null, realizedPnlUsd: null, unrealizedPnlUsd: null,
+    totalBuyCostUsd: null, returnPct: null, breakEvenPriceUsd: null,
+    heldShares: null, avgCostUsd: null, currentPriceUsd: null, marketValueUsd: null, remainingCostUsd: null,
+    trend: [], tradeRecords,
+  });
+  if (!startDate) return unavailable('no_active_cycle');
+  if (integrityReason) return unavailable(integrityReason);
+  const cycleSnapshots = snapshots.filter(snapshot => snapshot.snapshotDate >= startDate && snapshot.snapshotDate <= endDate);
+  if (!cycleSnapshots.length || cycleSnapshots.at(-1).snapshotDate !== endDate) return unavailable('missing_cycle_snapshots');
+  const byDate = new Map(ledgerPoints.map(point => [point.date, point]));
+  const trend = [];
+  for (const snapshot of cycleSnapshots) {
+    const ledger = byDate.get(snapshot.snapshotDate);
+    const heldShares = finiteNumberOrNull(snapshot.heldShares);
+    const marketValueUsd = finiteNumberOrNull(snapshot.marketValueUsd);
+    const currentPriceUsd = finiteNumberOrNull(snapshot.currentPriceUsd);
+    if (!ledger || heldShares === null || heldShares <= 0 || marketValueUsd === null || marketValueUsd <= 0
+      || currentPriceUsd === null || currentPriceUsd <= 0
+      || !nearlyEqual(heldShares, ledger.heldShares)
+      || !nearlyEqual(marketValueUsd, heldShares * currentPriceUsd, 0.01)
+      || (trend.length && snapshot.snapshotDate <= trend.at(-1).date)) return unavailable('invalid_cycle_snapshot');
+    const unrealizedPnlUsd = marketValueUsd - ledger.remainingCostUsd;
+    const totalPnlUsd = calculateTotalPnL(ledger.activeRealizedPnlUsd, unrealizedPnlUsd);
+    if (totalPnlUsd === null || !Number.isFinite(ledger.totalBuyCostUsd) || ledger.totalBuyCostUsd <= 0
+      || !Number.isFinite(ledger.effectiveCostUsd)) return unavailable('invalid_cycle_snapshot');
+    const returnPct = totalPnlUsd / ledger.totalBuyCostUsd;
+    if (!Number.isFinite(returnPct)) return unavailable('invalid_cycle_snapshot');
+    trend.push({
+      date: snapshot.snapshotDate, totalPnlUsd, realizedPnlUsd: ledger.activeRealizedPnlUsd,
+      unrealizedPnlUsd, marketValueUsd, currentPriceUsd, heldShares,
+      totalBuyCostUsd: ledger.totalBuyCostUsd, remainingCostUsd: ledger.remainingCostUsd,
+      avgCostUsd: ledger.avgCostUsd, breakEvenPriceUsd: ledger.effectiveCostUsd,
+      returnPct,
+    });
+  }
+  const latest = trend.at(-1);
+  return {
+    available: true, reason: null, startDate, endDate, holdingDays: holdingPeriod.holdingDays,
+    currentTotalPnlUsd: latest.totalPnlUsd, realizedPnlUsd: latest.realizedPnlUsd,
+    unrealizedPnlUsd: latest.unrealizedPnlUsd, totalBuyCostUsd: latest.totalBuyCostUsd,
+    returnPct: latest.returnPct, breakEvenPriceUsd: latest.breakEvenPriceUsd,
+    heldShares: latest.heldShares, avgCostUsd: latest.avgCostUsd, currentPriceUsd: latest.currentPriceUsd,
+    marketValueUsd: latest.marketValueUsd, remainingCostUsd: latest.remainingCostUsd,
+    trend, tradeRecords,
   };
 }
 
@@ -482,5 +542,9 @@ export function buildStockDetailViewModel({
     trendStats,
     tradeEvents: visibleTradeEvents,
     tradeRecords,
+    cycleReview: buildCycleReview({
+      holdingPeriod, snapshots: sortedSnapshots, ledgerPoints: comparisonLedgerPoints,
+      records, endDate: latest?.snapshotDate, tradeEndDate, integrityReason: comparisonIntegrityReason,
+    }),
   };
 }

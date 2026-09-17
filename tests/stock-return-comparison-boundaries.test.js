@@ -18,25 +18,22 @@ const sharePreviewStart = comparisonCardSource.indexOf('function SharePreview');
 const sharePreviewEnd = comparisonCardSource.indexOf('export default function StockReturnComparisonCard', sharePreviewStart);
 const sharePreviewSource = comparisonCardSource.slice(sharePreviewStart, sharePreviewEnd);
 
-test('stock comparison remains read-only and loads both raw-close sides through the authenticated market-data boundary', () => {
+test('stock detail reads only its completed cycle snapshots without depending on QQQ market data', () => {
   assert.match(stockDetailPageSource, /fetchPnlReportSymbolSnapshotHistory\(symbol, null\)/);
   assert.match(stockDetailPageSource, /pnlReportRefreshVersion = 0/);
   assert.match(stockDetailPageSource, /\[db, pnlReportRefreshVersion, symbol, user\?\.id\]/);
-  assert.match(stockDetailPageSource, /requestedSymbols = \[\.\.\.new Set\(\[symbol, 'QQQ'\]\)\]/);
-  assert.match(stockDetailPageSource, /Promise\.all\(missingSymbols\.map/);
-  assert.match(stockDetailPageSource, /\/api\/pnl-benchmark\?symbol=\$\{encodeURIComponent\(requestedSymbol\)\}/);
-  assert.match(stockDetailPageSource, /Authorization: `Bearer \$\{token\}`/);
-  assert.equal(
-    (stockDetailPageSource.match(/supabase\.auth\.getSession\(\)/g) || []).length,
-    1,
-    'both symbol requests must reuse one authenticated session lookup',
-  );
-  assert.match(stockDetailPageSource, /`\$\{requestedSymbol\}:\$\{from\}:\$\{to\}`/);
-  assert.match(stockDetailPageSource, /buildStockReturnComparison\([\s\S]*comparisonMarketRows\.qqqRows[\s\S]*comparisonMarketRows\.stockRawRows/);
-  assert.match(stockDetailPageSource, /setComparisonMarketRows\(\{ key: '', qqqRows: \[\], stockRawRows: \[\] \}\)/);
+  assert.doesNotMatch(stockDetailPageSource, /fetchPnlBenchmarkRows|\/api\/pnl-benchmark|comparisonMarketRows|benchmarkLoading|benchmarkError|buildStockReturnComparison|cacheComparisonRawRows|readCachedComparisonRawRows/, 'cycle performance must not wait on a removed benchmark request, cache or success state');
+  assert.doesNotMatch(stockDetailPageSource, /supabase\.auth\.getSession|QQQ|<StockReturnComparisonCard\b/, 'the detail page must not fetch or present a QQQ comparison');
+  assert.match(stockDetailPageSource, /const cycleTrend = cycleReady \? cycle\.trend : \[\]/);
+  assert.match(stockDetailPageSource, /stockPnlUsd:\s*cycle\.currentTotalPnlUsd/);
+  assert.match(stockDetailPageSource, /stockPnlPct:\s*cycle\.returnPct/);
+  assert.match(stockDetailPageSource, /stockPnlUsd:\s*point\.totalPnlUsd/);
+  assert.match(stockDetailPageSource, /stockPnlPct:\s*point\.returnPct/);
+  assert.match(stockDetailPageSource, /filterReviewRange\(cycleTrend, activeRange\)/, 'display-range changes should slice the cycle rather than rebase its return');
+  assert.match(stockDetailPageSource, /<ComparisonChart\b[^>]*stockOnly/, 'the shared chart must explicitly select its stock-only path');
   assert.doesNotMatch(stockDetailPageSource, /stock_trades[^\n]*(insert|update|delete|upsert)/i);
-  assert.match(benchmarkApiSource, /requireQuoteAuth/);
-  assert.match(benchmarkApiSource, /rawClose/);
+  assert.match(benchmarkApiSource, /requireQuoteAuth/, 'the independent benchmark API must remain authenticated for its other consumers');
+  assert.match(benchmarkApiSource, /rawClose/, 'the independent comparison API retains its raw-close convention');
 });
 
 test('stock detail and comparison charts keep continuous pointer tracking independent from async tooltip state', () => {
@@ -73,7 +70,8 @@ test('stock detail and comparison charts keep continuous pointer tracking indepe
 test('comparison UI uses system market colors and does not embed production financial fixtures', () => {
   assert.match(comparisonCardSource, /marketTextClass/);
   assert.match(comparisonCardSource, /marketHexColor/);
-  assert.match(comparisonCardSource, /const mineLineColor = valueColor\(comparison\?\.stockPnlUsd, marketColorMode\)/);
+  assert.match(comparisonCardSource, /const mineLineColor = valueColor\(mineLineValue, marketColorMode\)/);
+  assert.match(comparisonCardSource, /const mineLineValue = stockOnly[\s\S]*:\s*comparison\?\.stockPnlUsd;/, 'independent comparisons retain their supplied amount direction while stock-only charts can select their displayed metric');
   assert.match(comparisonCardSource, /BENCHMARK_LINE_COLOR/);
   assert.match(comparisonCardSource, /stockDetail\.comparison\.rateGap/);
   assert.match(comparisonCardSource, /stockDetail\.comparison\.rateGapShort/);
@@ -103,7 +101,8 @@ test('comparison UI uses system market colors and does not embed production fina
   assert.match(tooltipVisualSource, /signedCurrency\(selected\.stockPnlUsd/);
   assert.match(tooltipVisualSource, /signedCurrency\(selected\.benchmarkPnlUsd/);
   assert.match(tooltipVisualSource, /signedPct\(selected\.excessPnlPct\)/);
-  assert.doesNotMatch(tooltipVisualSource, /signedPct\(selected\.(stockPnlPct|benchmarkPnlPct)\)/);
+  assert.match(tooltipVisualSource, /signedPct\(selected\.stockPnlPct\)/);
+  assert.match(tooltipVisualSource, /signedPct\(selected\.benchmarkPnlPct\)/);
   assert.match(comparisonCardSource, /收益金额跑赢 QQQ/);
   assert.ok(sharePreviewStart > -1 && sharePreviewEnd > sharePreviewStart, 'share preview source should be detectable');
   assert.doesNotMatch(sharePreviewSource, /navigator\.clipboard|copyText|setCopied|samePeriodQqq/);

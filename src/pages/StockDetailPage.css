@@ -26,6 +26,19 @@
 .sdp-holding-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 15px 20px; margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--sdp-line); }
 .sdp-holding-facts .sdp-stat-value { margin-top: 5px; color: #b9b9c1; font-size: 13px; }
 .sdp-section { padding: 25px 0; border-top: 1px solid var(--sdp-line); }
+.sdp-review-note { margin-top: 12px; color: var(--sdp-muted); font-size: 11px; line-height: 1.6; }
+.sdp-review-mode { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; margin: 0 0 18px; }
+.sdp-quality-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.sdp-review-definitions { margin-top: 20px; color: var(--sdp-muted); font-size: 11px; line-height: 1.65; }
+.sdp-review-definitions summary { cursor: pointer; padding-block: 8px; }
+.sdp-review-definitions p { margin: 10px 0 0; }
+.sdp-review-ranges { grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 16px 0 8px; }
+.sdp-review-legend { display: flex; flex-wrap: wrap; gap: 16px; font-size: 12px; font-variant-numeric: tabular-nums; }
+.sdp-review-legend span { display: inline-flex; align-items: center; gap: 7px; }
+.sdp-review-legend i { width: 14px; border-top: 2px solid currentColor; }
+.sdp-review-marker-key { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 12px; color: var(--sdp-muted); font-size: 11px; }
+.sdp-trend .stock-comparison-legend { display: none; }
+.sdp-trend .stock-comparison-chart-section { margin-top: 10px; }
 .sdp-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
 .sdp-section-heading h2 { margin: 0; color: #e4e4e7; font-size: 16px; line-height: 24px; font-weight: 400; }
 .sdp-section-heading > span { color: var(--sdp-muted); font-size: 11px; }
