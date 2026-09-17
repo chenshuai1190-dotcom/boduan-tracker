@@ -31,7 +31,6 @@ import {
 import { COMMUNITY_COMPETITION_PUBLICATION_EVENT } from './lib/communityCompetitionResume.js';
 import { enqueuePnlReportRecalculationAfterLedgerMutation } from './lib/pnlReportRecalculation.js';
 import { createPnlShareIdentity } from './lib/pnlShareIdentity.js';
-import ActionModalCard from './components/ActionModalCard.jsx';
 import './components/ReportBottomNav.css';
 import ReportBottomNavIcon from './components/ReportBottomNavIcon.jsx';
 import YearlyActualModal from './components/YearlyActualModal.jsx';
@@ -227,22 +226,6 @@ function normalizeSymbolKey(symbol) {
 
 function normalizeStrictSymbolKey(symbol) {
   return normalizeStrictUserStockSymbol(symbol);
-}
-
-function normalizeCostBasisSymbol(symbol) {
-  const value = normalizeSymbolKey(symbol);
-  return /^[A-Z0-9.^-]{1,16}$/.test(value) ? value : '';
-}
-
-function sanitizeCostBasisData(value) {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
-  return Object.entries(value).reduce((acc, [rawSymbol, trades]) => {
-    const symbol = normalizeCostBasisSymbol(rawSymbol);
-    if (!symbol) return acc;
-    const validTrades = Array.isArray(trades) ? trades.filter(Boolean) : [];
-    acc[symbol] = [...(acc[symbol] || []), ...validTrades];
-    return acc;
-  }, {});
 }
 
 function normalizeAppShellAssetUrl(value, baseUrl) {
@@ -782,7 +765,7 @@ function localizeStockNameRow(row) {
   };
 }
 
-function buildToolQuoteRows({ trades = [], costBasisData = {}, swingWaves = [] } = {}) {
+function buildToolQuoteRows({ trades = [], swingWaves = [] } = {}) {
   const bySymbol = new Map();
   const addSymbol = (symbol, name = '', quoteRow = null) => {
     const normalizedSymbol = normalizeStockSymbolForName(symbol);
@@ -801,7 +784,6 @@ function buildToolQuoteRows({ trades = [], costBasisData = {}, swingWaves = [] }
     });
   };
 
-  Object.keys(sanitizeCostBasisData(costBasisData)).forEach((symbol) => addSymbol(symbol));
   (trades || []).forEach((trade) => addSymbol(trade?.symbol || 'TQQQ', trade?.name));
   (swingWaves || []).forEach((wave) => addSymbol(wave?.symbol, wave?.name, wave));
 
@@ -1446,86 +1428,6 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     try { localStorage.setItem('bottomline_ws', 'false'); } catch {}
   }, []);
 
-  // v10.7.9.41: 摊薄成本计算器 (独立模块, localStorage 存)
-  // 数据结构: { [symbol]: [{id, date, type:'buy'|'sell', price, shares}, ...] }
-  const [costBasisData, setCostBasisData] = useState(() => {
-    try {
-      const raw = localStorage.getItem(userScopedStorageKey('bottomline_cost_basis', user.id));
-      return raw ? sanitizeCostBasisData(JSON.parse(raw)) : {};
-    } catch { return {}; }
-  });
-  const [costBasisActiveSymbol, setCostBasisActiveSymbol] = useState(() => {
-    try { return normalizeCostBasisSymbol(localStorage.getItem(userScopedStorageKey('bottomline_cost_basis_active', user.id))) || ''; } catch { return ''; }
-  });
-  const [showCostBasisAdd, setShowCostBasisAdd] = useState(false);  // 添加新股票 modal
-  const [showCostBasisTrade, setShowCostBasisTrade] = useState(false);  // 添加交易 modal
-  const [costBasisNewSymbol, setCostBasisNewSymbol] = useState('');
-  const [costBasisNewTrade, setCostBasisNewTrade] = useState({
-    type: 'buy',
-    price: '',
-    shares: '',
-    date: new Date().toISOString().slice(0, 10),
-  });
-  const [costBasisSubmitting, setCostBasisSubmitting] = useState(false);
-  const costBasisSubmittingRef = useRef(false);
-  // 卖出交易展开/收起 state (id → bool)
-  const [expandedTrades, setExpandedTrades] = useState({});
-
-  // 持久化到 localStorage
-  useEffect(() => {
-    try { localStorage.setItem(userScopedStorageKey('bottomline_cost_basis', user.id), JSON.stringify(sanitizeCostBasisData(costBasisData))); } catch {}
-  }, [costBasisData, user.id]);
-  useEffect(() => {
-    try { localStorage.setItem(userScopedStorageKey('bottomline_cost_basis_active', user.id), normalizeCostBasisSymbol(costBasisActiveSymbol)); } catch {}
-  }, [costBasisActiveSymbol, user.id]);
-
-  useEffect(() => {
-    const sanitized = sanitizeCostBasisData(costBasisData);
-    const symbols = Object.keys(sanitized);
-    const active = normalizeCostBasisSymbol(costBasisActiveSymbol);
-    if (active && sanitized[active]) return;
-    const nextActive = symbols[0] || '';
-    if (nextActive !== costBasisActiveSymbol) setCostBasisActiveSymbol(nextActive);
-  }, [costBasisActiveSymbol, costBasisData]);
-
-  // 核心算法: 移动加权平均 + 扣除已实现盈亏的"实际成本"
-  const calcCostBasis = (trades) => {
-    if (!trades || trades.length === 0) return { shares: 0, totalCost: 0, avgCost: 0, effectiveCost: 0, realizedPnl: 0 };
-    const sorted = [...trades].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
-    let shares = 0;
-    let totalCost = 0;
-    let realizedPnl = 0;
-    for (const t of sorted) {
-      const p = parseFloat(t.price) || 0;
-      const s = parseFloat(t.shares) || 0;
-      if (t.type === 'buy') {
-        shares += s;
-        totalCost += s * p;
-      } else {
-        if (shares <= 0) continue;  // 没持仓不能卖
-        const avg = totalCost / shares;
-        realizedPnl += s * (p - avg);
-        totalCost -= s * avg;
-        shares -= s;
-        if (shares <= 0) {
-          shares = 0;
-          totalCost = 0;  // 清仓重置
-        }
-      }
-    }
-    const avgCost = shares > 0 ? totalCost / shares : 0;
-    // 实际成本 = 摊薄成本 - 已实现盈亏均摊到剩余持仓
-    // 比如赚了 $70,220, 剩 6000 股 → 每股降 $11.70
-    const effectiveCost = shares > 0 ? avgCost - realizedPnl / shares : 0;
-    return {
-      shares,
-      totalCost,
-      avgCost,
-      effectiveCost,
-      realizedPnl,
-    };
-  };
-
   // 📜 更新日志展开状态 (默认折叠, 只显示最新 5 条)
   const [changelogExpanded, setChangelogExpanded] = useState(false);
   const [lastFetched, setLastFetched] = useState(null);
@@ -1593,8 +1495,8 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     [stockQuoteBootstrapRows],
   );
   const toolQuoteRows = useMemo(() => (
-    buildToolQuoteRows({ trades, costBasisData, swingWaves: swingWaveQuoteRows }).map(localizeStockNameRow)
-  ), [trades, costBasisData, swingWaveQuoteRows]);
+    buildToolQuoteRows({ trades, swingWaves: swingWaveQuoteRows }).map(localizeStockNameRow)
+  ), [trades, swingWaveQuoteRows]);
   const quoteUniverse = useMemo(
     () => buildLedgerQuoteUniverse(localizedStockTrades, localizedWatchlist, localizedQuoteCache, toolQuoteRows),
     [localizedStockTrades, localizedWatchlist, localizedQuoteCache, toolQuoteRows],
@@ -1956,52 +1858,6 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     return () => clearTimeout(watchlistSaveTimerRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [watchlistStructureSig, cloudLoading]);
-
-  // ☁️ v10.7.9.41: 摊薄成本云端同步 (Supabase cost_basis_trades 表)
-  // 严格放在 cloudLoading 之后, 避免 React state hoisting 错乱
-  // 启动时拉云端覆盖本地; 本地有数据但云端为空 → 自动迁移上云
-  useEffect(() => {
-    if (cloudLoading) return; // 等主云端加载完成后再跑
-    let cancelled = false;
-    (async () => {
-      try {
-        const cloudData = sanitizeCostBasisData(await db.fetchCostBasisTrades());
-        if (cancelled) return;
-        const cloudHasData = cloudData && Object.keys(cloudData).length > 0;
-        // 用函数式 setState 拿当前 state, 避免依赖 costBasisData 引发无限循环
-        setCostBasisData(currentLocal => {
-          const localHasData = currentLocal && Object.keys(currentLocal).length > 0;
-
-          if (cloudHasData) {
-            // 云端有数据 → 用云端覆盖本地 (云端是真相)
-            console.log('[CostBasis] ☁️ 从云端加载', Object.keys(cloudData).length, '只股票');
-            return cloudData;
-          } else if (localHasData) {
-            // 云端空, 本地有 → 自动上传迁移 (异步, 不等)
-            console.log('[CostBasis] 📤 本地数据自动迁移到云端...');
-            (async () => {
-              for (const [sym, trades] of Object.entries(sanitizeCostBasisData(currentLocal))) {
-                for (const trade of trades) {
-                  try {
-                    await db.insertCostBasisTrade(sym, trade);
-                  } catch (e) {
-                    console.error('[CostBasis] 迁移失败', sym, trade.id, e.message);
-                  }
-                }
-              }
-              console.log('[CostBasis] ✓ 迁移完成');
-            })();
-            return currentLocal; // 不变
-          }
-          return currentLocal; // 都空, 不变
-        });
-      } catch (e) {
-        console.error('[CostBasis] 云端加载失败:', e.message, '保留本地数据');
-      }
-    })();
-    return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cloudLoading]);
 
   // ============ 计算逻辑 ============
   const drawdown = (qqqCurrent - qqqHigh) / qqqHigh;
@@ -2652,83 +2508,6 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     });
     setLookupStatus(tradeDraft.symbol === 'TQQQ' ? null : 'found'); // 已知代码默认显示已找到
     setShowAddTrade(false);
-  };
-
-  const confirmCostBasisTradeSubmit = (typeOverride = costBasisNewTrade.type) => {
-    if (costBasisSubmittingRef.current) return;
-    const symbol = normalizeCostBasisSymbol(costBasisActiveSymbol);
-    const tradeDraft = { ...costBasisNewTrade, type: typeOverride };
-    const priceNum = parseFloat(tradeDraft.price);
-    const sharesNum = parseFloat(tradeDraft.shares);
-    if (!symbol) {
-      showConfirm({
-        title: t(language, 'trades.pickStockTitle', '请先选择股票'),
-        desc: t(language, 'trades.pickStockDesc', '先在摊薄成本工具中新增或选择一只股票,再添加交易记录。'),
-        confirmText: t(language, 'trades.close', '关闭'),
-        confirmStyle: 'primary',
-        icon: '!',
-        showCancel: false,
-      });
-      return;
-    }
-    if (!priceNum || !sharesNum || priceNum <= 0 || sharesNum <= 0) {
-      showConfirm({
-        title: t(language, 'trades.correctPriceSharesTitle', '请填写正确的价格和股数'),
-        desc: t(language, 'trades.correctPriceSharesDesc', '价格和股数都需要大于 0。'),
-        confirmText: t(language, 'trades.close', '关闭'),
-        confirmStyle: 'primary',
-        icon: '!',
-        showCancel: false,
-      });
-      return;
-    }
-    const type = tradeDraft.type === 'sell' ? 'sell' : 'buy';
-    const typeLabel = type === 'sell' ? t(language, 'trades.sell', '卖出') : t(language, 'trades.buy', '买入');
-    showConfirm({
-      title: t(language, 'trades.confirmCostTradeTitle', '确认保存摊薄成本记录?'),
-      desc: t(language, 'trades.confirmCostTradeDesc', '这笔记录只会进入摊薄成本独立小工具,不会进入正式持仓、当日订单或波段记录。'),
-      info: `${symbol} · ${typeLabel} ${sharesNum.toLocaleString('en-US', { maximumFractionDigits: 4 })} ${t(language, 'trades.shares', '股')} @ ${priceNum.toFixed(2)} · ${tradeDraft.date || '--'}`,
-      confirmText: t(language, 'trades.confirmSave', '确认保存'),
-      confirmStyle: 'primary',
-      icon: '!',
-      onConfirm: async () => {
-        if (costBasisSubmittingRef.current) return;
-        const tradeRecord = {
-          id: 'cb_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
-          date: tradeDraft.date,
-          type,
-          price: priceNum,
-          shares: sharesNum,
-        };
-        costBasisSubmittingRef.current = true;
-        setCostBasisSubmitting(true);
-        setCostBasisData(prev => ({
-          ...prev,
-          [symbol]: [...(prev[symbol] || []), tradeRecord],
-        }));
-        try {
-          await db.insertCostBasisTrade(symbol, tradeRecord);
-          setCostBasisNewTrade({ type: 'buy', price: '', shares: '', date: localDateKey() });
-          setShowCostBasisTrade(false);
-        } catch (e) {
-          setCostBasisData(prev => ({
-            ...prev,
-            [symbol]: (prev[symbol] || []).filter(item => item.id !== tradeRecord.id),
-          }));
-          showConfirm({
-            title: t(language, 'trades.saveCostTradeFailed', '保存摊薄成本交易失败'),
-            desc: e.message || String(e),
-            confirmText: t(language, 'trades.close', '关闭'),
-            confirmStyle: 'primary',
-            icon: '!',
-            showCancel: false,
-          });
-        } finally {
-          costBasisSubmittingRef.current = false;
-          setCostBasisSubmitting(false);
-        }
-      },
-    });
   };
 
   const deleteStockTradeRecord = async (id) => {
@@ -5140,7 +4919,6 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     indexRealtimeError,
     indexRealtimeLastTick,
     indexRealtimeStatus,
-    calcCostBasis,
     Calendar,
     cacheStockLogo,
     calmRoomActiveCount,
@@ -5152,8 +4930,6 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     ChevronDown,
     ChevronRight,
     ChevronUp,
-    costBasisActiveSymbol,
-    costBasisData,
     db,
     deleteWatchlistItem,
     deleteStockTradeRecord,
@@ -5169,7 +4945,6 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     editYearlyActualId,
     exitTargets,
     expandedDisciplines,
-    expandedTrades,
     expandedWaves,
     fetchError,
     fetching,
@@ -5274,10 +5049,6 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     setBenchmarkSymbol,
     setChangelogExpanded,
     setChartSelectedMonthIdx,
-    setCostBasisActiveSymbol,
-    setCostBasisData,
-    setCostBasisNewSymbol,
-    setCostBasisNewTrade,
     setDisciplines,
     setEditingDisciplineId,
     setEditingLogId,
@@ -5285,7 +5056,6 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     setEditingStock,
     setEditYearlyActualId,
     setExpandedDisciplines,
-    setExpandedTrades,
     setExpandedWaves,
     setFillMonth,
     setFilterLevel,
@@ -5313,8 +5083,6 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     setShowAllLogs,
     setShowAllYears,
     setShowChangePassword,
-    setShowCostBasisAdd,
-    setShowCostBasisTrade,
     setTradeEntryScope,
     setShowEditMargin,
     setShowFillSnapshot,
@@ -5382,37 +5150,6 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
       : tabCtx;
   const darkShell = isStandalonePage || activeTab === 'home' || activeTab === 'trades' || activeTab === 'analysis' || activeTab === 'review' || activeTab === 'settings';
   const showQuoteFetchError = Boolean(fetchError) && QUOTE_ERROR_VISIBLE_TABS.includes(activeTab);
-  const costBasisModalLabelClass = 'mb-1.5 block text-[12px] font-normal text-white/[0.62]';
-  const costBasisModalInputClass = 'block w-full max-w-full min-w-0 box-border rounded-xl border border-transparent bg-white/[0.06] px-3.5 py-2.5 text-[14px] font-normal text-white outline-none tabular-nums transition placeholder:text-white/[0.28] focus:bg-white/[0.085]';
-  const costBasisModalSymbolInputClass = `${costBasisModalInputClass} px-3.5 py-3 uppercase`;
-  const submitCostBasisSymbol = () => {
-    const sym = normalizeStrictSymbolKey(costBasisNewSymbol);
-    if (!sym) {
-      showConfirm({
-        title: t(language, 'trades.invalidSymbolTitle', '股票代码格式不正确'),
-        desc: t(language, 'trades.invalidSymbolDesc', '请输入正确的股票代码,不要包含空格或特殊字符。'),
-        confirmText: t(language, 'trades.close', '关闭'),
-        confirmStyle: 'primary',
-        icon: '!',
-        showCancel: false,
-      });
-      return;
-    }
-    if (costBasisData[sym]) {
-      showConfirm({
-        title: t(language, 'trades.symbolExistsTitle', '{{symbol}} 已存在', { symbol: sym }),
-        desc: t(language, 'trades.symbolExistsDesc', '这只股票已经在摊薄成本工具中,可以直接切换查看。'),
-        confirmText: t(language, 'trades.close', '关闭'),
-        confirmStyle: 'primary',
-        icon: '!',
-        showCancel: false,
-      });
-      return;
-    }
-    setCostBasisData(prev => ({ ...prev, [sym]: [] }));
-    setCostBasisActiveSymbol(sym);
-    setShowCostBasisAdd(false);
-  };
   const pullRefreshLabel = pullRefreshStatus === 'updating'
     ? '发现新版本,正在更新'
     : pullRefreshStatus === 'refreshing'
@@ -5604,110 +5341,6 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
           onCancel={closeConfirmModal}
           onConfirm={submitConfirmModal}
         />
-
-        {/* === 摊薄成本 - 新增股票弹窗 === */}
-        {showCostBasisAdd && (
-          <ActionModalCard
-            title={t(language, 'trades.addAveragingStock', '新增摊薄股票')}
-            closeLabel={t(language, 'trades.closeAddAveragingStock', '关闭新增摊薄股票')}
-            onClose={() => setShowCostBasisAdd(false)}
-            widthClassName="w-[calc(100vw-32px)] max-w-md"
-            panelClassName="min-h-0"
-            actions={[
-              { key: 'cancel', label: t(language, 'trades.cancel', '取消'), onClick: () => setShowCostBasisAdd(false) },
-              { key: 'confirm', label: t(language, 'trades.ok', '确定'), onClick: submitCostBasisSymbol },
-            ]}
-          >
-            <label className="block min-w-0">
-              <span className={costBasisModalLabelClass}>{t(language, 'trades.stockTicker', '股票代码')}</span>
-              <input
-                type="text"
-                value={costBasisNewSymbol}
-                onChange={e => setCostBasisNewSymbol(e.target.value.toUpperCase())}
-                placeholder={t(language, 'trades.tickerPlaceholder', '股票代码 (如 NVDA)')}
-                className={costBasisModalSymbolInputClass}
-                style={{ fontFamily: 'ui-monospace, monospace' }}
-              />
-            </label>
-            <p className="mt-3 text-[11px] leading-5 text-white/[0.38]">{t(language, 'trades.costBasisIsolatedHint', '创建后只进入独立摊薄工具,不写入正式交易账本。')}</p>
-          </ActionModalCard>
-        )}
-
-        {/* === 摊薄成本 - 添加交易弹窗 === */}
-        {showCostBasisTrade && (
-          <ActionModalCard
-            title={t(language, 'trades.addAveragingTrade', '添加摊薄交易')}
-            closeLabel={t(language, 'trades.closeAddAveragingTrade', '关闭添加摊薄交易')}
-            onClose={() => !costBasisSubmitting && setShowCostBasisTrade(false)}
-            widthClassName="w-[calc(100vw-24px)] max-w-md"
-            panelClassName="min-h-0"
-            actions={[
-              { key: 'buy', label: costBasisSubmitting ? t(language, 'trades.saving', '保存中...') : t(language, 'trades.buy', '买入'), disabled: costBasisSubmitting, onClick: () => confirmCostBasisTradeSubmit('buy') },
-              { key: 'sell', label: costBasisSubmitting ? t(language, 'trades.saving', '保存中...') : t(language, 'trades.sell', '卖出'), disabled: costBasisSubmitting, onClick: () => confirmCostBasisTradeSubmit('sell') },
-            ]}
-          >
-              <div className="min-w-0">
-                <div className="mb-3 min-w-0 border-b border-white/10 pb-3">
-                  <label className={costBasisModalLabelClass}>{t(language, 'trades.stockTicker', '股票代码')}</label>
-                  <input
-                    type="text"
-                    value={costBasisActiveSymbol || ''}
-                    readOnly
-                    placeholder={t(language, 'trades.noStockSelected', '未选择股票')}
-                    className={`${costBasisModalSymbolInputClass} pr-9`}
-                    style={{ fontFamily: 'ui-monospace, monospace' }}
-                  />
-                </div>
-
-                <div className="mb-3 min-w-0 border-b border-white/10 pb-3">
-                  <label className={costBasisModalLabelClass}>{t(language, 'trades.priceShares', '价格与股数')}</label>
-                  <div className="grid min-w-0 grid-cols-2 gap-2">
-                    <div className="min-w-0">
-                      <label className={costBasisModalLabelClass}>{t(language, 'trades.priceUsd', '价格 ($)')}</label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        inputMode="decimal"
-                        value={costBasisNewTrade.price}
-                        onChange={e => setCostBasisNewTrade(prev => ({ ...prev, price: e.target.value }))}
-                      placeholder={t(language, 'trades.inputPrice', '输入价格')}
-                      className={costBasisModalInputClass}
-                      style={{ fontFamily: 'ui-monospace, monospace' }}
-                      />
-                    </div>
-                    <div className="min-w-0">
-                      <label className={costBasisModalLabelClass}>{t(language, 'trades.quantity', '股数')}</label>
-                      <input
-                        type="number"
-                        inputMode="numeric"
-                        value={costBasisNewTrade.shares}
-                        onChange={e => setCostBasisNewTrade(prev => ({ ...prev, shares: e.target.value }))}
-                        placeholder={t(language, 'trades.inputShares', '输入股数')}
-                        className={costBasisModalInputClass}
-                        style={{ fontFamily: 'ui-monospace, monospace' }}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mb-3 min-w-0 border-b border-white/10 pb-3">
-                  <label className={costBasisModalLabelClass}>{t(language, 'trades.date', '日期')}</label>
-                  <div className="relative">
-                    <Calendar className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/[0.48]" strokeWidth={1.8} />
-                    <input
-                      type="date"
-                      value={costBasisNewTrade.date}
-                      onChange={e => setCostBasisNewTrade(prev => ({ ...prev, date: e.target.value }))}
-                      className={`${costBasisModalInputClass} appearance-none pl-9 pr-8 text-left font-normal`}
-                      style={{ colorScheme: 'dark', WebkitAppearance: 'none' }}
-                    />
-                    <ChevronRight className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/[0.38]" strokeWidth={1.8} />
-                  </div>
-                </div>
-
-              </div>
-          </ActionModalCard>
-        )}
 
         {/* 底部 5 tab 导航栏 */}
         {!hideBottomNavigation && (

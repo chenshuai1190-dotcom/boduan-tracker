@@ -4,6 +4,17 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '移除独立摊薄成本工具及其入口、专用计算、缓存与云端读写；波段工具、正式交易和持仓成本计算保持不变。',
+      '旧工具记录不再加载、同步或加入行情订阅；历史记录保留，不并入其他账本。',
+    ],
+    itemsEn: [
+      'Removes the standalone cost averaging tool, including its entry, dedicated calculations, caching and cloud operations. The wave tool, official ledger and position cost calculations are unchanged.',
+      'Retired tool records are no longer loaded, synced or included in quote subscriptions. Historical records remain stored without merging into another ledger.',
+    ],
+  },
+  {
+    ver: 'v10.7.9.537', date: '2026-09-17',
+    items: [
       '交易持仓表新增52周高点跌幅，紧跟年初至今，横向滑动查看；保留原有列顺序、宽度和股票排序。',
       '复用首页的价格与52周高点口径，支持收盘价格锁定；缺少数据时显示 --，不增加行情请求。',
     ],

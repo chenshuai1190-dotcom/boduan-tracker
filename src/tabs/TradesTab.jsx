@@ -1,5 +1,5 @@
 import React from 'react';
-import { BarChart3, BookOpen, Calculator, CalendarDays, ChevronRight, Database, Layers, LayoutGrid, ListChecks, Search, Settings2, Trash2, TrendingDown, TrendingUp, Waves, X } from 'lucide-react';
+import { BarChart3, BookOpen, CalendarDays, ChevronRight, Layers, LayoutGrid, ListChecks, Search, Settings2, Trash2, Waves, X } from 'lucide-react';
 import {
   MARKET_COLOR_MODES,
   marketStrongTextClass,
@@ -87,11 +87,6 @@ function localDateKey(date = new Date()) {
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
-}
-
-function normalizeCostBasisSymbol(symbol) {
-  const value = String(symbol || '').trim().toUpperCase();
-  return /^[A-Z0-9.^-]{1,16}$/.test(value) ? value : '';
 }
 
 function formatScenarioInput(value) {
@@ -422,18 +417,14 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
     availableCashStatusReady = false,
     addTrade,
     AlertCircle,
-    calcCostBasis,
     cacheStockLogo,
     calmRoomActiveCount,
     calmRoomAvgActiveDays,
     calmRoomCompletedCount,
     CheckCircle2,
-    costBasisActiveSymbol,
-    costBasisData,
     db,
     deleteStockTradeRecord,
     editingNoteId,
-    expandedTrades,
     expandedWaves,
     fetching,
     fetchRealtimePrices,
@@ -465,20 +456,13 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
     loadAvailableCashMovements,
     mutateAvailableCash,
     reverseAvailableCashMovement,
-    setCostBasisActiveSymbol,
-    setCostBasisData,
-    setCostBasisNewSymbol,
-    setCostBasisNewTrade,
     setEditingNoteId,
-    setExpandedTrades,
     setExpandedWaves,
     setLookupStatus,
     setMarketColorMode,
     setNewTrade,
     setPortfolioCurrencyMode,
     setShowAddTrade,
-    setShowCostBasisAdd,
-    setShowCostBasisTrade,
     setTradeEntryScope,
     setWaveNotes,
     showAddTrade,
@@ -512,7 +496,9 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
     if (typeof setPortfolioCurrencyMode === 'function') setPortfolioCurrencyMode(normalized);
   }, [setPortfolioCurrencyMode]);
   const [mainView, setMainView] = React.useState('positions');
-  const [toolPanel, setToolPanel] = React.useState(initialToolPanel);
+  const [toolPanel, setToolPanel] = React.useState(() => (
+    ['waves', 'records'].includes(initialToolPanel) ? initialToolPanel : ''
+  ));
   const [allTradesModal, setAllTradesModal] = React.useState(null);
   const [showAllToolsModal, setShowAllToolsModal] = React.useState(false);
   const [colorMenuOpen, setColorMenuOpen] = React.useState(false);
@@ -597,13 +583,6 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
   ), [tt]);
   const sharesText = React.useCallback((value, digits = 0) => `${fmtAmount(value, digits)} ${tt('trades.shares', '股')}`, [tt]);
   const daysText = React.useCallback((value) => `${value}${tt('trades.day', '天')}`, [tt]);
-  const cnyEquivalentText = React.useCallback((usdValue, signed = false) => {
-    const cnyValue = toNumber(usdValue) * rate;
-    const sign = signed && cnyValue > 0 ? '+' : (signed && cnyValue < 0 ? '-' : '');
-    const absValue = Math.abs(cnyValue);
-    if (englishMode) return `≈ ${sign}¥${fmtAmount(absValue, 0)}`;
-    return `≈ ${sign}¥${(absValue / 10000).toLocaleString('zh-CN', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}万`;
-  }, [englishMode, rate]);
   const pnlAmountClass = 'trades-report-pnl-amount';
   const tradeModalInputStyle = { colorScheme: 'dark' };
   const tradeModalBaseInput = 'block w-full max-w-full min-w-0 box-border rounded-xl border border-transparent bg-white/[0.06] px-3.5 py-2.5 text-[14px] text-white outline-none transition placeholder:text-white/[0.28] focus:border-[#f6b54b]/45 focus:bg-white/[0.085]';
@@ -650,9 +629,8 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
     (b.date || '').localeCompare(a.date || '') || String(b.id || '').localeCompare(String(a.id || ''))
   )), [stockTrades]);
   const showWaveTool = toolPanel === 'waves';
-  const showCostTool = toolPanel === 'cost';
   const showTradeRecordsTool = toolPanel === 'records';
-  const showMainLedger = !showWaveTool && !showCostTool;
+  const showMainLedger = !showWaveTool;
   const isTqqqTradeEntry = isTqqqFormalTradeEntry({
     symbol: newTrade?.symbol,
     scope: tradeEntryScope,
@@ -1051,7 +1029,6 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
             panelClassName="trade-tools-panel" contentClassName="trade-tools-content" headerClassName="trade-tools-header" titleClassName="trade-tools-title" closeButtonClassName="trade-tools-close">
             <TradeToolsCatalog language={language} onSelect={(toolId) => {
               setShowAllToolsModal(false);
-              if (toolId === 'cost') { setToolPanel('cost'); return; }
               if (toolId === 'records') { setToolPanel('records'); return; }
               setToolPanel('');
               if (toolId === 'investment-comparison') openInvestmentComparison?.();
@@ -2092,295 +2069,6 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
             )}
           </ActionModalCard>
         )}
-
-        {/* ============ 摊薄成本计算器 ============ */}
-        {showCostTool && (() => {
-          const allSymbols = [...new Set(Object.keys(costBasisData).map(sym => normalizeCostBasisSymbol(sym)).filter(Boolean))];
-          const normalizedActiveSymbol = normalizeCostBasisSymbol(costBasisActiveSymbol);
-          const activeSymbol = normalizedActiveSymbol && allSymbols.includes(normalizedActiveSymbol)
-            ? normalizedActiveSymbol
-            : (allSymbols[0] || '');
-          const trades = activeSymbol ? (costBasisData[activeSymbol] || []) : [];
-          const stats = calcCostBasis(trades);
-          const quoteStock = activeSymbol ? quoteBySymbol.get(activeSymbol) : null;
-          const watchStock = activeSymbol ? watchlist.find(w => w.symbol === activeSymbol) : null;
-          const currentPrice = toNumber(quoteStock?.price || watchStock?.price);
-          const hasPrice = currentPrice > 0 && stats.effectiveCost > 0;
-          const gainPct = hasPrice ? ((currentPrice - stats.effectiveCost) / stats.effectiveCost) * 100 : 0;
-          const isUp = gainPct >= 0;
-          const sortedCostTrades = [...trades].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-
-          return (
-            <div className="mx-auto mt-3 mb-4 max-w-[430px] space-y-3 text-white" style={{ fontFamily: TRADE_FONT }}>
-              <section className="rounded-2xl border border-transparent bg-[#0b0c0e] p-4 shadow-[0_16px_40px_rgba(0,0,0,0.28)]">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <h2 className="text-[16px] font-normal leading-tight text-white">{tt('trades.averagingCost', '摊薄成本')}</h2>
-                    <div className="mt-1 text-[11px] font-normal text-white/50">
-                      {allSymbols.length > 0 ? tt('trades.cloudStocksCount', '{{count}} 只股 · 云端存储', { count: allSymbols.length }) : tt('trades.cloudToolNoImpact', '云端小工具 · 不影响其他模块')}
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => { setCostBasisNewSymbol(''); setShowCostBasisAdd(true); }}
-                    className="flex h-8 shrink-0 items-center gap-1 rounded-full border border-[#f6b54b]/35 bg-[#f6b54b]/10 px-3 text-[11px] font-normal text-[#f6b54b] active:scale-95"
-                  >
-                    <Plus className="h-3.5 w-3.5" strokeWidth={2} />
-                    {tt('trades.add', '新增')}
-                  </button>
-                </div>
-
-                <div className="mt-3 flex gap-2 overflow-x-auto [scrollbar-width:none]" style={{ WebkitOverflowScrolling: 'touch' }}>
-                  {allSymbols.map(sym => (
-                    <button
-                      key={sym}
-                      type="button"
-                      onClick={() => setCostBasisActiveSymbol(sym)}
-                      className={`h-9 shrink-0 rounded-xl border px-4 text-[13px] font-normal tabular-nums transition active:scale-95 ${
-                        activeSymbol === sym
-                          ? 'border-[#f6b54b]/60 bg-[#f6b54b]/10 text-[#ffd18a] shadow-[0_10px_28px_rgba(246,181,75,0.12)]'
-                          : 'border-white/10 bg-white/[0.055] text-white/60'
-                      }`}
-                      style={{ fontFamily: TRADE_NUMBER_FONT }}
-                    >
-                      {sym}
-                    </button>
-                  ))}
-                </div>
-              </section>
-
-              {!activeSymbol ? (
-                <section className="rounded-2xl border border-transparent bg-[#0b0c0e] p-6 text-center shadow-[0_16px_40px_rgba(0,0,0,0.24)]">
-                  <div className="text-[13px] font-normal text-white/75">{tt('trades.noStocks', '还没有股票')}</div>
-                  <div className="mt-1 text-[12px] font-normal text-white/50">{tt('trades.noStocksDesc', '点上方新增添加第一只股票。')}</div>
-                </section>
-              ) : (
-                <>
-                  <section className="rounded-2xl border border-transparent bg-[#0b0c0e] p-4 shadow-[0_16px_40px_rgba(0,0,0,0.24)]">
-                    <div className="flex items-center justify-between border-b border-white/10 pb-3">
-                      <div className="text-[13px] font-normal text-white/70">{tt('trades.holding', '持仓')}</div>
-                      <div className="text-[15px] font-normal tabular-nums text-emerald-400" style={{ fontFamily: TRADE_NUMBER_FONT }}>
-                        {sharesText(stats.shares, 0)}
-                      </div>
-                    </div>
-
-                    <div className="mt-4 grid grid-cols-2 divide-x divide-white/10">
-                      <div className="min-w-0 pr-4">
-                        <div className="text-[11px] font-normal text-white/50">{tt('trades.accountingAverage', '会计摊薄')}</div>
-                        <div className="mt-2 text-[24px] font-normal leading-none tabular-nums text-white/90" style={{ fontFamily: TRADE_NUMBER_FONT }}>
-                          ${stats.avgCost.toFixed(2)}
-                        </div>
-                        <div className="mt-2 text-[11px] font-normal text-white/40">{tt('trades.movingWeightedAverage', '移动加权平均')}</div>
-                      </div>
-                      <div className="min-w-0 pl-4">
-                        <div className="text-[11px] font-normal text-[#f6b54b]">{tt('trades.effectiveCost', '实际成本')}</div>
-                        <div className="mt-2 text-[24px] font-normal leading-none tabular-nums text-[#ffd18a]" style={{ fontFamily: TRADE_NUMBER_FONT }}>
-                          ${stats.effectiveCost.toFixed(2)}
-                        </div>
-                        {hasPrice ? (
-                          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] font-normal tabular-nums" style={{ fontFamily: TRADE_NUMBER_FONT }}>
-                            <span className={pnlClass(gainPct, marketColorMode)}>
-                              {isUp ? '↑ +' : '↓ '}{gainPct.toFixed(2)}%
-                            </span>
-                            <span className="text-white/50">{tt('trades.currentPriceLabel', '现价 ${{price}}', { price: currentPrice.toFixed(2) })}</span>
-                          </div>
-                        ) : (
-                          <div className="mt-2 text-[11px] font-normal text-white/40">{tt('trades.afterRealizedPnl', '扣除已实现盈亏')}</div>
-                        )}
-                      </div>
-                    </div>
-                  </section>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <section className="rounded-2xl border border-transparent bg-[#101114] p-4 shadow-[0_14px_34px_rgba(0,0,0,0.22)]">
-                      <Database className="mb-3 h-6 w-6 text-white/60" strokeWidth={1.7} />
-                      <div className="text-[11px] font-normal text-white/50">{tt('trades.totalInvested', '累计投入')}</div>
-                      <div className="mt-2 text-[20px] font-normal tabular-nums text-white/90" style={{ fontFamily: TRADE_NUMBER_FONT }}>
-                        ${stats.totalCost.toFixed(0)}
-                      </div>
-                      <div className="mt-1 text-[11px] font-normal tabular-nums text-white/40" style={{ fontFamily: TRADE_NUMBER_FONT }}>
-                        {cnyEquivalentText(stats.totalCost)}
-                      </div>
-                    </section>
-                    <section className="rounded-2xl border border-transparent bg-[#101114] p-4 shadow-[0_14px_34px_rgba(0,0,0,0.22)]">
-                      <TrendingUp className={`mb-3 h-6 w-6 ${pnlClass(stats.realizedPnl, marketColorMode)}`} strokeWidth={1.7} />
-                      <div className="text-[11px] font-normal text-white/50">{tt('trades.realizedPnl', '已实现盈亏')}</div>
-                      <div className={`mt-2 text-[20px] font-normal tabular-nums ${pnlClass(stats.realizedPnl, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
-                        {stats.realizedPnl >= 0 ? '+' : ''}${stats.realizedPnl.toFixed(0)}
-                      </div>
-                      <div className="mt-1 text-[11px] font-normal tabular-nums text-white/40" style={{ fontFamily: TRADE_NUMBER_FONT }}>
-                        {cnyEquivalentText(stats.realizedPnl, true)}
-                      </div>
-                    </section>
-                  </div>
-
-                  <section className="rounded-2xl border border-transparent bg-[#0b0c0e] p-4 shadow-[0_16px_40px_rgba(0,0,0,0.24)]">
-                    <div className="mb-3 flex items-center justify-between">
-                      <div className="text-[13px] font-normal text-white/75">{tt('trades.tradeCountTitle', '交易记录 ({{count}})', { count: trades.length })}</div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setCostBasisNewTrade({ type: 'buy', price: '', shares: '', date: localDateKey() });
-                          setShowCostBasisTrade(true);
-                        }}
-                        className="flex items-center gap-1 text-[11px] font-normal text-[#f6b54b] active:scale-95"
-                      >
-                        <Plus className="h-3.5 w-3.5" strokeWidth={2} />
-                        {tt('trades.add', '添加')}
-                      </button>
-                    </div>
-                    {trades.length === 0 ? (
-                      <div className="rounded-xl border border-dashed border-white/10 py-6 text-center text-[12px] font-normal text-white/40">{tt('trades.noCostTrades', '还没有交易, 点添加')}</div>
-                    ) : (
-                      (() => {
-                        const sortedAsc = [...trades].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
-                        const tradeAvgAtSell = {};
-                        let runShares = 0;
-                        let runTotalCost = 0;
-                        for (const t of sortedAsc) {
-                          const p = parseFloat(t.price) || 0;
-                          const s = parseFloat(t.shares) || 0;
-                          if (t.type === 'buy') {
-                            runShares += s;
-                            runTotalCost += s * p;
-                          } else {
-                            if (runShares > 0) {
-                              const avg = runTotalCost / runShares;
-                              tradeAvgAtSell[t.id] = avg;
-                              runTotalCost -= s * avg;
-                              runShares -= s;
-                              if (runShares <= 0) { runShares = 0; runTotalCost = 0; }
-                            }
-                          }
-                        }
-
-                        return (
-                          <div className="divide-y divide-white/[0.07]">
-                            {sortedCostTrades.map(t => {
-                            const isExpanded = !!expandedTrades[t.id];
-                            const isSell = t.type === 'sell';
-                            const price = parseFloat(t.price);
-                            const shares = parseFloat(t.shares);
-                            const amount = price * shares;
-                            const sellAvg = isSell ? (tradeAvgAtSell[t.id] || 0) : 0;
-                            const sellCost = isSell ? sellAvg * shares : 0;
-                            const profit = isSell ? (amount - sellCost) : 0;
-                            const profitPct = (isSell && sellCost > 0) ? (profit / sellCost) * 100 : 0;
-
-                            return (
-                              <div key={t.id}>
-                                <div className="grid items-center py-2.5" style={{ gridTemplateColumns: '36px minmax(0,1fr) auto auto auto', gap: '10px' }}>
-                                  <div
-                                    className={`flex h-8 w-8 items-center justify-center rounded-full border text-[13px] font-normal ${isSell ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-300' : 'border-[#ff4b1f]/30 bg-[#ff4b1f]/10 text-[#ff4b1f]'}`}
-                                  >
-                                    {sideLabel(t.type, true)}
-                                  </div>
-                                  <div
-                                    className={`min-w-0 text-[13px] ${isSell ? 'cursor-pointer' : ''}`}
-                                    onClick={() => isSell && setExpandedTrades(prev => ({ ...prev, [t.id]: !prev[t.id] }))}
-                                  >
-                                    <div className="truncate font-normal text-white/90">{t.date} {sideLabel(t.type)} {sharesText(shares, 0)}</div>
-                                    <div className="mt-0.5 text-[11px] font-normal tabular-nums text-white/50" style={{ fontFamily: TRADE_NUMBER_FONT }}>${price.toFixed(2)}/{tt('trades.shares', '股')}</div>
-                                  </div>
-                                  <div className={`text-right text-[13px] font-normal tabular-nums ${isSell ? 'text-emerald-400' : 'text-[#ff4b1f]'}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
-                                    {isSell ? '+' : '-'}${amount.toFixed(0)}
-                                  </div>
-                                  {isSell ? (
-                                    <button
-                                      type="button"
-                                      onClick={() => setExpandedTrades(prev => ({ ...prev, [t.id]: !prev[t.id] }))}
-                                      className="px-1 text-[12px] text-white/50 active:scale-95"
-                                    >
-                                      {isExpanded ? '▲' : '▼'}
-                                    </button>
-                                  ) : (
-                                    <span></span>
-                                  )}
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      showConfirm({
-                                        title: tt('trades.deleteOneCostTradeTitle', '删除这笔交易?'),
-                                        desc: tt('trades.deleteIrreversible', '此操作不可撤销'),
-                                        info: `${t.date} · ${sideLabel(t.type)} ${sharesText(shares, 0)} @ $${price}`,
-                                        confirmText: tt('trades.delete', '删除'),
-                                        icon: '!',
-                                        onConfirm: () => {
-                                          setCostBasisData(prev => ({
-                                            ...prev,
-                                            [activeSymbol]: prev[activeSymbol].filter(x => x.id !== t.id),
-                                          }));
-                                          db.deleteCostBasisTrade(t.id).catch(e => {
-                                            console.error('[CostBasis] 删除云端失败:', e.message);
-                                          });
-                                        },
-                                      });
-                                    }}
-                                    className="px-1 text-[14px] text-white/35 hover:text-rose-300 active:scale-95"
-                                    title={tt('trades.delete', '删除')}
-                                  >
-                                    ✕
-                                  </button>
-                                </div>
-
-                                {isSell && isExpanded && (
-                                  <div
-                                    className="mb-2 ml-11 rounded-xl border border-emerald-400/15 bg-emerald-400/[0.045] px-3 py-3"
-                                  >
-                                    <div className="space-y-1 text-[11px] font-normal leading-relaxed text-emerald-100/70" style={{ fontFamily: TRADE_NUMBER_FONT }}>
-                                      <div>{tt('trades.sellIncome', '卖出收入')} = {price.toFixed(2)} × {fmtAmount(shares, 0)} = <span className="text-emerald-100">${amount.toFixed(2)}</span></div>
-                                      <div>{tt('trades.sellCost', '卖出成本')} = {sellAvg.toFixed(2)} × {fmtAmount(shares, 0)} = <span className="text-emerald-100">${sellCost.toFixed(2)}</span></div>
-                                      <div>{tt('trades.thisProfit', '本次利润')} = {amount.toFixed(0)} - {sellCost.toFixed(0)}</div>
-                                    </div>
-                                    <div className={`mt-2 border-t border-emerald-400/20 pt-2 text-[15px] font-normal tabular-nums ${pnlClass(profit, marketColorMode)}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
-                                      = {profit >= 0 ? '+' : ''}${profit.toFixed(2)} ({profit >= 0 ? '+' : ''}{profitPct.toFixed(2)}%)
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            );
-                            })}
-                          </div>
-                        );
-                      })()
-                    )}
-                  </section>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const symToDelete = activeSymbol;
-                      const count = trades.length;
-                      showConfirm({
-                        title: tt('trades.deleteSymbolTitle', '删除 {{symbol}}?', { symbol: symToDelete }),
-                        desc: tt('trades.deleteSymbolDesc', '此操作不可撤销, 该股票的全部交易记录将从云端删除'),
-                        info: `${symToDelete} · ${tt('trades.tradeCount', '{{count}} 笔交易', { count })}`,
-                        confirmText: tt('trades.deleteAll', '全部删除'),
-                        icon: '!',
-                        onConfirm: () => {
-                          setCostBasisData(prev => {
-                            const next = { ...prev };
-                            delete next[symToDelete];
-                            return next;
-                          });
-                          const remaining = Object.keys(costBasisData).filter(s => s !== symToDelete);
-                          setCostBasisActiveSymbol(remaining[0] || '');
-                          db.deleteCostBasisSymbol(symToDelete).catch(e => {
-                            console.error('[CostBasis] 删整只云端失败:', e.message);
-                          });
-                        },
-                      });
-                    }}
-                    className="flex w-full items-center justify-center gap-2 py-2 text-[12px] font-normal text-rose-400 active:scale-95"
-                  >
-                    <Trash2 className="h-4 w-4" strokeWidth={1.8} />
-                    {tt('trades.deleteWholeSymbol', '删除 {{symbol}} 整只股票', { symbol: activeSymbol })}
-                  </button>
-                </>
-              )}
-            </div>
-          );
-        })()}
 
         <AvailableCashEditor
           availableCashUsd={availableCashUsd}

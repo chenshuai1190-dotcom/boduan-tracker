@@ -38,7 +38,7 @@ assert.ok(handler, 'read the actual All Tools event handler');
 const callbacks = app.slice(app.indexOf('const openStockDecision ='), app.indexOf('const openDcaLab ='));
 const tabDestructure = trades.slice(trades.indexOf('  const {', trades.indexOf('export default function TradesTab(')), trades.indexOf('  } = ctx;') + '  } = ctx;'.length);
 
-test('stock decision is between overlap and averaging with a translated line icon', () => {
+test('stock decision follows overlap and remains reachable with a translated line icon', () => {
   for (const [language, title, description] of [
     ['zh', '股票决策', '趋势、位置与量价观察'],
     ['en', 'Stock decision', 'Observe trends, price levels and volume.'],
@@ -47,7 +47,8 @@ test('stock decision is between overlap and averaging with a translated line ico
     const ids = buttons.map(button => button.props['data-tool-id']);
     const index = ids.indexOf('stock-decision');
     assert.ok(index > 0);
-    assert.deepEqual(ids.slice(index - 1, index + 2), ['portfolio-overlap', 'stock-decision', 'cost']);
+    assert.deepEqual(ids.slice(index - 1, index + 2), ['portfolio-overlap', 'stock-decision', 'records']);
+    assert.equal(ids.includes('cost'), false);
     assert.equal(ids.filter(id => id === 'stock-decision').length, 1);
     const markup = renderToStaticMarkup(buttons[index]);
     assert.ok(markup.includes(title));
@@ -73,6 +74,26 @@ test('the real catalog click closes the sheet and clears its panel before invoki
   assert.deepEqual(calls, [['sheet', false], ['panel', ''], ['decision']]);
   assert.equal((trades.match(/openStockDecision\?\.\(\)/g) || []).length, 1, 'the tool is added only to All Tools');
   assert.doesNotThrow(() => select('stock-decision', () => {}, () => {}, undefined), 'an absent callback is safe');
+});
+
+test('removed or unknown initial tools return to the main ledger without becoming the wave tool', () => {
+  const panelState = trades.match(/  const \[toolPanel, setToolPanel\] = React\.useState\([\s\S]*?\n  \)\);/)?.[0];
+  const visibility = trades.match(/  const showWaveTool = [\s\S]*?  const showMainLedger = [^;]+;/)?.[0];
+  assert.ok(panelState && visibility, 'exercise the actual panel initialization and ledger visibility');
+  const initialize = new Function('React', 'initialToolPanel', `${panelState}\n${visibility}\nreturn { toolPanel, showMainLedger, showWaveTool, showTradeRecordsTool };`);
+  const hooks = { useState: initial => [typeof initial === 'function' ? initial() : initial, () => {}] };
+  for (const initialToolPanel of ['cost', 'unknown', '', undefined]) {
+    assert.deepEqual(initialize(hooks, initialToolPanel), { toolPanel: '', showMainLedger: true, showWaveTool: false, showTradeRecordsTool: false });
+  }
+  assert.deepEqual(initialize(hooks, 'waves'), { toolPanel: 'waves', showMainLedger: false, showWaveTool: true, showTradeRecordsTool: false });
+  assert.deepEqual(initialize(hooks, 'records'), { toolPanel: 'records', showMainLedger: true, showWaveTool: false, showTradeRecordsTool: true });
+});
+
+test('a stale cost navigation ID clears its panel without invoking wave navigation', () => {
+  const calls = [];
+  const select = new Function('toolId', 'setShowAllToolsModal', 'setToolPanel', 'openWaveTracker', handler);
+  select('cost', value => calls.push(['sheet', value]), value => calls.push(['panel', value]), () => calls.push(['waves']));
+  assert.deepEqual(calls, [['sheet', false], ['panel', '']]);
 });
 
 test('production open and close callbacks only navigate within Trades', () => {

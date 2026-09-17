@@ -1,5 +1,5 @@
 import React from 'react';
-import { BarChart3, BookOpen, Calculator, ChevronRight, Crosshair, FlaskConical, History, Layers, ListChecks, TrendingUp, Users, Waves } from 'lucide-react';
+import { BarChart3, BookOpen, ChevronRight, Crosshair, FlaskConical, History, Layers, ListChecks, TrendingUp, Users, Waves } from 'lucide-react';
 import { t } from '../lib/i18n.js';
 import './TradeToolsCatalog.css';
 
@@ -11,7 +11,6 @@ const TOOL_GROUPS = [
       { id: 'dca-lab', titleKey: 'trades.dcaLab', descriptionKey: 'trades.dcaLabDescription', icon: FlaskConical },
       { id: 'portfolio-overlap', titleKey: 'trades.portfolioOverlap', descriptionKey: 'trades.overlapDescription', icon: Layers },
       { id: 'stock-decision', titleKey: 'trades.stockDecision', descriptionKey: 'trades.stockDecisionDescription', icon: Crosshair },
-      { id: 'cost', titleKey: 'trades.averagingTool', descriptionKey: 'trades.averagingDescription', icon: Calculator },
     ],
   },
   {

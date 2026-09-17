@@ -29,13 +29,13 @@ test('entry exists only in Trades All Tools and closes the sheet before navigati
   assert.equal((read('src/lib/i18n.js').match(/'trades.investmentTimeMachine':/g) || []).length, 2);
 });
 
-test('catalog selections preserve the five existing tool destinations and close the sheet first', () => {
+test('catalog selections preserve active destinations and dismiss the retired cost destination', () => {
   const tools = trades.slice(trades.indexOf('{showAllToolsModal && ('), trades.indexOf('{showTradeRecordsTool && ('));
   const handler = tools.match(/onSelect=\{\(toolId\) => \{([\s\S]*?)\}\}\s*\/>/);
   assert.ok(handler, 'the catalog should delegate to a controlled parent navigation handler');
   const select = new Function('toolId', 'setShowAllToolsModal', 'setToolPanel', 'openInvestmentComparison', 'openWaveTracker', 'openCommunityCompetition', handler[1]);
   const destinations = {
-    cost: [['sheet', false], ['panel', 'cost']],
+    cost: [['sheet', false], ['panel', '']],
     records: [['sheet', false], ['panel', 'records']],
     waves: [['sheet', false], ['panel', ''], ['open', 'waves']],
     competition: [['sheet', false], ['panel', ''], ['open', 'competition']],

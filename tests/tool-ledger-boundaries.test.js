@@ -345,7 +345,7 @@ test('legacy stock symbols are repaired before quote universe construction', () 
   assert.ok(dbSource.includes('export const repairCurrentUserStockSymbols'), 'db layer should provide current-user persisted symbol repair');
   assert.ok(fetchAllBlock.includes('repairCurrentUserStockSymbols(user)'), 'cloud load should repair persisted dirty symbols before fetching app data');
   assert.ok(normalizeNameBlock.includes('normalizeSymbolKey(symbol)'), 'local name and tool quote rows should repair legacy ticker whitespace');
-  assert.ok(appSource.includes('const sym = normalizeStrictSymbolKey(costBasisNewSymbol);'), 'cost-basis new symbol input should reject whitespace instead of repairing it');
+  assert.ok(appSource.includes('const symbol = normalizeStrictSymbolKey(tradeDraft.symbol);'), 'new formal and wave trade symbols should reject whitespace instead of repairing it');
 });
 
 test('active Home double tap preserves navigation behavior with the shared report bottom-nav presentation', () => {
@@ -366,13 +366,10 @@ test('active Home double tap preserves navigation behavior with the shared repor
   assert.equal(bottomNavBlock.includes('onDoubleClick='), false, 'iOS touch handling should not depend on the unreliable dblclick event');
 });
 
-test('tool submissions require confirmation and duplicate-submit guards', () => {
+test('formal and wave submissions retain confirmation and duplicate-submit guards', () => {
   assert.ok(appSource.includes('confirmSubmittingRef'), 'global confirmation modal needs a submit guard');
-  assert.ok(appSource.includes('costBasisSubmittingRef'), 'cost-basis submissions need a submit guard');
   assert.ok(appSource.includes('tradeSubmittingRef'), 'trade submissions need a submit guard');
   assert.ok(tradesTabSource.includes('确认保存到波段记录?'), 'wave submissions must show a confirmation dialog');
-  assert.ok(appSource.includes('确认保存摊薄成本记录?'), 'cost-basis submissions must show a confirmation dialog');
-  assert.ok(appSource.includes('不会进入正式持仓、当日订单或波段记录'), 'cost-basis confirmation must state its ledger boundary');
   assert.ok(tradesTabSource.includes('不会进入正式持仓、当日订单或总资产计算'), 'wave confirmation must state its ledger boundary');
 });
 
@@ -391,7 +388,7 @@ test('community competition is an isolated authenticated close-snapshot utility'
   assert.equal(tradesTabSource.includes('Trophy'), false, 'the trade-page shortcut should not keep the uncomfortable trophy icon');
   assert.ok(tradesTabSource.includes('openCommunityCompetition?.();'), 'community competition entry should open the standalone page');
   assert.ok(tradesTabSource.includes('setShowAllToolsModal(true);'), 'All Tools should keep opening the existing sheet');
-  assert.ok(tradesTabSource.includes('<TradeToolsCatalog') && tradeToolsCatalogSource.includes("id: 'cost'") && tradesTabSource.includes("setToolPanel('cost')"), 'averaging tool must remain reachable from the grouped all-tools catalog');
+  assert.ok(tradesTabSource.includes('<TradeToolsCatalog') && tradeToolsCatalogSource.includes("id: 'competition'"), 'the grouped all-tools catalog should preserve the independent competition entry');
   assert.doesNotMatch(tradeToolsCatalogSource, /supabase|stock_trades|cost_basis_trades|swing_waves|\b(?:save|insert|upsert|update|delete)\s*\(/, 'the tool catalog must delegate navigation without accessing or changing any ledger');
   assert.ok(communityCompetitionPageSource.includes("tt('competition.joinTitle', '加入收益比赛')"), 'first visit should show the voluntary join sheet');
   assert.ok(communityCompetitionPageSource.includes("tt('competition.notJoin', '暂不加入')"), 'join sheet should support declining');
@@ -644,7 +641,7 @@ test('community profile settings use a dedicated public identity table without s
 
 test('trade and wave form validation avoids native alert dialogs', () => {
   const addTradeStart = appSource.indexOf('const addTrade = async (sideOverride = null) =>');
-  const nextToolStart = appSource.indexOf('const confirmCostBasisTradeSubmit =', addTradeStart);
+  const nextToolStart = appSource.indexOf('const deleteStockTradeRecord =', addTradeStart);
   const addTradeBlock = appSource.slice(addTradeStart, nextToolStart);
 
   assert.ok(addTradeStart > -1, 'missing addTrade implementation');
@@ -658,7 +655,7 @@ test('trade and wave form validation avoids native alert dialogs', () => {
 
 test('main trade entry modal isolates the compact stacked formal-trade design', () => {
   const tradeModalStart = tradesTabSource.indexOf('{showAddTrade && (');
-  const tradeModalEnd = tradesTabSource.indexOf('{showCostTool && (() => {', tradeModalStart);
+  const tradeModalEnd = tradesTabSource.indexOf('<AvailableCashEditor', tradeModalStart);
   const tradeModalBlock = tradesTabSource.slice(tradeModalStart, tradeModalEnd);
   const genericHeaderStart = genericLedgerTradeEntryPanelSource.indexOf('export function GenericLedgerTradeHeader');
   const genericPanelStart = genericLedgerTradeEntryPanelSource.indexOf('export default function GenericLedgerTradeEntryPanel');
@@ -672,7 +669,7 @@ test('main trade entry modal isolates the compact stacked formal-trade design', 
   assert.ok(appSource.includes('normalizeConfirmModalOptions(opts)'), 'app should keep normalizing confirmation options before display');
   assert.ok(genericPanelBlock.includes('<CalendarDays ') && genericPanelBlock.includes('<ChevronRight '), 'formal-trade date should use lucide calendar and chevron icons');
   assert.equal(genericHeaderBlock.includes('ChevronRight'), false, 'stock identity header must not show a right arrow');
-  assert.ok(tradesTabSource.includes('Search, Settings2, Trash2, TrendingDown, TrendingUp'), 'trade modal should keep search, color settings, and buy/sell trend icons');
+  assert.ok(tradesTabSource.includes('<Search ') && tradesTabSource.includes('<Settings2 ') && tradesTabSource.includes('<Trash2 '), 'retained trade controls should keep search, color settings, and deletion icons');
   assert.ok(genericHeaderBlock.includes('data-generic-ledger-symbol-header="true"') && genericHeaderBlock.includes('<StockLogo'), 'formal trade should put the editable ticker and logo in one identity header');
   assert.ok(genericHeaderBlock.includes("tt('trades.stockTicker'") && genericHeaderBlock.includes('symbol: event.target.value.toUpperCase()'), 'identity header should retain the editable uppercase ticker binding');
   assert.equal(genericHeaderBlock.includes('displayName') || genericHeaderBlock.includes('draft?.name'), false, 'identity header should not render the resolved Chinese company name');
@@ -1407,61 +1404,47 @@ test('startup loading uses the minimal Quote glint without changing auth timing 
   assert.equal(indexHtmlSource.includes('quote-startup-glint'), false, 'native startup images and the pre-CSS no-flash shell should stay unchanged');
 });
 
-test('cost basis tool uses dark custom UI without legacy title icon or native alerts', () => {
-  const costSubmitStart = appSource.indexOf('const confirmCostBasisTradeSubmit =');
-  const costSubmitEnd = appSource.indexOf('const deleteStockTradeRecord =', costSubmitStart);
-  const costSubmitBlock = appSource.slice(costSubmitStart, costSubmitEnd);
-  const costBasisTradeStart = appSource.indexOf('{showCostBasisTrade && (');
-  const costBasisTradeEnd = appSource.indexOf('{/* 底部 5 tab 导航栏 */}', costBasisTradeStart);
-  const costBasisTradeBlock = appSource.slice(costBasisTradeStart, costBasisTradeEnd);
-
-  assert.ok(costSubmitStart > -1, 'missing cost-basis submit implementation');
-  assert.ok(costSubmitEnd > costSubmitStart, 'missing boundary after cost-basis submit implementation');
-  assert.ok(costBasisTradeStart > -1, 'missing cost-basis add trade modal');
-  assert.ok(costBasisTradeEnd > costBasisTradeStart, 'missing boundary after cost-basis add trade modal');
-  assert.equal(costSubmitBlock.includes('alert('), false, 'cost-basis submit path must not use native alert');
-  assert.ok(costSubmitBlock.includes('const confirmCostBasisTradeSubmit = (typeOverride = costBasisNewTrade.type) =>'), 'cost-basis buy/sell buttons should pass the selected type into the save path');
-  assert.ok(costSubmitBlock.includes('const tradeDraft = { ...costBasisNewTrade, type: typeOverride }'), 'cost-basis submit should use a draft with the button-selected type');
-  assert.ok(costSubmitBlock.includes("const type = tradeDraft.type === 'sell' ? 'sell' : 'buy'"), 'cost-basis record should use the button-selected type');
-  assert.ok(tradesTabSource.includes('rounded-2xl border border-transparent bg-[#0b0c0e] p-4 shadow-[0_16px_40px_rgba(0,0,0,0.28)]'), 'cost-basis tool should keep the primary neutral-black surface while hiding its outer outline');
-  assert.equal((tradesTabSource.match(/rounded-2xl border border-transparent bg-\[#101114\] p-4 shadow-\[0_14px_34px/g) || []).length, 2, 'cost-basis summary cards should keep the raised neutral-black surface while hiding their outer outlines');
-  assert.ok(tradesTabSource.includes('Database'), 'cost-basis stats should use the existing line icon system');
-  assert.ok(tradesTabSource.includes('TrendingUp'), 'cost-basis realized PnL should use the existing line icon system');
-  assert.equal(tradesTabSource.includes('💼 摊薄成本'), false, 'cost-basis title must not keep the legacy briefcase icon');
-  assert.equal(tradesTabSource.includes('aria-label="新增摊薄股票"'), false, 'cost-basis stock tabs must not keep a redundant trailing plus button');
-  assert.ok(tradesTabSource.includes('pnlClass(stats.realizedPnl, marketColorMode)'), 'cost-basis realized PnL should use the same color class as the header cards');
-  assert.ok(tradesTabSource.includes('pnlClass(profit, marketColorMode)'), 'cost-basis expanded profit should use the same color class as the header cards');
-  assert.ok(appSource.includes('新增摊薄股票'), 'cost-basis add stock modal should be custom in-app UI');
-  assert.ok(appSource.includes('添加摊薄交易'), 'cost-basis add trade modal should be custom in-app UI');
-  assert.ok(costBasisTradeBlock.includes('<ActionModalCard'), 'cost-basis add trade modal should use the same shared overlay as the trade entry modal');
-  assert.ok(costBasisTradeBlock.includes('widthClassName="w-[calc(100vw-24px)] max-w-md"'), 'cost-basis add trade modal should preserve its wide geometry');
-  assert.ok(costBasisTradeBlock.includes("t(language, 'trades.stockTicker'"), 'cost-basis add trade modal should keep the stock ticker row');
-  assert.ok(costBasisTradeBlock.includes("t(language, 'trades.priceShares'"), 'cost-basis add trade modal should keep the price and shares row');
-  assert.ok(costBasisTradeBlock.includes("t(language, 'trades.date'"), 'cost-basis add trade modal should keep the date row');
-  assert.ok(costBasisTradeBlock.includes('value={costBasisNewTrade.date}'), 'cost-basis add trade date input should use the date draft value');
-  assert.ok(costBasisTradeBlock.includes("confirmCostBasisTradeSubmit('buy')"), 'cost-basis buy button should submit with buy type');
-  assert.ok(costBasisTradeBlock.includes("confirmCostBasisTradeSubmit('sell')"), 'cost-basis sell button should submit with sell type');
-  assert.equal(costBasisTradeBlock.includes('<TrendingUp className="h-4 w-4"'), false, 'cost-basis shared actions should be text-only');
-  assert.equal(costBasisTradeBlock.includes('<TrendingDown className="h-4 w-4"'), false, 'cost-basis shared actions should be text-only');
-  assert.equal(costBasisTradeBlock.includes("t(language, 'trades.cancel'"), false, 'cost-basis add trade modal should not keep the duplicate cancel button');
-  assert.equal(costBasisTradeBlock.includes("t(language, 'trades.ok'"), false, 'cost-basis add trade modal should not keep the duplicate OK button');
-  assert.equal(costBasisTradeBlock.includes('costBasisModalInactiveSegmentClass'), false, 'cost-basis add trade modal should not keep the old buy/sell segmented selector');
-  assert.equal(appSource.includes('items-end justify-center bg-black/70'), false, 'cost-basis modals must not use bottom-drawer layout');
-  assert.equal(appSource.includes('text-white/42'), false, 'cost-basis modals must not use unsupported opacity classes');
-  assert.equal(appSource.includes('text-white/72'), false, 'cost-basis cancel buttons must use visible supported text colors');
-  assert.ok(appSource.includes('costBasisModalLabelClass'), 'cost-basis labels need shared explicit dark-theme colors');
-  assert.ok(appSource.includes('costBasisModalInputClass'), 'cost-basis inputs need shared explicit dark-theme colors');
-  assert.ok(appSource.includes('text-[14px] font-normal text-white'), 'cost-basis input text should stay readable on iOS keyboards');
-  assert.ok(appSource.includes('placeholder:text-white/[0.28]'), 'cost-basis placeholders should stay visible on iOS keyboards');
-  assert.ok(appSource.includes("style={{ colorScheme: 'dark', WebkitAppearance: 'none' }}"), 'cost-basis date input must force dark color scheme and avoid native width overflow');
+test('retired cost basis tool has no state, editor, submit path or preview entry', () => {
+  for (const [name, source] of Object.entries({ App: appSource, TradesTab: tradesTabSource, DevVisualPreview: devVisualPreviewSource })) {
+    assert.doesNotMatch(source, /costBasis|CostBasis|showCostTool|calcCostBasis/, `${name} must not retain the retired tool's state, render or save handlers`);
+  }
+  assert.doesNotMatch(tradesTabSource, /setToolPanel\(['"]cost['"]\)/, 'the trade page must not reopen the retired panel');
+  assert.doesNotMatch(tradeToolsCatalogSource, /id:\s*['"]cost['"]|摊薄成本|Cost Averaging/, 'the tool catalog must not offer the retired tool');
+  assert.doesNotMatch(i18nSource, /['"]trades\.(?:costBasis|costAveraging|addAveragingTrade|addAveragingStock|averagingTrade|averagingTool)['"]/, 'retired tool labels must not survive as an alternate entry');
 });
 
-test('cost basis tool filters empty symbols before rendering or saving', () => {
-  assert.ok(appSource.includes('sanitizeCostBasisData'), 'cost-basis state should sanitize stale local/cloud records');
-  assert.ok(appSource.includes('normalizeStrictSymbolKey(costBasisNewSymbol)'), 'new cost-basis symbols must be strictly validated before saving');
-  assert.ok(tradesTabSource.includes('Object.keys(costBasisData).map(sym => normalizeCostBasisSymbol(sym)).filter(Boolean)'), 'cost-basis tabs must filter blank symbols before rendering');
-  assert.ok(dbSource.includes('if (!sym) continue;'), 'cost-basis cloud fetch must ignore invalid blank symbols');
-  assert.ok(dbSource.includes("if (!normalizedSymbol) throw new Error('缺少有效股票代码');"), 'cost-basis cloud writes must reject blank symbols');
+test('retired cost basis data has no storage, cloud CRUD or migration path', () => {
+  for (const [name, source] of Object.entries({ App: appSource, database: dbSource, DevVisualPreview: devVisualPreviewSource })) {
+    assert.doesNotMatch(source, /bottomline_cost_basis|cost_basis_trades|(?:fetch|insert|delete|migrate)CostBasis/, `${name} must not read, repair, migrate or mutate retired cost-basis records`);
+  }
+  assert.ok(dbSource.includes('export const insertTrade = async'), 'legacy wave records must keep their independent write API');
+  assert.ok(dbSource.includes('export const insertStockTrade = async'), 'formal trades must keep their independent write API');
+});
+
+test('retired cost basis records cannot rejoin the quote universe while wave symbols remain', () => {
+  const start = appSource.indexOf('function buildToolQuoteRows(');
+  const end = appSource.indexOf('function createRealtimeStartupMilestones(', start);
+  assert.ok(start > -1 && end > start, 'the tool quote builder must have explicit surviving boundaries');
+  const buildToolQuoteRows = new Function(
+    'normalizeStockSymbolForName',
+    'displayStockName',
+    `${appSource.slice(start, end)}; return buildToolQuoteRows;`,
+  )(
+    (symbol) => String(symbol || '').trim().toUpperCase(),
+    (symbol, name) => name || symbol,
+  );
+  const costBasisData = {
+    MSFT: [{ id: 'retired-buy', type: 'buy', price: 400, shares: 1000 }],
+  };
+  assert.deepEqual(buildToolQuoteRows({ costBasisData }), [], 'stale local or cloud tool data must not subscribe to any quote');
+  const rows = buildToolQuoteRows({
+    costBasisData,
+    trades: [{ symbol: 'AAPL', name: 'Legacy wave' }],
+    swingWaves: [{ symbol: 'NVDA', name: 'V2 wave', price: 120, high: 150 }],
+  });
+  assert.deepEqual(rows.map((row) => row.symbol), ['AAPL', 'NVDA']);
+  assert.equal(rows[1].price, 120, 'removing the tool must not drop an active wave quote');
+  assert.equal(rows[1].high, 150, 'removing the tool must not drop an active wave high');
 });
 
 test('realtime quote refresh avoids duplicate requests and hides raw Safari network errors', () => {
@@ -1609,12 +1592,11 @@ test('realtime quote refresh avoids duplicate requests and hides raw Safari netw
   assert.ok(appSource.includes('iosPwaRealtimeSnapshotBurstRef.current(nextTrigger, { resetFreshness })'), 'iOS standalone resume should prefer realtime snapshot burst over REST quote refresh');
   assert.ok(appSource.includes('if (!snapshotStarted)') && appSource.includes("'auto-ios-pwa-snapshot-cloud'") && appSource.includes('pendingPwaResumeRefreshRef.current = buildPwaResumeRequest('), 'iOS standalone cloud load should retain a pending realtime burst when its snapshot path is not ready');
   assert.ok(homeTabSource.includes("'home.market.warming'"), 'market card label should still support warming state for non-BTC snapshot statuses');
-  assert.ok(appSource.includes('buildToolQuoteRows({ trades, costBasisData, swingWaves: swingWaveQuoteRows })'), 'legacy tools and V2 swing symbols should join the realtime quote universe');
+  assert.ok(appSource.includes('buildToolQuoteRows({ trades, swingWaves: swingWaveQuoteRows })'), 'legacy wave records and V2 swing symbols should join the realtime quote universe');
   assert.ok(appSource.includes('buildLedgerQuoteUniverse(') && appSource.includes('...quoteUniverse.toolRows'), 'tool-only symbols must remain in the WebSocket quote universe');
   assert.ok(appSource.includes('const quoteBaselineRows = useMemo(() => buildQuoteBaselineRows({') && appSource.includes('activeSwingRows: swingWaveQuoteRows'), 'full REST baselines must stay limited to current holdings, watchlist, and active waves');
   assert.ok(appSource.includes('quoteBySymbol.get(normalizeSymbolKey(g.symbol))'), 'wave records should read current prices from the realtime quote map');
   assert.ok(tradesTabSource.includes('quoteRows,'), 'trades tools should receive the shared realtime quote rows');
-  assert.ok(tradesTabSource.includes('const quoteStock = activeSymbol ? quoteBySymbol.get(activeSymbol) : null'), 'cost-basis tool should prefer realtime quote rows for current price');
   assert.equal(appSource.includes('VITE_EODHD_TOKEN'), false, 'frontend must not reintroduce a browser EODHD token path');
   assert.ok(btcRealtimeApiSource.includes('isSnapshotRequest'), 'BTC realtime endpoint should expose snapshot mode without changing plain GET behavior');
   assert.ok(btcRealtimeApiSource.includes('authenticateAccessToken'), 'BTC realtime snapshot must require the same Supabase token boundary');
@@ -1765,7 +1747,7 @@ test('language framework covers settings switch, bottom nav, home page, and stoc
   assert.ok(tradesTabSource.includes("tt('trades.totalAssets', '总资产')"), 'Trades header should read labels from i18n');
   assert.ok(tradesTabSource.includes("tt('trades.tradeLog', '交易记录')"), 'Trades tool labels should read from i18n');
   assert.ok(tradesTabSource.includes('stockDisplayName(sym, allTradesModal.name)'), 'trade detail modals should reuse the language-aware stock display helper');
-  assert.ok(appSource.includes("t(language, 'trades.addAveragingTrade', '添加摊薄交易')"), 'cost-basis trade modal should read labels from i18n');
+  assert.ok(tradesTabSource.includes("tt('trades.addWaveRecord', '添加波段记录')"), 'the retained wave trade modal should read labels from i18n');
   assert.ok(i18nSource.includes("'trades.totalAssets': 'Total Assets'"), 'English dictionary should include trade header labels');
   assert.ok(i18nSource.includes("'trades.tradeLog': 'Trade Log'"), 'English dictionary should include trade tool labels');
   assert.ok(i18nSource.includes("'review.polarisGoal': 'Polaris Goal'"), 'English dictionary should include review north-star labels');
@@ -2306,7 +2288,7 @@ test('Home, Trading, and Assets use continuous scoped reports', () => {
   assert.match(homeTabCss, /\.home-report-pnl-grid\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/, 'today and cumulative P&L should share equal report columns');
   assert.doesNotMatch(homeTabCss, /\.home-report-balances\s*\{[^}]*border-top:/, 'Home balance spacing should match the compact Trading hero without an extra inner separator');
   assert.doesNotMatch(tradesTabCss, /box-shadow|radial-gradient|linear-gradient/, 'Trading report modules should stay visually continuous without decorative shadows');
-  assert.equal((tradesTabSource.match(/rounded-2xl border border-transparent bg-\[#101114\]/g) || []).length, 2, 'both raised Trading utility modules should hide their outer outlines');
+  assert.equal((tradesTabSource.match(/rounded-2xl border border-transparent bg-\[#101114\]/g) || []).length, 0, 'retired cost-basis summary cards must no longer appear within the Trading report');
   assert.ok(tradesTabSource.includes('<section className="trades-report-tools"'), 'Trading quick actions should use an unboxed report section');
   assert.ok(tradesTabSource.includes('<section className="trades-report-records"'), 'formal records should retain a dedicated continuous report section');
   assert.ok(tradesTabSource.includes('<section className="trades-report-ledger"'), 'holdings and orders should share the report ledger section');
@@ -2713,8 +2695,9 @@ test('order and account actions use the report variant while retaining the share
 });
 
 test('approved modal families share the new shell without widening business boundaries', () => {
-  const tradeEntryBlock = tradesTabSource.slice(tradesTabSource.indexOf('{showAddTrade && ('), tradesTabSource.indexOf('{showCostTool && (() => {'));
-  const costBasisDialogsBlock = appSource.slice(appSource.indexOf('{showCostBasisAdd && ('), appSource.indexOf('{/* 底部 5 tab 导航栏 */}'));
+  const tradeEntryStart = tradesTabSource.indexOf('{showAddTrade && (');
+  const tradeEntryEnd = tradesTabSource.indexOf('<AvailableCashEditor', tradeEntryStart);
+  const tradeEntryBlock = tradesTabSource.slice(tradeEntryStart, tradeEntryEnd);
   const assetDialogsBlock = analysisTabSource.slice(analysisTabSource.indexOf('{showAddAccount && ('), analysisTabSource.lastIndexOf('</div>'));
   const assetTrendPageStart = analysisTabSource.indexOf('const monthlyAssetTrendPage = (');
   const assetCategoryReportPageStart = analysisTabSource.indexOf('const monthlyAssetCategoryReportPage = (', assetTrendPageStart);
@@ -2729,7 +2712,8 @@ test('approved modal families share the new shell without widening business boun
   const reviewEditorBlock = reviewEntryEditorsSource;
   const homeNoticeBlock = homeTabSource.slice(homeTabSource.indexOf('{addStockNotice && ('), homeTabSource.lastIndexOf('</div>'));
 
-  assert.ok(tradeEntryBlock.includes('<ActionModalCard') && costBasisDialogsBlock.match(/<ActionModalCard/g)?.length === 2, 'transaction and cost-basis dialogs should cover the three approved transaction families');
+  assert.ok(tradeEntryStart > -1 && tradeEntryEnd > tradeEntryStart, 'the retained trade entry should have an explicit source boundary');
+  assert.ok(tradeEntryBlock.includes('<ActionModalCard') && tradeEntryBlock.includes("title={tradeEntryScope === 'wave'"), 'formal and wave transaction dialogs should retain the approved shared shell');
   assert.equal(assetDialogsBlock.match(/<StockReportModal/g)?.length, 4, 'asset add, account action, edit, and monthly balance dialogs should use the report presentation over the shared shell');
   assert.doesNotMatch(assetDialogsBlock, /key:\s*['"]cancel['"]/, 'asset editors should use top-right close without duplicate footer cancellation');
   assert.ok(assetTrendPageStart > -1 && assetTrendPageEnd > assetTrendPageStart, 'asset month trend should have a dedicated in-tab page boundary');
@@ -2800,11 +2784,11 @@ test('approved modal families share the new shell without widening business boun
   assert.ok(reviewEditorBlock.match(/<ReviewGoalModal/g)?.length === 2 && reviewGoalModalSource.includes('<ActionModalCard'), 'discipline and review-log editors should share the goal style over the unchanged overlay and keyboard shell');
   assert.ok(yearlyActualModalSource.includes('<ReviewGoalModal') && reviewGoalModalSource.includes('<ActionModalCard'), 'the extracted yearly-actual editor should use the scoped goal style over the unchanged shared shell');
   assert.ok(homeNoticeBlock.includes('<ActionModalCard') && homeNoticeBlock.includes('widthClassName="w-[310px] max-w-[calc(100vw-32px)]"'), 'home add-watchlist result should preserve its compact width in the shared shell');
-  assert.equal([tradeEntryBlock, costBasisDialogsBlock, assetDialogsBlock, passwordDialogBlock, reviewEditorBlock, yearlyActualModalSource, homeNoticeBlock].some((block) => block.includes('autoFocus')), false, 'approved forms should not auto-focus and jump when first opened on iOS');
+  assert.equal([tradeEntryBlock, assetDialogsBlock, passwordDialogBlock, reviewEditorBlock, yearlyActualModalSource, homeNoticeBlock].some((block) => block.includes('autoFocus')), false, 'approved forms should not auto-focus and jump when first opened on iOS');
   assert.ok(actionModalCardSource.includes('visualViewport') && actionModalCardSource.includes('overflow-y-auto overscroll-contain'), 'shared modal should follow the visual viewport and keep long content internally scrollable');
   assert.ok(settingsTabSource.includes('invite.usedByEmail') && settingsTabSource.includes('inviteUsedByEmail'), 'used invite codes should show the registration email in the admin-only panel');
   assert.ok(analysisTabSource.includes('await db.insertAccount') && analysisTabSource.includes('await db.updateAccount') && analysisTabSource.includes('db.upsertSnapshot'), 'asset modal unification must preserve existing account and snapshot database methods');
-  assert.ok(tradesTabSource.includes("onClick: () => confirmTradeSubmit('buy')") && appSource.includes("onClick: () => confirmCostBasisTradeSubmit('buy')"), 'transaction modal unification must preserve the existing confirmation paths');
+  assert.ok(tradesTabSource.includes("onClick: () => confirmTradeSubmit('buy')") && tradesTabSource.includes("onClick: () => confirmTradeSubmit('sell')"), 'formal and wave transaction dialogs must preserve both existing confirmation paths');
 });
 
 test('legacy wave trade dialogs use the dark shell and shared danger confirmation without dead watchlist state', () => {

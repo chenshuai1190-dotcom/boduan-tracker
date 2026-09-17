@@ -433,9 +433,16 @@ test('sell records cannot close more shares than currently held', () => {
   assert.equal(positions[0].returnCostBasis, 0);
 });
 
-test('investment summary ignores independent cost-basis tool data by interface', () => {
+test('investment summary ignores stale retired cost-basis records without creating holdings or profit', () => {
   const summary = deriveInvestmentSummary({
     trades: [],
+    stockTrades: [],
+    costBasisData: {
+      AAPL: [
+        { id: 'retired-buy', type: 'buy', date: '2026-01-01', price: 100, shares: 10000 },
+        { id: 'retired-sell', type: 'sell', date: '2026-01-02', price: 150, shares: 5000 },
+      ],
+    },
     watchlist,
     usdRate: 7.2,
   });
@@ -443,6 +450,7 @@ test('investment summary ignores independent cost-basis tool data by interface',
   assert.equal(summary.totalAssetsUsd, 0);
   assert.equal(summary.holdingStockCount, 0);
   assert.equal(summary.sellTradeCount, 0);
+  assert.equal(summary.realizedPnl, 0);
   assert.deepEqual(summary.activePositions, []);
 });
 

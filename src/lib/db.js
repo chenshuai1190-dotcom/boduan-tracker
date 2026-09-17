@@ -1,7 +1,7 @@
 // 数据库操作层
 // 所有增删改查都走这里,统一处理错误和缓存
 import { supabase } from './supabase';
-import { scopedDeleteByField, scopedDeleteById, scopedDeleteBySymbol } from './dbGuards';
+import { scopedDeleteById, scopedDeleteBySymbol } from './dbGuards';
 import { applyAccountSnapshotMutations } from './accountSnapshotMutation.js';
 import {
   HOME_MARGIN_LOGIC_VERSION,
@@ -51,16 +51,6 @@ const cacheSet = (userId, key, value) => {
   try {
     localStorage.setItem(userScopedStorageKey(CACHE_PREFIX + key, userId), JSON.stringify(value));
   } catch {}
-};
-
-const normalizeCostBasisSymbol = (symbol) => {
-  const value = normalizeUserStockSymbol(symbol);
-  return /^[A-Z0-9.^-]{1,16}$/.test(value) ? value : '';
-};
-
-const normalizeStrictCostBasisSymbol = (symbol) => {
-  const value = normalizeStrictUserStockSymbol(symbol);
-  return /^[A-Z0-9.^-]{1,16}$/.test(value) ? value : '';
 };
 
 const normalizePersistedSymbol = (symbol) => normalizeUserStockSymbol(symbol);
@@ -114,7 +104,6 @@ export const repairCurrentUserStockSymbols = async (preUser = null) => {
     repairSymbolRows({ userId: user.id, table: 'trades' }),
     repairSymbolRows({ userId: user.id, table: 'stock_trades' }),
     repairSymbolRows({ userId: user.id, table: 'watchlist' }),
-    repairSymbolRows({ userId: user.id, table: 'cost_basis_trades' }),
   ]);
   const repaired = tables.reduce((sum, item) => sum + (item.repaired || 0), 0);
   if (repaired > 0) console.info('[symbolRepair] 已修复历史股票代码:', { repaired, tables });
@@ -1312,70 +1301,5 @@ export const upsertYearlyActual = async (year, actualGain, endBalance) => {
       end_balance: endBalance,
       updated_at: new Date().toISOString(),
     }, { onConflict: 'user_id,year' });
-  if (error) throw error;
-};
-
-// ============ COST_BASIS_TRADES (摊薄成本计算器, v10.7.9.24 云端) ============
-export const fetchCostBasisTrades = async (preUser = null) => {
-  const user = preUser || (await supabase.auth.getUser()).data.user;
-  if (!user) throw new Error('未登录');
-
-  const { data, error } = await supabase
-    .from('cost_basis_trades')
-    .select('*')
-    .eq('user_id', user.id)
-    .order('trade_date', { ascending: true });
-  if (error) throw error;
-  const grouped = {};
-  for (const row of (data || [])) {
-    const sym = normalizeCostBasisSymbol(row.symbol);
-    if (!sym) continue;
-    if (!grouped[sym]) grouped[sym] = [];
-    grouped[sym].push({
-      id: row.id,
-      type: row.trade_type,
-      price: parseFloat(row.price),
-      shares: parseFloat(row.shares),
-      date: row.trade_date,
-    });
-  }
-  return grouped;
-};
-
-export const insertCostBasisTrade = async (symbol, trade) => {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('未登录');
-  const normalizedSymbol = normalizeStrictCostBasisSymbol(symbol);
-  if (!normalizedSymbol) throw new Error('缺少有效股票代码');
-
-  const { error } = await supabase
-    .from('cost_basis_trades')
-    .insert({
-      id: trade.id,
-      user_id: user.id,
-      symbol: normalizedSymbol,
-      trade_type: trade.type,
-      price: trade.price,
-      shares: trade.shares,
-      trade_date: trade.date,
-    });
-  if (error) throw error;
-};
-
-export const deleteCostBasisTrade = async (id) => {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('未登录');
-
-  const { error } = await scopedDeleteById(supabase.from('cost_basis_trades'), id, user.id);
-  if (error) throw error;
-};
-
-export const deleteCostBasisSymbol = async (symbol) => {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('未登录');
-  const normalizedSymbol = normalizeCostBasisSymbol(symbol);
-  if (!normalizedSymbol) throw new Error('缺少有效股票代码');
-
-  const { error } = await scopedDeleteByField(supabase.from('cost_basis_trades'), 'symbol', normalizedSymbol, user.id);
   if (error) throw error;
 };

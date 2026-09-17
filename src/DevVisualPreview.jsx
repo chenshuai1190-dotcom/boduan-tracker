@@ -1961,12 +1961,6 @@ function StandardDevVisualPreview({ initialTab = '' }) {
       window.cancelAnimationFrame(secondFrame);
     };
   }, [showAddTrade, tqqqTradePreviewScrollBottom]);
-  const [costBasisActiveSymbol, setCostBasisActiveSymbol] = React.useState('');
-  const [costBasisData, setCostBasisData] = React.useState({});
-  const [costBasisNewSymbol, setCostBasisNewSymbol] = React.useState('');
-  const [costBasisNewTrade, setCostBasisNewTrade] = React.useState({ type: 'buy', price: '', shares: '', date: new Date().toISOString().slice(0, 10) });
-  const [showCostBasisAdd, setShowCostBasisAdd] = React.useState(false);
-  const [showCostBasisTrade, setShowCostBasisTrade] = React.useState(false);
   const [watchlistDetailTargetUsd, setWatchlistDetailTargetUsd] = React.useState(250);
   const watchlistDetailTooltipPreview = typeof window !== 'undefined'
     && new URLSearchParams(window.location.search).get('stockDetailTooltip') === '1';
@@ -2007,7 +2001,6 @@ function StandardDevVisualPreview({ initialTab = '' }) {
       active = false;
     };
   }, [ma200LivePreview]);
-  const [expandedTrades, setExpandedTrades] = React.useState({});
   const [expandedWaves, setExpandedWaves] = React.useState({});
   const [waveNotes, setWaveNotes] = React.useState({});
   const [editingNoteId, setEditingNoteId] = React.useState(null);
@@ -2616,9 +2609,6 @@ function StandardDevVisualPreview({ initialTab = '' }) {
       swingPreviewRowsRef.current = swingPreviewRowsRef.current.filter((wave) => wave.id !== id);
       return {};
     },
-    deleteCostBasisTrade: async () => ({}),
-    deleteCostBasisSymbol: async () => ({}),
-    insertCostBasisTrade: async () => ({}),
   }), [competitionPreviewState, mockPnlPortfolioSnapshots, stockDetailSnapshotHistory]);
 
   const fmt = React.useCallback((n, digits = 2) => {
@@ -2670,33 +2660,6 @@ function StandardDevVisualPreview({ initialTab = '' }) {
       setPreviewConfirmSubmitting(false);
     }
   }, [previewConfirmModal]);
-  const calcCostBasis = React.useCallback((rows = []) => {
-    let shares = 0;
-    let totalCost = 0;
-    let realizedPnl = 0;
-    [...rows].sort((a, b) => (a.date || '').localeCompare(b.date || '')).forEach((row) => {
-      const price = Number(row.price) || 0;
-      const qty = Number(row.shares) || 0;
-      if (price <= 0 || qty <= 0) return;
-      if (row.type === 'sell') {
-        const avg = shares > 0 ? totalCost / shares : 0;
-        const sold = Math.min(shares, qty);
-        realizedPnl += sold * (price - avg);
-        totalCost -= sold * avg;
-        shares -= sold;
-        if (shares <= 0) {
-          shares = 0;
-          totalCost = 0;
-        }
-        return;
-      }
-      shares += qty;
-      totalCost += price * qty;
-    });
-    const avgCost = shares > 0 ? totalCost / shares : 0;
-    return { shares, totalCost, avgCost, effectiveCost: avgCost, realizedPnl };
-  }, []);
-
   const ctx = {
     accountDeleteConfirmId,
     accounts,
@@ -3197,21 +3160,17 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     availableCashStatusReady: true,
     addTrade: async () => {},
     AlertCircle,
-    calcCostBasis,
     calmRoomActiveCount: 1,
     calmRoomAvgActiveDays: 12,
     calmRoomCompletedCount: 1,
     cacheStockLogo: noop,
     CheckCircle2,
-    costBasisActiveSymbol,
-    costBasisData,
     communityCompetitionClient,
     communityCompetitionNow,
     db,
     deleteStockTradeRecord: async () => {},
     disableCommunityCompetitionCache: !competitionResumeSmoke,
     editingNoteId,
-    expandedTrades,
     expandedWaves,
     fetching: false,
     fetchRealtimePrices: async () => {},
@@ -3265,20 +3224,13 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     loadAvailableCashMovements: loadPreviewAvailableCashMovements,
     mutateAvailableCash: mutatePreviewAvailableCash,
     reverseAvailableCashMovement: reversePreviewAvailableCashMovement,
-    setCostBasisActiveSymbol,
-    setCostBasisData,
-    setCostBasisNewSymbol,
-    setCostBasisNewTrade,
     setEditingNoteId,
-    setExpandedTrades,
     setExpandedWaves,
     setLookupStatus: setTradeLookupStatus,
     setMarketColorMode,
     setNewTrade,
     setPortfolioCurrencyMode: setTradeCurrencyMode,
     setShowAddTrade,
-    setShowCostBasisAdd,
-    setShowCostBasisTrade,
     setTradeEntryScope,
     setWaveNotes,
     showAddTrade,
