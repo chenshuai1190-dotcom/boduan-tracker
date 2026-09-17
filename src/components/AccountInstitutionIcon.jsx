@@ -6,9 +6,10 @@ import ibkr from '../assets/account-institutions/ibkr-logo-icon.png';
 import winglung from '../assets/account-institutions/winglung-logo-original.png';
 import longbridge from '../assets/account-institutions/longbridge-icon-152.png';
 import boci from '../assets/account-institutions/boci-logo-original.png';
+import eastmoney from '../assets/account-institutions/eastmoney-apple-icon.png';
 import './AccountInstitutionIcon.css';
 
-const SOURCES = { alipay, cmb, ibkr, winglung, longbridge, boci };
+const SOURCES = { alipay, cmb, ibkr, winglung, longbridge, boci, eastmoney };
 
 export default function AccountInstitutionIcon({ account, fallback = null }) {
   const institution = resolveAccountInstitution(account);

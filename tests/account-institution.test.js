@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import { resolveAccountInstitution } from '../src/lib/accountInstitution.js';
 
-test('resolves the six supported institutions and the existing user account names', () => {
+test('resolves the seven supported institutions and the existing user account names', () => {
   const cases = {
     支付宝现金: 'alipay',
     支付宝理财: 'alipay',
@@ -14,6 +14,11 @@ test('resolves the six supported institutions and the existing user account name
     招收永隆银行: 'winglung',
     长桥证券: 'longbridge',
     中银国际: 'boci',
+    东方财富: 'eastmoney',
+    东方财富证券: 'eastmoney',
+    'East Money': 'eastmoney',
+    Eastmoney: 'eastmoney',
+    'Eastmoney Securities': 'eastmoney',
   };
   for (const [name, expected] of Object.entries(cases)) {
     assert.equal(resolveAccountInstitution({ name }), expected, name);
@@ -32,6 +37,9 @@ test('normalizes case, full-width characters, whitespace, hyphens and known acco
     'BOCI Securities (HKD)': 'boci',
     'Bank of China International': 'boci',
     ' 招商 银行 - 美元账户 ': 'cmb',
+    ' ＥＡＳＴＭＯＮＥＹ — CNY Account ': 'eastmoney',
+    'East Money Securities（人民币）': 'eastmoney',
+    '东方财富证券（人民币）现金账户': 'eastmoney',
   };
   for (const [name, expected] of Object.entries(cases)) {
     assert.equal(resolveAccountInstitution({ name }), expected, name);
@@ -49,6 +57,8 @@ test('supports common Chinese aliases and traditional names without confusing pa
     長橋證券: 'longbridge',
     中銀國際: 'boci',
     中銀國際證券: 'boci',
+    東方財富: 'eastmoney',
+    東方財富證券: 'eastmoney',
   };
   for (const [name, expected] of Object.entries(cases)) {
     assert.equal(resolveAccountInstitution({ name }), expected, name);
@@ -61,8 +71,17 @@ test('does not use substring matches or accept similar but different institution
     '微信', '微信现金', '支付宝商家服务', '支付宝（微信）',
     '原IBKR', 'IBKR其他', 'IBKR (unknown)', 'IBKR/长桥证券',
     '招商银行与中银国际', '长桥大学', 'BOC', 'IB', '未知账户',
+    '东方证券', '東方證券', '东方财富期货', '東方財富期貨',
+    '天天基金', '东方财富天天基金', 'Eastmoney Futures',
+    '原东方财富', '东方财富其他', '东方财富/东方证券',
   ];
   for (const name of names) assert.equal(resolveAccountInstitution({ name }), null, name);
+});
+
+test('resolves a historical Eastmoney account after its balance reaches zero', () => {
+  const account = Object.freeze({ name: '东方财富', balance: 0, currency: 'CNY' });
+  assert.equal(resolveAccountInstitution(account), 'eastmoney');
+  assert.equal(account.balance, 0);
 });
 
 test('missing names keep the fallback even when other fields name an institution', () => {

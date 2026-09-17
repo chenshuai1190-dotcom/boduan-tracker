@@ -10,6 +10,7 @@ const INSTITUTION_ALIASES = {
   ],
   longbridge: ['长桥证券', '長橋證券', '长桥', '長橋', 'longbridge', 'longbridge securities'],
   boci: ['中银国际', '中銀國際', '中银国际证券', '中銀國際證券', 'boci', 'boci securities', 'bank of china international'],
+  eastmoney: ['东方财富', '东方财富证券', '東方財富', '東方財富證券', 'east money', 'eastmoney', 'eastmoney securities'],
 };
 
 function normalizeName(name) {
