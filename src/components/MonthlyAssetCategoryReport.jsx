@@ -14,6 +14,7 @@ import {
   WalletCards,
 } from 'lucide-react';
 import { t } from '../lib/i18n.js';
+import AccountInstitutionIcon from './AccountInstitutionIcon.jsx';
 
 const NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif';
 const UP_COLOR = '#ff4b1f';
@@ -262,7 +263,7 @@ export default function MonthlyAssetAccountReport({
                         <div className="flex items-start justify-between gap-2.5">
                           <div className="flex min-w-0 items-start gap-2.5">
                             <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-[9px] bg-white/[0.055] text-white/[0.70]">
-                              <CategoryIcon category={row.type} />
+                              <AccountInstitutionIcon account={row} fallback={<CategoryIcon category={row.type} />} />
                             </span>
                             <div className="min-w-0">
                               <div className="truncate text-[13px] font-medium text-white/[0.91]">{accountNameLabel(row.name)}</div>
