@@ -1,6 +1,6 @@
 import React from 'react';
 import { ArrowDown, ArrowDownUp, ArrowUp, Minus, Plus } from 'lucide-react';
-import { stockRsiPresentation } from '../lib/stockRsiPresentation.js';
+import { stockTrendRsiPresentation } from '../lib/stockTrendRsiPresentation.js';
 import './HomeWatchlistReport.css';
 
 const AUXILIARY_METRICS = {
@@ -178,7 +178,7 @@ export default function HomeWatchlistReport({
                 ? item.pnlValue
                 : auxiliaryMetric === 'drawdown' ? item.highDrawdown : item.ytdChangePercent;
               const rsi = item.stockRsi;
-              const rsiDisplay = stockRsiPresentation(rsi, english);
+              const rsiDisplay = stockTrendRsiPresentation(rsi, english);
               const rsiDateLabel = rsiDisplay.available ? `${english ? 'Daily RSI(6)' : '日线 RSI(6)'} · ${rsi.asOf}` : undefined;
               const divergenceLabel = rsiDisplay.momentumLabel;
 
@@ -202,7 +202,7 @@ export default function HomeWatchlistReport({
                     )}
                     {showRsi && (
                       <span className="hwr-divergence" data-divergence={rsiDisplay.divergence}
-                        title={rsiDisplay.momentumAvailable && rsi.divergenceDate ? `${divergenceLabel} · ${rsi.divergenceDate}` : undefined}
+                        title={rsiDisplay.momentumAvailable && rsiDisplay.divergenceDate ? `${divergenceLabel} · ${rsiDisplay.divergenceDate}` : undefined}
                       >{divergenceLabel}</span>
                     )}
                   </div>

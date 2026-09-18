@@ -10,6 +10,7 @@ import { STOCK_RSI_DIVERGENCE_VERSION } from '../src/lib/stockRsiConfig.js';
 import { buildStockRsi } from '../server/quote/stockRsi.js';
 import { buildStockRsiRisk } from '../server/quote/stockRsiRisk.js';
 import { stockRsiPresentation } from '../src/lib/stockRsiPresentation.js';
+import { stockTrendRsiPresentation } from '../src/lib/stockTrendRsiPresentation.js';
 import { hasStockTrendRsiSignal } from '../src/lib/stockTrendRsiSignal.js';
 
 const now = Date.parse('2026-09-11T15:00:00Z');
@@ -70,7 +71,7 @@ function completedDailyRows(count = 180) {
   });
 }
 
-async function providerQuote(eodRows, { clock = now, historyStatus = 200, includeStockDetail = false, splitStatus = 200 } = {}) {
+async function providerQuote(eodRows, { clock = now, historyStatus = 200, includeStockDetail = false, splitStatus = 200, symbol = 'NVDA' } = {}) {
   const originalFetch = globalThis.fetch;
   const originalNow = Date.now;
   const requests = [];
@@ -79,20 +80,20 @@ async function providerQuote(eodRows, { clock = now, historyStatus = 200, includ
   globalThis.fetch = async url => {
     const parsed = new URL(url);
     requests.push({ host: parsed.hostname, path: parsed.pathname, from: parsed.searchParams.get('from') });
-    if (parsed.pathname === '/api/us-quote-delayed') return response({ data: { 'NVDA.US': {
+    if (parsed.pathname === '/api/us-quote-delayed') return response({ data: { [`${symbol}.US`]: {
       lastTradePrice: '145.25', ethPrice: '145.25', previousClosePrice: '142.618815', timestamp: clock / 1000,
     } } });
-    if (parsed.pathname === '/api/eod/NVDA.US') return response(eodRows, historyStatus);
-    if (parsed.pathname === '/api/splits/NVDA.US') return response([], splitStatus);
+    if (parsed.pathname === `/api/eod/${symbol}.US`) return response(eodRows, historyStatus);
+    if (parsed.pathname === `/api/splits/${symbol}.US`) return response([], splitStatus);
     if (parsed.hostname === 'query1.finance.yahoo.com') return response({ chart: { result: [] } });
     throw new Error('Unexpected provider request in RSI integration');
   };
   try {
-    const quote = await fetchStockQuote('NVDA', { eodhdKey: 'mock-only', includeStockDetail });
+    const quote = await fetchStockQuote(symbol, { eodhdKey: 'mock-only', includeStockDetail });
     assert.equal(requests.length, includeStockDetail ? 4 : 3, 'risk must reuse existing requests');
     assert.deepEqual(requests.map(request => request.path).sort(), [
-      '/api/eod/NVDA.US', ...(includeStockDetail ? ['/api/splits/NVDA.US'] : []),
-      '/api/us-quote-delayed', '/v8/finance/chart/NVDA',
+      `/api/eod/${symbol}.US`, ...(includeStockDetail ? [`/api/splits/${symbol}.US`] : []),
+      '/api/us-quote-delayed', `/v8/finance/chart/${symbol}`,
     ]);
     assert.equal(requests.filter(request => request.path.includes('/technical')).length, 0);
     const expectedStart = new Date(clock);
@@ -118,6 +119,7 @@ test('ordinary provider quote calculates RSI from existing adjusted daily closes
   assert.equal(quote.stockRsi.divergenceVersion, STOCK_RSI_DIVERGENCE_VERSION);
   assert.ok(divergenceStates.includes(quote.stockRsi.divergenceState));
   assert.equal(Object.hasOwn(quote.stockRsi, 'bearishDivergence'), false);
+  assert.equal(hasStockTrendRsiSignal(quote.stockRsi), true, 'ordinary Home quotes must carry the shared divergence state');
   assert.equal(quote.price, 145.25);
   assert.equal(quote.dailyPnlBaselineClose, rows.at(-1).adjusted_close);
   assert.equal(quote.dailyPnlPrice, 145.25);
@@ -281,8 +283,10 @@ test('detail risk reuses verified MA history while ordinary quotes keep active r
   assert.equal(ordinary.stockRsi.divergenceRiskLevel, null);
   assert.equal(missingSplits.stockRsi.divergenceRiskLevel, null);
   assert.equal(typeof detail.stockRsi.divergenceRiskScore, 'number');
-  assert.equal(ordinary.stockRsi.trendMomentum, undefined, 'ordinary quotes keep their existing contract');
-  assert.equal(hasStockTrendRsiSignal(detail.stockRsi), true, 'stock details explicitly include the new trend contract');
+  assert.equal(hasStockTrendRsiSignal(ordinary.stockRsi), true);
+  assert.equal(hasStockTrendRsiSignal(detail.stockRsi), true);
+  assert.deepEqual(ordinary.stockRsi.trendMomentum, detail.stockRsi.trendMomentum,
+    'Home and Stock Trend must use identical completed-daily RSI states without loading detail data on Home');
   assert.ok(['NONE', 'LOW', 'MEDIUM', 'HIGH'].includes(detail.stockRsi.divergenceRiskLevel));
   const detailedRsi = buildStockRsi(rows, { completedCutoffDate: '2026-09-10', includeTrendMomentum: true });
   assert.deepEqual(detail.stockRsi, { ...detailedRsi, ...buildStockRsiRisk(original, {
@@ -303,4 +307,23 @@ test('detail risk reuses verified MA history while ordinary quotes keep active r
     [{ symbol: 'NVDA', price: 125, timestamp: now, source: 'EODHD_WS' }], 'live', cached, { now });
   assert.deepEqual(ticked[0].stockRsi.divergenceDebug, detail.stockRsi.divergenceDebug,
     'debug contributions survive real REST projection and remain completed-day data after ticks');
+});
+
+test('META replay supplies matching Home and trend states through ordinary and detail quote requests', async () => {
+  const fixture = JSON.parse(readFileSync(new URL('./fixtures/stock-rsi/META-2026-09-17.json', import.meta.url)));
+  const options = { symbol: 'META', clock: Date.parse('2026-09-17T23:00:00Z') };
+  const home = await providerQuote(fixture.rows, options);
+  const detail = await providerQuote(fixture.rows, { ...options, includeStockDetail: true });
+  assert.deepEqual(home.stockRsi.trendMomentum, detail.stockRsi.trendMomentum);
+  assert.equal(home.stockRsi.value.toFixed(1), '87.8');
+  assert.equal(home.stockRsi.trendMomentum.rsiState, 'STRONGLY_OVERBOUGHT');
+  assert.equal(home.stockRsi.trendMomentum.divergenceState, 'WATCH');
+  assert.equal(home.stockRsi.trendMomentum.chaseBuyBlocked, false);
+  const cached = refreshAppCache([], [home], [{ symbol: 'META', price: 682.31 }]);
+  const { watchlistRows } = buildLedgerQuoteUniverse([], [{ symbol: 'META' }], cached);
+  assert.deepEqual(stockTrendRsiPresentation(watchlistRows[0].stockRsi), stockTrendRsiPresentation(detail.stockRsi));
+  assert.equal(stockTrendRsiPresentation(watchlistRows[0].stockRsi).momentumLabel, '背离观察');
+  const legacy = buildStockRsi(fixture.rows, { completedCutoffDate: fixture.completedCutoffDate });
+  assert.equal(Object.hasOwn(legacy, 'trendMomentum'), false, 'independent decision callers retain the opt-in default');
+  for (const [key, value] of Object.entries(legacy)) assert.deepEqual(home.stockRsi[key], value, key);
 });

@@ -4,6 +4,17 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '首页自选同步股票趋势的 RSI(6) 区间与顶背离状态，统一显示强超买、背离观察、潜在顶背离和顶背离确认。',
+      '首页复用已有日线计算和共享展示规则；旧行情缓存缺少新背离状态时显示未知，正常行情刷新后更新。',
+    ],
+    itemsEn: [
+      'Home Watchlist now shares Stock Trend’s RSI(6) zones and divergence states, including strongly overbought, divergence watch, potential bearish divergence and confirmed bearish divergence.',
+      'Home reuses existing daily history and shared display rules. Older quote data without the new divergence state displays Unknown until the next normal quote refresh.',
+    ],
+  },
+  {
+    ver: 'v10.7.9.539', date: '2026-09-18',
+    items: [
       '股票趋势的 RSI(6) 区分正常、超买和强超买，分别显示无背离、背离观察、潜在顶背离和顶背离确认。',
       '新完成日线可与已确认的历史波段峰即时比较，无需等待当前高点右侧日线；强超买叠加潜在或确认顶背离提示禁止追买，背离观察只作预警。',
     ],

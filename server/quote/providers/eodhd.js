@@ -803,7 +803,7 @@ export async function fetchStockQuote(symbol, {
           // adds no provider request and never participates in quote valuation.
           stockRsi = buildStockRsi(quoteEodData, {
             completedCutoffDate: completedEodCutoffDate,
-            includeTrendMomentum: includeStockDetail,
+            includeTrendMomentum: true,
           });
           // Read-only second layer. Ordinary quotes do not fetch split/MA data
           // for scoring; an active event without verified MA context stays unscored.

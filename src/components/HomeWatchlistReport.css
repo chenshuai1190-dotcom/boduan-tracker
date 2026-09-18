@@ -241,12 +241,10 @@
 .hwr-rsi-value { color: var(--hwr-text); font-size: 16px; font-weight: 400; line-height: 21px; }
 .hwr-rsi-zone { max-width: 100%; color: var(--hwr-muted); font-size: 10px; font-weight: 400; line-height: 13px; white-space: normal; }
 .hwr-rsi[data-rsi-zone="overbought"] { --hwr-rsi-color: #d5ad72; }
-.hwr-rsi[data-rsi-zone="oversold"] { --hwr-rsi-color: #68b8a5; }
 .hwr-rsi[data-rsi-zone="overbought"] .hwr-rsi-value,
-.hwr-rsi[data-rsi-zone="oversold"] .hwr-rsi-value,
 .hwr-rsi-zone { color: var(--hwr-rsi-color, var(--hwr-muted)); }
 .hwr-divergence { min-width: 0; align-self: start; padding-top: 1px; color: var(--hwr-muted); font-size: 12px; font-weight: 400; line-height: 21px; text-align: right; overflow-wrap: anywhere; }
-.hwr-divergence[data-divergence="forming"],
+.hwr-divergence[data-divergence="potential"],
 .hwr-divergence[data-divergence="confirmed"] { color: #d5ad72; }
 
 @media (max-width: 420px) {
