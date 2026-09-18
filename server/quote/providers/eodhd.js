@@ -801,7 +801,10 @@ export async function fetchStockQuote(symbol, {
           highSource = 'eodhd-adjusted';
           // Reuse the already-fetched daily history. This display-only signal
           // adds no provider request and never participates in quote valuation.
-          stockRsi = buildStockRsi(quoteEodData, { completedCutoffDate: completedEodCutoffDate });
+          stockRsi = buildStockRsi(quoteEodData, {
+            completedCutoffDate: completedEodCutoffDate,
+            includeTrendMomentum: includeStockDetail,
+          });
           // Read-only second layer. Ordinary quotes do not fetch split/MA data
           // for scoring; an active event without verified MA context stays unscored.
           stockRsi = {

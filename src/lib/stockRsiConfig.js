@@ -1,6 +1,18 @@
 export const STOCK_RSI_DIVERGENCE_VERSION = 'rsi6-lifecycle-v3';
 export const DIVERGENCE_STATES = Object.freeze(['NONE', 'FORMING', 'CONFIRMED', 'REALIZED', 'INVALIDATED']);
 
+// Trend-page observations are independent of the legacy drawdown lifecycle
+// consumed by stock-decision and its risk score.
+export const STOCK_TREND_RSI_VERSION = 'rsi6-trend-v1';
+export const STOCK_TREND_RSI_RULES = Object.freeze({
+  RSI_OVERBOUGHT: 70,
+  RSI_STRONGLY_OVERBOUGHT: 80,
+  MIN_PRICE_BREAKOUT_PCT: 0.5,
+  MIN_RSI_DIVERGENCE_DELTA: 3,
+  REFERENCE_PIVOT_WINDOW: 2,
+  MIN_REFERENCE_RSI: 70,
+});
+
 // Initial strategy parameters. These describe completed daily observations,
 // not intraday signals or guarantees about subsequent price movement.
 export const STOCK_RSI_RULES = Object.freeze({

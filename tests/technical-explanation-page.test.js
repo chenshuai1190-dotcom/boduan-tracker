@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import React from 'react';
 import { transformWithOxc } from 'vite';
 import { lifecycleSignal } from './fixtures/stock-rsi-lifecycle.js';
+import { STOCK_TREND_RSI_VERSION } from '../src/lib/stockRsiConfig.js';
 
 const pageUrl = new URL('../src/pages/WatchlistStockDetailPage.jsx', import.meta.url);
 const source = fs.readFileSync(pageUrl, 'utf8');
@@ -42,7 +43,12 @@ function harness(range = '6m') {
   hooks.reset();
   const ctx = { language: 'zh', watchlistStockDetailSymbol: 'SNOW', stockDetailInitialRange: range,
     watchlistStockDetailDataOverride: { stockDetail: { history, currency: 'USD', asOfDate: dates.at(-1),
-      stockRsi: lifecycleSignal('NONE', { asOf: dates.at(-1), value: 52.7 }), indicators: { ma200: 90 } } } };
+      stockRsi: lifecycleSignal('NONE', { asOf: dates.at(-1), value: 52.7, trendMomentum: {
+        version: STOCK_TREND_RSI_VERSION, asOf: dates.at(-1), rsiState: 'NORMAL', divergenceState: 'NONE',
+        currentPrice: 120, currentRSI6: 52.7, previousPeak: null, priceBreakoutPct: null,
+        rsiDivergenceDelta: null, priceHigherHigh: null, rsiLowerHigh: null, divergenceDate: null,
+        confirmation: null, chaseBuyBlocked: false,
+      } }), indicators: { ma200: 90 } } } };
   return () => hooks.render(Page, { ctx });
 }
 const chart = tree => nodes(tree, n => n.type?.name === 'PriceChart')[0];

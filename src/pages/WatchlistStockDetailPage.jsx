@@ -21,7 +21,7 @@ import { t } from '../lib/i18n.js';
 import { marketHexColor } from '../lib/marketColorMode.js';
 import { loadStockFundamentals } from '../lib/stockFundamentals.js';
 import { loadStockValuation } from '../lib/stockValuation.js';
-import { stockRsiPresentation } from '../lib/stockRsiPresentation.js';
+import { stockTrendRsiPresentation } from '../lib/stockTrendRsiPresentation.js';
 import { deriveStockMaStructure, deriveStockMaTrend } from '../lib/stockMaStructure.js';
 import { buildTechnicalExplanation } from '../lib/technicalExplanation.js';
 import {
@@ -1455,7 +1455,7 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
   ), [range, visibleDailyHistory, visibleWeeklyHistory]);
   const close = React.useMemo(() => resolveStockDetailClose(history), [history]);
   const rsiSignal = !loading && stockDetail?.stockRsi?.asOf && stockDetail.stockRsi.asOf === close.asOfDate ? stockDetail.stockRsi : null;
-  const rsiDisplay = stockRsiPresentation(rsiSignal, language === 'en');
+  const rsiDisplay = stockTrendRsiPresentation(rsiSignal, language === 'en');
   const maStructure = React.useMemo(() => deriveStockMaStructure(
     loading || loadError ? null : stockDetail?.history?.at(-1),
     { asOfDate: close.asOfDate },
@@ -1708,7 +1708,7 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
             <div className="stock-report-rsi-status">
               <span className="stock-report-rsi-zone">{rsiDisplay.zoneLabel || '—'}</span>
               <span data-watchlist-rsi-divergence={rsiDisplay.divergence}
-                title={rsiDisplay.momentumAvailable && rsiSignal.divergenceDate ? `${rsiDisplay.momentumLabel} · ${rsiSignal.divergenceDate}` : undefined}
+                title={rsiDisplay.momentumAvailable && rsiDisplay.divergenceDate ? `${rsiDisplay.momentumLabel} · ${rsiDisplay.divergenceDate}` : undefined}
               >
                 <span aria-hidden="true">·</span>{rsiDisplay.momentumLabel}
               </span>

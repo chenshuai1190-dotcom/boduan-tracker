@@ -61,7 +61,7 @@ test('stock trend reuses the detail response for RSI without requesting a separa
   assert.equal((pageSource.match(/\/api\/quote\?symbols=/g) || []).length, 1, 'the existing stock-detail response is the only quote read');
   assert.ok(pageSource.includes('const [nextDetail, nextEarnings] = await Promise.all([detailPromise, earningsPromise])'));
   assert.ok(pageSource.includes('setStockDetail(nextDetail)'));
-  assert.match(pageSource, /stockRsiPresentation\(rsiSignal, language === 'en'\)/);
+  assert.match(pageSource, /stockTrendRsiPresentation\(rsiSignal, language === 'en'\)/);
   assert.doesNotMatch(pageSource, /(?:rows\.(?:quoteRow|watchlistRow)|quoteRows|homeWatchlist)\??\.stockRsi/, 'the metric must not mix a cached quote signal with a different detail history');
   assert.ok(pageSource.includes("['QQQ', 'TQQQ'].includes(symbol)"), 'the independent fund-composition feature remains available');
   assert.ok(pageSource.includes('fetchFundComposition({ token, symbol })'));

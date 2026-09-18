@@ -4,6 +4,17 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '股票趋势的 RSI(6) 区分正常、超买和强超买，分别显示无背离、背离观察、潜在顶背离和顶背离确认。',
+      '新完成日线可与已确认的历史波段峰即时比较，无需等待当前高点右侧日线；强超买叠加潜在或确认顶背离提示禁止追买，背离观察只作预警。',
+    ],
+    itemsEn: [
+      'Stock Trend separates normal, overbought and strongly overbought RSI(6) levels from no divergence, divergence watch, potential bearish divergence and confirmed bearish divergence.',
+      'Each newly completed daily bar can be compared with a confirmed historical swing peak without waiting for right-side bars around the current high. Strongly overbought readings with potential or confirmed divergence flag chasing risk; Watch remains an alert only.',
+    ],
+  },
+  {
+    ver: 'v10.7.9.538', date: '2026-09-17',
+    items: [
       '移除独立摊薄成本工具及其入口、专用计算、缓存与云端读写；波段工具、正式交易和持仓成本计算保持不变。',
       '旧工具记录不再加载、同步或加入行情订阅；历史记录保留，不并入其他账本。',
     ],

@@ -1,5 +1,8 @@
 import { STOCK_RSI_RULES, STOCK_RSI_DIVERGENCE_VERSION, resolveStockRsiRules } from '../../src/lib/stockRsiConfig.js';
 
+import { compareNumbers, confirmedPivot } from './stockRsiPivot.js';
+import { buildStockTrendMomentum, emptyStockTrendMomentum } from './stockTrendRsi.js';
+
 const PERIOD = STOCK_RSI_RULES.RSI_PERIOD;
 
 function validDate(value) {
@@ -12,11 +15,6 @@ function adjustedClose(value) {
   const parsed = typeof value === 'number' ? value
     : typeof value === 'string' && /^(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i.test(value.trim()) ? Number(value) : NaN;
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
-}
-
-function compareNumbers(left, right) {
-  const tolerance = Number.EPSILON * 8 * Math.max(1, Math.abs(left), Math.abs(right));
-  return Math.abs(left - right) <= tolerance ? 0 : left > right ? 1 : -1;
 }
 
 function normalizedHigh(row, close) {
@@ -96,16 +94,6 @@ function wilderSeries(rows) {
     if (i >= PERIOD) values[i] = rsiValue(gain, loss);
   }
   return values;
-}
-
-function confirmedPivot(rows, index, rules) {
-  if (index < rules.RSI_WARMUP_CLOSES - 1 || index < rules.PIVOT_WINDOW) return false;
-  for (let offset = 1; offset <= rules.PIVOT_WINDOW; offset += 1) {
-    // Equal/plateau highs are not distinct confirmed swing highs.
-    if (compareNumbers(rows[index].high, rows[index - offset].high) <= 0
-      || compareNumbers(rows[index].high, rows[index + offset].high) <= 0) return false;
-  }
-  return true;
 }
 
 function dailyMa30(rows) {
@@ -239,7 +227,7 @@ function divergenceLifecycle(rows, values, rules) {
  * Its local MA30 shares the same adjusted-close basis; no quote/account/ledger
  * state or existing moving-average module participates in this calculation.
  */
-export function buildStockRsi(eodRows, { completedCutoffDate, config } = {}) {
+export function buildStockRsi(eodRows, { completedCutoffDate, config, includeTrendMomentum = false } = {}) {
   const result = {
     period: PERIOD,
     value: null,
@@ -250,6 +238,7 @@ export function buildStockRsi(eodRows, { completedCutoffDate, config } = {}) {
     divergenceDate: null,
     divergenceConfirmationStrength: null,
     divergenceEvent: null,
+    ...(includeTrendMomentum ? { trendMomentum: emptyStockTrendMomentum() } : {}),
   };
   const rules = resolveStockRsiRules(config);
   if (!rules) return result;
@@ -260,6 +249,9 @@ export function buildStockRsi(eodRows, { completedCutoffDate, config } = {}) {
   if (rows.length < rules.RSI_WARMUP_CLOSES) return result;
   const values = wilderSeries(rows);
   result.value = values[values.length - 1];
+  if (includeTrendMomentum) {
+    result.trendMomentum = buildStockTrendMomentum(rows, values, { rules, divergenceAvailable: normalized.divergenceAvailable });
+  }
   if (!normalized.divergenceAvailable) return result;
   const { active, observedEvent } = divergenceLifecycle(rows, values, rules);
   if (active) {

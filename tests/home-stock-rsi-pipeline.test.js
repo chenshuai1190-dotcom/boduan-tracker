@@ -10,6 +10,7 @@ import { STOCK_RSI_DIVERGENCE_VERSION } from '../src/lib/stockRsiConfig.js';
 import { buildStockRsi } from '../server/quote/stockRsi.js';
 import { buildStockRsiRisk } from '../server/quote/stockRsiRisk.js';
 import { stockRsiPresentation } from '../src/lib/stockRsiPresentation.js';
+import { hasStockTrendRsiSignal } from '../src/lib/stockTrendRsiSignal.js';
 
 const now = Date.parse('2026-09-11T15:00:00Z');
 const divergenceStates = ['NONE', 'FORMING', 'CONFIRMED', 'REALIZED', 'INVALIDATED'];
@@ -176,6 +177,8 @@ test('all five lifecycle states and nested event evidence survive REST cache and
   const signals = divergenceStates.map(state => lifecycleSignal(state));
   signals.push(lifecycleSignal('CONFIRMED', 'STRONG'));
   signals.push({ ...lifecycleSignal(null), value: null, asOf: null });
+  const meta = JSON.parse(readFileSync(new URL('./fixtures/stock-rsi/META-2026-09-17.json', import.meta.url)));
+  signals.push(buildStockRsi(meta.rows, { completedCutoffDate: meta.completedCutoffDate, includeTrendMomentum: true }));
   for (const stockRsi of signals) {
     const fresh = { symbol: 'NVDA', price: 120, previousClose: 110, dailyBaselineClose: 110,
       dailyBaselineDate: '2026-09-10', stockRsi };
@@ -278,8 +281,11 @@ test('detail risk reuses verified MA history while ordinary quotes keep active r
   assert.equal(ordinary.stockRsi.divergenceRiskLevel, null);
   assert.equal(missingSplits.stockRsi.divergenceRiskLevel, null);
   assert.equal(typeof detail.stockRsi.divergenceRiskScore, 'number');
+  assert.equal(ordinary.stockRsi.trendMomentum, undefined, 'ordinary quotes keep their existing contract');
+  assert.equal(hasStockTrendRsiSignal(detail.stockRsi), true, 'stock details explicitly include the new trend contract');
   assert.ok(['NONE', 'LOW', 'MEDIUM', 'HIGH'].includes(detail.stockRsi.divergenceRiskLevel));
-  assert.deepEqual(detail.stockRsi, { ...original, ...buildStockRsiRisk(original, {
+  const detailedRsi = buildStockRsi(rows, { completedCutoffDate: '2026-09-10', includeTrendMomentum: true });
+  assert.deepEqual(detail.stockRsi, { ...detailedRsi, ...buildStockRsiRisk(original, {
     eodRows: rows, stockDetail: detail.stockDetail, completedCutoffDate: '2026-09-10',
   }) });
   for (const quote of [ordinary, detail, missingSplits]) {
