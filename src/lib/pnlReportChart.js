@@ -35,6 +35,25 @@ export function buildLinePoints(points = [], key, domain, width = 310, height = 
   });
 }
 
+export function buildChartRecordHighs(points = []) {
+  const records = [];
+  let peak = null;
+  for (const point of Array.isArray(points) ? points : []) {
+    if (!isRenderableChartValue(point?.value)) continue;
+    const value = Number(point.value);
+    if (peak === null) {
+      peak = value;
+      continue;
+    }
+    // Ignore rounding dust while preserving meaningful advances at any scale.
+    const epsilon = Number.EPSILON * Math.max(1, Math.abs(peak), Math.abs(value)) * 8;
+    if (value - peak <= epsilon) continue;
+    records.push(point);
+    peak = value;
+  }
+  return records;
+}
+
 export function isExplicitUnknownNetAssetPoint(point) {
   return isRenderableChartValue(point?.totalAssetUsd)
     && !isRenderableChartValue(point?.netAssetUsd);

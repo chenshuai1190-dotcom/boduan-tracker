@@ -3,6 +3,7 @@ import test from 'node:test';
 import {
   buildAreaPathFromPoints,
   buildChartDomain,
+  buildChartRecordHighs,
   buildLinePoints,
   buildLinePathFromPoints,
   isRenderableChartValue,
@@ -113,4 +114,68 @@ test('dynamic chart geometry keeps missing data absent and renders zero/negative
   const constant = buildChartDomain([{ totalAssetUsd: 100 }], ['totalAssetUsd'], 'assets');
   assert.ok(constant.min < 100 && constant.max > 100);
   assert.equal(buildLinePoints([{ totalAssetUsd: 100 }], 'totalAssetUsd', constant)[0].x, 155);
+});
+
+test('record highs exclude the baseline and retests while preserving original plotted-point references', () => {
+  const data = [5, 5, 4, 6, 6, 5, 7, 6].map((pnlPct, index) => Object.freeze({ date: `2026-09-${String(index + 1).padStart(2, '0')}`, pnlPct }));
+  const domain = buildChartDomain(data, ['pnlPct']);
+  const points = Object.freeze(buildLinePoints(data, 'pnlPct', domain).map(Object.freeze));
+  const before = JSON.stringify(points);
+  const records = buildChartRecordHighs(points);
+  assert.deepEqual(records.map(point => point.index), [3, 6]);
+  assert.equal(records[0], points[3]);
+  assert.equal(records[1], points[6]);
+  assert.equal(records[0].point, data[3]);
+  assert.equal(JSON.stringify(points), before);
+  assert.deepEqual(buildChartRecordHighs(points.slice(0, 1)), []);
+  assert.deepEqual(buildChartRecordHighs(points.slice(0, 3)), []);
+  assert.deepEqual(buildChartRecordHighs(), []);
+  assert.deepEqual(buildChartRecordHighs(null), []);
+});
+
+test('missing and invalid readings neither establish a zero baseline nor reset the existing peak', () => {
+  const invalid = [null, undefined, '', ' ', false, true, NaN, Infinity, -Infinity, 'unknown'];
+  const points = [
+    ...invalid.map(value => ({ value })),
+    { value: -5 }, { value: -3 },
+    ...invalid.map(value => ({ value })),
+    null, {}, { value: -4 }, { value: -3 }, { value: -2 },
+  ];
+  const records = buildChartRecordHighs(points);
+  assert.deepEqual(records.map(point => point.value), [-3, -2]);
+  assert.equal(records.at(-1), points.at(-1));
+  assert.deepEqual(buildChartRecordHighs(invalid.map(value => ({ value }))), []);
+});
+
+test('record highs correctly advance through negative values and zero without marking a later drawdown', () => {
+  const points = [-4, -8, -3, 0, 0, -1, 2, 1].map(value => ({ value }));
+  assert.deepEqual(buildChartRecordHighs(points).map(point => point.value), [-3, 0, 2]);
+  assert.equal(buildChartRecordHighs(points).at(-1), points[6], 'the latest record may precede the chart endpoint');
+});
+
+test('floating-point rounding does not create records but small real advances still do', () => {
+  for (const values of [
+    [0.3, 0.1 + 0.2, 0.3000000001],
+    [1e12, 1e12 + 0.001, 1e12 + 0.01],
+    [-0.3, -0.3 + Number.EPSILON, -0.2999999999],
+    [-Number.EPSILON, 0, Number.EPSILON, 1e-12],
+  ]) {
+    const points = values.map(value => ({ value }));
+    assert.deepEqual(buildChartRecordHighs(points), [points.at(-1)]);
+  }
+});
+
+test('each selected interval and each curve keeps its own record-high baseline', () => {
+  const data = [
+    { pnlPct: 100, netAssetUsd: 40 },
+    { pnlPct: 5, netAssetUsd: 60 },
+    { pnlPct: 6, netAssetUsd: 50 },
+    { pnlPct: 7, netAssetUsd: 70 },
+  ];
+  const domain = buildChartDomain(data, ['pnlPct', 'netAssetUsd']);
+  const returns = buildLinePoints(data, 'pnlPct', domain);
+  const assets = buildLinePoints(data, 'netAssetUsd', domain);
+  assert.deepEqual(buildChartRecordHighs(returns), []);
+  assert.deepEqual(buildChartRecordHighs(returns.slice(1)), [returns[2], returns[3]]);
+  assert.deepEqual(buildChartRecordHighs(assets), [assets[1], assets[3]]);
 });

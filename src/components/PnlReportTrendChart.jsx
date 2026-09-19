@@ -2,7 +2,7 @@ import React from 'react';
 import { marketTextClass } from '../lib/marketColorMode.js';
 import { isEnglishLanguage, t } from '../lib/i18n.js';
 import {
-  buildAreaPathFromPoints, buildLinePathFromPoints, buildChartDomain, buildLinePoints, chartX,
+  buildAreaPathFromPoints, buildLinePathFromPoints, buildChartDomain, buildLinePoints, buildChartRecordHighs, chartX,
   isExplicitUnknownNetAssetPoint, isRenderableChartValue, splitChartPointSegments,
 } from '../lib/pnlReportChart.js';
 import './PnlReportTrendChart.css';
@@ -68,6 +68,12 @@ export default function PnlReportTrendChart({
       : buildChartDomain(data, ['pnlPct', 'benchmarkPct'], 'percentage')
   ), [data, mode]);
   const primaryPoints = React.useMemo(() => buildLinePoints(data, primaryKey, primaryDomain), [data, primaryKey, primaryDomain]);
+  const recordHighPoints = React.useMemo(() => buildChartRecordHighs(primaryPoints), [primaryPoints]);
+  const latestRecordHigh = recordHighPoints.at(-1) || null;
+  const primaryColor = mode === 'assets' ? NET_ASSET_COLOR : color;
+  const recordHighLabel = mode === 'assets'
+    ? t(language, 'pnlReport.netAssetPeriodHigh', '净资产区间新高')
+    : t(language, 'pnlReport.returnPeriodHigh', '收益率区间新高');
   const totalAssetPoints = React.useMemo(() => mode === 'assets' ? buildLinePoints(data, 'totalAssetUsd', primaryDomain) : [], [data, mode, primaryDomain]);
   const benchmarkPoints = React.useMemo(() => showBenchmark ? buildLinePoints(data, 'benchmarkPct', primaryDomain) : [], [data, showBenchmark, primaryDomain]);
   const primarySegments = React.useMemo(() => mode === 'assets'
@@ -186,6 +192,10 @@ export default function PnlReportTrendChart({
           {primaryPaths.map((path, index) => <path key={`line-${index}`} d={path} fill="none" stroke={mode === 'assets' ? NET_ASSET_COLOR : color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />)}
           {primarySegments.filter(segment => segment.length === 1).map(segment => <circle key={`single-${segment[0].index}`} cx={segment[0].x} cy={segment[0].y} r="2.4" fill={mode === 'assets' ? NET_ASSET_COLOR : color} />)}
           {benchmarkPath && <path d={benchmarkPath} fill="none" stroke={BENCHMARK_COLOR} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />}
+          {latestRecordHigh && <g data-pnl-report-record-high={primaryKey} data-record-high-date={latestRecordHigh.point.date} pointerEvents="none">
+            <circle className="pnl-trend-high-halo" cx={latestRecordHigh.x} cy={latestRecordHigh.y} r="7" fill="none" stroke={primaryColor} strokeWidth="1.2" vectorEffect="non-scaling-stroke" />
+            <circle className="pnl-trend-high-core" cx={latestRecordHigh.x} cy={latestRecordHigh.y} r="3.3" fill={primaryColor} stroke="#08090b" strokeWidth="1.3" vectorEffect="non-scaling-stroke" />
+          </g>}
           {selectedSlot && (selectedPrimary || selectedTotalAsset || (mode === 'pnl' && selectedBenchmark)) && <>
             <line x1={selectedSlot.x} y1={PNL_CHART_PAD} x2={selectedSlot.x} y2={PNL_CHART_HEIGHT - PNL_CHART_PAD} stroke="#62626b" strokeDasharray="3 4" vectorEffect="non-scaling-stroke" />
             {[selectedPrimary && { point: selectedPrimary, color: mode === 'assets' ? NET_ASSET_COLOR : color },
@@ -197,5 +207,11 @@ export default function PnlReportTrendChart({
       <div className="pnl-trend-axis" style={{ width: `${Math.max(5, ...axisLabels.map(label => label.length))}ch` }} aria-hidden="true">{axisLabels.map((label, index) => <span key={index} style={{ top: `${gridLines[index] / PNL_CHART_HEIGHT * 100}%` }}>{label}</span>)}</div>
       <div className="pnl-trend-dates"><span>{data[0]?.label || '--'}</span><span>{data[Math.floor(data.length / 2)]?.label || '--'}</span><span>{data.at(-1)?.label || '--'}</span></div>
     </div>
+    {latestRecordHigh && <button type="button" className="pnl-trend-high-caption"
+      onClick={() => setSelectedIndex(latestRecordHigh.index)}
+      title={t(language, 'pnlReport.periodHighExplanation', '所选区间内，最近一次严格高于此前有效记录的数值；点击查看当日读数。')}>
+      <i style={{ background: primaryColor }} aria-hidden="true" />
+      <span>{recordHighLabel} · {String(latestRecordHigh.point.date).replaceAll('-', '/')}</span>
+    </button>}
   </div>;
 }
