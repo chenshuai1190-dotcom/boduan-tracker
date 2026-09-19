@@ -17,9 +17,6 @@
 .pnl-trend-axis { position: relative; min-width: 38px; color: #71717c; font-size: 10px; line-height: 14px; text-align: right; }
 .pnl-trend-axis span { position: absolute; right: 0; transform: translateY(-50%); white-space: nowrap; }
 .pnl-trend-dates { display: flex; justify-content: space-between; gap: 8px; min-width: 0; padding: 0 7px; color: #71717c; font-size: 10px; line-height: 15px; }
-.pnl-trend-high-halo { opacity: .45; transform-box: fill-box; transform-origin: center; animation: pnl-trend-record-high 2.4s ease-in-out infinite; }
 .pnl-trend-high-caption { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; max-width: 100%; padding: 7px 0; border: 0; background: transparent; color: #a4a4af; font-size: 11px; line-height: 18px; text-align: left; cursor: pointer; }
 .pnl-trend-high-caption i { width: 5px; height: 5px; flex-shrink: 0; border-radius: 50%; }
 .pnl-trend-high-caption:focus-visible { outline: 1px solid #81818b; outline-offset: 3px; border-radius: 3px; }
-@keyframes pnl-trend-record-high { 0%, 100% { opacity: .2; transform: scale(.75); } 50% { opacity: .7; transform: scale(1.15); } }
-@media (prefers-reduced-motion: reduce) { .pnl-trend-high-halo { animation: none; opacity: .45; } }

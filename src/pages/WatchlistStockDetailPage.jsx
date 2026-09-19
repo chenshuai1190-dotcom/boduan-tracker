@@ -14,6 +14,7 @@ import StockLogo, { stockLogoCandidates } from '../components/StockLogo.jsx';
 import TargetEditor from '../components/StockTargetEditor.jsx';
 import TechnicalExplanationSheet from '../components/TechnicalExplanationSheet.jsx';
 import './WatchlistStockDetailPage.css';
+import '../components/PulseDot.css';
 import { fetchEarningsCalendarEvents, getNewYorkEarningsClock } from '../lib/earningsCalendarRefresh.js';
 import { dateKey, isEarningsPublished, normalizeEarningsSession } from '../lib/earningsCalendarModel.js';
 import { earningsDetailSourceBadgeKind, formatEarningsDetailMoney } from '../lib/earningsDetail.js';
@@ -686,35 +687,6 @@ export function PriceChart({ rows, dailyRows, weeklyRows, weeklyLookupRows, rang
           : t(language, 'watchlistDetail.chartImageAriaWithThreeDailyMas', '{{range}} 收盘价与MA30、MA60、MA200日均线走势', { range: range.toUpperCase() }))}
       >
         {!presentation?.plain ? <defs>
-          <style>
-            {`
-              @keyframes watchlist-stock-price-breathe {
-                0%, 100% {
-                  opacity: 0.22;
-                  transform: scale(0.72);
-                }
-                50% {
-                  opacity: 0.06;
-                  transform: scale(1.42);
-                }
-              }
-
-              .watchlist-stock-price-breathe-ring {
-                animation: watchlist-stock-price-breathe 3.2s ease-in-out infinite;
-                transform-box: fill-box;
-                transform-origin: center;
-                will-change: opacity, transform;
-              }
-
-              @media (prefers-reduced-motion: reduce) {
-                .watchlist-stock-price-breathe-ring {
-                  animation: none !important;
-                  opacity: 0.16;
-                  transform: scale(1);
-                }
-              }
-            `}
-          </style>
           <linearGradient id="watchlist-stock-detail-area" x1="0" x2="0" y1="0" y2="1">
             <stop offset="0%" stopColor={priceColor} stopOpacity="0.12" />
             <stop offset="100%" stopColor={priceColor} stopOpacity="0" />
@@ -737,7 +709,7 @@ export function PriceChart({ rows, dailyRows, weeklyRows, weeklyLookupRows, rang
         <path data-watchlist-price-line="range-direction" d={chart.pricePath} fill="none" stroke={priceColor} strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
         {latestPointVisible ? (
           <>
-            {!presentation?.plain ? <circle data-watchlist-endpoint-breathe-ring="true" className="watchlist-stock-price-breathe-ring" cx={last.x} cy={last.y} r="4.4" fill={priceColor} pointerEvents="none" /> : null}
+            {!presentation?.plain ? <circle data-watchlist-endpoint-breathe-ring="true" className="watchlist-stock-price-breathe-ring quote-pulse-halo" cx={last.x} cy={last.y} r="4.4" fill="none" stroke={priceColor} strokeWidth="1.2" vectorEffect="non-scaling-stroke" pointerEvents="none" /> : null}
             <circle cx={last.x} cy={last.y} r="2.2" fill={priceColor} stroke="#e4e4e7" strokeWidth="0.65" />
           </>
         ) : null}

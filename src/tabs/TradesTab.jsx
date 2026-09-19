@@ -27,6 +27,7 @@ import StockLogo, { stockLogoCandidates } from '../components/StockLogo.jsx';
 import TqqqTradeEntryPanel, { TQQQ_ACTION_TONE_CLASSES, TqqqTradeAmount } from '../components/TqqqTradeEntryPanel.jsx';
 import TradeToolsCatalog from '../components/TradeToolsCatalog.jsx';
 import TradesPositionsReport from '../components/TradesPositionsReport.jsx';
+import '../components/PulseDot.css';
 import './TradesTab.css';
 import './TradesDialogs.css';
 import './PositionProfitScenario.css';
@@ -191,7 +192,6 @@ function PositionProfitScenarioSheet({
   const scenarioSignedPct = (value) => (
     Math.abs(toNumber(value)) < 0.000001 ? '0.00%' : signedPct(value, 2)
   );
-  const markerGlowRgb = '210 212 215';
   const shortcutTargets = [
     { id: 'current', label: tt('trades.scenarioCurrent', '当前价'), value: currentPrice, disabled: currentPrice <= 0 },
     { id: 'cost', label: tt('trades.scenarioCost', '成本价'), value: costPrice, disabled: costPrice <= 0 },
@@ -253,26 +253,6 @@ function PositionProfitScenarioSheet({
       aria-modal="true"
       aria-label={tt('trades.scenarioTitle', '持仓收益试算')}
     >
-      <style>{`
-        @keyframes scenario-marker-breathe {
-          0%, 100% {
-            transform: scale(1);
-            box-shadow: 0 0 0 0 rgb(var(--scenario-marker-glow) / 0.2), 0 0 8px rgb(var(--scenario-marker-glow) / 0.28);
-          }
-          50% {
-            transform: scale(1.34);
-            box-shadow: 0 0 0 6px rgb(var(--scenario-marker-glow) / 0.12), 0 0 16px rgb(var(--scenario-marker-glow) / 0.42);
-          }
-        }
-        @media (prefers-reduced-motion: reduce) {
-          .scenario-marker-breathe {
-            animation: none !important;
-          }
-        }
-        .scenario-marker-breathe {
-          animation: scenario-marker-breathe 3.2s ease-in-out infinite;
-        }
-      `}</style>
       <div className="pps-panel" style={panelStyle}>
         <div className="pps-header">
           <StockLogo symbol={symbol} urls={logoUrls} onLogoLoad={cacheStockLogo} className="pps-logo" />
@@ -385,8 +365,8 @@ function PositionProfitScenarioSheet({
                     <span key={`${item.id}-marker`} data-price-position-marker={item.id} className="pps-position-marker" style={{ left: item.left }} />
                   ))}
                   {currentPositionItem ? (
-                    <span data-price-position-marker="current" className="scenario-marker-anchor pointer-events-none absolute top-1/2 -translate-x-1/2 -translate-y-1/2" style={{ left: currentPositionItem.left, '--scenario-marker-glow': markerGlowRgb }} aria-hidden="true">
-                      <span className="scenario-marker-breathe pps-current-marker" />
+                    <span data-price-position-marker="current" className="scenario-marker-anchor pointer-events-none absolute top-1/2 -translate-x-1/2 -translate-y-1/2" style={{ left: currentPositionItem.left }} aria-hidden="true">
+                      <span className="quote-pulse-dot scenario-marker-breathe pps-current-marker" />
                     </span>
                   ) : null}
                 </div>
@@ -1473,7 +1453,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                         >
                           <div className="flex items-center justify-between gap-3">
                             <div className="flex min-w-0 items-center gap-1.5">
-                              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-300 animate-pulse" />
+                              <span className="quote-pulse-dot h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-300 text-emerald-300" />
                               <div className="min-w-0">
                                 <div className="text-[12px] font-normal text-white/90">{tt('trades.active', '进行中')}</div>
                                 <div className="mt-1 text-[11px] font-normal tabular-nums text-white/40" style={{ fontFamily: TRADE_NUMBER_FONT }}>

@@ -179,9 +179,12 @@ test('sheets, tooltips, and chart markers keep their separate depth colors', () 
   assert.match(positionProfitScenarioCss, /\.pps-shortcut\[aria-pressed="true"\]\s*\{[^}]*background:\s*#292a2c;[^}]*color:\s*#ededf0;/, 'selected price shortcuts should use a neutral selected state');
   assert.match(positionProfitScenarioCss, /\.pps-flat\s*\{[^}]*color:\s*#d4d4dc;/, 'zero profit should remain neutral rather than suggest a gain or loss');
   assert.match(positionProfitScenarioCss, /\.pps-position-marker\s*\{[^}]*border:\s*2px solid #aaaab2;[^}]*background:\s*#101112;/, 'static price markers should retain neutral gray outlines on black');
-  assert.match(positionProfitScenarioCss, /\.pps-current-marker\s*\{[^}]*background:\s*#d2d4d7;/, 'the current-price marker should use the same neutral color as its breathing glow');
+  assert.match(positionProfitScenarioCss, /\.pps-current-marker\s*\{[^}]*background:\s*#d2d4d7;/, 'the current-price marker should retain its neutral core color');
+  assert.match(positionProfitScenarioCss, /\.pps-current-marker\s*\{[^}]*color:\s*#d2d4d7;/, 'the shared currentColor halo must match the neutral core');
   assert.doesNotMatch(scenarioSheet + positionProfitScenarioCss, /#0b0f14|#f6b54b|#ffd166|#ffd18a|bg-gradient|linear-gradient|radial-gradient/, 'the isolated simulator should not retain its old navy, gold, or market-colored decorative gradient');
-  assert.ok(scenarioSheet.includes("resultTone === 'flat' ? 'pps-flat'") && scenarioSheet.includes("markerGlowRgb = '210 212 215'"), 'flat outcomes and the current marker should stay neutral');
+  assert.ok(scenarioSheet.includes("resultTone === 'flat' ? 'pps-flat'"), 'flat outcomes should stay neutral');
+  assert.match(scenarioSheet, /className="(?=[^"]*\bpps-current-marker\b)(?=[^"]*\bquote-pulse-dot\b)[^"]*"/,
+    'the current marker should use the shared hollow halo with its existing neutral palette');
   assert.ok(scenarioSheet.includes('strongPnlClass(profit, marketColorMode)') && scenarioSheet.includes('pnlClass(deltaFromCurrent, marketColorMode)'), 'profit and change values must still respect the selected market color mode');
   assert.ok(trades.includes("isGenericLedgerTradeEntry ? 'stock-report-modal formal-trade-dialog'"), 'formal trades opt into the shared neutral-black report surface without changing TQQQ or wave shells');
   assert.ok(trades.includes('panelClassName="trade-order-dialog"'), 'order actions also opt into the report-modal surface');

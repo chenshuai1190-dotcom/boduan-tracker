@@ -4,7 +4,6 @@ import { readFileSync } from 'node:fs';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { transformWithOxc } from 'vite';
-import postcss from 'postcss';
 
 const componentUrl = new URL('../src/components/PnlReportTrendChart.jsx', import.meta.url);
 const source = readFileSync(componentUrl, 'utf8').replace(/^import\s+['"][^'"]+\.css['"];?\s*$/gm, '');
@@ -46,6 +45,12 @@ function assertMarkerAt(tree, key, date, index, expectedX) {
   const core = byClass(allMarkers[0], 'pnl-trend-high-core')[0];
   const halo = byClass(allMarkers[0], 'pnl-trend-high-halo')[0];
   assert.ok(core && halo);
+  assert.ok(halo.props.className.split(/\s+/).includes('quote-pulse-halo'));
+  assert.equal(halo.props.r, '7');
+  assert.equal(halo.props.fill, 'none');
+  assert.equal(halo.props.stroke, core.props.fill);
+  assert.equal(halo.props.strokeWidth, '1.2');
+  assert.equal(halo.props.vectorEffect, 'non-scaling-stroke');
   assert.ok(Math.abs(core.props.cx - expectedX) < 1e-9);
   assert.equal(halo.props.cx, core.props.cx);
   assert.equal(halo.props.cy, core.props.cy);
@@ -122,21 +127,15 @@ test('Chinese and English captions describe the selected period and the breakthr
   }
 });
 
-test('the CSS halo respects reduced motion while keeping the static core visible', () => {
+test('the record marker uses the shared CSS halo while keeping the static core visible', () => {
   const { tree, html } = render(readings([1, 2, 1]));
   assert.equal(byClass(tree, 'pnl-trend-high-core').length, 1);
   assert.equal(byClass(tree, 'pnl-trend-high-halo').length, 1);
+  assert.equal(byClass(tree, 'quote-pulse-halo').length, 1);
+  assert.equal(byClass(tree, 'pnl-trend-high-core')[0].props.className, 'pnl-trend-high-core');
   assert.doesNotMatch(html, /<animate(?:Transform)?\b/, 'SVG animation must not bypass the CSS preference');
-  const css = postcss.parse(readFileSync(new URL('../src/components/PnlReportTrendChart.css', import.meta.url), 'utf8'));
-  let normalAnimation = false;
-  let reducedAnimation = false;
-  css.walkRules('.pnl-trend-high-halo', rule => {
-    rule.walkDecls('animation', declaration => {
-      if (rule.parent.type === 'atrule' && rule.parent.name === 'media' && /prefers-reduced-motion:\s*reduce/.test(rule.parent.params)) {
-        reducedAnimation ||= declaration.value === 'none';
-      } else normalAnimation ||= /pnl-trend-record-high/.test(declaration.value);
-    });
-  });
-  assert.ok(normalAnimation, 'normal motion pulses the real halo class');
-  assert.ok(reducedAnimation, 'reduced motion disables that same halo animation');
+  assert.match(readFileSync(componentUrl, 'utf8'), /import ['"]\.\/PulseDot\.css['"]/);
+  const css = readFileSync(new URL('../src/components/PnlReportTrendChart.css', import.meta.url), 'utf8');
+  assert.doesNotMatch(css, /pnl-trend-record-high|\.pnl-trend-high-halo\s*\{/,
+    'record markers must use the shared motion and reduced-motion contract without a local override');
 });

@@ -22,6 +22,7 @@ import AccountLeverageBadge from '../components/AccountLeverageBadge.jsx';
 import AvailableCashEditor from '../components/AvailableCashEditor.jsx';
 import EarningsCalendar from './EarningsCalendar.jsx';
 import HomeWatchlistReport from '../components/HomeWatchlistReport.jsx';
+import '../components/PulseDot.css';
 import './HomeTab.css';
 import './HomeWatchlistDialogs.css';
 
@@ -288,7 +289,7 @@ function MiniMarketCard({ item, marketColorMode, language }) {
         <div className="min-w-0 truncate text-[11px] font-normal leading-tight text-white/80">{marketCardName(item, language)}</div>
         {isBtc && realtimeLabel && (
           <span className="home-report-realtime-status" data-state={realtimeStatus}>
-            {realtimeStatus === 'live' && <i className="home-report-live-dot" aria-hidden="true" />}
+            {realtimeStatus === 'live' && <i className="quote-pulse-dot home-report-live-dot" aria-hidden="true" />}
             {realtimeLabel}
           </span>
         )}

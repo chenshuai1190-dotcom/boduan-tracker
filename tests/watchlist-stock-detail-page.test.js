@@ -458,11 +458,11 @@ test('production chart defaults to six months with three daily MAs and keeps the
   assert.ok(pageSource.includes('data-watchlist-price-line="range-direction"'));
   assert.match(pageSource, /data-watchlist-price-line="range-direction"[^>]*stroke=\{priceColor\}[^>]*strokeWidth="1\.3"/);
   assert.ok(pageSource.includes('strokeWidth="1.15"'));
-  assert.ok(pageSource.includes('@keyframes watchlist-stock-price-breathe'));
-  assert.ok(pageSource.includes('animation: watchlist-stock-price-breathe 3.2s ease-in-out infinite'));
-  assert.ok(pageSource.includes('@media (prefers-reduced-motion: reduce)'));
+  assert.match(pageSource, /import ['"]\.\.\/components\/PulseDot\.css['"]/, 'endpoint halo motion and reduced motion use the shared CSS');
+  assert.doesNotMatch(pageSource, /@keyframes watchlist-stock-price-breathe|animation:\s*watchlist-stock-price-breathe/, 'the endpoint must not retain its old independent animation');
   assert.ok(pageSource.includes('data-watchlist-endpoint-breathe-ring="true"'));
-  assert.ok(pageSource.includes('r="4.4" fill={priceColor} pointerEvents="none"'));
+  assert.match(pageSource, /!presentation\?\.plain \? <circle data-watchlist-endpoint-breathe-ring="true" className="watchlist-stock-price-breathe-ring quote-pulse-halo" cx=\{last\.x\} cy=\{last\.y\} r="4\.4" fill="none" stroke=\{priceColor\} strokeWidth="1\.2" vectorEffect="non-scaling-stroke" pointerEvents="none"/,
+    'the endpoint keeps its trigger, coordinates, radius and range color while using a thin hollow halo');
   assert.ok(pageSource.includes('r="2.2" fill={priceColor} stroke="#e4e4e7" strokeWidth="0.65"'), 'the endpoint should share the range direction and keep its compact size');
   assert.equal(pageSource.includes('price-glow'), false);
   assert.equal(pageSource.includes('formatCurrency(last.close, currency)'), false, 'the chart endpoint should not repeat the latest stock price');

@@ -6,6 +6,7 @@ import {
   isExplicitUnknownNetAssetPoint, isRenderableChartValue, splitChartPointSegments,
 } from '../lib/pnlReportChart.js';
 import './PnlReportTrendChart.css';
+import './PulseDot.css';
 
 const PNL_CHART_WIDTH = 310;
 const PNL_CHART_HEIGHT = 210;
@@ -193,7 +194,7 @@ export default function PnlReportTrendChart({
           {primarySegments.filter(segment => segment.length === 1).map(segment => <circle key={`single-${segment[0].index}`} cx={segment[0].x} cy={segment[0].y} r="2.4" fill={mode === 'assets' ? NET_ASSET_COLOR : color} />)}
           {benchmarkPath && <path d={benchmarkPath} fill="none" stroke={BENCHMARK_COLOR} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />}
           {latestRecordHigh && <g data-pnl-report-record-high={primaryKey} data-record-high-date={latestRecordHigh.point.date} pointerEvents="none">
-            <circle className="pnl-trend-high-halo" cx={latestRecordHigh.x} cy={latestRecordHigh.y} r="7" fill="none" stroke={primaryColor} strokeWidth="1.2" vectorEffect="non-scaling-stroke" />
+            <circle className="pnl-trend-high-halo quote-pulse-halo" cx={latestRecordHigh.x} cy={latestRecordHigh.y} r="7" fill="none" stroke={primaryColor} strokeWidth="1.2" vectorEffect="non-scaling-stroke" />
             <circle className="pnl-trend-high-core" cx={latestRecordHigh.x} cy={latestRecordHigh.y} r="3.3" fill={primaryColor} stroke="#08090b" strokeWidth="1.3" vectorEffect="non-scaling-stroke" />
           </g>}
           {selectedSlot && (selectedPrimary || selectedTotalAsset || (mode === 'pnl' && selectedBenchmark)) && <>

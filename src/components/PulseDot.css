@@ -1,0 +1,5 @@
+.quote-pulse-dot { position: relative; display: inline-block; flex-shrink: 0; border-radius: 50%; background: currentColor; pointer-events: none; }
+.quote-pulse-dot::before { content: ''; position: absolute; inset: -56%; border: 1.2px solid currentColor; border-radius: 50%; pointer-events: none; }
+.quote-pulse-halo, .quote-pulse-dot::before { opacity: .45; transform-box: fill-box; transform-origin: center; animation: quote-dot-breathe 2.4s ease-in-out infinite; }
+@keyframes quote-dot-breathe { 0%, 100% { opacity: .2; transform: scale(.75); } 50% { opacity: .7; transform: scale(1.15); } }
+@media (prefers-reduced-motion: reduce) { .quote-pulse-halo, .quote-pulse-dot::before { animation: none; opacity: .45; } }
