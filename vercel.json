@@ -1,5 +1,6 @@
 {
   "functions": {
+    "api/quote.js": { "maxDuration": 90 },
     "api/earnings-calendar.js": { "maxDuration": 60 }
   },
   "rewrites": [

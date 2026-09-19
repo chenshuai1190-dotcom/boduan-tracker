@@ -32,17 +32,10 @@
 .account-institution-logo[data-institution="alipay"] { background: #1677ff; }
 .account-institution-logo[data-institution="longbridge"] { background: #17181b; }
 .account-institution-logo[data-institution="alipay"] .account-institution-logo-window,
+.account-institution-logo[data-institution="winglung"] .account-institution-logo-window,
 .account-institution-logo[data-institution="longbridge"] .account-institution-logo-window { width: 100%; height: 100%; }
 
 /* Clip the symbol from the original wordmark without changing the source artwork. */
-.account-institution-logo[data-institution="winglung"] img {
-  left: -17.6471%;
-  top: -29.4118%;
-  width: 979.4118%;
-  height: 191.1765%;
-  object-fit: fill;
-}
-
 .account-institution-logo[data-institution="boci"] img {
   width: 461.7647%;
   height: 100%;

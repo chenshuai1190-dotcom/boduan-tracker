@@ -447,6 +447,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
     openPortfolioOverlap,
     openDcaLab,
     openStockDecision,
+    openMacro,
     portfolioCurrencyMode,
     Plus,
     qqqSignalQuote,
@@ -1035,6 +1036,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
               if (toolId === 'portfolio-overlap') openPortfolioOverlap?.();
               if (toolId === 'dca-lab') openDcaLab?.();
               if (toolId === 'stock-decision') openStockDecision?.();
+              if (toolId === 'macro') openMacro?.();
               if (toolId === 'waves') openWaveTracker?.();
               if (toolId === 'competition') openCommunityCompetition?.();
             }} />

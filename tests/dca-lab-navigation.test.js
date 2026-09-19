@@ -13,7 +13,7 @@ test('DCA Lab is an identity-scoped lazy standalone tool with no ledger context'
   assert.ok(app.includes("activePage === 'dca-lab'"));
   assert.ok(app.includes('|| isDcaLabPage ||'));
   assert.match(app, /<DcaLabPage key=\{user\?\.id \|\| ''\} ctx=\{\{ userId: user\?\.id \|\| '', language, closeDcaLab \}\} \/>/);
-  const callbacks = app.slice(app.indexOf('const openDcaLab ='), app.indexOf('const openPortfolioOverlap ='));
+  const callbacks = ['openDcaLab', 'closeDcaLab'].map(name => app.match(new RegExp(`const ${name} = useCallback\\(\\(\\) => \\{[\\s\\S]*?\\}, \\[\\]\\);`))?.[0] || '').join('\n');
   assert.equal((callbacks.match(/setActiveTab\('trades'\)/g) || []).length, 2);
   assert.ok(callbacks.includes("setActivePage('dca-lab')"));
   assert.ok(callbacks.includes('setActivePage(null)'));

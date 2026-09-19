@@ -180,7 +180,7 @@ function quarterLabel(event, language) {
   });
 }
 
-function chartGeometry(rows, movingAverageRows, dailyMaRows = [], shortDailyMaRows = []) {
+function chartGeometry(rows, movingAverageRows, dailyMaRows = [], shortDailyMaRows = [], allowNegative = false) {
   if (!Array.isArray(rows) || rows.length === 0) return null;
   const left = 4;
   const right = 4;
@@ -211,7 +211,7 @@ function chartGeometry(rows, movingAverageRows, dailyMaRows = [], shortDailyMaRo
   const low = Math.min(...values);
   const high = Math.max(...values);
   const span = Math.max(0.01, high - low);
-  const min = Math.max(0, low - span * 0.08);
+  const min = allowNegative ? low - span * 0.08 : Math.max(0, low - span * 0.08);
   const max = high + span * 0.08;
   const xForDate = (date) => {
     const time = Date.parse(`${date}T00:00:00Z`);
@@ -258,7 +258,7 @@ function chartGeometry(rows, movingAverageRows, dailyMaRows = [], shortDailyMaRo
   };
 }
 
-function chartDateLabels(points, language, range) {
+function chartDateLabels(points, language, range, axisDateFormatter) {
   if (!points.length) return [];
   const ratios = range === '5y' ? [0, 0.2, 0.4, 0.6, 0.8, 1] : [0, 0.25, 0.5, 0.75, 1];
   const firstTime = Date.parse(`${points[0]?.date}T00:00:00Z`);
@@ -267,6 +267,7 @@ function chartDateLabels(points, language, range) {
     ? Math.max(0, (lastTime - firstTime) / 86_400_000)
     : 0;
   const labelForPoint = (point) => {
+    if (axisDateFormatter) return axisDateFormatter(point?.date, { range, spanDays });
     if (range !== '5y' || spanDays <= 370) return formatDate(point?.date, language);
     if (spanDays <= 1_100) {
       const key = dateKey(point?.date);
@@ -285,7 +286,23 @@ function chartDateLabels(points, language, range) {
       point: points[index],
       label: labelForPoint(points[index]),
     }));
-  return labels.filter((item, index) => labels.findIndex((candidate) => candidate.label === item.label) === index);
+  const uniqueLabels = labels.filter((item, index) => labels.findIndex((candidate) => candidate.label === item.label) === index);
+  if (!axisDateFormatter) return uniqueLabels;
+  // Custom labels may be wider than the stock dates. Reserve the final label
+  // and a small gap, using conservative widths for the existing 10px SVG type.
+  const bounds = ({ index, point, label }) => {
+    const width = [...String(label)].reduce((sum, character) => sum + (character.charCodeAt(0) > 255 ? 10 : 6), 0);
+    const left = index === 0 ? point.x : index === points.length - 1 ? point.x - width : point.x - width / 2;
+    return { left, right: left + width };
+  };
+  const lastBounds = bounds(uniqueLabels.at(-1));
+  let right = -Infinity;
+  return uniqueLabels.filter((item, index) => {
+    const next = bounds(item);
+    if (next.left < right + 10 || (index < uniqueLabels.length - 1 && next.right + 10 > lastBounds.left)) return false;
+    right = next.right;
+    return true;
+  });
 }
 
 function chartWindowLabel(points, language) {
@@ -302,7 +319,7 @@ function chartWindowLabel(points, language) {
   return `${label(points[0])}–${label(points.at(-1))}`;
 }
 
-function PriceChart({ rows, dailyRows, weeklyRows, weeklyLookupRows, range, currency, language, marketColorMode, symbol, priceColor, initialTooltipOpen = false }) {
+export function PriceChart({ rows, dailyRows, weeklyRows, weeklyLookupRows, range, currency, language, marketColorMode, symbol, priceColor, initialTooltipOpen = false, presentation }) {
   const weeklyMa = range === '5y';
   const chartZoomEnabled = range === '1y' || range === '5y';
   const showDailyMa = range === '5y';
@@ -342,8 +359,10 @@ function PriceChart({ rows, dailyRows, weeklyRows, weeklyLookupRows, range, curr
     showDailyMa ? dailyRows.filter((row) => Number.isFinite(row?.ma200)) : []
   ), [dailyRows, showDailyMa]);
   const chart = React.useMemo(
-    () => chartGeometry(visibleRows, movingAverageRows, dailyMaRows, weeklyMa ? [] : dailyRows),
-    [movingAverageRows, visibleRows, dailyMaRows, weeklyMa, dailyRows],
+    () => (presentation?.allowNegative
+      ? chartGeometry(visibleRows, movingAverageRows, dailyMaRows, weeklyMa ? [] : dailyRows, true)
+      : chartGeometry(visibleRows, movingAverageRows, dailyMaRows, weeklyMa ? [] : dailyRows)),
+    [movingAverageRows, visibleRows, dailyMaRows, weeklyMa, dailyRows, presentation?.allowNegative],
   );
   const chartWindowZoomed = chartZoomEnabled
     && (effectiveChartWindow.start > 0 || effectiveChartWindow.end < rows.length - 1);
@@ -436,7 +455,7 @@ function PriceChart({ rows, dailyRows, weeklyRows, weeklyLookupRows, range, curr
       };
     })
     : [];
-  const labels = chartDateLabels(chart.pricePoints, language, range);
+  const labels = chartDateLabels(chart.pricePoints, language, range, presentation?.axisDateFormatter);
   const visibleWindowLabel = chartWindowLabel(chart.pricePoints, language);
 
   const selectNearestPoint = (clientX) => {
@@ -637,7 +656,7 @@ function PriceChart({ rows, dailyRows, weeklyRows, weeklyLookupRows, range, curr
         role="button"
         tabIndex={0}
         data-watchlist-stock-price-chart="true"
-        aria-label={t(language, 'watchlistDetail.chartAria', '查看 {{symbol}} 股价走势', { symbol })}
+        aria-label={presentation?.ariaLabel ?? t(language, 'watchlistDetail.chartAria', '查看 {{symbol}} 股价走势', { symbol })}
         className="relative min-w-0 cursor-crosshair select-none rounded-lg outline-none focus-visible:ring-1 focus-visible:ring-[#f6b54b]/45"
         style={{
           touchAction: 'pan-y',
@@ -662,11 +681,11 @@ function PriceChart({ rows, dailyRows, weeklyRows, weeklyLookupRows, range, curr
         preserveAspectRatio="none"
         className="stock-report-chart-svg w-full overflow-visible"
         role="img"
-        aria-label={showDailyMa
+        aria-label={presentation?.ariaLabel ?? (showDailyMa
           ? t(language, 'watchlistDetail.chartImageAriaWithDailyMa', '{{range}} 收盘价、{{maLabel}}与MA200（日）走势', { range: range.toUpperCase(), maLabel })
-          : t(language, 'watchlistDetail.chartImageAriaWithThreeDailyMas', '{{range}} 收盘价与MA30、MA60、MA200日均线走势', { range: range.toUpperCase() })}
+          : t(language, 'watchlistDetail.chartImageAriaWithThreeDailyMas', '{{range}} 收盘价与MA30、MA60、MA200日均线走势', { range: range.toUpperCase() }))}
       >
-        <defs>
+        {!presentation?.plain ? <defs>
           <style>
             {`
               @keyframes watchlist-stock-price-breathe {
@@ -700,16 +719,16 @@ function PriceChart({ rows, dailyRows, weeklyRows, weeklyLookupRows, range, curr
             <stop offset="0%" stopColor={priceColor} stopOpacity="0.12" />
             <stop offset="100%" stopColor={priceColor} stopOpacity="0" />
           </linearGradient>
-        </defs>
+        </defs> : null}
         {chart.priceLines.map((line) => (
           <g key={line.y}>
             <line x1={chart.left} x2={CHART_WIDTH - chart.right} y1={line.y} y2={line.y} stroke="rgba(255,255,255,0.052)" strokeDasharray="2 4" />
             <text x={chart.left + 1} y={line.y - 5} textAnchor="start" fill="rgba(255,255,255,0.38)" fontSize="10" style={{ fontFamily: NUMBER_FONT }}>
-              {formatNumber(line.value, line.value >= 1000 ? 0 : 1)}
+              {presentation?.valueFormatter ? presentation.valueFormatter(line.value) : formatNumber(line.value, line.value >= 1000 ? 0 : 1)}
             </text>
           </g>
         ))}
-        <path d={chart.areaPath} fill="url(#watchlist-stock-detail-area)" />
+        {!presentation?.plain ? <path d={chart.areaPath} fill="url(#watchlist-stock-detail-area)" /> : null}
         {chart.shortDailyMaSeries.map((series) => series.points.length >= 2 ? (
           <path key={series.key} data-watchlist-short-daily-ma-line={series.key} d={series.path} fill="none" stroke={series.color} strokeWidth="1.15" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
         ) : null)}
@@ -718,7 +737,7 @@ function PriceChart({ rows, dailyRows, weeklyRows, weeklyLookupRows, range, curr
         <path data-watchlist-price-line="range-direction" d={chart.pricePath} fill="none" stroke={priceColor} strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
         {latestPointVisible ? (
           <>
-            <circle data-watchlist-endpoint-breathe-ring="true" className="watchlist-stock-price-breathe-ring" cx={last.x} cy={last.y} r="4.4" fill={priceColor} pointerEvents="none" />
+            {!presentation?.plain ? <circle data-watchlist-endpoint-breathe-ring="true" className="watchlist-stock-price-breathe-ring" cx={last.x} cy={last.y} r="4.4" fill={priceColor} pointerEvents="none" /> : null}
             <circle cx={last.x} cy={last.y} r="2.2" fill={priceColor} stroke="#e4e4e7" strokeWidth="0.65" />
           </>
         ) : null}
@@ -741,8 +760,9 @@ function PriceChart({ rows, dailyRows, weeklyRows, weeklyLookupRows, range, curr
           data-watchlist-stock-price-tooltip="true"
           className={`stock-report-price-tooltip pointer-events-none absolute top-2 rounded-xl border border-white/10 bg-[#121821]/95 px-3 py-3 text-left shadow-[0_12px_28px_rgba(0,0,0,0.48)] backdrop-blur ${selectedPoint.x > CHART_WIDTH * 0.56 ? 'left-2' : 'right-2'}`}
         >
-          <div className="whitespace-nowrap text-[12px] text-white/[0.45]">{formatDate(selectedPoint.date, language, { year: true })} · {t(language, 'watchlistDetail.chartClose', '收盘')}</div>
-          <div className="mt-1 text-[20px] font-normal text-white/[0.88] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{formatCurrency(selectedPoint.close, currency)}</div>
+          <div className="whitespace-nowrap text-[12px] text-white/[0.45]">{presentation?.dateFormatter ? presentation.dateFormatter(selectedPoint.date) : formatDate(selectedPoint.date, language, { year: true })} · {presentation?.tooltipLabel ?? t(language, 'watchlistDetail.chartClose', '收盘')}</div>
+          {presentation?.renderTooltip ? presentation.renderTooltip(selectedPoint, previousPoint) : <>
+          <div className="mt-1 text-[20px] font-normal text-white/[0.88] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>{presentation?.valueFormatter ? presentation.valueFormatter(selectedPoint.close) : formatCurrency(selectedPoint.close, currency)}</div>
           <div className="stock-report-tooltip-row">
             <span className="text-white/[0.40]">{range === '5y' ? t(language, 'watchlistDetail.weeklyChange', '周涨跌') : t(language, 'watchlistDetail.dailyChange', '当日涨跌')}</span>
             <span className="whitespace-nowrap tabular-nums" style={{ color: marketHexColor(selectedChange || 0, marketColorMode), fontFamily: NUMBER_FONT }}>
@@ -771,6 +791,7 @@ function PriceChart({ rows, dailyRows, weeklyRows, weeklyLookupRows, range, curr
               </span>
             </div>
           ) : null}
+          </>}
         </div>
       ) : null}
       </div>

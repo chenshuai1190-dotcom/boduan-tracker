@@ -3,7 +3,7 @@ import { resolveAccountInstitution } from '../lib/accountInstitution.js';
 import alipay from '../assets/account-institutions/alipay-favicon.ico';
 import cmb from '../assets/account-institutions/cmb-favicon.ico';
 import ibkr from '../assets/account-institutions/ibkr-logo-icon.png';
-import winglung from '../assets/account-institutions/winglung-logo-original.png';
+import winglung from '../assets/account-institutions/winglung-app-icon.jpg';
 import longbridge from '../assets/account-institutions/longbridge-icon-152.png';
 import boci from '../assets/account-institutions/boci-logo-original.png';
 import eastmoney from '../assets/account-institutions/eastmoney-apple-icon.png';

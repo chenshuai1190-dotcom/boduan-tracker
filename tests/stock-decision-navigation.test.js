@@ -47,7 +47,7 @@ test('stock decision follows overlap and remains reachable with a translated lin
     const ids = buttons.map(button => button.props['data-tool-id']);
     const index = ids.indexOf('stock-decision');
     assert.ok(index > 0);
-    assert.deepEqual(ids.slice(index - 1, index + 2), ['portfolio-overlap', 'stock-decision', 'records']);
+    assert.deepEqual(ids.slice(index - 1, index + 2), ['portfolio-overlap', 'stock-decision', 'macro']);
     assert.equal(ids.includes('cost'), false);
     assert.equal(ids.filter(id => id === 'stock-decision').length, 1);
     const markup = renderToStaticMarkup(buttons[index]);

@@ -5,6 +5,7 @@
     "cmb-favicon.ico": "https://www.cmbchina.com/cmb.ico",
     "ibkr-logo-icon.png": "https://www.interactivebrokers.com/images/web/ibg-llc.png",
     "winglung-logo-original.png": "https://www.cmbwinglungbank.com/wlb_corporate/files/hk/img/logo.png",
+    "winglung-app-icon.jpg": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/0a/e5/b7/0ae5b79e-b0b3-32ee-8cb7-8e8603300f68/AppIcon-0-0-1x_U007emarketing-0-8-0-0-sRGB-85-220.png/512x512bb.jpg",
     "longbridge-icon-152.png": "https://assets.wbrks.com/assets/manifest-icons/icon-152x152.png",
     "boci-logo-original.png": "https://www.bocionline.com/front/images/h5/logo.png",
     "eastmoney-apple-icon.png": "https://g1.dfcfw.com/g1/special/Apple_ico.png",
@@ -17,6 +18,7 @@
     "wechat-official.ico": "https://res.wx.qq.com/a/wx_fed/assets/res/NTI4MWU5.ico"
   },
   "notes": {
+    "winglung-app-icon.jpg": "Unmodified 512px red-background app icon published by CMB Wing Lung Bank Limited. The bank's official download page https://www.cmbwinglungbank.com/wlb_corporate/hk/e-services/iphone-app.html links to App Store app 526663971; image URL is its artworkUrl512 from https://itunes.apple.com/lookup?id=526663971&country=hk. Verified 2026-09-19.",
     "htsc-official.svg": "Original symbol#HTSClogo3 paths and colors from the official JS bundle, wrapped in standalone SVG without scripts or external references."
   }
 }

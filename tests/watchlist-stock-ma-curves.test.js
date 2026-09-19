@@ -17,7 +17,9 @@ const source = readFileSync(new URL('../src/pages/WatchlistStockDetailPage.jsx',
 // Keep production geometry, selection, formatting and SVG together; omit the
 // page's network effects and unrelated report sections from this small SSR test.
 const chartSource = source.slice(source.indexOf('const NUMBER_FONT ='), source.indexOf('function rangePriceColor('))
-  + source.slice(source.indexOf('function finiteNumber('), source.indexOf('\nfunction MetricCell('));
+  + source.slice(source.indexOf('function finiteNumber('), source.indexOf('\nfunction MetricCell('))
+    // The shared chart's named export is module syntax, not part of its body.
+    .replace(/^export (?=function PriceChart\()/m, '');
 const { code } = await transformWithOxc(chartSource, 'WatchlistStockMaCurves.jsx', { jsx: { runtime: 'classic' } });
 const dependencies = {
   React, dateKey, t, marketHexColor, findStockDetailWeeklyMaOnOrBefore,

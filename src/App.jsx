@@ -52,6 +52,7 @@ const InvestmentComparisonPage = lazy(() => import('./pages/InvestmentComparison
 const PortfolioOverlapPage = lazy(() => import('./pages/PortfolioOverlapPage.jsx'));
 const DcaLabPage = lazy(() => import('./pages/DcaLabPage.jsx'));
 const StockDecisionPage = lazy(() => import('./pages/StockDecisionPage.jsx'));
+const MacroPage = lazy(() => import('./pages/MacroLivePage.jsx'));
 const StockDetailPage = lazy(() => import('./pages/StockDetailPage.jsx'));
 const WatchlistStockDetailPage = lazy(() => import('./pages/WatchlistStockDetailPage.jsx'));
 const WaveTrackerPage = lazy(() => import('./pages/WaveTrackerPage.jsx'));
@@ -4578,6 +4579,14 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     setActiveTab('trades');
     setActivePage(null);
   }, []);
+  const openMacro = useCallback(() => {
+    setActiveTab('trades');
+    setActivePage('macro');
+  }, []);
+  const closeMacro = useCallback(() => {
+    setActiveTab('trades');
+    setActivePage(null);
+  }, []);
   const openPortfolioOverlap = useCallback(() => {
     setActiveTab('trades');
     setActivePage('portfolio-overlap');
@@ -4808,7 +4817,8 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   const isPortfolioOverlapPage = activePage === 'portfolio-overlap';
   const isDcaLabPage = activePage === 'dca-lab';
   const isStockDecisionPage = activePage === 'stock-decision';
-  const isStandalonePage = isPnlReportPage || isPnlSharePage || isHomeMarginRiskPage || isDrawdownObservationPage || isStockDetailPage || isWatchlistStockDetailPage || isWaveTrackerPage || isCommunityCompetitionPage || isEarningsCalendarPage || isEarningsDetailPage || isInvestmentComparisonPage || isPortfolioOverlapPage || isDcaLabPage || isStockDecisionPage || isVixComparisonPage || isFearGreedPage;
+  const isMacroPage = activePage === 'macro';
+  const isStandalonePage = isPnlReportPage || isPnlSharePage || isHomeMarginRiskPage || isDrawdownObservationPage || isStockDetailPage || isWatchlistStockDetailPage || isWaveTrackerPage || isCommunityCompetitionPage || isEarningsCalendarPage || isEarningsDetailPage || isInvestmentComparisonPage || isPortfolioOverlapPage || isDcaLabPage || isStockDecisionPage || isVixComparisonPage || isFearGreedPage || isMacroPage;
   const isFullBleedPage = isPnlSharePage || isCommunityCompetitionPage || isEarningsCalendarPage || isEarningsDetailPage || isPnlReportPage;
   const hideBottomNavigation = isPnlReportPage || isPnlSharePage;
   const ActiveTab = TAB_COMPONENTS[activeTab] || HomeTab;
@@ -5002,6 +5012,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     openPortfolioOverlap,
     openDcaLab,
     openStockDecision,
+    openMacro,
     openPnlReport,
     openPnlShare,
     pnlReportRefreshVersion,
@@ -5162,7 +5173,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
 
   return (
     <div
-      className={`min-h-screen ${isFullBleedPage ? 'px-0' : 'px-4'} ${hideBottomNavigation ? 'pb-0' : 'pb-24'} ${isFearGreedPage || isPnlReportPage || isStockDecisionPage ? 'bg-[#08090b]' : darkShell ? 'bg-[#05070b]' : 'bg-slate-50'}`}
+      className={`min-h-screen ${isFullBleedPage ? 'px-0' : 'px-4'} ${hideBottomNavigation ? 'pb-0' : 'pb-24'} ${isFearGreedPage || isPnlReportPage || isStockDecisionPage || isMacroPage ? 'bg-[#08090b]' : darkShell ? 'bg-[#05070b]' : 'bg-slate-50'}`}
       style={{ paddingTop: isStandalonePage ? 0 : 'calc(1rem + env(safe-area-inset-top))' }}
     >
       {pullRefreshStatus !== 'idle' && (
@@ -5306,6 +5317,8 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
                 ? <DcaLabPage key={user?.id || ''} ctx={{ userId: user?.id || '', language, closeDcaLab }} />
               : isStockDecisionPage
                 ? <StockDecisionPage key={user?.id || ''} ctx={{ userId: user?.id || '', language, marketColorMode, closeStockDecision }} />
+              : isMacroPage
+                ? <MacroPage key={user?.id || ''} ctx={{ userId: user?.id || '', closeMacro }} />
               : isStockDetailPage
                 ? <StockDetailPage ctx={tabCtx} />
                 : isWatchlistStockDetailPage

@@ -13,6 +13,7 @@ import { fetchPortfolioOverlap, PortfolioOverlapError } from '../server/quote/po
 import { fetchFearGreed, FearGreedError } from '../server/quote/fearGreed.js';
 import { fetchStockDecision, StockDecisionError } from '../server/quote/stockDecision.js';
 import { getStockValuation } from '../server/quote/stockDecisionValuation.js';
+import { fetchMacroSnapshot } from '../server/macro/MacroDataService.js';
 
 export default async function handler(req, res) {
   setCorsHeaders(req, res);
@@ -20,8 +21,9 @@ export default async function handler(req, res) {
   const dcaViewPresent = [req.query?.view].flat().includes('dca-history');
   const fearGreedViewPresent = [req.query?.view].flat().includes('fear-greed');
   const stockDecisionViewPresent = [req.query?.view].flat().includes('stock-decision');
+  const macroViewPresent = [req.query?.view].flat().includes('macro');
   const stockValuationViewPresent = [req.query?.view].flat().includes('stock-valuation');
-  if (authRequired || dcaViewPresent || fearGreedViewPresent || stockDecisionViewPresent || stockValuationViewPresent) {
+  if (authRequired || dcaViewPresent || fearGreedViewPresent || stockDecisionViewPresent || stockValuationViewPresent || macroViewPresent) {
     res.setHeader('Cache-Control', 'private, no-store, max-age=0, must-revalidate');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
@@ -35,7 +37,7 @@ export default async function handler(req, res) {
     return sendError(res, 405, 'Method Not Allowed');
   }
 
-  if (fearGreedViewPresent || stockDecisionViewPresent || stockValuationViewPresent) {
+  if (fearGreedViewPresent || stockDecisionViewPresent || stockValuationViewPresent || macroViewPresent) {
     // This view stays private even when legacy quote authentication is disabled locally.
     const header = req.headers.authorization || '';
     const auth = await authenticateAccessToken(header.startsWith('Bearer ') ? header.slice(7) : '');
@@ -71,8 +73,19 @@ export default async function handler(req, res) {
     && !fearGreedRequested
     && !stockDecisionViewPresent
     && !stockValuationViewPresent
+    && !macroViewPresent
   ) {
     return sendError(res, 400, '不支持的 view 参数');
+  }
+  if (macroViewPresent) {
+    if (view !== 'macro' || Object.keys(req.query).some(key => key !== 'view')) {
+      return sendError(res, 400, '宏观接口不接受其他参数');
+    }
+    try {
+      return res.status(200).json({ success: true, data: await fetchMacroSnapshot() });
+    } catch {
+      return sendError(res, 502, '宏观数据暂不可用');
+    }
   }
   if (fearGreedRequested) {
     try {

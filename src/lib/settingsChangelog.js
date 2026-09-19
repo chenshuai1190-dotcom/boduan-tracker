@@ -4,6 +4,19 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '交易的全部功能新增宏观环境，入口位于股票决策下方，可查看国债收益率、通胀与能源、市场压力、流动性和经济日历的真实数据。',
+      '宏观指标补充中文名称、日期与更新时间，涨跌采用红涨绿跌；未取得的数据不展示为零，尚未建立的环境评分不展示模拟值。',
+      '招商永隆账户图标更新为官方红底标识，账户列表、弹窗、环比和月度余额录入统一显示。',
+    ],
+    itemsEn: [
+      'Macro is now available below Stock decision in Trading’s All Tools, with real Treasury yield, inflation, energy, market stress, liquidity and economic calendar data.',
+      'Macro indicators show descriptive labels, dates and update times, with red for increases and green for decreases. Missing data never appears as zero, and unimplemented environment scores are not shown as simulated values.',
+      'CMB Wing Lung account icons now use the official red-background artwork across account lists, dialogs, monthly comparisons and balance entry.',
+    ],
+  },
+  {
+    ver: 'v10.7.9.540', date: '2026-09-18',
+    items: [
       '首页自选同步股票趋势的 RSI(6) 区间与顶背离状态，统一显示强超买、背离观察、潜在顶背离和顶背离确认。',
       '首页复用已有日线计算和共享展示规则；旧行情缓存缺少新背离状态时显示未知，正常行情刷新后更新。',
     ],
