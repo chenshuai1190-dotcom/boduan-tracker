@@ -1,5 +1,5 @@
 import React from 'react';
-import { marketTextClass } from '../lib/marketColorMode.js';
+import { marketHexColor, marketTextClass } from '../lib/marketColorMode.js';
 import { isEnglishLanguage, t } from '../lib/i18n.js';
 import {
   buildAreaPathFromPoints, buildLinePathFromPoints, buildChartDomain, buildLinePoints, buildChartRecordHighs, chartX,
@@ -33,6 +33,20 @@ function currencyAmount(value, currency = 'USD', digits = 2) {
   return `${amount < 0 ? '-' : ''}${symbol}${Math.abs(amount).toLocaleString('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits })}`;
 }
 
+function signedCurrencyAmount(value, currency = 'USD') {
+  if (!isRenderableChartValue(value)) return '--';
+  return `${Number(value) >= 0 ? '+' : ''}${currencyAmount(value, currency, 2)}`;
+}
+
+function buildAmountDomain(data) {
+  const values = data.filter(point => isRenderableChartValue(point?.pnlUsd)).map(point => Number(point.pnlUsd));
+  if (!values.length) return null;
+  const min = Math.min(0, ...values);
+  const max = Math.max(0, ...values);
+  const padding = Math.max((max - min) * 0.08, Math.max(Math.abs(min), Math.abs(max)) * 0.01, 0.01);
+  return { min: min - padding, max: max + padding };
+}
+
 function compactAssetAxisValue(value, englishMode) {
   if (!isRenderableChartValue(value)) return '--';
   const n = Number(value);
@@ -41,6 +55,16 @@ function compactAssetAxisValue(value, englishMode) {
   if (abs >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
   if (abs >= 1000) return `${(n / 1000).toFixed(1)}K`;
   return n.toFixed(0);
+}
+
+function compactAmountAxisValue(value, englishMode) {
+  if (!isRenderableChartValue(value)) return '--';
+  const n = Number(value);
+  const abs = Math.abs(n);
+  if (!englishMode && abs >= 10000) return `${(n / 10000).toFixed(abs >= 1000000 ? 0 : 1)}万`;
+  if (englishMode && abs >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
+  if (englishMode && abs >= 1000) return `${(n / 1000).toFixed(1)}K`;
+  return n.toFixed(abs < 10 ? 2 : abs < 100 ? 1 : 0);
 }
 
 function displayTooltipDate(dateKey, englishMode) {
@@ -60,21 +84,27 @@ export default function PnlReportTrendChart({
   const chartRootRef = React.useRef(null);
   const activePointerRef = React.useRef(null);
   const gradientId = `pnl-report-area-${React.useId().replace(/:/g, '')}`;
-  const primaryKey = mode === 'assets' ? 'netAssetUsd' : 'pnlPct';
+  const amountLineGradientId = `pnl-report-amount-line-${React.useId().replace(/:/g, '')}`;
+  const primaryKey = mode === 'assets' ? 'netAssetUsd' : mode === 'amount' ? 'pnlUsd' : 'pnlPct';
   const hasBenchmark = data.some(point => isRenderableChartValue(point?.benchmarkPct));
   const showBenchmark = mode === 'pnl' && hasBenchmark;
-  const primaryDomain = React.useMemo(() => (
-    mode === 'assets'
-      ? buildChartDomain(data, ['netAssetUsd', 'totalAssetUsd'], 'assets')
-      : buildChartDomain(data, ['pnlPct', 'benchmarkPct'], 'percentage')
-  ), [data, mode]);
+  const primaryDomain = React.useMemo(() => {
+    if (mode === 'assets') return buildChartDomain(data, ['netAssetUsd', 'totalAssetUsd'], 'assets');
+    if (mode === 'amount') return buildAmountDomain(data);
+    return buildChartDomain(data, ['pnlPct', 'benchmarkPct'], 'percentage');
+  }, [data, mode]);
   const primaryPoints = React.useMemo(() => buildLinePoints(data, primaryKey, primaryDomain), [data, primaryKey, primaryDomain]);
   const recordHighPoints = React.useMemo(() => buildChartRecordHighs(primaryPoints), [primaryPoints]);
-  const latestRecordHigh = recordHighPoints.at(-1) || null;
-  const primaryColor = mode === 'assets' ? NET_ASSET_COLOR : color;
+  const latestRecordHigh = (mode === 'amount'
+    ? recordHighPoints.filter(point => point.value > 0).at(-1)
+    : recordHighPoints.at(-1)) || null;
+  const primaryColor = mode === 'assets' ? NET_ASSET_COLOR
+    : mode === 'amount' ? marketHexColor(latestRecordHigh?.value, marketColorMode) : color;
   const recordHighLabel = mode === 'assets'
     ? t(language, 'pnlReport.netAssetPeriodHigh', '净资产区间新高')
-    : t(language, 'pnlReport.returnPeriodHigh', '收益率区间新高');
+    : mode === 'amount'
+      ? t(language, 'pnlReport.amountPeriodHigh', '盈亏金额区间新高')
+      : t(language, 'pnlReport.returnPeriodHigh', '收益率区间新高');
   const totalAssetPoints = React.useMemo(() => mode === 'assets' ? buildLinePoints(data, 'totalAssetUsd', primaryDomain) : [], [data, mode, primaryDomain]);
   const benchmarkPoints = React.useMemo(() => showBenchmark ? buildLinePoints(data, 'benchmarkPct', primaryDomain) : [], [data, showBenchmark, primaryDomain]);
   const primarySegments = React.useMemo(() => mode === 'assets'
@@ -83,9 +113,9 @@ export default function PnlReportTrendChart({
   const primaryPaths = primarySegments.map(buildLinePathFromPoints).filter(Boolean);
   const totalAssetPath = mode === 'assets' ? buildLinePathFromPoints(totalAssetPoints) : '';
   const benchmarkPath = showBenchmark ? buildLinePathFromPoints(benchmarkPoints) : '';
-  const areaPaths = primarySegments.map(segment => buildAreaPathFromPoints(segment, PNL_CHART_HEIGHT, PNL_CHART_PAD)).filter(Boolean);
+  const areaPaths = mode === 'amount' ? [] : primarySegments.map(segment => buildAreaPathFromPoints(segment, PNL_CHART_HEIGHT, PNL_CHART_PAD)).filter(Boolean);
   const pointSlots = React.useMemo(() => data.map((point, index) => ({ point, index, x: chartX(index, data.length) })), [data]);
-  const selectableSlots = mode === 'assets' ? totalAssetPoints : pointSlots;
+  const selectableSlots = mode === 'assets' ? totalAssetPoints : mode === 'amount' ? primaryPoints : pointSlots;
   const primaryByIndex = React.useMemo(() => new Map(primaryPoints.map(point => [point.index, point])), [primaryPoints]);
   const totalAssetByIndex = React.useMemo(() => new Map(totalAssetPoints.map(point => [point.index, point])), [totalAssetPoints]);
   const benchmarkByIndex = React.useMemo(() => new Map(benchmarkPoints.map(point => [point.index, point])), [benchmarkPoints]);
@@ -105,8 +135,14 @@ export default function PnlReportTrendChart({
     return primaryDomain.max - ratio * (primaryDomain.max - primaryDomain.min);
   }) : gridLines.map(() => null);
   const assetAxisLabels = axisValues.map(value => compactAssetAxisValue(convertUsd(value, displayRate), englishMode));
-  const axisLabels = mode === 'assets' ? assetAxisLabels : axisValues.map(value => isRenderableChartValue(value)
-    ? `${(value * 100).toFixed(primaryDomain.max - primaryDomain.min < 0.04 ? 2 : 1)}%` : '--');
+  const zeroY = mode === 'amount' && primaryDomain
+    ? PNL_CHART_PAD + (primaryDomain.max / (primaryDomain.max - primaryDomain.min)) * (PNL_CHART_HEIGHT - PNL_CHART_PAD * 2)
+    : null;
+  const axisLabels = mode === 'assets' ? assetAxisLabels : mode === 'amount'
+    ? axisValues.map((value, index) => Math.abs(gridLines[index] - zeroY) < 10
+      ? '' : compactAmountAxisValue(convertUsd(value, displayRate), englishMode))
+    : axisValues.map(value => isRenderableChartValue(value)
+      ? `${(value * 100).toFixed(primaryDomain.max - primaryDomain.min < 0.04 ? 2 : 1)}%` : '--');
 
   React.useEffect(() => { activePointerRef.current = null; setSelectedIndex(null); }, [data, mode]);
   React.useEffect(() => {
@@ -150,7 +186,7 @@ export default function PnlReportTrendChart({
     <div className="pnl-trend-readout" data-mode={mode}>
       <div className="pnl-trend-readout-heading">
         <span>{displayTooltipDate(readoutSlot?.point?.date, englishMode)}</span>
-        {mode === 'assets' && <span>{displayCurrency}</span>}
+        {(mode === 'assets' || mode === 'amount') && <span>{displayCurrency}</span>}
       </div>
       {readoutSlot && mode === 'pnl' && <div className="pnl-trend-compare" data-pnl-report-compare-tooltip="true">
         <span />
@@ -164,6 +200,16 @@ export default function PnlReportTrendChart({
           <span className={isRenderableChartValue(readoutSlot.point?.benchmarkDailyPct) ? marketTextClass(readoutSlot.point?.benchmarkDailyPct, marketColorMode) : 'pnl-trend-missing'}>{nullableSignedPct(readoutSlot.point?.benchmarkDailyPct, 2)}</span>
           <span className={isRenderableChartValue(readoutSlot.point?.benchmarkPct) ? marketTextClass(readoutSlot.point?.benchmarkPct, marketColorMode) : 'pnl-trend-missing'}>{nullableSignedPct(readoutSlot.point?.benchmarkPct, 2)}</span>
         </>}
+      </div>}
+      {readoutSlot && mode === 'amount' && <div className="pnl-trend-amount-readout" data-pnl-report-amount-tooltip="true">
+        <span>{t(language, 'pnlReport.tooltip.dailyAmount', '当日盈亏')}</span>
+        <span className={isRenderableChartValue(readoutSlot.point?.dailyPnlUsd) ? marketTextClass(readoutSlot.point.dailyPnlUsd, marketColorMode) : 'pnl-trend-missing'}>
+          {signedCurrencyAmount(convertUsd(readoutSlot.point?.dailyPnlUsd, displayRate), displayCurrency)}
+        </span>
+        <span>{t(language, 'pnlReport.tooltip.periodAmount', '区间累计')}</span>
+        <span className={isRenderableChartValue(readoutSlot.point?.pnlUsd) ? marketTextClass(readoutSlot.point.pnlUsd, marketColorMode) : 'pnl-trend-missing'}>
+          {signedCurrencyAmount(convertUsd(readoutSlot.point?.pnlUsd, displayRate), displayCurrency)}
+        </span>
       </div>}
       {readoutSlot && readoutTotalAsset && mode === 'assets' && <div data-pnl-report-asset-tooltip="true">
         <div className="pnl-trend-asset-readout">
@@ -186,12 +232,17 @@ export default function PnlReportTrendChart({
           <defs><linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor={mode === 'assets' ? NET_ASSET_COLOR : color} stopOpacity="0.13" />
             <stop offset="100%" stopColor={mode === 'assets' ? NET_ASSET_COLOR : color} stopOpacity="0" />
-          </linearGradient></defs>
+          </linearGradient>
+          {zeroY != null && <linearGradient id={amountLineGradientId} gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2={PNL_CHART_HEIGHT}>
+            <stop offset={`${zeroY / PNL_CHART_HEIGHT * 100}%`} stopColor={marketHexColor(1, marketColorMode)} />
+            <stop offset={`${zeroY / PNL_CHART_HEIGHT * 100}%`} stopColor={marketHexColor(-1, marketColorMode)} />
+          </linearGradient>}</defs>
           {gridLines.map(y => <line key={y} x1={PNL_CHART_PAD} y1={y} x2={PNL_CHART_WIDTH - PNL_CHART_PAD} y2={y} stroke="rgba(255,255,255,0.07)" vectorEffect="non-scaling-stroke" />)}
+          {zeroY != null && <line className="pnl-trend-zero-line" x1={PNL_CHART_PAD} y1={zeroY} x2={PNL_CHART_WIDTH - PNL_CHART_PAD} y2={zeroY} stroke="rgba(255,255,255,0.38)" strokeWidth="1" strokeDasharray="3 4" vectorEffect="non-scaling-stroke" />}
           {areaPaths.map((path, index) => <path key={`area-${index}`} d={path} fill={`url(#${gradientId})`} />)}
           {totalAssetPath && <path d={totalAssetPath} fill="none" stroke={TOTAL_ASSET_COLOR} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />}
-          {primaryPaths.map((path, index) => <path key={`line-${index}`} d={path} fill="none" stroke={mode === 'assets' ? NET_ASSET_COLOR : color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />)}
-          {primarySegments.filter(segment => segment.length === 1).map(segment => <circle key={`single-${segment[0].index}`} cx={segment[0].x} cy={segment[0].y} r="2.4" fill={mode === 'assets' ? NET_ASSET_COLOR : color} />)}
+          {primaryPaths.map((path, index) => <path key={`line-${index}`} d={path} fill="none" stroke={mode === 'assets' ? NET_ASSET_COLOR : mode === 'amount' ? `url(#${amountLineGradientId})` : color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />)}
+          {primarySegments.filter(segment => segment.length === 1).map(segment => <circle key={`single-${segment[0].index}`} cx={segment[0].x} cy={segment[0].y} r="2.4" fill={mode === 'assets' ? NET_ASSET_COLOR : mode === 'amount' ? marketHexColor(segment[0].value, marketColorMode) : color} />)}
           {benchmarkPath && <path d={benchmarkPath} fill="none" stroke={BENCHMARK_COLOR} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />}
           {latestRecordHigh && <g data-pnl-report-record-high={primaryKey} data-record-high-date={latestRecordHigh.point.date} pointerEvents="none">
             <circle className="pnl-trend-high-halo quote-pulse-halo" cx={latestRecordHigh.x} cy={latestRecordHigh.y} r="7" fill="none" stroke={primaryColor} strokeWidth="1.2" vectorEffect="non-scaling-stroke" />
@@ -199,13 +250,15 @@ export default function PnlReportTrendChart({
           </g>}
           {selectedSlot && (selectedPrimary || selectedTotalAsset || (mode === 'pnl' && selectedBenchmark)) && <>
             <line x1={selectedSlot.x} y1={PNL_CHART_PAD} x2={selectedSlot.x} y2={PNL_CHART_HEIGHT - PNL_CHART_PAD} stroke="#62626b" strokeDasharray="3 4" vectorEffect="non-scaling-stroke" />
-            {[selectedPrimary && { point: selectedPrimary, color: mode === 'assets' ? NET_ASSET_COLOR : color },
+            {[selectedPrimary && { point: selectedPrimary, color: mode === 'assets' ? NET_ASSET_COLOR : mode === 'amount' ? marketHexColor(selectedPrimary.value, marketColorMode) : color },
               mode === 'assets' && selectedTotalAsset && { point: selectedTotalAsset, color: TOTAL_ASSET_COLOR },
               mode === 'pnl' && selectedBenchmark && { point: selectedBenchmark, color: BENCHMARK_COLOR }].filter(Boolean).map((item, index) => <circle key={index} cx={item.point.x} cy={item.point.y} r="3.2" fill={item.color} stroke="#08090b" strokeWidth="1.2" />)}
           </>}
         </svg>
       </div>
-      <div className="pnl-trend-axis" style={{ width: `${Math.max(5, ...axisLabels.map(label => label.length))}ch` }} aria-hidden="true">{axisLabels.map((label, index) => <span key={index} style={{ top: `${gridLines[index] / PNL_CHART_HEIGHT * 100}%` }}>{label}</span>)}</div>
+      <div className="pnl-trend-axis" style={{ width: `${Math.max(5, ...axisLabels.map(label => label.length))}ch` }} aria-hidden="true">{axisLabels.map((label, index) => <span key={index} style={{ top: `${gridLines[index] / PNL_CHART_HEIGHT * 100}%` }}>{label}</span>)}
+        {zeroY != null && <span className="pnl-trend-zero-label" style={{ top: `${zeroY / PNL_CHART_HEIGHT * 100}%` }}>0</span>}
+      </div>
       <div className="pnl-trend-dates"><span>{data[0]?.label || '--'}</span><span>{data[Math.floor(data.length / 2)]?.label || '--'}</span><span>{data.at(-1)?.label || '--'}</span></div>
     </div>
     {latestRecordHigh && <button type="button" className="pnl-trend-high-caption"

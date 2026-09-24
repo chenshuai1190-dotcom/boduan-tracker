@@ -1913,9 +1913,8 @@ function StandardDevVisualPreview({ initialTab = '' }) {
   }, []);
   const pnlReportInitialChartMode = React.useMemo(() => {
     if (typeof window === 'undefined') return 'pnl';
-    return new URLSearchParams(window.location.search).get('pnlReportChart') === 'assets'
-      ? 'assets'
-      : 'pnl';
+    const requestedMode = new URLSearchParams(window.location.search).get('pnlReportChart');
+    return ['assets', 'amount'].includes(requestedMode) ? requestedMode : 'pnl';
   }, []);
   const pnlReportAssetScenario = React.useMemo(() => {
     if (typeof window === 'undefined') return 'known';

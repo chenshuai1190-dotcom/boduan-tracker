@@ -169,12 +169,12 @@ test('asset chart gaps and deterministic dev-preview scenarios stay wired to the
   assert.ok(trendChartSource.includes('areaPaths.map'));
   assert.ok(chartSource.includes('isRenderableChartValue(point?.totalAssetUsd)'));
   assert.ok(chartSource.includes('!isRenderableChartValue(point?.netAssetUsd)'));
-  assert.ok(pageSource.includes("pnlReportInitialChartMode === 'assets' ? 'assets' : 'pnl'"));
+  assert.ok(pageSource.includes("['assets', 'amount'].includes(pnlReportInitialChartMode)"), 'report should accept either amount view without changing the default return view');
   assert.match(trendChartSource, /selectableSlots\.find\(\(?slot\)? => slot\?\.point\?\.date === initialSelectedDate\)/);
   assert.ok(trendChartSource.includes("document.addEventListener('pointerdown', closeOnOutsidePointer, true)"));
   assert.ok(trendChartSource.includes("document.removeEventListener('pointerdown', closeOnOutsidePointer, true)"));
 
-  assert.ok(devPreviewSource.includes("get('pnlReportChart') === 'assets'"));
+  assert.ok(devPreviewSource.includes("get('pnlReportChart')") && devPreviewSource.includes("['assets', 'amount'].includes(requestedMode)"));
   assert.ok(devPreviewSource.includes("get('pnlReportAssetScenario')"));
   assert.ok(devPreviewSource.includes("['unknown', 'mixed']"));
   assert.ok(devPreviewSource.includes("['default_zero', 'mixed']"));

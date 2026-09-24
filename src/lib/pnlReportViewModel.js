@@ -351,6 +351,34 @@ function computePeriodValues(latest, trendSource, baseline, range, { isSingleDay
   };
 }
 
+function buildPeriodAmountByDate(trendSource, baseline, range, { isSingleDay = false, startsInsideRange = false } = {}) {
+  const amountByDate = new Map();
+  trendSource.forEach((snapshot, index) => {
+    const date = String(snapshot.snapshotDate);
+    if (!isPresentFiniteNumber(snapshot.cumulativePnlUsd)) {
+      amountByDate.set(date, null);
+      return;
+    }
+
+    // When the first in-range snapshot is the period baseline, later points
+    // subtract it. Its plotted amount must therefore start at zero too.
+    const isFirstBaselinePoint = range !== 'all'
+      && !isSingleDay
+      && !startsInsideRange
+      && trendSource.length > 1
+      && index === 0
+      && String(baseline?.snapshotDate) === date;
+    const pnlUsd = isFirstBaselinePoint
+      ? 0
+      : computePeriodValues(snapshot, trendSource.slice(0, index + 1), baseline, range, {
+        isSingleDay,
+        startsInsideRange,
+      }).pnlUsd;
+    amountByDate.set(date, pnlUsd);
+  });
+  return amountByDate;
+}
+
 function computeTradeStats(stockTrades, range, startDate, endDate, fallbackLatest, fallbackSymbolSnapshots) {
   const rows = Array.isArray(stockTrades) ? stockTrades : [];
   if (rows.length === 0) {
@@ -594,6 +622,10 @@ export function buildPnlReportViewModel({
   const benchmark = buildBenchmarkContext(benchmarkRows, rangeStartDate, rangeEndDate);
   const benchmarkStartClose = benchmark.start?.close || null;
   const snapshotByDate = new Map(boundedTrendSource.map((snapshot) => [String(snapshot.snapshotDate), snapshot]));
+  const amountByDate = buildPeriodAmountByDate(boundedTrendSource, baseline, range, {
+    isSingleDay,
+    startsInsideRange,
+  });
   const trendDates = buildTrendAxisDates({
     trendSource: boundedTrendSource,
     benchmarkRows: benchmark.rows,
@@ -633,6 +665,11 @@ export function buildPnlReportViewModel({
     return {
       date,
       label: monthLabel(date),
+      dailyPnlUsd: snapshot && isPresentFiniteNumber(snapshot.cumulativePnlUsd)
+        && isPresentFiniteNumber(snapshot.dailyPnlUsd)
+        ? toNumber(snapshot.dailyPnlUsd)
+        : null,
+      pnlUsd: amountByDate.get(date) ?? null,
       dailyPnlPct: snapshot?.dailyPnlPct == null ? null : toNumber(snapshot.dailyPnlPct),
       pnlPct: snapshot ? (isSingleDay
         ? (snapshot.dailyPnlPct == null ? null : toNumber(snapshot.dailyPnlPct))

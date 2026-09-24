@@ -1063,7 +1063,7 @@ test('P&L report snapshot page stays independent from live trading pipelines', (
   assert.ok(pnlReportTrendChartSource.includes('marketTextClass(readoutSlot.point?.pnlPct, marketColorMode)'), 'P&L report readout mine cumulative return should follow the configured market color mode');
   assert.ok(pnlReportTrendChartSource.includes('const readoutSlot = selectedSlot || latestReadoutSlot'), 'readouts should default to the latest actual observation while honoring a selected date');
   assert.ok(pnlReportTrendChartSource.includes('data-pnl-report-asset-tooltip'), 'P&L report asset trend should expose a selectable asset-value readout');
-  assert.ok(pnlReportTrendChartSource.includes("mode === 'assets' ? totalAssetPoints : pointSlots"), 'P&L report asset trend should select only real portfolio snapshot points');
+  assert.ok(pnlReportTrendChartSource.includes("mode === 'assets' ? totalAssetPoints"), 'P&L report asset trend should select only real portfolio snapshot points');
   assert.ok(pnlReportTrendChartSource.includes("mode === 'assets'") && pnlReportTrendChartSource.includes('assetAxisLabels'), 'P&L report asset trend should render amount-axis labels instead of percentage labels');
   assert.ok(pnlReportTrendChartSource.includes("const NET_ASSET_COLOR = '#ff5038'") && pnlReportTrendChartSource.includes("const TOTAL_ASSET_COLOR = '#f6b54b'"), 'P&L report asset trend should keep fixed net and total asset colors');
   assert.ok(pnlReportTrendChartSource.includes("buildChartDomain(data, ['netAssetUsd', 'totalAssetUsd'], 'assets')"), 'P&L report net and total assets should share one amount domain');

@@ -162,7 +162,7 @@ export default function PnlReportPage({ ctx = {} }) {
   const [draftStartDate, setDraftStartDate] = React.useState(dateKeyToday());
   const [draftEndDate, setDraftEndDate] = React.useState(dateKeyToday());
   const [chartMode, setChartMode] = React.useState(
-    pnlReportInitialChartMode === 'assets' ? 'assets' : 'pnl'
+    ['assets', 'amount'].includes(pnlReportInitialChartMode) ? pnlReportInitialChartMode : 'pnl'
   );
   const [calendarMode, setCalendarMode] = React.useState('pnl');
   const [calendarView, setCalendarView] = React.useState('month');
@@ -494,6 +494,7 @@ export default function PnlReportPage({ ctx = {} }) {
       <section className="pnl-report-chart-section">
         <div className="pnl-report-chart-modes">
           <SegmentButton active={chartMode === 'pnl'} onClick={() => setChartMode('pnl')}>{t(language, 'pnlReport.pnlTrend', '收益率走势')}</SegmentButton>
+          <SegmentButton active={chartMode === 'amount'} onClick={() => setChartMode('amount')}>{t(language, 'pnlReport.amountTrend', '盈亏金额走势')}</SegmentButton>
           <SegmentButton active={chartMode === 'assets'} onClick={() => setChartMode('assets')}>{t(language, 'pnlReport.assetTrend', '总资产走势')}</SegmentButton>
         </div>
         <SparkArea
@@ -514,6 +515,11 @@ export default function PnlReportPage({ ctx = {} }) {
         {chartMode === 'assets' && hasAssetSnapshotsWithoutCash && (
           <div className="mt-1 text-center text-[10px] leading-4 text-white/[0.38]">
             {t(language, 'pnlReport.cashHistoryNotice', '部分资产快照未包含可用现金')}
+          </div>
+        )}
+        {chartMode === 'amount' && displayCurrency === 'CNY' && (
+          <div className="pnl-report-chart-note">
+            {t(language, 'pnlReport.currentRateNotice', '人民币金额按当前汇率折算，非逐日历史汇率')}
           </div>
         )}
       </section>
