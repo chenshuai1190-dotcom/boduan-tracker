@@ -419,26 +419,37 @@ export const upsertWaveNote = async (waveId, note) => {
 
 // ============ USER_SETTINGS (用户设置: 基准股票/FGI 缓存等) ============
 
-export const fetchSettings = async (preUser = null) => {
+const fetchSettingsWithStatus = async (preUser = null) => {
   const user = preUser || (await supabase.auth.getUser()).data.user;
-  if (!user) return null;
+  if (!user) return { settings: null, cloudReady: false };
 
-  const { data, error } = await supabase
-    .from('user_settings')
-    .select('*')
-    .eq('user_id', user.id)
-    .maybeSingle();
-  if (error) {
+  try {
+    const { data, error } = await supabase
+      .from('user_settings')
+      .select('*')
+      .eq('user_id', user.id)
+      .maybeSingle();
+    if (error) throw error;
+
+    const { watchlistOrder: legacyOrder, ...settingsData } = data?.data || {};
+    const settings = data ? {
+      benchmarkSymbol: data.benchmark_symbol || 'QQQ',
+      ...settingsData,
+      ...(Array.isArray(data.watchlist_order)
+        ? { watchlistOrder: data.watchlist_order }
+        : Array.isArray(legacyOrder) ? { watchlistOrder: legacyOrder } : {}),
+    } : null;
+    // A missing row is a successful cloud read too; clear an obsolete cache.
+    cacheSet(user.id, 'settings', settings);
+    return { settings, cloudReady: true };
+  } catch (error) {
     console.error('fetchSettings 失败:', error);
-    return cacheGet(user.id, 'settings') || null;
+    return { settings: cacheGet(user.id, 'settings') || null, cloudReady: false };
   }
-  const settings = data ? {
-    benchmarkSymbol: data.benchmark_symbol || 'QQQ',
-    ...data.data,
-  } : null;
-  if (settings) cacheSet(user.id, 'settings', settings);
-  return settings;
 };
+
+export const fetchSettings = async (preUser = null) =>
+  (await fetchSettingsWithStatus(preUser)).settings;
 
 export const upsertSettings = async (settings) => {
   const { data: { user } } = await supabase.auth.getUser();
@@ -454,7 +465,61 @@ export const upsertSettings = async (settings) => {
       updated_at: new Date().toISOString(),
     }, { onConflict: 'user_id' });
   if (error) throw error;
-  cacheSet(user.id, 'settings', settings);
+  const cachedOrder = cacheGet(user.id, 'settings')?.watchlistOrder;
+  cacheSet(user.id, 'settings', {
+    ...settings,
+    ...(Array.isArray(cachedOrder) ? { watchlistOrder: cachedOrder } : {}),
+  });
+};
+
+const isMissingWatchlistOrderColumn = (error) =>
+  ['PGRST204', '42703'].includes(error?.code)
+    && /watchlist_order/i.test([error.message, error.details, error.hint].filter(Boolean).join(' '));
+
+// The dedicated column protects the order from concurrent whole-document saves.
+// Until its migration is applied, keep the legacy JSON write path available.
+export const upsertWatchlistOrder = async (symbols, initialSettings = null) => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('未登录');
+  if (!Array.isArray(symbols)) throw new Error('自选排序格式不正确');
+
+  const order = [...symbols];
+  const updateOrder = () => supabase
+    .from('user_settings')
+    .update({ watchlist_order: order, updated_at: new Date().toISOString() })
+    .eq('user_id', user.id)
+    .select('user_id');
+
+  try {
+    const { data: updated, error: updateError } = await updateOrder();
+    if (updateError) throw updateError;
+    if (!updated?.length) {
+      const { benchmarkSymbol, watchlistOrder, ...rest } = initialSettings || {};
+      const { error: insertError } = await supabase
+        .from('user_settings')
+        .insert({
+          user_id: user.id,
+          benchmark_symbol: benchmarkSymbol || 'QQQ',
+          data: rest,
+          watchlist_order: order,
+          updated_at: new Date().toISOString(),
+        });
+      if (insertError) {
+        if (insertError.code !== '23505') throw insertError;
+        const { data: retried, error: retryError } = await updateOrder();
+        if (retryError) throw retryError;
+        if (!retried?.length) throw insertError;
+      }
+    }
+  } catch (error) {
+    if (!isMissingWatchlistOrderColumn(error)) throw error;
+    await upsertSettings({ ...(initialSettings || {}), watchlistOrder: order });
+  }
+
+  cacheSet(user.id, 'settings', {
+    ...(cacheGet(user.id, 'settings') || initialSettings || {}),
+    watchlistOrder: order,
+  });
 };
 
 // ============ 一次性拉取所有数据 ============
@@ -475,7 +540,8 @@ export const fetchAllUserData = async () => {
       trades: null, stockTrades: null, watchlist: null, waveNotes: null, settings: null,
       accounts: null, snapshots: null, investmentPlan: null,
       marginStatus: null, disciplines: null, reviewLogs: null,
-      yearlyActuals: null, availableCashStatus: null, _failedTables: [],
+      yearlyActuals: null, availableCashStatus: null,
+      _settingsCloudReady: false, _failedTables: [],
     };
   }
 
@@ -489,7 +555,7 @@ export const fetchAllUserData = async () => {
     fetchStockTrades(user),       // 1
     fetchWatchlist(user),         // 2
     fetchWaveNotes(user),         // 3
-    fetchSettings(user),          // 4
+    fetchSettingsWithStatus(user), // 4
     fetchAccounts(user),          // 5
     fetchSnapshots(user),         // 6
     fetchInvestmentPlan(user),    // 7
@@ -517,12 +583,17 @@ export const fetchAllUserData = async () => {
     return null;  // 🔑 失败标记
   };
 
+  const settingsResult = getValue(4);
+  if (!settingsResult?.cloudReady && !failedTables.includes('settings')) {
+    failedTables.push('settings');
+  }
+
   return {
     trades:         getValue(0),
     stockTrades:    getValue(1),
     watchlist:      getValue(2),
     waveNotes:      getValue(3),
-    settings:       getValue(4),
+    settings:       settingsResult?.settings ?? null,
     accounts:       getValue(5),
     snapshots:      getValue(6),
     investmentPlan: getValue(7),
@@ -532,6 +603,7 @@ export const fetchAllUserData = async () => {
     yearlyActuals:  getValue(11),
     availableCashStatus: getValue(12),
     _symbolRepair: symbolRepair,
+    _settingsCloudReady: settingsResult?.cloudReady === true,
     // 🔑 失败表清单 (App 层决定是否显示警告)
     _failedTables: failedTables,
   };

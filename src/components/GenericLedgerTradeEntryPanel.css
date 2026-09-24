@@ -22,7 +22,8 @@
 .ledger-entry-clear:active { color: #dddde3; }
 .ledger-entry-clear:focus-visible { outline: 1px solid #b5b5ba; outline-offset: 1px; }
 .ledger-entry-date { font-size: 16px; text-align: left; }
-.ledger-entry-date::-webkit-date-and-time-value { min-height: 1em; text-align: left; }
+.ledger-entry-date::-webkit-date-and-time-value { min-height: 46px; margin: 0; line-height: 46px; text-align: left; }
+.ledger-entry-date::-webkit-datetime-edit { padding: 0; }
 .ledger-entry-estimate { display: grid; min-width: 0; gap: 9px; margin-top: 2px; padding-top: 17px; border-top: 1px solid rgb(255 255 255 / .07); }
 .ledger-entry-estimate-label { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: #8c8c96; font-size: 12px; line-height: 18px; }
 .ledger-entry-estimate-label small { color: #73737d; font-size: 11px; }

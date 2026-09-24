@@ -825,6 +825,11 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   // 默认为空,新用户登录后看到引导界面 → 点"添加你的第一只股票"
   const [watchlist, setWatchlist] = useState([]);
   const [watchlistOrder, setWatchlistOrder] = useState([]);
+  const watchlistOrderRef = useRef(watchlistOrder);
+  watchlistOrderRef.current = watchlistOrder;
+  const watchlistOrderMutationSerialRef = useRef(0);
+  const [settingsCloudReady, setSettingsCloudReady] = useState(false);
+  const settingsCloudReadyRef = useRef(false);
   const [stockQuoteBootstrapRows] = useState(() => readStockQuoteBootstrapCache({ userId: user.id }));
   const [quoteCache, setQuoteCache] = useState([]);
   const initialQuoteBootstrapCountRef = useRef(stockQuoteBootstrapRows.length);
@@ -1612,7 +1617,9 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     vixDataDate,
     batches,
     exitTargets,
-    watchlistOrder: normalizeWatchlistOrder(watchlistOrder),
+    // Keep the legacy JSON field until the dedicated cloud column is deployed.
+    // A drag is persisted explicitly, so it must not trigger a whole-settings save.
+    watchlistOrder: normalizeWatchlistOrder(watchlistOrderRef.current),
     ...overrides,
   }), [
     benchmarkSymbol,
@@ -1628,7 +1635,6 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     vixDataDate,
     batches,
     exitTargets,
-    watchlistOrder,
   ]);
 
   useEffect(() => {
@@ -1675,7 +1681,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     setQuoteDiagnosticLogs([]);
   }, [user.id]);
 
-  const applyCloudUserData = useCallback((result, logLabel = '[云端加载]') => {
+  const applyCloudUserData = useCallback((result, logLabel = '[云端加载]', orderMutationAtStart = watchlistOrderMutationSerialRef.current) => {
     const {
       trades: cloudTrades,
       stockTrades: cloudStockTrades,
@@ -1690,8 +1696,12 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
       disciplines: cloudDisciplines,
       reviewLogs: cloudLogs,
       yearlyActuals: cloudActuals,
+      _settingsCloudReady,
       _failedTables,
     } = result || {};
+
+    settingsCloudReadyRef.current = _settingsCloudReady === true;
+    setSettingsCloudReady(settingsCloudReadyRef.current);
 
     console.log(`${logLabel} cloudWatchlist:`, cloudWatchlist, '长度:', cloudWatchlist?.length);
     console.log(`${logLabel} accounts:`, cloudAccounts?.length, 'snapshots:', cloudSnapshots?.length);
@@ -1714,11 +1724,25 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     setStockHoldingsError(Array.isArray(cloudStockTrades) ? null : 'HOLDINGS_UNAVAILABLE');
 
     if (Array.isArray(cloudWatchlist)) {
-      const cloudWatchlistOrder = normalizeWatchlistOrder(settings?.watchlistOrder);
-      const orderedWatchlist = orderWatchlistRows(cloudWatchlist, cloudWatchlistOrder);
-      console.log(`${logLabel} ✓ 设置 watchlist:`, orderedWatchlist.length, '只');
-      setWatchlist(orderedWatchlist);
-      setWatchlistOrder(normalizeWatchlistOrder(orderedWatchlist.map((item) => item?.symbol)));
+      if (orderMutationAtStart !== watchlistOrderMutationSerialRef.current) {
+        // A drag/add/delete happened after this request began. Its older
+        // watchlist snapshot must not undo the user's newer local action.
+        console.warn(`${logLabel} ⚠️ 自选列表已在读取期间修改, 保留最新本地顺序`);
+      } else {
+        // On a failed settings read, cached settings can render the list but
+        // are not authoritative enough to replace an order already in memory.
+        const cloudWatchlistOrder = _settingsCloudReady === true
+          ? normalizeWatchlistOrder(settings?.watchlistOrder)
+          : (watchlistOrderRef.current.length > 0
+            ? watchlistOrderRef.current
+            : normalizeWatchlistOrder(settings?.watchlistOrder));
+        const orderedWatchlist = orderWatchlistRows(cloudWatchlist, cloudWatchlistOrder);
+        const nextOrder = normalizeWatchlistOrder(orderedWatchlist.map((item) => item?.symbol));
+        console.log(`${logLabel} ✓ 设置 watchlist:`, orderedWatchlist.length, '只');
+        setWatchlist(orderedWatchlist);
+        watchlistOrderRef.current = nextOrder;
+        setWatchlistOrder(nextOrder);
+      }
     } else {
       console.warn(`${logLabel} ⚠️ watchlist 拉取失败, 保留本地默认`);
     }
@@ -1798,10 +1822,11 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
       try {
         setCloudLoading(true);
         console.log('[云端加载] 开始拉取...');
+        const orderMutationAtStart = watchlistOrderMutationSerialRef.current;
         const result = await db.fetchAllUserData();
         console.log('[云端加载] 原始返回:', result);
         if (!mounted) return;
-        applyCloudUserData(result, '[云端加载]');
+        applyCloudUserData(result, '[云端加载]', orderMutationAtStart);
         stockRealtimeUniverseResolvedRef.current = true;
         setStockRealtimeUniverseResolved(true);
         quoteRefreshFromCloudResultRef.current?.(result);
@@ -1826,13 +1851,16 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   // 保存设置到云端(防抖,500ms 内多次改只保存最后一次)
   const settingsSaveTimerRef = useRef(null);
   useEffect(() => {
-    if (cloudLoading) return; // 加载期间不保存
+    // The 2.6s UI timeout must never turn an unread or failed settings fetch
+    // into an automatic cloud overwrite.
+    if (cloudLoading || !settingsCloudReady) return;
     clearTimeout(settingsSaveTimerRef.current);
     settingsSaveTimerRef.current = setTimeout(() => {
+      if (!settingsCloudReadyRef.current) return;
       db.upsertSettings(buildSettingsPayload()).catch(e => console.error('设置保存失败:', e));
     }, 500);
     return () => clearTimeout(settingsSaveTimerRef.current);
-  }, [buildSettingsPayload, cloudLoading]);
+  }, [buildSettingsPayload, cloudLoading, settingsCloudReady]);
 
   // 🚨 Watchlist 保存策略: 改为精确单条操作 (addStock/removeStock/updateStockPrice 里直接写)
   //     不再用"删光重插"的 replaceWatchlist, 避免竞态和重复问题
@@ -2568,14 +2596,17 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     const nextOrder = normalizeWatchlistOrder(normalizedList.map((item) => item?.symbol));
     const previousList = watchlist;
     const previousOrder = watchlistOrder;
+    watchlistOrderMutationSerialRef.current += 1;
     setWatchlist(normalizedList);
+    watchlistOrderRef.current = nextOrder;
     setWatchlistOrder(nextOrder);
     try {
-      await db.upsertSettings(buildSettingsPayload({ watchlistOrder: nextOrder }));
+      await db.upsertWatchlistOrder(nextOrder, buildSettingsPayload());
       return { success: true };
     } catch (e) {
       console.error('[自选排序] 云端失败:', e);
       setWatchlist(previousList);
+      watchlistOrderRef.current = previousOrder;
       setWatchlistOrder(previousOrder);
       return { success: false, error: e.message || '自选排序保存失败' };
     }
@@ -2589,7 +2620,9 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     const previousQuoteCache = quoteCache;
     const nextList = watchlist.filter((item) => normalizeSymbolKey(item?.symbol) !== symbol);
     const nextOrder = normalizeWatchlistOrder(nextList.map((item) => item?.symbol));
+    watchlistOrderMutationSerialRef.current += 1;
     setWatchlist(nextList);
+    watchlistOrderRef.current = nextOrder;
     setWatchlistOrder(nextOrder);
     const stillHeld = stockTrades.some((trade) => normalizeSymbolKey(trade?.symbol) === symbol);
     if (!stillHeld) {
@@ -2598,11 +2631,12 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     if (editingStock === symbol) setEditingStock(null);
     try {
       await db.removeWatchlistItem(symbol);
-      await db.upsertSettings(buildSettingsPayload({ watchlistOrder: nextOrder }));
+      await db.upsertWatchlistOrder(nextOrder, buildSettingsPayload());
       return { success: true };
     } catch (e) {
       console.error('[删除股票] 云端失败:', e);
       setWatchlist(previousList);
+      watchlistOrderRef.current = previousOrder;
       setWatchlistOrder(previousOrder);
       setQuoteCache(previousQuoteCache);
       return { success: false, error: e.message || `删除 ${symbol} 失败` };
@@ -2710,18 +2744,24 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
       ...watchlist.map((item) => item?.symbol),
       symbol,
     ]);
+    watchlistOrderMutationSerialRef.current += 1;
     setWatchlist(current => (
       current.some(item => String(item?.symbol || '').toUpperCase() === symbol)
         ? current
         : [...current, newItem]
     ));
+    watchlistOrderRef.current = nextOrder;
     setWatchlistOrder(nextOrder);
     setQuoteCache(current => {
       const next = current.filter(item => item.symbol !== symbol);
       return [...next, newItem];
     });
-    db.upsertSettings(buildSettingsPayload({ watchlistOrder: nextOrder }))
-      .catch((e) => console.error('[添加股票] 自选排序保存失败:', e));
+    try {
+      await db.upsertWatchlistOrder(nextOrder, buildSettingsPayload());
+    } catch (e) {
+      console.error('[添加股票] 自选排序保存失败:', e);
+      setCloudError('股票已添加，但自选排序保存失败；请重新排序后再试');
+    }
     if (logoURL) cacheStockLogo(symbol, logoURL);
     setNewStock({ symbol: '', name: '', price: '', high: '', cost: '0', shares: '0' });
     setShowAddStock(false);
@@ -3336,8 +3376,9 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
         return;
       }
 
+      const orderMutationAtStart = watchlistOrderMutationSerialRef.current;
       const cloudResult = await db.fetchAllUserData();
-      applyCloudUserData(cloudResult, '[全局刷新]');
+      applyCloudUserData(cloudResult, '[全局刷新]', orderMutationAtStart);
       await fetchDailyFxRates({ force: true });
       await fetchRealtimePrices(buildQuoteRowsFromCloudResult(cloudResult), {
         trigger: 'manual-pull-refresh',
@@ -5271,8 +5312,9 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
               onClick={async () => {
                 setCloudError(null);
                 try {
+                  const orderMutationAtStart = watchlistOrderMutationSerialRef.current;
                   const result = await db.fetchAllUserData();
-                  applyCloudUserData(result, '[云端重试]');
+                  applyCloudUserData(result, '[云端重试]', orderMutationAtStart);
                 } catch (e) {
                   setCloudError(e.message || '重试失败');
                 }
