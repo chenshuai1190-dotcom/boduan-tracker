@@ -41,6 +41,7 @@
 .home-report-position-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .home-report-benchmark { display: flex; align-items: center; gap: 6px; color: #d0d0d7; font-size: 12px; }
 .home-report-benchmark > span { font-size: 10px; color: #777780; }
+.home-report-benchmark-save { font-size: 10px; font-weight: 400; color: #b99b75; }
 .home-report-benchmark svg { color: #777780; }
 .home-report-drawdown { display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 10px; margin-top: 10px; text-align: left; }
 .home-report-drawdown-value { font-size: 31px; line-height: 1.2; font-variant-numeric: tabular-nums; letter-spacing: -.04em; }

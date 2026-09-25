@@ -419,9 +419,12 @@ export const upsertWaveNote = async (waveId, note) => {
 
 // ============ USER_SETTINGS (用户设置: 基准股票/FGI 缓存等) ============
 
+const benchmarkPreferenceVersionByUser = new Map();
+
 const fetchSettingsWithStatus = async (preUser = null) => {
   const user = preUser || (await supabase.auth.getUser()).data.user;
   if (!user) return { settings: null, cloudReady: false };
+  const benchmarkVersionAtStart = benchmarkPreferenceVersionByUser.get(user.id) || 0;
 
   try {
     const { data, error } = await supabase
@@ -431,16 +434,21 @@ const fetchSettingsWithStatus = async (preUser = null) => {
       .maybeSingle();
     if (error) throw error;
 
-    const { watchlistOrder: legacyOrder, ...settingsData } = data?.data || {};
+    const { watchlistOrder: legacyOrder, benchmarkSymbol: legacyBenchmarkSymbol, ...settingsData } = data?.data || {};
     const settings = data ? {
-      benchmarkSymbol: data.benchmark_symbol || 'QQQ',
       ...settingsData,
+      benchmarkSymbol: data.benchmark_symbol || legacyBenchmarkSymbol || 'QQQ',
       ...(Array.isArray(data.watchlist_order)
         ? { watchlistOrder: data.watchlist_order }
         : Array.isArray(legacyOrder) ? { watchlistOrder: legacyOrder } : {}),
     } : null;
-    // A missing row is a successful cloud read too; clear an obsolete cache.
-    cacheSet(user.id, 'settings', settings);
+    // A read started before an explicit benchmark write must not replace the
+    // newer local fallback after that write succeeds.
+    const newerBenchmarkWrite = benchmarkVersionAtStart !== (benchmarkPreferenceVersionByUser.get(user.id) || 0);
+    const cachedSettings = cacheGet(user.id, 'settings');
+    cacheSet(user.id, 'settings', newerBenchmarkWrite && cachedSettings
+      ? { ...(settings || cachedSettings), benchmarkSymbol: cachedSettings.benchmarkSymbol }
+      : settings);
     return { settings, cloudReady: true };
   } catch (error) {
     console.error('fetchSettings 失败:', error);
@@ -456,20 +464,82 @@ export const upsertSettings = async (settings) => {
   if (!user) throw new Error('未登录');
 
   const { benchmarkSymbol, ...rest } = settings;
-  const { error } = await supabase
+  const updateData = () => supabase
     .from('user_settings')
-    .upsert({
-      user_id: user.id,
-      benchmark_symbol: benchmarkSymbol || 'QQQ',
-      data: rest,
-      updated_at: new Date().toISOString(),
-    }, { onConflict: 'user_id' });
-  if (error) throw error;
-  const cachedOrder = cacheGet(user.id, 'settings')?.watchlistOrder;
+    .update({ data: rest, updated_at: new Date().toISOString() })
+    .eq('user_id', user.id)
+    .select('user_id');
+
+  const { data: updated, error: updateError } = await updateData();
+  if (updateError) throw updateError;
+  if (!updated?.length) {
+    const { error: insertError } = await supabase
+      .from('user_settings')
+      .insert({
+        user_id: user.id,
+        benchmark_symbol: benchmarkSymbol || 'QQQ',
+        data: rest,
+        updated_at: new Date().toISOString(),
+      });
+    if (insertError) {
+      if (insertError.code !== '23505') throw insertError;
+      const { data: retried, error: retryError } = await updateData();
+      if (retryError) throw retryError;
+      if (!retried?.length) throw insertError;
+    }
+  }
+  const cachedSettings = cacheGet(user.id, 'settings') || {};
+  const cachedOrder = cachedSettings.watchlistOrder;
   cacheSet(user.id, 'settings', {
     ...settings,
+    benchmarkSymbol: cachedSettings.benchmarkSymbol || benchmarkSymbol || 'QQQ',
     ...(Array.isArray(cachedOrder) ? { watchlistOrder: cachedOrder } : {}),
   });
+};
+
+// A benchmark selection is a user action, not a side effect of the debounced
+// whole-settings save. Only this column changes, so an older settings request
+// cannot restore the previously selected symbol.
+export const upsertBenchmarkSymbol = async (symbol, initialSettings = null, expectedUserId = null) => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('未登录');
+  if (expectedUserId && user.id !== expectedUserId) throw new Error('账号已切换，请重新选择基准');
+  const benchmarkSymbol = String(symbol || '').trim().toUpperCase();
+  if (!benchmarkSymbol) throw new Error('基准股票代码无效');
+  benchmarkPreferenceVersionByUser.set(user.id, (benchmarkPreferenceVersionByUser.get(user.id) || 0) + 1);
+
+  const updateBenchmark = () => supabase
+    .from('user_settings')
+    .update({ benchmark_symbol: benchmarkSymbol, updated_at: new Date().toISOString() })
+    .eq('user_id', user.id)
+    .select('user_id');
+
+  const { data: updated, error: updateError } = await updateBenchmark();
+  if (updateError) throw updateError;
+  if (!updated?.length) {
+    const { benchmarkSymbol: _initialBenchmark, ...rest } = initialSettings || {};
+    const { error: insertError } = await supabase
+      .from('user_settings')
+      .insert({
+        user_id: user.id,
+        benchmark_symbol: benchmarkSymbol,
+        data: rest,
+        updated_at: new Date().toISOString(),
+      });
+    if (insertError) {
+      if (insertError.code !== '23505') throw insertError;
+      const { data: retried, error: retryError } = await updateBenchmark();
+      if (retryError) throw retryError;
+      if (!retried?.length) throw insertError;
+    }
+  }
+
+  cacheSet(user.id, 'settings', {
+    ...(cacheGet(user.id, 'settings') || initialSettings || {}),
+    benchmarkSymbol,
+  });
+  // Reads started during the write can still carry the old cloud value.
+  benchmarkPreferenceVersionByUser.set(user.id, (benchmarkPreferenceVersionByUser.get(user.id) || 0) + 1);
 };
 
 const isMissingWatchlistOrderColumn = (error) =>

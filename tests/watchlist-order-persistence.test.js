@@ -7,7 +7,7 @@ const appSource = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8
 
 // Execute the production settings functions with a small Supabase stand-in.
 // Importing db.js directly would initialize the real client and its other tables.
-const settingsStart = dbSource.indexOf('const fetchSettingsWithStatus = async');
+const settingsStart = dbSource.indexOf('const benchmarkPreferenceVersionByUser = new Map();');
 const settingsEnd = dbSource.indexOf('// ============ 一次性拉取所有数据', settingsStart);
 const allStart = dbSource.indexOf('export const fetchAllUserData = async');
 const allEnd = dbSource.indexOf('// ============ ACCOUNTS', allStart);
@@ -38,7 +38,7 @@ function fixture(initialRow, { readError = null, missingOrderColumn = false, cac
         select() {
           if (this.operation === 'update') {
             state.writes.push({ kind: 'update', payload: this.payload });
-            if (missingOrderColumn) {
+            if (missingOrderColumn && Object.hasOwn(this.payload, 'watchlist_order')) {
               return Promise.resolve({ data: null, error: {
                 code: 'PGRST204',
                 message: "Could not find the 'watchlist_order' column of 'user_settings' in the schema cache",
@@ -55,7 +55,7 @@ function fixture(initialRow, { readError = null, missingOrderColumn = false, cac
         update(payload) { this.operation = 'update'; this.payload = payload; return this; },
         insert(payload) {
           state.writes.push({ kind: 'insert', payload });
-          if (missingOrderColumn) return Promise.resolve({ error: { code: 'PGRST204', message: "Could not find the 'watchlist_order' column" } });
+          if (missingOrderColumn && Object.hasOwn(payload, 'watchlist_order')) return Promise.resolve({ error: { code: 'PGRST204', message: "Could not find the 'watchlist_order' column" } });
           state.row = structuredClone(payload);
           return Promise.resolve({ error: null });
         },
@@ -154,6 +154,6 @@ test('home drag writes the explicit order and generic settings autosave is gated
   const applyEnd = appSource.indexOf('// 保存设置到云端', applyStart);
   const cloudApply = appSource.slice(applyStart, applyEnd);
   assert.match(cloudApply, /orderMutationAtStart !== watchlistOrderMutationSerialRef\.current/);
-  assert.match(cloudApply, /const orderMutationAtStart = watchlistOrderMutationSerialRef\.current;\s*const result = await db\.fetchAllUserData\(\)/);
-  assert.match(cloudApply, /applyCloudUserData\(result, '\[云端加载\]', orderMutationAtStart\)/);
+  assert.match(cloudApply, /const orderMutationAtStart = watchlistOrderMutationSerialRef\.current;\s*const benchmarkMutationAtStart = benchmarkMutationSerialRef\.current;\s*const result = await db\.fetchAllUserData\(\)/);
+  assert.match(cloudApply, /applyCloudUserData\(result, '\[云端加载\]', orderMutationAtStart, benchmarkMutationAtStart\)/);
 });

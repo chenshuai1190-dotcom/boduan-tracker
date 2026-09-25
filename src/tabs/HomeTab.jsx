@@ -324,6 +324,7 @@ export default function HomeTab({ ctx }) {
     benchmarkDrawdown,
     benchmarkMenuOpen,
     benchmarkOptions,
+    benchmarkSaveStatus = 'idle',
     benchmarkStock,
     benchmarkSymbol,
     btcMarketCard,
@@ -923,6 +924,11 @@ export default function HomeTab({ ctx }) {
             <button type="button" data-home-signal-trigger onClick={() => setBenchmarkMenuOpen(true)} className="home-report-benchmark"
               aria-label={t(language, 'home.switchBenchmark', '切换基准')}>
               {benchmarkStock?.symbol || benchmarkSymbol || 'QQQ'}
+              {benchmarkSaveStatus !== 'idle' && <small className="home-report-benchmark-save" aria-live="polite">
+                {benchmarkSaveStatus === 'error'
+                  ? t(language, 'home.benchmarkNotSynced', '未同步')
+                  : t(language, 'home.benchmarkSaving', '保存中')}
+              </small>}
               <span>{t(language, 'home.switchBenchmark', '切换基准')}</span><ChevronRight size={12} />
             </button>
           </div>

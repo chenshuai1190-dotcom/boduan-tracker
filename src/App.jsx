@@ -109,6 +109,24 @@ const IOS_PWA_REALTIME_SNAPSHOT_IDLE_INTERVAL_MS = 2500;
 const IOS_PWA_REALTIME_SNAPSHOT_BURST_DELAYS_MS = [0, 800, 1600, 3000, 5000];
 const PORTFOLIO_CURRENCY_STORAGE_KEY = 'xmoney_portfolio_currency';
 const HOME_CURRENCY_STORAGE_KEY = 'xmoney_home_currency';
+const PENDING_HOME_BENCHMARK_STORAGE_KEY = 'bottomline_pending_home_benchmark_v1';
+
+function readPendingHomeBenchmark(userId) {
+  try {
+    return normalizeStrictUserStockSymbol(localStorage.getItem(userScopedStorageKey(PENDING_HOME_BENCHMARK_STORAGE_KEY, userId))) || null;
+  } catch { return null; }
+}
+
+function writePendingHomeBenchmark(userId, symbol) {
+  try { localStorage.setItem(userScopedStorageKey(PENDING_HOME_BENCHMARK_STORAGE_KEY, userId), symbol); } catch {}
+}
+
+function clearPendingHomeBenchmark(userId, symbol) {
+  try {
+    const key = userScopedStorageKey(PENDING_HOME_BENCHMARK_STORAGE_KEY, userId);
+    if (localStorage.getItem(key) === symbol) localStorage.removeItem(key);
+  } catch {}
+}
 
 function readRootScrollTop() {
   if (typeof window === 'undefined') return 0;
@@ -878,7 +896,13 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   const [btcMarketCard, setBtcMarketCard] = useState(null);
 
   // 顶部市场状态卡的基准股票(默认 QQQ,可切换关注列表里其他 1x 标的)
-  const [benchmarkSymbol, setBenchmarkSymbol] = useState('QQQ');
+  const [initialPendingBenchmark] = useState(() => readPendingHomeBenchmark(user.id));
+  const [benchmarkSymbol, setBenchmarkSymbol] = useState(initialPendingBenchmark || 'QQQ');
+  const [benchmarkSaveStatus, setBenchmarkSaveStatus] = useState(initialPendingBenchmark ? 'pending' : 'idle');
+  const benchmarkPendingRef = useRef(initialPendingBenchmark);
+  const benchmarkMutationSerialRef = useRef(0);
+  const benchmarkSaveQueueRef = useRef(Promise.resolve());
+  const benchmarkPendingRetryStartedRef = useRef(false);
   const [benchmarkMenuOpen, setBenchmarkMenuOpen] = useState(false);
 
   // 杠杆 ETF 黑名单(不允许作为基准,因为回撤不该 ×3 来判断)
@@ -1637,6 +1661,49 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     exitTargets,
   ]);
 
+  const selectHomeBenchmark = useCallback((symbol) => {
+    const nextSymbol = normalizeStrictUserStockSymbol(symbol);
+    if (!nextSymbol) return Promise.resolve({ success: false, error: '基准股票代码无效' });
+
+    const mutationSerial = ++benchmarkMutationSerialRef.current;
+    benchmarkPendingRef.current = nextSymbol;
+    writePendingHomeBenchmark(user.id, nextSymbol);
+    setBenchmarkSymbol(nextSymbol);
+    setBenchmarkSaveStatus('saving');
+
+    // Serial writes ensure an older selection cannot finish after the latest
+    // selection and become the cloud value. Superseded queued choices skip IO.
+    const save = async () => {
+      if (mutationSerial !== benchmarkMutationSerialRef.current) return { success: false, superseded: true };
+      try {
+        await db.upsertBenchmarkSymbol(nextSymbol, buildSettingsPayload({ benchmarkSymbol: nextSymbol }), user.id);
+        if (mutationSerial === benchmarkMutationSerialRef.current) {
+          // A cloud read may have started while this write was in flight and
+          // still contain the old symbol. Invalidate that read on completion.
+          benchmarkMutationSerialRef.current += 1;
+          clearPendingHomeBenchmark(user.id, nextSymbol);
+          benchmarkPendingRef.current = null;
+          setBenchmarkSaveStatus('idle');
+        }
+        return { success: true };
+      } catch (error) {
+        console.error('[切换基准] 云端保存失败:', error);
+        if (mutationSerial === benchmarkMutationSerialRef.current) setBenchmarkSaveStatus('error');
+        return { success: false, error: error?.message || '基准保存失败' };
+      }
+    };
+    const result = benchmarkSaveQueueRef.current.then(save, save);
+    benchmarkSaveQueueRef.current = result.then(() => undefined, () => undefined);
+    return result;
+  }, [buildSettingsPayload, user.id]);
+
+  useEffect(() => {
+    if (!initialPendingBenchmark || cloudLoading || benchmarkPendingRetryStartedRef.current
+      || benchmarkMutationSerialRef.current !== 0 || !benchmarkPendingRef.current) return;
+    benchmarkPendingRetryStartedRef.current = true;
+    void selectHomeBenchmark(benchmarkPendingRef.current);
+  }, [cloudLoading, initialPendingBenchmark, selectHomeBenchmark]);
+
   useEffect(() => {
     try {
       localStorage.setItem(MARKET_COLOR_MODE_STORAGE_KEY, marketColorMode);
@@ -1681,7 +1748,12 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     setQuoteDiagnosticLogs([]);
   }, [user.id]);
 
-  const applyCloudUserData = useCallback((result, logLabel = '[云端加载]', orderMutationAtStart = watchlistOrderMutationSerialRef.current) => {
+  const applyCloudUserData = useCallback((
+    result,
+    logLabel = '[云端加载]',
+    orderMutationAtStart = watchlistOrderMutationSerialRef.current,
+    benchmarkMutationAtStart = benchmarkMutationSerialRef.current,
+  ) => {
     const {
       trades: cloudTrades,
       stockTrades: cloudStockTrades,
@@ -1783,7 +1855,11 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     else console.warn(`${logLabel} ⚠️ yearlyActuals 拉取失败, 保留本地`);
 
     if (settings) {
-      if (settings.benchmarkSymbol) setBenchmarkSymbol(settings.benchmarkSymbol);
+      if (settings.benchmarkSymbol
+        && benchmarkMutationAtStart === benchmarkMutationSerialRef.current
+        && !benchmarkPendingRef.current) {
+        setBenchmarkSymbol(normalizeStrictUserStockSymbol(settings.benchmarkSymbol) || 'QQQ');
+      }
       if (typeof settings.fgi === 'number') setFgi(settings.fgi);
       if (settings.fgiLabel) setFgiLabel(settings.fgiLabel);
       if (typeof settings.fgiPrev === 'number') setFgiPrev(settings.fgiPrev);
@@ -1823,10 +1899,11 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
         setCloudLoading(true);
         console.log('[云端加载] 开始拉取...');
         const orderMutationAtStart = watchlistOrderMutationSerialRef.current;
+        const benchmarkMutationAtStart = benchmarkMutationSerialRef.current;
         const result = await db.fetchAllUserData();
         console.log('[云端加载] 原始返回:', result);
         if (!mounted) return;
-        applyCloudUserData(result, '[云端加载]', orderMutationAtStart);
+        applyCloudUserData(result, '[云端加载]', orderMutationAtStart, benchmarkMutationAtStart);
         stockRealtimeUniverseResolvedRef.current = true;
         setStockRealtimeUniverseResolved(true);
         quoteRefreshFromCloudResultRef.current?.(result);
@@ -3377,8 +3454,9 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
       }
 
       const orderMutationAtStart = watchlistOrderMutationSerialRef.current;
+      const benchmarkMutationAtStart = benchmarkMutationSerialRef.current;
       const cloudResult = await db.fetchAllUserData();
-      applyCloudUserData(cloudResult, '[全局刷新]', orderMutationAtStart);
+      applyCloudUserData(cloudResult, '[全局刷新]', orderMutationAtStart, benchmarkMutationAtStart);
       await fetchDailyFxRates({ force: true });
       await fetchRealtimePrices(buildQuoteRowsFromCloudResult(cloudResult), {
         trigger: 'manual-pull-refresh',
@@ -4961,6 +5039,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     benchmarkDrawdown,
     benchmarkMenuOpen,
     benchmarkOptions,
+    benchmarkSaveStatus,
     benchmarkStatus,
     benchmarkStock,
     benchmarkSymbol,
@@ -5098,7 +5177,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     setAccounts,
     setAlertsMuted,
     setBenchmarkMenuOpen,
-    setBenchmarkSymbol,
+    setBenchmarkSymbol: selectHomeBenchmark,
     setChangelogExpanded,
     setChartSelectedMonthIdx,
     setDisciplines,
@@ -5313,8 +5392,9 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
                 setCloudError(null);
                 try {
                   const orderMutationAtStart = watchlistOrderMutationSerialRef.current;
+                  const benchmarkMutationAtStart = benchmarkMutationSerialRef.current;
                   const result = await db.fetchAllUserData();
-                  applyCloudUserData(result, '[云端重试]', orderMutationAtStart);
+                  applyCloudUserData(result, '[云端重试]', orderMutationAtStart, benchmarkMutationAtStart);
                 } catch (e) {
                   setCloudError(e.message || '重试失败');
                 }
