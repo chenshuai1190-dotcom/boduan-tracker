@@ -497,9 +497,78 @@ export const upsertSettings = async (settings) => {
   });
 };
 
-// A benchmark selection is a user action, not a side effect of the debounced
-// whole-settings save. Only this column changes, so an older settings request
-// cannot restore the previously selected symbol.
+const HOME_BENCHMARK_TABLE = 'home_benchmark_preferences';
+
+const parseBenchmarkPreference = (row) => {
+  if (!row) return { symbol: 'QQQ', revision: null, exists: false };
+  const symbol = normalizeStrictUserStockSymbol(row.symbol);
+  const revision = Number(row.revision);
+  if (!symbol || !Number.isSafeInteger(revision) || revision < 0) {
+    throw new Error('云端基准股票数据无效');
+  }
+  return { symbol, revision, exists: true };
+};
+
+// This independent table is authoritative after its one-time migration. Do
+// not fall back to user_settings: an old browser can still rewrite that row.
+export const fetchBenchmarkPreference = async (preUser = null, expectedUserId = null) => {
+  const user = preUser || (await supabase.auth.getUser()).data.user;
+  if (!user) throw new Error('未登录');
+  if (expectedUserId && user.id !== expectedUserId) throw new Error('账号已切换，请重新选择基准');
+  const { data, error } = await supabase
+    .from(HOME_BENCHMARK_TABLE)
+    .select('symbol,revision')
+    .eq('user_id', user.id)
+    .maybeSingle();
+  if (error) throw error;
+  return parseBenchmarkPreference(data);
+};
+
+// A caller supplies the revision it last observed. A zero-row update means
+// another page changed this preference first; never silently overwrite it.
+export const saveBenchmarkPreference = async (symbolInput, expectedRevision, expectedUserId = null) => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('未登录');
+  if (expectedUserId && user.id !== expectedUserId) throw new Error('账号已切换，请重新选择基准');
+  const symbol = normalizeStrictUserStockSymbol(symbolInput);
+  if (!symbol) throw new Error('基准股票代码无效');
+  if (expectedRevision !== null && (!Number.isSafeInteger(expectedRevision) || expectedRevision < 0)) {
+    throw new Error('基准股票修订号无效');
+  }
+
+  let result;
+  if (expectedRevision === null) {
+    result = await supabase
+      .from(HOME_BENCHMARK_TABLE)
+      .insert({ user_id: user.id, symbol, revision: 1 })
+      .select('symbol,revision')
+      .single();
+    if (result.error && result.error.code !== '23505') throw result.error;
+  } else {
+    result = await supabase
+      .from(HOME_BENCHMARK_TABLE)
+      .update({ symbol, revision: expectedRevision + 1, updated_at: new Date().toISOString() })
+      .eq('user_id', user.id)
+      .eq('revision', expectedRevision)
+      .select('symbol,revision')
+      .maybeSingle();
+    if (result.error) throw result.error;
+  }
+
+  // Auth may switch while the network request is in flight. Under owner RLS a
+  // zero-row write would otherwise look like a revision conflict with no row.
+  const { data: { user: activeUser } } = await supabase.auth.getUser();
+  if (activeUser?.id !== user.id) throw new Error('账号已切换，请重新选择基准');
+  if (result.data) return parseBenchmarkPreference(result.data);
+  const current = await fetchBenchmarkPreference(user);
+  const conflict = new Error('基准股票已在其他页面更新');
+  conflict.code = 'BENCHMARK_PREFERENCE_CONFLICT';
+  conflict.current = current;
+  throw conflict;
+};
+
+// Legacy compatibility only. New home benchmark selections must use
+// saveBenchmarkPreference above; this old column is no longer authoritative.
 export const upsertBenchmarkSymbol = async (symbol, initialSettings = null, expectedUserId = null) => {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('未登录');
@@ -608,6 +677,7 @@ export const fetchAllUserData = async () => {
     console.warn('[fetchAllUserData] 用户未登录');
     return {
       trades: null, stockTrades: null, watchlist: null, waveNotes: null, settings: null,
+      benchmarkPreference: null,
       accounts: null, snapshots: null, investmentPlan: null,
       marginStatus: null, disciplines: null, reviewLogs: null,
       yearlyActuals: null, availableCashStatus: null,
@@ -634,6 +704,7 @@ export const fetchAllUserData = async () => {
     fetchReviewLogs(user),        // 10
     fetchYearlyActuals(user),     // 11
     fetchAvailableCashStatus(user), // 12
+    fetchBenchmarkPreference(user), // 13
   ]);
 
   // 🔑 关键: 失败时返回 null (非 []/{}) 这样 App 层能区分
@@ -643,6 +714,7 @@ export const fetchAllUserData = async () => {
     'trades', 'stockTrades', 'watchlist', 'waveNotes', 'settings',
     'accounts', 'snapshots', 'investmentPlan', 'marginStatus',
     'disciplines', 'reviewLogs', 'yearlyActuals', 'availableCashStatus',
+    'benchmarkPreference',
   ];
   const failedTables = [];
 
@@ -672,6 +744,7 @@ export const fetchAllUserData = async () => {
     reviewLogs:     getValue(10),
     yearlyActuals:  getValue(11),
     availableCashStatus: getValue(12),
+    benchmarkPreference: getValue(13),
     _symbolRepair: symbolRepair,
     _settingsCloudReady: settingsResult?.cloudReady === true,
     // 🔑 失败表清单 (App 层决定是否显示警告)

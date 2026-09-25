@@ -14,6 +14,7 @@ const USER_TABLES = [
   'watchlist',
   'wave_notes',
   'user_settings',
+  'home_benchmark_preferences',
   'accounts',
   'balance_snapshots',
   'investment_plan',

@@ -925,9 +925,13 @@ export default function HomeTab({ ctx }) {
               aria-label={t(language, 'home.switchBenchmark', '切换基准')}>
               {benchmarkStock?.symbol || benchmarkSymbol || 'QQQ'}
               {benchmarkSaveStatus !== 'idle' && <small className="home-report-benchmark-save" aria-live="polite">
-                {benchmarkSaveStatus === 'error'
-                  ? t(language, 'home.benchmarkNotSynced', '未同步')
-                  : t(language, 'home.benchmarkSaving', '保存中')}
+                {benchmarkSaveStatus === 'conflict'
+                  ? t(language, 'home.benchmarkConflict', '其他页面已更新 · 请重选')
+                  : benchmarkSaveStatus === 'error'
+                    ? t(language, 'home.benchmarkNotSynced', '未同步')
+                    : benchmarkSaveStatus === 'loading'
+                      ? t(language, 'home.benchmarkLoading', '读取中')
+                      : t(language, 'home.benchmarkSaving', '保存中')}
               </small>}
               <span>{t(language, 'home.switchBenchmark', '切换基准')}</span><ChevronRight size={12} />
             </button>

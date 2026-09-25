@@ -109,22 +109,41 @@ const IOS_PWA_REALTIME_SNAPSHOT_IDLE_INTERVAL_MS = 2500;
 const IOS_PWA_REALTIME_SNAPSHOT_BURST_DELAYS_MS = [0, 800, 1600, 3000, 5000];
 const PORTFOLIO_CURRENCY_STORAGE_KEY = 'xmoney_portfolio_currency';
 const HOME_CURRENCY_STORAGE_KEY = 'xmoney_home_currency';
-const PENDING_HOME_BENCHMARK_STORAGE_KEY = 'bottomline_pending_home_benchmark_v1';
+// V2 records include the cloud revision. Never replay an unversioned V1
+// selection after migrating away from the legacy settings row.
+const PENDING_HOME_BENCHMARK_STORAGE_KEY = 'bottomline_pending_home_benchmark_v2';
 
 function readPendingHomeBenchmark(userId) {
   try {
-    return normalizeStrictUserStockSymbol(localStorage.getItem(userScopedStorageKey(PENDING_HOME_BENCHMARK_STORAGE_KEY, userId))) || null;
+    const value = JSON.parse(localStorage.getItem(userScopedStorageKey(PENDING_HOME_BENCHMARK_STORAGE_KEY, userId)) || 'null');
+    const symbol = normalizeStrictUserStockSymbol(value?.symbol);
+    const revision = value?.revision;
+    return typeof value?.id === 'string' && value.id.length > 0 && symbol
+      && (revision === 'unknown' || revision === null || (Number.isSafeInteger(revision) && revision >= 0))
+      ? { id: value.id, symbol, revision }
+      : null;
   } catch { return null; }
 }
 
-function writePendingHomeBenchmark(userId, symbol) {
-  try { localStorage.setItem(userScopedStorageKey(PENDING_HOME_BENCHMARK_STORAGE_KEY, userId), symbol); } catch {}
+function createHomeBenchmarkSelectionId() {
+  return typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
-function clearPendingHomeBenchmark(userId, symbol) {
+function writePendingHomeBenchmark(userId, selection, expectedId = null) {
   try {
-    const key = userScopedStorageKey(PENDING_HOME_BENCHMARK_STORAGE_KEY, userId);
-    if (localStorage.getItem(key) === symbol) localStorage.removeItem(key);
+    if (expectedId && readPendingHomeBenchmark(userId)?.id !== expectedId) return false;
+    localStorage.setItem(userScopedStorageKey(PENDING_HOME_BENCHMARK_STORAGE_KEY, userId), JSON.stringify(selection));
+    return true;
+  } catch { return false; }
+}
+
+function clearPendingHomeBenchmark(userId, selectionId) {
+  try {
+    if (selectionId && readPendingHomeBenchmark(userId)?.id === selectionId) {
+      localStorage.removeItem(userScopedStorageKey(PENDING_HOME_BENCHMARK_STORAGE_KEY, userId));
+    }
   } catch {}
 }
 
@@ -897,9 +916,10 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
 
   // 顶部市场状态卡的基准股票(默认 QQQ,可切换关注列表里其他 1x 标的)
   const [initialPendingBenchmark] = useState(() => readPendingHomeBenchmark(user.id));
-  const [benchmarkSymbol, setBenchmarkSymbol] = useState(initialPendingBenchmark || 'QQQ');
-  const [benchmarkSaveStatus, setBenchmarkSaveStatus] = useState(initialPendingBenchmark ? 'pending' : 'idle');
+  const [benchmarkSymbol, setBenchmarkSymbol] = useState(initialPendingBenchmark?.symbol || 'QQQ');
+  const [benchmarkSaveStatus, setBenchmarkSaveStatus] = useState(initialPendingBenchmark ? 'pending' : 'loading');
   const benchmarkPendingRef = useRef(initialPendingBenchmark);
+  const benchmarkPreferenceRef = useRef({ symbol: 'QQQ', revision: null, exists: false, loaded: false });
   const benchmarkMutationSerialRef = useRef(0);
   const benchmarkSaveQueueRef = useRef(Promise.resolve());
   const benchmarkPendingRetryStartedRef = useRef(false);
@@ -1661,32 +1681,93 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     exitTargets,
   ]);
 
-  const selectHomeBenchmark = useCallback((symbol) => {
+  const selectHomeBenchmark = useCallback((symbol, { retryRevision, retrySelectionId } = {}) => {
     const nextSymbol = normalizeStrictUserStockSymbol(symbol);
     if (!nextSymbol) return Promise.resolve({ success: false, error: '基准股票代码无效' });
 
+    const selectionId = retrySelectionId || createHomeBenchmarkSelectionId();
+    // Persist the latest intent before any read or queued write can suspend.
+    // An unknown base can be displayed after restart, but must never be
+    // automatically written over a cloud value without a revision check.
+    const initialRevision = retryRevision !== undefined
+      ? retryRevision
+      : benchmarkPreferenceRef.current.loaded ? benchmarkPreferenceRef.current.revision : 'unknown';
+    const initialSelection = { id: selectionId, symbol: nextSymbol, revision: initialRevision };
+    if (!writePendingHomeBenchmark(user.id, initialSelection, retrySelectionId || null)) {
+      return Promise.resolve({ success: false, superseded: Boolean(retrySelectionId), error: '本地待同步记录无法保存' });
+    }
     const mutationSerial = ++benchmarkMutationSerialRef.current;
-    benchmarkPendingRef.current = nextSymbol;
-    writePendingHomeBenchmark(user.id, nextSymbol);
+    benchmarkPendingRef.current = initialSelection;
     setBenchmarkSymbol(nextSymbol);
     setBenchmarkSaveStatus('saving');
 
-    // Serial writes ensure an older selection cannot finish after the latest
-    // selection and become the cloud value. Superseded queued choices skip IO.
+    // Serial writes protect this page. The revision check in the dedicated
+    // cloud table also rejects writes from another page with a stale base.
     const save = async () => {
       if (mutationSerial !== benchmarkMutationSerialRef.current) return { success: false, superseded: true };
       try {
-        await db.upsertBenchmarkSymbol(nextSymbol, buildSettingsPayload({ benchmarkSymbol: nextSymbol }), user.id);
+        let preference = benchmarkPreferenceRef.current;
+        if (!preference.loaded) {
+          preference = { ...(await db.fetchBenchmarkPreference(null, user.id)), loaded: true };
+          if (mutationSerial !== benchmarkMutationSerialRef.current) return { success: false, superseded: true };
+          benchmarkPreferenceRef.current = preference;
+        }
+
+        // A retry is safe only while the cloud still has the revision that
+        // existed when the original selection was made.
+        if (retryRevision !== undefined && retryRevision !== preference.revision) {
+          if (mutationSerial === benchmarkMutationSerialRef.current) {
+            benchmarkMutationSerialRef.current += 1;
+            if (preference.symbol === nextSymbol) {
+              clearPendingHomeBenchmark(user.id, selectionId);
+              benchmarkPendingRef.current = null;
+              setBenchmarkSaveStatus('idle');
+            } else {
+              // Preserve the user's last choice as unsynced. A later tap can
+              // explicitly retry it against the newly observed revision.
+              setBenchmarkSaveStatus('conflict');
+            }
+          }
+          return { success: preference.symbol === nextSymbol, conflict: preference.symbol !== nextSymbol };
+        }
+
+        const expectedRevision = retryRevision !== undefined ? retryRevision : preference.revision;
+        const pendingSelection = { id: selectionId, symbol: nextSymbol, revision: expectedRevision };
+        benchmarkPendingRef.current = pendingSelection;
+        if (!writePendingHomeBenchmark(user.id, pendingSelection, selectionId)) {
+          if (mutationSerial === benchmarkMutationSerialRef.current) {
+            benchmarkPendingRef.current = null;
+            setBenchmarkSaveStatus('conflict');
+          }
+          return { success: false, superseded: true };
+        }
+        const saved = await db.saveBenchmarkPreference(nextSymbol, expectedRevision, user.id);
+        benchmarkPreferenceRef.current = { ...saved, exists: true, loaded: true };
         if (mutationSerial === benchmarkMutationSerialRef.current) {
           // A cloud read may have started while this write was in flight and
           // still contain the old symbol. Invalidate that read on completion.
           benchmarkMutationSerialRef.current += 1;
-          clearPendingHomeBenchmark(user.id, nextSymbol);
+          clearPendingHomeBenchmark(user.id, selectionId);
           benchmarkPendingRef.current = null;
           setBenchmarkSaveStatus('idle');
         }
         return { success: true };
       } catch (error) {
+        if (error?.code === 'BENCHMARK_PREFERENCE_CONFLICT' && error.current) {
+          const current = { ...error.current, loaded: true };
+          benchmarkPreferenceRef.current = current;
+          if (mutationSerial === benchmarkMutationSerialRef.current) {
+            benchmarkMutationSerialRef.current += 1;
+            if (current.symbol === nextSymbol) {
+              clearPendingHomeBenchmark(user.id, selectionId);
+              benchmarkPendingRef.current = null;
+              setBenchmarkSaveStatus('idle');
+            } else {
+              setBenchmarkSaveStatus('conflict');
+            }
+          }
+          return { success: current.symbol === nextSymbol, conflict: current.symbol !== nextSymbol };
+        }
         console.error('[切换基准] 云端保存失败:', error);
         if (mutationSerial === benchmarkMutationSerialRef.current) setBenchmarkSaveStatus('error');
         return { success: false, error: error?.message || '基准保存失败' };
@@ -1695,13 +1776,21 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     const result = benchmarkSaveQueueRef.current.then(save, save);
     benchmarkSaveQueueRef.current = result.then(() => undefined, () => undefined);
     return result;
-  }, [buildSettingsPayload, user.id]);
+  }, [user.id]);
 
   useEffect(() => {
     if (!initialPendingBenchmark || cloudLoading || benchmarkPendingRetryStartedRef.current
       || benchmarkMutationSerialRef.current !== 0 || !benchmarkPendingRef.current) return;
     benchmarkPendingRetryStartedRef.current = true;
-    void selectHomeBenchmark(benchmarkPendingRef.current);
+    void selectHomeBenchmark(initialPendingBenchmark.symbol, {
+      retryRevision: initialPendingBenchmark.revision,
+      retrySelectionId: initialPendingBenchmark.id,
+    }).then((result) => {
+      if (result?.superseded && benchmarkMutationSerialRef.current === 0) {
+        benchmarkPendingRef.current = null;
+        setBenchmarkSaveStatus('conflict');
+      }
+    });
   }, [cloudLoading, initialPendingBenchmark, selectHomeBenchmark]);
 
   useEffect(() => {
@@ -1760,6 +1849,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
       watchlist: cloudWatchlist,
       waveNotes: cloudNotes,
       settings,
+      benchmarkPreference,
       accounts: cloudAccounts,
       snapshots: cloudSnapshots,
       investmentPlan: cloudPlan,
@@ -1854,12 +1944,25 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     if (cloudActuals !== null && cloudActuals !== undefined) setYearlyActuals(cloudActuals);
     else console.warn(`${logLabel} ⚠️ yearlyActuals 拉取失败, 保留本地`);
 
-    if (settings) {
-      if (settings.benchmarkSymbol
-        && benchmarkMutationAtStart === benchmarkMutationSerialRef.current
-        && !benchmarkPendingRef.current) {
-        setBenchmarkSymbol(normalizeStrictUserStockSymbol(settings.benchmarkSymbol) || 'QQQ');
+    // The separate preference table is the only cloud authority for the home
+    // benchmark. Legacy user_settings may still be written by open old tabs.
+    if (benchmarkMutationAtStart === benchmarkMutationSerialRef.current) {
+      if (benchmarkPreference) {
+        const currentRevision = benchmarkPreferenceRef.current.loaded
+          ? (benchmarkPreferenceRef.current.revision ?? -1) : -1;
+        if ((benchmarkPreference.revision ?? -1) >= currentRevision) {
+          benchmarkPreferenceRef.current = { ...benchmarkPreference, loaded: true };
+          if (!benchmarkPendingRef.current) {
+            setBenchmarkSymbol(normalizeStrictUserStockSymbol(benchmarkPreference.symbol) || 'QQQ');
+            setBenchmarkSaveStatus('idle');
+          }
+        }
+      } else if (!benchmarkPendingRef.current) {
+        setBenchmarkSaveStatus('error');
       }
+    }
+
+    if (settings) {
       if (typeof settings.fgi === 'number') setFgi(settings.fgi);
       if (settings.fgiLabel) setFgiLabel(settings.fgiLabel);
       if (typeof settings.fgiPrev === 'number') setFgiPrev(settings.fgiPrev);
@@ -1885,6 +1988,9 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
       if (mounted) {
         console.warn('[云端加载] 超过 2.6s 仍未完成, 解除启动保护');
         setCloudLoading(false);
+        if (!benchmarkPreferenceRef.current.loaded && !benchmarkPendingRef.current) {
+          setBenchmarkSaveStatus('error');
+        }
       }
     }, MAX_CLOUD_SYNC_GUARD_MS);
 
@@ -1920,6 +2026,44 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     })();
     return () => { mounted = false; clearTimeout(timeoutId); };
   }, [applyCloudUserData]);
+
+  // A background tab can miss a selection made in another current-version
+  // tab. Re-read only the benchmark authority when this page becomes visible.
+  useEffect(() => {
+    let active = true;
+    let lastRequestedAt = 0;
+    const refreshBenchmarkPreference = async () => {
+      if (cloudLoading || document.visibilityState !== 'visible' || benchmarkPendingRef.current) return;
+      const now = Date.now();
+      if (now - lastRequestedAt < 10_000) return;
+      lastRequestedAt = now;
+      const mutationAtStart = benchmarkMutationSerialRef.current;
+      try {
+        const preference = await db.fetchBenchmarkPreference(null, user.id);
+        if (!active || mutationAtStart !== benchmarkMutationSerialRef.current || benchmarkPendingRef.current) return;
+        const currentRevision = benchmarkPreferenceRef.current.loaded
+          ? (benchmarkPreferenceRef.current.revision ?? -1) : -1;
+        if ((preference.revision ?? -1) < currentRevision) return;
+        benchmarkPreferenceRef.current = { ...preference, loaded: true };
+        setBenchmarkSymbol(preference.symbol);
+        setBenchmarkSaveStatus('idle');
+      } catch (error) {
+        if (active && mutationAtStart === benchmarkMutationSerialRef.current && !benchmarkPendingRef.current) {
+          console.warn('[基准同步] 重新读取失败:', error);
+          setBenchmarkSaveStatus('error');
+        }
+      }
+    };
+    window.addEventListener('focus', refreshBenchmarkPreference);
+    window.addEventListener('pageshow', refreshBenchmarkPreference);
+    document.addEventListener('visibilitychange', refreshBenchmarkPreference);
+    return () => {
+      active = false;
+      window.removeEventListener('focus', refreshBenchmarkPreference);
+      window.removeEventListener('pageshow', refreshBenchmarkPreference);
+      document.removeEventListener('visibilitychange', refreshBenchmarkPreference);
+    };
+  }, [cloudLoading, user.id]);
 
   useEffect(() => {
     fetchDailyFxRates();
