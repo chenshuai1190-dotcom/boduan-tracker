@@ -1,8 +1,7 @@
 .ledger-entry-identity { display: flex; align-items: center; min-width: 0; gap: 12px; }
 .ledger-entry-logo { width: 40px; height: 40px; flex-shrink: 0; border-radius: 11px; }
-.ledger-entry-symbol { display: block; width: 100%; min-width: 0; padding: 0; border: 0; border-radius: 4px; outline: none; background: transparent; color: #e9e9ee; font-size: 20px; line-height: 28px; font-weight: 400; text-transform: uppercase; }
-.ledger-entry-symbol::placeholder { color: #74747e; font-size: 16px; }
-.ledger-entry-symbol:focus-visible { box-shadow: 0 1px 0 #69696f; }
+.ledger-entry-symbol { min-width: 0; color: #e9e9ee; font-size: 20px; line-height: 28px; font-weight: 400; overflow-wrap: anywhere; }
+.ledger-entry-symbol-empty { color: #b0b0ba; font-size: 18px; }
 .ledger-entry-meta { margin-top: 3px; color: #81818b; font-size: 11px; line-height: 17px; font-weight: 400; }
 .ledger-entry-form { display: grid; min-width: 0; gap: 17px; }
 .ledger-entry-group { display: grid; min-width: 0; gap: 8px; }
@@ -10,6 +9,8 @@
 .ledger-entry-label > span { color: #73737d; font-size: 11px; }
 .ledger-entry-field { display: grid; align-items: center; min-width: 0; min-height: 49px; gap: 8px; padding: 0 12px; border: 1px solid transparent; border-radius: 12px; background: #1a1b1d; color: #83838d; transition: border-color .16s ease; }
 .ledger-entry-field:focus-within { border-color: #69696f; }
+.ledger-entry-symbol-field { grid-template-columns: minmax(0, 1fr); }
+.ledger-entry-ticker-input { text-transform: uppercase; }
 .ledger-entry-price-field { grid-template-columns: 17px minmax(0, 1fr) 30px; }
 .ledger-entry-shares-field { grid-template-columns: minmax(0, 1fr) auto; }
 .ledger-entry-date-field { grid-template-columns: 18px minmax(0, 1fr) 16px; }

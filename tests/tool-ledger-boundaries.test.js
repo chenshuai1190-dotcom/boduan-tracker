@@ -670,10 +670,13 @@ test('main trade entry modal isolates the compact stacked formal-trade design', 
   assert.ok(genericPanelBlock.includes('<CalendarDays ') && genericPanelBlock.includes('<ChevronRight '), 'formal-trade date should use lucide calendar and chevron icons');
   assert.equal(genericHeaderBlock.includes('ChevronRight'), false, 'stock identity header must not show a right arrow');
   assert.ok(tradesTabSource.includes('<Search ') && tradesTabSource.includes('<Settings2 ') && tradesTabSource.includes('<Trash2 '), 'retained trade controls should keep search, color settings, and deletion icons');
-  assert.ok(genericHeaderBlock.includes('data-generic-ledger-symbol-header="true"') && genericHeaderBlock.includes('<StockLogo'), 'formal trade should put the editable ticker and logo in one identity header');
-  assert.ok(genericHeaderBlock.includes("tt('trades.stockTicker'") && genericHeaderBlock.includes('symbol: event.target.value.toUpperCase()'), 'identity header should retain the editable uppercase ticker binding');
+  assert.ok(genericHeaderBlock.includes('data-generic-ledger-symbol-header="true"') && genericHeaderBlock.includes('<StockLogo'), 'formal trade should keep stock identity in the header');
+  assert.equal(genericHeaderBlock.includes('<input'), false, 'stock code should no longer hide as an unframed header input');
+  assert.ok(genericPanelBlock.includes('htmlFor="generic-ledger-trade-symbol"') && genericPanelBlock.includes('id="generic-ledger-trade-symbol"'), 'the first formal-trade field should visibly label stock code');
+  assert.ok(genericPanelBlock.indexOf('id="generic-ledger-trade-symbol"') < genericPanelBlock.indexOf('id="generic-ledger-trade-price"'), 'stock code should precede price');
+  assert.ok(genericPanelBlock.includes('symbol: event.target.value.toUpperCase()'), 'stock code should retain its uppercase binding');
   assert.equal(genericHeaderBlock.includes('displayName') || genericHeaderBlock.includes('draft?.name'), false, 'identity header should not render the resolved Chinese company name');
-  assert.ok(genericHeaderBlock.includes("name: ''"), 'editing the ticker should still clear stale resolved-name state');
+  assert.ok(genericPanelBlock.includes("name: ''"), 'editing the ticker should still clear stale resolved-name state');
   assert.ok(genericPanelBlock.includes('data-generic-ledger-trade-entry="true"'), 'formal trade should use its isolated entry panel');
   assert.ok(genericPanelBlock.includes("tt('trades.executionPrice'") && genericPanelBlock.includes("tt('trades.tradeShares'") && genericPanelBlock.includes("tt('trades.tradeDate'"), 'formal trade should use the approved price, shares, and date labels');
   assert.match(genericLedgerTradeEntryPanelCss, /\.ledger-entry-field\s*\{[^}]*min-height:\s*49px;/, 'formal-trade fields should use the new compact report height');

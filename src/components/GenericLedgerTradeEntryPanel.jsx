@@ -14,7 +14,6 @@ function normalizedSymbol(value) {
 
 export function GenericLedgerTradeHeader({
   draft,
-  onDraftChange,
   logoCache,
   cacheStockLogo,
   editing = false,
@@ -25,34 +24,24 @@ export function GenericLedgerTradeHeader({
 
   return (
     <div data-generic-ledger-symbol-header="true" className="ledger-entry-identity">
-      <StockLogo
-        symbol={symbol}
-        urls={logoUrls}
-        onLogoLoad={cacheStockLogo}
-        className="ledger-entry-logo"
-      />
+      {symbol && (
+        <StockLogo
+          symbol={symbol}
+          urls={logoUrls}
+          onLogoLoad={cacheStockLogo}
+          className="ledger-entry-logo"
+        />
+      )}
       <div className="min-w-0 flex-1">
-        <div className="min-w-0">
-          <input
-            type="text"
-            value={draft?.symbol || ''}
-            placeholder={tt('trades.stockTicker', '股票代码')}
-            aria-label={tt('trades.stockTicker', '股票代码')}
-            autoCapitalize="characters"
-            spellCheck="false"
-            onChange={(event) => onDraftChange({
-              ...draft,
-              symbol: event.target.value.toUpperCase(),
-              name: '',
-              price: '',
-            })}
-            className="ledger-entry-symbol"
-          />
+        <div className={`ledger-entry-symbol ${symbol ? '' : 'ledger-entry-symbol-empty'}`}>
+          {symbol || tt('trades.addTrade', '新增交易')}
         </div>
         <div className="ledger-entry-meta">
-          {editing
-            ? tt('trades.formalTradeEditMeta', '修改正式交易 · 美股')
-            : tt('trades.formalTradeNewMeta', '新增正式交易 · 美股')}
+          {symbol
+            ? (editing
+              ? tt('trades.formalTradeEditMeta', '修改正式交易 · 美股')
+              : tt('trades.formalTradeNewMeta', '新增正式交易 · 美股'))
+            : tt('trades.usStocks', '美股')}
         </div>
       </div>
     </div>
@@ -71,6 +60,30 @@ export default function GenericLedgerTradeEntryPanel({ draft, onDraftChange, tt 
 
   return (
     <div data-generic-ledger-trade-entry="true" className="ledger-entry-form">
+      <div className="ledger-entry-group">
+        <label htmlFor="generic-ledger-trade-symbol" className={LABEL_CLASS}>{tt('trades.stockTicker', '股票代码')}</label>
+        <div className={`${INPUT_SHELL_CLASS} ledger-entry-symbol-field`}>
+          <input
+            id="generic-ledger-trade-symbol"
+            type="text"
+            value={draft?.symbol || ''}
+            placeholder={tt('trades.tickerPlaceholder', '输入股票代码,如 NVDA')}
+            aria-label={tt('trades.stockTicker', '股票代码')}
+            autoCapitalize="characters"
+            autoComplete="off"
+            spellCheck="false"
+            enterKeyHint="next"
+            onChange={(event) => onDraftChange({
+              ...draft,
+              symbol: event.target.value.toUpperCase(),
+              name: '',
+              price: '',
+            })}
+            className={`${NUMBER_INPUT_CLASS} ledger-entry-ticker-input`}
+          />
+        </div>
+      </div>
+
       <div className="ledger-entry-group">
         <label htmlFor="generic-ledger-trade-price" className={LABEL_CLASS}>
           {tt('trades.executionPrice', '成交价格')} <span>USD</span>

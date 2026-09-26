@@ -31,36 +31,43 @@ test('formal-trade fields retain exact draft values and independent callbacks in
   const tree = Entry({ draft, tt, onDraftChange: value => changed.push(value) });
   const inputs = nodes(tree, node => node.type === 'input');
   assert.deepEqual(inputs.map(node => [node.props.id, node.props.value]), [
+    ['generic-ledger-trade-symbol', 'NVDA'],
     ['generic-ledger-trade-price', '123.45'],
     ['generic-ledger-trade-shares', '20'],
     ['generic-ledger-trade-date', '2026-09-10'],
   ]);
-  inputs[0].props.onChange({ target: { value: '125.67' } });
-  inputs[1].props.onChange({ target: { value: '20.5' } });
-  inputs[2].props.onChange({ target: { value: '2026-09-09' } });
-  assert.deepEqual(changed, [{ ...draft, price: '125.67' }, { ...draft, shares: '20.5' }, { ...draft, date: '2026-09-09' }]);
-  assert.equal(inputs[0].props.step, '0.01');
-  assert.equal(inputs[0].props.inputMode, 'decimal');
-  assert.equal(inputs[1].props.inputMode, 'numeric');
-  assert.equal(inputs[2].props.style.WebkitAppearance, 'none');
+  inputs[0].props.onChange({ target: { value: 'aapl' } });
+  inputs[1].props.onChange({ target: { value: '125.67' } });
+  inputs[2].props.onChange({ target: { value: '20.5' } });
+  inputs[3].props.onChange({ target: { value: '2026-09-09' } });
+  assert.deepEqual(changed, [
+    { ...draft, symbol: 'AAPL', name: '', price: '' },
+    { ...draft, price: '125.67' },
+    { ...draft, shares: '20.5' },
+    { ...draft, date: '2026-09-09' },
+  ]);
+  assert.equal(inputs[0].props['aria-label'], '股票代码');
+  assert.equal(inputs[1].props.step, '0.01');
+  assert.equal(inputs[1].props.inputMode, 'decimal');
+  assert.equal(inputs[2].props.inputMode, 'numeric');
+  assert.equal(inputs[3].props.style.WebkitAppearance, 'none');
   const html = renderToStaticMarkup(tree);
+  assert.match(html, /<label[^>]*for="generic-ledger-trade-symbol"[^>]*>股票代码<\/label>/);
   assert.match(html, /预计成交额/);
   assert.match(html, /\$2,469\.00/);
 });
 
-test('blank and ticker-prefilled entries share an editable identity with unchanged ticker-reset semantics', () => {
+test('blank and ticker-prefilled entries show a clear identity while keeping ticker editing in the first field', () => {
   for (const entryDraft of [draft, { ...draft, symbol: '', name: '', price: '' }]) {
-    let changed;
-    const header = Header({ draft: entryDraft, tt, editing: Boolean(entryDraft.editingId), onDraftChange: value => { changed = value; } });
-    const symbol = input(header, 'text');
-    assert.equal(symbol.props.value, entryDraft.symbol);
-    assert.equal(symbol.props['aria-label'], '股票代码');
-    symbol.props.onChange({ target: { value: 'aapl' } });
-    assert.deepEqual(changed, { ...entryDraft, symbol: 'AAPL', name: '', price: '' });
-    assert.match(renderToStaticMarkup(header), /修改正式交易/);
+    const header = Header({ draft: entryDraft, tt, editing: Boolean(entryDraft.editingId) });
+    assert.equal(input(header, 'text'), undefined);
+    const html = renderToStaticMarkup(header);
+    assert.match(html, entryDraft.symbol ? /NVDA.*修改正式交易/ : /新增交易.*美股/);
   }
-  const newEntry = Header({ draft: { symbol: '' }, tt, onDraftChange: () => {} });
-  assert.match(renderToStaticMarkup(newEntry), /新增正式交易/);
+  const blank = Entry({ draft: { ...draft, symbol: '', name: '', price: '' }, tt, onDraftChange: () => {} });
+  assert.equal(input(blank, 'text').props.value, '');
+  assert.equal(input(blank, 'text').props.placeholder, '输入股票代码,如 NVDA');
+  assert.doesNotMatch(renderToStaticMarkup(Header({ draft: { symbol: '' }, tt })), /ledger-entry-logo/);
 });
 
 test('clearing price preserves focus, the reserved control column, and all other fields', () => {
