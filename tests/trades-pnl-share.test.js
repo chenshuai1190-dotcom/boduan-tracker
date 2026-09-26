@@ -246,7 +246,7 @@ test('Home and Trading open one shared image page from Today P&L while preservin
   assert.ok(appSource.includes('db.fetchPnlShareIdentity({ id: userId })'));
   assert.ok(appSource.includes('const identity = createPnlShareIdentity(profile);'));
   assert.ok(appSource.includes('isFullBleedPage = isPnlSharePage || isCommunityCompetitionPage'));
-  assert.ok(appSource.includes('hideBottomNavigation = isPnlReportPage || isPnlSharePage;'));
+  assert.ok(appSource.includes('hideBottomNavigation = isPnlReportPage || isPnlSharePage || isStockPnlReportPage;'));
 
   assert.equal((tradesSource.match(/onClick=\{openPnlShare\}/g) || []).length, 1);
   assert.ok(tradesSource.includes('data-trades-pnl-share-trigger="true"'));
@@ -272,7 +272,7 @@ test('Home and Trading open one shared image page from Today P&L while preservin
   assert.ok(devPreviewSource.includes("preview === 'pnl-share' ? 'pnl-share'"));
   assert.ok(devPreviewSource.includes("communityIdentity={{ nickname: '波段玩家1836', avatarKey: 'gold' }}"));
   assert.ok(devPreviewSource.includes('communityIdentityStatus="ready"'));
-  assert.ok(devPreviewSource.includes("activeTab !== 'pnl-report' && activeTab !== 'pnl-share' && ("));
+  assert.ok(devPreviewSource.includes("activeTab !== 'pnl-report' && activeTab !== 'pnl-share' && activeTab !== 'stock-pnl-report' && ("));
 });
 
 test('share identity accepts only a validated nickname and allowlisted local avatar', async () => {

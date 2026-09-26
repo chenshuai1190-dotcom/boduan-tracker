@@ -15,6 +15,9 @@
 .sdp-symbol { color: #ededf0; font-size: 20px; line-height: 25px; }
 .sdp-company { margin-top: 3px; color: #91919a; font-size: 11px; line-height: 16px; overflow-wrap: anywhere; }
 .sdp-pnl-label { color: #9696a0; font-size: 12px; line-height: 18px; }
+.sdp-pnl-label-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.sdp-full-report-link { display: inline-flex; align-items: center; gap: 2px; min-height: 34px; padding: 0; border: 0; background: transparent; color: #b8b9c1; font-size: 12px; white-space: nowrap; }
+.sdp-full-report-link:focus-visible { outline: 1px solid #9a9ba3; outline-offset: 3px; }
 .sdp-total { margin-top: 8px; font-size: clamp(29px, 9.2vw, 39px); font-weight: 400; line-height: 1.2; letter-spacing: -.04em; overflow-wrap: anywhere; }
 .sdp-total-percent { margin-top: 6px; font-size: 15px; line-height: 21px; }
 .sdp-period { margin-top: 7px; color: var(--sdp-muted); font-size: 11px; line-height: 17px; }

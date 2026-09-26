@@ -35,6 +35,6 @@ test('VIX header back and bottom Home share the remembered Home position', () =>
   assert.ok(bottom.includes('const returnsFromVixToHome = ('));
   assert.ok(bottom.includes("activePage === 'vix-comparison'"));
   assert.ok(bottom.includes('? homeScrollTopBeforeVixRef.current'));
-  assert.ok(app.includes('hideBottomNavigation = isPnlReportPage || isPnlSharePage;'));
+  assert.ok(app.includes('hideBottomNavigation = isPnlReportPage || isPnlSharePage || isStockPnlReportPage;'));
   assert.deepEqual(resolveNavigationScrollTarget({ activeTab: 'home', activePage: null, pendingHomeScrollTop: 420 }), { top: 420, shouldRestoreHomeScroll: true });
 });

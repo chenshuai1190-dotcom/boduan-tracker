@@ -1,0 +1,48 @@
+.stock-pnl-report-page .pnl-report-nav { display: grid; grid-template-columns: 36px minmax(0, 1fr) 36px; gap: 8px; }
+.stock-pnl-report-page .pnl-report-nav h1 { margin: 0; text-align: center; }
+.stock-pnl-header-symbol { align-self: center; color: #85858f; font-size: 10px; text-align: right; overflow: hidden; text-overflow: ellipsis; }
+.stock-pnl-hero-rate { margin-top: 10px; }
+.stock-pnl-price-comparison-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 18px; row-gap: 12px; margin-top: 22px; padding-top: 18px; border-top: 1px solid rgb(255 255 255 / .075); }
+.stock-pnl-price-comparison-period { grid-column: 1 / -1; margin: 0; color: #73737e; font-size: 10px; line-height: 15px; }
+.stock-pnl-price-comparison-summary > div { display: grid; align-content: start; gap: 8px; min-width: 0; }
+.stock-pnl-price-comparison-summary > div:last-child { text-align: right; }
+.stock-pnl-price-comparison-summary span { color: #85858f; font-size: 11px; line-height: 16px; }
+.stock-pnl-price-comparison-summary strong { font-size: 15px; font-weight: 400; font-variant-numeric: tabular-nums; }
+.stock-pnl-price-comparison-summary strong:not([class]) { color: #c4c4cc; }
+.stock-pnl-breakdown { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; padding: 23px 0 25px; }
+.stock-pnl-breakdown > div { display: grid; align-content: start; gap: 8px; min-width: 0; }
+.stock-pnl-breakdown > div:last-child { text-align: right; }
+.stock-pnl-breakdown span { color: #73737e; font-size: 12px; }
+.stock-pnl-breakdown strong { font-size: 17px; font-weight: 400; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.stock-pnl-breakdown strong:not([class]) { color: #bbbcc4; }
+.stock-pnl-method-note { margin: -8px 0 22px; color: #73737e; font-size: 10px; line-height: 16px; }
+.stock-pnl-price-chart { min-width: 0; margin-top: 14px; color: #c4c4cc; font-variant-numeric: tabular-nums; }
+.stock-pnl-price-readout { min-height: 100px; padding-bottom: 12px; }
+.stock-pnl-price-date { color: #81818b; font-size: 11px; line-height: 18px; }
+.stock-pnl-price-readout-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-top: 6px; font-size: 12px; }
+.stock-pnl-price-readout-row > span { display: inline-flex; align-items: center; gap: 6px; min-width: 0; color: #a4a4af; }
+.stock-pnl-price-readout-row i { width: 5px; height: 5px; flex: 0 0 5px; border-radius: 50%; }
+.stock-pnl-price-readout-row strong { font-weight: 400; white-space: nowrap; }
+.stock-pnl-price-plot-layout { display: grid; grid-template-columns: minmax(0, 1fr) max-content; column-gap: 9px; }
+.stock-pnl-price-plot { min-width: 0; height: 220px; user-select: none; }
+.stock-pnl-price-plot svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.stock-pnl-price-empty { display: grid; place-items: center; height: 100%; color: #777781; font-size: 12px; }
+.stock-pnl-price-unavailable { display: grid; min-height: 250px; place-items: center; padding: 24px; color: #85858f; font-size: 12px; line-height: 1.6; text-align: center; }
+.stock-pnl-price-axis { position: relative; min-width: 40px; color: #71717c; font-size: 10px; line-height: 14px; text-align: right; }
+.stock-pnl-price-axis span { position: absolute; right: 0; transform: translateY(-50%); white-space: nowrap; }
+.stock-pnl-price-dates { display: flex; justify-content: space-between; gap: 8px; padding: 10px 47px 0 7px; color: #71717c; font-size: 10px; }
+.stock-pnl-price-note, .stock-pnl-calendar-note { margin: 10px 0 0; color: #73737e; font-size: 10px; line-height: 16px; }
+.stock-pnl-weekdays { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); margin-top: 20px; color: rgb(255 255 255 / .54); font-size: 12px; text-align: center; }
+.stock-pnl-month-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; margin-top: 12px; text-align: center; }
+.stock-pnl-year-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; margin-top: 20px; text-align: center; }
+.stock-pnl-calendar-tile { display: flex; min-width: 0; height: 52px; flex-direction: column; align-items: center; justify-content: center; border: 0; border-radius: 10px; background: transparent; }
+.stock-pnl-calendar-tile-year { height: 76px; border-radius: 12px; background: rgb(255 255 255 / .02); }
+.stock-pnl-calendar-day { color: rgb(255 255 255 / .86); font-size: 15px; font-weight: 400; }
+.stock-pnl-calendar-value { max-width: 100%; margin-top: 4px; font-size: 10px; font-weight: 400; white-space: nowrap; }
+.stock-pnl-calendar-tile-year .stock-pnl-calendar-day { font-size: 14px; }
+.stock-pnl-calendar-tile-year .stock-pnl-calendar-value { font-size: 11px; }
+@media (max-width: 374px) {
+  .stock-pnl-price-comparison-summary { gap: 10px; }
+  .stock-pnl-price-comparison-summary span { font-size: 10px; }
+  .stock-pnl-calendar-value { font-size: 10px; }
+}

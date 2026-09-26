@@ -518,6 +518,7 @@ export default function StockDetailPage({ ctx = {} }) {
     language = 'zh',
     logoCache = {},
     marketColorMode,
+    openStockPnlReport,
     pnlReportRefreshVersion = 0,
     portfolioCurrencyMode,
     saveWatchlistStockTarget,
@@ -698,14 +699,24 @@ export default function StockDetailPage({ ctx = {} }) {
               <div className="sdp-company">{displayName && displayName !== view.symbol ? displayName : ''}</div>
             </div>
           </div>
-          <div className="sdp-pnl-label">{label('累积总收益', 'Cumulative total return')}</div>
+          <div className="sdp-pnl-label-row">
+            <div className="sdp-pnl-label">{label('累积总收益', 'Cumulative total return')}</div>
+            <button
+              type="button"
+              className="sdp-full-report-link"
+              onClick={openStockPnlReport}
+              data-stock-full-pnl-report-link="true"
+            >
+              {label('查看完整收益报表', 'Full return report')} <ChevronRight size={13} aria-hidden="true" />
+            </button>
+          </div>
           <div className="sdp-total" data-stock-detail-total-pnl style={{ color: totalColor, fontFamily: NUMBER_FONT }}>
             {totalValue == null ? '--' : signedCurrency(totalValue, displayCurrency, 2)}
           </div>
           <div className={`sdp-total-percent ${cycle.returnPct == null ? 'text-white/[0.32]' : marketTextClass(cycle.currentTotalPnlUsd || 0, marketColorMode)}`} style={{ fontFamily: NUMBER_FONT }}>
             {signedPct(cycle.returnPct, 2)}
           </div>
-          <div className="sdp-period">{cycle.startDate ? displayDate(cycle.startDate) : '--'} — {view.endDate} · {label('收盘', 'Close')}</div>
+          <div className="sdp-period">{cycle.startDate ? displayDate(cycle.startDate) : '--'} — {view.endDate} · {label('本轮持仓 · 收盘', 'Current holding cycle · close')}</div>
 
           <div className="sdp-pnl-breakdown">
             <StatCell

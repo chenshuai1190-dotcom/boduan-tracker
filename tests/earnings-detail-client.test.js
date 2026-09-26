@@ -417,7 +417,7 @@ test('earnings calendar and detail are standalone pages that retain the global b
   assert.ok(appSource.includes("const EarningsDetailPage = lazy(() => import('./pages/EarningsDetailPage.jsx'));"));
   assert.ok(appSource.includes("activePage === 'earnings-calendar'"));
   assert.ok(appSource.includes("activePage === 'earnings-detail'"));
-  assert.ok(appSource.includes('const hideBottomNavigation = isPnlReportPage || isPnlSharePage;'));
+  assert.ok(appSource.includes('const hideBottomNavigation = isPnlReportPage || isPnlSharePage || isStockPnlReportPage;'));
   assert.ok(calendarPageSource.includes('variant="standalone"'));
   assert.ok(calendarSource.includes('onOpenDetail={onOpenDetail}'));
   assert.ok(appSource.includes("setActivePage('earnings-calendar')"));

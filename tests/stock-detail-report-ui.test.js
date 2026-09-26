@@ -235,6 +235,7 @@ test('method and share previews render the shared neutral dialog without introdu
 
 test('stock detail initial render preserves unavailable headline and the read-only formal-trade facts', () => {
   let externalCalls = 0;
+  let reportOpens = 0;
   const failIfCalled = () => { externalCalls += 1; throw new Error('SSR must not fetch or save'); };
   const { tree, html } = render(StockDetailPage, { ctx: {
     stockDetailSymbol: 'NVDA', stockDetailInitialRange: 'all', language: 'zh',
@@ -245,6 +246,7 @@ test('stock detail initial render preserves unavailable headline and the read-on
     ],
     watchlist: [{ symbol: 'NVDA', targetPriceUsd: 180 }],
     db: { fetchPnlReportSymbolSnapshotHistory: failIfCalled },
+    openStockPnlReport: () => { reportOpens += 1; },
     fetchPnlBenchmarkRows: failIfCalled, saveWatchlistStockTarget: failIfCalled,
   } });
   assert.match(html, /stock-detail-report/);
@@ -259,6 +261,11 @@ test('stock detail initial render preserves unavailable headline and the read-on
   const headline = nodes(tree, node => node.props['data-stock-detail-total-pnl'] !== undefined);
   assert.equal(headline.length, 1);
   assert.equal(text(headline[0]), '--', 'missing snapshots must not become a zero headline');
+  const fullReportLink = nodes(tree, node => node.props['data-stock-full-pnl-report-link'] !== undefined);
+  assert.equal(fullReportLink.length, 1);
+  assert.match(text(fullReportLink[0]), /完整收益报表/);
+  fullReportLink[0].props.onClick();
+  assert.equal(reportOpens, 1, 'the report affordance opens the independent full-history page even before a closing snapshot exists');
   for (const label of ['已实现盈亏', '未实现盈亏', '持仓数量']) {
     const readings = nodes(tree, node => node.props.label === label);
     assert.equal(readings.length, 1);

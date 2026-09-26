@@ -17,7 +17,7 @@ test('watchlist stock detail has an isolated standalone page route', () => {
   for (const flag of ['isPnlReportPage', 'isPnlSharePage', 'isHomeMarginRiskPage', 'isStockDetailPage', 'isWatchlistStockDetailPage']) {
     assert.ok(standaloneFlags?.includes(flag), `${flag} must retain its standalone layout independently of additional routes`);
   }
-  assert.ok(appSource.includes('hideBottomNavigation = isPnlReportPage || isPnlSharePage;'), 'only the P&L report and share page should hide the bottom navigation');
+  assert.ok(appSource.includes('hideBottomNavigation = isPnlReportPage || isPnlSharePage || isStockPnlReportPage;'), 'the P&L report, share page, and stock P&L report should hide the bottom navigation');
   assert.equal(appSource.includes('hideBottomNavigation = isPnlReportPage || isHomeMarginRiskPage'), false, 'margin and watchlist detail pages must keep the bottom navigation');
 
   assert.ok(appSource.includes("setActivePage('stock-detail')"), 'the existing P&L stock-detail route must remain intact');

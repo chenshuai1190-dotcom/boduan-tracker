@@ -54,6 +54,7 @@ const DcaLabPage = lazy(() => import('./pages/DcaLabPage.jsx'));
 const StockDecisionPage = lazy(() => import('./pages/StockDecisionPage.jsx'));
 const MacroPage = lazy(() => import('./pages/MacroLivePage.jsx'));
 const StockDetailPage = lazy(() => import('./pages/StockDetailPage.jsx'));
+const StockPnlReportPage = lazy(() => import('./pages/StockPnlReportPage.jsx'));
 const WatchlistStockDetailPage = lazy(() => import('./pages/WatchlistStockDetailPage.jsx'));
 const WaveTrackerPage = lazy(() => import('./pages/WaveTrackerPage.jsx'));
 const CommunityCompetitionPage = lazy(() => import('./pages/CommunityCompetitionPage.jsx'));
@@ -4876,6 +4877,13 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     setActivePage(null);
     setStockDetailSymbol('');
   }, []);
+  const openStockPnlReport = useCallback(() => {
+    if (!stockDetailSymbol) return;
+    setActivePage('stock-pnl-report');
+  }, [stockDetailSymbol]);
+  const closeStockPnlReport = useCallback(() => {
+    setActivePage('stock-detail');
+  }, []);
   const openWatchlistStockDetail = useCallback((symbol) => {
     const normalizedSymbol = String(symbol || '').trim().toUpperCase();
     if (!normalizedSymbol) return;
@@ -5069,6 +5077,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   const isHomeMarginRiskPage = activePage === 'home-margin-risk';
   const isDrawdownObservationPage = activePage === 'drawdown-observation';
   const isStockDetailPage = activePage === 'stock-detail';
+  const isStockPnlReportPage = activePage === 'stock-pnl-report';
   const isWatchlistStockDetailPage = activePage === 'watchlist-stock-detail';
   const isWaveTrackerPage = activePage === 'wave-tracker';
   const isCommunityCompetitionPage = activePage === 'community-competition';
@@ -5081,9 +5090,9 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   const isDcaLabPage = activePage === 'dca-lab';
   const isStockDecisionPage = activePage === 'stock-decision';
   const isMacroPage = activePage === 'macro';
-  const isStandalonePage = isPnlReportPage || isPnlSharePage || isHomeMarginRiskPage || isDrawdownObservationPage || isStockDetailPage || isWatchlistStockDetailPage || isWaveTrackerPage || isCommunityCompetitionPage || isEarningsCalendarPage || isEarningsDetailPage || isInvestmentComparisonPage || isPortfolioOverlapPage || isDcaLabPage || isStockDecisionPage || isVixComparisonPage || isFearGreedPage || isMacroPage;
-  const isFullBleedPage = isPnlSharePage || isCommunityCompetitionPage || isEarningsCalendarPage || isEarningsDetailPage || isPnlReportPage;
-  const hideBottomNavigation = isPnlReportPage || isPnlSharePage;
+  const isStandalonePage = isPnlReportPage || isPnlSharePage || isHomeMarginRiskPage || isDrawdownObservationPage || isStockDetailPage || isStockPnlReportPage || isWatchlistStockDetailPage || isWaveTrackerPage || isCommunityCompetitionPage || isEarningsCalendarPage || isEarningsDetailPage || isInvestmentComparisonPage || isPortfolioOverlapPage || isDcaLabPage || isStockDecisionPage || isVixComparisonPage || isFearGreedPage || isMacroPage;
+  const isFullBleedPage = isPnlSharePage || isCommunityCompetitionPage || isEarningsCalendarPage || isEarningsDetailPage || isPnlReportPage || isStockPnlReportPage;
+  const hideBottomNavigation = isPnlReportPage || isPnlSharePage || isStockPnlReportPage;
   const ActiveTab = TAB_COMPONENTS[activeTab] || HomeTab;
   const settingsTabCtx = useMemo(() => ({
     accountManager,
@@ -5281,6 +5290,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     openPnlShare,
     pnlReportRefreshVersion,
     openStockDetail,
+    openStockPnlReport,
     openWatchlistStockDetail,
     openWaveTracker,
     openCommunityCompetition,
@@ -5309,6 +5319,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     closeHomeMarginRisk,
     closePnlReport,
     closeStockDetail,
+    closeStockPnlReport,
     closeWatchlistStockDetail,
     closeWaveTracker,
     closeCommunityCompetition,
@@ -5437,7 +5448,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
 
   return (
     <div
-      className={`min-h-screen ${isFullBleedPage ? 'px-0' : 'px-4'} ${hideBottomNavigation ? 'pb-0' : 'pb-24'} ${isFearGreedPage || isPnlReportPage || isStockDecisionPage || isMacroPage ? 'bg-[#08090b]' : darkShell ? 'bg-[#05070b]' : 'bg-slate-50'}`}
+      className={`min-h-screen ${isFullBleedPage ? 'px-0' : 'px-4'} ${hideBottomNavigation ? 'pb-0' : 'pb-24'} ${isFearGreedPage || isPnlReportPage || isStockPnlReportPage || isStockDecisionPage || isMacroPage ? 'bg-[#08090b]' : darkShell ? 'bg-[#05070b]' : 'bg-slate-50'}`}
       style={{ paddingTop: isStandalonePage ? 0 : 'calc(1rem + env(safe-area-inset-top))' }}
     >
       {pullRefreshStatus !== 'idle' && (
@@ -5587,6 +5598,8 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
                 ? <MacroPage key={user?.id || ''} ctx={{ userId: user?.id || '', closeMacro }} />
               : isStockDetailPage
                 ? <StockDetailPage ctx={tabCtx} />
+                : isStockPnlReportPage
+                  ? <StockPnlReportPage ctx={tabCtx} />
                 : isWatchlistStockDetailPage
                   ? <WatchlistStockDetailPage ctx={tabCtx} />
                 : isWaveTrackerPage

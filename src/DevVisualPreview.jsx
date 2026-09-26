@@ -52,6 +52,7 @@ const PortfolioOverlapPreview = lazy(() => import('./dev/PortfolioOverlapPreview
 const DcaLabPreview = lazy(() => import('./dev/DcaLabPreview.jsx'));
 const MacroPage = lazy(() => import('./pages/MacroLivePage.jsx'));
 const StockDetailPage = lazy(() => import('./pages/StockDetailPage.jsx'));
+const StockPnlReportPage = lazy(() => import('./pages/StockPnlReportPage.jsx'));
 const WatchlistStockDetailPage = lazy(() => import('./pages/WatchlistStockDetailPage.jsx'));
 const WaveTrackerPage = lazy(() => import('./pages/WaveTrackerPage.jsx'));
 const CommunityCompetitionPage = lazy(() => import('./pages/CommunityCompetitionPage.jsx'));
@@ -1839,7 +1840,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     if (['risk', 'editor', 'leverage'].includes(params.get('homeMargin'))) return 'home-margin-risk';
     if (params.get('preview') === 'dca-lab') return 'dca-lab';
     const requestedTab = params.get('tab');
-    return ['home', 'trades', 'analysis', 'review', 'settings', 'pnl-report', 'pnl-share', 'home-margin-risk', 'drawdown-observation', 'stock-detail', 'watchlist-stock-detail', 'wave-tracker', 'community-competition', 'vix-comparison', 'fear-greed', 'stock-decision', 'investment-comparison', 'macro', 'portfolio-overlap', 'dca-lab'].includes(requestedTab) ? requestedTab : 'analysis';
+    return ['home', 'trades', 'analysis', 'review', 'settings', 'pnl-report', 'pnl-share', 'home-margin-risk', 'drawdown-observation', 'stock-detail', 'stock-pnl-report', 'watchlist-stock-detail', 'wave-tracker', 'community-competition', 'vix-comparison', 'fear-greed', 'stock-decision', 'investment-comparison', 'macro', 'portfolio-overlap', 'dca-lab'].includes(requestedTab) ? requestedTab : 'analysis';
   });
   const macroPreview = React.useMemo(() => {
     const params = new URLSearchParams(typeof window === 'undefined' ? '' : window.location.search);
@@ -2342,6 +2343,12 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     QQQ: stockReturnBenchmarkRows,
     NVDA: stockReturnStockRawRows,
   }), [stockReturnBenchmarkRows, stockReturnStockRawRows]);
+  const fetchPnlBenchmarkRows = React.useCallback(async ({ symbol: requestedSymbol = 'QQQ', from, to }) => {
+    const rows = stockReturnRawRowsBySymbol[String(requestedSymbol || '').trim().toUpperCase()] || [];
+    return rows
+      .filter((row) => (!from || row.date >= from) && (!to || row.date <= to))
+      .map((row) => ({ ...row, adjustedClose: row.adjustedClose ?? row.close }));
+  }, [stockReturnRawRowsBySymbol]);
   const stockDetailTrades = stockReturnComparisonCostFlowPreview
     ? [...mockPnlStockTrades.filter((trade) => trade.symbol !== 'NVDA'), ...mockStockComparisonCostFlowTrades]
     : mockPnlStockTrades;
@@ -2910,12 +2917,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
       setActiveTab('earnings-detail');
     },
     fetchMarketMovers: async () => devMarketMoversFixture,
-    fetchPnlBenchmarkRows: async ({ symbol: requestedSymbol = 'QQQ', from, to }) => {
-      const rows = stockReturnRawRowsBySymbol[String(requestedSymbol || '').trim().toUpperCase()] || [];
-      return rows
-        .filter((row) => (!from || row.date >= from) && (!to || row.date <= to))
-        .map((row) => ({ ...row }));
-    },
+    fetchPnlBenchmarkRows,
     fetchPopularStockQuotes: async (symbols = []) => ({
       success: true,
       data: mockHomeWatchlist.filter((row) => symbols.includes(row.symbol)),
@@ -2966,6 +2968,8 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     closePnlReport: () => setActiveTab('home'),
     openStockDetail: () => setActiveTab('stock-detail'),
     closeStockDetail: () => setActiveTab('trades'),
+    openStockPnlReport: () => { setActiveTab('stock-pnl-report'); window.scrollTo(0, 0); },
+    closeStockPnlReport: () => { setActiveTab('stock-detail'); window.scrollTo(0, 0); },
     openWatchlistStockDetail: (symbol) => {
       const normalizedSymbol = String(symbol || '').trim().toUpperCase();
       if (!normalizedSymbol) return;
@@ -3372,9 +3376,9 @@ function StandardDevVisualPreview({ initialTab = '' }) {
 
   return (
     <div
-      className={`min-h-screen ${['fear-greed', 'pnl-report', 'stock-decision', 'macro'].includes(activeTab) ? 'bg-[#08090b]' : 'bg-[#05070b]'} text-white ${['pnl-report', 'pnl-share'].includes(activeTab) ? 'pb-0' : 'pb-24'} ${['pnl-report', 'pnl-share', 'community-competition', 'earnings-detail'].includes(activeTab) ? 'px-0' : 'px-4'}`}
+      className={`min-h-screen ${['fear-greed', 'pnl-report', 'stock-pnl-report', 'stock-decision', 'macro'].includes(activeTab) ? 'bg-[#08090b]' : 'bg-[#05070b]'} text-white ${['pnl-report', 'pnl-share', 'stock-pnl-report'].includes(activeTab) ? 'pb-0' : 'pb-24'} ${['pnl-report', 'pnl-share', 'stock-pnl-report', 'community-competition', 'earnings-detail'].includes(activeTab) ? 'px-0' : 'px-4'}`}
       style={{
-        paddingTop: ['pnl-report', 'pnl-share', 'home-margin-risk', 'drawdown-observation', 'stock-detail', 'wave-tracker', 'community-competition', 'watchlist-stock-detail', 'earnings-detail', 'vix-comparison', 'fear-greed', 'stock-decision', 'investment-comparison', 'macro', 'portfolio-overlap', 'dca-lab'].includes(activeTab) ? 0 : 'calc(1rem + env(safe-area-inset-top))',
+        paddingTop: ['pnl-report', 'pnl-share', 'stock-pnl-report', 'home-margin-risk', 'drawdown-observation', 'stock-detail', 'wave-tracker', 'community-competition', 'watchlist-stock-detail', 'earnings-detail', 'vix-comparison', 'fear-greed', 'stock-decision', 'investment-comparison', 'macro', 'portfolio-overlap', 'dca-lab'].includes(activeTab) ? 0 : 'calc(1rem + env(safe-area-inset-top))',
         ...(visualViewportWidth
           ? { marginInline: 'auto', maxWidth: '100%', width: `${visualViewportWidth}px` }
           : {}),
@@ -3383,6 +3387,8 @@ function StandardDevVisualPreview({ initialTab = '' }) {
       <Suspense fallback={<div className="py-12 text-center text-sm text-white/45">加载本地预览...</div>}>
         {activeTab === 'pnl-report'
           ? <PnlReportPage ctx={homeCtx} />
+          : activeTab === 'stock-pnl-report'
+          ? <StockPnlReportPage ctx={homeCtx} />
           : activeTab === 'pnl-share'
           ? (
             <PnlSharePage
@@ -3443,7 +3449,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
         onConfirm={submitPreviewConfirm}
       />
 
-      {activeTab !== 'pnl-report' && activeTab !== 'pnl-share' && (
+      {activeTab !== 'pnl-report' && activeTab !== 'pnl-share' && activeTab !== 'stock-pnl-report' && (
       <div className="report-bottom-nav fixed bottom-0 left-0 right-0 z-50" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
         <div className="mx-auto max-w-5xl">
           <div className="report-bottom-nav-grid grid grid-cols-5">

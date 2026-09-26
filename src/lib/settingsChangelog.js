@@ -4,6 +4,17 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '个股详情的累积总收益旁新增「查看完整收益报表」，打开独立的个股详细收益报表，可查看正式交易的完成收盘日/月盈亏与收益走势。',
+      '本股与 QQQ 的股价对比单独展示并注明共同收盘区间；股价涨幅不等同于个人交易收益，缺失收盘快照不按零收益处理。',
+    ],
+    itemsEn: [
+      'A Full return report link beside Cumulative total return opens a detailed stock P&L report with completed-close daily and monthly P&L and return trends from formal trades.',
+      'The stock-versus-QQQ price comparison shows its common closing-date range separately from personal trading returns. Missing close snapshots are not treated as zero returns.',
+    ],
+  },
+  {
+    ver: 'v10.7.9.541', date: '2026-09-19',
+    items: [
       '交易的全部功能新增宏观环境，入口位于股票决策下方，可查看国债收益率、通胀与能源、市场压力、流动性和经济日历的真实数据。',
       '宏观指标补充中文名称、日期与更新时间，涨跌采用红涨绿跌；未取得的数据不展示为零，尚未建立的环境评分不展示模拟值。',
       '招商永隆账户图标更新为官方红底标识，账户列表、弹窗、环比和月度余额录入统一显示。',
