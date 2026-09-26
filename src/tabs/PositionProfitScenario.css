@@ -1,3 +1,4 @@
+.pps-overlay-editing::after { content: ''; position: absolute; top: 100%; left: 0; right: 0; height: 100dvh; background: #000; pointer-events: none; }
 .pps-panel { display: flex; flex-direction: column; width: 100%; max-width: 410px; max-height: 72dvh; min-width: 0; padding: 20px; border-radius: 24px; background: #101112; color: #e9e9ee; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif; font-weight: 400; font-variant-numeric: tabular-nums; }
 .pps-header { display: flex; align-items: flex-start; flex-shrink: 0; gap: 12px; }
 .pps-logo { width: 40px; height: 40px; flex-shrink: 0; border-radius: 11px; }
@@ -7,6 +8,10 @@
 .pps-holding { display: flex; flex-wrap: wrap; gap: 3px 10px; margin-top: 5px; color: #85858f; font-size: 11px; line-height: 16px; }
 .pps-close { display: grid; place-items: center; flex-shrink: 0; width: 36px; height: 36px; border: 0; border-radius: 50%; background: #1b1c1e; color: #a1a1aa; }
 .pps-content { flex: 1; min-height: 0; margin-top: 20px; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; }
+.pps-panel-editing .pps-content { flex: 0 1 auto; }
+.pps-panel-editing .pps-shortcuts, .pps-panel-editing .pps-results, .pps-panel-editing .pps-profit-percent { display: none; }
+.pps-panel-editing .pps-profit { padding-bottom: 0; }
+.pps-panel-editing .pps-empty { padding: 12px 0 0; }
 .pps-label { color: #91919b; font-size: 12px; line-height: 18px; }
 .pps-input-shell { display: flex; align-items: center; gap: 10px; min-height: 58px; margin-top: 8px; padding: 0 13px; border: 1px solid transparent; border-radius: 12px; background: #1a1b1d; }
 .pps-input-shell:focus-within { border-color: #69696f; }
@@ -23,7 +28,7 @@
 .pps-close:active, .pps-clear:active, .pps-shortcut:active:not(:disabled) { color: #fff; }
 .pps-empty { padding: 30px 8px; color: #8e8e98; font-size: 13px; text-align: center; }
 .pps-results { margin-top: 20px; }
-.pps-profit { padding-bottom: 14px; }
+.pps-profit { margin-top: 20px; padding-bottom: 14px; }
 .pps-profit-value { margin-top: 8px; font-size: clamp(25px, 7.5vw, 32px); line-height: 1.25; letter-spacing: -.035em; overflow-wrap: anywhere; }
 .pps-profit-percent { margin-top: 5px; font-size: 14px; line-height: 20px; }
 .pps-flat { color: #d4d4dc; }

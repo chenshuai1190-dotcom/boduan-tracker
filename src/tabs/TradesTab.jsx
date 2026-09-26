@@ -126,6 +126,7 @@ function PositionProfitScenarioSheet({
 }) {
   const inputRef = React.useRef(null);
   const [visualViewportFrame, setVisualViewportFrame] = React.useState(null);
+  const [priceInputFocused, setPriceInputFocused] = React.useState(false);
   const symbol = String(position?.symbol || '').trim().toUpperCase();
   const nameParts = stockNameParts(symbol, position?.name);
   const quantity = toNumber(position?.heldShares);
@@ -156,9 +157,12 @@ function PositionProfitScenarioSheet({
     const updateFrame = () => {
       window.cancelAnimationFrame(rafId);
       rafId = window.requestAnimationFrame(() => {
+        const viewportHeight = Number(viewport.height) > 0
+          ? Number(viewport.height)
+          : Number(window.innerHeight) || 0;
         setVisualViewportFrame({
           top: `${Math.max(0, viewport.offsetTop || 0)}px`,
-          height: `${Math.max(320, viewport.height || window.innerHeight || 0)}px`,
+          height: viewportHeight > 0 ? `${viewportHeight}px` : '100dvh',
         });
       });
     };
@@ -241,19 +245,20 @@ function PositionProfitScenarioSheet({
       }
     : undefined;
   const panelStyle = visualViewportFrame
-    ? { maxHeight: 'min(72dvh, calc(100% - env(safe-area-inset-top) - 0.75rem))' }
+    ? { maxHeight: priceInputFocused ? '100%' : 'min(72dvh, 100%)' }
     : undefined;
+  const compactPriceEditing = Boolean(visualViewportFrame && priceInputFocused);
 
   return (
     <div
-      className="fixed left-0 right-0 top-0 z-[170] flex h-[100dvh] items-end justify-center bg-black/60 px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-[calc(env(safe-area-inset-top)+0.75rem)] backdrop-blur-md"
+      className={`fixed left-0 right-0 top-0 z-[170] flex h-[100dvh] items-end justify-center px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-[calc(env(safe-area-inset-top)+0.75rem)] ${compactPriceEditing ? 'pps-overlay-editing bg-black' : 'bg-black/60 backdrop-blur-md'}`}
       style={dialogStyle}
       data-position-scenario="true"
       role="dialog"
       aria-modal="true"
       aria-label={tt('trades.scenarioTitle', '持仓收益试算')}
     >
-      <div className="pps-panel" style={panelStyle}>
+      <div className={`pps-panel${compactPriceEditing ? ' pps-panel-editing' : ''}`} style={panelStyle}>
         <div className="pps-header">
           <StockLogo symbol={symbol} urls={logoUrls} onLogoLoad={cacheStockLogo} className="pps-logo" />
           <div className="pps-identity">
@@ -280,6 +285,8 @@ function PositionProfitScenarioSheet({
               id={`scenario-price-${symbol}`}
               value={priceInput}
               onChange={(event) => setPriceInput(event.target.value)}
+              onFocus={() => setPriceInputFocused(true)}
+              onBlur={() => setPriceInputFocused(false)}
               inputMode="decimal"
               enterKeyHint="done"
               className="pps-input"
@@ -293,6 +300,18 @@ function PositionProfitScenarioSheet({
               </button>
             ) : null}
           </div>
+
+          {canCalculate ? (
+            <div className="pps-profit">
+              <div className="pps-label">{tt('trades.scenarioProjectedPnl', '预计持仓盈亏')}</div>
+              <div className={`pps-profit-value ${resultClass}`} data-position-scenario-profit style={{ fontFamily: TRADE_NUMBER_FONT }}>
+                {scenarioSignedCurrency(profit)}
+              </div>
+              <div className={`pps-profit-percent ${resultClass}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
+                {scenarioSignedPct(profitRate)}
+              </div>
+            </div>
+          ) : null}
 
           <div className="pps-shortcuts">
             {shortcutTargets.map((item) => {
@@ -318,16 +337,6 @@ function PositionProfitScenarioSheet({
             </div>
           ) : (
             <div className="pps-results">
-              <div className="pps-profit">
-                <div className="pps-label">{tt('trades.scenarioProjectedPnl', '预计持仓盈亏')}</div>
-                <div className={`pps-profit-value ${resultClass}`} data-position-scenario-profit style={{ fontFamily: TRADE_NUMBER_FONT }}>
-                  {scenarioSignedCurrency(profit)}
-                </div>
-                <div className={`pps-profit-percent ${resultClass}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
-                  {scenarioSignedPct(profitRate)}
-                </div>
-              </div>
-
               <div className="pps-delta">
                 <div className="pps-label">{tt('trades.scenarioDeltaCurrent', '较当前价变化')}</div>
                 <div className={`pps-delta-numbers ${deltaClass}`} style={{ fontFamily: TRADE_NUMBER_FONT }}>
