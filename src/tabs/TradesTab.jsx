@@ -437,6 +437,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
     openDcaLab,
     openStockDecision,
     openMacro,
+    openDebtManager,
     portfolioCurrencyMode,
     Plus,
     qqqSignalQuote,
@@ -1017,7 +1018,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
           <ActionModalCard title={tt('trades.allTools', '全部功能')} closeLabel={tt('trades.closeAllTools', '关闭全部功能')}
             onClose={() => setShowAllToolsModal(false)} widthClassName="w-[calc(100vw-32px)] max-w-[440px]"
             panelClassName="trade-tools-panel" contentClassName="trade-tools-content" headerClassName="trade-tools-header" titleClassName="trade-tools-title" closeButtonClassName="trade-tools-close">
-            <TradeToolsCatalog language={language} onSelect={(toolId) => {
+            <TradeToolsCatalog language={language} enableDebtManager={typeof openDebtManager === 'function'} onSelect={(toolId) => {
               setShowAllToolsModal(false);
               if (toolId === 'records') { setToolPanel('records'); return; }
               setToolPanel('');
@@ -1026,6 +1027,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
               if (toolId === 'dca-lab') openDcaLab?.();
               if (toolId === 'stock-decision') openStockDecision?.();
               if (toolId === 'macro') openMacro?.();
+              if (toolId === 'debt-manager') openDebtManager?.();
               if (toolId === 'waves') openWaveTracker?.();
               if (toolId === 'competition') openCommunityCompetition?.();
             }} />

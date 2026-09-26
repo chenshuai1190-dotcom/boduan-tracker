@@ -21,7 +21,9 @@ test('Home drawdown opens a lazy independent authenticated page backed by user w
   assert.ok(render.includes('marketColorMode'));
   assert.ok(render.includes('closeDrawdownObservation'));
   assert.doesNotMatch(render, /db|supabase|stockTrades:|costBasisData|swingWaves|setBenchmarkSymbol|previewSource|SYNTHETIC/);
-  assert.ok(app.includes("hideBottomNavigation = isPnlReportPage || isPnlSharePage || isStockPnlReportPage;"), 'observation preserves the normal bottom navigation');
+  const bottomNavGuard = app.match(/const hideBottomNavigation = ([^;]+);/)?.[1];
+  assert.ok(bottomNavGuard?.includes('isDebtManagerPage'), 'the debt manager hides the bottom navigation');
+  assert.doesNotMatch(bottomNavGuard, /\bisDrawdownObservationPage\b/, 'observation preserves the normal bottom navigation');
 });
 
 test('drawdown viewing and explicit Home benchmark mutation remain separate controls', () => {

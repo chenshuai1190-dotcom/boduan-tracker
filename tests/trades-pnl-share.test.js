@@ -246,7 +246,12 @@ test('Home and Trading open one shared image page from Today P&L while preservin
   assert.ok(appSource.includes('db.fetchPnlShareIdentity({ id: userId })'));
   assert.ok(appSource.includes('const identity = createPnlShareIdentity(profile);'));
   assert.ok(appSource.includes('isFullBleedPage = isPnlSharePage || isCommunityCompetitionPage'));
-  assert.ok(appSource.includes('hideBottomNavigation = isPnlReportPage || isPnlSharePage || isStockPnlReportPage;'));
+  const navGuard = appSource.match(/const hideBottomNavigation = ([^;]+);/)?.[1];
+  assert.ok(navGuard);
+  const hideBottomNavigation = new Function('isPnlReportPage', 'isPnlSharePage', 'isStockPnlReportPage', 'isDebtManagerPage', `return ${navGuard};`);
+  assert.equal(hideBottomNavigation(false, true, false, false), true, 'P&L share remains full screen');
+  assert.equal(hideBottomNavigation(false, false, false, true), true, 'debt manager is also full screen');
+  assert.equal(hideBottomNavigation(false, false, false, false), false, 'ordinary tabs retain navigation');
 
   assert.equal((tradesSource.match(/onClick=\{openPnlShare\}/g) || []).length, 1);
   assert.ok(tradesSource.includes('data-trades-pnl-share-trigger="true"'));
@@ -272,7 +277,11 @@ test('Home and Trading open one shared image page from Today P&L while preservin
   assert.ok(devPreviewSource.includes("preview === 'pnl-share' ? 'pnl-share'"));
   assert.ok(devPreviewSource.includes("communityIdentity={{ nickname: '波段玩家1836', avatarKey: 'gold' }}"));
   assert.ok(devPreviewSource.includes('communityIdentityStatus="ready"'));
-  assert.ok(devPreviewSource.includes("activeTab !== 'pnl-report' && activeTab !== 'pnl-share' && activeTab !== 'stock-pnl-report' && ("));
+  const navCondition = devPreviewSource.match(/\{([^{}\n]+) && \(\s*<div className="report-bottom-nav/)?.[1];
+  assert.ok(navCondition, 'read the actual preview bottom-navigation condition');
+  const showBottomNavigation = new Function('activeTab', `return ${navCondition};`);
+  for (const route of ['pnl-report', 'pnl-share', 'stock-pnl-report', 'debt-manager']) assert.equal(showBottomNavigation(route), false, route);
+  for (const route of ['home', 'trades', 'watchlist-stock-detail', 'home-margin-risk']) assert.equal(showBottomNavigation(route), true, route);
 });
 
 test('share identity accepts only a validated nickname and allowlisted local avatar', async () => {

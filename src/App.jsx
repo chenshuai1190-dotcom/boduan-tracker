@@ -53,6 +53,7 @@ const PortfolioOverlapPage = lazy(() => import('./pages/PortfolioOverlapPage.jsx
 const DcaLabPage = lazy(() => import('./pages/DcaLabPage.jsx'));
 const StockDecisionPage = lazy(() => import('./pages/StockDecisionPage.jsx'));
 const MacroPage = lazy(() => import('./pages/MacroLivePage.jsx'));
+const DebtManagerPage = lazy(() => import('./pages/DebtManagerPage.jsx'));
 const StockDetailPage = lazy(() => import('./pages/StockDetailPage.jsx'));
 const StockPnlReportPage = lazy(() => import('./pages/StockPnlReportPage.jsx'));
 const WatchlistStockDetailPage = lazy(() => import('./pages/WatchlistStockDetailPage.jsx'));
@@ -4851,6 +4852,14 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     setActiveTab('trades');
     setActivePage(null);
   }, []);
+  const openDebtManager = useCallback(() => {
+    setActiveTab('trades');
+    setActivePage('debt-manager');
+  }, []);
+  const closeDebtManager = useCallback(() => {
+    setActiveTab('trades');
+    setActivePage(null);
+  }, []);
   const openPortfolioOverlap = useCallback(() => {
     setActiveTab('trades');
     setActivePage('portfolio-overlap');
@@ -5090,9 +5099,10 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   const isDcaLabPage = activePage === 'dca-lab';
   const isStockDecisionPage = activePage === 'stock-decision';
   const isMacroPage = activePage === 'macro';
-  const isStandalonePage = isPnlReportPage || isPnlSharePage || isHomeMarginRiskPage || isDrawdownObservationPage || isStockDetailPage || isStockPnlReportPage || isWatchlistStockDetailPage || isWaveTrackerPage || isCommunityCompetitionPage || isEarningsCalendarPage || isEarningsDetailPage || isInvestmentComparisonPage || isPortfolioOverlapPage || isDcaLabPage || isStockDecisionPage || isVixComparisonPage || isFearGreedPage || isMacroPage;
-  const isFullBleedPage = isPnlSharePage || isCommunityCompetitionPage || isEarningsCalendarPage || isEarningsDetailPage || isPnlReportPage || isStockPnlReportPage;
-  const hideBottomNavigation = isPnlReportPage || isPnlSharePage || isStockPnlReportPage;
+  const isDebtManagerPage = activePage === 'debt-manager';
+  const isStandalonePage = isPnlReportPage || isPnlSharePage || isHomeMarginRiskPage || isDrawdownObservationPage || isStockDetailPage || isStockPnlReportPage || isWatchlistStockDetailPage || isWaveTrackerPage || isCommunityCompetitionPage || isEarningsCalendarPage || isEarningsDetailPage || isInvestmentComparisonPage || isPortfolioOverlapPage || isDcaLabPage || isStockDecisionPage || isVixComparisonPage || isFearGreedPage || isMacroPage || isDebtManagerPage;
+  const isFullBleedPage = isPnlSharePage || isCommunityCompetitionPage || isEarningsCalendarPage || isEarningsDetailPage || isPnlReportPage || isStockPnlReportPage || isDebtManagerPage;
+  const hideBottomNavigation = isPnlReportPage || isPnlSharePage || isStockPnlReportPage || isDebtManagerPage;
   const ActiveTab = TAB_COMPONENTS[activeTab] || HomeTab;
   const settingsTabCtx = useMemo(() => ({
     accountManager,
@@ -5286,6 +5296,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     openDcaLab,
     openStockDecision,
     openMacro,
+    openDebtManager,
     openPnlReport,
     openPnlShare,
     pnlReportRefreshVersion,
@@ -5448,7 +5459,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
 
   return (
     <div
-      className={`min-h-screen ${isFullBleedPage ? 'px-0' : 'px-4'} ${hideBottomNavigation ? 'pb-0' : 'pb-24'} ${isFearGreedPage || isPnlReportPage || isStockPnlReportPage || isStockDecisionPage || isMacroPage ? 'bg-[#08090b]' : darkShell ? 'bg-[#05070b]' : 'bg-slate-50'}`}
+      className={`min-h-screen ${isFullBleedPage ? 'px-0' : 'px-4'} ${hideBottomNavigation ? 'pb-0' : 'pb-24'} ${isFearGreedPage || isPnlReportPage || isStockPnlReportPage || isStockDecisionPage || isMacroPage || isDebtManagerPage ? 'bg-[#08090b]' : darkShell ? 'bg-[#05070b]' : 'bg-slate-50'}`}
       style={{ paddingTop: isStandalonePage ? 0 : 'calc(1rem + env(safe-area-inset-top))' }}
     >
       {pullRefreshStatus !== 'idle' && (
@@ -5596,6 +5607,8 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
                 ? <StockDecisionPage key={user?.id || ''} ctx={{ userId: user?.id || '', language, marketColorMode, closeStockDecision }} />
               : isMacroPage
                 ? <MacroPage key={user?.id || ''} ctx={{ userId: user?.id || '', closeMacro }} />
+              : isDebtManagerPage
+                ? <DebtManagerPage key={user?.id || ''} onBack={closeDebtManager} supabase={supabase} userId={user?.id} language={language} />
               : isStockDetailPage
                 ? <StockDetailPage ctx={tabCtx} />
                 : isStockPnlReportPage

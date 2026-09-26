@@ -4,6 +4,17 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '交易的全部功能新增独立「资产负债」工具，记录欠款、逐笔还款、批量导入与结清进度。',
+      '欠款与还款保存在当前登录账户的独立云端表中，不参与 Quote 的资产、净资产、持仓或收益统计。',
+    ],
+    itemsEn: [
+      'A separate Debt Manager in Trading’s All Tools tracks debts, repayments, reviewed bulk imports, and settlement progress.',
+      'Debts and repayments are stored in separate user-owned cloud tables and do not affect assets, net worth, holdings, or returns.',
+    ],
+  },
+  {
+    ver: 'v10.7.9.543', date: '2026-09-26',
+    items: [
       '个股详细收益报表的股价对比可切换 QQQ、SPY、VGT，按各自与本股共同交易日的复权收盘价比较涨幅。',
       '合并收益率与盈亏金额读数，精简重复的区间、币种和说明文案。',
     ],

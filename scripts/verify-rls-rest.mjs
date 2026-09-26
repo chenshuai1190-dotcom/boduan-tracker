@@ -17,6 +17,8 @@ const USER_TABLES = [
   'home_benchmark_preferences',
   'accounts',
   'balance_snapshots',
+  'personal_debts',
+  'personal_debt_repayments',
   'investment_plan',
   'margin_status',
   'available_cash_status',
@@ -265,6 +267,10 @@ const SERVICE_ONLY_RPCS = [
   },
 ];
 const AUTHENTICATED_USER_RPCS = [
+  {
+    name: 'read_personal_debt_ledger',
+    body: {},
+  },
   {
     name: 'available_cash_write_contract_ready',
     body: {},

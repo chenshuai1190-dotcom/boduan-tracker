@@ -66,6 +66,7 @@ npm run release:verify -- <docs|fast|full> <commit> # 一次等待发布结果
 | 财报日历 | `/api/earnings-calendar` |
 | 行情和涨跌榜 | 已登录 `/api/quote` 与服务端 relay |
 | 投资对比小工具 | 交易 → 全部功能 → 独立页面；只读 `/api/quote?view=investment-comparison` 与 `investment-search`，不连接交易账本 |
+| 资产负债小工具 | 交易 → 全部功能 → 独立页面；`personal_debts` 与 `personal_debt_repayments` 按登录用户隔离，只由原始欠款和还款流水计算剩余本金，不参与资产、净资产、持仓及收益统计 |
 
 这些边界不得为了复用 UI 或保存函数而重新耦合。正式交易和波段必须使用显式 scope，不能把数据写入错误账本。独立摊薄成本工具已移除，客户端不再读取、同步或写入 `cost_basis_trades`，其专用本地缓存也不再使用；历史数据和 RLS 保护保留，不迁移到其他账本。正式持仓的成本计算不受影响。
 

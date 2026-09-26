@@ -1,5 +1,5 @@
 import React from 'react';
-import { Activity, BarChart3, BookOpen, ChevronRight, Crosshair, FlaskConical, History, Layers, ListChecks, TrendingUp, Users, Waves } from 'lucide-react';
+import { Activity, BarChart3, BookOpen, ChevronRight, Crosshair, FlaskConical, History, Layers, ListChecks, ReceiptText, TrendingUp, Users, Waves } from 'lucide-react';
 import { t } from '../lib/i18n.js';
 import './TradeToolsCatalog.css';
 
@@ -29,10 +29,18 @@ const TOOL_GROUPS = [
   },
 ];
 
-export default function TradeToolsCatalog({ language = 'zh', onSelect }) {
+const PERSONAL_TOOL_GROUP = {
+  id: 'personal', titleKey: 'trades.toolsPersonal', icon: ReceiptText,
+  tools: [
+    { id: 'debt-manager', titleKey: 'trades.debtManager', descriptionKey: 'trades.debtManagerDescription', icon: ReceiptText },
+  ],
+};
+
+export default function TradeToolsCatalog({ language = 'zh', onSelect, enableDebtManager = false }) {
   const headingId = React.useId();
+  const groups = enableDebtManager ? [...TOOL_GROUPS, PERSONAL_TOOL_GROUP] : TOOL_GROUPS;
   return <div className="trade-tools-catalog">
-    {TOOL_GROUPS.map(group => {
+    {groups.map(group => {
       const GroupIcon = group.icon;
       return <section key={group.id} className="trade-tools-group" aria-labelledby={`${headingId}-${group.id}`}>
         <h3 id={`${headingId}-${group.id}`} className="trade-tools-category"><GroupIcon size={14} strokeWidth={1.7} aria-hidden="true" />{t(language, group.titleKey)}</h3>

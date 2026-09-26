@@ -37,7 +37,12 @@ test('local DCA preview uses the standard shell and the existing Trades navigati
   assert.match(preview, /lazy\(\(\) => import\('\.\/dev\/DcaLabPreview\.jsx'\)\)/);
   assert.match(preview, /if \(params\.get\('preview'\) === 'dca-lab'\) return 'dca-lab'/);
   assert.match(preview, /'portfolio-overlap', 'dca-lab'\]\.includes\(requestedTab\)/);
-  assert.match(preview, /paddingTop: \[[^\n]*'dca-lab'\]\.includes\(activeTab\) \? 0/);
+  const paddingExpression = preview.match(/paddingTop: (\[[^\n]+\.includes\(activeTab\) \? 0 : [^\n]+),/)?.[1];
+  assert.ok(paddingExpression, 'read the actual standalone preview top-padding rule');
+  const paddingTop = new Function('activeTab', `return ${paddingExpression};`);
+  assert.equal(paddingTop('dca-lab'), 0);
+  assert.equal(paddingTop('debt-manager'), 0);
+  assert.equal(paddingTop('trades'), 'calc(1rem + env(safe-area-inset-top))', 'standard Trades still owns its shell padding');
   assert.match(preview, /<DcaLabPreview ctx=\{\{ language, closeDcaLab: \(\) => \{ setActiveTab\('trades'\); window\.scrollTo\(0, 0\); \} \}\} \/>/);
   assert.ok(preview.includes("(activeTab === 'dca-lab' && tab.id === 'trades')"));
   const topLevelEntry = preview.slice(preview.indexOf('export default function DevVisualPreview()'));

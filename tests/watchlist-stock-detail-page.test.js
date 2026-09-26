@@ -33,9 +33,17 @@ test('watchlist detail keeps the existing bottom tabs and shows the symbol besid
   assert.equal(pageSource.includes('tracking-[0.08em] text-[#f6b54b]/80'), false, 'the symbol must not retain the old small gold treatment');
   assert.ok(i18nSource.includes("'watchlistDetail.title': '股票趋势'"));
   assert.ok(i18nSource.includes("'watchlistDetail.title': 'Stock Detail'"), 'English title should remain unchanged');
-  assert.ok(appSource.includes('hideBottomNavigation = isPnlReportPage || isPnlSharePage || isStockPnlReportPage;'));
+  const navGuard = appSource.match(/const hideBottomNavigation = ([^;]+);/)?.[1];
+  assert.ok(navGuard);
+  const hideBottomNavigation = new Function('isPnlReportPage', 'isPnlSharePage', 'isStockPnlReportPage', 'isDebtManagerPage', `return ${navGuard};`);
+  assert.equal(hideBottomNavigation(false, false, false, false), false, 'watchlist detail retains navigation');
+  assert.equal(hideBottomNavigation(false, false, false, true), true, 'debt manager hides navigation');
   assert.equal(appSource.includes('hideBottomNavigation = isPnlReportPage || isHomeMarginRiskPage'), false);
-  assert.ok(devPreviewSource.includes("activeTab !== 'pnl-report' && activeTab !== 'pnl-share' && activeTab !== 'stock-pnl-report' && ("));
+  const navCondition = devPreviewSource.match(/\{([^{}\n]+) && \(\s*<div className="report-bottom-nav/)?.[1];
+  assert.ok(navCondition, 'read the actual preview bottom-navigation condition');
+  const showBottomNavigation = new Function('activeTab', `return ${navCondition};`);
+  for (const route of ['pnl-report', 'pnl-share', 'stock-pnl-report', 'debt-manager']) assert.equal(showBottomNavigation(route), false, route);
+  for (const route of ['watchlist-stock-detail', 'home-margin-risk', 'home', 'trades']) assert.equal(showBottomNavigation(route), true, route);
   assert.ok(devPreviewSource.includes("activeTab === 'watchlist-stock-detail' && tab.id === 'home'"));
 });
 
