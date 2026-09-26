@@ -1390,10 +1390,18 @@ const mockPnlBenchmarkRows = [
   { date: '2026-07-08', close: 565.50, rawClose: 565.50 },
 ];
 
-// DevVisualPreview stays fully local, but keeps the two market-data channels
-// separate so the stock comparison exercises the same raw/raw contract as the
-// production page. `close` intentionally differs on a few rows: the comparison
-// must consume `rawClose`, never the adjusted-compatible display value.
+const mockSpyBenchmarkRows = mockPnlBenchmarkRows.map((row, index) => {
+  const close = [615, 620, 618, 626, 627, 632, 634, 633, 636, 640, 641, 642, 641, 644, 646, 647][index];
+  return { date: row.date, close, rawClose: close, adjustedClose: close };
+});
+const mockVgtBenchmarkRows = mockPnlBenchmarkRows.map((row, index) => {
+  const close = [590, 600, 608, 615, 622, 645, 650, 669, 655, 679, 680, 688, 685, 700, 705, 712][index];
+  return { date: row.date, close, rawClose: close, adjustedClose: close };
+});
+
+// DevVisualPreview stays fully local. The stock-detail comparison consumes
+// rawClose, while the detailed P&L price comparison consumes adjustedClose;
+// both sides of each comparison must use the same price convention.
 const mockStockComparisonNvdaRawRows = [
   { date: '2026-04-05', close: 120.00, rawClose: 120.12, adjustedClose: 120.00 },
   { date: '2026-04-20', close: 119.20, rawClose: 119.35, adjustedClose: 119.20 },
@@ -2341,6 +2349,8 @@ function StandardDevVisualPreview({ initialTab = '' }) {
   }, [stockReturnComparisonCostFlowPreview, stockReturnComparisonLossPreview]);
   const stockReturnRawRowsBySymbol = React.useMemo(() => ({
     QQQ: stockReturnBenchmarkRows,
+    SPY: mockSpyBenchmarkRows,
+    VGT: mockVgtBenchmarkRows,
     NVDA: stockReturnStockRawRows,
   }), [stockReturnBenchmarkRows, stockReturnStockRawRows]);
   const fetchPnlBenchmarkRows = React.useCallback(async ({ symbol: requestedSymbol = 'QQQ', from, to }) => {

@@ -19,12 +19,12 @@ function nodes(node, predicate) {
   return [...(predicate(node) ? [node] : []), ...React.Children.toArray(node.props.children).flatMap(child => nodes(child, predicate))];
 }
 
-function render(data, { currency = 'CNY', rate = 7.2, marketColorMode = 'redUpGreenDown' } = {}) {
+function render(data, { currency = 'CNY', rate = 7.2, marketColorMode = 'redUpGreenDown', combined = false } = {}) {
   let tree;
   function Capture() {
     tree = PnlReportTrendChart({
       data, mode: 'amount', color: '#ff4b1f', language: 'zh', marketColorMode,
-      displayCurrency: currency, displayRate: rate,
+      displayCurrency: currency, displayRate: rate, showCombinedPersonalReadout: combined,
     });
     return tree;
   }
@@ -74,6 +74,27 @@ test('only a positive amount period high receives the shared pulse marker', () =
   assert.equal(nodes(marker, node => node.props.className?.includes?.('quote-pulse-halo')).length, 1);
   assert.equal(nodes(render(trend.slice(0, 2)).tree, node => Object.hasOwn(node.props, 'data-pnl-report-record-high')).length, 0,
     'a smaller loss is not celebrated as a high');
+});
+
+test('stock personal view pairs daily and cumulative amounts with their return rates without changing the amount line', () => {
+  const data = trend.map((point, index) => ({
+    ...point, dailyPnlPct: [-0.01, 0.02, 0.03, null][index], pnlPct: [0.04, 0.05, 0.06, 0.07][index],
+  }));
+  const { tree, html } = render(data, { combined: true });
+  assert.match(html, /data-stock-pnl-combined-readout="true"/);
+  assert.doesNotMatch(html, /data-pnl-report-amount-tooltip="true"/);
+  assert.doesNotMatch(html, /盈亏金额走势/, 'the stock chart relies on the existing currency control and amount column');
+  assert.match(html, /盈亏金额/);
+  assert.match(html, /收益率/);
+  assert.match(html, /当日/);
+  assert.match(html, /累计/);
+  assert.match(html, /-¥7,200\.00/);
+  assert.match(html, /\+¥7,200\.00/);
+  assert.match(html, /\+7\.00%/);
+  assert.match(html, /pnl-trend-missing">--<\/span>/, 'missing daily return stays unknown');
+  assert.equal(nodes(tree, node => node.props['data-pnl-report-record-high'] === 'pnlUsd').length, 1);
+  assert.equal(nodes(tree, node => node.props.className === 'pnl-trend-zero-line').length, 1);
+  assert.equal(nodes(tree, node => node.type === 'path' && node.props.stroke?.startsWith?.('url(#pnl-report-amount-line-')).length, 1);
 });
 
 test('missing amount observations are not plotted as zero or selectable readings', () => {

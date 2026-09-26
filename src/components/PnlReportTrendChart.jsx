@@ -77,7 +77,7 @@ function displayTooltipDate(dateKey, englishMode) {
 }
 
 export default function PnlReportTrendChart({
-  data = [], mode, color, language, marketColorMode, displayCurrency, displayRate, initialSelectedDate = '',
+  data = [], mode, color, language, marketColorMode, displayCurrency, displayRate, initialSelectedDate = '', showCombinedPersonalReadout = false,
 }) {
   const englishMode = isEnglishLanguage(language);
   const [selectedIndex, setSelectedIndex] = React.useState(null);
@@ -183,10 +183,10 @@ export default function PnlReportTrendChart({
   }, []);
 
   return <div ref={chartRootRef} className="pnl-trend-chart">
-    <div className="pnl-trend-readout" data-mode={mode}>
+    <div className="pnl-trend-readout" data-mode={mode} data-combined-personal={mode === 'amount' && showCombinedPersonalReadout ? 'true' : undefined}>
       <div className="pnl-trend-readout-heading">
         <span>{displayTooltipDate(readoutSlot?.point?.date, englishMode)}</span>
-        {(mode === 'assets' || mode === 'amount') && <span>{displayCurrency}</span>}
+        {(mode === 'assets' || (mode === 'amount' && !showCombinedPersonalReadout)) && <span>{displayCurrency}</span>}
       </div>
       {readoutSlot && mode === 'pnl' && <div className="pnl-trend-compare" data-pnl-report-compare-tooltip="true">
         <span />
@@ -201,7 +201,18 @@ export default function PnlReportTrendChart({
           <span className={isRenderableChartValue(readoutSlot.point?.benchmarkPct) ? marketTextClass(readoutSlot.point?.benchmarkPct, marketColorMode) : 'pnl-trend-missing'}>{nullableSignedPct(readoutSlot.point?.benchmarkPct, 2)}</span>
         </>}
       </div>}
-      {readoutSlot && mode === 'amount' && <div className="pnl-trend-amount-readout" data-pnl-report-amount-tooltip="true">
+      {readoutSlot && mode === 'amount' && showCombinedPersonalReadout && <div className="pnl-trend-personal-readout" data-stock-pnl-combined-readout="true">
+        <span />
+        <span className="pnl-trend-column-label">{englishMode ? 'P&L amount' : '盈亏金额'}</span>
+        <span className="pnl-trend-column-label">{englishMode ? 'Return' : '收益率'}</span>
+        <span className="pnl-trend-personal-period">{t(language, 'pnlReport.tooltip.daily', '当日')}</span>
+        <span className={isRenderableChartValue(readoutSlot.point?.dailyPnlUsd) ? marketTextClass(readoutSlot.point.dailyPnlUsd, marketColorMode) : 'pnl-trend-missing'}>{signedCurrencyAmount(convertUsd(readoutSlot.point?.dailyPnlUsd, displayRate), displayCurrency)}</span>
+        <span className={isRenderableChartValue(readoutSlot.point?.dailyPnlPct) ? marketTextClass(readoutSlot.point.dailyPnlPct, marketColorMode) : 'pnl-trend-missing'}>{nullableSignedPct(readoutSlot.point?.dailyPnlPct, 2)}</span>
+        <span className="pnl-trend-personal-period">{t(language, 'pnlReport.tooltip.cumulative', '累计')}</span>
+        <span className={isRenderableChartValue(readoutSlot.point?.pnlUsd) ? marketTextClass(readoutSlot.point.pnlUsd, marketColorMode) : 'pnl-trend-missing'}>{signedCurrencyAmount(convertUsd(readoutSlot.point?.pnlUsd, displayRate), displayCurrency)}</span>
+        <span className={isRenderableChartValue(readoutSlot.point?.pnlPct) ? marketTextClass(readoutSlot.point.pnlPct, marketColorMode) : 'pnl-trend-missing'}>{nullableSignedPct(readoutSlot.point?.pnlPct, 2)}</span>
+      </div>}
+      {readoutSlot && mode === 'amount' && !showCombinedPersonalReadout && <div className="pnl-trend-amount-readout" data-pnl-report-amount-tooltip="true">
         <span>{t(language, 'pnlReport.tooltip.dailyAmount', '当日盈亏')}</span>
         <span className={isRenderableChartValue(readoutSlot.point?.dailyPnlUsd) ? marketTextClass(readoutSlot.point.dailyPnlUsd, marketColorMode) : 'pnl-trend-missing'}>
           {signedCurrencyAmount(convertUsd(readoutSlot.point?.dailyPnlUsd, displayRate), displayCurrency)}

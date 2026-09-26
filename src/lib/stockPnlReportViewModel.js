@@ -197,7 +197,7 @@ function monthValues(month, snapshots, firstTradeDate, trades, latestDate) {
  * A read-only report of one symbol's complete formal-trade history.
  * Personal P&L amounts come only from completed-close symbol snapshots. The
  * return denominator is opening position market value plus buy cash deployed
- * during the period. QQQ is a price-only comparison: it is not a simulated
+ * during the period. The selected ETF is a price-only comparison, not a simulated
  * personal portfolio, so the personal benchmark fields stay unavailable.
  */
 export function buildStockPnlReportViewModel({

@@ -4,6 +4,17 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '个股详细收益报表的股价对比可切换 QQQ、SPY、VGT，按各自与本股共同交易日的复权收盘价比较涨幅。',
+      '合并收益率与盈亏金额读数，精简重复的区间、币种和说明文案。',
+    ],
+    itemsEn: [
+      'The detailed stock P&L report can compare price performance with QQQ, SPY or VGT using adjusted closes on dates shared with the stock.',
+      'Return and P&L amount readouts are combined, while repeated range, currency and explanatory copy is removed.',
+    ],
+  },
+  {
+    ver: 'v10.7.9.542', date: '2026-09-26',
+    items: [
       '个股详情的累积总收益旁新增「查看完整收益报表」，打开独立的个股详细收益报表，可查看正式交易的完成收盘日/月盈亏与收益走势。',
       '本股与 QQQ 的股价对比单独展示并注明共同收盘区间；股价涨幅不等同于个人交易收益，缺失收盘快照不按零收益处理。',
     ],

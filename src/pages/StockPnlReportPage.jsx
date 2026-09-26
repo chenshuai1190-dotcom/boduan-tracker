@@ -20,6 +20,11 @@ const REPORT_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI
 const NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif';
 const USD_CNY_FALLBACK = 7.2;
 const BENCHMARK_COLOR = '#789ac0';
+const PRICE_BENCHMARKS = {
+  QQQ: { zh: '纳斯达克100 ETF', en: 'Nasdaq-100 ETF' },
+  SPY: { zh: '标普500 ETF', en: 'S&P 500 ETF' },
+  VGT: { zh: '信息技术 ETF', en: 'Information Technology ETF' },
+};
 const CHART_WIDTH = 310;
 const CHART_HEIGHT = 210;
 const CHART_PAD = 8;
@@ -90,8 +95,9 @@ function SegmentButton({ active, children, onClick, className = 'pnl-report-segm
   return <button type="button" onClick={onClick} className={className} aria-pressed={active}>{children}</button>;
 }
 
-function PriceComparisonChart({ data = [], symbol, language, marketColorMode }) {
+function PriceComparisonChart({ data = [], symbol, benchmarkSymbol = 'QQQ', language, marketColorMode }) {
   const englishMode = isEnglishLanguage(language);
+  const benchmarkName = PRICE_BENCHMARKS[benchmarkSymbol]?.[englishMode ? 'en' : 'zh'] || benchmarkSymbol;
   const [selectedIndex, setSelectedIndex] = React.useState(null);
   const activePointer = React.useRef(null);
   const domain = React.useMemo(() => buildChartDomain(data, ['pricePct', 'priceBenchmarkPct'], 'percentage'), [data]);
@@ -106,7 +112,7 @@ function PriceComparisonChart({ data = [], symbol, language, marketColorMode }) 
   const lines = [0, 0.25, 0.5, 0.75, 1].map(ratio => CHART_PAD + ratio * (CHART_HEIGHT - CHART_PAD * 2));
   const axisValues = domain ? lines.map(y => domain.max - ((y - CHART_PAD) / (CHART_HEIGHT - CHART_PAD * 2)) * (domain.max - domain.min)) : [];
 
-  React.useEffect(() => setSelectedIndex(null), [data]);
+  React.useEffect(() => setSelectedIndex(null), [data, benchmarkSymbol]);
   const updateSelection = React.useCallback((event) => {
     if (!data.length) return;
     const rect = event.currentTarget.getBoundingClientRect();
@@ -137,11 +143,11 @@ function PriceComparisonChart({ data = [], symbol, language, marketColorMode }) 
     <div className="stock-pnl-price-readout">
       <div className="stock-pnl-price-date">{readout?.date?.replaceAll('-', '/') || '--'}</div>
       <div className="stock-pnl-price-readout-row"><span><i style={{ background: stockColor }} />{symbol}</span><strong className={isRenderableChartValue(readout?.pricePct) ? marketTextClass(readout.pricePct, marketColorMode) : ''}>{signedPercent(readout?.pricePct)}</strong></div>
-      <div className="stock-pnl-price-readout-row"><span><i style={{ background: BENCHMARK_COLOR }} />{englishMode ? 'Nasdaq-100 (QQQ)' : '纳斯达克100（QQQ）'}</span><strong className={isRenderableChartValue(readout?.priceBenchmarkPct) ? marketTextClass(readout.priceBenchmarkPct, marketColorMode) : ''}>{signedPercent(readout?.priceBenchmarkPct)}</strong></div>
+      <div className="stock-pnl-price-readout-row"><span><i style={{ background: BENCHMARK_COLOR }} />{englishMode ? `${benchmarkName} (${benchmarkSymbol})` : `${benchmarkName}（${benchmarkSymbol}）`}</span><strong className={isRenderableChartValue(readout?.priceBenchmarkPct) ? marketTextClass(readout.priceBenchmarkPct, marketColorMode) : ''}>{signedPercent(readout?.priceBenchmarkPct)}</strong></div>
     </div>
     <div className="stock-pnl-price-plot-layout">
       <div className="stock-pnl-price-plot" onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerEnd} onPointerCancel={onPointerEnd} onLostPointerCapture={onPointerEnd} style={{ touchAction: 'pan-y' }}>
-        {stockPath || benchmarkPath ? <svg viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`} preserveAspectRatio="none" role="img" aria-label={englishMode ? `${symbol} price versus Nasdaq-100` : `${symbol} 股价与纳斯达克100对比`}>
+        {stockPath || benchmarkPath ? <svg viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`} preserveAspectRatio="none" role="img" aria-label={englishMode ? `${symbol} price versus ${benchmarkName} (${benchmarkSymbol})` : `${symbol} 股价与${benchmarkName}（${benchmarkSymbol}）对比`}>
           {lines.map((y, index) => <line key={index} x1={CHART_PAD} x2={CHART_WIDTH - CHART_PAD} y1={y} y2={y} stroke="rgba(255,255,255,.065)" />)}
           {benchmarkPath && <path d={benchmarkPath} fill="none" stroke={BENCHMARK_COLOR} strokeWidth="1.7" vectorEffect="non-scaling-stroke" strokeLinejoin="round" strokeLinecap="round" />}
           {stockPath && <path d={stockPath} fill="none" stroke={stockColor} strokeWidth="1.9" vectorEffect="non-scaling-stroke" strokeLinejoin="round" strokeLinecap="round" />}
@@ -175,7 +181,8 @@ export default function StockPnlReportPage({ ctx = {} }) {
   const label = (zh, en) => englishMode ? en : zh;
   const symbol = String(stockDetailSymbol || '').trim().toUpperCase();
   const [range, setRange] = React.useState('ytd');
-  const [chartMode, setChartMode] = React.useState('pnl');
+  const [chartMode, setChartMode] = React.useState('amount');
+  const [priceBenchmarkSymbol, setPriceBenchmarkSymbol] = React.useState('QQQ');
   const [calendarMode, setCalendarMode] = React.useState('pnl');
   const [calendarView, setCalendarView] = React.useState('month');
   const [calendarDate, setCalendarDate] = React.useState(null);
@@ -188,9 +195,11 @@ export default function StockPnlReportPage({ ctx = {} }) {
   const [snapshotLoading, setSnapshotLoading] = React.useState(true);
   const [snapshotError, setSnapshotError] = React.useState('');
   const [stockPriceRows, setStockPriceRows] = React.useState([]);
-  const [benchmarkRows, setBenchmarkRows] = React.useState([]);
+  const [benchmarkData, setBenchmarkData] = React.useState({ symbol: '', from: '', to: '', rows: [] });
   const [priceLoading, setPriceLoading] = React.useState(false);
   const [priceError, setPriceError] = React.useState('');
+  const priceRowsCache = React.useRef(new Map());
+  const benchmarkRows = benchmarkData.symbol === priceBenchmarkSymbol ? benchmarkData.rows : [];
   const displayCurrency = currencyMode;
   const displayRate = displayCurrency === 'CNY' ? (finite(usdRate) || finite(investmentSummary?.usdRate) || USD_CNY_FALLBACK) : 1;
 
@@ -226,60 +235,69 @@ export default function StockPnlReportPage({ ctx = {} }) {
 
   const benchmarkFrom = report.rangeStartDate;
   const benchmarkTo = report.rangeEndDate;
+  const priceRequestCurrent = benchmarkData.symbol === priceBenchmarkSymbol
+    && benchmarkData.from === benchmarkFrom && benchmarkData.to === benchmarkTo;
+  const shownPriceLoading = priceLoading || !priceRequestCurrent;
+  const shownPriceError = priceRequestCurrent ? priceError : '';
+  React.useEffect(() => { priceRowsCache.current.clear(); }, [fetchPnlBenchmarkRows, user?.id]);
   React.useEffect(() => {
     let cancelled = false;
     if (!symbol || !isDateKey(benchmarkFrom) || !isDateKey(benchmarkTo)) {
       setStockPriceRows([]);
-      setBenchmarkRows([]);
+      setBenchmarkData({ symbol: priceBenchmarkSymbol, from: benchmarkFrom, to: benchmarkTo, rows: [] });
       setPriceError('');
       setPriceLoading(false);
       return undefined;
     }
     if (!supabase?.auth?.getSession && typeof fetchPnlBenchmarkRows !== 'function') {
       setStockPriceRows([]);
-      setBenchmarkRows([]);
+      setBenchmarkData({ symbol: priceBenchmarkSymbol, from: benchmarkFrom, to: benchmarkTo, rows: [] });
       setPriceError(label('缺少可用的只读行情连接', 'Read-only price data is unavailable'));
       setPriceLoading(false);
       return undefined;
     }
-    setStockPriceRows([]);
-    setBenchmarkRows([]);
     setPriceLoading(true);
     setPriceError('');
     async function load() {
       try {
-        let token = '';
-        if (typeof fetchPnlBenchmarkRows !== 'function') {
-          const { data: { session } } = await supabase.auth.getSession();
-          token = session?.access_token;
-          if (!token) throw new Error(label('登录已失效，请重新登录后读取价格行情', 'Sign in again to load market prices'));
-        }
+        let tokenPromise;
         const fetchRows = async (requestedSymbol) => {
+          const cacheKey = `${requestedSymbol}|${benchmarkFrom}|${benchmarkTo}`;
+          const cached = priceRowsCache.current.get(cacheKey);
+          if (cached) return cached;
+          let rows;
           if (typeof fetchPnlBenchmarkRows === 'function') {
-            const rows = await fetchPnlBenchmarkRows({ symbol: requestedSymbol, from: benchmarkFrom, to: benchmarkTo });
+            rows = await fetchPnlBenchmarkRows({ symbol: requestedSymbol, from: benchmarkFrom, to: benchmarkTo });
             if (!Array.isArray(rows) || rows.length === 0) throw new Error(label(`${requestedSymbol} 暂无可用收盘价格`, `No completed-close prices for ${requestedSymbol}`));
-            return rows;
+          } else {
+            tokenPromise ||= supabase.auth.getSession().then(({ data: { session } }) => {
+              if (!session?.access_token) throw new Error(label('登录已失效，请重新登录后读取价格行情', 'Sign in again to load market prices'));
+              return session.access_token;
+            });
+            const token = await tokenPromise;
+            const response = await fetch(`/api/pnl-benchmark?symbol=${encodeURIComponent(requestedSymbol)}&from=${encodeURIComponent(benchmarkFrom)}&to=${encodeURIComponent(benchmarkTo)}`, {
+              cache: 'no-store', headers: { Authorization: `Bearer ${token}` },
+            });
+            const body = await response.json().catch(() => null);
+            if (!response.ok || body?.success === false) throw new Error(body?.error || label(`${requestedSymbol} 收盘价格读取失败`, `Could not load ${requestedSymbol} close prices`));
+            rows = body?.rows;
+            if (!Array.isArray(rows) || rows.length === 0) throw new Error(label(`${requestedSymbol} 暂无可用收盘价格`, `No completed-close prices for ${requestedSymbol}`));
           }
-          const response = await fetch(`/api/pnl-benchmark?symbol=${encodeURIComponent(requestedSymbol)}&from=${encodeURIComponent(benchmarkFrom)}&to=${encodeURIComponent(benchmarkTo)}`, {
-            cache: 'no-store', headers: { Authorization: `Bearer ${token}` },
-          });
-          const body = await response.json().catch(() => null);
-          if (!response.ok || body?.success === false) throw new Error(body?.error || label(`${requestedSymbol} 收盘价格读取失败`, `Could not load ${requestedSymbol} close prices`));
-          if (!Array.isArray(body?.rows) || body.rows.length === 0) throw new Error(label(`${requestedSymbol} 暂无可用收盘价格`, `No completed-close prices for ${requestedSymbol}`));
-          return body.rows;
+          priceRowsCache.current.set(cacheKey, rows);
+          return rows;
         };
-        const [stockResult, qqqResult] = await Promise.allSettled([fetchRows(symbol), fetchRows('QQQ')]);
-        if (stockResult.status === 'rejected' || qqqResult.status === 'rejected') {
-          throw stockResult.status === 'rejected' ? stockResult.reason : qqqResult.reason;
+        const [stockResult, benchmarkResult] = await Promise.allSettled([fetchRows(symbol), fetchRows(priceBenchmarkSymbol)]);
+        if (stockResult.status === 'rejected' || benchmarkResult.status === 'rejected') {
+          throw stockResult.status === 'rejected' ? stockResult.reason : benchmarkResult.reason;
         }
         if (!cancelled) {
           setStockPriceRows(stockResult.value);
-          setBenchmarkRows(qqqResult.value);
+          setBenchmarkData({ symbol: priceBenchmarkSymbol, from: benchmarkFrom, to: benchmarkTo, rows: benchmarkResult.value });
         }
       } catch (error) {
         if (!cancelled) {
           setStockPriceRows([]);
-          setBenchmarkRows([]);
+          setBenchmarkData({ symbol: priceBenchmarkSymbol, from: benchmarkFrom, to: benchmarkTo, rows: [] });
           setPriceError(error?.message || String(error));
         }
       } finally {
@@ -288,7 +306,7 @@ export default function StockPnlReportPage({ ctx = {} }) {
     }
     void load();
     return () => { cancelled = true; };
-  }, [symbol, benchmarkFrom, benchmarkTo, fetchPnlBenchmarkRows, supabase, user?.id, language]);
+  }, [symbol, benchmarkFrom, benchmarkTo, priceBenchmarkSymbol, fetchPnlBenchmarkRows, supabase, user?.id, language]);
 
   const ranges = [
     ['month', label('本月', 'This month')], ['1m', label('近 1 月', '1 month')],
@@ -297,9 +315,8 @@ export default function StockPnlReportPage({ ctx = {} }) {
   ];
   const trend = Array.isArray(report.trend) ? report.trend : [];
   const priceTrend = Array.isArray(report.priceTrend) ? report.priceTrend : [];
-  // The QQQ series here is a market-price comparison, not a cash-flow-matched investment return.
+  // The selected ETF series is a market-price comparison, not a cash-flow-matched investment return.
   const personalTrend = React.useMemo(() => trend.map(point => ({ ...point, benchmarkPct: null, benchmarkDailyPct: null })), [trend]);
-  const latestPricePoint = priceTrend.at(-1) || null;
   const totalColor = report.hasData ? marketHexColor(report.totalPnlUsd, marketColorMode) : '#e4e4e7';
   const totalAmount = finite(report.totalPnlUsd) * displayRate;
   const splitAmount = splitCurrencyAmount(Math.abs(totalAmount), displayCurrency, 2);
@@ -373,35 +390,35 @@ export default function StockPnlReportPage({ ctx = {} }) {
       </div>
       <div className={`pnl-report-rate stock-pnl-hero-rate ${report.hasData && isRenderableChartValue(report.totalPnlPct) ? marketTextClass(report.totalPnlPct, marketColorMode) : ''}`}>{report.hasData ? signedPercent(report.totalPnlPct) : '--'}</div>
       <div className="pnl-report-period">{report.startDate || '--'} — {report.endDate || '--'} · {label('截至收盘', 'Completed close')}</div>
-      <div className="stock-pnl-price-comparison-summary">
-        {report.priceComparisonStartDate && report.priceComparisonEndDate && !priceLoading && !priceError && <p className="stock-pnl-price-comparison-period">{label('股价对比区间', 'Price comparison period')} · {report.priceComparisonStartDate.replaceAll('-', '/')} — {report.priceComparisonEndDate.replaceAll('-', '/')}</p>}
-        <div><span>{symbol} {label('同期股价涨幅', 'price change')}</span><strong className={isRenderableChartValue(latestPricePoint?.pricePct) ? marketTextClass(latestPricePoint.pricePct, marketColorMode) : ''}>{priceLoading || priceError ? '--' : signedPercent(latestPricePoint?.pricePct)}</strong></div>
-        <div><span>{label('QQQ（纳斯达克100 ETF）同期涨幅', 'QQQ (Nasdaq-100 ETF) change')}</span><strong className={isRenderableChartValue(report.priceBenchmarkReturnPct) ? marketTextClass(report.priceBenchmarkReturnPct, marketColorMode) : ''}>{priceLoading || priceError ? '--' : signedPercent(report.priceBenchmarkReturnPct)}</strong></div>
-      </div>
-      {priceError && <div className="pnl-report-benchmark-error" role="status">{label('股价对比暂不可用：', 'Price comparison unavailable: ')}{priceError}</div>}
     </section>
 
     <section className="pnl-report-chart-section">
       <div className="pnl-report-chart-modes">
-        <SegmentButton active={chartMode === 'pnl'} onClick={() => setChartMode('pnl')}>{label('我的收益率', 'My return')}</SegmentButton>
-        <SegmentButton active={chartMode === 'amount'} onClick={() => setChartMode('amount')}>{label('盈亏金额', 'P&L amount')}</SegmentButton>
+        <SegmentButton active={chartMode === 'amount'} onClick={() => setChartMode('amount')}>{label('我的收益', 'My P&L')}</SegmentButton>
         <SegmentButton active={chartMode === 'price'} onClick={() => setChartMode('price')}>{label('股价对比', 'Price comparison')}</SegmentButton>
       </div>
+      {chartMode === 'price' && <div className="stock-pnl-benchmark-picker">
+        <span>{label('对比基准', 'Benchmark')}</span>
+        <div className="pnl-report-calendar-toggle stock-pnl-benchmark-options" role="group" aria-label={label('选择股价对比基准', 'Select price benchmark')}>
+          {Object.entries(PRICE_BENCHMARKS).map(([ticker, names]) => <button key={ticker} type="button" className="pnl-report-calendar-segment"
+            data-stock-pnl-benchmark-choice={ticker} aria-pressed={priceBenchmarkSymbol === ticker}
+            aria-label={`${ticker} · ${names[englishMode ? 'en' : 'zh']}`}
+            onClick={() => setPriceBenchmarkSymbol(ticker)}>{ticker}</button>)}
+        </div>
+      </div>}
       {chartMode === 'price'
-        ? priceError
+        ? shownPriceError
           ? <div className="stock-pnl-price-unavailable" role="status">{label('股价对比暂不可用。我的收益数据仍可查看。', 'Price comparison is unavailable. Your P&L data is still available.')}</div>
-          : priceLoading
+          : shownPriceLoading
             ? <div className="stock-pnl-price-unavailable" role="status">{label('正在读取同期收盘价格…', 'Loading comparable close prices…')}</div>
-            : <PriceComparisonChart data={priceTrend} symbol={symbol} language={language} marketColorMode={marketColorMode} />
-        : <PnlReportTrendChart data={personalTrend} mode={chartMode} color={totalColor} language={language} marketColorMode={marketColorMode} displayCurrency={displayCurrency} displayRate={displayRate} />}
-      {chartMode === 'amount' && displayCurrency === 'CNY' && <div className="pnl-report-chart-note">{label('人民币金额按当前汇率折算，非逐日历史汇率', 'CNY amounts use the current exchange rate, not each day’s historical rate')}</div>}
+            : <PriceComparisonChart data={priceTrend} symbol={symbol} benchmarkSymbol={priceBenchmarkSymbol} language={language} marketColorMode={marketColorMode} />
+        : <PnlReportTrendChart data={personalTrend} mode="amount" showCombinedPersonalReadout color={totalColor} language={language} marketColorMode={marketColorMode} displayCurrency={displayCurrency} displayRate={displayRate} />}
     </section>
 
     <section className="stock-pnl-breakdown">
       <div><span>{label('已实现盈亏', 'Realized P&L')}</span><strong className={report.hasData && isRenderableChartValue(report.realizedPnlUsd) ? marketTextClass(report.realizedPnlUsd, marketColorMode) : ''}>{report.hasData ? signedCurrency(report.realizedPnlUsd == null ? null : report.realizedPnlUsd * displayRate, displayCurrency) : '--'}</strong></div>
       <div><span>{label('未实现盈亏', 'Unrealized P&L')}</span><strong className={report.hasData && isRenderableChartValue(report.unrealizedPnlUsd) ? marketTextClass(report.unrealizedPnlUsd, marketColorMode) : ''}>{report.hasData ? signedCurrency(report.unrealizedPnlUsd == null ? null : report.unrealizedPnlUsd * displayRate, displayCurrency) : '--'}</strong></div>
     </section>
-    <p className="stock-pnl-method-note">{label('收益率按期初持仓市值与期间新增买入金额计算；日/月盈亏来自正式交易的完成收盘快照。', 'Return uses opening position value plus buys during the period; daily and monthly P&L comes from completed-close snapshots of formal trades.')}</p>
 
     <section className="pnl-report-section pnl-report-calendar">
       <div className="pnl-report-section-heading"><h2>{label('收益日历', 'Returns calendar')}</h2><span>{displayCurrency}</span></div>
@@ -420,7 +437,6 @@ export default function StockPnlReportPage({ ctx = {} }) {
         <div className="stock-pnl-weekdays">{(englishMode ? ['S', 'M', 'T', 'W', 'T', 'F', 'S'] : ['日', '一', '二', '三', '四', '五', '六']).map((day, index) => <span key={`${day}-${index}`}>{day}</span>)}</div>
         <div className="stock-pnl-month-grid">{calendarDays(report.selectedMonth).map((day, index) => day ? calendarTile(calendarValues.get(day), 'month', `${day}-${index}`, String(day).padStart(2, '0')) : <div key={`blank-${index}`} />)}</div>
       </> : <div className="stock-pnl-year-grid">{Array.from({ length: 12 }, (_, i) => i + 1).map(month => calendarTile(yearValues.get(month), 'year', month, monthLabel(month, englishMode), () => { setCalendarDate(monthDateKey(selectedYear, month)); setCalendarView('month'); }))}</div>}
-      <p className="stock-pnl-calendar-note">{label('仅展示有正式收盘快照的交易日；空白不代表零收益。', 'Only completed-close trading days are shown; blank days are not zero returns.')}</p>
     </section>
     <PnlReportCalendarPicker
       language={language}
