@@ -11,6 +11,8 @@
 .vcr-alert button { flex-shrink: 0; padding: 6px; text-decoration: underline; text-underline-offset: 3px; }
 .vcr-tone-calm { --vcr-accent: #9ab5aa; --vcr-accent-rgb: 154,181,170; }
 .vcr-tone-caution { --vcr-accent: #d1b889; --vcr-accent-rgb: 209,184,137; }
+.vcr-tone-stress { --vcr-accent: #dba77b; --vcr-accent-rgb: 219,167,123; }
+.vcr-tone-persistent { --vcr-accent: #d98282; --vcr-accent-rgb: 217,130,130; }
 .vcr-tone-recovery { --vcr-accent: #a8b7d2; --vcr-accent-rgb: 168,183,210; }
 .vcr-tone-muted { --vcr-accent: #969ba5; --vcr-accent-rgb: 150,155,165; }
 .vcr-header { height: 54px; display: flex; align-items: center; justify-content: space-between; }
