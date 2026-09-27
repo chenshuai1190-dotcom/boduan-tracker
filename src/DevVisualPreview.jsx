@@ -46,6 +46,7 @@ const HomeMarginRiskPage = lazy(() => import('./pages/HomeMarginRiskPage.jsx'));
 const DrawdownObservationPreview = lazy(() => import('./dev/DrawdownObservationPreview.jsx'));
 const VixComparisonPage = lazy(() => import('./pages/VixComparisonPage.jsx'));
 const VixRiskDesignPreview = lazy(() => import('./dev/VixRiskDesignPreview.jsx'));
+const VixMonthlyDesignWorkspace = lazy(() => import('./dev/VixMonthlyDesignWorkspace.jsx'));
 const FearGreedPreview = lazy(() => import('./dev/FearGreedPreview.jsx'));
 const StockDecisionPreview = lazy(() => import('./dev/StockDecisionPreview.jsx'));
 const InvestmentComparisonPreview = lazy(() => import('./dev/InvestmentComparisonPreview.jsx'));
@@ -1850,7 +1851,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     if (['risk', 'editor', 'leverage'].includes(params.get('homeMargin'))) return 'home-margin-risk';
     if (params.get('preview') === 'dca-lab') return 'dca-lab';
     const requestedTab = params.get('tab');
-    return ['home', 'trades', 'analysis', 'review', 'settings', 'pnl-report', 'pnl-share', 'home-margin-risk', 'drawdown-observation', 'stock-detail', 'stock-pnl-report', 'debt-manager', 'watchlist-stock-detail', 'wave-tracker', 'community-competition', 'vix-comparison', 'fear-greed', 'stock-decision', 'investment-comparison', 'macro', 'portfolio-overlap', 'dca-lab'].includes(requestedTab) ? requestedTab : 'analysis';
+    return ['home', 'trades', 'analysis', 'review', 'settings', 'pnl-report', 'pnl-share', 'home-margin-risk', 'drawdown-observation', 'stock-detail', 'stock-pnl-report', 'debt-manager', 'watchlist-stock-detail', 'wave-tracker', 'community-competition', 'vix-comparison', 'vix-monthly-report', 'fear-greed', 'stock-decision', 'investment-comparison', 'macro', 'portfolio-overlap', 'dca-lab'].includes(requestedTab) ? requestedTab : 'analysis';
   });
   const macroPreview = React.useMemo(() => {
     const params = new URLSearchParams(typeof window === 'undefined' ? '' : window.location.search);
@@ -3389,7 +3390,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
 
   return (
     <div
-      className={`min-h-screen ${['fear-greed', 'pnl-report', 'stock-pnl-report', 'stock-decision', 'macro', 'debt-manager'].includes(activeTab) ? 'bg-[#08090b]' : 'bg-[#05070b]'} text-white ${['pnl-report', 'pnl-share', 'stock-pnl-report', 'debt-manager'].includes(activeTab) ? 'pb-0' : 'pb-24'} ${['pnl-report', 'pnl-share', 'stock-pnl-report', 'community-competition', 'earnings-detail', 'debt-manager'].includes(activeTab) ? 'px-0' : 'px-4'}`}
+      className={`min-h-screen ${['fear-greed', 'pnl-report', 'stock-pnl-report', 'stock-decision', 'macro', 'debt-manager'].includes(activeTab) ? 'bg-[#08090b]' : 'bg-[#05070b]'} text-white ${['pnl-report', 'pnl-share', 'stock-pnl-report', 'debt-manager'].includes(activeTab) ? 'pb-0' : 'pb-24'} ${['pnl-report', 'pnl-share', 'stock-pnl-report', 'community-competition', 'earnings-detail', 'debt-manager'].includes(activeTab) ? 'px-0' : 'px-4'} ${activeTab === 'vix-monthly-report' || (activeTab === 'vix-comparison' && new URLSearchParams(window.location.search).get('vixMonthlyDesign') === '1') ? 'vix-monthly-design-host' : ''}`}
       style={{
         paddingTop: ['pnl-report', 'pnl-share', 'stock-pnl-report', 'home-margin-risk', 'drawdown-observation', 'stock-detail', 'wave-tracker', 'community-competition', 'watchlist-stock-detail', 'earnings-detail', 'vix-comparison', 'fear-greed', 'stock-decision', 'investment-comparison', 'macro', 'portfolio-overlap', 'dca-lab', 'debt-manager'].includes(activeTab) ? 0 : 'calc(1rem + env(safe-area-inset-top))',
         ...(visualViewportWidth
@@ -3418,8 +3419,12 @@ function StandardDevVisualPreview({ initialTab = '' }) {
           ? <HomeMarginRiskPage ctx={homeCtx} />
           : activeTab === 'drawdown-observation'
           ? <DrawdownObservationPreview onBack={() => setActiveTab('home')} initialSymbol={drawdownInitialSymbol} />
+          : activeTab === 'vix-monthly-report'
+          ? <VixMonthlyDesignWorkspace ctx={{ ...homeCtx, englishMode: language === 'en' }} />
           : activeTab === 'vix-comparison'
-          ? (new URLSearchParams(window.location.search).get('vixDesign') === '1'
+          ? (new URLSearchParams(window.location.search).get('vixMonthlyDesign') === '1'
+            ? <VixMonthlyDesignWorkspace initialView="vix" ctx={{ ...homeCtx, englishMode: language === 'en' }} />
+            : new URLSearchParams(window.location.search).get('vixDesign') === '1'
             ? <VixRiskDesignPreview ctx={{ ...homeCtx, englishMode: language === 'en' }} />
             : <VixComparisonPage ctx={{ ...homeCtx, englishMode: language === 'en' }} previewData={mockVixComparisonData} />)
           : activeTab === 'fear-greed'

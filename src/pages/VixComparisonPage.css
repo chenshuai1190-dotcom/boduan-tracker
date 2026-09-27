@@ -18,6 +18,12 @@
 .vcr-header { height: 54px; display: flex; align-items: center; justify-content: space-between; }
 .vcr-header > button { width: 36px; height: 44px; margin-left: -8px; display: grid; place-items: center; color: #8c909a; }
 .vcr-header h1 { font-size: 16px; font-weight: 500; margin: 0; }
+.vcr-header.vcr-header-has-report { display: grid; grid-template-columns: 88px minmax(0, 1fr) 88px; }
+.vcr-header-has-report h1 { text-align: center; white-space: nowrap; }
+.vcr-header-actions { display: flex; align-items: center; }
+.vcr-header-actions > button { min-width: 44px; height: 44px; display: grid; place-items: center; color: #a6b8d1; font-size: 12px; }
+.vcr-header-actions .vcr-refresh { margin: 0; }
+@media (max-width: 359px) { .vcr-header-has-report h1 { font-size: 14px; } }
 .vcr-header-mark { display: flex; gap: 5px; align-items: center; color: #767d87; font-size: 10px; }
 .vcr-header-mark i { width: 4px; height: 4px; border-radius: 50%; background: #767d87; }
 .vcr-eyebrow { display: flex; justify-content: space-between; font-size: 11px; color: #6c7482; }
@@ -116,3 +122,9 @@
 .vcr-data-quality summary::-webkit-details-marker { display: none; }
 .vcr-data-quality p { font-size: 10px; color: #7d8998; line-height: 1.8; overflow-wrap: anywhere; }
 @media (max-width: 350px) { .vcr-title-row h2 { font-size: 25px; } .vcr-metrics { gap: 7px; } .vcr-metrics strong { font-size: 25px; } .vcr-chart-quotes { gap: 10px; } .vcr-price-grid { gap: 12px; } .vcr-price-observation + .vcr-price-observation { padding-left: 12px; } }
+
+.vcr-monthly-host { container: vix-monthly / inline-size; margin-inline: -16px; }
+.vcr-report-loading { min-height: 60dvh; padding: 18px 0; color: #8993a3; font-size: 13px; }
+.vcr-report-loading button { min-height: 44px; color: #b9c5d5; }
+body:has(.vcr-monthly-host[data-vix-monthly-active="true"]) .report-bottom-nav { display: none; }
+.min-h-screen:has(.vcr-monthly-host[data-vix-monthly-active="true"]) { padding-bottom: 0; background: #0a0d12; }

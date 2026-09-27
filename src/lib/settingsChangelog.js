@@ -4,6 +4,17 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      'VIX 与市场走势新增独立市场月报，按月查看 SPY／QQQ 涨跌、波动率、期限比率和每日六维观察，并生成高清分享图。',
+      '期限比率图标注连续倒挂区间与解除日期，跨月延续计数；历史日期只展示截至当日已知的持续时间和事件，缺失数据不作为倒挂解除。',
+    ],
+    itemsEn: [
+      'VIX & Market Trends adds monthly reports with SPY/QQQ returns, volatility, term ratios, daily six-dimensional observations, and high-resolution sharing images.',
+      'Term charts mark continuous inversion spans and normalization dates across month boundaries. Historical selections use only information available by that close; missing data never implies normalization.',
+    ],
+  },
+  {
+    ver: 'v10.7.9.546', date: '2026-09-27',
+    items: [
       'VIX 与市场走势改为六维风险观察，分别展示当前风险、期限结构、风险变化、持续时间、SPY／QQQ 价格行为与近期事件。',
       '高压与极端压力按当日读数识别，不再因上穿事件过期而消失；短期止跌不再表达底部确认，并修复官方特殊休市日的连续性判断。候选规则仅用于观察风险环境。',
     ],

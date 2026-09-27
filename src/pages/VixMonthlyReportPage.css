@@ -1,0 +1,15 @@
+.vmp-page { container: vix-monthly / inline-size; background: #0a0d12; min-height: 100dvh; }
+.vmp-share-dialog { inset: 0; width: min(100%, 580px); max-width: 100%; height: 100dvh; max-height: 100dvh; padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom); border: 0; margin: auto; background: #0a1019; color: #e9eef6; letter-spacing: normal; }
+.vmp-share-dialog[open] { display: flex; flex-direction: column; }
+.vmp-share-dialog::backdrop { background: #000b; }
+.vmp-share-dialog header { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 3px 12px; flex: 0 0 54px; }
+.vmp-share-dialog header strong { font-size: 15px; font-weight: 500; }
+.vmp-share-dialog header button { min-width: 44px; height: 44px; display: grid; place-items: center; color: #b4c0cf; }
+.vmp-share-preview { flex: 1; overflow-y: auto; min-height: 0; padding: 8px 12px; }
+.vmp-share-preview img { width: 100%; height: auto; display: block; border: 1px solid #ffffff0c; }
+.vmp-share-preview > p { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 50vh; font-size: 13px; color: #a3b1c5; }
+.vmp-share-dialog footer { display: flex; gap: 10px; padding: 12px 16px; }
+.vmp-share-dialog footer > * { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 46px; border: 1px solid #ffffff17; border-radius: 9px; font-size: 13px; }
+.vmp-share-dialog footer > button { background: #243752; border-color: #415571; }
+.vmp-share-dialog button:disabled { opacity: .5; }
+.vmp-share-error { padding: 0 16px; margin: 4px 0; color: #edb0a4; font-size: 12px; line-height: 1.6; }

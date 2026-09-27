@@ -2583,9 +2583,9 @@ test('review target page uses a flat dark report and preserves click action moda
     'home', 'trades', 'analysis', 'review', 'settings', 'pnl-report', 'pnl-share',
     'home-margin-risk', 'drawdown-observation', 'stock-detail', 'stock-pnl-report',
     'debt-manager', 'watchlist-stock-detail', 'wave-tracker', 'community-competition',
-    'vix-comparison', 'fear-greed', 'stock-decision', 'investment-comparison', 'macro',
+    'vix-comparison', 'vix-monthly-report', 'fear-greed', 'stock-decision', 'investment-comparison', 'macro',
     'portfolio-overlap', 'dca-lab',
-  ], 'local visual preview should support all existing routes plus the isolated debt page');
+  ], 'local visual preview should support existing routes and the isolated monthly market design');
   assert.ok(authGateSource.includes("get('devPreview') === '1'"), 'local visual preview should be force-openable for screenshot QA even when Supabase env is present');
   assert.ok(devVisualPreviewSource.includes("const HomeTab = lazy(() => import('./tabs/HomeTab.jsx'))"), 'local visual preview should be able to render the home page mock');
   assert.ok(devVisualPreviewSource.includes("const TradesTab = lazy(() => import('./tabs/TradesTab.jsx'))"), 'local visual preview should be able to render the trades page mock');

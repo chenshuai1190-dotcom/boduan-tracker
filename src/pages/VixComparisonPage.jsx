@@ -6,6 +6,8 @@ import { buildVixComparisonModel, formatVixComparisonChangePercent, VIX_COMPARIS
 import { buildVixRiskModel } from '../lib/vixRiskModel.js';
 import './VixComparisonPage.css';
 
+const VixMonthlyReportPage = React.lazy(() => import('./VixMonthlyReportPage.jsx'));
+
 const RANGE_LABELS = { '1m': '1月', '3m': '3月', '6m': '6月', '1y': '1年', '5y': '5年' };
 const LEVELS = {
   LOW_VOLATILITY: { label: ['低波动', 'Low volatility'], tone: 'calm' },
@@ -113,6 +115,24 @@ export default function VixComparisonPage({ ctx = {}, previewData }) {
   const [refreshVersion, setRefreshVersion] = React.useState(0);
   const [state, setState] = React.useState({ userId, data: demoData || null, loading: !demoData, error: false });
   const requestRef = React.useRef(0);
+  const [monthlyOpen, setMonthlyOpen] = React.useState(false);
+  const [monthlyVisited, setMonthlyVisited] = React.useState(false);
+  const reportScrollRef = React.useRef({ risk: 0, report: 0 });
+  const openMonthlyReport = () => {
+    if (import.meta.env.DEV && typeof ctx.openVixMonthlyReport === 'function') {
+      ctx.openVixMonthlyReport();
+      return;
+    }
+    reportScrollRef.current.risk = window.scrollY;
+    setMonthlyVisited(true);
+    setMonthlyOpen(true);
+    requestAnimationFrame(() => window.scrollTo(0, reportScrollRef.current.report));
+  };
+  const closeMonthlyReport = () => {
+    reportScrollRef.current.report = window.scrollY;
+    setMonthlyOpen(false);
+    requestAnimationFrame(() => window.scrollTo(0, reportScrollRef.current.risk));
+  };
 
   React.useEffect(() => {
     const requestId = ++requestRef.current;
@@ -169,11 +189,13 @@ export default function VixComparisonPage({ ctx = {}, previewData }) {
   const levelTitle = currentRiskLevel === 'ELEVATED' && latest?.vix >= 30
     ? (englishMode ? 'Substantially elevated volatility' : '波动显著升高') : pick(level.label, englishMode);
 
-  return <main className={`vcr-page vcr-tone-${level.tone}`} data-vix-comparison-page="true" data-vix-risk-level={currentRiskLevel} aria-busy={state.loading}>
-    <header className="vcr-header">
+  const refreshControl = <button type="button" className="vcr-refresh" disabled={state.loading || Boolean(demoData)} aria-label={englishMode ? 'Refresh daily data' : '刷新日线数据'} onClick={() => setRefreshVersion(value => value + 1)}><RefreshCw size={16} strokeWidth={1.6} className={state.loading ? 'animate-spin' : ''} /></button>;
+
+  return <><div hidden={monthlyOpen}><main className={`vcr-page vcr-tone-${level.tone}`} data-vix-comparison-page="true" data-vix-risk-level={currentRiskLevel} aria-busy={state.loading}>
+    <header className="vcr-header vcr-header-has-report">
       <button type="button" aria-label={englishMode ? 'Back to Home' : '返回首页'} onClick={closeVixComparison}><ArrowLeft size={20} strokeWidth={1.6} /></button>
       <h1>{englishMode ? 'VIX & Market Trends' : 'VIX 与市场走势'}</h1>
-      <button type="button" className="vcr-refresh" disabled={state.loading || Boolean(demoData)} aria-label={englishMode ? 'Refresh daily data' : '刷新日线数据'} onClick={() => setRefreshVersion(value => value + 1)}><RefreshCw size={16} strokeWidth={1.6} className={state.loading ? 'animate-spin' : ''} /></button>
+      <div className="vcr-header-actions"><button type="button" onClick={openMonthlyReport}>{englishMode ? 'Report' : '月报'}</button>{refreshControl}</div>
     </header>
     {demoData && <div className="vcr-demo-label">{demoData.source === 'CBOE_EODHD_EOD'
       ? (englishMode ? 'Local verification · captured official closes' : '本地验收 · 官方收盘快照')
@@ -227,5 +249,13 @@ export default function VixComparisonPage({ ctx = {}, previewData }) {
     <details className="vcr-rules"><summary><span><Circle size={13} />{englishMode ? 'How observations are defined' : '如何理解这些观察'}</span><ChevronDown size={14} /></summary><div>{RULES.map((rule, index) => <p key={rule[0]}><strong>{String(index + 1).padStart(2, '0')} · {englishMode ? rule[1] : rule[0]}</strong><span>{englishMode ? rule[3] : rule[2]}</span></p>)}<p className="vcr-rule-note">{englishMode ? 'Candidate rules with empirical thresholds. Their investment-prediction ability has not been established. Same-day valid readings can identify the current level even when longer history is incomplete.' : '以上为使用经验阈值的候选规则，尚未证明具有投资预测能力。同日有效读数可识别当前水平，历史不足仅影响依赖历史的维度。'}</p></div></details>
     <p className="vcr-source-note">{englishMode ? 'VIX / VIX3M: Cboe · SPY / QQQ: EODHD · Daily closes' : 'VIX / VIX3M：Cboe · SPY / QQQ：EODHD · 日线收盘'}</p>
     <p className="vcr-footnote">{englishMode ? 'Describes market risk and price behavior; not a standalone trading condition.' : '描述市场风险与价格行为，不作为单一买卖条件。'}</p>
-  </main>;
+  </main></div>
+    <div hidden={!monthlyOpen} className="vcr-monthly-host" data-vix-monthly-active={monthlyOpen ? 'true' : 'false'}>
+      {monthlyVisited && <React.Suspense fallback={<div className="vcr-report-loading"><button type="button" onClick={closeMonthlyReport}>{englishMode ? 'Back' : '返回'}</button><p role="status">{englishMode ? 'Preparing report…' : '正在准备月报…'}</p></div>}>
+        <VixMonthlyReportPage key={userId} userId={userId} data={data} expectedAsOfDate={expectedAsOfDate}
+          loading={state.loading} error={state.error} englishMode={englishMode}
+          onBack={closeMonthlyReport} onRefresh={() => setRefreshVersion(value => value + 1)} />
+      </React.Suspense>}
+    </div>
+  </>;
 }
