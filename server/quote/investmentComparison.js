@@ -1,5 +1,5 @@
 import { providerFetch, QUOTE_TIMEOUTS } from './http.js';
-import { getVixComparisonExpectedCloseDate } from './vixComparison.js';
+import { getCompletedMarketCloseDate } from './completedSession.js';
 import { isRegularNyseHoliday } from '../../src/lib/quoteRefreshPolicy.js';
 
 const HISTORY_FROM = '2000-01-01';
@@ -295,7 +295,7 @@ async function loadInstrumentHistory(instrument, expectedDate, config) {
 export function buildInvestmentComparisonData(histories, { symbols, expectedAsOfDate, now = Date.now() } = {}) {
   const pair = normalizeInvestmentComparisonSymbols(symbols);
   const timestamp = clock(now);
-  if (!validDate(expectedAsOfDate) || expectedAsOfDate > getVixComparisonExpectedCloseDate(timestamp)) throw error('INVALID_DATA');
+  if (!validDate(expectedAsOfDate) || expectedAsOfDate > getCompletedMarketCloseDate(timestamp)) throw error('INVALID_DATA');
   const expectedWeekday = new Date(`${expectedAsOfDate}T00:00:00Z`).getUTCDay();
   if ([0, 6].includes(expectedWeekday) || isRegularNyseHoliday(expectedAsOfDate)) throw error('INVALID_DATA');
   const entries = pair.map((symbol) => histories?.[symbol]);
@@ -329,7 +329,7 @@ export function buildInvestmentComparisonData(histories, { symbols, expectedAsOf
 export async function fetchInvestmentComparison(symbols, options = {}) {
   const pair = normalizeInvestmentComparisonSymbols(symbols);
   const config = providerOptions(options);
-  const expectedDate = getVixComparisonExpectedCloseDate(config.now);
+  const expectedDate = getCompletedMarketCloseDate(config.now);
   // Both identities must pass before even the first historical-price request.
   const instruments = await Promise.all(pair.map((symbol) => verifyInstrument(symbol, config)));
   const entries = await Promise.all(instruments.map((instrument) => loadInstrumentHistory(instrument, expectedDate, config)));
@@ -343,7 +343,7 @@ export async function fetchInvestmentComparison(symbols, options = {}) {
 export async function fetchDcaHistory(symbol, options = {}) {
   const selected = normalizeDcaHistorySymbol(symbol);
   const config = providerOptions(options);
-  const expectedAsOfDate = getVixComparisonExpectedCloseDate(config.now);
+  const expectedAsOfDate = getCompletedMarketCloseDate(config.now);
   const instrument = await verifyInstrument(selected, config);
   const data = await loadInstrumentHistory(instrument, expectedAsOfDate, config);
   return {

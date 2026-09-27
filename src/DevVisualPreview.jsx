@@ -45,6 +45,7 @@ const PnlSharePage = lazy(() => import('./pages/PnlSharePage.jsx'));
 const HomeMarginRiskPage = lazy(() => import('./pages/HomeMarginRiskPage.jsx'));
 const DrawdownObservationPreview = lazy(() => import('./dev/DrawdownObservationPreview.jsx'));
 const VixComparisonPage = lazy(() => import('./pages/VixComparisonPage.jsx'));
+const VixRiskDesignPreview = lazy(() => import('./dev/VixRiskDesignPreview.jsx'));
 const FearGreedPreview = lazy(() => import('./dev/FearGreedPreview.jsx'));
 const StockDecisionPreview = lazy(() => import('./dev/StockDecisionPreview.jsx'));
 const InvestmentComparisonPreview = lazy(() => import('./dev/InvestmentComparisonPreview.jsx'));
@@ -3418,7 +3419,9 @@ function StandardDevVisualPreview({ initialTab = '' }) {
           : activeTab === 'drawdown-observation'
           ? <DrawdownObservationPreview onBack={() => setActiveTab('home')} initialSymbol={drawdownInitialSymbol} />
           : activeTab === 'vix-comparison'
-          ? <VixComparisonPage ctx={{ ...homeCtx, englishMode: language === 'en' }} previewData={mockVixComparisonData} />
+          ? (new URLSearchParams(window.location.search).get('vixDesign') === '1'
+            ? <VixRiskDesignPreview ctx={{ ...homeCtx, englishMode: language === 'en' }} />
+            : <VixComparisonPage ctx={{ ...homeCtx, englishMode: language === 'en' }} previewData={mockVixComparisonData} />)
           : activeTab === 'fear-greed'
           ? <FearGreedPreview ctx={{ language, closeFearGreed: () => { setActiveTab('home'); window.scrollTo(0, 0); } }} />
           : activeTab === 'stock-decision'

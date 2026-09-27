@@ -1,6 +1,6 @@
 import { searchInvestmentSymbols } from './investmentComparison.js';
 import { providerFetch, QUOTE_TIMEOUTS } from './http.js';
-import { getVixComparisonExpectedCloseDate } from './vixComparison.js';
+import { getCompletedMarketCloseDate } from './completedSession.js';
 import { parseSsgaHoldingsWorkbook } from './ssgaHoldingsWorkbook.js';
 
 export const PORTFOLIO_OVERLAP_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
@@ -94,7 +94,7 @@ function base(symbol, now, reason = null) {
 }
 
 function finalizeHoldings(symbol, rows, { asOfDate, reportedHoldingCount, now, totalWeight }) {
-  if (!dateValue(asOfDate) || asOfDate > getVixComparisonExpectedCloseDate(now)
+  if (!dateValue(asOfDate) || asOfDate > getCompletedMarketCloseDate(now)
     || rows.length < 50 || rows.length > 1000 || !Number.isFinite(totalWeight)
     || totalWeight < 95 || totalWeight > 100.5) throw new PortfolioOverlapError('INVALID_DATA');
   const seen = new Set();

@@ -1,5 +1,5 @@
-import { latestCompletedUsTradingDate } from './pnlReportSnapshots.js';
 import { isRegularNyseHoliday } from './quoteRefreshPolicy.js';
+import { getVixComparisonExpectedCloseDate as expectedCloseDate } from './vixComparisonSession.js';
 
 export const VIX_COMPARISON_STALE_RETRY_MS = 5 * 60 * 1000;
 export const VIX_COMPARISON_FAILURE_RETRY_MS = 60 * 1000;
@@ -31,13 +31,42 @@ function validDateKey(value) {
 }
 
 export function getVixComparisonExpectedCloseDate(now = Date.now()) {
-  let cursor = latestCompletedUsTradingDate(new Date(currentTime(now)));
-  while (true) {
-    const date = new Date(`${cursor}T00:00:00Z`);
-    if (![0, 6].includes(date.getUTCDay()) && !isRegularNyseHoliday(cursor)) return cursor;
-    date.setUTCDate(date.getUTCDate() - 1);
-    cursor = date.toISOString().slice(0, 10);
+  return expectedCloseDate(currentTime(now));
+}
+
+function validSessionDate(value) {
+  return validDateKey(value) && ![0, 6].includes(new Date(`${value}T00:00:00Z`).getUTCDay()) && !isRegularNyseHoliday(value);
+}
+
+function normalizeTermStructure(input, { expectedDate, wireExpectedDate, timestamp, vixRows }) {
+  if (!input || input.source !== 'CBOE' || input.expectedAsOfDate !== wireExpectedDate
+    || !Array.isArray(input.rows) || input.rows.length > 2000
+    || typeof input.stale !== 'boolean'
+    || !['', 'incomplete_close', 'provider_unavailable'].includes(input.staleReason)
+    || typeof input.fetchedAt !== 'string' || !Number.isFinite(Date.parse(input.fetchedAt))
+    || Date.parse(input.fetchedAt) > timestamp + 5 * 60 * 1000) return null;
+  const vixByDate = new Map(vixRows.map(row => [row.date, row.close]));
+  const rows = [];
+  let previousDate = '';
+  for (const row of input.rows) {
+    if (!validSessionDate(row?.date) || row.date <= previousDate || row.date > wireExpectedDate
+      || !['vix', 'vix3m', 'ratio'].every(key => typeof row[key] === 'number' && Number.isFinite(row[key]) && row[key] > 0)
+      || Math.abs(row.ratio - row.vix / row.vix3m) > 1e-8
+      || (vixByDate.has(row.date) && Math.abs(vixByDate.get(row.date) - row.vix) > 1e-8)) return null;
+    rows.push({ date: row.date, vix: row.vix, vix3m: row.vix3m, ratio: row.ratio });
+    previousDate = row.date;
   }
+  if (input.asOfDate !== (rows.at(-1)?.date || null) || (!rows.length && !input.stale)) return null;
+  const stale = input.stale || input.asOfDate !== expectedDate;
+  return {
+    source: 'CBOE',
+    asOfDate: input.asOfDate,
+    expectedAsOfDate: expectedDate,
+    fetchedAt: input.fetchedAt,
+    stale,
+    staleReason: stale ? input.staleReason || 'incomplete_close' : '',
+    rows,
+  };
 }
 
 function comparisonError(code, message) {
@@ -57,11 +86,11 @@ function setBounded(map, key, value) {
 export function normalizeVixComparison(value, { now = Date.now } = {}) {
   const timestamp = currentTime(now);
   const expectedCloseDate = getVixComparisonExpectedCloseDate(timestamp);
-  if (!value || value.version !== 1 || value.source !== 'EODHD_EOD'
+  if (!value || value.version !== 2 || value.source !== 'CBOE_EODHD_EOD'
     || !validDateKey(value.expectedAsOfDate) || value.expectedAsOfDate > expectedCloseDate
     || !validDateKey(value.asOfDate) || value.asOfDate > value.expectedAsOfDate
     || !validDateKey(value.availableFromDate)
-    || !Number.isInteger(value.pointCount) || value.pointCount < 2
+    || !Number.isInteger(value.pointCount) || value.pointCount < 2 || value.pointCount > 2000
     || typeof value.stale !== 'boolean'
     || !['', 'incomplete_close', 'provider_unavailable'].includes(value.staleReason)
     || typeof value.fetchedAt !== 'string'
@@ -78,7 +107,7 @@ export function normalizeVixComparison(value, { now = Date.now } = {}) {
     const rows = [];
     let previousDate = '';
     for (const [index, row] of input.rows.entries()) {
-      if (!validDateKey(row?.date) || row.date <= previousDate || row.date > value.asOfDate
+      if (!validSessionDate(row?.date) || row.date <= previousDate || row.date > value.asOfDate
         || typeof row.close !== 'number' || !Number.isFinite(row.close) || row.close <= 0
         || (commonDates && commonDates[index] !== row.date)) return null;
       rows.push({ date: row.date, close: row.close });
@@ -89,10 +118,15 @@ export function normalizeVixComparison(value, { now = Date.now } = {}) {
     series[symbol] = { symbol, ...contract, rows };
   }
 
+  const termStructure = normalizeTermStructure(value.termStructure, {
+    expectedDate: expectedCloseDate, wireExpectedDate: value.expectedAsOfDate, timestamp, vixRows: series.VIX.rows,
+  });
+  if (!termStructure) return null;
+
   const stale = value.stale || value.asOfDate < expectedCloseDate;
   return {
-    version: 1,
-    source: 'EODHD_EOD',
+    version: 2,
+    source: 'CBOE_EODHD_EOD',
     fetchedAt: value.fetchedAt,
     expectedAsOfDate: expectedCloseDate,
     asOfDate: value.asOfDate,
@@ -101,6 +135,7 @@ export function normalizeVixComparison(value, { now = Date.now } = {}) {
     stale,
     staleReason: stale ? String(value.staleReason || 'incomplete_close') : '',
     series,
+    termStructure,
   };
 }
 
@@ -165,7 +200,10 @@ async function requestComparison({ fetchImpl, token, timeoutMs }) {
 }
 
 function staleFallback(data, expectedAsOfDate) {
-  return { ...data, expectedAsOfDate, stale: true, staleReason: 'provider_unavailable' };
+  return {
+    ...data, expectedAsOfDate, stale: true, staleReason: 'provider_unavailable',
+    termStructure: { ...data.termStructure, expectedAsOfDate, stale: true, staleReason: 'provider_unavailable' },
+  };
 }
 
 export async function loadVixComparison({
@@ -201,7 +239,7 @@ export async function loadVixComparison({
     throw failure.error;
   }
   if (!force && failure?.expectedCloseDate !== expectedCloseDate && cached?.expectedCloseDate === expectedCloseDate
-    && (!cached.data.stale || cached.retryAt > timestamp)) return cached.data;
+    && ((!cached.data.stale && !cached.data.termStructure.stale) || cached.retryAt > timestamp)) return cached.data;
   if (typeof fetchImpl !== 'function') throw comparisonError('NETWORK_ERROR', 'fetch unavailable');
 
   let requestPromise;
@@ -212,13 +250,39 @@ export async function loadVixComparison({
       let data = normalizeVixComparison(value, { now });
       if (!data) throw comparisonError('INVALID_DATA', 'comparison response invalid');
       const previousSuccess = successCache.get(identity);
+      let mergedCachedData = false;
       if (previousSuccess && previousSuccess.data.asOfDate > data.asOfDate) {
         data = {
           ...previousSuccess.data,
           expectedAsOfDate: data.expectedAsOfDate,
           stale: true,
           staleReason: data.staleReason || 'incomplete_close',
+          // Prices and term closes advance independently. Keep this response's
+          // term observations while selecting the newer price history.
+          termStructure: data.termStructure,
         };
+        mergedCachedData = true;
+      }
+      if (previousSuccess?.data.termStructure.asOfDate
+        && previousSuccess.data.termStructure.asOfDate > (data.termStructure.asOfDate || '')) {
+        data = {
+          ...data,
+          termStructure: {
+            ...previousSuccess.data.termStructure, expectedAsOfDate: data.expectedAsOfDate,
+            stale: true, staleReason: data.termStructure.staleReason || 'incomplete_close',
+          },
+        };
+        mergedCachedData = true;
+      }
+      if (mergedCachedData) {
+        // Both envelopes were valid separately; mixing their independently
+        // selected sources still requires agreement on every shared VIX close.
+        const termStructure = normalizeTermStructure(data.termStructure, {
+          expectedDate: data.expectedAsOfDate, wireExpectedDate: data.expectedAsOfDate,
+          timestamp: currentTime(now), vixRows: data.series.VIX.rows,
+        });
+        if (!termStructure) throw comparisonError('INVALID_DATA', 'comparison sources disagree');
+        data = { ...data, termStructure };
       }
       setBounded(successCache, identity, {
         data,

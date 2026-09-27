@@ -1,5 +1,5 @@
 import { searchInvestmentSymbols, normalizeDcaHistorySymbol } from './investmentComparison.js';
-import { getVixComparisonExpectedCloseDate } from './vixComparison.js';
+import { getCompletedMarketCloseDate } from './completedSession.js';
 import { isRegularNyseHoliday } from '../../src/lib/quoteRefreshPolicy.js';
 import { buildStockDecisionModel } from './stockDecisionModel.js';
 
@@ -113,7 +113,7 @@ export function createStockDecisionService({ fetchImpl: defaultFetch, now: defau
     if (typeof fetchImpl !== 'function') throw failure();
     const timestamp = Number(typeof now === 'function' ? now() : now);
     if (!Number.isFinite(timestamp)) throw failure('INVALID_PARAMETERS');
-    const expectedAsOfDate = getVixComparisonExpectedCloseDate(timestamp);
+    const expectedAsOfDate = getCompletedMarketCloseDate(timestamp);
     const key = `${symbol}:${expectedAsOfDate}`;
     const existing = cache.get(key);
     if (existing?.expiresAt > timestamp) return existing.data;

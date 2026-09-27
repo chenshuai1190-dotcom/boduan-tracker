@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const pageSource = readFileSync(new URL('../src/pages/VixComparisonPage.jsx', import.meta.url), 'utf8');
-const chartSource = readFileSync(new URL('../src/components/VixComparisonChart.jsx', import.meta.url), 'utf8');
+const chartSource = readFileSync(new URL('../src/components/VixRiskChart.jsx', import.meta.url), 'utf8');
 
 test('VIX comparison omits the removed top labels and idle chart hints in both languages', () => {
   for (const text of ['左轴 · 点', '右轴 · 复权美元', 'Left · points', 'Right · Adj. USD']) {
@@ -19,11 +19,31 @@ test('compact VIX comparison retains accessible date selection, price units and 
   assert.ok(chartSource.includes('aria-valuetext=') && chartSource.includes('selected.date'));
   assert.ok(chartSource.includes('VIX points on the left axis') && chartSource.includes('adjusted USD price on the right axis'));
   assert.ok(chartSource.includes('左轴 VIX 点位') && chartSource.includes('美元复权价'));
-  for (const [name, source] of [['page', pageSource], ['chart', chartSource]]) {
-    assert.ok(source.includes('priceDayChangePct'), `${name} must retain the ETF daily-change value`);
-    assert.ok(source.includes('vixDayChangePct'), `${name} must retain the VIX daily-change value`);
-    assert.ok(source.includes('formatVixComparisonChangePercent('), `${name} must retain shared signed-percent formatting`);
-  }
+  assert.ok(chartSource.includes('priceDayChangePct'), 'selected chart quote must retain the ETF daily-change value');
+  assert.ok(chartSource.includes('vixDayChangePct'), 'selected chart quote must retain the VIX daily-change value');
+  assert.ok(chartSource.includes('formatVixComparisonChangePercent('));
+  assert.ok(pageSource.includes('formatVixComparisonChangePercent('), 'period summary must retain shared signed-percent formatting');
+});
+
+test('VIX risk interpretation is independent of chart selection and rejects retained failed-refresh data', () => {
+  const assessment = pageSource.match(/buildVixRiskModel\(\{([\s\S]*?)\}\)/)?.[1];
+  assert.ok(assessment, 'page must call the production interpretation model');
+  assert.ok(assessment.includes('termStructure: data?.termStructure'));
+  assert.ok(assessment.includes('benchmarkRows: data?.series?.[symbol]?.rows'));
+  assert.ok(assessment.includes('stale: stale || state.error'));
+  assert.equal(/\b(range|selectedDate)\b/.test(assessment), false);
+  assert.ok(pageSource.includes('import.meta.env.DEV ? previewData : null'));
+  assert.equal(pageSource.includes('VIX_RISK_SCENARIOS'), false, 'production page must not import simulated histories');
+  assert.ok(pageSource.includes('VIX_COMPARISON_RANGES.map'));
+});
+
+test('linked charts break paths at missing values and support touch-scroll and keyboard selection', () => {
+  assert.ok(chartSource.includes('isRegularNyseHoliday(date)'), 'chart aligns to regular exchange sessions');
+  assert.ok(chartSource.includes("if (!Number.isFinite(row[field])) { penDown = false; return ''; }"), 'missing readings must break the path');
+  assert.ok(chartSource.includes("path('ratio', ry)"));
+  assert.ok(chartSource.includes("gesture.intent === 'vertical'"));
+  assert.ok(chartSource.includes("event.key === 'Escape'"));
+  assert.ok(chartSource.includes("['ArrowLeft', 'ArrowRight', 'Home', 'End', 'Enter', ' ']"));
 });
 
 test('VIX comparison removes static footer explanations while retaining data-status feedback', () => {

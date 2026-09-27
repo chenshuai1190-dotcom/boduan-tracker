@@ -14,8 +14,8 @@ const NOW = Date.parse('2026-09-08T12:00:00Z');
 
 function payload(overrides = {}) {
   return {
-    version: 1,
-    source: 'EODHD_EOD',
+    version: 2,
+    source: 'CBOE_EODHD_EOD',
     fetchedAt: new Date(NOW).toISOString(),
     expectedAsOfDate: '2026-09-04',
     asOfDate: '2026-09-04',
@@ -23,6 +23,14 @@ function payload(overrides = {}) {
     pointCount: 2,
     stale: false,
     staleReason: '',
+    termStructure: {
+      source: 'CBOE', asOfDate: '2026-09-04', expectedAsOfDate: '2026-09-04',
+      fetchedAt: new Date(NOW).toISOString(), stale: false, staleReason: '',
+      rows: [
+        { date: '2026-09-03', vix: 18, vix3m: 20, ratio: 0.9 },
+        { date: '2026-09-04', vix: 17, vix3m: 20, ratio: 0.85 },
+      ],
+    },
     series: Object.fromEntries(['VIX', 'SPY', 'QQQ'].map((symbol) => [symbol, {
       symbol,
       priceBasis: symbol === 'VIX' ? 'close' : 'adjusted_close',
@@ -50,7 +58,8 @@ function args(overrides = {}) {
 
 test('expected close key skips weekends, holidays and unfinished sessions', () => {
   assert.equal(getVixComparisonExpectedCloseDate(new Date('2026-09-08T12:00:00Z')), '2026-09-04', 'Labor Day is not a new cache version');
-  assert.equal(getVixComparisonExpectedCloseDate(new Date('2026-09-08T20:00:00Z')), '2026-09-08');
+  assert.equal(getVixComparisonExpectedCloseDate(new Date('2026-09-08T20:00:00Z')), '2026-09-04');
+  assert.equal(getVixComparisonExpectedCloseDate(new Date('2026-09-08T20:30:00Z')), '2026-09-08');
   assert.equal(getVixComparisonExpectedCloseDate(new Date('2026-07-06T12:00:00Z')), '2026-07-02', 'observed Independence Day is skipped');
   assert.throws(() => getVixComparisonExpectedCloseDate(Number.MAX_VALUE), /invalid comparison clock/);
 });
@@ -75,7 +84,15 @@ test('normalizer accepts only aligned positive completed historical values and e
     (value) => { value.availableFromDate = '2026-09-02'; },
     (value) => { value.pointCount = 1; },
     (value) => { value.fetchedAt = '2099-01-01T00:00:00Z'; },
-    (value) => { value.version = 2; },
+    (value) => { value.version = 1; },
+    (value) => { value.termStructure.source = 'EODHD'; },
+    (value) => { value.termStructure.rows[1].vix3m = 0; },
+    (value) => { value.termStructure.rows[1].ratio = 1.1; },
+    (value) => { value.termStructure.rows[1].date = '2026-09-08'; },
+    (value) => { value.termStructure.rows.reverse(); },
+    (value) => { value.termStructure.asOfDate = '2026-09-03'; },
+    (value) => { value.termStructure.fetchedAt = '2099-01-01T00:00:00Z'; },
+    (value) => { value.termStructure.rows[0].vix = 17; value.termStructure.rows[0].ratio = 0.85; },
   ];
   for (const mutate of mutations) {
     const value = payload();
@@ -93,7 +110,7 @@ test('complete cache persists through focus-like calls but rotates on a complete
   now += 5 * 60 * 60 * 1000;
   await loadVixComparison(options);
   assert.equal(count, 1, 'same close version never starts a focus/short-interval refresh');
-  now = Date.parse('2026-09-08T20:00:00Z');
+  now = Date.parse('2026-09-08T20:30:00Z');
   const data = await loadVixComparison(options);
   assert.equal(count, 2);
   assert.equal(data.stale, true);
@@ -213,10 +230,61 @@ test('a response with an older common close never overwrites newer successful hi
     series.rows[0].date = '2026-09-02';
     series.rows[1].date = '2026-09-03';
   }
+  older.termStructure = {
+    ...older.termStructure, asOfDate: '2026-09-03', stale: true, staleReason: 'incomplete_close',
+    rows: [{ date: '2026-09-02', vix: 18, vix3m: 20, ratio: .9 }, { date: '2026-09-03', vix: 17, vix3m: 20, ratio: .85 }],
+  };
   const result = await loadVixComparison(args({ force: true, fetchImpl: async () => response(older) }));
   assert.equal(result.asOfDate, '2026-09-04');
   assert.equal(result.stale, true);
   assert.deepEqual(result.series, payload().series);
+});
+
+test('missing VIX3M leaves market history available and retries within the same completed version', async () => {
+  resetVixComparisonMemoryCache();
+  let now = NOW;
+  let count = 0;
+  const partial = payload({ termStructure: {
+    source: 'CBOE', asOfDate: null, expectedAsOfDate: '2026-09-04', fetchedAt: new Date(NOW).toISOString(),
+    stale: true, staleReason: 'provider_unavailable', rows: [],
+  } });
+  const options = args({ now: () => now, fetchImpl: async () => { count += 1; return response(count === 1 ? partial : payload()); } });
+  const first = await loadVixComparison(options);
+  assert.equal(first.stale, false, 'complete market history remains usable');
+  assert.equal(first.termStructure.stale, true);
+  assert.equal(first.termStructure.asOfDate, null);
+  assert.deepEqual(first.termStructure.rows, []);
+  now += VIX_COMPARISON_STALE_RETRY_MS - 1;
+  await loadVixComparison(options);
+  assert.equal(count, 1);
+  now += 2;
+  const recovered = await loadVixComparison(options);
+  assert.equal(count, 2);
+  assert.equal(recovered.termStructure.stale, false);
+  assert.equal(recovered.termStructure.asOfDate, '2026-09-04');
+});
+
+test('a new close version invalidates term assessment even when server metadata has not rolled yet', () => {
+  const normalized = normalizeVixComparison(payload(), { now: Date.parse('2026-09-08T21:00:00Z') });
+  assert.equal(normalized.termStructure.expectedAsOfDate, '2026-09-08');
+  assert.equal(normalized.termStructure.stale, true);
+  assert.equal(normalized.termStructure.asOfDate, '2026-09-04');
+});
+
+test('same-day term regression retains original observations and marks only the term block stale', async () => {
+  resetVixComparisonMemoryCache();
+  const first = await loadVixComparison(args());
+  const older = payload();
+  older.termStructure.rows.pop();
+  older.termStructure.asOfDate = '2026-09-03';
+  older.termStructure.stale = true;
+  older.termStructure.staleReason = 'incomplete_close';
+  const next = await loadVixComparison(args({ force: true, fetchImpl: async () => response(older) }));
+  assert.equal(next.stale, false);
+  assert.equal(next.termStructure.stale, true);
+  assert.equal(next.termStructure.asOfDate, '2026-09-04');
+  assert.deepEqual(next.termStructure.rows, first.termStructure.rows);
+  assert.equal(next.termStructure.fetchedAt, first.termStructure.fetchedAt);
 });
 
 test('request timeout aborts and releases the in-flight entry for an explicit retry', async () => {
@@ -228,4 +296,73 @@ test('request timeout aborts and releases the in-flight entry for an explicit re
   } })), { code: 'NETWORK_ERROR' });
   assert.equal(signal.aborted, true);
   assert.equal((await loadVixComparison(args({ force: true }))).stale, false);
+});
+
+function crossedDatePayloads() {
+  const previous = payload();
+  previous.termStructure.rows.pop();
+  previous.termStructure.asOfDate = '2026-09-03';
+  previous.termStructure.stale = true;
+  previous.termStructure.staleReason = 'incomplete_close';
+  const incoming = payload({
+    asOfDate: '2026-09-03', availableFromDate: '2026-09-02',
+    stale: true, staleReason: 'incomplete_close', fetchedAt: new Date(NOW + 1000).toISOString(),
+  });
+  for (const series of Object.values(incoming.series)) {
+    series.rows = [
+      { date: '2026-09-02', close: series.symbol === 'VIX' ? 19 : 390 },
+      { date: '2026-09-03', close: series.symbol === 'VIX' ? 18 : 400 },
+    ];
+  }
+  incoming.termStructure.fetchedAt = new Date(NOW + 1000).toISOString();
+  return { previous, incoming };
+}
+
+test('price regression preserves newer independent term observations and their actual freshness', async () => {
+  resetVixComparisonMemoryCache();
+  const { previous, incoming } = crossedDatePayloads();
+  const first = await loadVixComparison(args({ fetchImpl: async () => response(previous) }));
+  const merged = await loadVixComparison(args({
+    force: true, now: NOW + 1000, fetchImpl: async () => response(incoming),
+  }));
+  assert.equal(merged.asOfDate, '2026-09-04');
+  assert.equal(merged.fetchedAt, first.fetchedAt);
+  assert.equal(merged.stale, true);
+  assert.deepEqual(merged.series, first.series);
+  assert.equal(merged.termStructure.asOfDate, '2026-09-04');
+  assert.equal(merged.termStructure.stale, false);
+  assert.equal(merged.termStructure.staleReason, '');
+  assert.equal(merged.termStructure.fetchedAt, incoming.termStructure.fetchedAt);
+  assert.deepEqual(merged.termStructure.rows, incoming.termStructure.rows);
+});
+
+test('price-cache merge rejects a newly overlapping conflicting VIX term close without replacing the cache', async () => {
+  resetVixComparisonMemoryCache();
+  const { previous, incoming } = crossedDatePayloads();
+  const first = await loadVixComparison(args({ fetchImpl: async () => response(previous) }));
+  incoming.termStructure.rows.at(-1).vix = 17.25;
+  incoming.termStructure.rows.at(-1).ratio = 17.25 / 20;
+  assert.ok(normalizeVixComparison(incoming, { now: NOW + 1000 }), 'incoming prices have no conflicting date before the cache merge');
+  await assert.rejects(loadVixComparison(args({
+    force: true, now: NOW + 1000, fetchImpl: async () => response(incoming),
+  })), { code: 'INVALID_DATA' });
+  const retained = await loadVixComparison(args({
+    now: NOW + 1000, fetchImpl: async () => { throw new Error('cache should remain intact'); },
+  }));
+  assert.strictEqual(retained, first);
+});
+
+test('term-cache merge also rejects conflicting revised prices instead of mixing valid but inconsistent sources', async () => {
+  resetVixComparisonMemoryCache();
+  const first = await loadVixComparison(args());
+  const incoming = payload();
+  incoming.series.VIX.rows.at(-1).close = 16;
+  incoming.termStructure.rows.pop();
+  incoming.termStructure.asOfDate = '2026-09-03';
+  incoming.termStructure.stale = true;
+  incoming.termStructure.staleReason = 'incomplete_close';
+  assert.ok(normalizeVixComparison(incoming, { now: NOW }), 'incoming term has no overlapping revised close');
+  await assert.rejects(loadVixComparison(args({ force: true, fetchImpl: async () => response(incoming) })), { code: 'INVALID_DATA' });
+  const retained = await loadVixComparison(args({ fetchImpl: async () => { throw new Error('cache should remain intact'); } }));
+  assert.strictEqual(retained, first);
 });

@@ -4,6 +4,17 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      'VIX 与市场走势新增期限比率和风险阶段，使用 Cboe 官方 VIX、VIX3M 同日收盘与 SPY／QQQ 复权走势，分别观察市场压力与价格止跌。',
+      '走势图与比率图可联动查看历史，数据未齐或更新失败时明确显示待更新；观察规则不生成交易，也不改变任何资产或收益账本。',
+    ],
+    itemsEn: [
+      'VIX & Market Trends adds the term ratio and risk phases using aligned official Cboe VIX/VIX3M closes and adjusted SPY/QQQ history, separating volatility stress from price stabilization.',
+      'Linked charts share historical date selection. Incomplete or failed updates remain explicit; observation rules neither generate trades nor change asset or return ledgers.',
+    ],
+  },
+  {
+    ver: 'v10.7.9.544', date: '2026-09-26',
+    items: [
       '交易的全部功能新增独立「资产负债」工具，记录欠款、逐笔还款、批量导入与结清进度。',
       '欠款与还款保存在当前登录账户的独立云端表中，不参与 Quote 的资产、净资产、持仓或收益统计。',
     ],
