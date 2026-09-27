@@ -24,9 +24,9 @@
 .vmr-tabs button { position: relative; display: flex; align-items: center; min-height: 44px; padding: 0 2px 9px; color: #7b8798; font-size: 13px; }
 .vmr-tabs button[aria-selected=true] { color: #dce3ec; }
 .vmr-tabs button[aria-selected=true]::after { content: ''; position: absolute; height: 2px; left: 2px; right: 2px; bottom: -1px; background: #a9b9cc; border-radius: 1px; }
-.vmr-summary { display: grid; grid-template-columns: 1fr 1fr 1.03fr; gap: 8px; padding: 25px 0 22px; }
-.vmr-summary > div { display: flex; flex-direction: column; align-items: flex-start; gap: 9px; }
-.vmr-summary > div:not(:first-child) { border-left: 1px solid #ffffff08; padding-left: 12px; }
+.vmr-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; padding: 25px 0 22px; }
+.vmr-summary > div { display: flex; flex-direction: column; align-items: center; min-width: 0; gap: 9px; text-align: center; }
+.vmr-summary > div:not(:first-child) { border-left: 1px solid #ffffff08; }
 .vmr-summary > div > span { color: #8d98a9; font-size: 11px; line-height: 1.4; white-space: nowrap; }
 .vmr-summary strong { color: #d9e2ef; font-weight: 400; font-size: clamp(21px, 6.2vw, 26px); line-height: 1; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .vmr-summary small { font-size: 10px; line-height: 1; color: #778497; }
@@ -141,7 +141,7 @@
 @keyframes vmr-spin { to { transform: rotate(360deg); } }
 @keyframes vmr-sheet-enter { from { transform: translateY(24px); opacity: .5; } to { transform: translateY(0); opacity: 1; } }
 @container vix-monthly (min-width: 600px) { .vmr-page { padding-left: 16px; padding-right: 16px; } .vmr-chart-panel { margin-bottom: 34px; } .vmr-table-row { font-size: 13px !important; } .vmr-table-grid { grid-template-columns: 64px 62px 64px 1fr 1fr 76px; column-gap: 8px; } .vmr-table-row .vmr-table-risk { font-size: 12px; } }
-@container vix-monthly (max-width: 350px) { .vmr-month-nav .vmr-month-title { font-size: 23px; } .vmr-summary > div:not(:first-child) { padding-left: 8px; } .vmr-summary > div > span { font-size: 10px; } .vmr-summary strong { font-size: 21px; } .vmr-chart-legend { gap: 6px; } .vmr-table-grid { grid-template-columns: 36px 36px 39px 1fr 1fr 52px; column-gap: 2px; } .vmr-table-row { font-size: 10px !important; } .vmr-chart-reading { gap: 9px; } .vmr-detail-metrics strong { font-size: 23px; } }
+@container vix-monthly (max-width: 350px) { .vmr-month-nav .vmr-month-title { font-size: 23px; } .vmr-summary > div > span { font-size: 10px; } .vmr-summary strong { font-size: 21px; } .vmr-chart-legend { gap: 6px; } .vmr-table-grid { grid-template-columns: 36px 36px 39px 1fr 1fr 52px; column-gap: 2px; } .vmr-table-row { font-size: 10px !important; } .vmr-chart-reading { gap: 9px; } .vmr-detail-metrics strong { font-size: 23px; } }
 @container vix-monthly (max-width: 360px) { .vmr-chart-touch text { font-size: 13px; } }
 @media (prefers-reduced-motion: reduce) { .vmr-sheet, .vmr-spin { animation: none; } }
 
