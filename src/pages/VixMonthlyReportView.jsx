@@ -182,6 +182,7 @@ export default function VixMonthlyReportView({
   report: suppliedReport, reports = [], month: controlledMonth, onMonthChange, availableMonths,
   initialMonth = '2025-04', onBack, onShare, preview = false, loading = false, notice, onRefresh,
 }) {
+  const pageRef = React.useRef(null);
   const orderedReports = React.useMemo(() => [...reports].sort((a, b) => a.month.localeCompare(b.month)), [reports]);
   const months = React.useMemo(() => [...(availableMonths ?? orderedReports)]
     .map(item => typeof item === 'string' ? { month: item } : item)
@@ -208,6 +209,18 @@ export default function VixMonthlyReportView({
   const detail = rows.find(row => row.date === detailDate);
   const years = [...new Set(months.map(item => Number(item.month.slice(0, 4))))].sort((a, b) => a - b);
   React.useEffect(() => { setSelectedIndex(null); setDetailDate(null); setMonthSheet(false); setShareSheet(false); }, [visibleMonth]);
+  React.useEffect(() => {
+    if (selectedIndex === null) return undefined;
+    const clearOutside = event => {
+      // All three plots share one selection. Keep chart gestures and event
+      // details intact; a press on the surrounding page restores month-end.
+      const control = event.target.closest?.('.vmr-chart-touch, button, .vmr-overlay');
+      if (control && pageRef.current?.contains(control)) return;
+      setSelectedIndex(null);
+    };
+    document.addEventListener('pointerdown', clearOutside, true);
+    return () => document.removeEventListener('pointerdown', clearOutside, true);
+  }, [selectedIndex]);
   const chooseMonth = nextMonth => {
     if (!isControlled) setChosenMonth(nextMonth);
     onMonthChange?.(nextMonth);
@@ -226,7 +239,7 @@ export default function VixMonthlyReportView({
   const complete = report?.status === 'complete';
   const summary = report?.summary || {};
 
-  return <main className="vmr-page" data-vix-monthly-report="true" data-vix-monthly-report-preview={preview ? 'true' : undefined} aria-busy={loading}>
+  return <main ref={pageRef} className="vmr-page" data-vix-monthly-report="true" data-vix-monthly-report-preview={preview ? 'true' : undefined} aria-busy={loading}>
     <header className="vmr-header"><button type="button" onClick={onBack} aria-label="返回 VIX 与市场走势"><ArrowLeft size={20} strokeWidth={1.7} /></button><h1>市场月报</h1><button type="button" aria-label="分享月报" disabled={!report || loading || !onShare} onClick={() => { setShareError(''); setShareSheet(true); }}><Share2 size={18} strokeWidth={1.6} /></button></header>
     <div className="vmr-preview-label"><i />{preview ? '本地设计预览' : '日线收盘 · 历史回放'}{preview && <span>日线收盘 · 历史回放</span>}{onRefresh && <button type="button" onClick={onRefresh} disabled={loading} aria-label="刷新月报数据"><RefreshCw size={12} className={loading ? 'vmr-spin' : undefined} />{loading ? '刷新中' : '刷新'}</button>}</div>
     {notice && <p className="vmr-data-notice" role="status">{notice}</p>}
