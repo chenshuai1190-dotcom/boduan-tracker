@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowLeft, ArrowUpRight, Check, ChevronDown, Circle, Minus, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Check, ChevronDown, Circle, Minus, RefreshCw } from 'lucide-react';
 import VixRiskChart from '../components/VixRiskChart.jsx';
 import { getVixComparisonExpectedCloseDate, loadVixComparison } from '../lib/vixComparison.js';
 import { buildVixComparisonModel, formatVixComparisonChangePercent, VIX_COMPARISON_RANGES } from '../lib/vixComparisonChart.js';
@@ -147,7 +147,7 @@ export default function VixComparisonPage({ ctx = {}, previewData }) {
 
     <section className="vcr-overview">
       <div className="vcr-eyebrow"><span>{englishMode ? 'MARKET ENVIRONMENT' : '市场风险观察'}</span><span>{risk.asOfDate?.replaceAll('-', '.') || '—'}<span className="vcr-date-dot">·</span>{risk.ready ? (englishMode ? 'Close' : '收盘') : (englishMode ? 'Pending' : '待齐')}</span></div>
-      <div className="vcr-title-row"><h2>{pick(phase.title, englishMode)}</h2><span className="vcr-stage-icon"><ArrowUpRight size={23} strokeWidth={1.4} /></span></div>
+      <div className="vcr-title-row"><h2>{pick(phase.title, englishMode)}</h2></div>
       <p className="vcr-description">{description(risk, englishMode, state.loading, state.error, expectedAsOfDate)}</p>
       {risk.ready && Number.isFinite(risk.duration) && <div className="vcr-phase-duration">{englishMode ? `${pick(phase.label, true)} · ${risk.duration} completed sessions` : `${pick(phase.label, false)} · 阶段持续 ${risk.duration} 个交易日`}</div>}
       <div className="vcr-stage-track" aria-label={englishMode ? 'Risk phase' : '风险阶段'}>{STAGE_IDS.map(id => <div key={id} className={id === phaseId ? 'active' : ''}><i /><span>{pick(PHASES[id].label, englishMode)}</span></div>)}</div>

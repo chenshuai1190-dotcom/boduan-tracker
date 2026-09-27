@@ -23,9 +23,8 @@
 .vcr-eyebrow { display: flex; justify-content: space-between; font-size: 11px; color: #6c7482; }
 .vcr-eyebrow > span:first-child { color: #9fa4af; }
 .vcr-date-dot { margin: 0 6px; color: #4a515e; }
-.vcr-title-row { display: flex; align-items: center; justify-content: space-between; margin: 11px 0 8px; }
-.vcr-title-row h2 { font-size: 29px; font-weight: 500; line-height: 1.35; margin: 0; padding-right: 12px; }
-.vcr-stage-icon { display: grid; flex-shrink: 0; place-items: center; color: var(--vcr-accent); border: 1px solid rgba(var(--vcr-accent-rgb), .18); border-radius: 50%; width: 36px; height: 36px; }
+.vcr-title-row { margin: 11px 0 8px; }
+.vcr-title-row h2 { font-size: 29px; font-weight: 500; line-height: 1.35; margin: 0; }
 .vcr-description { margin: 0; font-size: 12px; color: #8d939f; line-height: 1.8; max-width: 92%; min-height: 42px; }
 .vcr-phase-duration { margin-top: 8px; color: var(--vcr-accent); font-size: 10px; line-height: 1.5; }
 .vcr-stage-track { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; margin: 20px 0 25px; }
