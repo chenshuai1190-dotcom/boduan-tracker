@@ -127,3 +127,20 @@ test('day-change formatter preserves signed percent units and normalizes rounded
   assert.equal(formatVixComparisonChangePercent(0.001), '0.00%');
   for (const value of [null, undefined, NaN, Infinity, '5']) assert.equal(formatVixComparisonChangePercent(value), '—');
 });
+
+test('Jan 8 to Jan 10 daily changes bridge the official mourning closure without hiding a missing Jan 10', () => {
+  // Fixed closes from the 2026-09-27 official release capture: Cboe VIX and
+  // EODHD adjusted SPY/QQQ. No fixture files or network calls are required.
+  const dates = ['2025-01-08', '2025-01-10', '2025-01-13'];
+  const vix = [17.7, 19.54, 19.19];
+  for (const prices of [[578.1236, 569.2972, 570.1798], [510.9275, 502.9156, 501.2993]]) {
+    const model = dailyModel(dates, prices, vix);
+    assert.deepEqual(model.rows.map(row => row.date), dates, 'no synthetic close on Jan 9');
+    assert.ok(Math.abs(model.rows[1].vixDayChangePct - (19.54 - 17.7) / 17.7 * 100) < 1e-10);
+    assert.ok(Math.abs(model.rows[1].priceDayChangePct - (prices[1] - prices[0]) / prices[0] * 100) < 1e-10);
+    assert.ok(Math.abs(model.last.priceDayChangePct - (prices[2] - prices[1]) / prices[1] * 100) < 1e-10);
+    const missing = dailyModel([dates[0], dates[2]], [prices[0], prices[2]], [vix[0], vix[2]]);
+    assert.equal(missing.last.vixDayChangePct, null, 'Jan 10 is a real missing provider session');
+    assert.equal(missing.last.priceDayChangePct, null);
+  }
+});

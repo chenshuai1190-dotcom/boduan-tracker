@@ -366,3 +366,46 @@ test('term-cache merge also rejects conflicting revised prices instead of mixing
   const retained = await loadVixComparison(args({ fetchImpl: async () => { throw new Error('cache should remain intact'); } }));
   assert.strictEqual(retained, first);
 });
+
+function januaryCalendarPayload(dates) {
+  const value = payload({ expectedAsOfDate: '2025-01-10', asOfDate: dates.at(-1), availableFromDate: dates[0],
+    pointCount: dates.length, fetchedAt: '2025-01-10T22:00:00.000Z' });
+  for (const series of Object.values(value.series)) {
+    series.rows = dates.map(date => ({ date, close: series.symbol === 'VIX' ? 18 : 400 }));
+  }
+  value.termStructure = { source: 'CBOE', expectedAsOfDate: '2025-01-10', asOfDate: dates.at(-1),
+    fetchedAt: '2025-01-10T22:00:00.000Z', stale: false, staleReason: '',
+    rows: dates.map(date => ({ date, vix: 18, vix3m: 20, ratio: .9 })) };
+  return value;
+}
+
+test('client accepts Jan 8 to Jan 10 as adjacent observations and rejects official-closure rows and metadata', () => {
+  const now = Date.parse('2025-01-10T22:00:00Z');
+  const valid = januaryCalendarPayload(['2025-01-08', '2025-01-10']);
+  assert.deepEqual(normalizeVixComparison(valid, { now }), valid);
+  const fabricated = januaryCalendarPayload(['2025-01-08', '2025-01-09', '2025-01-10']);
+  assert.equal(normalizeVixComparison(fabricated, { now }), null);
+  const termOnlyFabrication = januaryCalendarPayload(['2025-01-08', '2025-01-10']);
+  termOnlyFabrication.termStructure.rows.splice(1, 0, { date: '2025-01-09', vix: 18, vix3m: 20, ratio: .9 });
+  assert.equal(normalizeVixComparison(termOnlyFabrication, { now }), null);
+  const invalidExpected = januaryCalendarPayload(['2025-01-07', '2025-01-08']);
+  invalidExpected.expectedAsOfDate = invalidExpected.termStructure.expectedAsOfDate = '2025-01-09';
+  invalidExpected.stale = invalidExpected.termStructure.stale = true;
+  assert.equal(normalizeVixComparison(invalidExpected, { now }), null);
+});
+
+test('client closure-day freshness remains on Jan 8 and rejects loose date keys', () => {
+  const value = januaryCalendarPayload(['2025-01-07', '2025-01-08']);
+  value.expectedAsOfDate = value.termStructure.expectedAsOfDate = '2025-01-08';
+  value.fetchedAt = value.termStructure.fetchedAt = '2025-01-08T22:00:00.000Z';
+  const now = Date.parse('2025-01-09T22:00:00Z');
+  const normalized = normalizeVixComparison(value, { now });
+  assert.equal(normalized.expectedAsOfDate, '2025-01-08');
+  assert.equal(normalized.stale, false);
+  assert.equal(normalized.termStructure.stale, false);
+  for (const date of ['2025-01-8', '2025-1-08', '2025-01-08T00:00:00Z', '2025-02-30']) {
+    const invalid = structuredClone(value);
+    invalid.series.VIX.rows[0].date = date;
+    assert.equal(normalizeVixComparison(invalid, { now }), null, date);
+  }
+});

@@ -1,230 +1,324 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { buildVixRiskModel, VIX_RISK_THRESHOLDS } from '../src/lib/vixRiskModel.js';
-import { isRegularNyseHoliday } from '../src/lib/quoteRefreshPolicy.js';
+import {
+  buildVixRiskModel, buildRiskDirection, buildPriceAction,
+  classifyCurrentRiskLevel, classifyTermStructure, VIX_RISK_THRESHOLDS,
+} from '../src/lib/vixRiskModel.js';
+import { isVixComparisonSession, nextVixComparisonSession } from '../src/lib/vixComparisonSession.js';
 
 function sessions(count, start = '2026-08-03') {
-  const result = [];
-  const date = new Date(`${start}T00:00:00Z`);
-  while (result.length < count) {
-    const key = date.toISOString().slice(0, 10);
-    if (![0, 6].includes(date.getUTCDay()) && !isRegularNyseHoliday(key)) result.push(key);
-    date.setUTCDate(date.getUTCDate() + 1);
-  }
-  return result;
+  const dates = [];
+  let date = start;
+  if (!isVixComparisonSession(date)) date = nextVixComparisonSession(date);
+  while (dates.length < count) { dates.push(date); date = nextVixComparisonSession(date); }
+  return dates;
 }
-
 function row(date, vix = 18, ratio = 0.95) {
-  return { date, vix, vix3m: vix / ratio, ratio };
+  const vix3m = vix / ratio;
+  return { date, vix, vix3m, ratio: vix / vix3m };
 }
-
-function input(values, { start, closes } = {}) {
+const flat = (count = 30, vix = 18, ratio = 0.95) => Array.from({ length: count }, () => [vix, ratio]);
+function fixture(values = flat(), { start, spy, qqq } = {}) {
   const dates = sessions(values.length, start);
   const rows = values.map(([vix, ratio], index) => row(dates[index], vix, ratio));
-  const asOfDate = dates.at(-1);
-  return {
-    expectedAsOfDate: asOfDate,
-    termStructure: { source: 'CBOE', asOfDate, expectedAsOfDate: asOfDate, stale: false, staleReason: '', rows },
-    benchmarkRows: dates.map((date, index) => ({ date, close: closes?.[index] ?? 100 + index })),
-  };
+  const date = dates.at(-1);
+  return { termStructure: { source: 'CBOE', asOfDate: date, expectedAsOfDate: date, stale: false, rows },
+    benchmarks: {
+      SPY: dates.map((date, index) => ({ date, close: spy?.[index] ?? 100 + index })),
+      QQQ: dates.map((date, index) => ({ date, close: qqq?.[index] ?? 200 + index })),
+    }, expectedAsOfDate: date };
+}
+const model = (values, options) => buildVixRiskModel(fixture(values, options));
+function price(closes) {
+  const dates = sessions(closes.length);
+  return buildPriceAction({ rows: dates.map((date, i) => ({ date, close: closes[i] })), expectedAsOfDate: dates.at(-1) });
+}
+const direction = (values) => buildRiskDirection(fixture(values).termStructure.rows);
+function cutoff(input, index) {
+  const date = input.termStructure.rows[index].date;
+  return { ...input, expectedAsOfDate: date,
+    termStructure: { ...input.termStructure, asOfDate: date, expectedAsOfDate: date, rows: input.termStructure.rows.slice(0, index + 1) },
+    benchmarks: Object.fromEntries(Object.entries(input.benchmarks).map(([symbol, rows]) => [symbol, rows.filter(row => row.date <= date)])) };
 }
 
-const neutral = (count = 8) => Array.from({ length: count }, () => [18, 0.95]);
-const model = (values, options) => buildVixRiskModel(input(values, options));
+test('boundary grid covers all risk and term combinations without timing gaps', () => {
+  const levels = [15.999, 16, 22, 22.001, 25, 25.001, 29.999, 30, 80];
+  const ratios = [0.899999, 0.90, 0.999999, 1, 1.099999, 1.10, 1.8];
+  for (const vix of levels) for (const ratio of ratios) {
+    const expected = vix >= 30 && ratio >= 1 ? 'EXTREME_STRESS'
+      : vix > 25 && ratio >= 1 ? 'HIGH_STRESS'
+        : vix > 22 || ratio >= 1 ? 'ELEVATED'
+          : vix < 16 && ratio < 0.90 ? 'LOW_VOLATILITY' : 'NORMAL';
+    assert.equal(classifyCurrentRiskLevel({ vix, ratio }), expected, `${vix}/${ratio}`);
+    const term = ratio >= 1.10 ? 'DEEP_INVERTED' : ratio >= 1 ? 'INVERTED' : ratio >= 0.90 ? 'NEAR_FLAT' : 'NORMAL_TERM_STRUCTURE';
+    assert.equal(classifyTermStructure(ratio), term);
+  }
+  assert.equal(classifyCurrentRiskLevel({ vix: 0, ratio: 1 }), 'UNKNOWN');
+  assert.equal(classifyTermStructure(NaN), 'UNKNOWN');
+});
 
-test('VIX and term-ratio boundaries distinguish calm, caution and uncovered combinations', () => {
-  assert.equal(model(neutral()).duration, 8, 'history warmup does not shorten the observed state duration');
-  for (const [vix, ratio, phase] of [
-    [15.99, 0.899, 'calm'], [16, 0.90, 'caution'], [22, 1, 'caution'],
-    [15.99, 0.90, 'mixed'], [16, 0.899, 'mixed'], [22.01, 0.95, 'mixed'],
-    [25, 0.95, 'mixed'], [18, 1.001, 'mixed'],
-  ]) {
-    const result = model([...neutral(), [vix, ratio]]);
-    assert.equal(result.phase, phase, `${vix} / ${ratio}`);
+test('raw quotient immediately below a boundary is not snapped or rounded into inversion', () => {
+  const options = fixture();
+  options.termStructure.rows.at(-1).vix = 34.02;
+  options.termStructure.rows.at(-1).vix3m = 34.0201;
+  options.termStructure.rows.at(-1).ratio = 34.02 / 34.0201;
+  const result = buildVixRiskModel(options);
+  assert.equal(result.latest.ratio.toFixed(3), '1.000');
+  assert.equal(result.currentRiskLevel, 'ELEVATED');
+  assert.equal(result.termStructure, 'NEAR_FLAT');
+  assert.equal(result.currentInversionDays, 0);
+  const machineNear = fixture();
+  machineNear.termStructure.rows[machineNear.termStructure.rows.length - 1] = { date: machineNear.expectedAsOfDate, vix: 30, vix3m: 30 + Number.EPSILON * 16, ratio: 30 / (30 + Number.EPSILON * 16) };
+  assert.ok(buildVixRiskModel(machineNear).latest.ratio < 1);
+  assert.equal(buildVixRiskModel(machineNear).currentRiskLevel, 'ELEVATED');
+});
+
+test('invariant 1: crossing expiry cannot reduce a still high or extreme current level', () => {
+  for (const [vix, level] of [[26, 'HIGH_STRESS'], [31, 'EXTREME_STRESS']]) {
+    const input = fixture([...flat(10), ...flat(19, vix, 1.12)]);
+    for (let i = 10; i < input.termStructure.rows.length; i += 1) {
+      const result = buildVixRiskModel(cutoff(input, i));
+      assert.equal(result.currentRiskLevel, level);
+      if (i >= 13) assert.ok(!result.eventFlags.some(event => event.type === 'VIX_CROSS_25'));
+    }
+    const prolonged = buildVixRiskModel(input);
+    assert.deepEqual(prolonged.durationTags, ['PROLONGED_INVERSION']);
+    assert.equal(prolonged.currentRiskLevel, level);
+  }
+});
+
+test('invariant 2: valid latest pairing survives insufficient or broken history', () => {
+  const first = model([[40, 1.2]]);
+  assert.equal(first.currentRiskLevel, 'EXTREME_STRESS');
+  assert.equal(first.termStructure, 'DEEP_INVERTED');
+  assert.equal(first.ready, false);
+  assert.equal(first.riskDirection, 'UNKNOWN');
+  assert.equal(first.currentRiskDuration, 1);
+  assert.equal(first.durationExact.currentRisk, false);
+  const input = fixture(flat(30, 35, 1.05));
+  const missingDate = input.termStructure.rows.at(-3).date;
+  input.termStructure.rows.splice(-3, 1);
+  const broken = buildVixRiskModel(input);
+  assert.equal(broken.currentRiskLevel, 'EXTREME_STRESS');
+  assert.equal(broken.ready, false);
+  assert.equal(broken.currentInversionDays, 2);
+  assert.equal(broken.durationExact.inversion, false);
+  assert.ok(broken.dataQuality.missingSessions.includes(missingDate));
+  assert.ok(broken.dataQuality.issues.some(item => item.code === 'provider_missing' && item.dimension === 'volatility'));
+});
+
+test('invariant 3: un-inversion alone is an event, not evidence of easing', () => {
+  const input = fixture([...flat(10, 32, 1.1), [32, 0.99], [32, 0.97], [32, 0.95]]);
+  const result = buildVixRiskModel(input);
+  assert.equal(result.currentRiskLevel, 'ELEVATED');
+  assert.equal(result.currentInversionDays, 0);
+  assert.equal(result.riskDirection, 'HIGH_HOLD');
+  assert.ok(result.eventFlags.some(flag => flag.type === 'TERM_STRUCTURE_NORMALIZED'));
+  assert.equal(result.facts.direction.easingCandidate, false);
+});
+
+test('direction requires two candidates and reports its three-session evidence', () => {
+  const prefix = [...flat(7, 20, 0.96), [23, 1.02]];
+  const first = direction(prefix);
+  assert.equal(first.status, 'STABLE');
+  assert.equal(first.evidence.risingStreak, 1);
+  const second = direction([...prefix, [24, 1.03]]);
+  assert.equal(second.status, 'RISING');
+  assert.equal(second.evidence.risingStreak, 2);
+  assert.equal(second.evidence.basis, 'two_day_confirmation');
+  assert.ok(second.evidence.vixChange3Pct > 19.99);
+  const strong = direction([...flat(7, 20, 1.05), [25, 1.04], [26, 1.04]]);
+  assert.equal(strong.status, 'RISING', 'strong VIX rise can qualify with a limited ratio decline');
+  const reversed = direction([...prefix, [22, 1.04]]);
+  assert.notEqual(reversed.status, 'RISING', 'each candidate also requires a non-falling VIX');
+});
+
+test('direction hysteresis lasts at most two agreeing sessions, then falls back', () => {
+  const rising = [...flat(7, 20, 0.96), [23, 1.02], [24, 1.03], [25, 1.04]];
+  const heldOnce = direction([...rising, [25.1, 1.045]]);
+  assert.equal(heldOnce.status, 'RISING');
+  assert.equal(heldOnce.evidence.carriedSessions, 1);
+  const heldTwice = direction([...rising, [25.1, 1.045], [25.2, 1.05]]);
+  assert.equal(heldTwice.status, 'RISING');
+  assert.equal(heldTwice.evidence.carriedSessions, 2);
+  assert.equal(direction([...rising, [25.1, 1.045], [25.2, 1.05], [25.3, 1.055]]).status, 'HIGH_HOLD');
+  assert.equal(direction([...rising, [24.9, 1.05]]).status, 'HIGH_HOLD', 'VIX reversal cancels carry immediately');
+  assert.equal(direction([...rising, [25.1, 0.95]]).status, 'HIGH_HOLD', 'a counter-direction three-day ratio cancels carry');
+  const easing = [...flat(7, 30, 1.1), [26.5, 1.06], [25, 1.03], [24, 1]];
+  assert.equal(direction(easing).status, 'EASING');
+  assert.equal(direction([...easing, [23.9, 0.995]]).status, 'EASING');
+  assert.equal(direction([...easing, [23.9, 0.995], [23.9, 0.99]]).status, 'EASING', 'a flat daily VIX does not reverse a carried easing direction');
+  assert.equal(direction([...easing, [24.1, 0.995]]).status, 'STABLE', 'a daily VIX rise cancels carried easing');
+  assert.equal(direction([...easing, [23.9, 0.995], [23.9, 0.99], [23.9, 0.985]]).status, 'STABLE');
+});
+
+test('invariant 4: duration and fifteenth-day event distinguish exact runs from lower bounds', () => {
+  const unknown = model(flat(15, 32, 1.05));
+  assert.equal(unknown.currentInversionDays, 15);
+  assert.equal(unknown.durationExact.inversion, false);
+  assert.deepEqual(unknown.durationTags, ['PROLONGED_INVERSION']);
+  assert.ok(!unknown.eventFlags.some(flag => flag.type === 'INVERSION_15D'));
+  const known = model([...flat(2), ...flat(15, 32, 1.05)]);
+  assert.equal(known.durationExact.inversion, true);
+  assert.ok(known.eventFlags.some(flag => flag.type === 'INVERSION_15D' && flag.sessionsAgo === 0));
+  const equality = model([...flat(2), ...flat(14, 32, 1.05), [30, 1]]);
+  assert.equal(equality.currentInversionDays, 15, 'ratio equality is inverted in V2');
+  const normalized = model([...flat(2), ...flat(15, 32, 1.05), [30, 0.9999]]);
+  assert.equal(normalized.currentInversionDays, 0);
+  assert.deepEqual(normalized.durationTags, []);
+  assert.equal(normalized.highStressDays, 0);
+  assert.equal(normalized.extremeStressDays, 0);
+});
+
+test('invariant 5: SPY and QQQ price windows do not depend on volatility, each other or crossings', () => {
+  const input = fixture(flat(), { spy: Array.from({ length: 30 }, (_, i) => 100 + i), qqq: Array.from({ length: 30 }, (_, i) => 200 - i) });
+  const original = buildVixRiskModel(input);
+  assert.equal(original.priceAction.SPY.status, 'RECOVERY');
+  assert.equal(original.priceAction.QQQ.status, 'NEW_LOW');
+  const changedVolatility = structuredClone(input);
+  changedVolatility.termStructure.rows = changedVolatility.termStructure.rows.map((r, i) => row(r.date, i % 2 ? 60 : 10, i % 2 ? 1.5 : 0.8));
+  assert.deepEqual(buildVixRiskModel(changedVolatility).priceAction, original.priceAction);
+  const brokenSpy = structuredClone(input);
+  brokenSpy.benchmarks.SPY.splice(-4, 1);
+  const changed = buildVixRiskModel(brokenSpy);
+  assert.equal(changed.priceAction.SPY.status, 'UNKNOWN');
+  assert.deepEqual(changed.priceAction.QQQ, original.priceAction.QQQ);
+  assert.equal(changed.currentRiskLevel, original.currentRiskLevel);
+  assert.equal(changed.riskDirection, original.riskDirection);
+});
+
+test('price rules preserve priority, tied lows, the 20-session window and two MA checks', () => {
+  const early = [...Array(16).fill(110), 90, 94, 93, 95];
+  assert.equal(price(early).status, 'EARLY_STABILIZATION');
+  assert.equal(price(early).daysSinceLow, 3);
+  assert.equal(price([...early.slice(0, -1), 89]).status, 'NEW_LOW');
+  const tied = price([...early.slice(0, -1), 90]);
+  assert.equal(tied.status, 'NO_STABILIZATION');
+  assert.equal(tied.daysSinceLow, 0);
+  const recovery = [...Array(14).fill(110), 90, 92, 94, 96, 98, 100];
+  assert.equal(price(recovery).status, 'RECOVERY');
+  assert.equal(price(recovery).daysSinceLow, 5);
+  assert.equal(price([...Array(14).fill(110), 90, 130, 120, 110, 100, 120]).status, 'EARLY_STABILIZATION');
+  assert.equal(price(Array(20).fill(100)).status, 'NO_STABILIZATION');
+  assert.equal(price(Array(19).fill(100)).status, 'INSUFFICIENT_DATA');
+  const withOldLow = price([1, ...recovery]);
+  assert.equal(withOldLow.lowClose, 90, 'a low outside the current 20 observations must not participate');
+});
+
+test('invariant 6: missing and invalid sessions cannot reduce required direction or price windows', () => {
+  const input = fixture(flat(30, 32, 1.05));
+  const missing = input.termStructure.rows[23].date;
+  input.termStructure.rows.splice(23, 1);
+  input.benchmarks.SPY.splice(10, 1);
+  const result = buildVixRiskModel(input);
+  assert.equal(result.facts.contiguousSessions, 6);
+  assert.equal(result.riskDirection, 'UNKNOWN');
+  assert.equal(result.priceAction.SPY.status, 'UNKNOWN');
+  assert.equal(result.priceAction.QQQ.ready, true);
+  assert.ok(result.dataQuality.missingSessions.includes(missing));
+  const recover = fixture(flat(30, 32, 1.05));
+  recover.termStructure.rows.splice(22, 1);
+  recover.benchmarks.SPY.splice(9, 1);
+  const recovered = buildVixRiskModel(recover);
+  assert.equal(recovered.ready, true, 'seven actual contiguous volatility sessions recover direction');
+  assert.equal(recovered.priceAction.SPY.ready, true, 'twenty actual contiguous closes recover price');
+  assert.equal(recovered.dataQuality.status, 'partial', 'earlier gaps remain diagnostic');
+  assert.equal(recovered.durationExact.inversion, false);
+  const invalid = fixture(flat(30, 32, 1.05));
+  invalid.termStructure.rows.at(-2).vix3m = 0;
+  invalid.benchmarks.QQQ.at(-2).close = NaN;
+  const failed = buildVixRiskModel(invalid);
+  assert.equal(failed.currentRiskLevel, 'EXTREME_STRESS');
+  assert.equal(failed.facts.contiguousSessions, 1);
+  assert.equal(failed.riskDirection, 'UNKNOWN');
+  assert.equal(failed.priceAction.QQQ.reason, 'invalid_data');
+});
+
+test('official exceptional closures are diagnostics, not provider gaps or counted sessions', () => {
+  for (const [start, closure] of [['2025-01-02', '2025-01-09'], ['2018-11-20', '2018-12-05']]) {
+    const result = model(flat(25, 32, 1.05), { start });
     assert.equal(result.ready, true);
+    assert.equal(result.priceAction.SPY.ready, true);
+    assert.equal(result.currentInversionDays, 25);
+    assert.deepEqual(result.dataQuality.missingSessions, []);
+    assert.ok(result.dataQuality.officialClosures.some(item => item.date === closure));
   }
 });
 
-test('acute stress requires both observed upcrossings within three completed sessions', () => {
-  const initial = [...neutral(), [25, 1], [26, 1.04]];
-  const first = model(initial);
-  assert.equal(first.phase, 'stress');
-  assert.equal(first.invertedDays, 1);
-  assert.equal(first.stressDates.ratioCrossedAt, first.asOfDate);
-  assert.equal(first.stressDates.vixCrossedAt, first.asOfDate);
-  assert.equal(model([...initial, [27, 1.03], [28, 1.02]]).phase, 'stress');
-  assert.equal(model([...initial, [27, 1.03], [28, 1.02], [28, 1.02]]).phase, 'mixed');
-  assert.equal(model([...neutral(), [26, 0.98], [26, 0.98], [26, 0.98], [27, 1.02]]).phase, 'mixed');
-  assert.equal(model([...initial, [24, 1.03]]).phase, 'mixed', 'a VIX reversal cancels acute classification');
-  assert.equal(model([...initial, [26, 0.99]]).phase, 'mixed', 'a ratio reversal cancels acute classification');
-});
-
-test('persistent pressure starts at 15 consecutive inverted sessions and resets at equality', () => {
-  const fourteen = [...neutral(), ...Array.from({ length: 14 }, () => [26, 1.05])];
-  assert.equal(model(fourteen).phase, 'mixed');
-  const persistent = model([...fourteen, [24, 1.05]]);
-  assert.equal(persistent.phase, 'persistent');
-  assert.equal(persistent.invertedDays, 15);
-  assert.equal(persistent.duration, 1);
-  assert.equal(persistent.facts.invertedDaysExact, true);
-  const reset = model([...fourteen, [20, 1], [26, 1.04]]);
-  assert.equal(reset.invertedDays, 1);
-  assert.equal(reset.phase, 'stress');
-});
-
-test('a recovery needs its own 1.10 peak and two consecutive below-1 closes', () => {
-  const prefix = [...neutral(), [26, 1.10]];
-  assert.notEqual(model([...prefix, [20, 0.97]]).phase, 'recovery');
-  const recovery = model([...prefix, [20, 0.97], [19, 0.96]]);
-  assert.equal(recovery.phase, 'recovery', 'recovery takes priority over the simultaneously satisfied caution bucket');
-  assert.equal(recovery.ratioBelowDays, 2);
-  assert.equal(recovery.episodePeakRatio, 1.10);
-  assert.equal(recovery.facts.recoveryWindowDay, 1);
-  assert.equal(model([...neutral(), [26, 1.099], [20, 0.97], [19, 0.96]]).phase, 'caution');
-  const longPressure = [...neutral(), ...Array.from({ length: 15 }, () => [29, 1.12])];
-  assert.equal(model(longPressure).phase, 'persistent');
-  assert.equal(model([...longPressure, [20, 0.98], [19, 0.96]]).phase, 'recovery');
-});
-
-test('recovery confirmation lasts exactly five sessions and does not resurrect an old peak', () => {
-  const prefix = [...neutral(), [27, 1.12]];
-  const sixBelow = [...prefix, ...Array.from({ length: 6 }, () => [19, 0.96])];
-  const lastRecoveryDay = model(sixBelow);
-  assert.equal(lastRecoveryDay.phase, 'recovery');
-  assert.equal(lastRecoveryDay.facts.recoveryWindowDay, 5);
-  const expired = model([...sixBelow, [19, 0.95]]);
-  assert.equal(expired.phase, 'caution');
-  assert.equal(expired.episodePeakRatio, null);
-  assert.equal(expired.facts.recoveryConfirmedAt, null);
-  const newMildEpisode = model([...sixBelow, [19, 0.95], [26, 1.04], [19, 0.97], [19, 0.96]]);
-  assert.equal(newMildEpisode.phase, 'caution');
-  assert.equal(newMildEpisode.episodePeakRatio, 1.04);
-});
-
-test('rebounding to equality or inversion invalidates recovery and binds a new episode', () => {
-  const recovered = [...neutral(), [27, 1.15], [21, 0.98], [20, 0.97]];
-  assert.equal(model(recovered).phase, 'recovery');
-  for (const rebound of [[20, 1], [27, 1.04]]) {
-    const result = model([...recovered, rebound, [20, 0.98], [19, 0.97]]);
-    assert.equal(result.phase, 'caution');
-    assert.notEqual(result.episodePeakRatio, 1.15);
+test('invariant 7: future rows, future metadata, and future invalid values cannot change any output', () => {
+  const emptyDate = '2026-08-03';
+  const noPrices = buildPriceAction({ rows: [], expectedAsOfDate: emptyDate });
+  assert.deepEqual(buildPriceAction({ rows: [{ date: '2026-08-04', close: 100 }], expectedAsOfDate: emptyDate }), noPrices);
+  assert.deepEqual(buildPriceAction({ rows: [{ date: '2026-08-04', close: NaN }], expectedAsOfDate: emptyDate }), noPrices);
+  const invalidBeforeCutoff = buildPriceAction({ rows: [{ date: emptyDate, close: NaN }], expectedAsOfDate: emptyDate });
+  assert.equal(invalidBeforeCutoff.reason, 'invalid_data');
+  const emptyInput = { termStructure: { source: 'CBOE', asOfDate: emptyDate, rows: [] }, benchmarks: { SPY: [], QQQ: [] }, expectedAsOfDate: emptyDate };
+  const futureOnly = structuredClone(emptyInput);
+  futureOnly.termStructure.rows.push(row('2026-08-04', 40, 1.1));
+  futureOnly.benchmarks.SPY.push({ date: '2026-08-04', close: 100 });
+  assert.deepEqual(buildVixRiskModel(futureOnly), buildVixRiskModel(emptyInput));
+  const input = fixture([...flat(15), ...flat(15, 32, 1.15)]);
+  for (const index of [0, 5, 6, 18, 19, 20, 26]) {
+    const truncated = cutoff(input, index);
+    const expected = buildVixRiskModel(truncated);
+    const full = structuredClone(input);
+    full.expectedAsOfDate = truncated.expectedAsOfDate;
+    assert.deepEqual(buildVixRiskModel(full), expected);
+    for (const r of full.termStructure.rows) if (r.date > truncated.expectedAsOfDate) { r.vix = 0; r.ratio = Infinity; }
+    for (const r of full.benchmarks.SPY) if (r.date > truncated.expectedAsOfDate) r.close = NaN;
+    full.termStructure.rows.push({ date: '2099-02-30', vix: 0, vix3m: null, ratio: 0 });
+    assert.deepEqual(buildVixRiskModel(full), expected);
   }
-  assert.equal(model([...recovered, [28, 1.11], [20, 0.98], [19, 0.97]]).phase, 'recovery');
 });
 
-test('price stabilization uses the event low, requires three subsequent sessions and an uptick', () => {
-  const values = [...neutral(), [27, 1.14], [26, 1.06], [24, 1.02], [20, 0.98], [19, 0.96]];
-  const closes = [...neutral().map(() => 120), 100, 90, 92, 91, 94];
-  const result = model(values, { closes });
-  assert.equal(result.phase, 'recovery');
-  assert.equal(result.priceConfirmation.status, 'confirmed');
-  assert.equal(result.priceConfirmation.daysSinceLow, 3);
-  assert.equal(result.priceConfirmation.lowClose, 90);
-  assert.equal(result.priceConfirmation.lowDate, sessions(values.length)[9]);
-  assert.equal(model(values.slice(0, -1), { closes: closes.slice(0, -1) }).priceConfirmation.status, 'pending');
-  const fallingLatest = model(values, { closes: [...closes.slice(0, -1), 90.5] });
-  assert.equal(fallingLatest.priceConfirmation.status, 'pending');
-  const freshLow = model(values, { closes: [...closes.slice(0, -1), 89] });
-  assert.equal(freshLow.priceConfirmation.daysSinceLow, 0);
-  assert.equal(freshLow.priceConfirmation.lowClose, 89);
-  assert.equal(freshLow.phase, 'recovery', 'price confirmation is independent of the volatility classification');
-});
-
-test('missing benchmark sessions cannot manufacture a confirmed low or affect volatility classification', () => {
-  const options = input([...neutral(), [27, 1.14], [26, 1.06], [24, 1.02], [20, 0.98], [19, 0.96]]);
-  options.benchmarkRows.splice(9, 1);
-  const result = buildVixRiskModel(options);
-  assert.equal(result.phase, 'recovery');
-  assert.deepEqual(result.priceConfirmation, { status: 'unavailable', reason: 'benchmark_gap', daysSinceLow: null, lowDate: null, lowClose: null });
-  assert.equal(buildVixRiskModel({ ...options, benchmarkRows: [] }).priceConfirmation.reason, 'missing_benchmark');
-});
-
-test('missing term sessions neither compress inversion streaks nor create crossings across a gap', () => {
-  const options = input([...neutral(), ...Array.from({ length: 16 }, () => [27, 1.13])]);
-  options.termStructure.rows.splice(12, 1);
-  const result = buildVixRiskModel(options);
-  assert.equal(result.phase, 'mixed');
-  assert.equal(result.invertedDays, 11);
-  assert.equal(result.facts.invertedDaysExact, false);
-  assert.equal(result.facts.gapDetected, true);
-  const crossing = input([...neutral(), [18, 0.95], [27, 1.13]]);
-  crossing.termStructure.rows.splice(8, 1);
-  const recent = buildVixRiskModel(crossing);
-  assert.equal(recent.phase, 'mixed');
-  assert.equal(recent.reason, 'insufficient_history');
-  assert.equal(recent.ready, false);
-  assert.deepEqual(recent.stressDates, { ratioCrossedAt: null, vixCrossedAt: null });
-});
-
-test('ordinary weekends and exchange holidays do not interrupt valid consecutive sessions', () => {
-  const result = model([...neutral(), ...Array.from({ length: 15 }, () => [27, 1.12])], { start: '2026-08-17' });
-  assert.equal(result.phase, 'persistent');
-  assert.equal(result.invertedDays, 15);
-  assert.equal(result.facts.gapDetected, false);
-});
-
-test('unknown recent history is mixed and an unknown old episode cannot supply a recovery peak', () => {
-  const short = model(neutral(6));
-  assert.equal(short.phase, 'mixed');
-  assert.equal(short.reason, 'insufficient_history');
-  assert.equal(short.duration, null);
-  const unknownEpisode = model([...Array.from({ length: 8 }, () => [27, 1.12]), [20, 0.98], [19, 0.97]]);
-  assert.equal(unknownEpisode.phase, 'mixed');
-  assert.equal(unknownEpisode.reason, 'insufficient_history');
-  assert.equal(unknownEpisode.priceConfirmation.status, 'unavailable');
-});
-
-test('missing, stale, malformed, conflicting and uncompleted data never turn into zero readings', () => {
-  assert.equal(buildVixRiskModel().reason, 'missing_data');
-  assert.equal(buildVixRiskModel().latest, null);
-  const options = input(neutral());
-  for (const mutate of [
-    (value) => { value.termStructure.rows.at(-1).vix = 0; },
-    (value) => { value.termStructure.rows.at(-1).vix3m = null; },
-    (value) => { value.termStructure.rows.at(-1).ratio = 1.2; },
-    (value) => { value.termStructure.rows.at(-1).ratio = '0.95'; },
-    (value) => { value.termStructure.rows.at(-1).vix = Number.MAX_VALUE; value.termStructure.rows.at(-1).vix3m = Number.MIN_VALUE; },
-    (value) => { value.termStructure.rows.at(-1).vix = Number.MIN_VALUE; value.termStructure.rows.at(-1).vix3m = Number.MAX_VALUE; },
-    (value) => { value.termStructure.rows.at(-1).date = '2026-02-30'; },
-    (value) => { value.termStructure.rows.push({ ...value.termStructure.rows.at(-1) }); },
-    (value) => { value.termStructure.source = 'SYNTHETIC'; },
-    (value) => { value.termStructure.asOfDate = '2026-08-03'; },
-  ]) {
-    const value = structuredClone(options);
-    mutate(value);
-    const result = buildVixRiskModel(value);
-    assert.equal(result.phase, 'unavailable');
-    assert.equal(result.reason, 'invalid_data');
-    assert.equal(result.invertedDays, null);
-  }
-  const missing = structuredClone(options);
+test('invariant 8: stale or missing dimensions never become zero, and stale flags are scoped', () => {
+  const input = fixture(flat(30, 32, 1.05));
+  const oldVolatility = buildVixRiskModel({ ...input, stale: true });
+  assert.equal(oldVolatility.currentRiskLevel, 'UNKNOWN');
+  assert.equal(oldVolatility.currentInversionDays, null);
+  assert.equal(oldVolatility.priceAction.SPY.ready, true);
+  const oldBenchmarks = buildVixRiskModel({ ...input, benchmarkStale: true });
+  assert.equal(oldBenchmarks.currentRiskLevel, 'EXTREME_STRESS');
+  assert.equal(oldBenchmarks.priceAction.SPY.status, 'UNKNOWN');
+  assert.equal(oldBenchmarks.priceAction.QQQ.reason, 'stale_data');
+  assert.equal(oldBenchmarks.priceAction.SPY.daysSinceLow, null);
+  const empty = buildVixRiskModel();
+  assert.equal(empty.currentRiskLevel, 'UNKNOWN');
+  assert.equal(empty.latest, null);
+  assert.equal(empty.currentRiskDuration, null);
+  const missing = structuredClone(input);
   missing.termStructure.rows.pop();
-  assert.equal(buildVixRiskModel(missing).reason, 'missing_latest');
-  assert.equal(buildVixRiskModel({ ...options, stale: true }).reason, 'stale_data');
-  options.termStructure.stale = true;
-  assert.equal(buildVixRiskModel(options).reason, 'stale_data');
+  const result = buildVixRiskModel(missing);
+  assert.equal(result.currentRiskLevel, 'UNKNOWN');
+  assert.equal(result.termStructure, 'UNKNOWN');
+  assert.equal(result.priceAction.SPY.ready, true);
+  assert.ok(result.latest.date < input.expectedAsOfDate);
 });
 
-test('point-in-time outputs and input arrays are unchanged by future market data', () => {
-  const options = input([...neutral(), [27, 1.12], [20, 0.98], [19, 0.97]]);
-  const original = structuredClone(options);
-  const before = buildVixRiskModel(options);
-  assert.deepEqual(options, original);
-  const futureDate = sessions(options.termStructure.rows.length + 1).at(-1);
-  options.termStructure.asOfDate = futureDate;
-  options.termStructure.rows.push({ date: futureDate, vix: 100, vix3m: 0, ratio: 500 });
-  options.benchmarkRows.push({ date: futureDate, close: 0 });
-  assert.deepEqual(buildVixRiskModel(options), before, 'future row values are irrelevant, even when invalid');
-  options.termStructure.rows.at(-1).vix = 1;
-  options.termStructure.rows.at(-1).ratio = 0.01;
-  assert.deepEqual(buildVixRiskModel(options), before);
+test('malformed latest values and duplicate closes are rejected without changing valid dimensions', () => {
+  for (const mutate of [
+    r => { r.vix = 0; }, r => { r.vix3m = null; }, r => { r.ratio = 1.2; },
+    r => { r.ratio = '0.95'; }, r => { r.vix = Number.MAX_VALUE; r.vix3m = Number.MIN_VALUE; },
+  ]) {
+    const input = fixture(); mutate(input.termStructure.rows.at(-1));
+    const result = buildVixRiskModel(input);
+    assert.equal(result.currentRiskLevel, 'UNKNOWN');
+    assert.equal(result.reason, 'invalid_data');
+    assert.equal(result.priceAction.QQQ.ready, true);
+  }
+  const duplicate = fixture(); duplicate.termStructure.rows.push({ ...duplicate.termStructure.rows.at(-1) });
+  assert.equal(buildVixRiskModel(duplicate).reason, 'invalid_data');
+  const input = fixture(); const original = structuredClone(input); buildVixRiskModel(input);
+  assert.deepEqual(input, original);
 });
 
-test('the exported contract makes confirmation windows and persistent thresholds explicit', () => {
-  assert.equal(VIX_RISK_THRESHOLDS.recentCrossingSessions, 3);
-  assert.equal(VIX_RISK_THRESHOLDS.persistentSessions, 15);
-  assert.equal(VIX_RISK_THRESHOLDS.recoveryBelowSessions, 2);
-  assert.equal(VIX_RISK_THRESHOLDS.recoveryWindowSessions, 5);
-  assert.equal(VIX_RISK_THRESHOLDS.priceStabilizationSessions, 3);
+test('legacy benchmarkRows feeds only SPY and never returns the old confirmed label', () => {
+  const input = fixture();
+  const result = buildVixRiskModel({ ...input, benchmarks: undefined, benchmarkRows: input.benchmarks.SPY });
+  assert.equal(result.schemaVersion, 2);
+  assert.equal(result.priceAction.SPY.status, 'RECOVERY');
+  assert.equal(result.priceAction.QQQ.status, 'UNKNOWN');
+  assert.equal(result.priceConfirmation.status, 'early_stabilization');
+  assert.equal(result.priceConfirmation.deprecated, true);
   assert.equal(Object.isFrozen(VIX_RISK_THRESHOLDS), true);
 });

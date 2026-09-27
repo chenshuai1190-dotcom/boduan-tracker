@@ -1,5 +1,4 @@
-import { isRegularNyseHoliday } from './quoteRefreshPolicy.js';
-import { getVixComparisonExpectedCloseDate as expectedCloseDate } from './vixComparisonSession.js';
+import { getVixComparisonExpectedCloseDate as expectedCloseDate, isVixComparisonSession } from './vixComparisonSession.js';
 
 export const VIX_COMPARISON_STALE_RETRY_MS = 5 * 60 * 1000;
 export const VIX_COMPARISON_FAILURE_RETRY_MS = 60 * 1000;
@@ -24,18 +23,8 @@ function currentTime(now) {
   return timestamp;
 }
 
-function validDateKey(value) {
-  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  const parsed = new Date(`${value}T00:00:00Z`);
-  return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
-}
-
 export function getVixComparisonExpectedCloseDate(now = Date.now()) {
   return expectedCloseDate(currentTime(now));
-}
-
-function validSessionDate(value) {
-  return validDateKey(value) && ![0, 6].includes(new Date(`${value}T00:00:00Z`).getUTCDay()) && !isRegularNyseHoliday(value);
 }
 
 function normalizeTermStructure(input, { expectedDate, wireExpectedDate, timestamp, vixRows }) {
@@ -49,7 +38,7 @@ function normalizeTermStructure(input, { expectedDate, wireExpectedDate, timesta
   const rows = [];
   let previousDate = '';
   for (const row of input.rows) {
-    if (!validSessionDate(row?.date) || row.date <= previousDate || row.date > wireExpectedDate
+    if (!isVixComparisonSession(row?.date) || row.date <= previousDate || row.date > wireExpectedDate
       || !['vix', 'vix3m', 'ratio'].every(key => typeof row[key] === 'number' && Number.isFinite(row[key]) && row[key] > 0)
       || Math.abs(row.ratio - row.vix / row.vix3m) > 1e-8
       || (vixByDate.has(row.date) && Math.abs(vixByDate.get(row.date) - row.vix) > 1e-8)) return null;
@@ -87,9 +76,9 @@ export function normalizeVixComparison(value, { now = Date.now } = {}) {
   const timestamp = currentTime(now);
   const expectedCloseDate = getVixComparisonExpectedCloseDate(timestamp);
   if (!value || value.version !== 2 || value.source !== 'CBOE_EODHD_EOD'
-    || !validDateKey(value.expectedAsOfDate) || value.expectedAsOfDate > expectedCloseDate
-    || !validDateKey(value.asOfDate) || value.asOfDate > value.expectedAsOfDate
-    || !validDateKey(value.availableFromDate)
+    || !isVixComparisonSession(value.expectedAsOfDate) || value.expectedAsOfDate > expectedCloseDate
+    || !isVixComparisonSession(value.asOfDate) || value.asOfDate > value.expectedAsOfDate
+    || !isVixComparisonSession(value.availableFromDate)
     || !Number.isInteger(value.pointCount) || value.pointCount < 2 || value.pointCount > 2000
     || typeof value.stale !== 'boolean'
     || !['', 'incomplete_close', 'provider_unavailable'].includes(value.staleReason)
@@ -107,7 +96,7 @@ export function normalizeVixComparison(value, { now = Date.now } = {}) {
     const rows = [];
     let previousDate = '';
     for (const [index, row] of input.rows.entries()) {
-      if (!validSessionDate(row?.date) || row.date <= previousDate || row.date > value.asOfDate
+      if (!isVixComparisonSession(row?.date) || row.date <= previousDate || row.date > value.asOfDate
         || typeof row.close !== 'number' || !Number.isFinite(row.close) || row.close <= 0
         || (commonDates && commonDates[index] !== row.date)) return null;
       rows.push({ date: row.date, close: row.close });

@@ -1,4 +1,4 @@
-import { isRegularNyseHoliday } from './quoteRefreshPolicy.js';
+import { isVixComparisonSession } from './vixComparisonSession.js';
 
 export const VIX_COMPARISON_RANGES = Object.freeze(['1m', '3m', '6m', '1y', '5y']);
 
@@ -40,17 +40,12 @@ function rangeStartDate(endDate, range) {
   return first.toISOString().slice(0, 10);
 }
 
-function isRegularUsSessionDate(dateKey) {
-  const weekday = new Date(`${dateKey}T00:00:00.000Z`).getUTCDay();
-  return weekday !== 0 && weekday !== 6 && !isRegularNyseHoliday(dateKey);
-}
-
 function previousRegularUsSessionDate(dateKey) {
   const date = new Date(`${dateKey}T00:00:00.000Z`);
   for (let index = 0; index < 10; index += 1) {
     date.setUTCDate(date.getUTCDate() - 1);
     const candidate = date.toISOString().slice(0, 10);
-    if (isRegularUsSessionDate(candidate)) return candidate;
+    if (isVixComparisonSession(candidate)) return candidate;
   }
   return null;
 }
@@ -63,7 +58,7 @@ export function buildVixComparisonModel({ vixRows = [], benchmarkRows = [], rang
     .map((row, index, allRows) => {
       const previous = allRows[index - 1];
       // A missing common trading date must not turn a multi-day move into a daily move.
-      const hasPreviousSession = Boolean(previous && isRegularUsSessionDate(row.date)
+      const hasPreviousSession = Boolean(previous && isVixComparisonSession(row.date)
         && previous.date === previousRegularUsSessionDate(row.date));
       return {
         ...row,

@@ -1,6 +1,6 @@
 import React from 'react';
 import { formatVixComparisonChangePercent } from '../lib/vixComparisonChart.js';
-import { isRegularNyseHoliday } from '../lib/quoteRefreshPolicy.js';
+import { isVixComparisonSession } from '../lib/vixComparisonSession.js';
 import { marketTextClass } from '../lib/marketColorMode.js';
 
 const COLORS = { vix: '#dda36b', market: '#91a9c2', ratio: '#b3a0d3' };
@@ -29,7 +29,7 @@ function chartRows(model, termRows) {
   // than connecting two valid observations across a data gap.
   while (cursor.toISOString().slice(0, 10) <= lastDate) {
     const date = cursor.toISOString().slice(0, 10);
-    if (![0, 6].includes(cursor.getUTCDay()) && !isRegularNyseHoliday(date)) {
+    if (isVixComparisonSession(date)) {
       const market = marketByDate.get(date);
       const term = termByDate.get(date);
       rows.push({

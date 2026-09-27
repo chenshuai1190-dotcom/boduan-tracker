@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowLeft, Check, ChevronDown, Circle, Minus, RefreshCw } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Circle, RefreshCw } from 'lucide-react';
 import VixRiskChart from '../components/VixRiskChart.jsx';
 import { getVixComparisonExpectedCloseDate, loadVixComparison } from '../lib/vixComparison.js';
 import { buildVixComparisonModel, formatVixComparisonChangePercent, VIX_COMPARISON_RANGES } from '../lib/vixComparisonChart.js';
@@ -7,78 +7,100 @@ import { buildVixRiskModel } from '../lib/vixRiskModel.js';
 import './VixComparisonPage.css';
 
 const RANGE_LABELS = { '1m': '1月', '3m': '3月', '6m': '6月', '1y': '1年', '5y': '5年' };
-const PHASES = {
-  calm: { label: ['低波动', 'Low volatility'], title: ['低波动，保持节奏', 'Volatility is calm'], tone: 'calm', guidance: ['关注仓位是否偏离原定计划。低波动本身不代表价格便宜，也不意味着风险消失。', 'Review whether exposure still fits your plan. Low volatility alone does not imply attractive prices or an absence of risk.'] },
-  caution: { label: ['常态偏谨慎', 'Cautious'], title: ['压力抬升，保持谨慎', 'Pressure is rising'], tone: 'caution', guidance: ['检查集中持仓与近期新增风险敞口，结合价格结构评估后续调整。', 'Review concentration and recently added exposure, using price structure to inform any adjustment.'] },
-  stress: { label: ['恐慌升温', 'Rising stress'], title: ['短期恐慌升温', 'Short-term stress is rising'], tone: 'stress', guidance: ['优先检查高波动持仓与集中风险，观察价格能否形成稳定结构。', 'Review volatile positions and concentration first, then watch for a more stable price structure.'] },
-  persistent: { label: ['持续压力', 'Persistent stress'], title: ['压力仍在持续', 'Pressure persists'], tone: 'persistent', guidance: ['评估现有风险承受范围，关注重要价格位置与持续止跌迹象，避免把单日反弹视为趋势反转。', 'Review risk tolerance and key price levels. Look for sustained stabilization before interpreting a one-day bounce as a reversal.'] },
-  recovery: { label: ['恐慌缓解', 'Easing stress'], title: ['恐慌缓解，观察价格', 'Stress is easing'], tone: 'recovery', guidance: ['情绪缓解与价格止跌分别确认。继续观察近期低点是否守住，再结合原定计划评估调整。', 'Easing sentiment and price stabilization are assessed separately. Watch whether recent lows hold and reassess within your existing plan.'] },
-  mixed: { label: ['信号分歧', 'Mixed signals'], title: ['信号分歧，继续观察', 'Signals are mixed'], tone: 'muted', guidance: ['当前波动水平与期限结构未形成一致阶段。保留观察，结合价格变化与既定计划评估风险。', 'Volatility and the term structure do not identify a single phase. Monitor prices and assess risk within your existing plan.'] },
-  unavailable: { label: ['暂不可判断', 'Unavailable'], title: ['数据待齐，暂不判断', 'Awaiting complete data'], tone: 'muted', guidance: ['等待同日收盘数据与所需历史齐全后再判断。缺失数据不计为 0，也不沿用旧阶段作为最新结论。', 'Wait for aligned closing data and sufficient history. Missing readings are not zero, and an earlier phase is not a current conclusion.'] },
+const LEVELS = {
+  LOW_VOLATILITY: { label: ['低波动', 'Low volatility'], tone: 'calm' },
+  NORMAL: { label: ['常态波动', 'Normal volatility'], tone: 'normal' },
+  ELEVATED: { label: ['波动升高', 'Elevated volatility'], tone: 'caution' },
+  HIGH_STRESS: { label: ['高压状态', 'High stress'], tone: 'stress' },
+  EXTREME_STRESS: { label: ['极端压力', 'Extreme stress'], tone: 'persistent' },
+  UNKNOWN: { label: ['当前风险暂不可判断', 'Current risk unavailable'], tone: 'muted' },
 };
-const STAGE_IDS = ['calm', 'caution', 'stress', 'persistent', 'recovery'];
+const TERMS = {
+  NORMAL_TERM_STRUCTURE: ['明显正向结构', 'Upward term structure'],
+  NEAR_FLAT: ['接近平坦，尚未倒挂', 'Near flat, not inverted'],
+  INVERTED: ['期限倒挂', 'Inverted'],
+  DEEP_INVERTED: ['深度倒挂', 'Deeply inverted'],
+  UNKNOWN: ['暂不可判断', 'Unavailable'],
+};
+const DIRECTIONS = {
+  RISING: ['风险升温', 'Risk is rising'],
+  EASING: ['风险缓解', 'Risk is easing'],
+  HIGH_HOLD: ['高位维持', 'Holding at high levels'],
+  STABLE: ['基本稳定', 'Stable'],
+  UNKNOWN: ['变化暂不可判断', 'Direction unavailable'],
+};
+const PRICES = {
+  NEW_LOW: ['创 20 日收盘新低', 'New 20-session closing low'],
+  RECOVERY: ['反弹延续', 'Price recovery'],
+  EARLY_STABILIZATION: ['短期止跌迹象', 'Early stabilization'],
+  NO_STABILIZATION: ['尚未止跌', 'No stabilization signal'],
+  INSUFFICIENT_DATA: ['价格历史不足', 'Insufficient price history'],
+  UNKNOWN: ['价格状态暂不可判断', 'Price status unavailable'],
+};
+const EVENTS = {
+  VIX_CROSS_25: ['VIX 上穿 25', 'VIX crossed above 25'],
+  VIX_CROSS_30: ['VIX 达到或上穿 30', 'VIX reached or crossed 30'],
+  RATIO_CROSS_1: ['期限结构进入倒挂', 'Term structure became inverted'],
+  RATIO_CROSS_1_10: ['比率达到或上穿 1.10', 'Ratio reached or crossed 1.10'],
+  INVERSION_15D: ['连续倒挂达到 15 日', 'Inversion reached 15 sessions'],
+  TERM_STRUCTURE_NORMALIZED: ['期限结构恢复正向', 'Term structure returned below 1'],
+};
 const RULES = [
-  ['低波动', 'Low volatility', 'VIX < 16 · VIX / VIX3M < 0.90'],
-  ['常态偏谨慎', 'Cautious', 'VIX 16–22 · 比率 0.90–1.00', 'VIX 16–22 · ratio 0.90–1.00'],
-  ['恐慌升温', 'Rising stress', '最近 3 个完成交易日内，比率上穿 1.00 且 VIX 上穿 25', 'Ratio crosses above 1.00 and VIX above 25 within the last 3 completed sessions'],
-  ['持续压力', 'Persistent stress', '比率 > 1.00，连续至少 15 个交易日', 'Ratio > 1.00 for at least 15 consecutive sessions'],
-  ['恐慌缓解', 'Easing stress', '本轮曾 ≥ 1.10，随后连续 2 日 < 1.00；确认后观察 5 个交易日，重回 ≥ 1 则重置', 'Episode peak ≥ 1.10, then 2 closes below 1.00; a 5-session window starts on confirmation and resets at ≥ 1'],
+  ['当前风险水平', 'Current risk level', '极端压力：VIX ≥ 30 且比率 ≥ 1；高压状态：VIX > 25 且比率 ≥ 1；波动升高：VIX > 22 或比率 ≥ 1；低波动：VIX < 16 且比率 < 0.90；其余为常态波动。按此顺序判断。', 'In order: extreme stress at VIX ≥ 30 and ratio ≥ 1; high stress at VIX > 25 and ratio ≥ 1; elevated at VIX > 22 or ratio ≥ 1; low volatility at VIX < 16 and ratio < 0.90; otherwise normal.'],
+  ['期限结构', 'Term structure', '比率 < 0.90 为明显正向；0.90 ≤ 比率 < 1 为接近平坦；1 ≤ 比率 < 1.10 为倒挂；比率 ≥ 1.10 为深度倒挂。', 'Ratio < 0.90: upward; 0.90 to below 1: near flat; 1 to below 1.10: inverted; ≥ 1.10: deeply inverted.'],
+  ['风险变化', 'Risk direction', '至少需要 7 个连续收盘。升温：连续两日满足 VIX 三日涨幅 ≥ 10% 且比率增加 ≥ 0.02，或涨幅 ≥ 20% 且比率变化 ≥ −0.02；两日当日 VIX 均未下降。缓解：连续两日 VIX 三日跌幅 ≤ −10%、比率变化 ≤ −0.02，且当日 VIX 均下降。', 'Requires 7 consecutive closes. Rising: on 2 consecutive days, VIX is up ≥ 10% over 3 sessions with ratio up ≥ 0.02, or VIX is up ≥ 20% with ratio change ≥ −0.02; neither day has a falling VIX. Easing: on 2 consecutive days, 3-session VIX change ≤ −10%, ratio change ≤ −0.02, and VIX falls each day.'],
+  ['变化维持与持续时间', 'Direction persistence and durations', '已进入的升温或缓解，在三日变化仍同向且当日 VIX 未反向时最多维持 2 日，否则回到高位维持或基本稳定。当前与前一日都满足 VIX > 25 或比率 ≥ 1 为高位维持。各持续日数独立累计；倒挂达到 15 日仅增加持续倒挂标签。', 'A direction may persist for up to 2 sessions while 3-session changes remain aligned and VIX does not reverse that day. Otherwise it becomes high hold when both current and previous sessions have VIX > 25 or ratio ≥ 1, or stable. Durations are separate; 15 inverted sessions add a prolonged-inversion tag.'],
+  ['价格行为', 'Price behavior', 'SPY、QQQ 各自使用最近 20 个连续交易日。严格低于前 19 日收盘为创新低；距最近窗口低点 ≥ 5 日、连续两日高于各自 5 日均价且当前高于 3 日前为价格反弹；否则，距低点 ≥ 3 日且最新收盘上涨为短期止跌迹象。相同低点重置计数。', 'SPY and QQQ each use their own latest 20 consecutive sessions. A close strictly below the prior 19 is a new low. Recovery requires ≥ 5 sessions since the latest window low, 2 closes above their 5-session averages, and a close above 3 sessions earlier. Otherwise ≥ 3 sessions since the low and a higher latest close indicate early stabilization. Equal lows restart the count.'],
+  ['近期事件与数据', 'Recent events and data', '仅记录近 3 个连续交易日内的上穿、恢复正向或倒挂满 15 日事件。事件过期不改变当前风险。缺失数据中断连续计数；无完整前序时日数显示“至少”。周末与官方休市不算缺口。', 'Crossings, term normalization and the first 15-session inversion milestone are shown for 3 consecutive sessions. Expired events do not change current risk. Missing data breaks continuity; unknown preceding history gives a lower-bound count. Weekends and official closures are not gaps.'],
 ];
 
 const number = (value, digits = 2) => Number.isFinite(value) ? value.toLocaleString('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits }) : '—';
 const pick = (values, en) => values[en ? 1 : 0];
-const streak = (days, exact, en) => `${exact === false ? (en ? 'at least ' : '至少 ') : ''}${number(days, 0)}`;
+const duration = (days, exact, en) => !Number.isFinite(days) ? '—'
+  : `${exact === false && days > 0 ? (en ? 'At least ' : '至少 ') : ''}${number(days, 0)} ${en ? 'sessions' : '个交易日'}`;
+const priceLabel = (price, en) => pick(PRICES[price?.status] || PRICES.UNKNOWN, en);
+const dateList = values => (Array.isArray(values) ? values : []).map(value => typeof value === 'string' ? value : value?.date).filter(Boolean).join(' · ');
 
-function description(risk, en, loading, error, expectedDate) {
-  if (!risk.ready) {
-    if (loading && !risk.latest) return en ? 'Loading completed daily closes and term structure…' : '正在读取完成收盘数据与期限结构…';
-    if (error) return en ? 'The refresh failed. Earlier history remains visible; the current phase is unavailable.' : '本次刷新失败，保留此前历史，当前风险阶段暂不判断。';
-    if (risk.reason === 'stale' || risk.reason?.includes('stale')) return en ? `The latest completed session is not fully available${expectedDate ? ` (${expectedDate})` : ''}. The current phase is unavailable.` : `最近完成交易日${expectedDate ? `（${expectedDate}）` : ''}的数据尚未齐全，当前阶段暂不判断。`;
-    return en ? 'Aligned VIX and VIX3M closes or sufficient continuous history are not yet available.' : '同日 VIX 与 VIX3M 收盘数据或所需连续历史尚未齐全。';
-  }
-  const latest = risk.latest;
-  if (risk.phase === 'persistent') return en
-    ? `The ratio has stayed above 1 for ${streak(risk.invertedDays, risk.facts?.invertedDaysExact, true)} sessions. VIX is ${number(latest?.vix)}; short-term pressure remains.`
-    : `比率连续${streak(risk.invertedDays, risk.facts?.invertedDaysExact, false)} 个交易日高于 1。VIX ${number(latest?.vix)}，短期压力仍未解除。`;
-  if (risk.phase === 'recovery') return en
-    ? `The episode ratio peaked at ${number(risk.episodePeakRatio, 3)} and has now stayed below 1 for ${risk.ratioBelowDays} sessions.`
-    : `本轮比率曾升至 ${number(risk.episodePeakRatio, 3)}，现已连续 ${risk.ratioBelowDays} 个交易日低于 1。`;
-  const context = risk.phase === 'calm'
-    ? ['近期波动预期低于三个月水平，市场压力较低。', 'Near-term volatility expectations are below the three-month level.']
-    : risk.phase === 'stress'
-      ? ['近期波动预期已高于三个月水平。', 'Near-term volatility expectations now exceed the three-month level.']
-      : risk.phase === 'caution'
-        ? ['短期压力有所上升，期限结构尚未倒挂。', 'Short-term pressure is rising, while the term structure is not inverted.']
-        : ['波动水平与期限结构未同时满足同一阶段条件。', 'Volatility and the term structure do not meet the same phase conditions.'];
-  return `${en ? 'VIX is' : 'VIX'} ${number(latest?.vix)}${en ? ' and the ratio is' : '，比率'} ${number(latest?.ratio, 3)}${en ? '. ' : '。'}${pick(context, en)}`;
+function currentDescription(risk, level, en, loading, error, riskStale, expectedDate) {
+  if (error) return en ? 'The refresh failed. Earlier history remains visible; current observations are unavailable.' : '本次刷新失败，保留此前历史，暂不沿用为当前判断。';
+  if (riskStale) return en ? `The latest paired closes are not yet available${expectedDate ? ` (${expectedDate})` : ''}.` : `最近完成交易日${expectedDate ? `（${expectedDate}）` : ''}的配对收盘数据尚未齐全。`;
+  if (level === 'UNKNOWN') return loading ? (en ? 'Loading completed daily closes…' : '正在读取完成收盘数据…') : (en ? 'A valid same-session VIX and VIX3M pair is required.' : '需要同一交易日有效的 VIX 与 VIX3M 收盘数据。');
+  if (level === 'EXTREME_STRESS') return en ? 'VIX is at least 30 and near-term volatility expectations exceed or match the three-month level.' : 'VIX 已达到 30，近期波动预期高于或等于三个月水平。';
+  if (level === 'HIGH_STRESS') return en ? 'VIX is above 25 and the term structure remains inverted.' : 'VIX 高于 25，期限结构仍处于倒挂。';
+  if (level === 'ELEVATED') return risk.latest?.vix >= 30
+    ? (en ? 'Volatility is substantially elevated. The term structure is shown separately below.' : '波动显著升高。期限结构是否倒挂在下方独立展示。')
+    : (en ? 'VIX is above 22 or the term structure is inverted.' : 'VIX 高于 22，或期限结构已进入倒挂。');
+  if (level === 'LOW_VOLATILITY') return en ? 'VIX is below 16 and the term ratio is below 0.90.' : 'VIX 低于 16，期限比率低于 0.90。';
+  return en ? 'Current readings fall within the normal range of these candidate rules.' : '当前读数处于这组候选规则定义的常态区间。';
 }
 
-function evidenceRows(risk, symbol, en) {
-  if (!risk.ready) return [
-    { label: en ? 'Paired closes' : '同日收盘', value: en ? 'Latest assessment unavailable' : '最新判断暂不可用', status: 'pending' },
-    { label: en ? 'Continuous history' : '连续历史', value: risk.facts?.historyComplete ? (en ? 'History retained' : '保留已有历史') : (en ? 'Awaiting sufficient observations' : '等待所需连续记录'), status: 'neutral' },
-    { label: en ? 'Risk phase' : '风险阶段', value: en ? 'No current conclusion' : '暂不输出当前结论', status: 'pending' },
-  ];
-  const price = risk.priceConfirmation;
-  const priceValue = price?.status === 'confirmed'
-    ? (en ? `${price.daysSinceLow} sessions without a new closing low` : `低点后 ${price.daysSinceLow} 日未创新收盘低点`)
-    : price?.status === 'pending' && Number.isFinite(price.daysSinceLow)
-      ? (en ? `${price.daysSinceLow} sessions since the low; awaiting confirmation` : `低点后 ${price.daysSinceLow} 日，等待确认`)
-      : (en ? 'No complete confirmation window' : '暂无完整价格确认窗口');
-  const first = risk.phase === 'stress'
-    ? { label: en ? 'Stress acceleration' : '恐慌加速', value: en ? `VIX crossed 25 on ${risk.stressDates.vixCrossedAt}` : `VIX 于 ${risk.stressDates.vixCrossedAt} 上穿 25`, status: 'met' }
-    : risk.phase === 'recovery'
-    ? { label: en ? 'Episode peak' : '压力峰值', value: `${en ? 'Ratio' : '本轮比率最高'} ${number(risk.episodePeakRatio, 3)}`, status: 'met' }
-    : { label: en ? 'Volatility level' : '波动水平', value: `VIX ${number(risk.latest?.vix)}`, status: risk.phase === 'mixed' ? 'neutral' : 'met' };
-  const ratioText = risk.phase === 'recovery'
-    ? (en ? `${risk.ratioBelowDays} closes below 1.00` : `连续 ${risk.ratioBelowDays} 日低于 1.00`)
-    : risk.invertedDays > 0
-      ? (en ? `${streak(risk.invertedDays, risk.facts?.invertedDaysExact, true)} closes above 1.00` : `连续${streak(risk.invertedDays, risk.facts?.invertedDaysExact, false)} 日高于 1.00`)
-      : `${en ? 'Ratio' : '当前比率'} ${number(risk.latest?.ratio, 3)}`;
-  return [first,
-    { label: en ? 'Term structure' : '期限结构', value: ratioText, status: risk.phase === 'mixed' ? 'neutral' : 'met' },
-    { label: `${symbol} ${en ? 'price' : '价格确认'}`, value: priceValue, status: price?.status === 'confirmed' ? 'met' : 'pending' },
-  ];
+function focusText(risk, level, direction, en) {
+  if (level === 'UNKNOWN') return en ? 'Current paired closes are unavailable. Missing values remain blank; previous history is labeled by its original date.' : '当前配对数据不可用。缺失值保留为空，此前历史按原始日期展示。';
+  const levelText = pick(LEVELS[level].label, en);
+  if (direction === 'EASING' && ['HIGH_STRESS', 'EXTREME_STRESS'].includes(level)) return en
+    ? `Risk is easing, while the current level remains ${levelText.toLowerCase()}. A change in direction does not remove the existing pressure.`
+    : `风险正在缓解，但当前水平仍为${levelText}。变化方向与当前压力分别反映不同事实。`;
+  if (level === 'ELEVATED' && risk.latest?.vix >= 30) return en
+    ? 'VIX remains at least 30, even though the term ratio is below 1. Returning below 1 does not by itself establish easing.'
+    : 'VIX 仍不低于 30，即使期限比率已低于 1，也不单凭恢复正向判断风险缓解。';
+  if (direction === 'UNKNOWN') return en
+    ? 'The latest paired closes identify the current level and term structure. More continuous history is needed to assess direction.'
+    : '最新同日配对可以识别当前水平与期限结构；变化方向仍需补齐连续历史。';
+  return en
+    ? `${levelText}; ${pick(DIRECTIONS[direction] || DIRECTIONS.UNKNOWN, true).toLowerCase()}. SPY and QQQ price behavior is assessed separately below.`
+    : `当前为${levelText}，${pick(DIRECTIONS[direction] || DIRECTIONS.UNKNOWN, false)}。SPY 与 QQQ 的价格行为在下方分别观察。`;
+}
+
+function PriceObservation({ symbol, value, en }) {
+  const unavailable = !value?.ready;
+  return <div className="vcr-price-observation" data-vix-price-symbol={symbol} data-vix-price-status={value?.status || 'UNKNOWN'}>
+    <div><span className="vcr-price-symbol">{symbol}</span><span className={`vcr-price-state ${unavailable ? 'is-unavailable' : ''}`}>{priceLabel(value, en)}</span></div>
+    <p>{unavailable ? (value?.status === 'INSUFFICIENT_DATA'
+      ? (en ? 'Needs 20 consecutive completed trading sessions.' : '需要最近 20 个连续完成交易日。')
+      : (en ? 'Latest prices or continuous history are unavailable.' : '最新价格或连续历史暂不可用。'))
+      : `${en ? 'Since the latest 20-session low: ' : '距最近 20 日窗口低点：'}${duration(value.daysSinceLow, true, en)}`}</p>
+    {value?.ready && value.lowDate && <small>{en ? 'Window low' : '窗口低点'} {value.lowDate} · ${number(value.lowClose)}</small>}
+  </div>;
 }
 
 export default function VixComparisonPage({ ctx = {}, previewData }) {
@@ -117,24 +139,37 @@ export default function VixComparisonPage({ ctx = {}, previewData }) {
     benchmarkRows: data?.series?.[symbol]?.rows,
     range,
   }), [data, range, symbol]);
-  const stale = Boolean(data?.stale || (expectedAsOfDate && model.to && model.to < expectedAsOfDate));
-  // Assessment always uses full histories; chart range and historical selection
-  // affect presentation only. Failed refreshes must not expose a current phase.
+  const chartStale = Boolean(data?.stale || (expectedAsOfDate && model.to && model.to < expectedAsOfDate));
+  const riskStale = Boolean(data?.termStructure?.stale || (expectedAsOfDate && data?.termStructure?.asOfDate && data.termStructure.asOfDate < expectedAsOfDate));
+  // Every dimension uses complete histories, independently of chart selection.
+  // A market-series gap must not erase a valid current volatility observation.
   const risk = React.useMemo(() => buildVixRiskModel({
     termStructure: data?.termStructure,
-    benchmarkRows: data?.series?.[symbol]?.rows,
+    benchmarks: { SPY: data?.series?.SPY?.rows, QQQ: data?.series?.QQQ?.rows },
     expectedAsOfDate,
-    stale: stale || state.error,
-  }), [data, symbol, stale, state.error, expectedAsOfDate]);
-  const phaseId = risk.ready && PHASES[risk.phase] ? risk.phase : 'unavailable';
-  const phase = PHASES[phaseId];
-  const latest = risk.ready ? risk.latest : null;
+    stale: riskStale || state.error,
+    benchmarkStale: Boolean(data?.stale || state.error),
+  }), [data, riskStale, state.error, expectedAsOfDate]);
+  const blocked = riskStale || state.error;
+  const currentRiskLevel = !blocked && LEVELS[risk.currentRiskLevel] ? risk.currentRiskLevel : 'UNKNOWN';
+  const level = LEVELS[currentRiskLevel];
+  const term = !blocked && TERMS[risk.termStructure] ? risk.termStructure : 'UNKNOWN';
+  const direction = !blocked && DIRECTIONS[risk.riskDirection] ? risk.riskDirection : 'UNKNOWN';
+  // A short history does not suppress valid same-session VIX / VIX3M values.
+  const latest = !blocked && currentRiskLevel !== 'UNKNOWN' && risk.latest?.date === expectedAsOfDate ? risk.latest : null;
+  const exact = risk.durationExact || {};
   const partialHistory = model.hasComparison && data?.availableFromDate > model.requestedFrom
     && (new Date(`${data.availableFromDate}T00:00:00Z`) - new Date(`${model.requestedFrom}T00:00:00Z`)) > 7 * 86400000;
-  const evidence = evidenceRows(risk, symbol, englishMode);
+  const priceAction = risk.priceAction || {};
+  const events = blocked ? [] : (risk.eventFlags || []).filter(event => EVENTS[event.type]);
+  const missingDates = dateList(risk.dataQuality?.missingSessions);
+  const closureDates = dateList(risk.dataQuality?.officialClosures);
   const changeLabel = formatVixComparisonChangePercent(model.priceChangePct);
+  const directionFacts = risk.facts?.direction;
+  const levelTitle = currentRiskLevel === 'ELEVATED' && latest?.vix >= 30
+    ? (englishMode ? 'Substantially elevated volatility' : '波动显著升高') : pick(level.label, englishMode);
 
-  return <main className={`vcr-page vcr-tone-${phase.tone}`} data-vix-comparison-page="true" data-vix-risk-phase={phaseId} aria-busy={state.loading}>
+  return <main className={`vcr-page vcr-tone-${level.tone}`} data-vix-comparison-page="true" data-vix-risk-level={currentRiskLevel} aria-busy={state.loading}>
     <header className="vcr-header">
       <button type="button" aria-label={englishMode ? 'Back to Home' : '返回首页'} onClick={closeVixComparison}><ArrowLeft size={20} strokeWidth={1.6} /></button>
       <h1>{englishMode ? 'VIX & Market Trends' : 'VIX 与市场走势'}</h1>
@@ -142,22 +177,32 @@ export default function VixComparisonPage({ ctx = {}, previewData }) {
     </header>
     {demoData && <div className="vcr-demo-label">{demoData.source === 'CBOE_EODHD_EOD'
       ? (englishMode ? 'Local verification · captured official closes' : '本地验收 · 官方收盘快照')
-      : (englishMode ? 'Local preview · simulated data' : '本地效果预览 · 模拟数据')}</div>}
+      : (englishMode ? 'Local preview · simulated data' : '本地效果预览 · 模拟数据')}{demoData.previewCutoff && <span> · {englishMode ? 'Replay through' : '历史截断至'} {demoData.previewCutoff}</span>}</div>}
     {state.error && <div className="vcr-alert" role="alert"><span>{data ? (englishMode ? 'Refresh failed. Showing the previous data.' : '刷新失败，暂时保留上次数据。') : (englishMode ? 'Daily data could not be loaded.' : '日线数据暂时无法读取。')}</span><button type="button" onClick={() => setRefreshVersion(value => value + 1)}>{englishMode ? 'Retry' : '重试'}</button></div>}
 
     <section className="vcr-overview">
-      <div className="vcr-eyebrow"><span>{englishMode ? 'MARKET ENVIRONMENT' : '市场风险观察'}</span><span>{risk.asOfDate?.replaceAll('-', '.') || '—'}<span className="vcr-date-dot">·</span>{risk.ready ? (englishMode ? 'Close' : '收盘') : (englishMode ? 'Pending' : '待齐')}</span></div>
-      <div className="vcr-title-row"><h2>{pick(phase.title, englishMode)}</h2></div>
-      <p className="vcr-description">{description(risk, englishMode, state.loading, state.error, expectedAsOfDate)}</p>
-      {risk.ready && Number.isFinite(risk.duration) && <div className="vcr-phase-duration">{englishMode ? `${pick(phase.label, true)} · ${risk.duration} completed sessions` : `${pick(phase.label, false)} · 阶段持续 ${risk.duration} 个交易日`}</div>}
-      <div className="vcr-stage-track" aria-label={englishMode ? 'Risk phase' : '风险阶段'}>{STAGE_IDS.map(id => <div key={id} className={id === phaseId ? 'active' : ''}><i /><span>{pick(PHASES[id].label, englishMode)}</span></div>)}</div>
+      <div className="vcr-eyebrow"><span>{englishMode ? 'MARKET RISK OBSERVATION' : '市场风险观察'}</span><span>{risk.asOfDate?.replaceAll('-', '.') || '—'}<span className="vcr-date-dot">·</span>{latest ? (englishMode ? 'Close' : '收盘') : (englishMode ? 'Pending' : '待齐')}</span></div>
+      <div className="vcr-title-row"><h2>{levelTitle}</h2></div>
+      <p className="vcr-description">{currentDescription(risk, currentRiskLevel, englishMode, state.loading, state.error, riskStale, expectedAsOfDate)}</p>
+      <div className="vcr-risk-duration">{englishMode ? 'Current level' : '当前等级持续'} <strong>{duration(blocked ? null : risk.currentRiskDuration, exact.currentRisk, englishMode)}</strong></div>
       <div className="vcr-metrics">
         <div><span>VIX</span><strong>{number(latest?.vix)}</strong><small>{englishMode ? '30-day volatility' : '30 天预期波动'}</small></div>
         <div><span>VIX3M</span><strong>{number(latest?.vix3m)}</strong><small>{englishMode ? '3-month volatility' : '3 个月预期波动'}</small></div>
         <div className="vcr-ratio-metric"><span>{englishMode ? 'Term ratio' : '期限比率'}</span><strong>{number(latest?.ratio, 3)}</strong><small>VIX / VIX3M</small></div>
       </div>
-      <div className="vcr-guidance"><span className="vcr-guidance-line" /><div><span className="vcr-guidance-label">{englishMode ? 'WHAT TO WATCH' : '当前关注'}</span><p>{pick(phase.guidance, englishMode)}</p></div></div>
+      <div className="vcr-environment">
+        <div className="vcr-environment-row" data-vix-term-structure={term}><span>{englishMode ? 'Term structure' : '期限结构'}</span><div><strong>{pick(TERMS[term], englishMode)}</strong><small>{englishMode ? 'Consecutive inversion: ' : '连续倒挂：'}{duration(blocked ? null : risk.currentInversionDays, exact.inversion, englishMode)}</small></div></div>
+        <div className="vcr-environment-row" data-vix-risk-direction={direction}><span>{englishMode ? 'Risk direction' : '风险变化'}</span><div><strong className={`vcr-direction-${direction}`}>{pick(DIRECTIONS[direction], englishMode)}</strong><small>{!blocked && Number.isFinite(directionFacts?.vixChange3Pct) && Number.isFinite(directionFacts?.ratioChange3)
+          ? `${englishMode ? '3-session VIX' : 'VIX 三日'} ${formatVixComparisonChangePercent(directionFacts.vixChange3Pct)} · ${englishMode ? 'ratio' : '比率'} ${directionFacts.ratioChange3 > 0 ? '+' : ''}${number(directionFacts.ratioChange3, 3)}`
+          : (englishMode ? 'Needs 7 continuous completed sessions' : '需 7 个连续完成交易日')}</small></div></div>
+      </div>
+      <div className="vcr-stress-durations"><span>{englishMode ? 'High stress or above' : '高压及以上'} <strong>{duration(blocked ? null : risk.highStressDays, exact.highStress, englishMode)}</strong></span><span>{englishMode ? 'Extreme stress' : '极端压力'} <strong>{duration(blocked ? null : risk.extremeStressDays, exact.extremeStress, englishMode)}</strong></span></div>
+      {!blocked && risk.durationTags?.includes('PROLONGED_INVERSION') && <div className="vcr-duration-tag">{englishMode ? 'Prolonged inversion · at least 15 sessions' : '持续倒挂 · 已达 15 个交易日'}</div>}
+      <div className="vcr-guidance"><span className="vcr-guidance-line" /><div><span className="vcr-guidance-label">{englishMode ? 'CURRENT OBSERVATIONS' : '当前关注'}</span><p>{focusText(risk, currentRiskLevel, direction, englishMode)}</p></div></div>
+      {!blocked && latest && !risk.ready && <p className="vcr-chart-stale" data-vix-partial-history="true">{englishMode ? 'Current level and term structure are available. Dimensions needing more continuous history remain unavailable.' : '当前风险与期限结构已有有效读数；依赖更多连续历史的维度暂不可用。'}</p>}
     </section>
+
+    <section className="vcr-price-actions"><div className="vcr-section-heading"><h3>{englishMode ? 'Price behavior' : '价格行为'}</h3><span>{englishMode ? 'Separate 20-session windows' : '各自最近 20 个交易日'}</span></div><div className="vcr-price-grid">{['SPY', 'QQQ'].map(item => <PriceObservation key={item} symbol={item} value={priceAction[item]} en={englishMode} />)}</div><p className="vcr-price-note">{englishMode ? '“Early stabilization” and “Price recovery” only describe the absence of a recent new low and a price rebound; neither means a market bottom has formed.' : '“短期止跌迹象”与“反弹延续”仅表示近期未创新低且价格出现回升，不代表市场底部已经形成。'}</p></section>
 
     <section className="vcr-history" data-vix-risk-history="true">
       <div className="vcr-section-heading"><h3>{englishMode ? 'Volatility & market' : '波动与市场'}</h3><div className="vcr-symbol-switch" role="group" aria-label={englishMode ? 'Comparison ETF' : '选择对比 ETF'}>{['SPY', 'QQQ'].map(item => <button type="button" key={item} aria-pressed={symbol === item} onClick={() => { setSymbol(item); setSelectedDate(null); }}>{item}</button>)}</div></div>
@@ -171,13 +216,16 @@ export default function VixComparisonPage({ ctx = {}, previewData }) {
       </div>
       {model.hasComparison && <p className="vcr-data-note">{model.from} — {model.to} · {model.rows.length} {englishMode ? 'matched trading days' : '个共同交易日'}</p>}
       {partialHistory && <p className="vcr-chart-stale">{englishMode ? `Available history starts ${model.from}; the selected period is not fully covered.` : `可用历史始于 ${model.from}，未覆盖完整所选区间。`}</p>}
-      {stale && data?.expectedAsOfDate && <p className="vcr-chart-stale">{englishMode ? `Latest expected trading date: ${expectedAsOfDate}.` : `最近应有交易日：${expectedAsOfDate}。`}</p>}
-      {data?.termStructure?.stale && !stale && <p className="vcr-chart-stale">{englishMode ? 'Term structure update pending; the current phase is unavailable.' : '期限结构数据待更新，当前风险阶段暂不可判断。'}</p>}
+      {chartStale && data?.expectedAsOfDate && <p className="vcr-chart-stale">{englishMode ? `Latest expected trading date: ${expectedAsOfDate}.` : `最近应有交易日：${expectedAsOfDate}。`}</p>}
+      {riskStale && <p className="vcr-chart-stale">{englishMode ? 'Term structure update pending; previous observations are not current conclusions.' : '期限结构数据待更新，不把此前观察作为当前结论。'}</p>}
     </section>
 
-    <section className="vcr-evidence"><div className="vcr-section-heading"><h3>{englishMode ? 'Why this phase' : '判断依据'}</h3><span>{englishMode ? 'Completed closes' : '按完成收盘确认'}</span></div>{evidence.map((item, index) => <div className="vcr-evidence-row" key={index}><span className={`vcr-evidence-icon vcr-evidence-${item.status}`}>{item.status === 'met' ? <Check size={13} /> : item.status === 'pending' ? <Circle size={11} /> : <Minus size={12} />}</span><span>{item.label}</span><strong>{item.value}</strong></div>)}</section>
-    <details className="vcr-rules"><summary><span><Circle size={13} />{englishMode ? 'How phases are defined' : '如何判断风险阶段'}</span><ChevronDown size={14} /></summary><div>{RULES.map((rule, index) => <p key={rule[0]}><strong>{String(index + 1).padStart(2, '0')} · {englishMode ? rule[1] : rule[0]}</strong><span>{englishMode ? rule[3] || rule[2] : rule[2]}</span></p>)}<p><strong>{englishMode ? 'Price confirmation' : '价格单独确认'}</strong><span>{englishMode ? 'After the stress-episode closing low: at least 3 sessions without a new low, with the latest close above the previous close.' : '本轮压力期最低收盘之后，至少 3 个交易日未创新低，且最新收盘高于前一日。'}</span></p><p className="vcr-rule-note">{englishMode ? 'Observation rules, not a historically validated forecast. Mixed conditions stay unclassified. Missing sessions interrupt consecutive-day counts.' : '观察规则尚未经历史回测验证。条件不一致时保留信号分歧；数据缺口会中断连续日计数。'}</p></div></details>
+    <section className="vcr-events"><div className="vcr-section-heading"><h3>{englishMode ? 'Recent events' : '近期事件'}</h3><span>{englishMode ? 'Last 3 sessions' : '最近 3 个交易日'}</span></div>{events.length ? <ul>{events.map(event => <li key={`${event.type}-${event.date}`}><span>{pick(EVENTS[event.type], englishMode)}</span><small>{event.date}<span>{event.sessionsAgo === 0 ? (englishMode ? 'Latest session' : '当日') : `${event.sessionsAgo} ${englishMode ? 'sessions ago' : '个交易日前'}`}</span></small></li>)}</ul> : <p className="vcr-event-empty">{!blocked && risk.facts?.contiguousSessions >= 4
+      ? (englishMode ? 'No new threshold event in the last 3 sessions.' : '最近 3 个交易日无新增跨阈值事件。')
+      : (englishMode ? 'Continuous history is insufficient to assess recent events.' : '连续历史尚不足以判断近期事件。')}</p>}</section>
+    {(missingDates || closureDates) && <details className="vcr-data-quality"><summary>{englishMode ? 'Data continuity' : '数据连续性'}<ChevronDown size={13} /></summary>{missingDates && <p>{englishMode ? 'Missing provider sessions: ' : '数据缺失交易日：'}{missingDates}</p>}{closureDates && <p>{englishMode ? 'Official closures, not data gaps: ' : '官方休市，不计为数据缺口：'}{closureDates}</p>}</details>}
+    <details className="vcr-rules"><summary><span><Circle size={13} />{englishMode ? 'How observations are defined' : '如何理解这些观察'}</span><ChevronDown size={14} /></summary><div>{RULES.map((rule, index) => <p key={rule[0]}><strong>{String(index + 1).padStart(2, '0')} · {englishMode ? rule[1] : rule[0]}</strong><span>{englishMode ? rule[3] : rule[2]}</span></p>)}<p className="vcr-rule-note">{englishMode ? 'Candidate rules with empirical thresholds. Their investment-prediction ability has not been established. Same-day valid readings can identify the current level even when longer history is incomplete.' : '以上为使用经验阈值的候选规则，尚未证明具有投资预测能力。同日有效读数可识别当前水平，历史不足仅影响依赖历史的维度。'}</p></div></details>
     <p className="vcr-source-note">{englishMode ? 'VIX / VIX3M: Cboe · SPY / QQQ: EODHD · Daily closes' : 'VIX / VIX3M：Cboe · SPY / QQQ：EODHD · 日线收盘'}</p>
-    <p className="vcr-footnote">{englishMode ? 'For risk awareness. A phase alone does not determine a trade.' : '用于观察风险与仓位环境，不作为单一买卖条件。'}</p>
+    <p className="vcr-footnote">{englishMode ? 'Describes market risk and price behavior; not a standalone trading condition.' : '描述市场风险与价格行为，不作为单一买卖条件。'}</p>
   </main>;
 }

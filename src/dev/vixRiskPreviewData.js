@@ -109,109 +109,48 @@ const RECOVERY_POINTS = buildPoints([
   [119, 20.4, 0.94, 565.8, 478.6],
 ]);
 
-const evidence = (zhLabel, enLabel, zhValue, enValue, status) => ({
-  label: { zh: zhLabel, en: enLabel },
-  value: { zh: zhValue, en: enValue },
-  status,
-});
+// Each fixture is fed into the real six-dimensional model. No result labels
+// are injected into the production page or used as a simulated fallback.
+const ELEVATED_POINTS = buildPoints([
+  [97, 20.7, 0.92, 609, 531], [104, 24.1, 0.97, 598, 516],
+  [111, 25.0, 0.985, 592, 507], [116, 24.8, 0.975, 590, 504],
+  [117, 24.7, 0.972, 592, 507], [118, 24.8, 0.974, 591, 505],
+  [119, 24.6, 0.97, 593, 508],
+]);
+const EXTREME_POINTS = buildPoints([
+  [97, 20.7, 0.96, 609, 531], [101, 26.1, 1.04, 593, 506],
+  [105, 32.5, 1.16, 574, 480], [111, 35.0, 1.21, 552, 449],
+  [116, 34.0, 1.18, 545, 440], [117, 34.1, 1.181, 546, 442],
+  [118, 34.0, 1.18, 544, 438], [119, 34.2, 1.182, 541, 434],
+]);
+const EASING_POINTS = buildPoints([
+  [97, 20.7, 0.96, 609, 531], [102, 30.8, 1.13, 582, 490],
+  [109, 40.5, 1.23, 552, 446], [112, 42.0, 1.24, 541, 431],
+  [113, 43.0, 1.25, 538, 426], [114, 41.0, 1.23, 539, 429],
+  [115, 38.5, 1.20, 542, 433], [116, 35.0, 1.16, 546, 438],
+  [117, 32.0, 1.12, 550, 444], [118, 31.4, 1.10, 552, 447],
+  [119, 30.8, 1.08, 555, 452],
+]);
+const HIGH_VIX_FORWARD_POINTS = EASING_POINTS.map((point, index) => index >= 117
+  ? { ...point, vix: [34.5, 33.5, 33.0][index - 117], ratio: [0.995, 0.98, 0.96][index - 117] }
+  : point);
+const PRICE_DIVERGENCE_POINTS = CAUTION_POINTS.map((point, index) => index >= 100
+  ? { ...point, SPY: 620 - (index - 100) * 1.8, QQQ: 480 + (index - 100) * 2.1 }
+  : point);
 
 export const VIX_RISK_SCENARIOS = [
-  {
-    id: 'calm',
-    label: { zh: '低波动', en: 'Low volatility' },
-    title: { zh: '低波动，保持节奏', en: 'Volatility is calm' },
-    description: { zh: 'VIX 15.2，比率 0.84。近期波动预期低于三个月水平，市场压力较低。', en: 'VIX is 15.2 and the ratio is 0.84. Near-term volatility expectations are below the three-month level.' },
-    guidance: { zh: '关注仓位是否偏离原定计划。低波动本身不代表价格便宜，也不意味着风险消失。', en: 'Review whether exposure still fits your plan. Low volatility alone does not imply attractive prices or an absence of risk.' },
-    tone: 'calm',
-    duration: 12,
-    points: CALM_POINTS,
-    evidence: [
-      evidence('波动水平', 'Volatility level', 'VIX 15.2，低于 16', 'VIX 15.2, below 16', 'met'),
-      evidence('期限比率', 'Term ratio', '0.84，低于 0.90', '0.84, below 0.90', 'met'),
-      evidence('价格状态', 'Price context', '近期回撤较浅，趋势仍需跟踪', 'Recent pullbacks are shallow; keep monitoring', 'neutral'),
-    ],
-  },
-  {
-    id: 'caution',
-    label: { zh: '常态偏谨慎', en: 'Cautious' },
-    title: { zh: '压力抬升，保持谨慎', en: 'Pressure is rising' },
-    description: { zh: 'VIX 19.1，比率 0.95。短期压力有所上升，期限结构尚未倒挂。', en: 'VIX is 19.1 and the ratio is 0.95. Short-term pressure is rising, while the term structure is not inverted.' },
-    guidance: { zh: '检查集中持仓与近期新增风险敞口，结合价格结构评估后续调整。', en: 'Review concentration and recently added exposure, using price structure to inform any adjustment.' },
-    tone: 'caution',
-    duration: 6,
-    points: CAUTION_POINTS,
-    evidence: [
-      evidence('波动水平', 'Volatility level', 'VIX 位于 16–22 区间', 'VIX is in the 16–22 range', 'met'),
-      evidence('期限比率', 'Term ratio', '0.95，仍低于 1.00', '0.95, still below 1.00', 'met'),
-      evidence('价格状态', 'Price context', '价格震荡，留意回撤是否扩大', 'Prices are choppy; watch for a deeper pullback', 'neutral'),
-    ],
-  },
-  {
-    id: 'stress',
-    label: { zh: '恐慌升温', en: 'Stress rising' },
-    title: { zh: '短期恐慌升温', en: 'Short-term stress is rising' },
-    description: { zh: 'VIX 升至 26.8，比率来到 1.04。近期波动预期已高于三个月水平。', en: 'VIX has risen to 26.8 and the ratio is 1.04. Near-term volatility expectations now exceed the three-month level.' },
-    guidance: { zh: '优先检查高波动持仓与集中风险，观察价格能否形成稳定结构。', en: 'Review volatile positions and concentration first, then watch for a more stable price structure.' },
-    tone: 'stress',
-    duration: 2,
-    points: STRESS_POINTS,
-    evidence: [
-      evidence('期限倒挂', 'Term inversion', '比率上穿 1.00，已持续 2 日', 'Ratio crossed above 1.00, now for 2 sessions', 'met'),
-      evidence('恐慌加速', 'Stress acceleration', '近 3 个交易日内 VIX 突破 25', 'VIX crossed above 25 within 3 sessions', 'met'),
-      evidence('价格确认', 'Price confirmation', '价格仍在回落，等待止跌迹象', 'Prices are still falling; stabilization pending', 'pending'),
-    ],
-  },
-  {
-    id: 'persistent',
-    label: { zh: '持续压力', en: 'Persistent pressure' },
-    title: { zh: '压力仍在持续', en: 'Pressure persists' },
-    description: { zh: '比率连续 18 个交易日高于 1，当前为 1.12。VIX 29.4，短期压力仍未解除。', en: 'The ratio has stayed above 1 for 18 sessions and is now 1.12. VIX is 29.4; short-term pressure remains.' },
-    guidance: { zh: '评估现有风险承受范围，关注重要价格位置与持续止跌迹象，避免把单日反弹视为趋势反转。', en: 'Review risk tolerance and key price levels. Look for sustained stabilization before interpreting a one-day bounce as a reversal.' },
-    tone: 'stress',
-    duration: 18,
-    points: PERSISTENT_POINTS,
-    evidence: [
-      evidence('压力持续', 'Persistence', '比率 > 1.00 已连续 18 日', 'Ratio > 1.00 for 18 consecutive sessions', 'met'),
-      evidence('波动水平', 'Volatility level', 'VIX 29.4，仍处高位', 'VIX 29.4, still elevated', 'met'),
-      evidence('价格确认', 'Price confirmation', '出现反弹，尚未形成稳定结构', 'A bounce has appeared; structure remains unsettled', 'pending'),
-    ],
-  },
-  {
-    id: 'recovery',
-    label: { zh: '恐慌缓解', en: 'Stress easing' },
-    title: { zh: '恐慌缓解，等待确认', en: 'Stress is easing' },
-    description: { zh: '本轮比率曾升至 1.18，现已连续 2 日回到 1 以下。当前比率 0.94，VIX 20.4。', en: 'The ratio peaked at 1.18 in this episode and has been below 1 for 2 sessions. It is now 0.94, with VIX at 20.4.' },
-    guidance: { zh: '情绪已缓解，价格仅反弹 2 日。继续观察是否守住近期低点，再结合原定计划评估调整。', en: 'Sentiment has eased, but prices have rebounded for only 2 sessions. Watch whether recent lows hold and reassess within your existing plan.' },
-    tone: 'recovery',
-    duration: 2,
-    points: RECOVERY_POINTS,
-    evidence: [
-      evidence('压力峰值', 'Stress peak', '本轮比率最高 1.18', 'Episode ratio peaked at 1.18', 'met'),
-      evidence('期限修复', 'Term normalization', '比率连续 2 日低于 1.00', 'Ratio below 1.00 for 2 consecutive sessions', 'met'),
-      evidence('价格确认', 'Price confirmation', '低点后仅 2 日，等待第 3 日确认', 'Only 2 sessions since the low; awaiting a third', 'pending'),
-    ],
-  },
-  {
-    id: 'unavailable',
-    label: { zh: '数据待更新', en: 'Awaiting data' },
-    title: { zh: '数据待齐，暂不判断', en: 'Awaiting complete data' },
-    description: { zh: '最新交易日的 VIX 与 VIX3M 配对数据尚未齐全。图表保留此前演示历史。', en: 'The latest session does not yet have a complete VIX and VIX3M pair. Earlier demonstration history remains visible.' },
-    guidance: { zh: '等待同日收盘数据齐全后再判断。缺失数据不计为 0，也不沿用旧阶段作为最新结论。', en: 'Wait for aligned closing data. Missing readings are not zero, and an earlier phase is not treated as a current conclusion.' },
-    tone: 'muted',
-    duration: null,
-    points: STRESS_POINTS.map((point, index) => index === STRESS_POINTS.length - 1
-      ? { ...point, vix: null, ratio: null }
-      : { ...point }),
-    missing: true,
-    evidence: [
-      evidence('最新波动数据', 'Latest volatility', '未完成同日配对', 'Same-session pair incomplete', 'pending'),
-      evidence('风险阶段', 'Risk phase', '暂不可判断', 'Currently unavailable', 'pending'),
-      evidence('历史图表', 'Historical chart', '保留至上一完整交易日', 'Retained through the last complete session', 'neutral'),
-    ],
-  },
-].map((scenario) => ({
-  demo: true,
-  missing: false,
-  asOfDate: AS_OF_DATE,
-  ...scenario,
-}));
+  { id: 'calm', label: { zh: '低波动', en: 'Low volatility' }, points: CALM_POINTS },
+  { id: 'caution', label: { zh: '常态波动', en: 'Normal volatility' }, points: CAUTION_POINTS },
+  { id: 'elevated', label: { zh: '波动升高', en: 'Elevated volatility' }, points: ELEVATED_POINTS },
+  { id: 'stress', label: { zh: '高压状态 · 升温', en: 'High stress · rising' }, points: STRESS_POINTS },
+  { id: 'extreme', label: { zh: '极端压力 · 维持', en: 'Extreme stress · holding' }, points: EXTREME_POINTS },
+  { id: 'easing', label: { zh: '极端压力 · 缓解', en: 'Extreme stress · easing' }, points: EASING_POINTS },
+  { id: 'persistent', label: { zh: '高压状态 · 持续倒挂', en: 'High stress · prolonged inversion' }, points: PERSISTENT_POINTS },
+  { id: 'recovery', label: { zh: '常态波动 · 缓解', en: 'Normal volatility · easing' }, points: RECOVERY_POINTS },
+  { id: 'high_vix_forward', label: { zh: 'VIX 高位 · 未倒挂', en: 'High VIX · not inverted' }, points: HIGH_VIX_FORWARD_POINTS },
+  { id: 'price_divergence', label: { zh: 'SPY / QQQ 价格分化', en: 'Diverging price behavior' }, points: PRICE_DIVERGENCE_POINTS },
+  { id: 'short_history', label: { zh: '极端压力 · 历史不足', en: 'Extreme stress · short history' }, points: EXTREME_POINTS, termHistoryLimit: 4 },
+  { id: 'term_gap', label: { zh: '配对历史缺口', en: 'Term history gap' }, points: EXTREME_POINTS, missingTermIndexes: [115] },
+  { id: 'spy_missing', label: { zh: '仅 SPY 数据缺失', en: 'Only SPY missing' }, points: PRICE_DIVERGENCE_POINTS, missingBenchmark: 'SPY' },
+  { id: 'unavailable', label: { zh: '最新配对缺失', en: 'Latest pair missing' }, points: STRESS_POINTS.map((point, index) => index === STRESS_POINTS.length - 1 ? { ...point, vix: null, ratio: null } : point), missing: true },
+].map(scenario => ({ demo: true, missing: false, asOfDate: AS_OF_DATE, ...scenario }));

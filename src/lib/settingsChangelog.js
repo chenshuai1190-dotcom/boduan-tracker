@@ -4,6 +4,17 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      'VIX 与市场走势改为六维风险观察，分别展示当前风险、期限结构、风险变化、持续时间、SPY／QQQ 价格行为与近期事件。',
+      '高压与极端压力按当日读数识别，不再因上穿事件过期而消失；短期止跌不再表达底部确认，并修复官方特殊休市日的连续性判断。候选规则仅用于观察风险环境。',
+    ],
+    itemsEn: [
+      'VIX & Market Trends now separates current risk, term structure, risk direction, duration, SPY/QQQ price action, and recent events.',
+      'High and extreme stress follow current readings even after crossing events expire. Early stabilization does not confirm a market bottom, and official exceptional closures preserve session continuity. These candidate rules describe the risk environment.',
+    ],
+  },
+  {
+    ver: 'v10.7.9.545', date: '2026-09-27',
+    items: [
       'VIX 与市场走势新增期限比率和风险阶段，使用 Cboe 官方 VIX、VIX3M 同日收盘与 SPY／QQQ 复权走势，分别观察市场压力与价格止跌。',
       '走势图与比率图可联动查看历史，数据未齐或更新失败时明确显示待更新；观察规则不生成交易，也不改变任何资产或收益账本。',
     ],

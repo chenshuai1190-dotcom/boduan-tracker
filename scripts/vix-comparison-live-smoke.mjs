@@ -31,12 +31,15 @@ try {
   for (const row of data.termStructure.rows) {
     assert.ok(Math.abs(row.ratio - row.vix / row.vix3m) < 1e-8);
   }
-  const risks = Object.fromEntries(['SPY', 'QQQ'].map(symbol => [symbol, buildVixRiskModel({
-    termStructure: data.termStructure, benchmarkRows: data.series[symbol].rows,
-    expectedAsOfDate: data.expectedAsOfDate, stale: data.stale,
-  })]));
-  assert.equal(risks.SPY.phase, risks.QQQ.phase, 'benchmark selection cannot change the volatility phase');
-  assert.equal(risks.SPY.ready, true, 'actual latest history supports a risk assessment');
+  const risk = buildVixRiskModel({
+    termStructure: data.termStructure,
+    benchmarks: Object.fromEntries(['SPY', 'QQQ'].map(symbol => [symbol, data.series[symbol].rows])),
+    expectedAsOfDate: data.expectedAsOfDate, stale: data.termStructure.stale,
+  });
+  assert.equal(risk.schemaVersion, 2);
+  assert.equal(risk.ready, true, 'actual latest history supports a risk assessment');
+  assert.notEqual(risk.currentRiskLevel, 'UNKNOWN');
+  for (const price of Object.values(risk.priceAction)) assert.equal(price.ready, true);
   const before = calls.length;
   await fetchVixComparison({ eodhdKey, fetchImpl: capture, now });
   assert.equal(calls.length, before, 'same completed version must be cached');
@@ -46,8 +49,9 @@ try {
   if (output) fs.writeFileSync(path.resolve(output), JSON.stringify(data));
   console.log(JSON.stringify({ status: 'PASS', checkedAt: new Date(now).toISOString(), providerRequests: calls.length,
     asOfDate: data.asOfDate, marketPoints: data.pointCount, termPoints: data.termStructure.rows.length,
-    latest: data.termStructure.rows.at(-1), phase: risks.SPY.phase,
-    priceConfirmation: Object.fromEntries(Object.entries(risks).map(([symbol, risk]) => [symbol, risk.priceConfirmation.status])),
+    latest: data.termStructure.rows.at(-1), currentRiskLevel: risk.currentRiskLevel,
+    termStructure: risk.termStructure, riskDirection: risk.riskDirection,
+    priceAction: Object.fromEntries(Object.entries(risk.priceAction).map(([symbol, price]) => [symbol, price.status])),
   }, null, 2));
 } catch {
   console.error('VIX live smoke: FAIL. Provider availability, completed dates or the verified data contract did not pass. No credentials are logged.');
