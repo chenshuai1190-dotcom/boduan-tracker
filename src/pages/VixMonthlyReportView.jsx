@@ -2,7 +2,7 @@ import React from 'react';
 import { ArrowLeft, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, LineChart, Loader2, Share2, Table2, RefreshCw, X } from 'lucide-react';
 import { buildInversionAnnotations, getInversionSegmentLabel, getInversionNormalizationLabel, normalizeVixMonthlyRows } from '../lib/vixMonthlyInversion.js';
 import { marketTextClass, marketTextHexColor } from '../lib/marketColorMode.js';
-import { getVixRiskColor, getVixRiskDirectionColor, VIX_TERM_CHART_COLORS } from '../lib/vixRiskPalette.js';
+import { getVixRiskColor, getVixRiskDirectionColor, getVixObservationColor, VIX_TERM_CHART_COLORS } from '../lib/vixRiskPalette.js';
 import './VixMonthlyReportView.css';
 
 const COLORS = { SPY: '#78ace8', QQQ: '#b79be5', VIX: '#dba77b', VIX3M: '#8fa1b6', ratio: VIX_TERM_CHART_COLORS.line };
@@ -64,6 +64,7 @@ function scaleBounds(values, type) {
 }
 
 function LinkedChart({ report, rows, type, number, title, subtitle, selectedIndex, onSelect, marketColorMode }) {
+  const vixGradientId = `vix-risk-${React.useId().replace(/:/g, '')}`;
   const touchRef = React.useRef(null);
   const gestureRef = React.useRef(null);
   const [normalizationDate, setNormalizationDate] = React.useState(null);
@@ -76,6 +77,23 @@ function LinkedChart({ report, rows, type, number, title, subtitle, selectedInde
   const y = reading => bottom - (reading - min) / Math.max(max - min, 0.01) * (bottom - top);
   const current = selectedIndex === null ? rows.length - 1 : Math.min(selectedIndex, rows.length - 1);
   const focused = rows[current];
+  const seriesColor = (key, row) => key === 'VIX'
+    ? getVixObservationColor(row?.currentRiskLevel, COLORS.VIX) : COLORS[key];
+  // Each historical observation owns its color; transitions split the gap
+  // between observations and never recolor the month from the selected day.
+  const vixColorStops = [{ offset: 0, color: seriesColor('VIX', rows[0]) }];
+  if (type === 'volatility') {
+    rows.forEach((row, index) => {
+      if (!index) return;
+      const previous = seriesColor('VIX', rows[index - 1]);
+      const color = seriesColor('VIX', row);
+      if (previous !== color) {
+        const offset = (index - .5) / Math.max(1, rows.length - 1) * 100;
+        vixColorStops.push({ offset, color: previous }, { offset, color });
+      }
+    });
+    vixColorStops.push({ offset: 100, color: seriesColor('VIX', rows.at(-1)) });
+  }
   const inversion = React.useMemo(() => type === 'ratio'
     ? buildInversionAnnotations({ ...report, rows }, { throughDate: focused?.date }) : null,
   [report, rows, type, focused?.date]);
@@ -105,10 +123,10 @@ function LinkedChart({ report, rows, type, number, title, subtitle, selectedInde
     onSelect(Math.max(0, Math.min(rows.length - 1, Math.round(unit * (rows.length - 1)))));
   };
   const labels = [...new Set([0, Math.floor((rows.length - 1) / 2), rows.length - 1])].filter(index => index >= 0);
-  return <section className="vmr-chart-panel" style={type === 'ratio' ? { '--vmr-inversion-color': VIX_TERM_CHART_COLORS.inversion, '--vmr-normalized-color': VIX_TERM_CHART_COLORS.normalized } : undefined}>
-    <div className="vmr-chart-heading"><h3><span>{number}</span>{title}</h3><div className="vmr-chart-legend">{series.map(key => <span key={key}><i style={{ backgroundColor: COLORS[key] }} />{key === 'ratio' ? 'VIX / VIX3M' : key}</span>)}</div></div>
+  return <section className="vmr-chart-panel" style={type === 'ratio' ? { '--vmr-inversion-color': VIX_TERM_CHART_COLORS.inversionLabel, '--vmr-normalized-color': VIX_TERM_CHART_COLORS.normalized } : undefined}>
+    <div className="vmr-chart-heading"><h3><span>{number}</span>{title}</h3><div className="vmr-chart-legend">{series.map(key => <span key={key}><i style={{ backgroundColor: seriesColor(key, focused) }} />{key === 'ratio' ? 'VIX / VIX3M' : key}</span>)}</div></div>
     <div className="vmr-chart-subtitle">{subtitle}</div>
-    <div className="vmr-chart-reading" aria-live="polite">{series.map(key => <span key={key} style={{ color: COLORS[key] }}>{key === 'ratio' ? '比率' : key}<strong className={type === 'return' ? changeClass(value(focused, key), marketColorMode) : undefined}>{type === 'return' ? pct(value(focused, key)) : fmt(value(focused, key), type === 'ratio' ? 4 : 2)}</strong></span>)}<small>{focused ? day(focused.date) : '—'}{selectedIndex === null ? ' 收盘' : ' 选中'}</small></div>
+    <div className="vmr-chart-reading" aria-live="polite">{series.map(key => <span key={key} style={{ color: seriesColor(key, focused) }}>{key === 'ratio' ? '比率' : key}<strong className={type === 'return' ? changeClass(value(focused, key), marketColorMode) : undefined}>{type === 'return' ? pct(value(focused, key)) : fmt(value(focused, key), type === 'ratio' ? 4 : 2)}</strong></span>)}<small>{focused ? day(focused.date) : '—'}{selectedIndex === null ? ' 收盘' : ' 选中'}</small></div>
     {featured && <div className="vmr-inversion-summary" aria-live="polite">
       <strong>{getInversionSegmentLabel(featured, { includeStatus: false })}</strong>
       <span>{featured.carriedIn ? '承接上月 · ' : ''}{day(featured.startDate)}—{day(featured.endDate)}{featured.status === 'ongoing' ? ' · 仍在持续' : featured.status === 'interrupted' ? ' · 连续数据中断' : ''}</span>
@@ -135,11 +153,14 @@ function LinkedChart({ report, rows, type, number, title, subtitle, selectedInde
         onSelect(event.key === 'Home' ? 0 : event.key === 'End' ? rows.length - 1 : Math.max(0, Math.min(rows.length - 1, current + (event.key === 'ArrowLeft' ? -1 : 1))));
       }}>
       <svg viewBox={`0 0 ${w} 173`} role="img" aria-label={`${title}，横轴按交易日对齐，数据缺失处断线`}>
+        {type === 'volatility' && <defs><linearGradient id={vixGradientId} gradientUnits="userSpaceOnUse" x1={left} x2={right} y1="0" y2="0">
+          {vixColorStops.map((stop, index) => <stop key={index} offset={`${stop.offset}%`} stopColor={stop.color} />)}
+        </linearGradient></defs>}
         {inversion?.segments.map(segment => <rect key={segment.startDate} data-inversion-band={segment.startDate}
           x={bandLeft(segment.startIndex)} y={top} width={Math.max(1, bandRight(segment.endIndex) - bandLeft(segment.startIndex))}
           height={bottom - top} fill={VIX_TERM_CHART_COLORS.band} />)}
         {ticks.map(tick => <g key={tick}><line x1={left} x2={right} y1={y(tick)} y2={y(tick)} stroke={type === 'ratio' && tick === 1 ? VIX_TERM_CHART_COLORS.threshold : '#758298'} strokeOpacity={type === 'ratio' && tick === 1 ? '.55' : type === 'return' && tick === 0 ? '.38' : '.13'} strokeDasharray={type === 'ratio' && [1, 1.1].includes(tick) ? '3 4' : undefined} /><text x={left - 8} y={y(tick) + 3} textAnchor="end" fill={type === 'return' && tick !== 0 ? marketTextHexColor(tick, marketColorMode) : '#778293'}>{type === 'return' ? `${tick > 0 ? '+' : ''}${fmt(tick, Number.isInteger(tick) ? 0 : 1)}%` : fmt(tick, type === 'ratio' ? 1 : 0)}</text></g>)}
-        {series.map(key => <path key={key} d={drawPath(key)} fill="none" stroke={COLORS[key]} strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />)}
+        {series.map(key => <path key={key} d={drawPath(key)} fill="none" stroke={key === 'VIX' ? `url(#${vixGradientId})` : COLORS[key]} strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />)}
         {inversion?.normalizations.map(event => <g key={event.date} data-normalization-marker={event.date}>
           <circle cx={x(event.index)} cy={y(event.ratio)} r="3.5" fill="#0a0d12" stroke={VIX_TERM_CHART_COLORS.normalized} strokeWidth="1.4" />
           {event === primaryNormalization && <>
@@ -148,7 +169,7 @@ function LinkedChart({ report, rows, type, number, title, subtitle, selectedInde
           </>}
         </g>)}
         {selectedIndex !== null && <line x1={x(current)} x2={x(current)} y1={top} y2={bottom} stroke="#aab3c2" strokeOpacity=".48" strokeDasharray="3 3" />}
-        {series.map(key => Number.isFinite(value(focused, key)) && <circle key={key} cx={x(current)} cy={y(value(focused, key))} r="2.8" fill={COLORS[key]} stroke="#0a0d12" strokeWidth="1.3" />)}
+        {series.map(key => Number.isFinite(value(focused, key)) && <circle key={key} cx={x(current)} cy={y(value(focused, key))} r="2.8" fill={seriesColor(key, focused)} stroke="#0a0d12" strokeWidth="1.3" />)}
         {labels.map((index, position) => <text key={index} x={x(index)} y="168" fill="#778293" textAnchor={position === 0 ? 'start' : position === labels.length - 1 ? 'end' : 'middle'}>{day(rows[index].date)}</text>)}
       </svg>
     </div> : <div className="vmr-chart-empty">这个月暂无可绘制的数据</div>}
@@ -241,6 +262,7 @@ export default function VixMonthlyReportView({
   };
   const complete = report?.status === 'complete';
   const summary = report?.summary || {};
+  const peakRisk = rows.find(row => row.date === summary.vixMax?.date)?.currentRiskLevel;
 
   return <main ref={pageRef} className="vmr-page" data-vix-monthly-report="true" data-vix-monthly-report-preview={preview ? 'true' : undefined} aria-busy={loading}>
     <header className="vmr-header"><button type="button" onClick={onBack} aria-label="返回 VIX 与市场走势"><ArrowLeft size={20} strokeWidth={1.7} /></button><h1>市场月报</h1><button type="button" aria-label="分享月报" disabled={!report || loading || !onShare} onClick={() => { setShareError(''); setShareSheet(true); }}><Share2 size={18} strokeWidth={1.6} /></button></header>
@@ -250,7 +272,7 @@ export default function VixMonthlyReportView({
     {report && <div className="vmr-month-status"><span>{complete ? '完整月份' : report.status === 'in_progress' ? '本月进行中' : '部分数据'}<i />{report.observedSessions} / {report.expectedSessions} 个交易日</span><span>截至 {day(report.asOfDate)}</span></div>}
     {!report ? <div className="vmr-empty"><CalendarDays size={27} strokeWidth={1.2} /><p>{loading ? '正在读取月度历史数据' : '月度历史数据尚未载入'}</p><small>{loading ? '请稍候' : '可刷新数据后查看'}</small></div> : <>
       <div className="vmr-tabs" role="tablist" aria-label="月报视图"><button type="button" role="tab" aria-selected={tab === 'overview'} onClick={() => setTab('overview')}>总览</button><button type="button" role="tab" aria-selected={tab === 'daily'} onClick={() => setTab('daily')}>每日明细</button></div>
-      <section className="vmr-summary" aria-label="月份摘要"><div><span>SPY {complete ? '月涨跌' : '月内涨跌'}</span><strong className={changeClass(summary.SPY?.monthlyChangePct, marketColorMode)}>{pct(summary.SPY?.monthlyChangePct)}</strong></div><div><span>QQQ {complete ? '月涨跌' : '月内涨跌'}</span><strong className={changeClass(summary.QQQ?.monthlyChangePct, marketColorMode)}>{pct(summary.QQQ?.monthlyChangePct)}</strong></div><div><span>VIX 最高收盘</span><strong style={{ color: COLORS.VIX }}>{fmt(summary.vixMax?.value)}</strong><small>{day(summary.vixMax?.date)}</small></div></section>
+      <section className="vmr-summary" aria-label="月份摘要"><div><span>SPY {complete ? '月涨跌' : '月内涨跌'}</span><strong className={changeClass(summary.SPY?.monthlyChangePct, marketColorMode)}>{pct(summary.SPY?.monthlyChangePct)}</strong></div><div><span>QQQ {complete ? '月涨跌' : '月内涨跌'}</span><strong className={changeClass(summary.QQQ?.monthlyChangePct, marketColorMode)}>{pct(summary.QQQ?.monthlyChangePct)}</strong></div><div><span>VIX 最高收盘</span><strong style={{ color: getVixObservationColor(peakRisk, COLORS.VIX) }}>{fmt(summary.vixMax?.value)}</strong><small>{day(summary.vixMax?.date)}</small></div></section>
       {report.status === 'partial' && <p className="vmr-coverage-note">这个月的数据尚未完整。缺失读数保留为空，无法完整计算的统计显示 —。{report.cutoffDate && (!report.asOfDate || report.asOfDate < report.cutoffDate) ? `待补齐至 ${report.cutoffDate}。` : ''}</p>}
       {tab === 'overview' ? <div className="vmr-overview" role="tabpanel" aria-label="总览">
         <div className="vmr-history-toolbar"><span>{selectedIndex === null ? '全月走势' : `${selected?.date || ''} · 联动读数`}</span><button type="button" disabled={selectedIndex === null} onClick={() => setSelectedIndex(null)}>回到月末</button></div>

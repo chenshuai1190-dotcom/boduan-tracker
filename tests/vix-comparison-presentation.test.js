@@ -90,6 +90,12 @@ test('rendered dimensions preserve partial availability and reject same-date sta
   assert.ok(shortHtml.includes('data-vix-risk-level="EXTREME_STRESS"'));
   assert.ok(shortHtml.includes('data-vix-risk-direction="UNKNOWN"'));
   assert.ok(shortHtml.includes('34.20') && shortHtml.includes('data-vix-partial-history="true"'));
+  const extremeMetrics = shortHtml.match(/<div class="vcr-metrics">([\s\S]*?)<div class="vcr-environment">/)?.[1];
+  assert.ok(extremeMetrics?.includes('<span>VIX</span><strong style="color:#ff4d4f">34.20</strong>'));
+  assert.ok(extremeMetrics?.includes('<span>VIX3M</span><strong>'), 'VIX3M keeps its original color');
+  assert.match(shortHtml, /<strong style="color:#ff4d4f">深度倒挂<\/strong><small style="color:#ff4d4f">连续倒挂：/);
+  assert.ok(!termHtml.match(/<div class="vcr-metrics">([\s\S]*?)<div class="vcr-environment">/)?.[1]?.includes('#ff4d4f'), 'stale current metrics do not retain a red current judgment');
+
 
   const missingSpy = fixture('price_divergence');
   missingSpy.series.SPY.rows.pop();

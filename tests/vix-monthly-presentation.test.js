@@ -78,6 +78,34 @@ test('monthly zero returns and missing returns are never given an up or down col
   assert.equal(html.includes('text-emerald-400'), false);
 });
 
+test('VIX historical extremes keep their own red segments while the latest reading follows its own level', () => {
+  const value = { ...report, status: 'complete', asOfDate: '2025-05-02', cutoffDate: '2025-05-02',
+    rows: [report.rows[0], { ...report.rows[0], date: '2025-05-02', VIX: 34, VIX3M: 36,
+      ratio: 34 / 36, currentRiskLevel: 'ELEVATED', inversionDays: 0 }],
+    summary: { vixMax: { value: 34, date: '2025-05-02' } },
+  };
+  for (const marketColorMode of ['redUpGreenDown', 'greenUpRedDown']) {
+    const html = render({ report: value, month: value.month, marketColorMode });
+    const gradient = html.match(/<linearGradient[^>]*>[\s\S]*?<\/linearGradient>/)?.[0];
+    assert.ok(gradient?.includes('<stop offset="0%" stop-color="#ff4d4f"'));
+    assert.ok(gradient?.includes('<stop offset="50%" stop-color="#ff4d4f"'));
+    assert.ok(gradient?.includes('<stop offset="50%" stop-color="#dba77b"'));
+    assert.ok(gradient?.includes('<stop offset="100%" stop-color="#dba77b"'));
+    assert.ok(html.includes('style="color:#dba77b">VIX<strong>34.00</strong>'), 'high VIX without EXTREME_STRESS is not recolored by an earlier extreme');
+    assert.ok(html.includes('style="color:#8fa1b6">VIX3M<strong>36.00</strong>'));
+    assert.ok(html.includes('--vmr-inversion-color:#ff4d4f'));
+  }
+});
+
+test('VIX extreme readout and peak value use the homepage risk red', () => {
+  const value = { ...report, asOfDate: '2025-05-01', cutoffDate: '2025-05-01',
+    summary: { vixMax: { value: 31, date: '2025-05-01' } },
+  };
+  const html = render({ report: value, month: value.month });
+  assert.ok(html.includes('style="color:#ff4d4f">VIX<strong>31.00</strong>'));
+  assert.ok(html.includes('<strong style="color:#ff4d4f">31.00</strong>'));
+});
+
 test('DEV fixture wrapper uses the production view with an explicit preview label', async () => {
   const { default: Preview } = await import(await jsxModule('../src/dev/VixMonthlyReportPreview.jsx', {
     '../pages/VixMonthlyReportView.jsx': viewModule,

@@ -34,6 +34,11 @@ export const VIX_TERM_CHART_COLORS = Object.freeze({
   threshold: '#a1a1aa',
   secondaryThreshold: '#62626b',
   inversion: VIX_RISK_COLORS.HIGH_STRESS,
+  inversionLabel: VIX_RISK_COLORS.EXTREME_STRESS,
   band: 'rgba(219,167,123,0.065)',
   normalized: '#c7c8d0',
 });
+
+export function getVixObservationColor(level, normalColor = VIX_RISK_COLORS.HIGH_STRESS) {
+  return level === 'EXTREME_STRESS' ? VIX_RISK_COLORS.EXTREME_STRESS : normalColor;
+}

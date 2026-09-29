@@ -1,6 +1,6 @@
 import { nextVixComparisonSession } from './vixComparisonSession.js';
 import { marketTextHexColor } from './marketColorMode.js';
-import { getVixRiskColor, VIX_TERM_CHART_COLORS } from './vixRiskPalette.js';
+import { getVixRiskColor, getVixObservationColor, VIX_TERM_CHART_COLORS } from './vixRiskPalette.js';
 import {
   buildInversionAnnotations,
   getInversionNormalizationLabel,
@@ -160,6 +160,36 @@ function niceScale(values, { include = [], fallback = [0, 1] } = {}) {
   const max = Math.ceil(hi / step) * step;
   return { min, max: Math.max(max, min + step), step, empty: false };
 }
+function strokeColoredSeries(ctx, rows, item, x, y) {
+  let previous = null;
+  let pathColor = null;
+  const flush = () => { if (pathColor !== null) ctx.stroke(); pathColor = null; };
+  const segment = (from, to, color) => {
+    if (pathColor !== color) {
+      flush();
+      ctx.beginPath(); ctx.moveTo(from.x, from.y);
+      ctx.strokeStyle = color;
+      pathColor = color;
+    }
+    ctx.lineTo(to.x, to.y);
+  };
+  rows.forEach((row, index) => {
+    const value = item.value(row);
+    const date = dateKey(row.date);
+    if (!finite(value) || !date) { flush(); previous = null; return; }
+    const point = { x: x(index), y: y(value), date, color: item.colorForRow(row) };
+    if (previous && nextVixComparisonSession(previous.date) === date) {
+      if (previous.color === point.color) segment(previous, point, point.color);
+      else {
+        const midpoint = { x: (previous.x + point.x) / 2, y: (previous.y + point.y) / 2 };
+        segment(previous, midpoint, previous.color);
+        segment(midpoint, point, point.color);
+      }
+    } else flush();
+    previous = point;
+  });
+  flush();
+}
 function plot(ctx, rows, { top, height, series, formatTick, tickColor, include, fallback, thresholds = [], drawBackground, annotate }) {
   const left = PAD + 92;
   const right = WIDTH - PAD - 22;
@@ -190,23 +220,26 @@ function plot(ctx, rows, { top, height, series, formatTick, tickColor, include, 
     ctx.lineWidth = item.width || 5;
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
-    let previousDate = '';
-    let penDown = false;
-    rows.forEach((row, index) => {
-      const value = item.value(row);
-      const date = dateKey(row.date);
-      if (!finite(value) || !date) { penDown = false; previousDate = ''; return; }
-      if (penDown && nextVixComparisonSession(previousDate) === date) ctx.lineTo(x(index), y(value));
-      else ctx.moveTo(x(index), y(value));
-      penDown = true;
-      previousDate = date;
-    });
-    ctx.stroke();
+    if (item.colorForRow) strokeColoredSeries(ctx, rows, item, x, y);
+    else {
+      let previousDate = '';
+      let penDown = false;
+      rows.forEach((row, index) => {
+        const value = item.value(row);
+        const date = dateKey(row.date);
+        if (!finite(value) || !date) { penDown = false; previousDate = ''; return; }
+        if (penDown && nextVixComparisonSession(previousDate) === date) ctx.lineTo(x(index), y(value));
+        else ctx.moveTo(x(index), y(value));
+        penDown = true;
+        previousDate = date;
+      });
+      ctx.stroke();
+    }
     for (const [index, row] of rows.entries()) {
       const value = item.value(row);
       if (!finite(value) || !dateKey(row.date)) continue;
       ctx.beginPath(); ctx.arc(x(index), y(value), 4.2, 0, Math.PI * 2);
-      ctx.fillStyle = item.color; ctx.fill();
+      ctx.fillStyle = item.colorForRow ? item.colorForRow(row) : item.color; ctx.fill();
     }
   }
   const dateIndexes = [...new Set(Array.from({ length: Math.min(5, rows.length) }, (_, index) => (
@@ -234,8 +267,8 @@ function drawInversionChart(ctx, report, rows) {
     summarySize -= 1;
     ctx.font = `400 ${summarySize}px ${FONT}`;
   }
-  roundedRect(ctx, PAD, 2001, 18, 28, VIX_TERM_CHART_COLORS.inversion, 4);
-  text(ctx, segmentLabel, PAD + 34, 1998, summarySize, primarySegment ? VIX_TERM_CHART_COLORS.inversion : C.muted,
+  roundedRect(ctx, PAD, 2001, 18, 28, primarySegment ? VIX_TERM_CHART_COLORS.inversionLabel : C.muted, 4);
+  text(ctx, segmentLabel, PAD + 34, 1998, summarySize, primarySegment ? VIX_TERM_CHART_COLORS.inversionLabel : C.muted,
     { maxWidth: leftSummaryWidth - 34 });
   if (primaryNormalization) text(ctx, getInversionNormalizationLabel(primaryNormalization), WIDTH - PAD, 1998, 31, VIX_TERM_CHART_COLORS.normalized,
     { align: 'right', maxWidth: 365 });
@@ -277,10 +310,11 @@ function drawOverview(ctx, report, rows, marketColorMode) {
   const summary = report.summary || {};
   const gap = 36;
   const cardWidth = (CONTENT - gap * 2) / 3;
+  const maxVixColor = getVixObservationColor(rows.find(row => row.date === summary.vixMax?.date)?.currentRiskLevel, C.vix);
   const cards = [
     { label: `SPY ${period}涨跌`, value: percent(summary.SPY?.monthlyChangePct), color: signColor(summary.SPY?.monthlyChangePct, marketColorMode) },
     { label: `QQQ ${period}涨跌`, value: percent(summary.QQQ?.monthlyChangePct), color: signColor(summary.QQQ?.monthlyChangePct, marketColorMode) },
-    { label: `VIX 月内最高收盘 · ${shortDate(summary.vixMax?.date)}`, value: number(positive(summary.vixMax?.value)), color: C.vix },
+    { label: `VIX 月内最高收盘 · ${shortDate(summary.vixMax?.date)}`, value: number(positive(summary.vixMax?.value)), color: maxVixColor },
   ];
   cards.forEach((card, index) => {
     const x = PAD + index * (cardWidth + gap);
@@ -301,18 +335,18 @@ function drawOverview(ctx, report, rows, marketColorMode) {
   sectionTitle(ctx, '02  波动率水平', '收盘指数值；当前风险与股价当日涨跌分别观察', 1243,
     [{ label: 'VIX', color: C.vix }, { label: 'VIX3M', color: C.vix3m }]);
   plot(ctx, rows, { top: 1414, height: 358, fallback: [0, 40], formatTick: tickNumber,
-    series: [{ color: C.vix, value: row => positive(row.VIX) }, { color: C.vix3m, width: 4, value: row => positive(row.VIX3M) }],
+    series: [{ color: C.vix, value: row => positive(row.VIX), colorForRow: row => getVixObservationColor(row.currentRiskLevel, C.vix) }, { color: C.vix3m, width: 4, value: row => positive(row.VIX3M) }],
     annotate: ({ x, y, top }) => {
       const index = rows.findIndex(row => row.date === summary.vixMax?.date && positive(row.VIX) !== null);
       if (index < 0 || !finite(summary.vixMax?.value)) return;
       const value = rows[index].VIX;
       const labelY = Math.max(top + 2, y(value) - 64);
-      line(ctx, x(index), y(value) - 7, x(index), labelY + 40, C.vix, 2);
+      line(ctx, x(index), y(value) - 7, x(index), labelY + 40, maxVixColor, 2);
       const label = `${shortDate(rows[index].date)}  ${number(value)}`;
       ctx.font = `400 32px ${FONT}`;
       const labelWidth = ctx.measureText(label).width + 20;
       roundedRect(ctx, x(index) - labelWidth / 2, labelY - 6, labelWidth, 44, C.background, 4);
-      text(ctx, label, x(index), labelY, 32, C.vix, { align: 'center' });
+      text(ctx, label, x(index), labelY, 32, maxVixColor, { align: 'center' });
     },
   });
   sectionTitle(ctx, '03  期限比率  VIX ÷ VIX3M',

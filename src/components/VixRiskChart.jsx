@@ -1,7 +1,7 @@
 import React from 'react';
 import { formatVixComparisonChangePercent } from '../lib/vixComparisonChart.js';
 import { isVixComparisonSession } from '../lib/vixComparisonSession.js';
-import { VIX_TERM_CHART_COLORS } from '../lib/vixRiskPalette.js';
+import { getVixObservationColor, VIX_TERM_CHART_COLORS } from '../lib/vixRiskPalette.js';
 import { marketTextClass } from '../lib/marketColorMode.js';
 
 const COLORS = { vix: '#dda36b', market: '#91a9c2', ratio: VIX_TERM_CHART_COLORS.line };
@@ -62,7 +62,8 @@ function DailyChange({ value, englishMode, marketColorMode }) {
   </small>;
 }
 
-export default function VixRiskChart({ model, termRows = [], symbol, englishMode = false, marketColorMode, selectedDate, onSelect }) {
+export default function VixRiskChart({ model, termRows = [], riskLevels = new Map(), symbol, englishMode = false, marketColorMode, selectedDate, onSelect }) {
+  const vixGradientId = `vix-history-risk-${React.useId().replace(/:/g, '')}`;
   const boxRef = React.useRef(null);
   const gestureRef = React.useRef(null);
   const rows = React.useMemo(() => chartRows(model, termRows), [model, termRows]);
@@ -70,6 +71,21 @@ export default function VixRiskChart({ model, termRows = [], symbol, englishMode
   const selectedIndex = selectedDate ? rows.findIndex(row => row.date === selectedDate) : -1;
   const current = selectedIndex < 0 ? lastIndex : selectedIndex;
   const selected = rows[current];
+  const vixColorForDate = date => getVixObservationColor(riskLevels.get(date), COLORS.vix);
+  const selectedVixColor = vixColorForDate(selected?.date);
+  // Historical colors belong to the paired observations for each date. The
+  // selected date changes the reading, never the colors of the history.
+  const vixColorStops = [{ offset: 0, color: vixColorForDate(rows[0]?.date) }];
+  rows.forEach((row, index) => {
+    if (!index) return;
+    const previousColor = vixColorForDate(rows[index - 1].date);
+    const color = vixColorForDate(row.date);
+    if (previousColor !== color) {
+      const offset = (index - .5) / Math.max(1, lastIndex) * 100;
+      vixColorStops.push({ offset, color: previousColor }, { offset, color });
+    }
+  });
+  vixColorStops.push({ offset: 100, color: vixColorForDate(rows.at(-1)?.date) });
   const [vMin, vMax] = bounds(rows, 'vix', 5, [10, 30]);
   const [pMin, pMax] = bounds(rows, 'price', 10, [0, 100]);
   const ratioValues = rows.map(row => row.ratio).filter(Number.isFinite);
@@ -115,7 +131,7 @@ export default function VixRiskChart({ model, termRows = [], symbol, englishMode
 
   return <div className="vcr-chart" data-vix-comparison-chart="true" data-vix-risk-chart="true">
     <div className="vcr-chart-quotes" aria-live="polite">
-      <div><span><i style={{ background: COLORS.vix }} />VIX</span><strong style={{ color: COLORS.vix }}>{fmt(selected.vix)}</strong><DailyChange value={selected.vixDayChangePct} englishMode={englishMode} marketColorMode={marketColorMode} /></div>
+      <div data-vix-history-reading="vix"><span><i style={{ background: selectedVixColor }} />VIX</span><strong style={{ color: selectedVixColor }}>{fmt(selected.vix)}</strong><DailyChange value={selected.vixDayChangePct} englishMode={englishMode} marketColorMode={marketColorMode} /></div>
       <div><span><i style={{ background: COLORS.market }} />{symbol} <small>{englishMode ? 'Adj. USD' : '复权 USD'}</small></span><strong style={{ color: COLORS.market }}>{fmt(selected.price)}</strong><DailyChange value={selected.priceDayChangePct} englishMode={englishMode} marketColorMode={marketColorMode} /></div>
       <span className="vcr-chart-date">{selected.date.slice(5).replace('-', '/')}<small>{selectedIndex < 0 ? (englishMode ? 'Latest close' : '最新收盘') : (englishMode ? 'Historical close' : '历史收盘')}</small></span>
     </div>
@@ -153,13 +169,16 @@ export default function VixRiskChart({ model, termRows = [], symbol, englishMode
         onSelect(rows[index].date);
       }}>
       <svg viewBox={`0 0 ${WIDTH} 332`} role="img" aria-label={englishMode ? `VIX points on the left axis, ${symbol} adjusted USD price on the right axis; VIX / VIX3M below` : `左轴 VIX 点位，右轴 ${symbol} 美元复权价；下方为 VIX / VIX3M`}>
+        <defs><linearGradient id={vixGradientId} gradientUnits="userSpaceOnUse" x1={LEFT} x2={RIGHT} y1="0" y2="0">
+          {vixColorStops.map((stop, index) => <stop key={index} offset={`${stop.offset}%`} stopColor={stop.color} />)}
+        </linearGradient></defs>
         {[0, 0.5, 1].map(step => <g key={step}>
           <line x1={LEFT} x2={RIGHT} y1={MAIN_TOP + step * (MAIN_BOTTOM - MAIN_TOP)} y2={MAIN_TOP + step * (MAIN_BOTTOM - MAIN_TOP)} stroke="#fff" strokeOpacity=".055" />
           <text x={LEFT - 8} y={MAIN_TOP + step * (MAIN_BOTTOM - MAIN_TOP) + 3} textAnchor="end" fill={COLORS.vix}>{fmt(vMax - step * (vMax - vMin), 0)}</text>
           <text x={RIGHT + 8} y={MAIN_TOP + step * (MAIN_BOTTOM - MAIN_TOP) + 3} fill={COLORS.market}>{fmt(pMax - step * (pMax - pMin), 0)}</text>
         </g>)}
-        <path d={path('price', py)} fill="none" stroke={COLORS.market} strokeWidth="1.65" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
-        <path d={path('vix', vy)} fill="none" stroke={COLORS.vix} strokeWidth="1.65" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+        <path data-vix-history-series="price" d={path('price', py)} fill="none" stroke={COLORS.market} strokeWidth="1.65" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+        <path data-vix-history-series="vix" d={path('vix', vy)} fill="none" stroke={`url(#${vixGradientId})`} strokeWidth="1.65" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
         <text x={LEFT} y="198" fill="#80818b">VIX / VIX3M</text>
         <text x={RIGHT} y="198" textAnchor="end" fill={COLORS.ratio}>{fmt(selected.ratio, 3)}</text>
         <rect x={LEFT} y={ry(rMax)} width={RIGHT - LEFT} height={ry(1) - ry(rMax)} fill={VIX_TERM_CHART_COLORS.band} />
@@ -167,11 +186,11 @@ export default function VixRiskChart({ model, termRows = [], symbol, englishMode
           <line x1={LEFT} x2={RIGHT} y1={ry(value)} y2={ry(value)} stroke={value === 1 ? VIX_TERM_CHART_COLORS.threshold : '#fff'} strokeOpacity={value === 1 ? '.35' : '.07'} strokeDasharray="3 4" />
           <text x={LEFT - 8} y={ry(value) + 3} textAnchor="end" fill={value === 1 ? VIX_TERM_CHART_COLORS.threshold : '#707782'}>{fmt(value, 1)}</text>
         </g>)}
-        <path d={path('ratio', ry)} fill="none" stroke={COLORS.ratio} strokeWidth="1.8" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+        <path data-vix-history-series="ratio" d={path('ratio', ry)} fill="none" stroke={COLORS.ratio} strokeWidth="1.8" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
         {!hasRatio && <text x={(LEFT + RIGHT) / 2} y={(RATIO_TOP + RATIO_BOTTOM) / 2} textAnchor="middle" fill="#858b96">{englishMode ? 'Term data unavailable' : '期限结构数据暂缺'}</text>}
         {selectedIndex >= 0 && <line x1={x(current)} x2={x(current)} y1={MAIN_TOP} y2={RATIO_BOTTOM} stroke="#e5e5ee" strokeOpacity=".3" strokeDasharray="3 3" />}
-        {[['vix', vy, COLORS.vix], ['price', py, COLORS.market], ['ratio', ry, COLORS.ratio]].map(([field, y, color]) => Number.isFinite(selected[field])
-          ? <circle key={field} cx={x(current)} cy={y(selected[field])} r="2.6" fill={color} stroke="#0a0d12" strokeWidth="1.5" /> : null)}
+        {[['vix', vy, selectedVixColor], ['price', py, COLORS.market], ['ratio', ry, COLORS.ratio]].map(([field, y, color]) => Number.isFinite(selected[field])
+          ? <circle key={field} data-vix-history-selected-series={field} cx={x(current)} cy={y(selected[field])} r="2.6" fill={color} stroke="#0a0d12" strokeWidth="1.5" /> : null)}
         {labelIndexes.map((index, position) => <text key={index} x={x(index)} y="327" textAnchor={position === 0 ? 'start' : position === labelIndexes.length - 1 ? 'end' : 'middle'} fill="#737c89">
           {spansYears ? rows[index].date.slice(2, 7).replace('-', '/') : rows[index].date.slice(5).replace('-', '/')}
         </text>)}

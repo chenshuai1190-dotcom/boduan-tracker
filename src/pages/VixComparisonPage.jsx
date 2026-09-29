@@ -4,7 +4,8 @@ import VixRiskChart from '../components/VixRiskChart.jsx';
 import { getVixComparisonExpectedCloseDate, loadVixComparison } from '../lib/vixComparison.js';
 import { buildVixComparisonModel, formatVixComparisonChangePercent, VIX_COMPARISON_RANGES } from '../lib/vixComparisonChart.js';
 import { buildVixRiskModel } from '../lib/vixRiskModel.js';
-import { getVixRiskAccentStyle, getVixRiskDirectionColor } from '../lib/vixRiskPalette.js';
+import { getVixRiskAccentStyle, getVixRiskDirectionColor, getVixObservationColor, VIX_RISK_COLORS } from '../lib/vixRiskPalette.js';
+import { buildVixHistoricalRiskLevels } from '../lib/vixRiskPresentation.js';
 import './VixComparisonPage.css';
 
 const VixMonthlyReportPage = React.lazy(() => import('./VixMonthlyReportPage.jsx'));
@@ -160,6 +161,9 @@ export default function VixComparisonPage({ ctx = {}, previewData }) {
     benchmarkRows: data?.series?.[symbol]?.rows,
     range,
   }), [data, range, symbol]);
+  const historicalRiskLevels = React.useMemo(() => buildVixHistoricalRiskLevels(data?.termStructure?.rows, { throughDate: expectedAsOfDate }), [data, expectedAsOfDate]);
+  const peakDate = model.rows.find(row => row.vix === model.vixHigh)?.date;
+  const peakRiskLevel = historicalRiskLevels.get(peakDate);
   const chartStale = Boolean(data?.stale || (expectedAsOfDate && model.to && model.to < expectedAsOfDate));
   const riskStale = Boolean(data?.termStructure?.stale || (expectedAsOfDate && data?.termStructure?.asOfDate && data.termStructure.asOfDate < expectedAsOfDate));
   // Every dimension uses complete histories, independently of chart selection.
@@ -187,6 +191,9 @@ export default function VixComparisonPage({ ctx = {}, previewData }) {
   const closureDates = dateList(risk.dataQuality?.officialClosures);
   const changeLabel = formatVixComparisonChangePercent(model.priceChangePct);
   const directionFacts = risk.facts?.direction;
+  const inversionActive = !blocked && ['INVERTED', 'DEEP_INVERTED'].includes(term);
+  const extremeColor = VIX_RISK_COLORS.EXTREME_STRESS;
+  const inversionColor = inversionActive ? extremeColor : undefined;
   const levelTitle = currentRiskLevel === 'ELEVATED' && latest?.vix >= 30
     ? (englishMode ? 'Substantially elevated volatility' : '波动显著升高') : pick(level.label, englishMode);
 
@@ -209,18 +216,18 @@ export default function VixComparisonPage({ ctx = {}, previewData }) {
       <p className="vcr-description">{currentDescription(risk, currentRiskLevel, englishMode, state.loading, state.error, riskStale, expectedAsOfDate)}</p>
       <div className="vcr-risk-duration">{englishMode ? 'Current level' : '当前等级持续'} <strong>{duration(blocked ? null : risk.currentRiskDuration, exact.currentRisk, englishMode)}</strong></div>
       <div className="vcr-metrics">
-        <div><span>VIX</span><strong>{number(latest?.vix)}</strong><small>{englishMode ? '30-day volatility' : '30 天预期波动'}</small></div>
+        <div><span>VIX</span><strong style={{ color: currentRiskLevel === 'EXTREME_STRESS' ? getVixObservationColor(currentRiskLevel) : undefined }}>{number(latest?.vix)}</strong><small>{englishMode ? '30-day volatility' : '30 天预期波动'}</small></div>
         <div><span>VIX3M</span><strong>{number(latest?.vix3m)}</strong><small>{englishMode ? '3-month volatility' : '3 个月预期波动'}</small></div>
         <div className="vcr-ratio-metric"><span>{englishMode ? 'Term ratio' : '期限比率'}</span><strong>{number(latest?.ratio, 3)}</strong><small>VIX / VIX3M</small></div>
       </div>
       <div className="vcr-environment">
-        <div className="vcr-environment-row" data-vix-term-structure={term}><span>{englishMode ? 'Term structure' : '期限结构'}</span><div><strong>{pick(TERMS[term], englishMode)}</strong><small>{englishMode ? 'Consecutive inversion: ' : '连续倒挂：'}{duration(blocked ? null : risk.currentInversionDays, exact.inversion, englishMode)}</small></div></div>
+        <div className="vcr-environment-row" data-vix-term-structure={term}><span>{englishMode ? 'Term structure' : '期限结构'}</span><div><strong style={{ color: inversionColor }}>{pick(TERMS[term], englishMode)}</strong><small style={{ color: inversionColor }}>{englishMode ? 'Consecutive inversion: ' : '连续倒挂：'}{duration(blocked ? null : risk.currentInversionDays, exact.inversion, englishMode)}</small></div></div>
         <div className="vcr-environment-row" data-vix-risk-direction={direction}><span>{englishMode ? 'Risk direction' : '风险变化'}</span><div><strong className={`vcr-direction-${direction}`} style={{ color: getVixRiskDirectionColor(direction) }}>{pick(DIRECTIONS[direction], englishMode)}</strong><small>{!blocked && Number.isFinite(directionFacts?.vixChange3Pct) && Number.isFinite(directionFacts?.ratioChange3)
           ? `${englishMode ? '3-session VIX' : 'VIX 三日'} ${formatVixComparisonChangePercent(directionFacts.vixChange3Pct)} · ${englishMode ? 'ratio' : '比率'} ${directionFacts.ratioChange3 > 0 ? '+' : ''}${number(directionFacts.ratioChange3, 3)}`
           : (englishMode ? 'Needs 7 continuous completed sessions' : '需 7 个连续完成交易日')}</small></div></div>
       </div>
-      <div className="vcr-stress-durations"><span>{englishMode ? 'High stress or above' : '高压及以上'} <strong>{duration(blocked ? null : risk.highStressDays, exact.highStress, englishMode)}</strong></span><span>{englishMode ? 'Extreme stress' : '极端压力'} <strong>{duration(blocked ? null : risk.extremeStressDays, exact.extremeStress, englishMode)}</strong></span></div>
-      {!blocked && risk.durationTags?.includes('PROLONGED_INVERSION') && <div className="vcr-duration-tag">{englishMode ? 'Prolonged inversion · at least 15 sessions' : '持续倒挂 · 已达 15 个交易日'}</div>}
+      <div className="vcr-stress-durations"><span>{englishMode ? 'High stress or above' : '高压及以上'} <strong>{duration(blocked ? null : risk.highStressDays, exact.highStress, englishMode)}</strong></span><span>{englishMode ? 'Extreme stress' : '极端压力'} <strong style={{ color: !blocked && risk.extremeStressDays > 0 ? extremeColor : undefined }}>{duration(blocked ? null : risk.extremeStressDays, exact.extremeStress, englishMode)}</strong></span></div>
+      {!blocked && risk.durationTags?.includes('PROLONGED_INVERSION') && <div className="vcr-duration-tag" style={{ color: extremeColor }}>{englishMode ? 'Prolonged inversion · at least 15 sessions' : '持续倒挂 · 已达 15 个交易日'}</div>}
       <div className="vcr-guidance"><span className="vcr-guidance-line" /><div><span className="vcr-guidance-label">{englishMode ? 'CURRENT OBSERVATIONS' : '当前关注'}</span><p>{focusText(risk, currentRiskLevel, direction, englishMode)}</p></div></div>
       {!blocked && latest && !risk.ready && <p className="vcr-chart-stale" data-vix-partial-history="true">{englishMode ? 'Current level and term structure are available. Dimensions needing more continuous history remain unavailable.' : '当前风险与期限结构已有有效读数；依赖更多连续历史的维度暂不可用。'}</p>}
     </section>
@@ -230,12 +237,12 @@ export default function VixComparisonPage({ ctx = {}, previewData }) {
     <section className="vcr-history" data-vix-risk-history="true">
       <div className="vcr-section-heading"><h3>{englishMode ? 'Volatility & market' : '波动与市场'}</h3><div className="vcr-symbol-switch" role="group" aria-label={englishMode ? 'Comparison ETF' : '选择对比 ETF'}>{['SPY', 'QQQ'].map(item => <button type="button" key={item} aria-pressed={symbol === item} onClick={() => { setSymbol(item); setSelectedDate(null); }}>{item}</button>)}</div></div>
       {state.loading && !data ? <div className="vcr-chart-empty" role="status"><RefreshCw size={15} className="animate-spin" />{englishMode ? 'Loading daily history…' : '正在读取历史日线…'}</div>
-        : <VixRiskChart model={model} termRows={data?.termStructure?.rows} symbol={symbol} englishMode={englishMode} marketColorMode={ctx.marketColorMode} selectedDate={selectedDate} onSelect={setSelectedDate} />}
+        : <VixRiskChart model={model} termRows={data?.termStructure?.rows} riskLevels={historicalRiskLevels} symbol={symbol} englishMode={englishMode} marketColorMode={ctx.marketColorMode} selectedDate={selectedDate} onSelect={setSelectedDate} />}
       <div className="vcr-periods" role="group" aria-label={englishMode ? 'Chart period' : '走势时间范围'}>{VIX_COMPARISON_RANGES.map(item => <button type="button" key={item} aria-pressed={range === item} onClick={() => { setRange(item); setSelectedDate(null); }}>{englishMode ? item.toUpperCase() : RANGE_LABELS[item]}</button>)}<button type="button" className="vcr-reset-date" onClick={() => setSelectedDate(null)}>{englishMode ? 'Latest' : '回到最新'}</button></div>
       <div className="vcr-period-summary" aria-label={englishMode ? 'Selected period summary' : '所选区间摘要'}>
         <div><span>{symbol} {englishMode ? 'return' : '区间涨跌'}</span><strong>{changeLabel}</strong></div>
         <div><span>VIX {englishMode ? 'low' : '区间最低'}</span><strong>{number(model.vixLow)}</strong></div>
-        <div><span>VIX {englishMode ? 'high' : '区间最高'}</span><strong>{number(model.vixHigh)}</strong></div>
+        <div><span>VIX {englishMode ? 'high' : '区间最高'}</span><strong style={{ color: peakRiskLevel === 'EXTREME_STRESS' ? getVixObservationColor(peakRiskLevel) : undefined }}>{number(model.vixHigh)}</strong></div>
       </div>
       {model.hasComparison && <p className="vcr-data-note">{model.from} — {model.to} · {model.rows.length} {englishMode ? 'matched trading days' : '个共同交易日'}</p>}
       {partialHistory && <p className="vcr-chart-stale">{englishMode ? `Available history starts ${model.from}; the selected period is not fully covered.` : `可用历史始于 ${model.from}，未覆盖完整所选区间。`}</p>}

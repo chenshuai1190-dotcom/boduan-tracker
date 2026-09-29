@@ -10,13 +10,24 @@ function canvasEnvironment(t, options = {}) {
   const frames = [];
   const textDraws = [];
   const strokeColors = [];
+  const strokes = [];
+  const fills = [];
+  let path = [];
   const context = new Proxy({
+    beginPath: () => { path = []; },
+    moveTo: (x, y) => path.push({ kind: 'move', x, y }),
+    lineTo: (x, y) => path.push({ kind: 'line', x, y }),
+    arc: (x, y, radius) => path.push({ kind: 'arc', x, y, radius }),
     measureText: value => ({ width: String(value).length * 15 }),
     fillText: (value, x, y) => {
       labels.push(String(value));
       textDraws.push({ text: String(value), x, y, color: context.fillStyle });
     },
-    stroke: () => strokeColors.push(context.strokeStyle),
+    stroke: () => {
+      strokeColors.push(context.strokeStyle);
+      strokes.push({ color: context.strokeStyle, width: context.lineWidth, path: structuredClone(path) });
+    },
+    fill: () => fills.push({ color: context.fillStyle, path: structuredClone(path) }),
   }, { get: (target, key) => key in target ? target[key] : () => {} });
   globalThis.document = { createElement: () => {
     const canvas = {
@@ -35,7 +46,7 @@ function canvasEnvironment(t, options = {}) {
     if (prior === undefined) delete globalThis.document;
     else globalThis.document = prior;
   });
-  return { labels, frames, textDraws, strokeColors };
+  return { labels, frames, textDraws, strokeColors, strokes, fills };
 }
 
 const report = () => ({
@@ -186,4 +197,84 @@ test('render calls keep color preferences local and default mode is not inherite
   await renderVixMonthlyShare(coloredReport(), 'overview');
   assert.equal(textDraws.slice(offset).find(draw => draw.text === '+2.50%' && draw.y === 454)?.color, marketTextHexColor(1));
   assert.equal(textDraws.slice(offset).find(draw => draw.text === '-3.75%' && draw.y === 454)?.color, marketTextHexColor(-1));
+});
+
+function mixedRiskReport() {
+  const value = coloredReport();
+  value.asOfDate = value.cutoffDate = '2025-05-06';
+  value.expectedSessions = value.observedSessions = 4;
+  value.summary.vixMax = { value: 35, date: '2025-05-02' };
+  value.rows = [
+    { date: '2025-05-01', VIX: 20, VIX3M: 22, ratio: 20 / 22, currentRiskLevel: 'NORMAL', inversionDays: 0 },
+    { date: '2025-05-02', VIX: 35, VIX3M: 30, ratio: 35 / 30, currentRiskLevel: 'EXTREME_STRESS', inversionDays: 1 },
+    { date: '2025-05-05', VIX: 34, VIX3M: 31, ratio: 34 / 31, currentRiskLevel: 'EXTREME_STRESS', inversionDays: 2 },
+    { date: '2025-05-06', VIX: 24, VIX3M: 26, ratio: 24 / 26, currentRiskLevel: 'ELEVATED', inversionDays: 0 },
+  ];
+  return value;
+}
+const vixStrokes = strokes => strokes.filter(stroke => stroke.width === 5
+  && ['#ffae6c', '#ff4d4f'].includes(stroke.color)
+  && stroke.path.some(point => point.kind === 'line')
+  && stroke.path.every(point => point.y >= 1414 && point.y <= 1772));
+const vixPoints = fills => fills.filter(fill => ['#ffae6c', '#ff4d4f'].includes(fill.color)
+  && fill.path.length === 1 && fill.path[0].kind === 'arc'
+  && fill.path[0].y >= 1414 && fill.path[0].y <= 1772);
+
+for (const mode of [MARKET_COLOR_MODES.GREEN_UP_RED_DOWN, MARKET_COLOR_MODES.RED_UP_GREEN_DOWN]) {
+  test(`VIX points and midpoint segments follow each day's risk independently of ${mode}`, async t => {
+    const { strokes, fills, textDraws } = canvasEnvironment(t);
+    const value = mixedRiskReport();
+    const original = structuredClone(value);
+    await renderVixMonthlyShare(value, 'overview', { marketColorMode: mode });
+    const paths = vixStrokes(strokes);
+    const points = vixPoints(fills);
+    assert.deepEqual(paths.map(path => path.color), ['#ffae6c', '#ff4d4f', '#ffae6c']);
+    assert.deepEqual(points.map(point => point.color), ['#ffae6c', '#ff4d4f', '#ff4d4f', '#ffae6c']);
+    for (const [startIndex, endIndex, leftPath, rightPath] of [[0, 1, 0, 1], [2, 3, 1, 2]]) {
+      const start = points[startIndex].path[0];
+      const end = points[endIndex].path[0];
+      const midpoint = { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 };
+      assert.deepEqual(paths[leftPath].path.at(-1), { kind: 'line', ...midpoint });
+      assert.deepEqual(paths[rightPath].path[0], { kind: 'move', ...midpoint });
+    }
+    assert.equal(strokes.filter(stroke => stroke.color === '#92a4bb' && stroke.width === 4).length, 1);
+    assert.equal(textDraws.find(draw => draw.text === '35.00' && draw.y === 454)?.color, '#ff4d4f');
+    assert.equal(textDraws.find(draw => draw.text === '05/02  35.00')?.color, '#ff4d4f');
+    assert.equal(textDraws.find(draw => draw.text.includes('最长已知段'))?.color, '#ff4d4f');
+    assert.equal(textDraws.find(draw => draw.text.includes('5/6 倒挂解除'))?.color, '#c7c8d0');
+    assert.deepEqual(value, original, 'coloring must not change source observations');
+  });
+}
+
+test('risk-colored VIX lines do not bridge missing provider sessions or invalid values', async t => {
+  const { strokes, fills } = canvasEnvironment(t);
+  for (const missing of ['omitted', 'nonfinite']) {
+    const value = mixedRiskReport();
+    if (missing === 'omitted') value.rows.splice(2, 1);
+    else value.rows[2].VIX = Number.NaN;
+    const strokeStart = strokes.length;
+    const fillStart = fills.length;
+    await renderVixMonthlyShare(value);
+    const paths = vixStrokes(strokes.slice(strokeStart));
+    const points = vixPoints(fills.slice(fillStart));
+    assert.equal(paths.length, 2);
+    assert.equal(points.length, 3);
+    assert(paths.every(path => path.path.every(point => point.x <= points[1].path[0].x)),
+      'the last isolated observation must not connect across the absent or invalid session');
+    assert(points.at(-1).path[0].x > points[1].path[0].x);
+  }
+});
+
+test('high VIX without extreme risk and future extreme observations do not turn the month red', async t => {
+  const { strokes, fills, textDraws } = canvasEnvironment(t);
+  const value = mixedRiskReport();
+  value.asOfDate = value.cutoffDate = '2025-05-02';
+  value.rows[1].currentRiskLevel = 'ELEVATED';
+  value.rows[1].VIX3M = 36;
+  value.rows[1].ratio = 35 / 36;
+  await renderVixMonthlyShare(value);
+  assert(vixStrokes(strokes).every(stroke => stroke.color === '#ffae6c'));
+  assert.deepEqual(vixPoints(fills).map(point => point.color), ['#ffae6c', '#ffae6c']);
+  assert.equal(textDraws.find(draw => draw.text === '35.00' && draw.y === 454)?.color, '#ffae6c');
+  assert.equal(textDraws.find(draw => draw.text === '05/02  35.00')?.color, '#ffae6c');
 });
