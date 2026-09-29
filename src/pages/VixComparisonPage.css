@@ -12,7 +12,7 @@
 .vcr-tone-calm { --vcr-accent: #9ab5aa; --vcr-accent-rgb: 154,181,170; }
 .vcr-tone-caution { --vcr-accent: #d1b889; --vcr-accent-rgb: 209,184,137; }
 .vcr-tone-stress { --vcr-accent: #dba77b; --vcr-accent-rgb: 219,167,123; }
-.vcr-tone-persistent { --vcr-accent: #d98282; --vcr-accent-rgb: 217,130,130; }
+.vcr-tone-persistent { --vcr-accent: #ff4d4f; --vcr-accent-rgb: 255,77,79; }
 .vcr-tone-recovery { --vcr-accent: #a8b7d2; --vcr-accent-rgb: 168,183,210; }
 .vcr-tone-muted { --vcr-accent: #969ba5; --vcr-accent-rgb: 150,155,165; }
 .vcr-header { height: 54px; display: flex; align-items: center; justify-content: space-between; }
@@ -30,7 +30,7 @@
 .vcr-eyebrow > span:first-child { color: #9fa4af; }
 .vcr-date-dot { margin: 0 6px; color: #4a515e; }
 .vcr-title-row { margin: 11px 0 8px; }
-.vcr-title-row h2 { font-size: 29px; font-weight: 500; line-height: 1.35; margin: 0; }
+.vcr-title-row h2 { color: var(--vcr-accent); font-size: 29px; font-weight: 500; line-height: 1.35; margin: 0; }
 .vcr-description { margin: 0; font-size: 12px; color: #8d939f; line-height: 1.8; max-width: 92%; min-height: 42px; }
 .vcr-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 .vcr-metrics > div { display: flex; flex-direction: column; align-items: flex-start; }
