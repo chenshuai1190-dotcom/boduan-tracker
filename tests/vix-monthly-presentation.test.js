@@ -6,6 +6,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { transformWithOxc } from 'vite';
+import { marketTextClass } from '../src/lib/marketColorMode.js';
 
 async function jsxModule(relativePath, rewrites = {}) {
   const path = fileURLToPath(new URL(relativePath, import.meta.url));
@@ -49,6 +50,32 @@ test('controlled month change never displays the previous month while its report
   assert.ok(html.includes('正在读取月度历史数据'));
   assert.equal(html.includes('vmr-summary'), false);
   assert.equal(html.includes('31.00'), false);
+});
+
+test('monthly summary and linked return readings follow both market color preferences', () => {
+  const value = { ...report, status: 'complete', cutoffDate: report.asOfDate,
+    summary: { SPY: { monthlyChangePct: -1.25 }, QQQ: { monthlyChangePct: 2.5 } },
+    rows: [{ ...report.rows[0], prices: { SPY: { cumulativeChangePct: -1.25 }, QQQ: { cumulativeChangePct: 2.5 } } }],
+  };
+  for (const marketColorMode of ['greenUpRedDown', 'redUpGreenDown']) {
+    const html = render({ report: value, month: value.month, marketColorMode });
+    for (const [number, label] of [[-1.25, '-1.25%'], [2.5, '+2.50%']]) {
+      const expected = `<strong class="${marketTextClass(number, marketColorMode)}">${label}</strong>`;
+      assert.equal(html.split(expected).length - 1, 2, 'both the summary and chart readout use the preference');
+    }
+  }
+});
+
+test('monthly zero returns and missing returns are never given an up or down color', () => {
+  const value = { ...report, status: 'complete', cutoffDate: report.asOfDate,
+    summary: { SPY: { monthlyChangePct: 0 }, QQQ: { monthlyChangePct: null } },
+    rows: [{ ...report.rows[0], prices: { SPY: { cumulativeChangePct: 0 }, QQQ: { cumulativeChangePct: null } } }],
+  };
+  const html = render({ report: value, month: value.month, marketColorMode: 'redUpGreenDown' });
+  assert.equal(html.split('<strong class="vmr-change-neutral">0.00%</strong>').length - 1, 2);
+  assert.equal(html.split('<strong class="vmr-missing">—</strong>').length - 1, 2);
+  assert.equal(html.includes('text-[#ff4b1f]'), false);
+  assert.equal(html.includes('text-emerald-400'), false);
 });
 
 test('DEV fixture wrapper uses the production view with an explicit preview label', async () => {

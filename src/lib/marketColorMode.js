@@ -42,3 +42,9 @@ export function marketHexColor(value, mode) {
   const green = isPositive(value) === usesGreenForPositive(mode);
   return green ? '#22c55e' : MARKET_RED_HEX;
 }
+
+// Canvas text cannot use Tailwind classes; match marketTextClass exactly.
+export function marketTextHexColor(value, mode) {
+  const green = isPositive(value) === usesGreenForPositive(mode);
+  return green ? '#34d399' : MARKET_RED_HEX;
+}

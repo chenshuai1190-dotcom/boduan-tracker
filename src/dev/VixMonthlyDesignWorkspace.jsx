@@ -9,6 +9,7 @@ import './VixMonthlyDesignWorkspace.css';
 // This entire workspace is loaded only by the existing DEV visual entry.
 export default function VixMonthlyDesignWorkspace({ ctx = {}, initialView = 'report' }) {
   const params = new URLSearchParams(window.location.search);
+  const marketColorMode = ctx.marketColorMode;
   const [view, setView] = React.useState(initialView);
   const [visitedVix, setVisitedVix] = React.useState(initialView === 'vix');
   const [share, setShare] = React.useState(null);
@@ -35,6 +36,7 @@ export default function VixMonthlyDesignWorkspace({ ctx = {}, initialView = 'rep
     if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
     objectUrlRef.current = null;
   };
+  React.useEffect(() => { closeShare(); }, [marketColorMode]);
   React.useEffect(() => () => {
     requestRef.current += 1;
     if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
@@ -55,7 +57,7 @@ export default function VixMonthlyDesignWorkspace({ ctx = {}, initialView = 'rep
     setShare({ type, month: report.month, loading: true });
     try {
       await new Promise(resolve => requestAnimationFrame(resolve));
-      const blob = await renderVixMonthlySharePreview(report, type);
+      const blob = await renderVixMonthlySharePreview(report, type, { marketColorMode });
       if (requestId !== requestRef.current) return;
       if (!(blob instanceof Blob) || blob.type !== 'image/png') throw new Error('invalid_image');
       if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
@@ -92,7 +94,7 @@ export default function VixMonthlyDesignWorkspace({ ctx = {}, initialView = 'rep
       {visitedVix && <VixRiskDesignPreview ctx={{ ...ctx, openVixMonthlyReport: () => navigate('report') }} />}
     </div>
     <div hidden={view !== 'report'}>
-      <VixMonthlyReportPreview reports={VIX_MONTHLY_PREVIEW_REPORTS}
+      <VixMonthlyReportPreview reports={VIX_MONTHLY_PREVIEW_REPORTS} marketColorMode={marketColorMode}
         initialMonth={params.get('month') || '2025-04'} onBack={() => navigate('vix')} onShare={generateShare} />
       <p className="vmd-preview-note">本地设计 · 已核验历史收盘快照</p>
     </div>

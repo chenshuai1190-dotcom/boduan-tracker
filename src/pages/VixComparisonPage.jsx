@@ -4,6 +4,7 @@ import VixRiskChart from '../components/VixRiskChart.jsx';
 import { getVixComparisonExpectedCloseDate, loadVixComparison } from '../lib/vixComparison.js';
 import { buildVixComparisonModel, formatVixComparisonChangePercent, VIX_COMPARISON_RANGES } from '../lib/vixComparisonChart.js';
 import { buildVixRiskModel } from '../lib/vixRiskModel.js';
+import { getVixRiskAccentStyle, getVixRiskDirectionColor } from '../lib/vixRiskPalette.js';
 import './VixComparisonPage.css';
 
 const VixMonthlyReportPage = React.lazy(() => import('./VixMonthlyReportPage.jsx'));
@@ -191,7 +192,7 @@ export default function VixComparisonPage({ ctx = {}, previewData }) {
 
   const refreshControl = <button type="button" className="vcr-refresh" disabled={state.loading || Boolean(demoData)} aria-label={englishMode ? 'Refresh daily data' : '刷新日线数据'} onClick={() => setRefreshVersion(value => value + 1)}><RefreshCw size={16} strokeWidth={1.6} className={state.loading ? 'animate-spin' : ''} /></button>;
 
-  return <><div hidden={monthlyOpen}><main className={`vcr-page vcr-tone-${level.tone}`} data-vix-comparison-page="true" data-vix-risk-level={currentRiskLevel} aria-busy={state.loading}>
+  return <><div hidden={monthlyOpen}><main className={`vcr-page vcr-tone-${level.tone}`} data-vix-comparison-page="true" data-vix-risk-level={currentRiskLevel} style={getVixRiskAccentStyle(currentRiskLevel)} aria-busy={state.loading}>
     <header className="vcr-header vcr-header-has-report">
       <button type="button" aria-label={englishMode ? 'Back to Home' : '返回首页'} onClick={closeVixComparison}><ArrowLeft size={20} strokeWidth={1.6} /></button>
       <h1>{englishMode ? 'VIX & Market Trends' : 'VIX 与市场走势'}</h1>
@@ -214,7 +215,7 @@ export default function VixComparisonPage({ ctx = {}, previewData }) {
       </div>
       <div className="vcr-environment">
         <div className="vcr-environment-row" data-vix-term-structure={term}><span>{englishMode ? 'Term structure' : '期限结构'}</span><div><strong>{pick(TERMS[term], englishMode)}</strong><small>{englishMode ? 'Consecutive inversion: ' : '连续倒挂：'}{duration(blocked ? null : risk.currentInversionDays, exact.inversion, englishMode)}</small></div></div>
-        <div className="vcr-environment-row" data-vix-risk-direction={direction}><span>{englishMode ? 'Risk direction' : '风险变化'}</span><div><strong className={`vcr-direction-${direction}`}>{pick(DIRECTIONS[direction], englishMode)}</strong><small>{!blocked && Number.isFinite(directionFacts?.vixChange3Pct) && Number.isFinite(directionFacts?.ratioChange3)
+        <div className="vcr-environment-row" data-vix-risk-direction={direction}><span>{englishMode ? 'Risk direction' : '风险变化'}</span><div><strong className={`vcr-direction-${direction}`} style={{ color: getVixRiskDirectionColor(direction) }}>{pick(DIRECTIONS[direction], englishMode)}</strong><small>{!blocked && Number.isFinite(directionFacts?.vixChange3Pct) && Number.isFinite(directionFacts?.ratioChange3)
           ? `${englishMode ? '3-session VIX' : 'VIX 三日'} ${formatVixComparisonChangePercent(directionFacts.vixChange3Pct)} · ${englishMode ? 'ratio' : '比率'} ${directionFacts.ratioChange3 > 0 ? '+' : ''}${number(directionFacts.ratioChange3, 3)}`
           : (englishMode ? 'Needs 7 continuous completed sessions' : '需 7 个连续完成交易日')}</small></div></div>
       </div>
@@ -253,7 +254,7 @@ export default function VixComparisonPage({ ctx = {}, previewData }) {
     <div hidden={!monthlyOpen} className="vcr-monthly-host" data-vix-monthly-active={monthlyOpen ? 'true' : 'false'}>
       {monthlyVisited && <React.Suspense fallback={<div className="vcr-report-loading"><button type="button" onClick={closeMonthlyReport}>{englishMode ? 'Back' : '返回'}</button><p role="status">{englishMode ? 'Preparing report…' : '正在准备月报…'}</p></div>}>
         <VixMonthlyReportPage key={userId} userId={userId} data={data} expectedAsOfDate={expectedAsOfDate}
-          loading={state.loading} error={state.error} englishMode={englishMode}
+          loading={state.loading} error={state.error} englishMode={englishMode} marketColorMode={ctx.marketColorMode}
           onBack={closeMonthlyReport} onRefresh={() => setRefreshVersion(value => value + 1)} />
       </React.Suspense>}
     </div>

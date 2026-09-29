@@ -5,7 +5,7 @@ import { renderVixMonthlyShare } from '../lib/vixMonthlyShare.js';
 import VixMonthlyReportView from './VixMonthlyReportView.jsx';
 import './VixMonthlyReportPage.css';
 
-function MonthlyReportSession({ data, expectedAsOfDate, loading = false, error, onBack, onRefresh }) {
+function MonthlyReportSession({ data, expectedAsOfDate, loading = false, error, onBack, onRefresh, marketColorMode }) {
   const months = React.useMemo(() => listVixMonthlyReports(data, { expectedAsOfDate }), [data, expectedAsOfDate]);
   const [chosenMonth, setChosenMonth] = React.useState(null);
   const month = months.some(item => item.month === chosenMonth) ? chosenMonth : months.at(-1)?.month;
@@ -20,11 +20,11 @@ function MonthlyReportSession({ data, expectedAsOfDate, loading = false, error, 
   const dialogRef = React.useRef(null);
   const busyRef = React.useRef(false);
   const sessionActiveRef = React.useRef(true);
-  const inputRef = React.useRef({ data, expectedAsOfDate });
-  inputRef.current = { data, expectedAsOfDate };
+  const inputRef = React.useRef({ data, expectedAsOfDate, marketColorMode });
+  inputRef.current = { data, expectedAsOfDate, marketColorMode };
   // Hide an obsolete image during render, before effects revoke its object URL.
   const share = data && shareState?.data === data
-    && shareState?.expectedAsOfDate === expectedAsOfDate ? shareState : null;
+    && shareState?.expectedAsOfDate === expectedAsOfDate && shareState?.marketColorMode === marketColorMode ? shareState : null;
 
   React.useEffect(() => {
     const requestId = ++buildRequestRef.current;
@@ -85,7 +85,7 @@ function MonthlyReportSession({ data, expectedAsOfDate, loading = false, error, 
     objectUrlRef.current = null;
   }, []);
 
-  React.useEffect(() => { closeShare(); }, [data, expectedAsOfDate, closeShare]);
+  React.useEffect(() => { closeShare(); }, [data, expectedAsOfDate, marketColorMode, closeShare]);
   React.useEffect(() => {
     sessionActiveRef.current = true;
     return () => {
@@ -109,16 +109,18 @@ function MonthlyReportSession({ data, expectedAsOfDate, loading = false, error, 
     busyRef.current = true;
     const sourceData = data;
     const sourceExpected = expectedAsOfDate;
+    const sourceColorMode = marketColorMode;
     const requestId = ++shareRequestRef.current;
     const isCurrent = () => sessionActiveRef.current && requestId === shareRequestRef.current
-      && inputRef.current.data === sourceData && inputRef.current.expectedAsOfDate === sourceExpected;
-    const shareIdentity = { data: sourceData, expectedAsOfDate: sourceExpected };
+      && inputRef.current.data === sourceData && inputRef.current.expectedAsOfDate === sourceExpected
+      && inputRef.current.marketColorMode === sourceColorMode;
+    const shareIdentity = { data: sourceData, expectedAsOfDate: sourceExpected, marketColorMode: sourceColorMode };
     setShareError('');
     setShare({ ...shareIdentity, type, month: selectedReport.month, loading: true });
     try {
       await new Promise(resolve => requestAnimationFrame(resolve));
       if (!isCurrent()) return;
-      const blob = await renderVixMonthlyShare(selectedReport, type);
+      const blob = await renderVixMonthlyShare(selectedReport, type, { marketColorMode: sourceColorMode });
       if (!isCurrent()) return;
       if (!(blob instanceof Blob) || blob.type !== 'image/png') throw new Error('invalid_image');
       if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
@@ -156,7 +158,7 @@ function MonthlyReportSession({ data, expectedAsOfDate, loading = false, error, 
 
   return <div className="vmp-page" data-vix-monthly-page="true">
     <VixMonthlyReportView report={report} month={month || null} onMonthChange={setChosenMonth}
-      availableMonths={months} loading={loading || computing} notice={notice} onRefresh={onRefresh}
+      availableMonths={months} marketColorMode={marketColorMode} loading={loading || computing} notice={notice} onRefresh={onRefresh}
       onBack={() => { closeShare(); onBack?.(); }} onShare={generateShare} />
     {share && <dialog ref={dialogRef} className="vmp-share-dialog" aria-label="月报分享图片" onCancel={event => { event.preventDefault(); closeShare(); }}>
       <header><button type="button" onClick={closeShare} aria-label="关闭分享图片"><ArrowLeft size={20}/></button><strong>{share.month} · {share.type === 'daily' ? '每日明细' : '走势总览'}</strong><button type="button" onClick={closeShare} aria-label="关闭"><X size={19}/></button></header>

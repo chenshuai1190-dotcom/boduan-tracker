@@ -5,6 +5,7 @@ import {
   MARKET_COLOR_MODES,
   marketHexColor,
   marketTextClass,
+  marketTextHexColor,
   normalizeMarketColorMode,
 } from '../src/lib/marketColorMode.js';
 
@@ -14,6 +15,8 @@ test('market color mode defaults to green up and red down', () => {
   assert.equal(marketTextClass(-1, undefined), 'text-[#ff4b1f]');
   assert.equal(marketHexColor(1, undefined), '#22c55e');
   assert.equal(marketHexColor(-1, undefined), '#ff4b1f');
+  assert.equal(marketTextHexColor(1, undefined), '#34d399');
+  assert.equal(marketTextHexColor(-1, undefined), '#ff4b1f');
 });
 
 test('market color mode can switch to red up and green down', () => {
@@ -23,4 +26,6 @@ test('market color mode can switch to red up and green down', () => {
   assert.equal(marketTextClass(-1, mode), 'text-emerald-400');
   assert.equal(marketHexColor(1, mode), '#ff4b1f');
   assert.equal(marketHexColor(-1, mode), '#22c55e');
+  assert.equal(marketTextHexColor(1, mode), '#ff4b1f');
+  assert.equal(marketTextHexColor(-1, mode), '#34d399');
 });

@@ -1,4 +1,6 @@
 import { nextVixComparisonSession } from './vixComparisonSession.js';
+import { marketTextHexColor } from './marketColorMode.js';
+import { getVixRiskColor } from './vixRiskPalette.js';
 import {
   buildInversionAnnotations,
   getInversionNormalizationLabel,
@@ -17,14 +19,14 @@ const C = Object.freeze({
   background: '#0b1119', panel: '#131e2b', stripe: '#111b28', grid: '#263343',
   text: '#e6edf5', muted: '#8d9bad', faint: '#66768a', spy: '#79b4ff',
   qqq: '#b9a0ff', vix: '#ffae6c', vix3m: '#92a4bb', ratio: '#ed91a2',
-  up: '#72d2b1', down: '#f18b99', caution: '#d7ba69',
+  up: '#72d2b1', caution: '#d7ba69',
 });
-const RISK = Object.freeze({
-  LOW_VOLATILITY: { label: '低波动', color: C.up },
-  NORMAL: { label: '常态波动', color: C.vix3m },
-  ELEVATED: { label: '波动升高', color: C.caution },
-  HIGH_STRESS: { label: '高压状态', color: C.vix },
-  EXTREME_STRESS: { label: '极端压力', color: C.down },
+const RISK_LABELS = Object.freeze({
+  LOW_VOLATILITY: '低波动',
+  NORMAL: '常态波动',
+  ELEVATED: '波动升高',
+  HIGH_STRESS: '高压状态',
+  EXTREME_STRESS: '极端压力',
 });
 const finite = value => typeof value === 'number' && Number.isFinite(value);
 const number = (value, digits = 2) => finite(value)
@@ -43,7 +45,7 @@ const shortDate = value => dateKey(value) ? value.slice(5).replace('-', '/') : '
 const fullDate = value => dateKey(value) ? value.replaceAll('-', '/') : '—';
 const positive = value => finite(value) && value > 0 ? value : null;
 const count = value => finite(value) && value >= 0 ? number(value, 0) : '—';
-const signColor = value => !finite(value) || value === 0 ? C.muted : value > 0 ? C.up : C.down;
+const signColor = (value, marketColorMode) => !finite(value) || value === 0 ? C.muted : marketTextHexColor(value, marketColorMode);
 const tickNumber = (value, step, minimumDigits = 0) => {
   let digits = minimumDigits;
   while (digits < 6 && Math.abs(step * 10 ** digits - Math.round(step * 10 ** digits)) > 1e-7) digits += 1;
@@ -158,7 +160,7 @@ function niceScale(values, { include = [], fallback = [0, 1] } = {}) {
   const max = Math.ceil(hi / step) * step;
   return { min, max: Math.max(max, min + step), step, empty: false };
 }
-function plot(ctx, rows, { top, height, series, formatTick, include, fallback, thresholds = [], drawBackground, annotate }) {
+function plot(ctx, rows, { top, height, series, formatTick, tickColor, include, fallback, thresholds = [], drawBackground, annotate }) {
   const left = PAD + 92;
   const right = WIDTH - PAD - 22;
   const bottom = top + height;
@@ -176,7 +178,7 @@ function plot(ctx, rows, { top, height, series, formatTick, include, fallback, t
     const value = scale.min + index * scale.step;
     const py = y(value);
     line(ctx, left, py, right, py, Math.abs(value) < 1e-9 ? '#526174' : C.grid, Math.abs(value) < 1e-9 ? 2.5 : 1.5);
-    text(ctx, formatTick(value, scale.step), left - 22, py - 17, 29, C.muted, { align: 'right' });
+    text(ctx, formatTick(value, scale.step), left - 22, py - 17, 29, tickColor ? tickColor(value) : C.muted, { align: 'right' });
   }
   for (const threshold of thresholds) {
     if (threshold.value < scale.min || threshold.value > scale.max) continue;
@@ -269,15 +271,15 @@ function drawInversionChart(ctx, report, rows) {
     : normalizations.length ? '绿色标记：收盘比率回到 1.00 以下；空缺不视为解除' : '暂无已确认解除记录；空缺不视为解除';
   text(ctx, notes, PAD, 2399, 25, C.muted, { maxWidth: CONTENT });
 }
-function drawOverview(ctx, report, rows) {
+function drawOverview(ctx, report, rows, marketColorMode) {
   header(ctx, report, 'overview');
   const period = reportStatus(report).period;
   const summary = report.summary || {};
   const gap = 36;
   const cardWidth = (CONTENT - gap * 2) / 3;
   const cards = [
-    { label: `SPY ${period}涨跌`, value: percent(summary.SPY?.monthlyChangePct), color: C.spy },
-    { label: `QQQ ${period}涨跌`, value: percent(summary.QQQ?.monthlyChangePct), color: C.qqq },
+    { label: `SPY ${period}涨跌`, value: percent(summary.SPY?.monthlyChangePct), color: signColor(summary.SPY?.monthlyChangePct, marketColorMode) },
+    { label: `QQQ ${period}涨跌`, value: percent(summary.QQQ?.monthlyChangePct), color: signColor(summary.QQQ?.monthlyChangePct, marketColorMode) },
     { label: `VIX 月内最高收盘 · ${shortDate(summary.vixMax?.date)}`, value: number(positive(summary.vixMax?.value)), color: C.vix },
   ];
   cards.forEach((card, index) => {
@@ -290,6 +292,7 @@ function drawOverview(ctx, report, rows) {
     [{ label: 'SPY', color: C.spy }, { label: 'QQQ', color: C.qqq }]);
   plot(ctx, rows, { top: 774, height: 368, include: [0], fallback: [-1, 1],
     formatTick: (value, step) => `${value > step / 2 ? '+' : ''}${tickNumber(value, step)}%`,
+    tickColor: value => signColor(value, marketColorMode),
     series: [
       { color: C.spy, value: row => finite(row.prices?.SPY?.cumulativeChangePct) ? row.prices.SPY.cumulativeChangePct : null },
       { color: C.qqq, value: row => finite(row.prices?.QQQ?.cumulativeChangePct) ? row.prices.QQQ.cumulativeChangePct : null },
@@ -317,13 +320,17 @@ function drawOverview(ctx, report, rows) {
   drawInversionChart(ctx, report, rows);
   footer(ctx, report, 2446);
 }
-function drawDaily(ctx, report, rows, height) {
+function drawDaily(ctx, report, rows, height, marketColorMode) {
   header(ctx, report, 'daily');
   const summary = report.summary || {};
   roundedRect(ctx, PAD, 348, CONTENT, 112, C.panel);
   text(ctx, `${reportStatus(report).period}累计`, PAD + 30, 386, 30, C.muted);
-  text(ctx, `SPY  ${percent(summary.SPY?.monthlyChangePct)}`, PAD + 345, 377, 44, C.spy);
-  text(ctx, `QQQ  ${percent(summary.QQQ?.monthlyChangePct)}`, PAD + 850, 377, 44, C.qqq);
+  for (const [symbol, x, color] of [['SPY', PAD + 345, C.spy], ['QQQ', PAD + 850, C.qqq]]) {
+    text(ctx, symbol, x, 377, 44, color);
+    const labelWidth = ctx.measureText(`${symbol}  `).width;
+    const change = summary[symbol]?.monthlyChangePct;
+    text(ctx, percent(change), x + labelWidth, 377, 44, signColor(change, marketColorMode));
+  }
   text(ctx, `高压及以上 ${count(summary.highStressDays)} 日`, WIDTH - PAD - 28, 389, 28, C.muted, { align: 'right' });
   const columns = [
     { label: '日期', x: PAD + 25, align: 'left' },
@@ -343,17 +350,18 @@ function drawDaily(ctx, report, rows, height) {
   rows.forEach((row, index) => {
     const y = rowTop + index * rowHeight;
     if (index % 2 === 0) roundedRect(ctx, PAD - 10, y - 8, CONTENT + 20, 68, C.stripe, 5);
-    const risk = RISK[row.currentRiskLevel] || { label: '—', color: C.muted };
-    if (row.currentRiskLevel === 'EXTREME_STRESS') line(ctx, PAD - 10, y - 5, PAD - 10, y + 53, C.down, 4);
+    const riskLabel = RISK_LABELS[row.currentRiskLevel] || '—';
+    const riskColor = getVixRiskColor(row.currentRiskLevel);
+    if (row.currentRiskLevel === 'EXTREME_STRESS') line(ctx, PAD - 10, y - 5, PAD - 10, y + 53, riskColor, 4);
     text(ctx, shortDate(row.date), columns[0].x, y + 5, 38);
     text(ctx, number(positive(row.VIX)), columns[1].x, y + 5, 38, C.text, { align: 'right' });
     text(ctx, number(positive(row.VIX3M)), columns[2].x, y + 5, 38, C.vix3m, { align: 'right' });
     text(ctx, number(positive(row.ratio), 4), columns[3].x, y + 5, 38, C.text, { align: 'right' });
     for (const [symbol, column] of [['SPY', columns[4]], ['QQQ', columns[5]]]) {
       const change = row.prices?.[symbol]?.dailyChangePct;
-      text(ctx, percent(change), column.x, y + 5, 39, signColor(change), { align: 'right' });
+      text(ctx, percent(change), column.x, y + 5, 39, signColor(change, marketColorMode), { align: 'right' });
     }
-    text(ctx, risk.label, columns[6].x, y + 8, 32, risk.color, { align: 'right' });
+    text(ctx, riskLabel, columns[6].x, y + 8, 32, riskColor, { align: 'right' });
   });
   if (!rows.length) text(ctx, '该月暂无已记录的完成交易日数据', WIDTH / 2, rowTop + 200, 38, C.muted, { align: 'center' });
   const noteY = Math.max(rowTop + rows.length * rowHeight + 40, height - 490);
@@ -364,7 +372,7 @@ function drawDaily(ctx, report, rows, height) {
 }
 
 /** Render only a local PNG Blob. The caller owns download and system sharing. */
-export async function renderVixMonthlyShare(report, type = 'overview') {
+export async function renderVixMonthlyShare(report, type = 'overview', { marketColorMode } = {}) {
   if (!report || typeof report !== 'object' || Array.isArray(report)) throw new TypeError('月报数据不可用');
   if (type !== 'overview' && type !== 'daily') throw new TypeError('不支持的月报分享图类型');
   if (typeof document === 'undefined') throw new Error('月报分享图需要浏览器 Canvas');
@@ -378,8 +386,8 @@ export async function renderVixMonthlyShare(report, type = 'overview') {
     if (!ctx) throw new Error('当前浏览器无法生成月报分享图');
     ctx.fillStyle = C.background;
     ctx.fillRect(0, 0, WIDTH, height);
-    if (type === 'daily') drawDaily(ctx, report, rows, height);
-    else drawOverview(ctx, report, rows);
+    if (type === 'daily') drawDaily(ctx, report, rows, height, marketColorMode);
+    else drawOverview(ctx, report, rows, marketColorMode);
     const blob = await new Promise((resolve, reject) => {
       canvas.toBlob(value => value ? resolve(value) : reject(new Error('月报图片生成失败')), 'image/png');
     });

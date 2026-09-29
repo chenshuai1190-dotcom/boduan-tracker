@@ -1,12 +1,14 @@
 import React from 'react';
 import { ArrowLeft, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, LineChart, Loader2, Share2, Table2, RefreshCw, X } from 'lucide-react';
 import { buildInversionAnnotations, getInversionSegmentLabel, getInversionNormalizationLabel, normalizeVixMonthlyRows } from '../lib/vixMonthlyInversion.js';
+import { marketTextClass, marketTextHexColor } from '../lib/marketColorMode.js';
+import { getVixRiskColor, getVixRiskDirectionColor } from '../lib/vixRiskPalette.js';
 import './VixMonthlyReportView.css';
 
 const COLORS = { SPY: '#78ace8', QQQ: '#b79be5', VIX: '#dba77b', VIX3M: '#8fa1b6', ratio: '#d98282' };
 const RISKS = {
-  LOW_VOLATILITY: ['低波动', '#9ab5aa'], NORMAL: ['常态波动', '#c8bfb2'], ELEVATED: ['波动升高', '#d1b889'],
-  HIGH_STRESS: ['高压状态', '#dba77b'], EXTREME_STRESS: ['极端压力', '#d98282'], UNKNOWN: ['待补齐', '#87909e'],
+  LOW_VOLATILITY: '低波动', NORMAL: '常态波动', ELEVATED: '波动升高',
+  HIGH_STRESS: '高压状态', EXTREME_STRESS: '极端压力', UNKNOWN: '待补齐',
 };
 const TERMS = { NORMAL_TERM_STRUCTURE: '明显正向结构', NEAR_FLAT: '接近平坦', INVERTED: '期限倒挂', DEEP_INVERTED: '深度倒挂', UNKNOWN: '暂不可判断' };
 const DIRECTIONS = { RISING: '风险升温', EASING: '风险缓解', HIGH_HOLD: '高位维持', STABLE: '基本稳定', UNKNOWN: '暂不可判断' };
@@ -16,8 +18,9 @@ const fmt = (value, digits = 2) => Number.isFinite(value) ? value.toLocaleString
 const pct = value => Number.isFinite(value) ? `${value > 0 ? '+' : ''}${fmt(value)}%` : '—';
 const day = value => typeof value === 'string' ? value.slice(5).replace('-', '/') : '—';
 const monthLabel = value => /^\d{4}-\d{2}$/.test(value || '') ? `${value.slice(0, 4)} 年 ${Number(value.slice(5))} 月` : '选择月份';
-const riskOf = row => RISKS[row?.currentRiskLevel] || RISKS.UNKNOWN;
-const changeClass = value => Number.isFinite(value) ? (value > 0 ? 'vmr-positive' : value < 0 ? 'vmr-negative' : '') : 'vmr-missing';
+const riskOf = row => [RISKS[row?.currentRiskLevel] || RISKS.UNKNOWN, getVixRiskColor(row?.currentRiskLevel)];
+const changeClass = (value, mode) => !Number.isFinite(value) ? 'vmr-missing'
+  : value === 0 ? 'vmr-change-neutral' : marketTextClass(value, mode);
 const count = value => Number.isFinite(value) ? `${value} 日` : '—';
 
 function Sheet({ title, subtitle, onClose, children, className = '' }) {
@@ -60,7 +63,7 @@ function scaleBounds(values, type) {
   return [Math.floor((lo - span * 0.06) / step) * step, Math.ceil((hi + span * 0.06) / step) * step];
 }
 
-function LinkedChart({ report, rows, type, number, title, subtitle, selectedIndex, onSelect }) {
+function LinkedChart({ report, rows, type, number, title, subtitle, selectedIndex, onSelect, marketColorMode }) {
   const touchRef = React.useRef(null);
   const gestureRef = React.useRef(null);
   const [normalizationDate, setNormalizationDate] = React.useState(null);
@@ -105,7 +108,7 @@ function LinkedChart({ report, rows, type, number, title, subtitle, selectedInde
   return <section className="vmr-chart-panel">
     <div className="vmr-chart-heading"><h3><span>{number}</span>{title}</h3><div className="vmr-chart-legend">{series.map(key => <span key={key}><i style={{ backgroundColor: COLORS[key] }} />{key === 'ratio' ? 'VIX / VIX3M' : key}</span>)}</div></div>
     <div className="vmr-chart-subtitle">{subtitle}</div>
-    <div className="vmr-chart-reading" aria-live="polite">{series.map(key => <span key={key} style={{ color: COLORS[key] }}>{key === 'ratio' ? '比率' : key}<strong>{type === 'return' ? pct(value(focused, key)) : fmt(value(focused, key), type === 'ratio' ? 4 : 2)}</strong></span>)}<small>{focused ? day(focused.date) : '—'}{selectedIndex === null ? ' 收盘' : ' 选中'}</small></div>
+    <div className="vmr-chart-reading" aria-live="polite">{series.map(key => <span key={key} style={{ color: COLORS[key] }}>{key === 'ratio' ? '比率' : key}<strong className={type === 'return' ? changeClass(value(focused, key), marketColorMode) : undefined}>{type === 'return' ? pct(value(focused, key)) : fmt(value(focused, key), type === 'ratio' ? 4 : 2)}</strong></span>)}<small>{focused ? day(focused.date) : '—'}{selectedIndex === null ? ' 收盘' : ' 选中'}</small></div>
     {featured && <div className="vmr-inversion-summary" aria-live="polite">
       <strong>{getInversionSegmentLabel(featured, { includeStatus: false })}</strong>
       <span>{featured.carriedIn ? '承接上月 · ' : ''}{day(featured.startDate)}—{day(featured.endDate)}{featured.status === 'ongoing' ? ' · 仍在持续' : featured.status === 'interrupted' ? ' · 连续数据中断' : ''}</span>
@@ -135,7 +138,7 @@ function LinkedChart({ report, rows, type, number, title, subtitle, selectedInde
         {inversion?.segments.map(segment => <rect key={segment.startDate} data-inversion-band={segment.startDate}
           x={bandLeft(segment.startIndex)} y={top} width={Math.max(1, bandRight(segment.endIndex) - bandLeft(segment.startIndex))}
           height={bottom - top} fill={COLORS.ratio} fillOpacity=".065" />)}
-        {ticks.map(tick => <g key={tick}><line x1={left} x2={right} y1={y(tick)} y2={y(tick)} stroke={type === 'ratio' && tick === 1 ? COLORS.ratio : '#758298'} strokeOpacity={type === 'ratio' && tick === 1 ? '.55' : type === 'return' && tick === 0 ? '.38' : '.13'} strokeDasharray={type === 'ratio' && [1, 1.1].includes(tick) ? '3 4' : undefined} /><text x={left - 8} y={y(tick) + 3} textAnchor="end" fill="#778293">{type === 'return' ? `${tick > 0 ? '+' : ''}${fmt(tick, Number.isInteger(tick) ? 0 : 1)}%` : fmt(tick, type === 'ratio' ? 1 : 0)}</text></g>)}
+        {ticks.map(tick => <g key={tick}><line x1={left} x2={right} y1={y(tick)} y2={y(tick)} stroke={type === 'ratio' && tick === 1 ? COLORS.ratio : '#758298'} strokeOpacity={type === 'ratio' && tick === 1 ? '.55' : type === 'return' && tick === 0 ? '.38' : '.13'} strokeDasharray={type === 'ratio' && [1, 1.1].includes(tick) ? '3 4' : undefined} /><text x={left - 8} y={y(tick) + 3} textAnchor="end" fill={type === 'return' && tick !== 0 ? marketTextHexColor(tick, marketColorMode) : '#778293'}>{type === 'return' ? `${tick > 0 ? '+' : ''}${fmt(tick, Number.isInteger(tick) ? 0 : 1)}%` : fmt(tick, type === 'ratio' ? 1 : 0)}</text></g>)}
         {series.map(key => <path key={key} d={drawPath(key)} fill="none" stroke={COLORS[key]} strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />)}
         {inversion?.normalizations.map(event => <g key={event.date} data-normalization-marker={event.date}>
           <circle cx={x(event.index)} cy={y(event.ratio)} r="3.5" fill="#0a0d12" stroke="#b3c4d7" strokeWidth="1.4" />
@@ -162,16 +165,16 @@ function LinkedChart({ report, rows, type, number, title, subtitle, selectedInde
   </section>;
 }
 
-function DailyDetail({ row, onClose }) {
+function DailyDetail({ row, onClose, marketColorMode }) {
   const risk = riskOf(row);
   const currentEvents = (row.eventFlags || []).filter(event => EVENTS[event.type]);
   return <Sheet title={`${row.date.slice(0, 4)} 年 ${Number(row.date.slice(5, 7))} 月 ${Number(row.date.slice(8))} 日`} subtitle="当日收盘 · 六维风险观察" onClose={onClose} className="vmr-detail-sheet">
     <div className="vmr-detail-metrics"><div><span>VIX</span><strong>{fmt(row.VIX)}</strong></div><div><span>VIX3M</span><strong>{fmt(row.VIX3M)}</strong></div><div><span>期限比率</span><strong>{fmt(row.ratio, 4)}</strong></div></div>
-    <dl className="vmr-detail-facts"><div><dt><span>01</span>当前风险</dt><dd style={{ color: risk[1] }}>{risk[0]}</dd></div><div><dt><span>02</span>期限结构</dt><dd>{TERMS[row.termStructure] || TERMS.UNKNOWN}</dd></div><div><dt><span>03</span>风险变化</dt><dd style={{ color: row.riskDirection === 'EASING' ? '#a8b7d2' : undefined }}>{DIRECTIONS[row.riskDirection] || DIRECTIONS.UNKNOWN}</dd></div></dl>
+    <dl className="vmr-detail-facts"><div><dt><span>01</span>当前风险</dt><dd style={{ color: risk[1] }}>{risk[0]}</dd></div><div><dt><span>02</span>期限结构</dt><dd>{TERMS[row.termStructure] || TERMS.UNKNOWN}</dd></div><div><dt><span>03</span>风险变化</dt><dd style={{ color: getVixRiskDirectionColor(row.riskDirection) }}>{DIRECTIONS[row.riskDirection] || DIRECTIONS.UNKNOWN}</dd></div></dl>
     <section className="vmr-detail-section"><h3><span>04</span>持续时间</h3><div className="vmr-detail-durations">{[['当前等级', row.currentRiskDuration, 'currentRisk'], ['连续倒挂', row.inversionDays, 'inversion'], ['高压及以上', row.highStressDays, 'highStress'], ['极端压力', row.extremeStressDays, 'extremeStress']].map(([label, value, key]) => <div key={label}><span>{label}</span><strong>{Number.isFinite(value) && value > 0 && row.durationExact?.[key] !== true ? '至少 ' : ''}{count(value)}</strong></div>)}</div>{row.durationTags?.includes('PROLONGED_INVERSION') && <p className="vmr-detail-tag">连续倒挂已达 15 个交易日</p>}</section>
     <section className="vmr-detail-section"><h3><span>05</span>价格行为</h3><div className="vmr-detail-prices">{['SPY', 'QQQ'].map(symbol => {
       const price = row.prices?.[symbol]; const action = typeof price?.priceAction === 'string' ? price.priceAction : price?.priceAction?.status;
-      return <div key={symbol}><div><span style={{ color: COLORS[symbol] }}>{symbol}</span><strong className={changeClass(price?.dailyChangePct)}>{pct(price?.dailyChangePct)}</strong></div><p>{PRICE_ACTIONS[action] || PRICE_ACTIONS.UNKNOWN}</p><small>复权收盘 ${fmt(price?.adjustedClose)}</small></div>;
+      return <div key={symbol}><div><span style={{ color: COLORS[symbol] }}>{symbol}</span><strong className={changeClass(price?.dailyChangePct, marketColorMode)}>{pct(price?.dailyChangePct)}</strong></div><p>{PRICE_ACTIONS[action] || PRICE_ACTIONS.UNKNOWN}</p><small>复权收盘 ${fmt(price?.adjustedClose)}</small></div>;
     })}</div></section>
     <section className="vmr-detail-section"><h3><span>06</span>近期事件</h3>{currentEvents.length ? <ul className="vmr-detail-events">{currentEvents.map(event => <li key={`${event.type}-${event.date}`}><span>{EVENTS[event.type]}</span><small>{day(event.date)}{event.date === row.date ? ' · 当日' : ''}</small></li>)}</ul> : <p className="vmr-muted-copy">{row.ready ? '最近 3 个交易日无新增阈值事件。' : '连续数据不足，事件信息待补齐。'}</p>}</section>
     <p className="vmr-detail-disclaimer">风险水平与当日股价涨跌分别观察。“短期止跌迹象”与“反弹延续”不代表市场底部已经形成。</p>
@@ -180,7 +183,7 @@ function DailyDetail({ row, onClose }) {
 
 export default function VixMonthlyReportView({
   report: suppliedReport, reports = [], month: controlledMonth, onMonthChange, availableMonths,
-  initialMonth = '2025-04', onBack, onShare, preview = false, loading = false, notice, onRefresh,
+  initialMonth = '2025-04', onBack, onShare, preview = false, loading = false, notice, onRefresh, marketColorMode,
 }) {
   const pageRef = React.useRef(null);
   const orderedReports = React.useMemo(() => [...reports].sort((a, b) => a.month.localeCompare(b.month)), [reports]);
@@ -247,18 +250,18 @@ export default function VixMonthlyReportView({
     {report && <div className="vmr-month-status"><span>{complete ? '完整月份' : report.status === 'in_progress' ? '本月进行中' : '部分数据'}<i />{report.observedSessions} / {report.expectedSessions} 个交易日</span><span>截至 {day(report.asOfDate)}</span></div>}
     {!report ? <div className="vmr-empty"><CalendarDays size={27} strokeWidth={1.2} /><p>{loading ? '正在读取月度历史数据' : '月度历史数据尚未载入'}</p><small>{loading ? '请稍候' : '可刷新数据后查看'}</small></div> : <>
       <div className="vmr-tabs" role="tablist" aria-label="月报视图"><button type="button" role="tab" aria-selected={tab === 'overview'} onClick={() => setTab('overview')}>总览</button><button type="button" role="tab" aria-selected={tab === 'daily'} onClick={() => setTab('daily')}>每日明细</button></div>
-      <section className="vmr-summary" aria-label="月份摘要"><div><span>SPY {complete ? '月涨跌' : '月内涨跌'}</span><strong style={{ color: COLORS.SPY }}>{pct(summary.SPY?.monthlyChangePct)}</strong></div><div><span>QQQ {complete ? '月涨跌' : '月内涨跌'}</span><strong style={{ color: COLORS.QQQ }}>{pct(summary.QQQ?.monthlyChangePct)}</strong></div><div><span>VIX 最高收盘</span><strong style={{ color: COLORS.VIX }}>{fmt(summary.vixMax?.value)}</strong><small>{day(summary.vixMax?.date)}</small></div></section>
+      <section className="vmr-summary" aria-label="月份摘要"><div><span>SPY {complete ? '月涨跌' : '月内涨跌'}</span><strong className={changeClass(summary.SPY?.monthlyChangePct, marketColorMode)}>{pct(summary.SPY?.monthlyChangePct)}</strong></div><div><span>QQQ {complete ? '月涨跌' : '月内涨跌'}</span><strong className={changeClass(summary.QQQ?.monthlyChangePct, marketColorMode)}>{pct(summary.QQQ?.monthlyChangePct)}</strong></div><div><span>VIX 最高收盘</span><strong style={{ color: COLORS.VIX }}>{fmt(summary.vixMax?.value)}</strong><small>{day(summary.vixMax?.date)}</small></div></section>
       {report.status === 'partial' && <p className="vmr-coverage-note">这个月的数据尚未完整。缺失读数保留为空，无法完整计算的统计显示 —。{report.cutoffDate && (!report.asOfDate || report.asOfDate < report.cutoffDate) ? `待补齐至 ${report.cutoffDate}。` : ''}</p>}
       {tab === 'overview' ? <div className="vmr-overview" role="tabpanel" aria-label="总览">
         <div className="vmr-history-toolbar"><span>{selectedIndex === null ? '全月走势' : `${selected?.date || ''} · 联动读数`}</span><button type="button" disabled={selectedIndex === null} onClick={() => setSelectedIndex(null)}>回到月末</button></div>
-        <LinkedChart key={`${report.month}-return`} rows={rows} type="return" number="01" title="股价累计涨跌" subtitle={`相对 ${summary.SPY?.baselineDate || '上月末'} 复权收盘`} selectedIndex={selectedIndex} onSelect={setSelectedIndex} />
-        <LinkedChart key={`${report.month}-volatility`} rows={rows} type="volatility" number="02" title="波动率水平" subtitle="VIX 与 VIX3M 同日收盘" selectedIndex={selectedIndex} onSelect={setSelectedIndex} />
-        <LinkedChart key={`${report.month}-ratio`} report={report} rows={rows} type="ratio" number="03" title="期限比率" subtitle="≥ 1.00 倒挂 · ≥ 1.10 深度倒挂" selectedIndex={selectedIndex} onSelect={setSelectedIndex} />
+        <LinkedChart key={`${report.month}-return`} rows={rows} type="return" number="01" title="股价累计涨跌" subtitle={`相对 ${summary.SPY?.baselineDate || '上月末'} 复权收盘`} selectedIndex={selectedIndex} onSelect={setSelectedIndex} marketColorMode={marketColorMode} />
+        <LinkedChart key={`${report.month}-volatility`} rows={rows} type="volatility" number="02" title="波动率水平" subtitle="VIX 与 VIX3M 同日收盘" selectedIndex={selectedIndex} onSelect={setSelectedIndex} marketColorMode={marketColorMode} />
+        <LinkedChart key={`${report.month}-ratio`} report={report} rows={rows} type="ratio" number="03" title="期限比率" subtitle="≥ 1.00 倒挂 · ≥ 1.10 深度倒挂" selectedIndex={selectedIndex} onSelect={setSelectedIndex} marketColorMode={marketColorMode} />
         <section className="vmr-month-observations"><div><span>高压及以上</span><strong>{count(summary.highStressDays)}<small>/ 应有 {Number.isFinite(report.expectedSessions) ? report.expectedSessions : '—'} 日</small></strong></div><div><span>倒挂交易日</span><strong>{count(summary.inversionDays)}<small>/ 应有 {Number.isFinite(report.expectedSessions) ? report.expectedSessions : '—'} 日</small></strong></div></section>
         <button type="button" className="vmr-details-entry" onClick={() => { setTab('daily'); setSelectedIndex(null); }}><span>查看每日涨跌与风险<small>{Number.isFinite(report.expectedSessions) ? report.expectedSessions : '—'} 个应有交易日，点选查看六维观察</small></span><ChevronRight size={18} strokeWidth={1.5} /></button>
       </div> : <div className="vmr-daily" role="tabpanel" aria-label="每日明细">
         <div className="vmr-daily-caption"><span>当日涨跌 · 相对上一交易日</span><span>点行查看详情</span></div>
-        <div className="vmr-table" role="table" aria-label="每日涨跌与风险"><div className="vmr-table-header vmr-table-grid" role="row"><span role="columnheader">日期</span><span role="columnheader">VIX</span><span role="columnheader">比率</span><span role="columnheader">SPY<small>日涨跌</small></span><span role="columnheader">QQQ<small>日涨跌</small></span><span role="columnheader">风险</span></div><div role="rowgroup">{rows.map(row => <button type="button" key={row.date} className="vmr-table-row vmr-table-grid" role="row" aria-label={`${row.date}，${riskOf(row)[0]}，查看六维详情`} onClick={() => setDetailDate(row.date)}><span role="cell" className="vmr-table-date">{day(row.date)}</span><span role="cell">{fmt(row.VIX)}</span><span role="cell">{fmt(row.ratio, 3)}</span><span role="cell" className={changeClass(row.prices?.SPY?.dailyChangePct)}>{pct(row.prices?.SPY?.dailyChangePct)}</span><span role="cell" className={changeClass(row.prices?.QQQ?.dailyChangePct)}>{pct(row.prices?.QQQ?.dailyChangePct)}</span><span role="cell" className="vmr-table-risk" style={{ color: riskOf(row)[1] }}>{riskOf(row)[0]}</span></button>)}</div></div>
+        <div className="vmr-table" role="table" aria-label="每日涨跌与风险"><div className="vmr-table-header vmr-table-grid" role="row"><span role="columnheader">日期</span><span role="columnheader">VIX</span><span role="columnheader">比率</span><span role="columnheader">SPY<small>日涨跌</small></span><span role="columnheader">QQQ<small>日涨跌</small></span><span role="columnheader">风险</span></div><div role="rowgroup">{rows.map(row => <button type="button" key={row.date} className="vmr-table-row vmr-table-grid" role="row" aria-label={`${row.date}，${riskOf(row)[0]}，查看六维详情`} onClick={() => setDetailDate(row.date)}><span role="cell" className="vmr-table-date">{day(row.date)}</span><span role="cell">{fmt(row.VIX)}</span><span role="cell">{fmt(row.ratio, 3)}</span><span role="cell" className={changeClass(row.prices?.SPY?.dailyChangePct, marketColorMode)}>{pct(row.prices?.SPY?.dailyChangePct)}</span><span role="cell" className={changeClass(row.prices?.QQQ?.dailyChangePct, marketColorMode)}>{pct(row.prices?.QQQ?.dailyChangePct)}</span><span role="cell" className="vmr-table-risk" style={{ color: riskOf(row)[1] }}>{riskOf(row)[0]}</span></button>)}</div></div>
         <p className="vmr-table-note">比率显示至小数点后三位，风险等级使用原始精度。VIX3M 与完整六维观察可在单日详情中查看。</p>
       </div>}
       <footer className="vmr-footer"><p>SPY / QQQ 使用复权收盘；横轴按交易日排列。</p><p>按当日收盘回放当前候选规则，不代表当时信号，也不证明预测能力。</p><span>Cboe · EODHD<span>QUOTE / 市场观察</span></span></footer>
@@ -267,7 +270,7 @@ export default function VixMonthlyReportView({
       const month = `${pickerYear}-${String(i + 1).padStart(2, '0')}`; const available = months.find(item => item.month === month);
       return <button key={month} type="button" disabled={!available} aria-pressed={visibleMonth === month} onClick={() => chooseMonth(month)}>{i + 1} 月{available?.status === 'in_progress' && <small>进行中</small>}</button>;
     })}</div><p className="vmr-month-range">可用范围 {months[0]?.month} — {months.at(-1)?.month}</p></Sheet>}
-    {detail && <DailyDetail row={detail} onClose={() => setDetailDate(null)} />}
+    {detail && <DailyDetail row={detail} marketColorMode={marketColorMode} onClose={() => setDetailDate(null)} />}
     {shareSheet && <Sheet title="分享月报" subtitle={`${monthLabel(report?.month)} · 选择分享内容`} onClose={() => { if (!sharing) setShareSheet(false); }}><div className="vmr-share-options">{[['overview', LineChart, '市场走势总览', '累计涨跌、波动率与期限结构'], ['daily', Table2, '每日涨跌与风险', '全月交易日数据与风险观察']].map(([type, Icon, title, description]) => <button key={type} type="button" disabled={!onShare || Boolean(sharing)} onClick={() => share(type)}><span className={`vmr-share-icon vmr-share-${type}`}><Icon size={28} strokeWidth={1.3} /></span><span><strong>{title}</strong><small>{description}</small></span>{sharing === type ? <Loader2 size={18} className="vmr-spin" /> : <ChevronRight size={18} strokeWidth={1.5} />}</button>)}</div>{!onShare && <p className="vmr-muted-copy">图片分享正在接入，此处先预览内容选项。</p>}{shareError && <p className="vmr-share-error" role="alert">{shareError}</p>}<p className="vmr-share-note">分享内容仅包含市场数据，不包含个人账户或持仓。</p></Sheet>}
   </main>;
 }
