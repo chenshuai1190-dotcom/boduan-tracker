@@ -26,3 +26,14 @@ export function getVixRiskAccentStyle(level) {
     '--vcr-accent-rgb': color.slice(1).match(/../g).map(pair => parseInt(pair, 16)).join(','),
   };
 }
+
+// Term ratios are an indicator series, independent of the user's return colors.
+// Reuse the system benchmark blue and neutral chart references.
+export const VIX_TERM_CHART_COLORS = Object.freeze({
+  line: '#789ac0',
+  threshold: '#a1a1aa',
+  secondaryThreshold: '#62626b',
+  inversion: VIX_RISK_COLORS.HIGH_STRESS,
+  band: 'rgba(219,167,123,0.065)',
+  normalized: '#c7c8d0',
+});

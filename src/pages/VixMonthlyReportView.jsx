@@ -2,10 +2,10 @@ import React from 'react';
 import { ArrowLeft, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, LineChart, Loader2, Share2, Table2, RefreshCw, X } from 'lucide-react';
 import { buildInversionAnnotations, getInversionSegmentLabel, getInversionNormalizationLabel, normalizeVixMonthlyRows } from '../lib/vixMonthlyInversion.js';
 import { marketTextClass, marketTextHexColor } from '../lib/marketColorMode.js';
-import { getVixRiskColor, getVixRiskDirectionColor } from '../lib/vixRiskPalette.js';
+import { getVixRiskColor, getVixRiskDirectionColor, VIX_TERM_CHART_COLORS } from '../lib/vixRiskPalette.js';
 import './VixMonthlyReportView.css';
 
-const COLORS = { SPY: '#78ace8', QQQ: '#b79be5', VIX: '#dba77b', VIX3M: '#8fa1b6', ratio: '#d98282' };
+const COLORS = { SPY: '#78ace8', QQQ: '#b79be5', VIX: '#dba77b', VIX3M: '#8fa1b6', ratio: VIX_TERM_CHART_COLORS.line };
 const RISKS = {
   LOW_VOLATILITY: '低波动', NORMAL: '常态波动', ELEVATED: '波动升高',
   HIGH_STRESS: '高压状态', EXTREME_STRESS: '极端压力', UNKNOWN: '待补齐',
@@ -105,7 +105,7 @@ function LinkedChart({ report, rows, type, number, title, subtitle, selectedInde
     onSelect(Math.max(0, Math.min(rows.length - 1, Math.round(unit * (rows.length - 1)))));
   };
   const labels = [...new Set([0, Math.floor((rows.length - 1) / 2), rows.length - 1])].filter(index => index >= 0);
-  return <section className="vmr-chart-panel">
+  return <section className="vmr-chart-panel" style={type === 'ratio' ? { '--vmr-inversion-color': VIX_TERM_CHART_COLORS.inversion, '--vmr-normalized-color': VIX_TERM_CHART_COLORS.normalized } : undefined}>
     <div className="vmr-chart-heading"><h3><span>{number}</span>{title}</h3><div className="vmr-chart-legend">{series.map(key => <span key={key}><i style={{ backgroundColor: COLORS[key] }} />{key === 'ratio' ? 'VIX / VIX3M' : key}</span>)}</div></div>
     <div className="vmr-chart-subtitle">{subtitle}</div>
     <div className="vmr-chart-reading" aria-live="polite">{series.map(key => <span key={key} style={{ color: COLORS[key] }}>{key === 'ratio' ? '比率' : key}<strong className={type === 'return' ? changeClass(value(focused, key), marketColorMode) : undefined}>{type === 'return' ? pct(value(focused, key)) : fmt(value(focused, key), type === 'ratio' ? 4 : 2)}</strong></span>)}<small>{focused ? day(focused.date) : '—'}{selectedIndex === null ? ' 收盘' : ' 选中'}</small></div>
@@ -137,14 +137,14 @@ function LinkedChart({ report, rows, type, number, title, subtitle, selectedInde
       <svg viewBox={`0 0 ${w} 173`} role="img" aria-label={`${title}，横轴按交易日对齐，数据缺失处断线`}>
         {inversion?.segments.map(segment => <rect key={segment.startDate} data-inversion-band={segment.startDate}
           x={bandLeft(segment.startIndex)} y={top} width={Math.max(1, bandRight(segment.endIndex) - bandLeft(segment.startIndex))}
-          height={bottom - top} fill={COLORS.ratio} fillOpacity=".065" />)}
-        {ticks.map(tick => <g key={tick}><line x1={left} x2={right} y1={y(tick)} y2={y(tick)} stroke={type === 'ratio' && tick === 1 ? COLORS.ratio : '#758298'} strokeOpacity={type === 'ratio' && tick === 1 ? '.55' : type === 'return' && tick === 0 ? '.38' : '.13'} strokeDasharray={type === 'ratio' && [1, 1.1].includes(tick) ? '3 4' : undefined} /><text x={left - 8} y={y(tick) + 3} textAnchor="end" fill={type === 'return' && tick !== 0 ? marketTextHexColor(tick, marketColorMode) : '#778293'}>{type === 'return' ? `${tick > 0 ? '+' : ''}${fmt(tick, Number.isInteger(tick) ? 0 : 1)}%` : fmt(tick, type === 'ratio' ? 1 : 0)}</text></g>)}
+          height={bottom - top} fill={VIX_TERM_CHART_COLORS.band} />)}
+        {ticks.map(tick => <g key={tick}><line x1={left} x2={right} y1={y(tick)} y2={y(tick)} stroke={type === 'ratio' && tick === 1 ? VIX_TERM_CHART_COLORS.threshold : '#758298'} strokeOpacity={type === 'ratio' && tick === 1 ? '.55' : type === 'return' && tick === 0 ? '.38' : '.13'} strokeDasharray={type === 'ratio' && [1, 1.1].includes(tick) ? '3 4' : undefined} /><text x={left - 8} y={y(tick) + 3} textAnchor="end" fill={type === 'return' && tick !== 0 ? marketTextHexColor(tick, marketColorMode) : '#778293'}>{type === 'return' ? `${tick > 0 ? '+' : ''}${fmt(tick, Number.isInteger(tick) ? 0 : 1)}%` : fmt(tick, type === 'ratio' ? 1 : 0)}</text></g>)}
         {series.map(key => <path key={key} d={drawPath(key)} fill="none" stroke={COLORS[key]} strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />)}
         {inversion?.normalizations.map(event => <g key={event.date} data-normalization-marker={event.date}>
-          <circle cx={x(event.index)} cy={y(event.ratio)} r="3.5" fill="#0a0d12" stroke="#b3c4d7" strokeWidth="1.4" />
+          <circle cx={x(event.index)} cy={y(event.ratio)} r="3.5" fill="#0a0d12" stroke={VIX_TERM_CHART_COLORS.normalized} strokeWidth="1.4" />
           {event === primaryNormalization && <>
             <path d={`M${x(event.index)},${y(event.ratio) - 6} L${Math.max(left + 95, Math.min(right - 3, x(event.index) - 14))},${top + 33}`} fill="none" stroke="#8796aa" strokeWidth=".8" />
-            <text x={Math.max(left + 95, Math.min(right - 3, x(event.index) - 14))} y={top + 26} textAnchor="end" fill="#bdc9d9">{getInversionNormalizationLabel(event)}</text>
+            <text x={Math.max(left + 95, Math.min(right - 3, x(event.index) - 14))} y={top + 26} textAnchor="end" fill={VIX_TERM_CHART_COLORS.normalized}>{getInversionNormalizationLabel(event)}</text>
           </>}
         </g>)}
         {selectedIndex !== null && <line x1={x(current)} x2={x(current)} y1={top} y2={bottom} stroke="#aab3c2" strokeOpacity=".48" strokeDasharray="3 3" />}

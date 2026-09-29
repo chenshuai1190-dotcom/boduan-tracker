@@ -145,11 +145,11 @@
 @media (prefers-reduced-motion: reduce) { .vmr-sheet, .vmr-spin { animation: none; } }
 
 .vmr-inversion-summary { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; margin: 0 0 11px 35px; }
-.vmr-inversion-summary strong { font-size: 11px; font-weight: 400; color: #d79b9f; line-height: 1.6; }
+.vmr-inversion-summary strong { font-size: 11px; font-weight: 400; color: var(--vmr-inversion-color); line-height: 1.6; }
 .vmr-inversion-summary > span { font-size: 10px; color: #8390a3; line-height: 1.5; }
 .vmr-inversion-events { display: flex; flex-wrap: wrap; gap: 0 14px; margin: 6px 0 0 35px; }
-.vmr-inversion-events > button { display: flex; align-items: center; gap: 5px; min-height: 44px; font-size: 10px; color: #a4b4c8; }
-.vmr-inversion-events i { width: 5px; height: 5px; border: 1px solid #a4b4c8; border-radius: 50%; }
+.vmr-inversion-events > button { display: flex; align-items: center; gap: 5px; min-height: 44px; font-size: 10px; color: var(--vmr-normalized-color); }
+.vmr-inversion-events i { width: 5px; height: 5px; border: 1px solid currentColor; border-radius: 50%; }
 .vmr-inversion-events p { font-size: 10px; color: #8795a8; line-height: 1.7; margin: 0; }
 .vmr-normalization-values { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 11px 0 22px; }
 .vmr-normalization-values div { display: flex; flex-direction: column; gap: 12px; }

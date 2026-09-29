@@ -1,6 +1,6 @@
 import { nextVixComparisonSession } from './vixComparisonSession.js';
 import { marketTextHexColor } from './marketColorMode.js';
-import { getVixRiskColor } from './vixRiskPalette.js';
+import { getVixRiskColor, VIX_TERM_CHART_COLORS } from './vixRiskPalette.js';
 import {
   buildInversionAnnotations,
   getInversionNormalizationLabel,
@@ -18,8 +18,8 @@ const FONT = '-apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans G
 const C = Object.freeze({
   background: '#0b1119', panel: '#131e2b', stripe: '#111b28', grid: '#263343',
   text: '#e6edf5', muted: '#8d9bad', faint: '#66768a', spy: '#79b4ff',
-  qqq: '#b9a0ff', vix: '#ffae6c', vix3m: '#92a4bb', ratio: '#ed91a2',
-  up: '#72d2b1', caution: '#d7ba69',
+  qqq: '#b9a0ff', vix: '#ffae6c', vix3m: '#92a4bb', ratio: VIX_TERM_CHART_COLORS.line,
+  caution: '#d7ba69',
 });
 const RISK_LABELS = Object.freeze({
   LOW_VOLATILITY: '低波动',
@@ -234,24 +234,24 @@ function drawInversionChart(ctx, report, rows) {
     summarySize -= 1;
     ctx.font = `400 ${summarySize}px ${FONT}`;
   }
-  roundedRect(ctx, PAD, 2001, 18, 28, 'rgba(237,145,162,0.45)', 4);
-  text(ctx, segmentLabel, PAD + 34, 1998, summarySize, primarySegment ? C.ratio : C.muted,
+  roundedRect(ctx, PAD, 2001, 18, 28, VIX_TERM_CHART_COLORS.inversion, 4);
+  text(ctx, segmentLabel, PAD + 34, 1998, summarySize, primarySegment ? VIX_TERM_CHART_COLORS.inversion : C.muted,
     { maxWidth: leftSummaryWidth - 34 });
-  if (primaryNormalization) text(ctx, getInversionNormalizationLabel(primaryNormalization), WIDTH - PAD, 1998, 31, C.up,
+  if (primaryNormalization) text(ctx, getInversionNormalizationLabel(primaryNormalization), WIDTH - PAD, 1998, 31, VIX_TERM_CHART_COLORS.normalized,
     { align: 'right', maxWidth: 365 });
   plot(ctx, rows, {
     top: 2077, height: 242, include: [1, 1.1], fallback: [.8, 1.2],
     formatTick: (value, step) => tickNumber(value, step, 2),
-    thresholds: [{ value: 1, color: C.ratio }, { value: 1.1, color: '#916170' }],
+    thresholds: [{ value: 1, color: VIX_TERM_CHART_COLORS.threshold }, { value: 1.1, color: VIX_TERM_CHART_COLORS.secondaryThreshold }],
     series: [{ color: C.ratio, value: row => positive(row.ratio) }],
     drawBackground: ({ x, left, right, top, bottom }) => {
       const halfSessionWidth = rows.length > 1 ? (right - left) / (rows.length - 1) / 2 : 24;
       for (const segment of segments) {
         const start = Math.max(left, x(segment.startIndex) - halfSessionWidth);
         const end = Math.min(right, x(segment.endIndex) + halfSessionWidth);
-        ctx.fillStyle = segment === primarySegment ? 'rgba(237,145,162,0.14)' : 'rgba(237,145,162,0.09)';
+        ctx.fillStyle = VIX_TERM_CHART_COLORS.band;
         ctx.fillRect(start, top, end - start, bottom - top);
-        line(ctx, start, top + 1, end, top + 1, 'rgba(237,145,162,0.5)', 2);
+        line(ctx, start, top + 1, end, top + 1, VIX_TERM_CHART_COLORS.inversion, 2);
       }
     },
     annotate: ({ x, y, top, bottom }) => {
@@ -259,16 +259,16 @@ function drawInversionChart(ctx, report, rows) {
         const major = event === primaryNormalization;
         const px = x(event.index);
         const py = y(event.ratio);
-        line(ctx, px, top, px, bottom, major ? '#527e72' : '#355a50', major ? 2.5 : 1.5, [6, 7]);
+        line(ctx, px, top, px, bottom, VIX_TERM_CHART_COLORS.secondaryThreshold, major ? 2.5 : 1.5, [6, 7]);
         ctx.beginPath(); ctx.arc(px, py, major ? 9 : 6.5, 0, Math.PI * 2);
         ctx.fillStyle = C.background; ctx.fill();
-        ctx.strokeStyle = C.up; ctx.lineWidth = major ? 3 : 2; ctx.stroke();
+        ctx.strokeStyle = VIX_TERM_CHART_COLORS.normalized; ctx.lineWidth = major ? 3 : 2; ctx.stroke();
       }
     },
   });
   const notes = secondaryNormalizations.length
     ? `${primaryNormalization ? '其他解除日' : '已确认解除日'}：${secondaryNormalizations.map(event => shortDate(event.date)).join('、')}  ·  空缺不视为解除`
-    : normalizations.length ? '绿色标记：收盘比率回到 1.00 以下；空缺不视为解除' : '暂无已确认解除记录；空缺不视为解除';
+    : normalizations.length ? '空心标记：收盘比率回到 1.00 以下；空缺不视为解除' : '暂无已确认解除记录；空缺不视为解除';
   text(ctx, notes, PAD, 2399, 25, C.muted, { maxWidth: CONTENT });
 }
 function drawOverview(ctx, report, rows, marketColorMode) {

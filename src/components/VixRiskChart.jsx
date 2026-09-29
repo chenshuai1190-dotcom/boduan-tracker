@@ -1,9 +1,10 @@
 import React from 'react';
 import { formatVixComparisonChangePercent } from '../lib/vixComparisonChart.js';
 import { isVixComparisonSession } from '../lib/vixComparisonSession.js';
+import { VIX_TERM_CHART_COLORS } from '../lib/vixRiskPalette.js';
 import { marketTextClass } from '../lib/marketColorMode.js';
 
-const COLORS = { vix: '#dda36b', market: '#91a9c2', ratio: '#b3a0d3' };
+const COLORS = { vix: '#dda36b', market: '#91a9c2', ratio: VIX_TERM_CHART_COLORS.line };
 const WIDTH = 360;
 const LEFT = 31;
 const RIGHT = 324;
@@ -159,12 +160,12 @@ export default function VixRiskChart({ model, termRows = [], symbol, englishMode
         </g>)}
         <path d={path('price', py)} fill="none" stroke={COLORS.market} strokeWidth="1.65" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
         <path d={path('vix', vy)} fill="none" stroke={COLORS.vix} strokeWidth="1.65" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
-        <text x={LEFT} y="198" fill="#8f8a9a">VIX / VIX3M</text>
+        <text x={LEFT} y="198" fill="#80818b">VIX / VIX3M</text>
         <text x={RIGHT} y="198" textAnchor="end" fill={COLORS.ratio}>{fmt(selected.ratio, 3)}</text>
-        <rect x={LEFT} y={ry(rMax)} width={RIGHT - LEFT} height={ry(1) - ry(rMax)} fill={COLORS.ratio} fillOpacity=".025" />
+        <rect x={LEFT} y={ry(rMax)} width={RIGHT - LEFT} height={ry(1) - ry(rMax)} fill={VIX_TERM_CHART_COLORS.band} />
         {[0.9, 1, 1.1].map(value => <g key={value}>
-          <line x1={LEFT} x2={RIGHT} y1={ry(value)} y2={ry(value)} stroke={value === 1 ? COLORS.ratio : '#fff'} strokeOpacity={value === 1 ? '.35' : '.07'} strokeDasharray="3 4" />
-          <text x={LEFT - 8} y={ry(value) + 3} textAnchor="end" fill={value === 1 ? COLORS.ratio : '#707782'}>{fmt(value, 1)}</text>
+          <line x1={LEFT} x2={RIGHT} y1={ry(value)} y2={ry(value)} stroke={value === 1 ? VIX_TERM_CHART_COLORS.threshold : '#fff'} strokeOpacity={value === 1 ? '.35' : '.07'} strokeDasharray="3 4" />
+          <text x={LEFT - 8} y={ry(value) + 3} textAnchor="end" fill={value === 1 ? VIX_TERM_CHART_COLORS.threshold : '#707782'}>{fmt(value, 1)}</text>
         </g>)}
         <path d={path('ratio', ry)} fill="none" stroke={COLORS.ratio} strokeWidth="1.8" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
         {!hasRatio && <text x={(LEFT + RIGHT) / 2} y={(RATIO_TOP + RATIO_BOTTOM) / 2} textAnchor="middle" fill="#858b96">{englishMode ? 'Term data unavailable' : '期限结构数据暂缺'}</text>}
