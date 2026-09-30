@@ -98,6 +98,7 @@ export default function PnlReportTrendChart({
   const latestRecordHigh = (mode === 'amount'
     ? recordHighPoints.filter(point => point.value > 0).at(-1)
     : recordHighPoints.at(-1)) || null;
+  // Keep the amount tied to the period high when the selected chart date changes.
   const recordHighAmount = mode === 'amount' ? convertUsd(latestRecordHigh?.value, displayRate) : null;
   const primaryColor = mode === 'assets' ? NET_ASSET_COLOR
     : mode === 'amount' ? marketHexColor(latestRecordHigh?.value, marketColorMode) : color;
