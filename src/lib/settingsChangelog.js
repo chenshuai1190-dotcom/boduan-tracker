@@ -4,6 +4,17 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '股票趋势选中历史日期后新增「至今涨跌」，查看从所选收盘价至最新收盘的价格变化金额和百分比，沿用系统涨跌配色。',
+      '精简市场月报顶部与每日明细的重复提示。',
+    ],
+    itemsEn: [
+      'Select a historical date in Stock Trends to see the price change and percentage through the latest close, using your market color preference.',
+      'Streamlined repeated labels in the monthly market report header and daily details.',
+    ],
+  },
+  {
+    ver: 'v10.7.9.547', date: '2026-09-27',
+    items: [
       'VIX 与市场走势新增独立市场月报，按月查看 SPY／QQQ 涨跌、波动率、期限比率和每日六维观察，并生成高清分享图。',
       '期限比率图标注连续倒挂区间与解除日期，跨月延续计数；历史日期只展示截至当日已知的持续时间和事件，缺失数据不作为倒挂解除。',
     ],

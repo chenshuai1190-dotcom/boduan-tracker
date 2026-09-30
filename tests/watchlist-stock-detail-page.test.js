@@ -507,7 +507,7 @@ test('price tooltip has wider mobile-bounded single-line metric rows', () => {
   assert.ok(tooltipSource.includes('stock-report-price-tooltip'));
   assert.ok(tooltipSource.includes("? 'left-2' : 'right-2'"));
   assert.equal(tooltipSource.includes('w-[188px]'), false);
-  assert.equal((tooltipSource.match(/className="stock-report-tooltip-row"/g) || []).length, 4);
+  assert.equal((tooltipSource.match(/className="stock-report-tooltip-row"/g) || []).length, 5);
   assert.ok(tooltipSource.includes('{showDailyMa ?'));
   assert.ok(tooltipSource.includes('selectedDailyMaRow.ma200'));
   assert.doesNotMatch(tooltipSource, /MA50|ma50|Ma50/);

@@ -237,6 +237,23 @@ export function resolveStockDetailClose(history = []) {
   };
 }
 
+// Both observations must come from the same split-adjusted price history.
+// The endpoint is the page's latest daily close, independent of the chart window.
+export function deriveStockDetailReturnToLatest(selectedPoint, latestClose) {
+  const fromDate = utcDateKey(selectedPoint?.date);
+  const asOfDate = utcDateKey(latestClose?.date);
+  const start = selectedPoint?.close;
+  const end = latestClose?.close;
+  if (!fromDate || !asOfDate || asOfDate < fromDate
+    || selectedPoint.date !== fromDate || latestClose.date !== asOfDate
+    || !Number.isFinite(start) || start <= 0 || !Number.isFinite(end) || end <= 0
+    || (asOfDate === fromDate && start !== end)) return null;
+  const change = end - start;
+  const changePercent = (change / start) * 100;
+  if (!Number.isFinite(change) || !Number.isFinite(changePercent)) return null;
+  return { fromDate, asOfDate, change, changePercent };
+}
+
 export function deriveThreeMonthQqqRelativeReturn(stockHistory = [], qqqBenchmarkRows = []) {
   const stockRows = normalizeStockDetailHistory(stockHistory);
   const qqqRows = normalizeAdjustedBenchmarkHistory(qqqBenchmarkRows);

@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowLeft, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, LineChart, Loader2, Share2, Table2, RefreshCw, X } from 'lucide-react';
+import { ArrowLeft, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, LineChart, Loader2, Share2, Table2, X } from 'lucide-react';
 import { buildInversionAnnotations, getInversionSegmentLabel, getInversionNormalizationLabel, normalizeVixMonthlyRows } from '../lib/vixMonthlyInversion.js';
 import { marketTextClass, marketTextHexColor } from '../lib/marketColorMode.js';
 import { getVixRiskColor, getVixRiskDirectionColor, getVixObservationColor, VIX_TERM_CHART_COLORS } from '../lib/vixRiskPalette.js';
@@ -204,7 +204,7 @@ function DailyDetail({ row, onClose, marketColorMode }) {
 
 export default function VixMonthlyReportView({
   report: suppliedReport, reports = [], month: controlledMonth, onMonthChange, availableMonths,
-  initialMonth = '2025-04', onBack, onShare, preview = false, loading = false, notice, onRefresh, marketColorMode,
+  initialMonth = '2025-04', onBack, onShare, preview = false, loading = false, notice, marketColorMode,
 }) {
   const pageRef = React.useRef(null);
   const orderedReports = React.useMemo(() => [...reports].sort((a, b) => a.month.localeCompare(b.month)), [reports]);
@@ -266,11 +266,11 @@ export default function VixMonthlyReportView({
 
   return <main ref={pageRef} className="vmr-page" data-vix-monthly-report="true" data-vix-monthly-report-preview={preview ? 'true' : undefined} aria-busy={loading}>
     <header className="vmr-header"><button type="button" onClick={onBack} aria-label="返回 VIX 与市场走势"><ArrowLeft size={20} strokeWidth={1.7} /></button><h1>市场月报</h1><button type="button" aria-label="分享月报" disabled={!report || loading || !onShare} onClick={() => { setShareError(''); setShareSheet(true); }}><Share2 size={18} strokeWidth={1.6} /></button></header>
-    <div className="vmr-preview-label"><i />{preview ? '本地设计预览' : '日线收盘 · 历史回放'}{preview && <span>日线收盘 · 历史回放</span>}{onRefresh && <button type="button" onClick={onRefresh} disabled={loading} aria-label="刷新月报数据"><RefreshCw size={12} className={loading ? 'vmr-spin' : undefined} />{loading ? '刷新中' : '刷新'}</button>}</div>
+    {preview && <div className="vmr-preview-label"><i />本地设计预览</div>}
     {notice && <p className="vmr-data-notice" role="status">{notice}</p>}
     <div className="vmr-month-nav"><button type="button" aria-label="上一个可用月份" disabled={index <= 0} onClick={() => chooseMonth(months[index - 1].month)}><ChevronLeft size={20} strokeWidth={1.6} /></button><button type="button" className="vmr-month-title" disabled={!months.length} onClick={() => { setPickerYear(Number(visibleMonth?.slice(0, 4) || years.at(-1))); setMonthSheet(true); }}><span>{visibleMonth ? monthLabel(visibleMonth) : '市场月报'}</span><ChevronDown size={16} strokeWidth={1.5} /></button><button type="button" aria-label="下一个可用月份" disabled={index < 0 || index >= months.length - 1} onClick={() => chooseMonth(months[index + 1].month)}><ChevronRight size={20} strokeWidth={1.6} /></button></div>
     {report && <div className="vmr-month-status"><span>{complete ? '完整月份' : report.status === 'in_progress' ? '本月进行中' : '部分数据'}<i />{report.observedSessions} / {report.expectedSessions} 个交易日</span><span>截至 {day(report.asOfDate)}</span></div>}
-    {!report ? <div className="vmr-empty"><CalendarDays size={27} strokeWidth={1.2} /><p>{loading ? '正在读取月度历史数据' : '月度历史数据尚未载入'}</p><small>{loading ? '请稍候' : '可刷新数据后查看'}</small></div> : <>
+    {!report ? <div className="vmr-empty"><CalendarDays size={27} strokeWidth={1.2} /><p>{loading ? '正在读取月度历史数据' : '月度历史数据尚未载入'}</p><small>{loading ? '请稍候' : '可返回 VIX 页面刷新后查看'}</small></div> : <>
       <div className="vmr-tabs" role="tablist" aria-label="月报视图"><button type="button" role="tab" aria-selected={tab === 'overview'} onClick={() => setTab('overview')}>总览</button><button type="button" role="tab" aria-selected={tab === 'daily'} onClick={() => setTab('daily')}>每日明细</button></div>
       <section className="vmr-summary" aria-label="月份摘要"><div><span>SPY {complete ? '月涨跌' : '月内涨跌'}</span><strong className={changeClass(summary.SPY?.monthlyChangePct, marketColorMode)}>{pct(summary.SPY?.monthlyChangePct)}</strong></div><div><span>QQQ {complete ? '月涨跌' : '月内涨跌'}</span><strong className={changeClass(summary.QQQ?.monthlyChangePct, marketColorMode)}>{pct(summary.QQQ?.monthlyChangePct)}</strong></div><div><span>VIX 最高收盘</span><strong style={{ color: getVixObservationColor(peakRisk, COLORS.VIX) }}>{fmt(summary.vixMax?.value)}</strong><small>{day(summary.vixMax?.date)}</small></div></section>
       {report.status === 'partial' && <p className="vmr-coverage-note">这个月的数据尚未完整。缺失读数保留为空，无法完整计算的统计显示 —。{report.cutoffDate && (!report.asOfDate || report.asOfDate < report.cutoffDate) ? `待补齐至 ${report.cutoffDate}。` : ''}</p>}
@@ -284,7 +284,6 @@ export default function VixMonthlyReportView({
       </div> : <div className="vmr-daily" role="tabpanel" aria-label="每日明细">
         <div className="vmr-daily-caption"><span>当日涨跌 · 相对上一交易日</span><span>点行查看详情</span></div>
         <div className="vmr-table" role="table" aria-label="每日涨跌与风险"><div className="vmr-table-header vmr-table-grid" role="row"><span role="columnheader">日期</span><span role="columnheader">VIX</span><span role="columnheader">比率</span><span role="columnheader">SPY<small>日涨跌</small></span><span role="columnheader">QQQ<small>日涨跌</small></span><span role="columnheader">风险</span></div><div role="rowgroup">{rows.map(row => <button type="button" key={row.date} className="vmr-table-row vmr-table-grid" role="row" aria-label={`${row.date}，${riskOf(row)[0]}，查看六维详情`} onClick={() => setDetailDate(row.date)}><span role="cell" className="vmr-table-date">{day(row.date)}</span><span role="cell">{fmt(row.VIX)}</span><span role="cell">{fmt(row.ratio, 3)}</span><span role="cell" className={changeClass(row.prices?.SPY?.dailyChangePct, marketColorMode)}>{pct(row.prices?.SPY?.dailyChangePct)}</span><span role="cell" className={changeClass(row.prices?.QQQ?.dailyChangePct, marketColorMode)}>{pct(row.prices?.QQQ?.dailyChangePct)}</span><span role="cell" className="vmr-table-risk" style={{ color: riskOf(row)[1] }}>{riskOf(row)[0]}</span></button>)}</div></div>
-        <p className="vmr-table-note">比率显示至小数点后三位，风险等级使用原始精度。VIX3M 与完整六维观察可在单日详情中查看。</p>
       </div>}
       <footer className="vmr-footer"><p>SPY / QQQ 使用复权收盘；横轴按交易日排列。</p><p>按当日收盘回放当前候选规则，不代表当时信号，也不证明预测能力。</p><span>Cboe · EODHD<span>QUOTE / 市场观察</span></span></footer>
     </>}

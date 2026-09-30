@@ -32,7 +32,7 @@ const report = {
 
 test('production monthly view discloses incomplete coverage and retains the missing tail on its linked axis', () => {
   const html = render({ report, month: report.month, availableMonths: [{ month: report.month }], onShare() {} });
-  assert.ok(html.includes('日线收盘 · 历史回放'));
+  assert.equal(html.includes('日线收盘 · 历史回放'), false);
   assert.equal(html.includes('本地设计预览'), false);
   assert.ok(html.includes('部分数据') && html.includes('缺失读数保留为空'));
   assert.ok(html.includes('待补齐至 2025-05-02'));

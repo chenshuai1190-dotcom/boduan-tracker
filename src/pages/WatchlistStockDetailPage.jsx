@@ -27,6 +27,7 @@ import { deriveStockMaStructure, deriveStockMaTrend } from '../lib/stockMaStruct
 import { buildTechnicalExplanation } from '../lib/technicalExplanation.js';
 import {
   deriveCloseBasedPosition,
+  deriveStockDetailReturnToLatest,
   displayCurrencyRate,
   filterStockDetailHistory,
   filterStockDetailWeeklyHistory,
@@ -320,7 +321,7 @@ function chartWindowLabel(points, language) {
   return `${label(points[0])}–${label(points.at(-1))}`;
 }
 
-export function PriceChart({ rows, dailyRows, weeklyRows, weeklyLookupRows, range, currency, language, marketColorMode, symbol, priceColor, initialTooltipOpen = false, presentation }) {
+export function PriceChart({ rows, dailyRows, weeklyRows, weeklyLookupRows, range, currency, language, marketColorMode, symbol, priceColor, initialTooltipOpen = false, presentation, latestClose }) {
   const weeklyMa = range === '5y';
   const chartZoomEnabled = range === '1y' || range === '5y';
   const showDailyMa = range === '5y';
@@ -426,6 +427,7 @@ export function PriceChart({ rows, dailyRows, weeklyRows, weeklyLookupRows, rang
   const selectedChangePct = selectedChange !== null && previousPoint?.close > 0
     ? (selectedChange / previousPoint.close) * 100
     : null;
+  const returnToLatest = deriveStockDetailReturnToLatest(selectedPoint, latestClose);
   const selectedMaRow = selectedPoint
     ? (weeklyMa
       ? findStockDetailWeeklyMaOnOrBefore(weeklyLookupRows, selectedPoint.date)
@@ -741,6 +743,14 @@ export function PriceChart({ rows, dailyRows, weeklyRows, weeklyLookupRows, rang
               {selectedChange === null ? '--' : `${selectedChange >= 0 ? '+' : ''}${formatNumber(selectedChange)}  ${formatSignedPercent(selectedChangePct)}`}
             </span>
           </div>
+          {latestClose !== undefined && <div className="stock-report-tooltip-row" data-watchlist-return-to-latest="true">
+            <span className="text-white/[0.40]">{t(language, 'watchlistDetail.changeToLatest', '至今涨跌')}</span>
+            <span className="whitespace-nowrap tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
+              <span style={{ color: returnToLatest?.change ? marketHexColor(returnToLatest.change, marketColorMode) : '#a1a1aa' }}>
+                {returnToLatest ? `${returnToLatest.change >= 0 ? '+' : ''}${formatNumber(returnToLatest.change)}  ${formatSignedPercent(returnToLatest.changePercent)}` : '--'}
+              </span>
+            </span>
+          </div>}
           {selectedShortDailyMas.map((series) => (
             <div key={series.key} className="stock-report-tooltip-row" data-watchlist-short-daily-ma-value={series.key}>
               <span className="text-white/[0.40]">{t(language, `watchlistDetail.ma${series.period}Daily`, `MA${series.period}（日）`)}</span>
@@ -1642,7 +1652,7 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
           ))}
         </div>
         <div className="mt-2 min-w-0">
-          <PriceChart rows={visibleHistory} dailyRows={visibleDailyMaHistory} weeklyRows={visibleWeeklyHistory} weeklyLookupRows={weeklyHistory} range={range} currency={stockCurrency} language={language} marketColorMode={marketColorMode} symbol={symbol} priceColor={chartPriceColor} initialTooltipOpen={watchlistStockDetailChartTooltipOpen} />
+          <PriceChart rows={visibleHistory} dailyRows={visibleDailyMaHistory} weeklyRows={visibleWeeklyHistory} weeklyLookupRows={weeklyHistory} range={range} currency={stockCurrency} language={language} marketColorMode={marketColorMode} symbol={symbol} priceColor={chartPriceColor} initialTooltipOpen={watchlistStockDetailChartTooltipOpen} latestClose={loading || loadError ? null : stockDetail?.history?.at(-1) ?? null} />
         </div>
         <div
           className="mt-1 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[11px] text-white/[0.40]"

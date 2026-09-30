@@ -8,6 +8,7 @@ import { dateKey } from '../src/lib/earningsCalendarModel.js';
 import { t } from '../src/lib/i18n.js';
 import { marketHexColor } from '../src/lib/marketColorMode.js';
 import {
+  deriveStockDetailReturnToLatest,
   findStockDetailWeeklyMaOnOrBefore, fullStockDetailChartWindow,
   normalizeStockDetailChartWindow, sliceStockDetailChartWindow,
   stockDetailChartDragIntent, transformStockDetailChartWindow,
@@ -22,6 +23,7 @@ const chartSource = source.slice(source.indexOf('const NUMBER_FONT ='), source.i
     .replace(/^export (?=function PriceChart\()/m, '');
 const { code } = await transformWithOxc(chartSource, 'WatchlistStockMaCurves.jsx', { jsx: { runtime: 'classic' } });
 const dependencies = {
+  deriveStockDetailReturnToLatest,
   React, dateKey, t, marketHexColor, findStockDetailWeeklyMaOnOrBefore,
   fullStockDetailChartWindow, normalizeStockDetailChartWindow, sliceStockDetailChartWindow,
   stockDetailChartDragIntent, transformStockDetailChartWindow,

@@ -70,7 +70,7 @@ function MonthlyReportSession({ data, expectedAsOfDate, loading = false, error, 
   const report = currentResult?.report;
   const computing = Boolean(month && !currentResult);
   const stale = Boolean(data?.stale || data?.termStructure?.stale);
-  const notice = currentResult?.failed ? '这个月的历史数据暂时无法整理，请刷新后重试。'
+  const notice = currentResult?.failed ? '这个月的历史数据暂时无法整理，可返回 VIX 页面刷新后重试。'
     : error ? '刷新失败，保留已读取的历史数据；完整性以各月覆盖情况为准。'
       : stale ? '当前使用已保存的收盘历史，尚未确认新的数据；完整性以各月覆盖情况为准。'
         : computing ? '正在整理这个月的收盘数据…' : null;
