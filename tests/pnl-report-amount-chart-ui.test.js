@@ -19,6 +19,11 @@ function nodes(node, predicate) {
   return [...(predicate(node) ? [node] : []), ...React.Children.toArray(node.props.children).flatMap(child => nodes(child, predicate))];
 }
 
+function amountPaths(tree) {
+  return nodes(tree, node => node.type === 'path' && Object.hasOwn(node.props, 'data-pnl-amount-sign')
+    && node.props['data-pnl-amount-sign'] != null);
+}
+
 function render(data, { currency = 'CNY', rate = 7.2, marketColorMode = 'redUpGreenDown', combined = false, mode = 'amount', language = 'zh' } = {}) {
   let tree;
   function Capture() {
@@ -50,7 +55,7 @@ test('amount trend renders a zero line, only my P&L line, and currency-aware dai
   assert.equal(nodes(tree, node => node.props.className === 'pnl-trend-zero-line').length, 1);
   assert.equal(nodes(tree, node => node.props.className === 'pnl-trend-zero-label').length, 1);
   assert.equal(nodes(tree, node => node.type === 'path' && node.props.stroke === '#789ac0').length, 0, 'amounts have no benchmark');
-  assert.equal(nodes(tree, node => node.type === 'path' && node.props.stroke?.startsWith?.('url(#pnl-report-amount-line-')).length, 1);
+  assert.deepEqual(amountPaths(tree).map(node => node.props.stroke), ['#22c55e', '#ff4b1f']);
   const readout = nodes(tree, node => node.props['data-pnl-report-amount-tooltip'])[0];
   const readingClasses = React.Children.toArray(readout.props.children).map(child => child.props.className).filter(Boolean);
   assert.ok(readingClasses[0].includes('text-emerald-400'), 'negative daily P&L follows the market color preference');
@@ -130,15 +135,18 @@ test('stock personal view pairs daily and cumulative amounts with their return r
   assert.match(html, /pnl-trend-missing">--<\/span>/, 'missing daily return stays unknown');
   assert.equal(nodes(tree, node => node.props['data-pnl-report-record-high'] === 'pnlUsd').length, 1);
   assert.equal(nodes(tree, node => node.props.className === 'pnl-trend-zero-line').length, 1);
-  assert.equal(nodes(tree, node => node.type === 'path' && node.props.stroke?.startsWith?.('url(#pnl-report-amount-line-')).length, 1);
+  assert.deepEqual(amountPaths(tree).map(node => node.props.stroke), ['#22c55e', '#ff4b1f']);
 });
 
 test('missing amount observations are not plotted as zero or selectable readings', () => {
   const data = [trend[0], { date: '2026-09-21', label: '2026/09', pnlUsd: null, dailyPnlUsd: null }, trend[2]];
   const { tree, html } = render(data);
-  const paths = nodes(tree, node => node.type === 'path' && node.props.stroke?.startsWith?.('url(#pnl-report-amount-line-'));
-  assert.equal(paths.length, 1, 'observed closes form one trend across dates without a portfolio snapshot');
-  assert.equal((paths[0].props.d.match(/ L/g) || []).length, 1, 'the missing date adds no fabricated chart point');
+  const paths = amountPaths(tree);
+  assert.equal(paths.length, 2, 'the observed line is split only where its sign changes');
+  const endOfLoss = paths[0].props.d.split(' L').at(-1);
+  const startOfGain = paths[1].props.d.split(' L')[0].slice(1);
+  assert.equal(endOfLoss, startOfGain, 'the two colors meet at one drawing-only zero crossing');
+  assert.ok(paths.every(path => !path.props.d.includes('155.00 ')), 'the missing date adds no fabricated chart point');
   assert.match(html, /\+¥50,400\.00/);
   const empty = render([{ date: '2026-09-21', label: '2026/09', pnlUsd: null, dailyPnlUsd: null }]);
   assert.equal(nodes(empty.tree, node => node.props.className === 'pnl-trend-zero-line').length, 0);
@@ -147,4 +155,28 @@ test('missing amount observations are not plotted as zero or selectable readings
   const missingDaily = render([{ date: '2026-09-22', label: '2026/09', pnlUsd: 100, dailyPnlUsd: null }]);
   assert.match(missingDaily.html, /当日盈亏<\/span><span class="pnl-trend-missing">--<\/span>/);
   assert.match(missingDaily.html, /\+¥720\.00/);
+});
+
+
+test('amount strokes use stable solid market colors for every sign and both color preferences', () => {
+  for (const marketColorMode of ['redUpGreenDown', 'greenUpRedDown']) {
+    const positiveColor = marketColorMode === 'redUpGreenDown' ? '#ff4b1f' : '#22c55e';
+    const negativeColor = marketColorMode === 'redUpGreenDown' ? '#22c55e' : '#ff4b1f';
+    for (const values of [[100, 300, 200], [-100, -300, -200], [0, 0, 0], [-100, 200, -50]]) {
+      const data = values.map((pnlUsd, index) => ({ date: `2026-09-${20 + index}`, pnlUsd, dailyPnlUsd: null }));
+      const { tree } = render(data, { marketColorMode });
+      const paths = amountPaths(tree);
+      assert.ok(paths.length > 0);
+      assert.ok(paths.every(path => path.props.stroke === (path.props['data-pnl-amount-sign'] === -1 ? negativeColor : positiveColor)));
+      assert.equal(nodes(tree, node => node.type === 'path' && node.props.stroke?.startsWith?.('url(')).length, 0,
+        'amount line coloring must not depend on a gradient paint server during iOS scrolling');
+      assert.equal(nodes(tree, node => node.type === 'path' && node.props.fill !== 'none').length, 0);
+    }
+    for (const pnlUsd of [100, -100, 0]) {
+      const { tree } = render([{ date: '2026-09-20', pnlUsd }], { marketColorMode });
+      assert.equal(amountPaths(tree).length, 0);
+      const [dot] = nodes(tree, node => node.type === 'circle' && node.props.r === '2.4');
+      assert.equal(dot.props.fill, pnlUsd < 0 ? negativeColor : positiveColor);
+    }
+  }
 });

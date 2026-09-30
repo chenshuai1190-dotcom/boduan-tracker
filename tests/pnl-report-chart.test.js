@@ -8,6 +8,7 @@ import {
   buildLinePathFromPoints,
   isRenderableChartValue,
   isExplicitUnknownNetAssetPoint,
+  splitChartLineBySign,
   splitChartPointSegments,
 } from '../src/lib/pnlReportChart.js';
 
@@ -178,4 +179,115 @@ test('each selected interval and each curve keeps its own record-high baseline',
   assert.deepEqual(buildChartRecordHighs(returns), []);
   assert.deepEqual(buildChartRecordHighs(returns.slice(1)), [returns[2], returns[3]]);
   assert.deepEqual(buildChartRecordHighs(assets), [assets[1], assets[3]]);
+});
+
+function signedPoints(values) {
+  return values.map((value, index) => ({ value, x: index * 10, y: 100 - value, index }));
+}
+
+test('signed drawing segments merge same-color edges including flat and zero-valued lines', () => {
+  for (const { values, sign } of [
+    { values: [2, 3, 1, 4], sign: 1 },
+    { values: [-2, -3, -1, -4], sign: -1 },
+    { values: [0, 0, 0], sign: 1 },
+    { values: [4, 4, 4], sign: 1 },
+    { values: [-4, -4, -4], sign: -1 },
+    { values: [0, 3, 0, 2, 0], sign: 1 },
+    { values: [0, -3, 0, -2, 0], sign: -1 },
+  ]) {
+    const points = signedPoints(values);
+    assert.deepEqual(splitChartLineBySign(points), [{ sign, points }]);
+  }
+});
+
+test('signed drawing segments meet at the interpolated zero without shifting the original line', () => {
+  for (const values of [[-3, 1], [3, -1]]) {
+    const points = signedPoints(values);
+    const segments = splitChartLineBySign(points);
+    assert.deepEqual(segments.map(segment => segment.sign), values.map(value => value < 0 ? -1 : 1));
+    assert.equal(segments[0].points[0], points[0]);
+    assert.equal(segments[1].points.at(-1), points[1]);
+    const crossing = segments[0].points.at(-1);
+    assert.deepEqual(crossing, { x: 7.5, y: 100, value: 0 });
+    assert.equal(crossing, segments[1].points[0], 'both colors share exactly the same crossing');
+    assert.deepEqual(segments.map(segment => buildLinePathFromPoints(segment.points)), values[0] < 0
+      ? ['M0.00 103.00 L7.50 100.00', 'M7.50 100.00 L10.00 99.00']
+      : ['M0.00 97.00 L7.50 100.00', 'M7.50 100.00 L10.00 101.00']);
+  }
+});
+
+test('explicit zero crossings never give the nonzero part of an edge the opposite color', () => {
+  for (const values of [[2, 0, -2], [-2, 0, 2]]) {
+    const points = signedPoints(values);
+    const segments = splitChartLineBySign(points);
+    assert.deepEqual(segments.map(segment => segment.sign), [Math.sign(values[0]), Math.sign(values[2])]);
+    assert.deepEqual(segments.map(segment => segment.points), [points.slice(0, 2), points.slice(1)]);
+  }
+  const points = signedPoints([-2, 0, 0, -2]);
+  assert.deepEqual(splitChartLineBySign(points), [
+    { sign: -1, points: points.slice(0, 2) },
+    { sign: 1, points: points.slice(1, 3) },
+    { sign: -1, points: points.slice(2) },
+  ]);
+});
+
+test('repeated sign changes preserve every observed point with continuous drawing geometry', () => {
+  const points = signedPoints([2, -2, 4, -4, 3]);
+  const segments = splitChartLineBySign(points);
+  assert.deepEqual(segments.map(segment => segment.sign), [1, -1, 1, -1, 1]);
+  assert.equal(segments[0].points[0], points[0]);
+  assert.equal(segments.at(-1).points.at(-1), points.at(-1));
+  for (let index = 1; index < segments.length; index += 1) {
+    assert.equal(segments[index - 1].points.at(-1), segments[index].points[0]);
+  }
+  for (const point of points) assert.ok(segments.some(segment => segment.points.includes(point)));
+  for (const segment of segments) {
+    assert.ok(segment.points.length >= 2);
+    assert.ok(segment.points.some(point => point.x !== segment.points[0].x || point.y !== segment.points[0].y));
+    assert.ok(segment.points.every(point => point.value === 0 || Math.sign(point.value) === segment.sign));
+  }
+});
+
+test('empty, single-point, and duplicate-coordinate inputs produce no degenerate signed lines', () => {
+  for (const input of [undefined, null, [], signedPoints([0]), signedPoints([-2])]) {
+    assert.deepEqual(splitChartLineBySign(input), []);
+  }
+  const zero = { x: 0, y: 100, value: 0 };
+  assert.deepEqual(splitChartLineBySign([zero, { ...zero }]), []);
+  const negative = { x: 10, y: 102, value: -2 };
+  assert.deepEqual(splitChartLineBySign([zero, { ...zero }, negative]), [
+    { sign: -1, points: [zero, negative] },
+  ]);
+});
+
+test('signed drawing geometry keeps filtered missing dates absent and never mutates observations', () => {
+  const data = Object.freeze([
+    Object.freeze({ date: '2026-09-20', pnlUsd: -3 }),
+    Object.freeze({ date: '2026-09-21', pnlUsd: null }),
+    Object.freeze({ date: '2026-09-22', pnlUsd: 1 }),
+  ]);
+  const points = Object.freeze(buildLinePoints(data, 'pnlUsd', { min: -4, max: 2 }).map(Object.freeze));
+  const before = JSON.stringify({ data, points });
+  const segments = splitChartLineBySign(points);
+  assert.deepEqual(points.map(point => point.index), [0, 2]);
+  assert.equal(segments[0].points[0], points[0]);
+  assert.equal(segments[1].points.at(-1), points[1]);
+  const crossing = segments[0].points.at(-1);
+  assert.equal(crossing.x, 228.5, 'the existing line remains connected over a date without a snapshot');
+  assert.equal(Object.hasOwn(crossing, 'point'), false);
+  assert.equal(Object.hasOwn(crossing, 'index'), false);
+  assert.equal(Object.hasOwn(crossing, 'date'), false);
+  assert.equal(JSON.stringify({ data, points }), before);
+});
+
+test('signed crossings use raw values and keep large finite values from overflowing', () => {
+  for (const values of [[-0.000003, 0.000001], [-3e307, 1e307], [-1e308, 1e308]]) {
+    const points = [{ x: 0, y: 20, value: values[0] }, { x: 20, y: 0, value: values[1] }];
+    const segments = splitChartLineBySign(points);
+    const expectedX = values[0] === -1e308 ? 10 : 15;
+    const crossing = segments[0].points.at(-1);
+    assert.ok(Math.abs(crossing.x - expectedX) < 1e-12);
+    assert.ok(Math.abs(crossing.y - (20 - expectedX)) < 1e-12);
+    assert.equal(crossing.value, 0);
+  }
 });

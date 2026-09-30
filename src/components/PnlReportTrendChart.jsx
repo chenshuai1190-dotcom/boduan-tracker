@@ -3,7 +3,7 @@ import { marketHexColor, marketTextClass } from '../lib/marketColorMode.js';
 import { isEnglishLanguage, t } from '../lib/i18n.js';
 import {
   buildAreaPathFromPoints, buildLinePathFromPoints, buildChartDomain, buildLinePoints, buildChartRecordHighs, chartX,
-  isExplicitUnknownNetAssetPoint, isRenderableChartValue, splitChartPointSegments,
+  isExplicitUnknownNetAssetPoint, isRenderableChartValue, splitChartPointSegments, splitChartLineBySign,
 } from '../lib/pnlReportChart.js';
 import './PnlReportTrendChart.css';
 import './PulseDot.css';
@@ -84,7 +84,6 @@ export default function PnlReportTrendChart({
   const chartRootRef = React.useRef(null);
   const activePointerRef = React.useRef(null);
   const gradientId = `pnl-report-area-${React.useId().replace(/:/g, '')}`;
-  const amountLineGradientId = `pnl-report-amount-line-${React.useId().replace(/:/g, '')}`;
   const primaryKey = mode === 'assets' ? 'netAssetUsd' : mode === 'amount' ? 'pnlUsd' : 'pnlPct';
   const hasBenchmark = data.some(point => isRenderableChartValue(point?.benchmarkPct));
   const showBenchmark = mode === 'pnl' && hasBenchmark;
@@ -112,7 +111,10 @@ export default function PnlReportTrendChart({
   const primarySegments = React.useMemo(() => mode === 'assets'
     ? splitChartPointSegments(data, primaryPoints, isExplicitUnknownNetAssetPoint)
     : (primaryPoints.length ? [primaryPoints] : []), [data, mode, primaryPoints]);
-  const primaryPaths = primarySegments.map(buildLinePathFromPoints).filter(Boolean);
+  // Solid-color segments avoid scroll-dependent SVG gradient strokes on iOS.
+  const primaryPaths = primarySegments.flatMap(points => mode === 'amount'
+    ? splitChartLineBySign(points) : [{ points, sign: null }])
+    .map(({ points, sign }) => ({ d: buildLinePathFromPoints(points), sign })).filter(({ d }) => d);
   const totalAssetPath = mode === 'assets' ? buildLinePathFromPoints(totalAssetPoints) : '';
   const benchmarkPath = showBenchmark ? buildLinePathFromPoints(benchmarkPoints) : '';
   const areaPaths = mode === 'amount' ? [] : primarySegments.map(segment => buildAreaPathFromPoints(segment, PNL_CHART_HEIGHT, PNL_CHART_PAD)).filter(Boolean);
@@ -245,16 +247,12 @@ export default function PnlReportTrendChart({
           <defs><linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor={mode === 'assets' ? NET_ASSET_COLOR : color} stopOpacity="0.13" />
             <stop offset="100%" stopColor={mode === 'assets' ? NET_ASSET_COLOR : color} stopOpacity="0" />
-          </linearGradient>
-          {zeroY != null && <linearGradient id={amountLineGradientId} gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2={PNL_CHART_HEIGHT}>
-            <stop offset={`${zeroY / PNL_CHART_HEIGHT * 100}%`} stopColor={marketHexColor(1, marketColorMode)} />
-            <stop offset={`${zeroY / PNL_CHART_HEIGHT * 100}%`} stopColor={marketHexColor(-1, marketColorMode)} />
-          </linearGradient>}</defs>
+          </linearGradient></defs>
           {gridLines.map(y => <line key={y} x1={PNL_CHART_PAD} y1={y} x2={PNL_CHART_WIDTH - PNL_CHART_PAD} y2={y} stroke="rgba(255,255,255,0.07)" vectorEffect="non-scaling-stroke" />)}
           {zeroY != null && <line className="pnl-trend-zero-line" x1={PNL_CHART_PAD} y1={zeroY} x2={PNL_CHART_WIDTH - PNL_CHART_PAD} y2={zeroY} stroke="rgba(255,255,255,0.38)" strokeWidth="1" strokeDasharray="3 4" vectorEffect="non-scaling-stroke" />}
           {areaPaths.map((path, index) => <path key={`area-${index}`} d={path} fill={`url(#${gradientId})`} />)}
           {totalAssetPath && <path d={totalAssetPath} fill="none" stroke={TOTAL_ASSET_COLOR} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />}
-          {primaryPaths.map((path, index) => <path key={`line-${index}`} d={path} fill="none" stroke={mode === 'assets' ? NET_ASSET_COLOR : mode === 'amount' ? `url(#${amountLineGradientId})` : color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />)}
+          {primaryPaths.map(({ d, sign }, index) => <path key={`line-${index}`} d={d} data-pnl-amount-sign={sign ?? undefined} fill="none" stroke={mode === 'assets' ? NET_ASSET_COLOR : mode === 'amount' ? marketHexColor(sign, marketColorMode) : color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />)}
           {primarySegments.filter(segment => segment.length === 1).map(segment => <circle key={`single-${segment[0].index}`} cx={segment[0].x} cy={segment[0].y} r="2.4" fill={mode === 'assets' ? NET_ASSET_COLOR : mode === 'amount' ? marketHexColor(segment[0].value, marketColorMode) : color} />)}
           {benchmarkPath && <path d={benchmarkPath} fill="none" stroke={BENCHMARK_COLOR} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />}
           {latestRecordHigh && <g data-pnl-report-record-high={primaryKey} data-record-high-date={latestRecordHigh.point.date} pointerEvents="none">

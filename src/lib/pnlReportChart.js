@@ -89,6 +89,51 @@ export function buildLinePathFromPoints(points = []) {
   )).join(' ');
 }
 
+// Split only drawing geometry; synthetic zero crossings have no date/index and
+// must not be used as report observations, selections, or record-high inputs.
+export function splitChartLineBySign(points = []) {
+  if (!Array.isArray(points) || points.length < 2) return [];
+  const segments = [];
+  const samePosition = (first, second) => first.x === second.x && first.y === second.y;
+  const appendEdge = (sign, first, second) => {
+    if (samePosition(first, second)) return;
+    const previous = segments.at(-1);
+    if (previous?.sign === sign && samePosition(previous.points.at(-1), first)) {
+      previous.points.push(second);
+    } else {
+      segments.push({ sign, points: [first, second] });
+    }
+  };
+
+  for (let index = 1; index < points.length; index += 1) {
+    const first = points[index - 1];
+    const second = points[index];
+    const firstValue = Number(first.value);
+    const secondValue = Number(second.value);
+    const crossesZero = (firstValue < 0 && secondValue > 0)
+      || (firstValue > 0 && secondValue < 0);
+    if (crossesZero) {
+      // Scale magnitudes before adding to keep finite large values finite.
+      const scale = Math.max(Math.abs(firstValue), Math.abs(secondValue));
+      const firstMagnitude = Math.abs(firstValue) / scale;
+      const secondMagnitude = Math.abs(secondValue) / scale;
+      const fraction = firstMagnitude / (firstMagnitude + secondMagnitude);
+      const crossing = {
+        x: first.x + (second.x - first.x) * fraction,
+        y: first.y + (second.y - first.y) * fraction,
+        value: 0,
+      };
+      appendEdge(firstValue < 0 ? -1 : 1, first, crossing);
+      appendEdge(secondValue < 0 ? -1 : 1, crossing, second);
+    } else {
+      // An edge touching zero takes its nonzero endpoint's color. A flat zero
+      // edge follows the market convention that zero is nonnegative.
+      appendEdge(firstValue < 0 || secondValue < 0 ? -1 : 1, first, second);
+    }
+  }
+  return segments;
+}
+
 export function buildAreaPathFromPoints(points = [], height = 150, pad = 10) {
   if (!Array.isArray(points) || points.length < 2) return '';
   const linePath = buildLinePathFromPoints(points);
