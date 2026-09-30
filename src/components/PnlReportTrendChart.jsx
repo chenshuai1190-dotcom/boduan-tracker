@@ -281,6 +281,7 @@ export default function PnlReportTrendChart({
       <span>{recordHighLabel} · {String(latestRecordHigh.point.date).replaceAll('-', '/')}</span>
     </button>}
     {mode === 'amount' && latestRecordHigh && <div className="pnl-trend-high-amount">
+      <i style={{ background: primaryColor }} aria-hidden="true" />
       <span>{t(language, 'pnlReport.amountAtPeriodHigh', '盈亏新高当日金额')} · </span>
       <span className={isRenderableChartValue(recordHighAmount) ? marketTextClass(recordHighAmount, marketColorMode) : 'pnl-trend-missing'}>{signedCurrencyAmount(recordHighAmount, displayCurrency)}</span>
     </div>}
