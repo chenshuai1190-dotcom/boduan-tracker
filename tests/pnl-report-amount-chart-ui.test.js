@@ -19,11 +19,11 @@ function nodes(node, predicate) {
   return [...(predicate(node) ? [node] : []), ...React.Children.toArray(node.props.children).flatMap(child => nodes(child, predicate))];
 }
 
-function render(data, { currency = 'CNY', rate = 7.2, marketColorMode = 'redUpGreenDown', combined = false } = {}) {
+function render(data, { currency = 'CNY', rate = 7.2, marketColorMode = 'redUpGreenDown', combined = false, mode = 'amount', language = 'zh' } = {}) {
   let tree;
   function Capture() {
     tree = PnlReportTrendChart({
-      data, mode: 'amount', color: '#ff4b1f', language: 'zh', marketColorMode,
+      data, mode, color: '#ff4b1f', language, marketColorMode,
       displayCurrency: currency, displayRate: rate, showCombinedPersonalReadout: combined,
     });
     return tree;
@@ -66,14 +66,50 @@ test('amount trend renders a zero line, only my P&L line, and currency-aware dai
   assert.ok(greenUpClasses[1].includes('text-emerald-400'));
 });
 
-test('only a positive amount period high receives the shared pulse marker', () => {
+test('positive amount period high shows its cumulative amount with the shared pulse marker', () => {
   const positive = render(trend).tree;
   const [marker] = nodes(positive, node => Object.hasOwn(node.props, 'data-pnl-report-record-high'));
   assert.equal(marker.props['data-pnl-report-record-high'], 'pnlUsd');
   assert.equal(marker.props['data-record-high-date'], '2026-09-22');
   assert.equal(nodes(marker, node => node.props.className?.includes?.('quote-pulse-halo')).length, 1);
-  assert.equal(nodes(render(trend.slice(0, 2)).tree, node => Object.hasOwn(node.props, 'data-pnl-report-record-high')).length, 0,
+  const amountMarkup = tree => {
+    const amounts = nodes(tree, node => node.props.className === 'pnl-trend-high-amount');
+    assert.equal(amounts.length, 1);
+    return renderToStaticMarkup(amounts[0]);
+  };
+  const cny = amountMarkup(positive);
+  assert.match(cny, /盈亏新高当日金额 · /);
+  assert.match(cny, /\+¥14,400\.00/);
+  assert.doesNotMatch(cny, /¥7,200\.00|¥50,400\.00/,
+    'the high uses cumulative P&L of 2,000 USD, not the final 1,000 USD or high-day daily P&L of 7,000 USD');
+  assert.match(cny, /text-\[#ff4b1f\]|color:#ff4b1f/);
+  const usd = render(trend, { currency: 'USD', rate: 1, language: 'en', marketColorMode: 'greenUpRedDown' });
+  const usdAmount = amountMarkup(usd.tree);
+  assert.match(usd.html, /P&amp;L at period high/);
+  assert.match(usdAmount, /\+\$2,000\.00/);
+  assert.doesNotMatch(usdAmount, /\$1,000\.00|\$7,000\.00/);
+  assert.match(usdAmount, /text-emerald-400|color:#22c55e/);
+  const missingRate = amountMarkup(render(trend, { rate: null }).tree);
+  assert.match(missingRate, />--</);
+  assert.doesNotMatch(missingRate, /[¥$]|0\.00|NaN|Infinity/,
+    'a known USD high without the display exchange rate remains unavailable');
+  const lossesOnly = render(trend.slice(0, 2)).tree;
+  assert.equal(nodes(lossesOnly, node => Object.hasOwn(node.props, 'data-pnl-report-record-high')).length, 0,
     'a smaller loss is not celebrated as a high');
+  assert.equal(nodes(lossesOnly, node => node.props.className === 'pnl-trend-high-amount').length, 0);
+});
+
+test('return and asset period highs keep their markers without an amount-high reading', () => {
+  const data = trend.map((point, index) => ({
+    ...point, pnlPct: [0.01, 0.02, 0.04, 0.03][index],
+    netAssetUsd: [100, 110, 130, 120][index], totalAssetUsd: [200, 210, 230, 220][index],
+  }));
+  for (const mode of ['pnl', 'assets']) {
+    const { tree, html } = render(data, { mode });
+    assert.equal(nodes(tree, node => Object.hasOwn(node.props, 'data-pnl-report-record-high')).length, 1);
+    assert.equal(nodes(tree, node => node.props.className === 'pnl-trend-high-amount').length, 0);
+    assert.doesNotMatch(html, /新高当日金额|P&amp;L at period high/);
+  }
 });
 
 test('stock personal view pairs daily and cumulative amounts with their return rates without changing the amount line', () => {

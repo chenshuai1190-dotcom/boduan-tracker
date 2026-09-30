@@ -98,6 +98,7 @@ export default function PnlReportTrendChart({
   const latestRecordHigh = (mode === 'amount'
     ? recordHighPoints.filter(point => point.value > 0).at(-1)
     : recordHighPoints.at(-1)) || null;
+  const recordHighAmount = mode === 'amount' ? convertUsd(latestRecordHigh?.value, displayRate) : null;
   const primaryColor = mode === 'assets' ? NET_ASSET_COLOR
     : mode === 'amount' ? marketHexColor(latestRecordHigh?.value, marketColorMode) : color;
   const recordHighLabel = mode === 'assets'
@@ -278,5 +279,9 @@ export default function PnlReportTrendChart({
       <i style={{ background: primaryColor }} aria-hidden="true" />
       <span>{recordHighLabel} · {String(latestRecordHigh.point.date).replaceAll('-', '/')}</span>
     </button>}
+    {mode === 'amount' && latestRecordHigh && <div className="pnl-trend-high-amount">
+      <span>{t(language, 'pnlReport.amountAtPeriodHigh', '盈亏新高当日金额')} · </span>
+      <span className={isRenderableChartValue(recordHighAmount) ? marketTextClass(recordHighAmount, marketColorMode) : 'pnl-trend-missing'}>{signedCurrencyAmount(recordHighAmount, displayCurrency)}</span>
+    </div>}
   </div>;
 }

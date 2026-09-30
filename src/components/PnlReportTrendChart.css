@@ -31,3 +31,5 @@
 .pnl-trend-high-caption { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; max-width: 100%; padding: 7px 0; border: 0; background: transparent; color: #a4a4af; font-size: 11px; line-height: 18px; text-align: left; cursor: pointer; }
 .pnl-trend-high-caption i { width: 5px; height: 5px; flex-shrink: 0; border-radius: 50%; }
 .pnl-trend-high-caption:focus-visible { outline: 1px solid #81818b; outline-offset: 3px; border-radius: 3px; }
+.pnl-trend-high-amount { padding: 0 0 4px 11px; color: #a4a4af; font-size: 11px; line-height: 20px; }
+.pnl-trend-high-amount > span:last-child { font-size: 14px; overflow-wrap: anywhere; }
