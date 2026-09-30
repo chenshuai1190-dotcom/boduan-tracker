@@ -234,7 +234,7 @@ export default function AccountAssetTrendModal({
                       {slot.hasData && (
                         <div
                           className={`account-trend-bar${selected ? ' is-selected' : ''}`}
-                          style={{ height, backgroundColor: barColor }}
+                          style={{ height, backgroundColor: barColor, color: barColor }}
                           aria-hidden="true"
                         />
                       )}
