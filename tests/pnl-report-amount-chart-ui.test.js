@@ -171,6 +171,31 @@ test('asset high shows the net asset peak in the display currency with fixed net
   }
 });
 
+test('asset readout displays unrecorded cash as currency zero without changing the asset values', () => {
+  for (const [currency, rate, expected] of [['CNY', 7.2, '¥0.00'], ['USD', 1, '$0.00'], ['CNY', null, '¥0.00']]) {
+    const point = Object.freeze({ date: '2026-09-22', totalAssetUsd: 230, netAssetUsd: null, cashKnown: false, cashUsd: 999 });
+    const { tree, html } = render([point], { mode: 'assets', currency, rate });
+    const [readout] = nodes(tree, node => node.props.className === 'pnl-trend-asset-readout');
+    const cells = React.Children.toArray(readout.props.children);
+    assert.equal(cells[5].props.children, expected, 'unrecorded historical cash displays zero even without an FX rate');
+    assert.equal(cells[1].props.children, '--', 'cash display must not manufacture net assets');
+    assert.equal(cells[3].props.children, rate == null ? '--' : currency === 'USD' ? '$230.00' : '¥1,656.00');
+    assert.doesNotMatch(html, /该日快照未包含可用现金|Cash was not included/);
+    assert.match(html, /该日没有融资负债快照/);
+    assert.equal(point.cashKnown, false);
+    assert.equal(point.cashUsd, 999, 'the display fallback does not rewrite the historical snapshot');
+  }
+  assert.equal(nodes(render([], { mode: 'assets' }).tree, node => node.props.className === 'pnl-trend-asset-readout').length, 0);
+});
+
+test('known asset cash retains its value and reports invalid amounts or unavailable FX separately', () => {
+  for (const [cashUsd, rate, expected] of [[125, 7.2, '¥900.00'], [0, 7.2, '¥0.00'], [125, null, '--'], [null, 7.2, '--']]) {
+    const { tree } = render([{ date: '2026-09-22', totalAssetUsd: 230, netAssetUsd: 130, cashKnown: true, cashUsd }], { mode: 'assets', rate });
+    const [readout] = nodes(tree, node => node.props.className === 'pnl-trend-asset-readout');
+    assert.equal(React.Children.toArray(readout.props.children)[5].props.children, expected);
+  }
+});
+
 test('stock personal view pairs daily and cumulative amounts with their return rates without changing the amount line', () => {
   const data = trend.map((point, index) => ({
     ...point, dailyPnlPct: [-0.01, 0.02, 0.03, null][index], pnlPct: [0.04, 0.05, 0.06, 0.07][index],

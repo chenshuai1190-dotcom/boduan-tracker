@@ -961,7 +961,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
               {['USD', 'CNY'].map((mode) => <button key={mode} type="button" aria-pressed={currencyMode === mode} onClick={() => setCurrencyMode(mode)}>{mode}</button>)}
             </div>
           </div>
-          <div className="trades-report-net-amount" style={{ fontFamily: TRADE_NUMBER_FONT }} data-trades-net-assets="true">
+          <div className="trades-report-net-amount text-white/[0.95]" style={{ fontFamily: TRADE_NUMBER_FONT }} data-trades-net-assets="true">
             {assetStatusReady ? <><span>{displayAssetMoney.main}</span><span className="trades-report-decimal">{displayAssetMoney.decimal}</span></> : <span className="text-white/30">--</span>}
           </div>
           <div className="trades-report-pnl-grid">

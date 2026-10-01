@@ -7,8 +7,8 @@
 .home-report-currency { display: flex; gap: 3px; }
 .home-report-currency button { height: 30px; padding: 0 10px; border-radius: 8px; color: #72727c; font-size: 11px; }
 .home-report-currency button[aria-pressed="true"] { background: #1a1b1e; color: #d7d7dd; }
-.home-report-net-amount { margin-top: 8px; font-size: clamp(28px, 8.8vw, 40px); font-weight: 400; line-height: 1.18; letter-spacing: -.045em; overflow-wrap: anywhere; }
-.home-report-decimal { color: #83838c; font-size: .64em; letter-spacing: -.025em; }
+.home-report-net-amount { margin-top: 8px; font-size: clamp(28px, 8.8vw, 40px); font-weight: 400; line-height: 1.18; letter-spacing: normal; overflow-wrap: anywhere; }
+.home-report-decimal { color: #83838c; font-size: .64em; letter-spacing: normal; }
 .home-report-label { display: flex; align-items: center; gap: 5px; color: #85858f; font-size: 12px; font-weight: 400; line-height: 1.5; }
 .home-report-label svg { flex-shrink: 0; opacity: .65; }
 .home-report-label small { margin-left: auto; font-size: 10px; color: #64646e; }

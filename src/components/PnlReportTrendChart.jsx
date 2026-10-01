@@ -237,10 +237,9 @@ export default function PnlReportTrendChart({
           <span className="pnl-trend-series-label"><i style={{ background: TOTAL_ASSET_COLOR }} />{t(language, 'pnlReport.tooltip.totalAssets', '总资产')}</span>
           <span style={{ color: TOTAL_ASSET_COLOR }}>{currencyAmount(convertUsd(readoutSlot.point?.totalAssetUsd, displayRate), displayCurrency, 2)}</span>
           <span className="pnl-trend-series-label"><i className="pnl-trend-cash-dot" />{t(language, 'pnlReport.tooltip.availableCash', '可用现金')}</span>
-          <span>{readoutSlot.point?.cashKnown ? currencyAmount(convertUsd(readoutSlot.point?.cashUsd, displayRate), displayCurrency, 2) : '--'}</span>
+          <span>{currencyAmount(readoutSlot.point?.cashKnown ? convertUsd(readoutSlot.point?.cashUsd, displayRate) : 0, displayCurrency, 2)}</span>
         </div>
         {!readoutPrimary && <div className="pnl-trend-missing-note">{t(language, 'pnlReport.tooltip.marginUnavailable', '该日没有融资负债快照')}</div>}
-        {!readoutSlot.point?.cashKnown && <div className="pnl-trend-missing-note">{t(language, 'pnlReport.tooltip.cashNotIncluded', '该日快照未包含可用现金')}</div>}
       </div>}
     </div>
     <div className="pnl-trend-plot-layout">

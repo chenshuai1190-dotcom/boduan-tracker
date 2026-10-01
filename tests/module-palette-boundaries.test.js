@@ -126,7 +126,7 @@ test('actual asset amounts use soft white while semantic emphasis remains purpos
   assert.ok(home.includes('home-report-net-amount text-white/[0.95] tabular-nums'));
   assert.ok(home.includes('className="home-report-decimal"'));
   assert.match(homeCss, /\.home-report-decimal\s*\{[^}]*color:\s*#83838c;[^}]*font-size:\s*\.64em;/, 'Home decimal suffix stays neutral and subordinate to the white headline');
-  assert.ok(trades.includes('className="trades-report-net-amount"'));
+  assert.ok(trades.includes('className="trades-report-net-amount text-white/[0.95]"'));
   assert.match(tradesCss, /\.trades-report-decimal\s*\{[^}]*color:\s*#83838c;[^}]*font-size:\s*\.64em;/, 'Trading split decimals should match the new Home report hierarchy');
   assert.ok(assets.includes('className="asset-report-total"'));
   assert.match(assetsCss, /\.asset-report-decimal\s*\{[^}]*color:\s*#83838c;[^}]*font-size:\s*\.64em;/, 'asset decimal precision should share the Home neutral hierarchy');
