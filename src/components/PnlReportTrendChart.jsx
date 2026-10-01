@@ -97,8 +97,12 @@ export default function PnlReportTrendChart({
   const latestRecordHigh = (mode === 'amount'
     ? recordHighPoints.filter(point => point.value > 0).at(-1)
     : recordHighPoints.at(-1)) || null;
-  // Keep the amount tied to the period high when the selected chart date changes.
-  const recordHighAmount = mode === 'amount' ? convertUsd(latestRecordHigh?.value, displayRate) : null;
+  // Keep the value tied to the period high when the selected chart date changes.
+  const recordHighValue = mode === 'pnl' ? latestRecordHigh?.value : convertUsd(latestRecordHigh?.value, displayRate);
+  const recordHighValueText = mode === 'pnl'
+    ? (isRenderableChartValue(recordHighValue)
+      ? `${(Number(recordHighValue) * 100).toLocaleString('en-US', { maximumFractionDigits: 2 })}%` : '--')
+    : mode === 'assets' ? currencyAmount(recordHighValue, displayCurrency) : signedCurrencyAmount(recordHighValue, displayCurrency);
   const primaryColor = mode === 'assets' ? NET_ASSET_COLOR
     : mode === 'amount' ? marketHexColor(latestRecordHigh?.value, marketColorMode) : color;
   const recordHighLabel = mode === 'assets'
@@ -278,10 +282,13 @@ export default function PnlReportTrendChart({
       <i style={{ background: primaryColor }} aria-hidden="true" />
       <span>{recordHighLabel} · {String(latestRecordHigh.point.date).replaceAll('-', '/')}</span>
     </button>}
-    {mode === 'amount' && latestRecordHigh && <div className="pnl-trend-high-amount">
+    {latestRecordHigh && <div className="pnl-trend-high-amount">
       <i style={{ background: primaryColor }} aria-hidden="true" />
-      <span>{t(language, 'pnlReport.amountAtPeriodHigh', '盈亏新高当日金额')} · </span>
-      <span className={isRenderableChartValue(recordHighAmount) ? marketTextClass(recordHighAmount, marketColorMode) : 'pnl-trend-missing'}>{signedCurrencyAmount(recordHighAmount, displayCurrency)}</span>
+      <span>{mode === 'amount' ? t(language, 'pnlReport.amountAtPeriodHigh', '盈亏新高当日金额') : recordHighLabel} · </span>
+      <span
+        className={isRenderableChartValue(recordHighValue) ? (mode === 'assets' ? undefined : marketTextClass(recordHighValue, marketColorMode)) : 'pnl-trend-missing'}
+        style={mode === 'assets' && isRenderableChartValue(recordHighValue) ? { color: primaryColor } : undefined}
+      >{recordHighValueText}</span>
     </div>}
   </div>;
 }

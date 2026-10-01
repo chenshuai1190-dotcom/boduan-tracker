@@ -45,7 +45,6 @@
 .pnl-report-chart-modes .pnl-report-segment { flex-shrink: 0; white-space: nowrap; }
 .pnl-report-segment { padding: 9px 0; border-bottom: 2px solid transparent; color: #767780; font-size: 15px; }
 .pnl-report-segment[aria-pressed="true"] { border-bottom-color: #bfc0c8; color: #e4e4e7; }
-.pnl-report-chart-note { margin-top: 4px; color: #73737e; font-size: 10px; line-height: 16px; text-align: center; }
 .pnl-report-trade-stats { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 20px; padding: 22px 0 26px; }
 .pnl-report-trade-stats > div { display: flex; flex-direction: column; gap: 8px; }
 .pnl-report-trade-stats > div:last-child { text-align: right; }

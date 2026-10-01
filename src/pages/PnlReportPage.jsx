@@ -117,10 +117,6 @@ function convertUsd(value, displayRate) {
   return toNumber(value) * displayRate;
 }
 
-function isRenderableChartValue(value) {
-  return value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value));
-}
-
 function RangePill({ active, children, onClick }) {
   return <button type="button" onClick={onClick} className="pnl-report-range" aria-pressed={active}>{children}</button>;
 }
@@ -386,12 +382,6 @@ export default function PnlReportPage({ ctx = {} }) {
     return Math.abs(convertUsd(item.valueUsd, displayRate));
   }));
   const rankingRows = reportData.rankings[rankMode] || [];
-  const hasAssetSnapshotsWithoutMargin = reportData.trend.some(
-    (point) => isRenderableChartValue(point?.totalAssetUsd) && !isRenderableChartValue(point?.netAssetUsd)
-  );
-  const hasAssetSnapshotsWithoutCash = reportData.trend.some(
-    (point) => isRenderableChartValue(point?.totalAssetUsd) && !point?.cashKnown
-  );
   const currentRangeLabel = range === 'custom'
     ? customRangeLabel
     : rangeItems.find(([id]) => id === range)?.[1] || t(language, 'pnlReport.range.all', '全部');
@@ -507,21 +497,6 @@ export default function PnlReportPage({ ctx = {} }) {
           displayRate={displayRate}
           initialSelectedDate={pnlReportTooltipDate}
         />
-        {chartMode === 'assets' && hasAssetSnapshotsWithoutMargin && (
-          <div className="mt-1 text-center text-[10px] leading-4 text-white/[0.38]">
-            {t(language, 'pnlReport.netAssetsHistoryNotice', '净资产自融资负债记录生效日起展示')}
-          </div>
-        )}
-        {chartMode === 'assets' && hasAssetSnapshotsWithoutCash && (
-          <div className="mt-1 text-center text-[10px] leading-4 text-white/[0.38]">
-            {t(language, 'pnlReport.cashHistoryNotice', '部分资产快照未包含可用现金')}
-          </div>
-        )}
-        {chartMode === 'amount' && displayCurrency === 'CNY' && (
-          <div className="pnl-report-chart-note">
-            {t(language, 'pnlReport.currentRateNotice', '人民币金额按当前汇率折算，非逐日历史汇率')}
-          </div>
-        )}
       </section>
 
       <section className="pnl-report-trade-stats">

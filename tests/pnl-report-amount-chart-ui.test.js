@@ -24,6 +24,23 @@ function amountPaths(tree) {
     && node.props['data-pnl-amount-sign'] != null);
 }
 
+function periodHighValue(tree) {
+  const rows = nodes(tree, node => node.props.className === 'pnl-trend-high-amount');
+  assert.equal(rows.length, 1);
+  const row = rows[0];
+  const value = nodes(row, node => node.type === 'span').at(-1);
+  const caption = nodes(tree, node => node.props.className === 'pnl-trend-high-caption')[0];
+  const marker = nodes(tree, node => Object.hasOwn(node.props, 'data-pnl-report-record-high'))[0];
+  assert.equal(marker.props['data-record-high-date'], '2026-09-22');
+  assert.match(renderToStaticMarkup(caption), / · 2026\/09\/22/);
+  const dot = nodes(row, node => node.type === 'i')[0];
+  const captionDot = nodes(caption, node => node.type === 'i')[0];
+  const halo = nodes(marker, node => node.props.className?.includes?.('quote-pulse-halo'))[0];
+  assert.equal(dot.props.style.background, captionDot.props.style.background);
+  assert.equal(dot.props.style.background, halo.props.stroke);
+  return { row, value, markup: renderToStaticMarkup(row) };
+}
+
 function render(data, { currency = 'CNY', rate = 7.2, marketColorMode = 'redUpGreenDown', combined = false, mode = 'amount', language = 'zh' } = {}) {
   let tree;
   function Capture() {
@@ -104,16 +121,53 @@ test('positive amount period high shows its cumulative amount with the shared pu
   assert.equal(nodes(lossesOnly, node => node.props.className === 'pnl-trend-high-amount').length, 0);
 });
 
-test('return and asset period highs keep their markers without an amount-high reading', () => {
-  const data = trend.map((point, index) => ({
-    ...point, pnlPct: [0.01, 0.02, 0.04, 0.03][index],
-    netAssetUsd: [100, 110, 130, 120][index], totalAssetUsd: [200, 210, 230, 220][index],
-  }));
-  for (const mode of ['pnl', 'assets']) {
-    const { tree, html } = render(data, { mode });
-    assert.equal(nodes(tree, node => Object.hasOwn(node.props, 'data-pnl-report-record-high')).length, 1);
-    assert.equal(nodes(tree, node => node.props.className === 'pnl-trend-high-amount').length, 0);
-    assert.doesNotMatch(html, /新高当日金额|P&amp;L at period high/);
+test('return high shows the peak cumulative rate with compact unsigned percentages and market colors', () => {
+  for (const [peak, expected, marketColorMode, expectedClass] of [
+    [0.38, '38%', 'redUpGreenDown', 'text-[#ff4b1f]'],
+    [0.3825, '38.25%', 'greenUpRedDown', 'text-emerald-400'],
+    [0.38256, '38.26%', 'redUpGreenDown', 'text-[#ff4b1f]'],
+    [-0.1, '-10%', 'redUpGreenDown', 'text-emerald-400'],
+    [0, '0%', 'redUpGreenDown', 'text-[#ff4b1f]'],
+  ]) {
+    const data = trend.map((point, index) => ({
+      ...point, pnlPct: [peak - 0.2, peak - 0.1, peak, peak - 0.05][index],
+      dailyPnlPct: 0.07, benchmarkPct: [0.5, 0.6, 0.7, 0.8][index],
+    }));
+    const { tree } = render(data, { mode: 'pnl', marketColorMode, rate: null });
+    const { value, markup } = periodHighValue(tree);
+    assert.match(markup, /收益率区间新高 · /);
+    assert.equal(value.props.children, expected,
+      'use the cumulative return peak, not the final return, daily return, or benchmark');
+    assert.equal(value.props.className, expectedClass);
+    assert.doesNotMatch(markup, /[+¥$]|NaN|Infinity/);
+  }
+});
+
+test('asset high shows the net asset peak in the display currency with fixed net asset color', () => {
+  for (const { peak = 130.25, currency, rate, marketColorMode = 'redUpGreenDown', expected } of [
+    { currency: 'CNY', rate: 7.2, expected: '¥937.80' },
+    { currency: 'USD', rate: 1, marketColorMode: 'greenUpRedDown', expected: '$130.25' },
+    { peak: -10.25, currency: 'USD', rate: 1, expected: '-$10.25' },
+    { currency: 'CNY', rate: null, expected: '--' },
+  ]) {
+    const data = trend.map((point, index) => ({
+      ...point, netAssetUsd: [peak - 30, peak - 20, peak, peak - 10][index],
+      totalAssetUsd: [200, 500, 230, 900][index],
+    }));
+    const { tree } = render(data, { mode: 'assets', currency, rate, marketColorMode });
+    const { value, markup } = periodHighValue(tree);
+    assert.match(markup, /净资产区间新高 · /);
+    assert.equal(value.props.children, expected,
+      'use the net asset peak, not the final net asset, total asset high, or P&L');
+    assert.doesNotMatch(markup, /\+|NaN|Infinity/);
+    if (rate == null) {
+      assert.equal(value.props.className, 'pnl-trend-missing');
+      assert.doesNotMatch(markup, /[¥$]|0\.00/, 'missing FX must not produce a zero-valued asset high');
+    } else {
+      const netAssetLine = nodes(tree, node => node.type === 'path' && node.props.stroke === '#ff5038')[0];
+      assert.ok(netAssetLine);
+      assert.equal(value.props.style.color, netAssetLine.props.stroke);
+    }
   }
 });
 
