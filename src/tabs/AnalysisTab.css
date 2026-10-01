@@ -12,7 +12,7 @@
 .asset-report-total { color: #ededf0; font-size: clamp(28px, 8.8vw, 40px); font-weight: 400; line-height: 1.18; overflow-wrap: anywhere; }
 .asset-report-total { margin-top: 8px; }
 .asset-report-decimal { color: #83838c; font-size: .64em; }
-.asset-report-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 22px; }
+.asset-report-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 12px; }
 .asset-report-metric { min-width: 0; }
 .asset-report-metric-value { margin-top: 6px; font-size: clamp(14px, 4.1vw, 18px); line-height: 1.4; overflow-wrap: anywhere; }
 .asset-report-metric-percent { margin-top: 2px; font-size: 12px; line-height: 1.5; }
