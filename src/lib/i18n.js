@@ -385,7 +385,7 @@ const messages = {
     'pnlReport.confirmFilter': '确定',
 
     'stockDetail.back': '返回',
-    'stockDetail.subtitle': '个股收益详情',
+    'stockDetail.subtitle': '收益详情',
     'stockDetail.readOnly': '只读详情',
     'stockDetail.openAria': '打开个股收益详情',
     'stockDetail.range.ytd': '本年',
@@ -1889,7 +1889,7 @@ const messages = {
     'pnlReport.confirmFilter': 'Confirm',
 
     'stockDetail.back': 'Back',
-    'stockDetail.subtitle': 'Stock P&L Detail',
+    'stockDetail.subtitle': 'P&L Detail',
     'stockDetail.readOnly': 'Read-only detail',
     'stockDetail.openAria': 'Open stock P&L detail',
     'stockDetail.range.ytd': 'YTD',

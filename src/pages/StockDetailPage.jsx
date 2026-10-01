@@ -682,8 +682,9 @@ export default function StockDetailPage({ ctx = {} }) {
           >
             <ArrowLeft className="h-5 w-5" />
           </button>
-            <h1>
-              {t(language, 'stockDetail.subtitle', '个股收益详情')}
+            <h1 className="flex min-w-0 items-baseline justify-center gap-2">
+              <span className="shrink-0">{symbol || '--'}</span>
+              <span className="min-w-0">{t(language, 'stockDetail.subtitle', '收益详情')}</span>
             </h1>
           <span className="sdp-header-currency">{displayCurrency}</span>
       </header>

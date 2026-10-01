@@ -367,8 +367,11 @@ export default function StockPnlReportPage({ ctx = {} }) {
     <header className="pnl-report-header">
       <div className="pnl-report-nav">
         <button type="button" onClick={closeStockPnlReport} className="pnl-report-icon-button" aria-label={label('返回个股详情', 'Back to stock details')}><ArrowLeft size={20} /></button>
-        <h1>{label('个股详细收益报表', 'Detailed stock P&L report')}</h1>
-        <span className="stock-pnl-header-symbol">{symbol}</span>
+        <h1 className="flex min-w-0 items-baseline justify-center gap-2">
+          <span className="shrink-0">{symbol || '--'}</span>
+          <span className="min-w-0">{label('收益报表', 'P&L report')}</span>
+        </h1>
+        <span aria-hidden="true" />
       </div>
       <nav className="pnl-report-ranges" aria-label={label('收益时间范围', 'Return period')}>
         {ranges.map(([id, text]) => <RangeButton key={id} active={range === id} onClick={() => setRange(id)}>{text}</RangeButton>)}
