@@ -707,7 +707,7 @@ export default function StockDetailPage({ ctx = {} }) {
               onClick={openStockPnlReport}
               data-stock-full-pnl-report-link="true"
             >
-              {label('查看完整收益报表', 'Full return report')} <ChevronRight size={13} aria-hidden="true" />
+              {label('完整收益报表', 'Full return report')} <ChevronRight size={13} aria-hidden="true" />
             </button>
           </div>
           <div className="sdp-total" data-stock-detail-total-pnl style={{ color: totalColor, fontFamily: NUMBER_FONT }}>
