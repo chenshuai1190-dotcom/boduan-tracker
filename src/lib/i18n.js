@@ -312,7 +312,7 @@ const messages = {
     'pnlReport.range.singleDay': '单日',
     'pnlReport.totalPnl': '盈亏总额',
     'pnlReport.pnlTrend': '收益率走势',
-    'pnlReport.amountTrend': '盈亏金额走势',
+    'pnlReport.amountTrend': '盈亏额走势',
     'pnlReport.returnPeriodHigh': '收益率区间新高',
     'pnlReport.amountPeriodHigh': '盈亏金额区间新高',
     'pnlReport.amountAtPeriodHigh': '盈亏新高当日金额',

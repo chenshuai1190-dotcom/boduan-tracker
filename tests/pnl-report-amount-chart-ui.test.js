@@ -203,7 +203,7 @@ test('stock personal view pairs daily and cumulative amounts with their return r
   const { tree, html } = render(data, { combined: true });
   assert.match(html, /data-stock-pnl-combined-readout="true"/);
   assert.doesNotMatch(html, /data-pnl-report-amount-tooltip="true"/);
-  assert.doesNotMatch(html, /盈亏金额走势/, 'the stock chart relies on the existing currency control and amount column');
+  assert.doesNotMatch(html, /盈亏额走势/, 'the stock chart relies on the existing currency control and amount column');
   assert.match(html, /盈亏金额/);
   assert.match(html, /收益率/);
   assert.match(html, /当日/);

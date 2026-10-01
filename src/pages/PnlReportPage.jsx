@@ -484,7 +484,7 @@ export default function PnlReportPage({ ctx = {} }) {
       <section className="pnl-report-chart-section">
         <div className="pnl-report-chart-modes">
           <SegmentButton active={chartMode === 'pnl'} onClick={() => setChartMode('pnl')}>{t(language, 'pnlReport.pnlTrend', '收益率走势')}</SegmentButton>
-          <SegmentButton active={chartMode === 'amount'} onClick={() => setChartMode('amount')}>{t(language, 'pnlReport.amountTrend', '盈亏金额走势')}</SegmentButton>
+          <SegmentButton active={chartMode === 'amount'} onClick={() => setChartMode('amount')}>{t(language, 'pnlReport.amountTrend', '盈亏额走势')}</SegmentButton>
           <SegmentButton active={chartMode === 'assets'} onClick={() => setChartMode('assets')}>{t(language, 'pnlReport.assetTrend', '总资产走势')}</SegmentButton>
         </div>
         <SparkArea
