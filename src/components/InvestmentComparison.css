@@ -128,6 +128,36 @@
 .investment-comparison .ic-search-empty { display: flex; align-items: center; justify-content: center; gap: 9px; padding: 28px 0; text-align: center; color: var(--ic-muted); font-size: 13px; }
 @keyframes investment-spin { to { transform: rotate(360deg); } }
 .investment-comparison .ic-spin { animation: investment-spin 1s linear infinite; }
+
+/* Time Machine surfaces share the app's neutral black report palette.
+   Keep these overrides scoped: DCA Lab and Portfolio Overlap use the base styles. */
+.investment-comparison.ic-time-machine {
+  --ic-bg: #08090b;
+  --ic-panel: #141416;
+  --ic-text: #e4e4e7;
+  --ic-muted: #85858f;
+  --ic-border: rgb(255 255 255 / .08);
+  --ic-grid: rgb(255 255 255 / .065);
+  --ic-control-height: 44px;
+  letter-spacing: normal;
+}
+.ic-time-machine .ic-header h1 { color: var(--ic-text); font-size: 18px; font-weight: 400; letter-spacing: normal; }
+.ic-time-machine .ic-header .ic-icon-button { background: #19191b; color: #a5a5ad; }
+.ic-time-machine .ic-header .ic-icon-button:active { background: #262629; }
+.ic-time-machine .ic-analysis-tabs { margin: 12px 0 16px; background: #111113; box-shadow: inset 0 0 0 1px rgb(255 255 255 / .04); }
+.ic-time-machine .ic-analysis-tabs button { position: relative; min-height: calc(var(--ic-control-height) - 8px); }
+.ic-time-machine .ic-analysis-tabs button::after { content: ''; position: absolute; inset: -4px 0; }
+.ic-time-machine .ic-analysis-tabs button[aria-selected="true"] { background: #28282b; box-shadow: inset 0 1px 0 rgb(255 255 255 / .05); }
+.ic-time-machine .ic-settings { margin: 16px 0 20px; }
+.ic-time-machine .ic-versus { margin-bottom: 0; }
+.ic-time-machine .ic-pick-button { min-height: var(--ic-control-height); padding: 8px 11px; border-radius: 10px; border-color: rgb(255 255 255 / .075); background: #141416; }
+.ic-time-machine .ic-pick-button strong { font-size: 16px; font-weight: 400; letter-spacing: normal; }
+.ic-time-machine .ic-field input, .ic-time-machine .ic-field select { height: var(--ic-control-height); min-height: var(--ic-control-height); padding-top: 9px; padding-bottom: 9px; background: #121214; border-color: rgb(255 255 255 / .075); }
+.ic-time-machine input:focus, .ic-time-machine select:focus, .ic-time-machine .ic-chart-touch:focus-visible { outline-color: #85858f; }
+.ic-time-machine .ic-preset[aria-current="true"] { border-color: #68686f; }
+.ic-time-machine .ic-preset:focus-visible { outline-color: #85858f; }
+.ic-time-machine .ic-play-button { color: #121214; background: #e4e4e7; }
+.ic-time-machine .ic-timeline { accent-color: #e4e4e7; }
 @media (max-width:520px) {
   .investment-comparison .ic-header h1 { font-size: 19px; }
   .investment-comparison .ic-metrics { gap: 16px; }

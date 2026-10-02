@@ -19,13 +19,6 @@ function historyErrorMessage(code, englishMode) {
   return englishMode ? 'Historical data could not be loaded.' : '历史数据暂时无法读取。';
 }
 
-function instrumentName(item, englishMode) {
-  if (item.symbol === 'QQQ') return englishMode ? 'Nasdaq-100 ETF' : '纳斯达克 100 ETF';
-  if (item.symbol === 'TQQQ') return englishMode ? '3× Nasdaq-100 ETF' : '三倍纳指 ETF';
-  if (!englishMode && item.nameZh) return item.nameZh;
-  return item.name || item.symbol;
-}
-
 function InvestmentSymbolPicker({ side, instruments, userId, englishMode, searchSource, onSelect, onClose }) {
   const [query, setQuery] = React.useState('');
   const [attempt, setAttempt] = React.useState(0);
@@ -94,7 +87,7 @@ function InvestmentSymbolPicker({ side, instruments, userId, englishMode, search
   const results = matchesCurrentQuery ? state.results : [];
   const title = englishMode ? `Change ${side === 0 ? 'left' : 'right'} investment` : `更换${side === 0 ? '左' : '右'}侧标的`;
 
-  return createPortal(<div className="investment-comparison ic-sheet-overlay" style={viewport ? { top: viewport.top, height: viewport.height, bottom: 'auto' } : undefined} onPointerDown={event => { if (event.target === event.currentTarget) onClose(); }}>
+  return createPortal(<div className="investment-comparison ic-time-machine ic-sheet-overlay" style={viewport ? { top: viewport.top, height: viewport.height, bottom: 'auto' } : undefined} onPointerDown={event => { if (event.target === event.currentTarget) onClose(); }}>
     <section ref={dialogRef} className="ic-picker" role="dialog" tabIndex={-1} aria-modal="true" aria-labelledby="investment-picker-title">
       <div className="ic-picker-handle" />
       <header className="ic-picker-head"><h2 id="investment-picker-title">{title}</h2><button type="button" className="ic-icon-button" onClick={onClose} aria-label={englishMode ? 'Close stock search' : '关闭股票搜索'}><X size={21} /></button></header>
@@ -228,13 +221,13 @@ export default function InvestmentComparisonPage({ ctx = {}, previewSource }) {
     setCursorState({ key: cursorKey, index });
   };
 
-  return <div className="investment-comparison ic-page" data-investment-comparison-page="true">
+  return <div className="investment-comparison ic-time-machine ic-page" data-investment-comparison-page="true">
     <header className="ic-header"><button type="button" className="ic-icon-button ic-back" onClick={closeInvestmentComparison} aria-label={englishMode ? 'Back to Trades' : '返回交易'}><ArrowLeft size={21} /></button><div><h1>{englishMode ? 'Investment Time Machine' : '投资时光机'}</h1><p>{englishMode ? 'One starting amount. Two investment journeys.' : '同一笔本金，不同的投资旅程'}</p></div><button type="button" className="ic-icon-button ic-refresh" disabled={loadState.loading} onClick={refreshHistory} aria-label={englishMode ? 'Refresh historical data' : '刷新历史数据'}><RefreshCw size={16} className={loadState.loading ? 'ic-spin' : ''} /></button></header>
 
     <InvestmentAnalysisTabs value={analysisView} englishMode={englishMode} onChange={view => { if (view !== analysisView) { setPlaying(false); setAnalysisView(view); } }} />
 
     <div className="ic-settings" role="group" aria-label={englishMode ? 'Comparison settings' : '比较设置'}>
-      <div className="ic-versus">{instruments.map((item, index) => <React.Fragment key={index}>{index === 1 && <span className="ic-vs">VS</span>}<button type="button" className="ic-pick-button" onClick={() => setPickerSide(index)} aria-haspopup="dialog" aria-label={englishMode ? `Change ${index === 0 ? 'left' : 'right'} investment ${item.symbol}` : `更换${index === 0 ? '左' : '右'}侧标的 ${item.symbol}`} style={{ '--ic-series': investmentRankColor(investmentRank(item.symbol, symbols, snapshot?.point)) }}><span className="ic-pick-dot" /><span className="ic-pick-identity"><strong>{item.symbol}</strong><small>{instrumentName(item, englishMode)}</small></span><ChevronDown size={17} className="ic-pick-chevron" /></button></React.Fragment>)}</div>
+      <div className="ic-versus">{instruments.map((item, index) => <React.Fragment key={index}>{index === 1 && <span className="ic-vs">VS</span>}<button type="button" className="ic-pick-button" onClick={() => setPickerSide(index)} aria-haspopup="dialog" aria-label={englishMode ? `Change ${index === 0 ? 'left' : 'right'} investment ${item.symbol}` : `更换${index === 0 ? '左' : '右'}侧标的 ${item.symbol}`} style={{ '--ic-series': investmentRankColor(investmentRank(item.symbol, symbols, snapshot?.point)) }}><span className="ic-pick-dot" /><span className="ic-pick-identity"><strong>{item.symbol}</strong></span><ChevronDown size={17} className="ic-pick-chevron" /></button></React.Fragment>)}</div>
       <label className="ic-field">{englishMode ? 'Starting year' : '起始年份'}<span className="ic-select-control"><select value={startYear} onChange={event => setStartYear(Number(event.target.value))} aria-label={englishMode ? 'Starting year' : '起始年份'}>{years.map(year => <option key={year} value={year}>{year}{englishMode ? '' : ' 年'}</option>)}</select><ChevronDown size={16} aria-hidden="true" /></span></label>
       <label className="ic-field">{englishMode ? 'Principal per investment · USD' : '每个标的本金 · USD'}<input type="number" inputMode="decimal" min="1" max="1000000000" step="any" value={principalText} onChange={event => setPrincipalText(event.target.value)} aria-invalid={!principalValid} aria-label={englishMode ? 'Principal per investment in US dollars' : '每个标的本金，美元'} /></label>
     </div>
