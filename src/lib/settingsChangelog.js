@@ -4,6 +4,17 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '收益比赛年榜的 QQQ 基准统一按年初至今计算，所有参赛者共用相同基准，个人收益仍从年初与有效参赛日起点两者较晚者计算。',
+      '年榜明确显示「QQQ 年初至今」，跑赢 QQQ 与排名同步使用新口径；日榜、周榜和月榜保持原规则。',
+    ],
+    itemsEn: [
+      'The annual competition now uses one calendar-year-to-date QQQ benchmark for every participant. Personal returns still begin at the later of January 1 and the effective competition start.',
+      'The annual board labels QQQ year to date and applies the new benchmark to excess returns and rankings. Daily, weekly, and monthly rules are unchanged.',
+    ],
+  },
+  {
+    ver: 'v10.7.9.550', date: '2026-10-02',
+    items: [
       '统一全站收益金额、收益率与涨跌幅配色，独立工具和收益分享图同步跟随系统涨跌配色设置。',
       '取消年度计划等数据卡片及操作按钮按压变暗，金额与百分比保持完整色彩，使用轻微背景或边框反馈。',
     ],

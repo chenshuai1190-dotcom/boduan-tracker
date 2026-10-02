@@ -66,6 +66,32 @@ test('new competition report preserves server ordering, exact rates and one self
   assert.equal(outsideRows.at(-1).props.self, true);
 });
 
+test('annual QQQ displays its calendar start independently of the personal start', () => {
+  const data = {
+    ...ready,
+    calculationStartDate: '2026-07-15',
+    benchmarkCalculationStartDate: '2026-01-01',
+    benchmarkReturnPct: .2244,
+    self: { ...rows[1], returnPct: .169, outperformancePct: .169 - .2244 },
+  };
+  data.leaders = [rows[0], data.self];
+  const { html } = render(CompetitionContent, contentProps({ data, period: 'year' }));
+  assert.match(html, /QQQ 年初至今/);
+  assert.match(html, /起算 2026年1月1日/);
+  assert.match(html, /\+22\.44%/);
+  assert.match(html, /\+16\.90%/);
+  assert.match(html, /-5\.54%/);
+  assert.doesNotMatch(html, /起算 2026年7月15日/);
+  const { html: english } = render(CompetitionContent, contentProps({
+    data, period: 'year', language: 'en', tt: (key, fallback, vars) => t('en', key, fallback, vars),
+  }));
+  assert.match(english, /QQQ year to date/);
+  const { html: legacy } = render(CompetitionContent, contentProps({
+    data: { ...data, benchmarkCalculationStartDate: undefined }, period: 'year',
+  }));
+  assert.doesNotMatch(legacy, /起算 2026年7月15日/, 'never describe personal start as an annual benchmark start');
+});
+
 test('unknown competition data never becomes zero or simulated returns', () => {
   for (const data of [null, { state: 'waiting_snapshot' }, { state: 'ready', stats: {}, leaders: [] }]) {
     const { html } = render(CompetitionContent, contentProps({ data }));

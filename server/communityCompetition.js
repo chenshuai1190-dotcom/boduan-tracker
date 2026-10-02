@@ -367,6 +367,7 @@ export async function getCommunityCompetitionState({ userId, period = 'day', now
     // describing the leaderboard's market-data date.
     snapshotUpdatedAt: publication.completedAt,
     calculationStartDate: leaderboard.selfCalculationStartDate,
+    benchmarkCalculationStartDate: leaderboard.selfBenchmarkCalculationStartDate,
     benchmarkReturnPct: leaderboard.selfBenchmarkReturnPct,
     stats: leaderboard.stats,
     leaders: leaderboard.leaders,

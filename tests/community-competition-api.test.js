@@ -515,45 +515,37 @@ test('ready leaderboard is bounded by the completed publication marker, benchmar
   assert.doesNotMatch(serialized, /user-a|user-b|private@example\.com|service-role-secret|eodhd-secret|position|shares|price|amount|trade|_usd/i);
 });
 
-test('a mid-period newcomer enters the annual leaderboard without resetting personal starts and ranks by QQQ outperformance', async () => {
-  const env = snapshotEnv(ENV_KEYS);
-  configureEnv();
-  const originalFetch = globalThis.fetch;
+function createLateJoinLeaderboardFetch({ selfUserId = 'newcomer', includeAnnualBaseline = true } = {}) {
   const emptyLedgerHash = computeCompetitionLedgerHash([], '2026-07-15');
-  globalThis.fetch = async (url) => {
+  const profiles = [
+    { user_id: 'veteran', nickname: 'Veteran', avatar_key: 'avatar-gold', profile_completed_at: '2026-07-01T00:00:00Z' },
+    { user_id: 'newcomer', nickname: 'Newcomer', avatar_key: 'avatar-blue', profile_completed_at: '2026-07-15T00:00:00Z' },
+  ];
+  const members = [
+    { user_id: 'veteran', status: 'active', ranking_start_snapshot_date: '2026-07-13', ranking_baseline_return_pct: 0 },
+    {
+      user_id: 'newcomer', status: 'active', joined_at: '2026-07-15T10:00:00Z',
+      eligible_after_snapshot_date: '2026-07-14', ranking_start_snapshot_date: '2026-07-15',
+      ranking_baseline_return_pct: 0,
+    },
+  ];
+  return async (url) => {
     const href = String(url);
-    if (href.includes('/auth/v1/user')) return jsonResponse({ id: 'newcomer' });
+    if (href.includes('/auth/v1/user')) return jsonResponse({ id: selfUserId });
     if (href.includes('/api/eod/QQQ.US')) {
+      // Synthetic raw closes deliberately diverge from adjusted closes.
       return jsonResponse([
-        { date: '2026-07-10', adjusted_close: 100 },
-        { date: '2026-07-13', adjusted_close: 98 },
-        { date: '2026-07-15', adjusted_close: 99 },
+        ...(includeAnnualBaseline ? [{ date: '2025-12-31', close: 1000, adjusted_close: 80 }] : []),
+        { date: '2026-01-02', close: 900, adjusted_close: 88 },
+        { date: '2026-07-10', close: 850, adjusted_close: 100 },
+        { date: '2026-07-13', close: 840, adjusted_close: 98 },
+        { date: '2026-07-15', close: 800, adjusted_close: 99 },
       ]);
     }
-    if (href.includes('/rest/v1/community_profiles')) {
-      if (href.includes('user_id=eq.newcomer')) {
-        return jsonResponse([{
-          user_id: 'newcomer', nickname: 'Newcomer', avatar_key: 'avatar-blue',
-          profile_completed_at: '2026-07-15T00:00:00Z',
-        }]);
-      }
-      return jsonResponse([
-        { user_id: 'veteran', nickname: 'Veteran', avatar_key: 'avatar-gold', profile_completed_at: '2026-07-01T00:00:00Z' },
-        { user_id: 'newcomer', nickname: 'Newcomer', avatar_key: 'avatar-blue', profile_completed_at: '2026-07-15T00:00:00Z' },
-      ]);
-    }
-    if (href.includes('/rest/v1/community_competition_members')) {
-      if (href.includes('user_id=eq.newcomer')) {
-        return jsonResponse([{
-          user_id: 'newcomer', status: 'active', joined_at: '2026-07-15T10:00:00Z',
-          eligible_after_snapshot_date: '2026-07-14', ranking_start_snapshot_date: '2026-07-15',
-          ranking_baseline_return_pct: 0,
-        }]);
-      }
-      return jsonResponse([
-        { user_id: 'veteran', status: 'active', ranking_start_snapshot_date: '2026-07-13', ranking_baseline_return_pct: 0 },
-        { user_id: 'newcomer', status: 'active', ranking_start_snapshot_date: '2026-07-15', ranking_baseline_return_pct: 0 },
-      ]);
+    if (href.includes('/rest/v1/community_profiles') || href.includes('/rest/v1/community_competition_members')) {
+      const rows = href.includes('/rest/v1/community_profiles') ? profiles : members;
+      const userFilter = new URL(href).searchParams.get('user_id');
+      return jsonResponse(userFilter?.startsWith('eq.') ? rows.filter((row) => row.user_id === userFilter.slice(3)) : rows);
     }
     if (href.includes('/rest/v1/snapshot_publication_markers')) {
       return jsonResponse([{
@@ -571,7 +563,95 @@ test('a mid-period newcomer enters the annual leaderboard without resetting pers
     if (href.includes('/rest/v1/stock_trades')) return jsonResponse([]);
     throw new Error(`unexpected fetch: ${href}`);
   };
+}
 
+test('annual leaderboard shares adjusted QQQ year-to-date returns while retaining each personal participation start', async () => {
+  const env = snapshotEnv(ENV_KEYS);
+  configureEnv();
+  const originalFetch = globalThis.fetch;
+  const responses = [];
+  try {
+    for (const selfUserId of ['newcomer', 'veteran']) {
+      globalThis.fetch = createLateJoinLeaderboardFetch({ selfUserId });
+      const res = createResponse();
+      await handler({
+        method: 'GET',
+        headers: { host: 'localhost:3000', authorization: 'Bearer access-token' },
+        query: { period: 'year' },
+      }, res);
+      responses.push(res);
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+    restoreEnv(env);
+  }
+
+  const annualBenchmarkReturn = 99 / 80 - 1;
+  for (const res of responses) {
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.state, 'ready');
+    assert.equal(res.body.benchmarkCalculationStartDate, '2026-01-01');
+    assert.ok(Math.abs(res.body.benchmarkReturnPct - annualBenchmarkReturn) < 1e-12);
+    assert.deepEqual(res.body.leaders.map((row) => row.nickname), ['Newcomer', 'Veteran']);
+    for (const leader of res.body.leaders) {
+      assert.ok(Math.abs(leader.outperformancePct - (leader.returnPct - annualBenchmarkReturn)) < 1e-12);
+    }
+    assert.equal(res.body.stats.participants, 2);
+    assert.deepEqual(res.body.trend.benchmark.map((point) => point.date), ['2026-01-02', '2026-07-10', '2026-07-13', '2026-07-15']);
+    assert.deepEqual(res.body.trend.benchmark.map((point) => point.value), [88, 100, 98, 99].map((close) => close / 80 - 1));
+    assert.doesNotMatch(JSON.stringify(res.body), /user_id|newcomer@|service-role|eodhd-secret/i);
+  }
+  const [newcomer, veteran] = responses.map((res) => res.body);
+  assert.equal(newcomer.calculationStartDate, '2026-07-15');
+  assert.equal(veteran.calculationStartDate, '2026-07-13');
+  assert.equal(newcomer.self.rank, 1);
+  assert.equal(veteran.self.rank, 2);
+  assert.ok(Math.abs(newcomer.self.returnPct - 0.015) < 1e-12);
+  assert.ok(Math.abs(veteran.self.returnPct - 0.01) < 1e-12);
+  assert.deepEqual(newcomer.trend.self.map((point) => point.date), ['2026-07-15']);
+  assert.deepEqual(veteran.trend.self.map((point) => point.date), ['2026-07-13', '2026-07-15']);
+  assert.deepEqual(newcomer.trend.benchmark, veteran.trend.benchmark);
+});
+
+test('day, week and month leaderboards retain their existing QQQ calculation starts for late joiners', async () => {
+  const env = snapshotEnv(ENV_KEYS);
+  configureEnv();
+  const originalFetch = globalThis.fetch;
+  try {
+    for (const period of ['day', 'week', 'month']) {
+      for (const selfUserId of ['newcomer', 'veteran']) {
+        globalThis.fetch = createLateJoinLeaderboardFetch({ selfUserId });
+        const res = createResponse();
+        await handler({
+          method: 'GET',
+          headers: { host: 'localhost:3000', authorization: 'Bearer access-token' },
+          query: { period },
+        }, res);
+        const isVeteranPeriod = selfUserId === 'veteran' && period !== 'day';
+        const expectedStartDate = isVeteranPeriod ? '2026-07-13' : '2026-07-15';
+        const expectedBenchmarkReturn = 99 / (isVeteranPeriod ? 100 : 98) - 1;
+        const expectedPersonalReturn = selfUserId === 'newcomer' ? 0.015 : (isVeteranPeriod ? 0.01 : 0.005);
+        assert.equal(res.statusCode, 200, `${period}/${selfUserId}`);
+        assert.equal(res.body.state, 'ready');
+        assert.equal(res.body.calculationStartDate, expectedStartDate);
+        assert.equal(res.body.benchmarkCalculationStartDate, expectedStartDate);
+        assert.ok(Math.abs(res.body.benchmarkReturnPct - expectedBenchmarkReturn) < 1e-12);
+        assert.ok(Math.abs(res.body.self.returnPct - expectedPersonalReturn) < 1e-12);
+        assert.ok(Math.abs(res.body.self.outperformancePct - (expectedPersonalReturn - expectedBenchmarkReturn)) < 1e-12);
+        assert.equal(res.body.trend.benchmark[0].date, expectedStartDate);
+      }
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+    restoreEnv(env);
+  }
+});
+
+test('annual leaderboard fails closed without a previous-year QQQ baseline despite complete participation-date prices', async () => {
+  const env = snapshotEnv(ENV_KEYS);
+  configureEnv();
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = createLateJoinLeaderboardFetch({ includeAnnualBaseline: false });
   const res = createResponse();
   try {
     await handler({
@@ -583,21 +663,13 @@ test('a mid-period newcomer enters the annual leaderboard without resetting pers
     globalThis.fetch = originalFetch;
     restoreEnv(env);
   }
-
-  assert.equal(res.statusCode, 200);
-  assert.equal(res.body.state, 'ready');
-  assert.equal(res.body.calculationStartDate, '2026-07-15');
-  assert.ok(Math.abs(res.body.benchmarkReturnPct - (99 / 98 - 1)) < 1e-12);
-  assert.deepEqual(res.body.leaders.map((row) => row.nickname), ['Veteran', 'Newcomer']);
-  assert.ok(res.body.leaders[0].returnPct < res.body.leaders[1].returnPct, 'absolute return must not decide the ranking');
-  assert.ok(Math.abs(res.body.leaders[0].outperformancePct - 0.02) < 1e-12);
-  assert.ok(Math.abs(res.body.leaders[1].outperformancePct - (0.015 - (99 / 98 - 1))) < 1e-12);
-  assert.equal(res.body.stats.participants, 2);
-  assert.equal(res.body.self.rank, 2);
-  assert.equal(res.body.trend.self[0].date, '2026-07-15');
-  assert.ok(Math.abs(res.body.trend.self[0].value - 0.015) < 1e-12);
-  assert.deepEqual(res.body.trend.benchmark.map((point) => point.date), ['2026-07-15']);
-  assert.doesNotMatch(JSON.stringify(res.body), /user_id|newcomer@|service-role|eodhd-secret/i);
+  assert.equal(res.statusCode, 503);
+  assert.equal(res.body.error, '收益比赛读取暂不可用');
+  assert.equal(res.body.state, undefined);
+  assert.equal(res.body.benchmarkReturnPct, undefined);
+  assert.equal(res.body.leaders, undefined);
+  assert.match(res.headers['cache-control'], /no-store/);
+  assert.equal(res.headers['retry-after'], '60');
 });
 
 test('a completed marker never makes an incomplete QQQ benchmark cacheable as ready', async () => {

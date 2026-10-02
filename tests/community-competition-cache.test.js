@@ -47,6 +47,7 @@ const ready = (period = 'day', asOfDate = '2026-07-13') => ({
   state: 'ready',
   period,
   asOfDate,
+  ...(period === 'year' ? { benchmarkCalculationStartDate: `${asOfDate.slice(0, 4)}-01-01` } : {}),
   snapshotVersion: `snapshot_${asOfDate.replaceAll('-', '')}`,
   snapshotUpdatedAt: `${asOfDate}T21:18:00.000Z`,
   leaders: [],
@@ -158,6 +159,84 @@ test('ready cache entries require the authoritative snapshot lock timestamp', ()
   delete data.snapshotUpdatedAt;
   assert.equal(writeCommunityCompetitionCache({ userId: 'user-a', period: 'day', data }), null);
   assert.equal(readCommunityCompetitionCache({ userId: 'user-a', period: 'day' }), null);
+});
+
+test('year caches without the common year-start benchmark are ignored without invalidating other periods', () => {
+  const userId = 'year-migration-user';
+  const key = userScopedStorageKey('bottomline_community_competition_cache_v1_year', userId);
+  for (const benchmarkCalculationStartDate of [undefined, '2026-06-01', '2025-01-01']) {
+    const data = { ...ready('year'), calculationStartDate: '2026-06-01' };
+    if (benchmarkCalculationStartDate === undefined) delete data.benchmarkCalculationStartDate;
+    else data.benchmarkCalculationStartDate = benchmarkCalculationStartDate;
+    const entry = {
+      version: COMMUNITY_COMPETITION_CACHE_VERSION,
+      period: 'year',
+      savedAt: Date.now(),
+      data,
+    };
+    localStorage.setItem(key, JSON.stringify(entry));
+
+    assert.equal(readCommunityCompetitionCache({ userId, period: 'year' }), null);
+    assert.equal(getCommunityCompetitionRefreshDecision({ entry }).reason, 'invalid_cache');
+    assert.equal(writeCommunityCompetitionCache({ userId, period: 'year', data }), null);
+  }
+
+  for (const period of ['day', 'week', 'month']) {
+    const data = ready(period);
+    assert.equal(Object.hasOwn(data, 'benchmarkCalculationStartDate'), false);
+    writeCommunityCompetitionCache({ userId, period, data });
+    assert.deepEqual(readCommunityCompetitionCache({ userId, period })?.data, data);
+  }
+});
+
+test('refresh replaces an old year cache at the same publication and retains the personal return start', async () => {
+  const userId = 'year-refresh-user';
+  const key = userScopedStorageKey('bottomline_community_competition_cache_v1_year', userId);
+  const data = {
+    ...ready('year'),
+    calculationStartDate: '2026-06-01',
+    benchmarkReturnPct: 12.5,
+    self: { rank: 1, returnPct: 4.5, avatarKey: 'cyber-cyan' },
+  };
+  const oldData = { ...data, benchmarkReturnPct: 2.5 };
+  delete oldData.benchmarkCalculationStartDate;
+  localStorage.setItem(key, JSON.stringify({
+    version: COMMUNITY_COMPETITION_CACHE_VERSION,
+    period: 'year',
+    savedAt: Date.now(),
+    data: oldData,
+  }));
+
+  const result = await requestCommunityCompetitionRefresh({ userId, period: 'year', fetcher: async () => data });
+
+  assert.equal(result.accepted, true);
+  assert.deepEqual(result.data, data);
+  assert.deepEqual(readCommunityCompetitionCache({ userId, period: 'year' })?.data, data);
+  await assert.rejects(
+    requestCommunityCompetitionRefresh({ userId, period: 'year', fetcher: async () => oldData }),
+    /INVALID_COMPETITION_STATE/,
+  );
+  assert.deepEqual(readCommunityCompetitionCache({ userId, period: 'year' })?.data, data);
+});
+
+test('year benchmark cache migration preserves account isolation and personal return windows', async () => {
+  const userAData = { ...ready('year', '2026-07-15'), calculationStartDate: '2026-06-01' };
+  const userBData = { ...ready('year', '2026-07-13'), calculationStartDate: '2026-03-01' };
+  writeCommunityCompetitionCache({ userId: 'year-user-a', period: 'year', data: userAData });
+  assert.equal(readCommunityCompetitionCache({ userId: 'year-user-b', period: 'year' }), null);
+  writeCommunityCompetitionCache({ userId: 'year-user-b', period: 'year', data: userBData });
+
+  assert.deepEqual(readCommunityCompetitionCache({ userId: 'year-user-a', period: 'year' })?.data, userAData);
+  assert.deepEqual(readCommunityCompetitionCache({ userId: 'year-user-b', period: 'year' })?.data, userBData);
+  await clearCommunityCompetitionCache('year-user-a');
+  assert.equal(readCommunityCompetitionCache({ userId: 'year-user-a', period: 'year' }), null);
+  assert.deepEqual(readCommunityCompetitionCache({ userId: 'year-user-b', period: 'year' })?.data, userBData);
+});
+
+test('year waiting snapshots remain cacheable before benchmark data is available', () => {
+  const data = waiting('year', '2026-07-13', 'snapshot_20260713', '2026-07-13T21:18:00.000Z');
+  writeCommunityCompetitionCache({ userId: 'year-waiting-user', period: 'year', data });
+  assert.deepEqual(readCommunityCompetitionCache({ userId: 'year-waiting-user', period: 'year' })?.data, data);
 });
 
 test('New York refresh windows are DST-safe and skip weekends', () => {

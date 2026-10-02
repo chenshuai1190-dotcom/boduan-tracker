@@ -388,6 +388,11 @@ function CompetitionContent({ data, period, language, tt, leaderboardRefreshing 
     && rankedParticipants < joinedParticipants;
   const periodMetricLabel = tt(`competition.periodMetric.${period}`, PERIODS.find(([id]) => id === period)?.[1] || '收益率');
   const baselineTitle = tt(`competition.baseline.${period}`, '收益基准');
+  const benchmarkLabel = period === 'year'
+    ? tt('competition.nasdaq100Year', 'QQQ 年初至今')
+    : tt('competition.nasdaq100', 'QQQ 基准');
+  const benchmarkStartDate = data?.benchmarkCalculationStartDate
+    || (period !== 'year' ? data?.calculationStartDate : null);
   React.useEffect(() => setSelection(null), [period]);
   React.useEffect(() => {
     if (!selection || typeof window === 'undefined') return undefined;
@@ -434,7 +439,7 @@ function CompetitionContent({ data, period, language, tt, leaderboardRefreshing 
             <div className="cc-hero-return-value" style={{ color: valueColor(self?.returnPct, marketColorMode), fontFamily: NUMBER_FONT }}>{formatPercent(self?.returnPct)}</div>
           </div>
           <div className="cc-hero-comparison">
-            <MetricBlock label={tt('competition.nasdaq100', 'QQQ 基准')} value={formatPercent(data?.benchmarkReturnPct)} color={valueColor(data?.benchmarkReturnPct, marketColorMode)} />
+            <MetricBlock label={benchmarkLabel} value={formatPercent(data?.benchmarkReturnPct)} color={valueColor(data?.benchmarkReturnPct, marketColorMode)} />
             <MetricBlock label={tt('competition.outperformNasdaq', '跑赢 QQQ')} value={formatPercent(self?.outperformancePct)} color={valueColor(self?.outperformancePct, marketColorMode)} />
           </div>
         </div>
@@ -481,7 +486,7 @@ function CompetitionContent({ data, period, language, tt, leaderboardRefreshing 
         <div className="cc-section-heading">
           <h2>{baselineTitle}</h2>
           <span>
-            {ready ? tt('competition.calculationStart', '起算 {{date}}', { date: formatDate(data?.calculationStartDate, language) }) : '--'}
+            {ready ? tt('competition.calculationStart', '起算 {{date}}', { date: formatDate(benchmarkStartDate, language) }) : '--'}
           </span>
         </div>
         <div className="cc-community-stats">

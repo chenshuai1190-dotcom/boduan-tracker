@@ -250,6 +250,22 @@ export function buildCompetitionLeaderboard({
     snapshotsByUser.get(snapshot.userId).push(snapshot);
   });
 
+  const annualBenchmarkStartDate = normalizeCompetitionPeriod(period) === 'year'
+    ? competitionPeriodStartDate('year', asOfDate)
+    : null;
+  // Annual competition uses one calendar-YTD QQQ comparator for every member.
+  // Personal returns still retain each member's independently verified start.
+  const previousYearStartDate = annualBenchmarkStartDate
+    ? `${Number(annualBenchmarkStartDate.slice(0, 4)) - 1}-01-01`
+    : null;
+  const annualBenchmark = annualBenchmarkStartDate
+    ? calculateBenchmarkReturnFromStart({
+      rows: normalizeBenchmarkRows(benchmarkRows).filter((row) => row.date >= previousYearStartDate),
+      calculationStartDate: annualBenchmarkStartDate,
+      asOfDate,
+    })
+    : null;
+
   const calculatedEntries = memberRows
     .filter((member) => member.status === 'active')
     .map((member) => {
@@ -262,9 +278,10 @@ export function buildCompetitionLeaderboard({
         asOfDate,
       });
       if (!calculation) return null;
-      const benchmark = calculateBenchmarkReturnFromStart({
+      const benchmarkCalculationStartDate = annualBenchmarkStartDate || calculation.calculationStartDate;
+      const benchmark = annualBenchmark || calculateBenchmarkReturnFromStart({
         rows: benchmarkRows,
-        calculationStartDate: calculation.calculationStartDate,
+        calculationStartDate: benchmarkCalculationStartDate,
         asOfDate,
       });
       return {
@@ -280,6 +297,7 @@ export function buildCompetitionLeaderboard({
           ? null
           : calculation.returnPct - benchmark.returnPct,
         calculationStartDate: calculation.calculationStartDate,
+        benchmarkCalculationStartDate,
         holdingSymbols: publicHoldingSymbols(holdingSymbolsByUser, member.userId),
         trend: calculation.trend,
         benchmarkTrend: benchmark.trend,
@@ -331,6 +349,7 @@ export function buildCompetitionLeaderboard({
     benchmarkComplete,
     selfCalculationStartDate: selfEntry?.calculationStartDate || null,
     selfTrend: selfEntry?.trend || [],
+    selfBenchmarkCalculationStartDate: selfEntry?.benchmarkCalculationStartDate || null,
     selfBenchmarkReturnPct: selfEntry?.benchmarkReturnPct ?? null,
     selfBenchmarkTrend: selfEntry?.benchmarkTrend || [],
   };

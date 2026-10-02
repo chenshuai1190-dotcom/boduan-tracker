@@ -1822,6 +1822,7 @@ function buildCommunityCompetitionPreview(state, period = 'day') {
     snapshotVersion: 'preview_snapshot_20260710',
     snapshotUpdatedAt: '2026-07-10T21:18:00.000Z',
     calculationStartDate: period === 'day' ? '2026-07-10' : '2026-07-01',
+    benchmarkCalculationStartDate: period === 'year' ? '2026-01-01' : period === 'day' ? '2026-07-10' : '2026-07-01',
     benchmarkReturnPct: 0.0042,
     stats: {
       participants: 12486,
@@ -1848,6 +1849,10 @@ function buildCommunityCompetitionPreview(state, period = 'day') {
         { date: '2026-07-10', value: 0.1286 },
       ],
       benchmark: [
+        ...(period === 'year' ? [
+          { date: '2026-01-02', value: 0.001 },
+          { date: '2026-04-01', value: -0.06 },
+        ] : []),
         { date: '2026-07-01', value: 0 },
         { date: '2026-07-03', value: -0.002 },
         { date: '2026-07-06', value: 0.001 },

@@ -143,7 +143,7 @@ test('leaderboard ranks only completed profiles and exposes only public holding 
   assert.doesNotMatch(serialized, /user-a|user-b|user-c|example\.com|market_value|shares|price|amount|trade|_usd/i);
 });
 
-test('annual leaderboard preserves personal starts and ranks by personal-period QQQ outperformance', () => {
+test('annual leaderboard preserves personal starts and uses one calendar-YTD QQQ comparator', () => {
   const input = {
     members: [
       { user_id: 'veteran', status: 'active', ranking_start_snapshot_date: '2026-07-13', ranking_baseline_return_pct: 0 },
@@ -161,6 +161,7 @@ test('annual leaderboard preserves personal starts and ranks by personal-period 
     period: 'year',
     asOfDate: '2026-07-15',
     benchmarkRows: [
+      { date: '2025-12-31', adjusted_close: 90, close: 120 },
       { date: '2026-07-10', close: 100 },
       { date: '2026-07-13', close: 98 },
       { date: '2026-07-15', close: 99 },
@@ -169,15 +170,21 @@ test('annual leaderboard preserves personal starts and ranks by personal-period 
   const newcomerView = buildCompetitionLeaderboard({ ...input, selfUserId: 'newcomer' });
   const veteranView = buildCompetitionLeaderboard({ ...input, selfUserId: 'veteran' });
 
-  assert.deepEqual(newcomerView.leaders.map((row) => row.nickname), ['Veteran', 'Newcomer']);
-  assert.ok(newcomerView.leaders[0].returnPct < newcomerView.leaders[1].returnPct, 'absolute return must not decide the ranking');
-  assert.ok(Math.abs(newcomerView.leaders[0].outperformancePct - 0.02) < 1e-12);
-  assert.ok(Math.abs(newcomerView.leaders[1].outperformancePct - (0.015 - (99 / 98 - 1))) < 1e-12);
-  assert.equal(newcomerView.self.rank, 2);
+  const annualQqq = 99 / 90 - 1;
+  assert.deepEqual(newcomerView.leaders.map((row) => row.nickname), ['Newcomer', 'Veteran']);
+  assert.ok(newcomerView.leaders[0].returnPct > newcomerView.leaders[1].returnPct, 'a shared benchmark produces the same order as personal return');
+  assert.ok(Math.abs(newcomerView.leaders[0].outperformancePct - (0.015 - annualQqq)) < 1e-12);
+  assert.ok(Math.abs(newcomerView.leaders[1].outperformancePct - (0.01 - annualQqq)) < 1e-12);
+  assert.equal(newcomerView.self.rank, 1);
   assert.equal(newcomerView.selfCalculationStartDate, '2026-07-15');
-  assert.ok(Math.abs(newcomerView.selfBenchmarkReturnPct - (99 / 98 - 1)) < 1e-12);
+  assert.ok(Math.abs(newcomerView.selfBenchmarkReturnPct - annualQqq) < 1e-12);
+  assert.equal(newcomerView.selfBenchmarkCalculationStartDate, '2026-01-01');
   assert.equal(veteranView.selfCalculationStartDate, '2026-07-13');
-  assert.ok(Math.abs(veteranView.selfBenchmarkReturnPct - (99 / 100 - 1)) < 1e-12);
+  assert.ok(Math.abs(veteranView.selfBenchmarkReturnPct - annualQqq) < 1e-12);
+  assert.equal(veteranView.selfBenchmarkCalculationStartDate, '2026-01-01');
+  assert.deepEqual(newcomerView.selfTrend.map((point) => point.date), ['2026-07-15']);
+  assert.ok(Math.abs(newcomerView.self.returnPct - 0.015) < 1e-12);
+  assert.deepEqual(newcomerView.selfBenchmarkTrend, veteranView.selfBenchmarkTrend);
   assert.equal(newcomerView.selfCalculationAvailable, true);
   assert.equal(newcomerView.stats.participants, 2);
 });
@@ -226,4 +233,95 @@ test('equal QQQ outperformance uses standard competition ranks with the next pla
 
   assert.deepEqual(result.leaders.map((row) => row.rank), [1, 1, 3]);
   assert.equal(result.self.rank, 1);
+});
+
+function buildSingleMemberInput({ asOfDate = '2026-07-16', start = '2026-07-15', baseline = 0.1 } = {}) {
+  return {
+    members: [{ user_id: 'test-member', status: 'active', ranking_start_snapshot_date: start, ranking_baseline_return_pct: baseline }],
+    profiles: [{ user_id: 'test-member', nickname: 'Member', avatar_key: 'avatar-blue', profile_completed_at: '2026-01-01T00:00:00Z' }],
+    snapshots: [
+      { user_id: 'test-member', snapshot_date: '2026-07-01', cumulative_return_pct: 0.9, daily_return_pct: 0.2, locked_at: '2026-07-01T22:00:00Z' },
+      { user_id: 'test-member', snapshot_date: asOfDate, cumulative_return_pct: 0.144, daily_return_pct: 0.01, locked_at: `${asOfDate}T22:00:00Z` },
+    ],
+    asOfDate,
+    selfUserId: 'test-member',
+    benchmarkRows: [
+      { date: '2025-12-31', adjusted_close: 80 },
+      { date: '2026-06-30', adjusted_close: 90 },
+      { date: '2026-07-10', adjusted_close: 95 },
+      { date: '2026-07-14', adjusted_close: 100 },
+      { date: '2026-07-15', adjusted_close: 101.25 },
+      { date: '2026-07-16', adjusted_close: 103 },
+    ],
+  };
+}
+
+test('day, week and month retain their existing personal-period benchmarks after the annual change', () => {
+  const input = buildSingleMemberInput();
+  const original = structuredClone(input);
+  for (const period of ['day', 'week', 'month']) {
+    const result = buildCompetitionLeaderboard({ ...input, period });
+    const expectedStart = period === 'day' ? '2026-07-16' : '2026-07-15';
+    const expectedQqq = period === 'day' ? 103 / 101.25 - 1 : 103 / 100 - 1;
+    const expectedReturn = period === 'day' ? 0.01 : 1.144 / 1.1 - 1;
+    assert.equal(result.selfCalculationStartDate, expectedStart);
+    assert.equal(result.selfBenchmarkCalculationStartDate, expectedStart);
+    assert.equal(result.selfBenchmarkReturnPct, expectedQqq);
+    assert.equal(result.self.returnPct, expectedReturn);
+    assert.equal(result.self.outperformancePct, expectedReturn - expectedQqq);
+  }
+  assert.deepEqual(input, original, 'presentation scope must never alter source snapshots or closes');
+});
+
+test('annual late join retains the verified personal baseline and ignores pre-join snapshots', () => {
+  const input = buildSingleMemberInput();
+  const result = buildCompetitionLeaderboard({ ...input, period: 'year' });
+  assert.equal(result.selfCalculationStartDate, '2026-07-15');
+  assert.equal(result.selfBenchmarkCalculationStartDate, '2026-01-01');
+  assert.equal(result.self.returnPct, 1.144 / 1.1 - 1);
+  assert.equal(result.selfBenchmarkReturnPct, 103 / 80 - 1);
+  assert.deepEqual(result.selfTrend.map(point => point.date), ['2026-07-16']);
+  assert.deepEqual(result.selfBenchmarkTrend.map(point => point.date), ['2026-06-30', '2026-07-10', '2026-07-14', '2026-07-15', '2026-07-16']);
+});
+
+test('annual QQQ resets at the calendar year boundary using raw adjusted closes and no future rows', () => {
+  const input = buildSingleMemberInput({ start: '2026-07-01', baseline: 0 });
+  input.snapshots = [
+    { user_id: 'test-member', snapshot_date: '2026-12-31', cumulative_return_pct: .4, locked_at: '2026-12-31T22:00:00Z' },
+    { user_id: 'test-member', snapshot_date: '2027-01-04', cumulative_return_pct: .47, locked_at: '2027-01-04T22:00:00Z' },
+    { user_id: 'test-member', snapshot_date: '2027-01-05', cumulative_return_pct: .9, locked_at: '2027-01-05T22:00:00Z' },
+  ];
+  input.benchmarkRows = [
+    { date: '2025-12-31', adjusted_close: 100, close: 600 },
+    { date: '2026-12-30', adjusted_close: 199.987654, close: 800 },
+    { date: '2026-12-31', adjusted_close: 200.123456, close: 900 },
+    { date: '2027-01-04', adjusted_close: 210.9876541, close: 1000 },
+    { date: '2027-01-05', adjusted_close: 500, close: 2000 },
+  ];
+  const before = buildCompetitionLeaderboard({ ...input, period: 'year', asOfDate: '2026-12-31' });
+  assert.equal(before.selfBenchmarkCalculationStartDate, '2026-01-01');
+  assert.equal(before.selfCalculationStartDate, '2026-07-01');
+  assert.equal(before.selfBenchmarkReturnPct, 200.123456 / 100 - 1);
+  const after = buildCompetitionLeaderboard({ ...input, period: 'year', asOfDate: '2027-01-04' });
+  assert.equal(after.selfBenchmarkCalculationStartDate, '2027-01-01');
+  assert.equal(after.selfCalculationStartDate, '2027-01-01');
+  assert.equal(after.selfBenchmarkReturnPct, 210.9876541 / 200.123456 - 1);
+  assert.equal(after.self.returnPct, 1.47 / 1.4 - 1);
+  assert.deepEqual(after.selfBenchmarkTrend.map(point => point.date), ['2027-01-04']);
+  assert.deepEqual(after.selfTrend.map(point => point.date), ['2027-01-04']);
+});
+
+test('annual QQQ requires a previous-year baseline and never falls back to a personal start', () => {
+  const input = buildSingleMemberInput();
+  const currentYear = input.benchmarkRows.filter(row => row.date >= '2026-01-01');
+  for (const priorRows of [[], [{ date: '2024-12-31', adjusted_close: 70 }], [{ date: '2025-12-31', adjusted_close: 0, close: 0 }]]) {
+    const result = buildCompetitionLeaderboard({ ...input, period: 'year', benchmarkRows: [...priorRows, ...currentYear] });
+    assert.equal(result.selfCalculationAvailable, true, 'the valid personal result remains known internally');
+    assert.equal(result.benchmarkComplete, false);
+    assert.equal(result.selfBenchmarkReturnPct, null);
+    assert.equal(result.selfBenchmarkCalculationStartDate, null);
+    assert.deepEqual(result.selfBenchmarkTrend, []);
+    assert.deepEqual(result.leaders, []);
+    assert.equal(result.self, null, 'an unavailable annual benchmark cannot produce an apparently valid ranking');
+  }
 });

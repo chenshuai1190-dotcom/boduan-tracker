@@ -283,6 +283,13 @@ function normalizeData(data, period) {
     || !isTimestamp(data?.snapshotUpdatedAt)
     || !isOpaqueVersion(data?.snapshotVersion)
   )) return null;
+  // Older year snapshots used each participant's start for QQQ. Require the
+  // common calendar-year origin without invalidating other period caches.
+  if (
+    state === 'ready'
+    && normalizedPeriod === 'year'
+    && data?.benchmarkCalculationStartDate !== `${String(data.asOfDate).slice(0, 4)}-01-01`
+  ) return null;
   if (state === 'waiting_snapshot') {
     const markerValues = [
       data?.publishedSnapshotDate,
