@@ -5,6 +5,7 @@ import { inspectGenericSecBusinessComposition } from './secGenericBusinessCompos
 import { inspectLillyBusinessComposition } from './secLillyBusinessComposition.js';
 import { inspectRobinhoodBusinessComposition } from './secRobinhoodBusinessComposition.js';
 import { inspectReleaseBusinessComposition } from './secReleaseBusinessComposition.js';
+import { inspectMicronBusinessComposition } from './secMicronBusinessComposition.js';
 
 const SECTION_KEYS = ['reportSegments', 'revenueBreakdown', 'geographies'];
 const FILLABLE_REASONS = new Set([
@@ -68,9 +69,11 @@ export function inspectSecEarningsDocument({ symbol, fiscalDate, primary }) {
     ? inspectLillyBusinessComposition
     : symbol === 'HOOD' && primary.form === '10-Q'
       ? inspectRobinhoodBusinessComposition
-      : (symbol === 'AVGO' && primary.form === '8-K') || (symbol === 'ARM' && primary.form === '6-K')
-        ? inspectReleaseBusinessComposition
-        : null;
+      : symbol === 'MU' && primary.form === '8-K'
+        ? inspectMicronBusinessComposition
+        : (symbol === 'AVGO' && primary.form === '8-K') || (symbol === 'ARM' && primary.form === '6-K')
+          ? inspectReleaseBusinessComposition
+          : null;
   if (inspectProfile) {
     const inspected = inspectProfile({ ...args, sourceUrl: primary.primaryDocumentUrl });
     return {

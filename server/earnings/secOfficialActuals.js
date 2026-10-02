@@ -338,7 +338,9 @@ export async function fetchSecEarningsFilingSource({
       const filing = candidateFiling;
       const filingOfficialFiscalDate = /^(?:10-Q|10-K|20-F)$/.test(filing.form)
         ? filing.reportDate
-        : selectionFiscalDate;
+        // An earnings-release filing date is not its fiscal period end. Only
+        // an explicit verified date or the document parser can establish it.
+        : normalizedOfficialFiscalDate;
       const source = {
         ...base,
         status: 'complete',

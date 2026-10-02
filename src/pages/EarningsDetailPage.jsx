@@ -287,6 +287,27 @@ function RegionRow({ item, totalRevenue, language, marketColorMode }) {
   );
 }
 
+function RevenueReconciliationNote({ reconciliation, language }) {
+  if (reconciliation?.status !== 'mismatch') return null;
+  const describe = (difference, previous = false) => {
+    const period = language === 'en' ? (previous ? 'Prior-year quarter' : 'Current quarter') : (previous ? '上年同期' : '本期');
+    if (difference === 0) return language === 'en'
+      ? `${period}: segment revenue matches total revenue.`
+      : `${period}分部收入合计与总营收一致。`;
+    const amount = formatEarningsDetailMoney(Math.abs(difference), language);
+    return language === 'en'
+      ? `${period}: segment revenue is ${amount} ${difference > 0 ? 'below' : 'above'} total revenue; official values are preserved.`
+      : `${period}分部收入合计与总营收相差${amount}美元（分部合计${difference > 0 ? '较低' : '较高'}），按官方披露保留原值。`;
+  };
+  return (
+    <p className="mb-3 px-1 text-[11px] leading-[1.55] text-white/[0.50]" data-earnings-revenue-reconciliation="true">
+      {describe(reconciliation.difference)}
+      {Number.isFinite(reconciliation.previousDifference) && reconciliation.previousDifference !== 0
+        ? ` ${describe(reconciliation.previousDifference, true)}` : null}
+    </p>
+  );
+}
+
 function DetailSections({ detail, event, language, marketColorMode }) {
   const report = detail?.sections?.reportSegments || { status: 'pending', items: [] };
   const breakdown = detail?.sections?.revenueBreakdown || { status: 'pending', items: [] };
@@ -334,6 +355,7 @@ function DetailSections({ detail, event, language, marketColorMode }) {
             </div>
             <span className="text-[11px] text-white/[0.40]">{report.items.length} {language === 'en' ? 'segments' : '个分部'}</span>
           </div>
+          <RevenueReconciliationNote reconciliation={report.revenueReconciliation} language={language} />
           <div className="space-y-2.5">{report.items.map((item, index) => <SegmentCard key={item.id} item={item} index={index} totalRevenue={totalRevenue} language={language} marketColorMode={marketColorMode} />)}</div>
         </section>
       ) : null}

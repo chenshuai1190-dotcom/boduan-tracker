@@ -54,7 +54,33 @@ function normalizeItem(item, sectionKey) {
   return normalized;
 }
 
-function normalizeSection(section, sectionKey) {
+function normalizeRevenueReconciliation(value, sourceItems, items, context) {
+  if (!value || typeof value !== 'object' || !['matched', 'mismatch'].includes(value.status)
+    || value.currency !== 'USD' || context.currency !== 'USD'
+    || !Array.isArray(sourceItems) || !Array.isArray(items) || !items.length || sourceItems.length !== items.length) return null;
+  const { totalRevenue, reportedRevenueTotal, difference,
+    previousTotalRevenue, previousReportedRevenueTotal, previousDifference } = value;
+  if (![totalRevenue, reportedRevenueTotal, difference].every(Number.isFinite)
+    || totalRevenue <= 0 || reportedRevenueTotal < 0
+    || !sourceItems.every((item) => Number.isFinite(item?.revenue))
+    || items.reduce((sum, item) => sum + item.revenue, 0) !== reportedRevenueTotal
+    || totalRevenue - reportedRevenueTotal !== difference
+    || context.totalRevenue !== totalRevenue) return null;
+  const previous = [previousTotalRevenue, previousReportedRevenueTotal, previousDifference];
+  const previousUnavailable = previous.every((item) => item === null);
+  if (previousUnavailable) {
+    if (items.some((item) => item.previousRevenue !== null)) return null;
+  } else if (!previous.every(Number.isFinite) || previousTotalRevenue <= 0 || previousReportedRevenueTotal < 0
+    || !sourceItems.every((item) => Number.isFinite(item?.previousRevenue))
+    || items.reduce((sum, item) => sum + item.previousRevenue, 0) !== previousReportedRevenueTotal
+    || previousTotalRevenue - previousReportedRevenueTotal !== previousDifference) return null;
+  const matched = difference === 0 && (previousUnavailable || previousDifference === 0);
+  if ((value.status === 'matched') !== matched) return null;
+  return { status: value.status, totalRevenue, reportedRevenueTotal, difference,
+    previousTotalRevenue, previousReportedRevenueTotal, previousDifference, currency: 'USD' };
+}
+
+function normalizeSection(section, sectionKey, context = {}) {
   const source = section && typeof section === 'object' ? section : {};
   const items = (Array.isArray(source.items) ? source.items : [])
     .map((item) => normalizeItem(item, sectionKey))
@@ -73,6 +99,10 @@ function normalizeSection(section, sectionKey) {
   if (source.parser) normalized.parser = safeText(source.parser, 80);
   if (sectionKey === 'reportSegments' && source.reconciliation) {
     normalized.reconciliation = normalizeItem(source.reconciliation, 'revenueBreakdown');
+  }
+  if (sectionKey === 'reportSegments' && source.revenueReconciliation) {
+    const reconciliation = normalizeRevenueReconciliation(source.revenueReconciliation, source.items, items, context);
+    if (reconciliation) normalized.revenueReconciliation = reconciliation;
   }
   return normalized;
 }
@@ -131,7 +161,9 @@ export function normalizeEarningsDetailPayload(payload) {
     : null;
   const sections = {};
   EARNINGS_DETAIL_SECTION_KEYS.forEach((key) => {
-    sections[key] = normalizeSection(payload.sections?.[key], key);
+    sections[key] = normalizeSection(payload.sections?.[key], key, {
+      currency: safeText(payload.currency, 12).toUpperCase() || 'USD', totalRevenue: payload.totalRevenue,
+    });
   });
   const supplemental = {};
   EARNINGS_DETAIL_SUPPLEMENTAL_KEYS.forEach((key) => {
