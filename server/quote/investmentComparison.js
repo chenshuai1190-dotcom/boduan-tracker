@@ -29,6 +29,7 @@ const ERROR_MESSAGES = Object.freeze({
   INVALID_SYMBOL: '请选择一个有效的美股或 ETF 代码',
   INVALID_SYMBOLS: '请选择两个不同的有效美股或 ETF 代码',
   INVALID_QUERY: '请输入有效的股票代码或名称',
+  INVALID_START_YEAR: '请选择 2000 年至最近已收盘年份之间的起始年份',
   UNSUPPORTED_INSTRUMENT: '仅支持已验证的美元计价美股普通股或 ETF',
   INVALID_DATA: '历史数据不完整或存在冲突，暂时无法比较',
   PROVIDER_UNAVAILABLE: '投资对比数据暂不可用，请稍后重试',
@@ -41,7 +42,7 @@ export class InvestmentComparisonError extends Error {
     super(ERROR_MESSAGES[code] || ERROR_MESSAGES.PROVIDER_UNAVAILABLE);
     this.name = 'InvestmentComparisonError';
     this.code = ERROR_MESSAGES[code] ? code : 'PROVIDER_UNAVAILABLE';
-    this.status = ['INVALID_SYMBOL', 'INVALID_SYMBOLS', 'INVALID_QUERY', 'UNSUPPORTED_INSTRUMENT'].includes(this.code)
+    this.status = ['INVALID_SYMBOL', 'INVALID_SYMBOLS', 'INVALID_QUERY', 'INVALID_START_YEAR', 'UNSUPPORTED_INSTRUMENT'].includes(this.code)
       ? 400 : this.code === 'NOT_CONFIGURED' ? 500 : this.code === 'QUOTA_EXHAUSTED' ? 503 : 502;
   }
 }
@@ -59,6 +60,13 @@ function validDate(value) {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return '';
   const date = new Date(`${value}T00:00:00Z`);
   return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value ? value : '';
+}
+
+function comparisonStartYear(value, expectedAsOfDate) {
+  if (value === undefined) return undefined;
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 2000
+    || value > Number(expectedAsOfDate.slice(0, 4))) throw error('INVALID_START_YEAR');
+  return value;
 }
 
 function supportedSymbol(value) {
@@ -292,12 +300,13 @@ async function loadInstrumentHistory(instrument, expectedDate, config) {
   return promise;
 }
 
-export function buildInvestmentComparisonData(histories, { symbols, expectedAsOfDate, now = Date.now() } = {}) {
+export function buildInvestmentComparisonData(histories, { symbols, expectedAsOfDate, startYear, now = Date.now() } = {}) {
   const pair = normalizeInvestmentComparisonSymbols(symbols);
   const timestamp = clock(now);
   if (!validDate(expectedAsOfDate) || expectedAsOfDate > getCompletedMarketCloseDate(timestamp)) throw error('INVALID_DATA');
   const expectedWeekday = new Date(`${expectedAsOfDate}T00:00:00Z`).getUTCDay();
   if ([0, 6].includes(expectedWeekday) || isRegularNyseHoliday(expectedAsOfDate)) throw error('INVALID_DATA');
+  const selectedStartYear = comparisonStartYear(startYear, expectedAsOfDate);
   const entries = pair.map((symbol) => histories?.[symbol]);
   if (entries.some((entry, index) => !validInstrument(entry) || entry.symbol !== pair[index])) throw error('INVALID_DATA');
   // Validate even injected builders: no caller may slip unvalidated rows into a result.
@@ -306,7 +315,11 @@ export function buildInvestmentComparisonData(histories, { symbols, expectedAsOf
   )]));
   const availableFromDate = pair.map((symbol) => rowsBySymbol[symbol][0].date).sort().at(-1);
   const asOfDate = pair.map((symbol) => rowsBySymbol[symbol].at(-1).date).sort()[0];
-  const commonRows = pair.map((symbol) => rowsBySymbol[symbol].filter((row) => row.date >= availableFromDate && row.date <= asOfDate));
+  // The full validated histories remain cached and returned. Only alignment is
+  // scoped to the requested start; no missing in-range session is discarded.
+  const comparisonFromDate = selectedStartYear === undefined
+    ? availableFromDate : [availableFromDate, `${selectedStartYear}-01-01`].sort().at(-1);
+  const commonRows = pair.map((symbol) => rowsBySymbol[symbol].filter((row) => row.date >= comparisonFromDate && row.date <= asOfDate));
   if (commonRows[0].length < 2 || commonRows[0].length !== commonRows[1].length
     || commonRows[0].some((row, index) => row.date !== commonRows[1][index].date)) throw error('INVALID_DATA');
   const reason = entries.some((entry) => entry.staleReason === 'quota_exhausted') ? 'quota_exhausted'
@@ -317,6 +330,7 @@ export function buildInvestmentComparisonData(histories, { symbols, expectedAsOf
   return {
     version: 1, source: 'EODHD_EOD', priceBasis: 'adjusted_close', currency: 'USD',
     expectedAsOfDate, asOfDate, availableFromDate,
+    ...(selectedStartYear === undefined ? {} : { startYear: selectedStartYear }),
     fetchedAt: new Date(Math.min(...fetchedTimes)).toISOString(),
     stale: Boolean(reason), staleReason: reason, symbols: pair,
     series: Object.fromEntries(entries.map((entry) => [entry.symbol, {
@@ -328,13 +342,15 @@ export function buildInvestmentComparisonData(histories, { symbols, expectedAsOf
 
 export async function fetchInvestmentComparison(symbols, options = {}) {
   const pair = normalizeInvestmentComparisonSymbols(symbols);
-  const config = providerOptions(options);
-  const expectedDate = getCompletedMarketCloseDate(config.now);
+  const now = clock(options.now ?? Date.now());
+  const expectedDate = getCompletedMarketCloseDate(now);
+  const startYear = comparisonStartYear(options.startYear, expectedDate);
+  const config = providerOptions({ ...options, now });
   // Both identities must pass before even the first historical-price request.
   const instruments = await Promise.all(pair.map((symbol) => verifyInstrument(symbol, config)));
   const entries = await Promise.all(instruments.map((instrument) => loadInstrumentHistory(instrument, expectedDate, config)));
   return buildInvestmentComparisonData(Object.fromEntries(entries.map((entry) => [entry.symbol, entry])), {
-    symbols: pair, expectedAsOfDate: expectedDate, now: config.now,
+    symbols: pair, expectedAsOfDate: expectedDate, startYear, now: config.now,
   });
 }
 

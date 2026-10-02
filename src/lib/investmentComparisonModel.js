@@ -34,7 +34,7 @@ export function normalizeInvestmentSymbols(symbols = INVESTMENT_COMPARISON_DEFAU
 
 // close is already adjusted_close on this wire contract. Raw provider closes,
 // missing prices and interior gaps must never be substituted or interpolated.
-export function normalizeInvestmentComparisonData(value, { symbols = value?.symbols, expectedAsOfDate, now } = {}) {
+export function normalizeInvestmentComparisonData(value, { symbols = value?.symbols, startYear = value?.startYear, expectedAsOfDate, now } = {}) {
   let selected;
   try { selected = normalizeInvestmentSymbols(symbols); } catch { return null; }
   const wireSymbols = value?.symbols;
@@ -50,6 +50,10 @@ export function normalizeInvestmentComparisonData(value, { symbols = value?.symb
     || typeof value.fetchedAt !== 'string' || !Number.isFinite(Date.parse(value.fetchedAt))) return null;
   if (expectedAsOfDate && (!isInvestmentDate(expectedAsOfDate) || value.expectedAsOfDate > expectedAsOfDate)) return null;
   if (now !== undefined && (!Number.isFinite(now) || Date.parse(value.fetchedAt) > now + 300000)) return null;
+  const expectedYear = Number(value.expectedAsOfDate.slice(0, 4));
+  if (startYear !== undefined && (!Number.isInteger(startYear) || startYear < 1900 || startYear > expectedYear)) return null;
+  if (value.startYear !== undefined && (!Number.isInteger(value.startYear) || value.startYear < 1900
+    || value.startYear > expectedYear || value.startYear !== startYear)) return null;
   const series = {};
   for (const symbol of selected) {
     const input = value.series?.[symbol];
@@ -71,7 +75,12 @@ export function normalizeInvestmentComparisonData(value, { symbols = value?.symb
   }
   const availableFromDate = selected.map((symbol) => series[symbol].rows[0].date).sort().at(-1);
   if (availableFromDate !== value.availableFromDate) return null;
-  const overlap = selected.map((symbol) => series[symbol].rows.filter((row) => row.date >= availableFromDate));
+  // Keep original history/inception metadata, but only the requested investment
+  // window must align. Earlier gaps cannot change any value in this window.
+  // A scoped response cannot be reused for a different starting year above.
+  const requestedStartDate = startYear === undefined ? availableFromDate : `${startYear}-01-01`;
+  const cutoff = requestedStartDate > availableFromDate ? requestedStartDate : availableFromDate;
+  const overlap = selected.map((symbol) => series[symbol].rows.filter((row) => row.date >= cutoff));
   if (overlap[0].length < 2 || overlap[0].length !== overlap[1].length
     || overlap[0].some((row, index) => row.date !== overlap[1][index].date)) return null;
   const expected = expectedAsOfDate || value.expectedAsOfDate;
@@ -81,6 +90,7 @@ export function normalizeInvestmentComparisonData(value, { symbols = value?.symb
     expectedAsOfDate: expected, asOfDate: value.asOfDate, availableFromDate,
     fetchedAt: value.fetchedAt, stale, staleReason: stale ? value.staleReason || 'incomplete_close' : '',
     symbols: selected, series,
+    ...(startYear === undefined ? {} : { startYear }),
   };
 }
 
@@ -109,7 +119,11 @@ export function buildInvestmentComparisonModel({ data, symbols = data?.symbols |
   if (typeof principal !== 'number' || !Number.isFinite(principal) || principal < 1 || principal > 1000000000) {
     throw investmentComparisonError('INVALID_PRINCIPAL', 'principal must be between 1 and 1000000000 USD');
   }
-  const valid = normalizeInvestmentComparisonData(data, { symbols: selected });
+  if (!Number.isInteger(startYear) || startYear < 1900
+    || (isInvestmentDate(data?.asOfDate) && startYear > Number(data.asOfDate.slice(0, 4)))) {
+    throw investmentComparisonError('INVALID_START_YEAR', 'start year is outside the available calendar range');
+  }
+  const valid = normalizeInvestmentComparisonData(data, { symbols: selected, startYear });
   if (!valid) throw investmentComparisonError('INVALID_DATA', 'complete aligned adjusted-close USD history required');
   const endYear = Number(valid.asOfDate.slice(0, 4));
   if (!Number.isInteger(startYear) || startYear < 1900 || startYear > endYear) {

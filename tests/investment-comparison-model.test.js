@@ -98,6 +98,42 @@ test('split and dividend raw-close fields never override the adjusted-close cont
   assert.throws(() => build({ data }), { code: 'INVALID_DATA' });
 });
 
+test('gaps before the selected year do not block or alter the chosen investment window', () => {
+  const data = fixture();
+  data.series.TQQQ.rows.splice(1, 1); // A real missing row, not a replacement price.
+  const original = structuredClone(data);
+  assert.equal(normalizeInvestmentComparisonData(data), null, 'unscoped callers keep whole-history validation');
+  const normalized = normalizeInvestmentComparisonData(data, { startYear: 2025 });
+  assert.equal(normalized.startYear, 2025);
+  assert.equal(normalized.availableFromDate, '2024-12-30', 'do not relabel the original history/inception');
+  assert.deepEqual(normalizeInvestmentComparisonData(normalized), normalized);
+  const actual = build({ data, startYear: 2025 });
+  const expected = build({ startYear: 2025 });
+  assert.deepEqual(actual.points, expected.points);
+  assert.deepEqual(actual.annual, expected.annual);
+  assert.equal(actual.actualStartDate, '2025-01-02');
+  assert.equal(actual.startAdjustmentReason, 'first_session');
+  assert.deepEqual(data, original, 'no gaps are filled or original data changed');
+  assert.throws(() => build({ data, startYear: 2024 }), { code: 'INVALID_DATA' });
+});
+
+test('a scoped response cannot be reused across years and gaps in the chosen window still fail closed', () => {
+  const data = fixture();
+  data.startYear = 2025;
+  const normalized = normalizeInvestmentComparisonData(data, { startYear: 2025 });
+  assert.equal(normalized.startYear, 2025);
+  for (const year of [2024, 2026]) {
+    assert.equal(normalizeInvestmentComparisonData(data, { startYear: year }), null);
+    assert.throws(() => build({ data, startYear: year }), { code: 'INVALID_DATA' });
+  }
+  for (const invalid of [null, '2025', 2025.5, 1899, 2027, NaN]) {
+    assert.equal(normalizeInvestmentComparisonData({ ...data, startYear: invalid }), null);
+  }
+  data.series.TQQQ.rows.splice(3, 1);
+  assert.equal(normalizeInvestmentComparisonData(data, { startYear: 2025 }), null);
+  assert.throws(() => build({ data, startYear: 2025 }), { code: 'INVALID_DATA' });
+});
+
 test('malformed, partial, unordered, duplicated, wrong-currency or raw prices fail closed', () => {
   const mutations = [
     (data) => { data.currency = 'CNY'; },

@@ -172,6 +172,63 @@ test('one-sided missing internal sessions fail; no common intersection is silent
   }
 });
 
+test('requested starting year scopes alignment without dropping pre-start history or weakening price validation', () => {
+  const dates = ['2010-12-30', '2010-12-31', '2011-01-03', '2011-01-04', ...DATES];
+  const histories = { QQQ: instrumentHistory('QQQ', dates), VGT: instrumentHistory('VGT', dates.filter(date => date !== '2010-12-31')) };
+  const options = { symbols: ['QQQ', 'VGT'], expectedAsOfDate: '2026-09-08', now: NOW };
+  const before = structuredClone(histories);
+  const scoped = buildInvestmentComparisonData(histories, { ...options, startYear: 2011 });
+  assert.equal(scoped.startYear, 2011);
+  assert.equal(scoped.availableFromDate, '2010-12-30');
+  assert.deepEqual(scoped.series.QQQ.rows, histories.QQQ.rows);
+  assert.deepEqual(scoped.series.VGT.rows, histories.VGT.rows);
+  assert.equal(scoped.series.VGT.rows.some(row => row.date === '2010-12-31'), false);
+  assert.equal(scoped.asOfDate, '2026-09-08');
+  assert.equal(scoped.stale, false);
+  assert.deepEqual(histories, before, 'range validation must not mutate cached full histories');
+  for (const startYear of [undefined, 2010]) {
+    assert.throws(() => buildInvestmentComparisonData(histories, { ...options, startYear }), isCode('INVALID_DATA'));
+  }
+  for (const missingDate of ['2011-01-03', '2011-01-04']) {
+    const missing = structuredClone(histories);
+    missing.VGT.rows = missing.VGT.rows.filter(row => row.date !== missingDate);
+    assert.throws(() => buildInvestmentComparisonData(missing, { ...options, startYear: 2011 }), isCode('INVALID_DATA'),
+      'a missing first or interior in-range date cannot be removed by intersecting the series');
+  }
+  const invalidPrice = structuredClone(histories);
+  invalidPrice.VGT.rows[0].close = null;
+  assert.throws(() => buildInvestmentComparisonData(invalidPrice, { ...options, startYear: 2011 }), isCode('INVALID_DATA'),
+    'pre-start rows are still fully validated financial observations');
+
+  const laterInception = buildInvestmentComparisonData({ QQQ: histories.QQQ, VGT: instrumentHistory('VGT', DATES) }, { ...options, startYear: 2011 });
+  assert.equal(laterInception.availableFromDate, DATES[0]);
+  assert.deepEqual(laterInception.series.VGT.rows.map(row => row.date), DATES);
+  assert.throws(() => buildInvestmentComparisonData({
+    QQQ: instrumentHistory('QQQ', ['2025-12-31', '2026-01-02']),
+    VGT: instrumentHistory('VGT', ['2025-12-31', '2026-01-02']),
+  }, { ...options, startYear: 2026 }), isCode('INVALID_DATA'), 'two full-history rows do not satisfy one in-range session');
+});
+
+test('starting year is an optional integer bounded by the completed close year before provider work', async () => {
+  let calls = 0;
+  const fetchImpl = async () => { calls += 1; throw new Error('unexpected provider call'); };
+  const histories = { QQQ: instrumentHistory('QQQ'), VGT: instrumentHistory('VGT') };
+  for (const startYear of [null, false, 1999, 2027, 2011.5, '2011', ['2011'], {}, NaN, Infinity]) {
+    await assert.rejects(fetchInvestmentComparison('QQQ,VGT', { startYear, now: NOW, fetchImpl }), isCode('INVALID_START_YEAR'));
+    assert.throws(() => buildInvestmentComparisonData(histories, {
+      symbols: ['QQQ', 'VGT'], expectedAsOfDate: '2026-09-08', startYear, now: NOW,
+    }), isCode('INVALID_START_YEAR'));
+  }
+  const newYear = Date.parse('2026-01-01T12:00:00Z');
+  await assert.rejects(fetchInvestmentComparison('QQQ,VGT', { startYear: 2026, now: newYear, fetchImpl }), isCode('INVALID_START_YEAR'));
+  assert.equal(calls, 0);
+  const legacy = buildInvestmentComparisonData(histories, { symbols: ['QQQ', 'VGT'], expectedAsOfDate: '2026-09-08', now: NOW });
+  assert.equal(Object.hasOwn(legacy, 'startYear'), false, 'the omitted-year wire contract is unchanged');
+  assert.equal(buildInvestmentComparisonData(histories, {
+    symbols: ['QQQ', 'VGT'], expectedAsOfDate: '2026-09-08', startYear: 2000, now: NOW,
+  }).startYear, 2000);
+});
+
 test('an unready final close truncates both real series to their matching close and labels the comparison stale', () => {
   const data = buildInvestmentComparisonData({
     QQQ: instrumentHistory('QQQ'), TQQQ: instrumentHistory('TQQQ', DATES.slice(0, -1)),
@@ -242,6 +299,28 @@ test('search-verified identities and per-symbol histories are reused across diff
   assert.equal(calls.filter((url) => url.pathname.startsWith('/api/search/')).length, 1);
   assert.equal(calls.filter((url) => url.pathname.includes('/eod/QQQ.US')).length, 1);
   assert.equal(calls.length, 4);
+});
+
+test('switching comparison years revalidates the range while reusing the same full symbol histories', async () => {
+  const dates = ['2010-12-30', '2010-12-31', '2011-01-03', '2011-01-04', ...DATES];
+  const calls = [];
+  const fetchImpl = fixtureFetch({ calls, history: symbol => response(rawRows(
+    symbol === 'VGT' ? dates.filter(date => date !== '2010-12-31') : dates,
+  )) });
+  const options = { eodhdKey: 'test', fetchImpl, now: NOW };
+  const first = await fetchInvestmentComparison('QQQ,VGT', { ...options, startYear: 2011 });
+  assert.equal(first.startYear, 2011);
+  assert.equal(calls.length, 4);
+  await assert.rejects(fetchInvestmentComparison('QQQ,VGT', { ...options, startYear: 2010 }), isCode('INVALID_DATA'));
+  await assert.rejects(fetchInvestmentComparison('QQQ,VGT', options), isCode('INVALID_DATA'));
+  const recent = await fetchInvestmentComparison('VGT,QQQ', { ...options, startYear: 2026 });
+  assert.equal(recent.startYear, 2026);
+  assert.deepEqual(recent.series.QQQ.rows, first.series.QQQ.rows);
+  assert.deepEqual(recent.series.VGT.rows, first.series.VGT.rows);
+  const recovered = await fetchInvestmentComparison('QQQ,VGT', { ...options, startYear: 2011 });
+  assert.deepEqual(recovered, first, 'an invalid earlier range does not poison the valid later range');
+  assert.equal(calls.length, 4, 'year changes do not refetch identities or full daily histories');
+  assert.ok(calls.filter(url => url.pathname.includes('/eod/')).every(url => url.searchParams.get('from') === '2000-01-01'));
 });
 
 test('simultaneous comparisons singleflight both symbol identity and history requests', async () => {
@@ -353,7 +432,9 @@ test('both API views require authentication before any provider work and preserv
   delete process.env.QUOTE_API_AUTH_REQUIRED;
   let calls = 0;
   globalThis.fetch = async () => { calls += 1; throw new Error('unexpected network'); };
-  for (const query of [{ view: 'investment-search', q: 'QQQ' }, { view: 'investment-comparison', symbols: 'QQQ,TQQQ' }]) {
+  for (const query of [{ view: 'investment-search', q: 'QQQ' }, { view: 'investment-comparison', symbols: 'QQQ,TQQQ' },
+    { view: 'investment-comparison', symbols: 'QQQ,VGT', startYear: '2011' },
+    { view: 'investment-comparison', symbols: 'QQQ,VGT', startYear: ['2011', '2012'] }]) {
     const res = apiResponse();
     await handler(request(query), res);
     assert.equal(res.statusCode, 401);
@@ -368,6 +449,7 @@ test('both API views require authentication before any provider work and preserv
 test('API rejects malformed and repeated parameters before reading a provider key', async () => {
   process.env.QUOTE_API_AUTH_REQUIRED = 'false';
   delete process.env.EODHD_API_KEY;
+  Date.now = () => NOW;
   let calls = 0;
   globalThis.fetch = async () => { calls += 1; throw new Error('unexpected network'); };
   for (const query of [
@@ -377,12 +459,41 @@ test('API rejects malformed and repeated parameters before reading a provider ke
     { view: 'investment-search', q: ['QQQ', 'SPY'] },
     { view: 'investment-search', q: '../bad' },
     { view: 'investment-search', q: 'QQQ', symbols: 'QQQ' },
+    { view: 'investment-search', q: 'VGT', startYear: '2011' },
+    { view: 'investment-search', q: 'VGT', startYear: ['2011'] },
+    ...['', ' 2011', '2011 ', '02011', '2011.0', '2e3', '1999', '2027', 'NaN', null, 2011, ['2011'], ['2011', '2012']]
+      .map(startYear => ({ view: 'investment-comparison', symbols: 'QQQ,VGT', startYear })),
   ]) {
     const res = apiResponse();
     await handler(request(query), res);
     assert.equal(res.statusCode, 400);
   }
   assert.equal(calls, 0);
+});
+
+test('API passes a canonical starting year and preserves the complete validated histories', async () => {
+  process.env.QUOTE_API_AUTH_REQUIRED = 'false';
+  process.env.EODHD_API_KEY = 'test';
+  Date.now = () => NOW;
+  const dates = ['2010-12-30', '2010-12-31', '2011-01-03', '2011-01-04', ...DATES];
+  const calls = [];
+  globalThis.fetch = fixtureFetch({ calls, history: symbol => response(rawRows(
+    symbol === 'VGT' ? dates.filter(date => date !== '2010-12-31') : dates,
+  )) });
+  const scoped = apiResponse();
+  await handler(request({ view: 'investment-comparison', symbols: 'QQQ,VGT', startYear: '2011' }), scoped);
+  assert.equal(scoped.statusCode, 200);
+  assert.equal(scoped.body.data.startYear, 2011);
+  assert.equal(scoped.body.data.availableFromDate, '2010-12-30');
+  assert.deepEqual(scoped.body.data.series.QQQ.rows.map(row => row.date), dates);
+  assert.deepEqual(scoped.body.data.series.VGT.rows.map(row => row.date), dates.filter(date => date !== '2010-12-31'));
+  for (const extra of [{ startYear: '2010' }, {}]) {
+    const strict = apiResponse();
+    await handler(request({ view: 'investment-comparison', symbols: 'QQQ,VGT', ...extra }), strict);
+    assert.equal(strict.statusCode, 502);
+    assert.equal(strict.body.details.code, 'INVALID_DATA');
+  }
+  assert.equal(calls.length, 4);
 });
 
 test('API exposes the documented search and comparison envelopes via the existing quote handler', async () => {

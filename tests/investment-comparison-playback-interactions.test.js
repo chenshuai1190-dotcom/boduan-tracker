@@ -160,7 +160,7 @@ test('opening the picker does not pause while data/parameter resets, natural end
   assert.ok(picker);
   assert.match(picker[1], /setPickerSide\(index\)/);
   assert.doesNotMatch(picker[1], /setPlaying/);
-  assert.ok(pageSource.includes('const requestKey = `${userId}:${symbols.join(\':\')}`'));
+  assert.ok(pageSource.includes('const requestKey = `${userId}:${symbols.join(\':\')}:${startYear}`'), 'historical requests must be isolated by the selected year');
   assert.ok(pageSource.includes('const cursorKey = `${requestKey}:${startYear}:${principal}`'));
   const reset = pageSource.match(/React\.useEffect\(\(\) => \{\s*setPlaying\(false\);\s*setCursorState\(\{ key: cursorKey, index: lastIndex \}\);\s*\}, \[cursorKey, lastIndex, model\]\)/);
   assert.ok(reset, 'actual symbol, principal or year changes must reset playback against the new model');

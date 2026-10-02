@@ -11,10 +11,12 @@ export const INVESTMENT_SYMBOL_PRESETS = Object.freeze([
   { symbol: 'META', name: 'Meta Platforms Inc.', nameZh: 'Meta', type: 'Common Stock' },
   { symbol: 'TSLA', name: 'Tesla Inc.', nameZh: '特斯拉', type: 'Common Stock' },
   { symbol: 'AVGO', name: 'Broadcom Inc.', nameZh: '博通', type: 'Common Stock' },
+  { symbol: 'VGT', name: 'Vanguard Information Technology ETF', nameZh: '科技 ETF', type: 'ETF' },
+  { symbol: 'SMH', name: 'VanEck Semiconductor ETF', nameZh: '半导体 ETF', type: 'ETF' },
 ]);
 
 export default function InvestmentSymbolPresets({ side, instruments, englishMode = false, onSelect }) {
-  return <div className="ic-preset-grid" role="group" aria-label={englishMode ? 'Magnificent Seven + AVGO quick picks' : '美股七姐妹 + AVGO 快捷选择'}>
+  return <div className="ic-preset-grid" role="group" aria-label={englishMode ? 'Stock and ETF quick picks' : '股票与 ETF 快捷选择'}>
     {INVESTMENT_SYMBOL_PRESETS.map(item => {
       const duplicate = item.symbol === instruments[1 - side].symbol;
       const current = item.symbol === instruments[side].symbol;

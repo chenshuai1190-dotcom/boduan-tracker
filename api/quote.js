@@ -148,10 +148,19 @@ export default async function handler(req, res) {
       if (Array.isArray(view) || Array.isArray(symbols) || Array.isArray(req.query.q)) {
         throw new InvestmentComparisonError(investmentSearchRequested ? 'INVALID_QUERY' : 'INVALID_SYMBOLS');
       }
-      if (investmentSearchRequested && symbols !== undefined) throw new InvestmentComparisonError('INVALID_QUERY');
+      if (investmentSearchRequested && (symbols !== undefined || Object.hasOwn(req.query, 'startYear'))) {
+        throw new InvestmentComparisonError('INVALID_QUERY');
+      }
+      let startYear;
+      if (req.query.startYear !== undefined) {
+        if (typeof req.query.startYear !== 'string' || !/^\d{4}$/.test(req.query.startYear)) {
+          throw new InvestmentComparisonError('INVALID_START_YEAR');
+        }
+        startYear = Number(req.query.startYear);
+      }
       const data = investmentSearchRequested
         ? await searchInvestmentSymbols(req.query.q, { eodhdKey })
-        : await fetchInvestmentComparison(symbols, { eodhdKey });
+        : await fetchInvestmentComparison(symbols, { eodhdKey, startYear });
       return res.status(200).json({ success: true, data });
     } catch (cause) {
       const failure = cause instanceof InvestmentComparisonError ? cause : new InvestmentComparisonError('PROVIDER_UNAVAILABLE');

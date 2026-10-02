@@ -78,7 +78,8 @@ const sourceUrl = dataUrl(`
   let fixture;
   export const calls = [];
   export function configure(data) { fixture = data; calls.length = 0; }
-  export async function loadInvestmentComparison(options) { calls.push(options); return fixture; }
+  export function getInvestmentComparisonExpectedCloseDate() { return '2026-09-04'; }
+  export async function loadInvestmentComparison(options) { calls.push(options); return typeof fixture === 'function' ? fixture(options) : fixture; }
   export async function searchInvestmentSymbols() { throw new Error('Search should not run during analysis switching'); }
 `);
 const source = await import(sourceUrl);
@@ -177,5 +178,76 @@ test('switching tabs while history is pending keeps the original request and ren
   assert.equal(findAll(tree, node => typeof node.type === 'function' && node.props.model && !node.props.snapshot).length, 1);
   assert.equal(findAll(tree, node => node.props.className === 'ic-loading').length, 0);
   assert.equal(source.calls.length, 1);
+  hooks.reset();
+});
+
+test('changing the starting year requests its range and prevents old-year responses from replacing it', async () => {
+  hooks.reset();
+  const pending = new Map();
+  source.configure(({ startYear }) => new Promise(resolve => pending.set(startYear, resolve)));
+  const render = () => hooks.render(InvestmentComparisonPage, { ctx: { userId: 'synthetic-year-owner', language: 'zh' } });
+  let tree = render(); await hooks.flush(); tree = render();
+  assert.equal(source.calls[0].startYear, 2011);
+  findAll(tree, node => node.type === 'select' && node.props['aria-label'] === '起始年份')[0].props.onChange({ target: { value: '2020' } });
+  tree = render(); await hooks.flush(); tree = render();
+  assert.deepEqual(source.calls.map(call => call.startYear), [2011, 2020]);
+  assert.equal(source.calls[0].signal.aborted, true);
+  assert.equal(source.calls[1].signal.aborted, false);
+  pending.get(2020)({ ...fixture(), startYear: 2020 });
+  await hooks.flush(); tree = render(); await hooks.flush(); tree = render();
+  const selectedModel = findAll(tree, node => typeof node.type === 'function' && node.props.snapshot && node.props.model)[0].props.model;
+  assert.equal(selectedModel.startYear, 2020);
+  pending.get(2011)({ ...fixture(), startYear: 2011 });
+  await hooks.flush(); tree = render(); await hooks.flush(); tree = render();
+  assert.strictEqual(findAll(tree, node => typeof node.type === 'function' && node.props.snapshot && node.props.model)[0].props.model, selectedModel);
+  assert.equal(findAll(tree, node => node.props.role === 'alert').length, 0);
+  hooks.reset();
+});
+
+test('an old-year error cannot hide a completed request for the selected year', async () => {
+  hooks.reset();
+  let rejectOld;
+  source.configure(({ startYear }) => startYear === 2011 ? new Promise((_resolve, reject) => { rejectOld = reject; }) : { ...fixture(), startYear });
+  const render = () => hooks.render(InvestmentComparisonPage, { ctx: { userId: 'synthetic-year-error-owner', language: 'zh' } });
+  let tree = render(); await hooks.flush(); tree = render();
+  findAll(tree, node => node.type === 'select' && node.props['aria-label'] === '起始年份')[0].props.onChange({ target: { value: '2020' } });
+  tree = render(); await hooks.flush(); tree = render(); await hooks.flush(); tree = render();
+  rejectOld(Object.assign(new Error('old unavailable range'), { code: 'INVALID_DATA' }));
+  await hooks.flush(); tree = render(); await hooks.flush(); tree = render();
+  assert.equal(findAll(tree, node => node.props.role === 'alert').length, 0);
+  assert.equal(findAll(tree, node => typeof node.type === 'function' && node.props.snapshot && node.props.model)[0].props.model.startYear, 2020);
+  hooks.reset();
+});
+
+test('range errors preserve their code in production-page messages instead of becoming a network error', async () => {
+  const text = node => !React.isValidElement(node) ? (typeof node === 'string' ? node : '') : React.Children.toArray(node.props.children).map(text).join(' ');
+  for (const [code, expected] of [
+    ['INVALID_DATA', '所选区间历史数据存在缺失或冲突，暂时无法对比。'],
+    ['INSUFFICIENT_HISTORY', '所选标的在该起始年份后暂无足够的共同历史数据。'],
+    ['INVALID_START_YEAR', '请选择已完成收盘年份范围内的起始年份。'],
+  ]) {
+    hooks.reset();
+    source.configure(() => { throw Object.assign(new Error('test range error'), { code }); });
+    const render = () => hooks.render(InvestmentComparisonPage, { ctx: { userId: 'synthetic-invalid-owner', language: 'zh' } });
+    render(); await hooks.flush(); render(); await hooks.flush();
+    const tree = render();
+    const alert = findAll(tree, node => node.props.role === 'alert')[0];
+    assert.ok(alert);
+    assert.ok(text(alert).includes(expected));
+    assert.ok(!text(alert).includes('历史数据暂时无法读取'));
+    assert.equal(findAll(tree, node => typeof node.type === 'function' && node.props.model).length, 0);
+  }
+  hooks.reset();
+});
+
+test('invalid normalized history uses the same range diagnostic as an API INVALID_DATA error', async () => {
+  hooks.reset();
+  const invalid = fixture();
+  invalid.series.QQQ.rows[0].close = null;
+  source.configure(invalid);
+  const render = () => hooks.render(InvestmentComparisonPage, { ctx: { userId: 'synthetic-model-error-owner', language: 'zh' } });
+  render(); await hooks.flush(); render(); await hooks.flush();
+  const tree = render();
+  assert.equal(findAll(tree, node => node.props.role === 'status' && node.props.children === '所选区间历史数据存在缺失或冲突，暂时无法对比。').length, 1);
   hooks.reset();
 });

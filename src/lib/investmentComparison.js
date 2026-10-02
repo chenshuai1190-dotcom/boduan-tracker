@@ -100,7 +100,7 @@ async function requestJson({ url, token, fetchImpl, timeoutMs }) {
         if ([401, 403].includes(response.status)) throw investmentComparisonError('AUTH_REQUIRED', 'comparison authorization failed');
         const body = await response.json().catch(() => null);
         if (!response.ok) {
-          const supportedCodes = ['INVALID_SYMBOLS', 'INVALID_QUERY', 'UNSUPPORTED_INSTRUMENT', 'INSUFFICIENT_HISTORY', 'INVALID_DATA', 'NOT_CONFIGURED', 'PROVIDER_UNAVAILABLE', 'QUOTA_EXHAUSTED'];
+          const supportedCodes = ['INVALID_SYMBOLS', 'INVALID_QUERY', 'INVALID_START_YEAR', 'UNSUPPORTED_INSTRUMENT', 'INSUFFICIENT_HISTORY', 'INVALID_DATA', 'NOT_CONFIGURED', 'PROVIDER_UNAVAILABLE', 'QUOTA_EXHAUSTED'];
           const code = supportedCodes.includes(body?.details?.code) ? body.details.code
             : response.status === 429 ? 'RATE_LIMITED' : response.status >= 500 ? 'NETWORK_ERROR' : 'REQUEST_ERROR';
           throw investmentComparisonError(code, 'historical data request failed');
@@ -115,10 +115,10 @@ async function requestJson({ url, token, fetchImpl, timeoutMs }) {
   } finally { clearTimeout(timer); }
 }
 
-function latestSuccess(identity, pair) {
+function latestSuccess(identity, pair, startYear) {
   let found;
   for (const entry of successCache.values()) {
-    if (entry.identity === identity && entry.pair === pair && (!found || entry.data.asOfDate >= found.data.asOfDate)) found = entry;
+    if (entry.identity === identity && entry.pair === pair && entry.startYear === startYear && (!found || entry.data.asOfDate >= found.data.asOfDate)) found = entry;
   }
   return found;
 }
@@ -140,21 +140,24 @@ function assertRequestCurrent(identity, requestGeneration, epoch) {
   if ((identityEpochs.get(identity) || 0) !== epoch) throw investmentComparisonError('AUTH_REQUIRED', 'comparison identity was invalidated');
 }
 
-export async function loadInvestmentComparison({ userId, symbols = ['QQQ', 'TQQQ'], force = false, signal, fetchImpl = globalThis.fetch, getSession = defaultGetSession, now = Date.now, timeoutMs = INVESTMENT_COMPARISON_TIMEOUT_MS } = {}) {
+export async function loadInvestmentComparison({ userId, symbols = ['QQQ', 'TQQQ'], startYear, force = false, signal, fetchImpl = globalThis.fetch, getSession = defaultGetSession, now = Date.now, timeoutMs = INVESTMENT_COMPARISON_TIMEOUT_MS } = {}) {
   const identity = identityOf(userId);
   const selected = normalizeInvestmentSymbols(symbols).sort();
   if (signal?.aborted) throw aborted();
   const session = await authenticatedSession(identity, getSession);
   const timestamp = timestampOf(now);
   const expectedAsOfDate = getInvestmentComparisonExpectedCloseDate(timestamp);
+  if (startYear !== undefined && (!Number.isInteger(startYear) || startYear < 2000 || startYear > Number(expectedAsOfDate.slice(0, 4)))) {
+    throw investmentComparisonError('INVALID_START_YEAR', 'start year must be within completed market history');
+  }
   const pair = selected.join(',');
-  const key = JSON.stringify(['history', identity, pair, expectedAsOfDate]);
+  const key = JSON.stringify(['history', identity, pair, startYear ?? null, expectedAsOfDate]);
   const caller = { signal, identity, getSession };
   if (inFlight.has(key)) return forCaller(inFlight.get(key).promise, caller);
   const failure = failures.get(key);
   const cached = successCache.get(key);
   if (!force && failure?.retryAt > timestamp) {
-    const last = latestSuccess(identity, pair);
+    const last = latestSuccess(identity, pair, startYear);
     if (retryable(failure.error) && last) return forCaller(Promise.resolve(staleFallback(last.data, expectedAsOfDate, failure.error)), caller);
     throw failure.error;
   }
@@ -165,17 +168,18 @@ export async function loadInvestmentComparison({ userId, symbols = ['QQQ', 'TQQQ
   let promise;
   promise = (async () => {
     try {
-      const value = await requestJson({ url: `/api/quote?view=investment-comparison&symbols=${encodeURIComponent(pair)}`, token: session.access_token, fetchImpl, timeoutMs });
+      const value = await requestJson({ url: `/api/quote?view=investment-comparison&symbols=${encodeURIComponent(pair)}${startYear === undefined ? '' : `&startYear=${startYear}`}`, token: session.access_token, fetchImpl, timeoutMs });
       await authenticatedSession(identity, getSession);
       assertRequestCurrent(identity, requestGeneration, epoch);
       const completedDate = getInvestmentComparisonExpectedCloseDate(timestampOf(now));
-      let data = normalizeInvestmentComparisonData(value, { symbols: selected, expectedAsOfDate: completedDate, now: timestampOf(now) });
+      if (value?.startYear !== undefined && value.startYear !== startYear) throw investmentComparisonError('INVALID_DATA', 'comparison response start year does not match request');
+      let data = normalizeInvestmentComparisonData(value, { symbols: selected, startYear, expectedAsOfDate: completedDate, now: timestampOf(now) });
       if (!data) throw investmentComparisonError('INVALID_DATA', 'complete adjusted-close comparison history required');
-      const previous = latestSuccess(identity, pair);
+      const previous = latestSuccess(identity, pair, startYear);
       if (previous && previous.data.asOfDate > data.asOfDate) data = { ...previous.data, expectedAsOfDate: completedDate, stale: true, staleReason: data.staleReason || 'incomplete_close' };
       data = { ...data, cacheState: data.stale ? 'stale' : 'fresh' };
-      const cacheKey = JSON.stringify(['history', identity, pair, completedDate]);
-      boundedSet(successCache, cacheKey, { identity, pair, data, retryAt: timestampOf(now) + INVESTMENT_COMPARISON_STALE_RETRY_MS }, MAX_HISTORY_ENTRIES);
+      const cacheKey = JSON.stringify(['history', identity, pair, startYear ?? null, completedDate]);
+      boundedSet(successCache, cacheKey, { identity, pair, startYear, data, retryAt: timestampOf(now) + INVESTMENT_COMPARISON_STALE_RETRY_MS }, MAX_HISTORY_ENTRIES);
       failures.delete(key);
       failures.delete(cacheKey);
       return data;
@@ -185,7 +189,7 @@ export async function loadInvestmentComparison({ userId, symbols = ['QQQ', 'TQQQ
       await authenticatedSession(identity, getSession);
       assertRequestCurrent(identity, requestGeneration, epoch);
       boundedSet(failures, key, { identity, error, retryAt: timestampOf(now) + INVESTMENT_COMPARISON_FAILURE_RETRY_MS });
-      const previous = latestSuccess(identity, pair);
+      const previous = latestSuccess(identity, pair, startYear);
       if (retryable(error) && previous) return staleFallback(previous.data, getInvestmentComparisonExpectedCloseDate(timestampOf(now)), error);
       throw error;
     }

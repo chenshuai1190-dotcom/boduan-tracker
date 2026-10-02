@@ -76,6 +76,79 @@ test('single-flight shares requests while every subscriber can cancel independen
   assert.equal((await second).asOfDate, '2026-09-04');
 });
 
+test('selected years have distinct history caches while the same year reuses sorted pairs', async () => {
+  const calls = [];
+  const options = args({ fetchImpl: async url => {
+    const year = new URL(url, 'https://test.invalid').searchParams.get('startYear');
+    calls.push(year);
+    return response({ ...fixture(), ...(year === null ? {} : { startYear: Number(year) }) });
+  } });
+  const first = await loadInvestmentComparison({ ...options, startYear: 2011 });
+  const cached = await loadInvestmentComparison({ ...options, symbols: ['TQQQ', 'QQQ'], startYear: 2011 });
+  assert.strictEqual(cached, first);
+  assert.equal(first.startYear, 2011);
+  assert.equal((await loadInvestmentComparison({ ...options, startYear: 2020 })).startYear, 2020);
+  assert.equal((await loadInvestmentComparison(options)).startYear, undefined);
+  assert.deepEqual(calls, ['2011', '2020', null]);
+});
+
+test('different years never share in-flight requests and out-of-order completion preserves each scope', async () => {
+  const requests = new Map();
+  let calls = 0;
+  const options = args({ fetchImpl: url => {
+    calls += 1;
+    const year = Number(new URL(url, 'https://test.invalid').searchParams.get('startYear'));
+    return new Promise(resolve => requests.set(year, resolve));
+  } });
+  const old = loadInvestmentComparison({ ...options, startYear: 2011 });
+  const newer = loadInvestmentComparison({ ...options, startYear: 2020 });
+  const sameYear = loadInvestmentComparison({ ...options, startYear: 2020 });
+  await settle();
+  assert.equal(calls, 2);
+  requests.get(2020)(response({ ...fixture(), startYear: 2020 }));
+  const newerData = await newer;
+  assert.strictEqual(await sameYear, newerData);
+  requests.get(2011)(response({ ...fixture(), startYear: 2011 }));
+  assert.equal((await old).startYear, 2011);
+  assert.strictEqual(await loadInvestmentComparison({ ...options, startYear: 2020 }), newerData);
+  assert.equal(calls, 2);
+});
+
+test('failed year and stale fallback cannot borrow history or cooldown from another year', async () => {
+  let calls = 0;
+  const options = args({ fetchImpl: async url => {
+    calls += 1;
+    const year = Number(new URL(url, 'https://test.invalid').searchParams.get('startYear'));
+    if (year === 2020) throw new Error('offline');
+    return response({ ...fixture(), startYear: year });
+  } });
+  const valid = await loadInvestmentComparison({ ...options, startYear: 2011 });
+  await assert.rejects(loadInvestmentComparison({ ...options, startYear: 2020 }), { code: 'NETWORK_ERROR' });
+  await assert.rejects(loadInvestmentComparison({ ...options, startYear: 2020 }), { code: 'NETWORK_ERROR' });
+  assert.strictEqual(await loadInvestmentComparison({ ...options, startYear: 2011 }), valid);
+  assert.equal(calls, 2);
+  const stale = await loadInvestmentComparison({ ...options, startYear: 2011, force: true, fetchImpl: async () => { throw new Error('offline'); } });
+  assert.equal(stale.startYear, 2011);
+  assert.equal(stale.stale, true);
+});
+
+test('years are strict numbers and bounded by completed trading history before any network request', async () => {
+  const fetchImpl = async () => assert.fail('invalid year must not request history');
+  for (const startYear of [1999, 2027, '2011', null, false, 2011.5, NaN, Infinity]) {
+    await assert.rejects(loadInvestmentComparison(args({ startYear, fetchImpl })), { code: 'INVALID_START_YEAR' });
+  }
+  await assert.rejects(loadInvestmentComparison(args({ startYear: 2026, fetchImpl, now: () => Date.parse('2026-01-01T12:00:00Z') })), { code: 'INVALID_START_YEAR' });
+});
+
+test('response year mismatches fail closed, while legacy payloads are normalized for the requested year', async () => {
+  for (const startYear of [undefined, 2011]) {
+    resetInvestmentComparisonMemoryCache();
+    await assert.rejects(loadInvestmentComparison(args({ startYear, fetchImpl: async () => response({ ...fixture(), startYear: 2020 }) })), { code: 'INVALID_DATA' });
+  }
+  resetInvestmentComparisonMemoryCache();
+  assert.equal((await loadInvestmentComparison(args({ startYear: 2011 }))).startYear, 2011);
+});
+
 test('network failure preserves last valid prices explicitly stale and observes cooldown', async () => {
   let calls = 0, now = NOW;
   const options = args({ now: () => now, fetchImpl: async () => { calls += 1; if (calls > 1) throw new Error('offline'); return response(); } });
@@ -131,7 +204,7 @@ test('invalid response is fail-closed even with a warm successful cache', async 
 });
 
 test('server machine errors preserve unsupported/history/quota distinctions instead of becoming auth errors', async () => {
-  for (const [code, status] of [['UNSUPPORTED_INSTRUMENT', 400], ['INVALID_DATA', 502], ['QUOTA_EXHAUSTED', 503]]) {
+  for (const [code, status] of [['UNSUPPORTED_INSTRUMENT', 400], ['INVALID_START_YEAR', 400], ['INVALID_DATA', 502], ['QUOTA_EXHAUSTED', 503]]) {
     resetInvestmentComparisonMemoryCache();
     await assert.rejects(loadInvestmentComparison(args({ fetchImpl: async () => response(null, status, code) })), { code });
   }

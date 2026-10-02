@@ -18,12 +18,12 @@ export default function InvestmentComparisonPreview({ ctx }) {
     if (!fixture) return null;
     const allSeries = Object.assign({}, ...fixture.comparisons.map(data => data.series));
     return {
-      load: async ({ symbols }) => {
+      load: async ({ symbols, startYear }) => {
         if (symbols.some(symbol => !allSeries[symbol])) throw new Error('outside captured preview');
         const template = fixture.comparisons[0];
         const asOfDate = symbols.map(symbol => allSeries[symbol].rows.at(-1).date).sort()[0];
         return {
-          ...template, symbols, asOfDate,
+          ...template, symbols, startYear, asOfDate,
           availableFromDate: symbols.map(symbol => allSeries[symbol].rows[0].date).sort().at(-1),
           stale: asOfDate !== template.expectedAsOfDate,
           staleReason: asOfDate !== template.expectedAsOfDate ? 'incomplete_close' : '',

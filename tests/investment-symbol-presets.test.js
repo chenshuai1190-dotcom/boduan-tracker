@@ -10,7 +10,7 @@ const pageSource = readFileSync(new URL('../src/pages/InvestmentComparisonPage.j
 const transformed = await transformWithOxc(source, 'InvestmentSymbolPresets.jsx', { jsx: { runtime: 'classic' } });
 const compiled = transformed.code.replace(/from (["'])(react|lucide-react)\1/g, (_, quote, module) => `from ${JSON.stringify(import.meta.resolve(module))}`);
 const { default: InvestmentSymbolPresets, INVESTMENT_SYMBOL_PRESETS } = await import(`data:text/javascript;base64,${Buffer.from(compiled).toString('base64')}`);
-const expectedSymbols = ['NVDA', 'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'META', 'TSLA', 'AVGO'];
+const expectedSymbols = ['NVDA', 'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'META', 'TSLA', 'AVGO', 'VGT', 'SMH'];
 
 function textContent(node) {
   if (node === null || node === undefined || typeof node === 'boolean') return '';
@@ -23,10 +23,10 @@ function buttonNodes(node) {
   return [...(node.type === 'button' ? [node] : []), ...React.Children.toArray(node.props.children).flatMap(buttonNodes)];
 }
 
-test('presets contain Magnificent Seven then AVGO without market values or provider writes', () => {
+test('presets contain Magnificent Seven then AVGO, VGT and SMH without market values or provider writes', () => {
   assert.deepEqual(INVESTMENT_SYMBOL_PRESETS.map(item => item.symbol), expectedSymbols);
   for (const item of INVESTMENT_SYMBOL_PRESETS) {
-    assert.equal(item.type, 'Common Stock');
+    assert.equal(item.type, ['VGT', 'SMH'].includes(item.symbol) ? 'ETF' : 'Common Stock');
     assert.ok(typeof item.name === 'string' && item.name.trim());
     assert.ok(typeof item.nameZh === 'string' && item.nameZh.trim());
     assert.ok(Object.keys(item).every(key => ['symbol', 'name', 'nameZh', 'type', 'currency', 'exchange'].includes(key)));
@@ -35,13 +35,13 @@ test('presets contain Magnificent Seven then AVGO without market values or provi
   assert.equal(/supabase|localStorage|stock_trades|insertStockTrade|service_role/.test(source), false);
 });
 
-test('preset buttons render all eight tickers and localized company names', () => {
+test('preset buttons render all ten tickers and localized company or ETF names', () => {
   for (const englishMode of [false, true]) {
     const props = { side: 0, instruments: [{ symbol: 'QQQ' }, { symbol: 'TQQQ' }], englishMode, onSelect() {} };
     const html = renderToStaticMarkup(React.createElement(InvestmentSymbolPresets, props));
     const tree = InvestmentSymbolPresets(props);
     const buttons = buttonNodes(tree);
-    assert.equal(buttons.length, 8);
+    assert.equal(buttons.length, 10);
     for (const item of INVESTMENT_SYMBOL_PRESETS) {
       assert.ok(html.includes(item.symbol));
       const button = buttons.find(node => textContent(node).includes(item.symbol));
@@ -76,6 +76,22 @@ test('choosing an enabled preset returns its instrument identity to the controll
   const button = buttonNodes(InvestmentSymbolPresets(props)).find(node => textContent(node).includes('AVGO'));
   button.props.onClick();
   assert.deepEqual(selected, INVESTMENT_SYMBOL_PRESETS.find(item => item.symbol === 'AVGO'));
+});
+
+test('ETF presets preserve their type and cannot duplicate the opposite investment', () => {
+  for (const symbol of ['VGT', 'SMH']) {
+    let selected;
+    const props = { side: 0, instruments: [{ symbol: 'QQQ' }, { symbol: 'TQQQ' }], onSelect: item => { selected = item; } };
+    buttonNodes(InvestmentSymbolPresets(props)).find(node => textContent(node).includes(symbol)).props.onClick();
+    assert.equal(selected.symbol, symbol);
+    assert.equal(selected.type, 'ETF');
+    const other = { ...props, instruments: [{ symbol: 'QQQ' }, { symbol }], onSelect: () => assert.fail('duplicate ETF must not select') };
+    const disabled = buttonNodes(InvestmentSymbolPresets(other)).find(node => textContent(node).includes(symbol));
+    assert.equal(disabled.props.disabled, true);
+    disabled.props.onClick();
+  }
+  assert.match(pageSource, /股票与 ETF 快捷选择/);
+  assert.doesNotMatch(pageSource, /Magnificent Seven \+ AVGO|美股七姐妹 \+ AVGO/);
 });
 
 test('empty search presents presets without opening the keyboard while typed search keeps its authenticated path', () => {

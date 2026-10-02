@@ -5,12 +5,19 @@ import InvestmentComparisonChart, { formatInvestmentAmount, formatInvestmentPerc
 import InvestmentSymbolPresets from '../components/InvestmentSymbolPresets.jsx';
 import InvestmentAnalysisTabs from '../components/InvestmentAnalysisTabs.jsx';
 import InvestmentDrawdownView from '../components/InvestmentDrawdownView.jsx';
-import { loadInvestmentComparison, searchInvestmentSymbols } from '../lib/investmentComparison.js';
+import { getInvestmentComparisonExpectedCloseDate, loadInvestmentComparison, searchInvestmentSymbols } from '../lib/investmentComparison.js';
 import { buildInvestmentComparisonModel, getInvestmentComparisonSnapshot } from '../lib/investmentComparisonModel.js';
 import '../components/InvestmentComparison.css';
 
 const DEFAULT_INSTRUMENTS = [{ symbol: 'QQQ', name: 'Invesco QQQ Trust', type: 'ETF' }, { symbol: 'TQQQ', name: 'ProShares UltraPro QQQ', type: 'ETF' }];
 const PLAYBACK_DAYS_PER_SECOND = 125;
+
+function historyErrorMessage(code, englishMode) {
+  if (code === 'INVALID_DATA') return englishMode ? 'The selected period has missing or conflicting historical data and cannot be compared.' : '所选区间历史数据存在缺失或冲突，暂时无法对比。';
+  if (code === 'INSUFFICIENT_HISTORY') return englishMode ? 'The selected investments have insufficient shared history for this starting year.' : '所选标的在该起始年份后暂无足够的共同历史数据。';
+  if (code === 'INVALID_START_YEAR') return englishMode ? 'Choose a starting year within completed market history.' : '请选择已完成收盘年份范围内的起始年份。';
+  return englishMode ? 'Historical data could not be loaded.' : '历史数据暂时无法读取。';
+}
 
 function instrumentName(item, englishMode) {
   if (item.symbol === 'QQQ') return englishMode ? 'Nasdaq-100 ETF' : '纳斯达克 100 ETF';
@@ -93,7 +100,7 @@ function InvestmentSymbolPicker({ side, instruments, userId, englishMode, search
       <header className="ic-picker-head"><h2 id="investment-picker-title">{title}</h2><button type="button" className="ic-icon-button" onClick={onClose} aria-label={englishMode ? 'Close stock search' : '关闭股票搜索'}><X size={21} /></button></header>
       <div className="ic-picker-context">{englishMode ? 'Current' : '当前'} <strong>{instruments[side].symbol}</strong><span>·</span>{englishMode ? 'Compared with' : '对比'} <strong>{instruments[1 - side].symbol}</strong></div>
       <label className="ic-search-label"><Search size={18} aria-hidden="true" /><input ref={inputRef} type="search" value={query} onChange={event => { setQuery(event.target.value); setAttempt(0); }} autoComplete="off" autoCapitalize="characters" spellCheck={false} placeholder={englishMode ? 'Search symbol or company name' : '搜索股票代码 / 名称'} aria-label={englishMode ? 'Search US stocks and ETFs' : '搜索美股与 ETF'} /></label>
-      <div className="ic-results-heading"><span>{normalizedQuery ? (englishMode ? 'Search results' : '搜索结果') : (englishMode ? 'Magnificent Seven + AVGO' : '美股七姐妹 + AVGO')}</span><span>{englishMode ? 'US stocks · USD' : '美股 · USD'}</span></div>
+      <div className="ic-results-heading"><span>{normalizedQuery ? (englishMode ? 'Search results' : '搜索结果') : (englishMode ? 'Stocks & ETFs' : '股票与 ETF 快捷选择')}</span><span>US · USD</span></div>
       <div className="ic-results" aria-busy={state.loading}>
         {!normalizedQuery ? <InvestmentSymbolPresets side={side} instruments={instruments} englishMode={englishMode} onSelect={onSelect} />
           : !matchesCurrentQuery || state.loading ? <div className="ic-search-empty" role="status"><RefreshCw size={15} className="ic-spin" />{englishMode ? 'Searching…' : '搜索中…'}</div>
@@ -136,7 +143,7 @@ export default function InvestmentComparisonPage({ ctx = {}, previewSource }) {
   const manualRefreshKeyRef = React.useRef(null);
   const cursorRef = React.useRef(0);
   const symbols = React.useMemo(() => instruments.map(item => item.symbol), [instruments]);
-  const requestKey = `${userId}:${symbols.join(':')}`;
+  const requestKey = `${userId}:${symbols.join(':')}:${startYear}`;
   const principal = principalText.trim() ? Number(principalText) : NaN;
   const principalValid = Number.isFinite(principal) && principal >= 1 && principal <= 1000000000;
   const data = loadState.key === requestKey ? loadState.data : null;
@@ -155,21 +162,21 @@ export default function InvestmentComparisonPage({ ctx = {}, previewSource }) {
     setPickerSide(null);
     setHiddenSymbols([]);
     setLoadState(current => ({ key: requestKey, data: current.key === requestKey ? current.data : null, loading: true, error: false }));
-    loadSource({ userId, symbols, force, signal: controller.signal })
+    loadSource({ userId, symbols, startYear, force, signal: controller.signal })
       .then(result => {
         if (requestRef.current === requestId && !controller.signal.aborted) setLoadState({ key: requestKey, data: result, loading: false, error: false });
       })
-      .catch(() => {
+      .catch(error => {
         if (requestRef.current !== requestId || controller.signal.aborted) return;
-        setLoadState({ key: requestKey, data: null, loading: false, error: true });
+        setLoadState({ key: requestKey, data: null, loading: false, error: error?.code || 'REQUEST_ERROR' });
       });
     return () => { requestRef.current += 1; controller.abort(); };
-  }, [loadSource, refreshVersion, requestKey, symbols, userId]);
+  }, [loadSource, refreshVersion, requestKey, startYear, symbols, userId]);
 
   const modelResult = React.useMemo(() => {
     if (!data || !principalValid) return { model: null, error: false };
     try { return { model: buildInvestmentComparisonModel({ data, symbols, startYear, principal }), error: false }; }
-    catch { return { model: null, error: true }; }
+    catch (error) { return { model: null, error: error?.code || 'INVALID_DATA' }; }
   }, [data, principal, principalValid, startYear, symbols]);
   const model = modelResult.model;
   const lastIndex = Math.max(0, (model?.points.length || 1) - 1);
@@ -204,7 +211,7 @@ export default function InvestmentComparisonPage({ ctx = {}, previewSource }) {
     return () => { window.cancelAnimationFrame(animationId); document.removeEventListener('visibilitychange', pauseWhenHidden); };
   }, [cursorKey, lastIndex, model, playing, speed]);
 
-  const yearNow = Number((data?.asOfDate || new Date().toISOString()).slice(0, 4));
+  const yearNow = Number(getInvestmentComparisonExpectedCloseDate().slice(0, 4));
   const years = Array.from({ length: Math.max(1, yearNow - 2000 + 1) }, (_, index) => yearNow - index);
   const annualRows = snapshot ? [...snapshot.annualRows].reverse() : [];
   const visibleAnnualRows = allYears ? annualRows : annualRows.slice(0, 3);
@@ -233,8 +240,8 @@ export default function InvestmentComparisonPage({ ctx = {}, previewSource }) {
     </div>
 
     {!principalValid && <p className="ic-feedback ic-invalid" role="alert">{englishMode ? 'Enter a principal from $1 to $1,000,000,000.' : '请输入 1 至 1,000,000,000 美元的有效本金。'}</p>}
-    {loadState.key === requestKey && loadState.error && <div className="ic-feedback ic-error" role="alert"><span>{data ? (englishMode ? 'Refresh failed. Previous data is still shown.' : '刷新失败，暂时保留上次数据。') : (englishMode ? 'Historical data could not be loaded.' : '历史数据暂时无法读取。')}</span><button type="button" onClick={refreshHistory}>{englishMode ? 'Retry' : '重试'}</button></div>}
-    {modelResult.error && <p className="ic-feedback" role="status">{englishMode ? 'The selected investments have insufficient shared history for this starting year.' : '所选标的在该起始年份后暂无足够的共同历史数据。'}</p>}
+    {loadState.key === requestKey && loadState.error && <div className="ic-feedback ic-error" role="alert"><span>{historyErrorMessage(loadState.error, englishMode)}</span><button type="button" onClick={refreshHistory}>{englishMode ? 'Retry' : '重试'}</button></div>}
+    {modelResult.error && <p className="ic-feedback" role="status">{historyErrorMessage(modelResult.error, englishMode)}</p>}
     {model?.startAdjustmentReason === 'available_history' && <p className="ic-feedback" role="status">{englishMode ? `Shared history starts on ${model.actualStartDate}; both investments begin on that date.` : `共同历史始于 ${model.actualStartDate}，两个标的均从该日开始投入。`}</p>}
 
     <div id="ic-analysis-panel" role="tabpanel" aria-labelledby={`ic-tab-${analysisView}`} tabIndex={0}>
