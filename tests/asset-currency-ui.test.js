@@ -93,6 +93,93 @@ function mount(overrides = {}) {
 }
 const byClass = (tree, className) => nodes(tree, node => node.props.className === className)[0];
 
+// Execute the production memo boundary rather than supplying a complete ctx
+// directly: preview fixtures cannot catch an omitted prop or stale dependency.
+const appSource = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8');
+const analysisContextStart = appSource.indexOf('  const analysisTabCtx = useMemo(');
+const analysisContextEnd = appSource.indexOf('  const tabCtx = {', analysisContextStart);
+assert.ok(analysisContextStart >= 0 && analysisContextEnd > analysisContextStart);
+const productionAnalysisContext = appSource.slice(analysisContextStart, analysisContextEnd);
+
+function mountThroughProductionContext(contextSource = productionAnalysisContext) {
+  const fixture = mount({ marketColorMode: 'redUpGreenDown', showConfirm() {} });
+  const scopeNames = Object.keys(fixture.ctx);
+  const evaluateContext = new Function(...scopeNames, 'useMemo', `${contextSource}\nreturn analysisTabCtx;`);
+  let memo;
+  const useMemo = (factory, dependencies) => {
+    if (!memo || dependencies.length !== memo.dependencies.length
+      || dependencies.some((value, index) => !Object.is(value, memo.dependencies[index]))) {
+      memo = { dependencies: [...dependencies], value: factory() };
+    }
+    return memo.value;
+  };
+  return {
+    ...fixture,
+    context: () => memo?.value,
+    render: () => {
+      const ctx = evaluateContext(...scopeNames.map(name => fixture.ctx[name]), useMemo);
+      return hooks.render(AnalysisTab, { ctx });
+    },
+  };
+}
+
+test('production App analysis memo passes the currency handler and refreshes amounts in both directions', () => {
+  const before = structuredClone({ accounts, snapshots });
+  const view = mountThroughProductionContext();
+  let tree = view.render();
+  const cnyContext = view.context();
+  assert.equal(text(byClass(tree, 'asset-report-total')), '¥80,200.00');
+  view.render();
+  assert.equal(view.context(), cnyContext, 'unchanged dependencies reuse the real production memo');
+
+  nodes(byClass(tree, 'asset-report-currency'), node => node.type === 'button' && text(node) === 'USD')[0].props.onClick();
+  tree = view.render();
+  assert.deepEqual(view.currencyChanges, ['USD'], 'the actual production context must forward the button callback');
+  assert.notEqual(view.context(), cnyContext, 'currency changes must invalidate the production memo');
+  assert.equal(text(byClass(tree, 'asset-report-total')), '$11,457.14');
+  assert.deepEqual(nodes(byClass(tree, 'asset-report-currency'), node => node.type === 'button').map(node => node.props['aria-pressed']), [true, false]);
+  assert.equal(nodes(tree, node => node.type === MonthlyAssetTrendChart)[0].props.model.currentSlot.balance, 80200 / 7);
+  const usdContext = view.context();
+
+  nodes(byClass(tree, 'asset-report-currency'), node => node.type === 'button' && text(node) === 'CNY')[0].props.onClick();
+  tree = view.render();
+  assert.deepEqual(view.currencyChanges, ['USD', 'CNY']);
+  assert.notEqual(view.context(), usdContext);
+  assert.equal(text(byClass(tree, 'asset-report-total')), '¥80,200.00');
+  assert.deepEqual(nodes(byClass(tree, 'asset-report-currency'), node => node.type === 'button').map(node => node.props['aria-pressed']), [false, true]);
+  assert.equal(nodes(tree, node => node.type === MonthlyAssetTrendChart)[0].props.model.currentSlot.balance, 80200);
+  assert.deepEqual(nodes(tree, node => node.props.className === 'asset-report-account-amount').map(text), ['¥71,400.00', '$1,000.00', 'HK$2,000.00']);
+  assert.deepEqual({ accounts, snapshots }, before);
+  assert.equal(view.writes(), 0);
+});
+
+test('production currency regression controls detect an omitted callback and an omitted memo dependency', () => {
+  const [factory, dependencies] = productionAnalysisContext.split('}), [');
+  assert.ok(factory && dependencies, 'the context must retain a factory and dependency list');
+
+  // This mirrors the deployed omission: the component receives neither mode nor handler.
+  const missingProps = `${factory.replace(/^    (?:portfolioCurrencyMode|setPortfolioCurrencyMode),\n/gm, '')}}), [${dependencies}`;
+  const missingHandlerView = mountThroughProductionContext(missingProps);
+  let tree = missingHandlerView.render();
+  nodes(byClass(tree, 'asset-report-currency'), node => node.type === 'button' && text(node) === 'USD')[0].props.onClick();
+  tree = missingHandlerView.render();
+  assert.deepEqual(missingHandlerView.currencyChanges, []);
+  assert.equal(text(byClass(tree, 'asset-report-total')), '¥80,200.00', 'old production props reproduce the inert button');
+  assert.equal(missingHandlerView.writes(), 0);
+
+  // Forwarding the handler alone is insufficient: React would retain the CNY ctx.
+  const missingDependency = `${factory}}), [${dependencies.replace(/^    portfolioCurrencyMode,\n/gm, '')}`;
+  const staleView = mountThroughProductionContext(missingDependency);
+  tree = staleView.render();
+  const originalContext = staleView.context();
+  nodes(byClass(tree, 'asset-report-currency'), node => node.type === 'button' && text(node) === 'USD')[0].props.onClick();
+  tree = staleView.render();
+  assert.deepEqual(staleView.currencyChanges, ['USD']);
+  assert.equal(staleView.context(), originalContext);
+  assert.equal(text(byClass(tree, 'asset-report-total')), '¥80,200.00', 'missing currency dependency reproduces the stale total');
+  assert.equal(staleView.writes(), 0);
+});
+
 test('asset header converts canonical CNY totals and replaces its date entry with the shared currency switch', () => {
   const view = mount();
   let tree = view.render();
