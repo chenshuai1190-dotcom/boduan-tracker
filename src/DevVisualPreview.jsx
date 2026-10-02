@@ -1283,6 +1283,31 @@ const mockPnlMarginDebtUsd = [
 
 function buildMockPnlPortfolioSnapshots(scenario = 'known') {
   const normalizedScenario = String(scenario || 'known').trim().toLowerCase().replaceAll('-', '_');
+  // Local-only daily observations for financing-chart acceptance, not account history.
+  if (normalizedScenario === 'financing_daily') {
+    const days = [1, 2, 3, 4, 5, 8, 9, 10, 11, 12, 15, 16, 17, 18, 22, 23, 24, 25, 26, 29, 30];
+    const totals = [3100, 3120, 3090, 3150, 3180, 3160, 3200, 3260, 3240, 3210, 3280, 3320, 3300, 3340, 3370, 3350, 3410, 3390, 3430, 3480, 3460];
+    const debts = [600, 600, 600, 700, 700, 700, 700, 900, 900, 900, 850, 850, 850, 850, 750, 750, 750, 600, 600, 600, 600];
+    return days.map((day, index) => {
+      const snapshotDate = `2026-06-${String(day).padStart(2, '0')}`;
+      const totalAssetsUsd = totals[index] * 1000;
+      const marginDebtUsd = debts[index] * 1000;
+      const previousAssetsUsd = index ? totals[index - 1] * 1000 : 3050000;
+      return {
+        ...mockPnlPortfolioSnapshotRows[0], snapshotDate, totalAssetsUsd, marginDebtUsd,
+        cumulativePnlUsd: totalAssetsUsd - 3050000,
+        cumulativePnlPct: (totalAssetsUsd - 3050000) / 3050000,
+        dailyPnlUsd: totalAssetsUsd - previousAssetsUsd,
+        dailyPnlPct: totalAssetsUsd / previousAssetsUsd - 1,
+        marginDebtEventId: `dev_financing_daily_${index + 1}`,
+        marginDebtEffectiveAt: `${snapshotDate}T20:30:00Z`, marginDebtBasis: 'event',
+        netAssetsUsd: totalAssetsUsd - marginDebtUsd,
+        cashUsd: 120000, cashKnown: true, cashBasis: 'event',
+        cashEventId: 'dev_financing_daily_cash', cashEffectiveAt: '2026-06-01T20:00:00Z',
+        marketValueUsd: totalAssetsUsd - 120000, updatedAt: `${snapshotDate}T21:00:00Z`,
+      };
+    });
+  }
   const snapshots = mockPnlPortfolioSnapshotRows.map((snapshot, index) => {
     const marginDebtUsd = mockPnlMarginDebtUsd[index];
     return {

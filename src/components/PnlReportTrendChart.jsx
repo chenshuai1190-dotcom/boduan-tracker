@@ -2,7 +2,7 @@ import React from 'react';
 import { marketHexColor, marketTextClass } from '../lib/marketColorMode.js';
 import { isEnglishLanguage, t } from '../lib/i18n.js';
 import {
-  buildAreaPathFromPoints, buildLinePathFromPoints, buildChartDomain, buildLinePoints, buildChartRecordHighs, chartX,
+  buildAreaPathFromPoints, buildLinePathFromPoints, buildStepLinePathFromPoints, buildChartDomain, buildLinePoints, buildChartRecordHighs, chartX,
   isExplicitUnknownNetAssetPoint, isRenderableChartValue, splitChartPointSegments, splitChartLineBySign,
 } from '../lib/pnlReportChart.js';
 import './PnlReportTrendChart.css';
@@ -13,6 +13,7 @@ const PNL_CHART_HEIGHT = 210;
 const PNL_CHART_PAD = 8;
 const NET_ASSET_COLOR = '#ff5038';
 const TOTAL_ASSET_COLOR = '#f6b54b';
+const MARGIN_DEBT_COLOR = '#789ac0';
 const BENCHMARK_COLOR = '#789ac0';
 
 function nullableSignedPct(value, digits = 2) {
@@ -88,7 +89,7 @@ export default function PnlReportTrendChart({
   const hasBenchmark = data.some(point => isRenderableChartValue(point?.benchmarkPct));
   const showBenchmark = mode === 'pnl' && hasBenchmark;
   const primaryDomain = React.useMemo(() => {
-    if (mode === 'assets') return buildChartDomain(data, ['netAssetUsd', 'totalAssetUsd'], 'assets');
+    if (mode === 'assets') return buildChartDomain(data, ['netAssetUsd', 'totalAssetUsd', 'marginDebtUsd'], 'assets');
     if (mode === 'amount') return buildAmountDomain(data);
     return buildChartDomain(data, ['pnlPct', 'benchmarkPct'], 'percentage');
   }, [data, mode]);
@@ -111,6 +112,9 @@ export default function PnlReportTrendChart({
       ? t(language, 'pnlReport.amountPeriodHigh', '盈亏金额区间新高')
       : t(language, 'pnlReport.returnPeriodHigh', '收益率区间新高');
   const totalAssetPoints = React.useMemo(() => mode === 'assets' ? buildLinePoints(data, 'totalAssetUsd', primaryDomain) : [], [data, mode, primaryDomain]);
+  const marginDebtPoints = React.useMemo(() => mode === 'assets' ? buildLinePoints(data, 'marginDebtUsd', primaryDomain) : [], [data, mode, primaryDomain]);
+  const marginDebtSegments = React.useMemo(() => splitChartPointSegments(data, marginDebtPoints,
+    point => !isRenderableChartValue(point?.marginDebtUsd)), [data, marginDebtPoints]);
   const benchmarkPoints = React.useMemo(() => showBenchmark ? buildLinePoints(data, 'benchmarkPct', primaryDomain) : [], [data, showBenchmark, primaryDomain]);
   const primarySegments = React.useMemo(() => mode === 'assets'
     ? splitChartPointSegments(data, primaryPoints, isExplicitUnknownNetAssetPoint)
@@ -120,16 +124,19 @@ export default function PnlReportTrendChart({
     ? splitChartLineBySign(points) : [{ points, sign: null }])
     .map(({ points, sign }) => ({ d: buildLinePathFromPoints(points), sign })).filter(({ d }) => d);
   const totalAssetPath = mode === 'assets' ? buildLinePathFromPoints(totalAssetPoints) : '';
+  const marginDebtPaths = marginDebtSegments.filter(segment => segment.length > 1).map(buildStepLinePathFromPoints);
   const benchmarkPath = showBenchmark ? buildLinePathFromPoints(benchmarkPoints) : '';
   const areaPaths = mode === 'amount' ? [] : primarySegments.map(segment => buildAreaPathFromPoints(segment, PNL_CHART_HEIGHT, PNL_CHART_PAD)).filter(Boolean);
   const pointSlots = React.useMemo(() => data.map((point, index) => ({ point, index, x: chartX(index, data.length) })), [data]);
   const selectableSlots = mode === 'assets' ? totalAssetPoints : mode === 'amount' ? primaryPoints : pointSlots;
   const primaryByIndex = React.useMemo(() => new Map(primaryPoints.map(point => [point.index, point])), [primaryPoints]);
   const totalAssetByIndex = React.useMemo(() => new Map(totalAssetPoints.map(point => [point.index, point])), [totalAssetPoints]);
+  const marginDebtByIndex = React.useMemo(() => new Map(marginDebtPoints.map(point => [point.index, point])), [marginDebtPoints]);
   const benchmarkByIndex = React.useMemo(() => new Map(benchmarkPoints.map(point => [point.index, point])), [benchmarkPoints]);
   const selectedSlot = selectedIndex == null ? null : pointSlots[selectedIndex] || null;
   const selectedPrimary = selectedSlot ? primaryByIndex.get(selectedSlot.index) || null : null;
   const selectedTotalAsset = selectedSlot ? totalAssetByIndex.get(selectedSlot.index) || null : null;
+  const selectedMarginDebt = selectedSlot ? marginDebtByIndex.get(selectedSlot.index) || null : null;
   const selectedBenchmark = selectedSlot ? benchmarkByIndex.get(selectedSlot.index) || null : null;
   const latestReadoutSlot = React.useMemo(() => [...selectableSlots].reverse().find(slot => (
     primaryByIndex.has(slot.index) || totalAssetByIndex.has(slot.index) || benchmarkByIndex.has(slot.index)
@@ -137,6 +144,7 @@ export default function PnlReportTrendChart({
   const readoutSlot = selectedSlot || latestReadoutSlot;
   const readoutPrimary = readoutSlot ? primaryByIndex.get(readoutSlot.index) || null : null;
   const readoutTotalAsset = readoutSlot ? totalAssetByIndex.get(readoutSlot.index) || null : null;
+  const readoutMarginDebt = readoutSlot ? marginDebtByIndex.get(readoutSlot.index) || null : null;
   const gridLines = [0, 0.25, 0.5, 0.75, 1].map(ratio => PNL_CHART_PAD + ratio * (PNL_CHART_HEIGHT - PNL_CHART_PAD * 2));
   const axisValues = primaryDomain ? gridLines.map(y => {
     const ratio = (y - PNL_CHART_PAD) / (PNL_CHART_HEIGHT - PNL_CHART_PAD * 2);
@@ -236,6 +244,8 @@ export default function PnlReportTrendChart({
           <span style={{ color: readoutPrimary ? NET_ASSET_COLOR : undefined }}>{readoutPrimary ? currencyAmount(convertUsd(readoutSlot.point?.netAssetUsd, displayRate), displayCurrency, 2) : '--'}</span>
           <span className="pnl-trend-series-label"><i style={{ background: TOTAL_ASSET_COLOR }} />{t(language, 'pnlReport.tooltip.totalAssets', '总资产')}</span>
           <span style={{ color: TOTAL_ASSET_COLOR }}>{currencyAmount(convertUsd(readoutSlot.point?.totalAssetUsd, displayRate), displayCurrency, 2)}</span>
+          <span className="pnl-trend-series-label"><i style={{ background: MARGIN_DEBT_COLOR }} />{t(language, 'pnlReport.tooltip.marginDebt', '融资额')}</span>
+          <span data-pnl-report-margin-value="true" className={readoutMarginDebt ? undefined : 'pnl-trend-missing'} style={{ color: readoutMarginDebt ? MARGIN_DEBT_COLOR : undefined }}>{currencyAmount(convertUsd(readoutSlot.point?.marginDebtUsd, displayRate), displayCurrency, 2)}</span>
           <span className="pnl-trend-series-label"><i className="pnl-trend-cash-dot" />{t(language, 'pnlReport.tooltip.availableCash', '可用现金')}</span>
           <span>{currencyAmount(readoutSlot.point?.cashKnown ? convertUsd(readoutSlot.point?.cashUsd, displayRate) : 0, displayCurrency, 2)}</span>
         </div>
@@ -257,6 +267,8 @@ export default function PnlReportTrendChart({
           {totalAssetPath && <path d={totalAssetPath} fill="none" stroke={TOTAL_ASSET_COLOR} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />}
           {primaryPaths.map(({ d, sign }, index) => <path key={`line-${index}`} d={d} data-pnl-amount-sign={sign ?? undefined} fill="none" stroke={mode === 'assets' ? NET_ASSET_COLOR : mode === 'amount' ? marketHexColor(sign, marketColorMode) : color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />)}
           {primarySegments.filter(segment => segment.length === 1).map(segment => <circle key={`single-${segment[0].index}`} cx={segment[0].x} cy={segment[0].y} r="2.4" fill={mode === 'assets' ? NET_ASSET_COLOR : mode === 'amount' ? marketHexColor(segment[0].value, marketColorMode) : color} />)}
+          {marginDebtPaths.map((d, index) => <path key={`margin-${index}`} data-pnl-report-margin-line="true" d={d} fill="none" stroke={MARGIN_DEBT_COLOR} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />)}
+          {marginDebtSegments.filter(segment => segment.length === 1).map(([point]) => <circle key={`margin-single-${point.index}`} data-pnl-report-margin-point="true" cx={point.x} cy={point.y} r="2.4" fill={MARGIN_DEBT_COLOR} />)}
           {benchmarkPath && <path d={benchmarkPath} fill="none" stroke={BENCHMARK_COLOR} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />}
           {latestRecordHigh && <g data-pnl-report-record-high={primaryKey} data-record-high-date={latestRecordHigh.point.date} pointerEvents="none">
             <circle className="pnl-trend-high-halo quote-pulse-halo" cx={latestRecordHigh.x} cy={latestRecordHigh.y} r="7" fill="none" stroke={primaryColor} strokeWidth="1.2" vectorEffect="non-scaling-stroke" />
@@ -266,7 +278,8 @@ export default function PnlReportTrendChart({
             <line x1={selectedSlot.x} y1={PNL_CHART_PAD} x2={selectedSlot.x} y2={PNL_CHART_HEIGHT - PNL_CHART_PAD} stroke="#62626b" strokeDasharray="3 4" vectorEffect="non-scaling-stroke" />
             {[selectedPrimary && { point: selectedPrimary, color: mode === 'assets' ? NET_ASSET_COLOR : mode === 'amount' ? marketHexColor(selectedPrimary.value, marketColorMode) : color },
               mode === 'assets' && selectedTotalAsset && { point: selectedTotalAsset, color: TOTAL_ASSET_COLOR },
-              mode === 'pnl' && selectedBenchmark && { point: selectedBenchmark, color: BENCHMARK_COLOR }].filter(Boolean).map((item, index) => <circle key={index} cx={item.point.x} cy={item.point.y} r="3.2" fill={item.color} stroke="#08090b" strokeWidth="1.2" />)}
+              mode === 'assets' && selectedMarginDebt && { point: selectedMarginDebt, color: MARGIN_DEBT_COLOR, margin: true },
+              mode === 'pnl' && selectedBenchmark && { point: selectedBenchmark, color: BENCHMARK_COLOR }].filter(Boolean).map((item, index) => <circle key={index} data-pnl-report-selected-margin={item.margin ? 'true' : undefined} cx={item.point.x} cy={item.point.y} r="3.2" fill={item.color} stroke="#08090b" strokeWidth="1.2" />)}
           </>}
         </svg>
       </div>

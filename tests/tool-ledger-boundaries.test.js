@@ -1069,7 +1069,7 @@ test('P&L report snapshot page stays independent from live trading pipelines', (
   assert.ok(pnlReportTrendChartSource.includes("mode === 'assets' ? totalAssetPoints"), 'P&L report asset trend should select only real portfolio snapshot points');
   assert.ok(pnlReportTrendChartSource.includes("mode === 'assets'") && pnlReportTrendChartSource.includes('assetAxisLabels'), 'P&L report asset trend should render amount-axis labels instead of percentage labels');
   assert.ok(pnlReportTrendChartSource.includes("const NET_ASSET_COLOR = '#ff5038'") && pnlReportTrendChartSource.includes("const TOTAL_ASSET_COLOR = '#f6b54b'"), 'P&L report asset trend should keep fixed net and total asset colors');
-  assert.ok(pnlReportTrendChartSource.includes("buildChartDomain(data, ['netAssetUsd', 'totalAssetUsd'], 'assets')"), 'P&L report net and total assets should share one amount domain');
+  assert.ok(pnlReportTrendChartSource.includes("buildChartDomain(data, ['netAssetUsd', 'totalAssetUsd', 'marginDebtUsd'], 'assets')"), 'P&L report net assets, total assets and financing should share one amount domain');
   assert.ok(pnlReportTrendChartSource.includes("pnlReport.tooltip.netAssets"), 'P&L report asset readout should identify its net asset line');
   assert.ok(pnlReportTrendChartSource.includes("pnlReport.tooltip.totalAssets"), 'P&L report asset readout should identify its total asset line');
   assert.ok(pnlReportPageSource.includes('displayCurrency={displayCurrency}') && pnlReportPageSource.includes('displayRate={displayRate}'), 'P&L report asset tooltip should follow the selected report currency');

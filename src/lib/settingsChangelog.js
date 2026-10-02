@@ -4,6 +4,17 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '收益报表「总资产走势」新增融资额，位于可用现金上方；蓝色阶梯线显示每日融资余额，点选日期联动读数，支持 USD／CNY 切换。',
+      '融资数据沿用当日历史快照，明确为零显示 0.00，缺失记录保留为空并在曲线上断开。',
+    ],
+    itemsEn: [
+      'Total Assets Trend adds margin debt above available cash, with a blue step line, linked daily selection, and USD/CNY display.',
+      'Financing uses each date’s historical snapshot. Known zero balances show 0.00; missing records remain unavailable and break the line.',
+    ],
+  },
+  {
+    ver: 'v10.7.9.548', date: '2026-09-30',
+    items: [
       '股票趋势选中历史日期后新增「至今涨跌」，查看从所选收盘价至最新收盘的价格变化金额和百分比，沿用系统涨跌配色。',
       '精简市场月报顶部与每日明细的重复提示。',
     ],

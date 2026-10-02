@@ -24,6 +24,14 @@ function amountPaths(tree) {
     && node.props['data-pnl-amount-sign'] != null);
 }
 
+function assetReadoutValue(readout, label) {
+  const cells = React.Children.toArray(readout.props.children);
+  const labelIndex = cells.findIndex(cell => React.Children.toArray(cell.props.children).includes(label));
+  assert.ok(labelIndex >= 0, `asset readout must include ${label}`);
+  assert.equal(cells[labelIndex + 1]?.type, 'span');
+  return cells[labelIndex + 1].props.children;
+}
+
 function periodHighValue(tree) {
   const rows = nodes(tree, node => node.props.className === 'pnl-trend-high-amount');
   assert.equal(rows.length, 1);
@@ -176,10 +184,9 @@ test('asset readout displays unrecorded cash as currency zero without changing t
     const point = Object.freeze({ date: '2026-09-22', totalAssetUsd: 230, netAssetUsd: null, cashKnown: false, cashUsd: 999 });
     const { tree, html } = render([point], { mode: 'assets', currency, rate });
     const [readout] = nodes(tree, node => node.props.className === 'pnl-trend-asset-readout');
-    const cells = React.Children.toArray(readout.props.children);
-    assert.equal(cells[5].props.children, expected, 'unrecorded historical cash displays zero even without an FX rate');
-    assert.equal(cells[1].props.children, '--', 'cash display must not manufacture net assets');
-    assert.equal(cells[3].props.children, rate == null ? '--' : currency === 'USD' ? '$230.00' : '¥1,656.00');
+    assert.equal(assetReadoutValue(readout, '可用现金'), expected, 'unrecorded historical cash displays zero even without an FX rate');
+    assert.equal(assetReadoutValue(readout, '净资产'), '--', 'cash display must not manufacture net assets');
+    assert.equal(assetReadoutValue(readout, '总资产'), rate == null ? '--' : currency === 'USD' ? '$230.00' : '¥1,656.00');
     assert.doesNotMatch(html, /该日快照未包含可用现金|Cash was not included/);
     assert.match(html, /该日没有融资负债快照/);
     assert.equal(point.cashKnown, false);
@@ -192,7 +199,7 @@ test('known asset cash retains its value and reports invalid amounts or unavaila
   for (const [cashUsd, rate, expected] of [[125, 7.2, '¥900.00'], [0, 7.2, '¥0.00'], [125, null, '--'], [null, 7.2, '--']]) {
     const { tree } = render([{ date: '2026-09-22', totalAssetUsd: 230, netAssetUsd: 130, cashKnown: true, cashUsd }], { mode: 'assets', rate });
     const [readout] = nodes(tree, node => node.props.className === 'pnl-trend-asset-readout');
-    assert.equal(React.Children.toArray(readout.props.children)[5].props.children, expected);
+    assert.equal(assetReadoutValue(readout, '可用现金'), expected);
   }
 });
 

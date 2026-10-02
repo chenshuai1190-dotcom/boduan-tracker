@@ -154,7 +154,7 @@ test('the visible segment remains Total Assets Trend while the chart shows exact
   assert.ok(i18nSource.includes("'pnlReport.assetTrend': 'Total Assets Trend'"));
   assert.ok(trendChartSource.includes("const NET_ASSET_COLOR = '#ff5038'"));
   assert.ok(trendChartSource.includes("const TOTAL_ASSET_COLOR = '#f6b54b'"));
-  assert.ok(trendChartSource.includes("buildChartDomain(data, ['netAssetUsd', 'totalAssetUsd'], 'assets')"), 'both lines must share one amount axis');
+  assert.ok(trendChartSource.includes("buildChartDomain(data, ['netAssetUsd', 'totalAssetUsd', 'marginDebtUsd'], 'assets')"), 'net assets, total assets and financing must share one amount axis');
   assert.ok(trendChartSource.includes('readoutSlot && readoutTotalAsset && mode === \'assets\' && <div data-pnl-report-asset-tooltip="true">'));
   assert.ok(trendChartSource.includes('const readoutSlot = selectedSlot || latestReadoutSlot;'), 'readout must default to the latest real observation');
   assert.ok(trendChartSource.includes("selectedSlot && (selectedPrimary || selectedTotalAsset || (mode === 'pnl' && selectedBenchmark))"), 'chart markers must still require an explicit selection');

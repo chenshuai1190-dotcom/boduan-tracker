@@ -89,6 +89,16 @@ export function buildLinePathFromPoints(points = []) {
   )).join(' ');
 }
 
+// Keep the previous observation until the next observation's x coordinate.
+// Call separately for each known-data segment; this does not fill missing dates.
+export function buildStepLinePathFromPoints(points = []) {
+  return (Array.isArray(points) ? points : []).map(({ x, y }, pathIndex) => (
+    pathIndex === 0
+      ? `M${Number(x).toFixed(2)} ${Number(y).toFixed(2)}`
+      : `H${Number(x).toFixed(2)} V${Number(y).toFixed(2)}`
+  )).join(' ');
+}
+
 // Split only drawing geometry; synthetic zero crossings have no date/index and
 // must not be used as report observations, selections, or record-high inputs.
 export function splitChartLineBySign(points = []) {
