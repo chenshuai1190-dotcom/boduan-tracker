@@ -105,7 +105,7 @@ test('financing preserves unknown values and known zero while refusing unavailab
   assert.equal(text(marginValue(missingRate.tree)), '--');
 });
 
-test('financing uses a solid blue step line and splits unknown dates into separate paths or isolated dots', () => {
+test('financing uses a solid blue line and splits unknown dates into separate paths or isolated dots', () => {
   const data = [10, 20, null, 0, undefined, 40, 50].map((marginDebtUsd, index) => ({
     ...assets[0], date: `2026-09-${21 + index}`, marginDebtUsd,
   }));
@@ -115,17 +115,47 @@ test('financing uses a solid blue step line and splits unknown dates into separa
   assert.equal(paths.length, 2);
   assert.equal(isolated.length, 1);
   assert.ok(paths[0].props.d.startsWith('M8.00 '));
-  assert.ok(paths[0].props.d.includes(' H57.00 V'));
+  assert.ok(paths[0].props.d.includes(' L57.00 '));
   assert.ok(paths[1].props.d.startsWith('M253.00 '));
-  assert.ok(paths[1].props.d.includes(' H302.00 V'));
+  assert.ok(paths[1].props.d.includes(' L302.00 '));
   assert.equal(isolated[0].props.cx, 155);
   for (const path of paths) {
     assert.equal(path.type, 'path');
     assert.equal(path.props.stroke, '#789ac0');
     assert.equal(path.props.fill, 'none');
-    assert.doesNotMatch(path.props.d, /[LCQSA]/, 'no interpolation, smoothing, or joining across gaps');
+    assert.doesNotMatch(path.props.d, /[HVCQSA]/, 'no step geometry, smoothing, or joining across gaps');
   }
   assert.equal(isolated[0].props.fill, '#789ac0');
+});
+
+test('production financing lines preserve observed coordinates, gaps, zero and readouts without mutating data', () => {
+  const data = Object.freeze([10, 20, null, 0, undefined, 40, 50].map((marginDebtUsd, index) => Object.freeze({
+    ...assets[0], date: `2026-09-${21 + index}`, marginDebtUsd,
+  })));
+  const before = JSON.stringify(data);
+  const linear = render(data).tree;
+  const linearPaths = tagged(linear, 'margin-line');
+  assert.equal(linearPaths.length, 2, 'unknown dates still split the line into separate paths');
+  assert.deepEqual(linearPaths.map(path => path.props.d), [
+    'M8.00 184.22 L57.00 182.60',
+    'M253.00 179.37 L302.00 177.75',
+  ], 'production lines join only the observed coordinates in the shared asset domain');
+  for (const path of linearPaths) {
+    assert.match(path.props.d, /^M[\d.]+ [\d.-]+ L[\d.]+ [\d.-]+$/);
+    assert.doesNotMatch(path.props.d, /[HVQC]/);
+    assert.equal(path.props.stroke, '#789ac0');
+  }
+  const linearDots = tagged(linear, 'margin-point');
+  assert.equal(linearDots.length, 1, 'known zero surrounded by gaps remains an isolated observation');
+  assert.equal(linearDots[0].props.cx, 155);
+  assert.equal(linearDots[0].props.cy.toFixed(2), '185.83');
+  assert.equal(linearDots[0].props.fill, '#789ac0');
+  for (const [end, expected] of [[3, '--'], [4, '$0.00'], [5, '--'], [7, '$50.00']]) {
+    const sliced = data.slice(0, end);
+    const defaultValue = text(marginValue(render(sliced).tree));
+    assert.equal(defaultValue, expected);
+  }
+  assert.equal(JSON.stringify(data), before, 'drawing must not mutate original financing observations');
 });
 
 test('financing participates in the shared assets domain even when debt exceeds total assets', () => {
@@ -138,7 +168,7 @@ test('financing participates in the shared assets domain even when debt exceeds 
   const y = Number(/^M[\d.]+ ([\d.-]+)/.exec(path.props.d)?.[1]);
   assert.ok(y >= 8 && y <= 202, 'financing must not be clipped outside the asset plot');
   const netAsset = nodes(tree, node => node.type === 'path' && node.props.stroke === '#ff5038')[0];
-  const marginEndY = path.props.d.match(/V([\d.-]+)$/)?.[1];
+  const marginEndY = path.props.d.match(/ ([\d.-]+)$/)?.[1];
   const netEndY = netAsset.props.d.match(/ ([\d.-]+)$/)?.[1];
   assert.equal(marginEndY, netEndY, 'equal net-asset and financing amounts share the same coordinate');
 });

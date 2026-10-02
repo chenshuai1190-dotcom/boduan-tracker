@@ -4,11 +4,11 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
-      '收益报表「总资产走势」新增融资额，位于可用现金上方；蓝色阶梯线显示每日融资余额，点选日期联动读数，支持 USD／CNY 切换。',
+      '收益报表「总资产走势」新增融资额，位于可用现金上方；蓝色折线显示每日融资余额，点选日期联动读数，支持 USD／CNY 切换。',
       '融资数据沿用当日历史快照，明确为零显示 0.00，缺失记录保留为空并在曲线上断开。',
     ],
     itemsEn: [
-      'Total Assets Trend adds margin debt above available cash, with a blue step line, linked daily selection, and USD/CNY display.',
+      'Total Assets Trend adds margin debt above available cash, with a blue line chart, linked daily selection, and USD/CNY display.',
       'Financing uses each date’s historical snapshot. Known zero balances show 0.00; missing records remain unavailable and break the line.',
     ],
   },

@@ -2,7 +2,7 @@ import React from 'react';
 import { marketHexColor, marketTextClass } from '../lib/marketColorMode.js';
 import { isEnglishLanguage, t } from '../lib/i18n.js';
 import {
-  buildAreaPathFromPoints, buildLinePathFromPoints, buildStepLinePathFromPoints, buildChartDomain, buildLinePoints, buildChartRecordHighs, chartX,
+  buildAreaPathFromPoints, buildLinePathFromPoints, buildChartDomain, buildLinePoints, buildChartRecordHighs, chartX,
   isExplicitUnknownNetAssetPoint, isRenderableChartValue, splitChartPointSegments, splitChartLineBySign,
 } from '../lib/pnlReportChart.js';
 import './PnlReportTrendChart.css';
@@ -124,7 +124,7 @@ export default function PnlReportTrendChart({
     ? splitChartLineBySign(points) : [{ points, sign: null }])
     .map(({ points, sign }) => ({ d: buildLinePathFromPoints(points), sign })).filter(({ d }) => d);
   const totalAssetPath = mode === 'assets' ? buildLinePathFromPoints(totalAssetPoints) : '';
-  const marginDebtPaths = marginDebtSegments.filter(segment => segment.length > 1).map(buildStepLinePathFromPoints);
+  const marginDebtPaths = marginDebtSegments.filter(segment => segment.length > 1).map(buildLinePathFromPoints);
   const benchmarkPath = showBenchmark ? buildLinePathFromPoints(benchmarkPoints) : '';
   const areaPaths = mode === 'amount' ? [] : primarySegments.map(segment => buildAreaPathFromPoints(segment, PNL_CHART_HEIGHT, PNL_CHART_PAD)).filter(Boolean);
   const pointSlots = React.useMemo(() => data.map((point, index) => ({ point, index, x: chartX(index, data.length) })), [data]);
