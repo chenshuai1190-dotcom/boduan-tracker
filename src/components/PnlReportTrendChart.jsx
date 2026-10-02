@@ -27,6 +27,15 @@ function convertUsd(value, displayRate) {
     ? Number(value) * Number(displayRate) : null;
 }
 
+function historicalLeverage(point) {
+  // Match Home's total-assets / net-assets definition using the selected
+  // snapshot's equity. Missing historical financing must not become zero.
+  if (!['totalAssetUsd', 'marginDebtUsd', 'netAssetUsd'].every(key => isRenderableChartValue(point?.[key]))
+    || Number(point.totalAssetUsd) <= 0 || Number(point.marginDebtUsd) < 0 || Number(point.netAssetUsd) <= 0) return null;
+  const leverage = Number(point.totalAssetUsd) / Number(point.netAssetUsd);
+  return Number.isFinite(leverage) ? leverage : null;
+}
+
 function currencyAmount(value, currency = 'USD', digits = 2) {
   if (!isRenderableChartValue(value)) return '--';
   const amount = Number(value);
@@ -145,6 +154,7 @@ export default function PnlReportTrendChart({
   const readoutPrimary = readoutSlot ? primaryByIndex.get(readoutSlot.index) || null : null;
   const readoutTotalAsset = readoutSlot ? totalAssetByIndex.get(readoutSlot.index) || null : null;
   const readoutMarginDebt = readoutSlot ? marginDebtByIndex.get(readoutSlot.index) || null : null;
+  const readoutLeverage = mode === 'assets' ? historicalLeverage(readoutSlot?.point) : null;
   const gridLines = [0, 0.25, 0.5, 0.75, 1].map(ratio => PNL_CHART_PAD + ratio * (PNL_CHART_HEIGHT - PNL_CHART_PAD * 2));
   const axisValues = primaryDomain ? gridLines.map(y => {
     const ratio = (y - PNL_CHART_PAD) / (PNL_CHART_HEIGHT - PNL_CHART_PAD * 2);
@@ -246,10 +256,11 @@ export default function PnlReportTrendChart({
           <span style={{ color: TOTAL_ASSET_COLOR }}>{currencyAmount(convertUsd(readoutSlot.point?.totalAssetUsd, displayRate), displayCurrency, 2)}</span>
           <span className="pnl-trend-series-label"><i style={{ background: MARGIN_DEBT_COLOR }} />{t(language, 'pnlReport.tooltip.marginDebt', '融资额')}</span>
           <span data-pnl-report-margin-value="true" className={readoutMarginDebt ? undefined : 'pnl-trend-missing'} style={{ color: readoutMarginDebt ? MARGIN_DEBT_COLOR : undefined }}>{currencyAmount(convertUsd(readoutSlot.point?.marginDebtUsd, displayRate), displayCurrency, 2)}</span>
+          <span className="pnl-trend-series-label"><i style={{ background: '#82828c' }} />{t(language, 'pnlReport.tooltip.leverage', '杠杆率')}</span>
+          <span data-pnl-report-leverage-value="true" className={readoutLeverage == null ? 'pnl-trend-missing' : undefined}>{readoutLeverage == null ? '--' : `${readoutLeverage.toFixed(2)}×`}</span>
           <span className="pnl-trend-series-label"><i className="pnl-trend-cash-dot" />{t(language, 'pnlReport.tooltip.availableCash', '可用现金')}</span>
           <span>{currencyAmount(readoutSlot.point?.cashKnown ? convertUsd(readoutSlot.point?.cashUsd, displayRate) : 0, displayCurrency, 2)}</span>
         </div>
-        {!readoutPrimary && <div className="pnl-trend-missing-note">{t(language, 'pnlReport.tooltip.marginUnavailable', '该日没有融资负债快照')}</div>}
       </div>}
     </div>
     <div className="pnl-trend-plot-layout">

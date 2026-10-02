@@ -188,7 +188,7 @@ test('asset readout displays unrecorded cash as currency zero without changing t
     assert.equal(assetReadoutValue(readout, '净资产'), '--', 'cash display must not manufacture net assets');
     assert.equal(assetReadoutValue(readout, '总资产'), rate == null ? '--' : currency === 'USD' ? '$230.00' : '¥1,656.00');
     assert.doesNotMatch(html, /该日快照未包含可用现金|Cash was not included/);
-    assert.match(html, /该日没有融资负债快照/);
+    assert.doesNotMatch(html, /该日没有融资负债快照|No margin-debt snapshot/);
     assert.equal(point.cashKnown, false);
     assert.equal(point.cashUsd, 999, 'the display fallback does not rewrite the historical snapshot');
   }

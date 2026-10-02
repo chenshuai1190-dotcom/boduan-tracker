@@ -1,6 +1,6 @@
 .pnl-trend-chart { min-width: 0; margin-top: 14px; background: #08090b; color: #c4c4cc; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif; font-variant-numeric: tabular-nums; letter-spacing: normal; }
 .pnl-trend-readout { min-height: 100px; padding-bottom: 12px; }
-.pnl-trend-readout[data-mode="assets"] { min-height: 146px; }
+.pnl-trend-readout[data-mode="assets"] { min-height: 154px; }
 .pnl-trend-readout[data-mode="amount"] { min-height: 100px; }
 .pnl-trend-readout[data-combined-personal="true"] { min-height: 110px; }
 .pnl-trend-readout-heading { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; color: #81818b; font-size: 11px; line-height: 18px; }
@@ -20,7 +20,6 @@
 .pnl-trend-personal-readout > span:nth-child(3n) { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .pnl-trend-personal-period { color: #a4a4af; font-size: 11px; }
 .pnl-trend-missing { color: #777781; }
-.pnl-trend-missing-note { margin-top: 3px; color: #777781; font-size: 10px; line-height: 14px; }
 .pnl-trend-plot-layout { display: grid; grid-template-columns: minmax(0, 1fr) max-content; column-gap: 9px; row-gap: 10px; }
 .pnl-trend-plot { min-width: 0; height: 220px; user-select: none; }
 .pnl-trend-plot svg { display: block; width: 100%; height: 100%; overflow: visible; }

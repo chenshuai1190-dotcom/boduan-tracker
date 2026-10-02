@@ -51,6 +51,11 @@ function marginValue(tree) {
   assert.equal(values.length, 1);
   return values[0];
 }
+function leverageValue(tree) {
+  const values = tagged(tree, 'leverage-value');
+  assert.equal(values.length, 1);
+  return text(values[0]);
+}
 const defaultProps = {
   mode: 'assets', color: '#ff4b1f', language: 'zh', marketColorMode: 'redUpGreenDown',
   displayCurrency: 'USD', displayRate: 1,
@@ -71,18 +76,50 @@ const assets = Object.freeze([
   Object.freeze({ date: '2026-10-01', label: '2026/10', totalAssetUsd: 1600, netAssetUsd: 1225.75, marginDebtUsd: 374.25, cashKnown: true, cashUsd: 350, pnlUsd: 40, pnlPct: 0.04 }),
 ]);
 
-test('asset readout places the blue financing amount immediately above cash and follows USD/CNY', () => {
+test('asset readout places financing and leverage above cash and follows USD/CNY', () => {
   for (const [displayCurrency, displayRate, expected] of [['USD', 1, '$374.25'], ['CNY', 7.2, '¥2,694.60']]) {
     const { tree, html } = render(assets, { displayCurrency, displayRate });
     const readout = nodes(tree, node => node.props.className === 'pnl-trend-asset-readout')[0];
     const cells = React.Children.toArray(readout.props.children);
-    assert.deepEqual(cells.filter((_, index) => index % 2 === 0).map(text), ['净资产', '总资产', '融资额', '可用现金']);
+    assert.deepEqual(cells.filter((_, index) => index % 2 === 0).map(text), ['净资产', '总资产', '融资额', '杠杆率', '可用现金']);
+    assert.equal(leverageValue(tree), '1.31×');
     assert.equal(cells[5].props['data-pnl-report-margin-value'], 'true');
     assert.equal(text(marginValue(tree)), expected);
     assert.equal(marginValue(tree).props.style?.color, '#789ac0');
     const dot = nodes(cells[4], node => node.type === 'i')[0];
     assert.equal(dot.props.style?.background, '#789ac0');
     assert.match(html, /data-pnl-report-margin-value="true"/);
+  }
+});
+
+test('historical leverage uses the existing total-assets to equity formula and is independent of FX', () => {
+  for (const [totalAssetUsd, marginDebtUsd, expected] of [[1000, 200, '1.25×'], [1000, 0, '1.00×'], [100, 99, '100.00×'], [1234.5678, 345.6789, '1.39×']]) {
+    const point = Object.freeze({ ...assets[0], totalAssetUsd, marginDebtUsd, netAssetUsd: totalAssetUsd - marginDebtUsd });
+    for (const [displayCurrency, displayRate] of [['USD', 1], ['CNY', 7.2], ['CNY', null]]) {
+      const { tree } = render([point], { displayCurrency, displayRate });
+      assert.equal(leverageValue(tree), expected);
+      assert.equal(tagged(tree, 'leverage-line').length, 0);
+    }
+  }
+  const { tree, html } = render(assets, { language: 'en' });
+  assert.match(html, /Leverage/);
+  assert.equal(leverageValue(tree), '1.31×');
+  assert.equal(leverageValue(render([{ ...assets[0], totalAssetUsd: 1000, marginDebtUsd: 300, netAssetUsd: 800 }]).tree), '1.25×',
+    'legacy snapshot equity stays consistent with the displayed historical net asset, without rewriting it');
+});
+
+test('missing or invalid historical balances never become unleveraged or infinite leverage', () => {
+  for (const key of ['totalAssetUsd', 'marginDebtUsd', 'netAssetUsd']) {
+    for (const invalid of [null, undefined, '', false, NaN, Infinity, -1]) {
+      const { tree, html } = render([{ ...assets[0], [key]: invalid }]);
+      const values = tagged(tree, 'leverage-value');
+      if (key === 'totalAssetUsd' && invalid !== -1) assert.equal(values.length, 0);
+      else assert.equal(leverageValue(tree), '--');
+      assert.doesNotMatch(html, /该日没有融资负债快照|No margin-debt snapshot/);
+    }
+  }
+  for (const [totalAssetUsd, marginDebtUsd] of [[0, 0], [1000, 1000], [1000, 1100]]) {
+    assert.equal(leverageValue(render([{ ...assets[0], totalAssetUsd, marginDebtUsd, netAssetUsd: totalAssetUsd - marginDebtUsd }]).tree), '--');
   }
 });
 
@@ -189,9 +226,11 @@ test('actual pointer handlers select historical financing values and markers, in
   const pointer = x => ({ pointerId: 1, isPrimary: true, clientX: x, currentTarget: target });
   let tree = view();
   assert.equal(text(marginValue(tree)), '$374.25', 'initial readout uses the latest snapshot');
+  assert.equal(leverageValue(tree), '1.31×');
   hitArea(tree).props.onPointerDown(pointer(8));
   tree = view();
   assert.equal(text(marginValue(tree)), '$100.00');
+  assert.equal(leverageValue(tree), '1.11×', 'selected history must not use the latest leverage');
   assert.match(text(nodes(tree, node => node.props.className === 'pnl-trend-readout-heading')[0]), /2026\/9\/28/);
   let selected = tagged(tree, 'selected-margin');
   assert.equal(selected.length, 1);
@@ -201,11 +240,13 @@ test('actual pointer handlers select historical financing values and markers, in
   hitArea(tree).props.onPointerMove(pointer(106));
   tree = view();
   assert.equal(text(marginValue(tree)), '--');
+  assert.equal(leverageValue(tree), '--');
   assert.equal(tagged(tree, 'selected-margin').length, 0, 'unknown debt has no fabricated selected point');
 
   hitArea(tree).props.onPointerMove(pointer(204));
   tree = view();
   assert.equal(text(marginValue(tree)), '$0.00');
+  assert.equal(leverageValue(tree), '1.00×');
   assert.equal(tagged(tree, 'selected-margin').length, 1);
   assert.equal(tagged(tree, 'selected-margin')[0].props.cx, 204);
 
@@ -216,6 +257,7 @@ test('actual pointer handlers select historical financing values and markers, in
   props.displayRate = 7.2;
   tree = view();
   assert.equal(text(marginValue(tree)), '¥2,694.60', 'selected financing follows a currency switch');
+  assert.equal(leverageValue(tree), '1.31×', 'leverage is currency independent');
   assert.equal(tagged(tree, 'selected-margin')[0].props.cx, 302);
   assert.equal(JSON.stringify(assets), before, 'selection and currency conversion must never rewrite historical debt');
 });
@@ -223,9 +265,9 @@ test('actual pointer handlers select historical financing values and markers, in
 test('financing additions remain exclusive to total-asset mode', () => {
   for (const mode of ['amount', 'pnl']) {
     const { tree, html } = render(assets, { mode });
-    for (const tag of ['margin-value', 'margin-line', 'margin-point', 'selected-margin']) {
+    for (const tag of ['margin-value', 'margin-line', 'margin-point', 'selected-margin', 'leverage-value']) {
       assert.equal(tagged(tree, tag).length, 0);
     }
-    assert.doesNotMatch(html, /融资额|data-pnl-report-margin/);
+    assert.doesNotMatch(html, /融资额|杠杆率|data-pnl-report-margin/);
   }
 });
