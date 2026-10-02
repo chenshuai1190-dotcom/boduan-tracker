@@ -7,11 +7,11 @@ const app = read('src/App.jsx');
 const trades = read('src/tabs/TradesTab.jsx');
 const catalog = read('src/components/TradeToolsCatalog.jsx');
 
-test('investment comparison is a lazy standalone utility with only identity and navigation context', () => {
+test('investment comparison is a lazy standalone utility with identity, display preference and navigation context', () => {
   assert.ok(app.includes("lazy(() => import('./pages/InvestmentComparisonPage.jsx'))"));
   assert.ok(app.includes("activePage === 'investment-comparison'"));
   assert.ok(app.includes('|| isInvestmentComparisonPage ||'));
-  assert.ok(app.includes("<InvestmentComparisonPage ctx={{ userId: user?.id || '', language, closeInvestmentComparison }} />"));
+  assert.ok(app.includes("<InvestmentComparisonPage ctx={{ userId: user?.id || '', language, marketColorMode, closeInvestmentComparison }} />"));
   const callbacks = app.slice(app.indexOf('const openInvestmentComparison ='), app.indexOf('const openStockDetail ='));
   assert.equal((callbacks.match(/setActiveTab\('trades'\)/g) || []).length, 2);
   assert.ok(callbacks.includes("setActivePage('investment-comparison')"));

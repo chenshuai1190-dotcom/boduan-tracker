@@ -700,7 +700,7 @@ export default function AvailableCashEditor({
                     setShowAllMovements(true);
                     void loadMovements(ALL_MOVEMENT_LIMIT);
                   }}
-                  className="flex min-h-11 items-center text-[11px] text-[#f6bd63]/80 active:opacity-60 disabled:opacity-35"
+                  className="flex min-h-11 items-center rounded-md text-[11px] text-[#f6bd63]/80 enabled:active:bg-white/[0.035] disabled:opacity-35"
                 >
                   {showAllMovements
                     ? t(language, 'home.cashCollapseMovements', '收起')
@@ -784,7 +784,7 @@ export default function AvailableCashEditor({
                           disabled={saving}
                           onClick={() => openReverseConfirmation(movement)}
                           data-cash-reverse-movement={rowId}
-                          className="flex min-h-11 items-center gap-1.5 rounded-full px-2 text-[10px] text-white/42 active:opacity-60 disabled:opacity-30"
+                          className="flex min-h-11 items-center gap-1.5 rounded-full px-2 text-[10px] text-white/42 enabled:active:bg-white/[0.035] disabled:opacity-30"
                         >
                           <RotateCcw className="h-3 w-3" strokeWidth={1.6} />
                           {t(language, 'home.cashUndo', '撤销')}

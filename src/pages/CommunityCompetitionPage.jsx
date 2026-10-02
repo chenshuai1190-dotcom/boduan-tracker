@@ -17,13 +17,12 @@ import { bindCommunityCompetitionResume } from '../lib/communityCompetitionResum
 import { getCommunityAvatarOption } from '../lib/communityProfile.js';
 import { communityCompetitionApi } from '../lib/communityCompetitionApi.js';
 import { t } from '../lib/i18n.js';
+import { marketTextHexColor } from '../lib/marketColorMode.js';
 import './CommunityCompetitionPage.css';
 
 const PAGE_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif';
 const NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif';
-const PROFIT = '#ff4b1f';
-const LOSS = '#36c49a';
-const NEUTRAL = 'rgba(255,255,255,0.58)';
+const NEUTRAL = '#95959d';
 const TRANSIENT_RESUME_RETRY_COOLDOWN_MS = 60_000;
 
 const PERIODS = [
@@ -55,9 +54,9 @@ function isFiniteValue(value) {
   return value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value));
 }
 
-function valueColor(value) {
+function valueColor(value, marketColorMode = 'redUpGreenDown') {
   if (!isFiniteValue(value) || Number(value) === 0) return NEUTRAL;
-  return Number(value) > 0 ? PROFIT : LOSS;
+  return marketTextHexColor(Number(value), marketColorMode);
 }
 
 function formatPercent(value, digits = 2) {
@@ -135,7 +134,7 @@ function Avatar({ avatarKey, rank }) {
   );
 }
 
-function RankRow({ row, self = false, selected = false, onSelect }) {
+function RankRow({ row, self = false, selected = false, onSelect, marketColorMode = 'redUpGreenDown' }) {
   if (!row) return null;
   const rank = isFiniteValue(row.rank) ? String(Math.trunc(Number(row.rank))) : '--';
   const rankValue = Number(row.rank);
@@ -161,13 +160,13 @@ function RankRow({ row, self = false, selected = false, onSelect }) {
         <Avatar avatarKey={row.avatarKey} rank={rankValue} />
         <div className="cc-rank-name">{row.nickname || '--'}</div>
       </div>
-      <div className="cc-rank-return" style={{ color: valueColor(row.returnPct), fontFamily: NUMBER_FONT }}>{formatPercent(row.returnPct)}</div>
-      <div className="cc-rank-excess" style={{ color: valueColor(row.outperformancePct), fontFamily: NUMBER_FONT }}>{formatPercent(row.outperformancePct)}</div>
+      <div className="cc-rank-return" style={{ color: valueColor(row.returnPct, marketColorMode), fontFamily: NUMBER_FONT }}>{formatPercent(row.returnPct)}</div>
+      <div className="cc-rank-excess" style={{ color: valueColor(row.outperformancePct, marketColorMode), fontFamily: NUMBER_FONT }}>{formatPercent(row.outperformancePct)}</div>
     </button>
   );
 }
 
-function HoldingPopover({ selection, periodMetricLabel, snapshotDate, language, onClose, tt }) {
+function HoldingPopover({ selection, periodMetricLabel, snapshotDate, language, onClose, tt, marketColorMode = 'redUpGreenDown' }) {
   const cardRef = React.useRef(null);
   const [layout, setLayout] = React.useState(null);
   const row = selection?.row;
@@ -240,7 +239,7 @@ function HoldingPopover({ selection, periodMetricLabel, snapshotDate, language, 
             </div>
           </div>
           <div className="mt-5 text-[11px] text-white/[0.40]">{periodMetricLabel}</div>
-          <div className="mt-1 text-[30px] leading-none tabular-nums" style={{ color: valueColor(row.returnPct), fontFamily: NUMBER_FONT }}>{formatPercent(row.returnPct)}</div>
+          <div className="mt-1 text-[30px] leading-none tabular-nums" style={{ color: valueColor(row.returnPct, marketColorMode), fontFamily: NUMBER_FONT }}>{formatPercent(row.returnPct)}</div>
           <div className="mt-5 text-[11px] text-white/[0.40]">{tt('competition.closeHoldingSymbols', '收盘持仓代码')}</div>
           <div className="mt-2.5 max-h-[112px] overflow-y-auto overscroll-contain pr-1">
             {!holdingsAvailable ? (
@@ -266,7 +265,7 @@ function normalizeTrendPoints(points) {
     .sort((a, b) => a.date.localeCompare(b.date));
 }
 
-function TrendChart({ self = [], benchmark = [], compact = false }) {
+function TrendChart({ self = [], benchmark = [], compact = false, marketColorMode = 'redUpGreenDown' }) {
   const ownPoints = React.useMemo(() => normalizeTrendPoints(self), [self]);
   const benchmarkPoints = React.useMemo(() => normalizeTrendPoints(benchmark), [benchmark]);
   const allPoints = [...ownPoints, ...benchmarkPoints];
@@ -290,15 +289,15 @@ function TrendChart({ self = [], benchmark = [], compact = false }) {
     <svg viewBox="0 0 168 72" className={compact ? 'h-[54px] w-full' : 'h-[72px] w-full'} role="img" aria-label="Return trend">
       {benchmarkPoints.length >= 2 ? <path d={pathFor(benchmarkPoints)} fill="none" stroke="rgba(255,255,255,0.34)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /> : null}
       {ownPoints.length >= 2 ? <path d={pathFor(ownPoints)} fill="none" stroke="#d05a32" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /> : null}
-      {ownPoints.length >= 2 ? <circle cx={xFor(ownPoints.at(-1).date)} cy={yFor(ownPoints.at(-1).value)} r="2.5" fill={valueColor(ownPoints.at(-1).value)} /> : null}
+      {ownPoints.length >= 2 ? <circle cx={xFor(ownPoints.at(-1).date)} cy={yFor(ownPoints.at(-1).value)} r="2.5" fill={valueColor(ownPoints.at(-1).value, marketColorMode)} /> : null}
     </svg>
   );
 }
 
-function ProgressLine({ label, value, maxMagnitude }) {
+function ProgressLine({ label, value, maxMagnitude, marketColorMode = 'redUpGreenDown' }) {
   const hasValue = isFiniteValue(value);
   const width = hasValue ? Math.max(0, Math.min(100, (Math.abs(Number(value)) / maxMagnitude) * 100)) : 0;
-  const color = valueColor(value);
+  const color = valueColor(value, marketColorMode);
   return (
     <div className="grid grid-cols-[70px_minmax(0,1fr)_58px] items-center gap-2">
       <div className="text-[11px] text-white/[0.58]">{label}</div>
@@ -366,7 +365,7 @@ function StatusCard({ icon, title, desc, note, actionLabel, onAction, busy = fal
   );
 }
 
-function CompetitionContent({ data, period, language, tt, leaderboardRefreshing = false }) {
+function CompetitionContent({ data, period, language, tt, leaderboardRefreshing = false, marketColorMode = 'redUpGreenDown' }) {
   const [selection, setSelection] = React.useState(null);
   const ready = data?.state === 'ready';
   const stats = ready ? (data.stats || {}) : {};
@@ -432,11 +431,11 @@ function CompetitionContent({ data, period, language, tt, leaderboardRefreshing 
         <div data-competition-hero-metrics className="cc-hero-metrics">
           <div className="cc-hero-return">
             <div className="cc-label">{periodMetricLabel}</div>
-            <div className="cc-hero-return-value" style={{ color: valueColor(self?.returnPct), fontFamily: NUMBER_FONT }}>{formatPercent(self?.returnPct)}</div>
+            <div className="cc-hero-return-value" style={{ color: valueColor(self?.returnPct, marketColorMode), fontFamily: NUMBER_FONT }}>{formatPercent(self?.returnPct)}</div>
           </div>
           <div className="cc-hero-comparison">
-            <MetricBlock label={tt('competition.nasdaq100', 'QQQ 基准')} value={formatPercent(data?.benchmarkReturnPct)} color={valueColor(data?.benchmarkReturnPct)} />
-            <MetricBlock label={tt('competition.outperformNasdaq', '跑赢 QQQ')} value={formatPercent(self?.outperformancePct)} color={valueColor(self?.outperformancePct)} />
+            <MetricBlock label={tt('competition.nasdaq100', 'QQQ 基准')} value={formatPercent(data?.benchmarkReturnPct)} color={valueColor(data?.benchmarkReturnPct, marketColorMode)} />
+            <MetricBlock label={tt('competition.outperformNasdaq', '跑赢 QQQ')} value={formatPercent(self?.outperformancePct)} color={valueColor(self?.outperformancePct, marketColorMode)} />
           </div>
         </div>
         <div data-competition-update-row className="cc-update-row">
@@ -470,12 +469,12 @@ function CompetitionContent({ data, period, language, tt, leaderboardRefreshing 
           <span>{tt('competition.outperformShort', '跑赢 QQQ')}</span>
         </div>
         <div className="cc-rank-list">
-          {leaders.length ? leaders.map((row, index) => <RankRow key={`${row?.rank ?? index}-${row?.nickname ?? ''}`} row={row} self={index === selfLeaderIndex} selected={selection?.row === row} onSelect={selectRow} />) : (
+          {leaders.length ? leaders.map((row, index) => <RankRow key={`${row?.rank ?? index}-${row?.nickname ?? ''}`} row={row} self={index === selfLeaderIndex} selected={selection?.row === row} onSelect={selectRow} marketColorMode={marketColorMode} />) : (
             <div className="cc-empty">{ready ? tt('competition.noRanking', '当前周期暂无有效排行') : '--'}</div>
           )}
-          {self && selfLeaderIndex < 0 ? <RankRow row={self} self selected={selection?.row === self} onSelect={selectRow} /> : null}
+          {self && selfLeaderIndex < 0 ? <RankRow row={self} self selected={selection?.row === self} onSelect={selectRow} marketColorMode={marketColorMode} /> : null}
         </div>
-        {selection ? <HoldingPopover selection={selection} periodMetricLabel={periodMetricLabel} snapshotDate={data?.asOfDate} language={language} onClose={() => setSelection(null)} tt={tt} /> : null}
+        {selection ? <HoldingPopover selection={selection} periodMetricLabel={periodMetricLabel} snapshotDate={data?.asOfDate} language={language} onClose={() => setSelection(null)} tt={tt} marketColorMode={marketColorMode} /> : null}
       </section>
 
       <section className="cc-baseline">
@@ -488,17 +487,17 @@ function CompetitionContent({ data, period, language, tt, leaderboardRefreshing 
         <div className="cc-community-stats">
           <StatCard label={tt('competition.beatNasdaq', '跑赢 QQQ')} value={formatPercent(stats.beatRatePct, 0)} color={NEUTRAL} />
           <StatCard label={tt('competition.profitableAccounts', '赚钱账户')} value={formatPercent(stats.profitableRatePct, 0)} color={NEUTRAL} />
-          <StatCard label={tt('competition.averageReturn', '平均收益率')} value={formatPercent(stats.averageReturnPct)} color={valueColor(stats.averageReturnPct)} />
+          <StatCard label={tt('competition.averageReturn', '平均收益率')} value={formatPercent(stats.averageReturnPct)} color={valueColor(stats.averageReturnPct, marketColorMode)} />
         </div>
         <div className="cc-baseline-comparison">
           <div className="cc-benchmark">
             <div className="cc-label">{tt('competition.nasdaq100Index', 'QQQ ETF')}</div>
-            <div className="cc-benchmark-value" style={{ color: valueColor(data?.benchmarkReturnPct), fontFamily: NUMBER_FONT }}>{formatPercent(data?.benchmarkReturnPct)}</div>
-            <div className="mt-1"><TrendChart benchmark={trend.benchmark} compact /></div>
+            <div className="cc-benchmark-value" style={{ color: valueColor(data?.benchmarkReturnPct, marketColorMode), fontFamily: NUMBER_FONT }}>{formatPercent(data?.benchmarkReturnPct)}</div>
+            <div className="mt-1"><TrendChart benchmark={trend.benchmark} compact marketColorMode={marketColorMode} /></div>
           </div>
           <div className="cc-baseline-bars">
-            <ProgressLine label={tt('competition.communityAverage', '社区平均')} value={stats.averageReturnPct} maxMagnitude={maxMagnitude} />
-            <ProgressLine label={tt('competition.top10Average', 'TOP10 平均')} value={stats.top10AverageReturnPct} maxMagnitude={maxMagnitude} />
+            <ProgressLine label={tt('competition.communityAverage', '社区平均')} value={stats.averageReturnPct} maxMagnitude={maxMagnitude} marketColorMode={marketColorMode} />
+            <ProgressLine label={tt('competition.top10Average', 'TOP10 平均')} value={stats.top10AverageReturnPct} maxMagnitude={maxMagnitude} marketColorMode={marketColorMode} />
           </div>
         </div>
       </section>
@@ -507,7 +506,7 @@ function CompetitionContent({ data, period, language, tt, leaderboardRefreshing 
   );
 }
 
-export default function CommunityCompetitionPage({ ctx = {} }) {
+export default function CommunityCompetitionPage({ ctx = {}, marketColorMode = ctx.marketColorMode ?? 'redUpGreenDown' }) {
   const {
     closeCommunityCompetition,
     communityCompetitionClient = communityCompetitionApi,
@@ -981,7 +980,7 @@ export default function CommunityCompetitionPage({ ctx = {} }) {
         {view.state === 'profile_required' ? (
           <StatusCard icon={<UserRound size={26} strokeWidth={1.5} />} title={tt('competition.profileRequired', '请先完成社区资料')} desc={tt('competition.profileRequiredDesc', '正在前往设置页，请选择社区昵称和默认头像并保存后再参加比赛。')} />
         ) : null}
-        {view.state === 'join_required' ? <CompetitionContent data={null} period={period} language={language} tt={tt} /> : null}
+        {view.state === 'join_required' ? <CompetitionContent data={null} period={period} language={language} tt={tt} marketColorMode={marketColorMode} /> : null}
         {view.state === 'waiting_snapshot' ? (
           <StatusCard
             icon={<Clock3 size={26} strokeWidth={1.5} />}
@@ -998,6 +997,7 @@ export default function CommunityCompetitionPage({ ctx = {} }) {
             period={period}
             language={language}
             tt={tt}
+            marketColorMode={marketColorMode}
             leaderboardRefreshing={refreshingLeaderboardViewKey === activeViewKey}
           />
         ) : null}

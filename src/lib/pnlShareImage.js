@@ -1,3 +1,4 @@
+import { marketTextHexColor, normalizeMarketColorMode } from './marketColorMode.js';
 import { sanitizePnlShareNickname } from './pnlShareIdentity.js';
 import { drawPnlShareBackground, normalizePnlShareTheme } from './pnlShareThemes.js';
 
@@ -55,10 +56,10 @@ function metricTone(value, multiplier) {
   return rounded > 0 ? 'gain' : 'loss';
 }
 
-export function pnlShareToneColor(tone) {
+export function pnlShareToneColor(tone, marketColorMode = 'redUpGreenDown') {
   const normalizedTone = normalizeMetricTone(tone);
   if (normalizedTone === 'neutral') return '#e1e1e6';
-  return normalizedTone === 'gain' ? '#ff4b1f' : '#36c49a';
+  return marketTextHexColor(normalizedTone === 'gain' ? 1 : -1, marketColorMode);
 }
 
 function drawLeftFittedText(context, text, x, y, {
@@ -146,6 +147,7 @@ export function createPnlShareRenderModel(input = {}) {
     marketLabel: safeText(input.marketLabel, '', 40),
     metricLabel: safeText(input.metricLabel, '', 40),
     themeId: normalizePnlShareTheme(input.themeId),
+    marketColorMode: normalizeMarketColorMode(input.marketColorMode ?? 'redUpGreenDown'),
     showAmount,
     amountText: showAmount ? safeText(input.amountText, '—', 48) : '',
     currencyUnit: showAmount ? normalizeCurrencyUnit(input.currencyUnit) : '',
@@ -221,6 +223,7 @@ export function renderPnlShareCanvas(canvas, input = {}, avatarImage = null) {
   if ('letterSpacing' in context) context.letterSpacing = '0px';
 
   drawPnlShareBackground(context, model.themeId);
+  context.globalAlpha = 1;
 
   const hasIdentity = Boolean(model.nickname && avatarImage);
   context.textAlign = 'left';
@@ -252,7 +255,7 @@ export function renderPnlShareCanvas(canvas, input = {}, avatarImage = null) {
 
   if (model.showAmount) {
     const amountBottom = drawLeftFittedText(context, model.amountText, 96, 668, {
-      color: pnlShareToneColor(model.amountTone),
+      color: pnlShareToneColor(model.amountTone, model.marketColorMode),
       fontSize: 120,
       maxWidth: 1008,
       minFontSize: 48,
@@ -266,14 +269,14 @@ export function renderPnlShareCanvas(canvas, input = {}, avatarImage = null) {
       });
     }
     drawLeftFittedText(context, model.percentText, 96, Math.max(876, amountBottom + 188), {
-      color: pnlShareToneColor(model.percentTone),
+      color: pnlShareToneColor(model.percentTone, model.marketColorMode),
       fontSize: 72,
       maxWidth: 1008,
       minFontSize: 48,
     });
   } else {
     drawLeftFittedText(context, model.percentText, 96, 668, {
-      color: pnlShareToneColor(model.percentTone),
+      color: pnlShareToneColor(model.percentTone, model.marketColorMode),
       fontSize: 160,
       maxWidth: 1008,
       minFontSize: 48,

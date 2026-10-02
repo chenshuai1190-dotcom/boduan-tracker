@@ -4,6 +4,17 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '统一全站收益金额、收益率与涨跌幅配色，独立工具和收益分享图同步跟随系统涨跌配色设置。',
+      '取消年度计划等数据卡片及操作按钮按压变暗，金额与百分比保持完整色彩，使用轻微背景或边框反馈。',
+    ],
+    itemsEn: [
+      'Unified profit, return, and price-change colors across the app. Independent tools and return share images follow your market color preference.',
+      'Annual plans, data cards, and controls retain full color when pressed, with subtle surface or border feedback.',
+    ],
+  },
+  {
+    ver: 'v10.7.9.549', date: '2026-10-02',
+    items: [
       '收益报表「总资产走势」新增融资额，位于可用现金上方；蓝色折线显示每日融资余额，点选日期联动读数，支持 USD／CNY 切换。',
       '融资数据沿用当日历史快照，明确为零显示 0.00，缺失记录保留为空并在曲线上断开。',
     ],

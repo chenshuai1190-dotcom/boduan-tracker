@@ -178,7 +178,7 @@ test('macro tooltip dates are Chinese and Treasury labels retain their complete 
 
 test('only macro tooltip changes use red-up and green-down while zero, missing, and the curve remain neutral', () => {
   const { chart } = macroChart();
-  for (const [current, previous, color] of [[2, 1, '#ff4b1f'], [1, 2, '#22c55e'], [1, 1, undefined], [1, null, undefined]]) {
+  for (const [current, previous, color] of [[2, 1, '#ff4b1f'], [1, 2, '#34d399'], [1, 1, undefined], [1, null, undefined]]) {
     const tooltip = chart.props.presentation.renderTooltip({ close: current }, previous === null ? null : { close: previous });
     const change = nodes(tooltip, node => node.type === 'span' && node.props.className === 'whitespace-nowrap tabular-nums')[0];
     assert.equal(change.props.style.color, color);

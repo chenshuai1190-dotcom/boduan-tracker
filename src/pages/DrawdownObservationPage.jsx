@@ -15,7 +15,7 @@ function preferredHistory(cached, live) {
 // Read-only history is cached per authenticated user; membership always comes
 // from the current inputs, never from persisted positions or a previous screen.
 export default function DrawdownObservationPage({ ctx = {}, previewSource = null }) {
-  const { userId = '', watchlist = [], positions = [], portfolioReady = true, portfolioError = '', closeDrawdownObservation } = ctx;
+  const { userId = '', marketColorMode = 'redUpGreenDown', watchlist = [], positions = [], portfolioReady = true, portfolioError = '', closeDrawdownObservation } = ctx;
   const universeKey = JSON.stringify(buildObservationUniverse({ watchlist, positions: portfolioReady && !portfolioError ? positions : [] }));
   const instruments = React.useMemo(() => JSON.parse(universeKey), [universeKey]);
   const key = `${userId}:${universeKey}`;
@@ -132,7 +132,7 @@ export default function DrawdownObservationPage({ ctx = {}, previewSource = null
   const hasData = visibleInstruments.some(item => item.points?.length > 0);
   const error = visible.error || (visibleInstruments.some(item => item.error || item.status === 'error')
     ? hasData ? '部分标的行情暂不可用，已保留上次数据，可稍后刷新重试。' : '行情暂不可用，可稍后刷新重试。' : '');
-  return <DrawdownObservation key={userId} observations={observations} onBack={closeDrawdownObservation}
+  return <DrawdownObservation key={userId} marketColorMode={marketColorMode} observations={observations} onBack={closeDrawdownObservation}
     initialSymbol={import.meta.env.DEV ? previewSource?.initialSymbol || '' : ''}
     initialViewState={initialViewState} onViewStateChange={onViewStateChange}
     loading={visible.busy && !hasData} refreshing={visible.busy && hasData} error={error}

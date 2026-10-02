@@ -5587,6 +5587,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
                   onClose={closePnlShare}
                   investmentSummary={investmentSummary}
                   language={language}
+                  marketColorMode={marketColorMode}
                   portfolioCurrencyMode={portfolioCurrencyMode}
                   usdRate={usdRate}
                   communityIdentity={pnlShareIdentityState.identity}
@@ -5602,11 +5603,11 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
               : isFearGreedPage
                 ? <FearGreedPage key={user?.id || ''} ctx={{ userId: user?.id || '', language, closeFearGreed }} />
               : isInvestmentComparisonPage
-                ? <InvestmentComparisonPage ctx={{ userId: user?.id || '', language, closeInvestmentComparison }} />
+                ? <InvestmentComparisonPage ctx={{ userId: user?.id || '', language, marketColorMode, closeInvestmentComparison }} />
               : isPortfolioOverlapPage
                 ? <PortfolioOverlapPage key={user?.id || ''} ctx={{ userId: user?.id || '', language, investmentSummary, portfolioReady: stockHoldingsReady, portfolioError: stockHoldingsError, closePortfolioOverlap }} />
               : isDcaLabPage
-                ? <DcaLabPage key={user?.id || ''} ctx={{ userId: user?.id || '', language, closeDcaLab }} />
+                ? <DcaLabPage key={user?.id || ''} ctx={{ userId: user?.id || '', language, marketColorMode, closeDcaLab }} />
               : isStockDecisionPage
                 ? <StockDecisionPage key={user?.id || ''} ctx={{ userId: user?.id || '', language, marketColorMode, closeStockDecision }} />
               : isMacroPage

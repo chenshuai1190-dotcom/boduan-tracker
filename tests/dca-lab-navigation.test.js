@@ -12,7 +12,7 @@ test('DCA Lab is an identity-scoped lazy standalone tool with no ledger context'
   assert.match(app, /lazy\(\(\) => import\('\.\/pages\/DcaLabPage\.jsx'\)\)/);
   assert.ok(app.includes("activePage === 'dca-lab'"));
   assert.ok(app.includes('|| isDcaLabPage ||'));
-  assert.match(app, /<DcaLabPage key=\{user\?\.id \|\| ''\} ctx=\{\{ userId: user\?\.id \|\| '', language, closeDcaLab \}\} \/>/);
+  assert.match(app, /<DcaLabPage key=\{user\?\.id \|\| ''\} ctx=\{\{ userId: user\?\.id \|\| '', language, marketColorMode, closeDcaLab \}\} \/>/);
   const callbacks = ['openDcaLab', 'closeDcaLab'].map(name => app.match(new RegExp(`const ${name} = useCallback\\(\\(\\) => \\{[\\s\\S]*?\\}, \\[\\]\\);`))?.[0] || '').join('\n');
   assert.equal((callbacks.match(/setActiveTab\('trades'\)/g) || []).length, 2);
   assert.ok(callbacks.includes("setActivePage('dca-lab')"));
@@ -43,7 +43,7 @@ test('local DCA preview uses the standard shell and the existing Trades navigati
   assert.equal(paddingTop('dca-lab'), 0);
   assert.equal(paddingTop('debt-manager'), 0);
   assert.equal(paddingTop('trades'), 'calc(1rem + env(safe-area-inset-top))', 'standard Trades still owns its shell padding');
-  assert.match(preview, /<DcaLabPreview ctx=\{\{ language, closeDcaLab: \(\) => \{ setActiveTab\('trades'\); window\.scrollTo\(0, 0\); \} \}\} \/>/);
+  assert.match(preview, /<DcaLabPreview ctx=\{\{ language, marketColorMode, closeDcaLab: \(\) => \{ setActiveTab\('trades'\); window\.scrollTo\(0, 0\); \} \}\} \/>/);
   assert.ok(preview.includes("(activeTab === 'dca-lab' && tab.id === 'trades')"));
   const topLevelEntry = preview.slice(preview.indexOf('export default function DevVisualPreview()'));
   assert.doesNotMatch(topLevelEntry, /<DcaLabPreview/);

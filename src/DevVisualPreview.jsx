@@ -3436,6 +3436,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
               onClose={() => setActiveTab('trades')}
               investmentSummary={tradesCtx.investmentSummary}
               language={language}
+                  marketColorMode={marketColorMode}
               portfolioCurrencyMode={tradeCurrencyMode}
               usdRate={USD_RATE}
               communityIdentity={{ nickname: '波段玩家1836', avatarKey: 'gold' }}
@@ -3445,7 +3446,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
           : activeTab === 'home-margin-risk'
           ? <HomeMarginRiskPage ctx={homeCtx} />
           : activeTab === 'drawdown-observation'
-          ? <DrawdownObservationPreview onBack={() => setActiveTab('home')} initialSymbol={drawdownInitialSymbol} />
+          ? <DrawdownObservationPreview onBack={() => setActiveTab('home')} initialSymbol={drawdownInitialSymbol} marketColorMode={marketColorMode} />
           : activeTab === 'vix-monthly-report'
           ? <VixMonthlyDesignWorkspace ctx={{ ...homeCtx, englishMode: language === 'en' }} />
           : activeTab === 'vix-comparison'
@@ -3459,11 +3460,11 @@ function StandardDevVisualPreview({ initialTab = '' }) {
           : activeTab === 'stock-decision'
           ? <StockDecisionPreview language={language} marketColorMode={marketColorMode} onBack={() => { setActiveTab('trades'); window.scrollTo(0, 0); }} />
           : activeTab === 'investment-comparison'
-          ? <InvestmentComparisonPreview ctx={{ language, closeInvestmentComparison: () => { setActiveTab('trades'); window.scrollTo(0, 0); } }} />
+          ? <InvestmentComparisonPreview ctx={{ language, marketColorMode, closeInvestmentComparison: () => { setActiveTab('trades'); window.scrollTo(0, 0); } }} />
           : activeTab === 'portfolio-overlap'
           ? <PortfolioOverlapPreview ctx={{ language, closePortfolioOverlap: () => { setActiveTab('trades'); window.scrollTo(0, 0); } }} />
           : activeTab === 'dca-lab'
-          ? <DcaLabPreview ctx={{ language, closeDcaLab: () => { setActiveTab('trades'); window.scrollTo(0, 0); } }} />
+          ? <DcaLabPreview ctx={{ language, marketColorMode, closeDcaLab: () => { setActiveTab('trades'); window.scrollTo(0, 0); } }} />
           : activeTab === 'macro'
           ? <MacroPage initialPage={macroPreview.initialPage} initialInflationTab={macroPreview.initialInflationTab} previewState={macroPreview.previewState} mock={macroPreview.mock} onBack={() => { setActiveTab('trades'); window.scrollTo(0, 0); }} />
           : activeTab === 'debt-manager'

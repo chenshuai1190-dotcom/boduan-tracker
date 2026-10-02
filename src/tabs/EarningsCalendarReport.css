@@ -112,7 +112,7 @@
 }
 
 .home-earnings-report button:active {
-  opacity: .72;
+  background-color: rgb(255 255 255 / .035);
 }
 
 .home-earnings-report button:focus-visible {

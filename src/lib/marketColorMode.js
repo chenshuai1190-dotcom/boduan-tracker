@@ -5,9 +5,9 @@ export const MARKET_COLOR_MODES = {
   RED_UP_GREEN_DOWN: 'redUpGreenDown',
 };
 
-const MARKET_RED_HEX = '#ff4b1f';
+export const MARKET_RED_HEX = '#ff4b1f';
+export const MARKET_GREEN_HEX = '#34d399';
 const MARKET_RED_TEXT_CLASS = 'text-[#ff4b1f]';
-const MARKET_RED_STRONG_TEXT_CLASS = 'text-[#e63a18]';
 
 export function normalizeMarketColorMode(value) {
   return value === MARKET_COLOR_MODES.RED_UP_GREEN_DOWN
@@ -34,17 +34,16 @@ export function marketTextClass(value, mode) {
 }
 
 export function marketStrongTextClass(value, mode) {
-  const green = isPositive(value) === usesGreenForPositive(mode);
-  return green ? 'text-emerald-600' : MARKET_RED_STRONG_TEXT_CLASS;
+  // Compatibility entry point: emphasis must not change a financial value's hue.
+  return marketTextClass(value, mode);
 }
 
 export function marketHexColor(value, mode) {
   const green = isPositive(value) === usesGreenForPositive(mode);
-  return green ? '#22c55e' : MARKET_RED_HEX;
+  return green ? MARKET_GREEN_HEX : MARKET_RED_HEX;
 }
 
 // Canvas text cannot use Tailwind classes; match marketTextClass exactly.
 export function marketTextHexColor(value, mode) {
-  const green = isPositive(value) === usesGreenForPositive(mode);
-  return green ? '#34d399' : MARKET_RED_HEX;
+  return marketHexColor(value, mode);
 }

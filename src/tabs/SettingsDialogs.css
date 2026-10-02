@@ -61,7 +61,8 @@
 }
 
 .settings-report-dialog .settings-report-avatar-option:not(:disabled):active {
-  opacity: .8;
+  outline: 1px solid #96969e;
+  outline-offset: 2px;
   transform: none;
 }
 

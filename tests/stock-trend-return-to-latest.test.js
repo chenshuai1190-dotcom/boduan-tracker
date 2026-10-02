@@ -156,9 +156,9 @@ test('signed return colors honor market preference; a genuine zero stays neutral
   const negative = renderToStaticMarkup(returnRow(render(PriceChart, { ...props, latestClose: point(end.date, 60) }).tree));
   const zero = renderToStaticMarkup(returnRow(render(PriceChart, { ...props, latestClose: point(rows[2].date, 80) }).tree));
   assert.match(positive, /color:#ff4b1f/);
-  assert.match(alternative, /color:#22c55e/);
+  assert.match(alternative, /color:#34d399/);
   assert.match(negative, /-20\.00\s+-25\.00%/);
-  assert.match(negative, /color:#22c55e/);
+  assert.match(negative, /color:#34d399/);
   assert.match(zero, /\+0\.00\s+\+0\.00%/);
   assert.match(zero, /color:#a1a1aa/);
 });

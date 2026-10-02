@@ -78,7 +78,7 @@ test('unknown competition data never becomes zero or simulated returns', () => {
 });
 
 test('rank rows preserve red up, green down, readable names and selected state', () => {
-  for (const [returnPct, expected] of [[.1, '#ff4b1f'], [-.1, '#36c49a'], [0, 'rgba(255,255,255,0.58)'], [null, 'rgba(255,255,255,0.58)']]) {
+  for (const [returnPct, expected] of [[.1, '#ff4b1f'], [-.1, '#34d399'], [0, '#95959d'], [null, '#95959d']]) {
     const { tree, html } = render(RankRow, { row: { ...rows[1], returnPct }, self: true, selected: true });
     assert.equal(tree.props['aria-expanded'], true);
     assert.match(tree.props.className, /cc-rank-self.*cc-rank-selected/);
@@ -148,4 +148,25 @@ test('competition page owns identical safe-area and side gutters in production a
   assert.match(app, /const isFullBleedPage = [^;]*isCommunityCompetitionPage/);
   assert.ok(preview.match(/\$\{\[([^\]]+)\]\.includes\(activeTab\) \? 'px-0' : 'px-4'\}/)?.[1].includes("'community-competition'"));
   assert.ok(preview.match(/paddingTop:\s*\[([^\]]+)\]\.includes\(activeTab\) \? 0 :/)?.[1].includes("'community-competition'"));
+});
+
+test('competition return numbers and nested rows switch color without changing data or series identity', () => {
+  const { html: red, tree: redTree } = render(CompetitionContent, contentProps({ marketColorMode: 'redUpGreenDown' }));
+  const { html: green, tree: greenTree } = render(CompetitionContent, contentProps({ marketColorMode: 'greenUpRedDown' }));
+  for (const html of [red, green]) {
+    assert.match(html, /\+12\.46%/);
+    assert.match(html, /-2\.50%/);
+    assert.match(html, /-4\.96%/);
+  }
+  assert.equal(nodes(redTree, node => node.props.className === 'cc-hero-return-value')[0].props.style.color, '#34d399');
+  assert.equal(nodes(greenTree, node => node.props.className === 'cc-hero-return-value')[0].props.style.color, '#ff4b1f');
+  assert.ok(nodes(greenTree, node => node.type === RankRow).every(node => node.props.marketColorMode === 'greenUpRedDown'));
+  const positive = render(RankRow, { row: rows[0], marketColorMode: 'greenUpRedDown' });
+  assert.equal(nodes(positive.tree, node => node.props.className === 'cc-rank-return')[0].props.style.color, '#34d399');
+  assert.equal(nodes(positive.tree, node => node.props.className === 'cc-rank-excess')[0].props.style.color, '#34d399');
+  const chartProps = { self: ready.trend.benchmark, benchmark: ready.trend.benchmark };
+  const redChart = render(TrendChart, { ...chartProps, marketColorMode: 'redUpGreenDown' });
+  const greenChart = render(TrendChart, { ...chartProps, marketColorMode: 'greenUpRedDown' });
+  const paths = tree => nodes(tree, node => node.type === 'path').map(node => [node.props.d, node.props.stroke]);
+  assert.deepEqual(paths(redChart.tree), paths(greenChart.tree), 'series identities and geometry are independent of market color mode');
 });

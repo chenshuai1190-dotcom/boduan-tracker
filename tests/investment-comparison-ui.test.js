@@ -7,7 +7,8 @@ const chartSource = readFileSync(new URL('../src/components/InvestmentComparison
 const pageSource = readFileSync(new URL('../src/pages/InvestmentComparisonPage.jsx', import.meta.url), 'utf8');
 const cssSource = readFileSync(new URL('../src/components/InvestmentComparison.css', import.meta.url), 'utf8');
 const transformed = await transformWithOxc(chartSource, 'InvestmentComparisonChart.jsx', { jsx: { runtime: 'classic' } });
-const compiled = transformed.code.replace(/from (["'])react\1/g, `from ${JSON.stringify(import.meta.resolve('react'))}`);
+const compiled = transformed.code.replace(/from (["'])react\1/g, `from ${JSON.stringify(import.meta.resolve('react'))}`)
+  .replace(/from (["'])\.\.\/lib\/marketColorMode\.js\1/g, `from ${JSON.stringify(new URL('../src/lib/marketColorMode.js', import.meta.url).href)}`);
 const { investmentRank, investmentRankColor, investmentChangeColor, formatInvestmentAmount, formatInvestmentPercent } = await import(`data:text/javascript;base64,${Buffer.from(compiled).toString('base64')}`);
 
 test('investment rank colors track current leadership independently of profit signs', () => {
@@ -15,10 +16,10 @@ test('investment rank colors track current leadership independently of profit si
   const point = { values: { QQQ: 80, TQQQ: 60 } };
   assert.equal(investmentRank('QQQ', symbols, point), 'leading');
   assert.equal(investmentRank('TQQQ', symbols, point), 'trailing');
-  assert.equal(investmentRankColor('leading'), '#ff655e');
-  assert.equal(investmentRankColor('trailing'), '#4fd0a1');
-  assert.equal(investmentChangeColor(-20), '#4fd0a1', 'a leading investment can still have a green negative profit');
-  assert.equal(investmentChangeColor(20), '#ff655e');
+  assert.equal(investmentRankColor('leading'), '#ff4b1f');
+  assert.equal(investmentRankColor('trailing'), '#34d399');
+  assert.equal(investmentChangeColor(-20), '#34d399', 'a leading investment can still have a green negative profit');
+  assert.equal(investmentChangeColor(20), '#ff4b1f');
   assert.equal(investmentRank('QQQ', symbols, { values: { QQQ: 100, TQQQ: 100 } }), 'tied');
   assert.equal(investmentRank('QQQ', symbols, { values: {} }), 'tied');
 });
@@ -35,6 +36,17 @@ test('investment display formats money separately from percentage return in both
   assert.equal(formatInvestmentPercent(-0.001), '0.0%');
   assert.equal(formatInvestmentAmount(null), '—');
   assert.equal(formatInvestmentPercent(null), '—');
+});
+
+test('profit direction follows market color preference while leadership remains independent', () => {
+  for (const [mode, gain, loss] of [['redUpGreenDown', '#ff4b1f', '#34d399'], ['greenUpRedDown', '#34d399', '#ff4b1f']]) {
+    assert.equal(investmentChangeColor(20, mode), gain);
+    assert.equal(investmentChangeColor(-20, mode), loss);
+    assert.equal(investmentChangeColor(0, mode), '#969faf');
+    assert.equal(investmentChangeColor(null, mode), '#969faf');
+    assert.equal(investmentRankColor('leading'), '#ff4b1f');
+    assert.equal(investmentRankColor('trailing'), '#34d399');
+  }
 });
 
 test('investment presentation uses real daily snapshots and keeps totals, profit labels and yearly rows distinct', () => {

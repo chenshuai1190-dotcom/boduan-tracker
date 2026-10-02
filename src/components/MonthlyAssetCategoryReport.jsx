@@ -2,12 +2,11 @@ import React from 'react';
 import { Info, Minus, TrendingDown, TrendingUp } from 'lucide-react';
 import { t } from '../lib/i18n.js';
 import { convertAssetDisplayAmount } from '../lib/assetCurrencyDisplay.js';
+import { marketTextHexColor } from '../lib/marketColorMode.js';
 import AccountInstitutionIcon from './AccountInstitutionIcon.jsx';
 import AccountCategoryIcon from './AccountCategoryIcon.jsx';
 
 const NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif';
-const UP_COLOR = '#ff4b1f';
-const DOWN_COLOR = '#50d0a2';
 const FLAT_COLOR = 'rgba(255,255,255,.62)';
 
 function formatNumber(value, digits = 1) {
@@ -45,22 +44,21 @@ function formatSignedPercent(value) {
   return `${sign}${value.toFixed(1)}%`;
 }
 
-function changeTone(changeAmount) {
-  if (changeAmount > 0) return UP_COLOR;
-  if (changeAmount < 0) return DOWN_COLOR;
+function changeTone(changeAmount, marketColorMode) {
+  if (changeAmount > 0 || changeAmount < 0) return marketTextHexColor(changeAmount, marketColorMode);
   return FLAT_COLOR;
 }
 
-function AccountStatus({ row, tt }) {
+function AccountStatus({ row, tt, marketColorMode }) {
   if (!row.isComparable) {
     return <span className="text-[#f6c56f]">{tt('analysis.assetAccountInvalid', '数据异常')}</span>;
   }
   if (row.status === 'new') {
-    return <span style={{ color: UP_COLOR }}>{tt('analysis.assetAccountNew', '新增')}</span>;
+    return <span style={{ color: marketTextHexColor(1, marketColorMode) }}>{tt('analysis.assetAccountNew', '新增')}</span>;
   }
   if (row.status === 'zeroed') {
     return (
-      <span style={{ color: DOWN_COLOR }}>
+      <span style={{ color: marketTextHexColor(-1, marketColorMode) }}>
         {tt('analysis.assetAccountZeroed', '已归零')} · {formatSignedPercent(row.changePct)}
       </span>
     );
@@ -70,6 +68,7 @@ function AccountStatus({ row, tt }) {
 
 export default function MonthlyAssetAccountReport({
   language = 'zh',
+  marketColorMode = 'redUpGreenDown',
   currency = 'CNY',
   usdRate,
   report,
@@ -88,7 +87,9 @@ export default function MonthlyAssetAccountReport({
   const ownerGroups = Array.isArray(report?.ownerGroups) ? report.ownerGroups : [];
   const hasObservedAccounts = Number(report?.accountCount) > 0;
   const summaryComplete = report?.isComplete === true;
-  const summaryTone = changeTone(report?.netChange);
+  const increaseColor = marketTextHexColor(1, marketColorMode);
+  const decreaseColor = marketTextHexColor(-1, marketColorMode);
+  const summaryTone = changeTone(report?.netChange, marketColorMode);
   const SummaryIcon = report?.netChange > 0
     ? TrendingUp
     : report?.netChange < 0
@@ -147,13 +148,13 @@ export default function MonthlyAssetAccountReport({
           <div className="grid grid-cols-3 border-t border-white/[0.075]">
             <div className="min-w-0 px-1.5 py-3 text-center">
               <div className="text-[10px] text-white/[0.45]">{tt('analysis.assetCategoryIncreaseTotal', '增加合计')}</div>
-              <div className="mt-1 truncate text-[12px] tabular-nums" style={{ color: UP_COLOR, fontFamily: NUMBER_FONT }}>
+              <div className="mt-1 truncate text-[12px] tabular-nums" style={{ color: increaseColor, fontFamily: NUMBER_FONT }}>
                 {formatSignedMoney(report?.increaseTotal, language, currency, usdRate)}
               </div>
             </div>
             <div className="min-w-0 border-x border-white/[0.075] px-1.5 py-3 text-center">
               <div className="text-[10px] text-white/[0.45]">{tt('analysis.assetCategoryDecreaseTotal', '减少合计')}</div>
-              <div className="mt-1 truncate text-[12px] tabular-nums" style={{ color: DOWN_COLOR, fontFamily: NUMBER_FONT }}>
+              <div className="mt-1 truncate text-[12px] tabular-nums" style={{ color: decreaseColor, fontFamily: NUMBER_FONT }}>
                 {formatSignedMoney(report?.decreaseTotal, language, currency, usdRate)}
               </div>
             </div>
@@ -164,7 +165,7 @@ export default function MonthlyAssetAccountReport({
                   <div className="mt-0.5 truncate text-[10px] text-white/[0.76]">
                     {ownerLabel(report.maxGainAccount.owner)} · {accountNameLabel(report.maxGainAccount.name)}
                   </div>
-                  <div className="mt-0.5 truncate text-[11px] tabular-nums" style={{ color: UP_COLOR, fontFamily: NUMBER_FONT }}>
+                  <div className="mt-0.5 truncate text-[11px] tabular-nums" style={{ color: increaseColor, fontFamily: NUMBER_FONT }}>
                     {formatSignedMoney(report.maxGainAccount.changeAmount, language, currency, usdRate)}
                   </div>
                 </>
@@ -199,7 +200,7 @@ export default function MonthlyAssetAccountReport({
         {ownerGroups.length > 0 ? (
           <div data-asset-account-report-groups="true">
             {ownerGroups.map((group, groupIndex) => {
-              const groupTone = changeTone(group.changeAmount);
+              const groupTone = changeTone(group.changeAmount, marketColorMode);
               return (
                 <div
                   key={group.owner}
@@ -227,7 +228,7 @@ export default function MonthlyAssetAccountReport({
                   </div>
 
                   {group.accounts.map((row) => {
-                    const tone = changeTone(row.changeAmount);
+                    const tone = changeTone(row.changeAmount, marketColorMode);
                     const barWidth = row.isComparable && row.changeAmount !== 0 && report.maxAbsChange > 0
                       ? Math.max(2.5, (Math.abs(row.changeAmount) / report.maxAbsChange) * 46)
                       : 0;
@@ -253,8 +254,8 @@ export default function MonthlyAssetAccountReport({
                             <div className="text-[12px] font-medium" style={{ color: tone }}>
                               {formatSignedMoney(row.changeAmount, language, currency, usdRate)}
                             </div>
-                            <div className="mt-0.5 text-[10px] text-white/[0.48]">
-                              <AccountStatus row={row} tt={tt} />
+                            <div className="mt-0.5 text-[10px]" style={{ color: tone }}>
+                              <AccountStatus row={row} tt={tt} marketColorMode={marketColorMode} />
                             </div>
                           </div>
                         </div>
@@ -270,10 +271,10 @@ export default function MonthlyAssetAccountReport({
                         <div className="relative ml-[38px] mt-2 h-[8px] overflow-hidden rounded-full bg-white/[0.055]" aria-hidden="true">
                           <span className="absolute left-1/2 top-0 h-full w-px bg-white/[0.24]" />
                           {row.isComparable && row.changeAmount > 0 && (
-                            <span className="absolute left-1/2 top-px h-[6px] rounded-full" style={{ width: `${barWidth}%`, background: UP_COLOR }} />
+                            <span className="absolute left-1/2 top-px h-[6px] rounded-full" style={{ width: `${barWidth}%`, background: increaseColor }} />
                           )}
                           {row.isComparable && row.changeAmount < 0 && (
-                            <span className="absolute right-1/2 top-px h-[6px] rounded-full" style={{ width: `${barWidth}%`, background: DOWN_COLOR }} />
+                            <span className="absolute right-1/2 top-px h-[6px] rounded-full" style={{ width: `${barWidth}%`, background: decreaseColor }} />
                           )}
                           {row.isComparable && row.changeAmount === 0 && (
                             <span className="absolute left-1/2 top-px h-[6px] w-[6px] -translate-x-1/2 rounded-full bg-white/[0.42]" />

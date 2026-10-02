@@ -15,7 +15,7 @@
 }
 .macro-page button { -webkit-tap-highlight-color: transparent; text-align: left; }
 .macro-page button:focus-visible { outline: 1px solid #96969e; outline-offset: 3px; }
-.macro-page button:active { opacity: .75; }
+.macro-page button:active:not(:disabled) { background-color: rgb(255 255 255 / .035); }
 .macro-header { padding: calc(env(safe-area-inset-top) + 10px) 0 17px; }
 .macro-title-row { display: flex; gap: 6px; align-items: center; min-height: 48px; }
 .macro-back { display: grid; place-items: center; width: 34px; height: 44px; margin-left: -6px; flex-shrink: 0; color: #a2a2a9; }

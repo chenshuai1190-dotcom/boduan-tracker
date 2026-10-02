@@ -1,16 +1,16 @@
-.do-page { --do-green: #50c8a0; --do-red: #ff604f; width: 100%; max-width: 760px; margin: 0 auto; padding: calc(12px + env(safe-area-inset-top)) 0 24px; color: #e4e4e8; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif; font-variant-numeric: tabular-nums; }
+.do-page { --do-negative: #34d399; --do-positive: #ff4b1f; width: 100%; max-width: 760px; margin: 0 auto; padding: calc(12px + env(safe-area-inset-top)) 0 24px; color: #e4e4e8; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif; font-variant-numeric: tabular-nums; }
 .do-page *, .do-page *::before, .do-page *::after { box-sizing: border-box; }
 .do-page button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent; }
 .do-page button:focus-visible, .do-page summary:focus-visible, .do-page .do-chart:focus-visible { outline: 1px solid #999ba3; outline-offset: 4px; }
-.do-page button:active { opacity: .72; }
+.do-page button:active:not(:disabled) { background-color: rgb(255 255 255 / .035); }
 .do-page button:disabled { cursor: default; }
 .do-page .do-row-status { display: block; color: #9398a1; font-size: 10px; line-height: 1.6; margin-top: 8px; }
 .do-page .do-status { color: #a4a8b0; font-size: 12px; line-height: 1.7; margin: 0 0 18px; }
 .do-page .do-refresh { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 36px; height: 36px; margin: -10px -8px -10px 0; padding: 0; border: 0; background: transparent; color: #8c919b; }
 .do-page .do-refresh:disabled { opacity: .35; }
 .do-page .do-preview-label > span:nth-of-type(2) { margin-left: auto; }
-.do-page .do-up { color: var(--do-red); }
-.do-page .do-down { color: var(--do-green); }
+.do-page .do-up { color: var(--do-positive); }
+.do-page .do-down { color: var(--do-negative); }
 .do-page .do-header { display: grid; grid-template-columns: 44px 1fr 44px; align-items: center; min-height: 52px; margin-bottom: 10px; }
 .do-page .do-header h1 { margin: 0; text-align: center; font-size: 18px; font-weight: 500; line-height: 1.5; }
 .do-page .do-icon-button { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border: 0; background: transparent; color: #9c9da5; }
@@ -28,7 +28,7 @@
 .do-page .do-market-description { display: block; margin-top: 4px; color: #888b95; font-size: 11px; }
 .do-page .do-market-value { display: block; margin: 14px 0 14px; font-size: clamp(29px, 8.5vw, 36px); font-weight: 400; letter-spacing: -1px; line-height: 1.1; }
 .do-page .do-depth-track { position: relative; height: 5px; border-radius: 6px; background: #171b20; overflow: hidden; }
-.do-page .do-depth-track span { display: block; height: 100%; border-radius: inherit; background: var(--do-green); opacity: .82; }
+.do-page .do-depth-track span { display: block; height: 100%; border-radius: inherit; background: var(--do-negative); }
 .do-page .do-market-day { display: flex; justify-content: space-between; gap: 8px; margin-top: 10px; font-size: 11px; color: #82848d; }
 .do-page .do-vix { display: flex; align-items: center; gap: 12px; padding: 17px 0; margin-top: 21px; border-block: 1px solid #1d2025; font-size: 12px; }
 .do-page .do-vix-name { margin-left: 8px; color: #7e818b; font-size: 11px; }
@@ -84,7 +84,7 @@
 .do-page .do-chart svg { display: block; width: 100%; overflow: visible; }
 .do-page .do-chart-grid { stroke: #252a30; stroke-width: .7; }
 .do-page .do-chart-axis { fill: #7d848f; font-size: 11px; }
-.do-page .do-chart-line { fill: none; stroke: var(--do-green); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.do-page .do-chart-line { fill: none; stroke: var(--do-negative); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
 .do-page .do-chart-low { fill: #a7b6b2; font-size: 11px; }
 .do-page .do-chart-guide { stroke: #b7bec4; stroke-width: .8; stroke-dasharray: 3 4; }
 .do-page .do-repair-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; padding: 23px 0; margin: 22px 0 0; border-block: 1px solid #1d2228; }

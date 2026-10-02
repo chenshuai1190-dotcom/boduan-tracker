@@ -165,8 +165,8 @@ test('sheets, tooltips, and chart markers keep their separate depth colors', () 
   assert.ok(benchmarkSheet.includes("row.selected ? 'bg-[#1b1c1e]'"));
   assert.ok(benchmarkSheet.includes('aria-pressed={row.selected}'));
   assert.ok(benchmarkSheet.includes('row.selected && <Check'));
-  assert.ok(benchmarkSheet.includes("(Number(row.drawdown) >= 0) === (marketColorMode === 'redUpGreenDown')"), 'benchmark drawdowns honor the global up/down convention, not the old risk-depth colors');
-  assert.ok(benchmarkSheet.includes("drawdownUsesRed ? 'text-[#ff604f]' : 'text-[#50c8a0]'"), 'benchmark colors match the new drawdown observation page');
+  assert.ok(benchmarkSheet.includes('marketTextClass(Number(row.drawdown), marketColorMode)'), 'benchmark drawdowns share the global market-text palette and up/down convention');
+  assert.doesNotMatch(benchmarkSheet, /#ff604f|#50c8a0/, 'benchmark drawdowns must not restore a separate red/green palette');
   assert.doesNotMatch(benchmarkSheet, /text-rose-400|text-emerald-400|Number\(row\.drawdown\) <= -0\.05/);
   assert.doesNotMatch(benchmarkSheet, /#f6b54b|bg-emerald|rounded-2xl border|<SortIcon/, 'selection and sorting stay neutral without nested bordered cards');
   assert.ok(benchmarkSheet.includes('min-h-0 space-y-1 overflow-y-auto overscroll-contain'), 'only the options scroll inside the sheet');

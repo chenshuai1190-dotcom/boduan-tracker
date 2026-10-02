@@ -11,7 +11,8 @@ const source = read('src/components/InvestmentDrawdownView.jsx');
 const css = read('src/components/InvestmentDrawdown.css');
 const dataUrl = code => `data:text/javascript;base64,${Buffer.from(code).toString('base64')}`;
 const chartSource = await transformWithOxc(read('src/components/InvestmentComparisonChart.jsx'), 'InvestmentComparisonChart.jsx', { jsx: { runtime: 'classic' } });
-const chartUrl = dataUrl(chartSource.code.replace(/from (["'])react\1/g, `from ${JSON.stringify(import.meta.resolve('react'))}`));
+const chartUrl = dataUrl(chartSource.code.replace(/from (["'])react\1/g, `from ${JSON.stringify(import.meta.resolve('react'))}`)
+  .replace(/from (["'])\.\.\/lib\/marketColorMode\.js\1/g, `from ${JSON.stringify(new URL('../src/lib/marketColorMode.js', import.meta.url).href)}`));
 const transformed = await transformWithOxc(source, 'InvestmentDrawdownView.jsx', { jsx: { runtime: 'classic' } });
 function compiledView(reactUrl, extra = '') {
   const imports = new Map([
@@ -59,6 +60,20 @@ test('a period with no drawdown has an honest empty journey and no unusable play
     assert.match(html, englishMode ? /Never below principal/ : /未跌破本金/);
     assert.doesNotMatch(html, /class="ic-dd-play"|class="ic-dd-scrubber"|NaN|Infinity/);
     assert.equal((html.match(/class="ic-dd-metric"/g) || []).length, 2);
+  }
+});
+
+test('drawdown numbers and recovery direction honor color preference without changing series leadership', () => {
+  for (const [marketColorMode, gain, loss] of [['redUpGreenDown', '#ff4b1f', '#34d399'], ['greenUpRedDown', '#34d399', '#ff4b1f']]) {
+    const html = renderToStaticMarkup(React.createElement(InvestmentDrawdownView, { model: comparisonModel(), marketColorMode }));
+    assert.ok(html.includes(`class="ic-dd-depth" style="color:${loss}">-25.0%`));
+    assert.ok(html.includes(`class="ic-dd-depth" style="color:${loss}">-50.0%`));
+    assert.ok(html.includes(`最大跌幅</span><strong style="color:${loss}">-25.0%`));
+    assert.ok(html.includes(`谷底修复前高所需涨幅</span><strong style="color:${gain}">+33.3%`));
+    assert.match(html, /class="ic-dd-identity"><span style="color:#ff4b1f">QQQ/);
+    assert.match(html, /class="ic-dd-identity"><span style="color:#34d399">TQQQ/);
+    assert.ok(html.includes(`stroke="${loss}" stroke-width="2"`));
+    assert.ok(html.includes(`stroke="${gain}" stroke-width="2"`));
   }
 });
 

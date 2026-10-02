@@ -5,7 +5,7 @@
 .stock-comparison-info-button, .stock-comparison-share-button { display: grid; place-items: center; width: 36px; height: 36px; flex-shrink: 0; border: 0; border-radius: 10px; color: #82828c; background: transparent; -webkit-tap-highlight-color: transparent; }
 .stock-comparison-share-button { background: #1a1b1d; color: #a5a5ae; }
 .stock-comparison-info-button:focus-visible, .stock-comparison-share-button:focus-visible { outline: 1px solid #919199; outline-offset: 2px; }
-.stock-comparison-info-button:active, .stock-comparison-share-button:active { opacity: .7; }
+.stock-comparison-info-button:active, .stock-comparison-share-button:not(:disabled):active { background: #252629; }
 .stock-comparison-share-button:disabled { opacity: .35; }
 .stock-comparison-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 18px; margin-top: 22px; }
 .stock-comparison-metric { min-width: 0; }
@@ -34,7 +34,7 @@
 .stock-comparison-tooltip-readings { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: 7px 12px; margin-top: 10px; color: #92929c; font-size: 12px; line-height: 18px; }
 .stock-comparison-tooltip-readings > span:nth-child(even) { text-align: right; font-weight: 400; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .stock-comparison-tooltip-result > span, .stock-comparison-tooltip-result > small { display: block; font-weight: 400; }
-.stock-comparison-tooltip-result > small { margin-top: 2px; font-size: 11px; line-height: 16px; opacity: .72; }
+.stock-comparison-tooltip-result > small { margin-top: 2px; font-size: 11px; line-height: 16px; opacity: 1; }
 .stock-comparison-empty { display: flex; min-height: 240px; align-items: center; justify-content: center; padding: 24px 18px; color: #81818b; font-size: 12px; line-height: 1.7; text-align: center; }
 .stock-comparison-chart-empty { min-height: 270px; }
 .stock-comparison-basis { margin-top: 15px; color: #73737d; font-size: 11px; line-height: 1.7; }

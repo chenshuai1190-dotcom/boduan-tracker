@@ -1,4 +1,5 @@
 import React from 'react';
+import { MARKET_RED_HEX, MARKET_GREEN_HEX, marketTextClass, marketTextHexColor } from '../lib/marketColorMode.js';
 import { ArrowLeft, ArrowUpRight, CalendarDays, ChevronDown, ChevronRight, FlaskConical, Pause, Play, RotateCcw, SlidersHorizontal } from 'lucide-react';
 import { buildDcaModel } from '../lib/dcaLabModel.js';
 import DcaSymbolPicker from '../components/DcaSymbolPicker.jsx';
@@ -15,10 +16,10 @@ const shortAsset = value => !Number.isFinite(value) ? '—' : Math.abs(value) >=
 const headlineMoney = value => !Number.isFinite(value) ? '—' : Math.abs(value) >= 100000000 ? `$${(value / 100000000).toFixed(2)}亿` : Math.abs(value) >= 10000000 ? `$${(value / 10000).toFixed(2)}万` : assetMoney(value);
 const signed = value => `${value > 0 ? '+' : value < 0 ? '−' : ''}${money(Math.abs(value))}`;
 const pct = value => `${value > 0 ? '+' : ''}${value.toFixed(1)}%`;
-const tone = value => value > 0 ? 'dl-up' : value < 0 ? 'dl-down' : '';
+const tone = (value, marketColorMode) => Number.isFinite(value) && value !== 0 ? marketTextClass(value, marketColorMode) : '';
 const frequencyLabel = value => value === 'monthly' ? '每月' : '每周';
 
-function DcaChart({ rows, index, compare, onSelect, onClear }) {
+function DcaChart({ rows, index, compare, onSelect, onClear, marketColorMode = 'redUpGreenDown' }) {
   const ref = React.useRef(null);
   const [width, setWidth] = React.useState(360);
   const chartId = React.useId().replace(/:/g, '');
@@ -35,8 +36,8 @@ function DcaChart({ rows, index, compare, onSelect, onClear }) {
   const visible = rows.slice(0, index + 1);
   const path = key => visible.map((row, i) => `${i ? 'L' : 'M'}${x(i).toFixed(2)},${y(row[key]).toFixed(2)}`).join(' ');
   const ahead = active.value >= active.lumpValue;
-  const color = compare ? (ahead ? '#ff655e' : '#4fd0a1') : (active.profit >= 0 ? '#ff655e' : '#4fd0a1');
-  const other = ahead ? '#4fd0a1' : '#ff655e';
+  const color = compare ? (ahead ? MARKET_RED_HEX : MARKET_GREEN_HEX) : marketTextHexColor(active.profit, marketColorMode);
+  const other = ahead ? MARKET_GREEN_HEX : MARKET_RED_HEX;
   const handlePointer = event => {
     const rect = event.currentTarget.getBoundingClientRect();
     onSelect(Math.round(Math.max(0, Math.min(1, (event.clientX - rect.left - left) / (right - left))) * (rows.length - 1)));
@@ -85,7 +86,7 @@ function PlanEditor({ plan, maxYear, onApply, onCancel }) {
   </form>;
 }
 
-export function DcaLabResults({ model, plan }) {
+export function DcaLabResults({ model, plan, marketColorMode = 'redUpGreenDown' }) {
   const [compare, setCompare] = React.useState(false);
   const [index, setIndex] = React.useState(null);
   const [playing, setPlaying] = React.useState(false);
@@ -113,22 +114,22 @@ export function DcaLabResults({ model, plan }) {
   React.useEffect(() => { if (index === model.rows.length - 1) setPlaying(false); }, [index, model.rows.length]);
   const togglePlay = () => { if (!playing && cursor === model.rows.length - 1) setIndex(0); setPlaying(value => !value); };
   const lead = summary.advantage >= 0;
-  const colors = compare ? [row.value >= row.lumpValue ? '#ff655e' : '#4fd0a1', row.value >= row.lumpValue ? '#4fd0a1' : '#ff655e'] : [row.profit >= 0 ? '#ff655e' : '#4fd0a1', '#77818f'];
+  const colors = compare ? [row.value >= row.lumpValue ? MARKET_RED_HEX : MARKET_GREEN_HEX, row.value >= row.lumpValue ? MARKET_GREEN_HEX : MARKET_RED_HEX] : [marketTextHexColor(row.profit, marketColorMode), '#77818f'];
   return <>
       <section className="dl-hero" aria-label="模拟结果">
         <div className="dl-hero-label"><span className="dl-hero-date">{cursor === model.rows.length - 1 ? '期末定投资产' : '当时定投资产'}<time dateTime={row.date}>{row.date}</time></span><span>{plan.symbol} · USD</span></div>
         <div className="dl-total">{headlineMoney(row.value)}</div>
-        <div className={`dl-profit ${tone(row.profit)}`}><span>累计收益 {signed(row.profit)}</span><span>{pct(row.returnPct)}</span></div>
+        <div className={`dl-profit ${tone(row.profit, marketColorMode)}`}><span>累计收益 {signed(row.profit)}</span><span>{pct(row.returnPct)}</span></div>
         <div className="dl-hero-bottom"><div><span>累计投入</span><strong>{money(row.invested)}</strong></div><div><span>已定投</span><strong>{model.purchases.filter(purchase => purchase.date <= row.date).length}<small> 次</small></strong></div><div><span>复权成本</span><strong>{money(row.shares > 0 ? row.invested / row.shares : NaN)}</strong></div></div>
       </section>
       <div className="dl-mode" role="group" aria-label="图表视图"><button type="button" aria-pressed={!compare} onClick={() => setCompare(false)}>投入与收益</button><button type="button" aria-pressed={compare} onClick={() => setCompare(true)}>对比一次投入</button></div>
       <div className="dl-legend"><span><i style={{ background: colors[0] }} />定投资产</span>{compare && <span><i style={{ background: colors[1] }} />一次投入</span>}<span><i className="dl-dash" />累计投入</span></div>
       {compare && <div className="dl-chart-comparison"><span>定投 <b style={{ color: colors[0] }}>{assetMoney(row.value)}</b></span><span>一次投入 <b style={{ color: colors[1] }}>{assetMoney(row.lumpValue)}</b></span></div>}
-      <DcaChart rows={model.rows} index={cursor} compare={compare} onSelect={setIndex} onClear={() => setIndex(model.rows.length - 1)} />
+      <DcaChart rows={model.rows} index={cursor} compare={compare} marketColorMode={marketColorMode} onSelect={setIndex} onClear={() => setIndex(model.rows.length - 1)} />
       <div className="dl-playback"><input type="range" aria-label="查看模拟日期" min="0" max={model.rows.length - 1} value={cursor} onChange={event => setIndex(Number(event.target.value))} /><div className="dl-player"><button type="button" className="dl-restart" aria-label="回到起点" onClick={() => setIndex(0)}><RotateCcw size={18} /></button><button type="button" className="dl-play" onClick={togglePlay}>{playing ? <Pause size={17} fill="currentColor" /> : <Play size={17} fill="currentColor" />}{playing ? '暂停回放' : '回放定投过程'}</button><select aria-label="回放速度" value={speed} onChange={event => setSpeed(Number(event.target.value))}>{[.1, .2, .4, .8, 1].map(value => <option key={value} value={value}>{value}×</option>)}</select></div></div>
-      <section className="dl-comparison" aria-label="同等本金比较"><div className="dl-section-heading"><h2>分批投入，结果有什么不同？</h2><ArrowUpRight size={17} aria-hidden="true" /></div><div className="dl-compare-row"><span>定投期末资产</span><strong className={lead ? 'dl-up' : 'dl-down'}>{assetMoney(summary.value)}</strong></div><div className="dl-compare-row"><span>一次投入期末资产</span><strong className={lead ? 'dl-down' : 'dl-up'}>{assetMoney(summary.lumpValue)}</strong></div><div className="dl-compare-conclusion">本次模拟，定投{lead ? '多' : '少'}获得 <strong className={tone(summary.advantage)}>{money(Math.abs(summary.advantage))}</strong></div><p>同等最终本金 {money(summary.invested)}；一次投入假设首日已有全部资金，资金到位时间不同。</p></section>
+      <section className="dl-comparison" aria-label="同等本金比较"><div className="dl-section-heading"><h2>分批投入，结果有什么不同？</h2><ArrowUpRight size={17} aria-hidden="true" /></div><div className="dl-compare-row"><span>定投期末资产</span><strong className={lead ? 'dl-up' : 'dl-down'}>{assetMoney(summary.value)}</strong></div><div className="dl-compare-row"><span>一次投入期末资产</span><strong className={lead ? 'dl-down' : 'dl-up'}>{assetMoney(summary.lumpValue)}</strong></div><div className="dl-compare-conclusion">本次模拟，定投{lead ? '多' : '少'}获得 <strong className={tone(summary.advantage, marketColorMode)}>{money(Math.abs(summary.advantage))}</strong></div><p>同等最终本金 {money(summary.invested)}；一次投入假设首日已有全部资金，资金到位时间不同。</p></section>
       <section className="dl-details" aria-label="定投明细"><div className="dl-detail-tabs" role="group" aria-label="明细视图"><button aria-pressed={!records} type="button" onClick={() => setRecords(false)}>年度结果</button><button aria-pressed={records} type="button" onClick={() => setRecords(true)}>每笔定投 <span>{model.purchases.length}</span></button></div>
-        {!records ? <table><thead><tr><th>年份</th><th>本年投入</th><th>本年盈亏</th><th>期末资产</th></tr></thead><tbody>{[...model.years].reverse().map(year => <tr key={year.year}><th>{year.year}{year.partial && <small className="dl-partial">截至 {year.throughDate.slice(5)}</small>}</th><td>{short(year.contribution)}</td><td className={tone(year.profit)}>{year.profit > 0 ? '+' : ''}{short(year.profit)}</td><td>{shortAsset(year.value)}</td></tr>)}</tbody></table> : <><table><thead><tr><th>日期</th><th>投入金额</th><th>复权价</th><th>复权份额</th></tr></thead><tbody>{[...model.purchases].reverse().slice(0, expandedRecords ? undefined : 8).map(purchase => <tr key={purchase.date}><th>{purchase.date.slice(2)}</th><td>{short(purchase.amount)}</td><td>{purchase.price.toFixed(2)}</td><td>{purchase.shares.toFixed(2)}</td></tr>)}</tbody></table>{model.purchases.length > 8 && <button type="button" className="dl-more" onClick={() => setExpandedRecords(value => !value)}>{expandedRecords ? '收起记录' : `展开全部 ${model.purchases.length} 笔`}<ChevronDown size={14} /></button>}</>}
+        {!records ? <table><thead><tr><th>年份</th><th>本年投入</th><th>本年盈亏</th><th>期末资产</th></tr></thead><tbody>{[...model.years].reverse().map(year => <tr key={year.year}><th>{year.year}{year.partial && <small className="dl-partial">截至 {year.throughDate.slice(5)}</small>}</th><td>{short(year.contribution)}</td><td className={tone(year.profit, marketColorMode)}>{year.profit > 0 ? '+' : ''}{short(year.profit)}</td><td>{shortAsset(year.value)}</td></tr>)}</tbody></table> : <><table><thead><tr><th>日期</th><th>投入金额</th><th>复权价</th><th>复权份额</th></tr></thead><tbody>{[...model.purchases].reverse().slice(0, expandedRecords ? undefined : 8).map(purchase => <tr key={purchase.date}><th>{purchase.date.slice(2)}</th><td>{short(purchase.amount)}</td><td>{purchase.price.toFixed(2)}</td><td>{purchase.shares.toFixed(2)}</td></tr>)}</tbody></table>{model.purchases.length > 8 && <button type="button" className="dl-more" onClick={() => setExpandedRecords(value => !value)}>{expandedRecords ? '收起记录' : `展开全部 ${model.purchases.length} 笔`}<ChevronDown size={14} /></button>}</>}
         <p className="dl-table-unit">{records ? '金额、复权价格单位：USD · 复权份额非实际持股数' : '金额单位：USD · 年度盈亏已扣除本年新增投入'}</p>
       </section>
       <details className="dl-method"><summary>实验口径<ChevronRight size={15} /></summary><p>使用 EODHD 真实历史日线复权收盘价，包含拆股、分红调整。复权份额仅用于回测试算，不代表当时实际买入股数；历史结果不代表未来收益。</p><p>按周期内首个有行情的交易日收盘价投入，节假日顺延；起始投入与首笔定投同日发生。不计税费、现金利息和汇率变化。</p><p>累计收益＝资产总额－累计投入，不包含本金；收益率＝累计收益÷累计投入，非年化收益率。一次投入与定投只保证期末累计本金相同，不代表相同现金流条件。</p></details>
@@ -137,7 +138,7 @@ export function DcaLabResults({ model, plan }) {
 }
 
 export default function DcaLabPage({ ctx = {}, previewSource = null }) {
-  const { userId = '', closeDcaLab } = ctx;
+  const { userId = '', closeDcaLab, marketColorMode = 'redUpGreenDown' } = ctx;
   const [plan, setPlan] = React.useState(DEFAULT_PLAN);
   const [editing, setEditing] = React.useState(false);
   const [refresh, setRefresh] = React.useState(0);
@@ -183,7 +184,7 @@ export default function DcaLabPage({ ctx = {}, previewSource = null }) {
     {!loading && result.model && <>
       {data.stale && <p className="dl-data-note" role="status">行情暂截至 {data.asOfDate}，最新应为 {data.expectedAsOfDate}。<button type="button" onClick={() => setRefresh(value => value + 1)}>刷新数据</button></p>}
       {result.model.period.startAdjusted && <p className="dl-data-note">可用历史始于 {result.model.startDate}，已从该交易日开始计算。</p>}
-      <DcaLabResults key={`${key}:${JSON.stringify(plan)}:${data.asOfDate}`} model={result.model} plan={plan} />
+      <DcaLabResults key={`${key}:${JSON.stringify(plan)}:${data.asOfDate}`} model={result.model} plan={plan} marketColorMode={marketColorMode} />
     </>}
   </main>;
 }

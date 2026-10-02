@@ -1,7 +1,9 @@
 import React from 'react';
+import { MARKET_RED_HEX, MARKET_GREEN_HEX, marketTextHexColor } from '../lib/marketColorMode.js';
 
-export const INVESTMENT_LEADING_COLOR = '#ff655e';
-export const INVESTMENT_TRAILING_COLOR = '#4fd0a1';
+// Leadership is a comparison between series, independent of profit direction.
+export const INVESTMENT_LEADING_COLOR = MARKET_RED_HEX;
+export const INVESTMENT_TRAILING_COLOR = MARKET_GREEN_HEX;
 export const INVESTMENT_NEUTRAL_COLOR = '#969faf';
 
 export function investmentRank(symbol, symbols, point) {
@@ -16,8 +18,8 @@ export function investmentRankColor(rank) {
   return rank === 'leading' ? INVESTMENT_LEADING_COLOR : rank === 'trailing' ? INVESTMENT_TRAILING_COLOR : INVESTMENT_NEUTRAL_COLOR;
 }
 
-export function investmentChangeColor(value) {
-  return value > 0 ? INVESTMENT_LEADING_COLOR : value < 0 ? INVESTMENT_TRAILING_COLOR : INVESTMENT_NEUTRAL_COLOR;
+export function investmentChangeColor(value, marketColorMode = 'redUpGreenDown') {
+  return Number.isFinite(value) && value !== 0 ? marketTextHexColor(value, marketColorMode) : INVESTMENT_NEUTRAL_COLOR;
 }
 
 export function formatInvestmentAmount(value, englishMode = false, { signed = false, currency = true, digits = 1 } = {}) {
@@ -41,7 +43,7 @@ function linePath(points, symbol, x, y) {
   return points.map((point, index) => `${index ? 'L' : 'M'}${x(point.time).toFixed(2)},${y(point.values[symbol]).toFixed(2)}`).join(' ');
 }
 
-export default function InvestmentComparisonChart({ model, snapshot, hiddenSymbols = [], scale = 'linear', englishMode = false }) {
+export default function InvestmentComparisonChart({ model, snapshot, hiddenSymbols = [], scale = 'linear', englishMode = false, marketColorMode = 'redUpGreenDown' }) {
   const containerRef = React.useRef(null);
   const axisRefs = React.useRef([]);
   const labelRefs = React.useRef({});
@@ -180,7 +182,7 @@ export default function InvestmentComparisonChart({ model, snapshot, hiddenSymbo
             const measuredWidth = labelWidths[label.symbol] || 110;
             const desired = label.x - measuredWidth - 9 >= frame.left + 4 ? label.x - measuredWidth - 9 : label.x + 10;
             const labelX = Math.max(frame.left + 4, Math.min(frame.right - measuredWidth - 4, desired));
-            return <text key={label.symbol} ref={node => { labelRefs.current[label.symbol] = node; }} x={labelX} y={label.labelY} className="ic-direct-label" data-investment-profit-label={label.symbol} aria-label={`${label.symbol} ${englishMode ? 'cumulative profit' : '累计盈亏'} ${formatInvestmentAmount(label.profit, englishMode, { signed: true })}`}><tspan>{label.symbol} </tspan><tspan fill={investmentChangeColor(label.profit)}>{formatInvestmentAmount(label.profit, englishMode, { signed: true })}</tspan></text>;
+            return <text key={label.symbol} ref={node => { labelRefs.current[label.symbol] = node; }} x={labelX} y={label.labelY} className="ic-direct-label" data-investment-profit-label={label.symbol} aria-label={`${label.symbol} ${englishMode ? 'cumulative profit' : '累计盈亏'} ${formatInvestmentAmount(label.profit, englishMode, { signed: true })}`}><tspan>{label.symbol} </tspan><tspan fill={investmentChangeColor(label.profit, marketColorMode)}>{formatInvestmentAmount(label.profit, englishMode, { signed: true })}</tspan></text>;
           })}
           {hover && <g pointerEvents="none"><line x1={hoverX} x2={hoverX} y1={frame.top} y2={frame.bottom} stroke="#969faf" strokeWidth="1" strokeDasharray="3 3" />{visibleSymbols.map(symbol => <circle key={symbol} cx={hoverX} cy={y(hover.values[symbol])} r="4" fill={investmentRankColor(investmentRank(symbol, symbols, currentPoint))} stroke="#0b0e14" strokeWidth="2" />)}</g>}
         </g>

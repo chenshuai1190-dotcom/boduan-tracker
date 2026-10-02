@@ -493,8 +493,8 @@ test('the larger report chart follows the selected range direction and the confi
   const rise = [{ close: 100 }, { close: 110 }];
   const fall = [{ close: 110 }, { close: 100 }];
   assert.equal(resolveColor(rise, 'redUpGreenDown'), '#ff4b1f');
-  assert.equal(resolveColor(fall, 'redUpGreenDown'), '#22c55e');
-  assert.equal(resolveColor(rise, 'greenUpRedDown'), '#22c55e');
+  assert.equal(resolveColor(fall, 'redUpGreenDown'), '#34d399');
+  assert.equal(resolveColor(rise, 'greenUpRedDown'), '#34d399');
   assert.equal(resolveColor(fall, 'greenUpRedDown'), '#ff4b1f');
   for (const rows of [[], [{ close: 100 }], [{ close: 100 }, { close: 100 }], [{ close: null }, { close: 100 }]]) {
     assert.equal(resolveColor(rows, 'redUpGreenDown'), '#a1a1aa');

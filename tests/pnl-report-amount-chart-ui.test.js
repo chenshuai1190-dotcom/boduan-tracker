@@ -80,7 +80,7 @@ test('amount trend renders a zero line, only my P&L line, and currency-aware dai
   assert.equal(nodes(tree, node => node.props.className === 'pnl-trend-zero-line').length, 1);
   assert.equal(nodes(tree, node => node.props.className === 'pnl-trend-zero-label').length, 1);
   assert.equal(nodes(tree, node => node.type === 'path' && node.props.stroke === '#789ac0').length, 0, 'amounts have no benchmark');
-  assert.deepEqual(amountPaths(tree).map(node => node.props.stroke), ['#22c55e', '#ff4b1f']);
+  assert.deepEqual(amountPaths(tree).map(node => node.props.stroke), ['#34d399', '#ff4b1f']);
   const readout = nodes(tree, node => node.props['data-pnl-report-amount-tooltip'])[0];
   const readingClasses = React.Children.toArray(readout.props.children).map(child => child.props.className).filter(Boolean);
   assert.ok(readingClasses[0].includes('text-emerald-400'), 'negative daily P&L follows the market color preference');
@@ -118,7 +118,7 @@ test('positive amount period high shows its cumulative amount with the shared pu
   assert.match(usd.html, /P&amp;L at period high/);
   assert.match(usdAmount, /\+\$2,000\.00/);
   assert.doesNotMatch(usdAmount, /\$1,000\.00|\$7,000\.00/);
-  assert.match(usdAmount, /text-emerald-400|color:#22c55e/);
+  assert.match(usdAmount, /text-emerald-400|color:#34d399/);
   const missingRate = amountMarkup(render(trend, { rate: null }).tree);
   assert.match(missingRate, />--</);
   assert.doesNotMatch(missingRate, /[¥$]|0\.00|NaN|Infinity/,
@@ -221,7 +221,7 @@ test('stock personal view pairs daily and cumulative amounts with their return r
   assert.match(html, /pnl-trend-missing">--<\/span>/, 'missing daily return stays unknown');
   assert.equal(nodes(tree, node => node.props['data-pnl-report-record-high'] === 'pnlUsd').length, 1);
   assert.equal(nodes(tree, node => node.props.className === 'pnl-trend-zero-line').length, 1);
-  assert.deepEqual(amountPaths(tree).map(node => node.props.stroke), ['#22c55e', '#ff4b1f']);
+  assert.deepEqual(amountPaths(tree).map(node => node.props.stroke), ['#34d399', '#ff4b1f']);
 });
 
 test('missing amount observations are not plotted as zero or selectable readings', () => {
@@ -246,8 +246,8 @@ test('missing amount observations are not plotted as zero or selectable readings
 
 test('amount strokes use stable solid market colors for every sign and both color preferences', () => {
   for (const marketColorMode of ['redUpGreenDown', 'greenUpRedDown']) {
-    const positiveColor = marketColorMode === 'redUpGreenDown' ? '#ff4b1f' : '#22c55e';
-    const negativeColor = marketColorMode === 'redUpGreenDown' ? '#22c55e' : '#ff4b1f';
+    const positiveColor = marketColorMode === 'redUpGreenDown' ? '#ff4b1f' : '#34d399';
+    const negativeColor = marketColorMode === 'redUpGreenDown' ? '#34d399' : '#ff4b1f';
     for (const values of [[100, 300, 200], [-100, -300, -200], [0, 0, 0], [-100, 200, -50]]) {
       const data = values.map((pnlUsd, index) => ({ date: `2026-09-${20 + index}`, pnlUsd, dailyPnlUsd: null }));
       const { tree } = render(data, { marketColorMode });

@@ -1,4 +1,4 @@
-.dca-lab { --dl-red:#ff655e; --dl-green:#4fd0a1; --dl-gold:#eebc65; }
+.dca-lab { --dl-red:#ff4b1f; --dl-green:#34d399; --dl-gold:#eebc65; }
 .dca-lab .dl-header-icon { position:absolute; right:5px; color:var(--ic-muted); }
 .dca-lab .dl-plan { margin-top:20px; border:1px solid var(--ic-border); border-radius:15px; padding:15px 14px 13px; background:linear-gradient(145deg,var(--ic-panel),var(--ic-bg) 85%); }
 .dca-lab .dl-plan-top { display:flex; align-items:center; justify-content:space-between; gap:12px; }

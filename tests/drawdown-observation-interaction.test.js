@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import React from 'react';
+import { marketTextHexColor } from '../src/lib/marketColorMode.js';
 import { readFileSync } from 'node:fs';
 import { transformWithOxc } from 'vite';
 import { DRAWDOWN_PREVIEW, deriveObservation, getSamePeriodReturn, selectObservationRows } from '../src/dev/drawdownObservationData.js';
@@ -8,7 +9,7 @@ import { DRAWDOWN_PREVIEW, deriveObservation, getSamePeriodReturn, selectObserva
 const source = readFileSync(new URL('../src/components/DrawdownObservation.jsx', import.meta.url), 'utf8');
 const transformed = await transformWithOxc(source, 'DrawdownObservationPreview.jsx', { jsx: { runtime: 'classic' } });
 const icons = Object.fromEntries(['ArrowDownUp', 'ArrowLeft', 'ArrowUpRight', 'ChevronRight', 'Info', 'RotateCcw'].map(name => [name, function Icon() { return null; }]));
-const bindings = { ...icons, DRAWDOWN_PREVIEW, deriveObservation, getSamePeriodReturn, selectObservationRows };
+const bindings = { marketTextHexColor, ...icons, DRAWDOWN_PREVIEW, deriveObservation, getSamePeriodReturn, selectObservationRows };
 const compiled = transformed.code.replace(/^import\s[^\n]+;?\n/gm, '').replaceAll('export default function ', 'function ').replaceAll('export function ', 'function ');
 const createComponents = new Function('React', 'window', 'document', 'ResizeObserver', ...Object.keys(bindings), `"use strict";\n${compiled}\nreturn { DrawdownObservationPreview: DrawdownObservation, DrawdownObservationChart, DrawdownObservationDetail };`);
 const observations = DRAWDOWN_PREVIEW.instruments.map(row => deriveObservation(row, DRAWDOWN_PREVIEW.asOfDate));
@@ -296,4 +297,22 @@ test('removing the inspected symbol returns to the current overview without reta
   assert.equal(page.tree.props['data-drawdown-view'], 'overview');
   assert.ok(!symbols(page.tree).includes(symbol));
   page.unmount();
+});
+
+test('drawdown overview and detail preserve the active market palette across navigation', () => {
+  for (const mode of ['redUpGreenDown', 'greenUpRedDown']) {
+    const page = harness('DrawdownObservationPreview', () => ({ onBack() {}, marketColorMode: mode }));
+    page.render();
+    assert.deepEqual(page.tree.props.style, {
+      '--do-positive': marketTextHexColor(1, mode),
+      '--do-negative': marketTextHexColor(-1, mode),
+    });
+    const market = nodes(page.tree, node => node.props.row?.symbol === 'SPY')[0];
+    market.props.onOpen('SPY');
+    page.render();
+    assert.equal(page.tree.props.marketColorMode, mode);
+    const detail = harness('DrawdownObservationDetail', () => ({ row: nvda, onBack() {}, marketColorMode: mode }));
+    detail.render();
+    assert.equal(detail.tree.props.style['--do-negative'], marketTextHexColor(-1, mode));
+  }
 });

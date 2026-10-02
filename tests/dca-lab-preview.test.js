@@ -128,6 +128,24 @@ test('results distinguish assets, contributed principal and cumulative profit ex
   assert.doesNotMatch(html, /累计收益 \+\$1,320|NaN|Infinity|undefined/);
 });
 
+test('DCA profit amount, return and chart follow both color preferences without changing comparison ranking', () => {
+  const lossModel = buildDcaModel({ data: { ...data, rows: [data.rows[0], { ...data.rows[1], close: 80 }] }, plan });
+  for (const [marketColorMode, positiveClass, negativeClass, positiveColor, negativeColor] of [
+    ['redUpGreenDown', 'text-[#ff4b1f]', 'text-emerald-400', '#ff4b1f', '#34d399'],
+    ['greenUpRedDown', 'text-emerald-400', 'text-[#ff4b1f]', '#34d399', '#ff4b1f'],
+  ]) {
+    for (const [scenario, textClass, color] of [[model, positiveClass, positiveColor], [lossModel, negativeClass, negativeColor]]) {
+      const html = htmlOf(DcaLabResults, { model: scenario, plan, marketColorMode });
+      const hero = html.slice(html.indexOf('<section class="dl-hero"'), html.indexOf('<div class="dl-mode"'));
+      assert.ok(hero.includes(`class="dl-profit ${textClass}"><span>累计收益`));
+      assert.ok(html.includes(`stroke="${color}" fill="none" stroke-width="2.2"`));
+    }
+    const comparison = capture(DcaLabResults, { model, plan, marketColorMode }, [true]).html;
+    assert.match(comparison, /stroke="#ff4b1f" fill="none" stroke-width="2.2"/);
+    assert.match(comparison, /stroke="#34d399" fill="none" stroke-width="1.8"/);
+  }
+});
+
 test('playback asset amount, cumulative contribution and visible date share the same selected history row', () => {
   for (const playing of [false, true]) {
     const { html } = capture(DcaLabResults, { model, plan }, [false, 0, playing]);

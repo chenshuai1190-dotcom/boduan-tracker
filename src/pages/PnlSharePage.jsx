@@ -52,6 +52,7 @@ export default function PnlSharePage({
   investmentSummary = {},
   language = 'zh',
   portfolioCurrencyMode = 'USD',
+  marketColorMode = 'redUpGreenDown',
   usdRate,
   communityIdentity = null,
   communityIdentityStatus = 'loading',
@@ -175,6 +176,7 @@ export default function PnlSharePage({
     selectedTheme,
     showAmount,
     displayCurrency,
+    marketColorMode,
     generatedText,
     marketLabel,
     metricLabel,
@@ -202,6 +204,7 @@ export default function PnlSharePage({
     try {
       renderPnlShareCanvas(canvas, {
         themeId: selectedTheme,
+        marketColorMode,
         showAmount,
         nickname: identitySnapshot.nickname,
         generatedText,
@@ -235,7 +238,7 @@ export default function PnlSharePage({
       return undefined;
     }
     return undefined;
-  }, [accessibilityLabel, amountText, amountTone, avatarImage, currencyUnit, fileName, generatedText, identityReady, identitySnapshot, marketLabel, metricLabel, percentText, percentTone, renderKey, selectedTheme, showAmount]);
+  }, [accessibilityLabel, amountText, amountTone, avatarImage, currencyUnit, fileName, generatedText, identityReady, identitySnapshot, marketColorMode, marketLabel, metricLabel, percentText, percentTone, renderKey, selectedTheme, showAmount]);
 
   const downloadAsset = React.useCallback((asset) => {
     if (!asset?.blob || typeof document === 'undefined' || typeof URL === 'undefined') return false;

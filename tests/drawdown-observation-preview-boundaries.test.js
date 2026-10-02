@@ -22,7 +22,7 @@ test('synthetic data and query inputs stay behind the existing development-only 
 });
 
 test('preview routes share production presentation with Home safe-area and nav selection', () => {
-  assert.match(preview, /<DrawdownObservationPreview onBack=\{\(\) => setActiveTab\('home'\)\} initialSymbol=\{drawdownInitialSymbol\} \/>/);
+  assert.match(preview, /<DrawdownObservationPreview onBack=\{\(\) => setActiveTab\('home'\)\} initialSymbol=\{drawdownInitialSymbol\} marketColorMode=\{marketColorMode\} \/>/);
   assert.match(preview, /activeTab === 'drawdown-observation' && tab\.id === 'home'/);
   const safeArea = preview.match(/paddingTop: \[([^\]]+)\]\.includes\(activeTab\) \? 0 : 'calc\(1rem \+ env\(safe-area-inset-top\)\)'/)?.[1];
   assert.ok(safeArea?.includes("'drawdown-observation'"));

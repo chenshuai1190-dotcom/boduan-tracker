@@ -109,7 +109,7 @@ test('Macro overview has exactly six layers and four summaries without lower-lev
   assert.equal(cards.length, 4);
   assert.deepEqual(cards.map(card => text(byClass(card, 'macro-card-heading')[0])), ['利率', '通胀', '市场压力', '流动性']);
   assert.deepEqual(cards.map(card => text(byClass(card, 'macro-core-symbol')[0])), ['美国10年期国债收益率', '美国原油（WTI）', '美股波动率指数（VIX）', '净流动性']);
-  assert.deepEqual(cards.slice(0, 3).map(card => byClass(card, 'macro-change')[0].props.style.color), ['#ff4b1f', '#ff4b1f', '#22c55e']);
+  assert.deepEqual(cards.slice(0, 3).map(card => byClass(card, 'macro-change')[0].props.style.color), ['#ff4b1f', '#ff4b1f', '#34d399']);
   assert.equal(byClass(tree, 'macro-metric-row').length, 0);
   assert.equal(chart(tree), undefined);
   assert.doesNotMatch(text(tree), /VVIX|MOVE|SOFR|EFFR|TGA|RRP|Brent|RBOB/);
@@ -227,7 +227,7 @@ test('rates, energy, spreads, balances and funding rates preserve their display 
   assert.match(readings[4], /^4\.33%0 bp$/);
   assert.doesNotMatch(readings[3] + readings[4], /\$|B/);
   assert.deepEqual(byClass(tree, 'macro-metric-reading').map(reading => byClass(reading, 'macro-change')[0].props.style.color),
-    [undefined, '#ff4b1f', '#22c55e', '#ff4b1f', undefined], 'positive changes are red, negative changes green, and unchanged readings neutral');
+    [undefined, '#ff4b1f', '#34d399', '#ff4b1f', undefined], 'positive changes are red, negative changes green, and unchanged readings neutral');
 });
 
 test('every internal page is explicitly simulated and the page has no provider or trading dependencies', () => {

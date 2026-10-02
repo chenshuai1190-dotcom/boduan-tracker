@@ -1,11 +1,13 @@
 import React from 'react';
 import { ArrowDownUp, ArrowLeft, ArrowUpRight, ChevronRight, Info, RotateCcw } from 'lucide-react';
 import { getSamePeriodReturn, selectObservationRows } from '../lib/drawdownObservationModel.js';
+import { marketTextHexColor } from '../lib/marketColorMode.js';
 import './DrawdownObservation.css';
 
 const percent = value => Number.isFinite(value) ? `${value > 0 ? '+' : ''}${value.toFixed(1)}%` : '—';
 const money = value => Number.isFinite(value) ? `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—';
 const tone = value => !Number.isFinite(value) || value === 0 ? '' : value > 0 ? 'do-up' : 'do-down';
+const marketStyle = mode => ({ '--do-positive': marketTextHexColor(1, mode), '--do-negative': marketTextHexColor(-1, mode) });
 const shortDate = value => value ? value.slice(5).replace('-', '/') : '—';
 const rowStatus = row => row.status === 'loading' ? '读取中' : row.status === 'error' ? '行情暂不可用' : !Number.isFinite(row.drawdownPct) ? '暂无有效历史' : [row.stale ? `待更新 · ${row.asOfDate}` : '', !row.historySufficient ? '不足 52 周 · 按可用历史' : ''].filter(Boolean).join(' · ');
 const highLabel = row => row.historySufficient ? '距 52 周收盘高点' : '距可用历史收盘高点';
@@ -107,13 +109,13 @@ export function DrawdownObservationChart({ row, selectedIndex, onSelect }) {
     onSelect(Math.max(0, Math.min(points.length - 1, next)));
   }}>
     <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`${row.symbol} 从 ${row.highDate} 高点到 ${row.asOfDate} 的回撤过程，高点为零`}>
-      <defs><linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1"><stop stopColor="#50c8a0" stopOpacity=".035" /><stop offset="1" stopColor="#50c8a0" stopOpacity=".16" /></linearGradient></defs>
+      <defs><linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1"><stop stopColor="var(--do-negative)" stopOpacity=".035" /><stop offset="1" stopColor="var(--do-negative)" stopOpacity=".16" /></linearGradient></defs>
       {[0, -depth / 2, -depth].map(value => <g key={value}><line className="do-chart-grid" x1={left} x2={right} y1={y(value)} y2={y(value)} /><text className="do-chart-axis" x={left - 7} y={y(value) + 4} textAnchor="end">{value}%</text></g>)}
       <path d={`${path} L${x(latest)},${top} L${left},${top} Z`} fill={`url(#${gradientId})`} />
       <path className="do-chart-line" d={path} />
-      <circle cx={x(low)} cy={y(low.drawdownPct)} r="3.5" fill="#50c8a0" />
-      {Math.abs(x(low) - x(latest)) > 52 && <text className="do-chart-low" x={x(low) + (x(low) > width * .65 ? -8 : 8)} y={y(low.drawdownPct) - 12} textAnchor={x(low) > width * .65 ? 'end' : 'start'}>低点 {percent(low.drawdownPct)}</text>}
-      <circle cx={x(latest)} cy={y(latest.drawdownPct)} r="4" fill="#50c8a0" />
+      <circle cx={x(low)} cy={y(low.drawdownPct)} r="3.5" fill="var(--do-negative)" />
+      {Math.abs(x(low) - x(latest)) > 52 && <text className="do-chart-low" x={x(low) + (x(low) > width * .65 ? -8 : 8)} y={y(low.drawdownPct) - 12} textAnchor={x(low) > width * .65 ? 'end' : 'start'}>低点 <tspan fill="var(--do-negative)">{percent(low.drawdownPct)}</tspan></text>}
+      <circle cx={x(latest)} cy={y(latest.drawdownPct)} r="4" fill="var(--do-negative)" />
       {selectedIndex !== null && <g><line className="do-chart-guide" x1={x(selected)} x2={x(selected)} y1={top} y2={bottom} /><circle cx={x(selected)} cy={y(selected.drawdownPct)} r="5" fill="#dce1df" stroke="#090a0c" strokeWidth="2" /></g>}
       <text className="do-chart-axis" x={left} y={height - 5}>{shortDate(points[0].date)}</text>
       {points.length > 2 && <text className="do-chart-axis" x={x(points[Math.floor(points.length / 2)])} y={height - 5} textAnchor="middle">{shortDate(points[Math.floor(points.length / 2)].date)}</text>}
@@ -122,7 +124,7 @@ export function DrawdownObservationChart({ row, selectedIndex, onSelect }) {
   </div>;
 }
 
-export function DrawdownObservationDetail({ row, onBack, observations = [], demo = false }) {
+export function DrawdownObservationDetail({ row, onBack, observations = [], demo = false, marketColorMode = 'redUpGreenDown' }) {
   const [selectedIndex, setSelectedIndex] = React.useState(null);
   const inspection = React.useRef(null);
   React.useEffect(() => {
@@ -133,7 +135,7 @@ export function DrawdownObservationDetail({ row, onBack, observations = [], demo
   }, [selectedIndex]);
   const point = row.pointsSinceHigh?.[selectedIndex ?? row.pointsSinceHigh.length - 1];
   const peers = [row.symbol, 'SPY', 'QQQ'].filter((symbol, index, values) => values.indexOf(symbol) === index);
-  return <div className="do-page" data-drawdown-view="detail">
+  return <div className="do-page" style={marketStyle(marketColorMode)} data-drawdown-view="detail">
     <PreviewHeader title="回撤详情" onBack={onBack} detail date={row.asOfDate} demo={demo} />
     {rowStatus(row) && <p className="do-status" role="status">{rowStatus(row)}{row.stale && row.expectedAsOfDate ? `，最新应为 ${row.expectedAsOfDate}` : ''}</p>}
     <section className="do-detail-hero">
@@ -162,7 +164,7 @@ export function DrawdownObservationDetail({ row, onBack, observations = [], demo
   </div>;
 }
 
-export default function DrawdownObservation({ onBack, initialSymbol = '', observations = [], demo = false, vix = null, loading = false, refreshing = false, error = '', onRefresh, portfolioReady = true, portfolioError = '', initialViewState = {}, onViewStateChange }) {
+export default function DrawdownObservation({ onBack, initialSymbol = '', observations = [], demo = false, vix = null, loading = false, refreshing = false, error = '', onRefresh, portfolioReady = true, portfolioError = '', initialViewState = {}, onViewStateChange, marketColorMode = 'redUpGreenDown' }) {
   const [selectedSymbol, setSelectedSymbol] = React.useState(() => observations.some(row => row.symbol === initialSymbol) ? initialSymbol : null);
   React.useEffect(() => {
     if (selectedSymbol && !observations.some(row => row.symbol === selectedSymbol)) setSelectedSymbol(null);
@@ -205,8 +207,8 @@ export default function DrawdownObservation({ onBack, initialSymbol = '', observ
   const missingCount = observations.filter(row => (scope === 'watchlist' ? row.inWatchlist : row.inHoldings) && !Number.isFinite(row.drawdownPct)).length;
   const scopeCount = observations.filter(row => scope === 'watchlist' ? row.inWatchlist : row.inHoldings).length;
   const selected = observations.find(row => row.symbol === selectedSymbol);
-  if (selected) return <DrawdownObservationDetail key={`${selected.symbol}:${selected.asOfDate}`} row={selected} observations={observations} demo={demo} onBack={() => setSelectedSymbol(null)} />;
-  return <div className="do-page" data-drawdown-view="overview">
+  if (selected) return <DrawdownObservationDetail key={`${selected.symbol}:${selected.asOfDate}`} row={selected} observations={observations} demo={demo} marketColorMode={marketColorMode} onBack={() => setSelectedSymbol(null)} />;
+  return <div className="do-page" style={marketStyle(marketColorMode)} data-drawdown-view="overview">
     <PreviewHeader title="回撤观察" onBack={onBack} date={dateLabel} demo={demo} onRefresh={onRefresh} loading={loading || refreshing} />
     {loading && <p className="do-status" role="status">正在读取真实历史行情…</p>}
     {!loading && refreshing && <p className="do-status" role="status">后台更新中，已有数据仍可查看。</p>}

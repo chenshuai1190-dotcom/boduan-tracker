@@ -1637,7 +1637,7 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
           <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1 tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
             <span className="stock-report-price">{formatCurrency(closeDisplay, stockCurrency)}</span>
             <span className="text-[15px]" style={{ color: closeColor }}>{formatSignedPercent(close.changePercent)}</span>
-            <span className="text-[13px] opacity-75" style={{ color: closeColor }}>{changeDisplay === null ? '(--)' : `(${changeDisplay >= 0 ? '+' : ''}${formatNumber(changeDisplay)})`}</span>
+            <span className="text-[13px]" style={{ color: closeColor }}>{changeDisplay === null ? '(--)' : `(${changeDisplay >= 0 ? '+' : ''}${formatNumber(changeDisplay)})`}</span>
           </div>
           <div className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[12px] text-white/[0.50]">
             <span>{t(language, 'watchlistDetail.asOfClose', '{{date}} 收盘', { date: formatDate(close.asOfDate, language) })}</span><span aria-hidden="true">·</span><span>{t(language, 'watchlistDetail.easternTime', '美东时间')}</span><span aria-hidden="true">·</span><span>{stockCurrency}</span>

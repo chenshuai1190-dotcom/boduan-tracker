@@ -11,7 +11,8 @@ const source = read('src/pages/PortfolioOverlapPage.jsx');
 const css = read('src/components/PortfolioOverlap.css');
 const dataUrl = code => `data:text/javascript;base64,${Buffer.from(code).toString('base64')}`;
 const chart = await transformWithOxc(read('src/components/InvestmentComparisonChart.jsx'), 'InvestmentComparisonChart.jsx', { jsx: { runtime: 'classic' } });
-const chartUrl = dataUrl(chart.code.replace(/from (["'])react\1/g, `from ${JSON.stringify(import.meta.resolve('react'))}`));
+const chartUrl = dataUrl(chart.code.replace(/from (["'])react\1/g, `from ${JSON.stringify(import.meta.resolve('react'))}`)
+  .replace(/from (["'])\.\.\/lib\/marketColorMode\.js\1/g, `from ${JSON.stringify(new URL('../src/lib/marketColorMode.js', import.meta.url).href)}`));
 const card = await transformWithOxc(read('src/components/ActionModalCard.jsx'), 'ActionModalCard.jsx', { jsx: { runtime: 'classic' } });
 const cardUrl = dataUrl(card.code.replace(/from (["'])(react|lucide-react)\1/g, (_match, _quote, name) => `from ${JSON.stringify(import.meta.resolve(name))}`));
 const transformed = await transformWithOxc(source, 'PortfolioOverlapPage.jsx', { jsx: { runtime: 'classic' } });

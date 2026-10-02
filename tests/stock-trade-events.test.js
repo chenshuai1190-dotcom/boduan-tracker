@@ -98,7 +98,7 @@ test('missing numeric facts remain unavailable, including incomplete aggregated 
 });
 
 test('default buy and sell markers use green and orange and respect the opposite market color preference', () => {
-  for (const [mode, colors] of [[undefined, ['#ff4b1f', '#22c55e']], [MARKET_COLOR_MODES.GREEN_UP_RED_DOWN, ['#22c55e', '#ff4b1f']]]) {
+  for (const [mode, colors] of [[undefined, ['#ff4b1f', '#34d399']], [MARKET_COLOR_MODES.GREEN_UP_RED_DOWN, ['#34d399', '#ff4b1f']]]) {
     const render = harness({ records: [buy, sell], marketColorMode: mode });
     assert.deepEqual(nodes(render(), node => node.props.className === 'ste-marker').map(node => node.props.style.color), colors);
   }

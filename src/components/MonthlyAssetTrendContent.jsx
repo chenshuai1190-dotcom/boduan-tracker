@@ -5,6 +5,7 @@ import MonthlyAssetTrendChart, {
   buildMonthlyAssetTrendChartScale,
 } from './MonthlyAssetTrendChart.jsx';
 import { t } from '../lib/i18n.js';
+import { marketTextHexColor } from '../lib/marketColorMode.js';
 import {
   buildMonthlyAssetTrend,
   DEFAULT_COLLAPSED_MONTH_COUNT,
@@ -12,8 +13,6 @@ import {
 } from '../lib/monthlyAssetTrend.js';
 
 const NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif';
-const UP_COLOR = '#ff4b1f';
-const DOWN_COLOR = '#50d0a2';
 
 function formatNumber(value, digits = 1) {
   if (!Number.isFinite(value)) return '--';
@@ -58,6 +57,7 @@ function formatSignedPercent(value) {
 }
 
 export default function MonthlyAssetTrendContent({
+  marketColorMode = 'redUpGreenDown',
   language = 'zh',
   currency = 'CNY',
   months = [],
@@ -116,7 +116,7 @@ export default function MonthlyAssetTrendContent({
 
   const currentSlot = chartModel.currentSlot;
   const comparison = currentSlot?.hasPreviousMonth ? currentSlot : null;
-  const comparisonTone = comparison && comparison.changeAmount >= 0 ? UP_COLOR : DOWN_COLOR;
+  const comparisonTone = marketTextHexColor(comparison?.changeAmount, marketColorMode);
   const primaryMoney = formatPrimaryMoney(currentSlot?.balance, language, currency);
 
   const selectNearestPoint = React.useCallback((event) => {
@@ -233,10 +233,10 @@ export default function MonthlyAssetTrendContent({
         <div className="min-w-0 px-3">
           <div className="text-[10px] leading-none text-white/[0.50]">{tt('analysis.twelveMonthAssetChange', '近 12 月资产变化')}</div>
           <div className="mt-[8px] flex items-baseline gap-2 whitespace-nowrap">
-            <span className="text-[16px] tabular-nums" style={{ color: Number.isFinite(chartModel.windowChangeAmount) ? (chartModel.windowChangeAmount >= 0 ? UP_COLOR : DOWN_COLOR) : 'rgba(255,255,255,.28)', fontFamily: NUMBER_FONT }}>
+            <span className="text-[16px] tabular-nums" style={{ color: Number.isFinite(chartModel.windowChangeAmount) ? marketTextHexColor(chartModel.windowChangeAmount, marketColorMode) : 'rgba(255,255,255,.28)', fontFamily: NUMBER_FONT }}>
               {formatSignedAmount(chartModel.windowChangeAmount, language)}
             </span>
-            <span className="text-[11px] tabular-nums" style={{ color: Number.isFinite(chartModel.windowChangePct) ? (chartModel.windowChangePct >= 0 ? UP_COLOR : DOWN_COLOR) : 'rgba(255,255,255,.28)', fontFamily: NUMBER_FONT }}>
+            <span className="text-[11px] tabular-nums" style={{ color: Number.isFinite(chartModel.windowChangePct) ? marketTextHexColor(chartModel.windowChangePct, marketColorMode) : 'rgba(255,255,255,.28)', fontFamily: NUMBER_FONT }}>
               {formatSignedPercent(chartModel.windowChangePct)}
             </span>
           </div>
@@ -292,7 +292,7 @@ export default function MonthlyAssetTrendContent({
 
         <div>
           {visibleSlots.map((slot) => {
-            const tone = slot.changeAmount >= 0 ? UP_COLOR : DOWN_COLOR;
+            const tone = marketTextHexColor(slot.changeAmount, marketColorMode);
             return (
               <button
                 type="button"

@@ -14,6 +14,7 @@ import StockLogo, { stockLogoCandidates } from '../components/StockLogo.jsx';
 import './WaveTrackerPage.css';
 import './WaveTrackerDialogs.css';
 import { t } from '../lib/i18n.js';
+import { marketTextHexColor } from '../lib/marketColorMode.js';
 import { normalizeStrictUserStockSymbol } from '../lib/symbols.js';
 import { userScopedStorageKey } from '../lib/userScopedStorage.js';
 import {
@@ -25,8 +26,7 @@ import {
 
 const PAGE_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif';
 const NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif';
-const PROFIT = '#ff4b1f';
-const LOSS = '#36c49a';
+const VALIDATION_COLOR = '#ff4b1f';
 const FALLBACK_USD_CNY_RATE = 7.2;
 const EXPANDED_STATE_STORAGE_KEY = 'boduan_wave_tracker_expanded_v1';
 const FILTER_KEYS = ['all', 'active', 'completed'];
@@ -81,9 +81,9 @@ function formatPct(value) {
   return `${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%`;
 }
 
-function tone(value) {
-  if (value == null || !Number.isFinite(Number(value)) || Number(value) === 0) return 'rgba(255,255,255,0.5)';
-  return Number(value) > 0 ? PROFIT : LOSS;
+function tone(value, marketColorMode = 'redUpGreenDown') {
+  if (value == null || !Number.isFinite(Number(value)) || Number(value) === 0) return '#85858d';
+  return marketTextHexColor(Number(value), marketColorMode);
 }
 
 function shortDate(value) {
@@ -162,11 +162,11 @@ function setExpandedMemory(current, filterKey, symbol, expanded) {
 
 function statusAccent(status, value) {
   if (status === 'completed' || value == null || Number(value) === 0) return 'gray';
-  return Number(value) > 0 ? 'red' : 'green';
+  return Number(value) > 0 ? 'gain' : 'loss';
 }
 
-function StatusDot({ accent = 'gray' }) {
-  const color = accent === 'gray' ? '#8d949d' : accent === 'green' ? LOSS : PROFIT;
+function StatusDot({ accent = 'gray', marketColorMode = 'redUpGreenDown' }) {
+  const color = accent === 'gray' ? '#8d949d' : marketTextHexColor(accent === 'gain' ? 1 : -1, marketColorMode);
   return (
     <span
       className="wave-status-dot"
@@ -270,7 +270,7 @@ function ModalStockHeader({ group, wave, sideLabel, logoCache, cacheStockLogo })
   );
 }
 
-function WaveRow({ group, wave, onAction, tt, displayRate, displayCurrency }) {
+function WaveRow({ group, wave, onAction, tt, displayRate, displayCurrency, marketColorMode = 'redUpGreenDown' }) {
   const isActive = wave.status === 'active';
   const displayPnl = wave.pnlUsd == null ? null : wave.pnlUsd * displayRate;
   return (
@@ -284,13 +284,13 @@ function WaveRow({ group, wave, onAction, tt, displayRate, displayCurrency }) {
         <div className="wave-record-identity">
           <span className="wave-record-label">{waveLabel(wave, tt)}</span>
           <span className="wave-record-status">
-            <StatusDot accent={statusAccent(wave.status, wave.returnPct)} />
+            <StatusDot accent={statusAccent(wave.status, wave.returnPct)} marketColorMode={marketColorMode} />
             {isActive ? tt('trades.active', '进行中') : tt('trades.completed', '已完成')}
           </span>
         </div>
-        <div className="wave-record-profit" style={{ color: tone(displayPnl) }}>
+        <div className="wave-record-profit" style={{ color: tone(displayPnl, marketColorMode) }}>
           <span>{formatPnl(displayPnl, displayCurrency, 2)}</span>
-          <span className="wave-record-return" style={{ color: tone(wave.returnPct) }}>{formatPct(wave.returnPct)}</span>
+          <span className="wave-record-return" style={{ color: tone(wave.returnPct, marketColorMode) }}>{formatPct(wave.returnPct)}</span>
         </div>
       </div>
 
@@ -301,7 +301,7 @@ function WaveRow({ group, wave, onAction, tt, displayRate, displayCurrency }) {
       </div>
       <div className="wave-record-metrics">
         <Metric label={tt('swing.buyAverage', '买入均价')} value={formatUsdPrice(wave.buyPriceUsd)} />
-        <Metric label={isActive ? tt('swing.currentPrice', '现价') : tt('swing.sellAverage', '卖出均价')} value={formatUsdPrice(isActive ? wave.currentPriceUsd : wave.sellPriceUsd)} valueColor={tone(wave.returnPct)} />
+        <Metric label={isActive ? tt('swing.currentPrice', '现价') : tt('swing.sellAverage', '卖出均价')} value={formatUsdPrice(isActive ? wave.currentPriceUsd : wave.sellPriceUsd)} valueColor={tone(wave.returnPct, marketColorMode)} />
         <Metric label={isActive ? tt('swing.heldShares', '持有') : tt('swing.soldShares', '卖出')} value={tt('swing.sharesValue', '{{shares}} 股', { shares: formatShares(wave.shares) })} align="right" />
       </div>
 
@@ -314,7 +314,7 @@ function WaveRow({ group, wave, onAction, tt, displayRate, displayCurrency }) {
   );
 }
 
-function StockCard({ group, expanded, filter, onToggle, onAction, tt, displayRate, displayCurrency, logoCache, cacheStockLogo, todayKey }) {
+function StockCard({ group, expanded, filter, onToggle, onAction, tt, displayRate, displayCurrency, logoCache, cacheStockLogo, todayKey, marketColorMode = 'redUpGreenDown' }) {
   const summary = summarizeSwingWaveGroup(group, filter, todayKey);
   const isActive = summary.status === 'active';
   const displayPnl = summary.performancePnlUsd == null ? null : summary.performancePnlUsd * displayRate;
@@ -334,10 +334,10 @@ function StockCard({ group, expanded, filter, onToggle, onAction, tt, displayRat
           </div>
           <div className="wave-stock-performance">
             <div>
-              <div className="wave-stock-pnl" style={{ color: tone(displayPnl), fontFamily: NUMBER_FONT }}>
+              <div className="wave-stock-pnl" style={{ color: tone(displayPnl, marketColorMode), fontFamily: NUMBER_FONT }}>
                 {formatPnl(displayPnl, displayCurrency, 2)}
               </div>
-              <div className="wave-stock-return"><span>{pnlLabel}</span><span style={{ color: tone(summary.performanceReturnPct) }}>{formatPct(summary.performanceReturnPct)}</span></div>
+              <div className="wave-stock-return"><span>{pnlLabel}</span><span style={{ color: tone(summary.performanceReturnPct, marketColorMode) }}>{formatPct(summary.performanceReturnPct)}</span></div>
             </div>
             {expanded ? <ChevronUp className="h-4 w-4 text-white/[0.68]" /> : <ChevronRight className="h-4 w-4 text-white/[0.48]" />}
           </div>
@@ -346,7 +346,7 @@ function StockCard({ group, expanded, filter, onToggle, onAction, tt, displayRat
         <div className="wave-stock-metrics">
           <Metric label={isActive ? (expanded ? tt('swing.totalHeld', '总持仓') : tt('swing.position', '持仓')) : tt('swing.soldShares', '卖出')} value={tt('swing.sharesValue', '{{shares}} 股', { shares: formatShares(summary.shares) })} />
           <Metric label={expanded ? tt('swing.average', '均价') : tt('swing.buyAverage', '买入均价')} value={formatUsdPrice(summary.averageBuyPriceUsd)} />
-          <Metric label={isActive ? tt('swing.latestPrice', '最新价') : tt('swing.sellAverage', '卖出均价')} value={formatUsdPrice(summary.referencePriceUsd)} valueColor={tone(summary.performanceReturnPct)} align="right" />
+          <Metric label={isActive ? tt('swing.latestPrice', '最新价') : tt('swing.sellAverage', '卖出均价')} value={formatUsdPrice(summary.referencePriceUsd)} valueColor={tone(summary.performanceReturnPct, marketColorMode)} align="right" />
         </div>
         {!expanded ? <div className="wave-stock-date">
           {isActive
@@ -358,7 +358,7 @@ function StockCard({ group, expanded, filter, onToggle, onAction, tt, displayRat
       {expanded ? (
         <div className="wave-records">
           {summary.visibleWaves.map((wave) => (
-            <WaveRow key={wave.id} group={group} wave={wave} onAction={onAction} tt={tt} displayRate={displayRate} displayCurrency={displayCurrency} />
+            <WaveRow key={wave.id} group={group} wave={wave} onAction={onAction} tt={tt} displayRate={displayRate} displayCurrency={displayCurrency} marketColorMode={marketColorMode} />
           ))}
         </div>
       ) : null}
@@ -366,7 +366,7 @@ function StockCard({ group, expanded, filter, onToggle, onAction, tt, displayRat
   );
 }
 
-export default function WaveTrackerPage({ ctx = {}, fetchSwingWaveRealtimeSnapshot }) {
+export default function WaveTrackerPage({ ctx = {}, fetchSwingWaveRealtimeSnapshot, marketColorMode = ctx.marketColorMode ?? 'redUpGreenDown' }) {
   const {
     cacheStockLogo,
     closeWaveTracker,
@@ -851,7 +851,7 @@ export default function WaveTrackerPage({ ctx = {}, fetchSwingWaveRealtimeSnapsh
             <span>{tt('swing.cumulativePnl', '累计盈亏')}</span>
             <span>{displayCurrency}</span>
           </div>
-          <div className="wave-hero-value" style={{ color: tone(loading || loadError ? null : cumulativeDisplayPnl), fontFamily: NUMBER_FONT }}>
+          <div className="wave-hero-value" style={{ color: tone(loading || loadError ? null : cumulativeDisplayPnl, marketColorMode), fontFamily: NUMBER_FONT }}>
             {formatPnl(loading || loadError ? null : cumulativeDisplayPnl, displayCurrency, 2)}
           </div>
           <div className="wave-hero-stats">
@@ -910,6 +910,7 @@ export default function WaveTrackerPage({ ctx = {}, fetchSwingWaveRealtimeSnapsh
               logoCache={logoCache}
               cacheStockLogo={cacheStockLogo}
               todayKey={todayKey}
+              marketColorMode={marketColorMode}
             />
           ))}
         </section>
@@ -984,7 +985,7 @@ export default function WaveTrackerPage({ ctx = {}, fetchSwingWaveRealtimeSnapsh
               <div className="wave-dialog-current-metrics">
                 <div>
                   <div className="wave-dialog-metric-label">{tt('swing.currentPnl', '当前收益')}</div>
-                  <div className="wave-dialog-metric-value" style={{ color: tone(selection.wave.pnlUsd), fontFamily: NUMBER_FONT }}>
+                  <div className="wave-dialog-metric-value" style={{ color: tone(selection.wave.pnlUsd, marketColorMode), fontFamily: NUMBER_FONT }}>
                     {formatPnl(selection.wave.pnlUsd == null ? null : selection.wave.pnlUsd * displayRate, displayCurrency)}
                   </div>
                 </div>
@@ -994,7 +995,7 @@ export default function WaveTrackerPage({ ctx = {}, fetchSwingWaveRealtimeSnapsh
                 </div>
                 <div>
                   <div className="wave-dialog-metric-label">{tt('swing.unrealized', '浮盈')}</div>
-                  <div className="wave-dialog-metric-value" style={{ color: tone(selection.wave.returnPct), fontFamily: NUMBER_FONT }}>{formatPct(selection.wave.returnPct)}</div>
+                  <div className="wave-dialog-metric-value" style={{ color: tone(selection.wave.returnPct, marketColorMode), fontFamily: NUMBER_FONT }}>{formatPct(selection.wave.returnPct)}</div>
                 </div>
               </div>
 
@@ -1043,14 +1044,14 @@ export default function WaveTrackerPage({ ctx = {}, fetchSwingWaveRealtimeSnapsh
               <div className="wave-dialog-forecast-result">
                 <div className="wave-dialog-metric-label">{tt('swing.forecastPnl', '预计收益')}</div>
                 <div className="wave-dialog-result-values">
-                  <div className="wave-dialog-result-amount" style={{ color: tone(forecast.forecastPnlUsd), fontFamily: NUMBER_FONT }}>
+                  <div className="wave-dialog-result-amount" style={{ color: tone(forecast.forecastPnlUsd, marketColorMode), fontFamily: NUMBER_FONT }}>
                     {formatPnl(forecast.forecastPnlUsd == null ? null : forecast.forecastPnlUsd * displayRate, displayCurrency, 2)}
                   </div>
-                  <div className="wave-dialog-result-percent" style={{ color: tone(forecast.forecastReturnPct), fontFamily: NUMBER_FONT }}>{formatPct(forecast.forecastReturnPct)}</div>
+                  <div className="wave-dialog-result-percent" style={{ color: tone(forecast.forecastReturnPct, marketColorMode), fontFamily: NUMBER_FONT }}>{formatPct(forecast.forecastReturnPct)}</div>
                 </div>
                 <div className="wave-dialog-forecast-track" aria-hidden="true">
-                  <div className="wave-dialog-forecast-fill" style={{ width: `${forecast.progressPct * 100}%`, backgroundColor: tone(forecast.forecastPnlUsd) }} />
-                  <span className="wave-dialog-forecast-thumb" style={{ left: `${2 + forecast.progressPct * 96}%`, borderColor: tone(forecast.forecastPnlUsd) }} />
+                  <div className="wave-dialog-forecast-fill" style={{ width: `${forecast.progressPct * 100}%`, backgroundColor: tone(forecast.forecastPnlUsd, marketColorMode) }} />
+                  <span className="wave-dialog-forecast-thumb" style={{ left: `${2 + forecast.progressPct * 96}%`, borderColor: tone(forecast.forecastPnlUsd, marketColorMode) }} />
                 </div>
                 <div className="wave-dialog-forecast-endpoints" style={{ fontFamily: NUMBER_FONT }}>
                   <span>{formatUsdPrice(selection.wave.buyPriceUsd)} {tt('swing.forecastCost', '成本价')}</span>
@@ -1061,9 +1062,9 @@ export default function WaveTrackerPage({ ctx = {}, fetchSwingWaveRealtimeSnapsh
           ) : (
             <>
               <div className="wave-dialog-metrics wave-dialog-completed-metrics">
-                <Metric label={tt('swing.returnRate', '收益率')} value={formatPct(selection.wave.returnPct)} valueColor={tone(selection.wave.returnPct)} />
-                <Metric label={tt('swing.sellPrice', '卖出价')} value={formatUsdPrice(selection.wave.exitPriceUsd)} valueColor={tone(selection.wave.returnPct)} />
-                <Metric label={tt('swing.realized', '已实现')} value={formatPnl(selection.wave.pnlUsd == null ? null : selection.wave.pnlUsd * displayRate, displayCurrency)} valueColor={tone(selection.wave.pnlUsd)} align="right" />
+                <Metric label={tt('swing.returnRate', '收益率')} value={formatPct(selection.wave.returnPct)} valueColor={tone(selection.wave.returnPct, marketColorMode)} />
+                <Metric label={tt('swing.sellPrice', '卖出价')} value={formatUsdPrice(selection.wave.exitPriceUsd)} valueColor={tone(selection.wave.returnPct, marketColorMode)} />
+                <Metric label={tt('swing.realized', '已实现')} value={formatPnl(selection.wave.pnlUsd == null ? null : selection.wave.pnlUsd * displayRate, displayCurrency)} valueColor={tone(selection.wave.pnlUsd, marketColorMode)} align="right" />
               </div>
               <div className="wave-dialog-note">
                 <FileText className="mt-0.5 h-3.5 w-3.5 shrink-0" />
@@ -1083,8 +1084,8 @@ export default function WaveTrackerPage({ ctx = {}, fetchSwingWaveRealtimeSnapsh
           <div className="wave-dialog-metrics wave-dialog-detail-metrics">
             <Metric label={tt('swing.buyCost', '买入成本价')} value={formatUsdPrice(selection.wave.buyPriceUsd)} />
             <Metric label={selection.wave.status === 'active' ? tt('swing.remainingSharesLabel', '剩余数量') : tt('swing.thisSellShares', '本次卖出')} value={tt('swing.sharesValue', '{{shares}} 股', { shares: formatShares(selection.wave.shares) })} align="right" />
-            <Metric label={selection.wave.status === 'active' ? tt('swing.currentPrice', '当前价') : tt('swing.sellPrice', '卖出价')} value={formatUsdPrice(selection.wave.exitPriceUsd)} valueColor={tone(selection.wave.returnPct)} />
-            <Metric label={selection.wave.status === 'active' ? tt('swing.floatingPnl', '浮动盈亏') : tt('swing.realizedPnl', '已实现盈亏')} value={formatPnl(selection.wave.pnlUsd == null ? null : selection.wave.pnlUsd * displayRate, displayCurrency)} valueColor={tone(selection.wave.pnlUsd)} align="right" />
+            <Metric label={selection.wave.status === 'active' ? tt('swing.currentPrice', '当前价') : tt('swing.sellPrice', '卖出价')} value={formatUsdPrice(selection.wave.exitPriceUsd)} valueColor={tone(selection.wave.returnPct, marketColorMode)} />
+            <Metric label={selection.wave.status === 'active' ? tt('swing.floatingPnl', '浮动盈亏') : tt('swing.realizedPnl', '已实现盈亏')} value={formatPnl(selection.wave.pnlUsd == null ? null : selection.wave.pnlUsd * displayRate, displayCurrency)} valueColor={tone(selection.wave.pnlUsd, marketColorMode)} align="right" />
           </div>
           <div className="wave-dialog-note">
             <FileText className="mt-0.5 h-3.5 w-3.5 shrink-0" />
@@ -1114,7 +1115,7 @@ export default function WaveTrackerPage({ ctx = {}, fetchSwingWaveRealtimeSnapsh
                     <FormField label={tt('swing.sellQuantity', '卖出数量')} value={draft.sellShares || ''} onChange={(event) => setDraft((current) => ({ ...current, sellShares: event.target.value }))} inputMode="decimal" />
                   </div>
                   <FormField label={tt('swing.sellDate', '卖出日期')} type="date" min={selection.wave.buyDate} value={draft.endDate || ''} onChange={(event) => setDraft((current) => ({ ...current, endDate: event.target.value }))} />
-                  {positive(draft.sellShares) > editableExitMaxShares + 1e-9 ? <div className="wave-dialog-validation" style={{ color: PROFIT }}>{tt('swing.editSellExceeds', '卖出数量最多可调整为 {{shares}} 股', { shares: formatShares(editableExitMaxShares) })}</div> : null}
+                  {positive(draft.sellShares) > editableExitMaxShares + 1e-9 ? <div className="wave-dialog-validation" style={{ color: VALIDATION_COLOR }}>{tt('swing.editSellExceeds', '卖出数量最多可调整为 {{shares}} 股', { shares: formatShares(editableExitMaxShares) })}</div> : null}
                 </>
               ) : (
                 <>
@@ -1146,9 +1147,9 @@ export default function WaveTrackerPage({ ctx = {}, fetchSwingWaveRealtimeSnapsh
                 <FormField label={tt('swing.sellQuantity', '卖出数量')} value={draft.sellShares || ''} onChange={(event) => setDraft((current) => ({ ...current, sellShares: event.target.value }))} inputMode="decimal" placeholder="0" />
               </div>
               <FormField label={tt('swing.sellDate', '卖出日期')} type="date" min={selection.wave.buyDate} value={draft.endDate || ''} onChange={(event) => setDraft((current) => ({ ...current, endDate: event.target.value }))} />
-              {draft.endDate && draft.endDate < selection.wave.buyDate ? <div className="wave-dialog-validation" style={{ color: PROFIT }}>{tt('swing.endBeforeStart', '结束日期不能早于开始日期')}</div> : null}
+              {draft.endDate && draft.endDate < selection.wave.buyDate ? <div className="wave-dialog-validation" style={{ color: VALIDATION_COLOR }}>{tt('swing.endBeforeStart', '结束日期不能早于开始日期')}</div> : null}
               {sellShares > remainingShares + 1e-9 ? (
-                <div className="wave-dialog-validation" style={{ color: PROFIT }}>{tt('swing.sellExceedsRemaining', '卖出数量不能超过剩余 {{shares}} 股', { shares: formatShares(remainingShares) })}</div>
+                <div className="wave-dialog-validation" style={{ color: VALIDATION_COLOR }}>{tt('swing.sellExceedsRemaining', '卖出数量不能超过剩余 {{shares}} 股', { shares: formatShares(remainingShares) })}</div>
               ) : sellSharesValid ? (
                 <div className="wave-dialog-validation">
                   {remainingAfterSell > 1e-9

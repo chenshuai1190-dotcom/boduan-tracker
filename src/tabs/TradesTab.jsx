@@ -1210,7 +1210,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                     <button
                       type="button"
                       onClick={() => openWaveTradeModal(group.symbol, group.name)}
-                      className="min-w-0 text-left active:opacity-75"
+                      className="min-w-0 rounded-md text-left active:bg-white/[0.035]"
                       title={tt('trades.addSymbolWaveTrade', '添加 {{symbol}} 波段交易', { symbol: group.symbol })}
                     >
                       <div className="text-[16px] font-normal leading-tight tabular-nums text-white" style={{ fontFamily: TRADE_NUMBER_FONT }}>
@@ -1389,7 +1389,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                       <button
                         type="button"
                         onClick={() => openWaveTradeModal(group.symbol, group.name)}
-                        className="min-w-0 text-left active:opacity-75"
+                        className="min-w-0 rounded-md text-left active:bg-white/[0.035]"
                         title={tt('trades.addSymbolWaveTrade', '添加 {{symbol}} 波段交易', { symbol: group.symbol })}
                       >
                         <div className="text-[16px] font-normal leading-tight tabular-nums text-white" style={{ fontFamily: TRADE_NUMBER_FONT }}>

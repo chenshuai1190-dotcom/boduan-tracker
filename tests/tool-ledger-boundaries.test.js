@@ -423,7 +423,7 @@ test('community competition is an isolated authenticated close-snapshot utility'
   assert.equal(communityCompetitionPageSource.includes('bg-[#0c1118]/95'), false, 'competition statistics should not retain the old blue-tinted background');
   assert.equal(communityCompetitionPageSource.includes('bg-[linear-gradient(145deg,rgba(16,21,29,0.96),rgba(9,13,20,0.98))]'), false, 'competition rank header should not retain the old blue-gray gradient');
   assert.equal(communityCompetitionPageSource.includes('<TrendChart self={trend.self} benchmark={trend.benchmark} />'), false, 'the empty hero trend region should stay removed');
-  assert.ok(communityCompetitionPageSource.includes('<TrendChart benchmark={trend.benchmark} compact />'), 'the lower QQQ benchmark trend should remain intact');
+  assert.ok(communityCompetitionPageSource.includes('<TrendChart benchmark={trend.benchmark} compact marketColorMode={marketColorMode} />'), 'the lower QQQ benchmark trend should remain intact');
   assert.ok(communityCompetitionPageSource.includes('normalizeTrendPoints'), 'charts should be derived from API trend points');
   assert.equal(communityCompetitionPageSource.includes('C18 58'), false, 'production page must not preserve a fixed decorative sparkline path');
   assert.ok(communityCompetitionPageSource.includes("tt('competition.nasdaq100', 'QQQ 基准')"), 'competition UI should identify the actual QQQ benchmark without truncating the label');
@@ -1878,8 +1878,8 @@ test('QQQ and TQQQ stay English in the shared stock-name fallback', () => {
 });
 
 test('asset module redesign keeps database logic while removing legacy controls', () => {
-  assert.ok(analysisTabSource.includes("import { marketHexColor } from '../lib/marketColorMode.js';"), 'asset page should reuse the home market color helper');
-  assert.ok(analysisTabSource.includes('marketHexColor(item.value, marketColorMode)'), 'asset changes should respect the selected market color convention');
+  assert.ok(analysisTabSource.includes("import { marketTextHexColor } from '../lib/marketColorMode.js';"), 'asset page should reuse the home market color helper');
+  assert.ok(analysisTabSource.includes('marketTextHexColor(item.value, marketColorMode)'), 'asset changes should respect the selected market color convention');
   assert.equal(analysisTabSource.includes("const ASSET_PINK = '#f56f98';"), false, 'asset page should not keep the old mismatched pink accent');
   assert.ok(analysisTabSource.includes("import './AnalysisTab.css';") && analysisTabSource.includes('className="asset-report"'), 'asset overview should opt into its scoped continuous report');
   assert.match(analysisTabCss, /\.asset-report\s*\{[^}]*color:\s*#e4e4e7;/, 'asset overview should share the neutral report palette');

@@ -26,7 +26,7 @@ import { splitCurrencyAmount } from '../lib/amountDisplay.js';
 import { assetCurrencyPrefix, convertAssetDisplayAmount } from '../lib/assetCurrencyDisplay.js';
 import { localMonthKey, shiftMonthKey } from '../lib/calendarMonth.js';
 import { t } from '../lib/i18n.js';
-import { marketHexColor } from '../lib/marketColorMode.js';
+import { marketTextHexColor } from '../lib/marketColorMode.js';
 import { buildMonthlyAssetAccountReport } from '../lib/monthlyAssetCategoryReport.js';
 import { buildMonthlyAssetTrend } from '../lib/monthlyAssetTrend.js';
 import './AnalysisTab.css';
@@ -759,6 +759,7 @@ function AnalysisTab({ ctx }) {
 
       <MonthlyAssetTrendContent
         language={language}
+        marketColorMode={marketColorMode}
         currency={displayCurrency}
         months={last12Months}
         values={displayChartData}
@@ -800,6 +801,7 @@ function AnalysisTab({ ctx }) {
 
       <MonthlyAssetCategoryReport
         language={language}
+        marketColorMode={marketColorMode}
         report={assetCategoryReport}
         currency={displayCurrency}
         usdRate={usdRate}
@@ -834,7 +836,7 @@ function AnalysisTab({ ctx }) {
             <div key={item.label} className="asset-report-metric">
               <div className="asset-report-label">{item.label}</div>
               {item.enabled ? (
-                <div style={{ color: marketHexColor(item.value, marketColorMode), fontFamily: ASSET_NUMBER_FONT }}>
+                <div style={{ color: marketTextHexColor(item.value, marketColorMode), fontFamily: ASSET_NUMBER_FONT }}>
                   <div className="asset-report-metric-value">{fmtSignedWan(item.value)}</div>
                   <div className="asset-report-metric-percent">{fmtSignedPct(item.pct)}</div>
                 </div>
@@ -870,7 +872,7 @@ function AnalysisTab({ ctx }) {
               <div className="asset-report-chart-change" style={{ fontFamily: ASSET_NUMBER_FONT }}>
                 <span className="asset-report-label">{tt('analysis.vsLastMonth', '较上月')}</span>
                 {Number.isFinite(selectedChartChange) ? (
-                  <span className="asset-report-chart-change-values" style={{ color: marketHexColor(selectedChartChange, marketColorMode) }}>
+                  <span className="asset-report-chart-change-values" style={{ color: marketTextHexColor(selectedChartChange, marketColorMode) }}>
                     <span className="asset-report-chart-change-amount">
                       <span>{selectedChartChange >= 0 ? '+' : '-'}{selectedChartChangeMoney.main}</span><span className="asset-report-chart-change-decimal">{selectedChartChangeMoney.decimal}</span>
                     </span>

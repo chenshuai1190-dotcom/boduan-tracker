@@ -222,6 +222,43 @@ test('overview chart and nested monthly reports receive consistent displayed val
   assert.equal(view.writes(), 0);
 });
 
+test('both market conventions flow through monthly asset navigation and keep amount and rate colors paired', () => {
+  for (const direction of [1, -1]) {
+    for (const marketColorMode of ['redUpGreenDown', 'greenUpRedDown']) {
+      const green = (direction > 0) === (marketColorMode === 'greenUpRedDown');
+      const expectedColor = green ? '#34d399' : '#ff4b1f';
+      const view = mount({
+        marketColorMode,
+        snapshots: direction > 0 ? snapshots : snapshots.map(snapshot => (
+          snapshot.month === currentMonth ? { ...snapshot, balance: snapshot.balance / 4 } : snapshot
+        )),
+      });
+      let tree = view.render();
+      const metric = nodes(tree, node => node.props.className === 'asset-report-metric')[0];
+      assert.equal(nodes(metric, node => node.props.style?.color)[0].props.style.color, expectedColor);
+
+      nodes(tree, node => node.type === 'button' && text(node) === '月度明细')[0].props.onClick();
+      tree = view.render();
+      const trend = nodes(tree, node => node.type === MonthlyAssetTrendContent)[0];
+      assert.equal(trend.props.marketColorMode, marketColorMode);
+      const trendMarkup = renderToStaticMarkup(trend);
+      const monthRow = trendMarkup.match(new RegExp(`data-asset-trend-month-row="${currentMonth}"[\\s\\S]*?</button>`))?.[0];
+      assert.ok(monthRow, 'the current month stays navigable in the real monthly report');
+      assert.equal(monthRow.split(`color:${expectedColor}`).length - 1, 2, 'monthly amount and percentage share the full market color');
+
+      trend.props.onOpenMonthReport(currentMonth);
+      tree = view.render();
+      const report = nodes(tree, node => node.type === MonthlyAssetCategoryReport)[0];
+      assert.equal(report.props.marketColorMode, marketColorMode);
+      const reportMarkup = renderToStaticMarkup(report);
+      assert.ok(reportMarkup.includes(`class="text-[12px] font-medium" style="color:${expectedColor}"`));
+      assert.ok(reportMarkup.includes(`class="mt-0.5 text-[10px]" style="color:${expectedColor}"><span>`), 'ordinary account percentage inherits the same opaque color as the change amount');
+      assert.doesNotMatch(reportMarkup, /class="mt-0.5 text-\[10px\] text-white\/\[0\.48\]"/);
+      assert.equal(view.writes(), 0);
+    }
+  }
+});
+
 test('shared display currency does not rewrite native account balances, trends or monthly inputs', () => {
   const before = structuredClone({ accounts, snapshots });
   const view = mount({ portfolioCurrencyMode: 'USD' });

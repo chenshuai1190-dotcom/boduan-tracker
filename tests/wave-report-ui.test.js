@@ -60,7 +60,7 @@ test('wave report owns a neutral responsive surface and safe-area spacing', () =
   assert.doesNotMatch(page + css + dialogs, /#f6b54b|#ffd18a|#f6bd61|#f5bd62|#1a2530|#05080d|#111720|linear-gradient|radial-gradient|box-shadow/);
   assert.doesNotMatch(css + dialogs, /(?:^|[}\n])\s*(?:html|body|#root|nav)\s*\{/, 'wave styles must not recolor other modules');
   assert.equal(tone(1), '#ff4b1f');
-  assert.equal(tone(-1), '#36c49a');
+  assert.equal(tone(-1), '#34d399');
   assert.equal(tone(null), tone(0), 'unavailable and flat values retain a neutral color');
 });
 
@@ -176,4 +176,28 @@ test('simplified dialog footers retain close controls and guarded mutation callb
   }
   for (const callback of ['openDetail(selection.wave)', 'openEdit(selection.wave)', "openEdit(selection.wave, 'parent')", 'openSell(selection.wave)', 'onClick: confirmDelete', 'onClick: confirmDeleteWholeWave, disabled: submitting']) assert.ok(page.includes(callback));
   assert.ok(page.includes('if (submittingRef.current) return;') && page.includes('submittingRef.current = false;'), 'mutation deduplication remains in the shared action path');
+});
+
+test('wave gains, losses, percentages and active dots follow the market-color preference', () => {
+  for (const [marketColorMode, gain, loss] of [
+    ['redUpGreenDown', '#ff4b1f', '#34d399'], ['greenUpRedDown', '#34d399', '#ff4b1f'],
+  ]) {
+    assert.equal(tone(1, marketColorMode), gain);
+    assert.equal(tone(-1, marketColorMode), loss);
+    for (const [sign, color] of [[1, gain], [-1, loss]]) {
+      const html = renderToStaticMarkup(React.createElement(WaveRow, { ...rowProps({
+        ...activeWave, pnlUsd: sign * 50, returnPct: sign * .02,
+      }), marketColorMode }));
+      assert.match(html, new RegExp(`class="wave-record-profit" style="color:${color}"`));
+      assert.match(html, new RegExp(`class="wave-record-return" style="color:${color}"`));
+      assert.match(html, new RegExp(`class="wave-status-dot" style="background-color:${color}"`));
+      assert.match(html, sign > 0 ? /\+¥350\.00/ : /-¥350\.00/);
+      assert.match(html, sign > 0 ? /\+2\.0%/ : /-2\.0%/);
+      assert.doesNotMatch(html, /opacity:|opacity-/);
+    }
+    const completed = renderToStaticMarkup(React.createElement(WaveRow, {
+      ...rowProps({ ...activeWave, status: 'completed' }), marketColorMode,
+    }));
+    assert.match(completed, /class="wave-status-dot" style="background-color:#8d949d"/);
+  }
 });

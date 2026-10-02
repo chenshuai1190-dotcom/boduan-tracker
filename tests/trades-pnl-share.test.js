@@ -465,6 +465,7 @@ test('the renderer fixes the PNG canvas at 1200 by 1600 and ignores unknown priv
     'marketLabel',
     'metricLabel',
     'themeId',
+    'marketColorMode',
     'showAmount',
     'amountText',
     'currencyUnit',
@@ -510,7 +511,7 @@ test('the renderer fixes the PNG canvas at 1200 by 1600 and ignores unknown priv
   renderPnlShareCanvas(lossRecorder.canvas, lossInput);
   assert.deepEqual(lossRecorder.text.find(item => item.value === '-0.01'), {
     value: '-0.01',
-    color: '#36c49a',
+    color: '#34d399',
   });
   assert.deepEqual(lossRecorder.text.find(item => item.value === 'CNY'), {
     value: 'CNY',
@@ -522,9 +523,9 @@ test('the renderer fixes the PNG canvas at 1200 by 1600 and ignores unknown priv
   });
 });
 
-test('share-image tones use fixed red-up green-down colors and keep neutral values white', () => {
+test('share-image tones default to red-up green-down and keep neutral values white', () => {
   assert.equal(pnlShareToneColor('gain'), '#ff4b1f');
-  assert.equal(pnlShareToneColor('loss'), '#36c49a');
+  assert.equal(pnlShareToneColor('loss'), '#34d399');
   assert.equal(pnlShareToneColor('neutral'), '#e1e1e6');
   assert.equal(pnlShareToneColor('unknown'), '#e1e1e6');
 });
@@ -935,4 +936,33 @@ test('share-page system text is bilingual and visible CSS text never drops below
   ];
   assert.ok(cssPixelSizes.length > 0);
   assert.equal(cssPixelSizes.some(size => size < 10), false);
+});
+
+test('PNG gain and loss typography follows both market modes at full opacity', () => {
+  for (const [marketColorMode, gain, loss] of [
+    ['redUpGreenDown', '#ff4b1f', '#34d399'], ['greenUpRedDown', '#34d399', '#ff4b1f'],
+  ]) {
+    assert.equal(pnlShareToneColor('gain', marketColorMode), gain);
+    assert.equal(pnlShareToneColor('loss', marketColorMode), loss);
+    assert.equal(pnlShareToneColor('neutral', marketColorMode), '#e1e1e6');
+    for (const [tone, sign, expected] of [['gain', '+', gain], ['loss', '-', loss]]) {
+      const recorder = createCanvasRecorder();
+      const recordedAlpha = [];
+      const fillText = recorder.context.fillText;
+      recorder.context.globalAlpha = .4;
+      recorder.context.fillText = function (...args) {
+        if (args[0] === `${sign}100.00` || args[0] === `${sign}10.00%`) recordedAlpha.push(this.globalAlpha);
+        fillText.apply(this, args);
+      };
+      const model = renderPnlShareCanvas(recorder.canvas, {
+        amountText: `${sign}100.00`, percentText: `${sign}10.00%`, amountTone: tone, percentTone: tone, marketColorMode,
+      });
+      assert.equal(model.marketColorMode, marketColorMode);
+      assert.equal(recorder.text.find(item => item.value === `${sign}100.00`).color, expected);
+      assert.equal(recorder.text.find(item => item.value === `${sign}10.00%`).color, expected);
+      assert.deepEqual(recordedAlpha, [1, 1]);
+    }
+  }
+  assert.match(pageSource, /renderPnlShareCanvas\(canvas, \{[\s\S]*?marketColorMode,/);
+  assert.match(pageSource, /const renderKey = \[[\s\S]*?marketColorMode,/);
 });

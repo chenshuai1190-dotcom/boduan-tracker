@@ -43,5 +43,5 @@
 .annual-goal-plan .ag-row-gain { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 5px 14px; margin-top: 6px; color: #717179; font-size: 11px; line-height: 1.5; }
 .annual-goal-plan .ag-row-gain strong { color: #9999a0; font-size: 12px; font-weight: 400; overflow-wrap: anywhere; min-width: 0; }
 .annual-goal-plan button:focus-visible { outline: 1px solid #b5b5ba; outline-offset: 4px; border-radius: 6px; }
-.annual-goal-plan .ag-current-card:active, .annual-goal-plan .ag-year-row:active { opacity: .8; }
+.annual-goal-plan .ag-current-card:active, .annual-goal-plan .ag-year-row:active { background: rgb(255 255 255 / .035); }
 @media (max-width: 350px) { .annual-goal-plan .ag-current-card { padding-right: 0; padding-left: 0; } .annual-goal-plan .ag-gain { font-size: 25px; } .annual-goal-plan .ag-section-header { gap: 8px; } }

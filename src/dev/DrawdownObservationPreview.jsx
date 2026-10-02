@@ -15,7 +15,7 @@ function loadCapturedFixture() {
 
 // The default acceptance path uses captured real public prices; fictional prices
 // remain accessible only through an explicit DEV design fixture.
-export default function DrawdownObservationPreview({ onBack, initialSymbol = '' }) {
+export default function DrawdownObservationPreview({ onBack, initialSymbol = '', marketColorMode = 'redUpGreenDown' }) {
   const synthetic = import.meta.env.DEV && new URLSearchParams(window.location.search).get('drawdownData') === 'synthetic';
   const previewSource = React.useMemo(() => {
     return { initialSymbol, verifySession: async ({ userId }) => {
@@ -33,8 +33,8 @@ export default function DrawdownObservationPreview({ onBack, initialSymbol = '' 
     } };
   }, [initialSymbol]);
   if (!import.meta.env.DEV) return null;
-  if (synthetic) return <DrawdownObservation onBack={onBack} initialSymbol={initialSymbol} observations={DRAWDOWN_PREVIEW.instruments.map(item => deriveObservation(item, DRAWDOWN_PREVIEW.asOfDate))} demo vix={DRAWDOWN_PREVIEW.vix} />;
-  return <DrawdownObservationPage previewSource={previewSource} ctx={{ userId: 'dev-public-market-preview', closeDrawdownObservation: onBack,
+  if (synthetic) return <DrawdownObservation marketColorMode={marketColorMode} onBack={onBack} initialSymbol={initialSymbol} observations={DRAWDOWN_PREVIEW.instruments.map(item => deriveObservation(item, DRAWDOWN_PREVIEW.asOfDate))} demo vix={DRAWDOWN_PREVIEW.vix} />;
+  return <DrawdownObservationPage previewSource={previewSource} ctx={{ marketColorMode, userId: 'dev-public-market-preview', closeDrawdownObservation: onBack,
     watchlist: ['AAPL', 'MSFT', 'AMZN', 'GOOGL', 'META', 'NVDA', 'TSLA', 'AVGO'],
     positions: [{ symbol: 'NVDA', quantity: 1 }, { symbol: 'MSFT', quantity: 1 }, { symbol: 'META', quantity: 1 }, { symbol: 'AVGO', quantity: 1 }],
   }} />;

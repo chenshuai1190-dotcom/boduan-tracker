@@ -11,7 +11,7 @@ import {
 import { resolveHomeMarketDisplayMetrics } from '../lib/homeMarketDisplay.js';
 import { isEnglishLanguage, t } from '../lib/i18n.js';
 import { mergeIndexCardsWithPlaceholders } from '../lib/indexRealtime.js';
-import { marketHexColor, marketTextClass } from '../lib/marketColorMode.js';
+import { marketTextHexColor, marketTextClass } from '../lib/marketColorMode.js';
 import { POPULAR_US_STOCKS, POPULAR_US_STOCK_SYMBOLS } from '../lib/popularStocks.js';
 import { stockLogoCandidates } from '../lib/stockLogo.js';
 import { deriveHomeMarginOverview, homeMarginLeverageStatus, normalizeMarginDebtUsd } from '../lib/homeMarginRisk.js';
@@ -131,7 +131,7 @@ function pnlColor(value, mode) {
 }
 
 function marketColor(value, mode) {
-  return marketHexColor(value, mode);
+  return marketTextHexColor(value, mode);
 }
 
 function hasFiniteMarketValue(value) {
@@ -990,7 +990,7 @@ export default function HomeTab({ ctx }) {
                 type="button"
                 aria-label={t(language, 'home.closeBenchmarkSheet', '关闭当前回撤')}
                 onClick={() => setBenchmarkMenuOpen(false)}
-                className="absolute right-0 top-[-3px] flex h-9 w-9 items-center justify-center rounded-full bg-[#1b1c1e] text-[#98989f] active:opacity-70 focus-visible:outline focus-visible:outline-1 focus-visible:outline-white/60"
+                className="absolute right-0 top-[-3px] flex h-9 w-9 items-center justify-center rounded-full bg-[#1b1c1e] text-[#98989f] active:bg-[#252629] focus-visible:outline focus-visible:outline-1 focus-visible:outline-white/60"
               >
                 <X className="h-4 w-4" strokeWidth={1.7} />
               </button>
@@ -1018,7 +1018,7 @@ export default function HomeTab({ ctx }) {
                 type="button"
                 aria-label={t(language, 'home.sortDrawdown', '按回撤排序')}
                 onClick={() => setBenchmarkSortDirection((current) => nextHomeSignalBenchmarkSortDirection(current))}
-                className={`flex min-h-9 items-center gap-1.5 rounded-md px-1 active:opacity-70 focus-visible:outline focus-visible:outline-1 focus-visible:outline-white/60 ${benchmarkSortDirection ? 'text-white/80' : 'text-white/40'}`}
+                className={`flex min-h-9 items-center gap-1.5 rounded-md px-1 active:bg-white/[0.04] focus-visible:outline focus-visible:outline-1 focus-visible:outline-white/60 ${benchmarkSortDirection ? 'text-white/80' : 'text-white/40'}`}
               >
                 <span>{t(language, 'home.pullback', '回撤')}</span>
                 {benchmarkSortDirection === 'desc' ? <ArrowDown className="h-3 w-3" aria-hidden="true" />
@@ -1037,12 +1037,9 @@ export default function HomeTab({ ctx }) {
                 const drawdownLabel = row.drawdown === null || !Number.isFinite(Number(row.drawdown))
                   ? '--'
                   : `${(Number(row.drawdown) * 100).toFixed(1)}%`;
-                // Match the new observation page's tones while respecting the
-                // same global up/down convention as the rest of Home.
-                const drawdownUsesRed = (Number(row.drawdown) >= 0) === (marketColorMode === 'redUpGreenDown');
                 const drawdownClass = row.drawdown === null || !Number.isFinite(Number(row.drawdown))
                   ? 'text-white/28'
-                  : drawdownUsesRed ? 'text-[#ff604f]' : 'text-[#50c8a0]';
+                  : marketTextClass(Number(row.drawdown), marketColorMode);
                 return (
                   <button
                     key={row.symbol}
