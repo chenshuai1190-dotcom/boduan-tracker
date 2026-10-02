@@ -23,6 +23,7 @@ import MonthlyAssetTrendContent from '../components/MonthlyAssetTrendContent.jsx
 import { buildAccountAssetTrend } from '../lib/accountAssetTrend.js';
 import { applyAccountSnapshotMutations, buildAccountSnapshotMutations } from '../lib/accountSnapshotMutation.js';
 import { splitCurrencyAmount } from '../lib/amountDisplay.js';
+import { assetCurrencyPrefix, convertAssetDisplayAmount } from '../lib/assetCurrencyDisplay.js';
 import { localMonthKey, shiftMonthKey } from '../lib/calendarMonth.js';
 import { t } from '../lib/i18n.js';
 import { marketHexColor } from '../lib/marketColorMode.js';
@@ -110,10 +111,12 @@ function AnalysisTab({ ctx }) {
     language = 'zh',
     marketColorMode = 'redUpGreenDown',
     newAccount,
+    portfolioCurrencyMode = 'CNY',
     setAccounts,
     setChartSelectedMonthIdx,
     setFillMonth,
     setNewAccount,
+    setPortfolioCurrencyMode,
     setShowAddAccount,
     setShowFillSnapshot,
     setShowMonthsDetail,
@@ -143,6 +146,15 @@ function AnalysisTab({ ctx }) {
   const overviewChartPointerIdRef = React.useRef(null);
 
   const tt = React.useCallback((key, fallback, values) => t(language, key, fallback, values), [language]);
+  const displayCurrency = portfolioCurrencyMode === 'USD' ? 'USD' : 'CNY';
+  const displayPrefix = assetCurrencyPrefix(displayCurrency);
+  const toDisplayAmount = React.useCallback((value) => convertAssetDisplayAmount(value, {
+    currency: displayCurrency, usdRate,
+  }), [displayCurrency, usdRate]);
+  const displayMoney = (value) => {
+    const amount = toDisplayAmount(value);
+    return Number.isFinite(amount) ? `${displayPrefix}${fmt(amount, 2)}` : '--';
+  };
 
   React.useEffect(() => {
     if (chartSelectedMonthIdx === null) return undefined;
@@ -263,13 +275,15 @@ function AnalysisTab({ ctx }) {
   ), [accounts, balanceAtMonthCNY]);
 
   const fmtWan = (n) => {
-    const v = Math.abs(numberValue(n)) / 10000;
+    if (!Number.isFinite(n)) return '--';
+    const v = Math.abs(n) / 10000;
     return v.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
   };
 
   const fmtSignedWan = (value) => {
-    const n = numberValue(value);
-    return `${n >= 0 ? '+' : '-'}¥${fmtWan(n)}万`;
+    const n = toDisplayAmount(value);
+    if (!Number.isFinite(n)) return '--';
+    return `${n >= 0 ? '+' : '-'}${displayPrefix}${fmtWan(n)}万`;
   };
 
   const fmtSignedPct = (value) => {
@@ -288,7 +302,10 @@ function AnalysisTab({ ctx }) {
     totalYearStart: totalAtMonth(yearStart),
     totalYearAgo: totalAtMonth(yearAgo),
   }), [currentMonth, lastMonth, totalAtMonth, yearAgo, yearStart]);
-  const totalNowMoney = splitCurrencyAmount(totalNow, 'CNY', 2);
+  const displayTotalNow = toDisplayAmount(totalNow);
+  const totalNowMoney = Number.isFinite(displayTotalNow)
+    ? splitCurrencyAmount(displayTotalNow, displayCurrency, 2)
+    : { main: '--', decimal: '' };
 
   const monthChange = totalNow - totalLast;
   const monthChangePct = totalLast > 0 ? (monthChange / totalLast) * 100 : 0;
@@ -298,6 +315,7 @@ function AnalysisTab({ ctx }) {
   const yearChangePct = totalYearAgo > 0 ? (yearChange / totalYearAgo) * 100 : 0;
 
   const chartData = React.useMemo(() => last12Months.map(m => totalAtMonth(m)), [last12Months, totalAtMonth]);
+  const displayChartData = React.useMemo(() => chartData.map(toDisplayAmount), [chartData, toDisplayAmount]);
   const assetCategoryReport = React.useMemo(() => buildMonthlyAssetAccountReport({
     accounts,
     snapshots,
@@ -310,7 +328,7 @@ function AnalysisTab({ ctx }) {
     chartRange,
     chartNonZeroCount,
   } = React.useMemo(() => {
-    const nonZero = chartData.filter(v => v > 0);
+    const nonZero = displayChartData.filter(v => Number.isFinite(v) && v > 0);
     const max = nonZero.length > 0 ? Math.max(...nonZero) : 0;
     const min = nonZero.length > 0 ? Math.min(...nonZero) : 0;
     return {
@@ -319,10 +337,10 @@ function AnalysisTab({ ctx }) {
       chartRange: max - min || 1,
       chartNonZeroCount: nonZero.length,
     };
-  }, [chartData]);
+  }, [displayChartData]);
   const overviewChartModel = React.useMemo(
-    () => buildMonthlyAssetTrend({ months: last12Months, values: chartData }),
-    [chartData, last12Months],
+    () => buildMonthlyAssetTrend({ months: last12Months, values: displayChartData }),
+    [displayChartData, last12Months],
   );
   const overviewChartScale = React.useMemo(
     () => buildMonthlyAssetTrendChartScale(overviewChartModel, last12Months.length),
@@ -473,10 +491,10 @@ function AnalysisTab({ ctx }) {
   const selectedChartChange = overviewChartReading?.changeAmount ?? null;
   const selectedChartChangePct = overviewChartReading?.changePct ?? null;
   const selectedChartMoney = Number.isFinite(selectedChartValue)
-    ? splitCurrencyAmount(selectedChartValue, 'CNY', 2)
+    ? splitCurrencyAmount(selectedChartValue, displayCurrency, 2)
     : { main: '--', decimal: '' };
   const selectedChartChangeMoney = Number.isFinite(selectedChartChange)
-    ? splitCurrencyAmount(Math.abs(selectedChartChange), 'CNY', 2)
+    ? splitCurrencyAmount(Math.abs(selectedChartChange), displayCurrency, 2)
     : { main: '--', decimal: '' };
 
   const selectNearestOverviewMonth = React.useCallback((event) => {
@@ -540,9 +558,10 @@ function AnalysisTab({ ctx }) {
   };
 
   const accountApproxText = (account) => {
-    if (!account || account.currency === 'CNY') return '';
+    if (!account || account.currency === displayCurrency) return '';
     const balCNY = balanceAtMonthCNY(account.id, currentMonth);
-    return `≈¥${fmt(balCNY, 2)}`;
+    const amount = displayMoney(balCNY);
+    return amount === '--' ? '--' : `≈${amount}`;
   };
 
   const confirmDeleteAccount = (account) => {
@@ -740,11 +759,12 @@ function AnalysisTab({ ctx }) {
 
       <MonthlyAssetTrendContent
         language={language}
+        currency={displayCurrency}
         months={last12Months}
-        values={chartData}
+        values={displayChartData}
         currentMonth={currentMonth}
         comparisonStartMonth={yearAgo}
-        comparisonStartValue={totalYearAgo}
+        comparisonStartValue={toDisplayAmount(totalYearAgo)}
         expanded={monthlyDetailsExpanded}
         onExpandedChange={setMonthlyDetailsExpanded}
         onOpenMonthReport={openMonthlyAssetCategoryReport}
@@ -781,6 +801,8 @@ function AnalysisTab({ ctx }) {
       <MonthlyAssetCategoryReport
         language={language}
         report={assetCategoryReport}
+        currency={displayCurrency}
+        usdRate={usdRate}
       />
     </main>
   );
@@ -794,16 +816,13 @@ function AnalysisTab({ ctx }) {
       <section className="asset-report-hero">
         <div className="asset-report-hero-header">
           <span className="asset-report-label">{tt('analysis.familyNetWorth', '家庭总资产')}</span>
-          <button
-            type="button"
-            onClick={openMonthlyAssetTrend}
-            className="asset-report-month"
-            title={tt('analysis.monthTrendTitle', '12 个月资产走势')}
-          >
-            <CalendarDays size={14} strokeWidth={1.8} />
-            <span>{currentMonth}</span>
-            <ChevronRight size={13} strokeWidth={1.8} />
-          </button>
+          <div className="asset-report-currency" aria-label={language === 'en' ? 'Display currency' : '显示币种'}>
+            {['USD', 'CNY'].map((mode) => (
+              <button key={mode} type="button" aria-pressed={displayCurrency === mode} onClick={() => setPortfolioCurrencyMode?.(mode)}>
+                {mode}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="asset-report-total" style={{ fontFamily: ASSET_NUMBER_FONT }}>
@@ -901,7 +920,7 @@ function AnalysisTab({ ctx }) {
             ].map(([label, value]) => (
               <div key={label}>
                 <span className="asset-report-label">{label}</span>
-                <span className="asset-report-range-value">¥{fmtWan(value)}万</span>
+                <span className="asset-report-range-value">{displayPrefix}{fmtWan(value)}万</span>
               </div>
             ))}
           </div>
@@ -949,7 +968,7 @@ function AnalysisTab({ ctx }) {
             <section key={owner} className="asset-report-owner">
               <div className="asset-report-owner-header">
                 <h3>{ownerGroupLabel(owner)}</h3>
-                <div className="asset-report-owner-total" style={{ fontFamily: ASSET_NUMBER_FONT }}>¥{fmt(total, 2)}</div>
+                <div className="asset-report-owner-total" style={{ fontFamily: ASSET_NUMBER_FONT }}>{displayMoney(total)}</div>
                 <div className="asset-report-owner-summary">
                   {tt('analysis.accountsSummary', '{{count}} 个账户 · 占总资产 {{pct}}%', { count: visibleOwnerAccs.length, pct: pct.toFixed(0) })}
                 </div>
@@ -958,7 +977,6 @@ function AnalysisTab({ ctx }) {
               <div className="asset-report-account-list">
                 {visibleOwnerAccs.map(acc => {
                   const bal = getBalance(acc.id, currentMonth);
-                  const balCNY = toCNY(bal, acc.currency);
                   const displayName = accountNameLabel(acc.name);
                   return (
                     <div key={acc.id} className="asset-report-account">
@@ -994,8 +1012,8 @@ function AnalysisTab({ ctx }) {
                           <span className="asset-report-account-amount" style={{ fontFamily: ASSET_NUMBER_FONT }}>
                             {currencyPrefix(acc.currency)}{fmt(bal, 2)}
                           </span>
-                          {acc.currency !== 'CNY' && (
-                            <span className="asset-report-account-equivalent" style={{ fontFamily: ASSET_NUMBER_FONT }}>≈¥{fmt(balCNY, 2)}</span>
+                          {acc.currency !== displayCurrency && (
+                            <span className="asset-report-account-equivalent" style={{ fontFamily: ASSET_NUMBER_FONT }}>{accountApproxText(acc)}</span>
                           )}
                         </span>
                         <ChevronRight size={14} strokeWidth={1.8} />
@@ -1377,7 +1395,7 @@ function AnalysisTab({ ctx }) {
                     {hasMulti && (
                       <div className="asset-dialog-month-summary">
                         <span>{tt('analysis.monthlyOwnerSummary', '{{owner}} · {{count}} 个账户', { owner: ownerLabel(snapshotTab), count: currentAccs.length })}</span>
-                        <span className="text-white/[0.95] tabular-nums" style={{ fontFamily: ASSET_NUMBER_FONT }}>≈ ¥{fmt(curSum, 2)}</span>
+                        <span className="text-white/[0.95] tabular-nums" style={{ fontFamily: ASSET_NUMBER_FONT }}>{Number.isFinite(toDisplayAmount(curSum)) ? `≈ ${displayMoney(curSum)}` : '--'}</span>
                       </div>
                     )}
 

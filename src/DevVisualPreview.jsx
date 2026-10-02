@@ -2690,6 +2690,8 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     }
   }, [previewConfirmModal]);
   const ctx = {
+    portfolioCurrencyMode: homeCurrencyMode,
+    setPortfolioCurrencyMode: setHomeCurrencyMode,
     accountDeleteConfirmId,
     accounts,
     chartSelectedMonthIdx,

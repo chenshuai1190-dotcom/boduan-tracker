@@ -1,6 +1,7 @@
 import React from 'react';
 import { Info, Minus, TrendingDown, TrendingUp } from 'lucide-react';
 import { t } from '../lib/i18n.js';
+import { convertAssetDisplayAmount } from '../lib/assetCurrencyDisplay.js';
 import AccountInstitutionIcon from './AccountInstitutionIcon.jsx';
 import AccountCategoryIcon from './AccountCategoryIcon.jsx';
 
@@ -26,14 +27,16 @@ function formatWan(value, language, digits = 1) {
   return formatNumber(value, digits);
 }
 
-function formatMoney(value, language) {
-  return Number.isFinite(value) ? `¥${formatWan(value, language)}` : '--';
+function formatMoney(value, language, currency, usdRate) {
+  const amount = convertAssetDisplayAmount(value, { currency, usdRate });
+  return Number.isFinite(amount) ? `${currency === 'USD' ? '$' : '¥'}${formatWan(amount, language)}` : '--';
 }
 
-function formatSignedMoney(value, language) {
-  if (!Number.isFinite(value)) return '--';
-  const sign = value > 0 ? '+' : value < 0 ? '-' : '';
-  return `${sign}¥${formatWan(Math.abs(value), language)}`;
+function formatSignedMoney(value, language, currency, usdRate) {
+  const amount = convertAssetDisplayAmount(value, { currency, usdRate });
+  if (!Number.isFinite(amount)) return '--';
+  const sign = amount > 0 ? '+' : amount < 0 ? '-' : '';
+  return `${sign}${currency === 'USD' ? '$' : '¥'}${formatWan(Math.abs(amount), language)}`;
 }
 
 function formatSignedPercent(value) {
@@ -67,6 +70,8 @@ function AccountStatus({ row, tt }) {
 
 export default function MonthlyAssetAccountReport({
   language = 'zh',
+  currency = 'CNY',
+  usdRate,
   report,
 }) {
   const tt = React.useCallback((key, fallback, replacements) => (
@@ -106,7 +111,7 @@ export default function MonthlyAssetAccountReport({
             className="mt-[7px] overflow-hidden text-ellipsis whitespace-nowrap text-[30px] font-medium leading-none tracking-[-0.6px] text-white/[0.95] tabular-nums"
             style={{ fontFamily: NUMBER_FONT }}
           >
-            {formatMoney(report?.currentTotal, language)}
+            {formatMoney(report?.currentTotal, language, currency, usdRate)}
           </div>
           {summaryComplete && Number.isFinite(report?.netChange) ? (
             <div
@@ -123,7 +128,7 @@ export default function MonthlyAssetAccountReport({
                       : 'analysis.assetCategoryNetFlat',
                   report.netChange > 0 ? '较上月增加' : report.netChange < 0 ? '较上月减少' : '较上月持平',
                 )}
-                {' '}{formatSignedMoney(report.netChange, language)} · {formatSignedPercent(report.netChangePct)}
+                {' '}{formatSignedMoney(report.netChange, language, currency, usdRate)} · {formatSignedPercent(report.netChangePct)}
               </span>
             </div>
           ) : (
@@ -143,13 +148,13 @@ export default function MonthlyAssetAccountReport({
             <div className="min-w-0 px-1.5 py-3 text-center">
               <div className="text-[10px] text-white/[0.45]">{tt('analysis.assetCategoryIncreaseTotal', '增加合计')}</div>
               <div className="mt-1 truncate text-[12px] tabular-nums" style={{ color: UP_COLOR, fontFamily: NUMBER_FONT }}>
-                {formatSignedMoney(report?.increaseTotal, language)}
+                {formatSignedMoney(report?.increaseTotal, language, currency, usdRate)}
               </div>
             </div>
             <div className="min-w-0 border-x border-white/[0.075] px-1.5 py-3 text-center">
               <div className="text-[10px] text-white/[0.45]">{tt('analysis.assetCategoryDecreaseTotal', '减少合计')}</div>
               <div className="mt-1 truncate text-[12px] tabular-nums" style={{ color: DOWN_COLOR, fontFamily: NUMBER_FONT }}>
-                {formatSignedMoney(report?.decreaseTotal, language)}
+                {formatSignedMoney(report?.decreaseTotal, language, currency, usdRate)}
               </div>
             </div>
             <div className="min-w-0 px-1.5 py-2.5 text-center">
@@ -160,7 +165,7 @@ export default function MonthlyAssetAccountReport({
                     {ownerLabel(report.maxGainAccount.owner)} · {accountNameLabel(report.maxGainAccount.name)}
                   </div>
                   <div className="mt-0.5 truncate text-[11px] tabular-nums" style={{ color: UP_COLOR, fontFamily: NUMBER_FONT }}>
-                    {formatSignedMoney(report.maxGainAccount.changeAmount, language)}
+                    {formatSignedMoney(report.maxGainAccount.changeAmount, language, currency, usdRate)}
                   </div>
                 </>
               ) : (
@@ -210,13 +215,13 @@ export default function MonthlyAssetAccountReport({
                         </span>
                       </div>
                       <div className="mt-1 text-[10px] text-white/[0.40] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
-                        {tt('analysis.assetAccountOwnerCurrent', '本月资产')} {formatMoney(group.currentTotal, language)}
+                        {tt('analysis.assetAccountOwnerCurrent', '本月资产')} {formatMoney(group.currentTotal, language, currency, usdRate)}
                       </div>
                     </div>
                     <div className="shrink-0 text-right">
                       <div className="text-[10px] text-white/[0.40]">{tt('analysis.assetAccountOwnerNet', '本组净变化')}</div>
                       <div className="mt-0.5 text-[12px] font-medium tabular-nums" style={{ color: groupTone, fontFamily: NUMBER_FONT }}>
-                        {group.isComplete ? formatSignedMoney(group.changeAmount, language) : '--'}
+                        {group.isComplete ? formatSignedMoney(group.changeAmount, language, currency, usdRate) : '--'}
                       </div>
                     </div>
                   </div>
@@ -246,7 +251,7 @@ export default function MonthlyAssetAccountReport({
                           </div>
                           <div className="shrink-0 text-right tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
                             <div className="text-[12px] font-medium" style={{ color: tone }}>
-                              {formatSignedMoney(row.changeAmount, language)}
+                              {formatSignedMoney(row.changeAmount, language, currency, usdRate)}
                             </div>
                             <div className="mt-0.5 text-[10px] text-white/[0.48]">
                               <AccountStatus row={row} tt={tt} />
@@ -255,10 +260,10 @@ export default function MonthlyAssetAccountReport({
                         </div>
 
                         <div className="ml-[38px] mt-1.5 text-[10px] text-white/[0.43] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
-                          {tt('analysis.assetCategoryPrevious', '上月')} {formatMoney(row.previousBalance, language)}
+                          {tt('analysis.assetCategoryPrevious', '上月')} {formatMoney(row.previousBalance, language, currency, usdRate)}
                           <span className="px-1.5">→</span>
                           <span className="text-white/[0.70]">
-                            {tt('analysis.assetCategoryCurrent', '本月')} {formatMoney(row.currentBalance, language)}
+                            {tt('analysis.assetCategoryCurrent', '本月')} {formatMoney(row.currentBalance, language, currency, usdRate)}
                           </span>
                         </div>
 
@@ -297,7 +302,9 @@ export default function MonthlyAssetAccountReport({
         )}
         <div className="flex items-start gap-1.5">
           <Info className="mt-px h-3.5 w-3.5 shrink-0" strokeWidth={1.8} />
-          <span>{tt('analysis.assetCategoryDataBasis', '按人物分组、账户逐项展示；分类与币种仅作标签。空白或 0 按当月余额 0 计算；外币按当前汇率折算为人民币。')}</span>
+          <span>{language === 'en'
+            ? `Grouped by owner and listed by account; categories and original currencies are labels. Blank or 0 balances count as 0 for the month. Amounts are shown in ${currency}, converted using current exchange rates.`
+            : `按人物分组、账户逐项展示；分类与原始币种仅作标签。空白或 0 按当月余额 0 计算；金额按当前汇率折算为${currency === 'USD' ? '美元' : '人民币'}（${currency}）。`}</span>
         </div>
       </div>
     </div>

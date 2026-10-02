@@ -32,18 +32,19 @@ function formatWan(value, language, digits = 1) {
   return formatNumber(value, digits);
 }
 
-function formatMoney(value, language) {
+function formatMoney(value, language, currency) {
   if (!Number.isFinite(value)) return '--';
-  return `¥${formatWan(value, language)}`;
+  return `${currency === 'USD' ? '$' : '¥'}${formatWan(value, language)}`;
 }
 
-function formatPrimaryMoney(value, language) {
+function formatPrimaryMoney(value, language, currency) {
   if (!Number.isFinite(value)) return { amount: '--', unit: '' };
-  if (language === 'zh') return { amount: `¥${formatNumber(value / 10000, 1)}`, unit: '万' };
+  const symbol = currency === 'USD' ? '$' : '¥';
+  if (language === 'zh') return { amount: `${symbol}${formatNumber(value / 10000, 1)}`, unit: '万' };
   const absolute = Math.abs(value);
-  if (absolute >= 1_000_000) return { amount: `¥${formatNumber(value / 1_000_000, 1)}`, unit: 'M' };
-  if (absolute >= 1_000) return { amount: `¥${formatNumber(value / 1_000, 1)}`, unit: 'K' };
-  return { amount: `¥${formatNumber(value, 1)}`, unit: '' };
+  if (absolute >= 1_000_000) return { amount: `${symbol}${formatNumber(value / 1_000_000, 1)}`, unit: 'M' };
+  if (absolute >= 1_000) return { amount: `${symbol}${formatNumber(value / 1_000, 1)}`, unit: 'K' };
+  return { amount: `${symbol}${formatNumber(value, 1)}`, unit: '' };
 }
 
 function formatSignedAmount(value, language) {
@@ -58,6 +59,7 @@ function formatSignedPercent(value) {
 
 export default function MonthlyAssetTrendContent({
   language = 'zh',
+  currency = 'CNY',
   months = [],
   values = [],
   currentMonth = '',
@@ -115,7 +117,7 @@ export default function MonthlyAssetTrendContent({
   const currentSlot = chartModel.currentSlot;
   const comparison = currentSlot?.hasPreviousMonth ? currentSlot : null;
   const comparisonTone = comparison && comparison.changeAmount >= 0 ? UP_COLOR : DOWN_COLOR;
-  const primaryMoney = formatPrimaryMoney(currentSlot?.balance, language);
+  const primaryMoney = formatPrimaryMoney(currentSlot?.balance, language, currency);
 
   const selectNearestPoint = React.useCallback((event) => {
     if (chartModel.points.length === 0) return;
@@ -243,7 +245,7 @@ export default function MonthlyAssetTrendContent({
           <div className="text-[10px] leading-none text-white/[0.50]">{tt('analysis.highestAssets', '最高资产')}</div>
           <div className="mt-[8px] flex items-baseline gap-2 whitespace-nowrap">
             <span className="text-[16px] text-white/[0.94] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
-              {chartModel.maxPoint ? formatMoney(chartModel.maxPoint.balance, language) : '--'}
+              {chartModel.maxPoint ? formatMoney(chartModel.maxPoint.balance, language, currency) : '--'}
             </span>
             <span className="text-[11px] text-white/[0.47] tabular-nums" style={{ fontFamily: NUMBER_FONT }}>
               {chartModel.maxPoint?.month || '--'}
@@ -327,7 +329,9 @@ export default function MonthlyAssetTrendContent({
 
       <div className="mt-[9px] flex items-start gap-1.5 px-0.5 text-[10px] leading-[1.35] text-white/[0.35]">
         <Info className="mt-px h-3.5 w-3.5 shrink-0" strokeWidth={1.8} />
-        <span>{tt('analysis.monthEndAssetSource', '资产数据按月末余额统计，单位：人民币')}</span>
+        <span>{language === 'en'
+          ? `Assets use month-end balances, shown in ${currency}; foreign currencies use current exchange rates.`
+          : `资产数据按月末余额统计，单位：${currency === 'USD' ? '美元' : '人民币'}（${currency}）；外币按当前汇率折算。`}</span>
       </div>
     </div>
   );

@@ -133,7 +133,7 @@ test('actual asset amounts use soft white while semantic emphasis remains purpos
   assert.ok(pnlReport.includes('reportAmount.main') && pnlReport.includes('reportAmount.decimal'), 'P&L headline amounts should preserve split decimal precision');
   assert.match(pnlReportCss, /\.pnl-report-amount\s*\{[^}]*font-weight:\s*400;[^}]*letter-spacing:\s*normal;/, 'P&L headline numbers should keep normal weight and natural width');
   assert.match(pnlReportCss, /\.pnl-report-amount > span\s*\{[^}]*font-size:\s*inherit;[^}]*opacity:\s*1;/, 'P&L headline decimals should use the same size and brightness as the integer amount');
-  assert.ok(assets.includes('className="asset-dialog-month-summary"') && assets.includes('≈ ¥{fmt(curSum, 2)}'), 'monthly asset totals should preserve their two-decimal precision');
+  assert.ok(assets.includes('className="asset-dialog-month-summary"') && assets.includes('displayMoney(curSum)') && assets.includes('`${displayPrefix}${fmt(amount, 2)}`'), 'monthly asset totals should follow the displayed currency and preserve their two-decimal precision');
   assert.match(assetDialogsCss, /\.asset-dialog-month-summary > span:last-child\s*\{[^}]*color:\s*#dcdce2;/, 'monthly totals should use the neutral report amount tone');
   assert.ok(compoundDetail.includes('{fmt(selectedAsset)}'));
   assert.match(compoundDetailCss, /\.compound-detail-page \.compound-detail\s*\{[^}]*color:\s*#d9d9df;[^}]*font-variant-numeric:\s*tabular-nums;/, 'compound recorded assets should inherit neutral white tabular numbers');
