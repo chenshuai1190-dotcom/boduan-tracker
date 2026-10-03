@@ -121,8 +121,8 @@ export default function InvestmentComparisonPage({ ctx = {}, previewSource }) {
   const searchSource = import.meta.env.DEV && previewSource?.search ? previewSource.search : searchInvestmentSymbols;
   const [instruments, setInstruments] = React.useState(DEFAULT_INSTRUMENTS);
   const [startYear, setStartYear] = React.useState(2011);
-  const [displayCurrency, setDisplayCurrency] = React.useState('USD');
-  const [principalDraft, setPrincipalDraft] = React.useState({ text: '1000000', currency: 'USD', rate: 1 });
+  const [displayCurrency, setDisplayCurrency] = React.useState('CNY');
+  const [principalDraft, setPrincipalDraft] = React.useState(() => ({ text: '1000000', currency: 'CNY', rate: resolveInvestmentDisplayRate('CNY', ctx.usdRate) }));
   const [scale, setScale] = React.useState('linear');
   const [analysisView, setAnalysisView] = React.useState('growth');
   const [pickerSide, setPickerSide] = React.useState(null);
@@ -140,9 +140,13 @@ export default function InvestmentComparisonPage({ ctx = {}, previewSource }) {
   const symbols = React.useMemo(() => instruments.map(item => item.symbol), [instruments]);
   const requestKey = `${userId}:${symbols.join(':')}:${startYear}`;
   const displayRate = resolveInvestmentDisplayRate(displayCurrency, ctx.usdRate);
-  const cnyAvailable = resolveInvestmentDisplayRate('CNY', ctx.usdRate) !== null;
+  const cnyRate = resolveInvestmentDisplayRate('CNY', ctx.usdRate);
+  const cnyAvailable = cnyRate !== null;
+  const principalRatePending = principalDraft.currency === 'CNY' && principalDraft.rate === null;
   const principal = investmentPrincipalUsd(principalDraft);
-  const principalText = investmentPrincipalInput(principalDraft, displayCurrency, ctx.usdRate);
+  const principalText = principalRatePending
+    ? (displayCurrency === 'CNY' ? principalDraft.text : '')
+    : investmentPrincipalInput(principalDraft, displayCurrency, ctx.usdRate);
   const setPrincipalText = text => setPrincipalDraft({ text, currency: displayCurrency, rate: displayRate });
   const money = (value, options = {}) => formatInvestmentAmount(value, englishMode, { ...options, displayCurrency, displayRate });
   const exactMoney = value => Number.isFinite(value) && displayRate !== null
@@ -154,6 +158,13 @@ export default function InvestmentComparisonPage({ ctx = {}, previewSource }) {
     manualRefreshKeyRef.current = requestKey;
     setRefreshVersion(value => value + 1);
   };
+
+  React.useEffect(() => {
+    if (!principalRatePending || cnyRate === null) return;
+    // Resolve the initial CNY amount once; later FX updates remain display-only.
+    setPrincipalDraft(current => current.currency === 'CNY' && current.rate === null
+      ? { ...current, rate: cnyRate } : current);
+  }, [principalRatePending, cnyRate]);
 
   React.useEffect(() => {
     const requestId = ++requestRef.current;
@@ -238,11 +249,11 @@ export default function InvestmentComparisonPage({ ctx = {}, previewSource }) {
     <div className="ic-settings" role="group" aria-label={englishMode ? 'Comparison settings' : '比较设置'}>
       <div className="ic-versus">{instruments.map((item, index) => <React.Fragment key={index}>{index === 1 && <span className="ic-vs">VS</span>}<button type="button" className="ic-pick-button" onClick={() => setPickerSide(index)} aria-haspopup="dialog" aria-label={englishMode ? `Change ${index === 0 ? 'left' : 'right'} investment ${item.symbol}` : `更换${index === 0 ? '左' : '右'}侧标的 ${item.symbol}`} style={{ '--ic-series': investmentRankColor(investmentRank(item.symbol, symbols, snapshot?.point)) }}><span className="ic-pick-dot" /><span className="ic-pick-identity"><strong>{item.symbol}</strong></span><ChevronDown size={17} className="ic-pick-chevron" /></button></React.Fragment>)}</div>
       <label className="ic-field">{englishMode ? 'Starting year' : '起始年份'}<span className="ic-select-control"><select value={startYear} onChange={event => setStartYear(Number(event.target.value))} aria-label={englishMode ? 'Starting year' : '起始年份'}>{years.map(year => <option key={year} value={year}>{year}{englishMode ? '' : ' 年'}</option>)}</select><ChevronDown size={16} aria-hidden="true" /></span></label>
-      <label className="ic-field">{englishMode ? `Principal per investment · ${displayCurrency}` : `每个标的本金 · ${displayCurrency}`} <input type="number" inputMode="decimal" min={displayRate ?? undefined} max={displayRate === null ? undefined : 1000000000 * displayRate} disabled={displayRate === null} step="any" value={principalText} onChange={event => setPrincipalText(event.target.value)} aria-invalid={!principalValid} aria-label={englishMode ? `Principal per investment in ${displayCurrency === 'CNY' ? 'Chinese yuan' : 'US dollars'}` : `每个标的本金，${displayCurrency === 'CNY' ? '人民币' : '美元'}`} /></label>
+      <label className="ic-field">{englishMode ? `Principal per investment · ${displayCurrency}` : `每个标的本金 · ${displayCurrency}`} <input type="number" inputMode="decimal" min={displayRate ?? undefined} max={displayRate === null ? undefined : 1000000000 * displayRate} disabled={displayRate === null} step="any" value={principalText} onChange={event => setPrincipalText(event.target.value)} aria-invalid={!principalValid && !principalRatePending} aria-label={englishMode ? `Principal per investment in ${displayCurrency === 'CNY' ? 'Chinese yuan' : 'US dollars'}` : `每个标的本金，${displayCurrency === 'CNY' ? '人民币' : '美元'}`} /></label>
     </div>
 
-    {displayRate === null && <p className="ic-feedback" role="status">{englishMode ? 'CNY conversion is unavailable. Switch to USD.' : '人民币换算暂不可用，请切换 USD。'}</p>}
-    {!principalValid && <p className="ic-feedback ic-invalid" role="alert">{englishMode ? `Enter a principal from ${exactMoney(1)} to ${exactMoney(1000000000)}.` : `请输入 ${exactMoney(1)} 至 ${exactMoney(1000000000)} 的有效本金。`}</p>}
+    {principalRatePending ? <p className="ic-feedback" role="status">{englishMode ? 'Waiting for an exchange rate. Your principal remains in CNY.' : '等待汇率，本金保留为人民币。'}</p> : displayRate === null && <p className="ic-feedback" role="status">{englishMode ? 'CNY conversion is unavailable. Switch to USD.' : '人民币换算暂不可用，请切换 USD。'}</p>}
+    {!principalValid && !principalRatePending && <p className="ic-feedback ic-invalid" role="alert">{englishMode ? `Enter a principal from ${exactMoney(1)} to ${exactMoney(1000000000)}.` : `请输入 ${exactMoney(1)} 至 ${exactMoney(1000000000)} 的有效本金。`}</p>}
     {loadState.key === requestKey && loadState.error && <div className="ic-feedback ic-error" role="alert"><span>{historyErrorMessage(loadState.error, englishMode)}</span><button type="button" onClick={refreshHistory} disabled={loadState.loading}>{englishMode ? 'Retry' : '重试'}</button></div>}
     {modelResult.error && <div className="ic-feedback ic-error" role="status"><span>{historyErrorMessage(modelResult.error, englishMode)}</span><button type="button" onClick={refreshHistory} disabled={loadState.loading}>{englishMode ? 'Retry' : '重试'}</button></div>}
     {model?.startAdjustmentReason === 'available_history' && <p className="ic-feedback" role="status">{englishMode ? `Shared history starts on ${model.actualStartDate}; both investments begin on that date.` : `共同历史始于 ${model.actualStartDate}，两个标的均从该日开始投入。`}</p>}

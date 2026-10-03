@@ -121,7 +121,7 @@ function fixture() {
 test('production analysis switching retains shared settings and model without another provider load', async () => {
   hooks.reset();
   source.configure(fixture());
-  const props = { ctx: { userId: 'synthetic-owner', language: 'en' } };
+  const props = { ctx: { userId: 'synthetic-owner', language: 'en', usdRate: 7.2 } };
   const render = () => hooks.render(InvestmentComparisonPage, props);
   render(); await hooks.flush(); render(); await hooks.flush();
   let tree = render();
@@ -129,7 +129,7 @@ test('production analysis switching retains shared settings and model without an
   const shared = () => {
     assert.equal(findAll(tree, node => node.type === 'header' && node.props.className === 'ic-header').length, 1);
     assert.equal(findAll(tree, node => node.props.className === 'ic-settings').length, 1);
-    assert.equal(findAll(tree, node => node.type === 'input' && node.props['aria-label'] === 'Principal per investment in US dollars').length, 1);
+    assert.equal(findAll(tree, node => node.type === 'input' && node.props['aria-label'] === 'Principal per investment in Chinese yuan').length, 1);
     const panel = findAll(tree, node => node.props.role === 'tabpanel')[0];
     assert.equal(panel.props['aria-labelledby'], `ic-tab-${tab().props.value}`);
     assert.equal(panel.props.id, 'ic-analysis-panel');
@@ -148,7 +148,7 @@ test('production analysis switching retains shared settings and model without an
   assert.equal(source.calls.length, 1, 'view changes must reuse the authenticated history load');
   const principalInput = findAll(tree, node => node.type === 'input' && node.props.type === 'number')[0];
   principalInput.props.onChange({ target: { value: '2000000' } }); tree = render(); await hooks.flush(); tree = render();
-  assert.equal(findAll(tree, node => typeof node.type === 'function' && node.props.model && !node.props.snapshot)[0].props.model.principal, 2000000);
+  assert.equal(findAll(tree, node => typeof node.type === 'function' && node.props.model && !node.props.snapshot)[0].props.model.principal, 2000000 / 7.2);
   assert.equal(source.calls.length, 1, 'changing principal recalculates locally');
   tab().props.onChange('growth'); tree = render(); await hooks.flush(); tree = render();
   shared();
@@ -167,7 +167,7 @@ test('switching tabs while history is pending keeps the original request and ren
   hooks.reset();
   let resolveHistory;
   source.configure(new Promise(resolve => { resolveHistory = resolve; }));
-  const render = () => hooks.render(InvestmentComparisonPage, { ctx: { userId: 'synthetic-pending-owner', language: 'zh' } });
+  const render = () => hooks.render(InvestmentComparisonPage, { ctx: { userId: 'synthetic-pending-owner', language: 'zh', usdRate: 7.2 } });
   let tree = render(); await hooks.flush(); tree = render();
   findAll(tree, node => node.type === InvestmentAnalysisTabs)[0].props.onChange('drawdown');
   tree = render(); await hooks.flush(); tree = render();
@@ -186,7 +186,7 @@ test('changing the starting year requests its range and prevents old-year respon
   hooks.reset();
   const pending = new Map();
   source.configure(({ startYear }) => new Promise(resolve => pending.set(startYear, resolve)));
-  const render = () => hooks.render(InvestmentComparisonPage, { ctx: { userId: 'synthetic-year-owner', language: 'zh' } });
+  const render = () => hooks.render(InvestmentComparisonPage, { ctx: { userId: 'synthetic-year-owner', language: 'zh', usdRate: 7.2 } });
   let tree = render(); await hooks.flush(); tree = render();
   assert.equal(source.calls[0].startYear, 2011);
   findAll(tree, node => node.type === 'select' && node.props['aria-label'] === '起始年份')[0].props.onChange({ target: { value: '2020' } });
@@ -209,7 +209,7 @@ test('an old-year error cannot hide a completed request for the selected year', 
   hooks.reset();
   let rejectOld;
   source.configure(({ startYear }) => startYear === 2011 ? new Promise((_resolve, reject) => { rejectOld = reject; }) : { ...fixture(), startYear });
-  const render = () => hooks.render(InvestmentComparisonPage, { ctx: { userId: 'synthetic-year-error-owner', language: 'zh' } });
+  const render = () => hooks.render(InvestmentComparisonPage, { ctx: { userId: 'synthetic-year-error-owner', language: 'zh', usdRate: 7.2 } });
   let tree = render(); await hooks.flush(); tree = render();
   findAll(tree, node => node.type === 'select' && node.props['aria-label'] === '起始年份')[0].props.onChange({ target: { value: '2020' } });
   tree = render(); await hooks.flush(); tree = render(); await hooks.flush(); tree = render();
@@ -229,7 +229,7 @@ test('range errors preserve their code in production-page messages instead of be
   ]) {
     hooks.reset();
     source.configure(() => { throw Object.assign(new Error('test range error'), { code }); });
-    const render = () => hooks.render(InvestmentComparisonPage, { ctx: { userId: 'synthetic-invalid-owner', language: 'zh' } });
+    const render = () => hooks.render(InvestmentComparisonPage, { ctx: { userId: 'synthetic-invalid-owner', language: 'zh', usdRate: 7.2 } });
     render(); await hooks.flush(); render(); await hooks.flush();
     const tree = render();
     const alert = findAll(tree, node => node.props.role === 'alert')[0];
@@ -246,7 +246,7 @@ test('invalid normalized history uses the same range diagnostic as an API INVALI
   const invalid = fixture();
   invalid.series.QQQ.rows[0].close = null;
   source.configure(invalid);
-  const render = () => hooks.render(InvestmentComparisonPage, { ctx: { userId: 'synthetic-model-error-owner', language: 'zh' } });
+  const render = () => hooks.render(InvestmentComparisonPage, { ctx: { userId: 'synthetic-model-error-owner', language: 'zh', usdRate: 7.2 } });
   render(); await hooks.flush(); render(); await hooks.flush();
   const tree = render();
   assert.equal(findAll(tree, node => node.props.role === 'status' && findAll(node, child => child.type === 'span' && child.props.children === '所选区间历史数据存在缺失或冲突，暂时无法对比。').length === 1).length, 1);
@@ -327,20 +327,27 @@ async function currencySession(ctx) {
   };
 }
 
-test('time-machine header replaces refresh with the bilingual USD/CNY display selector', async () => {
+test('time-machine defaults to one million CNY and retains its principal through the bilingual currency selector', async () => {
   try {
     for (const language of ['zh', 'en']) {
       const session = await currencySession({ userId: 'synthetic-currency-header', language, usdRate: 7.2 });
       const header = findAll(session.tree, node => node.type === 'header' && node.props.className === 'ic-header')[0];
       assert.equal(session.currency.props['aria-label'], language === 'en' ? 'Display currency' : '显示币种');
-      assert.equal(session.currency.props.value, 'USD');
+      assert.equal(session.currency.props.value, 'CNY');
+      assert.equal(Number(session.principal.props.value), 1000000);
+      assert.equal(session.view.props.model.principal, 1000000 / 7.2);
+      const model = session.view.props.model;
       assert.equal(findAll(header, node => node.type === 'select' && node.props['aria-label'] === session.currency.props['aria-label']).length, 1);
       assert.deepEqual(findAll(session.currency, node => node.type === 'option').map(node => node.props.value), ['USD', 'CNY']);
       assert.equal(findAll(header, node => node.type === 'button' && /Refresh historical data|刷新历史数据/.test(node.props['aria-label'] || '')).length, 0);
+      await session.switchCurrency('USD');
+      assert.equal(session.currency.props.value, 'USD');
+      assert.ok(Math.abs(Number(session.principal.props.value) - 1000000 / 7.2) < 0.0050001);
+      assert.strictEqual(session.view.props.model, model);
       await session.switchCurrency('CNY');
       assert.equal(session.currency.props.value, 'CNY');
-      assert.equal(Number(session.principal.props.value), 7200000);
-      assert.equal(session.view.props.model.principal, 1000000);
+      assert.equal(Number(session.principal.props.value), 1000000);
+      assert.strictEqual(session.view.props.model, model);
       assert.equal(source.calls.length, 1);
     }
   } finally { hooks.reset(); }
@@ -360,6 +367,7 @@ test('currency toggles and FX updates retain canonical principal, history and in
     const ctx = { userId: 'synthetic-currency-playback', language: 'en', usdRate: 7.21 };
     const session = await currencySession(ctx);
     session.principal.props.onChange({ target: { value: '12345.67' } }); await session.settle();
+    const expectedUsd = 12345.67 / 7.21;
     session.timeline.props.onChange({ target: { value: '1' } }); await session.settle();
     session.play.props.onClick(); await session.settle();
     const model = session.view.props.model;
@@ -370,7 +378,7 @@ test('currency toggles and FX updates retain canonical principal, history and in
       ctx.usdRate = index % 3 === 0 ? 7.12345 : 7.21;
       await session.settle();
       const multiplier = session.currency.props.value === 'CNY' ? ctx.usdRate : 1;
-      assert.ok(Math.abs(Number(session.principal.props.value) - 12345.67 * multiplier) < 0.0050001, 'converted input may round to cents without changing the canonical principal');
+      assert.ok(Math.abs(Number(session.principal.props.value) - expectedUsd * multiplier) < 0.0050001, 'converted input may round to cents without changing the canonical principal');
       assert.strictEqual(session.view.props.model, model, 'display changes must reuse the USD model');
       assert.strictEqual(session.view.props.snapshot, snapshot);
       assert.equal(session.timeline.props.value, 1);
@@ -379,8 +387,8 @@ test('currency toggles and FX updates retain canonical principal, history and in
       assert.equal(source.calls.length, 1);
       assert.equal(request.signal.aborted, false);
     }
-    assert.equal(model.principal, 12345.67);
-    assert.equal(Number(session.principal.props.value), 12345.67);
+    assert.equal(model.principal, expectedUsd);
+    assert.ok(Math.abs(Number(session.principal.props.value) - expectedUsd) < 0.0050001);
   } finally {
     hooks.reset();
     if (previousWindow === undefined) delete globalThis.window; else globalThis.window = previousWindow;
@@ -413,21 +421,73 @@ test('editing CNY principal normalizes at the current FX rate and later display 
   } finally { hooks.reset(); }
 });
 
-test('missing or invalid FX disables CNY while retaining editable USD principal instead of fabricating zero', async () => {
+test('initial invalid FX preserves the known CNY amount without a model until the first valid rate locks USD', async () => {
   try {
     for (const usdRate of [undefined, null, '', 0, -1, NaN, Infinity, 'not-a-rate']) {
-      const session = await currencySession({ userId: 'synthetic-invalid-fx', language: 'en', usdRate });
+      const ctx = { userId: 'synthetic-invalid-fx', language: 'en', usdRate };
+      const session = await currencySession(ctx);
       const options = findAll(session.currency, node => node.type === 'option');
-      assert.equal(session.currency.props.value, 'USD');
+      assert.equal(session.currency.props.value, 'CNY');
       assert.ok(!session.currency.props.disabled);
       assert.equal(options.find(node => node.props.value === 'CNY').props.disabled, true);
       assert.ok(!options.find(node => node.props.value === 'USD').props.disabled);
       assert.equal(Number(session.principal.props.value), 1000000);
-      assert.equal(session.view.props.model.principal, 1000000);
+      assert.equal(session.principal.props.disabled, true);
+      assert.equal(session.principal.props['aria-invalid'], false);
+      assert.equal(session.view, undefined, 'unknown initial FX must not fabricate a USD model');
+      assert.equal(findAll(session.tree, node => node.props.className === 'ic-feedback ic-invalid').length, 0, 'waiting for FX is not an invalid principal range');
+      assert.equal(source.calls.length, 1);
+      const request = source.calls[0];
+
+      ctx.usdRate = 7.2; await session.settle();
+      assert.equal(session.principal.props.disabled, false);
+      assert.equal(Number(session.principal.props.value), 1000000);
+      const model = session.view.props.model;
+      assert.equal(model.principal, 1000000 / 7.2);
+      for (const nextRate of [7.5, null, 6.77]) {
+        ctx.usdRate = nextRate; await session.settle();
+        assert.strictEqual(session.view.props.model, model, 'later FX changes must not repeat the initial principal conversion');
+        if (nextRate !== null) assert.ok(Math.abs(Number(session.principal.props.value) - model.principal * nextRate) < 0.0050001);
+        assert.equal(source.calls.length, 1);
+        assert.equal(request.signal.aborted, false);
+      }
+    }
+  } finally { hooks.reset(); }
+});
+
+test('a USD edit made before initial FX arrives is never overwritten by the delayed CNY initialization', async () => {
+  try {
+    for (const usdRate of [undefined, null, 0]) {
+      const ctx = { userId: 'synthetic-early-usd-edit', language: 'en', usdRate };
+      const session = await currencySession(ctx);
+      assert.equal(session.view, undefined);
+      await session.switchCurrency('USD');
+      assert.equal(session.currency.props.value, 'USD');
+      assert.equal(session.principal.props.disabled, false);
+      assert.equal(session.principal.props.value, '');
+      assert.equal(session.principal.props['aria-invalid'], false);
+      assert.equal(session.view, undefined, 'switching currency alone cannot initialize a principal without FX');
       session.principal.props.onChange({ target: { value: '123.45' } }); await session.settle();
       assert.equal(session.view.props.model.principal, 123.45);
+      const model = session.view.props.model;
+      ctx.usdRate = 7.2; await session.settle();
+      assert.equal(session.currency.props.value, 'USD');
+      assert.equal(Number(session.principal.props.value), 123.45);
+      assert.strictEqual(session.view.props.model, model);
+      await session.switchCurrency('CNY');
+      assert.ok(Math.abs(Number(session.principal.props.value) - 123.45 * 7.2) < 0.0050001);
+      ctx.usdRate = 7.5; await session.settle();
+      assert.strictEqual(session.view.props.model, model);
+      await session.switchCurrency('USD');
+      assert.equal(Number(session.principal.props.value), 123.45);
+      assert.strictEqual(session.view.props.model, model);
       assert.equal(source.calls.length, 1);
     }
+  } finally { hooks.reset(); }
+});
+
+test('losing FX after a CNY edit retains the captured USD principal and allows switching back to USD', async () => {
+  try {
     const ctx = { userId: 'synthetic-lost-fx', language: 'en', usdRate: 7.2 };
     const session = await currencySession(ctx);
     await session.switchCurrency('CNY');
