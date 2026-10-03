@@ -1,6 +1,6 @@
 import { normalizeUserStockSymbol } from './symbols.js';
 
-const CODE_ONLY_CHINESE_SYMBOLS = new Set(['QQQ', 'TQQQ']);
+const CODE_ONLY_CHINESE_SYMBOLS = new Set(['QQQ', 'TQQQ', 'SMH']);
 const ASCII_STOCK_NAME_RE = /^[A-Za-z0-9 .,&'()/-]+$/;
 
 function isPlaceholderStockName(symbol, name) {
@@ -28,7 +28,7 @@ export function resolveStockDisplayName({
     return normalizedSymbol;
   }
 
-  // QQQ/TQQQ are product-level ticker labels. Provider, discovery, or historical
+  // These funds use product-level ticker labels. Provider, discovery, or historical
   // Chinese aliases must not replace them in holdings or persisted trade metadata.
   if (CODE_ONLY_CHINESE_SYMBOLS.has(normalizedSymbol)) return normalizedSymbol;
 

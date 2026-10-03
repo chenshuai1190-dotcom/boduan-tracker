@@ -638,7 +638,7 @@ const STOCK_NAME_CN = {
   // ETF - 行业
   XLK: '科技', XLF: '金融', XLV: '医疗', XLE: '能源', XLI: '工业',
   XLY: '可选消费', XLP: '日用消费', XLU: '公用事业', XLRE: '房地产', XLB: '材料',
-  SMH: '半导体', SOXX: '半导体', IBB: '生物科技', ARKK: 'ARK创新', ARKG: 'ARK基因',
+  SMH: 'SMH', SOXX: '半导体', IBB: '生物科技', ARKK: 'ARK创新', ARKG: 'ARK基因',
   KWEB: '中概互联', FXI: '中国大盘', MCHI: '中国MSCI', YINN: '中国3X多',
   EWJ: '日本', EWZ: '巴西', INDA: '印度',
   // ETF - 杠杆

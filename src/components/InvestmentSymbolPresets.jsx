@@ -12,7 +12,7 @@ export const INVESTMENT_SYMBOL_PRESETS = Object.freeze([
   { symbol: 'TSLA', name: 'Tesla Inc.', nameZh: '特斯拉', type: 'Common Stock' },
   { symbol: 'AVGO', name: 'Broadcom Inc.', nameZh: '博通', type: 'Common Stock' },
   { symbol: 'VGT', name: 'Vanguard Information Technology ETF', nameZh: '科技 ETF', type: 'ETF' },
-  { symbol: 'SMH', name: 'VanEck Semiconductor ETF', nameZh: '半导体 ETF', type: 'ETF' },
+  { symbol: 'SMH', name: 'VanEck Semiconductor ETF', nameZh: 'SMH', type: 'ETF' },
 ]);
 
 export default function InvestmentSymbolPresets({ side, instruments, englishMode = false, onSelect }) {
