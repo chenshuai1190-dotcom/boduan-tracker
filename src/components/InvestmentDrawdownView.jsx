@@ -175,7 +175,7 @@ function JourneyChart({ analysis, episode, symbol, index, englishMode, marketCol
   </div>;
 }
 
-function DrawdownJourney({ analysis, episode, symbol, englishMode, marketColorMode = 'redUpGreenDown' }) {
+function DrawdownJourney({ analysis, episode, symbol, englishMode, marketColorMode = 'redUpGreenDown', displayCurrency = 'USD', displayRate = 1 }) {
   const endIndex = episode.recoveryIndex ?? analysis.points.length - 1;
   const [playback, setPlayback] = React.useState({ analysis, episode, cursor: endIndex, playing: false });
   const [speed, setSpeed] = React.useState(0.2);
@@ -217,11 +217,11 @@ function DrawdownJourney({ analysis, episode, symbol, englishMode, marketColorMo
     [episode.recovered ? (englishMode ? 'First recovery' : '首次修复') : (englishMode ? 'Observed through' : '观察截止'), episode.recoveryDate ?? analysis.asOfDate, analysis.points[endIndex].value],
   ];
   return <>
-    <div className="ic-dd-journey-head"><div><span className="ic-dd-eyebrow">{point.date}</span><strong>{formatInvestmentAmount(point.value, englishMode)}</strong></div><div className="ic-dd-journey-change"><span className="ic-dd-eyebrow">{englishMode ? 'From this previous high' : '相对这次前高'}</span><strong style={{ color: investmentChangeColor(relative, marketColorMode) }}>{formatInvestmentPercent(relative)}</strong></div></div>
+    <div className="ic-dd-journey-head"><div><span className="ic-dd-eyebrow">{point.date}</span><strong>{formatInvestmentAmount(point.value, englishMode, { displayCurrency, displayRate })}</strong></div><div className="ic-dd-journey-change"><span className="ic-dd-eyebrow">{englishMode ? 'From this previous high' : '相对这次前高'}</span><strong style={{ color: investmentChangeColor(relative, marketColorMode) }}>{formatInvestmentPercent(relative)}</strong></div></div>
     <JourneyChart analysis={analysis} episode={episode} symbol={symbol} index={index} englishMode={englishMode} marketColorMode={marketColorMode} />
     <div className="ic-dd-player"><button type="button" className="ic-dd-play" aria-pressed={playing} onClick={togglePlayback}><PlayIcon size={15} aria-hidden="true" />{playLabel}</button><select className="ic-dd-speed" aria-label={englishMode ? 'Replay speed' : '播放速度'} value={speed} onChange={event => setSpeed(Number(event.target.value))}>{SPEEDS.map(value => <option key={value} value={value}>{value}×</option>)}</select><span>{phase}</span></div>
     <input className="ic-dd-scrubber" type="range" aria-label={englishMode ? 'Drawdown replay progress' : '回撤回放进度'} aria-valuetext={`${point.date}, ${formatInvestmentPercent(relative)}`} min={episode.peakIndex} max={endIndex} step="1" value={index} onChange={event => setPlayback({ analysis, episode, cursor: Number(event.target.value), playing })} />
-    <div className="ic-dd-milestones">{milestones.map(([label, date, value]) => <div className="ic-dd-milestone" key={label}><span>{label}</span><strong>{date}</strong><b>{formatInvestmentAmount(value, englishMode)}</b></div>)}</div>
+    <div className="ic-dd-milestones">{milestones.map(([label, date, value]) => <div className="ic-dd-milestone" key={label}><span>{label}</span><strong>{date}</strong><b>{formatInvestmentAmount(value, englishMode, { displayCurrency, displayRate })}</b></div>)}</div>
     <div className="ic-dd-duration">
       <div><span>{englishMode ? 'High → trough' : '高点 → 谷底'}</span><strong>{dayCount(episode.declineDays, englishMode)}</strong></div>
       <div><span>{episode.recovered ? (englishMode ? 'Trough → recovery' : '谷底 → 修复') : (englishMode ? 'Waiting since trough' : '谷底后已等待')}</span><strong>{dayCount(episode.reboundDays ?? calendarDays(episode.troughDate, analysis.asOfDate), englishMode)}</strong></div>
@@ -232,7 +232,7 @@ function DrawdownJourney({ analysis, episode, symbol, englishMode, marketColorMo
   </>;
 }
 
-function PrincipalRisk({ analysis, symbol, englishMode, marketColorMode = 'redUpGreenDown' }) {
+function PrincipalRisk({ analysis, symbol, englishMode, marketColorMode = 'redUpGreenDown', displayCurrency = 'USD', displayRate = 1 }) {
   const stats = analysis.principalStats;
   const recovery = !stats.everBelowPrincipal ? (englishMode ? 'Never below principal' : '未跌破本金') : stats.minimumRecoveryDate ?? (englishMode ? 'Not recovered' : '尚未回本');
   const recoveryDetail = stats.minimumRecoveryDays !== null
@@ -240,12 +240,12 @@ function PrincipalRisk({ analysis, symbol, englishMode, marketColorMode = 'redUp
     : stats.currentlyBelowPrincipal ? (englishMode ? 'Still below principal at the last observation' : '截至数据末日仍低于本金')
       : (englishMode ? 'Never fell below principal during this period' : '整个区间未跌破本金');
   return <section className="ic-dd-principal-section">
-    <div className="ic-dd-section-head"><h2>{englishMode ? 'Looking only at the initial principal' : '如果只看投入本金'}</h2><span>{symbol} · {englishMode ? 'Invested ' : '投入 '}{formatInvestmentAmount(analysis.principal, englishMode)}</span></div>
-    <div className="ic-dd-principal-stats"><div><span>{englishMode ? 'Lowest portfolio value' : '期间最低资产'}</span><strong style={stats.maximumLossPct < 0 ? { color: investmentChangeColor(stats.maximumLossPct, marketColorMode) } : undefined}>{formatInvestmentAmount(stats.minimumValue, englishMode)}</strong><small>{stats.minimumDate} · <span style={{ color: investmentChangeColor(stats.maximumLossPct, marketColorMode) }}>{formatInvestmentPercent(stats.maximumLossPct)}</span></small></div><div><span>{englishMode ? 'Principal recovery after the low' : '最低点后回到本金'}</span><strong>{recovery}</strong><small>{recoveryDetail}</small></div></div>
+    <div className="ic-dd-section-head"><h2>{englishMode ? 'Looking only at the initial principal' : '如果只看投入本金'}</h2><span>{symbol} · {englishMode ? 'Invested ' : '投入 '}{formatInvestmentAmount(analysis.principal, englishMode, { displayCurrency, displayRate })}</span></div>
+    <div className="ic-dd-principal-stats"><div><span>{englishMode ? 'Lowest portfolio value' : '期间最低资产'}</span><strong style={stats.maximumLossPct < 0 ? { color: investmentChangeColor(stats.maximumLossPct, marketColorMode) } : undefined}>{formatInvestmentAmount(stats.minimumValue, englishMode, { displayCurrency, displayRate })}</strong><small>{stats.minimumDate} · <span style={{ color: investmentChangeColor(stats.maximumLossPct, marketColorMode) }}>{formatInvestmentPercent(stats.maximumLossPct)}</span></small></div><div><span>{englishMode ? 'Principal recovery after the low' : '最低点后回到本金'}</span><strong>{recovery}</strong><small>{recoveryDetail}</small></div></div>
   </section>;
 }
 
-function DrawdownAnalysis({ data, englishMode, marketColorMode = 'redUpGreenDown' }) {
+function DrawdownAnalysis({ data, englishMode, marketColorMode = 'redUpGreenDown', displayCurrency = 'USD', displayRate = 1 }) {
   const { symbols, analyses } = data;
   const [selection, setSelection] = React.useState({ data, symbol: symbols[0], kind: 'max', episodeId: null });
   const current = selection.data === data ? selection : { data, symbol: symbols[0], kind: 'max', episodeId: null };
@@ -275,9 +275,9 @@ function DrawdownAnalysis({ data, englishMode, marketColorMode = 'redUpGreenDown
     <section className="ic-dd-journey" ref={journeyRef}>
       <div className="ic-dd-section-head"><h2>{active} · {englishMode ? 'A drawdown, from high to recovery' : '一段回撤的全过程'}</h2><span>{episode ? (episode.recovered ? (englishMode ? 'High recovered' : '已修复前高') : (englishMode ? 'Unrecovered' : '尚未修复')) : (englishMode ? 'No drawdown' : '无回撤')}</span></div>
       <div className="ic-dd-episode-tabs" role="group" aria-label={englishMode ? 'Drawdown episode' : '回撤区间'}>{[['max', englishMode ? 'Deepest' : '最大回撤'], ['longest', englishMode ? 'Longest wait' : '最长等待'], ['latest', englishMode ? 'Latest' : '最近一次']].map(([kind, label]) => <button type="button" key={kind} aria-pressed={current.kind === kind} onClick={() => setSelection({ ...current, kind, episodeId: null })}>{label}</button>)}</div>
-      {episode ? <DrawdownJourney key={`${active}:${current.kind}:${episode.id}`} analysis={analysis} episode={episode} symbol={active} englishMode={englishMode} marketColorMode={marketColorMode} /> : <p className="ic-dd-empty">{englishMode ? 'No drawdown occurred in this observed period.' : '这个观察区间尚未发生回撤。'}</p>}
+      {episode ? <DrawdownJourney key={`${active}:${current.kind}:${episode.id}`} analysis={analysis} episode={episode} symbol={active} englishMode={englishMode} marketColorMode={marketColorMode} displayCurrency={displayCurrency} displayRate={displayRate} /> : <p className="ic-dd-empty">{englishMode ? 'No drawdown occurred in this observed period.' : '这个观察区间尚未发生回撤。'}</p>}
     </section>
-    <PrincipalRisk analysis={analysis} symbol={active} englishMode={englishMode} marketColorMode={marketColorMode} />
+    <PrincipalRisk analysis={analysis} symbol={active} englishMode={englishMode} marketColorMode={marketColorMode} displayCurrency={displayCurrency} displayRate={displayRate} />
     <details className="ic-dd-history"><summary>{englishMode ? 'Other drawdown episodes' : '其他回撤区间'}<span>≥{HISTORY_MIN_DRAWDOWN_PCT}% · {episodes.length} {englishMode ? 'episodes' : '段'}</span></summary>
       {episodes.slice(0, 8).map(item => <button type="button" className="ic-dd-history-row" key={item.id} aria-label={englishMode ? `Replay drawdown from ${item.peakDate}` : `重播 ${item.peakDate} 开始的回撤`} onClick={() => { setSelection({ ...current, kind: 'custom', episodeId: item.id }); journeyRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}><div><strong>{item.peakDate} → {item.recoveryDate ?? (englishMode ? 'Unrecovered' : '尚未修复')}</strong><small>{englishMode ? 'Trough ' : '谷底 '}{item.troughDate} · {dayCount(item.underwaterDays, englishMode)}</small></div><div><strong style={{ color: investmentChangeColor(item.drawdownPct, marketColorMode) }}>{formatInvestmentPercent(item.drawdownPct)}</strong><small>{englishMode ? 'View episode ›' : '查看过程 ›'}</small></div></button>)}
       {episodes.length > 8 && <p className="ic-dd-empty">{englishMode ? 'The latest eight episodes are shown by starting date.' : '按开始日期展示最近 8 段。'}</p>}
@@ -291,11 +291,11 @@ function DrawdownAnalysis({ data, englishMode, marketColorMode = 'redUpGreenDown
   </div>;
 }
 
-export default function InvestmentDrawdownView({ model, englishMode = false, marketColorMode = 'redUpGreenDown' }) {
+export default function InvestmentDrawdownView({ model, englishMode = false, marketColorMode = 'redUpGreenDown', displayCurrency = 'USD', displayRate = 1 }) {
   const result = React.useMemo(() => {
     try { return { data: buildInvestmentDrawdownModel(model), error: null }; }
     catch (error) { return { data: null, error }; }
   }, [model]);
   if (!result.data) return <p className="ic-feedback ic-invalid" role="alert">{englishMode ? 'Drawdown analysis is unavailable for this history. Please refresh the historical data.' : '这段历史数据暂时无法计算回撤，请刷新历史数据后重试。'}</p>;
-  return <DrawdownAnalysis data={result.data} englishMode={englishMode} marketColorMode={marketColorMode} />;
+  return <DrawdownAnalysis data={result.data} englishMode={englishMode} marketColorMode={marketColorMode} displayCurrency={displayCurrency} displayRate={displayRate} />;
 }

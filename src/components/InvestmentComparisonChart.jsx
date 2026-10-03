@@ -22,15 +22,17 @@ export function investmentChangeColor(value, marketColorMode = 'redUpGreenDown')
   return Number.isFinite(value) && value !== 0 ? marketTextHexColor(value, marketColorMode) : INVESTMENT_NEUTRAL_COLOR;
 }
 
-export function formatInvestmentAmount(value, englishMode = false, { signed = false, currency = true, digits = 1 } = {}) {
-  if (!Number.isFinite(value)) return '—';
-  const absolute = Math.abs(value);
+export function formatInvestmentAmount(value, englishMode = false, { signed = false, currency = true, digits = 1, displayCurrency = 'USD', displayRate = 1 } = {}) {
+  if (!Number.isFinite(value) || !['USD', 'CNY'].includes(displayCurrency) || !Number.isFinite(displayRate) || displayRate <= 0) return '—';
+  const displayValue = value * displayRate;
+  if (!Number.isFinite(displayValue)) return '—';
+  const absolute = Math.abs(displayValue);
   const divisor = englishMode ? (absolute >= 1e9 ? 1e9 : absolute >= 1e6 ? 1e6 : absolute >= 1e3 ? 1e3 : 1) : (absolute >= 1e8 ? 1e8 : absolute >= 1e4 ? 1e4 : 1);
   const unit = englishMode ? ({ 1000000000: 'B', 1000000: 'M', 1000: 'K' }[divisor] || '') : ({ 100000000: '亿', 10000: '万' }[divisor] || '');
   const precision = divisor === 1 ? (absolute > 0 && absolute < 100 ? 2 : 0) : digits;
   const rounded = Number((absolute / divisor).toFixed(precision));
-  const sign = rounded === 0 ? '' : value < 0 ? '−' : signed ? '+' : '';
-  return `${sign}${currency ? '$' : ''}${rounded.toLocaleString('en-US', { minimumFractionDigits: precision, maximumFractionDigits: precision })}${unit}`;
+  const sign = rounded === 0 ? '' : displayValue < 0 ? '−' : signed ? '+' : '';
+  return `${sign}${currency ? (displayCurrency === 'CNY' ? '¥' : '$') : ''}${rounded.toLocaleString('en-US', { minimumFractionDigits: precision, maximumFractionDigits: precision })}${unit}`;
 }
 
 export function formatInvestmentPercent(value) {
@@ -43,7 +45,7 @@ function linePath(points, symbol, x, y) {
   return points.map((point, index) => `${index ? 'L' : 'M'}${x(point.time).toFixed(2)},${y(point.values[symbol]).toFixed(2)}`).join(' ');
 }
 
-export default function InvestmentComparisonChart({ model, snapshot, hiddenSymbols = [], scale = 'linear', englishMode = false, marketColorMode = 'redUpGreenDown' }) {
+export default function InvestmentComparisonChart({ model, snapshot, hiddenSymbols = [], scale = 'linear', englishMode = false, marketColorMode = 'redUpGreenDown', displayCurrency = 'USD', displayRate = 1 }) {
   const containerRef = React.useRef(null);
   const axisRefs = React.useRef([]);
   const labelRefs = React.useRef({});
@@ -58,6 +60,8 @@ export default function InvestmentComparisonChart({ model, snapshot, hiddenSymbo
   const visibleSymbols = symbols.filter(symbol => !hiddenSymbols.includes(symbol));
   const currentPoint = snapshot.point;
   const past = React.useMemo(() => model.points.slice(0, snapshot.index + 1), [model.points, snapshot.index]);
+  const amountOptions = { displayCurrency, displayRate };
+  const currencyLabel = ['USD', 'CNY'].includes(displayCurrency) ? displayCurrency : '—';
 
   React.useLayoutEffect(() => {
     const node = containerRef.current;
@@ -94,7 +98,7 @@ export default function InvestmentComparisonChart({ model, snapshot, hiddenSymbo
   const ticks = Array.from({ length: 5 }, (_, index) => scale === 'log'
     ? Math.exp(Math.log(low) + ((Math.log(high) - Math.log(low)) * index / 4))
     : low + ((high - low) * index / 4));
-  const tickLabels = ticks.map(value => formatInvestmentAmount(value, englishMode, { currency: false, digits: 1 }));
+  const tickLabels = ticks.map(value => formatInvestmentAmount(value, englishMode, { ...amountOptions, currency: false, digits: 1 }));
   const tickKey = tickLabels.join('|');
 
   React.useLayoutEffect(() => {
@@ -116,7 +120,7 @@ export default function InvestmentComparisonChart({ model, snapshot, hiddenSymbo
   labels.forEach((label, index) => { label.labelY = Math.max(inner.top + 14, label.labelY, index ? labels[index - 1].labelY + 23 : 0); });
   const overflow = labels.length ? Math.max(0, labels.at(-1).labelY - (inner.bottom - 6)) : 0;
   labels.forEach(label => { label.labelY -= overflow; });
-  const labelKey = labels.map(label => `${label.symbol}:${formatInvestmentAmount(label.profit, englishMode, { signed: true })}`).join('|');
+  const labelKey = labels.map(label => `${label.symbol}:${formatInvestmentAmount(label.profit, englishMode, { ...amountOptions, signed: true })}`).join('|');
 
   React.useLayoutEffect(() => {
     const next = Object.fromEntries(symbols.map(symbol => [symbol, Math.ceil(labelRefs.current[symbol]?.getComputedTextLength?.() || 110)]));
@@ -139,7 +143,7 @@ export default function InvestmentComparisonChart({ model, snapshot, hiddenSymbo
 
   return <div ref={containerRef} className="ic-chart" data-investment-comparison-chart="true">
     <div className="ic-chart-touch" tabIndex={0} role="slider" aria-label={englishMode ? 'Inspect historical portfolio values' : '查看历史投资总资产'} aria-valuemin={0} aria-valuemax={snapshot.index} aria-valuenow={hoverIndex ?? snapshot.index}
-      aria-valuetext={`${(hover || currentPoint).date}, ${symbols.map(symbol => `${symbol} ${formatInvestmentAmount((hover || currentPoint).values[symbol], englishMode)} USD`).join(', ')}`}
+      aria-valuetext={`${(hover || currentPoint).date}, ${symbols.map(symbol => `${symbol} ${formatInvestmentAmount((hover || currentPoint).values[symbol], englishMode, amountOptions)} ${currencyLabel}`).join(', ')}`}
       onPointerDown={event => { gestureRef.current = { id: event.pointerId, x: event.clientX, y: event.clientY, intent: 'pending' }; event.currentTarget.setPointerCapture?.(event.pointerId); selectAt(event); }}
       onPointerMove={event => {
         const gesture = gestureRef.current;
@@ -164,7 +168,7 @@ export default function InvestmentComparisonChart({ model, snapshot, hiddenSymbo
           <clipPath id={`ic-clip-${uniqueId}`}><rect x={frame.left} y={frame.top} width={frame.right - frame.left} height={frame.bottom - frame.top} /></clipPath>
           {visibleSymbols.map(symbol => <linearGradient id={`ic-area-${uniqueId}-${symbol}`} key={symbol} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={investmentRankColor(investmentRank(symbol, symbols, currentPoint))} stopOpacity=".12" /><stop offset="100%" stopColor={investmentRankColor(investmentRank(symbol, symbols, currentPoint))} stopOpacity="0" /></linearGradient>)}
         </defs>
-        <text x={frame.left} y="13" className="ic-axis-title">{englishMode ? 'Assets · USD' : '资产 · USD'}{scale === 'log' ? (englishMode ? ' · Log' : ' · 对数') : ''}</text>
+        <text x={frame.left} y="13" className="ic-axis-title">{englishMode ? `Assets · ${currencyLabel}` : `资产 · ${currencyLabel}`}{scale === 'log' ? (englishMode ? ' · Log' : ' · 对数') : ''}</text>
         {ticks.map((value, index) => <g key={index}><line x1={frame.left} x2={frame.right} y1={y(value)} y2={y(value)} className="ic-grid-line" /><text ref={node => { axisRefs.current[index] = node; }} x={frame.left - 6} y={y(value) + 4} textAnchor="end" className="ic-axis-label">{tickLabels[index]}</text></g>)}
         <g clipPath={`url(#ic-clip-${uniqueId})`}>
           {visibleSymbols.map((symbol, index) => {
@@ -182,7 +186,7 @@ export default function InvestmentComparisonChart({ model, snapshot, hiddenSymbo
             const measuredWidth = labelWidths[label.symbol] || 110;
             const desired = label.x - measuredWidth - 9 >= frame.left + 4 ? label.x - measuredWidth - 9 : label.x + 10;
             const labelX = Math.max(frame.left + 4, Math.min(frame.right - measuredWidth - 4, desired));
-            return <text key={label.symbol} ref={node => { labelRefs.current[label.symbol] = node; }} x={labelX} y={label.labelY} className="ic-direct-label" data-investment-profit-label={label.symbol} aria-label={`${label.symbol} ${englishMode ? 'cumulative profit' : '累计盈亏'} ${formatInvestmentAmount(label.profit, englishMode, { signed: true })}`}><tspan>{label.symbol} </tspan><tspan fill={investmentChangeColor(label.profit, marketColorMode)}>{formatInvestmentAmount(label.profit, englishMode, { signed: true })}</tspan></text>;
+            return <text key={label.symbol} ref={node => { labelRefs.current[label.symbol] = node; }} x={labelX} y={label.labelY} className="ic-direct-label" data-investment-profit-label={label.symbol} aria-label={`${label.symbol} ${englishMode ? 'cumulative profit' : '累计盈亏'} ${formatInvestmentAmount(label.profit, englishMode, { ...amountOptions, signed: true })}`}><tspan>{label.symbol} </tspan><tspan fill={investmentChangeColor(label.profit, marketColorMode)}>{formatInvestmentAmount(label.profit, englishMode, { ...amountOptions, signed: true })}</tspan></text>;
           })}
           {hover && <g pointerEvents="none"><line x1={hoverX} x2={hoverX} y1={frame.top} y2={frame.bottom} stroke="#969faf" strokeWidth="1" strokeDasharray="3 3" />{visibleSymbols.map(symbol => <circle key={symbol} cx={hoverX} cy={y(hover.values[symbol])} r="4" fill={investmentRankColor(investmentRank(symbol, symbols, currentPoint))} stroke="#0b0e14" strokeWidth="2" />)}</g>}
         </g>
@@ -194,6 +198,6 @@ export default function InvestmentComparisonChart({ model, snapshot, hiddenSymbo
         <text x={frame.right} y={height - 2} textAnchor="end" className="ic-axis-title">{englishMode ? 'Year' : '年份'}</text>
       </svg>
     </div>
-    {hover && <div className="ic-tooltip" role="tooltip" style={{ left: Math.max(0, Math.min(width - 192, hoverX + 12 > width - 192 ? hoverX - 204 : hoverX + 12)), top: frame.top + 5 }}><div className="ic-tooltip-date">{hover.date}</div>{visibleSymbols.map(symbol => <div className="ic-tooltip-line" key={symbol}><span>{symbol}</span><span>{formatInvestmentAmount(hover.values[symbol], englishMode)}</span></div>)}</div>}
+    {hover && <div className="ic-tooltip" role="tooltip" style={{ left: Math.max(0, Math.min(width - 192, hoverX + 12 > width - 192 ? hoverX - 204 : hoverX + 12)), top: frame.top + 5 }}><div className="ic-tooltip-date">{hover.date}</div>{visibleSymbols.map(symbol => <div className="ic-tooltip-line" key={symbol}><span>{symbol}</span><span>{formatInvestmentAmount(hover.values[symbol], englishMode, amountOptions)}</span></div>)}</div>}
   </div>;
 }

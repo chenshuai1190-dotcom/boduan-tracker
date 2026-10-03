@@ -3465,7 +3465,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
           : activeTab === 'stock-decision'
           ? <StockDecisionPreview language={language} marketColorMode={marketColorMode} onBack={() => { setActiveTab('trades'); window.scrollTo(0, 0); }} />
           : activeTab === 'investment-comparison'
-          ? <InvestmentComparisonPreview ctx={{ language, marketColorMode, closeInvestmentComparison: () => { setActiveTab('trades'); window.scrollTo(0, 0); } }} />
+          ? <InvestmentComparisonPreview ctx={{ language, marketColorMode, usdRate: USD_RATE, closeInvestmentComparison: () => { setActiveTab('trades'); window.scrollTo(0, 0); } }} />
           : activeTab === 'portfolio-overlap'
           ? <PortfolioOverlapPreview ctx={{ language, closePortfolioOverlap: () => { setActiveTab('trades'); window.scrollTo(0, 0); } }} />
           : activeTab === 'dca-lab'

@@ -1,15 +1,20 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { readFileSync } from 'node:fs';
 import { transformWithOxc } from 'vite';
 
 const chartSource = readFileSync(new URL('../src/components/InvestmentComparisonChart.jsx', import.meta.url), 'utf8');
 const pageSource = readFileSync(new URL('../src/pages/InvestmentComparisonPage.jsx', import.meta.url), 'utf8');
 const cssSource = readFileSync(new URL('../src/components/InvestmentComparison.css', import.meta.url), 'utf8');
+const dataUrl = code => `data:text/javascript;base64,${Buffer.from(code).toString('base64')}`;
+// Layout measurement runs only in a browser; SSR checks the rendered labels.
+const ssrReactUrl = dataUrl(`import React from ${JSON.stringify(import.meta.resolve('react'))}; export default { ...React, useLayoutEffect: React.useEffect };`);
 const transformed = await transformWithOxc(chartSource, 'InvestmentComparisonChart.jsx', { jsx: { runtime: 'classic' } });
-const compiled = transformed.code.replace(/from (["'])react\1/g, `from ${JSON.stringify(import.meta.resolve('react'))}`)
+const compiled = transformed.code.replace(/from (["'])react\1/g, `from ${JSON.stringify(ssrReactUrl)}`)
   .replace(/from (["'])\.\.\/lib\/marketColorMode\.js\1/g, `from ${JSON.stringify(new URL('../src/lib/marketColorMode.js', import.meta.url).href)}`);
-const { investmentRank, investmentRankColor, investmentChangeColor, formatInvestmentAmount, formatInvestmentPercent } = await import(`data:text/javascript;base64,${Buffer.from(compiled).toString('base64')}`);
+const { default: InvestmentComparisonChart, investmentRank, investmentRankColor, investmentChangeColor, formatInvestmentAmount, formatInvestmentPercent } = await import(`data:text/javascript;base64,${Buffer.from(compiled).toString('base64')}`);
 
 test('investment rank colors track current leadership independently of profit signs', () => {
   const symbols = ['QQQ', 'TQQQ'];
@@ -36,6 +41,125 @@ test('investment display formats money separately from percentage return in both
   assert.equal(formatInvestmentPercent(-0.001), '0.0%');
   assert.equal(formatInvestmentAmount(null), '—');
   assert.equal(formatInvestmentPercent(null), '—');
+});
+
+test('investment amount conversion preserves signs, unit precision and optional currency symbols', () => {
+  const cny = { displayCurrency: 'CNY', displayRate: 7.2 };
+  assert.equal(formatInvestmentAmount(1000000, false, cny), '¥720.0万');
+  assert.equal(formatInvestmentAmount(1000000, true, cny), '¥7.2M');
+  assert.equal(formatInvestmentAmount(1000000, true, { ...cny, digits: 2 }), '¥7.20M');
+  assert.equal(formatInvestmentAmount(250000, false, { ...cny, signed: true }), '+¥180.0万');
+  assert.equal(formatInvestmentAmount(-250000, true, { ...cny, signed: true }), '−¥1.8M');
+  assert.equal(formatInvestmentAmount(1000000, false, { ...cny, currency: false }), '720.0万');
+  assert.equal(formatInvestmentAmount(1.25, true, cny), '¥9.00');
+  assert.equal(formatInvestmentAmount(0, true, { ...cny, signed: true }), '¥0');
+  assert.equal(formatInvestmentAmount(-0.0001, true, { ...cny, signed: true }), '¥0.00');
+  assert.equal(formatInvestmentAmount(1000000, true, { displayCurrency: 'USD', displayRate: 1 }), '$1.0M');
+});
+
+test('investment amount conversion fails closed on missing amounts or invalid currency rates', () => {
+  for (const value of [null, undefined, NaN, Infinity, '100']) {
+    assert.equal(formatInvestmentAmount(value, true, { displayCurrency: 'CNY', displayRate: 7.2 }), '—');
+  }
+  for (const displayRate of [null, 0, -1, NaN, Infinity, '7.2']) {
+    assert.equal(formatInvestmentAmount(100, true, { displayCurrency: 'CNY', displayRate }), '—');
+    assert.equal(formatInvestmentAmount(0, true, { displayCurrency: 'CNY', displayRate, currency: false }), '—');
+  }
+  for (const displayCurrency of [null, '', 'EUR', 'cny']) {
+    assert.equal(formatInvestmentAmount(100, true, { displayCurrency, displayRate: 7.2 }), '—');
+  }
+  assert.equal(formatInvestmentAmount(Number.MAX_VALUE, true, { displayCurrency: 'CNY', displayRate: 7.2 }), '—');
+});
+
+function currencyChartProps() {
+  const points = ['2019-01-02', '2019-01-03', '2019-01-04'].map((date, index) => ({
+    date, time: Date.parse(`${date}T00:00:00Z`), year: 2019,
+    values: { QQQ: 10000 + index * 2500, TQQQ: 10000 - index * 1000 },
+    profits: { QQQ: index * 2500, TQQQ: -index * 1000 },
+    returns: { QQQ: index * 25, TQQQ: -index * 10 },
+  }));
+  return {
+    model: { symbols: ['QQQ', 'TQQQ'], principal: 10000, points, actualStartDate: points[0].date },
+    snapshot: { index: 2, point: points[2] },
+    englishMode: true,
+  };
+}
+
+test('chart currency changes labels and accessibility values while preserving raw geometry and returns', () => {
+  const props = currencyChartProps();
+  const before = structuredClone(props);
+  for (const scale of ['linear', 'log']) {
+    const usd = renderToStaticMarkup(React.createElement(InvestmentComparisonChart, { ...props, scale }));
+    const cny = renderToStaticMarkup(React.createElement(InvestmentComparisonChart, { ...props, scale, displayCurrency: 'CNY', displayRate: 7.2 }));
+    assert.match(usd, /Assets · USD/);
+    assert.match(cny, /Assets · CNY/);
+    assert.match(usd, /aria-label="QQQ cumulative profit \+\$5\.0K"/);
+    assert.match(cny, /aria-label="QQQ cumulative profit \+¥36\.0K"/);
+    assert.match(cny, /aria-label="TQQQ cumulative profit −¥14\.4K"/);
+    assert.match(cny, /aria-valuetext="2019-01-04, QQQ ¥108\.0K CNY, TQQQ ¥57\.6K CNY"/);
+    assert.doesNotMatch(cny, /USD|\$/);
+    const paths = html => Array.from(html.matchAll(/<path d="([^"]+)"/g), match => match[1]);
+    assert.equal(paths(usd).length, 4);
+    assert.deepEqual(paths(cny), paths(usd));
+    if (scale === 'linear') assert.match(cny, /class="ic-axis-label">36\.0K<\/text>/);
+  }
+  assert.deepEqual(props, before);
+  assert.equal(formatInvestmentPercent(props.snapshot.point.returns.QQQ), '+50.0%');
+  assert.equal(formatInvestmentPercent(props.snapshot.point.returns.TQQQ), '-20.0%');
+});
+
+test('chart displays unavailable amounts for an invalid conversion without erasing its raw series', () => {
+  const props = currencyChartProps();
+  for (const conversion of [{ displayCurrency: 'CNY', displayRate: null }, { displayCurrency: 'EUR', displayRate: 7.2 }]) {
+    const html = renderToStaticMarkup(React.createElement(InvestmentComparisonChart, { ...props, ...conversion }));
+    assert.match(html, /aria-label="QQQ cumulative profit —"/);
+    assert.match(html, /aria-label="TQQQ cumulative profit —"/);
+    assert.match(html, /class="ic-axis-label">—<\/text>/);
+    assert.match(html, /data-investment-series="QQQ"/);
+    assert.match(html, /data-investment-series="TQQQ"/);
+    assert.doesNotMatch(html, /NaN|Infinity|¥0|\$0/);
+  }
+});
+
+test('historical chart tooltip follows the display currency while retaining the selected daily point', async () => {
+  const hookUrl = dataUrl(`
+    import React from ${JSON.stringify(import.meta.resolve('react'))};
+    let slots = [], cursor = 0;
+    export function render(Component, props) { cursor = 0; return Component(props); }
+    function useState(initial) {
+      const index = cursor++;
+      if (!slots[index]) slots[index] = { value: initial };
+      const slot = slots[index];
+      return [slot.value, value => { slot.value = typeof value === 'function' ? value(slot.value) : value; }];
+    }
+    function useRef(initial) {
+      const index = cursor++;
+      if (!slots[index]) slots[index] = { current: initial };
+      return slots[index];
+    }
+    export default { ...React, useState, useRef, useMemo: callback => callback(),
+      useId: () => 'currency-test', useEffect() {}, useLayoutEffect() {} };
+  `);
+  const hooks = await import(hookUrl);
+  const hookCompiled = compiled.replace(`from ${JSON.stringify(ssrReactUrl)}`, `from ${JSON.stringify(hookUrl)}`);
+  const { default: Chart } = await import(dataUrl(hookCompiled));
+  const props = currencyChartProps();
+  let tree = hooks.render(Chart, props);
+  const slider = React.Children.toArray(tree.props.children).find(child => child.props?.role === 'slider');
+  slider.props.onKeyDown({ key: 'Home', preventDefault() {} });
+  tree = hooks.render(Chart, { ...props, displayCurrency: 'CNY', displayRate: 7.2 });
+  let tooltip = React.Children.toArray(tree.props.children).find(child => child.props?.role === 'tooltip');
+  const cnyTooltip = renderToStaticMarkup(tooltip);
+  assert.match(cnyTooltip, /class="ic-tooltip-date">2019-01-02<\/div>/);
+  assert.match(cnyTooltip, /<span>QQQ<\/span><span>¥72\.0K<\/span>/);
+  assert.match(cnyTooltip, /<span>TQQQ<\/span><span>¥72\.0K<\/span>/);
+  const selected = React.Children.toArray(tree.props.children).find(child => child.props?.role === 'slider');
+  assert.equal(selected.props['aria-valuenow'], 0);
+  assert.equal(selected.props['aria-valuetext'], '2019-01-02, QQQ ¥72.0K CNY, TQQQ ¥72.0K CNY');
+  tree = hooks.render(Chart, props);
+  tooltip = React.Children.toArray(tree.props.children).find(child => child.props?.role === 'tooltip');
+  assert.match(renderToStaticMarkup(tooltip), /<span>\$10\.0K<\/span>/);
+  assert.doesNotMatch(renderToStaticMarkup(tooltip), /¥/);
 });
 
 test('profit direction follows market color preference while leadership remains independent', () => {
@@ -96,5 +220,10 @@ test('year and principal controls share dimensions without changing their input 
   assert.match(yearControl[1], /<ChevronDown\b[^>]*aria-hidden="true"/);
   assert.match(cssSource, /\.ic-select-control\s*>\s*svg\s*\{[^}]*pointer-events:\s*none/);
   assert.ok(pageSource.includes('value={principalText} onChange={event => setPrincipalText(event.target.value)}'));
-  assert.ok(pageSource.includes('type="number" inputMode="decimal" min="1" max="1000000000" step="any"'));
+  assert.ok(pageSource.includes('type="number" inputMode="decimal"'));
+  assert.ok(pageSource.includes('min={displayRate ?? undefined}'));
+  assert.ok(pageSource.includes('max={displayRate === null ? undefined : 1000000000 * displayRate}'));
+  assert.ok(pageSource.includes('disabled={displayRate === null} step="any"'));
+  assert.ok(pageSource.includes('Principal per investment · ${displayCurrency}'));
+  assert.ok(pageSource.includes('每个标的本金 · ${displayCurrency}'));
 });

@@ -5603,7 +5603,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
               : isFearGreedPage
                 ? <FearGreedPage key={user?.id || ''} ctx={{ userId: user?.id || '', language, closeFearGreed }} />
               : isInvestmentComparisonPage
-                ? <InvestmentComparisonPage ctx={{ userId: user?.id || '', language, marketColorMode, closeInvestmentComparison }} />
+                ? <InvestmentComparisonPage ctx={{ userId: user?.id || '', language, marketColorMode, usdRate, closeInvestmentComparison }} />
               : isPortfolioOverlapPage
                 ? <PortfolioOverlapPage key={user?.id || ''} ctx={{ userId: user?.id || '', language, investmentSummary, portfolioReady: stockHoldingsReady, portfolioError: stockHoldingsError, closePortfolioOverlap }} />
               : isDcaLabPage

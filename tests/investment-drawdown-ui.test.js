@@ -53,6 +53,46 @@ test('drawdown view renders real model outcomes, principal risk and bilingual co
   }
 });
 
+test('drawdown display currency converts every amount once while retaining percentages, dates and normalized paths', () => {
+  const model = comparisonModel();
+  const original = structuredClone(model);
+  const amounts = html => html.match(/[$¥][\d,.]+(?:万|亿|K|M|B)?/g) || [];
+  const percentages = html => html.match(/[+−-]?\d+(?:\.\d+)?%/g) || [];
+  const dates = html => html.match(/\d{4}-\d{2}(?:-\d{2})?/g) || [];
+  const paths = html => [...html.matchAll(/<path d="([^"]+)"/g)].map(match => match[1]);
+  for (const englishMode of [false, true]) {
+    const renderCurrency = (displayCurrency, displayRate) => renderToStaticMarkup(React.createElement(InvestmentDrawdownView, {
+      model, englishMode, displayCurrency, displayRate,
+    }));
+    const usd = renderCurrency('USD', 1);
+    const cny = renderCurrency('CNY', 7.2);
+    assert.deepEqual(amounts(usd), englishMode
+      ? ['$1.2M', '$1.2M', '$900.0K', '$1.2M', '$1.0M', '$900.0K']
+      : ['$120.0万', '$120.0万', '$90.0万', '$120.0万', '$100.0万', '$90.0万']);
+    assert.deepEqual(amounts(cny), englishMode
+      ? ['¥8.6M', '¥8.6M', '¥6.5M', '¥8.6M', '¥7.2M', '¥6.5M']
+      : ['¥864.0万', '¥864.0万', '¥648.0万', '¥864.0万', '¥720.0万', '¥648.0万']);
+    assert.deepEqual(percentages(cny), percentages(usd));
+    assert.deepEqual(dates(cny), dates(usd));
+    assert.deepEqual(paths(cny), paths(usd));
+  }
+  assert.deepEqual(model, original, 'currency display must not mutate the USD model');
+});
+
+test('drawdown CNY amounts stay unavailable without FX while actual drawdowns and dates remain visible', () => {
+  for (const displayRate of [null, 0, Number.NaN]) {
+    const html = renderToStaticMarkup(React.createElement(InvestmentDrawdownView, {
+      model: comparisonModel(), displayCurrency: 'CNY', displayRate,
+    }));
+    assert.doesNotMatch(html, /[$¥][\d,.]|NaN|Infinity/);
+    assert.match(html, /-25\.0%/);
+    assert.match(html, /-50\.0%/);
+    assert.match(html, /2026-01-06/);
+    assert.match(html, /class="ic-dd-journey-head"[\s\S]*?<strong>—<\/strong>/);
+    assert.match(html, /期间最低资产<\/span><strong[^>]*>—<\/strong>/);
+  }
+});
+
 test('a period with no drawdown has an honest empty journey and no unusable playback controls', () => {
   for (const englishMode of [false, true]) {
     const html = renderToStaticMarkup(React.createElement(InvestmentDrawdownView, { model: comparisonModel({ rising: true }), englishMode }));
@@ -105,7 +145,7 @@ const hookUrl = dataUrl(`
   export default { ...React, memo: component => component, useState, useRef, useMemo, useEffect, useId: () => 'drawdown-test', useCallback: (callback, deps) => useMemo(() => callback, deps) };
 `);
 const hooks = await import(hookUrl);
-const { DrawdownJourney, DrawdownOverview, JourneyChart, DrawdownAnalysis } = await import(dataUrl(compiledView(hookUrl, '\nexport { DrawdownJourney, DrawdownOverview, JourneyChart, DrawdownAnalysis };')));
+const { default: HookInvestmentDrawdownView, DrawdownJourney, DrawdownOverview, JourneyChart, DrawdownAnalysis } = await import(dataUrl(compiledView(hookUrl, '\nexport { DrawdownJourney, DrawdownOverview, JourneyChart, DrawdownAnalysis };')));
 
 function findAll(node, predicate) {
   if (!React.isValidElement(node)) return [];
@@ -362,6 +402,43 @@ function replayHost(t) {
   const frame = timestamp => { const entry = frames.entries().next().value; assert.ok(entry, 'playback must schedule a frame'); frames.delete(entry[0]); entry[1](timestamp); return render(); };
   return { data, props, render, frame, frames };
 }
+
+test('switching drawdown display currency preserves the selected symbol, episode and active replay', t => {
+  hooks.reset();
+  t.after(() => hooks.reset());
+  const model = comparisonModel();
+  const viewProps = { model, englishMode: true, displayCurrency: 'USD', displayRate: 1 };
+  const view = hooks.render(HookInvestmentDrawdownView, viewProps, 'currency-view');
+  let analysis = hooks.render(DrawdownAnalysis, view.props, 'currency-analysis');
+  findAll(analysis, node => node.props.className === 'ic-dd-metric')[1].props.onClick();
+  analysis = hooks.render(DrawdownAnalysis, view.props, 'currency-analysis');
+  findAll(classNode(analysis, 'ic-dd-episode-tabs'), node => node.type === 'button')[2].props.onClick();
+  analysis = hooks.render(DrawdownAnalysis, view.props, 'currency-analysis');
+  const usdJourney = findAll(analysis, node => node.type === DrawdownJourney)[0];
+  let journey = hooks.render(DrawdownJourney, usdJourney.props, 'currency-journey');
+  classNode(journey, 'ic-dd-play').props.onClick();
+  journey = hooks.render(DrawdownJourney, usdJourney.props, 'currency-journey');
+  const progressBefore = classNode(journey, 'ic-dd-scrubber').props;
+  assert.equal(classNode(journey, 'ic-dd-play').props['aria-pressed'], true);
+
+  const cnyView = hooks.render(HookInvestmentDrawdownView, { ...viewProps, displayCurrency: 'CNY', displayRate: 7.2 }, 'currency-view');
+  assert.strictEqual(cnyView.props.data, view.props.data, 'currency must not rebuild the drawdown model');
+  const cnyAnalysis = hooks.render(DrawdownAnalysis, cnyView.props, 'currency-analysis');
+  const cnyJourney = findAll(cnyAnalysis, node => node.type === DrawdownJourney)[0];
+  assert.equal(cnyJourney.props.symbol, 'TQQQ');
+  assert.strictEqual(cnyJourney.props.analysis, usdJourney.props.analysis);
+  assert.strictEqual(cnyJourney.props.episode, usdJourney.props.episode);
+  assert.equal(cnyJourney.key, usdJourney.key, 'currency must not remount the selected replay');
+  assert.equal(cnyJourney.props.displayCurrency, 'CNY');
+  assert.equal(cnyJourney.props.displayRate, 7.2);
+  const cnyReplay = hooks.render(DrawdownJourney, cnyJourney.props, 'currency-journey');
+  const progressAfter = classNode(cnyReplay, 'ic-dd-scrubber').props;
+  assert.equal(progressAfter.value, progressBefore.value);
+  assert.equal(progressAfter['aria-valuetext'], progressBefore['aria-valuetext']);
+  assert.equal(classNode(cnyReplay, 'ic-dd-play').props['aria-pressed'], true);
+  const readout = findAll(classNode(cnyReplay, 'ic-dd-journey-head'), node => node.type === 'strong')[0];
+  assert.equal(readout.props.children, '¥9.4M');
+});
 
 test('drawdown playback defaults to 0.2 and displays only real daily observations while pausing and restarting explicitly', t => {
   const replay = replayHost(t);

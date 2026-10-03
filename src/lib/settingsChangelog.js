@@ -4,6 +4,17 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '投资时光机右上角改为 USD／CNY 切换，本金、总资产、盈亏、逐年收益与回撤详情金额同步换算。',
+      '金额沿用系统当前汇率，切换不改变收益率、历史回放位置或原始投资本金；数据读取异常或待更新时保留重试入口。',
+    ],
+    itemsEn: [
+      'Investment Time Machine replaces the header refresh with USD/CNY switching for principal, assets, profit, yearly results, and drawdown amounts.',
+      'Amounts use the current system exchange rate without changing returns, playback position, or the original investment principal. Retry remains available for failed or outdated data.',
+    ],
+  },
+  {
+    ver: 'v10.7.9.551', date: '2026-10-03',
+    items: [
       '收益比赛年榜的 QQQ 基准统一按年初至今计算，所有参赛者共用相同基准，个人收益仍从年初与有效参赛日起点两者较晚者计算。',
       '年榜明确显示「QQQ 年初至今」，跑赢 QQQ 与排名同步使用新口径；日榜、周榜和月榜保持原规则。',
     ],
