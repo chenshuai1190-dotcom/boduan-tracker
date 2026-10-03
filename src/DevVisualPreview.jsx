@@ -1,5 +1,6 @@
 import React, { lazy, Suspense } from 'react';
 import { rsiLifecyclePreview } from './dev/stockRsiFixtures.js';
+import { legacyStockPnlReportPreview } from './dev/stockPnlReportPreview.js';
 import {
   AlertCircle,
   BookOpen,
@@ -2186,6 +2187,8 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     && new URLSearchParams(window.location.search).get('stockDetailComparison') === 'loss';
   const stockReturnComparisonCostFlowPreview = typeof window !== 'undefined'
     && new URLSearchParams(window.location.search).get('stockDetailComparison') === 'cost-flow';
+  const stockPnlLegacyHistoryPreview = typeof window !== 'undefined'
+    && new URLSearchParams(window.location.search).get('stockPnlHistory') === 'legacy';
   const stockDetailInitialRange = typeof window === 'undefined'
     ? 'all'
     : new URLSearchParams(window.location.search).get('stockDetailRange') || 'all';
@@ -2318,6 +2321,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     return mockMarketIndices;
   }, [indicesPreviewMode]);
   const stockDetailSnapshotHistory = React.useMemo(() => {
+    if (stockPnlLegacyHistoryPreview) return legacyStockPnlReportPreview.snapshots;
     if (stockReturnComparisonCostFlowPreview) return mockStockComparisonCostFlowSnapshots;
     if (stockReturnComparisonLossPreview) {
       return mockPnlSymbolSnapshotHistory.map((row) => {
@@ -2366,20 +2370,22 @@ function StandardDevVisualPreview({ initialTab = '' }) {
         cumulativePnlUsd: 5672,
       };
     });
-  }, [stockDetailPeakPreview, stockReturnComparisonCostFlowPreview, stockReturnComparisonLossPreview]);
+  }, [stockDetailPeakPreview, stockReturnComparisonCostFlowPreview, stockReturnComparisonLossPreview, stockPnlLegacyHistoryPreview]);
   const stockReturnBenchmarkRows = React.useMemo(() => {
+    if (stockPnlLegacyHistoryPreview) return legacyStockPnlReportPreview.benchmarkRows;
     if (stockReturnComparisonCostFlowPreview) return mockStockComparisonCostFlowQqqRows;
     if (!stockReturnComparisonLossPreview) return mockPnlBenchmarkRows;
     return mockPnlBenchmarkRows.map((row) => {
       const lossClose = mockStockComparisonLossQqqCloseByDate[row.date];
       return lossClose == null ? row : { ...row, close: lossClose, rawClose: lossClose };
     });
-  }, [stockReturnComparisonCostFlowPreview, stockReturnComparisonLossPreview]);
+  }, [stockReturnComparisonCostFlowPreview, stockReturnComparisonLossPreview, stockPnlLegacyHistoryPreview]);
   const stockReturnStockRawRows = React.useMemo(() => {
+    if (stockPnlLegacyHistoryPreview) return legacyStockPnlReportPreview.stockPriceRows;
     if (stockReturnComparisonCostFlowPreview) return mockStockComparisonCostFlowNvdaRawRows;
     if (stockReturnComparisonLossPreview) return mockStockComparisonLossNvdaRawRows;
     return mockStockComparisonNvdaRawRows;
-  }, [stockReturnComparisonCostFlowPreview, stockReturnComparisonLossPreview]);
+  }, [stockReturnComparisonCostFlowPreview, stockReturnComparisonLossPreview, stockPnlLegacyHistoryPreview]);
   const stockReturnRawRowsBySymbol = React.useMemo(() => ({
     QQQ: stockReturnBenchmarkRows,
     SPY: mockSpyBenchmarkRows,
@@ -2392,9 +2398,11 @@ function StandardDevVisualPreview({ initialTab = '' }) {
       .filter((row) => (!from || row.date >= from) && (!to || row.date <= to))
       .map((row) => ({ ...row, adjustedClose: row.adjustedClose ?? row.close }));
   }, [stockReturnRawRowsBySymbol]);
-  const stockDetailTrades = stockReturnComparisonCostFlowPreview
-    ? [...mockPnlStockTrades.filter((trade) => trade.symbol !== 'NVDA'), ...mockStockComparisonCostFlowTrades]
-    : mockPnlStockTrades;
+  const stockDetailTrades = stockPnlLegacyHistoryPreview
+    ? legacyStockPnlReportPreview.trades
+    : stockReturnComparisonCostFlowPreview
+      ? [...mockPnlStockTrades.filter((trade) => trade.symbol !== 'NVDA'), ...mockStockComparisonCostFlowTrades]
+      : mockPnlStockTrades;
   const previewActivePositions = freshnessPreviewMode === 'locked'
     ? mockLockedActivePositions
     : mockActivePositions;

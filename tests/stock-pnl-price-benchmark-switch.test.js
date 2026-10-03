@@ -6,6 +6,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { transformWithOxc } from 'vite';
 
 import { buildStockPnlReportViewModel } from '../src/lib/stockPnlReportViewModel.js';
+import { legacyStockPnlReportPreview } from '../src/dev/stockPnlReportPreview.js';
 
 const pageUrl = new URL('../src/pages/StockPnlReportPage.jsx', import.meta.url);
 const moduleUrl = code => `data:text/javascript;base64,${Buffer.from(code).toString('base64')}`;
@@ -93,7 +94,7 @@ function priceReadout(html) {
   return html.match(/class="stock-pnl-price-readout"[\s\S]*?class="stock-pnl-price-plot-layout"/)?.[0] || '';
 }
 
-function makeHarness(fetchRows = async ({ symbol }) => priceRows[symbol] || []) {
+function makeHarness(fetchRows = async ({ symbol }) => priceRows[symbol] || [], ctxOverrides = {}) {
   hooks.reset();
   const requests = [];
   const ctx = {
@@ -104,6 +105,7 @@ function makeHarness(fetchRows = async ({ symbol }) => priceRows[symbol] || []) 
     user: { id: 'user-1' },
     usdRate: 7.2,
     language: 'zh',
+    ...ctxOverrides,
   };
   function render() {
     let tree;
@@ -130,6 +132,40 @@ function makeHarness(fetchRows = async ({ symbol }) => priceRows[symbol] || []) 
   }
   return { requests, render, settle, select, priceMode };
 }
+
+test('rendered year and all reports retain totals and chart while excluding pre-ledger calendar months', async t => {
+  t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-10-03T08:00:00Z') });
+  for (const symbol of ['NVDA', 'MSFT']) {
+    const harness = makeHarness(async () => [], {
+      stockDetailSymbol: symbol,
+      stockTrades: legacyStockPnlReportPreview.trades.map(row => ({ ...row, symbol })),
+      db: { fetchPnlReportSymbolSnapshotHistory: async () => legacyStockPnlReportPreview.snapshots.map(row => ({ ...row, symbol })) },
+      portfolioCurrencyMode: 'CNY',
+    });
+    let rendered = await harness.settle();
+    for (const rangeLabel of ['本年', '全部']) {
+      const range = nodes(rendered.tree, node => node.type?.name === 'RangeButton' && textOf(node) === rangeLabel)[0];
+      range.props.onClick();
+      rendered = await harness.settle();
+      assert.doesNotMatch(rendered.html, /暂无该股票的完整收盘收益记录/, `${symbol} ${rangeLabel}`);
+      assert.equal(textOf(nodes(rendered.tree, node => node.props['data-stock-pnl-total'])[0]), '+¥3,240.00');
+      assert.match(rendered.html, /\+45\.00%/);
+      const breakdown = nodes(rendered.tree, node => node.props.className === 'stock-pnl-breakdown')[0];
+      assert.equal(textOf(breakdown), '已实现盈亏+¥0.00未实现盈亏+¥3,240.00');
+      const chart = nodes(rendered.tree, node => node.type?.name === 'PnlReportTrendChart')[0];
+      assert.ok(chart.props.data.length > 50, `${symbol} ${rangeLabel} curve must not disappear`);
+      assert.ok(chart.props.data.every(row => row.date >= '2026-07-01' && Number.isFinite(row.pnlUsd)));
+      assert.equal(chart.props.data.at(-1).pnlUsd, 450);
+    }
+    nodes(rendered.tree, node => node.type?.name === 'SegmentButton' && textOf(node) === '年')[0].props.onClick();
+    rendered = harness.render();
+    const months = nodes(rendered.tree, node => node.props.className === 'stock-pnl-calendar-tile stock-pnl-calendar-tile-year');
+    assert.equal(textOf(months[4]), '五月');
+    assert.equal(textOf(months[5]), '六月');
+    assert.equal(textOf(months[6]), '七月+2.02K');
+    assert.equal(textOf(months[7]), '八月-720');
+  }
+});
 
 test('QQQ is default; SPY and VGT choices request and label their own market series', async () => {
   const harness = makeHarness();

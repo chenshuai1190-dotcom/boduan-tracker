@@ -81,12 +81,15 @@ function normalizeTrades(stockTrades, symbol) {
     .sort((a, b) => a.date.localeCompare(b.date));
 }
 
-function normalizeSnapshots(symbolSnapshots, symbol, completedDate) {
+function normalizeSnapshots(symbolSnapshots, symbol, completedDate, firstTradeDate) {
+  if (!firstTradeDate) return [];
   const byDate = new Map();
   (Array.isArray(symbolSnapshots) ? symbolSnapshots : []).forEach((row) => {
     if (String(row?.symbol || '').trim().toUpperCase() !== symbol) return;
     const date = dateKey(row?.snapshotDate ?? row?.snapshot_date);
-    if (!date || date > completedDate) return;
+    // Legacy position backfills can predate the formal ledger. They are not
+    // this user's trading returns and must not enter any report calculation.
+    if (!date || date < firstTradeDate || date > completedDate) return;
     const lockedAt = row?.lockedAt ?? row?.locked_at;
     if (lockedAt && date > latestCompletedUsTradingDate(lockedAt)) return;
     const cumulativePnlUsd = finite(row?.cumulativePnlUsd ?? row?.cumulative_pnl_usd);
@@ -148,8 +151,8 @@ function priorSnapshot(snapshots, startDate) {
 }
 
 function periodBaseline(snapshots, firstTradeDate, startDate) {
-  // Historical snapshots can predate the current ledger's first trade. Use
-  // the actual prior close before considering a zero opening balance.
+  // An existing holding needs its actual prior close. Missing trading-day
+  // history must not be replaced with a zero opening balance.
   const prior = priorSnapshot(snapshots, startDate);
   if (prior) return prior.date === previousRegularTradingDay(startDate) ? prior : null;
   const firstSnapshotDate = snapshots[0]?.date;
@@ -218,9 +221,9 @@ export function buildStockPnlReportViewModel({
   const normalizedSymbol = String(symbol || '').trim().toUpperCase();
   const completedDate = latestCompletedUsTradingDate(now);
   const trades = normalizeTrades(stockTrades, normalizedSymbol);
-  const snapshots = normalizeSnapshots(symbolSnapshots, normalizedSymbol, completedDate);
-  const latest = snapshots.at(-1) || null;
   const firstTradeDate = trades[0]?.date || null;
+  const snapshots = normalizeSnapshots(symbolSnapshots, normalizedSymbol, completedDate, firstTradeDate);
+  const latest = snapshots.at(-1) || null;
   const bounds = latest && firstTradeDate ? rangeBounds(range, latest.date, firstTradeDate, customRange) : null;
   const startDate = bounds?.startDate || null;
   const requestedEndDate = bounds?.endDate || null;
