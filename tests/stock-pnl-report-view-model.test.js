@@ -116,6 +116,120 @@ test('monthly amount and rate use the pre-month close and period buy cash, never
   assert.notEqual(report.yearCalendar[8].rate, report.calendar[0].rate + report.calendar[1].rate);
 });
 
+test('months with snapshots before the first ledger trade use actual prior closes, including a losing month', () => {
+  const stockTrades = [trade('2026-07-01', 'buy', 10, 100)];
+  const symbolSnapshots = [
+    snapshot('2026-04-30', 100, 1100),
+    snapshot('2026-05-29', 400, 1400),
+    snapshot('2026-06-30', 250, 1250),
+    snapshot('2026-07-31', 280, 2280),
+    snapshot('2026-08-31', 380, 2380),
+    snapshot('2026-09-30', 430, 2430),
+    snapshot('2026-10-02', 450, 2450),
+  ];
+  const options = { symbol: 'META', stockTrades, symbolSnapshots, now: new Date('2026-10-03T08:00:00Z') };
+  const report = buildStockPnlReportViewModel({
+    ...options,
+    range: 'custom',
+    customRange: { startDate: '2026-05-01', endDate: '2026-10-02' },
+  });
+  const months = report.yearCalendar.slice(4, 10);
+
+  assert.deepEqual(months.map(row => row.valueUsd), [300, -150, 30, 100, 50, 20]);
+  assert.equal(months[1].rate, -150 / 1400);
+  assert.equal(months[2].rate, 30 / (1250 + 1000));
+  assert.equal(months.reduce((sum, row) => sum + row.valueUsd, 0), report.totalPnlUsd);
+  assert.equal(report.totalPnlUsd, 350);
+  assert.equal(report.periodBasisUsd, 2100);
+
+  const june = buildStockPnlReportViewModel({
+    ...options,
+    range: 'custom',
+    customRange: { startDate: '2026-06-01', endDate: '2026-06-30' },
+  });
+  assert.equal(june.totalPnlUsd, months[1].valueUsd);
+  assert.equal(june.totalPnlPct, months[1].rate);
+  assert.equal(june.realizedPnlUsd + june.unrealizedPnlUsd, june.totalPnlUsd);
+});
+
+test('missing opening history stays unknown when snapshots predate the first ledger trade', () => {
+  const report = buildStockPnlReportViewModel({
+    symbol: 'META',
+    stockTrades: [trade('2026-07-01', 'buy', 10, 100)],
+    symbolSnapshots: [
+      snapshot('2026-05-29', 400, 1400),
+      snapshot('2026-06-30', 250, 1250),
+      snapshot('2026-07-31', 280, 2280),
+    ],
+    range: 'ytd',
+    now: NOW,
+  });
+
+  assert.equal(report.hasData, false);
+  assert.equal(report.totalPnlUsd, null);
+  assert.equal(report.totalPnlPct, null);
+  assert.equal(report.periodBasisUsd, null);
+  assert.equal(report.yearCalendar[4].valueUsd, null);
+  assert.equal(report.yearCalendar[4].rate, null);
+  assert.equal(report.yearCalendar[5].valueUsd, -150);
+  assert.equal(report.yearCalendar[6].valueUsd, 30);
+});
+
+test('a missing exact prior close cannot fall back to zero for a later ledger opening', () => {
+  const report = buildStockPnlReportViewModel({
+    symbol: 'META',
+    stockTrades: [trade('2026-09-21', 'buy', 10, 100)],
+    symbolSnapshots: [
+      snapshot('2026-08-28', 100, 1100),
+      snapshot('2026-09-21', 150, 2150),
+      snapshot('2026-09-22', 130, 2130),
+    ],
+    range: 'month',
+    now: NOW,
+  });
+
+  assert.equal(report.totalPnlUsd, null);
+  assert.equal(report.totalPnlPct, null);
+  assert.equal(report.yearCalendar[8].valueUsd, null);
+  assert.equal(report.yearCalendar[8].rate, null);
+  assert.equal(report.calendar[1].valueUsd, -20);
+  assert.equal(report.calendar[1].rate, -20 / 2150);
+});
+
+test('a genuine first purchase still starts the month and year from zero', () => {
+  const report = buildStockPnlReportViewModel({
+    symbol: 'META',
+    stockTrades: [trade('2026-09-21', 'buy', 10, 100)],
+    symbolSnapshots: [snapshot('2026-09-21', -50, 950), snapshot('2026-09-22', -30, 970)],
+    range: 'ytd',
+    now: NOW,
+  });
+
+  assert.equal(report.totalPnlUsd, -30);
+  assert.equal(report.totalPnlPct, -30 / 1000);
+  assert.equal(report.yearCalendar[8].valueUsd, -30);
+  assert.equal(report.yearCalendar[8].rate, -30 / 1000);
+  assert.equal(report.calendar[0].valueUsd, -50);
+  assert.equal(report.calendar[1].valueUsd, 20);
+});
+
+test('a prior close with unknown market value supports monthly P&L but not an invented return rate', () => {
+  const report = buildStockPnlReportViewModel({
+    symbol: 'META',
+    stockTrades: [trade('2026-09-21', 'buy', 10, 100)],
+    symbolSnapshots: [snapshot('2026-08-31', 100, null), snapshot('2026-09-25', 50, 1050)],
+    range: 'month',
+    now: NOW,
+  });
+
+  assert.equal(report.hasData, true);
+  assert.equal(report.totalPnlUsd, -50);
+  assert.equal(report.totalPnlPct, null);
+  assert.equal(report.periodBasisUsd, null);
+  assert.equal(report.yearCalendar[8].valueUsd, -50);
+  assert.equal(report.yearCalendar[8].rate, null);
+});
+
 test('a missing intervening trading-day snapshot leaves the next daily result unavailable', () => {
   const report = buildStockPnlReportViewModel({
     symbol: 'META',

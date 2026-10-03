@@ -148,11 +148,15 @@ function priorSnapshot(snapshots, startDate) {
 }
 
 function periodBaseline(snapshots, firstTradeDate, startDate) {
-  if (firstTradeDate && firstTradeDate >= startDate) {
+  // Historical snapshots can predate the current ledger's first trade. Use
+  // the actual prior close before considering a zero opening balance.
+  const prior = priorSnapshot(snapshots, startDate);
+  if (prior) return prior.date === previousRegularTradingDay(startDate) ? prior : null;
+  const firstSnapshotDate = snapshots[0]?.date;
+  if (firstTradeDate && firstTradeDate >= startDate && firstSnapshotDate >= firstTradeDate) {
     return { date: null, cumulativePnlUsd: 0, realizedPnlUsd: 0, unrealizedPnlUsd: 0, marketValueUsd: 0 };
   }
-  const prior = priorSnapshot(snapshots, startDate);
-  return prior?.date === previousRegularTradingDay(startDate) ? prior : null;
+  return null;
 }
 
 function periodValues(end, baseline, trades, startDate) {
