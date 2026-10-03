@@ -33,10 +33,10 @@ jobs:
       - name: Install
         run: npm ci
 
+      - name: Audit
+        run: npm run audit
+
       - name: Final FULL gate
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: npm run check:full
-
-      - name: Audit
-        run: npm run audit

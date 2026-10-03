@@ -75,7 +75,7 @@ test('monthly zero returns and missing returns are never given an up or down col
   assert.equal(html.split('<strong class="vmr-change-neutral">0.00%</strong>').length - 1, 2);
   assert.equal(html.split('<strong class="vmr-missing">—</strong>').length - 1, 2);
   assert.equal(html.includes('text-[#ff4b1f]'), false);
-  assert.equal(html.includes('text-emerald-400'), false);
+  assert.equal(html.includes('text-[#34d399]'), false);
 });
 
 test('VIX historical extremes keep their own red segments while the latest reading follows its own level', () => {

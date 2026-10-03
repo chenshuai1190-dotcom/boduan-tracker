@@ -49,7 +49,7 @@ test('margin report keeps exact before, after and change readings while putting 
   assert.match(html, /融资负债保持 \$25,000\.00/);
   assert.match(html, /1\.33×.*1\.42×/);
   assert.match(html, /role="spinbutton"[^>]*aria-valuemin="-100"[^>]*aria-valuemax="100"[^>]*aria-valuenow="-20"/);
-  assert.match(net, /text-emerald-400/);
+  assert.match(net, /text-\[#34d399\]/);
 });
 
 test('scenario direction, market preference and currency remain reflected in complete result values', () => {
@@ -57,7 +57,7 @@ test('scenario direction, market preference and currency remain reflected in com
   assert.match(renderToStaticMarkup(result(positive.tree, 'net')), /\$91,000/);
   assert.match(renderToStaticMarkup(result(positive.tree, 'net')), /text-\[#ff4b1f\]/);
   const alternate = renderPage({ homeMarginScenarioPreview: 20, marketColorMode: 'greenUpRedDown' });
-  assert.match(renderToStaticMarkup(result(alternate.tree, 'net')), /text-emerald-400/);
+  assert.match(renderToStaticMarkup(result(alternate.tree, 'net')), /text-\[#34d399\]/);
   const cny = renderPage({ homeMarginScenarioPreview: -20, portfolioCurrencyMode: 'CNY', language: 'en' });
   assert.match(renderToStaticMarkup(result(cny.tree, 'net')), /¥413,000/);
   assert.match(cny.html, /Scenario results/);

@@ -1,4 +1,5 @@
 {
+  "buildCommand": "npm run audit && npm run build",
   "functions": {
     "api/quote.js": { "maxDuration": 90 },
     "api/earnings-calendar.js": { "maxDuration": 60 }

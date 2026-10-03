@@ -83,7 +83,7 @@ test('amount trend renders a zero line, only my P&L line, and currency-aware dai
   assert.deepEqual(amountPaths(tree).map(node => node.props.stroke), ['#34d399', '#ff4b1f']);
   const readout = nodes(tree, node => node.props['data-pnl-report-amount-tooltip'])[0];
   const readingClasses = React.Children.toArray(readout.props.children).map(child => child.props.className).filter(Boolean);
-  assert.ok(readingClasses[0].includes('text-emerald-400'), 'negative daily P&L follows the market color preference');
+  assert.ok(readingClasses[0].includes('text-[#34d399]'), 'negative daily P&L follows the market color preference');
   assert.ok(readingClasses[1].includes('text-[#ff4b1f]'), 'positive cumulative P&L follows the market color preference');
 
   const usd = render(trend, { currency: 'USD', rate: 1 });
@@ -93,7 +93,7 @@ test('amount trend renders a zero line, only my P&L line, and currency-aware dai
   const greenUpReadout = nodes(greenUp, node => node.props['data-pnl-report-amount-tooltip'])[0];
   const greenUpClasses = React.Children.toArray(greenUpReadout.props.children).map(child => child.props.className).filter(Boolean);
   assert.ok(greenUpClasses[0].includes('text-[#ff4b1f]'));
-  assert.ok(greenUpClasses[1].includes('text-emerald-400'));
+  assert.ok(greenUpClasses[1].includes('text-[#34d399]'));
 });
 
 test('positive amount period high shows its cumulative amount with the shared pulse marker', () => {
@@ -118,7 +118,7 @@ test('positive amount period high shows its cumulative amount with the shared pu
   assert.match(usd.html, /P&amp;L at period high/);
   assert.match(usdAmount, /\+\$2,000\.00/);
   assert.doesNotMatch(usdAmount, /\$1,000\.00|\$7,000\.00/);
-  assert.match(usdAmount, /text-emerald-400|color:#34d399/);
+  assert.match(usdAmount, /text-\[#34d399\]|color:#34d399/);
   const missingRate = amountMarkup(render(trend, { rate: null }).tree);
   assert.match(missingRate, />--</);
   assert.doesNotMatch(missingRate, /[¥$]|0\.00|NaN|Infinity/,
@@ -132,9 +132,9 @@ test('positive amount period high shows its cumulative amount with the shared pu
 test('return high shows the peak cumulative rate with compact unsigned percentages and market colors', () => {
   for (const [peak, expected, marketColorMode, expectedClass] of [
     [0.38, '38%', 'redUpGreenDown', 'text-[#ff4b1f]'],
-    [0.3825, '38.25%', 'greenUpRedDown', 'text-emerald-400'],
+    [0.3825, '38.25%', 'greenUpRedDown', 'text-[#34d399]'],
     [0.38256, '38.26%', 'redUpGreenDown', 'text-[#ff4b1f]'],
-    [-0.1, '-10%', 'redUpGreenDown', 'text-emerald-400'],
+    [-0.1, '-10%', 'redUpGreenDown', 'text-[#34d399]'],
     [0, '0%', 'redUpGreenDown', 'text-[#ff4b1f]'],
   ]) {
     const data = trend.map((point, index) => ({

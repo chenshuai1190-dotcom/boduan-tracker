@@ -764,8 +764,8 @@ test('market colors preserve financial differences and keep both chart paths neu
 test('target and projected cumulative gains follow both market color modes with genuine zero kept neutral', () => {
   for (const language of ['zh', 'en']) {
     for (const [marketColorMode, positiveClass, negativeClass] of [
-      [MARKET_COLOR_MODES.RED_UP_GREEN_DOWN, 'text-[#ff4b1f]', 'text-emerald-400'],
-      [MARKET_COLOR_MODES.GREEN_UP_RED_DOWN, 'text-emerald-400', 'text-[#ff4b1f]'],
+      [MARKET_COLOR_MODES.RED_UP_GREEN_DOWN, 'text-[#ff4b1f]', 'text-[#34d399]'],
+      [MARKET_COLOR_MODES.GREEN_UP_RED_DOWN, 'text-[#34d399]', 'text-[#ff4b1f]'],
     ]) {
       for (const [targetAnnualRate, targetValue, expectedClass] of [[0.1, 1610.51, positiveClass], [-0.1, 590.49, negativeClass], [0, 1000, '']]) {
         const { tree, props } = renderPage({ language, marketColorMode, targetAnnualRate, targetValue, yearRows: [], initialView: 'simulation' });

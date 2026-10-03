@@ -1,6 +1,9 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Keep the existing unlayered cascade used by all page styles. */
+@import "tailwindcss/theme.css";
+@import "./styles/quote-utility-theme.css";
+@import "./styles/quote-reset.css";
+@import "tailwindcss/utilities.css" source(".");
+@import "./styles/quote-utility-compat.css";
 
 html, body, #root {
   margin: 0;

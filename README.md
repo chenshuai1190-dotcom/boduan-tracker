@@ -14,13 +14,15 @@
 
 ## 技术栈
 
-- React 18 + Vite + Tailwind CSS
+- React 18 + Vite + Tailwind CSS 4（Vite 插件）
 - Supabase Auth + Postgres + RLS
 - Vercel Serverless Functions / Cron
 - EODHD、SEC EDGAR、Yahoo Finance、CNN FGI 等服务端数据源
 - iOS Home Screen PWA
 
 生产地址：`https://boduan-tracker.vercel.app`
+
+Tailwind 4 只负责工具类编译；既有配色、基础 reset 和已使用的间距/分隔线/焦点/变换语义保存在 `src/styles/quote-*.css`，保持原来的无层级 CSS 级联。主题修改以这些 CSS 为准，不再使用旧 `tailwind.config.js`。`tests/tailwind-compatibility.test.js` 实际编译生产 CSS，防止默认色板或工具类语义随升级改变；新增兼容范围内的类名时需同步验证。构建器支持范围为 Safari 16.4+、Chrome 111+、Firefox 128+。
 
 ## 本地启动
 

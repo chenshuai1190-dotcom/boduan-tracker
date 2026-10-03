@@ -135,6 +135,8 @@ contract migration 不得在新 runtime 前执行；foundation、runtime、contr
 
 ### 收益配色与按压反馈统一规则
 
+- 构建依赖升级不得顺带重设计页面。当前 Tailwind 4 保留 `src/styles/quote-reset.css`、`quote-utility-theme.css` 与 `quote-utility-compat.css` 的既有视觉语义及无层级级联；不要重新导入默认 Preflight 或默认色板覆盖这些约束。`tests/tailwind-compatibility.test.js` 必须实际编译 CSS，核对最终收益色、旧兄弟元素间距、分隔线、焦点和 `transform` 按压反馈；类名字符串相同不能替代实际色值检查。新增受兼容清单约束的工具类时，一并扩充对应样式和回归用例。
+
 - 收益金额、收益率、涨跌金额、涨跌幅及其方向色统一由 `src/lib/marketColorMode.js` 提供：红色 `#FF4B1F`、绿色 `#34D399`。Tailwind、inline style、SVG 和 Canvas 使用同一组颜色；`marketStrongTextClass` 仅保留兼容入口，不使用更深的收益色。
 - 页面、独立工具、资产月度报告和导出分享图必须接收现有 `marketColorMode`，随用户的涨红跌绿／涨绿跌红设置同步。不得在子模块另建默认设置、独立存储或硬编码正负颜色。
 - 同组金额与百分比均保持完整不透明度；字号和排版可区分主次，不得通过单独的 `opacity`、颜色 alpha、亮度滤镜或父级透明度使其中一项变淡。
@@ -184,6 +186,13 @@ npm run release:verify -- full <commit>
 禁止在等待器外继续运行第二次发布校验、手写 `gh run list`、多轮 `curl` 或循环生产探针。terminal failure 或超时应直接报告真实状态。
 
 GitHub CI 复用同一个 `check:full`，Docs workflow 复用同一个 `check:docs`；连续推送只保留同分支最新任务，避免旧任务继续占用资源。
+
+### 依赖安全阻断
+
+- GitHub CI 在 `npm ci` 后先运行 `npm run audit`，通过后才执行原有完整 `check:full`。审计前置不替代全量测试与构建。
+- Vercel 的仓库 `buildCommand` 固定为 `npm run audit && npm run build`。审计失败时不得开始构建，因此不能从该次构建产生新部署；审计与构建任一步失败均必须保留非零退出码。
+- `npm run audit` 检查完整依赖树（包含构建依赖），当前阻断阈值为 `high`，即高危和严重漏洞。不得通过 `--omit=dev`、`continue-on-error` 或忽略退出码绕过；审计服务或网络异常导致命令失败时也停止构建，恢复后再验证。
+- 上线前仍须核对 Vercel 项目的生产 Checks 是否要求对应提交的 CI 成功。仓库内的构建阻断不代表远端生产 Checks 已启用，也不能代替该项远端设置核对；本地测试通过不能宣称远端配置已完成。
 
 ## 八、版本与文档只在有意义时更新
 

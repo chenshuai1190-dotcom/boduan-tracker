@@ -8,6 +8,7 @@ export const MARKET_COLOR_MODES = {
 export const MARKET_RED_HEX = '#ff4b1f';
 export const MARKET_GREEN_HEX = '#34d399';
 const MARKET_RED_TEXT_CLASS = 'text-[#ff4b1f]';
+const MARKET_GREEN_TEXT_CLASS = 'text-[#34d399]';
 
 export function normalizeMarketColorMode(value) {
   return value === MARKET_COLOR_MODES.RED_UP_GREEN_DOWN
@@ -30,7 +31,7 @@ function usesGreenForPositive(mode) {
 
 export function marketTextClass(value, mode) {
   const green = isPositive(value) === usesGreenForPositive(mode);
-  return green ? 'text-emerald-400' : MARKET_RED_TEXT_CLASS;
+  return green ? MARKET_GREEN_TEXT_CLASS : MARKET_RED_TEXT_CLASS;
 }
 
 export function marketStrongTextClass(value, mode) {

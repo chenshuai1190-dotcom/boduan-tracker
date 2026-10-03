@@ -131,8 +131,8 @@ test('results distinguish assets, contributed principal and cumulative profit ex
 test('DCA profit amount, return and chart follow both color preferences without changing comparison ranking', () => {
   const lossModel = buildDcaModel({ data: { ...data, rows: [data.rows[0], { ...data.rows[1], close: 80 }] }, plan });
   for (const [marketColorMode, positiveClass, negativeClass, positiveColor, negativeColor] of [
-    ['redUpGreenDown', 'text-[#ff4b1f]', 'text-emerald-400', '#ff4b1f', '#34d399'],
-    ['greenUpRedDown', 'text-emerald-400', 'text-[#ff4b1f]', '#34d399', '#ff4b1f'],
+    ['redUpGreenDown', 'text-[#ff4b1f]', 'text-[#34d399]', '#ff4b1f', '#34d399'],
+    ['greenUpRedDown', 'text-[#34d399]', 'text-[#ff4b1f]', '#34d399', '#ff4b1f'],
   ]) {
     for (const [scenario, textClass, color] of [[model, positiveClass, positiveColor], [lossModel, negativeClass, negativeColor]]) {
       const html = htmlOf(DcaLabResults, { model: scenario, plan, marketColorMode });
