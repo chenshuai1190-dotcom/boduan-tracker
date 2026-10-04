@@ -1,5 +1,5 @@
 import React from 'react';
-import { BarChart3, BookOpen, CalendarDays, ChevronRight, Layers, LayoutGrid, ListChecks, Search, Settings2, Trash2, Waves, X } from 'lucide-react';
+import { BarChart3, BookOpen, CalendarDays, ChevronRight, History, LayoutGrid, ListChecks, Search, Settings2, Trash2, Waves, X } from 'lucide-react';
 import {
   MARKET_COLOR_MODES,
   marketStrongTextClass,
@@ -999,7 +999,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
             { id: 'waves', label: tt('trades.swingLog', '波段记录'), icon: Waves },
             { id: 'competition', label: tt('competition.toolEntry', '社区比赛'), icon: BarChart3 },
             { id: 'records', label: tt('trades.tradeLog', '交易记录'), icon: ListChecks },
-            { id: 'portfolio-overlap', label: tt('trades.portfolioOverlapShort', '重叠体检'), icon: Layers },
+            { id: 'investment-comparison', label: tt('trades.investmentTimeMachineShort', '投资回溯'), icon: History },
             { id: 'all', label: tt('trades.allTools', '全部功能'), icon: LayoutGrid },
           ].map((item) => {
             const Icon = item.icon;
@@ -1008,7 +1008,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
               setColorMenuOpen(false);
               if (item.id === 'waves') { setToolPanel(''); openWaveTracker?.(); return; }
               if (item.id === 'competition') { setToolPanel(''); openCommunityCompetition?.(); return; }
-              if (item.id === 'portfolio-overlap') { setToolPanel(''); openPortfolioOverlap?.(); return; }
+              if (item.id === 'investment-comparison') { setToolPanel(''); openInvestmentComparison?.(); return; }
               if (item.id === 'all') { setShowAllToolsModal(true); return; }
               toggleToolPanel(item.id);
             }}><span className="trades-report-tool-content"><Icon size={21} strokeWidth={1.6} aria-hidden="true" /><span>{item.label}</span></span></button>;

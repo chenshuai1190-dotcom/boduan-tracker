@@ -19,12 +19,12 @@ test('investment comparison is a lazy standalone utility with identity, display 
   assert.doesNotMatch(callbacks, /db\.|stock_trades|upsert|insert|save/);
 });
 
-test('entry exists only in Trades All Tools and closes the sheet before navigation', () => {
+test('Trades shortcut and All Tools open the time machine and the sheet closes before navigation', () => {
   const tools = trades.slice(trades.indexOf('{showAllToolsModal && ('), trades.indexOf('{showTradeRecordsTool && ('));
   assert.ok(tools.includes('<ActionModalCard') && tools.includes('<TradeToolsCatalog'));
   assert.match(catalog, /id: 'investment-comparison', titleKey: 'trades.investmentTimeMachine'/);
   assert.match(tools, /setShowAllToolsModal\(false\);[\s\S]*if \(toolId === 'investment-comparison'\) openInvestmentComparison\?\.\(\)/);
-  assert.equal((trades.match(/openInvestmentComparison\?\.\(\)/g) || []).length, 1);
+  assert.equal((trades.match(/openInvestmentComparison\?\.\(\)/g) || []).length, 2);
   assert.equal((read('src/lib/i18n.js').match(/'trades.investmentComparison':/g) || []).length, 2);
   assert.equal((read('src/lib/i18n.js').match(/'trades.investmentTimeMachine':/g) || []).length, 2);
 });

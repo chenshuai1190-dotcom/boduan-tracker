@@ -67,12 +67,12 @@ test('Trading report preserves its financial readiness, actions, currency and fi
   ]) assert.ok(trades.includes(invariant), `Trading must retain ${invariant}`);
   const toolsStart = trades.indexOf('<section className="trades-report-tools"');
   const toolsSection = trades.slice(toolsStart, trades.indexOf('</section>', toolsStart));
-  const toolIndexes = ['waves', 'competition', 'records', 'portfolio-overlap', 'all']
+  const toolIndexes = ['waves', 'competition', 'records', 'investment-comparison', 'all']
     .map((id) => toolsSection.indexOf(`{ id: '${id}', label:`));
   assert.ok(toolIndexes.every((index, offset) => index >= 0 && (!offset || index > toolIndexes[offset - 1])), 'all five tool entries must retain their approved order');
-  assert.ok(toolsSection.includes("tt('trades.portfolioOverlapShort', '重叠体检')"), 'the overlap shortcut must use its compact localized label');
-  assert.match(toolsSection, /if \(item\.id === 'portfolio-overlap'\)\s*\{[^}]*openPortfolioOverlap\?\.\(\);[^}]*return;/, 'the overlap shortcut must use the existing read-only tool entry callback');
-  assert.equal(i18n.split("'trades.portfolioOverlapShort':").length - 1, 2, 'the overlap shortcut label must exist in Chinese and English');
+  assert.ok(toolsSection.includes("tt('trades.investmentTimeMachineShort', '投资回溯')"), 'the time-machine shortcut must use its compact localized label');
+  assert.match(toolsSection, /if \(item\.id === 'investment-comparison'\)\s*\{[^}]*openInvestmentComparison\?\.\(\);[^}]*return;/, 'the time-machine shortcut must use the existing read-only tool entry callback');
+  assert.equal(i18n.split("'trades.investmentTimeMachineShort':").length - 1, 2, 'the time-machine shortcut label must exist in Chinese and English');
   assert.match(css, /\.trades-report-tools\s*\{[^}]*display:\s*flex;[^}]*justify-content:\s*space-between;/, 'five shortcut groups should distribute the available space between the first and last entry');
   assert.match(css, /\.trades-report-tools button\s*\{[^}]*align-items:\s*flex-start;[^}]*text-align:\s*left;/, 'each shortcut content group should retain its leading alignment without an unused trailing grid column');
   assert.ok(/<span className="trades-report-tool-content"><Icon\b[^>]*\/><span>\{item\.label\}<\/span><\/span>/.test(toolsSection) && /\.trades-report-tool-content\s*\{[^}]*display:\s*flex;[^}]*flex-direction:\s*column;[^}]*align-items:\s*center;[^}]*max-width:\s*100%;[^}]*text-align:\s*center;/.test(css), 'each icon should sit centered above its label within the shared content group');
