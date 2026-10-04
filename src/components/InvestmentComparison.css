@@ -81,7 +81,7 @@
 .investment-comparison .ic-tooltip-table th, .investment-comparison .ic-tooltip-table td { padding: 5px 0 5px 9px; font-weight: 400; overflow-wrap: anywhere; vertical-align: baseline; }
 .investment-comparison .ic-tooltip-table th:first-child { width: 25%; padding-left: 0; color: var(--ic-muted); font-size: 11px; }
 .investment-comparison .ic-tooltip-table thead th { padding-top: 0; padding-bottom: 7px; font-size: 13px; }
-.investment-comparison .ic-tooltip-table td { font-size: 13px; }
+.investment-comparison .ic-tooltip-table td { font-size: 14px; font-weight: 500; }
 .investment-comparison .ic-tooltip-lead { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--ic-border); }
 .investment-comparison .ic-tooltip-lead-title { margin-bottom: 10px; font-size: 12px; }
 .investment-comparison .ic-tooltip-lead-grid { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1.25fr); gap: 14px; }
