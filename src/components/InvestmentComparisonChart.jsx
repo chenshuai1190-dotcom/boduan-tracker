@@ -1,5 +1,6 @@
 import React from 'react';
 import { MARKET_RED_HEX, MARKET_GREEN_HEX, marketTextHexColor } from '../lib/marketColorMode.js';
+import { getInvestmentComparisonLead } from '../lib/investmentComparisonLead.js';
 
 // Leadership is a comparison between series, independent of profit direction.
 export const INVESTMENT_LEADING_COLOR = MARKET_RED_HEX;
@@ -129,6 +130,10 @@ export default function InvestmentComparisonChart({ model, snapshot, hiddenSymbo
 
   const hover = hoverIndex === null ? null : past[hoverIndex];
   const hoverX = hover ? x(hover.time) : 0;
+  const hoverLead = getInvestmentComparisonLead(symbols, hover);
+  const tooltipWidth = Math.min(width, 336);
+  const tooltipLeft = Math.max(0, Math.min(width - tooltipWidth, hoverX + 12 + tooltipWidth > width ? hoverX - tooltipWidth - 12 : hoverX + 12));
+  const leadAmount = hoverLead ? formatInvestmentAmount(hoverLead.amountUsd, englishMode, { ...amountOptions, digits: 2 }) : '—';
   const selectAt = event => {
     const bounds = event.currentTarget.getBoundingClientRect();
     const clientX = ((event.clientX - bounds.left) / Math.max(1, bounds.width)) * width;
@@ -197,6 +202,23 @@ export default function InvestmentComparisonChart({ model, snapshot, hiddenSymbo
         <text x={frame.right} y={height - 2} textAnchor="end" className="ic-axis-title">{englishMode ? 'Year' : '年份'}</text>
       </svg>
     </div>
-    {hover && <div className="ic-tooltip" role="tooltip" style={{ left: Math.max(0, Math.min(width - 192, hoverX + 12 > width - 192 ? hoverX - 204 : hoverX + 12)), top: frame.top + 5 }}><div className="ic-tooltip-date">{hover.date}</div>{visibleSymbols.map(symbol => <div className="ic-tooltip-line" key={symbol}><span>{symbol}</span><span>{formatInvestmentAmount(hover.values[symbol], englishMode, amountOptions)}</span></div>)}</div>}
+    {hover && <div className="ic-tooltip" role="tooltip" style={{ left: tooltipLeft, width: tooltipWidth, top: frame.top + 5 }}>
+      <div className="ic-tooltip-header"><div className="ic-tooltip-date">{hover.date}</div><span>{currencyLabel}</span></div>
+      <table className="ic-tooltip-table">
+        <thead><tr><th scope="col"><span className="sr-only">{englishMode ? 'Metric' : '指标'}</span></th>{symbols.map(symbol => <th scope="col" key={symbol}>{symbol}</th>)}</tr></thead>
+        <tbody>
+          <tr data-investment-tooltip-row="assets"><th scope="row">{englishMode ? 'Assets' : '总资产'}</th>{symbols.map(symbol => <td key={symbol}>{formatInvestmentAmount(hover.values?.[symbol], englishMode, { ...amountOptions, digits: 2 })}</td>)}</tr>
+          <tr data-investment-tooltip-row="profits"><th scope="row">{englishMode ? 'Profit' : '累计盈亏'}</th>{symbols.map(symbol => <td key={symbol} style={{ color: investmentChangeColor(hover.profits?.[symbol], marketColorMode) }}>{formatInvestmentAmount(hover.profits?.[symbol], englishMode, { ...amountOptions, digits: 2, signed: true })}</td>)}</tr>
+          <tr data-investment-tooltip-row="returns"><th scope="row">{englishMode ? 'Return' : '累计收益率'}</th>{symbols.map(symbol => <td key={symbol} style={{ color: investmentChangeColor(hover.returns?.[symbol], marketColorMode) }}>{formatInvestmentPercent(hover.returns?.[symbol])}</td>)}</tr>
+        </tbody>
+      </table>
+      <div className="ic-tooltip-lead" data-investment-tooltip-lead="true">
+        <div className="ic-tooltip-lead-title">{!hoverLead ? (englishMode ? 'Comparison unavailable' : '对比暂不可用') : hoverLead.tied ? (englishMode ? 'Returns tied' : '收益持平') : englishMode ? `${hoverLead.leader} leads ${hoverLead.trailing}` : `${hoverLead.leader} 领先 ${hoverLead.trailing}`}</div>
+        <div className="ic-tooltip-lead-grid">
+          <div><span>{englishMode ? 'Amount ahead' : '领先金额'}</span><strong data-investment-tooltip-gap="amount" style={{ color: investmentRankColor(hoverLead && !hoverLead.tied && leadAmount !== '—' ? 'leading' : 'tied') }}>{leadAmount}</strong></div>
+          <div><span>{englishMode ? 'Return gap' : '收益率领先'}</span><strong data-investment-tooltip-gap="return" style={{ color: investmentRankColor(hoverLead && !hoverLead.tied && Number.isFinite(hoverLead.returnGapPoints) ? 'leading' : 'tied') }}>{Number.isFinite(hoverLead?.returnGapPoints) ? `${hoverLead.returnGapPoints.toLocaleString('en-US', { maximumFractionDigits: 2 })}%` : '—'}</strong></div>
+        </div>
+      </div>
+    </div>}
   </div>;
 }

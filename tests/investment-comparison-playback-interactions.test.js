@@ -34,7 +34,8 @@ const hookUrl = dataUrl(`
 const hooks = await import(hookUrl);
 const transformed = await transformWithOxc(chartSource, 'InvestmentComparisonChart.jsx', { jsx: { runtime: 'classic' } });
 const compiled = transformed.code.replace(/from (["'])react\1/g, `from ${JSON.stringify(hookUrl)}`)
-  .replace(/from (["'])\.\.\/lib\/marketColorMode\.js\1/g, `from ${JSON.stringify(new URL('../src/lib/marketColorMode.js', import.meta.url).href)}`);
+  .replace(/from (["'])\.\.\/lib\/marketColorMode\.js\1/g, `from ${JSON.stringify(new URL('../src/lib/marketColorMode.js', import.meta.url).href)}`)
+  .replace(/from (["'])\.\.\/lib\/investmentComparisonLead\.js\1/g, `from ${JSON.stringify(new URL('../src/lib/investmentComparisonLead.js', import.meta.url).href)}`);
 const { default: InvestmentComparisonChart } = await import(dataUrl(compiled));
 
 function findNode(node, predicate) {

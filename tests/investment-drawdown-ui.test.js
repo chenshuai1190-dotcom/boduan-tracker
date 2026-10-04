@@ -12,7 +12,8 @@ const css = read('src/components/InvestmentDrawdown.css');
 const dataUrl = code => `data:text/javascript;base64,${Buffer.from(code).toString('base64')}`;
 const chartSource = await transformWithOxc(read('src/components/InvestmentComparisonChart.jsx'), 'InvestmentComparisonChart.jsx', { jsx: { runtime: 'classic' } });
 const chartUrl = dataUrl(chartSource.code.replace(/from (["'])react\1/g, `from ${JSON.stringify(import.meta.resolve('react'))}`)
-  .replace(/from (["'])\.\.\/lib\/marketColorMode\.js\1/g, `from ${JSON.stringify(new URL('../src/lib/marketColorMode.js', import.meta.url).href)}`));
+  .replace(/from (["'])\.\.\/lib\/marketColorMode\.js\1/g, `from ${JSON.stringify(new URL('../src/lib/marketColorMode.js', import.meta.url).href)}`)
+  .replace(/from (["'])\.\.\/lib\/investmentComparisonLead\.js\1/g, `from ${JSON.stringify(new URL('../src/lib/investmentComparisonLead.js', import.meta.url).href)}`));
 const transformed = await transformWithOxc(source, 'InvestmentDrawdownView.jsx', { jsx: { runtime: 'classic' } });
 function compiledView(reactUrl, extra = '') {
   const imports = new Map([

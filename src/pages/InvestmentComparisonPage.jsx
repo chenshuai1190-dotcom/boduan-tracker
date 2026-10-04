@@ -7,6 +7,7 @@ import InvestmentAnalysisTabs from '../components/InvestmentAnalysisTabs.jsx';
 import InvestmentDrawdownView from '../components/InvestmentDrawdownView.jsx';
 import { getInvestmentComparisonExpectedCloseDate, loadInvestmentComparison, searchInvestmentSymbols } from '../lib/investmentComparison.js';
 import { buildInvestmentComparisonModel, getInvestmentComparisonSnapshot } from '../lib/investmentComparisonModel.js';
+import { getInvestmentComparisonLead } from '../lib/investmentComparisonLead.js';
 import { resolveInvestmentDisplayRate, investmentPrincipalUsd, investmentPrincipalInput } from '../lib/investmentComparisonCurrency.js';
 import '../components/InvestmentComparison.css';
 
@@ -195,6 +196,7 @@ export default function InvestmentComparisonPage({ ctx = {}, previewSource }) {
   const lastIndex = Math.max(0, (model?.points.length || 1) - 1);
   const cursor = cursorState.key === cursorKey ? Math.min(cursorState.index, lastIndex) : lastIndex;
   const snapshot = React.useMemo(() => model ? getInvestmentComparisonSnapshot(model, cursor) : null, [cursor, model]);
+  const lead = getInvestmentComparisonLead(symbols, snapshot?.point);
   cursorRef.current = cursor;
 
   React.useEffect(() => {
@@ -270,6 +272,11 @@ export default function InvestmentComparisonPage({ ctx = {}, previewSource }) {
           <div className="ic-return"><strong style={{ color: investmentChangeColor(snapshot.point.returns[symbol], marketColorMode) }}>{formatInvestmentPercent(snapshot.point.returns[symbol])}</strong><small>{englishMode ? 'Cumulative return' : '累计收益率'}</small></div>
         </section>;
       })}</div>
+
+      <div className="ic-lead-comparison" data-investment-lead-comparison="true">
+        <span>{!lead ? (englishMode ? 'Lead amount' : '领先差额') : lead.tied ? (englishMode ? 'Returns tied' : '收益持平') : englishMode ? `${lead.leader} leads ${lead.trailing}` : `${lead.leader} 领先 ${lead.trailing}`}</span>
+        <strong style={{ color: investmentRankColor(lead && !lead.tied && displayRate !== null ? 'leading' : 'tied') }}>{lead ? money(lead.amountUsd, { digits: 2 }) : '—'}</strong>
+      </div>
 
       <InvestmentComparisonChart model={model} snapshot={snapshot} hiddenSymbols={hiddenSymbols} scale={scale} englishMode={englishMode} marketColorMode={marketColorMode} displayCurrency={displayCurrency} displayRate={displayRate} />
       <div className="ic-playback"><label className="ic-range-head" htmlFor="investment-comparison-timeline"><span>{model.actualStartDate}</span><span>{englishMode ? 'Playback timeline' : '回放时间轴'}</span><span>{model.asOfDate}</span></label><input id="investment-comparison-timeline" className="ic-timeline" type="range" min="0" max={lastIndex} step="1" value={snapshot.index} aria-label={englishMode ? 'Daily playback timeline' : '按交易日回放时间轴'} aria-valuetext={`${snapshot.point.date}, ${symbols.map(symbol => `${symbol} ${money(snapshot.point.values[symbol])}`).join(', ')}`} onChange={seekPlayback} /><div className="ic-player"><button type="button" className="ic-play-button" onClick={togglePlayback} disabled={!lastIndex}>{playing ? <Pause size={16} fill="currentColor" /> : <Play size={16} fill="currentColor" />}<span>{playLabel}</span></button><select className="ic-speed" value={speed} onChange={event => setSpeed(Number(event.target.value))} aria-label={englishMode ? 'Playback speed' : '回放速度'}>{[0.1, 0.2, 0.4, 0.6, 0.8, 1, 2, 4].map(value => <option value={value} key={value}>{value}× {englishMode ? 'speed' : '速度'}</option>)}</select></div></div>

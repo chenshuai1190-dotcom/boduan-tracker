@@ -13,7 +13,8 @@ const dataUrl = code => `data:text/javascript;base64,${Buffer.from(code).toStrin
 const ssrReactUrl = dataUrl(`import React from ${JSON.stringify(import.meta.resolve('react'))}; export default { ...React, useLayoutEffect: React.useEffect };`);
 const transformed = await transformWithOxc(chartSource, 'InvestmentComparisonChart.jsx', { jsx: { runtime: 'classic' } });
 const compiled = transformed.code.replace(/from (["'])react\1/g, `from ${JSON.stringify(ssrReactUrl)}`)
-  .replace(/from (["'])\.\.\/lib\/marketColorMode\.js\1/g, `from ${JSON.stringify(new URL('../src/lib/marketColorMode.js', import.meta.url).href)}`);
+  .replace(/from (["'])\.\.\/lib\/marketColorMode\.js\1/g, `from ${JSON.stringify(new URL('../src/lib/marketColorMode.js', import.meta.url).href)}`)
+  .replace(/from (["'])\.\.\/lib\/investmentComparisonLead\.js\1/g, `from ${JSON.stringify(new URL('../src/lib/investmentComparisonLead.js', import.meta.url).href)}`);
 const { default: InvestmentComparisonChart, investmentRank, investmentRankColor, investmentChangeColor, formatInvestmentAmount, formatInvestmentPercent } = await import(`data:text/javascript;base64,${Buffer.from(compiled).toString('base64')}`);
 
 test('investment rank colors track current leadership independently of profit signs', () => {
@@ -121,10 +122,26 @@ test('chart displays unavailable amounts for an invalid conversion without erasi
   }
 });
 
-test('historical chart tooltip follows the display currency while retaining the selected daily point', async () => {
+function findNode(node, predicate) {
+  if (!React.isValidElement(node)) return null;
+  if (predicate(node)) return node;
+  for (const child of React.Children.toArray(node.props.children)) {
+    const found = findNode(child, predicate);
+    if (found) return found;
+  }
+  return null;
+}
+
+function nodeText(node) {
+  if (!React.isValidElement(node)) return node == null || typeof node === 'boolean' ? '' : String(node);
+  return React.Children.toArray(node.props.children).map(nodeText).join('');
+}
+
+async function tooltipInteraction(props) {
   const hookUrl = dataUrl(`
     import React from ${JSON.stringify(import.meta.resolve('react'))};
     let slots = [], cursor = 0;
+    export function reset() { slots = []; cursor = 0; }
     export function render(Component, props) { cursor = 0; return Component(props); }
     function useState(initial) {
       const index = cursor++;
@@ -141,25 +158,114 @@ test('historical chart tooltip follows the display currency while retaining the 
       useId: () => 'currency-test', useEffect() {}, useLayoutEffect() {} };
   `);
   const hooks = await import(hookUrl);
+  hooks.reset();
   const hookCompiled = compiled.replace(`from ${JSON.stringify(ssrReactUrl)}`, `from ${JSON.stringify(hookUrl)}`);
   const { default: Chart } = await import(dataUrl(hookCompiled));
-  const props = currencyChartProps();
-  let tree = hooks.render(Chart, props);
-  const slider = React.Children.toArray(tree.props.children).find(child => child.props?.role === 'slider');
-  slider.props.onKeyDown({ key: 'Home', preventDefault() {} });
-  tree = hooks.render(Chart, { ...props, displayCurrency: 'CNY', displayRate: 7.2 });
-  let tooltip = React.Children.toArray(tree.props.children).find(child => child.props?.role === 'tooltip');
-  const cnyTooltip = renderToStaticMarkup(tooltip);
-  assert.match(cnyTooltip, /class="ic-tooltip-date">2019-01-02<\/div>/);
-  assert.match(cnyTooltip, /<span>QQQ<\/span><span>¥72\.0K<\/span>/);
-  assert.match(cnyTooltip, /<span>TQQQ<\/span><span>¥72\.0K<\/span>/);
-  const selected = React.Children.toArray(tree.props.children).find(child => child.props?.role === 'slider');
-  assert.equal(selected.props['aria-valuenow'], 0);
-  assert.equal(selected.props['aria-valuetext'], '2019-01-02, QQQ ¥72.0K CNY, TQQQ ¥72.0K CNY');
-  tree = hooks.render(Chart, props);
-  tooltip = React.Children.toArray(tree.props.children).find(child => child.props?.role === 'tooltip');
-  assert.match(renderToStaticMarkup(tooltip), /<span>\$10\.0K<\/span>/);
-  assert.doesNotMatch(renderToStaticMarkup(tooltip), /¥/);
+  let current = props;
+  const render = (updates = {}) => { current = { ...current, ...updates }; return hooks.render(Chart, current); };
+  const slider = () => findNode(render(), node => node.props.role === 'slider');
+  const tooltip = () => findNode(render(), node => node.props.role === 'tooltip');
+  return {
+    render, slider, tooltip,
+    key: key => slider().props.onKeyDown({ key, preventDefault() {} }),
+    row: name => findNode(tooltip(), node => node.props['data-investment-tooltip-row'] === name),
+    lead: () => findNode(tooltip(), node => node.props['data-investment-tooltip-lead'] === 'true'),
+    gap: name => findNode(tooltip(), node => node.props['data-investment-tooltip-gap'] === name),
+  };
+}
+
+function leadChartProps() {
+  const rows = [
+    [10000, 10000, 0, 0],
+    [9000.12345, 7000.01235, -9.9987655, -29.9998765],
+    [12500.12345, 13750.98765, 25.0012345, 37.5098765],
+    [15000, 14000, 50, 40],
+  ];
+  const points = rows.map(([qqq, tqqq, qqqReturn, tqqqReturn], index) => ({
+    date: `2019-01-0${index + 2}`, time: Date.UTC(2019, 0, index + 2), year: 2019,
+    values: { QQQ: qqq, TQQQ: tqqq },
+    profits: { QQQ: qqq - 10000, TQQQ: tqqq - 10000 },
+    returns: { QQQ: qqqReturn, TQQQ: tqqqReturn },
+  }));
+  return {
+    model: { symbols: ['QQQ', 'TQQQ'], principal: 10000, points, actualStartDate: points[0].date },
+    snapshot: { index: points.length - 1, point: points.at(-1) }, englishMode: true,
+  };
+}
+
+test('historical tooltip compares both selected assets, cumulative profits and return lead', async () => {
+  const chart = await tooltipInteraction(leadChartProps());
+  chart.key('Home');
+  chart.key('ArrowRight');
+  assert.equal(nodeText(findNode(chart.tooltip(), node => node.props.className === 'ic-tooltip-date')), '2019-01-03');
+  assert.match(nodeText(chart.row('assets')), /\$9\.00K.*\$7\.00K/);
+  assert.match(nodeText(chart.row('profits')), /−\$1,000.*−\$3\.00K/);
+  assert.match(nodeText(chart.row('returns')), /-10\.0%.*-30\.0%/);
+  assert.match(nodeText(chart.lead()), /QQQ leads TQQQ/);
+  assert.equal(nodeText(chart.gap('amount')), '$2.00K');
+  assert.equal(nodeText(chart.gap('return')), '20%');
+  assert.equal(chart.slider().props['aria-valuenow'], 1);
+
+  chart.key('ArrowRight');
+  assert.match(nodeText(chart.lead()), /TQQQ leads QQQ/, 'selected historical leader differs from the latest leader');
+  assert.match(nodeText(chart.row('profits')), /\+\$2\.50K.*\+\$3\.75K/);
+  assert.equal(nodeText(chart.gap('amount')), '$1.25K');
+  assert.equal(nodeText(chart.gap('return')), '12.51%');
+  chart.key('Home');
+  assert.match(nodeText(chart.lead()), /Returns tied/);
+  assert.equal(nodeText(chart.gap('amount')), '$0');
+  assert.equal(nodeText(chart.gap('return')), '0%');
+});
+
+test('historical tooltip currency switches only money and preserves selected date, leadership and returns', async () => {
+  const props = leadChartProps();
+  const before = structuredClone(props);
+  const chart = await tooltipInteraction(props);
+  chart.key('Home');
+  chart.key('ArrowRight');
+  const returns = nodeText(chart.row('returns'));
+  const gap = nodeText(chart.gap('return'));
+  chart.render({ displayCurrency: 'CNY', displayRate: 7.2 });
+  assert.match(nodeText(chart.row('assets')), /¥64\.80K.*¥50\.40K/);
+  assert.match(nodeText(chart.row('profits')), /−¥7\.20K.*−¥21\.60K/);
+  assert.equal(nodeText(chart.gap('amount')), '¥14.40K');
+  assert.equal(nodeText(chart.gap('return')), gap);
+  assert.equal(nodeText(chart.row('returns')), returns);
+  assert.match(nodeText(chart.lead()), /QQQ leads TQQQ/);
+  assert.equal(chart.slider().props['aria-valuenow'], 1);
+  assert.equal(chart.slider().props['aria-valuetext'], '2019-01-03, QQQ ¥64.8K CNY, TQQQ ¥50.4K CNY');
+  chart.render({ displayCurrency: 'USD', displayRate: 1 });
+  assert.equal(nodeText(chart.gap('amount')), '$2.00K');
+  assert.doesNotMatch(renderToStaticMarkup(chart.tooltip()), /¥/);
+  assert.deepEqual(props, before);
+});
+
+test('tooltip retains both investments when a curve is hidden and formats the return lead as a percentage in Chinese', async () => {
+  const chart = await tooltipInteraction({ ...leadChartProps(), hiddenSymbols: ['QQQ'], englishMode: false, displayCurrency: 'CNY', displayRate: 7.2 });
+  chart.key('Home');
+  chart.key('ArrowRight');
+  assert.match(nodeText(chart.tooltip()), /QQQ/);
+  assert.match(nodeText(chart.row('assets')), /¥6\.48万.*¥5\.04万/);
+  assert.match(nodeText(chart.lead()), /QQQ 领先 TQQQ/);
+  assert.equal(nodeText(chart.gap('amount')), '¥1.44万');
+  assert.equal(nodeText(chart.gap('return')), '20%');
+  assert.equal(findNode(chart.render(), node => node.props['data-investment-series'] === 'QQQ'), null);
+});
+
+test('tooltip missing returns and unavailable FX remain unknown without erasing the valid asset comparison', async () => {
+  const props = leadChartProps();
+  props.model.points[1].returns.TQQQ = null;
+  const chart = await tooltipInteraction(props);
+  chart.key('Home');
+  chart.key('ArrowRight');
+  assert.match(nodeText(chart.row('returns')), /-10\.0%.*—/);
+  assert.equal(nodeText(chart.gap('return')), '—');
+  assert.equal(nodeText(chart.gap('amount')), '$2.00K');
+  chart.render({ displayCurrency: 'CNY', displayRate: null });
+  assert.equal(nodeText(chart.gap('amount')), '—');
+  assert.equal(nodeText(chart.gap('return')), '—');
+  assert.doesNotMatch(nodeText(chart.row('assets')), /\$|¥|0/);
+  assert.doesNotMatch(renderToStaticMarkup(chart.tooltip()), /NaN|Infinity/);
 });
 
 test('profit direction follows market color preference while leadership remains independent', () => {

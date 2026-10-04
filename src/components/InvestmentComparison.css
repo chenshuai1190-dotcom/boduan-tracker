@@ -65,6 +65,8 @@
 .investment-comparison .ic-return { display: flex; flex-wrap: wrap; align-items: baseline; gap: 1px 7px; margin-top: 3px; }
 .investment-comparison .ic-return strong { font-size: 14px; font-weight: 500; }
 .investment-comparison .ic-return small { font-size: 11px; color: var(--ic-muted); }
+.investment-comparison .ic-lead-comparison { display: flex; align-items: baseline; justify-content: flex-start; flex-wrap: wrap; gap: 4px 12px; margin-top: 16px; color: var(--ic-muted); font-size: 12px; line-height: 1.5; }
+.investment-comparison .ic-lead-comparison strong { font-size: 18px; font-weight: 500; font-variant-numeric: tabular-nums; letter-spacing: normal; }
 .investment-comparison .ic-chart { margin: 18px 0 0 -6px; position: relative; }
 .investment-comparison .ic-chart-touch { touch-action: pan-y; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; outline: none; }
 .investment-comparison .ic-chart-touch:focus-visible { outline: 1px solid #5c6678; border-radius: 8px; }
@@ -72,9 +74,19 @@
 .investment-comparison .ic-axis-label, .investment-comparison .ic-axis-title { fill: var(--ic-muted); font-size: 11px; font-weight: 400; }
 .investment-comparison .ic-grid-line { stroke: var(--ic-grid); stroke-width: 1; }
 .investment-comparison .ic-direct-label { fill: var(--ic-text); font-size: 12px; font-weight: 500; paint-order: stroke; stroke: var(--ic-bg); stroke-width: 3px; stroke-linejoin: round; }
-.investment-comparison .ic-tooltip { position: absolute; z-index: 3; pointer-events: none; width: 192px; padding: 10px 12px; border: 1px solid var(--ic-border); border-radius: 10px; background: var(--ic-panel); color: var(--ic-text); font-size: 12px; box-shadow: 0 8px 25px rgb(0 0 0 / .18); }
-.investment-comparison .ic-tooltip-date { color: var(--ic-muted); margin-bottom: 7px; }
-.investment-comparison .ic-tooltip-line { display: flex; justify-content: space-between; gap: 12px; margin-top: 3px; }
+.investment-comparison .ic-tooltip { position: absolute; z-index: 3; pointer-events: none; box-sizing: border-box; max-width: 100%; padding: 14px; border: 1px solid var(--ic-border); border-radius: 14px; background: var(--ic-panel); color: var(--ic-text); font-size: 12px; box-shadow: 0 12px 32px rgb(0 0 0 / .3); font-variant-numeric: tabular-nums; }
+.investment-comparison .ic-tooltip-header { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 13px; color: var(--ic-muted); }
+.investment-comparison .ic-tooltip-date { color: var(--ic-text); font-size: 14px; font-weight: 500; }
+.investment-comparison .ic-tooltip-table { width: 100%; table-layout: fixed; border-collapse: collapse; text-align: left; }
+.investment-comparison .ic-tooltip-table th, .investment-comparison .ic-tooltip-table td { padding: 5px 0 5px 9px; font-weight: 400; overflow-wrap: anywhere; vertical-align: baseline; }
+.investment-comparison .ic-tooltip-table th:first-child { width: 25%; padding-left: 0; color: var(--ic-muted); font-size: 11px; }
+.investment-comparison .ic-tooltip-table thead th { padding-top: 0; padding-bottom: 7px; font-size: 13px; }
+.investment-comparison .ic-tooltip-table td { font-size: 13px; }
+.investment-comparison .ic-tooltip-lead { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--ic-border); }
+.investment-comparison .ic-tooltip-lead-title { margin-bottom: 10px; font-size: 12px; }
+.investment-comparison .ic-tooltip-lead-grid { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1.25fr); gap: 14px; }
+.investment-comparison .ic-tooltip-lead-grid > div > span { display: block; color: var(--ic-muted); font-size: 11px; margin-bottom: 4px; }
+.investment-comparison .ic-tooltip-lead-grid strong { display: block; font-size: 18px; font-weight: 500; line-height: 1.4; overflow-wrap: anywhere; letter-spacing: normal; }
 .investment-comparison .ic-playback { margin: 6px 0 24px; }
 .investment-comparison .ic-range-head { display: flex; justify-content: space-between; gap: 7px; color: var(--ic-muted); font-size: 11px; }
 .investment-comparison .ic-timeline { display: block; width: 100%; min-height: 44px; margin: 0; accent-color: #eef1f8; cursor: pointer; }

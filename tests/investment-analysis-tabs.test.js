@@ -86,7 +86,7 @@ const source = await import(sourceUrl);
 const chartUrl = dataUrl(`
   import React from ${JSON.stringify(import.meta.resolve('react'))};
   export default function Chart() { return React.createElement('div', { 'data-test-growth-chart': true }); }
-  export const formatInvestmentAmount = value => String(value);
+  export const formatInvestmentAmount = (value, _englishMode, { displayCurrency, displayRate } = {}) => JSON.stringify({ value, displayCurrency, displayRate, converted: value * displayRate });
   export const formatInvestmentPercent = value => String(value);
   export const investmentChangeColor = () => '#fff';
   export const investmentRank = () => 'tied';
@@ -104,6 +104,7 @@ const imports = new Map([
   ['../components/InvestmentDrawdownView.jsx', drawdownUrl], ['../components/InvestmentSymbolPresets.jsx', presetsUrl],
   ['../lib/investmentComparison.js', sourceUrl], ['../lib/investmentComparisonModel.js', new URL('../src/lib/investmentComparisonModel.js', import.meta.url).href],
   ['../lib/investmentComparisonCurrency.js', new URL('../src/lib/investmentComparisonCurrency.js', import.meta.url).href],
+  ['../lib/investmentComparisonLead.js', new URL('../src/lib/investmentComparisonLead.js', import.meta.url).href],
 ]);
 pageCode = pageCode.replace(/from (["'])([^"']+)\1/g, (match, _quote, path) => imports.has(path) ? `from ${JSON.stringify(imports.get(path))}` : match)
   .replace(/import ["'][^"']+\.css["'];?/g, '').replaceAll('import.meta.env.DEV', 'false');
@@ -305,9 +306,9 @@ test('stale, model-error and load-error states retain a forced retry without res
   } finally { hooks.reset(); }
 });
 
-async function currencySession(ctx) {
+async function currencySession(ctx, data = fixture()) {
   hooks.reset();
-  source.configure(fixture());
+  source.configure(data);
   let tree;
   const render = () => { tree = hooks.render(InvestmentComparisonPage, { ctx }); return tree; };
   const settle = async () => {
@@ -326,6 +327,59 @@ async function currencySession(ctx) {
     async switchCurrency(value) { this.currency.props.onChange({ target: { value } }); await settle(); },
   };
 }
+
+test('production lead amount follows timeline leadership and ties while currency changes only its display', async () => {
+  try {
+    for (const language of ['zh', 'en']) {
+      const data = fixture();
+      for (const [symbol, closes] of [['QQQ', [100, 120, 90, 110]], ['TQQQ', [100, 110, 80, 130]]]) {
+        data.series[symbol].rows.forEach((row, index) => { row.close = closes[index]; });
+      }
+      const ctx = { userId: 'synthetic-lead-playback', language, usdRate: 7.2 };
+      const session = await currencySession(ctx, data);
+      const model = session.view.props.model;
+      const leadRow = () => {
+        const rows = findAll(session.tree, node => node.props.className === 'ic-lead-comparison');
+        assert.equal(rows.length, 1);
+        return {
+          label: findAll(rows[0], node => node.type === 'span')[0].props.children,
+          amount: JSON.parse(findAll(rows[0], node => node.type === 'strong')[0].props.children),
+        };
+      };
+      const assertPoint = (index, winner) => {
+        assert.equal(session.timeline.props.value, index);
+        const row = leadRow();
+        const expectedLabel = winner === null ? (language === 'en' ? 'Returns tied' : '收益持平')
+          : language === 'en' ? `${winner} leads ${winner === 'QQQ' ? 'TQQQ' : 'QQQ'}`
+            : `${winner} 领先 ${winner === 'QQQ' ? 'TQQQ' : 'QQQ'}`;
+        assert.equal(row.label, expectedLabel);
+        const values = model.points[index].values;
+        assert.equal(row.amount.value, Math.abs(values.QQQ - values.TQQQ), 'the displayed gap must use the selected point at original USD precision');
+        assert.equal(row.amount.displayCurrency, session.currency.props.value);
+        assert.equal(row.amount.displayRate, session.currency.props.value === 'CNY' ? ctx.usdRate : 1);
+        assert.equal(row.amount.converted, row.amount.value * row.amount.displayRate);
+        return row.amount.value;
+      };
+
+      const latestGap = assertPoint(3, 'TQQQ');
+      for (const [index, winner] of [[0, null], [1, 'QQQ'], [2, 'QQQ'], [3, 'TQQQ']]) {
+        session.timeline.props.onChange({ target: { value: String(index) } });
+        await session.settle();
+        const gap = assertPoint(index, winner);
+        if (index === 1) assert.notEqual(gap, latestGap, 'replay must not retain the latest gap');
+      }
+      const snapshot = session.view.props.snapshot;
+      for (const [currency, rate] of [['USD', 7.2], ['CNY', 6.7048], ['USD', 6.7048]]) {
+        ctx.usdRate = rate;
+        await session.switchCurrency(currency);
+        assert.equal(assertPoint(3, 'TQQQ'), latestGap);
+        assert.strictEqual(session.view.props.model, model);
+        assert.strictEqual(session.view.props.snapshot, snapshot);
+      }
+      assert.equal(source.calls.length, 1, 'lead comparison and display changes must reuse the existing history');
+    }
+  } finally { hooks.reset(); }
+});
 
 test('time-machine defaults to one million CNY and retains its principal through the bilingual currency selector', async () => {
   try {
