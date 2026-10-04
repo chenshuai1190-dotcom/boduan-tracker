@@ -5,6 +5,7 @@ import ActionModalCard from '../components/ActionModalCard.jsx';
 import { formatInvestmentAmount } from '../components/InvestmentComparisonChart.jsx';
 import { loadPortfolioOverlap, normalizePortfolioOverlapSymbols } from '../lib/portfolioOverlap.js';
 import { buildPortfolioOverlapModel, holdingsFromPositions } from '../lib/portfolioOverlapModel.js';
+import { resolveStockDisplayName } from '../lib/stockDisplayName.js';
 import '../components/InvestmentComparison.css';
 import '../components/PortfolioOverlap.css';
 
@@ -83,7 +84,7 @@ function Methodology({ englishMode }) {
   return <>
     <p className="po-method-copy">{englishMode ? 'Verified stocks are counted directly. Supported unleveraged ETFs are split using their disclosed holdings weights. Identified exposure equals direct holdings plus holdings through each ETF, grouped by security ticker. Different share classes are not automatically merged into one company.' : '已核验的股票直接计入；支持穿透的普通 ETF 按披露成分权重分配。已识别持有＝直接持有＋各 ETF 间接持有，按证券代码归集，不自动合并同一公司的不同股权类别。'}</p>
     <p className="po-method-copy">{englishMode ? 'Every percentage uses the entire portfolio market value, including unexpanded holdings and separately listed leveraged ETFs. Missing quotes make the total and all percentages unavailable. The top-five total is a lower bound for the identified portion; unknown holdings may change the final concentration and ranking.' : '全部占比统一以组合总市值为分母，包含未穿透部分与单列的杠杆 ETF。存在缺失报价时，总额和全部比例暂不计算。前五合计是已识别部分的下限；未知持仓可能改变最终集中度和排序。'}</p>
-    <p className="po-method-copy">{englishMode ? 'QQQ and SPY are supported for fund look-through in this release. Other funds without verified constituents remain unexpanded. Leveraged ETFs are listed by invested market value, without multiplying by three or reusing an ordinary ETF basket. Each source shows its disclosure date; stale disclosures are labelled.' : '首版支持 QQQ、SPY 成分穿透；其他未获得可靠成分的基金保持未穿透。杠杆 ETF 仅按持仓市值单列，不直接乘以三倍，也不套用普通 ETF 的成分。各来源分别显示披露日期，较旧披露会明确标记。'}</p>
+    <p className="po-method-copy">{englishMode ? 'QQQ, SPY, VGT and SMH support fund look-through using official disclosed holdings. Other funds without verified constituents remain unexpanded. Leveraged ETFs are listed by invested market value, without multiplying by three or reusing an ordinary ETF basket. Each source shows its disclosure date; stale disclosures are labelled.' : '支持 QQQ、SPY、VGT、SMH 官方披露成分穿透；其他未获得可靠成分的基金保持未穿透。杠杆 ETF 仅按持仓市值单列，不直接乘以三倍，也不套用普通 ETF 的成分。各来源分别显示披露日期，较旧披露会明确标记。'}</p>
     <p className="po-sheet-note">{englishMode ? 'My holdings follows the current account and its available market valuations. Custom portfolios stay in this page’s memory only. This tool never saves a trade, changes a position, or writes to an account ledger.' : '我的持仓跟随当前账户及可用市值；自定义组合只保留在本页内存中。此工具不保存交易、不修改持仓、不写入账户账本。'}</p>
   </>;
 }
@@ -101,7 +102,7 @@ function InstrumentStatus({ position, englishMode }) {
 function PositionList({ model, holdings, metadataReady, englishMode, onEdit }) {
   const positions = model?.positions || holdings;
   return <>
-    {positions.length ? positions.map((position, index) => <div key={`${position.symbol}:${index}`} className="po-position-row"><div><strong>{position.symbol}</strong><small>{position.name || position.symbol}</small><small>{metadataReady ? <InstrumentStatus position={position} englishMode={englishMode} /> : (englishMode ? 'Metadata not ready' : '元数据尚未就绪')}</small></div><div><strong>{position.amount === null ? (englishMode ? 'Quote missing' : '暂无报价') : dollars(position.amount)}</strong><small>{percentage(position.percent)}</small></div></div>) : <p className="po-method-copy">{englishMode ? 'There are no active holdings to display.' : '当前没有可展示的持仓。'}</p>}
+    {positions.length ? positions.map((position, index) => <div key={`${position.symbol}:${index}`} className="po-position-row"><div><strong>{position.symbol}</strong><small>{resolveStockDisplayName({ symbol: position.symbol, name: position.name, english: englishMode })}</small><small>{metadataReady ? <InstrumentStatus position={position} englishMode={englishMode} /> : (englishMode ? 'Metadata not ready' : '元数据尚未就绪')}</small></div><div><strong>{position.amount === null ? (englishMode ? 'Quote missing' : '暂无报价') : dollars(position.amount)}</strong><small>{percentage(position.percent)}</small></div></div>) : <p className="po-method-copy">{englishMode ? 'There are no active holdings to display.' : '当前没有可展示的持仓。'}</p>}
     <p className="po-sheet-note">{englishMode ? 'Amounts come from the current account’s active holdings. Missing quotes are left blank when copied, not replaced with cost or zero.' : '金额来自当前账户的有效持仓。缺失报价复制后保持空白，不使用成本或零替代。'}</p>
     <button type="button" className="po-primary" onClick={onEdit}>{englishMode ? 'Copy into a custom calculation' : '复制到自定义组合试算'}</button>
   </>;

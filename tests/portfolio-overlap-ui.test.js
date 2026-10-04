@@ -22,6 +22,7 @@ function compiledPage(reactUrl, { dev = false, extra = '', transportUrl } = {}) 
     ['react', reactUrl], ['react-dom', import.meta.resolve('react-dom')], ['lucide-react', import.meta.resolve('lucide-react')],
     ['../components/InvestmentComparisonChart.jsx', chartUrl], ['../components/ActionModalCard.jsx', cardUrl],
     ['../lib/portfolioOverlapModel.js', new URL('../src/lib/portfolioOverlapModel.js', import.meta.url).href],
+    ['../lib/stockDisplayName.js', new URL('../src/lib/stockDisplayName.js', import.meta.url).href],
     ['../lib/portfolioOverlap.js', transportUrl || new URL('../src/lib/portfolioOverlap.js', import.meta.url).href],
   ]);
   return transformed.code.replace(/from (["'])([^"']+)\1/g, (match, _quote, path) => imports.has(path) ? `from ${JSON.stringify(imports.get(path))}` : match)
@@ -44,6 +45,17 @@ function testModel({ missing = false, stale = false } = {}) {
 const ctxFor = (positions = []) => ({ userId: 'user-a', language: 'zh', portfolioReady: true, portfolioError: null, investmentSummary: { activePositions: positions } });
 const position = (symbol = 'ZETA', amount = 285) => ({ symbol, name: `${symbol} holding`, heldShares: 3, valuationPrice: amount / 3, marketValue: amount });
 const htmlOf = (Component, props) => renderToStaticMarkup(React.createElement(Component, props));
+
+test('newly supported ETF holdings show coverage while SMH retains its Chinese ticker name', () => {
+  const instruments = ['SMH', 'VGT'].map(symbol => ({ ...fund(symbol), name: symbol === 'SMH' ? 'VanEck Semiconductor ETF' : 'Vanguard Information Technology ETF' }));
+  const model = buildPortfolioOverlapModel({ holdings: instruments.map(({ symbol }) => ({ symbol, amount: 100 })), instruments });
+  const chinese = htmlOf(PositionList, { model, metadataReady: true, englishMode: false });
+  assert.match(chinese, /<strong>SMH<\/strong><small>SMH<\/small>/);
+  assert.equal((chinese.match(/披露成分 50.0%/g) || []).length, 2);
+  assert.doesNotMatch(chinese, /未穿透|VanEck Semiconductor ETF/);
+  const english = htmlOf(PositionList, { model, metadataReady: true, englishMode: true });
+  assert.match(english, /VanEck Semiconductor ETF/);
+});
 
 test('default page follows real active-position values, not prototype holdings, in both languages', () => {
   for (const language of ['zh', 'en']) {

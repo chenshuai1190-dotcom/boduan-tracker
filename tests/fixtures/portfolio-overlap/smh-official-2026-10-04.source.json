@@ -1,0 +1,11 @@
+{
+  "provider": "VanEck",
+  "symbol": "SMH",
+  "retrievedDate": "2026-10-04",
+  "asOfDate": "2026-10-01",
+  "url": "https://www.vaneck.com/Main/HoldingsBlock/GetDataset/?blockId=144458&pageId=233107&ticker=SMH",
+  "officialPage": "https://www.vaneck.com/us/en/investments/semiconductor-etf-smh/",
+  "linkLabel": "Get holdings",
+  "disclosedUnit": "% of Net Assets",
+  "notes": "Unmodified public JSON download. The 27 rows include 25 stocks, one Cash Bal position and one Other/Cash residual. The official page reports Total Holdings: 26, excluding the residual. Per-row NumberOfHoldings fields are zero and are not a valid aggregate count. AssetClass is Stock even for foreign issuers; the parser does not guess ADR status. The official fund page identifies the tracked index as MVIS US Listed Semiconductor 25."
+}

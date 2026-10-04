@@ -2,6 +2,10 @@ import { searchInvestmentSymbols } from './investmentComparison.js';
 import { providerFetch, QUOTE_TIMEOUTS } from './http.js';
 import { getCompletedMarketCloseDate } from './completedSession.js';
 import { parseSsgaHoldingsWorkbook } from './ssgaHoldingsWorkbook.js';
+import { parseVanguardPortfolioHoldings, VGT_HOLDINGS_URL, VGT_FUND_URL, VGT_STATISTICS_URL } from './vanguardPortfolioHoldings.js';
+import { parseVanEckPortfolioHoldings, SMH_HOLDINGS_URL } from './vanEckPortfolioHoldings.js';
+
+export { VGT_HOLDINGS_URL, VGT_FUND_URL, VGT_STATISTICS_URL, SMH_HOLDINGS_URL };
 
 export const PORTFOLIO_OVERLAP_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 export const PORTFOLIO_OVERLAP_FAILURE_TTL_MS = 60 * 1000;
@@ -14,6 +18,8 @@ const SEARCH_SOURCE = Object.freeze({ provider: 'EODHD_SEARCH', url: 'https://eo
 const DEFINITIONS = Object.freeze({
   QQQ: { name: 'Invesco QQQ ETF', provider: 'Invesco', url: QQQ_HOLDINGS_URL, page: 'https://www.invesco.com/qqq-etf/en/about.html', kind: 'plain_etf', leverageTarget: 1 },
   SPY: { name: 'State Street SPDR S&P 500 ETF Trust', provider: 'State Street', url: SPY_HOLDINGS_URL, page: 'https://www.ssga.com/us/en/individual/etfs/state-street-spdr-sp-500-etf-trust-spy', kind: 'plain_etf', leverageTarget: 1 },
+  VGT: { name: 'Vanguard Information Technology ETF', provider: 'Vanguard', url: VGT_HOLDINGS_URL, page: 'https://advisors.vanguard.com/investments/products/vgt/vanguard-information-technology-etf', kind: 'plain_etf', leverageTarget: 1 },
+  SMH: { name: 'VanEck Semiconductor ETF', provider: 'VanEck', url: SMH_HOLDINGS_URL, page: 'https://www.vaneck.com/us/en/investments/semiconductor-etf-smh/', kind: 'plain_etf', leverageTarget: 1, minimumHoldings: 20 },
   TQQQ: { name: 'ProShares UltraPro QQQ', provider: 'ProShares', page: 'https://www.proshares.com/our-etfs/leveraged-and-inverse/tqqq', kind: 'leveraged_etf', leverageTarget: 3 },
 });
 const cache = new Map();
@@ -95,7 +101,7 @@ function base(symbol, now, reason = null) {
 
 function finalizeHoldings(symbol, rows, { asOfDate, reportedHoldingCount, now, totalWeight }) {
   if (!dateValue(asOfDate) || asOfDate > getCompletedMarketCloseDate(now)
-    || rows.length < 50 || rows.length > 1000 || !Number.isFinite(totalWeight)
+    || rows.length < (DEFINITIONS[symbol]?.minimumHoldings ?? 50) || rows.length > 1000 || !Number.isFinite(totalWeight)
     || totalWeight < 95 || totalWeight > 100.5) throw new PortfolioOverlapError('INVALID_DATA');
   const seen = new Set();
   for (const row of rows) {
@@ -168,8 +174,22 @@ export function parseSpyPortfolioHoldings(workbook, { now = Date.now() } = {}) {
   });
 }
 
-async function officialData(symbol, config) {
-  const response = await providerFetch(DEFINITIONS[symbol].url, {}, {
+export function parseVgtPortfolioHoldings(payload, { now = Date.now() } = {}) {
+  try {
+    const parsed = parseVanguardPortfolioHoldings(payload);
+    return finalizeHoldings('VGT', parsed.holdings, { ...parsed, now: clock(now) });
+  } catch { throw new PortfolioOverlapError('INVALID_DATA'); }
+}
+
+export function parseSmhPortfolioHoldings(payload, { now = Date.now() } = {}) {
+  try {
+    const parsed = parseVanEckPortfolioHoldings(payload);
+    return finalizeHoldings('SMH', parsed.holdings, { ...parsed, now: clock(now) });
+  } catch { throw new PortfolioOverlapError('INVALID_DATA'); }
+}
+
+async function officialBytes(symbol, url, config) {
+  return providerFetch(url, {}, {
     provider: `official:portfolio-overlap:${symbol}`,
     timeoutMs: QUOTE_TIMEOUTS.eodhd,
     fetchImpl: async (url, options) => {
@@ -197,10 +217,21 @@ async function officialData(symbol, config) {
       return bytes;
     },
   });
+}
+
+async function officialData(symbol, config) {
+  if (symbol === 'VGT') {
+    const responses = await Promise.all([VGT_FUND_URL, VGT_STATISTICS_URL, VGT_HOLDINGS_URL].map(url => officialBytes(symbol, url, config)));
+    try {
+      const [fund, statistics, holdings] = responses.map(bytes => JSON.parse(bytes.toString('utf8')));
+      return parseVgtPortfolioHoldings({ fund, statistics, holdings }, config);
+    } catch { throw new PortfolioOverlapError('INVALID_DATA'); }
+  }
+  const response = await officialBytes(symbol, DEFINITIONS[symbol].url, config);
   try {
-    return symbol === 'QQQ'
-      ? parseQqqPortfolioHoldings(JSON.parse(response.toString('utf8')), config)
-      : parseSpyPortfolioHoldings(response, config);
+    if (symbol === 'SPY') return parseSpyPortfolioHoldings(response, config);
+    const payload = JSON.parse(response.toString('utf8'));
+    return symbol === 'QQQ' ? parseQqqPortfolioHoldings(payload, config) : parseSmhPortfolioHoldings(payload, config);
   } catch {
     throw new PortfolioOverlapError('INVALID_DATA');
   }
@@ -236,7 +267,7 @@ async function loadSymbol(symbol, config) {
       if (performance.now() >= config.deadline) throw new PortfolioOverlapError('PROVIDER_TIMEOUT');
       let data;
       if (symbol === 'TQQQ') data = { ...base(symbol, config.now, 'leveraged_fund_not_expanded'), holdingsStatus: 'not_applicable' };
-      else if (['QQQ', 'SPY'].includes(symbol)) data = await officialData(symbol, config);
+      else if (DEFINITIONS[symbol]?.kind === 'plain_etf') data = await officialData(symbol, config);
       else {
         const result = await searchInvestmentSymbols(symbol, config);
         const exact = result.results.filter(item => item.symbol === symbol);

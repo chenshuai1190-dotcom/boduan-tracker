@@ -4,6 +4,17 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '持仓重叠体检新增 VGT、SMH 官方成分穿透，与直接持有及其他 ETF 的同一证券合并展示。',
+      '核验基金身份、完整持仓和披露日期，现金与未识别成分保留为未穿透；SMH 中文名称继续显示代码。',
+    ],
+    itemsEn: [
+      'Portfolio Overlap adds official VGT and SMH holdings, combining each security with direct positions and other supported ETFs.',
+      'Fund identity, complete holdings, and disclosure dates are validated. Cash and unidentified holdings remain unexpanded; the Chinese SMH label keeps its ticker.',
+    ],
+  },
+  {
+    ver: 'v10.7.9.552', date: '2026-10-03',
+    items: [
       '投资时光机右上角改为 USD／CNY 切换，本金、总资产、盈亏、逐年收益与回撤详情金额同步换算。',
       '金额沿用系统当前汇率，切换不改变收益率、历史回放位置或原始投资本金；数据读取异常或待更新时保留重试入口。',
     ],
