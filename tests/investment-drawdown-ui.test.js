@@ -52,7 +52,8 @@ test('drawdown view renders real model outcomes, principal risk and bilingual co
     assert.match(html, /-25\.0%/); assert.match(html, /-50\.0%/);
     assert.match(html, /2026-01-05/); assert.match(html, /2026-01-06/); assert.match(html, /2026-01-08/);
     assert.match(html, englishMode ? /Maximum drawdown/ : /区间最大回撤/);
-    assert.match(html, englishMode ? /Looking only at the initial principal/ : /如果只看投入本金/);
+    assert.match(html, englishMode ? /Principal risk since investment/ : /自起投以来的本金风险/);
+    assert.match(html, englishMode ? /Lowest value since investment/ : /起投以来最低资产/);
     assert.doesNotMatch(html, /ic-dd-method|Drawdown calculation methodology|回撤计算口径/);
     assert.match(html, englishMode ? /Drawdown replay progress/ : /回撤回放进度/);
     assert.doesNotMatch(html, /NaN|Infinity|undefined|class="ic-header"|class="ic-settings"|<h1/);
@@ -75,11 +76,11 @@ test('drawdown currency converts simulated assets once while USD stock prices, p
     const compactAssets = html => amounts(html).filter(value => /[万亿KMB]$/.test(value));
     const usdPrices = html => amounts(html).filter(value => value.startsWith('$') && !/[万亿KMB]$/.test(value));
     assert.deepEqual(compactAssets(usd), englishMode
-      ? ['$1.2M', '$1.0M', '$900.0K']
-      : ['$120.0万', '$100.0万', '$90.0万']);
+      ? ['$1.2M', '$900.00K', '$1.0M', '$900.0K']
+      : ['$120.0万', '$90.00万', '$100.0万', '$90.0万']);
     assert.deepEqual(compactAssets(cny), englishMode
-      ? ['¥8.6M', '¥7.2M', '¥6.5M']
-      : ['¥864.0万', '¥720.0万', '¥648.0万']);
+      ? ['¥8.6M', '¥6.48M', '¥7.2M', '¥6.5M']
+      : ['¥864.0万', '¥648.00万', '¥720.0万', '¥648.0万']);
     assert.ok(usdPrices(usd).includes('$120.00'), 'the previous high must be a per-share price, not a compact portfolio asset value');
     assert.ok(usdPrices(usd).includes('$90.00'));
     assert.deepEqual(usdPrices(cny), usdPrices(usd), 'FX applies to simulated assets only, never USD adjusted stock prices');
@@ -101,7 +102,7 @@ test('drawdown CNY assets stay unavailable without FX while USD prices, actual d
     assert.match(html, /-25\.0%/);
     assert.match(html, /-50\.0%/);
     assert.match(html, /2026-01-06/);
-    assert.match(html, /期间最低资产<\/span><strong[^>]*>—<\/strong>/);
+    assert.match(html, /起投以来最低资产<\/span><strong[^>]*>—<\/strong>/);
   }
 });
 
@@ -157,7 +158,7 @@ const hookUrl = dataUrl(`
   export default { ...React, memo: component => component, useState, useRef, useMemo, useEffect, useId: () => 'drawdown-test', useCallback: (callback, deps) => useMemo(() => callback, deps) };
 `);
 const hooks = await import(hookUrl);
-const { default: HookInvestmentDrawdownView, DrawdownJourney, DrawdownOverview, JourneyChart, DrawdownAnalysis } = await import(dataUrl(compiledView(hookUrl, '\nexport { DrawdownJourney, DrawdownOverview, JourneyChart, DrawdownAnalysis };')));
+const { default: HookInvestmentDrawdownView, DrawdownJourney, DrawdownOverview, JourneyChart, DrawdownAnalysis, PrincipalRisk } = await import(dataUrl(compiledView(hookUrl, '\nexport { DrawdownJourney, DrawdownOverview, JourneyChart, DrawdownAnalysis, PrincipalRisk };')));
 
 function findAll(node, predicate) {
   if (!React.isValidElement(node)) return [];
@@ -538,6 +539,99 @@ test('small adjusted stock prices retain enough decimals to distinguish the prev
   const prices = findAll(tree, node => node.props.className === 'ic-dd-milestone').map(milestone => findAll(milestone, node => node.type === 'strong')[0].props.children);
   assert.deepEqual(prices.map(price => Number(price.slice(1))), [0.0012, 0.0009, 0.0012]);
   assert.ok(prices.every(price => price.startsWith('$') && !/[KMB万亿]/.test(price)));
+  hooks.reset();
+});
+
+test('episode trough returns distinguish a decline from the peak from a profit on principal without narrowing lifetime principal risk', () => {
+  const data = drawdownHistoryData([1000000, 800000, 1000000, 1400000, 1005800, 1500000]);
+  const original = structuredClone(data);
+  const analysis = data.analyses.QQQ;
+  assert.equal(analysis.maxDrawdownEpisode.troughIndex, 4);
+  assert.ok(analysis.maxDrawdownEpisode.drawdownPct < -28);
+  assert.equal(analysis.principalStats.minimumValue, 800000);
+  for (const englishMode of [false, true]) {
+    for (const [marketColorMode, gain, loss] of [['redUpGreenDown', '#ff4b1f', '#34d399'], ['greenUpRedDown', '#34d399', '#ff4b1f']]) {
+      hooks.reset();
+      const props = { data, englishMode, marketColorMode, displayCurrency: 'USD', displayRate: 1 };
+      const render = () => hooks.render(DrawdownAnalysis, props, 'principal-scope');
+      let tree = render();
+      const risk = findAll(tree, node => node.type === PrincipalRisk)[0];
+      const riskTree = PrincipalRisk(risk.props);
+      const riskMarkup = renderToStaticMarkup(riskTree);
+      assert.match(riskMarkup, englishMode ? /Principal risk since investment/ : /自起投以来的本金风险/);
+      assert.match(riskMarkup, englishMode ? /Lowest value since investment/ : /起投以来最低资产/);
+      assert.match(riskMarkup, englishMode ? /\$800\.0K/ : /\$80\.0万/);
+      assert.deepEqual(findAll(classNode(riskTree, 'ic-dd-principal-period'), node => node.type === 'time').map(node => [node.props.dateTime, node.props.children]), [
+        [analysis.startDate, analysis.startDate], [analysis.asOfDate, analysis.asOfDate],
+      ]);
+      assert.notEqual(analysis.startDate, analysis.maxDrawdownEpisode.peakDate, 'principal risk begins at investment inception, not this episode peak');
+      for (const [filterIndex, expectedEpisode, amount, returnText, color] of [
+        [0, analysis.episodes[1], englishMode ? '$1.01M' : '$100.58万', '+0.58%', gain],
+        [1, analysis.episodes[0], englishMode ? '$800.00K' : '$80.00万', '-20.00%', loss],
+        [2, analysis.episodes[1], englishMode ? '$1.01M' : '$100.58万', '+0.58%', gain],
+      ]) {
+        findAll(classNode(tree, 'ic-dd-episode-tabs'), node => node.type === 'button')[filterIndex].props.onClick();
+        tree = render();
+        const journeyElement = findAll(tree, node => node.type === DrawdownJourney)[0];
+        assert.strictEqual(journeyElement.props.episode, expectedEpisode);
+        const journey = hooks.render(DrawdownJourney, journeyElement.props, 'principal-journey');
+        const troughAssets = classNode(journey, 'ic-dd-trough-assets');
+        const troughReturn = classNode(journey, 'ic-dd-trough-principal-return');
+        assert.equal(findAll(troughAssets, node => node.type === 'strong')[0].props.children, amount);
+        assert.match(renderToStaticMarkup(troughAssets), englishMode ? /Portfolio at this trough/ : /本次谷底资产/);
+        assert.match(renderToStaticMarkup(troughReturn), englishMode ? /Return on initial principal/ : /相对初始本金/);
+        const value = findAll(troughReturn, node => node.type === 'strong')[0];
+        assert.equal(value.props.children, returnText);
+        assert.equal(value.props.style.color, color);
+        assert.equal(renderToStaticMarkup(PrincipalRisk(findAll(tree, node => node.type === PrincipalRisk)[0].props)), riskMarkup, 'changing episodes must not change full-period principal risk');
+        assert.strictEqual(findAll(tree, node => node.type === DrawdownOverview)[0].props.data, data);
+      }
+    }
+  }
+  assert.deepEqual(data, original);
+  hooks.reset();
+});
+
+test('episode trough currency converts assets once while principal return and USD prices survive missing FX', () => {
+  const analysis = drawdownHistoryData([1000000, 800000, 1000000, 1400000, 1005800, 1500000]).analyses.QQQ;
+  const original = structuredClone(analysis);
+  const props = { analysis, episode: analysis.maxDrawdownEpisode, symbol: 'QQQ', englishMode: false };
+  hooks.reset();
+  for (const [displayCurrency, displayRate, expectedAmount] of [['USD', 1, '$100.58万'], ['CNY', 7.2, '¥724.18万'], ['CNY', null, '—'], ['CNY', 0, '—']]) {
+    const tree = hooks.render(DrawdownJourney, { ...props, displayCurrency, displayRate }, 'trough-currency');
+    assert.equal(findAll(classNode(tree, 'ic-dd-trough-assets'), node => node.type === 'strong')[0].props.children, expectedAmount);
+    assert.equal(findAll(classNode(tree, 'ic-dd-trough-principal-return'), node => node.type === 'strong')[0].props.children, '+0.58%');
+    assert.equal(findAll(classNode(tree, 'ic-dd-journey-head'), node => node.props['data-adjusted-price'] === 'journey')[0].props.children, '$150.00');
+    assert.equal(classNode(tree, 'ic-dd-scrubber').props.value, props.episode.recoveryIndex);
+    assert.doesNotMatch(renderToStaticMarkup(classNode(tree, 'ic-dd-trough-assets')), /Not replayed|尚未回放|NaN|Infinity/);
+  }
+  assert.deepEqual(analysis, original);
+  hooks.reset();
+});
+
+test('episode trough assets and principal return stay hidden until replay reaches the real trough', () => {
+  const analysis = drawdownHistoryData([1000000, 800000, 1000000, 1400000, 1005800, 1500000]).analyses.QQQ;
+  for (const englishMode of [false, true]) {
+    hooks.reset();
+    const props = { analysis, episode: analysis.maxDrawdownEpisode, symbol: 'QQQ', englishMode };
+    const render = () => hooks.render(DrawdownJourney, props, 'principal-replay');
+    let tree = render();
+    const riskMarkup = renderToStaticMarkup(PrincipalRisk({ analysis, symbol: 'QQQ', englishMode }));
+    findAll(tree, node => node.props['data-drawdown-milestone'] === 'peak')[0].props.onClick();
+    tree = render();
+    for (const className of ['ic-dd-trough-assets', 'ic-dd-trough-principal-return']) {
+      const row = classNode(tree, className);
+      assert.equal(findAll(row, node => node.type === 'strong')[0].props.children, '—');
+      assert.match(renderToStaticMarkup(row), englishMode ? /Not replayed/ : /尚未回放/);
+      assert.doesNotMatch(renderToStaticMarkup(row), /0\.58%|100\.58|1\.01M/);
+    }
+    findAll(tree, node => node.props['data-drawdown-milestone'] === 'trough')[0].props.onClick();
+    tree = render();
+    assert.equal(findAll(classNode(tree, 'ic-dd-trough-principal-return'), node => node.type === 'strong')[0].props.children, '+0.58%');
+    assert.equal(findAll(classNode(tree, 'ic-dd-trough-assets'), node => node.type === 'strong')[0].props.children, englishMode ? '$1.01M' : '$100.58万');
+    assert.doesNotMatch(renderToStaticMarkup(classNode(tree, 'ic-dd-trough-principal-return')), /Not replayed|尚未回放/);
+    assert.equal(renderToStaticMarkup(PrincipalRisk({ analysis, symbol: 'QQQ', englishMode })), riskMarkup, 'local replay must not narrow the full-period principal risk');
+  }
   hooks.reset();
 });
 

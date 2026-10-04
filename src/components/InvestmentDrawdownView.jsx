@@ -147,6 +147,7 @@ const DrawdownOverview = React.memo(function DrawdownOverview({ data, active, co
         const observed = analyses[symbol].points[readoutIndex];
         return <div className="ic-dd-price-card" data-symbol={symbol} key={symbol}>
           <div className="ic-dd-price-identity">{symbol}</div>
+          <time className="ic-dd-price-date" dateTime={observed.date} aria-label={englishMode ? `Price date ${observed.date}` : `股价日期 ${observed.date}`}>{observed.date}</time>
           <strong data-adjusted-price="current">{formatDrawdownPrice(observed.adjustedCloseUsd)}</strong>
           <dl>
             <div><dt>{englishMode ? 'Previous high' : '对应前高'}</dt><dd data-adjusted-price="peak">{formatDrawdownPrice(observed.peakAdjustedCloseUsd)}</dd></div>
@@ -269,6 +270,10 @@ function DrawdownJourney({ analysis, episode, symbol, englishMode, marketColorMo
   const index = Math.floor(cursor);
   const point = analysis.points[index];
   const relative = (point.value / episode.peakValue - 1) * 100;
+  const trough = analysis.points[episode.troughIndex];
+  const troughReached = episode.troughIndex <= index;
+  const troughReturn = troughReached && Number.isFinite(trough.returnPct) ? trough.returnPct : null;
+  const principalReturnLabel = troughReturn === null ? '—' : `${Number(troughReturn.toFixed(2)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2, signDisplay: 'exceptZero', useGrouping: false })}%`;
   React.useEffect(() => {
     if (!playing) return undefined;
     let frame;
@@ -320,6 +325,8 @@ function DrawdownJourney({ analysis, episode, symbol, englishMode, marketColorMo
       <div className="ic-dd-total"><span>{episode.recovered ? (englishMode ? 'Total time to recover the high' : '重回前高，共经历') : (englishMode ? 'Unrecovered, elapsed so far' : '尚未修复，已经历')}</span><strong>{dayCount(episode.underwaterDays, englishMode)}</strong></div>
       <div><span>{englishMode ? 'Maximum decline' : '最大跌幅'}</span><strong style={{ color: investmentChangeColor(episode.drawdownPct, marketColorMode) }}>{formatInvestmentPercent(episode.drawdownPct)}</strong></div>
       <div><span>{englishMode ? 'Gain needed from trough to high' : '谷底修复前高所需涨幅'}</span><strong style={{ color: investmentChangeColor(episode.recoveryGainPct, marketColorMode) }}>{formatInvestmentPercent(episode.recoveryGainPct)}</strong></div>
+      <div className="ic-dd-trough-assets"><span>{englishMode ? 'Portfolio at this trough' : '本次谷底资产'}</span><strong>{formatInvestmentAmount(troughReached ? trough.value : null, englishMode, { displayCurrency, displayRate, digits: 2 })}</strong>{!troughReached && <small>{englishMode ? 'Not replayed' : '尚未回放'}</small>}</div>
+      <div className="ic-dd-trough-principal-return"><span>{englishMode ? 'Return on initial principal' : '相对初始本金'}</span><strong style={{ color: investmentChangeColor(troughReturn, marketColorMode) }}>{principalReturnLabel}</strong>{!troughReached && <small>{englishMode ? 'Not replayed' : '尚未回放'}</small>}</div>
     </div>
   </>;
 }
@@ -332,8 +339,9 @@ function PrincipalRisk({ analysis, symbol, englishMode, marketColorMode = 'redUp
     : stats.currentlyBelowPrincipal ? (englishMode ? 'Still below principal at the last observation' : '截至数据末日仍低于本金')
       : (englishMode ? 'Never fell below principal during this period' : '整个区间未跌破本金');
   return <section className="ic-dd-principal-section">
-    <div className="ic-dd-section-head"><h2>{englishMode ? 'Looking only at the initial principal' : '如果只看投入本金'}</h2><span>{symbol} · {englishMode ? 'Invested ' : '投入 '}{formatInvestmentAmount(analysis.principal, englishMode, { displayCurrency, displayRate })}</span></div>
-    <div className="ic-dd-principal-stats"><div><span>{englishMode ? 'Lowest portfolio value' : '期间最低资产'}</span><strong style={stats.maximumLossPct < 0 ? { color: investmentChangeColor(stats.maximumLossPct, marketColorMode) } : undefined}>{formatInvestmentAmount(stats.minimumValue, englishMode, { displayCurrency, displayRate })}</strong><small>{stats.minimumDate} · <span style={{ color: investmentChangeColor(stats.maximumLossPct, marketColorMode) }}>{formatInvestmentPercent(stats.maximumLossPct)}</span></small></div><div><span>{englishMode ? 'Principal recovery after the low' : '最低点后回到本金'}</span><strong>{recovery}</strong><small>{recoveryDetail}</small></div></div>
+    <div className="ic-dd-section-head"><h2>{englishMode ? 'Principal risk since investment' : '自起投以来的本金风险'}</h2><span>{symbol} · {englishMode ? 'Invested ' : '投入 '}{formatInvestmentAmount(analysis.principal, englishMode, { displayCurrency, displayRate })}</span></div>
+    <p className="ic-dd-principal-period">{englishMode ? 'From ' : '起投 '}<time dateTime={analysis.startDate}>{analysis.startDate}</time>{englishMode ? ' · Through ' : ' · 截至 '}<time dateTime={analysis.asOfDate}>{analysis.asOfDate}</time></p>
+    <div className="ic-dd-principal-stats"><div><span>{englishMode ? 'Lowest value since investment' : '起投以来最低资产'}</span><strong style={stats.maximumLossPct < 0 ? { color: investmentChangeColor(stats.maximumLossPct, marketColorMode) } : undefined}>{formatInvestmentAmount(stats.minimumValue, englishMode, { displayCurrency, displayRate })}</strong><small>{stats.minimumDate} · <span style={{ color: investmentChangeColor(stats.maximumLossPct, marketColorMode) }}>{formatInvestmentPercent(stats.maximumLossPct)}</span></small></div><div><span>{englishMode ? 'Principal recovery after the low' : '最低点后回到本金'}</span><strong>{recovery}</strong><small>{recoveryDetail}</small></div></div>
   </section>;
 }
 
