@@ -19,6 +19,7 @@ function compiledView(reactUrl, extra = '') {
   const imports = new Map([
     ['react', reactUrl], ['lucide-react', import.meta.resolve('lucide-react')], ['./InvestmentComparisonChart.jsx', chartUrl],
     ['../lib/investmentDrawdownModel.js', new URL('../src/lib/investmentDrawdownModel.js', import.meta.url).href],
+    ['../lib/watchlistStockDetail.js', new URL('../src/lib/watchlistStockDetail.js', import.meta.url).href],
   ]);
   return transformed.code.replace(/from (["'])([^"']+)\1/g, (match, _quote, path) => imports.has(path) ? `from ${JSON.stringify(imports.get(path))}` : match)
     .replace(/import ["'][^"']+\.css["'];?/g, '') + extra;
@@ -189,9 +190,12 @@ function overviewInteraction({ data = buildInvestmentDrawdownModel(comparisonMod
     const grid = findAll(render(), node => node.props.className === 'ic-dd-grid')[0];
     assert.ok(grid, 'pointer fixtures need a visible price axis');
     const { x1, x2 } = grid.props;
+    const slider = area();
+    const start = slider['data-window-start'] ?? 0;
+    const end = slider['data-window-end'] ?? props.data.analyses.QQQ.points.length - 1;
     return {
       pointerId: 1, pointerType: 'touch', button: 0, buttons: 1, isPrimary: true,
-      clientX: x1 + index / (props.data.analyses.QQQ.points.length - 1) * (x2 - x1), clientY: 100,
+      clientX: x1 + (index - start) / Math.max(1, end - start) * (x2 - x1), clientY: 100,
       currentTarget: target, preventDefault: () => assert.fail('inspection must not suppress native vertical scrolling'), ...overrides,
     };
   };
@@ -236,6 +240,39 @@ function documentEvents(t) {
     onTarget(event);
   };
   return { listeners, dispatch };
+}
+
+function zoomOverview({ data, ...options } = {}) {
+  const prices = Array.from({ length: 121 }, (_, index) => 100 + index - (index >= 60 && index < 80 ? 80 : 0));
+  const second = Array.from({ length: 121 }, (_, index) => 100 + index * 2 - (index >= 35 && index < 65 ? 90 : 0));
+  const chart = overviewInteraction({ data: data ?? drawdownHistoryData(prices, second), ...options });
+  const window = () => {
+    const props = chart.area();
+    return { start: props['data-window-start'], end: props['data-window-end'] };
+  };
+  const gesture = () => {
+    const grid = findAll(chart.render(), node => node.props.className === 'ic-dd-grid')[0].props;
+    return (ratio, pointerId = 1, overrides = {}) => ({
+      pointerId, pointerType: 'touch', button: 0, buttons: 1, isPrimary: pointerId === 1,
+      clientX: grid.x1 + ratio * (grid.x2 - grid.x1), clientY: 100,
+      currentTarget: chart.target, preventDefault: () => assert.fail('chart gestures must retain native vertical scrolling'), ...overrides,
+    });
+  };
+  const lift = event => {
+    chart.area().onPointerUp({ ...event, buttons: 0 });
+    chart.area().onLostPointerCapture({ ...event, buttons: 0 });
+  };
+  const pinch = (from = [.4, .6], to = [.2, .8]) => {
+    const at = gesture();
+    chart.area().onPointerDown(at(from[0], 1));
+    chart.area().onPointerDown(at(from[1], 2));
+    chart.area().onPointerMove(at(to[0], 1));
+    chart.area().onPointerMove(at(to[1], 2));
+    lift(at(to[0], 1));
+    lift(at(to[1], 2));
+    return window();
+  };
+  return { ...chart, window, gesture, lift, pinch };
 }
 
 test('overview inspection shows both actual stock prices and the running high known on the selected date', () => {
@@ -387,9 +424,11 @@ test('overview plots actual USD stock prices on a stable upward price axis indep
     assert.ok(Math.abs(point.y - expectedY) < 0.2, `point ${index} follows its actual USD price, not portfolio assets or drawdown percentages`);
   }
   const markers = findAll(tree, node => Boolean(node.props['data-overview-marker']));
-  assert.deepEqual(markers.map(node => node.props['data-overview-marker']).sort(), ['peak', 'trough']);
+  assert.deepEqual(markers.map(node => node.props['data-overview-marker']).sort(), ['peak', 'recovery', 'trough']);
   assert.match(renderToStaticMarkup(markers.find(node => node.props['data-overview-marker'] === 'peak')), /\$120\.00/);
   assert.match(renderToStaticMarkup(markers.find(node => node.props['data-overview-marker'] === 'trough')), /\$90\.00/);
+  assert.match(renderToStaticMarkup(markers.find(node => node.props['data-overview-marker'] === 'recovery')), /\$120\.00/);
+  assert.match(renderToStaticMarkup(markers.find(node => node.props['data-overview-marker'] === 'recovery')), /2026-01-08/);
   chart.inspect(0);
   tree = chart.render();
   assert.equal(plotted(tree).props.d, originalPath);
@@ -406,7 +445,8 @@ test('overview plots actual USD stock prices on a stable upward price axis indep
   chart.props.englishMode = false;
   tree = chart.render();
   assert.match(renderToStaticMarkup(classNode(tree, 'ic-dd-section-head')), /QQQ · 股价走势/);
-  assert.equal(chart.area()['aria-label'], '使用左右方向键查看每日股价');
+  assert.match(chart.area()['aria-label'], /^使用左右方向键查看每日股价/);
+  assert.match(chart.area()['aria-label'], /双指.*缩放.*重置/);
   assert.match(findAll(tree, node => node.type === 'svg')[0].props['aria-label'], /QQQ.*美元复权股价走势/);
   hooks.reset();
 });
@@ -476,6 +516,244 @@ test('overview handles flat, single-known and unavailable stock prices without s
     assert.equal(findAll(tree, node => Boolean(node.props['data-overview-marker'])).length, 0, 'no drawdown does not fabricate a high or trough marker');
     assert.doesNotMatch(renderToStaticMarkup(tree), /NaN|Infinity|data-overview-series="TQQQ"/);
   }
+  hooks.reset();
+});
+
+test('overview pinch gestures zoom around the moving midpoint, enforce 20 observations and expand back to full history', () => {
+  const chart = zoomOverview();
+  const original = structuredClone(chart.props.data);
+  assert.deepEqual(chart.window(), { start: 0, end: 120 });
+  assert.equal(chart.area()['data-zoomed'], false);
+  assert.equal(classNode(chart.render(), 'ic-dd-reset-zoom'), undefined);
+  const centered = chart.pinch([.4, .6], [.2, .8]);
+  assert.ok(centered.start > 0 && centered.end < 120);
+  assert.ok(Math.abs((centered.end - centered.start) - 40) <= 1, 'tripling finger spacing shows one third of the original interval');
+  assert.ok(Math.abs((centered.start + centered.end) / 2 - 60) <= 1);
+  assert.equal(chart.area()['data-zoomed'], true);
+  assert.match(renderToStaticMarkup(classNode(chart.render(), 'ic-dd-zoom-range')), new RegExp(chart.props.data.analyses.QQQ.points[centered.start].date));
+  assert.match(renderToStaticMarkup(classNode(chart.render(), 'ic-dd-zoom-range')), new RegExp(chart.props.data.analyses.QQQ.points[centered.end].date));
+  classNode(chart.render(), 'ic-dd-reset-zoom').props.onClick();
+  assert.deepEqual(chart.window(), { start: 0, end: 120 });
+  const moved = chart.pinch([.2, .4], [.25, .65]);
+  const originalAnchor = 120 * .3;
+  const resultingAnchor = moved.start + (moved.end - moved.start) * .45;
+  assert.ok(Math.abs(resultingAnchor - originalAnchor) <= 1, 'the original midpoint date follows the moved two-finger center');
+  chart.pinch([.45, .55], [0, 1]);
+  let minimum = chart.window();
+  assert.equal(minimum.end - minimum.start + 1, 20);
+  chart.pinch([.45, .55], [0, 1]);
+  minimum = chart.window();
+  assert.equal(minimum.end - minimum.start + 1, 20);
+  chart.pinch([.1, .9], [.49, .51]);
+  assert.deepEqual(chart.window(), { start: 0, end: 120 });
+  assert.equal(chart.captured.size, 0);
+  assert.deepEqual(chart.props.data, original, 'gesture inspection cannot rewrite observations or financial calculations');
+  hooks.reset();
+});
+
+test('a zoomed overview pans on a horizontal drag, selects on a tap and keeps vertical page scrolling intact', () => {
+  const chart = zoomOverview();
+  chart.pinch();
+  const before = chart.window();
+  const selected = Math.round((before.start + before.end) / 2);
+  chart.inspect(selected);
+  const drag = chart.gesture();
+  chart.area().onPointerDown(drag(.5));
+  chart.area().onPointerMove(drag(.65));
+  chart.lift(drag(.65));
+  const earlier = chart.window();
+  assert.ok(earlier.start < before.start, 'dragging the visible chart right reveals older observations');
+  assert.equal(earlier.end - earlier.start, before.end - before.start);
+  assert.equal(chart.area()['aria-valuenow'], selected, 'horizontal panning is not a new date selection');
+  const tapIndex = earlier.start + 5;
+  chart.inspect(tapIndex);
+  chart.assertSelection(tapIndex);
+  const selectedCard = findAll(chart.render(), node => node.props['data-symbol'] === 'QQQ')[0];
+  assert.equal(classNode(selectedCard, 'ic-dd-price-date').props.children, chart.props.data.analyses.QQQ.points[tapIndex].date);
+  const vertical = chart.gesture();
+  chart.area().onPointerDown(vertical(.4));
+  chart.area().onPointerMove(vertical(.41, 1, { clientY: 180 }));
+  chart.lift(vertical(.41, 1, { clientY: 180 }));
+  assert.deepEqual(chart.window(), earlier);
+  chart.assertSelection(tapIndex);
+  const diagonal = chart.gesture();
+  const start = diagonal(.6);
+  const end = { ...start, clientX: start.clientX + 40, clientY: start.clientY + 40 };
+  chart.area().onPointerDown(start);
+  chart.area().onPointerMove(end);
+  chart.lift(end);
+  assert.deepEqual(chart.window(), earlier);
+  chart.assertSelection(tapIndex, true);
+  const clamp = chart.gesture();
+  chart.area().onPointerDown(clamp(0));
+  chart.area().onPointerMove(clamp(1.5));
+  chart.lift(clamp(1.5));
+  assert.equal(chart.window().start, 0);
+  assert.equal(chart.window().end - chart.window().start, before.end - before.start);
+  assert.equal(chart.captured.size, 0);
+  hooks.reset();
+});
+
+test('pinch finger release, cancellation and blur cannot leave a trailing gesture that changes the selected day', () => {
+  const chart = zoomOverview();
+  const originalDate = chart.area()['aria-valuenow'];
+  const at = chart.gesture();
+  chart.area().onPointerDown(at(.4, 1));
+  chart.area().onPointerDown(at(.6, 2));
+  chart.area().onPointerMove(at(.2, 1));
+  chart.area().onPointerMove(at(.8, 2));
+  const zoomed = chart.window();
+  chart.lift(at(.2, 1));
+  chart.area().onPointerMove(at(.7, 2));
+  chart.lift(at(.7, 2));
+  assert.equal(chart.area()['aria-valuenow'], originalDate);
+  assert.deepEqual(chart.window(), zoomed, 'the remaining pinch finger must not turn into a pan');
+  assert.equal(chart.captured.size, 0);
+  for (const ending of ['onPointerCancel', 'onLostPointerCapture', 'onBlur']) {
+    const next = chart.gesture();
+    chart.area().onPointerDown(next(.4, 1));
+    chart.area().onPointerDown(next(.6, 2));
+    chart.area()[ending](next(.4, 1));
+    const endedWindow = chart.window();
+    const endedDate = chart.area()['aria-valuenow'];
+    chart.area().onPointerMove(next(.1, 1));
+    chart.area().onPointerMove(next(.9, 2));
+    chart.lift(next(.1, 1));
+    chart.lift(next(.9, 2));
+    assert.deepEqual(chart.window(), endedWindow);
+    assert.equal(chart.area()['aria-valuenow'], endedDate);
+    assert.equal(chart.captured.size, 0);
+  }
+  const point = chart.window().start + 3;
+  chart.inspect(point);
+  chart.assertSelection(point, true);
+  hooks.reset();
+});
+
+test('reset, return to latest and focus changes reset the viewport while ordinary currency or color rerenders retain it', () => {
+  const chart = zoomOverview();
+  chart.pinch();
+  const point = chart.window().start + 5;
+  chart.inspect(point);
+  const selected = chart.area()['aria-valuenow'];
+  const window = chart.window();
+  chart.props.marketColorMode = 'greenUpRedDown';
+  chart.props.englishMode = false;
+  chart.props.displayCurrency = 'CNY';
+  chart.props.displayRate = 7.2;
+  assert.deepEqual(chart.window(), window);
+  assert.equal(chart.area()['aria-valuenow'], selected);
+  assert.equal(classNode(chart.render(), 'ic-dd-reset-zoom').props.children, '重置缩放');
+  classNode(chart.render(), 'ic-dd-reset-zoom').props.onClick();
+  assert.deepEqual(chart.window(), { start: 0, end: 120 });
+  chart.assertSelection(selected);
+  chart.pinch();
+  classNode(chart.render(), 'ic-dd-reset-inspection').props.onClick();
+  assert.deepEqual(chart.window(), { start: 0, end: 120 });
+  chart.assertSelection(120, false);
+  chart.pinch();
+  chart.props.focusVersion = 1;
+  assert.deepEqual(chart.window(), { start: 0, end: 120 });
+  chart.assertSelection(chart.props.data.analyses.QQQ.maxDrawdownEpisode.troughIndex);
+  chart.pinch();
+  chart.props.active = 'TQQQ';
+  assert.deepEqual(chart.window(), { start: 0, end: 120 });
+  chart.assertSelection(chart.props.data.analyses.TQQQ.maxDrawdownEpisode.troughIndex);
+  chart.pinch();
+  chart.props.active = 'QQQ';
+  assert.deepEqual(chart.window(), { start: 0, end: 120 }, 'switching back to a previous stock must not revive its earlier viewport');
+  chart.assertSelection(chart.props.data.analyses.QQQ.maxDrawdownEpisode.troughIndex);
+  chart.pinch();
+  chart.props.data = structuredClone(chart.props.data);
+  assert.deepEqual(chart.window(), { start: 0, end: 120 });
+  chart.assertSelection(chart.props.data.analyses.QQQ.maxDrawdownEpisode.troughIndex);
+  const small = zoomOverview({ data: buildInvestmentDrawdownModel(comparisonModel()) });
+  small.pinch([.4, .6], [0, 1]);
+  assert.deepEqual(small.window(), { start: 0, end: 5 });
+  assert.equal(classNode(small.render(), 'ic-dd-reset-zoom'), undefined, 'short histories cannot shrink below all available observations');
+  hooks.reset();
+});
+
+test('real reset-zoom clicks preserve the selected date and keyboard zoom controls remain accessible', t => {
+  const events = documentEvents(t);
+  const chart = zoomOverview({ mount: true });
+  chart.pinch();
+  const selected = chart.area()['aria-valuenow'];
+  const reset = classNode(chart.render(), 'ic-dd-reset-zoom');
+  const resetTarget = { contains: target => target === resetTarget };
+  reset.ref.current = resetTarget;
+  events.dispatch('click', resetTarget, () => reset.props.onClick());
+  assert.deepEqual(chart.window(), { start: 0, end: 120 });
+  chart.assertSelection(selected);
+  let prevented = 0;
+  const key = key => chart.area().onKeyDown({ key, preventDefault: () => { prevented += 1; } });
+  key('+');
+  const first = chart.window();
+  assert.ok(first.end - first.start < 120);
+  key('=');
+  const second = chart.window();
+  assert.ok(second.end - second.start < first.end - first.start);
+  key('-');
+  assert.ok(chart.window().end - chart.window().start > second.end - second.start);
+  key('0');
+  assert.deepEqual(chart.window(), { start: 0, end: 120 });
+  chart.assertSelection(selected);
+  key('+');
+  key('Home');
+  assert.deepEqual(chart.window(), { start: 0, end: 120 }, 'selecting an offscreen day with the keyboard restores its visibility');
+  chart.assertSelection(0);
+  key('+');
+  key('Escape');
+  chart.assertSelection(120, false);
+  assert.deepEqual(chart.window(), { start: 0, end: 120 });
+  assert.equal(prevented, 8);
+  chart.area().onKeyDown({ key: 'Tab', preventDefault: () => assert.fail('Tab keeps native focus navigation') });
+});
+
+test('each price card shows its own episode recovery date and shared recovery/next-peak boundaries belong to the completed episode', () => {
+  const data = drawdownHistoryData([100, 120, 80, 120, 100, 115, 120], [100, 120, 90, 100, 105, 120, 110]);
+  const chart = overviewInteraction({ data });
+  const recovery = symbol => findAll(chart.render(), node => node.props['data-episode-recovery'] === symbol)[0].props.children;
+  chart.inspect(2);
+  assert.equal(recovery('QQQ'), data.analyses.QQQ.episodes[0].recoveryDate);
+  assert.equal(recovery('TQQQ'), data.analyses.TQQQ.episodes[0].recoveryDate);
+  assert.notEqual(recovery('QQQ'), recovery('TQQQ'));
+  chart.inspect(3);
+  assert.equal(recovery('QQQ'), data.analyses.QQQ.episodes[0].recoveryDate, 'the day that recovers an old episode and peaks the next episode belongs to the recovered episode');
+  chart.inspect(4);
+  assert.equal(recovery('QQQ'), data.analyses.QQQ.episodes[1].recoveryDate, 'a later decline gets its own episode rather than the maximum-drawdown outcome');
+  chart.inspect(6);
+  assert.equal(recovery('TQQQ'), 'Unrecovered');
+  chart.props.englishMode = false;
+  assert.equal(recovery('TQQQ'), '尚未修复');
+  chart.inspect(0);
+  assert.equal(recovery('QQQ'), '—');
+  assert.equal(recovery('TQQQ'), '—');
+  hooks.reset();
+});
+
+test('overview recovery markers use verified prices and are clipped to the zoomed window', () => {
+  const chart = zoomOverview();
+  const analysis = chart.props.data.analyses.QQQ;
+  const episode = analysis.maxDrawdownEpisode;
+  let marker = findAll(chart.render(), node => node.props['data-overview-marker'] === 'recovery')[0];
+  assert.ok(marker);
+  assert.match(renderToStaticMarkup(marker), new RegExp(episode.recoveryDate));
+  assert.match(renderToStaticMarkup(marker), /\$180\.00/);
+  chart.pinch([.4, .6], [.1, .9]);
+  assert.ok(chart.window().end < episode.recoveryIndex);
+  assert.equal(findAll(chart.render(), node => node.props['data-overview-marker'] === 'recovery').length, 0);
+  classNode(chart.render(), 'ic-dd-reset-zoom').props.onClick();
+  assert.equal(findAll(chart.render(), node => node.props['data-overview-marker'] === 'recovery').length, 1);
+  chart.props.data = structuredClone(chart.props.data);
+  chart.props.data.analyses.QQQ.points[episode.recoveryIndex].adjustedCloseUsd = null;
+  assert.equal(findAll(chart.render(), node => node.props['data-overview-marker'] === 'recovery').length, 0, 'a known recovery date does not justify inventing a missing recovery price');
+  chart.inspect(episode.troughIndex);
+  assert.equal(findAll(chart.render(), node => node.props['data-episode-recovery'] === 'QQQ')[0].props.children, episode.recoveryDate);
+  const openData = drawdownHistoryData([100, 120, 80, 90]);
+  const open = overviewInteraction({ data: openData });
+  assert.equal(findAll(open.render(), node => node.props['data-overview-marker'] === 'recovery').length, 0);
+  assert.equal(findAll(open.render(), node => node.props['data-episode-recovery'] === 'QQQ')[0].props.children, 'Unrecovered');
   hooks.reset();
 });
 
@@ -631,7 +909,7 @@ test('changing the highlighted symbol or history selects its own real maximum-dr
   chart.assertSelection(0);
 });
 
-test('the bilingual reset button returns to latest and secondary touches cannot overwrite the selected day', () => {
+test('the bilingual reset button returns to latest while a two-finger gesture never becomes a new date selection', () => {
   for (const englishMode of [false, true]) {
     const chart = overviewInteraction();
     chart.props.englishMode = englishMode;
@@ -645,10 +923,10 @@ test('the bilingual reset button returns to latest and secondary touches cannot 
     chart.area().onPointerDown(secondary);
     chart.area().onPointerMove(secondary);
     chart.area().onPointerUp({ ...secondary, buttons: 0 });
-    chart.assertSelection(2);
+    chart.assertSelection(1);
     chart.area().onPointerUp(chart.pointer(2, { buttons: 0 }));
     chart.area().onPointerLeave(chart.pointer(2));
-    chart.assertSelection(2);
+    chart.assertSelection(1);
     const reset = classNode(chart.render(), 'ic-dd-reset-inspection');
     assert.equal(reset.props.children, englishMode ? 'Back to latest' : '回到最新');
     reset.props.onClick();

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pause, Play, RotateCcw } from 'lucide-react';
 import { buildInvestmentDrawdownModel } from '../lib/investmentDrawdownModel.js';
+import { fullStockDetailChartWindow, normalizeStockDetailChartWindow, transformStockDetailChartWindow, stockDetailChartDragIntent } from '../lib/watchlistStockDetail.js';
 import {
   formatInvestmentAmount,
   formatInvestmentPercent,
@@ -13,6 +14,7 @@ import './InvestmentDrawdown.css';
 
 const SPEEDS = [0.1, 0.2, 0.4, 0.8, 1];
 const HISTORY_MIN_DRAWDOWN_PCT = 10;
+const OVERVIEW_MIN_POINTS = 20;
 const dayCount = (value, englishMode) => Number.isFinite(value)
   ? `${value.toLocaleString('en-US')} ${englishMode ? 'days' : '天'}` : '—';
 const calendarDays = (from, to) => (Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000;
@@ -46,14 +48,21 @@ const DrawdownOverview = React.memo(function DrawdownOverview({ data, active, co
   const initialInspection = { data, active, focusVersion, selectedIndex: data.analyses[active].maxDrawdownEpisode?.troughIndex ?? null, hoverIndex: null };
   const [inspection, setInspection] = React.useState(initialInspection);
   const gestureRef = React.useRef(null);
+  const pointersRef = React.useRef(new Map());
+  const resetZoomRef = React.useRef(null);
+  const [viewport, setViewport] = React.useState({ data, active, focusVersion, window: fullStockDetailChartWindow(data.analyses[active].points.length) });
   const matchesFocus = value => value.data === data && value.active === active && value.focusVersion === focusVersion;
   const currentInspection = matchesFocus(inspection) ? inspection : initialInspection;
   const { symbols, analyses } = data;
   const points = analyses[symbols[0]].points;
   const lastIndex = points.length - 1;
   const selected = analyses[active];
+  const chartWindow = normalizeStockDetailChartWindow(matchesFocus(viewport) ? viewport.window : null, points.length);
+  const zoomed = chartWindow.start > 0 || chartWindow.end < lastIndex;
+  const visiblePoints = selected.points.slice(chartWindow.start, chartWindow.end + 1);
+  const inWindow = index => index >= chartWindow.start && index <= chartWindow.end;
   const validPrice = row => Number.isFinite(row?.adjustedCloseUsd) && row.adjustedCloseUsd > 0;
-  const prices = selected.points.filter(validPrice).map(row => row.adjustedCloseUsd);
+  const prices = visiblePoints.filter(validPrice).map(row => row.adjustedCloseUsd);
   const hasPrices = prices.length > 0;
   const minPrice = hasPrices ? Math.min(...prices) : 0;
   const maxPrice = hasPrices ? Math.max(...prices) : 1;
@@ -63,10 +72,10 @@ const DrawdownOverview = React.memo(function DrawdownOverview({ data, active, co
   const ticks = [maximum, (maximum + minimum) / 2, minimum];
   const axisPrice = value => value === 0 ? '$0.00' : formatDrawdownPrice(value);
   const height = 290, left = Math.max(48, Math.min(96, Math.max(...ticks.map(value => axisPrice(value).length)) * 6 + 10)), right = 8, top = 26, bottom = 32;
-  const x = point => left + point.index / Math.max(1, lastIndex) * (width - left - right);
+  const x = point => left + (point.index - chartWindow.start) / Math.max(1, chartWindow.end - chartWindow.start) * (width - left - right);
   const y = value => top + (maximum - value) / (maximum - minimum) * (height - top - bottom);
   let connected = false;
-  const pricePath = selected.points.map(row => {
+  const pricePath = visiblePoints.map(row => {
     if (!validPrice(row)) { connected = false; return ''; }
     const command = connected ? 'L' : 'M'; connected = true;
     return `${command}${x(row).toFixed(2)},${y(row.adjustedCloseUsd).toFixed(2)}`;
@@ -75,7 +84,8 @@ const DrawdownOverview = React.memo(function DrawdownOverview({ data, active, co
   const markers = maximumEpisode ? [
     { kind: 'peak', point: selected.points[maximumEpisode.peakIndex], label: englishMode ? 'Episode high' : '本段前高' },
     { kind: 'trough', point: selected.points[maximumEpisode.troughIndex], label: englishMode ? 'Drawdown low' : '回撤谷底' },
-  ].filter(marker => validPrice(marker.point)) : [];
+    ...(maximumEpisode.recoveryIndex === null ? [] : [{ kind: 'recovery', point: selected.points[maximumEpisode.recoveryIndex], label: englishMode ? 'First recovery' : '首次修复' }]),
+  ].filter(marker => validPrice(marker.point) && inWindow(marker.point.index)) : [];
   const inspecting = currentInspection.hoverIndex !== null || currentInspection.selectedIndex !== null;
   const readoutIndex = Math.max(0, Math.min(lastIndex, currentInspection.hoverIndex ?? currentInspection.selectedIndex ?? lastIndex));
   React.useEffect(() => {
@@ -84,50 +94,133 @@ const DrawdownOverview = React.memo(function DrawdownOverview({ data, active, co
     // not, since they can be the beginning of a native vertical swipe.
     const dismissOutside = event => {
       const chart = containerRef.current;
-      if (!chart || chart.contains(event.target)) return;
-      gestureRef.current = null;
+      if (!chart || chart.contains(event.target) || resetZoomRef.current?.contains(event.target)) return;
+      clearPointers();
       setInspection({ data, active, focusVersion, selectedIndex: null, hoverIndex: null });
     };
     document.addEventListener('click', dismissOutside, true);
     return () => document.removeEventListener('click', dismissOutside, true);
   }, [containerRef, data, active, focusVersion, currentInspection.selectedIndex]);
   const updateInspection = patch => setInspection(current => ({ ...(matchesFocus(current) ? current : initialInspection), ...patch }));
-  const indexAtPointer = event => {
+  const updateWindow = window => setViewport({ data, active, focusVersion, window });
+  const pointerGeometry = event => {
     const box = event.currentTarget.getBoundingClientRect();
-    const ratio = Math.max(0, Math.min(1, (event.clientX - box.left - left) / Math.max(1, box.width - left - right)));
-    return Math.round(ratio * lastIndex);
+    return { left: box.left + left / width * box.width, width: Math.max(1, (width - left - right) / width * box.width) };
   };
+  const ratioAt = (clientX, geometry) => Math.max(0, Math.min(1, (clientX - geometry.left) / geometry.width));
+  const indexAtPointer = event => Math.round(chartWindow.start + ratioAt(event.clientX, pointerGeometry(event)) * (chartWindow.end - chartWindow.start));
   const clearPreview = () => updateInspection({ hoverIndex: null });
-  const cancelGesture = () => { gestureRef.current = null; clearPreview(); };
-  const resetInspection = () => { gestureRef.current = null; updateInspection({ selectedIndex: null, hoverIndex: null }); };
+  const clearPointers = () => {
+    const pointers = [...pointersRef.current.entries()];
+    pointersRef.current.clear();
+    gestureRef.current = null;
+    for (const [id, pointer] of pointers) {
+      if (pointer.target?.hasPointerCapture?.(id)) pointer.target.releasePointerCapture(id);
+    }
+  };
+  // Data/stock/card-focus replacement invalidates every outstanding gesture.
+  // Cleanup also releases captures when this view unmounts.
+  React.useEffect(() => {
+    // Commit the new focus key, so switching away and back cannot revive a
+    // previous stock's viewport even when a caller reuses its focusVersion.
+    setViewport(current => matchesFocus(current) ? current : { data, active, focusVersion, window: fullStockDetailChartWindow(points.length) });
+    setInspection(current => matchesFocus(current) ? current : initialInspection);
+    return () => clearPointers();
+  }, [data, active, focusVersion]);
+  const cancelGesture = event => {
+    if (event?.type === 'lostpointercapture' && !pointersRef.current.has(event.pointerId)) return;
+    clearPointers();
+    clearPreview();
+  };
+  const resetZoom = () => { clearPointers(); updateWindow(fullStockDetailChartWindow(points.length)); clearPreview(); };
+  const resetInspection = () => { resetZoom(); updateInspection({ selectedIndex: null, hoverIndex: null }); };
   const pointerDown = event => {
-    if (event.isPrimary === false || (event.button !== undefined && event.button !== 0)) return;
-    gestureRef.current = { data, pointerId: event.pointerId, pointerType: event.pointerType, x: event.clientX, y: event.clientY, direction: null };
-    updateInspection({ hoverIndex: indexAtPointer(event) });
+    const pointers = pointersRef.current;
+    const touch = event.pointerType === 'touch';
+    if ((!touch && event.isPrimary === false) || (event.button !== undefined && event.button !== 0)) return;
+    if (gestureRef.current && !matchesFocus(gestureRef.current)) clearPointers();
+    // An isolated secondary touch can be left over after native vertical pan
+    // cancellation; it must not start a fresh selection or pinch.
+    if (touch && event.isPrimary === false && pointers.size === 0) return;
+    if (pointers.has(event.pointerId)) return;
+    if (pointers.size && (!touch || [...pointers.values()].some(pointer => pointer.type !== 'touch'))) return;
+    pointers.set(event.pointerId, { x: event.clientX, y: event.clientY, type: event.pointerType, target: event.currentTarget });
     event.currentTarget.setPointerCapture?.(event.pointerId);
+    if (pointers.size === 1) {
+      gestureRef.current = { data, active, focusVersion, kind: 'single', pointerId: event.pointerId, pointerType: event.pointerType,
+        x: event.clientX, y: event.clientY, direction: 'pending', window: chartWindow, zoomed, geometry: pointerGeometry(event) };
+      if (!zoomed || !touch) updateInspection({ hoverIndex: indexAtPointer(event) });
+      return;
+    }
+    clearPreview();
+    if (pointers.size !== 2 || gestureRef.current?.kind === 'blocked' || gestureRef.current?.direction === 'vertical') {
+      gestureRef.current = { data, active, focusVersion, kind: 'blocked' };
+      return;
+    }
+    const [a, b] = [...pointers.values()];
+    const geometry = pointerGeometry(event);
+    gestureRef.current = { data, active, focusVersion, kind: 'pinch', window: chartWindow, geometry,
+      distance: Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)), centerRatio: ratioAt((a.x + b.x) / 2, geometry) };
   };
   const pointerMove = event => {
+    const pointers = pointersRef.current;
     const gesture = gestureRef.current;
-    if (gesture?.data === data && gesture.pointerId === event.pointerId) {
-      if (gesture.pointerType !== 'mouse' && !gesture.direction) {
-        const dx = Math.abs(event.clientX - gesture.x), dy = Math.abs(event.clientY - gesture.y);
-        if (Math.max(dx, dy) > 8) gesture.direction = dy > dx ? 'vertical' : 'horizontal';
+    const pointer = pointers.get(event.pointerId);
+    if (pointer && gesture && matchesFocus(gesture)) {
+      pointer.x = event.clientX; pointer.y = event.clientY;
+      if (gesture.kind === 'pinch' && pointers.size === 2) {
+        const [a, b] = [...pointers.values()];
+        updateWindow(transformStockDetailChartWindow(gesture.window, { pointCount: points.length, minPointCount: OVERVIEW_MIN_POINTS,
+          scale: Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)) / gesture.distance,
+          startCenterRatio: gesture.centerRatio, currentCenterRatio: ratioAt((a.x + b.x) / 2, gesture.geometry) }));
+        clearPreview();
+        return;
+      }
+      if (gesture.kind !== 'single' || gesture.pointerId !== event.pointerId) return;
+      if (gesture.pointerType !== 'mouse' && gesture.direction === 'pending') {
+        gesture.direction = stockDetailChartDragIntent(event.clientX - gesture.x, event.clientY - gesture.y);
       }
       if (gesture.direction === 'vertical') { clearPreview(); return; }
-      updateInspection({ hoverIndex: indexAtPointer(event) });
-    } else if (event.pointerType === 'mouse' && currentInspection.selectedIndex === null) {
+      if (gesture.zoomed && gesture.pointerType !== 'mouse') {
+        if (gesture.direction === 'horizontal') {
+          updateWindow(transformStockDetailChartWindow(gesture.window, { pointCount: points.length, minPointCount: OVERVIEW_MIN_POINTS,
+            startCenterRatio: ratioAt(gesture.x, gesture.geometry), currentCenterRatio: ratioAt(event.clientX, gesture.geometry) }));
+          clearPreview();
+        }
+      } else updateInspection({ hoverIndex: indexAtPointer(event) });
+    } else if (!gesture && event.pointerType === 'mouse' && currentInspection.selectedIndex === null) {
       updateInspection({ hoverIndex: indexAtPointer(event) });
     }
   };
   const pointerUp = event => {
+    const pointers = pointersRef.current;
     const gesture = gestureRef.current;
-    if (gesture?.data !== data || gesture.pointerId !== event.pointerId) return;
-    if (gesture.direction !== 'vertical') updateInspection({ selectedIndex: indexAtPointer(event), hoverIndex: null });
-    else clearPreview();
-    gestureRef.current = null;
+    if (!pointers.has(event.pointerId) || !gesture || !matchesFocus(gesture)) return;
+    if (gesture.kind === 'single' && gesture.pointerId === event.pointerId) {
+      if (gesture.pointerType !== 'mouse' && gesture.direction === 'pending') gesture.direction = stockDetailChartDragIntent(event.clientX - gesture.x, event.clientY - gesture.y);
+      const moved = Math.hypot(event.clientX - gesture.x, event.clientY - gesture.y);
+      const zoomedTouchDrag = gesture.zoomed && gesture.pointerType !== 'mouse' && (gesture.direction === 'horizontal' || moved >= 8);
+      if (gesture.direction !== 'vertical' && !zoomedTouchDrag) {
+        updateInspection({ selectedIndex: indexAtPointer(event), hoverIndex: null });
+      } else clearPreview();
+    }
+    pointers.delete(event.pointerId);
+    // Once multiple fingers participated, lifting one never turns the remaining
+    // finger into a tap. Wait for a fresh gesture after all fingers are released.
+    gestureRef.current = pointers.size ? { data, active, focusVersion, kind: 'blocked' } : null;
     if (event.currentTarget.hasPointerCapture?.(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
   };
   const inspectKey = event => {
+    if (['+', '=', '-', '0'].includes(event.key)) {
+      event.preventDefault();
+      clearPointers();
+      if (event.key === '0') { resetZoom(); return; }
+      const anchor = inWindow(readoutIndex) ? (readoutIndex - chartWindow.start) / Math.max(1, chartWindow.end - chartWindow.start) : .5;
+      updateWindow(transformStockDetailChartWindow(chartWindow, { pointCount: points.length, minPointCount: OVERVIEW_MIN_POINTS,
+        scale: event.key === '-' ? 1 / 1.5 : 1.5, startCenterRatio: anchor }));
+      clearPreview();
+      return;
+    }
     let next;
     if (event.key === 'ArrowLeft') next = readoutIndex - 1;
     else if (event.key === 'ArrowRight') next = readoutIndex + 1;
@@ -136,37 +229,46 @@ const DrawdownOverview = React.memo(function DrawdownOverview({ data, active, co
     else if (event.key === 'Escape') { event.preventDefault(); resetInspection(); return; }
     else return;
     event.preventDefault();
-    gestureRef.current = null;
-    updateInspection({ selectedIndex: Math.max(0, Math.min(lastIndex, next)), hoverIndex: null });
+    clearPointers();
+    next = Math.max(0, Math.min(lastIndex, next));
+    if (!inWindow(next)) updateWindow(fullStockDetailChartWindow(points.length));
+    updateInspection({ selectedIndex: next, hoverIndex: null });
   };
   return <section className="ic-dd-overview-section" aria-label={englishMode ? 'Drawdown history' : '回撤历史'}>
     <div className="ic-dd-section-head"><h2>{active} · {englishMode ? 'Price history' : '股价走势'}</h2>{currentInspection.selectedIndex !== null ? <button type="button" className="ic-dd-reset-inspection" onClick={resetInspection}>{englishMode ? 'Back to latest' : '回到最新'}</button> : <span>USD</span>}</div>
     <div className="ic-dd-legend">{symbols.map(symbol => <button key={symbol} type="button" onClick={() => onActivate(symbol)} aria-pressed={active === symbol} aria-label={englishMode ? `View ${symbol} drawdown details` : `查看 ${symbol} 回撤详情`}><i style={{ background: colors[symbol] }} />{symbol}</button>)}</div>
-    <div ref={containerRef} className="ic-dd-chart ic-dd-overview" role="slider" aria-valuemin={0} aria-valuemax={lastIndex} aria-valuenow={readoutIndex} aria-valuetext={`${points[readoutIndex].date}, ${active} ${formatDrawdownPrice(selected.points[readoutIndex].adjustedCloseUsd)} USD, ${formatInvestmentPercent(selected.points[readoutIndex].drawdownPct)}`} tabIndex={0} onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={cancelGesture} onLostPointerCapture={cancelGesture} onPointerLeave={clearPreview} onBlur={cancelGesture} onKeyDown={inspectKey} aria-label={englishMode ? 'Inspect daily share prices with left and right arrow keys' : '使用左右方向键查看每日股价'}>
+    <div ref={containerRef} className="ic-dd-chart ic-dd-overview" data-window-start={chartWindow.start} data-window-end={chartWindow.end} data-zoomed={zoomed} role="slider" aria-valuemin={0} aria-valuemax={lastIndex} aria-valuenow={readoutIndex} aria-valuetext={`${points[readoutIndex].date}, ${active} ${formatDrawdownPrice(selected.points[readoutIndex].adjustedCloseUsd)} USD, ${formatInvestmentPercent(selected.points[readoutIndex].drawdownPct)}`} tabIndex={0} onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={cancelGesture} onLostPointerCapture={event => { if (pointersRef.current.has(event.pointerId)) cancelGesture(event); }} onPointerLeave={clearPreview} onBlur={cancelGesture} onKeyDown={inspectKey} aria-label={englishMode ? 'Inspect daily share prices with left and right arrow keys; pinch or use plus and minus to zoom, zero to reset' : '使用左右方向键查看每日股价；双指或加减键缩放，0键重置'}>
       {hasPrices ? <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={englishMode ? `${active} adjusted share price history in USD` : `${active} 美元复权股价走势`}>
         {ticks.map((value, tick) => <g key={tick}><line className="ic-dd-grid" x1={left} x2={width - right} y1={y(value)} y2={y(value)} /><text x={left - 6} y={y(value) + 4} textAnchor="end">{axisPrice(value)}</text></g>)}
         <path data-overview-series={active} d={pricePath} fill="none" stroke={colors[active]} strokeWidth="2" strokeLinejoin="round" />
-        {selected.points.filter((row, index) => validPrice(row) && !validPrice(selected.points[index - 1]) && !validPrice(selected.points[index + 1])).map(row => <circle key={row.index} data-overview-isolated={active} cx={x(row)} cy={y(row.adjustedCloseUsd)} r="3" fill={colors[active]} />)}
-        {[...new Set([0, Math.round(lastIndex / 2), lastIndex])].map(pointIndex => {
+        {visiblePoints.filter((row, index) => validPrice(row) && !validPrice(visiblePoints[index - 1]) && !validPrice(visiblePoints[index + 1])).map(row => <circle key={row.index} data-overview-isolated={active} cx={x(row)} cy={y(row.adjustedCloseUsd)} r="3" fill={colors[active]} />)}
+        {[...new Set([chartWindow.start, Math.round((chartWindow.start + chartWindow.end) / 2), chartWindow.end])].map(pointIndex => {
           const point = points[pointIndex];
-          return <text key={pointIndex} x={x(point)} y={height - 8} textAnchor={pointIndex === 0 ? 'start' : pointIndex === lastIndex ? 'end' : 'middle'}>{point.date.slice(0, 7)}</text>;
+          return <text key={pointIndex} x={x(point)} y={height - 8} textAnchor={pointIndex === chartWindow.start ? 'start' : pointIndex === chartWindow.end ? 'end' : 'middle'}>{zoomed ? point.date.slice(5) : point.date.slice(0, 7)}</text>;
         })}
         {markers.map(({ kind, point, label }) => {
           const px = x(point), py = y(point.adjustedCloseUsd);
           const anchor = px > width * .7 ? 'end' : px < width * .4 ? 'start' : 'middle';
-          const labelY = kind === 'trough' ? Math.min(height - bottom - 26, py + 20) : Math.max(15, py - 13);
+          // Stagger recovery below its point; equal-price peak/recovery labels
+          // otherwise collide when a long history is compressed on a phone.
+          const labelY = kind === 'peak' ? Math.max(15, py - 27) : Math.min(height - bottom - (kind === 'trough' ? 42 : 26), py + 20);
           return <g key={kind} data-overview-marker={kind}>
             <circle cx={px} cy={py} r="3.5" fill={colors[active]} />
-            <text className="ic-dd-value-label" x={px} y={labelY} textAnchor={anchor}>{label} {formatDrawdownPrice(point.adjustedCloseUsd)}{kind === 'trough' && <tspan x={px} dy="16" fill={investmentChangeColor(maximumEpisode.drawdownPct, marketColorMode)}>{formatInvestmentPercent(maximumEpisode.drawdownPct)}</tspan>}</text>
+            <text className="ic-dd-value-label" x={px} y={labelY} textAnchor={anchor}>{label} {formatDrawdownPrice(point.adjustedCloseUsd)}<tspan x={px} dy="14">{point.date}</tspan>{kind === 'trough' && <tspan x={px} dy="14" fill={investmentChangeColor(maximumEpisode.drawdownPct, marketColorMode)}>{formatInvestmentPercent(maximumEpisode.drawdownPct)}</tspan>}</text>
           </g>;
         })}
-        {inspecting && <g><line x1={x(points[readoutIndex])} x2={x(points[readoutIndex])} y1={top} y2={height - bottom} className="ic-dd-inspection-line" strokeDasharray="3 4" />{validPrice(selected.points[readoutIndex]) && <circle data-overview-current={active} cx={x(points[readoutIndex])} cy={y(selected.points[readoutIndex].adjustedCloseUsd)} r="4" fill={colors[active]} />}</g>}
+        {inspecting && inWindow(readoutIndex) && <g><line x1={x(points[readoutIndex])} x2={x(points[readoutIndex])} y1={top} y2={height - bottom} className="ic-dd-inspection-line" strokeDasharray="3 4" />{validPrice(selected.points[readoutIndex]) && <circle data-overview-current={active} cx={x(points[readoutIndex])} cy={y(selected.points[readoutIndex].adjustedCloseUsd)} r="4" fill={colors[active]} />}</g>}
       </svg> : <div className="ic-dd-price-unavailable">{englishMode ? 'Adjusted share prices unavailable' : '复权股价暂不可用'}</div>}
     </div>
+    {zoomed && <div className="ic-dd-zoom-range"><span>{points[chartWindow.start].date} — {points[chartWindow.end].date}</span><button ref={resetZoomRef} type="button" className="ic-dd-reset-zoom" onClick={resetZoom}>{englishMode ? 'Reset zoom' : '重置缩放'}</button></div>}
     <div className="ic-dd-overview-readout">
       <span>{points[readoutIndex].date}</span><small>{englishMode ? 'Adjusted close · USD' : '复权收盘价 · USD'}</small>
       <div className="ic-dd-price-comparison">{symbols.map(symbol => {
         const observed = analyses[symbol].points[readoutIndex];
+        // An explicitly retrospective episode outcome; the adjacent daily price,
+        // peak and drawdown remain the facts known on the selected date.
+        const observedEpisode = analyses[symbol].episodes.find(episode => readoutIndex > episode.peakIndex && readoutIndex <= (episode.recoveryIndex ?? lastIndex));
+        const recoveryDate = observedEpisode ? observedEpisode.recoveryDate ?? (englishMode ? 'Unrecovered' : '尚未修复') : '—';
         return <div className="ic-dd-price-card" data-symbol={symbol} key={symbol}>
           <div className="ic-dd-price-identity">{symbol}</div>
           <time className="ic-dd-price-date" dateTime={observed.date} aria-label={englishMode ? `Price date ${observed.date}` : `股价日期 ${observed.date}`}>{observed.date}</time>
@@ -176,6 +278,7 @@ const DrawdownOverview = React.memo(function DrawdownOverview({ data, active, co
             <div><dt>{englishMode ? 'High date' : '前高日期'}</dt><dd>{observed.peakDate ?? '—'}</dd></div>
             <div><dt>{englishMode ? 'Drawdown' : '当前回撤'}</dt><dd style={{ color: investmentChangeColor(observed.drawdownPct, marketColorMode) }}>{formatInvestmentPercent(observed.drawdownPct)}</dd></div>
             <div><dt>{englishMode ? 'Gain to high' : '修复所需涨幅'}</dt><dd style={{ color: investmentChangeColor(observed.recoveryGainPct, marketColorMode) }}>{formatInvestmentPercent(observed.recoveryGainPct)}</dd></div>
+            <div><dt>{englishMode ? 'Episode recovery' : '本段修复日'}</dt><dd data-episode-recovery={symbol}>{recoveryDate}</dd></div>
           </dl>
         </div>;
       })}</div>
