@@ -3,9 +3,10 @@
 .watchlist-dialog .srm-content { display: flex; flex: 1; flex-direction: column; overflow: hidden; }
 .watchlist-dialog button { -webkit-tap-highlight-color: transparent; transition: background-color .16s ease, opacity .16s ease; }
 .watchlist-dialog button:disabled { cursor: default; opacity: .35; }
-.watchlist-search { display: flex; align-items: center; flex-shrink: 0; gap: 10px; min-height: 48px; padding: 0 13px; border: 1px solid transparent; border-radius: 12px; background: #1a1b1d; color: #a0a0a8; }
-.watchlist-search:focus-within { border-color: #69696f; }
+.watchlist-search { display: flex; align-items: center; flex-shrink: 0; gap: 10px; min-height: 48px; padding: 0 13px; border: 1px solid transparent; border-radius: 12px; background: var(--quote-field-bg); color: #a0a0a8; }
+.watchlist-search:focus-within { background: var(--quote-field-focus-bg); box-shadow: var(--quote-field-focus-shadow); }
 .watchlist-search-input { width: 100%; min-width: 0; flex: 1; background: transparent; font-size: 16px; font-weight: 400; color: #e9e9ee; outline: none; }
+.watchlist-search-input:focus { outline: none; background: transparent; box-shadow: none; }
 .watchlist-search-input::placeholder { color: #74747e; font-size: 13px; }
 .watchlist-search button { display: grid; place-items: center; width: 30px; height: 40px; }
 .watchlist-discovery-tabs { display: flex; flex-shrink: 0; gap: 4px; padding: 4px; margin-top: 16px; border-radius: 11px; background: #151618; }

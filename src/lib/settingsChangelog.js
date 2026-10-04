@@ -4,6 +4,17 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '统一交易、资产、目标、设置和投资工具的输入框样式，使用柔和深灰底色，手机输入时不再出现整圈亮色边框。',
+      '输入时通过底色变化提示编辑状态，桌面键盘操作保留焦点提示。',
+    ],
+    itemsEn: [
+      'Unified input fields across trades, assets, goals, settings, and investment tools with soft dark-gray surfaces and no bright enclosing border while typing on mobile.',
+      'Focused fields use a subtle surface change, with a separate focus indicator for desktop keyboard use.',
+    ],
+  },
+  {
+    ver: 'v10.7.9.553', date: '2026-10-04',
+    items: [
       '持仓重叠体检新增 VGT、SMH 官方成分穿透，与直接持有及其他 ETF 的同一证券合并展示。',
       '核验基金身份、完整持仓和披露日期，现金与未识别成分保留为未穿透；SMH 中文名称继续显示代码。',
     ],

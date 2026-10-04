@@ -57,7 +57,9 @@ test('wave report owns a neutral responsive surface and safe-area spacing', () =
   assert.match(root, /color:\s*#e4e4e7;/);
   assert.match(root, /padding-bottom:\s*calc\(env\(safe-area-inset-bottom\) \+ 92px\);/);
   assert.match(rule(css, '.wave-header'), /padding:\s*calc\(env\(safe-area-inset-top\) \+ 12px\) 0 12px;/);
-  assert.doesNotMatch(page + css + dialogs, /#f6b54b|#ffd18a|#f6bd61|#f5bd62|#1a2530|#05080d|#111720|linear-gradient|radial-gradient|box-shadow/);
+  assert.doesNotMatch(page + css + dialogs, /#f6b54b|#ffd18a|#f6bd61|#f5bd62|#1a2530|#05080d|#111720|linear-gradient|radial-gradient|drop-shadow/);
+  assert.ok([...(css + dialogs).matchAll(/box-shadow:\s*([^;]+);/g)].every(match => ['none', 'var(--quote-field-focus-shadow)'].includes(match[1])), 'wave controls may use the shared inner focus line without restoring decorative shadows');
+  assert.match(dialogs, /\.wave-dialog \.wave-dialog-target-control:focus-within\s*\{[^}]*background:\s*var\(--quote-field-focus-bg\);[^}]*box-shadow:\s*var\(--quote-field-focus-shadow\);/);
   assert.doesNotMatch(css + dialogs, /(?:^|[}\n])\s*(?:html|body|#root|nav)\s*\{/, 'wave styles must not recolor other modules');
   assert.equal(tone(1), '#ff4b1f');
   assert.equal(tone(-1), '#34d399');

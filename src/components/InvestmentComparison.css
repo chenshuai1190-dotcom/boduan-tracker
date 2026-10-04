@@ -23,11 +23,10 @@
 .investment-comparison .ic-icon-button:active { background: rgb(255 255 255 / .06); }
 .investment-comparison .ic-back { position: absolute; left: -8px; }
 .investment-comparison .ic-currency-control { position: absolute; right: -8px; width: 66px; height: 40px; color: #a5a5ad; }
-.investment-comparison .ic-currency-control select { width: 100%; height: 100%; padding: 0 23px 0 10px; border: 0; border-radius: 10px; background: #19191b; color: inherit; font-size: 12px; appearance: none; -webkit-appearance: none; }
+.investment-comparison .ic-currency-control select { width: 100%; height: 100%; padding: 0 23px 0 10px; border: 0; border-radius: 10px; background: var(--quote-field-bg); outline: none; color: inherit; font-size: 12px; appearance: none; -webkit-appearance: none; }
 .investment-comparison .ic-currency-control svg { position: absolute; right: 8px; top: 14px; pointer-events: none; }
 .investment-comparison .ic-currency-control select:active { background: #262629; }
-.investment-comparison .ic-currency-control select:focus { outline: none; box-shadow: none; }
-.investment-comparison .ic-currency-control select:focus-visible { background: #262629; }
+.investment-comparison .ic-currency-control select:focus { outline: none; background: var(--quote-field-focus-bg); box-shadow: var(--quote-field-focus-shadow); }
 .investment-comparison .ic-analysis-tabs { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 4px; margin: 12px 0 20px; padding: 4px; border-radius: 12px; background: var(--ic-panel); }
 .investment-comparison .ic-analysis-tabs button { min-width: 0; min-height: 42px; border: 0; padding: 6px; border-radius: 9px; background: transparent; color: var(--ic-muted); font-size: 14px; }
 .investment-comparison .ic-analysis-tabs button[aria-selected="true"] { color: var(--ic-text); background: var(--ic-border); }
@@ -42,11 +41,12 @@
 .investment-comparison .ic-pick-button small { display: block; margin-top: 4px; color: var(--ic-muted); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .investment-comparison .ic-pick-chevron { flex-shrink: 0; color: var(--ic-muted); }
 .investment-comparison .ic-field { display: flex; min-width: 0; flex-direction: column; justify-content: flex-end; gap: 6px; color: var(--ic-muted); font-size: 11px; }
-.investment-comparison .ic-field input, .investment-comparison .ic-field select { display: block; width: 100%; min-width: 0; height: 48px; min-height: 48px; flex-shrink: 0; margin: 0; border: 1px solid var(--ic-border); border-radius: 10px; padding: 11px 12px; background: var(--ic-panel); color: var(--ic-text); font-size: 16px; line-height: 24px; -webkit-appearance: none; appearance: none; }
+.investment-comparison .ic-field input, .investment-comparison .ic-field select { display: block; width: 100%; min-width: 0; height: 48px; min-height: 48px; flex-shrink: 0; margin: 0; border: 1px solid transparent; outline: none; border-radius: 10px; padding: 11px 12px; background: var(--quote-field-bg); color: var(--ic-text); font-size: 16px; line-height: 24px; -webkit-appearance: none; appearance: none; }
 .investment-comparison .ic-select-control { position: relative; display: block; width: 100%; flex-shrink: 0; }
 .investment-comparison .ic-select-control select { padding-right: 36px; }
 .investment-comparison .ic-select-control > svg { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--ic-muted); pointer-events: none; }
-.investment-comparison input:focus, .investment-comparison select:focus { outline: 1px solid #5c6678; outline-offset: 1px; }
+.investment-comparison .ic-field input:focus, .investment-comparison .ic-field select:focus, .investment-comparison .ic-scale:focus, .investment-comparison .ic-speed:focus { outline: none; background: var(--quote-field-focus-bg); box-shadow: var(--quote-field-focus-shadow); }
+.investment-comparison input[type="range"]:focus { outline: 1px solid #5c6678; outline-offset: 1px; }
 .investment-comparison .ic-feedback { margin: -5px 0 18px; color: #c6ad7b; font-size: 12px; line-height: 1.65; }
 .investment-comparison .ic-invalid { color: #ff807a; }
 .investment-comparison .ic-error { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
@@ -54,7 +54,7 @@
 .investment-comparison .ic-date-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 13px; }
 .investment-comparison .ic-date { font-size: 19px; font-weight: 500; letter-spacing: -.4px; }
 .investment-comparison .ic-year-count { margin-left: 9px; color: var(--ic-muted); font-size: 12px; }
-.investment-comparison .ic-scale { min-height: 44px; max-width: 122px; border: 0; background: transparent; color: var(--ic-muted); font-size: 12px; padding: 0 3px; }
+.investment-comparison .ic-scale { min-height: 44px; max-width: 122px; border: 0; outline: none; background: var(--quote-field-bg); color: var(--ic-muted); font-size: 12px; padding: 0 3px; }
 .investment-comparison .ic-metrics { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 20px; }
 .investment-comparison .ic-metric { min-width: 0; border-top: 2px solid var(--ic-series); padding-top: 7px; }
 .investment-comparison .ic-series-toggle { display: inline-flex; align-items: center; gap: 7px; min-height: 38px; border: 0; background: transparent; color: var(--ic-text); font-size: 13px; padding: 0; }
@@ -80,7 +80,7 @@
 .investment-comparison .ic-timeline { display: block; width: 100%; min-height: 44px; margin: 0; accent-color: #eef1f8; cursor: pointer; }
 .investment-comparison .ic-player { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 2px; }
 .investment-comparison .ic-play-button { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; min-width: 148px; border: 0; border-radius: 24px; padding: 9px 23px; background: #eef1f8; color: #121822; font-weight: 500; }
-.investment-comparison .ic-speed { min-height: 44px; padding: 8px; border: 0; background: transparent; color: var(--ic-muted); font-size: 13px; }
+.investment-comparison .ic-speed { min-height: 44px; padding: 8px; border: 0; outline: none; background: var(--quote-field-bg); color: var(--ic-muted); font-size: 13px; }
 .investment-comparison .ic-annual { border-top: 1px solid var(--ic-border); padding-top: 2px; }
 .investment-comparison .ic-annual summary, .investment-comparison .ic-methodology summary { display: flex; align-items: center; justify-content: space-between; min-height: 52px; list-style: none; cursor: pointer; font-weight: 500; }
 .investment-comparison summary::-webkit-details-marker { display: none; }
@@ -109,8 +109,10 @@
 .investment-comparison .ic-picker-head .ic-icon-button { background: var(--ic-bg); }
 .investment-comparison .ic-picker-context { display: flex; align-items: center; gap: 8px; margin: 4px 0 17px; color: var(--ic-muted); font-size: 12px; }
 .investment-comparison .ic-picker-context strong { color: var(--ic-text); font-weight: 500; }
-.investment-comparison .ic-search-label { display: flex; align-items: center; gap: 10px; min-height: 50px; padding: 0 13px; border: 1px solid var(--ic-border); border-radius: 12px; background: var(--ic-bg); color: var(--ic-muted); }
+.investment-comparison .ic-search-label { display: flex; align-items: center; gap: 10px; min-height: 50px; padding: 0 13px; border: 1px solid transparent; border-radius: 12px; background: var(--quote-field-bg); color: var(--ic-muted); }
 .investment-comparison .ic-search-label input { display: block; width: 100%; min-width: 0; min-height: 48px; padding: 0; border: 0; outline: none; background: transparent; color: var(--ic-text); font-size: 16px; }
+.investment-comparison .ic-search-label:focus-within { background: var(--quote-field-focus-bg); box-shadow: var(--quote-field-focus-shadow); }
+.investment-comparison .ic-search-label input:focus { outline: none; background: transparent; box-shadow: none; }
 .investment-comparison .ic-search-label input::placeholder { color: var(--ic-muted); }
 .investment-comparison .ic-results-heading { display: flex; justify-content: space-between; gap: 8px; margin: 20px 0 7px; color: var(--ic-muted); font-size: 11px; }
 .investment-comparison .ic-results { min-height: 135px; overflow-y: auto; overscroll-behavior: contain; }
@@ -157,8 +159,8 @@
 .ic-time-machine .ic-versus { margin-bottom: 0; }
 .ic-time-machine .ic-pick-button { min-height: var(--ic-control-height); padding: 8px 11px; border-radius: 10px; border-color: rgb(255 255 255 / .075); background: #141416; }
 .ic-time-machine .ic-pick-button strong { font-size: 16px; font-weight: 400; letter-spacing: normal; }
-.ic-time-machine .ic-field input, .ic-time-machine .ic-field select { height: var(--ic-control-height); min-height: var(--ic-control-height); padding-top: 9px; padding-bottom: 9px; background: #121214; border-color: rgb(255 255 255 / .075); }
-.ic-time-machine input:focus, .ic-time-machine select:focus, .ic-time-machine .ic-chart-touch:focus-visible { outline-color: #85858f; }
+.ic-time-machine .ic-field input, .ic-time-machine .ic-field select { height: var(--ic-control-height); min-height: var(--ic-control-height); padding-top: 9px; padding-bottom: 9px; }
+.ic-time-machine input[type="range"]:focus, .ic-time-machine .ic-chart-touch:focus-visible { outline-color: #85858f; }
 .ic-time-machine .ic-preset[aria-current="true"] { border-color: #68686f; }
 .ic-time-machine .ic-preset:focus-visible { outline-color: #85858f; }
 .ic-time-machine .ic-play-button { color: #121214; background: #e4e4e7; }

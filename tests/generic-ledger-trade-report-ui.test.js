@@ -98,7 +98,9 @@ test('display-only amount remains two-decimal USD and missing or invalid fields 
 });
 
 test('report styling keeps editable text at least 16px, neutral fields, and complete financial numbers', () => {
-  assert.match(css, /\.ledger-entry-field\s*\{[^}]*min-height:\s*49px;[^}]*background:\s*#1a1b1d;/);
+  assert.match(css, /\.ledger-entry-field\s*\{[^}]*min-height:\s*49px;[^}]*border:\s*1px solid transparent;[^}]*background:\s*var\(--quote-field-bg\);/);
+  assert.match(css, /\.ledger-entry-field:focus-within\s*\{[^}]*background:\s*var\(--quote-field-focus-bg\);[^}]*box-shadow:\s*var\(--quote-field-focus-shadow\);/);
+  assert.match(css, /\.ledger-entry-input:focus\s*\{[^}]*outline:\s*none;[^}]*background:\s*transparent;[^}]*box-shadow:\s*none;/);
   assert.match(css, /\.ledger-entry-input\s*\{[^}]*font-size:\s*18px;/);
   assert.match(css, /\.ledger-entry-symbol\s*\{[^}]*font-size:\s*20px;/);
   assert.match(css, /\.ledger-entry-date\s*\{[^}]*font-size:\s*16px;/);

@@ -698,7 +698,10 @@ test('main trade entry modal isolates the compact stacked formal-trade design', 
   assert.equal(genericLedgerTradeEntryPanelSource.includes("tt('trades.systemManagedName'"), false, 'generic formal trade should not show the removed automatic-name hint');
   assert.equal(genericLedgerTradeEntryPanelSource.includes("tt('trades.lookupLoading'") || genericLedgerTradeEntryPanelSource.includes("tt('trades.lookupFound'") || genericLedgerTradeEntryPanelSource.includes("tt('trades.lookupNotFound'"), false, 'generic formal trade should not restore the lookup-status helper strip');
   assert.ok(tradeModalBlock.includes("tt('trades.systemManagedName'"), 'wave fallback should preserve its existing lookup helper');
-  assert.ok(tradesTabSource.includes("const tradeModalBaseInput = 'block w-full max-w-full min-w-0 box-border rounded-xl border border-transparent") && tradesTabSource.includes('focus:border-[#f6b54b]/45'), 'trade inputs should not show a default white outline while keeping a restrained gold focus state');
+  assert.ok(tradesTabSource.includes("const tradeModalBaseInput = 'quote-field-input block w-full max-w-full min-w-0 box-border rounded-xl border border-transparent"), 'trade inputs should opt into the shared input surface with a transparent frame');
+  assert.equal(tradesTabSource.includes('focus:border-[#f6b54b]/45'), false, 'trade inputs should not restore the old gold focus frame');
+  const quoteFieldsCss = readFileSync(new URL('../src/styles/quote-fields.css', import.meta.url), 'utf8');
+  assert.match(quoteFieldsCss, /\.quote-field-input:is\(input, select, textarea\):focus,[^{]*\{[^}]*border-color:\s*transparent;[^}]*outline:\s*none;[^}]*background:\s*var\(--quote-field-focus-bg\);[^}]*box-shadow:\s*var\(--quote-field-focus-shadow\);/, 'shared trade input focus should remain visible through the background and inner bottom line');
   assert.ok(tradesTabSource.includes("const tradeModalLabelClass = 'mb-1.5 block text-[12px] font-normal text-white/[0.62]'"), 'trade labels should be readable');
   assert.ok(tradesTabSource.includes("const isGenericLedgerTradeEntry = tradeEntryScope === 'ledger' && !isTqqqTradeEntry"), 'the generic input path should stay scoped to non-TQQQ formal trades');
   assert.ok(tradesTabSource.includes("const genericTradeSectionClass = 'mb-3 min-w-0 border-b border-white/10 pb-3'"), 'wave fallback should preserve its existing section dividers');
@@ -714,8 +717,9 @@ test('main trade entry modal isolates the compact stacked formal-trade design', 
   assert.ok(tradeModalBlock.includes("actionGridClassName={isGenericLedgerTradeEntry ? 'grid-cols-2' : ''}"), 'generic buy and sell should remain two equal-width actions');
   assert.ok(tradeModalBlock.includes("actionClassName={isTqqqTradeEntry ? 'srm-action tqqq-trade-action' : (isGenericLedgerTradeEntry ? 'srm-action formal-trade-action' : '')}"), 'TQQQ keeps its isolated confirm style while generic buy and sell retain their neutral report action branch');
   assert.match(stockReportModalCss, /\.stock-report-modal \.srm-action\s*\{[^}]*height:\s*46px;[^}]*background:\s*#1b1c1e;/, 'report actions should retain readable neutral controls with sufficient tap height');
-  assert.match(genericLedgerTradeEntryPanelCss, /\.ledger-entry-field\s*\{[^}]*background:\s*#1a1b1d;/, 'generic fields should use the neutral report input surface');
-  assert.match(genericLedgerTradeEntryPanelCss, /\.ledger-entry-field:focus-within\s*\{[^}]*border-color:\s*#69696f;/, 'generic focus should remain visible without the old gold accent');
+  assert.match(genericLedgerTradeEntryPanelCss, /\.ledger-entry-field\s*\{[^}]*border:\s*1px solid transparent;[^}]*background:\s*var\(--quote-field-bg\);/, 'generic fields should use the shared neutral input surface without a visible frame');
+  assert.match(genericLedgerTradeEntryPanelCss, /\.ledger-entry-field:focus-within\s*\{[^}]*background:\s*var\(--quote-field-focus-bg\);[^}]*box-shadow:\s*var\(--quote-field-focus-shadow\);/, 'generic focus should remain visible through the shared background and inner bottom line');
+  assert.match(genericLedgerTradeEntryPanelCss, /\.ledger-entry-input:focus\s*\{[^}]*outline:\s*none;[^}]*background:\s*transparent;[^}]*box-shadow:\s*none;/, 'compound fields should apply focus feedback once on the wrapper');
   assert.match(genericLedgerTradeEntryPanelCss, /\.ledger-entry-input\s*\{[^}]*color:\s*#e5e5eb;/, 'generic primary values should remain neutral and readable');
   assert.match(genericLedgerTradeEntryPanelCss, /\.ledger-entry-currency\s*\{[^}]*color:\s*#9696a0;/, 'generic currency prefix should share the neutral palette');
   assert.equal(tradeModalBlock.includes('hideActionsWhileEditing'), false, 'buy and sell must remain visible while numeric or date inputs are focused');
@@ -877,7 +881,7 @@ test('main trade entry modal isolates the compact stacked formal-trade design', 
   }
   assert.ok(tradesTabSource.includes('aria-pressed={active}'), 'price shortcuts should expose the selected state without a colored trading signal');
   assert.match(positionProfitScenarioCss, /\.pps-panel\s*\{[^}]*background:\s*#101112;/, 'holding return simulator should use the shared neutral-black report surface');
-  assert.match(positionProfitScenarioCss, /\.pps-input-shell\s*\{[^}]*background:\s*#1a1b1d;/, 'holding return simulator input should use a neutral raised surface');
+  assert.match(positionProfitScenarioCss, /\.pps-input-shell\s*\{[^}]*background:\s*var\(--quote-field-bg\);/, 'holding return simulator input should use the shared neutral raised surface');
   assert.doesNotMatch(positionProfitScenarioCss, /#f6b54b|#ffd166|#ffd18a|#0b0f14|linear-gradient|radial-gradient/, 'holding return simulator should not restore legacy gold, navy, or decorative gradient styles');
   assert.ok(tradesTabSource.includes("profit < 0 ? 'loss'") && tradesTabSource.includes('strongPnlClass(profit, marketColorMode)'), 'holding return simulator should keep loss and profit result colors driven by the market color mode');
   assert.equal(tradesTabSource.includes('Rocket'), false, 'holding return simulator should not keep the rejected rocket marker');
@@ -1898,7 +1902,8 @@ test('asset module redesign keeps database logic while removing legacy controls'
   assert.ok(analysisTabSource.includes('WalletCards'), 'payment accounts should use lucide line icons rather than emoji');
   assert.ok(analysisTabSource.includes('<StockReportModal') && stockReportModalSource.includes('<ActionModalCard'), 'asset report modals should retain the shared iOS keyboard and close shell');
   assert.ok(analysisTabSource.includes("import './AssetDialogs.css';") && analysisTabSource.includes('asset-dialog-input'), 'asset modal inputs should opt into the scoped neutral form style');
-  assert.match(assetDialogsCss, /\.asset-dialog-input\s*\{[^}]*background:\s*#1b1c1e;[^}]*color:\s*#e4e4e7;/, 'asset inputs should share the neutral raised form surface with visible text');
+  assert.match(assetDialogsCss, /\.asset-dialog-input\s*\{[^}]*border:\s*1px solid transparent;[^}]*background:\s*var\(--quote-field-bg\);[^}]*color:\s*#e4e4e7;/, 'asset inputs should share the neutral raised form surface and transparent frame with visible text');
+  assert.match(assetDialogsCss, /\.asset-dialog-input:focus\s*\{[^}]*background:\s*var\(--quote-field-focus-bg\);[^}]*box-shadow:\s*var\(--quote-field-focus-shadow\);/, 'asset input focus should use the shared background and inner bottom line');
   assert.match(assetDialogsCss, /\.asset-dialog-input::placeholder\s*\{[^}]*color:\s*#67676f;/, 'asset input placeholders should remain visible on dark surfaces');
   assert.ok(analysisTabSource.includes('db.insertAccount'), 'add account must keep the existing account insert path');
   assert.ok(analysisTabSource.includes('db.upsertSnapshot'), 'monthly balance saves must keep the existing snapshot upsert path');

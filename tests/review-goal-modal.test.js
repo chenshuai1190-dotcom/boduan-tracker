@@ -155,8 +155,12 @@ test('goal modal styles stay scoped and preserve visible input and keyboard focu
   const fieldRules = rules.filter(rule => rule.selectors.includes('.review-goal-modal .rgm-field input'));
   assert.ok(fieldRules.some(rule => /font-size:\s*16px;/.test(rule.declarations)), 'mobile fields should use readable non-zooming native text size');
   assert.ok(fieldRules.some(rule => /max-width:\s*100%;/.test(rule.declarations) && /min-width:\s*0;/.test(rule.declarations)), 'fields must shrink within narrow grid columns');
+  assert.ok(fieldRules.some(rule => /border:\s*1px solid transparent;/.test(rule.declarations) && /background:\s*var\(--quote-field-bg\);/.test(rule.declarations)), 'goal inputs should use the shared neutral surface without a visible frame');
   for (const selector of ['.review-goal-modal .rgm-field input:focus', '.review-goal-modal .rgm-field textarea:focus']) {
-    assert.ok(rules.some(rule => rule.selectors.includes(selector) && /border-color:\s*#[\da-f]+;/i.test(rule.declarations)));
+    const declarations = rules.find(rule => rule.selectors.includes(selector))?.declarations || '';
+    assert.match(declarations, /background:\s*var\(--quote-field-focus-bg\);/);
+    assert.match(declarations, /box-shadow:\s*var\(--quote-field-focus-shadow\);/);
+    assert.doesNotMatch(declarations, /border-color:/, 'focus feedback should use the inner bottom line without restoring a bright frame');
   }
   assert.doesNotMatch(css, /\b(?:position:\s*fixed|100dvh|100vh|safe-area-inset|z-index\s*:|backdrop-filter)/, 'scoped presentation must not redefine the shared viewport/overlay system');
 });

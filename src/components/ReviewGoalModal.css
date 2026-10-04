@@ -11,9 +11,9 @@
 .review-goal-modal .rgm-field { display: block; min-width: 0; }
 .review-goal-modal .rgm-field-wide { grid-column: 1 / -1; }
 .review-goal-modal .rgm-field > span { display: block; margin-bottom: 7px; color: #9999a1; font-size: 11px; line-height: 1.5; }
-.review-goal-modal .rgm-field input, .review-goal-modal .rgm-field textarea { display: block; width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box; min-height: 46px; padding: 11px 12px; border: 1px solid transparent; border-radius: 11px; background: #1b1c1e; color: #e2e2e7; outline: none; font: inherit; font-size: 16px; line-height: 1.4; font-variant-numeric: tabular-nums; }
+.review-goal-modal .rgm-field input, .review-goal-modal .rgm-field textarea { display: block; width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box; min-height: 46px; padding: 11px 12px; border: 1px solid transparent; border-radius: 11px; background: var(--quote-field-bg); color: #e2e2e7; outline: none; font: inherit; font-size: 16px; line-height: 1.4; font-variant-numeric: tabular-nums; }
 .review-goal-modal .rgm-field textarea { min-height: 70px; font-size: 16px; resize: vertical; }
-.review-goal-modal .rgm-field input:focus, .review-goal-modal .rgm-field textarea:focus { border-color: #77777f; }
+.review-goal-modal .rgm-field input:focus, .review-goal-modal .rgm-field textarea:focus { background: var(--quote-field-focus-bg); box-shadow: var(--quote-field-focus-shadow); }
 .review-goal-modal .rgm-field input::placeholder, .review-goal-modal .rgm-field textarea::placeholder { color: #64646c; }
 .review-goal-modal .rgm-projection { grid-column: 1 / -1; margin: 4px 0 2px; padding-top: 17px; border-top: 1px solid rgb(255 255 255 / .065); }
 .review-goal-modal .rgm-projection > span { color: #85858e; font-size: 11px; line-height: 1.5; }

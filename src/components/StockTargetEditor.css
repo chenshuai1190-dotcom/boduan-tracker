@@ -62,11 +62,13 @@
   grid-template-columns: 40px minmax(0, 1fr) 40px;
   align-items: center;
   gap: 8px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  border-bottom: 1px solid transparent;
+  background: var(--quote-field-bg);
 }
 
 .stock-target-editor .ste-input-row:focus-within {
-  border-bottom-color: rgba(255, 255, 255, 0.38);
+  background: var(--quote-field-focus-bg);
+  box-shadow: var(--quote-field-focus-shadow);
 }
 
 .stock-target-editor .ste-adjust {
@@ -120,6 +122,12 @@
   letter-spacing: -0.035em;
   text-align: center;
   outline: none;
+}
+
+.stock-target-editor .ste-input:focus {
+  outline: none;
+  background: transparent;
+  box-shadow: none;
 }
 
 .stock-target-editor .ste-input::placeholder {

@@ -95,13 +95,13 @@
 .dm-field { display:flex; flex-direction:column; gap:8px; min-width:0; }
 .dm-field > span { display:flex; align-items:center; gap:7px; color:#a0a1ab; font-size:12px; line-height:18px; }
 .dm-field small { font-size:10px; color:#62646e; }
-.dm-field input, .dm-field select, .dm-field textarea { display:block; width:100%; max-width:100%; min-width:0; min-height:46px; padding:10px 12px; border:1px solid transparent; border-radius:10px; background:#1b1c1f; color:#dedee5; outline:none; font-family:inherit; font-size:16px; line-height:24px; box-sizing:border-box; color-scheme:dark; -webkit-appearance:none; }
+.dm-field input, .dm-field select, .dm-field textarea { display:block; width:100%; max-width:100%; min-width:0; min-height:46px; padding:10px 12px; border:1px solid transparent; border-radius:10px; background:var(--quote-field-bg); color:#dedee5; outline:none; font-family:inherit; font-size:16px; line-height:24px; box-sizing:border-box; color-scheme:dark; -webkit-appearance:none; }
 .dm-field select { appearance:auto; }
 .dm-field textarea { resize:vertical; }
 .dm-field input[type="date"] { min-height:48px; }
 .dm-field input::-webkit-date-and-time-value { text-align:left; }
 .dm-field input::placeholder, .dm-field textarea::placeholder { color:#60626c; }
-.dm-field input:focus, .dm-field select:focus, .dm-field textarea:focus { border-color:#696b76; }
+.dm-field input:focus, .dm-field select:focus, .dm-field textarea:focus { outline:none; background:var(--quote-field-focus-bg); box-shadow:var(--quote-field-focus-shadow); }
 .dm-field input[aria-invalid="true"] { border-color:#a66962; }
 .dm-field em { color:#e89c90; font-size:11px; line-height:17px; font-style:normal; }
 .dm-optional-toggle { display:flex; justify-content:space-between; align-items:center; width:100%; min-height:44px; margin-top:2px; padding:12px 0 0; border:0; border-top:1px solid #ffffff0c; background:transparent; color:#c6c7d0; font-size:13px; }
@@ -135,7 +135,8 @@
 .dm-import-reason { margin:6px 0 0; color:#92939d; font-size:10px; line-height:17px; }
 .dm-import-fields { display:grid; grid-template-columns:minmax(0,1fr); gap:10px; margin-top:12px; }
 .dm-import-fields label { display:flex; flex-direction:column; min-width:0; gap:5px; color:#898b95; font-size:10px; }
-.dm-import-fields input { display:block; box-sizing:border-box; width:100%; min-width:0; max-width:100%; min-height:44px; padding:9px 11px; border:1px solid #ffffff0b; border-radius:8px; background:#222327; color:#e2e2e6; color-scheme:dark; font:inherit; font-size:16px; text-align:left; }
+.dm-import-fields input { display:block; box-sizing:border-box; width:100%; min-width:0; max-width:100%; min-height:44px; padding:9px 11px; border:1px solid transparent; outline:none; border-radius:8px; background:var(--quote-field-bg); color:#e2e2e6; color-scheme:dark; font:inherit; font-size:16px; text-align:left; }
+.dm-import-fields input:focus { outline:none; background:var(--quote-field-focus-bg); box-shadow:var(--quote-field-focus-shadow); }
 .dm-import-fields input[type="date"]::-webkit-date-and-time-value { min-width:0; text-align:left; }
 .dm-import-total { display:flex; align-items:baseline; justify-content:space-between; gap:10px; margin-bottom:12px; color:#989aa3; font-size:12px; }
 .dm-import-total strong { color:var(--dm-paid); font-size:16px; font-weight:400; font-variant-numeric:tabular-nums; }

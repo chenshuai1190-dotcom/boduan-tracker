@@ -29,7 +29,7 @@
 .dca-lab .dl-editor { margin-top:18px; }
 .dca-lab .dl-form-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
 .dca-lab .dl-frequency { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:12px; font-size:12px; color:var(--ic-muted); }
-.dca-lab .dl-frequency select { min-height:44px; color:var(--ic-text); background:var(--ic-panel); border:0; font-size:14px; }
+.dca-lab .dl-frequency select { min-height:44px; color:var(--ic-text); background:var(--quote-field-bg); border:0; outline:none; font-size:14px; }
 .dca-lab .dl-form-actions { display:grid; grid-template-columns:1fr 2fr; gap:10px; margin-top:12px; }
 .dca-lab .dl-form-actions button { display:flex; align-items:center; justify-content:center; gap:6px; min-height:44px; background:var(--ic-border); color:var(--ic-text); border:0; border-radius:9px; }
 .dca-lab .dl-form-actions button[type=submit] { background:var(--ic-text); color:var(--ic-bg); }
@@ -71,6 +71,8 @@
 .dca-lab .dl-player button, .dca-lab .dl-player select { min-height:44px; border:0; }
 .dca-lab .dl-play { display:flex; align-items:center; justify-content:center; gap:8px; border-radius:24px; color:var(--ic-bg); background:var(--ic-text); padding:9px 18px; font-size:13px; min-width:162px; }
 .dca-lab .dl-restart, .dca-lab .dl-player select { background:transparent; color:var(--ic-muted); padding:0 4px; font-size:12px; }
+.dca-lab .dl-player select { background:var(--quote-field-bg); outline:none; }
+.dca-lab .dl-frequency select:focus, .dca-lab .dl-player select:focus { outline:none; background:var(--quote-field-focus-bg); box-shadow:var(--quote-field-focus-shadow); }
 .dca-lab .dl-section-heading { display:flex; justify-content:space-between; gap:8px; align-items:center; margin-bottom:16px; }
 .dca-lab h2 { font-size:15px; font-weight:500; margin:0; }
 .dca-lab .dl-section-heading svg { color:var(--ic-muted); }

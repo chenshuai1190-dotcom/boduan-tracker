@@ -4,6 +4,7 @@
 @import "./styles/quote-reset.css";
 @import "tailwindcss/utilities.css" source(".");
 @import "./styles/quote-utility-compat.css";
+@import "./styles/quote-fields.css";
 
 html, body, #root {
   margin: 0;

@@ -13,11 +13,12 @@
 .pps-panel-editing .pps-profit { padding-bottom: 0; }
 .pps-panel-editing .pps-empty { padding: 12px 0 0; }
 .pps-label { color: #91919b; font-size: 12px; line-height: 18px; }
-.pps-input-shell { display: flex; align-items: center; gap: 10px; min-height: 58px; margin-top: 8px; padding: 0 13px; border: 1px solid transparent; border-radius: 12px; background: #1a1b1d; }
-.pps-input-shell:focus-within { border-color: #69696f; }
+.pps-input-shell { display: flex; align-items: center; gap: 10px; min-height: 58px; margin-top: 8px; padding: 0 13px; border: 1px solid transparent; border-radius: 12px; background: var(--quote-field-bg); }
+.pps-input-shell:focus-within { background: var(--quote-field-focus-bg); box-shadow: var(--quote-field-focus-shadow); }
 .pps-currency { color: #9696a0; font-size: 22px; }
 .pps-input { display: block; flex: 1; width: 100%; min-width: 0; height: 56px; margin: 0; padding: 0; border: 0; outline: none; border-radius: 0; appearance: none; -webkit-appearance: none; background: transparent; color: #ededf0; font-size: 28px; font-weight: 400; line-height: 1.3; font-variant-numeric: tabular-nums; }
 .pps-input::placeholder { color: #666670; }
+.pps-input:focus { outline: none; box-shadow: none; background: transparent; }
 .pps-clear { display: grid; place-items: center; flex-shrink: 0; width: 30px; height: 44px; border-radius: 8px; color: #8e8e98; }
 .pps-shortcuts { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; margin-top: 10px; }
 .pps-shortcut { min-width: 0; min-height: 40px; padding: 6px 2px; border: 0; border-radius: 9px; background: #171819; color: #909099; font-size: 11px; font-weight: 400; line-height: 16px; }

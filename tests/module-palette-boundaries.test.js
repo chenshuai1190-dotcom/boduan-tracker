@@ -175,7 +175,9 @@ test('sheets, tooltips, and chart markers keep their separate depth colors', () 
   assert.ok(scenarioStart >= 0 && scenarioEnd > scenarioStart, 'scenario palette assertions must stay within the actual simulator');
   const scenarioSheet = trades.slice(scenarioStart, scenarioEnd);
   assert.match(positionProfitScenarioCss, /\.pps-panel\s*\{[^}]*background:\s*#101112;/, 'the scenario panel should use the current neutral-black report surface');
-  assert.match(positionProfitScenarioCss, /\.pps-input-shell\s*\{[^}]*background:\s*#1a1b1d;/, 'the scenario input should use the report raised black surface');
+  assert.match(positionProfitScenarioCss, /\.pps-input-shell\s*\{[^}]*background:\s*var\(--quote-field-bg\);/, 'the scenario input should use the shared quiet field surface');
+  assert.match(positionProfitScenarioCss, /\.pps-input-shell:focus-within\s*\{[^}]*background:\s*var\(--quote-field-focus-bg\);[^}]*box-shadow:\s*var\(--quote-field-focus-shadow\);/, 'the scenario field wrapper should use the shared inset focus cue');
+  assert.match(positionProfitScenarioCss, /\.pps-input:focus\s*\{[^}]*outline:\s*none;[^}]*box-shadow:\s*none;[^}]*background:\s*transparent;/, 'the nested input should not add a second focus outline');
   assert.match(positionProfitScenarioCss, /\.pps-shortcut\[aria-pressed="true"\]\s*\{[^}]*background:\s*#292a2c;[^}]*color:\s*#ededf0;/, 'selected price shortcuts should use a neutral selected state');
   assert.match(positionProfitScenarioCss, /\.pps-flat\s*\{[^}]*color:\s*#d4d4dc;/, 'zero profit should remain neutral rather than suggest a gain or loss');
   assert.match(positionProfitScenarioCss, /\.pps-position-marker\s*\{[^}]*border:\s*2px solid #aaaab2;[^}]*background:\s*#101112;/, 'static price markers should retain neutral gray outlines on black');
@@ -191,8 +193,9 @@ test('sheets, tooltips, and chart markers keep their separate depth colors', () 
   assert.equal(count(trades, /bg-\[#080808\]/g), 0, 'formal trades must not restore the superseded independent black panel');
   assert.equal(count(pnlReportFilters, /<StockReportModal\b/g), 2, 'both P&L filters should reuse the report-modal surface');
   assert.match(pnlReportFiltersCss, /\.pnl-report-filter\s*\{[^}]*background:\s*#101112;/);
-  assert.match(pnlReportFiltersCss, /\.pnl-report-filter-input\s*\{[^}]*height:\s*46px;[^}]*background:\s*#1b1c1e;/);
-  assert.doesNotMatch(pnlReportFilters + pnlReportFiltersCss, /#0b0f14|#10151c|#f6b54b|linear-gradient|radial-gradient|box-shadow/, 'P&L filters should not restore navy panels or gold glow');
+  assert.match(pnlReportFiltersCss, /\.pnl-report-filter-input\s*\{[^}]*height:\s*46px;[^}]*background:\s*var\(--quote-field-bg\);/);
+  assert.match(pnlReportFiltersCss, /\.pnl-report-filter-input:focus\s*\{[^}]*box-shadow:\s*var\(--quote-field-focus-shadow\);/, 'focused date inputs should use the shared inset focus cue');
+  assert.doesNotMatch(pnlReportFilters + pnlReportFiltersCss.replaceAll('box-shadow: var(--quote-field-focus-shadow);', ''), /#0b0f14|#10151c|#f6b54b|linear-gradient|radial-gradient|box-shadow/, 'P&L filters should not restore navy panels or decorative glow');
   assert.equal(count(earningsCalendar, /bg-\[#0b0f14\]/g), 1, 'earnings modal should keep its existing depth color');
   assert.match(reviewGoalModalCss, /\.review-goal-modal\s*\{[^}]*background:\s*#101112;/, 'approved review dialogs should share the scoped neutral-black goal surface');
   assert.equal(count(reviewReadingDetails, /<ReviewGoalModal/g), 2, 'both reading details should use the goal-dialog palette');

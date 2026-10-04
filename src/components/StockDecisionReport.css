@@ -24,10 +24,11 @@
 .stock-decision-preview .sd-header h1 { text-align: center; font-size: 17px; line-height: 24px; font-weight: 400; }
 .stock-decision-preview .sd-header > span { justify-self: end; padding: 4px 6px; font-size: 10px; line-height: 15px; color: #94959b; background: #161719; border-radius: 4px; }
 .stock-decision-preview .sd-search { display: flex; align-items: stretch; gap: 8px; margin-top: 23px; }
-.stock-decision-preview .sd-search-field { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; min-height: 48px; padding: 0 13px; border: 1px solid transparent; border-radius: 10px; background: #1b1c1e; color: #87888d; }
-.stock-decision-preview .sd-search-field:focus-within { border-color: #66666b; }
+.stock-decision-preview .sd-search-field { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; min-height: 48px; padding: 0 13px; border: 1px solid transparent; border-radius: 10px; background: var(--quote-field-bg); color: #87888d; }
+.stock-decision-preview .sd-search-field:focus-within { background: var(--quote-field-focus-bg); box-shadow: var(--quote-field-focus-shadow); }
 .stock-decision-preview .sd-search-field > svg { flex-shrink: 0; }
 .stock-decision-preview input { display: block; width: 100%; min-width: 0; min-height: 46px; padding: 0; border: 0; outline: none; border-radius: 0; background: none; color: #ececf0; font-size: 16px; text-transform: uppercase; }
+.stock-decision-preview .sd-search-field input:focus { outline: none; background: transparent; box-shadow: none; }
 .stock-decision-preview input::placeholder { color: #7e7f85; font-size: 14px; text-transform: none; }
 .stock-decision-preview .sd-search > button { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 0 17px; border: 0; border-radius: 10px; background: #d9d6cf; color: #1c1d20; font-size: 14px; }
 .stock-decision-preview .sd-search > button:active { background: #c6c3bc; }

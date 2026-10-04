@@ -576,7 +576,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
   const daysText = React.useCallback((value) => `${value}${tt('trades.day', '天')}`, [tt]);
   const pnlAmountClass = 'trades-report-pnl-amount';
   const tradeModalInputStyle = { colorScheme: 'dark' };
-  const tradeModalBaseInput = 'block w-full max-w-full min-w-0 box-border rounded-xl border border-transparent bg-white/[0.06] px-3.5 py-2.5 text-[14px] text-white outline-none transition placeholder:text-white/[0.28] focus:border-[#f6b54b]/45 focus:bg-white/[0.085]';
+  const tradeModalBaseInput = 'quote-field-input block w-full max-w-full min-w-0 box-border rounded-xl border border-transparent px-3.5 py-2.5 text-[14px] text-white outline-none transition placeholder:text-white/[0.28]';
   const tradeModalLabelClass = 'mb-1.5 block text-[12px] font-normal text-white/[0.62]';
   const availableCashIsSet = Boolean(availableCashStatus?.isSet);
   const availableCashUsd = availableCashStatusReady && Number.isFinite(Number(availableCashStatus?.availableCashUsd))
@@ -1269,7 +1269,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                                 autoFocus
                                 defaultValue={noteValue}
                                 placeholder={englishMode ? 'e.g. scale out around 250' : '如:250开始陆续卖出'}
-                                className="block w-full rounded-xl border border-white/10 bg-white/[0.06] px-2.5 py-1.5 text-[11px] font-normal text-white outline-none placeholder:text-white/25"
+                                className="quote-field-input block w-full rounded-xl border border-transparent px-2.5 py-1.5 text-[11px] font-normal text-white outline-none placeholder:text-white/25"
                                 style={{ colorScheme: 'dark' }}
                                 onClick={(e) => e.stopPropagation()}
                                 onKeyDown={(e) => {
@@ -1515,7 +1515,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                               autoFocus
                               defaultValue={noteValue}
                               placeholder={englishMode ? 'e.g. tariff panic, AI wave...' : '如:关税恐慌、新冠崩盘、AI 浪潮…'}
-                              className="block w-full rounded-xl border border-white/10 bg-white/[0.06] px-2.5 py-1.5 text-[11px] font-normal text-white outline-none placeholder:text-white/25"
+                              className="quote-field-input block w-full rounded-xl border border-transparent px-2.5 py-1.5 text-[11px] font-normal text-white outline-none placeholder:text-white/25"
                               style={{ colorScheme: 'dark' }}
                               onClick={(e) => e.stopPropagation()}
                               onKeyDown={(e) => {
@@ -1666,7 +1666,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                                         autoFocus
                                         defaultValue={noteValue}
                                         placeholder={englishMode ? 'e.g. tariff panic, AI wave...' : '如:关税恐慌、新冠崩盘、AI 浪潮…'}
-                                        className="block w-full rounded-xl border border-white/10 bg-white/[0.06] px-2.5 py-1.5 text-[11px] font-normal text-white outline-none placeholder:text-white/25"
+                                        className="quote-field-input block w-full rounded-xl border border-transparent px-2.5 py-1.5 text-[11px] font-normal text-white outline-none placeholder:text-white/25"
                                         style={{ colorScheme: 'dark' }}
                                         onClick={(e) => e.stopPropagation()}
                                         onKeyDown={(e) => {

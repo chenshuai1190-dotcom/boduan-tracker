@@ -1,0 +1,42 @@
+/* Text controls share a quiet surface and an inset focus cue on touch and keyboard. */
+:root {
+  --quote-field-bg: #1b1c1f;
+  --quote-field-focus-bg: #25262a;
+  --quote-field-focus-shadow: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :root { --quote-field-focus-shadow: inset 0 -2px 0 #84848e; }
+}
+
+.quote-field-input:is(input, select, textarea),
+.quote-field-surface {
+  border-color: transparent;
+  outline: none;
+  box-shadow: none;
+  background: var(--quote-field-bg);
+}
+
+.quote-field-input:is(input, select, textarea):focus,
+.quote-field-surface:focus-within {
+  border-color: transparent;
+  outline: none;
+  background: var(--quote-field-focus-bg);
+  box-shadow: var(--quote-field-focus-shadow);
+}
+
+.quote-field-surface .quote-field-inner,
+.quote-field-surface .quote-field-inner:focus {
+  border: 0;
+  outline: none;
+  box-shadow: none;
+  background: transparent;
+}
+
+@media (forced-colors: active) {
+  /* Inset shadows are suppressed in high contrast mode; retain its system focus cue. */
+  input:focus, select:focus, textarea:focus {
+    outline: 2px solid Highlight !important;
+    outline-offset: 2px;
+  }
+}

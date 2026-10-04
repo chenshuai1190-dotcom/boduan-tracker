@@ -369,7 +369,8 @@ test('keeps the dedicated UI isolated to formal TQQQ while preserving generic bu
   assert.deepEqual(pulseSelectors, ['.tqqq-entry-check[data-warning-pulse="true"] .tqqq-entry-budget-fill', '.tqqq-entry-check[data-warning-pulse="true"] .tqqq-entry-result svg'], 'the gentle pulse must affect only the warning line and icon, leaving the card and text static');
   assert.match(panelCss, /@keyframes tqqq-warning-pulse\s*\{\s*0%, 100%\s*\{\s*opacity:\s*1;\s*\}\s*50%\s*\{\s*opacity:\s*\.3;\s*\}\s*\}/);
   assert.match(panelCss, /@media \(prefers-reduced-motion: reduce\)\s*\{[\s\S]*\.tqqq-entry-check\[data-warning-pulse="true"\] \.tqqq-entry-budget-fill,\s*\.tqqq-entry-check\[data-warning-pulse="true"\] \.tqqq-entry-result svg\s*\{\s*animation:\s*none;/, 'reduced motion should leave both warning indicators static');
-  assert.doesNotMatch(panelSource + panelCss, /shouldFlashOverLimit|tqqq-over-limit-flash|box-shadow|drop-shadow|steps\(1, end\)/, 'the reminder should not restore whole-card glow or abrupt flashing');
+  assert.doesNotMatch(panelSource + panelCss, /shouldFlashOverLimit|tqqq-over-limit-flash|drop-shadow|steps\(1, end\)/, 'the reminder should not restore whole-card glow or abrupt flashing');
+  assert.ok([...panelCss.matchAll(/box-shadow:\s*([^;]+);/g)].every(match => ['none', 'var(--quote-field-focus-shadow)'].includes(match[1])), 'only the shared inner input focus line may use a shadow, never a whole-card glow');
   assert.equal(tradesTabSource.includes('!bg-[linear-gradient(135deg,#7c3ff2,#5d2bd0)]'), false);
   assert.ok(tradesTabSource.includes("tt('trades.tqqq.confirmAnyway', '仍然买入')"));
   assert.ok(disciplineSource.includes('const hardBlocked = invalidShares || oversold || breaksLedger;'));
@@ -468,8 +469,10 @@ test('keeps TQQQ report surfaces and controlled inputs consistent while omitting
   assert.match(panelCss, /\.tqqq-entry-logo\s*\{[^}]*width:\s*44px;[^}]*height:\s*44px;/);
   assert.match(panelCss, /\.tqqq-entry-tag\s*\{[^}]*background:\s*#1b1c1e;/);
   assert.match(panelCss, /\.tqqq-entry-side\s*\{[^}]*background:\s*#191a1c;/);
-  assert.match(panelCss, /\.tqqq-entry-input\s*\{[^}]*height:\s*46px;[^}]*background:\s*#1b1c1e;[^}]*font-size:\s*18px;[^}]*font-weight:\s*400;[^}]*letter-spacing:\s*normal;/);
-  assert.doesNotMatch(panelCss, /linear-gradient|radial-gradient|box-shadow/);
+  assert.match(panelCss, /\.tqqq-entry-input\s*\{[^}]*height:\s*46px;[^}]*border:\s*1px solid transparent;[^}]*background:\s*var\(--quote-field-bg\);[^}]*font-size:\s*18px;[^}]*font-weight:\s*400;[^}]*letter-spacing:\s*normal;/);
+  assert.match(panelCss, /\.tqqq-entry-input:focus\s*\{[^}]*background:\s*var\(--quote-field-focus-bg\);[^}]*box-shadow:\s*var\(--quote-field-focus-shadow\);/);
+  assert.doesNotMatch(panelCss, /linear-gradient|radial-gradient/);
+  assert.deepEqual([...panelCss.matchAll(/box-shadow:\s*([^;]+);/g)].map(match => match[1]), ['var(--quote-field-focus-shadow)'], 'the shared inner focus line should be the only shadow in the TQQQ entry panel');
   assert.equal(panelSource.includes('rounded-[14px] border border-white/[0.08] bg-black/[0.18]'), false);
   assert.equal(panelSource.includes("tt('trades.systemManagedName'"), false);
   assert.equal(panelSource.includes('function LookupStatus'), false);

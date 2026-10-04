@@ -14,9 +14,9 @@
 .tqqq-entry-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 18px; }
 .tqqq-entry-label { display: block; margin-bottom: 7px; color: #9797a1; font-size: 12px; line-height: 18px; font-weight: 400; }
 .tqqq-entry-shares-label { display: flex; align-items: baseline; justify-content: space-between; gap: 5px; }
-.tqqq-entry-input { display: block; width: 100%; min-width: 0; height: 46px; margin: 0; padding: 0 12px; border: 1px solid transparent; border-radius: 11px; outline: none; background: #1b1c1e; color: #e5e5eb; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif; font-size: 18px; font-weight: 400; font-variant-numeric: tabular-nums; letter-spacing: normal; }
+.tqqq-entry-input { display: block; width: 100%; min-width: 0; height: 46px; margin: 0; padding: 0 12px; border: 1px solid transparent; border-radius: 11px; outline: none; background: var(--quote-field-bg); color: #e5e5eb; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif; font-size: 18px; font-weight: 400; font-variant-numeric: tabular-nums; letter-spacing: normal; }
 .tqqq-entry-input::placeholder { color: #666670; font-size: 14px; }
-.tqqq-entry-input:focus { border-color: #69696f; }
+.tqqq-entry-input:focus { background: var(--quote-field-focus-bg); box-shadow: var(--quote-field-focus-shadow); }
 .tqqq-entry-date { margin-top: 14px; }
 .tqqq-entry-date input { font-size: 16px; }
 .tqqq-entry-amount { padding: 12px 0 0; border-top: 1px solid rgb(255 255 255 / .075); }

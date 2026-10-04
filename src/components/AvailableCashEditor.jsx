@@ -898,7 +898,7 @@ export default function AvailableCashEditor({
                 </button>
               )}
             </div>
-            <div className="mt-2 flex h-14 items-center rounded-2xl bg-white/[0.055] px-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.045)] focus-within:bg-white/[0.075]">
+            <div className="quote-field-surface mt-2 flex h-14 items-center rounded-2xl px-4">
               <span className="mr-2 text-[20px] text-white/48">{currencySymbol}</span>
               <input
                 id="home-available-cash-input"
@@ -923,7 +923,7 @@ export default function AvailableCashEditor({
                   const input = event.currentTarget;
                   window.setTimeout(() => input.scrollIntoView({ block: 'center', behavior: 'smooth' }), 180);
                 }}
-                className="min-w-0 flex-1 bg-transparent text-[24px] font-medium text-white/90 outline-none tabular-nums disabled:opacity-45"
+                className="quote-field-inner min-w-0 flex-1 bg-transparent text-[24px] font-medium text-white/90 outline-none tabular-nums disabled:opacity-45"
                 style={{ fontFamily: NUMBER_FONT }}
               />
             </div>
@@ -960,7 +960,7 @@ export default function AvailableCashEditor({
                 placeholder={actionKind === 'balance_adjustment'
                   ? t(language, 'home.cashAdjustmentNotePlaceholder', '请说明调整原因')
                   : t(language, 'home.cashTransferNotePlaceholder', '例如：生活备用金')}
-                className="mt-2 h-11 w-full rounded-xl bg-white/[0.045] px-3 text-[16px] text-white/70 outline-none placeholder:text-white/24 focus:bg-white/[0.065] disabled:opacity-45"
+                className="quote-field-input mt-2 h-11 w-full rounded-xl px-3 text-[16px] text-white/70 outline-none placeholder:text-white/24 disabled:opacity-45"
               />
             </div>
 

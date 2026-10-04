@@ -48,7 +48,7 @@
   -webkit-appearance: none;
   border: 1px solid transparent;
   border-radius: 10px;
-  background: #1b1c1e;
+  background: var(--quote-field-bg);
   color: #e4e4e7;
   color-scheme: dark;
   font-family: inherit;
@@ -60,7 +60,7 @@
   text-align: left;
   outline: none;
 }
-.pnl-report-filter-input:focus { border-color: #69696f; }
+.pnl-report-filter-input:focus { outline: none; background: var(--quote-field-focus-bg); box-shadow: var(--quote-field-focus-shadow); }
 .pnl-report-filter-input::-webkit-date-and-time-value { min-width: 0; text-align: left; }
 .pnl-report-filter-input::-webkit-calendar-picker-indicator { opacity: .55; }
 .pnl-report-filter-hint { margin-top: 14px; color: #777780; font-size: 11px; line-height: 17px; }

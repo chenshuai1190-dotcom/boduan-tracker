@@ -32,11 +32,11 @@
   padding: 0 13px;
   border: 1px solid transparent;
   border-radius: 12px;
-  background: #1b1c1e;
+  background: var(--quote-field-bg);
 }
 
 .wave-dialog .wave-dialog-field-control:focus-within,
-.wave-dialog .wave-dialog-target-control:focus-within { border-color: #626268; }
+.wave-dialog .wave-dialog-target-control:focus-within { background: var(--quote-field-focus-bg); box-shadow: var(--quote-field-focus-shadow); }
 .wave-dialog .wave-dialog-field-prefix { margin-right: 8px; color: #7e7e86; font-size: 16px; }
 .wave-dialog .wave-dialog-input {
   display: block;
@@ -57,6 +57,7 @@
   appearance: none;
 }
 
+.wave-dialog .wave-dialog-input:focus { outline: none; background: transparent; box-shadow: none; }
 .wave-dialog .wave-dialog-input::placeholder { color: #5e5e66; opacity: 1; }
 .wave-dialog .wave-form-date-input::-webkit-date-and-time-value { min-height: 48px; line-height: 48px; }
 .wave-dialog .wave-dialog-stock { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 4px 11px; min-width: 0; padding-bottom: 18px; border-bottom: 1px solid #26272a; }
@@ -79,7 +80,7 @@
 .wave-dialog .wave-dialog-metric-label { color: #85858e; font-size: 11px; line-height: 17px; }
 .wave-dialog .wave-dialog-metric-value { margin-top: 7px; color: #dfdfe5; font-size: 17px; line-height: 23px; overflow-wrap: anywhere; }
 .wave-dialog .wave-dialog-forecast { padding-top: 2px; }
-.wave-dialog .wave-dialog-target-control { display: flex; align-items: center; min-width: 0; height: 62px; padding: 0 6px 0 15px; border: 1px solid transparent; border-radius: 14px; background: #1b1c1e; }
+.wave-dialog .wave-dialog-target-control { display: flex; align-items: center; min-width: 0; height: 62px; padding: 0 6px 0 15px; border: 1px solid transparent; border-radius: 14px; background: var(--quote-field-bg); }
 .wave-dialog .wave-dialog-target-prefix { margin-right: 9px; color: #777780; font-size: 24px; }
 .wave-dialog .wave-dialog-target-input { font-size: 27px; }
 .wave-dialog .wave-dialog-clear-target { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 44px; height: 44px; border: 0; border-radius: 10px; color: #8e8e96; background: transparent; font-size: 22px; }
