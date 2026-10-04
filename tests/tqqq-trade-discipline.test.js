@@ -40,6 +40,8 @@ const panelCode = await transformWithOxc(panelSource, 'TqqqTradeEntryPanel.jsx',
 const compiledPanel = resolvePackages(panelCode.code)
   .replace(/import\s*(["'])\.\/TqqqTradeEntryPanel\.css\1;?/g, '')
   .replace(/from (["'])\.\/StockLogo\.jsx\1/g, `from ${JSON.stringify(logoUrl)}`)
+  .replace(/from (["'])\.\.\/lib\/marketColorMode\.js\1/g,
+    `from ${JSON.stringify(new URL('../src/lib/marketColorMode.js', import.meta.url).href)}`)
   .replace(/from (["'])\.\.\/lib\/amountDisplay\.js\1/g,
     `from ${JSON.stringify(new URL('../src/lib/amountDisplay.js', import.meta.url).href)}`);
 const { default: TqqqTradeEntryPanel, TqqqTradeAmount } = await import(moduleUrl(compiledPanel));

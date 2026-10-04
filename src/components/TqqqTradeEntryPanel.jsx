@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import StockLogo, { stockLogoCandidates } from './StockLogo.jsx';
 import { splitCurrencyAmount } from '../lib/amountDisplay.js';
+import { MARKET_RED_HEX } from '../lib/marketColorMode.js';
 import './TqqqTradeEntryPanel.css';
 
 const NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif';
@@ -344,7 +345,7 @@ export function TqqqTradeAmount({ preview, side, tt }) {
   return (
     <div className="tqqq-entry-amount">
       <span className="tqqq-entry-metric-label">{side === 'sell' ? tt('trades.tqqq.estimatedSellAmount', '预计卖出金额') : tt('trades.tqqq.estimatedTradeAmount', '预计交易额')}</span>
-      <div className="tqqq-entry-amount-value" style={{ fontFamily: NUMBER_FONT }}>
+      <div className="tqqq-entry-amount-value" style={{ fontFamily: NUMBER_FONT, '--tqqq-entry-amount-color': preview.inputReady && side !== 'sell' ? MARKET_RED_HEX : undefined }}>
         {preview.inputReady ? <>{amountParts.main}<span className="tqqq-entry-amount-decimal">{amountParts.decimal}</span></> : '—'}
       </div>
     </div>

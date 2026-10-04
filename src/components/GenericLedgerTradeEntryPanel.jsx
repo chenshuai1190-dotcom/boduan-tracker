@@ -1,6 +1,7 @@
 import React from 'react';
 import { CalendarDays, ChevronRight, X } from 'lucide-react';
 import StockLogo, { stockLogoCandidates } from './StockLogo.jsx';
+import { MARKET_RED_HEX } from '../lib/marketColorMode.js';
 import './GenericLedgerTradeEntryPanel.css';
 
 const NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif';
@@ -156,7 +157,7 @@ export default function GenericLedgerTradeEntryPanel({ draft, onDraftChange, tt 
         </div>
         <strong
           className="ledger-entry-estimate-value"
-          style={{ fontFamily: NUMBER_FONT }}
+          style={{ fontFamily: NUMBER_FONT, color: estimatedAmount === null ? undefined : MARKET_RED_HEX }}
         >
           {estimatedAmountText}
         </strong>

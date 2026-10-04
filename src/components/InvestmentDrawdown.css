@@ -44,7 +44,8 @@
 .investment-comparison .ic-dd-player { display: flex; gap: 10px; align-items: center; margin-top: 10px; }
 .investment-comparison .ic-dd-body .ic-dd-play { display: flex; align-items: center; justify-content: center; gap: 7px; min-width: 138px; min-height: 44px; border: 0; border-radius: 24px; background: var(--ic-text); color: var(--ic-bg); padding: 10px 18px; font-size: 13px; font-weight: 500; }
 .investment-comparison .ic-dd-play svg { flex-shrink: 0; }
-.investment-comparison .ic-dd-speed { min-height: 44px; padding: 5px; color: var(--ic-muted); border: 0; background: transparent; font-size: 12px; }
+.investment-comparison .ic-dd-speed { min-height: 44px; padding: 5px; color: var(--ic-muted); border: 0; outline: none; background: var(--quote-field-bg); font-size: 12px; }
+.investment-comparison .ic-dd-speed:focus { outline: none; background: var(--quote-field-focus-bg); box-shadow: var(--quote-field-focus-shadow); }
 .investment-comparison .ic-dd-player > span { margin-left: auto; color: var(--ic-muted); font-size: 11px; text-align: right; }
 .investment-comparison .ic-dd-scrubber { display: block; width: 100%; min-height: 44px; margin: 4px 0 10px; accent-color: var(--ic-text); }
 .investment-comparison .ic-dd-milestones { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px; margin-top: 7px; position: relative; }
