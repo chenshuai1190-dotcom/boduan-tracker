@@ -16,7 +16,6 @@ const HISTORY_MIN_DRAWDOWN_PCT = 10;
 const dayCount = (value, englishMode) => Number.isFinite(value)
   ? `${value.toLocaleString('en-US')} ${englishMode ? 'days' : '天'}` : '—';
 const calendarDays = (from, to) => (Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000;
-const linePath = (points, x, y) => points.map((point, index) => `${index ? 'L' : 'M'}${x(point).toFixed(2)},${y(point).toFixed(2)}`).join(' ');
 
 // Stock prices always retain their verified USD adjusted-close basis.
 function formatDrawdownPrice(value) {
@@ -42,22 +41,41 @@ function useChartWidth() {
   return [ref, width];
 }
 
-const DrawdownOverview = React.memo(function DrawdownOverview({ data, active, colors, onActivate, englishMode, marketColorMode = 'redUpGreenDown' }) {
+const DrawdownOverview = React.memo(function DrawdownOverview({ data, active, colors, onActivate, focusVersion = 0, englishMode, marketColorMode = 'redUpGreenDown' }) {
   const [containerRef, width] = useChartWidth();
-  const [inspection, setInspection] = React.useState({ data, selectedIndex: null, hoverIndex: null });
+  const initialInspection = { data, active, focusVersion, selectedIndex: data.analyses[active].maxDrawdownEpisode?.troughIndex ?? null, hoverIndex: null };
+  const [inspection, setInspection] = React.useState(initialInspection);
   const gestureRef = React.useRef(null);
-  const currentInspection = inspection.data === data ? inspection : { data, selectedIndex: null, hoverIndex: null };
+  const matchesFocus = value => value.data === data && value.active === active && value.focusVersion === focusVersion;
+  const currentInspection = matchesFocus(inspection) ? inspection : initialInspection;
   const { symbols, analyses } = data;
   const points = analyses[symbols[0]].points;
   const lastIndex = points.length - 1;
-  const height = 270;
-  const left = 39, right = 8, top = 18, bottom = 32;
-  const floor = Math.min(-10, Math.floor(Math.min(...symbols.map(symbol => analyses[symbol].maxDrawdownPct)) / 10) * 10);
-  const x = point => left + point.index / Math.max(1, lastIndex) * (width - left - right);
-  const y = value => top + value / floor * (height - top - bottom);
   const selected = analyses[active];
-  const lowest = selected.points.reduce((best, point) => point.drawdownPct < best.drawdownPct ? point : best, selected.points[0]);
-  const selectedAnchor = x(lowest) > width * 0.7 ? 'end' : 'start';
+  const validPrice = row => Number.isFinite(row?.adjustedCloseUsd) && row.adjustedCloseUsd > 0;
+  const prices = selected.points.filter(validPrice).map(row => row.adjustedCloseUsd);
+  const hasPrices = prices.length > 0;
+  const minPrice = hasPrices ? Math.min(...prices) : 0;
+  const maxPrice = hasPrices ? Math.max(...prices) : 1;
+  const spread = Math.max(maxPrice - minPrice, maxPrice * .15);
+  const minimum = Math.max(0, minPrice - spread * .2);
+  const maximum = maxPrice + spread * .18;
+  const ticks = [maximum, (maximum + minimum) / 2, minimum];
+  const axisPrice = value => value === 0 ? '$0.00' : formatDrawdownPrice(value);
+  const height = 290, left = Math.max(48, Math.min(96, Math.max(...ticks.map(value => axisPrice(value).length)) * 6 + 10)), right = 8, top = 26, bottom = 32;
+  const x = point => left + point.index / Math.max(1, lastIndex) * (width - left - right);
+  const y = value => top + (maximum - value) / (maximum - minimum) * (height - top - bottom);
+  let connected = false;
+  const pricePath = selected.points.map(row => {
+    if (!validPrice(row)) { connected = false; return ''; }
+    const command = connected ? 'L' : 'M'; connected = true;
+    return `${command}${x(row).toFixed(2)},${y(row.adjustedCloseUsd).toFixed(2)}`;
+  }).join(' ');
+  const maximumEpisode = selected.maxDrawdownEpisode;
+  const markers = maximumEpisode ? [
+    { kind: 'peak', point: selected.points[maximumEpisode.peakIndex], label: englishMode ? 'Episode high' : '本段前高' },
+    { kind: 'trough', point: selected.points[maximumEpisode.troughIndex], label: englishMode ? 'Drawdown low' : '回撤谷底' },
+  ].filter(marker => validPrice(marker.point)) : [];
   const inspecting = currentInspection.hoverIndex !== null || currentInspection.selectedIndex !== null;
   const readoutIndex = Math.max(0, Math.min(lastIndex, currentInspection.hoverIndex ?? currentInspection.selectedIndex ?? lastIndex));
   React.useEffect(() => {
@@ -68,12 +86,12 @@ const DrawdownOverview = React.memo(function DrawdownOverview({ data, active, co
       const chart = containerRef.current;
       if (!chart || chart.contains(event.target)) return;
       gestureRef.current = null;
-      setInspection({ data, selectedIndex: null, hoverIndex: null });
+      setInspection({ data, active, focusVersion, selectedIndex: null, hoverIndex: null });
     };
     document.addEventListener('click', dismissOutside, true);
     return () => document.removeEventListener('click', dismissOutside, true);
-  }, [containerRef, data, currentInspection.selectedIndex]);
-  const updateInspection = patch => setInspection(current => ({ ...(current.data === data ? current : { data, selectedIndex: null, hoverIndex: null }), ...patch }));
+  }, [containerRef, data, active, focusVersion, currentInspection.selectedIndex]);
+  const updateInspection = patch => setInspection(current => ({ ...(matchesFocus(current) ? current : initialInspection), ...patch }));
   const indexAtPointer = event => {
     const box = event.currentTarget.getBoundingClientRect();
     const ratio = Math.max(0, Math.min(1, (event.clientX - box.left - left) / Math.max(1, box.width - left - right)));
@@ -122,24 +140,28 @@ const DrawdownOverview = React.memo(function DrawdownOverview({ data, active, co
     updateInspection({ selectedIndex: Math.max(0, Math.min(lastIndex, next)), hoverIndex: null });
   };
   return <section className="ic-dd-overview-section" aria-label={englishMode ? 'Drawdown history' : '回撤历史'}>
-    <div className="ic-dd-section-head"><h2>{englishMode ? 'Distance from the previous high' : '离前高还有多远'}</h2>{currentInspection.selectedIndex !== null ? <button type="button" className="ic-dd-reset-inspection" onClick={resetInspection}>{englishMode ? 'Back to latest' : '回到最新'}</button> : <span>{englishMode ? 'Drawdown %' : '回撤 %'}</span>}</div>
+    <div className="ic-dd-section-head"><h2>{active} · {englishMode ? 'Price history' : '股价走势'}</h2>{currentInspection.selectedIndex !== null ? <button type="button" className="ic-dd-reset-inspection" onClick={resetInspection}>{englishMode ? 'Back to latest' : '回到最新'}</button> : <span>USD</span>}</div>
     <div className="ic-dd-legend">{symbols.map(symbol => <button key={symbol} type="button" onClick={() => onActivate(symbol)} aria-pressed={active === symbol} aria-label={englishMode ? `View ${symbol} drawdown details` : `查看 ${symbol} 回撤详情`}><i style={{ background: colors[symbol] }} />{symbol}</button>)}</div>
-    <div ref={containerRef} className="ic-dd-chart ic-dd-overview" role="slider" aria-valuemin={0} aria-valuemax={lastIndex} aria-valuenow={readoutIndex} aria-valuetext={`${points[readoutIndex].date}, ${symbols.map(symbol => `${symbol} ${formatInvestmentPercent(analyses[symbol].points[readoutIndex].drawdownPct)}`).join(', ')}`} tabIndex={0} onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={cancelGesture} onLostPointerCapture={cancelGesture} onPointerLeave={clearPreview} onBlur={cancelGesture} onKeyDown={inspectKey} aria-label={englishMode ? 'Inspect daily drawdowns with left and right arrow keys' : '使用左右方向键查看每日回撤'}>
-      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={englishMode ? `${symbols.join(' and ')} drawdown history; zero represents a previous high` : `${symbols.join(' 与 ')} 回撤曲线，零线代表此前最高值`}>
-        {[0, floor / 2, floor].map(value => <g key={value}><line className="ic-dd-grid" x1={left} x2={width - right} y1={y(value)} y2={y(value)} /><text x={left - 6} y={y(value) + 4} textAnchor="end">{Math.round(value)}%</text></g>)}
-        {symbols.map(symbol => {
-          const series = analyses[symbol].points;
-          const path = linePath(series, x, point => y(point.drawdownPct));
-          return <g key={symbol}>{symbol === active && <path d={`${path} L${x(series.at(-1))},${y(0)} L${x(series[0])},${y(0)} Z`} fill={colors[symbol]} opacity=".07" />}<path d={path} fill="none" stroke={colors[symbol]} strokeWidth={symbol === active ? 1.8 : 1.25} opacity={symbol === active ? 1 : 0.7} strokeLinejoin="round" /></g>;
-        })}
+    <div ref={containerRef} className="ic-dd-chart ic-dd-overview" role="slider" aria-valuemin={0} aria-valuemax={lastIndex} aria-valuenow={readoutIndex} aria-valuetext={`${points[readoutIndex].date}, ${active} ${formatDrawdownPrice(selected.points[readoutIndex].adjustedCloseUsd)} USD, ${formatInvestmentPercent(selected.points[readoutIndex].drawdownPct)}`} tabIndex={0} onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={cancelGesture} onLostPointerCapture={cancelGesture} onPointerLeave={clearPreview} onBlur={cancelGesture} onKeyDown={inspectKey} aria-label={englishMode ? 'Inspect daily share prices with left and right arrow keys' : '使用左右方向键查看每日股价'}>
+      {hasPrices ? <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={englishMode ? `${active} adjusted share price history in USD` : `${active} 美元复权股价走势`}>
+        {ticks.map((value, tick) => <g key={tick}><line className="ic-dd-grid" x1={left} x2={width - right} y1={y(value)} y2={y(value)} /><text x={left - 6} y={y(value) + 4} textAnchor="end">{axisPrice(value)}</text></g>)}
+        <path data-overview-series={active} d={pricePath} fill="none" stroke={colors[active]} strokeWidth="2" strokeLinejoin="round" />
+        {selected.points.filter((row, index) => validPrice(row) && !validPrice(selected.points[index - 1]) && !validPrice(selected.points[index + 1])).map(row => <circle key={row.index} data-overview-isolated={active} cx={x(row)} cy={y(row.adjustedCloseUsd)} r="3" fill={colors[active]} />)}
         {[...new Set([0, Math.round(lastIndex / 2), lastIndex])].map(pointIndex => {
           const point = points[pointIndex];
           return <text key={pointIndex} x={x(point)} y={height - 8} textAnchor={pointIndex === 0 ? 'start' : pointIndex === lastIndex ? 'end' : 'middle'}>{point.date.slice(0, 7)}</text>;
         })}
-        <circle cx={x(lowest)} cy={y(lowest.drawdownPct)} r="4" fill={colors[active]} />
-        <text className="ic-dd-value-label" x={x(lowest) + (selectedAnchor === 'end' ? -8 : 8)} y={Math.max(32, y(lowest.drawdownPct) - 12)} textAnchor={selectedAnchor}>{active} <tspan fill={investmentChangeColor(lowest.drawdownPct, marketColorMode)}>{formatInvestmentPercent(lowest.drawdownPct)}</tspan></text>
-        {inspecting && <g><line x1={x(points[readoutIndex])} x2={x(points[readoutIndex])} y1={top} y2={height - bottom} className="ic-dd-inspection-line" strokeDasharray="3 4" />{symbols.map(symbol => <circle key={symbol} cx={x(points[readoutIndex])} cy={y(analyses[symbol].points[readoutIndex].drawdownPct)} r="3" fill={colors[symbol]} />)}</g>}
-      </svg>
+        {markers.map(({ kind, point, label }) => {
+          const px = x(point), py = y(point.adjustedCloseUsd);
+          const anchor = px > width * .7 ? 'end' : px < width * .4 ? 'start' : 'middle';
+          const labelY = kind === 'trough' ? Math.min(height - bottom - 26, py + 20) : Math.max(15, py - 13);
+          return <g key={kind} data-overview-marker={kind}>
+            <circle cx={px} cy={py} r="3.5" fill={colors[active]} />
+            <text className="ic-dd-value-label" x={px} y={labelY} textAnchor={anchor}>{label} {formatDrawdownPrice(point.adjustedCloseUsd)}{kind === 'trough' && <tspan x={px} dy="16" fill={investmentChangeColor(maximumEpisode.drawdownPct, marketColorMode)}>{formatInvestmentPercent(maximumEpisode.drawdownPct)}</tspan>}</text>
+          </g>;
+        })}
+        {inspecting && <g><line x1={x(points[readoutIndex])} x2={x(points[readoutIndex])} y1={top} y2={height - bottom} className="ic-dd-inspection-line" strokeDasharray="3 4" />{validPrice(selected.points[readoutIndex]) && <circle data-overview-current={active} cx={x(points[readoutIndex])} cy={y(selected.points[readoutIndex].adjustedCloseUsd)} r="4" fill={colors[active]} />}</g>}
+      </svg> : <div className="ic-dd-price-unavailable">{englishMode ? 'Adjusted share prices unavailable' : '复权股价暂不可用'}</div>}
     </div>
     <div className="ic-dd-overview-readout">
       <span>{points[readoutIndex].date}</span><small>{englishMode ? 'Adjusted close · USD' : '复权收盘价 · USD'}</small>
@@ -347,14 +369,16 @@ function PrincipalRisk({ analysis, symbol, englishMode, marketColorMode = 'redUp
 
 function DrawdownAnalysis({ data, englishMode, marketColorMode = 'redUpGreenDown', displayCurrency = 'USD', displayRate = 1 }) {
   const { symbols, analyses } = data;
-  const [selection, setSelection] = React.useState({ data, symbol: symbols[0], kind: 'max', episodeId: null });
-  const current = selection.data === data ? selection : { data, symbol: symbols[0], kind: 'max', episodeId: null };
+  const [selection, setSelection] = React.useState({ data, symbol: symbols[0], kind: 'max', episodeId: null, overviewFocusVersion: 0 });
+  const current = selection.data === data ? selection : { data, symbol: symbols[0], kind: 'max', episodeId: null, overviewFocusVersion: 0 };
   const active = current.symbol;
   const analysis = analyses[active];
   const journeyRef = React.useRef(null);
   const difference = analyses[symbols[0]].maxDrawdownPct - analyses[symbols[1]].maxDrawdownPct;
   const colors = React.useMemo(() => Object.fromEntries(symbols.map((symbol, index) => [symbol, Math.abs(difference) < 1e-10 ? INVESTMENT_NEUTRAL_COLOR : ((index === 0 ? difference : -difference) > 0 ? INVESTMENT_LEADING_COLOR : INVESTMENT_TRAILING_COLOR)])), [symbols, difference]);
-  const activate = React.useCallback(symbol => setSelection({ data, symbol, kind: 'max', episodeId: null }), [data]);
+  // Each activation also reselects the trough after manual chart inspection or
+  // returning to the latest day, including another click on the active card.
+  const activate = React.useCallback(symbol => setSelection(previous => ({ data, symbol, kind: 'max', episodeId: null, overviewFocusVersion: (previous.data === data ? previous.overviewFocusVersion : 0) + 1 })), [data]);
   // Latest and the history list share the episode-depth threshold. Keep all
   // observations for the overview, deepest drawdown and longest waiting period.
   // Allow arithmetic noise at exactly 10%, not display-rounded percentages.
@@ -372,10 +396,10 @@ function DrawdownAnalysis({ data, englishMode, marketColorMode = 'redUpGreenDown
         <div className="ic-dd-wait"><span>{maximum && !maximum.recovered ? (englishMode ? 'Unrecovered · elapsed' : '未修复 · 已历时') : (englishMode ? 'High → recovery' : '前高 → 修复')}</span><strong>{maximum ? dayCount(maximum.underwaterDays, englishMode) : (englishMode ? 'No drawdown' : '无回撤')}</strong></div>
       </button>;
     })}</section>
-    <DrawdownOverview data={data} active={active} colors={colors} onActivate={activate} englishMode={englishMode} marketColorMode={marketColorMode} />
+    <DrawdownOverview data={data} active={active} colors={colors} onActivate={activate} focusVersion={current.overviewFocusVersion} englishMode={englishMode} marketColorMode={marketColorMode} />
     <section className="ic-dd-journey" ref={journeyRef}>
       <div className="ic-dd-section-head"><h2>{active} · {englishMode ? 'A drawdown, from high to recovery' : '一段回撤的全过程'}</h2><span>{episode ? (episode.recovered ? (englishMode ? 'High recovered' : '已修复前高') : (englishMode ? 'Unrecovered' : '尚未修复')) : current.kind === 'latest' ? (englishMode ? 'No qualifying episode' : '暂无符合区间') : (englishMode ? 'No drawdown' : '无回撤')}</span></div>
-      <div className="ic-dd-episode-tabs" role="group" aria-label={englishMode ? 'Drawdown episode' : '回撤区间'}>{[['max', englishMode ? 'Deepest' : '最大回撤'], ['longest', englishMode ? 'Longest wait' : '最长等待'], ['latest', englishMode ? 'Latest' : '最近一次']].map(([kind, label]) => <button type="button" key={kind} aria-pressed={current.kind === kind} onClick={() => setSelection({ ...current, kind, episodeId: null })}>{label}</button>)}</div>
+      <div className="ic-dd-episode-tabs" role="group" aria-label={englishMode ? 'Drawdown episode' : '回撤区间'}>{[['max', englishMode ? 'Deepest' : '最大回撤'], ['longest', englishMode ? 'Longest wait' : '最长等待'], ['latest', englishMode ? 'Latest' : '最近一次']].map(([kind, label]) => <button type="button" key={kind} aria-pressed={current.kind === kind} onClick={() => kind === 'max' ? activate(active) : setSelection({ ...current, kind, episodeId: null })}>{label}</button>)}</div>
       {episode ? <DrawdownJourney key={`${active}:${current.kind}:${episode.id}`} analysis={analysis} episode={episode} symbol={active} englishMode={englishMode} marketColorMode={marketColorMode} displayCurrency={displayCurrency} displayRate={displayRate} /> : <p className="ic-dd-empty">{current.kind === 'latest' ? (englishMode ? 'No drawdown episodes reached 10% in this period.' : '暂无达到 10% 的回撤。') : (englishMode ? 'No drawdown occurred in this observed period.' : '这个观察区间尚未发生回撤。')}</p>}
     </section>
     <PrincipalRisk analysis={analysis} symbol={active} englishMode={englishMode} marketColorMode={marketColorMode} displayCurrency={displayCurrency} displayRate={displayRate} />

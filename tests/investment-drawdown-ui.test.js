@@ -185,11 +185,16 @@ function overviewInteraction({ data = buildInvestmentDrawdownModel(comparisonMod
     return tree;
   };
   const area = () => findAll(render(), node => node.props.role === 'slider')[0].props;
-  const pointer = (index, overrides = {}) => ({
-    pointerId: 1, pointerType: 'touch', button: 0, buttons: 1, isPrimary: true,
-    clientX: 39 + index / (props.data.analyses.QQQ.points.length - 1) * (360 - 39 - 8), clientY: 100,
-    currentTarget: target, preventDefault: () => assert.fail('inspection must not suppress native vertical scrolling'), ...overrides,
-  });
+  const pointer = (index, overrides = {}) => {
+    const grid = findAll(render(), node => node.props.className === 'ic-dd-grid')[0];
+    assert.ok(grid, 'pointer fixtures need a visible price axis');
+    const { x1, x2 } = grid.props;
+    return {
+      pointerId: 1, pointerType: 'touch', button: 0, buttons: 1, isPrimary: true,
+      clientX: x1 + index / (props.data.analyses.QQQ.points.length - 1) * (x2 - x1), clientY: 100,
+      currentTarget: target, preventDefault: () => assert.fail('inspection must not suppress native vertical scrolling'), ...overrides,
+    };
+  };
   const inspect = index => {
     area().onPointerDown(pointer(index));
     area().onPointerUp(pointer(index, { buttons: 0 }));
@@ -252,9 +257,234 @@ test('overview inspection shows both actual stock prices and the running high kn
   hooks.reset();
 });
 
+test('initial, switched and repeated stock-card selections focus the actual trough and synchronize both price cards', t => {
+  const events = documentEvents(t);
+  hooks.reset();
+  const data = drawdownHistoryData([100, 120, 90, 108, 120, 115], [100, 130, 100, 65, 130, 120]);
+  const original = structuredClone(data);
+  const analysisProps = { data, englishMode: true };
+  let parent;
+  const chart = overviewInteraction({ data, reset: false, mount: true });
+  const sync = () => {
+    parent = hooks.render(DrawdownAnalysis, analysisProps, 'card-focus-parent');
+    Object.assign(chart.props, findAll(parent, node => node.type === DrawdownOverview)[0].props);
+  };
+  const assertReadout = (index, crosshair = true) => {
+    chart.assertSelection(index, crosshair);
+    const tree = chart.render();
+    const series = findAll(tree, node => Boolean(node.props['data-overview-series']));
+    assert.equal(series.length, 1, 'overview draws one selected stock price series');
+    assert.equal(series[0].props['data-overview-series'], chart.props.active);
+    assert.ok(findAll(tree, node => Boolean(node.props['data-overview-current'])).every(node => node.props['data-overview-current'] === chart.props.active));
+    for (const symbol of data.symbols) {
+      const card = findAll(tree, node => node.props.className === 'ic-dd-price-card' && node.props['data-symbol'] === symbol)[0];
+      const point = data.analyses[symbol].points[index];
+      const time = classNode(card, 'ic-dd-price-date');
+      assert.equal(time.props.dateTime, point.date);
+      assert.equal(time.props.children, point.date);
+      assert.equal(findAll(card, node => node.props['data-adjusted-price'] === 'current')[0].props.children, `$${point.adjustedCloseUsd.toFixed(2)}`);
+    }
+  };
+  const clickCard = index => {
+    const button = findAll(parent, node => node.props.className === 'ic-dd-metric')[index];
+    events.dispatch('click', button, () => button.props.onClick());
+    sync();
+  };
+  sync();
+  assertReadout(2);
+  assert.equal(chart.props.active, 'QQQ');
+  assert.equal(events.listeners.length, 1);
+  chart.inspect(4);
+  assertReadout(4);
+  clickCard(0);
+  assertReadout(2);
+  classNode(chart.render(), 'ic-dd-reset-inspection').props.onClick();
+  assertReadout(5, false);
+  clickCard(0);
+  assertReadout(2);
+  clickCard(0);
+  assertReadout(2);
+  events.dispatch('click', {});
+  assertReadout(5, false);
+  // A normal parent render must not undo an explicit dismissal.
+  sync();
+  assertReadout(5, false);
+  clickCard(0);
+  assertReadout(2);
+  clickCard(1);
+  assert.equal(chart.props.active, 'TQQQ');
+  assertReadout(3);
+  chart.inspect(4);
+  findAll(classNode(parent, 'ic-dd-episode-tabs'), node => node.type === 'button')[2].props.onClick();
+  sync();
+  assertReadout(4);
+  const maxTab = findAll(classNode(parent, 'ic-dd-episode-tabs'), node => node.type === 'button')[0];
+  events.dispatch('click', maxTab, () => maxTab.props.onClick());
+  sync();
+  assertReadout(3);
+  chart.inspect(1);
+  const alreadySelectedMaxTab = findAll(classNode(parent, 'ic-dd-episode-tabs'), node => node.type === 'button')[0];
+  events.dispatch('click', alreadySelectedMaxTab, () => alreadySelectedMaxTab.props.onClick());
+  sync();
+  assertReadout(3);
+  assert.deepEqual(data, original);
+});
+
+test('stock cards with no drawdown retain the latest observation instead of inventing a trough selection', () => {
+  const data = drawdownHistoryData([100, 110, 120, 130], [100, 105, 110, 115]);
+  hooks.reset();
+  const chart = overviewInteraction({ data, reset: false });
+  let parent;
+  const sync = () => {
+    parent = hooks.render(DrawdownAnalysis, { data, englishMode: true }, 'rising-focus-parent');
+    Object.assign(chart.props, findAll(parent, node => node.type === DrawdownOverview)[0].props);
+  };
+  sync();
+  chart.assertSelection(3, false);
+  assert.equal(classNode(chart.render(), 'ic-dd-reset-inspection'), undefined);
+  chart.inspect(1);
+  chart.assertSelection(1);
+  findAll(parent, node => node.props.className === 'ic-dd-metric')[0].props.onClick();
+  sync();
+  chart.assertSelection(3, false);
+  findAll(parent, node => node.props.className === 'ic-dd-metric')[1].props.onClick();
+  sync();
+  chart.assertSelection(3, false);
+  findAll(classNode(parent, 'ic-dd-episode-tabs'), node => node.type === 'button')[0].props.onClick();
+  sync();
+  chart.assertSelection(3, false);
+  assert.equal(findAll(parent, node => node.type === DrawdownJourney).length, 0);
+  hooks.reset();
+});
+
+test('overview plots actual USD stock prices on a stable upward price axis independent of simulated principal', () => {
+  const model = comparisonModel();
+  const chart = overviewInteraction({ data: buildInvestmentDrawdownModel(model) });
+  const plotted = tree => findAll(tree, node => node.props['data-overview-series'] === chart.props.active)[0];
+  const coordinates = path => [...path.props.d.matchAll(/[ML](-?[\d.]+),(-?[\d.]+)/g)].map(match => ({ x: Number(match[1]), y: Number(match[2]) }));
+  const axis = tree => findAll(tree, node => node.type === 'g' && React.Children.toArray(node.props.children).some(child => child.props?.className === 'ic-dd-grid')).map(group => {
+    const line = classNode(group, 'ic-dd-grid');
+    const label = findAll(group, node => node.type === 'text')[0].props.children;
+    return { label, value: Number(String(label).replace(/[$,]/g, '')), y: line.props.y1 };
+  });
+  let tree = chart.render();
+  assert.match(chart.area()['aria-label'], /Inspect daily share prices with left and right arrow keys/);
+  assert.match(findAll(tree, node => node.type === 'svg')[0].props['aria-label'], /QQQ.*USD/i);
+  const originalPath = plotted(tree).props.d;
+  const ticks = axis(tree);
+  assert.equal(ticks.length, 3);
+  assert.ok(ticks.every(tick => /^\$[\d,.]+$/.test(tick.label)), 'vertical ticks use USD prices with no percent or compact portfolio units');
+  assert.ok(ticks.every(tick => tick.value > 0 && tick.value < 200));
+  const highTick = ticks.reduce((best, tick) => tick.value > best.value ? tick : best);
+  const lowTick = ticks.reduce((best, tick) => tick.value < best.value ? tick : best);
+  assert.ok(highTick.y < lowTick.y, 'larger prices are higher on the graph');
+  const points = coordinates(plotted(tree));
+  assert.equal(points.length, model.points.length);
+  assert.ok(points[1].y < points[2].y, 'the $120 high must be above the $90 trough');
+  for (const [index, point] of points.entries()) {
+    const price = model.points[index].adjustedClosesUsd.QQQ;
+    const expectedY = lowTick.y + (price - lowTick.value) / (highTick.value - lowTick.value) * (highTick.y - lowTick.y);
+    assert.ok(Math.abs(point.y - expectedY) < 0.2, `point ${index} follows its actual USD price, not portfolio assets or drawdown percentages`);
+  }
+  const markers = findAll(tree, node => Boolean(node.props['data-overview-marker']));
+  assert.deepEqual(markers.map(node => node.props['data-overview-marker']).sort(), ['peak', 'trough']);
+  assert.match(renderToStaticMarkup(markers.find(node => node.props['data-overview-marker'] === 'peak')), /\$120\.00/);
+  assert.match(renderToStaticMarkup(markers.find(node => node.props['data-overview-marker'] === 'trough')), /\$90\.00/);
+  chart.inspect(0);
+  tree = chart.render();
+  assert.equal(plotted(tree).props.d, originalPath);
+  assert.deepEqual(axis(tree), ticks, 'historical selection does not shift the full-period price domain');
+  chart.inspect(5);
+  assert.deepEqual(axis(chart.render()), ticks);
+  const scaled = structuredClone(model);
+  scaled.principal *= 100;
+  for (const point of scaled.points) for (const symbol of scaled.symbols) point.values[symbol] *= 100;
+  chart.props.data = buildInvestmentDrawdownModel(scaled);
+  tree = chart.render();
+  assert.equal(plotted(tree).props.d, originalPath);
+  assert.deepEqual(axis(tree), ticks, 'changing invested capital must never change the share-price axis');
+  chart.props.englishMode = false;
+  tree = chart.render();
+  assert.match(renderToStaticMarkup(classNode(tree, 'ic-dd-section-head')), /QQQ · 股价走势/);
+  assert.equal(chart.area()['aria-label'], '使用左右方向键查看每日股价');
+  assert.match(findAll(tree, node => node.type === 'svg')[0].props['aria-label'], /QQQ.*美元复权股价走势/);
+  hooks.reset();
+});
+
+test('overview price gaps stay disconnected and selecting an unavailable price retains the actual date', () => {
+  const model = comparisonModel();
+  model.points[2].adjustedClosesUsd.QQQ = null;
+  const chart = overviewInteraction({ data: buildInvestmentDrawdownModel(model) });
+  const path = findAll(chart.render(), node => node.props['data-overview-series'] === 'QQQ')[0];
+  assert.equal((path.props.d.match(/M/g) || []).length, 2);
+  assert.equal((path.props.d.match(/L/g) || []).length, 3);
+  chart.inspect(2);
+  chart.assertSelection(2);
+  let tree = chart.render();
+  let card = findAll(tree, node => node.props['data-symbol'] === 'QQQ')[0];
+  assert.equal(classNode(card, 'ic-dd-price-date').props.dateTime, '2026-01-06');
+  assert.equal(findAll(card, node => node.props['data-adjusted-price'] === 'current')[0].props.children, '—');
+  assert.match(renderToStaticMarkup(card), /-25\.0%/);
+  assert.equal(findAll(tree, node => Boolean(node.props['data-overview-current'])).length, 0, 'missing selected prices do not get an invented marker');
+  assert.equal(findAll(tree, node => node.props['data-overview-marker'] === 'trough').length, 0);
+  chart.area().onKeyDown({ key: 'ArrowRight', preventDefault() {} });
+  chart.assertSelection(3);
+  tree = chart.render();
+  card = findAll(tree, node => node.props['data-symbol'] === 'QQQ')[0];
+  assert.equal(findAll(card, node => node.props['data-adjusted-price'] === 'current')[0].props.children, '$108.00');
+  assert.equal(findAll(tree, node => node.props['data-overview-current'] === 'QQQ').length, 1);
+  assert.doesNotMatch(renderToStaticMarkup(tree), /NaN|Infinity/);
+  hooks.reset();
+});
+
+test('overview handles flat, single-known and unavailable stock prices without substituting the other symbol or asset index', () => {
+  for (const kind of ['flat', 'single', 'missing']) {
+    const model = comparisonModel();
+    for (const [index, point] of model.points.entries()) {
+      point.values.QQQ = model.principal;
+      point.adjustedClosesUsd.QQQ = kind === 'flat' || (kind === 'single' && index === 3) ? 0.00125 : null;
+    }
+    const chart = overviewInteraction({ data: buildInvestmentDrawdownModel(model) });
+    let tree = chart.render();
+    const paths = findAll(tree, node => Boolean(node.props['data-overview-series']));
+    assert.equal(paths.length, kind === 'missing' ? 0 : 1);
+    if (kind === 'missing') {
+      assert.match(renderToStaticMarkup(tree), /Adjusted share prices unavailable/);
+      assert.equal(findAll(tree, node => node.type === 'svg').length, 0);
+      chart.area().onKeyDown({ key: 'Home', preventDefault() {} });
+      assert.equal(chart.area()['aria-valuenow'], 0, 'missing prices must not force selection to a different known date');
+    } else {
+      assert.equal(paths[0].props['data-overview-series'], 'QQQ');
+      const matches = [...paths[0].props.d.matchAll(/[ML](-?[\d.]+),(-?[\d.]+)/g)];
+      assert.equal(matches.length, kind === 'flat' ? model.points.length : 1);
+      assert.ok(matches.every(match => Number.isFinite(Number(match[1])) && Number.isFinite(Number(match[2]))));
+      if (kind === 'flat') assert.equal(new Set(matches.map(match => match[2])).size, 1, 'a flat share price draws a horizontal line');
+      const isolated = findAll(tree, node => node.props['data-overview-isolated'] === 'QQQ');
+      assert.equal(isolated.length, kind === 'single' ? 1 : 0, 'a single real price remains visible as a point without a fabricated line');
+      chart.area().onKeyDown({ key: 'Home', preventDefault() {} });
+      for (let index = 0; index < 3; index += 1) chart.area().onKeyDown({ key: 'ArrowRight', preventDefault() {} });
+      assert.equal(chart.area()['aria-valuenow'], 3);
+    }
+    tree = chart.render();
+    const card = findAll(tree, node => node.props['data-symbol'] === 'QQQ')[0];
+    const priceLabel = findAll(card, node => node.props['data-adjusted-price'] === 'current')[0].props.children;
+    if (kind === 'missing') assert.equal(priceLabel, '—');
+    else {
+      assert.ok(priceLabel.startsWith('$'));
+      assert.equal(Number(priceLabel.slice(1)), 0.00125, 'a small stock price must retain its nonzero precision');
+    }
+    assert.equal(findAll(tree, node => Boolean(node.props['data-overview-marker'])).length, 0, 'no drawdown does not fabricate a high or trough marker');
+    assert.doesNotMatch(renderToStaticMarkup(tree), /NaN|Infinity|data-overview-series="TQQQ"/);
+  }
+  hooks.reset();
+});
+
 test('outside click clears pinned inspection without swallowing the action, while plot clicks, release, blur and scrolling preserve it', t => {
   const events = documentEvents(t);
   const chart = overviewInteraction({ mount: true });
+  chart.assertSelection(2);
+  assert.equal(events.listeners.length, 1, 'the initial automatic trough selection behaves like a pinned date');
+  classNode(chart.render(), 'ic-dd-reset-inspection').props.onClick();
   chart.assertSelection(5, false);
   assert.equal(events.listeners.length, 0);
   chart.area().onPointerMove(chart.pointer(1, { pointerType: 'mouse', buttons: 0 }));
@@ -277,7 +507,7 @@ test('outside click clears pinned inspection without swallowing the action, whil
   assert.equal(events.listeners.length, 0);
 });
 
-test('outside-click listener is removed on explicit reset, history replacement and unmount without interrupting replay', t => {
+test('outside-click listener follows a refreshed trough and is removed on explicit reset or unmount without interrupting replay', t => {
   const events = documentEvents(t);
   const replay = replayHost(t);
   let tree = replay.render(); classNode(tree, 'ic-dd-play').props.onClick(); replay.render();
@@ -288,9 +518,11 @@ test('outside-click listener is removed on explicit reset, history replacement a
   chart.assertSelection(5, false);
   assert.equal(events.listeners.length, 0);
   chart.inspect(1);
+  const previousListener = events.listeners[0].callback;
   chart.props.data = buildInvestmentDrawdownModel(comparisonModel());
-  chart.assertSelection(5, false);
-  assert.equal(events.listeners.length, 0);
+  chart.assertSelection(2);
+  assert.equal(events.listeners.length, 1);
+  assert.notStrictEqual(events.listeners[0].callback, previousListener, 'the old model listener must be replaced for the refreshed trough');
   chart.inspect(2);
   events.dispatch('click', {});
   chart.assertSelection(5, false);
@@ -303,7 +535,7 @@ test('outside-click listener is removed on explicit reset, history replacement a
 
 test('touch inspection stays pinned after release, pointer leave, focus loss and horizontal dragging', () => {
   const chart = overviewInteraction();
-  chart.assertSelection(5, false);
+  chart.assertSelection(2);
   chart.area().onPointerDown(chart.pointer(1));
   chart.assertSelection(1);
   chart.area().onPointerUp(chart.pointer(1, { buttons: 0 }));
@@ -340,6 +572,7 @@ test('vertical scroll and cancelled gestures restore the previously pinned day w
   assert.equal(chart.captured.size, 0);
 
   const unselected = overviewInteraction();
+  classNode(unselected.render(), 'ic-dd-reset-inspection').props.onClick();
   unselected.area().onPointerDown(unselected.pointer(2));
   unselected.area().onPointerMove(unselected.pointer(2, { clientY: 150 }));
   unselected.cancel(unselected.pointer(2));
@@ -348,6 +581,7 @@ test('vertical scroll and cancelled gestures restore the previously pinned day w
 
 test('mouse hover is temporary until a click pins a day and free movement cannot replace the pinned selection', () => {
   const chart = overviewInteraction();
+  classNode(chart.render(), 'ic-dd-reset-inspection').props.onClick();
   const mouse = (index, overrides = {}) => chart.pointer(index, { pointerType: 'mouse', buttons: 0, ...overrides });
   chart.area().onPointerMove(mouse(2));
   chart.assertSelection(2);
@@ -381,16 +615,18 @@ test('keyboard history selection persists while Escape returns to the latest day
   chart.assertSelection(5, false);
 });
 
-test('changing the highlighted symbol retains the selected date while refreshed history clears its old selection', () => {
-  const chart = overviewInteraction();
+test('changing the highlighted symbol or history selects its own real maximum-drawdown trough', () => {
+  const data = drawdownHistoryData([100, 120, 90, 108, 120, 115], [100, 130, 100, 65, 130, 120]);
+  const chart = overviewInteraction({ data });
+  chart.assertSelection(2);
   chart.inspect(1);
   chart.props.active = 'TQQQ';
-  chart.assertSelection(1);
+  chart.assertSelection(3);
   const refreshed = comparisonModel();
   refreshed.points = refreshed.points.slice(0, 3);
   refreshed.asOfDate = refreshed.points.at(-1).date;
   chart.props.data = buildInvestmentDrawdownModel(refreshed);
-  chart.assertSelection(2, false);
+  chart.assertSelection(2);
   chart.inspect(0);
   chart.assertSelection(0);
 });
