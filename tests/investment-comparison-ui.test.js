@@ -91,8 +91,8 @@ test('chart currency changes labels and accessibility values while preserving ra
   for (const scale of ['linear', 'log']) {
     const usd = renderToStaticMarkup(React.createElement(InvestmentComparisonChart, { ...props, scale }));
     const cny = renderToStaticMarkup(React.createElement(InvestmentComparisonChart, { ...props, scale, displayCurrency: 'CNY', displayRate: 7.2 }));
-    assert.match(usd, /Assets · USD/);
-    assert.match(cny, /Assets · CNY/);
+    assert.doesNotMatch(usd, /Assets · USD/);
+    assert.doesNotMatch(cny, /Assets · CNY/);
     assert.match(usd, /aria-label="QQQ cumulative profit \+\$5\.0K"/);
     assert.match(cny, /aria-label="QQQ cumulative profit \+¥36\.0K"/);
     assert.match(cny, /aria-label="TQQQ cumulative profit −¥14\.4K"/);

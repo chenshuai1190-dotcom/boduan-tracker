@@ -168,7 +168,6 @@ export default function InvestmentComparisonChart({ model, snapshot, hiddenSymbo
           <clipPath id={`ic-clip-${uniqueId}`}><rect x={frame.left} y={frame.top} width={frame.right - frame.left} height={frame.bottom - frame.top} /></clipPath>
           {visibleSymbols.map(symbol => <linearGradient id={`ic-area-${uniqueId}-${symbol}`} key={symbol} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={investmentRankColor(investmentRank(symbol, symbols, currentPoint))} stopOpacity=".12" /><stop offset="100%" stopColor={investmentRankColor(investmentRank(symbol, symbols, currentPoint))} stopOpacity="0" /></linearGradient>)}
         </defs>
-        <text x={frame.left} y="13" className="ic-axis-title">{englishMode ? `Assets · ${currencyLabel}` : `资产 · ${currencyLabel}`}{scale === 'log' ? (englishMode ? ' · Log' : ' · 对数') : ''}</text>
         {ticks.map((value, index) => <g key={index}><line x1={frame.left} x2={frame.right} y1={y(value)} y2={y(value)} className="ic-grid-line" /><text ref={node => { axisRefs.current[index] = node; }} x={frame.left - 6} y={y(value) + 4} textAnchor="end" className="ic-axis-label">{tickLabels[index]}</text></g>)}
         <g clipPath={`url(#ic-clip-${uniqueId})`}>
           {visibleSymbols.map((symbol, index) => {
