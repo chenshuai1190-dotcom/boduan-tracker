@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { buildInvestmentComparisonModel, getInvestmentComparisonSnapshot, normalizeInvestmentComparisonData, normalizeInvestmentSymbols } from '../src/lib/investmentComparisonModel.js';
+import { investmentPrincipalUsd } from '../src/lib/investmentComparisonCurrency.js';
 
 // Small invented test fixtures, never market data or application fallback data.
 const dates = ['2024-12-30', '2024-12-31', '2025-01-02', '2025-12-31', '2026-01-02', '2026-09-03', '2026-09-04'];
@@ -38,6 +39,40 @@ test('all daily totals, profits, percentages and principal scaling remain consis
       close(point.returns[symbol], point.profits[symbol] / model.principal * 100);
       close(point.values[symbol], small.points[index].values[symbol] * 8);
       close(point.returns[symbol], small.points[index].returns[symbol]);
+    }
+  }
+});
+
+test('single-share adjusted closes retain raw precision and common-session alignment after a later inception', () => {
+  const data = fixture();
+  data.series.QQQ.rows[2].close = 66.123456789123;
+  data.series.TQQQ.rows = data.series.TQQQ.rows.slice(2);
+  data.series.TQQQ.rows[0].close = 12.987654321987;
+  data.availableFromDate = '2025-01-02';
+  const original = structuredClone(data);
+  const model = build({ data });
+  assert.deepEqual(model.points[0].adjustedClosesUsd, { QQQ: 66.123456789123, TQQQ: 12.987654321987 });
+  for (const point of model.points) {
+    for (const symbol of model.symbols) {
+      assert.equal(point.adjustedClosesUsd[symbol], data.series[symbol].rows.find(row => row.date === point.date).close);
+    }
+  }
+  assert.deepEqual(data, original);
+  model.points[0].adjustedClosesUsd.QQQ = 1;
+  assert.equal(data.series.QQQ.rows[2].close, 66.123456789123, 'display metadata cannot mutate original history');
+});
+
+test('principal size and CNY input conversion scale assets without scaling USD single-share prices', () => {
+  const base = build({ principal: 100 });
+  const larger = build({ principal: 1_000_000 });
+  const cny = build({ principal: investmentPrincipalUsd({ text: '1000000', currency: 'CNY', rate: 6.7048 }) });
+  for (const [index, point] of base.points.entries()) {
+    assert.deepEqual(point.adjustedClosesUsd, larger.points[index].adjustedClosesUsd);
+    assert.deepEqual(point.adjustedClosesUsd, cny.points[index].adjustedClosesUsd);
+    for (const symbol of base.symbols) {
+      close(larger.points[index].values[symbol], point.values[symbol] * 10_000);
+      close(cny.points[index].values[symbol], larger.points[index].values[symbol] / 6.7048);
+      close(point.returns[symbol], cny.points[index].returns[symbol]);
     }
   }
 });

@@ -223,10 +223,31 @@ export function buildInvestmentDrawdownModel(comparisonModel) {
   }
   return {
     symbols,
-    analyses: Object.fromEntries(symbols.map(symbol => [symbol, analyzeDrawdowns(
-      points.map(point => ({ date: point.date, close: point.values[symbol] })),
-      { principal, startDate: actualStartDate, asOfDate },
-    )])),
+    analyses: Object.fromEntries(symbols.map(symbol => {
+      const analysis = analyzeDrawdowns(
+        points.map(point => ({ date: point.date, close: point.values[symbol] })),
+        { principal, startDate: actualStartDate, asOfDate },
+      );
+      let peakIndex = 0;
+      const adjustedClose = index => {
+        const price = points[index]?.adjustedClosesUsd?.[symbol];
+        return Number.isFinite(price) && price > 0 ? price : null;
+      };
+      analysis.points = analysis.points.map((point, index) => {
+        // Match the existing running peak, including the last date of equal highs.
+        // `close` here is the validated asset path, never a displayed stock price.
+        if (point.close >= analysis.points[peakIndex].close) peakIndex = index;
+        const recoveryGainPct = (analysis.points[peakIndex].close / point.close - 1) * 100;
+        return {
+          ...point,
+          adjustedCloseUsd: adjustedClose(index),
+          peakAdjustedCloseUsd: adjustedClose(peakIndex),
+          peakDate: analysis.points[peakIndex].date,
+          recoveryGainPct: Number.isFinite(recoveryGainPct) ? recoveryGainPct : null,
+        };
+      });
+      return [symbol, analysis];
+    })),
     startDate: actualStartDate,
     asOfDate,
   };

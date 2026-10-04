@@ -28,13 +28,18 @@ const { default: InvestmentDrawdownView } = await import(dataUrl(compiledView(im
 function comparisonModel({ rising = false } = {}) {
   const dates = ['2026-01-02', '2026-01-05', '2026-01-06', '2026-01-07', '2026-01-08', '2026-01-09'];
   const prices = rising ? [[100, 110, 120, 130, 140, 150], [100, 105, 110, 115, 120, 125]] : [[100, 120, 90, 108, 120, 115], [100, 130, 65, 80, 130, 120]];
-  return { symbols: ['QQQ', 'TQQQ'], principal: 1000000, actualStartDate: dates[0], asOfDate: dates.at(-1), points: dates.map((date, index) => ({ date, values: { QQQ: prices[0][index] * 10000, TQQQ: prices[1][index] * 10000 } })) };
+  return { symbols: ['QQQ', 'TQQQ'], principal: 1000000, actualStartDate: dates[0], asOfDate: dates.at(-1), points: dates.map((date, index) => ({
+    date,
+    values: { QQQ: prices[0][index] * 10000, TQQQ: prices[1][index] * 10000 },
+    adjustedClosesUsd: { QQQ: prices[0][index], TQQQ: prices[1][index] / 2 },
+  })) };
 }
 
 function drawdownHistoryData(qqq, tqqq = qqq) {
   const points = qqq.map((value, index) => ({
     date: new Date(Date.UTC(2026, 0, index + 2)).toISOString().slice(0, 10),
     values: { QQQ: value, TQQQ: tqqq[index] },
+    adjustedClosesUsd: { QQQ: value / qqq[0] * 100, TQQQ: tqqq[index] / tqqq[0] * 50 },
   }));
   return buildInvestmentDrawdownModel({ symbols: ['QQQ', 'TQQQ'], principal: qqq[0], actualStartDate: points[0].date, asOfDate: points.at(-1).date, points });
 }
@@ -54,7 +59,7 @@ test('drawdown view renders real model outcomes, principal risk and bilingual co
   }
 });
 
-test('drawdown display currency converts every amount once while retaining percentages, dates and normalized paths', () => {
+test('drawdown currency converts simulated assets once while USD stock prices, percentages, dates and paths remain unchanged', () => {
   const model = comparisonModel();
   const original = structuredClone(model);
   const amounts = html => html.match(/[$¥][\d,.]+(?:万|亿|K|M|B)?/g) || [];
@@ -67,12 +72,17 @@ test('drawdown display currency converts every amount once while retaining perce
     }));
     const usd = renderCurrency('USD', 1);
     const cny = renderCurrency('CNY', 7.2);
-    assert.deepEqual(amounts(usd), englishMode
-      ? ['$1.2M', '$1.2M', '$900.0K', '$1.2M', '$1.0M', '$900.0K']
-      : ['$120.0万', '$120.0万', '$90.0万', '$120.0万', '$100.0万', '$90.0万']);
-    assert.deepEqual(amounts(cny), englishMode
-      ? ['¥8.6M', '¥8.6M', '¥6.5M', '¥8.6M', '¥7.2M', '¥6.5M']
-      : ['¥864.0万', '¥864.0万', '¥648.0万', '¥864.0万', '¥720.0万', '¥648.0万']);
+    const compactAssets = html => amounts(html).filter(value => /[万亿KMB]$/.test(value));
+    const usdPrices = html => amounts(html).filter(value => value.startsWith('$') && !/[万亿KMB]$/.test(value));
+    assert.deepEqual(compactAssets(usd), englishMode
+      ? ['$1.2M', '$1.0M', '$900.0K']
+      : ['$120.0万', '$100.0万', '$90.0万']);
+    assert.deepEqual(compactAssets(cny), englishMode
+      ? ['¥8.6M', '¥7.2M', '¥6.5M']
+      : ['¥864.0万', '¥720.0万', '¥648.0万']);
+    assert.ok(usdPrices(usd).includes('$120.00'), 'the previous high must be a per-share price, not a compact portfolio asset value');
+    assert.ok(usdPrices(usd).includes('$90.00'));
+    assert.deepEqual(usdPrices(cny), usdPrices(usd), 'FX applies to simulated assets only, never USD adjusted stock prices');
     assert.deepEqual(percentages(cny), percentages(usd));
     assert.deepEqual(dates(cny), dates(usd));
     assert.deepEqual(paths(cny), paths(usd));
@@ -80,16 +90,17 @@ test('drawdown display currency converts every amount once while retaining perce
   assert.deepEqual(model, original, 'currency display must not mutate the USD model');
 });
 
-test('drawdown CNY amounts stay unavailable without FX while actual drawdowns and dates remain visible', () => {
+test('drawdown CNY assets stay unavailable without FX while USD prices, actual drawdowns and dates remain visible', () => {
   for (const displayRate of [null, 0, Number.NaN]) {
     const html = renderToStaticMarkup(React.createElement(InvestmentDrawdownView, {
       model: comparisonModel(), displayCurrency: 'CNY', displayRate,
     }));
-    assert.doesNotMatch(html, /[$¥][\d,.]|NaN|Infinity/);
+    assert.doesNotMatch(html, /¥[\d,.]|NaN|Infinity/);
+    assert.match(html, /\$120\.00/);
+    assert.match(html, /\$90\.00/);
     assert.match(html, /-25\.0%/);
     assert.match(html, /-50\.0%/);
     assert.match(html, /2026-01-06/);
-    assert.match(html, /class="ic-dd-journey-head"[\s\S]*?<strong>—<\/strong>/);
     assert.match(html, /期间最低资产<\/span><strong[^>]*>—<\/strong>/);
   }
 });
@@ -220,6 +231,25 @@ function documentEvents(t) {
   };
   return { listeners, dispatch };
 }
+
+test('overview inspection shows both actual stock prices and the running high known on the selected date', () => {
+  const chart = overviewInteraction();
+  chart.inspect(2);
+  let html = renderToStaticMarkup(classNode(chart.render(), 'ic-dd-overview-readout'));
+  for (const text of ['QQQ', 'TQQQ', '$90.00', '$120.00', '$32.50', '$65.00', '-25.0%', '-50.0%', '+33.3%', '+100.0%']) {
+    assert.ok(html.includes(text), `the inspected trough must include ${text}`);
+  }
+  assert.match(html, /2026-01-06/);
+  assert.match(html, /2026-01-05/, 'the prior-high date belongs to the selected point');
+  chart.inspect(0);
+  html = renderToStaticMarkup(classNode(chart.render(), 'ic-dd-overview-readout'));
+  assert.match(html, /\$100\.00/);
+  assert.match(html, /\$50\.00/);
+  assert.match(html, /2026-01-02/);
+  assert.doesNotMatch(html, /\$120\.00|\$65\.00|2026-01-05|33\.3%|100\.0%/, 'an early selected date must not inherit a later peak or recovery gain');
+  chart.assertSelection(0);
+  hooks.reset();
+});
 
 test('outside click clears pinned inspection without swallowing the action, while plot clicks, release, blur and scrolling preserve it', t => {
   const events = documentEvents(t);
@@ -438,7 +468,77 @@ test('switching drawdown display currency preserves the selected symbol, episode
   assert.equal(progressAfter['aria-valuetext'], progressBefore['aria-valuetext']);
   assert.equal(classNode(cnyReplay, 'ic-dd-play').props['aria-pressed'], true);
   const readout = findAll(classNode(cnyReplay, 'ic-dd-journey-head'), node => node.type === 'strong')[0];
-  assert.equal(readout.props.children, '¥9.4M');
+  assert.equal(readout.props.children, '$65.00', 'selected stock price remains USD while the portfolio amount follows CNY');
+  assert.match(renderToStaticMarkup(classNode(cnyReplay, 'ic-dd-journey-head')), /¥9\.4M/);
+});
+
+test('recovered episode milestones pair each observed USD price with its date and relative-to-high return', () => {
+  const model = comparisonModel();
+  model.points[4].values.QQQ = 1250000;
+  model.points[4].adjustedClosesUsd.QQQ = 125;
+  const analysis = buildInvestmentDrawdownModel(model).analyses.QQQ;
+  for (const englishMode of [false, true]) {
+    hooks.reset();
+    const tree = hooks.render(DrawdownJourney, { analysis, episode: analysis.maxDrawdownEpisode, symbol: 'QQQ', englishMode }, 'price-milestones');
+    const milestones = findAll(tree, node => node.props.className === 'ic-dd-milestone');
+    assert.equal(milestones.length, 3);
+    for (const [index, price, date, percent] of [[0, '$120.00', '2026-01-05', '0.0%'], [1, '$90.00', '2026-01-06', '-25.0%'], [2, '$125.00', '2026-01-08', '+4.2%']]) {
+      const html = renderToStaticMarkup(milestones[index]);
+      assert.ok(html.includes(price), `milestone ${index} must show the real observed stock price`);
+      assert.ok(html.includes(date));
+      assert.ok(html.includes(percent));
+      assert.equal(findAll(milestones[index], node => node.type === 'strong')[0].props.children, price, 'stock price is the milestone primary value');
+    }
+    assert.match(renderToStaticMarkup(milestones[2]), englishMode ? /First recovery/ : /首次修复/);
+    assert.match(renderToStaticMarkup(classNode(tree, 'ic-dd-journey-head')), /\$125\.00/);
+  }
+  hooks.reset();
+});
+
+test('an unrecovered episode labels its last observed stock price as latest rather than a recovery', () => {
+  const model = comparisonModel();
+  model.points = model.points.slice(0, 4);
+  model.asOfDate = model.points.at(-1).date;
+  const analysis = buildInvestmentDrawdownModel(model).analyses.QQQ;
+  assert.equal(analysis.maxDrawdownEpisode.recovered, false);
+  for (const englishMode of [false, true]) {
+    hooks.reset();
+    const tree = hooks.render(DrawdownJourney, { analysis, episode: analysis.maxDrawdownEpisode, symbol: 'QQQ', englishMode }, 'open-price-milestone');
+    const latest = findAll(tree, node => node.props.className === 'ic-dd-milestone').at(-1);
+    const html = renderToStaticMarkup(latest);
+    assert.match(html, englishMode ? /Latest price/ : /最新价/);
+    assert.doesNotMatch(html, /First recovery|首次修复/);
+    assert.match(html, /\$108\.00/);
+    assert.match(html, /2026-01-07/);
+    assert.match(html, /-10\.0%/);
+  }
+  hooks.reset();
+});
+
+test('absent adjusted stock prices stay unavailable instead of being fabricated from portfolio asset amounts', () => {
+  const model = comparisonModel();
+  for (const point of model.points) delete point.adjustedClosesUsd;
+  for (const englishMode of [false, true]) {
+    const html = renderToStaticMarkup(React.createElement(InvestmentDrawdownView, { model, englishMode, displayCurrency: 'CNY', displayRate: 7.2 }));
+    assert.doesNotMatch(html, /\$[\d,.]|NaN|Infinity/);
+    assert.match(html, /¥/);
+    assert.match(html, /-25\.0%/);
+    assert.match(html, /2026-01-06/);
+    assert.match(html, /—/);
+    assert.doesNotMatch(html, /Drawdown analysis is unavailable|暂时无法计算回撤/);
+  }
+});
+
+test('small adjusted stock prices retain enough decimals to distinguish the previous high and trough', () => {
+  const model = comparisonModel();
+  for (const point of model.points) point.adjustedClosesUsd.QQQ /= 100000;
+  const analysis = buildInvestmentDrawdownModel(model).analyses.QQQ;
+  hooks.reset();
+  const tree = hooks.render(DrawdownJourney, { analysis, episode: analysis.maxDrawdownEpisode, symbol: 'QQQ', englishMode: true }, 'small-prices');
+  const prices = findAll(tree, node => node.props.className === 'ic-dd-milestone').map(milestone => findAll(milestone, node => node.type === 'strong')[0].props.children);
+  assert.deepEqual(prices.map(price => Number(price.slice(1))), [0.0012, 0.0009, 0.0012]);
+  assert.ok(prices.every(price => price.startsWith('$') && !/[KMB万亿]/.test(price)));
+  hooks.reset();
 });
 
 test('drawdown playback defaults to 0.2 and displays only real daily observations while pausing and restarting explicitly', t => {
@@ -455,6 +555,8 @@ test('drawdown playback defaults to 0.2 and displays only real daily observation
   tree = replay.frame(40);
   assert.equal(classNode(tree, 'ic-dd-scrubber').props.value, 2);
   assert.match(classNode(tree, 'ic-dd-scrubber').props['aria-valuetext'], /2026-01-06, -25\.0%/);
+  assert.match(classNode(tree, 'ic-dd-scrubber').props['aria-valuetext'], /\$90\.00 USD/);
+  assert.equal(findAll(classNode(tree, 'ic-dd-journey-head'), node => node.props['data-adjusted-price'] === 'journey')[0].props.children, '$90.00');
   const chart = findAll(tree, node => node.type === JourneyChart)[0];
   assert.equal(chart.props.index, 2, 'chart and financial labels must select the same real day');
   classNode(tree, 'ic-dd-play').props.onClick(); tree = replay.render();
@@ -486,9 +588,136 @@ test('timeline seeking, chart tapping and vertical movement leave an active repl
   assert.equal(classNode(replay.render(), 'ic-dd-play').props['aria-pressed'], true);
   assert.match(css, /\.ic-dd-chart\s*\{[^}]*touch-action:\s*pan-y/);
   const journeyChart = hooks.render(JourneyChart, { ...replay.props, index: 2 }, 'chart');
-  assert.equal(journeyChart.props.onPointerDown, undefined);
+  assert.equal(typeof journeyChart.props.onPointerDown, 'function');
   assert.equal(journeyChart.props.onScroll, undefined);
   assert.doesNotMatch(source, /\bonPause\b|addEventListener\(['"](?:scroll|touchstart|pointerdown)['"]/);
+});
+
+test('journey price inspection seeks real days while vertical gestures, cancellation and secondary touches preserve the replay', t => {
+  const replay = replayHost(t);
+  let tree = replay.render();
+  classNode(tree, 'ic-dd-play').props.onClick();
+  tree = replay.render();
+  const captured = new Set();
+  const target = {
+    getBoundingClientRect: () => ({ left: 10, width: 360 }),
+    setPointerCapture: id => captured.add(id),
+    hasPointerCapture: id => captured.has(id),
+    releasePointerCapture: id => captured.delete(id),
+  };
+  const chart = () => {
+    const props = findAll(replay.render(), node => node.type === JourneyChart)[0].props;
+    const result = hooks.render(JourneyChart, props, 'journey-inspection');
+    hooks.flush();
+    return result;
+  };
+  const pointer = (index, overrides = {}) => {
+    const baseline = classNode(chart(), 'ic-dd-baseline');
+    const { peakIndex, recoveryIndex } = replay.props.episode;
+    const chartX = baseline.props.x1 + (index - peakIndex) / (recoveryIndex - peakIndex) * (baseline.props.x2 - baseline.props.x1);
+    return { pointerId: 1, pointerType: 'touch', isPrimary: true, button: 0, buttons: 1, clientX: 10 + chartX, clientY: 100, currentTarget: target,
+      preventDefault: () => assert.fail('price inspection must not block native vertical scrolling'), ...overrides };
+  };
+  const assertAt = (index, price) => {
+    tree = replay.render();
+    assert.equal(classNode(tree, 'ic-dd-scrubber').props.value, index);
+    assert.equal(classNode(tree, 'ic-dd-play').props['aria-pressed'], true);
+    assert.equal(findAll(classNode(tree, 'ic-dd-journey-head'), node => node.props['data-adjusted-price'] === 'journey')[0].props.children, price);
+    assert.equal(chart().props['aria-valuenow'], index);
+  };
+  chart().props.onPointerDown(pointer(2));
+  chart().props.onPointerUp(pointer(2, { buttons: 0 }));
+  assertAt(2, '$90.00');
+  assert.equal(captured.size, 0);
+  chart().props.onPointerDown(pointer(3));
+  chart().props.onPointerMove(pointer(3, { clientY: 180 }));
+  chart().props.onPointerUp(pointer(3, { clientY: 180, buttons: 0 }));
+  assertAt(2, '$90.00');
+  chart().props.onPointerDown(pointer(3));
+  chart().props.onPointerCancel(pointer(3));
+  chart().props.onPointerUp(pointer(3, { buttons: 0 }));
+  captured.clear();
+  assertAt(2, '$90.00');
+  const secondary = pointer(3, { pointerId: 2, isPrimary: false });
+  chart().props.onPointerDown(secondary);
+  chart().props.onPointerUp(secondary);
+  assertAt(2, '$90.00');
+  chart().props.onPointerDown(pointer(2));
+  chart().props.onPointerMove(pointer(3));
+  assertAt(3, '$108.00');
+  chart().props.onPointerUp(pointer(3, { buttons: 0 }));
+  assertAt(3, '$108.00');
+  chart().props.onKeyDown({ key: 'Home', preventDefault() {} });
+  assertAt(1, '$120.00');
+  chart().props.onKeyDown({ key: 'Tab', preventDefault: () => assert.fail('normal focus navigation must be retained') });
+  assertAt(1, '$120.00');
+  findAll(replay.render(), node => node.props['data-drawdown-milestone'] === 'trough')[0].props.onClick();
+  assertAt(2, '$90.00');
+});
+
+test('journey chart plots USD stock prices and exposes only price milestones reached by the replay', () => {
+  const data = buildInvestmentDrawdownModel(comparisonModel());
+  const analysis = data.analyses.TQQQ, episode = analysis.maxDrawdownEpisode;
+  const props = { analysis, episode, symbol: 'TQQQ', englishMode: true };
+  hooks.reset();
+  let tree = hooks.render(JourneyChart, { ...props, index: episode.peakIndex }, 'price-axis');
+  let markers = findAll(tree, node => Boolean(node.props['data-drawdown-marker']));
+  assert.deepEqual(markers.map(marker => marker.props['data-drawdown-marker']), ['peak']);
+  assert.match(renderToStaticMarkup(markers[0]), /\$65\.00/);
+  assert.doesNotMatch(renderToStaticMarkup(tree), /\$32\.50|Previous high = 100|前高 = 100/);
+  assert.match(findAll(tree, node => node.type === 'svg')[0].props['aria-label'], /adjusted close in USD/);
+  tree = hooks.render(JourneyChart, { ...props, index: episode.recoveryIndex }, 'price-axis');
+  markers = findAll(tree, node => Boolean(node.props['data-drawdown-marker']));
+  assert.deepEqual(markers.map(marker => marker.props['data-drawdown-marker']), ['peak', 'trough', 'end']);
+  assert.match(renderToStaticMarkup(markers[1]), /\$32\.50/);
+  assert.match(renderToStaticMarkup(markers[2]), /\$65\.00/);
+  const grid = findAll(tree, node => node.type === 'g' && findAll(node, child => child.props.className === 'ic-dd-grid').length > 0);
+  const axisValues = grid.flatMap(group => findAll(group, node => node.type === 'text').map(node => Number(node.props.children)));
+  assert.equal(axisValues.length, 3);
+  assert.ok(axisValues.every(value => value > 0 && value < 80), 'TQQQ price axis must reflect its $32.50–$65.00 prices, not a 100-based asset index');
+  hooks.reset();
+});
+
+test('milestone navigation reveals prices at the chosen replay date while later milestones stay unavailable', () => {
+  const analysis = buildInvestmentDrawdownModel(comparisonModel()).analyses.QQQ;
+  const props = { analysis, episode: analysis.maxDrawdownEpisode, symbol: 'QQQ', englishMode: true };
+  hooks.reset();
+  const render = () => hooks.render(DrawdownJourney, props, 'milestone-seeking');
+  const milestone = kind => findAll(render(), node => node.props['data-drawdown-milestone'] === kind)[0];
+  const price = kind => findAll(milestone(kind), node => node.type === 'strong')[0].props.children;
+  milestone('peak').props.onClick();
+  assert.equal(classNode(render(), 'ic-dd-scrubber').props.value, props.episode.peakIndex);
+  assert.deepEqual(['peak', 'trough', 'end'].map(price), ['$120.00', '—', '—']);
+  assert.match(renderToStaticMarkup(milestone('trough')), /Not replayed/);
+  milestone('trough').props.onClick();
+  assert.equal(classNode(render(), 'ic-dd-scrubber').props.value, props.episode.troughIndex);
+  assert.deepEqual(['peak', 'trough', 'end'].map(price), ['$120.00', '$90.00', '—']);
+  milestone('end').props.onClick();
+  assert.equal(classNode(render(), 'ic-dd-scrubber').props.value, props.episode.recoveryIndex);
+  assert.deepEqual(['peak', 'trough', 'end'].map(price), ['$120.00', '$90.00', '$120.00']);
+  hooks.reset();
+});
+
+test('a missing adjusted stock price leaves a line break and unavailable milestone without erasing the valid drawdown', () => {
+  const model = comparisonModel();
+  model.points[2].adjustedClosesUsd.QQQ = null;
+  const analysis = buildInvestmentDrawdownModel(model).analyses.QQQ;
+  const episode = analysis.maxDrawdownEpisode;
+  const props = { analysis, episode, symbol: 'QQQ', englishMode: true };
+  hooks.reset();
+  const chart = hooks.render(JourneyChart, { ...props, index: episode.recoveryIndex }, 'missing-price-gap');
+  const paths = findAll(chart, node => node.type === 'path');
+  assert.equal(paths.length, 2);
+  assert.equal((paths[0].props.d.match(/M/g) || []).length, 2, 'the line must restart after the day without a verified price');
+  assert.equal((paths[0].props.d.match(/L/g) || []).length, 1);
+  assert.equal(findAll(chart, node => node.props['data-drawdown-marker'] === 'trough').length, 0);
+  const journey = hooks.render(DrawdownJourney, props, 'missing-price-milestone');
+  const trough = findAll(journey, node => node.props['data-drawdown-milestone'] === 'trough')[0];
+  assert.equal(findAll(trough, node => node.type === 'strong')[0].props.children, '—');
+  assert.match(renderToStaticMarkup(trough), /2026-01-06/);
+  assert.match(renderToStaticMarkup(trough), /-25\.0%/);
+  assert.doesNotMatch(renderToStaticMarkup(chart), /NaN|Infinity/);
+  hooks.reset();
 });
 
 test('instrument selection and episode filters use each symbol analysis and reset a refreshed replay safely', t => {
@@ -503,7 +732,8 @@ test('instrument selection and episode filters use each symbol analysis and rese
   filters[2].props.onClick();
   tree = hooks.render(DrawdownAnalysis, { data: replay.data, englishMode: true }, 'analysis');
   journey = findAll(tree, node => node.type === DrawdownJourney)[0];
-  assert.strictEqual(journey.props.episode, replay.data.analyses.TQQQ.episodes.at(-1));
+  assert.ok(replay.data.analyses.TQQQ.episodes.at(-1).drawdownPct > -10);
+  assert.strictEqual(journey.props.episode, replay.data.analyses.TQQQ.maxDrawdownEpisode, 'Latest skips the subsequent shallow TQQQ episode');
   let playingTree = replay.render(); classNode(playingTree, 'ic-dd-play').props.onClick(); playingTree = replay.render();
   assert.equal(classNode(playingTree, 'ic-dd-play').props['aria-pressed'], true);
   const refreshed = buildInvestmentDrawdownModel(comparisonModel());
@@ -564,13 +794,14 @@ test('drawdown history filters qualifying episodes before choosing the eight new
     };
     assert.strictEqual(chooseFilter(0), analysis.maxDrawdownEpisode);
     assert.strictEqual(chooseFilter(1), analysis.longestEpisode);
+    assert.strictEqual(chooseFilter(2), analysis.currentEpisode, 'a qualifying episode remains latest after rebounding above -10%');
     assert.deepEqual(analysis.episodes.map(episode => episode.id), originalIds);
     assert.deepEqual(analysis, originalAnalysis, 'history filtering must not rewrite any model statistics');
   }
   hooks.reset();
 });
 
-test('history includes the mathematical 10 percent boundary but excludes 9.999 percent even when it displays as 10.0', () => {
+test('history and latest include the mathematical 10 percent boundary but exclude 9.999 percent even when it displays as 10.0', () => {
   // 90 / 100 produces -9.999999999999998 in JavaScript; 90.001 is truly shallower.
   const data = drawdownHistoryData([100, 90, 100, 90.001, 100, 95]);
   const analysis = data.analyses.QQQ;
@@ -589,12 +820,12 @@ test('history includes the mathematical 10 percent boundary but excludes 9.999 p
   assert.strictEqual(findAll(tree, node => node.type === DrawdownJourney)[0].props.episode, analysis.episodes[0]);
   findAll(classNode(tree, 'ic-dd-episode-tabs'), node => node.type === 'button')[2].props.onClick();
   tree = render();
-  assert.strictEqual(findAll(tree, node => node.type === DrawdownJourney)[0].props.episode, analysis.currentEpisode, 'Latest still includes a shallow episode outside the filtered history');
+  assert.strictEqual(findAll(tree, node => node.type === DrawdownJourney)[0].props.episode, analysis.episodes[0], 'Latest uses the same raw threshold as history and skips rounded and shallow episodes');
   assert.strictEqual(findAll(tree, node => node.type === DrawdownOverview)[0].props.data, data, 'overview retains the full model');
   hooks.reset();
 });
 
-test('history count and threshold empty state follow the selected symbol in both languages without hiding its ordinary drawdowns', () => {
+test('history and latest threshold empty states follow the selected symbol while deepest and longest keep ordinary drawdowns', () => {
   const data = drawdownHistoryData([100, 95, 100, 96, 100, 98], [100, 90, 100, 80, 100, 85]);
   const original = structuredClone(data);
   Object.freeze(data.analyses.QQQ.episodes); Object.freeze(data.analyses.TQQQ.episodes);
@@ -602,20 +833,110 @@ test('history count and threshold empty state follow the selected symbol in both
     hooks.reset();
     const render = () => hooks.render(DrawdownAnalysis, { data, englishMode }, 'threshold-language');
     let tree = render();
+    const chooseFilter = index => {
+      findAll(classNode(tree, 'ic-dd-episode-tabs'), node => node.type === 'button')[index].props.onClick();
+      tree = render();
+    };
     let history = renderToStaticMarkup(classNode(tree, 'ic-dd-history'));
     assert.equal(findAll(tree, node => node.props.className === 'ic-dd-history-row').length, 0);
     assert.match(history, englishMode ? /≥10% · 0 episodes/ : /≥10% · 0 段/);
     assert.ok(history.includes(englishMode ? 'No drawdown episodes reached 10% in this period.' : '这个区间没有达到 10% 的回撤记录。'));
     assert.strictEqual(findAll(tree, node => node.type === DrawdownJourney)[0].props.episode, data.analyses.QQQ.maxDrawdownEpisode);
     assert.strictEqual(findAll(tree, node => node.type === DrawdownOverview)[0].props.data, data);
+    chooseFilter(2);
+    assert.equal(findAll(tree, node => node.type === DrawdownJourney).length, 0);
+    let journeyText = renderToStaticMarkup(classNode(tree, 'ic-dd-journey'));
+    assert.match(journeyText, englishMode ? /No drawdown.*10%/i : /暂无达到 10% 的回撤/);
+    assert.doesNotMatch(journeyText, /No drawdown occurred|尚未发生回撤/, 'small real drawdowns must not be described as nonexistent');
+    chooseFilter(1);
+    assert.strictEqual(findAll(tree, node => node.type === DrawdownJourney)[0].props.episode, data.analyses.QQQ.longestEpisode);
+    chooseFilter(0);
+    assert.strictEqual(findAll(tree, node => node.type === DrawdownJourney)[0].props.episode, data.analyses.QQQ.maxDrawdownEpisode);
     findAll(tree, node => node.props.className === 'ic-dd-metric')[1].props.onClick(); tree = render();
     history = renderToStaticMarkup(classNode(tree, 'ic-dd-history'));
     assert.equal(findAll(tree, node => node.props.className === 'ic-dd-history-row').length, 3);
     assert.match(history, englishMode ? /≥10% · 3 episodes/ : /≥10% · 3 段/);
     assert.doesNotMatch(history, /No drawdown episodes reached|没有达到 10%/);
+    chooseFilter(2);
+    assert.strictEqual(findAll(tree, node => node.type === DrawdownJourney)[0].props.episode, data.analyses.TQQQ.currentEpisode);
+    assert.strictEqual(findAll(tree, node => node.type === DrawdownOverview)[0].props.data, data);
     findAll(tree, node => node.props.className === 'ic-dd-metric')[0].props.onClick(); tree = render();
     assert.equal(findAll(tree, node => node.props.className === 'ic-dd-history-row').length, 0);
+    assert.strictEqual(findAll(tree, node => node.type === DrawdownJourney)[0].props.episode, data.analyses.QQQ.maxDrawdownEpisode, 'instrument changes retain the existing default-to-deepest behavior');
+    chooseFilter(2);
+    assert.equal(findAll(tree, node => node.type === DrawdownJourney).length, 0);
+    journeyText = renderToStaticMarkup(classNode(tree, 'ic-dd-journey'));
+    assert.match(journeyText, englishMode ? /No drawdown.*10%/i : /暂无达到 10% 的回撤/);
     assert.deepEqual(data, original);
+  }
+  hooks.reset();
+});
+
+test('latest selects the newest qualifying episode rather than the deepest or a subsequent shallow episode', () => {
+  const data = drawdownHistoryData([100, 60, 100, 88, 100, 96, 100, 95]);
+  const analysis = data.analyses.QQQ;
+  const original = structuredClone(data);
+  assert.equal(analysis.episodes.length, 4);
+  assert.strictEqual(analysis.maxDrawdownEpisode, analysis.episodes[0]);
+  assert.ok(analysis.currentDrawdownPct > -10);
+  assert.ok(analysis.episodes[2].drawdownPct > -10, 'even a later recovered shallow episode must be skipped');
+  Object.freeze(analysis.episodes);
+  hooks.reset();
+  const render = () => hooks.render(DrawdownAnalysis, { data, englishMode: true }, 'latest-qualifying');
+  let tree = render();
+  findAll(classNode(tree, 'ic-dd-episode-tabs'), node => node.type === 'button')[2].props.onClick();
+  tree = render();
+  const journey = findAll(tree, node => node.type === DrawdownJourney)[0];
+  assert.strictEqual(journey.props.episode, analysis.episodes[1]);
+  assert.equal(journey.props.episode.recovered, true);
+  const newestHistoryRow = findAll(tree, node => node.props.className === 'ic-dd-history-row')[0];
+  assert.ok(newestHistoryRow.props['aria-label'].includes(journey.props.episode.peakDate));
+  newestHistoryRow.props.onClick();
+  tree = render();
+  assert.strictEqual(findAll(tree, node => node.type === DrawdownJourney)[0].props.episode, journey.props.episode, 'latest and the first history entry represent the same interval');
+  assert.strictEqual(findAll(tree, node => node.type === DrawdownOverview)[0].props.data, data);
+  assert.deepEqual(data, original);
+  hooks.reset();
+});
+
+test('latest qualifies cumulative peak-to-trough loss despite smaller daily falls and a later rebound', () => {
+  const values = [100, 75, 100, 94, 88.36, 97];
+  const data = drawdownHistoryData(values);
+  const analysis = data.analyses.QQQ;
+  const episode = analysis.currentEpisode;
+  assert.equal(episode.recovered, false);
+  assert.ok(episode.drawdownPct < -10);
+  assert.ok(analysis.currentDrawdownPct > -10);
+  for (let index = episode.peakIndex + 1; index <= episode.troughIndex; index += 1) {
+    assert.ok((values[index] / values[index - 1] - 1) * 100 > -10, 'each daily decline is smaller than the episode threshold');
+  }
+  hooks.reset();
+  const render = () => hooks.render(DrawdownAnalysis, { data, englishMode: false }, 'latest-rebounding');
+  let tree = render();
+  findAll(classNode(tree, 'ic-dd-episode-tabs'), node => node.type === 'button')[2].props.onClick();
+  tree = render();
+  assert.strictEqual(findAll(tree, node => node.type === DrawdownJourney)[0].props.episode, episode);
+  assert.match(renderToStaticMarkup(classNode(tree, 'ic-dd-journey')), /尚未修复/);
+  assert.ok(findAll(tree, node => node.props.className === 'ic-dd-history-row')[0].props['aria-label'].includes(episode.peakDate));
+  hooks.reset();
+});
+
+test('latest has an honest threshold empty state for no drawdowns or repeated shallow episodes that never individually reach 10 percent', () => {
+  for (const values of [[100, 101, 102, 103], [100, 95, 100, 94, 100, 96]]) {
+    const data = drawdownHistoryData(values);
+    for (const englishMode of [false, true]) {
+      hooks.reset();
+      const render = () => hooks.render(DrawdownAnalysis, { data, englishMode }, 'latest-empty');
+      let tree = render();
+      findAll(classNode(tree, 'ic-dd-episode-tabs'), node => node.type === 'button')[2].props.onClick();
+      tree = render();
+      assert.equal(findAll(tree, node => node.type === DrawdownJourney).length, 0);
+      assert.equal(findAll(tree, node => node.props.className === 'ic-dd-history-row').length, 0);
+      const journeyText = renderToStaticMarkup(classNode(tree, 'ic-dd-journey'));
+      assert.match(journeyText, englishMode ? /No drawdown.*10%/i : /暂无达到 10% 的回撤/);
+      assert.doesNotMatch(journeyText, /ic-dd-play|ic-dd-scrubber|NaN|Infinity/);
+      assert.strictEqual(findAll(tree, node => node.type === DrawdownOverview)[0].props.data, data);
+    }
   }
   hooks.reset();
 });

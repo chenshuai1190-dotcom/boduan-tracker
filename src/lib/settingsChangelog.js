@@ -4,6 +4,17 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '投资时光机「回撤与修复」新增美元复权股价，图表与关键节点显示前高、谷底、修复或最新价格，支持点击定位。',
+      '选中日期可查看当日股价、对应前高及修复所需涨幅；「最近一次」统一筛选最大跌幅达到 10% 的回撤，取消回撤过程选项的亮色选中边框。',
+    ],
+    itemsEn: [
+      'Investment Time Machine adds USD adjusted share prices to Drawdown & Recovery, with selectable peak, trough, recovery, and latest-price milestones.',
+      'Selected dates show the share price, prior high, and gain needed to recover. Latest now selects the most recent episode whose maximum drawdown reached 10%; episode tabs use subtle selected surfaces.',
+    ],
+  },
+  {
+    ver: 'v10.7.9.554', date: '2026-10-04',
+    items: [
       '统一交易、资产、目标、设置和投资工具的输入框样式，使用柔和深灰底色，手机输入时不再出现整圈亮色边框。',
       '输入时通过底色变化提示编辑状态，桌面键盘操作保留焦点提示。',
     ],

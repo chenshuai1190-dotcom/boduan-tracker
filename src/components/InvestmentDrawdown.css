@@ -32,13 +32,25 @@
 .investment-comparison .ic-dd-overview-readout { min-height: 35px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; font-size: 11px; color: var(--ic-muted); border-bottom: 1px solid var(--ic-border); padding: 7px 0 16px; }
 .investment-comparison .ic-dd-overview-readout span { white-space: nowrap; }
 .investment-comparison .ic-dd-overview-readout b { font-weight: 400; }
+.investment-comparison .ic-dd-overview-readout > small { font-size: 11px; }
+.investment-comparison .ic-dd-price-comparison { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; width: 100%; margin-top: 5px; }
+.investment-comparison .ic-dd-price-card { min-width: 0; padding: 12px; border-radius: 12px; background: var(--ic-panel); }
+.investment-comparison .ic-dd-price-identity { color: var(--ic-text); font-size: 13px; margin-bottom: 5px; }
+.investment-comparison .ic-dd-price-card > strong { display: block; color: var(--ic-text); font-size: 24px; font-weight: 500; letter-spacing: normal; overflow-wrap: anywhere; }
+.investment-comparison .ic-dd-price-card dl { margin: 12px 0 0; }
+.investment-comparison .ic-dd-price-card dl > div { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 2px 6px; margin-top: 7px; }
+.investment-comparison .ic-dd-price-card dt { font-size: 11px; font-weight: 400; }
+.investment-comparison .ic-dd-price-card dd { margin: 0; color: var(--ic-text); font-size: 12px; font-weight: 500; overflow-wrap: anywhere; }
+.investment-comparison .ic-dd-price-basis { color: var(--ic-muted); font-size: 11px; margin-bottom: 9px; }
+.investment-comparison .ic-dd-portfolio-value { display: block; color: var(--ic-muted); font-size: 11px; margin-top: 5px; }
+.investment-comparison .ic-dd-price-unavailable { display: grid; place-items: center; min-height: 250px; color: var(--ic-muted); font-size: 12px; }
 .investment-comparison .ic-dd-journey { margin-top: 27px; scroll-margin-top: 18px; }
 .investment-comparison .ic-dd-episode-tabs { display: flex; gap: 7px; margin: 16px 0 22px; }
 .investment-comparison .ic-dd-episode-tabs button { flex: 1; min-width: 0; min-height: 44px; padding: 5px 6px; font-size: 12px; background: transparent; border: 1px solid var(--ic-border); border-radius: 9px; color: var(--ic-muted); }
-.investment-comparison .ic-dd-episode-tabs button[aria-pressed="true"] { color: var(--ic-text); background: var(--ic-panel); border-color: var(--ic-muted); }
+.investment-comparison .ic-dd-episode-tabs button[aria-pressed="true"] { color: var(--ic-text); background: var(--ic-panel); }
 .investment-comparison .ic-dd-journey-head { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
 .investment-comparison .ic-dd-eyebrow { color: var(--ic-muted); font-size: 11px; display: block; }
-.investment-comparison .ic-dd-journey-head strong { display: block; font-size: 24px; font-weight: 500; letter-spacing: -.6px; margin-top: 3px; }
+.investment-comparison .ic-dd-journey-head strong { display: block; font-size: 27px; font-weight: 500; letter-spacing: normal; margin-top: 3px; }
 .investment-comparison .ic-dd-journey-change { text-align: right; }
 .investment-comparison .ic-dd-journey-change strong { font-size: 22px; }
 .investment-comparison .ic-dd-player { display: flex; gap: 10px; align-items: center; margin-top: 10px; }
@@ -49,13 +61,14 @@
 .investment-comparison .ic-dd-player > span { margin-left: auto; color: var(--ic-muted); font-size: 11px; text-align: right; }
 .investment-comparison .ic-dd-scrubber { display: block; width: 100%; min-height: 44px; margin: 4px 0 10px; accent-color: var(--ic-text); }
 .investment-comparison .ic-dd-milestones { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px; margin-top: 7px; position: relative; }
-.investment-comparison .ic-dd-milestone { min-width: 0; border-top: 1px solid var(--ic-border); padding-top: 13px; position: relative; }
+.investment-comparison .ic-dd-milestone { min-width: 0; border: 0; border-top: 1px solid var(--ic-border); padding: 13px 0 6px; position: relative; background: transparent; text-align: left; }
+.investment-comparison .ic-dd-milestone:active { background: var(--ic-panel); }
 .investment-comparison .ic-dd-milestone::before { position: absolute; content: ''; top: -4px; width: 7px; height: 7px; border-radius: 50%; background: var(--ic-dd-gold); }
 .investment-comparison .ic-dd-milestone:nth-child(2)::before { background: var(--ic-dd-negative); }
 .investment-comparison .ic-dd-milestone:nth-child(3)::before { background: var(--ic-dd-positive); }
-.investment-comparison .ic-dd-milestone strong { display: block; font-weight: 500; font-size: 12px; margin: 5px 0; }
-.investment-comparison .ic-dd-milestone span { color: var(--ic-muted); font-size: 10px; display: block; }
-.investment-comparison .ic-dd-milestone b { display: block; font-size: 12px; font-weight: 400; }
+.investment-comparison .ic-dd-milestone strong { display: block; font-weight: 500; font-size: 18px; margin: 5px 0; letter-spacing: normal; overflow-wrap: anywhere; }
+.investment-comparison .ic-dd-milestone span, .investment-comparison .ic-dd-milestone time { color: var(--ic-muted); font-size: 11px; display: block; }
+.investment-comparison .ic-dd-milestone b { display: block; font-size: 13px; font-weight: 500; margin-top: 4px; }
 .investment-comparison .ic-dd-duration { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; margin: 20px 0 0; padding: 15px 0 20px; border-bottom: 1px solid var(--ic-border); }
 .investment-comparison .ic-dd-duration span { display: block; font-size: 11px; color: var(--ic-muted); }
 .investment-comparison .ic-dd-duration strong { font-size: 17px; font-weight: 500; display: block; margin-top: 5px; }
@@ -86,7 +99,9 @@
   .investment-comparison .ic-dd-depth { font-size: 27px; }
   .investment-comparison .ic-dd-wait { flex-direction: column; gap: 2px; }
   .investment-comparison .ic-dd-milestones { gap: 6px; }
-  .investment-comparison .ic-dd-milestone strong { font-size: 11px; }
+  .investment-comparison .ic-dd-milestone strong { font-size: 16px; }
+  .investment-comparison .ic-dd-price-card { padding: 10px; }
+  .investment-comparison .ic-dd-price-card > strong { font-size: 22px; }
   .investment-comparison .ic-dd-journey-head strong { font-size: 22px; }
   .investment-comparison .ic-dd-principal-stats strong { font-size: 18px; }
   .investment-comparison .ic-dd-play { min-width: 122px; padding: 10px 12px; }

@@ -136,8 +136,11 @@ export function buildInvestmentComparisonModel({ data, symbols = data?.symbols |
   const actualStartDate = rows[0][0].date;
   const firstYearPartial = actualStartDate > firstRegularSession(Number(actualStartDate.slice(0, 4)));
   const points = rows[0].map((row, index) => {
-    const values = {}, profits = {}, returns = {};
+    const values = {}, profits = {}, returns = {}, adjustedClosesUsd = {};
     selected.forEach((symbol, seriesIndex) => {
+      // Preserve the observed single-share price separately from simulated assets.
+      // Display currency and principal must never scale this USD adjusted close.
+      adjustedClosesUsd[symbol] = rows[seriesIndex][index].close;
       values[symbol] = index === 0 ? principal : principal * (rows[seriesIndex][index].close / rows[seriesIndex][0].close);
       profits[symbol] = values[symbol] - principal;
       returns[symbol] = (values[symbol] / principal - 1) * 100;
@@ -145,7 +148,7 @@ export function buildInvestmentComparisonModel({ data, symbols = data?.symbols |
         throw investmentComparisonError('INVALID_DATA', 'adjusted-close ratio is outside the supported numeric range');
       }
     });
-    return { index, date: row.date, time: Date.parse(`${row.date}T00:00:00Z`), year: Number(row.date.slice(0, 4)), values, profits, returns };
+    return { index, date: row.date, time: Date.parse(`${row.date}T00:00:00Z`), year: Number(row.date.slice(0, 4)), values, profits, returns, adjustedClosesUsd };
   });
   const annual = [];
   let opening = points[0].values;

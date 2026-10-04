@@ -233,6 +233,21 @@ function comparisonModel({ principal = 100, dateYear = 2020 } = {}) {
   return { symbols: ['QQQ', 'TQQQ'], principal, points, actualStartDate: points[0].date, asOfDate: points.at(-1).date };
 }
 
+function financialAnalysis(analysis) {
+  return { ...analysis, points: analysis.points.map(({ adjustedCloseUsd, peakAdjustedCloseUsd, peakDate, recoveryGainPct, ...point }) => point) };
+}
+
+function withObservedPrices(model) {
+  const prices = {
+    QQQ: [25.123456789, 37.6851851835, 20.0987654312, 25.123456789, 40.1975308624],
+    TQQQ: [12.5, 11.25, 6.25, 10, 11.875],
+  };
+  model.points.forEach((point, index) => {
+    point.adjustedClosesUsd = Object.fromEntries(model.symbols.map(symbol => [symbol, prices[symbol][index]]));
+  });
+  return model;
+}
+
 test('comparison adapter reuses aligned observations and the exact selected date window', () => {
   const source = comparisonModel({ dateYear: 2000 });
   const result = buildInvestmentDrawdownModel(source);
@@ -245,13 +260,82 @@ test('comparison adapter reuses aligned observations and the exact selected date
     assert.equal(analysis.asOfDate, source.asOfDate);
     assert.deepEqual(analysis.points.map(point => point.date), source.points.map(point => point.date));
     analysis.points.forEach((point, index) => near(point.value, source.points[index].values[symbol]));
-    assert.deepEqual(analysis, analyzeDrawdowns(
+    assert.deepEqual(financialAnalysis(analysis), analyzeDrawdowns(
       source.points.map(point => ({ date: point.date, close: point.values[symbol] })),
       { principal: source.principal, startDate: source.actualStartDate, asOfDate: source.asOfDate },
     ));
   }
   assert.equal(result.analyses.QQQ.maxDrawdownEpisode.recovered, true);
   assert.equal(result.analyses.TQQQ.maxDrawdownEpisode.recovered, false);
+});
+
+test('adjusted price metadata is independent of principal and leaves all original drawdown statistics unchanged', () => {
+  const source = withObservedPrices(comparisonModel());
+  const result = buildInvestmentDrawdownModel(source);
+  const scaled = buildInvestmentDrawdownModel(withObservedPrices(comparisonModel({ principal: 1_000_000 })));
+  for (const symbol of result.symbols) {
+    const analysis = result.analyses[symbol];
+    assert.deepEqual(financialAnalysis(analysis), analyzeDrawdowns(
+      source.points.map(point => ({ date: point.date, close: point.values[symbol] })),
+      { principal: source.principal, startDate: source.actualStartDate, asOfDate: source.asOfDate },
+    ));
+    analysis.points.forEach((point, index) => {
+      assert.equal(point.adjustedCloseUsd, source.points[index].adjustedClosesUsd[symbol]);
+      assert.equal(point.adjustedCloseUsd, scaled.analyses[symbol].points[index].adjustedCloseUsd);
+      assert.equal(point.peakAdjustedCloseUsd, scaled.analyses[symbol].points[index].peakAdjustedCloseUsd);
+      assert.equal(point.peakDate, scaled.analyses[symbol].points[index].peakDate);
+      near(point.recoveryGainPct, scaled.analyses[symbol].points[index].recoveryGainPct);
+    });
+  }
+  assert.equal(result.analyses.QQQ.points[0].adjustedCloseUsd, 25.123456789);
+  assert.equal(result.analyses.QQQ.points[2].peakAdjustedCloseUsd, 37.6851851835);
+  near(result.analyses.QQQ.points[2].recoveryGainPct, 87.5);
+});
+
+test('missing or invalid adjusted prices remain unknown and are never synthesized from valid assets', () => {
+  const missing = buildInvestmentDrawdownModel(comparisonModel());
+  for (const point of missing.analyses.QQQ.points) {
+    assert.equal(point.adjustedCloseUsd, null);
+    assert.equal(point.peakAdjustedCloseUsd, null);
+    assert.ok(point.value > 0);
+  }
+  for (const price of [null, undefined, 0, -1, NaN, Infinity, -Infinity, '25']) {
+    const source = withObservedPrices(comparisonModel());
+    source.points[1].adjustedClosesUsd.QQQ = price;
+    const result = buildInvestmentDrawdownModel(source).analyses.QQQ;
+    assert.equal(result.points[1].adjustedCloseUsd, null);
+    assert.equal(result.points[2].peakAdjustedCloseUsd, null);
+    assert.equal(result.points[2].adjustedCloseUsd, 20.0987654312);
+    near(result.points[2].recoveryGainPct, 87.5);
+    assert.deepEqual(financialAnalysis(result), financialAnalysis(missing.analyses.QQQ));
+  }
+});
+
+test('each observation keeps its own historical peak and required recovery without seeing future highs', () => {
+  const source = withObservedPrices(comparisonModel());
+  const complete = buildInvestmentDrawdownModel(source).analyses.QQQ;
+  assert.deepEqual(complete.points.map(point => point.peakDate), [
+    '2020-01-02', '2020-01-03', '2020-01-03', '2020-01-03', '2020-01-06',
+  ]);
+  assert.equal(complete.points[0].recoveryGainPct, 0);
+  near(complete.points[3].recoveryGainPct, 50);
+  for (let end = 2; end <= source.points.length; end += 1) {
+    const points = source.points.slice(0, end);
+    const prefix = buildInvestmentDrawdownModel({ ...source, points, asOfDate: points.at(-1).date });
+    assert.deepEqual(prefix.analyses.QQQ.points, complete.points.slice(0, end));
+  }
+});
+
+test('equal highs use the latest actual peak date while the following trough retains that price', () => {
+  const source = withObservedPrices(comparisonModel());
+  source.points[2].values.QQQ = source.points[1].values.QQQ;
+  source.points[2].adjustedClosesUsd.QQQ = source.points[1].adjustedClosesUsd.QQQ;
+  const result = buildInvestmentDrawdownModel(source).analyses.QQQ;
+  assert.equal(result.points[2].peakDate, source.points[2].date);
+  assert.equal(result.points[3].peakDate, source.points[2].date);
+  assert.equal(result.points[3].peakAdjustedCloseUsd, 37.6851851835);
+  assert.equal(result.points[2].recoveryGainPct, 0);
+  near(result.points[3].recoveryGainPct, 50);
 });
 
 test('principal scaling changes assets, not drawdown percentages or recovery dates', () => {
