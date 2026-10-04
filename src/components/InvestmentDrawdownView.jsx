@@ -1,7 +1,7 @@
 import React from 'react';
 import { Pause, Play, RotateCcw } from 'lucide-react';
 import { buildInvestmentDrawdownModel } from '../lib/investmentDrawdownModel.js';
-import { fullStockDetailChartWindow, normalizeStockDetailChartWindow, transformStockDetailChartWindow, stockDetailChartDragIntent } from '../lib/watchlistStockDetail.js';
+import { fullStockDetailChartWindow, normalizeStockDetailChartWindow, transformStockDetailChartWindow, stockDetailChartDragIntent, deriveStockDetailReturnToLatest } from '../lib/watchlistStockDetail.js';
 import {
   formatInvestmentAmount,
   formatInvestmentPercent,
@@ -248,13 +248,18 @@ const DrawdownOverview = React.memo(function DrawdownOverview({ data, active, co
         })}
         {markers.map(({ kind, point, label }) => {
           const px = x(point), py = y(point.adjustedCloseUsd);
-          const anchor = px > width * .7 ? 'end' : px < width * .4 ? 'start' : 'middle';
+          const anchor = kind === 'trough' ? (px > width * .55 ? 'end' : 'start')
+            : px > width * .7 ? 'end' : px < width * .4 ? 'start' : 'middle';
+          const labelX = kind === 'trough' ? px + (anchor === 'end' ? -18 : 18) : px;
           // Stagger recovery below its point; equal-price peak/recovery labels
           // otherwise collide when a long history is compressed on a phone.
           const labelY = kind === 'peak' ? Math.max(15, py - 27) : Math.min(height - bottom - (kind === 'trough' ? 42 : 26), py + 20);
           return <g key={kind} data-overview-marker={kind}>
-            <circle cx={px} cy={py} r="3.5" fill={colors[active]} />
-            <text className="ic-dd-value-label" x={px} y={labelY} textAnchor={anchor}>{label} {formatDrawdownPrice(point.adjustedCloseUsd)}<tspan x={px} dy="14">{point.date}</tspan>{kind === 'trough' && <tspan x={px} dy="14" fill={investmentChangeColor(maximumEpisode.drawdownPct, marketColorMode)}>{formatInvestmentPercent(maximumEpisode.drawdownPct)}</tspan>}</text>
+            <g className="ic-dd-marker-node" aria-hidden="true">
+              <circle className="ic-dd-marker-halo" cx={px} cy={py} r="7" fill={colors[active]} stroke={colors[active]} />
+              <circle className="ic-dd-marker-core" cx={px} cy={py} r="4" fill={colors[active]} />
+            </g>
+            <text className="ic-dd-value-label" x={labelX} y={labelY} textAnchor={anchor}>{label} {formatDrawdownPrice(point.adjustedCloseUsd)}<tspan x={labelX} dy="14">{point.date}</tspan>{kind === 'trough' && <tspan x={labelX} dy="14" fill={investmentChangeColor(maximumEpisode.drawdownPct, marketColorMode)}>{formatInvestmentPercent(maximumEpisode.drawdownPct)}</tspan>}</text>
           </g>;
         })}
         {inspecting && inWindow(readoutIndex) && <g><line x1={x(points[readoutIndex])} x2={x(points[readoutIndex])} y1={top} y2={height - bottom} className="ic-dd-inspection-line" strokeDasharray="3 4" />{validPrice(selected.points[readoutIndex]) && <circle data-overview-current={active} cx={x(points[readoutIndex])} cy={y(selected.points[readoutIndex].adjustedCloseUsd)} r="4" fill={colors[active]} />}</g>}
@@ -265,10 +270,22 @@ const DrawdownOverview = React.memo(function DrawdownOverview({ data, active, co
       <span>{points[readoutIndex].date}</span><small>{englishMode ? 'Adjusted close · USD' : '复权收盘价 · USD'}</small>
       <div className="ic-dd-price-comparison">{symbols.map(symbol => {
         const observed = analyses[symbol].points[readoutIndex];
-        // An explicitly retrospective episode outcome; the adjacent daily price,
-        // peak and drawdown remain the facts known on the selected date.
+        const latest = analyses[symbol].points.at(-1);
+        const returnToLatest = deriveStockDetailReturnToLatest(
+          { date: observed.date, close: observed.adjustedCloseUsd },
+          { date: latest.date, close: latest.adjustedCloseUsd },
+        );
+        // Qualify this episode only from observations available on the selected
+        // date. A later trough must not turn an earlier small pullback into a
+        // triggered drawdown. Once qualified, keep its retrospective outcome.
         const observedEpisode = analyses[symbol].episodes.find(episode => readoutIndex > episode.peakIndex && readoutIndex <= (episode.recoveryIndex ?? lastIndex));
-        const recoveryDate = observedEpisode ? observedEpisode.recoveryDate ?? (englishMode ? 'Unrecovered' : '尚未修复') : '—';
+        const triggered = observedEpisode && analyses[symbol].points
+          .slice(observedEpisode.peakIndex + 1, readoutIndex + 1)
+          .some(point => Number.isFinite(point.drawdownPct) && point.drawdownPct <= -HISTORY_MIN_DRAWDOWN_PCT + Number.EPSILON * 100);
+        const recoveryDate = triggered ? observedEpisode.recoveryDate : null;
+        const recoveryStatus = recoveryDate ?? (triggered ? (englishMode ? 'Unrecovered' : '尚未修复')
+          : observed.drawdownPct === 0 ? (englishMode ? 'At high' : '处于新高')
+            : observedEpisode ? (englishMode ? 'Below 10%' : '未达 10%') : '—');
         return <div className="ic-dd-price-card" data-symbol={symbol} key={symbol}>
           <div className="ic-dd-price-identity">{symbol}</div>
           <time className="ic-dd-price-date" dateTime={observed.date} aria-label={englishMode ? `Price date ${observed.date}` : `股价日期 ${observed.date}`}>{observed.date}</time>
@@ -278,7 +295,8 @@ const DrawdownOverview = React.memo(function DrawdownOverview({ data, active, co
             <div><dt>{englishMode ? 'High date' : '前高日期'}</dt><dd>{observed.peakDate ?? '—'}</dd></div>
             <div><dt>{englishMode ? 'Drawdown' : '当前回撤'}</dt><dd style={{ color: investmentChangeColor(observed.drawdownPct, marketColorMode) }}>{formatInvestmentPercent(observed.drawdownPct)}</dd></div>
             <div><dt>{englishMode ? 'Gain to high' : '修复所需涨幅'}</dt><dd style={{ color: investmentChangeColor(observed.recoveryGainPct, marketColorMode) }}>{formatInvestmentPercent(observed.recoveryGainPct)}</dd></div>
-            <div><dt>{englishMode ? 'Episode recovery' : '本段修复日'}</dt><dd data-episode-recovery={symbol}>{recoveryDate}</dd></div>
+            <div><dt>{recoveryDate ? (englishMode ? 'Episode recovery' : '本段修复日') : (englishMode ? 'Drawdown status' : '回撤状态')}</dt><dd data-episode-recovery={symbol}>{recoveryStatus}</dd></div>
+            <div><dt>{englishMode ? 'Change to latest' : '至今涨跌幅'}</dt><dd data-return-to-latest={symbol} style={{ color: investmentChangeColor(returnToLatest?.changePercent, marketColorMode) }}>{formatInvestmentPercent(returnToLatest?.changePercent)}</dd></div>
           </dl>
         </div>;
       })}</div>

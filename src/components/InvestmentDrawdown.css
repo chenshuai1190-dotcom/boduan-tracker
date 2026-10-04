@@ -28,6 +28,11 @@
 .investment-comparison .ic-dd-chart svg { display: block; width: 100%; overflow: visible; }
 .investment-comparison .ic-dd-chart text { font-family: inherit; font-size: 11px; fill: var(--ic-muted); }
 .investment-comparison .ic-dd-chart .ic-dd-value-label { font-size: 12px; font-weight: 500; fill: var(--ic-text); paint-order: stroke; stroke: var(--ic-bg); stroke-width: 4px; }
+.investment-comparison .ic-dd-marker-node { pointer-events: none; }
+.investment-comparison .ic-dd-marker-core { stroke: var(--ic-bg); stroke-width: 1.5px; }
+.investment-comparison .ic-dd-marker-halo { fill-opacity: .14; stroke-opacity: .34; stroke-width: 1px; transform-box: fill-box; transform-origin: center; animation: ic-dd-marker-breathe 2.8s ease-in-out infinite; }
+@keyframes ic-dd-marker-breathe { 0%, 100% { transform: scale(.85); opacity: .45; } 50% { transform: scale(1.65); opacity: .95; } }
+@media (prefers-reduced-motion: reduce) { .investment-comparison .ic-dd-marker-halo { animation: none; transform: none; opacity: .6; } }
 .investment-comparison .ic-dd-grid { stroke: var(--ic-grid); stroke-width: 1; }
 .investment-comparison .ic-dd-inspection-line,
 .investment-comparison .ic-dd-baseline { stroke: var(--ic-muted); }

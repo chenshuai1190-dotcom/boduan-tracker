@@ -723,12 +723,205 @@ test('each price card shows its own episode recovery date and shared recovery/ne
   chart.inspect(4);
   assert.equal(recovery('QQQ'), data.analyses.QQQ.episodes[1].recoveryDate, 'a later decline gets its own episode rather than the maximum-drawdown outcome');
   chart.inspect(6);
-  assert.equal(recovery('TQQQ'), 'Unrecovered');
+  assert.equal(recovery('TQQQ'), 'Below 10%');
   chart.props.englishMode = false;
-  assert.equal(recovery('TQQQ'), '尚未修复');
+  assert.equal(recovery('TQQQ'), '未达 10%');
   chart.inspect(0);
-  assert.equal(recovery('QQQ'), '—');
-  assert.equal(recovery('TQQQ'), '—');
+  assert.equal(recovery('QQQ'), '处于新高');
+  assert.equal(recovery('TQQQ'), '处于新高');
+  hooks.reset();
+});
+
+test('price-card recovery states activate only after the selected episode has reached 10 percent on the selected date', () => {
+  const data = drawdownHistoryData(
+    [100, 120, 115, 108, 105, 118, 120, 118, 121, 122],
+    [100, 120, 119, 110, 107, 118, 119, 120, 121, 122],
+  );
+  const original = structuredClone(data);
+  const qqqRecovery = data.analyses.QQQ.episodes[0].recoveryDate;
+  const tqqqRecovery = data.analyses.TQQQ.episodes[0].recoveryDate;
+  assert.notEqual(qqqRecovery, tqqqRecovery);
+  assert.ok(data.analyses.QQQ.episodes[0].drawdownPct < -10);
+  for (const englishMode of [false, true]) {
+    const chart = overviewInteraction({ data });
+    chart.props.englishMode = englishMode;
+    const below = englishMode ? 'Below 10%' : '未达 10%';
+    const high = englishMode ? 'At high' : '处于新高';
+    const assertRecovery = (symbol, expected) => {
+      const tree = chart.render();
+      const row = findAll(tree, node => node.type === 'div' && React.Children.toArray(node.props.children).some(child => child.props?.['data-episode-recovery'] === symbol))[0];
+      assert.ok(row);
+      assert.equal(findAll(row, node => node.props['data-episode-recovery'] === symbol)[0].props.children, expected);
+      assert.equal(findAll(row, node => node.type === 'dt')[0].props.children, /^\d{4}-\d{2}-\d{2}$/.test(expected)
+        ? (englishMode ? 'Episode recovery' : '本段修复日') : (englishMode ? 'Drawdown status' : '回撤状态'));
+      const card = findAll(tree, node => node.props['data-symbol'] === symbol)[0];
+      const selectedIndex = chart.area()['aria-valuenow'];
+      assert.equal(classNode(card, 'ic-dd-price-date').props.dateTime, data.analyses[symbol].points[selectedIndex].date);
+      assert.equal(findAll(card, node => node.props['data-adjusted-price'] === 'current')[0].props.children, `$${data.analyses[symbol].points[selectedIndex].adjustedCloseUsd.toFixed(2)}`);
+    };
+    chart.inspect(0);
+    assertRecovery('QQQ', high); assertRecovery('TQQQ', high);
+    chart.inspect(1);
+    assertRecovery('QQQ', high); assertRecovery('TQQQ', high);
+    chart.inspect(2);
+    assertRecovery('QQQ', below); assertRecovery('TQQQ', below);
+    chart.inspect(3);
+    assertRecovery('QQQ', qqqRecovery); assertRecovery('TQQQ', below);
+    chart.inspect(4);
+    assertRecovery('QQQ', qqqRecovery); assertRecovery('TQQQ', tqqqRecovery);
+    chart.inspect(5);
+    assertRecovery('QQQ', qqqRecovery); assertRecovery('TQQQ', tqqqRecovery);
+    chart.inspect(6);
+    assertRecovery('QQQ', qqqRecovery); assertRecovery('TQQQ', tqqqRecovery);
+    chart.inspect(7);
+    assertRecovery('QQQ', below); assertRecovery('TQQQ', tqqqRecovery);
+    chart.inspect(8);
+    assertRecovery('QQQ', high); assertRecovery('TQQQ', high);
+    chart.inspect(9);
+    assertRecovery('QQQ', high); assertRecovery('TQQQ', high);
+  }
+  assert.deepEqual(data, original);
+  hooks.reset();
+});
+
+test('price-card unrecovered status uses raw 10 percent precision and survives a rebound after qualification', () => {
+  const data = drawdownHistoryData(
+    [100, 120, 115, 108.012, 108, 119],
+    [100, 120, 109, 108.0012, 108.00000000000001, 119.5],
+  );
+  const original = structuredClone(data);
+  for (const symbol of data.symbols) {
+    const analysis = data.analyses[symbol];
+    assert.equal(analysis.currentEpisode.recovered, false);
+    assert.ok(analysis.points[3].drawdownPct > -10);
+    assert.equal(analysis.points[3].drawdownPct.toFixed(1), '-10.0', 'display rounding cannot qualify a shallower observation');
+    assert.ok(Math.abs(analysis.points[4].drawdownPct + 10) <= Number.EPSILON * 100);
+    assert.ok(analysis.points[5].drawdownPct > -1);
+  }
+  for (const englishMode of [false, true]) {
+    const chart = overviewInteraction({ data });
+    chart.props.englishMode = englishMode;
+    const statuses = () => data.symbols.map(symbol => findAll(chart.render(), node => node.props['data-episode-recovery'] === symbol)[0].props.children);
+    chart.inspect(3);
+    assert.deepEqual(statuses(), Array(2).fill(englishMode ? 'Below 10%' : '未达 10%'));
+    chart.inspect(4);
+    assert.deepEqual(statuses(), Array(2).fill(englishMode ? 'Unrecovered' : '尚未修复'));
+    chart.inspect(5);
+    assert.deepEqual(statuses(), Array(2).fill(englishMode ? 'Unrecovered' : '尚未修复'));
+    chart.inspect(2);
+    assert.deepEqual(statuses(), Array(2).fill(englishMode ? 'Below 10%' : '未达 10%'), 'looking back before the trigger must not inherit the future trough state');
+  }
+  assert.deepEqual(data, original);
+  hooks.reset();
+});
+
+test('price-card change to latest follows each selected share price with bilingual labels and the configured market colors', () => {
+  const data = drawdownHistoryData([100, 120, 90, 108, 120, 115], [100, 130, 65, 125, 130, 120]);
+  const original = structuredClone(data);
+  for (const englishMode of [false, true]) {
+    for (const [marketColorMode, gain, loss] of [['redUpGreenDown', '#ff4b1f', '#34d399'], ['greenUpRedDown', '#34d399', '#ff4b1f']]) {
+      const chart = overviewInteraction({ data });
+      Object.assign(chart.props, { englishMode, marketColorMode });
+      const assertReturns = (expected, colors) => {
+        const tree = chart.render();
+        data.symbols.forEach((symbol, index) => {
+          const card = findAll(tree, node => node.props['data-symbol'] === symbol)[0];
+          const lastRow = React.Children.toArray(findAll(card, node => node.type === 'dl')[0].props.children).at(-1);
+          const reading = findAll(lastRow, node => node.props['data-return-to-latest'] === symbol)[0];
+          assert.ok(reading, 'change to latest belongs at the bottom of each stock card');
+          assert.equal(findAll(lastRow, node => node.type === 'dt')[0].props.children, englishMode ? 'Change to latest' : '至今涨跌幅');
+          assert.equal(reading.props.children, expected[index]);
+          assert.equal(reading.props.style.color, colors[index]);
+          assert.equal(classNode(card, 'ic-dd-price-date').props.dateTime, data.analyses[symbol].points[chart.area()['aria-valuenow']].date);
+        });
+      };
+      chart.assertSelection(2);
+      assertReturns(['+27.8%', '+84.6%'], [gain, gain]);
+      chart.inspect(3);
+      assertReturns(['+6.5%', '-4.0%'], [gain, loss]);
+      chart.inspect(1);
+      assertReturns(['-4.2%', '-7.7%'], [loss, loss]);
+      chart.area().onKeyDown({ key: 'ArrowRight', preventDefault() {} });
+      assertReturns(['+27.8%', '+84.6%'], [gain, gain]);
+      classNode(chart.render(), 'ic-dd-reset-inspection').props.onClick();
+      chart.assertSelection(5, false);
+      assertReturns(['0.0%', '0.0%'], ['#969faf', '#969faf']);
+    }
+  }
+  assert.deepEqual(data, original);
+  hooks.reset();
+});
+
+test('zoomed price-card change to latest keeps the full-history endpoint beyond the viewport and the episode recovery', () => {
+  const chart = zoomOverview();
+  const readings = () => chart.props.data.symbols.map(symbol => findAll(chart.render(), node => node.props['data-return-to-latest'] === symbol)[0].props.children);
+  chart.assertSelection(60);
+  assert.deepEqual(readings(), ['+175.0%', '+161.5%']);
+  chart.pinch([.4, .6], [.1, .9]);
+  assert.ok(chart.window().end < chart.props.data.analyses.QQQ.maxDrawdownEpisode.recoveryIndex);
+  assert.ok(chart.window().end < chart.props.data.analyses.QQQ.points.length - 1);
+  assert.deepEqual(readings(), ['+175.0%', '+161.5%']);
+  chart.inspect(65);
+  chart.assertSelection(65);
+  assert.deepEqual(readings(), ['+158.8%', '+47.8%']);
+  classNode(chart.render(), 'ic-dd-reset-zoom').props.onClick();
+  chart.assertSelection(65);
+  assert.deepEqual(readings(), ['+158.8%', '+47.8%']);
+  classNode(chart.render(), 'ic-dd-reset-inspection').props.onClick();
+  chart.assertSelection(120, false);
+  assert.deepEqual(readings(), ['0.0%', '0.0%']);
+  hooks.reset();
+});
+
+test('price-card change to latest requires both real prices and never substitutes portfolio assets or the last available earlier close', () => {
+  for (const missing of [null, undefined, 0, Number.NaN]) {
+    const model = comparisonModel();
+    model.points[2].adjustedClosesUsd.QQQ = missing;
+    model.points.at(-1).adjustedClosesUsd.TQQQ = missing;
+    const data = buildInvestmentDrawdownModel(model);
+    assert.ok(data.analyses.QQQ.points[2].value > 0);
+    assert.ok(data.analyses.TQQQ.points.at(-1).value > 0);
+    assert.equal(data.analyses.TQQQ.points.at(-2).adjustedCloseUsd, 65);
+    const chart = overviewInteraction({ data });
+    const readings = () => data.symbols.map(symbol => {
+      const row = findAll(chart.render(), node => node.props['data-return-to-latest'] === symbol)[0];
+      return [row.props.children, row.props.style.color];
+    });
+    chart.assertSelection(2);
+    assert.deepEqual(readings(), [['—', '#969faf'], ['—', '#969faf']]);
+    chart.inspect(1);
+    assert.deepEqual(readings(), [['-4.2%', '#34d399'], ['—', '#969faf']]);
+    classNode(chart.render(), 'ic-dd-reset-inspection').props.onClick();
+    assert.deepEqual(readings(), [['0.0%', '#969faf'], ['—', '#969faf']], 'a missing final close remains unknown even when its date is selected');
+  }
+  hooks.reset();
+});
+
+test('price-card change to latest survives principal changes and currency switches including unavailable FX', () => {
+  const initial = comparisonModel();
+  const original = structuredClone(initial);
+  for (const principalFactor of [1, 25]) {
+    const model = structuredClone(initial);
+    model.principal *= principalFactor;
+    for (const point of model.points) for (const symbol of model.symbols) point.values[symbol] *= principalFactor;
+    const chart = overviewInteraction();
+    let previousData;
+    for (const [displayCurrency, displayRate] of [['USD', 1], ['CNY', 7.2], ['CNY', null], ['CNY', 0]]) {
+      const view = hooks.render(HookInvestmentDrawdownView, { model, englishMode: true, displayCurrency, displayRate }, 'return-latest-view');
+      const analysis = hooks.render(DrawdownAnalysis, view.props, 'return-latest-analysis');
+      const overview = findAll(analysis, node => node.type === DrawdownOverview)[0];
+      if (previousData) assert.strictEqual(overview.props.data, previousData, 'currency switches retain the same USD price history');
+      Object.assign(chart.props, overview.props);
+      if (!previousData) chart.inspect(3);
+      chart.assertSelection(3);
+      const readings = model.symbols.map(symbol => findAll(chart.render(), node => node.props['data-return-to-latest'] === symbol)[0].props.children);
+      assert.deepEqual(readings, ['+6.5%', '+50.0%']);
+      assert.equal(chart.props.data.analyses.QQQ.points[3].value, 1080000 * principalFactor);
+      assert.equal(chart.props.data.analyses.QQQ.points[3].adjustedCloseUsd, 108);
+      previousData = overview.props.data;
+    }
+  }
+  assert.deepEqual(initial, original);
   hooks.reset();
 });
 
