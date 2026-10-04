@@ -66,22 +66,15 @@
 .investment-comparison .ic-dd-principal-stats span { display: block; font-size: 11px; color: var(--ic-muted); }
 .investment-comparison .ic-dd-principal-stats strong { display: block; font-size: 20px; font-weight: 500; margin: 5px 0; }
 .investment-comparison .ic-dd-principal-stats small { font-size: 11px; color: var(--ic-muted); }
-.investment-comparison .ic-dd-history,
-.investment-comparison .ic-dd-method { border-top: 1px solid var(--ic-border); }
-.investment-comparison .ic-dd-history summary,
-.investment-comparison .ic-dd-method summary { display: flex; align-items: center; justify-content: space-between; cursor: pointer; min-height: 54px; list-style: none; font-size: 14px; }
-.investment-comparison .ic-dd-history summary::after,
-.investment-comparison .ic-dd-method summary::after { content: '+'; color: var(--ic-muted); font-size: 18px; }
-.investment-comparison .ic-dd-history[open] > summary::after,
-.investment-comparison .ic-dd-method[open] > summary::after { content: '−'; }
+.investment-comparison .ic-dd-history { border-top: 1px solid var(--ic-border); }
+.investment-comparison .ic-dd-history summary { display: flex; align-items: center; justify-content: space-between; cursor: pointer; min-height: 54px; list-style: none; font-size: 14px; }
+.investment-comparison .ic-dd-history summary::after { content: '+'; color: var(--ic-muted); font-size: 18px; }
+.investment-comparison .ic-dd-history[open] > summary::after { content: '−'; }
 .investment-comparison .ic-dd-history summary > span { margin-left: auto; margin-right: 14px; color: var(--ic-muted); font-size: 11px; white-space: nowrap; }
 .investment-comparison .ic-dd-history-row { display: flex; width: 100%; text-align: left; align-items: center; justify-content: space-between; gap: 12px; border: 0; border-top: 1px solid var(--ic-grid); background: transparent; padding: 13px 0; min-height: 54px; }
 .investment-comparison .ic-dd-history-row strong { display: block; font-size: 13px; font-weight: 400; }
 .investment-comparison .ic-dd-history-row small { font-size: 11px; color: var(--ic-muted); }
 .investment-comparison .ic-dd-history-row > div:last-child { text-align: right; }
-.investment-comparison .ic-dd-method { margin-top: 6px; }
-.investment-comparison .ic-dd-method summary { font-size: 12px; color: var(--ic-muted); }
-.investment-comparison .ic-dd-method p { color: var(--ic-muted); font-size: 11px; line-height: 1.8; }
 .investment-comparison .ic-dd-empty { padding: 30px 0; color: var(--ic-muted); font-size: 12px; }
 @media (min-width:600px) {
   .investment-comparison .ic-dd-metric { padding: 16px 20px; }

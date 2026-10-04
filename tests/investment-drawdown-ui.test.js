@@ -47,7 +47,7 @@ test('drawdown view renders real model outcomes, principal risk and bilingual co
     assert.match(html, /2026-01-05/); assert.match(html, /2026-01-06/); assert.match(html, /2026-01-08/);
     assert.match(html, englishMode ? /Maximum drawdown/ : /区间最大回撤/);
     assert.match(html, englishMode ? /Looking only at the initial principal/ : /如果只看投入本金/);
-    assert.match(html, englishMode ? /Drawdown calculation methodology/ : /回撤计算口径/);
+    assert.doesNotMatch(html, /ic-dd-method|Drawdown calculation methodology|回撤计算口径/);
     assert.match(html, englishMode ? /Drawdown replay progress/ : /回撤回放进度/);
     assert.doesNotMatch(html, /NaN|Infinity|undefined|class="ic-header"|class="ic-settings"|<h1/);
   }

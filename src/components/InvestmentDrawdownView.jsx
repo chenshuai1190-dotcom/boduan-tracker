@@ -283,11 +283,6 @@ function DrawdownAnalysis({ data, englishMode, marketColorMode = 'redUpGreenDown
       {episodes.length > 8 && <p className="ic-dd-empty">{englishMode ? 'The latest eight episodes are shown by starting date.' : '按开始日期展示最近 8 段。'}</p>}
       {episodes.length === 0 && <p className="ic-dd-empty">{englishMode ? 'No drawdown episodes reached 10% in this period.' : '这个区间没有达到 10% 的回撤记录。'}</p>}
     </details>
-    <details className="ic-dd-method"><summary>{englishMode ? 'Drawdown calculation methodology' : '回撤计算口径'}</summary>
-      <p>{englishMode ? 'Drawdown is the decline from a previous high in adjusted daily closing prices within the selected period. Recovery means reaching that high again, not merely recovering the original principal. These are shown separately.' : '回撤是相对所选区间内此前最高复权收盘价的跌幅；修复指重新达到该高点，不等于回到最初投入本金。这里分别展示两种口径。'}</p>
-      <p>{englishMode ? 'Durations use calendar days: high to trough is the decline, trough to first recovery is the rebound, and high to recovery is the total elapsed time. Unrecovered episodes are measured only through the last observed date; future recovery dates are not predicted.' : '等待按日历天计算：高点到谷底为下跌期，谷底到首次修复为反弹期；高点到修复为完整历时。未修复只计算到数据截止日，不预测未来日期。'}</p>
-      <p>{englishMode ? 'Both views reuse the same adjusted daily history and common trading days. Portfolio values include the initial principal; returns are measured against principal, while drawdowns are measured against the previous high. This is a one-time investment with fractional shares, excluding taxes, fees and exchange-rate changes. Missing and pre-listing prices are not fabricated.' : '两个视图复用同一份复权日线和共同交易日。资产金额包含投入本金；收益以本金为基准，回撤以此前高点为基准。按等额一次投入、允许碎股计算，不计税费与汇率；上市前及缺失数据不补造。'}</p>
-    </details>
   </div>;
 }
 

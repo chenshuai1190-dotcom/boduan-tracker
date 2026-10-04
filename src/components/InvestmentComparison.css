@@ -82,9 +82,9 @@
 .investment-comparison .ic-play-button { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; min-width: 148px; border: 0; border-radius: 24px; padding: 9px 23px; background: #eef1f8; color: #121822; font-weight: 500; }
 .investment-comparison .ic-speed { min-height: 44px; padding: 8px; border: 0; outline: none; background: var(--quote-field-bg); color: var(--ic-muted); font-size: 13px; }
 .investment-comparison .ic-annual { border-top: 1px solid var(--ic-border); padding-top: 2px; }
-.investment-comparison .ic-annual summary, .investment-comparison .ic-methodology summary { display: flex; align-items: center; justify-content: space-between; min-height: 52px; list-style: none; cursor: pointer; font-weight: 500; }
+.investment-comparison .ic-annual summary { display: flex; align-items: center; justify-content: space-between; min-height: 52px; list-style: none; cursor: pointer; font-weight: 500; }
 .investment-comparison summary::-webkit-details-marker { display: none; }
-.investment-comparison .ic-annual summary::after, .investment-comparison .ic-methodology summary::after { content: '+'; color: var(--ic-muted); font-size: 20px; font-weight: 400; }
+.investment-comparison .ic-annual summary::after { content: '+'; color: var(--ic-muted); font-size: 20px; font-weight: 400; }
 .investment-comparison details[open] > summary::after { content: '−'; }
 .investment-comparison .ic-table { width: 100%; table-layout: fixed; border-collapse: collapse; }
 .investment-comparison .ic-table th { text-align: right; color: var(--ic-muted); font-weight: 400; font-size: 11px; padding: 0 0 10px; }
@@ -95,10 +95,6 @@
 .investment-comparison .ic-table small { display: block; font-size: 11px; margin-top: 3px; white-space: nowrap; }
 .investment-comparison .ic-table td:first-child small { white-space: normal; }
 .investment-comparison .ic-more { width: 100%; min-height: 44px; border: 0; border-top: 1px solid var(--ic-grid); background: transparent; color: var(--ic-muted); font-size: 12px; }
-.investment-comparison .ic-source { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 20px 0 10px; color: var(--ic-muted); font-size: 11px; }
-.investment-comparison .ic-methodology { border-top: 1px solid var(--ic-border); color: var(--ic-muted); font-size: 11px; }
-.investment-comparison .ic-methodology summary { min-height: 44px; font-weight: 400; }
-.investment-comparison .ic-methodology p { margin: 0 0 10px; line-height: 1.8; }
 .investment-comparison .ic-loading { display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 440px; text-align: center; color: var(--ic-muted); font-size: 13px; }
 .ic-sheet-overlay { position: fixed; inset: 0; z-index: 160; display: flex; align-items: flex-end; justify-content: center; background: rgb(0 0 0 / .65); backdrop-filter: blur(3px); }
 .investment-comparison .ic-picker { display: flex; flex-direction: column; width: min(100%,540px); max-height: calc(100% - 20px); padding: 14px 22px max(20px,env(safe-area-inset-bottom)); border: 1px solid var(--ic-border); border-bottom: 0; border-radius: 25px 25px 0 0; background: var(--ic-panel); }

@@ -193,8 +193,8 @@ test('investment search and data loading retain authentication and isolated requ
   assert.ok(pageSource.includes('import.meta.env.DEV && previewSource?.load'));
   assert.ok(pageSource.includes('role="dialog"') && pageSource.includes('aria-modal="true"'));
   assert.equal(/stock_trades|insertTrade|upsertSettings|service_role/.test(chartSource + pageSource), false);
-  assert.ok(pageSource.includes('EODHD · 复权日线') && pageSource.includes('EODHD · Adjusted daily closes'));
-  assert.ok(pageSource.includes('计算口径') && pageSource.includes('Calculation method'));
+  assert.doesNotMatch(pageSource, /ic-source|ic-currency-note|EODHD ·|金额按系统当前汇率|Amounts use the current system rate/);
+  assert.doesNotMatch(pageSource, /ic-methodology|计算口径|Calculation method/);
 });
 
 test('investment playback defaults to 0.2x and retains a slower 0.1x option without rounding the speed', () => {
