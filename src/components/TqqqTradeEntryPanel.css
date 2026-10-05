@@ -19,10 +19,11 @@
 .tqqq-entry-input:focus { background: var(--quote-field-focus-bg); box-shadow: var(--quote-field-focus-shadow); }
 .tqqq-entry-date { margin-top: 14px; }
 .tqqq-entry-date input { font-size: 16px; }
-.tqqq-entry-amount { padding: 12px 0 0; border-top: 1px solid rgb(255 255 255 / .075); }
+.tqqq-entry-amount { padding: 12px 0 0; }
 .tqqq-entry-amount-value { margin-top: 6px; color: var(--tqqq-entry-amount-color, #ededf0); font-size: clamp(25px, 7vw, 30px); font-weight: 400; line-height: 1.25; overflow-wrap: anywhere; }
 .tqqq-entry-amount-decimal { color: var(--tqqq-entry-amount-color, #85858f); font-size: .64em; }
 .tqqq-entry-section { padding-top: 18px; border-top: 1px solid rgb(255 255 255 / .075); }
+.tqqq-entry-market { border-top: 0; }
 .tqqq-entry-section + .tqqq-entry-section { margin-top: 20px; }
 .tqqq-entry-section-heading { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 10px; margin-bottom: 14px; }
 .tqqq-entry-section-title { color: #dedee5; font-size: 15px; font-weight: 400; line-height: 1.5; }

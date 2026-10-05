@@ -1,4 +1,4 @@
-.tqqq-rsi-reference { min-width: 0; padding: 15px 0 0; color: #92929c; border-top: 1px solid #2a2b2e; letter-spacing: normal; font-variant-numeric: tabular-nums; }
+.tqqq-rsi-reference { min-width: 0; padding: 15px 0 0; color: #92929c; letter-spacing: normal; font-variant-numeric: tabular-nums; }
 .tqqq-rsi-reference-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; min-width: 0; color: #b4b4bd; font-size: 12px; line-height: 18px; }
 .tqqq-rsi-reference-method { color: #7d7d87; font-size: 10px; }
 .tqqq-rsi-reference-main { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; margin-top: 6px; }
