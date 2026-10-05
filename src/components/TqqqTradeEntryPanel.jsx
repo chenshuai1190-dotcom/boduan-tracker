@@ -279,9 +279,11 @@ export default function TqqqTradeEntryPanel({
           <h3 id="tqqq-trade-check-title" className="tqqq-entry-section-title">
             {side === 'sell' ? tt('trades.tqqq.sellCheck', '卖出前检查') : tt('trades.tqqq.tradeCheck', '交易前检查')}
           </h3>
-          <span className={`text-[10px] ${preview.overLimit ? 'text-[#ff6570]' : 'text-white/[0.42]'}`}>
-            {side === 'sell' ? tt('trades.tqqq.sellNoLimit', '卖出不受10%仓位提醒影响') : tt('trades.tqqq.hardLimit', '纪律提醒:TQQQ 10%')}
-          </span>
+          {side === 'sell' && (
+            <span className={`text-[10px] ${preview.overLimit ? 'text-[#ff6570]' : 'text-white/[0.42]'}`}>
+              {tt('trades.tqqq.sellNoLimit', '卖出不受10%仓位提醒影响')}
+            </span>
+          )}
         </div>
 
         <div className="tqqq-entry-check" data-over-limit={preview.overLimit || preview.hardBlocked} data-warning-pulse={preview.overLimit && !preview.hardBlocked}>
