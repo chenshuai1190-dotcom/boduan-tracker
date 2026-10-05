@@ -1,0 +1,6 @@
+.stock-rsi-reference[data-status="oversold"] .tqqq-rsi-reference-dot,
+.stock-rsi-reference[data-status="oversold"] .tqqq-rsi-reference-status { color: var(--tqqq-rsi-low-color); }
+.stock-rsi-reference[data-status="overbought"] .tqqq-rsi-reference-dot,
+.stock-rsi-reference[data-status="overbought"] .tqqq-rsi-reference-status,
+.stock-rsi-reference[data-status="strongly-overbought"] .tqqq-rsi-reference-dot,
+.stock-rsi-reference[data-status="strongly-overbought"] .tqqq-rsi-reference-status { color: var(--tqqq-rsi-high-color); }

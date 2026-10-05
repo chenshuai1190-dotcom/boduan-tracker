@@ -339,7 +339,7 @@ test('derives only objective VIX and QQQ references with explicit unavailable st
   assert.equal(extreme.vixSignal, 'extreme');
 });
 
-test('keeps the dedicated UI isolated to formal TQQQ while preserving generic buy and sell actions', () => {
+test('keeps TQQQ discipline isolated to formal TQQQ while preserving wave buy and sell actions', () => {
   assert.ok(disciplineSource.includes("scope === 'ledger' && normalizeStrictUserStockSymbol(symbol) === TQQQ_SYMBOL"));
   assert.ok(tradesTabSource.includes('{isTqqqTradeEntry ? ('));
   assert.ok(tradesTabSource.includes('<TqqqTradeEntryPanel'));
@@ -406,7 +406,7 @@ test('shows objective buy references only and keeps sell focused on the formal h
   const amountExportStart = panelSource.indexOf('export function TqqqTradeAmount');
   assert.ok(amountExportStart > dateStart && dateStart > panelSource.indexOf('className="tqqq-entry-fields"'), 'the date remains in the scrollable inputs while the estimate is exported separately');
   assert.doesNotMatch(panelSource.slice(0, amountExportStart), /className="tqqq-entry-amount"/, 'the scrollable form must not duplicate the fixed estimate');
-  assert.match(tradesTabSource, /footerContent=\{isTqqqTradeEntry\s*\?\s*(?:\(\s*)?<TqqqTradeAmount\b[\s\S]*?preview=\{tqqqTradePreview\}[\s\S]*?side=\{newTrade\.side\}[\s\S]*?tt=\{tt\}[\s\S]*?: null\}/, 'only the TQQQ entry opts into the fixed estimate with its existing preview');
+  assert.match(tradesTabSource, /footerContent=\{isTqqqTradeEntry\s*\?\s*<TqqqTradeAmount\b[^>]*preview=\{tqqqTradePreview\}[^>]*side=\{newTrade\.side\}[^>]*tt=\{tt\}\s*\/>\s*:\s*\(isGenericLedgerTradeEntry\s*\?\s*<GenericLedgerTradeAmount\b[^>]*draft=\{newTrade\}[^>]*tt=\{tt\}\s*\/>\s*:\s*null\)\}/, 'TQQQ keeps its discipline preview while ordinary formal entries use their own fixed estimate and wave entries remain unchanged');
   assert.ok(panelSource.includes('tqqq-trade-date-input appearance-none pl-9 pr-9 text-center'));
   assert.ok(panelSource.includes("splitCurrencyAmount(preview.amountUsd, 'USD', 2)"));
   assert.ok(panelSource.includes('{preview.inputReady ? <>{amountParts.main}<span className="tqqq-entry-amount-decimal">{amountParts.decimal}</span></> : \'—\'}'), 'an incomplete draft should not show a fabricated zero estimate');

@@ -22,10 +22,12 @@ import ActionModalCard from '../components/ActionModalCard.jsx';
 import StockReportModal from '../components/StockReportModal.jsx';
 import AccountLeverageBadge from '../components/AccountLeverageBadge.jsx';
 import AvailableCashEditor from '../components/AvailableCashEditor.jsx';
-import GenericLedgerTradeEntryPanel, { GenericLedgerTradeHeader } from '../components/GenericLedgerTradeEntryPanel.jsx';
+import GenericLedgerTradeEntryPanel, { GenericLedgerTradeAmount, GenericLedgerTradeMarketReference } from '../components/GenericLedgerTradeEntryPanel.jsx';
 import StockLogo, { stockLogoCandidates } from '../components/StockLogo.jsx';
 import TqqqTradeEntryPanel, { TQQQ_ACTION_TONE_CLASSES, TqqqTradeAmount } from '../components/TqqqTradeEntryPanel.jsx';
 import TqqqLiveRsiReference from '../components/TqqqLiveRsiReference.jsx';
+import StockLiveRsiReference from '../components/StockLiveRsiReference.jsx';
+import { deriveStockTradeMarketReference } from '../lib/stockTradeMarketReference.js';
 import TradeToolsCatalog from '../components/TradeToolsCatalog.jsx';
 import TradesPositionsReport from '../components/TradesPositionsReport.jsx';
 import '../components/PulseDot.css';
@@ -628,6 +630,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
     scope: tradeEntryScope,
   });
   const isGenericLedgerTradeEntry = tradeEntryScope === 'ledger' && !isTqqqTradeEntry;
+  const tradeReferenceSymbol = normalizeStrictUserStockSymbol(newTrade?.symbol) || '';
   const genericTradeSectionClass = 'mb-3 min-w-0 border-b border-white/10 pb-3';
   const tqqqTradePreview = React.useMemo(() => deriveTqqqTradePreview({
     stockTrades,
@@ -1886,19 +1889,9 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
         {showAddTrade && (
           <ActionModalCard
             title={tradeEntryScope === 'wave' ? tt('trades.addWaveRecord', '添加波段记录') : (newTrade.id || newTrade.editingId ? tt('trades.editTrade', '修改交易') : tt('trades.addTrade', '添加交易'))}
-            headerContent={isGenericLedgerTradeEntry ? (
-              <GenericLedgerTradeHeader
-                draft={newTrade}
-                onDraftChange={setNewTrade}
-                logoCache={logoCache}
-                cacheStockLogo={cacheStockLogo}
-                editing={Boolean(newTrade.id || newTrade.editingId)}
-                tt={tt}
-              />
-            ) : null}
             closeLabel={tt('trades.closeTradeForm', '关闭交易表单')}
             onClose={() => !tradeSubmitting && setShowAddTrade(false)}
-            widthClassName={isTqqqTradeEntry ? 'w-[calc(100vw-32px)] max-w-[440px]' : (isGenericLedgerTradeEntry ? 'w-[calc(100vw-32px)] max-w-[398px]' : 'w-[calc(100vw-24px)] max-w-md')}
+            widthClassName={isTqqqTradeEntry || isGenericLedgerTradeEntry ? 'w-[calc(100vw-32px)] max-w-[440px]' : 'w-[calc(100vw-24px)] max-w-md'}
             panelClassName={isTqqqTradeEntry
               ? 'stock-report-modal tqqq-trade-dialog'
               : (isGenericLedgerTradeEntry ? 'stock-report-modal formal-trade-dialog' : 'min-h-0')}
@@ -1906,11 +1899,11 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
               ? 'srm-content'
               : (isGenericLedgerTradeEntry ? 'srm-content' : '')}
             headerClassName={isTqqqTradeEntry || isGenericLedgerTradeEntry ? 'srm-header' : ''}
-            titleClassName={isTqqqTradeEntry ? 'srm-title' : ''}
+            titleClassName={isTqqqTradeEntry || isGenericLedgerTradeEntry ? 'srm-title' : ''}
             closeButtonClassName={isTqqqTradeEntry || isGenericLedgerTradeEntry ? 'srm-close' : ''}
-            actionGridClassName={isGenericLedgerTradeEntry ? 'grid-cols-2' : ''}
             actionClassName={isTqqqTradeEntry ? 'srm-action tqqq-trade-action' : (isGenericLedgerTradeEntry ? 'srm-action formal-trade-action' : '')}
-            footerContent={isTqqqTradeEntry ? <TqqqTradeAmount preview={tqqqTradePreview} side={newTrade.side} tt={tt} /> : null}
+            footerContent={isTqqqTradeEntry ? <TqqqTradeAmount preview={tqqqTradePreview} side={newTrade.side} tt={tt} />
+              : (isGenericLedgerTradeEntry ? <GenericLedgerTradeAmount draft={newTrade} tt={tt} /> : null)}
             actions={isTqqqTradeEntry ? [{
               key: 'tqqq-confirm',
               label: tradeSubmitting
@@ -1919,6 +1912,13 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
               disabled: tradeSubmitting || (tqqqTradePreview.inputReady && tqqqTradePreview.hardBlocked),
               onClick: () => confirmTradeSubmit(newTrade.side === 'sell' ? 'sell' : 'buy'),
               className: TQQQ_ACTION_TONE_CLASSES[newTrade.side === 'sell' ? 'sell' : 'buy'].confirm,
+            }] : isGenericLedgerTradeEntry ? [{
+              key: 'stock-confirm',
+              label: tradeSubmitting
+                ? tt('trades.saving', '保存中...')
+                : (newTrade.side === 'sell' ? tt('trades.tqqq.confirmSell', '确认卖出') : tt('trades.tqqq.confirmBuy', '确认买入')),
+              disabled: tradeSubmitting,
+              onClick: () => confirmTradeSubmit(newTrade.side === 'sell' ? 'sell' : 'buy'),
             }] : [
               { key: 'buy', label: tradeSubmitting ? tt('trades.saving', '保存中...') : tt('trades.buy', '买入'), disabled: tradeSubmitting, onClick: () => confirmTradeSubmit('buy') },
               { key: 'sell', label: tradeSubmitting ? tt('trades.saving', '保存中...') : tt('trades.sell', '卖出'), disabled: tradeSubmitting, onClick: () => confirmTradeSubmit('sell') },
@@ -1950,6 +1950,28 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                 <GenericLedgerTradeEntryPanel
                   draft={newTrade}
                   onDraftChange={setNewTrade}
+                  logoCache={logoCache}
+                  cacheStockLogo={cacheStockLogo}
+                  showMarketReference={false}
+                  referenceContent={import.meta.env.DEV && ctx.stockTradePreviewContent ? ctx.stockTradePreviewContent : (
+                    <StockLiveRsiReference
+                      key={`${ctx.user?.id || 'signed-out'}:${tradeReferenceSymbol}`}
+                      symbol={tradeReferenceSymbol}
+                      userId={ctx.user?.id}
+                      authClient={ctx.supabase?.auth}
+                      tradeDate={newTrade.date}
+                      quote={quoteBySymbol.get(tradeReferenceSymbol)}
+                      side={newTrade.side}
+                      englishMode={englishMode}
+                      renderMarketReference={quote => newTrade.side !== 'sell' ? (
+                        <GenericLedgerTradeMarketReference
+                          symbol={tradeReferenceSymbol}
+                          marketReference={deriveStockTradeMarketReference({ symbol: tradeReferenceSymbol, quote, vix, vixDataDate })}
+                          tt={tt}
+                        />
+                      ) : null}
+                    />
+                  )}
                   tt={tt}
                 />
               ) : (

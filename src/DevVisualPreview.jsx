@@ -1,5 +1,6 @@
 import React, { lazy, Suspense } from 'react';
 import { rsiLifecyclePreview } from './dev/stockRsiFixtures.js';
+import StockTradeDesignReference from './dev/StockTradeDesignReference.jsx';
 import TqqqRsiDesignPreview from './dev/TqqqRsiDesignPreview.jsx';
 import { legacyStockPnlReportPreview } from './dev/stockPnlReportPreview.js';
 import {
@@ -1943,6 +1944,13 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     focusCompoundYears();
     return () => { observer.disconnect(); window.cancelAnimationFrame(frame); };
   }, [activeTab, reviewPanel, reviewSection]);
+  const stockTradePreview = React.useMemo(() => {
+    const params = new URLSearchParams(window.location.search);
+    const side = params.get('stockTrade');
+    return side === 'buy' || side === 'sell'
+      ? { side, symbol: ['NVDA', 'MSFT', 'META', 'GOOGL'].includes(params.get('tradeSymbol')) ? params.get('tradeSymbol') : 'NVDA' }
+      : null;
+  }, []);
   const tqqqTradePreviewSide = React.useMemo(() => {
     if (typeof window === 'undefined') return '';
     const value = new URLSearchParams(window.location.search).get('tqqqTrade');
@@ -1978,7 +1986,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
   const [tradeCurrencyMode, setTradeCurrencyMode] = React.useState('CNY');
   const [tradeLookupStatus, setTradeLookupStatus] = React.useState(() => (tqqqTradePreviewSide ? 'found' : null));
   const [tradeEntryScope, setTradeEntryScope] = React.useState('ledger');
-  const [showAddTrade, setShowAddTrade] = React.useState(() => Boolean(tqqqTradePreviewSide));
+  const [showAddTrade, setShowAddTrade] = React.useState(() => Boolean(tqqqTradePreviewSide || stockTradePreview));
   const [previewConfirmModal, setPreviewConfirmModal] = React.useState(null);
   const [previewConfirmSubmitting, setPreviewConfirmSubmitting] = React.useState(false);
   const previewConfirmSubmittingRef = React.useRef(false);
@@ -1992,7 +2000,15 @@ function StandardDevVisualPreview({ initialTab = '' }) {
       shares: tqqqRsiDesignPreview ? '' : (tqqqTradePreviewSide === 'sell' ? '200' : '500'),
       batch: '第1批',
     }
-    : {
+    : stockTradePreview ? {
+      symbol: stockTradePreview.symbol,
+      name: ({ NVDA: '英伟达', MSFT: '微软', META: 'Meta Platforms', GOOGL: '谷歌' })[stockTradePreview.symbol],
+      side: stockTradePreview.side,
+      date: new Date().toISOString().slice(0, 10),
+      price: ({ NVDA: '233.95', MSFT: '517.53', META: '682.31', GOOGL: '343.24' })[stockTradePreview.symbol],
+      shares: '',
+      batch: '第1批',
+    } : {
       symbol: '',
       name: '',
       side: 'buy',
@@ -3225,6 +3241,11 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     }))
     : [mockTodayStockTrade, ...mockPnlStockTrades];
   const tradesCtx = {
+    stockTradePreviewContent: <StockTradeDesignReference
+      symbol={String(newTrade.symbol || '').trim().toUpperCase()} side={newTrade.side}
+      tradeDate={newTrade.date} englishMode={language === 'en'}
+      tt={(key, fallback, variables) => t(language, key, fallback, variables)}
+    />,
     tqqqRsiPreviewContent: tqqqTradePreviewSide && tqqqRsiDesignPreview
       ? <TqqqRsiDesignPreview side={newTrade.side} tradeDate={newTrade.date} englishMode={language === 'en'} />
       : null,

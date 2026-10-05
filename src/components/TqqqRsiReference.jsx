@@ -1,50 +1,16 @@
 import React from 'react';
-import { isRegularNyseHoliday } from '../lib/quoteRefreshPolicy.js';
+import { normalizeRsiReferenceObservation } from '../lib/rsiReferenceObservation.js';
 import { MARKET_GREEN_HEX, MARKET_RED_HEX } from '../lib/marketColorMode.js';
 import './TqqqRsiReference.css';
-
-const isRsiValue = value => typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 100;
-
-function isDateKey(value) {
-  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  const date = new Date(`${value}T00:00:00Z`);
-  return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
-}
-
-function isRegularSession(dateKey) {
-  const weekday = new Date(`${dateKey}T00:00:00Z`).getUTCDay();
-  return weekday !== 0 && weekday !== 6 && !isRegularNyseHoliday(dateKey);
-}
-
-function areConsecutiveSessions(previousAsOf, asOf) {
-  if (!isDateKey(previousAsOf) || previousAsOf >= asOf || !isRegularSession(asOf)) return false;
-  const cursor = new Date(`${asOf}T00:00:00Z`);
-  do {
-    cursor.setUTCDate(cursor.getUTCDate() - 1);
-  } while (!isRegularSession(cursor.toISOString().slice(0, 10)));
-  return cursor.toISOString().slice(0, 10) === previousAsOf;
-}
 
 // Values are supplied Wilder RSI(6) observations. The data adapter owns completed
 // session and freshness verification; this view only validates the supplied pair.
 export function getTqqqRsiReferenceState(observation) {
-  if (!isRsiValue(observation?.value) || !isDateKey(observation?.asOf)) {
-    return { value: null, asOf: null, previousValue: null, previousAsOf: null, status: 'unavailable', crossing: null };
-  }
-  const { value, asOf } = observation;
-  const hasPrevious = isRsiValue(observation.previousValue)
-    && areConsecutiveSessions(observation.previousAsOf, asOf);
-  const previousValue = hasPrevious ? observation.previousValue : null;
-  const crossing = hasPrevious && previousValue <= 30 && value > 30
-    ? 'above-30'
-    : hasPrevious && previousValue >= 70 && value < 70 ? 'below-70' : null;
+  const state = normalizeRsiReferenceObservation(observation);
+  const { value } = state;
   return {
-    value,
-    asOf,
-    previousValue,
-    previousAsOf: hasPrevious ? observation.previousAsOf : null,
-    status: value <= 30 ? 'buy-watch' : value >= 70 ? 'sell-watch' : 'neutral',
-    crossing,
+    ...state,
+    status: value === null ? 'unavailable' : value <= 30 ? 'buy-watch' : value >= 70 ? 'sell-watch' : 'neutral',
   };
 }
 

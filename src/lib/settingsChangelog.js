@@ -4,6 +4,17 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '普通股票交易窗口统一为买卖切换布局，新增当前股票 RSI(6) 参考，展示超卖、正常、超买与强超买四档状态。',
+      '市场参考显示 VIX 与当前股票距52周高点幅度；保留原有交易校验和 TQQQ 专属仓位提醒。',
+    ],
+    itemsEn: [
+      'Standard stock trades adopt the buy/sell switch layout and add the selected stock’s RSI(6), with oversold, normal, overbought, and strongly overbought states.',
+      'Market references show VIX and the selected stock’s distance from its 52-week high. Existing trade validation and TQQQ allocation reminders are preserved.',
+    ],
+  },
+  {
+    ver: 'v10.7.9.556', date: '2026-10-05',
+    items: [
       'TQQQ 正式交易新增收盘 RSI(6) 参考，显示 30／70 观察区、上一交易日数值与穿越提示。',
       '指标使用已完成收盘的复权日线；历史录入和缺失数据保留不可用，仅作观察，不改变仓位提醒或交易提交规则。',
     ],
