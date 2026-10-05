@@ -3,7 +3,10 @@ import { useStockRsiReference } from '../lib/useStockRsiReference.js';
 import StockRsiReference from './StockRsiReference.jsx';
 
 export default function StockLiveRsiReference({ symbol, userId, authClient, tradeDate, quote, side, englishMode, renderMarketReference }) {
-  const { observation, status, reason, quote: referenceQuote } = useStockRsiReference({ symbol, userId, authClient, tradeDate, quote, requestDelayMs: 500 });
+  const { observation, status, reason, quote: referenceQuote } = useStockRsiReference({
+    symbol, userId, authClient, tradeDate, quote, requestDelayMs: 500,
+    requireMarketReference: side !== 'sell' && typeof renderMarketReference === 'function',
+  });
   const unavailableLabel = status === 'loading'
     ? (englishMode ? 'Loading close data' : '正在读取收盘数据')
     : reason === 'historical-unavailable'

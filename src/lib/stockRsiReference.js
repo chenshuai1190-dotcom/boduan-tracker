@@ -2,6 +2,7 @@ import { getInvestmentComparisonExpectedCloseDate } from './investmentComparison
 import { hasStockRsiValue, validStockRsiDate } from './stockRsiSignal.js';
 import { normalizeStrictUserStockSymbol } from './symbols.js';
 import { normalizeRsiReferenceObservation } from './rsiReferenceObservation.js';
+import { deriveStockTradeMarketReference } from './stockTradeMarketReference.js';
 
 const failure = code => Object.assign(new Error(code), { code });
 const unavailable = reason => ({ status: 'unavailable', observation: null, reason });
@@ -36,6 +37,13 @@ export function normalizeStockRsiQuote(quote, { symbol, tradeDate, now = Date.no
   return { status: 'ready', reason: '', observation: { value, asOf, previousValue, previousAsOf } };
 }
 
+// RSI completeness alone does not establish that the same cached row contains
+// the provider's 52-week high and the session-appropriate reference price.
+export function canReuseStockRsiReference(quote, { requireMarketReference = false, ...options } = {}) {
+  return normalizeStockRsiQuote(quote, options).status === 'ready'
+    && (!requireMarketReference || deriveStockTradeMarketReference({ symbol: options.symbol, quote }).stockReady);
+}
+
 async function sessionFor(userId, getSession, signal) {
   if (signal?.aborted) throw failure('REQUEST_ABORTED');
   if (!userId || typeof getSession !== 'function') throw failure('AUTH_REQUIRED');
@@ -51,7 +59,7 @@ async function sessionFor(userId, getSession, signal) {
 // One modal-scoped request, using the existing authenticated ordinary-quote
 // endpoint. No global cache, watchlist mutation, retry loop, or polling.
 export async function loadStockRsiReference({ symbol, userId, getSession, quote, tradeDate, signal,
-  fetchImpl = globalThis.fetch, now = Date.now, timeoutMs = 20000 } = {}) {
+  requireMarketReference = false, fetchImpl = globalThis.fetch, now = Date.now, timeoutMs = 20000 } = {}) {
   const selectedSymbol = normalizeStrictUserStockSymbol(symbol);
   if (!selectedSymbol) return unavailable('data-unavailable');
   const readNow = () => typeof now === 'function' ? now() : now;
@@ -60,7 +68,9 @@ export async function loadStockRsiReference({ symbol, userId, getSession, quote,
   const session = await sessionFor(userId, getSession, signal);
   const existingQuote = typeof quote === 'function' ? quote() : quote;
   const reused = normalizeStockRsiQuote(existingQuote, { symbol: selectedSymbol, tradeDate, now: readNow() });
-  if (reused.status === 'ready') return { ...reused, quote: existingQuote };
+  if (canReuseStockRsiReference(existingQuote, { symbol: selectedSymbol, tradeDate, now: readNow(), requireMarketReference })) {
+    return { ...reused, quote: existingQuote };
+  }
 
   const controller = new AbortController();
   let timer;

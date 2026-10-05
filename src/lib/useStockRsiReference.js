@@ -1,18 +1,20 @@
 import { normalizeStrictUserStockSymbol } from './symbols.js';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { loadStockRsiReference, normalizeStockRsiQuote, stockRsiTradeDateReason } from './stockRsiReference.js';
+import { canReuseStockRsiReference, loadStockRsiReference, normalizeStockRsiQuote, stockRsiTradeDateReason } from './stockRsiReference.js';
+import { deriveStockTradeMarketReference } from './stockTradeMarketReference.js';
 
 const empty = (status = 'idle', reason = '') => ({ observation: null, quote: null, status, reason });
 const matchingQuote = (quote, symbol) => quote?.symbol === symbol && !quote.error && quote.stale !== true ? quote : null;
 
-export function useStockRsiReference({ active = true, symbol, userId, authClient, tradeDate, quote, requestDelayMs = 0 } = {}) {
+export function useStockRsiReference({ active = true, symbol, userId, authClient, tradeDate, quote,
+  requestDelayMs = 0, requireMarketReference = false } = {}) {
   const selectedSymbol = normalizeStrictUserStockSymbol(symbol);
   const [authRevision, setAuthRevision] = useState(0);
   const [result, setResult] = useState(null);
   const quoteRef = useRef(quote);
   quoteRef.current = quote;
   const scope = useMemo(() => ({ controller: new AbortController(), attempted: false, disposed: false,
-    revoked: false, authenticated: false, generation: 0, token: '' }), [active, selectedSymbol, userId, authClient, authRevision]);
+    revoked: false, authenticated: false, generation: 0, token: '' }), [active, selectedSymbol, userId, authClient, authRevision, requireMarketReference]);
   const dateReason = active ? stockRsiTradeDateReason(tradeDate) : '';
 
   useEffect(() => {
@@ -67,7 +69,7 @@ export function useStockRsiReference({ active = true, symbol, userId, authClient
         return value;
       };
       loadStockRsiReference({ symbol: selectedSymbol, userId, getSession, quote: () => quoteRef.current, tradeDate,
-        signal: scope.controller.signal }).then(value => {
+        requireMarketReference, signal: scope.controller.signal }).then(value => {
         if (!scope.disposed && !scope.revoked && generation === scope.generation) setResult({ scope, ...value });
       }).catch(error => {
         if (!scope.disposed && !scope.revoked && generation === scope.generation) {
@@ -76,9 +78,9 @@ export function useStockRsiReference({ active = true, symbol, userId, authClient
         }
       });
     };
-    // Typing a ticker may replace this scope before its request starts. Existing
-    // qualified close data still follows the immediate authenticated reuse path.
-    const cachedReady = normalizeStockRsiQuote(quoteRef.current, { symbol: selectedSymbol, tradeDate }).status === 'ready';
+    // Debounce ticker edits, not quote ticks: a busy symbol must not keep
+    // postponing a missing-market-field request. The loader reads the latest ref.
+    const cachedReady = canReuseStockRsiReference(quoteRef.current, { symbol: selectedSymbol, tradeDate, requireMarketReference });
     const delay = cachedReady ? 0 : Math.max(0, Number.isFinite(requestDelayMs) ? requestDelayMs : 0);
     if (!delay) {
       startRequest();
@@ -86,7 +88,7 @@ export function useStockRsiReference({ active = true, symbol, userId, authClient
     }
     const timer = setTimeout(startRequest, delay);
     return () => clearTimeout(timer);
-  }, [active, authClient, dateReason, quote, requestDelayMs, scope, selectedSymbol, tradeDate, userId]);
+  }, [active, authClient, dateReason, requestDelayMs, requireMarketReference, scope, selectedSymbol, tradeDate, userId]);
 
   if (!active) return empty();
   if (!selectedSymbol) return empty('unavailable', 'data-unavailable');
@@ -98,10 +100,16 @@ export function useStockRsiReference({ active = true, symbol, userId, authClient
   // another request, but may never bypass this scope's authentication check.
   const updated = normalizeStockRsiQuote(quote, { symbol: selectedSymbol, tradeDate });
   if (!scope.authenticated) return empty(result.status, result.reason);
-  if (updated.status === 'ready') return { ...updated, quote: matchingQuote(quote, selectedSymbol) };
+  const cachedQuote = matchingQuote(quote, selectedSymbol);
+  const fetchedQuote = matchingQuote(result.quote, selectedSymbol);
+  // Choose market data independently of RSI: an RSI-ready cache can omit the
+  // 52-week field, and must not mask the complete modal-scoped response.
+  const preferCachedQuote = updated.status === 'ready' && (!requireMarketReference
+    || deriveStockTradeMarketReference({ symbol: selectedSymbol, quote: cachedQuote }).stockReady);
+  const currentQuote = preferCachedQuote ? cachedQuote : fetchedQuote || cachedQuote;
+  if (updated.status === 'ready') return { ...updated, quote: currentQuote };
   // A valid same-symbol quote can still support the market reference when its
   // RSI history is insufficient. Keep it local to this authenticated scope.
-  const currentQuote = matchingQuote(result.quote, selectedSymbol) || matchingQuote(quote, selectedSymbol);
   if (result.status !== 'ready') return { ...empty(result.status, result.reason), quote: currentQuote };
   return { ...normalizeStockRsiQuote(result.quote, { symbol: selectedSymbol, tradeDate }), quote: currentQuote };
 }
