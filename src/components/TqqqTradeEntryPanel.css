@@ -1,12 +1,12 @@
 .tqqq-trade-dialog { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif; }
 .tqqq-entry { min-width: 0; color: #e4e4e9; font-variant-numeric: tabular-nums; letter-spacing: normal; }
 .tqqq-entry-top { display: grid; gap: 18px; }
-.tqqq-entry-identity { display: flex; align-items: center; min-width: 0; gap: 12px; }
-.tqqq-entry-logo { flex-shrink: 0; width: 44px; height: 44px; border-radius: 12px; }
+.tqqq-entry-identity { display: flex; align-items: flex-start; min-width: 0; gap: 12px; }
+.tqqq-entry-logo { flex-shrink: 0; width: 40px; height: 40px; border-radius: 11px; }
 .tqqq-entry-symbol-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
-.tqqq-entry-symbol { color: #ededf0; font-size: 23px; font-weight: 400; line-height: 1.25; }
+.tqqq-entry-symbol { color: #ededf0; font-size: 20px; font-weight: 400; line-height: 25px; }
 .tqqq-entry-tag { border-radius: 5px; background: #1b1c1e; color: #9999a2; padding: 3px 6px; font-size: 10px; }
-.tqqq-entry-name { margin-top: 4px; color: #85858f; font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; }
+.tqqq-entry-name { margin-top: 2px; color: #9797a1; font-size: 11px; line-height: 16px; overflow-wrap: anywhere; }
 .tqqq-entry-side { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; padding: 3px; border-radius: 12px; background: #191a1c; }
 .tqqq-entry-side button { min-height: 40px; border-radius: 9px; color: #85858f; font-size: 13px; font-weight: 400; }
 .tqqq-entry-side .tqqq-entry-side-selected { background: #303133; color: #ededf0; }

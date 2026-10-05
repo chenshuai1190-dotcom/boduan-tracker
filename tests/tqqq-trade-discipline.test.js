@@ -468,7 +468,7 @@ test('the shared modal adds no footer DOM when the optional slot is omitted or n
 });
 
 test('keeps TQQQ report surfaces and controlled inputs consistent while omitting the redundant lookup hint', () => {
-  assert.match(panelCss, /\.tqqq-entry-logo\s*\{[^}]*width:\s*44px;[^}]*height:\s*44px;/);
+  assert.match(panelCss, /\.tqqq-entry-logo\s*\{[^}]*width:\s*40px;[^}]*height:\s*40px;/);
   assert.match(panelCss, /\.tqqq-entry-tag\s*\{[^}]*background:\s*#1b1c1e;/);
   assert.match(panelCss, /\.tqqq-entry-side\s*\{[^}]*background:\s*#191a1c;/);
   assert.match(panelCss, /\.tqqq-entry-input\s*\{[^}]*height:\s*46px;[^}]*border:\s*1px solid transparent;[^}]*background:\s*var\(--quote-field-bg\);[^}]*font-size:\s*18px;[^}]*font-weight:\s*400;[^}]*letter-spacing:\s*normal;/);

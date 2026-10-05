@@ -1,10 +1,10 @@
 .ledger-entry-form { min-width: 0; color: #e4e4e9; font-variant-numeric: tabular-nums; letter-spacing: normal; }
 .ledger-entry-top { display: grid; gap: 18px; }
-.ledger-entry-identity { display: flex; align-items: center; min-width: 0; gap: 12px; }
-.ledger-entry-logo { width: 44px; height: 44px; flex-shrink: 0; border-radius: 12px; }
-.ledger-entry-symbol { min-width: 0; color: #ededf0; font-size: 23px; line-height: 1.25; font-weight: 400; overflow-wrap: anywhere; }
+.ledger-entry-identity { display: flex; align-items: flex-start; min-width: 0; gap: 12px; }
+.ledger-entry-logo { width: 40px; height: 40px; flex-shrink: 0; border-radius: 11px; }
+.ledger-entry-symbol { min-width: 0; color: #ededf0; font-size: 20px; line-height: 25px; font-weight: 400; overflow-wrap: anywhere; }
 .ledger-entry-symbol-empty { color: #b0b0ba; font-size: 18px; }
-.ledger-entry-name { margin-top: 4px; color: #85858f; font-size: 11px; line-height: 1.5; font-weight: 400; overflow-wrap: anywhere; }
+.ledger-entry-name { margin-top: 2px; color: #9797a1; font-size: 11px; line-height: 16px; font-weight: 400; overflow-wrap: anywhere; }
 .ledger-entry-side { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; padding: 3px; border-radius: 12px; background: #191a1c; }
 .ledger-entry-side button { min-height: 40px; border-radius: 9px; color: #85858f; font-size: 13px; font-weight: 400; }
 .ledger-entry-side .ledger-entry-side-selected { background: #303133; color: #ededf0; }
@@ -15,6 +15,7 @@
 .ledger-entry-field { display: grid; align-items: center; min-width: 0; min-height: 46px; gap: 4px; padding: 0 12px; border: 1px solid transparent; border-radius: 11px; background: var(--quote-field-bg); color: #83838d; transition: background-color .16s ease, box-shadow .16s ease; }
 .ledger-entry-field:focus-within { background: var(--quote-field-focus-bg); box-shadow: var(--quote-field-focus-shadow); }
 .ledger-entry-symbol-field { grid-template-columns: minmax(0, 1fr); width: min(100%, 168px); min-height: 38px; padding: 0 9px; border-radius: 8px; }
+.ledger-entry-symbol-field[data-has-symbol="true"] { min-height: 25px; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
 .ledger-entry-price-field { grid-template-columns: minmax(0, 1fr) 22px; padding-right: 6px; }
 .ledger-entry-shares-field { grid-template-columns: minmax(0, 1fr); }
 .ledger-entry-date-field { grid-template-columns: 18px minmax(0, 1fr) 16px; }
@@ -22,7 +23,8 @@
 .ledger-entry-input:focus { outline: none; background: transparent; box-shadow: none; }
 .ledger-entry-input::placeholder { color: #666670; font-size: 14px; }
 .ledger-entry-input::-webkit-inner-spin-button, .ledger-entry-input::-webkit-outer-spin-button { appearance: none; -webkit-appearance: none; margin: 0; }
-.ledger-entry-ticker-input { height: 36px; font-size: 23px; line-height: 1.25; text-transform: uppercase; }
+.ledger-entry-ticker-input { height: 36px; font-size: 20px; line-height: 25px; text-transform: uppercase; }
+.ledger-entry-symbol-field[data-has-symbol="true"] .ledger-entry-ticker-input { height: 25px; color: #ededf0; }
 .ledger-entry-clear { display: grid; place-items: center; width: 22px; height: 44px; border-radius: 8px; color: #8e8e98; -webkit-tap-highlight-color: transparent; }
 .ledger-entry-clear:active { color: #dddde3; }
 .ledger-entry-clear:focus-visible { outline: 1px solid #b5b5ba; outline-offset: 1px; }

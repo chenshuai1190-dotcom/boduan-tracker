@@ -38,12 +38,12 @@ export function GenericLedgerTradeHeader({ draft, logoCache, cacheStockLogo, onD
         {onDraftChange ? (
           <>
             <label htmlFor="generic-ledger-trade-symbol" className="sr-only">{tt('trades.stockTicker', '股票代码')}</label>
-            <div className={`${INPUT_SHELL_CLASS} ledger-entry-symbol-field`}>
+            <div className={`${INPUT_SHELL_CLASS} ledger-entry-symbol-field`} data-has-symbol={Boolean(symbol)}>
               <input
                 id="generic-ledger-trade-symbol"
                 type="text"
                 value={draft?.symbol || ''}
-                placeholder={tt('trades.stockTicker', '股票代码')}
+                placeholder={tt('trades.enterStockTicker', '输入股票代码')}
                 aria-label={tt('trades.stockTicker', '股票代码')}
                 autoCapitalize="characters"
                 autoComplete="off"
