@@ -1,5 +1,6 @@
 import React from 'react';
 import { isRegularNyseHoliday } from '../lib/quoteRefreshPolicy.js';
+import { MARKET_GREEN_HEX, MARKET_RED_HEX } from '../lib/marketColorMode.js';
 import './TqqqRsiReference.css';
 
 const isRsiValue = value => typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 100;
@@ -58,7 +59,6 @@ export default function TqqqRsiReference({ observation, side = 'buy', englishMod
   const isSell = side === 'sell';
   const copy = englishMode ? {
     label: `TQQQ ${isSell ? 'sell' : 'buy'} RSI(6) reference`,
-    method: 'Wilder · Daily',
     'buy-watch': 'Buy watch zone',
     'sell-watch': 'Sell watch zone',
     neutral: 'Outside watch zones',
@@ -72,7 +72,6 @@ export default function TqqqRsiReference({ observation, side = 'buy', englishMod
     close: 'Close',
   } : {
     label: `TQQQ ${isSell ? '卖出' : '买入'} RSI(6) 参考`,
-    method: 'Wilder · 日线',
     'buy-watch': '买入观察',
     'sell-watch': '卖出观察',
     neutral: '未进入参考区',
@@ -87,10 +86,10 @@ export default function TqqqRsiReference({ observation, side = 'buy', englishMod
   };
 
   return (
-    <section className="tqqq-rsi-reference" aria-label={copy.label} aria-busy={loading} data-status={state.status}>
+    <section className="tqqq-rsi-reference" aria-label={copy.label} aria-busy={loading} data-status={state.status}
+      style={{ '--tqqq-rsi-low-color': MARKET_GREEN_HEX, '--tqqq-rsi-high-color': MARKET_RED_HEX }}>
       <div className="tqqq-rsi-reference-heading">
         <span>TQQQ · RSI(6)</span>
-        <span className="tqqq-rsi-reference-method">{copy.method}</span>
       </div>
       <div className="tqqq-rsi-reference-main">
         <strong className="tqqq-rsi-reference-value" title={available ? String(state.value) : undefined}>

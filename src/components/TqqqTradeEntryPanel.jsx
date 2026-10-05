@@ -317,11 +317,11 @@ export default function TqqqTradeEntryPanel({
             </div>
             <div className="tqqq-entry-budget-reference">
               <span>{side === 'sell' ? tt('trades.tqqq.beforeSell', '卖出前') : '0%'}</span>
-              <span className={budgetLabelTone}>
-                {side === 'sell' && Number.isFinite(currentBudgetPct) && Number.isFinite(preview.afterBudgetUsage)
-                  ? `${Math.round(currentBudgetPct)}% → ${Math.round(preview.afterBudgetUsage * 100)}%`
-                  : tt('trades.tqqq.budgetLimit', '提醒线 10%')}
-              </span>
+              {side === 'sell' && Number.isFinite(currentBudgetPct) && Number.isFinite(preview.afterBudgetUsage) && (
+                <span className={budgetLabelTone}>
+                  {`${Math.round(currentBudgetPct)}% → ${Math.round(preview.afterBudgetUsage * 100)}%`}
+                </span>
+              )}
             </div>
             <div className="tqqq-entry-result"><PreviewResult preview={preview} tt={tt} /></div>
           </div>

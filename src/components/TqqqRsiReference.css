@@ -1,24 +1,27 @@
 .tqqq-rsi-reference { min-width: 0; padding: 15px 0 0; color: #92929c; letter-spacing: normal; font-variant-numeric: tabular-nums; }
 .tqqq-rsi-reference-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; min-width: 0; color: #b4b4bd; font-size: 12px; line-height: 18px; }
-.tqqq-rsi-reference-method { color: #7d7d87; font-size: 10px; }
 .tqqq-rsi-reference-main { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; margin-top: 6px; }
 .tqqq-rsi-reference-value { min-width: 0; color: #e8e8ed; font-size: 32px; font-weight: 400; line-height: 40px; }
 .tqqq-rsi-reference-status { max-width: 60%; text-align: right; color: #92929c; font-size: 12px; line-height: 18px; }
-.tqqq-rsi-reference[data-status="buy-watch"] .tqqq-rsi-reference-status,
-.tqqq-rsi-reference[data-status="sell-watch"] .tqqq-rsi-reference-status { color: #c8ab75; }
+.tqqq-rsi-reference[data-status="buy-watch"] .tqqq-rsi-reference-dot,
+.tqqq-rsi-reference[data-status="buy-watch"] .tqqq-rsi-reference-status { color: var(--tqqq-rsi-low-color); }
+.tqqq-rsi-reference[data-status="sell-watch"] .tqqq-rsi-reference-dot,
+.tqqq-rsi-reference[data-status="sell-watch"] .tqqq-rsi-reference-status { color: var(--tqqq-rsi-high-color); }
 .tqqq-rsi-reference-change { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px 8px; min-height: 17px; margin-top: 1px; color: #868690; font-size: 10px; line-height: 17px; }
 .tqqq-rsi-reference-pair { white-space: nowrap; }
 .tqqq-rsi-reference-pair > span { margin: 0 3px; color: #72727c; }
 .tqqq-rsi-reference-crossing { color: #c8ab75; }
 .tqqq-rsi-reference-scale { margin-top: 13px; }
-.tqqq-rsi-reference-track { position: relative; height: 3px; margin: 0 4px; border-radius: 2px; background: linear-gradient(to right, #5d5140 0%, #5d5140 30%, #35363b 30%, #35363b 70%, #5d5140 70%, #5d5140 100%); }
-.tqqq-rsi-reference-boundary { position: absolute; top: -2px; width: 1px; height: 7px; background: #878071; transform: translateX(-50%); }
-.tqqq-rsi-reference-dot { position: absolute; top: 50%; width: 8px; height: 8px; border: 2px solid #c8ab75; border-radius: 50%; background: #1c1d20; transform: translate(-50%, -50%); }
+.tqqq-rsi-reference-track { position: relative; height: 3px; margin: 0 4px; border-radius: 2px; background: linear-gradient(to right, var(--tqqq-rsi-low-color) 0%, var(--tqqq-rsi-low-color) 30%, #35363b 30%, #35363b 70%, var(--tqqq-rsi-high-color) 70%, var(--tqqq-rsi-high-color) 100%); }
+.tqqq-rsi-reference-boundary { position: absolute; top: -2px; width: 1px; height: 7px; background: #85858f; transform: translateX(-50%); }
+.tqqq-rsi-reference-dot { position: absolute; top: 50%; width: 8px; height: 8px; border: 2px solid currentColor; color: #92929c; border-radius: 50%; background: #1c1d20; transform: translate(-50%, -50%); }
+.tqqq-rsi-reference-dot::after { content: ''; position: absolute; inset: -5px; border-radius: 50%; background: currentColor; pointer-events: none; animation: tqqq-rsi-dot-breathe 2.4s ease-in-out infinite; }
+@keyframes tqqq-rsi-dot-breathe { 0%, 100% { opacity: .06; transform: scale(.8); } 50% { opacity: .24; transform: scale(1.2); } }
+@media (prefers-reduced-motion: reduce) { .tqqq-rsi-reference-dot::after { animation: none; opacity: .1; } }
 .tqqq-rsi-reference-ticks { position: relative; height: 15px; margin: 7px 4px 0; color: #797983; font-size: 10px; line-height: 15px; }
 .tqqq-rsi-reference-ticks > span { position: absolute; top: 0; transform: translateX(-50%); }
 .tqqq-rsi-reference-ticks > span:first-child { left: 0; transform: none; }
 .tqqq-rsi-reference-ticks > span:last-child { right: 0; transform: none; }
 .tqqq-rsi-reference-thresholds { display: flex; justify-content: space-between; gap: 12px; margin-top: 5px; color: #85858f; font-size: 11px; line-height: 17px; }
 .tqqq-rsi-reference-thresholds > span:last-child { text-align: right; }
-.tqqq-rsi-reference-thresholds > span[data-selected="true"] { color: #c2b398; }
 .tqqq-rsi-reference-asof { margin-top: 7px; color: #777781; font-size: 10px; line-height: 16px; }
