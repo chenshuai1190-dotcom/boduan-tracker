@@ -4,6 +4,17 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      'TQQQ 正式交易新增收盘 RSI(6) 参考，显示 30／70 观察区、上一交易日数值与穿越提示。',
+      '指标使用已完成收盘的复权日线；历史录入和缺失数据保留不可用，仅作观察，不改变仓位提醒或交易提交规则。',
+    ],
+    itemsEn: [
+      'TQQQ formal trades add a closing RSI(6) reference with 30/70 watch zones, the previous session’s value, and threshold crossings.',
+      'Uses adjusted daily prices from completed sessions. Historical entries and missing data remain unavailable; allocation reminders and trade submission rules are unchanged.',
+    ],
+  },
+  {
+    ver: 'v10.7.9.555', date: '2026-10-04',
+    items: [
       '投资时光机「回撤与修复」新增美元复权股价，图表与关键节点显示前高、谷底、修复或最新价格，支持点击定位。',
       '选中日期可查看当日股价、对应前高及修复所需涨幅；「最近一次」统一筛选最大跌幅达到 10% 的回撤，取消回撤过程选项的亮色选中边框。',
     ],

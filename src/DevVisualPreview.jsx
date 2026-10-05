@@ -1,5 +1,6 @@
 import React, { lazy, Suspense } from 'react';
 import { rsiLifecyclePreview } from './dev/stockRsiFixtures.js';
+import TqqqRsiDesignPreview from './dev/TqqqRsiDesignPreview.jsx';
 import { legacyStockPnlReportPreview } from './dev/stockPnlReportPreview.js';
 import {
   AlertCircle,
@@ -1949,6 +1950,8 @@ function StandardDevVisualPreview({ initialTab = '' }) {
   }, []);
   const tqqqTradePreviewScrollBottom = typeof window !== 'undefined'
     && new URLSearchParams(window.location.search).get('tqqqScroll') === 'bottom';
+  const tqqqRsiDesignPreview = typeof window !== 'undefined'
+    && new URLSearchParams(window.location.search).get('tqqqRsi') === '1';
   const [marketColorMode, setMarketColorMode] = React.useState('redUpGreenDown');
   const pnlReportTooltipDate = React.useMemo(() => {
     if (typeof window === 'undefined') return '';
@@ -1985,8 +1988,8 @@ function StandardDevVisualPreview({ initialTab = '' }) {
       name: 'TQQQ',
       side: tqqqTradePreviewSide,
       date: new Date().toISOString().slice(0, 10),
-      price: '74.29',
-      shares: tqqqTradePreviewSide === 'sell' ? '200' : '500',
+      price: tqqqRsiDesignPreview ? '81.02' : '74.29',
+      shares: tqqqRsiDesignPreview ? '' : (tqqqTradePreviewSide === 'sell' ? '200' : '500'),
       batch: '第1批',
     }
     : {
@@ -3222,6 +3225,9 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     }))
     : [mockTodayStockTrade, ...mockPnlStockTrades];
   const tradesCtx = {
+    tqqqRsiPreviewContent: tqqqTradePreviewSide && tqqqRsiDesignPreview
+      ? <TqqqRsiDesignPreview side={newTrade.side} tradeDate={newTrade.date} englishMode={language === 'en'} />
+      : null,
     availableCashStatus: previewAvailableCashStatus,
     availableCashStatusReady: true,
     addTrade: async () => {},

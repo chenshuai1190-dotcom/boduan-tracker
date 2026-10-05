@@ -150,6 +150,7 @@ export default function TqqqTradeEntryPanel({
   onDraftChange,
   preview,
   marketReference,
+  referenceContent = null,
   logoCache,
   cacheStockLogo,
   tt,
@@ -329,12 +330,13 @@ export default function TqqqTradeEntryPanel({
             <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
             <span>
               <strong className="tqqq-entry-rule-title">{tt('trades.tqqq.sellRuleTitle', '卖出只校验正式持仓与可卖股数')}</strong>
-              {tt('trades.tqqq.sellRuleDesc', '不显示VIX、QQQ位置或其他买入信号,避免干扰降低风险的操作。')}
+              {tt('trades.tqqq.sellRuleDesc', 'RSI 仅供观察，不限制卖出；VIX 与 QQQ 位置仅在买入页显示。')}
             </span>
           </div>
         )}
       </section>
 
+      {referenceContent}
       {side === 'buy' && <MarketReference marketReference={marketReference} tt={tt} />}
     </div>
   );

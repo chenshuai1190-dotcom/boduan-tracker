@@ -1,4 +1,5 @@
 import { STOCK_RSI_RULES, STOCK_RSI_DIVERGENCE_VERSION, resolveStockRsiRules } from '../../src/lib/stockRsiConfig.js';
+import { isRegularNyseHoliday } from '../../src/lib/quoteRefreshPolicy.js';
 
 import { compareNumbers, confirmedPivot } from './stockRsiPivot.js';
 import { buildStockTrendMomentum, emptyStockTrendMomentum } from './stockTrendRsi.js';
@@ -94,6 +95,20 @@ function wilderSeries(rows) {
     if (i >= PERIOD) values[i] = rsiValue(gain, loss);
   }
   return values;
+}
+
+function isRegularSession(dateKey) {
+  const weekday = new Date(`${dateKey}T00:00:00Z`).getUTCDay();
+  return weekday !== 0 && weekday !== 6 && !isRegularNyseHoliday(dateKey);
+}
+
+function hasPreviousCompletedSession(previousDate, asOf) {
+  if (!isRegularSession(asOf)) return false;
+  const cursor = new Date(`${asOf}T00:00:00Z`);
+  do {
+    cursor.setUTCDate(cursor.getUTCDate() - 1);
+  } while (!isRegularSession(cursor.toISOString().slice(0, 10)));
+  return previousDate === cursor.toISOString().slice(0, 10);
 }
 
 function dailyMa30(rows) {
@@ -232,6 +247,8 @@ export function buildStockRsi(eodRows, { completedCutoffDate, config, includeTre
     period: PERIOD,
     value: null,
     asOf: null,
+    previousValue: null,
+    previousAsOf: null,
     priceBasis: 'adjusted_close',
     divergenceVersion: STOCK_RSI_DIVERGENCE_VERSION,
     divergenceState: null,
@@ -249,6 +266,15 @@ export function buildStockRsi(eodRows, { completedCutoffDate, config, includeTre
   if (rows.length < rules.RSI_WARMUP_CLOSES) return result;
   const values = wilderSeries(rows);
   result.value = values[values.length - 1];
+  // Publish a comparable preceding session only after it independently has the
+  // same 60-close warmup. Missing sessions never turn an older observation into
+  // yesterday's RSI; both values still come from this single Wilder recurrence.
+  const previousIndex = rows.length - 2;
+  if (rows.length > rules.RSI_WARMUP_CLOSES
+    && hasPreviousCompletedSession(rows[previousIndex].date, result.asOf)) {
+    result.previousValue = values[previousIndex];
+    result.previousAsOf = rows[previousIndex].date;
+  }
   if (includeTrendMomentum) {
     result.trendMomentum = buildStockTrendMomentum(rows, values, { rules, divergenceAvailable: normalized.divergenceAvailable });
   }

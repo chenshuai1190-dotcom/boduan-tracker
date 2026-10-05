@@ -1,0 +1,5 @@
+.tqqq-rsi-design-preview { margin-top: 20px; letter-spacing: normal; }
+.tqqq-rsi-design-controls { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; color: #92929c; font-size: 11px; }
+.tqqq-rsi-design-controls select { min-height: 32px; max-width: 180px; border: 1px solid transparent; border-radius: 8px; padding: 5px 25px 5px 10px; background-color: var(--quote-field-bg); color: #d8d8df; font-size: 11px; letter-spacing: normal; color-scheme: dark; }
+.tqqq-rsi-design-controls select:focus { outline: none; background-color: var(--quote-field-focus-bg); box-shadow: var(--quote-field-focus-shadow); }
+.tqqq-rsi-design-historical { margin: 8px 0 0; font-size: 11px; line-height: 1.5; color: #92929c; }

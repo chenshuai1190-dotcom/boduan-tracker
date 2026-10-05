@@ -25,6 +25,7 @@ import AvailableCashEditor from '../components/AvailableCashEditor.jsx';
 import GenericLedgerTradeEntryPanel, { GenericLedgerTradeHeader } from '../components/GenericLedgerTradeEntryPanel.jsx';
 import StockLogo, { stockLogoCandidates } from '../components/StockLogo.jsx';
 import TqqqTradeEntryPanel, { TQQQ_ACTION_TONE_CLASSES, TqqqTradeAmount } from '../components/TqqqTradeEntryPanel.jsx';
+import TqqqLiveRsiReference from '../components/TqqqLiveRsiReference.jsx';
 import TradeToolsCatalog from '../components/TradeToolsCatalog.jsx';
 import TradesPositionsReport from '../components/TradesPositionsReport.jsx';
 import '../components/PulseDot.css';
@@ -1929,6 +1930,17 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                 onDraftChange={setNewTrade}
                 preview={tqqqTradePreview}
                 marketReference={tqqqMarketReference}
+                referenceContent={import.meta.env.DEV && ctx.tqqqRsiPreviewContent ? ctx.tqqqRsiPreviewContent : (
+                  <TqqqLiveRsiReference
+                    key={ctx.user?.id || 'signed-out'}
+                    userId={ctx.user?.id}
+                    authClient={ctx.supabase?.auth}
+                    tradeDate={newTrade.date}
+                    quote={quoteBySymbol.get('TQQQ')}
+                    side={newTrade.side}
+                    englishMode={englishMode}
+                  />
+                )}
                 logoCache={logoCache}
                 cacheStockLogo={cacheStockLogo}
                 tt={tt}
