@@ -191,7 +191,7 @@ export default function TqqqTradeEntryPanel({
             <div className="tqqq-entry-symbol-row">
               <span className="tqqq-entry-symbol">TQQQ</span>
               <span className="tqqq-entry-tag">
-                {tt('trades.tqqq.toolTag', '极端行情工具')}
+                {tt('trades.tqqq.toolTag', '极端交易策略')}
               </span>
             </div>
             <div className="tqqq-entry-name">ProShares UltraPro QQQ · 3x Nasdaq-100</div>
