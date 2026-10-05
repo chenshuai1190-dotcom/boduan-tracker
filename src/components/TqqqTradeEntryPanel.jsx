@@ -99,7 +99,7 @@ function PreviewResult({ preview, tt }) {
     );
   }
   return (
-    <span className="inline-flex items-center gap-1.5 text-emerald-300">
+    <span className={`inline-flex items-center gap-1.5 ${preview.side === 'sell' ? 'text-emerald-300' : 'text-white/50'}`}>
       <CheckCircle2 className="h-3.5 w-3.5" />
       {preview.side === 'sell'
         ? tt('trades.tqqq.sellReducesRisk', '可卖股数充足,卖出降低仓位风险')

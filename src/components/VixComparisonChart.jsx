@@ -72,7 +72,7 @@ export default function VixComparisonChart({ model, symbol, englishMode = false,
         aria-valuemax={geometry.points.length - 1}
         aria-valuenow={selectedIndex ?? geometry.points.length - 1}
         aria-valuetext={selected ? `${selected.date}, VIX ${number(selected.vix)}, ${formatVixComparisonChangePercent(selected.vixDayChangePct)}, ${symbol} ${number(selected.price)} USD, ${formatVixComparisonChangePercent(selected.priceDayChangePct)}` : undefined}
-        className="cursor-crosshair select-none rounded-xl outline-none focus-visible:ring-1 focus-visible:ring-white/25"
+        className="cursor-crosshair select-none rounded-xl outline-none focus-visible:ring-1 focus-visible:ring-[#84848e]/70"
         style={{ touchAction: 'pan-y', WebkitUserSelect: 'none', WebkitTouchCallout: 'none' }}
         onPointerDown={event => {
           gestureRef.current = { id: event.pointerId, x: event.clientX, y: event.clientY, intent: 'pending' };

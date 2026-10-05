@@ -32,7 +32,7 @@
 .settings-report-row-divider { height: 1px; margin-left: 34px; background: var(--settings-line); }
 .settings-report-detail { margin: 0 2px 0 34px; padding: 0 0 20px; }
 .settings-report-option { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; min-height: 46px; padding: 10px 12px; border: 1px solid transparent; border-radius: 10px; background: #1b1c1e; color: #90919b; font-size: 13px; font-weight: 400; }
-.settings-report-option[aria-pressed="true"] { border-color: #5a5b63; background: #27282c; color: #e4e4e7; }
+.settings-report-option[aria-pressed="true"] { background: var(--quote-field-focus-bg); color: #e4e4e7; }
 .settings-report-option svg { flex-shrink: 0; }
 .settings-report-display-option { width: 100%; gap: 0; }
 .settings-report-small-button { display: inline-flex; flex-shrink: 0; align-items: center; justify-content: center; gap: 6px; min-height: 38px; padding: 8px 12px; border-radius: 9px; background: #1b1c1e; color: #b9bac2; font-size: 12px; font-weight: 400; }

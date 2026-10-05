@@ -990,7 +990,7 @@ export default function HomeTab({ ctx }) {
                 type="button"
                 aria-label={t(language, 'home.closeBenchmarkSheet', '关闭当前回撤')}
                 onClick={() => setBenchmarkMenuOpen(false)}
-                className="absolute right-0 top-[-3px] flex h-9 w-9 items-center justify-center rounded-full bg-[#1b1c1e] text-[#98989f] active:bg-[#252629] focus-visible:outline focus-visible:outline-1 focus-visible:outline-white/60"
+                className="absolute right-0 top-[-3px] flex h-9 w-9 items-center justify-center rounded-full bg-[#1b1c1e] text-[#98989f] active:bg-[#252629] focus-visible:outline focus-visible:outline-1 focus-visible:outline-[#84848e]"
               >
                 <X className="h-4 w-4" strokeWidth={1.7} />
               </button>
@@ -1018,7 +1018,7 @@ export default function HomeTab({ ctx }) {
                 type="button"
                 aria-label={t(language, 'home.sortDrawdown', '按回撤排序')}
                 onClick={() => setBenchmarkSortDirection((current) => nextHomeSignalBenchmarkSortDirection(current))}
-                className={`flex min-h-9 items-center gap-1.5 rounded-md px-1 active:bg-white/[0.04] focus-visible:outline focus-visible:outline-1 focus-visible:outline-white/60 ${benchmarkSortDirection ? 'text-white/80' : 'text-white/40'}`}
+                className={`flex min-h-9 items-center gap-1.5 rounded-md px-1 active:bg-white/[0.04] focus-visible:outline focus-visible:outline-1 focus-visible:outline-[#84848e] ${benchmarkSortDirection ? 'text-white/80' : 'text-white/40'}`}
               >
                 <span>{t(language, 'home.pullback', '回撤')}</span>
                 {benchmarkSortDirection === 'desc' ? <ArrowDown className="h-3 w-3" aria-hidden="true" />
@@ -1050,7 +1050,7 @@ export default function HomeTab({ ctx }) {
                       setBenchmarkSymbol(row.symbol);
                       setBenchmarkMenuOpen(false);
                     }}
-                    className={`flex min-h-[70px] w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors active:bg-white/[0.06] focus-visible:outline focus-visible:outline-1 focus-visible:-outline-offset-2 focus-visible:outline-white/60 ${row.selected ? 'bg-[#1b1c1e]' : 'bg-transparent'}`}
+                    className={`flex min-h-[70px] w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors active:bg-white/[0.06] focus-visible:outline focus-visible:outline-1 focus-visible:-outline-offset-2 focus-visible:outline-[#84848e] ${row.selected ? 'bg-[#1b1c1e]' : 'bg-transparent'}`}
                   >
                     <StockLogo
                       symbol={row.symbol}
@@ -1212,7 +1212,7 @@ export default function HomeTab({ ctx }) {
                   <button
                     type="button"
                     onClick={() => loadMarketMovers({ fresh: true })}
-                    className="rounded-lg border border-white/10 bg-white/[0.05] px-3 py-1.5 text-[12px] text-white/65 active:scale-95"
+                    className="quote-field-surface rounded-lg border border-transparent px-3 py-1.5 text-[12px] text-white/65 active:scale-95"
                   >
                     {t(language, 'home.marketMoversRetry', '重试')}
                   </button>

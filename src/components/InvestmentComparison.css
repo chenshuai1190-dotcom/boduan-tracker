@@ -46,7 +46,7 @@
 .investment-comparison .ic-select-control select { padding-right: 36px; }
 .investment-comparison .ic-select-control > svg { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--ic-muted); pointer-events: none; }
 .investment-comparison .ic-field input:focus, .investment-comparison .ic-field select:focus, .investment-comparison .ic-scale:focus, .investment-comparison .ic-speed:focus { outline: none; background: var(--quote-field-focus-bg); box-shadow: var(--quote-field-focus-shadow); }
-.investment-comparison input[type="range"]:focus { outline: 1px solid #5c6678; outline-offset: 1px; }
+.investment-comparison input[type="range"]:focus-visible { outline: 1px solid #5c6678; outline-offset: 1px; }
 .investment-comparison .ic-feedback { margin: -5px 0 18px; color: #c6ad7b; font-size: 12px; line-height: 1.65; }
 .investment-comparison .ic-invalid { color: #ff807a; }
 .investment-comparison .ic-error { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
@@ -126,7 +126,7 @@
 .investment-comparison .ic-results { min-height: 135px; overflow-y: auto; overscroll-behavior: contain; }
 .investment-comparison .ic-preset-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 9px; padding: 5px 0 4px; }
 .investment-comparison .ic-preset { min-width: 0; min-height: 65px; padding: 10px 12px; border: 1px solid var(--ic-border); border-radius: 12px; background: var(--ic-bg); color: var(--ic-text); text-align: left; }
-.investment-comparison .ic-preset[aria-current="true"] { border-color: #687387; }
+.investment-comparison .ic-preset[aria-current="true"] { border-color: transparent; background: var(--quote-field-focus-bg); }
 .investment-comparison .ic-preset:focus-visible { outline: 1px solid #969faf; outline-offset: 2px; }
 .investment-comparison .ic-preset-title { display: flex; align-items: center; justify-content: space-between; gap: 5px; }
 .investment-comparison .ic-preset-title strong { font-size: 16px; font-weight: 500; }
@@ -168,8 +168,7 @@
 .ic-time-machine .ic-pick-button { min-height: var(--ic-control-height); padding: 8px 11px; border-radius: 10px; border-color: rgb(255 255 255 / .075); background: #141416; }
 .ic-time-machine .ic-pick-button strong { font-size: 16px; font-weight: 400; letter-spacing: normal; }
 .ic-time-machine .ic-field input, .ic-time-machine .ic-field select { height: var(--ic-control-height); min-height: var(--ic-control-height); padding-top: 9px; padding-bottom: 9px; }
-.ic-time-machine input[type="range"]:focus, .ic-time-machine .ic-chart-touch:focus-visible { outline-color: #85858f; }
-.ic-time-machine .ic-preset[aria-current="true"] { border-color: #68686f; }
+.ic-time-machine input[type="range"]:focus-visible, .ic-time-machine .ic-chart-touch:focus-visible { outline-color: #85858f; }
 .ic-time-machine .ic-preset:focus-visible { outline-color: #85858f; }
 .ic-time-machine .ic-play-button { color: #121214; background: #e4e4e7; }
 .ic-time-machine .ic-timeline { accent-color: #e4e4e7; }

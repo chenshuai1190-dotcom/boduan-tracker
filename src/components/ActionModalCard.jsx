@@ -1,7 +1,7 @@
 import React from 'react';
 import { X } from 'lucide-react';
 
-const ACTION_MODAL_BUTTON_CLASS = 'flex h-[46px] items-center justify-center rounded-full border border-white/[0.16] bg-black/[0.18] px-2 text-[14px] font-normal tracking-normal text-white/[0.43] shadow-[inset_0_1px_0_rgba(255,255,255,0.018)] active:scale-95 disabled:cursor-not-allowed disabled:opacity-100 disabled:active:scale-100';
+const ACTION_MODAL_BUTTON_CLASS = 'quote-field-surface flex h-[46px] items-center justify-center rounded-full border border-transparent px-2 text-[14px] font-normal tracking-normal text-white/[0.43] active:scale-95 disabled:cursor-not-allowed disabled:opacity-100 disabled:active:scale-100';
 
 export default function ActionModalCard({
   title,
@@ -135,7 +135,7 @@ export default function ActionModalCard({
           <button
             type="button"
             onClick={onClose}
-            className={`flex h-[31px] w-[31px] shrink-0 items-center justify-center rounded-full border border-white/10 bg-black/[0.28] text-white/[0.67] shadow-[inset_0_1px_0_rgba(255,255,255,0.025)] active:scale-90 ${closeButtonClassName}`}
+            className={`quote-field-surface flex h-[31px] w-[31px] shrink-0 items-center justify-center rounded-full border border-transparent text-white/[0.67] active:scale-90 ${closeButtonClassName}`}
             aria-label={closeLabel}
           >
             <X className="h-3.5 w-3.5" strokeWidth={1.7} />

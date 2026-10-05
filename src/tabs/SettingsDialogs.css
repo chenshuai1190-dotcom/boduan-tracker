@@ -53,17 +53,16 @@
   box-shadow: none;
   opacity: .6;
   transform: none;
-  transition: border-color 140ms ease, opacity 140ms ease;
+  transition: background-color 140ms ease, opacity 140ms ease;
 }
 
 .settings-report-dialog .settings-report-avatar-option[aria-pressed="true"] {
-  border-color: #d0d0d6;
+  background: var(--quote-field-focus-bg);
   opacity: 1;
 }
 
 .settings-report-dialog .settings-report-avatar-option:not(:disabled):active {
-  outline: 1px solid #96969e;
-  outline-offset: 2px;
+  background: var(--quote-field-focus-bg);
   transform: none;
 }
 

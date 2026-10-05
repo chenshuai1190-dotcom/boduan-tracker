@@ -93,7 +93,7 @@
 .vmr-year-picker strong { font-size: 17px; font-weight: 400; font-variant-numeric: tabular-nums; }
 .vmr-month-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 9px; padding: 19px 0 9px; }
 .vmr-month-grid button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; min-height: 61px; border: 1px solid #ffffff09; border-radius: 9px; font-size: 14px; background: #ffffff02; }
-.vmr-month-grid button[aria-pressed=true] { border-color: #9caeca66; background: #8299be13; color: #cbd8eb; }
+.vmr-month-grid button[aria-pressed=true] { border-color: transparent; background: var(--quote-field-focus-bg); color: #cbd8eb; }
 .vmr-month-grid button small { font-size: 10px; color: #8194b3; }
 .vmr-month-range { color: #758398; margin: 10px 0 2px; font-size: 11px; text-align: center; }
 .vmr-detail-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 8px 0 21px; }

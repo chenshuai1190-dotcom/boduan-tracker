@@ -37,7 +37,7 @@ export default function EarningsCalendarPage({ ctx }) {
             type="button"
             aria-label={t(language, 'common.back', '返回')}
             onClick={closeEarningsCalendar}
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-white/[0.09] bg-white/[0.035] text-white/[0.65] active:scale-95"
+            className="quote-field-surface flex h-9 w-9 items-center justify-center rounded-full border border-transparent text-white/[0.65] active:scale-95"
           >
             <ArrowLeft className="h-[18px] w-[18px]" />
           </button>

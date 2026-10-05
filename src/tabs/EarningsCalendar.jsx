@@ -802,7 +802,7 @@ function EarningsModal({
           </button>
         </div> : null}
 
-        <div className={`${standalone ? '' : 'mt-4'} grid shrink-0 grid-cols-2 rounded-lg border border-white/[0.06] bg-white/[0.045] p-1`}>
+        <div className={`quote-field-surface ${standalone ? '' : 'mt-4'} grid shrink-0 grid-cols-2 rounded-lg border border-transparent p-1`}>
           {[
             ['calendar', t(language, 'earningsCalendar.calendarView', '日历视图')],
             ['list', t(language, 'earningsCalendar.listView', '列表视图')],
@@ -1376,7 +1376,7 @@ export default function EarningsCalendar({
           <button
             type="button"
             onClick={() => openModal('calendar')}
-            className="ml-2 flex min-w-0 items-center justify-center rounded-xl border border-white/[0.08] bg-white/[0.035] text-white/40 active:scale-[0.98]"
+            className="quote-field-surface ml-2 flex min-w-0 items-center justify-center rounded-xl border border-transparent text-white/40 active:scale-[0.98]"
             aria-label={t(language, 'earningsCalendar.calendarView', '日历视图')}
           >
             <CalendarDays className="h-5 w-5" />

@@ -35,7 +35,7 @@
 
 @media (forced-colors: active) {
   /* Inset shadows are suppressed in high contrast mode; retain its system focus cue. */
-  input:focus, select:focus, textarea:focus {
+  input:focus, select:focus, textarea:focus, .quote-field-surface:focus-visible {
     outline: 2px solid Highlight !important;
     outline-offset: 2px;
   }

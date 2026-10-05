@@ -571,7 +571,7 @@ export default function EarningsGrowthCard({
           <p className="mt-1 truncate text-[11px] text-white/[0.48]">{subtitle}</p>
         </div>
         <div
-          className="grid min-h-8 min-w-[116px] shrink-0 grid-cols-2 rounded-[11px] border border-white/[0.085] bg-white/[0.025] p-[3px]"
+          className="quote-field-surface grid min-h-8 min-w-[116px] shrink-0 grid-cols-2 rounded-[11px] border border-transparent p-[3px]"
           role="tablist"
           aria-label={english ? 'Performance period' : '业绩周期'}
         >

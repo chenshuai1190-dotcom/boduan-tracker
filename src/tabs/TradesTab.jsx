@@ -1156,7 +1156,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                 <button
                   type="button"
                   onClick={() => setWaveView('active')}
-                  className={`rounded-xl border px-2 py-2.5 text-center active:scale-[0.99] ${waveView === 'active' ? 'border-[#ff4b1f]/35 bg-[#ff4b1f]/[0.08]' : 'border-white/10 bg-white/[0.035]'}`}
+                  className={`rounded-xl border px-2 py-2.5 text-center active:scale-[0.99] ${waveView === 'active' ? 'border-[#ff4b1f]/35 bg-[#ff4b1f]/[0.08]' : 'quote-field-surface border-transparent'}`}
                   title={tt('trades.active', '进行中')}
                 >
                   <div className="text-[16px] font-normal tabular-nums text-[#ff4b1f]" style={{ fontFamily: TRADE_NUMBER_FONT }}>
@@ -1168,7 +1168,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                   type="button"
                   disabled={calmRoomCompletedCount === 0}
                   onClick={openCompletedWaves}
-                  className={`rounded-xl border px-2 py-2.5 text-center active:scale-[0.99] disabled:opacity-45 disabled:active:scale-100 ${waveView === 'completed' ? 'border-[#f6b54b]/40 bg-[#f6b54b]/10' : 'border-white/10 bg-white/[0.035]'}`}
+                  className={`rounded-xl border px-2 py-2.5 text-center active:scale-[0.99] disabled:opacity-45 disabled:active:scale-100 ${waveView === 'completed' ? 'border-[#f6b54b]/40 bg-[#f6b54b]/10' : 'quote-field-surface border-transparent'}`}
                   title={tt('trades.waveCompletedSubtitle', '已完成波段归类')}
                 >
                   <div className="text-[16px] font-normal tabular-nums text-white/80" style={{ fontFamily: TRADE_NUMBER_FONT }}>
@@ -1296,7 +1296,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                                 <button
                                   type="button"
                                   onClick={(e) => { e.stopPropagation(); saveWaveNote(w.id, ''); }}
-                                  className="shrink-0 rounded-lg border border-white/10 px-2 py-0.5 text-[10px] font-normal text-white/35 active:scale-95"
+                                  className="quote-field-surface shrink-0 rounded-lg border border-transparent px-2 py-0.5 text-[10px] font-normal text-white/35 active:scale-95"
                                 >
                                   {tt('trades.clear', '清除')}
                                 </button>
@@ -1340,7 +1340,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                                         <button
                                           type="button"
                                           onClick={(e) => { e.stopPropagation(); requestDeleteLegacyTrade(t.id); }}
-                                          className="flex h-5 w-5 items-center justify-center rounded-full border border-white/10 bg-white/[0.035] text-[10px] font-normal text-white/45 active:scale-90"
+                                          className="quote-field-surface flex h-5 w-5 items-center justify-center rounded-full border border-transparent text-[10px] font-normal text-white/45 active:scale-90"
                                           aria-label={tt('trades.delete', '删除')}
                                         >
                                           ×
@@ -1407,7 +1407,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                             e.stopPropagation();
                             setAllTradesModal({ symbol: group.symbol, name: group.name });
                           }}
-                          className="h-7 rounded-full border border-white/10 bg-white/[0.035] px-2.5 text-[11px] font-normal text-white/70 active:scale-95"
+                          className="quote-field-surface h-7 rounded-full border border-transparent px-2.5 text-[11px] font-normal text-white/70 active:scale-95"
                           title={tt('trades.viewAllTrades', '查看所有交易记录')}
                         >
                           {tt('trades.all', '全部')}
@@ -1415,7 +1415,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                         <button
                           type="button"
                           onClick={() => openWaveTradeModal(group.symbol, group.name)}
-                          className="flex h-7 w-7 items-center justify-center rounded-full border border-white/10 bg-white/[0.035] text-white/65 active:scale-95"
+                          className="quote-field-surface flex h-7 w-7 items-center justify-center rounded-full border border-transparent text-white/65 active:scale-95"
                           title={tt('trades.addSymbolWaveTrade', '添加 {{symbol}} 波段交易', { symbol: group.symbol })}
                         >
                           <Plus className="h-3.5 w-3.5" strokeWidth={2} />
@@ -1542,7 +1542,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                               <button
                                 type="button"
                                 onClick={(e) => { e.stopPropagation(); saveWaveNote(w.id, ''); }}
-                                className="shrink-0 rounded-lg border border-white/10 px-2 py-0.5 text-[10px] font-normal text-white/35 active:scale-95"
+                                className="quote-field-surface shrink-0 rounded-lg border border-transparent px-2 py-0.5 text-[10px] font-normal text-white/35 active:scale-95"
                               >
                                 {tt('trades.clear', '清除')}
                               </button>
@@ -1586,7 +1586,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                                       <button
                                         type="button"
                                         onClick={(e) => { e.stopPropagation(); requestDeleteLegacyTrade(t.id); }}
-                                        className="flex h-5 w-5 items-center justify-center rounded-full border border-white/10 bg-white/[0.035] text-[10px] font-normal text-white/45 active:scale-90"
+                                        className="quote-field-surface flex h-5 w-5 items-center justify-center rounded-full border border-transparent text-[10px] font-normal text-white/45 active:scale-90"
                                         aria-label={tt('trades.delete', '删除')}
                                       >
                                         ×
@@ -1611,7 +1611,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                       <button
                         type="button"
                         onClick={() => setExpandedWaves({ ...expandedWaves, [completedKey]: !completedOpen })}
-                        className="flex w-full items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.025] px-2.5 py-2 text-left active:bg-white/[0.045]"
+                        className="quote-field-surface flex w-full items-center justify-between gap-3 rounded-xl border border-transparent px-2.5 py-2 text-left active:bg-white/[0.045]"
                         title={tt('trades.viewCompleted', '查看已完成波段')}
                       >
                         <span className="text-[11px] font-normal text-white/75">{tt('trades.completed', '已完成')}</span>
@@ -1693,7 +1693,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                                         <button
                                           type="button"
                                           onClick={(e) => { e.stopPropagation(); saveWaveNote(w.id, ''); }}
-                                          className="shrink-0 rounded-lg border border-white/10 px-2 py-0.5 text-[10px] font-normal text-white/35 active:scale-95"
+                                          className="quote-field-surface shrink-0 rounded-lg border border-transparent px-2 py-0.5 text-[10px] font-normal text-white/35 active:scale-95"
                                         >
                                           {tt('trades.clear', '清除')}
                                         </button>
@@ -1742,7 +1742,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                                               <button
                                                 type="button"
                                                 onClick={(e) => { e.stopPropagation(); requestDeleteLegacyTrade(t.id); }}
-                                                className="flex h-5 w-5 items-center justify-center rounded-full border border-white/10 bg-white/[0.035] text-[10px] font-normal text-white/45 active:scale-90"
+                                                className="quote-field-surface flex h-5 w-5 items-center justify-center rounded-full border border-transparent text-[10px] font-normal text-white/45 active:scale-90"
                                                 aria-label={tt('trades.delete', '删除')}
                                               >
                                                 ×
@@ -1804,7 +1804,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                     <button
                       type="button"
                       onClick={() => setAllTradesModal(null)}
-                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/[0.09] bg-white/[0.035] text-white/[0.48] active:scale-95"
+                      className="quote-field-surface flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-transparent text-white/[0.48] active:scale-95"
                       aria-label={tt('trades.close', '关闭')}
                     >
                       <X className="h-4 w-4" strokeWidth={1.8} />
@@ -1838,7 +1838,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                               <button
                                 type="button"
                                 onClick={() => requestDeleteLegacyTrade(trade.id)}
-                                className="ml-auto flex h-7 w-7 items-center justify-center rounded-full border border-white/[0.08] bg-white/[0.025] text-white/[0.35] active:scale-90"
+                                className="quote-field-surface ml-auto flex h-7 w-7 items-center justify-center rounded-full border border-transparent text-white/[0.35] active:scale-90"
                                 title={tt('trades.deleteThis', '删除这条')}
                               >
                                 <Trash2 className="h-3.5 w-3.5" strokeWidth={1.6} />

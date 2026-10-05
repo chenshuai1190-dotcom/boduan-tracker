@@ -24,8 +24,7 @@
 .pnl-share-themes { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 22px; }
 .pnl-share-theme { display: flex; flex-direction: column; align-items: stretch; gap: 8px; min-width: 0; padding: 0; border: 0; border-radius: 10px; background: transparent; color: #85858d; font-size: 11px; line-height: 17px; text-align: center; }
 .pnl-share-theme-swatch { position: relative; display: block; height: 48px; overflow: hidden; border-radius: 9px; outline: 1px solid rgb(255 255 255 / .10); outline-offset: 0; }
-.pnl-share-theme[aria-pressed="true"] { color: #e4e4e7; }
-.pnl-share-theme[aria-pressed="true"] .pnl-share-theme-swatch { outline-color: #c9c9d0; outline-offset: 2px; }
+.pnl-share-theme[aria-pressed="true"] { background: var(--quote-field-focus-bg); color: #e4e4e7; }
 .pnl-share-theme-check { position: absolute; right: 5px; bottom: 5px; display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: #e4e4e7; color: #17181b; }
 .pnl-share-preview { position: relative; width: 100%; margin: 20px auto 0; overflow: hidden; border-radius: 20px; background: #141619; outline: 1px solid rgb(255 255 255 / .07); }
 .pnl-share-canvas { display: block; width: 100%; height: auto; aspect-ratio: 3 / 4; }

@@ -20,6 +20,7 @@
 .stock-report-modal .srm-action.srm-primary { background: #e0e0e3; color: #171719; }
 .stock-report-modal .srm-action:disabled { opacity: .45; }
 .stock-report-modal .srm-action:not(:disabled):active,
-.stock-report-modal .srm-close:active { transform: none; outline: 1px solid rgb(150 150 158 / .4); outline-offset: -2px; }
+.stock-report-modal .srm-close:active { transform: none; background: var(--quote-field-focus-bg); }
+.stock-report-modal .srm-action.srm-primary:not(:disabled):active { background: #c7c8cd; }
 .stock-report-modal button:focus-visible { outline: 1px solid #b5b5ba; outline-offset: 2px; }
 @media (max-width: 350px) { .stock-report-modal { padding: 17px; } }

@@ -27,7 +27,7 @@
   font-variant-numeric: tabular-nums;
 }
 .pnl-report-filter-years button[aria-pressed='true'],
-.pnl-report-filter-months button[aria-pressed='true'] { border-color: #606066; background: #303133; color: #ededf0; }
+.pnl-report-filter-months button[aria-pressed='true'] { border-color: transparent; background: var(--quote-field-focus-bg); color: #ededf0; }
 .pnl-report-filter-months button:disabled { background: #171819; color: #484850; cursor: default; }
 .pnl-report-filter-segments { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; padding: 4px; border-radius: 10px; background: #18191b; }
 .pnl-report-filter-segments button { min-height: 36px; padding: 7px 10px; border: 0; border-radius: 7px; background: transparent; color: #888891; font-size: 13px; line-height: 20px; }

@@ -75,7 +75,7 @@ test('each tool has a real icon and translated visible text in Chinese and Engli
     assert.equal(/trades\.|competition\./.test(html), false, 'translation keys should not leak into the UI');
     if (language === 'en') assert.doesNotMatch(textContent(tree), /[\u3400-\u9fff]/);
   }
-  assert.ok(textContent(renderCatalog().tree).includes('投资时光机'), 'the default language should remain Chinese');
+  assert.ok(textContent(renderCatalog().tree).includes('投资回溯'), 'the default language should remain Chinese');
 });
 
 test('each tool click emits only its own navigation ID to the controlled parent', () => {

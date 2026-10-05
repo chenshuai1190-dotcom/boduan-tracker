@@ -726,7 +726,7 @@ test('main trade entry modal isolates the compact stacked formal-trade design', 
   assert.ok(actionModalCardSource.includes('{actions.length > 0 && ('), 'shared modal should keep rendering its action row independently of input focus');
   assert.equal((tradeModalBlock.match(/\bclassName:/g) || []).length, 1, 'only the isolated TQQQ confirm action may override the shared action palette');
   assert.ok(tradeModalBlock.includes("contentClassName={isTqqqTradeEntry\n              ? 'srm-content'\n              : (isGenericLedgerTradeEntry ? 'srm-content' : '')}"), 'TQQQ and generic entries should share transparent report content without changing the wave fallback');
-  assert.ok(actionModalCardSource.includes('border border-white/[0.16] bg-black/[0.18]'), 'shared neutral actions should retain the monthly-balance outline and dark fill');
+  assert.match(actionModalCardSource, /const ACTION_MODAL_BUTTON_CLASS = 'quote-field-surface [^']*border border-transparent/, 'shared neutral actions should use the shared dark fill with a transparent frame');
   assert.ok(actionModalCardSource.includes('headerContent = null') && actionModalCardSource.includes('{headerContent ? ('), 'shared modal should expose an optional custom header without changing its default title path');
   assert.equal(genericLedgerTradeEntryPanelSource.includes('text-rose') || genericLedgerTradeEntryPanelSource.includes('text-emerald') || genericLedgerTradeEntryPanelSource.includes('TrendingUp') || genericLedgerTradeEntryPanelSource.includes('TrendingDown'), false, 'generic formal trade should not color-code buy or sell');
   for (const key of ['trades.formalTradeNewMeta', 'trades.formalTradeEditMeta', 'trades.executionPrice', 'trades.tradeShares', 'trades.tradeDate', 'trades.estimatedTradeAmount', 'trades.clearPrice']) {
@@ -806,7 +806,7 @@ test('main trade entry modal isolates the compact stacked formal-trade design', 
   for (const invalidOpacity of ['34', '36', '42', '46', '48', '52', '54', '56', '62']) {
     assert.equal(earningsCalendarSource.includes(`text-white/${invalidOpacity}`), false, `earnings calendar should not use unsupported white opacity ${invalidOpacity}`);
   }
-  assert.ok(earningsCalendarSource.includes('bg-white/[0.035] text-white/40'), 'earnings calendar homepage calendar button should use a lowered icon color');
+  assert.match(earningsCalendarSource, /className="quote-field-surface ml-2 [^"]*border-transparent text-white\/40/, 'earnings calendar homepage calendar button should keep its lowered icon color on the shared borderless surface');
   assert.ok(earningsCalendarSource.includes('grid-cols-[minmax(64px,0.82fr)_64px_104px_40px]'), 'earnings calendar modal row should reserve more room for EPS and USD revenue text');
   assert.ok(earningsCalendarSource.includes('whitespace-nowrap text-[12px] text-white/70 tabular-nums'), 'earnings calendar modal revenue should stay on one line with reduced brightness');
   assert.equal(earningsCalendarSource.includes('eventDates.slice(0, 6).map'), false, 'earnings calendar list view should not keep the duplicated date filter row');

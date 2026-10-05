@@ -485,7 +485,7 @@ export default function Login({
                   type="button"
                   onClick={() => handleRememberedAccount(account.userId)}
                   disabled={Boolean(switchingAccountId)}
-                  className="flex min-h-[48px] w-full items-center gap-3 rounded-[10px] border border-white/[0.05] bg-white/[0.025] px-3 text-left text-[13px] text-white/75 active:bg-white/[0.06] disabled:opacity-50"
+                  className="quote-field-surface flex min-h-[48px] w-full items-center gap-3 rounded-[10px] border border-transparent px-3 text-left text-[13px] text-white/75 active:bg-white/[0.06] disabled:opacity-50"
                 >
                   <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#167fff]/30 to-[#25efe6]/15 text-[#7fc5ff]">
                     <User className="h-4 w-4" />

@@ -87,7 +87,7 @@ export default function ConfirmModal({
               type="button"
               onClick={onCancel}
               disabled={submitting}
-              className="h-[52px] rounded-[17px] border border-white/[0.11] bg-white/[0.045] text-[14px] font-medium tracking-normal text-white/[0.61] active:scale-95 disabled:opacity-55 disabled:active:scale-100"
+              className="quote-field-surface h-[52px] rounded-[17px] border border-transparent text-[14px] font-medium tracking-normal text-white/[0.61] active:scale-95 disabled:opacity-55 disabled:active:scale-100"
             >
               {modal.cancelText}
             </button>
