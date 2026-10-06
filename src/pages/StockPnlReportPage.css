@@ -15,7 +15,7 @@
 .stock-pnl-price-readout-row i { width: 5px; height: 5px; flex: 0 0 5px; border-radius: 50%; }
 .stock-pnl-price-readout-row strong { font-weight: 400; white-space: nowrap; }
 .stock-pnl-benchmark-picker { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; color: #85858f; font-size: 11px; }
-.stock-pnl-benchmark-options.pnl-report-calendar-toggle { grid-template-columns: repeat(3, minmax(0, 1fr)); min-width: 174px; }
+.stock-pnl-benchmark-options.pnl-report-calendar-toggle { grid-template-columns: repeat(4, minmax(0, 1fr)); min-width: 214px; }
 .stock-pnl-benchmark-options .pnl-report-calendar-segment { min-width: 52px; }
 .stock-pnl-price-plot-layout { display: grid; grid-template-columns: minmax(0, 1fr) max-content; column-gap: 9px; }
 .stock-pnl-price-plot { min-width: 0; height: 220px; user-select: none; }

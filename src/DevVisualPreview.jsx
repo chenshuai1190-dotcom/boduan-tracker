@@ -1429,6 +1429,11 @@ const mockVgtBenchmarkRows = mockPnlBenchmarkRows.map((row, index) => {
   const close = [590, 600, 608, 615, 622, 645, 650, 669, 655, 679, 680, 688, 685, 700, 705, 712][index];
   return { date: row.date, close, rawClose: close, adjustedClose: close };
 });
+// Synthetic SMH prices for the local design preview only.
+const mockSmhBenchmarkRows = mockPnlBenchmarkRows.map((row, index) => {
+  const close = [280, 290, 285, 299, 310, 326, 320, 335, 318, 342, 345, 337, 350, 361, 355, 370][index];
+  return { date: row.date, close, rawClose: close, adjustedClose: close };
+});
 
 // DevVisualPreview stays fully local. The stock-detail comparison consumes
 // rawClose, while the detailed P&L price comparison consumes adjustedClose;
@@ -2409,6 +2414,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     QQQ: stockReturnBenchmarkRows,
     SPY: mockSpyBenchmarkRows,
     VGT: mockVgtBenchmarkRows,
+    SMH: mockSmhBenchmarkRows,
     NVDA: stockReturnStockRawRows,
   }), [stockReturnBenchmarkRows, stockReturnStockRawRows]);
   const fetchPnlBenchmarkRows = React.useCallback(async ({ symbol: requestedSymbol = 'QQQ', from, to }) => {

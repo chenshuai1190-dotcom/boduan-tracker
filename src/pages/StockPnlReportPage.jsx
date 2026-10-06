@@ -24,6 +24,7 @@ const PRICE_BENCHMARKS = {
   QQQ: { zh: '纳斯达克100 ETF', en: 'Nasdaq-100 ETF' },
   SPY: { zh: '标普500 ETF', en: 'S&P 500 ETF' },
   VGT: { zh: '信息技术 ETF', en: 'Information Technology ETF' },
+  SMH: { zh: 'SMH', en: 'SMH' },
 };
 const CHART_WIDTH = 310;
 const CHART_HEIGHT = 210;
@@ -98,6 +99,8 @@ function SegmentButton({ active, children, onClick, className = 'pnl-report-segm
 function PriceComparisonChart({ data = [], symbol, benchmarkSymbol = 'QQQ', language, marketColorMode }) {
   const englishMode = isEnglishLanguage(language);
   const benchmarkName = PRICE_BENCHMARKS[benchmarkSymbol]?.[englishMode ? 'en' : 'zh'] || benchmarkSymbol;
+  const benchmarkLabel = benchmarkName === benchmarkSymbol ? benchmarkSymbol
+    : englishMode ? `${benchmarkName} (${benchmarkSymbol})` : `${benchmarkName}（${benchmarkSymbol}）`;
   const [selectedIndex, setSelectedIndex] = React.useState(null);
   const activePointer = React.useRef(null);
   const domain = React.useMemo(() => buildChartDomain(data, ['pricePct', 'priceBenchmarkPct'], 'percentage'), [data]);
@@ -143,11 +146,11 @@ function PriceComparisonChart({ data = [], symbol, benchmarkSymbol = 'QQQ', lang
     <div className="stock-pnl-price-readout">
       <div className="stock-pnl-price-date">{readout?.date?.replaceAll('-', '/') || '--'}</div>
       <div className="stock-pnl-price-readout-row"><span><i style={{ background: stockColor }} />{symbol}</span><strong className={isRenderableChartValue(readout?.pricePct) ? marketTextClass(readout.pricePct, marketColorMode) : ''}>{signedPercent(readout?.pricePct)}</strong></div>
-      <div className="stock-pnl-price-readout-row"><span><i style={{ background: BENCHMARK_COLOR }} />{englishMode ? `${benchmarkName} (${benchmarkSymbol})` : `${benchmarkName}（${benchmarkSymbol}）`}</span><strong className={isRenderableChartValue(readout?.priceBenchmarkPct) ? marketTextClass(readout.priceBenchmarkPct, marketColorMode) : ''}>{signedPercent(readout?.priceBenchmarkPct)}</strong></div>
+      <div className="stock-pnl-price-readout-row"><span><i style={{ background: BENCHMARK_COLOR }} />{benchmarkLabel}</span><strong className={isRenderableChartValue(readout?.priceBenchmarkPct) ? marketTextClass(readout.priceBenchmarkPct, marketColorMode) : ''}>{signedPercent(readout?.priceBenchmarkPct)}</strong></div>
     </div>
     <div className="stock-pnl-price-plot-layout">
       <div className="stock-pnl-price-plot" onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerEnd} onPointerCancel={onPointerEnd} onLostPointerCapture={onPointerEnd} style={{ touchAction: 'pan-y' }}>
-        {stockPath || benchmarkPath ? <svg viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`} preserveAspectRatio="none" role="img" aria-label={englishMode ? `${symbol} price versus ${benchmarkName} (${benchmarkSymbol})` : `${symbol} 股价与${benchmarkName}（${benchmarkSymbol}）对比`}>
+        {stockPath || benchmarkPath ? <svg viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`} preserveAspectRatio="none" role="img" aria-label={englishMode ? `${symbol} price versus ${benchmarkLabel}` : `${symbol} 股价与${benchmarkLabel}对比`}>
           {lines.map((y, index) => <line key={index} x1={CHART_PAD} x2={CHART_WIDTH - CHART_PAD} y1={y} y2={y} stroke="rgba(255,255,255,.065)" />)}
           {benchmarkPath && <path d={benchmarkPath} fill="none" stroke={BENCHMARK_COLOR} strokeWidth="1.7" vectorEffect="non-scaling-stroke" strokeLinejoin="round" strokeLinecap="round" />}
           {stockPath && <path d={stockPath} fill="none" stroke={stockColor} strokeWidth="1.9" vectorEffect="non-scaling-stroke" strokeLinejoin="round" strokeLinecap="round" />}
@@ -405,7 +408,7 @@ export default function StockPnlReportPage({ ctx = {} }) {
         <div className="pnl-report-calendar-toggle stock-pnl-benchmark-options" role="group" aria-label={label('选择股价对比基准', 'Select price benchmark')}>
           {Object.entries(PRICE_BENCHMARKS).map(([ticker, names]) => <button key={ticker} type="button" className="pnl-report-calendar-segment"
             data-stock-pnl-benchmark-choice={ticker} aria-pressed={priceBenchmarkSymbol === ticker}
-            aria-label={`${ticker} · ${names[englishMode ? 'en' : 'zh']}`}
+            aria-label={names[englishMode ? 'en' : 'zh'] === ticker ? ticker : `${ticker} · ${names[englishMode ? 'en' : 'zh']}`}
             onClick={() => setPriceBenchmarkSymbol(ticker)}>{ticker}</button>)}
         </div>
       </div>}

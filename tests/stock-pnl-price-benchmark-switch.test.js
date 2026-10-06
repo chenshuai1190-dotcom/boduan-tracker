@@ -74,6 +74,7 @@ const priceRows = {
   QQQ: [{ date: '2025-09-22', adjustedClose: 500 }, { date: '2025-09-23', adjustedClose: 510 }],
   SPY: [{ date: '2025-09-22', adjustedClose: 600 }, { date: '2025-09-23', adjustedClose: 612 }],
   VGT: [{ date: '2025-09-22', adjustedClose: 700 }, { date: '2025-09-23', adjustedClose: 735 }],
+  SMH: [{ date: '2025-09-22', adjustedClose: 300 }, { date: '2025-09-23', adjustedClose: 285 }],
 };
 const snapshots = [
   { snapshotDate: '2025-09-22', symbol: 'NVDA', cumulativePnlUsd: 0, marketValueUsd: 1000 },
@@ -167,13 +168,13 @@ test('rendered year and all reports retain totals and chart while excluding pre-
   }
 });
 
-test('QQQ is default; SPY and VGT choices request and label their own market series', async () => {
+test('QQQ is default; SPY, VGT and SMH choices request and label their own market series', async () => {
   const harness = makeHarness();
   let { tree } = await harness.settle();
   assert.deepEqual(harness.requests.map(request => request.symbol), ['NVDA', 'QQQ']);
   harness.priceMode(tree);
   ({ tree } = harness.render());
-  for (const symbol of ['QQQ', 'SPY', 'VGT']) {
+  for (const symbol of ['QQQ', 'SPY', 'VGT', 'SMH']) {
     const [choice] = nodes(tree, node => node.props['data-stock-pnl-benchmark-choice'] === symbol);
     assert.ok(choice, `${symbol} is selectable`);
     assert.equal(choice.props['aria-pressed'], symbol === 'QQQ');
@@ -181,7 +182,7 @@ test('QQQ is default; SPY and VGT choices request and label their own market ser
   let html = renderToStaticMarkup(tree);
   assert.match(priceReadout(html), /QQQ/);
 
-  for (const symbol of ['SPY', 'VGT']) {
+  for (const symbol of ['SPY', 'VGT', 'SMH']) {
     harness.select(tree, symbol);
     harness.render();
     await hooks.flush();
@@ -189,6 +190,10 @@ test('QQQ is default; SPY and VGT choices request and label their own market ser
     assert.equal(harness.requests.at(-1).symbol, symbol);
     const readout = priceReadout(html);
     assert.match(readout, new RegExp(symbol), `${symbol} label must match the selected data`);
+    if (symbol === 'SMH') {
+      assert.match(readout, /-5\.00%/, 'SMH must use its own adjusted-price return');
+      assert.doesNotMatch(readout, /SMH（SMH）|SMH \(SMH\)|QQQ|VGT/);
+    }
     assert.equal(nodes(tree, node => node.props['data-stock-pnl-benchmark-choice'] === symbol)[0].props['aria-pressed'], true);
   }
   hooks.reset();
