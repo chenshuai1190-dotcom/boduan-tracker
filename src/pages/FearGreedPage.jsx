@@ -2,6 +2,7 @@ import React from 'react';
 import { ArrowLeft, ChevronDown } from 'lucide-react';
 import FearGreedChart from '../components/FearGreedChart.jsx';
 import { loadFearGreed } from '../lib/fearGreed.js';
+import { MARKET_RED_HEX, MARKET_GREEN_HEX } from '../lib/marketColorMode.js';
 import './FearGreedPage.css';
 
 const finite = value => typeof value === 'number' && Number.isFinite(value);
@@ -9,6 +10,15 @@ const RATINGS = ['extreme fear', 'fear', 'neutral', 'greed', 'extreme greed'];
 const RATING_ZH = ['极度恐慌', '恐慌', '中性', '贪婪', '极度贪婪'];
 // Sentiment categories have their own colors, independent of profit/loss settings.
 const SENTIMENT_COLORS = ['#e56b64', '#e6a15b', '#a6abb2', '#81be92', '#37af8b'];
+const NEUTRAL_GAUGE_TONE = { color: '#9299aa', fillOpacity: 0, glowOpacity: .16 };
+// Fixed sentiment colors; the score itself is never styled as a profit/loss.
+const GAUGE_TONES = [
+  { color: MARKET_RED_HEX, fillOpacity: .24, glowOpacity: .58, edgeGlowOpacity: .64 },
+  { color: MARKET_RED_HEX, fillOpacity: .12, glowOpacity: .38, edgeGlowOpacity: .44 },
+  NEUTRAL_GAUGE_TONE,
+  { color: MARKET_GREEN_HEX, fillOpacity: .12, glowOpacity: .38, edgeGlowOpacity: .44 },
+  { color: MARKET_GREEN_HEX, fillOpacity: .24, glowOpacity: .58, edgeGlowOpacity: .64 },
+];
 const ratingIndex = rating => RATINGS.indexOf(String(rating || '').toLowerCase().replace(/_/g, ' ').trim());
 const sentimentColor = rating => SENTIMENT_COLORS[ratingIndex(rating)] || '#898992';
 const ratingLabel = (rating, english) => {
@@ -38,6 +48,7 @@ function Gauge({ current, english }) {
   const hubShadowId = `fg-hub-shadow-${React.useId().replace(/:/g, '')}`;
   const value = finite(current?.score) && current.score >= 0 && current.score <= 100 ? current.score : null;
   const active = ratingIndex(current?.rating);
+  const tone = value === null ? NEUTRAL_GAUGE_TONE : GAUGE_TONES[active] || NEUTRAL_GAUGE_TONE;
   const point = (score, radius) => {
     const angle = Math.PI * (1 - score / 100);
     return [180 + radius * Math.cos(angle), 200 - radius * Math.sin(angle)];
@@ -52,8 +63,22 @@ function Gauge({ current, english }) {
     <svg viewBox="0 0 360 280" role="img" aria-label={`${english ? 'Fear and Greed Index' : '恐慌与贪婪指数'} ${scoreLabel(value, english, true)} ${ratingLabel(current?.rating, english)}`}>
       <defs>
         <filter id={hubShadowId} x="-70%" y="-70%" width="240%" height="240%" colorInterpolationFilters="sRGB">
-          <feDropShadow dx="0" dy="0" stdDeviation="8" floodColor="#9299aa" floodOpacity="0.16" />
-          <feDropShadow dx="0" dy="5" stdDeviation="6" floodColor="#000000" floodOpacity="0.55" />
+          {tone.fillOpacity > 0 ? <>
+            <feGaussianBlur in="SourceAlpha" stdDeviation="12" result="outerBlur" />
+            <feFlood floodColor={tone.color} floodOpacity={tone.glowOpacity} result="outerColor" />
+            <feComposite in="outerColor" in2="outerBlur" operator="in" result="outerGlow" />
+            <feGaussianBlur in="SourceAlpha" stdDeviation="3.5" result="edgeBlur" />
+            <feFlood floodColor={tone.color} floodOpacity={tone.edgeGlowOpacity} result="edgeColor" />
+            <feComposite in="edgeColor" in2="edgeBlur" operator="in" result="edgeGlow" />
+            <feMerge>
+              <feMergeNode in="outerGlow" />
+              <feMergeNode in="edgeGlow" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </> : <>
+            <feDropShadow dx="0" dy="0" stdDeviation="8" floodColor={tone.color} floodOpacity={tone.glowOpacity} />
+            <feDropShadow dx="0" dy="5" stdDeviation="6" floodColor="#000000" floodOpacity="0.55" />
+          </>}
         </filter>
       </defs>
       {RATINGS.map((rating, index) => {
@@ -78,9 +103,13 @@ function Gauge({ current, english }) {
         const [x, y] = point(tick, 97);
         return <text key={tick} className="fg-gauge-limit" x={x} y={y} dy={tick === 0 || tick === 100 ? '-2' : '4'} textAnchor="middle">{tick}</text>;
       })}
-      <circle className="fg-gauge-hub" cx="180" cy="200" r="44" filter={`url(#${hubShadowId})`} />
+      <g filter={`url(#${hubShadowId})`}>
+        <circle className="fg-gauge-hub" cx="180" cy="200" r="44" />
+        {tone.fillOpacity > 0 && <circle cx="180" cy="200" r="44" fill={tone.color} fillOpacity={tone.fillOpacity} />}
+      </g>
       <text className="fg-gauge-score" x="180" y="200" textAnchor="middle" dominantBaseline="central">{scoreLabel(value, english, true)}</text>
-      <text className="fg-gauge-rating" x="180" y="267" textAnchor="middle">{ratingLabel(current?.rating, english)}</text>
+      <text className="fg-gauge-rating" x="180" y="267" textAnchor="middle"
+        style={{ fill: tone.fillOpacity > 0 ? tone.color : undefined }}>{ratingLabel(current?.rating, english)}</text>
     </svg>
   </div>;
 }
@@ -104,7 +133,7 @@ function Indicator({ definition, data, english }) {
   </section>;
 }
 
-export default function FearGreedPage({ ctx = {}, previewData = null }) {
+export default function FearGreedPage({ ctx = {}, previewData = null, previewControls = null, previewScenario = false }) {
   const { language = 'zh', userId = '', closeFearGreed } = ctx;
   const english = String(language).toLowerCase().startsWith('en');
   const preview = import.meta.env.DEV ? previewData : null;
@@ -137,6 +166,7 @@ export default function FearGreedPage({ ctx = {}, previewData = null }) {
       <button type="button" className="fg-back" aria-label={english ? 'Back' : '返回'} onClick={closeFearGreed}><ArrowLeft size={20} /></button>
       <h1>{english ? 'Fear & Greed' : '恐慌与贪婪'}</h1><span className="fg-source">CNN</span>
     </header>
+    {preview && previewControls}
     {!data ? <div className="fg-status" role="status">
       <span>{visible.error ? (english ? 'Unable to load' : '暂时无法加载') : (english ? 'Loading…' : '加载中…')}</span>
       {visible.error && <button type="button" onClick={() => setRetry(value => value + 1)} disabled={visible.busy}>{english ? 'Retry' : '重试'}</button>}
@@ -144,8 +174,10 @@ export default function FearGreedPage({ ctx = {}, previewData = null }) {
       {visible.error && !preview && <div className="fg-retry" role="status"><span>{english ? 'Unable to update' : '更新失败'}</span><button type="button" disabled={visible.busy} onClick={() => setRetry(value => value + 1)}>{english ? 'Retry' : '重试'}</button></div>}
       <Gauge current={data.current} english={english} />
       <div className="fg-snapshot-meta">
-        <time dateTime={data.asOf}>{sourceDate}</time>
-        {preview && <span>{english ? 'Local snapshot' : '本地快照'}</span>}
+        {preview && previewScenario ? <span>{english ? 'Color preview · Example data' : '配色演示 · 示例数据'}</span> : <>
+          <time dateTime={data.asOf}>{sourceDate}</time>
+          {preview && <span>{english ? 'Local snapshot' : '本地快照'}</span>}
+        </>}
         {data.stale && <><span>{english ? 'Update pending' : '待更新'}</span>{!preview && <button type="button" disabled={visible.busy} onClick={() => setRetry(value => value + 1)}>{english ? 'Retry' : '重试'}</button>}</>}
       </div>
       <div className="fg-comparisons">{[
