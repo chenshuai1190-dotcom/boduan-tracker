@@ -3227,12 +3227,18 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     symbol: item.symbol,
     name: item.name,
     price: item.currentPrice,
+    // Local example rows exercise the same price-provenance checks as production.
+    priceSource: 'EODHD-v2',
+    dailyPnlPrice: item.currentPrice,
+    dailyPnlSource: 'realtime-regular',
     high: item.high,
     week52High: item.high,
     stockYtdBaseline: previewYtdPrices[item.symbol] ? {
       year: previewYtdYear, date: previewYtdDate,
       close: previewYtdPrices[item.symbol], source: 'eodhd-adjusted-close',
     } : null,
+  })), ...mockSwingQuotes.filter(row => row.symbol === 'AAPL').map(row => ({
+    ...row, dailyPnlPrice: row.price, dailyPnlSource: 'realtime-regular',
   })), ...(tqqqTradePreviewSide ? [tqqqPreviewQqqQuote] : [])];
   const tradePreviewStockTrades = tqqqTradePreviewSide
     ? tradeActivePositions.map((item, index) => ({

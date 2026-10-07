@@ -12,6 +12,7 @@ import { deriveHoldingStockYtdPercent } from '../lib/holdingStockYtd.js';
 import { isEnglishLanguage, t } from '../lib/i18n.js';
 import { derivePositionAllocation } from '../lib/investmentSummary.js';
 import { deriveTradeCostPreview } from '../lib/tradeCostPreview.js';
+import { selectTradeValuationQuotes } from '../lib/tradeValuationQuotes.js';
 import { normalizeStrictUserStockSymbol } from '../lib/symbols.js';
 import {
   deriveTqqqMarketReference,
@@ -636,13 +637,15 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
   const isGenericLedgerTradeEntry = tradeEntryScope === 'ledger' && !isTqqqTradeEntry;
   const tradeReferenceSymbol = normalizeStrictUserStockSymbol(newTrade?.symbol) || '';
   const genericTradeSectionClass = 'mb-3 min-w-0 border-b border-white/10 pb-3';
+  const tradeValuationQuotes = React.useMemo(() => selectTradeValuationQuotes(quoteRows), [quoteRows]);
   const tradeCostPreview = React.useMemo(() => deriveTradeCostPreview({
     stockTrades,
+    quoteRows: tradeValuationQuotes,
     draft: newTrade,
     scope: tradeEntryScope,
     holdingsReady: showAddTrade && stockHoldingsReady,
     holdingsError: stockHoldingsError,
-  }), [newTrade, showAddTrade, stockTrades, stockHoldingsReady, stockHoldingsError, tradeEntryScope]);
+  }), [newTrade, showAddTrade, stockTrades, stockHoldingsReady, stockHoldingsError, tradeEntryScope, tradeValuationQuotes]);
   const tqqqTradePreview = React.useMemo(() => deriveTqqqTradePreview({
     stockTrades,
     quoteRows,

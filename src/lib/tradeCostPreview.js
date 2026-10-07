@@ -1,8 +1,10 @@
-import { derivePositionsFromTrades } from './investmentSummary.js';
+import { deriveInvestmentSummary, derivePositionAllocation, derivePositionsFromTrades } from './investmentSummary.js';
 import { normalizeStrictUserStockSymbol, normalizeUserStockSymbol } from './symbols.js';
 
 const unavailable = () => ({ status: 'unavailable', cost: null, shares: null });
 const sameId = (left, right) => String(left ?? '') === String(right ?? '');
+const LEDGER_NUMERIC_FIELDS = ['heldShares', 'remainingCost', 'activeRealizedPnl', 'effectiveCost', 'ignoredSellShares',
+  'realizedPnl', 'totalBuyCost', 'totalBuyShares', 'totalSellShares', 'sellProceeds', 'soldCost'];
 
 function validDate(value) {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
@@ -31,9 +33,9 @@ function replay(trades, symbol) {
   // Keep the production replay, including its same-day input order for UUIDs.
   // No quote is needed for the cost ledger, and fees follow its existing policy.
   const position = derivePositionsFromTrades(rows)[0];
-  if (!position || !['heldShares', 'remainingCost', 'activeRealizedPnl', 'effectiveCost', 'ignoredSellShares',
-    'realizedPnl', 'totalBuyCost', 'totalBuyShares', 'totalSellShares', 'sellProceeds', 'soldCost']
-    .every(key => Number.isFinite(position[key]))) return { state: unavailable(), reason: 'invalid-ledger' };
+  if (!position || !LEDGER_NUMERIC_FIELDS.every(key => Number.isFinite(position[key]))) {
+    return { state: unavailable(), reason: 'invalid-ledger' };
+  }
   // The production summary clamps excess sells; a preview must not present that
   // clamped result as the outcome of a fully valid proposed transaction.
   if (position.ignoredSellShares > 0) return { state: unavailable(), reason: 'ledger-oversell' };
@@ -45,11 +47,53 @@ function replay(trades, symbol) {
   };
 }
 
+function validValuationInput(quote) {
+  if (!quote) return false;
+  if (quote.dailyPnlLocked != null && typeof quote.dailyPnlLocked !== 'boolean') return false;
+  // Validate the source selected by the production valuation fallback; do not
+  // let coercible booleans/arrays turn into an apparently valid quote of $1.
+  const candidates = quote.dailyPnlLocked
+    ? [quote.dailyPnlPrice, quote.dailyPnlBaselineClose, quote.dailyBaselineClose, quote.previousClose]
+    : [quote.price];
+  for (const value of candidates) {
+    if (value == null) continue;
+    if (!['string', 'number'].includes(typeof value)) return false;
+    if (positive(value) !== null) return true;
+  }
+  return false;
+}
+
+function replayAllocation(trades, symbol, quoteRows) {
+  if (!Array.isArray(quoteRows) || quoteRows.some(row => !row || typeof row !== 'object' || Array.isArray(row))) return null;
+  // A valid target cost says nothing about the other stocks in the denominator.
+  // Check the entire formal ledger before valuing its remaining positions.
+  if (!trades.every(row => validLedgerRow(row) && normalizeUserStockSymbol(row.symbol))) return null;
+  let summary;
+  try {
+    summary = deriveInvestmentSummary({ stockTrades: trades, watchlist: quoteRows });
+  } catch {
+    return null;
+  }
+  if (summary.positions.some(position => position.ignoredSellShares > 0
+    || !LEDGER_NUMERIC_FIELDS.every(key => Number.isFinite(position[key])))) return null;
+  const quotes = new Map(quoteRows.map(quote => [normalizeUserStockSymbol(quote.symbol), quote]));
+  if (summary.activePositions.some(position => !validValuationInput(quotes.get(position.symbol))
+    || !Number.isFinite(position.valuationPrice) || position.valuationPrice <= 0
+    || !Number.isFinite(position.marketValue) || position.marketValue <= 0)) return null;
+  if (!Number.isFinite(summary.positionsMarketValue)
+    || (summary.activePositions.length > 0 && summary.positionsMarketValue <= 0)) return null;
+  // This uses stock market value only, matching the holdings table. Cash,
+  // financing, draft execution prices and ETF leverage do not enter the ratio.
+  const allocation = derivePositionAllocation(summary, symbol);
+  return Number.isFinite(allocation) && allocation >= 0 && allocation <= 1 ? allocation : null;
+}
+
 /** Read-only ending-position preview using the formal ledger's active-cycle cost. */
-export function deriveTradeCostPreview({ stockTrades, draft = {}, scope = 'ledger',
+export function deriveTradeCostPreview({ stockTrades, quoteRows, draft = {}, scope = 'ledger',
   holdingsReady = false, holdingsError = null } = {}) {
   const symbol = normalizeStrictUserStockSymbol(draft?.symbol);
-  const result = { applies: scope === 'ledger', symbol, current: unavailable(), after: unavailable(), reason: null };
+  const result = { applies: scope === 'ledger', symbol, current: unavailable(), after: unavailable(),
+    allocation: { current: null, after: null }, reason: null };
   const fail = reason => ({ ...result, reason });
   if (!result.applies) return fail('not-applicable');
   if (holdingsReady !== true || holdingsError || !Array.isArray(stockTrades)) return fail('holdings-unavailable');
@@ -59,6 +103,7 @@ export function deriveTradeCostPreview({ stockTrades, draft = {}, scope = 'ledge
   const current = replay(stockTrades, symbol);
   result.current = current.state;
   if (current.reason) return fail(current.reason);
+  result.allocation.current = replayAllocation(stockTrades, symbol, quoteRows);
 
   const editingId = draft.id || draft.editingId;
   const matches = editingId ? stockTrades.filter(row => sameId(row.id, editingId)) : [];
@@ -92,5 +137,6 @@ export function deriveTradeCostPreview({ stockTrades, draft = {}, scope = 'ledge
     const previousAfter = replay(afterTrades, originalSymbol);
     if (previousAfter.reason) return fail(previousAfter.reason);
   }
-  return { ...result, after: after.state };
+  return { ...result, after: after.state,
+    allocation: { ...result.allocation, after: replayAllocation(afterTrades, symbol, quoteRows) } };
 }

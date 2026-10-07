@@ -10,6 +10,11 @@ function costText(position, tt) {
   });
 }
 
+function allocationText(value) {
+  if (!Number.isFinite(value) || value < 0 || value > 1) return '—';
+  return `${(value * 100).toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
+}
+
 export default function TradeCostPreview({ preview, tt }) {
   if (!preview?.applies) return null;
   return (
@@ -19,8 +24,13 @@ export default function TradeCostPreview({ preview, tt }) {
         <div className="trade-cost-preview-value">{costText(preview.current, tt)}</div>
       </div>
       <div className="trade-cost-preview-column">
-        <div className="trade-cost-preview-label">{tt('trades.costPreview.after', '交易后预计')}</div>
+        <div className="trade-cost-preview-label">{tt('trades.costPreview.after', '交易后成本')}</div>
         <div className="trade-cost-preview-value">{costText(preview.after, tt)}</div>
+      </div>
+      <div className="trade-cost-preview-column">
+        <div className="trade-cost-preview-label">{tt('trades.costPreview.allocationAfter', '交易后仓位')}</div>
+        <div className="trade-cost-preview-value">{allocationText(preview.allocation?.after)}</div>
+        <div className="trade-cost-preview-note">{tt('trades.costPreview.allocationCurrent', '当前 {{value}}', { value: allocationText(preview.allocation?.current) })}</div>
       </div>
     </div>
   );

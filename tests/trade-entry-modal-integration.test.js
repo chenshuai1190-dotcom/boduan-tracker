@@ -131,13 +131,15 @@ test('formal cost preview receives ledger readiness and error state instead of t
   const costEnd = source.indexOf('  const tqqqTradePreview =', costStart);
   assert.ok(costStart >= 0 && costEnd > costStart);
   const costBinding = source.slice(costStart, costEnd);
-  for (const binding of ['stockTrades,', 'draft: newTrade', 'scope: tradeEntryScope',
+  for (const binding of ['stockTrades,', 'quoteRows: tradeValuationQuotes', 'draft: newTrade', 'scope: tradeEntryScope',
     'holdingsReady: showAddTrade && stockHoldingsReady', 'holdingsError: stockHoldingsError']) {
     assert.ok(costBinding.includes(binding), `cost calculation must receive ${binding}`);
   }
   assert.match(source, /stockHoldingsReady\s*=\s*false/);
-  assert.match(costBinding, /\[newTrade, showAddTrade, stockTrades, stockHoldingsReady, stockHoldingsError, tradeEntryScope\]/,
+  assert.match(costBinding, /\[newTrade, showAddTrade, stockTrades, stockHoldingsReady, stockHoldingsError, tradeEntryScope, tradeValuationQuotes\]/,
     'readiness, errors, edits, and ledger refreshes must invalidate the cost preview');
+  assert.match(source, /const tradeValuationQuotes = React\.useMemo\(\(\) => selectTradeValuationQuotes\(quoteRows\), \[quoteRows\]\)/,
+    'allocation must use provenance-checked market values and refresh when quotes change');
   const app = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8');
   const appContext = app.slice(app.indexOf('const tabCtx ='));
   assert.match(appContext, /stockTrades,\s*stockHoldingsReady,\s*stockHoldingsError,/,
