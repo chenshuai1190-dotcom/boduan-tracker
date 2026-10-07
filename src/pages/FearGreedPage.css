@@ -17,16 +17,18 @@
 .fear-greed-page h1 { margin: 0; font-size: 17px; font-weight: 400; line-height: 24px; text-align: center; }
 .fear-greed-page .fg-source { font-size: 11px; color: #888992; text-align: right; }
 .fear-greed-page h2 { margin: 0; font-size: 15px; font-weight: 400; line-height: 22px; }
-.fear-greed-page .fg-gauge { max-width: 360px; margin: 16px auto 0; }
+.fear-greed-page .fg-gauge { width: 100%; margin: 18px auto 0; }
 .fear-greed-page .fg-gauge svg { display: block; width: 100%; height: auto; overflow: visible; }
-.fear-greed-page .fg-gauge-band { opacity: .85; }
-.fear-greed-page .fg-gauge-band[data-active='true'] { opacity: 1; }
-.fear-greed-page .fg-gauge-needle { stroke: #e7e4dc; stroke-width: 2; stroke-linecap: round; }
-.fear-greed-page .fg-gauge-score { fill: #eeeef2; font-size: 62px; font-weight: 400; letter-spacing: normal; }
-.fear-greed-page .fg-gauge-rating { fill: var(--fg-current-color); font-size: 15px; font-weight: 400; }
-.fear-greed-page .fg-gauge-limit { fill: #777880; font-size: 12px; }
-.fear-greed-page .fg-gauge-labels { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 3px; margin-top: 1px; color: #75767f; font-size: 10px; line-height: 15px; text-align: center; }
-.fear-greed-page .fg-gauge-labels [data-active='true'] { color: var(--fg-current-color); }
+.fear-greed-page .fg-gauge-band { fill: #1b1d21; stroke: none; }
+.fear-greed-page .fg-gauge [data-active='true'] .fg-gauge-band { fill: #303338; }
+.fear-greed-page .fg-gauge-band-label { fill: #888b94; font-size: 12px; font-weight: 400; }
+.fear-greed-page .fg-gauge [data-active='true'] .fg-gauge-band-label { fill: #f0f0f3; }
+.fear-greed-page .fg-gauge-tick { fill: #6f727b; }
+.fear-greed-page .fg-gauge-needle { fill: #e7e7eb; }
+.fear-greed-page .fg-gauge-hub { fill: #101216; }
+.fear-greed-page .fg-gauge-score { fill: #eeeef2; font-size: 46px; font-weight: 400; letter-spacing: normal; }
+.fear-greed-page .fg-gauge-rating { fill: #acafb7; font-size: 12px; font-weight: 400; }
+.fear-greed-page .fg-gauge-limit { fill: #92959e; font-size: 12px; stroke: #08090b; stroke-width: 3px; paint-order: stroke; stroke-linejoin: round; }
 .fear-greed-page .fg-snapshot-meta { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 6px 10px; min-height: 20px; margin-top: 13px; color: #73747e; font-size: 10px; line-height: 16px; }
 .fear-greed-page .fg-snapshot-meta button { min-height: 28px; padding: 2px 6px; color: #b4a181; background: none; border: 0; font-size: 10px; cursor: pointer; }
 .fear-greed-page .fg-comparisons { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 26px; padding: 0 0 22px; border-bottom: 1px solid #232429; }

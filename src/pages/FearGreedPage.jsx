@@ -35,33 +35,53 @@ function RangeControl({ value, onChange, english }) {
 }
 
 function Gauge({ current, english }) {
+  const hubShadowId = `fg-hub-shadow-${React.useId().replace(/:/g, '')}`;
   const value = finite(current?.score) && current.score >= 0 && current.score <= 100 ? current.score : null;
   const active = ratingIndex(current?.rating);
   const point = (score, radius) => {
     const angle = Math.PI * (1 - score / 100);
-    return [180 + radius * Math.cos(angle), 183 - radius * Math.sin(angle)];
+    return [180 + radius * Math.cos(angle), 200 - radius * Math.sin(angle)];
   };
   // Arc lengths reproduce the five visual bands; displayed sentiment comes only from CNN's rating.
   const stops = [0, 25, 45, 55, 75, 100];
   const arc = (start, end) => {
-    const a = point(start, 150), b = point(end, 150), c = point(end, 129), d = point(start, 129);
-    return `M${a.join(',')} A150,150 0 0 1 ${b.join(',')} L${c.join(',')} A129,129 0 0 0 ${d.join(',')} Z`;
+    const a = point(start, 176), b = point(end, 176), c = point(end, 110), d = point(start, 110);
+    return `M${a.join(',')} A176,176 0 0 1 ${b.join(',')} L${c.join(',')} A110,110 0 0 0 ${d.join(',')} Z`;
   };
-  const needleStart = value === null ? null : point(value, 120);
-  const needleEnd = value === null ? null : point(value, 157);
-  return <div className="fg-gauge" style={{ '--fg-current-color': sentimentColor(current?.rating) }}>
-    <svg viewBox="0 0 360 218" role="img" aria-label={`${english ? 'Fear and Greed Index' : '恐慌与贪婪指数'} ${scoreLabel(value, english, true)} ${ratingLabel(current?.rating, english)}`}>
-      {RATINGS.map((rating, index) => <path key={rating} className="fg-gauge-band" data-active={active === index && value !== null} data-band={index}
-        style={{ fill: SENTIMENT_COLORS[index] }} d={arc(stops[index] + .6, stops[index + 1] - .6)} />)}
-      {value !== null && <line className="fg-gauge-needle" x1={needleStart[0]} y1={needleStart[1]} x2={needleEnd[0]} y2={needleEnd[1]} />}
-      <text className="fg-gauge-score" x="180" y="151" textAnchor="middle">{scoreLabel(value, english, true)}</text>
-      <text className="fg-gauge-rating" x="180" y="182" textAnchor="middle">{ratingLabel(current?.rating, english)}</text>
-      <text className="fg-gauge-limit" x="29" y="210" textAnchor="middle">0</text>
-      <text className="fg-gauge-limit" x="331" y="210" textAnchor="middle">100</text>
+  return <div className="fg-gauge">
+    <svg viewBox="0 0 360 256" role="img" aria-label={`${english ? 'Fear and Greed Index' : '恐慌与贪婪指数'} ${scoreLabel(value, english, true)} ${ratingLabel(current?.rating, english)}`}>
+      <defs>
+        <filter id={hubShadowId} x="-70%" y="-70%" width="240%" height="240%" colorInterpolationFilters="sRGB">
+          <feDropShadow dx="0" dy="0" stdDeviation="8" floodColor="#9299aa" floodOpacity="0.16" />
+          <feDropShadow dx="0" dy="5" stdDeviation="6" floodColor="#000000" floodOpacity="0.55" />
+        </filter>
+      </defs>
+      {RATINGS.map((rating, index) => {
+        const mid = (stops[index] + stops[index + 1]) / 2;
+        const [x, y] = point(mid, 153);
+        const selected = active === index && value !== null;
+        return <g key={rating} data-band={index} data-active={selected}>
+          <path className="fg-gauge-band" d={arc(stops[index] + .4, stops[index + 1] - .4)} />
+          <text className="fg-gauge-band-label" textAnchor="middle" dominantBaseline="central"
+            transform={`translate(${x} ${y}) rotate(${mid * 1.8 - 90})`}>
+            {english ? ['Extreme fear', 'Fear', 'Neutral', 'Greed', 'Extreme greed'][index] : RATING_ZH[index]}
+          </text>
+        </g>;
+      })}
+      {Array.from({ length: 21 }, (_, index) => index * 5).filter(tick => tick % 25 !== 0).map(tick => {
+        const [x, y] = point(tick, 101);
+        return <circle key={tick} className="fg-gauge-tick" cx={x} cy={y} r="1.15" />;
+      })}
+      {value !== null && <path className="fg-gauge-needle" d="M176.5 156 L178.8 69 Q180 65 181.2 69 L183.5 156 Z"
+        transform={`rotate(${value * 1.8 - 90} 180 200)`} />}
+      {[0, 25, 50, 75, 100].map(tick => {
+        const [x, y] = point(tick, 97);
+        return <text key={tick} className="fg-gauge-limit" x={x} y={y} dy={tick === 0 || tick === 100 ? '-2' : '4'} textAnchor="middle">{tick}</text>;
+      })}
+      <circle className="fg-gauge-hub" cx="180" cy="200" r="44" filter={`url(#${hubShadowId})`} />
+      <text className="fg-gauge-score" x="180" y="201" textAnchor="middle">{scoreLabel(value, english, true)}</text>
+      <text className="fg-gauge-rating" x="180" y="222" textAnchor="middle">{ratingLabel(current?.rating, english)}</text>
     </svg>
-    <div className="fg-gauge-labels">{RATINGS.map((rating, index) => <span key={rating} data-active={active === index}>
-      {english ? ['Extreme fear', 'Fear', 'Neutral', 'Greed', 'Extreme greed'][index] : RATING_ZH[index]}
-    </span>)}</div>
   </div>;
 }
 
