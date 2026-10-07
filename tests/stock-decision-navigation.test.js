@@ -38,7 +38,7 @@ assert.ok(handler, 'read the actual All Tools event handler');
 const callbacks = app.slice(app.indexOf('const openStockDecision ='), app.indexOf('const openDcaLab ='));
 const tabDestructure = trades.slice(trades.indexOf('  const {', trades.indexOf('export default function TradesTab(')), trades.indexOf('  } = ctx;') + '  } = ctx;'.length);
 
-test('stock decision follows overlap and remains reachable with a translated line icon', () => {
+test('stock decision follows DCA Lab and remains reachable with a translated line icon', () => {
   for (const [language, title, description] of [
     ['zh', '股票决策', '趋势、位置与量价观察'],
     ['en', 'Stock decision', 'Observe trends, price levels and volume.'],
@@ -47,7 +47,7 @@ test('stock decision follows overlap and remains reachable with a translated lin
     const ids = buttons.map(button => button.props['data-tool-id']);
     const index = ids.indexOf('stock-decision');
     assert.ok(index > 0);
-    assert.deepEqual(ids.slice(index - 1, index + 2), ['portfolio-overlap', 'stock-decision', 'macro']);
+    assert.deepEqual(ids.slice(index - 1, index + 2), ['dca-lab', 'stock-decision', 'macro']);
     assert.equal(ids.includes('cost'), false);
     assert.equal(ids.filter(id => id === 'stock-decision').length, 1);
     const markup = renderToStaticMarkup(buttons[index]);

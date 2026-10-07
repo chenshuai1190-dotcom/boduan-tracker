@@ -7,9 +7,9 @@ const TOOL_GROUPS = [
   {
     id: 'research', titleKey: 'trades.toolsResearch', icon: TrendingUp,
     tools: [
+      { id: 'portfolio-overlap', titleKey: 'trades.portfolioOverlap', descriptionKey: 'trades.overlapDescription', icon: Layers },
       { id: 'investment-comparison', titleKey: 'trades.investmentTimeMachine', descriptionKey: 'trades.timeMachineDescription', icon: History },
       { id: 'dca-lab', titleKey: 'trades.dcaLab', descriptionKey: 'trades.dcaLabDescription', icon: FlaskConical },
-      { id: 'portfolio-overlap', titleKey: 'trades.portfolioOverlap', descriptionKey: 'trades.overlapDescription', icon: Layers },
       { id: 'stock-decision', titleKey: 'trades.stockDecision', descriptionKey: 'trades.stockDecisionDescription', icon: Crosshair },
       { id: 'macro', titleKey: 'trades.macro', descriptionKey: 'trades.macroDescription', icon: Activity },
     ],

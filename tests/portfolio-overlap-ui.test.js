@@ -23,7 +23,6 @@ function compiledPage(reactUrl, { dev = false, extra = '', transportUrl } = {}) 
     ['react', reactUrl], ['react-dom', import.meta.resolve('react-dom')], ['lucide-react', import.meta.resolve('lucide-react')],
     ['../components/InvestmentComparisonChart.jsx', chartUrl], ['../components/ActionModalCard.jsx', cardUrl],
     ['../lib/portfolioOverlapModel.js', new URL('../src/lib/portfolioOverlapModel.js', import.meta.url).href],
-    ['../lib/stockDisplayName.js', new URL('../src/lib/stockDisplayName.js', import.meta.url).href],
     ['../lib/portfolioOverlap.js', transportUrl || new URL('../src/lib/portfolioOverlap.js', import.meta.url).href],
   ]);
   return transformed.code.replace(/from (["'])([^"']+)\1/g, (match, _quote, path) => imports.has(path) ? `from ${JSON.stringify(imports.get(path))}` : match)
@@ -47,15 +46,24 @@ const ctxFor = (positions = []) => ({ userId: 'user-a', language: 'zh', portfoli
 const position = (symbol = 'ZETA', amount = 285) => ({ symbol, name: `${symbol} holding`, heldShares: 3, valuationPrice: amount / 3, marketValue: amount });
 const htmlOf = (Component, props) => renderToStaticMarkup(React.createElement(Component, props));
 
-test('newly supported ETF holdings show coverage while SMH retains its Chinese ticker name', () => {
-  const instruments = ['SMH', 'VGT'].map(symbol => ({ ...fund(symbol), name: symbol === 'SMH' ? 'VanEck Semiconductor ETF' : 'Vanguard Information Technology ETF' }));
+test('holdings use ticker-only identities while retaining coverage, values and percentages in both languages', () => {
+  const instruments = [
+    ...['SMH', 'VGT'].map(symbol => ({ ...fund(symbol), name: symbol === 'SMH' ? 'VanEck Semiconductor ETF' : 'Vanguard Information Technology ETF' })),
+    { ...stock('NVDA'), name: 'NVIDIA Corporation' },
+  ];
   const model = buildPortfolioOverlapModel({ holdings: instruments.map(({ symbol }) => ({ symbol, amount: 100 })), instruments });
-  const chinese = htmlOf(PositionList, { model, metadataReady: true, englishMode: false });
-  assert.match(chinese, /<strong>SMH<\/strong><small>SMH<\/small>/);
-  assert.equal((chinese.match(/披露成分 50.0%/g) || []).length, 2);
-  assert.doesNotMatch(chinese, /未穿透|VanEck Semiconductor ETF/);
-  const english = htmlOf(PositionList, { model, metadataReady: true, englishMode: true });
-  assert.match(english, /VanEck Semiconductor ETF/);
+  for (const englishMode of [false, true]) {
+    const html = htmlOf(PositionList, { model, metadataReady: true, englishMode });
+    for (const symbol of ['SMH', 'VGT', 'NVDA']) {
+      assert.equal((html.match(new RegExp(`<strong>${symbol}</strong>`, 'g')) || []).length, 1);
+      assert.doesNotMatch(html, new RegExp(`<small>${symbol}</small>`));
+    }
+    assert.equal((html.match(englishMode ? /Disclosed basket 50\.0%/g : /披露成分 50\.0%/g) || []).length, 2);
+    assert.match(html, englishMode ? /Verified stock/ : /已核验股票/);
+    assert.equal((html.match(/<strong>\$100\.00<\/strong>/g) || []).length, 3);
+    assert.equal((html.match(/<small>33\.3%<\/small>/g) || []).length, 3);
+    assert.doesNotMatch(html, /未穿透|Not expanded|VanEck Semiconductor ETF|Vanguard Information Technology ETF|NVIDIA Corporation/);
+  }
 });
 
 test('default page follows real active-position values, not prototype holdings, in both languages', () => {

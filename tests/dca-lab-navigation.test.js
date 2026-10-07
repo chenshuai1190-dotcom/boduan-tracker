@@ -29,7 +29,7 @@ test('all tools closes before opening DCA Lab and the entry follows the investme
   );
   assert.deepEqual(calls, [['sheet', false], ['panel', ''], ['dca']]);
   assert.equal((trades.match(/openDcaLab\?\.\(\)/g) || []).length, 1);
-  assert.match(catalog, /id: 'investment-comparison'[^\n]*\n\s*\{ id: 'dca-lab'[^\n]*\n\s*\{ id: 'portfolio-overlap'/);
+  assert.match(catalog, /id: 'portfolio-overlap'[^\n]*\n\s*\{ id: 'investment-comparison'[^\n]*\n\s*\{ id: 'dca-lab'/);
   assert.doesNotMatch(handler, /db\.|stock_trades|upsert|insert|delete|save|fetch/);
 });
 

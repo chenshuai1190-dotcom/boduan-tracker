@@ -15,12 +15,12 @@ const compiled = transformed.code
   .replace(/from (["'])\.\.\/lib\/i18n\.js\1/g, `from ${JSON.stringify(new URL('../src/lib/i18n.js', import.meta.url).href)}`);
 const { default: TradeToolsCatalog } = await import(`data:text/javascript;base64,${Buffer.from(compiled).toString('base64')}`);
 const expectedGroups = [
-  { key: 'trades.toolsResearch', zh: '对比与测算', tools: ['investment-comparison', 'dca-lab', 'portfolio-overlap', 'stock-decision', 'macro'] },
+  { key: 'trades.toolsResearch', zh: '对比与测算', tools: ['portfolio-overlap', 'investment-comparison', 'dca-lab', 'stock-decision', 'macro'] },
   { key: 'trades.toolsReview', zh: '交易复盘', tools: ['records', 'waves'] },
   { key: 'trades.toolsCommunity', zh: '社区互动', tools: ['competition'] },
 ];
 const expectedTools = expectedGroups.flatMap(group => group.tools);
-const titleKeys = ['trades.investmentTimeMachine', 'trades.dcaLab', 'trades.portfolioOverlap', 'trades.stockDecision', 'trades.macro', 'trades.tradeLog', 'trades.swingLog', 'competition.toolEntry'];
+const titleKeys = ['trades.portfolioOverlap', 'trades.investmentTimeMachine', 'trades.dcaLab', 'trades.stockDecision', 'trades.macro', 'trades.tradeLog', 'trades.swingLog', 'competition.toolEntry'];
 
 function nodesOfType(node, type) {
   if (!React.isValidElement(node)) return [];
