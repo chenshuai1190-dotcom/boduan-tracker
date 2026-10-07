@@ -62,6 +62,8 @@ body.po-overlap-modal-open { overflow:hidden !important; }
 .investment-comparison .po-coverage-line strong { font-weight:400; text-align:right; }
 .investment-comparison .po-method-copy { font-size:12px; color:var(--ic-muted); line-height:1.8; }
 .investment-comparison .po-footnote { font-size:10px; color:var(--ic-muted); margin:19px 0 0; text-align:center; }
+.investment-comparison .po-source-dates { margin-top:8px; font-size:10px; line-height:1.8; color:var(--ic-muted); text-align:center; }
+.investment-comparison .po-source-dates p { margin:0; }
 .investment-comparison .po-empty { padding:32px 18px; text-align:center; color:var(--ic-muted); }
 .investment-comparison .po-empty h2 { font-size:17px; font-weight:500; color:var(--ic-text); }
 .investment-comparison .po-state { padding:20px 16px; margin:0 0 18px; border:1px solid var(--ic-border); border-radius:13px; color:var(--ic-muted); font-size:12px; line-height:1.8; }

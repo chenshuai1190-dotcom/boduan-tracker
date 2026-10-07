@@ -17,7 +17,7 @@ const chartUrl = dataUrl(chart.code.replace(/from (["'])react\1/g, `from ${JSON.
 const card = await transformWithOxc(read('src/components/ActionModalCard.jsx'), 'ActionModalCard.jsx', { jsx: { runtime: 'classic' } });
 const cardUrl = dataUrl(card.code.replace(/from (["'])(react|lucide-react)\1/g, (_match, _quote, name) => `from ${JSON.stringify(import.meta.resolve(name))}`));
 const transformed = await transformWithOxc(source, 'PortfolioOverlapPage.jsx', { jsx: { runtime: 'classic' } });
-const internalExports = '\nexport { PortfolioOverlapContent, PortfolioAnalysis, PortfolioEditor, CompanyDetail, PositionList, PortfolioOverlapSheet, draftOf };';
+const internalExports = '\nexport { PortfolioOverlapContent, PortfolioAnalysis, PortfolioSourceDates, PortfolioEditor, CompanyDetail, PositionList, PortfolioOverlapSheet, draftOf };';
 function compiledPage(reactUrl, { dev = false, extra = '', transportUrl } = {}) {
   const imports = new Map([
     ['react', reactUrl], ['react-dom', import.meta.resolve('react-dom')], ['lucide-react', import.meta.resolve('lucide-react')],
@@ -28,7 +28,7 @@ function compiledPage(reactUrl, { dev = false, extra = '', transportUrl } = {}) 
   return transformed.code.replace(/from (["'])([^"']+)\1/g, (match, _quote, path) => imports.has(path) ? `from ${JSON.stringify(imports.get(path))}` : match)
     .replace(/import ["'][^"']+\.css["'];?/g, '').replaceAll('import.meta.env.DEV', String(dev)) + extra;
 }
-const { default: PortfolioOverlapPage, PortfolioAnalysis, CompanyDetail, PositionList, draftOf } = await import(dataUrl(compiledPage(import.meta.resolve('react'), { extra: internalExports })));
+const { default: PortfolioOverlapPage, PortfolioAnalysis, PortfolioSourceDates, CompanyDetail, PositionList, draftOf } = await import(dataUrl(compiledPage(import.meta.resolve('react'), { extra: internalExports })));
 
 const fetchedAt = '2026-09-08T12:00:00.000Z';
 function stock(symbol) {
@@ -87,7 +87,8 @@ test('account totals, holding rows and company details retain two USD decimals w
       assert.ok(holdings.includes(`<strong>${formatted}</strong>`));
       if (model.companies.length) {
         const detail = htmlOf(CompanyDetail, { company: model.companies[0], model, englishMode });
-        assert.ok(detail.includes(` · ${formatted}</p>`));
+        assert.ok(detail.includes(`<p class="po-detail-value">${formatted}</p>`));
+        assert.doesNotMatch(detail, /NVDA verified stock/);
         assert.ok(detail.includes(` → ${formatted}</p>`));
         assert.ok(detail.includes(`<strong>${formatted}</strong>`));
       }
@@ -186,20 +187,39 @@ test('source details retain disclosed weights, dates and stale warnings without 
     const html = htmlOf(CompanyDetail, { company, model, englishMode });
     assert.match(html, /2026-09-04/); assert.match(html, /20%/);
     assert.match(html, englishMode ? /Stale source/ : /来源较旧/);
+    assert.ok(!html.includes(company.name));
     assert.doesNotMatch(html, /<a\b|href=|po-source-link|View source|查看来源|Test fund issuer|Test identity provider|模拟成分权重|虚构|NaN/);
   }
 });
 
-test('coverage keeps disclosure dates and incomplete-data warnings without provider links', () => {
+test('source dates move to the footer while coverage retains its incomplete-data state', () => {
   const model = testModel({ stale: true });
+  const undated = { symbol: 'VGT', kind: 'plain_etf', metadata: { ...fund('VGT'), asOfDate: null } };
+  const unknown = { symbol: 'UNAVAILABLE', kind: 'unknown', metadata: { ...stock('UNAVAILABLE'), asOfDate: null, stale: true } };
+  const dated = { symbol: 'SMH', kind: 'plain_etf', metadata: { ...fund('SMH'), asOfDate: '2026-09-07' } };
+  const leveraged = buildPortfolioOverlapModel({
+    holdings: [{ symbol: 'TQQQ', amount: 100 }],
+    instruments: [{ ...stock('TQQQ'), kind: 'leveraged_etf', source: { provider: 'Test fund issuer', url: 'https://example.com/tqqq', basis: 'daily_leverage_target' } }],
+  }).positions[0];
+  assert.equal(leveraged.kind, 'leveraged_etf');
+  const footerModel = { ...model, positions: [...model.positions.map(position => position.symbol === 'TQQQ' ? leveraged : position), undated, unknown, dated] };
   for (const englishMode of [false, true]) {
     const html = htmlOf(PortfolioAnalysis, { model, englishMode, expanded: false });
     assert.match(html, /2026-09-04/);
     assert.match(html, /\$300/);
     assert.match(html, englishMode ? /Disclosed basket 50.0%/ : /披露成分 50.0%/);
     assert.match(html, englishMode ? /Stale or unavailable/ : /数据较旧或不可用/);
-    assert.match(html, englishMode ? /Some sources are stale or unavailable/ : /部分来源较旧或不可用/);
+    assert.doesNotMatch(html, /Some sources are stale or unavailable|部分来源较旧或不可用/);
     assert.doesNotMatch(html, /<a\b|href=|po-source-link|Test fund issuer|Test identity provider|View source|查看来源/);
+    const footer = htmlOf(PortfolioSourceDates, { model: footerModel, englishMode });
+    assert.match(footer, /class="po-source-dates"/);
+    assert.match(footer, englishMode ? /QQQ · Holdings as of 2026-09-04 · Older disclosure/ : /QQQ · 成分披露 2026-09-04 · 较旧/);
+    assert.match(footer, englishMode ? /SMH · Holdings as of 2026-09-07<\/p>/ : /SMH · 成分披露 2026-09-07<\/p>/);
+    assert.match(footer, englishMode ? /VGT · Holdings unavailable/ : /VGT · 成分不可用/);
+    assert.match(footer, englishMode ? /UNAVAILABLE · Source unavailable/ : /UNAVAILABLE · 来源不可用/);
+    assert.match(footer, englishMode ? /UNKNOWN · Source unavailable/ : /UNKNOWN · 来源不可用/);
+    assert.doesNotMatch(footer, /2026-09-08|NVDA|TQQQ|verified stock|Test disclosed fund|NaN|undefined/);
+    assert.equal(htmlOf(PortfolioSourceDates, { model: { positions: footerModel.positions.filter(row => ['stock', 'leveraged_etf'].includes(row.kind)) }, englishMode }), '');
   }
 });
 
@@ -255,7 +275,8 @@ function requestHarness(initialCtx = ctxFor([position()])) {
 
 test('request scope sends symbols only; valuation updates and same-symbol mode switches do not refetch', async () => {
   const harness = requestHarness();
-  harness.render(); await settle();
+  const pending = harness.render(); await settle();
+  assert.equal(elements(pending, node => node.type.name === 'PortfolioSourceDates').length, 0);
   assert.equal(harness.calls.length, 1);
   assert.deepEqual(harness.calls[0].args.symbols, ['ZETA']);
   assert.deepEqual(Object.keys(harness.calls[0].args).sort(), ['force','signal','symbols','userId']);
@@ -263,6 +284,11 @@ test('request scope sends symbols only; valuation updates and same-symbol mode s
   harness.reply(0); await settle();
   let tree = harness.render();
   assert.ok(elements(tree, node => node.type.name === 'PortfolioAnalysis').length);
+  const footerItems = elements(tree, node => node.props.className === 'po-footnote' || node.type.name === 'PortfolioSourceDates');
+  assert.equal(footerItems.length, 2);
+  assert.equal(footerItems[0].props.className, 'po-footnote');
+  assert.equal(footerItems[1].type.name, 'PortfolioSourceDates');
+  assert.equal(footerItems[1].props.model, elements(tree, node => node.type.name === 'PortfolioAnalysis')[0].props.model);
   tree = harness.render(ctxFor([position('ZETA', 570)])); await settle();
   assert.equal(harness.calls.length, 1);
   assert.equal(elements(tree, node => node.type.name === 'PortfolioAnalysis')[0].props.model.total, 570);
@@ -318,6 +344,7 @@ test('metadata request failures become an error state rather than a zero or part
   const html = renderToStaticMarkup(tree);
   assert.match(html, /持仓元数据读取失败/); assert.match(html, /role="alert"/);
   assert.equal(elements(tree, node => node.type.name === 'PortfolioAnalysis').length, 0);
+  assert.equal(elements(tree, node => node.type.name === 'PortfolioSourceDates').length, 0);
 });
 
 test('empty or pending portfolios never request metadata, and cannot copy retained pending values', async () => {

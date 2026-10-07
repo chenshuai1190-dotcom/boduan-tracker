@@ -9,7 +9,7 @@ import '../components/InvestmentComparison.css';
 import '../components/PortfolioOverlap.css';
 
 const MAX_CUSTOM_HOLDINGS = 40;
-const SOURCE_COLORS = { direct: '#ff655e', QQQ: '#eebc65', SPY: '#4fd0a1' };
+const SOURCE_COLORS = { direct: '#ff655e', QQQ: '#eebc65', SPY: '#4fd0a1', VGT: '#60a5fa', SMH: '#a78bfa' };
 const percentage = value => Number.isFinite(value) ? `${value.toFixed(1)}%` : '—';
 const disclosedWeight = value => Number.isFinite(value) ? `${value.toLocaleString('en-US', { maximumFractionDigits: 6 })}%` : '—';
 const dollars = value => Number.isFinite(value) ? `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—';
@@ -110,7 +110,7 @@ function PositionList({ model, holdings, metadataReady, englishMode, onEdit }) {
 function CompanyDetail({ company, model, englishMode, onEdit }) {
   return <>
     <div className="po-detail-summary"><strong>{percentage(company.percent)}</strong><span>{englishMode ? 'Of the whole portfolio · identified' : '占组合总额 · 已识别'}</span></div>
-    <p className="po-detail-value">{company.name} · {dollars(company.amount)}</p>
+    <p className="po-detail-value">{dollars(company.amount)}</p>
     {company.sources.map(source => {
       const position = model.positions.find(row => row.symbol === source.symbol);
       const metadata = position?.metadata;
@@ -160,10 +160,8 @@ function PortfolioAnalysis({ model, englishMode, expanded, setExpanded, onCompan
     [englishMode ? 'Unexpanded / unknown holdings' : '未穿透 / 未识别部分', model.unexpandedPercent, model.unexpandedAmount, 'var(--po-unknown)'],
     [englishMode ? 'Leveraged ETFs · separate' : '杠杆 ETF 单列', model.leveragedPercent, model.leveragedAmount, 'var(--po-gold)'],
   ];
-  const incomplete = model.positions.some(position => position.metadata.stale || position.kind === 'unknown' || position.metadata.holdingsStatus === 'unavailable');
   return <>
     {!model.valuationComplete && <div className="po-state po-warning" role="status"><p>{englishMode ? 'Quotes are missing. Portfolio total, concentration and all percentages are unavailable; no missing amount is treated as zero.' : '部分持仓暂无报价，总额、集中度及全部比例暂不计算；缺失金额没有按零处理。'}</p><p>{model.missingValuationSymbols.join(' · ')}</p></div>}
-    {incomplete && <p className="po-note"><Info size={14} aria-hidden="true" />{englishMode ? 'Some sources are stale or unavailable. Only identified holdings are included below.' : '部分来源较旧或不可用，以下仅展示已识别部分。'}</p>}
     {top && model.valuationComplete ? <section className="po-hero"><button type="button" className="po-hero-main" onClick={() => onCompany(top.symbol)} aria-label={englishMode ? `View largest identified security ${top.symbol}` : `查看最大已识别标的 ${top.symbol}`}><div className="po-hero-top"><span className="po-eyebrow">{englishMode ? 'Largest identified security' : '已识别标的中，占比最高'}</span><span className="po-source-tag">{sourcesLabel(top.sources.length, englishMode)}</span></div><div className="po-hero-value"><strong>{percentage(top.percent)}</strong><span>{top.symbol}</span></div><div className="po-hero-equation"><span><i className="po-dot" style={{ '--po-source': SOURCE_COLORS.direct }} />{englishMode ? 'Direct ' : '直接 '}<b>{percentage(top.directAmount / model.total * 100)}</b></span><span>＋</span><span>{englishMode ? 'Via ETFs ' : 'ETF 间接 '}<b>{percentage(top.indirectAmount / model.total * 100)}</b></span></div></button><div className="po-hero-footer"><div><small>{englishMode ? 'Top five · at least' : '前五大标的 · 至少'}</small><strong>{percentage(model.topFivePercent)}</strong></div><div><small>{englishMode ? 'Multiple-source overlap' : '多来源重叠标的'}</small><strong>{model.overlappingCompaniesCount}<em>{englishMode ? 'identified' : '个已识别'}</em></strong></div></div></section> : model.valuationComplete && <section className="po-hero po-empty"><h2>{model.total === 0 ? (englishMode ? 'No positive holding amount yet' : '暂无有效持仓金额') : (englishMode ? 'No identified securities yet' : '暂无可识别标的')}</h2><p>{model.total === 0 ? (englishMode ? 'Add a holding amount in a custom portfolio to calculate overlap.' : '可在自定义组合中添加金额后试算。') : (englishMode ? 'Unknown and leveraged holdings remain separately listed, not treated as zero.' : '未识别及杠杆持仓仍单独列示，没有按零处理。')}</p></section>}
     {model.companies.length > 0 && <><div className="po-section-head"><h2>{englishMode ? 'Where the money is invested' : '钱最终投向谁'}</h2><span>{model.valuationComplete ? (englishMode ? 'Identified weight ↓' : '已识别标的占比 ↓') : (englishMode ? 'Known amounts only' : '仅已知金额')}</span></div><div className="po-legend"><span><i className="po-dot" style={{ '--po-source': SOURCE_COLORS.direct }} />{englishMode ? 'Direct holdings' : '直接持有'}</span>{etfSymbols.map(symbol => <span key={symbol}><i className="po-dot" style={{ '--po-source': sourceColor({ kind: 'etf', symbol }) }} />{englishMode ? 'Via ' : '来自 '}{symbol}</span>)}</div>
       {model.companies.slice(0, expanded ? undefined : 6).map((company, index) => <button type="button" className="po-company-row" key={company.symbol} onClick={() => onCompany(company.symbol)} aria-label={englishMode ? `View ${company.symbol} holding sources` : `查看 ${company.symbol} 持仓来源`}><div className="po-company-line"><span className="po-rank">{String(index + 1).padStart(2, '0')}</span><div className="po-company-name"><strong>{company.symbol}</strong></div><div className="po-company-number"><strong>{model.valuationComplete ? percentage(company.percent) : dollars(company.amount)}</strong><small>{company.sources.length > 1 ? (englishMode ? `${company.sources.length} overlapping sources` : `${company.sources.length} 个来源重叠`) : sourcesLabel(1, englishMode)}</small></div><ChevronRight size={13} aria-hidden="true" /></div>{model.valuationComplete && <div className="po-stack-track" aria-hidden="true">{company.sources.map(source => <span key={`${source.kind}:${source.symbol}`} className="po-stack-part" style={{ '--po-source': sourceColor(source), width: `${source.percent / ceiling * 100}%` }} />)}</div>}</button>)}
@@ -177,6 +175,18 @@ function PortfolioAnalysis({ model, englishMode, expanded, setExpanded, onCompan
       <p className="po-method-copy">{englishMode ? 'All percentages use the whole portfolio as the denominator. Unexpanded holdings are not treated as zero. Identified security weights and the top-five total only describe the identified portion.' : '占比统一以组合总金额为分母。未穿透部分没有当作零；标的占比和前五合计仅表示已识别部分。'}</p>
     </details>
   </>;
+}
+
+function PortfolioSourceDates({ model, englishMode }) {
+  const sources = model.positions.filter(position => ['plain_etf', 'unknown'].includes(position.kind));
+  if (!sources.length) return null;
+  return <div className="po-source-dates" aria-label={englishMode ? 'Source disclosure dates' : '来源披露日期'}>
+    {sources.map(position => <p key={position.symbol}>{position.symbol}{position.kind === 'unknown'
+      ? (englishMode ? ' · Source unavailable' : ' · 来源不可用')
+      : position.metadata.asOfDate
+        ? `${englishMode ? ' · Holdings as of ' : ' · 成分披露 '}${position.metadata.asOfDate}${position.metadata.stale ? (englishMode ? ' · Older disclosure' : ' · 较旧') : ''}`
+        : (englishMode ? ' · Holdings unavailable' : ' · 成分不可用')}</p>)}
+  </div>;
 }
 
 function PortfolioOverlapContent({ ctx, previewSource }) {
@@ -269,6 +279,7 @@ function PortfolioOverlapContent({ ctx, previewSource }) {
                     : <PortfolioAnalysis model={model} englishMode={englishMode} expanded={expanded} setExpanded={setExpanded} onCompany={symbol => setSheet({ kind: 'company', symbol })} />}
       {canLoad && <div className="po-refresh-row"><span>{metadataReady && typeof scoped.response.fetchedAt === 'string' ? `${englishMode ? 'Metadata retrieved ' : '元数据读取于 '}${scoped.response.fetchedAt.slice(0, 10)}` : ''}</span><button type="button" onClick={refresh} disabled={scoped.status === 'loading'} aria-label={englishMode ? 'Refresh holdings metadata' : '刷新持仓元数据'}><RefreshCw size={13} aria-hidden="true" />{englishMode ? 'Refresh data' : '刷新数据'}</button></div>}
       <p className="po-footnote">{englishMode ? 'Read-only analysis · security-ticker grouping · disclosure dates vary' : '只读分析 · 按证券代码归集 · 各来源披露日期可能不同'}</p>
+      {analysisAvailable && <PortfolioSourceDates model={model} englishMode={englishMode} />}
     </section>
     {sheet && (sheet.kind !== 'company' || (analysisAvailable && selectedCompany)) && <PortfolioOverlapSheet title={sheetTitle} englishMode={englishMode} onClose={closeSheet}>
       {sheet.kind === 'method' ? <Methodology englishMode={englishMode} /> : sheet.kind === 'positions' ? <PositionList model={model} holdings={holdings} metadataReady={metadataReady} englishMode={englishMode} onEdit={openEditor} /> : sheet.kind === 'company' ? <CompanyDetail company={selectedCompany} model={model} englishMode={englishMode} onEdit={openEditor} /> : <PortfolioEditor draft={draft} setDraft={setDraft} englishMode={englishMode} currentHoldings={own.holdings} onSubmit={next => { setCustom(next); setMode('custom'); setExpanded(false); closeSheet(); setAnnouncement(englishMode ? 'Custom calculation updated. Your actual account has not changed.' : '试算组合已更新，真实账户未改动。'); }} />}
