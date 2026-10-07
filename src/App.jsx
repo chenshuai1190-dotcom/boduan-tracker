@@ -5415,6 +5415,8 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     snapshots,
     snapshotTab,
     stockTrades,
+    stockHoldingsReady,
+    stockHoldingsError,
     stockDetailSymbol,
     watchlistStockDetailFocusSection,
     watchlistStockDetailSymbol,

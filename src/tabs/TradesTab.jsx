@@ -11,6 +11,7 @@ import { resolveHoldingDisplayPrice, resolveHomeMarketDisplayMetrics } from '../
 import { deriveHoldingStockYtdPercent } from '../lib/holdingStockYtd.js';
 import { isEnglishLanguage, t } from '../lib/i18n.js';
 import { derivePositionAllocation } from '../lib/investmentSummary.js';
+import { deriveTradeCostPreview } from '../lib/tradeCostPreview.js';
 import { normalizeStrictUserStockSymbol } from '../lib/symbols.js';
 import {
   deriveTqqqMarketReference,
@@ -23,6 +24,7 @@ import StockReportModal from '../components/StockReportModal.jsx';
 import AccountLeverageBadge from '../components/AccountLeverageBadge.jsx';
 import AvailableCashEditor from '../components/AvailableCashEditor.jsx';
 import GenericLedgerTradeEntryPanel, { GenericLedgerTradeAmount, GenericLedgerTradeMarketReference } from '../components/GenericLedgerTradeEntryPanel.jsx';
+import TradeCostPreview from '../components/TradeCostPreview.jsx';
 import StockLogo, { stockLogoCandidates } from '../components/StockLogo.jsx';
 import TqqqTradeEntryPanel, { TQQQ_ACTION_TONE_CLASSES, TqqqTradeAmount } from '../components/TqqqTradeEntryPanel.jsx';
 import TqqqLiveRsiReference from '../components/TqqqLiveRsiReference.jsx';
@@ -462,6 +464,8 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
     showAddTrade,
     showConfirm,
     stockTrades,
+    stockHoldingsReady = false,
+    stockHoldingsError = null,
     displayStockName,
     tradeEntryScope,
     tradeSubmitting,
@@ -632,6 +636,13 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
   const isGenericLedgerTradeEntry = tradeEntryScope === 'ledger' && !isTqqqTradeEntry;
   const tradeReferenceSymbol = normalizeStrictUserStockSymbol(newTrade?.symbol) || '';
   const genericTradeSectionClass = 'mb-3 min-w-0 border-b border-white/10 pb-3';
+  const tradeCostPreview = React.useMemo(() => deriveTradeCostPreview({
+    stockTrades,
+    draft: newTrade,
+    scope: tradeEntryScope,
+    holdingsReady: showAddTrade && stockHoldingsReady,
+    holdingsError: stockHoldingsError,
+  }), [newTrade, showAddTrade, stockTrades, stockHoldingsReady, stockHoldingsError, tradeEntryScope]);
   const tqqqTradePreview = React.useMemo(() => deriveTqqqTradePreview({
     stockTrades,
     quoteRows,
@@ -1902,8 +1913,11 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
             titleClassName={isTqqqTradeEntry || isGenericLedgerTradeEntry ? 'srm-title' : ''}
             closeButtonClassName={isTqqqTradeEntry || isGenericLedgerTradeEntry ? 'srm-close' : ''}
             actionClassName={isTqqqTradeEntry ? 'srm-action tqqq-trade-action' : (isGenericLedgerTradeEntry ? 'srm-action formal-trade-action' : '')}
-            footerContent={isTqqqTradeEntry ? <TqqqTradeAmount preview={tqqqTradePreview} side={newTrade.side} tt={tt} />
-              : (isGenericLedgerTradeEntry ? <GenericLedgerTradeAmount draft={newTrade} tt={tt} /> : null)}
+            footerContent={isTqqqTradeEntry || isGenericLedgerTradeEntry ? <>
+              {isTqqqTradeEntry ? <TqqqTradeAmount preview={tqqqTradePreview} side={newTrade.side} tt={tt} />
+                : <GenericLedgerTradeAmount draft={newTrade} tt={tt} />}
+              <TradeCostPreview preview={tradeCostPreview} tt={tt} />
+            </> : null}
             actions={isTqqqTradeEntry ? [{
               key: 'tqqq-confirm',
               label: tradeSubmitting

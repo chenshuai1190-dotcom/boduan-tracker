@@ -3338,6 +3338,8 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     showConfirm: showPreviewConfirm,
     stockFreshnessStartedAt: freshnessPreviewMode === 'warming' ? Date.now() : 0,
     stockTrades: tradePreviewStockTrades,
+    stockHoldingsReady: true,
+    stockHoldingsError: null,
     displayStockName: (symbol, name, displayLanguage = language) => {
       const normalizedSymbol = String(symbol || '').trim().toUpperCase();
       if (normalizeLanguage(displayLanguage) === 'en') return devStockNameEn[normalizedSymbol] || normalizedSymbol;

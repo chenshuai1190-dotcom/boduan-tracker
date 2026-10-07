@@ -1,0 +1,4 @@
+.trade-cost-preview { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding-top: 16px; letter-spacing: normal; }
+.trade-cost-preview-column { min-width: 0; }
+.trade-cost-preview-label { color: #9797a1; font-size: 12px; line-height: 18px; }
+.trade-cost-preview-value { margin-top: 4px; color: #ededf0; font-size: 18px; line-height: 24px; font-weight: 400; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }

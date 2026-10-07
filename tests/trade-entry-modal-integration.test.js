@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
+import React from 'react';
 import { transformWithOxc } from 'vite';
 
 const source = readFileSync(new URL('../src/tabs/TradesTab.jsx', import.meta.url), 'utf8');
@@ -19,10 +20,11 @@ const fixtureSource = `
   const ActionModalCard = 'action-modal';
   const TqqqTradeAmount = 'tqqq-trade-amount';
   const GenericLedgerTradeAmount = 'generic-trade-amount';
+  const TradeCostPreview = 'trade-cost-preview';
   const TQQQ_ACTION_TONE_CLASSES = { buy: { confirm: 'buy-confirm' }, sell: { confirm: 'sell-confirm' } };
   const tt = (_key, fallback) => fallback;
   export default function tradeModal({
-    newTrade, tradeEntryScope, tradeSubmitting, tqqqTradePreview,
+    newTrade, tradeEntryScope, tradeSubmitting, tqqqTradePreview, tradeCostPreview,
     confirmTradeSubmit, setShowAddTrade, setNewTrade = () => {},
     logoCache = {}, cacheStockLogo = () => {},
   }) {
@@ -38,15 +40,34 @@ function modal(options = {}) {
   const closed = [];
   const draft = options.draft || { symbol: 'NVDA', side: 'buy', price: '123.45', shares: '20', date: '2026-10-05' };
   const preview = options.preview || { inputReady: true, hardBlocked: false };
+  const costPreview = options.costPreview || { applies: true, symbol: draft.symbol, current: { status: 'unavailable' }, after: { status: 'unavailable' } };
   const element = tradeModal({
     newTrade: draft,
     tradeEntryScope: options.scope || 'ledger',
     tradeSubmitting: options.submitting || false,
     tqqqTradePreview: preview,
+    tradeCostPreview: costPreview,
     confirmTradeSubmit: side => submitted.push(side),
     setShowAddTrade: open => closed.push(open),
   });
-  return { props: element.props, submitted, closed, draft, preview };
+  return { props: element.props, submitted, closed, draft, preview, costPreview };
+}
+
+function footerElements(node) {
+  if (!React.isValidElement(node)) return [];
+  return node.type === React.Fragment
+    ? React.Children.toArray(node.props.children).flatMap(footerElements)
+    : [node];
+}
+
+function assertCostFooter(result, amountType) {
+  const children = footerElements(result.props.footerContent);
+  assert.deepEqual(children.map(child => child.type), [amountType, 'trade-cost-preview'],
+    'cost is a read-only preview below the existing amount and before the confirmation actions');
+  const [amount, cost] = children;
+  assert.equal(cost.props.preview, result.costPreview, 'the footer must receive the calculated ledger preview without rebuilding it');
+  assert.deepEqual(Object.keys(cost.props).sort(), ['preview', 'tt'], 'the cost footer must not receive draft or transaction mutation callbacks');
+  return amount;
 }
 
 test('ordinary formal trades have one confirmation for the current direction and their own fixed amount', () => {
@@ -59,9 +80,9 @@ test('ordinary formal trades have one confirmation for the current direction and
     assert.equal(result.props.actions[0].disabled, false, 'ordinary trades must not inherit the TQQQ allocation block');
     result.props.actions[0].onClick();
     assert.deepEqual(result.submitted, [side]);
-    assert.equal(result.props.footerContent.type, 'generic-trade-amount');
-    assert.equal(result.props.footerContent.props.draft, draft, 'the estimate must use the same draft that is confirmed');
-    assert.equal(result.props.footerContent.props.preview, undefined);
+    const amount = assertCostFooter(result, 'generic-trade-amount');
+    assert.equal(amount.props.draft, draft, 'the estimate must use the same draft that is confirmed');
+    assert.equal(amount.props.preview, undefined);
   }
 });
 
@@ -73,9 +94,9 @@ test('formal TQQQ preserves its dedicated amount, current-side confirmation, and
     assert.equal(result.props.actions[0].className, `${side}-confirm`);
     result.props.actions[0].onClick();
     assert.deepEqual(result.submitted, [side]);
-    assert.equal(result.props.footerContent.type, 'tqqq-trade-amount');
-    assert.equal(result.props.footerContent.props.preview, result.preview);
-    assert.equal(result.props.footerContent.props.side, side);
+    const amount = assertCostFooter(result, 'tqqq-trade-amount');
+    assert.equal(amount.props.preview, result.preview);
+    assert.equal(amount.props.side, side);
   }
   const incomplete = modal({ draft: { symbol: 'TQQQ', side: 'buy' }, preview: { inputReady: false, hardBlocked: true } });
   assert.equal(incomplete.props.actions[0].disabled, false, 'an incomplete draft must still reach the existing form validation');
@@ -103,6 +124,27 @@ test('saving disables every entry action and prevents closing for all entry scop
     idle.props.onClose();
     assert.deepEqual(idle.closed, [false]);
   }
+});
+
+test('formal cost preview receives ledger readiness and error state instead of treating an unloaded ledger as empty', () => {
+  const costStart = source.indexOf('  const tradeCostPreview = React.useMemo(');
+  const costEnd = source.indexOf('  const tqqqTradePreview =', costStart);
+  assert.ok(costStart >= 0 && costEnd > costStart);
+  const costBinding = source.slice(costStart, costEnd);
+  for (const binding of ['stockTrades,', 'draft: newTrade', 'scope: tradeEntryScope',
+    'holdingsReady: showAddTrade && stockHoldingsReady', 'holdingsError: stockHoldingsError']) {
+    assert.ok(costBinding.includes(binding), `cost calculation must receive ${binding}`);
+  }
+  assert.match(source, /stockHoldingsReady\s*=\s*false/);
+  assert.match(costBinding, /\[newTrade, showAddTrade, stockTrades, stockHoldingsReady, stockHoldingsError, tradeEntryScope\]/,
+    'readiness, errors, edits, and ledger refreshes must invalidate the cost preview');
+  const app = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8');
+  const appContext = app.slice(app.indexOf('const tabCtx ='));
+  assert.match(appContext, /stockTrades,\s*stockHoldingsReady,\s*stockHoldingsError,/,
+    'the production tab must receive actual load state with its ledger');
+  const designPreview = readFileSync(new URL('../src/DevVisualPreview.jsx', import.meta.url), 'utf8');
+  assert.match(designPreview, /stockTrades: tradePreviewStockTrades,\s*stockHoldingsReady: true,\s*stockHoldingsError: null,/,
+    'only the local fixture declares its synthetic ledger ready');
 });
 
 test('ordinary RSI reference is scoped to the authenticated stock and never receives a ledger-write callback', () => {
