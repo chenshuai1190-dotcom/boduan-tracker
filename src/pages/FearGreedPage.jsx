@@ -49,7 +49,7 @@ function Gauge({ current, english }) {
     return `M${a.join(',')} A176,176 0 0 1 ${b.join(',')} L${c.join(',')} A110,110 0 0 0 ${d.join(',')} Z`;
   };
   return <div className="fg-gauge">
-    <svg viewBox="0 0 360 256" role="img" aria-label={`${english ? 'Fear and Greed Index' : '恐慌与贪婪指数'} ${scoreLabel(value, english, true)} ${ratingLabel(current?.rating, english)}`}>
+    <svg viewBox="0 0 360 280" role="img" aria-label={`${english ? 'Fear and Greed Index' : '恐慌与贪婪指数'} ${scoreLabel(value, english, true)} ${ratingLabel(current?.rating, english)}`}>
       <defs>
         <filter id={hubShadowId} x="-70%" y="-70%" width="240%" height="240%" colorInterpolationFilters="sRGB">
           <feDropShadow dx="0" dy="0" stdDeviation="8" floodColor="#9299aa" floodOpacity="0.16" />
@@ -79,8 +79,8 @@ function Gauge({ current, english }) {
         return <text key={tick} className="fg-gauge-limit" x={x} y={y} dy={tick === 0 || tick === 100 ? '-2' : '4'} textAnchor="middle">{tick}</text>;
       })}
       <circle className="fg-gauge-hub" cx="180" cy="200" r="44" filter={`url(#${hubShadowId})`} />
-      <text className="fg-gauge-score" x="180" y="201" textAnchor="middle">{scoreLabel(value, english, true)}</text>
-      <text className="fg-gauge-rating" x="180" y="222" textAnchor="middle">{ratingLabel(current?.rating, english)}</text>
+      <text className="fg-gauge-score" x="180" y="200" textAnchor="middle" dominantBaseline="central">{scoreLabel(value, english, true)}</text>
+      <text className="fg-gauge-rating" x="180" y="267" textAnchor="middle">{ratingLabel(current?.rating, english)}</text>
     </svg>
   </div>;
 }
