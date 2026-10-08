@@ -25,7 +25,7 @@ async function loadPreview(dev) {
 const design = await loadPreview(true);
 const production = await loadPreview(false);
 const cases = [
-  ['extreme-fear', 12, 'extreme fear'], ['fear', 33, 'fear'], ['neutral', 50, 'neutral'],
+  ['extreme-fear', 12, 'extreme fear'], ['fear', 33, 'fear'], ['neutral', 50, 'neutral'], ['neutral-boundary', 44.6, 'fear'],
   ['greed', 67, 'greed'], ['extreme-greed', 88, 'extreme greed'],
 ];
 
@@ -50,7 +50,7 @@ test('the preview accepts only one recognized fgState and leaves other URLs on t
   }
 });
 
-test('five scenarios clone only current score and rating and never alter the recorded fixture', () => {
+test('sentiment and boundary scenarios clone only current score and rating and never alter the recorded fixture', () => {
   const original = structuredClone(recorded);
   Object.freeze(original.current);
   Object.freeze(original);
@@ -73,8 +73,8 @@ test('the default render retains the real snapshot while explicit states are vis
   assert.ok(original.includes(`data-rating="${recorded.current.rating}"`));
   assert.match(original, /data-scenario="false"/);
   assert.match(original, /aria-pressed="true">原始快照<\/button>/);
-  assert.match(original, /配色预览/);
-  assert.equal((original.match(/<button\b/g) || []).length, 6, 'all five states and the original snapshot remain reachable');
+  assert.match(original, /状态预览/);
+  assert.equal((original.match(/<button\b/g) || []).length, 7, 'all five states, boundary example and original snapshot remain reachable');
   for (const [id, score, rating] of cases) {
     const html = renderAt(design.default, `?fgState=${id}`);
     assert.ok(html.includes(`data-score="${score}"`));
@@ -83,7 +83,7 @@ test('the default render retains the real snapshot while explicit states are vis
     assert.equal((html.match(/aria-pressed="true"/g) || []).length, 1);
   }
   const english = renderAt(design.default, '?fgState=extreme-greed', 'en');
-  assert.match(english, /Color preview/);
+  assert.match(english, /State preview/);
   assert.match(english, /Original snapshot/);
   assert.match(english, /aria-pressed="true">Extreme greed<\/button>/);
 });

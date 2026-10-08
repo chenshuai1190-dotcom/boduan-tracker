@@ -1,6 +1,7 @@
 import React from 'react';
 import { ArrowDown, ArrowUp, ArrowUpDown, Check, ChevronRight, Flame, GripVertical, LockKeyhole, Pencil, Pin, Plus, Search, Trash2, X } from 'lucide-react';
 import { splitCurrencyAmount } from '../lib/amountDisplay.js';
+import { fearGreedDisplay } from '../lib/fearGreedDisplay.js';
 import { createBtcPlaceholderMarketCard, isBtcMarketCard } from '../lib/btcRealtime.js';
 import {
   HOME_SIGNAL_ET_OPEN_TIME,
@@ -306,14 +307,6 @@ function MiniMarketCard({ item, marketColorMode, language }) {
 }
 
 
-function fgiLevel(value, language = 'zh') {
-  const v = num(value);
-  if (v <= 20) return { label: t(language, 'home.fgi.extremeFear', '极度恐惧'), color: '#f43f5e', desc: t(language, 'home.fgi.extremeFearDesc', '市场极度恐惧') };
-  if (v <= 40) return { label: t(language, 'home.fgi.fear', '恐惧'), color: '#fb7185', desc: t(language, 'home.fgi.fearDesc', '市场偏恐惧, 谨慎布局') };
-  if (v <= 60) return { label: t(language, 'home.fgi.neutral', '中性'), color: '#facc15', desc: t(language, 'home.fgi.neutralDesc', '市场情绪中性') };
-  if (v <= 80) return { label: t(language, 'home.fgi.greed', '贪婪'), color: '#22c55e', desc: t(language, 'home.fgi.greedDesc', '市场偏贪婪, 控制追高') };
-  return { label: t(language, 'home.fgi.extremeGreed', '极度贪婪'), color: '#16a34a', desc: t(language, 'home.fgi.extremeGreedDesc', '高风险区, 减仓为主') };
-}
 
 
 export default function HomeTab({ ctx }) {
@@ -440,7 +433,7 @@ export default function HomeTab({ ctx }) {
   const displayWatchlist = homeWatchlist || watchlist || [];
   const vixDateLabel = dataDateLabel(vixDataDate);
   const fgiDateLabel = dataDateLabel(fgiDataDate);
-  const fgiInfo = fgiLevel(fgi, language);
+  const fgiInfo = fearGreedDisplay(fgi, language);
   const rawIndexCards = React.useMemo(() => (
     Array.isArray(marketIndices) && marketIndices.length > 0
       ? marketIndices
@@ -961,9 +954,9 @@ export default function HomeTab({ ctx }) {
           </button>
           <button type="button" onClick={() => openFearGreed?.()} aria-label={englishMode ? 'Open CNN Fear & Greed' : '查看 CNN 恐慌与贪婪指数'}>
             <span className="home-report-label">{englishMode ? 'Fear & Greed' : '恐慌贪婪指数'}<small>CNN</small><ChevronRight size={12} /></span>
-            <span className="home-report-sentiment-reading">{hasFiniteMarketValue(fgi) ? Math.round(Number(fgi)) : '--'}<small>{hasFiniteMarketValue(fgi) ? fgiInfo.label : ''}</small></span>
+            <span className="home-report-sentiment-reading">{fgiInfo.score ?? '--'}<small>{fgiInfo.score !== null ? fgiInfo.label : ''}</small></span>
             <span className="home-report-meter" aria-hidden="true">
-              {hasFiniteMarketValue(fgi) && <i style={{ left: `${Math.max(0, Math.min(100, Number(fgi)))}%` }} />}
+              {fgiInfo.score !== null && <i style={{ left: `${fgiInfo.score}%` }} />}
             </span>
             <span className="home-report-sentiment-date">{fgiDateLabel || '—'}</span>
           </button>

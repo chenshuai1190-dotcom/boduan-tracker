@@ -34,7 +34,7 @@ test('Home reuses financial readiness and existing cash, P&L and margin actions'
 
 test('Market visuals preserve unknown values, directional colors and neutral sentiment scales', () => {
   assert.ok(home.includes('fmtOptionalMoney(vix, 1)'));
-  assert.ok(home.includes('hasFiniteMarketValue(fgi) ? Math.round(Number(fgi))'));
+  assert.ok(home.includes("fgiInfo.score ?? '--'") && home.includes('fearGreedDisplay(fgi, language)'));
   assert.ok(home.includes('hasFiniteMarketValue(benchmarkDrawdown) ?'));
   assert.ok(home.includes('marketColor={(value) => marketColor(value, marketColorMode)}'));
   assert.ok(home.includes('data-home-signal-trigger'));
@@ -46,7 +46,7 @@ test('Market visuals preserve unknown values, directional colors and neutral sen
 });
 
 test('BTC has a live-only status dot without replacing readable connection labels', () => {
-  const marketCard = home.slice(home.indexOf('function MiniMarketCard('), home.indexOf('function fgiLevel('));
+  const marketCard = home.slice(home.indexOf('function MiniMarketCard('), home.indexOf('export default function HomeTab('));
   assert.ok(marketCard.includes('{isBtc && realtimeLabel && ('), 'connection status remains exclusive to BTC');
   assert.match(marketCard, /className="home-report-realtime-status" data-state=\{realtimeStatus\}/);
   assert.match(marketCard, /realtimeStatus === 'live' && <i className="(?=[^"]*\bhome-report-live-dot\b)(?=[^"]*\bquote-pulse-dot\b)[^"]*" aria-hidden="true" \/>/, 'only live displays the decorative green dot; other statuses keep their label');
@@ -62,7 +62,7 @@ test('BTC has a live-only status dot without replacing readable connection label
 
 test('index cards show actual charts without status or time text, and reserve blank chart space when absent', async () => {
   const source = home.slice(home.indexOf('function Sparkline('), home.indexOf('function marketCardName('))
-    + home.slice(home.indexOf('function MiniMarketCard('), home.indexOf('function fgiLevel('));
+    + home.slice(home.indexOf('function MiniMarketCard('), home.indexOf('export default function HomeTab('));
   const { code } = await transformWithOxc(source, 'MiniMarketCard.jsx', { jsx: { runtime: 'classic' } });
   const dependencies = {
     React, t, isBtcMarketCard,

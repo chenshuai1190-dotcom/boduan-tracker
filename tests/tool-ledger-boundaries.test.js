@@ -2618,8 +2618,8 @@ test('review target page uses a flat dark report and preserves click action moda
   assert.match(homeTabCss, /\.home-report-sentiment\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/, 'sentiment readings should remain side by side');
   assert.ok(homeTabSource.includes('VIX 恐慌指数') && homeTabSource.includes('Fear & Greed') && homeTabSource.includes('<small>CNN</small>'), 'sentiment names and provider identity should remain clear in both languages');
   assert.equal((homeTabSource.match(/className="home-report-meter"/g) || []).length, 2, 'both sentiment readings should use the quiet linear meter');
-  assert.ok(homeTabSource.includes('hasFiniteMarketValue(vix) && <i') && homeTabSource.includes('hasFiniteMarketValue(fgi) && <i'), 'missing readings must not be shown as zero-position dots');
-  assert.ok(homeTabSource.includes('fmtOptionalMoney(vix, 1)') && homeTabSource.includes('hasFiniteMarketValue(fgi) ? Math.round(Number(fgi))'), 'sentiment values should keep existing precision and explicit missing states');
+  assert.ok(homeTabSource.includes('hasFiniteMarketValue(vix) && <i') && homeTabSource.includes('fgiInfo.score !== null && <i'), 'missing readings must not be shown as zero-position dots');
+  assert.ok(homeTabSource.includes('fmtOptionalMoney(vix, 1)') && homeTabSource.includes("fgiInfo.score ?? '--'") && homeTabSource.includes('fearGreedDisplay(fgi, language)'), 'sentiment values should keep existing precision and explicit missing states');
   assert.ok(homeTabSource.includes('fgiInfo.label') && homeTabSource.includes('vixDateLabel') && homeTabSource.includes('fgiDateLabel'), 'sentiment should retain its level label and data dates');
   assert.match(homeTabCss, /\.home-report-sentiment-reading\s*\{[^}]*color:\s*#dedee4;/, 'sentiment levels should remain neutral rather than masquerading as investment gains');
   assert.doesNotMatch(homeTabSource, /FgiGauge|RadarVisual|fgiGaugeGlow|fgiValueToAngle|describeFgiArc/, 'retired radar and arc-gauge decoration must stay removed');

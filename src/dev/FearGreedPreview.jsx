@@ -6,6 +6,7 @@ export const FEAR_GREED_DESIGN_STATES = Object.freeze([
   { id: 'extreme-fear', score: 12, rating: 'extreme fear', zh: '极度恐慌', en: 'Extreme fear' },
   { id: 'fear', score: 33, rating: 'fear', zh: '恐慌', en: 'Fear' },
   { id: 'neutral', score: 50, rating: 'neutral', zh: '中性', en: 'Neutral' },
+  { id: 'neutral-boundary', score: 44.6, rating: 'fear', zh: '45分边界', en: '45 boundary' },
   { id: 'greed', score: 67, rating: 'greed', zh: '贪婪', en: 'Greed' },
   { id: 'extreme-greed', score: 88, rating: 'extreme greed', zh: '极度贪婪', en: 'Extreme greed' },
 ].map(Object.freeze));
@@ -33,12 +34,12 @@ export default function FearGreedPreview({ ctx }) {
   const english = String(ctx?.language || 'zh').toLowerCase().startsWith('en');
   const controls = <div data-fg-design-controls="true" style={{ marginTop: 12 }}>
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-      <span style={{ color: '#898992', fontSize: 11 }}>{english ? 'Color preview' : '配色预览'}</span>
+      <span style={{ color: '#898992', fontSize: 11 }}>{english ? 'State preview' : '状态预览'}</span>
       <div className="fg-range"><button type="button" aria-pressed={selected === null} onClick={() => setSelected(null)}>
         {english ? 'Original snapshot' : '原始快照'}
       </button></div>
     </div>
-    <div className="fg-range" role="group" aria-label={english ? 'Sentiment color preview' : '情绪配色预览'}
+    <div className="fg-range" role="group" aria-label={english ? 'Sentiment state preview' : '情绪状态预览'}
       style={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
       {FEAR_GREED_DESIGN_STATES.map(item => <button key={item.id} type="button" aria-pressed={selected === item.id}
         onClick={() => setSelected(item.id)}>{english ? item.en : item.zh}</button>)}
