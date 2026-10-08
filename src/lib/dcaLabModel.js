@@ -81,7 +81,8 @@ function boundarySession(year, last) {
  * Fractions and averageCost are adjusted-price simulation units, not broker fills.
  * Lump sum assumes all eventual contributed capital is available on day one;
  * it compares equal final capital, not equal cash flows or equal invested time.
- * rows/summary.profit are cumulative; years.profit is income earned in that year.
+ * rows/summary profit and all returnPct fields are cumulative. years.profit and
+ * years.lumpProfit are income earned in that year, not cumulative profit.
  */
 export function buildDcaModel({ data, plan } = {}) {
   const history = normalizeDcaHistoryData(data);
@@ -117,23 +118,35 @@ export function buildDcaModel({ data, plan } = {}) {
     }
     const value = finite(shares * price), lumpValue = finite(lumpShares * price);
     const profit = finite(value - invested), lumpProfit = finite(lumpValue - totalInvested);
-    return { date, price, contribution, invested, value, profit, returnPct: finite(profit / invested * 100), lumpValue, lumpProfit, shares };
+    return {
+      date, price, contribution, invested, value, profit, returnPct: finite(profit / invested * 100),
+      lumpValue, lumpProfit, lumpReturnPct: finite((lumpValue / totalInvested - 1) * 100),
+      advantage: finite(value - lumpValue), shares,
+    };
   });
 
   const years = [];
-  let yearOpening = 0;
+  let yearOpening = 0, lumpYearOpening = totalInvested;
   for (const row of rows) {
     const year = Number(row.date.slice(0, 4));
     if (years.at(-1)?.year !== year) {
       yearOpening = years.at(-1)?.value ?? 0;
-      years.push({ year, contribution: 0, invested: 0, value: 0, profit: 0, lumpValue: 0, throughDate: row.date, partial: false });
+      lumpYearOpening = years.at(-1)?.lumpValue ?? totalInvested;
+      years.push({
+        year, contribution: 0, invested: 0, value: 0, profit: 0, returnPct: 0,
+        lumpValue: 0, lumpProfit: 0, lumpReturnPct: 0, advantage: 0, throughDate: row.date, partial: false,
+      });
     }
     const annual = years.at(-1);
     annual.contribution = finite(annual.contribution + row.contribution);
     annual.invested = row.invested;
     annual.value = row.value;
     annual.profit = finite(row.value - yearOpening - annual.contribution);
+    annual.returnPct = row.returnPct;
     annual.lumpValue = row.lumpValue;
+    annual.lumpProfit = finite(row.lumpValue - lumpYearOpening);
+    annual.lumpReturnPct = row.lumpReturnPct;
+    annual.advantage = row.advantage;
     annual.throughDate = row.date;
   }
   for (const annual of years) {
@@ -146,7 +159,7 @@ export function buildDcaModel({ data, plan } = {}) {
     rows, purchases, years,
     summary: {
       invested: last.invested, value: last.value, profit: last.profit, returnPct: last.returnPct,
-      lumpValue: last.lumpValue, lumpProfit: last.lumpProfit, advantage: finite(last.value - last.lumpValue),
+      lumpValue: last.lumpValue, lumpProfit: last.lumpProfit, lumpReturnPct: last.lumpReturnPct, advantage: last.advantage,
       purchaseCount: purchases.length, averageCost: finite(last.invested / shares), shares,
     },
     startDate: rows[0].date, endDate: last.date, source: 'EODHD_EOD',

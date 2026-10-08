@@ -5609,7 +5609,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
               : isPortfolioOverlapPage
                 ? <PortfolioOverlapPage key={user?.id || ''} ctx={{ userId: user?.id || '', language, investmentSummary, portfolioReady: stockHoldingsReady, portfolioError: stockHoldingsError, closePortfolioOverlap }} />
               : isDcaLabPage
-                ? <DcaLabPage key={user?.id || ''} ctx={{ userId: user?.id || '', language, marketColorMode, closeDcaLab }} />
+                ? <DcaLabPage key={user?.id || ''} ctx={{ userId: user?.id || '', language, marketColorMode, usdRate, closeDcaLab }} />
               : isStockDecisionPage
                 ? <StockDecisionPage key={user?.id || ''} ctx={{ userId: user?.id || '', language, marketColorMode, closeStockDecision }} />
               : isMacroPage

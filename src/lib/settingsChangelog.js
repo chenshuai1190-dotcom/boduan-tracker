@@ -4,6 +4,17 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '定投实验室新增 USD／CNY 切换，默认人民币；投入、资产、盈亏及年度对比金额同步换算，切换不改变收益率。',
+      '与一次投入的对比补充累计收益率和领先金额，年度结果逐年展示两种方案，取消每笔定投列表。',
+    ],
+    itemsEn: [
+      'DCA Lab adds USD/CNY switching with CNY as the default. Contributions, assets, gains, and annual comparisons convert together without changing returns.',
+      'Lump-sum comparisons add cumulative returns and the leading amount. Annual results compare both strategies year by year, replacing the individual purchase list.',
+    ],
+  },
+  {
+    ver: 'v10.7.9.557', date: '2026-10-05',
+    items: [
       '普通股票交易窗口统一为买卖切换布局，新增当前股票 RSI(6) 参考，展示超卖、正常、超买与强超买四档状态。',
       '市场参考显示 VIX 与当前股票距52周高点幅度；保留原有交易校验和 TQQQ 专属仓位提醒。',
     ],

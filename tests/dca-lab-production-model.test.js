@@ -134,25 +134,108 @@ test('prices are already adjusted: raw fields cannot override them and simulatio
     close(row.returnPct, row.profit / row.invested * 100);
     close(row.lumpValue, model.summary.invested / model.rows[0].price * row.price);
     close(row.lumpProfit, row.lumpValue - model.summary.invested);
+    close(row.lumpReturnPct, row.lumpProfit / model.summary.invested * 100);
+    close(row.advantage, row.value - row.lumpValue);
   }
   close(model.summary.averageCost * model.summary.shares, model.summary.invested);
   close(model.purchases.reduce((sum, row) => sum + row.shares, 0), model.summary.shares);
   assert.equal(model.rows[0].price, 100);
 });
 
-test('annual net income subtracts that year contributions and reconciles to cumulative profit', () => {
+test('annual net income for both strategies reconciles to cumulative profit while returns stay cumulative', () => {
   const model = build(history({ price: (_date, index) => 100 + index * 0.02 }));
-  let opening = 0, contribution = 0, profit = 0;
+  let opening = 0, contribution = 0, profit = 0, lumpOpening = model.summary.invested, lumpProfit = 0;
   for (const annual of model.years) {
     close(annual.profit, annual.value - opening - annual.contribution);
+    close(annual.lumpProfit, annual.lumpValue - lumpOpening);
     contribution += annual.contribution;
     profit += annual.profit;
+    lumpProfit += annual.lumpProfit;
     close(annual.invested, contribution);
-    assert.equal(annual.throughDate, model.rows.filter(row => row.date.startsWith(String(annual.year))).at(-1).date);
+    const lastRow = model.rows.filter(row => row.date.startsWith(String(annual.year))).at(-1);
+    assert.equal(annual.throughDate, lastRow.date);
+    close(annual.returnPct, lastRow.returnPct);
+    close(annual.lumpReturnPct, lastRow.lumpReturnPct);
+    close(annual.advantage, annual.value - annual.lumpValue);
     opening = annual.value;
+    lumpOpening = annual.lumpValue;
   }
   close(profit, model.summary.profit);
+  close(lumpProfit, model.summary.lumpProfit);
   close(contribution, model.summary.invested);
+});
+
+test('independent multi-year arithmetic distinguishes annual income from cumulative return, including a partial loss year', () => {
+  // December: $30 / $10 = 3 units. 2021: 12 × $10 / $40 = 3 units.
+  // January 2022: $10 / $5 = 2 units. Lump sum: $160 / $10 = 16 units.
+  const data = history({
+    from: '2020-12-01', through: '2022-01-31',
+    price: date => date === '2020-12-01' ? 10 : date.startsWith('2020') ? 20 : date.startsWith('2021') ? 40 : 5,
+  });
+  const model = build(data, { ...PLAN, startYear: 2020, endYear: 2022, initial: 20, amount: 10 });
+  assert.equal(model.summary.invested, 160);
+  const expectedYears = [
+    { year: 2020, value: 60, profit: 30, returnPct: 100, lumpValue: 320, lumpProfit: 160, lumpReturnPct: 100, advantage: -260, throughDate: '2020-12-31', partial: true },
+    { year: 2021, value: 240, profit: 60, returnPct: 60, lumpValue: 640, lumpProfit: 320, lumpReturnPct: 300, advantage: -400, throughDate: '2021-12-31', partial: false },
+    { year: 2022, value: 40, profit: -210, returnPct: -75, lumpValue: 80, lumpProfit: -560, lumpReturnPct: -50, advantage: -40, throughDate: '2022-01-31', partial: true },
+  ];
+  for (const [index, expected] of expectedYears.entries()) {
+    for (const [key, value] of Object.entries(expected)) {
+      if (typeof value === 'number') close(model.years[index][key], value);
+      else assert.equal(model.years[index][key], value);
+    }
+  }
+  close(model.summary.profit, -120);
+  close(model.summary.lumpProfit, -80);
+  close(model.summary.lumpReturnPct, -50);
+  close(model.years.reduce((sum, annual) => sum + annual.lumpProfit, 0), -80);
+  close(model.rows[0].advantage, -130);
+});
+
+test('an independently priced decline shows a $100 DCA lead while both strategy returns remain negative', () => {
+  const model = build(history({
+    from: '2022-01-03', through: '2022-03-31', price: date => ({ '01': 100, '02': 50, '03': 25 })[date.slice(5, 7)],
+  }), { ...PLAN, startYear: 2022, endYear: 2022, initial: 100, amount: 100 });
+  // DCA: 2 + 2 + 4 = 8 units, ending at $25. Lump sum: $400 / $100 = 4 units.
+  close(model.summary.value, 200);
+  close(model.summary.returnPct, -50);
+  close(model.summary.lumpValue, 100);
+  close(model.summary.lumpReturnPct, -75);
+  close(model.summary.advantage, 100);
+  close(model.years[0].lumpProfit, -300);
+  close(model.years[0].advantage, 100);
+});
+
+test('an initial-only leveraged ticker compares actual adjusted prices once and has no artificial lead', () => {
+  const model = build(history({
+    symbol: 'TQQQ', from: '2020-12-01', through: '2021-01-29', price: date => date.startsWith('2020') ? 10 : 12,
+  }), { ...PLAN, symbol: 'TQQQ', startYear: 2020, endYear: 2021, initial: 100, amount: 0 });
+  // Actual price grows 20%; the ticker's leverage must not multiply that return.
+  close(model.summary.value, 120);
+  close(model.summary.returnPct, 20);
+  close(model.summary.lumpReturnPct, 20);
+  close(model.summary.advantage, 0);
+  close(model.years[0].lumpProfit, 0);
+  close(model.years[1].lumpProfit, 20);
+  for (const row of [...model.rows, ...model.years]) {
+    close(row.value, row.lumpValue);
+    close(row.returnPct, row.lumpReturnPct);
+    close(row.advantage, 0);
+  }
+});
+
+test('flat prices produce equal final values and zero cumulative and annual returns for both strategies', () => {
+  const model = build(history({ from: '2020-12-01', through: '2021-01-29', price: () => 10 }),
+    { ...PLAN, startYear: 2020, endYear: 2021, initial: 20, amount: 10 });
+  close(model.summary.value, 40);
+  close(model.summary.lumpValue, 40);
+  close(model.summary.advantage, 0);
+  for (const row of [...model.rows, ...model.years, model.summary]) {
+    close(row.returnPct, 0);
+    close(row.lumpReturnPct, 0);
+    close(row.profit, 0);
+    close(row.lumpProfit, 0);
+  }
 });
 
 test('zero initial and initial-only plans remain valid; monetary scaling changes no return or purchase date', () => {
@@ -166,10 +249,19 @@ test('zero initial and initial-only plans remain valid; monetary scaling changes
   const base = build(data), scaled = build(data, { ...PLAN, initial: 50000, amount: 5000 });
   for (const [index, row] of base.rows.entries()) {
     const other = scaled.rows[index];
-    for (const key of ['invested', 'value', 'profit', 'lumpValue', 'lumpProfit', 'shares']) close(other[key], row[key] * 5);
+    for (const key of ['invested', 'value', 'profit', 'lumpValue', 'lumpProfit', 'advantage', 'shares']) close(other[key], row[key] * 5);
     close(other.returnPct, row.returnPct);
+    close(other.lumpReturnPct, row.lumpReturnPct);
     assert.equal(other.date, row.date);
   }
+  for (const [index, annual] of base.years.entries()) {
+    const other = scaled.years[index];
+    for (const key of ['contribution', 'invested', 'value', 'profit', 'lumpValue', 'lumpProfit', 'advantage']) close(other[key], annual[key] * 5);
+    close(other.returnPct, annual.returnPct);
+    close(other.lumpReturnPct, annual.lumpReturnPct);
+    assert.equal(other.throughDate, annual.throughDate);
+  }
+  close(scaled.summary.lumpReturnPct, base.summary.lumpReturnPct);
   close(base.summary.averageCost, scaled.summary.averageCost);
 });
 

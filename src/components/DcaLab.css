@@ -1,5 +1,4 @@
 .dca-lab { --dl-red:#ff4b1f; --dl-green:#34d399; --dl-gold:#eebc65; }
-.dca-lab .dl-header-icon { position:absolute; right:5px; color:var(--ic-muted); }
 .dca-lab .dl-plan { margin-top:20px; border:1px solid var(--ic-border); border-radius:15px; padding:15px 14px 13px; background:linear-gradient(145deg,var(--ic-panel),var(--ic-bg) 85%); }
 .dca-lab .dl-plan-top { display:flex; align-items:center; justify-content:space-between; gap:12px; }
 .dca-lab .dl-symbol { display:block; position:relative; min-width:0; flex:1; }
@@ -47,8 +46,7 @@
 .dca-lab .dl-grid { stroke:var(--ic-grid); stroke-width:1px; }
 .dca-lab .dl-selected { display:flex; justify-content:space-between; align-items:center; margin:0 5px 0 7px; font-size:11px; color:var(--ic-muted); min-height:35px; }
 .dca-lab .dl-selected button { min-height:35px; padding:0; background:transparent; color:var(--ic-muted); border:0; font-size:11px; }
-.dca-lab .dl-chart-comparison { display:flex; flex-wrap:wrap; justify-content:space-between; gap:8px; font-size:11px; color:var(--ic-muted); margin-top:10px; }
-.dca-lab .dl-chart-comparison b { font-size:13px; font-weight:500; margin-left:4px; }
+.dca-lab .dl-chart-comparison { margin-top:18px; }
 .dca-lab .dl-playback { margin:0 0 28px; }
 .dca-lab .dl-playback > input { display:block; width:100%; margin:0; min-height:30px; accent-color:var(--ic-text); }
 .dca-lab .dl-player { display:flex; justify-content:center; gap:15px; align-items:center; margin-top:3px; }
@@ -61,23 +59,29 @@
 .dca-lab h2 { font-size:15px; font-weight:500; margin:0; }
 .dca-lab .dl-section-heading svg { color:var(--ic-muted); }
 .dca-lab .dl-comparison { border-top:1px solid var(--ic-border); padding-top:23px; }
-.dca-lab .dl-compare-row { display:flex; justify-content:space-between; gap:10px; margin:10px 0; font-size:12px; color:var(--ic-muted); }
-.dca-lab .dl-compare-row strong { font-size:15px; font-weight:500; }
-.dca-lab .dl-compare-conclusion { margin:18px 0 9px; font-size:13px; }
-.dca-lab .dl-compare-conclusion strong { margin-left:4px; font-size:17px; font-weight:500; }
-.dca-lab .dl-comparison p { color:var(--ic-muted); font-size:11px; line-height:1.7; margin:0; }
-.dca-lab .dl-details { margin-top:26px; border-top:1px solid var(--ic-border); }
-.dca-lab .dl-detail-tabs { display:flex; gap:22px; margin-bottom:8px; }
-.dca-lab .dl-detail-tabs button { display:flex; gap:7px; align-items:center; min-height:53px; padding:0; border:0; border-bottom:2px solid transparent; background:transparent; color:var(--ic-muted); font-size:14px; }
-.dca-lab .dl-detail-tabs button[aria-pressed=true] { color:var(--ic-text); border-bottom-color:var(--dl-gold); }
-.dca-lab .dl-detail-tabs span { font-size:11px; }
-.dca-lab table { width:100%; table-layout:fixed; border-collapse:collapse; font-size:11px; }
-.dca-lab th, .dca-lab td { text-align:right; padding:12px 0; font-weight:400; border-bottom:1px solid var(--ic-grid); }
-.dca-lab th:first-child { text-align:left; }
-.dca-lab thead { color:var(--ic-muted); font-size:11px; }
-.dca-lab tbody td:last-child { color:var(--ic-text); }
-.dca-lab .dl-more { display:flex; justify-content:center; align-items:center; gap:7px; min-height:48px; width:100%; border:0; background:transparent; color:var(--ic-muted); font-size:12px; }
-.dca-lab .dl-table-unit { font-size:11px; color:var(--ic-muted); margin-top:12px; }
+.dca-lab .dl-section-heading > span { font-size:11px; color:var(--ic-muted); }
+.dca-lab .dl-comparison-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+.dca-lab .dl-comparison-side { min-width:0; }
+.dca-lab .dl-comparison-label { display:block; color:var(--ic-muted); font-size:12px; }
+.dca-lab .dl-comparison-asset { display:block; font-size:20px; font-weight:500; line-height:1.4; margin-top:6px; overflow-wrap:anywhere; font-variant-numeric:tabular-nums; }
+.dca-lab .dl-comparison-return { display:flex; flex-wrap:wrap; align-items:baseline; gap:3px 6px; margin-top:4px; }
+.dca-lab .dl-comparison-return b { font-size:14px; font-weight:400; }
+.dca-lab .dl-comparison-return span { color:var(--ic-muted); font-size:11px; }
+.dca-lab .dl-compare-conclusion { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 10px; margin:16px 0 10px; font-size:12px; color:var(--ic-muted); }
+.dca-lab .dl-compare-conclusion strong { font-size:17px; font-weight:500; font-variant-numeric:tabular-nums; }
+.dca-lab .dl-comparison > p { color:var(--ic-muted); font-size:11px; line-height:1.7; margin:0; }
+.dca-lab .dl-details { margin-top:26px; padding-top:23px; border-top:1px solid var(--ic-border); }
+.dca-lab .dl-annual-basis { color:var(--ic-muted); font-size:11px; margin:-4px 0 18px; }
+.dca-lab .dl-year { padding:18px 0; border-bottom:1px solid var(--ic-grid); }
+.dca-lab .dl-year:first-of-type { padding-top:0; }
+.dca-lab .dl-year header { display:flex; align-items:baseline; justify-content:space-between; gap:8px; margin-bottom:14px; }
+.dca-lab .dl-year h3 { margin:0; font-size:16px; font-weight:500; }
+.dca-lab .dl-year time { font-size:11px; color:var(--ic-muted); }
+.dca-lab .dl-annual-profit { display:flex; flex-direction:column; gap:4px; margin-top:13px; }
+.dca-lab .dl-annual-profit span { font-size:11px; color:var(--ic-muted); }
+.dca-lab .dl-annual-profit b { font-size:14px; font-weight:400; }
+.dca-lab .dl-year-capital { display:flex; flex-wrap:wrap; gap:4px 12px; color:var(--ic-muted); font-size:11px; margin:0; }
+.dca-lab .dl-table-unit { font-size:11px; line-height:1.7; color:var(--ic-muted); margin-top:14px; }
 .dca-lab .dl-method { border-top:1px solid var(--ic-border); margin-top:25px; }
 .dca-lab .dl-method summary { display:flex; justify-content:space-between; align-items:center; min-height:50px; font-size:12px; color:var(--ic-muted); cursor:pointer; list-style:none; }
 .dca-lab .dl-method p { font-size:11px; color:var(--ic-muted); line-height:1.8; margin:0 0 12px; }
@@ -88,4 +92,3 @@
 .dca-lab .dl-status { padding:32px 0; text-align:center; color:var(--ic-muted); font-size:13px; }
 .dca-lab .dl-status button, .dca-lab .dl-data-note button { background:transparent; border:0; color:var(--ic-text); min-height:44px; }
 .dca-lab .dl-data-note { font-size:11px; color:var(--ic-muted); line-height:1.7; margin:12px 0 0; }
-.dca-lab .dl-partial { display:block; font-size:11px; color:var(--ic-muted); margin-top:4px; }

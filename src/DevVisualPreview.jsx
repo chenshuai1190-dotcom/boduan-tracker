@@ -3518,7 +3518,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
           : activeTab === 'portfolio-overlap'
           ? <PortfolioOverlapPreview ctx={{ language, closePortfolioOverlap: () => { setActiveTab('trades'); window.scrollTo(0, 0); } }} />
           : activeTab === 'dca-lab'
-          ? <DcaLabPreview ctx={{ language, marketColorMode, closeDcaLab: () => { setActiveTab('trades'); window.scrollTo(0, 0); } }} />
+          ? <DcaLabPreview ctx={{ language, marketColorMode, usdRate: USD_RATE, closeDcaLab: () => { setActiveTab('trades'); window.scrollTo(0, 0); } }} />
           : activeTab === 'macro'
           ? <MacroPage initialPage={macroPreview.initialPage} initialInflationTab={macroPreview.initialInflationTab} previewState={macroPreview.previewState} mock={macroPreview.mock} onBack={() => { setActiveTab('trades'); window.scrollTo(0, 0); }} />
           : activeTab === 'debt-manager'
