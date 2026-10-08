@@ -23,12 +23,15 @@ export default function ActionModalCard({
   titleClassName = '',
   headerClassName = '',
   closeButtonClassName = '',
+  compactKeyboardSpacing = false,
 }) {
   const actionColumns = actionGridClassName || (actions.length === 1 ? 'grid-cols-1' : 'grid-cols-2');
   const [visualViewportFrame, setVisualViewportFrame] = React.useState(null);
   const panelRef = React.useRef(null);
   const contentRef = React.useRef(null);
   const focusedControlRef = React.useRef(null);
+  const compactKeyboard = compactKeyboardSpacing && visualViewportFrame && typeof window !== 'undefined'
+    && Number.parseFloat(visualViewportFrame.height) < window.innerHeight - 120;
 
   const keepFocusedControlVisible = React.useCallback((target = focusedControlRef.current) => {
     const panel = panelRef.current;
@@ -49,8 +52,17 @@ export default function ActionModalCard({
 
     const controlRect = target.getBoundingClientRect();
     const scrollerRect = scroller.getBoundingClientRect();
-    const visibleTop = scrollerRect.top + 12;
-    const lowerContextReserve = Math.min(96, Math.max(12, scrollerRect.height * 0.45));
+    const controlHeight = controlRect.bottom - controlRect.top;
+    // A short keyboard viewport must fit the control before reserving context.
+    // Oversized controls stay top-aligned instead of alternating between edges.
+    if (controlHeight > scrollerRect.height) {
+      scroller.scrollTop += controlRect.top - scrollerRect.top;
+      return;
+    }
+    const availableContext = Math.max(0, scrollerRect.height - controlHeight);
+    const topGap = Math.min(12, availableContext / 2);
+    const visibleTop = scrollerRect.top + topGap;
+    const lowerContextReserve = Math.min(96, Math.max(12, scrollerRect.height * 0.45), availableContext - topGap);
     const visibleBottom = scrollerRect.bottom - lowerContextReserve;
     if (controlRect.bottom > visibleBottom) {
       scroller.scrollTop += controlRect.bottom - visibleBottom;
@@ -98,8 +110,8 @@ export default function ActionModalCard({
       className={`fixed left-0 right-0 top-0 z-[100] flex h-[100dvh] items-center justify-center overflow-y-auto bg-black/[0.62] px-0 py-6 backdrop-blur-[10px] ${overlayClassName}`}
       onClick={(event) => { if (event.target === event.currentTarget) onClose?.(); }}
       style={{
-        paddingTop: 'calc(env(safe-area-inset-top) + 24px)',
-        paddingBottom: 'calc(env(safe-area-inset-bottom) + 24px)',
+        paddingTop: `calc(env(safe-area-inset-top) + ${compactKeyboard ? 8 : 24}px)`,
+        paddingBottom: compactKeyboard ? '8px' : 'calc(env(safe-area-inset-bottom) + 24px)',
         ...(visualViewportFrame ? {
           top: visualViewportFrame.top,
           height: visualViewportFrame.height,

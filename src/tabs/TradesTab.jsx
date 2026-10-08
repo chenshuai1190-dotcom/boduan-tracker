@@ -1905,6 +1905,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
             title={tradeEntryScope === 'wave' ? tt('trades.addWaveRecord', '添加波段记录') : (newTrade.id || newTrade.editingId ? tt('trades.editTrade', '修改交易') : tt('trades.addTrade', '添加交易'))}
             closeLabel={tt('trades.closeTradeForm', '关闭交易表单')}
             onClose={() => !tradeSubmitting && setShowAddTrade(false)}
+            compactKeyboardSpacing={isTqqqTradeEntry || isGenericLedgerTradeEntry}
             widthClassName={isTqqqTradeEntry || isGenericLedgerTradeEntry ? 'w-[calc(100vw-32px)] max-w-[440px]' : 'w-[calc(100vw-24px)] max-w-md'}
             panelClassName={isTqqqTradeEntry
               ? 'stock-report-modal tqqq-trade-dialog'

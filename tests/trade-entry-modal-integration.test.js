@@ -174,3 +174,10 @@ test('ordinary RSI reference is scoped to the authenticated stock and never rece
   assert.doesNotMatch(source, /import[^\n]+(?:StockRsiDesignPreview|stockRsiFixtures|StockTradeDesignPreview)/,
     'production trades must not import design-only data');
 });
+
+test('only ordinary and TQQQ formal trade modals opt into compact keyboard spacing', () => {
+  for (const symbol of ['NVDA', 'TQQQ']) {
+    assert.equal(modal({ scope: 'ledger', draft: { symbol, side: 'buy' } }).props.compactKeyboardSpacing, true);
+    assert.equal(modal({ scope: 'wave', draft: { symbol, side: 'buy' } }).props.compactKeyboardSpacing, false);
+  }
+});
