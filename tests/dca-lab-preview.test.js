@@ -5,6 +5,7 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { transformWithOxc } from 'vite';
 import { buildDcaModel } from '../src/lib/dcaLabModel.js';
+import { searchInvestmentSymbols } from '../src/lib/investmentComparison.js';
 
 const read = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 const source = read('src/pages/DcaLabPage.jsx');
@@ -13,13 +14,14 @@ const dataUrl = code => `data:text/javascript;base64,${Buffer.from(code).toStrin
 async function compile(text, file, dev = false, replacements = {}) {
   const transformed = await transformWithOxc(text, file, { jsx: { runtime: 'classic' } });
   const compiled = transformed.code
-    .replace(/from (["'])(react|lucide-react)\1/g, (_match, _quote, name) => `from ${JSON.stringify(import.meta.resolve(name))}`)
-    .replace(/from (["'])(\.\.\/[^"']+)\1/g, (_match, _quote, path) => `from ${JSON.stringify(replacements[path] || new URL(`../src/${path.slice(3)}`, import.meta.url).href)}`)
+    .replace(/from (["'])([^"']+)\1/g, (_match, _quote, path) => `from ${JSON.stringify(replacements[path] || (path.startsWith('../') ? new URL(`../src/${path.slice(3)}`, import.meta.url).href : import.meta.resolve(path)))}`)
     .replace(/import ["'][^"']+\.css["'];?/g, '')
     .replaceAll('import.meta.env.DEV', String(dev));
   return dataUrl(compiled);
 }
-const pickerModule = await compile(read('src/components/DcaSymbolPicker.jsx'), 'DcaSymbolPicker.jsx');
+const presetsModule = await compile(read('src/components/InvestmentSymbolPresets.jsx'), 'InvestmentSymbolPresets.jsx');
+const sharedPickerModule = await compile(read('src/components/InvestmentSymbolPicker.jsx'), 'InvestmentSymbolPicker.jsx', false, { './InvestmentSymbolPresets.jsx': presetsModule });
+const pickerModule = await compile(read('src/components/DcaSymbolPicker.jsx'), 'DcaSymbolPicker.jsx', false, { './InvestmentSymbolPicker.jsx': sharedPickerModule });
 const productionModule = await compile(source, 'DcaLabPage.jsx', false, { '../components/DcaSymbolPicker.jsx': pickerModule });
 const { default: DcaLabPage, DcaLabResults } = await import(productionModule);
 const { default: DcaLabPreview } = await import(await compile(preview, 'DcaLabPreview.jsx', false, { '../pages/DcaLabPage.jsx': productionModule }));
@@ -106,6 +108,8 @@ test('switching symbols clears a previous explicit refresh without forcing later
   const selector = nodes(page.tree, node => node.type?.name === 'DcaSymbolPicker')[0];
   assert.ok(selector, 'the symbol uses the controlled custom picker');
   assert.equal(selector.props.value, 'QQQ');
+  assert.equal(selector.props.userId, 'user-a', 'symbol search must retain the current authenticated user');
+  assert.equal(selector.props.searchSource, searchInvestmentSymbols, 'production uses the existing authenticated stock and ETF search');
   selector.props.onChange('SPY');
   assert.deepEqual(page.changes[0], { stateIndex: 2, next: 0 });
   assert.equal(page.changes[1].next.symbol, 'SPY');
@@ -226,15 +230,17 @@ test('asset values display two decimals without rounding the underlying history 
   assert.match(htmlOf(DcaLabResults, { model, plan }), /<td>1,320\.00<\/td><\/tr>/);
 });
 
-test('the plan and symbol popup cards use the exact overlap hero background and inherited color tokens', () => {
+test('the plan retains its background while symbol search reuses the existing investment dialog', () => {
   const css = read('src/components/DcaLab.css');
   const dca = css.match(/\.dca-lab \.dl-plan \{([^}]+)\}/)[1];
-  const menu = css.match(/\.dca-lab \.dl-symbol-menu \{([^}]+)\}/)[1];
   const overlap = read('src/components/PortfolioOverlap.css').match(/\.investment-comparison \.po-hero \{([^}]+)\}/)[1];
   const background = rule => rule.match(/background:([^;]+);/)[1];
   assert.equal(background(dca), background(overlap));
-  assert.equal(background(menu), background(overlap));
-  assert.match(menu, /border:1px solid var\(--ic-border\)/);
   assert.doesNotMatch(dca, /--ic-(?:panel|bg|border)\s*:|box-shadow/);
-  assert.doesNotMatch(menu, /--ic-(?:panel|bg|border)\s*:|inset/);
+  assert.doesNotMatch(css, /\.dl-symbol-menu\b|\.dl-symbol-option\b/);
+  const sharedPicker = read('src/components/InvestmentSymbolPicker.jsx');
+  assert.match(sharedPicker, /import ['"]\.\/InvestmentComparison\.css['"]/);
+  assert.match(sharedPicker, /className="investment-comparison ic-time-machine ic-sheet-overlay"/);
+  assert.match(sharedPicker, /className="ic-picker" role="dialog"/);
+  assert.match(read('src/components/DcaSymbolPicker.jsx'), /import InvestmentSymbolPicker from ['"]\.\/InvestmentSymbolPicker\.jsx['"]/);
 });

@@ -187,8 +187,8 @@ test('same-total-capital lump sum is fully funded at inception and a declining i
 test('validated non-preset tickers are supported without importing development presets or price generation', () => {
   const data = history({ symbol: 'BRK-B' });
   assert.equal(build(data, { ...PLAN, symbol: ' brk-b ' }).source, 'EODHD_EOD');
-  assert.equal(DCA_SYMBOLS.length, 11);
-  assert.equal(DCA_SYMBOLS.at(-1).symbol, 'AVGO');
+  assert.equal(DCA_SYMBOLS.length, 13);
+  assert.equal(DCA_SYMBOLS.at(-1).symbol, 'SMH');
 });
 
 test('invalid amounts, blank strings, unsupported years and mismatching tickers fail rather than coercing to zero', () => {

@@ -7,6 +7,7 @@ import { transformWithOxc } from 'vite';
 
 const chartSource = readFileSync(new URL('../src/components/InvestmentComparisonChart.jsx', import.meta.url), 'utf8');
 const pageSource = readFileSync(new URL('../src/pages/InvestmentComparisonPage.jsx', import.meta.url), 'utf8');
+const pickerSource = readFileSync(new URL('../src/components/InvestmentSymbolPicker.jsx', import.meta.url), 'utf8');
 const cssSource = readFileSync(new URL('../src/components/InvestmentComparison.css', import.meta.url), 'utf8');
 const dataUrl = code => `data:text/javascript;base64,${Buffer.from(code).toString('base64')}`;
 // Layout measurement runs only in a browser; SSR checks the rendered labels.
@@ -293,12 +294,13 @@ test('investment presentation uses real daily snapshots and keeps totals, profit
 
 test('investment search and data loading retain authentication and isolated request boundaries', () => {
   assert.ok(pageSource.includes('loadInvestmentComparison') && pageSource.includes('searchInvestmentSymbols'));
-  assert.ok(pageSource.includes('searchSource({ userId, query: normalizedQuery, force: attempt > 0, signal: controller.signal })'));
+  assert.ok(pickerSource.includes('searchSource({ userId, query: normalizedQuery, force: attempt > 0, signal: controller.signal })'));
   assert.ok(pageSource.includes('loadState.key === requestKey ? loadState.data : null'));
   assert.ok(pageSource.includes('requestRef.current !== requestId') && pageSource.includes('controller.abort()'));
   assert.ok(pageSource.includes('import.meta.env.DEV && previewSource?.load'));
-  assert.ok(pageSource.includes('role="dialog"') && pageSource.includes('aria-modal="true"'));
-  assert.equal(/stock_trades|insertTrade|upsertSettings|service_role/.test(chartSource + pageSource), false);
+  assert.ok(pickerSource.includes('role="dialog"') && pickerSource.includes('aria-modal="true"'));
+  assert.ok(pageSource.includes('<InvestmentSymbolPicker') && pageSource.includes('selectedSymbol=') && pageSource.includes('comparisonSymbol='));
+  assert.equal(/stock_trades|insertTrade|upsertSettings|service_role/.test(chartSource + pageSource + pickerSource), false);
   assert.doesNotMatch(pageSource, /ic-source|ic-currency-note|EODHD ·|金额按系统当前汇率|Amounts use the current system rate/);
   assert.doesNotMatch(pageSource, /ic-methodology|计算口径|Calculation method/);
 });

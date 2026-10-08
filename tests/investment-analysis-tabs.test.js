@@ -96,12 +96,12 @@ const drawdownUrl = dataUrl(`
   import React from ${JSON.stringify(import.meta.resolve('react'))};
   export default function Drawdown() { return React.createElement('div', { 'data-test-drawdown-view': true }); }
 `);
-const presetsUrl = dataUrl('export default function Presets() { return null; }');
+const pickerUrl = dataUrl('export default function SymbolPicker() { return null; }');
 let pageCode = (await transformWithOxc(pageSource, 'InvestmentComparisonPage.jsx', { jsx: { runtime: 'classic' } })).code;
 const imports = new Map([
   ['react', hookUrl], ['react-dom', import.meta.resolve('react-dom')], ['lucide-react', import.meta.resolve('lucide-react')],
   ['../components/InvestmentAnalysisTabs.jsx', tabUrl], ['../components/InvestmentComparisonChart.jsx', chartUrl],
-  ['../components/InvestmentDrawdownView.jsx', drawdownUrl], ['../components/InvestmentSymbolPresets.jsx', presetsUrl],
+  ['../components/InvestmentDrawdownView.jsx', drawdownUrl], ['../components/InvestmentSymbolPicker.jsx', pickerUrl],
   ['../lib/investmentComparison.js', sourceUrl], ['../lib/investmentComparisonModel.js', new URL('../src/lib/investmentComparisonModel.js', import.meta.url).href],
   ['../lib/investmentComparisonCurrency.js', new URL('../src/lib/investmentComparisonCurrency.js', import.meta.url).href],
   ['../lib/investmentComparisonLead.js', new URL('../src/lib/investmentComparisonLead.js', import.meta.url).href],

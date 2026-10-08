@@ -1,8 +1,7 @@
 import React from 'react';
-import { createPortal } from 'react-dom';
-import { ArrowLeft, ChevronDown, Pause, Play, RefreshCw, Search, X } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Pause, Play, RefreshCw } from 'lucide-react';
 import InvestmentComparisonChart, { formatInvestmentAmount, formatInvestmentPercent, investmentChangeColor, investmentRank, investmentRankColor } from '../components/InvestmentComparisonChart.jsx';
-import InvestmentSymbolPresets from '../components/InvestmentSymbolPresets.jsx';
+import InvestmentSymbolPicker from '../components/InvestmentSymbolPicker.jsx';
 import InvestmentAnalysisTabs from '../components/InvestmentAnalysisTabs.jsx';
 import InvestmentDrawdownView from '../components/InvestmentDrawdownView.jsx';
 import { getInvestmentComparisonExpectedCloseDate, loadInvestmentComparison, searchInvestmentSymbols } from '../lib/investmentComparison.js';
@@ -21,99 +20,6 @@ function historyErrorMessage(code, englishMode) {
   return englishMode ? 'Historical data could not be loaded.' : '历史数据暂时无法读取。';
 }
 
-function InvestmentSymbolPicker({ side, instruments, userId, englishMode, searchSource, onSelect, onClose }) {
-  const [query, setQuery] = React.useState('');
-  const [attempt, setAttempt] = React.useState(0);
-  const [state, setState] = React.useState({ query: '', userId, results: [], loading: false, error: false });
-  const [viewport, setViewport] = React.useState(null);
-  const inputRef = React.useRef(null);
-  const dialogRef = React.useRef(null);
-  const closeRef = React.useRef(onClose);
-  const requestRef = React.useRef(0);
-  closeRef.current = onClose;
-  const normalizedQuery = query.trim();
-
-  React.useEffect(() => {
-    const previousOverflow = document.body.style.overflow;
-    const trigger = document.activeElement;
-    document.body.style.overflow = 'hidden';
-    const focusId = window.requestAnimationFrame(() => dialogRef.current?.focus());
-    const updateViewport = () => {
-      if (window.visualViewport) setViewport({ top: window.visualViewport.offsetTop, height: window.visualViewport.height });
-    };
-    const keydown = event => {
-      if (event.key === 'Escape') { event.preventDefault(); closeRef.current?.(); return; }
-      if (event.key !== 'Tab') return;
-      const targets = [...(dialogRef.current?.querySelectorAll('button:not(:disabled), input, [tabindex="0"]') || [])];
-      const first = targets[0], last = targets.at(-1);
-      if (event.shiftKey && (document.activeElement === first || document.activeElement === dialogRef.current)) { event.preventDefault(); last?.focus(); }
-      else if (!event.shiftKey && (document.activeElement === last || document.activeElement === dialogRef.current)) { event.preventDefault(); first?.focus(); }
-    };
-    updateViewport();
-    window.visualViewport?.addEventListener('resize', updateViewport);
-    window.visualViewport?.addEventListener('scroll', updateViewport);
-    document.addEventListener('keydown', keydown);
-    return () => {
-      window.cancelAnimationFrame(focusId);
-      document.body.style.overflow = previousOverflow;
-      window.visualViewport?.removeEventListener('resize', updateViewport);
-      window.visualViewport?.removeEventListener('scroll', updateViewport);
-      document.removeEventListener('keydown', keydown);
-      trigger?.focus?.();
-    };
-  }, []);
-
-  React.useEffect(() => {
-    const requestId = ++requestRef.current;
-    const controller = new AbortController();
-    if (!normalizedQuery) {
-      setState({ query: '', userId, results: [], loading: false, error: false });
-      return () => { requestRef.current += 1; controller.abort(); };
-    }
-    setState({ query: normalizedQuery, userId, results: [], loading: true, error: false });
-    const timer = window.setTimeout(() => {
-      searchSource({ userId, query: normalizedQuery, force: attempt > 0, signal: controller.signal })
-        .then(result => {
-          if (requestRef.current !== requestId || controller.signal.aborted) return;
-          setState({ query: normalizedQuery, userId, results: result.results || [], loading: false, error: false });
-        })
-        .catch(() => {
-          if (requestRef.current !== requestId || controller.signal.aborted) return;
-          setState({ query: normalizedQuery, userId, results: [], loading: false, error: true });
-        });
-    }, 300);
-    return () => { window.clearTimeout(timer); requestRef.current += 1; controller.abort(); };
-  }, [attempt, normalizedQuery, searchSource, userId]);
-
-  const matchesCurrentQuery = state.userId === userId && state.query === normalizedQuery;
-  const results = matchesCurrentQuery ? state.results : [];
-  const title = englishMode ? `Change ${side === 0 ? 'left' : 'right'} investment` : `更换${side === 0 ? '左' : '右'}侧标的`;
-
-  return createPortal(<div className="investment-comparison ic-time-machine ic-sheet-overlay" style={viewport ? { top: viewport.top, height: viewport.height, bottom: 'auto' } : undefined} onPointerDown={event => { if (event.target === event.currentTarget) onClose(); }}>
-    <section ref={dialogRef} className="ic-picker" role="dialog" tabIndex={-1} aria-modal="true" aria-labelledby="investment-picker-title">
-      <div className="ic-picker-handle" />
-      <header className="ic-picker-head"><h2 id="investment-picker-title">{title}</h2><button type="button" className="ic-icon-button" onClick={onClose} aria-label={englishMode ? 'Close stock search' : '关闭股票搜索'}><X size={21} /></button></header>
-      <div className="ic-picker-context">{englishMode ? 'Current' : '当前'} <strong>{instruments[side].symbol}</strong><span>·</span>{englishMode ? 'Compared with' : '对比'} <strong>{instruments[1 - side].symbol}</strong></div>
-      <label className="ic-search-label"><Search size={18} aria-hidden="true" /><input ref={inputRef} type="search" value={query} onChange={event => { setQuery(event.target.value); setAttempt(0); }} autoComplete="off" autoCapitalize="characters" spellCheck={false} placeholder={englishMode ? 'Search symbol or company name' : '搜索股票代码 / 名称'} aria-label={englishMode ? 'Search US stocks and ETFs' : '搜索美股与 ETF'} /></label>
-      <div className="ic-results-heading"><span>{normalizedQuery ? (englishMode ? 'Search results' : '搜索结果') : (englishMode ? 'Stocks & ETFs' : '股票与 ETF 快捷选择')}</span><span>US · USD</span></div>
-      <div className="ic-results" aria-busy={state.loading}>
-        {!normalizedQuery ? <InvestmentSymbolPresets side={side} instruments={instruments} englishMode={englishMode} onSelect={onSelect} />
-          : !matchesCurrentQuery || state.loading ? <div className="ic-search-empty" role="status"><RefreshCw size={15} className="ic-spin" />{englishMode ? 'Searching…' : '搜索中…'}</div>
-            : state.error ? <div className="ic-search-empty" role="alert"><span>{englishMode ? 'Search is temporarily unavailable.' : '搜索暂时不可用。'}</span><button type="button" onClick={() => setAttempt(value => value + 1)}>{englishMode ? 'Retry' : '重试'}</button></div>
-              : results.length === 0 ? <div className="ic-search-empty">{englishMode ? 'No matching USD stock or ETF found.' : '未找到匹配的美元股票或 ETF。'}</div>
-                : results.map(item => {
-                  const duplicate = item.symbol === instruments[1 - side].symbol;
-                  const current = item.symbol === instruments[side].symbol;
-                  return <button key={item.symbol} type="button" className="ic-result" disabled={duplicate} onClick={() => onSelect(item)}>
-                    <span className="ic-result-icon">{item.type === 'ETF' ? 'ETF' : englishMode ? 'US' : '股票'}</span>
-                    <span className="ic-result-text"><strong>{item.symbol}</strong><span className="ic-result-market">US · USD</span><small>{item.name}</small></span>
-                    <span className="ic-result-status">{duplicate ? (englishMode ? 'Other side' : '已在对比') : current ? (englishMode ? 'Selected' : '当前') : '+'}</span>
-                  </button>;
-                })}
-      </div>
-    </section>
-  </div>, document.body);
-}
 
 export default function InvestmentComparisonPage({ ctx = {}, previewSource }) {
   const { userId = '', closeInvestmentComparison, marketColorMode = 'redUpGreenDown' } = ctx;
@@ -289,6 +195,6 @@ export default function InvestmentComparisonPage({ ctx = {}, previewSource }) {
     </div>
     {model && model.stale && model.expectedAsOfDate && <div className="ic-feedback ic-error" role="status"><span>{englishMode ? `Latest expected close: ${model.expectedAsOfDate}.` : `最近应有收盘日：${model.expectedAsOfDate}。`}</span><button type="button" onClick={refreshHistory} disabled={loadState.loading}>{englishMode ? 'Retry' : '重试'}</button></div>}
 
-    {pickerSide !== null && <InvestmentSymbolPicker side={pickerSide} instruments={instruments} userId={userId} englishMode={englishMode} searchSource={searchSource} onClose={() => setPickerSide(null)} onSelect={item => { setInstruments(current => current.map((existing, index) => index === pickerSide ? item : existing)); setPickerSide(null); }} />}
+    {pickerSide !== null && <InvestmentSymbolPicker selectedSymbol={instruments[pickerSide].symbol} comparisonSymbol={instruments[1 - pickerSide].symbol} title={englishMode ? `Change ${pickerSide === 0 ? 'left' : 'right'} investment` : `更换${pickerSide === 0 ? '左' : '右'}侧标的`} userId={userId} englishMode={englishMode} searchSource={searchSource} onClose={() => setPickerSide(null)} onSelect={item => { setInstruments(current => current.map((existing, index) => index === pickerSide ? item : existing)); setPickerSide(null); }} />}
   </div>;
 }

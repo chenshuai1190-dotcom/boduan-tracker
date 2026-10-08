@@ -6,34 +6,45 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { transformWithOxc } from 'vite';
 import { DCA_SYMBOLS } from '../src/lib/dcaLabModel.js';
 
-const source = readFileSync(new URL('../src/components/DcaSymbolPicker.jsx', import.meta.url), 'utf8');
+const componentUrl = name => new URL(`../src/components/${name}.jsx`, import.meta.url);
+const source = readFileSync(componentUrl('DcaSymbolPicker'), 'utf8');
+const pickerSource = readFileSync(componentUrl('InvestmentSymbolPicker'), 'utf8');
 const dataUrl = code => `data:text/javascript;base64,${Buffer.from(code).toString('base64')}`;
-const transformed = await transformWithOxc(source, 'DcaSymbolPicker.jsx', { jsx: { runtime: 'classic' } });
-function compile(reactUrl) {
-  const imports = new Map([
-    ['react', reactUrl], ['lucide-react', import.meta.resolve('lucide-react')],
-    ['../lib/dcaLabModel.js', new URL('../src/lib/dcaLabModel.js', import.meta.url).href],
-  ]);
-  return dataUrl(transformed.code.replace(/from (["'])([^"']+)\1/g, (match, _quote, path) => imports.has(path) ? `from ${JSON.stringify(imports.get(path))}` : match));
+async function compile(name, replacements = {}) {
+  const url = componentUrl(name);
+  const input = readFileSync(url, 'utf8').replace(/import\s*['"][^'"]+\.css['"];?/g, '');
+  const transformed = await transformWithOxc(input, `${name}.jsx`, { jsx: { runtime: 'classic' } });
+  return dataUrl(transformed.code.replace(/from (["'])([^"']+)\1/g, (_match, _quote, path) =>
+    `from ${JSON.stringify(replacements[path] || (path.startsWith('.') ? new URL(path, url).href : import.meta.resolve(path)))}`));
 }
-const { default: DcaSymbolPicker } = await import(compile(import.meta.resolve('react')));
 
-// A deterministic component hook host lets these tests exercise the production
-// handlers and effect cleanup without changing browser state or loading prices.
+// Exercise the production handlers and effect cleanup with deterministic hooks
+// and browser primitives, without live requests or changing browser state.
 const hooksUrl = dataUrl(`
   import React from ${JSON.stringify(import.meta.resolve('react'))};
-  let slots = [], cursor = 0, pending = [];
+  let slots = [], cursor = 0, pending = [], writes = 0;
   const same = (a, b) => a && b && a.length === b.length && a.every((value, index) => Object.is(value, b[index]));
-  export function reset() { for (const slot of slots) slot?.cleanup?.(); slots = []; pending = []; }
+  export function reset() { for (const slot of slots) slot?.cleanup?.(); slots = []; pending = []; writes = 0; }
+  export function unmount() { for (const slot of slots) slot?.cleanup?.(); slots = []; pending = []; }
+  export function stateWrites() { return writes; }
   export function render(Component, props) { cursor = 0; return Component(props); }
   export function flush() { const effects = pending; pending = []; effects.forEach(effect => effect()); }
-  function useState(initial) { const index = cursor++; const slot = slots[index] ||= { value: typeof initial === 'function' ? initial() : initial }; return [slot.value, next => { slot.value = typeof next === 'function' ? next(slot.value) : next; }]; }
+  function useState(initial) { const index = cursor++; const slot = slots[index] ||= { value: typeof initial === 'function' ? initial() : initial }; return [slot.value, next => { writes++; slot.value = typeof next === 'function' ? next(slot.value) : next; }]; }
   function useRef(initial) { const index = cursor++; return slots[index] ||= { current: initial }; }
   function useEffect(callback, deps) { const index = cursor++; if (!slots[index] || !same(slots[index].deps, deps)) { const previous = slots[index], slot = { deps }; slots[index] = slot; pending.push(() => { previous?.cleanup?.(); slot.cleanup = callback(); }); } }
-  export default { ...React, useState, useRef, useEffect, useId: () => 'dca-picker-test' };
+  export default { ...React, useState, useRef, useEffect };
 `);
 const hooks = await import(hooksUrl);
-const { default: InteractivePicker } = await import(compile(hooksUrl));
+const portalUrl = dataUrl('export const portals = []; export const createPortal = (node, target) => { portals.push(target); return node; };');
+const { portals } = await import(portalUrl);
+const presetsUrl = await compile('InvestmentSymbolPresets');
+const { default: Presets } = await import(presetsUrl);
+const pickerUrl = await compile('InvestmentSymbolPicker', { react: hooksUrl, 'react-dom': portalUrl, './InvestmentSymbolPresets.jsx': presetsUrl });
+const { default: SharedPicker } = await import(pickerUrl);
+const wrapperUrl = await compile('DcaSymbolPicker', { react: hooksUrl, './InvestmentSymbolPicker.jsx': pickerUrl });
+const { default: InteractiveDcaPicker } = await import(wrapperUrl);
+const ssrWrapperUrl = await compile('DcaSymbolPicker', { './InvestmentSymbolPicker.jsx': pickerUrl });
+const { default: DcaSymbolPicker } = await import(ssrWrapperUrl);
 
 function nodes(node, predicate) {
   if (!React.isValidElement(node)) return [];
@@ -45,145 +56,251 @@ function text(node) {
   return React.Children.toArray(node.props?.children).map(text).join(' ');
 }
 const byClass = (tree, name) => nodes(tree, node => node.props.className === name)[0];
-const options = tree => nodes(tree, node => node.props.role === 'option');
+const resultButtons = tree => nodes(tree, node => node.props.className === 'ic-result');
+const buttonSymbol = node => nodes(node, item => item.type === 'strong')[0]?.props.children;
+const tick = async () => { await Promise.resolve(); await Promise.resolve(); await Promise.resolve(); };
+const instrument = symbol => ({ symbol, name: `${symbol} test instrument`, type: 'ETF' });
 
-function harness(value = 'QQQ') {
+function wrapperHarness(overrides = {}) {
   hooks.reset();
-  const originalDocument = Object.getOwnPropertyDescriptor(globalThis, 'document');
-  const listeners = new Map(), actions = [], changes = [];
-  const doc = { activeElement: null,
+  const changes = [];
+  const props = { value: 'QQQ', userId: 'user-one', searchSource() {}, onChange: symbol => changes.push(symbol), ...overrides };
+  const render = () => hooks.render(InteractiveDcaPicker, props);
+  const picker = () => nodes(render(), node => node.type === SharedPicker)[0];
+  const open = () => { byClass(render(), 'dl-symbol-trigger').props.onClick(); return picker(); };
+  return { props, changes, render, picker, open };
+}
+
+function pickerHarness(overrides = {}) {
+  hooks.reset();
+  const globals = ['document', 'window'].map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]);
+  const listeners = new Map(), viewportListeners = new Map(), timers = new Map(), frames = new Map();
+  const actions = [], changes = [], requests = [];
+  let now = 0, nextId = 0, closeCount = 0;
+  const doc = {
+    activeElement: null, body: { style: { overflow: 'auto' } },
     addEventListener(type, callback) { assert.equal(listeners.has(type), false); listeners.set(type, callback); },
     removeEventListener(type, callback) { assert.equal(listeners.get(type), callback); listeners.delete(type); },
   };
-  const target = name => ({ name, focus(config) { actions.push({ name, config }); doc.activeElement = this; } });
-  const trigger = target('trigger');
-  const choices = DCA_SYMBOLS.map(item => target(item.symbol));
-  const root = { contains: node => node === root || node === trigger || choices.includes(node) };
-  const props = { value, onChange: symbol => changes.push(symbol) };
-  const menu = { querySelector: () => choices.find(item => item.name === props.value), querySelectorAll: () => choices };
-  Object.defineProperty(globalThis, 'document', { configurable: true, value: doc });
+  const target = name => ({ name, focus() { actions.push(name); doc.activeElement = this; } });
+  const trigger = target('trigger'), input = target('input'), first = target('close'), last = target('last-preset');
+  const dialog = { ...target('dialog'), querySelectorAll: () => [first, input, last] };
+  doc.activeElement = trigger;
+  const viewport = {
+    offsetTop: 12, height: 600,
+    addEventListener(type, callback) { assert.equal(viewportListeners.has(type), false); viewportListeners.set(type, callback); },
+    removeEventListener(type, callback) { assert.equal(viewportListeners.get(type), callback); viewportListeners.delete(type); },
+  };
+  const win = {
+    visualViewport: viewport,
+    requestAnimationFrame(callback) { const id = ++nextId; frames.set(id, callback); return id; },
+    cancelAnimationFrame(id) { frames.delete(id); },
+    setTimeout(callback, delay) { const id = ++nextId; timers.set(id, { callback, due: now + delay }); return id; },
+    clearTimeout(id) { timers.delete(id); },
+  };
+  for (const [key, value] of [['document', doc], ['window', win]]) Object.defineProperty(globalThis, key, { configurable: true, value });
+  const props = {
+    selectedSymbol: 'QQQ', userId: 'user-one', onSelect: item => changes.push(item), onClose: () => closeCount++,
+    searchSource: args => new Promise((resolve, reject) => requests.push({ ...args, resolve, reject })), ...overrides,
+  };
   function render() {
-    const tree = hooks.render(InteractivePicker, props);
-    tree.ref.current = root;
-    byClass(tree, 'dl-symbol-trigger').ref.current = trigger;
-    const menuElement = byClass(tree, 'dl-symbol-menu');
-    if (menuElement) menuElement.ref.current = menu;
+    let tree = hooks.render(SharedPicker, props);
+    byClass(tree, 'ic-picker').ref.current = dialog;
+    nodes(tree, node => node.type === 'input')[0].ref.current = input;
     hooks.flush();
+    tree = hooks.render(SharedPicker, props);
     return tree;
   }
-  function key(keyValue) {
-    let prevented = 0, stopped = 0;
-    render().props.onKeyDown({ key: keyValue, preventDefault: () => prevented++, stopPropagation: () => stopped++ });
-    return { prevented, stopped };
+  function type(value) { nodes(render(), node => node.type === 'input')[0].props.onChange({ target: { value } }); return render(); }
+  function advance(milliseconds) {
+    now += milliseconds;
+    for (const [id, timer] of [...timers]) if (timer.due <= now) { timers.delete(id); timer.callback(); }
   }
-  const open = () => { byClass(render(), 'dl-symbol-trigger').props.onClick(); return render(); };
+  function key(keyValue, shiftKey = false) {
+    let prevented = 0;
+    listeners.get('keydown')?.({ key: keyValue, shiftKey, preventDefault: () => prevented++ });
+    return prevented;
+  }
+  function unmount() {
+    hooks.unmount();
+    assert.equal(listeners.size, 0); assert.equal(viewportListeners.size, 0);
+    assert.equal(timers.size, 0); assert.equal(frames.size, 0);
+    assert.equal(doc.body.style.overflow, 'auto');
+  }
   function restore() {
-    try { hooks.reset(); assert.equal(listeners.size, 0); }
-    finally { if (originalDocument) Object.defineProperty(globalThis, 'document', originalDocument); else delete globalThis.document; }
+    try { unmount(); }
+    finally { for (const [key, original] of globals) { if (original) Object.defineProperty(globalThis, key, original); else delete globalThis[key]; } }
   }
-  return { render, open, key, restore, doc, listeners, actions, changes, trigger, choices, root, props };
+  return { props, render, type, advance, key, unmount, restore, requests, changes, actions, doc, trigger, input, first, last, dialog,
+    timers, viewport, viewportListeners, closeCount: () => closeCount,
+    focusFrame() { for (const [id, callback] of [...frames]) { frames.delete(id); callback(); } },
+  };
 }
 
-test('the collapsed symbol field is an accessible custom trigger, not a native select', () => {
-  const html = renderToStaticMarkup(React.createElement(DcaSymbolPicker, { value: 'QQQ', onChange() {} }));
-  assert.match(html, /aria-label="投资标的：QQQ，纳斯达克 100 ETF"/);
-  assert.match(html, /aria-haspopup="listbox" aria-expanded="false"/);
-  assert.doesNotMatch(html, /<select|<option|role="listbox"|role="option"/);
+test('DCA uses an accessible dialog trigger and forwards its controlled selection and search context', () => {
+  for (const englishMode of [false, true]) {
+    const html = renderToStaticMarkup(React.createElement(DcaSymbolPicker, { value: 'QQQ', englishMode, onChange() {} }));
+    assert.match(html, /aria-haspopup="dialog" aria-expanded="false"/);
+    assert.match(html, englishMode ? /Change investment QQQ/ : /更换投资标的 QQQ/);
+    assert.doesNotMatch(html, /<select|<option|role="listbox"|role="dialog"/);
+    const h = wrapperHarness({ englishMode });
+    const picker = h.open();
+    assert.ok(picker, 'DCA renders the same shared picker used by investment comparison');
+    assert.equal(picker.props.selectedSymbol, 'QQQ');
+    assert.equal(picker.props.comparisonSymbol, undefined, 'a single-investment plan cannot disable an opposing symbol');
+    assert.equal(picker.props.userId, 'user-one'); assert.equal(picker.props.englishMode, englishMode);
+    assert.equal(picker.props.searchSource, h.props.searchSource);
+    assert.equal(byClass(h.render(), 'dl-symbol-trigger').props['aria-expanded'], true);
+    picker.props.onClose();
+    assert.equal(h.picker(), undefined); assert.deepEqual(h.changes, []);
+  }
 });
 
-test('opening shows all eleven presets grouped as three ETFs and eight stocks with one selected option', () => {
-  const h = harness('NVDA');
+test('DCA choosing a different preset or searched symbol closes; reselecting does not reload the plan', () => {
+  const h = wrapperHarness();
+  for (const symbol of ['VGT', 'SMH', 'BRK-B']) {
+    const item = instrument(symbol);
+    h.open().props.onSelect(item);
+    assert.equal(h.picker(), undefined); assert.equal(h.changes.at(-1), symbol);
+    h.props.value = symbol;
+    const count = h.changes.length;
+    h.open().props.onSelect(item);
+    assert.equal(h.picker(), undefined);
+    assert.equal(h.changes.length, count, 'same-symbol selection must not start another historical-data request');
+  }
+  assert.deepEqual(h.changes, ['VGT', 'SMH', 'BRK-B']);
+});
+
+test('the shared portal starts with every preset, focuses without opening the keyboard, and restores its trigger', () => {
+  const h = pickerHarness();
   try {
-    const tree = h.open();
-    const groups = nodes(tree, node => node.props.role === 'group');
-    assert.deepEqual(groups.map(node => node.props['aria-label']), ['指数 ETF', '美股']);
-    assert.deepEqual(groups.map(group => options(group).length), [3, 8]);
-    const symbols = options(tree).map(option => nodes(option, node => node.type === 'strong')[0].props.children);
-    assert.deepEqual(symbols, DCA_SYMBOLS.map(item => item.symbol));
-    assert.equal(symbols.at(-1), 'AVGO');
-    assert.equal(options(tree).filter(option => option.props['aria-selected']).length, 1);
-    assert.match(text(options(tree).find(option => option.props['aria-selected'])), /NVDA.*英伟达/);
-    assert.ok(options(tree).every(option => option.props.type === 'button' && option.props.tabIndex === -1));
-    assert.equal(h.doc.activeElement.name, 'NVDA');
-    assert.deepEqual(h.actions.at(-1).config, { preventScroll: true });
-    const trigger = byClass(tree, 'dl-symbol-trigger');
-    assert.equal(trigger.props['aria-expanded'], true);
-    assert.equal(trigger.props['aria-controls'], byClass(tree, 'dl-symbol-menu').props.id);
-    assert.deepEqual(h.changes, []);
+    const tree = h.render();
+    assert.equal(portals.at(-1), h.doc.body);
+    const dialog = byClass(tree, 'ic-picker');
+    assert.equal(dialog.props.role, 'dialog'); assert.equal(dialog.props['aria-modal'], 'true'); assert.equal(dialog.props.tabIndex, -1);
+    assert.match(text(nodes(tree, node => node.type === 'h2')[0]), /更换投资标的/);
+    assert.match(text(byClass(tree, 'ic-picker-context')).trim(), /^当前\s+QQQ$/);
+    const presets = nodes(tree, node => node.type === Presets)[0];
+    const choices = nodes(Presets(presets.props), node => node.type === 'button');
+    assert.deepEqual(choices.map(buttonSymbol), DCA_SYMBOLS.map(item => item.symbol));
+    assert.equal(choices.filter(choice => choice.props.disabled).length, 0);
+    assert.equal(choices.filter(choice => choice.props['aria-current'] === 'true').length, 1);
+    h.advance(1000);
+    assert.deepEqual(h.requests, [], 'empty search displays shortcuts without a network request');
+    assert.equal(h.doc.body.style.overflow, 'hidden');
+    h.focusFrame();
+    assert.equal(h.doc.activeElement, h.dialog); assert.deepEqual(h.actions, ['dialog']);
+  } finally { h.restore(); }
+  assert.equal(h.doc.activeElement, h.trigger);
+});
+
+test('dialog Tab traversal, Escape, backdrop dismissal and viewport cleanup preserve selection', () => {
+  const h = pickerHarness({ selectedSymbol: 'NVDA', comparisonSymbol: 'SMH', englishMode: true, title: 'Change left investment' });
+  try {
+    let tree = h.render(); h.focusFrame();
+    assert.match(text(byClass(tree, 'ic-picker-context')), /Current.*NVDA.*Compared with.*SMH/);
+    assert.equal(text(nodes(tree, node => node.type === 'h2')[0]), 'Change left investment');
+    assert.equal(h.key('Tab'), 1); assert.equal(h.doc.activeElement, h.first);
+    assert.equal(h.key('Tab', true), 1); assert.equal(h.doc.activeElement, h.last);
+    assert.equal(h.key('Tab'), 1); assert.equal(h.doc.activeElement, h.first);
+    h.doc.activeElement = h.dialog;
+    assert.equal(h.key('Tab', true), 1); assert.equal(h.doc.activeElement, h.last);
+    h.doc.activeElement = h.input;
+    assert.equal(h.key('Tab'), 0, 'ordinary traversal inside the dialog remains native');
+    h.props.onClose = () => h.changes.push('latest-close'); tree = h.render();
+    assert.equal(h.key('Escape'), 1);
+    assert.deepEqual(h.changes, ['latest-close'], 'Escape uses the latest close callback');
+    const overlay = {};
+    tree.props.onPointerDown({ target: {}, currentTarget: overlay });
+    assert.equal(h.changes.length, 1, 'pointer events within the dialog do not dismiss it');
+    tree.props.onPointerDown({ target: overlay, currentTarget: overlay }); assert.equal(h.changes.length, 2);
+    h.viewport.offsetTop = 24; h.viewport.height = 320; h.viewportListeners.get('resize')();
+    assert.deepEqual(h.render().props.style, { top: 24, height: 320, bottom: 'auto' });
+  } finally { h.restore(); }
+  assert.equal(h.doc.activeElement, h.trigger);
+});
+
+test('typed search debounces with authenticated context and protects the comparison symbol', async () => {
+  const h = pickerHarness({ comparisonSymbol: 'TQQQ' });
+  try {
+    h.type('N'); h.advance(299); assert.equal(h.requests.length, 0);
+    h.type('  NVDA  '); h.advance(299);
+    assert.equal(h.requests.length, 0, 'typing again restarts the debounce');
+    h.advance(1); assert.equal(h.requests.length, 1);
+    const request = h.requests[0];
+    assert.equal(request.query, 'NVDA'); assert.equal(request.userId, 'user-one');
+    assert.equal(request.force, false); assert.equal(request.signal.aborted, false);
+    assert.match(text(h.render()), /搜索中/);
+    const results = ['QQQ', 'NVDA', 'TQQQ'].map(instrument);
+    request.resolve({ results }); await tick();
+    const buttons = resultButtons(h.render());
+    assert.deepEqual(buttons.map(buttonSymbol), ['QQQ', 'NVDA', 'TQQQ']);
+    assert.match(text(buttons[0]), /当前/); assert.equal(buttons[2].props.disabled, true);
+    buttons[2].props.onClick(); assert.deepEqual(h.changes, []);
+    buttons[1].props.onClick(); assert.deepEqual(h.changes, [results[1]]);
   } finally { h.restore(); }
 });
 
-test('choosing a different symbol sends exactly one change; selecting the current symbol only closes', () => {
-  const h = harness();
+test('outdated query or user responses cannot repopulate another search or another account', async () => {
+  const h = pickerHarness();
   try {
-    let tree = h.open();
-    options(tree).find(option => text(option).includes('NVDA')).props.onClick();
-    assert.deepEqual(h.changes, ['NVDA']);
-    assert.equal(options(h.render()).length, 0);
-    assert.equal(h.doc.activeElement, h.trigger);
-    assert.deepEqual(h.actions.at(-1).config, { preventScroll: true });
-    h.props.value = 'NVDA';
-    tree = h.open();
-    options(tree).find(option => text(option).includes('NVDA')).props.onClick();
-    assert.deepEqual(h.changes, ['NVDA'], 'the same selection cannot trigger an extra historical-data request');
-    assert.equal(options(h.render()).length, 0);
-    h.open();
-    byClass(h.render(), 'dl-symbol-trigger').props.onClick();
-    assert.equal(options(h.render()).length, 0);
-    assert.deepEqual(h.changes, ['NVDA'], 'toggling the menu is not a plan change');
+    h.type('old'); h.advance(300); const old = h.requests[0];
+    h.type('new'); assert.equal(old.signal.aborted, true);
+    h.advance(300); const newer = h.requests[1];
+    old.resolve({ results: [instrument('OLD')] }); await tick();
+    assert.equal(resultButtons(h.render()).length, 0);
+    h.props.userId = 'user-two'; h.render(); assert.equal(newer.signal.aborted, true);
+    h.advance(300); assert.equal(h.requests[2].userId, 'user-two');
+    newer.resolve({ results: [instrument('WRONG-USER')] }); await tick();
+    assert.equal(resultButtons(h.render()).length, 0);
+    h.requests[2].resolve({ results: [instrument('SMH')] }); await tick();
+    assert.deepEqual(resultButtons(h.render()).map(buttonSymbol), ['SMH']);
+    h.props.userId = 'user-three';
+    const transition = hooks.render(SharedPicker, h.props);
+    assert.equal(resultButtons(transition).length, 0, 'user changes hide existing results before the next effect');
+    h.render();
   } finally { h.restore(); }
 });
 
-test('keyboard opening, arrow navigation, Home, End and Escape preserve the selection until explicitly chosen', () => {
-  const h = harness('SPY');
+test('clearing search and unmount abort pending work, restore shortcuts and prevent post-close state writes', async () => {
+  const h = pickerHarness();
   try {
-    assert.equal(h.key('ArrowDown').prevented, 1);
-    assert.equal(options(h.render()).length, 11);
-    assert.equal(h.doc.activeElement.name, 'SPY');
-    h.key('ArrowDown'); assert.equal(h.doc.activeElement.name, 'TQQQ');
-    h.key('ArrowRight'); assert.equal(h.doc.activeElement.name, 'AAPL');
-    h.key('ArrowLeft'); assert.equal(h.doc.activeElement.name, 'TQQQ');
-    h.key('Home'); assert.equal(h.doc.activeElement.name, 'QQQ');
-    h.key('ArrowUp'); assert.equal(h.doc.activeElement.name, 'AVGO');
-    h.key('ArrowDown'); assert.equal(h.doc.activeElement.name, 'QQQ');
-    h.key('End'); assert.equal(h.doc.activeElement.name, 'AVGO');
-    const escape = h.key('Escape');
-    assert.deepEqual(escape, { prevented: 1, stopped: 1 });
-    assert.equal(options(h.render()).length, 0);
-    assert.equal(h.doc.activeElement, h.trigger);
-    assert.equal(h.listeners.size, 0);
-    assert.deepEqual(h.changes, []);
-    assert.equal(h.key('Tab').prevented, 0, 'ordinary tab navigation is not trapped');
+    h.type('QQQ'); h.advance(300); const first = h.requests[0];
+    const tree = h.type('   '); assert.equal(first.signal.aborted, true);
+    assert.equal(nodes(tree, node => node.type === Presets).length, 1);
+    first.resolve({ results: [instrument('SHOULD-NOT-APPEAR')] }); await tick();
+    assert.equal(resultButtons(h.render()).length, 0);
+    h.type('SMH'); h.advance(300); const final = h.requests[1];
+    h.unmount(); assert.equal(final.signal.aborted, true);
+    const writes = hooks.stateWrites();
+    final.resolve({ results: [instrument('SMH')] }); await tick();
+    assert.equal(hooks.stateWrites(), writes, 'an aborted response cannot update the unmounted picker');
+  } finally { h.restore(); }
+  const pending = pickerHarness();
+  try {
+    pending.type('VGT'); pending.unmount(); pending.advance(300);
+    assert.equal(pending.requests.length, 0, 'closing before the debounce expires never starts a request');
+  } finally { pending.restore(); }
+});
+
+test('failure stays explicit, retry forces the authenticated query, and a new query clears retry state', async () => {
+  const h = pickerHarness({ englishMode: true });
+  try {
+    h.type('VGT'); h.advance(300);
+    h.requests[0].reject(new Error('fixture network failure')); await tick();
+    const alert = nodes(h.render(), node => node.props.role === 'alert')[0];
+    assert.match(text(alert), /Search is temporarily unavailable/);
+    nodes(alert, node => node.type === 'button')[0].props.onClick(); h.render(); h.advance(300);
+    assert.equal(h.requests[1].force, true);
+    assert.equal(h.requests[1].query, 'VGT'); assert.equal(h.requests[1].userId, 'user-one');
+    h.requests[1].resolve({ results: [] }); await tick();
+    assert.match(text(h.render()), /No matching USD stock or ETF found/);
+    h.type('SMH'); h.advance(300); assert.equal(h.requests[2].force, false);
   } finally { h.restore(); }
 });
 
-test('outside pointer and focus departure dismiss without committing or stealing external focus; handlers clean up', () => {
-  const h = harness();
-  try {
-    h.open();
-    h.listeners.get('pointerdown')({ target: h.choices[0] });
-    assert.equal(options(h.render()).length, 11);
-    const outside = {};
-    h.doc.activeElement = outside;
-    h.listeners.get('pointerdown')({ target: outside });
-    assert.equal(options(h.render()).length, 0);
-    assert.equal(h.doc.activeElement, outside);
-    assert.equal(h.listeners.size, 0);
-    h.open();
-    h.render().props.onBlur({ currentTarget: h.root, relatedTarget: h.choices[1] });
-    assert.equal(options(h.render()).length, 11);
-    h.render().props.onBlur({ currentTarget: h.root, relatedTarget: outside });
-    assert.equal(options(h.render()).length, 0);
-    assert.equal(h.listeners.size, 0);
-    assert.deepEqual(h.changes, []);
-    h.open();
-    assert.equal(h.listeners.size, 1, 'unmount must also remove the active outside listener');
-  } finally { h.restore(); }
-});
-
-test('the picker owns presentation only and cannot change prices, persistence or global scroll styles', () => {
-  assert.doesNotMatch(source, /<select\b|<option\b|\b(?:fetch|loadDcaHistory|buildDcaModel)\s*\(|localStorage|sessionStorage|supabase|stock_trades/);
-  assert.doesNotMatch(source, /document\.(?:body|documentElement)|visualViewport|scrollTo\(|touchmove|touchstart|createPortal/);
-  assert.match(source, /if \(symbol !== value\) onChange\(symbol\)/);
-  assert.match(source, /document\.removeEventListener\('pointerdown', outside\)/);
+test('the wrapper and shared picker do not load prices or write financial state', () => {
+  assert.doesNotMatch(source + pickerSource, /<select\b|<option\b|\b(?:fetch|loadDcaHistory|buildDcaModel)\s*\(|localStorage|sessionStorage|supabase|stock_trades/);
+  assert.doesNotMatch(source, /document\.|visualViewport|scrollTo\(|touchmove|touchstart|createPortal/);
+  assert.match(source, /if \(item\.symbol !== value\) onChange\(item\.symbol\)/);
 });

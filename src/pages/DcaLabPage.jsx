@@ -4,7 +4,7 @@ import { ArrowLeft, ArrowUpRight, CalendarDays, ChevronDown, ChevronRight, Flask
 import { buildDcaModel } from '../lib/dcaLabModel.js';
 import DcaSymbolPicker from '../components/DcaSymbolPicker.jsx';
 import { loadDcaHistory } from '../lib/dcaHistory.js';
-import { getInvestmentComparisonExpectedCloseDate } from '../lib/investmentComparison.js';
+import { getInvestmentComparisonExpectedCloseDate, searchInvestmentSymbols } from '../lib/investmentComparison.js';
 import '../components/InvestmentComparison.css';
 import '../components/DcaLab.css';
 
@@ -145,6 +145,7 @@ export default function DcaLabPage({ ctx = {}, previewSource = null }) {
   const [state, setState] = React.useState({ key: '', data: null, loading: true, error: '' });
   const requestRef = React.useRef(0);
   const source = import.meta.env.DEV && previewSource?.load ? previewSource.load : loadDcaHistory;
+  const searchSource = import.meta.env.DEV && previewSource?.search ? previewSource.search : searchInvestmentSymbols;
   const key = `${userId}:${plan.symbol}`;
   React.useEffect(() => {
     const sequence = ++requestRef.current;
@@ -175,7 +176,7 @@ export default function DcaLabPage({ ctx = {}, previewSource = null }) {
   return <main className="investment-comparison ic-page dca-lab">
     <header className="ic-header"><button type="button" className="ic-icon-button ic-back" onClick={closeDcaLab} aria-label="返回交易"><ArrowLeft size={21} /></button><div><h1>定投实验室</h1><p>把时间变成投资的一部分</p></div><FlaskConical className="dl-header-icon" size={20} aria-hidden="true" /></header>
     <section className="dl-plan" aria-label="定投方案">
-      <div className="dl-plan-top"><DcaSymbolPicker value={plan.symbol} onChange={symbol => apply({ ...plan, symbol })} /><button className="dl-edit-button" aria-label="调整定投计划" type="button" aria-expanded={editing} onClick={() => setEditing(value => !value)}><SlidersHorizontal size={16} /><span>调整计划</span></button></div>
+      <div className="dl-plan-top"><DcaSymbolPicker value={plan.symbol} userId={userId} englishMode={ctx.englishMode ?? (ctx.language === 'en')} searchSource={searchSource} onChange={symbol => apply({ ...plan, symbol })} /><button className="dl-edit-button" aria-label="调整定投计划" type="button" aria-expanded={editing} onClick={() => setEditing(value => !value)}><SlidersHorizontal size={16} /><span>调整计划</span></button></div>
       <div className="dl-plan-summary"><span><CalendarDays size={13} />{plan.startYear} — {plan.endYear}</span><span>{frequencyLabel(plan.frequency)} {money(plan.amount)}</span><span>起投 {money(plan.initial)}</span></div>
       {editing && <PlanEditor plan={plan} maxYear={maxYear} onApply={apply} onCancel={() => setEditing(false)} />}
     </section>

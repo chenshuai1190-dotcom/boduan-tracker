@@ -29,7 +29,11 @@ export default function DcaLabPreview({ ctx }) {
         stale: asOfDate !== template.expectedAsOfDate, staleReason: asOfDate !== template.expectedAsOfDate ? 'incomplete_close' : '',
         fetchedAt: fixture.capturedAt,
       };
-    }};
+    }, search: async ({ query }) => ({
+      version: 1, source: 'EODHD_SEARCH', query, fetchedAt: fixture.capturedAt,
+      results: Object.values(allSeries).filter(item => `${item.symbol} ${item.name}`.toLowerCase().includes(query.toLowerCase()))
+        .map(({ symbol, name, type }) => ({ symbol, name, type, currency: 'USD', exchange: 'US' })),
+    }) };
   }, [fixture]);
   if (!import.meta.env.DEV) return null;
   if (!previewSource) return <div className="py-16 text-center text-[13px] text-white/55">{failed ? '本地真实行情样本尚未准备。' : '正在读取已核验的真实行情样本…'}</div>;

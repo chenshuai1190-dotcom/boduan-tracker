@@ -2,19 +2,7 @@ import { normalizeDcaHistoryData } from './dcaHistory.js';
 import { normalizeInvestmentSymbol } from './investmentComparisonModel.js';
 import { isRegularNyseHoliday } from './quoteRefreshPolicy.js';
 
-export const DCA_SYMBOLS = Object.freeze([
-  { symbol: 'QQQ', name: '纳斯达克 100 ETF' },
-  { symbol: 'SPY', name: '标普 500 ETF' },
-  { symbol: 'TQQQ', name: '三倍纳指 ETF' },
-  { symbol: 'AAPL', name: '苹果' },
-  { symbol: 'MSFT', name: '微软' },
-  { symbol: 'NVDA', name: '英伟达' },
-  { symbol: 'AMZN', name: '亚马逊' },
-  { symbol: 'GOOGL', name: '谷歌' },
-  { symbol: 'META', name: 'Meta' },
-  { symbol: 'TSLA', name: '特斯拉' },
-  { symbol: 'AVGO', name: '博通' },
-].map(item => Object.freeze(item)));
+export { INVESTMENT_SYMBOL_PRESETS as DCA_SYMBOLS } from './investmentSymbolPresets.js';
 
 const DAY = 86400000;
 const MAX_CONTRIBUTION = 100000000;
