@@ -1,4 +1,5 @@
 import React from 'react';
+import CurrencyToggle from '../components/CurrencyToggle.jsx';
 import { ArrowLeft, ChevronDown, Pause, Play, RefreshCw } from 'lucide-react';
 import InvestmentComparisonChart, { formatInvestmentAmount, formatInvestmentPercent, investmentChangeColor, investmentRank, investmentRankColor } from '../components/InvestmentComparisonChart.jsx';
 import InvestmentSymbolPicker from '../components/InvestmentSymbolPicker.jsx';
@@ -150,7 +151,7 @@ export default function InvestmentComparisonPage({ ctx = {}, previewSource }) {
   };
 
   return <div className="investment-comparison ic-time-machine ic-page" data-investment-comparison-page="true">
-    <header className="ic-header"><button type="button" className="ic-icon-button ic-back" onClick={closeInvestmentComparison} aria-label={englishMode ? 'Back to Trades' : '返回交易'}><ArrowLeft size={21} /></button><div><h1>{englishMode ? 'Investment Replay' : '投资回溯'}</h1><p>{englishMode ? 'One starting amount. Two investment journeys.' : '同一笔本金，不同的投资旅程'}</p></div><label className="ic-currency-control"><select value={displayCurrency} onChange={event => { const next = event.target.value; if (resolveInvestmentDisplayRate(next, ctx.usdRate) !== null) setDisplayCurrency(next); }} aria-label={englishMode ? 'Display currency' : '显示币种'}><option value="USD">USD</option><option value="CNY" disabled={!cnyAvailable}>CNY</option></select><ChevronDown size={13} aria-hidden="true" /></label></header>
+    <header className="ic-header"><button type="button" className="ic-icon-button ic-back" onClick={closeInvestmentComparison} aria-label={englishMode ? 'Back to Trades' : '返回交易'}><ArrowLeft size={21} /></button><div><h1>{englishMode ? 'Investment Replay' : '投资回溯'}</h1><p>{englishMode ? 'One starting amount. Two investment journeys.' : '同一笔本金，不同的投资旅程'}</p></div><CurrencyToggle className="ic-currency-control" value={displayCurrency} label={englishMode ? 'Display currency' : '显示币种'} disabledCurrencies={!cnyAvailable ? ['CNY'] : []} onChange={next => { if (resolveInvestmentDisplayRate(next, ctx.usdRate) !== null) setDisplayCurrency(next); }} /></header>
 
     <InvestmentAnalysisTabs value={analysisView} englishMode={englishMode} onChange={view => { if (view !== analysisView) { setPlaying(false); setAnalysisView(view); } }} />
 

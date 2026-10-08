@@ -1,0 +1,5 @@
+.currency-toggle { display: flex; align-items: center; gap: 3px; flex-shrink: 0; }
+.currency-toggle > .currency-toggle-option { display: inline-flex; align-items: center; justify-content: center; width: auto; min-width: 0; height: 30px; min-height: 30px; margin: 0; padding: 0 10px; border: 0; border-radius: 8px; background: transparent; color: #72727c; font: 400 11px/1.5 -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", "Segoe UI", sans-serif; letter-spacing: normal; white-space: nowrap; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.currency-toggle > .currency-toggle-option[aria-pressed="true"] { background: #1a1b1e; color: #d7d7dd; }
+.currency-toggle > .currency-toggle-option:focus-visible { outline: 1px solid #96969e; outline-offset: 3px; }
+.currency-toggle > .currency-toggle-option:disabled { cursor: default; opacity: .45; }

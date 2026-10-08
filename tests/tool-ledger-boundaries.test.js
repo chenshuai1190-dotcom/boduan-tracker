@@ -4,6 +4,8 @@ import { test } from 'node:test';
 import { inflateSync } from 'node:zlib';
 
 const appSource = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8');
+const currencyToggleSource = readFileSync(new URL('../src/components/CurrencyToggle.jsx', import.meta.url), 'utf8');
+const currencyToggleCss = readFileSync(new URL('../src/components/CurrencyToggle.css', import.meta.url), 'utf8');
 const actionModalCardSource = readFileSync(new URL('../src/components/ActionModalCard.jsx', import.meta.url), 'utf8');
 const yearlyActualModalSource = readFileSync(new URL('../src/components/YearlyActualModal.jsx', import.meta.url), 'utf8');
 const tradeToolsCatalogSource = readFileSync(new URL('../src/components/TradeToolsCatalog.jsx', import.meta.url), 'utf8');
@@ -1022,7 +1024,7 @@ test('main trade entry modal shares the report layout while isolating ordinary, 
   assert.ok(pnlReportFiltersSource.includes('disabled={!enabled}') && pnlReportFiltersSource.includes('availableCalendarMonthSet.has(monthKey)'), 'extracted calendar controls must retain the snapshot-month availability boundary');
   assert.ok(pnlReportPageSource.includes("`${currentRangeLabel}${benchmarkActionLabel} ${benchmarkName}`"), 'P&L report benchmark label should include range, status, a space, and Nasdaq');
   assert.ok(pnlReportPageSource.includes("React.useState('CNY')"), 'P&L report should default its local display currency to CNY');
-  assert.ok(pnlReportPageSource.includes("['CNY', 'USD'].map"), 'P&L report total P&L title should expose a CNY/USD dropdown');
+  assert.ok(pnlReportPageSource.includes('<CurrencyToggle className="pnl-report-currency" value={displayCurrency} onChange={setReportCurrencyMode}'), 'P&L report should use the shared USD/CNY buttons with its existing local currency setter');
   assert.ok(pnlReportChartModelSource.includes('isRenderableChartValue(point?.[key])'), 'P&L report chart geometry should leave missing portfolio dates empty instead of drawing them as zero');
   assert.equal(pnlReportPageSource.includes('Math.max(18, 96 - index * 12)'), false, 'P&L rankings should not invent bar lengths from rank order');
   assert.ok(pnlReportPageSource.includes('className="pnl-report-rank-row"'), 'P&L rankings should render plain name and amount rows');
@@ -2320,7 +2322,7 @@ test('Home, Trading, and Assets use continuous scoped reports', () => {
   assert.ok(monthlyAssetTrendContentSource.includes('mt-3 overflow-hidden rounded-[17px] border border-white/[0.075] bg-black/[0.12]'), 'the standalone monthly-details table should retain its approved boundary');
   assert.ok(earningsCalendarSource.includes("index < previewEvents.length - 1 ? 'border-r border-white/[0.08]' : ''"), 'the earnings preview should preserve internal event dividers');
   assert.ok(analysisTabSource.includes('className="asset-report-label">{item.label}'), 'asset metric labels should use the shared report label style');
-  assert.ok(/\.ns-header h2\s*\{[^}]*font-size:\s*12px;[^}]*font-weight:\s*400;[^}]*line-height:\s*1\.5;/.test(northStarGoalCardCss) && /\.home-report-label\s*\{[^}]*font-size:\s*12px;[^}]*font-weight:\s*400;[^}]*line-height:\s*1\.5;/.test(homeTabCss) && /\.ns-currencies button\s*\{[^}]*min-height:\s*30px;/.test(northStarGoalCardCss) && /\.ns-settings\s*\{[^}]*width:\s*30px;[^}]*height:\s*30px;/.test(northStarGoalCardCss) && /\.home-report-currency button\s*\{[^}]*height:\s*30px;/.test(homeTabCss), 'north-star title and top controls should match the Home header height and normal-weight label');
+  assert.ok(/\.ns-header h2\s*\{[^}]*font-size:\s*12px;[^}]*font-weight:\s*400;[^}]*line-height:\s*1\.5;/.test(northStarGoalCardCss) && /\.home-report-label\s*\{[^}]*font-size:\s*12px;[^}]*font-weight:\s*400;[^}]*line-height:\s*1\.5;/.test(homeTabCss) && northStarGoalCardSource.includes('<CurrencyToggle') && /\.ns-settings\s*\{[^}]*width:\s*30px;[^}]*height:\s*30px;/.test(northStarGoalCardCss) && homeTabSource.includes('<CurrencyToggle') && /\.currency-toggle-option\s*\{[^}]*height:\s*30px;/.test(currencyToggleCss), 'north-star title and top controls should match the Home header height and normal-weight label');
   assert.ok(/\.ns-overview\s*\{[^}]*padding:\s*8px 0 0;/.test(northStarGoalCardCss) && /\.ns-goal-amount\s*\{[^}]*font-size:\s*clamp\(28px,\s*8\.8vw,\s*40px\);[^}]*font-weight:\s*400;[^}]*line-height:\s*1\.18;/.test(northStarGoalCardCss) && /\.home-report-net-amount\s*\{[^}]*margin-top:\s*8px;[^}]*font-size:\s*clamp\(28px,\s*8\.8vw,\s*40px\);[^}]*font-weight:\s*400;[^}]*line-height:\s*1\.18;/.test(homeTabCss), 'north-star goal amount should match the Home headline scale, line height and top spacing');
   assert.match(northStarGoalCardCss, /\.ns-goal-amount\s*\{[^}]*display:\s*block;[^}]*letter-spacing:\s*normal;[^}]*overflow-wrap:\s*anywhere;/, 'north-star headline should keep continuous naturally spaced digits that wrap without clipping');
 });
@@ -2338,8 +2340,8 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(tradesTabSource.includes("style={englishMode ? { gridTemplateColumns: '0.95fr 1fr 1.3fr' } : undefined}"), false, 'trade header should not keep the wider English positions grid');
   assert.equal(tradesTabSource.includes('truncate whitespace-nowrap'), false, 'trade header should not keep a separate truncation rule instead of matching home');
   assert.ok(tradesTabSource.includes('marketValue: currencyAmount(marketValue, displayCurrency, 2)'), 'position market value should keep two decimals and explicitly display its selected currency');
-  assert.ok(homeTabSource.includes("['USD', 'CNY'].map((mode)") && homeTabSource.includes('{mode}'), 'Home currency choices should explicitly retain USD and CNY labels');
-  assert.ok(tradesTabSource.includes("['USD', 'CNY'].map((mode)") && tradesTabSource.includes('{mode}'), 'Trading currency controls must retain explicit USD and CNY labels');
+  assert.ok(homeTabSource.includes('<CurrencyToggle') && currencyToggleSource.includes("['USD', 'CNY']"), 'Home currency choices should explicitly retain USD and CNY labels');
+  assert.ok(tradesTabSource.includes('<CurrencyToggle') && currencyToggleSource.includes("['USD', 'CNY']"), 'Trading currency controls must retain explicit USD and CNY labels');
   assert.ok(appSource.includes("const PORTFOLIO_CURRENCY_STORAGE_KEY = 'xmoney_portfolio_currency'"), 'App should own a shared portfolio currency storage key');
   assert.ok(appSource.includes('portfolioCurrencyMode,'), 'tabs should receive the shared portfolio currency mode');
   assert.ok(appSource.includes('setPortfolioCurrencyMode,'), 'tabs should receive the shared portfolio currency setter');
@@ -2349,9 +2351,9 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.ok(homeTabSource.includes('portfolioCurrencyMode') && homeTabSource.includes('setPortfolioCurrencyMode(normalized)'), 'home currency switch should update the shared portfolio currency mode');
   assert.ok(tradesTabSource.includes('portfolioCurrencyMode') && tradesTabSource.includes('setPortfolioCurrencyMode(normalized)'), 'trade currency switch should update the shared portfolio currency mode');
   assert.match(homeTabCss, /\.home-report-hero-header\s*\{[^}]*justify-content:\s*space-between;/, 'Home currency controls should stay aligned to the right of the header label');
-  assert.ok(homeTabSource.includes('aria-pressed={currencyMode === mode} onClick={() => setCurrencyMode(mode)}'), 'Home currency controls should expose current selection and retain the shared setter');
+  assert.ok(homeTabSource.includes('value={currencyMode} onChange={setCurrencyMode}') && currencyToggleSource.includes('aria-pressed={value === currency}'), 'Home currency controls should expose current selection and retain the shared setter');
   assert.match(tradesTabCss, /\.trades-report-hero-header\s*\{[^}]*justify-content:\s*space-between;/, 'Trading currency controls should remain right aligned');
-  assert.ok(tradesTabSource.includes('aria-pressed={currencyMode === mode} onClick={() => setCurrencyMode(mode)}'), 'currency selection should remain accessible and use the shared setter');
+  assert.ok(tradesTabSource.includes('value={currencyMode} onChange={setCurrencyMode}') && currencyToggleSource.includes('aria-pressed={value === currency}'), 'currency selection should remain accessible and use the shared setter');
   assert.equal(homeTabSource.includes('onClick={fetchRealtimePrices}'), false, 'Home report should remove the unused hidden refresh button from the DOM');
   assert.ok(appSource.includes("fetchRealtimePrices(null, { trigger: 'auto-start', notifyOnError: false })") && appSource.includes("fetchRealtimePrices(null, { trigger: 'auto-interval', notifyOnError: false })"), 'removing the unused hidden control must preserve App-owned automatic quote refresh');
   assert.equal(tradesTabSource.includes('onClick={fetchRealtimePrices}'), false, 'the obsolete hidden Trading refresh button should be removed while App owns quote refresh');
@@ -2359,7 +2361,7 @@ test('asset and review module cards do not keep legacy scale interactions', () =
   assert.equal(tradesTabSource.includes('flex h-8 items-center gap-1 rounded-full border border-white/10 px-2.5 text-[11px] font-normal text-emerald-300'), false, 'trade header live button should not remain visible');
   assert.equal(homeTabSource.includes("{mode === 'CNY' ? 'RMB' : 'USD'}"), false, 'home header currency switch should not show RMB');
   assert.equal(tradesTabSource.includes("{mode === 'CNY' ? 'RMB' : 'USD'}"), false, 'trade header currency switch should not show RMB');
-  assert.ok(northStarGoalCardSource.includes("['USD', 'CNY']"), 'review currency switch should preserve USD and CNY labels');
+  assert.ok(northStarGoalCardSource.includes('<CurrencyToggle') && currencyToggleSource.includes("['USD', 'CNY']"), 'review currency switch should preserve USD and CNY labels');
   assert.ok(i18nSource.includes("'review.unitCnyMillion': 'CNY millions'"), 'English review unit should say CNY millions');
   assert.ok(settingsTabSource.includes('EODHD Core + Yahoo Charts'), 'settings data source should distinguish core EODHD quotes from Yahoo chart visuals');
 });
@@ -2445,7 +2447,7 @@ test('review target page uses a flat dark report and preserves click action moda
   assert.ok(reviewTabSource.includes('onOpenSettings={() => setShowPlanSettings(true)}'), 'north-star settings should open the existing plan settings modal');
   assert.ok(northStarGoalCardSource.includes('onClick={onOpenDetails}') && northStarGoalCardSource.includes('onClick={onOpenSettings}'), 'north-star details and settings should have separate native button actions');
   assert.doesNotMatch(northStarGoalCardSource, /role=["']button["']/, 'north-star card should not wrap independent buttons in an interactive role-button');
-  const northStarButtons = [...northStarGoalCardSource.matchAll(/<button\b[\s\S]*?<\/button>/g)];
+  const northStarButtons = [...northStarGoalCardSource.matchAll(/<button\b[\s\S]*?<\/button>/g), ...currencyToggleSource.matchAll(/<button\b[\s\S]*?<\/button>/g)];
   assert.equal(northStarButtons.length, 3, 'north-star presentation should define separate details, settings, and mapped currency buttons');
   for (const [button] of northStarButtons) {
     assert.equal((button.match(/<button\b/g) || []).length, 1, 'north-star native buttons should not be nested');
@@ -2467,8 +2469,9 @@ test('review target page uses a flat dark report and preserves click action moda
   assert.equal(reviewTabSource.includes('目标 ({yearItem.year})'), false, 'future year target label should not include the old year suffix');
   assert.match(annualGoalPlanCss, /\.ag-row-assets strong\s*\{[^}]*color:\s*#c9c9ce;/, 'future target assets should use a neutral light number color');
   assert.match(annualGoalPlanCss, /\.ag-year-row\s*\{[^}]*border:\s*0;[^}]*background:\s*transparent;/, 'future rows should stay a light borderless timeline instead of repeated heavy cards');
-  assert.ok(northStarGoalCardSource.includes('aria-pressed={displayCurrency === currency}'), 'north-star currency buttons should expose the selected currency');
-  assert.match(northStarGoalCardCss, /button:focus-visible\s*\{[^}]*outline:/, 'north-star independent buttons should retain a visible keyboard focus indicator');
+  assert.ok(northStarGoalCardSource.includes('value={displayCurrency}') && currencyToggleSource.includes('aria-pressed={value === currency}'), 'north-star shared currency buttons should expose the parent-selected currency');
+  assert.match(northStarGoalCardCss, /button:not\(\.currency-toggle-option\):focus-visible\s*\{[^}]*outline:/, 'north-star independent action buttons should retain a visible keyboard focus indicator');
+  assert.match(currencyToggleCss, /\.currency-toggle-option:focus-visible\s*\{[^}]*outline:/, 'north-star currency buttons should use the shared keyboard focus indicator');
   assert.match(annualGoalPlanCss, /\.ag-current-card\s*\{[^}]*border:\s*0;[^}]*border-radius:\s*0;[^}]*background:\s*transparent;/, 'the current year should share the flat north-star report surface');
   assert.equal((reviewTabSource.match(/className="review-empty"/g) || []).length, 2, 'both reading sections should keep explicit empty states');
   assert.equal((reviewTabSource.match(/type="button" className="review-entry"/g) || []).length, 2, 'notes and logs should retain separate native interactive reading rows');
@@ -2771,7 +2774,7 @@ test('approved modal families share the new shell without widening business boun
   assert.equal(analysisTabSource.includes('document.body.style') || analysisTabSource.includes('document.documentElement.style'), false, 'asset month trend page should use normal document scrolling without modal background locks');
   assert.equal((analysisTabSource.match(/onClick=\{openMonthlyAssetTrend\}/g) || []).length, 1, 'the remaining monthly details entry should open the independent trend page after the header date entry becomes a currency switch');
   const assetHeroHeader = analysisTabSource.slice(analysisTabSource.indexOf('<div className="asset-report-hero-header">'), analysisTabSource.indexOf('<div className="asset-report-total"'));
-  assert.ok(assetHeroHeader.includes('className="asset-report-currency"') && assetHeroHeader.includes("['USD', 'CNY'].map") && assetHeroHeader.includes('setPortfolioCurrencyMode?.(mode)'), 'the asset hero should use explicit USD/CNY options and update the shared currency');
+  assert.ok(assetHeroHeader.includes('className="asset-report-currency"') && assetHeroHeader.includes('<CurrencyToggle') && currencyToggleSource.includes("['USD', 'CNY']") && assetHeroHeader.includes('setPortfolioCurrencyMode?.(mode)'), 'the asset hero should use explicit USD/CNY options and update the shared currency');
   assert.equal(assetHeroHeader.includes('openMonthlyAssetTrend') || assetHeroHeader.includes('currentMonth'), false, 'the asset hero must no longer show the removed date entry');
   assert.ok(analysisTabSource.includes("tt('analysis.monthlyDetails', '月度明细')"), 'the independent monthly report must remain reachable from the overview');
   assert.ok(appSource.includes('setShowMonthsDetail(false);\n    setActiveTab(tabId);'), 'bottom tab navigation should leave the asset trend subpage before switching tabs or returning to assets');

@@ -25,11 +25,7 @@
 .pnl-report-status svg { flex-shrink: 0; margin-top: 2px; }
 .pnl-report-hero { padding: 24px 0 25px; }
 .pnl-report-hero-heading { display: flex; align-items: center; justify-content: space-between; color: #84848f; font-size: 13px; }
-.pnl-report-currency { position: relative; }
-.pnl-report-currency > button { display: flex; align-items: center; gap: 7px; min-height: 32px; padding: 0 10px; border-radius: 9px; background: #1b1c1e; color: #b5b5bd; font-size: 12px; }
-.pnl-report-currency-menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 22; width: 104px; padding: 4px; border: 1px solid rgb(255 255 255 / .08); border-radius: 12px; background: #101112; }
-.pnl-report-currency-menu button { width: 100%; min-height: 40px; border-radius: 8px; font-size: 13px; color: #93949c; }
-.pnl-report-currency-menu button[aria-pressed="true"] { background: #26272a; color: #e4e4e7; }
+.pnl-report-currency { flex-shrink: 0; }
 .pnl-report-amount { margin-top: 12px; font-size: clamp(30px, 9.1vw, 40px); font-weight: 400; line-height: 1.15; white-space: nowrap; letter-spacing: normal; }
 .pnl-report-amount > span { font-size: inherit; opacity: 1; }
 .pnl-report-returns { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 16px; margin-top: 10px; }

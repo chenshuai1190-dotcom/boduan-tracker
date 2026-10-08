@@ -12,6 +12,7 @@ import {
 } from '../lib/pnlReportChart.js';
 import { buildStockPnlReportViewModel } from '../lib/stockPnlReportViewModel.js';
 import PnlReportTrendChart from '../components/PnlReportTrendChart.jsx';
+import CurrencyToggle from '../components/CurrencyToggle.jsx';
 import { PnlReportCalendarPicker } from '../components/PnlReportFilters.jsx';
 import './PnlReportPage.css';
 import './StockPnlReportPage.css';
@@ -193,7 +194,6 @@ export default function StockPnlReportPage({ ctx = {} }) {
   const [draftCalendarYear, setDraftCalendarYear] = React.useState('');
   const [draftCalendarMonth, setDraftCalendarMonth] = React.useState('01');
   const [currencyMode, setCurrencyMode] = React.useState(() => portfolioCurrencyMode === 'USD' ? 'USD' : 'CNY');
-  const [currencyMenuOpen, setCurrencyMenuOpen] = React.useState(false);
   const [symbolSnapshots, setSymbolSnapshots] = React.useState([]);
   const [snapshotLoading, setSnapshotLoading] = React.useState(true);
   const [snapshotError, setSnapshotError] = React.useState('');
@@ -386,10 +386,7 @@ export default function StockPnlReportPage({ ctx = {} }) {
     <section className="pnl-report-hero">
       <div className="pnl-report-hero-heading">
         <span>{symbol} · {label('区间盈亏', 'Period P&L')}</span>
-        <div className="pnl-report-currency">
-          <button type="button" onClick={() => setCurrencyMenuOpen(open => !open)} aria-expanded={currencyMenuOpen} aria-label={label('切换报表币种', 'Change report currency')}>{displayCurrency}<ChevronDown size={13} /></button>
-          {currencyMenuOpen && <div className="pnl-report-currency-menu">{['CNY', 'USD'].map(currency => <button key={currency} type="button" aria-pressed={displayCurrency === currency} onClick={() => { setCurrencyMode(currency); setCurrencyMenuOpen(false); }}>{currency}</button>)}</div>}
-        </div>
+        <CurrencyToggle className="pnl-report-currency" value={displayCurrency} onChange={setCurrencyMode} label={label('切换报表币种', 'Change report currency')} />
       </div>
       <div className="pnl-report-amount" style={{ color: totalColor, fontFamily: NUMBER_FONT }} data-stock-pnl-total>
         {report.hasData ? <>{totalAmount >= 0 ? '+' : '-'}{splitAmount.main}<span>{splitAmount.decimal}</span></> : '--'}

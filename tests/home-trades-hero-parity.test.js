@@ -55,8 +55,14 @@ test('Home follows the compact Trading hero geometry without changing other repo
 });
 
 test('both hero currency controls and long-amount wrapping use the same sizing', () => {
-  assertParity('currency', ['display', 'gap']);
-  assertParity('currency button', ['height', 'padding', 'border-radius', 'font-size']);
+  for (const [name, css] of [['HomeTab', home], ['TradesTab', trades]]) {
+    const source = readFileSync(new URL(`../src/tabs/${name}.jsx`, import.meta.url), 'utf8');
+    assert.match(source, /<CurrencyToggle[^>]*value=\{currencyMode\}[^>]*onChange=\{setCurrencyMode\}/, 'both heroes must use the shared currency component and their original setter');
+    assert.doesNotMatch(css, /\.(?:home|trades)-report-currency(?:\s|[.{#:\[])/, 'local CSS must not override shared control geometry');
+  }
+  const sharedCss = readFileSync(new URL('../src/components/CurrencyToggle.css', import.meta.url), 'utf8');
+  assert.match(sharedCss, /\.currency-toggle\s*\{[^}]*gap:\s*3px;/);
+  assert.match(sharedCss, /\.currency-toggle-option\s*\{[^}]*height:\s*30px;[^}]*padding:\s*0 10px;[^}]*border-radius:\s*8px;/);
   for (const suffix of ['net-amount', 'pnl-amount', 'balance-value']) {
     assertParity(suffix, ['overflow-wrap']);
     assert.equal(declarations(home, `.home-report-${suffix}`)['white-space'], undefined, 'Home must not prevent the same long amount from wrapping as Trading');

@@ -8,10 +8,19 @@ import { t } from '../src/lib/i18n.js';
 
 const source = readFileSync(new URL('../src/components/NorthStarGoalCard.jsx', import.meta.url), 'utf8');
 const css = readFileSync(new URL('../src/components/NorthStarGoalCard.css', import.meta.url), 'utf8');
+const currencySource = readFileSync(new URL('../src/components/CurrencyToggle.jsx', import.meta.url), 'utf8');
+const currencyCss = readFileSync(new URL('../src/components/CurrencyToggle.css', import.meta.url), 'utf8');
+const currencyTransformed = await transformWithOxc(currencySource, 'CurrencyToggle.jsx', { jsx: { runtime: 'classic' } });
+const currencyCompiled = currencyTransformed.code
+  .replace(/import\s*(['"])\.\/CurrencyToggle\.css\1;?/g, '')
+  .replace(/from (["'])react\1/g, () => `from ${JSON.stringify(import.meta.resolve('react'))}`);
+const currencyUrl = `data:text/javascript;base64,${Buffer.from(currencyCompiled).toString('base64')}`;
+const { default: CurrencyToggle } = await import(currencyUrl);
 const transformed = await transformWithOxc(source, 'NorthStarGoalCard.jsx', { jsx: { runtime: 'classic' } });
 const compiled = transformed.code
   .replace(/import\s*(['"])\.\/NorthStarGoalCard\.css\1;?/g, '')
   .replace(/from (["'])(react|lucide-react)\1/g, (_, _quote, module) => `from ${JSON.stringify(import.meta.resolve(module))}`)
+  .replace(/from (["'])\.\/CurrencyToggle\.jsx\1/g, `from ${JSON.stringify(currencyUrl)}`)
   .replace(/from (["'])\.\.\/lib\/i18n\.js\1/g, `from ${JSON.stringify(new URL('../src/lib/i18n.js', import.meta.url).href)}`);
 const { default: NorthStarGoalCard } = await import(`data:text/javascript;base64,${Buffer.from(compiled).toString('base64')}`);
 
@@ -30,6 +39,7 @@ const baseProps = {
 
 function nodes(node, predicate) {
   if (!React.isValidElement(node)) return [];
+  if (node.type === CurrencyToggle) return nodes(CurrencyToggle(node.props), predicate);
   return [
     ...(predicate(node) ? [node] : []),
     ...React.Children.toArray(node.props.children).flatMap(child => nodes(child, predicate)),
@@ -39,6 +49,7 @@ function nodes(node, predicate) {
 function textContent(node) {
   if (typeof node === 'string' || typeof node === 'number') return String(node);
   if (!React.isValidElement(node)) return '';
+  if (node.type === CurrencyToggle) return textContent(CurrencyToggle(node.props));
   return React.Children.toArray(node.props.children).map(textContent).join('');
 }
 
@@ -193,7 +204,7 @@ test('rendering and invoking callbacks do not mutate supplied goal or plan props
 
 test('the goal card remains presentation-only without ledger, financial calculations or global lifecycle access', () => {
   const imports = [...source.matchAll(/\b(?:from\s+|import\s+)(['"])([^'"]+)\1/g)].map(match => match[2]);
-  assert.ok(imports.every(module => ['react', 'lucide-react', '../lib/i18n.js', './NorthStarGoalCard.css'].includes(module)));
+  assert.ok(imports.every(module => ['react', 'lucide-react', '../lib/i18n.js', './NorthStarGoalCard.css', './CurrencyToggle.jsx'].includes(module)));
   assert.doesNotMatch(source, /\b(?:fetch|save|insert|upsert|update|delete)\s*\(|supabase|localStorage|sessionStorage|stock_trades|cost_basis_trades|swing_waves|service_role|EODHD_API_KEY/);
   assert.doesNotMatch(source, /\b(?:window|document)\s*\.|\b(?:addEventListener|removeEventListener|useEffect|useLayoutEffect|useState|useReducer|useContext)\b|visibilitychange|pageshow|pagehide/);
   assert.doesNotMatch(source, /Intl\.(?:NumberFormat|DateTimeFormat)|parseFloat\(|parseInt\(|Math\.pow\(|convertCurrency|exchangeRate|computeCompound|calculateCompound/);
@@ -206,8 +217,9 @@ test('card styles remain scoped and all native controls retain visible keyboard 
     declarations: match[2],
   }));
   assert.ok(rules.every(rule => rule.selectors.every(selector => /^\.north-star-card(?=[\s.:#\[>+~]|$)/.test(selector))), 'all rules, including responsive rules, must stay inside the card');
-  const focusRule = rules.find(rule => rule.selectors.includes('.north-star-card button:focus-visible'));
-  assert.ok(focusRule, 'every native card button requires visible keyboard focus');
+  const focusRule = rules.find(rule => rule.selectors.includes('.north-star-card button:not(.currency-toggle-option):focus-visible'));
+  assert.ok(focusRule, 'card-specific buttons require visible keyboard focus');
+  assert.match(currencyCss, /\.currency-toggle-option:focus-visible\s*\{[^}]*outline:\s*1px solid/, 'currency controls retain the shared keyboard focus treatment');
   const outline = focusRule.declarations.match(/\boutline\s*:\s*([^;]+);/)?.[1].trim();
   assert.ok(outline);
   assert.doesNotMatch(outline, /^(?:0(?:px)?|none)(?:\s|$)/);

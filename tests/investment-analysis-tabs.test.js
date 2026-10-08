@@ -12,6 +12,9 @@ const pageSource = read('src/pages/InvestmentComparisonPage.jsx');
 const transformedTabs = await transformWithOxc(tabSource, 'InvestmentAnalysisTabs.jsx', { jsx: { runtime: 'classic' } });
 const tabUrl = dataUrl(transformedTabs.code.replace(/from (["'])react\1/g, `from ${JSON.stringify(import.meta.resolve('react'))}`));
 const { default: InvestmentAnalysisTabs } = await import(tabUrl);
+const transformedCurrency = await transformWithOxc(read('src/components/CurrencyToggle.jsx'), 'CurrencyToggle.jsx', { jsx: { runtime: 'classic' } });
+const currencyUrl = dataUrl(transformedCurrency.code.replace(/from (["'])react\1/g, `from ${JSON.stringify(import.meta.resolve('react'))}`).replace(/import ["'][^"']+\.css["'];?/g, ''));
+const { default: CurrencyToggle } = await import(currencyUrl);
 
 function findAll(node, predicate) {
   if (!React.isValidElement(node)) return [];
@@ -100,7 +103,7 @@ const pickerUrl = dataUrl('export default function SymbolPicker() { return null;
 let pageCode = (await transformWithOxc(pageSource, 'InvestmentComparisonPage.jsx', { jsx: { runtime: 'classic' } })).code;
 const imports = new Map([
   ['react', hookUrl], ['react-dom', import.meta.resolve('react-dom')], ['lucide-react', import.meta.resolve('lucide-react')],
-  ['../components/InvestmentAnalysisTabs.jsx', tabUrl], ['../components/InvestmentComparisonChart.jsx', chartUrl],
+  ['../components/CurrencyToggle.jsx', currencyUrl], ['../components/InvestmentAnalysisTabs.jsx', tabUrl], ['../components/InvestmentComparisonChart.jsx', chartUrl],
   ['../components/InvestmentDrawdownView.jsx', drawdownUrl], ['../components/InvestmentSymbolPicker.jsx', pickerUrl],
   ['../lib/investmentComparison.js', sourceUrl], ['../lib/investmentComparisonModel.js', new URL('../src/lib/investmentComparisonModel.js', import.meta.url).href],
   ['../lib/investmentComparisonCurrency.js', new URL('../src/lib/investmentComparisonCurrency.js', import.meta.url).href],
@@ -318,13 +321,14 @@ async function currencySession(ctx, data = fixture()) {
   return {
     settle,
     get tree() { return tree; },
-    get currency() { return findAll(tree, node => node.type === 'select' && ['显示币种', 'Display currency'].includes(node.props['aria-label']))[0]; },
+    get currency() { return findAll(tree, node => node.type === CurrencyToggle)[0]; },
+    get currencyButtons() { return findAll(CurrencyToggle(this.currency.props), node => node.type === 'button'); },
     get principal() { return findAll(tree, node => node.type === 'input' && node.props.type === 'number')[0]; },
     get analysis() { return findAll(tree, node => node.type === InvestmentAnalysisTabs)[0]; },
     get view() { return findAll(tree, node => typeof node.type === 'function' && node.props.model)[0]; },
     get timeline() { return findAll(tree, node => node.props.className === 'ic-timeline')[0]; },
     get play() { return findAll(tree, node => node.props.className === 'ic-play-button')[0]; },
-    async switchCurrency(value) { this.currency.props.onChange({ target: { value } }); await settle(); },
+    async switchCurrency(value) { this.currencyButtons.find(node => node.props.children === value).props.onClick(); await settle(); },
   };
 }
 
@@ -386,13 +390,15 @@ test('time-machine defaults to one million CNY and retains its principal through
     for (const language of ['zh', 'en']) {
       const session = await currencySession({ userId: 'synthetic-currency-header', language, usdRate: 7.2 });
       const header = findAll(session.tree, node => node.type === 'header' && node.props.className === 'ic-header')[0];
-      assert.equal(session.currency.props['aria-label'], language === 'en' ? 'Display currency' : '显示币种');
+      assert.equal(session.currency.props.label, language === 'en' ? 'Display currency' : '显示币种');
       assert.equal(session.currency.props.value, 'CNY');
       assert.equal(Number(session.principal.props.value), 1000000);
       assert.equal(session.view.props.model.principal, 1000000 / 7.2);
       const model = session.view.props.model;
-      assert.equal(findAll(header, node => node.type === 'select' && node.props['aria-label'] === session.currency.props['aria-label']).length, 1);
-      assert.deepEqual(findAll(session.currency, node => node.type === 'option').map(node => node.props.value), ['USD', 'CNY']);
+      assert.equal(findAll(header, node => node.type === CurrencyToggle && node.props.label === session.currency.props.label).length, 1);
+      assert.equal(CurrencyToggle(session.currency.props).props['aria-label'], session.currency.props.label);
+      assert.deepEqual(session.currencyButtons.map(node => node.props.children), ['USD', 'CNY']);
+      assert.deepEqual(session.currencyButtons.map(node => node.props['aria-pressed']), [false, true]);
       assert.equal(findAll(header, node => node.type === 'button' && /Refresh historical data|刷新历史数据/.test(node.props['aria-label'] || '')).length, 0);
       await session.switchCurrency('USD');
       assert.equal(session.currency.props.value, 'USD');
@@ -480,11 +486,11 @@ test('initial invalid FX preserves the known CNY amount without a model until th
     for (const usdRate of [undefined, null, '', 0, -1, NaN, Infinity, 'not-a-rate']) {
       const ctx = { userId: 'synthetic-invalid-fx', language: 'en', usdRate };
       const session = await currencySession(ctx);
-      const options = findAll(session.currency, node => node.type === 'option');
+      const options = session.currencyButtons;
       assert.equal(session.currency.props.value, 'CNY');
       assert.ok(!session.currency.props.disabled);
-      assert.equal(options.find(node => node.props.value === 'CNY').props.disabled, true);
-      assert.ok(!options.find(node => node.props.value === 'USD').props.disabled);
+      assert.equal(options.find(node => node.props.children === 'CNY').props.disabled, true);
+      assert.ok(!options.find(node => node.props.children === 'USD').props.disabled);
       assert.equal(Number(session.principal.props.value), 1000000);
       assert.equal(session.principal.props.disabled, true);
       assert.equal(session.principal.props['aria-invalid'], false);
@@ -551,7 +557,7 @@ test('losing FX after a CNY edit retains the captured USD principal and allows s
     assert.equal(session.principal.props.value, '');
     assert.equal(session.principal.props.disabled, true);
     assert.strictEqual(session.view.props.model, model, 'losing live FX must retain the USD value captured when CNY was edited');
-    assert.equal(findAll(session.currency, node => node.type === 'option' && node.props.value === 'CNY')[0].props.disabled, true);
+    assert.equal(session.currencyButtons.find(node => node.props.children === 'CNY').props.disabled, true);
     await session.switchCurrency('USD');
     assert.equal(session.currency.props.value, 'USD');
     assert.ok(!session.principal.props.disabled);

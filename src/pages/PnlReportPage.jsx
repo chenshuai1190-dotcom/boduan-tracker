@@ -4,6 +4,7 @@ import { marketHexColor, marketTextClass } from '../lib/marketColorMode.js';
 import { isEnglishLanguage, t } from '../lib/i18n.js';
 import { splitCurrencyAmount } from '../lib/amountDisplay.js';
 import SparkArea from '../components/PnlReportTrendChart.jsx';
+import CurrencyToggle from '../components/CurrencyToggle.jsx';
 import { PnlReportCalendarPicker, PnlReportDateFilter } from '../components/PnlReportFilters.jsx';
 import './PnlReportPage.css';
 import { buildPnlReportViewModel } from '../lib/pnlReportViewModel.js';
@@ -147,7 +148,6 @@ export default function PnlReportPage({ ctx = {} }) {
   } = ctx;
   const englishMode = isEnglishLanguage(language);
   const [reportCurrencyMode, setReportCurrencyMode] = React.useState('CNY');
-  const [currencyMenuOpen, setCurrencyMenuOpen] = React.useState(false);
   const displayCurrency = reportCurrencyMode === 'USD' ? 'USD' : 'CNY';
   const displayRate = displayCurrency === 'CNY' ? (toNumber(usdRate) || toNumber(investmentSummary?.usdRate) || USD_CNY_FALLBACK) : 1;
   const [range, setRange] = React.useState('ytd');
@@ -450,18 +450,7 @@ export default function PnlReportPage({ ctx = {} }) {
       <section className="pnl-report-hero">
         <div className="pnl-report-hero-heading">
           <span>{t(language, 'pnlReport.totalPnl', '盈亏总额')}</span>
-          <div className="pnl-report-currency">
-            <button type="button" onClick={() => setCurrencyMenuOpen((open) => !open)} aria-expanded={currencyMenuOpen} aria-label={t(language, 'pnlReport.currencySwitch', '切换报表币种')}>
-              {displayCurrency}<ChevronDown size={13} />
-            </button>
-            {currencyMenuOpen && (
-              <div className="pnl-report-currency-menu">
-                {['CNY', 'USD'].map((currency) => (
-                  <button key={currency} type="button" aria-pressed={displayCurrency === currency} onClick={() => { setReportCurrencyMode(currency); setCurrencyMenuOpen(false); }}>{currency}</button>
-                ))}
-              </div>
-            )}
-          </div>
+          <CurrencyToggle className="pnl-report-currency" value={displayCurrency} onChange={setReportCurrencyMode} label={t(language, 'pnlReport.currencySwitch', '切换报表币种')} />
         </div>
         <div className="pnl-report-amount" style={{ color: totalColor, fontFamily: NUMBER_FONT }}>
           {reportData.hasData ? <>{reportTotal >= 0 ? '+' : '-'}{reportAmount.main}<span>{reportAmount.decimal}</span></> : '--'}

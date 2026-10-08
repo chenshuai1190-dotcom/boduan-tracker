@@ -63,7 +63,7 @@ test('Trading report preserves its financial readiness, actions, currency and fi
     'availableCashIsSet ? 2 : 0', 'onLoadCashMovements={loadAvailableCashMovements}',
     'onMutateCash={availableCashWriteReady ? mutateAvailableCash : null}',
     'onReverseCashMovement={availableCashReversalReady ? reverseAvailableCashMovement : null}',
-    'aria-pressed={currencyMode === mode} onClick={() => setCurrencyMode(mode)}',
+    '<CurrencyToggle className="trades-report-currency" value={currencyMode} onChange={setCurrencyMode}',
   ]) assert.ok(trades.includes(invariant), `Trading must retain ${invariant}`);
   const toolsStart = trades.indexOf('<section className="trades-report-tools"');
   const toolsSection = trades.slice(toolsStart, trades.indexOf('</section>', toolsStart));

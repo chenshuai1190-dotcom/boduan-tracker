@@ -2,9 +2,6 @@
 .north-star-card .ns-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .north-star-card .ns-header h2 { margin: 0; color: #85858f; font-size: 12px; font-weight: 400; line-height: 1.5; }
 .north-star-card .ns-controls { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-.north-star-card .ns-currencies { display: flex; align-items: center; gap: 1px; }
-.north-star-card .ns-currencies button { min-height: 30px; padding: 0 8px; border: 0; background: transparent; color: #717177; font: inherit; font-size: 11px; cursor: pointer; }
-.north-star-card .ns-currencies button[aria-pressed=true] { color: #ededee; }
 .north-star-card .ns-settings { display: grid; place-items: center; width: 30px; height: 30px; padding: 0; border: 0; background: transparent; color: #a0a0a5; cursor: pointer; }
 .north-star-card .ns-overview { display: block; width: 100%; padding: 8px 0 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .north-star-card .ns-goal-amount { display: block; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif; font-size: clamp(28px, 8.8vw, 40px); font-weight: 400; line-height: 1.18; letter-spacing: normal; overflow-wrap: anywhere; }
@@ -24,7 +21,7 @@
 .north-star-card .ns-plan-facts strong { display: block; margin-top: 5px; color: #bebec3; font-size: 13px; font-weight: 400; line-height: 1.5; overflow-wrap: anywhere; }
 .north-star-card .ns-detail-link { display: flex; justify-content: space-between; align-items: center; min-height: 49px; margin-top: 20px; border-top: 1px solid rgb(255 255 255 / .055); color: #a6a6ad; font-size: 11px; }
 .north-star-card .ns-motto { margin: 0; padding: 0 0 18px; color: #696970; font-size: 11px; line-height: 1.6; overflow-wrap: anywhere; }
-.north-star-card button:focus-visible { outline: 1px solid #b5b5ba; outline-offset: 3px; border-radius: 5px; }
-.north-star-card .ns-settings:active, .north-star-card .ns-currencies button:active { color: #ffffff; }
+.north-star-card button:not(.currency-toggle-option):focus-visible { outline: 1px solid #b5b5ba; outline-offset: 3px; border-radius: 5px; }
+.north-star-card .ns-settings:active { color: #ffffff; }
 .north-star-card .ns-overview:active .ns-detail-link { color: #ffffff; }
-@media (max-width: 350px) { .north-star-card { padding-left: 0; padding-right: 0; } .north-star-card .ns-controls { gap: 3px; } .north-star-card .ns-currencies button { padding: 0 6px; } }
+@media (max-width: 350px) { .north-star-card { padding-left: 0; padding-right: 0; } .north-star-card .ns-controls { gap: 3px; } }

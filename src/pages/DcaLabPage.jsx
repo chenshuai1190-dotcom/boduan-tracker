@@ -1,6 +1,7 @@
 import React from 'react';
+import CurrencyToggle from '../components/CurrencyToggle.jsx';
 import { MARKET_RED_HEX, MARKET_GREEN_HEX, marketTextClass, marketTextHexColor } from '../lib/marketColorMode.js';
-import { ArrowLeft, ArrowUpRight, CalendarDays, ChevronDown, ChevronRight, Pause, Play, RotateCcw, SlidersHorizontal } from 'lucide-react';
+import { ArrowLeft, ArrowUpRight, CalendarDays, ChevronRight, Pause, Play, RotateCcw, SlidersHorizontal } from 'lucide-react';
 import { buildDcaModel } from '../lib/dcaLabModel.js';
 import { createDcaMoneyFormatter, dcaAmountDraft, dcaAmountInput, normalizeDcaPlanUsd } from '../lib/dcaCurrency.js';
 import { investmentPrincipalUsd, resolveInvestmentDisplayRate } from '../lib/investmentComparisonCurrency.js';
@@ -229,7 +230,7 @@ export default function DcaLabPage({ ctx = {}, previewSource = null }) {
   };
   const loading = state.key !== key || state.loading;
   return <main className="investment-comparison ic-page dca-lab">
-    <header className="ic-header"><button type="button" className="ic-icon-button ic-back" onClick={closeDcaLab} aria-label="返回交易"><ArrowLeft size={21} /></button><div><h1>定投实验室</h1><p>把时间变成投资的一部分</p></div><label className="ic-currency-control"><select value={displayCurrency} aria-label="显示币种" onChange={event => { const next = event.target.value; if (resolveInvestmentDisplayRate(next, usdRate) !== null) setDisplayCurrency(next); }}><option value="USD">USD</option><option value="CNY" disabled={cnyRate === null}>CNY</option></select><ChevronDown size={13} aria-hidden="true" /></label></header>
+    <header className="ic-header"><button type="button" className="ic-icon-button ic-back" onClick={closeDcaLab} aria-label="返回交易"><ArrowLeft size={21} /></button><div><h1>定投实验室</h1><p>把时间变成投资的一部分</p></div><CurrencyToggle className="ic-currency-control" value={displayCurrency} disabledCurrencies={cnyRate === null ? ['CNY'] : []} onChange={next => { if (resolveInvestmentDisplayRate(next, usdRate) !== null) setDisplayCurrency(next); }} /></header>
     <section className="dl-plan" aria-label="定投方案">
       <div className="dl-plan-top"><DcaSymbolPicker value={plan.symbol} userId={userId} englishMode={ctx.englishMode ?? (ctx.language === 'en')} searchSource={searchSource} onChange={symbol => apply({ ...plan, symbol })} /><button className="dl-edit-button" aria-label="调整定投计划" type="button" aria-expanded={editing} onClick={() => setEditing(value => !value)}><SlidersHorizontal size={16} /><span>调整计划</span></button></div>
       <div className="dl-plan-summary"><span><CalendarDays size={13} />{plan.startYear} — {plan.endYear}</span><span>{frequencyLabel(plan.frequency)} {planMoney('amount')}</span><span>起投 {planMoney('initial')}</span></div>

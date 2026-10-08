@@ -4,9 +4,6 @@
 .trades-report button:disabled { cursor: wait; opacity: .45; }
 .trades-report-hero { padding: 2px 2px 12px; }
 .trades-report-hero-header { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
-.trades-report-currency { display: flex; gap: 3px; }
-.trades-report-currency button { height: 30px; padding: 0 10px; border-radius: 8px; color: #72727c; font-size: 11px; }
-.trades-report-currency button[aria-pressed="true"] { background: #1a1b1e; color: #d7d7dd; }
 .trades-report-net-amount { margin-top: 8px; font-size: clamp(28px, 8.8vw, 40px); font-weight: 400; line-height: 1.18; letter-spacing: normal; overflow-wrap: anywhere; }
 .trades-report-decimal { color: #83838c; font-size: .64em; letter-spacing: normal; }
 .trades-report-label { display: flex; align-items: center; gap: 5px; color: #85858f; font-size: 12px; font-weight: 400; line-height: 1.5; }

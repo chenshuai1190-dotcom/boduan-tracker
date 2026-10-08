@@ -45,6 +45,7 @@ async function compileModule(url) {
 }
 
 const { AnalysisTab } = await import(await compileModule(pageUrl));
+const { default: CurrencyToggle } = await import(await compileModule(new URL('../src/components/CurrencyToggle.jsx', import.meta.url)));
 const { default: MonthlyAssetTrendChart } = await import(await compileModule(new URL('../src/components/MonthlyAssetTrendChart.jsx', import.meta.url)));
 const { default: MonthlyAssetTrendContent } = await import(await compileModule(new URL('../src/components/MonthlyAssetTrendContent.jsx', import.meta.url)));
 const { default: MonthlyAssetCategoryReport } = await import(await compileModule(new URL('../src/components/MonthlyAssetCategoryReport.jsx', import.meta.url)));
@@ -52,6 +53,7 @@ const { default: AccountAssetTrendModal } = await import(await compileModule(new
 
 function nodes(node, predicate) {
   if (!React.isValidElement(node)) return [];
+  if (node.type === CurrencyToggle) return nodes(CurrencyToggle(node.props), predicate);
   return [...(predicate(node) ? [node] : []), ...React.Children.toArray(node.props.children).flatMap(child => nodes(child, predicate))];
 }
 function text(node) {
@@ -91,7 +93,7 @@ function mount(overrides = {}) {
   };
   return { ctx, currencyChanges, writes: () => writes, render: () => hooks.render(AnalysisTab, { ctx }) };
 }
-const byClass = (tree, className) => nodes(tree, node => node.props.className === className)[0];
+const byClass = (tree, className) => nodes(tree, node => (node.props.className || '').split(' ').includes(className))[0];
 
 // Execute the production memo boundary rather than supplying a complete ctx
 // directly: preview fixtures cannot catch an omitted prop or stale dependency.

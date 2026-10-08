@@ -1,4 +1,5 @@
 import React from 'react';
+import CurrencyToggle from '../components/CurrencyToggle.jsx';
 import { BarChart3, BookOpen, CalendarDays, ChevronRight, History, LayoutGrid, ListChecks, Search, Settings2, Trash2, Waves, X } from 'lucide-react';
 import {
   MARKET_COLOR_MODES,
@@ -975,9 +976,8 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
         <section className="trades-report-hero" data-trades-net-assets-card="true">
           <div className="trades-report-hero-header">
             <span className="trades-report-label">{tt('home.netAssets', '净资产')}</span>
-            <div className="trades-report-currency" aria-label={englishMode ? 'Display currency' : '显示币种'}>
-              {['USD', 'CNY'].map((mode) => <button key={mode} type="button" aria-pressed={currencyMode === mode} onClick={() => setCurrencyMode(mode)}>{mode}</button>)}
-            </div>
+            <CurrencyToggle className="trades-report-currency" value={currencyMode} onChange={setCurrencyMode}
+              label={englishMode ? 'Display currency' : '显示币种'} />
           </div>
           <div className="trades-report-net-amount text-white/[0.95]" style={{ fontFamily: TRADE_NUMBER_FONT }} data-trades-net-assets="true">
             {assetStatusReady ? <><span>{displayAssetMoney.main}</span><span className="trades-report-decimal">{displayAssetMoney.decimal}</span></> : <span className="text-white/30">--</span>}

@@ -19,10 +19,11 @@ async function compile(text, file, dev = false, replacements = {}) {
     .replaceAll('import.meta.env.DEV', String(dev));
   return dataUrl(compiled);
 }
+const currencyModule = await compile(read('src/components/CurrencyToggle.jsx'), 'CurrencyToggle.jsx');
 const presetsModule = await compile(read('src/components/InvestmentSymbolPresets.jsx'), 'InvestmentSymbolPresets.jsx');
 const sharedPickerModule = await compile(read('src/components/InvestmentSymbolPicker.jsx'), 'InvestmentSymbolPicker.jsx', false, { './InvestmentSymbolPresets.jsx': presetsModule });
 const pickerModule = await compile(read('src/components/DcaSymbolPicker.jsx'), 'DcaSymbolPicker.jsx', false, { './InvestmentSymbolPicker.jsx': sharedPickerModule });
-const productionModule = await compile(source, 'DcaLabPage.jsx', false, { '../components/DcaSymbolPicker.jsx': pickerModule });
+const productionModule = await compile(source, 'DcaLabPage.jsx', false, { '../components/DcaSymbolPicker.jsx': pickerModule, '../components/CurrencyToggle.jsx': currencyModule });
 const { default: DcaLabPage, DcaLabResults } = await import(productionModule);
 const { default: DcaLabPreview } = await import(await compile(preview, 'DcaLabPreview.jsx', false, { '../pages/DcaLabPage.jsx': productionModule }));
 
@@ -102,7 +103,9 @@ test('the default plan is CNY 10000 for initial and monthly contributions with t
   const page = capture(DcaLabPage, { ctx: { userId: 'user-a', usdRate: 6.7048 } }, overrides);
   assert.match(page.html, /每月 ¥10,000<\/span>/);
   assert.match(page.html, /起投 ¥10,000<\/span>/);
-  assert.match(page.html, /value="CNY" selected=""/);
+  const currency = nodes(page.tree, node => node.type?.name === 'CurrencyToggle')[0];
+  const options = nodes(currency.type(currency.props), node => node.type === 'button');
+  assert.deepEqual(options.map(node => [node.props.children, node.props['aria-pressed']]), [['USD', false], ['CNY', true]]);
   const editor = nodes(page.tree, node => node.type?.name === 'PlanEditor')[0];
   assert.equal(editor.props.plan.amount, 10000);
   assert.equal(editor.props.plan.initial, 10000);
@@ -122,8 +125,9 @@ test('currency switching only changes display while CNY contributions normalize 
   assert.equal(firstResults.props.plan.initial, 10000 / 7);
   assert.equal(firstResults.props.plan.amount, 10000 / 7);
   assert.equal(firstResults.props.plan.inputCurrency, 'USD');
-  const currency = nodes(first.tree, node => node.type === 'select' && node.props['aria-label'] === '显示币种')[0];
-  currency.props.onChange({ target: { value: 'USD' } });
+  const currency = nodes(first.tree, node => node.type?.name === 'CurrencyToggle')[0];
+  const usd = nodes(currency.type(currency.props), node => node.type === 'button' && node.props.children === 'USD')[0];
+  usd.props.onClick();
   assert.deepEqual(first.changes, [{ stateIndex: 4, next: 'USD' }]);
   const switched = capture(DcaLabPage, { ctx: { userId: 'user-a', usdRate: 8 } }, applyChanges(first));
   const nextResults = nodes(switched.tree, node => node.type?.name === 'DcaLabResults')[0];
@@ -142,6 +146,10 @@ test('missing initial FX waits without a fabricated model and resolves the CNY p
   const missing = capture(DcaLabPage, { ctx: { userId: 'user-a', usdRate: null } }, [unresolved, false, 0, loaded, 'CNY']);
   assert.match(missing.html, /每月 ¥10,000/);
   assert.match(missing.html, /等待汇率/);
+  const currency = nodes(missing.tree, node => node.type?.name === 'CurrencyToggle')[0];
+  const options = nodes(currency.type(currency.props), node => node.type === 'button');
+  assert.equal(options.find(node => node.props.children === 'CNY').props.disabled, true);
+  assert.equal(options.find(node => node.props.children === 'USD').props.disabled, false);
   assert.equal(nodes(missing.tree, node => node.type?.name === 'DcaLabResults').length, 0);
   const arrives = capture(DcaLabPage, { ctx: { userId: 'user-a', usdRate: 7 } }, missing.states);
   arrives.effects[0].effect();

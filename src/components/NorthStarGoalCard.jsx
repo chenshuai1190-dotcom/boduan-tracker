@@ -1,4 +1,5 @@
 import React from 'react';
+import CurrencyToggle from './CurrencyToggle.jsx';
 import { ArrowUpRight, SlidersHorizontal } from 'lucide-react';
 import { t } from '../lib/i18n.js';
 import './NorthStarGoalCard.css';
@@ -15,10 +16,9 @@ export default function NorthStarGoalCard({
     <div className="ns-header">
       <h2 id={headingId}>{tt('review.polarisGoal', '北极星目标')}</h2>
       <div className="ns-controls">
-        <div className="ns-currencies" role="group" aria-label={tt('review.goalCurrency', '目标显示币种')}>
-          {['USD', 'CNY'].map(currency => <button key={currency} type="button" aria-pressed={displayCurrency === currency}
-            onClick={() => { if (currency !== displayCurrency) onCurrencyChange(currency); }}>{currency}</button>)}
-        </div>
+        <CurrencyToggle className="ns-currencies" value={displayCurrency}
+          onChange={currency => { if (currency !== displayCurrency) onCurrencyChange(currency); }}
+          label={tt('review.goalCurrency', '目标显示币种')} />
         <button type="button" className="ns-settings" aria-label={tt('review.planSettings', '北极星设置')} onClick={onOpenSettings}>
           <SlidersHorizontal size={17} strokeWidth={1.6} aria-hidden="true" />
         </button>

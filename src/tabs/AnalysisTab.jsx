@@ -1,4 +1,5 @@
 import React from 'react';
+import CurrencyToggle from '../components/CurrencyToggle.jsx';
 import {
   BarChart3,
   CalendarDays,
@@ -818,13 +819,8 @@ function AnalysisTab({ ctx }) {
       <section className="asset-report-hero">
         <div className="asset-report-hero-header">
           <span className="asset-report-label">{tt('analysis.familyNetWorth', '家庭总资产')}</span>
-          <div className="asset-report-currency" aria-label={language === 'en' ? 'Display currency' : '显示币种'}>
-            {['USD', 'CNY'].map((mode) => (
-              <button key={mode} type="button" aria-pressed={displayCurrency === mode} onClick={() => setPortfolioCurrencyMode?.(mode)}>
-                {mode}
-              </button>
-            ))}
-          </div>
+          <CurrencyToggle className="asset-report-currency" value={displayCurrency} onChange={mode => setPortfolioCurrencyMode?.(mode)}
+            label={language === 'en' ? 'Display currency' : '显示币种'} />
         </div>
 
         <div className="asset-report-total" style={{ fontFamily: ASSET_NUMBER_FONT }}>

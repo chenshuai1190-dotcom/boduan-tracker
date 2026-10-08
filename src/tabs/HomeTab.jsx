@@ -1,4 +1,5 @@
 import React from 'react';
+import CurrencyToggle from '../components/CurrencyToggle.jsx';
 import { ArrowDown, ArrowUp, ArrowUpDown, Check, ChevronRight, Flame, GripVertical, LockKeyhole, Pencil, Pin, Plus, Search, Trash2, X } from 'lucide-react';
 import { splitCurrencyAmount } from '../lib/amountDisplay.js';
 import { fearGreedDisplay } from '../lib/fearGreedDisplay.js';
@@ -842,13 +843,8 @@ export default function HomeTab({ ctx }) {
       <section className="home-report-hero" data-home-net-assets-card="true">
         <div className="home-report-hero-header">
           <span className="home-report-label">{t(language, 'home.netAssets', '净资产')}</span>
-          <div className="home-report-currency" aria-label={englishMode ? 'Display currency' : '显示币种'}>
-            {['USD', 'CNY'].map((mode) => (
-              <button key={mode} type="button" aria-pressed={currencyMode === mode} onClick={() => setCurrencyMode(mode)}>
-                {mode}
-              </button>
-            ))}
-          </div>
+          <CurrencyToggle className="home-report-currency" value={currencyMode} onChange={setCurrencyMode}
+            label={englishMode ? 'Display currency' : '显示币种'} />
         </div>
         <div className="home-report-net-amount text-white/[0.95] tabular-nums" style={{ fontFamily: NUMBER_FONT }} data-home-net-assets="true">
           {assetStatusReady ? (

@@ -7,9 +7,6 @@
 .asset-report-hero { padding: 2px 2px 24px; font-variant-numeric: tabular-nums; }
 .asset-report-hero-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .asset-report-label { color: var(--asset-report-muted); font-size: 12px; font-weight: 400; line-height: 1.5; }
-.asset-report-currency { display: flex; gap: 3px; }
-.asset-report-currency button { height: 30px; padding: 0 10px; border-radius: 8px; color: #72727c; font-size: 11px; }
-.asset-report-currency button[aria-pressed="true"] { background: #1a1b1e; color: #d7d7dd; }
 .asset-report-total { color: #ededf0; font-size: clamp(28px, 8.8vw, 40px); font-weight: 400; line-height: 1.18; overflow-wrap: anywhere; }
 .asset-report-total { margin-top: 8px; }
 .asset-report-decimal { color: #83838c; font-size: .64em; }
