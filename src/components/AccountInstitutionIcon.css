@@ -72,3 +72,10 @@
   height: 100%;
   object-fit: fill;
 }
+
+/* The official 238 × 31 wordmark starts with a 31 × 31 compass symbol. */
+.account-institution-logo[data-institution="eastwestbank"] img {
+  width: 767.7419%;
+  height: 100%;
+  object-fit: fill;
+}

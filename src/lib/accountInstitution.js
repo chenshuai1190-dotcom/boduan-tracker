@@ -5,6 +5,7 @@ const INSTITUTION_ALIASES = {
   icbc: ['工商银行', '工商銀行', '中国工商银行', '中國工商銀行', '工行', 'icbc'],
   ccb: ['建设银行', '建設銀行', '中国建设银行', '中國建設銀行', '建行', 'ccb'],
   boc: ['中国银行', '中國銀行', '中行', 'bank of china', 'boc'],
+  eastwestbank: ['华美银行', '華美銀行', '美国华美银行', '美國華美銀行', '美国华美', '美國華美', 'east west bank'],
   ibkr: ['ibkr', 'interactive brokers', '盈透', '盈透证券', '盈透證券'],
   winglung: [
     '招商永隆银行', '招商永隆銀行', '招商永隆',

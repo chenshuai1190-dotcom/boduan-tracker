@@ -15,10 +15,12 @@
     "icbc-official.png": "https://v.icbc.com.cn/userfiles/Resources/ICBC/shouye/images/2017/logo.png",
     "ccb-official.png": "https://image4.ccb.com/cn/home/company/v3/images/img/20150828_1440745919/20151201084052927594.png",
     "boc-official.png": "https://www.boc.cn/images/boc2013_logo.png",
-    "wechat-official.ico": "https://res.wx.qq.com/a/wx_fed/assets/res/NTI4MWU5.ico"
+    "wechat-official.ico": "https://res.wx.qq.com/a/wx_fed/assets/res/NTI4MWU5.ico",
+    "eastwestbank-official.svg": "https://www.eastwestbank.com/assets/images/EWB_Logo_Horz_black.svg"
   },
   "notes": {
     "winglung-app-icon.jpg": "Unmodified 512px red-background app icon published by CMB Wing Lung Bank Limited. The bank's official download page https://www.cmbwinglungbank.com/wlb_corporate/hk/e-services/iphone-app.html links to App Store app 526663971; image URL is its artworkUrl512 from https://itunes.apple.com/lookup?id=526663971&country=hk. Verified 2026-09-19.",
-    "htsc-official.svg": "Original symbol#HTSClogo3 paths and colors from the official JS bundle, wrapped in standalone SVG without scripts or external references."
+    "htsc-official.svg": "Original symbol#HTSClogo3 paths and colors from the official JS bundle, wrapped in standalone SVG without scripts or external references.",
+    "eastwestbank-official.svg": "Unmodified official US East West Bank wordmark linked by https://www.eastwestbank.com/cn. CSS displays its original left-hand compass symbol. Verified 2026-10-09."
   }
 }

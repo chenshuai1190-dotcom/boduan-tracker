@@ -128,6 +128,21 @@ test('supports common Chinese aliases and traditional names without confusing pa
   }
 });
 
+test('recognizes controlled US East West Bank aliases and ordinary account suffixes', () => {
+  const names = [
+    '华美银行', '華美銀行', '美国华美银行', '美國華美銀行', '美国华美', '美國華美',
+    'East West Bank', 'EastWestBank', 'EAST-WEST BANK',
+    ' ＥＡＳＴ ＷＥＳＴ ＢＡＮＫ — USD Account ',
+    'East West Bank (USD) Personal Account',
+    '华美银行（美元）现金账户', '美国华美 - USD', '美國華美銀行（美元）個人帳戶',
+  ];
+  for (const name of names) {
+    const account = Object.freeze({ name, balance: 0, currency: 'USD' });
+    assert.equal(resolveAccountInstitution(account), 'eastwestbank', name);
+    assert.deepEqual(account, { name, balance: 0, currency: 'USD' });
+  }
+});
+
 test('does not use substring matches or accept similar but different institutions', () => {
   const names = [
     '招商证券', '招商證券', '中国银行香港', '中國銀行香港',
@@ -143,6 +158,11 @@ test('does not use substring matches or accept similar but different institution
     '原富途', '富途其他', '老虎基金', 'Tiger Brokers Futures',
     '华泰保险', '華泰保險', '华泰期货', 'Huatai Futures',
     '微信商家服务', '微信支付商户', 'WeChat Pay Merchant', '微信/支付宝',
+    '华夏银行', '華夏銀行', 'Hua Xia Bank', '华美', '華美', '华美理财', '华美超市',
+    '原华美银行', '我的华美银行', '华美银行备注', '华美银行其他', '美国华美备注',
+    '华美银行/招商银行', '华美银行（备用）', '华美银行消费记录',
+    'EWB', 'East West', 'East West Bancorp', 'East West Bank Philippines',
+    'East West Bank International', 'East West United Bank', 'East West Bank (notes)',
     '现金', '银行定期', '大额存单', '货币基金', '保险', '基金',
   ];
   for (const name of names) assert.equal(resolveAccountInstitution({ name }), null, name);

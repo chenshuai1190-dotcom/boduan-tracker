@@ -14,9 +14,10 @@ import futu from '../assets/account-institutions/futu-official.png';
 import tiger from '../assets/account-institutions/tiger-official.png';
 import htsc from '../assets/account-institutions/htsc-official.svg';
 import wechat from '../assets/account-institutions/wechat-official.ico';
+import eastwestbank from '../assets/account-institutions/eastwestbank-official.svg';
 import './AccountInstitutionIcon.css';
 
-const SOURCES = { alipay, cmb, ibkr, winglung, longbridge, boci, eastmoney, icbc, ccb, boc, futu, tiger, htsc, wechat };
+const SOURCES = { alipay, cmb, ibkr, winglung, longbridge, boci, eastmoney, icbc, ccb, boc, futu, tiger, htsc, wechat, eastwestbank };
 
 export default function AccountInstitutionIcon({ account, fallback = null }) {
   const institution = resolveAccountInstitution(account);
