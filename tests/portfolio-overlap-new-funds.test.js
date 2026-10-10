@@ -59,6 +59,48 @@ test('new funds fetch fixed official sources without EODHD and cache their verif
   assert.equal(calls.length, 4);
 });
 
+test('SMH October 8 negative-zero disclosure reaches the client model with its original weights and residual', async () => {
+  const official = json('smh-official-2026-10-08.json');
+  const now = Date.parse('2026-10-10T04:00:00Z');
+  const calls = [];
+  assert.equal(official.Holdings.find(row => row.LabelOrder === 10000).Weight, '-0.00');
+  const fetchImpl = async url => {
+    calls.push(url);
+    assert.equal(url, SMH_HOLDINGS_URL);
+    return response(official);
+  };
+  const data = await fetchPortfolioOverlap('SMH', { now, fetchImpl });
+  const smh = data.instruments[0];
+  assert.equal(smh.kind, 'plain_etf');
+  assert.equal(smh.holdingsStatus, 'partial');
+  assert.equal(smh.reason, 'non_equity_or_unresolved_holdings');
+  assert.equal(smh.asOfDate, '2026-10-08');
+  assert.equal(smh.fetchedAt, new Date(now).toISOString());
+  assert.equal(smh.stale, false);
+  assert.equal(smh.parsedHoldingCount, 25);
+  assert.equal(smh.holdings.length, 25);
+  near(smh.coveragePct, 99.93);
+  near(smh.unresolvedWeightPct, 0.07);
+  near(smh.holdings.find(row => row.symbol === 'NVDA').weightPct, 19.60);
+
+  const model = buildPortfolioOverlapModel({ holdings: [{ symbol: 'SMH', amount: 100000 }], instruments: data.instruments });
+  assert.equal(model.positions[0].kind, 'plain_etf');
+  assert.equal(model.positions[0].metadata.holdingsStatus, 'partial');
+  assert.equal(model.positions[0].metadata.asOfDate, '2026-10-08');
+  assert.equal(model.companies.length, 25);
+  near(model.identifiedPercent, 99.93);
+  near(model.unexpandedPercent, 0.07);
+  near(model.identifiedAmount, 99930);
+  near(model.unexpandedAmount, 70);
+  near(model.companies.find(row => row.symbol === 'NVDA').amount, 19600);
+  near(model.identifiedAmount + model.unexpandedAmount + model.leveragedAmount, model.total);
+
+  const cached = await fetchPortfolioOverlap('SMH', { now: now + PORTFOLIO_OVERLAP_CACHE_TTL_MS - 1, fetchImpl });
+  assert.deepEqual(calls, [SMH_HOLDINGS_URL]);
+  assert.deepEqual(cached.instruments, data.instruments);
+  assert.equal(official.Holdings.find(row => row.LabelOrder === 10000).Weight, '-0.00', 'source data is not mutated');
+});
+
 test('one official identity failure does not discard SMH or misclassify VGT as an ordinary stock', async () => {
   const data = await fetchPortfolioOverlap('VGT,SMH', {
     now: NOW,

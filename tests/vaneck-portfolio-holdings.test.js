@@ -4,6 +4,35 @@ import { readFileSync } from 'node:fs';
 import { parseVanEckPortfolioHoldings, SMH_HOLDINGS_URL } from '../server/quote/vanEckPortfolioHoldings.js';
 
 const OFFICIAL = JSON.parse(readFileSync(new URL('./fixtures/portfolio-overlap/smh-official-2026-10-04.json', import.meta.url)));
+const NEGATIVE_ZERO_OFFICIAL = JSON.parse(readFileSync(new URL('./fixtures/portfolio-overlap/smh-official-2026-10-08.json', import.meta.url)));
+
+test('VanEck October 8 disclosure accepts rounded negative-zero cash without changing equity weights', () => {
+  const before = structuredClone(NEGATIVE_ZERO_OFFICIAL);
+  const parsed = parseVanEckPortfolioHoldings(NEGATIVE_ZERO_OFFICIAL);
+  assert.equal(parsed.asOfDate, '2026-10-08');
+  assert.equal(parsed.reportedHoldingCount, 26);
+  assert.equal(parsed.holdings.length, 25);
+  assert.equal(parsed.holdings.find(row => row.symbol === 'NVDA').weightPct, 19.60);
+  assert.ok(Math.abs(parsed.totalWeight - 99.98) < 1e-9);
+  assert.ok(Math.abs(parsed.holdings.reduce((sum, row) => sum + row.weightPct, 0) - 99.93) < 1e-9);
+  assert.deepEqual(NEGATIVE_ZERO_OFFICIAL, before, 'disclosed negative zero remains unchanged in the source');
+
+  for (const weight of ['0', '-0', '-0.0', '-0.00', '-0.00000000']) {
+    const data = structuredClone(NEGATIVE_ZERO_OFFICIAL);
+    data.Holdings.at(-1).Weight = weight;
+    assert.deepEqual(parseVanEckPortfolioHoldings(data), parsed);
+  }
+});
+
+test('VanEck negative-zero compatibility never rounds genuine negatives or broadens numeric syntax', () => {
+  for (const weight of ['-0.01', '-1', '-0.00000001', '-0.000000001', '-00', '-0.', '-0e0', '-0.00%', ' -0.00', '-0.000000000']) {
+    for (const order of [1, 9999, 10000]) {
+      const data = structuredClone(NEGATIVE_ZERO_OFFICIAL);
+      data.Holdings.find(row => row.LabelOrder === order).Weight = weight;
+      assert.throws(() => parseVanEckPortfolioHoldings(data), { code: 'INVALID_DATA' }, `${order}: ${weight}`);
+    }
+  }
+});
 
 test('VanEck US SMH complete public dataset preserves disclosed percent points and date', () => {
   const parsed = parseVanEckPortfolioHoldings(OFFICIAL);

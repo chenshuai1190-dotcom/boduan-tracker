@@ -17,6 +17,9 @@ function holdingDate(value) {
 }
 
 function percent(value) {
+  // VanEck can round its cash residual to "-0.00". Accept only exact
+  // negative-zero spellings; genuine negative allocations remain invalid.
+  if (typeof value === 'string' && /^-0(?:\.0{1,8})?$/.test(value)) return 0;
   if (typeof value !== 'string' || !/^(?:0|[1-9]\d*)(?:\.\d{1,8})?$/.test(value)) invalid();
   const result = Number(value);
   if (!Number.isFinite(result) || result > 100) invalid();
