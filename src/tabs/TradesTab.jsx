@@ -27,6 +27,8 @@ import AccountLeverageBadge from '../components/AccountLeverageBadge.jsx';
 import AvailableCashEditor from '../components/AvailableCashEditor.jsx';
 import GenericLedgerTradeEntryPanel, { GenericLedgerTradeAmount, GenericLedgerTradeMarketReference } from '../components/GenericLedgerTradeEntryPanel.jsx';
 import TradeCostPreview from '../components/TradeCostPreview.jsx';
+import TradeExposurePreview from '../components/TradeExposurePreview.jsx';
+import TradeOutcomeReview from '../components/TradeOutcomeReview.jsx';
 import StockLogo, { stockLogoCandidates } from '../components/StockLogo.jsx';
 import TqqqTradeEntryPanel, { TQQQ_ACTION_TONE_CLASSES, TqqqTradeAmount } from '../components/TqqqTradeEntryPanel.jsx';
 import TqqqLiveRsiReference from '../components/TqqqLiveRsiReference.jsx';
@@ -502,7 +504,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
   const [allTradesModal, setAllTradesModal] = React.useState(null);
   const [showAllToolsModal, setShowAllToolsModal] = React.useState(false);
   const [colorMenuOpen, setColorMenuOpen] = React.useState(false);
-  const [orderActionTrade, setOrderActionTrade] = React.useState(null);
+  const [orderActionTrade, setOrderActionTrade] = React.useState(() => import.meta.env.DEV ? ctx.previewOrderActionTrade || null : null);
   const [scenarioPosition, setScenarioPosition] = React.useState(null);
   const [showAvailableCashEditor, setShowAvailableCashEditor] = React.useState(false);
   const [waveView, setWaveView] = React.useState('active');
@@ -1141,6 +1143,10 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                 <div><dt>{tt('trades.quantity', '股数')}</dt><dd>{sharesText(orderActionTrade.shares, 0)}</dd></div>
                 <div><dt>{englishMode ? 'Price · USD' : '成交价 · USD'}</dt><dd>${fmtAmount(orderActionTrade.price, 2)}</dd></div>
               </dl>
+              <TradeOutcomeReview key={`${ctx.user?.id || ''}:${orderActionTrade.id}`} trade={orderActionTrade}
+                userId={ctx.user?.id} language={language} marketColorMode={marketColorMode}
+                initiallyExpanded={import.meta.env.DEV && ctx.featurePreviewSection === 'outcome'}
+                historyLoader={import.meta.env.DEV ? ctx.tradeOutcomeHistoryLoader : undefined} />
             </StockReportModal>
           );
         })()}
@@ -2112,6 +2118,12 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
               </div>
               )
             )}
+            {(isTqqqTradeEntry || isGenericLedgerTradeEntry) && <TradeExposurePreview
+              key={`${ctx.user?.id || ''}:${tradeReferenceSymbol}`}
+              preview={tradeCostPreview} userId={ctx.user?.id} englishMode={englishMode}
+              initiallyExpanded={import.meta.env.DEV && ctx.featurePreviewSection === 'exposure'}
+              previewLoader={import.meta.env.DEV ? ctx.tradeExposureMetadataLoader : undefined}
+            />}
           </ActionModalCard>
         )}
 

@@ -1,0 +1,18 @@
+.trade-exposure-preview { margin-top: 24px; color: #ededf0; letter-spacing: normal; }
+.trade-exposure-toggle { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 12px 0; border: 0; background: none; color: #bcbcc4; font-size: 13px; text-align: left; }
+.trade-exposure-toggle:focus-visible, .trade-exposure-body button:focus-visible { outline: 2px solid #777780; outline-offset: 4px; border-radius: 4px; }
+.trade-exposure-body { padding: 14px; border-radius: 15px; background: #171719; }
+.trade-exposure-concentration { display: flex; flex-direction: column; gap: 6px; margin-bottom: 18px; }
+.trade-exposure-concentration > span { color: #9999a3; font-size: 12px; }
+.trade-exposure-concentration strong { font-size: 23px; font-weight: 400; font-variant-numeric: tabular-nums; }
+.trade-exposure-concentration strong span { color: #777780; padding: 0 7px; }
+.trade-exposure-columns, .trade-exposure-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.trade-exposure-columns { color: #9999a3; font-size: 11px; margin-bottom: 6px; }
+.trade-exposure-row { padding: 9px 0; font-size: 14px; }
+.trade-exposure-row strong { font-weight: 400; }
+.trade-exposure-row > span { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.trade-exposure-row i { color: #777780; font-style: normal; padding: 0 7px; }
+.trade-exposure-more { width: 100%; padding: 10px 0; background: none; border: 0; color: #aaaab3; font-size: 12px; }
+.trade-exposure-note, .trade-exposure-sources { margin: 12px 0 0; color: #96969f; font-size: 11px; line-height: 1.6; }
+.trade-exposure-note button { color: #ededf0; background: none; border: 0; text-decoration: underline; padding: 0 6px; }
+.trade-exposure-sources { margin-top: 6px; }

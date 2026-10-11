@@ -3,6 +3,8 @@ import { rsiLifecyclePreview } from './dev/stockRsiFixtures.js';
 import StockTradeDesignReference from './dev/StockTradeDesignReference.jsx';
 import TqqqRsiDesignPreview from './dev/TqqqRsiDesignPreview.jsx';
 import { legacyStockPnlReportPreview } from './dev/stockPnlReportPreview.js';
+import { exposurePreviewTrades, exposurePreviewQuotes, exposurePreviewSummary, loadExposurePreviewMetadata } from './dev/tradeExposurePreview.js';
+import { loadTradeOutcomeReviewPreview } from './dev/tradeOutcomeReviewPreview.js';
 import {
   AlertCircle,
   BookOpen,
@@ -1949,11 +1951,28 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     focusCompoundYears();
     return () => { observer.disconnect(); window.cancelAnimationFrame(frame); };
   }, [activeTab, reviewPanel, reviewSection]);
+  const featurePreview = new URLSearchParams(window.location.search).get('featurePreview') === '1';
+  const featurePreviewSection = featurePreview ? new URLSearchParams(window.location.search).get('featureSection') || '' : '';
+  React.useEffect(() => {
+    const selector = featurePreviewSection === 'exposure' ? '.trade-exposure-body .trade-exposure-row' : null;
+    if (!selector) return undefined;
+    let frame = 0;
+    const observer = new MutationObserver(reveal);
+    function reveal() {
+      const item = document.querySelector(selector);
+      if (!item) return;
+      observer.disconnect();
+      frame = window.requestAnimationFrame(() => item.closest('.trade-exposure-preview')?.scrollIntoView({ block: 'start' }));
+    }
+    observer.observe(document.body, { childList: true, subtree: true });
+    reveal();
+    return () => { observer.disconnect(); window.cancelAnimationFrame(frame); };
+  }, [featurePreviewSection]);
   const stockTradePreview = React.useMemo(() => {
     const params = new URLSearchParams(window.location.search);
     const side = params.get('stockTrade');
     return side === 'buy' || side === 'sell'
-      ? { side, symbol: ['NVDA', 'MSFT', 'META', 'GOOGL'].includes(params.get('tradeSymbol')) ? params.get('tradeSymbol') : 'NVDA' }
+      ? { side, symbol: ['NVDA', 'MSFT', 'META', 'GOOGL', ...(params.get('featurePreview') === '1' ? ['QQQ', 'SPY'] : [])].includes(params.get('tradeSymbol')) ? params.get('tradeSymbol') : 'NVDA' }
       : null;
   }, []);
   const tqqqTradePreviewSide = React.useMemo(() => {
@@ -2010,8 +2029,8 @@ function StandardDevVisualPreview({ initialTab = '' }) {
       name: ({ NVDA: '英伟达', MSFT: '微软', META: 'Meta Platforms', GOOGL: '谷歌' })[stockTradePreview.symbol],
       side: stockTradePreview.side,
       date: new Date().toISOString().slice(0, 10),
-      price: ({ NVDA: '233.95', MSFT: '517.53', META: '682.31', GOOGL: '343.24' })[stockTradePreview.symbol],
-      shares: '',
+      price: ({ NVDA: '233.95', MSFT: '517.53', META: '682.31', GOOGL: '343.24', QQQ: '750', SPY: '650' })[stockTradePreview.symbol],
+      shares: featurePreview ? '500' : '',
       batch: '第1批',
     } : {
       symbol: '',
@@ -3253,6 +3272,10 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     }))
     : [mockTodayStockTrade, ...mockPnlStockTrades];
   const tradesCtx = {
+    featurePreviewSection,
+    previewOrderActionTrade: featurePreviewSection === 'outcome' ? exposurePreviewTrades.find(row => row.id === 'outcome-nvda') : null,
+    tradeExposureMetadataLoader: loadExposurePreviewMetadata,
+    tradeOutcomeHistoryLoader: loadTradeOutcomeReviewPreview,
     stockTradePreviewContent: <StockTradeDesignReference
       symbol={String(newTrade.symbol || '').trim().toUpperCase()} side={newTrade.side}
       tradeDate={newTrade.date} englishMode={language === 'en'}
@@ -3280,7 +3303,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     fetching: false,
     fetchRealtimePrices: async () => {},
     fmt,
-    investmentSummary: {
+    investmentSummary: featurePreview ? { ...exposurePreviewSummary, usdRate: USD_RATE } : {
       activePositions: tradeActivePositions,
       positions: tradeActivePositions,
       positionsMarketValue: tradePositionsMarketValue,
@@ -3325,7 +3348,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     portfolioCurrencyMode: tradeCurrencyMode,
     Plus,
     qqqSignalQuote: tqqqTradePreviewSide ? tqqqPreviewQqqQuote : null,
-    quoteRows: tradeQuoteRows,
+    quoteRows: featurePreview ? exposurePreviewQuotes : tradeQuoteRows,
     RefreshCw,
     requestDeleteLegacyTrade,
     loadAvailableCashMovements: loadPreviewAvailableCashMovements,
@@ -3343,7 +3366,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     showAddTrade,
     showConfirm: showPreviewConfirm,
     stockFreshnessStartedAt: freshnessPreviewMode === 'warming' ? Date.now() : 0,
-    stockTrades: tradePreviewStockTrades,
+    stockTrades: featurePreview ? exposurePreviewTrades : tradePreviewStockTrades,
     stockHoldingsReady: true,
     stockHoldingsError: null,
     displayStockName: (symbol, name, displayLanguage = language) => {
@@ -3361,7 +3384,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
       id: competitionResumeSmoke ? competitionResumeUserIdRef.current : 'dev-user',
       email: 'preview@example.com',
     },
-    watchlist: tradeQuoteRows,
+    watchlist: featurePreview ? exposurePreviewQuotes : tradeQuoteRows,
     waveNotes,
     wavesByStock: mockWavesByStock,
   };
@@ -3479,6 +3502,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
           : {}),
       }}
     >
+      {featurePreview && <div role="note" style={{ position: 'fixed', bottom: 8, left: '50%', transform: 'translateX(-50%)', zIndex: 110, padding: '4px 10px', borderRadius: 7, color: '#a1a1aa', background: '#171719', fontSize: 11, whiteSpace: 'nowrap', pointerEvents: 'none' }}>本地设计 · 示例数据</div>}
       <Suspense fallback={<div className="py-12 text-center text-sm text-white/45">加载本地预览...</div>}>
         {activeTab === 'pnl-report'
           ? <PnlReportPage ctx={homeCtx} />
@@ -3538,7 +3562,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
           : activeTab === 'trades'
           ? <TradesTab
               ctx={tradesCtx}
-              initialToolPanel={typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('legacyWaveTool') === '1' ? 'waves' : ''}
+              initialToolPanel={typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('legacyWaveTool') === '1' ? 'waves' : (featurePreview && !stockTradePreview ? 'records' : '')}
             />
           : activeTab === 'settings'
           ? <SettingsTab ctx={settingsCtx} />

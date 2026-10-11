@@ -4,6 +4,17 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '新增交易支持查看交易后穿透仓位，合并直接与 ETF 间接持仓，对比交易前后占比和前五标的集中度。',
+      '交易记录新增操作复盘，展示成交日收盘后 5／20／60 个交易日的股价表现及期间最高、最低涨跌幅；数据不足时保留未知。',
+    ],
+    itemsEn: [
+      'Trade entry adds underlying exposure previews, combining direct holdings and ETF constituents to compare allocations and top-five concentration before and after a trade.',
+      'Trade records add a review of adjusted price performance 5, 20, and 60 trading sessions after the trade-date close, including the highest and lowest closing returns. Missing data remains unavailable.',
+    ],
+  },
+  {
+    ver: 'v10.7.9.558', date: '2026-10-08',
+    items: [
       '定投实验室新增 USD／CNY 切换，默认人民币；投入、资产、盈亏及年度对比金额同步换算，切换不改变收益率。',
       '与一次投入的对比补充累计收益率和领先金额，年度结果逐年展示两种方案，取消每笔定投列表。',
     ],

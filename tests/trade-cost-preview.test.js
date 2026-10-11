@@ -282,3 +282,52 @@ test('allocation computation leaves frozen quotes, original trades and draft unt
   assert.deepEqual(result.allocation, { current: 0.5, after: 8000 / 18000 });
   assert.equal(JSON.stringify({ stockTrades, quoteRows, input }), before);
 });
+
+test('exposure holdings reuse complete current-market valuation and never the draft execution price', () => {
+  const result = preview([buy, msftBuy], { price: '999', shares: '50' }, { quoteRows: marketQuotes });
+  const amounts = rows => Object.fromEntries(rows.map(({ symbol, amount }) => [symbol, amount]));
+  assert.deepEqual(amounts(result.portfolio.current), { NVDA: 10000, MSFT: 10000 });
+  assert.deepEqual(amounts(result.portfolio.after), { NVDA: 15000, MSFT: 10000 });
+  const cheaper = preview([buy, msftBuy], { price: '1', shares: '50' }, { quoteRows: marketQuotes });
+  assert.deepEqual(cheaper.portfolio, result.portfolio);
+});
+
+test('exposure holdings stay unknown for invalid drafts, oversells, unavailable quotes and unrelated bad ledgers', () => {
+  for (const changes of [{ shares: '' }, { date: '2026-02-30' }, { side: 'sell', shares: '101' }]) {
+    const result = preview([buy, msftBuy], changes, { quoteRows: marketQuotes });
+    assert.equal(result.portfolio.current.length, 2);
+    assert.equal(result.portfolio.after, null);
+  }
+  for (const options of [{ quoteRows: [marketQuotes[0]] }, { holdingsReady: false }, { scope: 'wave' }]) {
+    assert.deepEqual(preview([buy, msftBuy], {}, options).portfolio, { current: null, after: null });
+  }
+  assert.deepEqual(preview([buy, { ...msftBuy, price: 0 }], {}, { quoteRows: marketQuotes }).portfolio,
+    { current: null, after: null });
+});
+
+test('exposure holdings honor historical replays, edits and known full closes without mutating input', () => {
+  const trades = [buy, row('later-buy', 'buy', '2026-09-03', 200, 20), msftBuy];
+  const historical = preview(trades, { side: 'sell', date: '2026-09-02', shares: '100' }, { quoteRows: marketQuotes });
+  assert.equal(historical.portfolio.after.find(item => item.symbol === 'NVDA').amount, 2000);
+  const edited = preview([buy, msftBuy], { id: buy.id, symbol: 'MSFT', date: buy.date, shares: '100' }, { quoteRows: marketQuotes });
+  assert.deepEqual(edited.portfolio.after.map(({ symbol, amount }) => [symbol, amount]), [['MSFT', 30000]]);
+  const closed = preview([buy], { side: 'sell', shares: '100' }, { quoteRows: [] });
+  assert.deepEqual(closed.portfolio, { current: null, after: [] });
+  const initial = preview([], {}, { quoteRows: marketQuotes });
+  assert.deepEqual(initial.portfolio.current, []);
+  assert.equal(initial.portfolio.after[0].amount, 1000);
+});
+
+test('a ledger-valid symbol outside the look-through adapter contract cannot break costs or allocation', () => {
+  // The formal symbol normalizer accepts an underscore; the overlap adapter
+  // rejects it. Exercise the real adapter through an otherwise valid ledger.
+  const legacyBuy = row('legacy-buy', 'buy', '2026-09-01', 180, 50, 'ABC_DEF');
+  const quoteRows = [marketQuotes[0], { symbol: 'ABC_DEF', price: 200 }];
+  let result;
+  assert.doesNotThrow(() => { result = preview([buy, legacyBuy], {}, { quoteRows }); });
+  assert.equal(result.reason, null);
+  assert.deepEqual(result.current, holding(100, 100));
+  assert.deepEqual(result.after, holding(11200 / 110, 110));
+  assert.deepEqual(result.allocation, { current: 0.5, after: 11000 / 21000 });
+  assert.deepEqual(result.portfolio, { current: null, after: null });
+});

@@ -1,4 +1,5 @@
 import { deriveInvestmentSummary, derivePositionAllocation, derivePositionsFromTrades } from './investmentSummary.js';
+import { holdingsFromPositions } from './portfolioOverlapModel.js';
 import { normalizeStrictUserStockSymbol, normalizeUserStockSymbol } from './symbols.js';
 
 const unavailable = () => ({ status: 'unavailable', cost: null, shares: null });
@@ -63,7 +64,7 @@ function validValuationInput(quote) {
   return false;
 }
 
-function replayAllocation(trades, symbol, quoteRows) {
+function replayPortfolio(trades, quoteRows) {
   if (!Array.isArray(quoteRows) || quoteRows.some(row => !row || typeof row !== 'object' || Array.isArray(row))) return null;
   // A valid target cost says nothing about the other stocks in the denominator.
   // Check the entire formal ledger before valuing its remaining positions.
@@ -84,7 +85,19 @@ function replayAllocation(trades, symbol, quoteRows) {
     || (summary.activePositions.length > 0 && summary.positionsMarketValue <= 0)) return null;
   // This uses stock market value only, matching the holdings table. Cash,
   // financing, draft execution prices and ETF leverage do not enter the ratio.
-  const allocation = derivePositionAllocation(summary, symbol);
+  let holdings = null;
+  try {
+    holdings = holdingsFromPositions(summary.activePositions);
+  } catch {
+    // Look-through accepts a narrower symbol contract than the formal ledger.
+    // Keep its failure separate from the already validated cost and allocation.
+  }
+  return { summary, holdings };
+}
+
+function allocationOf(portfolio, symbol) {
+  if (!portfolio) return null;
+  const allocation = derivePositionAllocation(portfolio.summary, symbol);
   return Number.isFinite(allocation) && allocation >= 0 && allocation <= 1 ? allocation : null;
 }
 
@@ -93,7 +106,7 @@ export function deriveTradeCostPreview({ stockTrades, quoteRows, draft = {}, sco
   holdingsReady = false, holdingsError = null } = {}) {
   const symbol = normalizeStrictUserStockSymbol(draft?.symbol);
   const result = { applies: scope === 'ledger', symbol, current: unavailable(), after: unavailable(),
-    allocation: { current: null, after: null }, reason: null };
+    allocation: { current: null, after: null }, portfolio: { current: null, after: null }, reason: null };
   const fail = reason => ({ ...result, reason });
   if (!result.applies) return fail('not-applicable');
   if (holdingsReady !== true || holdingsError || !Array.isArray(stockTrades)) return fail('holdings-unavailable');
@@ -103,7 +116,9 @@ export function deriveTradeCostPreview({ stockTrades, quoteRows, draft = {}, sco
   const current = replay(stockTrades, symbol);
   result.current = current.state;
   if (current.reason) return fail(current.reason);
-  result.allocation.current = replayAllocation(stockTrades, symbol, quoteRows);
+  const currentPortfolio = replayPortfolio(stockTrades, quoteRows);
+  result.allocation.current = allocationOf(currentPortfolio, symbol);
+  result.portfolio.current = currentPortfolio?.holdings ?? null;
 
   const editingId = draft.id || draft.editingId;
   const matches = editingId ? stockTrades.filter(row => sameId(row.id, editingId)) : [];
@@ -137,6 +152,8 @@ export function deriveTradeCostPreview({ stockTrades, quoteRows, draft = {}, sco
     const previousAfter = replay(afterTrades, originalSymbol);
     if (previousAfter.reason) return fail(previousAfter.reason);
   }
+  const afterPortfolio = replayPortfolio(afterTrades, quoteRows);
   return { ...result, after: after.state,
-    allocation: { ...result.allocation, after: replayAllocation(afterTrades, symbol, quoteRows) } };
+    allocation: { ...result.allocation, after: allocationOf(afterPortfolio, symbol) },
+    portfolio: { ...result.portfolio, after: afterPortfolio?.holdings ?? null } };
 }
