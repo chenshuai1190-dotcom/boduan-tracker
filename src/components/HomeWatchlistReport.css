@@ -163,6 +163,7 @@
 .hwr-company { margin-top: 2px; color: var(--hwr-muted); font-size: 10px; line-height: 14px; }
 .hwr-price { color: var(--hwr-text); font-size: 16px; line-height: 23px; text-align: right; white-space: nowrap; }
 .hwr-change { color: var(--hwr-muted); font-size: 13px; line-height: 20px; text-align: right; white-space: nowrap; }
+.hwr-ytd { color: var(--hwr-muted); font-size: 13px; line-height: 20px; text-align: right; white-space: nowrap; }
 
 .hwr-row-secondary {
   display: flex;
@@ -193,9 +194,10 @@
 .hwr-table-scroll.has-rsi {
   --hwr-rsi-width: 96px;
   --hwr-divergence-width: 82px;
+  --hwr-ytd-width: 86px;
   --hwr-pinned-width: 112px;
   --hwr-logo-and-gap: 37px;
-  --hwr-extra-width: calc(var(--hwr-rsi-width) + var(--hwr-divergence-width) + 16px);
+  --hwr-extra-width: calc(var(--hwr-rsi-width) + var(--hwr-divergence-width) + var(--hwr-ytd-width) + 24px);
   overflow-x: auto;
   overscroll-behavior-x: contain;
   scrollbar-width: none;
@@ -203,7 +205,7 @@
 .hwr-table-scroll.has-rsi::-webkit-scrollbar { display: none; }
 .has-rsi .hwr-table-content { width: calc(100% + var(--hwr-extra-width)); }
 .has-rsi .hwr-column-headings,
-.has-rsi .hwr-row-main { grid-template-columns: var(--hwr-columns) var(--hwr-rsi-width) var(--hwr-divergence-width); }
+.has-rsi .hwr-row-main { grid-template-columns: var(--hwr-columns) var(--hwr-rsi-width) var(--hwr-divergence-width) var(--hwr-ytd-width); }
 .has-rsi .hwr-row-secondary { width: calc(100% - var(--hwr-extra-width)); }
 .has-rsi .hwr-identity,
 .has-rsi .hwr-aux-sort {
@@ -222,7 +224,14 @@
 .has-rsi .hwr-stock-name { max-width: calc(var(--hwr-pinned-width) - var(--hwr-logo-and-gap)); }
 .has-rsi[data-price-obscured="true"] .hwr-price,
 .has-rsi[data-price-obscured="true"] .hwr-price-sort { visibility: hidden; }
+.has-rsi[data-change-obscured="true"] .hwr-change,
+.has-rsi[data-change-obscured="true"] .hwr-change-sort { visibility: hidden; }
+.has-rsi[data-rsi-obscured="true"] .hwr-rsi,
+.has-rsi[data-rsi-obscured="true"] .hwr-rsi-heading { visibility: hidden; }
+.has-rsi[data-divergence-obscured="true"] .hwr-divergence,
+.has-rsi[data-divergence-obscured="true"] .hwr-divergence-heading { visibility: hidden; }
 .has-rsi .hwr-aux-label { position: sticky; left: 37px; z-index: 1; background: #05070b; }
+.has-rsi .hwr-row-secondary[data-aux-obscured="true"] .hwr-aux-value { visibility: hidden; }
 .hwr-rsi-heading,
 .hwr-divergence-heading {
   display: flex;
@@ -261,15 +270,16 @@
   .hwr-identity { gap: 7px; }
   .hwr-logo { width: 24px; height: 24px; }
   .hwr-symbol, .hwr-price { font-size: 14px; }
-  .hwr-change { font-size: 12px; }
+  .hwr-change, .hwr-ytd { font-size: 12px; }
   .hwr-row-secondary { padding-left: 31px; }
   .hwr-metric-chip { padding-inline: 8px; }
   .hwr-table-scroll.has-rsi {
     --hwr-rsi-width: 64px;
     --hwr-divergence-width: 54px;
+    --hwr-ytd-width: 78px;
     --hwr-pinned-width: 78px;
     --hwr-logo-and-gap: 31px;
-    --hwr-extra-width: calc(var(--hwr-rsi-width) + var(--hwr-divergence-width) + 12px);
+    --hwr-extra-width: calc(var(--hwr-rsi-width) + var(--hwr-divergence-width) + var(--hwr-ytd-width) + 18px);
   }
   .hwr-rsi-value { font-size: 14px; }
   .has-rsi .hwr-aux-label { left: 31px; }

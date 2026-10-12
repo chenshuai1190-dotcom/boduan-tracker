@@ -518,12 +518,25 @@ const mockHomeWatchlistRsi = Object.fromEntries(Object.entries({
   TSLA: { value: 91.2, state: 'FORMING' },
 }).map(([symbol, signal]) => [symbol, rsiLifecyclePreview(signal.value, '2026-09-11', signal.state)]));
 
+// Synthetic year-end baselines exercise positive, zero, negative and unavailable YTD.
+const mockHomeYtdYear = Number(currentNewYorkDate().slice(0, 4));
+const mockHomeYtdDate = latestCompletedUsTradingDate(new Date(`${mockHomeYtdYear}-01-01T12:00:00Z`));
+const mockHomeYtdCloses = { NVDA: 150, MSFT: 496.42, AAPL: 250 };
 const mockHomeWatchlist = [
   { symbol: 'NVDA', name: 'NVIDIA', price: 184.08, changePercent: 1.92, high: 195.95, ytdChangePercent: 32.4, intraday: mockMarketIntraday.pink },
   { symbol: 'MSFT', name: '微软', price: 496.42, changePercent: 0.74, high: 505.21, ytdChangePercent: 18.1, intraday: mockMarketIntraday.red },
   { symbol: 'AAPL', name: '苹果', price: 213.55, changePercent: -0.46, high: 237.49, ytdChangePercent: -4.8, intraday: mockMarketIntraday.green },
   { symbol: 'TSLA', name: '特斯拉', price: 323.63, changePercent: 2.12, high: 488.54, ytdChangePercent: -19.2, intraday: mockMarketIntraday.pink },
-].map((row) => ({ ...row, stockRsi: mockHomeWatchlistRsi[row.symbol] ?? null }));
+].map((row) => ({
+  ...row,
+  stockRsi: mockHomeWatchlistRsi[row.symbol] ?? null,
+  stockYtdBaseline: mockHomeYtdCloses[row.symbol] ? {
+    year: mockHomeYtdYear,
+    date: mockHomeYtdDate,
+    close: mockHomeYtdCloses[row.symbol],
+    source: 'eodhd-adjusted-close',
+  } : null,
+}));
 
 const mockHomeSignalBenchmarks = [
   { symbol: 'META', name: 'Meta', company: 'Meta', price: 92.7, week52High: 100 },
@@ -1893,6 +1906,25 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     const requestedTab = params.get('tab');
     return ['home', 'trades', 'analysis', 'review', 'settings', 'pnl-report', 'pnl-share', 'home-margin-risk', 'drawdown-observation', 'stock-detail', 'stock-pnl-report', 'debt-manager', 'watchlist-stock-detail', 'wave-tracker', 'community-competition', 'vix-comparison', 'vix-monthly-report', 'fear-greed', 'stock-decision', 'investment-comparison', 'macro', 'portfolio-overlap', 'dca-lab'].includes(requestedTab) ? requestedTab : 'analysis';
   });
+  React.useEffect(() => {
+    const homeYtdView = new URLSearchParams(window.location.search).get('homeYtd');
+    if (activeTab !== 'home' || !['1', 'left'].includes(homeYtdView)) return undefined;
+    let frame = 0;
+    const observer = new MutationObserver(focusHomeYtd);
+    function focusHomeYtd() {
+      const report = document.querySelector('[data-home-watchlist-report="true"]');
+      const table = report?.querySelector('.hwr-table-scroll');
+      if (!table) return;
+      observer.disconnect();
+      frame = window.requestAnimationFrame(() => {
+        report.scrollIntoView({ block: 'start', behavior: 'instant' });
+        table.scrollLeft = homeYtdView === '1' ? table.scrollWidth - table.clientWidth : 0;
+      });
+    }
+    observer.observe(document.body, { childList: true, subtree: true });
+    focusHomeYtd();
+    return () => { observer.disconnect(); window.cancelAnimationFrame(frame); };
+  }, [activeTab]);
   const macroPreview = React.useMemo(() => {
     const params = new URLSearchParams(typeof window === 'undefined' ? '' : window.location.search);
     return {

@@ -4,6 +4,17 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '首页自选在顶背离后新增年初至今涨跌幅，点击表头可切换升序、降序，缺少有效行情基准的股票保留未知并排在末尾。',
+      '年初至今沿用上年最后交易日的复权收盘基准，与当前展示股价对应；距 52 周高点保持原来的位置。',
+    ],
+    itemsEn: [
+      'Home Watchlist adds year-to-date performance after bearish divergence, with ascending and descending sorting. Stocks without a valid baseline remain unavailable and sort last.',
+      'YTD uses the adjusted close from the last trading session of the previous year and the displayed share price. Distance from the 52-week high retains its existing position.',
+    ],
+  },
+  {
+    ver: 'v10.7.9.559', date: '2026-10-11',
+    items: [
       '新增交易支持查看交易后穿透仓位，合并直接与 ETF 间接持仓，对比交易前后占比和前五标的集中度。',
       '交易记录新增操作复盘，展示成交日收盘后 5／20／60 个交易日的股价表现及期间最高、最低涨跌幅；数据不足时保留未知。',
     ],
