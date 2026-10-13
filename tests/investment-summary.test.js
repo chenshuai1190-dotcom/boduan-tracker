@@ -194,6 +194,33 @@ test('locked close is the single price for home, trade holdings, and investment 
   assert.equal(summary.todayPnlLocked, true);
 });
 
+test('a confirmed close with an explicitly unavailable denominator preserves value but not daily profit', () => {
+  const quote = {
+    symbol: 'NVDA', price: 201, dailyPnlPrice: 200, dailyPnlLocked: true,
+    dailyPnlBaselineClose: 0, dailyBaselineClose: 190, previousClose: 190,
+    change: 11, changePercent: 5.789, dailyPnlChangePercent: 5.263,
+  };
+  const trades = [{ id: 1, symbol: 'NVDA', side: 'buy', date: '2026-01-02', price: 100, shares: 10 }];
+  const account = deriveInvestmentSummary({ stockTrades: trades, watchlist: [quote] });
+  const position = account.activePositions[0];
+  assert.equal(position.valuationPrice, 200);
+  assert.equal(position.marketValue, 2000);
+  assert.equal(position.previousClose, 0);
+  assert.equal(position.dailyPnlBaselineClose, 0);
+  assert.equal(position.hasTodayPnl, false);
+  assert.equal(position.todayPnl, null);
+  assert.equal(position.todayPnlPct, null);
+  assert.equal(position.dailyPnlChangePercent, null);
+  assert.equal(account.hasTodayPnl, false);
+  assert.equal(account.todayPnl, null);
+  assert.equal(account.todayPnlPct, null);
+  assert.equal(resolveHomeMarketDisplayMetrics(position).changePercent, null);
+  assert.equal(resolveHoldingDisplayPrice(position), 200);
+  const { dailyPnlBaselineClose, ...legacyQuote } = quote;
+  const legacy = deriveInvestmentSummary({ stockTrades: trades, watchlist: [legacyQuote] });
+  assert.equal(legacy.todayPnl, 100, 'legacy rows without an explicit unavailable denominator retain their known baseline');
+});
+
 test('unlocked investment valuation keeps the live quote price', () => {
   const summary = deriveInvestmentSummary({
     stockTrades: [

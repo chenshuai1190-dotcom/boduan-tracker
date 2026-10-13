@@ -11,6 +11,7 @@ import {
   getQuoteCloseSettlementKey,
   isRegularNyseHoliday,
   isQuoteBaselineUniverseExpansion,
+  mergeDailyPnlBaselineFields,
   mergeQuoteBaselineRows,
   QUOTE_BASELINE_REFRESH_INTERVAL_MS,
   selectQuoteBaselineSymbols,
@@ -253,6 +254,44 @@ test('refreshing the baseline preserves valid quotes outside the request univers
     [{ symbol: 'NVDA', price: 210, dailyPnlPrice: 205 }],
     'an unavailable baseline response must not erase the latest valid public quote fields',
   );
+});
+
+test('REST daily-P&L fields retain an explicit missing locked denominator through both merge stages', () => {
+  const previous = {
+    symbol: 'NVDA', price: 201, previousClose: 190, dailyBaselineClose: 190,
+    dailyPnlLocked: true, dailyPnlBaselineClose: 180,
+    dailyPnlBaselineDate: '2026-09-07', dailyPnlBaselineSource: 'eodhd-adjusted-close',
+    dailyPnlChange: 20, dailyPnlChangePercent: 20 / 180 * 100,
+  };
+  for (const dailyPnlBaselineClose of [0, null, Number.NaN]) {
+    const fresh = {
+      symbol: 'NVDA', price: 205, dailyPnlPrice: 200, dailyPnlLocked: true,
+      previousClose: 190, dailyBaselineClose: 190, dailyBaselineDate: '2026-09-08',
+      dailyPnlBaselineClose, dailyPnlBaselineDate: '', dailyPnlBaselineSource: 'unavailable',
+      dailyPnlChange: null, dailyPnlChangePercent: null,
+    };
+    const expected = {
+      dailyPnlBaselineClose: 0, dailyPnlBaselineDate: '', dailyPnlBaselineSource: 'unavailable',
+      dailyPnlChange: null, dailyPnlChangePercent: null,
+    };
+    assert.deepEqual(mergeDailyPnlBaselineFields(fresh, previous), expected);
+    assert.deepEqual(mergeDailyPnlBaselineFields(fresh), expected, 'adding a watchlist item uses the same unavailable contract');
+    const [merged] = mergeQuoteBaselineRows([previous], [fresh]);
+    for (const [field, value] of Object.entries(expected)) assert.equal(merged[field], value, field);
+    assert.equal(merged.price, 205, 'valid public price fields remain independent from the locked return denominator');
+    assert.equal(merged.dailyPnlPrice, 200);
+  }
+  assert.equal(mergeDailyPnlBaselineFields({ dailyPnlLocked: true, previousClose: 190 }, previous).dailyPnlBaselineClose, 190,
+    'legacy shapes without an explicit baseline keep their existing fallback');
+  assert.equal(mergeDailyPnlBaselineFields({ dailyPnlLocked: false, dailyPnlBaselineClose: 0, previousClose: 195 }, previous).dailyPnlBaselineClose, 195,
+    'the existing live-session denominator selection is unchanged');
+});
+
+test('App uses the same denominator-preserving helper for added stocks and REST quote refreshes', async () => {
+  const source = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8');
+  assert.match(source, /\.\.\.mergeDailyPnlBaselineFields\(fresh\)/);
+  assert.match(source, /\.\.\.mergeDailyPnlBaselineFields\(fresh, s\)/);
+  assert.doesNotMatch(source, /dailyPnlBaselineClose:\s*fresh\??\.dailyPnlBaselineClose\s*\|\|/);
 });
 
 test('App wires the low-frequency gate without replacing iOS snapshot bursts or stock WebSocket ticks', async () => {

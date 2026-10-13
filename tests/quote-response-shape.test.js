@@ -465,6 +465,9 @@ test('EODHD stock normalizer locks daily pnl to regular close during postmarket'
     dailyBaselineClose: dailyBaseline.close,
     dailyBaselineDate: dailyBaseline.date,
     dailyBaselineSource: dailyBaseline.source,
+    regularClosePrice: 195.55,
+    regularCloseDate: '2026-07-06',
+    regularCloseSource: 'eodhd-adjusted-close',
   });
 
   assert.equal(quote.quoteSession, 'post');
@@ -478,7 +481,7 @@ test('EODHD stock normalizer locks daily pnl to regular close during postmarket'
   assert.equal(quote.dailyPnlBaselineClose, 194.8);
   assert.equal(quote.dailyPnlLocked, true);
   assert.equal(quote.dailyPnlSession, 'post');
-  assert.equal(quote.dailyPnlSource, 'locked-provider-regular-close');
+  assert.equal(quote.dailyPnlSource, 'eodhd-adjusted-close');
   assert.equal(Number(quote.dailyPnlChange.toFixed(3)), 0.75);
   assert.equal(Number(quote.dailyPnlChangePercent.toFixed(4)), 0.3850);
   assert.equal(Number(quote.change.toFixed(3)), 0.474);

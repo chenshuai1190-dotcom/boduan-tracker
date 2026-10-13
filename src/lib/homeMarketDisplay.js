@@ -25,11 +25,14 @@ export function resolveHomeMarketDisplayMetrics(row = {}, {
   const price = locked
     ? lockedPrice
     : positiveNumber(livePrice);
+  const explicitMissingBaseline = locked
+    && Object.prototype.hasOwnProperty.call(row, 'dailyPnlBaselineClose')
+    && positiveNumber(row.dailyPnlBaselineClose) === null;
 
   let changePercent = locked
-    ? optionalNumber(row?.dailyPnlChangePercent)
+    ? (explicitMissingBaseline ? null : optionalNumber(row?.dailyPnlChangePercent))
     : optionalNumber(liveChangePercent);
-  if (locked && changePercent === null && lockedPrice) {
+  if (locked && !explicitMissingBaseline && changePercent === null && lockedPrice) {
     const baseline = positiveNumber(row?.dailyPnlBaselineClose)
       || positiveNumber(row?.dailyBaselineClose)
       || positiveNumber(row?.previousClose);

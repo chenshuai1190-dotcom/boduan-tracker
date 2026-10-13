@@ -2,7 +2,7 @@ import { normalizeUserStockSymbol } from './symbols.js';
 
 const LIVE_DAILY_SOURCES = new Set(['realtime-pre', 'realtime-regular', 'realtime-tick']);
 const CLOSE_SOURCES = new Set([
-  'locked-provider-regular-close', 'locked-eod-regular-close', 'locked-latest-eod-close',
+  'locked-eod-regular-close', 'locked-latest-eod-close',
   'eodhd-adjusted-close', 'eodhd-close',
 ]);
 const BASELINE_SOURCES = new Set([...CLOSE_SOURCES, 'eodhd-quote-previous-close']);
@@ -24,7 +24,7 @@ function sourcedClose(value, source, date, allowedSources) {
   if (positive(value) === null || !allowedSources.has(source)) return false;
   // EODHD's quote previous-close branch can legitimately have no trading date.
   // Historical EOD closes always arrive with their explicit completed date.
-  if (!date && ['eodhd-quote-previous-close', 'locked-provider-regular-close'].includes(source)) return true;
+  if (!date && source === 'eodhd-quote-previous-close') return true;
   return validDate(date);
 }
 

@@ -35,7 +35,7 @@ function completedRow(overrides = {}) {
     dailyPnlPrice: 200, dailyPnlPriceDate: '2026-09-09',
     dailyPnlBaselineClose: 190, dailyPnlBaselineDate: '2026-09-08',
     dailyPnlLocked: true, dailyPnlSession: 'post',
-    dailyPnlSource: 'locked-provider-regular-close',
+    dailyPnlSource: 'locked-eod-regular-close',
     ...overrides,
   });
 }
@@ -256,8 +256,10 @@ test('REST refresh composition cannot lock an aged last live price when no offic
 test('missing official price date or untrusted live source cannot fabricate a completed close', () => {
   for (const original of [
     completedRow({ dailyPnlPriceDate: '' }),
+    completedRow({ dailyPnlPriceDate: '2026-02-30' }),
     completedRow({ dailyPnlSource: 'realtime-tick' }),
     completedRow({ dailyPnlSource: 'locked-regular-close' }),
+    completedRow({ dailyPnlSource: 'locked-provider-regular-close' }),
   ]) {
     const result = apply([original], quoteFrame(205, POST), POST);
     assert.equal(result[0].completedDailyPnl, null);
@@ -265,6 +267,135 @@ test('missing official price date or untrusted live source cannot fabricate a co
     assert.equal(summary(result).hasTodayPnl, false);
     assert.equal(summary(result).todayPnl, null);
   }
+});
+
+test('legacy provider completed-close objects are discarded in both tick and REST restore paths', () => {
+  const polluted = completedRow({
+    dailyPnlSource: 'locked-provider-regular-close',
+    completedDailyPnl: {
+      price: 200, date: '2026-09-09', source: 'locked-provider-regular-close',
+      baselineClose: 190, baselineDate: '2026-09-08', baselineSource: 'eodhd-adjusted-close',
+    },
+  });
+  const tickResult = apply([polluted], quoteFrame(205, POST), POST);
+  const restResult = mergeFreshStockRealtimeRows([polluted], [], { now: POST });
+  for (const result of [tickResult, restResult]) {
+    assert.equal(result[0].completedDailyPnl, null);
+    assert.equal(result[0].dailyPnlPrice, 0);
+    assert.equal(result[0].dailyPnlSource, 'unavailable');
+    assert.equal(summary(result).todayPnl, null);
+  }
+  assert.equal(polluted.completedDailyPnl.price, 200, 'restoration must not mutate the original cached object');
+});
+
+test('a locked EOD close with a missing denominator survives merges without inventing daily returns', () => {
+  const missing = completedRow({
+    dailyPnlBaselineClose: 0, dailyPnlBaselineDate: '', dailyPnlBaselineSource: 'unavailable',
+    dailyBaselineDate: '', dailyPnlChange: null, dailyPnlChangePercent: null,
+  });
+  const earlierLive = baseline({ dailyBaselineDate: '2026-09-08', dailyPnlBaselineDate: '2026-09-08' });
+  for (const result of [
+    apply([missing], quoteFrame(205, POST), POST, [earlierLive]),
+    mergeFreshStockRealtimeRows([missing], [earlierLive], { now: POST }),
+  ]) {
+    assert.equal(result[0].dailyPnlPrice, 200);
+    assert.equal(result[0].dailyPnlBaselineClose, 0);
+    assert.equal(result[0].dailyPnlChange, null);
+    assert.equal(result[0].dailyPnlChangePercent, null);
+    assert.equal(summary(result).positions[0].valuationPrice, 200);
+    assert.equal(summary(result).todayPnl, null);
+  }
+});
+
+test('only the same-date same-price complete EOD bundle restores a missing locked denominator', () => {
+  for (const [price, expectedBaseline] of [[200, 190], [201, 0]]) {
+    const cached = completedRow({
+      completedDailyPnl: {
+        price: 200, date: '2026-09-09', source: 'eodhd-adjusted-close',
+        baselineClose: 190, baselineDate: '2026-09-08', baselineSource: 'eodhd-adjusted-close',
+      },
+    });
+    const refreshed = {
+      ...cached, dailyPnlPrice: price, dailyPnlBaselineClose: 0,
+      dailyPnlBaselineDate: '', dailyPnlBaselineSource: 'unavailable',
+      dailyPnlChange: null, dailyPnlChangePercent: null,
+    };
+    const [result] = mergeFreshStockRealtimeRows([refreshed], [cached], { now: POST });
+    assert.equal(result.dailyPnlPrice, price, 'a newly confirmed different close keeps priority over the old cached price');
+    assert.equal(result.dailyPnlBaselineClose, expectedBaseline);
+    assert.equal(result.dailyPnlChange, expectedBaseline ? price - expectedBaseline : null);
+    assert.equal(result.dailyPnlBaselineDate, expectedBaseline ? '2026-09-08' : '');
+  }
+  for (const invalidBaseline of [
+    { baselineDate: '' }, { baselineDate: '2026-09-09' },
+    { baselineClose: 0 }, { baselineSource: 'eodhd-quote-previous-close' },
+  ]) {
+    const refreshed = completedRow({
+      dailyPnlBaselineClose: 0, dailyPnlBaselineDate: '', dailyPnlBaselineSource: 'unavailable',
+      completedDailyPnl: {
+        price: 200, date: '2026-09-09', source: 'eodhd-adjusted-close',
+        baselineClose: 190, baselineDate: '2026-09-08', baselineSource: 'eodhd-adjusted-close',
+        ...invalidBaseline,
+      },
+    });
+    const [result] = mergeFreshStockRealtimeRows([refreshed], [], { now: POST });
+    assert.equal(result.dailyPnlPrice, 200);
+    assert.equal(result.dailyPnlBaselineClose, 0, 'incomplete or undated provider baselines cannot be promoted');
+    assert.equal(result.dailyPnlChangePercent, null);
+  }
+});
+
+test('missing REST close can preserve a trusted cached close but never its invalid daily denominator', () => {
+  for (const invalidBaseline of [
+    { baselineDate: '2026-09-09', baselineClose: 200 },
+    { baselineDate: '' },
+    { baselineDate: '2026-02-30' },
+    { baselineSource: 'eodhd-quote-previous-close' },
+    { baselineSource: '' },
+  ]) {
+    const cached = completedRow({
+      completedDailyPnl: {
+        price: 200, date: '2026-09-09', source: 'eodhd-adjusted-close',
+        baselineClose: 190, baselineDate: '2026-09-08', baselineSource: 'eodhd-adjusted-close',
+        ...invalidBaseline,
+      },
+    });
+    cached.dailyPnlBaselineClose = cached.completedDailyPnl.baselineClose;
+    cached.dailyPnlBaselineDate = cached.completedDailyPnl.baselineDate;
+    cached.dailyPnlBaselineSource = cached.completedDailyPnl.baselineSource;
+    const fresh = {
+      ...cached, dailyPnlPrice: 0, dailyPnlPriceDate: '', dailyPnlSource: 'unavailable',
+      dailyPnlBaselineClose: 0, dailyPnlBaselineDate: '', dailyPnlBaselineSource: 'unavailable',
+      dailyPnlChange: null, dailyPnlChangePercent: null,
+    };
+    for (const priorRows of [[cached], []]) {
+      const [result] = mergeFreshStockRealtimeRows([fresh], priorRows, { now: POST });
+      assert.equal(result.dailyPnlPrice, 200, 'the same-day confirmed EOD close remains valid');
+      assert.equal(result.dailyPnlBaselineClose, 0);
+      assert.equal(result.dailyPnlBaselineDate, '');
+      assert.equal(result.dailyPnlBaselineSource, 'unavailable');
+      assert.equal(result.dailyPnlChange, null);
+      assert.equal(result.dailyPnlChangePercent, null);
+      assert.equal(result.completedDailyPnl.baselineClose, 0, 'the stored cache is sanitized for subsequent refreshes too');
+      assert.equal(summary([result]).todayPnl, null);
+      assert.equal(summary([result]).positions[0].valuationPrice, 200);
+    }
+  }
+});
+
+test('an impossible calendar date cannot survive as a cached close during a weekend', () => {
+  const invalid = completedRow({
+    dailyPnlPriceDate: '2026-02-30',
+    completedDailyPnl: {
+      price: 200, date: '2026-02-30', source: 'eodhd-adjusted-close',
+      baselineClose: 190, baselineDate: '2026-02-27', baselineSource: 'eodhd-adjusted-close',
+    },
+  });
+  const [result] = mergeFreshStockRealtimeRows([invalid], [], { now: Date.parse('2026-09-12T12:00:00Z') });
+  assert.equal(result.completedDailyPnl, null);
+  assert.equal(result.dailyPnlPrice, 0);
+  assert.equal(result.dailyPnlPriceDate, '');
+  assert.equal(result.dailyPnlChangePercent, null);
 });
 
 test('latest same-day REST close can be retained independently from the last live valuation price', () => {

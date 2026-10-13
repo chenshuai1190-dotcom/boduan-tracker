@@ -44,6 +44,19 @@ test('locked change falls back to the official close and daily baseline', () => 
   assert.equal(metrics.changePercent, 5);
 });
 
+test('an explicit unavailable locked denominator never borrows a provider baseline or stale percent', () => {
+  for (const dailyPnlChangePercent of [null, 4.2]) {
+    const metrics = resolveHomeMarketDisplayMetrics({
+      price: 106, previousClose: 99, dailyBaselineClose: 100,
+      dailyPnlPrice: 105, dailyPnlBaselineClose: 0,
+      dailyPnlChangePercent, dailyPnlLocked: true, week52High: 110,
+    });
+    assert.equal(metrics.price, 105, 'the confirmed close remains displayable without a previous-session baseline');
+    assert.equal(metrics.changePercent, null);
+    assert.equal(metrics.highDrawdown, (105 - 110) / 110);
+  }
+});
+
 test('regular-session rows keep the live price and change', () => {
   const metrics = resolveHomeMarketDisplayMetrics({
     price: 201.25,

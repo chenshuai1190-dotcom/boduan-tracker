@@ -21,6 +21,12 @@ function isPositiveNumber(value) {
   return typeof value === 'number' && Number.isFinite(value) && value > 0;
 }
 
+function isValidMarketDate(value) {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const timestamp = Date.parse(`${value}T00:00:00Z`);
+  return Number.isFinite(timestamp) && new Date(timestamp).toISOString().slice(0, 10) === value;
+}
+
 function getUsEquityTimeParts(now = Date.now()) {
   try {
     const parts = new Intl.DateTimeFormat('en-US', {
@@ -198,32 +204,36 @@ export function normalizeEodhdStockQuoteFields(data, {
   if (quoteSession === 'pre' || quoteSession === 'regular') {
     dailyPnlPrice = price;
     dailyPnlSource = quoteSession === 'pre' ? 'realtime-pre' : 'realtime-regular';
-  } else if (quoteSession === 'post') {
-    dailyPnlPrice = providerPreviousClose || regularClose || 0;
-    dailyPnlPriceDate = providerPreviousClose ? getUsEquityMarketDate(now) : regularCloseDate;
-    dailyPnlLocked = Boolean(dailyPnlPrice);
-    dailyPnlSource = providerPreviousClose
-      ? 'locked-provider-regular-close'
-      : (regularClose ? regularCloseSource || 'locked-eod-regular-close' : 'unavailable');
-  } else if (isUsEquitySameDayAfterPostClose(now)) {
-    dailyPnlPrice = providerPreviousClose || regularClose || 0;
-    dailyPnlPriceDate = providerPreviousClose ? getUsEquityMarketDate(now) : regularCloseDate;
-    dailyPnlLocked = Boolean(dailyPnlPrice);
-    dailyPnlSource = providerPreviousClose
-      ? 'locked-provider-regular-close'
-      : (regularClose ? regularCloseSource || 'locked-eod-regular-close' : 'unavailable');
-  } else {
-    dailyPnlPrice = closedLockedPrice || providerPreviousClose || 0;
-    dailyPnlPriceDate = closedLockedPrice ? closedDailyPnlDate : '';
-    dailyPnlLocked = Boolean(dailyPnlPrice);
-    dailyPnlSource = closedLockedPrice
-      ? closedDailyPnlSource || 'locked-latest-eod-close'
-      : (providerPreviousClose ? 'locked-provider-regular-close' : 'unavailable');
-    if (isPositiveNumber(closedLockedBaseline)) {
-      dailyPnlBaselineClose = closedLockedBaseline;
-      dailyPnlBaselineDate = closedDailyPnlBaselineDate;
-      dailyPnlBaselineSource = closedDailyPnlBaselineSource || 'eodhd-adjusted-close';
+  } else if (quoteSession === 'post' || isUsEquitySameDayAfterPostClose(now)) {
+    // previousClosePrice has no trading date and may still refer to yesterday.
+    // Only the dated EOD row can confirm this session's completed close.
+    dailyPnlLocked = true;
+    if (isPositiveNumber(regularClose) && isValidMarketDate(regularCloseDate)
+      && regularCloseDate === getUsEquityMarketDate(now)) {
+      dailyPnlPrice = regularClose;
+      dailyPnlPriceDate = regularCloseDate;
+      dailyPnlSource = regularCloseSource || 'locked-eod-regular-close';
     }
+  } else {
+    dailyPnlLocked = true;
+    if (isPositiveNumber(closedLockedPrice) && isValidMarketDate(closedDailyPnlDate)
+      && closedDailyPnlDate <= getLatestCompletedEodCutoffDate(now)) {
+      dailyPnlPrice = closedLockedPrice;
+      dailyPnlPriceDate = closedDailyPnlDate;
+      dailyPnlSource = closedDailyPnlSource || 'locked-latest-eod-close';
+    }
+    dailyPnlBaselineClose = closedLockedBaseline;
+    dailyPnlBaselineDate = closedDailyPnlBaselineDate;
+    dailyPnlBaselineSource = closedDailyPnlBaselineSource || 'eodhd-adjusted-close';
+  }
+
+  if (dailyPnlLocked && !(isPositiveNumber(dailyPnlBaselineClose)
+    && isValidMarketDate(dailyPnlBaselineDate)
+    && dailyPnlPriceDate && dailyPnlBaselineDate < dailyPnlPriceDate)) {
+    // Explicitly unknown: consumers must not substitute an undated denominator.
+    dailyPnlBaselineClose = 0;
+    dailyPnlBaselineDate = '';
+    dailyPnlBaselineSource = 'unavailable';
   }
 
   const canComputeDailyPnl = isPositiveNumber(dailyPnlPrice) && isPositiveNumber(dailyPnlBaselineClose);
@@ -822,12 +832,12 @@ export async function fetchStockQuote(symbol, {
     }
     if (week52Low === Infinity) week52Low = 0;
 
-    if (rawEodhdQuoteData && dailyBaseline?.close) {
+    if (rawEodhdQuoteData) {
       eodhdQuote = normalizeEodhdStockQuoteFields(rawEodhdQuoteData, {
         now,
-        dailyBaselineClose: dailyBaseline.close,
-        dailyBaselineDate: dailyBaseline.date,
-        dailyBaselineSource: dailyBaseline.source,
+        dailyBaselineClose: dailyBaseline?.close,
+        dailyBaselineDate: dailyBaseline?.date || '',
+        dailyBaselineSource: dailyBaseline?.source || '',
         regularClosePrice: marketDateClose?.close,
         regularCloseDate: marketDateClose?.date || '',
         regularCloseSource: marketDateClose?.source || '',

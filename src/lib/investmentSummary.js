@@ -8,6 +8,9 @@ function toNumber(value) {
 function inferPreviousClose(quote, currentPrice) {
   const dailyPnlBaselineClose = toNumber(quote?.dailyPnlBaselineClose);
   if (dailyPnlBaselineClose > 0) return dailyPnlBaselineClose;
+  // An explicit missing locked denominator is authoritative. Legacy rows with
+  // no daily-P&L baseline field may still use the older inference path below.
+  if (quote?.dailyPnlLocked && hasOwn(quote, 'dailyPnlBaselineClose')) return 0;
   const dailyBaselineClose = toNumber(quote?.dailyBaselineClose);
   if (dailyBaselineClose > 0) return dailyBaselineClose;
   const explicitPreviousClose = toNumber(quote?.previousClose);

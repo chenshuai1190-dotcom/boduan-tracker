@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { fetchStockQuote } from '../server/quote/providers/eodhd.js';
 import { deriveInvestmentSummary } from '../src/lib/investmentSummary.js';
 import { buildLedgerQuoteUniverse } from '../src/lib/stockUniverse.js';
-import { isRegularNyseHoliday, mergeQuoteBaselineRows } from '../src/lib/quoteRefreshPolicy.js';
+import { isRegularNyseHoliday, mergeDailyPnlBaselineFields, mergeQuoteBaselineRows } from '../src/lib/quoteRefreshPolicy.js';
 import { mergeFreshStockRealtimeRows, mergeStockTicksIntoQuoteRows } from '../src/lib/stockRealtime.js';
 import { STOCK_RSI_DIVERGENCE_VERSION } from '../src/lib/stockRsiConfig.js';
 import { buildStockRsi } from '../server/quote/stockRsi.js';
@@ -47,12 +47,12 @@ const appSource = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8
 const projectionStart = appSource.indexOf('const updatedQuotes = rowsForQuote.map(s => {');
 const projectionEnd = appSource.indexOf('setQuoteCache((current) => {', projectionStart);
 assert.ok(projectionStart >= 0 && projectionEnd > projectionStart);
-const projectRestRows = new Function('rowsForQuote', 'resultBySymbol', 'normalizeExternalLogoUrl',
+const projectRestRows = new Function('rowsForQuote', 'resultBySymbol', 'normalizeExternalLogoUrl', 'mergeDailyPnlBaselineFields',
   `${appSource.slice(projectionStart, projectionEnd)}\nreturn updatedQuotes;`);
 
 function refreshAppCache(current, responses, rowsForQuote = current) {
   const projected = projectRestRows(rowsForQuote,
-    new Map(responses.map(row => [String(row.symbol).toUpperCase(), row])), value => value);
+    new Map(responses.map(row => [String(row.symbol).toUpperCase(), row])), value => value, mergeDailyPnlBaselineFields);
   return mergeFreshStockRealtimeRows(mergeQuoteBaselineRows(current, projected), current, { now });
 }
 

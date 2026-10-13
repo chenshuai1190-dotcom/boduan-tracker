@@ -9,6 +9,12 @@ function asNumber(value) {
   return Number.isFinite(n) ? n : null;
 }
 
+function hasExplicitMissingLockedBaseline(row = {}) {
+  return row.dailyPnlLocked === true
+    && Object.prototype.hasOwnProperty.call(row, 'dailyPnlBaselineClose')
+    && !(asNumber(row.dailyPnlBaselineClose) > 0);
+}
+
 function normalizeStockRealtimeSymbol(value) {
   return normalizeUserStockSymbol(value);
 }
@@ -194,6 +200,7 @@ function mergeDatedQuoteFacts(row = {}, baseRow = null) {
   // dated baseline as a bundle so an old cache cannot resurrect yesterday's
   // previous-close denominator after a new REST baseline has arrived.
   const completedDailyPnl = latestCompletedDailyPnl(row, baseRow);
+  const explicitMissingBaseline = hasExplicitMissingLockedBaseline(row);
   const rowBaselineDate = row?.dailyBaselineDate || row?.dailyPnlBaselineDate || '';
   const baseBaselineDate = baseRow?.dailyBaselineDate || baseRow?.dailyPnlBaselineDate || '';
   if (baseBaselineDate && baseBaselineDate > rowBaselineDate) {
@@ -202,7 +209,10 @@ function mergeDatedQuoteFacts(row = {}, baseRow = null) {
       'previousClose', 'dailyBaselineClose', 'dailyBaselineDate', 'dailyBaselineSource',
       'dailyPnlBaselineClose', 'dailyPnlBaselineDate', 'dailyPnlBaselineSource',
       'sessionPreviousClose', 'providerPreviousClose',
-    ]) row[key] = baseRow[key];
+    ]) {
+      if (explicitMissingBaseline && key.startsWith('dailyPnlBaseline')) continue;
+      row[key] = baseRow[key];
+    }
     // A newer denominator is durable; its cached live price is not. Keep the
     // chosen quote's price and lock state, then recalculate against that base.
     const baseline = asNumber(row.dailyPnlBaselineClose);
@@ -210,12 +220,13 @@ function mergeDatedQuoteFacts(row = {}, baseRow = null) {
     row.dailyPnlChange = price > 0 && baseline > 0 ? price - baseline : null;
     row.dailyPnlChangePercent = row.dailyPnlChange === null ? null : row.dailyPnlChange / baseline * 100;
   }
-  return completedDailyPnl ? { ...row, completedDailyPnl } : row;
+  return completedDailyPnl || row.completedDailyPnl ? { ...row, completedDailyPnl } : row;
 }
 
 function mergeQuoteBaseline(row = {}, baseRow = null) {
   if (!baseRow) return row || {};
   row = mergeDatedQuoteFacts(row, baseRow);
+  const explicitMissingBaseline = hasExplicitMissingLockedBaseline(row);
   const rowDailyBaseline = asNumber(row?.dailyBaselineClose);
   const baseDailyBaseline = asNumber(baseRow?.dailyBaselineClose);
   const rowPreviousClose = asNumber(row?.previousClose);
@@ -235,11 +246,11 @@ function mergeQuoteBaseline(row = {}, baseRow = null) {
     dailyBaselineSource: row?.dailyBaselineSource || baseRow?.dailyBaselineSource || '',
     dailyPnlPrice: rowDailyPnlPrice || baseDailyPnlPrice || 0,
     dailyPnlPriceDate: row?.dailyPnlPriceDate || baseRow?.dailyPnlPriceDate || '',
-    dailyPnlBaselineClose: rowDailyPnlBaseline || baseDailyPnlBaseline || dailyBaselineClose || previousClose || 0,
-    dailyPnlBaselineDate: row?.dailyPnlBaselineDate || baseRow?.dailyPnlBaselineDate || row?.dailyBaselineDate || baseRow?.dailyBaselineDate || '',
-    dailyPnlBaselineSource: row?.dailyPnlBaselineSource || baseRow?.dailyPnlBaselineSource || row?.dailyBaselineSource || baseRow?.dailyBaselineSource || '',
-    dailyPnlChange: asNumber(row?.dailyPnlChange) ?? asNumber(baseRow?.dailyPnlChange) ?? null,
-    dailyPnlChangePercent: asNumber(row?.dailyPnlChangePercent) ?? asNumber(baseRow?.dailyPnlChangePercent) ?? null,
+    dailyPnlBaselineClose: explicitMissingBaseline ? 0 : rowDailyPnlBaseline || baseDailyPnlBaseline || dailyBaselineClose || previousClose || 0,
+    dailyPnlBaselineDate: explicitMissingBaseline ? '' : row?.dailyPnlBaselineDate || baseRow?.dailyPnlBaselineDate || row?.dailyBaselineDate || baseRow?.dailyBaselineDate || '',
+    dailyPnlBaselineSource: explicitMissingBaseline ? (row?.dailyPnlBaselineSource || 'unavailable') : row?.dailyPnlBaselineSource || baseRow?.dailyPnlBaselineSource || row?.dailyBaselineSource || baseRow?.dailyBaselineSource || '',
+    dailyPnlChange: explicitMissingBaseline ? null : asNumber(row?.dailyPnlChange) ?? asNumber(baseRow?.dailyPnlChange) ?? null,
+    dailyPnlChangePercent: explicitMissingBaseline ? null : asNumber(row?.dailyPnlChangePercent) ?? asNumber(baseRow?.dailyPnlChangePercent) ?? null,
     dailyPnlLocked: typeof row?.dailyPnlLocked === 'boolean' ? row.dailyPnlLocked : Boolean(baseRow?.dailyPnlLocked),
     dailyPnlSession: row?.dailyPnlSession || baseRow?.dailyPnlSession || '',
     dailyPnlSource: row?.dailyPnlSource || baseRow?.dailyPnlSource || '',
@@ -334,21 +345,58 @@ export function shouldAcceptStockRealtimeTick(row = {}, tick = {}, { now = Date.
   return !previousTickTime || tickTime >= previousTickTime;
 }
 
+const COMPLETED_CLOSE_SOURCES = new Set([
+  'locked-eod-regular-close', 'locked-latest-eod-close', 'eodhd-adjusted-close', 'eodhd-close',
+]);
+
+function isCompletedCloseDate(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value || '')) return false;
+  const time = Date.parse(`${value}T00:00:00.000Z`);
+  return Number.isFinite(time) && new Date(time).toISOString().slice(0, 10) === value;
+}
+
+function validCompletedClose(item) {
+  return item && COMPLETED_CLOSE_SOURCES.has(item.source)
+    && Number.isFinite(item.price) && item.price > 0
+    && isCompletedCloseDate(item.date);
+}
+
+function hasCompletedCloseBaseline(item) {
+  return Number.isFinite(item.baselineClose) && item.baselineClose > 0
+    && COMPLETED_CLOSE_SOURCES.has(item.baselineSource)
+    && isCompletedCloseDate(item.baselineDate)
+    && item.baselineDate < item.date;
+}
+
+function normalizeCompletedClose(item) {
+  if (!validCompletedClose(item)) return null;
+  return hasCompletedCloseBaseline(item) ? item : {
+    ...item, baselineClose: 0, baselineDate: '', baselineSource: 'unavailable',
+  };
+}
+
+function compareCompletedCloses(a, b) {
+  const dateOrder = b.date.localeCompare(a.date);
+  if (dateOrder || a.price !== b.price) return dateOrder;
+  // A refresh can omit the denominator of an already confirmed close. Reuse
+  // only its same-date, same-price complete EOD bundle, never splice prices.
+  return Number(hasCompletedCloseBaseline(b)) - Number(hasCompletedCloseBaseline(a));
+}
+
 function completedDailyPnlFrom(row = {}) {
   const stored = row.completedDailyPnl;
   const source = String(row.dailyPnlSource || '');
-  const official = ['locked-provider-regular-close', 'locked-eod-regular-close', 'locked-latest-eod-close', 'eodhd-adjusted-close', 'eodhd-close'].includes(source);
+  const official = COMPLETED_CLOSE_SOURCES.has(source);
   const current = row.dailyPnlLocked && official ? {
     price: Number(row.dailyPnlPrice), date: row.dailyPnlPriceDate, source,
     baselineClose: Number(row.dailyPnlBaselineClose) || 0,
     baselineDate: row.dailyPnlBaselineDate || '', baselineSource: row.dailyPnlBaselineSource || '',
   } : null;
-  return [current, stored].filter(item => item && Number.isFinite(item.price) && item.price > 0
-    && /^\d{4}-\d{2}-\d{2}$/.test(item.date || '')).sort((a, b) => b.date.localeCompare(a.date))[0] || null;
+  return [current, stored].map(normalizeCompletedClose).filter(Boolean).sort(compareCompletedCloses)[0] || null;
 }
 
 function latestCompletedDailyPnl(...rows) {
-  return rows.reverse().map(completedDailyPnlFrom).filter(Boolean).sort((a, b) => b.date.localeCompare(a.date))[0] || null;
+  return rows.map(completedDailyPnlFrom).filter(Boolean).sort(compareCompletedCloses)[0] || null;
 }
 
 function needsSameDayClose(now) {
@@ -366,6 +414,10 @@ function completedCloseAt(row, now) {
 }
 
 function restoreCompletedDailyPnl(row, now) {
+  if (row.completedDailyPnl) {
+    const completedDailyPnl = normalizeCompletedClose(row.completedDailyPnl);
+    if (completedDailyPnl !== row.completedDailyPnl) row = { ...row, completedDailyPnl };
+  }
   const session = getUsEquityRealtimeSession(null, now);
   if (session === 'pre' || session === 'regular') return row;
   const close = completedCloseAt(row, now);

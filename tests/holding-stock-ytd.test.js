@@ -5,7 +5,7 @@ import { deriveHoldingStockYtdPercent } from '../src/lib/holdingStockYtd.js';
 import { deriveInvestmentSummary } from '../src/lib/investmentSummary.js';
 import { resolveHoldingDisplayPrice } from '../src/lib/homeMarketDisplay.js';
 import { buildLedgerQuoteUniverse } from '../src/lib/stockUniverse.js';
-import { mergeQuoteBaselineRows } from '../src/lib/quoteRefreshPolicy.js';
+import { mergeDailyPnlBaselineFields, mergeQuoteBaselineRows } from '../src/lib/quoteRefreshPolicy.js';
 import { mergeFreshStockRealtimeRows, mergeStockTicksIntoQuoteRows } from '../src/lib/stockRealtime.js';
 
 const now = Date.parse('2026-09-11T15:00:00Z');
@@ -17,12 +17,12 @@ const appSource = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8
 const projectionStart = appSource.indexOf('const updatedQuotes = rowsForQuote.map(s => {');
 const projectionEnd = appSource.indexOf('setQuoteCache((current) => {', projectionStart);
 assert.ok(projectionStart >= 0 && projectionEnd > projectionStart);
-const projectRestRows = new Function('rowsForQuote', 'resultBySymbol', 'normalizeExternalLogoUrl',
+const projectRestRows = new Function('rowsForQuote', 'resultBySymbol', 'normalizeExternalLogoUrl', 'mergeDailyPnlBaselineFields',
   `${appSource.slice(projectionStart, projectionEnd)}\nreturn updatedQuotes;`);
 
 function refreshAppCache(current, responses, rowsForQuote = current) {
   const updatedQuotes = projectRestRows(rowsForQuote,
-    new Map(responses.map(row => [String(row.symbol).toUpperCase(), row])), value => value);
+    new Map(responses.map(row => [String(row.symbol).toUpperCase(), row])), value => value, mergeDailyPnlBaselineFields);
   const merged = mergeQuoteBaselineRows(current, updatedQuotes);
   return mergeFreshStockRealtimeRows(merged, current, { now });
 }

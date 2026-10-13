@@ -17,7 +17,7 @@ import { getStoredLanguage, isEnglishLanguage, saveStoredLanguage, t } from './l
 import { isEarningsPublished } from './lib/earningsCalendarModel.js';
 import { localMonthKey } from './lib/calendarMonth.js';
 import { buildQuoteSymbolBatches } from './lib/quoteRequestBatches.js';
-import { buildQuoteBaselineRows, buildQuoteBaselineUniverseKey, getQuoteBaselineRefreshDelay, getQuoteBaselineSession, getQuoteCloseSettlementKey, isQuoteBaselineUniverseExpansion, mergeQuoteBaselineRows, shouldQueueQuoteBaselineExpansion, shouldRunQuoteBaselineRefresh } from './lib/quoteRefreshPolicy.js';
+import { buildQuoteBaselineRows, buildQuoteBaselineUniverseKey, getQuoteBaselineRefreshDelay, getQuoteBaselineSession, getQuoteCloseSettlementKey, isQuoteBaselineUniverseExpansion, mergeDailyPnlBaselineFields, mergeQuoteBaselineRows, shouldQueueQuoteBaselineExpansion, shouldRunQuoteBaselineRefresh } from './lib/quoteRefreshPolicy.js';
 import { formatWaveCurrencyAmount, formatWaveUsdPrice } from './lib/waveCurrencyDisplay.js';
 import { userScopedStorageKey } from './lib/userScopedStorage.js';
 import { clearStockQuoteBootstrapCache, readStockQuoteBootstrapCache, writeStockQuoteBootstrapCache } from './lib/stockQuoteBootstrapCache.js';
@@ -2940,11 +2940,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
       dailyBaselineSource: fresh?.dailyBaselineSource || '',
       dailyPnlPrice: fresh?.dailyPnlPrice || 0,
       dailyPnlPriceDate: fresh?.dailyPnlPriceDate || '',
-      dailyPnlBaselineClose: fresh?.dailyPnlBaselineClose || fresh?.dailyBaselineClose || fresh?.previousClose || 0,
-      dailyPnlBaselineDate: fresh?.dailyPnlBaselineDate || fresh?.dailyBaselineDate || '',
-      dailyPnlBaselineSource: fresh?.dailyPnlBaselineSource || fresh?.dailyBaselineSource || '',
-      dailyPnlChange: fresh?.dailyPnlChange ?? null,
-      dailyPnlChangePercent: fresh?.dailyPnlChangePercent ?? null,
+      ...mergeDailyPnlBaselineFields(fresh),
       dailyPnlLocked: Boolean(fresh?.dailyPnlLocked),
       dailyPnlSession: fresh?.dailyPnlSession || '',
       dailyPnlSource: fresh?.dailyPnlSource || '',
@@ -3191,11 +3187,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
               dailyBaselineSource: fresh.dailyBaselineSource || s.dailyBaselineSource || '',
               dailyPnlPrice: fresh.dailyPnlPrice || s.dailyPnlPrice || 0,
               dailyPnlPriceDate: fresh.dailyPnlPriceDate || s.dailyPnlPriceDate || '',
-              dailyPnlBaselineClose: fresh.dailyPnlBaselineClose || fresh.dailyBaselineClose || fresh.previousClose || s.dailyPnlBaselineClose || s.dailyBaselineClose || s.previousClose || 0,
-              dailyPnlBaselineDate: fresh.dailyPnlBaselineDate || fresh.dailyBaselineDate || s.dailyPnlBaselineDate || s.dailyBaselineDate || '',
-              dailyPnlBaselineSource: fresh.dailyPnlBaselineSource || fresh.dailyBaselineSource || s.dailyPnlBaselineSource || s.dailyBaselineSource || '',
-              dailyPnlChange: fresh.dailyPnlChange ?? s.dailyPnlChange ?? null,
-              dailyPnlChangePercent: fresh.dailyPnlChangePercent ?? s.dailyPnlChangePercent ?? null,
+              ...mergeDailyPnlBaselineFields(fresh, s),
               dailyPnlLocked: Boolean(fresh.dailyPnlLocked),
               dailyPnlSession: fresh.dailyPnlSession || s.dailyPnlSession || '',
               dailyPnlSource: fresh.dailyPnlSource || s.dailyPnlSource || '',

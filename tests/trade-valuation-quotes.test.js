@@ -33,7 +33,9 @@ test('accepts accepted WS trade and quote-midpoint rows using their dedicated li
 });
 
 test('uses the official locked close instead of an extended-hours stock price', () => {
-  const row = rest({ now: Date.parse('2026-10-07T21:00:00Z') }, { ethPrice: 210, previousClosePrice: 202 });
+  const row = rest({ now: Date.parse('2026-10-07T21:00:00Z'),
+    regularClosePrice: 202, regularCloseDate: '2026-10-07', regularCloseSource: 'eodhd-close',
+  }, { ethPrice: 210, previousClosePrice: 202 });
   assert.equal(row.dailyPnlLocked, true);
   assert.equal(row.price, 210);
   assert.deepEqual(selectTradeValuationQuotes([row]), safe(202));
@@ -46,8 +48,13 @@ test('accepts dated EOD locked closes and legitimate undated provider previous c
   assert.deepEqual(selectTradeValuationQuotes([historical]), safe(204));
   const provider = rest({ now: Date.parse('2026-10-10T15:00:00Z') });
   assert.equal(provider.dailyPnlPriceDate, '');
-  assert.equal(provider.dailyPnlSource, 'locked-provider-regular-close');
+  assert.equal(provider.dailyPnlSource, 'unavailable');
+  assert.equal(provider.dailyPnlPrice, 0);
+  // A separately corroborated previous close can value a holding, but cannot
+  // claim to be today's completed close or manufacture today's P&L.
   assert.deepEqual(selectTradeValuationQuotes([provider]), safe(190));
+  assert.deepEqual(selectTradeValuationQuotes([{ ...provider, dailyPnlPrice: 190,
+    dailyPnlPriceDate: '2026-10-09', dailyPnlSource: 'locked-provider-regular-close' }]), []);
 });
 
 test('preserves the existing locked-valuation fallback order using explicit official baseline evidence', () => {
@@ -103,7 +110,8 @@ test('missing, invalid, non-USD and failed rows never become zero-valued quotes'
     { price: 0 }, { price: NaN }, { price: Infinity }, { price: true }, { dailyPnlPrice: null },
     { dailyPnlSource: 'unavailable' }, { error: 'failed' }, { currency: 'CNY' },
   ]) assert.deepEqual(selectTradeValuationQuotes([{ ...rest(), ...change }]), []);
-  const locked = rest({ now: Date.parse('2026-10-07T21:00:00Z') });
+  const locked = rest({ now: Date.parse('2026-10-07T21:00:00Z'),
+    regularClosePrice: 200, regularCloseDate: '2026-10-07', regularCloseSource: 'eodhd-close' });
   assert.deepEqual(selectTradeValuationQuotes([{ ...locked, dailyPnlPriceDate: '2026-02-30' }]), []);
   assert.deepEqual(selectTradeValuationQuotes([null, [], { symbol: '', price: 100 }]), []);
 });

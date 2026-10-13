@@ -323,6 +323,30 @@ export function shouldQueueQuoteBaselineExpansion({
   return Boolean(fetchInFlight && queueIfBusy && universeExpanded);
 }
 
+export function mergeDailyPnlBaselineFields(fresh = {}, previous = {}) {
+  const explicitBaseline = Number(fresh.dailyPnlBaselineClose);
+  const missingLockedBaseline = fresh.dailyPnlLocked === true
+    && Object.prototype.hasOwnProperty.call(fresh, 'dailyPnlBaselineClose')
+    && !(Number.isFinite(explicitBaseline) && explicitBaseline > 0);
+  if (missingLockedBaseline) return {
+    dailyPnlBaselineClose: 0,
+    dailyPnlBaselineDate: '',
+    dailyPnlBaselineSource: fresh.dailyPnlBaselineSource || 'unavailable',
+    dailyPnlChange: null,
+    dailyPnlChangePercent: null,
+  };
+  return {
+    dailyPnlBaselineClose: fresh.dailyPnlBaselineClose || fresh.dailyBaselineClose || fresh.previousClose
+      || previous.dailyPnlBaselineClose || previous.dailyBaselineClose || previous.previousClose || 0,
+    dailyPnlBaselineDate: fresh.dailyPnlBaselineDate || fresh.dailyBaselineDate
+      || previous.dailyPnlBaselineDate || previous.dailyBaselineDate || '',
+    dailyPnlBaselineSource: fresh.dailyPnlBaselineSource || fresh.dailyBaselineSource
+      || previous.dailyPnlBaselineSource || previous.dailyBaselineSource || '',
+    dailyPnlChange: fresh.dailyPnlChange ?? previous.dailyPnlChange ?? null,
+    dailyPnlChangePercent: fresh.dailyPnlChangePercent ?? previous.dailyPnlChangePercent ?? null,
+  };
+}
+
 export function mergeQuoteBaselineRows(currentRows = [], refreshedRows = []) {
   const bySymbol = new Map();
 
@@ -342,6 +366,12 @@ export function mergeQuoteBaselineRows(currentRows = [], refreshedRows = []) {
       symbol,
     };
     POSITIVE_QUOTE_FIELDS.forEach((field) => {
+      if (field === 'dailyPnlBaselineClose' && row.dailyPnlLocked === true
+        && Object.prototype.hasOwnProperty.call(row, field)
+        && !(Number.isFinite(Number(row[field])) && Number(row[field]) > 0)) {
+        Object.assign(next, mergeDailyPnlBaselineFields(row));
+        return;
+      }
       if (Number(existing?.[field]) > 0 && !(Number(row?.[field]) > 0)) {
         next[field] = existing[field];
       }
