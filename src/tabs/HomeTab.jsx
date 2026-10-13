@@ -24,7 +24,6 @@ import AccountLeverageBadge from '../components/AccountLeverageBadge.jsx';
 import AvailableCashEditor from '../components/AvailableCashEditor.jsx';
 import EarningsCalendar from './EarningsCalendar.jsx';
 import HomeWatchlistReport from '../components/HomeWatchlistReport.jsx';
-import { deriveHoldingStockYtdPercent } from '../lib/holdingStockYtd.js';
 import '../components/PulseDot.css';
 import './HomeTab.css';
 import './HomeWatchlistDialogs.css';
@@ -497,9 +496,6 @@ export default function HomeTab({ ctx }) {
   const isWatchlistTab = tableTab === 'watchlist';
   const allRows = tableTab === 'positions' ? positions : displayWatchlist;
   const rows = allRows;
-  const stockYtdQuoteBySymbol = React.useMemo(() => new Map(
-    (quoteRows || displayWatchlist).map((row) => [row.symbol, row]),
-  ), [quoteRows, displayWatchlist]);
   const watchlistSymbols = React.useMemo(
     () => new Set((watchlist || []).map((item) => String(item?.symbol || '').toUpperCase())),
     [watchlist],
@@ -719,8 +715,8 @@ export default function HomeTab({ ctx }) {
     const price = marketDisplay.price;
     const changePct = marketDisplay.changePercent;
     const highDrawdown = marketDisplay.highDrawdown;
-    const ytdQuote = isPosition ? stockYtdQuoteBySymbol.get(symbol) : row;
-    const ytdChangePercent = deriveHoldingStockYtdPercent(ytdQuote, price);
+    const ytdRaw = quote?.ytdChangePercent ?? row.ytdChangePercent;
+    const ytdChangePercent = Number.isFinite(Number(ytdRaw)) ? Number(ytdRaw) : null;
     const color = changePct === null ? '#ffffff40' : marketColor(changePct, marketColorMode);
     const ytdColor = ytdChangePercent === null ? '#ffffff40' : marketColor(ytdChangePercent, marketColorMode);
     const cachedLogoUrl = logoCache?.[String(symbol || '').toUpperCase()]?.url;
@@ -745,7 +741,7 @@ export default function HomeTab({ ctx }) {
       logoUrls,
       displayName,
     };
-  }), [rows, tableTab, quoteBySymbol, stockYtdQuoteBySymbol, positionsBySymbol, displayRate, marketColorMode, logoCache, language]);
+  }), [rows, tableTab, quoteBySymbol, positionsBySymbol, displayRate, marketColorMode, logoCache, language]);
   const tableRows = React.useMemo(() => {
     if (!activeTableSort?.key) return rawTableRows;
     const direction = activeTableSort.direction === 'asc' ? 1 : -1;
