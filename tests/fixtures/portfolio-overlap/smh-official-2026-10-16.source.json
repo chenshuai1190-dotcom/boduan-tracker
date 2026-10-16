@@ -1,0 +1,10 @@
+{
+  "provider": "VanEck",
+  "symbol": "SMH",
+  "retrievedDate": "2026-10-16",
+  "asOfDate": "2026-10-14",
+  "url": "https://www.vaneck.com/Main/HoldingsBlock/GetDataset/?blockId=144458&pageId=233107&ticker=SMH",
+  "disclosedUnit": "% of Net Assets",
+  "sha256": "e611d591c6f39ed99a9afc2e449f816631e988c8a5fe1ed79c254a6a6afea724",
+  "notes": "Unmodified public JSON response captured during the SMH availability audit. Contains 25 stock rows (99.94% in total), USD Cash Bal +0.06%, and Other/Cash -0.01%; total weight is 99.99%. Cash rows are excluded from stock look-through. Values and original precision are preserved; no re-normalization."
+}

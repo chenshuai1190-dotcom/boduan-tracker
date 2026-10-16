@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { parseVanEckPortfolioHoldings, SMH_HOLDINGS_URL } from '../server/quote/vanEckPortfolioHoldings.js';
 
 const OFFICIAL = JSON.parse(readFileSync(new URL('./fixtures/portfolio-overlap/smh-official-2026-10-04.json', import.meta.url)));
+const SIGNED_CASH_OFFICIAL = JSON.parse(readFileSync(new URL('./fixtures/portfolio-overlap/smh-official-2026-10-16.json', import.meta.url)));
 const NEGATIVE_ZERO_OFFICIAL = JSON.parse(readFileSync(new URL('./fixtures/portfolio-overlap/smh-official-2026-10-08.json', import.meta.url)));
 
 test('VanEck October 8 disclosure accepts rounded negative-zero cash without changing equity weights', () => {
@@ -24,8 +25,8 @@ test('VanEck October 8 disclosure accepts rounded negative-zero cash without cha
   }
 });
 
-test('VanEck negative-zero compatibility never rounds genuine negatives or broadens numeric syntax', () => {
-  for (const weight of ['-0.01', '-1', '-0.00000001', '-0.000000001', '-00', '-0.', '-0e0', '-0.00%', ' -0.00', '-0.000000000']) {
+test('VanEck signed cash support does not broaden numeric syntax or allow large negative allocations', () => {
+  for (const weight of ['-1', '-0.10000001', '-0.000000001', '-00', '-0.', '-0e0', '-0.00%', ' -0.00', '-0.000000000', '+0.01']) {
     for (const order of [1, 9999, 10000]) {
       const data = structuredClone(NEGATIVE_ZERO_OFFICIAL);
       data.Holdings.find(row => row.LabelOrder === order).Weight = weight;
@@ -135,4 +136,66 @@ test('VanEck retains precision and uses ADR classification only when explicitly 
   assert.equal(parsed.holdings[0].weightPct, 19.271234);
   assert.equal(parsed.holdings[1].securityType, 'adr');
   assert.equal(parsed.holdings.find(row => row.symbol === 'ASML').securityType, 'stock', 'country is not an ADR classifier');
+});
+
+
+test('VanEck October 14 disclosure accepts signed residual cash without modifying stock weights', () => {
+  const before = structuredClone(SIGNED_CASH_OFFICIAL);
+  const parsed = parseVanEckPortfolioHoldings(SIGNED_CASH_OFFICIAL);
+  assert.equal(parsed.asOfDate, '2026-10-14');
+  assert.equal(parsed.reportedHoldingCount, 26);
+  assert.equal(parsed.holdings.length, 25);
+  assert.ok(Math.abs(parsed.totalWeight - 99.99) < 1e-9);
+  assert.ok(Math.abs(parsed.holdings.reduce((sum, row) => sum + row.weightPct, 0) - 99.94) < 1e-9);
+  assert.deepEqual(parsed.holdings.map(row => [row.symbol, row.weightPct]),
+    SIGNED_CASH_OFFICIAL.Holdings.filter(row => row.LabelOrder < 9999).map(row => [row.Label, Number(row.Weight)]));
+  assert.ok(parsed.holdings.every(row => !['-USD CASH-', '--'].includes(row.symbol)));
+  assert.deepEqual(SIGNED_CASH_OFFICIAL, before, 'signed source allocations are never rewritten');
+});
+
+test('VanEck accepts small signed amounts only for precisely identified cash rows', () => {
+  for (const order of [9999, 10000]) {
+    for (const weight of ['-0.00000001', '-0.01', '-0.1']) {
+      const data = structuredClone(OFFICIAL);
+      data.Holdings.find(row => row.LabelOrder === order).Weight = weight;
+      const parsed = parseVanEckPortfolioHoldings(data);
+      assert.equal(parsed.holdings.length, 25);
+      assert.deepEqual(parsed.holdings, parseVanEckPortfolioHoldings(OFFICIAL).holdings);
+    }
+  }
+  for (const weight of ['-0.00000001', '-0.01']) {
+    const data = structuredClone(OFFICIAL);
+    data.Holdings[0].Weight = weight;
+    assert.throws(() => parseVanEckPortfolioHoldings(data), { code: 'INVALID_DATA' });
+  }
+  for (const mutate of [
+    data => { data.Holdings.at(-1).Label = 'NVDA'; },
+    data => { data.Holdings.at(-1).HoldingName = 'Other'; },
+    data => { data.Holdings.at(-1).AssetClass = 'Stock'; },
+    data => { data.Holdings.at(-2).Label = 'USD'; },
+    data => { data.Holdings.at(-2).HoldingName = 'Borrowing'; },
+    data => { data.Holdings.at(-2).AssetClass = 'Cash'; },
+    data => { data.Holdings[0].Label = '--'; data.Holdings[0].HoldingName = 'Other/Cash'; data.Holdings[0].AssetClass = 'Cash'; data.Holdings[0].Weight = '-0.01'; },
+    data => { data.Holdings[0].AssetClass = 'Future'; data.Holdings[0].Weight = '-0.01'; },
+  ]) {
+    const data = structuredClone(SIGNED_CASH_OFFICIAL);
+    mutate(data);
+    assert.throws(() => parseVanEckPortfolioHoldings(data), { code: 'INVALID_DATA' });
+  }
+});
+
+test('VanEck signed cash cannot hide leverage, excessive combined cash borrowing or broken source contracts', () => {
+  for (const mutate of [
+    data => { data.Holdings.at(-2).Weight = '-0.06'; data.Holdings.at(-1).Weight = '-0.05'; },
+    data => { data.Holdings[0].Weight = '20.27'; },
+    data => { data.Holdings[0].Weight = '20.27'; data.Holdings[0].Label = 'UNKNOWN SECURITY'; },
+    data => { data.Holdings.at(-1).Ticker = 'SMHX'; },
+    data => { data.Holdings.at(-1).PortfolioTicker = 'SMH LN'; },
+    data => { data.Holdings.at(-1).DataDate = '2026-10-13T00:00:00'; },
+    data => { data.Holdings.splice(24, 1); },
+  ]) {
+    const data = structuredClone(SIGNED_CASH_OFFICIAL);
+    mutate(data);
+    assert.throws(() => parseVanEckPortfolioHoldings(data), { code: 'INVALID_DATA' });
+  }
 });

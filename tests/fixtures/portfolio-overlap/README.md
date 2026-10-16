@@ -18,3 +18,5 @@ SHA-256:
 ```
 
 The workbook is treated strictly as bounded data. The production parser does not evaluate formulas, open Excel, execute embedded content, write extracted entries, or follow relationships to external resources.
+
+- `smh-official-2026-10-16.json`: Unmodified VanEck public dataset captured on October 16, disclosing October 14 holdings. Includes 25 stocks totaling 99.94%, USD cash +0.06% and Other/Cash -0.01%. The signed residual is retained only in the disclosed total (99.99%); neither cash row becomes a stock holding. See the adjacent `.source.json` for the source URL and SHA-256. The adapter accepts only identity-verified cash negatives, capped at 0.10 percentage points combined, and continues to reject negative securities and non-cash exposure above 100%.

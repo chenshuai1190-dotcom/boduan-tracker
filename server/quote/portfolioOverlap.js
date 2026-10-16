@@ -23,6 +23,9 @@ const DEFINITIONS = Object.freeze({
   TQQQ: { name: 'ProShares UltraPro QQQ', provider: 'ProShares', page: 'https://www.proshares.com/our-etfs/leveraged-and-inverse/tqqq', kind: 'leveraged_etf', leverageTarget: 3 },
 });
 const cache = new Map();
+// Keep validated public fund baskets independently from short-lived failures.
+// A rejected new response is not evidence that the last disclosure was wrong.
+const lastKnownHoldings = new Map();
 const inFlight = new Map();
 const waiting = [];
 let active = 0;
@@ -243,7 +246,20 @@ async function acquire() {
   await new Promise(resolve => waiting.push(resolve));
 }
 function release() { if (waiting.length) waiting.shift()(); else active -= 1; }
+function usableHoldings(data, now) {
+  return data?.kind === 'plain_etf' && ['available', 'partial'].includes(data.holdingsStatus)
+    && data.holdings?.length > 0 && dateValue(data.asOfDate)
+    && data.asOfDate <= getCompletedMarketCloseDate(now);
+}
+function previousHoldings(symbol, now, reason) {
+  const data = lastKnownHoldings.get(symbol);
+  return usableHoldings(data, now) ? { ...data, stale: true, reason } : null;
+}
 function remember(symbol, data, now, failed) {
+  if (!failed && usableHoldings(data, now)
+    && (!lastKnownHoldings.has(symbol) || lastKnownHoldings.get(symbol).asOfDate <= data.asOfDate)) {
+    lastKnownHoldings.set(symbol, data);
+  }
   cache.delete(symbol);
   cache.set(symbol, { data, expiresAt: now + (failed ? PORTFOLIO_OVERLAP_FAILURE_TTL_MS : PORTFOLIO_OVERLAP_CACHE_TTL_MS) });
   while (cache.size > 128) cache.delete(cache.keys().next().value);
@@ -279,8 +295,9 @@ async function loadSymbol(symbol, config) {
         };
       }
       // A provider returning older holdings cannot replace newer evidence.
-      if (cached?.data.asOfDate && data.asOfDate && cached.data.asOfDate > data.asOfDate) {
-        data = { ...cached.data, stale: true, reason: 'older_holdings_response' };
+      const previous = previousHoldings(symbol, config.now, 'older_holdings_response');
+      if (previous && data.asOfDate && previous.asOfDate > data.asOfDate) {
+        data = previous;
       }
       remember(symbol, data, config.now, data.holdingsStatus === 'unavailable');
       return data;
@@ -288,10 +305,9 @@ async function loadSymbol(symbol, config) {
       const reason = ['QUOTA_EXHAUSTED', 'NOT_CONFIGURED', 'PROVIDER_TIMEOUT'].includes(cause?.code)
         ? cause.code.toLowerCase() : cause?.code === 'INVALID_DATA' ? 'invalid_holdings_data' : 'provider_unavailable';
       // No cross-account portfolio state exists here: only public metadata.
-      // Only transient upstream failures may serve previously parsed holdings.
-      const data = cached?.data.asOfDate && reason !== 'invalid_holdings_data'
-        ? { ...cached.data, stale: true, reason }
-        : base(symbol, config.now, reason);
+      // Invalid, empty and timed-out new disclosures must not erase a basket
+      // that already passed all identity, date and allocation checks.
+      const data = previousHoldings(symbol, config.now, reason) || base(symbol, config.now, reason);
       remember(symbol, data, config.now, true);
       return data;
     } finally {
@@ -327,7 +343,8 @@ export async function fetchPortfolioOverlap(symbols, {
     ]);
     // The active (at most three) jobs may finish and warm the public metadata
     // cache. Their results never mutate this already-returned batch object.
-    const instruments = normalized.map(symbol => completed.get(symbol) || base(symbol, timestamp, 'provider_timeout'));
+    const instruments = normalized.map(symbol => completed.get(symbol)
+      || previousHoldings(symbol, timestamp, 'provider_timeout') || base(symbol, timestamp, 'provider_timeout'));
     return { version: 1, fetchedAt: new Date(timestamp).toISOString(), instruments };
   } finally {
     clearTimeout(timer);
@@ -336,5 +353,6 @@ export async function fetchPortfolioOverlap(symbols, {
 
 export function resetPortfolioOverlapCacheForTests() {
   cache.clear();
+  lastKnownHoldings.clear();
   inFlight.clear();
 }

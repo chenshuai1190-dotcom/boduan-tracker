@@ -213,16 +213,21 @@ test('concurrent requests share public metadata and successful entries cache six
   assert.equal(calls, 4);
 });
 
-test('network refresh failure retains older evidence as stale but invalid holdings never fall back', async () => {
+test('network and invalid refreshes retain the last verified disclosure without changing its dates', async () => {
   const first = await fetchPortfolioOverlap('QQQ', { now: NOW, fetchImpl: async () => officialResponse(QQQ) });
   const later = NOW + PORTFOLIO_OVERLAP_CACHE_TTL_MS + 1;
   const fallback = await fetchPortfolioOverlap('QQQ', { now: later, fetchImpl: async () => officialResponse({}, 503) });
   assert.equal(fallback.instruments[0].stale, true);
   assert.equal(fallback.instruments[0].fetchedAt, first.instruments[0].fetchedAt);
   const invalid = await fetchPortfolioOverlap('QQQ', { now: later + 60_001, fetchImpl: async () => officialResponse({}) });
-  assert.equal(invalid.instruments[0].holdingsStatus, 'unavailable');
+  assert.equal(invalid.instruments[0].holdingsStatus, first.instruments[0].holdingsStatus);
   assert.equal(invalid.instruments[0].reason, 'invalid_holdings_data');
-  assert.deepEqual(invalid.instruments[0].holdings, []);
+  assert.equal(invalid.instruments[0].stale, true);
+  assert.equal(invalid.instruments[0].asOfDate, first.instruments[0].asOfDate);
+  assert.equal(invalid.instruments[0].fetchedAt, first.instruments[0].fetchedAt);
+  assert.deepEqual(invalid.instruments[0].holdings, first.instruments[0].holdings);
+  const failedAgain = await fetchPortfolioOverlap('QQQ', { now: later + 120_002, fetchImpl: async () => officialResponse({}, 503) });
+  assert.deepEqual(failedAgain.instruments[0].holdings, first.instruments[0].holdings, 'a rejected response never destroys the last good basket');
 });
 
 test('provider work across a batch never exceeds three concurrent jobs', async () => {

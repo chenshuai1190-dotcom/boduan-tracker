@@ -116,6 +116,9 @@ function metadataOf(raw, symbol) {
   return { ...metadata, holdings: [...bySymbol.values()] };
 }
 
+// Share the same source, date and weight checks with the public holdings cache.
+export { metadataOf as normalizePortfolioOverlapMetadata };
+
 function metadataMap(instruments) {
   const rows = Array.isArray(instruments) ? instruments
     : instruments?.version === 1 && Array.isArray(instruments.instruments) ? instruments.instruments : [];

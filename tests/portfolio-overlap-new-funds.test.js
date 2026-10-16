@@ -114,7 +114,7 @@ test('one official identity failure does not discard SMH or misclassify VGT as a
   assert.equal(data.instruments.find(item => item.symbol === 'SMH').holdings.length, 25);
 });
 
-test('source failures retain cached evidence as stale; changed-date or oversized baskets fail closed', async () => {
+test('source failures and rejected new baskets retain previously verified disclosures', async () => {
   const first = await fetchPortfolioOverlap('VGT,SMH', { now: NOW, fetchImpl: sources });
   const later = NOW + PORTFOLIO_OVERLAP_CACHE_TTL_MS + 1;
   const failed = await fetchPortfolioOverlap('VGT,SMH', { now: later, fetchImpl: async () => new Response('', { status: 503 }) });
@@ -128,7 +128,48 @@ test('source failures retain cached evidence as stale; changed-date or oversized
     fetchImpl: async url => url === VGT_STATISTICS_URL ? response({ ...VGT.statistics, effectiveDate: '2026-09-30' })
       : url === SMH_HOLDINGS_URL ? new Response('x'.repeat(2_000_001)) : sources(url),
   });
-  assert.ok(invalid.instruments.every(item => item.reason === 'invalid_holdings_data' && item.holdings.length === 0));
+  for (const item of invalid.instruments) {
+    const original = first.instruments.find(row => row.symbol === item.symbol);
+    assert.equal(item.reason, 'invalid_holdings_data');
+    assert.equal(item.stale, true);
+    assert.equal(item.asOfDate, original.asOfDate);
+    assert.equal(item.fetchedAt, original.fetchedAt);
+    assert.deepEqual(item.holdings, original.holdings);
+  }
+});
+
+test('a timed-out SMH refresh still expands the last verified basket and a later valid disclosure replaces it', async () => {
+  const first = await fetchPortfolioOverlap('SMH', { now: NOW, fetchImpl: sources });
+  const later = Date.parse('2026-10-10T04:00:00Z');
+  let release;
+  const wait = new Promise(resolve => { release = resolve; });
+  const refreshed = json('smh-official-2026-10-08.json');
+  const timedOut = await fetchPortfolioOverlap('SMH', { now: later, batchTimeoutMs: 10,
+    fetchImpl: async () => { await wait; return response(refreshed); } });
+  const fallback = timedOut.instruments[0];
+  assert.equal(fallback.reason, 'provider_timeout');
+  assert.equal(fallback.stale, true);
+  assert.equal(fallback.asOfDate, '2026-10-01');
+  assert.equal(fallback.fetchedAt, first.instruments[0].fetchedAt);
+  assert.deepEqual(fallback.holdings, first.instruments[0].holdings);
+  const model = buildPortfolioOverlapModel({ holdings: [{ symbol: 'SMH', amount: 100000 }], instruments: timedOut.instruments });
+  near(model.identifiedAmount, 99940);
+  assert.equal(model.companies.length, 25);
+  release();
+  const valid = await fetchPortfolioOverlap('SMH', { now: later, fetchImpl: sources });
+  assert.equal(valid.instruments[0].asOfDate, '2026-10-08');
+  assert.equal(valid.instruments[0].stale, false);
+  assert.equal(timedOut.instruments[0].asOfDate, '2026-10-01', 'late completion cannot mutate a returned result');
+  const older = await fetchPortfolioOverlap('SMH', { now: later + PORTFOLIO_OVERLAP_CACHE_TTL_MS + 1, fetchImpl: sources });
+  assert.equal(older.instruments[0].asOfDate, '2026-10-08');
+  assert.equal(older.instruments[0].reason, 'older_holdings_response');
+});
+
+test('invalid or missing SMH data without a verified prior disclosure stays unavailable', async () => {
+  const result = await fetchPortfolioOverlap('SMH', { now: NOW, fetchImpl: async () => response({ Holdings: [] }) });
+  assert.equal(result.instruments[0].holdingsStatus, 'unavailable');
+  assert.equal(result.instruments[0].asOfDate, null);
+  assert.deepEqual(result.instruments[0].holdings, []);
 });
 
 test('official baskets flow through the client model with direct-plus-ETF overlap and conserved amounts', async () => {

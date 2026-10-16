@@ -16,11 +16,11 @@ function holdingDate(value) {
   return date;
 }
 
-function percent(value) {
-  // VanEck can round its cash residual to "-0.00". Accept only exact
-  // negative-zero spellings; genuine negative allocations remain invalid.
+function percent(value, cash = false) {
+  // Keep exact negative zero compatible without rounding genuine negatives.
   if (typeof value === 'string' && /^-0(?:\.0{1,8})?$/.test(value)) return 0;
-  if (typeof value !== 'string' || !/^(?:0|[1-9]\d*)(?:\.\d{1,8})?$/.test(value)) invalid();
+  const pattern = cash ? /^-?(?:0|[1-9]\d*)(?:\.\d{1,8})?$/ : /^(?:0|[1-9]\d*)(?:\.\d{1,8})?$/;
+  if (typeof value !== 'string' || !pattern.test(value)) invalid();
   const result = Number(value);
   if (!Number.isFinite(result) || result > 100) invalid();
   return result;
@@ -39,6 +39,8 @@ export function parseVanEckPortfolioHoldings(payload) {
   const seen = new Set();
   const orders = new Set();
   let totalWeight = 0;
+  let nonCashWeight = 0;
+  let negativeCashWeight = 0;
   let residualCount = 0;
   let reportedHoldingCount = 0;
   for (const row of payload.Holdings) {
@@ -51,23 +53,28 @@ export function parseVanEckPortfolioHoldings(payload) {
       || row.CurrencyCode !== 'USD' || !Number.isInteger(row.LabelOrder)
       || row.LabelOrder < 1 || row.LabelOrder > 10000 || orders.has(row.LabelOrder)) invalid();
     orders.add(row.LabelOrder);
-    const weightPct = percent(row.Weight);
-    totalWeight += weightPct;
     const symbol = text(row.Label);
     const name = text(row.HoldingName);
     const assetClass = text(row.AssetClass);
-    if (row.LabelOrder === 10000) {
+    const residualCash = row.LabelOrder === 10000;
+    const usdCash = row.LabelOrder === 9999;
+    // Validate cash identity before accepting signed weights. A negative stock
+    // or unsupported instrument must never become a cash residual by its name.
+    if (residualCash && (symbol !== '--' || name !== 'Other/Cash' || assetClass !== 'Cash')) invalid();
+    if (usdCash && (symbol !== '-USD CASH-' || name !== '' || assetClass !== 'Cash Bal')) invalid();
+    const cash = residualCash || usdCash;
+    const weightPct = percent(row.Weight, cash);
+    totalWeight += weightPct;
+    if (cash) negativeCashWeight += Math.min(0, weightPct);
+    else nonCashWeight += weightPct;
+    if (residualCash) {
       // VanEck's final Other/Cash allocation is a residual, not another
       // security. Excluding this row matches the page's Total Holdings count.
-      if (symbol !== '--' || name !== 'Other/Cash' || assetClass !== 'Cash') invalid();
       residualCount += 1;
       continue;
     }
     reportedHoldingCount += 1;
-    if (row.LabelOrder === 9999) {
-      if (symbol !== '-USD CASH-' || assetClass !== 'Cash Bal') invalid();
-      continue;
-    }
+    if (usdCash) continue;
     const securityType = assetClass === 'Stock' ? 'stock' : assetClass === 'ADR' ? 'adr' : null;
     // Preserve unsupported instruments and unresolvable issuer labels in the
     // residual. Do not invent or rewrite tickers using names, FIGI or ISIN.
@@ -81,9 +88,13 @@ export function parseVanEckPortfolioHoldings(payload) {
   // all 25 ranks: a preserved cash/footer cannot validate a truncated tail.
   // A changed fund structure needs verification before widening this contract.
   const rankedOrders = [...orders].filter(value => value < 9999).sort((a, b) => a - b);
-  const equityWeight = holdings.reduce((sum, row) => sum + row.weightPct, 0);
+  // The verified issuer payload includes a -0.01% Other/Cash residual. Allow
+  // only small cash reconciliation amounts (10 basis points combined), never
+  // negative securities or >100% non-cash exposure offset by cash borrowing.
+  // Count unsupported rows too so they cannot hide an over-allocated basket.
   if (residualCount !== 1 || rankedOrders.length !== 25
     || rankedOrders.some((value, index) => value !== index + 1)
-    || totalWeight < 95 || totalWeight > 100.5 || equityWeight > 100.000001) invalid();
+    || totalWeight < 95 || totalWeight > 100.5
+    || negativeCashWeight < -0.100000001 || nonCashWeight > 100.000001) invalid();
   return { holdings, asOfDate, reportedHoldingCount, totalWeight };
 }
