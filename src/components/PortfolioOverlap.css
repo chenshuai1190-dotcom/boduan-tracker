@@ -64,8 +64,8 @@ body.po-overlap-modal-open { overflow:hidden !important; }
 .investment-comparison .po-coverage-line span { color:var(--ic-muted); }
 .investment-comparison .po-coverage-line strong { font-weight:400; text-align:right; }
 .investment-comparison .po-method-copy { font-size:12px; color:var(--ic-muted); line-height:1.8; }
-.investment-comparison .po-footnote { font-size:10px; color:var(--ic-muted); margin:19px 0 0; text-align:left; }
-.investment-comparison .po-source-dates { display:flex; flex-wrap:wrap; gap:4px 20px; margin-top:8px; font-size:10px; line-height:1.8; color:var(--ic-muted); text-align:left; }
+.investment-comparison .po-footnote { font-size:10px; color:var(--ic-muted); margin:19px 0 0; text-align:center; }
+.investment-comparison .po-source-dates { display:flex; flex-wrap:wrap; justify-content:center; gap:4px 20px; margin-top:8px; font-size:10px; line-height:1.8; color:var(--ic-muted); text-align:left; }
 .investment-comparison .po-source-dates p { display:grid; grid-template-columns:minmax(4ch, auto) 12px auto; margin:0; }
 .investment-comparison .po-source-dates p>span:nth-child(2) { text-align:center; }
 .investment-comparison .po-empty { padding:32px 18px; text-align:center; color:var(--ic-muted); }
@@ -87,8 +87,8 @@ body.po-overlap-modal-open { overflow:hidden !important; }
 .investment-comparison .po-detail-summary { display:flex; flex-direction:column-reverse; align-items:flex-start; gap:5px; margin:8px 0 3px; }
 .investment-comparison .po-detail-summary strong { font-size:36px; font-weight:400; letter-spacing:normal; line-height:1.35; }
 .investment-comparison .po-detail-summary>span { font-size:12px; color:var(--ic-muted); }
-.investment-comparison .po-detail-value { font-size:14px; color:var(--ic-muted); margin:0 0 25px; overflow-wrap:anywhere; }
-.investment-comparison .po-detail-source { margin:0; padding:16px 0; border-top:1px solid var(--ic-border); }
+.investment-comparison .po-detail-value { font-size:14px; color:var(--ic-muted); margin:0 0 16px; overflow-wrap:anywhere; }
+.investment-comparison .po-detail-source { margin:0; padding:14px 0; border:0; }
 .investment-comparison .po-detail-source-head { display:flex; justify-content:space-between; align-items:baseline; gap:12px; }
 .investment-comparison .po-detail-source-head strong { font-size:14px; font-weight:400; }
 .investment-comparison .po-detail-source-head>span { font-size:18px; }
@@ -96,7 +96,7 @@ body.po-overlap-modal-open { overflow:hidden !important; }
 .investment-comparison .po-detail-source .po-stack-track { margin:10px 0 8px; height:5px; background:#252528; }
 .investment-comparison .po-detail-source .po-stack-track:last-child { margin-bottom:0; }
 .investment-comparison .po-detail-source p:last-child { margin-bottom:0; }
-.investment-comparison .po-detail-total { padding-top:15px; border-top:1px solid var(--ic-border); display:flex; justify-content:space-between; gap:12px; margin-top:24px; }
+.investment-comparison .po-detail-total { padding-top:18px; border-top:1px solid var(--ic-border); display:flex; justify-content:space-between; gap:12px; margin-top:18px; }
 .investment-comparison .po-detail-total strong { font-weight:500; font-size:17px; }
 .investment-comparison .po-sheet-note { padding:0; color:var(--ic-muted); font-size:11px; line-height:1.8; margin:22px 0 0; }
 .investment-comparison .po-edit-description { font-size:12px; color:var(--ic-muted); margin:0 0 18px; }
@@ -109,6 +109,7 @@ body.po-overlap-modal-open { overflow:hidden !important; }
 .investment-comparison .po-edit-total strong { color:var(--ic-text); font-size:19px; font-weight:500; }
 .investment-comparison .po-form-error { color:var(--po-red); font-size:12px; margin:12px 0; }
 .investment-comparison .po-position-row { display:flex; align-items:flex-start; justify-content:space-between; gap:14px; padding:17px 0; border-bottom:1px solid var(--ic-border); }
+.investment-comparison.po-modal-root .po-position-row { padding:14px 0; border-bottom:0; }
 .investment-comparison .po-position-row strong { font-size:15px; font-weight:400; }
 .investment-comparison .po-position-row>div { min-width:0; }
 .investment-comparison .po-position-row>div:first-child { flex:1; }
