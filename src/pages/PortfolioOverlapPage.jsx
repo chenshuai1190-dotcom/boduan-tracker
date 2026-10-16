@@ -11,7 +11,7 @@ import '../components/PortfolioOverlap.css';
 const MAX_CUSTOM_HOLDINGS = 40;
 const SOURCE_COLORS = { direct: '#ff655e', QQQ: '#eebc65', SPY: '#4fd0a1', VGT: '#60a5fa', SMH: '#a78bfa' };
 const percentage = value => Number.isFinite(value) ? `${value.toFixed(1)}%` : '—';
-const disclosedWeight = value => Number.isFinite(value) ? `${value.toLocaleString('en-US', { maximumFractionDigits: 6 })}%` : '—';
+const disclosedWeight = value => Number.isFinite(value) ? `${(Math.trunc(value * 10) / 10).toFixed(1)}%` : '—';
 const dollars = value => Number.isFinite(value) ? `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—';
 const compactDollars = (value, englishMode) => Math.abs(value) >= (englishMode ? 1e3 : 1e4) ? formatInvestmentAmount(value, englishMode, { digits: 2 }) : dollars(value);
 const sourceColor = source => SOURCE_COLORS[source.kind === 'direct' ? 'direct' : source.symbol] || '#95a4c0';

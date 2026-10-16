@@ -185,7 +185,7 @@ test('source details retain disclosed weights, dates and stale warnings without 
   const company = model.companies.find(item => item.symbol === 'NVDA');
   for (const englishMode of [false, true]) {
     const html = htmlOf(CompanyDetail, { company, model, englishMode });
-    assert.match(html, /2026-09-04/); assert.match(html, /20%/);
+    assert.match(html, /2026-09-04/); assert.match(html, /20\.0%/);
     assert.match(html, englishMode ? /Stale source/ : /来源较旧/);
     assert.ok(!html.includes(company.name));
     assert.doesNotMatch(html, /<a\b|href=|po-source-link|View source|查看来源|Test fund issuer|Test identity provider|模拟成分权重|虚构|NaN/);
@@ -223,7 +223,7 @@ test('source dates move to the footer while coverage retains its incomplete-data
   }
 });
 
-test('detail formulas preserve up to six disclosed weight decimals while portfolio summaries stay compact', () => {
+test('detail weights display one truncated decimal while amounts retain full disclosed precision', () => {
   const etf = fund();
   etf.coveragePct = 8.853648;
   etf.holdings = [{ symbol: 'NVDA', name: 'NVIDIA', exchange: 'US', securityType: 'stock', weightPct: 8.853648 }];
@@ -232,7 +232,7 @@ test('detail formulas preserve up to six disclosed weight decimals while portfol
   for (const englishMode of [false, true]) {
     const html = htmlOf(CompanyDetail, { company, model, englishMode });
     assert.match(html, /\$350,000\.00 × /);
-    assert.match(html, /8\.853648% → \$30,987\.77/);
+    assert.match(html, /8\.8% → \$30,987\.77/);
     assert.match(html, /<strong>8\.9%<\/strong>/);
   }
 });
