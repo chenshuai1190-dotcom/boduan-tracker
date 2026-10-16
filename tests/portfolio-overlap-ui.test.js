@@ -180,13 +180,14 @@ test('a missing market quote suppresses concentration cards and never invents a 
   assert.deepEqual(draftOf([{ symbol: 'NVDA', amount: null }]), [{ symbol: 'NVDA', amountText: '' }]);
 });
 
-test('source details retain disclosed weights, dates and stale warnings without provider links', () => {
+test('source details retain disclosed weights without repeating footer dates or freshness labels', () => {
   const model = testModel({ stale: true });
   const company = model.companies.find(item => item.symbol === 'NVDA');
   for (const englishMode of [false, true]) {
     const html = htmlOf(CompanyDetail, { company, model, englishMode });
-    assert.match(html, /2026-09-04/); assert.match(html, /20\.0%/);
-    assert.match(html, englishMode ? /Stale source/ : /来源较旧/);
+    assert.match(html, /20\.0%/);
+    assert.match(html, englishMode ? /Instrument identity verified/ : /证券类型已核验/);
+    assert.doesNotMatch(html, /2026-09-04|Disclosure date|成分披露日|Stale|较旧/);
     assert.ok(!html.includes(company.name));
     assert.doesNotMatch(html, /<a\b|href=|po-source-link|View source|查看来源|Test fund issuer|Test identity provider|模拟成分权重|虚构|NaN/);
   }
@@ -208,17 +209,18 @@ test('source dates move to the footer while coverage retains its incomplete-data
     assert.match(html, /2026-09-04/);
     assert.match(html, /\$300/);
     assert.match(html, englishMode ? /Disclosed basket 50.0%/ : /披露成分 50.0%/);
-    assert.match(html, englishMode ? /Stale or unavailable/ : /数据较旧或不可用/);
-    assert.doesNotMatch(html, /Some sources are stale or unavailable|部分来源较旧或不可用/);
+    assert.doesNotMatch(html, /[Ss]tale|Older disclosure|较旧/);
+    assert.doesNotMatch(htmlOf(PositionList, { model, metadataReady: true, englishMode }), /[Ss]tale|Older disclosure|较旧/);
     assert.doesNotMatch(html, /<a\b|href=|po-source-link|Test fund issuer|Test identity provider|View source|查看来源/);
     const footer = htmlOf(PortfolioSourceDates, { model: footerModel, englishMode });
+    const footerText = footer.replace(/<[^>]+>/g, '');
     assert.match(footer, /class="po-source-dates"/);
-    assert.match(footer, englishMode ? /QQQ · Holdings as of 2026-09-04 · Older disclosure/ : /QQQ · 成分披露 2026-09-04 · 较旧/);
-    assert.match(footer, englishMode ? /SMH · Holdings as of 2026-09-07<\/p>/ : /SMH · 成分披露 2026-09-07<\/p>/);
-    assert.match(footer, englishMode ? /VGT · Holdings unavailable/ : /VGT · 成分不可用/);
-    assert.match(footer, englishMode ? /UNAVAILABLE · Source unavailable/ : /UNAVAILABLE · 来源不可用/);
-    assert.match(footer, englishMode ? /UNKNOWN · Source unavailable/ : /UNKNOWN · 来源不可用/);
-    assert.doesNotMatch(footer, /2026-09-08|NVDA|TQQQ|verified stock|Test disclosed fund|NaN|undefined/);
+    assert.match(footerText, englishMode ? /QQQ · Holdings as of 2026-09-04/ : /QQQ · 成分披露 2026-09-04/);
+    assert.match(footerText, englishMode ? /SMH · Holdings as of 2026-09-07/ : /SMH · 成分披露 2026-09-07/);
+    assert.match(footerText, englishMode ? /VGT · Holdings unavailable/ : /VGT · 成分不可用/);
+    assert.match(footerText, englishMode ? /UNAVAILABLE · Source unavailable/ : /UNAVAILABLE · 来源不可用/);
+    assert.match(footerText, englishMode ? /UNKNOWN · Source unavailable/ : /UNKNOWN · 来源不可用/);
+    assert.doesNotMatch(footer, /2026-09-08|NVDA|TQQQ|verified stock|Test disclosed fund|NaN|undefined|[Ss]tale|Older disclosure|较旧/);
     assert.equal(htmlOf(PortfolioSourceDates, { model: { positions: footerModel.positions.filter(row => ['stock', 'leveraged_etf'].includes(row.kind)) }, englishMode }), '');
   }
 });

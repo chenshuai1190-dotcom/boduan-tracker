@@ -83,7 +83,7 @@ function Methodology({ englishMode }) {
   return <>
     <p className="po-method-copy">{englishMode ? 'Verified stocks are counted directly. Supported unleveraged ETFs are split using their disclosed holdings weights. Identified exposure equals direct holdings plus holdings through each ETF, grouped by security ticker. Different share classes are not automatically merged into one company.' : '已核验的股票直接计入；支持穿透的普通 ETF 按披露成分权重分配。已识别持有＝直接持有＋各 ETF 间接持有，按证券代码归集，不自动合并同一公司的不同股权类别。'}</p>
     <p className="po-method-copy">{englishMode ? 'Every percentage uses the entire portfolio market value, including unexpanded holdings and separately listed leveraged ETFs. Missing quotes make the total and all percentages unavailable. The top-five total is a lower bound for the identified portion; unknown holdings may change the final concentration and ranking.' : '全部占比统一以组合总市值为分母，包含未穿透部分与单列的杠杆 ETF。存在缺失报价时，总额和全部比例暂不计算。前五合计是已识别部分的下限；未知持仓可能改变最终集中度和排序。'}</p>
-    <p className="po-method-copy">{englishMode ? 'QQQ, SPY, VGT and SMH support fund look-through using official disclosed holdings. Other funds without verified constituents remain unexpanded. Leveraged ETFs are listed by invested market value, without multiplying by three or reusing an ordinary ETF basket. Each source shows its disclosure date; stale disclosures are labelled.' : '支持 QQQ、SPY、VGT、SMH 官方披露成分穿透；其他未获得可靠成分的基金保持未穿透。杠杆 ETF 仅按持仓市值单列，不直接乘以三倍，也不套用普通 ETF 的成分。各来源分别显示披露日期，较旧披露会明确标记。'}</p>
+    <p className="po-method-copy">{englishMode ? 'QQQ, SPY, VGT and SMH support fund look-through using official disclosed holdings. Other funds without verified constituents remain unexpanded. Leveraged ETFs are listed by invested market value, without multiplying by three or reusing an ordinary ETF basket. Source disclosure dates are available at the bottom of this page.' : '支持 QQQ、SPY、VGT、SMH 官方披露成分穿透；其他未获得可靠成分的基金保持未穿透。杠杆 ETF 仅按持仓市值单列，不直接乘以三倍，也不套用普通 ETF 的成分。各来源披露日期可在页面底部查看。'}</p>
     <p className="po-sheet-note">{englishMode ? 'My holdings follows the current account and its available market valuations. Custom portfolios stay in this page’s memory only. This tool never saves a trade, changes a position, or writes to an account ledger.' : '我的持仓跟随当前账户及可用市值；自定义组合只保留在本页内存中。此工具不保存交易、不修改持仓、不写入账户账本。'}</p>
   </>;
 }
@@ -95,7 +95,7 @@ function InstrumentStatus({ position, englishMode }) {
     : position.kind === 'stock' ? (englishMode ? 'Verified stock' : '已核验股票')
       : position.kind === 'plain_etf' && ['available', 'partial'].includes(item.holdingsStatus) ? (englishMode ? `Disclosed basket ${percentage(item.coveragePct)}` : `披露成分 ${percentage(item.coveragePct)}`)
         : (englishMode ? 'Not expanded · metadata unavailable or unsupported' : '未穿透 · 元数据不可用或暂不支持');
-  return <span>{label}{item.stale ? (englishMode ? ' · Stale or unavailable' : ' · 数据较旧或不可用') : ''}</span>;
+  return <span>{label}</span>;
 }
 
 function PositionList({ model, holdings, metadataReady, englishMode, onEdit }) {
@@ -113,11 +113,10 @@ function CompanyDetail({ company, model, englishMode, onEdit }) {
     <p className="po-detail-value">{dollars(company.amount)}</p>
     {company.sources.map(source => {
       const position = model.positions.find(row => row.symbol === source.symbol);
-      const metadata = position?.metadata;
       return <section className="po-detail-source" key={`${source.kind}:${source.symbol}`}><div className="po-detail-source-head"><strong><i className="po-dot" style={{ '--po-source': sourceColor(source) }} />{source.kind === 'direct' ? (englishMode ? 'Direct holding' : '直接持有') : `${englishMode ? 'Via ' : '来自 '}${source.symbol}`}</strong><span>{percentage(source.percent)}</span></div>
         <p>{source.kind === 'direct' ? `${source.symbol} ${englishMode ? 'holding' : '持仓'}` : `${dollars(position?.amount)} × ${englishMode ? 'disclosed weight ' : '披露权重 '}${disclosedWeight(source.weightPct)}`} → {dollars(source.amount)}</p>
         <div className="po-stack-track" aria-hidden="true"><span className="po-stack-part" style={{ '--po-source': sourceColor(source), width: `${company.amount > 0 ? source.amount / company.amount * 100 : 0}%` }} /></div>
-        <p>{source.kind === 'direct' ? (englishMode ? 'Instrument identity verified' : '证券类型已核验') : `${englishMode ? 'Disclosure date: ' : '成分披露日：'}${source.asOfDate || '—'}`}{metadata?.stale ? (englishMode ? ' · Stale source' : ' · 来源较旧') : ''}</p>
+        {source.kind === 'direct' && <p>{englishMode ? 'Instrument identity verified' : '证券类型已核验'}</p>}
       </section>;
     })}
     <div className="po-detail-total"><span>{englishMode ? 'Total identified exposure' : '已识别持有合计'}</span><strong>{dollars(company.amount)}</strong></div>
@@ -181,11 +180,11 @@ function PortfolioSourceDates({ model, englishMode }) {
   const sources = model.positions.filter(position => ['plain_etf', 'unknown'].includes(position.kind));
   if (!sources.length) return null;
   return <div className="po-source-dates" aria-label={englishMode ? 'Source disclosure dates' : '来源披露日期'}>
-    {sources.map(position => <p key={position.symbol}>{position.symbol}{position.kind === 'unknown'
-      ? (englishMode ? ' · Source unavailable' : ' · 来源不可用')
+    {sources.map(position => <p key={position.symbol}><span>{position.symbol}</span><span aria-hidden="true"> · </span><span>{position.kind === 'unknown'
+      ? (englishMode ? 'Source unavailable' : '来源不可用')
       : position.metadata.asOfDate
-        ? `${englishMode ? ' · Holdings as of ' : ' · 成分披露 '}${position.metadata.asOfDate}${position.metadata.stale ? (englishMode ? ' · Older disclosure' : ' · 较旧') : ''}`
-        : (englishMode ? ' · Holdings unavailable' : ' · 成分不可用')}</p>)}
+        ? `${englishMode ? 'Holdings as of ' : '成分披露 '}${position.metadata.asOfDate}`
+        : (englishMode ? 'Holdings unavailable' : '成分不可用')}</span></p>)}
   </div>;
 }
 

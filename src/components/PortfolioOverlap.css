@@ -64,9 +64,10 @@ body.po-overlap-modal-open { overflow:hidden !important; }
 .investment-comparison .po-coverage-line span { color:var(--ic-muted); }
 .investment-comparison .po-coverage-line strong { font-weight:400; text-align:right; }
 .investment-comparison .po-method-copy { font-size:12px; color:var(--ic-muted); line-height:1.8; }
-.investment-comparison .po-footnote { font-size:10px; color:var(--ic-muted); margin:19px 0 0; text-align:center; }
-.investment-comparison .po-source-dates { margin-top:8px; font-size:10px; line-height:1.8; color:var(--ic-muted); text-align:center; }
-.investment-comparison .po-source-dates p { margin:0; }
+.investment-comparison .po-footnote { font-size:10px; color:var(--ic-muted); margin:19px 0 0; text-align:left; }
+.investment-comparison .po-source-dates { display:flex; flex-wrap:wrap; gap:4px 20px; margin-top:8px; font-size:10px; line-height:1.8; color:var(--ic-muted); text-align:left; }
+.investment-comparison .po-source-dates p { display:grid; grid-template-columns:minmax(4ch, auto) 12px auto; margin:0; }
+.investment-comparison .po-source-dates p>span:nth-child(2) { text-align:center; }
 .investment-comparison .po-empty { padding:32px 18px; text-align:center; color:var(--ic-muted); }
 .investment-comparison .po-empty h2 { font-size:17px; font-weight:500; color:var(--ic-text); }
 .investment-comparison .po-state { padding:20px 16px; margin:0 0 18px; border:0; border-radius:16px; background:var(--ic-panel); color:var(--ic-muted); font-size:12px; line-height:1.8; }
@@ -93,6 +94,7 @@ body.po-overlap-modal-open { overflow:hidden !important; }
 .investment-comparison .po-detail-source-head>span { font-size:18px; }
 .investment-comparison .po-detail-source p { font-size:11px; color:var(--ic-muted); margin:4px 0 9px; }
 .investment-comparison .po-detail-source .po-stack-track { margin:10px 0 8px; height:5px; background:#252528; }
+.investment-comparison .po-detail-source .po-stack-track:last-child { margin-bottom:0; }
 .investment-comparison .po-detail-source p:last-child { margin-bottom:0; }
 .investment-comparison .po-detail-total { padding-top:15px; border-top:1px solid var(--ic-border); display:flex; justify-content:space-between; gap:12px; margin-top:24px; }
 .investment-comparison .po-detail-total strong { font-weight:500; font-size:17px; }
