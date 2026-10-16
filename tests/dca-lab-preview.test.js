@@ -509,9 +509,8 @@ test('DCA receives the current display exchange rate in production and preview c
 test('the plan retains its background while symbol search reuses the existing investment dialog', () => {
   const css = read('src/components/DcaLab.css');
   const dca = css.match(/\.dca-lab \.dl-plan \{([^}]+)\}/)[1];
-  const overlap = read('src/components/PortfolioOverlap.css').match(/\.investment-comparison \.po-hero \{([^}]+)\}/)[1];
   const background = rule => rule.match(/background:([^;]+);/)[1];
-  assert.equal(background(dca), background(overlap));
+  assert.equal(background(dca), 'linear-gradient(145deg,var(--ic-panel),var(--ic-bg) 85%)');
   assert.doesNotMatch(dca, /--ic-(?:panel|bg|border)\s*:|box-shadow/);
   assert.doesNotMatch(css, /\.dl-symbol-menu\b|\.dl-symbol-option\b/);
   const sharedPicker = read('src/components/InvestmentSymbolPicker.jsx');

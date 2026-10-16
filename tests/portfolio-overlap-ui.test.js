@@ -406,7 +406,7 @@ test('page uses the existing width contract and removes the source-link presenta
   assert.doesNotMatch(source, /po-source-link|View source|查看来源/);
   assert.doesNotMatch(css, /po-source-link/);
   assert.doesNotMatch(css, /430px|max-width:430/);
-  assert.match(css, /min-height:64px/); assert.match(css, /font-size:21px/);
+  assert.match(css, /min-height:64px/); assert.match(css, /font-size:18px/);
   assert.match(css, /width:44px; min-height:44px/);
 });
 

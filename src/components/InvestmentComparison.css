@@ -140,9 +140,10 @@
 @keyframes investment-spin { to { transform: rotate(360deg); } }
 .investment-comparison .ic-spin { animation: investment-spin 1s linear infinite; }
 
-/* Time Machine surfaces share the app's neutral black report palette.
-   Keep these overrides scoped: DCA Lab and Portfolio Overlap use the base styles. */
-.investment-comparison.ic-time-machine {
+/* Report tools share one neutral palette; controls stay scoped to each tool. */
+.investment-comparison.ic-time-machine,
+.investment-comparison.po-page,
+.investment-comparison.po-modal-root {
   --ic-bg: #08090b;
   --ic-panel: #141416;
   --ic-text: #e4e4e7;
