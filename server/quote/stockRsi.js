@@ -3,6 +3,7 @@ import { isRegularNyseHoliday } from '../../src/lib/quoteRefreshPolicy.js';
 
 import { compareNumbers, confirmedPivot } from './stockRsiPivot.js';
 import { buildStockTrendMomentum, emptyStockTrendMomentum } from './stockTrendRsi.js';
+import { buildStockBuyReference } from '../../src/lib/stockBuyReference.js';
 
 const PERIOD = STOCK_RSI_RULES.RSI_PERIOD;
 
@@ -242,7 +243,7 @@ function divergenceLifecycle(rows, values, rules) {
  * Its local MA30 shares the same adjusted-close basis; no quote/account/ledger
  * state or existing moving-average module participates in this calculation.
  */
-export function buildStockRsi(eodRows, { completedCutoffDate, config, includeTrendMomentum = false } = {}) {
+export function buildStockRsi(eodRows, { completedCutoffDate, config, includeTrendMomentum = false, buyReferenceHistory } = {}) {
   const result = {
     period: PERIOD,
     value: null,
@@ -256,6 +257,9 @@ export function buildStockRsi(eodRows, { completedCutoffDate, config, includeTre
     divergenceConfirmationStrength: null,
     divergenceEvent: null,
     ...(includeTrendMomentum ? { trendMomentum: emptyStockTrendMomentum() } : {}),
+    ...(buyReferenceHistory !== undefined ? { buyReference: buildStockBuyReference({
+      history: buyReferenceHistory, rsiObservations: [], asOfDate: completedCutoffDate, chaseBuyBlocked: null,
+    }) } : {}),
   };
   const rules = resolveStockRsiRules(config);
   if (!rules) return result;
@@ -275,8 +279,21 @@ export function buildStockRsi(eodRows, { completedCutoffDate, config, includeTre
     result.previousValue = values[previousIndex];
     result.previousAsOf = rows[previousIndex].date;
   }
-  if (includeTrendMomentum) {
-    result.trendMomentum = buildStockTrendMomentum(rows, values, { rules, divergenceAvailable: normalized.divergenceAvailable });
+  if (includeTrendMomentum || buyReferenceHistory !== undefined) {
+    const trendMomentum = buildStockTrendMomentum(rows, values, { rules, divergenceAvailable: normalized.divergenceAvailable });
+    if (includeTrendMomentum) result.trendMomentum = trendMomentum;
+    if (buyReferenceHistory !== undefined) {
+      // Reuse this exact Wilder series, with the same warmup. Prices and MAs
+      // come from verified split-adjusted detail; never reconstruct them from RSI.
+      result.buyReference = buildStockBuyReference({
+        history: buyReferenceHistory,
+        rsiObservations: rows.map((row, index) => ({
+          date: row.date, value: index + 1 >= rules.RSI_WARMUP_CLOSES ? values[index] : null,
+        })),
+        asOfDate: completedCutoffDate,
+        chaseBuyBlocked: trendMomentum.chaseBuyBlocked,
+      });
+    }
   }
   if (!normalized.divergenceAvailable) return result;
   const { active, observedEvent } = divergenceLifecycle(rows, values, rules);

@@ -7,6 +7,7 @@ import {
   marketTextClass,
 } from '../lib/marketColorMode.js';
 import { splitCurrencyAmount } from '../lib/amountDisplay.js';
+import { formatTqqqSuggestedPrice } from '../lib/tqqqTradePrice.js';
 import { deriveHomeMarginOverview, homeMarginLeverageStatus, normalizeMarginDebtUsd } from '../lib/homeMarginRisk.js';
 import { resolveHoldingDisplayPrice, resolveHomeMarketDisplayMetrics } from '../lib/homeMarketDisplay.js';
 import { deriveHoldingStockYtdPercent } from '../lib/holdingStockYtd.js';
@@ -698,7 +699,9 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
       name: stockDisplayName(symbol, position?.name),
       side,
       date: localDateKey(),
-      price: position?.currentPrice ? String(position.currentPrice) : '',
+      price: position?.currentPrice ? (isTqqqFormalTradeEntry({ symbol, scope: 'ledger' })
+        ? formatTqqqSuggestedPrice(position.currentPrice)
+        : String(position.currentPrice)) : '',
       shares: '',
       batch: '第1批',
     });

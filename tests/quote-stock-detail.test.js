@@ -1213,6 +1213,7 @@ test('stock-detail view is opt-in, returns real EOD calculations, and does not e
     await handler(createRequest('NVDA'), defaultResponse);
     assert.equal(defaultResponse.statusCode, 200);
     assert.equal(Object.hasOwn(defaultResponse.body.data[0], 'stockDetail'), false);
+    assert.equal(Object.hasOwn(defaultResponse.body.data[0].stockRsi, 'buyReference'), false);
     assert.equal(requestedSplits.length, 0, 'ordinary quotes must not request split metadata');
 
     const detailResponse = createResponse();
@@ -1230,6 +1231,9 @@ test('stock-detail view is opt-in, returns real EOD calculations, and does not e
     assert.equal(quote.stockDetail.history.at(-1).ma200, 219.5);
     assert.equal(quote.stockDetail.history.at(-1).ma30, 304.5);
     assert.equal(quote.stockDetail.history.at(-1).ma60, 289.5);
+    assert.equal(quote.stockRsi.buyReference.version, 'stock-buy-reference-v1');
+    assert.equal(quote.stockRsi.buyReference.state, 'unavailable', 'outdated history must not become a current entry reference');
+    assert.equal(quote.stockRsi.buyReference.reason, 'date_mismatch');
     assert.deepEqual(quote.stockDetail.ma200DailyHistory, quote.stockDetail.history);
     assert.equal(quote.stockDetail.indicators.ma200, 219.5);
     assert.equal(quote.stockDetail.indicators.ema30, 304.5);

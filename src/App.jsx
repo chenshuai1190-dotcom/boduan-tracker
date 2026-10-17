@@ -4,6 +4,7 @@ import { supabase } from './lib/supabase';
 import * as db from './lib/db';
 import { deriveInvestmentSummary } from './lib/investmentSummary.js';
 import { deriveTqqqTradePreview, isTqqqFormalTradeEntry } from './lib/tqqqTradeDiscipline.js';
+import { formatTqqqSuggestedPrice } from './lib/tqqqTradePrice.js';
 import { normalizeMarginDebtUsd } from './lib/homeMarginRisk.js';
 import { MARKET_COLOR_MODE_STORAGE_KEY, normalizeMarketColorMode } from './lib/marketColorMode.js';
 import { buildLedgerQuoteUniverse } from './lib/stockUniverse.js';
@@ -5037,7 +5038,9 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
       setNewTrade(t => ({
         ...t,
         name: displayStockName(sym, t.name || fromWatchlist.name),
-        price: t.price || (fromWatchlist.price ? fromWatchlist.price.toFixed(2) : ''),
+        price: t.price || (isTqqqFormalTradeEntry({ symbol: sym, scope: tradeEntryScope }) && !t.id && !t.editingId
+          ? formatTqqqSuggestedPrice(fromWatchlist.price)
+          : (fromWatchlist.price ? fromWatchlist.price.toFixed(2) : '')),
       }));
       return;
     }
@@ -5055,7 +5058,9 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
             ...t,
             // 优先级:已有名 > 中英对照表 > 代码本身
             name: displayStockName(sym, t.name),
-            price: t.price || stockData.price.toFixed(2),
+            price: t.price || (isTqqqFormalTradeEntry({ symbol: sym, scope: tradeEntryScope }) && !t.id && !t.editingId
+              ? formatTqqqSuggestedPrice(stockData.price)
+              : stockData.price.toFixed(2)),
           }));
         } else {
           setLookupStatus('notfound');

@@ -4,6 +4,17 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '股票趋势新增买入参考，结合 RSI(6)、均线趋势与收盘确认，展示回调观察、买入参考已触发、失效和到期状态，可展开查看条件与有效期。',
+      'TQQQ 新增买入、卖出自动带入价格截取至两位小数，预计成交额同步计算；手动输入和历史成交价格保留原有精度。',
+    ],
+    itemsEn: [
+      'Stock trends add an entry reference using RSI(6), moving-average trends, and closing-price confirmation, with pullback watch, triggered, invalidated, and expired states plus expandable conditions and validity.',
+      'New TQQQ buy and sell entries truncate suggested prices to two decimals and use that price for the estimated amount. Manual inputs and historical execution prices retain their precision.',
+    ],
+  },
+  {
+    ver: 'v10.7.9.559', date: '2026-10-11',
+    items: [
       '新增交易支持查看交易后穿透仓位，合并直接与 ETF 间接持仓，对比交易前后占比和前五标的集中度。',
       '交易记录新增操作复盘，展示成交日收盘后 5／20／60 个交易日的股价表现及期间最高、最低涨跌幅；数据不足时保留未知。',
     ],

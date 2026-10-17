@@ -582,11 +582,11 @@ test('the default local MA200 fixture is deterministic, explicitly simulated, an
   }
 });
 
-function selectLocalStockDetailOverride(ma200LivePreview, ma200LiveStockDetail, mockWatchlistStockDetailData) {
+function selectLocalStockDetailOverride(ma200LivePreview, ma200LiveStockDetail, mockWatchlistStockDetailData, buyReferencePreview = null) {
   const expression = devPreviewSource.match(/watchlistStockDetailDataOverride:\s*([\s\S]*?),\n\s*watchlistStockDetailEarningsOverride:/)?.[1];
   assert.ok(expression, 'the actual preview override must be available for behavioral verification');
-  return new Function('ma200LivePreview', 'ma200LiveStockDetail', 'mockWatchlistStockDetailData', `return (${expression});`)(
-    ma200LivePreview, ma200LiveStockDetail, mockWatchlistStockDetailData,
+  return new Function('ma200LivePreview', 'ma200LiveStockDetail', 'mockWatchlistStockDetailData', 'buyReferencePreview', `return (${expression});`)(
+    ma200LivePreview, ma200LiveStockDetail, mockWatchlistStockDetailData, buyReferencePreview,
   );
 }
 
@@ -611,6 +611,17 @@ test('requested real stock-trend preview never falls back to sample series or RS
     assert.deepEqual(actual.indicators, {});
     assert.equal(actual.stockRsi, null, 'neither a pending nor failed real request may display the 83.6 sample');
   }
+});
+
+test('explicit buy-reference simulation stays isolated and cannot replace a requested real preview', () => {
+  const sample = { history: [{ date: '2026-07-17', close: 185 }], stockRsi: { value: 83.6 } };
+  const simulation = { history: [{ date: '2026-10-16', close: 245 }], stockRsi: { value: 42.1 } };
+  const local = selectLocalStockDetailOverride(false, null, sample, simulation);
+  assert.equal(local.history, simulation.history);
+  assert.equal(local.stockRsi, simulation.stockRsi);
+  const pendingLive = selectLocalStockDetailOverride(true, null, sample, simulation);
+  assert.deepEqual(pendingLive.history, []);
+  assert.equal(pendingLive.stockRsi, null);
 });
 
 test('real preview retains its provider history and paired RSI without filling an absent signal from the sample', () => {
