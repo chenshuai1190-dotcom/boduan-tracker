@@ -4,6 +4,15 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '取消股票趋势中的买入参考功能，恢复原有指标布局；TQQQ 新交易自动带入价格继续保留两位小数。',
+    ],
+    itemsEn: [
+      'Removed the entry-reference feature from stock trends and restored the existing indicator layout. Suggested prices for new TQQQ trades retain two decimals.',
+    ],
+  },
+  {
+    ver: 'v10.7.9.561', date: '2026-10-17',
+    items: [
       '股票趋势新增买入参考，结合 RSI(6)、均线趋势与收盘确认，展示回调观察、买入参考已触发、失效和到期状态，可展开查看条件与有效期。',
       'TQQQ 新增买入、卖出自动带入价格截取至两位小数，预计成交额同步计算；手动输入和历史成交价格保留原有精度。',
     ],

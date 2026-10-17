@@ -5,7 +5,6 @@ import TqqqRsiDesignPreview from './dev/TqqqRsiDesignPreview.jsx';
 import { legacyStockPnlReportPreview } from './dev/stockPnlReportPreview.js';
 import { exposurePreviewTrades, exposurePreviewQuotes, exposurePreviewSummary, loadExposurePreviewMetadata } from './dev/tradeExposurePreview.js';
 import { loadTradeOutcomeReviewPreview } from './dev/tradeOutcomeReviewPreview.js';
-import { buildStockBuyReferencePreview } from './dev/stockBuyReferencePreview.js';
 import { formatTqqqSuggestedPrice } from './lib/tqqqTradePrice.js';
 import {
   AlertCircle,
@@ -2066,9 +2065,6 @@ function StandardDevVisualPreview({ initialTab = '' }) {
   const watchlistDetailFocusSection = typeof window === 'undefined'
     ? ''
     : new URLSearchParams(window.location.search).get('stockDetailFocus') || '';
-  const buyReferencePreviewState = typeof window === 'undefined'
-    ? '' : new URLSearchParams(window.location.search).get('buyReference') || '';
-  const buyReferencePreview = React.useMemo(() => buildStockBuyReferencePreview(buyReferencePreviewState), [buyReferencePreviewState]);
   const watchlistDetailTargetEditorOpen = typeof window !== 'undefined'
     && new URLSearchParams(window.location.search).get('targetEditor') === '1';
   const watchlistDetailValuationTooltipOpen = typeof window !== 'undefined'
@@ -3146,14 +3142,14 @@ function StandardDevVisualPreview({ initialTab = '' }) {
       name: watchlistFundCompositionPreview
         ? 'TQQQ'
         : homeWatchlist.find((row) => row.symbol === previewWatchlistDetailSymbol)?.name || previewWatchlistDetailSymbol,
-      price: buyReferencePreview?.history?.at(-1)?.close ?? (homeWatchlist.find((row) => row.symbol === previewWatchlistDetailSymbol)?.price || 202.81),
+      price: homeWatchlist.find((row) => row.symbol === previewWatchlistDetailSymbol)?.price || 202.81,
     }],
     quoteRows: [{
       symbol: watchlistFundCompositionPreview ? 'TQQQ' : previewWatchlistDetailSymbol,
       name: watchlistFundCompositionPreview
         ? 'TQQQ'
         : homeWatchlist.find((row) => row.symbol === previewWatchlistDetailSymbol)?.name || previewWatchlistDetailSymbol,
-      price: buyReferencePreview?.history?.at(-1)?.close ?? (homeWatchlist.find((row) => row.symbol === previewWatchlistDetailSymbol)?.price || 202.81),
+      price: homeWatchlist.find((row) => row.symbol === previewWatchlistDetailSymbol)?.price || 202.81,
     }],
     investmentSummary: {
       positions: [{
@@ -3185,7 +3181,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
         stockRsi: null,
         ...ma200LiveStockDetail,
       }
-      : buyReferencePreview ? { ...mockWatchlistStockDetailData, ...buyReferencePreview } : mockWatchlistStockDetailData,
+      : mockWatchlistStockDetailData,
     watchlistStockDetailEarningsOverride: mockWatchlistStockDetailEarnings,
     watchlistStockDetailFundCompositionOverride: watchlistFundCompositionPreview
       ? mockTqqqFundComposition
@@ -3509,7 +3505,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
           : {}),
       }}
     >
-      {(featurePreview || (buyReferencePreview && activeTab === 'watchlist-stock-detail')) && <div role="note" style={{ position: 'fixed', bottom: 8, left: '50%', transform: 'translateX(-50%)', zIndex: 110, padding: '4px 10px', borderRadius: 7, color: '#a1a1aa', background: '#171719', fontSize: 11, whiteSpace: 'nowrap', pointerEvents: 'none' }}>本地设计 · 示例数据</div>}
+      {featurePreview && <div role="note" style={{ position: 'fixed', bottom: 8, left: '50%', transform: 'translateX(-50%)', zIndex: 110, padding: '4px 10px', borderRadius: 7, color: '#a1a1aa', background: '#171719', fontSize: 11, whiteSpace: 'nowrap', pointerEvents: 'none' }}>本地设计 · 示例数据</div>}
       <Suspense fallback={<div className="py-12 text-center text-sm text-white/45">加载本地预览...</div>}>
         {activeTab === 'pnl-report'
           ? <PnlReportPage ctx={homeCtx} />

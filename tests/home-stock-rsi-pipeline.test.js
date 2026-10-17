@@ -288,12 +288,7 @@ test('detail risk reuses verified MA history while ordinary quotes keep active r
   assert.deepEqual(ordinary.stockRsi.trendMomentum, detail.stockRsi.trendMomentum,
     'Home and Stock Trend must use identical completed-daily RSI states without loading detail data on Home');
   assert.ok(['NONE', 'LOW', 'MEDIUM', 'HIGH'].includes(detail.stockRsi.divergenceRiskLevel));
-  assert.equal(Object.hasOwn(ordinary.stockRsi, 'buyReference'), false);
-  assert.equal(detail.stockRsi.buyReference.asOfDate, detail.stockDetail.asOfDate);
-  assert.equal(missingSplits.stockRsi.buyReference.state, 'unavailable');
-  const detailedRsi = buildStockRsi(rows, {
-    completedCutoffDate: '2026-09-10', includeTrendMomentum: true, buyReferenceHistory: detail.stockDetail.history,
-  });
+  const detailedRsi = buildStockRsi(rows, { completedCutoffDate: '2026-09-10', includeTrendMomentum: true });
   assert.deepEqual(detail.stockRsi, { ...detailedRsi, ...buildStockRsiRisk(original, {
     eodRows: rows, stockDetail: detail.stockDetail, completedCutoffDate: '2026-09-10',
   }) });

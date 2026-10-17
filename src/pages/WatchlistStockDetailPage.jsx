@@ -9,7 +9,6 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import CompanyValuationCard from '../components/CompanyValuationCard.jsx';
-import StockBuyReference from '../components/StockBuyReference.jsx';
 import Ma200RetestHistoryCard from '../components/Ma200RetestHistoryCard.jsx';
 import StockLogo, { stockLogoCandidates } from '../components/StockLogo.jsx';
 import TargetEditor from '../components/StockTargetEditor.jsx';
@@ -1739,15 +1738,6 @@ export default function WatchlistStockDetailPage({ ctx = {} }) {
               {maTrend.status === 'unavailable' ? '—' : t(language, `watchlistDetail.maTrend.${maTrend.status}`, '—')}
             </strong>
           </div>
-        </div>
-
-        <div data-watchlist-detail-section="buy-reference">
-          <StockBuyReference
-            reference={loading || loadError ? null : rsiSignal?.buyReference}
-            language={language}
-            currency={stockCurrency}
-            asOfDate={close.asOfDate}
-          />
         </div>
 
         <div className="stock-report-ma-heading">{language === 'en' ? 'Moving averages' : '均线观察'}</div>

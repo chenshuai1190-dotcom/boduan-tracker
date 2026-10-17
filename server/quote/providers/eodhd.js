@@ -814,7 +814,6 @@ export async function fetchStockQuote(symbol, {
           stockRsi = buildStockRsi(quoteEodData, {
             completedCutoffDate: completedEodCutoffDate,
             includeTrendMomentum: true,
-            ...(includeStockDetail ? { buyReferenceHistory: stockDetail?.history || [] } : {}),
           });
           // Read-only second layer. Ordinary quotes do not fetch split/MA data
           // for scoring; an active event without verified MA context stays unscored.
