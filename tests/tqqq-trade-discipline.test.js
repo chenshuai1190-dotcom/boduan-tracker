@@ -69,7 +69,7 @@ function renderTrade(draft) {
   const form = TqqqTradeEntryPanel({ draft, preview: tradePreview, onDraftChange() {},
     marketReference: deriveTqqqMarketReference({}), logoCache: {}, tt });
   const amount = TqqqTradeAmount({ preview: tradePreview, side: draft.side, tt });
-  return { ...renderShell({ children: form, footerContent: amount,
+  return { ...renderShell({ children: form, footerContent: amount, scrollFooterContent: true,
     actions: [{ key: 'confirm', label: '确认交易', onClick() {} }] }), tradePreview };
 }
 
@@ -405,8 +405,8 @@ test('shows objective buy references only and keeps sell focused on the formal h
   const dateStart = panelSource.indexOf('className="tqqq-entry-date"');
   const amountExportStart = panelSource.indexOf('export function TqqqTradeAmount');
   assert.ok(amountExportStart > dateStart && dateStart > panelSource.indexOf('className="tqqq-entry-fields"'), 'the date remains in the scrollable inputs while the estimate is exported separately');
-  assert.doesNotMatch(panelSource.slice(0, amountExportStart), /className="tqqq-entry-amount"/, 'the scrollable form must not duplicate the fixed estimate');
-  assert.match(tradesTabSource, /footerContent=\{isTqqqTradeEntry \|\| isGenericLedgerTradeEntry\s*\?\s*<>\s*\{isTqqqTradeEntry\s*\?\s*<TqqqTradeAmount\b[^>]*preview=\{tqqqTradePreview\}[^>]*side=\{newTrade\.side\}[^>]*tt=\{tt\}\s*\/>\s*:\s*<GenericLedgerTradeAmount\b[^>]*draft=\{newTrade\}[^>]*tt=\{tt\}\s*\/>\}\s*<TradeCostPreview preview=\{tradeCostPreview\} tt=\{tt\}\s*\/>\s*<\/>\s*:\s*null\}/, 'formal entries retain their respective fixed estimates and add a read-only cost preview; wave entries remain unchanged');
+  assert.doesNotMatch(panelSource.slice(0, amountExportStart), /className="tqqq-entry-amount"/, 'the form and footer slot must not duplicate the estimate');
+  assert.match(tradesTabSource, /footerContent=\{isTqqqTradeEntry \|\| isGenericLedgerTradeEntry\s*\?\s*<>\s*\{isTqqqTradeEntry\s*\?\s*<TqqqTradeAmount\b[^>]*preview=\{tqqqTradePreview\}[^>]*side=\{newTrade\.side\}[^>]*tt=\{tt\}\s*\/>\s*:\s*<GenericLedgerTradeAmount\b[^>]*draft=\{newTrade\}[^>]*tt=\{tt\}\s*\/>\}\s*<TradeCostPreview preview=\{tradeCostPreview\} tt=\{tt\}\s*\/>\s*<\/>\s*:\s*null\}/, 'formal entries retain their respective estimates and read-only cost preview; wave entries remain unchanged');
   assert.ok(panelSource.includes('tqqq-trade-date-input appearance-none pl-9 pr-9 text-center'));
   assert.ok(panelSource.includes("splitCurrencyAmount(preview.amountUsd, 'USD', 2)"));
   assert.ok(panelSource.includes('{preview.inputReady ? <>{amountParts.main}<span className="tqqq-entry-amount-decimal">{amountParts.decimal}</span></> : \'—\'}'), 'an incomplete draft should not show a fabricated zero estimate');
@@ -415,24 +415,37 @@ test('shows objective buy references only and keeps sell focused on the formal h
   assert.equal(/market breadth|市场广度|maximum drawdown|最大回撤/i.test(panelSource), false);
 });
 
-test('the real TQQQ modal renders its estimate once outside the scroller and before the actions', () => {
+test('TQQQ scrolls its estimate with the form so the footer cannot cover the RSI reading', () => {
   const { tree, html } = renderTrade({ symbol: 'TQQQ', side: 'buy', date: '2026-09-14', price: '74.29', shares: '11' });
   const dialog = nodes(tree, node => node.props.role === 'dialog')[0];
   const children = React.Children.toArray(dialog.props.children);
   const scrollerIndex = children.findIndex(node => hasClass(node, 'overflow-y-auto'));
-  const footerIndex = children.findIndex(node => node.props['data-action-modal-footer'] === 'true');
   const actionIndex = children.findIndex(node => nodes(node, child => child.type === 'button' && child.props.children === '确认交易').length > 0);
-  assert.ok(scrollerIndex >= 0 && footerIndex > scrollerIndex && actionIndex > footerIndex);
-  assert.ok(hasClass(children[footerIndex], 'shrink-0'));
-  assert.ok(hasClass(children[footerIndex], 'min-w-0'));
-  assert.equal(byClass(children[scrollerIndex], 'tqqq-entry-amount').length, 0);
-  assert.equal(byClass(children[footerIndex], 'tqqq-entry-amount').length, 1);
+  assert.ok(scrollerIndex >= 0 && actionIndex > scrollerIndex);
+  assert.equal(children.filter(node => node.props['data-action-modal-footer'] === 'true').length, 0);
+  const footer = nodes(children[scrollerIndex], node => node.props['data-action-modal-footer'] === 'true');
+  assert.equal(footer.length, 1);
+  assert.equal(byClass(footer[0], 'tqqq-entry-amount').length, 1);
   assert.equal(byClass(tree, 'tqqq-entry-amount').length, 1);
   assert.equal((html.match(/class="tqqq-entry-amount"/g) || []).length, 1);
-  assert.equal(nodes(children[scrollerIndex], node => node.type === 'input').length, 3, 'price, quantity and date remain in the original internal scroller');
+  assert.equal(nodes(children[scrollerIndex], node => node.type === 'input').length, 3);
+  assert.equal(nodes(children[actionIndex], node => node.type === 'button').length, 1, 'confirmation remains fixed outside the form');
 });
 
-test('fixed TQQQ estimates follow the real draft preview, preserving cents, sell labels and incomplete inputs', () => {
+test('other shared dialogs retain their fixed footer unless explicitly opted into scrolling', () => {
+  const footerContent = React.createElement('span', null, '汇总');
+  for (const props of [{}, { scrollFooterContent: false }]) {
+    const { tree } = renderShell({ ...props, children: React.createElement('p', null, '内容'), footerContent });
+    const dialog = nodes(tree, node => node.props.role === 'dialog')[0];
+    const children = React.Children.toArray(dialog.props.children);
+    const scrollerIndex = children.findIndex(node => hasClass(node, 'overflow-y-auto'));
+    const footerIndex = children.findIndex(node => node.props['data-action-modal-footer'] === 'true');
+    assert.ok(footerIndex > scrollerIndex);
+    assert.equal(nodes(children[scrollerIndex], node => node.props['data-action-modal-footer'] === 'true').length, 0);
+  }
+});
+
+test('TQQQ estimates follow the real draft preview, preserving cents, sell labels and incomplete inputs', () => {
   for (const [price, shares, expected] of [
     ['74.29', '11', '$817.19'],
     ['95.125', '8', '$761.00'],

@@ -1915,6 +1915,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
             closeLabel={tt('trades.closeTradeForm', '关闭交易表单')}
             onClose={() => !tradeSubmitting && setShowAddTrade(false)}
             compactKeyboardSpacing={isTqqqTradeEntry || isGenericLedgerTradeEntry}
+            scrollFooterContent={isTqqqTradeEntry}
             widthClassName={isTqqqTradeEntry || isGenericLedgerTradeEntry ? 'w-[calc(100vw-32px)] max-w-[440px]' : 'w-[calc(100vw-24px)] max-w-md'}
             panelClassName={isTqqqTradeEntry
               ? 'stock-report-modal tqqq-trade-dialog'

@@ -10,6 +10,7 @@ export default function ActionModalCard({
   onClose,
   children,
   footerContent = null,
+  scrollFooterContent = false,
   actions = [],
   actionGridClassName = '',
   actionClassName = '',
@@ -26,6 +27,11 @@ export default function ActionModalCard({
   compactKeyboardSpacing = false,
 }) {
   const actionColumns = actionGridClassName || (actions.length === 1 ? 'grid-cols-1' : 'grid-cols-2');
+  const footer = footerContent ? (
+    <div className="min-w-0 shrink-0" data-action-modal-footer="true">
+      {footerContent}
+    </div>
+  ) : null;
   const [visualViewportFrame, setVisualViewportFrame] = React.useState(null);
   const panelRef = React.useRef(null);
   const contentRef = React.useRef(null);
@@ -156,13 +162,10 @@ export default function ActionModalCard({
 
         <div ref={contentRef} className={`min-h-[84px] min-w-0 max-w-full flex-1 overflow-y-auto overscroll-contain rounded-[13px] border border-white/[0.025] bg-[linear-gradient(112deg,rgba(20,23,31,0.78),rgba(14,16,23,0.52))] px-3 py-[13px] shadow-[inset_0_1px_0_rgba(255,255,255,0.018)] ${contentClassName}`}>
           {children}
+          {scrollFooterContent && footer}
         </div>
 
-        {footerContent && (
-          <div className="min-w-0 shrink-0" data-action-modal-footer="true">
-            {footerContent}
-          </div>
-        )}
+        {!scrollFooterContent && footer}
 
         {actions.length > 0 && (
           <div className={`mt-4 grid shrink-0 gap-2.5 ${actionColumns}`}>

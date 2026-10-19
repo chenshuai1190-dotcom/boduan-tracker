@@ -10,7 +10,7 @@ export function getTqqqRsiReferenceState(observation) {
   const { value } = state;
   return {
     ...state,
-    status: value === null ? 'unavailable' : value <= 20 ? 'extremely-oversold' : value <= 30 ? 'buy-watch' : value >= 70 ? 'sell-watch' : 'neutral',
+    status: value === null ? 'unavailable' : value <= 15 ? 'panic-oversold' : value <= 20 ? 'extremely-oversold' : value <= 30 ? 'buy-watch' : value >= 70 ? 'sell-watch' : 'neutral',
   };
 }
 
@@ -25,6 +25,7 @@ export default function TqqqRsiReference({ observation, side = 'buy', englishMod
   const isSell = side === 'sell';
   const copy = englishMode ? {
     label: `TQQQ ${isSell ? 'sell' : 'buy'} RSI(6) reference`,
+    'panic-oversold': 'Panic oversold',
     'extremely-oversold': 'Extremely oversold',
     'buy-watch': 'Buy watch zone',
     'sell-watch': 'Sell watch zone',
@@ -39,6 +40,7 @@ export default function TqqqRsiReference({ observation, side = 'buy', englishMod
     close: 'Close',
   } : {
     label: `TQQQ ${isSell ? '卖出' : '买入'} RSI(6) 参考`,
+    'panic-oversold': '恐慌超卖',
     'extremely-oversold': '极端超卖',
     'buy-watch': '买入观察',
     'sell-watch': '卖出观察',
@@ -63,7 +65,10 @@ export default function TqqqRsiReference({ observation, side = 'buy', englishMod
         <strong className="tqqq-rsi-reference-value" title={available ? String(state.value) : undefined}>
           {available ? formatRsi(state.value) : '—'}
         </strong>
-        <span className="tqqq-rsi-reference-status">{available ? copy[state.status] : (unavailableLabel || copy.unavailable)}</span>
+        <span className="tqqq-rsi-reference-status">
+          {state.status === 'panic-oversold' && <i className="tqqq-rsi-reference-alert-dot" aria-hidden="true" />}
+          <span>{available ? copy[state.status] : (unavailableLabel || copy.unavailable)}</span>
+        </span>
       </div>
       <div className="tqqq-rsi-reference-change">
         {hasPrevious ? (

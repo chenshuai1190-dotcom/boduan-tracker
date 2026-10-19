@@ -181,3 +181,16 @@ test('only ordinary and TQQQ formal trade modals opt into compact keyboard spaci
     assert.equal(modal({ scope: 'wave', draft: { symbol, side: 'buy' } }).props.compactKeyboardSpacing, false);
   }
 });
+
+
+test('only formal TQQQ scrolls the amount and cost with the form while keeping its confirmation action', () => {
+  for (const side of ['buy', 'sell']) {
+    for (const symbol of ['TQQQ', 'tqqq.us', 'NVDA']) {
+      const result = modal({ scope: 'ledger', draft: { symbol, side } });
+      assert.equal(result.props.scrollFooterContent, symbol !== 'NVDA');
+      assert.equal(result.props.actions.length, 1);
+      assertCostFooter(result, symbol === 'NVDA' ? 'generic-trade-amount' : 'tqqq-trade-amount');
+      assert.equal(modal({ scope: 'wave', draft: { symbol, side } }).props.scrollFooterContent, false);
+    }
+  }
+});

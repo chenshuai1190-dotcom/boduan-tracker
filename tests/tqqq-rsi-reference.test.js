@@ -14,14 +14,37 @@ const { default: TqqqRsiReference, getTqqqRsiReferenceState: stateOf } = await i
 const observation = Object.freeze({ value: 28.6, asOf: '2026-10-02', previousValue: 31.4, previousAsOf: '2026-10-01' });
 const render = (overrides = {}, props = {}) => renderToStaticMarkup(React.createElement(TqqqRsiReference, { observation: { ...observation, ...overrides }, ...props }));
 
-test('reference thresholds include 20, 30 and 70 and retain the supplied RSI without recalculating it', () => {
-  for (const [value, expected] of [[0, 'extremely-oversold'], [19.99999, 'extremely-oversold'], [20, 'extremely-oversold'],
+test('reference thresholds include 15, 20, 30 and 70 and retain the supplied RSI without recalculating it', () => {
+  for (const [value, expected] of [[0, 'panic-oversold'], [14.99999, 'panic-oversold'], [15, 'panic-oversold'],
+    [15.00001, 'extremely-oversold'], [19.99999, 'extremely-oversold'], [20, 'extremely-oversold'],
     [20.00001, 'buy-watch'], [30, 'buy-watch'], [30.01, 'neutral'], [69.99, 'neutral'], [70, 'sell-watch'], [100, 'sell-watch']]) {
     const state = stateOf({ ...observation, value });
     assert.equal(state.status, expected);
     assert.equal(state.value, value);
   }
   assert.deepEqual(observation, { value: 28.6, asOf: '2026-10-02', previousValue: 31.4, previousAsOf: '2026-10-01' });
+});
+
+test('panic oversold alerts apply to either trade side and language while retaining the RSI number and watch thresholds', () => {
+  for (const side of ['buy', 'sell']) {
+    for (const englishMode of [false, true]) {
+      const html = render({ value: 14.8765 }, { side, englishMode });
+      assert.match(html, /data-status="panic-oversold"/);
+      assert.ok(html.includes(englishMode ? '>Panic oversold<' : '>恐慌超卖<'));
+      assert.match(html, /class="tqqq-rsi-reference-value" title="14\.8765">14\.88</);
+      assert.match(html, /tqqq-rsi-reference-dot[^>]*style="left:14\.8765%"/);
+      assert.match(html, /class="tqqq-rsi-reference-alert-dot" aria-hidden="true"/);
+      assert.ok(html.includes(englishMode ? 'Buy watch ≤30' : '买入关注 ≤30'));
+      assert.ok(html.includes(englishMode ? 'Sell watch ≥70' : '卖出关注 ≥70'));
+    }
+  }
+  const justAbove = render({ value: 15.00001 });
+  assert.match(justAbove, /title="15\.00001">15\.0</);
+  assert.match(justAbove, /data-status="extremely-oversold"/);
+  assert.doesNotMatch(justAbove, /恐慌超卖|tqqq-rsi-reference-alert-dot/);
+  for (const value of [20, 30, 50, 75, null]) {
+    assert.doesNotMatch(render({ value }), /tqqq-rsi-reference-alert-dot/);
+  }
 });
 
 test('extreme oversold is localized for buy and sell without replacing existing watch thresholds', () => {
@@ -44,13 +67,16 @@ test('extreme oversold is localized for buy and sell without replacing existing 
   assert.doesNotMatch(justAbove, /极端超卖/);
 });
 
-test('extreme oversold needs a valid current observation and does not add a directional 20 crossing', () => {
+test('low RSI alerts need a valid current observation and do not add directional 15 or 20 crossings', () => {
   for (const asOf of [null, '', '2026-02-30']) {
     const html = render({ value: 15, asOf });
     assert.equal(stateOf({ ...observation, value: 15, asOf }).status, 'unavailable');
-    assert.doesNotMatch(html, /极端超卖|tqqq-rsi-reference-dot/);
+    assert.doesNotMatch(html, /恐慌超卖|极端超卖|tqqq-rsi-reference-(?:alert-)?dot/);
   }
-  for (const [previousValue, value, status] of [[null, 20, 'extremely-oversold'], [21, 20, 'extremely-oversold'], [19, 21, 'buy-watch']]) {
+  for (const [previousValue, value, status] of [
+    [null, 15, 'panic-oversold'], [16, 15, 'panic-oversold'], [14, 16, 'extremely-oversold'],
+    [null, 20, 'extremely-oversold'], [21, 20, 'extremely-oversold'], [19, 21, 'buy-watch'],
+  ]) {
     const state = stateOf({ ...observation, value, previousValue });
     assert.equal(state.status, status);
     assert.equal(state.crossing, null);
@@ -63,7 +89,7 @@ test('only finite numeric RSI in range with a real ISO date is displayed', () =>
     const html = render({ value });
     assert.match(html, /暂无数据/);
     assert.match(html, /tqqq-rsi-reference-value[^>]*>—</);
-    assert.doesNotMatch(html, /tqqq-rsi-reference-dot|<time|→/);
+    assert.doesNotMatch(html, /恐慌超卖|极端超卖|tqqq-rsi-reference-(?:alert-)?dot|<time|→/);
   }
   for (const asOf of [null, '', '2026-02-30', '2026-13-02', '2026-10-2', '2026-10-02T16:00:00Z']) {
     assert.equal(stateOf({ ...observation, asOf }).status, 'unavailable');
