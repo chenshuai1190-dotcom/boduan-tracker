@@ -10,7 +10,7 @@ export function getTqqqRsiReferenceState(observation) {
   const { value } = state;
   return {
     ...state,
-    status: value === null ? 'unavailable' : value <= 30 ? 'buy-watch' : value >= 70 ? 'sell-watch' : 'neutral',
+    status: value === null ? 'unavailable' : value <= 20 ? 'extremely-oversold' : value <= 30 ? 'buy-watch' : value >= 70 ? 'sell-watch' : 'neutral',
   };
 }
 
@@ -25,6 +25,7 @@ export default function TqqqRsiReference({ observation, side = 'buy', englishMod
   const isSell = side === 'sell';
   const copy = englishMode ? {
     label: `TQQQ ${isSell ? 'sell' : 'buy'} RSI(6) reference`,
+    'extremely-oversold': 'Extremely oversold',
     'buy-watch': 'Buy watch zone',
     'sell-watch': 'Sell watch zone',
     neutral: 'Outside watch zones',
@@ -38,6 +39,7 @@ export default function TqqqRsiReference({ observation, side = 'buy', englishMod
     close: 'Close',
   } : {
     label: `TQQQ ${isSell ? '卖出' : '买入'} RSI(6) 参考`,
+    'extremely-oversold': '极端超卖',
     'buy-watch': '买入观察',
     'sell-watch': '卖出观察',
     neutral: '未进入参考区',
@@ -73,12 +75,13 @@ export default function TqqqRsiReference({ observation, side = 'buy', englishMod
       </div>
       <div className="tqqq-rsi-reference-scale" aria-hidden="true">
         <div className="tqqq-rsi-reference-track">
+          <i className="tqqq-rsi-reference-boundary" style={{ left: '20%' }} />
           <i className="tqqq-rsi-reference-boundary" style={{ left: '30%' }} />
           <i className="tqqq-rsi-reference-boundary" style={{ left: '70%' }} />
           {available && <i className="tqqq-rsi-reference-dot" style={{ left: `${state.value}%` }} />}
         </div>
         <div className="tqqq-rsi-reference-ticks">
-          <span>0</span><span style={{ left: '30%' }}>30</span><span style={{ left: '70%' }}>70</span><span>100</span>
+          <span>0</span><span style={{ left: '20%' }}>20</span><span style={{ left: '30%' }}>30</span><span style={{ left: '70%' }}>70</span><span>100</span>
         </div>
       </div>
       <div className="tqqq-rsi-reference-thresholds">

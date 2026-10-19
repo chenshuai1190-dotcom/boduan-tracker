@@ -10,7 +10,7 @@ export function getStockRsiReferenceState(observation) {
   const trendState = stockTrendRsiState(state.value);
   return {
     ...state,
-    status: trendState === null ? 'unavailable' : state.value <= 30 ? 'oversold'
+    status: trendState === null ? 'unavailable' : state.value <= 20 ? 'extremely-oversold' : state.value <= 30 ? 'oversold'
       : trendState === 'STRONGLY_OVERBOUGHT' ? 'strongly-overbought'
         : trendState === 'OVERBOUGHT' ? 'overbought' : 'normal',
   };
@@ -24,13 +24,13 @@ export default function StockRsiReference({ symbol, observation, side = 'buy', e
   const hasPrevious = state.previousValue !== null;
   const copy = englishMode ? {
     label: `${symbol || 'Stock'} ${side === 'sell' ? 'sell' : 'buy'} RSI(6) reference`,
-    oversold: 'Oversold', normal: 'Normal', overbought: 'Overbought', 'strongly-overbought': 'Strongly overbought',
+    'extremely-oversold': 'Extremely oversold', oversold: 'Oversold', normal: 'Normal', overbought: 'Overbought', 'strongly-overbought': 'Strongly overbought',
     unavailable: 'No data', 'above-30': 'Back above 30', 'below-70': 'Back below 70',
     prior: 'Prior', current: 'Current', close: 'Close',
     low: 'Oversold ≤30', high: 'Overbought ≥70 · Strong ≥80',
   } : {
     label: `${symbol || '股票'} ${side === 'sell' ? '卖出' : '买入'} RSI(6) 参考`,
-    oversold: '超卖', normal: '正常', overbought: '超买', 'strongly-overbought': '强超买',
+    'extremely-oversold': '极端超卖', oversold: '超卖', normal: '正常', overbought: '超买', 'strongly-overbought': '强超买',
     unavailable: '暂无数据', 'above-30': '重新站上 30', 'below-70': '重新跌回 70 以下',
     prior: '上一日', current: '本次', close: '收盘',
     low: '超卖 ≤30', high: '超买 ≥70 · 强超买 ≥80',
@@ -54,11 +54,11 @@ export default function StockRsiReference({ symbol, observation, side = 'buy', e
       </div>
       <div className="tqqq-rsi-reference-scale" aria-hidden="true">
         <div className="tqqq-rsi-reference-track">
-          {[30, 70, 80].map(value => <i key={value} className="tqqq-rsi-reference-boundary" style={{ left: `${value}%` }} />)}
+          {[20, 30, 70, 80].map(value => <i key={value} className="tqqq-rsi-reference-boundary" style={{ left: `${value}%` }} />)}
           {available && <i className="tqqq-rsi-reference-dot" style={{ left: `${state.value}%` }} />}
         </div>
         <div className="tqqq-rsi-reference-ticks">
-          <span>0</span>{[30, 70, 80].map(value => <span key={value} style={{ left: `${value}%` }}>{value}</span>)}<span>100</span>
+          <span>0</span>{[20, 30, 70, 80].map(value => <span key={value} style={{ left: `${value}%` }}>{value}</span>)}<span>100</span>
         </div>
       </div>
       <div className="tqqq-rsi-reference-thresholds"><span>{copy.low}</span><span>{copy.high}</span></div>

@@ -6,6 +6,7 @@ import './TqqqRsiDesignPreview.css';
 
 // Local design fixtures never enter the live quote or trade-save paths.
 const scenarios = {
+  extreme: { zh: '极端超卖', en: 'Extremely oversold', value: 18.6, previousValue: 24.3 },
   oversold: { zh: '超卖', en: 'Oversold', value: 28.6, previousValue: 31.4 },
   normal: { zh: '正常', en: 'Normal', value: 48.2, previousValue: 45.6 },
   overbought: { zh: '超买', en: 'Overbought', value: 74.2, previousValue: 68.9 },

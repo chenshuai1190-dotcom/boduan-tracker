@@ -4,6 +4,7 @@ import './TqqqRsiDesignPreview.css';
 
 // Deterministic design examples only. Never supplied by the production App.
 export const TQQQ_RSI_DESIGN_SCENARIOS = Object.freeze({
+  extreme: { zh: '极端超卖', en: 'Extremely oversold', value: 18.6, previousValue: 24.3 },
   buy: { zh: '买入观察', en: 'Buy watch', value: 28.6, previousValue: 31.4 },
   recover: { zh: '站上 30', en: 'Cross above 30', value: 32.4, previousValue: 27.8 },
   sell: { zh: '卖出观察', en: 'Sell watch', value: 74.2, previousValue: 68.9 },

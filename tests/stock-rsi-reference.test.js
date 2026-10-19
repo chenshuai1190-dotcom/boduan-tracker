@@ -15,8 +15,9 @@ const observation = Object.freeze({ value: 83.6123, asOf: '2026-10-02', previous
 const render = (patch = {}, props = {}) => renderToStaticMarkup(React.createElement(StockRsiReference,
   { symbol: 'META', observation: { ...observation, ...patch }, ...props }));
 
-test('stock reference uses the exact 30 boundary and shared 70/80 trend states without rounded comparisons', () => {
-  for (const [value, status] of [[0, 'oversold'], [30, 'oversold'], [30.00001, 'normal'],
+test('stock reference uses exact 20/30 boundaries and shared 70/80 trend states without rounded comparisons', () => {
+  for (const [value, status] of [[0, 'extremely-oversold'], [19.99999, 'extremely-oversold'], [20, 'extremely-oversold'],
+    [20.00001, 'oversold'], [30, 'oversold'], [30.00001, 'normal'],
     [69.99999, 'normal'], [70, 'overbought'], [79.99999, 'overbought'], [80, 'strongly-overbought'], [100, 'strongly-overbought']]) {
     const state = stateOf({ ...observation, value });
     assert.equal(state.status, status);
@@ -35,9 +36,43 @@ test('stock reference labels follow the symbol and language while retaining a da
   assert.match(html, /Prior 78\.1/);
   assert.match(html, /<time dateTime="2026-10-02">2026-10-02<\/time>/);
   assert.doesNotMatch(html, /TQQQ|买入|卖出|收盘|暂无|<input|<button/);
-  assert.match(render({ value: 20 }), />超卖</);
+  assert.match(render({ value: 20 }), />极端超卖</);
+  assert.match(render({ value: 20.00001 }), />超卖</);
   assert.match(render({ value: 45 }), />正常</);
   assert.match(render({ value: 75 }), />超买</);
+});
+
+test('extreme oversold is localized for either trade side and retains the original RSI and compact scale', () => {
+  for (const side of ['buy', 'sell']) {
+    for (const englishMode of [false, true]) {
+      const html = render({ value: 19.8765 }, { side, englishMode });
+      assert.match(html, /data-status="extremely-oversold"/);
+      assert.ok(html.includes(englishMode ? '>Extremely oversold<' : '>极端超卖<'));
+      assert.match(html, /class="tqqq-rsi-reference-value" title="19\.8765">19\.88</);
+      assert.match(html, /tqqq-rsi-reference-dot[^>]*style="left:19\.8765%"/);
+      assert.match(html, /tqqq-rsi-reference-boundary[^>]*style="left:20%"/);
+      assert.match(html, /<span style="left:20%">20<\/span>/);
+      assert.ok(html.includes(englishMode ? 'Oversold ≤30' : '超卖 ≤30'));
+      assert.ok(html.includes(englishMode ? 'Overbought ≥70 · Strong ≥80' : '超买 ≥70 · 强超买 ≥80'));
+    }
+  }
+  const justAbove = render({ value: 20.00001 });
+  assert.match(justAbove, /title="20\.00001">20\.0</);
+  assert.match(justAbove, /data-status="oversold"/);
+  assert.doesNotMatch(justAbove, /极端超卖/);
+});
+
+test('extreme oversold requires a valid current observation but not a previous observation or a crossing', () => {
+  for (const asOf of [null, '', '2026-02-30']) {
+    const html = render({ value: 15, asOf });
+    assert.equal(stateOf({ ...observation, value: 15, asOf }).status, 'unavailable');
+    assert.doesNotMatch(html, /极端超卖|tqqq-rsi-reference-dot/);
+  }
+  for (const previousValue of [null, 19, 21]) {
+    const state = stateOf({ ...observation, value: 20, previousValue });
+    assert.equal(state.status, 'extremely-oversold');
+    assert.equal(state.crossing, null);
+  }
 });
 
 test('missing current RSI stays unknown and missing or gapped previous RSI never implies a crossing', () => {
