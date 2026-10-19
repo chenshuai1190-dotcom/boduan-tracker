@@ -248,7 +248,7 @@ export function resetDrawdownObservationMemoryCache() {
 }
 
 export function getDrawdownViewState(userId) {
-  return { scope: 'watchlist', minDepth: 0, order: 'deepest', scrollTop: 0, ...viewStates.get(identityOf(userId)) };
+  return { scope: 'watchlist', minDepth: 0, order: 'rsi-lowest', maxRsi: null, scrollTop: 0, ...viewStates.get(identityOf(userId)) };
 }
 
 export function setDrawdownViewState(userId, value) {
@@ -259,7 +259,8 @@ export function setDrawdownViewState(userId, value) {
   const next = getDrawdownViewState(identity);
   if (['watchlist', 'holdings'].includes(value.scope)) next.scope = value.scope;
   if ([0, 10, 20].includes(value.minDepth)) next.minDepth = value.minDepth;
-  if (['deepest', 'shallowest'].includes(value.order)) next.order = value.order;
+  if (['rsi-lowest', 'rsi-highest', 'deepest', 'shallowest'].includes(value.order)) next.order = value.order;
+  if (value.maxRsi === null || (typeof value.maxRsi === 'number' && Number.isFinite(value.maxRsi) && value.maxRsi >= 0 && value.maxRsi <= 100)) next.maxRsi = value.maxRsi;
   if (typeof value.scrollTop === 'number' && Number.isFinite(value.scrollTop) && value.scrollTop >= 0) next.scrollTop = Math.min(value.scrollTop, 1000000);
   viewStates.delete(identity);
   viewStates.set(identity, next);

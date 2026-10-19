@@ -16,7 +16,9 @@ function loadCapturedFixture() {
 // The default acceptance path uses captured real public prices; fictional prices
 // remain accessible only through an explicit DEV design fixture.
 export default function DrawdownObservationPreview({ onBack, initialSymbol = '', marketColorMode = 'redUpGreenDown' }) {
-  const synthetic = import.meta.env.DEV && new URLSearchParams(window.location.search).get('drawdownData') === 'synthetic';
+  const previewParams = new URLSearchParams(window.location.search);
+  const rsiDesign = import.meta.env.DEV && previewParams.get('drawdownRsiDesign') === '1';
+  const synthetic = import.meta.env.DEV && (previewParams.get('drawdownData') === 'synthetic' || rsiDesign);
   const previewSource = React.useMemo(() => {
     return { initialSymbol, verifySession: async ({ userId }) => {
       if (userId !== 'dev-public-market-preview') throw new Error('Invalid preview identity');
@@ -33,7 +35,15 @@ export default function DrawdownObservationPreview({ onBack, initialSymbol = '',
     } };
   }, [initialSymbol]);
   if (!import.meta.env.DEV) return null;
-  if (synthetic) return <DrawdownObservation marketColorMode={marketColorMode} onBack={onBack} initialSymbol={initialSymbol} observations={DRAWDOWN_PREVIEW.instruments.map(item => deriveObservation(item, DRAWDOWN_PREVIEW.asOfDate))} demo vix={DRAWDOWN_PREVIEW.vix} />;
+  if (synthetic) {
+    // Explicit DEV-only design states; the page identifies every reading as demo data.
+    const designRsi = { SPY: 48.2, QQQ: 31.2, NVDA: 14.6, AVGO: 18.6, TSLA: 27.3, AMZN: 29.1, GOOGL: 43.8, META: 72.4, MSFT: 82.6, AAPL: null };
+    const observations = DRAWDOWN_PREVIEW.instruments.map(item => {
+      const row = deriveObservation(item, DRAWDOWN_PREVIEW.asOfDate);
+      return rsiDesign ? { ...row, rsi: { value: designRsi[item.symbol], asOf: designRsi[item.symbol] === null ? null : DRAWDOWN_PREVIEW.asOfDate, previousValue: null, previousAsOf: null } } : row;
+    });
+    return <DrawdownObservation marketColorMode={marketColorMode} onBack={onBack} initialSymbol={initialSymbol} observations={observations} demo vix={DRAWDOWN_PREVIEW.vix} />;
+  }
   return <DrawdownObservationPage previewSource={previewSource} ctx={{ marketColorMode, userId: 'dev-public-market-preview', closeDrawdownObservation: onBack,
     watchlist: ['AAPL', 'MSFT', 'AMZN', 'GOOGL', 'META', 'NVDA', 'TSLA', 'AVGO'],
     positions: [{ symbol: 'NVDA', quantity: 1 }, { symbol: 'MSFT', quantity: 1 }, { symbol: 'META', quantity: 1 }, { symbol: 'AVGO', quantity: 1 }],

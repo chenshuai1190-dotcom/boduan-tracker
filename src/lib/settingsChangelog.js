@@ -4,6 +4,17 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '回撤观察新增收盘 RSI(6) 和超卖等级，默认按最近已完成交易日 RSI 从低到高排序，保留回撤深浅排序。',
+      '支持 RSI ≤30／≤20／≤15 及自定义上限筛选，可与回撤深度组合；缺失或日期未更新的 RSI 不参与当前排名。',
+    ],
+    itemsEn: [
+      'Drawdown Watch adds closing RSI(6) and oversold levels, ranked by the latest completed session’s RSI from low to high by default, with drawdown sorting still available.',
+      'Filter by RSI ≤30, ≤20, ≤15, or a custom maximum alongside drawdown depth. Missing or out-of-date RSI readings are excluded from current RSI rankings.',
+    ],
+  },
+  {
+    ver: 'v10.7.9.562', date: '2026-10-17',
+    items: [
       '取消股票趋势中的买入参考功能，恢复原有指标布局；TQQQ 新交易自动带入价格继续保留两位小数。',
     ],
     itemsEn: [

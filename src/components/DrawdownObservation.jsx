@@ -1,16 +1,29 @@
 import React from 'react';
 import { ArrowDownUp, ArrowLeft, ArrowUpRight, ChevronRight, Info, RotateCcw } from 'lucide-react';
 import { getSamePeriodReturn, selectObservationRows } from '../lib/drawdownObservationModel.js';
-import { marketTextHexColor } from '../lib/marketColorMode.js';
+import { MARKET_GREEN_HEX, MARKET_RED_HEX, marketTextHexColor } from '../lib/marketColorMode.js';
+import { normalizeRsiReferenceObservation } from '../lib/rsiReferenceObservation.js';
 import './DrawdownObservation.css';
 
 const percent = value => Number.isFinite(value) ? `${value > 0 ? '+' : ''}${value.toFixed(1)}%` : '—';
 const money = value => Number.isFinite(value) ? `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—';
 const tone = value => !Number.isFinite(value) || value === 0 ? '' : value > 0 ? 'do-up' : 'do-down';
-const marketStyle = mode => ({ '--do-positive': marketTextHexColor(1, mode), '--do-negative': marketTextHexColor(-1, mode) });
+const marketStyle = mode => ({ '--do-positive': marketTextHexColor(1, mode), '--do-negative': marketTextHexColor(-1, mode), '--do-rsi-low': MARKET_GREEN_HEX, '--do-rsi-alert': MARKET_RED_HEX });
 const shortDate = value => value ? value.slice(5).replace('-', '/') : '—';
 const rowStatus = row => row.status === 'loading' ? '读取中' : row.status === 'error' ? '行情暂不可用' : !Number.isFinite(row.drawdownPct) ? '暂无有效历史' : [row.stale ? `待更新 · ${row.asOfDate}` : '', !row.historySufficient ? '不足 52 周 · 按可用历史' : ''].filter(Boolean).join(' · ');
 const highLabel = row => row.historySufficient ? '距 52 周收盘高点' : '距可用历史收盘高点';
+const sortOptions = [['rsi-lowest', 'RSI 从低到高'], ['rsi-highest', 'RSI 从高到低'], ['deepest', '回撤从深到浅'], ['shallowest', '回撤从浅到深']];
+const validRsiLimit = value => typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 100;
+
+function RsiReadout({ observation, compact = false }) {
+  const { value, asOf } = normalizeRsiReferenceObservation(observation);
+  const status = value === null ? 'unavailable' : value <= 15 ? 'panic-oversold' : value <= 20 ? 'extremely-oversold' : value <= 30 ? 'oversold' : value >= 80 ? 'strongly-overbought' : value >= 70 ? 'overbought' : 'normal';
+  const label = { unavailable: '暂无数据', 'panic-oversold': '恐慌超卖', 'extremely-oversold': '极端超卖', oversold: '超卖', normal: '正常', overbought: '超买', 'strongly-overbought': '强超买' }[status];
+  return <div className={`do-stock-rsi${compact ? ' do-stock-rsi-compact' : ''}`} data-rsi-status={status}>
+    <div className="do-stock-rsi-value"><span>收盘 RSI(6)</span><strong title={value === null ? undefined : String(value)}>{value === null ? '—' : value.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 2 })}</strong><span className="do-stock-rsi-status">{status === 'panic-oversold' && <i aria-hidden="true" />}{label}</span></div>
+    {!compact && <time dateTime={asOf || undefined}>{asOf || '—'}</time>}
+  </div>;
+}
 
 function DepthBar({ value, maxDepth = 50 }) {
   return <div className="do-depth-track" aria-hidden="true"><span style={{ width: `${Number.isFinite(value) ? Math.min(100, Math.max(0, -value / maxDepth * 100)) : 0}%` }} /></div>;
@@ -33,6 +46,7 @@ function MarketCard({ row, onOpen, maxDepth }) {
     <strong className={`do-market-value ${tone(row.drawdownPct)}`}>{percent(row.drawdownPct)}</strong>
     <DepthBar value={row.drawdownPct} maxDepth={maxDepth} />
     <div className="do-market-day"><span>最近交易日</span><span className={tone(row.todayPct)}>{percent(row.todayPct)}</span></div>
+    <RsiReadout observation={row.rsi} compact />
     {rowStatus(row) && <span className="do-row-status">{rowStatus(row)}</span>}
   </button>;
 }
@@ -142,6 +156,7 @@ export function DrawdownObservationDetail({ row, onBack, observations = [], demo
       <div className="do-detail-symbol"><div><h2>{row.symbol}</h2><span>{row.name}</span></div><span className="do-detail-type">{row.kind === 'etf' ? 'ETF' : '美股'}</span></div>
       <div className="do-hero-values"><div><span className="do-muted-label">{highLabel(row)}</span><strong className={`do-hero-depth ${tone(row.drawdownPct)}`}>{percent(row.drawdownPct)}</strong></div><div className="do-hero-today"><span className="do-muted-label">最近交易日</span><strong className={tone(row.todayPct)}>{percent(row.todayPct)}</strong><span>{money(row.price)}</span></div></div>
       <div className="do-high-reference"><span>参考高点 {money(row.high)}</span><span>{row.highDate} · {row.elapsedDays ?? '—'} 天前</span></div>
+      <RsiReadout observation={row.rsi} />
     </section>
     <section ref={inspection} className="do-journey" aria-label="本轮回撤过程">
       <div className="do-section-title"><h2>这一轮，跌到哪里了</h2><span>高点 = 0%</span></div>
@@ -160,7 +175,7 @@ export function DrawdownObservationDetail({ row, onBack, observations = [], demo
       })}</div>
       <p className="do-quiet-note">统一起止日期的价格涨跌，不是各自距高点的差。</p>
     </section>
-    <details className="do-method"><summary><Info size={14} />数据口径与边界<ChevronRight size={14} /></summary><p>{demo ? '此页面使用模拟收盘序列，不代表真实行情。' : '使用 EODHD 日线复权收盘价，包含拆股、分红调整；不是盘中价。'}参考高点为数据截止日往前 364 天内的最高复权收盘价；历史不足时按可用区间计算。曲线仅展示该高点之后的过程。反弹与回到高点所需涨幅按最新观测计算，与个人持仓成本无关。跌幅不代表估值便宜或已经见底。</p><p>最近交易日涨跌相对前一条有效收盘记录计算。同周期比较必须有完全一致的起止日期，缺少数据时显示 —。查看本页不会更改首页基准或产生交易。</p></details>
+    <details className="do-method"><summary><Info size={14} />数据口径与边界<ChevronRight size={14} /></summary><p>{demo ? '此页面使用模拟收盘序列，不代表真实行情。' : '使用 EODHD 日线复权收盘价，包含拆股、分红调整；不是盘中价。'}参考高点为数据截止日往前 364 天内的最高复权收盘价；历史不足时按可用区间计算。曲线仅展示该高点之后的过程。反弹与回到高点所需涨幅按最新观测计算，与个人持仓成本无关。跌幅不代表估值便宜或已经见底。</p><p>RSI(6) 使用最近已完成交易日的收盘数据，不随盘中价格估算。≤15 为恐慌超卖，≤20 为极端超卖，≤30 为超卖；≥70 为超买，≥80 为强超买。超卖等级不是买入信号。</p><p>最近交易日涨跌相对前一条有效收盘记录计算。同周期比较必须有完全一致的起止日期，缺少数据时显示 —。查看本页不会更改首页基准或产生交易。</p></details>
   </div>;
 }
 
@@ -171,7 +186,10 @@ export default function DrawdownObservation({ onBack, initialSymbol = '', observ
   }, [selectedSymbol, observations]);
   const [scope, setScope] = React.useState(initialViewState.scope === 'holdings' ? 'holdings' : 'watchlist');
   const [minDepth, setMinDepth] = React.useState([0, 10, 20].includes(initialViewState.minDepth) ? initialViewState.minDepth : 0);
-  const [order, setOrder] = React.useState(initialViewState.order === 'shallowest' ? 'shallowest' : 'deepest');
+  const [order, setOrder] = React.useState(sortOptions.some(([key]) => key === initialViewState.order) ? initialViewState.order : 'rsi-lowest');
+  const [maxRsi, setMaxRsi] = React.useState(validRsiLimit(initialViewState.maxRsi) ? initialViewState.maxRsi : null);
+  const [customRsi, setCustomRsi] = React.useState(validRsiLimit(initialViewState.maxRsi) && ![15, 20, 30].includes(initialViewState.maxRsi));
+  const [rsiLimitDraft, setRsiLimitDraft] = React.useState(validRsiLimit(initialViewState.maxRsi) ? String(initialViewState.maxRsi) : '30');
   const scrollRef = React.useRef(Number.isFinite(initialViewState.scrollTop) ? Math.max(0, initialViewState.scrollTop) : 0);
   const restoredRef = React.useRef(false);
   const inspectingRef = React.useRef(Boolean(selectedSymbol));
@@ -183,7 +201,7 @@ export default function DrawdownObservation({ onBack, initialSymbol = '', observ
   }, [selectedSymbol, loading]);
   React.useEffect(() => {
     if (!onViewStateChange) return undefined;
-    const save = () => onViewStateChange({ scope, minDepth, order, scrollTop: scrollRef.current });
+    const save = () => onViewStateChange({ scope, minDepth, order, maxRsi, scrollTop: scrollRef.current });
     const onScroll = () => {
       if (inspectingRef.current || !restoredRef.current) return;
       scrollRef.current = Math.max(0, window.scrollY);
@@ -192,7 +210,7 @@ export default function DrawdownObservation({ onBack, initialSymbol = '', observ
     save();
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => { window.removeEventListener('scroll', onScroll); save(); };
-  }, [scope, minDepth, order, onViewStateChange]);
+  }, [scope, minDepth, order, maxRsi, onViewStateChange]);
   const previousSymbol = React.useRef(selectedSymbol);
   React.useLayoutEffect(() => {
     if (previousSymbol.current === selectedSymbol) return;
@@ -200,11 +218,12 @@ export default function DrawdownObservation({ onBack, initialSymbol = '', observ
     previousSymbol.current = selectedSymbol;
   }, [selectedSymbol]);
   const open = symbol => { scrollRef.current = window.scrollY; setSelectedSymbol(symbol); };
-  const rows = selectObservationRows(observations, { scope, minDepth, order });
+  const rows = selectObservationRows(observations, { scope, minDepth, order, maxRsi });
   const maxDepth = Math.max(10, Math.ceil(Math.max(0, ...observations.map(row => Math.abs(row.drawdownPct ?? 0))) / 10) * 10);
   const dates = [...new Set(observations.map(row => row.asOfDate).filter(Boolean))].sort();
   const dateLabel = dates.length > 1 ? `${dates[0]} — ${dates.at(-1)}` : dates[0];
   const missingCount = observations.filter(row => (scope === 'watchlist' ? row.inWatchlist : row.inHoldings) && !Number.isFinite(row.drawdownPct)).length;
+  const missingRsiCount = observations.filter(row => (scope === 'watchlist' ? row.inWatchlist : row.inHoldings) && normalizeRsiReferenceObservation(row.rsi).value === null).length;
   const scopeCount = observations.filter(row => scope === 'watchlist' ? row.inWatchlist : row.inHoldings).length;
   const selected = observations.find(row => row.symbol === selectedSymbol);
   if (selected) return <DrawdownObservationDetail key={`${selected.symbol}:${selected.asOfDate}`} row={selected} observations={observations} demo={demo} marketColorMode={marketColorMode} onBack={() => setSelectedSymbol(null)} />;
@@ -217,18 +236,29 @@ export default function DrawdownObservation({ onBack, initialSymbol = '', observ
     {Number.isFinite(vix) && <div className="do-vix"><span>VIX<span className="do-vix-name">预期波动</span></span><strong>{vix.toFixed(1)}</strong><span className="do-vix-note">波动不等于方向</span></div>}
     <section className="do-watch-section" aria-label="个股回撤观察">
       <div className="do-scope-row"><div className="do-scopes">{[['watchlist', '自选'], ['holdings', '持仓']].map(([key, label]) => <button type="button" key={key} aria-pressed={scope === key} onClick={() => setScope(key)}>{label}</button>)}</div><span>{scopeCount} 只标的</span></div>
-      <div className="do-filter-row"><div className="do-depth-filters" aria-label="按回撤深度筛选">{[[0, '全部'], [10, '≥10%'], [20, '≥20%']].map(([depth, label]) => <button type="button" key={depth} aria-pressed={minDepth === depth} onClick={() => setMinDepth(depth)}>{label}</button>)}</div><button type="button" className="do-sort" onClick={() => setOrder(order === 'deepest' ? 'shallowest' : 'deepest')} aria-label={order === 'deepest' ? '回撤由深到浅，点击改为由浅到深' : '回撤由浅到深，点击改为由深到浅'}><ArrowDownUp size={14} />{order === 'deepest' ? '深 → 浅' : '浅 → 深'}</button></div>
+      <div className="do-filter-row"><div className="do-depth-filters" aria-label="按回撤深度筛选">{[[0, '全部'], [10, '≥10%'], [20, '≥20%']].map(([depth, label]) => <button type="button" key={depth} aria-pressed={minDepth === depth} onClick={() => setMinDepth(depth)}>{label}</button>)}</div><div className="do-sort"><ArrowDownUp size={14} aria-hidden="true" /><select aria-label="排序方式" value={order} onChange={event => setOrder(event.target.value)}>{sortOptions.map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></div></div>
+      <div className="do-rsi-filter-row"><span>收盘 RSI(6)</span><div className="do-rsi-filter-controls"><select aria-label="按收盘 RSI 筛选" value={customRsi ? 'custom' : maxRsi === null ? 'all' : String(maxRsi)} onChange={event => {
+        const value = event.target.value;
+        setCustomRsi(value === 'custom');
+        if (value === 'custom') { setRsiLimitDraft(String(maxRsi ?? 30)); setMaxRsi(maxRsi ?? 30); }
+        else setMaxRsi(value === 'all' ? null : Number(value));
+      }}><option value="all">全部</option><option value="30">≤30 超卖</option><option value="20">≤20 极端超卖</option><option value="15">≤15 恐慌超卖</option><option value="custom">自定义</option></select>{customRsi && <label className="do-rsi-custom"><span aria-hidden="true">≤</span><input aria-label="自定义 RSI 上限" type="number" inputMode="decimal" min="0" max="100" step="0.1" value={rsiLimitDraft} onChange={event => {
+        const next = event.target.value;
+        setRsiLimitDraft(next);
+        if (next.trim() && validRsiLimit(Number(next))) setMaxRsi(Number(next));
+      }} onBlur={() => setRsiLimitDraft(String(maxRsi ?? 30))} /></label>}</div></div>
       {scope === 'holdings' && (!portfolioReady || portfolioError) && <p className="do-status" role="status">{portfolioError ? '持仓暂时无法读取，请返回首页重试。' : '正在读取实际持仓…'}</p>}
-      <div className="do-list-count" aria-live="polite">{minDepth === 0 ? `${rows.length} 只标的` : `${rows.length} 只符合条件`}{missingCount > 0 && ` · ${missingCount} 只待数据`}<span>同一刻度</span></div>
+      <div className="do-list-count" aria-live="polite"><span>{minDepth === 0 && maxRsi === null ? `${rows.length} 只标的` : `${rows.length} 只符合条件`}{missingCount > 0 && ` · ${missingCount} 只待行情`}{missingRsiCount > 0 && ` · ${missingRsiCount} 只缺 RSI`}</span><span>回撤同一刻度</span></div>
       <div className="do-depth-axis" aria-hidden="true"><span>0%</span><span>−{maxDepth / 2}%</span><span>−{maxDepth}%</span></div>
       <div className="do-stock-list">{rows.map(row => <button type="button" key={row.symbol} className="do-stock-row" disabled={!Number.isFinite(row.drawdownPct)} onClick={() => open(row.symbol)} aria-label={`查看 ${row.symbol} 回撤详情`}>
         <div className="do-stock-heading"><span className="do-stock-symbol">{row.symbol}<ChevronRight size={14} /></span><strong className={tone(row.drawdownPct)}>{percent(row.drawdownPct)}</strong></div>
         <div className="do-stock-secondary"><span>{row.name}</span><span>最近交易日 <b className={tone(row.todayPct)}>{percent(row.todayPct)}</b></span></div>
         <DepthBar value={row.drawdownPct} maxDepth={maxDepth} />
         <div className="do-stock-prices"><span>收盘 {money(row.price)}</span><span>高点 {money(row.high)}</span></div>
+        <RsiReadout observation={row.rsi} />
         {rowStatus(row) && <span className="do-row-status">{rowStatus(row)}</span>}
       </button>)}</div>
-      {rows.length === 0 && !(scope === 'holdings' && (!portfolioReady || portfolioError)) && <div className="do-empty">{missingCount ? '部分行情待补齐，暂不能完整判断筛选结果。' : scopeCount ? '当前分组没有达到这个跌幅的标的。' : scope === 'holdings' ? '暂无持有数量大于零的美股持仓。' : '暂无自选，请先在首页添加关注标的。'}{minDepth > 0 && <button type="button" onClick={() => setMinDepth(0)}>查看全部</button>}</div>}
+      {rows.length === 0 && !(scope === 'holdings' && (!portfolioReady || portfolioError)) && <div className="do-empty">{missingCount || (maxRsi !== null && missingRsiCount) ? '部分行情待补齐，暂不能完整判断筛选结果。' : scopeCount ? '当前分组没有符合筛选条件的标的。' : scope === 'holdings' ? '暂无持有数量大于零的美股持仓。' : '暂无自选，请先在首页添加关注标的。'}{(minDepth > 0 || maxRsi !== null) && <button type="button" onClick={() => { setMinDepth(0); setMaxRsi(null); setCustomRsi(false); }}>查看全部</button>}</div>}
     </section>
     <div className="do-footer"><ArrowUpRight size={14} /><span>跌幅是观察起点，不是买入结论。</span></div>
   </div>;

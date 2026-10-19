@@ -328,7 +328,7 @@ test('membership changes preserve existing prices, remove deleted positions befo
   page.requests[0].resolve(complete(page.requests[0]));
   await page.flush();
   const presentationKey = page.tree.key;
-  page.tree.props.onViewStateChange({ scope: 'holdings', minDepth: 20, order: 'shallowest', scrollTop: 345 });
+  page.tree.props.onViewStateChange({ scope: 'holdings', minDepth: 20, order: 'rsi-highest', maxRsi: 24.5, scrollTop: 345 });
   page.render({ ctx: { ...props.ctx, watchlist: [{ symbol: 'NVDA', name: 'Nvidia', price: 99 }], positions: [{ symbol: 'MSFT', name: 'Microsoft', quantity: 8 }] } });
   await page.flush();
   assert.equal(page.requests.length, 1);
@@ -341,7 +341,7 @@ test('membership changes preserve existing prices, remove deleted positions befo
   assert.equal(page.requests.length, 1);
   page.unmount();
   const restored = harness(alice(), { fixture: page.fixture });
-  assert.deepEqual(restored.tree.props.initialViewState, { scope: 'holdings', minDepth: 20, order: 'shallowest', scrollTop: 345 });
+  assert.deepEqual(restored.tree.props.initialViewState, { scope: 'holdings', minDepth: 20, order: 'rsi-highest', maxRsi: 24.5, scrollTop: 345 });
   restored.unmount();
 });
 

@@ -159,8 +159,8 @@ test('scope, depth, and stable sorting keep missing observations last without cl
   const symbols = (options) => selectObservationRows(rows, options).map((row) => row.symbol);
   assert.deepEqual(symbols({ scope: 'watchlist', order: 'deepest' }), ['B', 'D', 'C', 'A', 'MISSING', 'INVALID']);
   assert.deepEqual(symbols({ scope: 'holdings', order: 'shallowest' }), ['C', 'B', 'D', 'MISSING', 'INVALID']);
-  assert.deepEqual(symbols({ scope: 'watchlist', minDepth: 10 }), ['B', 'D', 'C']);
-  assert.deepEqual(symbols({ scope: 'holdings', minDepth: 20 }), ['B', 'D']);
+  assert.deepEqual(symbols({ scope: 'watchlist', minDepth: 10, order: 'deepest' }), ['B', 'D', 'C']);
+  assert.deepEqual(symbols({ scope: 'holdings', minDepth: 20, order: 'deepest' }), ['B', 'D']);
   assert.deepEqual(selectObservationRows(null), []);
 });
 
@@ -195,6 +195,45 @@ test('derivation and selection do not mutate caller-owned points or row order', 
     Object.freeze({ symbol: 'A', inWatchlist: true, drawdownPct: -5 }),
     Object.freeze({ symbol: 'B', inWatchlist: true, drawdownPct: -20 }),
   ]);
-  assert.deepEqual(selectObservationRows(rows).map((row) => row.symbol), ['B', 'A']);
+  assert.deepEqual(selectObservationRows(rows, { order: 'deepest' }).map((row) => row.symbol), ['B', 'A']);
   assert.deepEqual(rows.map((row) => row.symbol), ['A', 'B']);
+});
+
+
+test('default close RSI sorting uses unrounded values, places unavailable values last and breaks ties by drawdown', () => {
+  const rows = [
+    { symbol: 'DEEP', inWatchlist: true, drawdownPct: -50, rsi: { value: 35 } },
+    { symbol: 'ROUNDED_HIGHER', inWatchlist: true, drawdownPct: -25, rsi: { value: 20.00001 } },
+    { symbol: 'ROUNDED_LOWER', inWatchlist: true, drawdownPct: -5, rsi: { value: 20 } },
+    { symbol: 'TIE_DEEPER', inWatchlist: true, drawdownPct: -10, rsi: { value: 20 } },
+    { symbol: 'ZERO', inWatchlist: true, drawdownPct: -1, rsi: { value: 0 } },
+    { symbol: 'MISSING', inWatchlist: true, drawdownPct: -99, rsi: { value: null } },
+    { symbol: 'INVALID', inWatchlist: true, drawdownPct: -90, rsi: { value: NaN } },
+  ];
+  const before = structuredClone(rows);
+  const symbols = options => selectObservationRows(rows, options).map(row => row.symbol);
+  assert.deepEqual(symbols(), ['ZERO', 'TIE_DEEPER', 'ROUNDED_LOWER', 'ROUNDED_HIGHER', 'DEEP', 'MISSING', 'INVALID']);
+  assert.deepEqual(symbols({ order: 'rsi-lowest' }), symbols());
+  assert.deepEqual(symbols({ order: 'rsi-highest' }), ['DEEP', 'ROUNDED_HIGHER', 'TIE_DEEPER', 'ROUNDED_LOWER', 'ZERO', 'MISSING', 'INVALID']);
+  assert.deepEqual(rows, before);
+});
+
+test('RSI thresholds combine with depth and membership filters and retain a valid zero threshold', () => {
+  const rows = [
+    { symbol: 'AT_THIRTY', inWatchlist: true, inHoldings: true, drawdownPct: -20, rsi: { value: 30 } },
+    { symbol: 'AT_TWENTY', inWatchlist: true, inHoldings: true, drawdownPct: -25, rsi: { value: 20 } },
+    { symbol: 'AT_FIFTEEN', inWatchlist: true, inHoldings: false, drawdownPct: -30, rsi: { value: 15 } },
+    { symbol: 'ZERO', inWatchlist: true, inHoldings: true, drawdownPct: -5, rsi: { value: 0 } },
+    { symbol: 'CUSTOM', inWatchlist: true, inHoldings: true, drawdownPct: -10, rsi: { value: 24.5 } },
+    { symbol: 'UNKNOWN', inWatchlist: true, inHoldings: true, drawdownPct: -50, rsi: { value: null } },
+    { symbol: 'MISSING_DEPTH', inWatchlist: true, inHoldings: true, drawdownPct: null, rsi: { value: 10 } },
+  ];
+  const symbols = options => selectObservationRows(rows, options).map(row => row.symbol);
+  assert.deepEqual(symbols({ maxRsi: 30, minDepth: 10 }), ['AT_FIFTEEN', 'AT_TWENTY', 'CUSTOM', 'AT_THIRTY']);
+  assert.deepEqual(symbols({ maxRsi: 20, minDepth: 20 }), ['AT_FIFTEEN', 'AT_TWENTY']);
+  assert.deepEqual(symbols({ maxRsi: 15 }), ['ZERO', 'MISSING_DEPTH', 'AT_FIFTEEN']);
+  assert.deepEqual(symbols({ maxRsi: 24.5, minDepth: 10, scope: 'holdings' }), ['AT_TWENTY', 'CUSTOM']);
+  assert.deepEqual(symbols({ maxRsi: 0 }), ['ZERO']);
+  assert.ok(symbols({ maxRsi: null }).includes('UNKNOWN'), 'unfiltered missing RSI remains visible');
+  assert.ok(!symbols({ maxRsi: 100 }).includes('UNKNOWN'), 'missing RSI is not a zero or a matched threshold');
 });

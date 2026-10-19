@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import React from 'react';
-import { marketTextHexColor } from '../src/lib/marketColorMode.js';
+import { MARKET_GREEN_HEX, MARKET_RED_HEX, marketTextHexColor } from '../src/lib/marketColorMode.js';
+import { normalizeRsiReferenceObservation } from '../src/lib/rsiReferenceObservation.js';
 import { readFileSync } from 'node:fs';
 import { transformWithOxc } from 'vite';
 import { DRAWDOWN_PREVIEW, deriveObservation, getSamePeriodReturn, selectObservationRows } from '../src/dev/drawdownObservationData.js';
@@ -9,9 +10,9 @@ import { DRAWDOWN_PREVIEW, deriveObservation, getSamePeriodReturn, selectObserva
 const source = readFileSync(new URL('../src/components/DrawdownObservation.jsx', import.meta.url), 'utf8');
 const transformed = await transformWithOxc(source, 'DrawdownObservationPreview.jsx', { jsx: { runtime: 'classic' } });
 const icons = Object.fromEntries(['ArrowDownUp', 'ArrowLeft', 'ArrowUpRight', 'ChevronRight', 'Info', 'RotateCcw'].map(name => [name, function Icon() { return null; }]));
-const bindings = { marketTextHexColor, ...icons, DRAWDOWN_PREVIEW, deriveObservation, getSamePeriodReturn, selectObservationRows };
+const bindings = { MARKET_GREEN_HEX, MARKET_RED_HEX, marketTextHexColor, normalizeRsiReferenceObservation, ...icons, DRAWDOWN_PREVIEW, deriveObservation, getSamePeriodReturn, selectObservationRows };
 const compiled = transformed.code.replace(/^import\s[^\n]+;?\n/gm, '').replaceAll('export default function ', 'function ').replaceAll('export function ', 'function ');
-const createComponents = new Function('React', 'window', 'document', 'ResizeObserver', ...Object.keys(bindings), `"use strict";\n${compiled}\nreturn { DrawdownObservationPreview: DrawdownObservation, DrawdownObservationChart, DrawdownObservationDetail };`);
+const createComponents = new Function('React', 'window', 'document', 'ResizeObserver', ...Object.keys(bindings), `"use strict";\n${compiled}\nreturn { DrawdownObservationPreview: DrawdownObservation, DrawdownObservationChart, DrawdownObservationDetail, RsiReadout };`);
 const observations = DRAWDOWN_PREVIEW.instruments.map(row => deriveObservation(row, DRAWDOWN_PREVIEW.asOfDate));
 const nvda = observations.find(row => row.symbol === 'NVDA');
 
@@ -27,6 +28,7 @@ function textContent(node) {
 const byClass = (tree, name) => nodes(tree, node => node.props.className?.split(' ').includes(name));
 const button = (tree, label) => nodes(tree, node => node.type === 'button' && textContent(node) === label)[0];
 const symbols = tree => byClass(tree, 'do-stock-symbol').map(textContent);
+const control = (tree, label) => nodes(tree, node => ['select', 'input'].includes(node.type) && node.props['aria-label'] === label)[0];
 
 // Only hook storage and browser surfaces are supplied. The compiled components,
 // data helpers and event/effect closures below execute their actual source.
@@ -105,6 +107,12 @@ function harness(name, getProps) {
       assert.fail('effects failed to settle');
     },
     click(label) { const target = button(tree, label); assert.ok(target, `missing button: ${label}`); target.props.onClick(); this.render(); },
+    change(label, value) {
+      const target = control(tree, label);
+      assert.ok(target, `missing control: ${label}`);
+      target.props.onChange({ target: { value } });
+      this.render();
+    },
     key(key) { let prevented = false; tree.props.onKeyDown({ key, preventDefault() { prevented = true; } }); this.render(); return prevented; },
     pointer(phase, values = {}) {
       let prevented = false;
@@ -120,34 +128,77 @@ function harness(name, getProps) {
   return result;
 }
 
-test('overview scope, depth and ordering controls render the selected real fixture rows', () => {
+test('overview defaults to close RSI ascending and real controls combine scope, depth and all four ordering modes', () => {
   const page = harness('DrawdownObservationPreview', () => ({ onBack() {} }));
-  const expectRows = (scope, minDepth, order) => {
-    assert.deepEqual(symbols(page.tree), selectObservationRows(observations, { scope, minDepth, order }).map(row => row.symbol));
+  const expectRows = (scope, minDepth, order, maxRsi = null) => {
+    assert.deepEqual(symbols(page.tree), selectObservationRows(observations, { scope, minDepth, order, maxRsi }).map(row => row.symbol));
     assert.equal(button(page.tree, scope === 'holdings' ? '持仓' : '自选').props['aria-pressed'], true);
     assert.equal(button(page.tree, minDepth ? `≥${minDepth}%` : '全部').props['aria-pressed'], true);
+    assert.equal(control(page.tree, '排序方式').props.value, order);
   };
-  expectRows('watchlist', 0, 'deepest');
+  expectRows('watchlist', 0, 'rsi-lowest');
   page.click('≥20%');
+  expectRows('watchlist', 20, 'rsi-lowest');
+  page.change('排序方式', 'deepest');
   assert.deepEqual(symbols(page.tree), ['TSLA', 'NVDA', 'AVGO']);
   page.click('持仓');
   expectRows('holdings', 20, 'deepest');
-  page.click('深 → 浅');
+  page.change('排序方式', 'shallowest');
   expectRows('holdings', 20, 'shallowest');
+  page.change('排序方式', 'rsi-highest');
+  expectRows('holdings', 20, 'rsi-highest');
   page.click('≥10%');
-  expectRows('holdings', 10, 'shallowest');
+  expectRows('holdings', 10, 'rsi-highest');
   page.click('自选');
-  expectRows('watchlist', 10, 'shallowest');
+  expectRows('watchlist', 10, 'rsi-highest');
   page.unmount();
 });
 
-test('detail entry and return preserve overview filters and scroll without invoking the external home callback', () => {
+test('RSI presets and custom values filter actual rows, combine with drawdown and never treat an empty value as zero', () => {
+  const values = [14.5, 15, 20, 24.5, 30, 30.00001, null, 0];
+  const customRows = observations.filter(row => row.inWatchlist).map((row, index) => ({
+    ...row, drawdownPct: index === 0 ? -5 : -25,
+    rsi: { value: values[index], asOf: '2026-09-08', previousValue: 25, previousAsOf: '2026-09-04' },
+  }));
+  let saved;
+  const page = harness('DrawdownObservationPreview', () => ({ observations: customRows, onViewStateChange: next => { saved = next; } }));
+  const filtered = maximum => customRows.filter(row => row.rsi.value !== null && row.rsi.value <= maximum).map(row => row.symbol).sort();
+  for (const maximum of [30, 20, 15]) {
+    page.change('按收盘 RSI 筛选', String(maximum));
+    assert.deepEqual([...symbols(page.tree)].sort(), filtered(maximum));
+    assert.equal(saved.maxRsi, maximum);
+  }
+  page.change('按收盘 RSI 筛选', 'custom');
+  page.change('自定义 RSI 上限', '24.5');
+  assert.equal(saved.maxRsi, 24.5);
+  assert.deepEqual([...symbols(page.tree)].sort(), filtered(24.5));
+  page.click('≥20%');
+  assert.deepEqual([...symbols(page.tree)].sort(), customRows.filter(row => row.drawdownPct <= -20 && row.rsi.value !== null && row.rsi.value <= 24.5).map(row => row.symbol).sort());
+  for (const invalid of ['', '-1', '101', 'not-a-number']) {
+    page.change('自定义 RSI 上限', invalid);
+    assert.equal(saved.maxRsi, 24.5, `${invalid || 'empty'} input does not commit a threshold`);
+  }
+  page.change('自定义 RSI 上限', '0');
+  assert.equal(saved.maxRsi, 0);
+  assert.deepEqual(symbols(page.tree), [customRows[7].symbol]);
+  page.change('按收盘 RSI 筛选', 'all');
+  assert.equal(saved.maxRsi, null);
+  assert.ok(symbols(page.tree).includes(customRows[6].symbol), 'missing RSI returns only when RSI filter is cleared');
+  page.unmount();
+});
+
+test('detail entry and return preserve RSI sorting, custom threshold, depth, scope and scroll without invoking the home callback', () => {
   const calls = [];
-  const page = harness('DrawdownObservationPreview', () => ({ onBack: () => calls.push('home') }));
+  let saved;
+  const customRows = observations.map(row => ({ ...row, rsi: { value: row.symbol === 'AVGO' ? 14.5 : 22, asOf: '2026-09-08' } }));
+  const page = harness('DrawdownObservationPreview', () => ({ observations: customRows, onBack: () => calls.push('home'), onViewStateChange: next => { saved = next; } }));
   page.click('持仓');
   page.click('≥20%');
-  page.click('深 → 浅');
+  page.change('排序方式', 'rsi-highest');
+  page.change('按收盘 RSI 筛选', 'custom');
+  page.change('自定义 RSI 上限', '24.5');
   const before = symbols(page.tree);
+  assert.deepEqual(before, ['NVDA', 'AVGO']);
   page.window.scrollY = 412;
   byClass(page.tree, 'do-stock-row')[0].props.onClick();
   page.render();
@@ -160,7 +211,10 @@ test('detail entry and return preserve overview filters and scroll without invok
   assert.deepEqual(symbols(page.tree), before);
   assert.equal(button(page.tree, '持仓').props['aria-pressed'], true);
   assert.equal(button(page.tree, '≥20%').props['aria-pressed'], true);
-  assert.ok(button(page.tree, '浅 → 深'));
+  assert.equal(control(page.tree, '排序方式').props.value, 'rsi-highest');
+  assert.equal(control(page.tree, '按收盘 RSI 筛选').props.value, 'custom');
+  assert.equal(control(page.tree, '自定义 RSI 上限').props.value, '24.5');
+  assert.equal(saved.maxRsi, 24.5);
   assert.equal(page.window.scrollY, 412);
   assert.deepEqual(calls, []);
   const header = nodes(page.tree, node => typeof node.type === 'function' && node.type.name === 'PreviewHeader')[0];
@@ -255,11 +309,12 @@ test('detail outside clicks restore the latest readout and remove the exact capt
 });
 
 test('overview restores cached filters and scroll, preserving overview position through detail and unmount', () => {
-  let saved = { scope: 'holdings', minDepth: 20, order: 'shallowest', scrollTop: 412 };
+  let saved = { scope: 'holdings', minDepth: 20, order: 'shallowest', maxRsi: 100, scrollTop: 412 };
   const changed = next => { saved = next; };
   const page = harness('DrawdownObservationPreview', () => ({ initialViewState: saved, onViewStateChange: changed }));
   assert.deepEqual(symbols(page.tree), ['AVGO', 'NVDA']);
   assert.equal(page.window.scrollY, 412);
+  assert.equal(control(page.tree, '自定义 RSI 上限').props.value, '100');
   page.scroll(599);
   assert.equal(saved.scrollTop, 599);
   byClass(page.tree, 'do-stock-row')[0].props.onClick();
@@ -273,6 +328,8 @@ test('overview restores cached filters and scroll, preserving overview position 
   assert.equal(page.windowListeners.size, 0);
   const reopened = harness('DrawdownObservationPreview', () => ({ initialViewState: saved, onViewStateChange: changed }));
   assert.equal(reopened.window.scrollY, 599);
+  assert.equal(control(reopened.tree, '自定义 RSI 上限').props.value, '100');
+  assert.equal(saved.maxRsi, 100);
   assert.deepEqual(symbols(reopened.tree), ['AVGO', 'NVDA']);
   reopened.unmount();
 });
@@ -306,6 +363,8 @@ test('drawdown overview and detail preserve the active market palette across nav
     assert.deepEqual(page.tree.props.style, {
       '--do-positive': marketTextHexColor(1, mode),
       '--do-negative': marketTextHexColor(-1, mode),
+      '--do-rsi-low': MARKET_GREEN_HEX,
+      '--do-rsi-alert': MARKET_RED_HEX,
     });
     const market = nodes(page.tree, node => node.props.row?.symbol === 'SPY')[0];
     market.props.onOpen('SPY');
@@ -314,5 +373,30 @@ test('drawdown overview and detail preserve the active market palette across nav
     const detail = harness('DrawdownObservationDetail', () => ({ row: nvda, onBack() {}, marketColorMode: mode }));
     detail.render();
     assert.equal(detail.tree.props.style['--do-negative'], marketTextHexColor(-1, mode));
+  }
+});
+
+
+test('RSI readout preserves original precision, validates data and uses the shared trade status boundaries', () => {
+  for (const [value, status, label] of [
+    [0, 'panic-oversold', '恐慌超卖'], [15, 'panic-oversold', '恐慌超卖'],
+    [15.00001, 'extremely-oversold', '极端超卖'], [20, 'extremely-oversold', '极端超卖'],
+    [20.00001, 'oversold', '超卖'], [30, 'oversold', '超卖'],
+    [30.00001, 'normal', '正常'], [70, 'overbought', '超买'], [80, 'strongly-overbought', '强超买'],
+  ]) {
+    const view = harness('RsiReadout', () => ({ observation: { value, asOf: '2026-09-08' } }));
+    assert.equal(view.tree.props['data-rsi-status'], status);
+    assert.equal(nodes(view.tree, node => node.type === 'strong')[0].props.title, String(value));
+    assert.equal(textContent(byClass(view.tree, 'do-stock-rsi-status')[0]), label);
+    assert.equal(nodes(view.tree, node => node.type === 'time')[0].props.dateTime, '2026-09-08');
+    assert.equal(nodes(view.tree, node => node.type === 'i').length, status === 'panic-oversold' ? 1 : 0);
+    view.unmount();
+  }
+  for (const observation of [undefined, { value: null, asOf: '2026-09-08' }, { value: 0, asOf: null }]) {
+    const view = harness('RsiReadout', () => ({ observation }));
+    assert.equal(view.tree.props['data-rsi-status'], 'unavailable');
+    assert.equal(textContent(nodes(view.tree, node => node.type === 'strong')[0]), '—');
+    assert.match(textContent(view.tree), /暂无数据/);
+    view.unmount();
   }
 });

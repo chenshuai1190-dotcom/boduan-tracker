@@ -249,13 +249,32 @@ test('unavailable storage, quota failures and failed deletion preserve safe memo
 });
 
 test('view preferences are user-isolated, sanitized, mergeable and memory-only', () => {
+  assert.deepEqual(getDrawdownViewState('user-a'), { scope: 'watchlist', minDepth: 0, order: 'rsi-lowest', maxRsi: null, scrollTop: 0 });
   setDrawdownViewState('user-a', { scope: 'holdings', minDepth: 20, order: 'shallowest', scrollTop: 760, selectedSymbol: 'SECRET' });
-  assert.deepEqual(getDrawdownViewState('user-a'), { scope: 'holdings', minDepth: 20, order: 'shallowest', scrollTop: 760 });
+  assert.deepEqual(getDrawdownViewState('user-a'), { scope: 'holdings', minDepth: 20, order: 'shallowest', maxRsi: null, scrollTop: 760 });
   assert.equal(getDrawdownViewState('user-b').scope, 'watchlist');
   setDrawdownViewState('user-a', { minDepth: 10, scrollTop: -1, order: 'invalid' });
-  assert.deepEqual(getDrawdownViewState('user-a'), { scope: 'holdings', minDepth: 10, order: 'shallowest', scrollTop: 760 });
+  assert.deepEqual(getDrawdownViewState('user-a'), { scope: 'holdings', minDepth: 10, order: 'shallowest', maxRsi: null, scrollTop: 760 });
   const copy = getDrawdownViewState('user-a'); copy.scope = 'watchlist';
   assert.equal(getDrawdownViewState('user-a').scope, 'holdings');
   setDrawdownViewState('user-a', null);
   assert.equal(getDrawdownViewState('user-a').scope, 'watchlist');
+});
+
+test('RSI sorting and thresholds remain scoped to the current user and accept zero without coercing missing values', () => {
+  setDrawdownViewState('user-a', { order: 'rsi-highest', maxRsi: 25.5 });
+  assert.equal(getDrawdownViewState('user-a').order, 'rsi-highest');
+  assert.equal(getDrawdownViewState('user-a').maxRsi, 25.5);
+  assert.equal(getDrawdownViewState('user-b').order, 'rsi-lowest');
+  assert.equal(getDrawdownViewState('user-b').maxRsi, null);
+  for (const maxRsi of ['', '15', undefined, NaN, Infinity, -1, 101]) {
+    setDrawdownViewState('user-a', { maxRsi });
+    assert.equal(getDrawdownViewState('user-a').maxRsi, 25.5);
+  }
+  setDrawdownViewState('user-a', { maxRsi: 0 });
+  assert.equal(getDrawdownViewState('user-a').maxRsi, 0);
+  setDrawdownViewState('user-a', { maxRsi: null });
+  assert.equal(getDrawdownViewState('user-a').maxRsi, null);
+  resetDrawdownObservationMemoryCache();
+  assert.deepEqual(getDrawdownViewState('user-a'), { scope: 'watchlist', minDepth: 0, order: 'rsi-lowest', maxRsi: null, scrollTop: 0 });
 });

@@ -1,5 +1,6 @@
 import { STOCK_RSI_RULES, STOCK_RSI_DIVERGENCE_VERSION, resolveStockRsiRules } from '../../src/lib/stockRsiConfig.js';
 import { isRegularNyseHoliday } from '../../src/lib/quoteRefreshPolicy.js';
+import { wilderRsiSeries } from '../../src/lib/wilderRsi.js';
 
 import { compareNumbers, confirmedPivot } from './stockRsiPivot.js';
 import { buildStockTrendMomentum, emptyStockTrendMomentum } from './stockTrendRsi.js';
@@ -68,33 +69,6 @@ function normalizeCompletedRows(rows, cutoff) {
     rows: ordered.map((row) => ({ date: row.date, close: row.close, high: useHigh ? row.high.price : row.close })),
     divergenceAvailable,
   };
-}
-
-function rsiValue(gain, loss) {
-  if (gain === 0 && loss === 0) return 50;
-  if (loss === 0) return 100;
-  if (gain === 0) return 0;
-  return 100 - 100 / (1 + gain / loss);
-}
-
-function wilderSeries(rows) {
-  const values = Array(rows.length).fill(null);
-  let gain = 0;
-  let loss = 0;
-  for (let i = 1; i < rows.length; i += 1) {
-    const change = rows[i].close - rows[i - 1].close;
-    const up = Math.max(change, 0);
-    const down = Math.max(-change, 0);
-    if (i <= PERIOD) {
-      gain += up / PERIOD;
-      loss += down / PERIOD;
-    } else {
-      gain = gain * ((PERIOD - 1) / PERIOD) + up / PERIOD;
-      loss = loss * ((PERIOD - 1) / PERIOD) + down / PERIOD;
-    }
-    if (i >= PERIOD) values[i] = rsiValue(gain, loss);
-  }
-  return values;
 }
 
 function isRegularSession(dateKey) {
@@ -264,7 +238,7 @@ export function buildStockRsi(eodRows, { completedCutoffDate, config, includeTre
   if (!rows?.length) return result;
   result.asOf = rows[rows.length - 1].date;
   if (rows.length < rules.RSI_WARMUP_CLOSES) return result;
-  const values = wilderSeries(rows);
+  const values = wilderRsiSeries(rows, PERIOD);
   result.value = values[values.length - 1];
   // Publish a comparable preceding session only after it independently has the
   // same 60-close warmup. Missing sessions never turn an older observation into

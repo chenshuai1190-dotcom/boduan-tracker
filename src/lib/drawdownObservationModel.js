@@ -1,7 +1,13 @@
 import { normalizeInvestmentSymbol } from './investmentComparisonModel.js';
+import { STOCK_RSI_RULES } from './stockRsiConfig.js';
+import { isRegularNyseHoliday } from './quoteRefreshPolicy.js';
+import { wilderRsiSeries } from './wilderRsi.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const LOOKBACK_DAYS = 52 * 7;
+// Match the quote provider's ordinary daily-history window. It also fits wholly
+// inside the 400-calendar-day persisted observation history after reopening.
+const RSI_HISTORY_DAYS = 380;
 
 function dateTimestamp(value) {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
@@ -63,7 +69,43 @@ function emptyObservation(instrument) {
     price: null, previousClose: null, todayPct: null, high: null, highDate: null,
     drawdownPct: null, trough: null, troughDate: null, reboundPct: null,
     recoveryPct: null, elapsedDays: null, historySufficient: false, pointsSinceHigh: [],
+    rsi: emptyObservationRsi(),
   };
+}
+
+function emptyObservationRsi() {
+  return { value: null, asOf: null, previousValue: null, previousAsOf: null };
+}
+
+function isRegularSession(date) {
+  const weekday = new Date(`${date}T00:00:00Z`).getUTCDay();
+  return weekday !== 0 && weekday !== 6 && !isRegularNyseHoliday(date);
+}
+
+function deriveObservationRsi(points, expectedDate, fetchedAt) {
+  const empty = emptyObservationRsi();
+  if (dateTimestamp(expectedDate) === null || !isRegularSession(expectedDate) || points.at(-1).date !== expectedDate) return empty;
+  const fetchedTimestamp = typeof fetchedAt === 'string' ? Date.parse(fetchedAt) : NaN;
+  const fetchedDate = Number.isFinite(fetchedTimestamp) ? new Date(fetchedTimestamp).toISOString().slice(0, 10) : null;
+  const anchorDate = dateTimestamp(fetchedDate) !== null && fetchedDate >= expectedDate ? fetchedDate : expectedDate;
+  const fromDate = new Date(dateTimestamp(anchorDate) - RSI_HISTORY_DAYS * DAY_MS).toISOString().slice(0, 10);
+  const rows = points.filter(point => point.date >= fromDate);
+  if (rows.length < STOCK_RSI_RULES.RSI_WARMUP_CLOSES) return empty;
+  const values = wilderRsiSeries(rows, STOCK_RSI_RULES.RSI_PERIOD);
+  const value = values.at(-1);
+  if (!Number.isFinite(value) || value < 0 || value > 100) return empty;
+  const result = { ...empty, value, asOf: expectedDate };
+  if (rows.length <= STOCK_RSI_RULES.RSI_WARMUP_CLOSES) return result;
+  const preceding = new Date(`${expectedDate}T00:00:00Z`);
+  do { preceding.setUTCDate(preceding.getUTCDate() - 1); }
+  while (!isRegularSession(preceding.toISOString().slice(0, 10)));
+  // The preceding observation has its own warmup and must be the immediately
+  // preceding trading session, just as in the quote reference.
+  if (rows.at(-2).date === preceding.toISOString().slice(0, 10)) {
+    result.previousValue = values.at(-2);
+    result.previousAsOf = rows.at(-2).date;
+  }
+  return result;
 }
 
 function observedPoints(instrument, asOfDate) {
@@ -120,16 +162,34 @@ export function deriveObservation(instrument, asOfDate = instrument?.asOfDate) {
     elapsedDays: (currentTimestamp - dateTimestamp(peak.date)) / DAY_MS,
     historySufficient: points[0].date <= windowStart,
     pointsSinceHigh,
+    // Older cached closes retain their drawdown facts but must not enter the
+    // latest completed-session RSI ranking as though they were current.
+    rsi: deriveObservationRsi(points, raw.expectedAsOfDate ?? asOfDate, raw.fetchedAt),
   };
 }
 
-export function selectObservationRows(rows, { scope = 'watchlist', minDepth = 0, order = 'deepest' } = {}) {
+export function selectObservationRows(rows, { scope = 'watchlist', minDepth = 0, order = 'rsi-lowest', maxRsi = null } = {}) {
   const depth = [0, 10, 20].includes(minDepth) ? minDepth : 0;
+  const ceiling = typeof maxRsi === 'number' && Number.isFinite(maxRsi) && maxRsi >= 0 && maxRsi <= 100 ? maxRsi : null;
   const scopeField = scope === 'holdings' ? 'inHoldings' : 'inWatchlist';
   const hasDepth = (row) => typeof row?.drawdownPct === 'number' && Number.isFinite(row.drawdownPct);
+  const hasRsi = (row) => typeof row?.rsi?.value === 'number' && Number.isFinite(row.rsi.value)
+    && row.rsi.value >= 0 && row.rsi.value <= 100;
+  const depthOrder = order === 'deepest' || order === 'shallowest';
   return (Array.isArray(rows) ? rows : []).map((row, index) => ({ row, index }))
-    .filter(({ row }) => row?.[scopeField] === true && (depth === 0 || (hasDepth(row) && row.drawdownPct <= -depth)))
+    .filter(({ row }) => row?.[scopeField] === true
+      && (depth === 0 || (hasDepth(row) && row.drawdownPct <= -depth))
+      && (ceiling === null || (hasRsi(row) && row.rsi.value <= ceiling)))
     .sort((left, right) => {
+      if (!depthOrder) {
+        const leftKnown = hasRsi(left.row), rightKnown = hasRsi(right.row);
+        if (leftKnown !== rightKnown) return leftKnown ? -1 : 1;
+        if (leftKnown) {
+          const difference = order === 'rsi-highest'
+            ? right.row.rsi.value - left.row.rsi.value : left.row.rsi.value - right.row.rsi.value;
+          if (difference) return difference;
+        }
+      }
       const leftKnown = hasDepth(left.row), rightKnown = hasDepth(right.row);
       if (leftKnown !== rightKnown) return leftKnown ? -1 : 1;
       if (!leftKnown) return left.index - right.index;
