@@ -12,7 +12,11 @@ test('investment comparison is a lazy standalone utility with identity, display 
   assert.ok(app.includes("activePage === 'investment-comparison'"));
   assert.ok(app.includes('|| isInvestmentComparisonPage ||'));
   assert.ok(app.includes("<InvestmentComparisonPage ctx={{ userId: user?.id || '', language, marketColorMode, usdRate, closeInvestmentComparison }} />"));
-  const callbacks = app.slice(app.indexOf('const openInvestmentComparison ='), app.indexOf('const openStockDetail ='));
+  const callbacks = ['openInvestmentComparison', 'closeInvestmentComparison'].map(name => {
+    const callback = app.match(new RegExp(`const ${name} = useCallback\\(\\(\\) => \\{([\\s\\S]*?)\\}, \\[\\]\\);`));
+    assert.ok(callback, `${name} should remain a standalone navigation callback`);
+    return callback[1];
+  }).join('\n');
   assert.equal((callbacks.match(/setActiveTab\('trades'\)/g) || []).length, 2);
   assert.ok(callbacks.includes("setActivePage('investment-comparison')"));
   assert.ok(callbacks.includes('setActivePage(null)'));

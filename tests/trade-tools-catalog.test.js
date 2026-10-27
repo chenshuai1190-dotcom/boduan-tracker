@@ -86,6 +86,62 @@ test('each tool click emits only its own navigation ID to the controlled parent'
   assert.deepEqual(selected, expectedTools);
 });
 
+test('stock comparison is an optional translated tool immediately after Portfolio Overlap', () => {
+  const trades = readFileSync(new URL('../src/tabs/TradesTab.jsx', import.meta.url), 'utf8');
+  const enabledExpression = trades.match(/<TradeToolsCatalog\b[^>]*enableStockComparison=\{([^}]+)\}/)?.[1];
+  assert.ok(enabledExpression, 'Trades should explicitly enable the entry only when it can navigate');
+  const isEnabled = new Function('openStockComparison', `return ${enabledExpression};`);
+  for (const opener of [undefined, null, false, 'stock-comparison']) {
+    assert.equal(isEnabled(opener), false);
+    const { tree } = renderCatalog({ enableStockComparison: isEnabled(opener) });
+    assert.deepEqual(nodesOfType(tree, 'button').map(button => button.props['data-tool-id']), expectedTools);
+  }
+  assert.equal(isEnabled(() => {}), true);
+  for (const language of ['zh', 'en']) {
+    const selected = [];
+    const { tree } = renderCatalog({ language, enableStockComparison: true, onSelect: id => selected.push(id) });
+    const buttons = nodesOfType(tree, 'button');
+    assert.deepEqual(buttons.map(button => button.props['data-tool-id']), [
+      'portfolio-overlap', 'stock-comparison', 'investment-comparison', 'dca-lab', 'stock-decision', 'macro', 'records', 'waves', 'competition',
+    ]);
+    const comparison = buttons.find(button => button.props['data-tool-id'] === 'stock-comparison');
+    assert.ok(textContent(comparison).includes(t(language, 'trades.stockComparison')));
+    assert.ok(textContent(comparison).includes(t(language, 'trades.stockComparisonDescription')));
+    comparison.props.onClick();
+    assert.deepEqual(selected, ['stock-comparison']);
+  }
+});
+
+test('stock comparison has a user-scoped production route without a sixth quick action', () => {
+  const app = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8');
+  const preview = readFileSync(new URL('../src/DevVisualPreview.jsx', import.meta.url), 'utf8');
+  const comparisonPage = readFileSync(new URL('../src/pages/StockComparisonPage.jsx', import.meta.url), 'utf8');
+  const comparisonPreview = readFileSync(new URL('../src/dev/StockComparisonPreview.jsx', import.meta.url), 'utf8');
+  const trades = readFileSync(new URL('../src/tabs/TradesTab.jsx', import.meta.url), 'utf8');
+  assert.match(app, /const StockComparisonPage = lazy\(\(\) => import\('\.\/pages\/StockComparisonPage\.jsx'\)\)/, 'the production route should load its page lazily');
+  const openBody = app.match(/const openStockComparison = useCallback\(\(\) => \{([\s\S]*?)\}, \[\]\);/)?.[1];
+  const closeBody = app.match(/const closeStockComparison = useCallback\(\(\) => \{([\s\S]*?)\}, \[\]\);/)?.[1];
+  assert.ok(openBody && closeBody, 'production navigation should support opening and closing the tool');
+  assert.match(openBody, /setActiveTab\('trades'\)/);
+  assert.match(openBody, /setActivePage\('stock-comparison'\)/);
+  assert.match(closeBody, /setActiveTab\('trades'\)/);
+  assert.match(closeBody, /setActivePage\(null\)/);
+  assert.match(app, /const isStockComparisonPage = activePage === 'stock-comparison'/);
+  assert.match(app.match(/const isStandalonePage = ([^;]+);/)?.[1] || '', /\bisStockComparisonPage\b/, 'stock comparison should use standalone page layout');
+  assert.match(app.match(/const tabCtx = \{([\s\S]*?)\n  \};/)?.[1] || '', /\bopenStockComparison\s*,/, 'the trading catalogue must receive a production opener');
+  assert.match(app, /isStockComparisonPage\s*\? <StockComparisonPage key=\{user\?\.id \|\| ''\} ctx=\{\{ userId: user\?\.id \|\| '', language, marketColorMode, onBack: closeStockComparison \}\}/, 'the real page must receive authenticated identity, appearance, and back navigation');
+  assert.match(preview, /openStockComparison: \(\) => \{ setActiveTab\('stock-comparison'\); window\.scrollTo\(0, 0\); \}/);
+  assert.match(preview, /activeTab === 'stock-comparison'\s*\? <StockComparisonPreview ctx=\{\{ language, marketColorMode, onBack:/, 'DEV navigation should use its isolated sample adapter');
+  assert.match(comparisonPage, /const preview = import\.meta\.env\.DEV \? previewSource : null/, 'production must ignore externally supplied preview data');
+  assert.match(comparisonPage, /import \{ loadStockComparison \} from '\.\.\/lib\/stockComparison\.js'/, 'production should load the authenticated real history client');
+  assert.doesNotMatch(comparisonPage, /stockComparisonFixture|STOCK_COMPARISON_DEMO|from ['"][^'"]*\/dev\//, 'synthetic samples must stay out of the production page dependency graph');
+  assert.match(comparisonPreview, /import \{ STOCK_COMPARISON_DEMO \} from '\.\/stockComparisonFixture\.js'/);
+  assert.match(comparisonPreview, /if \(!import\.meta\.env\.DEV\) return null/, 'the fixture adapter must refuse production rendering');
+  const shortcuts = trades.match(/<section className="trades-report-tools"[\s\S]*?<\/section>/)?.[0];
+  assert.ok(shortcuts);
+  assert.deepEqual([...shortcuts.matchAll(/\{ id: '([^']+)'/g)].map(([, id]) => id), ['waves', 'competition', 'records', 'investment-comparison', 'all']);
+});
+
 test('the catalog remains presentation-only without ledger, persistence, or provider access', () => {
   assert.doesNotMatch(source, /\b(?:fetch|save|insert|upsert|update|delete)\s*\(|supabase|localStorage|sessionStorage|stock_trades|cost_basis_trades|swing_waves|service_role|EODHD_API_KEY/);
   const imports = [...source.matchAll(/\b(?:from\s+|import\s+)(['"])([^'"]+)\1/g)].map(match => match[2]);

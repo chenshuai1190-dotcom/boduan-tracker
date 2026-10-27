@@ -4,7 +4,7 @@ import { RefreshCw, Search, X } from 'lucide-react';
 import InvestmentSymbolPresets from './InvestmentSymbolPresets.jsx';
 import './InvestmentComparison.css';
 
-export default function InvestmentSymbolPicker({ selectedSymbol, comparisonSymbol = '', title, userId, englishMode = false, searchSource, onSelect, onClose }) {
+export default function InvestmentSymbolPicker({ selectedSymbol, comparisonSymbol = '', excludedSymbols = [], title, userId, englishMode = false, searchSource, onSelect, onClose }) {
   const [query, setQuery] = React.useState('');
   const [attempt, setAttempt] = React.useState(0);
   const [state, setState] = React.useState({ query: '', userId, results: [], loading: false, error: false });
@@ -80,12 +80,12 @@ export default function InvestmentSymbolPicker({ selectedSymbol, comparisonSymbo
       <label className="ic-search-label"><Search size={18} aria-hidden="true" /><input ref={inputRef} type="search" value={query} onChange={event => { setQuery(event.target.value); setAttempt(0); }} autoComplete="off" autoCapitalize="characters" spellCheck={false} placeholder={englishMode ? 'Search symbol or company name' : '搜索股票代码 / 名称'} aria-label={englishMode ? 'Search US stocks and ETFs' : '搜索美股与 ETF'} /></label>
       <div className="ic-results-heading"><span>{normalizedQuery ? (englishMode ? 'Search results' : '搜索结果') : (englishMode ? 'Stocks & ETFs' : '股票与 ETF 快捷选择')}</span><span>US · USD</span></div>
       <div className="ic-results" aria-busy={state.loading}>
-        {!normalizedQuery ? <InvestmentSymbolPresets selectedSymbol={selectedSymbol} comparisonSymbol={comparisonSymbol} englishMode={englishMode} onSelect={onSelect} />
+        {!normalizedQuery ? <InvestmentSymbolPresets selectedSymbol={selectedSymbol} comparisonSymbol={comparisonSymbol} excludedSymbols={excludedSymbols} englishMode={englishMode} onSelect={onSelect} />
           : !matchesCurrentQuery || state.loading ? <div className="ic-search-empty" role="status"><RefreshCw size={15} className="ic-spin" />{englishMode ? 'Searching…' : '搜索中…'}</div>
             : state.error ? <div className="ic-search-empty" role="alert"><span>{englishMode ? 'Search is temporarily unavailable.' : '搜索暂时不可用。'}</span><button type="button" onClick={() => setAttempt(value => value + 1)}>{englishMode ? 'Retry' : '重试'}</button></div>
               : results.length === 0 ? <div className="ic-search-empty">{englishMode ? 'No matching USD stock or ETF found.' : '未找到匹配的美元股票或 ETF。'}</div>
                 : results.map(item => {
-                  const duplicate = item.symbol === comparisonSymbol;
+                  const duplicate = item.symbol === comparisonSymbol || excludedSymbols.includes(item.symbol);
                   const current = item.symbol === selectedSymbol;
                   return <button key={item.symbol} type="button" className="ic-result" disabled={duplicate} onClick={() => { if (!duplicate) onSelect(item); }}>
                     <span className="ic-result-icon">{item.type === 'ETF' ? 'ETF' : englishMode ? 'US' : '股票'}</span>

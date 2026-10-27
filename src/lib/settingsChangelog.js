@@ -4,6 +4,17 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '全部功能新增走势对比，位于重叠体检下方；默认两只股票，最多四只，支持自定义起止日期。',
+      '接入 EODHD 拆股复权价格，使用相同交易日基准比较区间涨跌；支持单股股价、缩放与逐日查看。',
+    ],
+    itemsEn: [
+      'All tools adds Stock Comparison below Portfolio Overlap, with two stocks by default, up to four, and custom start and end dates.',
+      'Uses EODHD split-adjusted prices and a shared trading-date baseline for period returns, with individual price charts, zooming, and daily inspection.',
+    ],
+  },
+  {
+    ver: 'v10.7.9.563', date: '2026-10-19',
+    items: [
       '回撤观察新增收盘 RSI(6) 和超卖等级，默认按最近已完成交易日 RSI 从低到高排序，保留回撤深浅排序。',
       '支持 RSI ≤30／≤20／≤15 及自定义上限筛选，可与回撤深度组合；缺失或日期未更新的 RSI 不参与当前排名。',
     ],

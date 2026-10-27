@@ -36,16 +36,23 @@ const PERSONAL_TOOL_GROUP = {
   ],
 };
 
-export default function TradeToolsCatalog({ language = 'zh', onSelect, enableDebtManager = false }) {
+const STOCK_COMPARISON_TOOL = {
+  id: 'stock-comparison', titleKey: 'trades.stockComparison', descriptionKey: 'trades.stockComparisonDescription', icon: TrendingUp,
+};
+
+export default function TradeToolsCatalog({ language = 'zh', onSelect, enableDebtManager = false, enableStockComparison = false }) {
   const headingId = React.useId();
   const groups = enableDebtManager ? [...TOOL_GROUPS, PERSONAL_TOOL_GROUP] : TOOL_GROUPS;
   return <div className="trade-tools-catalog">
     {groups.map(group => {
       const GroupIcon = group.icon;
+      const visibleTools = group.tools.flatMap(tool => enableStockComparison && tool.id === 'portfolio-overlap'
+        ? [tool, STOCK_COMPARISON_TOOL]
+        : [tool]);
       return <section key={group.id} className="trade-tools-group" aria-labelledby={`${headingId}-${group.id}`}>
         <h3 id={`${headingId}-${group.id}`} className="trade-tools-category"><GroupIcon size={14} strokeWidth={1.7} aria-hidden="true" />{t(language, group.titleKey)}</h3>
         <div className="trade-tools-items">
-          {group.tools.map(tool => {
+          {visibleTools.map(tool => {
             const Icon = tool.icon;
             return <button key={tool.id} type="button" data-tool-id={tool.id} className="trade-tool-card" onClick={() => onSelect(tool.id)}>
               <span className="trade-tool-icon"><Icon size={21} strokeWidth={1.7} aria-hidden="true" /></span>

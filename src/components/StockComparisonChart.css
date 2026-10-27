@@ -1,0 +1,48 @@
+.scc-chart {
+  width: 100%;
+  min-width: 0;
+  color: #eef1f8;
+  font-variant-numeric: tabular-nums;
+}
+.scc-chart .scc-touch {
+  width: 100%;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
+}
+.scc-chart .scc-touch:focus-visible { border-radius: 12px; box-shadow: 0 0 0 2px #4b5563; }
+.scc-chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+.scc-chart .scc-grid { stroke: #1d2027; stroke-width: 1; }
+.scc-chart .scc-zero { stroke: #424650; stroke-dasharray: 3 5; }
+.scc-chart .scc-axis { fill: #898d96; font-size: 11px; font-family: inherit; }
+.scc-chart .scc-crosshair { stroke: #9297a2; stroke-width: 1; stroke-dasharray: 3 5; }
+.scc-chart .scc-empty { fill: #898d96; font-size: 13px; font-family: inherit; }
+.scc-chart .scc-tools { display: flex; justify-content: space-between; align-items: center; gap: 8px; min-height: 44px; margin-top: 5px; }
+.scc-chart .scc-window-label { color: #898d96; font-size: 11px; line-height: 1.4; }
+.scc-chart .scc-zoom-buttons { display: flex; flex-shrink: 0; align-items: center; gap: 2px; }
+.scc-chart .scc-zoom-buttons button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  min-height: 44px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #bec2cb;
+  font-family: inherit;
+  font-size: 21px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.scc-chart .scc-zoom-buttons button:active:not(:disabled) { background: #1c2028; }
+.scc-chart .scc-zoom-buttons button:focus-visible { outline: 2px solid #4b5563; outline-offset: -4px; }
+.scc-chart .scc-zoom-buttons button:disabled { color: #50545d; cursor: default; }
+.scc-chart .scc-zoom-buttons .scc-reset { font-size: 12px; }
+@media (max-width: 360px) {
+  .scc-chart .scc-window-label { max-width: 150px; }
+  .scc-chart .scc-zoom-buttons button { min-width: 36px; padding: 4px 6px; }
+}

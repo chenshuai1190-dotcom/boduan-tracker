@@ -12,6 +12,7 @@ import { fetchDcaHistory, fetchInvestmentComparison, searchInvestmentSymbols, In
 import { fetchPortfolioOverlap, PortfolioOverlapError } from '../server/quote/portfolioOverlap.js';
 import { fetchFearGreed, FearGreedError } from '../server/quote/fearGreed.js';
 import { fetchStockDecision, StockDecisionError } from '../server/quote/stockDecision.js';
+import { fetchStockComparison, StockComparisonError } from '../server/quote/stockComparison.js';
 import { getStockValuation } from '../server/quote/stockDecisionValuation.js';
 import { fetchMacroSnapshot } from '../server/macro/MacroDataService.js';
 
@@ -21,9 +22,10 @@ export default async function handler(req, res) {
   const dcaViewPresent = [req.query?.view].flat().includes('dca-history');
   const fearGreedViewPresent = [req.query?.view].flat().includes('fear-greed');
   const stockDecisionViewPresent = [req.query?.view].flat().includes('stock-decision');
+  const stockComparisonViewPresent = [req.query?.view].flat().includes('stock-comparison');
   const macroViewPresent = [req.query?.view].flat().includes('macro');
   const stockValuationViewPresent = [req.query?.view].flat().includes('stock-valuation');
-  if (authRequired || dcaViewPresent || fearGreedViewPresent || stockDecisionViewPresent || stockValuationViewPresent || macroViewPresent) {
+  if (authRequired || dcaViewPresent || fearGreedViewPresent || stockDecisionViewPresent || stockComparisonViewPresent || stockValuationViewPresent || macroViewPresent) {
     res.setHeader('Cache-Control', 'private, no-store, max-age=0, must-revalidate');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
@@ -37,7 +39,7 @@ export default async function handler(req, res) {
     return sendError(res, 405, 'Method Not Allowed');
   }
 
-  if (fearGreedViewPresent || stockDecisionViewPresent || stockValuationViewPresent || macroViewPresent) {
+  if (fearGreedViewPresent || stockDecisionViewPresent || stockComparisonViewPresent || stockValuationViewPresent || macroViewPresent) {
     // This view stays private even when legacy quote authentication is disabled locally.
     const header = req.headers.authorization || '';
     const auth = await authenticateAccessToken(header.startsWith('Bearer ') ? header.slice(7) : '');
@@ -72,6 +74,7 @@ export default async function handler(req, res) {
     && !portfolioOverlapRequested
     && !fearGreedRequested
     && !stockDecisionViewPresent
+    && !stockComparisonViewPresent
     && !stockValuationViewPresent
     && !macroViewPresent
   ) {
@@ -107,6 +110,19 @@ export default async function handler(req, res) {
     return res.status(200).json({ success: true, data: await getStockValuation({ symbol: req.query.symbol }) });
   }
   const eodhdKey = (process.env.EODHD_API_KEY || '').trim().replace(/[\s\u200B-\u200D\uFEFF]/g, '');
+  if (stockComparisonViewPresent) {
+    try {
+      if (view !== 'stock-comparison' || Object.values(req.query).some(Array.isArray)
+        || Object.keys(req.query).some((key) => !['view', 'symbols', 'from', 'to'].includes(key))) {
+        throw new StockComparisonError('INVALID_PARAMETERS');
+      }
+      const data = await fetchStockComparison(symbols, { from: req.query.from, to: req.query.to, eodhdKey });
+      return res.status(200).json({ success: true, data });
+    } catch (cause) {
+      const failure = cause instanceof StockComparisonError ? cause : new StockComparisonError();
+      return sendError(res, failure.status, failure.message, { code: failure.code });
+    }
+  }
   if (stockDecisionViewPresent) {
     try {
       if (view !== 'stock-decision' || Object.values(req.query).some(Array.isArray)
