@@ -1,4 +1,4 @@
-.sc-page { --ic-bg: #070809; --ic-panel: #121315; --ic-border: #282a2e; --ic-grid: #1c1e22; --ic-text: #e8e9ec; --ic-muted: #85878e; width: 100%; max-width: 760px; margin: 0 auto; padding: calc(8px + env(safe-area-inset-top)) 0 24px; }
+.sc-page { --ic-bg: #070809; --ic-panel: #121315; --ic-border: #282a2e; --ic-grid: #1c1e22; --ic-text: #e8e9ec; --ic-muted: #85878e; --sc-control-height: 44px; --sc-control-radius: 10px; width: 100%; max-width: 760px; margin: 0 auto; padding: calc(8px + env(safe-area-inset-top)) 0 24px; }
 .sc-page button { border: 0; }
 .sc-page button:focus-visible { outline: 2px solid #707786; outline-offset: 2px; }
 .sc-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 66px; margin-bottom: 10px; }
@@ -10,22 +10,24 @@
 .sc-section-label small { margin-left: 7px; font-size: 11px; }
 .sc-section-label button { display: flex; align-items: center; gap: 4px; min-height: 36px; padding: 0 4px 0 12px; color: var(--ic-text); background: transparent; font-size: 12px; }
 .sc-symbol-grid, .sc-dates, .sc-summary-grid, .sc-readout-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
-.sc-symbol-card { min-width: 0; display: flex; align-items: center; background: var(--ic-panel); border-radius: 12px; }
-.sc-symbol-pick { display: flex; align-items: center; gap: 9px; flex: 1; min-width: 0; padding: 12px; min-height: 64px; text-align: left; color: var(--ic-text); background: transparent; border-radius: 12px; }
+.sc-symbol-card { min-width: 0; display: flex; align-items: center; background: var(--ic-panel); border-radius: var(--sc-control-radius); }
+.sc-symbol-pick { display: flex; align-items: center; gap: 9px; flex: 1; min-width: 0; padding: 8px 10px; min-height: var(--sc-control-height); text-align: left; color: var(--ic-text); background: transparent; border-radius: var(--sc-control-radius); }
 .sc-symbol-pick:active, .sc-add-card:active { background: #202125; }
 .sc-symbol-pick > span { flex: 1; min-width: 0; }
-.sc-symbol-pick strong { display: block; font-size: 17px; font-weight: 500; }
+.sc-symbol-pick strong { display: block; font-size: 14px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sc-symbol-pick > svg { flex-shrink: 0; color: var(--ic-muted); }
 .sc-symbol-pick i, .sc-summary-symbol i, .sc-readout-card i, .sc-detail-row h3 i { display: inline-block; width: 7px; height: 7px; flex-shrink: 0; border-radius: 50%; }
-.sc-remove { display: grid; place-items: center; width: 32px; min-height: 44px; color: var(--ic-muted); background: transparent; flex-shrink: 0; }
-.sc-add-card { display: flex; align-items: center; justify-content: center; gap: 7px; color: var(--ic-muted); background: var(--ic-panel); border-radius: 12px; font-size: 13px; min-height: 64px; }
+.sc-remove { display: grid; place-items: center; width: 32px; min-height: var(--sc-control-height); color: var(--ic-muted); background: transparent; flex-shrink: 0; }
+.sc-add-card { display: flex; align-items: center; justify-content: center; gap: 7px; color: var(--ic-muted); background: var(--ic-panel); border-radius: var(--sc-control-radius); font-size: 14px; min-height: var(--sc-control-height); }
 .sc-dates { margin-top: 18px; }
-.sc-page .sc-dates input { font-size: 14px; min-width: 0; height: 44px; min-height: 44px; padding: 10px; }
+.sc-page .sc-dates input { font-size: 14px; min-width: 0; height: var(--sc-control-height); min-height: var(--sc-control-height); padding: 8px 10px; border-radius: var(--sc-control-radius); }
 .sc-page .sc-dates input::-webkit-date-and-time-value { text-align: left; }
 .sc-ranges { display: grid; grid-template-columns: repeat(6,minmax(0,1fr)); gap: 4px; margin: 10px 0 17px; }
 .sc-ranges button { min-height: 38px; padding: 4px 0; background: transparent; color: var(--ic-muted); border-radius: 9px; font-size: 12px; }
 .sc-ranges button[aria-pressed="true"] { color: var(--ic-text); background: #242528; }
-.sc-page .sc-tabs { margin: 0 0 24px; }
+.sc-page .sc-tabs { margin: 0 0 24px; min-height: var(--sc-control-height); border-radius: var(--sc-control-radius); }
+.sc-page .sc-tabs button { position: relative; min-height: calc(var(--sc-control-height) - 8px); border-radius: calc(var(--sc-control-radius) - 4px); }
+.sc-page .sc-tabs button::after { content: ''; position: absolute; inset: -4px 0; }
 .sc-overview-label { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 12px; font-size: 12px; color: var(--ic-muted); }
 .sc-overview-label > span:last-child { font-size: 11px; }
 .sc-range-note { margin: -6px 0 12px; color: var(--ic-muted); font-size: 11px; }
@@ -69,7 +71,7 @@
 .sc-detail-row dd small { display: block; font-size: 10px; color: var(--ic-muted); margin-top: 3px; }
 .sc-footnote { text-align: center; font-size: 10px; line-height: 1.9; margin-top: 20px; color: var(--ic-muted); }
 .sc-empty { color: var(--ic-muted); text-align: center; padding: 70px 24px; font-size: 13px; }
-@media (max-width: 360px) { .sc-symbol-grid, .sc-dates, .sc-readout-grid { gap: 8px; } .sc-symbol-pick { gap: 6px; padding: 10px; } .sc-summary > strong { font-size: 26px; } .sc-overview-label { flex-wrap: wrap; } }
+@media (max-width: 360px) { .sc-symbol-grid, .sc-dates, .sc-readout-grid { gap: 8px; } .sc-symbol-pick { gap: 6px; } .sc-summary > strong { font-size: 26px; } .sc-overview-label { flex-wrap: wrap; } }
 
 .sc-loading { display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 300px; }
 .sc-load-error { display: flex; flex-direction: column; gap: 16px; align-items: center; }
