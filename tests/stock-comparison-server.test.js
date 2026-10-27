@@ -2,9 +2,11 @@ import assert from 'node:assert/strict';
 import test, { afterEach, beforeEach } from 'node:test';
 import {
   buildStockComparisonRows, fetchStockComparison, normalizeStockComparisonSymbols,
-  normalizeStockComparisonDates, resetStockComparisonCacheForTests,
+  normalizeStockComparisonDates, resetStockComparisonCacheForTests, addStockComparisonRsi,
 } from '../server/quote/stockComparison.js';
 import { resetInvestmentComparisonCacheForTests } from '../server/quote/investmentComparison.js';
+import { isRegularNyseHoliday } from '../src/lib/quoteRefreshPolicy.js';
+import { wilderRsiSeries } from '../src/lib/wilderRsi.js';
 
 const NOW = Date.parse('2026-10-27T10:00:00Z');
 const RANGE = { from: '2026-10-19', to: '2026-10-23', splitBasisDate: '2026-10-26' };
@@ -61,13 +63,14 @@ test('only raw close and subsequent split actions set price basis; dividends and
   assert.equal(parsed.at(-1).close / parsed[0].close - 1, 0.19999999999999996);
   const calls = [];
   const result = await fetchStockComparison('QQQ,TQQQ', options(provider({ calls, prices: () => response(input), splits: () => response(actions) })));
-  assert.deepEqual(result.series.TQQQ.rows, parsed, 'TQQQ market prices receive no additional ×3 leverage');
-  assert.deepEqual(result.series.QQQ.rows, parsed);
+  assert.deepEqual(result.series.TQQQ.rows, parsed.map(row => ({ ...row, rsi6: null })), 'TQQQ market prices receive no additional ×3 leverage');
+  assert.deepEqual(result.series.QQQ.rows, parsed.map(row => ({ ...row, rsi6: null })));
   assert.equal(result.priceBasis, 'split_adjusted_close');
   assert.equal(result.source, 'EODHD_EOD_SPLITS');
   assert.equal(result.splitBasisDate, '2026-10-26');
   assert.ok(calls.filter(url => url.pathname.includes('/eod/')).every(url => url.searchParams.get('to') === '2026-10-23'));
   assert.ok(calls.filter(url => url.pathname.includes('/splits/')).every(url => url.searchParams.get('to') === '2026-10-26'));
+  assert.ok(calls.filter(url => /\/(eod|splits)\//.test(url.pathname)).every(url => url.searchParams.get('from') === '2025-10-04'));
 });
 
 test('reverse splits and identical duplicate actions are applied once; conflicts and malformed data fail closed', () => {
@@ -161,4 +164,105 @@ test('range cache is isolated and incomplete close refreshes after five minutes 
   const narrowed = await fetchStockComparison('QQQ,TQQQ', options(fetchImpl, { from: DATES[1], now: NOW + 300_001 }));
   assert.equal(narrowed.series.QQQ.rows[0].date, DATES[1]);
   assert.equal(calls.filter(url => url.pathname.includes('/eod/')).length, 6);
+});
+
+function calendarRows(from = '2025-01-01', to = '2026-10-23', priceAt = index => 100 + index * 0.04 + Math.sin(index * 0.7) * 4) {
+  const result = [];
+  const specialClosures = new Set(['2001-09-11', '2001-09-12', '2001-09-13', '2001-09-14',
+    '2004-06-11', '2007-01-02', '2012-10-29', '2012-10-30', '2018-12-05', '2025-01-09']);
+  const cursor = new Date(`${from}T00:00:00Z`);
+  while (cursor.toISOString().slice(0, 10) <= to) {
+    const date = cursor.toISOString().slice(0, 10);
+    if (![0, 6].includes(cursor.getUTCDay()) && !isRegularNyseHoliday(date) && !specialClosures.has(date)) {
+      const close = priceAt(result.length);
+      result.push({ date, close: close * 2, adjusted_close: close });
+    }
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+  return result;
+}
+
+function historyProvider(history, calls = [], actions = []) {
+  return provider({ calls,
+    prices: (_, url) => response(history.filter(row => row.date >= url.searchParams.get('from') && row.date <= url.searchParams.get('to'))),
+    splits: (_, url) => response(actions.filter(action => action.date >= url.searchParams.get('from') && action.date <= url.searchParams.get('to'))),
+  });
+}
+
+test('historical RSI uses pre-start warmup, shared Wilder RSI6 and adjusted-close metadata while returning only requested prices', async () => {
+  const history = calendarRows(); const calls = [];
+  const data = await fetchStockComparison('QQQ,TQQQ', options(historyProvider(history, calls)));
+  const series = data.series.QQQ;
+  assert.equal(series.rsiPeriod, 6);
+  assert.equal(series.rsiPriceBasis, 'adjusted_close');
+  assert.deepEqual(series.rows.map(row => row.date), DATES, 'warmup is not exposed as the comparison interval');
+  assert.ok(series.rows.every(row => Number.isFinite(row.rsi6)));
+  assert.ok(calls.filter(url => /\/(eod|splits)\//.test(url.pathname)).every(url => url.searchParams.get('from') === '2025-10-04'));
+  const warmup = history.filter(row => row.date >= '2025-10-04' && row.date <= DATES[0]);
+  const expected = wilderRsiSeries(warmup.map(row => ({ date: row.date, close: row.adjusted_close })), 6).at(-1);
+  assert.equal(series.rows[0].rsi6, expected);
+  assert.equal(series.rows[0].close, history.find(row => row.date === DATES[0]).close);
+});
+
+test('same historical date has identical RSI across selected chart ranges and excludes future observations', async () => {
+  const history = calendarRows(); const fetchImpl = historyProvider(history);
+  const wide = await fetchStockComparison('QQQ,TQQQ', options(fetchImpl, { from: '2026-05-01' }));
+  const narrow = await fetchStockComparison('QQQ,TQQQ', options(fetchImpl, { from: '2026-10-21' }));
+  assert.equal(wide.series.QQQ.rows.find(row => row.date === '2026-10-21').rsi6, narrow.series.QQQ.rows[0].rsi6);
+  const selected = history.filter(row => row.date >= DATES[0]).map(({ date, close }) => ({ date, close }));
+  const prior = addStockComparisonRsi(selected, history);
+  const modified = history.map(row => row.date > '2026-10-21' ? { ...row, adjusted_close: row.date === '2026-10-22' ? null : 1e8 } : row);
+  const after = addStockComparisonRsi(selected, modified);
+  assert.deepEqual(after.slice(0, 3), prior.slice(0, 3), 'future invalid or extreme prices cannot change earlier RSI');
+  assert.equal(after[3].rsi6, null);
+});
+
+test('split does not create a false RSI crash and adjusted-close RSI is not split-adjusted a second time', async () => {
+  const history = calendarRows('2026-06-01', '2026-10-23', index => 100 + index);
+  const splitDate = '2026-10-20';
+  for (const row of history) row.close = row.adjusted_close * (row.date < splitDate ? 2 : 1);
+  const data = await fetchStockComparison('QQQ,TQQQ', options(historyProvider(history, [], [{ date: splitDate, split: '2/1' }])));
+  assert.ok(data.series.TQQQ.rows.every(row => row.rsi6 === 100));
+  assert.ok(data.series.TQQQ.rows.every(row => row.close === history.find(point => point.date === row.date).adjusted_close));
+});
+
+test('short, invalid or internally missing adjusted history yields null RSI without suppressing valid prices', async () => {
+  const history = calendarRows();
+  const selected = history.filter(row => row.date >= DATES[0]).map(({ date, close }) => ({ date, close }));
+  for (const invalid of [undefined, null, '', false, [], {}, '0x64', '12bad', 0, -1, Infinity]) {
+    const damaged = history.map(row => row.date === '2026-10-16' ? { ...row, adjusted_close: invalid } : row);
+    const result = addStockComparisonRsi(selected, damaged);
+    assert.ok(result.every(row => row.rsi6 === null));
+    assert.deepEqual(result.map(({ rsi6, ...row }) => row), selected);
+  }
+  const missing = history.filter(row => row.date !== '2026-10-16');
+  const data = await fetchStockComparison('QQQ,TQQQ', options(historyProvider(missing)));
+  assert.ok(data.series.QQQ.rows.every(row => row.rsi6 === null));
+  assert.deepEqual(data.series.QQQ.rows.map(({ rsi6, ...row }) => row), selected);
+  const last59 = history.slice(-59);
+  assert.equal(addStockComparisonRsi([selected.at(-1)], last59)[0].rsi6, null);
+  const last60 = history.slice(-60);
+  assert.ok(Number.isFinite(addStockComparisonRsi([selected.at(-1)], last60)[0].rsi6));
+  const conflict = [...history, { ...history.find(row => row.date === '2026-10-16'), adjusted_close: 999 }];
+  assert.ok(addStockComparisonRsi(selected, conflict).every(row => row.rsi6 === null));
+});
+
+test('RSI warmup respects the 2000 floor and holidays do not count as missing sessions', async () => {
+  const history = calendarRows('2000-01-01', '2000-05-01', index => 100 + index); const calls = [];
+  const data = await fetchStockComparison('QQQ,TQQQ', options(historyProvider(history, calls), { from: '2000-05-01', to: '2000-05-01' }));
+  assert.equal(data.series.QQQ.rows[0].rsi6, 100);
+  assert.ok(calls.filter(url => /\/(eod|splits)\//.test(url.pathname)).every(url => url.searchParams.get('from') === '2000-01-01'));
+});
+
+test('documented exceptional market closures since 2000 are not missing RSI sessions; real missing trading days still fail closed', async () => {
+  for (const date of ['2001-09-17', '2004-06-14', '2007-01-03', '2012-10-31', '2018-12-06', '2025-01-10']) {
+    const history = calendarRows(`${Number(date.slice(0, 4)) - 1}-01-01`, date, index => 100 + index);
+    const row = history.at(-1);
+    assert.equal(addStockComparisonRsi([{ date, close: row.close }], history)[0].rsi6, 100, date);
+  }
+  const history = calendarRows('2024-01-01', '2025-01-10', index => 100 + index);
+  const data = await fetchStockComparison('QQQ,TQQQ', options(historyProvider(history), { from: '2025-01-10', to: '2025-01-10' }));
+  assert.equal(data.series.QQQ.rows[0].rsi6, 100, 'Carter closure is accepted through the complete backend path');
+  const missing = history.filter(row => row.date !== '2025-01-08');
+  assert.equal(addStockComparisonRsi([{ date: '2025-01-10', close: history.at(-1).close }], missing)[0].rsi6, null);
 });

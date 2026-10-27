@@ -4,6 +4,19 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '走势对比默认展示年初至今，区间详细数据默认展开，使用固定位置的加减按钮收起或展开。',
+      '选中日期卡片新增当日收盘 RSI(6) 和超买超卖状态，沿用交易页面的判断标准。',
+      '点击图表外恢复期末日期数据，同时保留当前图表缩放范围。',
+    ],
+    itemsEn: [
+      'Stock Comparison defaults to year-to-date with period details expanded and a fixed-position plus/minus control.',
+      'Selected-date cards add that session’s closing RSI(6) and overbought or oversold state using the trade screen thresholds.',
+      'Clicking outside the chart restores period-end readings while keeping the current zoom range.',
+    ],
+  },
+  {
+    ver: 'v10.7.9.564', date: '2026-10-27',
+    items: [
       '全部功能新增走势对比，位于重叠体检下方；默认两只股票，最多四只，支持自定义起止日期。',
       '接入 EODHD 拆股复权价格，使用相同交易日基准比较区间涨跌；支持单股股价、缩放与逐日查看。',
     ],

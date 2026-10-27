@@ -1,9 +1,10 @@
 import React from 'react';
-import { ArrowLeft, ArrowUpRight, ChevronDown, Plus, RefreshCw, X } from 'lucide-react';
+import { ArrowLeft, ArrowUpRight, ChevronDown, Minus, Plus, RefreshCw, X } from 'lucide-react';
 import InvestmentSymbolPicker from '../components/InvestmentSymbolPicker.jsx';
 import StockComparisonChart from '../components/StockComparisonChart.jsx';
+import { getStockRsiReferenceState } from '../components/StockRsiReference.jsx';
 import { INVESTMENT_SYMBOL_PRESETS } from '../lib/investmentSymbolPresets.js';
-import { marketHexColor } from '../lib/marketColorMode.js';
+import { marketHexColor, MARKET_GREEN_HEX, MARKET_RED_HEX } from '../lib/marketColorMode.js';
 import { buildStockComparison, comparisonRangeStart } from '../lib/stockComparisonModel.js';
 import { loadStockComparison } from '../lib/stockComparison.js';
 import { getInvestmentComparisonExpectedCloseDate, searchInvestmentSymbols } from '../lib/investmentComparison.js';
@@ -21,7 +22,25 @@ function initialSettings(identity, latestDate, preview) {
   const saved = remembered.get(identity);
   if (saved && requested.length < 2) return saved.range === 'custom' ? saved : { ...saved, start: comparisonRangeStart(saved.range, latestDate), end: latestDate };
   const symbols = requested.length >= 2 ? requested : ['QQQ', 'TQQQ'];
-  return { symbols, colors: Object.fromEntries(symbols.map((symbol, index) => [symbol, PALETTE[index]])), range: '1y', start: comparisonRangeStart('1y', latestDate), end: latestDate, mode: 'return', activeSymbol: symbols[0], identities: {} };
+  return { symbols, colors: Object.fromEntries(symbols.map((symbol, index) => [symbol, PALETTE[index]])), range: 'ytd', start: comparisonRangeStart('ytd', latestDate), end: latestDate, mode: 'return', activeSymbol: symbols[0], identities: {} };
+}
+
+const RSI_LABELS = {
+  'panic-oversold': ['恐慌超卖', 'Panic oversold'],
+  'extremely-oversold': ['极端超卖', 'Extremely oversold'],
+  oversold: ['超卖', 'Oversold'], normal: ['正常', 'Normal'],
+  overbought: ['超买', 'Overbought'], 'strongly-overbought': ['强超买', 'Strongly overbought'],
+  unavailable: ['暂无数据', 'No data'],
+};
+
+function ComparisonRsi({ value, date, english }) {
+  const state = getStockRsiReferenceState({ value, asOf: date });
+  const color = ['panic-oversold', 'overbought', 'strongly-overbought'].includes(state.status) ? MARKET_RED_HEX
+    : ['oversold', 'extremely-oversold'].includes(state.status) ? MARKET_GREEN_HEX : 'var(--ic-muted)';
+  return <div className="sc-card-rsi" data-status={state.status}>
+    <div><span>RSI(6)</span><strong>{state.value === null ? '—' : state.value.toFixed(2)}</strong></div>
+    <span className="sc-card-rsi-status" style={{ color }}>{RSI_LABELS[state.status][english ? 1 : 0]}</span>
+  </div>;
 }
 
 function validRange(start, end, latestDate) {
@@ -49,13 +68,23 @@ export default function StockComparisonPage({ ctx = {}, previewSource }) {
   const { symbols, colors, start, end, range, mode, activeSymbol, identities = {} } = settings;
   const [picker, setPicker] = React.useState(null);
   const [selectedDate, setSelectedDate] = React.useState(null);
+  const [detailsExpanded, setDetailsExpanded] = React.useState(true);
   const [attempt, setAttempt] = React.useState(0);
   const [loadState, setLoadState] = React.useState({ key: '', loading: true, data: null, error: '' });
   const requestRef = React.useRef(0);
   const startRef = React.useRef(null);
+  const chartRef = React.useRef(null);
   const patch = values => setSettings(previous => ({ ...previous, ...values }));
   const requestKey = JSON.stringify([identity, symbols, start, end, latestDate, attempt]);
   const valid = validRange(start, end, latestDate);
+  React.useEffect(() => {
+    if (selectedDate === null) return undefined;
+    const resetOutsideChart = event => {
+      if (chartRef.current && !chartRef.current.contains(event.target)) setSelectedDate(null);
+    };
+    document.addEventListener('click', resetOutsideChart, true);
+    return () => document.removeEventListener('click', resetOutsideChart, true);
+  }, [selectedDate]);
   React.useEffect(() => {
     remembered.delete(identity);
     remembered.set(identity, settings);
@@ -153,14 +182,14 @@ export default function StockComparisonPage({ ctx = {}, previewSource }) {
       </div>
       {ranking.length >= 2 && <div className="sc-lead"><ArrowUpRight size={15} /><span>{ranking[0].symbol} {tr('领先', 'leads')} {ranking[1].symbol}</span><strong>{percent(ranking[0].returnPct - ranking[1].returnPct)}</strong>{symbols.length > 2 && <small>{tr('前两名', 'Top two')}</small>}</div>}
 
-      <StockComparisonChart rows={model.rows} symbols={symbols} colors={colors} mode={mode} activeSymbol={activeSymbol} selectedDate={selected?.date} onSelectDate={setSelectedDate} englishMode={english} />
+      <div ref={chartRef}><StockComparisonChart rows={model.rows} symbols={symbols} colors={colors} mode={mode} activeSymbol={activeSymbol} selectedDate={selected?.date} onSelectDate={setSelectedDate} englishMode={english} /></div>
 
       <section className="sc-readout" aria-label={tr('选中日期详情', 'Selected date details')}>
         <div className="sc-readout-heading"><span>{selected?.date}</span><button type="button" onClick={() => setSelectedDate(null)} disabled={!selectedDate || selectedDate === model.endDate}>{tr('回到期末', 'Period end')}</button></div>
-        <div className="sc-readout-grid">{symbols.map(symbol => <div className="sc-readout-card" key={symbol}><span><i style={{ background: colors[symbol] }} />{symbol}</span><strong>{price(selected?.prices[symbol])}</strong><div><small>{tr('自起始日', 'Since start')}</small><b style={{ color: tone(selected?.returns[symbol]) }}>{percent(selected?.returns[symbol])}</b></div></div>)}</div>
+        <div className="sc-readout-grid">{symbols.map(symbol => <div className="sc-readout-card" key={symbol}><span><i style={{ background: colors[symbol] }} />{symbol}</span><strong>{price(selected?.prices[symbol])}</strong><ComparisonRsi value={selected?.rsi6?.[symbol]} date={selected?.date} english={english} /><div className="sc-card-return"><small>{tr('自起始日', 'Since start')}</small><b style={{ color: tone(selected?.returns[symbol]) }}>{percent(selected?.returns[symbol])}</b></div></div>)}</div>
       </section>
 
-      <details className="sc-details"><summary>{tr('区间详细数据', 'Period details')}<Plus size={17} /></summary><div className="sc-detail-list">{symbols.map(symbol => <div key={symbol} className="sc-detail-row"><h3><i style={{ background: colors[symbol] }} />{symbol}</h3><dl><div><dt>{tr('区间最高', 'High')}</dt><dd>{price(model.stats[symbol]?.high?.price)}<small>{model.stats[symbol]?.high?.date}</small></dd></div><div><dt>{tr('区间最低', 'Low')}</dt><dd>{price(model.stats[symbol]?.low?.price)}<small>{model.stats[symbol]?.low?.date}</small></dd></div><div><dt>{tr('最大回撤', 'Max drawdown')}</dt><dd style={{ color: tone(model.stats[symbol]?.maxDrawdownPct) }}>{percent(model.stats[symbol]?.maxDrawdownPct)}</dd></div></dl></div>)}</div></details>
+      <details className="sc-details" open={detailsExpanded} onToggle={event => setDetailsExpanded(event.currentTarget.open)}><summary>{tr('区间详细数据', 'Period details')}{detailsExpanded ? <Minus size={17} /> : <Plus size={17} />}</summary><div className="sc-detail-list">{symbols.map(symbol => <div key={symbol} className="sc-detail-row"><h3><i style={{ background: colors[symbol] }} />{symbol}</h3><dl><div><dt>{tr('区间最高', 'High')}</dt><dd>{price(model.stats[symbol]?.high?.price)}<small>{model.stats[symbol]?.high?.date}</small></dd></div><div><dt>{tr('区间最低', 'Low')}</dt><dd>{price(model.stats[symbol]?.low?.price)}<small>{model.stats[symbol]?.low?.date}</small></dd></div><div><dt>{tr('最大回撤', 'Max drawdown')}</dt><dd style={{ color: tone(model.stats[symbol]?.maxDrawdownPct) }}>{percent(model.stats[symbol]?.maxDrawdownPct)}</dd></div></dl></div>)}</div></details>
     </>}
     <footer className="sc-footnote">{preview?.synthetic ? tr('模拟数据 · 仅用于本地设计预览，非真实行情', 'Simulated data · Local design preview, not real market prices') : tr('EODHD · 拆股复权收盘价 · 不含分红再投资', 'EODHD · Split-adjusted close · Excludes reinvested dividends')}</footer>
     {picker !== null && <InvestmentSymbolPicker selectedSymbol={picker === 'add' ? '—' : picker} excludedSymbols={symbols.filter(symbol => symbol !== picker)} title={picker === 'add' ? tr('添加对比标的', 'Add investment') : tr('更换对比标的', 'Change investment')} englishMode={english} userId={userId} searchSource={searchSource} onSelect={chooseSymbol} onClose={() => setPicker(null)} />}

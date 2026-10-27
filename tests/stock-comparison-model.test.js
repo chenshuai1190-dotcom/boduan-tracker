@@ -115,3 +115,59 @@ test('local fixture is explicitly synthetic, covers shared presets, and remains 
   assert.deepEqual(buildStockComparison(input), buildStockComparison(input));
   assert.equal(JSON.stringify(series.QQQ.rows), before);
 });
+
+const rsiObservations = values => ({ rsiPeriod: 6, rsiPriceBasis: 'adjusted_close', rows: values.map(([date, close, rsi6]) => ({ date, close, rsi6 })) });
+
+test('RSI remains attached to the exact historical price date, including zero and gaps', () => {
+  const result = buildStockComparison({
+    series: {
+      QQQ: rsiObservations([['2026-10-05', 100, 0], ['2026-10-06', 120, 28.5], ['2026-10-07', 90, 15.5]]),
+      TQQQ: rsiObservations([['2026-10-05', 20, 10], ['2026-10-07', 22, 100]]),
+    }, symbols: ['QQQ', 'TQQQ'], startDate: '2026-10-05', endDate: '2026-10-07',
+  });
+  assert.deepEqual(result.rows.map(row => row.rsi6), [
+    { QQQ: 0, TQQQ: 10 }, { QQQ: 28.5, TQQQ: null }, { QQQ: 15.5, TQQQ: 100 },
+  ]);
+  assert.equal(result.rows[1].prices.TQQQ, null);
+  near(result.stats.QQQ.returnPct, -10);
+});
+
+test('missing historical RSI never borrows a later or current value or recalculates a shortened window', () => {
+  const input = {
+    series: {
+      QQQ: { ...rsiObservations([['2026-10-05', 100, 12], ['2026-10-06', 120], ['2026-10-07', 90, 80]]), latestRsi: 95 },
+      TQQQ: rsiObservations([['2026-10-05', 20, 20], ['2026-10-06', 21, null], ['2026-10-07', 22, 90]]),
+    }, symbols: ['QQQ', 'TQQQ'], startDate: '2026-10-05', endDate: '2026-10-07',
+  };
+  const full = buildStockComparison(input);
+  const shortened = buildStockComparison({ ...input, startDate: '2026-10-06' });
+  assert.deepEqual(full.rows[1].rsi6, { QQQ: null, TQQQ: null });
+  assert.deepEqual(shortened.rows[0].rsi6, full.rows[1].rsi6);
+  assert.deepEqual(shortened.rows[1].rsi6, full.rows[2].rsi6);
+  assert.equal(shortened.rows[0].returns.QQQ, 0);
+});
+
+test('unverified or corrupted RSI is hidden and a missing price cannot expose RSI', () => {
+  const values = [undefined, '20', null, NaN, Infinity, -1, 101, false];
+  for (const rsi6 of values) {
+    const result = buildStockComparison({
+      series: { QQQ: rsiObservations([['2026-10-05', 100, rsi6]]), TQQQ: rsiObservations([['2026-10-05', 20, 10]]) },
+      symbols: ['QQQ', 'TQQQ'], startDate: '2026-10-05', endDate: '2026-10-05',
+    });
+    assert.equal(result.rows[0].rsi6.QQQ, null);
+  }
+  for (const metadata of [{}, { rsiPeriod: 6 }, { rsiPeriod: 14, rsiPriceBasis: 'adjusted_close' }, { rsiPeriod: 6, rsiPriceBasis: 'split_adjusted_close' }]) {
+    const result = buildStockComparison({
+      series: { QQQ: { ...metadata, rows: [{ date: '2026-10-05', close: 100, rsi6: 20 }] }, TQQQ: rsiObservations([['2026-10-05', 20, 10]]) },
+      symbols: ['QQQ', 'TQQQ'], startDate: '2026-10-05', endDate: '2026-10-05',
+    });
+    assert.equal(result.rows[0].rsi6.QQQ, null);
+  }
+  const result = buildStockComparison({
+    series: {
+      QQQ: rsiObservations([['2026-10-05', 100, 20], ['2026-10-06', null, 15], ['2026-10-07', 110, 35]]),
+      TQQQ: rsiObservations([['2026-10-05', 20, 10], ['2026-10-06', 21, 25], ['2026-10-07', 22, 35]]),
+    }, symbols: ['QQQ', 'TQQQ'], startDate: '2026-10-05', endDate: '2026-10-07',
+  });
+  assert.deepEqual(result.rows[1].rsi6, { QQQ: null, TQQQ: 25 });
+});

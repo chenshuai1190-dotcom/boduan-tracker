@@ -252,3 +252,52 @@ test('default deadline covers four cold instrument waves and authentication with
   assert.ok(STOCK_COMPARISON_TIMEOUT_MS > 4 * 10_000 + 6_000);
   assert.ok(STOCK_COMPARISON_TIMEOUT_MS < 90_000);
 });
+
+test('historical RSI survives normalization only with its own period and adjusted-close basis', async () => {
+  const payload = fixture();
+  payload.series.QQQ.rsiPeriod = 6;
+  payload.series.QQQ.rsiPriceBasis = 'adjusted_close';
+  payload.series.QQQ.rows[0].rsi6 = 0;
+  payload.series.QQQ.rows[1].rsi6 = 16.25;
+  payload.series.QQQ.rows[2].rsi6 = 100;
+  payload.series.TQQQ.rsiPeriod = 6;
+  payload.series.TQQQ.rsiPriceBasis = 'adjusted_close';
+  payload.series.TQQQ.rows[0].rsi6 = null;
+  payload.series.TQQQ.rows[2].rsi6 = 81.2;
+  const result = await loadStockComparison(args({ fetchImpl: async () => response(payload) }));
+  assert.deepEqual(result.series.QQQ.rows.map(row => row.rsi6), [0, 16.25, 100]);
+  assert.deepEqual(result.series.TQQQ.rows.map(row => row.rsi6), [null, null, 81.2]);
+  assert.equal(result.priceBasis, 'split_adjusted_close');
+  assert.equal(result.series.QQQ.rsiPriceBasis, 'adjusted_close');
+  assert.equal(result.series.QQQ.rsiPeriod, 6);
+});
+
+test('legacy history without RSI metadata preserves prices and exposes unknown historical RSI', async () => {
+  for (const metadata of [{}, { rsiPeriod: 6 }, { rsiPriceBasis: 'adjusted_close' }]) {
+    resetStockComparisonCache();
+    const payload = fixture();
+    Object.assign(payload.series.QQQ, metadata);
+    payload.series.QQQ.rows[0].rsi6 = 25;
+    payload.series.QQQ.latestRsi = 90;
+    const result = await loadStockComparison(args({ fetchImpl: async () => response(payload) }));
+    assert.deepEqual(result.series.QQQ.rows.map(row => row.rsi6), [null, null, null]);
+    assert.deepEqual(result.series.QQQ.rows.map(row => row.close), [100, 110, 120]);
+  }
+});
+
+test('malformed RSI values and explicit wrong metadata are rejected instead of silently reinterpreted', async () => {
+  for (const rsi6 of ['20', '', false, [], {}, NaN, Infinity, -0.01, 100.01]) {
+    resetStockComparisonCache();
+    const payload = fixture();
+    Object.assign(payload.series.QQQ, { rsiPeriod: 6, rsiPriceBasis: 'adjusted_close' });
+    payload.series.QQQ.rows[0].rsi6 = rsi6;
+    await assert.rejects(loadStockComparison(args({ fetchImpl: async () => response(payload) })), { code: 'INVALID_DATA' });
+  }
+  for (const metadata of [{ rsiPeriod: 14, rsiPriceBasis: 'adjusted_close' }, { rsiPeriod: '6', rsiPriceBasis: 'adjusted_close' }, { rsiPeriod: 6, rsiPriceBasis: 'split_adjusted_close' }]) {
+    resetStockComparisonCache();
+    const payload = fixture();
+    Object.assign(payload.series.QQQ, metadata);
+    payload.series.QQQ.rows[0].rsi6 = 20;
+    await assert.rejects(loadStockComparison(args({ fetchImpl: async () => response(payload) })), { code: 'INVALID_DATA' });
+  }
+});

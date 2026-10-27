@@ -49,13 +49,19 @@
 .sc-readout-card { padding: 14px 13px; min-width: 0; border-radius: 13px; background: var(--ic-panel); }
 .sc-readout-card > span { display: flex; align-items: center; gap: 7px; font-size: 12px; }
 .sc-readout-card > strong { display: block; font-size: clamp(22px,5.7vw,28px); font-weight: 500; margin: 7px 0 8px; white-space: nowrap; }
-.sc-readout-card > div { display: flex; align-items: baseline; justify-content: space-between; gap: 5px; flex-wrap: wrap; }
+.sc-readout-card .sc-card-return { display: flex; align-items: baseline; justify-content: space-between; gap: 5px; flex-wrap: wrap; }
+.sc-card-rsi { margin: 0 0 12px; }
+.sc-card-rsi > div { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.sc-card-rsi > div > span { font-size: 11px; color: var(--ic-muted); }
+.sc-card-rsi strong { font-size: 14px; font-weight: 500; }
+.sc-card-rsi-status { display: block; text-align: right; font-size: 11px; line-height: 1.5; margin-top: 2px; }
 .sc-readout-card small { color: var(--ic-muted); font-size: 10px; }
 .sc-readout-card b { font-size: 12px; font-weight: 500; }
 .sc-details { margin-top: 26px; border-top: 1px solid var(--ic-grid); }
 .sc-details summary { display: flex; align-items: center; justify-content: space-between; min-height: 58px; cursor: pointer; list-style: none; font-size: 14px; }
 .sc-details summary::-webkit-details-marker { display: none; }
-.sc-details[open] summary svg { transform: rotate(45deg); }
+.investment-comparison.sc-page .sc-details > summary::after { content: none; }
+.sc-details summary svg { flex-shrink: 0; }
 .sc-detail-row { margin-bottom: 25px; }
 .sc-detail-row h3 { display: flex; align-items: center; gap: 7px; font-size: 14px; font-weight: 500; margin: 0 0 12px; }
 .sc-detail-row dl { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; margin: 0; }

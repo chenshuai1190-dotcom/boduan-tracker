@@ -2,8 +2,24 @@ import { providerFetch, QUOTE_TIMEOUTS } from './http.js';
 import { getCompletedMarketCloseDate } from './completedSession.js';
 import { normalizeDcaHistorySymbol, searchInvestmentSymbols } from './investmentComparison.js';
 import { isRegularNyseHoliday } from '../../src/lib/quoteRefreshPolicy.js';
+import { wilderRsiSeries } from '../../src/lib/wilderRsi.js';
+import { STOCK_RSI_RULES } from '../../src/lib/stockRsiConfig.js';
 
 const FIRST_DATE = '2000-01-01';
+const RSI_HISTORY_DAYS = 380;
+// Full-day extraordinary closures within this tool's supported history. Keep
+// this historical supplement local; realtime's shared session policy is unchanged.
+// NYSE: https://www.nyse.com/publicdocs/nyse/regulation/nyse/NYSE_Rules.pdf (06-88)
+// NYSE/SEC: https://www.sec.gov/rules/sro/nyse/2013/34-70099.pdf (Sandy)
+// SEC: https://www.sec.gov/investor/mktrecovery.shtml (September 2001)
+// SEC: https://www.sec.gov/newsroom/press-releases/2004-77-sec-confirms-closure-securities-markets-june-11-2004-observe-national-day-mourning-former-president
+// NYSE: https://ir.theice.com/press/news-details/2018/New-York-Stock-Exchange-to-Honor-President-George-H-W-Bush/default.aspx
+// NYSE: https://www.nyse.com/publicdocs/nyse/markets/american-options/rule-interpretations/2025/National_Day_of_Mourning_20250102.pdf
+const HISTORICAL_CLOSURES = new Set([
+  '2001-09-11', '2001-09-12', '2001-09-13', '2001-09-14',
+  '2004-06-11', '2007-01-02', '2012-10-29', '2012-10-30',
+  '2018-12-05', '2025-01-09',
+]);
 const CACHE_TTL = 6 * 60 * 60 * 1000;
 const INCOMPLETE_TTL = 5 * 60 * 1000;
 const RETRY_TTL = 60 * 1000;
@@ -49,13 +65,23 @@ function validDate(value) {
 
 function validTradingDate(date) {
   const weekday = new Date(`${date}T00:00:00Z`).getUTCDay();
-  return weekday !== 0 && weekday !== 6 && !isRegularNyseHoliday(date);
+  return weekday !== 0 && weekday !== 6 && !isRegularNyseHoliday(date) && !HISTORICAL_CLOSURES.has(date);
 }
 
 function lastRequestedSession(to) {
   const date = new Date(`${to}T00:00:00Z`);
   while (!validTradingDate(date.toISOString().slice(0, 10))) date.setUTCDate(date.getUTCDate() - 1);
   return date.toISOString().slice(0, 10);
+}
+
+function shiftedDate(dateKey, days) {
+  const date = new Date(`${dateKey}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+function rsiWindowStart(date) {
+  return [FIRST_DATE, shiftedDate(date, -RSI_HISTORY_DAYS)].sort().at(-1);
 }
 
 function positiveNumber(value) {
@@ -91,13 +117,14 @@ function boundedSet(map, key, value) {
  * https://eodhd.com/financial-apis/api-for-historical-data-and-volumes
  * Splits after each price date are applied exactly once, through one shared basis date.
  */
-export function buildStockComparisonRows(prices, splits, { from, to, splitBasisDate } = {}) {
+export function buildStockComparisonRows(prices, splits, { from, to, splitBasisDate, historyFrom = from } = {}) {
   normalizeStockComparisonDates(from, to, splitBasisDate);
+  if (!validDate(historyFrom) || historyFrom < FIRST_DATE || historyFrom > from) throw error('INVALID_DATES');
   if (!Array.isArray(prices) || prices.length > 15000 || !Array.isArray(splits) || splits.length > 1000) throw error('INVALID_DATA');
   const splitByDate = new Map();
   for (const action of splits) {
     if (!action || typeof action !== 'object' || Array.isArray(action)
-      || !validDate(action.date) || action.date < from || action.date > splitBasisDate
+      || !validDate(action.date) || action.date < historyFrom || action.date > splitBasisDate
       || typeof action.split !== 'string') throw error('INVALID_DATA');
     const match = action.split.trim().match(/^(\d+(?:\.\d+)?)\/(\d+(?:\.\d+)?)$/);
     if (!match) throw error('INVALID_DATA');
@@ -108,7 +135,10 @@ export function buildStockComparisonRows(prices, splits, { from, to, splitBasisD
   const byDate = new Map();
   for (const row of prices) {
     if (!row || typeof row !== 'object' || Array.isArray(row) || !validDate(row.date)
-      || row.date < from || row.date > to || !validTradingDate(row.date)) throw error('INVALID_DATA');
+      || row.date < historyFrom || row.date > to || !validTradingDate(row.date)) throw error('INVALID_DATA');
+    // Warmup-only raw prices do not affect the requested price-return series.
+    // RSI independently validates adjusted_close below, without a raw substitute.
+    if (row.date < from) continue;
     const rawClose = positiveNumber(row.close);
     let splitFactor = 1;
     for (const [date, ratio] of splitByDate) if (date > row.date) splitFactor = positiveNumber(splitFactor * ratio);
@@ -119,6 +149,41 @@ export function buildStockComparisonRows(prices, splits, { from, to, splitBasisD
   const rows = [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
   if (!rows.length) throw error('NO_DATA');
   return rows;
+}
+
+/** Each observation uses its own trailing calendar window, making an inspected
+ * date independent of the user's selected chart start/end. Wilder's recurrence
+ * is shared with ordinary stock RSI. Invalid/missing history only withholds RSI.
+ */
+export function addStockComparisonRsi(rows, prices) {
+  const byDate = new Map();
+  for (const row of prices) {
+    let close = null;
+    try { close = positiveNumber(row.adjusted_close); } catch { /* unavailable RSI input */ }
+    if (byDate.has(row.date) && byDate.get(row.date).close !== close) close = null;
+    byDate.set(row.date, { date: row.date, close });
+  }
+  const history = [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
+  const indexByDate = new Map(history.map((row, index) => [row.date, index]));
+  const invalid = [0]; const gaps = [0];
+  for (let index = 0; index < history.length; index += 1) {
+    invalid.push(invalid[index] + (history[index].close === null ? 1 : 0));
+    const previous = index ? lastRequestedSession(shiftedDate(history[index].date, -1)) : null;
+    gaps.push(gaps[index] + (index && history[index - 1].date !== previous ? 1 : 0));
+  }
+  let start = 0;
+  return rows.map((row) => {
+    const windowStart = rsiWindowStart(row.date);
+    while (start < history.length && history[start].date < windowStart) start += 1;
+    const end = indexByDate.get(row.date);
+    let rsi6 = null;
+    if (end !== undefined && end - start + 1 >= STOCK_RSI_RULES.RSI_WARMUP_CLOSES
+      && invalid[end + 1] === invalid[start] && gaps[end + 1] === gaps[start + 1]) {
+      const value = wilderRsiSeries(history.slice(start, end + 1), STOCK_RSI_RULES.RSI_PERIOD).at(-1);
+      if (Number.isFinite(value) && value >= 0 && value <= 100) rsi6 = value;
+    }
+    return { ...row, rsi6 };
+  });
 }
 
 async function providerJson(path, parameters, config) {
@@ -168,23 +233,26 @@ async function loadHistory(instrument, range, config) {
   if (inFlight.size >= MAX_PENDING) throw error('PROVIDER_UNAVAILABLE');
   const pending = withHistorySlot(async () => {
     try {
+      const historyFrom = rsiWindowStart(range.from);
       // Both independent payloads share a symbol slot. Settle both before releasing
       // it, so a failed half cannot leave unbounded provider work in the background.
       const loaded = await Promise.allSettled([
         providerJson(`eod/${encodeURIComponent(instrument.symbol)}.US`, {
-          from: range.from, to: range.to, period: 'd', order: 'a',
+          from: historyFrom, to: range.to, period: 'd', order: 'a',
         }, config),
         providerJson(`splits/${encodeURIComponent(instrument.symbol)}.US`, {
-          from: range.from, to: config.expectedAsOfDate,
+          from: historyFrom, to: config.expectedAsOfDate,
         }, config),
       ]);
       const failure = loaded.find((result) => result.status === 'rejected');
       if (failure) throw failure.reason;
       const [prices, splits] = loaded.map((result) => result.value);
-      const rows = buildStockComparisonRows(prices, splits, { ...range, splitBasisDate: config.expectedAsOfDate });
+      const priceRows = buildStockComparisonRows(prices, splits, { ...range, historyFrom, splitBasisDate: config.expectedAsOfDate });
+      const rows = addStockComparisonRsi(priceRows, prices);
       const data = {
         symbol: instrument.symbol, name: instrument.name, type: instrument.type,
         currency: 'USD', priceBasis: 'split_adjusted_close', rows,
+        rsiPeriod: STOCK_RSI_RULES.RSI_PERIOD, rsiPriceBasis: 'adjusted_close',
         fetchedAt: new Date(config.now).toISOString(),
       };
       const ttl = rows.at(-1).date < lastRequestedSession(range.to) ? INCOMPLETE_TTL : CACHE_TTL;

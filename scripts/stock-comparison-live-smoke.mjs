@@ -8,6 +8,7 @@ import { fetchStockComparison } from '../server/quote/stockComparison.js';
 import { normalizeStockComparisonData } from '../src/lib/stockComparison.js';
 import { buildStockComparison, comparisonRangeStart } from '../src/lib/stockComparisonModel.js';
 import { getInvestmentComparisonExpectedCloseDate } from '../src/lib/investmentComparison.js';
+import { buildStockRsi } from '../server/quote/stockRsi.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 for (const filename of [path.join(root, '.env.local'), path.join(process.env.HOME || '', '.config/boduan-tracker/eodhd.env')]) {
@@ -43,7 +44,16 @@ for (const symbol of symbols) {
     }, 1);
     closeEnough(row.close, Number(raw.get(row.date).close) / factor);
   }
-  verification.push({ symbol, rows: normalized.series[symbol].rows.length, splitEvents: splits.length, firstDate: normalized.series[symbol].rows[0].date, lastDate: normalized.series[symbol].rows.at(-1).date });
+  const rows = normalized.series[symbol].rows;
+  const rsiChecks = [rows[0], rows[Math.floor(rows.length / 2)], rows.at(-1)].map(row => {
+    const from = new Date(Date.parse(`${row.date}T00:00:00Z`) - 380 * 86400000).toISOString().slice(0, 10);
+    const input = [...raw.values()].filter(point => point.date >= from && point.date <= row.date).sort((a, b) => a.date.localeCompare(b.date));
+    const reference = buildStockRsi(input, { completedCutoffDate: row.date });
+    assert.equal(typeof row.rsi6, 'number', `${symbol} ${row.date} needs warmed historical RSI`);
+    closeEnough(row.rsi6, reference.value);
+    return { date: row.date, rsi6: row.rsi6 };
+  });
+  verification.push({ symbol, rows: rows.length, splitEvents: splits.length, firstDate: rows[0].date, lastDate: rows.at(-1).date, rsiChecks });
 }
 for (const selected of [symbols.slice(0, 2), symbols]) {
   const model = buildStockComparison({ series: normalized.series, symbols: selected, startDate: comparisonRangeStart('1y', endDate), endDate });

@@ -73,8 +73,9 @@ function tradingDate(date) {
   return isInvestmentDate(date) && ![0, 6].includes(new Date(`${date}T00:00:00Z`).getUTCDay()) && !isRegularNyseHoliday(date);
 }
 
-// This contract contains split-adjusted prices only. Never coerce numeric
-// strings, infer adjustments, fill missing sessions or reuse another range.
+// Prices use split-adjusted close; historical RSI has its own explicit
+// adjusted-close basis. Never infer either basis, coerce numeric strings, fill
+// missing sessions or borrow a latest RSI for a historical date.
 export function normalizeStockComparisonData(value, { symbols, startDate, endDate, expectedAsOfDate, now }) {
   if (!value || value.version !== 1 || value.source !== 'EODHD_EOD_SPLITS'
     || value.priceBasis !== 'split_adjusted_close' || value.currency !== 'USD'
@@ -94,15 +95,21 @@ export function normalizeStockComparisonData(value, { symbols, startDate, endDat
       || !['ETF', 'Common Stock'].includes(input.type) || !Array.isArray(input.rows) || input.rows.length < 1 || input.rows.length > MAX_ROWS
       || (input.priceBasis !== undefined && input.priceBasis !== 'split_adjusted_close')
       || (input.currency !== undefined && input.currency !== 'USD')) return null;
+    const hasRsiBasis = input.rsiPeriod === 6 && input.rsiPriceBasis === 'adjusted_close';
+    const invalidRsiBasis = (input.rsiPeriod != null && input.rsiPeriod !== 6)
+      || (input.rsiPriceBasis != null && input.rsiPriceBasis !== 'adjusted_close');
     let previousDate = '';
     const rows = [];
     for (const row of input.rows) {
       if (!tradingDate(row?.date) || row.date <= previousDate || row.date < startDate || row.date > endDate
         || typeof row.close !== 'number' || !Number.isFinite(row.close) || row.close <= 0) return null;
-      rows.push(Object.freeze({ date: row.date, close: row.close }));
+      if (row.rsi6 != null && (typeof row.rsi6 !== 'number' || !Number.isFinite(row.rsi6) || row.rsi6 < 0 || row.rsi6 > 100 || invalidRsiBasis)) return null;
+      const rsi6 = hasRsiBasis && row.rsi6 != null ? row.rsi6 : null;
+      rows.push(Object.freeze({ date: row.date, close: row.close, rsi6 }));
       previousDate = row.date;
     }
-    series[symbol] = Object.freeze({ symbol, name: input.name.trim(), type: input.type, rows: Object.freeze(rows) });
+    series[symbol] = Object.freeze({ symbol, name: input.name.trim(), type: input.type,
+      ...(hasRsiBasis ? { rsiPeriod: 6, rsiPriceBasis: 'adjusted_close' } : {}), rows: Object.freeze(rows) });
   }
   // Series may have genuine gaps or differing last observations. The page
   // model chooses observed shared dates instead of inventing a matching close.

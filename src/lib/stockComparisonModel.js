@@ -19,10 +19,24 @@ function normalizeRows(value) {
   return result;
 }
 
+function normalizeRsiRows(value) {
+  const rows = Array.isArray(value) ? value : value?.rows;
+  const hasRsiBasis = value?.rsiPeriod === 6 && value?.rsiPriceBasis === 'adjusted_close';
+  const result = new Map();
+  for (const row of Array.isArray(rows) ? rows : []) {
+    if (!validDate(row?.date) || !validPrice(row?.close)) continue;
+    const validRsi = hasRsiBasis && typeof row.rsi6 === 'number' && Number.isFinite(row.rsi6) && row.rsi6 >= 0 && row.rsi6 <= 100;
+    result.set(row.date, validRsi ? row.rsi6 : null);
+  }
+  return result;
+}
+
 /**
  * Compare already split-adjusted prices using a shared, observed baseline.
  * This layer neither adjusts splits/dividends nor applies ETF leverage.
  * Missing interior observations stay null; they are never carried forward.
+ * RSI is independently supplied on its declared basis and exact observed date;
+ * this model never recalculates it from truncated chart history.
  */
 export function buildStockComparison({ series = {}, symbols = [], startDate, endDate } = {}) {
   const result = {
@@ -44,6 +58,7 @@ export function buildStockComparison({ series = {}, symbols = [], startDate, end
   }
 
   const pricesBySymbol = Object.fromEntries(symbols.map((symbol) => [symbol, normalizeRows(series[symbol])]));
+  const rsiBySymbol = Object.fromEntries(symbols.map((symbol) => [symbol, normalizeRsiRows(series[symbol])]));
   const commonDates = [...pricesBySymbol[symbols[0]].keys()]
     .filter((date) => date >= startDate && date <= endDate
       && symbols.every((symbol) => pricesBySymbol[symbol].has(date)))
@@ -58,12 +73,14 @@ export function buildStockComparison({ series = {}, symbols = [], startDate, end
   const rows = dates.map((date) => {
     const prices = {};
     const returns = {};
+    const rsi6 = {};
     for (const symbol of symbols) {
       const price = pricesBySymbol[symbol].get(date) ?? null;
       prices[symbol] = price;
       returns[symbol] = price === null ? null : (price / pricesBySymbol[symbol].get(actualStart) - 1) * 100;
+      rsi6[symbol] = price === null ? null : rsiBySymbol[symbol].get(date) ?? null;
     }
-    return { date, prices, returns };
+    return { date, prices, returns, rsi6 };
   });
 
   const stats = {};

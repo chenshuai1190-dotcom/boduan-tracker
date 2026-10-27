@@ -1,4 +1,6 @@
 import { INVESTMENT_SYMBOL_PRESETS } from '../lib/investmentSymbolPresets.js';
+import { wilderRsiSeries } from '../lib/wilderRsi.js';
+import { STOCK_RSI_RULES } from '../lib/stockRsiConfig.js';
 
 // Illustrative, deterministic prices for a local design preview only.
 // These values are not downloaded quotes, historical facts, or backtest results.
@@ -59,7 +61,9 @@ const series = Object.fromEntries(INVESTMENT_SYMBOL_PRESETS.map((preset, stockIn
     initialLog ??= logPrice;
     return { date, close: Math.round(base * Math.exp(logPrice - initialLog) * 100) / 100 };
   });
-  return [preset.symbol, { ...preset, rows }];
+  const values = wilderRsiSeries(rows, STOCK_RSI_RULES.RSI_PERIOD);
+  return [preset.symbol, { ...preset, rsiPeriod: 6, rsiPriceBasis: 'adjusted_close',
+    rows: rows.map((row, index) => ({ ...row, rsi6: index + 1 >= STOCK_RSI_RULES.RSI_WARMUP_CLOSES ? values[index] : null })) }];
 }));
 
 export const STOCK_COMPARISON_DEMO = Object.freeze({
