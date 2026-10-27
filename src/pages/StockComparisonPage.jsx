@@ -152,13 +152,10 @@ export default function StockComparisonPage({ ctx = {}, previewSource }) {
     <section aria-label={tr('选择对比标的', 'Choose investments')}>
       <div className="sc-section-label"><span>{tr('对比标的', 'Investments')} <small>{symbols.length} / 4</small></span><button type="button" disabled={symbols.length >= 4} onClick={() => setPicker('add')}><Plus size={15} />{tr('添加', 'Add')}</button></div>
       <div className="sc-symbol-grid">
-        {symbols.map(symbol => {
-          const item = INVESTMENT_SYMBOL_PRESETS.find(candidate => candidate.symbol === symbol) || identities[symbol] || data?.series[symbol] || { name: symbol };
-          return <div key={symbol} className="sc-symbol-card">
-            <button type="button" className="sc-symbol-pick" onClick={() => setPicker(symbol)} aria-label={`${tr('更换', 'Change')} ${symbol}`}><i style={{ background: colors[symbol] }} /><span><strong>{symbol}</strong><small>{english ? item.name : (item.nameZh || item.name)}</small></span><ChevronDown size={15} /></button>
+        {symbols.map(symbol => <div key={symbol} className="sc-symbol-card">
+            <button type="button" className="sc-symbol-pick" onClick={() => setPicker(symbol)} aria-label={`${tr('更换', 'Change')} ${symbol}`}><i style={{ background: colors[symbol] }} /><span><strong>{symbol}</strong></span><ChevronDown size={15} /></button>
             {symbols.length > 2 && <button type="button" className="sc-remove" onClick={() => removeSymbol(symbol)} aria-label={`${tr('移除', 'Remove')} ${symbol}`}><X size={14} /></button>}
-          </div>;
-        })}
+          </div>)}
         {symbols.length === 3 && <button type="button" className="sc-add-card" onClick={() => setPicker('add')}><Plus size={18} />{tr('添加第 4 只', 'Add a fourth')}</button>}
       </div>
     </section>

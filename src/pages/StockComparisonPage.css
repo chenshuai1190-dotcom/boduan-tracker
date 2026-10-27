@@ -15,7 +15,6 @@
 .sc-symbol-pick:active, .sc-add-card:active { background: #202125; }
 .sc-symbol-pick > span { flex: 1; min-width: 0; }
 .sc-symbol-pick strong { display: block; font-size: 17px; font-weight: 500; }
-.sc-symbol-pick small { display: block; color: var(--ic-muted); font-size: 11px; margin-top: 2px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .sc-symbol-pick > svg { flex-shrink: 0; color: var(--ic-muted); }
 .sc-symbol-pick i, .sc-summary-symbol i, .sc-readout-card i, .sc-detail-row h3 i { display: inline-block; width: 7px; height: 7px; flex-shrink: 0; border-radius: 50%; }
 .sc-remove { display: grid; place-items: center; width: 32px; min-height: 44px; color: var(--ic-muted); background: transparent; flex-shrink: 0; }
