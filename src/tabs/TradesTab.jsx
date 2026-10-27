@@ -701,7 +701,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
       date: localDateKey(),
       price: position?.currentPrice ? (isTqqqFormalTradeEntry({ symbol, scope: 'ledger' })
         ? formatTqqqSuggestedPrice(position.currentPrice)
-        : String(position.currentPrice)) : '',
+        : Number(position.currentPrice).toFixed(2)) : '',
       shares: '',
       batch: '第1批',
     });
