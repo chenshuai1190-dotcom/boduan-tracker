@@ -279,7 +279,7 @@ test('same-total-capital lump sum is fully funded at inception and a declining i
 test('validated non-preset tickers are supported without importing development presets or price generation', () => {
   const data = history({ symbol: 'BRK-B' });
   assert.equal(build(data, { ...PLAN, symbol: ' brk-b ' }).source, 'EODHD_EOD');
-  assert.equal(DCA_SYMBOLS.length, 13);
+  assert.equal(DCA_SYMBOLS.some(item => item.symbol === 'BRK-B'), false, 'the validated ticker is outside the shortcut list');
   assert.equal(DCA_SYMBOLS.at(-1).symbol, 'SMH');
 });
 
