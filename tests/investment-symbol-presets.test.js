@@ -13,7 +13,7 @@ const pickerSource = readFileSync(new URL('../src/components/InvestmentSymbolPic
 const transformed = await transformWithOxc(source, 'InvestmentSymbolPresets.jsx', { jsx: { runtime: 'classic' } });
 const compiled = transformed.code.replace(/from (["'])([^"']+)\1/g, (_, quote, module) => `from ${JSON.stringify(module.startsWith('.') ? new URL(module, componentUrl).href : import.meta.resolve(module))}`);
 const { default: InvestmentSymbolPresets, INVESTMENT_SYMBOL_PRESETS } = await import(`data:text/javascript;base64,${Buffer.from(compiled).toString('base64')}`);
-const expectedSymbols = ['QQQ', 'SPY', 'TQQQ', 'NVDA', 'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'META', 'TSLA', 'AVGO', 'VGT', 'SMH'];
+const expectedSymbols = ['QQQ', 'SPY', 'TQQQ', 'NVDA', 'TSM', 'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'META', 'TSLA', 'AVGO', 'VGT', 'SMH'];
 
 function textContent(node) {
   if (node === null || node === undefined || typeof node === 'boolean') return '';
@@ -26,7 +26,7 @@ function buttonNodes(node) {
   return [...(node.type === 'button' ? [node] : []), ...React.Children.toArray(node.props.children).flatMap(buttonNodes)];
 }
 
-test('comparison and DCA share thirteen ordered instrument identities without prices or provider writes', () => {
+test('comparison and DCA share ordered instrument identities without prices or provider writes', () => {
   assert.equal(INVESTMENT_SYMBOL_PRESETS, SHARED_PRESETS);
   assert.equal(DCA_SYMBOLS, SHARED_PRESETS, 'DCA aliases the same catalog instead of maintaining a second list');
   assert.deepEqual(INVESTMENT_SYMBOL_PRESETS.map(item => item.symbol), expectedSymbols);
@@ -43,13 +43,13 @@ test('comparison and DCA share thirteen ordered instrument identities without pr
 const buttonSymbol = button => React.Children.toArray(button.props.children[0].props.children).find(node => node.type === 'strong')?.props.children;
 const symbolButton = (buttons, symbol) => buttons.find(button => buttonSymbol(button) === symbol);
 
-test('single-investment presets show all thirteen localized choices without disabling any symbol', () => {
+test('single-investment presets show all localized choices without disabling any symbol', () => {
   for (const englishMode of [false, true]) {
     const props = { selectedSymbol: 'QQQ', englishMode, onSelect() {} };
     const html = renderToStaticMarkup(React.createElement(InvestmentSymbolPresets, props));
     const tree = InvestmentSymbolPresets(props);
     const buttons = buttonNodes(tree);
-    assert.equal(buttons.length, 13);
+    assert.equal(buttons.length, expectedSymbols.length);
     assert.deepEqual(buttons.map(buttonSymbol), expectedSymbols);
     for (const item of INVESTMENT_SYMBOL_PRESETS) {
       assert.ok(html.includes(item.symbol));

@@ -5,6 +5,7 @@ export const INVESTMENT_SYMBOL_PRESETS = Object.freeze([
   { symbol: 'SPY', name: 'SPDR S&P 500 ETF Trust', nameZh: '标普 500', type: 'ETF' },
   { symbol: 'TQQQ', name: 'ProShares UltraPro QQQ', nameZh: '三倍纳指', type: 'ETF' },
   { symbol: 'NVDA', name: 'NVIDIA Corporation', nameZh: '英伟达', type: 'Common Stock' },
+  { symbol: 'TSM', name: 'Taiwan Semiconductor Manufacturing', nameZh: '台积电', type: 'Common Stock' },
   { symbol: 'AAPL', name: 'Apple Inc.', nameZh: '苹果', type: 'Common Stock' },
   { symbol: 'MSFT', name: 'Microsoft Corporation', nameZh: '微软', type: 'Common Stock' },
   { symbol: 'GOOGL', name: 'Alphabet Inc. Class A', nameZh: '谷歌', type: 'Common Stock' },
