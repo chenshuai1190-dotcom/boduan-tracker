@@ -31,12 +31,12 @@
 .pps-results { margin-top: 20px; }
 .pps-profit { margin-top: 20px; padding-bottom: 14px; }
 .pps-profit-value { margin-top: 8px; font-size: clamp(25px, 7.5vw, 32px); line-height: 1.25; letter-spacing: -.035em; overflow-wrap: anywhere; }
-.pps-profit-percent { margin-top: 5px; font-size: 14px; line-height: 20px; }
+.pps-profit-percent { margin-top: 5px; }
+.pps-profit-percent, .pps-delta-percent { font-size: 15px; font-weight: 500; line-height: 22px; }
 .pps-flat { color: #d4d4dc; }
 .pps-delta { padding: 12px 0; border-top: 1px solid rgb(255 255 255 / .07); }
 .pps-delta-numbers { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; margin-top: 6px; }
 .pps-delta-value { min-width: 0; font-size: 20px; line-height: 26px; overflow-wrap: anywhere; }
-.pps-delta-percent { font-size: 13px; line-height: 20px; }
 .pps-position { padding: 12px 0 14px; border-top: 1px solid rgb(255 255 255 / .07); }
 .pps-position-label { position: absolute; width: 76px; color: #9696a0; font-size: 10px; line-height: 12px; }
 .pps-position-track { position: absolute; left: 4px; right: 4px; top: 50%; height: 3px; transform: translateY(-50%); border-radius: 4px; background: #3d3e41; }

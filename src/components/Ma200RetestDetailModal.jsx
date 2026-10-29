@@ -405,7 +405,6 @@ export default function Ma200RetestDetailModal({
               className="mt-1 text-[10px]"
               style={{
                 color: statusColor(fullStatus, event?.recoveryTradingDays, marketColorMode),
-                opacity: 0.66,
               }}
             >
               {statusLabel({
