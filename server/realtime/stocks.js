@@ -1,5 +1,6 @@
 const MAX_STOCK_REALTIME_SYMBOLS = 50;
 const STOCK_REALTIME_SYMBOL_RE = /^[A-Z0-9._-]{1,15}$/;
+const MAX_STOCK_REALTIME_FUTURE_SKEW_MS = 60_000;
 
 function asNumber(value) {
   const n = Number(value);
@@ -9,6 +10,11 @@ function asNumber(value) {
 function parseTimestampMs(value, fallback = Date.now()) {
   const n = asNumber(value);
   if (!n || n <= 0) return fallback;
+  // EODHD equity streams can supply Unix microseconds or nanoseconds.
+  // Normalize at ingress so both WebSocket and snapshot consumers retain the
+  // provider's event time; receipt time must not make stale/future ticks fresh.
+  if (n >= 1_000_000_000_000_000_000) return Math.trunc(n / 1_000_000);
+  if (n >= 1_000_000_000_000_000) return Math.trunc(n / 1_000);
   return n < 1_000_000_000_000 ? Math.round(n * 1000) : Math.round(n);
 }
 
@@ -91,6 +97,9 @@ export function normalizeStockTick(rawTick, {
   const change = asNumber(raw.dd ?? raw.change);
   const previousClose = asNumber(raw.previousClose ?? raw.previousClosePrice ?? raw.pc);
   const timestamp = parseTimestampMs(raw.t ?? raw.timestamp, receivedAt);
+  // Match the client's future-time guard before a bad frame can become the
+  // relay's last trade and suppress valid quote fallback or snapshot results.
+  if (timestamp - receivedAt > MAX_STOCK_REALTIME_FUTURE_SKEW_MS) return null;
 
   return {
     type: 'stock_tick',

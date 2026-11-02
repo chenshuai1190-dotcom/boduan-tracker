@@ -75,6 +75,54 @@ test('premarket observed clock defeats a stale postmarket label on a fresh raw t
   assert.equal(account.positionsMarketValue, 2020);
 });
 
+test('nanosecond EODHD frames advance winter premarket prices and portfolio valuation', () => {
+  // Replay with a clock aligned to provider event time to isolate unit handling.
+  // The actual capture's future clock discrepancy is covered separately below.
+  const now = Date.parse('2026-11-02T09:43:23.445Z');
+  const initial = baseline({
+    price: 205, previousClose: 204.64,
+    dailyBaselineClose: 204.64, dailyBaselineDate: '2026-10-30',
+    dailyPnlPrice: 205, dailyPnlPriceDate: '2026-10-30',
+    dailyPnlBaselineClose: 204.64, dailyPnlBaselineDate: '2026-10-30',
+    dailyPnlLocked: true,
+  });
+  // Captured provider values: its status label can lag the actual New York session.
+  for (const frame of [
+    { s: 'NVDA', p: 207.59, ms: 'closed', t: 1_793_612_595_979_600_000 },
+    { s: 'NVDA', bp: 207.51, ap: 207.6, t: 1_793_612_582_660_200_000 },
+  ]) {
+    const tick = normalizeStockTick(frame, { receivedAt: now });
+    assert.equal(shouldAcceptStockRealtimeTick(initial, tick, { now }), true);
+    const result = apply([initial], tick, now);
+    assert.equal(result[0].price, tick.price);
+    assert.equal(result[0].dailyPnlSession, 'pre');
+    assert.equal(result[0].dailyPnlLocked, false);
+    assert.equal(result[0].dailyPnlPriceDate, '2026-11-02');
+    assert.equal(summary(result).positionsMarketValue, tick.price * 10);
+  }
+});
+
+test('nanosecond normalization does not make stale or future frames fresh', () => {
+  const now = Date.parse('2026-11-02T09:13:23.445Z');
+  for (const timestamp of [now - 300_001, now + 60_001, Date.parse('2026-10-30T20:29:25Z')]) {
+    const tick = normalizeStockTick({ s: 'NVDA', p: 207.59, t: String(BigInt(timestamp) * 1_000_000n) }, { receivedAt: now });
+    if (timestamp > now + 60_000) assert.equal(tick, null);
+    else assert.equal(tick.timestamp, timestamp);
+    assert.equal(shouldAcceptStockRealtimeTick({}, tick, { now }), false);
+  }
+});
+
+test('captured provider frame remains rejected when its event time is thirty minutes ahead', () => {
+  const now = Date.parse('2026-11-02T09:13:23.445Z');
+  const tick = normalizeStockTick({ s: 'NVDA', p: 207.59, ms: 'closed', t: 1_793_612_595_979_600_000 }, { receivedAt: now });
+  assert.equal(tick, null);
+  assert.equal(shouldAcceptStockRealtimeTick({}, tick, { now }), false);
+  const initial = baseline();
+  assert.equal(apply([initial], tick, now)[0], initial);
+  const corrected = normalizeStockTick({ s: 'NVDA', p: 207.59, t: now * 1_000_000 }, { receivedAt: now });
+  assert.equal(apply([initial], corrected, now)[0].price, 207.59);
+});
+
 test('a delayed prior-day trade cannot reset premarket valuation or lock state', () => {
   const current = apply([baseline()], quoteFrame(202, PRE), PRE);
   const late = tradeFrame(199, Date.parse('2026-09-09T23:59:00Z'), { receivedAt: PRE + 1000, marketStatus: 'postmarket' });
