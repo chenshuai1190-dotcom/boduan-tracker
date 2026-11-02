@@ -4,17 +4,6 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
-      '恢复首页自选的年初至今涨跌幅，位于顶背离右侧，点击列名可切换涨幅或跌幅优先排序。',
-      '保留原有 52 周高点位置，年初至今数值与顶背离对齐；缺少有效年末基准时显示未知并排在最后。',
-    ],
-    itemsEn: [
-      'Restores year-to-date change after bearish divergence in the Home watchlist. Tap the column heading to sort gains or losses first.',
-      'Keeps the 52-week-high metric in place and aligns YTD values with divergence. Missing valid year-end baselines remain unavailable and sort last.',
-    ],
-  },
-  {
-    ver: 'v10.7.9.565', date: '2026-10-27',
-    items: [
       '走势对比默认展示年初至今，区间详细数据默认展开，使用固定位置的加减按钮收起或展开。',
       '选中日期卡片新增当日收盘 RSI(6) 和超买超卖状态，沿用交易页面的判断标准。',
       '点击图表外恢复期末日期数据，同时保留当前图表缩放范围。',

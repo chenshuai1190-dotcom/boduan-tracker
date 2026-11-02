@@ -4,7 +4,7 @@ import { stockTrendRsiPresentation } from '../lib/stockTrendRsiPresentation.js';
 import './HomeWatchlistReport.css';
 
 const AUXILIARY_METRICS = {
-  watchlist: ['drawdown'],
+  watchlist: ['drawdown', 'ytd'],
   positions: ['pnl', 'drawdown', 'ytd'],
 };
 const ROW_TAP_MOVEMENT_LIMIT = 8;
@@ -16,34 +16,15 @@ function syncIdentityHitWidth(table) {
 function updateScrollClipping({ currentTarget: table }) {
   syncIdentityHitWidth(table);
   const pinned = table.querySelector('.hwr-aux-sort');
-  if (!pinned) return;
-  const boundary = pinned.getBoundingClientRect().right;
-  for (const [key, headingSelector, cellSelector] of [
-    ['price', '.hwr-price-sort', '.hwr-price'],
-    ['change', '.hwr-change-sort', '.hwr-change'],
-    ['rsi', '.hwr-rsi-heading', '.hwr-rsi'],
-    ['divergence', '.hwr-divergence-heading', '.hwr-divergence'],
-  ]) {
-    const heading = table.querySelector(headingSelector);
-    if (!heading) continue;
-    const gap = parseFloat(getComputedStyle(heading.parentElement).columnGap) || 0;
-    const left = Math.min(heading.getBoundingClientRect().left,
-      ...Array.from(table.querySelectorAll(cellSelector), cell => cell.getBoundingClientRect().left));
-    const obscured = table.scrollLeft > 0 && left < boundary + gap;
-    // Preserve each grid track, hiding the whole metric before the pinned name cuts into it.
-    const field = `${key}Obscured`;
-    if (table.dataset[field] !== String(obscured)) table.dataset[field] = String(obscured);
-  }
-  for (const row of table.querySelectorAll('.hwr-row-secondary')) {
-    const label = row.querySelector('.hwr-aux-label');
-    const value = row.querySelector('.hwr-aux-value');
-    if (!label || !value) continue;
-    const gap = parseFloat(getComputedStyle(row).columnGap) || 0;
-    const obscured = table.scrollLeft > 0
-      && value.getBoundingClientRect().left < label.getBoundingClientRect().right + gap;
-    // Keep the original value track; only hide a value while the sticky label overlaps it.
-    if (row.dataset.auxObscured !== String(obscured)) row.dataset.auxObscured = String(obscured);
-  }
+  const price = table.querySelector('.hwr-price-sort');
+  if (!pinned || !price) return;
+  const gap = parseFloat(getComputedStyle(price.parentElement).columnGap) || 0;
+  const priceLeft = Math.min(price.getBoundingClientRect().left,
+    ...Array.from(table.querySelectorAll('.hwr-price'), cell => cell.getBoundingClientRect().left));
+  const obscured = table.scrollLeft > 0
+    && priceLeft < pinned.getBoundingClientRect().right + gap;
+  // Keep the grid track, but never show a partial price against the fixed name.
+  if (table.dataset.priceObscured !== String(obscured)) table.dataset.priceObscured = String(obscured);
 }
 
 function SortControl({ label, sortKey, sortState, onSort, language, className = '' }) {
@@ -93,8 +74,8 @@ export default function HomeWatchlistReport({
   const rowGesture = React.useRef(null);
   const auxiliaryMetric = metricByTab[tableTab] || (isWatchlist ? 'drawdown' : 'pnl');
   const labels = english
-    ? { watchlist: 'Watchlist', positions: 'Holdings', price: 'Price', change: 'Today', drawdown: 'From 52W high', ytd: 'Year to date', ytdColumn: 'YTD', pnl: 'Holding P&L' }
-    : { watchlist: '自选', positions: '持仓', price: '价格', change: '今日涨跌', drawdown: '距 52 周高点', ytd: '年内涨幅', ytdColumn: '年初至今', pnl: '持仓盈亏' };
+    ? { watchlist: 'Watchlist', positions: 'Holdings', price: 'Price', change: 'Today', drawdown: 'From 52W high', ytd: 'Year to date', pnl: 'Holding P&L' }
+    : { watchlist: '自选', positions: '持仓', price: '价格', change: '今日涨跌', drawdown: '距 52 周高点', ytd: '年内涨幅', pnl: '持仓盈亏' };
   const availableMetrics = AUXILIARY_METRICS[tableTab] || AUXILIARY_METRICS.watchlist;
   const missing = (value) => value === null || value === undefined || value === '' || !Number.isFinite(Number(value));
   const colorFor = (value) => missing(value) ? '#85858d' : marketColor?.(value);
@@ -150,15 +131,14 @@ export default function HomeWatchlistReport({
             : (english ? 'No holdings yet. Add a buy in Trades to get started.' : '暂无持仓记录，先在交易页添加买入记录。')}
         </div>
       ) : (
-        <div ref={showRsi ? syncIdentityHitWidth : undefined} className={`hwr-table-scroll${showRsi ? ' has-rsi' : ''}`} onScroll={showRsi ? updateScrollClipping : undefined} tabIndex={showRsi ? 0 : undefined} aria-label={showRsi ? (english ? 'Watchlist, scroll horizontally for RSI, bearish divergence and year-to-date change' : '自选列表，可左右滑动查看 RSI、顶背离和年初至今涨跌幅') : undefined}>
+        <div ref={showRsi ? syncIdentityHitWidth : undefined} className={`hwr-table-scroll${showRsi ? ' has-rsi' : ''}`} onScroll={showRsi ? updateScrollClipping : undefined} tabIndex={showRsi ? 0 : undefined} aria-label={showRsi ? (english ? 'Watchlist, scroll horizontally for RSI and bearish divergence' : '自选列表，可左右滑动查看 RSI 和顶背离') : undefined}>
           <div className="hwr-table-content">
           <div className="hwr-column-headings">
             <SortControl label={labels[auxiliaryMetric]} sortKey={auxiliaryMetric} sortState={sortState} onSort={onSort} language={language} className="hwr-aux-sort" />
             <SortControl label={labels.price} sortKey="price" sortState={sortState} onSort={onSort} language={language} className="hwr-price-sort" />
-            <SortControl label={labels.change} sortKey="change" sortState={sortState} onSort={onSort} language={language} className="hwr-change-sort" />
+            <SortControl label={labels.change} sortKey="change" sortState={sortState} onSort={onSort} language={language} />
             {showRsi && <span className="hwr-rsi-heading">RSI<span className="hwr-rsi-period">(6)</span></span>}
             {showRsi && <span className="hwr-divergence-heading">{english ? 'Bearish div.' : '顶背离'}</span>}
-            {isWatchlist && <SortControl label={labels.ytdColumn} sortKey="ytd" sortState={sortState} onSort={onSort} language={language} className="hwr-ytd-sort" />}
           </div>
           <div className="hwr-list">
             {rows.map((item) => {
@@ -225,7 +205,6 @@ export default function HomeWatchlistReport({
                         title={rsiDisplay.momentumAvailable && rsiDisplay.divergenceDate ? `${divergenceLabel} · ${rsiDisplay.divergenceDate}` : undefined}
                       >{divergenceLabel}</span>
                     )}
-                    {isWatchlist && <span className="hwr-ytd" style={{ color: colorFor(item.ytdChangePercent) }}>{formatted(formatChange, item.ytdChangePercent)}</span>}
                   </div>
                   <div className="hwr-row-secondary">
                     <span className="hwr-aux-label">{labels[auxiliaryMetric]}</span>

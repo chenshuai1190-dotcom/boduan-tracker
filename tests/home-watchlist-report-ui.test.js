@@ -108,7 +108,7 @@ test('the report stays presentation-only and keeps narrow-screen values untrunca
   for (const match of css.matchAll(/font-size:\s*(\d+(?:\.\d+)?)px/g)) {
     assert.ok(Number(match[1]) >= 10, 'all financial and helper text must meet the 10px minimum');
   }
-  for (const selector of ['hwr-price', 'hwr-change', 'hwr-ytd', 'hwr-aux-value']) {
+  for (const selector of ['hwr-price', 'hwr-change', 'hwr-aux-value']) {
     const rule = css.match(new RegExp(`\\.${selector}\\s*\\{([^}]+)\\}`))?.[1];
     assert.ok(rule, `${selector} needs a scoped rule`);
     assert.doesNotMatch(rule, /text-overflow:\s*ellipsis|overflow:\s*hidden/);
@@ -116,11 +116,11 @@ test('the report stays presentation-only and keeps narrow-screen values untrunca
   assert.match(css, /\.hwr-aux-value\s*\{[^}]*flex-wrap:\s*wrap[^}]*overflow-wrap:\s*anywhere/);
 });
 
-test('watchlist has RSI, divergence and sortable YTD after Today while holdings keep three columns', () => {
+test('watchlist has separate RSI and divergence after Today while holdings keep three columns', () => {
   const h = harness({ rows: [row({ stockRsi: signal() })] });
   const tree = h.render();
   const cells = React.Children.toArray(byClass(tree, 'hwr-row-main')[0].props.children);
-  assert.deepEqual(cells.map(cell => cell.props.className), ['hwr-identity', 'hwr-price', 'hwr-change', 'hwr-rsi', 'hwr-divergence', 'hwr-ytd']);
+  assert.deepEqual(cells.map(cell => cell.props.className), ['hwr-identity', 'hwr-price', 'hwr-change', 'hwr-rsi', 'hwr-divergence']);
   assert.equal(text(cells[0]), 'NVNVDA英伟达');
   assert.equal(text(cells[1]), '$223.674321');
   assert.equal(text(cells[2]), '-0.91%');
@@ -129,22 +129,18 @@ test('watchlist has RSI, divergence and sortable YTD after Today while holdings 
   assert.deepEqual(headings.slice(0, 3).map(heading => heading.props.sortKey), ['drawdown', 'price', 'change']);
   assert.equal(text(headings[3]), 'RSI(6)');
   assert.equal(text(headings[4]), '顶背离');
-  assert.equal(headings[5].props.sortKey, 'ytd');
-  assert.equal(text(sortControl(tree, 'ytd')), '年初至今');
-  assert.equal(text(cells[5]), '13.37%');
   const scroll = byClass(tree, 'hwr-table-scroll')[0];
   assert.match(scroll.props.className, /\bhas-rsi\b/);
   assert.equal(scroll.props.tabIndex, 0);
   assert.match(scroll.props['aria-label'], /左右滑动/);
-  assert.match(css, /--hwr-extra-width:\s*calc\(var\(--hwr-rsi-width\) \+ var\(--hwr-divergence-width\) \+ var\(--hwr-ytd-width\) \+ 24px\)/);
-  assert.match(css, /--hwr-extra-width:\s*calc\(var\(--hwr-rsi-width\) \+ var\(--hwr-divergence-width\) \+ var\(--hwr-ytd-width\) \+ 18px\)/);
-  assert.match(css, /grid-template-columns:\s*var\(--hwr-columns\) var\(--hwr-rsi-width\) var\(--hwr-divergence-width\) var\(--hwr-ytd-width\)/);
+  assert.match(css, /--hwr-extra-width:\s*calc\(var\(--hwr-rsi-width\) \+ var\(--hwr-divergence-width\) \+ 16px\)/);
+  assert.match(css, /--hwr-extra-width:\s*calc\(var\(--hwr-rsi-width\) \+ var\(--hwr-divergence-width\) \+ 12px\)/);
+  assert.match(css, /grid-template-columns:\s*var\(--hwr-columns\) var\(--hwr-rsi-width\) var\(--hwr-divergence-width\)/);
 
   h.props.tableTab = 'positions';
   const holdings = h.render();
   assert.equal(byClass(holdings, 'hwr-rsi').length, 0);
   assert.equal(byClass(holdings, 'hwr-divergence').length, 0);
-  assert.equal(byClass(holdings, 'hwr-ytd').length, 0);
   assert.equal(React.Children.toArray(byClass(holdings, 'hwr-row-main')[0].props.children).length, 3);
   const holdingsScroll = byClass(holdings, 'hwr-table-scroll')[0];
   assert.doesNotMatch(holdingsScroll.props.className, /\bhas-rsi\b/);
@@ -175,16 +171,16 @@ test('the enlarged identity stays within the name track and shrinks to the pinne
   const baseRules = css.slice(0, css.indexOf('@media'));
   for (const viewport of [320, 356, 359, 360, 389, 390, 420, 421, 440]) {
     const rules = [baseRules, ...mediaRules.filter(rule => viewport <= rule.maxWidth).map(rule => rule.body)].join('\n');
-    const sizes = Object.fromEntries([...rules.matchAll(/--hwr-(rsi-width|divergence-width|ytd-width|pinned-width):\s*(\d+)px/g)]
+    const sizes = Object.fromEntries([...rules.matchAll(/--hwr-(rsi-width|divergence-width|pinned-width):\s*(\d+)px/g)]
       .map(match => [match[1], Number(match[2])]));
     const tracks = [...rules.matchAll(/--hwr-columns:\s*minmax\(0,\s*1fr\)\s+minmax\((\d+)px,\s*max-content\)\s+minmax\((\d+)px,\s*max-content\)/g)].at(-1);
     assert.ok(tracks, 'the approved initial price and Today tracks must remain available');
-    const extraGap = Number([...rules.matchAll(/--hwr-extra-width:\s*calc\(var\(--hwr-rsi-width\)\s*\+\s*var\(--hwr-divergence-width\)\s*\+\s*var\(--hwr-ytd-width\)\s*\+\s*(\d+)px\)/g)].at(-1)?.[1]);
+    const extraGap = Number([...rules.matchAll(/--hwr-extra-width:\s*calc\(var\(--hwr-rsi-width\)\s*\+\s*var\(--hwr-divergence-width\)\s*\+\s*(\d+)px\)/g)].at(-1)?.[1]);
     const contentWidth = viewport - 32;
-    const gap = extraGap / 3;
-    const divergenceStartAfterScroll = contentWidth - sizes['ytd-width'] - gap - sizes['divergence-width'];
-    assert.ok(divergenceStartAfterScroll >= sizes['pinned-width'] + gap,
-      `${viewport}px: divergence and YTD must remain fully visible beyond the pinned stock at the scroll end`);
+    const extraWidth = sizes['rsi-width'] + sizes['divergence-width'] + extraGap;
+    const todayStartAfterScroll = contentWidth - Number(tracks[2]) - extraWidth;
+    assert.ok(todayStartAfterScroll >= sizes['pinned-width'] + 6,
+      `${viewport}px: the complete Today track must clear the pinned stock surface, including a readable gap`);
   }
 });
 
@@ -221,11 +217,9 @@ test('horizontal scrolling hides the complete price column at the pinned boundar
     querySelector(selector) {
       if (selector === '.hwr-aux-sort') return { getBoundingClientRect: () => ({ right: 112 }) };
       if (selector === '.hwr-price-sort') return { parentElement: heading, getBoundingClientRect: () => ({ left: priceLeft }) };
-      if (['.hwr-change-sort', '.hwr-rsi-heading', '.hwr-divergence-heading'].includes(selector)) return null;
       assert.fail(`unexpected selector ${selector}`);
     },
     querySelectorAll(selector) {
-      if (selector === '.hwr-row-secondary') return [];
       assert.equal(selector, '.hwr-price');
       return [
         { getBoundingClientRect: () => ({ left: priceLeft }) },
@@ -288,121 +282,6 @@ test('narrow indicator columns keep long English labels inside the cell and pres
   assert.equal(identity.props['aria-label'], 'Open LONGSYMBOL stock details');
   assert.equal(text(byClass(h.render(), 'hwr-rsi-zone')[0]), 'Strongly overbought');
   assert.equal(text(sortControl(h.render(), 'change')).trim(), 'Today');
-  assert.equal(text(sortControl(h.render(), 'ytd')).trim(), 'YTD');
-});
-
-test('scrolling farther for YTD hides any earlier metric cut by the pinned stock and restores it', t => {
-  const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'getComputedStyle');
-  Object.defineProperty(globalThis, 'getComputedStyle', { configurable: true, value: () => ({ columnGap: '8px' }) });
-  t.after(() => {
-    if (descriptor) Object.defineProperty(globalThis, 'getComputedStyle', descriptor);
-    else delete globalThis.getComputedStyle;
-  });
-  const tracks = [
-    ['price', '.hwr-price-sort', '.hwr-price', 80],
-    ['change', '.hwr-change-sort', '.hwr-change', 150],
-    ['rsi', '.hwr-rsi-heading', '.hwr-rsi', 225],
-    ['divergence', '.hwr-divergence-heading', '.hwr-divergence', 305],
-  ];
-  const table = {
-    scrollLeft: 0, dataset: {}, style: { setProperty() {} },
-    querySelector(selector) {
-      if (selector === '.hwr-aux-sort') return { getBoundingClientRect: () => ({ right: 112 }) };
-      const track = tracks.find(([, heading]) => heading === selector);
-      assert.ok(track, selector);
-      return { parentElement: {}, getBoundingClientRect: () => ({ left: track[3] - table.scrollLeft }) };
-    },
-    querySelectorAll(selector) {
-      if (selector === '.hwr-row-secondary') return [];
-      const track = tracks.find(([, , cell]) => cell === selector);
-      assert.ok(track, selector);
-      return [{ getBoundingClientRect: () => ({ left: track[3] - table.scrollLeft }) }];
-    },
-  };
-  const onScroll = byClass(harness().render(), 'hwr-table-scroll')[0].props.onScroll;
-  for (const scrollLeft of [0, 31, 106, 186, 30, 0]) {
-    table.scrollLeft = scrollLeft;
-    onScroll({ currentTarget: table });
-    for (const [key, , , left] of tracks) {
-      assert.equal(table.dataset[`${key}Obscured`], String(scrollLeft > 0 && left - scrollLeft < 120));
-    }
-  }
-  for (const [key, heading, cell] of tracks) {
-    const rule = css.match(new RegExp(`\\.has-rsi\\[data-${key}-obscured="true"\\] \\${cell},\\s*\\.has-rsi\\[data-${key}-obscured="true"\\] \\${heading}\\s*\\{([^}]+)\\}`))?.[1];
-    assert.ok(rule, `${key} heading and values must share their clipping rule`);
-    assert.match(rule, /visibility:\s*hidden/);
-    assert.doesNotMatch(rule, /display:\s*none|width:|grid-template/);
-  }
-});
-
-test('52-week values keep their original track and hide only during their own label collision', t => {
-  const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'getComputedStyle');
-  Object.defineProperty(globalThis, 'getComputedStyle', { configurable: true, value: () => ({ columnGap: '10px' }) });
-  t.after(() => {
-    if (descriptor) Object.defineProperty(globalThis, 'getComputedStyle', descriptor);
-    else delete globalThis.getComputedStyle;
-  });
-  const makeRow = (labelRight, valueLeft) => {
-    const row = { labelRight, valueLeft, writes: 0 };
-    row.dataset = new Proxy({}, { set(target, key, value) { row.writes++; target[key] = value; return true; } });
-    row.querySelector = selector => selector === '.hwr-aux-label'
-      ? { getBoundingClientRect: () => ({ right: row.labelRight }) }
-      : selector === '.hwr-aux-value' ? { getBoundingClientRect: () => ({ left: row.valueLeft }) } : null;
-    return row;
-  };
-  const wideValue = makeRow(130, 139.5);
-  const shortValue = makeRow(130, 140);
-  const table = {
-    scrollLeft: 80, dataset: {}, style: { setProperty() {} },
-    querySelector: selector => selector === '.hwr-aux-sort'
-      ? { getBoundingClientRect: () => ({ right: 112 }) } : null,
-    querySelectorAll: selector => selector === '.hwr-row-secondary' ? [wideValue, shortValue] : [],
-  };
-  const onScroll = byClass(harness().render(), 'hwr-table-scroll')[0].props.onScroll;
-  onScroll({ currentTarget: table });
-  assert.equal(wideValue.dataset.auxObscured, 'true', 'use the actual lower label edge, not the narrower column heading');
-  assert.equal(shortValue.dataset.auxObscured, 'false', 'another row with sufficient spacing must remain visible');
-  onScroll({ currentTarget: table });
-  assert.equal(wideValue.writes, 1, 'unchanged scroll geometry must not rewrite visibility');
-  assert.equal(shortValue.writes, 1);
-  wideValue.valueLeft = 170;
-  onScroll({ currentTarget: table });
-  assert.equal(wideValue.dataset.auxObscured, 'false', 'reverse scrolling restores a value once it clears its label');
-  wideValue.valueLeft = 100;
-  table.scrollLeft = 0;
-  onScroll({ currentTarget: table });
-  assert.equal(wideValue.dataset.auxObscured, 'false', 'the initial position must remain unchanged');
-  const trackRule = css.match(/\.has-rsi \.hwr-row-secondary\s*\{([^}]+)\}/)?.[1];
-  assert.match(trackRule, /width:\s*calc\(100% - var\(--hwr-extra-width\)\)/);
-  assert.doesNotMatch(trackRule, /position:|left:/);
-  assert.match(css, /\.has-rsi \.hwr-aux-label\s*\{[^}]*position:\s*sticky;\s*left:\s*37px/);
-  assert.match(css, /\.has-rsi \.hwr-aux-label\s*\{\s*left:\s*31px/);
-  const hiddenRule = css.match(/\.has-rsi \.hwr-row-secondary\[data-aux-obscured="true"\] \.hwr-aux-value\s*\{([^}]+)\}/)?.[1];
-  assert.match(hiddenRule, /visibility:\s*hidden/);
-  assert.doesNotMatch(hiddenRule, /display:|position:|width:|left:/);
-});
-
-test('YTD formats raw values and follows market colors independently of Today, including real zero', () => {
-  for (const [gain, loss] of [['#FF4B1F', '#34D399'], ['#34D399', '#FF4B1F']]) {
-    const calls = [];
-    const h = harness({
-      rows: [
-        row({ symbol: 'GAIN', ytdChangePercent: 13.3754321, color: loss }),
-        row({ symbol: 'LOSS', ytdChangePercent: -4.5123456, color: gain }),
-        row({ symbol: 'ZERO', ytdChangePercent: 0 }),
-        row({ symbol: 'MISSING', ytdChangePercent: null }),
-      ],
-      marketColor: value => value > 0 ? gain : value < 0 ? loss : '#85858d',
-      formatChange: value => { calls.push(value); return `${value}%`; },
-    });
-    const cells = byClass(h.render(), 'hwr-ytd');
-    assert.deepEqual(cells.map(text), ['13.3754321%', '-4.5123456%', '0%', '—']);
-    assert.deepEqual(cells.map(cell => cell.props.style.color), [gain, loss, '#85858d', '#85858d']);
-    assert.ok(calls.includes(13.3754321));
-    assert.ok(calls.includes(-4.5123456));
-    assert.ok(calls.includes(0));
-    assert.equal(calls.includes(null), false);
-  }
 });
 
 test('invalid signal values and metadata stay missing instead of becoming neutral or no divergence', () => {
@@ -573,13 +452,12 @@ test('null, undefined, empty and non-finite market data stay missing without cal
     const calls = [];
     const formatter = value => { calls.push(value); return 'fabricated'; };
     const h = harness({
-      rows: [row({ price: missing, changePct: missing, highDrawdown: missing, ytdChangePercent: missing })],
+      rows: [row({ price: missing, changePct: missing, highDrawdown: missing })],
       formatPrice: formatter, formatChange: formatter, formatDrawdown: formatter,
     });
     const tree = h.render();
     assert.equal(text(byClass(tree, 'hwr-price')[0]), '—');
     assert.equal(text(byClass(tree, 'hwr-change')[0]), '—');
-    assert.equal(text(byClass(tree, 'hwr-ytd')[0]), '—');
     assert.equal(text(byClass(tree, 'hwr-aux-value')[0]), '—');
     assert.deepEqual(calls, []);
     assert.doesNotMatch(h.html(), /NaN|Infinity|fabricated/);
@@ -661,7 +539,7 @@ test('watchlist alone exposes add, edit and detail callbacks while tab selection
 test('only the enlarged stock identity opens details; price and other metrics stay noninteractive', () => {
   const opened = [];
   const tree = harness({ rows: [row(), row({ symbol: 'MSFT' })], onOpenStock: symbol => opened.push(symbol) }).render();
-  for (const className of ['hwr-price', 'hwr-change', 'hwr-rsi-value', 'hwr-divergence', 'hwr-ytd', 'hwr-aux-value']) {
+  for (const className of ['hwr-price', 'hwr-change', 'hwr-rsi-value', 'hwr-divergence', 'hwr-aux-value']) {
     const target = byClass(tree, className)[1];
     assert.ok(bubbleClick(tree, target), `${className} must remain in the rendered table`);
     assert.deepEqual(opened, [], `${className} must not navigate`);
@@ -741,13 +619,15 @@ test('keyboard and assistive actions bypass cancelled pointer gestures without r
   assert.deepEqual(opened, ['NVDA', 'NVDA', 'NVDA'], 'assistive clicks remain available after a cancelled touch gesture');
 });
 
-test('watchlist YTD sorting stays in its column and holdings retain their auxiliary metric selection', () => {
+test('auxiliary metric remembers each tab and delegates visible sort state to the parent', () => {
   const sorted = [];
   const h = harness({ onSort: key => sorted.push(key) });
   let tree = h.render();
   assert.equal(text(byClass(tree, 'hwr-aux-label')[0]), '距 52 周高点');
-  assert.deepEqual(byClass(tree, 'hwr-metric-chip').map(text), ['距 52 周高点']);
-  assert.equal(text(byClass(tree, 'hwr-ytd')[0]), '13.37%');
+  byClass(tree, 'hwr-metric-chip').find(node => text(node) === '年内涨幅').props.onClick();
+  tree = h.render();
+  assert.equal(text(byClass(tree, 'hwr-aux-label')[0]), '年内涨幅');
+  assert.equal(text(byClass(tree, 'hwr-aux-value')[0]), '13.37%');
   sortControl(tree, 'ytd').props.onClick();
   sortControl(tree, 'price').props.onClick();
   sortControl(tree, 'change').props.onClick();
@@ -755,18 +635,11 @@ test('watchlist YTD sorting stays in its column and holdings retain their auxili
   h.props.sortState = { key: 'ytd', direction: 'desc' };
   assert.match(sortControl(h.render(), 'ytd').props.className, /is-active/);
   assert.match(sortControl(h.render(), 'ytd').props['aria-label'], /当前降序，点击升序排列/);
-  h.props.sortState = { key: 'ytd', direction: 'asc' };
-  assert.match(sortControl(h.render(), 'ytd').props['aria-label'], /当前升序，点击降序排列/);
   h.props.tableTab = 'positions';
   assert.equal(text(byClass(h.render(), 'hwr-aux-label')[0]), '持仓盈亏');
   sortControl(h.render(), 'pnl').props.onClick();
   assert.equal(sorted.at(-1), 'pnl');
-  byClass(h.render(), 'hwr-metric-chip').find(node => text(node) === '年内涨幅').props.onClick();
-  assert.equal(text(byClass(h.render(), 'hwr-aux-label')[0]), '年内涨幅');
-  assert.equal(text(byClass(h.render(), 'hwr-aux-value')[0]), '13.37%');
   h.props.tableTab = 'watchlist';
-  assert.equal(text(byClass(h.render(), 'hwr-aux-label')[0]), '距 52 周高点');
-  h.props.tableTab = 'positions';
   assert.equal(text(byClass(h.render(), 'hwr-aux-label')[0]), '年内涨幅');
 });
 
