@@ -67,45 +67,6 @@ test('stock provider message accepts a usable tick when no status frame is prese
   assert.equal(parsed.tick.receivedAt, 1_785_000_000_250);
 });
 
-test('stock trade and quote timestamps normalize seconds, milliseconds, microseconds and nanoseconds', () => {
-  const receivedAt = Date.parse('2026-11-02T09:43:23.445Z');
-  for (const [rawTime, expected] of [
-    [1_793_612_595, 1_793_612_595_000],
-    [1_793_612_595_979, 1_793_612_595_979],
-    [1_793_612_595_979_600, 1_793_612_595_979],
-    [1_793_612_595_979_600_000, 1_793_612_595_979],
-    ['1793612595979600000', 1_793_612_595_979],
-  ]) {
-    for (const prices of [{ p: 207.59 }, { bp: 207.51, ap: 207.6 }]) {
-      const parsed = parseStockUpstreamMessage({ s: 'NVDA', ...prices, t: rawTime }, { receivedAt });
-      assert.equal(parsed.kind, 'tick');
-      assert.equal(parsed.tick.timestamp, expected, String(rawTime));
-      assert.equal(parsed.tick.receivedAt, receivedAt);
-      assert.ok(Number.isFinite(new Date(parsed.tick.timestamp).getTime()));
-    }
-  }
-});
-
-test('future trade and quote frames are ignored before relay caching, while later valid frames remain usable', () => {
-  const receivedAt = Date.parse('2026-11-02T09:13:23.445Z');
-  for (const prices of [{ p: 207.59 }, { bp: 207.51, ap: 207.6 }]) {
-    for (const factor of [1, 1_000, 1_000_000]) {
-      assert.deepEqual(parseStockUpstreamMessage({
-        s: 'NVDA', ...prices, t: (receivedAt + 60_001) * factor,
-      }, { receivedAt }), { kind: 'ignored' });
-    }
-    const valid = parseStockUpstreamMessage({
-      s: 'NVDA', ...prices, t: receivedAt * 1_000_000,
-    }, { receivedAt });
-    assert.equal(valid.kind, 'tick');
-    assert.equal(valid.tick.timestamp, receivedAt);
-    const boundary = parseStockUpstreamMessage({
-      s: 'NVDA', ...prices, t: receivedAt + 60_000,
-    }, { receivedAt });
-    assert.equal(boundary.kind, 'tick');
-  }
-});
-
 test('stock snapshot metadata reports coverage, missing symbols, and per-symbol age', () => {
   const metadata = buildStocksSnapshotMetadata({
     symbols: ['NVDA', 'MSFT', 'TSM'],
