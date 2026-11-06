@@ -33,7 +33,6 @@
 .rj-expand{padding-top:0}
 .rj-post-actions{display:flex;justify-content:space-between;align-items:center;margin:7px 0 4px;color:#7d8591}
 .rj-post-actions button{min-height:37px;padding:0;border:0;display:flex;align-items:center;gap:7px;background:transparent;font-size:12px;color:inherit}
-.rj-post-actions .rj-detail-link{font-size:11px;gap:1px;color:#6f7782}
 .rj-fab{position:fixed;bottom:calc(26px + env(safe-area-inset-bottom));right:max(20px,calc((100vw - 640px)/2 + 20px));width:56px;height:56px;border:0;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#dde2eb;color:#14171c;box-shadow:0 8px 26px #0009;z-index:25}
 .rj-empty{padding:65px 24px;text-align:center;color:#737b87;display:flex;flex-direction:column;align-items:center;gap:12px}
 .rj-empty h2{font-size:17px;color:#cad0da;font-weight:500}.rj-empty p{font-size:13px}
@@ -45,7 +44,7 @@
 .rj-dialog-wide{max-width:640px;height:100%;background:#08090b}
 .rj-dialog-body{min-height:0;overflow:auto;padding:12px 20px 22px}
 .rj-publish{display:inline-flex;gap:8px;align-items:center;justify-content:center;min-height:34px;padding:7px 17px;border:0;border-radius:22px;background:#e3e7ee;color:#15191e;font-size:14px;font-weight:600;white-space:nowrap}
-.rj-compose-scroll,.rj-detail-scroll{overflow:auto;min-height:0;flex:1;overscroll-behavior:contain}
+.rj-compose-scroll{overflow:auto;min-height:0;flex:1;overscroll-behavior:contain}
 .rj-compose-scroll{display:flex;flex-direction:column;scroll-padding-block:12px}
 .rj-compose-author{display:flex;flex-shrink:0;gap:12px;padding:8px 16px 0;align-items:center}
 .rj-compose-author strong{font-size:15px;font-weight:650;display:block}
@@ -88,10 +87,10 @@
 .rj-wide-button{display:block;width:100%;min-height:44px;border:0;border-radius:12px;padding:10px;background:#232830;color:#dde2e9;font-size:15px;margin-top:10px}
 .rj-menu-item{display:flex;align-items:center;gap:14px;min-height:50px;background:transparent;border:0;color:#d2d7e0;font-size:15px;width:100%;text-align:left}
 .rj-danger{color:#ec938d}
-.rj-replies{padding:24px 16px 30px}.rj-replies h3{font-size:15px;font-weight:600;margin-bottom:20px}
+.rj-replies{padding:24px 16px 30px}.rj-replies h2{font-size:15px;font-weight:600;margin-bottom:20px}
 .rj-reply{display:flex;gap:12px;margin-bottom:24px}.rj-reply>div{min-width:0;flex:1}.rj-reply strong{font-size:14px}.rj-reply time{font-size:12px;color:#737d8a;margin-left:8px}.rj-reply p{white-space:pre-wrap;overflow-wrap:anywhere;font-size:15px;line-height:22px;margin-top:6px;color:#ccd2dc}
 .rj-replies textarea{width:100%;min-height:100px;resize:vertical;background:#171b21;border:0;border-radius:12px;color:#e1e5ec;padding:12px;font-size:16px;line-height:24px;margin-bottom:12px;outline:none}
-.rj-detail-scroll>.rj-post{padding-bottom:20px}.rj-spin{animation:rj-spin 1s linear infinite}@keyframes rj-spin{to{transform:rotate(360deg)}}
+.rj-post-full{padding-bottom:20px}.rj-spin{animation:rj-spin 1s linear infinite}@keyframes rj-spin{to{transform:rotate(360deg)}}
 @media(max-width:640px){.rj-overlay-wide{padding:0}.rj-dialog-wide{border-radius:0}.rj-dialog-wide>.rj-dialog-header{padding-top:calc(12px + env(safe-area-inset-top))}}
 @media(pointer:coarse){.rj-overlay-composer{padding:0}.rj-overlay-composer>.rj-composer{max-width:none;border-radius:0}.rj-composer>.rj-dialog-header{padding-top:calc(12px + env(safe-area-inset-top))}}
 @media(max-width:359px){.rj-post{gap:10px;padding-left:12px;padding-right:12px}.rj-avatar{width:36px;height:36px}.rj-post-heading{font-size:12px}.rj-post-heading strong{font-size:14px}.rj-compose-content{padding-left:max(12px,env(safe-area-inset-left));padding-right:max(12px,env(safe-area-inset-right))}.rj-compose-toolbar{padding-left:max(14px,env(safe-area-inset-left));padding-right:max(14px,env(safe-area-inset-right))}.rj-compose-toolbar button{flex-direction:column;gap:3px}.rj-emoji-grid{grid-template-columns:repeat(7,minmax(0,1fr))}}
@@ -103,3 +102,16 @@
 .rj-screen-mask{position:fixed;inset:0;z-index:199;background:#08090b;pointer-events:none}
 
 .rj-avatar>img[data-custom-avatar=true]{transform:none}
+
+/* The entry is a normal page. Keep the hidden feed mounted to preserve chart
+   state, image dimensions, filters, and the exact return scroll position. */
+.rj-list-page[hidden]{display:none}
+.rj-entry-page{padding-bottom:env(safe-area-inset-bottom)}
+.rj-post-link{cursor:pointer;outline:none;scroll-margin-top:72px}
+.rj-post-link:focus-visible{outline:2px solid #8ea5bd;outline-offset:-2px;border-radius:8px}
+.rj-page-header h1:focus{outline:none}
+.rj-entry-content{min-width:0}
+.rj-entry-content .rj-post-text{font-size:16px;line-height:25px}
+.rj-entry-notes{display:flex;flex-wrap:wrap;gap:6px 14px;color:#818a97;font-size:12px;line-height:20px;margin-top:10px}
+.rj-entry-notes:empty{display:none}
+.rj-reply .review-market-card{margin-top:12px}

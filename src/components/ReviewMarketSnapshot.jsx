@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Check, X } from 'lucide-react';
 import { loadVixComparison, getVixComparisonExpectedCloseDate } from '../lib/vixComparison.js';
 import { loadFearGreed } from '../lib/fearGreed.js';
+import { MARKET_RED_HEX } from '../lib/marketColorMode.js';
 import {
   REVIEW_MARKET_KEYS, createReviewMarketSnapshot, normalizeReviewMarketSnapshot,
   readReviewMarketDate, reviewMarketItemLabel, reviewMarketItemState, formatReviewMarketItem,
@@ -11,6 +12,7 @@ import {
 import './ReviewMarketSnapshot.css';
 
 const isEnglish = language => String(language).toLowerCase().startsWith('en');
+const ratioTextStyle = item => item?.key === 'ratio' && item.value > 1 ? { color: MARKET_RED_HEX } : undefined;
 
 export function SnapshotCard({ value, language = 'zh', className = '' }) {
   const snapshot = normalizeReviewMarketSnapshot(value);
@@ -21,12 +23,10 @@ export function SnapshotCard({ value, language = 'zh', className = '' }) {
     <div className="review-market-values" style={{ '--review-market-count': snapshot.items.length }}>
       {snapshot.items.map(item => <div className="review-market-value" key={item.key}>
         <span>{reviewMarketItemLabel(item.key, language)}</span>
-        <strong>{formatReviewMarketItem(item, language)}</strong>
-        <small>{reviewMarketItemState(item, language)}</small>
+        <strong style={ratioTextStyle(item)}>{formatReviewMarketItem(item, language)}</strong>
+        <small style={ratioTextStyle(item)}>{reviewMarketItemState(item, language)}</small>
       </div>)}
     </div>
-    <div className="review-market-card-footer"><span>{en ? 'Daily close' : '日线收盘'} · {snapshot.example ? (en ? 'Example' : '示例') : snapshot.source}</span><span>{en ? 'Saved values' : '保存时快照'}</span></div>
-    {snapshot.asOfDate !== snapshot.recordDate && <p className="review-market-date-difference">{en ? 'Record date' : '记录日期'} {snapshot.recordDate} · {en ? 'Source date differs' : '与来源日期不同'}</p>}
   </section>;
 }
 
@@ -136,7 +136,7 @@ export function SnapshotPicker({ open = true, userId, language = 'zh', recordDat
               <input type="checkbox" checked={Boolean(item && selectedKeys.includes(key))} disabled={!item} onChange={() => toggle(key)} />
               <span className="review-market-checkbox" aria-hidden="true">{item && selectedKeys.includes(key) && <Check size={14} strokeWidth={2.6} />}</span>
               <span className="review-market-option-name"><strong>{reviewMarketItemLabel(key, language)}</strong><small>{key === 'fearGreed' ? 'CNN' : key === 'ratio' ? 'Cboe · VIX / VIX3M' : 'Cboe · VIX'} · {en ? 'Daily close' : '日线收盘'}</small></span>
-              <span className="review-market-option-reading"><strong>{item ? formatReviewMarketItem(item, language) : '—'}</strong><small>{item ? reviewMarketItemState(item, language) : detail}</small></span>
+              <span className="review-market-option-reading"><strong style={ratioTextStyle(item)}>{item ? formatReviewMarketItem(item, language) : '—'}</strong><small style={ratioTextStyle(item)}>{item ? reviewMarketItemState(item, language) : detail}</small></span>
             </label>;
           })}
         </div>

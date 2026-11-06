@@ -4,6 +4,19 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '投资复盘博文支持点击进入独立详情，完整展示正文、图片、股票走势、市场快照和评论；取消“查看记录”，返回保留列表位置。',
+      '股票卡片自动展示全部交易区间与买卖节点，走势延伸至最新完成收盘日；回放新增6个月、1年和全部，同复盘记录日的买入节点标红。',
+      '市场快照精简底部提示，保留实际数据日期；VIX / VIX3M 大于1时使用系统红色。',
+    ],
+    itemsEn: [
+      'Tap an Investment Journal post to open its own detail page with text, images, stock charts, market snapshots, and comments. The duplicate View entry link is removed, and returning restores the feed position.',
+      'Stock cards load the complete trade interval and retain historical trade markers through the latest completed close. Replay adds 6M, 1Y, and All, with matching record-date buy markers in red.',
+      'Market snapshots remove footer notes while retaining their source date. VIX / VIX3M values above 1 use the system red.',
+    ],
+  },
+  {
+    ver: 'v10.7.9.571', date: '2026-11-06',
+    items: [
       '投资复盘返回页面时复用当前账户昵称和头像，刷新保留已显示资料，自定义头像准备好后再显示，避免闪过默认头像。',
       '补记统一改称评论，详情页移除“后来的想法”标题，输入与提示文案同步调整。',
     ],

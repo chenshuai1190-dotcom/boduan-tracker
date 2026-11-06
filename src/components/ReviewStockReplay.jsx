@@ -1,11 +1,11 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowLeft, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
-import { loadStockComparison } from '../lib/stockComparison.js';
+import { loadReviewStockReplayHistory } from '../lib/reviewStockReplayHistory.js';
 import { getInvestmentComparisonExpectedCloseDate } from '../lib/investmentComparison.js';
 import { normalizeInvestmentSymbol } from '../lib/investmentComparisonModel.js';
 import { stockDetailChartDragIntent } from '../lib/watchlistStockDetail.js';
-import { buildReviewStockReplay, collectReviewReplayTrades, reviewReplayRequestRange, reviewReplayVisibleRows } from '../lib/reviewStockReplayModel.js';
+import { buildReviewStockReplay, collectReviewReplayTrades, isReviewReplayBuyHighlight, reviewReplayRequestRange, reviewReplayVisibleRows } from '../lib/reviewStockReplayModel.js';
 import './ReviewStockReplay.css';
 
 const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
@@ -18,7 +18,7 @@ function chartGeometry(rows) {
 }
 function pathFor(rows, geometry) { return rows.map((row, index) => `${index && !row.gapBefore ? 'L' : 'M'}${geometry.x(index).toFixed(2)} ${geometry.y(row.close).toFixed(2)}`).join(' '); }
 
-function ReplayChart({ rows, trades, selectedTrade, selectedDate, onSelectDate, onSelectTrade, english, mini = false }) {
+function ReplayChart({ rows, trades, selectedTrade, selectedDate, onSelectDate, onSelectTrade, english, recordDate, mini = false }) {
   const gesture = React.useRef(null);
   if (!rows.length) return null;
   const geometry = chartGeometry(rows), index = rows.findIndex(row => row.date === selectedDate), row = rows[index];
@@ -36,7 +36,7 @@ function ReplayChart({ rows, trades, selectedTrade, selectedDate, onSelectDate, 
     // date coordinate; the selected execution is always drawn above its peers.
     const markerY = clamp(y + (trade.side === 'buy' ? 22 : -22), 20, H - 38);
     return [{ trade, tradeIndex, x, y, markerY }];
-  }).sort((a, b) => Number(a.trade.key === selectedTrade?.key) - Number(b.trade.key === selectedTrade?.key));
+  }).sort((a, b) => Number(isReviewReplayBuyHighlight(a.trade, recordDate)) - Number(isReviewReplayBuyHighlight(b.trade, recordDate)) || Number(a.trade.key === selectedTrade?.key) - Number(b.trade.key === selectedTrade?.key));
   return <div className={`rsr-chart${mini ? ' rsr-chart-mini' : ''}`}>
     <div className="rsr-chart-touch" role={mini ? undefined : 'slider'} tabIndex={mini ? undefined : 0}
       aria-label={mini ? undefined : english ? 'Drag horizontally or use arrow keys to inspect daily closes' : '左右拖动或使用方向键查看逐日收盘'}
@@ -64,15 +64,16 @@ function ReplayChart({ rows, trades, selectedTrade, selectedDate, onSelectDate, 
           <text className="rsr-axis" x={LEFT - 8} y={geometry.y(value) + 4} textAnchor="end">{value.toFixed(value < 100 ? 1 : 0)}</text>
         </g>; })}
         <path className="rsr-price-path" d={pathFor(rows, geometry)} />
-        {marks.map(({ trade, x, y, markerY }) => <g className={`rsr-${trade.side}`} key={trade.key}>
+        {marks.map(({ trade, x, y, markerY }) => <g className={`rsr-${trade.side}${isReviewReplayBuyHighlight(trade, recordDate) ? ' rsr-review-buy' : ''}`} key={trade.key} data-review-buy={isReviewReplayBuyHighlight(trade, recordDate) || undefined}>
           <line className="rsr-node-stem" x1={x} x2={x} y1={y} y2={markerY} /><circle className="rsr-node-anchor" cx={x} cy={y} r="2.5" />
           {mini && <><circle className="rsr-mini-dot" cx={x} cy={markerY} r="8" /><text className="rsr-mini-label" x={x} y={markerY + 3.5} textAnchor="middle">{trade.side === 'buy' ? 'B' : 'S'}</text></>}
         </g>)}
         {!mini && row && <g className="rsr-inspection"><line x1={geometry.x(index)} x2={geometry.x(index)} y1={TOP} y2={BOTTOM} /><circle cx={geometry.x(index)} cy={geometry.y(row.close)} r="4" /></g>}
-        {[0, rows.length - 1].map((i, n) => <text key={`${i}-${n}`} className="rsr-axis" x={geometry.x(i)} y={H - 8} textAnchor={n ? 'end' : 'start'}>{rows[i].date.slice(5).replace('-', '/')}</text>)}
+        {[0, rows.length - 1].map((i, n) => <text key={`${i}-${n}`} className="rsr-axis" x={geometry.x(i)} y={H - 8} textAnchor={n ? 'end' : 'start'}>{(rows[0].date.slice(0, 4) === rows.at(-1).date.slice(0, 4) ? rows[i].date.slice(5) : rows[i].date).replaceAll('-', '/')}</text>)}
       </svg>
       {!mini && marks.map(({ trade, tradeIndex, x, markerY }) => <button key={trade.key} type="button"
-        className={`rsr-node rsr-${trade.side}${trade.key === selectedTrade?.key ? ' rsr-node-selected' : ''}`}
+        className={`rsr-node rsr-${trade.side}${isReviewReplayBuyHighlight(trade, recordDate) ? ' rsr-review-buy' : ''}${trade.key === selectedTrade?.key ? ' rsr-node-selected' : ''}`}
+        data-review-buy={isReviewReplayBuyHighlight(trade, recordDate) || undefined}
         style={{ left: `${x / W * 100}%`, top: `${markerY / H * 100}%` }}
         aria-label={`${trade.date} ${trade.side === 'buy' ? english ? 'Buy' : '买入' : english ? 'Sell' : '卖出'} ${trade.sameDayOrder}/${trade.sameDayCount}`}
         aria-pressed={trade.key === selectedTrade?.key} onClick={() => onSelectTrade(tradeIndex)}><span>{trade.side === 'buy' ? english ? 'B' : '买' : english ? 'S' : '卖'}</span></button>)}
@@ -80,9 +81,9 @@ function ReplayChart({ rows, trades, selectedTrade, selectedDate, onSelectDate, 
   </div>;
 }
 
-function ReplayDialog({ symbol, model, loading, error, onRetry, onClose, english, preview }) {
+function ReplayDialog({ symbol, model, loading, error, onRetry, onClose, english, preview, recordDate }) {
   const dialogRef = React.useRef(null), trackRef = React.useRef(null), closeRef = React.useRef(onClose), scrollTimer = React.useRef(null), scrollLockUntil = React.useRef(0);
-  const [selected, setSelected] = React.useState(Math.max(0, model.trades.length - 1)), [range, setRange] = React.useState('stage'), [inspection, setInspection] = React.useState(null);
+  const [selected, setSelected] = React.useState(() => { const matching = model.trades.findLastIndex(trade => isReviewReplayBuyHighlight(trade, recordDate)); return matching >= 0 ? matching : Math.max(0, model.trades.length - 1); }), [range, setRange] = React.useState('all'), [inspection, setInspection] = React.useState(null);
   closeRef.current = onClose;
   const selectedIndex = clamp(selected, 0, Math.max(0, model.trades.length - 1)), trade = model.trades[selectedIndex];
   const visible = React.useMemo(() => reviewReplayVisibleRows(model.rows, trade?.date, range), [model.rows, trade?.date, range]);
@@ -115,9 +116,9 @@ function ReplayDialog({ symbol, model, loading, error, onRetry, onClose, english
     <header className="rsr-header"><button type="button" onClick={onClose} aria-label={tr('返回投资复盘', 'Back to Investment Journal')}><ArrowLeft size={22} /></button><div><strong>{symbol}</strong><span>{tr('交易回放', 'Trade replay')}</span></div><span className="rsr-header-kind">{preview ? tr('示例', 'Demo') : 'USD'}</span></header>
     <div className="rsr-scroll">
       <div className="rsr-readout"><span>{selectedDate || '—'} · {tr('拆股复权收盘', 'Split-adjusted close')}</span><strong>{price(selectedRow?.close)}</strong></div>
-      <nav className="rsr-ranges" aria-label={tr('走势范围', 'Chart range')}>{[['stage', '本次交易', 'Trade'], ['1m', '1个月', '1M'], ['3m', '3个月', '3M']].map(([value, zh, en]) => <button type="button" key={value} aria-pressed={range === value} onClick={() => { setRange(value); setInspection(null); }}>{tr(zh, en)}</button>)}</nav>
+      <nav className="rsr-ranges" aria-label={tr('走势范围', 'Chart range')}>{[['stage', '本次交易', 'Trade'], ['1m', '1个月', '1M'], ['3m', '3个月', '3M'], ['6m', '6个月', '6M'], ['1y', '1年', '1Y'], ['all', '全部', 'All']].map(([value, zh, en]) => <button type="button" key={value} aria-pressed={range === value} onClick={() => { setRange(value); setInspection(null); }}>{tr(zh, en)}</button>)}</nav>
       {loading ? <div className="rsr-status" role="status"><RefreshCw size={17} className="ic-spin" />{tr('正在读取历史行情…', 'Loading history…')}</div> : error ? <div className="rsr-status" role="status"><p>{error === 'AUTH_REQUIRED' ? tr('请重新登录后读取行情。', 'Please sign in again.') : tr('历史行情暂不可用，交易记录仍可查看。', 'History is unavailable; trade records remain visible.')}</p><button type="button" onClick={onRetry}>{tr('重试', 'Retry')}</button></div>
-        : visible.length ? <ReplayChart rows={visible} trades={model.trades} selectedTrade={trade} selectedDate={selectedDate} onSelectDate={setInspection} onSelectTrade={selectTrade} english={english} />
+        : visible.length ? <ReplayChart rows={visible} trades={model.trades} selectedTrade={trade} selectedDate={selectedDate} onSelectDate={setInspection} onSelectTrade={selectTrade} english={english} recordDate={recordDate} />
           : <div className="rsr-status" role="status">{tr('这个阶段没有有效日线。', 'No valid daily history for this period.')}</div>}
       <div className="rsr-chart-caption"><span>{visible.length ? `${visible[0].date} — ${visible.at(-1).date}` : '—'}</span><button type="button" disabled={!trade} onClick={() => setInspection(null)}>{tr('定位交易', 'Locate trade')}</button></div>
       <p className="rsr-marker-note">{tr('节点仅标记交易日，实际成交价见下方', 'Markers show trade dates; execution prices appear below')}</p>
@@ -143,44 +144,57 @@ function ReplayDialog({ symbol, model, loading, error, onRetry, onClose, english
   </dialog>, document.body);
 }
 
-function ScopedReplay({ symbol, stockTrades, userId, language, previewHistory, companionSymbol }) {
+function ScopedReplay({ symbol, stockTrades, userId, language, previewHistory, companionSymbol, recordDate }) {
   const english = language?.startsWith('en'), preview = import.meta.env.DEV && previewHistory?.synthetic === true ? previewHistory : null;
+  const cardRef = React.useRef(null);
+  const [visible, setVisible] = React.useState(false);
   const [open, setOpen] = React.useState(false), [attempt, setAttempt] = React.useState(0), [loaded, setLoaded] = React.useState({ key: '', data: null, error: '', loading: false });
   const endDate = preview?.asOfDate || getInvestmentComparisonExpectedCloseDate();
   const records = React.useMemo(() => collectReviewReplayTrades({ stockTrades, symbol, userId }), [stockTrades, symbol, userId]);
   const dates = reviewReplayRequestRange(records, endDate), companion = normalizeInvestmentSymbol(companionSymbol) || (symbol === 'QQQ' ? 'SPY' : 'QQQ');
   const effectiveCompanion = companion === symbol ? symbol === 'QQQ' ? 'SPY' : 'QQQ' : companion;
   const key = JSON.stringify([userId, symbol, effectiveCompanion, dates?.startDate, dates?.endDate, endDate, attempt]);
+  const shouldLoad = visible || open;
   React.useEffect(() => {
-    if (!open || preview || !userId || !dates) return undefined;
+    if (preview) return undefined;
+    if (!window.IntersectionObserver) { setVisible(true); return undefined; }
+    const observer = new IntersectionObserver(entries => {
+      if (entries.some(entry => entry.isIntersecting)) { setVisible(true); observer.disconnect(); }
+    }, { rootMargin: '200px' });
+    if (cardRef.current) observer.observe(cardRef.current);
+    return () => observer.disconnect();
+  }, [preview]);
+  React.useEffect(() => {
+    if (!shouldLoad || preview || !userId || !dates) return undefined;
     const controller = new AbortController(); setLoaded({ key, data: null, error: '', loading: true });
     // Existing authenticated stock-comparison contract needs 2–4 symbols. The
     // companion only satisfies that contract and is never included in the chart.
     Promise.resolve().then(() => {
       if (controller.signal.aborted) return null;
-      return loadStockComparison({ userId, symbols: [symbol, effectiveCompanion], ...dates, force: attempt > 0, signal: controller.signal });
+      return loadReviewStockReplayHistory({ userId, symbols: [symbol, effectiveCompanion], ...dates, force: attempt > 0, signal: controller.signal });
     }).then(data => { if (!controller.signal.aborted) setLoaded({ key, data, error: '', loading: false }); })
       .catch(error => { if (!controller.signal.aborted) setLoaded({ key, data: null, error: error?.code || 'NETWORK_ERROR', loading: false }); });
     return () => controller.abort();
-  }, [open, key, preview]);
+  }, [shouldLoad, key, preview]);
   const current = loaded.key === key ? loaded : null, history = preview || current?.data;
   const model = React.useMemo(() => buildReviewStockReplay({ stockTrades, symbol, userId, history, endDate, allowSynthetic: Boolean(preview) }), [stockTrades, symbol, userId, history, endDate, preview]);
-  const miniRows = model.rows.slice(-65), latest = records.at(-1);
-  const loading = Boolean(open && !preview && userId && (!current || current.loading));
+  const miniRows = model.rows;
+  const loading = Boolean(shouldLoad && !preview && userId && (!current || current.loading));
   const error = !userId ? 'AUTH_REQUIRED' : current?.error || (history && !model.validHistory ? 'INVALID_DATA' : '');
-  return <section className="rsr-card" data-review-stock-replay={symbol}>
+  return <section ref={cardRef} className="rsr-card" data-review-stock-replay={symbol}>
     <button type="button" className="rsr-card-open" onClick={() => setOpen(true)} aria-label={`${symbol} ${english ? 'trade replay' : '交易回放'}`}>
       <header><strong>{symbol}</strong><span>{preview ? english ? 'Demo trades' : '示例交易' : english ? 'My trade dates' : '我的买卖节点'}</span><ChevronRight size={17} /></header>
-      {miniRows.length ? <ReplayChart rows={miniRows} trades={model.trades} selectedTrade={null} english={english} mini /> : <div className="rsr-card-summary"><strong>{records.length}<small>{english ? ' trades' : ' 笔交易'}</small></strong><span>{latest ? `${english ? 'Latest ' : '最近 '}${latest.date}` : english ? 'No recorded trades' : '暂无交易记录'}</span></div>}
+      {miniRows.length ? <ReplayChart rows={miniRows} trades={model.trades} selectedTrade={null} english={english} recordDate={recordDate} mini /> : <div className="rsr-card-chart-status" role="status">{error ? english ? 'History unavailable · open to retry' : '历史行情暂不可用 · 点击重试' : loading || !shouldLoad ? english ? 'Loading chart…' : '正在读取走势…' : english ? 'No historical prices available' : '暂无可用历史行情'}</div>}
       <footer><span>{preview ? english ? 'Illustrative history' : '示意走势' : english ? 'Read-only replay' : '只读回放'}</span><span>{english ? 'View trades and chart' : '查看交易与走势'} →</span></footer>
     </button>
-    {open && <ReplayDialog symbol={symbol} model={model} loading={loading} error={error} onRetry={() => setAttempt(value => value + 1)} onClose={() => setOpen(false)} english={english} preview={Boolean(preview)} />}
+    {open && <ReplayDialog symbol={symbol} model={model} loading={loading} error={error} onRetry={() => setAttempt(value => value + 1)} onClose={() => setOpen(false)} english={english} preview={Boolean(preview)} recordDate={recordDate} />}
   </section>;
 }
 
-/** No data loading until opened. Owner-scoped mapped stock_trades are required;
+/** Visible cards load automatically through a shared, bounded request pool.
+ * Owner-scoped mapped stock_trades are required;
  * DevVisualPreview alone may supply an explicitly synthetic previewHistory. */
-export default function ReviewStockReplay({ symbol, stockTrades = [], userId = '', language = 'zh', previewHistory, companionSymbol }) {
+export default function ReviewStockReplay({ symbol, stockTrades = [], userId = '', language = 'zh', previewHistory, companionSymbol, recordDate }) {
   const ticker = normalizeInvestmentSymbol(symbol); if (!ticker) return null;
-  return <ScopedReplay key={`${userId}:${ticker}`} symbol={ticker} stockTrades={stockTrades} userId={userId} language={language} previewHistory={previewHistory} companionSymbol={companionSymbol} />;
+  return <ScopedReplay key={`${userId}:${ticker}`} symbol={ticker} stockTrades={stockTrades} userId={userId} language={language} previewHistory={previewHistory} companionSymbol={companionSymbol} recordDate={recordDate} />;
 }
