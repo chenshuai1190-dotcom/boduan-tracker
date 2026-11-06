@@ -4,6 +4,15 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '市场月报的总览与每日明细分享图统一为手机长图，按屏幕宽度预览，整月内容完整导出。',
+    ],
+    itemsEn: [
+      'Market Monthly Report exports overview and daily details as mobile-width long images, with the entire month included and previews fitted to the screen.',
+    ],
+  },
+  {
+    ver: 'v10.7.9.565', date: '2026-10-27',
+    items: [
       '走势对比默认展示年初至今，区间详细数据默认展开，使用固定位置的加减按钮收起或展开。',
       '选中日期卡片新增当日收盘 RSI(6) 和超买超卖状态，沿用交易页面的判断标准。',
       '点击图表外恢复期末日期数据，同时保留当前图表缩放范围。',

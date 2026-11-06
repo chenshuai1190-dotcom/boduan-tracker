@@ -53,6 +53,7 @@ const DrawdownObservationPreview = lazy(() => import('./dev/DrawdownObservationP
 const VixComparisonPage = lazy(() => import('./pages/VixComparisonPage.jsx'));
 const VixRiskDesignPreview = lazy(() => import('./dev/VixRiskDesignPreview.jsx'));
 const VixMonthlyDesignWorkspace = lazy(() => import('./dev/VixMonthlyDesignWorkspace.jsx'));
+const VixDailyMobileDesign = lazy(() => import('./dev/VixDailyMobileDesign.jsx'));
 const FearGreedPreview = lazy(() => import('./dev/FearGreedPreview.jsx'));
 const StockDecisionPreview = lazy(() => import('./dev/StockDecisionPreview.jsx'));
 const InvestmentComparisonPreview = lazy(() => import('./dev/InvestmentComparisonPreview.jsx'));
@@ -3531,7 +3532,9 @@ function StandardDevVisualPreview({ initialTab = '' }) {
           : activeTab === 'drawdown-observation'
           ? <DrawdownObservationPreview onBack={() => setActiveTab('home')} initialSymbol={drawdownInitialSymbol} marketColorMode={marketColorMode} />
           : activeTab === 'vix-monthly-report'
-          ? <VixMonthlyDesignWorkspace ctx={{ ...homeCtx, englishMode: language === 'en' }} />
+          ? (new URLSearchParams(window.location.search).get('vixMobileShare') === '1'
+            ? <VixDailyMobileDesign ctx={homeCtx} />
+            : <VixMonthlyDesignWorkspace ctx={{ ...homeCtx, englishMode: language === 'en' }} />)
           : activeTab === 'vix-comparison'
           ? (new URLSearchParams(window.location.search).get('vixMonthlyDesign') === '1'
             ? <VixMonthlyDesignWorkspace initialView="vix" ctx={{ ...homeCtx, englishMode: language === 'en' }} />
