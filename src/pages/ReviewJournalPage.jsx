@@ -173,7 +173,7 @@ export default function ReviewJournalPage({ ctx }) {
       {entry.market&&<SnapshotCard value={entry.market} language={language}/>}
       {!full&&<div className="rj-post-actions"><button onClick={()=>openDetail(entry)} aria-label="查看补记"><MessageCircle size={18}/><span>{entry.replies?.length||'补记'}</span></button><button onClick={()=>openDetail(entry)} className="rj-detail-link">查看记录<ChevronRight size={14}/></button></div>}
     </div></article>;
-  return <div className="rj-page"><header className="rj-page-header"><button className="rj-icon" aria-label="返回" onClick={onBack}><ArrowLeft size={22}/></button><h1>复盘</h1><button className="rj-icon" aria-label="搜索复盘" aria-pressed={search} onClick={()=>{setSearch(!search);setQuery('');}}><Search size={21}/></button></header>
+  return <div className="rj-page"><header className="rj-page-header"><button className="rj-icon" aria-label="返回" onClick={onBack}><ArrowLeft size={22}/></button><h1>{language === 'en' ? 'Investment Journal' : '投资复盘'}</h1><button className="rj-icon" aria-label="搜索复盘" aria-pressed={search} onClick={()=>{setSearch(!search);setQuery('');}}><Search size={21}/></button></header>
     {preview&&<div className="rj-preview-note">本地预览 · 示例记录 · 不写入真实账户</div>}
     {identityError&&<button className="rj-identity-error" onClick={()=>setIdentityAttempt(value=>value+1)}>昵称暂未读取，点击重试</button>}
     <nav className="rj-tabs" aria-label="复盘分类">{[['all','全部'],['log','复盘日志'],['insight','投资心得']].map(([id,name])=><button key={id} aria-pressed={filter===id} onClick={()=>setFilter(id)}>{name}</button>)}</nav>

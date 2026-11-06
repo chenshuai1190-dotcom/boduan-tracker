@@ -1024,7 +1024,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
             { id: 'waves', label: tt('trades.swingLog', '波段记录'), icon: Waves },
             { id: 'records', label: tt('trades.tradeLog', '交易记录'), icon: ListChecks },
             { id: 'investment-comparison', label: tt('trades.investmentTimeMachineShort', '投资回溯'), icon: History },
-            { id: 'review-journal', label: englishMode ? 'Journal' : '复盘', icon: BookOpen },
+            { id: 'review-journal', label: englishMode ? 'Investment Journal' : '投资复盘', icon: BookOpen },
             { id: 'all', label: tt('trades.allTools', '全部功能'), icon: LayoutGrid },
           ].map((item) => {
             const Icon = item.icon;

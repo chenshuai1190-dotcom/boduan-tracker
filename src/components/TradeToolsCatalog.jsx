@@ -57,7 +57,7 @@ export default function TradeToolsCatalog({ language = 'zh', onSelect, enableDeb
             const Icon = tool.icon;
             return <button key={tool.id} type="button" data-tool-id={tool.id} className="trade-tool-card" onClick={() => onSelect(tool.id)}>
               <span className="trade-tool-icon"><Icon size={21} strokeWidth={1.7} aria-hidden="true" /></span>
-              <span className="trade-tool-copy"><span className="trade-tool-title">{tool.id === 'review-journal' ? (language === 'en' ? 'Journal' : '复盘') : t(language, tool.titleKey)}</span><span className="trade-tool-description">{tool.id === 'review-journal' ? (language === 'en' ? 'Ideas, reflections and trading context' : '投资心得与复盘日志，记录每一次思考') : t(language, tool.descriptionKey)}</span></span>
+              <span className="trade-tool-copy"><span className="trade-tool-title">{tool.id === 'review-journal' ? (language === 'en' ? 'Investment Journal' : '投资复盘') : t(language, tool.titleKey)}</span><span className="trade-tool-description">{tool.id === 'review-journal' ? (language === 'en' ? 'Ideas, reflections and trading context' : '投资心得与复盘日志，记录每一次思考') : t(language, tool.descriptionKey)}</span></span>
               <ChevronRight className="trade-tool-chevron" size={15} strokeWidth={1.7} aria-hidden="true" />
             </button>;
           })}
