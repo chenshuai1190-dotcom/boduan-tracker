@@ -117,6 +117,9 @@ function drawTable(ctx, rows, top, mode) {
   rows.forEach((row, index) => {
     const rowTop = top + TABLE_HEADER_HEIGHT + index * ROW_HEIGHT;
     if (index % 2 === 1) { ctx.fillStyle = C.stripe; ctx.fillRect(PAD, rowTop, CONTENT, ROW_HEIGHT); }
+    if (row.currentRiskLevel === 'EXTREME_STRESS') {
+      line(ctx, PAD - 6, rowTop + 8, PAD - 6, rowTop + ROW_HEIGHT - 8, getVixRiskColor(row.currentRiskLevel), 2);
+    }
     const values = [shortDate(row.date), fmt(positive(row.VIX)), fmt(positive(row.ratio), 3), pct(row.prices?.SPY?.dailyChangePct), pct(row.prices?.QQQ?.dailyChangePct), RISKS[row.currentRiskLevel] || RISKS.UNKNOWN];
     const fills = [C.date, C.row, C.row, color(row.prices?.SPY?.dailyChangePct, mode), color(row.prices?.QQQ?.dailyChangePct, mode), getVixRiskColor(row.currentRiskLevel)];
     values.forEach((value, columnIndex) => {

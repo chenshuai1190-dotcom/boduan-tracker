@@ -42,6 +42,8 @@ const compiledPanel = resolvePackages(panelCode.code)
   .replace(/from (["'])\.\/StockLogo\.jsx\1/g, `from ${JSON.stringify(logoUrl)}`)
   .replace(/from (["'])\.\.\/lib\/marketColorMode\.js\1/g,
     `from ${JSON.stringify(new URL('../src/lib/marketColorMode.js', import.meta.url).href)}`)
+  .replace(/from (["'])\.\.\/lib\/tradeVixRatioDisplay\.js\1/g,
+    `from ${JSON.stringify(new URL('../src/lib/tradeVixRatioDisplay.js', import.meta.url).href)}`)
   .replace(/from (["'])\.\.\/lib\/amountDisplay\.js\1/g,
     `from ${JSON.stringify(new URL('../src/lib/amountDisplay.js', import.meta.url).href)}`);
 const { default: TqqqTradeEntryPanel, TqqqTradeAmount } = await import(moduleUrl(compiledPanel));
@@ -319,24 +321,12 @@ test('warns without blocking a TQQQ buy when the 10% valuation is unavailable an
   assert.equal(sell.hardBlocked, false);
 });
 
-test('derives only objective VIX and QQQ references with explicit unavailable states', () => {
-  const unavailable = deriveTqqqMarketReference({ vix: 16.5, vixDataDate: '', qqqQuote: {} });
-  const panic = deriveTqqqMarketReference({
-    vix: 30,
-    vixDataDate: '2026-08-08',
-    qqqQuote: quoteRows.find((row) => row.symbol === 'QQQ'),
-  });
-  const extreme = deriveTqqqMarketReference({
-    vix: 50,
-    vixDataDate: '2026-08-08',
-    qqqQuote: quoteRows.find((row) => row.symbol === 'QQQ'),
-  });
-
-  assert.equal(unavailable.vixSignal, 'unavailable');
+test('derives QQQ position independently from the separately loaded VIX ratio', () => {
+  const unavailable = deriveTqqqMarketReference({ qqqQuote: {} });
+  const available = deriveTqqqMarketReference({ qqqQuote: quoteRows.find(row => row.symbol === 'QQQ') });
   assert.equal(unavailable.qqqReady, false);
-  assert.equal(panic.vixSignal, 'panic');
-  assert.equal(panic.qqqDistanceFromHigh, -0.05);
-  assert.equal(extreme.vixSignal, 'extreme');
+  assert.equal(available.qqqDistanceFromHigh, -0.05);
+  assert.equal(Object.hasOwn(available, 'vixValue'), false);
 });
 
 test('keeps TQQQ discipline isolated to formal TQQQ while preserving wave buy and sell actions', () => {

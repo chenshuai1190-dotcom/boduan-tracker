@@ -194,7 +194,7 @@ for (const mode of [MARKET_COLOR_MODES.GREEN_UP_RED_DOWN, MARKET_COLOR_MODES.RED
   });
 
   test(`daily export follows ${mode}, keeps zero/missing neutral and extreme risk red`, async t => {
-    const { textDraws } = canvasEnvironment(t);
+    const { textDraws, strokes } = canvasEnvironment(t);
     await renderVixMonthlyShare(coloredReport(), 'daily', { marketColorMode: mode });
     for (const [label, y, color] of [
       ['+2.50%', 252, positive], ['-3.75%', 252, negative],
@@ -203,6 +203,9 @@ for (const mode of [MARKET_COLOR_MODES.GREEN_UP_RED_DOWN, MARKET_COLOR_MODES.RED
     ]) assert.equal(textDraws.find(draw => draw.text === label && draw.y === y)?.color, color, `${label} at ${y}`);
     assert.equal(textDraws.find(draw => draw.text === '—' && draw.x === 310 && draw.y === 453)?.color, '#717d8c');
     assert.equal(textDraws.find(draw => draw.text === '极端压力')?.color, '#ff4d4f');
+    assert.deepEqual(strokes.filter(stroke => stroke.color === getVixRiskColor('EXTREME_STRESS')), [
+      { color: '#ff4d4f', width: 2, path: [{ kind: 'move', x: 12, y: 396 }, { kind: 'line', x: 12, y: 428 }] },
+    ], 'only the extreme-stress row keeps its left red marker in either market color mode');
     assert.equal(textDraws.find(draw => draw.text === '待补齐' && draw.x === 372 && draw.y === 453)?.color,
       getVixRiskColor('UNKNOWN'));
     assert.equal(textDraws.find(draw => draw.text === 'SPY' && draw.y === 350)?.color, '#8491a5');

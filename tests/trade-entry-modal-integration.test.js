@@ -168,7 +168,8 @@ test('ordinary RSI reference is scoped to the authenticated stock and never rece
   assert.match(panel, /showMarketReference=\{false\}/, 'the live reference owns the single market-data display');
   assert.match(reference, /renderMarketReference=\{quote => newTrade\.side !== 'sell'\s*\?/,
     'only a buy draft shows market context from the same quote fetch');
-  assert.match(reference, /deriveStockTradeMarketReference\(\{ symbol: tradeReferenceSymbol, quote, vix, vixDataDate \}\)/);
+  assert.match(reference, /deriveStockTradeMarketReference\(\{ symbol: tradeReferenceSymbol, quote \}\)/);
+  assert.match(reference, /\.\.\.tradeVixRatioReference/);
   assert.doesNotMatch(reference, /setNewTrade|onDraftChange|confirmTradeSubmit|addTrade|insertStockTrade|updateStockTrade/,
     'reference state must never mutate the draft or submit a transaction');
   assert.doesNotMatch(source, /import[^\n]+(?:StockRsiDesignPreview|stockRsiFixtures|StockTradeDesignPreview)/,

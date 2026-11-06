@@ -1,3 +1,4 @@
+import { deriveTradeVixRatioReference } from '../lib/tradeVixRatioReference.js';
 import React from 'react';
 import StockRsiReference from '../components/StockRsiReference.jsx';
 import { GenericLedgerTradeMarketReference } from '../components/GenericLedgerTradeEntryPanel.jsx';
@@ -21,7 +22,7 @@ const quotes = {
   GOOGL: { price: 343.24, week52High: 366.5 },
 };
 
-export default function StockTradeDesignReference({ symbol, side, tradeDate, englishMode, tt }) {
+export default function StockTradeDesignReference({ symbol, side, tradeDate, englishMode, tt, vixRatioPreview }) {
   const [scenario, setScenario] = React.useState(() => {
     const requested = new URLSearchParams(window.location.search).get('rsiScenario');
     return Object.hasOwn(scenarios, requested) ? requested : 'strong';
@@ -39,10 +40,9 @@ export default function StockTradeDesignReference({ symbol, side, tradeDate, eng
   const ready = fixture && tradeDate > '2026-10-02';
   const example = scenarios[scenario];
   const observation = ready ? { ...example, asOf: '2026-10-02', previousAsOf: '2026-10-01' } : null;
-  const marketReference = deriveStockTradeMarketReference({ symbol,
+  const marketReference = { ...deriveStockTradeMarketReference({ symbol,
     quote: ready && scenario !== 'unavailable' ? { ...fixture, symbol, dailyPnlPrice: fixture.price } : null,
-    vix: 18.6, vixDataDate: '2026-10-02',
-  });
+  }), ...deriveTradeVixRatioReference({ data: vixRatioPreview?.data, tradeDate, now: vixRatioPreview?.now }) };
   return <>
     <section className="tqqq-rsi-design-preview" data-stock-trade-preview="true" ref={referenceRef}>
       <div className="tqqq-rsi-design-controls">

@@ -35,6 +35,8 @@ import TqqqTradeEntryPanel, { TQQQ_ACTION_TONE_CLASSES, TqqqTradeAmount } from '
 import TqqqLiveRsiReference from '../components/TqqqLiveRsiReference.jsx';
 import StockLiveRsiReference from '../components/StockLiveRsiReference.jsx';
 import { deriveStockTradeMarketReference } from '../lib/stockTradeMarketReference.js';
+import { useTradeVixRatioReference } from '../lib/useTradeVixRatioReference.js';
+import { deriveTradeVixRatioReference } from '../lib/tradeVixRatioReference.js';
 import TradeToolsCatalog from '../components/TradeToolsCatalog.jsx';
 import TradesPositionsReport from '../components/TradesPositionsReport.jsx';
 import '../components/PulseDot.css';
@@ -478,8 +480,6 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
     tradeSubmitting,
     trades,
     usdRate,
-    vix,
-    vixDataDate,
     watchlist,
     waveNotes,
     wavesByStock,
@@ -642,6 +642,14 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
   });
   const isGenericLedgerTradeEntry = tradeEntryScope === 'ledger' && !isTqqqTradeEntry;
   const tradeReferenceSymbol = normalizeStrictUserStockSymbol(newTrade?.symbol) || '';
+  const vixRatioPreview = import.meta.env.DEV ? ctx.tradeVixRatioPreview : null;
+  const liveTradeVixRatio = useTradeVixRatioReference({
+    active: showAddTrade && tradeEntryScope === 'ledger' && newTrade?.side === 'buy' && Boolean(tradeReferenceSymbol) && !vixRatioPreview,
+    userId: ctx.user?.id, authClient: ctx.supabase?.auth, tradeDate: newTrade?.date,
+  });
+  const tradeVixRatioReference = vixRatioPreview
+    ? deriveTradeVixRatioReference({ data: vixRatioPreview.data, tradeDate: newTrade?.date, now: vixRatioPreview.now })
+    : liveTradeVixRatio;
   const genericTradeSectionClass = 'mb-3 min-w-0 border-b border-white/10 pb-3';
   const tradeValuationQuotes = React.useMemo(() => selectTradeValuationQuotes(quoteRows), [quoteRows]);
   const tradeCostPreview = React.useMemo(() => deriveTradeCostPreview({
@@ -662,10 +670,8 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
     scope: tradeEntryScope,
   }), [newTrade, quoteRows, stockTrades, summary, tradeEntryScope, usdRate]);
   const tqqqMarketReference = React.useMemo(() => deriveTqqqMarketReference({
-    vix,
-    vixDataDate,
     qqqQuote: qqqSignalQuote || quoteBySymbol.get('QQQ') || null,
-  }), [qqqSignalQuote, quoteBySymbol, vix, vixDataDate]);
+  }), [qqqSignalQuote, quoteBySymbol]);
   const stockDisplayName = typeof displayStockName === 'function'
     ? ((symbol, name) => displayStockName(symbol, name, language))
     : ((symbol, name) => String(name || symbol || '').trim());
@@ -1961,7 +1967,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                 draft={newTrade}
                 onDraftChange={setNewTrade}
                 preview={tqqqTradePreview}
-                marketReference={tqqqMarketReference}
+                marketReference={{ ...tqqqMarketReference, ...tradeVixRatioReference }}
                 referenceContent={import.meta.env.DEV && ctx.tqqqRsiPreviewContent ? ctx.tqqqRsiPreviewContent : (
                   <TqqqLiveRsiReference
                     key={ctx.user?.id || 'signed-out'}
@@ -1998,7 +2004,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                       renderMarketReference={quote => newTrade.side !== 'sell' ? (
                         <GenericLedgerTradeMarketReference
                           symbol={tradeReferenceSymbol}
-                          marketReference={deriveStockTradeMarketReference({ symbol: tradeReferenceSymbol, quote, vix, vixDataDate })}
+                          marketReference={{ ...deriveStockTradeMarketReference({ symbol: tradeReferenceSymbol, quote }), ...tradeVixRatioReference }}
                           tt={tt}
                         />
                       ) : null}

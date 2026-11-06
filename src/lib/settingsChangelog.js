@@ -4,6 +4,17 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '普通股票和 TQQQ 买入市场参考改为 VIX / VIX3M 同日收盘比率，仅原始比率大于 1 时显示“开始买入”；过期、缺失或历史补录不触发提示。',
+      '市场月报每日明细和手机长图恢复极端压力日期左侧红色竖线，保持日期及数字对齐。',
+    ],
+    itemsEn: [
+      'Stock and TQQQ buy references now show the same-session VIX / VIX3M closing ratio. Start buying appears only above 1; stale, missing, or historical-entry data cannot trigger it.',
+      'Monthly report daily rows and mobile exports restore the left red marker for extreme-stress dates without shifting the data columns.',
+    ],
+  },
+  {
+    ver: 'v10.7.9.569', date: '2026-11-06',
+    items: [
       '投资复盘编辑器改为全宽无框输入，正文随内容伸展，长文统一在页面内滚动。',
       '工具栏随可视区域调整，键盘展开时收紧底部留白，并适配手机横屏安全区。',
     ],

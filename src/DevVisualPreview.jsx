@@ -1,3 +1,4 @@
+import { createTradeVixRatioPreview } from './dev/tradeVixRatioPreview.js';
 import React, { lazy, Suspense } from 'react';
 import { rsiLifecyclePreview } from './dev/stockRsiFixtures.js';
 import StockTradeDesignReference from './dev/StockTradeDesignReference.jsx';
@@ -3298,14 +3299,16 @@ function StandardDevVisualPreview({ initialTab = '' }) {
       shares: item.heldShares,
     }))
     : [mockTodayStockTrade, ...mockPnlStockTrades];
+  const tradeVixRatioPreview = React.useMemo(() => createTradeVixRatioPreview(new URLSearchParams(window.location.search).get('vixRatioScenario') || 'triggered'), []);
   const tradesCtx = {
+    tradeVixRatioPreview,
     featurePreviewSection,
     previewOrderActionTrade: featurePreviewSection === 'outcome' ? exposurePreviewTrades.find(row => row.id === 'outcome-nvda') : null,
     tradeExposureMetadataLoader: loadExposurePreviewMetadata,
     tradeOutcomeHistoryLoader: loadTradeOutcomeReviewPreview,
     stockTradePreviewContent: <StockTradeDesignReference
       symbol={String(newTrade.symbol || '').trim().toUpperCase()} side={newTrade.side}
-      tradeDate={newTrade.date} englishMode={language === 'en'}
+      tradeDate={newTrade.date} englishMode={language === 'en'} vixRatioPreview={tradeVixRatioPreview}
       tt={(key, fallback, variables) => t(language, key, fallback, variables)}
     />,
     tqqqRsiPreviewContent: tqqqTradePreviewSide && tqqqRsiDesignPreview
@@ -3407,8 +3410,6 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     tradeSubmitting: false,
     trades: mockWaveTrades,
     usdRate: USD_RATE,
-    vix: tqqqTradePreviewSide ? 18.6 : null,
-    vixDataDate: tqqqTradePreviewSide ? '2026-08-08' : '',
     user: {
       id: competitionResumeSmoke ? competitionResumeUserIdRef.current : 'dev-user',
       email: 'preview@example.com',

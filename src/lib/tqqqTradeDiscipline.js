@@ -4,8 +4,6 @@ import { normalizeStrictUserStockSymbol } from './symbols.js';
 
 export const TQQQ_SYMBOL = 'TQQQ';
 export const TQQQ_ALLOCATION_LIMIT = 0.10;
-export const TQQQ_VIX_PANIC_THRESHOLD = 30;
-export const TQQQ_VIX_EXTREME_THRESHOLD = 50;
 
 const SHARE_EPSILON = 0.000001;
 
@@ -223,24 +221,12 @@ export function deriveTqqqTradePreview({
   };
 }
 
-export function deriveTqqqMarketReference({ vix, vixDataDate, qqqQuote } = {}) {
-  const vixValue = toPositiveNumber(vix);
-  const normalizedVixDate = String(vixDataDate || '').trim();
-  const vixReady = Boolean(vixValue && normalizedVixDate);
-  const vixSignal = !vixReady
-    ? 'unavailable'
-    : (vixValue >= TQQQ_VIX_EXTREME_THRESHOLD
-      ? 'extreme'
-      : (vixValue >= TQQQ_VIX_PANIC_THRESHOLD ? 'panic' : 'none'));
+export function deriveTqqqMarketReference({ qqqQuote } = {}) {
   const qqqPrice = resolveHomeSignalBenchmarkPrice(qqqQuote || {});
   const qqqHigh = toPositiveNumber(qqqQuote?.week52High) || toPositiveNumber(qqqQuote?.high);
   const qqqReady = Boolean(qqqPrice && qqqHigh);
 
   return {
-    vixReady,
-    vixValue: vixReady ? vixValue : null,
-    vixDataDate: vixReady ? normalizedVixDate : '',
-    vixSignal,
     qqqReady,
     qqqPrice: qqqReady ? qqqPrice : null,
     qqqHigh: qqqReady ? qqqHigh : null,

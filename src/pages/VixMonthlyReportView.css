@@ -66,7 +66,8 @@
 .vmr-table-grid > span:first-child { text-align: left; }
 .vmr-table-header span { display: flex; flex-direction: column; gap: 4px; }
 .vmr-table-header small { font-size: 10px; color: #657288; }
-.vmr-table-row { width: 100%; min-height: 48px; padding: 0; border-bottom: 1px solid #ffffff07; font-size: 11px !important; line-height: 1.4; font-variant-numeric: tabular-nums; color: #cbd4df !important; white-space: nowrap; }
+.vmr-table-row { position: relative; width: 100%; min-height: 48px; padding: 0; border-bottom: 1px solid #ffffff07; font-size: 11px !important; line-height: 1.4; font-variant-numeric: tabular-nums; color: #cbd4df !important; white-space: nowrap; }
+.vmr-table-row[data-risk-level="EXTREME_STRESS"]::before { content: ''; position: absolute; left: -7px; top: 8px; bottom: 8px; width: 2px; background: var(--vmr-row-risk-color); pointer-events: none; }
 .vmr-table-row:nth-child(even) { background: #14203226; }
 .vmr-table-row:active { background: #26375055; }
 .vmr-table-row .vmr-table-date { color: #9daabc; }

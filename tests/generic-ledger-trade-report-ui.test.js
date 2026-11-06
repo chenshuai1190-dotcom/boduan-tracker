@@ -33,7 +33,7 @@ function nodes(node, predicate) {
 function input(tree, type) { return nodes(tree, node => node.type === 'input' && node.props.type === type)[0]; }
 function amountValue(tree) { return nodes(tree, node => node.props.className === 'ledger-entry-amount-value')[0]; }
 
-const marketReference = Object.freeze({ vixReady: true, vixValue: 17.35, vixDataDate: '2026-09-10', stockReady: true, stockDistanceFromHigh: 0.1 });
+const marketReference = Object.freeze({ vixRatioReady: true, vixRatioValue: 1.035, vixRatioDataDate: '2026-09-10', vixRatioBuySignal: true, stockReady: true, stockDistanceFromHigh: 0.1 });
 
 test('formal-trade fields preserve the original draft and numeric share input contract in the shared two-column structure', () => {
   const changed = [];
@@ -124,7 +124,9 @@ test('RSI content appears for both sides before the optional buy-only stock mark
   const buy = renderToStaticMarkup(Entry({ draft, tt, onDraftChange: () => {}, referenceContent, marketReference }));
   assert.ok(buy.indexOf('data-rsi-reference') < buy.indexOf('data-generic-ledger-market-reference'));
   assert.match(buy, /市场参考/);
-  assert.match(buy, /17\.35/);
+  assert.match(buy, /VIX 比率/);
+  assert.match(buy, /1\.035/);
+  assert.match(buy, /开始买入/);
   assert.match(buy, /数据 2026-09-10/);
   assert.match(buy, /ledger-entry-metric-label">NVDA</);
   assert.match(buy, /10\.0%/);
@@ -139,12 +141,12 @@ test('RSI content appears for both sides before the optional buy-only stock mark
 });
 
 test('market reference honors readiness and missing values without inventing zero', () => {
-  for (const values of [undefined, { ...marketReference, vixReady: false, stockReady: false }, { ...marketReference, vixValue: null, stockDistanceFromHigh: '' }]) {
+  for (const values of [undefined, { ...marketReference, vixRatioReady: false, stockReady: false }, { ...marketReference, vixRatioValue: null, stockDistanceFromHigh: '' }]) {
     const html = renderToStaticMarkup(MarketReference({ symbol: 'aapl', marketReference: values, tt }));
     assert.match(html, /AAPL/);
     assert.match(html, /数据暂不可用/);
     assert.equal((html.match(/>--<\/div>/g) || []).length, 2);
-    assert.doesNotMatch(html, /17\.35|10\.0%|0\.0%/);
+    assert.doesNotMatch(html, /1\.035|10\.0%|0\.0%|开始买入/);
   }
   const zeroDistance = renderToStaticMarkup(MarketReference({ symbol: 'NVDA', marketReference: { ...marketReference, stockDistanceFromHigh: 0 }, tt }));
   assert.match(zeroDistance, /0\.0%/);

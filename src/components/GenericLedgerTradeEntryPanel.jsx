@@ -3,6 +3,7 @@ import { CalendarDays, ChevronRight, X } from 'lucide-react';
 import StockLogo, { stockLogoCandidates } from './StockLogo.jsx';
 import { splitCurrencyAmount } from '../lib/amountDisplay.js';
 import { MARKET_RED_HEX } from '../lib/marketColorMode.js';
+import { formatTradeVixRatio } from '../lib/tradeVixRatioDisplay.js';
 import './GenericLedgerTradeEntryPanel.css';
 
 const NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif';
@@ -71,7 +72,10 @@ export function GenericLedgerTradeHeader({ draft, logoCache, cacheStockLogo, onD
 }
 
 export function GenericLedgerTradeMarketReference({ symbol, marketReference, tt }) {
-  const vixValue = marketReference?.vixReady ? finiteValue(marketReference.vixValue) : null;
+  const vixRatioValue = marketReference?.vixRatioReady === true
+    && Number.isFinite(marketReference.vixRatioValue) && marketReference.vixRatioValue > 0
+    ? marketReference.vixRatioValue : null;
+  const vixRatioBuySignal = vixRatioValue !== null && vixRatioValue > 1 && marketReference?.vixRatioBuySignal === true;
   const stockDistance = marketReference?.stockReady ? finiteValue(marketReference.stockDistanceFromHigh) : null;
   const unavailable = tt('trades.tqqq.dataUnavailable', '数据暂不可用');
 
@@ -80,13 +84,16 @@ export function GenericLedgerTradeMarketReference({ symbol, marketReference, tt 
       <h3 id="generic-ledger-market-title" className="ledger-entry-section-title">{tt('trades.tqqq.marketReference', '市场参考')}</h3>
       <div className="ledger-entry-market-grid">
         <div className="ledger-entry-market-metric">
-          <div className="ledger-entry-metric-label">VIX</div>
-          <div className="ledger-entry-market-value" style={{ fontFamily: NUMBER_FONT }}>
-            {vixValue === null ? '--' : vixValue.toFixed(2)}
+          <div className="ledger-entry-metric-label" title="VIX / VIX3M">{tt('trades.tqqq.vixRatio', 'VIX 比率')}</div>
+          <div className="ledger-entry-market-value ledger-entry-ratio-value" style={{ fontFamily: NUMBER_FONT }}>
+            {formatTradeVixRatio(vixRatioValue)}
+            {vixRatioValue !== null && <span className="ledger-entry-ratio-signal" data-vix-ratio-buy-signal={vixRatioBuySignal}>
+              {vixRatioBuySignal ? tt('trades.tqqq.vixRatioStartBuying', '开始买入') : tt('trades.tqqq.vixRatioNotTriggered', '未触发')}
+            </span>}
           </div>
           <div className="ledger-entry-note">
-            {vixValue !== null && marketReference?.vixDataDate
-              ? tt('trades.tqqq.dataAsOf', '数据 {{date}}', { date: marketReference.vixDataDate })
+            {vixRatioValue !== null && marketReference?.vixRatioDataDate
+              ? tt('trades.tqqq.dataAsOf', '数据 {{date}}', { date: marketReference.vixRatioDataDate })
               : unavailable}
           </div>
         </div>

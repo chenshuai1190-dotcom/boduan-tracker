@@ -9,6 +9,7 @@ import {
 import StockLogo, { stockLogoCandidates } from './StockLogo.jsx';
 import { splitCurrencyAmount } from '../lib/amountDisplay.js';
 import { MARKET_RED_HEX } from '../lib/marketColorMode.js';
+import { formatTradeVixRatio } from '../lib/tradeVixRatioDisplay.js';
 import './TqqqTradeEntryPanel.css';
 
 const NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif';
@@ -109,6 +110,10 @@ function PreviewResult({ preview, tt }) {
 }
 
 function MarketReference({ marketReference, tt }) {
+  const vixRatioValue = marketReference?.vixRatioReady === true
+    && Number.isFinite(marketReference.vixRatioValue) && marketReference.vixRatioValue > 0
+    ? marketReference.vixRatioValue : null;
+  const vixRatioBuySignal = vixRatioValue !== null && vixRatioValue > 1 && marketReference?.vixRatioBuySignal === true;
   return (
     <section className="tqqq-entry-section tqqq-entry-market" aria-labelledby="tqqq-market-reference-title">
       <div className="tqqq-entry-section-heading">
@@ -120,23 +125,26 @@ function MarketReference({ marketReference, tt }) {
 
       <div className="tqqq-entry-market-grid">
         <div className="tqqq-entry-market-metric">
-          <div className="tqqq-entry-metric-label">VIX</div>
-          <div className="tqqq-entry-market-value" style={{ fontFamily: NUMBER_FONT }}>
-            {marketReference.vixReady ? marketReference.vixValue.toFixed(1) : '--'}
+          <div className="tqqq-entry-metric-label" title="VIX / VIX3M">{tt('trades.tqqq.vixRatio', 'VIX 比率')}</div>
+          <div className="tqqq-entry-market-value tqqq-entry-ratio-value" style={{ fontFamily: NUMBER_FONT }}>
+            {formatTradeVixRatio(vixRatioValue)}
+            {vixRatioValue !== null && <span className="tqqq-entry-ratio-signal" data-vix-ratio-buy-signal={vixRatioBuySignal}>
+              {vixRatioBuySignal ? tt('trades.tqqq.vixRatioStartBuying', '开始买入') : tt('trades.tqqq.vixRatioNotTriggered', '未触发')}
+            </span>}
           </div>
           <div className="tqqq-entry-note">
-            {marketReference.vixReady
-              ? tt('trades.tqqq.dataAsOf', '数据 {{date}}', { date: marketReference.vixDataDate })
+            {vixRatioValue !== null && marketReference?.vixRatioDataDate
+              ? tt('trades.tqqq.dataAsOf', '数据 {{date}}', { date: marketReference.vixRatioDataDate })
               : tt('trades.tqqq.dataUnavailable', '数据暂不可用')}
           </div>
         </div>
         <div className="tqqq-entry-market-metric">
           <div className="tqqq-entry-metric-label">{tt('trades.tqqq.qqqFromHigh', 'QQQ 距52周高点')}</div>
           <div className="tqqq-entry-market-value" style={{ fontFamily: NUMBER_FONT }}>
-            {formatPercent(marketReference.qqqDistanceFromHigh, 1)}
+            {formatPercent(marketReference?.qqqDistanceFromHigh, 1)}
           </div>
           <div className="tqqq-entry-note">
-            {marketReference.qqqReady ? tt('trades.tqqq.objectivePosition', '客观位置参考') : tt('trades.tqqq.dataUnavailable', '数据暂不可用')}
+            {marketReference?.qqqReady ? tt('trades.tqqq.objectivePosition', '客观位置参考') : tt('trades.tqqq.dataUnavailable', '数据暂不可用')}
           </div>
         </div>
       </div>
@@ -332,7 +340,7 @@ export default function TqqqTradeEntryPanel({
             <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
             <span>
               <strong className="tqqq-entry-rule-title">{tt('trades.tqqq.sellRuleTitle', '卖出只校验正式持仓与可卖股数')}</strong>
-              {tt('trades.tqqq.sellRuleDesc', 'RSI 仅供观察，不限制卖出；VIX 与 QQQ 位置仅在买入页显示。')}
+              {tt('trades.tqqq.sellRuleDesc', 'RSI 仅供观察，不限制卖出；VIX 比率与 QQQ 位置仅在买入页显示。')}
             </span>
           </div>
         )}
