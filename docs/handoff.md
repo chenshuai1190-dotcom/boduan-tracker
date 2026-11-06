@@ -1,6 +1,6 @@
 # boduan-tracker 当前交接
 
-验证时间：`2026-11-07 Asia/Shanghai`。用户已授权投资复盘独立博文、完整买卖节点及市场快照精简版直接发布；下面区分已验证生产状态与候选代码。稳定规则看 `README.md`，流程看 `docs/development-process.md`。
+验证时间：`2026-11-07 Asia/Shanghai`。本轮继续投资复盘直接发布流程：新增正文股票自动关联与排序，并修复返回列表的整篇白框；下面区分生产基准与候选代码。稳定规则看 `README.md`，流程看 `docs/development-process.md`。
 
 ## 当前生产基准
 
@@ -8,9 +8,9 @@
 | --- | --- |
 | 仓库 | `chenshuai1190-dotcom/boduan-tracker`；唯一发布来源 `main` |
 | 当前工作区 | `/Users/chenshuaishuai/Documents/Codex/2026-10-03/quote-boduan-tracker-2026-10-03/work/quiet-input-fields` |
-| 发布前生产源码 | `138009e39e50ee2412a7b97db6ac63aa19d31ed8 / v10.7.9.571`；已通过精确提交 CI、Docs、Vercel 等待器和真实登录只读页面验证 |
-| 发布前部署 | Vercel 任务 `87qs1QEx1TmYE455xLC9e3kiVve4`，入口 `/assets/index-B-lfLoSS.js`；`https://boduan-tracker.vercel.app` |
-| 本次候选版本 | `v10.7.9.572 / 2026-11-07`：整篇点击进入详情、完整交易曲线、6个月/1年/全部、同日买点红色、快照提示精简与比率标红 |
+| 发布前生产源码 | `9a0099b7d6e7db1615ec34c57dad99586121c4b1 / v10.7.9.572`；精确提交 CI、Docs、Vercel 与线上独立详情/NOK旧卖点及区间验证通过 |
+| 发布前部署 | Vercel 任务 `2zTvicCnkEACrNL92ph8varqzjWM`，入口 `/assets/index-CK6XjEHp.js`；`https://boduan-tracker.vercel.app` |
+| 本次候选版本 | `v10.7.9.573 / 2026-11-07`：正文股票自动关联、按首次提及顺序排列、手动排除与草稿恢复、手机返回列表焦点白框修复 |
 | 已生效云端配置 | `supabase/review-journal.sql`、`supabase/community-profile-avatar.sql` 已获授权执行；仅增加复盘 metadata/CAS 与头像路径、两私有 bucket 和本人目录策略 |
 | 生产 Checks | 已只读查询 Vercel 项目 Checks：配置列表为空；仓库 audit/build 保留，本次必须通过精确提交 CI + Docs + Vercel 等待器，不宣称平台已配置 CI 阻断晋级 |
 
@@ -18,9 +18,9 @@
 
 - 真实登录的本地应用已完成图片上传、保存、刷新回读及私有签名图预览；头像裁剪为 512×512，保存刷新并验证复盘头像同步。用户授权后删除本次测试记录和对象、恢复原头像；原有 10 条心得、25 条日志、13 份资料保留，两个新桶为空。
 - 生产事务内本人、另一认证身份及匿名角色 RLS 断言通过；另有 PGlite 实际 SQL fixture 的 CAS、幂等、重复迁移与写入隔离测试。角色模拟不是第二个真实浏览器账号验收。
-- 本次功能 FULL 已通过 3,417 tests（3,415 pass、2项既有skip、0 fail）、build/docs/whitespace；发布元数据补齐后对最终 diff 再执行一次 FULL。最终结果以精确提交 CI 和任务发布结论为准。
+- v572 的 FULL 为 3,417 tests（3,415 pass、2项既有skip、0 fail）；本轮自动关联影响保存的股票引用，仍走 FULL，最终结果以精确提交 CI 和任务发布结论为准。
 - 原生 iPhone 17 Pro / iOS 26.5 Safari 已核对整篇点击详情和默认全部的六档交易回放，原始 PNG 为 1206×2622。v571 用户身份缓存的 Home Screen PWA 人工验收由用户明确暂缓，不宣称已经完成。
-- 本次只读历史查询使用现有鉴权 API；可视卡片自动加载，同账户同区间去重，最多两路并发。正式交易、存储权限、行情实时链路不变。DEV 示例不进入正式数据。
+- 股票识别仅使用本地已有目录及明确代码，不查询外部模型或修改正式交易。已有关联不静默截断，额外自动关联最多填满 4 只；手动排除只留本地草稿，不增加云端字段。行情与存储权限不变。
 - 发布步骤：最终 FULL → 一次提交/push main → `release:verify -- full <exact commit>` → 一轮投资复盘页面只读 smoke；本次无 schema/RLS 改动，不重复存储验收。等待器成功前不将候选版本写成已上线。
 - 迁移恢复采用 additive forward-fix；回退前端时保留新增字段、元数据、私有文件和 RLS，不删除用户内容。存储删除失败可能留下本人私有孤立对象，后续需清理治理。
 - 实施细节及验收边界：`docs/review-journal-local-integration.md`、`docs/review-journal-cloud-configuration.md`。以下各子系统段落为既有合同及历史证据，不视为本轮重新验收。

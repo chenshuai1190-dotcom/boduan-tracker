@@ -24,8 +24,9 @@ async function harness() {
   let slots = [], cursor = 0, layout = [], effects = [];
   const scrolls = [], saves = [], deletes = [], removals = [], focus = [], pushes = [];
   const listeners = new Map(), historyStates = [{ otherAppState: 'retained' }]; let historyIndex = 0;
-  const host = { isConnected: true, focus: options => focus.push({ target: 'post', options }), closest: () => host, contains: target => !target.portal };
+  const host = { isConnected: true, focus: options => focus.push({ target: 'post', options }), closest: () => host, contains: target => !target.portal, matches: () => Boolean(fixture.keyboardFocus) };
   const fixture = {
+    document: { activeElement: null },
     window: { scrollX: 0, scrollY: 740, getSelection: () => ({ toString: () => fixture.selection || '' }), scrollTo: value => { scrolls.push(value); fixture.window.scrollX = value.left; fixture.window.scrollY = value.top; } },
     useState(initial) { const index = cursor++; if (!slots[index]) slots[index] = { value: typeof initial === 'function' ? initial() : initial }; const slot = slots[index]; return [slot.value, next => { slot.value = typeof next === 'function' ? next(slot.value) : next; }]; },
     useRef(initial) { const index = cursor++; if (!slots[index]) slots[index] = { current: initial }; return slots[index]; },
@@ -33,6 +34,7 @@ async function harness() {
     useEffect(effect, deps) { fixture.effect(effect, deps, effects); },
     useLayoutEffect(effect, deps) { fixture.effect(effect, deps, layout); },
   };
+  host.ownerDocument = fixture.document;
   fixture.window.addEventListener = (type, listener) => listeners.set(type, listener);
   fixture.window.removeEventListener = (type, listener) => { if (listeners.get(type) === listener) listeners.delete(type); };
   fixture.window.history = {
@@ -73,7 +75,7 @@ async function harness() {
   return {
     Page, fixture, ctx, scrolls, focus, saves, deletes, removals, host, pushes, listeners,
     render() { cursor = 0; layout = []; effects = []; const tree = Page.default({ ctx }); for (const node of walk(tree)) if (node.ref) node.ref.current = { focus: options => focus.push({ target: node.type, options }) }; for (const effect of layout) effect(); for (const effect of effects) effect(); return tree; },
-    clickPost(tree, options = {}) { const event = { currentTarget: host, target: { closest: () => options.interactive || null, portal: options.portal }, defaultPrevented: options.defaultPrevented }; firstPost(tree).props.onClick(event); },
+    clickPost(tree, options = {}) { const event = { type: 'click', detail: options.detail ?? 1, nativeEvent: { pointerType: options.pointerType }, currentTarget: host, target: { closest: () => options.interactive || null, portal: options.portal }, defaultPrevented: options.defaultPrevented }; firstPost(tree).props.onClick(event); },
     unmount() { for (const slot of slots) slot?.cleanup?.(); },
   };
 }
@@ -123,9 +125,9 @@ test('keyboard entry and back preserve the filtered feed, scroll position and fo
     let prevented = false;
     const post = firstPost(tree);
     assert.equal(post.props.role, 'link'); assert.equal(post.props.tabIndex, 0);
-    post.props.onKeyDown({ key, target: {}, currentTarget: h.host, preventDefault: () => { prevented = true; } });
+    post.props.onKeyDown({ type: 'keydown', key, target: {}, currentTarget: h.host, preventDefault: () => { prevented = true; } });
     assert.equal(detail(h.render()), undefined, 'nested controls must not navigate on keydown');
-    post.props.onKeyDown({ key, target: h.host, currentTarget: h.host, preventDefault: () => { prevented = true; } });
+    post.props.onKeyDown({ type: 'keydown', key, target: h.host, currentTarget: h.host, preventDefault: () => { prevented = true; } });
     tree = h.render(); assert.ok(prevented); assert.ok(detail(tree));
     h.fixture.window.scrollY = 900;
     button(tree, '返回投资复盘').props.onClick(); tree = h.render();
@@ -136,6 +138,35 @@ test('keyboard entry and back preserve the filtered feed, scroll position and fo
     assert.equal(h.fixture.leftJournal, undefined);
     h.unmount();
   }
+});
+
+test('mouse and touch entry return to the title without focusing the whole post', async () => {
+  for (const options of [{ pointerType: 'mouse' }, { pointerType: 'touch' }, { detail: 0 }, { detail: 0, pointerType: 'touch', focused: true }, { detail: 0, pointerType: 'mouse', focused: true }]) {
+    const h = await harness(); let tree = h.render();
+    h.fixture.keyboardFocus = Boolean(options.focused);
+    h.fixture.document.activeElement = options.focused ? h.host : null;
+    h.clickPost(tree, options); tree = h.render();
+    assert.ok(detail(tree));
+    button(tree, '返回投资复盘').props.onClick(); tree = h.render();
+    assert.equal(detail(tree), undefined);
+    assert.equal(h.fixture.window.scrollY, 740);
+    assert.equal(h.focus.at(-1).target, 'h1');
+    assert.equal(h.focus.some(item => item.target === 'post'), false, 'pointer navigation must never restore article focus');
+    h.unmount();
+  }
+});
+
+test('a keyboard-generated comment button click restores its post focus', async () => {
+  const h = await harness(); let tree = h.render();
+  const trigger = { ownerDocument: h.fixture.document, matches: selector => selector === ':focus-visible', closest: () => h.host };
+  h.fixture.document.activeElement = trigger;
+  button(tree, '查看评论').props.onClick({ type: 'click', detail: 0, currentTarget: trigger, nativeEvent: { pointerType: '' } });
+  tree = h.render(); assert.ok(detail(tree));
+  button(tree, '返回投资复盘').props.onClick(); tree = h.render();
+  assert.equal(detail(tree), undefined);
+  assert.equal(h.focus.at(-1).target, 'post');
+  assert.equal(h.fixture.window.scrollY, 740);
+  h.unmount();
 });
 
 test('comments save on the same detail page without dropping existing data or resetting scroll', async () => {

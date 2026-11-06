@@ -4,6 +4,17 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '新增和编辑投资复盘时，自动识别正文中的股票代码及常见公司名，按首次提及顺序关联和排列图表，仍可手动调整。',
+      '修复手机从博文详情返回列表时，整条博文偶尔出现白色焦点边框的问题。',
+    ],
+    itemsEn: [
+      'New and edited journal entries recognize stock symbols and common company names, link charts in first-mention order, and retain manual controls.',
+      'Fixes the whole-post focus outline that could appear after returning from an entry on mobile.',
+    ],
+  },
+  {
+    ver: 'v10.7.9.572', date: '2026-11-07',
+    items: [
       '投资复盘博文支持点击进入独立详情，完整展示正文、图片、股票走势、市场快照和评论；取消“查看记录”，返回保留列表位置。',
       '股票卡片自动展示全部交易区间与买卖节点，走势延伸至最新完成收盘日；回放新增6个月、1年和全部，同复盘记录日的买入节点标红。',
       '市场快照精简底部提示，保留实际数据日期；VIX / VIX3M 大于1时使用系统红色。',

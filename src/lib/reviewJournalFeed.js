@@ -1,5 +1,6 @@
 import { mapReviewJournalRow, isReviewJournalOperationId, isReviewJournalDate } from './reviewJournalModel.js';
 import { normalizeReviewMarketSnapshot } from './reviewMarketSnapshot.js';
+import { normalizeStrictUserStockSymbol } from './symbols.js';
 
 // Presentation only. The two existing tables remain the source of truth.
 export function reviewJournalFeed(insights = [], logs = [], filter = 'all', query = '') {
@@ -31,5 +32,6 @@ export function restoreReviewDraft(value, userId, fallbackType = 'log') {
   const normalized = mapReviewJournalRow({ user_id:userId, text:value.text, log_date:date,
     level:value.level, pinned:value.pinned, review_data:{...value,date,replies:[]}},value.type,userId);
   return {...normalized,id:undefined,date,revision:0,replies:[],market:normalizeReviewMarketSnapshot(normalized.market),
+    excludedStocks: [...new Set((Array.isArray(value.excludedStocks) ? value.excludedStocks : []).filter(symbol => typeof symbol === 'string').map(normalizeStrictUserStockSymbol).filter(Boolean))].slice(0,100),
     operationId:isReviewJournalOperationId(value.operationId)?value.operationId:base.operationId};
 }

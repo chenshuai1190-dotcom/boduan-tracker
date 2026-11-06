@@ -4,6 +4,7 @@ import { ArrowLeft, Search, Plus, MoreHorizontal, Pin, MessageCircle, ImagePlus,
 import { getCommunityAvatarOption } from '../lib/communityProfile.js';
 import { isCommunityAvatarSignedUrl, normalizeCommunityAvatarPath } from '../lib/communityAvatarModel.js';
 import { emptyReviewEntry, localReviewDate, reviewDraftKey, reviewJournalFeed, restoreReviewDraft } from '../lib/reviewJournalFeed.js';
+import { findReviewStockMentions, resolveReviewStockLinks } from '../lib/reviewStockMentions.js';
 import ReviewStockReplay from '../components/ReviewStockReplay.jsx';
 import { SnapshotCard, SnapshotPicker } from '../components/ReviewMarketSnapshot.jsx';
 import './ReviewJournalPage.css';
@@ -140,10 +141,13 @@ function EmojiPicker({ onSelect, onClose }) {
   const [group, setGroup] = useState(0);
   return <Dialog title="插入表情" onClose={onClose} headerAction={<button className="rj-text-button" onClick={onClose}>完成</button>}><div className="rj-dialog-body"><div className="rj-chip-row">{EMOJI_GROUPS.map(([name], i) => <button key={name} aria-pressed={group === i} onClick={() => setGroup(i)}>{name}</button>)}</div><div className="rj-emoji-grid">{EMOJI_GROUPS[group][1].map(emoji => <button key={emoji} onClick={() => onSelect(emoji)} aria-label={`插入 ${emoji}`}>{emoji}</button>)}</div></div></Dialog>;
 }
-function SymbolPicker({ selected, suggestions, onChange, onClose }) {
+function SymbolPicker({ selected, suggestions, text = '', onChange, onClose }) {
   const [input, setInput] = useState(''); const [error, setError] = useState('');
+  const mentioned = findReviewStockMentions(text, [...selected, ...suggestions]);
+  const choices = [...new Set([...mentioned, ...selected, ...suggestions, 'NVDA','TSM','SMH','QQQ','SPY','GOOGL'])];
+  const visibleChoices = choices.filter((symbol, index) => index < 20 || selected.includes(symbol));
   const add = raw => { const symbol = raw.trim().toUpperCase(); if (!/^[A-Z][A-Z0-9.-]{0,11}$/.test(symbol)) { setError('请输入有效的美股代码'); return; } if (!selected.includes(symbol) && selected.length >= 4) { setError('每条最多关联 4 只股票'); return; } onChange(selected.includes(symbol) ? selected.filter(s => s !== symbol) : [...selected, symbol]); setInput(''); setError(''); };
-  return <Dialog title="关联股票" onClose={onClose} headerAction={<button className="rj-text-button" onClick={onClose}>完成</button>}><div className="rj-dialog-body"><form className="rj-symbol-search" onSubmit={event => { event.preventDefault(); add(input); }}><input aria-label="输入股票代码" value={input} onChange={event => setInput(event.target.value)} placeholder="输入股票代码，例如 NVDA" autoCapitalize="characters" /><button className="rj-icon" aria-label="添加股票" type="submit"><Plus size={20} /></button></form>{error && <p role="alert" className="rj-error">{error}</p>}<div className="rj-chip-row rj-stock-choices">{[...new Set([...selected, ...suggestions, 'NVDA','TSM','SMH','QQQ','SPY','GOOGL'])].slice(0,20).map(symbol => <button key={symbol} aria-pressed={selected.includes(symbol)} onClick={() => add(symbol)}>{symbol}{selected.includes(symbol) && <Check size={14}/>}</button>)}</div><p className="rj-note">关联后可查看价格走势及你的买卖记录，仅做复盘引用。</p></div></Dialog>;
+  return <Dialog title="关联股票" onClose={onClose} headerAction={<button className="rj-text-button" onClick={onClose}>完成</button>}><div className="rj-dialog-body"><form className="rj-symbol-search" onSubmit={event => { event.preventDefault(); add(input); }}><input aria-label="输入股票代码" value={input} onChange={event => setInput(event.target.value)} placeholder="输入股票代码，例如 NVDA" autoCapitalize="characters" /><button className="rj-icon" aria-label="添加股票" type="submit"><Plus size={20} /></button></form>{error && <p role="alert" className="rj-error">{error}</p>}<div className="rj-chip-row rj-stock-choices">{visibleChoices.map(symbol => <button key={symbol} aria-pressed={selected.includes(symbol)} onClick={() => add(symbol)}>{symbol}{selected.includes(symbol) && <Check size={14}/>}</button>)}</div><p className="rj-note">正文提到的股票会自动关联并按顺序排列，可在这里调整。</p></div></Dialog>;
 }
 function Composer({ entry, defaultType, identity, userId, db, onSaved, onClose, suggestions, preview, previewMarket, language }) {
   const key = reviewDraftKey(userId);
@@ -152,11 +156,18 @@ function Composer({ entry, defaultType, identity, userId, db, onSaved, onClose, 
   const [picker, setPicker] = useState(''); const [busy, setBusy] = useState(false); const busyRef = useRef(false);
   const [error, setError] = useState(''); const [closing, setClosing] = useState(false);
   const textarea = useRef(null); const fileInput = useRef(null); const selection = useRef({ start: draft.text.length, end: draft.text.length });
+  const stockLinks = React.useMemo(() => resolveReviewStockLinks({ text: draft.text, selected: draft.stocks, suggestions, excluded: draft.excludedStocks }), [draft.text, draft.stocks, suggestions, draft.excludedStocks]);
   const patch = value => setDraft(current => ({ ...current, ...value }));
+  const changeStocks = next => {
+    const removed = stockLinks.stocks.filter(symbol => !next.includes(symbol));
+    const added = next.filter(symbol => !stockLinks.stocks.includes(symbol));
+    patch({ stocks: [...draft.stocks.filter(symbol => next.includes(symbol)), ...added],
+      excludedStocks: [...new Set([...(draft.excludedStocks || []).filter(symbol => !next.includes(symbol)), ...removed])] });
+  };
   const rememberCursor = () => { if (textarea.current) selection.current = { start: textarea.current.selectionStart, end: textarea.current.selectionEnd }; };
   useEffect(() => { if (entry || !key) return; try { sessionStorage.setItem(key, JSON.stringify(draft)); } catch { /* UI still works if storage is full. */ } }, [draft, entry, key]);
   useEffect(() => () => filesRef.current.forEach(file => URL.revokeObjectURL(file.url)), []);
-  const dismiss = () => { if (busyRef.current) return; if (draft.text.trim() || draft.stocks.length || draft.images.length || files.length || draft.market) setClosing(true); else onClose(); };
+  const dismiss = () => { if (busyRef.current) return; if (draft.text.trim() || stockLinks.stocks.length || draft.images.length || files.length || draft.market) setClosing(true); else onClose(); };
   const pickFiles = event => {
     const chosen = [...(event.target.files || [])]; event.target.value = ''; setError('');
     if (chosen.length + files.length + draft.images.length > 4) { setError('每条最多 4 张图片'); return; }
@@ -165,7 +176,7 @@ function Composer({ entry, defaultType, identity, userId, db, onSaved, onClose, 
   };
   const save = async () => {
     if (busyRef.current) return;
-    if (!draft.text.trim() && !files.length && !draft.images.length && !draft.stocks.length && !draft.market) return;
+    if (!draft.text.trim() && !files.length && !draft.images.length && !stockLinks.stocks.length && !draft.market) return;
     busyRef.current = true; setBusy(true); setError(''); const uploaded = [];
     try {
       for (const { file } of files) uploaded.push(await db.uploadReviewJournalImage(file, userId));
@@ -173,7 +184,8 @@ function Composer({ entry, defaultType, identity, userId, db, onSaved, onClose, 
       patch({ images: [...draft.images, ...uploaded] });
       files.forEach(({url}) => URL.revokeObjectURL(url));
       setFiles([]);
-      const saved = await db.saveReviewJournalEntry({ ...draft, images: [...draft.images, ...uploaded] }, userId);
+      const { excludedStocks: ignoredStocks, ...entryDraft } = draft;
+      const saved = await db.saveReviewJournalEntry({ ...entryDraft, stocks: stockLinks.stocks, images: [...draft.images, ...uploaded] }, userId);
       if (!entry && key) { try { sessionStorage.removeItem(key); } catch { /* A successful server write is not undone by local storage. */ } }
       // Delete removed objects only AFTER a successful row update. A failure is recoverable by storage cleanup.
       const retained = new Set(saved.images.map(image => image.path));
@@ -190,17 +202,18 @@ function Composer({ entry, defaultType, identity, userId, db, onSaved, onClose, 
   };
   const insertEmoji = emoji => { const { start, end } = selection.current; setDraft(old => ({ ...old, text: old.text.slice(0, start) + emoji + old.text.slice(end) })); selection.current = { start: start + emoji.length, end: start + emoji.length }; };
   const restoreCursor = () => { setPicker(''); requestAnimationFrame(() => { textarea.current?.focus({ preventScroll: true }); textarea.current?.setSelectionRange(selection.current.start, selection.current.end); }); };
-  return <Dialog title={entry ? '编辑复盘' : '写复盘'} wide composer onClose={dismiss} headerAction={<button type="button" className="rj-publish" disabled={busy || (!draft.text.trim() && !files.length && !draft.images.length && !draft.stocks.length && !draft.market)} onClick={save}>{busy ? <Loader2 size={16} className="rj-spin" /> : entry ? '保存' : '发布'}</button>}>
+  return <Dialog title={entry ? '编辑复盘' : '写复盘'} wide composer onClose={dismiss} headerAction={<button type="button" className="rj-publish" disabled={busy || (!draft.text.trim() && !files.length && !draft.images.length && !stockLinks.stocks.length && !draft.market)} onClick={save}>{busy ? <Loader2 size={16} className="rj-spin" /> : entry ? '保存' : '发布'}</button>}>
     <div className="rj-compose-scroll"><div className="rj-compose-author"><Avatar identity={identity} userId={userId} preview={preview}/><div><AuthorName identity={identity} /><span>仅自己可见</span></div></div>
       <div className="rj-compose-content"><div className="rj-compose-meta"><select aria-label="记录类型" disabled={Boolean(entry) || busy} value={draft.type} onChange={event => patch({type:event.target.value})}><option value="log">复盘日志</option><option value="insight">投资心得</option></select><input type="date" aria-label="记录日期" value={draft.date} max={localReviewDate()} onChange={event => patch({date:event.target.value})} disabled={busy}/></div>
       <div className="rj-writing-area" data-text={draft.text}><textarea ref={textarea} className="rj-body-input" rows={1} aria-label="复盘正文" placeholder="这一刻，有什么想记录的？" value={draft.text} maxLength={20000} disabled={busy} onChange={event => { patch({text:event.target.value}); rememberCursor(); }} onSelect={rememberCursor} onKeyUp={rememberCursor} onBlur={rememberCursor}/></div>
-      {!!draft.stocks.length && <div className="rj-chip-row">{draft.stocks.map(symbol => <button key={symbol} disabled={busy} onClick={() => patch({stocks:draft.stocks.filter(s=>s!==symbol)})}>${symbol}<X size={12}/></button>)}</div>}
+      {!!stockLinks.stocks.length && <div className="rj-chip-row">{stockLinks.stocks.map(symbol => <button key={symbol} disabled={busy} aria-label={`移除关联股票 ${symbol}`} onClick={() => changeStocks(stockLinks.stocks.filter(s=>s!==symbol))}>${symbol}<X size={12}/></button>)}</div>}
+      {!!stockLinks.omitted.length && <p className="rj-note" role="status">自动关联最多 4 只，其他代码可在“股票”中调整。</p>}
       {draft.market && <div className="rj-compose-attachment"><SnapshotCard value={draft.market} language={language}/><button className="rj-remove" aria-label="移除市场快照" disabled={busy} onClick={()=>patch({market:null})}><X size={15}/></button></div>}
       <div className="rj-photo-grid">{draft.images.map(item => <div className="rj-compose-attachment" key={item.path}><Photo item={item} db={db} userId={userId} preview={preview} onOpen={()=>{}}/><button className="rj-remove" aria-label="移除图片" disabled={busy} onClick={()=>patch({images:draft.images.filter(image=>image.path!==item.path)})}><X size={15}/></button></div>)}{files.map(({url}, i)=><div className="rj-compose-attachment" key={url}><img className="rj-local-photo" alt="待上传图片" src={url}/><button className="rj-remove" disabled={busy} aria-label="移除待上传图片" onClick={()=>{URL.revokeObjectURL(url);setFiles(old=>old.filter((_,index)=>index!==i));}}><X size={15}/></button></div>)}</div>
       {draft.mood && <p className="rj-note">{draft.mood}</p>}{error && <p className="rj-error" role="alert">{error}</p>}{preview && <p className="rj-note">本地示例 · 保存仅在当前预览中生效</p>}
       </div></div>
     <div className="rj-compose-toolbar"><input hidden ref={fileInput} type="file" multiple accept="image/jpeg,image/png,image/webp" onChange={pickFiles}/>{[[ImagePlus,'图片',()=>fileInput.current.click()],[LineChart,'股票',()=>setPicker('stock')],[Activity,'市场',()=>setPicker('market')],[Smile,'表情',()=>setPicker('emoji')],[MoreHorizontal,'更多',()=>setPicker('more')]].map(([Icon,label,action])=><button key={label} aria-label={label} disabled={busy} onClick={action}><Icon size={21}/><span>{label}</span></button>)}</div>
-    {picker==='stock'&&<SymbolPicker selected={draft.stocks} suggestions={suggestions} onChange={stocks=>patch({stocks})} onClose={()=>setPicker('')}/>}
+    {picker==='stock'&&<SymbolPicker selected={stockLinks.stocks} suggestions={suggestions} text={draft.text} onChange={changeStocks} onClose={()=>setPicker('')}/>}
     {picker==='market'&&<SnapshotPicker userId={userId} language={language} recordDate={draft.date} value={draft.market} onChange={market=>{patch({market});setPicker('');}} onClose={()=>setPicker('')} previewData={preview ? previewMarket : undefined}/>}
     {picker==='emoji'&&<EmojiPicker onSelect={insertEmoji} onClose={restoreCursor}/>}
     {picker==='more'&&<Dialog title="记录设置" onClose={()=>setPicker('')}><div className="rj-dialog-body"><p className="rj-note">记录当时的心情</p><div className="rj-chip-row">{['冷静','谨慎','乐观','焦虑','满意','后悔'].map(mood=><button key={mood} aria-pressed={draft.mood===mood} onClick={()=>patch({mood:draft.mood===mood?'':mood})}>{mood}</button>)}</div>{draft.type==='insight'&&<><p className="rj-note">重要程度</p><div className="rj-chip-row">{[['🟢','一般'],['🔺','重要'],['📣','强调'],['❗','警告']].map(([level,label])=><button key={level} aria-pressed={draft.level===level} onClick={()=>patch({level})}>{label}</button>)}</div></>}</div></Dialog>}
@@ -264,7 +277,10 @@ export default function ReviewJournalPage({ ctx }) {
   const saved=entry=>{const setter=entry.type==='insight'?setDisciplines:setReviewLogs;setter(old=>old.some(row=>row.id===entry.id)?old.map(row=>row.id===entry.id?entry:row):[entry,...old]);setError('');};
   const mutate=async action=>{if(busyRef.current)return;busyRef.current=true;setBusy(true);setError('');try{await action();}catch(failure){setError(failure?.message||'操作失败，请重试');}finally{busyRef.current=false;setBusy(false);}};
   const openDetail=(entry,event)=>{
-    feedReturn.current={x:window.scrollX||0,y:window.scrollY||0,focus:event?.currentTarget?.closest('[data-rj-entry-key]')};
+    const trigger=event?.currentTarget;
+    const keyboardEntry=event?.type==='keydown'||(event?.type==='click'&&event.detail===0&&!event.nativeEvent?.pointerType&&trigger?.ownerDocument?.activeElement===trigger&&trigger?.matches?.(':focus-visible'));
+    // Restoring pointer-triggered article focus can leave a whole-post focus ring on iOS.
+    feedReturn.current={x:window.scrollX||0,y:window.scrollY||0,focus:keyboardEntry?trigger?.closest('[data-rj-entry-key]'):null};
     const key=entryKey(entry);
     // Keep navigation private to this mounted journal; the URL and account scope stay unchanged.
     try{window.history?.pushState({...window.history.state,reviewJournalEntry:{token:historyToken.current,key}},'');}catch{/* State navigation still works if browser history is unavailable. */}
