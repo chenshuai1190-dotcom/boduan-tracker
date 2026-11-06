@@ -4,6 +4,17 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '投资复盘编辑器改为全宽无框输入，正文随内容伸展，长文统一在页面内滚动。',
+      '工具栏随可视区域调整，键盘展开时收紧底部留白，并适配手机横屏安全区。',
+    ],
+    itemsEn: [
+      'Investment Journal uses a full-width, borderless editor that grows with the text and keeps long entries in one page scroll area.',
+      'The toolbar follows the visible viewport, reduces bottom spacing when the keyboard opens, and respects mobile landscape safe areas.',
+    ],
+  },
+  {
+    ver: 'v10.7.9.568', date: '2026-11-06',
+    items: [
       '复盘正文增加灰色输入边框与聚焦反馈，移除首页重复录入入口，分类调整为全部、复盘日志、投资心得。',
       '交易页将复盘放在投资回溯后面，社区比赛保留在全部功能中，快捷入口仍为五个。',
     ],

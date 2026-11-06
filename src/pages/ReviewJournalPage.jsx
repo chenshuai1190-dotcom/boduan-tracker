@@ -10,16 +10,21 @@ import './ReviewJournalPage.css';
 
 let dialogCount = 0;
 let previousBodyOverflow = '';
-function Dialog({ title, onClose, children, wide = false, headerAction }) {
+function Dialog({ title, onClose, children, wide = false, composer = false, headerAction }) {
   const ref = useRef(null);
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
   const [frame, setFrame] = useState(null);
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
   useEffect(() => {
     const lastFocus = document.activeElement;
     if (dialogCount++ === 0) { previousBodyOverflow = document.body.style.overflow; document.body.style.overflow = 'hidden'; }
     ref.current?.focus({ preventScroll: true });
-    const update = () => { const v = window.visualViewport; setFrame(v ? { top: v.offsetTop, height: v.height } : null); };
+    const update = () => {
+      const v = window.visualViewport;
+      setFrame(v ? { top: v.offsetTop, height: v.height } : null);
+      setKeyboardOpen(Boolean(v && Math.abs(v.scale - 1) < 0.05 && window.innerHeight - v.height > 120));
+    };
     const key = event => {
       if (document.querySelector('dialog[open]') || [...document.querySelectorAll('[data-rj-dialog]')].at(-1) !== ref.current) return;
       if (event.key === 'Escape') { event.preventDefault(); closeRef.current?.(); }
@@ -34,8 +39,8 @@ function Dialog({ title, onClose, children, wide = false, headerAction }) {
     update(); window.visualViewport?.addEventListener('resize', update); window.visualViewport?.addEventListener('scroll', update); document.addEventListener('keydown', key);
     return () => { if (--dialogCount === 0) document.body.style.overflow = previousBodyOverflow; window.visualViewport?.removeEventListener('resize', update); window.visualViewport?.removeEventListener('scroll', update); document.removeEventListener('keydown', key); if (lastFocus?.isConnected) lastFocus.focus({ preventScroll: true }); };
   }, []);
-  return createPortal(<>{wide && <div className="rj-screen-mask" aria-hidden="true"/>}<div className={`rj-overlay ${wide ? 'rj-overlay-wide' : ''}`} style={frame || undefined} onClick={event => { if (event.target === event.currentTarget) onClose?.(); }}>
-    <section ref={ref} tabIndex={-1} data-rj-dialog role="dialog" aria-modal="true" aria-label={title} className={`rj-dialog ${wide ? 'rj-dialog-wide' : ''}`}>
+  return createPortal(<>{wide && <div className="rj-screen-mask" aria-hidden="true"/>}<div className={`rj-overlay ${wide ? 'rj-overlay-wide' : ''} ${composer ? 'rj-overlay-composer' : ''}`} style={frame || undefined} onClick={event => { if (event.target === event.currentTarget) onClose?.(); }}>
+    <section ref={ref} tabIndex={-1} data-rj-dialog data-keyboard-open={composer && keyboardOpen ? 'true' : undefined} role="dialog" aria-modal="true" aria-label={title} className={`rj-dialog ${wide ? 'rj-dialog-wide' : ''} ${composer ? 'rj-composer' : ''}`}>
       <header className="rj-dialog-header"><button type="button" className="rj-icon" aria-label="关闭" onClick={onClose}><X size={21} /></button><h2>{title}</h2>{headerAction || <span className="rj-header-spacer" />}</header>
       {children}
     </section>
@@ -128,10 +133,10 @@ function Composer({ entry, defaultType, identity, userId, db, onSaved, onClose, 
   };
   const insertEmoji = emoji => { const { start, end } = selection.current; setDraft(old => ({ ...old, text: old.text.slice(0, start) + emoji + old.text.slice(end) })); selection.current = { start: start + emoji.length, end: start + emoji.length }; };
   const restoreCursor = () => { setPicker(''); requestAnimationFrame(() => { textarea.current?.focus({ preventScroll: true }); textarea.current?.setSelectionRange(selection.current.start, selection.current.end); }); };
-  return <Dialog title={entry ? '编辑复盘' : '写复盘'} wide onClose={dismiss} headerAction={<button type="button" className="rj-publish" disabled={busy || (!draft.text.trim() && !files.length && !draft.images.length && !draft.stocks.length && !draft.market)} onClick={save}>{busy ? <Loader2 size={16} className="rj-spin" /> : entry ? '保存' : '发布'}</button>}>
+  return <Dialog title={entry ? '编辑复盘' : '写复盘'} wide composer onClose={dismiss} headerAction={<button type="button" className="rj-publish" disabled={busy || (!draft.text.trim() && !files.length && !draft.images.length && !draft.stocks.length && !draft.market)} onClick={save}>{busy ? <Loader2 size={16} className="rj-spin" /> : entry ? '保存' : '发布'}</button>}>
     <div className="rj-compose-scroll"><div className="rj-compose-author"><Avatar identity={identity} userId={userId} preview={preview}/><div><strong>{identity?.nickname || '昵称加载中'}</strong><span>仅自己可见</span></div></div>
       <div className="rj-compose-content"><div className="rj-compose-meta"><select aria-label="记录类型" disabled={Boolean(entry) || busy} value={draft.type} onChange={event => patch({type:event.target.value})}><option value="log">复盘日志</option><option value="insight">投资心得</option></select><input type="date" aria-label="记录日期" value={draft.date} max={localReviewDate()} onChange={event => patch({date:event.target.value})} disabled={busy}/></div>
-      <textarea ref={textarea} className="rj-body-input" aria-label="复盘正文" placeholder="这一刻，有什么想记录的？" value={draft.text} maxLength={20000} disabled={busy} onChange={event => { patch({text:event.target.value}); rememberCursor(); }} onSelect={rememberCursor} onKeyUp={rememberCursor} onBlur={rememberCursor}/>
+      <div className="rj-writing-area" data-text={draft.text}><textarea ref={textarea} className="rj-body-input" rows={1} aria-label="复盘正文" placeholder="这一刻，有什么想记录的？" value={draft.text} maxLength={20000} disabled={busy} onChange={event => { patch({text:event.target.value}); rememberCursor(); }} onSelect={rememberCursor} onKeyUp={rememberCursor} onBlur={rememberCursor}/></div>
       {!!draft.stocks.length && <div className="rj-chip-row">{draft.stocks.map(symbol => <button key={symbol} disabled={busy} onClick={() => patch({stocks:draft.stocks.filter(s=>s!==symbol)})}>${symbol}<X size={12}/></button>)}</div>}
       {draft.market && <div className="rj-compose-attachment"><SnapshotCard value={draft.market} language={language}/><button className="rj-remove" aria-label="移除市场快照" disabled={busy} onClick={()=>patch({market:null})}><X size={15}/></button></div>}
       <div className="rj-photo-grid">{draft.images.map(item => <div className="rj-compose-attachment" key={item.path}><Photo item={item} db={db} userId={userId} preview={preview} onOpen={()=>{}}/><button className="rj-remove" aria-label="移除图片" disabled={busy} onClick={()=>patch({images:draft.images.filter(image=>image.path!==item.path)})}><X size={15}/></button></div>)}{files.map(({url}, i)=><div className="rj-compose-attachment" key={url}><img className="rj-local-photo" alt="待上传图片" src={url}/><button className="rj-remove" disabled={busy} aria-label="移除待上传图片" onClick={()=>{URL.revokeObjectURL(url);setFiles(old=>old.filter((_,index)=>index!==i));}}><X size={15}/></button></div>)}</div>
