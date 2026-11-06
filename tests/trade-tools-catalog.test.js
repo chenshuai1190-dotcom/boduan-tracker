@@ -139,7 +139,7 @@ test('stock comparison has a user-scoped production route without a sixth quick 
   assert.match(comparisonPreview, /if \(!import\.meta\.env\.DEV\) return null/, 'the fixture adapter must refuse production rendering');
   const shortcuts = trades.match(/<section className="trades-report-tools"[\s\S]*?<\/section>/)?.[0];
   assert.ok(shortcuts);
-  assert.deepEqual([...shortcuts.matchAll(/\{ id: '([^']+)'/g)].map(([, id]) => id), ['waves', 'competition', 'records', 'investment-comparison', 'all']);
+  assert.deepEqual([...shortcuts.matchAll(/\{ id: '([^']+)'/g)].map(([, id]) => id), ['waves', 'records', 'investment-comparison', 'review-journal', 'all']);
 });
 
 test('the catalog remains presentation-only without ledger, persistence, or provider access', () => {

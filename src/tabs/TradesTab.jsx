@@ -1,6 +1,6 @@
 import React from 'react';
 import CurrencyToggle from '../components/CurrencyToggle.jsx';
-import { BarChart3, BookOpen, CalendarDays, ChevronRight, History, LayoutGrid, ListChecks, Search, Settings2, Trash2, Waves, X } from 'lucide-react';
+import { BookOpen, CalendarDays, ChevronRight, History, LayoutGrid, ListChecks, Search, Settings2, Trash2, Waves, X } from 'lucide-react';
 import {
   MARKET_COLOR_MODES,
   marketStrongTextClass,
@@ -1022,9 +1022,9 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
         <section className="trades-report-tools" aria-label={englishMode ? 'Trading tools' : '交易工具'}>
           {[
             { id: 'waves', label: tt('trades.swingLog', '波段记录'), icon: Waves },
-            { id: 'competition', label: tt('competition.toolEntry', '社区比赛'), icon: BarChart3 },
             { id: 'records', label: tt('trades.tradeLog', '交易记录'), icon: ListChecks },
             { id: 'investment-comparison', label: tt('trades.investmentTimeMachineShort', '投资回溯'), icon: History },
+            { id: 'review-journal', label: englishMode ? 'Journal' : '复盘', icon: BookOpen },
             { id: 'all', label: tt('trades.allTools', '全部功能'), icon: LayoutGrid },
           ].map((item) => {
             const Icon = item.icon;
@@ -1032,8 +1032,8 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
             return <button key={item.id} type="button" aria-pressed={active} onClick={() => {
               setColorMenuOpen(false);
               if (item.id === 'waves') { setToolPanel(''); openWaveTracker?.(); return; }
-              if (item.id === 'competition') { setToolPanel(''); openCommunityCompetition?.(); return; }
               if (item.id === 'investment-comparison') { setToolPanel(''); openInvestmentComparison?.(); return; }
+              if (item.id === 'review-journal') { setToolPanel(''); openReviewJournal?.(); return; }
               if (item.id === 'all') { setShowAllToolsModal(true); return; }
               toggleToolPanel(item.id);
             }}><span className="trades-report-tool-content"><Icon size={21} strokeWidth={1.6} aria-hidden="true" /><span>{item.label}</span></span></button>;

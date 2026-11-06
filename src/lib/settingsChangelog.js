@@ -4,6 +4,17 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '复盘正文增加灰色输入边框与聚焦反馈，移除首页重复录入入口，分类调整为全部、复盘日志、投资心得。',
+      '交易页将复盘放在投资回溯后面，社区比赛保留在全部功能中，快捷入口仍为五个。',
+    ],
+    itemsEn: [
+      'Journal adds a gray writing-field border and focus feedback, removes the duplicate compose prompt, and orders tabs as All, Review Logs, and Investment Insights.',
+      'Trading places Journal after Investment Lookback and keeps Community Competition in All Tools, retaining five shortcuts.',
+    ],
+  },
+  {
+    ver: 'v10.7.9.567', date: '2026-11-06',
+    items: [
       '全部功能新增独立复盘页，整合投资心得与复盘日志，保留历史记录，支持补记、分类置顶和私有图片。',
       '复盘可关联股票，查看历史行情与本人买卖记录，并插入按实际收盘日期保存的市场快照。',
       '社区资料新增自定义头像上传、裁剪与压缩，同步用于复盘、收益分享和社区比赛。',

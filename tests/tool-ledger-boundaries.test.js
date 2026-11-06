@@ -383,7 +383,7 @@ test('community competition is an isolated authenticated close-snapshot utility'
   assert.ok(appSource.includes('closeCommunityCompetition'), 'app should expose a closer for the trade-page utility');
   assert.ok(appSource.includes("${isFullBleedPage ? 'px-0' : 'px-4'}"), 'full-bleed standalone pages should not inherit the home shell padding a second time');
   assert.ok(tradesTabSource.includes("{ id: 'waves', label: tt('trades.swingLog', '波段记录'), icon: Waves }"), 'trade-page tool grid should expose Swing Log with the approved wave icon');
-  assert.ok(tradesTabSource.includes("{ id: 'competition', label: tt('competition.toolEntry', '社区比赛'), icon: BarChart3 }"), 'trade-page tool grid should expose Community Competition with the approved ranking icon');
+  assert.equal(tradesTabSource.includes("{ id: 'competition', label:"), false, 'community competition should remain in All Tools instead of taking a shortcut slot');
   assert.ok(tradesTabSource.includes("{ id: 'records', label: tt('trades.tradeLog', '交易记录'), icon: ListChecks }"), 'trade-page tool grid should retain the approved trade-record icon');
   assert.ok(tradesTabSource.includes("{ id: 'all', label: tt('trades.allTools', '全部功能'), icon: LayoutGrid }"), 'trade-page tool grid should expose All Tools with the approved layout icon');
   assert.equal(tradesTabSource.includes('icon: Grid2X2'), false, 'the approved All Tools shortcut should not restore the old grid icon');

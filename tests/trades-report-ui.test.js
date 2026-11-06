@@ -67,11 +67,11 @@ test('Trading report preserves its financial readiness, actions, currency and fi
   ]) assert.ok(trades.includes(invariant), `Trading must retain ${invariant}`);
   const toolsStart = trades.indexOf('<section className="trades-report-tools"');
   const toolsSection = trades.slice(toolsStart, trades.indexOf('</section>', toolsStart));
-  const toolIndexes = ['waves', 'competition', 'records', 'investment-comparison', 'all']
-    .map((id) => toolsSection.indexOf(`{ id: '${id}', label:`));
-  assert.ok(toolIndexes.every((index, offset) => index >= 0 && (!offset || index > toolIndexes[offset - 1])), 'all five tool entries must retain their approved order');
+  assert.deepEqual([...toolsSection.matchAll(/\{ id: '([^']+)', label:/g)].map(match => match[1]),
+    ['waves', 'records', 'investment-comparison', 'review-journal', 'all'], 'the shortcut row must keep exactly five entries with Journal after investment comparison');
   assert.ok(toolsSection.includes("tt('trades.investmentTimeMachineShort', '投资回溯')"), 'the time-machine shortcut must use its compact localized label');
   assert.match(toolsSection, /if \(item\.id === 'investment-comparison'\)\s*\{[^}]*openInvestmentComparison\?\.\(\);[^}]*return;/, 'the time-machine shortcut must use the existing read-only tool entry callback');
+  assert.match(toolsSection, /if \(item\.id === 'review-journal'\)\s*\{[^}]*openReviewJournal\?\.\(\);[^}]*return;/, 'Journal must use its existing standalone entry callback');
   assert.equal(i18n.split("'trades.investmentTimeMachineShort':").length - 1, 2, 'the time-machine shortcut label must exist in Chinese and English');
   assert.match(css, /\.trades-report-tools\s*\{[^}]*display:\s*flex;[^}]*justify-content:\s*space-between;/, 'five shortcut groups should distribute the available space between the first and last entry');
   assert.match(css, /\.trades-report-tools button\s*\{[^}]*align-items:\s*flex-start;[^}]*text-align:\s*left;/, 'each shortcut content group should retain its leading alignment without an unused trailing grid column');

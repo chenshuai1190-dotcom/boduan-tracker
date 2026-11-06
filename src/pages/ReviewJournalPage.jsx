@@ -176,9 +176,8 @@ export default function ReviewJournalPage({ ctx }) {
   return <div className="rj-page"><header className="rj-page-header"><button className="rj-icon" aria-label="返回" onClick={onBack}><ArrowLeft size={22}/></button><h1>复盘</h1><button className="rj-icon" aria-label="搜索复盘" aria-pressed={search} onClick={()=>{setSearch(!search);setQuery('');}}><Search size={21}/></button></header>
     {preview&&<div className="rj-preview-note">本地预览 · 示例记录 · 不写入真实账户</div>}
     {identityError&&<button className="rj-identity-error" onClick={()=>setIdentityAttempt(value=>value+1)}>昵称暂未读取，点击重试</button>}
-    <nav className="rj-tabs" aria-label="复盘分类">{[['all','全部'],['insight','投资心得'],['log','复盘日志']].map(([id,name])=><button key={id} aria-pressed={filter===id} onClick={()=>setFilter(id)}>{name}</button>)}</nav>
+    <nav className="rj-tabs" aria-label="复盘分类">{[['all','全部'],['log','复盘日志'],['insight','投资心得']].map(([id,name])=><button key={id} aria-pressed={filter===id} onClick={()=>setFilter(id)}>{name}</button>)}</nav>
     {search&&<div className="rj-search"><Search size={17}/><input autoFocus value={query} onChange={event=>setQuery(event.target.value)} aria-label="搜索正文、股票或日期" placeholder="搜索正文、股票或日期"/></div>}
-    <button className="rj-compose-prompt" onClick={()=>setComposer({entry:null})}><Avatar identity={identity} userId={userId} preview={preview}/><span>记录想法，留给未来的自己</span><Pencil size={19}/></button>
     {error&&!menu&&<p className="rj-error" role="alert">{error}</p>}
     <div className="rj-feed">{feed.map(entry=>post(entry))}{!feed.length&&<div className="rj-empty"><MessageCircle size={28}/><h2>{query?'没有匹配的记录':'从第一条复盘开始'}</h2><p>{query?'换个关键词试试':'投资心得和复盘日志，都在这里。'}</p></div>}</div>
     <button className="rj-fab" aria-label="写复盘" onClick={()=>setComposer({entry:null})}><Plus size={28}/></button>
