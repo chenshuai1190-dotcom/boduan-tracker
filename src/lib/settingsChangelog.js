@@ -4,6 +4,17 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '投资复盘返回页面时复用当前账户昵称和头像，刷新保留已显示资料，自定义头像准备好后再显示，避免闪过默认头像。',
+      '补记统一改称评论，详情页移除“后来的想法”标题，输入与提示文案同步调整。',
+    ],
+    itemsEn: [
+      'Investment Journal reuses the current account identity when returning, retains it during refresh, and waits for custom avatars to load without flashing a preset.',
+      'Follow-up notes are now called comments. The detail page removes the Later thoughts heading and updates comment prompts.',
+    ],
+  },
+  {
+    ver: 'v10.7.9.570', date: '2026-11-06',
+    items: [
       '普通股票和 TQQQ 买入市场参考改为 VIX / VIX3M 同日收盘比率，仅原始比率大于 1 时显示“开始买入”；过期、缺失或历史补录不触发提示。',
       '市场月报每日明细和手机长图恢复极端压力日期左侧红色竖线，保持日期及数字对齐。',
     ],

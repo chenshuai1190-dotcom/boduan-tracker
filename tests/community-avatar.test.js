@@ -90,7 +90,7 @@ test('avatar cache shares reads/signatures and never extends cached URL expiry o
 });
 test('failed image signing preserves authenticated metadata so the owner can replace or clear the image', async()=>{
  const s=await loadAvatarCache({signFails:true});
- assert.deepEqual(await s.module.fetchCommunityAvatar(user),{path,url:'',configured:true,imageUnavailable:true});
+ assert.deepEqual(await s.module.fetchCommunityAvatar(user),{path,url:'',configured:true,imageUnavailable:true,expiresAt:0});
  s.restoreSign(); const recovered=await s.module.fetchCommunityAvatar(user,{force:true});
  assert.equal(recovered.path,path);assert.equal(recovered.imageUnavailable,false);assert.equal(recovered.url,signedUrl);
 });

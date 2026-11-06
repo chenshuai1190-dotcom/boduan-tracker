@@ -123,7 +123,7 @@ function jsonSnapshot(value, strict = false) {
 function replies(value, userId, strict = false) {
   if (value == null) return [];
   if (!Array.isArray(value) || value.length > 500) {
-    if (strict) throw reviewJournalError('REVIEW_REPLIES_LIMIT', '此记录的补记数量过多，请另建一条记录。');
+    if (strict) throw reviewJournalError('REVIEW_REPLIES_LIMIT', '此记录的评论数量过多，请另建一条记录。');
     return [];
   }
   const ids = new Set();
@@ -133,12 +133,12 @@ function replies(value, userId, strict = false) {
     const text = typeof reply?.text === 'string' ? reply.text.trim() : '';
     const id = typeof reply?.id === 'string' ? reply.id.trim() : '';
     if (!plainObject(reply) || !id || id.length > 100 || ids.has(id) || !date || text.length > REVIEW_JOURNAL_MAX_TEXT_LENGTH) {
-      if (strict) throw reviewJournalError('REVIEW_INVALID_REPLY', '补记格式无效，请刷新后重试。');
+      if (strict) throw reviewJournalError('REVIEW_INVALID_REPLY', '评论格式无效，请刷新后重试。');
       return [];
     }
     const replyImages = images(reply.images, userId, strict);
     if (!text && !replyImages.length) {
-      if (strict) throw reviewJournalError('REVIEW_EMPTY_REPLY', '请输入补记内容。');
+      if (strict) throw reviewJournalError('REVIEW_EMPTY_REPLY', '请输入评论内容。');
       return [];
     }
     ids.add(id);

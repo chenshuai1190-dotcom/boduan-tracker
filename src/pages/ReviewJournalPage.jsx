@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowLeft, Search, Plus, MoreHorizontal, Pin, MessageCircle, ImagePlus, LineChart, Activity, Smile, X, Check, ChevronRight, Loader2, Pencil, Trash2, User } from 'lucide-react';
-import UserAvatar from '../components/UserAvatar.jsx';
-import { subscribeCommunityAvatar } from '../lib/communityAvatarDb.js';
+import { getCommunityAvatarOption } from '../lib/communityProfile.js';
+import { isCommunityAvatarSignedUrl, normalizeCommunityAvatarPath } from '../lib/communityAvatarModel.js';
 import { emptyReviewEntry, localReviewDate, reviewDraftKey, reviewJournalFeed, restoreReviewDraft } from '../lib/reviewJournalFeed.js';
 import ReviewStockReplay from '../components/ReviewStockReplay.jsx';
 import { SnapshotCard, SnapshotPicker } from '../components/ReviewMarketSnapshot.jsx';
@@ -46,7 +46,64 @@ function Dialog({ title, onClose, children, wide = false, composer = false, head
     </section>
   </div></>, document.body);
 }
-function Avatar({ identity, userId, preview }) { return identity?.avatarKey ? <span className="rj-avatar"><UserAvatar userId={preview ? undefined : userId} avatarKey={identity.avatarKey} avatarPath={preview ? null : undefined} /></span> : <span className="rj-avatar rj-avatar-empty"><User size={20} /></span>; }
+const loadedJournalAvatars = new Map();
+function cachedJournalAvatar(userId, path, url) {
+  const cached = url && loadedJournalAvatars.get(`${userId}:${url}`);
+  return cached?.path === path && cached.until > Date.now() ? cached : null;
+}
+function Avatar(props) {
+  return <JournalAvatar key={props.preview ? 'preview' : props.userId || 'signed-out'} {...props} />;
+}
+function JournalAvatar({ identity, userId, preview }) {
+  const path = !preview && userId && normalizeCommunityAvatarPath(identity?.avatarPath, userId);
+  const customUrl = path && isCommunityAvatarSignedUrl(identity?.avatarUrl, { supabaseUrl: import.meta.env.VITE_SUPABASE_URL, path }) ? identity.avatarUrl : '';
+  const cached = cachedJournalAvatar(userId, path, customUrl);
+  const [loaded, setLoaded] = useState(() => cached);
+  const [failedSource, setFailedSource] = useState('');
+  useEffect(() => {
+    if (!customUrl) return undefined;
+    const known = cachedJournalAvatar(userId, path, customUrl);
+    if (known) { setLoaded(known); return undefined; }
+    let active = true;
+    const image = new Image();
+    const finish = success => {
+      if (!active) return;
+      active = false;
+      clearTimeout(timer);
+      image.onload = null; image.onerror = null;
+      if (success) {
+        const value = { path, url: customUrl, until: Date.now() + 480000 };
+        loadedJournalAvatars.set(`${userId}:${customUrl}`, value);
+        while (loadedJournalAvatars.size > 32) loadedJournalAvatars.delete(loadedJournalAvatars.keys().next().value);
+        setLoaded(value);
+      }
+    };
+    const timer = setTimeout(() => finish(false), 8000);
+    image.decoding = 'async'; image.crossOrigin = 'anonymous';
+    image.onload = () => finish(true); image.onerror = () => finish(false);
+    image.src = customUrl;
+    if (image.complete && image.naturalWidth > 0) finish(true);
+    return () => { active = false; clearTimeout(timer); image.onload = null; image.onerror = null; };
+  }, [customUrl, path, userId]);
+  // A pending replacement keeps the same owner's decoded image. The keyed
+  // wrapper above discards it immediately when the account changes.
+  const preset = preview || identity?.avatarPath === null;
+  const shown = preset ? null : cached || loaded;
+  const source = shown?.url || (preset && identity?.avatarKey ? getCommunityAvatarOption(identity.avatarKey).src : '');
+  if (!identity?.avatarKey || !source || failedSource === source) {
+    return <span className="rj-avatar rj-avatar-empty" aria-hidden="true"><User size={20} /></span>;
+  }
+  return <span className="rj-avatar"><img key={source} src={source} alt="" draggable={false} data-custom-avatar={Boolean(shown)} crossOrigin={shown ? 'anonymous' : undefined} onError={() => {
+    setFailedSource(source);
+    if (shown) {
+      loadedJournalAvatars.delete(`${userId}:${source}`);
+      setLoaded(value => value?.url === source ? null : value);
+    }
+  }} /></span>;
+}
+function AuthorName({ identity }) {
+  return identity?.nickname ? <strong>{identity.nickname}</strong> : <strong className="rj-author-placeholder"><span className="rj-name-skeleton" aria-hidden="true" /><span className="rj-visually-hidden">作者资料加载中</span></strong>;
+}
 function Photo({ item, db, userId, preview, onOpen }) {
   const ref = useRef(null); const live = useRef(true); const refreshing = useRef(false);
   const [url, setUrl] = useState(''); const [failed, setFailed] = useState(false); const [visible, setVisible] = useState(false);
@@ -134,7 +191,7 @@ function Composer({ entry, defaultType, identity, userId, db, onSaved, onClose, 
   const insertEmoji = emoji => { const { start, end } = selection.current; setDraft(old => ({ ...old, text: old.text.slice(0, start) + emoji + old.text.slice(end) })); selection.current = { start: start + emoji.length, end: start + emoji.length }; };
   const restoreCursor = () => { setPicker(''); requestAnimationFrame(() => { textarea.current?.focus({ preventScroll: true }); textarea.current?.setSelectionRange(selection.current.start, selection.current.end); }); };
   return <Dialog title={entry ? '编辑复盘' : '写复盘'} wide composer onClose={dismiss} headerAction={<button type="button" className="rj-publish" disabled={busy || (!draft.text.trim() && !files.length && !draft.images.length && !draft.stocks.length && !draft.market)} onClick={save}>{busy ? <Loader2 size={16} className="rj-spin" /> : entry ? '保存' : '发布'}</button>}>
-    <div className="rj-compose-scroll"><div className="rj-compose-author"><Avatar identity={identity} userId={userId} preview={preview}/><div><strong>{identity?.nickname || '昵称加载中'}</strong><span>仅自己可见</span></div></div>
+    <div className="rj-compose-scroll"><div className="rj-compose-author"><Avatar identity={identity} userId={userId} preview={preview}/><div><AuthorName identity={identity} /><span>仅自己可见</span></div></div>
       <div className="rj-compose-content"><div className="rj-compose-meta"><select aria-label="记录类型" disabled={Boolean(entry) || busy} value={draft.type} onChange={event => patch({type:event.target.value})}><option value="log">复盘日志</option><option value="insight">投资心得</option></select><input type="date" aria-label="记录日期" value={draft.date} max={localReviewDate()} onChange={event => patch({date:event.target.value})} disabled={busy}/></div>
       <div className="rj-writing-area" data-text={draft.text}><textarea ref={textarea} className="rj-body-input" rows={1} aria-label="复盘正文" placeholder="这一刻，有什么想记录的？" value={draft.text} maxLength={20000} disabled={busy} onChange={event => { patch({text:event.target.value}); rememberCursor(); }} onSelect={rememberCursor} onKeyUp={rememberCursor} onBlur={rememberCursor}/></div>
       {!!draft.stocks.length && <div className="rj-chip-row">{draft.stocks.map(symbol => <button key={symbol} disabled={busy} onClick={() => patch({stocks:draft.stocks.filter(s=>s!==symbol)})}>${symbol}<X size={12}/></button>)}</div>}
@@ -154,14 +211,14 @@ function Composer({ entry, defaultType, identity, userId, db, onSaved, onClose, 
 export default function ReviewJournalPage({ ctx }) {
   const { db, userId, language='zh', disciplines=[], reviewLogs=[], setDisciplines, setReviewLogs, stockTrades=[], onBack, previewData } = ctx;
   const preview = Boolean(import.meta.env.DEV && previewData);
-  const [identity,setIdentity]=useState(preview ? previewData.identity : null);
+  const [identity,setIdentity]=useState(() => preview ? previewData.identity : db.readCachedReviewIdentity(userId));
   const [identityError,setIdentityError]=useState(false); const [identityAttempt,setIdentityAttempt]=useState(0);
   const [filter,setFilter]=useState('all'); const [search,setSearch]=useState(false); const [query,setQuery]=useState('');
   const [composer,setComposer]=useState(null); const [menu,setMenu]=useState(null); const [detailKey,setDetailKey]=useState(null);
   const [expanded,setExpanded]=useState(new Set()); const [lightbox,setLightbox]=useState(''); const [error,setError]=useState(''); const [busy,setBusy]=useState(false); const busyRef=useRef(false);
   const [reply,setReply]=useState(''); const [confirmDelete,setConfirmDelete]=useState(false);
-  useEffect(()=>{if(preview)return;let active=true;setIdentityError(false);db.fetchPnlShareIdentity({id:userId}).then(value=>{if(active){setIdentity(value);setIdentityError(!value);}}).catch(()=>{if(active)setIdentityError(true);});return()=>{active=false;};},[db,userId,preview,identityAttempt]);
-  useEffect(()=>{if(preview)return undefined;return subscribeCommunityAvatar(userId,()=>setIdentityAttempt(value=>value+1));},[userId,preview]);
+  useEffect(()=>{if(preview)return;let active=true;setIdentityError(false);db.fetchReviewIdentity(userId).then(value=>{if(active){setIdentity(value);setIdentityError(!value);}}).catch(()=>{if(active)setIdentityError(true);});return()=>{active=false;};},[db,userId,preview,identityAttempt]);
+  useEffect(()=>{if(preview)return undefined;return db.subscribeReviewIdentity(userId,()=>setIdentityAttempt(value=>value+1));},[db,userId,preview]);
   const all=reviewJournalFeed(disciplines,reviewLogs); const feed=reviewJournalFeed(disciplines,reviewLogs,filter,query);
   const entryKey=entry=>`${entry.type}:${entry.id}`;
   const detail=all.find(entry=>entryKey(entry)===detailKey);
@@ -171,23 +228,23 @@ export default function ReviewJournalPage({ ctx }) {
   const openDetail=entry=>{setReply('');setDetailKey(entryKey(entry));};
   const toggleExpanded=entry=>setExpanded(old=>{const next=new Set(old);const key=entryKey(entry);if(next.has(key))next.delete(key);else next.add(key);return next;});
   const post=(entry,full=false)=> <article className="rj-post" key={entryKey(entry)}>
-    <Avatar identity={identity} userId={userId} preview={preview}/><div className="rj-post-main"><div className="rj-post-heading"><strong>{identity?.nickname||'昵称加载中'}</strong>{filter!=='all'&&entry.pinned&&<Pin className="rj-inline-pin" size={12} aria-label="已置顶"/>}<span>·</span><time dateTime={entry.date}>{entry.date?.slice(5).replace('-','月')}日</time><button className="rj-icon rj-post-more" aria-label="记录操作" onClick={()=>{setMenu(entry);setConfirmDelete(false);setError('');}}><MoreHorizontal size={19}/></button></div>
+    <Avatar identity={identity} userId={userId} preview={preview}/><div className="rj-post-main"><div className="rj-post-heading"><AuthorName identity={identity} />{filter!=='all'&&entry.pinned&&<Pin className="rj-inline-pin" size={12} aria-label="已置顶"/>}<span>·</span><time dateTime={entry.date}>{entry.date?.slice(5).replace('-','月')}日</time><button className="rj-icon rj-post-more" aria-label="记录操作" onClick={()=>{setMenu(entry);setConfirmDelete(false);setError('');}}><MoreHorizontal size={19}/></button></div>
       <div className={`rj-post-text ${full||expanded.has(entryKey(entry))||String(entry.text||'').length<=160?'':'rj-clamped'}`}>{entry.text}</div>{!full&&String(entry.text||'').length>160&&<button className="rj-text-button rj-expand" onClick={()=>toggleExpanded(entry)}>{expanded.has(entryKey(entry))?'收起':'展开全文'}</button>}
       {!!entry.images?.length&&<div className={`rj-photo-grid rj-images-${entry.images.length}`}>{entry.images.map(item=><Photo key={item.path} item={item} db={db} userId={userId} preview={preview} onOpen={setLightbox}/>)}</div>}
       {(entry.stocks||[]).map(symbol=><ReviewStockReplay key={symbol} symbol={symbol} stockTrades={stockTrades} userId={userId} language={language} previewHistory={preview?previewData.history:undefined}/>)}
       {entry.market&&<SnapshotCard value={entry.market} language={language}/>}
-      {!full&&<div className="rj-post-actions"><button onClick={()=>openDetail(entry)} aria-label="查看补记"><MessageCircle size={18}/><span>{entry.replies?.length||'补记'}</span></button><button onClick={()=>openDetail(entry)} className="rj-detail-link">查看记录<ChevronRight size={14}/></button></div>}
+      {!full&&<div className="rj-post-actions"><button onClick={()=>openDetail(entry)} aria-label="查看评论"><MessageCircle size={18}/><span>{entry.replies?.length||'评论'}</span></button><button onClick={()=>openDetail(entry)} className="rj-detail-link">查看记录<ChevronRight size={14}/></button></div>}
     </div></article>;
   return <div className="rj-page"><header className="rj-page-header"><button className="rj-icon" aria-label="返回" onClick={onBack}><ArrowLeft size={22}/></button><h1>{language === 'en' ? 'Investment Journal' : '投资复盘'}</h1><button className="rj-icon" aria-label="搜索复盘" aria-pressed={search} onClick={()=>{setSearch(!search);setQuery('');}}><Search size={21}/></button></header>
     {preview&&<div className="rj-preview-note">本地预览 · 示例记录 · 不写入真实账户</div>}
-    {identityError&&<button className="rj-identity-error" onClick={()=>setIdentityAttempt(value=>value+1)}>昵称暂未读取，点击重试</button>}
+    {identityError&&<button className="rj-identity-error" onClick={()=>setIdentityAttempt(value=>value+1)}>{identity ? '资料暂未更新，点击重试' : '资料暂未读取，点击重试'}</button>}
     <nav className="rj-tabs" aria-label="复盘分类">{[['all','全部'],['log','复盘日志'],['insight','投资心得']].map(([id,name])=><button key={id} aria-pressed={filter===id} onClick={()=>setFilter(id)}>{name}</button>)}</nav>
     {search&&<div className="rj-search"><Search size={17}/><input autoFocus value={query} onChange={event=>setQuery(event.target.value)} aria-label="搜索正文、股票或日期" placeholder="搜索正文、股票或日期"/></div>}
     {error&&!menu&&<p className="rj-error" role="alert">{error}</p>}
     <div className="rj-feed">{feed.map(entry=>post(entry))}{!feed.length&&<div className="rj-empty"><MessageCircle size={28}/><h2>{query?'没有匹配的记录':'从第一条复盘开始'}</h2><p>{query?'换个关键词试试':'投资心得和复盘日志，都在这里。'}</p></div>}</div>
     <button className="rj-fab" aria-label="写复盘" onClick={()=>setComposer({entry:null})}><Plus size={28}/></button>
-    {detail&&<Dialog title="复盘记录" wide onClose={()=>setDetailKey(null)}><div className="rj-detail-scroll">{post(detail,true)}<section className="rj-replies"><h3>后来的想法</h3>{(detail.replies||[]).map(item=><div className="rj-reply" key={item.id}><Avatar identity={identity} userId={userId} preview={preview}/><div><strong>{identity?.nickname}</strong><time>{item.date}</time><p>{item.text}</p></div></div>)}{!detail.replies?.length&&<p className="rj-note">随着时间，补上新的观察。</p>}<textarea aria-label="补充想法" placeholder="补充后来的想法…" maxLength={5000} value={reply} onChange={event=>setReply(event.target.value)} disabled={busy}/>{error&&<p role="alert" className="rj-error">{error}</p>}<button className="rj-publish" disabled={busy||!reply.trim()} onClick={()=>mutate(async()=>{saved(await db.saveReviewJournalEntry({...detail,replies:[...(detail.replies||[]),{id:crypto.randomUUID(),date:localReviewDate(),text:reply.trim()}]},userId));setReply('');})}>添加补记</button></section></div></Dialog>}
-    {menu&&<Dialog title={confirmDelete?'删除这条记录？':'记录操作'} onClose={()=>{if(!busy){setMenu(null);setConfirmDelete(false);setError('');}}}><div className="rj-dialog-body">{error&&<p className="rj-error" role="alert">{error}</p>}{confirmDelete?<><p className="rj-note">正文、关联信息及补记将一起删除。</p><button className="rj-wide-button rj-danger" disabled={busy} onClick={()=>mutate(async()=>{await db.deleteReviewJournalEntry(menu,userId);await Promise.allSettled([...new Set([...(menu.images||[]),...(menu.replies||[]).flatMap(item=>item.images||[])].map(image=>image.path))].map(path=>db.removeReviewJournalImage(path,userId)));(menu.type==='insight'?setDisciplines:setReviewLogs)(old=>old.filter(row=>row.id!==menu.id));setMenu(null);if(detailKey===entryKey(menu))setDetailKey(null);})}>确认删除</button></>:<><button className="rj-menu-item" onClick={()=>{setComposer({entry:menu});setMenu(null);}}><Pencil size={18}/>编辑记录</button>{filter!=='all'&&<button className="rj-menu-item" disabled={busy} onClick={()=>mutate(async()=>{saved(await db.saveReviewJournalEntry({...menu,pinned:!menu.pinned},userId));setMenu(null);})}><Pin size={18}/>{menu.pinned?'取消置顶':'置顶'}</button>}<button className="rj-menu-item rj-danger" onClick={()=>setConfirmDelete(true)}><Trash2 size={18}/>删除记录</button></>}</div></Dialog>}
+    {detail&&<Dialog title="复盘记录" wide onClose={()=>setDetailKey(null)}><div className="rj-detail-scroll">{post(detail,true)}<section className="rj-replies">{(detail.replies||[]).map(item=><div className="rj-reply" key={item.id}><Avatar identity={identity} userId={userId} preview={preview}/><div><AuthorName identity={identity} /><time>{item.date}</time><p>{item.text}</p></div></div>)}{!detail.replies?.length&&<p className="rj-note">还没有评论，写下你的想法。</p>}<textarea aria-label="评论内容" placeholder="写下你的评论…" maxLength={5000} value={reply} onChange={event=>setReply(event.target.value)} disabled={busy}/>{error&&<p role="alert" className="rj-error">{error}</p>}<button className="rj-publish" disabled={busy||!reply.trim()} onClick={()=>mutate(async()=>{saved(await db.saveReviewJournalEntry({...detail,replies:[...(detail.replies||[]),{id:crypto.randomUUID(),date:localReviewDate(),text:reply.trim()}]},userId));setReply('');})}>发表评论</button></section></div></Dialog>}
+    {menu&&<Dialog title={confirmDelete?'删除这条记录？':'记录操作'} onClose={()=>{if(!busy){setMenu(null);setConfirmDelete(false);setError('');}}}><div className="rj-dialog-body">{error&&<p className="rj-error" role="alert">{error}</p>}{confirmDelete?<><p className="rj-note">正文、关联信息及评论将一起删除。</p><button className="rj-wide-button rj-danger" disabled={busy} onClick={()=>mutate(async()=>{await db.deleteReviewJournalEntry(menu,userId);await Promise.allSettled([...new Set([...(menu.images||[]),...(menu.replies||[]).flatMap(item=>item.images||[])].map(image=>image.path))].map(path=>db.removeReviewJournalImage(path,userId)));(menu.type==='insight'?setDisciplines:setReviewLogs)(old=>old.filter(row=>row.id!==menu.id));setMenu(null);if(detailKey===entryKey(menu))setDetailKey(null);})}>确认删除</button></>:<><button className="rj-menu-item" onClick={()=>{setComposer({entry:menu});setMenu(null);}}><Pencil size={18}/>编辑记录</button>{filter!=='all'&&<button className="rj-menu-item" disabled={busy} onClick={()=>mutate(async()=>{saved(await db.saveReviewJournalEntry({...menu,pinned:!menu.pinned},userId));setMenu(null);})}><Pin size={18}/>{menu.pinned?'取消置顶':'置顶'}</button>}<button className="rj-menu-item rj-danger" onClick={()=>setConfirmDelete(true)}><Trash2 size={18}/>删除记录</button></>}</div></Dialog>}
     {composer&&<Composer entry={composer.entry} defaultType={filter==='insight'?'insight':'log'} identity={identity} userId={userId} db={db} language={language} onSaved={saved} onClose={()=>setComposer(null)} suggestions={suggestions} preview={preview} previewMarket={previewData?.market}/>}
     {lightbox&&<Dialog title="图片" wide onClose={()=>setLightbox('')}><div className="rj-lightbox"><img src={lightbox} alt="复盘图片原图"/></div></Dialog>}
   </div>;

@@ -40,6 +40,7 @@ export {
 } from './communityProfilesDb';
 
 export { fetchCommunityAvatar, uploadCommunityAvatar, saveCommunityAvatarProfile, removeCommunityAvatarImage } from './communityAvatarDb.js';
+export { readCachedReviewIdentity, fetchReviewIdentity, subscribeReviewIdentity } from './reviewIdentityDb.js';
 
 // ============ 离线缓存 ============
 // 把最近一次拉取的数据缓存到 localStorage
