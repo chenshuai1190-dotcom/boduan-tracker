@@ -234,6 +234,7 @@ export function buildCompetitionLeaderboard({
   holdingSymbolsByUser = {},
   selfUserId = '',
   leadersLimit = 10,
+  onVisibleEntry,
 } = {}) {
   const memberRows = (Array.isArray(members) ? members : []).map(normalizeMember).filter(Boolean);
   const profileRows = (Array.isArray(profiles) ? profiles : []).map(normalizeProfile).filter(Boolean);
@@ -312,14 +313,21 @@ export function buildCompetitionLeaderboard({
     .sort((a, b) => b.rankingPct - a.rankingPct || b.returnPct - a.returnPct || a.nickname.localeCompare(b.nickname, 'zh-CN'));
   const ranked = assignCompetitionRanks(rankedEntries);
 
-  const sanitize = (entry) => entry ? {
-    rank: entry.rank,
-    nickname: entry.nickname,
-    avatarKey: entry.avatarKey,
-    returnPct: entry.returnPct,
-    outperformancePct: entry.outperformancePct,
-    holdingSymbols: entry.holdingSymbols,
-  } : null;
+  const sanitize = (entry) => {
+    if (!entry) return null;
+    const result = {
+      rank: entry.rank,
+      nickname: entry.nickname,
+      avatarKey: entry.avatarKey,
+      returnPct: entry.returnPct,
+      outperformancePct: entry.outperformancePct,
+      holdingSymbols: entry.holdingSymbols,
+    };
+    // Internal correlation for signing only the rows already authorized for
+    // this response. The ID never becomes a public DTO field.
+    onVisibleEntry?.(result, entry.internalUserId);
+    return result;
+  };
   const selfEntry = ranked.find((entry) => entry.internalUserId === selfUserId) || null;
   const selfCalculatedEntry = calculatedEntries.find((entry) => entry.internalUserId === selfUserId) || null;
   const returns = ranked.map((entry) => entry.returnPct);

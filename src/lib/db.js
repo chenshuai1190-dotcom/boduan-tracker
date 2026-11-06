@@ -11,6 +11,8 @@ import {
 } from './homeMarginRisk.js';
 import { normalizeStrictUserStockSymbol, normalizeUserStockSymbol } from './symbols';
 import { userScopedStorageKey } from './userScopedStorage.js';
+import { mapReviewJournalRow } from './reviewJournalModel.js';
+import { createReviewJournalRepository } from './reviewJournalRepository.js';
 
 export {
   fetchPnlReportRebuildState,
@@ -37,6 +39,8 @@ export {
   upsertCommunityProfile,
 } from './communityProfilesDb';
 
+export { fetchCommunityAvatar, uploadCommunityAvatar, saveCommunityAvatarProfile, removeCommunityAvatarImage } from './communityAvatarDb.js';
+
 // ============ 离线缓存 ============
 // 把最近一次拉取的数据缓存到 localStorage
 // 这样断网时也能看,联网后会被云端最新数据覆盖
@@ -52,6 +56,26 @@ const cacheSet = (userId, key, value) => {
     localStorage.setItem(userScopedStorageKey(CACHE_PREFIX + key, userId), JSON.stringify(value));
   } catch {}
 };
+
+const reviewJournalRepository = createReviewJournalRepository(supabase);
+export const saveReviewJournalEntry = async (entry, expectedUserId) => {
+  const saved = await reviewJournalRepository.save(entry, expectedUserId);
+  const key = saved.type === 'insight' ? 'disciplines' : 'review_logs';
+  const cached = cacheGet(expectedUserId, key);
+  if (Array.isArray(cached)) {
+    cacheSet(expectedUserId, key, [saved, ...cached.filter(item => item.id !== saved.id)]);
+  }
+  return saved;
+};
+export const deleteReviewJournalEntry = async (entry, expectedUserId) => {
+  await reviewJournalRepository.remove(entry, expectedUserId);
+  const key = entry.type === 'insight' ? 'disciplines' : 'review_logs';
+  const cached = cacheGet(expectedUserId, key);
+  if (Array.isArray(cached)) cacheSet(expectedUserId, key, cached.filter(item => item.id !== entry.id));
+};
+export const uploadReviewJournalImage = (file, expectedUserId) => reviewJournalRepository.uploadImage(file, expectedUserId);
+export const resolveReviewJournalImage = (path, expectedUserId) => reviewJournalRepository.resolveImage(path, expectedUserId);
+export const removeReviewJournalImage = (path, expectedUserId) => reviewJournalRepository.removeImage(path, expectedUserId);
 
 const normalizePersistedSymbol = (symbol) => normalizeUserStockSymbol(symbol);
 
@@ -1346,14 +1370,7 @@ export const fetchDisciplines = async (preUser = null) => {
     console.error('fetchDisciplines 失败:', error);
     return cacheGet(user.id, 'disciplines') || [];
   }
-  const list = (data || []).map(d => ({
-    id: d.id,
-    level: d.level,
-    text: d.text,
-    pinned: d.pinned,
-    sortOrder: d.sort_order || 0,
-    date: d.created_at ? d.created_at.slice(0, 10) : '',
-  }));
+  const list = (data || []).map(d => mapReviewJournalRow(d, 'insight', user.id));
   cacheSet(user.id, 'disciplines', list);
   return list;
 };
@@ -1422,12 +1439,7 @@ export const fetchReviewLogs = async (preUser = null) => {
     console.error('fetchReviewLogs 失败:', error);
     return cacheGet(user.id, 'review_logs') || [];
   }
-  const list = (data || []).map(l => ({
-    id: l.id,
-    date: l.log_date,
-    mood: l.mood || '',
-    text: l.text,
-  }));
+  const list = (data || []).map(l => mapReviewJournalRow(l, 'log', user.id));
   cacheSet(user.id, 'review_logs', list);
   return list;
 };

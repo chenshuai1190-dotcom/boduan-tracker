@@ -15,6 +15,7 @@ import {
 } from '../lib/communityCompetitionCache.js';
 import { bindCommunityCompetitionResume } from '../lib/communityCompetitionResume.js';
 import { getCommunityAvatarOption } from '../lib/communityProfile.js';
+import UserAvatar from '../components/UserAvatar.jsx';
 import { communityCompetitionApi } from '../lib/communityCompetitionApi.js';
 import { t } from '../lib/i18n.js';
 import { marketTextHexColor } from '../lib/marketColorMode.js';
@@ -124,12 +125,12 @@ function StatCard({ label, value, color = 'rgba(255,255,255,0.86)' }) {
   );
 }
 
-function Avatar({ avatarKey, rank }) {
+function Avatar({ avatarKey, avatarUrl, rank }) {
   const avatar = getCommunityAvatarOption(avatarKey);
   const rankValue = Number(rank);
   return (
     <div data-rank-avatar data-rank={rankValue} className="cc-avatar">
-      <img src={avatar.src} alt="" className="h-full w-full scale-[1.15] object-cover" draggable={false} />
+      <UserAvatar avatarKey={avatar.key} signedUrl={avatarUrl} className="h-full w-full" />
     </div>
   );
 }
@@ -157,7 +158,7 @@ function RankRow({ row, self = false, selected = false, onSelect, marketColorMod
     >
       <div className="cc-rank-number" style={{ color: rankColor, fontFamily: NUMBER_FONT }}>{rank}</div>
       <div className="cc-rank-person">
-        <Avatar avatarKey={row.avatarKey} rank={rankValue} />
+        <Avatar avatarKey={row.avatarKey} avatarUrl={row.avatarUrl} rank={rankValue} />
         <div className="cc-rank-name">{row.nickname || '--'}</div>
       </div>
       <div className="cc-rank-return" style={{ color: valueColor(row.returnPct, marketColorMode), fontFamily: NUMBER_FONT }}>{formatPercent(row.returnPct)}</div>
@@ -231,7 +232,7 @@ function HoldingPopover({ selection, periodMetricLabel, snapshotDate, language, 
           <button type="button" className="cc-user-close" onClick={onClose} aria-label={tt('competition.closeUserCard', '关闭用户资料卡')}><X size={16} /></button>
           <div className="cc-user-profile">
             <div className="cc-user-avatar">
-              <img src={avatar.src} alt="" className="h-full w-full scale-[1.15] object-cover" draggable={false} />
+              <UserAvatar avatarKey={avatar.key} signedUrl={row.avatarUrl} className="h-full w-full" />
             </div>
             <div className="min-w-0">
               <div className="truncate text-[19px] text-white/[0.92]">{row.nickname || '--'}</div>
@@ -421,7 +422,7 @@ function CompetitionContent({ data, period, language, tt, leaderboardRefreshing 
         <div className="cc-hero-top">
           <div data-competition-self-profile className="cc-self-profile">
             <div data-competition-self-avatar className="cc-self-avatar">
-              {selfAvatar ? <img src={selfAvatar.src} alt="" draggable={false} /> : null}
+              {selfAvatar ? <UserAvatar avatarKey={selfAvatar.key} signedUrl={self.avatarUrl} className="h-full w-full" /> : null}
             </div>
             <div>
               <div data-competition-self-nickname className="cc-self-nickname">{self?.nickname || '--'}</div>
@@ -728,6 +729,7 @@ export default function CommunityCompetitionPage({ ctx = {}, marketColorMode = c
         const decision = getCommunityCompetitionSnapshotStatusDecision({
           entry: currentCache,
           status: latestStatus,
+          now: checkedAt,
         });
         if (!decision.shouldRefresh) {
           failedRetryNotBeforeRef.current.delete(requestViewKey);

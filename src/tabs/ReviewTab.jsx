@@ -352,6 +352,9 @@ export default function ReviewTab({ ctx }) {
         marketColorMode={marketColorMode}
       />
 
+      {typeof ctx.openReviewJournal === 'function' ? <button type="button" className="review-journal-entry" onClick={ctx.openReviewJournal}>
+        <span className="review-journal-entry-icon"><NotebookPen size={23} strokeWidth={1.6}/></span><span><strong>{language === 'en' ? 'Journal' : '复盘'}</strong><small>{language === 'en' ? 'Ideas and reflections' : '投资心得与复盘日志'}</small></span><ChevronRight size={17}/>
+      </button> : <>
       <section className="review-reading-section" aria-labelledby="review-disciplines-heading">
         <div className="review-section-header">
           <h2 id="review-disciplines-heading"><BookOpenIcon size={17} strokeWidth={1.6} aria-hidden="true" />{tt('review.disciplines', '投资心得')}</h2>
@@ -422,6 +425,8 @@ export default function ReviewTab({ ctx }) {
           </button>}
         </>}
       </section>
+
+      </>}
 
       {yearAction && (
         <ReviewActionSheet

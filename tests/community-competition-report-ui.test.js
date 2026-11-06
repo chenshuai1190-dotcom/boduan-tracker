@@ -9,11 +9,22 @@ import { t } from '../src/lib/i18n.js';
 // Render the real presentation components; only the CSS import is omitted.
 // No API, account, ranking or snapshot fixture is substituted in production.
 const pageUrl = new URL('../src/pages/CommunityCompetitionPage.jsx', import.meta.url);
+const avatarUrl = new URL('../src/components/UserAvatar.jsx', import.meta.url);
+const avatarSource = readFileSync(avatarUrl, 'utf8')
+  .replace(/^import.*from ['"][^'"]*communityAvatarDb\.js['"];?\s*$/gm,
+    "const fetchCommunityAvatar = () => { throw new Error('SSR must not load avatars'); }; const subscribeCommunityAvatar = () => () => {};")
+  .replaceAll('import.meta.env.VITE_SUPABASE_URL', "'https://avatar.test'")
+  .replaceAll('import.meta.env.DEV', 'false');
+const avatarTransformed = await transformWithOxc(avatarSource, avatarUrl.pathname, { jsx: { runtime: 'classic' } });
+const avatarCode = avatarTransformed.code.replace(/from\s+(['"])([^'"]+)\1/g, (_match, _quote, specifier) => (
+  `from ${JSON.stringify(specifier.startsWith('.') ? new URL(specifier, avatarUrl).href : import.meta.resolve(specifier))}`
+));
+const avatarModuleUrl = `data:text/javascript;base64,${Buffer.from(avatarCode).toString('base64')}`;
 let source = readFileSync(pageUrl, 'utf8').replace(/^import\s+['"][^'"]+\.css['"];?\s*$/gm, '');
 source += '\nexport { CompetitionContent, RankRow, HoldingPopover, JoinSheet, StatusCard, TrendChart };';
 const transformed = await transformWithOxc(source, pageUrl.pathname, { jsx: { runtime: 'classic' } });
 const code = transformed.code.replace(/from\s+(['"])([^'"]+)\1/g, (_match, _quote, specifier) => (
-  `from ${JSON.stringify(specifier.startsWith('.') ? new URL(specifier, pageUrl).href : import.meta.resolve(specifier))}`
+  `from ${JSON.stringify(specifier.endsWith('/UserAvatar.jsx') ? avatarModuleUrl : specifier.startsWith('.') ? new URL(specifier, pageUrl).href : import.meta.resolve(specifier))}`
 ));
 const { default: Page, CompetitionContent, RankRow, HoldingPopover, JoinSheet, StatusCard, TrendChart } = await import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`);
 const tt = (key, fallback, vars) => t('zh', key, fallback, vars);
@@ -111,6 +122,18 @@ test('rank rows preserve red up, green down, readable names and selected state',
     assert.equal(nodes(tree, node => node.props.className === 'cc-rank-return')[0].props.style.color, expected);
     assert.ok(html.includes(rows[1].nickname), 'CSS truncation must not remove the accessible name');
   }
+});
+
+test('authorized private avatars render in rankings and self profile with preset fallback for foreign URLs', () => {
+  const url = 'https://avatar.test/storage/v1/object/sign/community-avatars/11111111-1111-1111-1111-111111111111/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa.webp?token=short-lived';
+  const data = { ...ready, self: { ...ready.self, avatarUrl: url }, leaders: [{ ...rows[0], avatarUrl: url }, rows[1]] };
+  const { html } = render(CompetitionContent, contentProps({ data }));
+  assert.ok(html.split(url).length >= 3, 'self and visible ranking both use the authorized avatar');
+  assert.match(html, /crossorigin="anonymous"/);
+  assert.match(html, /data-custom-avatar="true"/);
+  const rejected = render(RankRow, { row: { ...rows[0], avatarUrl: url.replace('avatar.test', 'evil.test') } }).html;
+  assert.doesNotMatch(rejected, /evil\.test/);
+  assert.match(rejected, /\/community-avatars\/avatar-human-blue\.jpg/);
 });
 
 test('public holdings keep unavailable, empty and symbol-only states distinct', () => {

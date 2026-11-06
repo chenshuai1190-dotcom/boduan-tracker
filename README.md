@@ -165,6 +165,8 @@ Server：
 - 财报：`api/earnings-calendar.js`
 - 收益快照：`api/pnl-report-daily-snapshot.js`、`server/pnl*`
 - 收益比赛：`api/community-competition.js`、`server/communityCompetition*`
+- 复盘与私有图片：`src/pages/ReviewJournalPage.jsx`、`src/lib/reviewJournalRepository.js`；沿用本人旧记录，附件按用户目录隔离，仅保存文件路径。
+- 自定义头像：`src/lib/communityAvatar*`、`src/components/UserAvatar.jsx`；私有文件短期签名，社区接口仅为已授权展示的参赛身份签名，失败回退预设。
 - 数据库/RLS：`supabase/`
 - 当前设置页版本：`src/lib/releaseMeta.js`
 - 部署与 Cron：`vercel.json`

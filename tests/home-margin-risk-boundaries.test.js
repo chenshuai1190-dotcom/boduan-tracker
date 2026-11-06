@@ -75,9 +75,17 @@ test('Home margin risk uses a standalone page while keeping the bottom navigatio
   assert.ok(appSource.includes("setActivePage('home-margin-risk')"), 'Home must open the margin experience through page-level navigation');
   assert.ok(appSource.includes("activePage === 'home-margin-risk'"));
   assert.ok(appSource.includes('<HomeMarginRiskPage ctx={tabCtx} />'));
-  assert.ok(appSource.includes('isStandalonePage = isPnlReportPage || isPnlSharePage || isHomeMarginRiskPage'), 'the page must receive the standalone safe-area shell');
+  const standaloneGuard = appSource.match(/const isStandalonePage = ([^;]+);/)?.[1];
+  assert.ok(standaloneGuard, 'read the actual standalone safe-area rule');
+  const standaloneFlags = [...new Set(standaloneGuard.match(/\bis[A-Z]\w*/g))];
+  const isStandalonePage = new Function(...standaloneFlags, `return ${standaloneGuard};`);
+  for (const page of ['isPnlReportPage', 'isPnlSharePage', 'isHomeMarginRiskPage', 'isReviewJournalPage']) {
+    assert.ok(standaloneFlags.includes(page), `${page} remains in the standalone shell`);
+    assert.equal(isStandalonePage(...standaloneFlags.map(flag => flag === page)), true, page);
+  }
+  assert.equal(isStandalonePage(...standaloneFlags.map(() => false)), false, 'ordinary tabs retain the standard shell');
   const bottomNavGuard = appSource.match(/const hideBottomNavigation = ([^;]+);/)?.[1];
-  for (const page of ['isPnlReportPage', 'isPnlSharePage', 'isStockPnlReportPage', 'isDebtManagerPage']) {
+  for (const page of ['isPnlReportPage', 'isPnlSharePage', 'isStockPnlReportPage', 'isDebtManagerPage', 'isReviewJournalPage']) {
     assert.ok(bottomNavGuard?.includes(page), `${page} should hide the bottom tabs`);
   }
   assert.doesNotMatch(bottomNavGuard, /\bisHomeMarginRiskPage\b/, 'the margin page must keep the bottom navigation');

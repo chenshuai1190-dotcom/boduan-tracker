@@ -245,13 +245,22 @@ test('Home and Trading open one shared image page from Today P&L while preservin
   assert.equal(appSource.includes('<PnlSharePage ctx={tabCtx} />'), false);
   assert.ok(appSource.includes('db.fetchPnlShareIdentity({ id: userId })'));
   assert.ok(appSource.includes('const identity = createPnlShareIdentity(profile);'));
-  assert.ok(appSource.includes('isFullBleedPage = isPnlSharePage || isCommunityCompetitionPage'));
+  const fullBleedGuard = appSource.match(/const isFullBleedPage = ([^;]+);/)?.[1];
+  assert.ok(fullBleedGuard, 'read the actual full-width page rule');
+  const fullBleedFlags = [...new Set(fullBleedGuard.match(/\bis[A-Z]\w*/g))];
+  const isFullBleedPage = new Function(...fullBleedFlags, `return ${fullBleedGuard};`);
+  for (const page of ['isPnlSharePage', 'isCommunityCompetitionPage', 'isReviewJournalPage']) {
+    assert.ok(fullBleedFlags.includes(page), `${page} remains full width`);
+    assert.equal(isFullBleedPage(...fullBleedFlags.map(flag => flag === page)), true, page);
+  }
+  assert.equal(isFullBleedPage(...fullBleedFlags.map(() => false)), false, 'ordinary tabs keep horizontal padding');
   const navGuard = appSource.match(/const hideBottomNavigation = ([^;]+);/)?.[1];
   assert.ok(navGuard);
-  const hideBottomNavigation = new Function('isPnlReportPage', 'isPnlSharePage', 'isStockPnlReportPage', 'isDebtManagerPage', `return ${navGuard};`);
-  assert.equal(hideBottomNavigation(false, true, false, false), true, 'P&L share remains full screen');
-  assert.equal(hideBottomNavigation(false, false, false, true), true, 'debt manager is also full screen');
-  assert.equal(hideBottomNavigation(false, false, false, false), false, 'ordinary tabs retain navigation');
+  const hideBottomNavigation = new Function('isPnlReportPage', 'isPnlSharePage', 'isStockPnlReportPage', 'isDebtManagerPage', 'isReviewJournalPage', `return ${navGuard};`);
+  assert.equal(hideBottomNavigation(false, true, false, false, false), true, 'P&L share remains full screen');
+  assert.equal(hideBottomNavigation(false, false, false, true, false), true, 'debt manager is also full screen');
+  assert.equal(hideBottomNavigation(false, false, false, false, false), false, 'ordinary tabs retain navigation');
+  assert.equal(hideBottomNavigation(false, false, false, false, true), true, 'the independent journal hides bottom tabs');
 
   assert.equal((tradesSource.match(/onClick=\{openPnlShare\}/g) || []).length, 1);
   assert.ok(tradesSource.includes('data-trades-pnl-share-trigger="true"'));
@@ -851,7 +860,7 @@ test('sharing is local-only, pre-generates the file, and safely handles iOS canc
     'const [shareSnapshot] = React.useState',
     'const [identitySnapshot, setIdentitySnapshot] = React.useState',
     'summary: shareSnapshot.summary',
-    'loadPnlShareAvatarImage(identitySnapshot.avatarKey)',
+    'loadPnlShareAvatarImage(identitySnapshot)',
     'nickname: identitySnapshot.nickname',
     'canvasToPngBlob(canvas)',
     'createPnlSharePngFile(blob, fileName)',

@@ -487,7 +487,7 @@ export function recordCommunityCompetitionStatusCheck({ userId, period, now = Da
   return readCommunityCompetitionCache({ userId: normalizedUserId, period: normalizedPeriod });
 }
 
-export function getCommunityCompetitionSnapshotStatusDecision({ entry, status } = {}) {
+export function getCommunityCompetitionSnapshotStatusDecision({ entry, status, now = Date.now() } = {}) {
   const normalized = normalizeEntry(entry, entry?.period);
   if (!normalized) return { shouldRefresh: false, reason: 'missing_cache' };
   if (status?.state !== 'snapshot_status' || status?.channel !== 'competition') {
@@ -505,9 +505,12 @@ export function getCommunityCompetitionSnapshotStatusDecision({ entry, status } 
   const publicationOrder = comparePublications(statusPublication, cachedPublication);
 
   if (samePublication(statusPublication, cachedPublication)) {
+    const rows = [...(Array.isArray(normalized.data.leaders) ? normalized.data.leaders : []), normalized.data.self];
+    const avatarExpiring = normalized.data.state === 'ready' && rows.some(row => row?.avatarUrl
+      && isTimestamp(row.avatarExpiresAt) && Date.parse(row.avatarExpiresAt) <= normalizeNowMs(now) + 60_000);
     return {
-      shouldRefresh: false,
-      reason: normalized.data.state === 'ready' ? 'snapshot_current' : 'waiting_status_current',
+      shouldRefresh: avatarExpiring,
+      reason: avatarExpiring ? 'avatar_signature_expiring' : normalized.data.state === 'ready' ? 'snapshot_current' : 'waiting_status_current',
       snapshotDate,
       version,
     };

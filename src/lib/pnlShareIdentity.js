@@ -2,6 +2,7 @@ import {
   COMMUNITY_AVATAR_OPTIONS,
   validateCommunityNickname,
 } from './communityProfile.js';
+import { isCommunityAvatarSignedUrl, normalizeCommunityAvatarPath } from './communityAvatarModel.js';
 
 const BIDI_CONTROL_PATTERN = /[\u202a-\u202e\u2066-\u2069]/g;
 const DEFAULT_AVATAR_LOAD_TIMEOUT_MS = 8000;
@@ -17,26 +18,36 @@ export function sanitizePnlShareNickname(value) {
   return result.valid ? result.nickname : '';
 }
 
-export function createPnlShareIdentity(profile = null) {
+export function createPnlShareIdentity(profile = null, { supabaseUrl = import.meta.env?.VITE_SUPABASE_URL } = {}) {
   const nickname = sanitizePnlShareNickname(profile?.nickname);
   const avatar = strictAvatarOption(profile?.avatarKey || profile?.avatar_key);
   if (!nickname || !avatar) return null;
-  return Object.freeze({ nickname, avatarKey: avatar.key });
+  const path = normalizeCommunityAvatarPath(profile?.avatarPath);
+  const custom = path && isCommunityAvatarSignedUrl(profile?.avatarUrl, { supabaseUrl, path });
+  return Object.freeze({ nickname, avatarKey: avatar.key,
+    ...(custom ? { avatarPath: path, avatarUrl: profile.avatarUrl } : {}) });
 }
 
-export function pnlShareAvatarSource(avatarKey) {
-  return strictAvatarOption(avatarKey)?.src || '';
+export function pnlShareAvatarSource(avatar, { supabaseUrl = import.meta.env?.VITE_SUPABASE_URL } = {}) {
+  if (avatar && typeof avatar === 'object') {
+    const path = normalizeCommunityAvatarPath(avatar.avatarPath);
+    if (path && isCommunityAvatarSignedUrl(avatar.avatarUrl, { supabaseUrl, path })) return avatar.avatarUrl;
+    return strictAvatarOption(avatar.avatarKey)?.src || '';
+  }
+  return strictAvatarOption(avatar)?.src || '';
 }
 
-export function loadPnlShareAvatarImage(avatarKey, {
+export function loadPnlShareAvatarImage(avatar, {
   ImageCtor = typeof Image === 'function' ? Image : null,
   timeoutMs = DEFAULT_AVATAR_LOAD_TIMEOUT_MS,
+  supabaseUrl = import.meta.env?.VITE_SUPABASE_URL,
 } = {}) {
-  const src = pnlShareAvatarSource(avatarKey);
+  const src = pnlShareAvatarSource(avatar, { supabaseUrl });
+  const fallback = strictAvatarOption(typeof avatar === 'object' ? avatar?.avatarKey : avatar)?.src;
   if (!src) return Promise.reject(new Error('P&L share avatar is not allowlisted'));
   if (typeof ImageCtor !== 'function') return Promise.reject(new Error('Image loading is unavailable'));
 
-  return new Promise((resolve, reject) => {
+  const load = source => new Promise((resolve, reject) => {
     const image = new ImageCtor();
     let settled = false;
     const finish = (callback, value) => {
@@ -52,8 +63,11 @@ export function loadPnlShareAvatarImage(avatarKey, {
     }, Math.max(1000, Number(timeoutMs) || DEFAULT_AVATAR_LOAD_TIMEOUT_MS));
 
     image.decoding = 'async';
+    if (source !== fallback) image.crossOrigin = 'anonymous';
+    image.pnlShareCropScale = source === fallback ? 1.15 : 1;
     image.onload = () => finish(resolve, image);
     image.onerror = () => finish(reject, new Error('P&L share avatar failed to load'));
-    image.src = src;
+    image.src = source;
   });
+  return load(src).catch(error => src !== fallback && fallback ? load(fallback) : Promise.reject(error));
 }

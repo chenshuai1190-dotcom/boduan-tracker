@@ -4,6 +4,19 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '全部功能新增独立复盘页，整合投资心得与复盘日志，保留历史记录，支持补记、分类置顶和私有图片。',
+      '复盘可关联股票，查看历史行情与本人买卖记录，并插入按实际收盘日期保存的市场快照。',
+      '社区资料新增自定义头像上传、裁剪与压缩，同步用于复盘、收益分享和社区比赛。',
+    ],
+    itemsEn: [
+      'All tools adds a dedicated Journal combining investment insights and review logs, with existing records preserved, follow-up notes, category pins, and private images.',
+      'Link stocks to review historical prices and your trades, and attach market snapshots saved with their actual closing dates.',
+      'Community profiles support uploading, cropping, and compressing a custom avatar, shared across the Journal, P&L sharing, and community competition.',
+    ],
+  },
+  {
+    ver: 'v10.7.9.566', date: '2026-11-06',
+    items: [
       '市场月报的总览与每日明细分享图统一为手机长图，按屏幕宽度预览，整月内容完整导出。',
     ],
     itemsEn: [

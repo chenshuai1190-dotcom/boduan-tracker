@@ -36,12 +36,16 @@ test('all tools closes before opening DCA Lab and the entry follows the investme
 test('local DCA preview uses the standard shell and the existing Trades navigation', () => {
   assert.match(preview, /lazy\(\(\) => import\('\.\/dev\/DcaLabPreview\.jsx'\)\)/);
   assert.match(preview, /if \(params\.get\('preview'\) === 'dca-lab'\) return 'dca-lab'/);
-  assert.match(preview, /'portfolio-overlap', 'dca-lab'\]\.includes\(requestedTab\)/);
+  const routeList = preview.match(/return (\[[^\n]+?\])\.includes\(requestedTab\)/)?.[1];
+  assert.ok(routeList, 'preview routes must remain explicitly allowlisted');
+  const routes = [...routeList.matchAll(/'([^']+)'/g)].map(([, route]) => route);
+  for (const route of ['portfolio-overlap', 'dca-lab', 'review-journal']) assert.ok(routes.includes(route), `${route} must be selectable in the local preview`);
   const paddingExpression = preview.match(/paddingTop: (\[[^\n]+\.includes\(activeTab\) \? 0 : [^\n]+),/)?.[1];
   assert.ok(paddingExpression, 'read the actual standalone preview top-padding rule');
   const paddingTop = new Function('activeTab', `return ${paddingExpression};`);
   assert.equal(paddingTop('dca-lab'), 0);
   assert.equal(paddingTop('debt-manager'), 0);
+  assert.equal(paddingTop('review-journal'), 0, 'the independent journal owns its safe-area header');
   assert.equal(paddingTop('trades'), 'calc(1rem + env(safe-area-inset-top))', 'standard Trades still owns its shell padding');
   assert.match(preview, /<DcaLabPreview ctx=\{\{ language, marketColorMode, usdRate: USD_RATE, closeDcaLab: \(\) => \{ setActiveTab\('trades'\); window\.scrollTo\(0, 0\); \} \}\} \/>/);
   assert.ok(preview.includes("(activeTab === 'dca-lab' && tab.id === 'trades')"));

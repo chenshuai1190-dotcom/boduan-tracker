@@ -19,6 +19,9 @@ import {
   UserPlus,
 } from 'lucide-react';
 import StockReportModal from '../components/StockReportModal.jsx';
+import UserAvatar from '../components/UserAvatar.jsx';
+import AvatarCropper from '../components/AvatarCropper.jsx';
+import { validateCommunityAvatarFile } from '../lib/communityAvatarModel.js';
 import './SettingsTab.css';
 import './SettingsDialogs.css';
 import { clearCommunityCompetitionCache } from '../lib/communityCompetitionCache.js';
@@ -111,6 +114,15 @@ function SettingsTab({ ctx }) {
   const [communityDraft, setCommunityDraft] = React.useState({ nickname: '', avatarKey: 'gold' });
   const [communityLoading, setCommunityLoading] = React.useState(Boolean(user?.id));
   const [communitySaving, setCommunitySaving] = React.useState(false);
+  const [customAvatar, setCustomAvatar] = React.useState({ path: null, configured: false, ready: false });
+  const [avatarChoice, setAvatarChoice] = React.useState('current');
+  const [pendingAvatar, setPendingAvatar] = React.useState(null);
+  const [pendingAvatarUrl, setPendingAvatarUrl] = React.useState('');
+  const [avatarCropFile, setAvatarCropFile] = React.useState(null);
+  const avatarInputRef = React.useRef(null);
+  const communitySavingRef = React.useRef(false);
+  const avatarUncertainRef = React.useRef(false);
+  const profileRefreshRef = React.useRef(0);
   const [communityMessage, setCommunityMessage] = React.useState(null);
   const [showCommunityProfile, setShowCommunityProfile] = React.useState(false);
   const [showAccountSwitcher, setShowAccountSwitcher] = React.useState(false);
@@ -128,6 +140,8 @@ function SettingsTab({ ctx }) {
       !communityProfile.profileCompletedAt
       || communityNicknameValidation.nickname !== communityProfile.nickname
       || selectedCommunityAvatar.key !== communityProfile.avatarKey
+      || Boolean(pendingAvatar)
+      || avatarChoice === 'none' && Boolean(customAvatar.path)
     ),
   );
   const communityDisplayName = communityProfile?.nickname || communityNicknameValidation.nickname || t(language, 'settings.communityProfile', '社区资料');
@@ -237,6 +251,25 @@ function SettingsTab({ ctx }) {
   }, [db, language, user?.id]);
 
   React.useEffect(() => {
+    let active = true;
+    setCustomAvatar({ path: null, configured: false, ready: false });
+    if (!user?.id || !db?.fetchCommunityAvatar) { setCustomAvatar({ path: null, configured: false, ready: true }); return undefined; }
+    db.fetchCommunityAvatar(user.id).then(value => { if (active) setCustomAvatar({ ...value, ready: true }); })
+      .catch(() => { if (active) setCustomAvatar(current => ({ ...current, ready: false })); });
+    return () => { active = false; };
+  }, [db, user?.id]);
+  React.useEffect(() => {
+    if (!pendingAvatar) { setPendingAvatarUrl(''); return undefined; }
+    const url = URL.createObjectURL(pendingAvatar); setPendingAvatarUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [pendingAvatar]);
+  const chooseAvatarFile = event => {
+    const file = event.target.files?.[0]; event.target.value = ''; if (!file || communitySavingRef.current) return;
+    try { validateCommunityAvatarFile(file, { source: true }); setAvatarCropFile(file); setCommunityMessage(null); }
+    catch (error) { setCommunityMessage({ type: 'error', text: error.message }); }
+  };
+
+  React.useEffect(() => {
     if (!communityProfileFocusRequest) return undefined;
     setShowCommunityProfile(true);
     setCommunityMessage({
@@ -247,30 +280,33 @@ function SettingsTab({ ctx }) {
   }, [communityProfileFocusRequest, language]);
 
   const saveCommunityProfile = async () => {
-    if (communitySaving || !db?.upsertCommunityProfile) return false;
+    if (communitySavingRef.current || communityLoading || !customAvatar.ready || !db?.upsertCommunityProfile) return false;
     const nicknameResult = validateCommunityNickname(communityDraft.nickname);
-    if (!nicknameResult.valid) {
-      setCommunityMessage({ type: 'error', text: t(language, 'settings.communityNicknameInvalid', '昵称需为 2-16 个字符') });
-      return false;
-    }
-    setCommunitySaving(true);
-    setCommunityMessage(null);
+    if (!nicknameResult.valid) { setCommunityMessage({ type: 'error', text: t(language, 'settings.communityNicknameInvalid', '昵称需为 2-16 个字符') }); return false; }
+    if (avatarUncertainRef.current) { setCommunityMessage({ type: 'error', text: currentLanguage === 'en' ? 'Reopen your profile to confirm the previous avatar save.' : '请重新打开资料，确认上次头像保存结果。' }); return false; }
+    communitySavingRef.current = true; setCommunitySaving(true); setCommunityMessage(null);
+    let uploadedPath = null, committed = false;
     try {
-      const next = await db.upsertCommunityProfile({
-        nickname: nicknameResult.nickname,
-        avatarKey: selectedCommunityAvatar.key,
-      }, user);
-      await clearCommunityCompetitionCache(user?.id);
-      setCommunityProfile(next);
-      setCommunityDraft({ nickname: next.nickname, avatarKey: next.avatarKey });
-      setCommunityMessage({ type: 'success', text: t(language, 'settings.communitySaved', '社区资料已保存') });
-      return true;
+      const profile = { nickname: nicknameResult.nickname, avatarKey: selectedCommunityAvatar.key };
+      let next, nextPath = customAvatar.path;
+      if (pendingAvatar || avatarChoice === 'none' && customAvatar.path) {
+        if (!customAvatar.ready || !customAvatar.configured || !db.saveCommunityAvatarProfile || !db.uploadCommunityAvatar) throw new Error(currentLanguage === 'en' ? 'Custom avatar storage is not ready.' : '自定义头像存储尚未配置，请稍后重试。');
+        if (pendingAvatar) { uploadedPath = (await db.uploadCommunityAvatar(pendingAvatar, user.id)).path; nextPath = uploadedPath; }
+        else nextPath = null;
+        next = await db.saveCommunityAvatarProfile({ ...profile, avatarPath: nextPath, expectedAvatarPath: customAvatar.path }, user.id);
+      } else next = await db.upsertCommunityProfile(profile, user);
+      committed = true;
+      setCommunityProfile(next); setCommunityDraft({ nickname: next.nickname, avatarKey: next.avatarKey });
+      setCustomAvatar(current => ({ ...current, path: nextPath, url: next.avatarPreviewUrl || '' })); setPendingAvatar(null); setAvatarChoice('current');
+      // A cache/old-object cleanup failure must not undo a confirmed profile save.
+      await clearCommunityCompetitionCache(user?.id).catch(() => {});
+      if (customAvatar.path && customAvatar.path !== nextPath) await db.removeCommunityAvatarImage(customAvatar.path, user.id).catch(() => {});
+      setCommunityMessage({ type: 'success', text: t(language, 'settings.communitySaved', '社区资料已保存') }); return true;
     } catch (error) {
-      setCommunityMessage({ type: 'error', text: error?.message || t(language, 'settings.communitySaveFailed', '社区资料保存失败') });
-      return false;
-    } finally {
-      setCommunitySaving(false);
-    }
+      if (error?.avatarWriteUncertain || error?.code === 'AVATAR_CONFLICT') avatarUncertainRef.current = true;
+      if (uploadedPath && !committed && !error?.avatarWriteUncertain) await db.removeCommunityAvatarImage(uploadedPath, user.id).catch(() => {});
+      setCommunityMessage({ type: 'error', text: error?.message || t(language, 'settings.communitySaveFailed', '社区资料保存失败') }); return false;
+    } finally { communitySavingRef.current = false; setCommunitySaving(false); }
   };
 
   const toggleSection = (id) => {
@@ -279,7 +315,8 @@ function SettingsTab({ ctx }) {
   };
 
   const closeCommunityProfile = () => {
-    if (communitySaving) return;
+    if (communitySavingRef.current) return;
+    setPendingAvatar(null); setAvatarChoice('current'); setAvatarCropFile(null);
     setShowCommunityProfile(false);
     setCommunityMessage(null);
     if (communityProfile) {
@@ -485,22 +522,30 @@ function SettingsTab({ ctx }) {
           <p className={`mt-2 text-[11px] ${communityNicknameValidation.valid || !communityDraft.nickname ? 'text-white/40' : 'text-rose-300'}`}>
             {t(language, 'settings.communityNicknameRule', '2-16 个字符，用于排行榜公开展示')}
           </p>
+          <div className="settings-custom-avatar" data-custom-avatar-upload="true">
+            {pendingAvatarUrl ? <img src={pendingAvatarUrl} alt="" /> : <UserAvatar userId={user?.id} avatarKey={selectedCommunityAvatar.key} avatarPath={avatarChoice === 'none' ? null : customAvatar.path} previewUrl={avatarChoice === 'none' ? undefined : customAvatar.url} />}
+            <div><strong>{currentLanguage === 'en' ? 'Custom avatar' : '自定义头像'}</strong><small>{currentLanguage === 'en' ? 'Choose a photo, then crop' : '选择照片并调整裁剪'}</small></div>
+            <input hidden type="file" ref={avatarInputRef} accept="image/jpeg,image/png,image/webp" onChange={chooseAvatarFile}/>
+            <button type="button" disabled={communityLoading || communitySaving || !customAvatar.ready || !customAvatar.configured} onClick={() => avatarInputRef.current?.click()}>{currentLanguage === 'en' ? 'Upload' : '上传'}</button>
+          </div>
+          {customAvatar.ready && !customAvatar.configured && <p className="text-[11px] text-white/40">{currentLanguage === 'en' ? 'Custom avatars are temporarily unavailable; presets remain available.' : '自定义头像暂不可用，仍可选择下方默认头像。'}</p>}
           <div className="mb-2.5 mt-4 flex items-center justify-between">
             <p className="text-[11px] text-white/38">{t(language, 'settings.communityAvatar', '默认头像')}</p>
             {communityLoading && <Loader2 className="h-3.5 w-3.5 animate-spin text-white/35" />}
           </div>
           <div className="grid grid-cols-6 gap-2">
             {COMMUNITY_AVATAR_OPTIONS.map((avatar) => {
-              const active = selectedCommunityAvatar.key === avatar.key;
+              const active = selectedCommunityAvatar.key === avatar.key && !pendingAvatar && (avatarChoice === 'none' || !customAvatar.path);
               return (
                 <button
                   key={avatar.key}
                   type="button"
                   onClick={() => {
                     setCommunityDraft((current) => ({ ...current, avatarKey: avatar.key }));
+                    setAvatarChoice('none'); setPendingAvatar(null);
                     setCommunityMessage(null);
                   }}
-                  disabled={communityLoading || communitySaving}
+                  disabled={communityLoading || communitySaving || !customAvatar.ready}
                   aria-label={currentLanguage === 'en' ? avatar.labelEn : avatar.labelZh}
                   className="settings-report-avatar-option"
                   aria-pressed={active}
@@ -618,7 +663,25 @@ function SettingsTab({ ctx }) {
           type="button"
           onClick={() => {
             setCommunityMessage(null);
+            setAvatarChoice('current'); setPendingAvatar(null);
             setShowCommunityProfile(true);
+            // Re-open always refreshes the compare-and-swap base, including an
+            // avatar changed on another device or an uncertain previous save.
+            const request = ++profileRefreshRef.current;
+            setCommunityLoading(true);
+            setCustomAvatar(current => ({ ...current, ready: false }));
+            Promise.all([
+              db.fetchCommunityProfile(user),
+              db.fetchCommunityAvatar ? db.fetchCommunityAvatar(user.id, { force: true }) : { path: null, configured: false },
+            ]).then(([profile, avatar]) => {
+              if (request !== profileRefreshRef.current) return;
+              setCommunityProfile(profile);
+              setCommunityDraft({ nickname: profile?.nickname || '', avatarKey: profile?.avatarKey || 'gold' });
+              setCustomAvatar({ ...avatar, ready: true });
+              avatarUncertainRef.current = false;
+            }).catch(error => {
+              if (request === profileRefreshRef.current) setCommunityMessage({ type: 'error', text: error?.message || '资料加载失败，请重新打开重试。' });
+            }).finally(() => { if (request === profileRefreshRef.current) setCommunityLoading(false); });
           }}
           aria-label={t(language, 'settings.editCommunityProfile', '编辑社区资料')}
           className="settings-report-identity"
@@ -627,7 +690,7 @@ function SettingsTab({ ctx }) {
             <span className="settings-report-avatar-image">
               {communityHydrating
                 ? <Loader2 className="h-5 w-5 animate-spin text-white/22" />
-                : <img src={selectedCommunityAvatar.src} alt="" className={`h-full w-full object-cover ${communityAvatarImageClass(selectedCommunityAvatar.key)}`} draggable={false} />}
+                : <UserAvatar userId={user?.id} avatarKey={communityProfile?.avatarKey || selectedCommunityAvatar.key} avatarPath={customAvatar.ready ? customAvatar.path : undefined} previewUrl={customAvatar.url} className="h-full w-full object-cover" />}
             </span>
             {!communityHydrating && (
               <span className="settings-report-avatar-edit">
@@ -747,7 +810,7 @@ function SettingsTab({ ctx }) {
               label: communitySaving
                 ? t(language, 'settings.communitySaving', '保存中...')
                 : t(language, 'common.save', '保存'),
-              disabled: communityLoading || communitySaving || !communityNicknameValidation.valid || !communityDirty,
+              disabled: communityLoading || communitySaving || !customAvatar.ready || !communityNicknameValidation.valid || !communityDirty,
               onClick: async () => {
                 const saved = await saveCommunityProfile();
                 if (saved) {
@@ -761,6 +824,8 @@ function SettingsTab({ ctx }) {
           {renderExpandedPanel('community')}
         </StockReportModal>
       )}
+
+      {avatarCropFile && <AvatarCropper file={avatarCropFile} language={language} onClose={() => setAvatarCropFile(null)} onConfirm={blob => { setPendingAvatar(blob); setAvatarChoice('upload'); setAvatarCropFile(null); }} />}
 
       {showAccountSwitcher && (
         <StockReportModal

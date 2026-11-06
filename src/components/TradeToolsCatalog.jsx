@@ -40,7 +40,7 @@ const STOCK_COMPARISON_TOOL = {
   id: 'stock-comparison', titleKey: 'trades.stockComparison', descriptionKey: 'trades.stockComparisonDescription', icon: TrendingUp,
 };
 
-export default function TradeToolsCatalog({ language = 'zh', onSelect, enableDebtManager = false, enableStockComparison = false }) {
+export default function TradeToolsCatalog({ language = 'zh', onSelect, enableDebtManager = false, enableStockComparison = false, enableReviewJournal = false }) {
   const headingId = React.useId();
   const groups = enableDebtManager ? [...TOOL_GROUPS, PERSONAL_TOOL_GROUP] : TOOL_GROUPS;
   return <div className="trade-tools-catalog">
@@ -49,6 +49,7 @@ export default function TradeToolsCatalog({ language = 'zh', onSelect, enableDeb
       const visibleTools = group.tools.flatMap(tool => enableStockComparison && tool.id === 'portfolio-overlap'
         ? [tool, STOCK_COMPARISON_TOOL]
         : [tool]);
+      if (group.id === 'review' && enableReviewJournal) visibleTools.unshift({ id: 'review-journal', titleKey: 'trades.reviewJournal', descriptionKey: 'trades.reviewJournalDescription', icon: BookOpen });
       return <section key={group.id} className="trade-tools-group" aria-labelledby={`${headingId}-${group.id}`}>
         <h3 id={`${headingId}-${group.id}`} className="trade-tools-category"><GroupIcon size={14} strokeWidth={1.7} aria-hidden="true" />{t(language, group.titleKey)}</h3>
         <div className="trade-tools-items">
@@ -56,7 +57,7 @@ export default function TradeToolsCatalog({ language = 'zh', onSelect, enableDeb
             const Icon = tool.icon;
             return <button key={tool.id} type="button" data-tool-id={tool.id} className="trade-tool-card" onClick={() => onSelect(tool.id)}>
               <span className="trade-tool-icon"><Icon size={21} strokeWidth={1.7} aria-hidden="true" /></span>
-              <span className="trade-tool-copy"><span className="trade-tool-title">{t(language, tool.titleKey)}</span><span className="trade-tool-description">{t(language, tool.descriptionKey)}</span></span>
+              <span className="trade-tool-copy"><span className="trade-tool-title">{tool.id === 'review-journal' ? (language === 'en' ? 'Journal' : '复盘') : t(language, tool.titleKey)}</span><span className="trade-tool-description">{tool.id === 'review-journal' ? (language === 'en' ? 'Ideas, reflections and trading context' : '投资心得与复盘日志，记录每一次思考') : t(language, tool.descriptionKey)}</span></span>
               <ChevronRight className="trade-tool-chevron" size={15} strokeWidth={1.7} aria-hidden="true" />
             </button>;
           })}

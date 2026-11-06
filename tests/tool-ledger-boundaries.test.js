@@ -516,7 +516,7 @@ test('community competition is an isolated authenticated close-snapshot utility'
   assert.ok(communityCompetitionPageSource.includes('commitExpectedPublication: true') && communityCompetitionPageSource.includes('await commitCommunityCompetitionCache({'), 'status publication commits should use the monotonic cache writer without clearing other periods');
   assert.ok(communityCompetitionServerSource.includes('!leaderboard.benchmarkComplete || !leaderboard.self') && communityCompetitionServerSource.includes('error.retryable = true'), 'a marker must not make a personal-period leaderboard with incomplete QQQ closes cacheable as ready');
   assert.equal(communityCompetitionCacheSource.includes('stock_trades'), false, 'the browser snapshot cache must remain isolated from the formal trade ledger');
-  assert.ok(settingsTabSource.includes('clearCommunityCompetitionCache(user?.id);'), 'saving a new community nickname or avatar should invalidate cached ranking identity');
+  assert.ok(settingsTabSource.includes('await clearCommunityCompetitionCache(user?.id).catch(() => {})'), 'saving a new community nickname or avatar should invalidate cached ranking identity');
   assert.ok(devVisualPreviewSource.includes("'community-competition'"), 'local visual preview should support direct community competition smoke checks');
   assert.ok(devVisualPreviewSource.includes('<CommunityCompetitionPage ctx={tradesCtx} />'), 'local visual preview should render the production component');
   assert.ok(devVisualPreviewSource.includes('buildCommunityCompetitionPreview'), 'local visual preview should keep fixtures outside the production page');
@@ -568,7 +568,7 @@ test('earnings detail and growth reuse the authenticated earnings calendar funct
   assert.ok(earningsGrowthServerSource.includes('export async function fetchSecFinancialHistory'), 'growth reads should stay in the SEC history server boundary');
 });
 
-test('community profile settings use a dedicated public identity table without storage uploads', () => {
+test('community profile settings retain preset identity and delegate custom avatar uploads to an owner-scoped repository', () => {
   const tableBlock = communityProfilesSqlSource.match(/create table if not exists public\.community_profiles[\s\S]*?\n\);/)?.[0] || '';
   const aggregateTableBlock = rlsSource.match(/create table if not exists public\.community_profiles[\s\S]*?\n\);/)?.[0] || '';
   assert.ok(tableBlock);
@@ -624,7 +624,7 @@ test('community profile settings use a dedicated public identity table without s
   assert.ok(appSource.includes('const settingsTabCtx = useMemo(() => ({') && appSource.includes('db,'), 'settings context should receive db methods');
   assert.ok(settingsTabSource.includes("t(language, 'settings.communityProfile', '社区资料')"));
   assert.ok(settingsTabSource.includes('db.fetchCommunityProfile(user)'));
-  assert.ok(settingsTabSource.includes('db.upsertCommunityProfile({'));
+  assert.ok(settingsTabSource.includes('db.upsertCommunityProfile(profile, user)') && settingsTabSource.includes('db.saveCommunityAvatarProfile({ ...profile, avatarPath: nextPath, expectedAvatarPath: customAvatar.path }, user.id)'));
   assert.ok(settingsTabSource.includes('COMMUNITY_AVATAR_OPTIONS.map'), 'settings page should render the preset avatar picker');
   assert.ok(settingsTabSource.includes('className="settings-report-avatar-image"'), 'the avatar image should keep its independent crop inside the settings-only outer frame');
   assert.ok(settingsTabSource.includes('settings-report-avatar-option') && settingsTabSource.includes('aria-pressed={active}'), 'community avatar selection should expose the actual selected option');
@@ -632,11 +632,12 @@ test('community profile settings use a dedicated public identity table without s
   assert.ok(settingsTabSource.includes("return 'scale-[1.15]'"), 'the replacement community avatar set should crop past the source white edge');
   assert.ok(settingsTabSource.includes('className="settings-report-avatar"'), 'the settings identity avatar should retain its dedicated scoped frame');
   assert.match(settingsTabCss, /\.settings-report-avatar\s*\{[^}]*width:\s*95px;[^}]*height:\s*95px;/, 'the settings identity avatar should preserve the approved 95px size');
-  assert.ok(communityCompetitionPageSource.includes('scale-[1.15]'), 'the competition avatar crop should remain unchanged by the settings-only outer frame');
-  assert.equal(settingsTabSource.includes('supabase.storage'), false, 'settings page should not upload avatars in this release');
+  assert.match(communityCompetitionPageCss, /img:not\(\[data-custom-avatar=true\]\)[^}]*transform:scale\(1\.15\)/, 'community preset avatars should keep their crop while custom photos preserve the user crop');
+  assert.equal(settingsTabSource.includes('supabase.storage'), false, 'settings must delegate storage to the authenticated avatar repository');
+  assert.ok(settingsTabSource.includes('await db.uploadCommunityAvatar(pendingAvatar, user.id)') && settingsTabSource.includes('!customAvatar.ready'), 'custom uploads must wait for owner metadata and the explicit profile save');
   assert.ok(devVisualPreviewSource.includes('fetchCommunityProfile: async () => {'), 'local visual preview should mock community profile reads');
   assert.ok(devVisualPreviewSource.includes("get('communityProfileDelay') === '1'"), 'local visual preview should expose a delayed profile path for hydration smoke');
-  assert.ok(devVisualPreviewSource.includes('upsertCommunityProfile: async (profile) => ({'), 'local visual preview should mock community profile writes');
+  assert.ok(devVisualPreviewSource.includes('upsertCommunityProfile: async (profile) => {'), 'local visual preview should mock community profile writes');
   assert.ok(i18nSource.includes("'settings.communityProfile': '社区资料'"));
   assert.ok(i18nSource.includes("'settings.communityProfile': 'Community Profile'"));
 });
@@ -2063,7 +2064,7 @@ test('production settings redesign connects isolated account memory without ledg
   assert.ok(appSource.includes('marketColorMode,') && appSource.includes('setMarketColorMode,'), 'settings context should receive the existing market color state and setter');
   assert.ok(tradesTabSource.includes('Settings2') && tradesTabSource.includes('setMarketColorMode(option.id)'), 'trade positions should retain their existing market color menu');
   assert.ok(settingsTabSource.includes('setMarketColorMode?.(option.id)') && tradesTabSource.includes('setMarketColorMode(option.id)'), 'settings and trades should control the same market color state');
-  assert.ok(settingsTabSource.includes('db.fetchCommunityProfile(user)') && settingsTabSource.includes('db.upsertCommunityProfile({'), 'community identity should keep the real database path');
+  assert.ok(settingsTabSource.includes('db.fetchCommunityProfile(user)') && settingsTabSource.includes('db.upsertCommunityProfile(profile, user)') && settingsTabSource.includes('db.saveCommunityAvatarProfile({ ...profile, avatarPath: nextPath, expectedAvatarPath: customAvatar.path }, user.id)'), 'community identity should keep the real database path');
   assert.ok(settingsTabSource.includes('if (!communityProfileFocusRequest) return undefined;') && settingsTabSource.includes('setShowCommunityProfile(true);'), 'competition profile-required routing should open the same real community modal');
   assert.ok(settingsTabSource.includes("fetch('/api/invite-codes'"), 'invite accordion should keep the authenticated invite API');
   assert.ok(settingsTabSource.includes('supabase.auth.updateUser({ password: newPwd })'), 'account accordion should keep the real password update path');
@@ -2072,7 +2073,7 @@ test('production settings redesign connects isolated account memory without ledg
   assert.equal(settingsTabSource.includes('localStorage.setItem'), false, 'session persistence should stay outside the settings view');
   assert.equal(settingsTabSource.includes('<h1'), false, 'settings should not repeat a page title above the community identity card');
   assert.ok(settingsTabSource.includes('React.useState(Boolean(user?.id))') && settingsTabSource.includes('communityHydrating'), 'community identity should render a neutral hydration state before the real profile arrives');
-  assert.ok(settingsTabSource.includes("communityAvatarImageClass(selectedCommunityAvatar.key)"), 'the top identity avatar should use the per-avatar crop rule');
+  assert.ok(settingsTabSource.includes("<UserAvatar userId={user?.id}") && settingsTabSource.includes("communityAvatarImageClass(avatar.key)"), 'the identity avatar should share the authenticated custom-or-preset renderer while the preset picker keeps its crop rule');
   assert.ok(accountSessionVaultSource.includes('MAX_REMEMBERED_ACCOUNTS = 5') && accountSessionVaultSource.includes('refreshToken'), 'account session vault should stay bounded and retain refresh capability');
   assert.ok(supabaseClientSource.includes("signOut({ scope: 'local' })") && supabaseClientSource.includes('auth.setSession({'), 'account auth should use local sign-out and Supabase session switching');
   assert.ok(authGateSource.includes('key={authState.user.id}') && appSource.includes('userScopedStorageKey'), 'account changes should remount app state and scope local tools by user');
@@ -2595,8 +2596,9 @@ test('review target page uses a flat dark report and preserves click action moda
     'home-margin-risk', 'drawdown-observation', 'stock-detail', 'stock-pnl-report',
     'debt-manager', 'watchlist-stock-detail', 'wave-tracker', 'community-competition',
     'vix-comparison', 'vix-monthly-report', 'fear-greed', 'stock-decision', 'investment-comparison', 'stock-comparison', 'macro',
-    'portfolio-overlap', 'dca-lab',
-  ], 'local visual preview should support existing routes and the isolated monthly market and stock comparison designs');
+    'portfolio-overlap', 'review-journal', 'dca-lab',
+  ], 'local visual preview should support existing routes and the isolated monthly market, stock comparison and review journal designs');
+  assert.match(appSource, /<ReviewJournalPage key=\{user\?\.id \|\| ''\}/, 'journal page state must remount for each account');
   assert.ok(authGateSource.includes("get('devPreview') === '1'"), 'local visual preview should be force-openable for screenshot QA even when Supabase env is present');
   assert.ok(devVisualPreviewSource.includes("const HomeTab = lazy(() => import('./tabs/HomeTab.jsx'))"), 'local visual preview should be able to render the home page mock');
   assert.ok(devVisualPreviewSource.includes("const TradesTab = lazy(() => import('./tabs/TradesTab.jsx'))"), 'local visual preview should be able to render the trades page mock');

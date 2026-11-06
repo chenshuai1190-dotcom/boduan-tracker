@@ -51,6 +51,7 @@ const VixComparisonPage = lazy(() => import('./pages/VixComparisonPage.jsx'));
 const FearGreedPage = lazy(() => import('./pages/FearGreedPage.jsx'));
 const InvestmentComparisonPage = lazy(() => import('./pages/InvestmentComparisonPage.jsx'));
 const StockComparisonPage = lazy(() => import('./pages/StockComparisonPage.jsx'));
+const ReviewJournalPage = lazy(() => import('./pages/ReviewJournalPage.jsx'));
 const PortfolioOverlapPage = lazy(() => import('./pages/PortfolioOverlapPage.jsx'));
 const DcaLabPage = lazy(() => import('./pages/DcaLabPage.jsx'));
 const StockDecisionPage = lazy(() => import('./pages/StockDecisionPage.jsx'));
@@ -4854,6 +4855,8 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     setActiveTab('trades');
     setActivePage(null);
   }, []);
+  const openReviewJournal = useCallback(() => { setActivePage('review-journal'); }, []);
+  const closeReviewJournal = useCallback(() => { setActivePage(null); }, []);
   const openPortfolioOverlap = useCallback(() => {
     setActiveTab('trades');
     setActivePage('portfolio-overlap');
@@ -5102,14 +5105,15 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   const isFearGreedPage = activePage === 'fear-greed';
   const isInvestmentComparisonPage = activePage === 'investment-comparison';
   const isStockComparisonPage = activePage === 'stock-comparison';
+  const isReviewJournalPage = activePage === 'review-journal';
   const isPortfolioOverlapPage = activePage === 'portfolio-overlap';
   const isDcaLabPage = activePage === 'dca-lab';
   const isStockDecisionPage = activePage === 'stock-decision';
   const isMacroPage = activePage === 'macro';
   const isDebtManagerPage = activePage === 'debt-manager';
-  const isStandalonePage = isPnlReportPage || isPnlSharePage || isHomeMarginRiskPage || isDrawdownObservationPage || isStockDetailPage || isStockPnlReportPage || isWatchlistStockDetailPage || isWaveTrackerPage || isCommunityCompetitionPage || isEarningsCalendarPage || isEarningsDetailPage || isInvestmentComparisonPage || isStockComparisonPage || isPortfolioOverlapPage || isDcaLabPage || isStockDecisionPage || isVixComparisonPage || isFearGreedPage || isMacroPage || isDebtManagerPage;
-  const isFullBleedPage = isPnlSharePage || isCommunityCompetitionPage || isEarningsCalendarPage || isEarningsDetailPage || isPnlReportPage || isStockPnlReportPage || isDebtManagerPage;
-  const hideBottomNavigation = isPnlReportPage || isPnlSharePage || isStockPnlReportPage || isDebtManagerPage;
+  const isStandalonePage = isReviewJournalPage || isPnlReportPage || isPnlSharePage || isHomeMarginRiskPage || isDrawdownObservationPage || isStockDetailPage || isStockPnlReportPage || isWatchlistStockDetailPage || isWaveTrackerPage || isCommunityCompetitionPage || isEarningsCalendarPage || isEarningsDetailPage || isInvestmentComparisonPage || isStockComparisonPage || isPortfolioOverlapPage || isDcaLabPage || isStockDecisionPage || isVixComparisonPage || isFearGreedPage || isMacroPage || isDebtManagerPage;
+  const isFullBleedPage = isReviewJournalPage || isPnlSharePage || isCommunityCompetitionPage || isEarningsCalendarPage || isEarningsDetailPage || isPnlReportPage || isStockPnlReportPage || isDebtManagerPage;
+  const hideBottomNavigation = isReviewJournalPage || isPnlReportPage || isPnlSharePage || isStockPnlReportPage || isDebtManagerPage;
   const ActiveTab = TAB_COMPONENTS[activeTab] || HomeTab;
   const settingsTabCtx = useMemo(() => ({
     accountManager,
@@ -5305,6 +5309,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     closeInvestmentComparison,
     openStockComparison,
     openPortfolioOverlap,
+    openReviewJournal,
     openDcaLab,
     openStockDecision,
     openMacro,
@@ -5616,6 +5621,8 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
                 ? <InvestmentComparisonPage ctx={{ userId: user?.id || '', language, marketColorMode, usdRate, closeInvestmentComparison }} />
               : isStockComparisonPage
                 ? <StockComparisonPage key={user?.id || ''} ctx={{ userId: user?.id || '', language, marketColorMode, onBack: closeStockComparison }} />
+              : isReviewJournalPage
+                ? <ReviewJournalPage key={user?.id || ''} ctx={{ db, userId: user?.id || '', language, disciplines, reviewLogs, setDisciplines, setReviewLogs, stockTrades, onBack: closeReviewJournal }} />
               : isPortfolioOverlapPage
                 ? <PortfolioOverlapPage key={user?.id || ''} ctx={{ userId: user?.id || '', language, investmentSummary, portfolioReady: stockHoldingsReady, portfolioError: stockHoldingsError, closePortfolioOverlap }} />
               : isDcaLabPage

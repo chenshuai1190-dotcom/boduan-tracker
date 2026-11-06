@@ -104,7 +104,7 @@ function drawPnlShareIdentity(context, nickname, avatarImage) {
   const sourceWidth = Number(avatarImage?.naturalWidth || avatarImage?.width || avatarSize);
   const sourceHeight = Number(avatarImage?.naturalHeight || avatarImage?.height || avatarSize);
   const sourceSize = Math.max(1, Math.min(sourceWidth, sourceHeight));
-  const cropSize = sourceSize / 1.15;
+  const cropSize = sourceSize / (avatarImage?.pnlShareCropScale === 1 ? 1 : 1.15);
   const sourceX = Math.max(0, (sourceWidth - cropSize) / 2);
   const sourceY = Math.max(0, (sourceHeight - cropSize) / 2);
 

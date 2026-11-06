@@ -129,7 +129,7 @@ export default function PnlSharePage({
     if (!identitySnapshot?.avatarKey) return () => { cancelled = true; };
     setAvatarImage(null);
     setAvatarFailure(false);
-    loadPnlShareAvatarImage(identitySnapshot.avatarKey)
+    loadPnlShareAvatarImage(identitySnapshot)
       .then((image) => {
         if (!cancelled) setAvatarImage(image);
       })
@@ -137,7 +137,7 @@ export default function PnlSharePage({
         if (!cancelled) setAvatarFailure(true);
       });
     return () => { cancelled = true; };
-  }, [identitySnapshot?.avatarKey]);
+  }, [identitySnapshot]);
 
   const selectedDefinition = SHARE_METRICS.find(metric => metric.id === selectedMetric) || SHARE_METRICS[0];
   const unavailableText = tt('pnlShare.unavailable', '暂无可用数据');
@@ -187,6 +187,7 @@ export default function PnlSharePage({
     percentTone,
     identitySnapshot?.nickname || '',
     identitySnapshot?.avatarKey || '',
+    identitySnapshot?.avatarPath || '',
     fileName,
   ].join('\u0000');
 

@@ -1,37 +1,29 @@
 # boduan-tracker 当前交接
 
-验证时间：`2026-09-10 Asia/Shanghai`；股票趋势观察报告 v503 已完成精确提交的发布验证，线上版本与页面产物核对通过。本轮未触发 Cron、读取生产私有数据或改写数据库；下文 v502 财报修复和 v501 任务记录均为历史证据，自然每日 Cron 未新增观察。
-
-本文件只保存当前基准、关键风险和下一步。稳定规则看 `README.md`，流程看 `docs/development-process.md`。
+验证时间：`2026-11-06 Asia/Shanghai`。本次用户已授权复盘独立页、私有图片及自定义头像发布；下面明确区分已验证生产状态与待发布代码。稳定规则看 `README.md`，流程看 `docs/development-process.md`。
 
 ## 当前生产基准
 
 | 项目 | 当前值 |
 | --- | --- |
-| 仓库 | `chenshuai1190-dotcom/boduan-tracker` |
-| 生产地址 | `https://boduan-tracker.vercel.app` |
-| 分支与唯一工作区 | `main`；`/Users/chenshuaishuai/Documents/Codex/2026-07-24/boduan-tracker-boduan-tracker-chenshuai1190-dotcom/work/repo` |
-| 当前生产源码 | `c36ae49edf9b04c432bd6f0faee35cd1a17ff217 / v10.7.9.503`，发布日期 `2026-09-10` |
-| 当前生产 deployment | `3twDckKNTJjmJQUD3KnEQRYkpD7d`；[Vercel 精确部署](https://vercel.com/chenshuai1190-7580s-projects/boduan-tracker/3twDckKNTJjmJQUD3KnEQRYkpD7d)；未改服务端环境配置 |
-| 生产静态入口 | `/assets/index-DE9i2bp2.js`；版本模块 `/assets/releaseMeta-DqU3aFYY.js` 已读取并确认 v503；股票趋势产物 `/assets/WatchlistStockDetailPage-BEiAN6zC.js` 与本地构建 SHA-256 一致 |
-| 本次数据库 | 无 migration、backfill 或人工生产写入；沿用已应用的 `supabase/sec_earnings_auto_coverage_20260909.sql`；现金、波段、正式交易、个人收益和比赛 schema/账本未改 |
-| 首轮已修问题 | `2026-09-10T03:09:52Z`（北京时间 `11:09:52`）旧 runtime 的预算耗尽误报 `503`；当轮已保存 `complete 5 / partial 11` 份公开结果。该状态问题已由当前 forward-fix 修复 |
-| 本次修复与验收 | 股票趋势整页采用黑灰报告风格，走势图加高加宽，300px 上限浮层保持标签与数字同排，均线与历史统计可展开；FAST、CI、Vercel 与线上静态产物核验通过；沿用真实行情、已完成收盘、持仓和目标保存链路 |
-| 数据库回查边界 | 本轮未重查任务池。v501 历史验收为 `19` 个任务已记录状态、缓存累计 `29` 份；这些不是当前实时计数或全部自选覆盖率 |
+| 仓库 | `chenshuai1190-dotcom/boduan-tracker`；唯一发布来源 `main` |
+| 当前工作区 | `/Users/chenshuaishuai/Documents/Codex/2026-10-03/quote-boduan-tracker-2026-10-03/work/quiet-input-fields` |
+| 发布前生产源码 | `f767da789975defa24946f13e5e6b0159770af76 / v10.7.9.566`；本轮已 fetch 并确认 HEAD 与 origin/main 一致 |
+| 发布前部署 | `dpl_8b2DyghnTCMX9ZZ9K69EQMJscDvA`，Vercel project 返回 READY；`https://boduan-tracker.vercel.app` |
+| 本次候选版本 | `v10.7.9.567 / 2026-11-06`：复盘独立页、本人买卖节点与市场快照、私有图片、自定义头像 |
+| 已生效云端配置 | `supabase/review-journal.sql`、`supabase/community-profile-avatar.sql` 已获授权执行；仅增加复盘 metadata/CAS 与头像路径、两私有 bucket 和本人目录策略 |
+| 生产 Checks | 已只读查询 Vercel 项目 Checks：配置列表为空；仓库 audit/build 保留，本次必须通过精确提交 CI + Docs + Vercel 等待器，不宣称平台已配置 CI 阻断晋级 |
 
-## 本次门禁与验收边界
+## 本次证据与边界
 
-- v503 最终 `npm run check:fast`：`57 / 57` 定向 tests PASS，build、字号和 whitespace PASS；单次 `release:verify -- fast c36ae49edf9b04c432bd6f0faee35cd1a17ff217` 确认 CI / Vercel 成功。线上入口 → App → 股票趋势/版本模块关系、版本 v503 和页面文件哈希核对通过；本轮未请求行情/财报 API。
-- 本地 iPhone 17 Pro Simulator 已核对首屏、均线/估值区和 320px 预览浮层，原生 PNG 为 `1206×2622`；这是布局证据，不是完整手势或生产登录态验收。自动触控连接不可用，未宣称已完成多指交互回归。演示 fixture 仅由 `import.meta.env.DEV` 分支注入，正式 App 不传 override；本次不改变全局滚动、底栏、PWA 或数据请求策略。
-- v502 最终 `npm run check:full`：`1731 / 1731` tests PASS，build、字号、文档和 whitespace PASS。精确提交 `fdc4b07ee6c17e14b08771a63762d212d74bd121` 的单次 `release:verify -- full` PASS（CI + Docs + Vercel）；一次静态版本核验 v502、一次未登录财报详情 `401` PASS。
-- 四家公司真实 SEC 夹具经过选文 → 解析 → 客户端归一化 → worker 序列化 → 共享缓存选择：LLY Q2 产品 `11` / 地区 `5`，HOOD Q2 收入 `3`，AVGO Q3 分部 `2`，ARM FY2027 Q1 收入 `2`。缺失同比置 null，不覆盖 GAAP/non-GAAP EPS；仅证明这些已验证文件和格式，不承诺所有财期。
-- 本地 PostgreSQL 18.3 / PGlite 0.5.8：`12` 组通过，涵盖迁移、权限、重复注册、租约 CAS/过期、交错唤醒、结果保留、新申报旧缓存失效和真实解析器 → worker → SQL → selector 链路。单连接确定性交错不等同于多连接压力测试或生产验收。
-- 生产 foundation 已应用，三表和四函数的权限聚合核验 PASS；`npm run verify:rls:rest` PASS。只汇报聚合结论，不输出用户、自选成员、持仓金额、交易或密钥。
-- 首轮旧 runtime 已证明 SEC 公开结果可落库，但当时 HTTP `503` 不能改写成整轮成功；`complete 5 / partial 11` 是当时已存结果份数，不代表公司覆盖率。当时唯一 `1` 个 error 为 `worker-time-budget`，其余为 complete/partial/pending/unavailable，租约均已过期、没有卡死；预算状态问题已修。
-- v501 runtime 的历史生产任务验收：`2026-09-10T03:23:35.611Z`，HTTP `200`、`29.17 秒`，请求 `p6dt7-1789010615611-e8d9bc826c11`，Production/main，`vercel-cron/1.0`，deployment `dpl_GkKfCcknxSsrSkm9AV3F9Xor5NTP`。这不是 v502 再次运行任务的证据，不填写未取得的响应聚合数字。
-- 最终只读数据库聚合以 `2026-09-10T03:20:00Z` 为本轮边界：`19` 个任务状态已记录，complete `1` / partial `10` / pending `4` / unavailable `4`，没有本轮新 error。当前缓存累计 `29` 份：complete `7` / partial `22`；写入/刷新记录不能当成净新增或公司数。首轮历史 `worker-time-budget` error 可能尚未重试，不能据此宣称全表 error 为 `0`。
-- 公开 AAPL 抽查：官方财期 `2026-06-27`、accession `0000320193-26-000020`、状态 partial，报告分部 `5` 项与同份公司总营收完全勾稽 PASS；[对应 SEC 官方主文档](https://www.sec.gov/Archives/edgar/data/320193/000032019326000020/aapl-20260627.htm)。这只验证该份公开报表，不代表全部公司/全部区块完整。
-- 每日自然 Cron 尚未观察到；上述单次是受保护主动触发，虽由 Vercel Cron 执行，也不等同于自然到时调度验收。
+- 真实登录的本地应用已完成图片上传、保存、刷新回读及私有签名图预览；头像裁剪为 512×512，保存刷新并验证复盘头像同步。用户授权后删除本次测试记录和对象、恢复原头像；原有 10 条心得、25 条日志、13 份资料保留，两个新桶为空。
+- 生产事务内本人、另一认证身份及匿名角色 RLS 断言通过；另有 PGlite 实际 SQL fixture 的 CAS、幂等、重复迁移与写入隔离测试。角色模拟不是第二个真实浏览器账号验收。
+- 功能完成后的 FULL 已通过 3,352 tests、0 failed/skipped、build/docs/whitespace；发布元数据和文档补齐后，对最终 diff 再执行一次 FULL。最终结果以本次提交的 CI 和任务发布结论为准。
+- 原生 iPhone 17 Pro / iOS 26.5 Safari 已核对复盘列表、交易回放、录入/键盘及设置入口，原始 PNG 均为 1206×2622。头像裁剪弹窗交互证据来自手机尺寸浏览器，原生坐标操作不可用；未宣称 PWA 生命周期或生产比赛/分享链路已端到端验证。
+- 收益比赛仅在既有授权结果中签名头像，未改参赛范围、收益或行情算法；本人头像与图片失败回退安全。DEV 示例只在本地预览，不进入正式数据。
+- 发布步骤：提交并单次 push main → `release:verify -- full <exact commit>` → 唯一相关 `verify:rls:rest`。等待器未成功前不将候选版本写成已上线。
+- 迁移恢复采用 additive forward-fix；回退前端时保留新增字段、元数据、私有文件和 RLS，不删除用户内容。存储删除失败可能留下本人私有孤立对象，后续需清理治理。
+- 实施细节及验收边界：`docs/review-journal-local-integration.md`、`docs/review-journal-cloud-configuration.md`。以下各子系统段落为既有合同及历史证据，不视为本轮重新验收。
 
 ## 可用现金与资产联动
 

@@ -1,0 +1,47 @@
+.review-market-card{min-width:0;background:#14161b;border-radius:14px;padding:14px 12px;color:#e5e5e9;text-align:left}
+.review-market-card-heading,.review-market-card-footer{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;color:#858892;font-size:11px;line-height:1.45}
+.review-market-card-heading>span{color:#b9bbc3;font-size:12px}
+.review-market-values{display:grid;grid-template-columns:repeat(var(--review-market-count,3),minmax(0,1fr));gap:8px;margin:16px 0}
+.review-market-value{display:flex;min-width:0;flex-direction:column;gap:5px}
+.review-market-value>span{font-size:11px;color:#92959f;line-height:1.4;overflow-wrap:anywhere}
+.review-market-value>strong{font-size:25px;line-height:1.15;font-weight:500;letter-spacing:-.6px;font-variant-numeric:tabular-nums}
+.review-market-value>small{font-size:10px;line-height:1.45;color:#b5b7bf;overflow-wrap:anywhere}
+.review-market-card-footer{font-size:10px}
+.review-market-date-difference{font-size:10px;line-height:1.5;color:#858892;margin:8px 0 0}
+.review-market-dialog{position:fixed;inset:auto 0 0;margin:0 auto;padding:0;width:min(100%,580px);max-width:100vw;max-height:min(92dvh,900px);border:0;border-radius:25px 25px 0 0;background:#18191d;color:#ececf0;box-shadow:0 -18px 70px #0006;overflow:hidden}
+.review-market-dialog::backdrop{background:#0009;backdrop-filter:blur(4px)}
+.review-market-dialog:focus{outline:none}
+.review-market-sheet{display:flex;flex-direction:column;max-height:min(92dvh,900px);min-height:0}
+.review-market-header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-shrink:0;padding:16px 20px 12px}
+.review-market-header h2{font-size:18px;line-height:1.35;font-weight:600;margin:0}
+.review-market-header p{font-size:12px;line-height:1.45;color:#90929c;margin:5px 0 0}
+.review-market-close{display:grid;place-items:center;flex-shrink:0;width:44px;height:44px;border:0;border-radius:50%;background:#24262b;color:#b6b8c0;cursor:pointer}
+.review-market-body{min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:0 20px 4px;-webkit-overflow-scrolling:touch}
+.review-market-date{display:flex;align-items:center;justify-content:space-between;gap:16px;font-size:13px;color:#c4c5cc}
+.review-market-date input{box-sizing:border-box;min-width:0;width:185px;min-height:46px;border:0;border-radius:10px;background:#24262b;color:#f0f0f4;font-size:16px;padding:8px 12px;color-scheme:dark;font-family:inherit}
+.review-market-date-note{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:5px 0 8px;color:#92959f;font-size:11px;line-height:1.45}
+.review-market-date-note button,.review-market-retry button{min-height:44px;border:0;background:none;color:#cacbd2;font-size:11px;cursor:pointer;padding:0 2px}
+.review-market-status{font-size:12px;line-height:1.6;color:#b9bbc4;margin:0 0 10px}
+.review-market-options{display:grid;gap:6px}
+.review-market-option{display:flex;align-items:center;gap:10px;position:relative;min-height:64px;box-sizing:border-box;border-radius:12px;background:#202227;padding:9px 12px;cursor:pointer}
+.review-market-option input{position:absolute;opacity:0;width:1px;height:1px}
+.review-market-checkbox{display:grid;place-items:center;width:20px;height:20px;flex-shrink:0;border-radius:6px;box-shadow:inset 0 0 0 1px #61636c;color:#202227}
+.review-market-option input:checked+.review-market-checkbox{background:#e1e3e9;box-shadow:none}
+.review-market-option-name{display:flex;min-width:0;flex:1;flex-direction:column;gap:4px}
+.review-market-option-name strong{font-size:13px;line-height:1.35;font-weight:500}
+.review-market-option-name small{font-size:10px;line-height:1.4;color:#92959f}
+.review-market-option-reading{max-width:45%;display:flex;align-items:flex-end;flex-direction:column;gap:3px;text-align:right}
+.review-market-option-reading strong{font-size:19px;font-weight:500;font-variant-numeric:tabular-nums;line-height:1.2}
+.review-market-option-reading small{font-size:10px;line-height:1.4;color:#a7aab3}
+.review-market-option[data-unavailable=true]{cursor:default;background:#1c1e23;color:#858891}
+.review-market-retry{display:flex;align-items:center;justify-content:space-between;gap:12px;color:#a7aab3;font-size:11px;line-height:1.5}
+.review-market-preview-heading{margin:15px 0 8px;font-size:12px;color:#a1a4ae}
+.review-market-empty{display:grid;place-items:center;min-height:100px;padding:16px;background:#14161b;border-radius:14px;font-size:12px;color:#858892;text-align:center}
+.review-market-note{font-size:11px;line-height:1.5;color:#858892;margin:9px 0 12px}
+.review-market-actions{display:grid;grid-template-columns:1fr 1.6fr;gap:12px;flex-shrink:0;padding:12px 20px max(16px,env(safe-area-inset-bottom));background:#18191d}
+.review-market-actions button{min-height:48px;border:0;border-radius:13px;background:#292b31;color:#dadce4;font-size:15px;font-weight:500;cursor:pointer}
+.review-market-actions button:last-child{background:#e7e9ef;color:#16171b}
+.review-market-actions button:disabled{background:#292b31;color:#696d77;cursor:default}
+.review-market-dialog button:focus-visible,.review-market-date input:focus-visible,.review-market-option:has(input:focus-visible){outline:2px solid #b5c6e8;outline-offset:3px}
+@media(min-width:640px){.review-market-dialog{inset:0;margin:auto;height:fit-content;border-radius:25px;max-height:90dvh}.review-market-sheet{max-height:90dvh}}
+@media(max-width:350px){.review-market-body{padding-inline:14px}.review-market-header{padding-inline:14px}.review-market-actions{padding-inline:14px}.review-market-date input{width:170px}.review-market-option{padding-inline:9px;gap:8px}.review-market-value>strong{font-size:22px}}

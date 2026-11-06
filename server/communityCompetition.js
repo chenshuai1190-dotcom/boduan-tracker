@@ -16,6 +16,7 @@ import {
 } from './snapshotPublicationMarker.js';
 import { recalculateCommunityCompetitionMember } from './communityCompetitionRecalculation.js';
 import { fetchCommunityCompetitionEodhdHistory } from './communityCompetitionEodhd.js';
+import { attachCompetitionAvatars } from './communityCompetitionAvatars.js';
 
 const PAGE_SIZE = 1000;
 const BENCHMARK_LOOKBACK_DAYS = 14;
@@ -340,6 +341,7 @@ export async function getCommunityCompetitionState({ userId, period = 'day', now
     fetchBenchmarkRows({ from: fetchFromDate, to: asOfDate }),
     fetchVerifiedHoldingSymbols({ ...data, asOfDate }),
   ]);
+  const visibleOwners = new Map();
   const leaderboard = buildCompetitionLeaderboard({
     ...data,
     period: normalizedPeriod,
@@ -347,6 +349,7 @@ export async function getCommunityCompetitionState({ userId, period = 'day', now
     benchmarkRows,
     holdingSymbolsByUser,
     selfUserId: userId,
+    onVisibleEntry: (entry, ownerId) => visibleOwners.set(entry, ownerId),
   });
   if (!leaderboard.selfCalculationAvailable) return waiting;
   if (!leaderboard.benchmarkComplete || !leaderboard.self) {
@@ -355,6 +358,20 @@ export async function getCommunityCompetitionState({ userId, period = 'day', now
     error.retryable = true;
     throw error;
   }
+
+  const avatars = await attachCompetitionAvatars({
+    leaders: leaderboard.leaders, self: leaderboard.self, visibleOwners,
+    supabaseUrl: getSupabaseAdminConfig().supabaseUrl,
+    readProfiles: async (ownerIds) => {
+      const url = new URL('/rest/v1/community_profiles', 'https://placeholder.local');
+      url.searchParams.set('select', 'user_id,avatar_path');
+      url.searchParams.set('user_id', `in.(${ownerIds.join(',')})`);
+      return supabaseAdminFetch(`${url.pathname}${url.search}`);
+    },
+    signPaths: (paths, expiresIn) => supabaseAdminFetch('/storage/v1/object/sign/community-avatars', {
+      method: 'POST', body: JSON.stringify({ paths, expiresIn }),
+    }),
+  });
 
   return {
     success: true,
@@ -370,8 +387,8 @@ export async function getCommunityCompetitionState({ userId, period = 'day', now
     benchmarkCalculationStartDate: leaderboard.selfBenchmarkCalculationStartDate,
     benchmarkReturnPct: leaderboard.selfBenchmarkReturnPct,
     stats: leaderboard.stats,
-    leaders: leaderboard.leaders,
-    self: leaderboard.self,
+    leaders: avatars.leaders,
+    self: avatars.self,
     trend: {
       self: leaderboard.selfTrend,
       benchmark: leaderboard.selfBenchmarkTrend,

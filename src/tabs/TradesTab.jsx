@@ -445,6 +445,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
     openInvestmentComparison,
     openStockComparison,
     openPortfolioOverlap,
+    openReviewJournal,
     openDcaLab,
     openStockDecision,
     openMacro,
@@ -1042,13 +1043,14 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
           <ActionModalCard title={tt('trades.allTools', '全部功能')} closeLabel={tt('trades.closeAllTools', '关闭全部功能')}
             onClose={() => setShowAllToolsModal(false)} widthClassName="w-[calc(100vw-32px)] max-w-[440px]"
             panelClassName="trade-tools-panel" contentClassName="trade-tools-content" headerClassName="trade-tools-header" titleClassName="trade-tools-title" closeButtonClassName="trade-tools-close">
-            <TradeToolsCatalog language={language} enableDebtManager={typeof openDebtManager === 'function'} enableStockComparison={typeof openStockComparison === 'function'} onSelect={(toolId) => {
+            <TradeToolsCatalog language={language} enableReviewJournal={typeof openReviewJournal === 'function'} enableDebtManager={typeof openDebtManager === 'function'} enableStockComparison={typeof openStockComparison === 'function'} onSelect={(toolId) => {
               setShowAllToolsModal(false);
               if (toolId === 'records') { setToolPanel('records'); return; }
               setToolPanel('');
               if (toolId === 'investment-comparison') openInvestmentComparison?.();
               if (toolId === 'stock-comparison') openStockComparison?.();
               if (toolId === 'portfolio-overlap') openPortfolioOverlap?.();
+              if (toolId === 'review-journal') openReviewJournal?.();
               if (toolId === 'dca-lab') openDcaLab?.();
               if (toolId === 'stock-decision') openStockDecision?.();
               if (toolId === 'macro') openMacro?.();

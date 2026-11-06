@@ -111,3 +111,6 @@
   .cc-period { transition: none; }
   .cc-page .animate-spin { animation: none; }
 }
+
+.cc-avatar>img:not([data-custom-avatar=true]),.cc-user-avatar>img:not([data-custom-avatar=true]){transform:scale(1.15)}
+.cc-self-avatar>img[data-custom-avatar=true]{transform:none}

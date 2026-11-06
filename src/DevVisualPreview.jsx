@@ -58,6 +58,7 @@ const FearGreedPreview = lazy(() => import('./dev/FearGreedPreview.jsx'));
 const StockDecisionPreview = lazy(() => import('./dev/StockDecisionPreview.jsx'));
 const InvestmentComparisonPreview = lazy(() => import('./dev/InvestmentComparisonPreview.jsx'));
 const StockComparisonPreview = lazy(() => import('./dev/StockComparisonPreview.jsx'));
+const ReviewJournalPreview = lazy(() => import('./dev/ReviewJournalPreview.jsx'));
 const PortfolioOverlapPreview = lazy(() => import('./dev/PortfolioOverlapPreview.jsx'));
 const DcaLabPreview = lazy(() => import('./dev/DcaLabPreview.jsx'));
 const MacroPage = lazy(() => import('./pages/MacroLivePage.jsx'));
@@ -1894,7 +1895,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     if (['risk', 'editor', 'leverage'].includes(params.get('homeMargin'))) return 'home-margin-risk';
     if (params.get('preview') === 'dca-lab') return 'dca-lab';
     const requestedTab = params.get('tab');
-    return ['home', 'trades', 'analysis', 'review', 'settings', 'pnl-report', 'pnl-share', 'home-margin-risk', 'drawdown-observation', 'stock-detail', 'stock-pnl-report', 'debt-manager', 'watchlist-stock-detail', 'wave-tracker', 'community-competition', 'vix-comparison', 'vix-monthly-report', 'fear-greed', 'stock-decision', 'investment-comparison', 'stock-comparison', 'macro', 'portfolio-overlap', 'dca-lab'].includes(requestedTab) ? requestedTab : 'analysis';
+    return ['home', 'trades', 'analysis', 'review', 'settings', 'pnl-report', 'pnl-share', 'home-margin-risk', 'drawdown-observation', 'stock-detail', 'stock-pnl-report', 'debt-manager', 'watchlist-stock-detail', 'wave-tracker', 'community-competition', 'vix-comparison', 'vix-monthly-report', 'fear-greed', 'stock-decision', 'investment-comparison', 'stock-comparison', 'macro', 'portfolio-overlap', 'review-journal', 'dca-lab'].includes(requestedTab) ? requestedTab : 'analysis';
   });
   const macroPreview = React.useMemo(() => {
     const params = new URLSearchParams(typeof window === 'undefined' ? '' : window.location.search);
@@ -2564,6 +2565,11 @@ function StandardDevVisualPreview({ initialTab = '' }) {
   const [expandedDisciplines, setExpandedDisciplines] = React.useState({});
   const lastSubmitRef = React.useRef({});
   const swingPreviewRowsRef = React.useRef(cloneMockSwingWaves());
+  const avatarPreviewRef = React.useRef({ path: null, objects: new Map(), profile: null });
+  React.useEffect(() => () => {
+    for (const url of avatarPreviewRef.current.objects.values()) URL.revokeObjectURL(url);
+    avatarPreviewRef.current.objects.clear();
+  }, []);
 
   const db = React.useMemo(() => ({
     insertAccount: async (account) => ({
@@ -2595,7 +2601,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
       if (new URLSearchParams(window.location.search).get('communityProfileDelay') === '1') {
         await new Promise((resolve) => window.setTimeout(resolve, 700));
       }
-      return {
+      return avatarPreviewRef.current.profile || {
         userId: 'dev-user',
         nickname: '波段玩家1836',
         avatarKey: 'gold',
@@ -2606,14 +2612,30 @@ function StandardDevVisualPreview({ initialTab = '' }) {
         updatedAt: '2026-07-11T00:00:00.000Z',
       };
     },
-    upsertCommunityProfile: async (profile) => ({
-      userId: 'dev-user',
-      nickname: profile.nickname || '波段玩家1836',
-      avatarKey: profile.avatarKey || 'gold',
-      profileCompletedAt: new Date().toISOString(),
-      createdAt: '2026-07-11T00:00:00.000Z',
-      updatedAt: new Date().toISOString(),
-    }),
+    upsertCommunityProfile: async (profile) => {
+      const saved = { userId: 'dev-user', nickname: profile.nickname || '波段玩家1836', avatarKey: profile.avatarKey || 'gold', profileCompletedAt: new Date().toISOString(), createdAt: '2026-07-11T00:00:00.000Z', updatedAt: new Date().toISOString() };
+      avatarPreviewRef.current.profile = saved;
+      return saved;
+    },
+    // Isolated local-only avatar flow: Blob URLs, no auth/storage/network calls.
+    fetchCommunityAvatar: async () => ({ path: avatarPreviewRef.current.path, url: avatarPreviewRef.current.objects.get(avatarPreviewRef.current.path) || '', configured: true }),
+    uploadCommunityAvatar: async (blob) => {
+      const path = `dev-avatar/${crypto.randomUUID()}.webp`;
+      avatarPreviewRef.current.objects.set(path, URL.createObjectURL(blob));
+      return { path };
+    },
+    saveCommunityAvatarProfile: async (profile) => {
+      if (profile.expectedAvatarPath !== avatarPreviewRef.current.path) throw Object.assign(new Error('头像已在其他窗口更新，请重新打开资料。'), { code: 'AVATAR_CONFLICT' });
+      avatarPreviewRef.current.path = profile.avatarPath;
+      const saved = { userId: 'dev-user', nickname: profile.nickname, avatarKey: profile.avatarKey, avatarPath: profile.avatarPath, avatarPreviewUrl: avatarPreviewRef.current.objects.get(profile.avatarPath) || '', profileCompletedAt: new Date().toISOString(), createdAt: '2026-07-11T00:00:00.000Z', updatedAt: new Date().toISOString() };
+      avatarPreviewRef.current.profile = saved;
+      return saved;
+    },
+    removeCommunityAvatarImage: async (path) => {
+      const url = avatarPreviewRef.current.objects.get(path);
+      if (url) URL.revokeObjectURL(url);
+      avatarPreviewRef.current.objects.delete(path);
+    },
     upsertWaveNote: async () => ({}),
     listSwingWaves: async () => cloneMockSwingWaves(swingPreviewRowsRef.current),
     createSwingWave: async (input) => {
@@ -3345,6 +3367,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     openCommunityCompetition: () => setActiveTab('community-competition'),
     openInvestmentComparison: () => { setActiveTab('investment-comparison'); window.scrollTo(0, 0); },
     openStockComparison: () => { setActiveTab('stock-comparison'); window.scrollTo(0, 0); },
+    openReviewJournal: () => { setActiveTab('review-journal'); window.scrollTo(0, 0); },
     openPortfolioOverlap: () => { setActiveTab('portfolio-overlap'); window.scrollTo(0, 0); },
     openDcaLab: () => { setActiveTab('dca-lab'); window.scrollTo(0, 0); },
     openStockDecision: () => { setActiveTab('stock-decision'); window.scrollTo(0, 0); },
@@ -3396,6 +3419,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
   };
 
   const reviewCtx = {
+    openReviewJournal: () => { setActiveTab('review-journal'); window.scrollTo(0, 0); },
     initialReviewYear: reviewPanel === 'annual' ? yearlyActuals[0]?.year : undefined,
     initialCompoundDetails: reviewPanel === 'compound' || reviewPanel === 'compound-simulation',
     initialCompoundView: reviewPanel === 'compound-simulation' ? 'simulation' : 'execution',
@@ -3500,9 +3524,9 @@ function StandardDevVisualPreview({ initialTab = '' }) {
 
   return (
     <div
-      className={`min-h-screen ${['fear-greed', 'pnl-report', 'stock-pnl-report', 'stock-decision', 'macro', 'debt-manager'].includes(activeTab) ? 'bg-[#08090b]' : 'bg-[#05070b]'} text-white ${['pnl-report', 'pnl-share', 'stock-pnl-report', 'debt-manager'].includes(activeTab) ? 'pb-0' : 'pb-24'} ${['pnl-report', 'pnl-share', 'stock-pnl-report', 'community-competition', 'earnings-detail', 'debt-manager'].includes(activeTab) ? 'px-0' : 'px-4'} ${activeTab === 'vix-monthly-report' || (activeTab === 'vix-comparison' && new URLSearchParams(window.location.search).get('vixMonthlyDesign') === '1') ? 'vix-monthly-design-host' : ''}`}
+      className={`min-h-screen ${['fear-greed', 'pnl-report', 'stock-pnl-report', 'stock-decision', 'macro', 'debt-manager'].includes(activeTab) ? 'bg-[#08090b]' : 'bg-[#05070b]'} text-white ${['pnl-report', 'pnl-share', 'stock-pnl-report', 'review-journal', 'debt-manager'].includes(activeTab) ? 'pb-0' : 'pb-24'} ${['pnl-report', 'pnl-share', 'stock-pnl-report', 'community-competition', 'earnings-detail', 'review-journal', 'debt-manager'].includes(activeTab) ? 'px-0' : 'px-4'} ${activeTab === 'vix-monthly-report' || (activeTab === 'vix-comparison' && new URLSearchParams(window.location.search).get('vixMonthlyDesign') === '1') ? 'vix-monthly-design-host' : ''}`}
       style={{
-        paddingTop: ['pnl-report', 'pnl-share', 'stock-pnl-report', 'home-margin-risk', 'drawdown-observation', 'stock-detail', 'wave-tracker', 'community-competition', 'watchlist-stock-detail', 'earnings-detail', 'vix-comparison', 'fear-greed', 'stock-decision', 'investment-comparison', 'stock-comparison', 'macro', 'portfolio-overlap', 'dca-lab', 'debt-manager'].includes(activeTab) ? 0 : 'calc(1rem + env(safe-area-inset-top))',
+        paddingTop: ['pnl-report', 'pnl-share', 'stock-pnl-report', 'home-margin-risk', 'drawdown-observation', 'stock-detail', 'wave-tracker', 'community-competition', 'watchlist-stock-detail', 'earnings-detail', 'vix-comparison', 'fear-greed', 'stock-decision', 'investment-comparison', 'stock-comparison', 'macro', 'portfolio-overlap', 'dca-lab', 'review-journal', 'debt-manager'].includes(activeTab) ? 0 : 'calc(1rem + env(safe-area-inset-top))',
         ...(visualViewportWidth
           ? { marginInline: 'auto', maxWidth: '100%', width: `${visualViewportWidth}px` }
           : {}),
@@ -3549,6 +3573,8 @@ function StandardDevVisualPreview({ initialTab = '' }) {
           ? <InvestmentComparisonPreview ctx={{ language, marketColorMode, usdRate: USD_RATE, closeInvestmentComparison: () => { setActiveTab('trades'); window.scrollTo(0, 0); } }} />
           : activeTab === 'stock-comparison'
           ? <StockComparisonPreview ctx={{ language, marketColorMode, onBack: () => { setActiveTab('trades'); window.scrollTo(0, 0); } }} />
+          : activeTab === 'review-journal'
+          ? <ReviewJournalPreview language={language} onBack={() => { setActiveTab('trades'); window.scrollTo(0, 0); }} />
           : activeTab === 'portfolio-overlap'
           ? <PortfolioOverlapPreview ctx={{ language, closePortfolioOverlap: () => { setActiveTab('trades'); window.scrollTo(0, 0); } }} />
           : activeTab === 'dca-lab'
@@ -3587,7 +3613,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
         onConfirm={submitPreviewConfirm}
       />
 
-      {activeTab !== 'pnl-report' && activeTab !== 'pnl-share' && activeTab !== 'stock-pnl-report' && activeTab !== 'debt-manager' && (
+      {activeTab !== 'pnl-report' && activeTab !== 'pnl-share' && activeTab !== 'stock-pnl-report' && activeTab !== 'debt-manager' && activeTab !== 'review-journal' && (
       <div className="report-bottom-nav fixed bottom-0 left-0 right-0 z-50" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
         <div className="mx-auto max-w-5xl">
           <div className="report-bottom-nav-grid grid grid-cols-5">

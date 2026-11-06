@@ -23,3 +23,5 @@
 .review-page .review-year-facts dd { margin: 0; color: #d9d9df; font-size: 13px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .review-page .review-entry:focus-visible, .review-page .review-text-action:focus-visible, .review-page .review-filters button:focus-visible, .review-page .review-show-more:focus-visible { outline: 1px solid #b5b5ba; outline-offset: 3px; border-radius: 4px; }
 .review-page .review-entry:active .review-entry-body { color: #f4f4f5; }
+
+.review-journal-entry{display:flex;align-items:center;gap:14px;width:100%;margin-top:24px;padding:20px 16px;border:0;border-radius:18px;background:#15171b;color:#c4c8d1;text-align:left}.review-journal-entry-icon{display:grid;place-items:center;width:44px;height:44px;border-radius:14px;background:#202329}.review-journal-entry>span:nth-child(2){flex:1}.review-journal-entry strong{display:block;font-size:16px;font-weight:500}.review-journal-entry small{display:block;font-size:12px;color:#7c8490;margin-top:6px}
