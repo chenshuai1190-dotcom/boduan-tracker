@@ -3,6 +3,11 @@ import { CURRENT_RELEASE } from './releaseMeta.js';
 export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
+    items: ['“全部”中的系统动态每个分支只显示最新一条，单日最大涨幅与跌幅分别保留；精简时间线的比较区间说明和“系统记录”标签，完整时间线、历史记录和原有评价继续保留。'],
+    itemsEn: ['All now shows only the latest system record per branch, retaining separate best and worst daily records. Comparison-scope notes and the System record label are removed; the full timeline, historical records, and existing evaluations remain available.'],
+  },
+  {
+    ver: 'v10.7.9.595', date: '2026-11-07',
     items: ['修复回撤详情“当前净资产”金额折行，删除正常汇率说明、节点解释和新高等模板提示，保留实际数据与状态。'],
     itemsEn: ['Fixed wrapping of current net assets in drawdown details and removed routine exchange-rate, milestone, and record explanations while keeping actual data and statuses.'],
   },

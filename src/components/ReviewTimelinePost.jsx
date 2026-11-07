@@ -69,6 +69,8 @@ export default function ReviewTimelinePost({ event, avatarNode, authorNode, comm
   const status = event.status === 'recovered' ? label(en, '已恢复', 'Recovered')
     : event.status === 'interrupted' ? label(en, '比较已中断', 'Interrupted')
       : event.kind === 'drawdown' ? label(en, '持续跟踪', 'Tracking') : '';
+  const peakCaption = event.kind === 'drawdown' && event.peak?.date
+    ? `${label(en, '较', 'From ')} ${shortDate(event.peak.date, en)} ${label(en, '前高', 'peak')}` : '';
   return <article className="rj-post rj-post-link rj-timeline-post" data-rj-entry-key={`timeline:${event.id}`}
     role="link" tabIndex={0} aria-label={`${label(en, '查看', 'View ')}${event.title}`} onClick={clickPost}
     onKeyDown={click => { if (click.target === click.currentTarget && (click.key === 'Enter' || click.key === ' ')) { click.preventDefault(); open(click); } }}>
@@ -80,7 +82,7 @@ export default function ReviewTimelinePost({ event, avatarNode, authorNode, comm
           {metric.secondary && <div className="rj-system-secondary"><span>{metric.secondaryTitle}</span><strong style={style(metric.secondaryDirection, marketColorMode)}>{metric.secondary}</strong></div>}
         </div>
         {showChart && <TimelineChart event={event} marketColorMode={marketColorMode} language={language} {...currency} />}
-        <div className="rj-system-caption"><span>{event.kind === 'drawdown' && event.peak?.date ? `${label(en, '较', 'From ')} ${shortDate(event.peak.date, en)} ${label(en, '前高', 'peak')}` : event.comparisonScope || label(en, '正式收盘记录', 'Confirmed closing record')}</span>{info.converted && <span>{info.available ? label(en, '人民币折算', 'CNY conversion') : label(en, '汇率暂不可用', 'FX unavailable')}</span>}</div>
+        {(peakCaption || info.converted) && <div className="rj-system-caption">{peakCaption && <span>{peakCaption}</span>}{info.converted && <span>{info.available ? label(en, '人民币折算', 'CNY conversion') : label(en, '汇率暂不可用', 'FX unavailable')}</span>}</div>}
       </div>}
       <div className="rj-post-actions"><button type="button" onClick={open} aria-label={`${label(en, '查看', 'View ')}${event.title}${label(en, '的评论', ' comments')}`}><MessageCircle size={18}/><span>{commentCount || label(en, '评论', 'Comment')}</span></button>{updated && <time className="rj-system-updated" dateTime={updated}>{label(en, '更新至', 'Updated')} {shortDate(updated, en)}</time>}</div>
     </div>

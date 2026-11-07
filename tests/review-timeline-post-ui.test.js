@@ -79,6 +79,23 @@ test('CNY projection uses the same rate for card/chart and absent FX never shows
   assert.match(html, /汇率暂不可用/); assert.doesNotMatch(html, /¥120,000|\$120,000/);
 });
 
+test('post captions omit comparison templates without blank space and keep real peak dates and currency state', () => {
+  for (const comparisonScope of ['资金变化后重新计起', '收益报表已记录区间', '完整收益报表区间']) {
+    const event = { ...high, comparisonScope };
+    const tree = Post(props(event));
+    assert.equal(byClass(tree, 'rj-system-caption'), undefined);
+    assert.doesNotMatch(renderToStaticMarkup(tree), new RegExp(`${comparisonScope}|正式收盘记录|Confirmed closing record`));
+    assert.equal(event.comparisonScope, comparisonScope, 'presentation does not rewrite the source event');
+  }
+  const event = { ...high, kind: 'drawdown', peak, drawdownPct: -12, maxDrawdownPct: -15, comparisonScope: '资金变化后重新计起' };
+  const caption = byClass(Post(props(event)), 'rj-system-caption');
+  assert.match(renderToStaticMarkup(caption), /较.*10月01日.*前高/);
+  assert.doesNotMatch(renderToStaticMarkup(caption), /资金变化后重新计起/);
+  const cny = byClass(Post(props(high, { displayCurrency: 'CNY', usdCny: 7.2 })), 'rj-system-caption');
+  assert.match(renderToStaticMarkup(cny), /人民币折算/);
+  assert.doesNotMatch(renderToStaticMarkup(cny), /正式收盘记录/);
+});
+
 test('archived events preserve the author/evaluation entry without stale financial metrics', () => {
   const html = renderToStaticMarkup(Post(props({ ...high, status: 'archived' })));
   assert.match(html, /来源数据已更新/); assert.match(html, /团团/); assert.match(html, /评论/);

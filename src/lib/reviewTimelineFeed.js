@@ -27,6 +27,21 @@ export function reviewTimelineFeedDate(event) {
 const stateWords = event => ({ active: '持续跟踪 恢复中 recovering', recovered: '已恢复 回到前高 recovered',
   interrupted: '数据待核对 比较中断 interrupted', archived: '保留的评价 archived' })[event.status] || '';
 const text = entry => `${entry.text || ''} ${(entry.stocks || []).join(' ')} ${entry.date || ''} ${(entry.replies || []).map(reply => reply.text || '').join(' ')}`;
+const latestEventDate = event => date(event.date) || date(event.endDate) || reviewTimelineFeedDate(event);
+const compareEvents = (left, right) => Number(left.status !== 'archived') - Number(right.status !== 'archived')
+  || latestEventDate(left).localeCompare(latestEventDate(right))
+  || reviewTimelineFeedDate(left).localeCompare(reviewTimelineFeedDate(right))
+  || String(left.id).localeCompare(String(right.id));
+
+function feedBranch(event, category) {
+  if (category !== 'daily_record') return category;
+  // Archived evaluation references retain the original ID, but not recordDirection.
+  const direction = ['best', 'worst'].includes(event.recordDirection) ? event.recordDirection
+    : /:(best|worst)$/.exec(event.id)?.[1]
+      || (typeof event.value === 'number' && event.value > 0 ? 'best'
+        : typeof event.value === 'number' && event.value < 0 ? 'worst' : 'unknown');
+  return `${category}:${direction}`;
+}
 
 // The system entry is a projection only. It carries the original event object
 // and never creates a second log, changes the event, or splits its evaluations.
@@ -40,15 +55,20 @@ export function mergeReviewTimelineFeed(journalEntries = [], timelineEvents = []
     for (const event of timelineEvents) {
       if (!event?.id) continue;
       const previous = latest.get(event.id);
-      const live = event.status !== 'archived', previousLive = previous?.status !== 'archived';
-      if (!previous || (live && !previousLive)
-        || (live === previousLive && String(event.date).localeCompare(String(previous.date)) > 0)) latest.set(event.id, event);
+      if (!previous || compareEvents(event, previous) > 0) latest.set(event.id, event);
     }
   }
-  const projected = [...latest.values()].flatMap(event => {
-    if (!enabled.has(reviewTimelineCategory(event))) return [];
+  // Only All is condensed. Keep original events and IDs for the full timeline
+  // and its evaluations, and choose the latest before applying text search.
+  const branches = new Map();
+  for (const event of latest.values()) {
+    const category = reviewTimelineCategory(event);
+    if (!category || !enabled.has(category) || !reviewTimelineFeedDate(event)) continue;
+    const branch = feedBranch(event, category), previous = branches.get(branch);
+    if (!previous || compareEvents(event, previous) > 0) branches.set(branch, event);
+  }
+  const projected = [...branches.values()].flatMap(event => {
     const feedDate = reviewTimelineFeedDate(event);
-    if (!feedDate) return [];
     const search = `${event.title || ''} ${feedDate} ${event.date || ''} ${stateWords(event)} ${event.description || ''} ${event.comparisonScope || ''}`;
     if (term && !search.toLocaleLowerCase().includes(term)) return [];
     return [{ type: 'timeline', id: event.id, event, date: feedDate }];

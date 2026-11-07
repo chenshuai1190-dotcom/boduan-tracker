@@ -681,6 +681,42 @@ test('a mixed system post opens its event and shares saved evaluations with the 
   h.unmount();
 });
 
+test('All keeps only the latest branch event while the complete timeline preserves older evaluation containers', async () => {
+  const h = await harness({ preferences: { showTimeline: true, eventTypes: ['net_assets_high', 'drawdown'] } });
+  const currentEvents = activityEvents(), latest = currentEvents[0];
+  const older = { ...latest, id: 'high:net_assets:2026-09-01', date: '2026-09-30', startDate: '2026-09-01', endDate: '2026-09-30', title: '上一次净资产新高' };
+  const events = [older, ...currentEvents];
+  const reference = { version: 1, id: older.id, kind: older.kind, metric: older.metric, date: older.startDate, title: older.title };
+  const replies = [{ id: 'old-high-reply', date: '2026-10-01', text: '旧高点留下的评价' }];
+  const container = { id: 'old-high-container', type: 'log', date: older.startDate, text: older.title, stocks: [], images: [], revision: 1, timelineEvent: reference, replies };
+  h.ctx.reviewLogs.push(container);
+  h.ctx.previewData.timeline = { status: 'ready', events, years: [2026], coverage: {}, warnings: [] };
+  let tree = h.render(); await settle(); tree = h.render();
+  assert.deepEqual(systemPosts(tree, h).map(node => node.props.event.id), currentEvents.map(event => event.id));
+  assert.equal(systemPosts(tree, h)[0].props.commentCount, 0, 'old evaluations must not move to the latest card');
+  button(tree, '时间线').props.onClick(); tree = h.render();
+  let timeline = find(tree, node => node.type === h.Page.ReviewTimeline);
+  assert.deepEqual(timeline.props.data.events.map(event => event.id), events.map(event => event.id));
+  assert.equal(timeline.props.data.events[0], older);
+  timeline.props.onSelectEvent(older.id); tree = h.render();
+  timeline = find(tree, node => node.type === h.Page.ReviewTimeline);
+  assert.equal(timeline.props.selectedEventId, older.id);
+  assert.match(textOf(timeline.props.renderEvaluations(older)), /旧高点留下的评价/);
+  button(timeline.props.renderEvaluations(older), '写评价').props.onClick(); tree = h.render();
+  const composer = find(tree, node => node.type === h.Page.ReviewEvaluationComposer);
+  assert.equal(composer.props.entry.id, container.id);
+  assert.equal(composer.props.entry.timelineEvent, reference);
+  assert.equal(composer.props.entry.replies, replies);
+  composer.props.onClose(); tree = h.render();
+  button(tree, '返回投资动态').props.onClick(); tree = h.render();
+  button(tree, '全部').props.onClick(); tree = h.render();
+  assert.deepEqual(systemPosts(tree, h).map(node => node.props.event.id), currentEvents.map(event => event.id));
+  assert.equal(h.ctx.reviewLogs.find(entry => entry.id === container.id), container);
+  assert.equal(h.saves.length, 0);
+  assert.equal(h.deletes.length, 0);
+  h.unmount();
+});
+
 test('master and event-type settings filter only All while the complete timeline remains available', async () => {
   const h = await harness({ preferences: { showTimeline: true, eventTypes: ['net_assets_high', 'drawdown'] } });
   const events = activityEvents();

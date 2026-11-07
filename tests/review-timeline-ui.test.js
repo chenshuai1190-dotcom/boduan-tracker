@@ -119,7 +119,7 @@ test('year and event filters keep periods and daily records together, and naviga
   assert.deepEqual(cards.map(card => card.props.event.id), ['daily', 'period']);
   const card = h.render('TimelineEvent', cards[0].props);
   assert.equal(byClass(card, 'rjt-event-description'), undefined);
-  assert.match(renderToStaticMarkup(card), /2026 年已记录交易日/);
+  assert.doesNotMatch(renderToStaticMarkup(card), /2026 年已记录交易日/);
   assert.equal(byClass(h.render('TimelineEvent', cards[1].props), 'rjt-event-description'), undefined);
   byClass(card, 'rjt-event-open').props.onClick({}); assert.equal(selected, 'daily'); assert.equal(evaluated, undefined);
   walk(byClass(card, 'rjt-event-footer')).find(node => node.type === 'button').props.onClick(); assert.equal(evaluated, 'daily');
@@ -133,6 +133,32 @@ test('loading, errors and pending reports never render old events as completed r
   assert.match(error, /role="alert"/); assert.doesNotMatch(error, /最大回撤|净资产回撤超过/);
   const pending = renderToStaticMarkup(h.render('default', { data: { ...data, status: 'pending' } }));
   assert.match(pending, /收益报表正在更新/); assert.doesNotMatch(pending, /最大回撤|净资产回撤超过/);
+});
+
+test('timeline labels omit comparison explanations and system-record badges but retain dates icons and states', async () => {
+  const h = await harness();
+  for (const [status, expected] of [['active', '恢复中'], ['recovered', '已恢复'], ['interrupted', '数据待核对']]) {
+    const event = { ...cycle, status, comparisonScope: '资金变化后重新计起' };
+    const list = h.render('TimelineEvent', { event });
+    const detail = h.render('TimelineDetail', details({ event }));
+    for (const tree of [list, detail]) {
+      const html = renderToStaticMarkup(tree);
+      assert.doesNotMatch(html, /资金变化后重新计起|系统记录|System record/);
+      assert.match(html, new RegExp(expected));
+      assert.match(html, /dateTime="2026-10-06"/);
+    }
+    assert.ok(byClass(list, 'rjt-event-icon'));
+    assert.ok(walk(byClass(detail, 'rjt-detail-eyebrow')).some(node => node.type === (status === 'recovered' ? icons.History : icons.ArrowDownRight)));
+  }
+  for (const comparisonScope of ['收益报表已记录区间', '完整收益报表区间']) {
+    const event = { ...cycle, kind: 'period', metric: 'period_return', comparisonScope };
+    const list = h.render('TimelineEvent', { event });
+    assert.doesNotMatch(renderToStaticMarkup(list), new RegExp(comparisonScope));
+    assert.equal(byClass(list, 'rjt-event-footer'), undefined, 'no explanation-only footer remains');
+  }
+  const english = h.render('TimelineDetail', details({ language: 'en' }));
+  assert.doesNotMatch(renderToStaticMarkup(english), /System record/);
+  assert.match(renderToStaticMarkup(english), /Recovering/);
 });
 
 test('new-high details retain real net-asset history and never fill an absent series', async () => {

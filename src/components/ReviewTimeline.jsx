@@ -112,7 +112,7 @@ function TimelineEvent({ event, onSelectEvent, onEvaluate, marketColorMode, lang
   return <article className="rjt-event">
     <div className="rjt-event-rail"><span className="rjt-event-icon"><Icon size={19} /></span></div>
     <div className="rjt-event-content">
-      <div className="rjt-event-meta"><time dateTime={event.date}>{shortDate(event.date)}</time><span>· {label(en, '系统记录', 'System record')}</span>{statusLabel(event.status, en) && <span className="rjt-status">{statusLabel(event.status, en)}</span>}</div>
+      <div className="rjt-event-meta"><time dateTime={event.date}>{shortDate(event.date)}</time>{statusLabel(event.status, en) && <span className="rjt-status">{statusLabel(event.status, en)}</span>}</div>
       <button type="button" className="rjt-event-open" aria-label={`${label(en, '查看', 'View ')}${event.title}`} onClick={click => onSelectEvent?.(event.id, click)}>
         <span className="rjt-event-heading"><strong>{event.title}</strong><ChevronRight size={16} /></span>
         {!archived && <span className="rjt-event-primary"><strong style={numericStyle}>{reading(event, currency)}</strong><span>{event.kind === 'drawdown' ? label(en, '本轮最大回撤', 'Maximum drawdown') : metricLabel(event.metric, en)}</span></span>}
@@ -120,9 +120,7 @@ function TimelineEvent({ event, onSelectEvent, onEvaluate, marketColorMode, lang
         {!archived && event.kind === 'drawdown' && <TimelineChart event={event} marketColorMode={marketColorMode} language={language} {...currency} />}
         {stops.length > 0 && <span className="rjt-three-values">{stops.map(([key, title]) => <span key={key}><span>{shortDate(event[key]?.date)} {title}</span><strong>{money(event[key]?.netAssetsUsd, currency)}</strong></span>)}</span>}
       </button>
-      <div className="rjt-event-footer">{onEvaluate ? <button type="button" onClick={() => onEvaluate(event)}><MessageCircle size={17} /><span>{label(en, '写评价', 'Evaluate')}</span></button> : <span />}
-        {!archived && event.comparisonScope && <span>{event.comparisonScope}</span>}
-      </div>
+      {onEvaluate && <div className="rjt-event-footer"><button type="button" onClick={() => onEvaluate(event)}><MessageCircle size={17} /><span>{label(en, '写评价', 'Evaluate')}</span></button></div>}
     </div>
   </article>;
 }
@@ -172,7 +170,7 @@ function TimelineDetail({ event, marketColorMode, entries, stockTrades, onOpenEn
     .map(value => normalizeReviewMarketSnapshot(value)).find(value => value?.asOfDate === point?.date);
   return <div className="rjt-detail" data-rjt-event={event.id}>
     <section className="rjt-detail-intro">
-      <div className="rjt-detail-eyebrow"><Icon size={17} /><span>{label(en, '系统记录', 'System record')}{statusLabel(event.status, en) ? ` · ${statusLabel(event.status, en)}` : ''}</span></div>
+      <div className="rjt-detail-eyebrow"><Icon size={17} />{statusLabel(event.status, en) && <span>{statusLabel(event.status, en)}</span>}</div>
       <h2>{event.title}</h2><p className="rjt-detail-date"><time dateTime={startDate}>{startDate}</time>{endDate !== startDate && <> — <time dateTime={endDate}>{endDate}</time></>}</p>
       <div className="rjt-detail-metric"><strong style={directional(event) ? eventStyle(displayValue(event), marketColorMode) : undefined}>{reading(event, currency)}</strong><span>{cycle ? label(en, '本轮最大回撤', 'Maximum drawdown') : metricLabel(event.metric, en)}</span></div>
       {cycle ? <div className="rjt-detail-stats"><div><span>{label(en, '当前回撤', 'Current drawdown')}</span><strong style={eventStyle(event.drawdownPct, marketColorMode)}>{percent(event.drawdownPct)}</strong></div><div><span>{event.status === 'recovered' ? label(en, '恢复用时', 'Time to recover') : label(en, '距前高', 'Since peak')}</span><strong>{finite(event.durationDays) ? event.durationDays : '—'} <small>{label(en, '天', 'days')}</small></strong></div><div className="rjt-detail-net" style={{ '--rjt-number-units': Math.max(1, money(event.current?.netAssetsUsd, currency).length * .6) }}><span>{label(en, '当前净资产', 'Latest net assets')}</span><strong>{money(event.current?.netAssetsUsd, currency)}</strong></div></div>
