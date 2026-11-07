@@ -46,8 +46,7 @@ function leveragedName(text, start, end) {
     || new RegExp(`^\\s*${amount}`).test(text.slice(end, end + 12));
 }
 
-/** Known tickers/company names plus explicit $TICKER, ordered by first mention. */
-export function findReviewStockMentions(text, candidates = []) {
+function reviewStockOccurrences(text, candidates = []) {
   const body = typeof text === 'string' ? text : '';
   if (!body) return [];
   const found = [];
@@ -74,14 +73,46 @@ export function findReviewStockMentions(text, candidates = []) {
   }
   // The more specific name wins at the same position (谷歌C before 谷歌).
   found.sort((a, b) => a.start - b.start || b.end - a.end);
-  const result = [], seen = new Set();
+  const result = [];
   let coveredUntil = -1;
   for (const item of found) {
     if (item.start < coveredUntil) continue;
     coveredUntil = item.end;
-    if (!seen.has(item.symbol)) { seen.add(item.symbol); result.push(item.symbol); }
+    result.push(item);
   }
   return result;
+}
+
+/** Known tickers/company names plus explicit $TICKER, ordered by first mention. */
+export function findReviewStockMentions(text, candidates = []) {
+  return [...new Set(reviewStockOccurrences(text, candidates).map(item => item.symbol))];
+}
+
+/** Render-only cashtags. The saved body and automatic stock-link rules stay intact. */
+export function reviewStockTextParts(text, candidates = []) {
+  const body = typeof text === 'string' ? text : '';
+  if (!body) return [];
+  // A ticker inside a URL or email address is not a label in the prose.
+  const protectedRanges = [...body.matchAll(/(?:https?:\/\/|www\.)[^\s<>"'，。；！？]+|(?:mailto:)?[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi)]
+    .map(match => ({ start: match.index, end: match.index + match[0].length }));
+  const parts = [], seen = new Set();
+  let cursor = 0;
+  const appendText = value => {
+    if (!value) return;
+    const last = parts.at(-1);
+    if (last && !last.symbol) last.text += value;
+    else parts.push({ text: value });
+  };
+  for (const item of reviewStockOccurrences(body, candidates)) {
+    if (protectedRanges.some(range => item.start < range.end && item.end > range.start)) continue;
+    appendText(body.slice(cursor, item.start));
+    const original = body.slice(item.start, item.end);
+    if (seen.has(item.symbol)) appendText(original.startsWith('$') ? original.slice(1) : original);
+    else { seen.add(item.symbol); parts.push({ text: `$${item.symbol}`, symbol: item.symbol }); }
+    cursor = item.end;
+  }
+  appendText(body.slice(cursor));
+  return parts;
 }
 
 /** Explicit removals win. Existing links are never dropped to make auto room. */

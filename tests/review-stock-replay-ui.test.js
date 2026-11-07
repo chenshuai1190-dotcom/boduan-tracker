@@ -98,7 +98,9 @@ async function harness({ observer = true } = {}) {
     fixture.components = await import(dataUrl(compiled.code));
     const page = await transformWithOxc(`${imports}
       import { reviewJournalFeed } from ${moduleUrl('reviewJournalFeed')};
-      const ReviewStockReplay = fixture.components.ReviewStockReplay;
+      import { findReviewStockMentions } from ${moduleUrl('reviewStockMentions')};
+      const ReviewStockCarousel = fixture.ReviewStockCarousel = () => null;
+      const ReviewStockText = () => null;
       const Avatar = () => null, AuthorName = () => null, Photo = () => null, SnapshotCard = () => null, Composer = () => null;
       const Dialog = ({ children }) => React.createElement('section', { role: 'dialog' }, children);
       ${pageSource.slice(pageSource.indexOf('export default function ReviewJournalPage')).replaceAll('import.meta.env.DEV', 'true')}
@@ -106,7 +108,7 @@ async function harness({ observer = true } = {}) {
     fixture.Page = (await import(dataUrl(page.code))).default;
   } finally { delete globalThis[fixtureKey]; }
   return {
-    components: fixture.components, Page: fixture.Page, requests, observers,
+    components: fixture.components, Carousel: fixture.ReviewStockCarousel, Page: fixture.Page, requests, observers,
     render(component, props, runEffects = false) {
       cursor = 0; effects = []; fixture.active = true;
       let tree;
@@ -141,6 +143,7 @@ test('a visible card fetches and draws history before the replay dialog is opene
   h.requests[0].resolve(history); await flush();
   tree = h.card();
   assert.match(markup(tree), /rsr-price-path/);
+  assert.doesNotMatch(markup(tree), /只读回放|查看交易与走势|<footer/);
   find(tree, node => hasClass(node, 'rsr-card-open')).props.onClick();
   tree = h.card(); await flush();
   assert.equal(h.requests.length, 1, 'opening a loaded card must reuse its history');
@@ -243,7 +246,7 @@ test('the dialog opens on all history, selects the review buy, and switches six-
   h.unmount();
 });
 
-test('journal posts pass each entry date through the public replay component', async () => {
+test('journal posts preserve stock order and entry dates in each carousel', async () => {
   const h = await harness();
   const entries = [
     { id: 'review-a', date: recordDate, text: 'Review A', stocks: ['NVDA', 'TSM'] },
@@ -251,12 +254,11 @@ test('journal posts pass each entry date through the public replay component', a
   ];
   const props = { ctx: { userId, stockTrades, reviewLogs: entries, db: { readCachedReviewIdentity: () => null } } };
   const tree = h.render(h.Page, props);
-  const replays = () => walk(tree).filter(node => node.type === h.components.ReviewStockReplay);
-  assert.deepEqual(replays().map(node => [node.props.symbol, node.props.recordDate]), [['NVDA', '2026-10-05'], ['NVDA', recordDate], ['TSM', recordDate]]);
+  const replays = () => walk(tree).filter(node => node.type === h.Carousel);
+  assert.deepEqual(replays().flatMap(node => node.props.symbols.map(symbol => [symbol, node.props.recordDate])), [['NVDA', '2026-10-05'], ['NVDA', recordDate], ['TSM', recordDate]]);
   for (const replay of replays()) {
-    const scoped = replay.type(replay.props);
-    assert.equal(scoped.props.recordDate, replay.props.recordDate);
-    assert.equal(scoped.props.stockTrades, stockTrades);
+    assert.equal(replay.props.userId, userId);
+    assert.equal(replay.props.stockTrades, stockTrades);
   }
   h.unmount();
 });

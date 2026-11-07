@@ -6,7 +6,8 @@ import { isCommunityAvatarSignedUrl, normalizeCommunityAvatarPath } from '../lib
 import { isReviewAvatarDataUrl } from '../lib/reviewIdentityStorage.js';
 import { emptyReviewEntry, localReviewDate, reviewDraftKey, reviewJournalFeed, restoreReviewDraft } from '../lib/reviewJournalFeed.js';
 import { findReviewStockMentions, resolveReviewStockLinks } from '../lib/reviewStockMentions.js';
-import ReviewStockReplay from '../components/ReviewStockReplay.jsx';
+import ReviewStockCarousel from '../components/ReviewStockCarousel.jsx';
+import ReviewStockText from '../components/ReviewStockText.jsx';
 import { SnapshotCard, SnapshotPicker } from '../components/ReviewMarketSnapshot.jsx';
 import './ReviewJournalPage.css';
 
@@ -230,26 +231,42 @@ export default function ReviewJournalPage({ ctx }) {
   const [identityError,setIdentityError]=useState(false); const [identityAttempt,setIdentityAttempt]=useState(0);
   const [filter,setFilter]=useState('all'); const [search,setSearch]=useState(false); const [query,setQuery]=useState('');
   const [composer,setComposer]=useState(null); const [menu,setMenu]=useState(null); const [detailKey,setDetailKey]=useState(null);
+  const [tagSymbol,setTagSymbol]=useState(''); const [routeId,setRouteId]=useState('root');
   const [expanded,setExpanded]=useState(new Set()); const [lightbox,setLightbox]=useState(''); const [error,setError]=useState(''); const [busy,setBusy]=useState(false); const busyRef=useRef(false);
   const [reply,setReply]=useState(''); const [confirmDelete,setConfirmDelete]=useState(false);
-  const feedReturn=useRef(null); const pageTitle=useRef(null);
+  const pendingPosition=useRef(null); const positions=useRef(new Map()); const routes=useRef(new Map()); const pageTitle=useRef(null);
   const historyToken=useRef(null); const navigation=useRef(null);
   if(!historyToken.current)historyToken.current=crypto.randomUUID();
   useEffect(()=>{if(preview)return;let active=true;setIdentityError(false);db.fetchReviewIdentity(userId).then(value=>{if(active){setIdentity(value);setIdentityError(!value);}}).catch(()=>{if(active)setIdentityError(true);});return()=>{active=false;};},[db,userId,preview,identityAttempt]);
   useEffect(()=>{if(preview)return undefined;return db.subscribeReviewIdentity(userId,()=>setIdentityAttempt(value=>value+1));},[db,userId,preview]);
-  const all=reviewJournalFeed(disciplines,reviewLogs); const feed=reviewJournalFeed(disciplines,reviewLogs,filter,query);
+  const suggestions=[...new Set(stockTrades.map(row=>String(row.symbol||'').toUpperCase()).filter(Boolean))];
+  const all=reviewJournalFeed(disciplines,reviewLogs);
+  const feed=tagSymbol?all.filter(entry=>(entry.stocks||[]).includes(tagSymbol)||findReviewStockMentions(entry.text,[...(entry.stocks||[]),...suggestions]).includes(tagSymbol)):reviewJournalFeed(disciplines,reviewLogs,filter,query);
   const entryKey=entry=>`${entry.type}:${entry.id}`;
   const detail=all.find(entry=>entryKey(entry)===detailKey);
   const showingDetail=Boolean(detail);
-  navigation.current={detailKey,entries:all};
+  const rootRoute={id:'root',key:null,symbol:''};
+  if(!routes.current.has('root'))routes.current.set('root',rootRoute);
+  navigation.current={id:routeId,key:detailKey,symbol:tagSymbol,entries:all};
+  const rememberPosition=(event,focusPost=false)=>{
+    const current=navigation.current,trigger=event?.currentTarget;
+    const keyboard=event?.type==='keydown'||(event?.type==='click'&&event.detail===0&&!event.nativeEvent?.pointerType&&trigger?.ownerDocument?.activeElement===trigger&&trigger?.matches?.(':focus-visible'));
+    positions.current.set(current.id,{x:window.scrollX||0,y:window.scrollY||0,focus:event?(keyboard?(focusPost?trigger?.closest('[data-rj-entry-key]'):trigger):null):positions.current.get(current.id)?.focus});
+  };
+  const applyRoute=route=>{
+    pendingPosition.current=positions.current.get(route.id)||{x:0,y:0};
+    setRouteId(route.id);setDetailKey(route.key);setTagSymbol(route.symbol);setReply('');setError('');
+  };
   useEffect(()=>{
     const previousRestoration=window.history?.scrollRestoration;
     if(window.history)window.history.scrollRestoration='manual';
     const onPopState=event=>{
+      rememberPosition();
       const state=event.state?.reviewJournalEntry;
-      const key=state?.token===historyToken.current&&navigation.current.entries.some(entry=>entryKey(entry)===state.key)?state.key:null;
-      if(key&&!navigation.current.detailKey)feedReturn.current={x:window.scrollX||0,y:window.scrollY||0};
-      setDetailKey(key);setReply('');setError('');
+      const known=state?.token===historyToken.current?routes.current.get(state.id):null;
+      // Only this mount's own routes can restore a private entry or stock view.
+      const valid=known&&(!known.key||navigation.current.entries.some(entry=>entryKey(entry)===known.key));
+      applyRoute(valid?known:rootRoute);
     };
     window.addEventListener?.('popstate',onPopState);
     return()=>{
@@ -264,34 +281,34 @@ export default function ReviewJournalPage({ ctx }) {
     };
   },[]);
   useLayoutEffect(()=>{
-    if(showingDetail){
-      window.scrollTo({left:0,top:0,behavior:'instant'});
-      pageTitle.current?.focus({preventScroll:true});
-    }else if(feedReturn.current){
-      const previous=feedReturn.current; feedReturn.current=null;
+    const previous=pendingPosition.current;
+    if(previous){
+      pendingPosition.current=null;
       if(previous.focus?.isConnected)previous.focus.focus({preventScroll:true});
       else pageTitle.current?.focus({preventScroll:true});
       window.scrollTo({left:previous.x,top:previous.y,behavior:'instant'});
-      if(detailKey)setDetailKey(null);
     }
-  },[detailKey,showingDetail]);
-  const suggestions=[...new Set(stockTrades.map(row=>String(row.symbol||'').toUpperCase()).filter(Boolean))];
+  },[routeId]);
   const saved=entry=>{const setter=entry.type==='insight'?setDisciplines:setReviewLogs;setter(old=>old.some(row=>row.id===entry.id)?old.map(row=>row.id===entry.id?entry:row):[entry,...old]);setError('');};
   const mutate=async action=>{if(busyRef.current)return;busyRef.current=true;setBusy(true);setError('');try{await action();}catch(failure){setError(failure?.message||'操作失败，请重试');}finally{busyRef.current=false;setBusy(false);}};
-  const openDetail=(entry,event)=>{
-    const trigger=event?.currentTarget;
-    const keyboardEntry=event?.type==='keydown'||(event?.type==='click'&&event.detail===0&&!event.nativeEvent?.pointerType&&trigger?.ownerDocument?.activeElement===trigger&&trigger?.matches?.(':focus-visible'));
-    // Restoring pointer-triggered article focus can leave a whole-post focus ring on iOS.
-    feedReturn.current={x:window.scrollX||0,y:window.scrollY||0,focus:keyboardEntry?trigger?.closest('[data-rj-entry-key]'):null};
-    const key=entryKey(entry);
-    // Keep navigation private to this mounted journal; the URL and account scope stay unchanged.
-    try{window.history?.pushState({...window.history.state,reviewJournalEntry:{token:historyToken.current,key}},'');}catch{/* State navigation still works if browser history is unavailable. */}
-    setReply('');setError('');setDetailKey(key);
+  const navigate=(key,symbol,event,focusPost=false)=>{
+    rememberPosition(event,focusPost);
+    const route={id:crypto.randomUUID(),key,symbol,parent:routeId};
+    routes.current.set(route.id,route);
+    // Navigation stays inside this mounted journal; no URL or data writes.
+    try{window.history?.pushState({...window.history.state,reviewJournalEntry:{token:historyToken.current,id:route.id,key,symbol}},'');}catch{/* The local parent route still supports the back button. */}
+    applyRoute(route);
+  };
+  const openDetail=(entry,event)=>navigate(entryKey(entry),tagSymbol,event,true);
+  const openStockTag=(symbol,event)=>{
+    event?.preventDefault?.();event?.stopPropagation?.();
+    if(!symbol||(!detailKey&&tagSymbol===symbol))return;
+    navigate(null,symbol,event);
   };
   const closeDetail=()=>{
     setReply('');setError('');
-    if(window.history?.state?.reviewJournalEntry?.token===historyToken.current)window.history.back();
-    else setDetailKey(null);
+    if(window.history?.state?.reviewJournalEntry?.token===historyToken.current&&window.history.state.reviewJournalEntry.id===routeId)window.history.back();
+    else{rememberPosition();applyRoute(routes.current.get(routes.current.get(routeId)?.parent)||rootRoute);}
   };
   const openPost=(entry,event)=>{
     // Ignore interactive attachments, portal events, and selecting/copying text.
@@ -300,7 +317,7 @@ export default function ReviewJournalPage({ ctx }) {
   };
   const attachments=entry=><>
     {!!entry.images?.length&&<div className={`rj-photo-grid rj-images-${entry.images.length}`}>{entry.images.map(item=><Photo key={item.path} item={item} db={db} userId={userId} preview={preview} onOpen={setLightbox}/>)}</div>}
-    {(entry.stocks||[]).map(symbol=><div key={symbol} data-rj-interactive onClick={event=>event.stopPropagation()}><ReviewStockReplay symbol={symbol} recordDate={entry.date} stockTrades={stockTrades} userId={userId} language={language} previewHistory={preview?previewData.history:undefined}/></div>)}
+    <ReviewStockCarousel symbols={entry.stocks||[]} recordDate={entry.date} stockTrades={stockTrades} userId={userId} language={language} previewHistory={preview?previewData.history:undefined}/>
     {entry.market&&<SnapshotCard value={entry.market} language={language}/>}
   </>;
   const entryNotes=entry=><div className="rj-entry-notes">
@@ -313,20 +330,21 @@ export default function ReviewJournalPage({ ctx }) {
     aria-label={full?undefined:`查看 ${entry.date} 的复盘记录`}
     onClick={full?undefined:event=>openPost(entry,event)}
     onKeyDown={full?undefined:event=>{if(event.target===event.currentTarget&&(event.key==='Enter'||event.key===' ')){event.preventDefault();openDetail(entry,event);}}}>
-    <Avatar identity={identity} userId={userId} preview={preview}/><div className="rj-post-main"><div className="rj-post-heading"><AuthorName identity={identity} />{(full||filter!=='all')&&entry.pinned&&<Pin className="rj-inline-pin" size={12} aria-label="已置顶"/>}<span>·</span><time dateTime={entry.date}>{full?entry.date:`${entry.date?.slice(5).replace('-','月')}日`}</time><button className="rj-icon rj-post-more" aria-label="记录操作" onClick={()=>{setMenu(entry);setConfirmDelete(false);setError('');}}><MoreHorizontal size={19}/></button></div>
-      <div className={`rj-post-text ${full||expanded.has(entryKey(entry))||String(entry.text||'').length<=160?'':'rj-clamped'}`}>{entry.text}</div>{!full&&String(entry.text||'').length>160&&<button className="rj-text-button rj-expand" onClick={()=>toggleExpanded(entry)}>{expanded.has(entryKey(entry))?'收起':'展开全文'}</button>}
+    <Avatar identity={identity} userId={userId} preview={preview}/><div className="rj-post-main"><div className="rj-post-heading"><AuthorName identity={identity} />{!tagSymbol&&(full||filter!=='all')&&entry.pinned&&<Pin className="rj-inline-pin" size={12} aria-label="已置顶"/>}<span>·</span><time dateTime={entry.date}>{full?entry.date:`${entry.date?.slice(5).replace('-','月')}日`}</time><button className="rj-icon rj-post-more" aria-label="记录操作" onClick={()=>{setMenu(entry);setConfirmDelete(false);setError('');}}><MoreHorizontal size={19}/></button></div>
+      <div className={`rj-post-text ${full||expanded.has(entryKey(entry))||String(entry.text||'').length<=160?'':'rj-clamped'}`}><ReviewStockText text={entry.text} candidates={[...(entry.stocks||[]),...suggestions]} onSelectSymbol={openStockTag} language={language}/></div>{!full&&String(entry.text||'').length>160&&<button className="rj-text-button rj-expand" onClick={()=>toggleExpanded(entry)}>{expanded.has(entryKey(entry))?'收起':'展开全文'}</button>}
       {full&&entryNotes(entry)}
       {attachments(entry)}
       {!full&&<div className="rj-post-actions"><button onClick={event=>openDetail(entry,event)} aria-label="查看评论"><MessageCircle size={18}/><span>{entry.replies?.length||'评论'}</span></button></div>}
     </div></article>;
-  return <div className={`rj-page ${showingDetail?'rj-entry-page':''}`}><header className="rj-page-header"><button className="rj-icon" aria-label={showingDetail?'返回投资复盘':'返回'} onClick={showingDetail?closeDetail:onBack}><ArrowLeft size={22}/></button><h1 ref={pageTitle} tabIndex={-1}>{showingDetail?(language==='en'?'Journal Entry':'复盘记录'):(language === 'en' ? 'Investment Journal' : '投资复盘')}</h1>{showingDetail?<span className="rj-header-spacer"/>:<button className="rj-icon" aria-label="搜索复盘" aria-pressed={search} onClick={()=>{setSearch(!search);setQuery('');}}><Search size={21}/></button>}</header>
+  return <div className={`rj-page ${showingDetail?'rj-entry-page':''}`}><header className="rj-page-header"><button className="rj-icon" aria-label={showingDetail||tagSymbol?'返回投资复盘':'返回'} onClick={showingDetail||tagSymbol?closeDetail:onBack}><ArrowLeft size={22}/></button><h1 ref={pageTitle} tabIndex={-1}>{showingDetail?(language==='en'?'Journal Entry':'复盘记录'):tagSymbol?`$${tagSymbol}`:(language === 'en' ? 'Investment Journal' : '投资复盘')}</h1>{showingDetail||tagSymbol?<span className="rj-header-spacer"/>:<button className="rj-icon" aria-label="搜索复盘" aria-pressed={search} onClick={()=>{setSearch(!search);setQuery('');}}><Search size={21}/></button>}</header>
     {preview&&<div className="rj-preview-note">本地预览 · 示例记录 · 不写入真实账户</div>}
     {identityError&&<button className="rj-identity-error" onClick={()=>setIdentityAttempt(value=>value+1)}>{identity ? '资料暂未更新，点击重试' : '资料暂未读取，点击重试'}</button>}
     <div className="rj-list-page" hidden={showingDetail}>
-      <nav className="rj-tabs" aria-label="复盘分类">{[['all','全部'],['log','复盘日志'],['insight','投资心得']].map(([id,name])=><button key={id} aria-pressed={filter===id} onClick={()=>setFilter(id)}>{name}</button>)}</nav>
-      {search&&<div className="rj-search"><Search size={17}/><input autoFocus value={query} onChange={event=>setQuery(event.target.value)} aria-label="搜索正文、股票或日期" placeholder="搜索正文、股票或日期"/></div>}
+      {!tagSymbol&&<nav className="rj-tabs" aria-label="复盘分类">{[['all','全部'],['log','复盘日志'],['insight','投资心得']].map(([id,name])=><button key={id} aria-pressed={filter===id} onClick={()=>setFilter(id)}>{name}</button>)}</nav>}
+      {tagSymbol&&<p className="rj-tag-summary">{language==='en'?`${feed.length} related posts`:`${feed.length} 篇相关博文`}</p>}
+      {!tagSymbol&&search&&<div className="rj-search"><Search size={17}/><input autoFocus value={query} onChange={event=>setQuery(event.target.value)} aria-label="搜索正文、股票或日期" placeholder="搜索正文、股票或日期"/></div>}
       {error&&!menu&&!showingDetail&&<p className="rj-error" role="alert">{error}</p>}
-      <div className="rj-feed">{feed.map(entry=>post(entry))}{!feed.length&&<div className="rj-empty"><MessageCircle size={28}/><h2>{query?'没有匹配的记录':'从第一条复盘开始'}</h2><p>{query?'换个关键词试试':'投资心得和复盘日志，都在这里。'}</p></div>}</div>
+      <div className="rj-feed">{feed.map(entry=>post(entry))}{!feed.length&&<div className="rj-empty"><MessageCircle size={28}/><h2>{tagSymbol?'暂无相关博文':query?'没有匹配的记录':'从第一条复盘开始'}</h2><p>{tagSymbol?`提到 $${tagSymbol} 的博文会显示在这里。`:query?'换个关键词试试':'投资心得和复盘日志，都在这里。'}</p></div>}</div>
       <button className="rj-fab" aria-label="写复盘" onClick={()=>setComposer({entry:null})}><Plus size={28}/></button>
     </div>
     {detail&&<div className="rj-entry-content" key={detailKey}>
@@ -340,7 +358,7 @@ export default function ReviewJournalPage({ ctx }) {
         <button className="rj-publish" disabled={busy||!reply.trim()} onClick={()=>mutate(async()=>{saved(await db.saveReviewJournalEntry({...detail,replies:[...(detail.replies||[]),{id:crypto.randomUUID(),date:localReviewDate(),text:reply.trim()}]},userId));setReply('');})}>发表评论</button>
       </section>
     </div>}
-    {menu&&<Dialog title={confirmDelete?'删除这条记录？':'记录操作'} onClose={()=>{if(!busy){setMenu(null);setConfirmDelete(false);setError('');}}}><div className="rj-dialog-body">{error&&<p className="rj-error" role="alert">{error}</p>}{confirmDelete?<><p className="rj-note">正文、关联信息及评论将一起删除。</p><button className="rj-wide-button rj-danger" disabled={busy} onClick={()=>mutate(async()=>{await db.deleteReviewJournalEntry(menu,userId);await Promise.allSettled([...new Set([...(menu.images||[]),...(menu.replies||[]).flatMap(item=>item.images||[])].map(image=>image.path))].map(path=>db.removeReviewJournalImage(path,userId)));(menu.type==='insight'?setDisciplines:setReviewLogs)(old=>old.filter(row=>row.id!==menu.id));setMenu(null);if(detailKey===entryKey(menu))closeDetail();})}>确认删除</button></>:<><button className="rj-menu-item" onClick={()=>{setComposer({entry:menu});setMenu(null);}}><Pencil size={18}/>编辑记录</button>{filter!=='all'&&<button className="rj-menu-item" disabled={busy} onClick={()=>mutate(async()=>{saved(await db.saveReviewJournalEntry({...menu,pinned:!menu.pinned},userId));setMenu(null);})}><Pin size={18}/>{menu.pinned?'取消置顶':'置顶'}</button>}<button className="rj-menu-item rj-danger" onClick={()=>setConfirmDelete(true)}><Trash2 size={18}/>删除记录</button></>}</div></Dialog>}
+    {menu&&<Dialog title={confirmDelete?'删除这条记录？':'记录操作'} onClose={()=>{if(!busy){setMenu(null);setConfirmDelete(false);setError('');}}}><div className="rj-dialog-body">{error&&<p className="rj-error" role="alert">{error}</p>}{confirmDelete?<><p className="rj-note">正文、关联信息及评论将一起删除。</p><button className="rj-wide-button rj-danger" disabled={busy} onClick={()=>mutate(async()=>{await db.deleteReviewJournalEntry(menu,userId);await Promise.allSettled([...new Set([...(menu.images||[]),...(menu.replies||[]).flatMap(item=>item.images||[])].map(image=>image.path))].map(path=>db.removeReviewJournalImage(path,userId)));(menu.type==='insight'?setDisciplines:setReviewLogs)(old=>old.filter(row=>row.id!==menu.id));setMenu(null);if(detailKey===entryKey(menu))closeDetail();})}>确认删除</button></>:<><button className="rj-menu-item" onClick={()=>{setComposer({entry:menu});setMenu(null);}}><Pencil size={18}/>编辑记录</button>{!tagSymbol&&filter!=='all'&&<button className="rj-menu-item" disabled={busy} onClick={()=>mutate(async()=>{saved(await db.saveReviewJournalEntry({...menu,pinned:!menu.pinned},userId));setMenu(null);})}><Pin size={18}/>{menu.pinned?'取消置顶':'置顶'}</button>}<button className="rj-menu-item rj-danger" onClick={()=>setConfirmDelete(true)}><Trash2 size={18}/>删除记录</button></>}</div></Dialog>}
     {composer&&<Composer entry={composer.entry} defaultType={filter==='insight'?'insight':'log'} identity={identity} userId={userId} db={db} language={language} onSaved={saved} onClose={()=>setComposer(null)} suggestions={suggestions} preview={preview} previewMarket={previewData?.market}/>}
     {lightbox&&<Dialog title="图片" wide onClose={()=>setLightbox('')}><div className="rj-lightbox"><img src={lightbox} alt="复盘图片原图"/></div></Dialog>}
   </div>;

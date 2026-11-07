@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { findReviewStockMentions, resolveReviewStockLinks } from '../src/lib/reviewStockMentions.js';
+import { findReviewStockMentions, resolveReviewStockLinks, reviewStockTextParts } from '../src/lib/reviewStockMentions.js';
 
 test('mentions follow first appearance across known codes, names and duplicates', () => {
   assert.deepEqual(findReviewStockMentions('先看SMH，再看英伟达，最后tsm；NVDA继续观察。'), ['SMH', 'NVDA', 'TSM']);
@@ -54,4 +54,42 @@ test('explicit exclusions prevent re-addition, deduplicate and do not mutate inp
   assert.deepEqual(resolveReviewStockLinks({ text: '', selected: ['GOOGL', 'MSFT'] }), { stocks: ['GOOGL', 'MSFT'], omitted: [] });
   assert.deepEqual(resolveReviewStockLinks(), { stocks: [], omitted: [] });
   assert.deepEqual(findReviewStockMentions(null), []);
+});
+
+test('cashtags label each stock only once across names, codes and explicit repeated dollars', () => {
+  const text = '先看英伟达，再看SMH。\nNVDA、$nvda和英偉達继续观察；$SMH仍保留。';
+  assert.deepEqual(reviewStockTextParts(text), [
+    { text: '先看' }, { text: '$NVDA', symbol: 'NVDA' }, { text: '，再看' },
+    { text: '$SMH', symbol: 'SMH' }, { text: '。\nNVDA、nvda和英偉達继续观察；SMH仍保留。' },
+  ]);
+  assert.equal(text, '先看英伟达，再看SMH。\nNVDA、$nvda和英偉達继续观察；$SMH仍保留。');
+  assert.deepEqual(reviewStockTextParts('$TSM 台积电 $TSM'), [
+    { text: '$TSM', symbol: 'TSM' }, { text: ' 台积电 TSM' },
+  ]);
+});
+
+test('cashtags preserve money, punctuation and unknown words without a four-stock cap', () => {
+  assert.deepEqual(reviewStockTextParts('花了$100；RSI VIX AI。\nNOK TSM SMH NVDA QQQ', ['NOK']), [
+    { text: '花了$100；RSI VIX AI。\n' }, { text: '$NOK', symbol: 'NOK' }, { text: ' ' },
+    { text: '$TSM', symbol: 'TSM' }, { text: ' ' }, { text: '$SMH', symbol: 'SMH' },
+    { text: ' ' }, { text: '$NVDA', symbol: 'NVDA' }, { text: ' ' }, { text: '$QQQ', symbol: 'QQQ' },
+  ]);
+  assert.deepEqual(reviewStockTextParts('谷歌C、谷歌A。2倍英伟达，微软涨了2倍。'), [
+    { text: '$GOOG', symbol: 'GOOG' }, { text: '、' }, { text: '$GOOGL', symbol: 'GOOGL' },
+    { text: '。2倍英伟达，' }, { text: '$MSFT', symbol: 'MSFT' }, { text: '涨了2倍。' },
+  ]);
+  assert.deepEqual(reviewStockTextParts('$BRK.B, $NVDA.US. $NVDA.US'), [
+    { text: '$BRK.B', symbol: 'BRK.B' }, { text: ', ' }, { text: '$NVDA', symbol: 'NVDA' }, { text: '. NVDA.US' },
+  ]);
+});
+
+test('URLs and email remain intact and do not consume the first prose mention', () => {
+  const prefix = 'https://example.com/NVDA?q=$SMH，www.example.com/TSM NVDA@example.com mailto:SMH@example.com\n';
+  assert.deepEqual(reviewStockTextParts(`${prefix}NVDA SMH TSM`), [
+    { text: prefix }, { text: '$NVDA', symbol: 'NVDA' }, { text: ' ' },
+    { text: '$SMH', symbol: 'SMH' }, { text: ' ' }, { text: '$TSM', symbol: 'TSM' },
+  ]);
+  assert.deepEqual(reviewStockTextParts('<script>"hello"</script> & $100'), [{ text: '<script>"hello"</script> & $100' }]);
+  assert.deepEqual(reviewStockTextParts(null), []);
+  assert.deepEqual(reviewStockTextParts(''), []);
 });

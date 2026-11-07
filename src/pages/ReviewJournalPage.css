@@ -13,6 +13,7 @@
 .rj-tabs button{position:relative;flex:1;height:49px;color:#7e838e;border:0;background:transparent;font-size:15px;white-space:nowrap}
 .rj-tabs button[aria-pressed=true]{color:#eceef2;font-weight:600}
 .rj-tabs button[aria-pressed=true]:after{content:'';position:absolute;bottom:0;height:3px;border-radius:3px;left:calc(50% - 15px);width:30px;background:#d8dce5}
+.rj-tag-summary{margin:0;padding:8px 16px 14px;border-bottom:1px solid var(--rj-line);color:var(--rj-muted);font-size:12px;line-height:20px;text-align:center}
 .rj-search{margin:12px 16px 0;padding:0 12px;display:flex;gap:9px;align-items:center;background:#16191e;border-radius:12px;color:#858b95}
 .rj-search input,.rj-symbol-search input{min-width:0;width:100%;font-size:16px;line-height:24px;color:#e7e9ee;background:transparent;border:0;outline:none;padding:12px 0}
 .rj-avatar{display:block;width:42px;height:42px;border-radius:50%;object-fit:cover;flex:none;background:#20242a;overflow:hidden;border:0;box-shadow:none}
@@ -108,7 +109,8 @@
 .rj-list-page[hidden]{display:none}
 .rj-entry-page{padding-bottom:env(safe-area-inset-bottom)}
 .rj-post-link{cursor:pointer;outline:none;scroll-margin-top:72px}
-.rj-post-link:focus-visible{outline:2px solid #8ea5bd;outline-offset:-2px;border-radius:8px}
+.rj-post-link:focus,.rj-post-link:focus-visible{outline:none}
+.rj-post-link:focus-visible>.rj-post-main>.rj-post-heading>strong{text-decoration:underline;text-decoration-color:#8ea5bd;text-decoration-thickness:2px;text-underline-offset:4px}
 .rj-page-header h1:focus{outline:none}
 .rj-entry-content{min-width:0}
 .rj-entry-content .rj-post-text{font-size:16px;line-height:25px}

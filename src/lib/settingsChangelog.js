@@ -4,6 +4,17 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '投资复盘正文首次提及股票时自动显示可点击的 $代码 标签，同篇重复提及保持普通文字；点击汇总该股票的相关博文。',
+      '多只关联股票改为单卡左右滑动和代码切换，精简卡片底部文字，并取消整篇博文偶发的白色选中框。',
+    ],
+    itemsEn: [
+      'The first stock mention in a journal post becomes a clickable $TICKER tag. Repeated mentions stay plain, and selecting a tag shows related posts across both journal categories.',
+      'Linked stock charts use horizontal paging with ticker controls. Redundant card footers and the whole-post focus outline are removed.',
+    ],
+  },
+  {
+    ver: 'v10.7.9.574', date: '2026-11-07',
+    items: [
       '投资复盘在本机保存当前账户昵称和头像，重新打开时直接复用，避免反复加载；修改资料后更新缓存。',
       '后台低频检查资料，头像未更换时不重复签名和下载；弱网保留最近成功显示，退出和切号清理缓存。',
     ],

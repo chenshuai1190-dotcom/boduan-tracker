@@ -1,0 +1,12 @@
+.rsc-carousel{min-width:0;max-width:100%;margin-top:14px}
+.rsc-track{position:relative;display:flex;gap:12px;width:100%;min-width:0;max-width:100%;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch}
+.rsc-track::-webkit-scrollbar{display:none}
+.rsc-slide{flex:0 0 100%;min-width:0;max-width:100%;scroll-snap-align:start;scroll-snap-stop:always}
+.rsc-slide .rsr-card{margin-top:0;height:100%}
+/* Mini charts are tap targets; allow native horizontal paging and page scrolling.
+   The full replay chart keeps its separate inspection gestures. */
+.rsc-track .rsr-chart-mini .rsr-chart-touch{touch-action:auto}
+.rsc-navigation{display:flex;justify-content:center;gap:4px;flex-wrap:wrap;margin-top:6px}
+.rsc-navigation button{min-width:44px;min-height:32px;padding:5px 9px;border:0;border-radius:9px;background:transparent;color:#7f8998;font-size:11px;line-height:20px}
+.rsc-navigation button[aria-pressed=true]{background:#242830;color:#e2e6ee}
+.rsc-navigation button:active{background:#1c2027}

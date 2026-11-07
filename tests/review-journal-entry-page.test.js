@@ -11,7 +11,7 @@ const walk = tree => !React.isValidElement(tree) ? Array.isArray(tree) ? tree.fl
 const visible = tree => !React.isValidElement(tree) ? Array.isArray(tree) ? tree.flatMap(visible) : [] : tree.props.hidden ? [] : [tree, ...visible(tree.props.children)];
 const hasClass = (node, value) => node.props.className?.split(' ').includes(value);
 const find = (tree, predicate) => visible(tree).find(predicate);
-const textOf = tree => !React.isValidElement(tree) ? Array.isArray(tree) ? tree.map(textOf).join('') : String(tree ?? '') : textOf(tree.props.children);
+const textOf = tree => !React.isValidElement(tree) ? Array.isArray(tree) ? tree.map(textOf).join('') : String(tree ?? '') : tree.props.text !== undefined ? String(tree.props.text) : textOf(tree.props.children);
 const button = (tree, name) => find(tree, node => node.type === 'button' && (node.props['aria-label'] === name || textOf(node) === name));
 const firstPost = tree => find(tree, node => node.type === 'article');
 const detail = tree => find(tree, node => hasClass(node, 'rj-entry-content'));
@@ -53,10 +53,11 @@ async function harness() {
       import React from ${JSON.stringify(import.meta.resolve('react'))};
       import { ArrowLeft, Search, Plus, MoreHorizontal, Pin, MessageCircle, Pencil, Trash2 } from ${JSON.stringify(import.meta.resolve('lucide-react'))};
       import { reviewJournalFeed, localReviewDate } from ${JSON.stringify(new URL('../src/lib/reviewJournalFeed.js', import.meta.url).href)};
+      import { findReviewStockMentions } from ${JSON.stringify(new URL('../src/lib/reviewStockMentions.js', import.meta.url).href)};
       const fixture = globalThis[${JSON.stringify(key)}];
       const { useState, useRef, useEffect, useLayoutEffect, window } = fixture;
-      const Avatar = () => null, AuthorName = () => null, Photo = () => null, SnapshotCard = () => null, ReviewStockReplay = () => null, Composer = () => null, Dialog = () => null;
-      export { Photo, SnapshotCard, ReviewStockReplay, Composer, Dialog };
+      const Avatar = () => null, AuthorName = () => null, Photo = () => null, SnapshotCard = () => null, ReviewStockCarousel = () => null, ReviewStockText = () => null, Composer = () => null, Dialog = () => null;
+      export { Photo, SnapshotCard, ReviewStockCarousel, ReviewStockText, Composer, Dialog };
       ${pageSource.replaceAll('import.meta.env.DEV', 'true')}
     `, 'ReviewJournalEntryPageTest.jsx', { jsx: { runtime: 'classic' } });
     Page = await import(dataUrl(compiled.code));
@@ -93,10 +94,10 @@ test('a whole post opens a normal detail page with all entry and comment attachm
   assert.equal(button(tree, '写复盘'), undefined);
   assert.ok(button(tree, '返回投资复盘'));
   assert.equal(firstPost(tree).props.role, undefined);
-  assert.equal(find(tree, node => hasClass(node, 'rj-post-text')).props.children, h.ctx.reviewLogs[0].text);
+  assert.equal(find(tree, node => hasClass(node, 'rj-post-text')).props.children.props.text, h.ctx.reviewLogs[0].text);
   assert.equal(visible(tree).some(node => hasClass(node, 'rj-clamped')), false);
   assert.deepEqual(visible(tree).filter(node => node.type === h.Page.Photo).map(node => node.props.item.path), ['owner/image.webp', 'owner/reply.webp']);
-  assert.deepEqual(visible(tree).filter(node => node.type === h.Page.ReviewStockReplay).map(node => [node.props.symbol, node.props.recordDate, node.props.userId]), [['NVDA', '2026-11-04', 'owner'], ['QQQ', '2026-11-04', 'owner'], ['SPY', '2026-11-05', 'owner']]);
+  assert.deepEqual(visible(tree).filter(node => node.type === h.Page.ReviewStockCarousel).flatMap(node => node.props.symbols.map(symbol => [symbol, node.props.recordDate, node.props.userId])), [['NVDA', '2026-11-04', 'owner'], ['QQQ', '2026-11-04', 'owner'], ['SPY', '2026-11-05', 'owner']]);
   assert.deepEqual(visible(tree).filter(node => node.type === h.Page.SnapshotCard).map(node => node.props.value.id), ['saved-market', 'reply-market']);
   assert.match(textOf(detail(tree)), /评论.*评论正文/);
   assert.doesNotMatch(textOf(detail(tree)), /后来的想法|复盘日志|投资心得/);
@@ -232,5 +233,67 @@ test('history cannot reopen a deleted record or restore another journal mount', 
   assert.equal(detail(tree), undefined);
   h.listeners.get('popstate')({ state: { reviewJournalEntry: { token: 'another-session', key: 'log:two' } } });
   assert.equal(detail(h.render()), undefined);
+  h.unmount();
+});
+
+
+test('stock tags open a cross-category exact-match feed without changing category or search', async () => {
+  const h = await harness();
+  h.ctx.reviewLogs = [
+    {id:'one',date:'2026-11-06',text:'NVDA 继续观察 NVDA',stocks:[]},
+    {id:'same',date:'2026-11-04',text:'英伟达 复盘',stocks:[]},
+    {id:'noise',date:'2026-11-05',text:'XNVDAX 与 NVDA100',stocks:[]},
+  ];
+  h.ctx.disciplines = [
+    {id:'linked',date:'2026-11-07',text:'手动关联',stocks:['NVDA'],pinned:false},
+    {id:'pinned',date:'2026-10-01',text:'NVDA 投资心得',stocks:[],pinned:true},
+  ];
+  let tree = h.render();
+  button(tree, '复盘日志').props.onClick(); tree=h.render();
+  button(tree, '搜索复盘').props.onClick(); tree=h.render();
+  find(tree,node=>node.type==='input').props.onChange({target:{value:'继续观察'}}); tree=h.render();
+  assert.equal(visible(tree).filter(node=>node.type==='article').length,1);
+  const control=find(tree,node=>node.type===h.Page.ReviewStockText);
+  let stopped=false,prevented=false;
+  control.props.onSelectSymbol('NVDA',{type:'click',detail:1,currentTarget:h.host,stopPropagation:()=>{stopped=true;},preventDefault:()=>{prevented=true;}});
+  tree=h.render();
+  assert.equal(stopped,true);assert.equal(prevented,true);
+  assert.equal(detail(tree),undefined);
+  assert.equal(find(tree,node=>node.type==='h1').props.children,'$NVDA');
+  assert.deepEqual(visible(tree).filter(node=>node.type==='article').map(node=>node.props['data-rj-entry-key']),['insight:linked','log:one','log:same','insight:pinned']);
+  assert.equal(find(tree,node=>hasClass(node,'rj-tabs')),undefined);
+  assert.equal(find(tree,node=>node.type==='input'),undefined);
+  assert.equal(visible(tree).some(node=>hasClass(node,'rj-inline-pin')),false);
+  button(tree,'返回投资复盘').props.onClick();tree=h.render();
+  assert.equal(button(tree,'复盘日志').props['aria-pressed'],true);
+  assert.equal(find(tree,node=>node.type==='input').props.value,'继续观察');
+  assert.equal(h.fixture.window.scrollY,740);
+  assert.equal(h.saves.length,0);
+  h.unmount();
+});
+
+test('tag and entry navigation preserve parent pages and positions through browser history',async()=>{
+  const h=await harness();h.ctx.reviewLogs[0].text='NVDA 与 QQQ';
+  let tree=h.render();
+  const select=(symbol)=>{find(tree,node=>node.type===h.Page.ReviewStockText).props.onSelectSymbol(symbol,{type:'click',detail:1,stopPropagation(){},preventDefault(){}});tree=h.render();};
+  select('NVDA');
+  assert.equal(find(tree,node=>node.type==='h1').props.children,'$NVDA');
+  h.fixture.window.scrollY=280;
+  h.clickPost(tree);tree=h.render();assert.ok(detail(tree));
+  h.fixture.window.scrollY=610;
+  select('QQQ');assert.equal(find(tree,node=>node.type==='h1').props.children,'$QQQ');
+  button(tree,'返回投资复盘').props.onClick();tree=h.render();
+  assert.ok(detail(tree));assert.equal(h.fixture.window.scrollY,610);
+  button(tree,'返回投资复盘').props.onClick();tree=h.render();
+  assert.equal(find(tree,node=>node.type==='h1').props.children,'$NVDA');assert.equal(h.fixture.window.scrollY,280);
+  h.fixture.window.history.back();tree=h.render();
+  assert.equal(find(tree,node=>node.type==='h1').props.children,'投资复盘');assert.equal(h.fixture.window.scrollY,740);
+  h.fixture.window.history.forward();tree=h.render();
+  assert.equal(find(tree,node=>node.type==='h1').props.children,'$NVDA');assert.equal(h.fixture.window.scrollY,280);
+  h.fixture.window.history.forward();tree=h.render();assert.ok(detail(tree));assert.equal(h.fixture.window.scrollY,610);
+  h.fixture.window.history.forward();tree=h.render();
+  assert.equal(find(tree,node=>node.type==='h1').props.children,'$QQQ');
+  assert.equal(h.pushes.every(args=>args.length===2),true);
+  assert.equal(h.fixture.window.history.state.otherAppState,'retained');
   h.unmount();
 });

@@ -18,10 +18,10 @@ const history = { ...STOCK_COMPARISON_DEMO, priceBasis:'split_adjusted_close', s
 const base = { revision:0,stocks:[],images:[],replies:[],market:null,mood:'',level:'🟢',pinned:false };
 const seedInsights = [
   {...base,id:'insight-patience',type:'insight',date:'2026-11-03',text:'好的交易，不一定每天都发生。\n\n先写清楚自己在等什么，再决定要不要行动。价格到了、仓位允许、理由还在，才是值得出手的时候。',pinned:true},
-  {...base,id:'insight-risk',type:'insight',date:'2026-10-30',text:'把仓位留给真正理解的机会。\n盈利可以等待，风险需要在买入之前想清楚。📝'},
+  {...base,id:'insight-risk',type:'insight',date:'2026-10-30',text:'SMH 这段交易提醒我：把仓位留给真正理解的机会。\n盈利可以等待，风险需要在买入之前想清楚。📝'},
 ];
 const seedLogs = [
-  {...base,id:'log-nvda',type:'log',date:'2026-11-06',text:'$NVDA 回看这段交易，最需要复盘的不是某一次涨跌，而是每次操作有没有遵守最初的计划。\n\n把买卖节点放回走势图里，节奏就清楚了。',stocks:['NVDA'],replies:[{id:'note-1',date:'2026-11-06',text:'下次买入前，先把失效条件也写下来。'}]},
+  {...base,id:'log-nvda',type:'log',date:'2026-11-06',text:'NVDA 回看这段交易，最需要复盘的不是某一次涨跌，而是操作有没有遵守最初的计划。\n\nNVDA 和 SMH 的买卖节点放回走势图里，节奏就清楚了。',stocks:['NVDA','SMH','QQQ'],replies:[{id:'note-1',date:'2026-11-06',text:'下次买入前，先把失效条件也写下来。'}]},
   {...base,id:'log-market',type:'log',date:'2026-11-05',text:'今天的波动很大。先记录当时的市场环境，等情绪平静下来再回看自己的判断。\n\n暂时不急着给每一次下跌找答案。',market:snapshot,mood:'冷静'},
   {...base,id:'log-smh',type:'log',date:'2026-11-04',text:'$SMH 同样的价格区间，这次想更耐心一点。先确认自己能承受多少波动，再决定下一步。',stocks:['SMH']},
 ];

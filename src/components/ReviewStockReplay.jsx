@@ -185,7 +185,6 @@ function ScopedReplay({ symbol, stockTrades, userId, language, previewHistory, c
     <button type="button" className="rsr-card-open" onClick={() => setOpen(true)} aria-label={`${symbol} ${english ? 'trade replay' : '交易回放'}`}>
       <header><strong>{symbol}</strong><span>{preview ? english ? 'Demo trades' : '示例交易' : english ? 'My trade dates' : '我的买卖节点'}</span><ChevronRight size={17} /></header>
       {miniRows.length ? <ReplayChart rows={miniRows} trades={model.trades} selectedTrade={null} english={english} recordDate={recordDate} mini /> : <div className="rsr-card-chart-status" role="status">{error ? english ? 'History unavailable · open to retry' : '历史行情暂不可用 · 点击重试' : loading || !shouldLoad ? english ? 'Loading chart…' : '正在读取走势…' : english ? 'No historical prices available' : '暂无可用历史行情'}</div>}
-      <footer><span>{preview ? english ? 'Illustrative history' : '示意走势' : english ? 'Read-only replay' : '只读回放'}</span><span>{english ? 'View trades and chart' : '查看交易与走势'} →</span></footer>
     </button>
     {open && <ReplayDialog symbol={symbol} model={model} loading={loading} error={error} onRetry={() => setAttempt(value => value + 1)} onClose={() => setOpen(false)} english={english} preview={Boolean(preview)} recordDate={recordDate} />}
   </section>;
