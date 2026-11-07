@@ -34,12 +34,12 @@ const returnCurrent = { date: '2026-11-06', cumulativeReturnPct: 3.39 };
 const returnDrawdown = { id: 'drawdown:cumulative_return:2026-10-06', title: '收益率回落', kind: 'drawdown', metric: 'cumulative_return',
   valueType: 'percent', status: 'active', date: returnCurrent.date, startDate: returnPeak.date,
   drawdownPct: -33.52, maxDrawdownPct: -36.27, peak: returnPeak, current: returnCurrent, points: [returnPeak, returnCurrent], nodes: [] };
-const props = (event = high, overrides = {}) => ({ event, authorNode: React.createElement(React.Fragment, null, React.createElement('strong', null, 'Quote'), React.createElement('span', { className: 'rj-system-badge' }, '系统')),
+const props = (event = high, overrides = {}) => ({ event, authorNode: React.createElement(React.Fragment, null, React.createElement('strong', null, 'Quote'), React.createElement('span', { className: 'rj-system-badge' }, '小助手')),
   avatarNode: React.createElement('img', { className: 'rj-avatar', src: '/quote-system-fox.jpg', alt: '' }), ...overrides });
 
 test('system post displays the latest data date once while retaining the same author event ID and comment count', () => {
   const html = renderToStaticMarkup(Post(props(high, { commentCount: 3 })));
-  assert.match(html, /src="\/quote-system-fox.jpg"/); assert.match(html, /Quote/); assert.match(html, /rj-system-badge[^>]*>系统/); assert.doesNotMatch(html, /自动记录|Automatic/);
+  assert.match(html, /src="\/quote-system-fox.jpg"/); assert.match(html, /Quote/); assert.match(html, /rj-system-badge[^>]*>小助手/); assert.doesNotMatch(html, /自动记录|Automatic/);
   assert.match(html, /dateTime="2026-10-06"/); assert.doesNotMatch(html, /更新至|Updated|rj-system-updated/);
   assert.match(html, /<span>3<\/span>/); assert.match(html, /data-rj-entry-key="timeline:high:net_assets:2026-10-02"/);
   assert.doesNotMatch(html, /编辑|删除|置顶|查看记录|查看交易|只读回放/);

@@ -8,5 +8,5 @@ export function ReviewSystemAvatar() {
 
 export function ReviewSystemName({ language = 'zh' }) {
   const en = String(language).toLowerCase().startsWith('en');
-  return <><strong>Quote</strong><span className="rj-system-badge">{en ? 'System' : '系统'}</span></>;
+  return <><strong>Quote</strong><span className="rj-system-badge">{en ? 'Assistant' : '小助手'}</span></>;
 }

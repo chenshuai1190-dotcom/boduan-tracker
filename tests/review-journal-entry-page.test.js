@@ -817,7 +817,7 @@ test('a mixed system post opens its event and shares saved evaluations with the 
   assert.equal(systemPost.props.avatarNode.type, h.Page.ReviewSystemAvatar);
   assert.equal(systemPost.props.authorNode.type, h.Page.ReviewSystemName);
   assert.match(renderToStaticMarkup(systemPost.props.avatarNode), /quote-system-fox\.jpg/);
-  assert.match(renderToStaticMarkup(systemPost.props.authorNode), /Quote.*系统/);
+  assert.match(renderToStaticMarkup(systemPost.props.authorNode), /Quote.*小助手/);
   assert.ok(find(firstPost(tree), node => node.type === h.Page.AuthorName && node.props.identity.nickname === '复盘者'));
 
   systemPost.props.onOpen(event.id, clickEvent(h)); tree = h.render();
