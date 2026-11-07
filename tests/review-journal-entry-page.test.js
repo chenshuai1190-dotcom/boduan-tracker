@@ -2,11 +2,18 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { transformWithOxc } from 'vite';
 
 const source = readFileSync(new URL('../src/pages/ReviewJournalPage.jsx', import.meta.url), 'utf8');
 const pageSource = source.slice(source.indexOf('export default function ReviewJournalPage'));
 const dataUrl = code => `data:text/javascript;base64,${Buffer.from(code).toString('base64')}`;
+const systemIdentitySource = readFileSync(new URL('../src/components/ReviewSystemIdentity.jsx', import.meta.url), 'utf8');
+const systemIdentityModule = dataUrl((await transformWithOxc(`
+  import React from ${JSON.stringify(import.meta.resolve('react'))};
+  const avatar = '/assets/quote-system-fox.jpg';
+  ${systemIdentitySource.replace(/^import .*;\n/gm, '')}
+`, 'ReviewSystemIdentityTest.jsx', { jsx: { runtime: 'classic' } })).code);
 const walk = tree => !React.isValidElement(tree) ? Array.isArray(tree) ? tree.flatMap(walk) : [] : [tree, ...walk(tree.props.children)];
 const visible = tree => !React.isValidElement(tree) ? Array.isArray(tree) ? tree.flatMap(visible) : [] : tree.props.hidden ? [] : [tree, ...visible(tree.props.children)];
 const hasClass = (node, value) => node.props.className?.split(' ').includes(value);
@@ -67,13 +74,14 @@ async function harness({ removeReply, preferences = {} } = {}) {
       import { mergeReviewTimelineFeed, reviewTimelineFeedDate } from ${JSON.stringify(new URL('../src/lib/reviewTimelineFeed.js', import.meta.url).href)};
       import { groupReviewTimelineEvents } from ${JSON.stringify(new URL('../src/lib/reviewTimelineGroups.js', import.meta.url).href)};
       import { findReviewEntryByKey, projectReviewTimelineEntry, resolveReviewReplySource, resolveReviewTimelineEvent, reviewTimelineAnchorEntry, reviewTimelineReplyKey } from ${JSON.stringify(new URL('../src/lib/reviewTimelineEntries.js', import.meta.url).href)};
+      import { ReviewSystemAvatar, ReviewSystemName } from ${JSON.stringify(systemIdentityModule)};
       const fixture = globalThis[${JSON.stringify(key)}];
       const { useState, useRef, useEffect, useLayoutEffect, useMemo, window } = fixture;
       const Avatar = () => null, AuthorName = () => null, Photo = () => null, SnapshotCard = () => null, ReviewStockCarousel = () => null, ReviewPostBody = () => null, Composer = () => null, Dialog = () => null;
       const ReviewTimeline = () => null, ReviewPreferences = () => null, ReviewTimelinePost = () => null;
       const useReviewPreferences = () => fixture.preferenceState;
       const ReviewEvaluationComposer = () => null, EvaluationRating = () => null, ReviewAccountCard = () => null, ReviewTradeReferences = () => null, EmojiPicker = () => null;
-      export { ReviewTimeline, ReviewPreferences, ReviewTimelinePost, Photo, SnapshotCard, ReviewStockCarousel, ReviewPostBody, Composer, Dialog, ReviewEvaluationComposer, EvaluationRating, ReviewAccountCard, ReviewTradeReferences };
+      export { ReviewSystemAvatar, ReviewSystemName, Avatar, AuthorName, ReviewTimeline, ReviewPreferences, ReviewTimelinePost, Photo, SnapshotCard, ReviewStockCarousel, ReviewPostBody, Composer, Dialog, ReviewEvaluationComposer, EvaluationRating, ReviewAccountCard, ReviewTradeReferences };
       ${pageSource.replaceAll('import.meta.env.DEV', 'true')}
     `, 'ReviewJournalEntryPageTest.jsx', { jsx: { runtime: 'classic' } });
     Page = await import(dataUrl(compiled.code));
@@ -806,13 +814,23 @@ test('a mixed system post opens its event and shares saved evaluations with the 
   assert.equal(visible(tree).filter(node => node.type === 'article').length, records().length, 'the persisted event container must not render as a duplicate ordinary post');
   const systemPost = systemPosts(tree, h).find(node => node.props.event.id === event.id);
   assert.equal(systemPost.props.commentCount, 1);
-  assert.ok(systemPost.props.avatarNode);
-  assert.ok(systemPost.props.authorNode);
+  assert.equal(systemPost.props.avatarNode.type, h.Page.ReviewSystemAvatar);
+  assert.equal(systemPost.props.authorNode.type, h.Page.ReviewSystemName);
+  assert.match(renderToStaticMarkup(systemPost.props.avatarNode), /quote-system-fox\.jpg/);
+  assert.match(renderToStaticMarkup(systemPost.props.authorNode), /Quote.*系统/);
+  assert.ok(find(firstPost(tree), node => node.type === h.Page.AuthorName && node.props.identity.nickname === '复盘者'));
+
   systemPost.props.onOpen(event.id, clickEvent(h)); tree = h.render();
   let timeline = find(tree, node => node.type === h.Page.ReviewTimeline);
   assert.equal(timeline.props.selectedEventId, event.id);
   const author = find(tree, node => hasClass(node, 'rj-timeline-author'));
   assert.equal(find(author, node => node.type === 'time').props.dateTime, event.date);
+  assert.ok(find(author, node => node.type === h.Page.ReviewSystemAvatar));
+  assert.ok(find(author, node => node.type === h.Page.ReviewSystemName));
+  const replies = timeline.props.renderEvaluations(event);
+  assert.ok(find(replies, node => node.type === h.Page.AuthorName && node.props.identity.nickname === '复盘者'));
+  assert.equal(find(replies, node => node.type === h.Page.ReviewSystemName), undefined);
+
   assert.match(textOf(timeline.props.renderEvaluations(event)), /原有时间线评价/);
   button(timeline.props.renderEvaluations(event), '写评价').props.onClick(); tree = h.render();
   const composer = find(tree, node => node.type === h.Page.ReviewEvaluationComposer);

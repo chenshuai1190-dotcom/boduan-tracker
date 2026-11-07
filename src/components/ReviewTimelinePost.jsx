@@ -1,5 +1,5 @@
 import React from 'react';
-import { History, MessageCircle } from 'lucide-react';
+import { MessageCircle } from 'lucide-react';
 import { marketHexColor } from '../lib/marketColorMode.js';
 import { reviewTimelineFeedDate } from '../lib/reviewTimelineFeed.js';
 import { isReviewEarningsEvent, reviewEarningsScope, reviewEarningsRecordLabel } from '../lib/reviewTimelineEarnings.js';
@@ -121,7 +121,7 @@ export default function ReviewTimelinePost({ event, avatarNode, authorNode, comm
     role="link" tabIndex={0} aria-label={`${label(en, '查看', 'View ')}${event.title}`} onClick={clickPost}
     onKeyDown={click => { if (click.target === click.currentTarget && (click.key === 'Enter' || click.key === ' ')) { click.preventDefault(); open(click); } }}>
     {avatarNode}<div className="rj-post-main">
-      <div className="rj-post-heading rj-timeline-byline">{authorNode}<span>·</span><time dateTime={feedDate}>{shortDate(feedDate, en)}</time><span className="rj-auto-label"><History size={11} />{label(en, '自动记录', 'Automatic')}</span></div>
+      <div className="rj-post-heading rj-timeline-byline">{authorNode}<span>·</span><time dateTime={feedDate}>{shortDate(feedDate, en)}</time></div>
       <p className="rj-post-text rj-timeline-copy">{reviewTimelinePostSummary(event, en)}</p>
       {!archived && <div className={`rj-system-summary${earnings ? ' rj-system-earnings' : ''}`}><div className="rj-system-label"><span>{metric.title}</span>{status && <span className="rj-system-status">{status}</span>}</div>
         <div className="rj-system-values"><strong className="rj-system-primary" style={style(metric.direction, marketColorMode)}>{metric.value}</strong>
