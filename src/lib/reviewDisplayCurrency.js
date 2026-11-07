@@ -22,7 +22,7 @@ export function formatReviewMoney(value, options = {}) {
   const converted = convertReviewMoney(value, options);
   if (converted === null) return '—';
   const { currency } = reviewDisplayCurrency(options);
-  const decimals = Number.isInteger(options.decimals) && options.decimals >= 0 && options.decimals <= 4 ? options.decimals : 0;
+  const decimals = Number.isInteger(options.decimals) && options.decimals >= 0 && options.decimals <= 4 ? options.decimals : 2;
   return new Intl.NumberFormat('en-US', {
     style: 'currency', currency, currencyDisplay: 'narrowSymbol',
     minimumFractionDigits: decimals, maximumFractionDigits: decimals,

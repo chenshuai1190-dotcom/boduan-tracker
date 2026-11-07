@@ -3,6 +3,11 @@ import { CURRENT_RELEASE } from './releaseMeta.js';
 export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
+    items: ['投资动态中的美元和人民币金额统一保留两位小数，覆盖动态卡片、时间线列表、详情和图表节点。'],
+    itemsEn: ['USD and CNY amounts in Activity now consistently show two decimal places across feed cards, timeline lists, details, and selected chart nodes.'],
+  },
+  {
+    ver: 'v10.7.9.590', date: '2026-11-07',
     items: ['复盘升级为“动态”：全部列表融合带头像的系统时间线，可点击查看完整节点与评价；左上头像进入动态设置，按八类记录控制显示，并支持美元/人民币金额。偏好按账号保存，完整时间线始终保留。'],
     itemsEn: ['Journal is now Activity: All mixes your posts with automatic timeline records and shared event details and evaluations. Open the header avatar for account-saved display settings, eight event categories, and USD/CNY amounts. The full Timeline remains available.'],
   },

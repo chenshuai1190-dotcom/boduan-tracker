@@ -57,13 +57,16 @@ test('visibility is presentation only and the same query searches posts and syst
 });
 
 test('currency conversion changes displayed USD account balances only with a verified positive numeric rate', () => {
-  assert.equal(formatReviewMoney(1250), '$1,250');
+  assert.equal(formatReviewMoney(1250), '$1,250.00');
+  assert.equal(formatReviewMoney(1250.456), '$1,250.46');
+  assert.equal(formatReviewMoney(0), '$0.00');
   const currency = { displayCurrency: 'CNY', usdCny: 7.2, fxDate: '2026-11-07T08:03:00Z' };
   assert.equal(convertReviewMoney(1250, currency), 9000);
-  assert.equal(formatReviewMoney(1250, currency), '¥9,000');
-  assert.equal(formatReviewMoney(-1250, { ...currency, signed: true }), '-¥9,000');
-  assert.equal(formatReviewMoney(1250, { ...currency, signed: true }), '+¥9,000');
-  assert.equal(formatReviewMoney(0, currency), '¥0');
+  assert.equal(formatReviewMoney(1250, currency), '¥9,000.00');
+  assert.equal(formatReviewMoney(1250.456, currency), '¥9,003.28');
+  assert.equal(formatReviewMoney(-1250, { ...currency, signed: true }), '-¥9,000.00');
+  assert.equal(formatReviewMoney(1250, { ...currency, signed: true }), '+¥9,000.00');
+  assert.equal(formatReviewMoney(0, currency), '¥0.00');
   assert.equal(reviewDisplayCurrency(currency).date, '2026-11-07');
   assert.match(reviewCurrencyNotice(currency), /汇率更新于 2026-11-07.*美元报表口径/);
   assert.equal(reviewCurrencyNotice(), '');

@@ -78,7 +78,7 @@ test('milestone selection changes the exact account and market date without inve
   selectTrigger.props.onClick();
   tree = h.render('TimelineDetail', props); html = renderToStaticMarkup(tree);
   assert.match(html, /data-market-date="2026-10-02"/);
-  assert.match(renderToStaticMarkup(byClass(tree, 'rjt-node-value')), /\$90,000.*-10\.00%/);
+  assert.match(renderToStaticMarkup(byClass(tree, 'rjt-node-value')), /\$90,000\.00.*-10\.00%/);
   assert.match(renderToStaticMarkup(byClass(tree, 'rjt-metric-grid')), /\+12\.50%/);
   assert.equal(walk(byClass(tree, 'rjt-node-tabs')).find(node => node.type === 'button' && node.props['aria-pressed']).props.children[0], '首次回落 10%');
 });
@@ -146,14 +146,14 @@ test('CNY converts net-asset views with one rate while return basis and trade ex
   const currency = { displayCurrency: 'CNY', usdCny: 7.2, fxDate: '2026-11-07' };
   const props = details({ ...currency, stockTrades: [{ id: 'trade', date: current.date, side: 'buy', symbol: 'NVDA', price: 187.5, shares: 1 }] });
   const html = renderToStaticMarkup(h.render('TimelineDetail', props));
-  assert.match(html, /¥576,000/); assert.match(html, /净资产走势 · CNY/);
+  assert.match(html, /¥576,000\.00/); assert.match(html, /净资产走势 · CNY/);
   assert.match(html, /汇率更新于 2026-11-07/); assert.match(html, /-25\.00%/); assert.match(html, /\$187\.50/);
   const usdChart = h.components.TimelineChart({ event: cycle, detail: true });
   const cnyChart = h.components.TimelineChart({ event: cycle, detail: true, ...currency });
   assert.equal(byClass(usdChart, 'rjt-chart-line').props.d, byClass(cnyChart, 'rjt-chart-line').props.d);
   assert.match(renderToStaticMarkup(cnyChart), /Historical net assets|账户净资产历史走势.*CNY/);
   const list = renderToStaticMarkup(h.render('TimelineEvent', { event: cycle, ...currency }));
-  assert.match(list, /¥720,000/); assert.match(list, /¥540,000/); assert.match(list, /¥576,000/);
+  assert.match(list, /¥720,000\.00/); assert.match(list, /¥540,000\.00/); assert.match(list, /¥576,000\.00/);
 });
 
 test('missing CNY rate shows unavailable balances and no mislabeled USD chart', async () => {

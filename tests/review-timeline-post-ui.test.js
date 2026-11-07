@@ -66,13 +66,13 @@ test('net-asset amount stays neutral and gains/losses follow either financial co
     assert.equal(byClass(daily, 'rj-system-primary').props.children, '-12.50%');
     assert.equal(byClass(daily, 'rj-system-primary').props.style.color, marketHexColor(-12.5, mode));
     const pnl = byClass(daily, 'rj-system-secondary').props.children[1];
-    assert.equal(pnl.props.children, '-$2,500'); assert.equal(pnl.props.style.color, marketHexColor(-2500, mode));
+    assert.equal(pnl.props.children, '-$2,500.00'); assert.equal(pnl.props.style.color, marketHexColor(-2500, mode));
   }
 });
 
 test('CNY projection uses the same rate for card/chart and absent FX never shows a currency guess', () => {
   const tree = Post(props(high, { displayCurrency: 'CNY', usdCny: 7.2, fxDate: '2026-11-07' }));
-  assert.equal(byClass(tree, 'rj-system-primary').props.children, '¥864,000');
+  assert.equal(byClass(tree, 'rj-system-primary').props.children, '¥864,000.00');
   const chart = walk(tree).find(node => node.type === fixture.TimelineChart);
   assert.equal(chart.props.usdCny, 7.2); assert.equal(chart.props.fxDate, '2026-11-07'); assert.equal(chart.props.displayCurrency, 'CNY');
   const html = renderToStaticMarkup(Post(props(high, { displayCurrency: 'CNY' })));
