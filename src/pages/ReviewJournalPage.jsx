@@ -7,7 +7,7 @@ import { isReviewAvatarDataUrl } from '../lib/reviewIdentityStorage.js';
 import { emptyReviewEntry, localReviewDate, reviewDraftKey, reviewJournalFeed, restoreReviewDraft } from '../lib/reviewJournalFeed.js';
 import { findReviewStockMentions, resolveReviewStockLinks } from '../lib/reviewStockMentions.js';
 import ReviewStockCarousel from '../components/ReviewStockCarousel.jsx';
-import ReviewStockText from '../components/ReviewStockText.jsx';
+import ReviewPostBody from '../components/ReviewPostBody.jsx';
 import { SnapshotCard, SnapshotPicker } from '../components/ReviewMarketSnapshot.jsx';
 import './ReviewJournalPage.css';
 
@@ -331,7 +331,7 @@ export default function ReviewJournalPage({ ctx }) {
     onClick={full?undefined:event=>openPost(entry,event)}
     onKeyDown={full?undefined:event=>{if(event.target===event.currentTarget&&(event.key==='Enter'||event.key===' ')){event.preventDefault();openDetail(entry,event);}}}>
     <Avatar identity={identity} userId={userId} preview={preview}/><div className="rj-post-main"><div className="rj-post-heading"><AuthorName identity={identity} />{!tagSymbol&&(full||filter!=='all')&&entry.pinned&&<Pin className="rj-inline-pin" size={12} aria-label="已置顶"/>}<span>·</span><time dateTime={entry.date}>{full?entry.date:`${entry.date?.slice(5).replace('-','月')}日`}</time><button className="rj-icon rj-post-more" aria-label="记录操作" onClick={()=>{setMenu(entry);setConfirmDelete(false);setError('');}}><MoreHorizontal size={19}/></button></div>
-      <div className={`rj-post-text ${full||expanded.has(entryKey(entry))||String(entry.text||'').length<=160?'':'rj-clamped'}`}><ReviewStockText text={entry.text} candidates={[...(entry.stocks||[]),...suggestions]} onSelectSymbol={openStockTag} language={language}/></div>{!full&&String(entry.text||'').length>160&&<button className="rj-text-button rj-expand" onClick={()=>toggleExpanded(entry)}>{expanded.has(entryKey(entry))?'收起':'展开全文'}</button>}
+      <ReviewPostBody text={entry.text} candidates={[...(entry.stocks||[]),...suggestions]} onSelectSymbol={openStockTag} language={language} full={full} expanded={expanded.has(entryKey(entry))} onToggle={()=>toggleExpanded(entry)}/>
       {full&&entryNotes(entry)}
       {attachments(entry)}
       {!full&&<div className="rj-post-actions"><button onClick={event=>openDetail(entry,event)} aria-label="查看评论"><MessageCircle size={18}/><span>{entry.replies?.length||'评论'}</span></button></div>}

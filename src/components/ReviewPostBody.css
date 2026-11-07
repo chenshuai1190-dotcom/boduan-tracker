@@ -1,0 +1,5 @@
+.rj-post-body{position:relative;min-width:0;--rj-body-budget:max(220px,calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 160px))}
+@supports(height:100svh){.rj-post-body{--rj-body-budget:max(220px,calc(100svh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 160px))}}
+.rj-post-body-budget{position:fixed;inset:0 auto auto 0;width:0;height:var(--rj-body-budget);visibility:hidden;pointer-events:none}
+.rj-post-body-window{min-width:0}
+.rj-post-body-collapsed{max-height:var(--rj-body-budget);overflow:hidden}

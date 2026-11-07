@@ -32,10 +32,23 @@ const stockTrades = [
   {id:'sm1',user_id:OWNER,symbol:'SMH',date:'2026-09-03',side:'buy',price:524.32,shares:30},
   {id:'sm2',user_id:OWNER,symbol:'SMH',date:'2026-10-20',side:'sell',price:552.10,shares:10},
 ];
+const readingLogs = [
+  {...base,id:'reading-medium',type:'log',date:'2026-11-08',text:'NVDA 与 SMH 的复盘，不应该只记住买卖价格。真正值得留下的是：当时看到了什么信息，为什么认为这个价格可以接受，以及准备在什么条件下改变判断。\n\n这次先把交易原因、当时的仓位和后续观察分开记录。NVDA 的价格变化只是结果，是否遵守计划才是可以反复检查的部分。短期波动出现时，回到当时写下的条件，比事后用新的信息解释过去更有帮助。\n\n这是一条中等长度的示例记录。正文超过原来的字数限制，但仍能在手机一屏内读完，所以应该直接完整显示。'},
+  {...base,id:'reading-long',type:'log',date:'2026-11-07',text:[
+    '长文复盘示例：把一次操作放回完整的决策过程。',
+    '第一部分，记录当时知道的信息。观察 NVDA 和 SMH 时，我希望先写下已经确认的事实，再写自己的推测。行情价格、公开报告和自己能接受的仓位是不同层面的信息，不能因为它们出现在同一张页面上，就把它们当成同一种判断依据。写复盘的目的，是留下当时的思考过程，方便以后检查，而不是替已经发生的结果寻找理由。',
+    '第二部分，回看执行。计划中的操作条件有没有出现，实际动作有没有偏离，偏离时是不是受到了情绪影响？这些问题需要具体到日期和步骤。一次买卖的盈亏，并不足以说明整个过程是否合理；同样，一次结果不理想，也不能直接抹掉之前认真做过的准备。先把过程写清楚，才能知道下一次究竟应该改哪一步。',
+    '第三部分，区分事实与后来的认识。写下这些文字时，我已经知道后面的价格走势，这会影响自己对当时决定的评价。因此需要保留原始判断，再单独记录现在的补充。不能把后来才知道的信息，假装成当时就能确认的事实。对自己的判断保持诚实，才有可能从重复出现的问题里发现可以改善的地方。',
+    '第四部分，检查仓位与节奏。这里不预设某个比例一定正确，而是记录自己当时为什么采用这个安排，以及变化发生以后能否继续按照计划行动。如果连续几次操作都出于同一种急迫感，就需要把这种感受写出来。复盘不仅是看图表，也包括理解自己在不同环境里的反应，避免下一次在同样的地方重复犹豫或冲动。',
+    '第五部分，留下可以验证的问题。下次再次打开这篇记录时，希望能够逐条回答：原来的条件是否仍成立，新的信息改变了哪一部分判断，当时的计划有哪些地方过于模糊？把问题写成可以核对的句子，比只写一句看好或者不看好更有价值。这里的示例内容只用于查看长文排版，不代表实时市场观点。',
+    '最后，把没有答案的问题也保留下来。复盘并不要求每一次都得到确定结论；有些判断需要更多时间。完整记录自己的观察、行动和后续变化，让未来的自己有材料可以回看，这就是持续记录的意义。超过手机一屏的部分在列表里折叠，点击展开全文后可以继续阅读到这里。',
+  ].join('\n\n')},
+];
 export default function ReviewJournalPreview({language,onBack}) {
+  const initialLogs = new URLSearchParams(window.location.search).get('reviewReading') === '1' ? [...readingLogs,...seedLogs] : seedLogs;
   const [disciplines,setDisciplines] = React.useState(seedInsights);
-  const [reviewLogs,setReviewLogs] = React.useState(seedLogs);
-  const rows = React.useRef([...seedInsights,...seedLogs]); const imageUrls = React.useRef(new Map());
+  const [reviewLogs,setReviewLogs] = React.useState(initialLogs);
+  const rows = React.useRef([...seedInsights,...initialLogs]); const imageUrls = React.useRef(new Map());
   React.useEffect(()=>()=>imageUrls.current.forEach(url=>URL.revokeObjectURL(url)),[]);
   const db = React.useMemo(()=>({
     saveReviewJournalEntry:async(entry,userId)=>{

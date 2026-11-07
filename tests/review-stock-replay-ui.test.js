@@ -100,7 +100,7 @@ async function harness({ observer = true } = {}) {
       import { reviewJournalFeed } from ${moduleUrl('reviewJournalFeed')};
       import { findReviewStockMentions } from ${moduleUrl('reviewStockMentions')};
       const ReviewStockCarousel = fixture.ReviewStockCarousel = () => null;
-      const ReviewStockText = () => null;
+      const ReviewPostBody = () => null;
       const Avatar = () => null, AuthorName = () => null, Photo = () => null, SnapshotCard = () => null, Composer = () => null;
       const Dialog = ({ children }) => React.createElement('section', { role: 'dialog' }, children);
       ${pageSource.slice(pageSource.indexOf('export default function ReviewJournalPage')).replaceAll('import.meta.env.DEV', 'true')}

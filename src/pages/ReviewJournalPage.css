@@ -29,7 +29,6 @@
 .rj-post-more{position:absolute;right:-9px;top:-9px;width:38px;height:38px}
 .rj-inline-pin{color:#959ca7;flex-shrink:0}
 .rj-post-text{font-size:15px;line-height:22px;white-space:pre-wrap;overflow-wrap:anywhere;color:#dce0e6}
-.rj-clamped{display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden}
 .rj-text-button{border:0;padding:6px 0;background:transparent;color:#98b0cd;font-size:14px;min-height:36px}
 .rj-expand{padding-top:0}
 .rj-post-actions{display:flex;justify-content:space-between;align-items:center;margin:7px 0 4px;color:#7d8591}
@@ -110,7 +109,7 @@
 .rj-entry-page{padding-bottom:env(safe-area-inset-bottom)}
 .rj-post-link{cursor:pointer;outline:none;scroll-margin-top:72px}
 .rj-post-link:focus,.rj-post-link:focus-visible{outline:none}
-.rj-post-link:focus-visible>.rj-post-main>.rj-post-heading>strong{text-decoration:underline;text-decoration-color:#8ea5bd;text-decoration-thickness:2px;text-underline-offset:4px}
+.rj-post-link:focus-visible>.rj-post-main>.rj-post-heading>strong{text-decoration:none;background:#20242a;border-radius:3px}
 .rj-page-header h1:focus{outline:none}
 .rj-entry-content{min-width:0}
 .rj-entry-content .rj-post-text{font-size:16px;line-height:25px}

@@ -56,8 +56,8 @@ async function harness() {
       import { findReviewStockMentions } from ${JSON.stringify(new URL('../src/lib/reviewStockMentions.js', import.meta.url).href)};
       const fixture = globalThis[${JSON.stringify(key)}];
       const { useState, useRef, useEffect, useLayoutEffect, window } = fixture;
-      const Avatar = () => null, AuthorName = () => null, Photo = () => null, SnapshotCard = () => null, ReviewStockCarousel = () => null, ReviewStockText = () => null, Composer = () => null, Dialog = () => null;
-      export { Photo, SnapshotCard, ReviewStockCarousel, ReviewStockText, Composer, Dialog };
+      const Avatar = () => null, AuthorName = () => null, Photo = () => null, SnapshotCard = () => null, ReviewStockCarousel = () => null, ReviewPostBody = () => null, Composer = () => null, Dialog = () => null;
+      export { Photo, SnapshotCard, ReviewStockCarousel, ReviewPostBody, Composer, Dialog };
       ${pageSource.replaceAll('import.meta.env.DEV', 'true')}
     `, 'ReviewJournalEntryPageTest.jsx', { jsx: { runtime: 'classic' } });
     Page = await import(dataUrl(compiled.code));
@@ -94,8 +94,8 @@ test('a whole post opens a normal detail page with all entry and comment attachm
   assert.equal(button(tree, '写复盘'), undefined);
   assert.ok(button(tree, '返回投资复盘'));
   assert.equal(firstPost(tree).props.role, undefined);
-  assert.equal(find(tree, node => hasClass(node, 'rj-post-text')).props.children.props.text, h.ctx.reviewLogs[0].text);
-  assert.equal(visible(tree).some(node => hasClass(node, 'rj-clamped')), false);
+  assert.equal(find(tree, node => node.type === h.Page.ReviewPostBody).props.text, h.ctx.reviewLogs[0].text);
+  assert.equal(find(tree, node => node.type === h.Page.ReviewPostBody).props.full, true);
   assert.deepEqual(visible(tree).filter(node => node.type === h.Page.Photo).map(node => node.props.item.path), ['owner/image.webp', 'owner/reply.webp']);
   assert.deepEqual(visible(tree).filter(node => node.type === h.Page.ReviewStockCarousel).flatMap(node => node.props.symbols.map(symbol => [symbol, node.props.recordDate, node.props.userId])), [['NVDA', '2026-11-04', 'owner'], ['QQQ', '2026-11-04', 'owner'], ['SPY', '2026-11-05', 'owner']]);
   assert.deepEqual(visible(tree).filter(node => node.type === h.Page.SnapshotCard).map(node => node.props.value.id), ['saved-market', 'reply-market']);
@@ -253,7 +253,7 @@ test('stock tags open a cross-category exact-match feed without changing categor
   button(tree, '搜索复盘').props.onClick(); tree=h.render();
   find(tree,node=>node.type==='input').props.onChange({target:{value:'继续观察'}}); tree=h.render();
   assert.equal(visible(tree).filter(node=>node.type==='article').length,1);
-  const control=find(tree,node=>node.type===h.Page.ReviewStockText);
+  const control=find(tree,node=>node.type===h.Page.ReviewPostBody);
   let stopped=false,prevented=false;
   control.props.onSelectSymbol('NVDA',{type:'click',detail:1,currentTarget:h.host,stopPropagation:()=>{stopped=true;},preventDefault:()=>{prevented=true;}});
   tree=h.render();
@@ -275,7 +275,7 @@ test('stock tags open a cross-category exact-match feed without changing categor
 test('tag and entry navigation preserve parent pages and positions through browser history',async()=>{
   const h=await harness();h.ctx.reviewLogs[0].text='NVDA 与 QQQ';
   let tree=h.render();
-  const select=(symbol)=>{find(tree,node=>node.type===h.Page.ReviewStockText).props.onSelectSymbol(symbol,{type:'click',detail:1,stopPropagation(){},preventDefault(){}});tree=h.render();};
+  const select=(symbol)=>{find(tree,node=>node.type===h.Page.ReviewPostBody).props.onSelectSymbol(symbol,{type:'click',detail:1,stopPropagation(){},preventDefault(){}});tree=h.render();};
   select('NVDA');
   assert.equal(find(tree,node=>node.type==='h1').props.children,'$NVDA');
   h.fixture.window.scrollY=280;
