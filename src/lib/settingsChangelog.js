@@ -3,6 +3,11 @@ import { CURRENT_RELEASE } from './releaseMeta.js';
 export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
+    items: ['修复 iPhone 关联交易长列表顶部被状态栏遮挡的问题，关闭与插入按钮始终留在安全区域。'],
+    itemsEn: ['Keep the trade picker header clear of the iPhone status area so Close and Insert remain accessible with long lists.'],
+  },
+  {
+    ver: 'v10.7.9.578', date: '2026-11-07',
     items: ['将“写评价”移到评论标题右侧，移除底部固定输入条，已有评价与附件完整展示。'],
     itemsEn: ['Moved Write review beside the comments heading and removed the fixed bottom bar so existing reviews and attachments remain unobstructed.'],
   },

@@ -37,12 +37,14 @@
 .rj-empty{padding:65px 24px;text-align:center;color:#737b87;display:flex;flex-direction:column;align-items:center;gap:12px}
 .rj-empty h2{font-size:17px;color:#cad0da;font-weight:500}.rj-empty p{font-size:13px}
 .rj-overlay{position:fixed;inset:0;z-index:200;height:100dvh;background:rgba(0,0,0,.65);backdrop-filter:blur(9px);display:flex;align-items:center;justify-content:center;padding:16px}
+/* Long picker sheets must keep their header below the iPhone status area. */
+.rj-overlay:not(.rj-overlay-wide):not(.rj-overlay-composer){padding:max(16px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(16px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
 .rj-dialog{width:100%;max-width:440px;max-height:100%;display:flex;flex-direction:column;overflow:hidden;background:#101216;border:0;border-radius:24px;box-shadow:0 24px 80px #0007;outline:none}
 .rj-dialog-header{display:flex;align-items:center;justify-content:space-between;flex-shrink:0;gap:10px;padding:12px 12px 8px}
 .rj-dialog-header h2{font-size:16px;font-weight:600;flex:1;text-align:center;min-width:0}
 .rj-header-spacer{width:40px}
 .rj-dialog-wide{max-width:640px;height:100%;background:#08090b}
-.rj-dialog-body{min-height:0;overflow:auto;padding:12px 20px 22px}
+.rj-dialog-body{min-height:0;overflow:auto;overscroll-behavior:contain;padding:12px 20px 22px}
 .rj-publish{display:inline-flex;gap:8px;align-items:center;justify-content:center;min-height:34px;padding:7px 17px;border:0;border-radius:22px;background:#e3e7ee;color:#15191e;font-size:14px;font-weight:600;white-space:nowrap}
 .rj-compose-scroll{overflow:auto;min-height:0;flex:1;overscroll-behavior:contain}
 .rj-compose-scroll{display:flex;flex-direction:column;scroll-padding-block:12px}
