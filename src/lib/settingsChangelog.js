@@ -3,6 +3,11 @@ import { CURRENT_RELEASE } from './releaseMeta.js';
 export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
+    items: ['修复回撤详情“当前净资产”金额折行，删除正常汇率说明、节点解释和新高等模板提示，保留实际数据与状态。'],
+    itemsEn: ['Fixed wrapping of current net assets in drawdown details and removed routine exchange-rate, milestone, and record explanations while keeping actual data and statuses.'],
+  },
+  {
+    ver: 'v10.7.9.594', date: '2026-11-07',
     items: ['时间线“当时的账户”改为等宽三列，现金获得同等空间；长金额在本列自适应字号，支持亿元净资产、百万融资的完整两位小数。'],
     itemsEn: ['Account metrics now use three equal-width columns, giving cash equal space. Long amounts fit within their own columns while keeping two decimals, including nine-digit net assets and seven-digit margin debt.'],
   },

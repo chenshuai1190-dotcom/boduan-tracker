@@ -66,8 +66,11 @@
 .rjt-detail-metric strong{font-size:42px;font-weight:400;letter-spacing:-1.2px;line-height:52px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
 .rjt-detail-metric span{font-size:13px;line-height:20px;color:var(--rjt-muted)}
 .rjt-detail-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:21px}
+.rjt-detail-stats>div{min-width:0}
 .rjt-detail-stats span{display:block;font-size:13px;color:var(--rjt-muted);line-height:20px;margin-bottom:8px}
-.rjt-detail-stats strong{display:block;font-size:17px;font-weight:450;line-height:24px;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.rjt-detail-stats strong{display:block;font-size:17px;font-weight:400;line-height:24px;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.rjt-detail-net{container-type:inline-size}
+.rjt-detail-stats .rjt-detail-net strong{white-space:nowrap;overflow-wrap:normal;font-size:clamp(10px,calc(100cqi / var(--rjt-number-units,1)),17px)}
 .rjt-detail-stats small{font-size:13px}
 .rjt-interrupted{display:flex;gap:8px;align-items:flex-start;font-size:13px;line-height:21px;color:#b5a88c;margin:18px 0 0}
 .rjt-interrupted svg{flex-shrink:0;margin-top:3px}
@@ -89,7 +92,6 @@
 .rjt-node-value{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-top:12px}
 .rjt-node-value strong{font-size:25px;font-weight:450;line-height:34px;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
 .rjt-node-value>span{font-size:15px;line-height:22px;white-space:nowrap}
-.rjt-node-detail p{font-size:13px;line-height:21px;color:var(--rjt-muted);margin:8px 0 0}
 .rjt-section{padding:23px 20px;border-top:.5px solid var(--rjt-line)}
 .rjt-section h3{font-size:16px;font-weight:500;line-height:24px;margin:0 0 16px}
 .rjt-section-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:18px}
@@ -114,7 +116,6 @@
 .rjt-related-entry p{font-size:15px;line-height:23px;margin:8px 0 0;white-space:pre-wrap;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:4;overflow:hidden;overflow-wrap:anywhere}
 .rjt-related-entry svg{position:absolute;top:5px;right:0;color:#777f8d}
 .rjt-related-entry:active{background:#ffffff05}
-.rjt-detail-footnote{font-size:13px;line-height:21px;margin:6px 20px 24px;color:#727c89}
 .rjt-evaluations{border:0}
 .rjt-evaluate{min-height:40px;border-radius:22px;background:#e2e6ed!important;color:#15191e!important;padding:8px 15px!important;font-size:14px!important;font-weight:600!important}
 .rjt-muted{font-size:14px;color:var(--rjt-muted);line-height:23px}

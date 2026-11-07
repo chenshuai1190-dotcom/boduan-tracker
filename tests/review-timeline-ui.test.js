@@ -88,8 +88,7 @@ test('cash-flow interruptions explain the exact reason and do not promise contin
   const event = { ...cycle, status: 'interrupted', interruptionReason: 'external_cash_flow', interruptedAt: '2026-10-07' };
   const html = renderToStaticMarkup(h.render('TimelineDetail', details({ event })));
   assert.match(html, /2026-10-07 · 因发生转入或转出停止比较，未判定为恢复/);
-  assert.match(html, /中断前最后一条可比较的收盘记录/);
-  assert.doesNotMatch(html, /持续跟踪，直到/);
+  assert.doesNotMatch(html, /中断前最后一条可比较的收盘记录|持续跟踪，直到/);
 });
 
 test('archived records preserve reflections without made-up figures, chart or milestones', async () => {
@@ -119,6 +118,9 @@ test('year and event filters keep periods and daily records together, and naviga
   const cards = walk(tree).filter(node => node.type === h.components.TimelineEvent);
   assert.deepEqual(cards.map(card => card.props.event.id), ['daily', 'period']);
   const card = h.render('TimelineEvent', cards[0].props);
+  assert.equal(byClass(card, 'rjt-event-description'), undefined);
+  assert.match(renderToStaticMarkup(card), /2026 年已记录交易日/);
+  assert.equal(byClass(h.render('TimelineEvent', cards[1].props), 'rjt-event-description'), undefined);
   byClass(card, 'rjt-event-open').props.onClick({}); assert.equal(selected, 'daily'); assert.equal(evaluated, undefined);
   walk(byClass(card, 'rjt-event-footer')).find(node => node.type === 'button').props.onClick(); assert.equal(evaluated, 'daily');
 });
@@ -136,7 +138,12 @@ test('loading, errors and pending reports never render old events as completed r
 test('new-high details retain real net-asset history and never fill an absent series', async () => {
   const h = await harness();
   const event = { id: 'high', kind: 'high', metric: 'net_assets', title: '净资产新高', date: current.date, value: 100000, valueType: 'money', points: [trigger, peak], nodes: [{ key: 'current', label: '新高', point: peak }] };
-  assert.ok(byClass(h.render('TimelineDetail', details({ event })), 'rjt-chart-section'));
+  const detail = h.render('TimelineDetail', details({ event }));
+  assert.ok(byClass(detail, 'rjt-chart-section'));
+  assert.equal(byClass(detail, 'rjt-detail-description'), undefined);
+  assert.equal(byClass(h.render('TimelineEvent', { event }), 'rjt-event-description'), undefined);
+  assert.doesNotMatch(renderToStaticMarkup(detail), /查看该节点对应|在可核对的历史收盘|来源于正式收盘快照/);
+  assert.equal(walk(byClass(detail, 'rjt-node-detail')).some(node => node.type === 'p'), false);
   const missing = renderToStaticMarkup(h.components.TimelineChart({ event: { ...event, points: [{ date: peak.date, netAssetsUsd: null }] } }));
   assert.match(missing, /暂无可展示/); assert.doesNotMatch(missing, /<svg|<path/);
 });
@@ -147,19 +154,24 @@ test('CNY converts net-asset views with one rate while return basis and trade ex
   const props = details({ ...currency, stockTrades: [{ id: 'trade', date: current.date, side: 'buy', symbol: 'NVDA', price: 187.5, shares: 1 }] });
   const html = renderToStaticMarkup(h.render('TimelineDetail', props));
   assert.match(html, /¥576,000\.00/); assert.match(html, /净资产走势 · CNY/);
-  assert.match(html, /汇率更新于 2026-11-07/); assert.match(html, /-25\.00%/); assert.match(html, /\$187\.50/);
+  assert.doesNotMatch(html, /1 USD =|汇率更新于|金额按同一汇率折算|收益率沿用美元报表口径/);
+  assert.match(html, /-25\.00%/); assert.match(html, /\$187\.50/);
   const usdChart = h.components.TimelineChart({ event: cycle, detail: true });
   const cnyChart = h.components.TimelineChart({ event: cycle, detail: true, ...currency });
   assert.equal(byClass(usdChart, 'rjt-chart-line').props.d, byClass(cnyChart, 'rjt-chart-line').props.d);
   assert.match(renderToStaticMarkup(cnyChart), /Historical net assets|账户净资产历史走势.*CNY/);
   const list = renderToStaticMarkup(h.render('TimelineEvent', { event: cycle, ...currency }));
   assert.match(list, /¥720,000\.00/); assert.match(list, /¥540,000\.00/); assert.match(list, /¥576,000\.00/);
+  const timeline = h.render('default', { data: { events: [cycle] }, ...currency });
+  assert.equal(byClass(timeline, 'rjt-currency-note'), undefined);
 });
 
 test('missing CNY rate shows unavailable balances and no mislabeled USD chart', async () => {
   const h = await harness(), props = details({ displayCurrency: 'CNY', usdCny: null });
   const html = renderToStaticMarkup(h.render('TimelineDetail', props));
   assert.match(html, /人民币汇率暂不可用/); assert.match(html, /-25\.00%/);
+  const timeline = h.render('default', { data: { events: [cycle] }, displayCurrency: 'CNY' });
+  assert.match(renderToStaticMarkup(byClass(timeline, 'rjt-currency-note')), /人民币汇率暂不可用/);
   assert.doesNotMatch(html, /\$80,000|¥80,000|rjt-chart-line|rjt-chart-area/);
   const headline = { id: 'high', kind: 'high', metric: 'net_assets', valueType: 'money', value: 100000, date: current.date, nodes: [], points: [] };
   const card = h.render('TimelineEvent', { event: headline, displayCurrency: 'CNY' });

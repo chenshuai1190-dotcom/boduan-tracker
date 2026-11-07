@@ -1,6 +1,6 @@
 # boduan-tracker 当前交接
 
-验证时间：`2026-11-07 Asia/Shanghai`。延续已授权上线，将时间线账户改为等宽三列并适配长金额。稳定规则看 `README.md`，流程看 `docs/development-process.md`。
+验证时间：`2026-11-07 Asia/Shanghai`。延续已授权上线，修复回撤顶部净资产折行并精简时间线说明。稳定规则看 `README.md`，流程看 `docs/development-process.md`。
 
 ## 当前生产基准
 
@@ -8,22 +8,22 @@
 | --- | --- |
 | 仓库 | `chenshuai1190-dotcom/boduan-tracker`；唯一发布来源 `main` |
 | 当前工作区 | `/Users/chenshuaishuai/Documents/Codex/2026-10-03/quote-boduan-tracker-2026-10-03/work/quiet-input-fields` |
-| 发布前生产源码 | `d3a9c4a5db5c20b88eeeebd2dbe5017108a7ac91 / v10.7.9.593`；既有 CI、Vercel 与生产静态产物验证通过 |
-| 发布前部署 | Vercel `FXN7SYxNRqtFPabW2udKc3Mk2ViH`；`https://boduan-tracker.vercel.app` |
-| 本次候选版本 | `v10.7.9.594 / 2026-11-07`：时间线账户等宽三列，长金额在列内适配 |
+| 发布前生产源码 | `0df6aca0bfabbd1b8c39746625bb97b973e7edda / v10.7.9.594`；既有 CI、Vercel 与生产静态产物验证通过 |
+| 发布前部署 | Vercel `Gjf1GGm3Dh3cDDNvhYmKeyyka8Zg`；`https://boduan-tracker.vercel.app` |
+| 本次候选版本 | `v10.7.9.595 / 2026-11-07`：当前净资产完整显示，移除时间线模板说明 |
 | 已生效云端配置 | `supabase/review_display_preferences_20261107.sql` 已应用；新增独立本人显示偏好表，RLS 开启、3 条 owner policy、匿名无 SELECT、authenticated 无 DELETE；原复盘与正式交易记录数量保持不变 |
 | 生产 Checks | 本会话控制台只读核对为“未配置任何检查”；保留仓库 CI 与 Docs，等待精确提交 CI + Docs + Vercel，不宣称平台已配置晋级阻断 |
 
 ## 本次证据与既有边界
 
-- v594 仅将“当时的账户”改为等宽三列；金额按列宽与文本长度适配字号，上限 18px、常规字重，完整两位小数不挤占邻列。320/390/430px 验证 USD/CNY 亿元净资产、百万融资及现金无溢出；iPhone 原生图位于 `local-previews/review/account-spacing/iphone-equal-columns.png`（外层）。走 FAST，最终结果以精确提交发布等待器为准。
+- v595 仅修复回撤顶部“当前净资产”列内金额适配，并删除正常汇率、节点解释、新高/周期套话及通用来源说明；真实日期、比较范围、缺数/中断状态与计算保持不变。当时的账户沿用 v594 等宽三列。走 FAST，最终结果以精确提交发布等待器为准。
 - v590 已通过 FULL（3,703 tests，3,701 pass，2 项既有 skip）、已安装 PWA 冷启动保存回读、CI/Docs/Vercel 及线上普通博文与系统动态只读验收。下列相关证据与边界沿用。
 
 - 底部“复盘”改为“动态”，模块“投资复盘”改为“投资动态”；复盘日志、投资心得、投资目标不改名。左上头像打开独立动态设置页，返回恢复列表分类、搜索及阅读位置。
 - 全部默认混排普通博文和带本人身份的系统动态；净资产新高、累计收益率新高、累计盈利新高、回撤与恢复、单日纪录、月度/季度/年度总结可逐项隐藏。开关只影响全部，专用时间线保留完整事件。系统动态只投影既有事件，点击正文或评论共用原事件与评价，不创建重复博文。
 - 偏好采用独立表和 revision CAS，已确认缓存绑定账号；首次读取失败不把默认值写回云端，保存失败回滚且可显式重试。账号切换、首次创建竞争、跨标签及乱序响应均有定向测试。线上真实账号通过本地正式运行时完成 CNY 保存→刷新回读→恢复 USD；未写测试博文或评价。
 - 数据库事务内以 authenticated 本人/其他身份验证 SELECT/UPDATE 隔离及旧 revision 零更新，全部测试写入 ROLLBACK。匿名 REST 检查 43 表、27 RPC 全部通过，新偏好表为 401；未将角色模拟等同于第二个真实登录账号测试。
-- 人民币只使用已有已获取 FX 同一汇率折算账户金额，标注更新日期；无有效汇率显示不可用。收益率、回撤、杠杆、交易原币种及收益报表计算不变，不增加行情提供商或刷新频率。
+- 人民币只使用已有已获取 FX 同一汇率折算账户金额；正常汇率说明已隐藏，无有效汇率显示不可用。收益率、回撤、杠杆、交易原币种及收益报表计算不变，不增加行情提供商或刷新频率。
 - 原有时间线 10% 起点、原前高恢复、资金变化/历史缺口分段、完成收盘与评价幂等容器边界保持不变；既有股票 replay、附件、普通博文和投资目标回归覆盖。
 - 页面交互与定向测试已覆盖 settings 历史往返、偏好确认前不请求时间线、失效请求忽略、切换分类不重复加载、共用评论、金额与百分比颜色。iPhone 17 Pro iOS 26.5 Safari 设置页已出原生 1206×2622 PNG；证据位于外层 `local-previews/review/dynamic-settings-evidence/`。
 - 最终 FULL、已安装 Quote Home Screen PWA 的当前构建验收、精确 SHA 发布等待器及线上只读结果，以本轮发布输出和该证据目录为准。发布前不把候选版本写成已上线；不改 PWA/实时生命周期或行情缓存恢复逻辑。
