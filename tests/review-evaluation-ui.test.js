@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import React from 'react';
 import { transformWithOxc } from 'vite';
+import { withStockTradeRecordKind } from '../src/lib/stockTradeRecordKind.js';
 
 const source = readFileSync(new URL('../src/components/ReviewEvaluation.jsx', import.meta.url), 'utf8');
 const moduleUrl = name => JSON.stringify(new URL(`../src/lib/${name}.js`, import.meta.url).href);
@@ -15,6 +16,14 @@ const rating = tree => find(tree, node => node.props.role === 'slider');
 const body = tree => find(tree, node => node.type === 'textarea');
 const alert = tree => walk(tree).filter(node => node.props.role === 'alert').map(text).join(' ');
 let nextId = 0;
+
+test('trade attachment choices never convert explicit aggregate holdings into actual executions', async () => {
+  const h = await harness();
+  const base = { user_id: 'owner', symbol: 'NVDA', date: '2025-07-04', side: 'buy', price: 120, shares: 10 };
+  const tree = h.renderTrades({ selected: [], stockTrades: [{ ...base, id: 'holding', note: withStockTradeRecordKind('', 'historical_holding') }, { ...base, id: 'execution' }], userId: 'owner', onChange() {}, onClose() {} });
+  const choices = walk(tree).filter(node => node.props.className === 'rev-trade-choice');
+  assert.deepEqual(choices.map(node => node.key), ['execution']);
+});
 
 async function harness({ append, update, reply = null } = {}) {
   const slots = [], calls = [], updates = [], saved = [], listeners = new Map(); let cursor = 0, effects = [], closes = 0;

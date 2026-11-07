@@ -1,12 +1,28 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { collectReviewReplayTrades, buildReviewStockReplay, isReviewReplayBuyHighlight, reviewReplayRequestRange, reviewReplayVisibleRows } from '../src/lib/reviewStockReplayModel.js';
+import { withStockTradeRecordKind } from '../src/lib/stockTradeRecordKind.js';
 const trade = (date, side = 'buy', extra = {}) => ({ id: date, symbol: 'NVDA', date, side, price: 125, shares: 2, currency: 'USD', ...extra });
 const rows = [{ date: '2026-10-02', close: 122 }, { date: '2026-10-05', close: 123 }, { date: '2026-10-06', close: 126 }];
 const history = { source: 'EODHD_EOD_SPLITS', priceBasis: 'split_adjusted_close', series: { NVDA: { rows } } };
 const base = { symbol: 'NVDA', userId: 'a', endDate: '2026-10-06', history };
 test('empty ledger remains empty and valid history is still usable', () => {
   const result = buildReviewStockReplay(base); assert.equal(result.validHistory, true); assert.deepEqual(result.trades, []);
+});
+test('explicit historical holdings retain average cost and shares without implying a purchase on the entry date', () => {
+  const note = withStockTradeRecordKind('Multi-purchase average', 'historical_holding');
+  const inputs = [trade('2026-10-02', 'buy', { note }), trade('2026-10-03', 'buy', { note }), trade('2026-10-05'), trade('2026-10-06', 'sell', { note })];
+  const result = buildReviewStockReplay({ ...base, stockTrades: inputs });
+  assert.deepEqual(result.trades.map(row => row.recordKind), ['historical_holding', 'historical_holding', 'trade', 'trade']);
+  for (const row of result.trades.slice(0, 2)) {
+    assert.equal(row.price, 125); assert.equal(row.shares, 2);
+    assert.equal(row.markerDate, null); assert.equal(row.close, null); assert.equal(row.rowIndex, -1);
+    assert.equal(isReviewReplayBuyHighlight(row, row.date), false);
+  }
+  assert.equal(result.trades[2].markerDate, '2026-10-05');
+  assert.equal(result.trades[3].markerDate, '2026-10-06');
+  assert.equal(inputs[0].note, note, 'read-only mapping does not mutate ledger entries');
+  assert.equal(collectReviewReplayTrades({ ...base, stockTrades: [trade('2026-10-03')] })[0].recordKind, 'trade', 'weekends never imply historical holdings');
 });
 test('non-trading and missing dates never move to a nearby daily close', () => {
   const result = buildReviewStockReplay({ ...base, stockTrades: [trade('2026-10-03'), trade('2026-10-01'), trade('2026-10-05')] });

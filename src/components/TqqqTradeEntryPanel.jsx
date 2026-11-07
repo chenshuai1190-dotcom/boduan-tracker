@@ -7,6 +7,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import StockLogo, { stockLogoCandidates } from './StockLogo.jsx';
+import { getStockTradeRecordKind } from '../lib/stockTradeRecordKind.js';
 import { splitCurrencyAmount } from '../lib/amountDisplay.js';
 import { MARKET_RED_HEX } from '../lib/marketColorMode.js';
 import { formatTradeVixRatio } from '../lib/tradeVixRatioDisplay.js';
@@ -164,6 +165,7 @@ export default function TqqqTradeEntryPanel({
   tt,
 }) {
   const side = draft?.side === 'sell' ? 'sell' : 'buy';
+  const historicalHolding = side === 'buy' && getStockTradeRecordKind(draft?.note) === 'historical_holding';
   const logoUrls = stockLogoCandidates('TQQQ', logoCache?.TQQQ?.url);
   const displayedBudgetUsage = Number.isFinite(preview.afterBudgetUsage)
     ? preview.afterBudgetUsage
@@ -205,7 +207,7 @@ export default function TqqqTradeEntryPanel({
             <div className="tqqq-entry-name">ProShares UltraPro QQQ · 3x Nasdaq-100</div>
           </div>
         </div>
-        <div className="tqqq-entry-side">
+        {!historicalHolding && <div className="tqqq-entry-side">
           {['buy', 'sell'].map((option) => {
             const selected = side === option;
             const selectedClass = TQQQ_ACTION_TONE_CLASSES[option].selected;
@@ -221,12 +223,12 @@ export default function TqqqTradeEntryPanel({
               </button>
             );
           })}
-        </div>
+        </div>}
       </div>
 
       <div className="tqqq-entry-fields">
         <div className="min-w-0">
-          <label htmlFor="tqqq-entry-price" className={LABEL_CLASS}>{tt('trades.priceUsd', '价格 ($)')}</label>
+          <label htmlFor="tqqq-entry-price" className={LABEL_CLASS}>{historicalHolding ? tt('trades.historicalAverageCost', '平均成本 ($)') : tt('trades.priceUsd', '价格 ($)')}</label>
           <input
             id="tqqq-entry-price"
             type="number"
@@ -242,7 +244,7 @@ export default function TqqqTradeEntryPanel({
         </div>
         <div className="min-w-0">
           <label htmlFor="tqqq-entry-shares" className="tqqq-entry-label tqqq-entry-shares-label">
-            <span>{tt('trades.quantity', '股数')}</span>
+            <span>{historicalHolding ? tt('trades.historicalHoldingShares', '持仓数量') : tt('trades.quantity', '股数')}</span>
             {side === 'sell' && (
               <span className="tqqq-entry-note">
                 {tt('trades.tqqq.availableShares', '可卖 {{shares}} 股', { shares: formatShares(preview.availableShares) })}
@@ -267,7 +269,7 @@ export default function TqqqTradeEntryPanel({
       </div>
 
       <div className="tqqq-entry-date">
-        <label htmlFor="tqqq-entry-date" className={LABEL_CLASS}>{tt('trades.date', '日期')}</label>
+        <label htmlFor="tqqq-entry-date" className={LABEL_CLASS}>{historicalHolding ? tt('trades.historicalEntryDate', '录入日期') : tt('trades.date', '日期')}</label>
         <div className="relative">
           <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/[0.48]" strokeWidth={1.8} />
           <input
@@ -282,7 +284,7 @@ export default function TqqqTradeEntryPanel({
         </div>
       </div>
 
-      <section className="tqqq-entry-section" aria-labelledby="tqqq-trade-check-title">
+      {!historicalHolding && <section className="tqqq-entry-section" aria-labelledby="tqqq-trade-check-title">
         <div className="tqqq-entry-section-heading">
           <h3 id="tqqq-trade-check-title" className="tqqq-entry-section-title">
             {side === 'sell' ? tt('trades.tqqq.sellCheck', '卖出前检查') : tt('trades.tqqq.tradeCheck', '交易前检查')}
@@ -344,10 +346,11 @@ export default function TqqqTradeEntryPanel({
             </span>
           </div>
         )}
-      </section>
+      </section>}
 
-      {referenceContent}
-      {side === 'buy' && <MarketReference marketReference={marketReference} tt={tt} />}
+      {historicalHolding && preview.hardBlocked && <div className="tqqq-entry-result"><PreviewResult preview={preview} tt={tt} /></div>}
+      {!historicalHolding && referenceContent}
+      {!historicalHolding && side === 'buy' && <MarketReference marketReference={marketReference} tt={tt} />}
     </div>
   );
 }

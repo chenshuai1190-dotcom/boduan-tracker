@@ -4,6 +4,8 @@ import { readFileSync } from 'node:fs';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { transformWithOxc } from 'vite';
+import { withStockTradeRecordKind } from '../src/lib/stockTradeRecordKind.js';
+import { t } from '../src/lib/i18n.js';
 
 const sourceUrl = new URL('../src/components/GenericLedgerTradeEntryPanel.jsx', import.meta.url);
 const source = readFileSync(sourceUrl, 'utf8');
@@ -34,6 +36,20 @@ function input(tree, type) { return nodes(tree, node => node.type === 'input' &&
 function amountValue(tree) { return nodes(tree, node => node.props.className === 'ledger-entry-amount-value')[0]; }
 
 const marketReference = Object.freeze({ vixRatioReady: true, vixRatioValue: 1.035, vixRatioDataDate: '2026-09-10', vixRatioBuySignal: true, stockReady: true, stockDistanceFromHigh: 0.1 });
+
+test('historical holdings keep numeric fields but name them as entered cost, quantity and date in both languages', () => {
+  const historical = { ...draft, note: withStockTradeRecordKind('合并录入', 'historical_holding') };
+  for (const language of ['zh', 'en']) {
+    const translate = (key, fallback, values) => t(language, key, fallback, values);
+    const tree = Entry({ draft: historical, tt: translate, onDraftChange() {}, marketReference, referenceContent: React.createElement('never-rendered') });
+    const html = renderToStaticMarkup(tree);
+    assert.match(html, language === 'en' ? /Average cost/ : /平均成本/);
+    assert.match(html, language === 'en' ? /Holding shares/ : /持仓数量/);
+    assert.match(html, language === 'en' ? /Entry date/ : /录入日期/);
+    assert.doesNotMatch(html, /never-rendered|VIX|data-generic-ledger-market-reference/);
+    assert.deepEqual(nodes(tree, node => node.type === 'input').map(node => node.props.value), ['NVDA', '123.45', '20', '2026-09-10']);
+  }
+});
 
 test('formal-trade fields preserve the original draft and numeric share input contract in the shared two-column structure', () => {
   const changed = [];

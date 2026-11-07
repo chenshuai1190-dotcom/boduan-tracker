@@ -5,6 +5,7 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { transformWithOxc } from 'vite';
 import { MARKET_COLOR_MODES, MARKET_GREEN_HEX, MARKET_RED_HEX } from '../src/lib/marketColorMode.js';
+import { withStockTradeRecordKind } from '../src/lib/stockTradeRecordKind.js';
 
 const sourceUrl = new URL('../src/components/TradeOutcomeReview.jsx', import.meta.url);
 const source = readFileSync(sourceUrl, 'utf8');
@@ -20,6 +21,19 @@ const ready = { status: 'ready', tradeDate: '2026-09-01', asOfDate: '2026-10-09'
     { days: 60, status: 'missing_data' },
   ] };
 const render = (props = {}) => renderToStaticMarkup(React.createElement(TradeOutcomeReviewContent, { model: ready, ...props }));
+
+test('historical holding review avoids a made-up execution baseline and displays only the original note', () => {
+  for (const language of ['zh', 'en']) {
+    const note = withStockTradeRecordKind('多笔汇总 <keep>', 'historical_holding');
+    const html = renderToStaticMarkup(React.createElement(TradeOutcomeReview, {
+      trade: { symbol: 'MSFT', side: 'buy', date: '2026-07-04', note }, userId: 'test-owner', language, initiallyExpanded: true,
+      historyLoader: () => { throw new Error('historical holding must not load execution history'); },
+    }));
+    assert.match(html, language === 'en' ? /entry date is not a purchase date/ : /录入日期不作为实际成交日复盘/);
+    assert.match(html, /多笔汇总 &lt;keep&gt;/);
+    assert.doesNotMatch(html, /record-kind|trade-outcome-table|Loading historical|正在读取历史行情/);
+  }
+});
 
 test('compact review labels price observations honestly and shows pending/data gaps without fake percentages', () => {
   const html = render();

@@ -39,6 +39,7 @@ import { useTradeVixRatioReference } from '../lib/useTradeVixRatioReference.js';
 import { deriveTradeVixRatioReference } from '../lib/tradeVixRatioReference.js';
 import { useStockRsiReference } from '../lib/useStockRsiReference.js';
 import { deriveBuyTradeDiscipline } from '../lib/buyTradeDiscipline.js';
+import { getStockTradeRecordKind, normalizeStockTradeDraftKind, withStockTradeRecordKind } from '../lib/stockTradeRecordKind.js';
 import TradeToolsCatalog from '../components/TradeToolsCatalog.jsx';
 import TradesPositionsReport from '../components/TradesPositionsReport.jsx';
 import '../components/PulseDot.css';
@@ -412,6 +413,23 @@ function PositionProfitScenarioSheet({
       </div>
     </div>
   );
+}
+
+export function StockTradeRecordKindPicker({ draft, onDraftChange, englishMode = false }) {
+  if (draft?.side === 'sell') return null;
+  const kind = getStockTradeRecordKind(draft?.note);
+  return <div className="trade-record-kind">
+    <div className="trade-record-kind-options" role="group" aria-label={englishMode ? 'Record type' : '记录类型'}>
+      {[
+        ['trade', englishMode ? 'Actual trade' : '实际交易'],
+        ['historical_holding', englishMode ? 'Historical holding' : '历史持仓'],
+      ].map(([value, label]) => <button key={value} type="button" aria-pressed={kind === value}
+        onClick={() => onDraftChange({ ...draft, note: withStockTradeRecordKind(draft?.note, value) })}>{label}</button>)}
+    </div>
+    {kind === 'historical_holding' && <p>{englishMode
+      ? 'Earlier purchases combined at average cost. The entry date is not the purchase date.'
+      : '历史买入按均价汇总，日期仅为录入日。'}</p>}
+  </div>;
 }
 
 export default function TradesTab({ ctx, initialToolPanel = '' }) {
@@ -837,8 +855,11 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
 
   const confirmTradeSubmit = (sideOverride = newTrade.side || 'buy') => {
     if (tradeSubmitting) return;
-    const tradeDraft = { ...newTrade, side: sideOverride };
+    const tradeDraft = tradeEntryScope === 'wave' ? { ...newTrade, side: sideOverride }
+      : normalizeStockTradeDraftKind({ ...newTrade, side: sideOverride });
     const isWaveEntry = tradeEntryScope === 'wave';
+    const historicalHolding = !isWaveEntry && tradeDraft.side === 'buy'
+      && getStockTradeRecordKind(tradeDraft.note) === 'historical_holding';
     const noticePrice = Number(tradeDraft.price) > 0 && isWaveEntry
       ? formatWaveUsdPrice(tradeDraft.price)
       : (tradeDraft.price || '--');
@@ -907,7 +928,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
     const tqqqAllocationUnavailableWarning = tqqqValidation.applies
       && tradeDraft.side === 'buy'
       && tqqqValidation.allocationUnavailable;
-    const currentSideLabel = sideLabel(tradeDraft.side);
+    const currentSideLabel = historicalHolding ? (englishMode ? 'Historical holding' : '历史持仓') : sideLabel(tradeDraft.side);
     let confirmTitle = tradeDraft.id || tradeDraft.editingId
       ? tt('trades.confirmLedgerEditTitle', '确认修改正式交易?')
       : tt('trades.confirmLedgerSaveTitle', '确认保存正式交易?');
@@ -916,6 +937,11 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
     if (isWaveEntry) {
       confirmTitle = tt('trades.confirmWaveSaveTitle', '确认保存到波段记录?');
       confirmDesc = tt('trades.confirmWaveSaveDesc', '这笔记录只会进入波段记录独立账本,不会进入正式持仓、当日订单或总资产计算。');
+    } else if (historicalHolding) {
+      confirmTitle = englishMode ? 'Save historical holding?' : '确认保存历史持仓？';
+      confirmDesc = englishMode
+        ? 'This records earlier purchases at average cost. The entry date is not an actual purchase date. Holdings and P&L continue to use the recorded cost and quantity.'
+        : '记录多笔历史买入的平均成本与持仓数量，录入日期不代表实际买入日。持仓与盈亏继续按账本数据计算。';
     } else if (tqqqOverLimitWarning) {
       confirmTitle = tt('trades.tqqq.confirmOverLimitTitle', '买入后超过10%提醒线,仍要继续?');
       confirmDesc = tt('trades.tqqq.confirmOverLimitDesc', '10%仅作为仓位纪律提醒,不会强制限制你的买入。确认后仍会写入正式交易账本。');
@@ -925,7 +951,8 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
       confirmDesc = tt('trades.tqqq.confirmUnavailableDesc', '当前估值未就绪,暂时不能显示10%提醒结果。这不会限制你的自主买入,确认后仍会写入正式交易账本。');
       confirmText = tt('trades.tqqq.confirmAnyway', '仍然买入');
     }
-    setNewTrade(current => ({ ...current, side: tradeDraft.side }));
+    setNewTrade(current => tradeEntryScope === 'wave' ? { ...current, side: tradeDraft.side }
+      : normalizeStockTradeDraftKind({ ...current, side: tradeDraft.side }));
     showConfirm({
       title: confirmTitle,
       desc: confirmDesc,
@@ -933,7 +960,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
       confirmText,
       confirmStyle: 'primary',
       icon: 'check',
-      buyDiscipline: !isWaveEntry && tradeDraft.side === 'buy' ? {
+      buyDiscipline: !isWaveEntry && !historicalHolding && tradeDraft.side === 'buy' ? {
         discipline: deriveBuyTradeDiscipline({
           tradeDate: tradeDraft.date,
           side: tradeDraft.side,
@@ -1978,6 +2005,8 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
               key: 'tqqq-confirm',
               label: tradeSubmitting
                 ? tt('trades.saving', '保存中...')
+                : (newTrade.side !== 'sell' && getStockTradeRecordKind(newTrade.note) === 'historical_holding')
+                  ? (englishMode ? 'Save historical holding' : '保存历史持仓')
                 : (newTrade.side === 'sell' ? tt('trades.tqqq.confirmSell', '确认卖出') : tt('trades.tqqq.confirmBuy', '确认买入')),
               disabled: tradeSubmitting || (tqqqTradePreview.inputReady && tqqqTradePreview.hardBlocked),
               onClick: () => confirmTradeSubmit(newTrade.side === 'sell' ? 'sell' : 'buy'),
@@ -1986,6 +2015,8 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
               key: 'stock-confirm',
               label: tradeSubmitting
                 ? tt('trades.saving', '保存中...')
+                : (newTrade.side !== 'sell' && getStockTradeRecordKind(newTrade.note) === 'historical_holding')
+                  ? (englishMode ? 'Save historical holding' : '保存历史持仓')
                 : (newTrade.side === 'sell' ? tt('trades.tqqq.confirmSell', '确认卖出') : tt('trades.tqqq.confirmBuy', '确认买入')),
               disabled: tradeSubmitting,
               onClick: () => confirmTradeSubmit(newTrade.side === 'sell' ? 'sell' : 'buy'),
@@ -1994,10 +2025,13 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
               { key: 'sell', label: tradeSubmitting ? tt('trades.saving', '保存中...') : tt('trades.sell', '卖出'), disabled: tradeSubmitting, onClick: () => confirmTradeSubmit('sell') },
             ]}
           >
+            {(isTqqqTradeEntry || isGenericLedgerTradeEntry) && <StockTradeRecordKindPicker
+              draft={newTrade} englishMode={englishMode}
+              onDraftChange={nextDraft => setNewTrade(normalizeStockTradeDraftKind(nextDraft))} />}
             {isTqqqTradeEntry ? (
               <TqqqTradeEntryPanel
                 draft={newTrade}
-                onDraftChange={setNewTrade}
+                onDraftChange={nextDraft => setNewTrade(normalizeStockTradeDraftKind(nextDraft))}
                 preview={tqqqTradePreview}
                 marketReference={{ ...tqqqMarketReference, ...tradeVixRatioReference }}
                 referenceContent={import.meta.env.DEV && ctx.tqqqRsiPreviewContent ? ctx.tqqqRsiPreviewContent : (
@@ -2020,7 +2054,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
               isGenericLedgerTradeEntry ? (
                 <GenericLedgerTradeEntryPanel
                   draft={newTrade}
-                  onDraftChange={setNewTrade}
+                  onDraftChange={nextDraft => setNewTrade(normalizeStockTradeDraftKind(nextDraft))}
                   logoCache={logoCache}
                   cacheStockLogo={cacheStockLogo}
                   showMarketReference={false}

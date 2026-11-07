@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import React from 'react';
 import { transformWithOxc } from 'vite';
+import { withStockTradeRecordKind } from '../src/lib/stockTradeRecordKind.js';
 
 const source = readFileSync(new URL('../src/tabs/TradesTab.jsx', import.meta.url), 'utf8');
 const scopeStart = source.indexOf('  const isTqqqTradeEntry =');
@@ -17,6 +18,7 @@ assert.ok(scopeStart >= 0 && scopeEnd > scopeStart && modalStart >= 0 && modalTa
 const fixtureSource = `
   import React from ${JSON.stringify(import.meta.resolve('react'))};
   import { isTqqqFormalTradeEntry } from ${JSON.stringify(new URL('../src/lib/tqqqTradeDiscipline.js', import.meta.url).href)};
+  import { getStockTradeRecordKind } from ${JSON.stringify(new URL('../src/lib/stockTradeRecordKind.js', import.meta.url).href)};
   const ActionModalCard = 'action-modal';
   const TqqqTradeAmount = 'tqqq-trade-amount';
   const GenericLedgerTradeAmount = 'generic-trade-amount';
@@ -26,7 +28,7 @@ const fixtureSource = `
   export default function tradeModal({
     newTrade, tradeEntryScope, tradeSubmitting, tqqqTradePreview, tradeCostPreview,
     confirmTradeSubmit, setShowAddTrade, setNewTrade = () => {},
-    logoCache = {}, cacheStockLogo = () => {},
+    logoCache = {}, cacheStockLogo = () => {}, englishMode = false,
   }) {
     ${source.slice(scopeStart, scopeEnd)}
     return (${source.slice(modalStart, modalTagEnd)} />);
@@ -69,6 +71,19 @@ function assertCostFooter(result, amountType) {
   assert.deepEqual(Object.keys(cost.props).sort(), ['preview', 'tt'], 'the cost footer must not receive draft or transaction mutation callbacks');
   return amount;
 }
+
+test('historical holdings use explicit save wording but preserve the formal buy action and hard blocks', () => {
+  for (const symbol of ['NVDA', 'TQQQ']) {
+    const draft = { symbol, side: 'buy', price: '123.45', shares: '20', date: '2026-10-05', note: withStockTradeRecordKind('', 'historical_holding') };
+    const result = modal({ draft });
+    assert.equal(result.props.actions.length, 1);
+    assert.equal(result.props.actions[0].label, '保存历史持仓');
+    assert.equal(result.props.actions[0].disabled, false);
+    result.props.actions[0].onClick();
+    assert.deepEqual(result.submitted, ['buy']);
+    if (symbol === 'TQQQ') assert.equal(modal({ draft, preview: { inputReady: true, hardBlocked: true } }).props.actions[0].disabled, true);
+  }
+});
 
 test('ordinary formal trades have one confirmation for the current direction and their own fixed amount', () => {
   for (const side of ['buy', 'sell']) {

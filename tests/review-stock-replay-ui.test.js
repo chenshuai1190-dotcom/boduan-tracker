@@ -7,6 +7,7 @@ import { transformWithOxc } from 'vite';
 import { parse } from 'postcss';
 import { buildReviewStockReplay } from '../src/lib/reviewStockReplayModel.js';
 import { isRegularNyseHoliday } from '../src/lib/quoteRefreshPolicy.js';
+import { withStockTradeRecordKind } from '../src/lib/stockTradeRecordKind.js';
 
 const source = readFileSync(new URL('../src/components/ReviewStockReplay.jsx', import.meta.url), 'utf8');
 const pageSource = readFileSync(new URL('../src/pages/ReviewJournalPage.jsx', import.meta.url), 'utf8');
@@ -255,6 +256,101 @@ test('mini and full charts highlight only the exact review-date buy, preserving 
   assert.match(color, /^#[\da-f]{6}$/i);
   const [red, green, blue] = color.slice(1).match(/../g).map(value => parseInt(value, 16));
   assert.ok(red > 200 && red > green * 2 && red > blue * 2, 'review-date buys use a distinct red marker');
+  h.unmount();
+});
+
+test('trades without a close use a separate date rail without inventing prices or moving out-of-range dates', async () => {
+  const dailyRows = [{ date: '2026-07-02', close: 100 }, { date: '2026-07-06', close: 110 }, { date: '2026-07-08', close: 120 }];
+  const replay = buildReviewStockReplay({ ...baseProps, endDate: '2026-07-08',
+    history: { ...history, series: { NVDA: { rows: dailyRows } } },
+    stockTrades: [trade('before', '2026-07-01'), trade('weekend-buy', '2026-07-04'), trade('weekend-sell', '2026-07-04', 'sell'),
+      trade('missing-session', '2026-07-07'), trade('exact', '2026-07-08'), trade('future', '2026-07-09')] });
+  const weekendIndex = replay.trades.findIndex(record => record.id === 'weekend-buy');
+  const weekend = replay.trades[weekendIndex];
+  assert.deepEqual([weekend.date, weekend.markerDate, weekend.close, weekend.rowIndex], ['2026-07-04', null, null, -1]);
+  const h = await harness();
+  for (const mini of [true, false]) {
+    let selected;
+    const tree = h.render(h.components.ReplayChart, { rows: replay.rows, trades: replay.trades, mini,
+      selectedTrade: weekend, selectedDate: weekend.date, recordDate: weekend.date, onSelectTrade: index => { selected = index; } });
+    const marks = walk(tree).filter(node => node.type === 'g' && /rsr-(buy|sell)/.test(node.props.className || ''));
+    assert.equal(marks.length, 4, 'retain in-range missing-date trades and exact closes, excluding before-history and future records');
+    const missing = marks.filter(node => hasClass(node, 'rsr-unpriced'));
+    assert.equal(missing.length, 3);
+    const rail = find(tree, node => hasClass(node, 'rsr-date-rail'));
+    const dateLabels = walk(tree).filter(node => node.type === 'text' && node.props.children?.includes?.('/'));
+    assert.ok(rail.props.y1 > 166 + 12, 'the date rail stays below the entire price plot');
+    assert.ok(dateLabels.every(node => node.props.y > rail.props.y1 + 20), 'date labels remain below the separate markers');
+    for (const mark of missing) {
+      assert.equal(find(mark, node => hasClass(node, 'rsr-node-anchor') || hasClass(node, 'rsr-node-stem')), undefined);
+      assert.equal(mark.props['data-review-buy'], undefined, 'no exact-close highlight for a missing close');
+    }
+    assert.equal(find(tree, node => hasClass(node, 'rsr-inspection')), undefined, 'no cursor can imply a close on the recorded weekend');
+    const pricePath = find(tree, node => hasClass(node, 'rsr-price-path')).props.d;
+    const x = [...pricePath.matchAll(/[ML]([\d.]+)/g)].map(match => Number(match[1]));
+    if (mini) {
+      const dot = find(marks.find(mark => mark.key === weekend.key), node => hasClass(node, 'rsr-mini-dot'));
+      assert.equal(dot.props.cx, (x[0] + x[1]) / 2, 'July 4 lies midway between July 2 and July 6');
+      const sell = find(marks.find(mark => mark.key === replay.trades.find(record => record.id === 'weekend-sell').key), node => hasClass(node, 'rsr-mini-dot'));
+      assert.equal(sell.props.cx, dot.props.cx);
+      assert.ok(sell.props.cy - dot.props.cy >= 24, 'same-date missing-close buy and sell remain separately visible');
+    } else {
+      const button = find(tree, node => node.type === 'button' && node.key === weekend.key);
+      assert.match(button.props['aria-label'], /2026-07-04 买入.*当日无收盘行情/);
+      assert.equal(parseFloat(button.props.style.left) * 360 / 100, (x[0] + x[1]) / 2);
+      assert.equal(button.props['aria-pressed'], true);
+      button.props.onClick(); assert.equal(selected, weekendIndex, 'selection preserves the original ledger index');
+      const sell = find(tree, node => node.type === 'button' && node.key === replay.trades.find(record => record.id === 'weekend-sell').key);
+      assert.equal(sell.props.style.left, button.props.style.left);
+      assert.notEqual(sell.props.style.top, button.props.style.top, 'opposite directions must not cover each other');
+    }
+    h.unmount();
+  }
+  assert.equal(h.render(h.components.ReplayChart, { rows: [], trades: replay.trades }), null);
+  h.unmount();
+  const single = h.render(h.components.ReplayChart, { rows: [replay.rows[0]], trades: [weekend], mini: true });
+  assert.equal(find(single, node => hasClass(node, 'rsr-unpriced')), undefined);
+  h.unmount();
+  const props = { symbol: 'NVDA', model: replay, loading: false, error: '', onClose() {}, onRetry() {} };
+  let dialog = h.render(h.components.ReplayDialog, props);
+  chartIn(dialog, h).props.onSelectTrade(weekendIndex, false);
+  dialog = h.render(h.components.ReplayDialog, props);
+  assert.equal(chartIn(dialog, h).props.selectedDate, weekend.date);
+  const readout = markup(find(dialog, node => hasClass(node, 'rsr-readout')));
+  assert.match(readout, /2026-07-04.*拆股复权收盘.*—/);
+  assert.doesNotMatch(readout, /\$100|\$110|\$120/);
+  h.unmount();
+});
+
+test('historical holdings use a separate summary and never create ordinary or hollow buy markers', async () => {
+  const holding = { ...trade('holding', '2026-07-04'), note: withStockTradeRecordKind('Imported average', 'historical_holding'), price: 125.75, shares: 300 };
+  const replay = buildReviewStockReplay({ ...baseProps, stockTrades: [holding, { ...holding, id: 'session-holding', date: recordDate }, trade('sale', '2026-10-05', 'sell')], history, endDate });
+  const h = await harness();
+  for (const mini of [true, false]) {
+    const tree = h.render(h.components.ReplayChart, { rows: replay.rows, trades: replay.trades, mini, selectedTrade: replay.trades[0], selectedDate: null, recordDate });
+    assert.equal(walk(tree).filter(node => node.type === 'g' && /rsr-(buy|sell)/.test(node.props.className || '')).length, 1);
+    assert.equal(find(tree, node => hasClass(node, 'rsr-unpriced') || hasClass(node, 'rsr-inspection')), undefined);
+    h.unmount();
+  }
+  const props = { symbol: 'NVDA', model: replay, loading: false, error: '', onClose() {}, onRetry() {} };
+  let dialog = h.render(h.components.ReplayDialog, props);
+  chartIn(dialog, h).props.onSelectTrade(0, false);
+  dialog = h.render(h.components.ReplayDialog, props);
+  assert.equal(chartIn(dialog, h).props.selectedDate, null);
+  assert.match(markup(find(dialog, node => hasClass(node, 'rsr-readout'))), /历史持仓 · 平均成本.*\$125\.75/);
+  const card = walk(dialog).find(node => hasClass(node, 'rsr-trade'));
+  assert.match(markup(card), /历史持仓.*录入于.*平均成本.*持仓数量/);
+  assert.doesNotMatch(markup(card), /实际成交价|当日复权收盘/);
+  chartIn(dialog, h).props.onSelectDate(recordDate);
+  dialog = h.render(h.components.ReplayDialog, props);
+  assert.match(markup(find(dialog, node => hasClass(node, 'rsr-readout'))), /拆股复权收盘/);
+  chartIn(dialog, h).props.onSelectDate('2020-01-01');
+  dialog = h.render(h.components.ReplayDialog, props);
+  assert.equal(chartIn(dialog, h).props.selectedDate, null, 'stale inspection never selects the historical entry date');
+  assert.match(markup(find(dialog, node => hasClass(node, 'rsr-readout'))), /历史持仓 · 平均成本/);
+  h.unmount();
+  const cardTree = h.card({ stockTrades: [holding], previewHistory: { ...history, synthetic: true, asOfDate: endDate } });
+  assert.match(markup(find(cardTree, node => hasClass(node, 'rsr-holding-caption'))), /含历史持仓记录/);
   h.unmount();
 });
 

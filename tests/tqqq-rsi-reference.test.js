@@ -180,7 +180,7 @@ test('the formal dialog uses authenticated production reference and confines des
 test('the formal trade panel keeps the optional reference slot separate from draft and save data', () => {
   const panelSource = readFileSync(new URL('../src/components/TqqqTradeEntryPanel.jsx', import.meta.url), 'utf8');
   assert.match(panelSource, /referenceContent = null/);
-  assert.match(panelSource, /\{referenceContent\}/);
+  assert.match(panelSource, /\{!historicalHolding && referenceContent\}/, 'current market signals are shown only for actual trades, never aggregate historical entries');
   assert.equal((panelSource.match(/referenceContent/g) || []).length, 2, 'reference content is only a defaulted prop and rendered node');
   assert.doesNotMatch(panelSource, /TqqqRsiReference|TqqqRsiDesignPreview|observation|previousAsOf/);
   assert.match(panelSource, /onDraftChange/);

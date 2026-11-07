@@ -4,6 +4,7 @@ import StockLogo, { stockLogoCandidates } from './StockLogo.jsx';
 import { splitCurrencyAmount } from '../lib/amountDisplay.js';
 import { MARKET_RED_HEX } from '../lib/marketColorMode.js';
 import { formatTradeVixRatio } from '../lib/tradeVixRatioDisplay.js';
+import { getStockTradeRecordKind } from '../lib/stockTradeRecordKind.js';
 import './GenericLedgerTradeEntryPanel.css';
 
 const NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif';
@@ -122,12 +123,13 @@ export default function GenericLedgerTradeEntryPanel({
   cacheStockLogo,
 }) {
   const side = draft?.side === 'sell' ? 'sell' : 'buy';
+  const historicalHolding = side === 'buy' && getStockTradeRecordKind(draft?.note) === 'historical_holding';
 
   return (
     <div data-generic-ledger-trade-entry="true" className="ledger-entry-form">
       <div className="ledger-entry-top">
         <GenericLedgerTradeHeader draft={draft} logoCache={logoCache} cacheStockLogo={cacheStockLogo} onDraftChange={onDraftChange} tt={tt} />
-        <div className="ledger-entry-side" role="group" aria-label={tt('trades.tradeSide', '交易方向')}>
+        {!historicalHolding && <div className="ledger-entry-side" role="group" aria-label={tt('trades.tradeSide', '交易方向')}>
           {['buy', 'sell'].map((option) => (
             <button
               key={option}
@@ -139,12 +141,12 @@ export default function GenericLedgerTradeEntryPanel({
               {option === 'buy' ? tt('trades.buy', '买入') : tt('trades.sell', '卖出')}
             </button>
           ))}
-        </div>
+        </div>}
       </div>
 
       <div className="ledger-entry-fields">
         <div className="ledger-entry-group">
-          <label htmlFor="generic-ledger-trade-price" className={LABEL_CLASS}>{tt('trades.priceUsd', '价格 ($)')}</label>
+          <label htmlFor="generic-ledger-trade-price" className={LABEL_CLASS}>{historicalHolding ? tt('trades.historicalAverageCost', '平均成本 ($)') : tt('trades.priceUsd', '价格 ($)')}</label>
           <div className={`${INPUT_SHELL_CLASS} ledger-entry-price-field`}>
             <input
               id="generic-ledger-trade-price"
@@ -171,7 +173,7 @@ export default function GenericLedgerTradeEntryPanel({
         </div>
 
         <div className="ledger-entry-group">
-          <label htmlFor="generic-ledger-trade-shares" className={LABEL_CLASS}>{tt('trades.quantity', '股数')}</label>
+          <label htmlFor="generic-ledger-trade-shares" className={LABEL_CLASS}>{historicalHolding ? tt('trades.historicalHoldingShares', '持仓数量') : tt('trades.quantity', '股数')}</label>
           <div className={`${INPUT_SHELL_CLASS} ledger-entry-shares-field`}>
             <input
               id="generic-ledger-trade-shares"
@@ -188,7 +190,7 @@ export default function GenericLedgerTradeEntryPanel({
       </div>
 
       <div className="ledger-entry-group ledger-entry-date-group">
-        <label htmlFor="generic-ledger-trade-date" className={LABEL_CLASS}>{tt('trades.date', '日期')}</label>
+        <label htmlFor="generic-ledger-trade-date" className={LABEL_CLASS}>{historicalHolding ? tt('trades.historicalEntryDate', '录入日期') : tt('trades.date', '日期')}</label>
         <div className={`${INPUT_SHELL_CLASS} ledger-entry-date-field`}>
           <CalendarDays className="pointer-events-none h-4 w-4" strokeWidth={1.7} />
           <input
@@ -203,8 +205,8 @@ export default function GenericLedgerTradeEntryPanel({
         </div>
       </div>
 
-      {referenceContent}
-      {side === 'buy' && showMarketReference && <GenericLedgerTradeMarketReference symbol={draft?.symbol} marketReference={marketReference} tt={tt} />}
+      {!historicalHolding && referenceContent}
+      {!historicalHolding && side === 'buy' && showMarketReference && <GenericLedgerTradeMarketReference symbol={draft?.symbol} marketReference={marketReference} tt={tt} />}
     </div>
   );
 }

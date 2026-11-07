@@ -53,7 +53,9 @@ function TradePicker({ selected, stockTrades, userId, onChange, onClose, Dialog,
   const [side,setSide]=React.useState('all');
   const [chosen,setChosen]=React.useState(selected);
   const symbols=[...new Set(stockTrades.map(row=>String(row.symbol||'').toUpperCase()).filter(Boolean))];
-  const current=symbols.flatMap(symbol=>collectReviewReplayTrades({stockTrades,symbol,userId}).filter(row=>row.id && row.date<=localReviewDate()).map(row=>({id:String(row.id),symbol,date:row.date,side:row.side,price:row.price,shares:row.shares})));
+  // This attachment stores actual executions. Do not strip an explicit holding
+  // classification and accidentally freeze an average-cost entry as a purchase.
+  const current=symbols.flatMap(symbol=>collectReviewReplayTrades({stockTrades,symbol,userId}).filter(row=>row.id && row.recordKind!=='historical_holding' && row.date<=localReviewDate()).map(row=>({id:String(row.id),symbol,date:row.date,side:row.side,price:row.price,shares:row.shares})));
   // Saved references are frozen: retain their price/date even if the live ledger changes.
   const choices=[...new Map([...current,...normalizeReviewTradeReferences(selected)].map(row=>[row.id,row])).values()]
     .sort((a,b)=>Number(relatedSymbols.includes(b.symbol))-Number(relatedSymbols.includes(a.symbol)) || b.date.localeCompare(a.date));

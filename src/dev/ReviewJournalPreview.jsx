@@ -5,6 +5,7 @@ import { buildReviewJournalWrite } from '../lib/reviewJournalModel.js';
 import { STOCK_COMPARISON_DEMO } from './stockComparisonFixture.js';
 import { isRegularNyseHoliday } from '../lib/quoteRefreshPolicy.js';
 import { createReviewMarketSnapshot, readReviewMarketDate } from '../lib/reviewMarketSnapshot.js';
+import { withStockTradeRecordKind } from '../lib/stockTradeRecordKind.js';
 
 // Only imported by DevVisualPreview. No account requests or production writes.
 const OWNER = 'local-review-journal-preview';
@@ -29,6 +30,8 @@ const seedLogs = [
   {...base,id:'log-smh',type:'log',date:'2026-11-04',text:'$SMH 同样的价格区间，这次想更耐心一点。先确认自己能承受多少波动，再决定下一步。',stocks:['SMH']},
 ];
 const stockTrades = [
+  // Explicitly classified aggregate holding; its entry date is not a purchase date.
+  {id:'nv-weekend',user_id:OWNER,symbol:'NVDA',date:'2026-07-04',side:'buy',price:180,shares:10,note:withStockTradeRecordKind('', 'historical_holding')},
   {id:'nv1',user_id:OWNER,symbol:'NVDA',date:'2026-08-20',side:'buy',price:188.45,shares:100},
   {id:'nv2',user_id:OWNER,symbol:'NVDA',date:'2026-09-15',side:'buy',price:194.20,shares:50},
   {id:'nv3',user_id:OWNER,symbol:'NVDA',date:'2026-10-15',side:'sell',price:219.30,shares:50},

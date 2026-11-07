@@ -10,6 +10,7 @@ import { normalizeStrictUserStockSymbol } from '../src/lib/symbols.js';
 import { deriveTqqqTradePreview } from '../src/lib/tqqqTradeDiscipline.js';
 import { getVixComparisonExpectedCloseDate } from '../src/lib/vixComparisonSession.js';
 import { formatWaveUsdPrice } from '../src/lib/waveCurrencyDisplay.js';
+import { getStockTradeRecordKind, normalizeStockTradeDraftKind, withStockTradeRecordKind } from '../src/lib/stockTradeRecordKind.js';
 
 const source = readFileSync(new URL('../src/tabs/TradesTab.jsx', import.meta.url), 'utf8');
 const handlerStart = source.indexOf('  const confirmTradeSubmit =');
@@ -24,6 +25,7 @@ const createHandler = new Function('context', `
     summary, usdRate, tradeRsiReference, tradeVixRatioReference, buyDisciplinePreview,
     englishMode, showTradeFormNotice, showConfirm, setNewTrade, addTrade,
     normalizeStrictUserStockSymbol, deriveTqqqTradePreview, deriveBuyTradeDiscipline,
+    getStockTradeRecordKind, normalizeStockTradeDraftKind,
     formatWaveUsdPrice, tt, fmtAmount, sharesText, sideLabel, stockDisplayName } = context;
   ${source.slice(handlerStart, handlerEnd)}
   return confirmTradeSubmit;
@@ -53,6 +55,7 @@ function fixture(options = {}) {
     setNewTrade: update => updates.push(update(draft)),
     addTrade: async side => { writes.push(side); if (options.saveError) throw options.saveError; },
     normalizeStrictUserStockSymbol, deriveTqqqTradePreview, deriveBuyTradeDiscipline, formatWaveUsdPrice,
+    getStockTradeRecordKind, normalizeStockTradeDraftKind,
     tt: (_key, fallback) => fallback, fmtAmount: format, sharesText: value => `${value} 股`,
     sideLabel: side => side === 'sell' ? '卖出' : '买入', stockDisplayName: (symbol, name) => name || symbol,
   });
@@ -75,6 +78,23 @@ test('ordinary and TQQQ buys reach the shared discipline confirmation before the
     assert.equal(f.updates[0].side, 'buy');
     await confirmation.onConfirm();
     assert.deepEqual(f.writes, ['buy'], 'only the explicit callback delegates to the existing buy save');
+  }
+});
+
+test('explicit historical holdings preserve saving but do not judge aggregate entry dates with current discipline', async () => {
+  for (const symbol of ['NVDA', 'TQQQ']) {
+    const note = withStockTradeRecordKind('历史均价汇总', 'historical_holding');
+    const f = fixture({ draft: { symbol, name: symbol, note } });
+    f.submit();
+    assert.equal(f.notices.length, 0);
+    assert.equal(f.confirmations.length, 1);
+    assert.match(f.confirmations[0].title, /保存历史持仓/);
+    assert.match(f.confirmations[0].desc, /录入日期不代表实际买入日/);
+    assert.equal(f.confirmations[0].buyDiscipline, null);
+    assert.equal(f.updates[0].note, note);
+    assert.deepEqual(f.writes, []);
+    await f.confirmations[0].onConfirm();
+    assert.deepEqual(f.writes, ['buy']);
   }
 });
 

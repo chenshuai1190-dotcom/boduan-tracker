@@ -1,5 +1,6 @@
 import { isInvestmentDate, normalizeInvestmentSymbol } from './investmentComparisonModel.js';
 import { isRegularNyseHoliday } from './quoteRefreshPolicy.js';
+import { getStockTradeRecordKind } from './stockTradeRecordKind.js';
 
 const REPLAY_RANGE_DAYS = { stage: [14, 28], '1m': [15, 15], '3m': [45, 45], '6m': [90, 90], '1y': [183, 183] };
 const numeric = value => (typeof value === 'number' || typeof value === 'string' && value.trim()) && Number.isFinite(Number(value)) ? Number(value) : null;
@@ -26,7 +27,8 @@ export function collectReviewReplayTrades({ stockTrades = [], symbol, userId } =
       || record.currency != null && record.currency !== 'USD') return [];
     const date = record.date ?? record.trade_date, price = numeric(record.price), shares = numeric(record.shares);
     if (!isInvestmentDate(date) || !['buy', 'sell'].includes(record.side) || price === null || price <= 0 || shares === null || shares <= 0) return [];
-    return [{ key: `${record.id || 'trade'}:${order}`, id: record.id || null, date, side: record.side, price, shares, order }];
+    const recordKind = record.side === 'buy' ? getStockTradeRecordKind(record.note) : 'trade';
+    return [{ key: `${record.id || 'trade'}:${order}`, id: record.id || null, date, side: record.side, price, shares, order, recordKind }];
   }).sort((a, b) => a.date.localeCompare(b.date) || a.order - b.order);
 }
 
@@ -39,7 +41,7 @@ export function reviewReplayRequestRange(trades, endDate) {
 
 /** Accept only mapped, owner-scoped replay trades with a close on the exact review date. */
 export function isReviewReplayBuyHighlight(trade, reviewDate) {
-  return isInvestmentDate(reviewDate) && trade?.side === 'buy' && trade.date === reviewDate
+  return isInvestmentDate(reviewDate) && trade?.side === 'buy' && trade.recordKind !== 'historical_holding' && trade.date === reviewDate
     && trade.markerDate === reviewDate && Number.isInteger(trade.rowIndex) && trade.rowIndex >= 0;
 }
 
@@ -63,7 +65,9 @@ export function buildReviewStockReplay({ stockTrades = [], symbol, userId, histo
     symbol: ticker, rows, validHistory: Boolean(validRows), synthetic: Boolean(validRows && synthetic),
     splitBasisDate: isInvestmentDate(history?.splitBasisDate) ? history.splitBasisDate : null,
     trades: trades.map(trade => {
-      const rowIndex = indexByDate.get(trade.date) ?? -1;
+      // Historical holdings carry an entry date and average cost, not an execution.
+      // Even a matching market session must never turn them into buy markers.
+      const rowIndex = trade.recordKind === 'historical_holding' ? -1 : indexByDate.get(trade.date) ?? -1;
       seen.set(trade.date, (seen.get(trade.date) || 0) + 1);
       return { ...trade, rowIndex, close: rowIndex < 0 ? null : rows[rowIndex].close,
         markerDate: rowIndex < 0 ? null : trade.date, sameDayCount: sameDayCounts.get(trade.date), sameDayOrder: seen.get(trade.date) };

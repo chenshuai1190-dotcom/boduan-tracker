@@ -6,6 +6,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { transformWithOxc } from 'vite';
 
 import { deriveInvestmentSummary, derivePositionAllocation } from '../src/lib/investmentSummary.js';
+import { withStockTradeRecordKind } from '../src/lib/stockTradeRecordKind.js';
 import {
   TQQQ_ALLOCATION_LIMIT,
   deriveTqqqMarketReference,
@@ -44,6 +45,8 @@ const compiledPanel = resolvePackages(panelCode.code)
     `from ${JSON.stringify(new URL('../src/lib/marketColorMode.js', import.meta.url).href)}`)
   .replace(/from (["'])\.\.\/lib\/tradeVixRatioDisplay\.js\1/g,
     `from ${JSON.stringify(new URL('../src/lib/tradeVixRatioDisplay.js', import.meta.url).href)}`)
+  .replace(/from (["'])\.\.\/lib\/stockTradeRecordKind\.js\1/g,
+    `from ${JSON.stringify(new URL('../src/lib/stockTradeRecordKind.js', import.meta.url).href)}`)
   .replace(/from (["'])\.\.\/lib\/amountDisplay\.js\1/g,
     `from ${JSON.stringify(new URL('../src/lib/amountDisplay.js', import.meta.url).href)}`);
 const { default: TqqqTradeEntryPanel, TqqqTradeAmount } = await import(moduleUrl(compiledPanel));
@@ -373,7 +376,7 @@ test('keeps TQQQ discipline isolated to formal TQQQ while preserving wave buy an
 });
 
 test('shows objective buy references only and keeps sell focused on the formal holdings check', () => {
-  assert.ok(panelSource.includes("{side === 'buy' && <MarketReference"));
+  assert.ok(panelSource.includes("{!historicalHolding && side === 'buy' && <MarketReference"));
   assert.ok(panelSource.includes("{side === 'sell' && ("));
   assert.ok(panelSource.includes("tt('trades.tqqq.sellRuleTitle'"));
   assert.equal(panelSource.includes("tt('trades.tqqq.buyRules'"), false);
@@ -403,6 +406,18 @@ test('shows objective buy references only and keeps sell focused on the formal h
   assert.match(panelCss, /\.tqqq-entry-amount-decimal\s*\{[^}]*font-size:\s*\.64em;/);
   assert.doesNotMatch(panelCss, /letter-spacing:\s*-|scaleX\s*\(|font-weight:\s*(?:[5-9]00|bold)/, 'report numbers should retain normal weight, spacing and width');
   assert.equal(/market breadth|市场广度|maximum drawdown|最大回撤/i.test(panelSource), false);
+});
+
+test('historical TQQQ holdings preserve cost inputs while omitting current-market decision controls', () => {
+  const draft = { symbol: 'TQQQ', side: 'buy', price: '125.75', shares: '300', date: '2026-07-04', note: withStockTradeRecordKind('历史均价', 'historical_holding') };
+  const { tree, html, tradePreview } = renderTrade(draft);
+  assert.match(html, /平均成本/);
+  assert.match(html, /持仓数量/);
+  assert.match(html, /录入日期/);
+  assert.doesNotMatch(html, /tqqq-entry-side|tqqq-trade-check-title|VIX 比率/);
+  assert.equal(tradePreview.requestedShares, 300);
+  assert.equal(tradePreview.amountUsd, 125.75 * 300);
+  assert.ok(nodes(tree, node => node.type === 'input').some(node => node.props.value === '2026-07-04'));
 });
 
 test('TQQQ scrolls its estimate with the form so the footer cannot cover the RSI reading', () => {
