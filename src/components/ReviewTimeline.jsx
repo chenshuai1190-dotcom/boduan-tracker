@@ -129,7 +129,7 @@ export function TimelineChart({ event, selectedPoint, detail = false, marketColo
   </div>;
 }
 
-function TimelineEvent({ event, onSelectEvent, onEvaluate, marketColorMode, language, displayCurrency = 'USD', usdCny = null, fxDate = '' }) {
+function TimelineEvent({ event, onSelectEvent, commentCount = 0, marketColorMode, language, displayCurrency = 'USD', usdCny = null, fxDate = '' }) {
   const en = isEnglish(language), Icon = iconFor(event), currency = { displayCurrency, usdCny, fxDate };
   const archived = event.status === 'archived';
   const summary = eventSummary(event, en);
@@ -147,7 +147,7 @@ function TimelineEvent({ event, onSelectEvent, onEvaluate, marketColorMode, lang
         {!archived && event.kind === 'drawdown' && <TimelineChart event={event} marketColorMode={marketColorMode} language={language} {...currency} />}
         {stops.length > 0 && <span className="rjt-three-values">{stops.map(([key, title]) => <span key={key}><span>{shortDate(event[key]?.date)} {title}</span><strong style={isReturnDrawdown(event) ? eventStyle(event[key]?.cumulativeReturnPct, marketColorMode) : undefined}>{pointReading(event, event[key], currency)}</strong></span>)}</span>}
       </button>
-      {onEvaluate && <div className="rjt-event-footer"><button type="button" onClick={() => onEvaluate(event)}><MessageCircle size={17} /><span>{label(en, '写评价', 'Evaluate')}</span></button></div>}
+      {onSelectEvent && <div className="rjt-event-footer"><button type="button" onClick={click => onSelectEvent(event.id, click)} aria-label={`${label(en, '查看', 'View ')}${event.title}${label(en, '的评论', ' comments')}`}><MessageCircle size={18} /><span>{commentCount || label(en, '评论', 'Comment')}</span></button></div>}
     </div>
   </article>;
 }
@@ -230,7 +230,7 @@ function TimelineDetail({ event, marketColorMode, entries, stockTrades, onOpenEn
 }
 
 export default function ReviewTimeline({ data, loading = false, error, onRetry, selectedEventId, onSelectEvent, onBack,
-  marketColorMode, stockTrades = [], entries = [], onOpenEntry, onEvaluate, renderEvaluations, language = 'zh', displayCurrency = 'USD', usdCny = null, fxDate = '' }) {
+  marketColorMode, stockTrades = [], entries = [], onOpenEntry, onEvaluate, renderEvaluations, getCommentCount, language = 'zh', displayCurrency = 'USD', usdCny = null, fxDate = '' }) {
   const en = isEnglish(language), currency = { displayCurrency, usdCny, fxDate };
   const currencyNotice = reviewDisplayCurrency(currency).available ? '' : reviewCurrencyNotice(currency, language);
   const [year, setYear] = React.useState('all');
@@ -255,7 +255,7 @@ export default function ReviewTimeline({ data, loading = false, error, onRetry, 
       : shown.length ? shown.map(event => {
         const month = event.date?.slice(0, 7) || '';
         const showMonth = month !== currentMonth; currentMonth = month;
-        return <React.Fragment key={event.id}>{showMonth && <div className="rjt-month"><span>{en ? month : `${Number(month.slice(5))} 月`}</span>{!en && <span>{month.slice(0, 4)}</span>}</div>}<TimelineEvent event={event} {...{ onSelectEvent, onEvaluate, marketColorMode, language, ...currency }} /></React.Fragment>;
+        return <React.Fragment key={event.id}>{showMonth && <div className="rjt-month"><span>{en ? month : `${Number(month.slice(5))} 月`}</span>{!en && <span>{month.slice(0, 4)}</span>}</div>}<TimelineEvent event={event} commentCount={getCommentCount?.(event) ?? 0} {...{ onSelectEvent, marketColorMode, language, ...currency }} /></React.Fragment>;
       }) : <div className="rjt-state"><History size={26} /><h2>{label(en, '暂时没有符合条件的记录', 'No matching events yet')}</h2><p>{events.length ? label(en, '试试其他年份或事件类型。', 'Try a different year or event type.') : label(en, '有可核对的收盘历史后，新高和回撤会自动呈现。', 'Highs and drawdowns appear as verifiable closing history becomes available.')}</p></div>}
     {events.length > 0 && <p className="rjt-history-end">{label(en, '基于已有收盘历史', 'Based on available closing history')}{data?.coverage?.startDate ? ` · ${data.coverage.startDate} — ${data.coverage.endDate}` : ''}</p>}
   </section>;

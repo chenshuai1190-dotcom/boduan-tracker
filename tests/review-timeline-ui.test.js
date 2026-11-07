@@ -107,13 +107,13 @@ test('archived records preserve reflections without made-up figures, chart or mi
   assert.doesNotMatch(list, /\$|rjt-event-primary|rjt-chart|rjt-three-values|最大回撤/);
 });
 
-test('year and event filters keep periods and daily records together, and navigation stays separate from evaluation', async () => {
+test('filtered timeline comments show counts and open the record without starting an evaluation', async () => {
   const h = await harness();
   let selected, evaluated;
   const daily = { ...cycle, id: 'daily', kind: 'record', metric: 'daily_return', title: '单日涨幅纪录', comparisonScope: '2026 年已记录交易日' };
   const old = { ...daily, id: 'old', date: '2025-10-01' };
   const period = { ...daily, id: 'period', kind: 'period', title: '月度纪录' };
-  const props = { data: { events: [old, cycle, daily, period], years: [2025, 2026] }, onSelectEvent(id) { selected = id; }, onEvaluate(event) { evaluated = event.id; } };
+  const props = { data: { events: [old, cycle, daily, period], years: [2025, 2026] }, getCommentCount: event => event.id === daily.id ? 3 : 0, onSelectEvent(id) { selected = id; }, onEvaluate(event) { evaluated = event.id; } };
   let tree = h.render('default', props);
   walk(tree).find(node => node.type === 'select').props.onChange({ target: { value: '2026' } });
   walk(byClass(tree, 'rjt-filters')).find(node => node.type === 'button' && node.props.children === '周期纪录').props.onClick();
@@ -124,8 +124,12 @@ test('year and event filters keep periods and daily records together, and naviga
   assert.equal(byClass(card, 'rjt-event-description'), undefined);
   assert.doesNotMatch(renderToStaticMarkup(card), /2026 年已记录交易日/);
   assert.equal(byClass(h.render('TimelineEvent', cards[1].props), 'rjt-event-description'), undefined);
+  assert.equal(textOf(byClass(card, 'rjt-event-footer')), '3');
+  assert.equal(textOf(byClass(h.render('TimelineEvent', cards[1].props), 'rjt-event-footer')), '评论');
+  assert.equal(textOf(byClass(h.render('TimelineEvent', { ...cards[1].props, language: 'en' }), 'rjt-event-footer')), 'Comment');
   byClass(card, 'rjt-event-open').props.onClick({}); assert.equal(selected, 'daily'); assert.equal(evaluated, undefined);
-  walk(byClass(card, 'rjt-event-footer')).find(node => node.type === 'button').props.onClick(); assert.equal(evaluated, 'daily');
+  selected = undefined;
+  walk(byClass(card, 'rjt-event-footer')).find(node => node.type === 'button').props.onClick({}); assert.equal(selected, 'daily'); assert.equal(evaluated, undefined);
 });
 
 test('loading, errors and pending reports never render old events as completed results', async () => {

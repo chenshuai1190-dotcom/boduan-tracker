@@ -661,6 +661,8 @@ test('grouped earnings share comments while append, edit and delete retain their
   systemPosts(tree, h)[0].props.onOpen(rate.id, clickEvent(h)); tree = h.render();
   let timeline = find(tree, node => node.type === h.Page.ReviewTimeline);
   assert.equal(timeline.props.selectedEventId, amount.id);
+  assert.equal(timeline.props.getCommentCount(amount), 2);
+  assert.equal(timeline.props.getCommentCount(rate), 2, 'both source aliases share the merged comment count');
   let comments = timeline.props.renderEvaluations();
   assert.match(textOf(comments), /收益率原评论.*金额原评论/);
   assert.equal(new Set(visible(comments).filter(node => hasClass(node, 'rj-reply')).map(node => node.key)).size, 2);
@@ -674,6 +676,7 @@ test('grouped earnings share comments while append, edit and delete retain their
   assert.equal(appends[0].entry.replies.length, 1, 'append must not send aggregated replies to the anchor');
   assert.equal(h.ctx.reviewLogs.find(entry => entry.id === rateEntry.id), rateEntry);
   timeline = find(tree, node => node.type === h.Page.ReviewTimeline); comments = timeline.props.renderEvaluations();
+  assert.equal(timeline.props.getCommentCount(rate), 3, 'the timeline count updates after adding a comment');
   const rateComment = visible(comments).find(node => hasClass(node, 'rj-reply') && textOf(node).includes('收益率原评论'));
   button(rateComment, '评论操作').props.onClick(); tree = h.render();
   button(tree, '修改评价').props.onClick(); tree = h.render();
@@ -696,6 +699,8 @@ test('grouped earnings share comments while append, edit and delete retain their
   assert.equal(h.replyDeletes.at(-1).reply.timelineReplySource, undefined);
   assert.equal(h.ctx.reviewLogs.find(entry => entry.id === rateEntry.id).replies.length, 0);
   assert.equal(h.ctx.reviewLogs.find(entry => entry.id === amountEntry.id).replies.length, 2);
+  timeline = find(tree, node => node.type === h.Page.ReviewTimeline);
+  assert.equal(timeline.props.getCommentCount(rate), 2, 'the timeline count updates after deleting a merged source comment');
   assert.equal(h.saves.length, 0);
   h.unmount();
 });
