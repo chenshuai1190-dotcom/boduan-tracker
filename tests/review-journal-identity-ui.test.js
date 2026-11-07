@@ -51,6 +51,7 @@ async function harness(initialProps = {}) {
   const input = `
     import React from ${JSON.stringify(import.meta.resolve('react'))};
     import { isCommunityAvatarSignedUrl, normalizeCommunityAvatarPath } from ${JSON.stringify(new URL('../src/lib/communityAvatarModel.js', import.meta.url).href)};
+    import { isReviewAvatarDataUrl } from ${JSON.stringify(new URL('../src/lib/reviewIdentityStorage.js', import.meta.url).href)};
     import { getCommunityAvatarOption } from ${JSON.stringify(new URL('../src/lib/communityProfile.js', import.meta.url).href)};
     const fixture = globalThis[${JSON.stringify(fixtureKey)}];
     const { useState, useEffect, Image, setTimeout, clearTimeout } = fixture;
@@ -186,5 +187,17 @@ test('all journal author locations use a stable name placeholder with accessible
   assert.doesNotMatch(source, /昵称加载中/);
   assert.equal((source.match(/<AuthorName identity=\{identity\}/g) || []).length, 3);
   assert.match(css, /\.rj-name-skeleton\{[^}]*width:72px[^}]*height:12px/);
+  h.unmount();
+});
+
+
+test('persisted custom image is visible on first render and remount without another image request', async () => {
+  const avatarDataUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Zl1sAAAAASUVORK5CYII=';
+  const h = await harness({ identity: identity({ avatarUrl: undefined, avatarDataUrl }) });
+  assert.equal(h.image(h.render()).props.src, avatarDataUrl);
+  h.unmount();
+  assert.equal(h.image(h.render()).props.src, avatarDataUrl);
+  assert.equal(h.images.length, 0, 'local image bytes must not be preloaded from storage again');
+  assert.equal(h.image(h.render({ userId: other })), null, 'persisted image never renders for another owner');
   h.unmount();
 });

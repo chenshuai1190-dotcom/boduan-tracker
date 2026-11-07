@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { ArrowLeft, Search, Plus, MoreHorizontal, Pin, MessageCircle, ImagePlus, LineChart, Activity, Smile, X, Check, Loader2, Pencil, Trash2, User } from 'lucide-react';
 import { getCommunityAvatarOption } from '../lib/communityProfile.js';
 import { isCommunityAvatarSignedUrl, normalizeCommunityAvatarPath } from '../lib/communityAvatarModel.js';
+import { isReviewAvatarDataUrl } from '../lib/reviewIdentityStorage.js';
 import { emptyReviewEntry, localReviewDate, reviewDraftKey, reviewJournalFeed, restoreReviewDraft } from '../lib/reviewJournalFeed.js';
 import { findReviewStockMentions, resolveReviewStockLinks } from '../lib/reviewStockMentions.js';
 import ReviewStockReplay from '../components/ReviewStockReplay.jsx';
@@ -58,6 +59,7 @@ function Avatar(props) {
 function JournalAvatar({ identity, userId, preview }) {
   const path = !preview && userId && normalizeCommunityAvatarPath(identity?.avatarPath, userId);
   const customUrl = path && isCommunityAvatarSignedUrl(identity?.avatarUrl, { supabaseUrl: import.meta.env.VITE_SUPABASE_URL, path }) ? identity.avatarUrl : '';
+  const localAvatar = path && isReviewAvatarDataUrl(identity?.avatarDataUrl) ? { path, url: identity.avatarDataUrl } : null;
   const cached = cachedJournalAvatar(userId, path, customUrl);
   const [loaded, setLoaded] = useState(() => cached);
   const [failedSource, setFailedSource] = useState('');
@@ -89,7 +91,7 @@ function JournalAvatar({ identity, userId, preview }) {
   // A pending replacement keeps the same owner's decoded image. The keyed
   // wrapper above discards it immediately when the account changes.
   const preset = preview || identity?.avatarPath === null;
-  const shown = preset ? null : cached || loaded;
+  const shown = preset ? null : localAvatar || cached || loaded;
   const source = shown?.url || (preset && identity?.avatarKey ? getCommunityAvatarOption(identity.avatarKey).src : '');
   if (!identity?.avatarKey || !source || failedSource === source) {
     return <span className="rj-avatar rj-avatar-empty" aria-hidden="true"><User size={20} /></span>;

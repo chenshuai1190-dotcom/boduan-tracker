@@ -1,6 +1,6 @@
 # boduan-tracker 当前交接
 
-验证时间：`2026-11-07 Asia/Shanghai`。本轮继续投资复盘直接发布流程：新增正文股票自动关联与排序，并修复返回列表的整篇白框；下面区分生产基准与候选代码。稳定规则看 `README.md`，流程看 `docs/development-process.md`。
+验证时间：`2026-11-07 Asia/Shanghai`。本轮按用户要求发布投资复盘昵称与头像持久缓存，减少重复请求；下面区分生产基准与候选代码。稳定规则看 `README.md`，流程看 `docs/development-process.md`。
 
 ## 当前生产基准
 
@@ -8,9 +8,9 @@
 | --- | --- |
 | 仓库 | `chenshuai1190-dotcom/boduan-tracker`；唯一发布来源 `main` |
 | 当前工作区 | `/Users/chenshuaishuai/Documents/Codex/2026-10-03/quote-boduan-tracker-2026-10-03/work/quiet-input-fields` |
-| 发布前生产源码 | `9a0099b7d6e7db1615ec34c57dad99586121c4b1 / v10.7.9.572`；精确提交 CI、Docs、Vercel 与线上独立详情/NOK旧卖点及区间验证通过 |
-| 发布前部署 | Vercel 任务 `2zTvicCnkEACrNL92ph8varqzjWM`，入口 `/assets/index-CK6XjEHp.js`；`https://boduan-tracker.vercel.app` |
-| 本次候选版本 | `v10.7.9.573 / 2026-11-07`：正文股票自动关联、按首次提及顺序排列、手动排除与草稿恢复、手机返回列表焦点白框修复 |
+| 发布前生产源码 | `05c254eba5583d52df2203899b72089738af5c6c / v10.7.9.573`；精确提交 CI、Docs、Vercel 与线上股票自动识别/返回无白框验证通过 |
+| 发布前部署 | Vercel 任务 `22AuM29adrCpNStAfj5xh1kLpJCg`，入口 `/assets/index-C5yARZxU.js`；`https://boduan-tracker.vercel.app` |
+| 本次候选版本 | `v10.7.9.574 / 2026-11-07`：昵称与头像本机快照、24小时资料检查、同路径图片复用、保存失效与账户隔离 |
 | 已生效云端配置 | `supabase/review-journal.sql`、`supabase/community-profile-avatar.sql` 已获授权执行；仅增加复盘 metadata/CAS 与头像路径、两私有 bucket 和本人目录策略 |
 | 生产 Checks | 已只读查询 Vercel 项目 Checks：配置列表为空；仓库 audit/build 保留，本次必须通过精确提交 CI + Docs + Vercel 等待器，不宣称平台已配置 CI 阻断晋级 |
 
@@ -18,9 +18,9 @@
 
 - 真实登录的本地应用已完成图片上传、保存、刷新回读及私有签名图预览；头像裁剪为 512×512，保存刷新并验证复盘头像同步。用户授权后删除本次测试记录和对象、恢复原头像；原有 10 条心得、25 条日志、13 份资料保留，两个新桶为空。
 - 生产事务内本人、另一认证身份及匿名角色 RLS 断言通过；另有 PGlite 实际 SQL fixture 的 CAS、幂等、重复迁移与写入隔离测试。角色模拟不是第二个真实浏览器账号验收。
-- v572 的 FULL 为 3,417 tests（3,415 pass、2项既有skip、0 fail）；本轮自动关联影响保存的股票引用，仍走 FULL，最终结果以精确提交 CI 和任务发布结论为准。
-- 原生 iPhone 17 Pro / iOS 26.5 Safari 已核对整篇点击详情和默认全部的六档交易回放，原始 PNG 为 1206×2622。v571 用户身份缓存的 Home Screen PWA 人工验收由用户明确暂缓，不宣称已经完成。
-- 股票识别仅使用本地已有目录及明确代码，不查询外部模型或修改正式交易。已有关联不静默截断，额外自动关联最多填满 4 只；手动排除只留本地草稿，不增加云端字段。行情与存储权限不变。
+- 缓存功能 FULL 为 3,450 tests（3,448 pass、2项既有skip、0 fail）；本次发布补版本说明后，对最终 diff 再运行一次 FULL，结果以精确提交 CI 和任务发布结论为准。
+- 本机真实账号浏览器重新加载后，35条博文昵称与本机头像同步恢复，无昵称占位；模型测试覆盖跨模块重启、同路径不下载、存储失效与切号晚响应。已安装 iPhone Home Screen Quote 显示本地服务器连接异常，PWA 重开验收未完成；用户在已告知此限制后明确要求部署，不将浏览器证据冒充 PWA 验收。
+- 本次缓存仅保存昵称、本人头像路径与经过解码的限量 raster 图像，不持久化签名 URL/token；同账户24小时内复用，到期后台检查资料，同头像路径沿用图片。修改资料即失效；切号/退出清除专用快照，旧响应不可回写。云端权限、图片上传、交易和行情链路不变。
 - 发布步骤：最终 FULL → 一次提交/push main → `release:verify -- full <exact commit>` → 一轮投资复盘页面只读 smoke；本次无 schema/RLS 改动，不重复存储验收。等待器成功前不将候选版本写成已上线。
 - 迁移恢复采用 additive forward-fix；回退前端时保留新增字段、元数据、私有文件和 RLS，不删除用户内容。存储删除失败可能留下本人私有孤立对象，后续需清理治理。
 - 实施细节及验收边界：`docs/review-journal-local-integration.md`、`docs/review-journal-cloud-configuration.md`。以下各子系统段落为既有合同及历史证据，不视为本轮重新验收。

@@ -4,6 +4,17 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '投资复盘在本机保存当前账户昵称和头像，重新打开时直接复用，避免反复加载；修改资料后更新缓存。',
+      '后台低频检查资料，头像未更换时不重复签名和下载；弱网保留最近成功显示，退出和切号清理缓存。',
+    ],
+    itemsEn: [
+      'Investment Journal keeps an account-bound local nickname and avatar snapshot for reopening, and invalidates it after profile edits.',
+      'Background profile checks reuse unchanged avatar images without new signatures or downloads. Failed refreshes retain the last successful display, and account changes clear it.',
+    ],
+  },
+  {
+    ver: 'v10.7.9.573', date: '2026-11-07',
+    items: [
       '新增和编辑投资复盘时，自动识别正文中的股票代码及常见公司名，按首次提及顺序关联和排列图表，仍可手动调整。',
       '修复手机从博文详情返回列表时，整条博文偶尔出现白色焦点边框的问题。',
     ],

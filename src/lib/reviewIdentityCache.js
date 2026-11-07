@@ -1,5 +1,5 @@
-// Memory only: private signed URLs never enter persistent storage.
-export function createReviewIdentityCache({ load, now = Date.now, ttl = 300000 }) {
+// A persistent display snapshot contains image bytes, never private signatures.
+export function createReviewIdentityCache({ load, now = Date.now, ttl = 86400000, storage }) {
   let owner, entry = null, pending = null, generation = 0;
   const listeners = new Set();
   const notify = () => listeners.forEach(listener => listener());
@@ -7,16 +7,19 @@ export function createReviewIdentityCache({ load, now = Date.now, ttl = 300000 }
   const setOwner = userId => {
     const next = userId || null;
     if (next === owner) return;
-    owner = next; entry = null; pending = null; generation += 1; notify();
+    if (owner || !next) storage?.clear();
+    owner = next; entry = next ? storage?.read(next) || null : null;
+    if (entry?.identity?.avatarPath && !entry.identity.avatarDataUrl) entry.freshUntil = 0;
+    pending = null; generation += 1; notify();
   };
   const invalidate = () => {
     generation += 1; pending = null;
-    if (entry) entry = { ...entry, freshUntil: 0 };
+    if (entry) { entry = { ...entry, freshUntil: 0 }; storage?.write(owner, entry); }
     notify();
   };
   const peek = userId => {
     const identity = matches(userId) ? entry?.identity || null : null;
-    return identity?.avatarExpiresAt && identity.avatarExpiresAt <= now()
+    return !identity?.avatarDataUrl && identity?.avatarExpiresAt && identity.avatarExpiresAt <= now()
       ? { ...identity, avatarUrl: '' } : identity;
   };
   const fetch = userId => {
@@ -24,12 +27,16 @@ export function createReviewIdentityCache({ load, now = Date.now, ttl = 300000 }
     if (pending) return pending;
     if (entry && entry.freshUntil > now()) return Promise.resolve(entry.identity);
     const epoch = generation;
-    const operation = Promise.resolve().then(() => load(userId)).then(identity => {
+    const operation = Promise.resolve().then(() => {
+      if (epoch !== generation || !matches(userId)) throw new Error('账户资料已更新，请重试。');
+      return load(userId, peek(userId));
+    }).then(identity => {
       if (epoch !== generation || !matches(userId)) throw new Error('账户资料已更新，请重试。');
       const freshUntil = identity?.avatarPath
-        ? identity.avatarUrl ? Math.min(now() + ttl, identity.avatarExpiresAt || now()) : 0
+        ? identity.avatarDataUrl ? now() + ttl : identity.avatarUrl ? Math.min(now() + ttl, identity.avatarExpiresAt || now()) : 0
         : now() + ttl;
-      entry = { identity, freshUntil };
+      entry = { identity, freshUntil, savedAt: now() };
+      if (identity) storage?.write(userId, entry); else storage?.remove(userId);
       return identity;
     });
     pending = operation;

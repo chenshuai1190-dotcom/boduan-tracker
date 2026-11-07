@@ -1,12 +1,12 @@
 import { supabase } from './supabase';
-import { fetchPnlShareIdentity } from './communityProfilesDb.js';
 import { subscribeCommunityAvatar } from './communityAvatarDb.js';
 import { createReviewIdentityCache } from './reviewIdentityCache.js';
+import { createReviewIdentityLoader } from './reviewIdentityLoader.js';
+import { createReviewIdentityStorage } from './reviewIdentityStorage.js';
 
 const cache = createReviewIdentityCache({
-  // A fresh signature outlives the five-minute identity cache. Reusing an old
-  // avatar signature here would inadvertently extend its display-cache TTL.
-  load: userId => fetchPnlShareIdentity({ id: userId }, { forceAvatar: true, strictAvatar: true }),
+  storage: createReviewIdentityStorage(),
+  load: createReviewIdentityLoader(supabase, { supabaseUrl: import.meta.env.VITE_SUPABASE_URL || '' }),
 });
 let unsubscribeAvatar;
 function setOwner(userId) {
@@ -21,9 +21,12 @@ supabase?.auth?.onAuthStateChange?.((_event, session) => setOwner(session?.user?
 export const readCachedReviewIdentity = userId => cache.peek(userId);
 export const subscribeReviewIdentity = (_userId, listener) => cache.subscribe(listener);
 export async function fetchReviewIdentity(userId) {
-  const { data, error } = await supabase.auth.getUser();
-  if (error || !data?.user?.id || data.user.id !== userId) throw new Error('账户已更新，请重新打开复盘。');
-  // Initial auth notification can arrive after the first page request.
-  if (cache.getOwner() === undefined) setOwner(userId);
+  // The authenticated session listener owns the display cache. Warm reads do
+  // not make a network auth request; actual refreshes authenticate in load.
+  if (cache.getOwner() === undefined) {
+    const { data, error } = await supabase.auth.getUser();
+    if (error || !data?.user?.id || data.user.id !== userId) throw new Error('账户已更新，请重新打开复盘。');
+    if (cache.getOwner() === undefined) setOwner(userId);
+  }
   return cache.fetch(userId);
 }
