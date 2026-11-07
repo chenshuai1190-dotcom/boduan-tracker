@@ -185,7 +185,8 @@ test('all journal author locations use a stable name placeholder with accessible
   const ready = renderToStaticMarkup(React.createElement(h.components.AuthorName, { identity: identity() }));
   assert.equal(ready, '<strong>复盘用户</strong>');
   assert.doesNotMatch(source, /昵称加载中/);
-  assert.equal((source.match(/<AuthorName identity=\{identity\}/g) || []).length, 3);
+  assert.equal((source.match(/<AuthorName identity=\{identity\}/g) || []).length, 4,
+    'feed, post composer, comment byline and evaluation composer share the stable identity');
   assert.match(css, /\.rj-name-skeleton\{[^}]*width:72px[^}]*height:12px/);
   h.unmount();
 });

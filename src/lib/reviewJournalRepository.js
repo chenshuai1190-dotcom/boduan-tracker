@@ -51,13 +51,24 @@ export function createReviewJournalRepository(client, { now = () => new Date().t
     }
     return user;
   }
-  async function save(entry, expectedUserId) {
+  async function saveEntry(entry, expectedUserId, replySource = null) {
     const user = await authenticate(expectedUserId);
     const table = reviewJournalTable(entry?.type);
-    const payload = buildReviewJournalWrite(entry, user.id);
+    let payload = buildReviewJournalWrite(entry, user.id);
+    if (replySource) {
+      // Only append to the authoritative row read in this operation. Preserve all
+      // existing metadata, including fields this client version does not render.
+      const metadata = { ...replySource.review_data,
+        replies: [...(replySource.review_data.replies || []), payload.review_data.replies.at(-1)] };
+      if (new TextEncoder().encode(JSON.stringify(metadata)).length >= 2 * 1024 * 1024) {
+        throw reviewJournalError('REVIEW_METADATA_LIMIT', '记录附件信息过多，请拆分后保存。');
+      }
+      payload = { review_data: metadata };
+    }
     const editing = entry.id !== undefined && entry.id !== null && entry.id !== '';
     const savedRow = row => {
       if (row.user_id !== user.id) throw reviewJournalError('REVIEW_ACCOUNT_CHANGED', '账户数据不匹配，请刷新后重试。');
+      if (replySource && String(row.id) !== String(entry.id)) throw conflict();
       if (!Number.isSafeInteger(row.review_revision) || row.review_revision < 0 || !row.review_data) {
         throw reviewJournalError('REVIEW_SCHEMA_NOT_CONFIGURED', '复盘存储尚未配置，请完成数据库迁移后再保存。');
       }
@@ -99,6 +110,48 @@ export function createReviewJournalRepository(client, { now = () => new Date().t
     if (!result.data) throw conflict();
     return savedRow(result.data);
   }
+  async function save(entry, expectedUserId) {
+    return saveEntry(entry, expectedUserId);
+  }
+  async function appendReply(entry, reply, expectedUserId) {
+    const table = reviewJournalTable(entry?.type);
+    if (!validId(entry?.id)) throw reviewJournalError('REVIEW_INVALID_ID', '记录标识无效，请刷新后重试。');
+    revision(entry);
+    // Initial attempt plus at most two retries for a competing revision write.
+    for (let attempt = 0; attempt <= 2; attempt++) {
+      const user = await authenticate(expectedUserId);
+      const { data: row, error } = await client.from(table).select('*')
+        .eq('user_id', user.id).eq('id', entry.id).maybeSingle();
+      if (error) throw dbError(error);
+      await authenticate(expectedUserId);
+      if (!row || String(row.id) !== String(entry.id)) throw conflict();
+      if (row.user_id !== user.id) throw reviewJournalError('REVIEW_ACCOUNT_CHANGED', '账户数据不匹配，请刷新后重试。');
+      if (!Number.isSafeInteger(row.review_revision) || row.review_revision < 0
+          || !row.review_data || typeof row.review_data !== 'object' || Array.isArray(row.review_data)) {
+        throw reviewJournalError('REVIEW_SCHEMA_NOT_CONFIGURED', '复盘存储尚未配置，请完成数据库迁移后再保存。');
+      }
+      const latest = mapReviewJournalRow(row, entry.type, user.id);
+      revision(latest);
+      // Mapping is tolerant for display; validate raw stored attachments before
+      // preserving them so a malformed or foreign private image is never copied.
+      const validated = buildReviewJournalWrite({ ...latest,
+        images: row.review_data.images, stocks: row.review_data.stocks,
+        market: row.review_data.market, replies: row.review_data.replies }, user.id);
+      const normalized = buildReviewJournalWrite({ ...latest, replies: [reply] }, user.id).review_data.replies[0];
+      const existing = validated.review_data.replies.find(item => item.id === normalized.id);
+      if (existing) {
+        if (JSON.stringify(canonical(existing)) !== JSON.stringify(canonical(normalized))) {
+          throw reviewJournalError('REVIEW_REPLY_CONFLICT', '这条评论已保存，但内容不同，请刷新确认后再操作。');
+        }
+        return latest;
+      }
+      try {
+        return await saveEntry({ ...latest, replies: [...validated.review_data.replies, normalized] }, expectedUserId, row);
+      } catch (failure) {
+        if (failure?.code !== 'REVIEW_REVISION_CONFLICT' || attempt === 2) throw failure;
+      }
+    }
+  }
   async function remove(entry, expectedUserId) {
     const user = await authenticate(expectedUserId);
     const table = reviewJournalTable(entry?.type);
@@ -139,5 +192,5 @@ export function createReviewJournalRepository(client, { now = () => new Date().t
     if (error) throw storageError(error);
     await authenticate(expectedUserId);
   }
-  return { save, remove, uploadImage, resolveImage, removeImage };
+  return { save, appendReply, remove, uploadImage, resolveImage, removeImage };
 }

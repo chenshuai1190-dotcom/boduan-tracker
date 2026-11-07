@@ -13,6 +13,7 @@ import { normalizeStrictUserStockSymbol, normalizeUserStockSymbol } from './symb
 import { userScopedStorageKey } from './userScopedStorage.js';
 import { mapReviewJournalRow } from './reviewJournalModel.js';
 import { createReviewJournalRepository } from './reviewJournalRepository.js';
+import { createReviewAccountSnapshotLoader } from './reviewAccountSnapshot.js';
 
 export {
   fetchPnlReportRebuildState,
@@ -66,6 +67,14 @@ export const saveReviewJournalEntry = async (entry, expectedUserId) => {
   if (Array.isArray(cached)) {
     cacheSet(expectedUserId, key, [saved, ...cached.filter(item => item.id !== saved.id)]);
   }
+  return saved;
+};
+export const fetchReviewAccountSnapshot = createReviewAccountSnapshotLoader(supabase);
+export const appendReviewJournalReply = async (entry, reply, expectedUserId) => {
+  const saved = await reviewJournalRepository.appendReply(entry, reply, expectedUserId);
+  const key = saved.type === 'insight' ? 'disciplines' : 'review_logs';
+  const cached = cacheGet(expectedUserId, key);
+  if (Array.isArray(cached)) cacheSet(expectedUserId, key, [saved, ...cached.filter(item => item.id !== saved.id)]);
   return saved;
 };
 export const deleteReviewJournalEntry = async (entry, expectedUserId) => {

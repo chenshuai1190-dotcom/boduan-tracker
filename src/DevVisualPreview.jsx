@@ -3575,7 +3575,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
           : activeTab === 'stock-comparison'
           ? <StockComparisonPreview ctx={{ language, marketColorMode, onBack: () => { setActiveTab('trades'); window.scrollTo(0, 0); } }} />
           : activeTab === 'review-journal'
-          ? <ReviewJournalPreview language={language} onBack={() => { setActiveTab('trades'); window.scrollTo(0, 0); }} />
+          ? <ReviewJournalPreview language={language} marketColorMode={marketColorMode} onBack={() => { setActiveTab('trades'); window.scrollTo(0, 0); }} />
           : activeTab === 'portfolio-overlap'
           ? <PortfolioOverlapPreview ctx={{ language, closePortfolioOverlap: () => { setActiveTab('trades'); window.scrollTo(0, 0); } }} />
           : activeTab === 'dca-lab'

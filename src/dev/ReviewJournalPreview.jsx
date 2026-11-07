@@ -1,5 +1,6 @@
 import React from 'react';
 import ReviewJournalPage from '../pages/ReviewJournalPage.jsx';
+import { buildReviewJournalWrite } from '../lib/reviewJournalModel.js';
 import { STOCK_COMPARISON_DEMO } from './stockComparisonFixture.js';
 import { isRegularNyseHoliday } from '../lib/quoteRefreshPolicy.js';
 import { createReviewMarketSnapshot, readReviewMarketDate } from '../lib/reviewMarketSnapshot.js';
@@ -32,6 +33,8 @@ const stockTrades = [
   {id:'sm1',user_id:OWNER,symbol:'SMH',date:'2026-09-03',side:'buy',price:524.32,shares:30},
   {id:'sm2',user_id:OWNER,symbol:'SMH',date:'2026-10-20',side:'sell',price:552.10,shares:10},
 ];
+const account = Object.fromEntries(['2026-11-05','2026-11-06'].map(asOfDate=>[asOfDate,{version:1,kind:'account_snapshot',asOfDate,recordDate:asOfDate,basis:'close',source:'pnl_report',items:[['cumulativeReturnPct',12.5],['dailyReturnPct',-1.82],['leverage',1.28]].map(([key,value])=>({key,value,asOfDate,basis:'close',source:'pnl_report'}))}]));
+const evaluationLog = {...base,id:'evaluation-example',type:'log',date:'2026-11-05',text:'以后要把 VIX 倒挂作为重要参考。比率大于 1 时，结合仓位，耐心寻找买入机会。',replies:[{id:'evaluation-reply',date:'2026-11-07',text:'方向判断可以保留，但“出现倒挂”不等于立即加大融资。回看这笔买入，仓位加得太快了。下次分批执行，先给后续波动留出余地。',score:6,tags:['仓位过重','耐心不足'],market:snapshot,account:account['2026-11-05'],trades:[{id:'sm1',symbol:'SMH',date:'2026-09-03',side:'buy',price:524.32,shares:30}],images:[],stocks:[]}]};
 const readingLogs = [
   {...base,id:'reading-medium',type:'log',date:'2026-11-08',text:'NVDA 与 SMH 的复盘，不应该只记住买卖价格。真正值得留下的是：当时看到了什么信息，为什么认为这个价格可以接受，以及准备在什么条件下改变判断。\n\n这次先把交易原因、当时的仓位和后续观察分开记录。NVDA 的价格变化只是结果，是否遵守计划才是可以反复检查的部分。短期波动出现时，回到当时写下的条件，比事后用新的信息解释过去更有帮助。\n\n这是一条中等长度的示例记录。正文超过原来的字数限制，但仍能在手机一屏内读完，所以应该直接完整显示。'},
   {...base,id:'reading-long',type:'log',date:'2026-11-07',text:[
@@ -44,8 +47,8 @@ const readingLogs = [
     '最后，把没有答案的问题也保留下来。复盘并不要求每一次都得到确定结论；有些判断需要更多时间。完整记录自己的观察、行动和后续变化，让未来的自己有材料可以回看，这就是持续记录的意义。超过手机一屏的部分在列表里折叠，点击展开全文后可以继续阅读到这里。',
   ].join('\n\n')},
 ];
-export default function ReviewJournalPreview({language,onBack}) {
-  const initialLogs = new URLSearchParams(window.location.search).get('reviewReading') === '1' ? [...readingLogs,...seedLogs] : seedLogs;
+export default function ReviewJournalPreview({language,onBack,marketColorMode}) {
+  const initialLogs = new URLSearchParams(window.location.search).get('reviewEvaluation') === '1' ? [evaluationLog,...seedLogs] : new URLSearchParams(window.location.search).get('reviewReading') === '1' ? [...readingLogs,...seedLogs] : seedLogs;
   const [disciplines,setDisciplines] = React.useState(seedInsights);
   const [reviewLogs,setReviewLogs] = React.useState(initialLogs);
   const rows = React.useRef([...seedInsights,...initialLogs]); const imageUrls = React.useRef(new Map());
@@ -59,11 +62,21 @@ export default function ReviewJournalPreview({language,onBack}) {
       const stored={...base,...entry,id:entry.id||crypto.randomUUID(),revision:(entry.revision||0)+1,createdAt:entry.createdAt||new Date().toISOString()};
       rows.current=[stored,...rows.current.filter(row=>!(row.id===stored.id&&row.type===stored.type))];return stored;
     },
+    appendReviewJournalReply:async(entry,reply,userId)=>{
+      if(userId!==OWNER)throw new Error('预览账户不匹配');
+      if(new URLSearchParams(window.location.search).get('reviewFailure')==='save')throw new Error('模拟保存失败：评价内容与附件仍保留，请重试。');
+      const existing=rows.current.find(row=>row.id===entry.id&&row.type===entry.type);
+      if(!existing)throw new Error('记录已删除');
+      const normalized=buildReviewJournalWrite({...existing,replies:[reply]},OWNER).review_data.replies[0];
+      if(existing.replies.some(item=>item.id===normalized.id))return existing;
+      const stored={...existing,replies:[...existing.replies,normalized],revision:existing.revision+1};
+      rows.current=rows.current.map(row=>row.id===stored.id&&row.type===stored.type?stored:row);return stored;
+    },
     deleteReviewJournalEntry:async entry=>{rows.current=rows.current.filter(row=>!(row.id===entry.id&&row.type===entry.type));},
     uploadReviewJournalImage:async file=>{const path=`${OWNER}/${crypto.randomUUID()}.${file.type==='image/png'?'png':file.type==='image/webp'?'webp':'jpg'}`;const url=URL.createObjectURL(file);imageUrls.current.set(path,url);return{path,name:file.name,mimeType:file.type,size:file.size,previewUrl:url};},
     resolveReviewJournalImage:async path=>{if(!imageUrls.current.has(path))throw new Error('预览图片已失效');return imageUrls.current.get(path);},
     removeReviewJournalImage:async path=>{const url=imageUrls.current.get(path);if(url)URL.revokeObjectURL(url);imageUrls.current.delete(path);},
   }),[]);
   if(!import.meta.env.DEV)return null;
-  return <ReviewJournalPage ctx={{db,userId:OWNER,language,disciplines,reviewLogs,setDisciplines,setReviewLogs,stockTrades,onBack,previewData:{identity:{nickname:'波段玩家1836',avatarKey:'gold'},history,market}}}/>;
+  return <ReviewJournalPage ctx={{db,userId:OWNER,language,disciplines,reviewLogs,setDisciplines,setReviewLogs,stockTrades,onBack,marketColorMode,previewData:{identity:{nickname:'波段玩家1836',avatarKey:'gold'},history,market,account}}}/>;
 }

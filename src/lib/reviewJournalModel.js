@@ -1,3 +1,8 @@
+import {
+  normalizeReviewEvaluationScore, normalizeReviewEvaluationTags,
+  normalizeReviewTradeReferences, normalizeReviewAccountSnapshot,
+} from './reviewEvaluationModel.js';
+
 export const REVIEW_JOURNAL_IMAGE_BUCKET = 'review-journal-images';
 export const REVIEW_JOURNAL_MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 export const REVIEW_JOURNAL_MAX_IMAGES = 4;
@@ -137,13 +142,20 @@ function replies(value, userId, strict = false) {
       return [];
     }
     const replyImages = images(reply.images, userId, strict);
-    if (!text && !replyImages.length) {
-      if (strict) throw reviewJournalError('REVIEW_EMPTY_REPLY', '请输入评论内容。');
+    const replyScore = normalizeReviewEvaluationScore(reply.score, { strict });
+    const replyTags = normalizeReviewEvaluationTags(reply.tags, { strict });
+    const replyTrades = normalizeReviewTradeReferences(reply.trades, { strict });
+    const replyAccount = normalizeReviewAccountSnapshot(reply.account, { strict });
+    const replyMarket = jsonSnapshot(reply.market, strict);
+    if (!text && !replyImages.length && replyScore === null && !replyTags.length && !replyTrades.length
+      && !replyAccount && !(replyMarket && Object.keys(replyMarket).length)) {
+      if (strict) throw reviewJournalError('REVIEW_EMPTY_REPLY', '请添加文字、评分、标签或附件。');
       return [];
     }
     ids.add(id);
     return [{ id, date, text, mood: typeof reply.mood === 'string' ? reply.mood.slice(0, 100) : '',
-      stocks: stocks(reply.stocks, strict), market: jsonSnapshot(reply.market, strict), images: replyImages,
+      stocks: stocks(reply.stocks, strict), market: replyMarket, images: replyImages,
+      score: replyScore, tags: replyTags, trades: replyTrades, account: replyAccount,
       ...(typeof reply.createdAt === 'string' ? { createdAt: reply.createdAt } : {}) }];
   });
 }

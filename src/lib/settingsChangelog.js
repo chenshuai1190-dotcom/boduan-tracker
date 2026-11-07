@@ -4,6 +4,17 @@ export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
     items: [
+      '投资复盘评论升级为回看评价，支持五星10分、半星、预设及自定义标签、图片和表情；旧评论继续保留。',
+      '评价可引用多笔真实买卖记录、对应日期的VIX及比率、恐慌与贪婪、账户收益率与杠杆，保存后保持原值；缺失历史数据不使用当前值替代。',
+    ],
+    itemsEn: [
+      'Journal comments now support optional half-star ratings out of 10, preset and custom tags, images, and emoji. Existing comments remain available.',
+      'Reviews can reference recorded trades and dated market or account snapshots. Saved readings stay fixed, and missing historical data is never replaced with current values.',
+    ],
+  },
+  {
+    ver: 'v10.7.9.575', date: '2026-11-07',
+    items: [
       '投资复盘正文首次提及股票时自动显示可点击的 $代码 标签，同篇重复提及保持普通文字；点击汇总该股票的相关博文。',
       '多只关联股票改为单卡左右滑动和代码切换，精简卡片底部文字，并取消整篇博文偶发的白色选中框。',
     ],

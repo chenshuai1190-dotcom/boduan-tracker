@@ -5622,7 +5622,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
               : isStockComparisonPage
                 ? <StockComparisonPage key={user?.id || ''} ctx={{ userId: user?.id || '', language, marketColorMode, onBack: closeStockComparison }} />
               : isReviewJournalPage
-                ? <ReviewJournalPage key={user?.id || ''} ctx={{ db, userId: user?.id || '', language, disciplines, reviewLogs, setDisciplines, setReviewLogs, stockTrades, onBack: closeReviewJournal }} />
+                ? <ReviewJournalPage key={user?.id || ''} ctx={{ db, userId: user?.id || '', language, disciplines, reviewLogs, setDisciplines, setReviewLogs, stockTrades, marketColorMode, onBack: closeReviewJournal }} />
               : isPortfolioOverlapPage
                 ? <PortfolioOverlapPage key={user?.id || ''} ctx={{ userId: user?.id || '', language, investmentSummary, portfolioReady: stockHoldingsReady, portfolioError: stockHoldingsError, closePortfolioOverlap }} />
               : isDcaLabPage

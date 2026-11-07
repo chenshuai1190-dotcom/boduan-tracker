@@ -39,10 +39,10 @@ const DATE_MESSAGES = {
 
 /** Mount only while composing. Explicit previewData bypasses both APIs. */
 export function SnapshotPicker({ open = true, userId, language = 'zh', recordDate, value,
-  onChange, onClose, previewData }) {
+  onChange, onClose, previewData, initialDate }) {
   const en = isEnglish(language);
   const existing = normalizeReviewMarketSnapshot(value);
-  const [date, setDate] = React.useState(() => existing?.asOfDate || recordDate || '');
+  const [date, setDate] = React.useState(() => existing?.asOfDate || initialDate || recordDate || '');
   const [selectedKeys, setSelectedKeys] = React.useState(() => existing?.items.map(item => item.key) || [...REVIEW_MARKET_KEYS]);
   const [request, setRequest] = React.useState({ owner: null, preview: null, vix: null, fear: null, vixState: 'loading', fearState: 'loading' });
   const [retry, setRetry] = React.useState(0);
@@ -72,9 +72,9 @@ export function SnapshotPicker({ open = true, userId, language = 'zh', recordDat
   React.useEffect(() => {
     if (!open) return undefined;
     const saved = normalizeReviewMarketSnapshot(value);
-    setDate(saved?.asOfDate || recordDate || '');
+    setDate(saved?.asOfDate || initialDate || recordDate || '');
     setSelectedKeys(saved?.items.map(item => item.key) || [...REVIEW_MARKET_KEYS]);
-  }, [open, userId, recordDate, value]);
+  }, [open, userId, recordDate, value, initialDate]);
 
   React.useEffect(() => {
     if (!open) return undefined;

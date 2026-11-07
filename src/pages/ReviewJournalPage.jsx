@@ -9,6 +9,7 @@ import { findReviewStockMentions, resolveReviewStockLinks } from '../lib/reviewS
 import ReviewStockCarousel from '../components/ReviewStockCarousel.jsx';
 import ReviewPostBody from '../components/ReviewPostBody.jsx';
 import { SnapshotCard, SnapshotPicker } from '../components/ReviewMarketSnapshot.jsx';
+import ReviewEvaluationComposer, { EvaluationRating, ReviewAccountCard, ReviewTradeReferences } from '../components/ReviewEvaluation.jsx';
 import './ReviewJournalPage.css';
 
 let dialogCount = 0;
@@ -225,7 +226,7 @@ function Composer({ entry, defaultType, identity, userId, db, onSaved, onClose, 
 }
 
 export default function ReviewJournalPage({ ctx }) {
-  const { db, userId, language='zh', disciplines=[], reviewLogs=[], setDisciplines, setReviewLogs, stockTrades=[], onBack, previewData } = ctx;
+  const { db, userId, language='zh', disciplines=[], reviewLogs=[], setDisciplines, setReviewLogs, stockTrades=[], onBack, previewData, marketColorMode } = ctx;
   const preview = Boolean(import.meta.env.DEV && previewData);
   const [identity,setIdentity]=useState(() => preview ? previewData.identity : db.readCachedReviewIdentity(userId));
   const [identityError,setIdentityError]=useState(false); const [identityAttempt,setIdentityAttempt]=useState(0);
@@ -233,7 +234,14 @@ export default function ReviewJournalPage({ ctx }) {
   const [composer,setComposer]=useState(null); const [menu,setMenu]=useState(null); const [detailKey,setDetailKey]=useState(null);
   const [tagSymbol,setTagSymbol]=useState(''); const [routeId,setRouteId]=useState('root');
   const [expanded,setExpanded]=useState(new Set()); const [lightbox,setLightbox]=useState(''); const [error,setError]=useState(''); const [busy,setBusy]=useState(false); const busyRef=useRef(false);
-  const [reply,setReply]=useState(''); const [confirmDelete,setConfirmDelete]=useState(false);
+  const [evaluations,setEvaluations]=useState([]); const [confirmDelete,setConfirmDelete]=useState(false);
+  // Keep each opened editor mounted within this account; drafts stay in memory only.
+  useEffect(()=>setEvaluations([]),[userId]);
+  const closeEvaluations=()=>setEvaluations(old=>old.map(item=>item.open?{...item,open:false}:item));
+  const openEvaluation=()=>setEvaluations(old=>{
+    const owned=old.filter(item=>item.userId===userId).map(item=>({...item,open:item.key===detailKey}));
+    return owned.some(item=>item.key===detailKey)?owned:[...owned,{key:detailKey,userId,open:true}];
+  });
   const pendingPosition=useRef(null); const positions=useRef(new Map()); const routes=useRef(new Map()); const pageTitle=useRef(null);
   const historyToken=useRef(null); const navigation=useRef(null);
   if(!historyToken.current)historyToken.current=crypto.randomUUID();
@@ -255,7 +263,7 @@ export default function ReviewJournalPage({ ctx }) {
   };
   const applyRoute=route=>{
     pendingPosition.current=positions.current.get(route.id)||{x:0,y:0};
-    setRouteId(route.id);setDetailKey(route.key);setTagSymbol(route.symbol);setReply('');setError('');
+    setRouteId(route.id);setDetailKey(route.key);setTagSymbol(route.symbol);closeEvaluations();setError('');
   };
   useEffect(()=>{
     const previousRestoration=window.history?.scrollRestoration;
@@ -306,7 +314,7 @@ export default function ReviewJournalPage({ ctx }) {
     navigate(null,symbol,event);
   };
   const closeDetail=()=>{
-    setReply('');setError('');
+    closeEvaluations();setError('');
     if(window.history?.state?.reviewJournalEntry?.token===historyToken.current&&window.history.state.reviewJournalEntry.id===routeId)window.history.back();
     else{rememberPosition();applyRoute(routes.current.get(routes.current.get(routeId)?.parent)||rootRoute);}
   };
@@ -319,6 +327,8 @@ export default function ReviewJournalPage({ ctx }) {
     {!!entry.images?.length&&<div className={`rj-photo-grid rj-images-${entry.images.length}`}>{entry.images.map(item=><Photo key={item.path} item={item} db={db} userId={userId} preview={preview} onOpen={setLightbox}/>)}</div>}
     <ReviewStockCarousel symbols={entry.stocks||[]} recordDate={entry.date} stockTrades={stockTrades} userId={userId} language={language} previewHistory={preview?previewData.history:undefined}/>
     {entry.market&&<SnapshotCard value={entry.market} language={language}/>}
+    {entry.account&&<ReviewAccountCard value={entry.account} marketColorMode={marketColorMode}/>}
+    {!!entry.trades?.length&&<ReviewTradeReferences trades={entry.trades} userId={userId} language={language} previewHistory={preview?previewData.history:undefined}/>}
   </>;
   const entryNotes=entry=><div className="rj-entry-notes">
     {entry.mood&&<span>心情 · {entry.mood}</span>}
@@ -351,15 +361,15 @@ export default function ReviewJournalPage({ ctx }) {
       {post(detail,true)}
       <section className="rj-replies" aria-labelledby="rj-comments-title">
         <h2 id="rj-comments-title">评论{detail.replies?.length?` · ${detail.replies.length}`:''}</h2>
-        {(detail.replies||[]).map(item=><div className="rj-reply" key={item.id}><Avatar identity={identity} userId={userId} preview={preview}/><div><AuthorName identity={identity} /><time dateTime={item.date}>{item.date}</time><p>{item.text}</p>{entryNotes(item)}{attachments(item)}</div></div>)}
-        {!detail.replies?.length&&<p className="rj-note">还没有评论，写下你的想法。</p>}
-        <textarea aria-label="评论内容" placeholder="写下你的评论…" maxLength={5000} value={reply} onChange={event=>setReply(event.target.value)} disabled={busy}/>
+        {(detail.replies||[]).map(item=><div className="rj-reply" key={item.id}><Avatar identity={identity} userId={userId} preview={preview}/><div><div className="rev-reply-byline"><AuthorName identity={identity} /><span>·</span><time dateTime={item.date}>{item.date}</time></div><EvaluationRating score={item.score} tags={item.tags}/>{item.text&&<p className="rev-reply-body">{item.text}</p>}{entryNotes(item)}{attachments(item)}</div></div>)}
+        {!detail.replies?.length&&<p className="rj-note">还没有评论，写下现在对当时的评价。</p>}
         {error&&!menu&&<p role="alert" className="rj-error">{error}</p>}
-        <button className="rj-publish" disabled={busy||!reply.trim()} onClick={()=>mutate(async()=>{saved(await db.saveReviewJournalEntry({...detail,replies:[...(detail.replies||[]),{id:crypto.randomUUID(),date:localReviewDate(),text:reply.trim()}]},userId));setReply('');})}>发表评论</button>
+        <div className="rev-write-bar"><button onClick={openEvaluation}>写下现在的评价…<Pencil size={18}/></button></div>
       </section>
     </div>}
     {menu&&<Dialog title={confirmDelete?'删除这条记录？':'记录操作'} onClose={()=>{if(!busy){setMenu(null);setConfirmDelete(false);setError('');}}}><div className="rj-dialog-body">{error&&<p className="rj-error" role="alert">{error}</p>}{confirmDelete?<><p className="rj-note">正文、关联信息及评论将一起删除。</p><button className="rj-wide-button rj-danger" disabled={busy} onClick={()=>mutate(async()=>{await db.deleteReviewJournalEntry(menu,userId);await Promise.allSettled([...new Set([...(menu.images||[]),...(menu.replies||[]).flatMap(item=>item.images||[])].map(image=>image.path))].map(path=>db.removeReviewJournalImage(path,userId)));(menu.type==='insight'?setDisciplines:setReviewLogs)(old=>old.filter(row=>row.id!==menu.id));setMenu(null);if(detailKey===entryKey(menu))closeDetail();})}>确认删除</button></>:<><button className="rj-menu-item" onClick={()=>{setComposer({entry:menu});setMenu(null);}}><Pencil size={18}/>编辑记录</button>{!tagSymbol&&filter!=='all'&&<button className="rj-menu-item" disabled={busy} onClick={()=>mutate(async()=>{saved(await db.saveReviewJournalEntry({...menu,pinned:!menu.pinned},userId));setMenu(null);})}><Pin size={18}/>{menu.pinned?'取消置顶':'置顶'}</button>}<button className="rj-menu-item rj-danger" onClick={()=>setConfirmDelete(true)}><Trash2 size={18}/>删除记录</button></>}</div></Dialog>}
     {composer&&<Composer entry={composer.entry} defaultType={filter==='insight'?'insight':'log'} identity={identity} userId={userId} db={db} language={language} onSaved={saved} onClose={()=>setComposer(null)} suggestions={suggestions} preview={preview} previewMarket={previewData?.market}/>}
+    {evaluations.filter(evaluation=>evaluation.userId===userId&&all.some(entry=>entryKey(entry)===evaluation.key)).map(evaluation=><ReviewEvaluationComposer key={`${userId}:${evaluation.key}`} open={evaluation.open&&detailKey===evaluation.key} entry={all.find(entry=>entryKey(entry)===evaluation.key)} identityNode={<><Avatar identity={identity} userId={userId} preview={preview}/><div><AuthorName identity={identity}/><span>现在的评价 · 仅自己可见</span></div></>} db={db} userId={userId} stockTrades={stockTrades} onSaved={saved} onClose={()=>setEvaluations(old=>old.map(item=>item.userId===userId&&item.key===evaluation.key?{...item,open:false}:item))} Dialog={Dialog} EmojiPicker={EmojiPicker} renderPhotos={images=><div className={`rj-photo-grid rj-images-${images.length}`}>{images.map(item=><Photo key={item.path} item={item} db={db} userId={userId} preview={preview} onOpen={setLightbox}/>)}</div>} knownTags={[...new Set(all.flatMap(entry=>(entry.replies||[]).flatMap(reply=>reply.tags||[])))]} preview={preview} previewData={previewData} language={language} marketColorMode={marketColorMode}/>)}
     {lightbox&&<Dialog title="图片" wide onClose={()=>setLightbox('')}><div className="rj-lightbox"><img src={lightbox} alt="复盘图片原图"/></div></Dialog>}
   </div>;
 }

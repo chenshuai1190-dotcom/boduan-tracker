@@ -57,7 +57,8 @@ async function harness() {
       const fixture = globalThis[${JSON.stringify(key)}];
       const { useState, useRef, useEffect, useLayoutEffect, window } = fixture;
       const Avatar = () => null, AuthorName = () => null, Photo = () => null, SnapshotCard = () => null, ReviewStockCarousel = () => null, ReviewPostBody = () => null, Composer = () => null, Dialog = () => null;
-      export { Photo, SnapshotCard, ReviewStockCarousel, ReviewPostBody, Composer, Dialog };
+      const ReviewEvaluationComposer = () => null, EvaluationRating = () => null, ReviewAccountCard = () => null, ReviewTradeReferences = () => null, EmojiPicker = () => null;
+      export { Photo, SnapshotCard, ReviewStockCarousel, ReviewPostBody, Composer, Dialog, ReviewEvaluationComposer, EvaluationRating, ReviewAccountCard, ReviewTradeReferences };
       ${pageSource.replaceAll('import.meta.env.DEV', 'true')}
     `, 'ReviewJournalEntryPageTest.jsx', { jsx: { runtime: 'classic' } });
     Page = await import(dataUrl(compiled.code));
@@ -76,7 +77,7 @@ async function harness() {
   return {
     Page, fixture, ctx, scrolls, focus, saves, deletes, removals, host, pushes, listeners,
     render() { cursor = 0; layout = []; effects = []; const tree = Page.default({ ctx }); for (const node of walk(tree)) if (node.ref) node.ref.current = { focus: options => focus.push({ target: node.type, options }) }; for (const effect of layout) effect(); for (const effect of effects) effect(); return tree; },
-    clickPost(tree, options = {}) { const event = { type: 'click', detail: options.detail ?? 1, nativeEvent: { pointerType: options.pointerType }, currentTarget: host, target: { closest: () => options.interactive || null, portal: options.portal }, defaultPrevented: options.defaultPrevented }; firstPost(tree).props.onClick(event); },
+    clickPost(tree, options = {}) { const event = { type: 'click', detail: options.detail ?? 1, nativeEvent: { pointerType: options.pointerType }, currentTarget: host, target: { closest: () => options.interactive || null, portal: options.portal }, defaultPrevented: options.defaultPrevented }; const post = options.id ? find(tree, node => node.type === 'article' && node.props['data-rj-entry-key'] === `log:${options.id}`) : firstPost(tree); post.props.onClick(event); },
     unmount() { for (const slot of slots) slot?.cleanup?.(); },
   };
 }
@@ -170,19 +171,74 @@ test('a keyboard-generated comment button click restores its post focus', async 
   h.unmount();
 });
 
-test('comments save on the same detail page without dropping existing data or resetting scroll', async () => {
+test('the evaluation composer stays mounted when closed and saves on the same detail without resetting scroll', async () => {
   const h = await harness(); let tree = h.render(); h.clickPost(tree); tree = h.render();
-  find(tree, node => node.type === 'textarea').props.onChange({ target: { value: '新的评论' } }); tree = h.render();
+  assert.equal(find(tree, node => node.type === 'textarea'), undefined);
+  button(tree, '写下现在的评价…').props.onClick(); tree = h.render();
+  let composer = find(tree, node => node.type === h.Page.ReviewEvaluationComposer);
+  assert.equal(composer.props.open, true); assert.equal(composer.props.entry.id, 'one');
+  assert.equal(composer.props.userId, 'owner'); assert.equal(composer.props.db, h.ctx.db);
+  const key = composer.key;
+  composer.props.onClose(); tree = h.render();
+  composer = find(tree, node => node.type === h.Page.ReviewEvaluationComposer);
+  assert.equal(composer.key, key); assert.equal(composer.props.open, false, 'closing must retain its draft component');
+  button(tree, '写下现在的评价…').props.onClick(); tree = h.render();
+  composer = find(tree, node => node.type === h.Page.ReviewEvaluationComposer);
+  assert.equal(composer.key, key); assert.equal(composer.props.open, true);
   h.fixture.window.scrollY = 820;
-  await button(tree, '发表评论').props.onClick(); tree = h.render();
-  assert.equal(h.saves.length, 1); assert.equal(h.saves[0].owner, 'owner');
-  assert.equal(h.saves[0].entry.replies.length, 2);
-  assert.deepEqual(h.saves[0].entry.replies[0], records()[0].replies[0]);
-  assert.deepEqual(h.saves[0].entry.images, records()[0].images);
+  composer.props.onSaved({ ...composer.props.entry, revision: 2, replies: [...composer.props.entry.replies,
+    { id: 'new-comment', date: '2026-11-07', text: '新的评论', score: 7, tags: ['按计划执行'] }] });
+  composer.props.onClose(); tree = h.render();
+  assert.equal(h.ctx.reviewLogs[0].replies.length, 2);
+  assert.deepEqual(h.ctx.reviewLogs[0].replies[0], records()[0].replies[0]);
+  assert.deepEqual(h.ctx.reviewLogs[0].images, records()[0].images);
+  assert.equal(find(tree, node => node.type === h.Page.ReviewEvaluationComposer).props.open, false);
+  const rating = visible(tree).filter(node => node.type === h.Page.EvaluationRating).at(-1);
+  assert.equal(rating.props.score, 7); assert.deepEqual(rating.props.tags, ['按计划执行']);
   assert.ok(detail(tree)); assert.match(textOf(detail(tree)), /新的评论/);
-  assert.equal(find(tree, node => node.type === 'textarea').props.value, '');
   assert.equal(h.fixture.window.scrollY, 820);
   assert.equal(h.scrolls.length, 1, 'saving must not navigate or scroll to the top');
+  h.unmount();
+});
+
+test('A and B evaluation drafts keep distinct component identities across navigation and reopening', async () => {
+  const h = await harness(); let tree = h.render();
+  const composers = () => visible(tree).filter(node => node.type === h.Page.ReviewEvaluationComposer);
+  const goBack = () => { button(tree, '返回投资复盘').props.onClick(); tree = h.render(); };
+  const open = id => { h.clickPost(tree, { id }); tree = h.render(); button(tree, '写下现在的评价…').props.onClick(); tree = h.render(); };
+  open('one');
+  const a = composers()[0]; assert.equal(a.props.open, true);
+  a.props.onClose(); tree = h.render(); goBack();
+  assert.equal(composers()[0].key, a.key); assert.equal(composers()[0].props.open, false);
+  open('two');
+  assert.equal(composers().length, 2, 'opening another entry must not unmount the first draft');
+  const b = composers().find(node => node.props.entry.id === 'two');
+  assert.notEqual(b.key, a.key); assert.equal(b.props.open, true);
+  assert.equal(composers().find(node => node.props.entry.id === 'one').key, a.key);
+  assert.equal(composers().find(node => node.props.entry.id === 'one').props.open, false);
+  goBack(); assert.ok(composers().every(node => !node.props.open), 'navigation closes every editor while retaining drafts');
+  open('one');
+  assert.deepEqual(composers().map(node => node.key), [a.key, b.key]);
+  assert.equal(composers()[0].props.open, true); assert.equal(composers()[1].props.open, false);
+  h.fixture.window.history.back(); tree = h.render();
+  assert.deepEqual(composers().map(node => node.key), [a.key, b.key]);
+  assert.ok(composers().every(node => !node.props.open), 'browser back also closes editors');
+  h.unmount();
+});
+
+test('deleted entries unmount their draft and account changes cannot reuse another account editor', async () => {
+  const h = await harness(); let tree = h.render(); h.clickPost(tree); tree = h.render();
+  button(tree, '写下现在的评价…').props.onClick(); tree = h.render();
+  const old = find(tree, node => node.type === h.Page.ReviewEvaluationComposer);
+  h.ctx.userId = 'another-owner'; tree = h.render();
+  assert.equal(find(tree, node => node.type === h.Page.ReviewEvaluationComposer), undefined, 'old draft must disappear in the first new-account render');
+  button(tree, '写下现在的评价…').props.onClick(); tree = h.render();
+  const current = find(tree, node => node.type === h.Page.ReviewEvaluationComposer);
+  assert.notEqual(current.key, old.key); assert.equal(current.props.userId, 'another-owner');
+  h.ctx.reviewLogs = h.ctx.reviewLogs.filter(entry => entry.id !== 'one'); tree = h.render();
+  assert.equal(find(tree, node => node.type === h.Page.ReviewEvaluationComposer), undefined);
+  h.ctx.userId = 'owner'; tree = h.render();
+  assert.equal(find(tree, node => node.type === h.Page.ReviewEvaluationComposer), undefined, 'switching back does not revive the discarded account draft');
   h.unmount();
 });
 
