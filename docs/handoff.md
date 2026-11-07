@@ -1,6 +1,6 @@
 # boduan-tracker 当前交接
 
-验证时间：`2026-11-07 Asia/Shanghai`。延续已授权上线，微调时间线账户数字字号与字重。稳定规则看 `README.md`，流程看 `docs/development-process.md`。
+验证时间：`2026-11-07 Asia/Shanghai`。延续已授权上线，将时间线账户改为等宽三列并适配长金额。稳定规则看 `README.md`，流程看 `docs/development-process.md`。
 
 ## 当前生产基准
 
@@ -8,15 +8,15 @@
 | --- | --- |
 | 仓库 | `chenshuai1190-dotcom/boduan-tracker`；唯一发布来源 `main` |
 | 当前工作区 | `/Users/chenshuaishuai/Documents/Codex/2026-10-03/quote-boduan-tracker-2026-10-03/work/quiet-input-fields` |
-| 发布前生产源码 | `d04662f6370dd268a61cfb6a35ac53662c66f362 / v10.7.9.592`；既有 CI、Vercel 与生产静态产物验证通过 |
-| 发布前部署 | Vercel `B8CzbQMbh2o1d2pdNeDZHwxv6NtX`；`https://boduan-tracker.vercel.app` |
-| 本次候选版本 | `v10.7.9.593 / 2026-11-07`：时间线账户数字缩小为常规字重 |
+| 发布前生产源码 | `d3a9c4a5db5c20b88eeeebd2dbe5017108a7ac91 / v10.7.9.593`；既有 CI、Vercel 与生产静态产物验证通过 |
+| 发布前部署 | Vercel `FXN7SYxNRqtFPabW2udKc3Mk2ViH`；`https://boduan-tracker.vercel.app` |
+| 本次候选版本 | `v10.7.9.594 / 2026-11-07`：时间线账户等宽三列，长金额在列内适配 |
 | 已生效云端配置 | `supabase/review_display_preferences_20261107.sql` 已应用；新增独立本人显示偏好表，RLS 开启、3 条 owner policy、匿名无 SELECT、authenticated 无 DELETE；原复盘与正式交易记录数量保持不变 |
 | 生产 Checks | 本会话控制台只读核对为“未配置任何检查”；保留仓库 CI 与 Docs，等待精确提交 CI + Docs + Vercel，不宣称平台已配置晋级阻断 |
 
 ## 本次证据与既有边界
 
-- v593 仅将“当时的账户”数字从 21px/450 调为 18px/400，窄屏金额保留 16–18px 适配；三列宽度、两位小数与原始计算不变。走 FAST，包含既有 detail/post UI 测试；最终结果以精确提交发布等待器为准。
+- v594 仅将“当时的账户”改为等宽三列；金额按列宽与文本长度适配字号，上限 18px、常规字重，完整两位小数不挤占邻列。320/390/430px 验证 USD/CNY 亿元净资产、百万融资及现金无溢出；iPhone 原生图位于 `local-previews/review/account-spacing/iphone-equal-columns.png`（外层）。走 FAST，最终结果以精确提交发布等待器为准。
 - v590 已通过 FULL（3,703 tests，3,701 pass，2 项既有 skip）、已安装 PWA 冷启动保存回读、CI/Docs/Vercel 及线上普通博文与系统动态只读验收。下列相关证据与边界沿用。
 
 - 底部“复盘”改为“动态”，模块“投资复盘”改为“投资动态”；复盘日志、投资心得、投资目标不改名。左上头像打开独立动态设置页，返回恢复列表分类、搜索及阅读位置。

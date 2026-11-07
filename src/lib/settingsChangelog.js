@@ -3,6 +3,11 @@ import { CURRENT_RELEASE } from './releaseMeta.js';
 export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
+    items: ['时间线“当时的账户”改为等宽三列，现金获得同等空间；长金额在本列自适应字号，支持亿元净资产、百万融资的完整两位小数。'],
+    itemsEn: ['Account metrics now use three equal-width columns, giving cash equal space. Long amounts fit within their own columns while keeping two decimals, including nine-digit net assets and seven-digit margin debt.'],
+  },
+  {
+    ver: 'v10.7.9.593', date: '2026-11-07',
     items: ['时间线“当时的账户”数字统一缩小并使用常规字重，保留三列排版及金额两位小数。'],
     itemsEn: ['Reduced the account-at-this-point figures to regular-weight text while preserving three columns and two decimal places.'],
   },
