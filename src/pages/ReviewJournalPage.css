@@ -87,7 +87,12 @@
 .rj-wide-button{display:block;width:100%;min-height:44px;border:0;border-radius:12px;padding:10px;background:#232830;color:#dde2e9;font-size:15px;margin-top:10px}
 .rj-menu-item{display:flex;align-items:center;gap:14px;min-height:50px;background:transparent;border:0;color:#d2d7e0;font-size:15px;width:100%;text-align:left}
 .rj-danger{color:#ec938d}
-.rj-replies{padding:24px 16px 30px}.rj-replies h2{font-size:15px;font-weight:600;margin-bottom:20px}
+.rj-replies{padding:20px 16px calc(30px + env(safe-area-inset-bottom))}
+.rj-replies-header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:20px}
+.rj-replies-header h2{font-size:15px;font-weight:600;margin:0;min-width:0}
+.rj-evaluate-button{flex:none;min-height:40px;padding:8px 16px;border:0;border-radius:20px;background:#e3e7ee;color:#15191e;font-size:14px;line-height:20px;font-weight:600;white-space:nowrap}
+.rj-evaluate-button:active{background:#cbd2de}
+.rj-evaluate-button:focus-visible{outline:2px solid #97a8c1;outline-offset:3px}
 .rj-reply{display:flex;gap:12px;margin-bottom:24px}.rj-reply>div{min-width:0;flex:1}.rj-reply strong{font-size:14px}.rj-reply time{font-size:12px;color:#737d8a;margin-left:8px}.rj-reply p{white-space:pre-wrap;overflow-wrap:anywhere;font-size:15px;line-height:22px;margin-top:6px;color:#ccd2dc}
 .rj-replies textarea{width:100%;min-height:100px;resize:vertical;background:#171b21;border:0;border-radius:12px;color:#e1e5ec;padding:12px;font-size:16px;line-height:24px;margin-bottom:12px;outline:none}
 .rj-post-full{padding-bottom:20px}.rj-spin{animation:rj-spin 1s linear infinite}@keyframes rj-spin{to{transform:rotate(360deg)}}

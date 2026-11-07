@@ -174,7 +174,12 @@ test('a keyboard-generated comment button click restores its post focus', async 
 test('the evaluation composer stays mounted when closed and saves on the same detail without resetting scroll', async () => {
   const h = await harness(); let tree = h.render(); h.clickPost(tree); tree = h.render();
   assert.equal(find(tree, node => node.type === 'textarea'), undefined);
-  button(tree, '写下现在的评价…').props.onClick(); tree = h.render();
+  const repliesHeader = find(tree, node => hasClass(node, 'rj-replies-header'));
+  assert.ok(repliesHeader);
+  assert.equal(button(repliesHeader, '写评价'), button(tree, '写评价'));
+  assert.ok(find(repliesHeader, node => node.type === 'h2' && node.props.id === 'rj-comments-title'));
+  assert.equal(find(tree, node => hasClass(node, 'rev-write-bar')), undefined);
+  button(tree, '写评价').props.onClick(); tree = h.render();
   let composer = find(tree, node => node.type === h.Page.ReviewEvaluationComposer);
   assert.equal(composer.props.open, true); assert.equal(composer.props.entry.id, 'one');
   assert.equal(composer.props.userId, 'owner'); assert.equal(composer.props.db, h.ctx.db);
@@ -182,7 +187,7 @@ test('the evaluation composer stays mounted when closed and saves on the same de
   composer.props.onClose(); tree = h.render();
   composer = find(tree, node => node.type === h.Page.ReviewEvaluationComposer);
   assert.equal(composer.key, key); assert.equal(composer.props.open, false, 'closing must retain its draft component');
-  button(tree, '写下现在的评价…').props.onClick(); tree = h.render();
+  button(tree, '写评价').props.onClick(); tree = h.render();
   composer = find(tree, node => node.type === h.Page.ReviewEvaluationComposer);
   assert.equal(composer.key, key); assert.equal(composer.props.open, true);
   h.fixture.window.scrollY = 820;
@@ -205,7 +210,7 @@ test('A and B evaluation drafts keep distinct component identities across naviga
   const h = await harness(); let tree = h.render();
   const composers = () => visible(tree).filter(node => node.type === h.Page.ReviewEvaluationComposer);
   const goBack = () => { button(tree, '返回投资复盘').props.onClick(); tree = h.render(); };
-  const open = id => { h.clickPost(tree, { id }); tree = h.render(); button(tree, '写下现在的评价…').props.onClick(); tree = h.render(); };
+  const open = id => { h.clickPost(tree, { id }); tree = h.render(); button(tree, '写评价').props.onClick(); tree = h.render(); };
   open('one');
   const a = composers()[0]; assert.equal(a.props.open, true);
   a.props.onClose(); tree = h.render(); goBack();
@@ -228,11 +233,11 @@ test('A and B evaluation drafts keep distinct component identities across naviga
 
 test('deleted entries unmount their draft and account changes cannot reuse another account editor', async () => {
   const h = await harness(); let tree = h.render(); h.clickPost(tree); tree = h.render();
-  button(tree, '写下现在的评价…').props.onClick(); tree = h.render();
+  button(tree, '写评价').props.onClick(); tree = h.render();
   const old = find(tree, node => node.type === h.Page.ReviewEvaluationComposer);
   h.ctx.userId = 'another-owner'; tree = h.render();
   assert.equal(find(tree, node => node.type === h.Page.ReviewEvaluationComposer), undefined, 'old draft must disappear in the first new-account render');
-  button(tree, '写下现在的评价…').props.onClick(); tree = h.render();
+  button(tree, '写评价').props.onClick(); tree = h.render();
   const current = find(tree, node => node.type === h.Page.ReviewEvaluationComposer);
   assert.notEqual(current.key, old.key); assert.equal(current.props.userId, 'another-owner');
   h.ctx.reviewLogs = h.ctx.reviewLogs.filter(entry => entry.id !== 'one'); tree = h.render();

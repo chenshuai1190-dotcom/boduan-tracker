@@ -3,6 +3,11 @@ import { CURRENT_RELEASE } from './releaseMeta.js';
 export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
+    items: ['将“写评价”移到评论标题右侧，移除底部固定输入条，已有评价与附件完整展示。'],
+    itemsEn: ['Moved Write review beside the comments heading and removed the fixed bottom bar so existing reviews and attachments remain unobstructed.'],
+  },
+  {
+    ver: 'v10.7.9.577', date: '2026-11-07',
     items: ['修复写评价时 iPhone 键盘遮挡正文的问题，聚焦、换行和编辑长文时自动保持当前输入行可见。'],
     itemsEn: ['Keep the active review line visible above the iPhone keyboard while focusing, typing, and editing long comments.'],
   },
