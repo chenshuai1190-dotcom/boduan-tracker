@@ -3,6 +3,11 @@ import { CURRENT_RELEASE } from './releaseMeta.js';
 export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
+    items: ['移除博文详情“写评价”上方分割线，并将投资复盘模块其余分割线统一调细、调淡。'],
+    itemsEn: ['Removed the divider above Write review and made the remaining Investment Journal separators thinner and softer.'],
+  },
+  {
+    ver: 'v10.7.9.580', date: '2026-11-07',
     items: ['评论之间增加分割线；每条评价可通过右上角菜单修改或删除，修改保留原有评分、标签及关联信息。'],
     itemsEn: ['Added separators between reviews and a menu to edit or delete each review, keeping its rating, tags, and linked information when editing.'],
   },
