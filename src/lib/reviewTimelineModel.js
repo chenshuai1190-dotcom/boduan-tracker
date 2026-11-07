@@ -316,6 +316,66 @@ function reportRecordEvents(points) {
   return events;
 }
 
+function annualReportPoints(points, firstTradeDate) {
+  const firstTrade = validDate(firstTradeDate) ? firstTradeDate : null;
+  let year = null, baseline = null;
+  return points.map((point, index) => {
+    const pointYear = point.date.slice(0, 4);
+    if (year !== pointYear) {
+      year = pointYear;
+      const prior = points[index - 1];
+      baseline = prior?.date === adjacentSession(`${year}-01-01`, -1) ? prior : null;
+    }
+    // Subtract the previous year's final trading close. An older observation
+    // would include prior-year gains; only a verified first-trade year uses zero.
+    const firstTradeYear = firstTrade?.slice(0, 4) === year && firstTrade <= point.date;
+    const annualValue = field => {
+      if (point[field] === null || (!firstTradeYear && baseline?.[field] == null)) return null;
+      const value = point[field] - (firstTradeYear ? 0 : baseline[field]);
+      return Number.isFinite(value) ? value : null;
+    };
+    return { ...point,
+      annualReturnPct: annualValue('cumulativeReturnPct'),
+      annualPnlUsd: annualValue('cumulativePnlUsd'),
+      annualBaselineDate: firstTradeYear ? firstTrade : baseline?.date ?? null,
+      annualBaselineKind: firstTradeYear ? 'first_trade' : baseline ? 'prior_close' : null };
+  });
+}
+
+function annualRecordEvents(points) {
+  const events = [];
+  for (const [metric, field, title, valueType] of [
+    ['annual_return', 'annualReturnPct', '年内收益率', 'percent'],
+    ['annual_pnl', 'annualPnlUsd', '年内收益金额', 'money'],
+  ]) {
+    for (const kind of ['high', 'low']) {
+      const label = kind === 'high' ? '新高' : '新低';
+      let year = null, extreme = null, run = null;
+      for (const point of points) {
+        const pointYear = point.date.slice(0, 4);
+        if (year !== pointYear) { year = pointYear; extreme = null; run = null; }
+        if (point[field] === null) { run = null; continue; }
+        if (!extreme) { extreme = point; continue; }
+        const isRecord = kind === 'high' ? point[field] > extreme[field] : point[field] < extreme[field];
+        if (!isRecord) { run = null; continue; }
+        if (run && adjacentSession(run.endDate) === point.date) {
+          Object.assign(run, { date: point.date, endDate: point.date, value: point[field], current: point,
+            points: [...run.points, point], nodes: [run.nodes[0], node('current', label, point)] });
+        } else {
+          run = { id: `${kind}:${metric}:${point.date}`, kind, metric, date: point.date, title: `${title}${label}`,
+            value: point[field], valueType, startDate: point.date, endDate: point.date, current: point,
+            points: [extreme, point],
+            nodes: [node('start', kind === 'high' ? '此前年度高点' : '此前年度低点', extreme), node('current', label, point)],
+            comparisonScope: `${year} 年收益报表区间`, basis: 'pnl_report_year_difference' };
+          events.push(run);
+        }
+        extreme = point;
+      }
+    }
+  }
+  return events;
+}
+
 function periodBounds(date, type) {
   const year = Number(date.slice(0, 4)), month = Number(date.slice(5, 7));
   const startMonth = type === 'year' ? 1 : type === 'quarter' ? Math.floor((month - 1) / 3) * 3 + 1 : month;
@@ -363,7 +423,7 @@ function periodEvents(points, latestCloseDate) {
 }
 
 /** Pure, read-only derivation from authenticated raw report rows; never fills absent values with zero. */
-export function buildReviewTimeline({ snapshots = [], movements = [], now = Date.now(), expectedUserId } = {}) {
+export function buildReviewTimeline({ snapshots = [], movements = [], firstTradeDate = '', now = Date.now(), expectedUserId } = {}) {
   const currentTime = Number(now);
   if (!Array.isArray(snapshots) || !Array.isArray(movements)) throw fail('REVIEW_HISTORY_INVALID', '时间线数据格式不正确。');
   if (!Number.isFinite(currentTime) || !Number.isFinite(new Date(currentTime).getTime())) throw fail('REVIEW_CLOCK_INVALID', '无法确认当前日期。');
@@ -382,7 +442,8 @@ export function buildReviewTimeline({ snapshots = [], movements = [], now = Date
   if (netAssetCount < points.length) warnings.add('部分历史报表没有完整净资产依据；保留其已记录收益数据，不补算净资产。');
   const { events: assetEvents, interruptions } = netAssetEvents(points, cashMovements, warnings);
   const latestCloseDate = latestReviewAccountCloseDate(currentTime);
-  const events = [...assetEvents, ...returnDrawdownEvents(points, warnings, latestCloseDate), ...reportRecordEvents(points), ...periodEvents(points, latestCloseDate)]
+  const events = [...assetEvents, ...returnDrawdownEvents(points, warnings, latestCloseDate), ...reportRecordEvents(points),
+    ...annualRecordEvents(annualReportPoints(points, firstTradeDate)), ...periodEvents(points, latestCloseDate)]
     .sort((a, b) => b.date.localeCompare(a.date) || a.id.localeCompare(b.id));
   return {
     events,

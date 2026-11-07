@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowLeft, Search, Plus, MoreHorizontal, Pin, MessageCircle, ImagePlus, LineChart, Activity, Smile, X, Check, Loader2, Pencil, Trash2, User } from 'lucide-react';
 import { getCommunityAvatarOption } from '../lib/communityProfile.js';
@@ -419,7 +419,7 @@ export default function ReviewJournalPage({ ctx }) {
       {attachments(entry)}
       {!full&&<div className="rj-post-actions"><button onClick={event=>openDetail(entry,event)} aria-label="查看评论"><MessageCircle size={18}/><span>{entry.replies?.length||'评论'}</span></button></div>}
     </div></article>;
-  const evaluationDb=isTimelineDetail?{...db,appendReviewJournalReply:(entry,reply,expectedUserId)=>db.appendReviewTimelineReply(entry,reply,expectedUserId)}:db;
+  const evaluationDb=useMemo(()=>isTimelineDetail?{...db,appendReviewJournalReply:(entry,reply,expectedUserId)=>db.appendReviewTimelineReply(entry,reply,expectedUserId)}:db,[db,isTimelineDetail]);
   const evaluationEditorProps={identityNode:<><Avatar identity={identity} userId={userId} preview={preview}/><div><AuthorName identity={identity}/><span>现在的评价 · 仅自己可见</span></div></>,db:evaluationDb,userId,stockTrades,onSaved:saved,Dialog,EmojiPicker,
     renderPhotos:images=><div className={`rj-photo-grid rj-images-${images.length}`}>{images.map(item=><Photo key={item.path} item={item} db={db} userId={userId} preview={preview} onOpen={setLightbox}/>)}</div>,
     knownTags:[...new Set(all.flatMap(entry=>(entry.replies||[]).flatMap(reply=>reply.tags||[])))],preview,previewData,language,marketColorMode};

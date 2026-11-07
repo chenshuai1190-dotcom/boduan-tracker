@@ -63,6 +63,7 @@ function TradePicker({ selected, stockTrades, userId, onChange, onClose, Dialog,
 }
 function AccountPicker({ value, initialDate, recordDate, db, userId, preview, previewAccount, onChange, onClose, Dialog, marketColorMode }) {
   const now=Date.now(), maxDate=latestReviewAccountCloseDate(now);
+  const fetchAccountSnapshot=db?.fetchReviewAccountSnapshot;
   const [date,setDate]=React.useState(value?.asOfDate||initialDate);
   const dateAllowed=isReviewAccountCloseDate(date,now);
   const [selected,setSelected]=React.useState(value?.items?.map(item=>item.key)||Object.keys(ACCOUNT_LABELS));
@@ -71,10 +72,10 @@ function AccountPicker({ value, initialDate, recordDate, db, userId, preview, pr
   React.useEffect(()=>{let active=true;
     if(!dateAllowed){setRequest({date,status:'invalid_date',snapshot:null});return()=>{active=false;};}
     setRequest({date,status:'loading',snapshot:null});
-    const load=preview?Promise.resolve(previewAccount?.[date]?{status:'ready',snapshot:previewAccount[date]}:{status:'missing',snapshot:null}):db.fetchReviewAccountSnapshot(date,userId);
+    const load=preview?Promise.resolve(previewAccount?.[date]?{status:'ready',snapshot:previewAccount[date]}:{status:'missing',snapshot:null}):fetchAccountSnapshot(date,userId);
     load.then(result=>{if(active)setRequest({...result,date});}).catch(error=>{if(active)setRequest({date,status:'error',snapshot:null,error:error.message});});
     return()=>{active=false;};
-  },[date,dateAllowed,userId,db,preview,previewAccount,retry]);
+  },[date,dateAllowed,userId,fetchAccountSnapshot,preview,previewAccount,retry]);
   const result=request.date===date?request:{status:'loading'};
   const snapshot=result.status==='ready'?normalizeReviewAccountSnapshot(result.snapshot):null;
   const items=snapshot?.items.filter(item=>selected.includes(item.key))||[];

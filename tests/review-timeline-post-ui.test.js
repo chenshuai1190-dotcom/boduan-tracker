@@ -227,3 +227,59 @@ test('compact post styling avoids the outer selection frame while retaining keyb
   assert.match(css, /\.rj-timeline-post:focus-visible \.rj-timeline-copy\{outline:1px/);
   assert.match(css, /\.rj-system-values\{[^}]*flex-wrap:wrap/);
 });
+
+test('annual high and low posts show yearly values and compare against the matching prior extreme', () => {
+  for (const metric of ['annual_return', 'annual_pnl']) for (const kind of ['high', 'low']) {
+    const field = metric === 'annual_return' ? 'annualReturnPct' : 'annualPnlUsd';
+    const money = metric === 'annual_pnl', before = money ? 1000 : 10, value = kind === 'low' ? before / 2 : before * 2;
+    const start = { ...peak, [field]: before }, end = { ...current, [field]: value };
+    const title = `${money ? '年内收益金额' : '年内收益率'}${kind === 'low' ? '新低' : '新高'}`;
+    const event = { ...high, id: `${kind}:${metric}:2026-10-06`, title, kind, metric, valueType: money ? 'money' : 'percent', value,
+      current: end, points: [start, end], nodes: [{ key: 'start', point: start }, { key: 'current', point: end }] };
+    for (const mode of Object.values(MARKET_COLOR_MODES)) {
+      const tree = Post(props(event, { displayCurrency: 'CNY', usdCny: 7.2, marketColorMode: mode }));
+      const summary = byClass(tree, 'rj-timeline-copy').props.children;
+      assert.ok(summary.startsWith(title));
+      assert.match(summary, kind === 'low' ? /新的低点/ : /新的高点/);
+      const primary = byClass(tree, 'rj-system-primary');
+      assert.equal(primary.props.children, money ? formatReviewMoney(value, { displayCurrency: 'CNY', usdCny: 7.2 }) : `+${value.toFixed(2)}%`);
+      assert.equal(primary.props.style.color, marketHexColor(value, mode), 'a lower but positive annual result keeps the positive color');
+      const secondary = byClass(tree, 'rj-system-secondary');
+      assert.equal(secondary.props.children[0].props.children, kind === 'low' ? '较此前低点' : '较此前高点');
+      assert.equal(secondary.props.children[1].props.style.color, marketHexColor(value - before, mode));
+      assert.equal(secondary.props.children[1].props.children, money ? formatReviewMoney(value - before, { displayCurrency: 'CNY', usdCny: 7.2, signed: true }) : `${value > before ? '+' : ''}${(value - before).toFixed(2)} 个百分点`);
+      assert.equal(walk(tree).find(node => node.type === fixture.TimelineChart).props.event, event);
+      assert.equal(tree.props['data-rj-entry-key'], `timeline:${event.id}`);
+      assert.equal(byClass(tree, 'rj-system-label').props.children[0].props.children, money ? '年内收益金额' : '年内收益率');
+    }
+    const missing = Post(props({ ...event, points: [start, end].map(point => ({ ...point, [field]: null })) }));
+    assert.equal(walk(missing).find(node => node.type === fixture.TimelineChart), undefined);
+    const noFx = Post(props(event, { displayCurrency: 'CNY' }));
+    if (money) {
+      assert.equal(byClass(noFx, 'rj-system-primary').props.children, '—');
+      assert.match(renderToStaticMarkup(noFx), /汇率暂不可用/);
+    } else {
+      assert.equal(byClass(noFx, 'rj-system-primary').props.children, `+${value.toFixed(2)}%`);
+      assert.equal(byClass(noFx, 'rj-system-caption'), undefined);
+      assert.ok(walk(noFx).find(node => node.type === fixture.TimelineChart));
+    }
+    const english = Post(props(event, { language: 'en' }));
+    assert.equal(byClass(english, 'rj-system-secondary').props.children[0].props.children, kind === 'low' ? 'Below prior low' : 'Above prior high');
+  }
+});
+
+test('cumulative high charts retain their own observations and percentage cards do not depend on currency', () => {
+  for (const metric of ['cumulative_return', 'cumulative_pnl']) {
+    const field = metric === 'cumulative_return' ? 'cumulativeReturnPct' : 'cumulativePnlUsd';
+    const event = { ...high, metric, valueType: metric === 'cumulative_return' ? 'percent' : 'money', value: current[field] };
+    const tree = Post(props(event, { displayCurrency: 'CNY' }));
+    assert.ok(walk(tree).find(node => node.type === fixture.TimelineChart));
+    if (metric === 'cumulative_return') {
+      assert.equal(byClass(tree, 'rj-system-caption'), undefined);
+      assert.equal(byClass(tree, 'rj-system-primary').props.children, '+30.00%');
+      assert.equal(byClass(tree, 'rj-system-label').props.children[0].props.children, '累计收益率');
+    }
+    const missing = Post(props({ ...event, points: event.points.map(point => ({ ...point, [field]: null })) }));
+    assert.equal(walk(missing).find(node => node.type === fixture.TimelineChart), undefined);
+  }
+});

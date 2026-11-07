@@ -38,6 +38,7 @@ export function reviewTimelinePostSummary(event, en = false) {
     return label(en, `账户较前高回落达到${currentDrawdown}%，本轮回撤仍在持续追踪。`, `The account is ${currentDrawdown}% below its peak; this drawdown is still being tracked.`);
   }
   if (event.kind === 'high') return label(en, `${event.title}，记录这个新的高点。`, `${event.title}. A new high in the recorded closing history.`);
+  if (event.kind === 'low') return label(en, `${event.title}，记录这个新的低点。`, `${event.title}. A new low in the recorded closing history.`);
   if (event.kind === 'record') return label(en, `${event.title}，留下这一天的账户变化。`, `${event.title}. Keeping a record of this trading day.`);
   return label(en, `${event.title}，记录这一段的收益表现。`, `${event.title}. The performance of this completed period.`);
 }
@@ -51,17 +52,17 @@ function readings(event, currency, en) {
     title: label(en, '当前回撤', 'Current drawdown'), value: percent(event.drawdownPct), direction: event.drawdownPct,
     secondaryTitle: label(en, '本轮最大回撤', 'Maximum drawdown'), secondary: percent(event.maxDrawdownPct), secondaryDirection: event.maxDrawdownPct,
   };
-  if (event.kind === 'high') {
+  if (['high', 'low'].includes(event.kind)) {
     const previous = event.nodes?.find(node => node.key === 'start')?.point || event.points?.[0];
-    const titles = { net_assets: label(en, '收盘净资产', 'Closing net assets'), cumulative_return: label(en, '累计收益率', 'Cumulative return'), cumulative_pnl: label(en, '累计盈利金额', 'Cumulative P&L') };
-    const before = previous?.[{ net_assets: 'netAssetsUsd', cumulative_return: 'cumulativeReturnPct', cumulative_pnl: 'cumulativePnlUsd' }[event.metric]];
+    const titles = { net_assets: label(en, '收盘净资产', 'Closing net assets'), cumulative_return: label(en, '累计收益率', 'Cumulative return'), cumulative_pnl: label(en, '累计盈利金额', 'Cumulative P&L'), annual_return: label(en, '年内收益率', 'Annual return'), annual_pnl: label(en, '年内收益金额', 'Annual P&L') };
+    const before = previous?.[{ net_assets: 'netAssetsUsd', cumulative_return: 'cumulativeReturnPct', cumulative_pnl: 'cumulativePnlUsd', annual_return: 'annualReturnPct', annual_pnl: 'annualPnlUsd' }[event.metric]];
     const delta = finite(before) && finite(event.value) ? event.value - before : null;
     const gain = finite(before) && before > 0 && finite(event.value) ? (event.value / before - 1) * 100 : null;
     return { title: titles[event.metric], value: event.valueType === 'money' ? formatReviewMoney(event.value, currency) : percent(event.value),
       direction: event.metric === 'net_assets' ? null : event.value,
-      secondaryTitle: label(en, '较此前高点', 'Above prior high'),
+      secondaryTitle: event.kind === 'low' ? label(en, '较此前低点', 'Below prior low') : label(en, '较此前高点', 'Above prior high'),
       secondary: event.metric === 'net_assets' ? finite(gain) ? percent(gain) : ''
-        : finite(delta) ? event.metric === 'cumulative_pnl' ? formatReviewMoney(delta, { ...currency, signed: true }) : `${delta > 0 ? '+' : ''}${delta.toFixed(2)} ${label(en, '个百分点', 'pp')}` : '',
+        : finite(delta) ? ['cumulative_pnl', 'annual_pnl'].includes(event.metric) ? formatReviewMoney(delta, { ...currency, signed: true }) : `${delta > 0 ? '+' : ''}${delta.toFixed(2)} ${label(en, '个百分点', 'pp')}` : '',
       secondaryDirection: event.metric === 'net_assets' ? gain : delta,
     };
   }
@@ -79,9 +80,12 @@ export default function ReviewTimelinePost({ event, avatarNode, authorNode, comm
   const currency = { displayCurrency, usdCny, fxDate }, info = reviewDisplayCurrency(currency);
   const feedDate = reviewTimelineFeedDate(event), archived = event.status === 'archived';
   const returnDrawdown = isReturnDrawdown(event);
+  const extrema = ['high', 'low'].includes(event.kind);
+  const percentChart = returnDrawdown || extrema && ['cumulative_return', 'annual_return'].includes(event.metric);
+  const field = (extrema || returnDrawdown) && ({ cumulative_return: 'cumulativeReturnPct', cumulative_pnl: 'cumulativePnlUsd', annual_return: 'annualReturnPct', annual_pnl: 'annualPnlUsd' })[event.metric];
   const metric = readings(event, currency, en);
-  const showChart = !archived && ['high', 'drawdown', 'period'].includes(event.kind)
-    && (event.points || []).filter(point => finite(returnDrawdown ? point.cumulativeReturnPct : point.chartValue ?? point.netAssetsUsd)).length > 1;
+  const showChart = !archived && ['high', 'low', 'drawdown', 'period'].includes(event.kind)
+    && (event.points || []).filter(point => finite(field ? point[field] : point.chartValue ?? point.netAssetsUsd)).length > 1;
   const open = click => onOpen?.(event.id, click);
   const clickPost = click => {
     if (click.defaultPrevented || !click.currentTarget.contains(click.target)
@@ -94,7 +98,7 @@ export default function ReviewTimelinePost({ event, avatarNode, authorNode, comm
       : event.kind === 'drawdown' ? label(en, '持续跟踪', 'Tracking') : '';
   const peakCaption = !returnDrawdown && event.kind === 'drawdown' && event.peak?.date
     ? `${label(en, '较', 'From ')} ${shortDate(event.peak.date, en)} ${label(en, '前高', 'peak')}` : '';
-  const showCurrencyState = info.converted && !returnDrawdown;
+  const showCurrencyState = info.converted && !percentChart;
   return <article className="rj-post rj-post-link rj-timeline-post" data-rj-entry-key={`timeline:${event.id}`}
     role="link" tabIndex={0} aria-label={`${label(en, '查看', 'View ')}${event.title}`} onClick={clickPost}
     onKeyDown={click => { if (click.target === click.currentTarget && (click.key === 'Enter' || click.key === ' ')) { click.preventDefault(); open(click); } }}>

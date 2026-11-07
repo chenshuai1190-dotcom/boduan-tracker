@@ -80,7 +80,7 @@ async function harness({ observer = true } = {}) {
     const fixture = globalThis[${JSON.stringify(fixtureKey)}];
     const React = { ...ActualReact };
     for (const hook of ['useState', 'useRef', 'useEffect', 'useLayoutEffect', 'useMemo', 'useCallback']) React[hook] = (...args) => fixture.active ? fixture[hook](...args) : ActualReact[hook](...args);
-    const { useState, useRef, useEffect, useLayoutEffect } = React;
+    const { useState, useRef, useEffect, useLayoutEffect, useMemo } = React;
     const { ArrowLeft, ChevronLeft, ChevronRight, RefreshCw, Search, Plus, MoreHorizontal, Pin, MessageCircle, Pencil, Trash2 } = Icons;
     const { document, window, IntersectionObserver } = fixture;
   `;

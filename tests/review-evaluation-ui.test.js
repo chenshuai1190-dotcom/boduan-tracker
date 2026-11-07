@@ -404,6 +404,53 @@ test('account picker selects all five available metrics and saves the peak date 
   assert.deepEqual(requests, [['2026-11-05', 'owner']]); h.cleanup();
 });
 
+test('account reads survive repeated timeline adapter renders and remain insertable after completion', async () => {
+  const h = await harness(), source = accountSnapshot(), requests = []; let resolve, inserted;
+  const fetchReviewAccountSnapshot = (date, owner) => {
+    requests.push([date, owner]); return new Promise(done => { resolve = done; });
+  };
+  const props = { value: null, initialDate: source.asOfDate, recordDate: '2026-10-06', userId: 'owner',
+    db: { fetchReviewAccountSnapshot }, onChange(value) { inserted = value; }, onClose() {} };
+  let tree = h.renderAccount(props);
+  for (let tick = 0; tick < 20; tick++) {
+    props.db = { fetchReviewAccountSnapshot, appendReviewJournalReply() {} };
+    tree = h.renderAccount(props);
+  }
+  assert.deepEqual(requests, [[source.asOfDate, 'owner']], 'unrelated parent updates must not restart the pending read');
+  assert.equal(button(tree, '插入').props.disabled, true);
+  resolve({ status: 'ready', snapshot: source }); await Promise.resolve();
+  props.db = { fetchReviewAccountSnapshot }; tree = h.renderAccount(props);
+  assert.equal(button(tree, '插入').props.disabled, false);
+  assert.equal(find(tree, node => node.props.role === 'status'), undefined);
+  assert.equal(walk(tree).filter(node => node.props.className === 'rev-account-option'
+    && !find(node, child => child.type === 'input').props.disabled).length, 5);
+  button(tree, '插入').props.onClick();
+  assert.deepEqual(inserted, { ...source, recordDate: '2026-10-06' });
+  assert.equal(requests.length, 1); h.cleanup();
+});
+
+test('account picker still rejects late results after changing date or owner', async () => {
+  const h = await harness(), requests = [], source = accountSnapshot();
+  const fetchReviewAccountSnapshot = (date, owner) => new Promise(resolve => requests.push({ date, owner, resolve }));
+  const props = { value: null, initialDate: source.asOfDate, recordDate: '2026-10-06', userId: 'owner',
+    db: { fetchReviewAccountSnapshot }, onChange() {}, onClose() {} };
+  let tree = h.renderAccount(props);
+  find(tree, node => node.type === 'input' && node.props.type === 'date').props.onChange({ target: { value: '2026-11-06' } });
+  tree = h.renderAccount(props);
+  requests[0].resolve({ status: 'ready', snapshot: source }); await Promise.resolve();
+  tree = h.renderAccount(props);
+  assert.equal(button(tree, '插入').props.disabled, true);
+  props.userId = 'other'; props.db = { fetchReviewAccountSnapshot }; h.renderAccount(props);
+  const latest = accountSnapshot({ asOfDate: '2026-11-06', items: source.items.map(item => ({ ...item, asOfDate: '2026-11-06' })) });
+  requests[1].resolve({ status: 'ready', snapshot: latest }); await Promise.resolve();
+  tree = h.renderAccount(props);
+  assert.equal(button(tree, '插入').props.disabled, true);
+  assert.deepEqual(requests.map(({ date, owner }) => [date, owner]),
+    [['2026-11-05', 'owner'], ['2026-11-06', 'owner'], ['2026-11-06', 'other']]);
+  requests[2].resolve({ status: 'ready', snapshot: latest }); await Promise.resolve();
+  tree = h.renderAccount(props); assert.equal(button(tree, '插入').props.disabled, false); h.cleanup();
+});
+
 test('missing year history disables only its two metrics and retains independently available daily values', async () => {
   const h = await harness(), source = accountSnapshot(); source.items = source.items.filter(item => !item.peakDate);
   const props = { value: null, initialDate: source.asOfDate, recordDate: source.recordDate, userId: 'owner',

@@ -4,8 +4,9 @@ const date = value => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(va
 
 export function reviewTimelineCategory(event) {
   if (!event || typeof event !== 'object') return null;
-  if (event.kind === 'high') return ({ net_assets: 'net_assets_high', cumulative_return: 'return_high', cumulative_pnl: 'pnl_high' })[event.metric] || null;
-  if (event.kind === 'drawdown' && ['net_assets', 'cumulative_return'].includes(event.metric)) return 'drawdown';
+  if (event.kind === 'high') return ({ net_assets: 'net_assets_high', cumulative_return: 'return_high', cumulative_pnl: 'pnl_high', annual_return: 'annual_return_high', annual_pnl: 'annual_pnl_high' })[event.metric] || null;
+  if (event.kind === 'low') return ({ annual_return: 'annual_return_low', annual_pnl: 'annual_pnl_low' })[event.metric] || null;
+  if (event.kind === 'drawdown') return ({ net_assets: 'drawdown', cumulative_return: 'return_drawdown' })[event.metric] || null;
   if (event.kind === 'record' && event.metric === 'daily_return') return 'daily_record';
   if (event.kind === 'period' && event.metric === 'period_return') {
     const period = event.periodType || /^period:(month|quarter|year):/.exec(event.id || '')?.[1];
@@ -18,7 +19,7 @@ function eventOriginDate(event) {
   if (event?.kind === 'drawdown') return date(event.trigger?.date)
     || date(event.nodes?.find(node => node.key === 'trigger')?.point?.date)
     || date(event.date);
-  if (event?.kind === 'high') return date(event.startDate) || date(event.date);
+  if (['high', 'low'].includes(event?.kind)) return date(event.startDate) || date(event.date);
   return date(event?.date);
 }
 

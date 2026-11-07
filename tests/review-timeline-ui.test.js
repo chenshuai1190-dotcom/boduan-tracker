@@ -310,3 +310,67 @@ test('return year boundaries and gaps preserve interrupted states without fabric
   const latest = h.components.TimelineChart({ event: gap, selectedPoint: returnCurrent, detail: true });
   assert.ok(byClass(latest, 'rjt-chart-selected'));
 });
+
+test('cumulative and annual extrema use the matching return or P&L series instead of the account balance', async () => {
+  const h = await harness();
+  const cases = [
+    ['cumulative_return', 'cumulativeReturnPct', '累计收益率', 'percent', [25, 20, 30]],
+    ['cumulative_pnl', 'cumulativePnlUsd', '累计盈利金额', 'money', [2000, 1500, 3000]],
+    ['annual_return', 'annualReturnPct', '年内收益率', 'percent', [5, 2, 10]],
+    ['annual_pnl', 'annualPnlUsd', '年内收益金额', 'money', [200, 150, 300]],
+  ];
+  for (const [metric, field, label, valueType, values] of cases) {
+    for (const kind of metric.startsWith('annual_') ? ['high', 'low'] : ['high']) {
+      const points = [peak, trigger, current].map((point, index) => ({ ...point, [field]: values[index], netAssetsUsd: 100000 * (index + 1), chartValue: 100000 * (index + 1) }));
+      const event = { id: `${kind}:${metric}:2026-10-01`, kind, metric, valueType, value: values[2], title: `${label}${kind === 'low' ? '新低' : '新高'}`,
+        startDate: points[0].date, date: points[2].date, current: points[2], points,
+        nodes: [{ key: 'start', label: '此前节点', point: points[0] }, { key: 'current', label: '当前节点', point: points[2] }] };
+      const usdChart = h.components.TimelineChart({ event, detail: true });
+      const path = byClass(usdChart, 'rjt-chart-line').props.d;
+      const unrelatedBalances = { ...event, points: points.map(point => ({ ...point, netAssetsUsd: 1, chartValue: 1 })) };
+      assert.equal(byClass(h.components.TimelineChart({ event: unrelatedBalances, detail: true }), 'rjt-chart-line').props.d, path);
+      assert.match(renderToStaticMarkup(usdChart), new RegExp(`${label}历史走势`));
+      assert.equal(byClass(usdChart, 'rjt-chart-threshold'), undefined, 'highs and lows are not drawdown threshold charts');
+      const cny = { displayCurrency: 'CNY', usdCny: 7.2 };
+      assert.equal(byClass(h.components.TimelineChart({ event, detail: true, ...cny }), 'rjt-chart-line').props.d, path);
+      const noFx = h.components.TimelineChart({ event, displayCurrency: 'CNY' });
+      if (valueType === 'percent') assert.ok(byClass(noFx, 'rjt-chart-line'));
+      else { assert.equal(byClass(noFx, 'rjt-chart-line'), undefined); assert.match(renderToStaticMarkup(noFx), /收益金额曲线待更新/); }
+      const props = details({ event, ...cny });
+      let detail = h.render('TimelineDetail', props);
+      const expected = valueType === 'percent' ? `+${values[2].toFixed(2)}%` : formatReviewMoney(values[2], cny);
+      assert.equal(byClass(detail, 'rjt-node-value').props.children[0].props.children, expected);
+      assert.match(renderToStaticMarkup(byClass(detail, 'rjt-node-detail')), new RegExp(label));
+      assert.match(renderToStaticMarkup(byClass(detail, 'rjt-chart-heading')), new RegExp(`${label}走势 · ${valueType === 'percent' ? '%' : 'CNY'}`));
+      walk(byClass(detail, 'rjt-node-tabs')).find(node => node.type === 'button' && node.props.children[0] === '此前节点').props.onClick();
+      detail = h.render('TimelineDetail', props);
+      assert.equal(byClass(detail, 'rjt-node-value').props.children[0].props.children, valueType === 'percent' ? `+${values[0].toFixed(2)}%` : formatReviewMoney(values[0], cny));
+      const missingPoints = points.map(point => ({ ...point, [field]: null }));
+      const empty = h.components.TimelineChart({ event: { ...event, points: missingPoints } });
+      assert.equal(byClass(empty, 'rjt-chart-line'), undefined, 'net assets never replace missing metric observations');
+      const missingNode = h.render('TimelineDetail', details({ event: { ...event, nodes: [{ key: 'current', point: missingPoints[2] }], points: missingPoints } }));
+      assert.equal(byClass(missingNode, 'rjt-node-value').props.children[0].props.children, '—');
+    }
+  }
+});
+
+test('annual lows have their own filter and values keep their financial sign in either color convention', async () => {
+  const h = await harness();
+  const low = { id: 'low:annual_return:2026-10-06', kind: 'low', metric: 'annual_return', title: '年内收益率新低', date: current.date,
+    valueType: 'percent', value: 5, points: [{ ...peak, annualReturnPct: 10 }, { ...current, annualReturnPct: 5 }],
+    nodes: [{ key: 'current', label: '新低', point: { ...current, annualReturnPct: 5 } }] };
+  const high = { ...low, id: 'high:annual_return:2026-10-06', kind: 'high', title: '年内收益率新高' };
+  const props = { data: { events: [cycle, high, low], years: [2026] } };
+  let timeline = h.render('default', props);
+  walk(byClass(timeline, 'rjt-filters')).find(node => node.type === 'button' && node.props.children === '新低').props.onClick();
+  timeline = h.render('default', props);
+  assert.deepEqual(walk(timeline).filter(node => node.type === h.components.TimelineEvent).map(node => node.props.event), [low]);
+  for (const mode of Object.values(MARKET_COLOR_MODES)) for (const value of [-5, 5]) {
+    const event = { ...low, value, nodes: [{ key: 'current', label: '新低', point: { ...current, annualReturnPct: value } }] };
+    const card = h.render('TimelineEvent', { event, marketColorMode: mode });
+    assert.ok(walk(byClass(card, 'rjt-event-icon')).some(node => node.type === icons.ArrowDownRight));
+    assert.equal(byClass(card, 'rjt-event-primary').props.children[0].props.style.color, marketHexColor(value, mode));
+    const detail = h.render('TimelineDetail', details({ event, marketColorMode: mode }));
+    assert.equal(byClass(detail, 'rjt-node-value').props.children[0].props.style.color, marketHexColor(value, mode));
+  }
+});

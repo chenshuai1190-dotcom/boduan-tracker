@@ -148,6 +148,28 @@ test('same-event submissions merge, retry idempotently and never overwrite the o
   assert.equal(f.rows[0].review_data.replies.length, 2);
 });
 
+test('annual high and low evaluations round trip separately and retry without ordinary feed duplicates', async () => {
+  const f = fixture(), repo = f.repository(), saved = [];
+  for (const metric of ['annual_return', 'annual_pnl']) {
+    for (const kind of ['high', 'low']) {
+      const reference = event({ id: `${kind}:${metric}:2026-10-06`, kind, metric,
+        title: `年内${metric === 'annual_return' ? '收益率' : '收益金额'}${kind === 'high' ? '新高' : '新低'}` });
+      const source = entry({ text: reference.title, timelineEvent: reference });
+      const one = await repo.appendTimelineReply(source, reply(), USER);
+      const retried = await repo.appendTimelineReply(source, reply(), USER);
+      assert.equal(one.id, retried.id);
+      assert.equal(retried.replies.length, 1);
+      assert.deepEqual(one.timelineEvent, reference);
+      const payload = buildReviewJournalWrite(one, USER);
+      assert.deepEqual(mapReviewJournalRow(payload, 'log', USER).timelineEvent, reference);
+      saved.push(one);
+    }
+  }
+  assert.equal(new Set(saved.map(value => value.operationId)).size, 4);
+  assert.equal(f.rows.length, 4);
+  assert.deepEqual(reviewJournalFeed([], saved), []);
+});
+
 test('simultaneous first submissions converge on one container and preserve both evaluations', async () => {
   const f = fixture(), a = f.repository(), b = f.repository();
   const results = await Promise.all([

@@ -10,7 +10,7 @@ const deferred = () => { let resolve, reject; const promise = new Promise((a,b) 
 test('display defaults include every existing event category and only USD/CNY', () => {
   assert.equal(DEFAULT_REVIEW_PREFERENCES.showTimeline, true);
   assert.equal(DEFAULT_REVIEW_PREFERENCES.currency, 'USD');
-  assert.deepEqual(REVIEW_TIMELINE_TYPES.map(type=>type.id), ['net_assets_high','return_high','pnl_high','drawdown','daily_record','month','quarter','year']);
+  assert.deepEqual(REVIEW_TIMELINE_TYPES.map(type=>type.id), ['net_assets_high','return_high','pnl_high','annual_return_high','annual_return_low','annual_pnl_high','annual_pnl_low','drawdown','return_drawdown','daily_record','month','quarter','year']);
   assert.deepEqual(normalizeReviewPreferences(null).eventTypes, REVIEW_TIMELINE_TYPES.map(type=>type.id));
   assert.deepEqual(normalizeReviewPreferences({showTimeline:false,currency:'CNY',eventTypes:['drawdown','unknown','drawdown']}),{showTimeline:false,currency:'CNY',eventTypes:['drawdown']});
   assert.deepEqual(patchReviewPreferences(prefs(),{eventTypes:[]}).eventTypes,[]);
@@ -97,7 +97,25 @@ test('disposed owner requests cannot update observers and StrictMode reactivatio
 test('preview changes never call the cloud and preserve type selection when master toggles', async () => {
   const db={fetchReviewPreferences:()=>assert.fail('preview read'),saveReviewPreferences:()=>assert.fail('preview write')};
   const c=createReviewPreferencesController({db,userId:'preview',preview:true});
-  await c.updatePreferences({eventTypes:['net_assets_high','drawdown']});await c.updatePreferences({showTimeline:false});
-  await c.updatePreferences({showTimeline:true});assert.deepEqual(c.getSnapshot().preferences.eventTypes,['net_assets_high','drawdown']);
+  await c.updatePreferences({eventTypes:['net_assets_high','return_drawdown']});await c.updatePreferences({showTimeline:false});
+  await c.updatePreferences({showTimeline:true});assert.deepEqual(c.getSnapshot().preferences.eventTypes,['net_assets_high','return_drawdown']);
   await c.updatePreferences({currency:'CNY'});assert.equal(c.getSnapshot().preferences.currency,'CNY');
+});
+
+test('saving the master switch preserves independent drawdown and annual extrema selections', async () => {
+  for (const eventTypes of [[], ['drawdown'], ['return_drawdown'], ['drawdown', 'return_drawdown'], ['annual_return_high', 'annual_pnl_low'], ['annual_return_low', 'annual_pnl_high']]) {
+    let stored = record(prefs({ eventTypes }));
+    const saved = [];
+    const db = { fetchReviewPreferences: async () => stored, saveReviewPreferences: async (next, revision) => {
+      saved.push(next); stored = record(next, revision + 1); return stored;
+    } };
+    const c = createReviewPreferencesController({ userId: 'owner', db });
+    await c.load(); await c.updatePreferences({ showTimeline: false }); await c.updatePreferences({ showTimeline: true });
+    assert.deepEqual(saved.map(item => item.eventTypes), [eventTypes, eventTypes]);
+    assert.deepEqual(c.getSnapshot().preferences.eventTypes, eventTypes);
+    assert.equal(c.getSnapshot().preferences.showTimeline, true);
+    const reopened = createReviewPreferencesController({ userId: 'owner', db });
+    await reopened.load(); assert.deepEqual(reopened.getSnapshot().preferences.eventTypes, eventTypes);
+    c.dispose(); reopened.dispose();
+  }
 });

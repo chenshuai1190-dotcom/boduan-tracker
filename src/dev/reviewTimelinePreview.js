@@ -28,5 +28,5 @@ export function createReviewTimelinePreview(owner) {
       daily_pnl_usd: net - previous, daily_pnl_pct: (net - previous) / (previous - 10000),
     });
   }
-  return { status: 'ready', ...buildReviewTimeline({ snapshots, movements: [], expectedUserId: owner, now: Date.parse('2026-11-07T05:00:00Z') }) };
+  return { status: 'ready', ...buildReviewTimeline({ snapshots, movements: [], firstTradeDate: '2026-01-02', expectedUserId: owner, now: Date.parse('2026-11-07T05:00:00Z') }) };
 }

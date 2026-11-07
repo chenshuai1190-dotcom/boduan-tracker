@@ -3,6 +3,11 @@ import { CURRENT_RELEASE } from './releaseMeta.js';
 export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
+    items: ['净资产回撤与收益率高点回落可独立开关；新增按今年收益报表口径计算的年内收益率、收益金额新高和新低，分别控制在全部中的显示。每类保留最新动态，完整时间线和评价继续保留。修复时间线评价插入账户快照持续加载的问题。'],
+    itemsEn: ['Net-asset drawdowns and return-peak declines now have independent switches. Added year-to-date return and profit highs and lows using the report’s current-year basis, with individual feed controls. All keeps the latest per type; the full timeline and evaluations remain available. Fixed account snapshots repeatedly loading in timeline evaluations.'],
+  },
+  {
+    ver: 'v10.7.9.598', date: '2026-11-07',
     items: ['回撤动态文案随当前数据更新；新增年内收益率高点回落记录，与净资产回撤分别显示并保留各自评价。月、季、年纪录改为明确的月份、季度和年度最佳／最差，并移除数据说明提示。'],
     itemsEn: ['Drawdown summaries now follow current data. Added annual return-peak decline records, separate from net-asset drawdowns and their evaluations. Period record labels now identify monthly, quarterly, and yearly best or worst results, and the data-notes panel is removed.'],
   },

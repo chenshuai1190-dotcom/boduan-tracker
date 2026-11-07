@@ -39,6 +39,7 @@ async function harness({ removeReply, preferences = {} } = {}) {
     window: { scrollX: 0, scrollY: 740, getSelection: () => ({ toString: () => fixture.selection || '' }), scrollTo: value => { scrolls.push(value); fixture.window.scrollX = value.left; fixture.window.scrollY = value.top; } },
     useState(initial) { const index = cursor++; if (!slots[index]) slots[index] = { value: typeof initial === 'function' ? initial() : initial }; const slot = slots[index]; return [slot.value, next => { slot.value = typeof next === 'function' ? next(slot.value) : next; }]; },
     useRef(initial) { const index = cursor++; if (!slots[index]) slots[index] = { current: initial }; return slots[index]; },
+    useMemo(create, deps) { const index = cursor++, previous = slots[index]; if (previous && deps.every((dep, i) => Object.is(dep, previous.deps[i]))) return previous.value; const value = create(); slots[index] = { deps, value }; return value; },
     effect(effect, deps, queue) { const index = cursor++, previous = slots[index]; if (previous && deps.every((dep, i) => Object.is(dep, previous.deps[i]))) return; previous?.cleanup?.(); const slot = { deps }; slots[index] = slot; queue.push(() => { slot.cleanup = effect(); }); },
     useEffect(effect, deps) { fixture.effect(effect, deps, effects); },
     useLayoutEffect(effect, deps) { fixture.effect(effect, deps, layout); },
@@ -65,7 +66,7 @@ async function harness({ removeReply, preferences = {} } = {}) {
       import { findReviewStockMentions } from ${JSON.stringify(new URL('../src/lib/reviewStockMentions.js', import.meta.url).href)};
       import { mergeReviewTimelineFeed, reviewTimelineFeedDate } from ${JSON.stringify(new URL('../src/lib/reviewTimelineFeed.js', import.meta.url).href)};
       const fixture = globalThis[${JSON.stringify(key)}];
-      const { useState, useRef, useEffect, useLayoutEffect, window } = fixture;
+      const { useState, useRef, useEffect, useLayoutEffect, useMemo, window } = fixture;
       const Avatar = () => null, AuthorName = () => null, Photo = () => null, SnapshotCard = () => null, ReviewStockCarousel = () => null, ReviewPostBody = () => null, Composer = () => null, Dialog = () => null;
       const ReviewTimeline = () => null, ReviewPreferences = () => null, ReviewTimelinePost = () => null;
       const useReviewPreferences = () => fixture.preferenceState;
@@ -225,6 +226,10 @@ test('the evaluation composer stays mounted when closed and saves on the same de
   let composer = find(tree, node => node.type === h.Page.ReviewEvaluationComposer);
   assert.equal(composer.props.open, true); assert.equal(composer.props.entry.id, 'one');
   assert.equal(composer.props.userId, 'owner'); assert.equal(composer.props.db, h.ctx.db);
+  for (let tick = 0; tick < 3; tick++) {
+    h.ctx.stockTrades = [...h.ctx.stockTrades]; tree = h.render();
+    assert.equal(find(tree, node => node.type === h.Page.ReviewEvaluationComposer).props.db, h.ctx.db);
+  }
   const key = composer.key;
   composer.props.onClose(); tree = h.render();
   composer = find(tree, node => node.type === h.Page.ReviewEvaluationComposer);
@@ -401,6 +406,7 @@ test('editing a saved review receives the complete original and has a separate i
   assert.equal(editors.length, 2);
   assert.deepEqual(editor.props.reply, original); assert.equal(editor.props.entry.id, 'one');
   assert.equal(editor.props.userId, 'owner'); assert.equal(editor.props.open, true);
+  assert.equal(editor.props.db, h.ctx.db, 'ordinary review editing keeps the original repository');
   assert.notEqual(editor.key, newDraft.key);
   assert.equal(editors.find(node => !node.props.reply).key, newDraft.key);
   assert.equal(editors.find(node => !node.props.reply).props.open, false);
@@ -572,6 +578,48 @@ test('timeline detail reuses evaluation, preserves references and keeps containe
   button(tree,'返回投资动态').props.onClick();tree=h.render();
   button(tree,'全部').props.onClick();tree=h.render();
   assert.equal(visible(tree).filter(node=>node.type==='article').length,records().length);
+  h.unmount();
+});
+
+test('timeline evaluation keeps one repository adapter across parent updates and edits while forwarding timeline writes', async () => {
+  const h = await harness();
+  const event = { id: 'high:annual_return:2026-10-06', kind: 'high', metric: 'annual_return', date: '2026-11-06', startDate: '2026-10-06', title: '年内收益率新高', points: [], nodes: [] };
+  h.ctx.previewData.timeline = { status: 'ready', events: [event], years: [2026] };
+  const writes = [], edits = [];
+  h.ctx.db.fetchReviewAccountSnapshot = async () => ({ asOfDate: '2026-11-06' });
+  h.ctx.db.appendReviewTimelineReply = async (...args) => { writes.push(args); return { ...args[0], id: 'timeline-container', revision: 1, replies: [args[1]] }; };
+  h.ctx.db.appendReviewJournalReply = () => assert.fail('timeline append must not use ordinary journal append');
+  h.ctx.db.updateReviewJournalReply = async (...args) => { edits.push(args); return { ...args[0], revision: 2, replies: [args[2]] }; };
+  let tree = h.render();
+  button(tree, '时间线').props.onClick(); tree = h.render(); await Promise.resolve(); tree = h.render();
+  find(tree, node => node.type === h.Page.ReviewTimeline).props.onEvaluate(event); tree = h.render();
+  const composer = find(tree, node => node.type === h.Page.ReviewEvaluationComposer && node.props.open);
+  const adapter = composer.props.db;
+  assert.notEqual(adapter, h.ctx.db);
+  assert.equal(adapter.fetchReviewAccountSnapshot, h.ctx.db.fetchReviewAccountSnapshot);
+  for (let tick = 0; tick < 6; tick++) {
+    h.ctx.stockTrades = [...h.ctx.stockTrades]; h.ctx.usdCny = 7 + tick / 100;
+    tree = h.render();
+    const updated = find(tree, node => node.type === h.Page.ReviewEvaluationComposer && node.props.open);
+    assert.equal(updated.props.db, adapter, 'parent market updates must not cancel snapshot reads through a fresh adapter');
+    assert.equal(updated.props.db.fetchReviewAccountSnapshot, adapter.fetchReviewAccountSnapshot);
+    assert.equal(updated.key, composer.key);
+  }
+  const reply = { id: 'stable-reply', date: '2026-11-07', text: '高点后的评价' };
+  const saved = await adapter.appendReviewJournalReply(composer.props.entry, reply, 'owner');
+  assert.deepEqual(writes, [[composer.props.entry, reply, 'owner']]);
+  composer.props.onSaved(saved); composer.props.onClose(); tree = h.render();
+  const timeline = find(tree, node => node.type === h.Page.ReviewTimeline);
+  button(timeline.props.renderEvaluations(event), '评论操作').props.onClick(); tree = h.render();
+  button(tree, '修改评价').props.onClick(); tree = h.render();
+  const editor = find(tree, node => node.type === h.Page.ReviewEvaluationComposer && node.props.reply);
+  assert.equal(editor.props.db, adapter, 'editing the timeline evaluation reuses the same adapter');
+  assert.equal(editor.props.db.updateReviewJournalReply, h.ctx.db.updateReviewJournalReply);
+  const changed = { ...reply, text: '修改后的高点评价' };
+  const edited = await editor.props.db.updateReviewJournalReply(editor.props.entry, editor.props.reply, changed, 'owner');
+  assert.deepEqual(edits, [[editor.props.entry, editor.props.reply, changed, 'owner']]);
+  editor.props.onSaved(edited); editor.props.onClose(); tree = h.render();
+  assert.match(textOf(find(tree, node => node.type === h.Page.ReviewTimeline).props.renderEvaluations(event)), /修改后的高点评价/);
   h.unmount();
 });
 

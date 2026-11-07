@@ -6,7 +6,8 @@ import { createReviewPreferencesRepository } from '../src/lib/reviewPreferencesD
 const OWNER='11111111-1111-4111-8111-111111111111',OTHER='22222222-2222-4222-8222-222222222222';
 const now=Date.parse('2026-11-07T00:00:00Z');
 const pref=patch=>({...normalizeReviewPreferences(null),...patch});
-const row=(patch={})=>({user_id:OWNER,show_timeline:true,currency:'USD',event_types:pref().eventTypes,revision:1,updated_at:new Date(now).toISOString(),...patch});
+const independentTypes=['return_drawdown','annual_return_high','annual_return_low','annual_pnl_high','annual_pnl_low'];
+const row=(patch={})=>({user_id:OWNER,show_timeline:true,currency:'USD',event_types:pref().eventTypes.filter(type=>!independentTypes.includes(type)),...Object.fromEntries(independentTypes.map(type=>[`show_${type}`,false])),show_return_drawdown:null,revision:1,updated_at:new Date(now).toISOString(),...patch});
 const deferred=()=>{let resolve;const promise=new Promise(r=>resolve=r);return{promise,resolve};};
 function fixture(initial=row(),{eventTarget=null}={}){
  const calls=[],disk=new Map();let data=initial,owner=OWNER,nextRead=null,afterRequest=null,writeFailure=null;
@@ -105,7 +106,7 @@ test('cross-tab events and later remounts cannot regress the cached revision',as
  const f=fixture(row({revision:4,show_timeline:false}),{eventTarget});await f.repo.fetchReviewPreferences(OWNER);
  const key=[...f.disk.keys()][0],updates=[];
  const unsubscribe=f.repo.subscribeReviewPreferences(OWNER,value=>updates.push(value.revision));
- const envelope=(revision,showTimeline)=>JSON.stringify({version:1,ownerId:OWNER,savedAt:now,record:{preferences:pref({showTimeline}),revision,exists:true,updatedAt:new Date(now).toISOString()}});
+ const envelope=(revision,showTimeline)=>JSON.stringify({version:2,ownerId:OWNER,savedAt:now,record:{preferences:pref({showTimeline}),revision,exists:true,updatedAt:new Date(now).toISOString()}});
  const dispatch=raw=>{f.disk.set(key,raw);for(const handler of handlers)handler({key,newValue:raw});};
  dispatch(envelope(2,true));assert.deepEqual(updates,[]);assert.equal(f.repo.readCachedReviewPreferences(OWNER).revision,4);
  dispatch('not-json');assert.equal(f.repo.readCachedReviewPreferences(OWNER).revision,4);
@@ -137,6 +138,101 @@ test('an observer failure cannot turn a committed preference save into a failure
  f.repo.subscribeReviewPreferences(OWNER,()=>notified++);
  const saved=await f.repo.saveReviewPreferences(pref({currency:'CNY'}),1,OWNER);
  assert.equal(saved.preferences.currency,'CNY');assert.equal(f.repo.readCachedReviewPreferences(OWNER).preferences.currency,'CNY');assert.equal(notified,1);
+});
+
+test('legacy NULL inherits the old shared switch while explicit values control return declines independently',async()=>{
+ for(const [types,flag,expected] of [
+  [['drawdown'],null,['drawdown','return_drawdown']],
+  [[],null,[]],
+  [['drawdown'],false,['drawdown']],
+  [[],true,['return_drawdown']],
+ ]) {
+  const f=fixture(row({event_types:types,show_return_drawdown:flag}));
+  const result=await f.repo.fetchReviewPreferences(OWNER);
+  assert.deepEqual(result.preferences.eventTypes,expected);
+  assert.equal(f.calls.filter(call=>call.op!=='read').length,0,'reading legacy settings must not create or rewrite a row');
+ }
+});
+
+test('independent return selection saves outside the legacy array and remains off after reload and old-client writes',async()=>{
+ const f=fixture(row({event_types:['drawdown'],show_return_drawdown:null}));
+ const inherited=await f.repo.fetchReviewPreferences(OWNER);
+ const saved=await f.repo.saveReviewPreferences({...inherited.preferences,eventTypes:['drawdown']},inherited.revision,OWNER);
+ assert.equal(f.row.show_return_drawdown,false);
+ assert.deepEqual(f.row.event_types,['drawdown']);
+ assert.deepEqual(saved.preferences.eventTypes,['drawdown']);
+ const remount=createReviewPreferencesRepository({supabase:f.supabase,storage:f.storage,now:()=>now,eventTarget:null});
+ assert.deepEqual(remount.readCachedReviewPreferences(OWNER).preferences.eventTypes,['drawdown']);
+ assert.deepEqual((await remount.fetchReviewPreferences(OWNER)).preferences.eventTypes,['drawdown']);
+ // Older clients omit the new column while still using revision CAS.
+ f.row={...f.row,currency:'CNY',revision:f.row.revision+1};
+ assert.deepEqual((await remount.fetchReviewPreferences(OWNER)).preferences.eventTypes,['drawdown']);
+ const onlyReturn=await remount.saveReviewPreferences(pref({eventTypes:['return_drawdown']}),f.row.revision,OWNER);
+ assert.equal(f.row.show_return_drawdown,true);
+ assert.deepEqual(f.row.event_types,[]);
+ assert.deepEqual(onlyReturn.preferences.eventTypes,['return_drawdown']);
+});
+
+test('new inserts write explicit return visibility and retain the legacy eight-value array contract',async()=>{
+ const f=fixture(null);await f.repo.saveReviewPreferences(pref(),null,OWNER);
+ assert.equal(f.row.show_return_drawdown,true);
+ for(const type of independentTypes)assert.equal(f.row[`show_${type}`],true);
+ assert.equal(f.row.event_types.some(type=>independentTypes.includes(type)),false);
+ assert.equal(f.row.event_types.length,8);
+ assert.deepEqual((await f.repo.fetchReviewPreferences(OWNER)).preferences,pref());
+});
+
+test('malformed independent return fields are rejected rather than interpreted as defaults',async()=>{
+ for(const type of independentTypes) {
+  for(const flag of [undefined,0,1,'false']) {
+   const f=fixture(row({[`show_${type}`]:flag}));
+   await assert.rejects(f.repo.fetchReviewPreferences(OWNER),{code:'REVIEW_PREFERENCES_INVALID'});
+  }
+  const f=fixture(row({event_types:['drawdown',type]}));
+  await assert.rejects(f.repo.fetchReviewPreferences(OWNER),{code:'REVIEW_PREFERENCES_INVALID'});
+ }
+});
+
+test('new annual record flags default on but explicit independent off values survive reloads',async()=>{
+ const annualTypes=independentTypes.filter(type=>type!=='return_drawdown');
+ const f=fixture(row({event_types:[],...Object.fromEntries(annualTypes.map(type=>[`show_${type}`,null]))}));
+ const legacy=await f.repo.fetchReviewPreferences(OWNER);
+ assert.deepEqual(new Set(legacy.preferences.eventTypes),new Set(annualTypes));
+ const onlyProfitLow=await f.repo.saveReviewPreferences({...legacy.preferences,eventTypes:['annual_pnl_low']},legacy.revision,OWNER);
+ assert.deepEqual(onlyProfitLow.preferences.eventTypes,['annual_pnl_low']);
+ for(const type of annualTypes)assert.equal(f.row[`show_${type}`],type==='annual_pnl_low');
+ assert.deepEqual(f.row.event_types,[]);
+ const remount=createReviewPreferencesRepository({supabase:f.supabase,storage:f.storage,now:()=>now,eventTarget:null});
+ assert.deepEqual((await remount.fetchReviewPreferences(OWNER)).preferences.eventTypes,['annual_pnl_low']);
+ f.row={...f.row,event_types:['drawdown'],currency:'CNY',revision:f.row.revision+1};
+ assert.deepEqual(new Set((await remount.fetchReviewPreferences(OWNER)).preferences.eventTypes),new Set(['annual_pnl_low','drawdown']));
+});
+
+test('version-one caches cannot reinterpret an absent return key as a new independent selection',async()=>{
+ const f=fixture(row({event_types:['drawdown']}));
+ const legacy={version:1,ownerId:OWNER,savedAt:now,record:{preferences:pref({eventTypes:['drawdown']}),revision:99,exists:true,updatedAt:new Date(now).toISOString()}};
+ f.disk.set('bottomline_review_display_preferences_v1',JSON.stringify(legacy));
+ f.disk.set('bottomline_review_display_preferences_v2',JSON.stringify(legacy));
+ assert.equal(f.repo.readCachedReviewPreferences(OWNER),null);
+ const cloud=await f.repo.fetchReviewPreferences(OWNER);
+ assert.deepEqual(cloud.preferences.eventTypes,['drawdown','return_drawdown']);
+ assert.equal(cloud.revision,1,'old cache revision cannot suppress the fresh schema');
+ const stored=JSON.parse(f.disk.get('bottomline_review_display_preferences_v2'));
+ assert.equal(stored.version,2);
+ assert.equal(stored.ownerId,OWNER);
+ assert.equal(f.repo.readCachedReviewPreferences(OTHER),null);
+});
+
+test('independent visibility migration only adds nullable booleans and keeps old rows permissions and array contracts intact',()=>{
+ const sql=readFileSync(new URL('../supabase/review_display_preferences_return_drawdown_20261107.sql',import.meta.url),'utf8');
+ const statements=sql.replace(/--.*$/gm,'');
+ for(const type of independentTypes)assert.match(sql,new RegExp(`add column if not exists show_${type} boolean default null`,'i'));
+ assert.match(sql,/atttypid = 'boolean'::regtype/);
+ assert.match(sql,/not attnotnull/);
+ assert.match(sql,/notify pgrst, 'reload schema'/);
+ assert.match(sql,/owner_rls_enabled/);
+ assert.doesNotMatch(statements,/\b(update|insert into|delete from)\s+public\./i);
+ assert.doesNotMatch(statements,/\b(grant|revoke|create policy|drop policy|drop constraint|alter column)\b/i);
 });
 
 test('migration is additive with owner read/insert/update only and no business data writes',()=>{

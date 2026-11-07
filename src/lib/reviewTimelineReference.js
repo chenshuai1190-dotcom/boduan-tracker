@@ -1,5 +1,5 @@
-const KINDS = new Set(['high', 'drawdown', 'record', 'period']);
-const METRICS = new Set(['net_assets', 'cumulative_return', 'cumulative_pnl', 'daily_return', 'period_return']);
+const KINDS = new Set(['high', 'low', 'drawdown', 'record', 'period']);
+const METRICS = new Set(['net_assets', 'cumulative_return', 'cumulative_pnl', 'annual_return', 'annual_pnl', 'daily_return', 'period_return']);
 const plain = value => value !== null && typeof value === 'object' && !Array.isArray(value)
   && (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null);
 const validId = value => typeof value === 'string' && /^[a-z0-9_:\-.]{1,160}$/i.test(value);

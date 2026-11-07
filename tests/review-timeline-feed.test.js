@@ -6,8 +6,10 @@ import { DEFAULT_REVIEW_PREFERENCES, REVIEW_TIMELINE_TYPES } from '../src/lib/re
 
 const high = { id: 'high:net_assets:2026-10-01', kind: 'high', metric: 'net_assets', title: '净资产创新高', startDate: '2026-10-01', date: '2026-10-06' };
 const drawdown = { id: 'drawdown:net_assets:2026-10-06', kind: 'drawdown', metric: 'net_assets', title: '净资产回落', startDate: '2026-10-06', trigger: { date: '2026-10-08' }, date: '2026-11-06', status: 'active' };
+const returnDrawdown = { ...drawdown, id: 'drawdown:cumulative_return:2026-10-06', metric: 'cumulative_return', title: '收益率回落' };
 const period = type => ({ id: `period:${type}:2026-01-01`, kind: 'period', metric: 'period_return', date: '2026-09-30', periodType: type });
-const events = [high, { ...high, id: 'return', metric: 'cumulative_return' }, { ...high, id: 'profit', metric: 'cumulative_pnl' }, drawdown,
+const events = [high, { ...high, id: 'return', metric: 'cumulative_return' }, { ...high, id: 'profit', metric: 'cumulative_pnl' },
+  ...['annual_return', 'annual_pnl'].flatMap(metric => ['high', 'low'].map(kind => ({ ...high, id: `${kind}:${metric}:2026-10-06`, metric, kind }))), drawdown, returnDrawdown,
   { id: 'daily', kind: 'record', metric: 'daily_return', date: '2026-10-03' }, ...['month', 'quarter', 'year'].map(period)];
 
 test('every setting category maps to exactly its existing timeline event family', () => {
@@ -92,6 +94,38 @@ test('each new-high family displays the latest data date even when its original 
   }
 });
 
+test('annual highs and lows are independent branches with their latest dates and original comment identities', () => {
+  const ids = ['annual_return_high', 'annual_return_low', 'annual_pnl_high', 'annual_pnl_low'];
+  const latest = ['annual_return', 'annual_pnl'].flatMap(metric => ['high', 'low'].map(kind => Object.freeze({
+    id: `${kind}:${metric}:2026-10-01`, kind, metric, startDate: '2026-10-01', date: '2026-11-06',
+    title: `${metric} ${kind}`, nodes: [{ key: 'start', point: { date: '2026-10-01' } }],
+  })));
+  const previous = latest.map(event => Object.freeze({ ...event, id: event.id.replace('2026', '2025'), date: '2025-12-31' }));
+  const source = Object.freeze([...events.slice(0, 3), ...previous, ...latest]);
+  const before = JSON.stringify(source);
+  for (let selection = 0; selection < 16; selection++) {
+    const eventTypes = ids.filter((_, index) => selection & 1 << index);
+    const preferences = { ...DEFAULT_REVIEW_PREFERENCES, eventTypes };
+    for (const input of [source, [...source].reverse()]) {
+      const result = mergeReviewTimelineFeed([], input, preferences);
+      assert.equal(result.length, eventTypes.length);
+      for (const row of result) {
+        assert.ok(latest.includes(row.event));
+        assert.equal(row.id, row.event.id);
+        assert.equal(row.date, '2026-11-06');
+        assert.ok(eventTypes.includes(reviewTimelineCategory(row.event)));
+      }
+    }
+    assert.deepEqual(mergeReviewTimelineFeed([], source, { ...preferences, showTimeline: false }), []);
+  }
+  const all = mergeReviewTimelineFeed([], source, DEFAULT_REVIEW_PREFERENCES);
+  assert.equal(all.length, 7, 'cumulative highs remain alongside four annual branches');
+  assert.equal(source.length, 11, 'the full timeline source retains prior-year extrema');
+  assert.equal(JSON.stringify(source), before);
+  assert.equal(reviewTimelineCategory({ kind: 'low', metric: 'net_assets' }), null);
+  assert.equal(reviewTimelineFeedDate({ ...latest[1], date: '', endDate: '' }), latest[1].startDate);
+});
+
 test('only the latest drawdown cycle appears and updates or recovery keep its original identity', () => {
   const olderCycle = { ...drawdown, id: 'drawdown:older', date: '2026-10-20', status: 'recovered' };
   const active = { ...drawdown, id: 'drawdown:latest', startDate: '2026-10-25', trigger: { date: '2026-11-02' }, date: '2026-11-05' };
@@ -106,16 +140,23 @@ test('only the latest drawdown cycle appears and updates or recovery keep its or
   }
 });
 
-test('net-asset and annual return drawdowns retain separate latest events under the same visibility setting', () => {
-  const returns = { ...drawdown, id: 'drawdown:cumulative_return:2026-10-06', metric: 'cumulative_return', title: '收益率回落' };
+test('net-asset and annual return drawdowns have independent switches and retain their own latest events', () => {
+  const returns = returnDrawdown;
   const olderReturn = { ...returns, id: 'drawdown:cumulative_return:2026-04-01', date: '2026-08-01', status: 'recovered' };
   const olderNet = { ...drawdown, id: 'drawdown:net_assets:2026-04-01', date: '2026-08-02', status: 'recovered' };
   const source = Object.freeze([olderReturn, drawdown, olderNet, returns].map(Object.freeze));
-  const preferences = { ...DEFAULT_REVIEW_PREFERENCES, eventTypes: ['drawdown'] };
+  const preferences = { ...DEFAULT_REVIEW_PREFERENCES, eventTypes: ['drawdown', 'return_drawdown'] };
+  for (const [eventTypes, expected] of [[[], []], [['drawdown'], [drawdown.id]], [['return_drawdown'], [returns.id]], [['drawdown', 'return_drawdown'], [returns.id, drawdown.id]]]) {
+    const selected = { ...preferences, eventTypes };
+    assert.deepEqual(mergeReviewTimelineFeed([], source, selected).map(item => item.id), expected);
+    assert.deepEqual(mergeReviewTimelineFeed([], source, { ...selected, showTimeline: false }), []);
+    assert.deepEqual(mergeReviewTimelineFeed([], [...source].reverse(), selected).map(item => item.id), expected, 'selection does not depend on input order');
+  }
   const result = mergeReviewTimelineFeed([], source, preferences);
   assert.deepEqual(result.map(item => item.id), [returns.id, drawdown.id]);
   assert.equal(result[0].event, returns);
-  assert.equal(reviewTimelineCategory(returns), 'drawdown');
+  assert.equal(reviewTimelineCategory(drawdown), 'drawdown');
+  assert.equal(reviewTimelineCategory(returns), 'return_drawdown');
   assert.equal(reviewTimelineCategory({ ...returns, metric: 'unknown' }), null);
   assert.deepEqual(mergeReviewTimelineFeed([], source, { ...preferences, eventTypes: [] }), []);
   assert.deepEqual(mergeReviewTimelineFeed([], source, preferences, { query: '收益率回落' }).map(item => item.id), [returns.id]);

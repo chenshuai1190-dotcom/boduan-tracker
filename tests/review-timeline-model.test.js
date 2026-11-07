@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildReviewTimeline } from '../src/lib/reviewTimelineModel.js';
 import { isRegularNyseHoliday } from '../src/lib/quoteRefreshPolicy.js';
+import { buildPnlReportViewModel } from '../src/lib/pnlReportViewModel.js';
 
 const OWNER = 'timeline-owner';
 const NOW = Date.parse('2026-11-07T05:00:00Z');
@@ -18,6 +19,7 @@ const row = (date, net, extra = {}) => ({
 const build = (snapshots, movements = [], options = {}) => buildReviewTimeline({ snapshots, movements, now: NOW, expectedUserId: OWNER, ...options });
 const cycles = result => result.events.filter(event => event.kind === 'drawdown' && event.metric === 'net_assets');
 const returnCycles = result => result.events.filter(event => event.kind === 'drawdown' && event.metric === 'cumulative_return');
+const annualRecords = result => result.events.filter(event => ['annual_return', 'annual_pnl'].includes(event.metric));
 const flow = (date, kind, delta, extra = {}) => ({ id: `flow-${date}`, user_id: OWNER, kind, delta_usd: delta,
   cash_event_id: '2', occurred_at: `${date}T16:00:00Z`, ...extra });
 const sessions = (start, end) => {
@@ -70,6 +72,183 @@ test('consecutive highs merge using the first record date, and input order is im
   assert.equal(highs[1].value, 102);
   assert.equal(highs[1].endDate, '2026-11-04');
   assert.deepEqual(result, build([...rows].reverse()));
+});
+
+test('annual extrema use the report this-year difference while retaining original cumulative high IDs and values', () => {
+  const dates = ['2025-12-31', '2026-01-02', '2026-01-05', '2026-01-06', '2026-01-07', '2026-01-08'];
+  const rows = dates.map((date, index) => row(date, 100, {
+    cumulative_pnl_pct: [.4, .42, .44, .43, .39, .38][index],
+    cumulative_pnl_usd: [400, 420, 440, 430, 390, 380][index],
+  }));
+  const sourceBefore = structuredClone(rows);
+  const result = build(rows, [], { firstTradeDate: '2025-01-02' });
+  const annual = annualRecords(result);
+  assert.equal(annual.length, 4);
+  const high = annual.find(event => event.id === 'high:annual_return:2026-01-05');
+  assert.equal(high.title, '年内收益率新高');
+  assert.equal(high.value, 4);
+  assert.equal(high.current.annualReturnPct, 4);
+  assert.equal(high.current.cumulativeReturnPct, 44);
+  assert.equal(high.current.annualBaselineDate, '2025-12-31');
+  assert.equal(high.current.annualBaselineKind, 'prior_close');
+  assert.equal(high.basis, 'pnl_report_year_difference');
+  assert.deepEqual(high.nodes.map(item => item.key), ['start', 'current']);
+  const report = buildPnlReportViewModel({
+    portfolioSnapshots: rows.map(item => ({ snapshotDate: item.snapshot_date,
+      cumulativePnlPct: item.cumulative_pnl_pct, cumulativePnlUsd: item.cumulative_pnl_usd,
+      dailyPnlPct: item.daily_pnl_pct, dailyPnlUsd: item.daily_pnl_usd })),
+    stockTrades: [{ trade_date: '2025-01-02', symbol: 'NVDA' }], range: 'ytd', now: new Date(NOW),
+  });
+  const returnLow = annual.find(event => event.metric === 'annual_return' && event.kind === 'low');
+  const amountLow = annual.find(event => event.metric === 'annual_pnl' && event.kind === 'low');
+  assert.ok(Math.abs(returnLow.value - report.totalPnlPct * 100) < 1e-10);
+  assert.equal(amountLow.value, report.totalPnlUsd);
+  assert.equal(returnLow.id, 'low:annual_return:2026-01-07');
+  assert.equal(returnLow.date, '2026-01-08');
+  assert.equal(returnLow.value, -2);
+  assert.equal(amountLow.title, '年内收益金额新低');
+  assert.equal(amountLow.value, -20);
+  assert.equal(annual.find(event => event.metric === 'annual_pnl' && event.kind === 'high').title, '年内收益金额新高');
+  const originalHigh = result.events.find(event => event.id === 'high:cumulative_return:2026-01-02');
+  assert.equal(originalHigh.date, '2026-01-05');
+  assert.equal(originalHigh.value, 44);
+  assert.equal(originalHigh.current.annualReturnPct, undefined, 'annual derivation does not alter legacy event points');
+  assert.equal(result.events.find(event => event.id === 'high:cumulative_pnl:2026-01-02').value, 440);
+  assert.deepEqual(result, build([...rows].reverse(), [], { firstTradeDate: '2025-01-02' }));
+  assert.deepEqual(rows, sourceBefore, 'source snapshots remain immutable');
+});
+
+test('a verified first-trade year uses zero but its first observation alone is not a record', () => {
+  const rows = ['2026-01-02', '2026-01-05', '2026-01-06'].map((date, index) => row(date, 100, {
+    cumulative_pnl_pct: [.02, .03, .01][index], cumulative_pnl_usd: [20, 30, 10][index],
+  }));
+  assert.equal(annualRecords(build(rows.slice(0, 1), [], { firstTradeDate: '2026-01-02' })).length, 0);
+  const annual = annualRecords(build(rows, [], { firstTradeDate: '2026-01-02' }));
+  assert.equal(annual.length, 4);
+  assert.equal(annual.find(event => event.id === 'high:annual_return:2026-01-05').value, 3);
+  assert.equal(annual.find(event => event.id === 'low:annual_pnl:2026-01-06').value, 10);
+  assert.ok(annual.every(event => event.current.annualBaselineKind === 'first_trade'));
+  assert.ok(annual.every(event => event.current.annualBaselineDate === '2026-01-02'));
+  for (const firstTradeDate of ['', null, 'invalid', '2026-02-30', '2025-01-02', '2026-12-01']) {
+    assert.equal(annualRecords(build(rows, [], { firstTradeDate })).length, 0,
+      `missing baseline cannot become zero for ${firstTradeDate}`);
+  }
+  const laterStart = annualRecords(build(rows, [], { firstTradeDate: '2026-01-05' }));
+  assert.equal(laterStart.length, 2, 'a future first-trade date does not retroactively validate earlier observations');
+  assert.ok(laterStart.every(event => event.kind === 'low' && event.nodes[0].point.date === '2026-01-05'));
+});
+
+test('annual extrema reset at the year boundary and permit negative-value highs and lows', () => {
+  const dates = ['2024-12-31', '2025-12-29', '2025-12-30', '2025-12-31', '2026-01-02', '2026-01-05', '2026-01-06'];
+  const rows = dates.map((date, index) => row(date, 100, {
+    cumulative_pnl_pct: [.5, .6, .7, .7, .52, .53, .5][index],
+    cumulative_pnl_usd: [500, 600, 700, 700, 520, 530, 500][index],
+    cash_effective_at: '2024-01-01T12:00:00Z',
+  }));
+  const annual = annualRecords(build(rows, [], { firstTradeDate: '2024-01-02' }));
+  assert.equal(annual.length, 6);
+  assert.equal(annual.find(event => event.id === 'high:annual_return:2025-12-30').value, 20);
+  assert.equal(annual.find(event => event.id === 'high:annual_return:2026-01-05').value, -17);
+  assert.equal(annual.find(event => event.id === 'low:annual_return:2026-01-06').value, -20);
+  assert.equal(annual.find(event => event.id === 'high:annual_pnl:2026-01-05').value, -170);
+  assert.equal(annual.find(event => event.id === 'low:annual_pnl:2026-01-06').value, -200);
+  assert.equal(annual.some(event => event.startDate === '2026-01-02'), false, 'the new year first value only establishes its own extrema');
+  assert.ok(annual.every(event => event.points.every(point => point.date.slice(0, 4) === event.date.slice(0, 4))));
+});
+
+test('consecutive annual lows and highs merge independently with stable first-break IDs', () => {
+  const dates = sessions('2026-10-26', '2026-11-02');
+  const rows = dates.map((date, index) => row(date, 100, {
+    cumulative_pnl_pct: [-.05, -.04, -.03, -.03, -.06, -.07][index],
+    cumulative_pnl_usd: [-50, -40, -30, -30, -60, -70][index],
+  }));
+  const options = { firstTradeDate: '2026-10-26' };
+  const initialHigh = annualRecords(build(rows.slice(0, 2), [], options)).find(event => event.metric === 'annual_return');
+  const initialLow = annualRecords(build(rows.slice(0, 5), [], options)).find(event => event.metric === 'annual_return' && event.kind === 'low');
+  const annual = annualRecords(build(rows, [], options));
+  assert.equal(annual.length, 4);
+  const high = annual.find(event => event.id === initialHigh.id), low = annual.find(event => event.id === initialLow.id);
+  assert.equal(high.id, 'high:annual_return:2026-10-27');
+  assert.equal(high.value, -3);
+  assert.equal(high.date, '2026-10-28');
+  assert.equal(low.id, 'low:annual_return:2026-10-30');
+  assert.equal(low.date, '2026-11-02');
+  assert.ok(Math.abs(low.value + 7) < 1e-10);
+  assert.deepEqual(low.points.map(point => point.date), ['2026-10-26', '2026-10-30', '2026-11-02']);
+  assert.equal(annual.some(event => event.date === '2026-10-29'), false, 'an equal reading creates no record');
+});
+
+test('missing values, equal extrema, and missing sessions break annual runs without forgetting the year extreme', () => {
+  const dates = ['2026-10-26', '2026-10-27', '2026-10-28', '2026-10-29', '2026-10-30', '2026-11-02',
+    '2026-11-03', '2026-11-04', '2026-11-05', '2026-11-09'];
+  for (const [direction, kind] of [[1, 'high'], [-1, 'low']]) {
+    const values = [10, 20, null, 15, 21, 21, 22, null, 23, 24];
+    const rows = dates.map((date, index) => row(date, 100, {
+      cumulative_pnl_pct: values[index] === null ? null : direction * values[index] / 100,
+      cumulative_pnl_usd: values[index] === null ? '' : direction * values[index] * 10,
+    }));
+    const annual = annualRecords(build(rows, [], { firstTradeDate: dates[0], now: Date.parse('2026-11-10T05:00:00Z') }));
+    assert.equal(annual.length, 10);
+    for (const metric of ['annual_return', 'annual_pnl']) {
+      const records = annual.filter(event => event.metric === metric);
+      assert.deepEqual(records.map(event => event.id), ['2026-11-09', '2026-11-05', '2026-11-03', '2026-10-30', '2026-10-27']
+        .map(date => `${kind}:${metric}:${date}`));
+      assert.ok(records.every(event => event.kind === kind));
+      assert.equal(records.find(event => event.startDate === '2026-10-30').nodes[0].point.date, '2026-10-27');
+      assert.ok(records.every(event => event.points.every(point => point[metric === 'annual_return' ? 'annualReturnPct' : 'annualPnlUsd'] !== null)));
+    }
+  }
+});
+
+test('annual baselines retain missing fields instead of substituting an older value or a zero', () => {
+  for (const [missing, presentMetric] of [['cumulative_pnl_usd', 'annual_return'], ['cumulative_pnl_pct', 'annual_pnl']]) {
+    const rows = [row('2025-12-30', 100, { cumulative_pnl_pct: .1, cumulative_pnl_usd: 100 }),
+      row('2025-12-31', 100, { cumulative_pnl_pct: .2, cumulative_pnl_usd: 200, [missing]: null }),
+      row('2026-01-02', 100, { cumulative_pnl_pct: .3, cumulative_pnl_usd: 300 }),
+      row('2026-01-05', 100, { cumulative_pnl_pct: .4, cumulative_pnl_usd: 400 })];
+    const records = annualRecords(build(rows));
+    assert.equal(records.length, 1);
+    assert.equal(records[0].metric, presentMetric);
+    assert.equal(records[0].value, presentMetric === 'annual_return' ? 20 : 200);
+    const missingField = missing === 'cumulative_pnl_usd' ? 'annualPnlUsd' : 'annualReturnPct';
+    assert.equal(records[0].current[missingField], null);
+  }
+});
+
+test('missing the prior year or its final trading close suppresses annual records without changing cumulative records', () => {
+  for (const priorDate of ['2024-12-31', '2025-12-30']) {
+    const rows = [row(priorDate, 100, { cumulative_pnl_pct: .1, cumulative_pnl_usd: 100,
+      cash_effective_at: '2024-01-01T12:00:00Z' }),
+    row('2026-01-02', 100, { cumulative_pnl_pct: .3, cumulative_pnl_usd: 300 }),
+    row('2026-01-05', 100, { cumulative_pnl_pct: .4, cumulative_pnl_usd: 400 })];
+    const result = build(rows, [], { firstTradeDate: '2024-01-02' });
+    assert.equal(annualRecords(result).length, 0, `${priorDate} cannot stand in for the 2025 final trading close`);
+    assert.equal(result.events.find(event => event.id === 'high:cumulative_return:2026-01-02').value, 40);
+    assert.equal(result.events.find(event => event.id === 'high:cumulative_pnl:2026-01-02').value, 400);
+    const openingYear = annualRecords(build(rows, [], { firstTradeDate: '2026-01-02' }));
+    assert.equal(openingYear.length, 2, 'verified opening year remains independent of a prior-year snapshot');
+    assert.equal(openingYear.find(event => event.metric === 'annual_return').value, 40);
+    assert.ok(openingYear.every(event => event.current.annualBaselineKind === 'first_trade'));
+  }
+});
+
+test('annual baselines use the actual final trading session across New Year weekend and holiday boundaries', () => {
+  for (const [priorDate, firstDate, nextDate] of [
+    ['2021-12-31', '2022-01-03', '2022-01-04'],
+    ['2022-12-30', '2023-01-03', '2023-01-04'],
+    ['2023-12-29', '2024-01-02', '2024-01-03'],
+  ]) {
+    const rows = [priorDate, firstDate, nextDate].map((date, index) => row(date, 100, {
+      cumulative_pnl_pct: [.1, .2, .3][index], cumulative_pnl_usd: [100, 200, 300][index],
+      cash_effective_at: '2021-01-01T12:00:00Z',
+    }));
+    const records = annualRecords(build(rows, [], { firstTradeDate: '2021-01-04' }));
+    assert.equal(records.length, 2, `${priorDate} is the eligible year-end close`);
+    assert.equal(records.find(event => event.metric === 'annual_return').value, 20);
+    assert.equal(records.find(event => event.metric === 'annual_pnl').value, 200);
+    assert.ok(records.every(event => event.current.annualBaselineDate === priorDate));
+    assert.ok(records.every(event => event.current.annualBaselineKind === 'prior_close'));
+  }
 });
 
 test('deposit interrupts a cycle instead of calling recovery; new segment can form a new cycle', () => {

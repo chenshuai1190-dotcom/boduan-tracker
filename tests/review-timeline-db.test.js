@@ -9,7 +9,7 @@ const row = (date, extra = {}) => ({ id: `snapshot-${date}`, user_id: OWNER, sna
   currency: 'USD', source_version: 'pnl_snapshot_v1', locked_at: `${date}T23:00:00Z`, updated_at: `${date}T23:00:00Z`,
   cumulative_pnl_pct: 0.1, cumulative_pnl_usd: 100, daily_pnl_pct: 0.01, daily_pnl_usd: 10, ...extra });
 
-function mock({ snapshots = [], movements = [], states = [state(), state()], users = [OWNER, OWNER], errorTable, pageFactory } = {}) {
+function mock({ snapshots = [], movements = [], trades = [], states = [state(), state()], users = [OWNER, OWNER], errorTable, pageFactory } = {}) {
   const calls = []; let stateIndex = 0, authIndex = 0;
   const client = {
     auth: { getUser: async () => {
@@ -31,8 +31,8 @@ function mock({ snapshots = [], movements = [], states = [state(), state()], use
         },
         then(resolve, reject) {
           if (table === errorTable) return Promise.resolve({ data: null, error: new Error('database unavailable') }).then(resolve, reject);
-          const all = table === 'pnl_report_snapshots' ? snapshots : movements;
-          const data = pageFactory ? pageFactory(table, call.range) : all.slice(call.range[0], call.range[1] + 1);
+          const all = table === 'pnl_report_snapshots' ? snapshots : table === 'stock_trades' ? trades : movements;
+          const data = pageFactory && table !== 'stock_trades' ? pageFactory(table, call.range) : all.slice(call.range[0], call.range[1] + 1);
           return Promise.resolve({ data, error: null }).then(resolve, reject);
         },
       };
@@ -52,7 +52,7 @@ test('authenticates before and after; all table reads include explicit user scop
   assert.equal(calls.filter(call => call.op === 'auth').length, 2);
   assert.ok(calls.filter(call => call.table).every(call => call.filters.some(([field, value]) => field === 'user_id' && value === OWNER)));
   assert.deepEqual([...new Set(calls.filter(call => call.table).map(call => call.table))].sort(),
-    ['available_cash_movements', 'pnl_report_rebuild_state', 'pnl_report_snapshots']);
+    ['available_cash_movements', 'pnl_report_rebuild_state', 'pnl_report_snapshots', 'stock_trades']);
 });
 
 test('no snapshots is empty; missing authentication and switched accounts are errors', async () => {
@@ -101,8 +101,29 @@ test('at safety cap it fails closed instead of calling a truncated dataset compl
 
 test('duplicate page rows and query failures are not successful empty histories', async () => {
   await assert.rejects(createReviewTimelineLoader(mock({ snapshots: [row('2026-11-06'), row('2026-11-06')] }).client)(OWNER), { code: 'REVIEW_HISTORY_CHANGED' });
-  for (const errorTable of ['pnl_report_snapshots', 'available_cash_movements', 'pnl_report_rebuild_state']) {
+  for (const errorTable of ['pnl_report_snapshots', 'available_cash_movements', 'pnl_report_rebuild_state', 'stock_trades']) {
     await assert.rejects(createReviewTimelineLoader(mock({ errorTable }).client)(OWNER), /database unavailable/);
+  }
+});
+
+test('annual records use the owned first trade inside the report revision fence', async () => {
+  const snapshots = [row('2026-11-05'), row('2026-11-06', { cumulative_pnl_pct: .2, cumulative_pnl_usd: 200 })];
+  const trades = [{ id: 'trade-1', user_id: OWNER, trade_date: '2026-01-02' }];
+  const { client, calls } = mock({ snapshots, trades });
+  const result = await createReviewTimelineLoader(client, { now: () => NOW })(OWNER);
+  assert.equal(result.events.find(event => event.kind === 'high' && event.metric === 'annual_return')?.value, 20);
+  assert.equal(result.events.find(event => event.kind === 'high' && event.metric === 'annual_pnl')?.value, 200);
+  const read = calls.find(call => call.table === 'stock_trades');
+  assert.deepEqual(read.range, [0, 0]);
+  assert.deepEqual(read.orders, [['trade_date', { ascending: true }], ['id', { ascending: true }]]);
+  assert.deepEqual(read.filters, [['user_id', OWNER]]);
+  assert.equal(read.fields, 'id,user_id,trade_date');
+  const pending = await createReviewTimelineLoader(mock({ snapshots, trades, states: [state(), state({ generation: 2 })] }).client, { now: () => NOW })(OWNER);
+  assert.equal(pending.status, 'pending');
+  assert.deepEqual(pending.events, []);
+  for (const trade of [{ ...trades[0], user_id: 'other' }, { ...trades[0], trade_date: '2026-02-30' }]) {
+    await assert.rejects(createReviewTimelineLoader(mock({ snapshots, trades: [trade] }).client, { now: () => NOW })(OWNER),
+      { code: trade.user_id === 'other' ? 'REVIEW_ACCOUNT_CHANGED' : 'REVIEW_HISTORY_INVALID' });
   }
 });
 

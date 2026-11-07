@@ -43,6 +43,17 @@ export function createReviewTimelineLoader(client, { now = () => Date.now() } = 
       if (result.error) throw result.error;
       return result.data;
     };
+    const readFirstTradeDate = async () => {
+      const result = await withAbort(client.from('stock_trades').select('id,user_id,trade_date').eq('user_id', expectedUserId)
+        .order('trade_date', { ascending: true }).order('id', { ascending: true }).range(0, 0));
+      if (result.error) throw result.error;
+      if (!Array.isArray(result.data) || result.data.length > 1) throw fail('REVIEW_HISTORY_INVALID', '首笔交易日期无法核验。');
+      const first = result.data[0];
+      if (!first) return '';
+      if (first.user_id !== expectedUserId) throw fail('REVIEW_ACCOUNT_CHANGED', '账户数据不匹配，请重新打开时间线。');
+      if (!first.id || !validDate(first.trade_date)) throw fail('REVIEW_HISTORY_INVALID', '首笔交易日期无法核验。');
+      return first.trade_date;
+    };
     const readAll = async (table, fields, order) => {
       const rows = [], ids = new Set();
       for (let page = 0; page < MAX_PAGES; page += 1) {
@@ -68,15 +79,16 @@ export function createReviewTimelineLoader(client, { now = () => Date.now() } = 
         await authenticate(expectedUserId);
         return pending(beforeKey === null ? 'invalid_rebuild_state' : 'rebuilding');
       }
-      const [snapshots, movements] = await Promise.all([
+      const [snapshots, movements, firstTradeDate] = await Promise.all([
         readAll('pnl_report_snapshots', SNAPSHOT_FIELDS, 'snapshot_date'),
         readAll('available_cash_movements', MOVEMENT_FIELDS, 'occurred_at'),
+        readFirstTradeDate(),
       ]);
       const after = await readState();
       const afterKey = stateKey(after, expectedUserId);
       await authenticate(expectedUserId);
       if (afterKey === null || after?.dirty_from_date || beforeKey !== afterKey) return pending('rebuilding');
-      const result = buildReviewTimeline({ snapshots, movements, now: now(), expectedUserId });
+      const result = buildReviewTimeline({ snapshots, movements, firstTradeDate, now: now(), expectedUserId });
       return { status: result.coverage.snapshotCount ? 'ready' : 'empty', ...result };
     } finally { clearTimeout(timer); }
   };
