@@ -68,10 +68,10 @@ test('Trading report preserves its financial readiness, actions, currency and fi
   const toolsStart = trades.indexOf('<section className="trades-report-tools"');
   const toolsSection = trades.slice(toolsStart, trades.indexOf('</section>', toolsStart));
   assert.deepEqual([...toolsSection.matchAll(/\{ id: '([^']+)', label:/g)].map(match => match[1]),
-    ['waves', 'records', 'investment-comparison', 'review-journal', 'all'], 'the shortcut row must keep exactly five entries with Journal after investment comparison');
+    ['waves', 'records', 'investment-comparison', 'investment-goals', 'all'], 'the shortcut row must keep exactly five entries with Investment Goals after investment comparison');
   assert.ok(toolsSection.includes("tt('trades.investmentTimeMachineShort', '投资回溯')"), 'the time-machine shortcut must use its compact localized label');
   assert.match(toolsSection, /if \(item\.id === 'investment-comparison'\)\s*\{[^}]*openInvestmentComparison\?\.\(\);[^}]*return;/, 'the time-machine shortcut must use the existing read-only tool entry callback');
-  assert.match(toolsSection, /if \(item\.id === 'review-journal'\)\s*\{[^}]*openReviewJournal\?\.\(\);[^}]*return;/, 'Journal must use its existing standalone entry callback');
+  assert.match(toolsSection, /if \(item\.id === 'investment-goals'\)\s*\{[^}]*openInvestmentGoals\?\.\(\);[^}]*return;/, 'Investment Goals must open its dedicated page');
   assert.equal(i18n.split("'trades.investmentTimeMachineShort':").length - 1, 2, 'the time-machine shortcut label must exist in Chinese and English');
   assert.match(css, /\.trades-report-tools\s*\{[^}]*display:\s*flex;[^}]*justify-content:\s*space-between;/, 'five shortcut groups should distribute the available space between the first and last entry');
   assert.match(css, /\.trades-report-tools button\s*\{[^}]*align-items:\s*flex-start;[^}]*text-align:\s*left;/, 'each shortcut content group should retain its leading alignment without an unused trailing grid column');

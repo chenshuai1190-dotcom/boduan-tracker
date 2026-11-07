@@ -89,7 +89,7 @@ test('Home margin risk uses a standalone page while keeping the bottom navigatio
     assert.ok(bottomNavGuard?.includes(page), `${page} should hide the bottom tabs`);
   }
   assert.doesNotMatch(bottomNavGuard, /\bisHomeMarginRiskPage\b/, 'the margin page must keep the bottom navigation');
-  assert.ok(appSource.includes("hideBottomNavigation ? 'pb-0' : 'pb-24'"));
+  assert.ok(appSource.includes("hideBottomNavigation || isReviewJournalTab ? 'pb-0' : 'pb-24'"));
   assert.ok(appSource.includes('{!hideBottomNavigation && ('), 'the hidden-tab rule must drive the real bottom navigation');
   assert.ok(devPreviewSource.includes("activeTab === 'home-margin-risk' && tab.id === 'home'"), 'the local preview should highlight Home while the margin page is open');
   assert.ok(homeTabSource.includes('openHomeMarginRisk,'));

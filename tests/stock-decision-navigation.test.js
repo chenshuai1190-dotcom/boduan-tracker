@@ -138,7 +138,7 @@ test('stock decision uses the standalone safe-area contract and its matching dar
   const paddingExpression = app.match(/style=\{\{ paddingTop: (isStandalonePage[^\n]+) \}\}/)?.[1];
   assert.ok(classExpression);
   assert.ok(paddingExpression);
-  const shell = new Function('activePage', 'darkShell', `${flags}; return { isStandalonePage, isFullBleedPage, hideBottomNavigation, className: ${classExpression}, paddingTop: ${paddingExpression} };`);
+  const shell = new Function('activePage', 'darkShell', 'activeTab = \"trades\"', `${flags}; return { isStandalonePage, isFullBleedPage, hideBottomNavigation, className: ${classExpression}, paddingTop: ${paddingExpression} };`);
   const decision = shell('stock-decision', true);
   const dca = shell('dca-lab', true);
   assert.equal(decision.isStandalonePage, true);

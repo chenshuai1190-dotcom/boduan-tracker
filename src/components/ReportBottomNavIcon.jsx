@@ -17,9 +17,8 @@ const TAB_ICONS = {
   ),
   review: (
     <>
-      <circle cx="11" cy="13" r="8" />
-      <circle cx="11" cy="13" r="4" />
-      <path d="m11 13 9-10m-4 0h4v4" />
+      <path d="M3.8 10.3A8.3 8.3 0 1 1 5.1 17.8" />
+      <path d="M3.5 5.5v5h5M12 7.5v5l3.2 2" />
     </>
   ),
   settings: (

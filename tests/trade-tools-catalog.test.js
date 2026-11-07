@@ -139,7 +139,29 @@ test('stock comparison has a user-scoped production route without a sixth quick 
   assert.match(comparisonPreview, /if \(!import\.meta\.env\.DEV\) return null/, 'the fixture adapter must refuse production rendering');
   const shortcuts = trades.match(/<section className="trades-report-tools"[\s\S]*?<\/section>/)?.[0];
   assert.ok(shortcuts);
-  assert.deepEqual([...shortcuts.matchAll(/\{ id: '([^']+)'/g)].map(([, id]) => id), ['waves', 'records', 'investment-comparison', 'review-journal', 'all']);
+  assert.deepEqual([...shortcuts.matchAll(/\{ id: '([^']+)'/g)].map(([, id]) => id), ['waves', 'records', 'investment-comparison', 'investment-goals', 'all']);
+});
+
+test('Investment Goals replaces Journal in all tools and only enables when its page can open', () => {
+  const trades = readFileSync(new URL('../src/tabs/TradesTab.jsx', import.meta.url), 'utf8');
+  const enabledExpression = trades.match(/<TradeToolsCatalog\b[^>]*enableInvestmentGoals=\{([^}]+)\}/)?.[1];
+  assert.ok(enabledExpression);
+  const isEnabled = new Function('openInvestmentGoals', `return ${enabledExpression};`);
+  for (const opener of [undefined, null, false, 'investment-goals']) assert.equal(isEnabled(opener), false);
+  assert.equal(isEnabled(() => {}), true);
+  for (const language of ['zh', 'en']) {
+    const selected = [];
+    const { tree } = renderCatalog({ language, enableInvestmentGoals: true, onSelect: id => selected.push(id) });
+    const buttons = nodesOfType(tree, 'button');
+    const goals = buttons.find(button => button.props['data-tool-id'] === 'investment-goals');
+    assert.ok(goals);
+    assert.ok(textContent(goals).includes(language === 'en' ? 'Investment Goals' : '投资目标'));
+    assert.equal(buttons.some(button => button.props['data-tool-id'] === 'review-journal'), false);
+    const reviewGroup = nodesOfType(tree, 'section').find(group => nodesOfType(group, 'button').some(button => button.props['data-tool-id'] === 'investment-goals'));
+    assert.deepEqual(nodesOfType(reviewGroup, 'button').map(button => button.props['data-tool-id']), ['investment-goals', 'records', 'waves']);
+    goals.props.onClick();
+    assert.deepEqual(selected, ['investment-goals']);
+  }
 });
 
 test('the catalog remains presentation-only without ledger, persistence, or provider access', () => {

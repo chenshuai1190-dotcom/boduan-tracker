@@ -36,7 +36,7 @@ test('stock detail matches drawdown gutters without double padding in production
 
   const standalonePages = app.match(/const isStandalonePage = ([^;]+);/)?.[1];
   assert.ok(standalonePages?.includes('isStockDetailPage'));
-  assert.ok(app.includes("paddingTop: isStandalonePage ? 0 :"), 'production standalone pages must own their safe-area spacing');
+  assert.ok(app.includes("paddingTop: isStandalonePage || isReviewJournalTab ? 0 :"), 'production standalone pages must own their safe-area spacing');
   const previewTopInsetOwners = preview.match(/paddingTop:\s*\[([^\]]+)\]\.includes\(activeTab\) \? 0 :/)?.[1];
   assert.ok(previewTopInsetOwners?.includes("'stock-detail'"), 'stock detail preview must not hide a missing page safe area');
   assert.ok(previewTopInsetOwners.includes("'drawdown-observation'"));

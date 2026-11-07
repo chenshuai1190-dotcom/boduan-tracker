@@ -117,7 +117,7 @@ test('Macro owns its standalone top safe area and retains the dark shell with sp
   const classExpression = app.match(/className=\{(`min-h-screen[^\n]+`)\}/)?.[1];
   const paddingExpression = app.match(/style=\{\{ paddingTop: (isStandalonePage[^\n]+) \}\}/)?.[1];
   assert.ok(classExpression && paddingExpression);
-  const shell = new Function('activePage', 'darkShell', `${flags}; return { isStandalonePage, isFullBleedPage, hideBottomNavigation, className: ${classExpression}, paddingTop: ${paddingExpression} };`);
+  const shell = new Function('activePage', 'darkShell', 'activeTab = \"trades\"', `${flags}; return { isStandalonePage, isFullBleedPage, hideBottomNavigation, className: ${classExpression}, paddingTop: ${paddingExpression} };`);
   for (const darkShell of [true, false]) {
     const macro = shell('macro', darkShell);
     assert.equal(macro.isStandalonePage, true);
@@ -140,7 +140,7 @@ test('Macro renders all five real bottom tabs, highlights Trades and preserves t
   const result = await transformWithOxc(`
     import React from ${JSON.stringify(import.meta.resolve('react'))};
     import { t } from ${JSON.stringify(new URL('../src/lib/i18n.js', import.meta.url).href)};
-    const Home = () => null, ListChecks = Home, Wallet = Home, Target = Home, Settings = Home, WifiOff = Home;
+    const Home = () => null, ListChecks = Home, Wallet = Home, BookOpen = Home, Target = Home, Settings = Home, WifiOff = Home;
     function ReportBottomNavIcon() { return null; }
     export function renderBottomNavigation(activePage, activeTab, language, handleBottomTabClick) {
       const darkShell = true, showQuoteFetchError = false, fetchError = '';

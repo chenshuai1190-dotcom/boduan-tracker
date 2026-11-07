@@ -34,6 +34,7 @@ import {
 import ConfirmModal from './components/ConfirmModal.jsx';
 import './components/ReportBottomNav.css';
 import ReportBottomNavIcon from './components/ReportBottomNavIcon.jsx';
+import useReviewScrollNavigation from './hooks/useReviewScrollNavigation.js';
 import YearlyActualModal from './components/YearlyActualModal.jsx';
 import { DisciplineModal, LogModal } from './components/ReviewEntryEditors.jsx';
 import { normalizeConfirmModalOptions } from './lib/confirmModal.js';
@@ -1897,7 +1898,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     if (['risk', 'editor', 'leverage'].includes(params.get('homeMargin'))) return 'home-margin-risk';
     if (params.get('preview') === 'dca-lab') return 'dca-lab';
     const requestedTab = params.get('tab');
-    return ['home', 'trades', 'analysis', 'review', 'settings', 'pnl-report', 'pnl-share', 'home-margin-risk', 'drawdown-observation', 'stock-detail', 'stock-pnl-report', 'debt-manager', 'watchlist-stock-detail', 'wave-tracker', 'community-competition', 'vix-comparison', 'vix-monthly-report', 'fear-greed', 'stock-decision', 'investment-comparison', 'stock-comparison', 'macro', 'portfolio-overlap', 'review-journal', 'dca-lab'].includes(requestedTab) ? requestedTab : 'analysis';
+    return ['home', 'trades', 'analysis', 'review', 'settings', 'pnl-report', 'pnl-share', 'home-margin-risk', 'drawdown-observation', 'stock-detail', 'stock-pnl-report', 'debt-manager', 'watchlist-stock-detail', 'wave-tracker', 'community-competition', 'vix-comparison', 'vix-monthly-report', 'fear-greed', 'stock-decision', 'investment-comparison', 'stock-comparison', 'macro', 'portfolio-overlap', 'review-journal', 'investment-goals', 'dca-lab'].includes(requestedTab) ? requestedTab : 'analysis';
   });
   const macroPreview = React.useMemo(() => {
     const params = new URLSearchParams(typeof window === 'undefined' ? '' : window.location.search);
@@ -1938,7 +1939,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
   const reviewSection = typeof window !== 'undefined'
     ? new URLSearchParams(window.location.search).get('reviewSection') : null;
   React.useEffect(() => {
-    if (activeTab !== 'review' || !['compound', 'compound-simulation'].includes(reviewPanel)
+    if (activeTab !== 'investment-goals' || !['compound', 'compound-simulation'].includes(reviewPanel)
       || !['years', 'year-detail', 'curve'].includes(reviewSection)) return undefined;
     let frame = 0;
     const observer = new MutationObserver(focusCompoundYears);
@@ -3376,7 +3377,8 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     openCommunityCompetition: () => setActiveTab('community-competition'),
     openInvestmentComparison: () => { setActiveTab('investment-comparison'); window.scrollTo(0, 0); },
     openStockComparison: () => { setActiveTab('stock-comparison'); window.scrollTo(0, 0); },
-    openReviewJournal: () => { setActiveTab('review-journal'); window.scrollTo(0, 0); },
+    openReviewJournal: () => { setActiveTab('review'); window.scrollTo(0, 0); },
+    openInvestmentGoals: () => { setActiveTab('investment-goals'); window.scrollTo(0, 0); },
     openPortfolioOverlap: () => { setActiveTab('portfolio-overlap'); window.scrollTo(0, 0); },
     openDcaLab: () => { setActiveTab('dca-lab'); window.scrollTo(0, 0); },
     openStockDecision: () => { setActiveTab('stock-decision'); window.scrollTo(0, 0); },
@@ -3426,7 +3428,9 @@ function StandardDevVisualPreview({ initialTab = '' }) {
   };
 
   const reviewCtx = {
-    openReviewJournal: () => { setActiveTab('review-journal'); window.scrollTo(0, 0); },
+    closeInvestmentGoals: () => { setActiveTab('trades'); window.scrollTo(0, 0); },
+    openReviewJournal: () => { setActiveTab('review'); window.scrollTo(0, 0); },
+    openInvestmentGoals: () => { setActiveTab('investment-goals'); window.scrollTo(0, 0); },
     initialReviewYear: reviewPanel === 'annual' ? yearlyActuals[0]?.year : undefined,
     initialCompoundDetails: reviewPanel === 'compound' || reviewPanel === 'compound-simulation',
     initialCompoundView: reviewPanel === 'compound-simulation' ? 'simulation' : 'execution',
@@ -3521,19 +3525,21 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     user: { id: 'dev-user', email: 'preview@example.com' },
   };
 
+  const reviewNavigationHidden = useReviewScrollNavigation(activeTab === 'review');
   const nav = [
     { id: 'home', label: t(language, 'nav.home', '首页'), icon: Home },
     { id: 'trades', label: t(language, 'nav.trades', '交易'), icon: ListChecks },
     { id: 'analysis', label: t(language, 'nav.analysis', '资产'), icon: Wallet },
-    { id: 'review', label: t(language, 'nav.review', '目标'), icon: Target },
+    { id: 'review', label: t(language, 'nav.review', '复盘'), icon: BookOpen },
     { id: 'settings', label: t(language, 'nav.settings', '设置'), icon: Settings },
   ];
 
   return (
     <div
-      className={`min-h-screen ${['fear-greed', 'pnl-report', 'stock-pnl-report', 'stock-decision', 'macro', 'debt-manager'].includes(activeTab) ? 'bg-[#08090b]' : 'bg-[#05070b]'} text-white ${['pnl-report', 'pnl-share', 'stock-pnl-report', 'review-journal', 'debt-manager'].includes(activeTab) ? 'pb-0' : 'pb-24'} ${['pnl-report', 'pnl-share', 'stock-pnl-report', 'community-competition', 'earnings-detail', 'review-journal', 'debt-manager'].includes(activeTab) ? 'px-0' : 'px-4'} ${activeTab === 'vix-monthly-report' || (activeTab === 'vix-comparison' && new URLSearchParams(window.location.search).get('vixMonthlyDesign') === '1') ? 'vix-monthly-design-host' : ''}`}
+      data-review-nav-hidden={reviewNavigationHidden || undefined}
+      className={`min-h-screen ${['fear-greed', 'pnl-report', 'stock-pnl-report', 'stock-decision', 'macro', 'debt-manager'].includes(activeTab) ? 'bg-[#08090b]' : 'bg-[#05070b]'} text-white ${['pnl-report', 'pnl-share', 'stock-pnl-report', 'review-journal', 'review', 'debt-manager'].includes(activeTab) ? 'pb-0' : 'pb-24'} ${['pnl-report', 'pnl-share', 'stock-pnl-report', 'community-competition', 'earnings-detail', 'review-journal', 'review', 'debt-manager'].includes(activeTab) ? 'px-0' : 'px-4'} ${activeTab === 'vix-monthly-report' || (activeTab === 'vix-comparison' && new URLSearchParams(window.location.search).get('vixMonthlyDesign') === '1') ? 'vix-monthly-design-host' : ''}`}
       style={{
-        paddingTop: ['pnl-report', 'pnl-share', 'stock-pnl-report', 'home-margin-risk', 'drawdown-observation', 'stock-detail', 'wave-tracker', 'community-competition', 'watchlist-stock-detail', 'earnings-detail', 'vix-comparison', 'fear-greed', 'stock-decision', 'investment-comparison', 'stock-comparison', 'macro', 'portfolio-overlap', 'dca-lab', 'review-journal', 'debt-manager'].includes(activeTab) ? 0 : 'calc(1rem + env(safe-area-inset-top))',
+        paddingTop: ['pnl-report', 'pnl-share', 'stock-pnl-report', 'home-margin-risk', 'drawdown-observation', 'stock-detail', 'wave-tracker', 'community-competition', 'watchlist-stock-detail', 'earnings-detail', 'vix-comparison', 'fear-greed', 'stock-decision', 'investment-comparison', 'stock-comparison', 'macro', 'portfolio-overlap', 'dca-lab', 'review-journal', 'review', 'debt-manager'].includes(activeTab) ? 0 : 'calc(1rem + env(safe-area-inset-top))',
         ...(visualViewportWidth
           ? { marginInline: 'auto', maxWidth: '100%', width: `${visualViewportWidth}px` }
           : {}),
@@ -3580,6 +3586,10 @@ function StandardDevVisualPreview({ initialTab = '' }) {
           ? <InvestmentComparisonPreview ctx={{ language, marketColorMode, usdRate: USD_RATE, closeInvestmentComparison: () => { setActiveTab('trades'); window.scrollTo(0, 0); } }} />
           : activeTab === 'stock-comparison'
           ? <StockComparisonPreview ctx={{ language, marketColorMode, onBack: () => { setActiveTab('trades'); window.scrollTo(0, 0); } }} />
+          : activeTab === 'review'
+          ? <ReviewJournalPreview language={language} marketColorMode={marketColorMode} navigationTab />
+          : activeTab === 'investment-goals'
+          ? <ReviewTab ctx={reviewCtx} />
           : activeTab === 'review-journal'
           ? <ReviewJournalPreview language={language} marketColorMode={marketColorMode} onBack={() => { setActiveTab('trades'); window.scrollTo(0, 0); }} />
           : activeTab === 'portfolio-overlap'
@@ -3609,7 +3619,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
             />
           : activeTab === 'settings'
           ? <SettingsTab ctx={settingsCtx} />
-          : (activeTab === 'review' ? <ReviewTab ctx={reviewCtx} /> : <AnalysisTab ctx={ctx} />)}
+          : <AnalysisTab ctx={ctx} />}
       </Suspense>
 
       <ConfirmModal
@@ -3621,7 +3631,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
       />
 
       {activeTab !== 'pnl-report' && activeTab !== 'pnl-share' && activeTab !== 'stock-pnl-report' && activeTab !== 'debt-manager' && activeTab !== 'review-journal' && (
-      <div className="report-bottom-nav fixed bottom-0 left-0 right-0 z-50" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+      <div className="report-bottom-nav fixed bottom-0 left-0 right-0 z-50" data-scroll-hidden={activeTab === 'review' ? reviewNavigationHidden : undefined} aria-hidden={activeTab === 'review' && reviewNavigationHidden || undefined} inert={activeTab === 'review' && reviewNavigationHidden ? '' : undefined} style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
         <div className="mx-auto max-w-5xl">
           <div className="report-bottom-nav-grid grid grid-cols-5">
             {nav.map(tab => {
@@ -3630,6 +3640,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
                 || (activeTab === 'drawdown-observation' && tab.id === 'home')
                 || (activeTab === 'vix-comparison' && tab.id === 'home')
                 || (activeTab === 'fear-greed' && tab.id === 'home')
+                || (activeTab === 'investment-goals' && tab.id === 'trades')
                 || (activeTab === 'investment-comparison' && tab.id === 'trades')
                 || (activeTab === 'stock-comparison' && tab.id === 'trades')
                 || (activeTab === 'portfolio-overlap' && tab.id === 'trades')

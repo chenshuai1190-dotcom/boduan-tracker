@@ -1,5 +1,5 @@
 import React, { lazy, Suspense, useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef } from 'react';
-import { TrendingDown, TrendingUp, Target, AlertCircle, CheckCircle2, Clock, Trash2, Plus, RefreshCw, Wifi, WifiOff, Home, ListChecks, BarChart3, Settings, LogOut, Loader2, Wallet, Calendar, X, Edit2, ChevronRight, AlertTriangle, Pin, ChevronDown, ChevronUp } from 'lucide-react';
+import { BookOpen, TrendingDown, TrendingUp, Target, AlertCircle, CheckCircle2, Clock, Trash2, Plus, RefreshCw, Wifi, WifiOff, Home, ListChecks, BarChart3, Settings, LogOut, Loader2, Wallet, Calendar, X, Edit2, ChevronRight, AlertTriangle, Pin, ChevronDown, ChevronUp } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import * as db from './lib/db';
 import { deriveInvestmentSummary } from './lib/investmentSummary.js';
@@ -34,6 +34,7 @@ import { enqueuePnlReportRecalculationAfterLedgerMutation } from './lib/pnlRepor
 import { createPnlShareIdentity } from './lib/pnlShareIdentity.js';
 import './components/ReportBottomNav.css';
 import ReportBottomNavIcon from './components/ReportBottomNavIcon.jsx';
+import useReviewScrollNavigation from './hooks/useReviewScrollNavigation.js';
 import YearlyActualModal from './components/YearlyActualModal.jsx';
 import { DisciplineModal, LogModal } from './components/ReviewEntryEditors.jsx';
 import ConfirmModal from './components/ConfirmModal.jsx';
@@ -169,7 +170,7 @@ const TAB_COMPONENTS = {
   home: HomeTab,
   trades: TradesTab,
   analysis: AnalysisTab,
-  review: ReviewTab,
+  review: ReviewJournalPage,
   settings: SettingsTab,
 };
 const QUOTE_ERROR_VISIBLE_TABS = ['home', 'trades'];
@@ -4855,8 +4856,10 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     setActiveTab('trades');
     setActivePage(null);
   }, []);
-  const openReviewJournal = useCallback(() => { setActivePage('review-journal'); }, []);
+  const openReviewJournal = useCallback(() => { setActiveTab('review'); setActivePage(null); }, []);
   const closeReviewJournal = useCallback(() => { setActivePage(null); }, []);
+  const openInvestmentGoals = useCallback(() => { setActiveTab('trades'); setActivePage('investment-goals'); }, []);
+  const closeInvestmentGoals = useCallback(() => { setActiveTab('trades'); setActivePage(null); }, []);
   const openPortfolioOverlap = useCallback(() => {
     setActiveTab('trades');
     setActivePage('portfolio-overlap');
@@ -5106,15 +5109,18 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   const isInvestmentComparisonPage = activePage === 'investment-comparison';
   const isStockComparisonPage = activePage === 'stock-comparison';
   const isReviewJournalPage = activePage === 'review-journal';
+  const isReviewJournalTab = activeTab === 'review' && !activePage;
+  const isInvestmentGoalsPage = activePage === 'investment-goals';
   const isPortfolioOverlapPage = activePage === 'portfolio-overlap';
   const isDcaLabPage = activePage === 'dca-lab';
   const isStockDecisionPage = activePage === 'stock-decision';
   const isMacroPage = activePage === 'macro';
   const isDebtManagerPage = activePage === 'debt-manager';
   const isStandalonePage = isReviewJournalPage || isPnlReportPage || isPnlSharePage || isHomeMarginRiskPage || isDrawdownObservationPage || isStockDetailPage || isStockPnlReportPage || isWatchlistStockDetailPage || isWaveTrackerPage || isCommunityCompetitionPage || isEarningsCalendarPage || isEarningsDetailPage || isInvestmentComparisonPage || isStockComparisonPage || isPortfolioOverlapPage || isDcaLabPage || isStockDecisionPage || isVixComparisonPage || isFearGreedPage || isMacroPage || isDebtManagerPage;
-  const isFullBleedPage = isReviewJournalPage || isPnlSharePage || isCommunityCompetitionPage || isEarningsCalendarPage || isEarningsDetailPage || isPnlReportPage || isStockPnlReportPage || isDebtManagerPage;
+  const isFullBleedPage = isReviewJournalTab || isReviewJournalPage || isPnlSharePage || isCommunityCompetitionPage || isEarningsCalendarPage || isEarningsDetailPage || isPnlReportPage || isStockPnlReportPage || isDebtManagerPage;
   const hideBottomNavigation = isReviewJournalPage || isPnlReportPage || isPnlSharePage || isStockPnlReportPage || isDebtManagerPage;
   const ActiveTab = TAB_COMPONENTS[activeTab] || HomeTab;
+  const reviewNavigationHidden = useReviewScrollNavigation(isReviewJournalTab);
   const settingsTabCtx = useMemo(() => ({
     accountManager,
     changelogExpanded,
@@ -5310,6 +5316,8 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     openStockComparison,
     openPortfolioOverlap,
     openReviewJournal,
+    openInvestmentGoals,
+    closeInvestmentGoals,
     openDcaLab,
     openStockDecision,
     openMacro,
@@ -5461,6 +5469,8 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   };
   const activeTabCtx = activeTab === 'settings'
     ? settingsTabCtx
+    : activeTab === 'review'
+      ? { db, userId: user?.id || '', language, disciplines, reviewLogs, setDisciplines, setReviewLogs, stockTrades, marketColorMode, navigationTab: true }
     : activeTab === 'analysis'
       ? analysisTabCtx
       : tabCtx;
@@ -5478,8 +5488,9 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
 
   return (
     <div
-      className={`min-h-screen ${isFullBleedPage ? 'px-0' : 'px-4'} ${hideBottomNavigation ? 'pb-0' : 'pb-24'} ${isFearGreedPage || isPnlReportPage || isStockPnlReportPage || isStockDecisionPage || isMacroPage || isDebtManagerPage ? 'bg-[#08090b]' : darkShell ? 'bg-[#05070b]' : 'bg-slate-50'}`}
-      style={{ paddingTop: isStandalonePage ? 0 : 'calc(1rem + env(safe-area-inset-top))' }}
+      data-review-nav-hidden={reviewNavigationHidden || undefined}
+      className={`min-h-screen ${isFullBleedPage ? 'px-0' : 'px-4'} ${hideBottomNavigation || isReviewJournalTab ? 'pb-0' : 'pb-24'} ${isFearGreedPage || isPnlReportPage || isStockPnlReportPage || isStockDecisionPage || isMacroPage || isDebtManagerPage ? 'bg-[#08090b]' : darkShell ? 'bg-[#05070b]' : 'bg-slate-50'}`}
+      style={{ paddingTop: isStandalonePage || isReviewJournalTab ? 0 : 'calc(1rem + env(safe-area-inset-top))' }}
     >
       {pullRefreshStatus !== 'idle' && (
         <div
@@ -5623,6 +5634,8 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
                 ? <StockComparisonPage key={user?.id || ''} ctx={{ userId: user?.id || '', language, marketColorMode, onBack: closeStockComparison }} />
               : isReviewJournalPage
                 ? <ReviewJournalPage key={user?.id || ''} ctx={{ db, userId: user?.id || '', language, disciplines, reviewLogs, setDisciplines, setReviewLogs, stockTrades, marketColorMode, onBack: closeReviewJournal }} />
+              : isInvestmentGoalsPage
+                ? <ReviewTab ctx={tabCtx} />
               : isPortfolioOverlapPage
                 ? <PortfolioOverlapPage key={user?.id || ''} ctx={{ userId: user?.id || '', language, investmentSummary, portfolioReady: stockHoldingsReady, portfolioError: stockHoldingsError, closePortfolioOverlap }} />
               : isDcaLabPage
@@ -5647,7 +5660,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
                   ? <EarningsCalendarPage ctx={tabCtx} />
                 : isEarningsDetailPage
                   ? <EarningsDetailPage ctx={tabCtx} />
-              : <ActiveTab ctx={activeTabCtx} />}
+              : <ActiveTab key={activeTab === 'review' ? user?.id || '' : undefined} ctx={activeTabCtx} />}
         </Suspense>
 
 
@@ -5674,6 +5687,9 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
         {/* 底部 5 tab 导航栏 */}
         {!hideBottomNavigation && (
         <div
+          data-scroll-hidden={activeTab === 'review' ? reviewNavigationHidden : undefined}
+          aria-hidden={activeTab === 'review' && reviewNavigationHidden || undefined}
+          inert={activeTab === 'review' && reviewNavigationHidden ? '' : undefined}
           className={`report-bottom-nav fixed bottom-0 left-0 right-0 z-50 ${darkShell ? '' : 'report-bottom-nav-light'}`}
           style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
         >
@@ -5683,7 +5699,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
                 { id: 'home',     label: t(language, 'nav.home', '首页'), icon: Home },
                 { id: 'trades',   label: t(language, 'nav.trades', '交易'), icon: ListChecks },
                 { id: 'analysis', label: t(language, 'nav.analysis', '资产'), icon: Wallet },
-                { id: 'review',   label: t(language, 'nav.review', '目标'), icon: Target },
+                { id: 'review',   label: t(language, 'nav.review', '复盘'), icon: BookOpen },
                 { id: 'settings', label: t(language, 'nav.settings', '设置'), icon: Settings },
               ].map(tab => {
                 const isActive = activeTab === tab.id;

@@ -845,7 +845,7 @@ test('year screenshot fixtures stay behind DEV preview routing with scoped selec
   const end = previewSource.indexOf('}, [activeTab, reviewPanel, reviewSection]);', start);
   assert.ok(start >= 0 && end > start);
   const fixtureSource = previewSource.slice(start, end);
-  assert.match(fixtureSource, /activeTab !== 'review'/);
+  assert.match(fixtureSource, /activeTab !== 'investment-goals'/);
   assert.match(fixtureSource, /\['compound', 'compound-simulation'\]\.includes\(reviewPanel\)/);
   assert.match(fixtureSource, /\['years', 'year-detail', 'curve'\]\.includes\(reviewSection\)/);
   assert.match(fixtureSource, /new MutationObserver\(focusCompoundYears\)/);

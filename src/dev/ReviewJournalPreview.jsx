@@ -47,7 +47,7 @@ const readingLogs = [
     '最后，把没有答案的问题也保留下来。复盘并不要求每一次都得到确定结论；有些判断需要更多时间。完整记录自己的观察、行动和后续变化，让未来的自己有材料可以回看，这就是持续记录的意义。超过手机一屏的部分在列表里折叠，点击展开全文后可以继续阅读到这里。',
   ].join('\n\n')},
 ];
-export default function ReviewJournalPreview({language,onBack,marketColorMode}) {
+export default function ReviewJournalPreview({language,onBack,marketColorMode,navigationTab=false}) {
   const initialLogs = new URLSearchParams(window.location.search).get('reviewEvaluation') === '1' ? [evaluationLog,...seedLogs] : new URLSearchParams(window.location.search).get('reviewReading') === '1' ? [...readingLogs,...seedLogs] : seedLogs;
   const [disciplines,setDisciplines] = React.useState(seedInsights);
   const [reviewLogs,setReviewLogs] = React.useState(initialLogs);
@@ -100,5 +100,5 @@ export default function ReviewJournalPreview({language,onBack,marketColorMode}) 
     removeReviewJournalImage:async path=>{const url=imageUrls.current.get(path);if(url)URL.revokeObjectURL(url);imageUrls.current.delete(path);},
   }),[]);
   if(!import.meta.env.DEV)return null;
-  return <ReviewJournalPage ctx={{db,userId:OWNER,language,disciplines,reviewLogs,setDisciplines,setReviewLogs,stockTrades,onBack,marketColorMode,previewData:{identity:{nickname:'波段玩家1836',avatarKey:'gold'},history,market,account}}}/>;
+  return <ReviewJournalPage ctx={{db,userId:OWNER,language,disciplines,reviewLogs,setDisciplines,setReviewLogs,stockTrades,onBack,marketColorMode,navigationTab,previewData:{identity:{nickname:'波段玩家1836',avatarKey:'gold'},history,market,account}}}/>;
 }

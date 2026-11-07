@@ -2441,7 +2441,7 @@ test('review target page uses a flat dark report and preserves click action moda
   assert.ok(compoundDetailSource.includes('buildCompoundPathModel({') && compoundPathModelSource.includes('Math.round(principal * Math.pow(1 + annualRate, index))'), 'fixed simulation should preserve the independent initial-principal target-rate series');
   assert.ok(i18nSource.includes("'review.compoundProjection': 'Projection'"), 'English compound details should name the projection view');
   assert.ok(devVisualPreviewSource.includes("initialCompoundDetails: reviewPanel === 'compound' || reviewPanel === 'compound-simulation'") && reviewTabSource.includes('initialView={ctx.initialCompoundView}'), 'local previews should open the requested compound view through the extracted component');
-  assert.ok(devVisualPreviewSource.includes("activeTab !== 'review' || !['compound', 'compound-simulation'].includes(reviewPanel)") && devVisualPreviewSource.includes("!['years', 'year-detail', 'curve'].includes(reviewSection)"), 'compound screenshot positioning should require an explicit allowed compound preview section');
+  assert.ok(devVisualPreviewSource.includes("activeTab !== 'investment-goals' || !['compound', 'compound-simulation'].includes(reviewPanel)") && devVisualPreviewSource.includes("!['years', 'year-detail', 'curve'].includes(reviewSection)"), 'compound screenshot positioning should require an explicit allowed compound preview section');
   assert.ok(devVisualPreviewSource.includes("const target = reviewSection === 'curve' ? content.querySelector('.cp-path-heading') : tabs") && devVisualPreviewSource.includes("target?.scrollIntoView({ block: 'start', behavior: 'instant' })"), 'compound screenshot fixtures should position either the curve or annual tabs with document scrolling');
   assert.ok(reviewTabSource.includes('onOpenDetails={openCompoundDetails}') && reviewTabSource.includes('setShowCompoundDetails(true)'), 'north-star card should open compound details through local Review navigation');
   assert.ok(reviewTabSource.includes('onCurrencyChange={switchCurrency}') && northStarGoalCardSource.includes('onCurrencyChange(currency)'), 'currency switch should preserve the existing Review currency handler');
@@ -2596,7 +2596,7 @@ test('review target page uses a flat dark report and preserves click action moda
     'home-margin-risk', 'drawdown-observation', 'stock-detail', 'stock-pnl-report',
     'debt-manager', 'watchlist-stock-detail', 'wave-tracker', 'community-competition',
     'vix-comparison', 'vix-monthly-report', 'fear-greed', 'stock-decision', 'investment-comparison', 'stock-comparison', 'macro',
-    'portfolio-overlap', 'review-journal', 'dca-lab',
+    'portfolio-overlap', 'review-journal', 'investment-goals', 'dca-lab',
   ], 'local visual preview should support existing routes and the isolated monthly market, stock comparison and review journal designs');
   assert.match(appSource, /<ReviewJournalPage key=\{user\?\.id \|\| ''\}/, 'journal page state must remount for each account');
   assert.ok(authGateSource.includes("get('devPreview') === '1'"), 'local visual preview should be force-openable for screenshot QA even when Supabase env is present');

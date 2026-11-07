@@ -174,7 +174,7 @@ test('production debt page owns full-bleed dark layout with no bottom navigation
   assert.match(standalone, /\|\| isDebtManagerPage$/);
   assert.match(fullBleed, /\|\| isDebtManagerPage$/);
   assert.match(hideNav, /\|\| isDebtManagerPage$/);
-  assert.match(app, /paddingTop: isStandalonePage \? 0 :/);
+  assert.match(app, /paddingTop: isStandalonePage \|\| isReviewJournalTab \? 0 :/);
   assert.match(app, /isMacroPage \|\| isDebtManagerPage \? 'bg-\[#08090b\]'/);
 });
 

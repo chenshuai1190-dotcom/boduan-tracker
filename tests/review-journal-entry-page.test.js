@@ -112,6 +112,31 @@ test('a whole post opens a normal detail page with all entry and comment attachm
   h.unmount();
 });
 
+test('the Journal navigation tab keeps its page title and returns from entries and stock tags to the feed', async () => {
+  const h = await harness(); h.ctx.navigationTab = true;
+  let tree = h.render();
+  assert.ok(hasClass(tree, 'rj-navigation-tab'));
+  assert.equal(find(tree, node => node.type === 'h1').props.children, '投资复盘');
+  assert.equal(button(tree, '返回'), undefined, 'a primary tab has no parent-page back action');
+  assert.equal(button(tree, '返回投资复盘'), undefined);
+  assert.ok(button(tree, '写复盘'));
+  h.clickPost(tree); tree = h.render();
+  assert.ok(detail(tree));
+  assert.equal(find(tree, node => node.type === 'h1').props.children, '复盘记录');
+  button(tree, '返回投资复盘').props.onClick(); tree = h.render();
+  assert.equal(detail(tree), undefined);
+  assert.equal(h.fixture.window.scrollY, 740);
+  find(tree, node => node.type === h.Page.ReviewPostBody).props.onSelectSymbol('NVDA', { type: 'click', detail: 1, stopPropagation() {}, preventDefault() {} });
+  tree = h.render();
+  assert.equal(find(tree, node => node.type === 'h1').props.children, '$NVDA');
+  button(tree, '返回投资复盘').props.onClick(); tree = h.render();
+  assert.equal(find(tree, node => node.type === 'h1').props.children, '投资复盘');
+  assert.equal(button(tree, '返回'), undefined);
+  assert.equal(h.fixture.leftJournal, undefined);
+  assert.equal(h.saves.length, 0);
+  h.unmount();
+});
+
 test('interactive controls, portals and text selection keep their own interactions', async () => {
   const h = await harness(); let tree = h.render();
   for (const options of [{ interactive: 'button' }, { interactive: 'stock-chart' }, { portal: true }, { defaultPrevented: true }]) {

@@ -25,3 +25,5 @@
 .review-page .review-entry:active .review-entry-body { color: #f4f4f5; }
 
 .review-journal-entry{display:flex;align-items:center;gap:14px;width:100%;margin-top:24px;padding:20px 16px;border:0;border-radius:18px;background:#15171b;color:#c4c8d1;text-align:left}.review-journal-entry-icon{display:grid;place-items:center;width:44px;height:44px;border-radius:14px;background:#202329}.review-journal-entry>span:nth-child(2){flex:1}.review-journal-entry strong{display:block;font-size:16px;font-weight:500}.review-journal-entry small{display:block;font-size:12px;color:#7c8490;margin-top:6px}
+
+.review-page .review-goals-back{display:flex;align-items:center;gap:8px;min-height:44px;margin:0 0 8px;padding:0;background:transparent;border:0;color:#9da2ac;font:inherit;font-size:14px;cursor:pointer}

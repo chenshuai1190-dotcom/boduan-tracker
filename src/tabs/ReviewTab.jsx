@@ -1,5 +1,5 @@
 import React from 'react';
-import { BookOpen as BookOpenIcon, ChevronRight, NotebookPen, Pin as PinIcon, Plus } from 'lucide-react';
+import { ArrowLeft, BookOpen as BookOpenIcon, ChevronRight, NotebookPen, Pin as PinIcon, Plus } from 'lucide-react';
 import AnnualGoalPlan from '../components/AnnualGoalPlan.jsx';
 import './ReviewTab.css';
 import CompoundDetailPage from '../pages/CompoundDetailPage.jsx';
@@ -322,6 +322,7 @@ export default function ReviewTab({ ctx }) {
 
   return (
     <div className="review-page mx-auto max-w-[430px] pb-2 text-white" style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif' }}>
+      {ctx.closeInvestmentGoals && <button type="button" className="review-goals-back" onClick={ctx.closeInvestmentGoals}><ArrowLeft size={21} aria-hidden="true"/>{language === 'en' ? 'Back to Trades' : '返回交易'}</button>}
       <NorthStarGoalCard
         language={language}
         goalMoney={headlineGoalMoney}

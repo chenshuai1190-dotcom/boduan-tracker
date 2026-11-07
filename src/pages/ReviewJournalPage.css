@@ -125,3 +125,11 @@
 .rj-entry-notes{display:flex;flex-wrap:wrap;gap:6px 14px;color:#818a97;font-size:12px;line-height:20px;margin-top:10px}
 .rj-entry-notes:empty{display:none}
 .rj-reply .review-market-card{margin-top:12px}
+
+/* The journal feed occupies a primary tab; keep its action clear of navigation. */
+.rj-page.rj-navigation-tab{padding-bottom:calc(150px + env(safe-area-inset-bottom))}
+.rj-navigation-tab .rj-fab{bottom:calc(90px + env(safe-area-inset-bottom))}
+
+.rj-navigation-tab .rj-fab{transition:bottom 200ms ease}
+[data-review-nav-hidden="true"] .rj-navigation-tab .rj-fab{bottom:calc(26px + env(safe-area-inset-bottom))}
+@media (prefers-reduced-motion:reduce){.rj-navigation-tab .rj-fab{transition:none}}

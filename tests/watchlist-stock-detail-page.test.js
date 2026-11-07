@@ -20,7 +20,7 @@ const pageCssSource = readFileSync(new URL('../src/pages/WatchlistStockDetailPag
 
 test('watchlist detail keeps the existing bottom tabs and shows the symbol beside the stock-trend title', () => {
   assert.equal(pageSource.includes('pb-[calc(env(safe-area-inset-bottom)+86px)]'), false, 'the page must not duplicate the App bottom-navigation clearance');
-  assert.ok(appSource.includes("hideBottomNavigation ? 'pb-0' : 'pb-24'"), 'the App shell should remain the single owner of bottom-navigation clearance');
+  assert.ok(appSource.includes("hideBottomNavigation || isReviewJournalTab ? 'pb-0' : 'pb-24'"), 'the App shell should remain the single owner of bottom-navigation clearance');
   assert.ok(pageSource.includes('data-watchlist-detail-heading="symbol-title"'));
   assert.ok(pageSource.includes('items-baseline justify-center gap-2'));
   assert.ok(pageSource.includes("{symbol || '--'}"));

@@ -3,6 +3,11 @@ import { CURRENT_RELEASE } from './releaseMeta.js';
 export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
+    items: ['投资复盘移至底部“复盘”，原入口改为“投资目标”；复盘导航随下滚收起、上滚恢复，并采用“回看”图标。'],
+    itemsEn: ['Investment Journal now opens from the Journal tab, while Investment Goals moves to Trading tools. Journal navigation hides while scrolling down, returns while scrolling up, and uses a look-back icon.'],
+  },
+  {
+    ver: 'v10.7.9.587', date: '2026-11-07',
     items: ['普通股票与 TQQQ 买入新增交易纪律确认：极端超卖或 VIX 比率大于 1 时符合条件；未满足及数据不足时可返回调整或自主继续，TQQQ 仓位提醒合并展示。'],
     itemsEn: ['Ordinary-stock and TQQQ buys now share a discipline confirmation for extreme oversold RSI or a VIX ratio above 1. Unmet or unavailable conditions allow review or an explicit override, with TQQQ allocation reminders in the same dialog.'],
   },
