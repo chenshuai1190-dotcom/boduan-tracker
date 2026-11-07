@@ -37,7 +37,8 @@
 .rjt-earnings-return>span{font-size:12px;line-height:20px;color:var(--rjt-muted)}
 .rjt-node-detail>.rjt-earnings-return{justify-content:flex-start}
 .rjt-chart{min-width:0;margin:12px 0 4px}
-.rjt-chart svg{display:block;width:100%;height:auto;max-height:150px;overflow:visible}
+/* Follow the SVG viewBox ratio so wider cards do not gain side gutters. */
+.rjt-chart svg{display:block;width:100%;height:auto;overflow:visible}
 .rjt-chart-line{fill:none;stroke:#aab2bf;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
 .rjt-chart-area{fill:#aab3c408;stroke:none}
 .rjt-chart-reference{stroke:#414953;stroke-width:.7;stroke-dasharray:3 5}
@@ -84,7 +85,6 @@
 .rjt-chart-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:13px;line-height:20px;color:var(--rjt-muted);margin:10px 0 4px}
 .rjt-chart-heading span+span{color:var(--rjt-accent);text-align:right}
 .rjt-chart-detail{margin:8px 0 0}
-.rjt-chart-detail svg{max-height:280px}
 .rjt-chart-dates{display:flex;justify-content:space-between;gap:15px;font-size:13px;line-height:20px;color:var(--rjt-muted);margin-top:3px}
 .rjt-chart-empty{font-size:13px;color:var(--rjt-muted);line-height:21px;margin:15px 0}
 .rjt-node-tabs{display:grid;grid-template-columns:repeat(auto-fit,minmax(62px,1fr));gap:5px;margin-top:19px}

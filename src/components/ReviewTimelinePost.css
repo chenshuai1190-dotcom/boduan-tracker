@@ -17,7 +17,7 @@
 .rj-system-return strong{font-size:20px;line-height:27px;font-weight:400;font-variant-numeric:tabular-nums;white-space:nowrap}
 .rj-system-return>span{font-size:10px;line-height:17px;color:#8c95a2}
 .rj-system-earnings .rj-system-secondary{align-self:flex-start}
-.rj-system-summary .rjt-chart{margin:6px 0 3px}.rj-system-summary .rjt-chart svg{max-height:78px}.rj-system-summary .rjt-chart-empty{font-size:12px;line-height:20px;margin:8px 0}
+.rj-system-summary .rjt-chart{margin:6px 0 3px}.rj-system-summary .rjt-chart-empty{font-size:12px;line-height:20px;margin:8px 0}
 .rj-system-caption{display:flex;justify-content:space-between;gap:7px;margin-top:5px;color:#7e8795;font-size:10px;line-height:18px;flex-wrap:wrap}
 .rj-system-updated{color:#77818f;font-size:10px;line-height:18px;margin-left:auto;text-align:right}
 @media(max-width:359px){.rj-system-summary{padding:12px}.rj-system-primary{font-size:25px;line-height:34px}.rj-system-secondary strong{font-size:12px}}

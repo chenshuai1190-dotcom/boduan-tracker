@@ -94,7 +94,7 @@ export function TimelineChart({ event, selectedPoint, detail = false, marketColo
   if (points.length < 2) return <p className="rjt-chart-empty">{returnSeries ? label(en, '这一时刻暂无可展示的连续收益率曲线。', 'A continuous return series is not available for this event.') : pnlSeries ? label(en, '这一时刻暂无可展示的连续收益金额曲线。', 'A continuous P&L series is not available for this event.') : label(en, '这一时刻暂无可展示的连续净资产曲线。', 'A continuous net-asset series is not available for this event.')}</p>;
   if ((returnSeries || pnlSeries) && selectedPoint && !points.some(point => point.date === selectedPoint.date)) return <p className="rjt-chart-empty">{label(en, '所选节点不在当前连续数据区间。', 'The selected milestone is outside the current continuous series.')}</p>;
   const width = 360, height = detail ? 192 : 105;
-  const left = 6, right = detail ? 43 : 6, top = detail ? 18 : 9, bottom = detail ? 22 : 9;
+  const left = 6, right = detail && event.kind === 'drawdown' ? 43 : 6, top = detail ? 18 : 9, bottom = detail ? 22 : 9;
   const values = points.map(plottedValue);
   const peakValue = event.kind === 'drawdown' ? plottedValue(event.peak) : null;
   const allValues = finite(peakValue) ? [...values, peakValue] : values;
