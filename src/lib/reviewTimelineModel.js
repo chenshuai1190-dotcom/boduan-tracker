@@ -200,6 +200,80 @@ function netAssetEvents(points, movements, warnings) {
   return { events, interruptions };
 }
 
+function returnDrawdownNodes(event) {
+  return [node('peak', '年内高点', event.peak), node('trigger', '首次回落 10%', event.trigger),
+    node('trough', '最低点', event.trough), node(event.status === 'recovered' ? 'recovery' : 'current',
+      event.status === 'recovered' ? '回到收益率高点' : '最近收盘', event.current)];
+}
+
+function updateReturnCycle(cycle, current, points, status) {
+  const drawdownPct = Math.min(0, current.cumulativeReturnPct - cycle.peak.cumulativeReturnPct);
+  if (current.cumulativeReturnPct < cycle.trough.cumulativeReturnPct) cycle.trough = current;
+  Object.assign(cycle, { current, points: [...points], date: current.date, endDate: current.date, status,
+    drawdownPct, maxDrawdownPct: cycle.trough.cumulativeReturnPct - cycle.peak.cumulativeReturnPct,
+    value: drawdownPct, durationDays: duration(cycle.peak.date, current.date) });
+  cycle.nodes = returnDrawdownNodes(cycle);
+}
+
+// Like the account snapshot, this compares completed report returns with the
+// same year's observed peak. It is a difference, not a net-asset return ratio.
+function returnDrawdownEvents(points, warnings, latestCloseDate) {
+  const events = [];
+  let year = null, peak = null, previous = null, cycle = null, segment = [], interruption = null;
+  const interrupt = (reason, date) => {
+    interruption ||= { reason, date };
+    if (cycle) {
+      Object.assign(cycle, { status: 'interrupted', interruptionReason: interruption.reason, interruptedAt: interruption.date });
+      cycle.nodes = returnDrawdownNodes(cycle);
+    }
+    segment = [];
+  };
+  const closeYear = () => {
+    if (cycle && cycle.status === 'active') {
+      Object.assign(cycle, { status: 'interrupted', interruptionReason: 'year_boundary', interruptedAt: `${year}-12-31` });
+      cycle.nodes = returnDrawdownNodes(cycle);
+    }
+  };
+  for (const current of points) {
+    const nextYear = current.date.slice(0, 4);
+    if (year !== nextYear) {
+      closeYear();
+      year = nextYear; peak = null; previous = null; cycle = null; segment = []; interruption = null;
+    }
+    if (previous && adjacentSession(previous.date) !== current.date) interrupt('missing_session', current.date);
+    previous = current;
+    if (current.cumulativeReturnPct === null) { interrupt('missing_return', current.date); continue; }
+    segment.push(current);
+    if (!peak) { peak = current; segment = [current]; interruption = null; continue; }
+    if (!Number.isFinite(current.cumulativeReturnPct - peak.cumulativeReturnPct)) {
+      interrupt('missing_return', current.date); continue;
+    }
+    if (cycle) {
+      const recovered = current.cumulativeReturnPct >= peak.cumulativeReturnPct;
+      updateReturnCycle(cycle, current, segment, interruption ? 'interrupted' : recovered ? 'recovered' : 'active');
+      if (!recovered) continue;
+      cycle = null;
+    }
+    // The latest matching high is the same tie rule as account snapshot peaks.
+    if (current.cumulativeReturnPct >= peak.cumulativeReturnPct) {
+      peak = current; segment = [current]; interruption = null; continue;
+    }
+    if (peak.cumulativeReturnPct - current.cumulativeReturnPct >= 10 - 1e-10) {
+      cycle = { id: `drawdown:cumulative_return:${peak.date}`, kind: 'drawdown', metric: 'cumulative_return',
+        title: '收益率回落', valueType: 'percent', startDate: peak.date, peak, trigger: current, trough: current,
+        comparisonScope: `${year} 年已记录收益率`, basis: 'pnl_report_return_decline',
+        ...(interruption ? { interruptionReason: interruption.reason, interruptedAt: interruption.date } : {}) };
+      updateReturnCycle(cycle, current, segment, interruption ? 'interrupted' : 'active');
+      events.push(cycle);
+    }
+  }
+  if (year && latestCloseDate.slice(0, 4) > year) closeYear();
+  if (events.some(event => ['missing_return', 'missing_session'].includes(event.interruptionReason))) {
+    warnings.add('收益率回落沿用年内已记录高点；缺少收益率或交易日的周期保留为待核对，曲线不跨缺口连接，也不据此判定恢复。');
+  }
+  return events;
+}
+
 function reportRecordEvents(points) {
   const events = [];
   for (const [metric, field, title, valueType] of [
@@ -274,7 +348,8 @@ function periodEvents(points, latestCloseDate) {
       const periodPnlUsd = current.cumulativePnlUsd - baseline.cumulativePnlUsd;
       if (!Number.isFinite(value) || !Number.isFinite(periodPnlUsd)) continue;
       const recordDirection = maximum !== null && value > maximum ? 'best' : minimum !== null && value < minimum ? 'worst' : null;
-      const title = `${label}${recordDirection === 'best' ? ' · 已记录周期最佳' : recordDirection === 'worst' ? ' · 已记录周期最差' : '收官'}`;
+      const periodLabel = { month: '月份', quarter: '季度', year: '年度' }[type];
+      const title = `${label}${recordDirection === 'best' ? ` · ${periodLabel}最佳` : recordDirection === 'worst' ? ` · ${periodLabel}最差` : '收官'}`;
       events.push({ id: `period:${type}:${start}`, kind: 'period', metric: 'period_return', date: current.date, title,
         value, valueType: 'percent', startDate: sessions[0], endDate: current.date, periodType: type,
         periodStartDate: start, periodEndDate: end, current, baseline, periodPnlUsd,
@@ -307,7 +382,7 @@ export function buildReviewTimeline({ snapshots = [], movements = [], now = Date
   if (netAssetCount < points.length) warnings.add('部分历史报表没有完整净资产依据；保留其已记录收益数据，不补算净资产。');
   const { events: assetEvents, interruptions } = netAssetEvents(points, cashMovements, warnings);
   const latestCloseDate = latestReviewAccountCloseDate(currentTime);
-  const events = [...assetEvents, ...reportRecordEvents(points), ...periodEvents(points, latestCloseDate)]
+  const events = [...assetEvents, ...returnDrawdownEvents(points, warnings, latestCloseDate), ...reportRecordEvents(points), ...periodEvents(points, latestCloseDate)]
     .sort((a, b) => b.date.localeCompare(a.date) || a.id.localeCompare(b.id));
   return {
     events,

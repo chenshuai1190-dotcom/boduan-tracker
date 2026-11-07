@@ -5,7 +5,7 @@ const date = value => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(va
 export function reviewTimelineCategory(event) {
   if (!event || typeof event !== 'object') return null;
   if (event.kind === 'high') return ({ net_assets: 'net_assets_high', cumulative_return: 'return_high', cumulative_pnl: 'pnl_high' })[event.metric] || null;
-  if (event.kind === 'drawdown' && event.metric === 'net_assets') return 'drawdown';
+  if (event.kind === 'drawdown' && ['net_assets', 'cumulative_return'].includes(event.metric)) return 'drawdown';
   if (event.kind === 'record' && event.metric === 'daily_return') return 'daily_record';
   if (event.kind === 'period' && event.metric === 'period_return') {
     const period = event.periodType || /^period:(month|quarter|year):/.exec(event.id || '')?.[1];
@@ -28,7 +28,8 @@ export function reviewTimelineFeedDate(event) {
   return date(event?.date) || date(event?.endDate) || eventOriginDate(event);
 }
 
-const stateWords = event => ({ active: '持续跟踪 恢复中 recovering', recovered: '已恢复 回到前高 recovered',
+const stateWords = event => event.kind === 'drawdown' && event.metric === 'cumulative_return' && event.interruptionReason === 'year_boundary'
+  ? '年度结束 year ended' : ({ active: '持续跟踪 恢复中 recovering', recovered: '已恢复 回到前高 recovered',
   interrupted: '数据待核对 比较中断 interrupted', archived: '保留的评价 archived' })[event.status] || '';
 const text = entry => `${entry.text || ''} ${(entry.stocks || []).join(' ')} ${entry.date || ''} ${(entry.replies || []).map(reply => reply.text || '').join(' ')}`;
 const compareEvents = (left, right) => Number(left.status !== 'archived') - Number(right.status !== 'archived')
@@ -37,6 +38,7 @@ const compareEvents = (left, right) => Number(left.status !== 'archived') - Numb
   || String(left.id).localeCompare(String(right.id));
 
 function feedBranch(event, category) {
+  if (category === 'drawdown') return `${category}:${event.metric}`;
   if (category !== 'daily_record') return category;
   // Archived evaluation references retain the original ID, but not recordDirection.
   const direction = ['best', 'worst'].includes(event.recordDirection) ? event.recordDirection

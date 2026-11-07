@@ -8,6 +8,8 @@ import './ReviewTimelinePost.css';
 
 const finite = value => typeof value === 'number' && Number.isFinite(value);
 const percent = value => finite(value) ? `${value > 0 ? '+' : ''}${value.toFixed(2)}%` : '—';
+const decline = value => finite(value) ? `${Math.abs(value).toFixed(2)}%` : '—';
+const isReturnDrawdown = event => event.kind === 'drawdown' && event.metric === 'cumulative_return';
 const label = (en, zh, english) => en ? english : zh;
 const shortDate = (value, en) => en ? value : `${value.slice(5, 7)}月${value.slice(8, 10)}日`;
 const style = (value, mode) => finite(value) && value !== 0 ? { color: marketHexColor(value, mode) } : undefined;
@@ -15,9 +17,25 @@ const style = (value, mode) => finite(value) && value !== 0 ? { color: marketHex
 export function reviewTimelinePostSummary(event, en = false) {
   if (event.status === 'archived') return label(en, '来源数据已更新，保留此前写下的评价。', 'Source data changed; your previous reflection is preserved.');
   if (event.kind === 'drawdown') {
+    if (isReturnDrawdown(event)) {
+      if (event.status === 'recovered') return label(en, '收益率已回到年内高点，这一轮回落记录完成。', 'The return is back at its yearly high; this decline cycle is complete.');
+      if (event.status === 'interrupted') {
+        if (event.interruptionReason === 'year_boundary') return label(en, '本年度收益率回落跟踪已结束，保留本轮回落记录。', 'Tracking of this year’s return decline has ended; the recorded decline is preserved.');
+        return ['missing_return', 'missing_session'].includes(event.interruptionReason)
+          ? label(en, '本轮收益率比较因数据缺失已中断，保留此前的回落记录。', 'Return comparison was interrupted by missing data; the recorded decline is preserved.')
+          : label(en, '本轮收益率比较已中断，保留此前的回落记录。', 'Return comparison was interrupted; the recorded decline is preserved.');
+      }
+      if (!finite(event.drawdownPct)) return label(en, '本轮收益率回落仍在持续追踪，当前回落数据暂不可用。', 'This return decline is still being tracked; the current decline is unavailable.');
+      const peak = event.peak?.cumulativeReturnPct, current = event.current?.cumulativeReturnPct;
+      return finite(peak) && finite(current)
+        ? label(en, `收益率从年内高点${percent(peak)}回落至${percent(current)}，较高点回落${decline(event.drawdownPct)}，本轮仍在持续追踪。`, `The return fell from its yearly high of ${percent(peak)} to ${percent(current)}, a decline of ${decline(event.drawdownPct)}; this cycle is still being tracked.`)
+        : label(en, `收益率较年内高点回落${decline(event.drawdownPct)}，本轮仍在持续追踪。`, `The return declined ${decline(event.drawdownPct)} from its yearly high; this cycle is still being tracked.`);
+    }
     if (event.status === 'recovered') return label(en, '账户已回到前高，这一轮回撤记录完成。', 'The account is back at its previous peak; this drawdown cycle is complete.');
     if (event.status === 'interrupted') return label(en, '本轮净资产比较已中断，保留此前的回撤记录。', 'Comparison was interrupted; the recorded drawdown is preserved.');
-    return label(en, '账户较前高回落达到 10%，本轮回撤仍在持续。', 'The account fell at least 10% from its peak; this drawdown is still being tracked.');
+    if (!finite(event.drawdownPct)) return label(en, '本轮回撤仍在持续追踪，当前回撤数据暂不可用。', 'This drawdown is still being tracked; the current drawdown is unavailable.');
+    const currentDrawdown = Math.abs(event.drawdownPct).toFixed(2);
+    return label(en, `账户较前高回落达到${currentDrawdown}%，本轮回撤仍在持续追踪。`, `The account is ${currentDrawdown}% below its peak; this drawdown is still being tracked.`);
   }
   if (event.kind === 'high') return label(en, `${event.title}，记录这个新的高点。`, `${event.title}. A new high in the recorded closing history.`);
   if (event.kind === 'record') return label(en, `${event.title}，留下这一天的账户变化。`, `${event.title}. Keeping a record of this trading day.`);
@@ -25,6 +43,10 @@ export function reviewTimelinePostSummary(event, en = false) {
 }
 
 function readings(event, currency, en) {
+  if (isReturnDrawdown(event)) return {
+    title: label(en, '较年内高点回落', 'Decline from yearly high'), value: decline(event.drawdownPct), direction: event.drawdownPct,
+    secondaryTitle: label(en, '本轮最大回落', 'Maximum decline'), secondary: decline(event.maxDrawdownPct), secondaryDirection: event.maxDrawdownPct,
+  };
   if (event.kind === 'drawdown') return {
     title: label(en, '当前回撤', 'Current drawdown'), value: percent(event.drawdownPct), direction: event.drawdownPct,
     secondaryTitle: label(en, '本轮最大回撤', 'Maximum drawdown'), secondary: percent(event.maxDrawdownPct), secondaryDirection: event.maxDrawdownPct,
@@ -56,9 +78,10 @@ export default function ReviewTimelinePost({ event, avatarNode, authorNode, comm
   const en = String(language).toLowerCase().startsWith('en');
   const currency = { displayCurrency, usdCny, fxDate }, info = reviewDisplayCurrency(currency);
   const feedDate = reviewTimelineFeedDate(event), archived = event.status === 'archived';
+  const returnDrawdown = isReturnDrawdown(event);
   const metric = readings(event, currency, en);
   const showChart = !archived && ['high', 'drawdown', 'period'].includes(event.kind)
-    && (event.points || []).filter(point => finite(point.chartValue ?? point.netAssetsUsd)).length > 1;
+    && (event.points || []).filter(point => finite(returnDrawdown ? point.cumulativeReturnPct : point.chartValue ?? point.netAssetsUsd)).length > 1;
   const open = click => onOpen?.(event.id, click);
   const clickPost = click => {
     if (click.defaultPrevented || !click.currentTarget.contains(click.target)
@@ -66,10 +89,12 @@ export default function ReviewTimelinePost({ event, avatarNode, authorNode, comm
     open(click);
   };
   const status = event.status === 'recovered' ? label(en, '已恢复', 'Recovered')
-    : event.status === 'interrupted' ? label(en, '比较已中断', 'Interrupted')
+    : event.status === 'interrupted' ? returnDrawdown && event.interruptionReason === 'year_boundary'
+      ? label(en, '本年度跟踪结束', 'Year tracking ended') : label(en, '比较已中断', 'Interrupted')
       : event.kind === 'drawdown' ? label(en, '持续跟踪', 'Tracking') : '';
-  const peakCaption = event.kind === 'drawdown' && event.peak?.date
+  const peakCaption = !returnDrawdown && event.kind === 'drawdown' && event.peak?.date
     ? `${label(en, '较', 'From ')} ${shortDate(event.peak.date, en)} ${label(en, '前高', 'peak')}` : '';
+  const showCurrencyState = info.converted && !returnDrawdown;
   return <article className="rj-post rj-post-link rj-timeline-post" data-rj-entry-key={`timeline:${event.id}`}
     role="link" tabIndex={0} aria-label={`${label(en, '查看', 'View ')}${event.title}`} onClick={clickPost}
     onKeyDown={click => { if (click.target === click.currentTarget && (click.key === 'Enter' || click.key === ' ')) { click.preventDefault(); open(click); } }}>
@@ -81,7 +106,7 @@ export default function ReviewTimelinePost({ event, avatarNode, authorNode, comm
           {metric.secondary && <div className="rj-system-secondary"><span>{metric.secondaryTitle}</span><strong style={style(metric.secondaryDirection, marketColorMode)}>{metric.secondary}</strong></div>}
         </div>
         {showChart && <TimelineChart event={event} marketColorMode={marketColorMode} language={language} {...currency} />}
-        {(peakCaption || info.converted) && <div className="rj-system-caption">{peakCaption && <span>{peakCaption}</span>}{info.converted && <span>{info.available ? label(en, '人民币折算', 'CNY conversion') : label(en, '汇率暂不可用', 'FX unavailable')}</span>}</div>}
+        {(peakCaption || showCurrencyState) && <div className="rj-system-caption">{peakCaption && <span>{peakCaption}</span>}{showCurrencyState && <span>{info.available ? label(en, '人民币折算', 'CNY conversion') : label(en, '汇率暂不可用', 'FX unavailable')}</span>}</div>}
       </div>}
       <div className="rj-post-actions"><button type="button" onClick={open} aria-label={`${label(en, '查看', 'View ')}${event.title}${label(en, '的评论', ' comments')}`}><MessageCircle size={18}/><span>{commentCount || label(en, '评论', 'Comment')}</span></button></div>
     </div>

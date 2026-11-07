@@ -106,6 +106,25 @@ test('only the latest drawdown cycle appears and updates or recovery keep its or
   }
 });
 
+test('net-asset and annual return drawdowns retain separate latest events under the same visibility setting', () => {
+  const returns = { ...drawdown, id: 'drawdown:cumulative_return:2026-10-06', metric: 'cumulative_return', title: '收益率回落' };
+  const olderReturn = { ...returns, id: 'drawdown:cumulative_return:2026-04-01', date: '2026-08-01', status: 'recovered' };
+  const olderNet = { ...drawdown, id: 'drawdown:net_assets:2026-04-01', date: '2026-08-02', status: 'recovered' };
+  const source = Object.freeze([olderReturn, drawdown, olderNet, returns].map(Object.freeze));
+  const preferences = { ...DEFAULT_REVIEW_PREFERENCES, eventTypes: ['drawdown'] };
+  const result = mergeReviewTimelineFeed([], source, preferences);
+  assert.deepEqual(result.map(item => item.id), [returns.id, drawdown.id]);
+  assert.equal(result[0].event, returns);
+  assert.equal(reviewTimelineCategory(returns), 'drawdown');
+  assert.equal(reviewTimelineCategory({ ...returns, metric: 'unknown' }), null);
+  assert.deepEqual(mergeReviewTimelineFeed([], source, { ...preferences, eventTypes: [] }), []);
+  assert.deepEqual(mergeReviewTimelineFeed([], source, preferences, { query: '收益率回落' }).map(item => item.id), [returns.id]);
+  assert.equal(source.length, 4);
+  const yearEnd = { ...returns, status: 'interrupted', interruptionReason: 'year_boundary' };
+  assert.equal(mergeReviewTimelineFeed([], [yearEnd], preferences, { query: '年度结束' }).length, 1);
+  assert.equal(mergeReviewTimelineFeed([], [yearEnd], preferences, { query: '恢复中' }).length, 0);
+});
+
 test('daily best and worst records each retain their latest event while legacy directionless records remain separate', () => {
   const daily = events.find(event => event.id === 'daily');
   const best = { ...daily, id: 'daily:best:new', recordDirection: 'best', date: '2026-11-05', value: 3 };

@@ -112,6 +112,26 @@ test('first evaluation atomically creates one container and no ordinary feed ite
   assert.equal(restoreReviewDraft({ ...saved }, USER).timelineEvent, undefined);
 });
 
+test('return drawdown evaluations retain their own stable container independently of net-asset drawdowns', async () => {
+  const f = fixture(), repo = f.repository();
+  const reference = event({ id: 'drawdown:cumulative_return:2026-10-06', metric: 'cumulative_return', title: '收益率回落' });
+  const returns = entry({ text: reference.title, timelineEvent: reference });
+  const assetSaved = await repo.appendTimelineReply(entry(), reply(), USER);
+  const saved = await repo.appendTimelineReply(returns, reply(), USER);
+  const retried = await repo.appendTimelineReply(returns, reply(), USER);
+  assert.notEqual(saved.id, assetSaved.id);
+  assert.notEqual(saved.operationId, assetSaved.operationId);
+  assert.equal(saved.id, retried.id);
+  assert.equal(retried.replies.length, 1);
+  assert.deepEqual(saved.timelineEvent, reference);
+  assert.equal(saved.date, reference.date);
+  assert.equal(f.rows.length, 2);
+  assert.deepEqual(reviewJournalFeed([], [assetSaved, saved]), []);
+  const edited = await repo.updateReply(saved, saved.replies[0], { ...saved.replies[0], text: '收益率从年内高点回落', score: 4 }, USER);
+  assert.deepEqual(edited.timelineEvent, reference);
+  assert.equal(edited.replies[0].score, 4);
+});
+
 test('same-event submissions merge, retry idempotently and never overwrite the original event title', async () => {
   const f = fixture(), repo = f.repository();
   const first = await repo.appendTimelineReply(entry(), reply(), USER);

@@ -3,6 +3,11 @@ import { CURRENT_RELEASE } from './releaseMeta.js';
 export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
+    items: ['回撤动态文案随当前数据更新；新增年内收益率高点回落记录，与净资产回撤分别显示并保留各自评价。月、季、年纪录改为明确的月份、季度和年度最佳／最差，并移除数据说明提示。'],
+    itemsEn: ['Drawdown summaries now follow current data. Added annual return-peak decline records, separate from net-asset drawdowns and their evaluations. Period record labels now identify monthly, quarterly, and yearly best or worst results, and the data-notes panel is removed.'],
+  },
+  {
+    ver: 'v10.7.9.597', date: '2026-11-07',
     items: ['合并后的系统动态按最新数据日期显示并排序，详情作者日期同步；取消底部重复的更新日期，原周期节点和评价保持不变。'],
     itemsEn: ['Condensed activity now displays and sorts by its latest data date, including the detail byline. Removed the duplicate update date; original cycle milestones and evaluations stay unchanged.'],
   },

@@ -16,7 +16,8 @@ const row = (date, net, extra = {}) => ({
   ...extra,
 });
 const build = (snapshots, movements = [], options = {}) => buildReviewTimeline({ snapshots, movements, now: NOW, expectedUserId: OWNER, ...options });
-const cycles = result => result.events.filter(event => event.kind === 'drawdown');
+const cycles = result => result.events.filter(event => event.kind === 'drawdown' && event.metric === 'net_assets');
+const returnCycles = result => result.events.filter(event => event.kind === 'drawdown' && event.metric === 'cumulative_return');
 const flow = (date, kind, delta, extra = {}) => ({ id: `flow-${date}`, user_id: OWNER, kind, delta_usd: delta,
   cash_event_id: '2', occurred_at: `${date}T16:00:00Z`, ...extra });
 const sessions = (start, end) => {
@@ -188,6 +189,129 @@ test('quarter and year close only when every expected report observation is pres
   assert.equal(periods.filter(event => event.periodType === 'quarter').length, 4);
   const beforeYearClose = build(rows, [], { now: Date.parse('2025-12-31T16:00:00Z') });
   assert.equal(beforeYearClose.events.some(event => event.periodType === 'year'), false);
+});
+
+test('return declines use the same year-peak difference as snapshots, independently of net assets', () => {
+  const rows = [row('2026-11-02', 100, { cumulative_pnl_pct: .3691 }),
+    row('2026-11-03', 150, { cumulative_pnl_pct: .0339 })];
+  const result = build(rows), event = returnCycles(result)[0];
+  assert.equal(cycles(result).length, 0);
+  assert.equal(event.id, 'drawdown:cumulative_return:2026-11-02');
+  assert.equal(event.title, '收益率回落');
+  assert.equal(event.basis, 'pnl_report_return_decline');
+  assert.ok(Math.abs(event.drawdownPct + 33.52) < 1e-10);
+  assert.ok(Math.abs(event.peak.cumulativeReturnPct - 36.91) < 1e-10);
+  assert.ok(Math.abs(event.current.cumulativeReturnPct - 3.39) < 1e-10);
+  const precise = returnCycles(build([row('2026-11-02', 100, { cumulative_pnl_pct: .369143 }),
+    row('2026-11-03', 100, { cumulative_pnl_pct: .03385 })]))[0];
+  assert.ok(Math.abs(precise.drawdownPct + 33.5293) < 1e-10, 'subtract original data before formatting');
+});
+
+test('return declines start at ten and keep the same event while current and worst declines change', () => {
+  const dates = sessions('2026-11-02', '2026-11-06');
+  const rows = dates.map((date, index) => row(date, 100, { cumulative_pnl_pct: [.3691, .2692, .2691, .0039, .0339][index] }));
+  assert.equal(returnCycles(build(rows.slice(0, 2))).length, 0);
+  const first = returnCycles(build(rows.slice(0, 3)))[0], latest = returnCycles(build(rows))[0];
+  assert.equal(first.trigger.date, dates[2]);
+  assert.ok(Math.abs(first.drawdownPct + 10) < 1e-10);
+  assert.equal(latest.id, first.id);
+  assert.equal(latest.date, dates[4]);
+  assert.equal(latest.endDate, dates[4]);
+  assert.equal(latest.status, 'active');
+  assert.equal(latest.trough.date, dates[3]);
+  assert.ok(Math.abs(latest.drawdownPct + 33.52) < 1e-10);
+  assert.ok(Math.abs(latest.maxDrawdownPct + 36.52) < 1e-10);
+  assert.deepEqual(latest.nodes.map(node => node.key), ['peak', 'trigger', 'trough', 'current']);
+  assert.deepEqual(build(rows), build([...rows].reverse()));
+});
+
+test('negative year peaks remain negative and recovery requires regaining the original return', () => {
+  const dates = sessions('2026-11-02', '2026-11-06');
+  const rows = dates.map((date, index) => row(date, 100, { cumulative_pnl_pct: [-.05, -.15, -.2, -.04, -.14][index] }));
+  const events = returnCycles(build(rows));
+  assert.equal(events.length, 2);
+  const first = events.find(event => event.peak.date === dates[0]);
+  assert.equal(first.status, 'recovered');
+  assert.equal(first.drawdownPct, 0);
+  assert.equal(first.maxDrawdownPct, -15);
+  assert.equal(first.peak.cumulativeReturnPct, -5);
+  assert.equal(first.current.cumulativeReturnPct, -4);
+  assert.equal(first.nodes.at(-1).key, 'recovery');
+  assert.equal(events[0].peak.date, dates[3]);
+  assert.ok(Math.abs(events[0].drawdownPct + 10) < 1e-10);
+});
+
+test('year changes close an unrecovered return event without claiming recovery or carrying the old high', () => {
+  const rows = [row('2025-12-30', 100, { cumulative_pnl_pct: .4 }), row('2025-12-31', 100, { cumulative_pnl_pct: .2 }),
+    row('2026-01-02', 100, { cumulative_pnl_pct: .05 }), row('2026-01-05', 100, { cumulative_pnl_pct: -.05 })];
+  const events = returnCycles(build(rows)), prior = events.find(event => event.startDate === '2025-12-30');
+  assert.equal(prior.status, 'interrupted');
+  assert.equal(prior.interruptionReason, 'year_boundary');
+  assert.equal(prior.date, '2025-12-31');
+  assert.equal(prior.drawdownPct, -20);
+  assert.equal(events[0].peak.date, '2026-01-02');
+  assert.equal(events[0].drawdownPct, -10);
+  assert.equal(returnCycles(build(rows.slice(0, 2)))[0].interruptionReason, 'year_boundary', 'year closes even without a new-year observation');
+  const missing = build([row('2025-12-29', 100, { cumulative_pnl_pct: .4 }), row('2025-12-30', 100, { cumulative_pnl_pct: .2 }),
+    row('2025-12-31', 100, { cumulative_pnl_pct: null }), rows[2]]);
+  assert.equal(returnCycles(missing)[0].interruptionReason, 'missing_return', 'year-end must not hide an earlier data gap');
+});
+
+test('missing returns or sessions preserve the year peak but neither bridge the curve nor claim recovery', () => {
+  for (const missing of ['return', 'session']) {
+    const rows = [row('2026-11-02', 100, { cumulative_pnl_pct: .4 }), row('2026-11-03', 100, { cumulative_pnl_pct: .2 }),
+      ...(missing === 'return' ? [row('2026-11-04', 100, { cumulative_pnl_pct: null })] : []),
+      row('2026-11-05', 100, { cumulative_pnl_pct: .1 }), row('2026-11-06', 100, { cumulative_pnl_pct: .41 })];
+    const result = build(rows), event = returnCycles(result)[0];
+    assert.equal(event.status, 'interrupted');
+    assert.equal(event.interruptionReason, `missing_${missing}`);
+    assert.equal(event.peak.date, '2026-11-02');
+    assert.equal(event.date, '2026-11-06');
+    assert.equal(event.drawdownPct, 0);
+    assert.equal(event.maxDrawdownPct, -30);
+    assert.deepEqual(event.points.map(point => point.date), ['2026-11-05', '2026-11-06']);
+    assert.equal(event.nodes.at(-1).key, 'current');
+    assert.match(result.warnings.join(''), /曲线不跨缺口连接/);
+  }
+  const event = returnCycles(build([row('2026-11-02', 100, { cumulative_pnl_pct: .4 }),
+    row('2026-11-04', 100, { cumulative_pnl_pct: .35 }), row('2026-11-05', 100, { cumulative_pnl_pct: .2 })]))[0];
+  assert.equal(event.peak.cumulativeReturnPct, 40, 'a post-gap value cannot replace the earlier year peak');
+  assert.equal(event.drawdownPct, -20);
+  assert.equal(event.status, 'interrupted');
+});
+
+test('report-only snapshots and cash movements do not replace the return comparison with net assets', () => {
+  const rows = [row('2026-11-02', 100, { source_version: 'pnl_snapshot_v1', cumulative_pnl_pct: .4 }),
+    row('2026-11-03', 170, { source_version: 'pnl_snapshot_v1', cumulative_pnl_pct: .2, cash_event_id: '2', cash_effective_at: '2026-11-03T16:00:00Z' })];
+  const result = build(rows, [flow('2026-11-03', 'transfer_in', 70)]), event = returnCycles(result)[0];
+  assert.equal(result.coverage.netAssetCount, 0);
+  assert.equal(event.status, 'active');
+  assert.equal(event.drawdownPct, -20);
+  assert.equal(event.current.netAssetsUsd, null);
+  assert.equal(event.current.cumulativeReturnPct, 20);
+  assert.equal(event.interruptionReason, undefined);
+});
+
+test('period record names identify months quarters and years while retaining their original IDs and values', () => {
+  const dates = sessions('2022-12-30', '2025-12-31');
+  let value = 0;
+  const rows = dates.map(date => {
+    const year = Number(date.slice(0, 4));
+    value += ({ 2022: 0, 2023: .001, 2024: .002, 2025: -.003 })[year];
+    return row(date, 100, { cumulative_pnl_pct: value, cumulative_pnl_usd: value * 100,
+      cash_effective_at: '2022-01-01T12:00:00Z' });
+  });
+  const periods = build(rows).events.filter(event => event.kind === 'period' && event.recordDirection);
+  for (const [type, title] of [['month', '月份'], ['quarter', '季度'], ['year', '年度']]) {
+    for (const [direction, adjective] of [['best', '最佳'], ['worst', '最差']]) {
+      const event = periods.find(event => event.periodType === type && event.recordDirection === direction);
+      assert.ok(event, `${type} ${direction}`);
+      assert.ok(event.title.endsWith(` · ${title}${adjective}`));
+      assert.equal(event.id, `period:${type}:${event.periodStartDate}`);
+      assert.equal(event.value, event.current.cumulativeReturnPct - event.baseline.cumulativeReturnPct);
+    }
+  }
+  assert.ok(periods.every(event => !event.title.includes('已记录周期')));
 });
 
 test('daily record titles are bounded to the year and require a prior observation', () => {

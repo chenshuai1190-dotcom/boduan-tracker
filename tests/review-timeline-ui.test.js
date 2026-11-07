@@ -161,6 +161,16 @@ test('timeline labels omit comparison explanations and system-record badges but 
   assert.match(renderToStaticMarkup(english), /Recovering/);
 });
 
+test('the timeline omits the global data-notes panel without hiding its events', async () => {
+  const h = await harness();
+  const warnings = ['资金变化说明', '收益率缺口说明'];
+  const tree = h.render('default', { data: { events: [cycle], warnings } });
+  const html = renderToStaticMarkup(tree);
+  assert.doesNotMatch(html, /数据说明|Data notes|rjt-data-notice|资金变化说明|收益率缺口说明/);
+  assert.match(html, /当前回撤|净资产回撤/);
+  assert.deepEqual(warnings, ['资金变化说明', '收益率缺口说明']);
+});
+
 test('new-high details retain real net-asset history and never fill an absent series', async () => {
   const h = await harness();
   const event = { id: 'high', kind: 'high', metric: 'net_assets', title: '净资产新高', date: current.date, value: 100000, valueType: 'money', points: [trigger, peak], nodes: [{ key: 'current', label: '新高', point: peak }] };
@@ -202,4 +212,101 @@ test('missing CNY rate shows unavailable balances and no mislabeled USD chart', 
   const headline = { id: 'high', kind: 'high', metric: 'net_assets', valueType: 'money', value: 100000, date: current.date, nodes: [], points: [] };
   const card = h.render('TimelineEvent', { event: headline, displayCurrency: 'CNY' });
   assert.equal(byClass(card, 'rjt-event-primary').props.children[0].props.children, '—');
+});
+
+const returnPeak = { ...peak, cumulativeReturnPct: 36.91 };
+const returnTrigger = { ...trigger, cumulativeReturnPct: 26.91 };
+const returnTrough = { ...trough, cumulativeReturnPct: .64 };
+const returnCurrent = { ...current, cumulativeReturnPct: 3.39 };
+const returnCycle = { ...cycle, id: 'drawdown:cumulative_return:2026-10-01', metric: 'cumulative_return', title: '收益率回落',
+  value: -33.52, drawdownPct: -33.52, maxDrawdownPct: -36.27,
+  peak: returnPeak, trigger: returnTrigger, trough: returnTrough, current: returnCurrent,
+  points: [returnPeak, returnTrigger, returnTrough, returnCurrent],
+  nodes: [{ key: 'peak', label: '年内高点', point: returnPeak }, { key: 'trigger', label: '首次回落 10%', point: returnTrigger },
+    { key: 'trough', label: '最低点', point: returnTrough }, { key: 'current', label: '最近收盘', point: returnCurrent }] };
+
+test('return declines show percentage magnitudes separately from net assets in both financial color modes', async () => {
+  const h = await harness();
+  for (const marketColorMode of Object.values(MARKET_COLOR_MODES)) {
+    const list = h.render('TimelineEvent', { event: returnCycle, marketColorMode, displayCurrency: 'CNY', usdCny: 7.2 });
+    const primary = byClass(list, 'rjt-event-primary').props.children[0];
+    assert.equal(primary.props.children, '36.27%');
+    assert.equal(primary.props.style.color, marketHexColor(-36.27, marketColorMode));
+    const stops = renderToStaticMarkup(byClass(list, 'rjt-three-values'));
+    assert.match(stops, /年内高点.*\+36\.91%.*\+0\.64%.*\+3\.39%/);
+    assert.doesNotMatch(stops, /¥|\$/);
+    const detail = h.render('TimelineDetail', details({ event: returnCycle, marketColorMode, displayCurrency: 'CNY', usdCny: 7.2 }));
+    const stats = byClass(detail, 'rjt-detail-stats');
+    const figures = walk(stats).filter(node => node.type === 'strong');
+    assert.equal(figures[0].props.children, '33.52%');
+    assert.equal(figures[0].props.style.color, marketHexColor(-33.52, marketColorMode));
+    assert.equal(figures[2].props.children, '+3.39%');
+    assert.equal(figures[2].props.style.color, marketHexColor(3.39, marketColorMode));
+    assert.match(renderToStaticMarkup(stats), /较年内高点回落.*当前收益率/);
+    assert.match(renderToStaticMarkup(byClass(detail, 'rjt-metric-grid')), /¥576,000\.00/);
+    assert.match(renderToStaticMarkup(byClass(detail, 'rjt-chart-heading')), /累计收益率走势 · %/);
+    assert.doesNotMatch(renderToStaticMarkup(byClass(detail, 'rjt-detail-metric')), /-36\.27%/);
+  }
+});
+
+test('return charts use cumulative percentages independent of cash balances and FX, with a ten-point decline threshold', async () => {
+  const h = await harness(), chart = options => h.components.TimelineChart({ event: returnCycle, detail: true, ...options });
+  const usd = chart(), cny = chart({ displayCurrency: 'CNY', usdCny: 7.2 }), unavailableFx = chart({ displayCurrency: 'CNY', usdCny: null });
+  const path = byClass(usd, 'rjt-chart-line').props.d;
+  assert.equal(byClass(cny, 'rjt-chart-line').props.d, path);
+  assert.equal(byClass(unavailableFx, 'rjt-chart-line').props.d, path);
+  assert.match(renderToStaticMarkup(unavailableFx), /累计收益率历史走势 · %/);
+  assert.doesNotMatch(renderToStaticMarkup(unavailableFx), /USD|CNY|汇率|净资产/);
+  const changedBalances = { ...returnCycle, points: returnCycle.points.map(point => ({ ...point, netAssetsUsd: 1, chartValue: 1 })) };
+  assert.equal(byClass(chart({ event: changedBalances }), 'rjt-chart-line').props.d, path);
+  const plottedPoints = [...path.matchAll(/[ML]([\d.-]+),([\d.-]+)/g)];
+  assert.ok(Math.abs(byClass(usd, 'rjt-chart-threshold').props.y1 - Number(plottedPoints[1][2])) < .01, 'the threshold meets the point whose return is exactly ten points below the peak');
+  const negative = { ...returnCycle, peak: { ...returnPeak, cumulativeReturnPct: -2 },
+    points: [{ ...returnPeak, cumulativeReturnPct: -2 }, { ...returnTrigger, cumulativeReturnPct: -12 }, { ...returnCurrent, cumulativeReturnPct: -15 }] };
+  assert.ok(byClass(chart({ event: negative }), 'rjt-chart-threshold'), 'a negative return high still has an additive ten-point threshold');
+});
+
+test('return milestones show selected returns and peak differences without substituting net-asset ratios', async () => {
+  const h = await harness(), props = details({ event: returnCycle });
+  let detail = h.render('TimelineDetail', props);
+  let figures = walk(byClass(detail, 'rjt-node-value')).filter(node => ['strong', 'span'].includes(node.type));
+  assert.deepEqual(figures.map(node => node.props.children), ['+3.39%', '33.52%']);
+  const selectTrigger = walk(byClass(detail, 'rjt-node-tabs')).find(node => node.type === 'button' && node.props.children[0] === '首次回落 10%');
+  selectTrigger.props.onClick(); detail = h.render('TimelineDetail', props);
+  figures = walk(byClass(detail, 'rjt-node-value')).filter(node => ['strong', 'span'].includes(node.type));
+  assert.deepEqual(figures.map(node => node.props.children), ['+26.91%', '10.00%']);
+  assert.match(renderToStaticMarkup(byClass(detail, 'rjt-node-detail')), /累计收益率.*2026-10-02/);
+  const selectPeak = walk(byClass(detail, 'rjt-node-tabs')).find(node => node.type === 'button' && node.props.children[0] === '年内高点');
+  selectPeak.props.onClick(); detail = h.render('TimelineDetail', props);
+  assert.match(renderToStaticMarkup(byClass(detail, 'rjt-node-value')), /\+36\.91%.*0\.00%/);
+  const absent = { ...returnCycle, current: { ...returnCurrent, cumulativeReturnPct: null }, nodes: [], points: [{ ...returnPeak, cumulativeReturnPct: null }] };
+  const missing = renderToStaticMarkup(h.components.TimelineChart({ event: absent, detail: true }));
+  assert.match(missing, /连续收益率曲线/); assert.doesNotMatch(missing, /<svg|<path|100,000/);
+  const missingDetail = h.render('TimelineDetail', details({ event: absent }));
+  assert.equal(byClass(missingDetail, 'rjt-node-value'), undefined, 'without nodes or a series there is no node card');
+  const currentReading = byClass(missingDetail, 'rjt-detail-net');
+  assert.match(renderToStaticMarkup(currentReading), /当前收益率.*—/);
+  assert.doesNotMatch(renderToStaticMarkup(currentReading), /80,000|0\.00%/);
+  const missingNode = { ...absent, nodes: [{ key: 'current', label: '最近收盘', point: absent.current }] };
+  const nodeDetail = h.render('TimelineDetail', details({ event: missingNode }));
+  assert.match(renderToStaticMarkup(byClass(nodeDetail, 'rjt-node-value')), /—.*—/);
+  assert.doesNotMatch(renderToStaticMarkup(byClass(nodeDetail, 'rjt-node-value')), /80,000|0\.00%/);
+});
+
+test('return year boundaries and gaps preserve interrupted states without fabricated recovery or selected chart points', async () => {
+  const h = await harness();
+  const ended = { ...returnCycle, status: 'interrupted', interruptionReason: 'year_boundary' };
+  for (const component of ['TimelineEvent', 'TimelineDetail']) {
+    const html = renderToStaticMarkup(h.render(component, details({ event: ended })));
+    assert.match(html, /本年度已结束/);
+    assert.doesNotMatch(html, /数据待核对|恢复中/);
+  }
+  const missing = renderToStaticMarkup(h.render('TimelineDetail', details({ event: { ...returnCycle, status: 'interrupted', interruptionReason: 'missing_return' } })));
+  assert.match(missing, /收益率数据缺失.*未判定为恢复/);
+  const gap = { ...returnCycle, status: 'interrupted', interruptionReason: 'missing_session', points: [returnTrough, returnCurrent] };
+  const oldPeak = renderToStaticMarkup(h.components.TimelineChart({ event: gap, selectedPoint: returnPeak, detail: true }));
+  assert.match(oldPeak, /所选节点不在当前连续数据区间/);
+  assert.doesNotMatch(oldPeak, /rjt-chart-selected|rjt-chart-cursor/);
+  const latest = h.components.TimelineChart({ event: gap, selectedPoint: returnCurrent, detail: true });
+  assert.ok(byClass(latest, 'rjt-chart-selected'));
 });

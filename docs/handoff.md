@@ -1,6 +1,6 @@
 # boduan-tracker 当前交接
 
-验证时间：`2026-11-07 Asia/Shanghai`。延续已授权上线，让合并系统动态的日期和排序跟随最新数据日期。稳定规则看 `README.md`，流程看 `docs/development-process.md`。
+验证时间：`2026-11-07 Asia/Shanghai`。延续已授权上线，让回撤正文随当前数据更新，新增年内收益率回落记录并明确月季年纪录名称。稳定规则看 `README.md`，流程看 `docs/development-process.md`。
 
 ## 当前生产基准
 
@@ -8,15 +8,15 @@
 | --- | --- |
 | 仓库 | `chenshuai1190-dotcom/boduan-tracker`；唯一发布来源 `main` |
 | 当前工作区 | `/Users/chenshuaishuai/Documents/Codex/2026-10-03/quote-boduan-tracker-2026-10-03/work/quiet-input-fields` |
-| 发布前生产源码 | `bd91e1f651c903faf2e26558b19e7eda7bb572b3 / v10.7.9.596`；既有 CI、Vercel 与生产静态产物验证通过 |
-| 发布前部署 | Vercel `9xH3viPTimsJkkYoZptU4nj2wRXT`；`https://boduan-tracker.vercel.app` |
-| 本次候选版本 | `v10.7.9.597 / 2026-11-07`：合并动态使用最新数据日期显示与排序 |
+| 发布前生产源码 | `7ebf04c83a5064bd992c00ef514c1b8ad68c01d9 / v10.7.9.597`；既有 CI、Vercel 与生产静态产物验证通过 |
+| 发布前部署 | Vercel `H2HnFSuo4pSYqP14eDKXJGA5MrMt`；`https://boduan-tracker.vercel.app` |
+| 本次候选版本 | `v10.7.9.598 / 2026-11-07`：动态回撤正文、独立收益率回落和月季年纪录文案 |
 | 已生效云端配置 | `supabase/review_display_preferences_20261107.sql` 已应用；新增独立本人显示偏好表，RLS 开启、3 条 owner policy、匿名无 SELECT、authenticated 无 DELETE；原复盘与正式交易记录数量保持不变 |
 | 生产 Checks | 本会话控制台只读核对为“未配置任何检查”；保留仓库 CI 与 Docs，等待精确提交 CI + Docs + Vercel，不宣称平台已配置晋级阻断 |
 
 ## 本次证据与既有边界
 
-- v597 将合并动态的头部日期、排序和详情作者日期统一为有效事件数据日期；缺失时回退至结束日期及原有起点日期。底部重复更新日期取消，原始事件 ID、周期起点、节点与评价不变，不改变计算或历史数据。走 FAST，包含 feed、post、详情及页面集成回归，最终结果以精确提交发布等待器为准。
+- v598 回撤正文取当前实际回撤值；独立增加累计收益率年内高点回落，使用已完成报表的收益率差值，达到 10 起记，保留年内峰值、缺口中断及跨年截止边界。净资产和收益率各留最新事件并共用回撤开关，评价按原类型/ID隔离。收益率图表和节点使用百分比，不随 FX 折算；月季年纪录仅改名称，并删除全局数据说明入口，保留具体事件状态。走 FULL，不改报表、交易、快照、持久化或 PWA；最终结果以精确提交发布等待器为准。
 - v590 已通过 FULL（3,703 tests，3,701 pass，2 项既有 skip）、已安装 PWA 冷启动保存回读、CI/Docs/Vercel 及线上普通博文与系统动态只读验收。下列相关证据与边界沿用。
 
 - 底部“复盘”改为“动态”，模块“投资复盘”改为“投资动态”；复盘日志、投资心得、投资目标不改名。左上头像打开独立动态设置页，返回恢复列表分类、搜索及阅读位置。
@@ -27,7 +27,7 @@
 - 原有时间线 10% 起点、原前高恢复、资金变化/历史缺口分段、完成收盘与评价幂等容器边界保持不变；既有股票 replay、附件、普通博文和投资目标回归覆盖。
 - 页面交互与定向测试已覆盖 settings 历史往返、偏好确认前不请求时间线、失效请求忽略、切换分类不重复加载、共用评论、金额与百分比颜色。iPhone 17 Pro iOS 26.5 Safari 设置页已出原生 1206×2622 PNG；证据位于外层 `local-previews/review/dynamic-settings-evidence/`。
 - 最终 FULL、已安装 Quote Home Screen PWA 的当前构建验收、精确 SHA 发布等待器及线上只读结果，以本轮发布输出和该证据目录为准。发布前不把候选版本写成已上线；不改 PWA/实时生命周期或行情缓存恢复逻辑。
-- 本次发布步骤：最终 FAST → 一次提交/push main → `release:verify -- fast <exact commit>` → 一轮线上日期、排序和周期起点只读 smoke。回退仅回退前端提交，新增偏好表保留且旧版不使用；不删除设置行、不放宽 RLS。
+- 本次发布步骤：最终 FULL → 一次提交/push main → `release:verify -- full <exact commit>` → 一轮线上两类回撤、收益率高点差值与周期名称只读 smoke。回退仅回退前端提交，新增偏好表保留且旧版不使用；不删除设置行、不放宽 RLS。
 
 ## 可用现金与资产联动
 
