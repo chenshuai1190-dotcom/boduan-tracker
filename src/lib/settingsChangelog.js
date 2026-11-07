@@ -3,6 +3,11 @@ import { CURRENT_RELEASE } from './releaseMeta.js';
 export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
+    items: ['后续账户增加“博文发布后 X 天账户收益率变化”提示，按博文到快照日期的自然天数展示，已保存收益数值保持不变。'],
+    itemsEn: ['Later account snapshots now label returns with the number of calendar days since the journal date, while keeping saved return values unchanged.'],
+  },
+  {
+    ver: 'v10.7.9.585', date: '2026-11-07',
     items: ['账户快照默认博文当日，也可选择之后已完成收盘的交易日，从后视视角查看收益、高点与回落；后续快照标明实际数据日期，保存后保持固定。'],
     itemsEn: ['Account snapshots still default to the journal date and can now reference later completed trading days for hindsight reviews of returns, peaks, and declines. Later snapshots show their source date and remain fixed after saving.'],
   },

@@ -36,9 +36,10 @@ function RatingStar({ fill }) {
 export function ReviewAccountCard({ value, marketColorMode }) {
   const snapshot = normalizeReviewAccountSnapshot(value);
   if (!snapshot) return null;
+  const daysAfterPost = (Date.parse(`${snapshot.asOfDate}T00:00:00Z`) - Date.parse(`${snapshot.recordDate}T00:00:00Z`)) / 86400000;
   const keys = Object.keys(ACCOUNT_LABELS);
   const items = [...snapshot.items].sort((a,b)=>keys.indexOf(a.key)-keys.indexOf(b.key));
-  return <section className="review-market-card rev-account-card" aria-label="已保存的账户快照"><div className="review-market-card-heading"><span>{snapshot.asOfDate>snapshot.recordDate?'后续账户':'当时的账户'}</span><time dateTime={snapshot.asOfDate}>{snapshot.asOfDate}</time></div><div className="rev-account-values" data-count={items.length}>{items.map(item => <div key={item.key} data-metric={item.key} className={item.key === 'cumulativeReturnPct' ? 'rev-account-primary' : undefined}><span>{ACCOUNT_LABELS[item.key]}</span><strong style={metricStyle(item,marketColorMode)}>{formatMetric(item)}</strong>{item.key === 'yearPeakReturnPct' && <small><time dateTime={item.peakDate}>{Number(item.peakDate.slice(5,7))}月{Number(item.peakDate.slice(8,10))}日</time></small>}{item.key === 'leverage' && <small>总资产 / 净资产</small>}</div>)}</div></section>;
+  return <section className="review-market-card rev-account-card" aria-label="已保存的账户快照"><div className="review-market-card-heading"><span>{daysAfterPost>0?'后续账户':'当时的账户'}</span><time dateTime={snapshot.asOfDate}>{snapshot.asOfDate}</time></div><div className="rev-account-values" data-count={items.length}>{items.map(item => <div key={item.key} data-metric={item.key} className={item.key === 'cumulativeReturnPct' ? 'rev-account-primary' : undefined}><span>{item.key==='cumulativeReturnPct'&&daysAfterPost>0?`博文发布后 ${daysAfterPost} 天账户收益率变化`:ACCOUNT_LABELS[item.key]}</span><strong style={metricStyle(item,marketColorMode)}>{formatMetric(item)}</strong>{item.key === 'yearPeakReturnPct' && <small><time dateTime={item.peakDate}>{Number(item.peakDate.slice(5,7))}月{Number(item.peakDate.slice(8,10))}日</time></small>}{item.key === 'leverage' && <small>总资产 / 净资产</small>}</div>)}</div></section>;
 }
 export function ReviewTradeReferences({ trades, userId, language, previewHistory }) {
   const [open, setOpen] = React.useState(null);

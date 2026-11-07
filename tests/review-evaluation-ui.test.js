@@ -345,6 +345,29 @@ test('account cards format the year high and decline with percent signs, date th
   h.cleanup();
 });
 
+test('hindsight return labels count calendar days to the snapshot and leave saved returns unchanged', async () => {
+  const h = await harness();
+  for (const [recordDate, asOfDate, days] of [
+    ['2026-10-28', '2026-11-05', 8],
+    ['2026-10-31', '2026-11-02', 2],
+    ['2024-02-28', '2024-03-01', 2],
+    ['2025-12-31', '2026-01-01', 1],
+    ['2026-11-05', '2026-11-05', 0],
+    ['2026-11-06', '2026-11-05', -1],
+  ]) {
+    const value = accountSnapshot({ recordDate, asOfDate, items: [
+      { key: 'cumulativeReturnPct', value: 20, asOfDate, basis: 'close', source: 'pnl_report' },
+    ] });
+    const frozen = structuredClone(value), card = h.components.ReviewAccountCard({ value });
+    const metric = accountMetric(card, 'cumulativeReturnPct');
+    assert.equal(text(find(metric, node => node.type === 'span')), days > 0 ? `博文发布后 ${days} 天账户收益率变化` : '截至该日累计收益率');
+    assert.equal(text(find(metric, node => node.type === 'strong')), '+20.00%');
+    assert.ok(text(card).startsWith(`${days > 0 ? '后续账户' : '当时的账户'}${asOfDate}`));
+    assert.deepEqual(value, frozen);
+  }
+  h.cleanup();
+});
+
 test('zero decline remains neutral and legacy cards retain only their frozen three metrics', async () => {
   const h = await harness();
   const atPeak = accountSnapshot();
