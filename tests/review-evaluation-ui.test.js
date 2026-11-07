@@ -39,6 +39,7 @@ async function harness({ append } = {}) {
       import { localReviewDate } from ${moduleUrl('reviewJournalFeed')};
       import { normalizeReviewEvaluationTags, normalizeReviewAccountSnapshot, normalizeReviewTradeReferences } from ${moduleUrl('reviewEvaluationModel')};
       import { collectReviewReplayTrades } from ${moduleUrl('reviewStockReplayModel')};
+      import { keepReviewComposerInputVisible } from ${moduleUrl('reviewComposerVisibility')};
       import { marketTextHexColor } from ${moduleUrl('marketColorMode')};
       const { React, document, window, requestAnimationFrame } = globalThis[${JSON.stringify(key)}];
       const getVixComparisonExpectedCloseDate = () => '2026-11-06';

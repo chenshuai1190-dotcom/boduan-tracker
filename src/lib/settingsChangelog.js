@@ -3,6 +3,11 @@ import { CURRENT_RELEASE } from './releaseMeta.js';
 export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
+    items: ['修复写评价时 iPhone 键盘遮挡正文的问题，聚焦、换行和编辑长文时自动保持当前输入行可见。'],
+    itemsEn: ['Keep the active review line visible above the iPhone keyboard while focusing, typing, and editing long comments.'],
+  },
+  {
+    ver: 'v10.7.9.576', date: '2026-11-07',
     items: [
       '投资复盘评论升级为回看评价，支持五星10分、半星、预设及自定义标签、图片和表情；旧评论继续保留。',
       '评价可引用多笔真实买卖记录、对应日期的VIX及比率、恐慌与贪婪、账户收益率与杠杆，保存后保持原值；缺失历史数据不使用当前值替代。',

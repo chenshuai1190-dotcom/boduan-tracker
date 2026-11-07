@@ -7,6 +7,7 @@ import { getVixComparisonExpectedCloseDate } from '../lib/vixComparisonSession.j
 import { marketTextHexColor } from '../lib/marketColorMode.js';
 import { SnapshotCard, SnapshotPicker } from './ReviewMarketSnapshot.jsx';
 import ReviewStockReplay from './ReviewStockReplay.jsx';
+import { keepReviewComposerInputVisible } from '../lib/reviewComposerVisibility.js';
 import './ReviewEvaluation.css';
 
 const PRESET_TAGS = ['仓位过重', '买入过急', '过早卖出', '按计划执行', '判断得到验证'];
@@ -71,11 +72,49 @@ export default function ReviewEvaluationComposer({ open, entry, identityNode, db
   const [tagError,setTagError]=React.useState('');const composing=React.useRef(false);
   const [picker,setPicker]=React.useState('');const [busy,setBusy]=React.useState(false);const busyRef=React.useRef(false);const [error,setError]=React.useState('');
   const scrollRef=React.useRef(null);const tagRef=React.useRef(null);const fileRef=React.useRef(null);const textRef=React.useRef(null);const selection=React.useRef({start:0,end:0});
+  const visibilityRef=React.useRef(()=>{});
+  const keepInputVisible=()=>visibilityRef.current();
   const patch=value=>setDraft(old=>({...old,...value}));
   const nonempty=Boolean(draft.text.trim()||draft.score||draft.tags.length||draft.trades.length||draft.market||draft.account||draft.images.length||files.length);
   const availableTags=[...new Set([...PRESET_TAGS,...knownTags,...customTags,...draft.tags])];
   React.useEffect(()=>()=>filesRef.current.forEach(item=>URL.revokeObjectURL(item.url)),[]);
-  React.useEffect(()=>{if(!open)return undefined;const keepVisible=()=>requestAnimationFrame(()=>{if(document.activeElement!==tagRef.current)return;const form=tagRef.current?.closest('form');const bounds=scrollRef.current?.getBoundingClientRect();const box=form?.getBoundingClientRect();if(bounds&&box&&box.bottom>bounds.bottom-12)scrollRef.current.scrollTop+=box.bottom-bounds.bottom+12;});window.visualViewport?.addEventListener('resize',keepVisible);return()=>window.visualViewport?.removeEventListener('resize',keepVisible);},[open]);
+  React.useEffect(()=>{
+    if(!open)return undefined;
+    let frame;
+    let settledTimer;
+    const measure=()=>{
+      const input=document.activeElement;
+      if(input!==textRef.current&&input!==tagRef.current)return;
+      keepReviewComposerInputVisible(scrollRef.current,input,{contextElement:input===tagRef.current?input.closest('form'):undefined});
+    };
+    // Wait for Dialog's viewport frame and the growing textarea to finish layout.
+    const schedule=()=>{
+      if(frame!==undefined)cancelAnimationFrame(frame);
+      frame=requestAnimationFrame(()=>{frame=requestAnimationFrame(()=>{frame=undefined;measure();});});
+    };
+    // WebKit can apply its native caret scroll after viewport resize/paint.
+    const settle=()=>{
+      schedule();
+      clearTimeout(settledTimer);
+      settledTimer=setTimeout(schedule,350);
+    };
+    visibilityRef.current=settle;
+    const observer=typeof ResizeObserver==='undefined'?null:new ResizeObserver(schedule);
+    if(scrollRef.current)observer?.observe(scrollRef.current);
+    if(textRef.current)observer?.observe(textRef.current);
+    window.visualViewport?.addEventListener('resize',settle);
+    window.visualViewport?.addEventListener('scroll',settle);
+    document.addEventListener?.('selectionchange',schedule);
+    return()=>{
+      visibilityRef.current=()=>{};
+      if(frame!==undefined)cancelAnimationFrame(frame);
+      clearTimeout(settledTimer);
+      observer?.disconnect();
+      window.visualViewport?.removeEventListener('resize',settle);
+      window.visualViewport?.removeEventListener('scroll',settle);
+      document.removeEventListener?.('selectionchange',schedule);
+    };
+  },[open]);
   const toggleTag=tag=>{if(busy)return;setTagError('');if(!draft.tags.includes(tag)&&draft.tags.length>=8){setTagError('最多选择 8 个标签');return;}patch({tags:draft.tags.includes(tag)?draft.tags.filter(t=>t!==tag):[...draft.tags,tag]});};
   const addTag=e=>{e.preventDefault();if(composing.current)return;try{const [name]=normalizeReviewEvaluationTags([tagInput],{strict:true});if(!name)throw new Error('请输入标签名称');const existing=availableTags.find(tag=>tag.toLocaleLowerCase()===name.toLocaleLowerCase());const tag=existing||name;if(!draft.tags.includes(tag)&&draft.tags.length>=8)throw new Error('最多选择 8 个标签');if(!existing)setCustomTags(old=>[...old,tag]);patch({tags:draft.tags.includes(tag)?draft.tags:[...draft.tags,tag]});setTagInput('');setTagError('');setCustomOpen(false);document.activeElement?.blur();}catch(failure){setTagError(failure.message);}};
   const pickFiles=e=>{const chosen=[...(e.target.files||[])];e.target.value='';setError('');if(chosen.length+files.length+draft.images.length>4){setError('每条评价最多 4 张图片');return;}if(chosen.some(file=>!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size<=0||file.size>10*1024*1024)){setError('请选择 10 MB 以内的 JPG、PNG 或 WebP 图片');return;}setFiles(old=>[...old,...chosen.map(file=>({file,url:URL.createObjectURL(file)}))]);};
@@ -93,8 +132,8 @@ export default function ReviewEvaluationComposer({ open, entry, identityNode, db
   if(!open)return null;
   return <Dialog title="写评价" wide composer onClose={dismiss} headerAction={<button className="rj-publish" disabled={busy||!nonempty} onClick={save}>{busy?<Loader2 className="rj-spin" size={16}/>:'发布'}</button>}>
     <div className="rj-compose-scroll" ref={scrollRef}><div className="rev-original"><time>回看 · {entry.date}</time><p>{entry.text}</p></div><div className="rj-compose-author">{identityNode}</div><div className="rj-compose-content rev-compose-content"><div className="rev-score-label"><span>给当时的判断打个分</span>{draft.score&&<button disabled={busy} onClick={()=>patch({score:null})}>清除</button>}</div><div className="rev-score-row"><div className="rev-rating-input" role="slider" tabIndex={busy?-1:0} aria-label="评价评分" aria-valuemin={0} aria-valuemax={10} aria-valuenow={draft.score||0} aria-valuetext={draft.score?`${draft.score} 分，共 10 分`:'未评分'} onPointerDown={e=>{if(busy)return;const box=e.currentTarget.getBoundingClientRect();patch({score:Math.max(1,Math.min(10,Math.ceil((e.clientX-box.left)/box.width*10)))});}} onKeyDown={e=>{if(busy)return;if(['ArrowLeft','ArrowDown','ArrowRight','ArrowUp','Home','End'].includes(e.key)){e.preventDefault();const score=e.key==='Home'?0:e.key==='End'?10:Math.max(0,Math.min(10,(draft.score||0)+(['ArrowRight','ArrowUp'].includes(e.key)?1:-1)));patch({score:score||null});}}}>{[0,1,2,3,4].map(i=><RatingStar key={i} fill={Math.min(1,Math.max(0,(draft.score||0)/2-i))}/>)}</div><div className="rev-score-number"><strong>{draft.score||'—'}</strong><span>{draft.score?'分':'未评分'}</span></div></div><p className="rev-hint">轻点选星 · 支持半星 · 评分可留空</p><div className="rev-tag-toolbar"><div className="rev-tag-options">{availableTags.map(tag=><button key={tag} type="button" disabled={busy} aria-pressed={draft.tags.includes(tag)} onClick={()=>toggleTag(tag)}>{tag}</button>)}</div><button className="rev-custom-trigger" disabled={busy} aria-expanded={customOpen} onClick={()=>{setCustomOpen(!customOpen);setTagError('');requestAnimationFrame(()=>tagRef.current?.focus());}}>＋ 自定义</button></div>
-      {customOpen&&<form className="rev-custom-form" onSubmit={addTag}><label htmlFor="rev-custom-tag">自定义评价标签</label><div><input id="rev-custom-tag" ref={tagRef} value={tagInput} placeholder="例如：耐心不足" maxLength={48} disabled={busy} onChange={e=>{setTagInput(e.target.value);setTagError('');}} onCompositionStart={()=>{composing.current=true;}} onCompositionEnd={()=>{composing.current=false;}} onKeyDown={e=>{if(e.key==='Enter'&&(composing.current||e.nativeEvent.isComposing||e.keyCode===229))e.preventDefault();}}/><button type="submit">添加</button><button type="button" onClick={()=>{setCustomOpen(false);setTagInput('');setTagError('');}}>取消</button></div><small>最多 12 个字符，添加后自动选中</small></form>}{tagError&&<p className="rj-error" role="alert">{tagError}</p>}
-      <div className="rj-writing-area" data-text={draft.text}><textarea ref={textRef} className="rj-body-input" rows={1} aria-label="评价正文" placeholder="现在回看，哪里做对了，哪里需要改进？" value={draft.text} maxLength={20000} disabled={busy} onChange={e=>{patch({text:e.target.value});remember();}} onSelect={remember} onBlur={remember}/></div>
+      {customOpen&&<form className="rev-custom-form" onSubmit={addTag}><label htmlFor="rev-custom-tag">自定义评价标签</label><div><input id="rev-custom-tag" ref={tagRef} value={tagInput} placeholder="例如：耐心不足" maxLength={48} disabled={busy} onFocus={keepInputVisible} onChange={e=>{setTagInput(e.target.value);setTagError('');keepInputVisible();}} onCompositionStart={()=>{composing.current=true;}} onCompositionEnd={()=>{composing.current=false;}} onKeyDown={e=>{if(e.key==='Enter'&&(composing.current||e.nativeEvent.isComposing||e.keyCode===229))e.preventDefault();}}/><button type="submit">添加</button><button type="button" onClick={()=>{setCustomOpen(false);setTagInput('');setTagError('');}}>取消</button></div><small>最多 12 个字符，添加后自动选中</small></form>}{tagError&&<p className="rj-error" role="alert">{tagError}</p>}
+      <div className="rj-writing-area" data-text={draft.text}><textarea ref={textRef} className="rj-body-input" rows={1} aria-label="评价正文" placeholder="现在回看，哪里做对了，哪里需要改进？" value={draft.text} maxLength={20000} disabled={busy} onFocus={keepInputVisible} onChange={e=>{patch({text:e.target.value});remember();keepInputVisible();}} onSelect={()=>{remember();keepInputVisible();}} onKeyUp={keepInputVisible} onBlur={remember}/></div>
       {draft.market&&<div className="rj-compose-attachment"><SnapshotCard value={draft.market} language={language}/><button className="rj-remove" aria-label="移除市场快照" disabled={busy} onClick={()=>patch({market:null})}><X size={14}/></button></div>}
       {draft.account&&<div className="rj-compose-attachment"><ReviewAccountCard value={draft.account} marketColorMode={marketColorMode}/><button className="rj-remove" aria-label="移除账户快照" disabled={busy} onClick={()=>patch({account:null})}><X size={14}/></button></div>}
       {!!draft.trades.length&&<div className="rj-compose-attachment"><ReviewTradeReferences trades={draft.trades} userId={userId} language={language} previewHistory={preview?previewData?.history:undefined}/><button className="rj-remove" aria-label="移除交易引用" disabled={busy} onClick={()=>patch({trades:[]})}><X size={14}/></button></div>}
