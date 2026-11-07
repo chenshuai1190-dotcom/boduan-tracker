@@ -355,7 +355,7 @@ export default function ReviewTab({ ctx }) {
       />
 
       {typeof ctx.openReviewJournal === 'function' ? <button type="button" className="review-journal-entry" onClick={ctx.openReviewJournal}>
-        <span className="review-journal-entry-icon"><NotebookPen size={23} strokeWidth={1.6}/></span><span><strong>{language === 'en' ? 'Investment Journal' : '投资复盘'}</strong><small>{language === 'en' ? 'Ideas and reflections' : '投资心得与复盘日志'}</small></span><ChevronRight size={17}/>
+        <span className="review-journal-entry-icon"><NotebookPen size={23} strokeWidth={1.6}/></span><span><strong>{language === 'en' ? 'Investment Activity' : '投资动态'}</strong><small>{language === 'en' ? 'Ideas and reflections' : '投资心得与复盘日志'}</small></span><ChevronRight size={17}/>
       </button> : <>
       <section className="review-reading-section" aria-labelledby="review-disciplines-heading">
         <div className="review-section-header">

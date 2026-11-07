@@ -7,6 +7,7 @@ import { transformWithOxc } from 'vite';
 import * as icons from 'lucide-react';
 import { marketHexColor, MARKET_COLOR_MODES } from '../src/lib/marketColorMode.js';
 import { normalizeReviewMarketSnapshot } from '../src/lib/reviewMarketSnapshot.js';
+import { convertReviewMoney, formatReviewMoney, reviewCurrencyNotice, reviewDisplayCurrency } from '../src/lib/reviewDisplayCurrency.js';
 
 const source = readFileSync(new URL('../src/components/ReviewTimeline.jsx', import.meta.url), 'utf8');
 const walk = tree => !React.isValidElement(tree) ? Array.isArray(tree) ? tree.flatMap(walk) : [] : [tree, ...walk(tree.props.children)];
@@ -17,7 +18,7 @@ async function harness() {
   const slots = [];
   const fixture = {
     React: { ...React, useState(initial) { const i = cursor++; const slot = slots[i] ||= { value: typeof initial === 'function' ? initial() : initial }; return [slot.value, value => { slot.value = typeof value === 'function' ? value(slot.value) : value; }]; } },
-    icons, marketHexColor, normalizeReviewMarketSnapshot,
+    icons, marketHexColor, normalizeReviewMarketSnapshot, convertReviewMoney, formatReviewMoney, reviewCurrencyNotice, reviewDisplayCurrency,
     SnapshotCard: ({ value }) => React.createElement('aside', { 'data-market-date': value.asOfDate }, value.items[0].value),
   };
   const key = `__timelineUI${++nextFixture}`;
@@ -25,7 +26,7 @@ async function harness() {
   let components;
   try {
     const compiled = await transformWithOxc(`
-      const { React, icons, marketHexColor, normalizeReviewMarketSnapshot, SnapshotCard } = globalThis[${JSON.stringify(key)}];
+      const { React, icons, marketHexColor, normalizeReviewMarketSnapshot, convertReviewMoney, formatReviewMoney, reviewCurrencyNotice, reviewDisplayCurrency, SnapshotCard } = globalThis[${JSON.stringify(key)}];
       const { ArrowDownRight, ArrowUpRight, CalendarDays, ChevronDown, ChevronRight, Flag, History, Info, Loader2, MessageCircle, RefreshCw } = icons;
       ${source.replace(/^import .*;\n/gm, '')}
       export { TimelineDetail, TimelineEvent, ArchivedDetail };
@@ -138,4 +139,29 @@ test('new-high details retain real net-asset history and never fill an absent se
   assert.ok(byClass(h.render('TimelineDetail', details({ event })), 'rjt-chart-section'));
   const missing = renderToStaticMarkup(h.components.TimelineChart({ event: { ...event, points: [{ date: peak.date, netAssetsUsd: null }] } }));
   assert.match(missing, /暂无可展示/); assert.doesNotMatch(missing, /<svg|<path/);
+});
+
+test('CNY converts net-asset views with one rate while return basis and trade execution prices stay USD', async () => {
+  const h = await harness();
+  const currency = { displayCurrency: 'CNY', usdCny: 7.2, fxDate: '2026-11-07' };
+  const props = details({ ...currency, stockTrades: [{ id: 'trade', date: current.date, side: 'buy', symbol: 'NVDA', price: 187.5, shares: 1 }] });
+  const html = renderToStaticMarkup(h.render('TimelineDetail', props));
+  assert.match(html, /¥576,000/); assert.match(html, /净资产走势 · CNY/);
+  assert.match(html, /汇率更新于 2026-11-07/); assert.match(html, /-25\.00%/); assert.match(html, /\$187\.50/);
+  const usdChart = h.components.TimelineChart({ event: cycle, detail: true });
+  const cnyChart = h.components.TimelineChart({ event: cycle, detail: true, ...currency });
+  assert.equal(byClass(usdChart, 'rjt-chart-line').props.d, byClass(cnyChart, 'rjt-chart-line').props.d);
+  assert.match(renderToStaticMarkup(cnyChart), /Historical net assets|账户净资产历史走势.*CNY/);
+  const list = renderToStaticMarkup(h.render('TimelineEvent', { event: cycle, ...currency }));
+  assert.match(list, /¥720,000/); assert.match(list, /¥540,000/); assert.match(list, /¥576,000/);
+});
+
+test('missing CNY rate shows unavailable balances and no mislabeled USD chart', async () => {
+  const h = await harness(), props = details({ displayCurrency: 'CNY', usdCny: null });
+  const html = renderToStaticMarkup(h.render('TimelineDetail', props));
+  assert.match(html, /人民币汇率暂不可用/); assert.match(html, /-25\.00%/);
+  assert.doesNotMatch(html, /\$80,000|¥80,000|rjt-chart-line|rjt-chart-area/);
+  const headline = { id: 'high', kind: 'high', metric: 'net_assets', valueType: 'money', value: 100000, date: current.date, nodes: [], points: [] };
+  const card = h.render('TimelineEvent', { event: headline, displayCurrency: 'CNY' });
+  assert.equal(byClass(card, 'rjt-event-primary').props.children[0].props.children, '—');
 });

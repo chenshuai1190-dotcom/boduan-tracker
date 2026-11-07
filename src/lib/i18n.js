@@ -32,7 +32,7 @@ const messages = {
     'nav.home': '首页',
     'nav.trades': '交易',
     'nav.analysis': '资产',
-    'nav.review': '复盘',
+    'nav.review': '动态',
     'nav.settings': '设置',
 
     'home.market.fetchFailed': '拉取失败',
@@ -1553,7 +1553,7 @@ const messages = {
     'nav.home': 'Home',
     'nav.trades': 'Trades',
     'nav.analysis': 'Assets',
-    'nav.review': 'Journal',
+    'nav.review': 'Activity',
     'nav.settings': 'Settings',
 
     'home.market.fetchFailed': 'Failed',

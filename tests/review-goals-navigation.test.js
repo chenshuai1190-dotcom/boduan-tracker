@@ -27,9 +27,9 @@ test('the primary Journal tab and Investment Goals tool open their existing cont
   assert.match(goals, /<AnnualGoalPlan\b/);
 });
 
-test('the bottom entry is Journal while its authenticated identity and internal page title remain separate', () => {
-  assert.equal(t('zh', 'nav.review'), '复盘');
-  assert.equal(t('en', 'nav.review'), 'Journal');
+test('the Activity tab uses its approved labels while retaining account isolation and investment content', () => {
+  assert.equal(t('zh', 'nav.review'), '动态');
+  assert.equal(t('en', 'nav.review'), 'Activity');
   assert.match(app, /<ActiveTab key=\{activeTab === 'review' \? user\?\.id \|\| '' : undefined\} ctx=\{activeTabCtx\}/, 'account changes must remount private Journal page state');
   const journalContext = app.match(/const activeTabCtx =[\s\S]*?activeTab === 'review'\s*\? \{([^}]+)\}/)?.[1];
   assert.ok(journalContext);
@@ -37,7 +37,7 @@ test('the bottom entry is Journal while its authenticated identity and internal 
   assert.match(journalContext, /navigationTab: true/);
   assert.match(journalContext, /\bdisciplines, reviewLogs, setDisciplines, setReviewLogs, stockTrades\b/);
   assert.doesNotMatch(journalContext, /previewData/);
-  assert.match(read('src/pages/ReviewJournalPage.jsx'), /language === 'en' \? 'Investment Journal' : '投资复盘'/, 'entry label changes must not rename the page title');
+  assert.match(read('src/pages/ReviewJournalPage.jsx'), /language\s*===\s*'en'\s*\?\s*'Investment Activity'\s*:\s*'投资动态'/, 'the module title must match the approved Investment Activity name');
 });
 
 test('local previews mirror both navigation entries without changing legacy standalone Journal routes', () => {

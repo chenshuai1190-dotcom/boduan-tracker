@@ -113,7 +113,7 @@ function ReplayDialog({ symbol, model, loading, error, onRetry, onClose, english
     track.scrollTo({ left: track.children[selectedIndex].offsetLeft - parseFloat(getComputedStyle(track).paddingLeft || 0), behavior: 'auto' });
   }, [model.trades.length]); // Initial newest transaction; no extra network request.
   return createPortal(<dialog ref={dialogRef} tabIndex={-1} className="rsr-dialog" aria-label={`${symbol} ${tr('交易回放', 'trade replay')}`}>
-    <header className="rsr-header"><button type="button" onClick={onClose} aria-label={tr('返回投资复盘', 'Back to Investment Journal')}><ArrowLeft size={22} /></button><div><strong>{symbol}</strong><span>{tr('交易回放', 'Trade replay')}</span></div><span className="rsr-header-kind">{preview ? tr('示例', 'Demo') : 'USD'}</span></header>
+    <header className="rsr-header"><button type="button" onClick={onClose} aria-label={tr('返回投资动态', 'Back to Investment Activity')}><ArrowLeft size={22} /></button><div><strong>{symbol}</strong><span>{tr('交易回放', 'Trade replay')}</span></div><span className="rsr-header-kind">{preview ? tr('示例', 'Demo') : 'USD'}</span></header>
     <div className="rsr-scroll">
       <div className="rsr-readout"><span>{selectedDate || '—'} · {tr('拆股复权收盘', 'Split-adjusted close')}</span><strong>{price(selectedRow?.close)}</strong></div>
       <nav className="rsr-ranges" aria-label={tr('走势范围', 'Chart range')}>{[['stage', '本次交易', 'Trade'], ['1m', '1个月', '1M'], ['3m', '3个月', '3M'], ['6m', '6个月', '6M'], ['1y', '1年', '1Y'], ['all', '全部', 'All']].map(([value, zh, en]) => <button type="button" key={value} aria-pressed={range === value} onClick={() => { setRange(value); setInspection(null); }}>{tr(zh, en)}</button>)}</nav>

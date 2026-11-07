@@ -990,6 +990,8 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   const [accounts, setAccounts] = useState([]);          // [{id, owner, type, name, currency, icon}]
   const [snapshots, setSnapshots] = useState([]);        // [{id, accountId, month, balance}]
   const [usdRate, setUsdRate] = useState(DEFAULT_USD_CNY_RATE); // 美元换人民币汇率
+  // Review display uses only a dated, observed rate, never the portfolio fallback.
+  const [reviewFx, setReviewFx] = useState(() => readCachedFxRates());
   const [hkdRate, setHkdRate] = useState(DEFAULT_HKD_CNY_RATE); // 港币换人民币汇率
   const [showAddAccount, setShowAddAccount] = useState(false);
   const [showFillSnapshot, setShowFillSnapshot] = useState(false);
@@ -1406,6 +1408,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
 
     if (cached?.rates) {
       applyFxRates(cached.rates);
+      setReviewFx(cached);
       if (!force && cached.dateKey === todayKey) return cached;
     }
 
@@ -1441,6 +1444,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
         localStorage.setItem(FX_RATES_STORAGE_KEY, JSON.stringify(next));
       } catch {}
       applyFxRates(nextRates);
+      setReviewFx(next);
       return next;
     } catch (e) {
       console.warn('[FX] 每日汇率拉取失败,保留缓存/默认值:', e.message);
@@ -5470,7 +5474,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   const activeTabCtx = activeTab === 'settings'
     ? settingsTabCtx
     : activeTab === 'review'
-      ? { db, userId: user?.id || '', language, disciplines, reviewLogs, setDisciplines, setReviewLogs, stockTrades, marketColorMode, navigationTab: true }
+      ? { db, userId: user?.id || '', language, disciplines, reviewLogs, setDisciplines, setReviewLogs, stockTrades, marketColorMode, usdCny: reviewFx?.rates?.CNY || null, fxDate: reviewFx?.fetchedAt || '', navigationTab: true }
     : activeTab === 'analysis'
       ? analysisTabCtx
       : tabCtx;
@@ -5633,7 +5637,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
               : isStockComparisonPage
                 ? <StockComparisonPage key={user?.id || ''} ctx={{ userId: user?.id || '', language, marketColorMode, onBack: closeStockComparison }} />
               : isReviewJournalPage
-                ? <ReviewJournalPage key={user?.id || ''} ctx={{ db, userId: user?.id || '', language, disciplines, reviewLogs, setDisciplines, setReviewLogs, stockTrades, marketColorMode, onBack: closeReviewJournal }} />
+                ? <ReviewJournalPage key={user?.id || ''} ctx={{ db, userId: user?.id || '', language, disciplines, reviewLogs, setDisciplines, setReviewLogs, stockTrades, marketColorMode, usdCny: reviewFx?.rates?.CNY || null, fxDate: reviewFx?.fetchedAt || '', onBack: closeReviewJournal }} />
               : isInvestmentGoalsPage
                 ? <ReviewTab ctx={tabCtx} />
               : isPortfolioOverlapPage
@@ -5699,7 +5703,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
                 { id: 'home',     label: t(language, 'nav.home', '首页'), icon: Home },
                 { id: 'trades',   label: t(language, 'nav.trades', '交易'), icon: ListChecks },
                 { id: 'analysis', label: t(language, 'nav.analysis', '资产'), icon: Wallet },
-                { id: 'review',   label: t(language, 'nav.review', '复盘'), icon: BookOpen },
+                { id: 'review',   label: t(language, 'nav.review', '动态'), icon: BookOpen },
                 { id: 'settings', label: t(language, 'nav.settings', '设置'), icon: Settings },
               ].map(tab => {
                 const isActive = activeTab === tab.id;

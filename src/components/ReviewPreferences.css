@@ -1,0 +1,26 @@
+.rjp-settings{padding:8px 20px calc(32px + env(safe-area-inset-bottom));color:#e4e8ee}
+.rjp-settings-identity{display:flex;align-items:center;gap:12px;padding:12px 0 23px;min-height:76px}
+.rjp-settings-identity .rj-avatar{width:48px;height:48px}
+.rjp-settings-identity strong{font-size:18px;font-weight:600}
+.rjp-settings-section{padding:18px 0;border-bottom:.5px solid #1a1d23}
+.rjp-settings-section h2{font-size:14px;font-weight:600;line-height:22px;margin:0 0 6px;color:#cdd3dd}
+.rjp-setting-row{display:flex;align-items:center;justify-content:space-between;gap:15px;width:100%;min-height:55px;padding:11px 0;border:0;background:transparent;text-align:left;color:inherit}
+.rjp-setting-copy{min-width:0;flex:1;display:flex;flex-direction:column;gap:5px}
+.rjp-setting-copy strong{font-size:15px;font-weight:400;line-height:23px}
+.rjp-setting-copy>span{font-size:12px;line-height:19px;color:#858e9c}
+.rjp-switch{width:42px;height:25px;flex:none;border-radius:15px;background:#333943;padding:3px;transition:background .15s;display:block}
+.rjp-switch>span{display:block;width:19px;height:19px;border-radius:50%;background:#b6beca;box-shadow:0 1px 3px #0005;transition:transform .15s}
+.rjp-switch-on{background:#d7dde6}.rjp-switch-on>span{background:#20262f;transform:translateX(17px)}
+.rjp-setting-row:disabled{opacity:.45;cursor:default}
+.rjp-setting-row:focus-visible{outline:2px solid #8ea5bd;outline-offset:3px;border-radius:8px}
+.rjp-setting-note{font-size:12px;line-height:20px;color:#7f8997;margin:4px 0 12px}
+.rjp-currency-options{display:flex;gap:10px;margin:16px 0 12px}
+.rjp-currency-options button{min-width:0;flex:1;min-height:46px;padding:10px 8px;border-radius:13px;border:1px solid #2b323e;background:#13171d;display:flex;align-items:center;justify-content:center;gap:7px;color:#929dac;font-size:14px}
+.rjp-currency-options button[aria-pressed=true]{background:#252d38;border-color:#67798c;color:#edf1f6}
+.rjp-currency-options button:disabled{opacity:.45;cursor:default}
+.rjp-save-state{display:flex;align-items:center;gap:7px;min-height:20px;margin:0 0 7px;color:#939eae;font-size:12px}
+.rjp-settings-error{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px;border-radius:12px;background:#261c1e;color:#e6b3ac;font-size:13px;line-height:21px}
+.rjp-settings-error button{border:0;background:transparent;color:#efc3bd;min-height:40px;white-space:nowrap;padding:8px;font-size:13px}
+.rjp-settings-footer{text-align:center;font-size:11px;line-height:18px;color:#6c7785;margin:22px 0 0}
+@media(max-width:359px){.rjp-settings{padding-left:16px;padding-right:16px}.rjp-setting-row{gap:12px}.rjp-currency-options{gap:8px}.rjp-currency-options button{font-size:13px}}
+@media(prefers-reduced-motion:reduce){.rjp-switch,.rjp-switch>span{transition:none}}

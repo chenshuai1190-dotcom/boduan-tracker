@@ -25,6 +25,7 @@ const USER_TABLES = [
   'available_cash_movements',
   'disciplines',
   'review_logs',
+  'review_display_preferences',
   'yearly_actuals',
   'cost_basis_trades',
 ].map(table => ({ table, select: 'user_id' }));

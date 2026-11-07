@@ -136,3 +136,15 @@
 
 /* Timeline categories retain touch targets on compact phones. */
 @media(max-width:359px){.rj-tabs{gap:8px;padding:0 10px}.rj-tabs button{font-size:14px;padding-inline:2px}}
+
+/* The avatar is the module settings entry; inner routes retain their back button. */
+.rj-header-avatar{width:44px;height:44px;display:flex;align-items:center;justify-content:center;padding:5px;border:0;border-radius:50%;background:transparent}
+.rj-header-avatar .rj-avatar{width:34px;height:34px}
+.rj-page-header{display:grid;grid-template-columns:44px minmax(0,1fr) 44px;gap:8px}
+.rj-page-header h1{text-align:center;min-width:0}
+.rj-page-header>.rj-icon{justify-self:end}
+.rj-page-header>.rj-icon:first-child{justify-self:start}
+.rj-feed-status{padding:8px 16px 18px;text-align:center}
+.rj-timeline-author{display:flex;gap:12px;align-items:center;padding:12px 20px 0}
+.rj-settings-page.rj-navigation-tab{padding-bottom:calc(30px + env(safe-area-inset-bottom))}
+body:has(.rj-settings-page) .report-bottom-nav{display:none}

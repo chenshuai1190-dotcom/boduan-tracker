@@ -15,6 +15,7 @@ import { mapReviewJournalRow } from './reviewJournalModel.js';
 import { createReviewJournalRepository } from './reviewJournalRepository.js';
 import { createReviewAccountSnapshotLoader } from './reviewAccountSnapshot.js';
 import { createReviewTimelineLoader } from './reviewTimelineDb.js';
+import { createReviewPreferencesRepository } from './reviewPreferencesDb.js';
 
 export {
   fetchPnlReportRebuildState,
@@ -43,6 +44,12 @@ export {
 
 export { fetchCommunityAvatar, uploadCommunityAvatar, saveCommunityAvatarProfile, removeCommunityAvatarImage } from './communityAvatarDb.js';
 export { readCachedReviewIdentity, fetchReviewIdentity, subscribeReviewIdentity } from './reviewIdentityDb.js';
+export const {
+  readCachedReviewPreferences,
+  fetchReviewPreferences,
+  saveReviewPreferences,
+  subscribeReviewPreferences,
+} = createReviewPreferencesRepository({ supabase });
 
 // ============ 离线缓存 ============
 // 把最近一次拉取的数据缓存到 localStorage

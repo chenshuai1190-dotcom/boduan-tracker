@@ -99,8 +99,15 @@ async function harness({ observer = true } = {}) {
     const page = await transformWithOxc(`${imports}
       import { reviewJournalFeed } from ${moduleUrl('reviewJournalFeed')};
       import { findReviewStockMentions } from ${moduleUrl('reviewStockMentions')};
+      import { mergeReviewTimelineFeed, reviewTimelineFeedDate } from ${moduleUrl('reviewTimelineFeed')};
       const ReviewStockCarousel = fixture.ReviewStockCarousel = () => null;
       const ReviewPostBody = () => null;
+      const ReviewTimeline = () => null, ReviewPreferences = () => null, ReviewTimelinePost = () => null;
+      const useReviewPreferences = () => ({
+        preferences: { showTimeline: false, currency: 'USD', eventTypes: [] },
+        ready: true, loading: false, canEdit: true, saving: false, error: '',
+        updatePreferences: async () => true, retry: async () => {},
+      });
       const ReviewEvaluationComposer = () => null, EvaluationRating = () => null, ReviewAccountCard = () => null, ReviewTradeReferences = () => null, EmojiPicker = () => null;
       const Avatar = () => null, AuthorName = () => null, Photo = () => null, SnapshotCard = () => null, Composer = () => null;
       const Dialog = ({ children }) => React.createElement('section', { role: 'dialog' }, children);

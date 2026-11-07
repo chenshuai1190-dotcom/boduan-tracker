@@ -9,6 +9,10 @@ import { findReviewStockMentions, resolveReviewStockLinks } from '../lib/reviewS
 import ReviewStockCarousel from '../components/ReviewStockCarousel.jsx';
 import ReviewPostBody from '../components/ReviewPostBody.jsx';
 import ReviewTimeline from '../components/ReviewTimeline.jsx';
+import ReviewTimelinePost from '../components/ReviewTimelinePost.jsx';
+import ReviewPreferences from '../components/ReviewPreferences.jsx';
+import useReviewPreferences from '../hooks/useReviewPreferences.js';
+import { mergeReviewTimelineFeed, reviewTimelineFeedDate } from '../lib/reviewTimelineFeed.js';
 import { SnapshotCard, SnapshotPicker } from '../components/ReviewMarketSnapshot.jsx';
 import ReviewEvaluationComposer, { EvaluationRating, ReviewAccountCard, ReviewTradeReferences } from '../components/ReviewEvaluation.jsx';
 import './ReviewJournalPage.css';
@@ -227,13 +231,18 @@ function Composer({ entry, defaultType, identity, userId, db, onSaved, onClose, 
 }
 
 export default function ReviewJournalPage({ ctx }) {
-  const { db, userId, language='zh', disciplines=[], reviewLogs=[], setDisciplines, setReviewLogs, stockTrades=[], onBack, previewData, marketColorMode, navigationTab = false } = ctx;
+  const { db, userId, language='zh', disciplines=[], reviewLogs=[], setDisciplines, setReviewLogs, stockTrades=[], onBack, previewData, marketColorMode, usdCny = null, fxDate = '', navigationTab = false } = ctx;
   const preview = Boolean(import.meta.env.DEV && previewData);
+  const preferenceState = useReviewPreferences({ db, userId, preview, previewPreferences: previewData?.preferences });
+  const { preferences, ready: preferencesReady } = preferenceState;
+  const currencyProps = { displayCurrency: preferences.currency, usdCny, fxDate };
   const [identity,setIdentity]=useState(() => preview ? previewData.identity : db.readCachedReviewIdentity(userId));
   const [identityError,setIdentityError]=useState(false); const [identityAttempt,setIdentityAttempt]=useState(0);
   const [filter,setFilter]=useState(() => preview && previewData.initialTimeline ? 'timeline' : 'all'); const [search,setSearch]=useState(false); const [query,setQuery]=useState('');
   const [timelineState,setTimelineState]=useState({userId:null,status:'idle',data:null,error:''});
   const [timelineAttempt,setTimelineAttempt]=useState(0);
+  const loadedTimelineAttempt = useRef(-1);
+  const pendingFeedAnchor = useRef(null);
   const [composer,setComposer]=useState(null); const [menu,setMenu]=useState(null); const [detailKey,setDetailKey]=useState(null);
   const [tagSymbol,setTagSymbol]=useState(''); const [routeId,setRouteId]=useState('root');
   const [expanded,setExpanded]=useState(new Set()); const [lightbox,setLightbox]=useState(''); const [error,setError]=useState(''); const [busy,setBusy]=useState(false); const busyRef=useRef(false);
@@ -251,14 +260,23 @@ export default function ReviewJournalPage({ ctx }) {
   if(!historyToken.current)historyToken.current=crypto.randomUUID();
   useEffect(()=>{if(preview)return;let active=true;setIdentityError(false);db.fetchReviewIdentity(userId).then(value=>{if(active){setIdentity(value);setIdentityError(!value);}}).catch(()=>{if(active)setIdentityError(true);});return()=>{active=false;};},[db,userId,preview,identityAttempt]);
   useEffect(()=>{if(preview)return undefined;return db.subscribeReviewIdentity(userId,()=>setIdentityAttempt(value=>value+1));},[db,userId,preview]);
-  // Timeline history is read only on demand; it does not add startup polling or writes.
-  const timelineRequested=filter==='timeline'||Boolean(detailKey?.startsWith('timeline:'));
+  // All-feed history follows confirmed owner preferences; manual posts never wait for it.
+  const mixedFeedEnabled = preferencesReady && preferences.showTimeline && preferences.eventTypes.length > 0 && filter === 'all' && !tagSymbol;
+  const timelineRequested=filter==='timeline'||Boolean(detailKey?.startsWith('timeline:'))||mixedFeedEnabled;
+  const captureFeedAnchor = () => {
+    if (navigation.current?.key || typeof document === 'undefined' || !document.querySelectorAll || window.scrollY < 80) return null;
+    const nodes = [...document.querySelectorAll('.rj-list-page:not([hidden]) [data-rj-entry-key]')];
+    const first = nodes.find(node => node.getBoundingClientRect().bottom > 80);
+    return first ? { key: first.getAttribute('data-rj-entry-key'), top: first.getBoundingClientRect().top } : null;
+  };
   useEffect(()=>{
     if(!timelineRequested)return undefined;
+    if(timelineState.userId===userId && ['ready','empty','pending'].includes(timelineState.status) && loadedTimelineAttempt.current===timelineAttempt)return undefined;
     let active=true;
+    loadedTimelineAttempt.current=timelineAttempt;
     setTimelineState(previous=>({userId,status:'loading',data:previous.userId===userId?previous.data:null,error:''}));
     const request=preview?Promise.resolve(previewData.timeline||{status:'empty',events:[],years:[],coverage:{},warnings:[]}):db.fetchReviewTimeline(userId);
-    request.then(data=>{if(active)setTimelineState({userId,status:data.status||'ready',data,error:''});})
+    request.then(data=>{if(active){pendingFeedAnchor.current=captureFeedAnchor();setTimelineState({userId,status:data.status||'ready',data,error:''});}})
       .catch(failure=>{if(active)setTimelineState(previous=>({userId,status:'error',data:previous.userId===userId?previous.data:null,error:failure?.message||'时间线暂时无法读取，请重试。'}));});
     return()=>{active=false;};
   },[db,userId,preview,previewData?.timeline,timelineRequested,timelineAttempt]);
@@ -280,22 +298,25 @@ export default function ReviewJournalPage({ ctx }) {
       timelineEvent:{version:1,id:event.id,kind:event.kind,metric:event.metric,date:event.startDate||event.date,title:event.title}};
   });
   const all=[...journalEntries,...timelineEntries];
-  const feed=tagSymbol?journalEntries.filter(entry=>(entry.stocks||[]).includes(tagSymbol)||findReviewStockMentions(entry.text,[...(entry.stocks||[]),...suggestions]).includes(tagSymbol)):reviewJournalFeed(disciplines,reviewLogs,filter,query);
+  const ordinaryFeed=reviewJournalFeed(disciplines,reviewLogs,filter,query);
+  const feed=tagSymbol?journalEntries.filter(entry=>(entry.stocks||[]).includes(tagSymbol)||findReviewStockMentions(entry.text,[...(entry.stocks||[]),...suggestions]).includes(tagSymbol))
+    :filter==='all'?mergeReviewTimelineFeed(journalEntries,timelineEvents,{...preferences,showTimeline:mixedFeedEnabled},{query}):ordinaryFeed;
   const entryKey=entry=>entry.timelineEvent?`timeline:${entry.timelineEvent.id}`:`${entry.type}:${entry.id}`;
   const detail=all.find(entry=>entryKey(entry)===detailKey);
   const timelineEventId=detailKey?.startsWith('timeline:')?detailKey.slice(9):null;
   const isTimelineDetail=Boolean(timelineEventId);
+  const isSettings=detailKey==='settings';
   const activeReplyMenu=replyMenu?.userId===userId&&replyMenu.entryKey===detailKey?replyMenu:null;
   const editingEntry=editingEvaluation?.userId===userId&&editingEvaluation.entryKey===detailKey
     ?all.find(entry=>entryKey(entry)===editingEvaluation.entryKey&&entry.replies?.some(reply=>reply.id===editingEvaluation.reply.id)):null;
-  const showingDetail=Boolean(detail)||isTimelineDetail;
+  const showingDetail=Boolean(detail)||isTimelineDetail||isSettings;
   const rootRoute={id:'root',key:null,symbol:''};
   if(!routes.current.has('root'))routes.current.set('root',rootRoute);
   navigation.current={id:routeId,key:detailKey,symbol:tagSymbol,entries:all,userId};
   const rememberPosition=(event,focusPost=false)=>{
     const current=navigation.current,trigger=event?.currentTarget;
     const keyboard=event?.type==='keydown'||(event?.type==='click'&&event.detail===0&&!event.nativeEvent?.pointerType&&trigger?.ownerDocument?.activeElement===trigger&&trigger?.matches?.(':focus-visible'));
-    positions.current.set(current.id,{x:window.scrollX||0,y:window.scrollY||0,focus:event?(keyboard?(focusPost?trigger?.closest('[data-rj-entry-key]'):trigger):null):positions.current.get(current.id)?.focus});
+    positions.current.set(current.id,{x:window.scrollX||0,y:window.scrollY||0,anchor:captureFeedAnchor(),focus:event?(keyboard?(focusPost?trigger?.closest('[data-rj-entry-key]'):trigger):null):positions.current.get(current.id)?.focus});
   };
   const applyRoute=route=>{
     pendingPosition.current=positions.current.get(route.id)||{x:0,y:0};
@@ -309,7 +330,7 @@ export default function ReviewJournalPage({ ctx }) {
       const state=event.state?.reviewJournalEntry;
       const known=state?.token===historyToken.current?routes.current.get(state.id):null;
       // Only this mount's own routes can restore a private entry or stock view.
-      const valid=known&&(!known.key||navigation.current.entries.some(entry=>entryKey(entry)===known.key));
+      const valid=known&&(!known.key||known.key==='settings'||navigation.current.entries.some(entry=>entryKey(entry)===known.key));
       applyRoute(valid?known:rootRoute);
     };
     window.addEventListener?.('popstate',onPopState);
@@ -330,9 +351,19 @@ export default function ReviewJournalPage({ ctx }) {
       pendingPosition.current=null;
       if(previous.focus?.isConnected)previous.focus.focus({preventScroll:true});
       else pageTitle.current?.focus({preventScroll:true});
-      window.scrollTo({left:previous.x,top:previous.y,behavior:'instant'});
+      const anchor = previous.anchor && typeof document !== 'undefined' && document.querySelectorAll
+        ? [...document.querySelectorAll('.rj-list-page:not([hidden]) [data-rj-entry-key]')].find(node => node.getAttribute('data-rj-entry-key') === previous.anchor.key) : null;
+      const top = anchor ? window.scrollY + anchor.getBoundingClientRect().top - previous.anchor.top : previous.y;
+      window.scrollTo({left:previous.x,top,behavior:'instant'});
     }
   },[routeId]);
+  useLayoutEffect(()=>{
+    const anchor=pendingFeedAnchor.current;
+    pendingFeedAnchor.current=null;
+    if(!anchor||showingDetail||typeof document==='undefined'||!document.querySelectorAll)return;
+    const target=[...document.querySelectorAll('.rj-list-page:not([hidden]) [data-rj-entry-key]')].find(node=>node.getAttribute('data-rj-entry-key')===anchor.key);
+    if(target)window.scrollTo({left:window.scrollX||0,top:window.scrollY+target.getBoundingClientRect().top-anchor.top,behavior:'instant'});
+  },[ownedTimeline.data,showingDetail]);
   const saved=entry=>{if(navigation.current.userId!==userId)return;const setter=entry.type==='insight'?setDisciplines:setReviewLogs;setter(old=>old.some(row=>row.id===entry.id)?old.map(row=>row.id===entry.id?entry:row):[entry,...old]);setError('');};
   const mutate=async action=>{if(busyRef.current)return;busyRef.current=true;setBusy(true);setError('');try{await action();}catch(failure){setError(failure?.message||'操作失败，请重试');}finally{busyRef.current=false;setBusy(false);}};
   const navigate=(key,symbol,event,focusPost=false)=>{
@@ -398,18 +429,30 @@ export default function ReviewJournalPage({ ctx }) {
         {!detail.replies?.length&&<p className="rj-note">还没有评论，写下现在对当时的评价。</p>}
         {error&&!menu&&!activeReplyMenu&&<p role="alert" className="rj-error">{error}</p>}
       </section>):null;
-  return <div className={`rj-page ${navigationTab?'rj-navigation-tab':''} ${showingDetail?'rj-entry-page':''} ${isTimelineDetail?'rj-timeline-detail':''}`}><header className="rj-page-header">{navigationTab&&!showingDetail&&!tagSymbol?<span className="rj-header-spacer"/>:<button className="rj-icon" aria-label={showingDetail||tagSymbol?'返回投资复盘':'返回'} onClick={showingDetail||tagSymbol?closeDetail:onBack}><ArrowLeft size={22}/></button>}<h1 ref={pageTitle} tabIndex={-1}>{isTimelineDetail?(language==='en'?'Timeline Event':'时间线记录'):showingDetail?(language==='en'?'Journal Entry':'复盘记录'):tagSymbol?`$${tagSymbol}`:(language === 'en' ? 'Investment Journal' : '投资复盘')}</h1>{showingDetail||tagSymbol||filter==='timeline'?<span className="rj-header-spacer"/>:<button className="rj-icon" aria-label="搜索复盘" aria-pressed={search} onClick={()=>{setSearch(!search);setQuery('');}}><Search size={21}/></button>}</header>
+  const selectedTimelineEvent=timelineEvents.find(event=>event.id===timelineEventId);
+  return <div className={`rj-page ${navigationTab?'rj-navigation-tab':''} ${showingDetail?'rj-entry-page':''} ${isTimelineDetail?'rj-timeline-detail':''} ${isSettings?'rj-settings-page':''}`}><header className="rj-page-header">
+    {showingDetail||tagSymbol?<button className="rj-icon" aria-label="返回投资动态" onClick={closeDetail}><ArrowLeft size={22}/></button>
+      :<button className="rj-header-avatar" aria-label={language==='en'?'Activity settings':'动态设置'} onClick={event=>navigate('settings','',event)}><Avatar identity={identity} userId={userId} preview={preview}/></button>}
+    <h1 ref={pageTitle} tabIndex={-1}>{isSettings?(language==='en'?'Activity Settings':'动态设置'):isTimelineDetail?(language==='en'?'Timeline Event':'时间线记录'):showingDetail?(language==='en'?'Journal Entry':'复盘记录'):tagSymbol?`$${tagSymbol}`:(language==='en'?'Investment Activity':'投资动态')}</h1>
+    {showingDetail||tagSymbol||filter==='timeline'?<span className="rj-header-spacer"/>:<button className="rj-icon" aria-label="搜索动态" aria-pressed={search} onClick={()=>{setSearch(!search);setQuery('');}}><Search size={21}/></button>}
+  </header>
     {preview&&<div className="rj-preview-note">本地预览 · 示例记录 · 不写入真实账户</div>}
     {identityError&&<button className="rj-identity-error" onClick={()=>setIdentityAttempt(value=>value+1)}>{identity ? '资料暂未更新，点击重试' : '资料暂未读取，点击重试'}</button>}
+    {isSettings&&<ReviewPreferences identityNode={<><Avatar identity={identity} userId={userId} preview={preview}/><AuthorName identity={identity}/></>} {...preferenceState} onChange={preferenceState.updatePreferences} onRetry={preferenceState.retry} language={language}/>}
     <div className="rj-list-page" hidden={showingDetail}>
       {!tagSymbol&&<nav className="rj-tabs" aria-label="复盘分类">{[['all','全部'],['log','复盘日志'],['insight','投资心得'],['timeline','时间线']].map(([id,name])=><button key={id} aria-pressed={filter===id} onClick={()=>setFilter(id)}>{name}</button>)}</nav>}
       {tagSymbol&&<p className="rj-tag-summary">{language==='en'?`${feed.length} related posts`:`${feed.length} 篇相关博文`}</p>}
       {!tagSymbol&&filter!=='timeline'&&search&&<div className="rj-search"><Search size={17}/><input autoFocus value={query} onChange={event=>setQuery(event.target.value)} aria-label="搜索正文、股票或日期" placeholder="搜索正文、股票或日期"/></div>}
       {error&&!menu&&!showingDetail&&<p className="rj-error" role="alert">{error}</p>}
-      {(tagSymbol||filter!=='timeline')&&<div className="rj-feed">{feed.map(entry=>post(entry))}{!feed.length&&<div className="rj-empty"><MessageCircle size={28}/><h2>{tagSymbol?'暂无相关博文':query?'没有匹配的记录':'从第一条复盘开始'}</h2><p>{tagSymbol?`提到 $${tagSymbol} 的博文会显示在这里。`:query?'换个关键词试试':'投资心得和复盘日志，都在这里。'}</p></div>}</div>}
+      {(tagSymbol||filter!=='timeline')&&<div className="rj-feed">{feed.map(entry=>entry.type==='timeline'?<ReviewTimelinePost key={`timeline:${entry.event.id}`} event={entry.event} avatarNode={<Avatar identity={identity} userId={userId} preview={preview}/>} authorNode={<AuthorName identity={identity}/>} commentCount={storedTimelineEntries.find(row=>row.timelineEvent.id===entry.event.id)?.replies?.length||0} onOpen={openTimeline} {...currencyProps} marketColorMode={marketColorMode} language={language}/>:post(entry))}{!feed.length&&!(mixedFeedEnabled&&['idle','loading'].includes(ownedTimeline.status))&&<div className="rj-empty"><MessageCircle size={28}/><h2>{tagSymbol?'暂无相关博文':query?'没有匹配的记录':'从第一条复盘开始'}</h2><p>{tagSymbol?`提到 $${tagSymbol} 的博文会显示在这里。`:query?'换个关键词试试':'投资心得和复盘日志，都在这里。'}</p></div>}</div>}
+      {!tagSymbol&&filter==='all'&&!preferencesReady&&preferenceState.error&&<p className="rj-note rj-feed-status">{language==='en'?'Activity preferences unavailable. Open your avatar to retry.':'动态偏好暂未读取，点击头像可重试。'}</p>}
+      {mixedFeedEnabled&&['idle','loading'].includes(ownedTimeline.status)&&<p className="rj-note rj-feed-status" role="status">{language==='en'?'Loading automatic records…':'正在读取系统记录…'}</p>}
+      {mixedFeedEnabled&&ownedTimeline.status==='pending'&&<div className="rj-feed-status" role="status"><p className="rj-note">{language==='en'?'Closing history is being updated. Automatic records will be available when complete.':'收盘历史正在更新，完成后可读取系统记录。'}</p><button className="rj-text-button" onClick={()=>setTimelineAttempt(value=>value+1)}>{language==='en'?'Retry':'重新读取系统记录'}</button></div>}
+      {mixedFeedEnabled&&ownedTimeline.error&&<div className="rj-feed-status" role="alert"><p className="rj-note">{ownedTimeline.error}</p><button className="rj-text-button" onClick={()=>setTimelineAttempt(value=>value+1)}>{language==='en'?'Retry':'重新读取系统记录'}</button></div>}
       {filter!=='timeline'&&<button className="rj-fab" aria-label="写复盘" onClick={()=>setComposer({entry:null})}><Plus size={28}/></button>}
     </div>
-    {((filter==='timeline'&&!tagSymbol)||isTimelineDetail)&&<div hidden={showingDetail&&!isTimelineDetail}><ReviewTimeline data={timelineData} loading={ownedTimeline.status==='loading'||ownedTimeline.status==='idle'} error={ownedTimeline.error} onRetry={()=>setTimelineAttempt(value=>value+1)} selectedEventId={timelineEventId} onSelectEvent={openTimeline} onBack={closeDetail} marketColorMode={marketColorMode} stockTrades={stockTrades} entries={journalEntries} onOpenEntry={openDetail} onEvaluate={openTimelineEvaluation} renderEvaluations={()=>renderReplies()} language={language}/></div>}
+    {isTimelineDetail&&selectedTimelineEvent&&<div className="rj-timeline-author"><Avatar identity={identity} userId={userId} preview={preview}/><div><div className="rj-post-heading"><AuthorName identity={identity}/><span>·</span><time dateTime={reviewTimelineFeedDate(selectedTimelineEvent)}>{reviewTimelineFeedDate(selectedTimelineEvent)}</time></div><span className="rj-note">{language==='en'?'Automatic record':'系统自动记录'}</span></div></div>}
+    {((filter==='timeline'&&!tagSymbol)||isTimelineDetail)&&<div hidden={showingDetail&&!isTimelineDetail}><ReviewTimeline data={timelineData} loading={ownedTimeline.status==='loading'||ownedTimeline.status==='idle'} error={ownedTimeline.error} onRetry={()=>setTimelineAttempt(value=>value+1)} selectedEventId={timelineEventId} onSelectEvent={openTimeline} onBack={closeDetail} marketColorMode={marketColorMode} stockTrades={stockTrades} entries={journalEntries} onOpenEntry={openDetail} onEvaluate={openTimelineEvaluation} renderEvaluations={()=>renderReplies()} {...currencyProps} language={language}/></div>}
     {detail&&!isTimelineDetail&&<div className="rj-entry-content" key={detailKey}>
       {post(detail,true)}
       {renderReplies()}

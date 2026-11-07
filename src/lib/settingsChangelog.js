@@ -3,6 +3,11 @@ import { CURRENT_RELEASE } from './releaseMeta.js';
 export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
+    items: ['复盘升级为“动态”：全部列表融合带头像的系统时间线，可点击查看完整节点与评价；左上头像进入动态设置，按八类记录控制显示，并支持美元/人民币金额。偏好按账号保存，完整时间线始终保留。'],
+    itemsEn: ['Journal is now Activity: All mixes your posts with automatic timeline records and shared event details and evaluations. Open the header avatar for account-saved display settings, eight event categories, and USD/CNY amounts. The full Timeline remains available.'],
+  },
+  {
+    ver: 'v10.7.9.589', date: '2026-11-07',
     items: ['复盘新增自动时间线，记录净资产与收益新高、10% 起的回撤周期和日/月/季/年纪录；可查看关键节点、关联交易与博文，并用评分、标签和附件写评价。资金变化及历史缺口分段核对。'],
     itemsEn: ['Journal now includes an automatic timeline of net-asset and return highs, drawdown cycles starting at 10%, and daily/monthly/quarterly/yearly records. Explore milestones, related trades and posts, and add evaluations with ratings, tags and attachments. Cash changes and history gaps start separate comparison segments.'],
   },

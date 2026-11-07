@@ -116,3 +116,5 @@
 .rjt-muted{font-size:14px;color:var(--rjt-muted);line-height:23px}
 @media(min-width:600px){.rjt-heading,.rjt-event,.rjt-detail-intro,.rjt-chart-section,.rjt-section{padding-left:28px;padding-right:28px}.rjt-filters,.rjt-month,.rjt-data-notice{padding-left:28px;padding-right:28px}.rjt-event{gap:17px}.rjt-event-primary>strong{font-size:33px}}
 @media(max-width:350px){.rjt-heading,.rjt-event,.rjt-detail-intro,.rjt-chart-section,.rjt-section{padding-left:14px;padding-right:14px}.rjt-filters,.rjt-month,.rjt-data-notice{padding-left:14px;padding-right:14px}.rjt-event{gap:9px;grid-template-columns:20px minmax(0,1fr)}.rjt-event-rail:after{left:10px}.rjt-event-icon{width:20px}.rjt-event-primary>strong{font-size:27px;line-height:35px}.rjt-heading h2{font-size:15px}.rjt-three-values{gap:5px}.rjt-detail-metric strong{font-size:36px}.rjt-detail-stats strong{font-size:15px}.rjt-metric-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.rjt-year select{max-width:125px}}
+
+.rjt-currency-note{color:var(--rjt-muted,#828b98);font-size:11px;line-height:1.7;margin:0 20px 18px;overflow-wrap:anywhere}

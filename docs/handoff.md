@@ -1,6 +1,6 @@
 # boduan-tracker 当前交接
 
-验证时间：`2026-11-07 Asia/Shanghai`。用户已授权发布投资复盘自动时间线。稳定规则看 `README.md`，流程看 `docs/development-process.md`。
+验证时间：`2026-11-07 Asia/Shanghai`。用户已授权发布动态混排、头像设置、USD/CNY 和模块改名。稳定规则看 `README.md`，流程看 `docs/development-process.md`。
 
 ## 当前生产基准
 
@@ -8,21 +8,23 @@
 | --- | --- |
 | 仓库 | `chenshuai1190-dotcom/boduan-tracker`；唯一发布来源 `main` |
 | 当前工作区 | `/Users/chenshuaishuai/Documents/Codex/2026-10-03/quote-boduan-tracker-2026-10-03/work/quiet-input-fields` |
-| 发布前生产源码 | `83f0df830664eeedebdd23feb1eb5ef042301c56 / v10.7.9.588`；既有 CI、Vercel 与生产静态产物验证通过 |
-| 发布前部署 | Vercel `3BSZcRZmioDspYQQy5eXxMvhrEhr`；`https://boduan-tracker.vercel.app` |
-| 本次候选版本 | `v10.7.9.589 / 2026-11-07`：投资复盘自动时间线、10% 回撤周期、节点详情与独立评价 |
-| 已生效云端配置 | 复用既有收益快照、资金变动、复盘 JSONB/CAS/operationId 唯一索引；本轮不执行 migration 或历史数据写入 |
-| 生产 Checks | 本次控制台只读核对为“未配置任何检查”；仓库 audit/build 保留，发布等待精确提交 CI + Docs + Vercel，不宣称平台已配置 CI 晋级阻断 |
+| 发布前生产源码 | `b2abbbe25d61f92e93039800bf3ea94e65d119c4 / v10.7.9.589`；既有 CI、Vercel 与生产静态产物验证通过 |
+| 发布前部署 | Vercel `J7txM5izDwRzKB2qXA4xGbQzemLN`；`https://boduan-tracker.vercel.app` |
+| 本次候选版本 | `v10.7.9.590 / 2026-11-07`：投资动态混排、头像设置、八类显示开关与 USD/CNY |
+| 已生效云端配置 | `supabase/review_display_preferences_20261107.sql` 已应用；新增独立本人显示偏好表，RLS 开启、3 条 owner policy、匿名无 SELECT、authenticated 无 DELETE；原复盘与正式交易记录数量保持不变 |
+| 生产 Checks | 本会话控制台只读核对为“未配置任何检查”；保留仓库 CI 与 Docs，等待精确提交 CI + Docs + Vercel，不宣称平台已配置晋级阻断 |
 
 ## 本次证据与边界
 
-- 本地真实账户只读生成 41 条系统事件，无测试评价写入真实账户。完整分页、读取前后认证与 rebuild revision fence；数据不完整或更新中保持不可用。
-- 净资产前高回落至少 10% 启动周期，缩小至 10% 内继续跟踪，恢复原高点才完成。资金变动、余额来源变化和缺失交易日中断比较；原有收益报表与账本不变，不自行推算现金流调整收益率。
-- 首次评价原子创建独立容器，SHA-256 派生账户/事件 operationId；重试、并发和丢响应恢复有定向测试。编辑/删除评价保留事件引用，普通博文、股票标签和投资目标列表排除容器；事件来源变化后保留归档评价。
-- 本地实现 FULL：3,657 tests（3,655 pass、2 项既有 skip、0 fail）；更新发布说明后对最终 diff 再运行一次 FULL，最终结果以任务日志及精确提交 CI 为准。
-- 320/390/430px 浏览器排版、关键节点、评分/自定义标签及示例评价保存通过；iPhone 17 Pro iOS 26.5 Safari 完成列表→详情→返回。原生 1206×2622 PNG 位于外层工作区 `local-previews/review/timeline/integrated-evidence/`；模拟器触摸滚动自动操作不可靠，未声称该手势已验收。
-- DEV 示例独立隔离；生产只读取已有账户数据。本轮不修改 PWA 生命周期、行情缓存或恢复链路，既有 Home Screen 验收边界继续保留。
-- 发布步骤：最终 FULL → 一次提交/push main → `release:verify -- full <exact commit>` → 一轮线上时间线聚合只读 smoke；等待器成功前不将候选版本写成已上线。
+- 底部“复盘”改为“动态”，模块“投资复盘”改为“投资动态”；复盘日志、投资心得、投资目标不改名。左上头像打开独立动态设置页，返回恢复列表分类、搜索及阅读位置。
+- 全部默认混排普通博文和带本人身份的系统动态；净资产新高、累计收益率新高、累计盈利新高、回撤与恢复、单日纪录、月度/季度/年度总结可逐项隐藏。开关只影响全部，专用时间线保留完整事件。系统动态只投影既有事件，点击正文或评论共用原事件与评价，不创建重复博文。
+- 偏好采用独立表和 revision CAS，已确认缓存绑定账号；首次读取失败不把默认值写回云端，保存失败回滚且可显式重试。账号切换、首次创建竞争、跨标签及乱序响应均有定向测试。线上真实账号通过本地正式运行时完成 CNY 保存→刷新回读→恢复 USD；未写测试博文或评价。
+- 数据库事务内以 authenticated 本人/其他身份验证 SELECT/UPDATE 隔离及旧 revision 零更新，全部测试写入 ROLLBACK。匿名 REST 检查 43 表、27 RPC 全部通过，新偏好表为 401；未将角色模拟等同于第二个真实登录账号测试。
+- 人民币只使用已有已获取 FX 同一汇率折算账户金额，标注更新日期；无有效汇率显示不可用。收益率、回撤、杠杆、交易原币种及收益报表计算不变，不增加行情提供商或刷新频率。
+- 原有时间线 10% 起点、原前高恢复、资金变化/历史缺口分段、完成收盘与评价幂等容器边界保持不变；既有股票 replay、附件、普通博文和投资目标回归覆盖。
+- 页面交互与定向测试已覆盖 settings 历史往返、偏好确认前不请求时间线、失效请求忽略、切换分类不重复加载、共用评论、金额与百分比颜色。iPhone 17 Pro iOS 26.5 Safari 设置页已出原生 1206×2622 PNG；证据位于外层 `local-previews/review/dynamic-settings-evidence/`。
+- 最终 FULL、已安装 Quote Home Screen PWA 的当前构建验收、精确 SHA 发布等待器及线上只读结果，以本轮发布输出和该证据目录为准。发布前不把候选版本写成已上线；不改 PWA/实时生命周期或行情缓存恢复逻辑。
+- 发布步骤：最终 FULL → 安装 PWA 当前构建验收 → 一次提交/push main → `release:verify -- full <exact commit>` → 一轮线上动态/设置只读 smoke。回退仅回退前端提交，新增偏好表保留且旧版不使用；不删除设置行、不放宽 RLS。
 
 ## 可用现金与资产联动
 

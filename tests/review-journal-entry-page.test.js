@@ -20,12 +20,21 @@ const records = () => [
   { id: 'two', type: 'log', date: '2026-11-03', text: '第二条复盘', stocks: [], images: [], replies: [] },
 ];
 let fixtureId = 0;
-async function harness({ removeReply } = {}) {
+async function harness({ removeReply, preferences = {} } = {}) {
   let slots = [], cursor = 0, layout = [], effects = [];
   const scrolls = [], saves = [], deletes = [], replyDeletes = [], removals = [], focus = [], pushes = [];
   const listeners = new Map(), historyStates = [{ otherAppState: 'retained' }]; let historyIndex = 0;
   const host = { isConnected: true, focus: options => focus.push({ target: 'post', options }), closest: () => host, contains: target => !target.portal, matches: () => Boolean(fixture.keyboardFocus) };
   const fixture = {
+    preferenceState: {
+      preferences: { showTimeline: false, currency: 'USD', eventTypes: [], ...preferences },
+      ready: true, loading: false, canEdit: true, saving: false, error: '',
+      updatePreferences: async patch => {
+        fixture.preferenceState.preferences = { ...fixture.preferenceState.preferences, ...patch };
+        return true;
+      },
+      retry: async () => {},
+    },
     document: { activeElement: null },
     window: { scrollX: 0, scrollY: 740, getSelection: () => ({ toString: () => fixture.selection || '' }), scrollTo: value => { scrolls.push(value); fixture.window.scrollX = value.left; fixture.window.scrollY = value.top; } },
     useState(initial) { const index = cursor++; if (!slots[index]) slots[index] = { value: typeof initial === 'function' ? initial() : initial }; const slot = slots[index]; return [slot.value, next => { slot.value = typeof next === 'function' ? next(slot.value) : next; }]; },
@@ -54,12 +63,14 @@ async function harness({ removeReply } = {}) {
       import { ArrowLeft, Search, Plus, MoreHorizontal, Pin, MessageCircle, Pencil, Trash2 } from ${JSON.stringify(import.meta.resolve('lucide-react'))};
       import { reviewJournalFeed, localReviewDate } from ${JSON.stringify(new URL('../src/lib/reviewJournalFeed.js', import.meta.url).href)};
       import { findReviewStockMentions } from ${JSON.stringify(new URL('../src/lib/reviewStockMentions.js', import.meta.url).href)};
+      import { mergeReviewTimelineFeed, reviewTimelineFeedDate } from ${JSON.stringify(new URL('../src/lib/reviewTimelineFeed.js', import.meta.url).href)};
       const fixture = globalThis[${JSON.stringify(key)}];
       const { useState, useRef, useEffect, useLayoutEffect, window } = fixture;
       const Avatar = () => null, AuthorName = () => null, Photo = () => null, SnapshotCard = () => null, ReviewStockCarousel = () => null, ReviewPostBody = () => null, Composer = () => null, Dialog = () => null;
-      const ReviewTimeline = () => null;
+      const ReviewTimeline = () => null, ReviewPreferences = () => null, ReviewTimelinePost = () => null;
+      const useReviewPreferences = () => fixture.preferenceState;
       const ReviewEvaluationComposer = () => null, EvaluationRating = () => null, ReviewAccountCard = () => null, ReviewTradeReferences = () => null, EmojiPicker = () => null;
-      export { ReviewTimeline, Photo, SnapshotCard, ReviewStockCarousel, ReviewPostBody, Composer, Dialog, ReviewEvaluationComposer, EvaluationRating, ReviewAccountCard, ReviewTradeReferences };
+      export { ReviewTimeline, ReviewPreferences, ReviewTimelinePost, Photo, SnapshotCard, ReviewStockCarousel, ReviewPostBody, Composer, Dialog, ReviewEvaluationComposer, EvaluationRating, ReviewAccountCard, ReviewTradeReferences };
       ${pageSource.replaceAll('import.meta.env.DEV', 'true')}
     `, 'ReviewJournalEntryPageTest.jsx', { jsx: { runtime: 'classic' } });
     Page = await import(dataUrl(compiled.code));
@@ -99,7 +110,7 @@ test('a whole post opens a normal detail page with all entry and comment attachm
   assert.equal(find(tree, node => node.type === h.Page.Dialog), undefined);
   assert.equal(find(tree, node => hasClass(node, 'rj-tabs')), undefined);
   assert.equal(button(tree, '写复盘'), undefined);
-  assert.ok(button(tree, '返回投资复盘'));
+  assert.ok(button(tree, '返回投资动态'));
   assert.equal(firstPost(tree).props.role, undefined);
   assert.equal(find(tree, node => node.type === h.Page.ReviewPostBody).props.text, h.ctx.reviewLogs[0].text);
   assert.equal(find(tree, node => node.type === h.Page.ReviewPostBody).props.full, true);
@@ -117,21 +128,21 @@ test('the Journal navigation tab keeps its page title and returns from entries a
   const h = await harness(); h.ctx.navigationTab = true;
   let tree = h.render();
   assert.ok(hasClass(tree, 'rj-navigation-tab'));
-  assert.equal(find(tree, node => node.type === 'h1').props.children, '投资复盘');
+  assert.equal(find(tree, node => node.type === 'h1').props.children, '投资动态');
   assert.equal(button(tree, '返回'), undefined, 'a primary tab has no parent-page back action');
-  assert.equal(button(tree, '返回投资复盘'), undefined);
+  assert.equal(button(tree, '返回投资动态'), undefined);
   assert.ok(button(tree, '写复盘'));
   h.clickPost(tree); tree = h.render();
   assert.ok(detail(tree));
   assert.equal(find(tree, node => node.type === 'h1').props.children, '复盘记录');
-  button(tree, '返回投资复盘').props.onClick(); tree = h.render();
+  button(tree, '返回投资动态').props.onClick(); tree = h.render();
   assert.equal(detail(tree), undefined);
   assert.equal(h.fixture.window.scrollY, 740);
   find(tree, node => node.type === h.Page.ReviewPostBody).props.onSelectSymbol('NVDA', { type: 'click', detail: 1, stopPropagation() {}, preventDefault() {} });
   tree = h.render();
   assert.equal(find(tree, node => node.type === 'h1').props.children, '$NVDA');
-  button(tree, '返回投资复盘').props.onClick(); tree = h.render();
-  assert.equal(find(tree, node => node.type === 'h1').props.children, '投资复盘');
+  button(tree, '返回投资动态').props.onClick(); tree = h.render();
+  assert.equal(find(tree, node => node.type === 'h1').props.children, '投资动态');
   assert.equal(button(tree, '返回'), undefined);
   assert.equal(h.fixture.leftJournal, undefined);
   assert.equal(h.saves.length, 0);
@@ -163,7 +174,7 @@ test('keyboard entry and back preserve the filtered feed, scroll position and fo
     post.props.onKeyDown({ type: 'keydown', key, target: h.host, currentTarget: h.host, preventDefault: () => { prevented = true; } });
     tree = h.render(); assert.ok(prevented); assert.ok(detail(tree));
     h.fixture.window.scrollY = 900;
-    button(tree, '返回投资复盘').props.onClick(); tree = h.render();
+    button(tree, '返回投资动态').props.onClick(); tree = h.render();
     assert.equal(detail(tree), undefined);
     assert.equal(button(tree, '复盘日志').props['aria-pressed'], true);
     assert.equal(h.scrolls.at(-1).top, 740);
@@ -180,7 +191,7 @@ test('mouse and touch entry return to the title without focusing the whole post'
     h.fixture.document.activeElement = options.focused ? h.host : null;
     h.clickPost(tree, options); tree = h.render();
     assert.ok(detail(tree));
-    button(tree, '返回投资复盘').props.onClick(); tree = h.render();
+    button(tree, '返回投资动态').props.onClick(); tree = h.render();
     assert.equal(detail(tree), undefined);
     assert.equal(h.fixture.window.scrollY, 740);
     assert.equal(h.focus.at(-1).target, 'h1');
@@ -195,7 +206,7 @@ test('a keyboard-generated comment button click restores its post focus', async 
   h.fixture.document.activeElement = trigger;
   button(tree, '查看评论').props.onClick({ type: 'click', detail: 0, currentTarget: trigger, nativeEvent: { pointerType: '' } });
   tree = h.render(); assert.ok(detail(tree));
-  button(tree, '返回投资复盘').props.onClick(); tree = h.render();
+  button(tree, '返回投资动态').props.onClick(); tree = h.render();
   assert.equal(detail(tree), undefined);
   assert.equal(h.focus.at(-1).target, 'post');
   assert.equal(h.fixture.window.scrollY, 740);
@@ -240,7 +251,7 @@ test('the evaluation composer stays mounted when closed and saves on the same de
 test('A and B evaluation drafts keep distinct component identities across navigation and reopening', async () => {
   const h = await harness(); let tree = h.render();
   const composers = () => visible(tree).filter(node => node.type === h.Page.ReviewEvaluationComposer);
-  const goBack = () => { button(tree, '返回投资复盘').props.onClick(); tree = h.render(); };
+  const goBack = () => { button(tree, '返回投资动态').props.onClick(); tree = h.render(); };
   const open = id => { h.clickPost(tree, { id }); tree = h.render(); button(tree, '写评价').props.onClick(); tree = h.render(); };
   open('one');
   const a = composers()[0]; assert.equal(a.props.open, true);
@@ -432,7 +443,7 @@ test('removing a review or navigating back unmounts its editor without reviving 
     button(tree, '修改评价').props.onClick(); tree = h.render();
     assert.ok(find(tree, node => node.type === h.Page.ReviewEvaluationComposer));
     if (remove) h.ctx.reviewLogs[0] = { ...h.ctx.reviewLogs[0], replies: [] };
-    else button(tree, '返回投资复盘').props.onClick();
+    else button(tree, '返回投资动态').props.onClick();
     tree = h.render();
     assert.equal(find(tree, node => node.type === h.Page.ReviewEvaluationComposer), undefined);
     assert.equal(h.saves.length, 0); assert.equal(h.replyDeletes.length, 0); h.unmount();
@@ -484,7 +495,7 @@ test('stock tags open a cross-category exact-match feed without changing categor
   ];
   let tree = h.render();
   button(tree, '复盘日志').props.onClick(); tree=h.render();
-  button(tree, '搜索复盘').props.onClick(); tree=h.render();
+  button(tree, '搜索动态').props.onClick(); tree=h.render();
   find(tree,node=>node.type==='input').props.onChange({target:{value:'继续观察'}}); tree=h.render();
   assert.equal(visible(tree).filter(node=>node.type==='article').length,1);
   const control=find(tree,node=>node.type===h.Page.ReviewPostBody);
@@ -498,7 +509,7 @@ test('stock tags open a cross-category exact-match feed without changing categor
   assert.equal(find(tree,node=>hasClass(node,'rj-tabs')),undefined);
   assert.equal(find(tree,node=>node.type==='input'),undefined);
   assert.equal(visible(tree).some(node=>hasClass(node,'rj-inline-pin')),false);
-  button(tree,'返回投资复盘').props.onClick();tree=h.render();
+  button(tree,'返回投资动态').props.onClick();tree=h.render();
   assert.equal(button(tree,'复盘日志').props['aria-pressed'],true);
   assert.equal(find(tree,node=>node.type==='input').props.value,'继续观察');
   assert.equal(h.fixture.window.scrollY,740);
@@ -516,12 +527,12 @@ test('tag and entry navigation preserve parent pages and positions through brows
   h.clickPost(tree);tree=h.render();assert.ok(detail(tree));
   h.fixture.window.scrollY=610;
   select('QQQ');assert.equal(find(tree,node=>node.type==='h1').props.children,'$QQQ');
-  button(tree,'返回投资复盘').props.onClick();tree=h.render();
+  button(tree,'返回投资动态').props.onClick();tree=h.render();
   assert.ok(detail(tree));assert.equal(h.fixture.window.scrollY,610);
-  button(tree,'返回投资复盘').props.onClick();tree=h.render();
+  button(tree,'返回投资动态').props.onClick();tree=h.render();
   assert.equal(find(tree,node=>node.type==='h1').props.children,'$NVDA');assert.equal(h.fixture.window.scrollY,280);
   h.fixture.window.history.back();tree=h.render();
-  assert.equal(find(tree,node=>node.type==='h1').props.children,'投资复盘');assert.equal(h.fixture.window.scrollY,740);
+  assert.equal(find(tree,node=>node.type==='h1').props.children,'投资动态');assert.equal(h.fixture.window.scrollY,740);
   h.fixture.window.history.forward();tree=h.render();
   assert.equal(find(tree,node=>node.type==='h1').props.children,'$NVDA');assert.equal(h.fixture.window.scrollY,280);
   h.fixture.window.history.forward();tree=h.render();assert.ok(detail(tree));assert.equal(h.fixture.window.scrollY,610);
@@ -558,7 +569,7 @@ test('timeline detail reuses evaluation, preserves references and keeps containe
   assert.equal(saved.timelineEvent.id,event.id);
   timeline=find(tree,node=>node.type===h.Page.ReviewTimeline);
   assert.match(textOf(timeline.props.renderEvaluations(event)),/这次仓位过重/);
-  button(tree,'返回投资复盘').props.onClick();tree=h.render();
+  button(tree,'返回投资动态').props.onClick();tree=h.render();
   button(tree,'全部').props.onClick();tree=h.render();
   assert.equal(visible(tree).filter(node=>node.type==='article').length,records().length);
   h.unmount();
@@ -571,7 +582,7 @@ test('timeline drafts stay mounted through category reloads and linked stock tag
   let tree=h.render();button(tree,'时间线').props.onClick();tree=h.render();await Promise.resolve();tree=h.render();
   find(tree,node=>node.type===h.Page.ReviewTimeline).props.onEvaluate(event);tree=h.render();
   const editor=find(tree,node=>node.type===h.Page.ReviewEvaluationComposer);
-  editor.props.onClose();button(tree,'返回投资复盘').props.onClick();tree=h.render();
+  editor.props.onClose();button(tree,'返回投资动态').props.onClick();tree=h.render();
   button(tree,'全部').props.onClick();tree=h.render();
   button(tree,'时间线').props.onClick();tree=h.render();tree=h.render();
   assert.equal(find(tree,node=>node.type===h.Page.ReviewEvaluationComposer).key,editor.key,'loading must not unmount the draft');
@@ -582,5 +593,183 @@ test('timeline drafts stay mounted through category reloads and linked stock tag
   assert.match(textOf(tree),/1 篇相关博文/);
   assert.equal(visible(tree).filter(node=>node.type==='article').length,1);
   assert.equal(find(tree,node=>node.type===h.Page.ReviewTimeline),undefined);
+  h.unmount();
+});
+
+const activityEvents = () => [
+  { id: 'high:net_assets:2026-11-05', kind: 'high', metric: 'net_assets', date: '2026-11-06', startDate: '2026-11-05', endDate: '2026-11-06', title: '净资产新高', value: 120000, valueType: 'money', points: [], nodes: [] },
+  { id: 'drawdown:net_assets:2026-10-06', kind: 'drawdown', metric: 'net_assets', date: '2026-11-06', startDate: '2026-10-06', trigger: { date: '2026-11-01' }, title: '净资产回落', value: -12, valueType: 'percent', status: 'active', points: [], nodes: [] },
+];
+const systemPosts = (tree, h) => visible(tree).filter(node => node.type === h.Page.ReviewTimelinePost);
+const clickEvent = h => ({ type: 'click', detail: 1, currentTarget: h.host });
+const settle = () => new Promise(resolve => setImmediate(resolve));
+
+test('the avatar opens an independent settings route and browser history restores the exact feed', async () => {
+  const h = await harness(); h.ctx.navigationTab = true;
+  let tree = h.render();
+  button(tree, '复盘日志').props.onClick(); tree = h.render();
+  button(tree, '搜索动态').props.onClick(); tree = h.render();
+  find(tree, node => node.type === 'input').props.onChange({ target: { value: '第二条' } }); tree = h.render();
+  h.fixture.window.scrollY = 485;
+  button(tree, '动态设置').props.onClick(clickEvent(h)); tree = h.render();
+  assert.ok(hasClass(tree, 'rj-settings-page'));
+  assert.equal(find(tree, node => node.type === 'h1').props.children, '动态设置');
+  assert.ok(find(tree, node => node.type === h.Page.ReviewPreferences));
+  assert.equal(firstPost(tree), undefined);
+  assert.equal(button(tree, '写复盘'), undefined);
+  assert.equal(find(tree, node => hasClass(node, 'rj-entry-missing')), undefined);
+  assert.equal(h.fixture.window.history.state.reviewJournalEntry.key, 'settings');
+  assert.equal(h.fixture.window.scrollY, 0);
+  h.fixture.window.scrollY = 92;
+  h.fixture.window.history.back(); tree = h.render();
+  assert.equal(button(tree, '复盘日志').props['aria-pressed'], true);
+  assert.equal(find(tree, node => node.type === 'input').props.value, '第二条');
+  assert.equal(firstPost(tree).props['data-rj-entry-key'], 'log:two');
+  assert.equal(h.fixture.window.scrollY, 485);
+  h.fixture.window.history.forward(); tree = h.render();
+  assert.ok(find(tree, node => node.type === h.Page.ReviewPreferences));
+  assert.equal(h.fixture.window.scrollY, 92);
+  button(tree, '返回投资动态').props.onClick(); tree = h.render();
+  assert.equal(find(tree, node => node.type === 'h1').props.children, '投资动态');
+  assert.equal(h.fixture.window.scrollY, 485);
+  assert.equal(h.saves.length, 0);
+  assert.equal(h.fixture.leftJournal, undefined);
+  h.unmount();
+});
+
+test('a mixed system post opens its event and shares saved evaluations with the timeline category', async () => {
+  const h = await harness({ preferences: { showTimeline: true, eventTypes: ['net_assets_high', 'drawdown'] } });
+  const events = activityEvents(), event = events[0];
+  h.ctx.previewData.timeline = { status: 'ready', events, years: [2026], coverage: {}, warnings: [] };
+  h.ctx.reviewLogs.push({ id: 'event-container', type: 'log', date: event.startDate, text: event.title, stocks: [], images: [], revision: 1,
+    timelineEvent: { version: 1, id: event.id, kind: event.kind, metric: event.metric, date: event.startDate, title: event.title },
+    replies: [{ id: 'earlier', date: '2026-11-06', text: '原有时间线评价' }] });
+  const submissions = [];
+  h.ctx.db.appendReviewTimelineReply = async (entry, reply, owner) => {
+    submissions.push({ entry, reply, owner });
+    return { ...entry, revision: 2, replies: [...entry.replies, reply] };
+  };
+  let tree = h.render(); await settle(); tree = h.render();
+  assert.deepEqual(systemPosts(tree, h).map(node => node.props.event.id), events.map(item => item.id));
+  assert.equal(visible(tree).filter(node => node.type === 'article').length, records().length, 'the persisted event container must not render as a duplicate ordinary post');
+  const systemPost = systemPosts(tree, h)[0];
+  assert.equal(systemPost.props.commentCount, 1);
+  assert.ok(systemPost.props.avatarNode);
+  assert.ok(systemPost.props.authorNode);
+  systemPost.props.onOpen(event.id, clickEvent(h)); tree = h.render();
+  let timeline = find(tree, node => node.type === h.Page.ReviewTimeline);
+  assert.equal(timeline.props.selectedEventId, event.id);
+  assert.match(textOf(timeline.props.renderEvaluations(event)), /原有时间线评价/);
+  button(timeline.props.renderEvaluations(event), '写评价').props.onClick(); tree = h.render();
+  const composer = find(tree, node => node.type === h.Page.ReviewEvaluationComposer);
+  assert.equal(composer.props.entry.id, 'event-container');
+  assert.equal(composer.props.entry.timelineEvent.id, event.id);
+  const reply = { id: 'new-review', date: '2026-11-07', text: '新高之后仍控制仓位', score: 8 };
+  const saved = await composer.props.db.appendReviewJournalReply(composer.props.entry, reply, 'owner');
+  composer.props.onSaved(saved); composer.props.onClose(); tree = h.render();
+  assert.equal(submissions.length, 1);
+  assert.equal(submissions[0].entry.timelineEvent.id, event.id);
+  assert.equal(submissions[0].owner, 'owner');
+  button(tree, '返回投资动态').props.onClick(); tree = h.render();
+  assert.equal(systemPosts(tree, h)[0].props.commentCount, 2);
+  button(tree, '时间线').props.onClick(); tree = h.render();
+  find(tree, node => node.type === h.Page.ReviewTimeline).props.onSelectEvent(event.id); tree = h.render();
+  timeline = find(tree, node => node.type === h.Page.ReviewTimeline);
+  assert.match(textOf(timeline.props.renderEvaluations(event)), /原有时间线评价.*新高之后仍控制仓位/);
+  assert.equal(h.ctx.reviewLogs.filter(entry => entry.timelineEvent?.id === event.id).length, 1);
+  assert.equal(h.saves.length, 0, 'adding an event evaluation must use its existing event-specific save operation');
+  h.unmount();
+});
+
+test('master and event-type settings filter only All while the complete timeline remains available', async () => {
+  const h = await harness({ preferences: { showTimeline: true, eventTypes: ['net_assets_high', 'drawdown'] } });
+  const events = activityEvents();
+  h.ctx.previewData.timeline = { status: 'ready', events, years: [2026], coverage: {}, warnings: [] };
+  let tree = h.render(); await settle(); tree = h.render();
+  assert.equal(systemPosts(tree, h).length, 2);
+  const changeSettings = async patch => {
+    button(tree, '动态设置').props.onClick(clickEvent(h)); tree = h.render();
+    await find(tree, node => node.type === h.Page.ReviewPreferences).props.onChange(patch);
+    tree = h.render(); button(tree, '返回投资动态').props.onClick(); tree = h.render();
+  };
+  const checkCompleteTimeline = () => {
+    button(tree, '时间线').props.onClick(); tree = h.render();
+    const timeline = find(tree, node => node.type === h.Page.ReviewTimeline);
+    assert.deepEqual(timeline.props.data.events.map(event => event.id), events.map(event => event.id));
+    assert.equal(timeline.props.loading, false);
+    button(tree, '全部').props.onClick(); tree = h.render();
+  };
+  await changeSettings({ eventTypes: ['drawdown'] });
+  assert.deepEqual(systemPosts(tree, h).map(node => node.props.event.id), [events[1].id]);
+  checkCompleteTimeline();
+  await changeSettings({ showTimeline: false });
+  assert.equal(systemPosts(tree, h).length, 0);
+  checkCompleteTimeline();
+  await changeSettings({ showTimeline: true, eventTypes: [] });
+  assert.equal(systemPosts(tree, h).length, 0);
+  checkCompleteTimeline();
+  await changeSettings({ eventTypes: ['net_assets_high'] });
+  assert.deepEqual(systemPosts(tree, h).map(node => node.props.event.id), [events[0].id]);
+  button(tree, '复盘日志').props.onClick(); tree = h.render();
+  assert.equal(systemPosts(tree, h).length, 0);
+  assert.equal(visible(tree).filter(node => node.type === 'article').length, records().length);
+  assert.equal(h.saves.length, 0);
+  h.unmount();
+});
+
+test('loaded timeline data is reused across rerenders, settings and feed-category navigation', async () => {
+  const h = await harness({ preferences: { showTimeline: true, eventTypes: ['net_assets_high'] } });
+  delete h.ctx.previewData;
+  h.ctx.db.readCachedReviewIdentity = () => ({ nickname: '当前账户' });
+  h.ctx.db.fetchReviewIdentity = async () => ({ nickname: '当前账户' });
+  h.ctx.db.subscribeReviewIdentity = () => () => {};
+  const calls = [];
+  h.ctx.db.fetchReviewTimeline = async owner => {
+    calls.push(owner);
+    return { status: 'ready', events: activityEvents(), years: [2026], coverage: {}, warnings: [] };
+  };
+  let tree = h.render(); await settle(); tree = h.render();
+  assert.deepEqual(calls, ['owner']);
+  for (let index = 0; index < 4; index++) tree = h.render();
+  button(tree, '动态设置').props.onClick(clickEvent(h)); tree = h.render();
+  button(tree, '返回投资动态').props.onClick(); tree = h.render();
+  for (const category of ['复盘日志', '全部', '时间线', '投资心得', '全部']) {
+    button(tree, category).props.onClick(); tree = h.render(); await settle(); tree = h.render();
+  }
+  assert.deepEqual(calls, ['owner'], 'ready data must not re-fetch merely because the requested-view flag changes');
+  assert.equal(systemPosts(tree, h).length, 1);
+  h.unmount();
+});
+
+test('automatic reads wait for confirmed preferences and ignore a response from a departed view', async () => {
+  const h = await harness({ preferences: { showTimeline: true, eventTypes: ['net_assets_high'] } });
+  delete h.ctx.previewData;
+  h.ctx.db.readCachedReviewIdentity = () => ({ nickname: '当前账户' });
+  h.ctx.db.fetchReviewIdentity = async () => ({ nickname: '当前账户' });
+  h.ctx.db.subscribeReviewIdentity = () => () => {};
+  h.fixture.preferenceState.ready = false;
+  const requests = [];
+  h.ctx.db.fetchReviewTimeline = owner => new Promise(resolve => requests.push({ owner, resolve }));
+  let tree = h.render(); await settle(); tree = h.render();
+  assert.equal(requests.length, 0);
+  assert.equal(visible(tree).filter(node => node.type === 'article').length, records().length, 'ordinary posts must not wait for display preferences');
+  h.fixture.preferenceState.ready = true;
+  tree = h.render(); tree = h.render();
+  assert.equal(requests.length, 1);
+  button(tree, '复盘日志').props.onClick(); tree = h.render();
+  requests[0].resolve({ status: 'ready', events: activityEvents(), years: [2026] });
+  await settle(); tree = h.render();
+  assert.equal(systemPosts(tree, h).length, 0);
+  button(tree, '时间线').props.onClick(); tree = h.render();
+  assert.equal(requests.length, 2, 'the canceled view response must not mark the new view ready');
+  assert.equal(find(tree, node => node.type === h.Page.ReviewTimeline).props.loading, true);
+  const latestEvents = activityEvents().slice(1);
+  requests[1].resolve({ status: 'ready', events: latestEvents, years: [2026] });
+  await settle(); tree = h.render();
+  const timeline = find(tree, node => node.type === h.Page.ReviewTimeline);
+  assert.equal(timeline.props.loading, false);
+  assert.deepEqual(timeline.props.data.events, latestEvents);
+  for (let index = 0; index < 3; index++) tree = h.render();
+  assert.equal(requests.length, 2);
   h.unmount();
 });

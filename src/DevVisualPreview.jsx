@@ -3530,7 +3530,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     { id: 'home', label: t(language, 'nav.home', '首页'), icon: Home },
     { id: 'trades', label: t(language, 'nav.trades', '交易'), icon: ListChecks },
     { id: 'analysis', label: t(language, 'nav.analysis', '资产'), icon: Wallet },
-    { id: 'review', label: t(language, 'nav.review', '复盘'), icon: BookOpen },
+    { id: 'review', label: t(language, 'nav.review', '动态'), icon: BookOpen },
     { id: 'settings', label: t(language, 'nav.settings', '设置'), icon: Settings },
   ];
 
