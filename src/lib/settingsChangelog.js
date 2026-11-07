@@ -3,6 +3,11 @@ import { CURRENT_RELEASE } from './releaseMeta.js';
 export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
+    items: ['复盘新增自动时间线，记录净资产与收益新高、10% 起的回撤周期和日/月/季/年纪录；可查看关键节点、关联交易与博文，并用评分、标签和附件写评价。资金变化及历史缺口分段核对。'],
+    itemsEn: ['Journal now includes an automatic timeline of net-asset and return highs, drawdown cycles starting at 10%, and daily/monthly/quarterly/yearly records. Explore milestones, related trades and posts, and add evaluations with ratings, tags and attachments. Cash changes and history gaps start separate comparison segments.'],
+  },
+  {
+    ver: 'v10.7.9.588', date: '2026-11-07',
     items: ['投资复盘移至底部“复盘”，原入口改为“投资目标”；复盘导航随下滚收起、上滚恢复，并采用“回看”图标。'],
     itemsEn: ['Investment Journal now opens from the Journal tab, while Investment Goals moves to Trading tools. Journal navigation hides while scrolling down, returns while scrolling up, and uses a look-back icon.'],
   },

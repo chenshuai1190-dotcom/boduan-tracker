@@ -133,3 +133,6 @@
 .rj-navigation-tab .rj-fab{transition:bottom 200ms ease}
 [data-review-nav-hidden="true"] .rj-navigation-tab .rj-fab{bottom:calc(26px + env(safe-area-inset-bottom))}
 @media (prefers-reduced-motion:reduce){.rj-navigation-tab .rj-fab{transition:none}}
+
+/* Timeline categories retain touch targets on compact phones. */
+@media(max-width:359px){.rj-tabs{gap:8px;padding:0 10px}.rj-tabs button{font-size:14px;padding-inline:2px}}

@@ -2582,7 +2582,7 @@ test('review target page uses a flat dark report and preserves click action moda
     assert.equal((button.match(/<button\b/g) || []).length, 1, 'reading row controls must not nest native buttons');
     assert.ok(button.includes('type="button"'), 'reading row controls must not accidentally submit a form');
   }
-  assert.ok(reviewTabSource.includes('filteredDisciplines.filter((item, index) => item.pinned || index < 3)') && reviewTabSource.includes('(reviewLogs || []).slice(0, 2)'), 'reading sections should keep all pinned notes visible and preserve compact defaults for ordinary notes and logs');
+  assert.ok(reviewTabSource.includes('filteredDisciplines.filter((item, index) => item.pinned || index < 3)') && reviewTabSource.includes('(reviewLogs || []).filter(item => !item.timelineEvent)') && reviewTabSource.includes('journalLogs.slice(0, 2)'), 'reading sections should keep all pinned notes visible and preserve compact defaults for ordinary notes and logs');
   assert.ok(reviewTabSource.includes('setShowAllDisciplines(!showAllDisciplines)') && reviewTabSource.includes('setShowAllLogs(!showAllLogs)'), 'all existing notes and logs must remain reachable through separate expand/collapse controls');
   assert.ok(reviewTabSource.includes("tt('review.viewAllCount', '查看全部 {{count}} 条'") && reviewTabSource.includes("tt('review.collapseRecent', '收起')"), 'reading expand controls should expose localized full counts and collapse labels');
   assert.match(reviewTabCss, /\.review-entry:focus-visible[^{]*\{[^}]*outline:/, 'native reading interactions should retain visible keyboard focus');

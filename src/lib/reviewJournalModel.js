@@ -2,6 +2,7 @@ import {
   normalizeReviewEvaluationScore, normalizeReviewEvaluationTags,
   normalizeReviewTradeReferences, normalizeReviewAccountSnapshot,
 } from './reviewEvaluationModel.js';
+import { normalizeReviewTimelineReference } from './reviewTimelineReference.js';
 
 export const REVIEW_JOURNAL_IMAGE_BUCKET = 'review-journal-images';
 export const REVIEW_JOURNAL_MAX_IMAGE_BYTES = 10 * 1024 * 1024;
@@ -166,6 +167,7 @@ export function mapReviewJournalRow(row, type, expectedUserId = row?.user_id) {
   reviewJournalTable(type);
   const data = plainObject(row?.review_data) ? row.review_data : {};
   const createdDate = typeof row?.created_at === 'string' ? row.created_at.slice(0, 10) : '';
+  const timelineEvent = type === 'log' ? normalizeReviewTimelineReference(data.timelineEvent) : null;
   return {
     id: row?.id, type,
     date: type === 'log' ? row?.log_date || '' : isReviewJournalDate(data.date) ? data.date : createdDate,
@@ -178,6 +180,7 @@ export function mapReviewJournalRow(row, type, expectedUserId = row?.user_id) {
     replies: replies(data.replies, expectedUserId),
     revision: Number.isSafeInteger(row?.review_revision) && row.review_revision >= 0 ? row.review_revision : 0,
     operationId: isReviewJournalOperationId(data.operationId) ? data.operationId : null,
+    ...(timelineEvent ? { timelineEvent } : {}),
     createdAt: row?.created_at || null, updatedAt: row?.updated_at || null,
   };
 }
@@ -191,6 +194,10 @@ export function buildReviewJournalWrite(entry, userId) {
   const entryImages = images(entry.images, userId, true);
   const entryStocks = stocks(entry.stocks, true);
   const entryMarket = jsonSnapshot(entry.market, true);
+  const timelineEvent = normalizeReviewTimelineReference(entry.timelineEvent, { strict: true });
+  if (timelineEvent && (entry.type !== 'log' || entry.date !== timelineEvent.date)) {
+    throw reviewJournalError('REVIEW_INVALID_TIMELINE', '时间线评价须保留原事件的记录日期。');
+  }
   if (!text && !entryImages.length && !entryStocks.length && !(entryMarket && Object.keys(entryMarket).length)) {
     throw reviewJournalError('REVIEW_EMPTY_ENTRY', '请输入内容，或添加图片、股票、市场快照。');
   }
@@ -203,6 +210,7 @@ export function buildReviewJournalWrite(entry, userId) {
     stocks: entryStocks, market: entryMarket, images: entryImages,
     replies: replies(entry.replies, userId, true) };
   if (entry.operationId) data.operationId = entry.operationId;
+  if (timelineEvent) data.timelineEvent = timelineEvent;
   if (new TextEncoder().encode(JSON.stringify(data)).length >= MAX_METADATA_BYTES) {
     throw reviewJournalError('REVIEW_METADATA_LIMIT', '记录附件信息过多，请拆分后保存。');
   }

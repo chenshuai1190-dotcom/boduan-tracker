@@ -1,6 +1,6 @@
 # boduan-tracker 当前交接
 
-验证时间：`2026-11-07 Asia/Shanghai`。本轮按用户要求发布投资复盘股票标签、横滑卡片与焦点边框修复。稳定规则看 `README.md`，流程看 `docs/development-process.md`。
+验证时间：`2026-11-07 Asia/Shanghai`。用户已授权发布投资复盘自动时间线。稳定规则看 `README.md`，流程看 `docs/development-process.md`。
 
 ## 当前生产基准
 
@@ -8,22 +8,21 @@
 | --- | --- |
 | 仓库 | `chenshuai1190-dotcom/boduan-tracker`；唯一发布来源 `main` |
 | 当前工作区 | `/Users/chenshuaishuai/Documents/Codex/2026-10-03/quote-boduan-tracker-2026-10-03/work/quiet-input-fields` |
-| 发布前生产源码 | `711faeb2e370d3fb9c105e1e5f7d752a046a6366 / v10.7.9.574`；精确提交 CI、Docs、Vercel 与真实账户昵称/头像刷新回读验证通过 |
-| 发布前部署 | Vercel 任务 `EV5QJLo1ajyAd1EPn5vScwymCKkV`，入口 `/assets/index-4_x1BlKz.js`；`https://boduan-tracker.vercel.app` |
-| 本次候选版本 | `v10.7.9.575 / 2026-11-07`：首次提及股票标签、跨分类相关博文、单卡横滑、去除冗余页脚与整篇焦点框 |
-| 已生效云端配置 | `supabase/review-journal.sql`、`supabase/community-profile-avatar.sql` 已获授权执行；仅增加复盘 metadata/CAS 与头像路径、两私有 bucket 和本人目录策略 |
-| 生产 Checks | 已重新只读核对 Vercel 项目 Checks：配置列表为空；仓库 audit/build 保留，本次等待精确提交 CI + Docs + Vercel，不宣称平台已配置 CI 阻断晋级 |
+| 发布前生产源码 | `83f0df830664eeedebdd23feb1eb5ef042301c56 / v10.7.9.588`；既有 CI、Vercel 与生产静态产物验证通过 |
+| 发布前部署 | Vercel `3BSZcRZmioDspYQQy5eXxMvhrEhr`；`https://boduan-tracker.vercel.app` |
+| 本次候选版本 | `v10.7.9.589 / 2026-11-07`：投资复盘自动时间线、10% 回撤周期、节点详情与独立评价 |
+| 已生效云端配置 | 复用既有收益快照、资金变动、复盘 JSONB/CAS/operationId 唯一索引；本轮不执行 migration 或历史数据写入 |
+| 生产 Checks | 本次控制台只读核对为“未配置任何检查”；仓库 audit/build 保留，发布等待精确提交 CI + Docs + Vercel，不宣称平台已配置 CI 晋级阻断 |
 
 ## 本次证据与边界
 
-- 股票标签仅用于正文展示，首次提及输出 `$代码`，重复提及不重复标签，金额/URL/邮箱保留原样；保存正文、编辑光标、原自动关联和持仓计算不变。
-- 标签列表合并当前账户两类博文，以正文股票识别或已有股票关联精确匹配；按时间排序，忽略此前分类与关键词但返回恢复。标签、独立博文和另一标签的返回/前进保存阅读位置，私有历史由挂载 token 与已知 route 校验，切号重新挂载。
-- 多股票通过原生横向分页一次显示一张，保留既有数据和交易节点；删除卡片底部提示。取消整篇焦点框，保留局部键盘焦点提示。滑动防误点与键盘切换有定向覆盖。
-- 功能 FULL：3,464 tests（3,462 pass、2项既有skip、0 fail）；发布说明更新后对最终 diff 再运行 FULL，结果以任务日志和精确提交 CI 为准。
-- iPhone 17 Pro / iOS 26.5 Safari 验证正文首次标签、重复普通文字、点选标签与相关列表；原生 1206×2622 PNG 保存在 `artifacts/journal-stock-tags-2026-11-07/`。320px 窄屏无横溢出。卡片切换与布局已验证，原生触摸横滑自动操作不稳定，未冒充真机手势验收。
-- v574 既有缓存验收边界：真实浏览器35条博文昵称/本机头像恢复通过；已安装 Home Screen Quote 曾因本地连接异常未完成 PWA 重开验收，用户知情后授权发布。本轮不修改该缓存、PWA、账户、云端权限或行情链路。
-- 发布步骤：最终 FULL → 一次提交/push main → `release:verify -- full <exact commit>` → 一轮线上投资复盘只读 smoke；等待器成功前不将候选版本写成已上线。
-- 已生效图片/头像云端配置与测试清理证据见 `docs/review-journal-cloud-configuration.md`；实施细节见 `docs/review-journal-local-integration.md`。以下子系统段落为既有合同及历史证据，不视为本轮重新验收。
+- 本地真实账户只读生成 41 条系统事件，无测试评价写入真实账户。完整分页、读取前后认证与 rebuild revision fence；数据不完整或更新中保持不可用。
+- 净资产前高回落至少 10% 启动周期，缩小至 10% 内继续跟踪，恢复原高点才完成。资金变动、余额来源变化和缺失交易日中断比较；原有收益报表与账本不变，不自行推算现金流调整收益率。
+- 首次评价原子创建独立容器，SHA-256 派生账户/事件 operationId；重试、并发和丢响应恢复有定向测试。编辑/删除评价保留事件引用，普通博文、股票标签和投资目标列表排除容器；事件来源变化后保留归档评价。
+- 本地实现 FULL：3,657 tests（3,655 pass、2 项既有 skip、0 fail）；更新发布说明后对最终 diff 再运行一次 FULL，最终结果以任务日志及精确提交 CI 为准。
+- 320/390/430px 浏览器排版、关键节点、评分/自定义标签及示例评价保存通过；iPhone 17 Pro iOS 26.5 Safari 完成列表→详情→返回。原生 1206×2622 PNG 位于外层工作区 `local-previews/review/timeline/integrated-evidence/`；模拟器触摸滚动自动操作不可靠，未声称该手势已验收。
+- DEV 示例独立隔离；生产只读取已有账户数据。本轮不修改 PWA 生命周期、行情缓存或恢复链路，既有 Home Screen 验收边界继续保留。
+- 发布步骤：最终 FULL → 一次提交/push main → `release:verify -- full <exact commit>` → 一轮线上时间线聚合只读 smoke；等待器成功前不将候选版本写成已上线。
 
 ## 可用现金与资产联动
 

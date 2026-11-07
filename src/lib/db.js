@@ -14,6 +14,7 @@ import { userScopedStorageKey } from './userScopedStorage.js';
 import { mapReviewJournalRow } from './reviewJournalModel.js';
 import { createReviewJournalRepository } from './reviewJournalRepository.js';
 import { createReviewAccountSnapshotLoader } from './reviewAccountSnapshot.js';
+import { createReviewTimelineLoader } from './reviewTimelineDb.js';
 
 export {
   fetchPnlReportRebuildState,
@@ -70,6 +71,13 @@ export const saveReviewJournalEntry = async (entry, expectedUserId) => {
   return saved;
 };
 export const fetchReviewAccountSnapshot = createReviewAccountSnapshotLoader(supabase);
+export const fetchReviewTimeline = createReviewTimelineLoader(supabase);
+export const appendReviewTimelineReply = async (entry, reply, expectedUserId) => {
+  const saved = await reviewJournalRepository.appendTimelineReply(entry, reply, expectedUserId);
+  const cached = cacheGet(expectedUserId, 'review_logs');
+  if (Array.isArray(cached)) cacheSet(expectedUserId, 'review_logs', [saved, ...cached.filter(item => item.id !== saved.id)]);
+  return saved;
+};
 export const appendReviewJournalReply = async (entry, reply, expectedUserId) => {
   const saved = await reviewJournalRepository.appendReply(entry, reply, expectedUserId);
   const key = saved.type === 'insight' ? 'disciplines' : 'review_logs';

@@ -1,4 +1,5 @@
 import React from 'react';
+import { createReviewTimelinePreview } from './reviewTimelinePreview.js';
 import ReviewJournalPage from '../pages/ReviewJournalPage.jsx';
 import { buildReviewJournalWrite } from '../lib/reviewJournalModel.js';
 import { STOCK_COMPARISON_DEMO } from './stockComparisonFixture.js';
@@ -7,6 +8,7 @@ import { createReviewMarketSnapshot, readReviewMarketDate } from '../lib/reviewM
 
 // Only imported by DevVisualPreview. No account requests or production writes.
 const OWNER = 'local-review-journal-preview';
+const timeline = createReviewTimelinePreview(OWNER);
 const now = Date.parse('2026-11-06T04:00:00Z');
 const date = '2026-11-05';
 const market = {
@@ -72,6 +74,14 @@ export default function ReviewJournalPreview({language,onBack,marketColorMode,na
       const stored={...existing,replies:[...existing.replies,normalized],revision:existing.revision+1};
       rows.current=rows.current.map(row=>row.id===stored.id&&row.type===stored.type?stored:row);return stored;
     },
+    appendReviewTimelineReply:async(entry,reply,userId)=>{
+      if(userId!==OWNER)throw new Error('预览账户不匹配');
+      const existing=rows.current.find(row=>row.timelineEvent?.id===entry.timelineEvent?.id);
+      const normalized=buildReviewJournalWrite({...entry,replies:[reply]},OWNER);
+      if(existing?.replies.some(item=>item.id===reply.id))return existing;
+      const stored={...entry,...existing,id:existing?.id||crypto.randomUUID(),type:'log',timelineEvent:normalized.review_data.timelineEvent,replies:[...(existing?.replies||[]),normalized.review_data.replies[0]],revision:(existing?.revision||0)+1};
+      rows.current=[stored,...rows.current.filter(row=>row.id!==stored.id)];return stored;
+    },
     updateReviewJournalReply:async(entry,original,reply,userId)=>{
       if(userId!==OWNER)throw new Error('预览账户不匹配');
       if(new URLSearchParams(window.location.search).get('reviewFailure')==='save')throw new Error('模拟保存失败：评价内容与附件仍保留，请重试。');
@@ -100,5 +110,5 @@ export default function ReviewJournalPreview({language,onBack,marketColorMode,na
     removeReviewJournalImage:async path=>{const url=imageUrls.current.get(path);if(url)URL.revokeObjectURL(url);imageUrls.current.delete(path);},
   }),[]);
   if(!import.meta.env.DEV)return null;
-  return <ReviewJournalPage ctx={{db,userId:OWNER,language,disciplines,reviewLogs,setDisciplines,setReviewLogs,stockTrades,onBack,marketColorMode,navigationTab,previewData:{identity:{nickname:'波段玩家1836',avatarKey:'gold'},history,market,account}}}/>;
+  return <ReviewJournalPage ctx={{db,userId:OWNER,language,disciplines,reviewLogs,setDisciplines,setReviewLogs,stockTrades,onBack,marketColorMode,navigationTab,previewData:{timeline,initialTimeline:new URLSearchParams(window.location.search).get('reviewTimeline')==='1',identity:{nickname:'波段玩家1836',avatarKey:'gold'},history,market,account}}}/>;
 }

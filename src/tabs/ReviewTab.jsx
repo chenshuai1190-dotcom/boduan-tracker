@@ -227,7 +227,8 @@ export default function ReviewTab({ ctx }) {
   const collapsedDisciplines = filteredDisciplines.filter((item, index) => item.pinned || index < 3);
   const visibleDisciplines = showAllDisciplines ? filteredDisciplines : collapsedDisciplines;
   const hasHiddenDisciplines = collapsedDisciplines.length < filteredDisciplines.length;
-  const visibleLogs = showAllLogs ? (reviewLogs || []) : (reviewLogs || []).slice(0, 2);
+  const journalLogs = (reviewLogs || []).filter(item => !item.timelineEvent);
+  const visibleLogs = showAllLogs ? journalLogs : journalLogs.slice(0, 2);
 
   const switchCurrency = async (nextCurrency) => {
     if (nextCurrency === displayCurrency) return;
@@ -404,7 +405,7 @@ export default function ReviewTab({ ctx }) {
             <Plus size={15} strokeWidth={1.6} aria-hidden="true" />{tt('review.writeReview', '写复盘')}
           </button>
         </div>
-        {reviewLogs.length === 0 ? (
+        {journalLogs.length === 0 ? (
           <div className="review-empty">{tt('review.noReviewLogs', '还没有复盘')}</div>
         ) : <>
           <div className="review-entry-list">
@@ -420,8 +421,8 @@ export default function ReviewTab({ ctx }) {
               </button>;
             })}
           </div>
-          {reviewLogs.length > 2 && <button type="button" className="review-show-more" onClick={() => setShowAllLogs(!showAllLogs)}>
-            {showAllLogs ? tt('review.collapseRecent', '收起') : tt('review.viewAllCount', '查看全部 {{count}} 条', { count: reviewLogs.length })}
+          {journalLogs.length > 2 && <button type="button" className="review-show-more" onClick={() => setShowAllLogs(!showAllLogs)}>
+            {showAllLogs ? tt('review.collapseRecent', '收起') : tt('review.viewAllCount', '查看全部 {{count}} 条', { count: journalLogs.length })}
             {showAllLogs ? <ChevronUp size={14} aria-hidden="true" /> : <ChevronDown size={14} aria-hidden="true" />}
           </button>}
         </>}

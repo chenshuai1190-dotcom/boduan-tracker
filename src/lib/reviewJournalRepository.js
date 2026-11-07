@@ -8,6 +8,7 @@ import {
   reviewJournalTable,
   validateReviewJournalImageFile,
 } from './reviewJournalModel.js';
+import { normalizeReviewTimelineReference, sameReviewTimelineReference, reviewTimelineOperationId } from './reviewTimelineReference.js';
 
 const conflict = () => reviewJournalError('REVIEW_REVISION_CONFLICT', '这条复盘已被更新或删除，请刷新后重试。');
 function dbError(error) {
@@ -36,7 +37,7 @@ function revision(entry) {
   return entry.revision;
 }
 
-export function createReviewJournalRepository(client, { now = () => new Date().toISOString(), randomUUID = () => globalThis.crypto.randomUUID() } = {}) {
+export function createReviewJournalRepository(client, { now = () => new Date().toISOString(), randomUUID = () => globalThis.crypto.randomUUID(), timelineDigest } = {}) {
   async function authenticate(expectedUserId) {
     if (!client?.auth?.getUser || typeof expectedUserId !== 'string' || !expectedUserId.trim()) {
       throw reviewJournalError('REVIEW_AUTH_REQUIRED', '请先登录后再操作复盘。');
@@ -133,11 +134,18 @@ export function createReviewJournalRepository(client, { now = () => new Date().t
       }
       const latest = mapReviewJournalRow(row, entry.type, user.id);
       revision(latest);
+      if (row.review_data.timelineEvent != null && row.review_data.version !== 1) {
+        throw reviewJournalError('REVIEW_SCHEMA_NOT_CONFIGURED', '时间线评价格式尚不受支持，请刷新后重试。');
+      }
+      if (entry.timelineEvent && !sameReviewTimelineReference(entry.timelineEvent, row.review_data.timelineEvent)) {
+        throw reviewJournalError('REVIEW_TIMELINE_CONFLICT', '时间线事件引用已变化，请重新打开记录。');
+      }
       // Mapping is tolerant for display; validate raw stored attachments before
       // preserving them so a malformed or foreign private image is never copied.
       const validated = buildReviewJournalWrite({ ...latest,
         images: row.review_data.images, stocks: row.review_data.stocks,
-        market: row.review_data.market, replies: row.review_data.replies }, user.id);
+        market: row.review_data.market, replies: row.review_data.replies,
+        ...(row.review_data.timelineEvent != null ? { timelineEvent: row.review_data.timelineEvent } : {}) }, user.id);
       const nextReplies = transform({
         rawReplies: row.review_data.replies || [], replies: validated.review_data.replies,
         normalize: reply => buildReviewJournalWrite({ ...latest, replies: [reply] }, user.id).review_data.replies[0],
@@ -160,6 +168,70 @@ export function createReviewJournalRepository(client, { now = () => new Date().t
       }
       return [...rawReplies, normalized];
     });
+  }
+  async function appendTimelineReply(entry, reply, expectedUserId) {
+    const user = await authenticate(expectedUserId);
+    const reference = normalizeReviewTimelineReference(entry?.timelineEvent, { strict: true });
+    if (entry?.type !== 'log' || !reference) {
+      throw reviewJournalError('REVIEW_INVALID_TIMELINE', '请选择有效的时间线事件后再评价。');
+    }
+    const operationId = await reviewTimelineOperationId(user.id, reference.id, { digest: timelineDigest });
+    const draft = { type: 'log', date: reference.date, text: reference.title,
+      timelineEvent: reference, operationId, mood: '', level: '🟢', pinned: false,
+      stocks: [], market: null, images: [], replies: [reply], revision: 0 };
+    const payload = buildReviewJournalWrite(draft, user.id);
+    const normalizedReply = payload.review_data.replies[0];
+    const mapTimelineRow = row => {
+      if (row?.user_id !== user.id) throw reviewJournalError('REVIEW_ACCOUNT_CHANGED', '账户数据不匹配，请重新打开记录。');
+      if (!validId(row.id) || !Number.isSafeInteger(row.review_revision) || row.review_revision < 0
+        || !row.review_data || typeof row.review_data !== 'object' || Array.isArray(row.review_data)
+        || row.review_data.version !== 1) {
+        throw reviewJournalError('REVIEW_SCHEMA_NOT_CONFIGURED', '复盘存储尚未配置，请完成数据库迁移后再保存。');
+      }
+      const storedReference = normalizeReviewTimelineReference(row.review_data.timelineEvent, { strict: true });
+      if (row.review_data.operationId !== operationId || row.log_date !== reference.date || row.review_data.date !== reference.date
+          || !sameReviewTimelineReference(storedReference, reference)) {
+        throw reviewJournalError('REVIEW_TIMELINE_CONFLICT', '时间线事件引用不匹配，请重新打开记录。');
+      }
+      const mapped = mapReviewJournalRow(row, 'log', user.id);
+      revision(mapped);
+      buildReviewJournalWrite({ ...mapped, images: row.review_data.images, stocks: row.review_data.stocks,
+        market: row.review_data.market, replies: row.review_data.replies, timelineEvent: row.review_data.timelineEvent }, user.id);
+      return mapped;
+    };
+    const readExisting = async () => {
+      await authenticate(expectedUserId);
+      const { data, error } = await client.from('review_logs').select('*')
+        .eq('user_id', user.id).eq('review_data->>operationId', operationId).maybeSingle();
+      if (error) throw dbError(error);
+      await authenticate(expectedUserId);
+      return data ? mapTimelineRow(data) : null;
+    };
+    const existing = await readExisting();
+    if (existing) return appendReply(existing, normalizedReply, expectedUserId);
+    await authenticate(expectedUserId);
+    let result;
+    try {
+      // The container and its first evaluation are created in one atomic row.
+      result = await client.from('review_logs').insert({ ...payload, review_revision: 0 }).select('*').single();
+    } catch (failure) {
+      const recovered = await readExisting();
+      if (recovered) return appendReply(recovered, normalizedReply, expectedUserId);
+      throw dbError(failure);
+    }
+    if (result.error || !result.data) {
+      // A competing insert or lost response can refer to a successfully saved
+      // container. Rebase the reply instead of replacing another evaluation.
+      const recovered = await readExisting();
+      if (recovered) return appendReply(recovered, normalizedReply, expectedUserId);
+      if (result.error) throw dbError(result.error);
+      throw conflict();
+    }
+    await authenticate(expectedUserId);
+    const saved = mapTimelineRow(result.data);
+    const storedReply = saved.replies.find(item => item.id === normalizedReply.id);
+    if (!storedReply || !samePayload(storedReply, normalizedReply)) throw replyConflict();
+    return saved;
   }
   async function updateReply(entry, originalReply, replacement, expectedUserId) {
     return changeReplies(entry, expectedUserId, ({ rawReplies, replies, normalize }) => {
@@ -232,5 +304,5 @@ export function createReviewJournalRepository(client, { now = () => new Date().t
     if (error) throw storageError(error);
     await authenticate(expectedUserId);
   }
-  return { save, appendReply, updateReply, removeReply, remove, uploadImage, resolveImage, removeImage };
+  return { save, appendReply, appendTimelineReply, updateReply, removeReply, remove, uploadImage, resolveImage, removeImage };
 }

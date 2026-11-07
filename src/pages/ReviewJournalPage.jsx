@@ -8,6 +8,7 @@ import { emptyReviewEntry, localReviewDate, reviewDraftKey, reviewJournalFeed, r
 import { findReviewStockMentions, resolveReviewStockLinks } from '../lib/reviewStockMentions.js';
 import ReviewStockCarousel from '../components/ReviewStockCarousel.jsx';
 import ReviewPostBody from '../components/ReviewPostBody.jsx';
+import ReviewTimeline from '../components/ReviewTimeline.jsx';
 import { SnapshotCard, SnapshotPicker } from '../components/ReviewMarketSnapshot.jsx';
 import ReviewEvaluationComposer, { EvaluationRating, ReviewAccountCard, ReviewTradeReferences } from '../components/ReviewEvaluation.jsx';
 import './ReviewJournalPage.css';
@@ -230,7 +231,9 @@ export default function ReviewJournalPage({ ctx }) {
   const preview = Boolean(import.meta.env.DEV && previewData);
   const [identity,setIdentity]=useState(() => preview ? previewData.identity : db.readCachedReviewIdentity(userId));
   const [identityError,setIdentityError]=useState(false); const [identityAttempt,setIdentityAttempt]=useState(0);
-  const [filter,setFilter]=useState('all'); const [search,setSearch]=useState(false); const [query,setQuery]=useState('');
+  const [filter,setFilter]=useState(() => preview && previewData.initialTimeline ? 'timeline' : 'all'); const [search,setSearch]=useState(false); const [query,setQuery]=useState('');
+  const [timelineState,setTimelineState]=useState({userId:null,status:'idle',data:null,error:''});
+  const [timelineAttempt,setTimelineAttempt]=useState(0);
   const [composer,setComposer]=useState(null); const [menu,setMenu]=useState(null); const [detailKey,setDetailKey]=useState(null);
   const [tagSymbol,setTagSymbol]=useState(''); const [routeId,setRouteId]=useState('root');
   const [expanded,setExpanded]=useState(new Set()); const [lightbox,setLightbox]=useState(''); const [error,setError]=useState(''); const [busy,setBusy]=useState(false); const busyRef=useRef(false);
@@ -248,15 +251,44 @@ export default function ReviewJournalPage({ ctx }) {
   if(!historyToken.current)historyToken.current=crypto.randomUUID();
   useEffect(()=>{if(preview)return;let active=true;setIdentityError(false);db.fetchReviewIdentity(userId).then(value=>{if(active){setIdentity(value);setIdentityError(!value);}}).catch(()=>{if(active)setIdentityError(true);});return()=>{active=false;};},[db,userId,preview,identityAttempt]);
   useEffect(()=>{if(preview)return undefined;return db.subscribeReviewIdentity(userId,()=>setIdentityAttempt(value=>value+1));},[db,userId,preview]);
+  // Timeline history is read only on demand; it does not add startup polling or writes.
+  const timelineRequested=filter==='timeline'||Boolean(detailKey?.startsWith('timeline:'));
+  useEffect(()=>{
+    if(!timelineRequested)return undefined;
+    let active=true;
+    setTimelineState(previous=>({userId,status:'loading',data:previous.userId===userId?previous.data:null,error:''}));
+    const request=preview?Promise.resolve(previewData.timeline||{status:'empty',events:[],years:[],coverage:{},warnings:[]}):db.fetchReviewTimeline(userId);
+    request.then(data=>{if(active)setTimelineState({userId,status:data.status||'ready',data,error:''});})
+      .catch(failure=>{if(active)setTimelineState(previous=>({userId,status:'error',data:previous.userId===userId?previous.data:null,error:failure?.message||'时间线暂时无法读取，请重试。'}));});
+    return()=>{active=false;};
+  },[db,userId,preview,previewData?.timeline,timelineRequested,timelineAttempt]);
   const suggestions=[...new Set(stockTrades.map(row=>String(row.symbol||'').toUpperCase()).filter(Boolean))];
-  const all=reviewJournalFeed(disciplines,reviewLogs);
-  const feed=tagSymbol?all.filter(entry=>(entry.stocks||[]).includes(tagSymbol)||findReviewStockMentions(entry.text,[...(entry.stocks||[]),...suggestions]).includes(tagSymbol)):reviewJournalFeed(disciplines,reviewLogs,filter,query);
-  const entryKey=entry=>`${entry.type}:${entry.id}`;
+  const journalEntries=reviewJournalFeed(disciplines,reviewLogs);
+  const ownedTimeline=timelineState.userId===userId?timelineState:{status:'idle',data:null,error:''};
+  const storedTimelineEntries=reviewLogs.filter(entry=>entry.timelineEvent);
+  const loadedTimelineEvents=ownedTimeline.data?.events||[];
+  const archivedTimelineEvents=ownedTimeline.status==='ready'||ownedTimeline.status==='empty'?storedTimelineEntries.filter(entry=>!loadedTimelineEvents.some(event=>event.id===entry.timelineEvent.id)).map(entry=>({
+    id:entry.timelineEvent.id,kind:entry.timelineEvent.kind,metric:entry.timelineEvent.metric,date:entry.timelineEvent.date,
+    startDate:entry.timelineEvent.date,endDate:entry.timelineEvent.date,title:entry.timelineEvent.title,status:'archived',value:null,valueType:'money',points:[],nodes:[],
+    description:'来源数据已更新，保留此前写下的评价。',
+  })):[];
+  const timelineEvents=[...loadedTimelineEvents,...archivedTimelineEvents];
+  const timelineData=ownedTimeline.data?{...ownedTimeline.data,events:timelineEvents,years:[...new Set([...(ownedTimeline.data.years||[]),...archivedTimelineEvents.map(event=>Number(event.date.slice(0,4)))])].sort().reverse()}:null;
+  const timelineEntries=timelineEvents.map(event=>{
+    const existing=storedTimelineEntries.find(entry=>entry.timelineEvent.id===event.id);
+    return existing||{type:'log',date:event.startDate||event.date,text:event.title,mood:'',level:'🟢',pinned:false,stocks:[],market:null,images:[],replies:[],revision:0,
+      timelineEvent:{version:1,id:event.id,kind:event.kind,metric:event.metric,date:event.startDate||event.date,title:event.title}};
+  });
+  const all=[...journalEntries,...timelineEntries];
+  const feed=tagSymbol?journalEntries.filter(entry=>(entry.stocks||[]).includes(tagSymbol)||findReviewStockMentions(entry.text,[...(entry.stocks||[]),...suggestions]).includes(tagSymbol)):reviewJournalFeed(disciplines,reviewLogs,filter,query);
+  const entryKey=entry=>entry.timelineEvent?`timeline:${entry.timelineEvent.id}`:`${entry.type}:${entry.id}`;
   const detail=all.find(entry=>entryKey(entry)===detailKey);
+  const timelineEventId=detailKey?.startsWith('timeline:')?detailKey.slice(9):null;
+  const isTimelineDetail=Boolean(timelineEventId);
   const activeReplyMenu=replyMenu?.userId===userId&&replyMenu.entryKey===detailKey?replyMenu:null;
   const editingEntry=editingEvaluation?.userId===userId&&editingEvaluation.entryKey===detailKey
     ?all.find(entry=>entryKey(entry)===editingEvaluation.entryKey&&entry.replies?.some(reply=>reply.id===editingEvaluation.reply.id)):null;
-  const showingDetail=Boolean(detail);
+  const showingDetail=Boolean(detail)||isTimelineDetail;
   const rootRoute={id:'root',key:null,symbol:''};
   if(!routes.current.has('root'))routes.current.set('root',rootRoute);
   navigation.current={id:routeId,key:detailKey,symbol:tagSymbol,entries:all,userId};
@@ -312,6 +344,12 @@ export default function ReviewJournalPage({ ctx }) {
     applyRoute(route);
   };
   const openDetail=(entry,event)=>navigate(entryKey(entry),tagSymbol,event,true);
+  const openTimeline=(id,event)=>navigate(`timeline:${id}`,'',event);
+  const openTimelineEvaluation=event=>{
+    const key=`timeline:${event.id}`;
+    if(detailKey!==key)openTimeline(event.id);
+    setEvaluations(old=>{const owned=old.filter(item=>item.userId===userId).map(item=>({...item,open:item.key===key}));return owned.some(item=>item.key===key)?owned:[...owned,{key,userId,open:true}];});
+  };
   const openStockTag=(symbol,event)=>{
     event?.preventDefault?.();event?.stopPropagation?.();
     if(!symbol||(!detailKey&&tagSymbol===symbol))return;
@@ -350,28 +388,31 @@ export default function ReviewJournalPage({ ctx }) {
       {attachments(entry)}
       {!full&&<div className="rj-post-actions"><button onClick={event=>openDetail(entry,event)} aria-label="查看评论"><MessageCircle size={18}/><span>{entry.replies?.length||'评论'}</span></button></div>}
     </div></article>;
-  const evaluationEditorProps={identityNode:<><Avatar identity={identity} userId={userId} preview={preview}/><div><AuthorName identity={identity}/><span>现在的评价 · 仅自己可见</span></div></>,db,userId,stockTrades,onSaved:saved,Dialog,EmojiPicker,
+  const evaluationDb=isTimelineDetail?{...db,appendReviewJournalReply:(entry,reply,expectedUserId)=>db.appendReviewTimelineReply(entry,reply,expectedUserId)}:db;
+  const evaluationEditorProps={identityNode:<><Avatar identity={identity} userId={userId} preview={preview}/><div><AuthorName identity={identity}/><span>现在的评价 · 仅自己可见</span></div></>,db:evaluationDb,userId,stockTrades,onSaved:saved,Dialog,EmojiPicker,
     renderPhotos:images=><div className={`rj-photo-grid rj-images-${images.length}`}>{images.map(item=><Photo key={item.path} item={item} db={db} userId={userId} preview={preview} onOpen={setLightbox}/>)}</div>,
     knownTags:[...new Set(all.flatMap(entry=>(entry.replies||[]).flatMap(reply=>reply.tags||[])))],preview,previewData,language,marketColorMode};
-  return <div className={`rj-page ${navigationTab?'rj-navigation-tab':''} ${showingDetail?'rj-entry-page':''}`}><header className="rj-page-header">{navigationTab&&!showingDetail&&!tagSymbol?<span className="rj-header-spacer"/>:<button className="rj-icon" aria-label={showingDetail||tagSymbol?'返回投资复盘':'返回'} onClick={showingDetail||tagSymbol?closeDetail:onBack}><ArrowLeft size={22}/></button>}<h1 ref={pageTitle} tabIndex={-1}>{showingDetail?(language==='en'?'Journal Entry':'复盘记录'):tagSymbol?`$${tagSymbol}`:(language === 'en' ? 'Investment Journal' : '投资复盘')}</h1>{showingDetail||tagSymbol?<span className="rj-header-spacer"/>:<button className="rj-icon" aria-label="搜索复盘" aria-pressed={search} onClick={()=>{setSearch(!search);setQuery('');}}><Search size={21}/></button>}</header>
-    {preview&&<div className="rj-preview-note">本地预览 · 示例记录 · 不写入真实账户</div>}
-    {identityError&&<button className="rj-identity-error" onClick={()=>setIdentityAttempt(value=>value+1)}>{identity ? '资料暂未更新，点击重试' : '资料暂未读取，点击重试'}</button>}
-    <div className="rj-list-page" hidden={showingDetail}>
-      {!tagSymbol&&<nav className="rj-tabs" aria-label="复盘分类">{[['all','全部'],['log','复盘日志'],['insight','投资心得']].map(([id,name])=><button key={id} aria-pressed={filter===id} onClick={()=>setFilter(id)}>{name}</button>)}</nav>}
-      {tagSymbol&&<p className="rj-tag-summary">{language==='en'?`${feed.length} related posts`:`${feed.length} 篇相关博文`}</p>}
-      {!tagSymbol&&search&&<div className="rj-search"><Search size={17}/><input autoFocus value={query} onChange={event=>setQuery(event.target.value)} aria-label="搜索正文、股票或日期" placeholder="搜索正文、股票或日期"/></div>}
-      {error&&!menu&&!showingDetail&&<p className="rj-error" role="alert">{error}</p>}
-      <div className="rj-feed">{feed.map(entry=>post(entry))}{!feed.length&&<div className="rj-empty"><MessageCircle size={28}/><h2>{tagSymbol?'暂无相关博文':query?'没有匹配的记录':'从第一条复盘开始'}</h2><p>{tagSymbol?`提到 $${tagSymbol} 的博文会显示在这里。`:query?'换个关键词试试':'投资心得和复盘日志，都在这里。'}</p></div>}</div>
-      <button className="rj-fab" aria-label="写复盘" onClick={()=>setComposer({entry:null})}><Plus size={28}/></button>
-    </div>
-    {detail&&<div className="rj-entry-content" key={detailKey}>
-      {post(detail,true)}
-      <section className="rj-replies" aria-labelledby="rj-comments-title">
+  const renderReplies=()=>detail?(<section className="rj-replies" aria-labelledby="rj-comments-title">
         <div className="rj-replies-header"><h2 id="rj-comments-title">评论{detail.replies?.length?` · ${detail.replies.length}`:''}</h2><button type="button" className="rj-evaluate-button" onClick={openEvaluation}>写评价</button></div>
         {(detail.replies||[]).map(item=><div className="rj-reply" key={item.id} data-rj-reply-id={item.id}><Avatar identity={identity} userId={userId} preview={preview}/><div><div className="rev-reply-byline"><AuthorName identity={identity} /><span>·</span><time dateTime={item.date}>{item.date}</time><button type="button" className="rj-icon rj-reply-more" aria-label="评论操作" disabled={busy} onClick={()=>{setReplyMenu({userId,entryKey:detailKey,reply:item,confirmDelete:false});setError('');}}><MoreHorizontal size={19}/></button></div><EvaluationRating score={item.score} tags={item.tags}/>{item.text&&<p className="rev-reply-body">{item.text}</p>}{entryNotes(item)}{attachments(item)}</div></div>)}
         {!detail.replies?.length&&<p className="rj-note">还没有评论，写下现在对当时的评价。</p>}
         {error&&!menu&&!activeReplyMenu&&<p role="alert" className="rj-error">{error}</p>}
-      </section>
+      </section>):null;
+  return <div className={`rj-page ${navigationTab?'rj-navigation-tab':''} ${showingDetail?'rj-entry-page':''} ${isTimelineDetail?'rj-timeline-detail':''}`}><header className="rj-page-header">{navigationTab&&!showingDetail&&!tagSymbol?<span className="rj-header-spacer"/>:<button className="rj-icon" aria-label={showingDetail||tagSymbol?'返回投资复盘':'返回'} onClick={showingDetail||tagSymbol?closeDetail:onBack}><ArrowLeft size={22}/></button>}<h1 ref={pageTitle} tabIndex={-1}>{isTimelineDetail?(language==='en'?'Timeline Event':'时间线记录'):showingDetail?(language==='en'?'Journal Entry':'复盘记录'):tagSymbol?`$${tagSymbol}`:(language === 'en' ? 'Investment Journal' : '投资复盘')}</h1>{showingDetail||tagSymbol||filter==='timeline'?<span className="rj-header-spacer"/>:<button className="rj-icon" aria-label="搜索复盘" aria-pressed={search} onClick={()=>{setSearch(!search);setQuery('');}}><Search size={21}/></button>}</header>
+    {preview&&<div className="rj-preview-note">本地预览 · 示例记录 · 不写入真实账户</div>}
+    {identityError&&<button className="rj-identity-error" onClick={()=>setIdentityAttempt(value=>value+1)}>{identity ? '资料暂未更新，点击重试' : '资料暂未读取，点击重试'}</button>}
+    <div className="rj-list-page" hidden={showingDetail}>
+      {!tagSymbol&&<nav className="rj-tabs" aria-label="复盘分类">{[['all','全部'],['log','复盘日志'],['insight','投资心得'],['timeline','时间线']].map(([id,name])=><button key={id} aria-pressed={filter===id} onClick={()=>setFilter(id)}>{name}</button>)}</nav>}
+      {tagSymbol&&<p className="rj-tag-summary">{language==='en'?`${feed.length} related posts`:`${feed.length} 篇相关博文`}</p>}
+      {!tagSymbol&&filter!=='timeline'&&search&&<div className="rj-search"><Search size={17}/><input autoFocus value={query} onChange={event=>setQuery(event.target.value)} aria-label="搜索正文、股票或日期" placeholder="搜索正文、股票或日期"/></div>}
+      {error&&!menu&&!showingDetail&&<p className="rj-error" role="alert">{error}</p>}
+      {(tagSymbol||filter!=='timeline')&&<div className="rj-feed">{feed.map(entry=>post(entry))}{!feed.length&&<div className="rj-empty"><MessageCircle size={28}/><h2>{tagSymbol?'暂无相关博文':query?'没有匹配的记录':'从第一条复盘开始'}</h2><p>{tagSymbol?`提到 $${tagSymbol} 的博文会显示在这里。`:query?'换个关键词试试':'投资心得和复盘日志，都在这里。'}</p></div>}</div>}
+      {filter!=='timeline'&&<button className="rj-fab" aria-label="写复盘" onClick={()=>setComposer({entry:null})}><Plus size={28}/></button>}
+    </div>
+    {((filter==='timeline'&&!tagSymbol)||isTimelineDetail)&&<div hidden={showingDetail&&!isTimelineDetail}><ReviewTimeline data={timelineData} loading={ownedTimeline.status==='loading'||ownedTimeline.status==='idle'} error={ownedTimeline.error} onRetry={()=>setTimelineAttempt(value=>value+1)} selectedEventId={timelineEventId} onSelectEvent={openTimeline} onBack={closeDetail} marketColorMode={marketColorMode} stockTrades={stockTrades} entries={journalEntries} onOpenEntry={openDetail} onEvaluate={openTimelineEvaluation} renderEvaluations={()=>renderReplies()} language={language}/></div>}
+    {detail&&!isTimelineDetail&&<div className="rj-entry-content" key={detailKey}>
+      {post(detail,true)}
+      {renderReplies()}
     </div>}
     {menu&&<Dialog title={confirmDelete?'删除这条记录？':'记录操作'} onClose={()=>{if(!busy){setMenu(null);setConfirmDelete(false);setError('');}}}><div className="rj-dialog-body">{error&&<p className="rj-error" role="alert">{error}</p>}{confirmDelete?<><p className="rj-note">正文、关联信息及评论将一起删除。</p><button className="rj-wide-button rj-danger" disabled={busy} onClick={()=>mutate(async()=>{await db.deleteReviewJournalEntry(menu,userId);await Promise.allSettled([...new Set([...(menu.images||[]),...(menu.replies||[]).flatMap(item=>item.images||[])].map(image=>image.path))].map(path=>db.removeReviewJournalImage(path,userId)));(menu.type==='insight'?setDisciplines:setReviewLogs)(old=>old.filter(row=>row.id!==menu.id));setMenu(null);if(detailKey===entryKey(menu))closeDetail();})}>确认删除</button></>:<><button className="rj-menu-item" onClick={()=>{setComposer({entry:menu});setMenu(null);}}><Pencil size={18}/>编辑记录</button>{!tagSymbol&&filter!=='all'&&<button className="rj-menu-item" disabled={busy} onClick={()=>mutate(async()=>{saved(await db.saveReviewJournalEntry({...menu,pinned:!menu.pinned},userId));setMenu(null);})}><Pin size={18}/>{menu.pinned?'取消置顶':'置顶'}</button>}<button className="rj-menu-item rj-danger" onClick={()=>setConfirmDelete(true)}><Trash2 size={18}/>删除记录</button></>}</div></Dialog>}
     {activeReplyMenu&&<Dialog title={activeReplyMenu.confirmDelete?'删除这条评价？':'评论操作'} onClose={()=>{if(!busy){setReplyMenu(null);setError('');}}}><div className="rj-dialog-body">{error&&<p className="rj-error" role="alert">{error}</p>}{activeReplyMenu.confirmDelete?<><p className="rj-note">这条评价及其中的关联内容将从博文中移除，原始交易记录不受影响。</p><button type="button" className="rj-wide-button rj-danger" disabled={busy} onClick={()=>mutate(async()=>{if(!detail)throw new Error('记录已不存在，请刷新后重试。');const updated=await db.deleteReviewJournalReply(detail,activeReplyMenu.reply,userId);saved(updated);setReplyMenu(null);})}>{busy?'删除中…':'确认删除评价'}</button><button type="button" className="rj-wide-button" disabled={busy} onClick={()=>{setReplyMenu(null);setError('');}}>取消</button></>:<><button type="button" className="rj-menu-item" onClick={()=>{closeEvaluations();setEditingEvaluation({userId,entryKey:detailKey,reply:activeReplyMenu.reply,sessionId:crypto.randomUUID()});setReplyMenu(null);setError('');}}><Pencil size={18}/>修改评价</button><button type="button" className="rj-menu-item rj-danger" onClick={()=>setReplyMenu({...activeReplyMenu,confirmDelete:true})}><Trash2 size={18}/>删除评价</button></>}</div></Dialog>}

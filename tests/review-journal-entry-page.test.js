@@ -57,8 +57,9 @@ async function harness({ removeReply } = {}) {
       const fixture = globalThis[${JSON.stringify(key)}];
       const { useState, useRef, useEffect, useLayoutEffect, window } = fixture;
       const Avatar = () => null, AuthorName = () => null, Photo = () => null, SnapshotCard = () => null, ReviewStockCarousel = () => null, ReviewPostBody = () => null, Composer = () => null, Dialog = () => null;
+      const ReviewTimeline = () => null;
       const ReviewEvaluationComposer = () => null, EvaluationRating = () => null, ReviewAccountCard = () => null, ReviewTradeReferences = () => null, EmojiPicker = () => null;
-      export { Photo, SnapshotCard, ReviewStockCarousel, ReviewPostBody, Composer, Dialog, ReviewEvaluationComposer, EvaluationRating, ReviewAccountCard, ReviewTradeReferences };
+      export { ReviewTimeline, Photo, SnapshotCard, ReviewStockCarousel, ReviewPostBody, Composer, Dialog, ReviewEvaluationComposer, EvaluationRating, ReviewAccountCard, ReviewTradeReferences };
       ${pageSource.replaceAll('import.meta.env.DEV', 'true')}
     `, 'ReviewJournalEntryPageTest.jsx', { jsx: { runtime: 'classic' } });
     Page = await import(dataUrl(compiled.code));
@@ -528,5 +529,58 @@ test('tag and entry navigation preserve parent pages and positions through brows
   assert.equal(find(tree,node=>node.type==='h1').props.children,'$QQQ');
   assert.equal(h.pushes.every(args=>args.length===2),true);
   assert.equal(h.fixture.window.history.state.otherAppState,'retained');
+  h.unmount();
+});
+
+
+test('timeline detail reuses evaluation, preserves references and keeps containers out of posts', async () => {
+  const h = await harness();
+  const event = { id:'drawdown:net_assets:2026-10-06',kind:'drawdown',metric:'net_assets',date:'2026-11-06',startDate:'2026-10-06',endDate:'2026-11-06',title:'净资产回落',value:-5,valueType:'percent',status:'active',points:[],nodes:[] };
+  h.ctx.previewData.timeline = {status:'ready',events:[event],years:[2026],coverage:{},warnings:[]};
+  const submissions = [];
+  h.ctx.db.appendReviewTimelineReply = async (...args) => { submissions.push(args); return {...args[0],id:'timeline-container',revision:1,replies:[args[1]]}; };
+  let tree=h.render();
+  button(tree,'时间线').props.onClick();tree=h.render();await Promise.resolve();tree=h.render();
+  let timeline=find(tree,node=>node.type===h.Page.ReviewTimeline);
+  assert.equal(timeline.props.data.events[0].id,event.id);
+  assert.equal(button(tree,'写复盘'),undefined);
+  timeline.props.onSelectEvent(event.id);tree=h.render();
+  assert.match(textOf(tree),/时间线记录/);
+  timeline=find(tree,node=>node.type===h.Page.ReviewTimeline);
+  assert.equal(timeline.props.selectedEventId,event.id);
+  button(timeline.props.renderEvaluations(event),'写评价').props.onClick();tree=h.render();
+  const composer=find(tree,node=>node.type===h.Page.ReviewEvaluationComposer);
+  assert.ok(composer);
+  const reply={id:'timeline-reply',date:'2026-11-07',text:'这次仓位过重。',score:4};
+  const saved=await composer.props.db.appendReviewJournalReply(composer.props.entry,reply,'owner');
+  composer.props.onSaved(saved);composer.props.onClose();tree=h.render();
+  assert.equal(submissions.length,1);
+  assert.equal(saved.timelineEvent.id,event.id);
+  timeline=find(tree,node=>node.type===h.Page.ReviewTimeline);
+  assert.match(textOf(timeline.props.renderEvaluations(event)),/这次仓位过重/);
+  button(tree,'返回投资复盘').props.onClick();tree=h.render();
+  button(tree,'全部').props.onClick();tree=h.render();
+  assert.equal(visible(tree).filter(node=>node.type==='article').length,records().length);
+  h.unmount();
+});
+
+test('timeline drafts stay mounted through category reloads and linked stock tags show only posts', async () => {
+  const h = await harness();
+  const event = {id:'drawdown:net_assets:2026-10-06',kind:'drawdown',metric:'net_assets',date:'2026-11-06',startDate:'2026-10-06',title:'净资产回落',points:[],nodes:[]};
+  h.ctx.previewData.timeline={status:'ready',events:[event],years:[2026]};
+  let tree=h.render();button(tree,'时间线').props.onClick();tree=h.render();await Promise.resolve();tree=h.render();
+  find(tree,node=>node.type===h.Page.ReviewTimeline).props.onEvaluate(event);tree=h.render();
+  const editor=find(tree,node=>node.type===h.Page.ReviewEvaluationComposer);
+  editor.props.onClose();button(tree,'返回投资复盘').props.onClick();tree=h.render();
+  button(tree,'全部').props.onClick();tree=h.render();
+  button(tree,'时间线').props.onClick();tree=h.render();tree=h.render();
+  assert.equal(find(tree,node=>node.type===h.Page.ReviewEvaluationComposer).key,editor.key,'loading must not unmount the draft');
+  await Promise.resolve();tree=h.render();
+  find(tree,node=>node.type===h.Page.ReviewTimeline).props.onSelectEvent(event.id);tree=h.render();
+  find(tree,node=>node.type===h.Page.ReviewTimeline).props.onOpenEntry(h.ctx.reviewLogs[0]);tree=h.render();
+  find(tree,node=>node.type===h.Page.ReviewPostBody).props.onSelectSymbol('NVDA',{type:'click',detail:1,stopPropagation(){},preventDefault(){}});tree=h.render();
+  assert.match(textOf(tree),/1 篇相关博文/);
+  assert.equal(visible(tree).filter(node=>node.type==='article').length,1);
+  assert.equal(find(tree,node=>node.type===h.Page.ReviewTimeline),undefined);
   h.unmount();
 });
