@@ -235,8 +235,9 @@ export default function ReviewJournalPage({ ctx }) {
   const [tagSymbol,setTagSymbol]=useState(''); const [routeId,setRouteId]=useState('root');
   const [expanded,setExpanded]=useState(new Set()); const [lightbox,setLightbox]=useState(''); const [error,setError]=useState(''); const [busy,setBusy]=useState(false); const busyRef=useRef(false);
   const [evaluations,setEvaluations]=useState([]); const [confirmDelete,setConfirmDelete]=useState(false);
+  const [replyMenu,setReplyMenu]=useState(null); const [editingEvaluation,setEditingEvaluation]=useState(null);
   // Keep each opened editor mounted within this account; drafts stay in memory only.
-  useEffect(()=>setEvaluations([]),[userId]);
+  useEffect(()=>{setEvaluations([]);setReplyMenu(null);setEditingEvaluation(null);},[userId]);
   const closeEvaluations=()=>setEvaluations(old=>old.map(item=>item.open?{...item,open:false}:item));
   const openEvaluation=()=>setEvaluations(old=>{
     const owned=old.filter(item=>item.userId===userId).map(item=>({...item,open:item.key===detailKey}));
@@ -252,10 +253,13 @@ export default function ReviewJournalPage({ ctx }) {
   const feed=tagSymbol?all.filter(entry=>(entry.stocks||[]).includes(tagSymbol)||findReviewStockMentions(entry.text,[...(entry.stocks||[]),...suggestions]).includes(tagSymbol)):reviewJournalFeed(disciplines,reviewLogs,filter,query);
   const entryKey=entry=>`${entry.type}:${entry.id}`;
   const detail=all.find(entry=>entryKey(entry)===detailKey);
+  const activeReplyMenu=replyMenu?.userId===userId&&replyMenu.entryKey===detailKey?replyMenu:null;
+  const editingEntry=editingEvaluation?.userId===userId&&editingEvaluation.entryKey===detailKey
+    ?all.find(entry=>entryKey(entry)===editingEvaluation.entryKey&&entry.replies?.some(reply=>reply.id===editingEvaluation.reply.id)):null;
   const showingDetail=Boolean(detail);
   const rootRoute={id:'root',key:null,symbol:''};
   if(!routes.current.has('root'))routes.current.set('root',rootRoute);
-  navigation.current={id:routeId,key:detailKey,symbol:tagSymbol,entries:all};
+  navigation.current={id:routeId,key:detailKey,symbol:tagSymbol,entries:all,userId};
   const rememberPosition=(event,focusPost=false)=>{
     const current=navigation.current,trigger=event?.currentTarget;
     const keyboard=event?.type==='keydown'||(event?.type==='click'&&event.detail===0&&!event.nativeEvent?.pointerType&&trigger?.ownerDocument?.activeElement===trigger&&trigger?.matches?.(':focus-visible'));
@@ -263,7 +267,7 @@ export default function ReviewJournalPage({ ctx }) {
   };
   const applyRoute=route=>{
     pendingPosition.current=positions.current.get(route.id)||{x:0,y:0};
-    setRouteId(route.id);setDetailKey(route.key);setTagSymbol(route.symbol);closeEvaluations();setError('');
+    setRouteId(route.id);setDetailKey(route.key);setTagSymbol(route.symbol);closeEvaluations();setReplyMenu(null);setEditingEvaluation(null);setError('');
   };
   useEffect(()=>{
     const previousRestoration=window.history?.scrollRestoration;
@@ -297,7 +301,7 @@ export default function ReviewJournalPage({ ctx }) {
       window.scrollTo({left:previous.x,top:previous.y,behavior:'instant'});
     }
   },[routeId]);
-  const saved=entry=>{const setter=entry.type==='insight'?setDisciplines:setReviewLogs;setter(old=>old.some(row=>row.id===entry.id)?old.map(row=>row.id===entry.id?entry:row):[entry,...old]);setError('');};
+  const saved=entry=>{if(navigation.current.userId!==userId)return;const setter=entry.type==='insight'?setDisciplines:setReviewLogs;setter(old=>old.some(row=>row.id===entry.id)?old.map(row=>row.id===entry.id?entry:row):[entry,...old]);setError('');};
   const mutate=async action=>{if(busyRef.current)return;busyRef.current=true;setBusy(true);setError('');try{await action();}catch(failure){setError(failure?.message||'操作失败，请重试');}finally{busyRef.current=false;setBusy(false);}};
   const navigate=(key,symbol,event,focusPost=false)=>{
     rememberPosition(event,focusPost);
@@ -346,6 +350,9 @@ export default function ReviewJournalPage({ ctx }) {
       {attachments(entry)}
       {!full&&<div className="rj-post-actions"><button onClick={event=>openDetail(entry,event)} aria-label="查看评论"><MessageCircle size={18}/><span>{entry.replies?.length||'评论'}</span></button></div>}
     </div></article>;
+  const evaluationEditorProps={identityNode:<><Avatar identity={identity} userId={userId} preview={preview}/><div><AuthorName identity={identity}/><span>现在的评价 · 仅自己可见</span></div></>,db,userId,stockTrades,onSaved:saved,Dialog,EmojiPicker,
+    renderPhotos:images=><div className={`rj-photo-grid rj-images-${images.length}`}>{images.map(item=><Photo key={item.path} item={item} db={db} userId={userId} preview={preview} onOpen={setLightbox}/>)}</div>,
+    knownTags:[...new Set(all.flatMap(entry=>(entry.replies||[]).flatMap(reply=>reply.tags||[])))],preview,previewData,language,marketColorMode};
   return <div className={`rj-page ${showingDetail?'rj-entry-page':''}`}><header className="rj-page-header"><button className="rj-icon" aria-label={showingDetail||tagSymbol?'返回投资复盘':'返回'} onClick={showingDetail||tagSymbol?closeDetail:onBack}><ArrowLeft size={22}/></button><h1 ref={pageTitle} tabIndex={-1}>{showingDetail?(language==='en'?'Journal Entry':'复盘记录'):tagSymbol?`$${tagSymbol}`:(language === 'en' ? 'Investment Journal' : '投资复盘')}</h1>{showingDetail||tagSymbol?<span className="rj-header-spacer"/>:<button className="rj-icon" aria-label="搜索复盘" aria-pressed={search} onClick={()=>{setSearch(!search);setQuery('');}}><Search size={21}/></button>}</header>
     {preview&&<div className="rj-preview-note">本地预览 · 示例记录 · 不写入真实账户</div>}
     {identityError&&<button className="rj-identity-error" onClick={()=>setIdentityAttempt(value=>value+1)}>{identity ? '资料暂未更新，点击重试' : '资料暂未读取，点击重试'}</button>}
@@ -361,14 +368,16 @@ export default function ReviewJournalPage({ ctx }) {
       {post(detail,true)}
       <section className="rj-replies" aria-labelledby="rj-comments-title">
         <div className="rj-replies-header"><h2 id="rj-comments-title">评论{detail.replies?.length?` · ${detail.replies.length}`:''}</h2><button type="button" className="rj-evaluate-button" onClick={openEvaluation}>写评价</button></div>
-        {(detail.replies||[]).map(item=><div className="rj-reply" key={item.id}><Avatar identity={identity} userId={userId} preview={preview}/><div><div className="rev-reply-byline"><AuthorName identity={identity} /><span>·</span><time dateTime={item.date}>{item.date}</time></div><EvaluationRating score={item.score} tags={item.tags}/>{item.text&&<p className="rev-reply-body">{item.text}</p>}{entryNotes(item)}{attachments(item)}</div></div>)}
+        {(detail.replies||[]).map(item=><div className="rj-reply" key={item.id} data-rj-reply-id={item.id}><Avatar identity={identity} userId={userId} preview={preview}/><div><div className="rev-reply-byline"><AuthorName identity={identity} /><span>·</span><time dateTime={item.date}>{item.date}</time><button type="button" className="rj-icon rj-reply-more" aria-label="评论操作" disabled={busy} onClick={()=>{setReplyMenu({userId,entryKey:detailKey,reply:item,confirmDelete:false});setError('');}}><MoreHorizontal size={19}/></button></div><EvaluationRating score={item.score} tags={item.tags}/>{item.text&&<p className="rev-reply-body">{item.text}</p>}{entryNotes(item)}{attachments(item)}</div></div>)}
         {!detail.replies?.length&&<p className="rj-note">还没有评论，写下现在对当时的评价。</p>}
-        {error&&!menu&&<p role="alert" className="rj-error">{error}</p>}
+        {error&&!menu&&!activeReplyMenu&&<p role="alert" className="rj-error">{error}</p>}
       </section>
     </div>}
     {menu&&<Dialog title={confirmDelete?'删除这条记录？':'记录操作'} onClose={()=>{if(!busy){setMenu(null);setConfirmDelete(false);setError('');}}}><div className="rj-dialog-body">{error&&<p className="rj-error" role="alert">{error}</p>}{confirmDelete?<><p className="rj-note">正文、关联信息及评论将一起删除。</p><button className="rj-wide-button rj-danger" disabled={busy} onClick={()=>mutate(async()=>{await db.deleteReviewJournalEntry(menu,userId);await Promise.allSettled([...new Set([...(menu.images||[]),...(menu.replies||[]).flatMap(item=>item.images||[])].map(image=>image.path))].map(path=>db.removeReviewJournalImage(path,userId)));(menu.type==='insight'?setDisciplines:setReviewLogs)(old=>old.filter(row=>row.id!==menu.id));setMenu(null);if(detailKey===entryKey(menu))closeDetail();})}>确认删除</button></>:<><button className="rj-menu-item" onClick={()=>{setComposer({entry:menu});setMenu(null);}}><Pencil size={18}/>编辑记录</button>{!tagSymbol&&filter!=='all'&&<button className="rj-menu-item" disabled={busy} onClick={()=>mutate(async()=>{saved(await db.saveReviewJournalEntry({...menu,pinned:!menu.pinned},userId));setMenu(null);})}><Pin size={18}/>{menu.pinned?'取消置顶':'置顶'}</button>}<button className="rj-menu-item rj-danger" onClick={()=>setConfirmDelete(true)}><Trash2 size={18}/>删除记录</button></>}</div></Dialog>}
+    {activeReplyMenu&&<Dialog title={activeReplyMenu.confirmDelete?'删除这条评价？':'评论操作'} onClose={()=>{if(!busy){setReplyMenu(null);setError('');}}}><div className="rj-dialog-body">{error&&<p className="rj-error" role="alert">{error}</p>}{activeReplyMenu.confirmDelete?<><p className="rj-note">这条评价及其中的关联内容将从博文中移除，原始交易记录不受影响。</p><button type="button" className="rj-wide-button rj-danger" disabled={busy} onClick={()=>mutate(async()=>{if(!detail)throw new Error('记录已不存在，请刷新后重试。');const updated=await db.deleteReviewJournalReply(detail,activeReplyMenu.reply,userId);saved(updated);setReplyMenu(null);})}>{busy?'删除中…':'确认删除评价'}</button><button type="button" className="rj-wide-button" disabled={busy} onClick={()=>{setReplyMenu(null);setError('');}}>取消</button></>:<><button type="button" className="rj-menu-item" onClick={()=>{closeEvaluations();setEditingEvaluation({userId,entryKey:detailKey,reply:activeReplyMenu.reply,sessionId:crypto.randomUUID()});setReplyMenu(null);setError('');}}><Pencil size={18}/>修改评价</button><button type="button" className="rj-menu-item rj-danger" onClick={()=>setReplyMenu({...activeReplyMenu,confirmDelete:true})}><Trash2 size={18}/>删除评价</button></>}</div></Dialog>}
     {composer&&<Composer entry={composer.entry} defaultType={filter==='insight'?'insight':'log'} identity={identity} userId={userId} db={db} language={language} onSaved={saved} onClose={()=>setComposer(null)} suggestions={suggestions} preview={preview} previewMarket={previewData?.market}/>}
-    {evaluations.filter(evaluation=>evaluation.userId===userId&&all.some(entry=>entryKey(entry)===evaluation.key)).map(evaluation=><ReviewEvaluationComposer key={`${userId}:${evaluation.key}`} open={evaluation.open&&detailKey===evaluation.key} entry={all.find(entry=>entryKey(entry)===evaluation.key)} identityNode={<><Avatar identity={identity} userId={userId} preview={preview}/><div><AuthorName identity={identity}/><span>现在的评价 · 仅自己可见</span></div></>} db={db} userId={userId} stockTrades={stockTrades} onSaved={saved} onClose={()=>setEvaluations(old=>old.map(item=>item.userId===userId&&item.key===evaluation.key?{...item,open:false}:item))} Dialog={Dialog} EmojiPicker={EmojiPicker} renderPhotos={images=><div className={`rj-photo-grid rj-images-${images.length}`}>{images.map(item=><Photo key={item.path} item={item} db={db} userId={userId} preview={preview} onOpen={setLightbox}/>)}</div>} knownTags={[...new Set(all.flatMap(entry=>(entry.replies||[]).flatMap(reply=>reply.tags||[])))]} preview={preview} previewData={previewData} language={language} marketColorMode={marketColorMode}/>)}
+    {evaluations.filter(evaluation=>evaluation.userId===userId&&all.some(entry=>entryKey(entry)===evaluation.key)).map(evaluation=><ReviewEvaluationComposer {...evaluationEditorProps} key={`${userId}:${evaluation.key}`} open={evaluation.open&&detailKey===evaluation.key&&!editingEntry} entry={all.find(entry=>entryKey(entry)===evaluation.key)} onClose={()=>setEvaluations(old=>old.map(item=>item.userId===userId&&item.key===evaluation.key?{...item,open:false}:item))}/>)}
+    {editingEntry&&<ReviewEvaluationComposer {...evaluationEditorProps} key={`${userId}:${editingEvaluation.entryKey}:${editingEvaluation.reply.id}:${editingEvaluation.sessionId}`} open entry={editingEntry} reply={editingEvaluation.reply} onClose={()=>setEditingEvaluation(null)}/>}
     {lightbox&&<Dialog title="图片" wide onClose={()=>setLightbox('')}><div className="rj-lightbox"><img src={lightbox} alt="复盘图片原图"/></div></Dialog>}
   </div>;
 }

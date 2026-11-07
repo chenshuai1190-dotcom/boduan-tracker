@@ -72,6 +72,28 @@ export default function ReviewJournalPreview({language,onBack,marketColorMode}) 
       const stored={...existing,replies:[...existing.replies,normalized],revision:existing.revision+1};
       rows.current=rows.current.map(row=>row.id===stored.id&&row.type===stored.type?stored:row);return stored;
     },
+    updateReviewJournalReply:async(entry,original,reply,userId)=>{
+      if(userId!==OWNER)throw new Error('预览账户不匹配');
+      if(new URLSearchParams(window.location.search).get('reviewFailure')==='save')throw new Error('模拟保存失败：评价内容与附件仍保留，请重试。');
+      const existing=rows.current.find(row=>row.id===entry.id&&row.type===entry.type);
+      if(!existing)throw new Error('记录已删除');
+      const current=existing.replies.find(item=>item.id===original.id);
+      if(!current||JSON.stringify(current)!==JSON.stringify(original))throw new Error('评价已被修改或删除，请重新打开后操作。');
+      const normalized=buildReviewJournalWrite({...existing,replies:[{...reply,id:original.id,date:original.date}]},OWNER).review_data.replies[0];
+      const stored={...existing,replies:existing.replies.map(item=>item.id===original.id?normalized:item),revision:existing.revision+1};
+      rows.current=rows.current.map(row=>row.id===stored.id&&row.type===stored.type?stored:row);return stored;
+    },
+    deleteReviewJournalReply:async(entry,original,userId)=>{
+      if(userId!==OWNER)throw new Error('预览账户不匹配');
+      if(new URLSearchParams(window.location.search).get('reviewFailure')==='save')throw new Error('模拟删除失败：评价仍保留，请重试。');
+      const existing=rows.current.find(row=>row.id===entry.id&&row.type===entry.type);
+      if(!existing)throw new Error('记录已删除');
+      const current=existing.replies.find(item=>item.id===original.id);
+      if(!current)return existing;
+      if(JSON.stringify(current)!==JSON.stringify(original))throw new Error('评价已被修改，请重新打开后操作。');
+      const stored={...existing,replies:existing.replies.filter(item=>item.id!==original.id),revision:existing.revision+1};
+      rows.current=rows.current.map(row=>row.id===stored.id&&row.type===stored.type?stored:row);return stored;
+    },
     deleteReviewJournalEntry:async entry=>{rows.current=rows.current.filter(row=>!(row.id===entry.id&&row.type===entry.type));},
     uploadReviewJournalImage:async file=>{const path=`${OWNER}/${crypto.randomUUID()}.${file.type==='image/png'?'png':file.type==='image/webp'?'webp':'jpg'}`;const url=URL.createObjectURL(file);imageUrls.current.set(path,url);return{path,name:file.name,mimeType:file.type,size:file.size,previewUrl:url};},
     resolveReviewJournalImage:async path=>{if(!imageUrls.current.has(path))throw new Error('预览图片已失效');return imageUrls.current.get(path);},

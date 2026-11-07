@@ -15,6 +15,10 @@ const ACCOUNT_LABELS = { cumulativeReturnPct: '截至该日累计收益率', dai
 const money = value => `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const formatMetric = item => item.key === 'leverage' ? `${item.value.toFixed(2)}×` : `${item.value > 0 ? '+' : ''}${item.value.toFixed(2)}%`;
 const blank = () => ({ id: crypto.randomUUID(), date: localReviewDate(), text: '', score: null, tags: [], trades: [], account: null, market: null, images: [], stocks: [], mood: '' });
+const initialDraft = reply => {
+  const value = reply ? structuredClone(reply) : {};
+  return { ...blank(), ...value, text: value.text || '', tags: value.tags || [], trades: value.trades || [], images: value.images || [], stocks: value.stocks || [], mood: value.mood || '' };
+};
 
 export function EvaluationRating({ score, tags = [] }) {
   if (!score && !tags.length) return null;
@@ -40,7 +44,9 @@ function TradePicker({ selected, stockTrades, userId, onChange, onClose, Dialog,
   const [side,setSide]=React.useState('all');
   const [chosen,setChosen]=React.useState(selected);
   const symbols=[...new Set(stockTrades.map(row=>String(row.symbol||'').toUpperCase()).filter(Boolean))];
-  const choices=symbols.flatMap(symbol=>collectReviewReplayTrades({stockTrades,symbol,userId}).filter(row=>row.id && row.date<=localReviewDate()).map(row=>({id:String(row.id),symbol,date:row.date,side:row.side,price:row.price,shares:row.shares})))
+  const current=symbols.flatMap(symbol=>collectReviewReplayTrades({stockTrades,symbol,userId}).filter(row=>row.id && row.date<=localReviewDate()).map(row=>({id:String(row.id),symbol,date:row.date,side:row.side,price:row.price,shares:row.shares})));
+  // Saved references are frozen: retain their price/date even if the live ledger changes.
+  const choices=[...new Map([...current,...normalizeReviewTradeReferences(selected)].map(row=>[row.id,row])).values()]
     .sort((a,b)=>Number(relatedSymbols.includes(b.symbol))-Number(relatedSymbols.includes(a.symbol)) || b.date.localeCompare(a.date));
   const visible=choices.filter(row=>(!query || row.symbol.includes(query.trim().toUpperCase()) || row.date.includes(query))&&(side==='all'||row.side===side));
   const toggle=trade=>setChosen(old=>old.some(item=>item.id===trade.id)?old.filter(item=>item.id!==trade.id):old.length<20?[...old,trade]:old);
@@ -65,8 +71,8 @@ function AccountPicker({ value, initialDate, recordDate, db, userId, preview, pr
   return <Dialog title="插入账户快照" onClose={onClose} headerAction={<button className="rj-text-button" disabled={!chosen} onClick={()=>{onChange(chosen);onClose();}}>插入</button>}><div className="rj-dialog-body"><label className="rev-date-label">来源日期<input type="date" value={date} max={recordDate} onChange={e=>setDate(e.target.value)}/></label><p className="rj-note">选择对应日期的正式收盘数据，保存后保持不变。</p>{!snapshot&&<p className="rj-note" role="status">{messages[messageStatus]||'该日数据不可用。'}</p>}{Object.entries(ACCOUNT_LABELS).map(([key,label])=>{const item=snapshot?.items.find(row=>row.key===key);return <label className="rev-account-option" key={key}><input type="checkbox" checked={Boolean(item&&selected.includes(key))} disabled={!item} onChange={()=>setSelected(old=>old.includes(key)?old.filter(k=>k!==key):[...old,key])}/><span>{label}{key==='leverage'&&!item&&<small>需完整历史现金及负债记录</small>}</span><strong style={item&&key!=='leverage'?{color:marketTextHexColor(item.value,marketColorMode)}:undefined}>{item?formatMetric(item):'—'}</strong></label>;})}{['error','pending'].includes(messageStatus)&&<button className="rj-wide-button" onClick={()=>setRetry(n=>n+1)}>重新读取</button>}{chosen&&<ReviewAccountCard value={chosen} marketColorMode={marketColorMode}/>}</div></Dialog>;
 }
 
-export default function ReviewEvaluationComposer({ open, entry, identityNode, db, userId, stockTrades, onSaved, onClose, Dialog, EmojiPicker, renderPhotos, knownTags=[], preview=false, previewData, language='zh', marketColorMode }) {
-  const [draft,setDraft]=React.useState(blank);
+export default function ReviewEvaluationComposer({ open, entry, reply = null, identityNode, db, userId, stockTrades, onSaved, onClose, Dialog, EmojiPicker, renderPhotos, knownTags=[], preview=false, previewData, language='zh', marketColorMode }) {
+  const [draft,setDraft]=React.useState(()=>initialDraft(reply));
   const [files,setFiles]=React.useState([]);const filesRef=React.useRef(files);filesRef.current=files;
   const [customTags,setCustomTags]=React.useState([]);const [customOpen,setCustomOpen]=React.useState(false);const [tagInput,setTagInput]=React.useState('');
   const [tagError,setTagError]=React.useState('');const composing=React.useRef(false);
@@ -75,7 +81,7 @@ export default function ReviewEvaluationComposer({ open, entry, identityNode, db
   const visibilityRef=React.useRef(()=>{});
   const keepInputVisible=()=>visibilityRef.current();
   const patch=value=>setDraft(old=>({...old,...value}));
-  const nonempty=Boolean(draft.text.trim()||draft.score||draft.tags.length||draft.trades.length||draft.market||draft.account||draft.images.length||files.length);
+  const nonempty=Boolean(draft.text.trim()||draft.score||draft.tags.length||draft.trades.length||draft.market||draft.account||draft.images.length||draft.stocks.length||draft.mood||files.length);
   const availableTags=[...new Set([...PRESET_TAGS,...knownTags,...customTags,...draft.tags])];
   React.useEffect(()=>()=>filesRef.current.forEach(item=>URL.revokeObjectURL(item.url)),[]);
   React.useEffect(()=>{
@@ -122,15 +128,15 @@ export default function ReviewEvaluationComposer({ open, entry, identityNode, db
     if(busyRef.current||!nonempty)return;busyRef.current=true;setBusy(true);setError('');const uploaded=[];
     try{for(const item of files)uploaded.push(await db.uploadReviewJournalImage(item.file,userId));
       const submitted={...draft,images:[...draft.images,...uploaded]};patch({images:submitted.images});files.forEach(item=>URL.revokeObjectURL(item.url));setFiles([]);
-      const saved=await db.appendReviewJournalReply(entry,submitted,userId);onSaved(saved);setDraft(blank());setCustomOpen(false);onClose();
-    }catch(failure){if(uploaded.length&&uploaded.length<files.length){patch({images:[...draft.images,...uploaded]});files.slice(0,uploaded.length).forEach(item=>URL.revokeObjectURL(item.url));setFiles(old=>old.slice(uploaded.length));}setError(failure?.message||'发布失败，内容已保留，请重试。');}
+      const saved=reply?await db.updateReviewJournalReply(entry,reply,submitted,userId):await db.appendReviewJournalReply(entry,submitted,userId);onSaved(saved);if(!reply)setDraft(blank());setCustomOpen(false);onClose();
+    }catch(failure){if(uploaded.length&&uploaded.length<files.length){patch({images:[...draft.images,...uploaded]});files.slice(0,uploaded.length).forEach(item=>URL.revokeObjectURL(item.url));setFiles(old=>old.slice(uploaded.length));}setError(failure?.message||(reply?'保存失败，修改已保留，请重试。':'发布失败，内容已保留，请重试。'));}
     finally{busyRef.current=false;setBusy(false);}
   };
   const dismiss=()=>{if(busyRef.current)return;setPicker('');setCustomOpen(false);onClose();};
   const remember=()=>{if(textRef.current)selection.current={start:textRef.current.selectionStart,end:textRef.current.selectionEnd};};
   const initialDate=entry.date>getVixComparisonExpectedCloseDate()?getVixComparisonExpectedCloseDate():entry.date;
   if(!open)return null;
-  return <Dialog title="写评价" wide composer onClose={dismiss} headerAction={<button className="rj-publish" disabled={busy||!nonempty} onClick={save}>{busy?<Loader2 className="rj-spin" size={16}/>:'发布'}</button>}>
+  return <Dialog title={reply?'修改评价':'写评价'} wide composer onClose={dismiss} headerAction={<button className="rj-publish" disabled={busy||!nonempty} onClick={save}>{busy?<Loader2 className="rj-spin" size={16}/>:reply?'保存':'发布'}</button>}>
     <div className="rj-compose-scroll" ref={scrollRef}><div className="rev-original"><time>回看 · {entry.date}</time><p>{entry.text}</p></div><div className="rj-compose-author">{identityNode}</div><div className="rj-compose-content rev-compose-content"><div className="rev-score-label"><span>给当时的判断打个分</span>{draft.score&&<button disabled={busy} onClick={()=>patch({score:null})}>清除</button>}</div><div className="rev-score-row"><div className="rev-rating-input" role="slider" tabIndex={busy?-1:0} aria-label="评价评分" aria-valuemin={0} aria-valuemax={10} aria-valuenow={draft.score||0} aria-valuetext={draft.score?`${draft.score} 分，共 10 分`:'未评分'} onPointerDown={e=>{if(busy)return;const box=e.currentTarget.getBoundingClientRect();patch({score:Math.max(1,Math.min(10,Math.ceil((e.clientX-box.left)/box.width*10)))});}} onKeyDown={e=>{if(busy)return;if(['ArrowLeft','ArrowDown','ArrowRight','ArrowUp','Home','End'].includes(e.key)){e.preventDefault();const score=e.key==='Home'?0:e.key==='End'?10:Math.max(0,Math.min(10,(draft.score||0)+(['ArrowRight','ArrowUp'].includes(e.key)?1:-1)));patch({score:score||null});}}}>{[0,1,2,3,4].map(i=><RatingStar key={i} fill={Math.min(1,Math.max(0,(draft.score||0)/2-i))}/>)}</div><div className="rev-score-number"><strong>{draft.score||'—'}</strong><span>{draft.score?'分':'未评分'}</span></div></div><p className="rev-hint">轻点选星 · 支持半星 · 评分可留空</p><div className="rev-tag-toolbar"><div className="rev-tag-options">{availableTags.map(tag=><button key={tag} type="button" disabled={busy} aria-pressed={draft.tags.includes(tag)} onClick={()=>toggleTag(tag)}>{tag}</button>)}</div><button className="rev-custom-trigger" disabled={busy} aria-expanded={customOpen} onClick={()=>{setCustomOpen(!customOpen);setTagError('');requestAnimationFrame(()=>tagRef.current?.focus());}}>＋ 自定义</button></div>
       {customOpen&&<form className="rev-custom-form" onSubmit={addTag}><label htmlFor="rev-custom-tag">自定义评价标签</label><div><input id="rev-custom-tag" ref={tagRef} value={tagInput} placeholder="例如：耐心不足" maxLength={48} disabled={busy} onFocus={keepInputVisible} onChange={e=>{setTagInput(e.target.value);setTagError('');keepInputVisible();}} onCompositionStart={()=>{composing.current=true;}} onCompositionEnd={()=>{composing.current=false;}} onKeyDown={e=>{if(e.key==='Enter'&&(composing.current||e.nativeEvent.isComposing||e.keyCode===229))e.preventDefault();}}/><button type="submit">添加</button><button type="button" onClick={()=>{setCustomOpen(false);setTagInput('');setTagError('');}}>取消</button></div><small>最多 12 个字符，添加后自动选中</small></form>}{tagError&&<p className="rj-error" role="alert">{tagError}</p>}
       <div className="rj-writing-area" data-text={draft.text}><textarea ref={textRef} className="rj-body-input" rows={1} aria-label="评价正文" placeholder="现在回看，哪里做对了，哪里需要改进？" value={draft.text} maxLength={20000} disabled={busy} onFocus={keepInputVisible} onChange={e=>{patch({text:e.target.value});remember();keepInputVisible();}} onSelect={()=>{remember();keepInputVisible();}} onKeyUp={keepInputVisible} onBlur={remember}/></div>

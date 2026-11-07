@@ -147,14 +147,16 @@ function replies(value, userId, strict = false) {
     const replyTrades = normalizeReviewTradeReferences(reply.trades, { strict });
     const replyAccount = normalizeReviewAccountSnapshot(reply.account, { strict });
     const replyMarket = jsonSnapshot(reply.market, strict);
+    const replyStocks = stocks(reply.stocks, strict);
+    const replyMood = typeof reply.mood === 'string' ? reply.mood.trim().slice(0, 100) : '';
     if (!text && !replyImages.length && replyScore === null && !replyTags.length && !replyTrades.length
-      && !replyAccount && !(replyMarket && Object.keys(replyMarket).length)) {
+      && !replyAccount && !(replyMarket && Object.keys(replyMarket).length) && !replyStocks.length && !replyMood) {
       if (strict) throw reviewJournalError('REVIEW_EMPTY_REPLY', '请添加文字、评分、标签或附件。');
       return [];
     }
     ids.add(id);
-    return [{ id, date, text, mood: typeof reply.mood === 'string' ? reply.mood.slice(0, 100) : '',
-      stocks: stocks(reply.stocks, strict), market: replyMarket, images: replyImages,
+    return [{ id, date, text, mood: replyMood,
+      stocks: replyStocks, market: replyMarket, images: replyImages,
       score: replyScore, tags: replyTags, trades: replyTrades, account: replyAccount,
       ...(typeof reply.createdAt === 'string' ? { createdAt: reply.createdAt } : {}) }];
   });

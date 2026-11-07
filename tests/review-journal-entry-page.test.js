@@ -20,9 +20,9 @@ const records = () => [
   { id: 'two', type: 'log', date: '2026-11-03', text: '第二条复盘', stocks: [], images: [], replies: [] },
 ];
 let fixtureId = 0;
-async function harness() {
+async function harness({ removeReply } = {}) {
   let slots = [], cursor = 0, layout = [], effects = [];
-  const scrolls = [], saves = [], deletes = [], removals = [], focus = [], pushes = [];
+  const scrolls = [], saves = [], deletes = [], replyDeletes = [], removals = [], focus = [], pushes = [];
   const listeners = new Map(), historyStates = [{ otherAppState: 'retained' }]; let historyIndex = 0;
   const host = { isConnected: true, focus: options => focus.push({ target: 'post', options }), closest: () => host, contains: target => !target.portal, matches: () => Boolean(fixture.keyboardFocus) };
   const fixture = {
@@ -71,11 +71,16 @@ async function harness() {
     db: {
       saveReviewJournalEntry: async (entry, owner) => { saves.push({ entry, owner }); return { ...entry, revision: (entry.revision || 0) + 1 }; },
       deleteReviewJournalEntry: async (entry, owner) => { deletes.push({ entry, owner }); },
+      deleteReviewJournalReply: async (entry, reply, owner) => {
+        replyDeletes.push({ entry, reply, owner });
+        if (removeReply) return removeReply(entry, reply, owner);
+        return { ...entry, revision: (entry.revision || 0) + 1, replies: entry.replies.filter(item => item.id !== reply.id) };
+      },
       removeReviewJournalImage: async (path, owner) => { removals.push({ path, owner }); },
     },
   };
   return {
-    Page, fixture, ctx, scrolls, focus, saves, deletes, removals, host, pushes, listeners,
+    Page, fixture, ctx, scrolls, focus, saves, deletes, replyDeletes, removals, host, pushes, listeners,
     render() { cursor = 0; layout = []; effects = []; const tree = Page.default({ ctx }); for (const node of walk(tree)) if (node.ref) node.ref.current = { focus: options => focus.push({ target: node.type, options }) }; for (const effect of layout) effect(); for (const effect of effects) effect(); return tree; },
     clickPost(tree, options = {}) { const event = { type: 'click', detail: options.detail ?? 1, nativeEvent: { pointerType: options.pointerType }, currentTarget: host, target: { closest: () => options.interactive || null, portal: options.portal }, defaultPrevented: options.defaultPrevented }; const post = options.id ? find(tree, node => node.type === 'article' && node.props['data-rj-entry-key'] === `log:${options.id}`) : firstPost(tree); post.props.onClick(event); },
     unmount() { for (const slot of slots) slot?.cleanup?.(); },
@@ -264,6 +269,148 @@ test('detail editing stays available and deleting returns to the original feed',
   assert.equal(h.ctx.reviewLogs.length, 1);
   assert.equal(h.scrolls.at(-1).top, 740);
   h.unmount();
+});
+
+test('review deletion requires a separate confirmation and cancellation leaves all data intact', async () => {
+  const h = await harness(); let tree = h.render(); h.clickPost(tree); tree = h.render();
+  const original = structuredClone(h.ctx.reviewLogs);
+  button(tree, '评论操作').props.onClick(); tree = h.render();
+  const menu = find(tree, node => node.type === h.Page.Dialog && node.props.title === '评论操作');
+  assert.ok(menu); assert.ok(button(menu, '修改评价')); assert.ok(button(menu, '删除评价'));
+  assert.equal(button(tree, '确认删除评价'), undefined);
+  button(menu, '删除评价').props.onClick(); tree = h.render();
+  assert.ok(find(tree, node => node.type === h.Page.Dialog && node.props.title === '删除这条评价？'));
+  assert.ok(button(tree, '确认删除评价')); assert.equal(h.replyDeletes.length, 0);
+  button(tree, '取消').props.onClick(); tree = h.render();
+  assert.equal(find(tree, node => node.type === h.Page.Dialog), undefined);
+  assert.deepEqual(h.ctx.reviewLogs, original);
+  assert.equal(h.replyDeletes.length, 0); assert.equal(h.deletes.length, 0); assert.equal(h.removals.length, 0);
+  h.unmount();
+});
+
+test('confirmed review deletion updates only that review and keeps the post, sibling review and ledger', async () => {
+  const h = await harness();
+  const sibling = { id: 'reply-two', date: '2026-11-06', text: '另一条评价', score: 8, tags: ['按计划执行'] };
+  h.ctx.reviewLogs[0].replies.push(sibling);
+  h.ctx.stockTrades = [{ id: 'ledger-one', symbol: 'SPY', side: 'buy', shares: 10, price: 500, date: '2026-11-05' }];
+  const original = structuredClone(h.ctx.reviewLogs[0]), trades = structuredClone(h.ctx.stockTrades);
+  let tree = h.render(); h.clickPost(tree); tree = h.render();
+  h.fixture.window.scrollY = 940;
+  const row = find(tree, node => node.props['data-rj-reply-id'] === 'reply-one');
+  button(row, '评论操作').props.onClick(); tree = h.render();
+  button(tree, '删除评价').props.onClick(); tree = h.render();
+  await button(tree, '确认删除评价').props.onClick(); tree = h.render();
+  assert.equal(h.replyDeletes.length, 1);
+  assert.deepEqual(h.replyDeletes[0].reply, original.replies[0]);
+  assert.equal(h.replyDeletes[0].entry.id, 'one'); assert.equal(h.replyDeletes[0].owner, 'owner');
+  assert.equal(h.ctx.reviewLogs[0].text, original.text);
+  assert.deepEqual(h.ctx.reviewLogs[0].images, original.images);
+  assert.deepEqual(h.ctx.reviewLogs[0].market, original.market);
+  assert.deepEqual(h.ctx.reviewLogs[0].replies, [sibling]); assert.deepEqual(h.ctx.stockTrades, trades);
+  assert.equal(find(tree, node => node.props['data-rj-reply-id'] === 'reply-one'), undefined);
+  assert.ok(find(tree, node => node.props['data-rj-reply-id'] === 'reply-two'));
+  assert.equal(h.deletes.length, 0, 'removing a review must not delete the whole entry');
+  assert.equal(h.removals.length, 0, 'private image objects may still be referenced elsewhere');
+  assert.ok(detail(tree)); assert.equal(h.fixture.window.scrollY, 940);
+  assert.equal(h.scrolls.length, 1, 'deleting a review must not navigate away or reset detail scroll');
+  h.unmount();
+});
+
+test('a failed review deletion keeps its confirmation and original comment available for retry', async () => {
+  const h = await harness({ removeReply: async () => { throw new Error('评价已更新，请刷新后重试。'); } });
+  let tree = h.render(); h.clickPost(tree); tree = h.render();
+  button(tree, '评论操作').props.onClick(); tree = h.render();
+  button(tree, '删除评价').props.onClick(); tree = h.render();
+  await button(tree, '确认删除评价').props.onClick(); tree = h.render();
+  assert.equal(h.replyDeletes.length, 1);
+  assert.deepEqual(h.ctx.reviewLogs[0].replies, records()[0].replies);
+  assert.ok(find(tree, node => node.props['data-rj-reply-id'] === 'reply-one'));
+  assert.match(textOf(find(tree, node => node.props.role === 'alert')), /评价已更新/);
+  assert.equal(button(tree, '确认删除评价').props.disabled, false);
+  assert.equal(h.removals.length, 0); h.unmount();
+});
+
+test('pending review deletion disables dismissal and blocks duplicate submission', async () => {
+  let complete;
+  const h = await harness({ removeReply: (entry, reply) => new Promise(resolve => {
+    complete = () => resolve({ ...entry, replies: entry.replies.filter(item => item.id !== reply.id) });
+  }) });
+  let tree = h.render(); h.clickPost(tree); tree = h.render();
+  button(tree, '评论操作').props.onClick(); tree = h.render();
+  button(tree, '删除评价').props.onClick(); tree = h.render();
+  const submit = button(tree, '确认删除评价').props.onClick;
+  const pending = submit(); tree = h.render();
+  assert.equal(button(tree, '删除中…').props.disabled, true);
+  assert.equal(button(tree, '取消').props.disabled, true);
+  assert.equal(button(tree, '评论操作').props.disabled, true);
+  find(tree, node => node.type === h.Page.Dialog).props.onClose(); tree = h.render();
+  assert.ok(find(tree, node => node.type === h.Page.Dialog));
+  await submit(); assert.equal(h.replyDeletes.length, 1);
+  complete(); await pending; tree = h.render();
+  assert.equal(find(tree, node => node.type === h.Page.Dialog), undefined);
+  assert.equal(h.ctx.reviewLogs[0].replies.length, 0); h.unmount();
+});
+
+test('editing a saved review receives the complete original and has a separate identity from the new draft', async () => {
+  const h = await harness(); let tree = h.render(); h.clickPost(tree); tree = h.render();
+  const original = structuredClone(h.ctx.reviewLogs[0].replies[0]);
+  button(tree, '写评价').props.onClick(); tree = h.render();
+  const newDraft = find(tree, node => node.type === h.Page.ReviewEvaluationComposer);
+  newDraft.props.onClose(); tree = h.render();
+  button(tree, '评论操作').props.onClick(); tree = h.render();
+  button(tree, '修改评价').props.onClick(); tree = h.render();
+  const editors = visible(tree).filter(node => node.type === h.Page.ReviewEvaluationComposer);
+  const editor = editors.find(node => node.props.reply);
+  assert.equal(editors.length, 2);
+  assert.deepEqual(editor.props.reply, original); assert.equal(editor.props.entry.id, 'one');
+  assert.equal(editor.props.userId, 'owner'); assert.equal(editor.props.open, true);
+  assert.notEqual(editor.key, newDraft.key);
+  assert.equal(editors.find(node => !node.props.reply).key, newDraft.key);
+  assert.equal(editors.find(node => !node.props.reply).props.open, false);
+  editor.props.onClose(); tree = h.render();
+  assert.deepEqual(h.ctx.reviewLogs[0].replies[0], original, 'closing an edit must leave the saved review intact');
+  assert.equal(visible(tree).filter(node => node.type === h.Page.ReviewEvaluationComposer).length, 1);
+  button(tree, '写评价').props.onClick(); tree = h.render();
+  assert.equal(find(tree, node => node.type === h.Page.ReviewEvaluationComposer).key, newDraft.key);
+  assert.equal(find(tree, node => node.type === h.Page.ReviewEvaluationComposer).props.open, true);
+  assert.equal(h.saves.length, 0); assert.equal(h.replyDeletes.length, 0); h.unmount();
+});
+
+test('an edited review refreshes in place and account switches immediately remove review actions and drafts', async () => {
+  const h = await harness(); let tree = h.render(); h.clickPost(tree); tree = h.render();
+  button(tree, '评论操作').props.onClick(); tree = h.render();
+  button(tree, '修改评价').props.onClick(); tree = h.render();
+  const editor = find(tree, node => node.type === h.Page.ReviewEvaluationComposer && node.props.reply);
+  h.fixture.window.scrollY = 950;
+  const changed = { ...editor.props.reply, text: '修改后的评价', score: 9, tags: ['自定义标签'] };
+  editor.props.onSaved({ ...editor.props.entry, replies: [changed], revision: 3 }); editor.props.onClose(); tree = h.render();
+  assert.deepEqual(h.ctx.reviewLogs[0].replies, [changed]);
+  assert.match(textOf(detail(tree)), /修改后的评价/);
+  assert.equal(h.fixture.window.scrollY, 950); assert.equal(h.scrolls.length, 1);
+  button(tree, '评论操作').props.onClick(); tree = h.render();
+  h.ctx.userId = 'another-owner'; tree = h.render();
+  assert.equal(find(tree, node => node.type === h.Page.Dialog), undefined, 'a previous account menu must disappear before its cleanup effect');
+  h.ctx.userId = 'owner'; tree = h.render();
+  button(tree, '评论操作').props.onClick(); tree = h.render();
+  button(tree, '修改评价').props.onClick(); tree = h.render();
+  assert.deepEqual(find(tree, node => node.type === h.Page.ReviewEvaluationComposer).props.reply, changed);
+  h.ctx.userId = 'another-owner'; tree = h.render();
+  assert.equal(find(tree, node => node.type === h.Page.ReviewEvaluationComposer), undefined, 'the saved-review editor must not cross accounts');
+  assert.equal(h.replyDeletes.length, 0); h.unmount();
+});
+
+test('removing a review or navigating back unmounts its editor without reviving a stale edit', async () => {
+  for (const remove of [false, true]) {
+    const h = await harness(); let tree = h.render(); h.clickPost(tree); tree = h.render();
+    button(tree, '评论操作').props.onClick(); tree = h.render();
+    button(tree, '修改评价').props.onClick(); tree = h.render();
+    assert.ok(find(tree, node => node.type === h.Page.ReviewEvaluationComposer));
+    if (remove) h.ctx.reviewLogs[0] = { ...h.ctx.reviewLogs[0], replies: [] };
+    else button(tree, '返回投资复盘').props.onClick();
+    tree = h.render();
+    assert.equal(find(tree, node => node.type === h.Page.ReviewEvaluationComposer), undefined);
+    assert.equal(h.saves.length, 0); assert.equal(h.replyDeletes.length, 0); h.unmount();
+  }
 });
 
 test('browser back and forward navigate privately and preserve the latest feed position', async () => {

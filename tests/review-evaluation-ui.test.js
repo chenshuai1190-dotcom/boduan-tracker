@@ -16,8 +16,8 @@ const body = tree => find(tree, node => node.type === 'textarea');
 const alert = tree => walk(tree).filter(node => node.props.role === 'alert').map(text).join(' ');
 let nextId = 0;
 
-async function harness({ append } = {}) {
-  const slots = [], calls = [], saved = [], listeners = new Map(); let cursor = 0, effects = [], closes = 0;
+async function harness({ append, update, reply = null } = {}) {
+  const slots = [], calls = [], updates = [], saved = [], listeners = new Map(); let cursor = 0, effects = [], closes = 0;
   const fixture = {
     React: { ...React,
       useState(initial) { const index = cursor++; const slot = slots[index] ||= { value: typeof initial === 'function' ? initial() : initial };
@@ -45,26 +45,31 @@ async function harness({ append } = {}) {
       const getVixComparisonExpectedCloseDate = () => '2026-11-06';
       const SnapshotCard = () => null, SnapshotPicker = () => null, ReviewStockReplay = () => null;
       ${source.slice(source.indexOf('const PRESET_TAGS'))}
-      export { AccountPicker };
+      export { AccountPicker, TradePicker };
     `, 'ReviewEvaluationUITest.jsx', { jsx: { runtime: 'classic' } });
     components = await import(`data:text/javascript;base64,${Buffer.from(compiled.code).toString('base64')}`);
   } finally { delete globalThis[key]; }
   const Dialog = () => null;
-  const props = { open: true, entry: { id: 'entry-1', type: 'log', revision: 4, date: '2026-11-06', text: '过去的判断', replies: [] },
+  const props = { open: true, reply, entry: { id: 'entry-1', type: 'log', revision: 4, date: '2026-11-06', text: '过去的判断', replies: reply ? [reply] : [] },
     identityNode: React.createElement('span', null, '作者'), userId: 'owner', stockTrades: [], Dialog, EmojiPicker: () => null,
     renderPhotos: () => null, knownTags: [],
     db: { async appendReviewJournalReply(entry, reply, owner) {
       calls.push({ entry, reply: structuredClone(reply), owner });
       return append ? append(entry, reply, owner) : { ...entry, revision: 5, replies: [...entry.replies, reply] };
+    }, async updateReviewJournalReply(entry, original, replacement, owner) {
+      updates.push({ entry, original, replacement: structuredClone(replacement), owner });
+      return update ? update(entry, original, replacement, owner)
+        : { ...entry, revision: 5, replies: entry.replies.map(item => item.id === original.id ? replacement : item) };
     } },
     onSaved: value => saved.push(value), onClose: () => { closes++; props.open = false; },
   };
   const render = (Component, componentProps) => { cursor = 0; effects = []; const tree = Component(componentProps);
       for (const node of walk(tree)) if (node.ref) node.ref.current = { focus() {}, selectionStart: 0, selectionEnd: 0, setSelectionRange() {}, getBoundingClientRect: () => ({ bottom: 800 }) };
       effects.forEach(effect => effect()); return tree; };
-  return { props, calls, saved, components, Dialog, closes: () => closes,
+  return { props, calls, updates, saved, components, Dialog, closes: () => closes,
     render: () => render(components.default, props),
     renderAccount: accountProps => render(components.AccountPicker, { ...accountProps, Dialog }),
+    renderTrades: tradeProps => render(components.TradePicker, { ...tradeProps, Dialog }),
     cleanup() { slots.forEach(slot => slot.cleanup?.()); },
   };
 }
@@ -110,6 +115,96 @@ test('closing and reopening retains the unfinished evaluation body, score and ta
   h.props.open = true; tree = h.render();
   assert.equal(body(tree).props.value, '保留尚未发布的想法'); assert.equal(rating(tree).props['aria-valuenow'], 5);
   assert.equal(button(tree, '买入过急').props['aria-pressed'], true); h.cleanup();
+});
+
+const savedReview = () => ({
+  id: 'saved-reply', date: '2026-10-06', createdAt: '2026-10-06T08:00:00.000Z', text: '当时卖得过早',
+  score: 5, tags: ['过早卖出', '耐心不足'], mood: '谨慎', stocks: ['NVDA'],
+  images: [{ path: 'owner/kept.jpg', name: 'kept.jpg', mimeType: 'image/jpeg', size: 100 }],
+  trades: [{ id: 'trade-1', symbol: 'NVDA', date: '2026-10-01', side: 'sell', price: 240.2, shares: 1000 }],
+  market: { version: 1, asOfDate: '2026-10-01', items: [{ key: 'vix', value: 26.8 }] },
+  account: { version: 1, kind: 'account_snapshot', basis: 'close', source: 'pnl_report',
+    asOfDate: '2026-10-01', recordDate: '2026-10-06',
+    items: [{ key: 'leverage', value: 1.2, asOfDate: '2026-10-01', basis: 'close', source: 'pnl_report' }] },
+});
+
+test('editing loads saved rating and attachments, preserves original identity/date and updates only that review', async () => {
+  const reply = savedReview(), original = structuredClone(reply);
+  const h = await harness({ reply }); let tree = h.render();
+  assert.equal(tree.props.title, '修改评价'); assert.equal(button(tree, '发布'), undefined);
+  assert.equal(body(tree).props.value, original.text); assert.equal(rating(tree).props['aria-valuenow'], 5);
+  assert.equal(button(tree, '耐心不足').props['aria-pressed'], true);
+  assert.ok(button(tree, '移除已上传图片 1')); assert.ok(button(tree, '移除市场快照'));
+  assert.ok(button(tree, '移除账户快照')); assert.ok(button(tree, '移除交易引用'));
+  body(tree).props.onChange({ target: { value: '现在认为这笔减仓符合计划' } }); tree = h.render();
+  chooseScore(tree, 8); tree = h.render();
+  button(tree, '过早卖出').props.onClick(); tree = h.render();
+  button(tree, '按计划执行').props.onClick(); tree = h.render();
+  await button(tree, '保存').props.onClick();
+  assert.equal(h.calls.length, 0, 'editing must never append a second review');
+  assert.equal(h.updates.length, 1); assert.equal(h.updates[0].original, reply);
+  assert.equal(h.updates[0].entry, h.props.entry); assert.equal(h.updates[0].owner, 'owner');
+  assert.deepEqual(h.updates[0].replacement, { ...original, text: '现在认为这笔减仓符合计划', score: 8, tags: ['耐心不足', '按计划执行'] });
+  assert.deepEqual(reply, original, 'editing must not mutate the visible saved reply before success');
+  assert.equal(h.saved.length, 1); assert.equal(h.closes(), 1); h.cleanup();
+});
+
+test('cancelling an edit leaves its stored review unchanged and removed image references do not delete shared files', async () => {
+  const reply = savedReview(), original = structuredClone(reply); let deletes = 0;
+  const h = await harness({ reply }); h.props.db.removeReviewJournalImage = async () => { deletes++; };
+  let tree = h.render();
+  body(tree).props.onChange({ target: { value: '未保存的修改' } }); tree = h.render();
+  button(tree, '移除已上传图片 1').props.onClick(); tree = h.render();
+  assert.equal(button(tree, '移除已上传图片 1'), undefined);
+  tree.props.onClose();
+  assert.equal(h.render(), null); assert.equal(h.updates.length, 0); assert.equal(h.calls.length, 0);
+  assert.deepEqual(reply, original); assert.equal(deletes, 0); h.cleanup();
+});
+
+test('failed edits retain draft and original comparison snapshot for retry without appending', async () => {
+  const reply = savedReview(); let attempts = 0;
+  const h = await harness({ reply, update: async (entry, original, replacement) => {
+    if (++attempts === 1) throw Object.assign(new Error('这条评论已更新，请刷新后重试。'), { code: 'REVIEW_REPLY_CONFLICT' });
+    return { ...entry, replies: [replacement] };
+  } });
+  let tree = h.render(); body(tree).props.onChange({ target: { value: '保留这次修改' } }); tree = h.render();
+  await button(tree, '保存').props.onClick(); tree = h.render();
+  assert.match(alert(tree), /这条评论已更新/); assert.equal(body(tree).props.value, '保留这次修改');
+  assert.equal(rating(tree).props['aria-valuenow'], 5); assert.ok(button(tree, '移除已上传图片 1'));
+  assert.equal(h.closes(), 0); assert.equal(h.saved.length, 0);
+  await button(tree, '保存').props.onClick();
+  assert.equal(h.updates.length, 2); assert.equal(h.updates[1].original, reply);
+  assert.deepEqual(h.updates[1].replacement, h.updates[0].replacement);
+  assert.equal(h.calls.length, 0); assert.equal(h.saved.length, 1); h.cleanup();
+});
+
+test('editing legacy stock-only or mood-only reviews does not disable saving or discard their data', async () => {
+  for (const legacy of [{ stocks: ['SMH'] }, { mood: '冷静' }]) {
+    const reply = { id: 'legacy-reply', date: '2026-08-01', text: '', ...legacy };
+    const h = await harness({ reply }); const tree = h.render();
+    assert.equal(button(tree, '保存').props.disabled, false);
+    await button(tree, '保存').props.onClick();
+    assert.equal(h.updates[0].replacement.id, reply.id); assert.equal(h.updates[0].replacement.date, reply.date);
+    for (const [key, value] of Object.entries(legacy)) assert.deepEqual(h.updates[0].replacement[key], value);
+    h.cleanup();
+  }
+});
+
+test('trade picker retains frozen selections when current ledger rows change or disappear', async () => {
+  const selected = [
+    { id: 'changed', symbol: 'NVDA', date: '2026-09-01', side: 'buy', price: 100, shares: 20 },
+    { id: 'deleted', symbol: 'SMH', date: '2026-09-02', side: 'sell', price: 200, shares: 10 },
+  ];
+  const h = await harness(); let inserted;
+  const props = { selected, stockTrades: [{ ...selected[0], price: 999, user_id: 'owner' }], userId: 'owner', relatedSymbols: [],
+    onChange: value => { inserted = value; }, onClose() {} };
+  let tree = h.renderTrades(props);
+  const choices = walk(tree).filter(node => node.props.className === 'rev-trade-choice');
+  assert.equal(choices.length, 2); assert.ok(choices.every(node => node.props['aria-pressed']));
+  assert.match(choices.map(text).join(' '), /\$100\.00/); assert.doesNotMatch(choices.map(text).join(' '), /999/);
+  choices.find(node => text(node).includes('SMH')).props.onClick(); tree = h.renderTrades(props);
+  button(tree, '插入 1 笔').props.onClick();
+  assert.deepEqual(inserted, [selected[0]]); assert.equal(selected.length, 2); h.cleanup();
 });
 
 test('custom tags normalize and deduplicate while rejecting empty, overlong and unfinished IME input', async () => {

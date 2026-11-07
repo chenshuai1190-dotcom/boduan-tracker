@@ -27,6 +27,8 @@ function storageError(error) {
 const validId = id => (typeof id === 'string' && id.trim() !== '') || (Number.isSafeInteger(id) && id >= 0);
 const canonical = value => Array.isArray(value) ? value.map(canonical)
   : value !== null && typeof value === 'object' ? Object.fromEntries(Object.keys(value).sort().map(key => [key, canonical(value[key])])) : value;
+const samePayload = (left, right) => JSON.stringify(canonical(left)) === JSON.stringify(canonical(right));
+const replyConflict = () => reviewJournalError('REVIEW_REPLY_CONFLICT', '这条评论已被修改或删除，请刷新确认后再操作。');
 function revision(entry) {
   if (!Number.isSafeInteger(entry?.revision) || entry.revision < 0 || entry.revision >= 2147483647) {
     throw reviewJournalError('REVIEW_REVISION_REQUIRED', '记录版本无效，请刷新后重试。');
@@ -51,15 +53,14 @@ export function createReviewJournalRepository(client, { now = () => new Date().t
     }
     return user;
   }
-  async function saveEntry(entry, expectedUserId, replySource = null) {
+  async function saveEntry(entry, expectedUserId, replyChange = null) {
     const user = await authenticate(expectedUserId);
     const table = reviewJournalTable(entry?.type);
     let payload = buildReviewJournalWrite(entry, user.id);
-    if (replySource) {
-      // Only append to the authoritative row read in this operation. Preserve all
+    if (replyChange) {
+      // Only change replies on the authoritative row read in this operation. Preserve all
       // existing metadata, including fields this client version does not render.
-      const metadata = { ...replySource.review_data,
-        replies: [...(replySource.review_data.replies || []), payload.review_data.replies.at(-1)] };
+      const metadata = { ...replyChange.source.review_data, replies: replyChange.replies };
       if (new TextEncoder().encode(JSON.stringify(metadata)).length >= 2 * 1024 * 1024) {
         throw reviewJournalError('REVIEW_METADATA_LIMIT', '记录附件信息过多，请拆分后保存。');
       }
@@ -68,7 +69,7 @@ export function createReviewJournalRepository(client, { now = () => new Date().t
     const editing = entry.id !== undefined && entry.id !== null && entry.id !== '';
     const savedRow = row => {
       if (row.user_id !== user.id) throw reviewJournalError('REVIEW_ACCOUNT_CHANGED', '账户数据不匹配，请刷新后重试。');
-      if (replySource && String(row.id) !== String(entry.id)) throw conflict();
+      if (replyChange && String(row.id) !== String(entry.id)) throw conflict();
       if (!Number.isSafeInteger(row.review_revision) || row.review_revision < 0 || !row.review_data) {
         throw reviewJournalError('REVIEW_SCHEMA_NOT_CONFIGURED', '复盘存储尚未配置，请完成数据库迁移后再保存。');
       }
@@ -113,7 +114,7 @@ export function createReviewJournalRepository(client, { now = () => new Date().t
   async function save(entry, expectedUserId) {
     return saveEntry(entry, expectedUserId);
   }
-  async function appendReply(entry, reply, expectedUserId) {
+  async function changeReplies(entry, expectedUserId, transform) {
     const table = reviewJournalTable(entry?.type);
     if (!validId(entry?.id)) throw reviewJournalError('REVIEW_INVALID_ID', '记录标识无效，请刷新后重试。');
     revision(entry);
@@ -137,20 +138,59 @@ export function createReviewJournalRepository(client, { now = () => new Date().t
       const validated = buildReviewJournalWrite({ ...latest,
         images: row.review_data.images, stocks: row.review_data.stocks,
         market: row.review_data.market, replies: row.review_data.replies }, user.id);
-      const normalized = buildReviewJournalWrite({ ...latest, replies: [reply] }, user.id).review_data.replies[0];
-      const existing = validated.review_data.replies.find(item => item.id === normalized.id);
-      if (existing) {
-        if (JSON.stringify(canonical(existing)) !== JSON.stringify(canonical(normalized))) {
-          throw reviewJournalError('REVIEW_REPLY_CONFLICT', '这条评论已保存，但内容不同，请刷新确认后再操作。');
-        }
-        return latest;
-      }
+      const nextReplies = transform({
+        rawReplies: row.review_data.replies || [], replies: validated.review_data.replies,
+        normalize: reply => buildReviewJournalWrite({ ...latest, replies: [reply] }, user.id).review_data.replies[0],
+      });
+      if (nextReplies === null) return latest;
       try {
-        return await saveEntry({ ...latest, replies: [...validated.review_data.replies, normalized] }, expectedUserId, row);
+        return await saveEntry({ ...latest, replies: nextReplies }, expectedUserId, { source: row, replies: nextReplies });
       } catch (failure) {
         if (failure?.code !== 'REVIEW_REVISION_CONFLICT' || attempt === 2) throw failure;
       }
     }
+  }
+  async function appendReply(entry, reply, expectedUserId) {
+    return changeReplies(entry, expectedUserId, ({ rawReplies, replies, normalize }) => {
+      const normalized = normalize(reply);
+      const existing = replies.find(item => item.id === normalized.id);
+      if (existing) {
+        if (!samePayload(existing, normalized)) throw replyConflict();
+        return null;
+      }
+      return [...rawReplies, normalized];
+    });
+  }
+  async function updateReply(entry, originalReply, replacement, expectedUserId) {
+    return changeReplies(entry, expectedUserId, ({ rawReplies, replies, normalize }) => {
+      const original = normalize(originalReply);
+      const index = replies.findIndex(item => item.id === original.id);
+      if (index < 0) throw replyConflict();
+      const current = replies[index];
+      const next = normalize({ ...replacement, id: original.id, date: original.date, createdAt: original.createdAt });
+      // A lost response may be retried with the old original. Recover success
+      // before comparing it, but never overwrite a different concurrent edit.
+      if (samePayload(current, next)) return null;
+      if (!samePayload(current, original)) throw replyConflict();
+      const updated = { ...rawReplies[index] };
+      for (const [key, value] of Object.entries(next)) {
+        // Preserve unknown nested snapshot fields when the visible field did
+        // not change; only intentional edits replace their normalized value.
+        if (!samePayload(current[key], value)) updated[key] = value;
+      }
+      return rawReplies.map((item, replyIndex) => replyIndex === index ? updated : item);
+    });
+  }
+  async function removeReply(entry, originalReply, expectedUserId) {
+    return changeReplies(entry, expectedUserId, ({ rawReplies, replies, normalize }) => {
+      const original = normalize(originalReply);
+      const index = replies.findIndex(item => item.id === original.id);
+      if (index < 0) return null;
+      if (!samePayload(replies[index], original)) throw replyConflict();
+      // Only unlink this reply. Private images may still be referenced by
+      // other records, so reply edits/deletions never delete storage objects.
+      return rawReplies.filter((_, replyIndex) => replyIndex !== index);
+    });
   }
   async function remove(entry, expectedUserId) {
     const user = await authenticate(expectedUserId);
@@ -192,5 +232,5 @@ export function createReviewJournalRepository(client, { now = () => new Date().t
     if (error) throw storageError(error);
     await authenticate(expectedUserId);
   }
-  return { save, appendReply, remove, uploadImage, resolveImage, removeImage };
+  return { save, appendReply, updateReply, removeReply, remove, uploadImage, resolveImage, removeImage };
 }

@@ -77,6 +77,20 @@ export const appendReviewJournalReply = async (entry, reply, expectedUserId) => 
   if (Array.isArray(cached)) cacheSet(expectedUserId, key, [saved, ...cached.filter(item => item.id !== saved.id)]);
   return saved;
 };
+export const updateReviewJournalReply = async (entry, originalReply, replacement, expectedUserId) => {
+  const saved = await reviewJournalRepository.updateReply(entry, originalReply, replacement, expectedUserId);
+  const key = saved.type === 'insight' ? 'disciplines' : 'review_logs';
+  const cached = cacheGet(expectedUserId, key);
+  if (Array.isArray(cached)) cacheSet(expectedUserId, key, [saved, ...cached.filter(item => item.id !== saved.id)]);
+  return saved;
+};
+export const deleteReviewJournalReply = async (entry, originalReply, expectedUserId) => {
+  const saved = await reviewJournalRepository.removeReply(entry, originalReply, expectedUserId);
+  const key = saved.type === 'insight' ? 'disciplines' : 'review_logs';
+  const cached = cacheGet(expectedUserId, key);
+  if (Array.isArray(cached)) cacheSet(expectedUserId, key, [saved, ...cached.filter(item => item.id !== saved.id)]);
+  return saved;
+};
 export const deleteReviewJournalEntry = async (entry, expectedUserId) => {
   await reviewJournalRepository.remove(entry, expectedUserId);
   const key = entry.type === 'insight' ? 'disciplines' : 'review_logs';

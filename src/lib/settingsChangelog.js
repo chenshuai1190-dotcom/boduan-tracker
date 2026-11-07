@@ -3,6 +3,11 @@ import { CURRENT_RELEASE } from './releaseMeta.js';
 export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
+    items: ['评论之间增加分割线；每条评价可通过右上角菜单修改或删除，修改保留原有评分、标签及关联信息。'],
+    itemsEn: ['Added separators between reviews and a menu to edit or delete each review, keeping its rating, tags, and linked information when editing.'],
+  },
+  {
+    ver: 'v10.7.9.579', date: '2026-11-07',
     items: ['修复 iPhone 关联交易长列表顶部被状态栏遮挡的问题，关闭与插入按钮始终留在安全区域。'],
     itemsEn: ['Keep the trade picker header clear of the iPhone status area so Close and Insert remain accessible with long lists.'],
   },
