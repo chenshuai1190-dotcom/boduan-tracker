@@ -95,9 +95,12 @@
 .rjt-section-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:18px}
 .rjt-section-heading h3{margin:0}
 .rjt-section-heading time{font-size:13px;line-height:20px;color:var(--rjt-muted)}
-.rjt-metric-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px 10px}
+.rjt-metric-grid{display:grid;grid-template-columns:minmax(max-content,1.45fr) minmax(max-content,1.1fr) max-content;gap:20px 10px}
+.rjt-metric-grid>div{min-width:0}
 .rjt-metric-grid span{display:block;font-size:13px;line-height:20px;color:var(--rjt-muted)}
 .rjt-metric-grid strong{display:block;font-size:21px;line-height:29px;font-weight:450;margin-top:5px;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.rjt-metric-net{grid-column:1}.rjt-metric-debt{grid-column:2}.rjt-metric-cash{grid-column:3}
+.rjt-metric-net strong,.rjt-metric-debt strong,.rjt-metric-cash strong{white-space:nowrap;overflow-wrap:normal}
 .rjt-trade{display:flex;align-items:center;justify-content:space-between;gap:13px;padding:13px 0;border-bottom:.5px solid var(--rjt-line)}
 .rjt-trade:last-child{border:0}
 .rjt-trade strong{font-size:15px;font-weight:500;line-height:22px}
@@ -115,6 +118,7 @@
 .rjt-evaluate{min-height:40px;border-radius:22px;background:#e2e6ed!important;color:#15191e!important;padding:8px 15px!important;font-size:14px!important;font-weight:600!important}
 .rjt-muted{font-size:14px;color:var(--rjt-muted);line-height:23px}
 @media(min-width:600px){.rjt-heading,.rjt-event,.rjt-detail-intro,.rjt-chart-section,.rjt-section{padding-left:28px;padding-right:28px}.rjt-filters,.rjt-month,.rjt-data-notice{padding-left:28px;padding-right:28px}.rjt-event{gap:17px}.rjt-event-primary>strong{font-size:33px}}
-@media(max-width:350px){.rjt-heading,.rjt-event,.rjt-detail-intro,.rjt-chart-section,.rjt-section{padding-left:14px;padding-right:14px}.rjt-filters,.rjt-month,.rjt-data-notice{padding-left:14px;padding-right:14px}.rjt-event{gap:9px;grid-template-columns:20px minmax(0,1fr)}.rjt-event-rail:after{left:10px}.rjt-event-icon{width:20px}.rjt-event-primary>strong{font-size:27px;line-height:35px}.rjt-heading h2{font-size:15px}.rjt-three-values{gap:5px}.rjt-detail-metric strong{font-size:36px}.rjt-detail-stats strong{font-size:15px}.rjt-metric-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.rjt-year select{max-width:125px}}
+@media(max-width:400px){.rjt-metric-grid{column-gap:8px}.rjt-metric-net strong,.rjt-metric-debt strong,.rjt-metric-cash strong{font-size:clamp(16px,5vw,20px)}}
+@media(max-width:350px){.rjt-metric-grid{column-gap:6px}.rjt-heading,.rjt-event,.rjt-detail-intro,.rjt-chart-section,.rjt-section{padding-left:14px;padding-right:14px}.rjt-filters,.rjt-month,.rjt-data-notice{padding-left:14px;padding-right:14px}.rjt-event{gap:9px;grid-template-columns:20px minmax(0,1fr)}.rjt-event-rail:after{left:10px}.rjt-event-icon{width:20px}.rjt-event-primary>strong{font-size:27px;line-height:35px}.rjt-heading h2{font-size:15px}.rjt-three-values{gap:5px}.rjt-detail-metric strong{font-size:36px}.rjt-detail-stats strong{font-size:15px}.rjt-year select{max-width:125px}}
 
 .rjt-currency-note{color:var(--rjt-muted,#828b98);font-size:11px;line-height:1.7;margin:0 20px 18px;overflow-wrap:anywhere}

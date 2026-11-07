@@ -3,6 +3,11 @@ import { CURRENT_RELEASE } from './releaseMeta.js';
 export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
+    items: ['时间线账户保持三列排版，按金额长度分配净资产、融资负债与现金的空间，修复手机端金额小数被挤到下一行。'],
+    itemsEn: ['Timeline account metrics keep a three-column layout with more room for net assets and compact cash columns, preventing decimal amounts from wrapping on phones.'],
+  },
+  {
+    ver: 'v10.7.9.591', date: '2026-11-07',
     items: ['投资动态中的美元和人民币金额统一保留两位小数，覆盖动态卡片、时间线列表、详情和图表节点。'],
     itemsEn: ['USD and CNY amounts in Activity now consistently show two decimal places across feed cards, timeline lists, details, and selected chart nodes.'],
   },

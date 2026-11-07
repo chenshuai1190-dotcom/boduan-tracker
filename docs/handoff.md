@@ -1,6 +1,6 @@
 # boduan-tracker 当前交接
 
-验证时间：`2026-11-07 Asia/Shanghai`。延续已授权上线，修复动态金额未显示两位小数。稳定规则看 `README.md`，流程看 `docs/development-process.md`。
+验证时间：`2026-11-07 Asia/Shanghai`。延续已授权上线，修复时间线账户金额在手机端换行。稳定规则看 `README.md`，流程看 `docs/development-process.md`。
 
 ## 当前生产基准
 
@@ -8,15 +8,15 @@
 | --- | --- |
 | 仓库 | `chenshuai1190-dotcom/boduan-tracker`；唯一发布来源 `main` |
 | 当前工作区 | `/Users/chenshuaishuai/Documents/Codex/2026-10-03/quote-boduan-tracker-2026-10-03/work/quiet-input-fields` |
-| 发布前生产源码 | `6c8577b8c3a3e3458d46824a6be811d753a49eb6 / v10.7.9.590`；既有 CI、Vercel 与生产静态产物验证通过 |
-| 发布前部署 | Vercel `DH35iGkxgHDgmuQ1BZpsirRMjNu2`；`https://boduan-tracker.vercel.app` |
-| 本次候选版本 | `v10.7.9.591 / 2026-11-07`：投资动态 USD/CNY 金额统一保留两位小数 |
+| 发布前生产源码 | `ea764c7b94f782a76ea12c18b14a784d9f8ec624 / v10.7.9.591`；既有 CI、Vercel 与生产静态产物验证通过 |
+| 发布前部署 | Vercel `BZNsCbBhW4GajdB9bukHSSNGZ8P5`；`https://boduan-tracker.vercel.app` |
+| 本次候选版本 | `v10.7.9.592 / 2026-11-07`：时间线账户三列宽度适配手机长金额 |
 | 已生效云端配置 | `supabase/review_display_preferences_20261107.sql` 已应用；新增独立本人显示偏好表，RLS 开启、3 条 owner policy、匿名无 SELECT、authenticated 无 DELETE；原复盘与正式交易记录数量保持不变 |
 | 生产 Checks | 本会话控制台只读核对为“未配置任何检查”；保留仓库 CI 与 Docs，等待精确提交 CI + Docs + Vercel，不宣称平台已配置晋级阻断 |
 
 ## 本次证据与既有边界
 
-- v591 仅将统一金额格式器的默认小数位由 0 改为 2；覆盖动态卡片、时间线列表、详情及图表选点，不改变原始金额、汇率或计算。走 FAST，显式包含 feed/post/detail 现有测试；最终结果以精确提交发布等待器为准。
+- v592 仅调整时间线账户三列宽度：现金按内容占宽、净资产保留完整金额，窄屏适配字号与列间距；USD/CNY 两位小数与计算保持不变。走 FAST，包含既有 detail/post UI 测试；最终结果以精确提交发布等待器为准。
 - v590 已通过 FULL（3,703 tests，3,701 pass，2 项既有 skip）、已安装 PWA 冷启动保存回读、CI/Docs/Vercel 及线上普通博文与系统动态只读验收。下列相关证据与边界沿用。
 
 - 底部“复盘”改为“动态”，模块“投资复盘”改为“投资动态”；复盘日志、投资心得、投资目标不改名。左上头像打开独立动态设置页，返回恢复列表分类、搜索及阅读位置。
@@ -27,7 +27,7 @@
 - 原有时间线 10% 起点、原前高恢复、资金变化/历史缺口分段、完成收盘与评价幂等容器边界保持不变；既有股票 replay、附件、普通博文和投资目标回归覆盖。
 - 页面交互与定向测试已覆盖 settings 历史往返、偏好确认前不请求时间线、失效请求忽略、切换分类不重复加载、共用评论、金额与百分比颜色。iPhone 17 Pro iOS 26.5 Safari 设置页已出原生 1206×2622 PNG；证据位于外层 `local-previews/review/dynamic-settings-evidence/`。
 - 最终 FULL、已安装 Quote Home Screen PWA 的当前构建验收、精确 SHA 发布等待器及线上只读结果，以本轮发布输出和该证据目录为准。发布前不把候选版本写成已上线；不改 PWA/实时生命周期或行情缓存恢复逻辑。
-- 本次发布步骤：最终 FAST → 一次提交/push main → `release:verify -- fast <exact commit>` → 一轮线上金额格式只读 smoke。回退仅回退前端提交，新增偏好表保留且旧版不使用；不删除设置行、不放宽 RLS。
+- 本次发布步骤：最终 FAST → 一次提交/push main → `release:verify -- fast <exact commit>` → 一轮线上账户排版只读 smoke。回退仅回退前端提交，新增偏好表保留且旧版不使用；不删除设置行、不放宽 RLS。
 
 ## 可用现金与资产联动
 
