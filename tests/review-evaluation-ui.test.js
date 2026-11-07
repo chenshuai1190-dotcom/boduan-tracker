@@ -388,7 +388,7 @@ test('missing year history disables only its two metrics and retains independent
     assert.equal(find(option, node => node.type === 'input').props.disabled, true);
     assert.match(text(option), /—/);
   }
-  assert.match(text(tree), /年内历史收盘数据不完整/);
+  assert.match(text(tree), /该日期暂无可用的收益报表历史记录/);
   assert.equal(button(tree, '插入').props.disabled, false); h.cleanup();
 });
 

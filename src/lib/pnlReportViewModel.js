@@ -114,7 +114,7 @@ function firstDate(values) {
   return sorted[0] || null;
 }
 
-function isCompletedCloseSnapshot(snapshot, now = new Date()) {
+export function isCompletedCloseSnapshot(snapshot, now = new Date()) {
   const snapshotDate = dateKeyOrNull(snapshot?.snapshotDate);
   if (!snapshotDate) return false;
   if (snapshotDate > latestCompletedUsTradingDate(now)) return false;

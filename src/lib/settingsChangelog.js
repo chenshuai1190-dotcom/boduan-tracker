@@ -3,6 +3,11 @@ import { CURRENT_RELEASE } from './releaseMeta.js';
 export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
+    items: ['修复账户快照年内高点与回落无法读取：直接采用收益报表已有的历史累计收益率，兼容年中起始及旧版记录，仍仅统计博文日期之前的数据。'],
+    itemsEn: ['Fixed unavailable account peaks and declines by using existing cumulative-return history from the P&L report, including midyear starts and legacy records, while excluding dates after the journal entry.'],
+  },
+  {
+    ver: 'v10.7.9.582', date: '2026-11-07',
     items: ['账户快照新增截至博文日期的年内收益率高点、高点日期及较高点回落（百分点），按手机双列排版；历史不完整时不补算，已保存快照保持原值。'],
     itemsEn: ['Account snapshots now show the year-to-date high of cumulative return, its date, and the decline in percentage points as of the journal date, in a mobile two-column layout. Incomplete history stays unavailable and saved snapshots remain fixed.'],
   },

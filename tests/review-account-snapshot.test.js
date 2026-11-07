@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createReviewAccountSnapshotLoader } from '../src/lib/reviewAccountSnapshot.js';
 import { isRegularNyseHoliday } from '../src/lib/quoteRefreshPolicy.js';
+import { buildPnlReportViewModel } from '../src/lib/pnlReportViewModel.js';
 
 const DATE = '2026-11-05';
 const NOW = Date.parse('2026-11-06T10:00:00Z');
@@ -265,23 +266,27 @@ test('negative and zero peaks keep their sign and use the same percentage-point 
   }
 });
 
-test('weekends and known holidays do not create gaps, while a missing year-start or middle session does', async () => {
+test('existing report observations remain usable without a year-start or every middle session', async () => {
   const date = '2026-01-20';
   const selected = closeRow(date);
   const history = completeHistory(selected, { '2026-01-16': 0.25 });
   assert.equal(history.some(item => item.snapshot_date === '2026-01-01'), false);
   assert.equal(history.some(item => item.snapshot_date === '2026-01-19'), false);
   assert.equal(values(await harness({ snapshot: selected, history }).load(date, USER)).yearPeakReturnPct, 25);
-  for (const missingDate of ['2026-01-02', '2026-01-07', date]) {
+  for (const missingDate of ['2026-01-02', '2026-01-07']) {
     const result = await harness({ snapshot: selected,
       history: history.filter(item => item.snapshot_date !== missingDate) }).load(date, USER);
     assert.equal(result.status, 'ready');
-    assert.deepEqual(values(result), { cumulativeReturnPct: 12.5, dailyReturnPct: -1.25, leverage: 1.25 });
-    assert.deepEqual(result.missingKeys, PEAK_KEYS, `missing ${missingDate} must not become a partial-year peak`);
+    assert.equal(values(result).yearPeakReturnPct, 25);
+    assert.equal(values(result).declineFromYearPeakPp, 12.5);
+    assert.deepEqual(result.missingKeys, []);
   }
+  const missingSelected = await harness({ snapshot: selected,
+    history: history.filter(item => item.snapshot_date !== date) }).load(date, USER);
+  assert.deepEqual(missingSelected.missingKeys, PEAK_KEYS, 'the exact selected close must still be present and agree');
 });
 
-test('a complete leap year remains bounded and February 29 is required when it is a session', async () => {
+test('a leap-year peak uses actual report observations rather than inventing values for absent dates', async () => {
   const date = '2024-12-31';
   const selected = closeRow(date);
   const history = completeHistory(selected, { '2024-02-29': 0.3 });
@@ -291,7 +296,9 @@ test('a complete leap year remains bounded and February 29 is required when it i
   assert.equal(result.snapshot.items.find(item => item.key === 'yearPeakReturnPct').peakDate, '2024-02-29');
   const missing = await harness({ snapshot: selected,
     history: history.filter(item => item.snapshot_date !== '2024-02-29') }).load(date, USER);
-  assert.deepEqual(missing.missingKeys, PEAK_KEYS);
+  assert.deepEqual(missing.missingKeys, []);
+  assert.equal(values(missing).yearPeakReturnPct, 12.5);
+  assert.equal(values(missing).declineFromYearPeakPp, 0);
 });
 
 test('out-of-range, duplicate, non-session and oversized history responses cannot set a year peak', async () => {
@@ -308,21 +315,88 @@ test('out-of-range, duplicate, non-session and oversized history responses canno
   assert.deepEqual(oversized.missingKeys, PEAK_KEYS);
 });
 
-test('every historical rate needs a verified locked close, while unrelated old leverage fields may be absent', async () => {
+test('malformed source identity, currency and dates still reject the historical aggregate', async () => {
   const date = '2026-01-06';
   const selected = closeRow(date);
   const history = completeHistory(selected);
-  for (const patch of [{ id: '' }, { currency: 'CNY' }, { source_version: 'pnl_snapshot_v1' },
-    { snapshot_date: '2026-02-30' }, { locked_at: null }, { locked_at: '2026-01-02T21:59:59Z' },
-    { locked_at: '2026-11-07T22:00:00Z' }, { updated_at: null }, { updated_at: '2026-11-07T22:00:00Z' },
-    { cumulative_pnl_pct: null }, { cumulative_pnl_pct: '' }, { cumulative_pnl_pct: 'NaN' },
-    { cumulative_pnl_pct: Infinity }, { cumulative_pnl_pct: 1e307 }]) {
+  for (const patch of [{ id: '' }, { currency: 'CNY' }, { snapshot_date: '2026-02-30' }]) {
     const result = await harness({ snapshot: selected, history: [{ ...history[0], ...patch }, ...history.slice(1)] }).load(date, USER);
     assert.equal(result.status, 'ready', JSON.stringify(patch));
     assert.deepEqual(result.missingKeys, PEAK_KEYS, JSON.stringify(patch));
   }
   const noLeverage = history.map(item => item.snapshot_date === date ? item : { ...item, cash_basis: null, net_assets_usd: null });
   assert.equal(values(await harness({ snapshot: selected, history: noLeverage }).load(date, USER)).yearPeakReturnPct, 12.5);
+});
+
+test('a report history beginning midyear and containing gaps still supplies its actual maximum', async () => {
+  const selected = closeRow(DATE, { cumulative_pnl_pct: 0.15 });
+  const history = [closeRow('2026-07-06', { cumulative_pnl_pct: 0.1 }),
+    closeRow('2026-08-14', { cumulative_pnl_pct: 0.25 }), selected];
+  const result = await harness({ snapshot: selected, history }).load(DATE, USER);
+  assert.equal(values(result).yearPeakReturnPct, 25);
+  assert.equal(values(result).declineFromYearPeakPp, 10);
+  assert.equal(result.snapshot.items.find(item => item.key === 'yearPeakReturnPct').peakDate, '2026-08-14');
+  assert.deepEqual(result.missingKeys, []);
+  const single = await harness({ snapshot: selected, history: [selected] }).load(DATE, USER);
+  assert.equal(values(single).yearPeakReturnPct, 15);
+  assert.equal(values(single).declineFromYearPeakPp, 0);
+});
+
+test('legacy report rows can supply the peak without v2 metadata or a stored lock/update time', async () => {
+  const selected = closeRow(DATE, { cumulative_pnl_pct: 0.15 });
+  for (const patch of [{ source_version: 'pnl_snapshot_v1' },
+    { source_version: null, locked_at: null, updated_at: null },
+    { source_version: undefined, locked_at: undefined, updated_at: undefined },
+    { locked_at: null }, { updated_at: null }, { locked_at: '2026-08-14T20:00:00Z' }]) {
+    const history = [closeRow('2026-08-14', { cumulative_pnl_pct: 0.25, ...patch }), selected];
+    const result = await harness({ snapshot: selected, history }).load(DATE, USER);
+    assert.equal(values(result).yearPeakReturnPct, 25, JSON.stringify(patch));
+    assert.equal(values(result).declineFromYearPeakPp, 10);
+    assert.deepEqual(result.missingKeys, []);
+  }
+});
+
+test('missing and invalid historical returns are skipped, never converted into a zero-valued peak', async () => {
+  const selected = closeRow(DATE, { cumulative_pnl_pct: -0.2 });
+  for (const missing of [null, undefined, '', ' ', false, 'NaN', Infinity, '0x10', 1e307]) {
+    const history = [closeRow('2026-07-06', { cumulative_pnl_pct: -0.05 }),
+      closeRow('2026-08-14', { cumulative_pnl_pct: missing }), selected];
+    const result = await harness({ snapshot: selected, history }).load(DATE, USER);
+    assert.equal(values(result).yearPeakReturnPct, -5, String(missing));
+    assert.ok(Math.abs(values(result).declineFromYearPeakPp - 15) < 1e-10);
+    assert.equal(result.snapshot.items.find(item => item.key === 'yearPeakReturnPct').peakDate, '2026-07-06');
+  }
+});
+
+test('unfinished, malformed and future historical timestamps are skipped rather than used as peaks', async () => {
+  const selected = closeRow(DATE, { cumulative_pnl_pct: 0.15 });
+  for (const patch of [{ locked_at: '2026-08-14T19:59:59Z' },
+    { locked_at: '2026-11-07T22:00:00Z' }, { locked_at: 'invalid' }, { locked_at: '' },
+    { locked_at: '2026-02-30T22:00:00Z' }, { locked_at: '2026-08-14T22:00:00' },
+    { updated_at: '2026-11-07T22:00:00Z' }, { updated_at: 'invalid' }, { updated_at: '' },
+    { updated_at: '2026-02-30T22:00:00Z' }]) {
+    const history = [closeRow('2026-07-06', { cumulative_pnl_pct: 0.2 }),
+      closeRow('2026-08-14', { cumulative_pnl_pct: 0.9, ...patch }), selected];
+    const result = await harness({ snapshot: selected, history }).load(DATE, USER);
+    assert.equal(values(result).yearPeakReturnPct, 20, JSON.stringify(patch));
+    assert.ok(Math.abs(values(result).declineFromYearPeakPp - 5) < 1e-10);
+    assert.deepEqual(result.missingKeys, []);
+  }
+});
+
+test('the saved peak matches the maximum of the report cumulative-return curve for the same observations', async () => {
+  const selected = closeRow(DATE, { cumulative_pnl_pct: 0.15 });
+  const history = [closeRow('2026-07-06', { cumulative_pnl_pct: 0.1, source_version: 'pnl_snapshot_v1', locked_at: null }),
+    closeRow('2026-08-14', { cumulative_pnl_pct: 0.25, updated_at: null }),
+    closeRow('2026-10-02', { cumulative_pnl_pct: 0.2 }), selected];
+  const report = buildPnlReportViewModel({ range: 'all', now: new Date(NOW),
+    portfolioSnapshots: history.map(item => ({ snapshotDate: item.snapshot_date, lockedAt: item.locked_at,
+      cumulativePnlPct: item.cumulative_pnl_pct, cumulativePnlUsd: item.cumulative_pnl_pct * 1000 })) });
+  const reportValues = report.trend.map(point => point.pnlPct).filter(value => value !== null);
+  const result = await harness({ snapshot: selected, history }).load(DATE, USER);
+  assert.equal(values(result).yearPeakReturnPct, Math.max(...reportValues) * 100);
+  assert.equal(values(result).cumulativeReturnPct, reportValues.at(-1) * 100);
+  assert.ok(Math.abs(values(result).declineFromYearPeakPp - (Math.max(...reportValues) - reportValues.at(-1)) * 100) < 1e-10);
 });
 
 test('a disagreement between the exact snapshot and its historical row cannot be frozen as a peak', async () => {

@@ -1,5 +1,6 @@
 import { isRegularNyseHoliday } from './quoteRefreshPolicy.js';
 import { normalizeReviewAccountSnapshot } from './reviewEvaluationModel.js';
+import { isCompletedCloseSnapshot } from './pnlReportViewModel.js';
 
 const SOURCE_VERSION = 'pnl_snapshot_v2';
 const SNAPSHOT_FIELDS = 'id,user_id,snapshot_date,currency,cumulative_pnl_pct,daily_pnl_pct,market_value_usd,total_assets_usd,net_assets_usd,cash_usd,cash_event_id,cash_effective_at,cash_basis,margin_debt_usd,margin_debt_event_id,margin_debt_effective_at,margin_debt_basis,source_version,locked_at,updated_at';
@@ -50,22 +51,29 @@ function isVerifiedSnapshot(row, date, current) {
     && afterCutoff(lockedAt, date) && updatedAt !== null && updatedAt <= current;
 }
 
-/** A peak is available only for a complete year-to-date series of verified closes. */
+function hasUsableHistoryTimestamp(value, current) {
+  if (value == null) return true;
+  const time = timestamp(value);
+  return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(value)
+    && dateKey(value.slice(0, 10)) && time !== null && time <= current;
+}
+
+/** Use the report's existing completed observations; missing sessions are not zeroes. */
 function yearPeakItems(history, selected, date, current, expectedUserId) {
   if (!Array.isArray(history) || !history.length || history.length > HISTORY_LIMIT) return [];
   const start = `${date.slice(0, 4)}-01-01`;
   const byDate = new Map();
+  const seenDates = new Set();
   for (const row of history) {
     if (row?.user_id !== expectedUserId) throw fail('REVIEW_ACCOUNT_CHANGED', '账户数据不匹配，请重新打开评价。');
     const day = row.snapshot_date, value = number(row.cumulative_pnl_pct);
-    if (!dateKey(day) || day < start || day > date || !isSession(day) || byDate.has(day)
-      || !isVerifiedSnapshot(row, day, current) || value === null || !Number.isFinite(value * 100)) return [];
+    if (!dateKey(day) || day < start || day > date || !isSession(day) || seenDates.has(day)
+      || row.currency !== 'USD' || typeof row.id !== 'string' || !row.id.trim()) return [];
+    seenDates.add(day);
+    if (value === null || !Number.isFinite(value * 100)
+      || !hasUsableHistoryTimestamp(row.locked_at, current) || !hasUsableHistoryTimestamp(row.updated_at, current)
+      || !isCompletedCloseSnapshot({ snapshotDate: day, lockedAt: row.locked_at }, new Date(current))) continue;
     byDate.set(day, row);
-  }
-  const endTime = Date.parse(`${date}T00:00:00Z`);
-  for (const cursor = new Date(`${start}T00:00:00Z`); cursor.getTime() <= endTime; cursor.setUTCDate(cursor.getUTCDate() + 1)) {
-    const day = cursor.toISOString().slice(0, 10);
-    if (isSession(day) && !byDate.has(day)) return [];
   }
   const selectedHistory = byDate.get(date);
   const selectedValue = number(selected.cumulative_pnl_pct);
