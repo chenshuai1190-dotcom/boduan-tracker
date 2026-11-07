@@ -3,6 +3,11 @@ import { CURRENT_RELEASE } from './releaseMeta.js';
 export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
+    items: ['账户快照的“较高点回落”统一以百分号显示，选择列表与快照卡片保持一致，原有数值计算不变。'],
+    itemsEn: ['Account snapshot declines now use a percent sign consistently in the picker and card, with the existing numeric calculation unchanged.'],
+  },
+  {
+    ver: 'v10.7.9.583', date: '2026-11-07',
     items: ['修复账户快照年内高点与回落无法读取：直接采用收益报表已有的历史累计收益率，兼容年中起始及旧版记录，仍仅统计博文日期之前的数据。'],
     itemsEn: ['Fixed unavailable account peaks and declines by using existing cumulative-return history from the P&L report, including midyear starts and legacy records, while excluding dates after the journal entry.'],
   },

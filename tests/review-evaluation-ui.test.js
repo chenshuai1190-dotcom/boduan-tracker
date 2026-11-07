@@ -324,7 +324,7 @@ const accountSnapshot = (overrides = {}) => ({
 });
 const accountMetric = (tree, key) => find(tree, node => node.props['data-metric'] === key);
 
-test('account cards pair the year high and percentage-point decline, date the high and follow both market color modes', async () => {
+test('account cards format the year high and decline with percent signs, date the high and follow both market color modes', async () => {
   const h = await harness();
   for (const [mode, positive, negative] of [['greenUpRedDown', '#34d399', '#ff4b1f'], ['redUpGreenDown', '#ff4b1f', '#34d399']]) {
     const card = h.components.ReviewAccountCard({ value: accountSnapshot(), marketColorMode: mode });
@@ -332,8 +332,8 @@ test('account cards pair the year high and percentage-point decline, date the hi
       ['cumulativeReturnPct', 'yearPeakReturnPct', 'declineFromYearPeakPp', 'dailyReturnPct', 'leverage']);
     assert.equal(accountMetric(card, 'cumulativeReturnPct').props.className, 'rev-account-primary');
     assert.match(text(accountMetric(card, 'yearPeakReturnPct')), /年内收益率高点\+30\.00%10月23日/);
-    assert.match(text(accountMetric(card, 'declineFromYearPeakPp')), /较高点回落10\.00 个百分点/);
-    assert.doesNotMatch(text(accountMetric(card, 'declineFromYearPeakPp')), /%/);
+    assert.match(text(accountMetric(card, 'declineFromYearPeakPp')), /较高点回落10\.00%/);
+    assert.doesNotMatch(text(accountMetric(card, 'declineFromYearPeakPp')), /个百分点/);
     assert.equal(find(accountMetric(card, 'yearPeakReturnPct'), node => node.type === 'time').props.dateTime, '2026-10-23');
     for (const key of ['cumulativeReturnPct', 'yearPeakReturnPct']) assert.equal(find(accountMetric(card, key), node => node.type === 'strong').props.style.color, positive);
     for (const key of ['declineFromYearPeakPp', 'dailyReturnPct']) assert.equal(find(accountMetric(card, key), node => node.type === 'strong').props.style.color, negative);
@@ -350,7 +350,7 @@ test('zero decline remains neutral and legacy cards retain only their frozen thr
   for (const mode of ['greenUpRedDown', 'redUpGreenDown']) {
     const card = h.components.ReviewAccountCard({ value: atPeak, marketColorMode: mode });
     const decline = accountMetric(card, 'declineFromYearPeakPp');
-    assert.match(text(decline), /0\.00 个百分点/);
+    assert.match(text(decline), /0\.00%/);
     assert.equal(find(decline, node => node.type === 'strong').props.style, undefined);
   }
   const legacy = accountSnapshot(); legacy.items = legacy.items.filter(item => !item.peakDate);

@@ -14,7 +14,7 @@ const PRESET_TAGS = ['仓位过重', '买入过急', '过早卖出', '按计划�
 const ACCOUNT_LABELS = { cumulativeReturnPct: '截至该日累计收益率', yearPeakReturnPct: '年内收益率高点', declineFromYearPeakPp: '较高点回落', dailyReturnPct: '当日收益率', leverage: '杠杆' };
 const money = value => `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const formatMetric = item => item.key === 'leverage' ? `${item.value.toFixed(2)}×`
-  : item.key === 'declineFromYearPeakPp' ? <>{item.value.toFixed(2)}<span className="rev-metric-unit"> 个百分点</span></>
+  : item.key === 'declineFromYearPeakPp' ? `${item.value.toFixed(2)}%`
   : `${item.value > 0 ? '+' : ''}${item.value.toFixed(2)}%`;
 const metricStyle = (item, marketColorMode) => !item || item.key === 'leverage'
   || (item.key === 'declineFromYearPeakPp' && item.value === 0) ? undefined
