@@ -27,7 +27,7 @@
 .rj-post-heading strong{font-size:15px;color:#eceef1;font-weight:650;min-width:0;overflow:hidden;text-overflow:ellipsis}
 .rj-post-heading time{flex-shrink:0}
 .rj-post-more{position:absolute;right:-9px;top:-9px;width:38px;height:38px}
-.rj-inline-pin{color:#959ca7;flex-shrink:0}
+.rj-inline-pin{display:inline-flex;align-items:center;justify-content:center;flex:none;width:18px;height:18px;border-radius:5px;background:#20262d;color:#a5b6c8}.rj-inline-pin>svg{flex:none}
 .rj-post-text{font-size:15px;line-height:22px;white-space:pre-wrap;overflow-wrap:anywhere;color:#dce0e6}
 .rj-text-button{border:0;padding:6px 0;background:transparent;color:#98b0cd;font-size:14px;min-height:36px}
 .rj-expand{padding-top:0}

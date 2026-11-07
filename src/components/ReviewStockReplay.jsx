@@ -11,17 +11,19 @@ import './ReviewStockReplay.css';
 const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
 const price = value => Number.isFinite(value) ? `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—';
 const W = 360, H = 200, LEFT = 52, RIGHT = 344, TOP = 18, BOTTOM = 166;
-function chartGeometry(rows) {
+function chartGeometry(rows, mini = false) {
   const values = rows.map(row => row.close), low = Math.min(...values), high = Math.max(...values);
   const spread = Math.max(high - low, high * .035), min = Math.max(0, low - spread * .18), max = high + spread * .18;
-  return { min, max, x: index => LEFT + index / Math.max(1, rows.length - 1) * (RIGHT - LEFT), y: value => BOTTOM - (value - min) / (max - min) * (BOTTOM - TOP) };
+  // Cards have no price axis; reserve only equal margins for endpoint markers.
+  const left = mini ? W - RIGHT : LEFT;
+  return { min, max, x: index => left + index / Math.max(1, rows.length - 1) * (RIGHT - left), y: value => BOTTOM - (value - min) / (max - min) * (BOTTOM - TOP) };
 }
 function pathFor(rows, geometry) { return rows.map((row, index) => `${index && !row.gapBefore ? 'L' : 'M'}${geometry.x(index).toFixed(2)} ${geometry.y(row.close).toFixed(2)}`).join(' '); }
 
 function ReplayChart({ rows, trades, selectedTrade, selectedDate, onSelectDate, onSelectTrade, english, recordDate, mini = false }) {
   const gesture = React.useRef(null);
   if (!rows.length) return null;
-  const geometry = chartGeometry(rows), index = rows.findIndex(row => row.date === selectedDate), row = rows[index];
+  const geometry = chartGeometry(rows, mini), index = rows.findIndex(row => row.date === selectedDate), row = rows[index];
   const selectAt = event => {
     const bounds = event.currentTarget.getBoundingClientRect();
     const fraction = clamp(((event.clientX - bounds.left) / bounds.width * W - LEFT) / (RIGHT - LEFT), 0, 1);

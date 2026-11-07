@@ -202,6 +202,34 @@ test('the mini chart retains the complete history and old trade markers without 
   }
 });
 
+test('mini charts fill the available width for year-start and later histories without clipping endpoint trades', async () => {
+  const h = await harness();
+  for (const startDate of ['2026-01-01', '2026-07-21']) {
+    const chartRows = rows.filter(row => row.date >= startDate).map((row, index) => ({ ...row, gapBefore: index === 2 }));
+    const trades = [chartRows[0], chartRows.at(-1)].map((row, index) => ({ key: `edge-${index}`, date: row.date, markerDate: row.date, rowIndex: index ? chartRows.length - 1 : 0, side: index ? 'sell' : 'buy' }));
+    const tree = h.render(h.components.ReplayChart, { rows: chartRows, trades, recordDate: chartRows[0].date, mini: true });
+    const svg = find(tree, node => node.type === 'svg'), width = Number(svg.props.viewBox.split(' ')[2]);
+    const path = find(tree, node => hasClass(node, 'rsr-price-path')).props.d;
+    const coordinates = [...path.matchAll(/[ML]([\d.]+) ([\d.]+)/g)].map(match => [Number(match[1]), Number(match[2])]);
+    const left = coordinates[0][0], right = coordinates.at(-1)[0];
+    assert.ok((right - left) / width >= .9, 'the actual history must occupy at least 90% of the SVG width');
+    assert.equal(left, width - right, 'cards must not reserve a one-sided price-axis gutter');
+    assert.equal(coordinates.length, chartRows.length, 'keep every historical close');
+    assert.equal((path.match(/M/g) || []).length, 2, 'missing sessions remain separate path segments');
+    const marks = walk(tree).filter(node => hasClass(node, 'rsr-mini-dot'));
+    assert.deepEqual(marks.map(node => node.props.cx).sort((a, b) => a - b), [left, right]);
+    assert.ok(marks.every(node => node.props.cx - Number(node.props.r) >= 2 && node.props.cx + Number(node.props.r) <= width - 2), 'edge markers retain room for their outline');
+    const dates = walk(tree).filter(node => hasClass(node, 'rsr-axis'));
+    assert.deepEqual(dates.map(node => node.props.x), [left, right]);
+    h.unmount();
+  }
+  const declarations = selector => Object.fromEntries(css.nodes.filter(node => node.type === 'rule' && node.selector === selector).flatMap(rule => rule.nodes.filter(node => node.type === 'decl').map(node => [node.prop, node.value])));
+  const svgStyle = declarations('.rsr-chart-touch>svg');
+  assert.equal(svgStyle.width, '100%');
+  assert.equal(svgStyle.height, 'auto');
+  assert.equal(declarations('.rsr-chart-mini .rsr-chart-touch>svg')['max-height'], undefined, 'capping height letterboxes the SVG in wider cards');
+});
+
 test('mini and full charts highlight only the exact review-date buy, preserving sell and other buy nodes', async () => {
   const h = await harness();
   for (const mini of [true, false]) {
