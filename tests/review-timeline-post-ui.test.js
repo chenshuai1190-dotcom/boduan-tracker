@@ -29,12 +29,27 @@ const high = { id: 'high:net_assets:2026-10-02', title: '净资产创新高', ki
 const props = (event = high, overrides = {}) => ({ event, authorNode: React.createElement('strong', null, '团团'),
   avatarNode: React.createElement('img', { className: 'rj-avatar', src: '/avatar.png', alt: '团团' }), ...overrides });
 
-test('system post displays the same author, stable start date, latest update, and shared comment count', () => {
+test('system post displays the latest data date once while retaining the same author event ID and comment count', () => {
   const html = renderToStaticMarkup(Post(props(high, { commentCount: 3 })));
   assert.match(html, /src="\/avatar.png"/); assert.match(html, /团团/); assert.match(html, /自动记录/);
-  assert.match(html, /dateTime="2026-10-02"/); assert.match(html, /更新至.*10月06日/);
+  assert.match(html, /dateTime="2026-10-06"/); assert.doesNotMatch(html, /更新至|Updated|rj-system-updated/);
   assert.match(html, /<span>3<\/span>/); assert.match(html, /data-rj-entry-key="timeline:high:net_assets:2026-10-02"/);
   assert.doesNotMatch(html, /编辑|删除|置顶|查看记录|查看交易|只读回放/);
+});
+
+test('a drawdown byline advances to its latest close and falls back to an end date without changing its navigation key', () => {
+  const event = { ...high, id: 'drawdown:net_assets:2026-10-05', kind: 'drawdown', startDate: '2026-10-05',
+    trigger: { date: '2026-10-16' }, date: '2026-11-06', endDate: '2026-11-05', drawdownPct: -24.02, maxDrawdownPct: -26.84 };
+  const tree = Post(props(event));
+  const byline = byClass(tree, 'rj-timeline-byline');
+  assert.equal(walk(byline).find(node => node.type === 'time').props.dateTime, '2026-11-06');
+  assert.match(renderToStaticMarkup(byline), /11月06日/);
+  assert.equal(tree.props['data-rj-entry-key'], `timeline:${event.id}`);
+  const fallback = Post(props({ ...event, date: '2026-02-30' }));
+  assert.equal(walk(byClass(fallback, 'rj-timeline-byline')).find(node => node.type === 'time').props.dateTime, '2026-11-05');
+  assert.doesNotMatch(renderToStaticMarkup(fallback), /更新至|rj-system-updated/);
+  assert.equal(event.startDate, '2026-10-05');
+  assert.equal(event.trigger.date, '2026-10-16');
 });
 
 test('post and comment navigate to the same event without double-opening interactive children', () => {

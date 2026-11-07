@@ -57,7 +57,6 @@ export default function ReviewTimelinePost({ event, avatarNode, authorNode, comm
   const currency = { displayCurrency, usdCny, fxDate }, info = reviewDisplayCurrency(currency);
   const feedDate = reviewTimelineFeedDate(event), archived = event.status === 'archived';
   const metric = readings(event, currency, en);
-  const updated = event.date && event.date !== feedDate ? event.date : '';
   const showChart = !archived && ['high', 'drawdown', 'period'].includes(event.kind)
     && (event.points || []).filter(point => finite(point.chartValue ?? point.netAssetsUsd)).length > 1;
   const open = click => onOpen?.(event.id, click);
@@ -84,7 +83,7 @@ export default function ReviewTimelinePost({ event, avatarNode, authorNode, comm
         {showChart && <TimelineChart event={event} marketColorMode={marketColorMode} language={language} {...currency} />}
         {(peakCaption || info.converted) && <div className="rj-system-caption">{peakCaption && <span>{peakCaption}</span>}{info.converted && <span>{info.available ? label(en, '人民币折算', 'CNY conversion') : label(en, '汇率暂不可用', 'FX unavailable')}</span>}</div>}
       </div>}
-      <div className="rj-post-actions"><button type="button" onClick={open} aria-label={`${label(en, '查看', 'View ')}${event.title}${label(en, '的评论', ' comments')}`}><MessageCircle size={18}/><span>{commentCount || label(en, '评论', 'Comment')}</span></button>{updated && <time className="rj-system-updated" dateTime={updated}>{label(en, '更新至', 'Updated')} {shortDate(updated, en)}</time>}</div>
+      <div className="rj-post-actions"><button type="button" onClick={open} aria-label={`${label(en, '查看', 'View ')}${event.title}${label(en, '的评论', ' comments')}`}><MessageCircle size={18}/><span>{commentCount || label(en, '评论', 'Comment')}</span></button></div>
     </div>
   </article>;
 }

@@ -21,16 +21,35 @@ test('every setting category maps to exactly its existing timeline event family'
   assert.equal(reviewTimelineCategory({ kind: 'high', metric: 'missing' }), null);
 });
 
-test('daily refreshes never bump a continuing high or drawdown in the all feed', () => {
-  assert.equal(reviewTimelineFeedDate(high), '2026-10-01');
-  assert.equal(reviewTimelineFeedDate(drawdown), '2026-10-08');
-  assert.equal(reviewTimelineFeedDate({ ...drawdown, status: 'recovered', date: '2026-12-01' }), '2026-10-08');
-  assert.equal(reviewTimelineFeedDate({ ...drawdown, trigger: null, nodes: [{ key: 'trigger', point: { date: '2026-10-08' } }] }), '2026-10-08');
-  assert.equal(reviewTimelineFeedDate({ ...high, startDate: '2026-02-30' }), '2026-10-06');
-  const post = { type: 'log', id: 'journal', date: '2026-10-08', text: '耐心' };
-  const result = mergeReviewTimelineFeed([post], [high, drawdown], DEFAULT_REVIEW_PREFERENCES);
-  assert.deepEqual(result.map(row => row.id), ['journal', drawdown.id, high.id]);
-  assert.equal(result[0], post); assert.equal(result[1].event, drawdown);
+test('fresh data moves a continuing event forward without changing its ID or original start', () => {
+  assert.equal(reviewTimelineFeedDate(high), '2026-10-06');
+  assert.equal(reviewTimelineFeedDate(drawdown), '2026-11-06');
+  assert.equal(reviewTimelineFeedDate({ ...drawdown, status: 'recovered', date: '2026-12-01' }), '2026-12-01');
+  const post = { type: 'log', id: 'journal', date: '2026-11-01', text: '耐心' };
+  const before = { ...drawdown, date: '2026-10-20' };
+  assert.deepEqual(mergeReviewTimelineFeed([post], [high, before], DEFAULT_REVIEW_PREFERENCES).map(row => row.id), ['journal', drawdown.id, high.id]);
+  const result = mergeReviewTimelineFeed([post], [high, before, drawdown], DEFAULT_REVIEW_PREFERENCES);
+  assert.deepEqual(result.map(row => row.id), [drawdown.id, 'journal', high.id]);
+  assert.equal(result[0].event, drawdown); assert.equal(result[1], post);
+  assert.equal(result[0].date, drawdown.date);
+  assert.equal(result[0].id, before.id);
+  assert.equal(result[0].event.startDate, before.startDate);
+  assert.equal(result[0].event.trigger, before.trigger);
+});
+
+test('feed dates prefer valid actual data dates and fall back through end and original start dates', () => {
+  assert.equal(reviewTimelineFeedDate({ ...drawdown, endDate: '2026-12-01' }), drawdown.date);
+  for (const invalid of [undefined, null, '', 'not-a-date', '2026-02-30']) {
+    assert.equal(reviewTimelineFeedDate({ ...drawdown, date: invalid, endDate: '2026-11-04' }), '2026-11-04');
+    assert.equal(reviewTimelineFeedDate({ ...drawdown, date: invalid, endDate: '2026-02-30' }), drawdown.trigger.date);
+    assert.equal(reviewTimelineFeedDate({ ...high, date: invalid, endDate: 'invalid' }), high.startDate);
+  }
+  const withoutDate = { ...drawdown, date: '', endDate: '', trigger: { date: '2026-02-30' }, nodes: [{ key: 'trigger', point: { date: '2026-10-09' } }] };
+  assert.equal(reviewTimelineFeedDate(withoutDate), '2026-10-09');
+  const invalid = { ...withoutDate, nodes: [] };
+  assert.equal(reviewTimelineFeedDate(invalid), '', 'the prior peak is not a substitute for an unknown drawdown date');
+  assert.equal(reviewTimelineFeedDate({ ...high, date: '', endDate: '', startDate: 'invalid' }), '');
+  assert.deepEqual(mergeReviewTimelineFeed([], [invalid], DEFAULT_REVIEW_PREFERENCES), []);
 });
 
 test('one event produces one projection and preserves the live event over archived references', () => {
@@ -53,10 +72,10 @@ test('visibility is presentation only and the same query searches posts and syst
   assert.equal(mergeReviewTimelineFeed([post], events, DEFAULT_REVIEW_PREFERENCES, { query: 'nvda' })[0], post);
   assert.equal(mergeReviewTimelineFeed([post], events, DEFAULT_REVIEW_PREFERENCES, { query: '坚持' })[0], post);
   assert.equal(mergeReviewTimelineFeed([post], [drawdown], DEFAULT_REVIEW_PREFERENCES, { query: '恢复中' })[0].event, drawdown);
-  assert.equal(mergeReviewTimelineFeed([post], [high], DEFAULT_REVIEW_PREFERENCES, { query: '2026-10-01' })[0].event, high);
+  assert.equal(mergeReviewTimelineFeed([], [high], DEFAULT_REVIEW_PREFERENCES, { query: '2026-10-06' })[0].event, high);
 });
 
-test('each new-high family keeps the latest data date even when its feed start date is older', () => {
+test('each new-high family displays the latest data date even when its original start date is older', () => {
   const latest = ['net_assets', 'cumulative_return', 'cumulative_pnl'].map(metric => ({
     ...high, id: `high:${metric}:latest`, metric, startDate: '2026-07-01', date: '2026-11-06',
   }));
@@ -67,7 +86,8 @@ test('each new-high family keeps the latest data date even when its feed start d
     for (const event of latest) {
       const row = result.find(item => reviewTimelineCategory(item.event) === reviewTimelineCategory(event));
       assert.equal(row.event, event);
-      assert.equal(row.date, '2026-07-01', 'selection does not change the original feed position');
+      assert.equal(row.date, '2026-11-06');
+      assert.equal(row.event.startDate, '2026-07-01', 'the underlying high still retains its original start');
     }
   }
 });
@@ -81,7 +101,8 @@ test('only the latest drawdown cycle appears and updates or recovery keep its or
     assert.equal(result.length, 1);
     assert.equal(result[0].id, active.id);
     assert.equal(result[0].event, recovered);
-    assert.equal(result[0].date, active.trigger.date);
+    assert.equal(result[0].date, recovered.date);
+    assert.equal(result[0].event.trigger, active.trigger);
   }
 });
 

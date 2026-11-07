@@ -14,9 +14,7 @@ export function reviewTimelineCategory(event) {
   return null;
 }
 
-// A daily refresh may change event.date but must not continually bump an old
-// post. A drawdown starts when the 10% threshold was crossed, not at the peak.
-export function reviewTimelineFeedDate(event) {
+function eventOriginDate(event) {
   if (event?.kind === 'drawdown') return date(event.trigger?.date)
     || date(event.nodes?.find(node => node.key === 'trigger')?.point?.date)
     || date(event.date);
@@ -24,13 +22,18 @@ export function reviewTimelineFeedDate(event) {
   return date(event?.date);
 }
 
+// Condensed activity follows the latest recorded data, while the original
+// event identity and cycle milestones remain unchanged.
+export function reviewTimelineFeedDate(event) {
+  return date(event?.date) || date(event?.endDate) || eventOriginDate(event);
+}
+
 const stateWords = event => ({ active: '持续跟踪 恢复中 recovering', recovered: '已恢复 回到前高 recovered',
   interrupted: '数据待核对 比较中断 interrupted', archived: '保留的评价 archived' })[event.status] || '';
 const text = entry => `${entry.text || ''} ${(entry.stocks || []).join(' ')} ${entry.date || ''} ${(entry.replies || []).map(reply => reply.text || '').join(' ')}`;
-const latestEventDate = event => date(event.date) || date(event.endDate) || reviewTimelineFeedDate(event);
 const compareEvents = (left, right) => Number(left.status !== 'archived') - Number(right.status !== 'archived')
-  || latestEventDate(left).localeCompare(latestEventDate(right))
   || reviewTimelineFeedDate(left).localeCompare(reviewTimelineFeedDate(right))
+  || eventOriginDate(left).localeCompare(eventOriginDate(right))
   || String(left.id).localeCompare(String(right.id));
 
 function feedBranch(event, category) {

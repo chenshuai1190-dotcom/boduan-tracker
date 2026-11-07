@@ -3,6 +3,11 @@ import { CURRENT_RELEASE } from './releaseMeta.js';
 export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
+    items: ['合并后的系统动态按最新数据日期显示并排序，详情作者日期同步；取消底部重复的更新日期，原周期节点和评价保持不变。'],
+    itemsEn: ['Condensed activity now displays and sorts by its latest data date, including the detail byline. Removed the duplicate update date; original cycle milestones and evaluations stay unchanged.'],
+  },
+  {
+    ver: 'v10.7.9.596', date: '2026-11-07',
     items: ['“全部”中的系统动态每个分支只显示最新一条，单日最大涨幅与跌幅分别保留；精简时间线的比较区间说明和“系统记录”标签，完整时间线、历史记录和原有评价继续保留。'],
     itemsEn: ['All now shows only the latest system record per branch, retaining separate best and worst daily records. Comparison-scope notes and the System record label are removed; the full timeline, historical records, and existing evaluations remain available.'],
   },

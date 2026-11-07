@@ -1,5 +1,5 @@
 export const CURRENT_RELEASE = Object.freeze({
-  version: 'v10.7.9.596',
+  version: 'v10.7.9.597',
   date: '2026-11-07',
 });
 
