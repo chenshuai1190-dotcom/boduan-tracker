@@ -81,13 +81,14 @@ test('ordinary and TQQQ buys reach the shared discipline confirmation before the
 test('TQQQ allocation and unavailable-valuation warnings coexist with the shared discipline result', () => {
   const overLimit = fixture({ draft: { symbol: 'TQQQ', shares: '20' }, englishMode: true });
   overLimit.submit();
-  assert.match(overLimit.confirmations[0].buyDiscipline.allocationWarning, /10%/);
+  assert.match(overLimit.confirmations[0].buyDiscipline.allocationWarning, /买入后超过10%提醒线/);
   assert.equal(overLimit.confirmations[0].buyDiscipline.discipline.status, 'unmet');
   assert.equal(overLimit.confirmations[0].buyDiscipline.englishMode, true);
   assert.deepEqual(overLimit.writes, []);
   const unavailable = fixture({ draft: { symbol: 'TQQQ' }, quoteRows: [] });
   unavailable.submit();
   assert.match(unavailable.confirmations[0].buyDiscipline.allocationWarning, /估值未就绪/);
+  assert.match(unavailable.confirmations[0].buyDiscipline.allocationWarning, /当前无法计算10%提醒/);
   assert.equal(unavailable.confirmations[0].buyDiscipline.discipline.status, 'unmet');
 });
 

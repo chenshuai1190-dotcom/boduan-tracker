@@ -944,7 +944,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
           now: buyDisciplinePreview?.now ?? Date.now(),
         }),
         trade: { symbol, name: stockDisplayName(symbol, tradeDraft.name), shares, price, date: tradeDraft.date },
-        allocationWarning: tqqqOverLimitWarning || tqqqAllocationUnavailableWarning ? confirmDesc : null,
+        allocationWarning: tqqqOverLimitWarning || tqqqAllocationUnavailableWarning ? `${confirmTitle} ${confirmDesc}` : null,
         englishMode,
       } : null,
       onConfirm: async () => {
