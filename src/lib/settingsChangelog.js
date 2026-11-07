@@ -3,6 +3,11 @@ import { CURRENT_RELEASE } from './releaseMeta.js';
 export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
+    items: ['时间线“当时的账户”数字统一缩小并使用常规字重，保留三列排版及金额两位小数。'],
+    itemsEn: ['Reduced the account-at-this-point figures to regular-weight text while preserving three columns and two decimal places.'],
+  },
+  {
+    ver: 'v10.7.9.592', date: '2026-11-07',
     items: ['时间线账户保持三列排版，按金额长度分配净资产、融资负债与现金的空间，修复手机端金额小数被挤到下一行。'],
     itemsEn: ['Timeline account metrics keep a three-column layout with more room for net assets and compact cash columns, preventing decimal amounts from wrapping on phones.'],
   },
