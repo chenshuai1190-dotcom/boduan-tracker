@@ -12,11 +12,13 @@ const events = [high, { ...high, id: 'return', metric: 'cumulative_return' }, { 
   ...['annual_return', 'annual_pnl'].flatMap(metric => ['high', 'low'].map(kind => ({ ...high, id: `${kind}:${metric}:2026-10-06`, metric, kind }))), drawdown, returnDrawdown,
   { id: 'daily', kind: 'record', metric: 'daily_return', date: '2026-10-03' }, ...['month', 'quarter', 'year'].map(period)];
 
-test('every setting category maps to exactly its existing timeline event family', () => {
+test('raw settings retain their event-family mapping while paired earnings switches enable one display group', () => {
   assert.deepEqual(events.map(reviewTimelineCategory), REVIEW_TIMELINE_TYPES.map(type => type.id));
   for (const [index, type] of REVIEW_TIMELINE_TYPES.entries()) {
     const result = mergeReviewTimelineFeed([], events, { ...DEFAULT_REVIEW_PREFERENCES, eventTypes: [type.id] });
-    assert.deepEqual(result.map(row => row.event), [events[index]]);
+    assert.equal(result.length, 1);
+    if (result[0].event.sourceEvents) assert.ok(result[0].event.sourceEvents.includes(events[index]));
+    else assert.equal(result[0].event, events[index]);
   }
   assert.equal(reviewTimelineCategory({ ...period('month'), periodType: undefined }), 'month');
   assert.equal(reviewTimelineCategory({ kind: 'period', metric: 'period_return', periodType: 'day' }), null);
@@ -77,30 +79,30 @@ test('visibility is presentation only and the same query searches posts and syst
   assert.equal(mergeReviewTimelineFeed([], [high], DEFAULT_REVIEW_PREFERENCES, { query: '2026-10-06' })[0].event, high);
 });
 
-test('each new-high family displays the latest data date even when its original start date is older', () => {
+test('each new-high display group follows the latest data date and preserves all underlying source identities', () => {
   const latest = ['net_assets', 'cumulative_return', 'cumulative_pnl'].map(metric => ({
     ...high, id: `high:${metric}:latest`, metric, startDate: '2026-07-01', date: '2026-11-06',
   }));
   const older = latest.map(event => ({ ...event, id: `${event.id}:older`, startDate: '2026-10-01', date: '2026-10-30' }));
   for (const input of [[...older, ...latest], [...latest, ...older].reverse()]) {
     const result = mergeReviewTimelineFeed([], input, DEFAULT_REVIEW_PREFERENCES);
-    assert.equal(result.length, 3);
+    assert.equal(result.length, 2);
     for (const event of latest) {
-      const row = result.find(item => reviewTimelineCategory(item.event) === reviewTimelineCategory(event));
-      assert.equal(row.event, event);
+      const row = result.find(item => item.event === event || item.event.sourceEvents?.includes(event));
+      assert.ok(row);
       assert.equal(row.date, '2026-11-06');
       assert.equal(row.event.startDate, '2026-07-01', 'the underlying high still retains its original start');
     }
   }
 });
 
-test('annual highs and lows are independent branches with their latest dates and original comment identities', () => {
+test('annual high and low display groups use OR switches and preserve every original comment identity', () => {
   const ids = ['annual_return_high', 'annual_return_low', 'annual_pnl_high', 'annual_pnl_low'];
   const latest = ['annual_return', 'annual_pnl'].flatMap(metric => ['high', 'low'].map(kind => Object.freeze({
     id: `${kind}:${metric}:2026-10-01`, kind, metric, startDate: '2026-10-01', date: '2026-11-06',
     title: `${metric} ${kind}`, nodes: [{ key: 'start', point: { date: '2026-10-01' } }],
   })));
-  const previous = latest.map(event => Object.freeze({ ...event, id: event.id.replace('2026', '2025'), date: '2025-12-31' }));
+  const previous = latest.map(event => Object.freeze({ ...event, id: event.id.replace('2026', '2025'), startDate: '2025-10-01', date: '2025-12-31' }));
   const source = Object.freeze([...events.slice(0, 3), ...previous, ...latest]);
   const before = JSON.stringify(source);
   for (let selection = 0; selection < 16; selection++) {
@@ -108,22 +110,70 @@ test('annual highs and lows are independent branches with their latest dates and
     const preferences = { ...DEFAULT_REVIEW_PREFERENCES, eventTypes };
     for (const input of [source, [...source].reverse()]) {
       const result = mergeReviewTimelineFeed([], input, preferences);
-      assert.equal(result.length, eventTypes.length);
+      const selectedKinds = ['high', 'low'].filter(kind => eventTypes.some(type => type.endsWith(`_${kind}`)));
+      assert.equal(result.length, selectedKinds.length);
       for (const row of result) {
-        assert.ok(latest.includes(row.event));
+        assert.ok(latest.includes(row.event.anchorEvent));
+        assert.equal(row.event.sourceEvents.length, 2);
+        assert.ok(row.event.sourceEvents.every(source => latest.includes(source) && source.kind === row.event.kind));
         assert.equal(row.id, row.event.id);
         assert.equal(row.date, '2026-11-06');
-        assert.ok(eventTypes.includes(reviewTimelineCategory(row.event)));
+        assert.ok(selectedKinds.includes(row.event.kind));
       }
     }
     assert.deepEqual(mergeReviewTimelineFeed([], source, { ...preferences, showTimeline: false }), []);
   }
   const all = mergeReviewTimelineFeed([], source, DEFAULT_REVIEW_PREFERENCES);
-  assert.equal(all.length, 7, 'cumulative highs remain alongside four annual branches');
+  assert.equal(all.length, 4, 'net assets, cumulative earnings, annual highs and annual lows remain separate');
   assert.equal(source.length, 11, 'the full timeline source retains prior-year extrema');
   assert.equal(JSON.stringify(source), before);
   assert.equal(reviewTimelineCategory({ kind: 'low', metric: 'net_assets' }), null);
   assert.equal(reviewTimelineFeedDate({ ...latest[1], date: '', endDate: '' }), latest[1].startDate);
+});
+
+test('feed chooses each latest display branch before deduplicating annual and cumulative earnings', () => {
+  const earnings = (id, metric, date, amount, rate) => {
+    const annual = metric.startsWith('annual'), current = { date,
+      [annual ? 'annualPnlUsd' : 'cumulativePnlUsd']: amount,
+      [annual ? 'annualReturnPct' : 'cumulativeReturnPct']: rate };
+    return { id, kind: 'high', metric, date, startDate: date, title: id, current,
+      points: [current], nodes: [{ key: 'current', label: '新高', point: current }] };
+  };
+  const oldAnnual = earnings('old-annual-only-match', 'annual_pnl', '2026-11-03', 100, 10);
+  const cumulative = earnings('cumulative-current', 'cumulative_pnl', '2026-11-03', 100, 10);
+  const annual = earnings('annual-current', 'annual_pnl', '2026-11-06', 130, 13);
+  const sources = Object.freeze([oldAnnual, cumulative, annual].map(Object.freeze));
+  for (const input of [sources, [...sources].reverse()]) {
+    const result = mergeReviewTimelineFeed([], input, DEFAULT_REVIEW_PREFERENCES);
+    assert.equal(result.length, 2, 'matching historical annual card must not hide the latest cumulative branch');
+    assert.deepEqual(result.map(row => row.id), [annual.id, cumulative.id]);
+    assert.equal(result[0].event.anchorEvent, annual);
+    assert.deepEqual(result[0].event.sourceEventIds, [annual.id]);
+    assert.deepEqual(mergeReviewTimelineFeed([], input, DEFAULT_REVIEW_PREFERENCES, { query: oldAnnual.id }), []);
+  }
+  const updatedCumulative = earnings(cumulative.id, cumulative.metric, annual.date, 130, 13);
+  const combined = mergeReviewTimelineFeed([], [oldAnnual, annual, updatedCumulative], DEFAULT_REVIEW_PREFERENCES);
+  assert.equal(combined.length, 1);
+  assert.equal(combined[0].id, annual.id);
+  assert.deepEqual(combined[0].event.scopeKeys, ['annual', 'cumulative']);
+  assert.deepEqual(new Set(combined[0].event.sourceEventIds), new Set([annual.id, cumulative.id]));
+  assert.equal(combined[0].event.anchorEvent, annual);
+  const onlyAnnual = { ...DEFAULT_REVIEW_PREFERENCES, eventTypes: ['annual_return_high'] };
+  const filtered = mergeReviewTimelineFeed([], [annual, updatedCumulative], onlyAnnual);
+  assert.deepEqual(filtered[0].event.scopeKeys, ['annual']);
+  assert.deepEqual(filtered[0].event.sourceEventIds, [annual.id]);
+  assert.deepEqual(mergeReviewTimelineFeed([], [annual, updatedCumulative], onlyAnnual, { query: '累计' }), []);
+});
+
+test('merged earnings prefer live financial groups over archived comment containers in the same display branch', () => {
+  const current = { date: '2026-11-03', annualPnlUsd: 100, annualReturnPct: 10 };
+  const live = { id: 'annual-live', kind: 'high', metric: 'annual_return', date: current.date, startDate: current.date, current, points: [current] };
+  const archived = { id: 'annual-archive', kind: 'high', metric: 'annual_pnl', date: '2026-12-31', status: 'archived' };
+  const result = mergeReviewTimelineFeed([], [archived, live], DEFAULT_REVIEW_PREFERENCES);
+  assert.equal(result.length, 1);
+  assert.equal(result[0].event.anchorEvent, live);
+  assert.deepEqual(result[0].event.sourceEventIds, [live.id]);
+  assert.equal(mergeReviewTimelineFeed([], [archived], DEFAULT_REVIEW_PREFERENCES)[0].event, archived);
 });
 
 test('only the latest drawdown cycle appears and updates or recovery keep its original identity', () => {

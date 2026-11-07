@@ -100,6 +100,8 @@ async function harness({ observer = true } = {}) {
       import { reviewJournalFeed } from ${moduleUrl('reviewJournalFeed')};
       import { findReviewStockMentions } from ${moduleUrl('reviewStockMentions')};
       import { mergeReviewTimelineFeed, reviewTimelineFeedDate } from ${moduleUrl('reviewTimelineFeed')};
+      import { groupReviewTimelineEvents } from ${moduleUrl('reviewTimelineGroups')};
+      import { findReviewEntryByKey, projectReviewTimelineEntry, resolveReviewReplySource, resolveReviewTimelineEvent, reviewTimelineAnchorEntry, reviewTimelineReplyKey } from ${moduleUrl('reviewTimelineEntries')};
       const ReviewStockCarousel = fixture.ReviewStockCarousel = () => null;
       const ReviewPostBody = () => null;
       const ReviewTimeline = () => null, ReviewPreferences = () => null, ReviewTimelinePost = () => null;

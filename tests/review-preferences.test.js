@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DEFAULT_REVIEW_PREFERENCES, REVIEW_TIMELINE_TYPES, normalizeReviewPreferences, patchReviewPreferences } from '../src/lib/reviewPreferences.js';
+import { DEFAULT_REVIEW_PREFERENCES, REVIEW_TIMELINE_TYPES, REVIEW_TIMELINE_DISPLAY_GROUPS, isReviewTimelineGroupEnabled, setReviewTimelineGroupEnabled, normalizeReviewPreferences, patchReviewPreferences } from '../src/lib/reviewPreferences.js';
 import { createReviewPreferencesController } from '../src/lib/reviewPreferencesController.js';
 
 const prefs = patch => ({ ...normalizeReviewPreferences(null), ...patch });
@@ -18,6 +18,39 @@ test('display defaults include every existing event category and only USD/CNY', 
     assert.throws(()=>normalizeReviewPreferences(bad,{strict:true}),{code:'REVIEW_PREFERENCES_INVALID'});
   }
   assert.throws(()=>patchReviewPreferences(prefs(),{owner:'other'}),{code:'REVIEW_PREFERENCES_INVALID'});
+});
+
+test('ten display groups cover the unchanged thirteen persisted event IDs exactly once', () => {
+  const rawIds = REVIEW_TIMELINE_TYPES.map(type => type.id);
+  assert.equal(REVIEW_TIMELINE_DISPLAY_GROUPS.length, 10);
+  const groupedIds = REVIEW_TIMELINE_DISPLAY_GROUPS.flatMap(group => group.eventTypes);
+  assert.deepEqual([...groupedIds].sort(), [...rawIds].sort());
+  assert.equal(new Set(groupedIds).size, 13);
+  assert.deepEqual(DEFAULT_REVIEW_PREFERENCES.eventTypes, rawIds);
+  for (const group of REVIEW_TIMELINE_DISPLAY_GROUPS) assert.equal(isReviewTimelineGroupEnabled(rawIds, group.id), true);
+  assert.throws(() => normalizeReviewPreferences(prefs({ eventTypes: ['annual_high'] }), { strict: true }), { code: 'REVIEW_PREFERENCES_INVALID' });
+});
+
+test('legacy partial groups display enabled without rewriting settings until explicitly toggled', () => {
+  for (const group of REVIEW_TIMELINE_DISPLAY_GROUPS.filter(group => group.eventTypes.length > 1)) {
+    const [left, right] = group.eventTypes;
+    for (const selected of [[], [left], [right], [left, right]]) {
+      const previous = Object.freeze(['net_assets_high', ...selected, 'return_drawdown', 'year']);
+      assert.equal(isReviewTimelineGroupEnabled(previous, group.id), selected.length > 0);
+      const normalized = normalizeReviewPreferences(prefs({ eventTypes: previous }));
+      assert.deepEqual(normalized.eventTypes.filter(id => group.eventTypes.includes(id)), selected, 'normalization does not expand old asymmetric selections');
+      for (const enabled of [false, true]) {
+        const next = setReviewTimelineGroupEnabled(previous, group.id, enabled);
+        assert.deepEqual(next.filter(id => group.eventTypes.includes(id)), enabled ? group.eventTypes : []);
+        assert.deepEqual(next.filter(id => !group.eventTypes.includes(id)), ['net_assets_high', 'return_drawdown', 'year']);
+        assert.deepEqual(normalizeReviewPreferences(prefs({ eventTypes: next }), { strict: true }).eventTypes, next);
+      }
+      assert.deepEqual(previous, ['net_assets_high', ...selected, 'return_drawdown', 'year']);
+    }
+  }
+  assert.equal(isReviewTimelineGroupEnabled(undefined, 'annual_high'), false);
+  assert.equal(isReviewTimelineGroupEnabled(['return_high'], 'unknown'), false);
+  assert.throws(() => setReviewTimelineGroupEnabled([], 'unknown', true), { code: 'REVIEW_PREFERENCES_INVALID' });
 });
 
 test('cached hidden categories display immediately without showing defaults while refreshing', async () => {

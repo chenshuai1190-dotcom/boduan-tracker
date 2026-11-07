@@ -14,6 +14,11 @@
 .rj-system-secondary{margin-left:auto;flex-shrink:0;text-align:right;max-width:100%}
 .rj-system-secondary>span{display:block;font-size:10px;line-height:17px;color:#8c95a2}
 .rj-system-secondary strong{display:block;margin-top:3px;font-size:14px;line-height:21px;font-weight:500;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.rj-system-earnings .rj-system-primary{flex-basis:100%;white-space:nowrap;font-size:clamp(22px,6.5vw,29px)}
+.rj-system-return{display:flex;flex-direction:column;gap:1px;min-width:0}
+.rj-system-return strong{font-size:20px;line-height:27px;font-weight:400;font-variant-numeric:tabular-nums;white-space:nowrap}
+.rj-system-return>span{font-size:10px;line-height:17px;color:#8c95a2}
+.rj-system-earnings .rj-system-secondary{align-self:flex-start}
 .rj-system-summary .rjt-chart{margin:6px 0 3px}.rj-system-summary .rjt-chart svg{max-height:78px}.rj-system-summary .rjt-chart-empty{font-size:12px;line-height:20px;margin:8px 0}
 .rj-system-caption{display:flex;justify-content:space-between;gap:7px;margin-top:5px;color:#7e8795;font-size:10px;line-height:18px;flex-wrap:wrap}
 .rj-system-updated{color:#77818f;font-size:10px;line-height:18px;margin-left:auto;text-align:right}

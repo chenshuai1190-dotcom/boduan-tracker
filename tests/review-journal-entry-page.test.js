@@ -65,6 +65,8 @@ async function harness({ removeReply, preferences = {} } = {}) {
       import { reviewJournalFeed, localReviewDate } from ${JSON.stringify(new URL('../src/lib/reviewJournalFeed.js', import.meta.url).href)};
       import { findReviewStockMentions } from ${JSON.stringify(new URL('../src/lib/reviewStockMentions.js', import.meta.url).href)};
       import { mergeReviewTimelineFeed, reviewTimelineFeedDate } from ${JSON.stringify(new URL('../src/lib/reviewTimelineFeed.js', import.meta.url).href)};
+      import { groupReviewTimelineEvents } from ${JSON.stringify(new URL('../src/lib/reviewTimelineGroups.js', import.meta.url).href)};
+      import { findReviewEntryByKey, projectReviewTimelineEntry, resolveReviewReplySource, resolveReviewTimelineEvent, reviewTimelineAnchorEntry, reviewTimelineReplyKey } from ${JSON.stringify(new URL('../src/lib/reviewTimelineEntries.js', import.meta.url).href)};
       const fixture = globalThis[${JSON.stringify(key)}];
       const { useState, useRef, useEffect, useLayoutEffect, useMemo, window } = fixture;
       const Avatar = () => null, AuthorName = () => null, Photo = () => null, SnapshotCard = () => null, ReviewStockCarousel = () => null, ReviewPostBody = () => null, Composer = () => null, Dialog = () => null;
@@ -623,6 +625,108 @@ test('timeline evaluation keeps one repository adapter across parent updates and
   h.unmount();
 });
 
+test('grouped earnings share comments while append, edit and delete retain their original containers', async () => {
+  const h = await harness({ preferences: { showTimeline: true, eventTypes: ['return_high', 'pnl_high'] } });
+  const point = { date: '2026-10-06', cumulativePnlUsd: 5000, cumulativeReturnPct: 20 };
+  const amount = { id: 'high:cumulative_pnl:2026-10-06', kind: 'high', metric: 'cumulative_pnl',
+    date: point.date, startDate: point.date, title: '累计盈利新高', current: point, points: [point], nodes: [{ key: 'current', point }] };
+  const rate = { ...amount, id: 'high:cumulative_return:2026-10-06', metric: 'cumulative_return', title: '累计收益率新高' };
+  const makeContainer = (id, source, label, date) => ({ id, type: 'log', date: source.startDate, text: source.title, revision: 1,
+    stocks: [], images: [], timelineEvent: { version: 1, id: source.id, kind: source.kind, metric: source.metric, date: source.startDate, title: source.title },
+    replies: [{ id: 'same-reply-id', date, text: label }] });
+  const amountEntry = makeContainer('amount-container', amount, '金额原评论', '2026-11-07');
+  const rateEntry = makeContainer('rate-container', rate, '收益率原评论', '2026-11-06');
+  h.ctx.reviewLogs.push(amountEntry, rateEntry);
+  h.ctx.previewData.timeline = { status: 'ready', events: [rate, amount], years: [2026] };
+  const appends = [], edits = [];
+  h.ctx.db.appendReviewTimelineReply = async (entry, reply, owner) => {
+    appends.push({ entry, reply, owner }); return { ...entry, revision: entry.revision + 1, replies: [...entry.replies, reply] };
+  };
+  h.ctx.db.updateReviewJournalReply = async (entry, original, replacement, owner) => {
+    edits.push({ entry, original, replacement, owner });
+    return { ...entry, revision: entry.revision + 1, replies: entry.replies.map(item => item.id === original.id ? replacement : item) };
+  };
+  let tree = h.render(); await settle(); tree = h.render();
+  assert.equal(systemPosts(tree, h).length, 1);
+  assert.equal(systemPosts(tree, h)[0].props.commentCount, 2);
+  // A previous raw return route remains valid even though the display anchor is amount.
+  systemPosts(tree, h)[0].props.onOpen(rate.id, clickEvent(h)); tree = h.render();
+  let timeline = find(tree, node => node.type === h.Page.ReviewTimeline);
+  assert.equal(timeline.props.selectedEventId, amount.id);
+  let comments = timeline.props.renderEvaluations();
+  assert.match(textOf(comments), /收益率原评论.*金额原评论/);
+  assert.equal(new Set(visible(comments).filter(node => hasClass(node, 'rj-reply')).map(node => node.key)).size, 2);
+  button(comments, '写评价').props.onClick(); tree = h.render();
+  let editor = find(tree, node => node.type === h.Page.ReviewEvaluationComposer && node.props.open);
+  assert.equal(editor.props.entry, amountEntry);
+  const adapter = editor.props.db;
+  const newReply = { id: 'new-group-comment', date: '2026-11-07', text: '合并之后的新评论' };
+  editor.props.onSaved(await editor.props.db.appendReviewJournalReply(editor.props.entry, newReply, 'owner'));
+  editor.props.onClose(); tree = h.render();
+  assert.equal(appends[0].entry.replies.length, 1, 'append must not send aggregated replies to the anchor');
+  assert.equal(h.ctx.reviewLogs.find(entry => entry.id === rateEntry.id), rateEntry);
+  timeline = find(tree, node => node.type === h.Page.ReviewTimeline); comments = timeline.props.renderEvaluations();
+  const rateComment = visible(comments).find(node => hasClass(node, 'rj-reply') && textOf(node).includes('收益率原评论'));
+  button(rateComment, '评论操作').props.onClick(); tree = h.render();
+  button(tree, '修改评价').props.onClick(); tree = h.render();
+  editor = find(tree, node => node.type === h.Page.ReviewEvaluationComposer && node.props.reply);
+  assert.equal(editor.props.db, adapter);
+  assert.equal(editor.props.entry, rateEntry);
+  assert.deepEqual(editor.props.reply, rateEntry.replies[0]);
+  assert.equal(editor.props.reply.timelineReplySource, undefined);
+  const editedReply = { ...editor.props.reply, text: '修改收益率原评论' };
+  editor.props.onSaved(await editor.props.db.updateReviewJournalReply(editor.props.entry, editor.props.reply, editedReply, 'owner'));
+  editor.props.onClose(); tree = h.render();
+  assert.equal(edits[0].entry.id, rateEntry.id);
+  assert.equal(h.ctx.reviewLogs.find(entry => entry.id === amountEntry.id).replies[0].text, '金额原评论');
+  timeline = find(tree, node => node.type === h.Page.ReviewTimeline); comments = timeline.props.renderEvaluations();
+  const changed = visible(comments).find(node => hasClass(node, 'rj-reply') && textOf(node).includes('修改收益率原评论'));
+  button(changed, '评论操作').props.onClick(); tree = h.render();
+  button(tree, '删除评价').props.onClick(); tree = h.render();
+  await button(tree, '确认删除评价').props.onClick(); tree = h.render();
+  assert.equal(h.replyDeletes.at(-1).entry.id, rateEntry.id);
+  assert.equal(h.replyDeletes.at(-1).reply.timelineReplySource, undefined);
+  assert.equal(h.ctx.reviewLogs.find(entry => entry.id === rateEntry.id).replies.length, 0);
+  assert.equal(h.ctx.reviewLogs.find(entry => entry.id === amountEntry.id).replies.length, 2);
+  assert.equal(h.saves.length, 0);
+  h.unmount();
+});
+
+test('timeline menu refresh retains the displayed original for edit and delete conflict checks', async () => {
+  for (const operation of ['edit', 'delete']) {
+    const h = await harness({ removeReply: async (entry, original) => {
+      assert.equal(entry.revision, 2);
+      assert.equal(original.text, '菜单打开时的原评论');
+      throw new Error('评价已由其他设备修改，请刷新后重试。');
+    } });
+    const event = { id: 'high:annual_pnl:2026-10-06', kind: 'high', metric: 'annual_pnl',
+      date: '2026-10-06', startDate: '2026-10-06', title: '年内收益金额新高', points: [], nodes: [] };
+    const original = { id: 'reply', date: event.date, text: '菜单打开时的原评论' };
+    const entry = { id: 'source-container', type: 'log', date: event.date, text: event.title, revision: 1,
+      timelineEvent: { version: 1, id: event.id, kind: event.kind, metric: event.metric, date: event.date, title: event.title },
+      replies: [original], stocks: [], images: [] };
+    h.ctx.reviewLogs.push(entry);
+    h.ctx.previewData.timeline = { status: 'ready', events: [event], years: [2026] };
+    let tree = h.render(); button(tree, '时间线').props.onClick(); tree = h.render(); await settle(); tree = h.render();
+    find(tree, node => node.type === h.Page.ReviewTimeline).props.onSelectEvent(event.id); tree = h.render();
+    button(find(tree, node => node.type === h.Page.ReviewTimeline).props.renderEvaluations(), '评论操作').props.onClick(); tree = h.render();
+    const remote = { ...entry, revision: 2, replies: [{ ...original, text: '另一台设备修改后的评论' }] };
+    h.ctx.reviewLogs = h.ctx.reviewLogs.map(item => item.id === entry.id ? remote : item); tree = h.render();
+    if (operation === 'edit') {
+      button(tree, '修改评价').props.onClick(); tree = h.render();
+      const editor = find(tree, node => node.type === h.Page.ReviewEvaluationComposer && node.props.reply);
+      assert.equal(editor.props.entry, remote);
+      assert.deepEqual(editor.props.reply, original, 'the expected payload must remain the menu-time original');
+    } else {
+      button(tree, '删除评价').props.onClick(); tree = h.render();
+      await button(tree, '确认删除评价').props.onClick(); tree = h.render();
+      assert.match(textOf(tree), /评价已由其他设备修改/);
+      assert.equal(h.ctx.reviewLogs.find(item => item.id === remote.id), remote);
+    }
+    h.unmount();
+  }
+});
+
 test('timeline drafts stay mounted through category reloads and linked stock tags show only posts', async () => {
   const h = await harness();
   const event = {id:'drawdown:net_assets:2026-10-06',kind:'drawdown',metric:'net_assets',date:'2026-11-06',startDate:'2026-10-06',title:'净资产回落',points:[],nodes:[]};
@@ -747,8 +851,8 @@ test('All keeps only the latest branch event while the complete timeline preserv
   assert.equal(systemPosts(tree, h).find(node => node.props.event.id === latest.id).props.commentCount, 0, 'old evaluations must not move to the latest card');
   button(tree, '时间线').props.onClick(); tree = h.render();
   let timeline = find(tree, node => node.type === h.Page.ReviewTimeline);
-  assert.deepEqual(timeline.props.data.events.map(event => event.id), events.map(event => event.id));
-  assert.equal(timeline.props.data.events[0], older);
+  assert.deepEqual(new Set(timeline.props.data.events.map(event => event.id)), new Set(events.map(event => event.id)));
+  assert.equal(timeline.props.data.events.find(event => event.id === older.id), older);
   timeline.props.onSelectEvent(older.id); tree = h.render();
   timeline = find(tree, node => node.type === h.Page.ReviewTimeline);
   assert.equal(timeline.props.selectedEventId, older.id);
@@ -782,7 +886,7 @@ test('master and event-type settings filter only All while the complete timeline
   const checkCompleteTimeline = () => {
     button(tree, '时间线').props.onClick(); tree = h.render();
     const timeline = find(tree, node => node.type === h.Page.ReviewTimeline);
-    assert.deepEqual(timeline.props.data.events.map(event => event.id), events.map(event => event.id));
+    assert.deepEqual(new Set(timeline.props.data.events.map(event => event.id)), new Set(events.map(event => event.id)));
     assert.equal(timeline.props.loading, false);
     button(tree, '全部').props.onClick(); tree = h.render();
   };

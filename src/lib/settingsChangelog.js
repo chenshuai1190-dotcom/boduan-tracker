@@ -3,6 +3,11 @@ import { CURRENT_RELEASE } from './releaseMeta.js';
 export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
+    items: ['合并累计收益新高、年内收益新高和新低中的金额与收益率纪录；金额下方显示同日收益率，同日同值的年内与累计新高只展示一次。动态、时间线、详情和设置同步，保留原有评价及修改删除功能。'],
+    itemsEn: ['Combined P&L and return records for cumulative highs and annual highs and lows. Each amount shows its same-day return below; identical annual and cumulative highs appear once. Feed, timeline, details, and settings stay aligned, with existing evaluations and edit/delete support preserved.'],
+  },
+  {
+    ver: 'v10.7.9.599', date: '2026-11-07',
     items: ['净资产回撤与收益率高点回落可独立开关；新增按今年收益报表口径计算的年内收益率、收益金额新高和新低，分别控制在全部中的显示。每类保留最新动态，完整时间线和评价继续保留。修复时间线评价插入账户快照持续加载的问题。'],
     itemsEn: ['Net-asset drawdowns and return-peak declines now have independent switches. Added year-to-date return and profit highs and lows using the report’s current-year basis, with individual feed controls. All keeps the latest per type; the full timeline and evaluations remain available. Fixed account snapshots repeatedly loading in timeline evaluations.'],
   },

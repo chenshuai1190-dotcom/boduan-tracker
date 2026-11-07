@@ -8,10 +8,12 @@ import * as icons from 'lucide-react';
 import { marketHexColor, MARKET_COLOR_MODES } from '../src/lib/marketColorMode.js';
 import { normalizeReviewMarketSnapshot } from '../src/lib/reviewMarketSnapshot.js';
 import { convertReviewMoney, formatReviewMoney, reviewCurrencyNotice, reviewDisplayCurrency } from '../src/lib/reviewDisplayCurrency.js';
+import { isReviewEarningsEvent, reviewEarningsScope, reviewEarningsRecordLabel } from '../src/lib/reviewTimelineEarnings.js';
 
 const source = readFileSync(new URL('../src/components/ReviewTimeline.jsx', import.meta.url), 'utf8');
 const walk = tree => !React.isValidElement(tree) ? Array.isArray(tree) ? tree.flatMap(walk) : [] : [tree, ...walk(tree.props.children)];
 const byClass = (tree, name) => walk(tree).find(node => node.props.className?.split(' ').includes(name));
+const textOf = tree => !React.isValidElement(tree) ? Array.isArray(tree) ? tree.map(textOf).join('') : String(tree ?? '') : textOf(tree.props.children);
 let nextFixture = 0;
 async function harness() {
   let cursor = 0;
@@ -19,6 +21,7 @@ async function harness() {
   const fixture = {
     React: { ...React, useState(initial) { const i = cursor++; const slot = slots[i] ||= { value: typeof initial === 'function' ? initial() : initial }; return [slot.value, value => { slot.value = typeof value === 'function' ? value(slot.value) : value; }]; } },
     icons, marketHexColor, normalizeReviewMarketSnapshot, convertReviewMoney, formatReviewMoney, reviewCurrencyNotice, reviewDisplayCurrency,
+    isReviewEarningsEvent, reviewEarningsScope, reviewEarningsRecordLabel,
     SnapshotCard: ({ value }) => React.createElement('aside', { 'data-market-date': value.asOfDate }, value.items[0].value),
   };
   const key = `__timelineUI${++nextFixture}`;
@@ -26,7 +29,7 @@ async function harness() {
   let components;
   try {
     const compiled = await transformWithOxc(`
-      const { React, icons, marketHexColor, normalizeReviewMarketSnapshot, convertReviewMoney, formatReviewMoney, reviewCurrencyNotice, reviewDisplayCurrency, SnapshotCard } = globalThis[${JSON.stringify(key)}];
+      const { React, icons, marketHexColor, normalizeReviewMarketSnapshot, convertReviewMoney, formatReviewMoney, reviewCurrencyNotice, reviewDisplayCurrency, SnapshotCard, isReviewEarningsEvent, reviewEarningsScope, reviewEarningsRecordLabel } = globalThis[${JSON.stringify(key)}];
       const { ArrowDownRight, ArrowUpRight, CalendarDays, ChevronDown, ChevronRight, Flag, History, Info, Loader2, MessageCircle, RefreshCw } = icons;
       ${source.replace(/^import .*;\n/gm, '')}
       export { TimelineDetail, TimelineEvent, ArchivedDetail };
@@ -373,4 +376,139 @@ test('annual lows have their own filter and values keep their financial sign in 
     const detail = h.render('TimelineDetail', details({ event, marketColorMode: mode }));
     assert.equal(byClass(detail, 'rjt-node-value').props.children[0].props.style.color, marketHexColor(value, mode));
   }
+});
+
+function combinedEarnings({ scope = 'annual', kind = 'high', sign = 1 } = {}) {
+  const metric = scope === 'annual' ? 'annual_pnl' : 'cumulative_pnl';
+  const amountField = scope === 'annual' ? 'annualPnlUsd' : 'cumulativePnlUsd';
+  const returnField = scope === 'annual' ? 'annualReturnPct' : 'cumulativeReturnPct';
+  const points = [peak, trigger, current].map((point, index) => ({ ...point,
+    [amountField]: sign * [20000, 10000, 30000][index], [returnField]: sign * [20, 30, 10][index] }));
+  const now = points.at(-1);
+  return { id: `earnings:${scope}:${kind}:2026-10-01`, title: `${scope === 'annual' ? '年内' : '累计'}收益新${kind === 'low' ? '低' : '高'}`,
+    kind, metric, valueType: 'money', value: now[amountField], returnValue: now[returnField], returnField,
+    recordMetrics: ['amount'], scopeKeys: [scope], date: now.date, startDate: points[0].date, endDate: now.date, current: now, points,
+    nodes: [{ key: 'start', label: '此前节点', point: points[0] }, { key: 'current', label: '最新节点', point: now }],
+    sourceEvents: [{ kind, metric, date: now.date, nodes: [{ key: 'start', point: points[0] }] }] };
+}
+
+test('merged earnings timeline and details put amount above return and preserve both values under currency and color changes', async () => {
+  const h = await harness();
+  for (const scope of ['annual', 'cumulative']) for (const [kind, sign] of [['high', 1], ['low', -1]]) {
+    const event = combinedEarnings({ scope, kind, sign });
+    for (const marketColorMode of Object.values(MARKET_COLOR_MODES)) for (const currency of [{ displayCurrency: 'USD' }, { displayCurrency: 'CNY', usdCny: 7.2 }]) {
+      const list = h.render('TimelineEvent', { event, marketColorMode, ...currency });
+      const detail = h.render('TimelineDetail', details({ event, marketColorMode, ...currency }));
+      for (const [tree, amountClass] of [[list, 'rjt-event-primary'], [detail, 'rjt-detail-metric']]) {
+        const amount = byClass(tree, amountClass).props.children[0];
+        const returns = byClass(tree, 'rjt-earnings-return').props.children[0];
+        assert.equal(amount.props.children, formatReviewMoney(sign * 30000, currency));
+        assert.equal(amount.props.style.color, marketHexColor(sign * 30000, marketColorMode));
+        assert.equal(returns.props.children, `${sign > 0 ? '+' : '-'}10.00%`);
+        assert.equal(returns.props.style.color, marketHexColor(sign * 10, marketColorMode));
+        const html = renderToStaticMarkup(tree);
+        assert.ok(html.indexOf(amountClass) < html.indexOf('rjt-earnings-return'));
+        assert.match(html, new RegExp(`金额创新${kind === 'low' ? '低' : '高'}`));
+        assert.doesNotMatch(html, /金额与收益率同时创新/);
+      }
+      const heading = renderToStaticMarkup(byClass(detail, 'rjt-chart-heading'));
+      assert.match(heading, new RegExp(`${scope === 'annual' ? '年内收益金额' : '累计盈利金额'}走势 · ${currency.displayCurrency}`));
+      assert.equal(walk(detail).filter(node => node.type === h.components.TimelineChart).length, 1);
+    }
+  }
+});
+
+test('the merged chart follows money only while milestone selection changes money and return together', async () => {
+  for (const scope of ['annual', 'cumulative']) {
+    const h = await harness(), event = combinedEarnings({ scope });
+    const amountField = scope === 'annual' ? 'annualPnlUsd' : 'cumulativePnlUsd';
+    const currency = { displayCurrency: 'CNY', usdCny: 7.2 };
+    const usdChart = h.components.TimelineChart({ event, detail: true });
+    const path = byClass(usdChart, 'rjt-chart-line').props.d;
+    assert.equal(byClass(h.components.TimelineChart({ event, detail: true, ...currency }), 'rjt-chart-line').props.d, path);
+    const unrelated = { ...event, points: event.points.map((point, index) => ({ ...point, chartValue: index + 1, netAssetsUsd: index + 1, [event.returnField]: [99, -80, 300][index] })) };
+    assert.equal(byClass(h.components.TimelineChart({ event: unrelated, detail: true }), 'rjt-chart-line').props.d, path, 'percentage and account balances never control the earnings chart');
+    const changedMoney = { ...event, points: event.points.map((point, index) => ({ ...point, [amountField]: [10000, 20000, 30000][index] })) };
+    assert.notEqual(byClass(h.components.TimelineChart({ event: changedMoney, detail: true }), 'rjt-chart-line').props.d, path);
+    const props = details({ event, ...currency });
+    let detail = h.render('TimelineDetail', props);
+    let node = byClass(detail, 'rjt-node-detail');
+    assert.equal(byClass(node, 'rjt-node-value').props.children[0].props.children, '¥216,000.00');
+    assert.equal(byClass(node, 'rjt-earnings-return').props.children[0].props.children, '+10.00%');
+    walk(byClass(detail, 'rjt-node-tabs')).find(node => node.type === 'button' && node.props.children[0] === '此前节点').props.onClick();
+    detail = h.render('TimelineDetail', props); node = byClass(detail, 'rjt-node-detail');
+    assert.equal(byClass(node, 'rjt-node-value').props.children[0].props.children, '¥144,000.00');
+    assert.equal(byClass(node, 'rjt-earnings-return').props.children[0].props.children, '+20.00%');
+    assert.match(renderToStaticMarkup(node), /2026-10-01/);
+    assert.equal(byClass(detail, 'rjt-detail-metric').props.children[0].props.children, '¥216,000.00', 'the event headline remains the latest record');
+    const noFx = h.render('TimelineDetail', details({ event, displayCurrency: 'CNY' }));
+    assert.equal(byClass(noFx, 'rjt-detail-metric').props.children[0].props.children, '—');
+    assert.equal(byClass(noFx, 'rjt-earnings-return').props.children[0].props.children, '+10.00%');
+    assert.equal(byClass(h.components.TimelineChart({ event, displayCurrency: 'CNY' }), 'rjt-chart-line'), undefined);
+  }
+});
+
+test('missing return observations never become zero or another milestone value in a merged earnings detail', async () => {
+  const h = await harness(), event = combinedEarnings();
+  const start = { ...event.points[0], annualReturnPct: null };
+  const props = details({ event: { ...event, returnValue: null, nodes: [{ key: 'start', label: '此前节点', point: start }, event.nodes[1]] } });
+  let detail = h.render('TimelineDetail', props);
+  assert.equal(byClass(detail, 'rjt-earnings-return').props.children[0].props.children, '—');
+  assert.equal(byClass(detail, 'rjt-detail-metric').props.children[0].props.children, '$30,000.00');
+  walk(byClass(detail, 'rjt-node-tabs')).find(node => node.type === 'button' && node.props.children[0] === '此前节点').props.onClick();
+  detail = h.render('TimelineDetail', props);
+  const node = byClass(detail, 'rjt-node-detail');
+  assert.equal(byClass(node, 'rjt-node-value').props.children[0].props.children, '$20,000.00');
+  assert.equal(byClass(node, 'rjt-earnings-return').props.children[0].props.children, '—');
+  assert.equal(byClass(node, 'rjt-earnings-return').props.children[0].props.style, undefined);
+});
+
+test('same-valued annual and cumulative records show combined scope while the actual record label stays accurate', async () => {
+  const h = await harness();
+  const event = { ...combinedEarnings(), scopeKeys: ['annual', 'cumulative'] };
+  for (const [recordMetrics, zh, en] of [[['amount'], '金额创新高', 'P&L at a new high'], [['return'], '收益率创新高', 'Return at a new high'], [['amount', 'return'], '金额与收益率同时创新高', 'P&L and return at a new high']]) {
+    for (const language of ['zh', 'en']) {
+      const currentEvent = { ...event, recordMetrics };
+      const list = h.render('TimelineEvent', { event: currentEvent, language });
+      const detail = h.render('TimelineDetail', details({ event: currentEvent, language }));
+      assert.equal(byClass(list, 'rjt-event-description').props.children, language === 'en' ? en : zh);
+      assert.equal(byClass(detail, 'rjt-detail-description').props.children, language === 'en' ? en : zh);
+      for (const tree of [list, detail]) assert.equal(textOf(byClass(tree, 'rjt-earnings-return').props.children[1]), language === 'en' ? 'Annual · cumulative return' : '年内 · 累计收益率');
+    }
+  }
+});
+
+test('a retained cumulative-only milestone uses its original scope and returns to annual values on the latest node', async () => {
+  const h = await harness(), base = combinedEarnings();
+  const oldPoint = { date: '2025-12-30', cumulativePnlUsd: 8000, cumulativeReturnPct: 8, netAssetsUsd: 108000 };
+  const latestPoint = { ...base.current, cumulativePnlUsd: base.value, cumulativeReturnPct: base.returnValue };
+  const event = { ...base, scopeKeys: ['annual', 'cumulative'], current: latestPoint,
+    points: [oldPoint, ...base.points.slice(0, -1).map(point => ({ ...point, cumulativePnlUsd: point.annualPnlUsd, cumulativeReturnPct: point.annualReturnPct })), latestPoint],
+    nodes: [{ key: 'cumulative-start', label: '累计旧节点', point: oldPoint, sourceNodes: [{ scopeKey: 'cumulative', key: 'start' }] },
+      { key: 'current', label: '最新节点', point: latestPoint, sourceNodes: [{ scopeKey: 'annual', key: 'current' }, { scopeKey: 'cumulative', key: 'current' }] }] };
+  const props = details({ event, displayCurrency: 'CNY', usdCny: 7.2 });
+  let detail = h.render('TimelineDetail', props);
+  walk(byClass(detail, 'rjt-node-tabs')).find(node => node.type === 'button' && node.props.children[0] === '累计旧节点').props.onClick();
+  detail = h.render('TimelineDetail', props);
+  const node = byClass(detail, 'rjt-node-detail');
+  assert.equal(byClass(node, 'rjt-node-value').props.children[0].props.children, '¥57,600.00');
+  assert.equal(byClass(node, 'rjt-earnings-return').props.children[0].props.children, '+8.00%');
+  assert.equal(textOf(byClass(node, 'rjt-earnings-return').props.children[1]), '累计收益率');
+  assert.match(textOf(byClass(detail, 'rjt-chart-heading')), /累计盈利金额走势 · CNY/);
+  assert.doesNotMatch(textOf(node), /年内|0\.00%/);
+  const chart = walk(detail).find(node => node.type === h.components.TimelineChart);
+  assert.equal(chart.props.event.metric, 'cumulative_pnl');
+  assert.equal(chart.props.event.returnField, 'cumulativeReturnPct');
+  assert.equal(chart.props.selectedPoint, oldPoint);
+  const renderedChart = h.components.TimelineChart(chart.props);
+  assert.ok(byClass(renderedChart, 'rjt-chart-line'));
+  assert.match(renderToStaticMarkup(renderedChart), /dateTime="2025-12-30"/);
+  assert.equal(byClass(detail, 'rjt-detail-metric').props.children[0].props.children, '¥216,000.00');
+  walk(byClass(detail, 'rjt-node-tabs')).find(node => node.type === 'button' && node.props.children[0] === '最新节点').props.onClick();
+  detail = h.render('TimelineDetail', props);
+  assert.equal(walk(detail).find(node => node.type === h.components.TimelineChart).props.event.metric, 'annual_pnl');
+  assert.equal(byClass(byClass(detail, 'rjt-node-detail'), 'rjt-earnings-return').props.children[0].props.children, '+10.00%');
+  assert.match(textOf(byClass(detail, 'rjt-chart-heading')), /年内收益金额走势 · CNY/);
+  assert.equal(oldPoint.annualPnlUsd, undefined);
+  assert.equal(oldPoint.annualReturnPct, undefined);
 });

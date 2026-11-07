@@ -19,11 +19,12 @@ async function component(){
 }
 async function render(patch={}){const C=await component();return renderToStaticMarkup(React.createElement(C,{identityNode:React.createElement('strong',null,'示例用户'),preferences:normalizeReviewPreferences(null),ready:true,canEdit:true,onChange:()=>{},onRetry:()=>{},...patch}));}
 
-test('settings expose the avatar identity, master switch, thirteen categories and currency choice',async()=>{
+test('settings expose the avatar identity, master switch, ten display groups and currency choice',async()=>{
   const html=await render();
   assert.match(html,/动态设置/);assert.match(html,/示例用户/);
-  assert.equal((html.match(/role="switch"/g)||[]).length,14);
-  for(const text of ['净资产新高','累计收益率新高','累计盈利新高','年内收益率新高','年内收益率新低','年内收益金额新高','年内收益金额新低','净资产回撤与恢复','收益率高点回落','单日涨跌纪录','月度总结','季度总结','年度总结','美元 USD','人民币 CNY'])assert.ok(html.includes(text),text);
+  assert.equal((html.match(/role="switch"/g)||[]).length,11);
+  for(const text of ['净资产新高','累计收益新高','年内收益新高','年内收益新低','净资产回撤与恢复','收益率高点回落','单日涨跌纪录','月度总结','季度总结','年度总结','美元 USD','人民币 CNY'])assert.ok(html.includes(text),text);
+  assert.doesNotMatch(html,/累计收益率新高|累计盈利新高|年内收益率新高|年内收益率新低|年内收益金额新高|年内收益金额新低/);
   assert.match(html,/aria-pressed="true"[^>]*>美元 USD/);
 });
 
@@ -37,7 +38,7 @@ test('disabled master retains selected event types but prevents child toggles',a
 test('loading and saving prevent changes and errors offer a visible retry',async()=>{
   const html=await render({loading:true,canEdit:false,error:'设置暂时无法读取'});
   assert.match(html,/role="status"/);assert.match(html,/role="alert"/);
-  assert.equal((html.match(/disabled=""/g)||[]).length,17);
+  assert.equal((html.match(/disabled=""/g)||[]).length,14);
   assert.match(await render({saving:true}),/正在保存/);
   assert.match(await render({preferences:{showTimeline:true,currency:'CNY',eventTypes:[]}}),/当前未选择任何事件/);
 });
@@ -57,19 +58,45 @@ test('net-asset and return-decline switches render all four independent selectio
   assert.match(disabled, /aria-checked="true" aria-label="收益率高点回落" disabled=""/);
 });
 
-test('annual return and P&L high and low choices remain distinct from cumulative highs', async () => {
-  const labels = ['年内收益率新高', '年内收益率新低', '年内收益金额新高', '年内收益金额新低'];
+test('annual high and low groups are on if either legacy metric was enabled and stay distinct from cumulative highs', async () => {
   const ids = ['annual_return_high', 'annual_return_low', 'annual_pnl_high', 'annual_pnl_low'];
   for (let selection = 0; selection < 16; selection++) {
     const eventTypes = ids.filter((_, index) => selection & 1 << index);
     const html = await render({ preferences: { showTimeline: true, currency: 'CNY', eventTypes } });
-    labels.forEach((label, index) => assert.match(html, new RegExp(`aria-checked="${Boolean(selection & 1 << index)}" aria-label="${label}"`)));
-    assert.match(html, /aria-checked="false" aria-label="累计收益率新高"/);
-    assert.match(html, /aria-checked="false" aria-label="累计盈利新高"/);
+    assert.match(html, new RegExp(`aria-checked="${Boolean(selection & 5)}" aria-label="年内收益新高"`));
+    assert.match(html, new RegExp(`aria-checked="${Boolean(selection & 10)}" aria-label="年内收益新低"`));
+    assert.match(html, /aria-checked="false" aria-label="累计收益新高"/);
   }
   const disabled = await render({ preferences: { showTimeline: false, currency: 'USD', eventTypes: ['annual_return_low', 'annual_pnl_high'] } });
-  assert.match(disabled, /aria-checked="true" aria-label="年内收益率新低" disabled=""/);
-  assert.match(disabled, /aria-checked="true" aria-label="年内收益金额新高" disabled=""/);
+  assert.match(disabled, /aria-checked="true" aria-label="年内收益新低" disabled=""/);
+  assert.match(disabled, /aria-checked="true" aria-label="年内收益新高" disabled=""/);
   const english = await render({ language: 'en' });
-  for (const text of ['Annual return highs', 'Annual return lows', 'Annual P&amp;L highs', 'Annual P&amp;L lows']) assert.ok(english.includes(text));
+  for (const text of ['Cumulative earnings highs', 'Annual earnings highs', 'Annual earnings lows']) assert.ok(english.includes(text));
+});
+
+test('group switches update all member IDs together without changing unrelated choices or master and currency', async () => {
+  const C = await component();
+  const walk = tree => !React.isValidElement(tree) ? Array.isArray(tree) ? tree.flatMap(walk) : [] : [tree, ...walk(tree.props.children)];
+  const cases = [
+    ['累计收益新高', ['return_high', 'pnl_high']],
+    ['年内收益新高', ['annual_return_high', 'annual_pnl_high']],
+    ['年内收益新低', ['annual_return_low', 'annual_pnl_low']],
+  ];
+  for (const [title, members] of cases) for (const previous of [[], [members[0]], [members[1]], members]) {
+    const eventTypes = [...previous, 'drawdown', 'month'];
+    const preferences = { showTimeline: true, currency: 'CNY', eventTypes };
+    const changes = [];
+    const tree = C({ preferences, ready: true, onChange: patch => changes.push(patch) });
+    const group = walk(tree).find(node => node.props.title === title);
+    const control = group.type(group.props);
+    assert.equal(control.props['aria-checked'], previous.length > 0);
+    control.props.onClick();
+    assert.equal(changes.length, 1);
+    assert.deepEqual(Object.keys(changes[0]), ['eventTypes']);
+    const result = changes[0].eventTypes;
+    assert.ok(result.includes('drawdown')); assert.ok(result.includes('month'));
+    for (const id of members) assert.equal(result.includes(id), previous.length === 0);
+    assert.deepEqual(eventTypes, [...previous, 'drawdown', 'month'], 'the rendered selection remains immutable');
+    assert.equal(preferences.currency, 'CNY'); assert.equal(preferences.showTimeline, true);
+  }
 });

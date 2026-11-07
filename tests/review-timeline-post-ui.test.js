@@ -8,13 +8,15 @@ import * as icons from 'lucide-react';
 import { marketHexColor, MARKET_COLOR_MODES } from '../src/lib/marketColorMode.js';
 import { reviewTimelineFeedDate } from '../src/lib/reviewTimelineFeed.js';
 import { formatReviewMoney, reviewDisplayCurrency } from '../src/lib/reviewDisplayCurrency.js';
+import { isReviewEarningsEvent, reviewEarningsScope, reviewEarningsRecordLabel } from '../src/lib/reviewTimelineEarnings.js';
 
 const source = readFileSync(new URL('../src/components/ReviewTimelinePost.jsx', import.meta.url), 'utf8');
 const fixture = { React, icons, marketHexColor, reviewTimelineFeedDate, formatReviewMoney, reviewDisplayCurrency,
+  isReviewEarningsEvent, reviewEarningsScope, reviewEarningsRecordLabel,
   TimelineChart: props => React.createElement('aside', { 'data-chart-currency': props.displayCurrency, 'data-chart-rate': props.usdCny }, props.event.id) };
 globalThis.__timelinePostUI = fixture;
 const compiled = await transformWithOxc(`
-  const { React, icons, marketHexColor, reviewTimelineFeedDate, formatReviewMoney, reviewDisplayCurrency, TimelineChart } = globalThis.__timelinePostUI;
+  const { React, icons, marketHexColor, reviewTimelineFeedDate, formatReviewMoney, reviewDisplayCurrency, TimelineChart, isReviewEarningsEvent, reviewEarningsScope, reviewEarningsRecordLabel } = globalThis.__timelinePostUI;
   const { History, MessageCircle } = icons;
   ${source.replace(/^import .*;\n/gm, '')}
 `, 'ReviewTimelinePostUITest.jsx', { jsx: { runtime: 'classic' } });
@@ -22,6 +24,7 @@ const { default: Post } = await import(`data:text/javascript;base64,${Buffer.fro
 delete globalThis.__timelinePostUI;
 const walk = tree => !React.isValidElement(tree) ? Array.isArray(tree) ? tree.flatMap(walk) : [] : [tree, ...walk(tree.props.children)];
 const byClass = (tree, name) => walk(tree).find(node => node.props.className?.split(' ').includes(name));
+const textOf = tree => !React.isValidElement(tree) ? Array.isArray(tree) ? tree.map(textOf).join('') : String(tree ?? '') : textOf(tree.props.children);
 const peak = { date: '2026-10-01', netAssetsUsd: 100000, cumulativeReturnPct: 25, cumulativePnlUsd: 20000 };
 const current = { date: '2026-10-06', netAssetsUsd: 120000, cumulativeReturnPct: 30, cumulativePnlUsd: 24000 };
 const high = { id: 'high:net_assets:2026-10-02', title: '净资产创新高', kind: 'high', metric: 'net_assets', valueType: 'money', value: 120000,
@@ -282,4 +285,93 @@ test('cumulative high charts retain their own observations and percentage cards 
     const missing = Post(props({ ...event, points: event.points.map(point => ({ ...point, [field]: null })) }));
     assert.equal(walk(missing).find(node => node.type === fixture.TimelineChart), undefined);
   }
+});
+
+function mergedEarnings({ scope = 'annual', kind = 'high', value = 24000, rate = 30, recordMetrics = ['amount', 'return'] } = {}) {
+  const moneyMetric = scope === 'annual' ? 'annual_pnl' : 'cumulative_pnl';
+  const returnMetric = scope === 'annual' ? 'annual_return' : 'cumulative_return';
+  const amountField = scope === 'annual' ? 'annualPnlUsd' : 'cumulativePnlUsd';
+  const returnField = scope === 'annual' ? 'annualReturnPct' : 'cumulativeReturnPct';
+  const before = { ...peak, [amountField]: value * .8, [returnField]: rate * .8 };
+  const now = { ...current, [amountField]: value, [returnField]: rate };
+  const sourceEvents = [moneyMetric, returnMetric].map(metric => ({ id: `${kind}:${metric}:2026-10-01`, kind, metric, date: now.date,
+    nodes: [{ key: 'start', point: before }], current: now }));
+  return { id: `earnings:${scope}:${kind}:2026-10-01`, kind, metric: moneyMetric, valueType: 'money', value,
+    title: `${scope === 'annual' ? '年内' : '累计'}收益新${kind === 'low' ? '低' : '高'}`, date: now.date, startDate: before.date,
+    recordMetrics, returnValue: rate, returnField, scopeKeys: [scope], sourceEvents,
+    current: now, points: [before, now], nodes: [{ key: 'start', point: before }, { key: 'current', point: now }] };
+}
+
+test('merged earnings posts show money first and the same-date percentage below it in either currency and color mode', () => {
+  for (const scope of ['annual', 'cumulative']) for (const [kind, value, rate] of [['high', 24000, 30], ['low', -24000, -30]]) {
+    const event = mergedEarnings({ scope, kind, value, rate });
+    const before = JSON.stringify(event);
+    for (const marketColorMode of Object.values(MARKET_COLOR_MODES)) for (const currency of [{ displayCurrency: 'USD' }, { displayCurrency: 'CNY', usdCny: 7.2 }]) {
+      const tree = Post(props(event, { marketColorMode, ...currency }));
+      const primary = byClass(tree, 'rj-system-primary'), companion = byClass(tree, 'rj-system-return');
+      assert.equal(primary.props.children, formatReviewMoney(value, currency));
+      assert.equal(primary.props.style.color, marketHexColor(value, marketColorMode));
+      assert.equal(companion.props.children[0].props.children, `${rate > 0 ? '+' : ''}${rate.toFixed(2)}%`);
+      assert.equal(companion.props.children[0].props.style.color, marketHexColor(rate, marketColorMode));
+      assert.equal(textOf(companion.props.children[1]), `${scope === 'annual' ? '年内' : '累计'}收益率`);
+      const html = renderToStaticMarkup(byClass(tree, 'rj-system-values'));
+      assert.ok(html.indexOf('rj-system-primary') < html.indexOf('rj-system-return'));
+      assert.equal(walk(tree).filter(node => node.type === fixture.TimelineChart).length, 1);
+      assert.equal(walk(tree).find(node => node.type === fixture.TimelineChart).props.event.metric, event.metric);
+      assert.match(byClass(tree, 'rj-timeline-copy').props.children, new RegExp(`金额与收益率同时创新${kind === 'low' ? '低' : '高'}`));
+    }
+    assert.equal(JSON.stringify(event), before);
+  }
+});
+
+test('unsynchronized earnings records compare only the metric that actually broke its record on this close', () => {
+  for (const kind of ['high', 'low']) {
+    const sign = kind === 'high' ? 1 : -1;
+    const returnsOnly = mergedEarnings({ kind, value: 16000, rate: sign * 30, recordMetrics: ['return'] });
+    returnsOnly.sourceEvents[0] = { ...returnsOnly.sourceEvents[0], date: '2026-10-05', nodes: [{ key: 'start', point: { annualPnlUsd: 999999 } }] };
+    returnsOnly.sourceEvents[1].nodes = [{ key: 'start', point: { annualReturnPct: sign * 25 } }];
+    returnsOnly.nodes[0] = { key: 'start', point: { ...peak, annualPnlUsd: 100, annualReturnPct: -80 } };
+    const tree = Post(props(returnsOnly, { displayCurrency: 'CNY', usdCny: 7.2 }));
+    assert.equal(byClass(tree, 'rj-system-primary').props.children, '¥115,200.00');
+    assert.match(byClass(tree, 'rj-timeline-copy').props.children, new RegExp(`收益率创新${kind === 'low' ? '低' : '高'}`));
+    assert.doesNotMatch(byClass(tree, 'rj-timeline-copy').props.children, /金额.*创新|同时/);
+    const secondary = byClass(tree, 'rj-system-secondary');
+    assert.equal(secondary.props.children[0].props.children, `收益率较此前${kind === 'low' ? '低' : '高'}点`);
+    assert.equal(secondary.props.children[1].props.children, `${sign > 0 ? '+' : '-'}5.00 个百分点`);
+    const missingPrior = { ...returnsOnly, sourceEvents: [{ ...returnsOnly.sourceEvents[1], date: '2026-10-05' }] };
+    assert.equal(byClass(Post(props(missingPrior)), 'rj-system-secondary'), undefined, 'an older unrelated return record cannot supply this close’s delta');
+    const amountOnly = mergedEarnings({ kind, value: sign * 24000, rate: 12, recordMetrics: ['amount'] });
+    amountOnly.sourceEvents[0].nodes = [{ key: 'start', point: { annualPnlUsd: sign * 20000 } }];
+    amountOnly.sourceEvents[1] = { ...amountOnly.sourceEvents[1], date: '2026-10-05', nodes: [{ key: 'start', point: { annualReturnPct: 50 } }] };
+    const moneyTree = Post(props(amountOnly, { displayCurrency: 'CNY', usdCny: 7.2 }));
+    assert.match(byClass(moneyTree, 'rj-timeline-copy').props.children, new RegExp(`金额创新${kind === 'low' ? '低' : '高'}`));
+    assert.doesNotMatch(byClass(moneyTree, 'rj-timeline-copy').props.children, /收益率创新|同时/);
+    assert.equal(byClass(moneyTree, 'rj-system-secondary').props.children[1].props.children, `${sign > 0 ? '+' : '-'}¥28,800.00`);
+    assert.equal(byClass(moneyTree, 'rj-system-return').props.children[0].props.children, '+12.00%');
+  }
+});
+
+test('merged cards retain missing values and show combined annual and cumulative scope without duplicating the chart', () => {
+  const event = mergedEarnings();
+  for (const missing of [undefined, null, NaN]) {
+    const tree = Post(props({ ...event, returnValue: missing }));
+    assert.equal(byClass(tree, 'rj-system-return').props.children[0].props.children, '—');
+    assert.equal(byClass(tree, 'rj-system-return').props.children[0].props.style, undefined);
+    assert.equal(byClass(tree, 'rj-system-primary').props.children, '$24,000.00');
+  }
+  const noAmount = Post(props({ ...event, value: null }));
+  assert.equal(byClass(noAmount, 'rj-system-primary').props.children, '—');
+  assert.equal(byClass(noAmount, 'rj-system-return').props.children[0].props.children, '+30.00%');
+  const noFx = Post(props(event, { displayCurrency: 'CNY' }));
+  assert.equal(byClass(noFx, 'rj-system-primary').props.children, '—');
+  assert.equal(byClass(noFx, 'rj-system-return').props.children[0].props.children, '+30.00%');
+  for (const language of ['zh', 'en']) {
+    const combined = Post(props({ ...event, scopeKeys: ['annual', 'cumulative'] }, { language }));
+    assert.equal(byClass(combined, 'rj-system-label').props.children[0].props.children, language === 'en' ? 'Annual · cumulative P&L' : '年内 · 累计收益金额');
+    assert.equal(textOf(byClass(combined, 'rj-system-return').props.children[1]), language === 'en' ? 'Annual · cumulative return' : '年内 · 累计收益率');
+    assert.equal(walk(combined).filter(node => node.type === fixture.TimelineChart).length, 1);
+  }
+  const archived = renderToStaticMarkup(Post(props({ ...event, status: 'archived' })));
+  assert.doesNotMatch(archived, /rj-system-return|rj-system-primary|同时创新/);
+  assert.match(archived, /保留此前写下的评价/);
 });

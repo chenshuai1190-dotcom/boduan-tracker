@@ -1,18 +1,11 @@
+import { dedupeReviewTimelineScopes, groupReviewTimelineEvents, reviewTimelineDisplayCategory, reviewTimelineRawCategory } from './reviewTimelineGroups.js';
+
 const date = value => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)
   && Number.isFinite(Date.parse(`${value}T00:00:00Z`))
   && new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) === value ? value : '';
 
 export function reviewTimelineCategory(event) {
-  if (!event || typeof event !== 'object') return null;
-  if (event.kind === 'high') return ({ net_assets: 'net_assets_high', cumulative_return: 'return_high', cumulative_pnl: 'pnl_high', annual_return: 'annual_return_high', annual_pnl: 'annual_pnl_high' })[event.metric] || null;
-  if (event.kind === 'low') return ({ annual_return: 'annual_return_low', annual_pnl: 'annual_pnl_low' })[event.metric] || null;
-  if (event.kind === 'drawdown') return ({ net_assets: 'drawdown', cumulative_return: 'return_drawdown' })[event.metric] || null;
-  if (event.kind === 'record' && event.metric === 'daily_return') return 'daily_record';
-  if (event.kind === 'period' && event.metric === 'period_return') {
-    const period = event.periodType || /^period:(month|quarter|year):/.exec(event.id || '')?.[1];
-    return ['month', 'quarter', 'year'].includes(period) ? period : null;
-  }
-  return null;
+  return event?.displayCategory || reviewTimelineRawCategory(event);
 }
 
 function eventOriginDate(event) {
@@ -55,25 +48,19 @@ export function mergeReviewTimelineFeed(journalEntries = [], timelineEvents = []
   const term = String(query || '').trim().toLocaleLowerCase();
   const posts = journalEntries.filter(entry => !entry.timelineEvent && entry.type !== 'timeline'
     && (!term || text(entry).toLocaleLowerCase().includes(term)));
-  const enabled = new Set(Array.isArray(preferences?.eventTypes) ? preferences.eventTypes : []);
-  const latest = new Map();
-  if (preferences?.showTimeline === true) {
-    for (const event of timelineEvents) {
-      if (!event?.id) continue;
-      const previous = latest.get(event.id);
-      if (!previous || compareEvents(event, previous) > 0) latest.set(event.id, event);
-    }
-  }
+  const eventTypes = Array.isArray(preferences?.eventTypes) ? preferences.eventTypes : [];
+  const grouped = preferences?.showTimeline === true
+    ? groupReviewTimelineEvents(timelineEvents, { eventTypes, dedupeScopes: false }) : [];
   // Only All is condensed. Keep original events and IDs for the full timeline
   // and its evaluations, and choose the latest before applying text search.
   const branches = new Map();
-  for (const event of latest.values()) {
-    const category = reviewTimelineCategory(event);
-    if (!category || !enabled.has(category) || !reviewTimelineFeedDate(event)) continue;
+  for (const event of grouped) {
+    const category = reviewTimelineDisplayCategory(event);
+    if (!category || !reviewTimelineFeedDate(event)) continue;
     const branch = feedBranch(event, category), previous = branches.get(branch);
     if (!previous || compareEvents(event, previous) > 0) branches.set(branch, event);
   }
-  const projected = [...branches.values()].flatMap(event => {
+  const projected = dedupeReviewTimelineScopes([...branches.values()]).flatMap(event => {
     const feedDate = reviewTimelineFeedDate(event);
     const search = `${event.title || ''} ${feedDate} ${event.date || ''} ${stateWords(event)} ${event.description || ''} ${event.comparisonScope || ''}`;
     if (term && !search.toLocaleLowerCase().includes(term)) return [];

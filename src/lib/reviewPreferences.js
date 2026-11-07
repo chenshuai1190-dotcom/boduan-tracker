@@ -15,9 +15,39 @@ const TYPES = [
 ];
 export const REVIEW_TIMELINE_TYPES = Object.freeze(TYPES.map(([id, label, enLabel, group]) => Object.freeze({ id, label, enLabel, group })));
 const TYPE_IDS = TYPES.map(([id]) => id);
+// Display groups do not change the persisted event-type or cache contract.
+export const REVIEW_TIMELINE_DISPLAY_GROUPS = Object.freeze([
+  ['net_assets_high', ['net_assets_high']],
+  ['cumulative_high', ['return_high', 'pnl_high'], '累计收益新高', 'Cumulative earnings highs'],
+  ['annual_high', ['annual_return_high', 'annual_pnl_high'], '年内收益新高', 'Annual earnings highs'],
+  ['annual_low', ['annual_return_low', 'annual_pnl_low'], '年内收益新低', 'Annual earnings lows'],
+  ['drawdown', ['drawdown']],
+  ['return_drawdown', ['return_drawdown']],
+  ['daily_record', ['daily_record']],
+  ['month', ['month']],
+  ['quarter', ['quarter']],
+  ['year', ['year']],
+].map(([id, eventTypes, label, enLabel]) => {
+  const type = REVIEW_TIMELINE_TYPES.find(type => type.id === eventTypes[0]);
+  return Object.freeze({ id, label: label || type.label, enLabel: enLabel || type.enLabel,
+    group: type.group, eventTypes: Object.freeze(eventTypes) });
+}));
 export const DEFAULT_REVIEW_PREFERENCES = Object.freeze({ showTimeline: true, currency: 'USD', eventTypes: Object.freeze([...TYPE_IDS]) });
 const plain = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const failure = () => Object.assign(new Error('动态显示设置格式无效，请重新选择。'), { code: 'REVIEW_PREFERENCES_INVALID' });
+
+export function isReviewTimelineGroupEnabled(eventTypes, groupId) {
+  const group = REVIEW_TIMELINE_DISPLAY_GROUPS.find(group => group.id === groupId);
+  return Boolean(group && Array.isArray(eventTypes) && group.eventTypes.some(type => eventTypes.includes(type)));
+}
+
+export function setReviewTimelineGroupEnabled(eventTypes, groupId, enabled) {
+  const group = REVIEW_TIMELINE_DISPLAY_GROUPS.find(group => group.id === groupId);
+  if (!group || typeof enabled !== 'boolean') throw failure();
+  const selected = new Set(Array.isArray(eventTypes) ? eventTypes : []);
+  for (const type of group.eventTypes) { if (enabled) selected.add(type); else selected.delete(type); }
+  return TYPE_IDS.filter(type => selected.has(type));
+}
 
 export function normalizeReviewPreferences(value, { strict = false } = {}) {
   if (value == null) { if (strict) throw failure(); return { ...DEFAULT_REVIEW_PREFERENCES, eventTypes: [...TYPE_IDS] }; }

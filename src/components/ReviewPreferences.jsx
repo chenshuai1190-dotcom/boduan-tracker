@@ -1,6 +1,6 @@
 import React from 'react';
 import { Check, Loader2 } from 'lucide-react';
-import { REVIEW_TIMELINE_TYPES } from '../lib/reviewPreferences.js';
+import { REVIEW_TIMELINE_DISPLAY_GROUPS, isReviewTimelineGroupEnabled, setReviewTimelineGroupEnabled } from '../lib/reviewPreferences.js';
 import './ReviewPreferences.css';
 
 const label = (en, zh, english) => en ? english : zh;
@@ -16,7 +16,7 @@ export default function ReviewPreferences({ identityNode, preferences, ready, lo
   const en = language.startsWith('en');
   const disabled = !ready || !canEdit || loading || saving;
   const types = preferences.eventTypes || [];
-  const toggleType = (id, enabled) => onChange({ eventTypes: enabled ? [...types, id] : types.filter(type => type !== id) });
+  const toggleGroup = (id, enabled) => onChange({ eventTypes: setReviewTimelineGroupEnabled(types, id, enabled) });
   return <section className="rjp-settings" aria-label={label(en, '动态设置', 'Feed settings')}>
     <div className="rjp-settings-identity">{identityNode}</div>
     {loading && <p className="rjp-save-state" role="status"><Loader2 size={14} className="rj-spin" />{label(en, '正在读取显示偏好', 'Loading display preferences')}</p>}
@@ -30,7 +30,7 @@ export default function ReviewPreferences({ identityNode, preferences, ready, lo
     <section className="rjp-settings-section" aria-label={label(en, '选择显示的事件', 'Visible event types')}>
       <h2>{label(en, '在“全部”中显示哪些记录', 'Events to show in All')}</h2>
       <p className="rjp-setting-note">{label(en, '仅影响“全部”；完整记录仍可从“时间线”查看。', 'Only changes All. The Timeline tab keeps every event.')}</p>
-      {REVIEW_TIMELINE_TYPES.map(type => <Switch key={type.id} title={en ? type.enLabel : type.label} checked={types.includes(type.id)} disabled={disabled || !preferences.showTimeline} onChange={checked => toggleType(type.id, checked)} />)}
+      {REVIEW_TIMELINE_DISPLAY_GROUPS.map(group => <Switch key={group.id} title={en ? group.enLabel : group.label} checked={isReviewTimelineGroupEnabled(types, group.id)} disabled={disabled || !preferences.showTimeline} onChange={checked => toggleGroup(group.id, checked)} />)}
       {preferences.showTimeline && types.length === 0 && <p className="rjp-setting-note">{label(en, '当前未选择任何事件，“全部”只显示你写的博文。', 'No event types selected. All shows only your posts.')}</p>}
     </section>
     <section className="rjp-settings-section rjp-currency-section" aria-label={label(en, '金额显示币种', 'Display currency')}>

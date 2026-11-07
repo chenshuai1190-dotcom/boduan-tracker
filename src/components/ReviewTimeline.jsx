@@ -2,6 +2,7 @@ import React from 'react';
 import { ArrowDownRight, ArrowUpRight, CalendarDays, ChevronDown, ChevronRight, Flag, History, Info, Loader2, MessageCircle, RefreshCw } from 'lucide-react';
 import { marketHexColor } from '../lib/marketColorMode.js';
 import { normalizeReviewMarketSnapshot } from '../lib/reviewMarketSnapshot.js';
+import { isReviewEarningsEvent, reviewEarningsScope, reviewEarningsRecordLabel } from '../lib/reviewTimelineEarnings.js';
 import { convertReviewMoney, formatReviewMoney, reviewCurrencyNotice, reviewDisplayCurrency } from '../lib/reviewDisplayCurrency.js';
 import { SnapshotCard } from './ReviewMarketSnapshot.jsx';
 import './ReviewTimeline.css';
@@ -71,6 +72,7 @@ function interruptionText(event, en) {
 
 function eventSummary(event, en) {
   if (event.status === 'archived') return event.description || label(en, '来源数据已更新，保留此前写下的评价。', 'Source data changed; your previous reflection is preserved.');
+  if (isReviewEarningsEvent(event)) return reviewEarningsRecordLabel(event, en);
   if (event.kind === 'drawdown') {
     if (event.status === 'interrupted') return interruptionText(event, en);
     const days = finite(event.durationDays) ? ` · ${event.durationDays} ${label(en, '天', 'days')}` : '';
@@ -139,7 +141,8 @@ function TimelineEvent({ event, onSelectEvent, onEvaluate, marketColorMode, lang
       <div className="rjt-event-meta"><time dateTime={event.date}>{shortDate(event.date)}</time>{statusLabel(event, en) && <span className="rjt-status">{statusLabel(event, en)}</span>}</div>
       <button type="button" className="rjt-event-open" aria-label={`${label(en, '查看', 'View ')}${event.title}`} onClick={click => onSelectEvent?.(event.id, click)}>
         <span className="rjt-event-heading"><strong>{event.title}</strong><ChevronRight size={16} /></span>
-        {!archived && <span className="rjt-event-primary"><strong style={numericStyle}>{reading(event, currency)}</strong><span>{event.kind === 'drawdown' ? drawdownLabel(event, en, true) : metricLabel(event.metric, en)}</span></span>}
+        {!archived && <span className={`rjt-event-primary${isReviewEarningsEvent(event) ? ' rjt-earnings-primary' : ''}`}><strong style={numericStyle}>{reading(event, currency)}</strong><span>{event.kind === 'drawdown' ? drawdownLabel(event, en, true) : metricLabel(event.metric, en)}</span></span>}
+        {!archived && isReviewEarningsEvent(event) && <span className="rjt-earnings-return"><strong style={eventStyle(event.returnValue, marketColorMode)}>{percent(event.returnValue)}</strong><span>{reviewEarningsScope(event, en)}{en ? ' return' : '收益率'}</span></span>}
         {summary && <span className="rjt-event-description">{summary}</span>}
         {!archived && event.kind === 'drawdown' && <TimelineChart event={event} marketColorMode={marketColorMode} language={language} {...currency} />}
         {stops.length > 0 && <span className="rjt-three-values">{stops.map(([key, title]) => <span key={key}><span>{shortDate(event[key]?.date)} {title}</span><strong style={isReturnDrawdown(event) ? eventStyle(event[key]?.cumulativeReturnPct, marketColorMode) : undefined}>{pointReading(event, event[key], currency)}</strong></span>)}</span>}
@@ -179,6 +182,13 @@ function TimelineDetail({ event, marketColorMode, entries, stockTrades, onOpenEn
   const nodes = Array.isArray(event.nodes) ? event.nodes.filter(node => node.point) : [];
   const selected = selection?.id === event.id && nodes.find(node => node.key === selection.key) || nodes.at(-1);
   const point = selected?.point || event.current || event.points?.at(-1);
+  // A combined annual/cumulative record may retain an older cumulative-only
+  // milestone. Show that node and its chart in its original scope explicitly.
+  const nodeEvent = isReviewEarningsEvent(event) && !finite(pointValue(event, point))
+    && selected?.sourceNodes?.some(node => node.scopeKey === 'cumulative')
+    ? { ...event, metric: 'cumulative_pnl', returnField: 'cumulativeReturnPct', scopeKeys: ['cumulative'] }
+    : event.scopeKeys?.length > 1 && (point?.annualPnlUsd !== point?.cumulativePnlUsd || point?.annualReturnPct !== point?.cumulativeReturnPct)
+      ? { ...event, scopeKeys: ['annual'] } : event;
   const cycle = event.kind === 'drawdown', returnCycle = isReturnDrawdown(event);
   const returnSeries = isReturnSeries(event), pnlSeries = isPnlSeries(event);
   const currentReading = pointReading(event, event.current, currency);
@@ -200,15 +210,16 @@ function TimelineDetail({ event, marketColorMode, entries, stockTrades, onOpenEn
     <section className="rjt-detail-intro">
       <div className="rjt-detail-eyebrow"><Icon size={17} />{statusLabel(event, en) && <span>{statusLabel(event, en)}</span>}</div>
       <h2>{event.title}</h2><p className="rjt-detail-date"><time dateTime={startDate}>{startDate}</time>{endDate !== startDate && <> — <time dateTime={endDate}>{endDate}</time></>}</p>
-      <div className="rjt-detail-metric"><strong style={directional(event) ? eventStyle(displayValue(event), marketColorMode) : undefined}>{reading(event, currency)}</strong><span>{cycle ? drawdownLabel(event, en, true) : metricLabel(event.metric, en)}</span></div>
+      <div className={`rjt-detail-metric${isReviewEarningsEvent(event) ? ' rjt-earnings-primary' : ''}`}><strong style={directional(event) ? eventStyle(displayValue(event), marketColorMode) : undefined}>{reading(event, currency)}</strong><span>{cycle ? drawdownLabel(event, en, true) : metricLabel(event.metric, en)}</span></div>
+      {isReviewEarningsEvent(event) && <div className="rjt-earnings-return"><strong style={eventStyle(event.returnValue, marketColorMode)}>{percent(event.returnValue)}</strong><span>{reviewEarningsScope(event, en)}{en ? ' return' : '收益率'}</span></div>}
       {cycle ? <div className="rjt-detail-stats"><div><span>{drawdownLabel(event, en)}</span><strong style={eventStyle(event.drawdownPct, marketColorMode)}>{declineReading(event, event.drawdownPct)}</strong></div><div><span>{event.status === 'recovered' ? label(en, '恢复用时', 'Time to recover') : label(en, '距前高', 'Since peak')}</span><strong>{finite(event.durationDays) ? event.durationDays : '—'} <small>{label(en, '天', 'days')}</small></strong></div><div className="rjt-detail-net" style={{ '--rjt-number-units': Math.max(1, currentReading.length * .6) }}><span>{returnCycle ? label(en, '当前收益率', 'Current return') : label(en, '当前净资产', 'Latest net assets')}</span><strong style={returnCycle ? eventStyle(event.current?.cumulativeReturnPct, marketColorMode) : undefined}>{currentReading}</strong></div></div>
         : summary && <p className="rjt-detail-description">{summary}</p>}
       {cycle && event.status === 'interrupted' && <p className="rjt-interrupted"><Info size={15} />{interruptionText(event, en)}</p>}
     </section>
     {currencyNotice && <p className="rjt-currency-note">{currencyNotice}</p>}
-    {(nodes.length > 0 || event.points?.length > 1) && <section className="rjt-chart-section"><div className="rjt-chart-heading"><span>{`${seriesLabel(event, en)}${en ? '' : '走势'} · ${returnSeries ? '%' : currencyInfo.currency}`}</span>{selected && <span>{nodeLabel(selected, en, event)} / {shortDate(point.date)}</span>}</div><TimelineChart event={event} selectedPoint={point} detail marketColorMode={marketColorMode} language={language} {...currency} />
+    {(nodes.length > 0 || event.points?.length > 1) && <section className="rjt-chart-section"><div className="rjt-chart-heading"><span>{`${seriesLabel(nodeEvent, en)}${en ? '' : '走势'} · ${returnSeries ? '%' : currencyInfo.currency}`}</span>{selected && <span>{nodeLabel(selected, en, event)} / {shortDate(point.date)}</span>}</div><TimelineChart event={nodeEvent} selectedPoint={point} detail marketColorMode={marketColorMode} language={language} {...currency} />
       {nodes.length > 0 && <div className="rjt-node-tabs" aria-label={label(en, '关键节点', 'Milestones')}>{nodes.map(node => <button type="button" key={node.key} aria-pressed={node.key === selected?.key} onClick={() => setSelection({ id: event.id, key: node.key })}>{nodeLabel(node, en, event)}<time dateTime={node.point.date}>{shortDate(node.point.date)}</time></button>)}</div>}
-      {point && <div className="rjt-node-detail"><div><span>{selected ? nodeLabel(selected, en, event) : label(en, '账户', 'Account')} · {returnSeries || pnlSeries ? seriesLabel(event, en) : label(en, '收盘净资产', 'Closing net assets')}</span><time dateTime={point.date}>{point.date}</time></div><div className="rjt-node-value"><strong style={returnSeries || pnlSeries ? eventStyle(pointValue(event, point), marketColorMode) : undefined}>{pointReading(event, point, currency)}</strong><span style={eventStyle(selectedDrawdown, marketColorMode)}>{cycle ? declineReading(event, selectedDrawdown) : null}</span></div></div>}
+      {point && <div className="rjt-node-detail"><div><span>{selected ? nodeLabel(selected, en, event) : label(en, '账户', 'Account')} · {returnSeries || pnlSeries ? seriesLabel(nodeEvent, en) : label(en, '收盘净资产', 'Closing net assets')}</span><time dateTime={point.date}>{point.date}</time></div><div className="rjt-node-value"><strong style={returnSeries || pnlSeries ? eventStyle(pointValue(nodeEvent, point), marketColorMode) : undefined}>{pointReading(nodeEvent, point, currency)}</strong><span style={eventStyle(selectedDrawdown, marketColorMode)}>{cycle ? declineReading(event, selectedDrawdown) : null}</span></div>{isReviewEarningsEvent(event) && <div className="rjt-earnings-return"><strong style={eventStyle(point[nodeEvent.returnField], marketColorMode)}>{percent(point[nodeEvent.returnField])}</strong><span>{reviewEarningsScope(nodeEvent, en)}{en ? ' return' : '收益率'}</span></div>}</div>}
     </section>}
     {readings.length > 0 && <section className="rjt-section"><div className="rjt-section-heading"><h3>{label(en, '当时的账户', 'Account at this point')}</h3><time dateTime={point.date}>{point.date}</time></div><div className="rjt-metric-grid">{readings.map(item => <div key={item.key} className={`rjt-metric-${item.key}`} style={{ '--rjt-number-units': Math.max(1, item.text.length * .6) }}><span>{item.title}</span><strong style={item.style}>{item.text}</strong></div>)}</div></section>}
     {savedMarket && <section className="rjt-section rjt-market-section"><SnapshotCard value={savedMarket} language={language} /></section>}

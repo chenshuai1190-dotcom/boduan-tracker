@@ -2,6 +2,7 @@ import React from 'react';
 import { History, MessageCircle } from 'lucide-react';
 import { marketHexColor } from '../lib/marketColorMode.js';
 import { reviewTimelineFeedDate } from '../lib/reviewTimelineFeed.js';
+import { isReviewEarningsEvent, reviewEarningsScope, reviewEarningsRecordLabel } from '../lib/reviewTimelineEarnings.js';
 import { formatReviewMoney, reviewDisplayCurrency } from '../lib/reviewDisplayCurrency.js';
 import { TimelineChart } from './ReviewTimeline.jsx';
 import './ReviewTimelinePost.css';
@@ -16,6 +17,7 @@ const style = (value, mode) => finite(value) && value !== 0 ? { color: marketHex
 
 export function reviewTimelinePostSummary(event, en = false) {
   if (event.status === 'archived') return label(en, '来源数据已更新，保留此前写下的评价。', 'Source data changed; your previous reflection is preserved.');
+  if (isReviewEarningsEvent(event)) return `${event.title} · ${reviewEarningsRecordLabel(event, en)}`;
   if (event.kind === 'drawdown') {
     if (isReturnDrawdown(event)) {
       if (event.status === 'recovered') return label(en, '收益率已回到年内高点，这一轮回落记录完成。', 'The return is back at its yearly high; this decline cycle is complete.');
@@ -53,6 +55,21 @@ function readings(event, currency, en) {
     secondaryTitle: label(en, '本轮最大回撤', 'Maximum drawdown'), secondary: percent(event.maxDrawdownPct), secondaryDirection: event.maxDrawdownPct,
   };
   if (['high', 'low'].includes(event.kind)) {
+    if (isReviewEarningsEvent(event)) {
+      // Compare the metric that actually broke its record on this date. The
+      // large money reading and companion rate always belong to the same close.
+      const amountRecord = event.recordMetrics.includes('amount');
+      const field = amountRecord ? event.metric === 'annual_pnl' ? 'annualPnlUsd' : 'cumulativePnlUsd' : event.returnField;
+      const source = event.sourceEvents?.find(item => item.date === event.date
+        && item.metric === (amountRecord ? event.metric : event.metric === 'annual_pnl' ? 'annual_return' : 'cumulative_return'));
+      const before = source?.nodes?.find(node => node.key === 'start')?.point?.[field];
+      const now = event.current?.[field];
+      const delta = finite(before) && finite(now) ? now - before : null;
+      return { title: `${reviewEarningsScope(event, en)}${en ? ' P&L' : '收益金额'}`,
+        value: formatReviewMoney(event.value, currency), direction: event.value,
+        secondaryTitle: `${amountRecord ? '' : label(en, '收益率', 'Return ')}${event.kind === 'low' ? label(en, '较此前低点', 'below prior low') : label(en, '较此前高点', 'above prior high')}`,
+        secondary: finite(delta) ? amountRecord ? formatReviewMoney(delta, { ...currency, signed: true }) : `${delta > 0 ? '+' : ''}${delta.toFixed(2)} ${label(en, '个百分点', 'pp')}` : '', secondaryDirection: delta };
+    }
     const previous = event.nodes?.find(node => node.key === 'start')?.point || event.points?.[0];
     const titles = { net_assets: label(en, '收盘净资产', 'Closing net assets'), cumulative_return: label(en, '累计收益率', 'Cumulative return'), cumulative_pnl: label(en, '累计盈利金额', 'Cumulative P&L'), annual_return: label(en, '年内收益率', 'Annual return'), annual_pnl: label(en, '年内收益金额', 'Annual P&L') };
     const before = previous?.[{ net_assets: 'netAssetsUsd', cumulative_return: 'cumulativeReturnPct', cumulative_pnl: 'cumulativePnlUsd', annual_return: 'annualReturnPct', annual_pnl: 'annualPnlUsd' }[event.metric]];
@@ -81,6 +98,7 @@ export default function ReviewTimelinePost({ event, avatarNode, authorNode, comm
   const feedDate = reviewTimelineFeedDate(event), archived = event.status === 'archived';
   const returnDrawdown = isReturnDrawdown(event);
   const extrema = ['high', 'low'].includes(event.kind);
+  const earnings = isReviewEarningsEvent(event);
   const percentChart = returnDrawdown || extrema && ['cumulative_return', 'annual_return'].includes(event.metric);
   const field = (extrema || returnDrawdown) && ({ cumulative_return: 'cumulativeReturnPct', cumulative_pnl: 'cumulativePnlUsd', annual_return: 'annualReturnPct', annual_pnl: 'annualPnlUsd' })[event.metric];
   const metric = readings(event, currency, en);
@@ -105,8 +123,9 @@ export default function ReviewTimelinePost({ event, avatarNode, authorNode, comm
     {avatarNode}<div className="rj-post-main">
       <div className="rj-post-heading rj-timeline-byline">{authorNode}<span>·</span><time dateTime={feedDate}>{shortDate(feedDate, en)}</time><span className="rj-auto-label"><History size={11} />{label(en, '自动记录', 'Automatic')}</span></div>
       <p className="rj-post-text rj-timeline-copy">{reviewTimelinePostSummary(event, en)}</p>
-      {!archived && <div className="rj-system-summary"><div className="rj-system-label"><span>{metric.title}</span>{status && <span className="rj-system-status">{status}</span>}</div>
+      {!archived && <div className={`rj-system-summary${earnings ? ' rj-system-earnings' : ''}`}><div className="rj-system-label"><span>{metric.title}</span>{status && <span className="rj-system-status">{status}</span>}</div>
         <div className="rj-system-values"><strong className="rj-system-primary" style={style(metric.direction, marketColorMode)}>{metric.value}</strong>
+          {earnings && <div className="rj-system-return"><strong style={style(event.returnValue, marketColorMode)}>{percent(event.returnValue)}</strong><span>{reviewEarningsScope(event, en)}{en ? ' return' : '收益率'}</span></div>}
           {metric.secondary && <div className="rj-system-secondary"><span>{metric.secondaryTitle}</span><strong style={style(metric.secondaryDirection, marketColorMode)}>{metric.secondary}</strong></div>}
         </div>
         {showChart && <TimelineChart event={event} marketColorMode={marketColorMode} language={language} {...currency} />}
