@@ -170,6 +170,27 @@ const changeReply = (f, mode, original = originalReply(), replacement = { ...ori
   ? f.repository.updateReply(f.input(), original, replacement, USER)
   : f.repository.removeReply(f.input(), original, USER);
 
+test('year peak account references survive append retries and later comment edits without recalculation', async () => {
+  const account = { version: 1, kind: 'account_snapshot', basis: 'close', source: 'pnl_report',
+    asOfDate: '2026-11-05', recordDate: '2026-11-06', items: [
+      { key: 'cumulativeReturnPct', value: 20 },
+      { key: 'yearPeakReturnPct', value: 30, peakDate: '2026-10-23' },
+      { key: 'declineFromYearPeakPp', value: 10, peakDate: '2026-10-23' },
+    ].map(item => ({ ...item, asOfDate: '2026-11-05', basis: 'close', source: 'pnl_report' })) };
+  for (const type of ['log', 'insight']) {
+    const f = fixture({ type });
+    const input = reply({ account });
+    const saved = await f.repository.appendReply(f.input(), input, USER);
+    const retried = await f.repository.appendReply(f.input(), input, USER);
+    assert.equal(retried.replies.length, 2);
+    assert.equal(retried.revision, saved.revision);
+    const original = saved.replies.find(item => item.id === input.id);
+    const edited = await f.repository.updateReply(f.input(), original, { ...original, text: '新的评价，保留当时高点' }, USER);
+    assert.deepEqual(edited.replies.find(item => item.id === input.id).account, account);
+    assert.equal(f.operations.filter(operation => operation.action === 'update').length, 2);
+  }
+});
+
 test('updating one reply rebases on latest entry, preserves immutable identity and unknown snapshot metadata', async () => {
   for (const type of ['log', 'insight']) {
     const initial = record(type);

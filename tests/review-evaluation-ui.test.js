@@ -314,3 +314,105 @@ test('account picker distinguishes an incomplete close from a historical rebuild
     h.cleanup();
   }
 });
+
+const accountSnapshot = (overrides = {}) => ({
+  version: 1, kind: 'account_snapshot', asOfDate: '2026-11-05', recordDate: '2026-11-05', basis: 'close', source: 'pnl_report',
+  items: [['cumulativeReturnPct', 20], ['yearPeakReturnPct', 30], ['declineFromYearPeakPp', 10], ['dailyReturnPct', -1.2], ['leverage', 1.28]]
+    .map(([key, value]) => ({ key, value, asOfDate: '2026-11-05', basis: 'close', source: 'pnl_report',
+      ...(['yearPeakReturnPct', 'declineFromYearPeakPp'].includes(key) ? { peakDate: '2026-10-23' } : {}) })),
+  ...overrides,
+});
+const accountMetric = (tree, key) => find(tree, node => node.props['data-metric'] === key);
+
+test('account cards pair the year high and percentage-point decline, date the high and follow both market color modes', async () => {
+  const h = await harness();
+  for (const [mode, positive, negative] of [['greenUpRedDown', '#34d399', '#ff4b1f'], ['redUpGreenDown', '#ff4b1f', '#34d399']]) {
+    const card = h.components.ReviewAccountCard({ value: accountSnapshot(), marketColorMode: mode });
+    assert.deepEqual(walk(card).filter(node => node.props['data-metric']).map(node => node.props['data-metric']),
+      ['cumulativeReturnPct', 'yearPeakReturnPct', 'declineFromYearPeakPp', 'dailyReturnPct', 'leverage']);
+    assert.equal(accountMetric(card, 'cumulativeReturnPct').props.className, 'rev-account-primary');
+    assert.match(text(accountMetric(card, 'yearPeakReturnPct')), /年内收益率高点\+30\.00%10月23日/);
+    assert.match(text(accountMetric(card, 'declineFromYearPeakPp')), /较高点回落10\.00 个百分点/);
+    assert.doesNotMatch(text(accountMetric(card, 'declineFromYearPeakPp')), /%/);
+    assert.equal(find(accountMetric(card, 'yearPeakReturnPct'), node => node.type === 'time').props.dateTime, '2026-10-23');
+    for (const key of ['cumulativeReturnPct', 'yearPeakReturnPct']) assert.equal(find(accountMetric(card, key), node => node.type === 'strong').props.style.color, positive);
+    for (const key of ['declineFromYearPeakPp', 'dailyReturnPct']) assert.equal(find(accountMetric(card, key), node => node.type === 'strong').props.style.color, negative);
+    assert.equal(find(accountMetric(card, 'leverage'), node => node.type === 'strong').props.style, undefined);
+  }
+  h.cleanup();
+});
+
+test('zero decline remains neutral and legacy cards retain only their frozen three metrics', async () => {
+  const h = await harness();
+  const atPeak = accountSnapshot();
+  atPeak.items.find(item => item.key === 'yearPeakReturnPct').value = 20;
+  atPeak.items.find(item => item.key === 'declineFromYearPeakPp').value = 0;
+  for (const mode of ['greenUpRedDown', 'redUpGreenDown']) {
+    const card = h.components.ReviewAccountCard({ value: atPeak, marketColorMode: mode });
+    const decline = accountMetric(card, 'declineFromYearPeakPp');
+    assert.match(text(decline), /0\.00 个百分点/);
+    assert.equal(find(decline, node => node.type === 'strong').props.style, undefined);
+  }
+  const legacy = accountSnapshot(); legacy.items = legacy.items.filter(item => !item.peakDate);
+  const frozen = structuredClone(legacy), card = h.components.ReviewAccountCard({ value: legacy, marketColorMode: 'greenUpRedDown' });
+  assert.deepEqual(walk(card).filter(node => node.props['data-metric']).map(node => node.props['data-metric']),
+    ['cumulativeReturnPct', 'dailyReturnPct', 'leverage']);
+  assert.doesNotMatch(text(card), /年内收益率高点|较高点回落/); assert.deepEqual(legacy, frozen);
+  h.cleanup();
+});
+
+test('account picker selects all five available metrics and saves the peak date and percentage-point units unchanged', async () => {
+  const h = await harness(), source = accountSnapshot(), requests = []; let inserted;
+  const props = { value: null, initialDate: '2026-11-05', recordDate: '2026-11-06', userId: 'owner',
+    db: { async fetchReviewAccountSnapshot(date, owner) { requests.push([date, owner]); return { status: 'ready', snapshot: source }; } },
+    onChange(value) { inserted = value; }, onClose() {}, marketColorMode: 'greenUpRedDown' };
+  h.renderAccount(props); await Promise.resolve(); const tree = h.renderAccount(props);
+  const options = walk(tree).filter(node => node.props.className === 'rev-account-option');
+  assert.equal(options.length, 5);
+  assert.ok(options.every(option => find(option, node => node.type === 'input').props.checked));
+  assert.ok(options.every(option => !find(option, node => node.type === 'input').props.disabled));
+  assert.equal(button(tree, '插入').props.disabled, false); button(tree, '插入').props.onClick();
+  assert.deepEqual(inserted, { ...source, recordDate: '2026-11-06' });
+  source.items[1].value = 99;
+  assert.equal(inserted.items[1].value, 30, 'inserted references must not retain the source objects');
+  assert.deepEqual(requests, [['2026-11-05', 'owner']]); h.cleanup();
+});
+
+test('missing year history disables only its two metrics and retains independently available daily values', async () => {
+  const h = await harness(), source = accountSnapshot(); source.items = source.items.filter(item => !item.peakDate);
+  const props = { value: null, initialDate: source.asOfDate, recordDate: source.recordDate, userId: 'owner',
+    db: { async fetchReviewAccountSnapshot() { return { status: 'ready', snapshot: source, missingKeys: ['yearPeakReturnPct', 'declineFromYearPeakPp'] }; } }, onChange() {}, onClose() {} };
+  h.renderAccount(props); await Promise.resolve(); const tree = h.renderAccount(props);
+  for (const name of ['年内收益率高点', '较高点回落']) {
+    const option = find(tree, node => node.props.className === 'rev-account-option' && text(node).includes(name));
+    assert.equal(find(option, node => node.type === 'input').props.disabled, true);
+    assert.match(text(option), /—/);
+  }
+  assert.match(text(tree), /年内历史收盘数据不完整/);
+  assert.equal(button(tree, '插入').props.disabled, false); h.cleanup();
+});
+
+test('the account picker is anchored to the blog date and blocks future queries and inserts even if the date field is bypassed', async () => {
+  const h = await harness({ reply: savedReview() });
+  h.props.entry.date = '2026-09-01'; let tree = h.render();
+  button(tree, '账户').props.onClick(); tree = h.render();
+  const picker = find(tree, node => node.type === h.components.AccountPicker);
+  assert.equal(picker.props.initialDate, '2026-09-01'); assert.equal(picker.props.recordDate, '2026-09-01');
+  assert.deepEqual(picker.props.value, savedReview().account, 'opening the picker must not rewrite a previously saved later snapshot');
+  h.cleanup();
+
+  const p = await harness(), requests = []; let inserts = 0;
+  const future = accountSnapshot();
+  const props = { value: future, initialDate: '2026-10-06', recordDate: '2026-10-06', userId: 'owner',
+    db: { async fetchReviewAccountSnapshot(date) { requests.push(date); return { status: 'missing', snapshot: null }; } },
+    onChange() { inserts++; }, onClose() {} };
+  let dialog = p.renderAccount(props); await Promise.resolve(); dialog = p.renderAccount(props);
+  const dateInput = find(dialog, node => node.type === 'input' && node.props.type === 'date');
+  assert.equal(dateInput.props.value, '2026-10-06'); assert.equal(dateInput.props.max, '2026-10-06');
+  assert.deepEqual(requests, ['2026-10-06']);
+  dateInput.props.onChange({ target: { value: '2026-11-05' } });
+  dialog = p.renderAccount(props); await Promise.resolve(); dialog = p.renderAccount(props);
+  assert.equal(button(dialog, '插入').props.disabled, true); button(dialog, '插入').props.onClick();
+  assert.equal(inserts, 0); assert.deepEqual(requests, ['2026-10-06']);
+  assert.equal(future.asOfDate, '2026-11-05'); p.cleanup();
+});

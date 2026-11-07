@@ -4,7 +4,8 @@ const plainObject = value => value !== null && typeof value === 'object' && !Arr
   && (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null);
 const finite = value => typeof value === 'number' && Number.isFinite(value);
 const positive = value => finite(value) && value > 0;
-const accountKeys = ['cumulativeReturnPct', 'dailyReturnPct', 'leverage'];
+const accountKeys = ['cumulativeReturnPct', 'yearPeakReturnPct', 'declineFromYearPeakPp', 'dailyReturnPct', 'leverage'];
+const peakKeys = ['yearPeakReturnPct', 'declineFromYearPeakPp'];
 const validTimestamp = value => typeof value === 'string'
   && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(value)
   && validDate(value.slice(0, 10)) && Number.isFinite(Date.parse(value));
@@ -78,14 +79,33 @@ export function normalizeReviewAccountSnapshot(value, { strict = false } = {}) {
     || !Array.isArray(value.items) || !value.items.length || value.items.length > accountKeys.length) return reject();
   const items = [], seen = new Set();
   for (const item of value.items) {
+    const isPeak = peakKeys.includes(item?.key);
     if (!plainObject(item) || !accountKeys.includes(item.key) || seen.has(item.key)
       || item.asOfDate !== value.asOfDate || item.basis !== 'close' || item.source !== 'pnl_report'
-      || !finite(item.value) || (item.key === 'leverage' && !positive(item.value))) {
+      || !finite(item.value) || (item.key === 'leverage' && !positive(item.value))
+      || (isPeak && (!validDate(item.peakDate) || item.peakDate > value.asOfDate
+        || item.peakDate.slice(0, 4) !== value.asOfDate.slice(0, 4)))
+      || (item.key === 'declineFromYearPeakPp' && item.value < 0)) {
       reject();
       continue;
     }
     seen.add(item.key);
-    items.push({ key: item.key, value: item.value, asOfDate: value.asOfDate, basis: 'close', source: 'pnl_report' });
+    items.push({ key: item.key, value: item.value, asOfDate: value.asOfDate, basis: 'close', source: 'pnl_report',
+      ...(isPeak ? { peakDate: item.peakDate } : {}) });
+  }
+  const current = items.find(item => item.key === 'cumulativeReturnPct');
+  const peak = items.find(item => item.key === 'yearPeakReturnPct');
+  const decline = items.find(item => item.key === 'declineFromYearPeakPp');
+  // Selected metrics may be saved independently. When all facts are supplied,
+  // preserve their percentage-point meaning and reject contradictory references.
+  const tolerance = 1e-8;
+  if ((peak && decline && peak.peakDate !== decline.peakDate)
+    || (current && peak && peak.value + tolerance < current.value)
+    || (current && peak && decline && Math.abs(peak.value - current.value - decline.value) > tolerance)) {
+    reject();
+    for (let index = items.length - 1; index >= 0; index--) {
+      if (peakKeys.includes(items[index].key)) items.splice(index, 1);
+    }
   }
   if (!items.length) return null;
   items.sort((a, b) => accountKeys.indexOf(a.key) - accountKeys.indexOf(b.key));

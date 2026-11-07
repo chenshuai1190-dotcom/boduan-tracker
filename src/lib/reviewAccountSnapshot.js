@@ -3,8 +3,10 @@ import { normalizeReviewAccountSnapshot } from './reviewEvaluationModel.js';
 
 const SOURCE_VERSION = 'pnl_snapshot_v2';
 const SNAPSHOT_FIELDS = 'id,user_id,snapshot_date,currency,cumulative_pnl_pct,daily_pnl_pct,market_value_usd,total_assets_usd,net_assets_usd,cash_usd,cash_event_id,cash_effective_at,cash_basis,margin_debt_usd,margin_debt_event_id,margin_debt_effective_at,margin_debt_basis,source_version,locked_at,updated_at';
+const HISTORY_FIELDS = 'id,user_id,snapshot_date,currency,cumulative_pnl_pct,source_version,locked_at,updated_at';
 const STATE_FIELDS = 'user_id,dirty_from_date,ledger_revision,generation,updated_at';
-const KEYS = ['cumulativeReturnPct', 'dailyReturnPct', 'leverage'];
+const KEYS = ['cumulativeReturnPct', 'dailyReturnPct', 'leverage', 'yearPeakReturnPct', 'declineFromYearPeakPp'];
+const HISTORY_LIMIT = 370;
 const fail = (code, message) => Object.assign(new Error(message), { code });
 const empty = (status, reason = status) => ({ status, reason, snapshot: null });
 const dateKey = value => {
@@ -39,6 +41,51 @@ function eventAtCutoff(value, date) {
   return local.date < date || (local.date === date && local.seconds <= 17 * 3600);
 }
 const closeEnough = (a, b) => Math.abs(a - b) <= Math.max(0.000002, Math.max(Math.abs(a), Math.abs(b)) * 1e-10);
+const isSession = date => ![0, 6].includes(new Date(`${date}T00:00:00Z`).getUTCDay()) && !isRegularNyseHoliday(date);
+
+function isVerifiedSnapshot(row, date, current) {
+  const lockedAt = timestamp(row?.locked_at), updatedAt = timestamp(row?.updated_at);
+  return row?.snapshot_date === date && row.currency === 'USD' && row.source_version === SOURCE_VERSION
+    && typeof row.id === 'string' && Boolean(row.id.trim()) && lockedAt !== null && lockedAt <= current
+    && afterCutoff(lockedAt, date) && updatedAt !== null && updatedAt <= current;
+}
+
+/** A peak is available only for a complete year-to-date series of verified closes. */
+function yearPeakItems(history, selected, date, current, expectedUserId) {
+  if (!Array.isArray(history) || !history.length || history.length > HISTORY_LIMIT) return [];
+  const start = `${date.slice(0, 4)}-01-01`;
+  const byDate = new Map();
+  for (const row of history) {
+    if (row?.user_id !== expectedUserId) throw fail('REVIEW_ACCOUNT_CHANGED', '账户数据不匹配，请重新打开评价。');
+    const day = row.snapshot_date, value = number(row.cumulative_pnl_pct);
+    if (!dateKey(day) || day < start || day > date || !isSession(day) || byDate.has(day)
+      || !isVerifiedSnapshot(row, day, current) || value === null || !Number.isFinite(value * 100)) return [];
+    byDate.set(day, row);
+  }
+  const endTime = Date.parse(`${date}T00:00:00Z`);
+  for (const cursor = new Date(`${start}T00:00:00Z`); cursor.getTime() <= endTime; cursor.setUTCDate(cursor.getUTCDate() + 1)) {
+    const day = cursor.toISOString().slice(0, 10);
+    if (isSession(day) && !byDate.has(day)) return [];
+  }
+  const selectedHistory = byDate.get(date);
+  const selectedValue = number(selected.cumulative_pnl_pct);
+  if (!selectedHistory || selectedValue === null || selectedHistory.id !== selected.id
+    || selectedHistory.updated_at !== selected.updated_at || selectedHistory.locked_at !== selected.locked_at
+    || number(selectedHistory.cumulative_pnl_pct) !== selectedValue) return [];
+  let peak = null;
+  for (const row of byDate.values()) {
+    const value = number(row.cumulative_pnl_pct);
+    if (!peak || value > peak.value || (value === peak.value && row.snapshot_date > peak.date)) {
+      peak = { value, date: row.snapshot_date };
+    }
+  }
+  const peakPct = peak.value * 100;
+  const declinePp = Math.max(0, (peak.value - selectedValue) * 100);
+  if (!Number.isFinite(declinePp)) return [];
+  return [['yearPeakReturnPct', peakPct], ['declineFromYearPeakPp', declinePp]].map(([key, value]) => ({
+    key, value, peakDate: peak.date, asOfDate: date, basis: 'close', source: 'pnl_report',
+  }));
+}
 
 function historicalLeverage(row, date) {
   const total = number(row.total_assets_usd), net = number(row.net_assets_usd);
@@ -77,7 +124,7 @@ export function createReviewAccountSnapshotLoader(client, { now = () => Date.now
     if (!dateKey(date)) return empty('invalid_date');
     const current = Number(now());
     if (!Number.isFinite(current) || !Number.isFinite(new Date(current).getTime())) throw fail('REVIEW_CLOCK_INVALID', '无法确认当前日期。');
-    if ([0, 6].includes(new Date(`${date}T00:00:00Z`).getUTCDay()) || isRegularNyseHoliday(date)) return empty('not_session');
+    if (!isSession(date)) return empty('not_session');
     if (!afterCutoff(current, date)) return empty('pending', 'incomplete_close');
     await authenticate(expectedUserId);
     const controller = new AbortController();
@@ -91,6 +138,15 @@ export function createReviewAccountSnapshotLoader(client, { now = () => Date.now
       if (result.error) throw result.error;
       return result.data;
     };
+    const readYear = async () => {
+      let query = client.from('pnl_report_snapshots').select(HISTORY_FIELDS).eq('user_id', expectedUserId)
+        .gte('snapshot_date', `${date.slice(0, 4)}-01-01`).lte('snapshot_date', date)
+        .order('snapshot_date', { ascending: true }).limit(HISTORY_LIMIT);
+      if (typeof query.abortSignal === 'function') query = query.abortSignal(controller.signal);
+      const result = await query;
+      if (result.error) throw result.error;
+      return result.data;
+    };
     try {
       const before = await read('pnl_report_rebuild_state', STATE_FIELDS);
       const beforeKey = stateFingerprint(before, expectedUserId);
@@ -99,21 +155,21 @@ export function createReviewAccountSnapshotLoader(client, { now = () => Date.now
       else if (before?.dirty_from_date && before.dirty_from_date <= date) result = empty('pending', 'rebuilding');
       else {
         const row = await read('pnl_report_snapshots', SNAPSHOT_FIELDS, date);
+        if (row && row.user_id !== expectedUserId) throw fail('REVIEW_ACCOUNT_CHANGED', '账户数据不匹配，请重新打开评价。');
+        const rowVerified = isVerifiedSnapshot(row, date, current);
+        const history = rowVerified && number(row.cumulative_pnl_pct) !== null ? await readYear() : [];
         const after = await read('pnl_report_rebuild_state', STATE_FIELDS);
         const afterKey = stateFingerprint(after, expectedUserId);
         if (afterKey === null) result = empty('unavailable', 'invalid_rebuild_state');
         else if (beforeKey !== afterKey || (after?.dirty_from_date && after.dirty_from_date <= date)) result = empty('pending', 'rebuilding');
         else if (!row) result = empty('missing');
         else {
-          if (row.user_id !== expectedUserId) throw fail('REVIEW_ACCOUNT_CHANGED', '账户数据不匹配，请重新打开评价。');
-          const lockedAt = timestamp(row.locked_at), updatedAt = timestamp(row.updated_at);
-          if (row.snapshot_date !== date || row.currency !== 'USD' || row.source_version !== SOURCE_VERSION
-            || typeof row.id !== 'string' || !row.id.trim() || lockedAt === null || lockedAt > current
-            || !afterCutoff(lockedAt, date) || updatedAt === null || updatedAt > current) result = empty('unavailable', 'invalid_snapshot');
+          if (!rowVerified) result = empty('unavailable', 'invalid_snapshot');
           else {
             const values = [number(row.cumulative_pnl_pct), number(row.daily_pnl_pct), historicalLeverage(row, date)];
             const items = values.flatMap((value, index) => value === null || !Number.isFinite(index < 2 ? value * 100 : value)
               ? [] : [{ key: KEYS[index], value: index < 2 ? value * 100 : value, asOfDate: date, basis: 'close', source: 'pnl_report' }]);
+            items.push(...yearPeakItems(history, row, date, current, expectedUserId));
             const snapshot = items.length ? normalizeReviewAccountSnapshot({ version: 1, kind: 'account_snapshot', asOfDate: date,
               recordDate: date, basis: 'close', source: 'pnl_report', items, sourceSnapshotId: row.id,
               sourceVersion: row.source_version, sourceUpdatedAt: row.updated_at, lockedAt: row.locked_at,

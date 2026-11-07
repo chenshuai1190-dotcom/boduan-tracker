@@ -3,6 +3,11 @@ import { CURRENT_RELEASE } from './releaseMeta.js';
 export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
+    items: ['账户快照新增截至博文日期的年内收益率高点、高点日期及较高点回落（百分点），按手机双列排版；历史不完整时不补算，已保存快照保持原值。'],
+    itemsEn: ['Account snapshots now show the year-to-date high of cumulative return, its date, and the decline in percentage points as of the journal date, in a mobile two-column layout. Incomplete history stays unavailable and saved snapshots remain fixed.'],
+  },
+  {
+    ver: 'v10.7.9.581', date: '2026-11-07',
     items: ['移除博文详情“写评价”上方分割线，并将投资复盘模块其余分割线统一调细、调淡。'],
     itemsEn: ['Removed the divider above Write review and made the remaining Investment Journal separators thinner and softer.'],
   },

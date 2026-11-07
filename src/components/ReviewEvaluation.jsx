@@ -11,9 +11,14 @@ import { keepReviewComposerInputVisible } from '../lib/reviewComposerVisibility.
 import './ReviewEvaluation.css';
 
 const PRESET_TAGS = ['仓位过重', '买入过急', '过早卖出', '按计划执行', '判断得到验证'];
-const ACCOUNT_LABELS = { cumulativeReturnPct: '截至该日累计收益率', dailyReturnPct: '当日收益率', leverage: '杠杆' };
+const ACCOUNT_LABELS = { cumulativeReturnPct: '截至该日累计收益率', yearPeakReturnPct: '年内收益率高点', declineFromYearPeakPp: '较高点回落', dailyReturnPct: '当日收益率', leverage: '杠杆' };
 const money = value => `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-const formatMetric = item => item.key === 'leverage' ? `${item.value.toFixed(2)}×` : `${item.value > 0 ? '+' : ''}${item.value.toFixed(2)}%`;
+const formatMetric = item => item.key === 'leverage' ? `${item.value.toFixed(2)}×`
+  : item.key === 'declineFromYearPeakPp' ? <>{item.value.toFixed(2)}<span className="rev-metric-unit"> 个百分点</span></>
+  : `${item.value > 0 ? '+' : ''}${item.value.toFixed(2)}%`;
+const metricStyle = (item, marketColorMode) => !item || item.key === 'leverage'
+  || (item.key === 'declineFromYearPeakPp' && item.value === 0) ? undefined
+  : { color: marketTextHexColor(item.key === 'declineFromYearPeakPp' ? -item.value : item.value, marketColorMode) };
 const blank = () => ({ id: crypto.randomUUID(), date: localReviewDate(), text: '', score: null, tags: [], trades: [], account: null, market: null, images: [], stocks: [], mood: '' });
 const initialDraft = reply => {
   const value = reply ? structuredClone(reply) : {};
@@ -30,7 +35,9 @@ function RatingStar({ fill }) {
 export function ReviewAccountCard({ value, marketColorMode }) {
   const snapshot = normalizeReviewAccountSnapshot(value);
   if (!snapshot) return null;
-  return <section className="review-market-card rev-account-card" aria-label="已保存的账户快照"><div className="review-market-card-heading"><span>当时的账户</span><time dateTime={snapshot.asOfDate}>{snapshot.asOfDate}</time></div><div className="rev-account-values" data-count={snapshot.items.length}>{snapshot.items.map(item => <div key={item.key}><span>{ACCOUNT_LABELS[item.key]}</span><strong style={item.key !== 'leverage' ? { color: marketTextHexColor(item.value,marketColorMode) } : undefined}>{formatMetric(item)}</strong>{item.key === 'leverage' && <small>总资产 / 净资产</small>}</div>)}</div></section>;
+  const keys = Object.keys(ACCOUNT_LABELS);
+  const items = [...snapshot.items].sort((a,b)=>keys.indexOf(a.key)-keys.indexOf(b.key));
+  return <section className="review-market-card rev-account-card" aria-label="已保存的账户快照"><div className="review-market-card-heading"><span>当时的账户</span><time dateTime={snapshot.asOfDate}>{snapshot.asOfDate}</time></div><div className="rev-account-values" data-count={items.length}>{items.map(item => <div key={item.key} data-metric={item.key} className={item.key === 'cumulativeReturnPct' ? 'rev-account-primary' : undefined}><span>{ACCOUNT_LABELS[item.key]}</span><strong style={metricStyle(item,marketColorMode)}>{formatMetric(item)}</strong>{item.key === 'yearPeakReturnPct' && <small><time dateTime={item.peakDate}>{Number(item.peakDate.slice(5,7))}月{Number(item.peakDate.slice(8,10))}日</time></small>}{item.key === 'leverage' && <small>总资产 / 净资产</small>}</div>)}</div></section>;
 }
 export function ReviewTradeReferences({ trades, userId, language, previewHistory }) {
   const [open, setOpen] = React.useState(null);
@@ -53,22 +60,25 @@ function TradePicker({ selected, stockTrades, userId, onChange, onClose, Dialog,
   return <Dialog title="关联交易" onClose={onClose} headerAction={<button className="rj-text-button" onClick={()=>{onChange(chosen);onClose();}}>插入{chosen.length?` ${chosen.length} 笔`:''}</button>}><div className="rj-dialog-body"><input className="rev-search" aria-label="搜索交易代码或日期" placeholder="股票代码或日期" value={query} onChange={e=>setQuery(e.target.value)}/><div className="rj-chip-row">{[['all','全部'],['buy','买入'],['sell','卖出']].map(([id,label])=><button key={id} aria-pressed={side===id} onClick={()=>setSide(id)}>{label}</button>)}</div><p className="rj-note">引用已记录的成交，最多 20 笔。</p>{visible.map(row=><button type="button" className="rev-trade-choice" key={row.id} aria-pressed={chosen.some(item=>item.id===row.id)} onClick={()=>toggle(row)} disabled={chosen.length>=20&&!chosen.some(item=>item.id===row.id)}><span><strong>{row.symbol} <em className={`rev-side-${row.side}`}>{row.side==='buy'?'买入':'卖出'}</em></strong><small>{row.date} · {row.shares.toLocaleString()} 股</small></span><strong>{money(row.price)}</strong><span className="rev-check">{chosen.some(item=>item.id===row.id)&&<Check size={14}/>}</span></button>)}{!visible.length&&<p className="rj-note">没有符合条件的交易记录。</p>}</div></Dialog>;
 }
 function AccountPicker({ value, initialDate, recordDate, db, userId, preview, previewAccount, onChange, onClose, Dialog, marketColorMode }) {
-  const [date,setDate]=React.useState(value?.asOfDate||initialDate);
+  const [date,setDate]=React.useState(value?.asOfDate&&value.asOfDate<=recordDate?value.asOfDate:initialDate>recordDate?recordDate:initialDate);
   const [selected,setSelected]=React.useState(value?.items?.map(item=>item.key)||Object.keys(ACCOUNT_LABELS));
   const [request,setRequest]=React.useState({date:null,status:'loading',snapshot:null});
   const [retry,setRetry]=React.useState(0);
-  React.useEffect(()=>{let active=true;setRequest({date,status:'loading',snapshot:null});
+  React.useEffect(()=>{let active=true;
+    if(!date||date>recordDate){setRequest({date,status:'invalid_date',snapshot:null});return()=>{active=false;};}
+    setRequest({date,status:'loading',snapshot:null});
     const load=preview?Promise.resolve(previewAccount?.[date]?{status:'ready',snapshot:previewAccount[date]}:{status:'missing',snapshot:null}):db.fetchReviewAccountSnapshot(date,userId);
     load.then(result=>{if(active)setRequest({...result,date});}).catch(error=>{if(active)setRequest({date,status:'error',snapshot:null,error:error.message});});
     return()=>{active=false;};
-  },[date,userId,db,preview,previewAccount,retry]);
+  },[date,recordDate,userId,db,preview,previewAccount,retry]);
   const result=request.date===date?request:{status:'loading'};
   const snapshot=result.status==='ready'?normalizeReviewAccountSnapshot(result.snapshot):null;
   const items=snapshot?.items.filter(item=>selected.includes(item.key))||[];
-  const chosen=items.length?{...snapshot,recordDate,items}:null;
+  const chosen=items.length&&date&&date<=recordDate?{...snapshot,recordDate,items}:null;
+  const missingYearHistory=snapshot&&!snapshot.items.some(item=>item.key==='yearPeakReturnPct');
   const messageStatus=result.reason==='incomplete_close'?'incomplete_close':result.status;
   const messages={loading:'正在读取该日账户…',missing:'该日没有可用的正式账户快照。',pending:'该日历史数据待更新，暂不能引用。',incomplete_close:'该日尚未完成收盘。',invalid_date:'请选择有效的已完成收盘日期。',error:result.error||'暂时无法读取，请重试。'};
-  return <Dialog title="插入账户快照" onClose={onClose} headerAction={<button className="rj-text-button" disabled={!chosen} onClick={()=>{onChange(chosen);onClose();}}>插入</button>}><div className="rj-dialog-body"><label className="rev-date-label">来源日期<input type="date" value={date} max={recordDate} onChange={e=>setDate(e.target.value)}/></label><p className="rj-note">选择对应日期的正式收盘数据，保存后保持不变。</p>{!snapshot&&<p className="rj-note" role="status">{messages[messageStatus]||'该日数据不可用。'}</p>}{Object.entries(ACCOUNT_LABELS).map(([key,label])=>{const item=snapshot?.items.find(row=>row.key===key);return <label className="rev-account-option" key={key}><input type="checkbox" checked={Boolean(item&&selected.includes(key))} disabled={!item} onChange={()=>setSelected(old=>old.includes(key)?old.filter(k=>k!==key):[...old,key])}/><span>{label}{key==='leverage'&&!item&&<small>需完整历史现金及负债记录</small>}</span><strong style={item&&key!=='leverage'?{color:marketTextHexColor(item.value,marketColorMode)}:undefined}>{item?formatMetric(item):'—'}</strong></label>;})}{['error','pending'].includes(messageStatus)&&<button className="rj-wide-button" onClick={()=>setRetry(n=>n+1)}>重新读取</button>}{chosen&&<ReviewAccountCard value={chosen} marketColorMode={marketColorMode}/>}</div></Dialog>;
+  return <Dialog title="插入账户快照" onClose={onClose} headerAction={<button className="rj-text-button" disabled={!chosen} onClick={()=>{if(!chosen)return;onChange(chosen);onClose();}}>插入</button>}><div className="rj-dialog-body"><label className="rev-date-label">来源日期<input type="date" value={date} max={recordDate} onChange={e=>setDate(e.target.value)}/></label><p className="rj-note">选择不晚于博文日期的正式收盘数据，保存后保持不变。</p>{!snapshot&&<p className="rj-note" role="status">{messages[messageStatus]||'该日数据不可用。'}</p>}{Object.entries(ACCOUNT_LABELS).map(([key,label])=>{const item=snapshot?.items.find(row=>row.key===key);return <label className="rev-account-option" key={key}><input type="checkbox" checked={Boolean(item&&selected.includes(key))} disabled={!item} onChange={()=>setSelected(old=>old.includes(key)?old.filter(k=>k!==key):[...old,key])}/><span>{label}{key==='leverage'&&!item&&<small>需完整历史现金及负债记录</small>}</span><strong style={metricStyle(item,marketColorMode)}>{item?formatMetric(item):'—'}</strong></label>;})}{missingYearHistory&&<p className="rj-note">年内历史收盘数据不完整，高点与回落暂不可用。</p>}{['error','pending'].includes(messageStatus)&&<button className="rj-wide-button" onClick={()=>setRetry(n=>n+1)}>重新读取</button>}{chosen&&<ReviewAccountCard value={chosen} marketColorMode={marketColorMode}/>}</div></Dialog>;
 }
 
 export default function ReviewEvaluationComposer({ open, entry, reply = null, identityNode, db, userId, stockTrades, onSaved, onClose, Dialog, EmojiPicker, renderPhotos, knownTags=[], preview=false, previewData, language='zh', marketColorMode }) {
@@ -147,7 +157,7 @@ export default function ReviewEvaluationComposer({ open, entry, reply = null, id
     </div></div><div className="rj-compose-toolbar">{[['trades',LineChart,'交易'],['market',Activity,'市场'],['account',Wallet,'账户'],['images',ImagePlus,'图片'],['emoji',Smile,'表情']].map(([id,Icon,label])=><button key={id} disabled={busy} onClick={()=>id==='images'?fileRef.current?.click():setPicker(id)}><Icon size={20}/><span>{label}</span></button>)}</div><input type="file" ref={fileRef} accept="image/jpeg,image/png,image/webp" multiple hidden onChange={pickFiles}/>
     {picker==='trades'&&<TradePicker selected={draft.trades} stockTrades={stockTrades} userId={userId} onChange={trades=>patch({trades})} onClose={()=>setPicker('')} Dialog={Dialog} relatedSymbols={entry.stocks||[]}/>}
     {picker==='market'&&<SnapshotPicker userId={userId} language={language} recordDate={draft.date} initialDate={initialDate} value={draft.market} onChange={market=>patch({market})} onClose={()=>setPicker('')} previewData={preview?previewData?.market:undefined}/>}
-    {picker==='account'&&<AccountPicker value={draft.account} initialDate={initialDate} recordDate={draft.date} db={db} userId={userId} preview={preview} previewAccount={previewData?.account} onChange={account=>patch({account})} onClose={()=>setPicker('')} Dialog={Dialog} marketColorMode={marketColorMode}/>}
+    {picker==='account'&&<AccountPicker value={draft.account} initialDate={entry.date} recordDate={entry.date} db={db} userId={userId} preview={preview} previewAccount={previewData?.account} onChange={account=>patch({account})} onClose={()=>setPicker('')} Dialog={Dialog} marketColorMode={marketColorMode}/>}
     {picker==='emoji'&&<EmojiPicker onSelect={emoji=>{const {start,end}=selection.current;patch({text:draft.text.slice(0,start)+emoji+draft.text.slice(end)});selection.current={start:start+emoji.length,end:start+emoji.length};}} onClose={()=>{setPicker('');requestAnimationFrame(()=>{textRef.current?.focus({preventScroll:true});textRef.current?.setSelectionRange(selection.current.start,selection.current.end);});}}/>}
   </Dialog>;
 }

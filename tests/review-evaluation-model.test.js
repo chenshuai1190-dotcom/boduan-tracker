@@ -94,7 +94,7 @@ test('account snapshot requires matching source, dates, basis and known finite m
   for (const overrides of [
     { version: 2 }, { version: '1' }, { kind: 'current_account' }, { basis: 'live' }, { source: 'manual' },
     { asOfDate: '2026-11-08' }, { asOfDate: '2026-02-30' }, { recordDate: 'bad' },
-    { items: [] }, { items: null }, { items: Array(4).fill(snapshot().items[0]) },
+    { items: [] }, { items: null }, { items: Array(6).fill(snapshot().items[0]) },
   ]) {
     const value = snapshot(overrides);
     assert.equal(account(value), null);
@@ -112,6 +112,61 @@ test('account snapshot requires matching source, dates, basis and known finite m
   assert.throws(() => account(snapshot({ items: [snapshot().items[0], snapshot().items[0]] }), strict), { code: 'REVIEW_INVALID_ACCOUNT' });
   const mixed = snapshot({ items: [{ ...snapshot().items[0], value: null }, snapshot().items[2]] });
   assert.deepEqual(account(mixed).items, [snapshot().items[2]], 'bad optional readings are discarded, never changed to zero');
+});
+
+const withYearPeak = () => snapshot({ items: [
+  { ...snapshot().items[0], value: 20 },
+  { ...snapshot().items[0], key: 'yearPeakReturnPct', value: 30, peakDate: '2026-10-23' },
+  { ...snapshot().items[0], key: 'declineFromYearPeakPp', value: 10, peakDate: '2026-10-23' },
+  snapshot().items[1], snapshot().items[2],
+] });
+
+test('year peak references preserve their date and percentage-point decline through save and read', () => {
+  const source = withYearPeak();
+  const expected = structuredClone(source);
+  assert.deepEqual(account({ ...source, items: [...source.items].reverse() }, strict), expected);
+  const written = buildReviewJournalWrite(entry([reply({ account: source })]), USER);
+  const saved = mapReviewJournalRow({ ...written, id: 'parent' }, 'log', USER).replies[0].account;
+  assert.deepEqual(saved, expected);
+  source.items[1].value = 90; source.items[1].peakDate = '2026-11-04';
+  assert.deepEqual(saved, expected, 'saved historical high does not track later source mutations');
+  assert.equal(saved.items[2].value, 10, '30% minus 20% is 10 percentage points, not a relative drawdown');
+});
+
+test('optional year peak metrics allow negative peaks, zero decline and independent selection', () => {
+  for (const item of withYearPeak().items.slice(1, 3)) {
+    assert.deepEqual(account(snapshot({ items: [item] }), strict).items, [item]);
+  }
+  const sameHigh = withYearPeak();
+  sameHigh.items[0].value = -5; sameHigh.items[1].value = -5; sameHigh.items[2].value = 0;
+  assert.deepEqual(account(sameHigh, strict), sameHigh);
+  assert.deepEqual(account(snapshot(), strict), snapshot(), 'legacy three-metric snapshots remain unchanged');
+});
+
+test('year peak metadata rejects future, other-year, malformed dates and negative decline without fabricating values', () => {
+  for (const peakDate of [undefined, '', '2026-02-30', '2025-12-31', '2026-11-06']) {
+    for (const index of [1, 2]) {
+      const item = { ...withYearPeak().items[index], peakDate };
+      const source = snapshot({ items: [snapshot().items[0], item] });
+      assert.throws(() => account(source, strict), { code: 'REVIEW_INVALID_ACCOUNT' });
+      assert.deepEqual(account(source).items, [snapshot().items[0]]);
+    }
+  }
+  const item = { ...withYearPeak().items[2], value: -1 };
+  assert.throws(() => account(snapshot({ items: [item] }), strict), { code: 'REVIEW_INVALID_ACCOUNT' });
+  assert.equal(account(snapshot({ items: [item] })), null);
+});
+
+test('contradictory high and decline references are rejected while legacy readings survive tolerant reads', () => {
+  for (const patch of [
+    value => { value.items[1].peakDate = '2026-10-22'; },
+    value => { value.items[1].value = 19; },
+    value => { value.items[2].value = 9.99; },
+  ]) {
+    const value = withYearPeak(); patch(value);
+    assert.throws(() => account(value, strict), { code: 'REVIEW_INVALID_ACCOUNT' });
+    assert.deepEqual(account(value).items.map(item => item.key), ['cumulativeReturnPct', 'dailyReturnPct', 'leverage']);
+  }
 });
 
 test('optional account provenance uses a validated whitelist and never retains foreign objects', () => {
