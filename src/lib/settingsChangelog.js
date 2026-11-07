@@ -3,6 +3,11 @@ import { CURRENT_RELEASE } from './releaseMeta.js';
 export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
+    items: ['账户快照默认博文当日，也可选择之后已完成收盘的交易日，从后视视角查看收益、高点与回落；后续快照标明实际数据日期，保存后保持固定。'],
+    itemsEn: ['Account snapshots still default to the journal date and can now reference later completed trading days for hindsight reviews of returns, peaks, and declines. Later snapshots show their source date and remain fixed after saving.'],
+  },
+  {
+    ver: 'v10.7.9.584', date: '2026-11-07',
     items: ['账户快照的“较高点回落”统一以百分号显示，选择列表与快照卡片保持一致，原有数值计算不变。'],
     itemsEn: ['Account snapshot declines now use a percent sign consistently in the picker and card, with the existing numeric calculation unchanged.'],
   },

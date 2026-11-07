@@ -133,6 +133,24 @@ test('year peak references preserve their date and percentage-point decline thro
   assert.equal(saved.items[2].value, 10, '30% minus 20% is 10 percentage points, not a relative drawdown');
 });
 
+test('hindsight snapshots retain the original blog date and later source and peak dates through save and read', () => {
+  for (const recordDate of ['2026-10-06', '2025-12-31']) {
+    for (const type of ['log', 'insight']) {
+      const source = { ...withYearPeak(), recordDate };
+      const expected = structuredClone(source);
+      assert.deepEqual(account(source, strict), expected);
+      const written = buildReviewJournalWrite({ ...entry([reply({ account: source })]), type, date: recordDate }, USER);
+      const restored = mapReviewJournalRow({ ...written, id: 'parent' }, type, USER);
+      assert.equal(restored.date, recordDate);
+      assert.deepEqual(restored.replies[0].account, expected);
+      source.items[0].value = -100;
+      source.items[1].peakDate = '2026-11-04';
+      source.recordDate = '2026-11-07';
+      assert.deepEqual(restored.replies[0].account, expected, 'saved hindsight references remain frozen');
+    }
+  }
+});
+
 test('optional year peak metrics allow negative peaks, zero decline and independent selection', () => {
   for (const item of withYearPeak().items.slice(1, 3)) {
     assert.deepEqual(account(snapshot({ items: [item] }), strict).items, [item]);

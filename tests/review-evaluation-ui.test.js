@@ -42,7 +42,10 @@ async function harness({ append, update, reply = null } = {}) {
       import { keepReviewComposerInputVisible } from ${moduleUrl('reviewComposerVisibility')};
       import { marketTextHexColor } from ${moduleUrl('marketColorMode')};
       const { React, document, window, requestAnimationFrame } = globalThis[${JSON.stringify(key)}];
+      import { latestReviewAccountCloseDate as accountCloseDate, isReviewAccountCloseDate as isAccountCloseDate } from ${moduleUrl('reviewAccountSnapshot')};
       const getVixComparisonExpectedCloseDate = () => '2026-11-06';
+      const latestReviewAccountCloseDate = () => accountCloseDate(Date.parse('2026-11-07T10:00:00Z'));
+      const isReviewAccountCloseDate = date => isAccountCloseDate(date, Date.parse('2026-11-07T10:00:00Z'));
       const SnapshotCard = () => null, SnapshotPicker = () => null, ReviewStockReplay = () => null;
       ${source.slice(source.indexOf('const PRESET_TAGS'))}
       export { AccountPicker, TradePicker };
@@ -392,27 +395,63 @@ test('missing year history disables only its two metrics and retains independent
   assert.equal(button(tree, '插入').props.disabled, false); h.cleanup();
 });
 
-test('the account picker is anchored to the blog date and blocks future queries and inserts even if the date field is bypassed', async () => {
+test('the account picker defaults to the blog date and preserves a saved hindsight date when editing', async () => {
   const h = await harness({ reply: savedReview() });
   h.props.entry.date = '2026-09-01'; let tree = h.render();
   button(tree, '账户').props.onClick(); tree = h.render();
   const picker = find(tree, node => node.type === h.components.AccountPicker);
   assert.equal(picker.props.initialDate, '2026-09-01'); assert.equal(picker.props.recordDate, '2026-09-01');
-  assert.deepEqual(picker.props.value, savedReview().account, 'opening the picker must not rewrite a previously saved later snapshot');
+  assert.deepEqual(picker.props.value, savedReview().account);
   h.cleanup();
 
-  const p = await harness(), requests = []; let inserts = 0;
-  const future = accountSnapshot();
-  const props = { value: future, initialDate: '2026-10-06', recordDate: '2026-10-06', userId: 'owner',
-    db: { async fetchReviewAccountSnapshot(date) { requests.push(date); return { status: 'missing', snapshot: null }; } },
-    onChange() { inserts++; }, onClose() {} };
-  let dialog = p.renderAccount(props); await Promise.resolve(); dialog = p.renderAccount(props);
+  const p = await harness(), requests = [];
+  const saved = accountSnapshot({ recordDate: '2026-10-06' }), frozen = structuredClone(saved);
+  const props = { value: saved, initialDate: '2026-10-06', recordDate: '2026-10-06', userId: 'owner',
+    db: { async fetchReviewAccountSnapshot(date) { requests.push(date); return { status: 'ready', snapshot: saved }; } },
+    onChange() {}, onClose() {} };
+  p.renderAccount(props); await Promise.resolve(); const dialog = p.renderAccount(props);
   const dateInput = find(dialog, node => node.type === 'input' && node.props.type === 'date');
-  assert.equal(dateInput.props.value, '2026-10-06'); assert.equal(dateInput.props.max, '2026-10-06');
-  assert.deepEqual(requests, ['2026-10-06']);
+  assert.equal(dateInput.props.value, '2026-11-05'); assert.equal(dateInput.props.max, '2026-11-06');
+  assert.deepEqual(requests, ['2026-11-05']); assert.deepEqual(saved, frozen);
+  assert.equal(button(dialog, '插入').props.disabled, false);
+  const card = p.components.ReviewAccountCard({ value: saved });
+  assert.match(text(card), /后续账户2026-11-05/);
+  p.cleanup();
+});
+
+test('a completed date after the blog can be selected and inserted with both dates and frozen values intact', async () => {
+  const h = await harness(), source = accountSnapshot(), requests = []; let inserted;
+  const props = { value: null, initialDate: '2026-10-06', recordDate: '2026-10-06', userId: 'owner',
+    db: { async fetchReviewAccountSnapshot(date) { requests.push(date); return date === source.asOfDate
+      ? { status: 'ready', snapshot: source } : { status: 'missing', snapshot: null }; } },
+    onChange(value) { inserted = value; }, onClose() {} };
+  h.renderAccount(props); await Promise.resolve(); let dialog = h.renderAccount(props);
+  const dateInput = find(dialog, node => node.type === 'input' && node.props.type === 'date');
+  assert.equal(dateInput.props.value, '2026-10-06'); assert.equal(dateInput.props.max, '2026-11-06');
   dateInput.props.onChange({ target: { value: '2026-11-05' } });
-  dialog = p.renderAccount(props); await Promise.resolve(); dialog = p.renderAccount(props);
-  assert.equal(button(dialog, '插入').props.disabled, true); button(dialog, '插入').props.onClick();
-  assert.equal(inserts, 0); assert.deepEqual(requests, ['2026-10-06']);
-  assert.equal(future.asOfDate, '2026-11-05'); p.cleanup();
+  dialog = h.renderAccount(props);
+  assert.equal(button(dialog, '插入').props.disabled, true, 'the previous date must never be insertable during a new request');
+  await Promise.resolve(); dialog = h.renderAccount(props);
+  assert.equal(button(dialog, '插入').props.disabled, false); button(dialog, '插入').props.onClick();
+  assert.deepEqual(requests, ['2026-10-06', '2026-11-05']);
+  assert.deepEqual(inserted, { ...source, recordDate: '2026-10-06' });
+  source.items[0].value = 999;
+  assert.equal(inserted.items[0].value, 20); h.cleanup();
+});
+
+test('future and non-trading dates remain blocked even if the date field is bypassed', async () => {
+  const h = await harness(), requests = []; let inserts = 0;
+  const source = accountSnapshot();
+  const props = { value: null, initialDate: source.asOfDate, recordDate: '2026-10-06', userId: 'owner',
+    db: { async fetchReviewAccountSnapshot(date) { requests.push(date); return { status: 'ready', snapshot: source }; } },
+    onChange() { inserts++; }, onClose() {} };
+  h.renderAccount(props); await Promise.resolve(); let dialog = h.renderAccount(props);
+  assert.equal(button(dialog, '插入').props.disabled, false);
+  for (const date of ['2026-11-09', '2026-11-07', '2026-10-10', '2026-07-03', '2026-02-30', '']) {
+    find(dialog, node => node.type === 'input' && node.props.type === 'date').props.onChange({ target: { value: date } });
+    dialog = h.renderAccount(props); await Promise.resolve(); dialog = h.renderAccount(props);
+    assert.equal(button(dialog, '插入').props.disabled, true, date); button(dialog, '插入').props.onClick();
+    assert.match(text(find(dialog, node => node.props.role === 'status')), /已完成收盘日期/);
+  }
+  assert.equal(inserts, 0); assert.deepEqual(requests, ['2026-11-05']); h.cleanup();
 });

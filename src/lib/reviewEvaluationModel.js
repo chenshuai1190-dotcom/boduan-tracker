@@ -75,7 +75,7 @@ export function normalizeReviewAccountSnapshot(value, { strict = false } = {}) {
   const reject = () => invalid(strict, 'REVIEW_INVALID_ACCOUNT', '历史账户快照无效，请重新选择。', null);
   if (!plainObject(value) || value.version !== 1 || value.kind !== 'account_snapshot'
     || value.basis !== 'close' || value.source !== 'pnl_report'
-    || !validDate(value.asOfDate) || !validDate(value.recordDate) || value.asOfDate > value.recordDate
+    || !validDate(value.asOfDate) || !validDate(value.recordDate)
     || !Array.isArray(value.items) || !value.items.length || value.items.length > accountKeys.length) return reject();
   const items = [], seen = new Set();
   for (const item of value.items) {
@@ -118,6 +118,8 @@ export function normalizeReviewAccountSnapshot(value, { strict = false } = {}) {
     if (!valid) { reject(); continue; }
     evidence[key] = key === 'sourceSnapshotId' ? value[key].trim() : value[key];
   }
+  // A hindsight snapshot can postdate the original journal entry. Keep both
+  // dates: completed-close eligibility is checked when selecting its source.
   return { version: 1, kind: 'account_snapshot', asOfDate: value.asOfDate, recordDate: value.recordDate,
     basis: 'close', source: 'pnl_report', items, ...evidence };
 }

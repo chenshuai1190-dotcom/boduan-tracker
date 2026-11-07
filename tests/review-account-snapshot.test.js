@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createReviewAccountSnapshotLoader } from '../src/lib/reviewAccountSnapshot.js';
+import { createReviewAccountSnapshotLoader, isReviewAccountCloseDate, latestReviewAccountCloseDate } from '../src/lib/reviewAccountSnapshot.js';
 import { isRegularNyseHoliday } from '../src/lib/quoteRefreshPolicy.js';
 import { buildPnlReportViewModel } from '../src/lib/pnlReportViewModel.js';
 
@@ -43,6 +43,43 @@ function harness({ snapshot = row(), history = [], states = [null, null], users 
   return { calls, authCount: () => authCount, load: createReviewAccountSnapshotLoader(client, { now: () => now }) };
 }
 const values = result => Object.fromEntries(result.snapshot?.items.map(item => [item.key, item.value]) || []);
+
+test('account date choices follow the same 17:00 New York boundary across daylight saving time', () => {
+  for (const [date, previous, before, atClose] of [
+    ['2026-10-30', '2026-10-29', '2026-10-30T20:59:59.999Z', '2026-10-30T21:00:00Z'],
+    ['2026-11-02', '2026-10-30', '2026-11-02T21:59:59.999Z', '2026-11-02T22:00:00Z'],
+  ]) {
+    assert.equal(latestReviewAccountCloseDate(Date.parse(before)), previous);
+    assert.equal(isReviewAccountCloseDate(date, Date.parse(before)), false);
+    assert.equal(latestReviewAccountCloseDate(new Date(atClose)), date);
+    assert.equal(isReviewAccountCloseDate(date, Date.parse(atClose)), true);
+    assert.equal(isReviewAccountCloseDate(previous, Date.parse(atClose)), true);
+  }
+});
+
+test('account date choices skip weekends and holidays and retain the lock boundary on shortened sessions', () => {
+  for (const [now, expected] of [
+    ['2026-11-07T18:00:00Z', '2026-11-06'],
+    ['2026-11-08T23:00:00Z', '2026-11-06'],
+    ['2026-07-03T23:00:00Z', '2026-07-02'],
+    ['2026-11-26T23:00:00Z', '2026-11-25'],
+    ['2026-11-27T18:00:00Z', '2026-11-25'],
+    ['2026-11-27T22:00:00Z', '2026-11-27'],
+  ]) assert.equal(latestReviewAccountCloseDate(Date.parse(now)), expected, now);
+  for (const day of ['2026-11-07', '2026-11-08', '2026-07-03', '2026-11-26']) {
+    assert.equal(isReviewAccountCloseDate(day, Date.parse('2026-12-01T23:00:00Z')), false, day);
+  }
+});
+
+test('account date choices reject malformed dates, future sessions and invalid clocks', () => {
+  for (const day of ['', null, '2026-02-30', '0000-01-01', '2026-11-06', '2026-12-01']) {
+    assert.equal(isReviewAccountCloseDate(day, NOW), false, String(day));
+  }
+  for (const clock of [NaN, Infinity, -Infinity, 1e20, new Date('invalid'), 'invalid']) {
+    assert.equal(isReviewAccountCloseDate(DATE, clock), false);
+    assert.throws(() => latestReviewAccountCloseDate(clock), { code: 'REVIEW_CLOCK_INVALID' });
+  }
+});
 
 test('reads the exact user/date and freezes source values independently of missing year history', async () => {
   const source = row(); const h = harness({ snapshot: source });

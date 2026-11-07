@@ -44,6 +44,29 @@ function eventAtCutoff(value, date) {
 const closeEnough = (a, b) => Math.abs(a - b) <= Math.max(0.000002, Math.max(Math.abs(a), Math.abs(b)) * 1e-10);
 const isSession = date => ![0, 6].includes(new Date(`${date}T00:00:00Z`).getUTCDay()) && !isRegularNyseHoliday(date);
 
+export function isReviewAccountCloseDate(date, now = Date.now()) {
+  const current = Number(now);
+  return dateKey(date) && Number.isFinite(current) && Number.isFinite(new Date(current).getTime())
+    && isSession(date) && afterCutoff(current, date);
+}
+
+/** Account snapshots retain their conservative 17:00 ET completion boundary. */
+export function latestReviewAccountCloseDate(now = Date.now()) {
+  const current = Number(now);
+  if (!Number.isFinite(current) || !Number.isFinite(new Date(current).getTime())) {
+    throw fail('REVIEW_CLOCK_INVALID', '无法确认当前日期。');
+  }
+  let date = nyTime(current).date;
+  const previous = () => {
+    const cursor = new Date(`${date}T00:00:00Z`);
+    cursor.setUTCDate(cursor.getUTCDate() - 1);
+    date = cursor.toISOString().slice(0, 10);
+  };
+  if (!afterCutoff(current, date)) previous();
+  while (!isSession(date)) previous();
+  return date;
+}
+
 function isVerifiedSnapshot(row, date, current) {
   const lockedAt = timestamp(row?.locked_at), updatedAt = timestamp(row?.updated_at);
   return row?.snapshot_date === date && row.currency === 'USD' && row.source_version === SOURCE_VERSION

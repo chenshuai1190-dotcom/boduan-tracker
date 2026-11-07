@@ -191,6 +191,38 @@ test('year peak account references survive append retries and later comment edit
   }
 });
 
+test('hindsight account snapshots survive an append CAS retry and comment editing with both dates intact', async () => {
+  for (const type of ['log', 'insight']) {
+    const source = { version: 1, kind: 'account_snapshot', basis: 'close', source: 'pnl_report',
+      asOfDate: '2026-11-06', recordDate: '2026-10-06', items: [
+        { key: 'cumulativeReturnPct', value: 20 },
+        { key: 'yearPeakReturnPct', value: 30, peakDate: '2026-10-23' },
+        { key: 'declineFromYearPeakPp', value: 10, peakDate: '2026-10-23' },
+      ].map(item => ({ ...item, asOfDate: '2026-11-06', basis: 'close', source: 'pnl_report' })) };
+    const expected = structuredClone(source);
+    const initial = record(type);
+    if (type === 'log') initial.log_date = source.recordDate;
+    else initial.review_data.date = source.recordDate;
+    const f = fixture({ type, initial, beforeUpdate({ get, set, updateCount }) {
+      if (updateCount === 1) set({ ...get(), review_revision: get().review_revision + 1 });
+    } });
+    const saved = await f.repository.appendReply(f.input(), reply({ account: source }), USER);
+    assert.equal(saved.date, '2026-10-06');
+    assert.equal(saved.revision, 6);
+    const original = saved.replies.find(item => item.id === 'reply-1');
+    assert.deepEqual(original.account, expected);
+    source.items[0].value = -100;
+    source.asOfDate = '2026-11-05';
+    const edited = await f.repository.updateReply(f.input(), original, { ...original, text: '后视复盘，保留所选日期的收益' }, USER);
+    assert.equal(edited.date, '2026-10-06');
+    assert.equal(edited.revision, 7);
+    assert.deepEqual(edited.replies.find(item => item.id === 'reply-1').account, expected);
+    assert.deepEqual(mapReviewJournalRow(f.get(), type, USER).replies.find(item => item.id === 'reply-1').account, expected);
+    assert.deepEqual(f.operations.filter(item => item.action === 'update').map(item => item.filters.at(-1)),
+      [['review_revision', 4], ['review_revision', 5], ['review_revision', 6]]);
+  }
+});
+
 test('updating one reply rebases on latest entry, preserves immutable identity and unknown snapshot metadata', async () => {
   for (const type of ['log', 'insight']) {
     const initial = record(type);
