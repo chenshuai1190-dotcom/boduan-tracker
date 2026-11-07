@@ -1,4 +1,5 @@
 import { createTradeVixRatioPreview } from './dev/tradeVixRatioPreview.js';
+import BuyTradeDisciplinePreview, { createBuyDisciplinePreview } from './dev/BuyTradeDisciplinePreview.jsx';
 import React, { lazy, Suspense } from 'react';
 import { rsiLifecyclePreview } from './dev/stockRsiFixtures.js';
 import StockTradeDesignReference from './dev/StockTradeDesignReference.jsx';
@@ -1980,6 +1981,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
       ? { side, symbol: ['NVDA', 'MSFT', 'META', 'GOOGL', ...(params.get('featurePreview') === '1' ? ['QQQ', 'SPY'] : [])].includes(params.get('tradeSymbol')) ? params.get('tradeSymbol') : 'NVDA' }
       : null;
   }, []);
+  const buyDisciplineFixture = React.useMemo(() => createBuyDisciplinePreview(new URLSearchParams(window.location.search).get('buyDiscipline')), []);
   const tqqqTradePreviewSide = React.useMemo(() => {
     if (typeof window === 'undefined') return '';
     const value = new URLSearchParams(window.location.search).get('tqqqTrade');
@@ -2024,20 +2026,20 @@ function StandardDevVisualPreview({ initialTab = '' }) {
       symbol: 'TQQQ',
       name: 'TQQQ',
       side: tqqqTradePreviewSide,
-      date: new Date().toISOString().slice(0, 10),
+      date: buyDisciplineFixture?.tradeDate || new Date().toISOString().slice(0, 10),
       price: new URLSearchParams(window.location.search).get('tqqqPricePreview') === '1'
         ? formatTqqqSuggestedPrice(72.8877)
         : (tqqqRsiDesignPreview ? '81.02' : '74.29'),
-      shares: tqqqRsiDesignPreview ? '' : (tqqqTradePreviewSide === 'sell' ? '200' : '500'),
+      shares: buyDisciplineFixture ? '500' : tqqqRsiDesignPreview ? '' : (tqqqTradePreviewSide === 'sell' ? '200' : '500'),
       batch: '第1批',
     }
     : stockTradePreview ? {
       symbol: stockTradePreview.symbol,
       name: ({ NVDA: '英伟达', MSFT: '微软', META: 'Meta Platforms', GOOGL: '谷歌' })[stockTradePreview.symbol],
       side: stockTradePreview.side,
-      date: new Date().toISOString().slice(0, 10),
+      date: buyDisciplineFixture?.tradeDate || new Date().toISOString().slice(0, 10),
       price: ({ NVDA: '233.95', MSFT: '517.53', META: '682.31', GOOGL: '343.24', QQQ: '750', SPY: '650' })[stockTradePreview.symbol],
-      shares: featurePreview ? '500' : '',
+      shares: buyDisciplineFixture ? '1' : featurePreview ? '500' : '',
       batch: '第1批',
     } : {
       symbol: '',
@@ -3299,21 +3301,25 @@ function StandardDevVisualPreview({ initialTab = '' }) {
       shares: item.heldShares,
     }))
     : [mockTodayStockTrade, ...mockPnlStockTrades];
-  const tradeVixRatioPreview = React.useMemo(() => createTradeVixRatioPreview(new URLSearchParams(window.location.search).get('vixRatioScenario') || 'triggered'), []);
+  const tradeVixRatioPreview = React.useMemo(() => buyDisciplineFixture?.vix || createTradeVixRatioPreview(new URLSearchParams(window.location.search).get('vixRatioScenario') || 'triggered'), [buyDisciplineFixture]);
+  const disciplinePreviewContent = buyDisciplineFixture ? <BuyTradeDisciplinePreview fixture={buyDisciplineFixture}
+    symbol={String(newTrade.symbol || '').trim().toUpperCase()} side={newTrade.side} tradeDate={newTrade.date}
+    englishMode={language === 'en'} tt={(key, fallback, variables) => t(language, key, fallback, variables)} /> : null;
   const tradesCtx = {
+    buyDisciplinePreview: buyDisciplineFixture,
     tradeVixRatioPreview,
     featurePreviewSection,
     previewOrderActionTrade: featurePreviewSection === 'outcome' ? exposurePreviewTrades.find(row => row.id === 'outcome-nvda') : null,
     tradeExposureMetadataLoader: loadExposurePreviewMetadata,
     tradeOutcomeHistoryLoader: loadTradeOutcomeReviewPreview,
-    stockTradePreviewContent: <StockTradeDesignReference
+    stockTradePreviewContent: disciplinePreviewContent || <StockTradeDesignReference
       symbol={String(newTrade.symbol || '').trim().toUpperCase()} side={newTrade.side}
       tradeDate={newTrade.date} englishMode={language === 'en'} vixRatioPreview={tradeVixRatioPreview}
       tt={(key, fallback, variables) => t(language, key, fallback, variables)}
     />,
-    tqqqRsiPreviewContent: tqqqTradePreviewSide && tqqqRsiDesignPreview
+    tqqqRsiPreviewContent: disciplinePreviewContent || (tqqqTradePreviewSide && tqqqRsiDesignPreview
       ? <TqqqRsiDesignPreview side={newTrade.side} tradeDate={newTrade.date} englishMode={language === 'en'} />
-      : null,
+      : null),
     availableCashStatus: previewAvailableCashStatus,
     availableCashStatusReady: true,
     addTrade: async () => {},

@@ -1,0 +1,47 @@
+.buy-discipline-overlay { z-index: 120; }
+.stock-report-modal.buy-discipline-modal { height: 740px; }
+.buy-discipline-modal .srm-header { padding-bottom: 20px; }
+.buy-discipline-modal .buy-discipline-content { padding-bottom: 12px; scrollbar-width: thin; }
+.buy-discipline-status { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 16px; }
+.buy-discipline-icon {
+  display: grid; place-items: center; flex-shrink: 0; width: 36px; height: 36px; margin-top: 1px;
+  border-radius: 50%; background: rgb(223 177 106 / .11); color: #dfb16a;
+}
+.buy-discipline-status[data-state='met'] .buy-discipline-icon { color: var(--buy-discipline-green); background: rgb(52 211 153 / .1); }
+.buy-discipline-status[data-state='historical'] .buy-discipline-icon { color: #b6bac3; background: #202226; }
+.buy-discipline-status h3 { margin: 0; color: #e9e9ee; font-size: 21px; font-weight: 550; line-height: 1.45; letter-spacing: -.3px; overflow-wrap: anywhere; }
+.buy-discipline-status p { margin: 4px 0 0; color: #98989f; font-size: 12px; line-height: 1.75; }
+.buy-discipline-rule { margin-bottom: 14px; padding: 12px 15px; border-radius: 14px; background: #17181a; color: #92959d; font-size: 12px; line-height: 1.7; }
+.buy-discipline-rule strong { color: #d4d5db; font-weight: 400; }
+.buy-discipline-rule strong span { padding: 0 4px; color: #dfb16a; }
+.buy-discipline-trade { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; padding-bottom: 14px; border-bottom: 1px solid rgb(255 255 255 / .065); }
+.buy-discipline-symbol-mark { display: grid; place-items: center; flex-shrink: 0; width: 36px; height: 36px; border: 1px solid #303237; border-radius: 11px; background: #222428; color: #c5c7cd; font-size: 15px; font-weight: 550; }
+.buy-discipline-trade-info { min-width: 0; flex: 1; }
+.buy-discipline-trade-info strong { display: block; font-size: 16px; font-weight: 500; letter-spacing: .3px; overflow-wrap: anywhere; }
+.buy-discipline-trade-info span, .buy-discipline-trade-info time { display: block; margin-top: 3px; color: #98989f; font-size: 11px; line-height: 1.45; overflow-wrap: anywhere; }
+.buy-discipline-trade-info time { color: #777b84; }
+.buy-discipline-side { flex-shrink: 0; padding: 5px 8px; border: 1px solid #35373c; border-radius: 8px; color: #b5b7bf; font-size: 11px; }
+.buy-discipline-metrics { display: grid; gap: 10px; }
+.buy-discipline-metric { min-width: 0; padding: 11px 14px; border: 1px solid rgb(255 255 255 / .065); border-radius: 16px; background: #141517; }
+.buy-discipline-metric-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: #9699a3; font-size: 12px; }
+.buy-discipline-result { display: inline-flex; align-items: center; gap: 5px; color: #92969f; font-size: 10px; white-space: nowrap; }
+.buy-discipline-result i { width: 4px; height: 4px; border-radius: 50%; background: currentColor; }
+.buy-discipline-result[data-met='true'] { color: var(--buy-discipline-green); }
+.buy-discipline-metric-main { display: flex; align-items: baseline; flex-wrap: wrap; gap: 10px; margin-top: 6px; }
+.buy-discipline-metric-main strong { color: #ececf0; font-size: 32px; font-weight: 400; line-height: 1.2; letter-spacing: -.8px; overflow-wrap: anywhere; }
+.buy-discipline-metric-state { color: #92969f; font-size: 12px; line-height: 1.5; }
+.buy-discipline-metric-state[data-tone='high'] { color: var(--buy-discipline-red); }
+.buy-discipline-metric-state[data-tone='low'] { color: var(--buy-discipline-green); }
+.buy-discipline-metric-foot { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 8px; margin-top: 6px; color: #777c87; font-size: 10px; line-height: 1.6; }
+.buy-discipline-allocation { display: flex; align-items: flex-start; gap: 8px; margin-top: 14px; padding: 12px; border-radius: 12px; background: rgb(223 177 106 / .07); color: #dfb16a; font-size: 12px; line-height: 1.6; }
+.buy-discipline-allocation svg { flex-shrink: 0; margin-top: 2px; }
+.buy-discipline-allocation strong { font-weight: 500; }
+.buy-discipline-allocation p { margin: 3px 0 0; }
+.buy-discipline-save-note { margin: 12px 0 0; padding-top: 14px; border-top: 1px solid rgb(255 255 255 / .065); color: #777c87; font-size: 10px; line-height: 1.7; text-align: center; }
+.buy-discipline-modal .buy-discipline-action { min-height: 48px; height: auto; padding: 12px 8px; line-height: 1.4; }
+@media (max-width: 350px) {
+  .buy-discipline-status { gap: 9px; }
+  .buy-discipline-status h3 { font-size: 19px; }
+  .buy-discipline-metric { padding: 11px; }
+  .buy-discipline-metric-main strong { font-size: 29px; }
+}

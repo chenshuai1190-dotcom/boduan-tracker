@@ -1,6 +1,7 @@
 import React from 'react';
 import { AlertCircle, AlertTriangle, CheckCircle2, Trash2 } from 'lucide-react';
 import StockReportModal from './StockReportModal.jsx';
+import BuyTradeDisciplineModal from './BuyTradeDisciplineModal.jsx';
 
 function ConfirmIcon({ modal }) {
   if (React.isValidElement(modal.icon)) return modal.icon;
@@ -21,6 +22,11 @@ export default function ConfirmModal({
   variant = 'default',
 }) {
   if (!modal) return null;
+
+  if (modal.buyDiscipline) {
+    return <BuyTradeDisciplineModal {...modal.buyDiscipline} submitting={submitting}
+      onClose={onCancel} onConfirm={onConfirm} />;
+  }
 
   if (variant === 'asset-report' || variant === 'settings-report') {
     return (

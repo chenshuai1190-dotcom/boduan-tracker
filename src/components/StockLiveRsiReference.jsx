@@ -2,11 +2,15 @@ import React from 'react';
 import { useStockRsiReference } from '../lib/useStockRsiReference.js';
 import StockRsiReference from './StockRsiReference.jsx';
 
-export default function StockLiveRsiReference({ symbol, userId, authClient, tradeDate, quote, side, englishMode, renderMarketReference }) {
-  const { observation, status, reason, quote: referenceQuote } = useStockRsiReference({
+export default function StockLiveRsiReference({ symbol, userId, authClient, tradeDate, quote, side, englishMode, renderMarketReference, reference }) {
+  const liveReference = useStockRsiReference({
+    active: reference == null,
     symbol, userId, authClient, tradeDate, quote, requestDelayMs: 500,
     requireMarketReference: side !== 'sell' && typeof renderMarketReference === 'function',
   });
+  // The formal entry owns one authenticated reference shared with its final
+  // discipline confirmation. Standalone callers keep the existing loader.
+  const { observation, status, reason, quote: referenceQuote } = reference ?? liveReference;
   const unavailableLabel = status === 'loading'
     ? (englishMode ? 'Loading close data' : '正在读取收盘数据')
     : reason === 'historical-unavailable'

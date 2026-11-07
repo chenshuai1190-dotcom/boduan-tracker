@@ -3,6 +3,11 @@ import { CURRENT_RELEASE } from './releaseMeta.js';
 export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
+    items: ['普通股票与 TQQQ 买入新增交易纪律确认：极端超卖或 VIX 比率大于 1 时符合条件；未满足及数据不足时可返回调整或自主继续，TQQQ 仓位提醒合并展示。'],
+    itemsEn: ['Ordinary-stock and TQQQ buys now share a discipline confirmation for extreme oversold RSI or a VIX ratio above 1. Unmet or unavailable conditions allow review or an explicit override, with TQQQ allocation reminders in the same dialog.'],
+  },
+  {
+    ver: 'v10.7.9.586', date: '2026-11-07',
     items: ['后续账户增加“博文发布后 X 天账户收益率变化”提示，按博文到快照日期的自然天数展示，已保存收益数值保持不变。'],
     itemsEn: ['Later account snapshots now label returns with the number of calendar days since the journal date, while keeping saved return values unchanged.'],
   },

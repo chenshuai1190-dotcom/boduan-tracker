@@ -37,6 +37,8 @@ import StockLiveRsiReference from '../components/StockLiveRsiReference.jsx';
 import { deriveStockTradeMarketReference } from '../lib/stockTradeMarketReference.js';
 import { useTradeVixRatioReference } from '../lib/useTradeVixRatioReference.js';
 import { deriveTradeVixRatioReference } from '../lib/tradeVixRatioReference.js';
+import { useStockRsiReference } from '../lib/useStockRsiReference.js';
+import { deriveBuyTradeDiscipline } from '../lib/buyTradeDiscipline.js';
 import TradeToolsCatalog from '../components/TradeToolsCatalog.jsx';
 import TradesPositionsReport from '../components/TradesPositionsReport.jsx';
 import '../components/PulseDot.css';
@@ -642,9 +644,25 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
   });
   const isGenericLedgerTradeEntry = tradeEntryScope === 'ledger' && !isTqqqTradeEntry;
   const tradeReferenceSymbol = normalizeStrictUserStockSymbol(newTrade?.symbol) || '';
+  const buyDisciplinePreview = import.meta.env.DEV ? ctx.buyDisciplinePreview : null;
+  const hasRsiDesignContent = import.meta.env.DEV && Boolean(isTqqqTradeEntry
+    ? ctx.tqqqRsiPreviewContent : ctx.stockTradePreviewContent);
+  // The entry and confirmation share this single authenticated observation;
+  // opening confirmation must never start another quote request.
+  const liveTradeRsiReference = useStockRsiReference({
+    active: showAddTrade && tradeEntryScope === 'ledger' && !hasRsiDesignContent && !buyDisciplinePreview,
+    symbol: tradeReferenceSymbol,
+    userId: ctx.user?.id,
+    authClient: ctx.supabase?.auth,
+    tradeDate: newTrade?.date,
+    quote: quoteBySymbol.get(tradeReferenceSymbol),
+    requestDelayMs: isTqqqTradeEntry ? 0 : 500,
+    requireMarketReference: isGenericLedgerTradeEntry && newTrade?.side !== 'sell',
+  });
+  const tradeRsiReference = buyDisciplinePreview?.rsiReference ?? liveTradeRsiReference;
   const vixRatioPreview = import.meta.env.DEV ? ctx.tradeVixRatioPreview : null;
   const liveTradeVixRatio = useTradeVixRatioReference({
-    active: showAddTrade && tradeEntryScope === 'ledger' && newTrade?.side === 'buy' && Boolean(tradeReferenceSymbol) && !vixRatioPreview,
+    active: showAddTrade && tradeEntryScope === 'ledger' && newTrade?.side === 'buy' && Boolean(tradeReferenceSymbol) && !vixRatioPreview && !buyDisciplinePreview,
     userId: ctx.user?.id, authClient: ctx.supabase?.auth, tradeDate: newTrade?.date,
   });
   const tradeVixRatioReference = vixRatioPreview
@@ -915,6 +933,20 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
       confirmText,
       confirmStyle: 'primary',
       icon: 'check',
+      buyDiscipline: !isWaveEntry && tradeDraft.side === 'buy' ? {
+        discipline: deriveBuyTradeDiscipline({
+          tradeDate: tradeDraft.date,
+          side: tradeDraft.side,
+          scope: tradeEntryScope,
+          editingId: tradeDraft.id || tradeDraft.editingId || null,
+          rsiReference: tradeRsiReference,
+          vixReference: tradeVixRatioReference,
+          now: buyDisciplinePreview?.now ?? Date.now(),
+        }),
+        trade: { symbol, name: stockDisplayName(symbol, tradeDraft.name), shares, price, date: tradeDraft.date },
+        allocationWarning: tqqqOverLimitWarning || tqqqAllocationUnavailableWarning ? confirmDesc : null,
+        englishMode,
+      } : null,
       onConfirm: async () => {
         await addTrade(tradeDraft.side);
       },
@@ -1975,6 +2007,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                     authClient={ctx.supabase?.auth}
                     tradeDate={newTrade.date}
                     quote={quoteBySymbol.get('TQQQ')}
+                    reference={tradeRsiReference}
                     side={newTrade.side}
                     englishMode={englishMode}
                   />
@@ -1999,6 +2032,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                       authClient={ctx.supabase?.auth}
                       tradeDate={newTrade.date}
                       quote={quoteBySymbol.get(tradeReferenceSymbol)}
+                      reference={tradeRsiReference}
                       side={newTrade.side}
                       englishMode={englishMode}
                       renderMarketReference={quote => newTrade.side !== 'sell' ? (
