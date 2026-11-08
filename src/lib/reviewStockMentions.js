@@ -88,7 +88,7 @@ export function findReviewStockMentions(text, candidates = []) {
   return [...new Set(reviewStockOccurrences(text, candidates).map(item => item.symbol))];
 }
 
-/** Render-only cashtags. The saved body and automatic stock-link rules stay intact. */
+/** Render-only cashtags and assistant mentions. Saved text and triggers stay intact. */
 export function reviewStockTextParts(text, candidates = []) {
   const body = typeof text === 'string' ? text : '';
   if (!body) return [];
@@ -100,14 +100,20 @@ export function reviewStockTextParts(text, candidates = []) {
   const appendText = value => {
     if (!value) return;
     const last = parts.at(-1);
-    if (last && !last.symbol) last.text += value;
+    if (last && !last.symbol && !last.mention) last.text += value;
     else parts.push({ text: value });
   };
-  for (const item of reviewStockOccurrences(body, candidates)) {
+  const mentions = [...body.matchAll(/@(?:quote|小助手)(?![A-Za-z0-9_])/gi)]
+    .filter(match => !/[A-Za-z0-9_@./%+\-]/.test(body[match.index - 1] || ''))
+    .map(match => ({ start: match.index, end: match.index + match[0].length, mention: true }));
+  const occurrences = [...reviewStockOccurrences(body, candidates), ...mentions].sort((a, b) => a.start - b.start || b.end - a.end);
+  for (const item of occurrences) {
+    if (item.start < cursor) continue;
     if (protectedRanges.some(range => item.start < range.end && item.end > range.start)) continue;
     appendText(body.slice(cursor, item.start));
     const original = body.slice(item.start, item.end);
-    if (seen.has(item.symbol)) appendText(original.startsWith('$') ? original.slice(1) : original);
+    if (item.mention) parts.push({ text: original, mention: true });
+    else if (seen.has(item.symbol)) appendText(original.startsWith('$') ? original.slice(1) : original);
     else { seen.add(item.symbol); parts.push({ text: `$${item.symbol}`, symbol: item.symbol }); }
     cursor = item.end;
   }

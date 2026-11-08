@@ -28,3 +28,22 @@ test('unrecognized text stays plain and English labels identify the selected sto
   assert.match(html, /aria-label="All posts about TSM"/);
   assert.match(html, />\$TSM<\/button> TSM/);
 });
+
+test('assistant mentions share the prose renderer without becoming stock actions or changing saved wording', () => {
+  const body = '@Quote 请看 $NVDA，@小助手也看看。\n@qUoTe <script>alert(1)</script>';
+  const html = renderToStaticMarkup(React.createElement(ReviewStockText, { text: body, candidates: ['QUOTE'] }));
+  assert.equal((html.match(/class="rj-assistant-mention"/g) || []).length, 3);
+  assert.match(html, /<span class="rj-assistant-mention">@Quote<\/span> 请看/);
+  assert.match(html, /<span class="rj-assistant-mention">@小助手<\/span>也看看/);
+  assert.match(html, /<span class="rj-assistant-mention">@qUoTe<\/span>/);
+  assert.equal((html.match(/<button /g) || []).length, 1);
+  assert.match(html, /aria-label="查看 NVDA 的所有博文"/);
+  assert.doesNotMatch(html, /<script>|查看 QUOTE/);
+  assert.equal(body, '@Quote 请看 $NVDA，@小助手也看看。\n@qUoTe <script>alert(1)</script>');
+});
+
+test('assistant-like email, URL and longer handles remain ordinary text', () => {
+  const body = 'a@quote.com https://example.com/@Quote www.example.com/@小助手 @QuoteBot @quote_1 @@Quote @小助手123';
+  const html = renderToStaticMarkup(React.createElement(ReviewStockText, { text: body }));
+  assert.equal(html, body);
+});

@@ -476,7 +476,7 @@ async function harness({ removeReply, preferences = {}, localPreferences = new M
       const { useState, useRef, useEffect, useLayoutEffect, useMemo, window, document } = fixture;
       const readReviewAudiencePreference = (userId, kind) => readAudience(userId, kind, fixture.localStorage);
       const writeReviewAudiencePreference = (userId, kind, value) => writeAudience(userId, kind, value, fixture.localStorage);
-      const Avatar = () => null, AuthorName = () => null, Photo = () => null, SnapshotCard = () => null, ReviewStockCarousel = () => null, ReviewPostBody = () => null, Composer = () => null, Dialog = () => null;
+      const Avatar = () => null, AuthorName = () => null, Photo = () => null, SnapshotCard = () => null, ReviewStockCarousel = () => null, ReviewStockText = () => null, ReviewPostBody = () => null, Composer = () => null, Dialog = () => null;
       const ReviewPublicFeed = () => null, ReviewCommentThreads = () => null, ReviewCommunityEvaluations = () => null, ReplyBody = props => props.children, ReviewTimeline = () => null, ReviewPreferences = () => null, ReviewTimelinePost = () => null;
       const ReviewNotifications=()=>null;
       const useReviewNotificationCount=()=>({unreadCount:3,error:false,update:()=>{}});

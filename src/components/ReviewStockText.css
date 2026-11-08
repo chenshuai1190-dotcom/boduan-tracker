@@ -1,4 +1,6 @@
-.rj-page .rj-stock-tag{display:inline;margin:0;padding:0;border:0;border-radius:3px;background:none;box-shadow:none;color:#68b8ed;font:inherit;line-height:inherit;letter-spacing:inherit;vertical-align:baseline;white-space:nowrap;text-align:inherit;text-decoration:none;cursor:pointer}
+.rj-page .rj-stock-tag{display:inline;margin:0;padding:0;border:0;border-radius:3px;background:none;box-shadow:none;font:inherit;line-height:inherit;letter-spacing:inherit;vertical-align:baseline;white-space:nowrap;text-align:inherit;text-decoration:none;cursor:pointer}
+.rj-page .rj-stock-tag,.rj-page .rj-assistant-mention,.rj-dialog .rj-assistant-mention,.rj-dialog .rj-compose-toolbar>button[aria-label="@Quote"]{color:#68b8ed}
+.rj-assistant-mention{white-space:nowrap}
 .rj-page .rj-stock-tag:hover,.rj-page .rj-stock-tag:focus-visible{text-decoration:none;outline:none;color:#a6d7f7}
 .rj-page .rj-stock-tag:focus-visible{background:#1f2935}
 .rj-page .rj-stock-tag:active{color:#a6d7f7}

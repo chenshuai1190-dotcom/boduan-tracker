@@ -10,5 +10,6 @@ export default function ReviewStockText({ text, candidates = [], onSelectSymbol,
     ? <button key={index} type="button" className="rj-stock-tag" data-rj-interactive
       aria-label={english ? `All posts about ${part.symbol}` : `查看 ${part.symbol} 的所有博文`}
       onClick={event => { event.stopPropagation(); onSelectSymbol?.(part.symbol, event); }}>{part.text}</button>
-    : <React.Fragment key={index}>{part.text}</React.Fragment>)}</>;
+    : part.mention ? <span key={index} className="rj-assistant-mention">{part.text}</span>
+      : <React.Fragment key={index}>{part.text}</React.Fragment>)}</>;
 }
