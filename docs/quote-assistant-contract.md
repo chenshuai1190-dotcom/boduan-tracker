@@ -92,6 +92,20 @@ recurrence仅允许daily-review→daily、weekly-digest→weekly，显式开启�
 
 循环daily的complete必须带服务端核验marketDate（最近8天已完成交易日）及nextDueAt（未来8天内下个交易日执行时刻），任务date同步实际marketDate，数据库按nextDueAt排下一次。非循环daily传marketDate时必须与选择日期一致。reply的context确保包含精确replyTo及最多8层祖先，再填充最近评论，总计最多40条，附nickname并登记源指纹。
 
+### 社区召唤的模型输入
+
+`reply` 在服务端构建模型输入时进一步收窄范围，不更改上述 SQL / HTTP 合同。`invocation` 必须来自与 `job.postId` 一致的真实原帖，或按 `job.replyTo.kind + id` 精确匹配的已保存评论；`question` 使用该召唤正文，不使用客户端另传的 prompt。目标缺失、已删除或来源不符时以 `ASSISTANT_SOURCE_CHANGED` 拒绝，不换成其他最新评论作答。
+
+模型的 `comments` 只含这条召唤的直接祖先链，按从旧到新排列，最多七条祖先；同键去重、防循环，缺少父节点即停止，不混入同帖其他讨论。`invocation.author.isAssistant` 和每条祖先的身份只比较真实 `authorId` 与 `context.assistant.authorId`，不信任昵称或传入的同名标记。
+
+点击 Quote 评论的回复入口，与正文写 `@Quote` 一样走真实 API。前端必须将读取到的 `comment.author.isAssistant` 从回复目标传入草稿，再传到保存桥接；重建目标对象时不得丢弃此标记，否则没有显式 `@Quote` 的正文会漏触发。该标记只用于决定发起请求，不能赋予权限：保存评论仍只提交 `kind/id`，数据库以已保存评论的 `reply_to_author_id` 是否等于固定机器人身份作为最终判定。回复目标显示成默认昵称不表示其真实作者 ID 已改变，不能按显示名称判断机器人。
+
+公开回复默认 `publicPosts=[]`、`history=[]`，不注入全站最近帖子或会话回答。现有公开检索工具仍可在用户需要社区讨论背景时使用；个人记忆继续不进入公开回复。普通回复先回答问题，通常以150至300个汉字为目标，复杂问题再展开，不强制追问或套模板；没有图片像素、全网实时搜索和个股新闻工具时，不声称已经看图或核实这些资料。
+
+新生成的面向用户回答要求使用纯文本自然段，不生成 Markdown 标题、加粗或斜体标记，不用双星号或双下划线强调；该约束在每轮 Responses 请求（包括工具续轮）中保留。旧回答由前端兼容显示，不重写历史正文。
+
+本次仅调整模型输入。数据库仍登记提供给服务器的候选资料和历史来源，以维持现有撤回校验；`job.sources` 仍是依赖资料，不代表本轮回答实际引用的文章，不应直接展示成引用清单。模型默认输入收窄不等于已经缩小数据库依赖集合。
+
 ### 迁移前后检查
 
 用同一个管理员SQL连接依次执行`artifacts/quote-assistant/preflight.sql`、本迁移、`artifacts/quote-assistant/postflight.sql`。preflight保存连接内临时基线，不创建永久审计表；postflight可重复执行，强制检查8张新增表的RLS/无匿名或authenticated原始权限、16个函数的固定search_path/security definer/执行权限、3个来源撤回trigger、5个显式索引及全部新表约束。输出仅聚合count/opaque fingerprint，不输出用户内容或密钥。

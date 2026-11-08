@@ -124,6 +124,7 @@ async function harness({ entry, storage = new Map(), localPreferences = new Map(
       const writeReviewAudiencePreference = (owner, kind, value) => writePreference(owner, kind, value, fixture.localStorage);
       const React = { ...ActualReact, ...fixture };
       const { useState, useRef, useEffect, sessionStorage } = fixture;
+      const requestAnimationFrame = callback => callback();
       const Dialog = ({ title, headerAction, children }) => React.createElement('section', { 'aria-label': title }, headerAction, children);
       const Avatar = () => null, AuthorName = () => null, Photo = () => null, SnapshotCard = () => null, SnapshotPicker = () => null, EmojiPicker = () => null, SymbolPicker = () => null;
       ${composerSource}
@@ -166,6 +167,29 @@ async function harness({ entry, storage = new Map(), localPreferences = new Map(
   h.render();
   return h;
 }
+
+test('new public posts insert Quote at the selected range without publishing and retain it through the existing save', async () => {
+  const h = await harness(); let tree = h.type('前文替换后文');
+  const input = find(tree, node => node.props['aria-label'] === '复盘正文'), focus = [], selections = [];
+  input.ref.current = { selectionStart: 2, selectionEnd: 4, focus: options => focus.push(options), setSelectionRange: (...args) => selections.push(args) };
+  const mention = find(tree, node => node.type === 'button' && node.props['aria-label'] === '@Quote');
+  let prevented = false; mention.props.onPointerDown({ preventDefault() { prevented = true; } }); mention.props.onClick();
+  tree = h.render();
+  assert.equal(prevented, true); assert.equal(find(tree, node => node.props['aria-label'] === '复盘正文').props.value, '前文 @Quote 后文');
+  assert.deepEqual(focus, [{ preventScroll: true }]); assert.deepEqual(selections, [[10, 10]]);
+  assert.equal(h.saves.length, 0); assert.equal((await h.save()).text, '前文 @Quote 后文'); h.unmount();
+});
+
+test('Quote shortcut follows new-post visibility and stays hidden while editing existing public posts', async () => {
+  const shortcut = tree => find(tree, node => node.type === 'button' && node.props['aria-label'] === '@Quote');
+  const h = await harness(); let tree = h.render(); assert.ok(shortcut(tree));
+  find(tree, node => node.props['aria-label'] === '发布可见范围').props.onChange({ target: { value: 'private' } });
+  tree = h.render(); assert.equal(shortcut(tree), undefined);
+  find(tree, node => node.props['aria-label'] === '发布可见范围').props.onChange({ target: { value: 'public' } });
+  assert.ok(shortcut(h.render())); h.unmount();
+  const edited = await harness({ entry: { id: 'existing', type: 'log', visibility: 'public', text: '现有内容', date: '2026-11-06', images: [], stocks: [] } });
+  assert.equal(shortcut(edited.render()), undefined); edited.unmount();
+});
 
 test('new posts derive stock links from first mention, reorder immediately, and save that order', async () => {
   const h = await harness();

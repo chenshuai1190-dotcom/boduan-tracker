@@ -1525,6 +1525,53 @@ test('private owner details can reply to retained community reviews with private
   assert.ok(editor);assert.match(textOf(editor.props.identityNode),/仅自己可见/);assert.equal(editor.props.replyTarget.id,target.id);assert.equal(editor.props.replyTarget.text,undefined);assert.equal(editor.props.entry.communityPostId,'log:one');h.unmount();
 });
 
+test('replying directly to verified Quote retains identity from the page draft through the confirmed-save bridge', async () => {
+  for (const scenario of [
+    { visibility: 'public', isAssistant: true, nickname: 'Quote 用户', triggers: true },
+    { visibility: 'public', nickname: 'Quote', triggers: false },
+    { visibility: 'public', isAssistant: 'true', nickname: 'Quote', triggers: false },
+    { visibility: 'private', isAssistant: true, nickname: 'Quote 用户', triggers: false },
+  ]) {
+    const h = await harness(), calls = [], writes = [];
+    h.ctx.previewData.initialAllScope = scenario.visibility;
+    h.ctx.previewData.assistantApi = {
+      async state(owner) { calls.push({ action: 'state', owner }); return { configured: true, enabled: true, jobs: [] }; },
+      async run(payload, owner) { calls.push({ action: 'run', payload, owner }); return { id: payload.requestId, status: 'published' }; },
+    };
+    h.ctx.db.saveReviewCommunityEvaluation = async (postId, reply, owner) => {
+      writes.push({ postId, reply, owner }); return { ...reply, postId, authorId: owner, revision: 1 };
+    };
+    let tree = h.render();
+    const target = { kind: 'community', id: 'quote-source', authorId: 'quote-bot', nickname: scenario.nickname,
+      ...(scenario.isAssistant !== undefined ? { isAssistant: scenario.isAssistant } : {}), available: true };
+    if (scenario.visibility === 'public') {
+      const post = { id: 'log:foreign', sourceId: 'foreign', type: 'log', authorId: 'other', visibility: 'public', date: '2026-11-08', text: '公开原帖' };
+      const feed = () => find(tree, node => node.type === h.Page.ReviewPublicFeed);
+      feed().props.onDetailChange(true, post); tree = h.render(); feed().props.onReplyToReview(post, target);
+    } else {
+      h.clickPost(tree); tree = h.render();
+      find(tree, node => node.type === h.Page.ReviewCommunityEvaluations).props.onReply({ ...target, author: { nickname: scenario.nickname, isAssistant: true } });
+    }
+    tree = h.render();
+    const editor = find(tree, node => node.type === h.Page.ReviewEvaluationComposer && node.props.open);
+    assert.ok(editor); assert.equal(editor.props.entry.visibility, scenario.visibility);
+    assert.equal(editor.props.replyTarget.isAssistant, scenario.isAssistant === true ? true : undefined);
+    assert.equal(editor.props.replyTarget.nickname, scenario.isAssistant === true ? 'Quote' : scenario.nickname);
+    assert.equal(editor.props.entry.communityReplyTo, editor.props.replyTarget);
+    assert.equal(calls.length, 0, 'opening a reply does not invoke the assistant');
+    const submitted = { id: 'confirmed-followup', date: '2026-11-08', text: '继续解释这个判断。' };
+    await editor.props.db.appendReviewJournalReply(editor.props.entry, submitted, 'owner'); await settle();
+    assert.equal(writes.length, 1); assert.deepEqual(writes[0].reply.replyTo, { kind: 'community', id: target.id });
+    assert.equal(calls.length, scenario.triggers ? 2 : 0);
+    if (scenario.triggers) {
+      assert.deepEqual(calls.map(call => call.action), ['state', 'run']);
+      assert.deepEqual(calls[1].payload, { kind: 'reply', requestId: submitted.id, postId: writes[0].postId, replyTo: { kind: 'community', id: submitted.id }, autoPublish: true });
+      assert.equal(calls[1].owner, 'owner');
+    }
+    h.unmount();
+  }
+});
+
 
 test('message entry keeps the public feed paused and opens a notification target in public detail',async()=>{
   const h=await harness();h.ctx.previewData.initialAllScope='public';let tree=h.render();

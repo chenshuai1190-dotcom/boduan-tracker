@@ -1,5 +1,6 @@
 import React from 'react';
 import { createQuoteAssistantPreview } from './quoteAssistantPreview.js';
+import { quoteCommunityPreview } from './quoteCommunityPreview.js';
 import { createReviewPublicPreview, reviewPreviewEntryTimestamps } from './reviewPublicPreview.js';
 import { createReviewTimelinePreview } from './reviewTimelinePreview.js';
 import ReviewJournalPage from '../pages/ReviewJournalPage.jsx';
@@ -69,6 +70,7 @@ const readingLogs = [
   ].join('\n\n')},
 ];
 export default function ReviewJournalPreview({language,onBack,marketColorMode,navigationTab=false,reviewFeedUnread,reviewFeedUnreadPreview,reviewOpenAllRequest=0}) {
+  const communityAssistant = React.useMemo(() => new URLSearchParams(window.location.search).get('quoteCommunity') === '1' ? quoteCommunityPreview(OWNER) : null, []);
   const avatarCacheEnabled = new URLSearchParams(window.location.search).get('reviewAvatarCache') === '1';
   const detailLoadingEnabled = new URLSearchParams(window.location.search).get('reviewDetailLoading') === '1';
   const detailWaiters = React.useRef([]);
@@ -79,7 +81,7 @@ export default function ReviewJournalPreview({language,onBack,marketColorMode,na
   };
   React.useEffect(() => () => detailWaiters.current.splice(0).forEach(request => request.reject(new Error('预览已关闭'))), []);
   const initialLogs = new URLSearchParams(window.location.search).get('quoteAssistant')==='1' ? [{...base,id:'local-quote-ai-source',type:'log',date:'2026-11-08',visibility:'public',text:'示例观点：这次先把观察条件写下来，一个月后再回看判断。'},...seedLogs] : new URLSearchParams(window.location.search).get('reviewPublicOwner') === '1' ? [{...evaluationLog,visibility:'public',publishedAt:'2026-11-08T04:00:00Z'},...seedLogs] : new URLSearchParams(window.location.search).get('reviewEvaluation') === '1' ? [evaluationLog,...seedLogs] : new URLSearchParams(window.location.search).get('reviewReading') === '1' ? [...readingLogs,...seedLogs] : seedLogs;
-  const [disciplines,setDisciplines] = React.useState(seedInsights);
+  const [disciplines,setDisciplines] = React.useState(communityAssistant ? [communityAssistant.entry, ...seedInsights] : seedInsights);
   const [reviewLogs,setReviewLogs] = React.useState(initialLogs);
   const reviewPublicRefreshRef = React.useRef(null);
   const [refreshScenarioStatus,setRefreshScenarioStatus] = React.useState('');
@@ -88,7 +90,7 @@ export default function ReviewJournalPreview({language,onBack,marketColorMode,na
   const [avatarScenarioStatus,setAvatarScenarioStatus] = React.useState('首次头像下载模拟 300ms；全部内容仅为本地示例，不写入真实数据。');
   const [avatarPageVersion,setAvatarPageVersion] = React.useState(0), [avatarReopen,setAvatarReopen] = React.useState(false);
   const avatarPageRef = React.useRef(null);
-  const rows = React.useRef([...seedInsights,...initialLogs]); const imageUrls = React.useRef(new Map()); const imageFiles=React.useRef(new Map());
+  const rows = React.useRef([...disciplines,...initialLogs]); const imageUrls = React.useRef(new Map()); const imageFiles=React.useRef(new Map());
   const assistantApi = React.useMemo(()=>createQuoteAssistantPreview({userId:OWNER,getEntries:()=>rows.current}),[]);
   React.useEffect(()=>()=>imageUrls.current.forEach(url=>URL.revokeObjectURL(url)),[]);
   const db = React.useMemo(()=>({
@@ -100,7 +102,7 @@ export default function ReviewJournalPreview({language,onBack,marketColorMode,na
         // Fixed repository assets, never arbitrary URLs or remote account media.
         const response=await fetch(asset);if(!response.ok)throw new Error('本地示例头像读取失败');return response.blob();
       }} : null,
-      communityEvaluations:[...(initialLogs.some(row=>row.id===evaluationLog.id)?[communityEvaluation]:[]),...(new URLSearchParams(window.location.search).get('reviewThreads')==='1'?threadedEvaluations:[])]}),
+      communityEvaluations:[...(communityAssistant?.comments || []),...(initialLogs.some(row=>row.id===evaluationLog.id)?[communityEvaluation]:[]),...(new URLSearchParams(window.location.search).get('reviewThreads')==='1'?threadedEvaluations:[])]}),
     saveReviewJournalEntry:async(entry,userId)=>{
       if(userId!==OWNER)throw new Error('预览账户不匹配');
       if(new URLSearchParams(window.location.search).get('reviewFailure')==='save')throw new Error('模拟保存失败：正文与附件仍保留，请重试。');

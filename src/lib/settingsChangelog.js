@@ -3,6 +3,11 @@ import { CURRENT_RELEASE } from './releaseMeta.js';
 export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
+    items: ['公开发帖和评论新增 @Quote 入口，直接回复小助手也可继续对话；回答围绕原帖和当前回复链，修复星号标记显示，并简化独立聊天界面。'],
+    itemsEn: ['Added @Quote shortcuts to public posts and comments, and fixed direct replies to the assistant. Answers focus on the current thread, formatting markers render cleanly, and the private chat interface is simpler.'],
+  },
+  {
+    ver: 'v10.7.9.617', date: '2026-11-08',
     items: ['新增 Quote AI 小助手：连续私聊与自动记忆、公开 @ 回复、盘后复盘、观点回访、社区周报和里程碑分享；个人记忆可暂停、纠正或删除。'],
     itemsEn: ['Added the Quote AI assistant with private conversations, automatic memory, public mentions, market close reviews, idea follow-ups, community digests and milestone sharing. Personal memory can be paused, corrected or deleted.'],
   },

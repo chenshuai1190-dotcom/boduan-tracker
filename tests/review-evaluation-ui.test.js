@@ -94,6 +94,40 @@ function chooseScore(tree, score) {
 function customForm(tree) { return find(tree, node => node.type === 'form'); }
 function customInput(tree) { return find(tree, node => node.type === 'input' && node.props.id === 'rev-custom-tag'); }
 
+test('new public comments and replies insert Quote at the selected text and keep the ordinary save path', async () => {
+  for (const replyTarget of [null, { kind: 'community', id: 'target', nickname: '访客', available: true }]) {
+    const h = await harness(); h.props.entry.visibility = 'public'; h.props.replyTarget = replyTarget;
+    let tree = h.render(); body(tree).props.onChange({ target: { value: '前文替换后文' } }); tree = h.render();
+    const input = body(tree).ref.current, focus = [], selections = [];
+    Object.assign(input, { selectionStart: 2, selectionEnd: 4, focus: value => focus.push(value), setSelectionRange: (...args) => selections.push(args) });
+    let prevented = false; button(tree, '@Quote').props.onPointerDown({ preventDefault() { prevented = true; } });
+    button(tree, '@Quote').props.onClick(); tree = h.render();
+    assert.equal(prevented, true); assert.equal(body(tree).props.value, '前文 @Quote 后文');
+    assert.deepEqual(focus, [{ preventScroll: true }]); assert.deepEqual(selections, [[10, 10]]);
+    assert.equal(h.calls.length, 0, 'mention insertion is a local edit, not a comment or AI request');
+    await button(tree, '发布').props.onClick();
+    assert.equal(h.calls[0].reply.text, '前文 @Quote 后文');
+    if (replyTarget) { assert.equal(h.calls[0].reply.score, null); assert.deepEqual(h.calls[0].reply.tags, []); }
+    h.cleanup();
+  }
+});
+
+test('private comments and existing public comment edits never expose the Quote insertion shortcut', async () => {
+  for (const visibility of [undefined, 'private']) {
+    const h = await harness(); h.props.entry.visibility = visibility;
+    assert.equal(button(h.render(), '@Quote'), undefined); h.cleanup();
+  }
+  const h = await harness({ reply: { id: 'existing', date: '2026-11-06', text: '原评论', score: null } });
+  h.props.entry.visibility = 'public'; assert.equal(button(h.render(), '@Quote'), undefined); h.cleanup();
+});
+
+test('Quote insertion does not exceed the existing comment character limit', async () => {
+  const h = await harness(); h.props.entry.visibility = 'public'; let tree = h.render();
+  body(tree).props.onChange({ target: { value: '字'.repeat(20000) } }); tree = h.render();
+  button(tree, '@Quote').props.onClick(); tree = h.render();
+  assert.equal(body(tree).props.value.length, 20000); assert.match(alert(tree), /字数上限/); h.cleanup();
+});
+
 // A device clock with an explicit UTC offset keeps the midnight assertions
 // meaningful on CI machines in UTC as well as the developer's local timezone.
 function reviewClock(instant, offsetMinutes = 480) {

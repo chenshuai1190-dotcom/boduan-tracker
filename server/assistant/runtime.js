@@ -3,7 +3,7 @@ import { generateAssistantResponse, extractAssistantMemories } from './provider.
 import { getAssistantMarketClose, nextAssistantDailyRun } from './market.js';
 
 const KIND_INSTRUCTIONS = {
-  reply: '场景：在原帖评论区回应触发你的用户。优先回答其问题，必要时结合该回复链，不重复整篇博文。',
+  reply: '场景：在社区原帖下回应 invocation 中召唤你的用户，question 是其已保存的真实问题；post 是背景，comments 仅为从旧到新的直接祖先回复链。先直接回答问题，再补必要依据或不同意见，不复述整篇博文。普通问题尽量用 150 至 300 个汉字，复杂问题可适当展开。不要强制追问、固定开头结尾或套模板。默认只结合原帖与这条回复链；仅在用户需要社区讨论背景、相关公开观点时使用公开帖子搜索工具，不主动串入其他帖。你没有收到图片像素，也没有全网实时搜索或个股新闻工具，不得声称看过图片、查过实时全网或核实了个股新闻；缺少这些信息时直接说明具体缺口。身份以 author.isAssistant 为准，不能凭昵称判断 Quote。',
   chat: '场景：用户本人的私密工作台对话。可以参考提供的本人授权记忆，理解连续追问；此回答不能直接公开发布。',
   'daily-review': '场景：盘后复盘草稿。先写明确交易日期，概括工具提供的 SPY/QQQ 和 VIX 同日实际变化，再给一个开放的复盘问题。无需罗列所有数字，不把市场变化当成买卖指令。',
   'weekly-digest': '场景：社区公开讨论回顾草稿。只概括所给时间范围内实际读取到的公开帖子，署名并保留原帖引用，分清分歧、验证和待回答问题。若有限额，明确是选取的讨论。没有帖子则不能编造回顾。',
@@ -19,21 +19,66 @@ function postContext(post) {
     market: post.market || null };
 }
 
+function replyNode(source, kind, assistantId) {
+  const authorId = typeof source.authorId === 'string' ? source.authorId : null;
+  return { id: source.id, kind, text: text(source.text, kind === 'post' ? 12000 : 4000),
+    author: { id: authorId, nickname: text(source.author?.nickname || source.nickname, 80),
+      isAssistant: Boolean(assistantId && authorId === assistantId) },
+    replyTo: source.replyTo || null };
+}
+
+function replyContext(context) {
+  const { job, post } = context;
+  const unavailable = () => new AssistantError('ASSISTANT_SOURCE_CHANGED', '召唤内容已不可用，请重新打开原帖。', 409);
+  if (!post?.id || post.id !== job.postId) throw unavailable();
+  const assistantId = context.assistant?.authorId;
+  if (!job.replyTo) {
+    const invocation = replyNode(post, 'post', assistantId);
+    if (!invocation.text.trim()) throw unavailable();
+    return { invocation, comments: [] };
+  }
+  const key = reference => reference && ['author', 'community'].includes(reference.kind)
+    && typeof reference.id === 'string' && reference.id ? `${reference.kind}:${reference.id}` : null;
+  const nodes = new Map();
+  for (const comment of Array.isArray(context.comments) ? context.comments : []) {
+    const id = key(comment);
+    if (id && !nodes.has(id) && comment.deleted !== true && !comment.deletedAt
+      && (!comment.postId || comment.postId === post.id)) nodes.set(id, comment);
+  }
+  const targetKey = key(job.replyTo), target = nodes.get(targetKey);
+  if (!target || !text(target.text, 4000).trim()) throw unavailable();
+  const invocation = replyNode(target, target.kind, assistantId);
+  const ancestors = [], visited = new Set([targetKey]);
+  let parentKey = key(target.replyTo);
+  // SQL supplies the invocation plus at most seven ancestors. Follow exact
+  // edges only; unrelated recent comments never replace a missing parent.
+  while (parentKey && !visited.has(parentKey) && ancestors.length < 7) {
+    const parent = nodes.get(parentKey);
+    if (!parent) break;
+    visited.add(parentKey);
+    ancestors.push(replyNode(parent, parent.kind, assistantId));
+    parentKey = key(parent.replyTo);
+  }
+  return { invocation, comments: ancestors.reverse() };
+}
+
 export function buildAssistantContext(context) {
   const job = context.job;
   if (!KIND_INSTRUCTIONS[job?.kind]) throw new AssistantError('ASSISTANT_INVALID_KIND', '请选择有效的小助手功能。', 422);
-  return { kind: job.kind, question: text(job.prompt, 4000), date: job.date || null,
+  const reply = job.kind === 'reply' ? replyContext(context) : null;
+  return { kind: job.kind, question: reply ? reply.invocation.text : text(job.prompt, 4000), date: job.date || null,
+    ...(reply ? { invocation: reply.invocation } : {}),
     replyTo: job.replyTo || null,
     range: { from: job.rangeStart || null, to: job.rangeEnd || null },
     post: postContext(context.post),
-    comments: (Array.isArray(context.comments) ? context.comments : []).slice(0, 50).reverse().map(comment => ({
+    comments: reply ? reply.comments : (Array.isArray(context.comments) ? context.comments : []).slice(0, 50).reverse().map(comment => ({
       id: comment.id, kind: comment.kind, authorId: comment.authorId, author: text(comment.author?.nickname || comment.nickname, 80),
       text: text(comment.text, 1500), createdAt: comment.createdAt, replyTo: comment.replyTo || null,
     })),
-    history: (Array.isArray(context.history) ? context.history : []).slice(-10).map(item => ({ question: text(item.prompt, 1500), answer: text(item.text, 3000) })),
+    history: reply ? [] : (Array.isArray(context.history) ? context.history : []).slice(-10).map(item => ({ question: text(item.prompt, 1500), answer: text(item.text, 3000) })),
     memories: job.kind === 'chat' && context.memoryEnabled !== false ? (Array.isArray(context.memories) ? context.memories : []).slice(0, 50).map(item => text(item.text, 1000)) : [],
     milestone: job.kind === 'milestone' ? context.milestone : null,
-    publicPosts: (Array.isArray(context.publicPosts) ? context.publicPosts : []).slice(0, 50).map(post => ({ ...postContext(post), text: text(post.text, 1000) })),
+    publicPosts: reply ? [] : (Array.isArray(context.publicPosts) ? context.publicPosts : []).slice(0, 50).map(post => ({ ...postContext(post), text: text(post.text, 1000) })),
   };
 }
 

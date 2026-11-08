@@ -71,13 +71,15 @@ async function harness() {
       const { window, document, Date, requestAnimationFrame, Blob, Image, URL, setTimeout, clearTimeout } = fixture;
       const reviewPublicAvatarCache = createReviewPublicAvatarCache({ now: Date.now, createUrl: URL.createObjectURL, revokeUrl: URL.revokeObjectURL, makeImage: () => new Image(), timeout: setTimeout, cancelTimeout: clearTimeout });
       const ReviewPostBody = props => React.createElement('p', null, props.text);
+      const QuoteAssistantMessage = props => React.createElement('div', { 'data-safe-quote': true }, props.text);
+      const ReviewCommentThreadList = () => null;
       const SnapshotCard = () => React.createElement('section', null, '市场快照');
       const EvaluationRating = () => React.createElement('div', null, '评分及标签');
       const ReviewAccountCard = () => React.createElement('section', null, '账户快照');
       const avatar = '/test/quote-system-fox.jpg';
       ${systemIdentitySource.slice(systemIdentitySource.indexOf('export function'))}
       ${source.slice(source.indexOf('// Share only in-flight'))}
-      export { ReviewActivityTime, ScopedPublicFeed, PublicPost, PublicReplies, PublicDetailSkeleton, PublicTradeReferences, PublicMedia, PublicAvatarMedia, reviewPublicAvatarCache, ReviewPostBody, EvaluationRating, ReviewAccountCard, SnapshotCard };
+      export { ReviewActivityTime, ScopedPublicFeed, PublicPost, PublicReplies, PublicDetailSkeleton, PublicTradeReferences, PublicMedia, PublicAvatarMedia, reviewPublicAvatarCache, ReviewPostBody, QuoteAssistantMessage, EvaluationRating, ReviewAccountCard, SnapshotCard };
     `, 'ReviewPublicFeedUITest.jsx', { jsx: { runtime: 'classic' } });
     components = await import(`data:text/javascript;base64,${Buffer.from(compiled.code).toString('base64')}`);
   } finally { delete globalThis[key]; }
@@ -1097,4 +1099,34 @@ test('only verified assistant authors use the shared fox identity in public post
   else assert.match(markup,/<strong>Quote<\/strong>/);
  }
  assert.equal(h.requests.filter(row=>row.kind==='avatar').length,0,'verified assistant avatar is a bundled asset');h.unmount();
+});
+
+test('threaded comments use safe Markdown only for the trusted assistant identity', async () => {
+  const h = await harness();
+  const props = { postId: 'log:1', db: h.db, userId: 'viewer', language: 'zh', onReply() {}, renderAuthorContent: () => React.createElement('span', null, '作者的原有渲染') };
+  const list = h.render(h.components.ReviewCommentThreads, props);
+  for (const kind of ['community', 'author']) for (const trusted of [true, false]) {
+    const reply = communityReply('markdown', { kind, text: '**核对事实**', author: { nickname: 'Quote', ...(trusted ? { isAssistant: true } : {}) } });
+    const tree = list.props.renderContent(reply, () => {});
+    const safe = walk(tree).filter(node => node.type === h.components.QuoteAssistantMessage);
+    assert.equal(safe.length, trusted ? 1 : 0, `${kind} with trusted=${trusted}`);
+    if (trusted) assert.equal(safe[0].props.text, reply.text);
+    else if (kind === 'community') assert.equal(walk(tree).filter(node => node.type === h.components.ReviewPostBody).length, 1);
+    else assert.match(words(tree), /作者的原有渲染/);
+  }
+  const humanPost = h.render(h.components.PublicPost, { post: post('log:1', { text: '**人类正文不改变**', author: { nickname: 'Quote' } }), db: h.db, userId: 'viewer', language: 'zh' });
+  assert.equal(walk(humanPost).filter(node => node.type === h.components.QuoteAssistantMessage).length, 0);
+  assert.equal(walk(humanPost).filter(node => node.type === h.components.ReviewPostBody).length, 1); h.unmount();
+});
+
+test('legacy public comment rendering retains the same trusted assistant Markdown boundary', async () => {
+  const h = await harness(), props = { postId: 'log:1', db: h.db, userId: 'viewer', language: 'zh' };
+  h.render(h.components.ReviewCommunityEvaluations, props); await flush();
+  h.requests[0].resolve(communityPage([
+    communityReply('assistant', { text: '**助手内容**', author: { nickname: 'Quote', isAssistant: true } }),
+    communityReply('person', { text: '**普通用户内容**', author: { nickname: 'Quote' } }),
+  ])); await flush();
+  const tree = h.render(h.components.ReviewCommunityEvaluations, props);
+  assert.deepEqual(walk(tree).filter(node => node.type === h.components.QuoteAssistantMessage).map(node => node.props.text), ['**助手内容**']);
+  assert.deepEqual(walk(tree).filter(node => node.type === h.components.ReviewPostBody).map(node => node.props.text), ['**普通用户内容**']); h.unmount();
 });

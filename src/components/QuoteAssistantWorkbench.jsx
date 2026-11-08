@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ArrowRight, Check, Clock3, Loader2, Plus, RefreshCw, Send, Trash2 } from 'lucide-react';
+import { ArrowLeft, ArrowUp, BookOpen, Brain, Check, ChevronRight, Clock3, History, Loader2, MessageSquare, MoreHorizontal, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { ReviewSystemAvatar, ReviewSystemName } from './ReviewSystemIdentity.jsx';
 import { QUOTE_ASSISTANT_MODES, QUOTE_ASSISTANT_STATUSES, mergeQuoteAssistantJob, quoteAssistantPostTitle, quoteAssistantSourceHref } from '../lib/quoteAssistantModel.js';
 import { getVixComparisonExpectedCloseDate } from '../lib/vixComparisonSession.js';
+import QuoteAssistantMessage, { QuoteAssistantSources as Sources } from './QuoteAssistantMessage.jsx';
 import './QuoteAssistantWorkbench.css';
 
 const today = () => new Date().toLocaleDateString('en-CA');
@@ -13,20 +14,9 @@ const label = kind => QUOTE_ASSISTANT_MODES.find(mode => mode.id === kind)?.labe
 const newId = () => crypto.randomUUID();
 const empty = { configured: false, memories: [], jobs: [], posts: [], milestones: [], subscriptions: [] };
 
-function Sources({ sources, onOpenPost }) {
-  if (!Array.isArray(sources) || !sources.length) return null;
-  return <div className="qa-sources" aria-label="引用来源">{sources.map((source, index) => {
-    const title = source.title || source.label || source.date || `来源 ${index + 1}`;
-    const href = quoteAssistantSourceHref(source.url);
-    return source.postId && onOpenPost ? <button type="button" key={index} onClick={() => onOpenPost(source.postId, source)}>{title}<ArrowRight size={14}/></button>
-      : href ? <a key={index} href={href} target="_blank" rel="noopener noreferrer">{title}<ArrowRight size={14}/></a>
-        : <span key={index}>{title}</span>;
-  })}</div>;
-}
-
 /** The same interaction surface is used by production and the explicitly
  * labelled memory-only local adapter. It never substitutes a demo for an API failure. */
-export default function QuoteAssistantWorkbench({ api, db, userId, language = 'zh', preview = false, onPublished, onOpenPost, Dialog }) {
+export default function QuoteAssistantWorkbench({ api, db, userId, language = 'zh', preview = false, onPublished, onOpenPost, onBack, Dialog }) {
   const [state, setState] = useState(empty), [loading, setLoading] = useState(true), [error, setError] = useState('');
   const [mode, setMode] = useState('chat'), [prompt, setPrompt] = useState(''), [postId, setPostId] = useState('');
   const [date, setDate] = useState(() => getVixComparisonExpectedCloseDate()), [rangeStart, setRangeStart] = useState(dateBefore(7)), [rangeEnd, setRangeEnd] = useState(utcToday);
@@ -34,7 +24,8 @@ export default function QuoteAssistantWorkbench({ api, db, userId, language = 'z
   const [dueAt, setDueAt] = useState(''), [milestoneId, setMilestoneId] = useState(''), [milestoneConsent, setMilestoneConsent] = useState(false);
   const [sessionId, setSessionId] = useState(newId), [busy, setBusy] = useState(''), [result, setResult] = useState(null);
   const [memoryText, setMemoryText] = useState(''), [editingMemory, setEditingMemory] = useState(null), [confirmPublish, setConfirmPublish] = useState(null);
-  const [notice, setNotice] = useState(''), [historyOpen, setHistoryOpen] = useState(false);
+  const [notice, setNotice] = useState(''), [view, setView] = useState('conversation');
+  const conversationRef = useRef(null), composerRef = useRef(null);
   const owner = useRef({ userId }), operation = useRef(null), retryPayload = useRef(null), memoryRequest = useRef(null), sessionChosen = useRef(false);
   if (owner.current.userId !== userId) owner.current = { userId };
   useEffect(() => { const scope = owner.current; return () => { if (owner.current === scope) owner.current = { userId: null }; }; }, [userId]);
@@ -60,7 +51,7 @@ export default function QuoteAssistantWorkbench({ api, db, userId, language = 'z
     if (job?.memoryUpdate?.summary) setNotice(job.memoryUpdate.summary);
     if (job?.status === 'published') { setNotice('已发布，可在原帖或公开动态查看。'); onPublished?.(job); }
   };
-  const chooseMode = kind => { if (busy) return; setMode(kind); setPostId(''); setRecurring(false); setResult(null); setError(''); setNotice(''); retryPayload.current = null; setConfirmPublish(null); };
+  const chooseMode = kind => { if (busy) return; setView('conversation'); setMode(kind); setPostId(''); setRecurring(false); setResult(null); setError(''); setNotice(''); retryPayload.current = null; setConfirmPublish(null); };
   const chosenMilestone = state.milestones.find(row => row.postId === milestoneId);
   const selectedPost = state.posts.find(row => row.id === postId || row.postId === postId);
   const ownPosts = state.posts.filter(row => row.authorId === userId || row.ownerId === userId || row.isOwn === true);
@@ -123,7 +114,7 @@ export default function QuoteAssistantWorkbench({ api, db, userId, language = 'z
     <div className="qa-job-heading"><strong>{label(job.kind)}</strong><span>{QUOTE_ASSISTANT_STATUSES[job.status] || job.status}</span></div>
     {job.prompt && <p className="qa-job-question">{job.prompt}</p>}
     {job.dueAt && <p className="qa-meta"><Clock3 size={14}/>{new Date(job.dueAt).toLocaleString(language === 'en' ? 'en-US' : 'zh-CN')}</p>}
-    {job.text && <p className="qa-answer">{job.text}</p>}
+    {job.text && <QuoteAssistantMessage text={job.text}/>}
     <Sources sources={job.sources} onOpenPost={onOpenPost}/>
     {job.status === 'failed' && <p role="alert" className="qa-error">{job.errorMessage || '任务未完成，可重新生成。'}</p>}
     <div className="qa-job-actions">
@@ -133,17 +124,41 @@ export default function QuoteAssistantWorkbench({ api, db, userId, language = 'z
       {job.postRef && onOpenPost && <button type="button" onClick={() => onOpenPost(typeof job.postRef === 'string' ? job.postRef : job.postRef.postId)}>查看发布内容</button>}
     </div>
   </article>;
+  const newConversation = () => { sessionChosen.current = true; setSessionId(newId()); setResult(null); setPrompt(''); setNotice(''); setError(''); retryPayload.current = null; setMode('chat'); setView('conversation'); };
+  const openConversation = id => { sessionChosen.current = true; setSessionId(id); setResult(null); setPrompt(''); setNotice(''); setError(''); retryPayload.current = null; setMode('chat'); setView('conversation'); };
+  const titles = { tools: '更多功能', history: '历史对话', memory: '我的记忆', tasks: '任务与草稿', sources: '公开资料' };
+  const isChat = view === 'conversation' && mode === 'chat';
+  const allSources = [...new Map(chatJobs.flatMap(job => job.sources || []).map(source => [source.postId || source.url || source.title, source])).values()];
+  useEffect(() => {
+    if (!isChat || !conversationRef.current) return;
+    conversationRef.current.scrollTo?.({ top: conversationRef.current.scrollHeight, behavior: 'instant' });
+  }, [isChat, sessionId, chatJobs.length, busy]);
+  const feedback = <>{error && <div className="qa-error" role="alert"><p>{error}</p>{retryPayload.current && <button type="button" disabled={Boolean(busy)} onClick={() => execute(retryPayload.current)}>{retryPayload.current.savedComment ? '评论已保存，重试小助手回复' : '重试此请求'}</button>}</div>}
+    {notice && !/本次没有新增记忆/.test(notice) && <p className="qa-notice" role="status"><Check size={14}/>{notice}</p>}</>;
   return <section className="qa-workbench" aria-label="Quote 小助手">
-    <div className="qa-intro"><ReviewSystemAvatar/><div><div className="rj-post-heading"><ReviewSystemName language={language}/></div><p>一起把每一次观察，变成值得回看的记录。</p></div></div>
-    {preview && <p className="qa-demo-note" role="status">本地功能演示 · 示例资料与固定样例回答 · 不调用模型，不发布真实内容</p>}
-    <div className="qa-service-state"><span>{loading ? '正在连接小助手…' : state.configured && state.enabled !== false ? (preview ? '示例模式' : 'AI 服务已配置') : 'AI 服务待配置'}</span><button type="button" aria-label="重新读取小助手状态" disabled={loading || Boolean(busy)} onClick={load}><RefreshCw size={16}/></button></div>
-    {!loading && state.canConfigure && !state.assistant && <button type="button" className="qa-secondary" disabled={Boolean(busy)} onClick={()=>act('configure',()=>api.configure({},userId),async()=>{const next=await api.state(userId);if(owner.current.userId===userId)setState(next);})}>初始化 Quote 身份</button>}
-    {!loading && !state.configured && <p className="qa-empty">{state.configurationError || '还需要配置服务端 AI 密钥和模型。完成后，这里会提供真实回答。'}</p>}
-    <nav className="qa-modes" aria-label="小助手功能">{QUOTE_ASSISTANT_MODES.map(item => <button type="button" key={item.id} aria-pressed={mode === item.id} disabled={Boolean(busy)} onClick={() => chooseMode(item.id)}>{item.label}</button>)}</nav>
-    <section className="qa-compose" aria-label={label(mode)}>
-      <div className="qa-section-title"><h2>{label(mode)}</h2>{mode === 'chat' && <button type="button" disabled={Boolean(busy)} onClick={() => { sessionChosen.current = true; setSessionId(newId()); setResult(null); setPrompt(''); retryPayload.current = null; }}>新对话<Plus size={15}/></button>}</div>
-      <p className="qa-description">{QUOTE_ASSISTANT_MODES.find(item => item.id === mode)?.description}</p>
-      {mode === 'chat' && <><p className="qa-meta">仅自己可见</p>{sessions.length > 0 && <label className="qa-field">历史对话<select value={sessionId} disabled={formDisabled} onChange={event => { sessionChosen.current = true; setSessionId(event.target.value); setResult(null); retryPayload.current = null; }}><option value={sessionId}>当前对话</option>{sessions.filter(job => job.sessionId !== sessionId).map(job => <option key={job.sessionId} value={job.sessionId}>{(job.prompt || '私密对话').slice(0, 42)}</option>)}</select></label>}</>}
+    <header className="qa-header">
+      <button type="button" className="qa-icon" aria-label={view === 'conversation' && mode === 'chat' ? '返回投资动态' : '返回对话'} onClick={() => { if (view !== 'conversation' || mode !== 'chat') { setView('conversation'); setMode('chat'); } else onBack?.(); }}><ArrowLeft size={22}/></button>
+      <div className="qa-header-title">{view === 'conversation' ? mode === 'chat' ? <><span>Quote</span><span className="qa-header-subtitle">小助手</span></> : label(mode) : titles[view]}</div>
+      <button type="button" className="qa-icon" aria-label="新对话" disabled={Boolean(busy)} onClick={newConversation}><Plus size={21}/></button>
+      <button type="button" className="qa-icon" aria-label="小助手菜单" aria-expanded={view==='tools'} onClick={() => setView(view==='tools'?'conversation':'tools')}><MoreHorizontal size={23}/></button>
+    </header>
+    {preview && <div className="qa-demo-note">本地预览 · 示例对话 · 不调用 AI 或发布内容</div>}
+    <div className={`qa-content ${isChat?'qa-conversation':''}`} ref={conversationRef}>
+      {!loading && !state.configured && <div className="qa-connection"><p>{state.configurationError || 'AI 服务待配置，暂时无法发送消息。'}</p>{state.canConfigure && !state.assistant && <button type="button" className="qa-secondary" disabled={Boolean(busy)} onClick={()=>act('configure',()=>api.configure({},userId),async()=>{const next=await api.state(userId);if(owner.current.userId===userId)setState(next);})}>初始化 Quote 身份</button>}</div>}
+      {isChat && <>
+        {loading && <p className="qa-loading" role="status">正在读取对话…</p>}
+        {!loading && !chatJobs.length && busy !== 'generate' && <div className="qa-welcome"><ReviewSystemAvatar/><h2>有什么想一起复盘的？</h2><p>你的想法、观察，都可以从这里聊起。</p><div className="qa-suggestions">{['帮我梳理一个投资想法','复盘时应该关注什么','看看社区最近在讨论什么'].map(value=><button type="button" key={value} onClick={()=>{setPrompt(value);composerRef.current?.focus();}}>{value}<ArrowUp size={15}/></button>)}</div></div>}
+        <div className="qa-chat-history">{chatJobs.map(job => <article className="qa-chat-turn" key={job.id}><p className="qa-user-question">{job.prompt}</p><div className="qa-chat-answer"><ReviewSystemAvatar/><div><QuoteAssistantMessage text={job.text || job.errorMessage || QUOTE_ASSISTANT_STATUSES[job.status]}/>{job.status === 'failed' && <button type="button" className="qa-secondary" disabled={Boolean(busy)} onClick={() => retryJob(job)}>重试回答</button>}</div></div></article>)}</div>
+        {busy === 'generate' && <div className="qa-chat-turn"><p className="qa-user-question">{prompt}</p><div className="qa-chat-answer qa-thinking" role="status"><ReviewSystemAvatar/><span>Quote 正在思考<span aria-hidden="true"> ···</span></span></div></div>}
+        {feedback}
+      </>}
+      {view === 'tools' && <div className="qa-tools">
+        <div className="qa-menu-group"><button type="button" onClick={()=>setView('history')}><History size={19}/><span>历史对话</span><ChevronRight size={17}/></button><button type="button" onClick={()=>setView('memory')}><Brain size={19}/><span>我的记忆</span><ChevronRight size={17}/></button><button type="button" onClick={()=>setView('tasks')}><Clock3 size={19}/><span>任务与草稿</span><span className="qa-menu-count">{tasks.length || ''}</span><ChevronRight size={17}/></button>{allSources.length>0&&<button type="button" onClick={()=>setView('sources')}><BookOpen size={19}/><span>公开资料</span><ChevronRight size={17}/></button>}</div>
+        <h2 className="qa-eyebrow">让 Quote 帮你</h2><nav className="qa-feature-list" aria-label="小助手功能">{QUOTE_ASSISTANT_MODES.filter(item=>item.id!=='chat').map(item=><button type="button" key={item.id} disabled={Boolean(busy)} onClick={()=>chooseMode(item.id)}><span><strong>{item.label}</strong><small>{item.description}</small></span><ChevronRight size={17}/></button>)}</nav>
+        <button type="button" className="qa-refresh" disabled={loading||Boolean(busy)} onClick={load}><RefreshCw size={16}/>{loading?'正在更新…':'刷新连接'}</button>
+      </div>}
+      {view === 'history' && <section className="qa-session-list" aria-label="历史对话"><button type="button" className="qa-new-session" disabled={Boolean(busy)} onClick={newConversation}><Plus size={18}/>新对话</button>{sessions.length ? sessions.map(job=><button type="button" key={job.sessionId} disabled={Boolean(busy)} aria-current={job.sessionId===sessionId?'true':undefined} onClick={()=>openConversation(job.sessionId)}><MessageSquare size={18}/><span>{(job.prompt || '私密对话').slice(0,64)}</span><ChevronRight size={16}/></button>):<p className="qa-empty">还没有历史对话。</p>}</section>}
+      {view === 'conversation' && mode !== 'chat' && <><section className="qa-compose" aria-label={label(mode)}><p className="qa-description">{QUOTE_ASSISTANT_MODES.find(item=>item.id===mode)?.description}</p>
       {(mode === 'reply' || mode === 'followup') && <label className="qa-field">{mode === 'followup' ? '自己的公开原帖' : '公开原帖'}<select value={postId} disabled={formDisabled} onChange={event => setPostId(event.target.value)}><option value="">选择原帖</option>{(mode === 'followup' ? ownPosts : state.posts).map(post => <option key={post.id || post.postId} value={post.id || post.postId}>{quoteAssistantPostTitle(post)}</option>)}</select></label>}
       {selectedPost && ['reply', 'followup'].includes(mode) && <blockquote className="qa-context">{selectedPost.text || selectedPost.title}</blockquote>}
       {mode === 'daily-review' && <label className="qa-field">复盘日期<input type="date" max={getVixComparisonExpectedCloseDate()} value={date} disabled={formDisabled} onChange={event => setDate(event.target.value)}/></label>}
@@ -154,19 +169,21 @@ export default function QuoteAssistantWorkbench({ api, db, userId, language = 'z
         {chosenMilestone && <><blockquote className="qa-context"><strong>{chosenMilestone.title}</strong><br/>{chosenMilestone.date}<p>将根据这条记录生成公开草稿，发布前可检查完整内容。</p></blockquote><label className="qa-consent"><input type="checkbox" checked={milestoneConsent} disabled={formDisabled} onChange={event => setMilestoneConsent(event.target.checked)}/>允许用这个节点生成公开里程碑草稿</label></>}
       </>}
       <label className="qa-field">{mode === 'followup' ? '到时候想验证什么' : mode === 'chat' || mode === 'reply' ? '想和 Quote 说什么' : '希望重点关注什么（选填）'}<textarea rows={3} maxLength={4000} value={prompt} disabled={formDisabled} onChange={event => { setPrompt(event.target.value); retryPayload.current = null; }} placeholder={mode === 'followup' ? '写下到期可以核对的问题或判断条件' : '写下你的问题…'}/></label>
-      <button type="button" className="qa-primary" disabled={!canSubmit} onClick={submit}>{busy === 'generate' ? <><Loader2 size={17} className="rj-spin"/>正在处理…</> : <>{mode === 'followup' ? '设置回访' : recurring ? '开启自动草稿' : mode === 'reply' ? '发表评论并请 Quote 回复' : mode === 'chat' ? '发送' : '生成草稿'}<Send size={16}/></>}</button>
+      <button type="button" className="qa-primary" disabled={!canSubmit} onClick={submit}>{busy === 'generate' ? <><Loader2 size={17} className="rj-spin"/>正在处理…</> : <>{mode === 'followup' ? '设置回访' : recurring ? '开启自动草稿' : mode === 'reply' ? '发表评论并请 Quote 回复' : mode === 'chat' ? '发送' : '生成草稿'}<ArrowUp size={16}/></>}</button>
       {mode === 'reply' && <p className="qa-meta">问题与小助手回复会显示在所选公开帖下。</p>}
       {mode === 'followup' && <p className="qa-meta">到期后在原公开帖下回访；原帖改为私密或删除时停止公开回访。</p>}
-    </section>
-    {error && <div className="qa-error" role="alert"><p>{error}</p>{retryPayload.current && <button type="button" disabled={Boolean(busy)} onClick={() => execute(retryPayload.current)}>{retryPayload.current.savedComment ? '评论已保存，重试小助手回复' : '重试此请求'}</button>}</div>}
-    {notice && <p className="qa-notice" role="status"><Check size={16}/>{notice}</p>}
-    {mode === 'chat' && <div className="qa-chat-history">{chatJobs.map(job => <article className="qa-chat-turn" key={job.id}><p className="qa-user-question">{job.prompt}</p><div className="qa-chat-answer"><ReviewSystemAvatar/><div><p className="qa-answer">{job.text || QUOTE_ASSISTANT_STATUSES[job.status]}</p><Sources sources={job.sources} onOpenPost={onOpenPost}/>{job.status === 'failed' && <button type="button" className="qa-secondary" disabled={Boolean(busy)} onClick={() => retryJob(job)}>重试回答</button>}</div></div></article>)}</div>}
-    {result && mode !== 'chat' && jobCard(result)}
-    <section className="qa-history">{preview && typeof api.simulateDue==='function' && <button type="button" className="qa-secondary" disabled={Boolean(busy)} onClick={()=>act('simulate',()=>api.simulateDue(userId),async()=>{const next=await api.state(userId);if(owner.current.userId===userId)setState(next);})}>模拟定时任务到期（仅本地）</button>}{(state.subscriptions || []).filter(row => row.active !== false).map(subscription => <div className="qa-memory" key={subscription.id}><div><strong>{label(subscription.kind)} · 自动草稿</strong><p className="qa-meta">下次：{new Date(subscription.dueAt).toLocaleString()}</p></div><button type="button" disabled={Boolean(busy)} onClick={() => act(`subscription:${subscription.id}`, () => api.cancelSubscription({id:subscription.id,revision:subscription.revision},userId), async () => { const next = await api.state(userId); if(owner.current.userId!==userId)return; setState(next); setNotice('已关闭自动生成，已有草稿保留。'); })}>关闭</button></div>)}<button type="button" className="qa-section-toggle" aria-expanded={historyOpen} onClick={() => setHistoryOpen(value => !value)}>任务记录<span>{tasks.length}</span></button>{historyOpen && (tasks.length ? tasks.map(jobCard) : <p className="qa-empty">还没有任务记录。</p>)}</section>
-    <section className="qa-memories"><div className="qa-section-title"><h2>我的记忆</h2><button type="button" role="switch" aria-label="自动记忆" aria-checked={state.memoryEnabled!==false} disabled={loading||Boolean(busy)} onClick={()=>act('memory-preferences',()=>api.memoryPreferences({enabled:state.memoryEnabled===false},userId),value=>{setState(old=>({...old,memoryEnabled:value.enabled}));setNotice(value.enabled?'已恢复自动记忆。':'已暂停记忆，本人的私密对话也会暂停使用已有记忆。');})}>{state.memoryEnabled===false?'已暂停':'自动记忆开启'}</button></div><p className="qa-description">Quote 会记住对你有帮助的信息，你随时可以管理。个人记忆仅用于你的私密对话。</p>{state.memories.map(memory => <div className="qa-memory" key={memory.id}><p>{memory.text}</p><div className="qa-memory-actions"><button type="button" disabled={Boolean(busy)} onClick={()=>{setEditingMemory(memory);setMemoryText(memory.text);}}>纠正</button><button type="button" aria-label={`删除记忆：${memory.text}`} disabled={Boolean(busy)} onClick={() => deleteMemory(memory)}><Trash2 size={16}/></button></div></div>)}
+
+      </section>{feedback}{result && jobCard(result)}</>}
+      {view === 'tasks' && <section className="qa-history" aria-label="任务与草稿">{(state.subscriptions || []).filter(row => row.active !== false).map(subscription => <div className="qa-memory" key={subscription.id}><div><strong>{label(subscription.kind)} · 自动草稿</strong><p className="qa-meta">下次：{new Date(subscription.dueAt).toLocaleString()}</p></div><button type="button" disabled={Boolean(busy)} onClick={() => act(`subscription:${subscription.id}`, () => api.cancelSubscription({id:subscription.id,revision:subscription.revision},userId), async () => { const next = await api.state(userId); if(owner.current.userId!==userId)return; setState(next); setNotice('已关闭自动生成，已有草稿保留。'); })}>关闭</button></div>)}{tasks.length ? tasks.map(jobCard) : <p className="qa-empty">还没有任务或草稿。</p>}{preview&&typeof api.simulateDue==='function'&&<button type="button" className="qa-secondary" disabled={Boolean(busy)} onClick={()=>act('simulate',()=>api.simulateDue(userId),async()=>{const next=await api.state(userId);if(owner.current.userId===userId)setState(next);})}>模拟定时任务到期（仅本地）</button>}{feedback}</section>}
+      {view === 'memory' && <>    <section className="qa-memories"><div className="qa-section-title"><h2>我的记忆</h2><button type="button" role="switch" aria-label="自动记忆" aria-checked={state.memoryEnabled!==false} disabled={loading||Boolean(busy)} onClick={()=>act('memory-preferences',()=>api.memoryPreferences({enabled:state.memoryEnabled===false},userId),value=>{setState(old=>({...old,memoryEnabled:value.enabled}));setNotice(value.enabled?'已恢复自动记忆。':'已暂停记忆，本人的私密对话也会暂停使用已有记忆。');})}>{state.memoryEnabled===false?'已暂停':'自动记忆开启'}</button></div><p className="qa-description">Quote 会记住对你有帮助的信息，你随时可以管理。个人记忆仅用于你的私密对话。</p>{state.memories.map(memory => <div className="qa-memory" key={memory.id}><p>{memory.text}</p><div className="qa-memory-actions"><button type="button" disabled={Boolean(busy)} onClick={()=>{setEditingMemory(memory);setMemoryText(memory.text);}}>纠正</button><button type="button" aria-label={`删除记忆：${memory.text}`} disabled={Boolean(busy)} onClick={() => deleteMemory(memory)}><Trash2 size={16}/></button></div></div>)}
       <label className="qa-field">{editingMemory?'纠正这条记忆':'补充一条记忆（选填）'}<textarea rows={2} maxLength={1000} value={memoryText} disabled={Boolean(busy)} onChange={event => setMemoryText(event.target.value)} placeholder="例如：复盘时优先帮我检查是否遵守了原计划"/></label>
       <button type="button" className="qa-secondary" disabled={loading || Boolean(busy) || !memoryText.trim()} onClick={saveMemory}>{editingMemory?'保存修改':'补充记忆'}</button>{editingMemory&&<button type="button" className="qa-section-toggle" disabled={Boolean(busy)} onClick={()=>{setEditingMemory(null);setMemoryText('');}}>取消修改</button>}
     </section>
-    {confirmPublish && (Dialog ? <Dialog title="确认公开这条内容？" onClose={() => { if (!busy) setConfirmPublish(null); }}><div className="rj-dialog-body qa-publish-body"><p className="qa-answer">{confirmPublish.text}</p><Sources sources={confirmPublish.sources} onOpenPost={onOpenPost}/><p className="qa-description">将以 Quote 小助手身份发布。请检查上方正文中将公开的内容。</p><div className="qa-confirm-actions"><button type="button" disabled={Boolean(busy)} onClick={() => setConfirmPublish(null)}>返回检查</button><button type="button" className="qa-primary" disabled={Boolean(busy)} onClick={() => publish(confirmPublish)}>{busy ? '正在发布…' : '确认公开发布'}</button></div></div></Dialog> : <div className="qa-confirm" role="dialog" aria-modal="true" aria-labelledby="qa-publish-title"><div><h2 id="qa-publish-title">确认公开这条内容？</h2><p className="qa-answer">{confirmPublish.text}</p><Sources sources={confirmPublish.sources} onOpenPost={onOpenPost}/><p className="qa-description">将以 Quote 小助手身份发布。请检查上方正文中将公开的内容。</p><div className="qa-confirm-actions"><button type="button" disabled={Boolean(busy)} onClick={() => setConfirmPublish(null)}>返回检查</button><button type="button" className="qa-primary" disabled={Boolean(busy)} onClick={() => publish(confirmPublish)}>{busy ? '正在发布…' : '确认公开发布'}</button></div></div></div>)}
+{feedback}</>}
+      {view === 'sources' && <section className="qa-public-materials"><p className="qa-description">本次对话可查看的公开帖子</p><Sources key={sessionId} sources={allSources} onOpenPost={onOpenPost}/></section>}
+    </div>
+    {isChat && <footer className="qa-composer-dock"><div className="qa-composer"><label className="qa-chat-field"><span className="qa-sr-only">想和 Quote 说什么</span><textarea ref={composerRef} rows={1} maxLength={4000} value={prompt} disabled={formDisabled} onChange={event=>{setPrompt(event.target.value);retryPayload.current=null;}} onInput={event=>{const el=event.currentTarget;el.style.height='auto';el.style.height=`${Math.min(el.scrollHeight,132)}px`;}} placeholder="和 Quote 聊一聊…"/></label><button type="button" className="qa-send" aria-label="发送" disabled={!canSubmit} onClick={submit}>{busy==='generate'?<Loader2 size={20} className="rj-spin"/>:<ArrowUp size={21}/>}</button></div><p className="qa-composer-hint">仅自己可见</p></footer>}
+    {confirmPublish && (Dialog ? <Dialog title="确认公开这条内容？" onClose={() => { if (!busy) setConfirmPublish(null); }}><div className="rj-dialog-body qa-publish-body"><QuoteAssistantMessage text={confirmPublish.text}/><Sources sources={confirmPublish.sources} onOpenPost={onOpenPost}/><p className="qa-description">将以 Quote 小助手身份发布。请检查上方正文中将公开的内容。</p><div className="qa-confirm-actions"><button type="button" disabled={Boolean(busy)} onClick={() => setConfirmPublish(null)}>返回检查</button><button type="button" className="qa-primary" disabled={Boolean(busy)} onClick={() => publish(confirmPublish)}>{busy ? '正在发布…' : '确认公开发布'}</button></div></div></Dialog> : <div className="qa-confirm" role="dialog" aria-modal="true" aria-labelledby="qa-publish-title"><div><h2 id="qa-publish-title">确认公开这条内容？</h2><QuoteAssistantMessage text={confirmPublish.text}/><Sources sources={confirmPublish.sources} onOpenPost={onOpenPost}/><p className="qa-description">将以 Quote 小助手身份发布。请检查上方正文中将公开的内容。</p><div className="qa-confirm-actions"><button type="button" disabled={Boolean(busy)} onClick={() => setConfirmPublish(null)}>返回检查</button><button type="button" className="qa-primary" disabled={Boolean(busy)} onClick={() => publish(confirmPublish)}>{busy ? '正在发布…' : '确认公开发布'}</button></div></div></div>)}
+
   </section>;
 }
