@@ -91,7 +91,7 @@ function PublicPost({ post, full = false, db, userId, language, onOpen, onLike, 
       {post.market && <SnapshotCard value={post.market} language={language} />}
       <div className="rj-post-actions rpf-actions"><button type="button" className={`rpf-like${post.liked ? ' rpf-liked' : ''}`} aria-pressed={Boolean(post.liked)} disabled={pending}
         aria-label={english ? `${post.liked ? 'Unlike' : 'Like'} · ${post.likeCount}` : `${post.liked ? '取消点赞' : '点赞'} · ${post.likeCount}`} onClick={() => onLike(post)}>
-        <Heart size={19} fill={post.liked ? 'currentColor' : 'none'} /><span>{post.likeCount > 0 ? post.likeCount.toLocaleString() : english ? 'Like' : '点赞'}</span>
+        <Heart size={19} fill={post.liked ? 'currentColor' : 'none'} />{post.likeCount > 0 && <span>{post.likeCount.toLocaleString()}</span>}
       </button><button type="button" aria-label={english ? 'View comments' : '查看评论'} onClick={event => { event.stopPropagation(); onOpenComments?.(post, event); }}><MessageCircle size={19}/><span>{commentCount || (english ? 'Comment' : '评论')}</span></button></div>
       {error && <p className="rpf-inline-error" role="alert">{error}</p>}
     </div>
