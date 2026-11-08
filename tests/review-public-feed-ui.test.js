@@ -543,7 +543,7 @@ test('public details reuse the safe-area sticky centered header and private body
   let tree = h.feed(); h.posts(tree)[0].props.onOpen(post()); tree = h.feed(); await flush();
   const header = walk(tree).find(node => node.type === 'header');
   assert.match(header.props.className, /rj-page-header/);
-  assert.equal(words(walk(header).find(node => node.type === 'h1')), '复盘记录');
+  assert.equal(words(walk(header).find(node => node.type === 'h1')), '内容详情');
   assert.ok(button(header, '返回公开动态'));
   assert.ok(walk(header).find(node => node.props.className === 'rj-header-spacer'));
   assert.match(journalCss, /\.rj-page-header\{[^}]*safe-area-inset-top[^}]*position:sticky/);

@@ -421,7 +421,7 @@ test('the Journal navigation tab keeps its page title and returns from entries a
   assert.ok(button(tree, '写复盘'));
   h.clickPost(tree); tree = h.render();
   assert.ok(detail(tree));
-  assert.equal(find(tree, node => node.type === 'h1').props.children, '复盘记录');
+  assert.equal(find(tree, node => node.type === 'h1').props.children, '内容详情');
   button(tree, '返回投资动态').props.onClick(); tree = h.render();
   assert.equal(detail(tree), undefined);
   assert.equal(h.fixture.window.scrollY, 740);

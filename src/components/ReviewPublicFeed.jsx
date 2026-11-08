@@ -623,7 +623,7 @@ function ScopedPublicFeed({ db, userId, language = 'zh', marketColorMode, query 
     Promise.resolve(unread.current?.markSeen?.(seen.token)).catch(() => {});
   }, [ownedFeed, currentDetail, active, query, symbol, localSymbol, feedKey]);
   return <section className="rpf-feed" aria-label={english ? 'Public activity' : '公开动态'}>
-    {currentDetail ? <div className="rpf-detail"><header className="rj-page-header rpf-detail-header"><button type="button" className="rj-icon" onClick={back} aria-label={notificationContext ? (english?'Back to messages':'返回消息') : english ? 'Back to public activity' : '返回公开动态'}><ArrowLeft size={22} /></button><h1>{english ? 'Journal Entry' : '复盘记录'}</h1><span className="rj-header-spacer" aria-hidden="true" /></header>
+    {currentDetail ? <div className="rpf-detail"><header className="rj-page-header rpf-detail-header"><button type="button" className="rj-icon" onClick={back} aria-label={notificationContext ? (english?'Back to messages':'返回消息') : english ? 'Back to public activity' : '返回公开动态'}><ArrowLeft size={22} /></button><h1>{english ? 'Content Details' : '内容详情'}</h1><span className="rj-header-spacer" aria-hidden="true" /></header>
       {detailStatus === 'loading' && <PublicDetailSkeleton language={language}/>}
       {visiblePost && <div className="rj-entry-content">{postNode(visiblePost, true)}
         {currentDetail.error && <div className="rpf-detail-retry rpf-inline-error" role="alert"><p>{currentDetail.error}</p><button type="button" className="rj-text-button" onClick={() => setDetailRetry(value => value + 1)}>{english ? 'Retry' : '重试'}</button></div>}
