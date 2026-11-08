@@ -1,4 +1,4 @@
-// Isolated sample data for DevVisualPreview. No network or account writes.
+// Isolated sample data for DevVisualPreview. No account requests or writes.
 import { createReviewNotificationPreview } from './reviewNotificationPreview.js';
 import { createReviewThreadPreview } from './reviewThreadPreview.js';
 import { mapReviewPublicReplies, normalizeReviewPublicCursor } from '../lib/reviewPublicModel.js';
@@ -10,12 +10,25 @@ export function reviewPreviewEntryTimestamps(entry, existing, now = new Date().t
   return { createdAt, publishedAt: entry.visibility === 'public' ? createdAt : null };
 }
 
-export function createReviewPublicPreview({ ownerId, getEntries, getImage, market, communityEvaluations = [], notifications = false, threaded = false }) {
+export function createReviewPublicPreview({ ownerId, getEntries, getImage, market, communityEvaluations = [], notifications = false, threaded = false, avatarCache = null }) {
   const likes = new Map();
   const evaluations = new Map(communityEvaluations.map(row => [row.id, { ...row, source: 'community' }]));
   const deletedEvaluations = new Map();
   const sampleVisibility = new Map();
   let refreshScenario = '';
+  // This explicit DEV option reads existing same-origin assets only. Do not cache
+  // here: request counts must reflect the production avatar cache's own reuse.
+  const avatarAssets = ['/community-avatars/avatar-animal-fox.jpg', '/community-avatars/avatar-animal-panda.jpg'];
+  const avatarFiles = new Map(), avatarRequests = new Map();
+  let avatarVersion = 0, avatarPath = null;
+  const avatarStats = () => ({ version: avatarVersion, path: avatarPath, total: [...avatarRequests.values()].reduce((sum, count) => sum + count, 0), requests: Object.fromEntries(avatarRequests) });
+  const nextAvatar = () => {
+    avatarVersion += 1;
+    avatarPath = `90000000-0000-4000-8000-000000000001/a0000000-0000-4000-8000-${String(avatarVersion).padStart(12, '0')}.jpg`;
+    avatarFiles.set(avatarPath, avatarAssets[(avatarVersion - 1) % avatarAssets.length]);
+    return avatarStats();
+  };
+  if (avatarCache) nextAvatar();
   const exampleAccount = { version:1,kind:'account_snapshot',asOfDate:'2026-11-06',recordDate:'2026-11-05',basis:'close',source:'pnl_report',
     items:[['cumulativeReturnPct',12.5],['yearPeakReturnPct',22.5],['declineFromYearPeakPp',10],['dailyReturnPct',-1.82],['leverage',1.28]].map(([key,value])=>({key,value,asOfDate:'2026-11-06',basis:'close',source:'pnl_report',...(['yearPeakReturnPct','declineFromYearPeakPp'].includes(key)?{peakDate:'2026-10-23'}:{})})) };
   const samples = [
@@ -24,10 +37,12 @@ export function createReviewPublicPreview({ ownerId, getEntries, getImage, marke
       replies:[{id:'sample-public-evaluation',date:'2026-11-07',text:'回看这笔示例交易，判断有依据，但买入节奏仍然可以更耐心。保留当时的账户、市场与成交记录，继续检查执行。',score:6,tags:['买入过急','分批执行'],stocks:['SMH'],images:[],market,account:exampleAccount,trades:[{id:'sample-smh-buy',symbol:'SMH',date:'2026-11-05',side:'buy',price:524.32,shares:30}],mood:'冷静'}],
       publishedAt:'2026-11-06T05:00:00Z',updatedAt:'2026-11-07T06:00:00Z',likeCount:4,liked:false },
   ];
+  if (avatarCache) samples[0].replies = [{ id: 'sample-avatar-cache-comment', date: '2026-11-08', createdAt: '2026-11-08T05:10:00Z', text: '头像缓存示例：这条评论与原帖来自同一位作者。返回列表再进文章，应该直接复用已经读取的头像。', images: [], stocks: [], trades: [], score: null, tags: [] }];
+  const withAvatar = row => avatarCache && row?.authorId === 'sample-reader' ? { ...row, author: { ...row.author, avatarPath } } : row;
   const assertOwner = userId => { if(userId!==ownerId)throw new Error('预览账户不匹配'); };
   const sourceParent = postId => {
     const own = getEntries().find(row => `${row.type}:${row.id}` === postId && (threaded || !row.timelineEvent));
-    return own ? { ...own, authorId: ownerId, author: { nickname: '波段玩家1836' } } : samples.find(row => row.id === postId);
+    return own ? { ...own, authorId: ownerId, author: { nickname: '波段玩家1836' } } : withAvatar(samples.find(row => row.id === postId));
   };
   const targetRecord = (postId, target) => {
     if (target.kind === 'author') {
@@ -38,6 +53,7 @@ export function createReviewPublicPreview({ ownerId, getEntries, getImage, marke
     return reply?.postId === postId ? { authorId: reply.authorId, nickname: reply.author.nickname } : null;
   };
   const readEvaluation = row => {
+    row = withAvatar(row);
     if (!row.replyTo) return { ...row, replyTo: null };
     const current = targetRecord(row.postId, row.replyTo);
     return { ...row, replyTo: { kind: row.replyTo.kind, id: row.replyTo.id, authorId: row.replyTo.authorId,
@@ -49,7 +65,7 @@ export function createReviewPublicPreview({ ownerId, getEntries, getImage, marke
   const posts = () => [...availableSamples(),...(refreshScenario ? [] : getEntries()).filter(row=>row.visibility==='public'&&!row.timelineEvent).map(row=>({
     id:`${row.type}:${row.id}`,type:row.type,sourceId:String(row.id),authorId:ownerId,author:{nickname:'波段玩家1836',avatarKey:'gold',avatarPath:null},
     text:row.text,date:row.date,stocks:row.stocks||[],images:row.images||[],market:row.market||null,replies:row.replies||[],publishedAt:row.createdAt||`${row.date}T04:00:00Z`,updatedAt:row.updatedAt||row.createdAt||`${row.date}T04:00:00Z`,likeCount:0,liked:false,
-  }))].map(row=>{const replies=mapReviewPublicReplies(row.replies,row.authorId);return {...row,replies,commentCount:replies.length+communityRows(row.id).length,liked:likes.get(row.id)===true,likeCount:row.likeCount+(likes.get(row.id)?1:0)};})
+  }))].map(withAvatar).map(row=>{const replies=mapReviewPublicReplies(row.replies,row.authorId);return {...row,replies,commentCount:replies.length+communityRows(row.id).length,liked:likes.get(row.id)===true,likeCount:row.likeCount+(likes.get(row.id)?1:0)};})
     .sort((a,b)=>b.date.localeCompare(a.date)||b.publishedAt.localeCompare(a.publishedAt)||b.id.localeCompare(a.id));
   const assertParent = postId => {
     if (!posts().some(row => row.id === postId) && !getEntries().some(row => `${row.type}:${row.id}` === postId && (threaded || !row.timelineEvent))) {
@@ -64,6 +80,10 @@ export function createReviewPublicPreview({ ownerId, getEntries, getImage, marke
   const notificationApi=notifications?createReviewNotificationPreview({ownerId,samples,evaluations,posts,readEvaluation,assertOwner}):{};
   return {
     ...notificationApi,
+    ...(avatarCache ? {
+      readReviewAvatarPreviewStats: avatarStats,
+      changeReviewAvatarPreview() { const stats = nextAvatar(); avatarCache.onRequest?.(stats); return stats; },
+    } : {}),
     ...(threaded ? createReviewThreadPreview({ ownerId, getEntries, getCommunityRows: communityRows, getDeletedRows: postId => [...deletedEvaluations.values()].filter(row => row.postId === postId), sourceParent, assertParent, assertOwner }) : {}),
     setReviewPublicPreviewScenario(value) { refreshScenario = ['empty','published'].includes(value) ? value : ''; },
     // DEV-only external author action. It changes only this isolated data source;
@@ -124,6 +144,13 @@ export function createReviewPublicPreview({ ownerId, getEntries, getImage, marke
     },
     async setReviewPublicLike(id,liked,userId) {assertOwner(userId);if(!posts().some(row=>row.id===id))throw new Error('这条动态已撤回或删除');likes.set(id,liked===true);const row=posts().find(row=>row.id===id);return {postId:id,liked:row.liked,likeCount:row.likeCount};},
     async downloadReviewPublicImage(path,userId) {assertOwner(userId);const publicImage=posts().some(row=>[...row.images,...row.replies.flatMap(reply=>reply.images)].some(image=>image.path===path));const communityImage=[...evaluations.values()].some(row=>{if(!row.images?.some(image=>image.path===path))return false;try{assertParent(row.postId);return true;}catch{return false;}});if(!publicImage&&!communityImage)throw new Error('图片不可用');const file=getImage(path);if(!file)throw new Error('预览图片已失效');return file;},
-    async downloadReviewPublicAvatar() {throw new Error('预览不包含自定义头像');},
+    async downloadReviewPublicAvatar(path, userId) {
+      assertOwner(userId);
+      if (!avatarCache || !avatarFiles.has(path)) throw new Error('预览不包含此自定义头像');
+      avatarRequests.set(path, (avatarRequests.get(path) || 0) + 1);
+      avatarCache.onRequest?.(avatarStats());
+      await (avatarCache.wait || (ms => new Promise(resolve => setTimeout(resolve, ms))))(300);
+      return avatarCache.loadBlob(avatarFiles.get(path));
+    },
   };
 }

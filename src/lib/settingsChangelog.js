@@ -3,6 +3,11 @@ import { CURRENT_RELEASE } from './releaseMeta.js';
 export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
+    items: ['优化动态与评论加载，复用已读取头像并修复旧预设头像闪现；消息引用支持完整三行文字，未读提示改为蓝色圆点。'],
+    itemsEn: ['Improved activity and comment loading, reused downloaded avatars, and removed flashes of old preset avatars. Message previews now show three full lines, with blue unread dots.'],
+  },
+  {
+    ver: 'v10.7.9.610', date: '2026-11-08',
     items: ['评论支持分组展开回复、点赞和回复数量；动态 Tab 新增公开新帖数字提醒，打开公开全部并加载成功后自动清除。'],
     itemsEn: ['Comments now group replies into expandable conversations with likes and reply counts. The Activity tab shows new public posts and clears its badge after the public All feed loads successfully.'],
   },

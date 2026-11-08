@@ -1,22 +1,22 @@
 # boduan-tracker 当前交接
 
-验证时间：`2026-11-08 Asia/Shanghai`。投资动态新增站内消息中心，覆盖回复、评论、点赞和评分；消息内容与权限随父帖当前状态同步。稳定规则看 `README.md`，流程看 `docs/development-process.md`。
+验证时间：`2026-11-08 Asia/Shanghai`。v610 分组评论与新帖提醒已发布；v611 候选优化动态、评论及头像加载，并修复消息三行与未读点。稳定规则看 `README.md`，流程看 `docs/development-process.md`。
 
 ## 当前生产基准
 | 项目 | 当前值 |
 | --- | --- |
 | 仓库 | `chenshuai1190-dotcom/boduan-tracker`；唯一发布来源 `main` |
 | 当前工作区 | `/Users/chenshuaishuai/Documents/Codex/2026-10-03/quote-boduan-tracker-2026-10-03/work/quiet-input-fields` |
-| 发布前生产源码 | `af5ae35810047dc4fc63f2bc0d68eca70c5b7403 / v10.7.9.609`；CI、Docs、Vercel 与生产静态产物验证通过 |
-| 发布前部署 | `https://boduan-tracker.vercel.app`；精确提交 `af5ae35810047dc4fc63f2bc0d68eca70c5b7403` |
-| 本次候选版本 | `v10.7.9.610 / 2026-11-08`：分组评论与回复点赞、回复数、动态新帖角标；评论互动基础迁移已应用，前端待发布 |
+| 发布前生产源码 | `bbbbb6a2c55e083910c7b7fce504e12a45a30694 / v10.7.9.610`；CI、Docs、Vercel 与生产静态产物验证通过 |
+| 发布前部署 | `https://boduan-tracker.vercel.app`；精确提交 `bbbbb6a2c55e083910c7b7fce504e12a45a30694` |
+| 本次候选版本 | `v10.7.9.611 / 2026-11-08`：复用头像、减少动态及评论的认证往返和新帖边界等待，消息引用三行完整显示、蓝色未读点；无需迁移 |
 | 已生效云端配置 | 基础迁移及 `supabase/review_display_preferences_return_drawdown_20261107.sql` 已应用；五个 nullable 显示字段兼容旧客户端，不 backfill、不重置 revision；独立本人显示偏好表，RLS 开启、3 条 owner policy、匿名无 SELECT、authenticated 无 DELETE；原复盘与正式交易记录数量保持不变 |
 | 生产 Checks | 本会话控制台只读核对为“未配置任何检查”；保留仓库 CI 与 Docs，等待精确提交 CI + Docs + Vercel，不宣称平台已配置晋级阻断 |
 
 ## 本次证据与既有边界
-- v610 候选使用 `review_thread_interactions_20261108.sql`，只新增评论反应、发布游标和本人已读状态，并让时间线本人复用私密评论接口；不改源博文、金融账本或既有通知状态。评论点赞暂不新增通知事件，既有互动通知继续定位实际评论。
-- 评论统一到服务端分组与分页；作者原评价的编辑删除仍回到原容器，包含合并时间线。旧无时刻评价不伪造相对时间；删除根评论保留后续讨论。新帖清除以成功展示公开全部的捕获边界为准，事务游标防止提交乱序吞帖。
-- 本批最终门禁、增量迁移聚合回查、匿名 REST、原生 PWA 验收及精确提交发布结果记录于 `artifacts/review-public-activity/`；验证前不把候选写成已上线。不向真实用户提交测试互动，数据库写入验证使用隔离多用户 PGlite。前端可回到上一版，云端保留新表并 forward-fix，不删除互动或已读状态，不放宽源表权限。
+- v611 保留服务端 JWT/RLS/预期账户校验，使用本地会话及身份事件世代减少 RPC 前后远程认证；头像只在当前账户内存按服务端 immutable path 缓存，退出/切号清除，不缓存正文或评价附件。已确认新帖边界可复用，但只标读列表请求前边界。规则见 `docs/review-public-activity.md`。
+- v611 功能代码已通过 FULL 4167/4167、build/docs/whitespace；已安装 iPhone 主屏幕 PWA 的隔离示例验证头像首次下载 1 次、重进仍 1 次、换路径 2 次、清缓存 3 次，同作者评论同步。证据为 `artifacts/review-public-activity/performance-local-acceptance.json`；尚未测量生产加载耗时，不宣称数据库需要升配。
+- v610 迁移已应用且精确提交发布通过，证据为 `artifacts/review-public-activity/v610-acceptance.json`。分组分页、通知定位、旧评价日期、原容器编辑与私密权限保留；评论点赞暂不新增通知。v611 不改数据库，不向真实用户提交测试互动；发布结果以 `v611-release-verify.log` 为准，验证前不把候选写成上线。
 - v608 新增 `review_activity_notifications_20261108.sql`，无历史互动回填；服务端 deferred trigger 读取同事务最终回复关系，通知引用与读取状态独立保存，旧博文/评价/点赞数据不重写。四个 RPC 均强制预期用户与登录用户一致；原私有原表权限保持不变。头像新增授权仅限当前有效本人通知对应的当前头像。
 - 消息入口、未读数、分类、全部已读、点击定位和返回已接入。点击旧评论可直接加载第 20 条之后的目标，失效时清除旧内容。账户切换、撤回、取消赞重试、微秒分页、已读边界和后台恢复均有定向测试；五用户 PGlite 实际执行新迁移。验收使用隔离示例，不向真实用户写入测试消息；未验证生产双账号互动写入，也未接入浏览器推送。
 - v608 迁移已应用，预检/后检全部通过、既有数据指纹不变、未回填历史；FULL 4078/4078、匿名 REST 与精确提交发布等待器通过。证据位于 `artifacts/review-public-activity/notifications-acceptance.json`。v609 只复用现有本人标读 RPC，批量部分失败不冒充全部成功，不需重跑迁移或权限变更。

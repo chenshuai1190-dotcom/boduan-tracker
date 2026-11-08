@@ -1,5 +1,13 @@
 import { supabase } from './supabase';
 import { createReviewPublicRepository } from './reviewPublicRepository.js';
+import { reviewPublicAvatarCache } from './reviewPublicAvatarCache.js';
+
+let avatarViewer;
+supabase?.auth?.onAuthStateChange?.((event, session) => {
+  const next = session?.user?.id || null;
+  if (event === 'SIGNED_OUT' || next !== avatarViewer) reviewPublicAvatarCache.clear();
+  avatarViewer = next;
+});
 
 const repository = createReviewPublicRepository(supabase);
 export const fetchReviewPublicFeed = (options, userId) => repository.fetchFeed(options, userId);

@@ -68,10 +68,11 @@ test('new-post badge polls independently with one visible 30-second timer and no
 });
 
 test('captured feed boundary is acknowledged exactly and late arrivals remain unread', async () => {
-  const h = await harness(); await h.load(3);
+  const h = await harness(); h.render(); await flush();
+  h.requests[0].resolve({ unreadCount: 3, cursor: '9007199254740993' }); await flush();
   const callbacks = h.render(); const boundaryPromise = callbacks.captureBoundary(); await flush();
-  h.requests[1].resolve({ unreadCount: 3, cursor: '9007199254740993' }); await flush();
   const token = await boundaryPromise;
+  assert.equal(h.requests.length, 1, 'confirmed boundary does not add a blocking read');
   assert.equal(token.cursor, '9007199254740993'); assert.equal(h.marks.length, 0, 'capture alone cannot mark read');
   const marked = h.render().markSeen(token); await flush();
   assert.equal(h.marks.length, 1); assert.equal(h.marks[0].boundary, '9007199254740993');
@@ -83,12 +84,40 @@ test('captured feed boundary is acknowledged exactly and late arrivals remain un
 });
 
 test('failed or abandoned feed capture never writes and failure preserves the last known count', async () => {
-  const h = await harness(); await h.load(4);
-  const capture = h.render().captureBoundary(); await flush(); h.requests[1].reject(new Error('offline'));
-  assert.equal(await capture, null); assert.equal(h.render().unreadCount, 4); assert.equal(h.render().error, true);
+  const h = await harness(); h.render(); await flush();
+  const capture = h.render().captureBoundary(); h.requests[0].reject(new Error('offline'));
+  assert.equal(await capture, null); assert.equal(h.render().unreadCount, null); assert.equal(h.render().error, true);
   await h.render().markSeen(null); assert.equal(h.marks.length, 0);
-  const captured = h.render().captureBoundary(); await flush(); h.requests[2].resolve({ unreadCount: 4, cursor: '10' });
-  await captured; assert.equal(h.marks.length, 0, 'successful capture without feed success remains unread'); h.unmount();
+  const captured = h.render().captureBoundary(); await flush(); h.requests[1].resolve({ unreadCount: 4, cursor: '10' });
+  await captured; assert.equal(h.marks.length, 0, 'successful capture without feed success remains unread');
+  const refresh = h.render().refresh(); await flush(); h.requests[2].reject(new Error('offline')); await refresh;
+  assert.equal(h.render().unreadCount, 4); assert.equal(h.render().error, true);
+  const retained = await h.render().captureBoundary(); assert.equal(retained.cursor, '10');
+  assert.equal(h.requests.length, 3, 'failed background refresh does not discard the safe old boundary');
+  assert.equal(h.marks.length, 0); h.unmount();
+});
+
+test('cached capture does not wait for an in-flight poll or acknowledge its newer arrivals', async () => {
+  const h = await harness(); await h.load(3);
+  const poll = h.render().refresh(); await flush(); assert.equal(h.requests.length, 2);
+  const token = await h.render().captureBoundary();
+  assert.equal(token.cursor, '10'); assert.equal(h.requests.length, 2);
+  h.requests[1].resolve({ unreadCount: 4, cursor: '11' }); await poll;
+  const mark = h.render().markSeen(token); await flush();
+  assert.equal(h.marks[0].boundary, '10', 'feed acknowledges the copied pre-request cursor');
+  h.marks[0].resolve({ unreadCount: 1, cursor: '11' }); await mark;
+  assert.equal(h.render().unreadCount, 1); h.unmount();
+});
+
+test('a switched account waits for its own first boundary and cannot reuse the old snapshot', async () => {
+  const h = await harness(); await h.load(4);
+  h.render({ userId: 'other' }); await flush();
+  let resolved = false;
+  const capture = h.render().captureBoundary().then(token => { resolved = true; return token; });
+  await flush(); assert.equal(resolved, false, 'no old-account boundary can resolve the new capture');
+  assert.equal(h.requests.length, 2); assert.equal(h.requests[1].userId, 'other');
+  h.requests[1].resolve({ unreadCount: 2, cursor: '20' });
+  const token = await capture; assert.equal(token.userId, 'other'); assert.equal(token.cursor, '20'); h.unmount();
 });
 
 test('read started before a successful acknowledge cannot restore an old unread count', async () => {
@@ -132,7 +161,8 @@ test('old account reads, writes and tokens cannot leak into the next account or 
 test('hidden page cannot acknowledge an already captured boundary and unmount ignores late callbacks', async () => {
   const h = await harness(); h.render(); await flush(); const capture = h.render().captureBoundary();
   h.requests[0].resolve({ unreadCount: 3, cursor: '10' }); const token = await capture;
-  h.visibility('hidden'); await h.render().markSeen(token); assert.equal(h.marks.length, 0);
+  h.visibility('hidden'); assert.equal(await h.render().captureBoundary(), null);
+  await h.render().markSeen(token); assert.equal(h.marks.length, 0);
   h.visibility('visible'); await flush();
   const mark = h.render().markSeen(token); await flush(); const before = h.writes.length;
   h.unmount(); h.marks[0].resolve({ unreadCount: 0, cursor: '10' }); await mark;
@@ -150,7 +180,8 @@ test('unavailable capabilities, disabled and unauthenticated hooks perform no re
 test('an older view cannot supersede a newer in-flight acknowledgement', async () => {
   const h = await harness(); h.render(); await flush();
   const earlyCapture = h.render().captureBoundary(); h.requests[0].resolve({ unreadCount: 2, cursor: '10' }); const early = await earlyCapture;
-  const lateCapture = h.render().captureBoundary(); await flush(); h.requests[1].resolve({ unreadCount: 3, cursor: '11' }); const late = await lateCapture;
+  const refreshed = h.render().refresh(); await flush(); h.requests[1].resolve({ unreadCount: 3, cursor: '11' }); await refreshed;
+  const late = await h.render().captureBoundary();
   const newer = h.render().markSeen(late), older = h.render().markSeen(early); await flush();
   assert.equal(newer, older); assert.equal(h.marks.length, 1); assert.equal(h.marks[0].boundary, '11');
   h.marks[0].resolve({ unreadCount: 0, cursor: '11' }); await newer;

@@ -40,7 +40,11 @@ export default function useReviewFeedUnread({ db, userId, enabled = true }) {
       return pendingRead;
     };
     const captureBoundary = async () => {
-      const result = await read(true);
+      if (!visible() || pendingWrites) return null;
+      // A confirmed boundary from this account scope already predates the feed
+      // request. Copy it now instead of blocking the feed on another RPC; newer
+      // arrivals remain unread. The first view still waits for its first boundary.
+      const result = lastSnapshot || await read(true);
       return current() && result ? { userId, cursor: result.cursor, scope } : null;
     };
     const markSeen = token => {

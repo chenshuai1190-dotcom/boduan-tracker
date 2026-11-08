@@ -63,15 +63,17 @@ async function harness() {
       import ReviewActivityTime from ${JSON.stringify(new URL('../src/components/ReviewActivityTime.js', import.meta.url).href)};
       import { getCommunityAvatarOption } from ${JSON.stringify(new URL('../src/lib/communityProfile.js', import.meta.url).href)};
       import { normalizeReviewTradeReferences } from ${JSON.stringify(new URL('../src/lib/reviewEvaluationModel.js', import.meta.url).href)};
+      import { createReviewPublicAvatarCache } from ${JSON.stringify(new URL('../src/lib/reviewPublicAvatarCache.js', import.meta.url).href)};
       const fixture = globalThis[${JSON.stringify(key)}];
       const React = { ...ActualReact, useState: fixture.useState, useRef: fixture.useRef, useEffect: fixture.useEffect };
       const { window, document, Date, requestAnimationFrame, Blob, Image, URL, setTimeout, clearTimeout } = fixture;
+      const reviewPublicAvatarCache = createReviewPublicAvatarCache({ now: Date.now, createUrl: URL.createObjectURL, revokeUrl: URL.revokeObjectURL, makeImage: () => new Image(), timeout: setTimeout, cancelTimeout: clearTimeout });
       const ReviewPostBody = props => React.createElement('p', null, props.text);
       const SnapshotCard = () => React.createElement('section', null, '市场快照');
       const EvaluationRating = () => React.createElement('div', null, '评分及标签');
       const ReviewAccountCard = () => React.createElement('section', null, '账户快照');
       ${source.slice(source.indexOf('// Share only in-flight'))}
-      export { ReviewActivityTime, ScopedPublicFeed, PublicPost, PublicReplies, PublicTradeReferences, PublicMedia, ReviewPostBody, EvaluationRating, ReviewAccountCard, SnapshotCard };
+      export { ReviewActivityTime, ScopedPublicFeed, PublicPost, PublicReplies, PublicTradeReferences, PublicMedia, PublicAvatarMedia, reviewPublicAvatarCache, ReviewPostBody, EvaluationRating, ReviewAccountCard, SnapshotCard };
     `, 'ReviewPublicFeedUITest.jsx', { jsx: { runtime: 'classic' } });
     components = await import(`data:text/javascript;base64,${Buffer.from(compiled.code).toString('base64')}`);
   } finally { delete globalThis[key]; }
@@ -403,6 +405,21 @@ test('public image URLs are decoded before display and revoked on replacement or
   h.unmount(); h.requests[1].resolve(new Blob(['late'], { type: 'image/webp' })); await flush();
   assert.equal(h.created.length, 1, 'late data cannot create a URL after leaving the view');
   assert.equal(h.timers.size, 0);
+});
+
+test('custom public avatars use a neutral placeholder then reuse the decoded photo across visits', async () => {
+  const h = await harness(), props = { db: h.db, userId: 'viewer', path: 'author/one.webp' };
+  const author = h.components.PublicAvatar({ post: post('log:1', { author: { avatarKey: 'fox', avatarPath: props.path } }), ...props });
+  assert.equal(walk(author).some(node => node.type === 'img'), false, 'custom author never renders their old preset');
+  let tree = h.render(h.components.PublicAvatarMedia, props); await flush(); assert.notEqual(tree.type, 'img');
+  h.requests[0].resolve(new Blob(['photo'], { type: 'image/webp' })); await flush(); h.images[0].onload(); await flush();
+  tree = h.render(h.components.PublicAvatarMedia, props); assert.equal(tree.props.src, 'blob:public-0'); h.unmount();
+  tree = h.render(h.components.PublicAvatarMedia, props); assert.equal(tree.props.src, 'blob:public-0', 'warm visit has the real avatar on its first render');
+  await flush(); assert.equal(h.requests.length, 1);
+  tree = h.render(h.components.PublicAvatarMedia, { ...props, path: 'author/two.webp' }); assert.notEqual(tree.type, 'img', 'changed path never shows old custom avatar'); await flush();
+  h.components.reviewPublicAvatarCache.clear(); h.unmount();
+  h.requests[1].resolve(new Blob(['late'], { type: 'image/webp' })); await flush();
+  assert.equal(h.created.length, 1); assert.deepEqual(h.revoked, ['blob:public-0']);
 });
 
 test('a timed-out image decode cannot later restore a revoked image URL', async () => {

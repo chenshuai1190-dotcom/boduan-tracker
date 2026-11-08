@@ -7,10 +7,11 @@ import { EvaluationRating, ReviewAccountCard } from './ReviewEvaluation.jsx';
 import { normalizeReviewTradeReferences } from '../lib/reviewEvaluationModel.js';
 import ReviewActivityTime from './ReviewActivityTime.js';
 import ReviewCommentThreadList from './ReviewCommentThreads.jsx';
+import { reviewPublicAvatarCache } from '../lib/reviewPublicAvatarCache.js';
 import './ReviewPublicFeed.css';
 
-// Share only in-flight downloads. Completed public assets are not cached across
-// visits, so a later visit checks the current post/avatar authorization again.
+// Share only in-flight attachment downloads. Avatars use the separate bounded
+// session cache below; post/comment images always recheck Storage authorization.
 const pendingMedia = new WeakMap();
 function publicMedia(db, userId, kind, path) {
   let requests = pendingMedia.get(db);
@@ -62,10 +63,28 @@ function PublicMedia({ db, userId, path, kind = 'image', fallback = '', language
   return kind === 'avatar' ? <User size={20} aria-hidden="true" /> : <span className="rpf-image-status" role="status">{state.key === key && state.status === 'error' ? language.startsWith('en') ? 'Image unavailable' : '图片暂不可用' : <Loader2 size={18} className="rj-spin" aria-label={language.startsWith('en') ? 'Loading image' : '正在读取图片'} />}</span>;
 }
 
-export function PublicAvatar({ post, db, userId, language }) {
+function PublicAvatarMedia({ db, userId, path }) {
+  const key = JSON.stringify([userId, path]);
+  const [state, setState] = React.useState(() => ({ db, key, url: reviewPublicAvatarCache.peek(db, userId, path) }));
+  React.useEffect(() => {
+    let active = true, lease;
+    const invalidate = () => { if (active) setState({ db, key, url: '' }); };
+    try {
+      lease = reviewPublicAvatarCache.acquire(db, userId, path, invalidate);
+      setState({ db, key, url: lease.url });
+      lease.promise.then(() => { if (active) setState({ db, key, url: lease.url }); }, invalidate);
+    } catch { invalidate(); }
+    return () => { active = false; lease?.release(); };
+  }, [db, userId, path, key]);
+  const source = state.db === db && state.key === key ? state.url : '';
+  return source ? <img src={source} alt="" draggable={false} onError={() => setState({ db, key, url: '' })}/>
+    : <User size={20} aria-hidden="true"/>;
+}
+
+export function PublicAvatar({ post, db, userId }) {
   const preset = getCommunityAvatarOption(post.author?.avatarKey).src;
   return <span className="rj-avatar rpf-avatar">{post.author?.avatarPath
-    ? <PublicMedia db={db} userId={userId} kind="avatar" path={post.author.avatarPath} fallback={preset} language={language} />
+    ? <PublicAvatarMedia db={db} userId={userId} path={post.author.avatarPath} />
     : <img src={preset} alt="" draggable={false} />}</span>;
 }
 

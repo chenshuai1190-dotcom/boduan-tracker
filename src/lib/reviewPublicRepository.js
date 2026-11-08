@@ -2,6 +2,7 @@ import { isReviewJournalOperationId, reviewJournalError } from './reviewJournalM
 import { normalizeCommunityAvatarPath } from './communityAvatarModel.js';
 import { isReviewPublicPostId, mapReviewPublicFeed, mapReviewPublicPost, mapReviewPublicLike, normalizeReviewPublicCursor } from './reviewPublicModel.js';
 import { buildReviewCommunityEvaluation, mapReviewCommunityEvaluation, mapReviewCommunityEvaluations, mapReviewCommunityDelete, normalizeReviewCommunityCursor, normalizeReviewCommunityReplyTarget } from './reviewCommunityEvaluationModel.js';
+import { createReviewSessionGuard } from './reviewSessionGuard.js';
 
 export function reviewPublicError(error) {
   if (['42883', '42P01', '42703', 'PGRST202', 'PGRST204'].includes(error?.code)) {
@@ -33,25 +34,18 @@ export async function assertReviewPublicAvailable(client, expectedUserId) {
 }
 
 export function createReviewPublicRepository(client) {
-  async function authenticate(expectedUserId) {
-    if (typeof expectedUserId !== 'string' || !expectedUserId || !client?.auth?.getUser) {
-      throw reviewJournalError('REVIEW_AUTH_REQUIRED', '请先登录后查看公开动态。');
-    }
-    const { data, error } = await client.auth.getUser();
-    if (error || !data?.user?.id) throw reviewJournalError('REVIEW_AUTH_REQUIRED', '登录状态已失效，请重新登录。');
-    if (data.user.id !== expectedUserId) throw reviewJournalError('REVIEW_ACCOUNT_CHANGED', '账户已切换，请重新打开动态。');
-    return data.user;
-  }
+  const sessionGuard = createReviewSessionGuard(client, { requestError: () => reviewPublicError(null) });
   async function rpc(name, args, userId, toError = reviewPublicError) {
-    await authenticate(userId);
+    const session = await sessionGuard.begin(userId);
     if (typeof client?.rpc !== 'function') throw reviewPublicError({ code: 'PGRST202' });
+    sessionGuard.assertCurrent(session);
     let result;
     // The server checks this against the request JWT before reading or mutating.
-    // Local getUser checks alone cannot prevent a shared client switching accounts
-    // in the gap before an RPC is sent (or switching away and back afterwards).
+    // The local generation guard rejects results after an account changes, but
+    // only the server can reject a switched JWT before a mutation takes place.
     try { result = await client.rpc(name, { ...args, p_expected_user_id: userId }); }
     catch { result = { error: { code: 'NETWORK_ERROR' } }; }
-    await authenticate(userId);
+    await sessionGuard.verify(session);
     if (!result || result.error) throw toError(result?.error);
     return result.data;
   }
@@ -116,12 +110,13 @@ export function createReviewPublicRepository(client) {
   }
   async function download(path, bucket, maxBytes, userId) {
     if (!normalizeCommunityAvatarPath(path)) throw reviewJournalError('REVIEW_INVALID_IMAGE', '图片引用无效。');
-    await authenticate(userId);
+    const session = await sessionGuard.begin(userId);
     if (!client.storage?.from) throw reviewJournalError('REVIEW_STORAGE_NOT_CONFIGURED', '图片存储暂不可用。');
+    sessionGuard.assertCurrent(session);
     let result;
     try { result = await client.storage.from(bucket).download(path); }
     catch { result = { error: true }; }
-    await authenticate(userId);
+    await sessionGuard.verify(session);
     if (!result || result.error) throw reviewJournalError('REVIEW_PUBLIC_IMAGE_UNAVAILABLE', '图片已移除或暂时不可用。');
     const data = result.data;
     if (!(data instanceof Blob) || !['image/jpeg', 'image/png', 'image/webp'].includes(data.type)

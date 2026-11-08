@@ -7,6 +7,7 @@ import { STOCK_COMPARISON_DEMO } from './stockComparisonFixture.js';
 import { isRegularNyseHoliday } from '../lib/quoteRefreshPolicy.js';
 import { createReviewMarketSnapshot, readReviewMarketDate } from '../lib/reviewMarketSnapshot.js';
 import { withStockTradeRecordKind } from '../lib/stockTradeRecordKind.js';
+import { reviewPublicAvatarCache } from '../lib/reviewPublicAvatarCache.js';
 
 // Only imported by DevVisualPreview. No account requests or production writes.
 const OWNER = 'local-review-journal-preview';
@@ -66,16 +67,25 @@ const readingLogs = [
   ].join('\n\n')},
 ];
 export default function ReviewJournalPreview({language,onBack,marketColorMode,navigationTab=false,reviewFeedUnread,reviewFeedUnreadPreview,reviewOpenAllRequest=0}) {
+  const avatarCacheEnabled = new URLSearchParams(window.location.search).get('reviewAvatarCache') === '1';
   const initialLogs = new URLSearchParams(window.location.search).get('reviewPublicOwner') === '1' ? [{...evaluationLog,visibility:'public',publishedAt:'2026-11-08T04:00:00Z'},...seedLogs] : new URLSearchParams(window.location.search).get('reviewEvaluation') === '1' ? [evaluationLog,...seedLogs] : new URLSearchParams(window.location.search).get('reviewReading') === '1' ? [...readingLogs,...seedLogs] : seedLogs;
   const [disciplines,setDisciplines] = React.useState(seedInsights);
   const [reviewLogs,setReviewLogs] = React.useState(initialLogs);
   const reviewPublicRefreshRef = React.useRef(null);
   const [refreshScenarioStatus,setRefreshScenarioStatus] = React.useState('');
   const [communityScenarioStatus,setCommunityScenarioStatus] = React.useState('');
+  const [avatarStats,setAvatarStats] = React.useState({version:1,total:0,requests:{}});
+  const [avatarScenarioStatus,setAvatarScenarioStatus] = React.useState('首次头像下载模拟 300ms；全部内容仅为本地示例，不写入真实数据。');
+  const [avatarPageVersion,setAvatarPageVersion] = React.useState(0), [avatarReopen,setAvatarReopen] = React.useState(false);
+  const avatarPageRef = React.useRef(null);
   const rows = React.useRef([...seedInsights,...initialLogs]); const imageUrls = React.useRef(new Map()); const imageFiles=React.useRef(new Map());
   React.useEffect(()=>()=>imageUrls.current.forEach(url=>URL.revokeObjectURL(url)),[]);
   const db = React.useMemo(()=>({
     ...createReviewPublicPreview({ownerId:OWNER,getEntries:()=>rows.current,getImage:path=>imageFiles.current.get(path),market:snapshot,notifications:true,threaded:true,
+      avatarCache: avatarCacheEnabled ? {onRequest:setAvatarStats,loadBlob:async asset=>{
+        // Fixed repository assets, never arbitrary URLs or remote account media.
+        const response=await fetch(asset);if(!response.ok)throw new Error('本地示例头像读取失败');return response.blob();
+      }} : null,
       communityEvaluations:[...(initialLogs.some(row=>row.id===evaluationLog.id)?[communityEvaluation]:[]),...(new URLSearchParams(window.location.search).get('reviewThreads')==='1'?threadedEvaluations:[])]}),
     saveReviewJournalEntry:async(entry,userId)=>{
       if(userId!==OWNER)throw new Error('预览账户不匹配');
@@ -130,11 +140,37 @@ export default function ReviewJournalPreview({language,onBack,marketColorMode,na
     resolveReviewJournalImage:async path=>{if(!imageUrls.current.has(path))throw new Error('预览图片已失效');return imageUrls.current.get(path);},
     removeReviewJournalImage:async path=>{const url=imageUrls.current.get(path);if(url)URL.revokeObjectURL(url);imageUrls.current.delete(path);imageFiles.current.delete(path);},
   }),[]);
+  React.useEffect(()=>{
+    if(!avatarCacheEnabled||!avatarReopen)return undefined;
+    let stopped=false,observer,timer;
+    const open=()=>{
+      if(stopped)return;
+      const target=[...(avatarPageRef.current?.querySelectorAll('article.rpf-post.rj-post-link')||[])].find(node=>node.getAttribute('aria-label')?.startsWith('山间慢行 ·'));
+      if(!target)return;
+      stopped=true;observer?.disconnect();clearTimeout(timer);target.click();setAvatarReopen(false);
+    };
+    observer=new MutationObserver(open);if(avatarPageRef.current)observer.observe(avatarPageRef.current,{childList:true,subtree:true});
+    timer=setTimeout(()=>{stopped=true;observer.disconnect();setAvatarReopen(false);setAvatarScenarioStatus('示例文章尚未出现，请确认示例列表已恢复，然后手动点进“山间慢行”的帖子。');},5000);
+    open();return()=>{stopped=true;observer.disconnect();clearTimeout(timer);};
+  },[avatarCacheEnabled,avatarPageVersion,avatarReopen]);
+  const reopenAvatarArticle=message=>{setAvatarScenarioStatus(message);setAvatarReopen(true);setAvatarPageVersion(value=>value+1);};
   if(!import.meta.env.DEV)return null;
+  const journal=<ReviewJournalPage key={avatarCacheEnabled?avatarPageVersion:'default'} ctx={{db,userId:OWNER,language,disciplines,reviewLogs,setDisciplines,setReviewLogs,stockTrades,onBack,marketColorMode,usdCny:7.12,fxDate:'2026-11-07T00:00:00Z',navigationTab,reviewPublicRefreshRef,reviewFeedUnread,reviewOpenAllRequest,previewData:{initialAllScope:avatarCacheEnabled?'public':new URLSearchParams(window.location.search).get('reviewScope')||undefined,timeline,initialTimeline:new URLSearchParams(window.location.search).get('reviewTimeline')==='1',identity:{nickname:'波段玩家1836',avatarKey:'gold'},history,market,account}}}/>;
   return <>
+    {avatarCacheEnabled&&<section aria-label="本地头像缓存验收" style={{padding:'calc(env(safe-area-inset-top) + 12px) 16px 12px',fontSize:13,color:'#94a3b8',background:'#11151b'}}>
+      <strong>头像缓存验收 · 本地示例，不写真实数据</strong>
+      <p role="status">头像下载请求：{avatarStats.total} 次 · 当前头像版本：{avatarStats.version} · 本版本请求：{avatarStats.requests[avatarStats.path]||0} 次</p>
+      <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
+        <button type="button" style={{padding:'10px 8px'}} onClick={()=>reopenAvatarArticle('已重新进入示例文章；同一路径应复用头像，请求次数保持不变。')}>重进示例文章（保留缓存）</button>
+        <button type="button" style={{padding:'10px 8px'}} onClick={()=>{db.changeReviewAvatarPreview();reopenAvatarArticle('已更换 immutable 头像路径；帖子和同作者评论将显示新头像，新增一次下载。');}}>更换示例头像</button>
+        <button type="button" style={{padding:'10px 8px'}} onClick={()=>{reviewPublicAvatarCache.clear();reopenAvatarArticle('已清空头像缓存并重进文章；本版本将重新下载一次。');}}>清空缓存并重进文章</button>
+      </div>
+      <p>{avatarScenarioStatus}</p>
+    </section>}
     <details style={{padding:'calc(env(safe-area-inset-top) + 12px) 16px 12px',fontSize:13,color:'#94a3b8'}}>
       <summary>本地刷新验收 · 示例数据</summary>
       <a href="?devPreview=1&tab=home&reviewUnread=1&reviewThreads=1&reviewScope=public" style={{display:'block',padding:'12px 8px'}}>评论与新帖提醒示例</a>
+      <a href="?devPreview=1&tab=review-journal&reviewThreads=1&reviewScope=public&reviewAvatarCache=1" style={{display:'block',padding:'12px 8px'}}>头像缓存示例</a>
       <button type="button" style={{padding:'12px 8px'}} onClick={async()=>{db.setReviewPublicPreviewScenario('empty');await reviewPublicRefreshRef.current?.();setRefreshScenarioStatus('示例列表已清空');}}>清空示例公开列表</button>
       <button type="button" style={{padding:'12px 8px'}} onClick={()=>{db.setReviewPublicPreviewScenario('published');reviewFeedUnreadPreview?.publish('insight:sample-fresh-post');reviewFeedUnread?.refresh();setRefreshScenarioStatus('已模拟其他账号发布，等待自动读取');}}>模拟其他账号发布</button>
       <button type="button" style={{padding:'12px 8px'}} onClick={async()=>{await reviewPublicRefreshRef.current?.();setRefreshScenarioStatus('手动读取完成');}}>读取最新示例</button>
@@ -146,6 +182,6 @@ export default function ReviewJournalPreview({language,onBack,marketColorMode,na
       <button type="button" style={{padding:'12px 8px'}} onClick={async()=>{db.setReviewCommunityPreviewVisibility('insight:sample-reader','public');await reviewPublicRefreshRef.current?.();setCommunityScenarioStatus('山间慢行的示例帖恢复公开，已有评价仍保留。');}}>恢复示例帖子公开</button>
       {communityScenarioStatus&&<p role="status">{communityScenarioStatus}</p>}
     </details>
-    <ReviewJournalPage ctx={{db,userId:OWNER,language,disciplines,reviewLogs,setDisciplines,setReviewLogs,stockTrades,onBack,marketColorMode,usdCny:7.12,fxDate:'2026-11-07T00:00:00Z',navigationTab,reviewPublicRefreshRef,reviewFeedUnread,reviewOpenAllRequest,previewData:{initialAllScope:new URLSearchParams(window.location.search).get('reviewScope')||undefined,timeline,initialTimeline:new URLSearchParams(window.location.search).get('reviewTimeline')==='1',identity:{nickname:'波段玩家1836',avatarKey:'gold'},history,market,account}}}/>
+    {avatarCacheEnabled?<div ref={avatarPageRef}>{journal}</div>:journal}
   </>;
 }

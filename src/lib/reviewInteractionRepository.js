@@ -1,5 +1,6 @@
 import { isReviewJournalOperationId, reviewJournalError } from './reviewJournalModel.js';
 import { isReviewPublicPostId } from './reviewPublicModel.js';
+import { createReviewSessionGuard } from './reviewSessionGuard.js';
 import { isReviewInteractionObject, normalizeReviewCommentTarget, normalizeReviewCommentCursor, normalizeReviewFeedCursor,
   mapReviewFeedUnread, mapReviewEvaluationLike, mapReviewEvaluationLikes, mapReviewCommentThreads, mapReviewCommentThreadReplies } from './reviewInteractionModel.js';
 const invalid = () => { throw reviewJournalError('REVIEW_INTERACTION_INVALID_QUERY','评论操作参数无效，请重新打开。'); };
@@ -10,17 +11,13 @@ export function reviewInteractionError(error) {
   return reviewJournalError('REVIEW_INTERACTION_REQUEST_FAILED','评论互动暂时无法读取，请重试。');
 }
 export function createReviewInteractionRepository(client) {
-  async function authenticate(userId) {
-    if (!isReviewJournalOperationId(userId)||!client?.auth?.getUser) throw reviewJournalError('REVIEW_AUTH_REQUIRED','请先登录。');
-    let result;try {result=await client.auth.getUser();}catch{throw reviewInteractionError(null);}
-    if (result?.error||!result?.data?.user?.id) throw reviewJournalError('REVIEW_AUTH_REQUIRED','登录状态已失效，请重新登录。');
-    if (result.data.user.id!==userId) throw reviewJournalError('REVIEW_ACCOUNT_CHANGED','账户已切换，请重新打开动态。');
-  }
+  const sessionGuard=createReviewSessionGuard(client,{isValidUserId:isReviewJournalOperationId,requestError:()=>reviewInteractionError(null)});
   async function rpc(name,args,userId) {
-    await authenticate(userId);
+    const session=await sessionGuard.begin(userId);
     if (typeof client.rpc!=='function') throw reviewInteractionError({code:'PGRST202'});
+    sessionGuard.assertCurrent(session);
     let result;try {result=await client.rpc(name,{...args,p_expected_user_id:userId});}catch{result={error:{code:'NETWORK_ERROR'}};}
-    await authenticate(userId);
+    await sessionGuard.verify(session);
     if (!result||result.error) throw reviewInteractionError(result?.error);
     return result.data;
   }
