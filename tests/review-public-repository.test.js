@@ -23,11 +23,11 @@ function fixture({ users = [VIEWER], result = { data: feed(), error: null }, dow
   return { client, repository: createReviewPublicRepository(client), calls, downloads, authCalls: () => authCalls };
 }
 
-test('public projection strips private evaluations, account, trades and unknown identity/image fields', () => {
+test('public projection strips malformed evaluations, top-level account/trades and unknown identity/image fields', () => {
   const value = post({ replies: [{ text: '私密评价' }], account: { netAssets: 999 }, trades: [{ shares: 100 }], timelineEvent: { hidden: true },
     author: { ...post().author, email: 'private@example.test' }, images: [{ ...image, signedUrl: 'private-token', metadata: 'private' }] });
   const mapped = mapReviewPublicPost(value);
-  assert.deepEqual(Object.keys(mapped).sort(), ['author', 'authorId', 'date', 'id', 'images', 'likeCount', 'liked', 'market', 'publishedAt', 'sourceId', 'stocks', 'text', 'type', 'updatedAt']);
+  assert.deepEqual(Object.keys(mapped).sort(), ['author', 'authorId', 'date', 'id', 'images', 'likeCount', 'liked', 'market', 'publishedAt', 'replies', 'sourceId', 'stocks', 'text', 'type', 'updatedAt']);
   assert.deepEqual(mapped.author, post().author);
   assert.deepEqual(mapped.images, [image]);
   assert.doesNotMatch(JSON.stringify(mapped), /私密|private|netAssets|shares|timelineEvent/);

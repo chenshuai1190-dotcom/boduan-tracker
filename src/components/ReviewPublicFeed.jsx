@@ -1,8 +1,10 @@
 import React from 'react';
-import { ArrowLeft, Heart, Loader2, RefreshCw, User, X } from 'lucide-react';
+import { ArrowLeft, Heart, Loader2, MessageCircle, MoreHorizontal, User, X } from 'lucide-react';
 import { getCommunityAvatarOption } from '../lib/communityProfile.js';
 import ReviewPostBody from './ReviewPostBody.jsx';
 import { SnapshotCard } from './ReviewMarketSnapshot.jsx';
+import { EvaluationRating, ReviewAccountCard } from './ReviewEvaluation.jsx';
+import { normalizeReviewTradeReferences } from '../lib/reviewEvaluationModel.js';
 import './ReviewPublicFeed.css';
 
 // Share only in-flight downloads. Completed public assets are not cached across
@@ -65,14 +67,15 @@ function PublicAvatar({ post, db, userId, language }) {
     : <img src={preset} alt="" draggable={false} />}</span>;
 }
 
-function PublicPost({ post, full = false, db, userId, language, onOpen, onLike, pending, error, onSelectSymbol, onOpenOwnEntry }) {
+function PublicPost({ post, full = false, db, userId, language, onOpen, onLike, pending, error, onSelectSymbol, onManageOwnEntry, onOpenComments }) {
   const [expanded, setExpanded] = React.useState(false);
   const english = language.startsWith('en');
+  const commentCount = post.replies?.length || 0;
   const open = event => {
     if (full || event.defaultPrevented || event.target.closest('button,a,input,textarea,select') || window.getSelection?.()?.toString()) return;
     onOpen(post);
   };
-  return <article className={`rj-post rpf-post${full ? ' rpf-post-full' : ' rj-post-link'}`} tabIndex={full ? undefined : 0}
+  return <article className={`rj-post rpf-post${full ? ' rj-post-full rpf-post-full' : ' rj-post-link'}`} tabIndex={full ? undefined : 0}
     aria-label={full ? undefined : `${post.author?.nickname || (english ? 'Quote user' : 'Quote 用户')} · ${post.date}`}
     onClick={open} onKeyDown={event => {
       if (full || event.target !== event.currentTarget || !['Enter', ' '].includes(event.key)) return;
@@ -80,7 +83,7 @@ function PublicPost({ post, full = false, db, userId, language, onOpen, onLike, 
     }}>
     <PublicAvatar post={post} db={db} userId={userId} language={language} />
     <div className="rj-post-main">
-      <div className="rj-post-heading"><strong>{post.author?.nickname || (english ? 'Quote user' : 'Quote 用户')}</strong><span>·</span><time dateTime={post.publishedAt}>{full ? post.publishedAt.slice(0, 10) : post.publishedAt.slice(5, 10).replace('-', '/')}</time></div>
+      <div className="rj-post-heading"><strong>{post.author?.nickname || (english ? 'Quote user' : 'Quote 用户')}</strong><span>·</span><time dateTime={post.publishedAt}>{full ? post.publishedAt.slice(0, 10) : english ? post.publishedAt.slice(5, 10).replace('-', '/') : `${post.publishedAt.slice(5, 10).replace('-', '月')}日`}</time>{post.authorId === userId && typeof onManageOwnEntry === 'function' && <button type="button" className="rj-icon rj-post-more" aria-label={english ? 'Record actions' : '记录操作'} onClick={event => { event.stopPropagation(); onManageOwnEntry(post.type, post.sourceId); }}><MoreHorizontal size={19}/></button>}</div>
       {full && post.date !== post.publishedAt.slice(0, 10) && <p className="rpf-record-date">{english ? 'Record date · ' : '记录日期 · '}{post.date}</p>}
       <ReviewPostBody text={post.text} candidates={post.stocks} onSelectSymbol={onSelectSymbol} language={language} full={full} expanded={expanded} onToggle={() => setExpanded(value => !value)} />
       {!!post.images?.length && <div className={`rj-photo-grid rj-images-${post.images.length} rpf-images`}>{post.images.map(item => <span key={item.path} className="rpf-image"><PublicMedia db={db} userId={userId} path={item.path} language={language} /></span>)}</div>}
@@ -89,43 +92,106 @@ function PublicPost({ post, full = false, db, userId, language, onOpen, onLike, 
       <div className="rj-post-actions rpf-actions"><button type="button" className={`rpf-like${post.liked ? ' rpf-liked' : ''}`} aria-pressed={Boolean(post.liked)} disabled={pending}
         aria-label={english ? `${post.liked ? 'Unlike' : 'Like'} · ${post.likeCount}` : `${post.liked ? '取消点赞' : '点赞'} · ${post.likeCount}`} onClick={() => onLike(post)}>
         <Heart size={19} fill={post.liked ? 'currentColor' : 'none'} /><span>{post.likeCount > 0 ? post.likeCount.toLocaleString() : english ? 'Like' : '点赞'}</span>
-      </button>{full && post.authorId === userId && onOpenOwnEntry && <button type="button" className="rpf-own-entry" onClick={() => onOpenOwnEntry(post.type, post.sourceId)}>{english ? 'My record' : '查看我的记录'}</button>}</div>
+      </button><button type="button" aria-label={english ? 'View comments' : '查看评论'} onClick={event => { event.stopPropagation(); onOpenComments?.(post, event); }}><MessageCircle size={19}/><span>{commentCount || (english ? 'Comment' : '评论')}</span></button></div>
       {error && <p className="rpf-inline-error" role="alert">{error}</p>}
     </div>
   </article>;
 }
 
+function PublicTradeReferences({ trades, language }) {
+  const valid = normalizeReviewTradeReferences(trades);
+  if (!valid.length) return null;
+  const english = language.startsWith('en');
+  return <div className="rev-trade-references"><div className="rev-trade-track" aria-label={english ? 'Shared trade references' : '引用的交易记录'}>{valid.map(trade => <article className="rev-trade-reference rpf-trade-reference" key={trade.id}><header><strong>{trade.symbol}</strong><span className={`rev-side-${trade.side}`}>{english ? trade.side === 'buy' ? 'Buy' : 'Sell' : trade.side === 'buy' ? '买入' : '卖出'}</span><time dateTime={trade.date}>{trade.date}</time></header><div><strong>{trade.price.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong><span>{trade.shares.toLocaleString('en-US', { maximumFractionDigits: 6 })} {english ? 'shares' : '股'}</span></div></article>)}</div></div>;
+}
+
+function PublicReplies({ post, db, userId, language, marketColorMode, onSelectSymbol, onEvaluateOwnEntry, onManageOwnReply, sectionRef }) {
+  const english = language.startsWith('en'), ownPost = post.authorId === userId, replies = post.replies || [];
+  return <section ref={sectionRef} className="rj-replies rpf-replies" aria-label={english ? 'Comments' : '评论'}>
+    <div className="rj-replies-header"><h2>{english ? 'Comments' : '评论'}{replies.length ? ` · ${replies.length}` : ''}</h2>{ownPost && typeof onEvaluateOwnEntry === 'function' && <button type="button" className="rj-evaluate-button" onClick={() => onEvaluateOwnEntry(post.type, post.sourceId)}>{english ? 'Write review' : '写评价'}</button>}</div>
+    {replies.map(reply => <div className="rj-reply" key={reply.id} data-rj-reply-id={reply.id}><PublicAvatar post={post} db={db} userId={userId} language={language}/><div><div className="rev-reply-byline"><strong>{post.author?.nickname || (english ? 'Quote user' : 'Quote 用户')}</strong><span>·</span><time dateTime={reply.date}>{reply.date}</time>{ownPost && typeof onManageOwnReply === 'function' && <button type="button" className="rj-icon rj-reply-more" aria-label={english ? 'Comment actions' : '评论操作'} onClick={() => onManageOwnReply(post.type, post.sourceId, reply.id)}><MoreHorizontal size={19}/></button>}</div>
+      <EvaluationRating score={reply.score} tags={reply.tags || []}/>
+      {reply.text && <ReviewPostBody text={reply.text} candidates={reply.stocks || []} onSelectSymbol={onSelectSymbol} language={language} full/>}
+      {reply.mood && <p className="rj-note">{english ? 'Mood · ' : '心情 · '}{reply.mood}</p>}
+      {!!reply.stocks?.length && <div className="rpf-symbols">{reply.stocks.map(symbol => <button key={symbol} type="button" onClick={event => onSelectSymbol(symbol, event)}>${symbol}</button>)}</div>}
+      {!!reply.images?.length && <div className={`rj-photo-grid rj-images-${reply.images.length} rpf-images`}>{reply.images.map(item => <span key={item.path} className="rpf-image"><PublicMedia db={db} userId={userId} path={item.path} language={language}/></span>)}</div>}
+      {reply.market && <SnapshotCard value={reply.market} language={language}/>}
+      {reply.account && <ReviewAccountCard value={reply.account} marketColorMode={marketColorMode}/>}
+      {!!reply.trades?.length && <PublicTradeReferences trades={reply.trades} language={language}/>}
+    </div></div>)}
+    {!replies.length && <p className="rj-note">{english ? 'No comments yet.' : '还没有评论。'}</p>}
+  </section>;
+}
+
 const blankFeed = key => ({ key, posts: [], status: 'loading', error: '', hasMore: false, nextCursor: null, more: false });
 const errorMessage = (failure, english) => failure?.message || (english ? 'Public activity is unavailable. Please retry.' : '公开动态暂时无法读取，请重试。');
 
-function ScopedPublicFeed({ db, userId, language = 'zh', query = '', symbol = '', refreshToken = 0, onOpenOwnEntry, onDetailChange }) {
+function ScopedPublicFeed({ db, userId, language = 'zh', marketColorMode, query = '', symbol = '', refreshToken = 0, onManageOwnEntry, onEvaluateOwnEntry, onManageOwnReply, onDetailChange }) {
   const english = language.startsWith('en');
   const [localSymbol, setLocalSymbol] = React.useState('');
   const [retry, setRetry] = React.useState(0), [detailRetry, setDetailRetry] = React.useState(0);
+  const scopeKey = JSON.stringify([userId, query, symbol || localSymbol]);
   const feedKey = JSON.stringify([userId, query, symbol || localSymbol, refreshToken, retry]);
   const currentKey = React.useRef(feedKey), scopeVersion = React.useRef(0);
   if (currentKey.current !== feedKey) { currentKey.current = feedKey; scopeVersion.current += 1; }
   const version = scopeVersion.current;
   const [feed, setFeed] = React.useState(() => blankFeed(feedKey));
   const [detail, setDetail] = React.useState(null), [likes, setLikes] = React.useState({});
-  const detailId = React.useRef(null); detailId.current = detail?.id || null;
+  const currentDetail = detail?.scopeKey === scopeKey ? detail : null;
+  const readyPost = currentDetail?.requestKey === feedKey && currentDetail.status === 'ready' ? currentDetail.post : null;
+  const detailId = React.useRef(null); detailId.current = currentDetail?.id || null;
   const detailCallback = React.useRef(onDetailChange); detailCallback.current = onDetailChange;
   const alive = React.useRef(true), paging = React.useRef(false), pendingLikes = React.useRef(new Set()), likeVersions = React.useRef(new Map()), withdrawn = React.useRef(new Set());
   const isCurrent = () => alive.current && currentKey.current === feedKey && scopeVersion.current === version;
   const scrollPosition = React.useRef(0);
-  React.useEffect(() => { alive.current = true; return () => { alive.current = false; detailCallback.current?.(false); }; }, []);
-  React.useEffect(() => { detailCallback.current?.(Boolean(detail)); }, [Boolean(detail)]);
+  const commentsRef = React.useRef(null), pendingComments = React.useRef(false);
+  const historyToken = React.useRef(null), historyRoutes = React.useRef(new Map()), navigation = React.useRef(null);
+  if (!historyToken.current) historyToken.current = crypto.randomUUID();
+  navigation.current = { scopeKey, feedKey };
+  const restoreListPosition = () => requestAnimationFrame(() => window.scrollTo({ top: scrollPosition.current, behavior: 'auto' }));
+  React.useEffect(() => {
+    const onPopState = event => {
+      const state = event.state?.reviewPublicEntry;
+      const route = state?.token === historyToken.current ? historyRoutes.current.get(state.id) : null;
+      if (route?.scopeKey === navigation.current.scopeKey && !withdrawn.current.has(route.id)) {
+        setDetail({ ...route, requestKey: navigation.current.feedKey, status: 'loading', post: null, error: '' });
+        window.scrollTo({ top: 0, behavior: 'auto' });
+      } else if (detailId.current) { setDetail(null); restoreListPosition(); }
+    };
+    window.addEventListener?.('popstate', onPopState);
+    return () => {
+      window.removeEventListener?.('popstate', onPopState);
+      if (window.history?.state?.reviewPublicEntry?.token === historyToken.current) {
+        const { reviewPublicEntry: discarded, ...rest } = window.history.state;
+        window.history.replaceState(rest, '');
+      }
+    };
+  }, []);
+  React.useEffect(() => { alive.current = true; return () => { alive.current = false; detailCallback.current?.(false, null); }; }, []);
+  React.useEffect(() => { detailCallback.current?.(Boolean(currentDetail), readyPost); }, [Boolean(currentDetail), readyPost]);
+  React.useEffect(() => {
+    if (!readyPost || !pendingComments.current) return;
+    pendingComments.current = false;
+    requestAnimationFrame(() => commentsRef.current?.scrollIntoView({ block: 'start', behavior: 'auto' }));
+  }, [readyPost]);
+  React.useEffect(() => {
+    setDetail(null); historyRoutes.current.clear(); pendingComments.current = false;
+    if (window.history?.state?.reviewPublicEntry?.token === historyToken.current) {
+      const { reviewPublicEntry: discarded, ...rest } = window.history.state;
+      window.history.replaceState(rest, '');
+    }
+  }, [scopeKey]);
   React.useEffect(() => { setLocalSymbol(''); }, [symbol, query]);
   React.useEffect(() => {
     let active = true;
-    paging.current = false; setFeed(blankFeed(feedKey)); setDetail(null); setLikes({}); pendingLikes.current.clear(); withdrawn.current.clear();
+    paging.current = false; setFeed(blankFeed(feedKey)); setLikes({}); pendingLikes.current.clear(); withdrawn.current.clear();
     if (!userId) { setFeed({ ...blankFeed(feedKey), status: 'error', error: english ? 'Sign in to view public activity.' : '登录后可查看公开动态。' }); return undefined; }
     Promise.resolve().then(() => {
       if (typeof db.fetchReviewPublicFeed !== 'function') throw new Error(english ? 'Public activity has not been configured.' : '公开动态尚未配置，请稍后重试。');
       return db.fetchReviewPublicFeed({ limit: 20, query, symbol: symbol || localSymbol }, userId);
     }).then(result => {
       if (!active || !isCurrent()) return;
-      setFeed({ ...blankFeed(feedKey), ...result, status: 'ready' });
+      setFeed({ ...blankFeed(feedKey), ...result, posts: result.posts.filter(post => !withdrawn.current.has(post.id)), status: 'ready' });
     }).catch(failure => {
       if (active && isCurrent()) setFeed({ ...blankFeed(feedKey), status: 'error', error: errorMessage(failure, english) });
     });
@@ -133,25 +199,26 @@ function ScopedPublicFeed({ db, userId, language = 'zh', query = '', symbol = ''
   }, [db, userId, feedKey]);
 
   React.useEffect(() => {
-    if (!detail?.id) return undefined;
+    if (!currentDetail?.id) return undefined;
     let active = true;
-    const id = detail.id, likeVersion = likeVersions.current.get(id) || 0, hadPendingLike = pendingLikes.current.has(id);
-    setDetail({ id, status: 'loading', post: null, error: '' });
+    const id = currentDetail.id, likeVersion = likeVersions.current.get(id) || 0, hadPendingLike = pendingLikes.current.has(id);
+    const detailContext = { id, scopeKey, requestKey: feedKey };
+    setDetail({ ...detailContext, status: 'loading', post: null, error: '' });
     Promise.resolve().then(() => db.fetchReviewPublicPost(id, userId)).then(post => {
       if (!active || !isCurrent() || detailId.current !== id || withdrawn.current.has(id)) return;
       if (!post) {
         withdrawn.current.add(id);
         setFeed(old => ({ ...old, posts: old.posts.filter(item => item.id !== id) }));
-        setDetail({ id, status: 'missing', post: null, error: '' }); return;
+        setDetail({ ...detailContext, status: 'missing', post: null, error: '' }); return;
       }
-      setDetail({ id, status: 'ready', post, error: '' });
+      setDetail({ ...detailContext, status: 'ready', post, error: '' });
       setFeed(old => ({ ...old, posts: old.posts.map(item => item.id === id ? post : item) }));
       if (!hadPendingLike && !pendingLikes.current.has(id) && (likeVersions.current.get(id) || 0) === likeVersion) setLikes(old => { const next = { ...old }; delete next[id]; return next; });
     }).catch(failure => {
-      if (active && isCurrent() && detailId.current === id && !withdrawn.current.has(id)) setDetail({ id, status: 'error', post: null, error: errorMessage(failure, english) });
+      if (active && isCurrent() && detailId.current === id && !withdrawn.current.has(id)) setDetail({ ...detailContext, status: 'error', post: null, error: errorMessage(failure, english) });
     });
     return () => { active = false; };
-  }, [db, userId, detail?.id, detailRetry, feedKey]);
+  }, [db, userId, currentDetail?.id, detailRetry, feedKey]);
 
   const loadMore = async () => {
     if (paging.current || feed.key !== feedKey || feed.status !== 'ready' || !feed.hasMore || !feed.nextCursor) return;
@@ -181,38 +248,47 @@ function ScopedPublicFeed({ db, userId, language = 'zh', query = '', symbol = ''
         withdrawn.current.add(id);
         setFeed(old => ({ ...old, posts: old.posts.filter(item => item.id !== id), error: english ? 'This post is no longer public.' : '这条博文已不再公开。' }));
         setLikes(old => { const next = { ...old }; delete next[id]; return next; });
-        if (detailId.current === id) setDetail({ id, status: 'missing', post: null, error: '' });
+        if (detailId.current === id) setDetail({ id, scopeKey, requestKey: feedKey, status: 'missing', post: null, error: '' });
         return;
       }
       setLikes(old => ({ ...old, [id]: { ...before, pending: false, error: errorMessage(failure, english) } }));
       if (detailId.current === id) setDetailRetry(value => value + 1);
     } finally { if (isCurrent()) pendingLikes.current.delete(id); }
   };
-  const open = post => {
+  const open = (post, comments = false) => {
+    pendingComments.current = comments;
+    if (currentDetail?.id === post.id && readyPost) {
+      if (comments) { pendingComments.current = false; commentsRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' }); }
+      return;
+    }
     scrollPosition.current = window.scrollY;
-    setDetail({ id: post.id, post: null, status: 'loading', error: '' });
+    const route = { id: post.id, scopeKey };
+    historyRoutes.current.set(post.id, route);
+    try { window.history?.pushState({ ...window.history.state, reviewPublicEntry: { token: historyToken.current, id: post.id } }, ''); } catch { /* The local return button remains usable if history is unavailable. */ }
+    setDetail({ id: post.id, scopeKey, requestKey: feedKey, post: null, status: 'loading', error: '' });
     window.scrollTo({ top: 0, behavior: 'auto' });
   };
   const back = () => {
-    setDetail(null);
-    requestAnimationFrame(() => window.scrollTo({ top: scrollPosition.current, behavior: 'auto' }));
+    pendingComments.current = false;
+    if (window.history?.state?.reviewPublicEntry?.token === historyToken.current && window.history.state.reviewPublicEntry.id === detailId.current) window.history.back();
+    else { setDetail(null); restoreListPosition(); }
   };
   const selectSymbol = (value, event) => {
     event?.stopPropagation(); setDetail(null); setLocalSymbol(value);
     window.scrollTo({ top: 0, behavior: 'auto' });
   };
   const postNode = (post, full = false) => <PublicPost key={post.id} post={display(post)} full={full} db={db} userId={userId} language={language} onOpen={open} onLike={like}
-    pending={Boolean(likes[post.id]?.pending)} error={likes[post.id]?.error || ''} onSelectSymbol={selectSymbol} onOpenOwnEntry={onOpenOwnEntry} />;
+    pending={Boolean(likes[post.id]?.pending)} error={likes[post.id]?.error || ''} onSelectSymbol={selectSymbol} onManageOwnEntry={onManageOwnEntry} onOpenComments={post => open(post, true)} />;
   const ownedFeed = feed.key === feedKey ? feed : blankFeed(feedKey);
+  const detailStatus = currentDetail?.requestKey === feedKey ? currentDetail.status : 'loading';
   return <section className="rpf-feed" aria-label={english ? 'Public activity' : '公开动态'}>
-    {detail ? <div className="rpf-detail"><div className="rpf-detail-header"><button type="button" className="rj-icon" onClick={back} aria-label={english ? 'Back to public activity' : '返回公开动态'}><ArrowLeft size={21} /></button><span>{english ? 'Public post' : '公开博文'}</span></div>
-      {detail.status === 'loading' && <p className="rpf-status" role="status"><Loader2 size={18} className="rj-spin" />{english ? 'Loading post…' : '正在读取博文…'}</p>}
-      {detail.status === 'ready' && detail.post && postNode(detail.post, true)}
-      {detail.status === 'missing' && <p className="rpf-status" role="status">{english ? 'This post is no longer public.' : '这条博文已不再公开。'}</p>}
-      {detail.status === 'error' && <div className="rpf-status" role="alert"><p>{detail.error}</p><button type="button" onClick={() => setDetailRetry(value => value + 1)}>{english ? 'Retry' : '重试'}</button></div>}
+    {currentDetail ? <div className="rpf-detail"><header className="rj-page-header rpf-detail-header"><button type="button" className="rj-icon" onClick={back} aria-label={english ? 'Back to public activity' : '返回公开动态'}><ArrowLeft size={22} /></button><h1>{english ? 'Journal Entry' : '复盘记录'}</h1><span className="rj-header-spacer" aria-hidden="true" /></header>
+      {detailStatus === 'loading' && <p className="rpf-status" role="status"><Loader2 size={18} className="rj-spin" />{english ? 'Loading post…' : '正在读取博文…'}</p>}
+      {detailStatus === 'ready' && currentDetail.post && <div className="rj-entry-content">{postNode(currentDetail.post, true)}<PublicReplies post={currentDetail.post} db={db} userId={userId} language={language} marketColorMode={marketColorMode} onSelectSymbol={selectSymbol} onEvaluateOwnEntry={onEvaluateOwnEntry} onManageOwnReply={onManageOwnReply} sectionRef={commentsRef}/></div>}
+      {detailStatus === 'missing' && <p className="rpf-status" role="status">{english ? 'This post is no longer public.' : '这条博文已不再公开。'}</p>}
+      {detailStatus === 'error' && <div className="rpf-status" role="alert"><p>{currentDetail.error}</p><button type="button" onClick={() => setDetailRetry(value => value + 1)}>{english ? 'Retry' : '重试'}</button></div>}
     </div> : <>
       {!!(symbol || localSymbol) && <div className="rpf-filter"><span>${symbol || localSymbol}</span>{!symbol && <button type="button" onClick={() => setLocalSymbol('')} aria-label={english ? 'Clear stock filter' : '取消股票筛选'}><X size={16} /></button>}</div>}
-      <div className="rpf-list-tools"><span>{english ? 'Shared with Quote members' : 'Quote 用户公开发布'}</span><button type="button" onClick={() => setRetry(value => value + 1)} disabled={ownedFeed.status === 'loading'} aria-label={english ? 'Refresh public activity' : '刷新公开动态'}><RefreshCw size={15} /></button></div>
       {ownedFeed.status === 'loading' && <p className="rpf-status" role="status"><Loader2 size={18} className="rj-spin" />{english ? 'Loading public activity…' : '正在读取公开动态…'}</p>}
       {ownedFeed.status === 'error' && <div className="rpf-status" role="alert"><p>{ownedFeed.error}</p><button type="button" onClick={() => setRetry(value => value + 1)}>{english ? 'Retry' : '重试'}</button></div>}
       {ownedFeed.posts.map(post => postNode(post))}

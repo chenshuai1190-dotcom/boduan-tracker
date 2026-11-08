@@ -1,4 +1,4 @@
-import { isReviewJournalDate, reviewJournalError, reviewJournalImagePathBelongsToUser } from './reviewJournalModel.js';
+import { isReviewJournalDate, mapReviewJournalRow, reviewJournalError, reviewJournalImagePathBelongsToUser } from './reviewJournalModel.js';
 import { normalizeReviewMarketSnapshot } from './reviewMarketSnapshot.js';
 import { normalizeCommunityAvatarKey, normalizeCommunityNickname } from './communityProfile.js';
 import { normalizeCommunityAvatarPath } from './communityAvatarModel.js';
@@ -24,8 +24,30 @@ function publicImages(value, authorId) {
   });
 }
 
-/** Public posts are deliberately NOT mapped through the private journal row model.
- * Unknown fields (including replies, account, trades and signed URLs) never escape. */
+/** Only an author's persisted evaluations are exposed; never fetch a viewer's
+ * account or trades to fill missing values. Reuse the persisted reply contracts,
+ * then rebuild the public allowlist (market JSON needs its own strict mapper). */
+export function mapReviewPublicReplies(value, authorId) {
+  if (value == null) return [];
+  if (!Array.isArray(value) || value.length > 500) return invalid();
+  const normalized = mapReviewJournalRow({ user_id: authorId, review_data: { replies: value } }, 'log', authorId).replies;
+  return normalized.flatMap(reply => {
+    const market = normalizeReviewMarketSnapshot(reply.market);
+    const account = reply.account ? {
+      version: 1, kind: 'account_snapshot', asOfDate: reply.account.asOfDate, recordDate: reply.account.recordDate,
+      basis: 'close', source: 'pnl_report', items: reply.account.items,
+    } : null;
+    if (!reply.text && !reply.images.length && reply.score === null && !reply.tags.length && !reply.trades.length
+      && !account && !market && !reply.stocks.length && !reply.mood) return [];
+    return [{ id: reply.id, date: reply.date, text: reply.text, score: reply.score, tags: reply.tags,
+      stocks: reply.stocks, images: publicImages(reply.images, authorId), market, account,
+      trades: reply.trades, mood: reply.mood,
+      ...(timestamp(reply.createdAt) ? { createdAt: reply.createdAt } : {}) }];
+  });
+}
+
+/** Public post fields use an explicit projection. Author evaluations are public
+ * with their parent; unknown fields and top-level account/trades remain absent. */
 export function mapReviewPublicPost(value) {
   if (!plain(value) || !['log', 'insight'].includes(value.type) || !sourceId(value.sourceId)
     || value.id !== `${value.type}:${value.sourceId}` || !uuid(value.authorId)
@@ -43,7 +65,7 @@ export function mapReviewPublicPost(value) {
       avatarKey: normalizeCommunityAvatarKey(value.author.avatarKey),
       avatarPath: normalizeCommunityAvatarPath(value.author.avatarPath, value.authorId) },
     text: value.text, date: value.date, stocks: [...new Set(value.stocks)],
-    images: publicImages(value.images, value.authorId), market,
+    images: publicImages(value.images, value.authorId), market, replies: mapReviewPublicReplies(value.replies, value.authorId),
     publishedAt: value.publishedAt, updatedAt: value.updatedAt, likeCount: value.likeCount, liked: value.liked,
   };
 }

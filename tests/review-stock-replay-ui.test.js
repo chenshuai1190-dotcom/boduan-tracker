@@ -99,6 +99,7 @@ async function harness({ observer = true } = {}) {
     fixture.components = await import(dataUrl(compiled.code));
     const page = await transformWithOxc(`${imports}
       import { reviewJournalFeed } from ${moduleUrl('reviewJournalFeed')};
+      import { readReviewAudiencePreference, writeReviewAudiencePreference } from ${moduleUrl('reviewAudiencePreferences')};
       import { findReviewStockMentions } from ${moduleUrl('reviewStockMentions')};
       import { mergeReviewTimelineFeed, reviewTimelineFeedDate } from ${moduleUrl('reviewTimelineFeed')};
       import { groupReviewTimelineEvents } from ${moduleUrl('reviewTimelineGroups')};

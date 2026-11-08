@@ -7,6 +7,7 @@ import { pathToFileURL } from 'node:url';
 import test from 'node:test';
 
 const migration = await readFile(new URL('../supabase/review_public_activity_20261108.sql', import.meta.url), 'utf8');
+const repliesMigration = await readFile(new URL('../supabase/review_public_replies_20261108.sql', import.meta.url), 'utf8');
 const A='11111111-1111-4111-8111-111111111111', B='22222222-2222-4222-8222-222222222222', C='33333333-3333-4333-8333-333333333333';
 const IMAGE='44444444-4444-4444-8444-444444444444.png', AVATAR='55555555-5555-4555-8555-555555555555.webp';
 const moduleFile=process.env.PGLITE_MODULE_FILE;
@@ -18,6 +19,15 @@ test('public activity migration keeps source policies closed and uses bounded au
   assert.match(migration,/limit v_limit\+1/);
   assert.match(migration,/revoke all on public\.review_public_posts, public\.review_public_likes from public, anon, authenticated/);
   assert.doesNotMatch(migration,/set\s+public\s*=\s*true/i);
+});
+
+test('public evaluation extension is forward-only and retains source and bucket privacy',()=>{
+  assert.match(repliesMigration,/alter table public\.review_public_posts add column if not exists replies jsonb/);
+  assert.doesNotMatch(repliesMigration,/alter\s+table\s+(?:public\.)?(?:stock_trades|disciplines|review_logs)/i);
+  assert.doesNotMatch(repliesMigration,/update\s+public\.(?:disciplines|review_logs)\s/i);
+  assert.doesNotMatch(repliesMigration,/set\s+public\s*=\s*true|grant\s+(?:all|insert|update|delete)\b/i);
+  assert.match(repliesMigration,/source\.review_data->>'visibility'='public'/);
+  assert.match(repliesMigration,/post\.replies is distinct from public\.review_public_project_replies/);
 });
 
 test('public posts and likes preserve private journals, exact assets and three-user isolation',{
@@ -166,6 +176,102 @@ test('public posts and likes preserve private journals, exact assets and three-u
       await as(A,`delete from public.${one.table} where id=$1`,[one.id]);
       assert.equal(await rpc(C,'read_review_public_post',[one.postId]),null);
       assert.equal((await feed(C)).posts.length,1);
+      assert.deepEqual((await rows('select public from storage.buckets')).map(r=>r.public),[false,false,false]);
+    });
+
+    const REPLY_IMAGE='66666666-6666-4666-8666-666666666666.png', PRIVATE_IMAGE='77777777-7777-4777-8777-777777777777.webp';
+    const richReply=(extra={})=>({
+      id:'evaluation-1',date:'2026-11-07',createdAt:'2026-11-07T04:05:06.123456Z',text:'Explicitly shared evaluation',score:8,tags:['按计划执行','自定义标签'],mood:'冷静',stocks:['NVDA','MSFT'],
+      images:[{path:`${A}/${REPLY_IMAGE}`,name:'evaluation.png',mimeType:'image/png',size:128,hidden:'image-internal-metadata'},
+        {path:`${B}/${REPLY_IMAGE}`,name:'foreign.png',mimeType:'image/png',size:128}],
+      market:{version:1,kind:'market_snapshot',basis:'close',asOfDate:'2026-11-06',recordDate:'2026-11-07',secret:'market-internal-metadata',items:[{key:'vix',value:25,asOfDate:'2026-11-06',basis:'close',source:'CBOE',secret:'market-item-internal'}]},
+      account:{version:1,kind:'account_snapshot',basis:'close',source:'pnl_report',asOfDate:'2026-11-06',recordDate:'2026-10-06',sourceSnapshotId:'private-snapshot-id',sourceVersion:'pnl_snapshot_v2',capturedAt:'2026-11-07T04:00:00Z',cash:999999,items:[
+        {key:'cumulativeReturnPct',value:3.4,asOfDate:'2026-11-06',basis:'close',source:'pnl_report',secret:'account-item-internal'},
+        {key:'yearPeakReturnPct',value:36.9,asOfDate:'2026-11-06',basis:'close',source:'pnl_report',peakDate:'2026-10-06'},
+        {key:'declineFromYearPeakPp',value:33.5,asOfDate:'2026-11-06',basis:'close',source:'pnl_report',peakDate:'2026-10-06'},
+        {key:'dailyReturnPct',value:2.72,asOfDate:'2026-11-06',basis:'close',source:'pnl_report'},
+        {key:'leverage',value:1.4,asOfDate:'2026-11-06',basis:'close',source:'pnl_report'}]},
+      trades:[{id:17,symbol:'NVDA',date:'2026-10-06',side:'sell',price:240.2,shares:1000,broker:'trade-internal-metadata',accountId:'hidden-account-id'}],
+      secret:'reply-internal-metadata',...extra,
+    });
+    let sharedEvaluationPost,privateEvaluationPost,backfilled;
+    await t.test('forward migration backfills only already public evaluations and preserves private source rows, publication dates and likes',async()=>{
+      await db.query("insert into storage.objects(bucket_id,name) values('review-journal-images',$1),('review-journal-images',$2),('review-journal-images',$3)",[`${A}/${REPLY_IMAGE}`,`${B}/${REPLY_IMAGE}`,`${A}/${PRIVATE_IMAGE}`]);
+      sharedEvaluationPost=await insert(A,'log',metadata({visibility:'public',replies:[richReply()]}),'Shared parent');
+      privateEvaluationPost=await insert(A,'insight',metadata({visibility:'private',replies:[richReply({id:'private-evaluation',text:'Private parent evaluation',images:[{path:`${A}/${PRIVATE_IMAGE}`,name:'private.webp',mimeType:'image/webp',size:128}]})]}),'Private parent');
+      const before=await rpc(B,'read_review_public_post',[sharedEvaluationPost.postId]);
+      assert.equal(before.replies,undefined,'deployed baseline did not expose evaluations');
+      await rpc(C,'set_review_public_like',[sharedEvaluationPost.postId,true]);
+      const sourceBefore=await rows('select id,text,review_data,created_at from public.review_logs order by id');
+      await db.exec(repliesMigration);
+      backfilled=await rpc(B,'read_review_public_post',[sharedEvaluationPost.postId]);
+      assert.equal(backfilled.replies.length,1);assert.equal(backfilled.replies[0].text,'Explicitly shared evaluation');
+      assert.equal(backfilled.publishedAt,before.publishedAt);assert.equal(backfilled.likeCount,1);
+      assert.deepEqual(await rows('select id,text,review_data,created_at from public.review_logs order by id'),sourceBefore,'forward migration must not rewrite source journals');
+      assert.equal(await rpc(B,'read_review_public_post',[privateEvaluationPost.postId]),null);
+      assert.equal(await rpc(B,'read_review_public_post',[`log:${legacy.id}`]),null);
+      await db.exec(repliesMigration);
+      assert.deepEqual(await rpc(B,'read_review_public_post',[sharedEvaluationPost.postId]),backfilled,'reapplying must not republish or advance an unchanged timestamp');
+    });
+    await t.test('public evaluations share complete display snapshots while stripping unknown fields and foreign image paths',async()=>{
+      const post=await rpc(C,'read_review_public_post',[sharedEvaluationPost.postId]),reply=post.replies[0];
+      assert.deepEqual(Object.keys(reply).sort(),['id','date','createdAt','text','mood','score','tags','images','stocks','market','account','trades'].sort());
+      assert.equal(reply.score,8);assert.deepEqual(reply.tags,['按计划执行','自定义标签']);assert.equal(reply.mood,'冷静');
+      assert.equal(reply.account.items.length,5);assert.equal(reply.account.items[4].value,1.4);
+      assert.equal(reply.account.recordDate,'2026-10-06','hindsight dates remain available');
+      assert.equal(reply.account.items[1].peakDate,'2026-10-06');
+      assert.deepEqual(reply.trades,[{id:'17',symbol:'NVDA',date:'2026-10-06',side:'sell',price:240.2,shares:1000}]);
+      assert.deepEqual(reply.images,[{path:`${A}/${REPLY_IMAGE}`,name:'evaluation.png',mimeType:'image/png',size:128}]);
+      assert.doesNotMatch(JSON.stringify(post),/internal-metadata|market-item-internal|account-item-internal|private-snapshot-id|hidden-account-id|sourceSnapshotId|sourceVersion|capturedAt|999999|foreign\.png/);
+      assert.deepEqual((await as(C,"select name from storage.objects where bucket_id='review-journal-images' order by name")).map(r=>r.name),[`${A}/${REPLY_IMAGE}`]);
+      assert.equal(await rpc(C,'review_public_asset_visible',['review-journal-images',`${B}/${REPLY_IMAGE}`]),false);
+      assert.equal(await rpc(C,'review_public_asset_visible',['review-journal-images',`${A}/${PRIVATE_IMAGE}`]),false);
+      const listPost=(await feed(C)).posts.find(item=>item.id===post.id);assert.deepEqual(listPost.replies,post.replies);
+      await denied(()=>as(null,'select public.read_review_public_post($1,$2)',[post.id,B],'anon'));
+      await denied(()=>rpc(C,'review_public_project_replies',[JSON.stringify([richReply()]),A]));
+      await denied(()=>as(C,'update public.review_public_posts set replies=\'[]\'::jsonb where id=$1',[post.id]));
+      assert.deepEqual(await as(B,'update public.review_logs set review_data=\'{}\'::jsonb where id=$1 returning id',[sharedEvaluationPost.id]),[]);
+      assert.deepEqual((await rpc(C,'read_review_public_post',[post.id])).replies,post.replies,'another viewer cannot modify author evaluations');
+    });
+    await t.test('evaluation edits and removals update public detail without changing published_at and revoke removed image reads',async()=>{
+      const original=await rpc(B,'read_review_public_post',[sharedEvaluationPost.postId]);
+      await update(sharedEvaluationPost,metadata({visibility:'public',replies:[richReply({text:'Edited public evaluation',score:4,images:[]})]}),'Shared parent');
+      const edited=await rpc(B,'read_review_public_post',[sharedEvaluationPost.postId]);
+      assert.equal(edited.replies[0].text,'Edited public evaluation');assert.equal(edited.replies[0].score,4);
+      assert.equal(edited.publishedAt,original.publishedAt);assert.notEqual(edited.updatedAt,original.updatedAt);
+      assert.equal(await rpc(C,'review_public_asset_visible',['review-journal-images',`${A}/${REPLY_IMAGE}`]),false);
+      await update(sharedEvaluationPost,metadata({visibility:'public',replies:[]}),'Shared parent');
+      const removed=await rpc(B,'read_review_public_post',[sharedEvaluationPost.postId]);
+      assert.deepEqual(removed.replies,[]);assert.notEqual(removed.updatedAt,edited.updatedAt);
+      assert.equal(removed.likeCount,1,'editing author evaluations does not reset post likes');
+    });
+    await t.test('malformed historical evaluation fields degrade safely and cannot poison public reads or publish nested raw metadata',async()=>{
+      const malformed=richReply({id:'legacy-safe',text:'Keep valid evaluation text',createdAt:'2026-11-07T99:00:00Z',score:99,tags:['','valid','valid'],stocks:['bad/path','msft'],images:[{path:`${B}/${REPLY_IMAGE}`,name:'foreign.png',mimeType:'image/png',size:128}],account:{kind:'account_snapshot',raw:'hidden-account-blob'},market:{raw:'hidden-market-blob'},trades:[{id:'bad',symbol:'NVDA',date:'2026-11-31',side:'buy',price:1,shares:1,raw:'hidden-trade-blob'}]});
+      await update(sharedEvaluationPost,metadata({visibility:'public',replies:[null,{id:'bad-date',date:'2026-02-30',text:'invalid date'},malformed,{...malformed,text:'Duplicate id must not replace first'}]}),'Shared parent');
+      const post=await rpc(C,'read_review_public_post',[sharedEvaluationPost.postId]),reply=post.replies[0];
+      assert.equal(post.replies.length,1);assert.equal(reply.text,'Keep valid evaluation text');assert.equal(reply.createdAt,undefined);
+      assert.equal(reply.score,null);assert.deepEqual(reply.tags,['valid']);assert.deepEqual(reply.stocks,['MSFT']);assert.deepEqual(reply.images,[]);
+      assert.equal(reply.account,null);assert.equal(reply.market,null);assert.deepEqual(reply.trades,[]);
+      assert.doesNotMatch(JSON.stringify(post),/hidden-account-blob|hidden-market-blob|hidden-trade-blob|Duplicate id/);
+      const contradictory=richReply();contradictory.account.items[2].value=10;
+      await update(sharedEvaluationPost,metadata({visibility:'public',replies:[contradictory]}),'Shared parent');
+      const cleanAccount=(await rpc(C,'read_review_public_post',[sharedEvaluationPost.postId])).replies[0].account;
+      assert.deepEqual(cleanAccount.items.map(item=>item.key),['cumulativeReturnPct','dailyReturnPct','leverage']);
+    });
+    await t.test('parent withdrawal and deletion revoke evaluations and their assets while timeline evaluations remain private',async()=>{
+      await update(sharedEvaluationPost,metadata({visibility:'private',replies:[richReply()]}),'Shared parent');
+      assert.equal(await rpc(B,'read_review_public_post',[sharedEvaluationPost.postId]),null);
+      assert.equal((await feed(C)).posts.some(post=>post.id===sharedEvaluationPost.postId),false);
+      assert.equal(await rpc(C,'review_public_asset_visible',['review-journal-images',`${A}/${REPLY_IMAGE}`]),false);
+      assert.equal((await rows('select count(*)::int as n from public.review_public_likes where post_id=$1',[sharedEvaluationPost.postId]))[0].n,0);
+      const timeline=await insert(A,'log',metadata({visibility:'public',timelineEvent:{id:'timeline-still-private'},replies:[richReply()]}));
+      assert.equal(await rpc(C,'read_review_public_post',[timeline.postId]),null);
+      assert.equal(await rpc(C,'review_public_asset_visible',['review-journal-images',`${A}/${REPLY_IMAGE}`]),false);
+      await update(sharedEvaluationPost,metadata({visibility:'public',replies:[richReply()]}),'Shared parent');
+      assert.equal((await rpc(C,'read_review_public_post',[sharedEvaluationPost.postId])).replies.length,1);
+      await as(A,'delete from public.review_logs where id=$1',[sharedEvaluationPost.id]);
+      assert.equal(await rpc(C,'read_review_public_post',[sharedEvaluationPost.postId]),null);
+      assert.equal(await rpc(C,'review_public_asset_visible',['review-journal-images',`${A}/${REPLY_IMAGE}`]),false);
       assert.deepEqual((await rows('select public from storage.buckets')).map(r=>r.public),[false,false,false]);
     });
   }finally{await db.close();}

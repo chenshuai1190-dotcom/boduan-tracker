@@ -19,6 +19,7 @@ test('new posts start public and retain publication scope when saved and edited'
   let tree=h.render();
   const visibility=()=>find(tree,node=>node.props['aria-label']==='发布可见范围');
   assert.equal(visibility().props.value,'public');
+  assert.doesNotMatch(renderToStaticMarkup(tree), /公开正文、图片、股票代码及市场快照/);
   tree=h.type('一条公开的示例记录');
   assert.equal(visibility().props.value,'public');
   assert.equal(h.draft().visibility,'public');
@@ -48,10 +49,45 @@ test('an explicit private selection survives the draft and legacy drafts or edit
   }
 });
 
-async function harness({ entry, storage = new Map() } = {}) {
+test('explicit audience choices survive fresh sessions and publish without crossing accounts', async () => {
+  const localPreferences = new Map();
+  const scope = tree => find(tree, node => node.props['aria-label'] === '发布可见范围');
+  let h = await harness({ localPreferences });
+  scope(h.render()).props.onChange({ target: { value: 'private' } });
+  h.unmount();
+  // A fresh session has no draft, so this must come from the user's preference.
+  h = await harness({ localPreferences });
+  assert.equal(scope(h.render()).props.value, 'private');
+  h.type('继续使用私密习惯');
+  assert.equal((await h.save()).visibility, 'private'); h.unmount();
+  const other = await harness({ localPreferences, owner: 'another-owner' });
+  assert.equal(scope(other.render()).props.value, 'public'); other.unmount();
+  h = await harness({ localPreferences });
+  scope(h.render()).props.onChange({ target: { value: 'public' } }); h.unmount();
+  const reopened = await harness({ localPreferences });
+  assert.equal(scope(reopened.render()).props.value, 'public'); reopened.unmount();
+});
+
+test('opening existing entries or drafts does not replace the next-post audience habit', async () => {
+  const localPreferences = new Map();
+  const scope = tree => find(tree, node => node.props['aria-label'] === '发布可见范围');
+  const first = await harness({ localPreferences });
+  scope(first.render()).props.onChange({ target: { value: 'private' } }); first.unmount();
+  const entry = { id: 'published', type: 'log', text: '已公开', date: '2026-11-06', visibility: 'public', images: [], stocks: [] };
+  const edit = await harness({ localPreferences, entry });
+  assert.equal(scope(edit.render()).props.value, 'public'); edit.unmount();
+  const storage = new Map([[reviewDraftKey(userId), JSON.stringify(entry)]]);
+  const draft = await harness({ localPreferences, storage });
+  assert.equal(scope(draft.render()).props.value, 'public'); draft.unmount();
+  const next = await harness({ localPreferences });
+  assert.equal(scope(next.render()).props.value, 'private'); next.unmount();
+});
+
+async function harness({ entry, storage = new Map(), localPreferences = new Map(), owner = userId } = {}) {
   let slots = [], cursor = 0, effects = [], tree;
   const saves = [], published = [], closes = [];
   const fixture = {
+    localStorage: { getItem: key => localPreferences.get(key) ?? null, setItem: (key, value) => localPreferences.set(key, value) },
     sessionStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value), removeItem: key => storage.delete(key) },
     useState(initial) {
       const index = cursor++;
@@ -82,7 +118,10 @@ async function harness({ entry, storage = new Map() } = {}) {
       import { ImagePlus, LineChart, Activity, Smile, MoreHorizontal, X, Loader2 } from ${JSON.stringify(import.meta.resolve('lucide-react'))};
       import { emptyReviewEntry, localReviewDate, reviewDraftKey, restoreReviewDraft } from ${lib('reviewJournalFeed')};
       import { resolveReviewStockLinks } from ${lib('reviewStockMentions')};
+      import { readReviewAudiencePreference as readPreference, writeReviewAudiencePreference as writePreference } from ${lib('reviewAudiencePreferences')};
       const fixture = globalThis[${JSON.stringify(fixtureKey)}];
+      const readReviewAudiencePreference = (owner, kind) => readPreference(owner, kind, fixture.localStorage);
+      const writeReviewAudiencePreference = (owner, kind, value) => writePreference(owner, kind, value, fixture.localStorage);
       const React = { ...ActualReact, ...fixture };
       const { useState, useRef, useEffect, sessionStorage } = fixture;
       const Dialog = ({ title, headerAction, children }) => React.createElement('section', { 'aria-label': title }, headerAction, children);
@@ -93,12 +132,12 @@ async function harness({ entry, storage = new Map() } = {}) {
     components = await import(`data:text/javascript;base64,${Buffer.from(compiled.code).toString('base64')}`);
   } finally { delete globalThis[fixtureKey]; }
   const props = {
-    entry, defaultType: 'log', userId, suggestions: ['NVDA', 'TSM', 'QQQ', 'SPY', 'SMH'], language: 'zh',
+    entry, defaultType: 'log', userId: owner, suggestions: ['NVDA', 'TSM', 'QQQ', 'SPY', 'SMH'], language: 'zh',
     db: { async saveReviewJournalEntry(payload, owner) { saves.push({ payload, owner }); return { ...payload, id: entry?.id || 'created-entry' }; } },
     onSaved: value => published.push(value), onClose: () => closes.push(true),
   };
   const h = {
-    saves, published, closes, storage,
+    saves, published, closes, storage, localPreferences,
     render() {
       cursor = 0; effects = [];
       tree = components.Composer(props);
@@ -112,12 +151,12 @@ async function harness({ entry, storage = new Map() } = {}) {
       find(tree, node => node.props['aria-label'] === '股票').props.onClick(); h.render();
       return find(tree, node => node.type === components.SymbolPicker).props;
     },
-    draft: () => JSON.parse(storage.get(reviewDraftKey(userId))),
+    draft: () => JSON.parse(storage.get(reviewDraftKey(owner))),
     async save() {
       assert.equal(tree.props.headerAction.props.disabled, false);
       await tree.props.headerAction.props.onClick();
       assert.equal(saves.length, 1);
-      assert.equal(saves[0].owner, userId);
+      assert.equal(saves[0].owner, owner);
       assert.equal(Object.hasOwn(saves[0].payload, 'excludedStocks'), false, 'UI-only exclusions must never reach the saved entry');
       assert.equal(published.length, 1); assert.equal(closes.length, 1);
       return saves[0].payload;

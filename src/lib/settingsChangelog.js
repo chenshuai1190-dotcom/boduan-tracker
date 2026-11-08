@@ -3,6 +3,11 @@ import { CURRENT_RELEASE } from './releaseMeta.js';
 export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
+    items: ['公开博文与评价统一可见范围，评价中的评分、图片、账户快照和交易引用随博文公开，改为私密后一并隐藏。修复公开详情的顶部布局，恢复评论入口和作者修改、删除功能；分别记住浏览与发布范围，精简多余提示。'],
+    itemsEn: ['Public posts and their evaluations now share one audience, including ratings, images, account snapshots, and trade references. Making a post private hides them together. Fixed public detail spacing and restored comments and author actions. Browsing and publishing audiences are remembered separately, with redundant hints removed.'],
+  },
+  {
+    ver: 'v10.7.9.601', date: '2026-11-08',
     items: ['投资动态“全部”支持切换公开动态与自己的私密记录；新建博文默认公开，可切换仅自己可见；编辑保留原可见范围，旧记录继续私密。公开博文新增点赞与取消点赞，复盘日志、投资心得、时间线继续保留个人视角，评价、账户和交易明细不随正文公开。'],
     itemsEn: ['All in Activity now switches between public posts and your private records. New posts default to Public and can switch to Only me. Edits retain their existing audience, and old records stay private. Public posts support likes and unlikes. Journal, Insights, and Timeline retain your personal view, while evaluations, account data, and trade details stay private.'],
   },

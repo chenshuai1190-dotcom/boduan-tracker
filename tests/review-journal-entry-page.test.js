@@ -45,8 +45,10 @@ test('public/private scope applies only to All while personal categories retain 
   assert.equal(visible(tree).filter(node=>node.type==='article').length,3,'private scope must not filter personal category tabs');
   button(tree,'全部').props.onClick();tree=h.render();button(tree,'显示公开动态').props.onClick();tree=h.render();
   const publicFeed=find(tree,node=>node.type===h.Page.ReviewPublicFeed);
-  publicFeed.props.onOpenOwnEntry('log','published');tree=h.render();
-  assert.ok(detail(tree),'authors can enter their own original with private evaluations');
+  publicFeed.props.onManageOwnEntry('log','published');tree=h.render();
+  assert.ok(button(tree,'编辑记录'),'authors manage the original directly from the public post');
+  assert.ok(button(tree,'删除记录'));
+  assert.equal(detail(tree),undefined,'opening actions must not detour into private evaluations');
   h.unmount();
 });
 
@@ -66,12 +68,162 @@ test('publishing from All shows the chosen audience and keeps the new post in vi
   h.unmount();
 });
 
-async function harness({ removeReply, preferences = {} } = {}) {
+test('public details retain their visible feed container and use the entry layout', async () => {
+  const h = await harness(); h.ctx.previewData.initialAllScope = 'public';
+  let tree = h.render();
+  find(tree, node => node.type === h.Page.ReviewPublicFeed).props.onDetailChange(true);
+  tree = h.render();
+  assert.ok(hasClass(tree, 'rj-entry-page'));
+  assert.ok(find(tree, node => node.type === h.Page.ReviewPublicFeed), 'the public detail must not be hidden with private routes');
+  assert.equal(find(tree, node => node.type === 'header' && hasClass(node, 'rj-page-header')), undefined);
+  h.unmount();
+});
+
+test('public owner evaluations use original records and refresh the public view after edits and deletion', async () => {
+  const h = await harness(); h.ctx.previewData.initialAllScope = 'public'; h.ctx.reviewLogs[0].visibility = 'public';
+  let tree = h.render();
+  const feed = () => find(tree, node => node.type === h.Page.ReviewPublicFeed);
+  feed().props.onDetailChange(true, {authorId:'owner',type:'log',sourceId:'one'}); tree = h.render();
+  feed().props.onEvaluateOwnEntry('log','one'); tree = h.render();
+  let editor = find(tree, node => node.type === h.Page.ReviewEvaluationComposer && node.props.open);
+  assert.ok(editor); assert.deepEqual(editor.props.entry, h.ctx.reviewLogs[0]);
+  assert.match(textOf(editor.props.identityNode), /公开可见/);
+  assert.equal(detail(tree), undefined, 'public evaluations do not replace the public detail with a private route');
+  editor.props.onClose(); tree = h.render();
+  feed().props.onManageOwnReply('log','one','reply-one'); tree = h.render();
+  button(tree,'修改评价').props.onClick(); tree = h.render();
+  editor = find(tree, node => node.type === h.Page.ReviewEvaluationComposer && node.props.reply);
+  assert.equal(editor.props.reply.id,'reply-one');
+  const refresh = feed().props.refreshToken;
+  editor.props.onSaved({...editor.props.entry,replies:[{...editor.props.reply,text:'已更新公开评价'}]});
+  editor.props.onClose(); tree = h.render();
+  assert.ok(feed().props.refreshToken > refresh);
+  assert.equal(h.ctx.reviewLogs[0].replies[0].text,'已更新公开评价');
+  feed().props.onManageOwnReply('log','one','reply-one'); tree = h.render();
+  button(tree,'删除评价').props.onClick(); tree = h.render();
+  await button(tree,'确认删除评价').props.onClick(); tree = h.render();
+  assert.equal(h.replyDeletes[0].owner,'owner'); assert.equal(h.ctx.reviewLogs[0].replies.length,0);
+  assert.ok(feed()); assert.equal(detail(tree),undefined);
+  feed().props.onEvaluateOwnEntry('log','one'); tree = h.render();
+  feed().props.onDetailChange(true, {authorId:'other',type:'log',sourceId:'foreign'}); tree = h.render();
+  assert.equal(find(tree, node => node.type === h.Page.ReviewEvaluationComposer && node.props.open), undefined, 'another author detail cannot retain an owner evaluation editor');
+  h.unmount();
+});
+
+test('public owner actions edit the full original and delete through the same owner-scoped path', async () => {
+  const h = await harness(); h.ctx.previewData.initialAllScope = 'public';
+  h.ctx.reviewLogs[0].visibility = 'public';
+  let tree = h.render();
+  const feed = () => find(tree, node => node.type === h.Page.ReviewPublicFeed);
+  const original = h.ctx.reviewLogs[0], firstRefresh = feed().props.refreshToken;
+  feed().props.onManageOwnEntry('log', 'one'); tree = h.render();
+  button(tree, '编辑记录').props.onClick(); tree = h.render();
+  const composer = find(tree, node => node.type === h.Page.Composer);
+  assert.deepEqual(composer.props.entry, original, 'editing must use the complete owner row, not the public projection');
+  assert.equal(composer.props.entry.replies[0].id, 'reply-one');
+  composer.props.onSaved({ ...composer.props.entry, text: '修改后的公开正文' });
+  composer.props.onClose(); tree = h.render();
+  assert.equal(h.ctx.reviewLogs[0].text, '修改后的公开正文');
+  assert.equal(h.ctx.reviewLogs[0].replies[0].id, 'reply-one');
+  assert.ok(feed().props.refreshToken > firstRefresh);
+  feed().props.onManageOwnEntry('log', 'one'); tree = h.render();
+  button(tree, '删除记录').props.onClick(); tree = h.render();
+  assert.equal(h.deletes.length, 0, 'the existing confirmation remains required');
+  await button(tree, '确认删除').props.onClick(); tree = h.render();
+  assert.equal(h.deletes[0].entry.id, 'one'); assert.equal(h.deletes[0].owner, 'owner');
+  assert.equal(h.ctx.reviewLogs.some(entry => entry.id === 'one'), false);
+  assert.deepEqual(h.removals.map(item => item.path).sort(), ['owner/image.webp', 'owner/reply.webp']);
+  assert.ok(feed().props.refreshToken > firstRefresh + 1);
+  h.unmount();
+});
+
+test('an explicit private All scope survives leaving and mounting the page again', async () => {
+  const localPreferences = new Map();
+  const first = await harness({ localPreferences }); delete first.ctx.previewData.initialAllScope;
+  let tree = first.render();
+  assert.ok(find(tree, node => node.type === first.Page.ReviewPublicFeed));
+  button(tree, '全部动态范围').props.onClick(); tree = first.render();
+  button(tree, '显示私密记录').props.onClick(); tree = first.render();
+  assert.equal(find(tree, node => node.type === first.Page.ReviewPublicFeed), undefined);
+  assert.ok(localPreferences.size > 0, 'an explicit choice must persist'); first.unmount();
+
+  const second = await harness({ localPreferences }); delete second.ctx.previewData.initialAllScope;
+  tree = second.render();
+  assert.equal(find(tree, node => node.type === second.Page.ReviewPublicFeed), undefined);
+  assert.equal(visible(tree).filter(node => node.type === 'article').length, records().length);
+  assert.match(textOf(button(tree, '全部动态范围')), /私密/); second.unmount();
+
+  const isolated = await harness(); delete isolated.ctx.previewData.initialAllScope;
+  assert.ok(find(isolated.render(), node => node.type === isolated.Page.ReviewPublicFeed), 'unrelated harnesses do not inherit storage');
+  isolated.unmount();
+});
+
+test('an explicit public All scope replaces the private preference and survives remounting', async () => {
+  const localPreferences = new Map();
+  const first = await harness({ localPreferences }); delete first.ctx.previewData.initialAllScope;
+  let tree = first.render();
+  button(tree, '全部动态范围').props.onClick(); tree = first.render();
+  button(tree, '显示私密记录').props.onClick(); tree = first.render();
+  button(tree, '全部动态范围').props.onClick(); tree = first.render();
+  button(tree, '显示公开动态').props.onClick(); tree = first.render();
+  assert.ok(find(tree, node => node.type === first.Page.ReviewPublicFeed)); first.unmount();
+
+  const second = await harness({ localPreferences }); delete second.ctx.previewData.initialAllScope;
+  tree = second.render();
+  assert.ok(find(tree, node => node.type === second.Page.ReviewPublicFeed));
+  assert.equal(visible(tree).filter(node => node.type === 'article').length, 0); second.unmount();
+});
+
+test('switching accounts restores each user scope without carrying another user private selection', async () => {
+  const localPreferences = new Map();
+  const h = await harness({ localPreferences }); delete h.ctx.previewData.initialAllScope;
+  let tree = h.render();
+  button(tree, '全部动态范围').props.onClick(); tree = h.render();
+  button(tree, '显示私密记录').props.onClick(); tree = h.render();
+  h.ctx.userId = 'second-owner'; tree = h.render();
+  assert.ok(find(tree, node => node.type === h.Page.ReviewPublicFeed), 'a new user starts with their own default immediately');
+  button(tree, '全部动态范围').props.onClick(); tree = h.render();
+  button(tree, '显示公开动态').props.onClick(); tree = h.render();
+  h.ctx.userId = 'owner'; tree = h.render();
+  assert.equal(find(tree, node => node.type === h.Page.ReviewPublicFeed), undefined);
+  h.ctx.userId = 'second-owner'; tree = h.render();
+  assert.ok(find(tree, node => node.type === h.Page.ReviewPublicFeed)); h.unmount();
+
+  const remount = await harness({ localPreferences }); delete remount.ctx.previewData.initialAllScope;
+  assert.equal(find(remount.render(), node => node.type === remount.Page.ReviewPublicFeed), undefined);
+  remount.ctx.userId = 'second-owner';
+  assert.ok(find(remount.render(), node => node.type === remount.Page.ReviewPublicFeed)); remount.unmount();
+});
+
+test('publishing may reveal the saved audience without replacing the manually chosen All scope', async () => {
+  const localPreferences = new Map();
+  const h = await harness({ localPreferences }); delete h.ctx.previewData.initialAllScope;
+  h.fixture.window.requestAnimationFrame = callback => callback();
+  let tree = h.render();
+  button(tree, '全部动态范围').props.onClick(); tree = h.render();
+  button(tree, '显示私密记录').props.onClick(); tree = h.render();
+  button(tree, '写复盘').props.onClick(); tree = h.render();
+  const composer = find(tree, node => node.type === h.Page.Composer);
+  composer.props.onSaved({ ...records()[1], id: 'published-after-private', visibility: 'public' });
+  composer.props.onClose(); tree = h.render();
+  assert.ok(find(tree, node => node.type === h.Page.ReviewPublicFeed)); h.unmount();
+
+  const remount = await harness({ localPreferences }); delete remount.ctx.previewData.initialAllScope;
+  assert.equal(find(remount.render(), node => node.type === remount.Page.ReviewPublicFeed), undefined);
+  remount.unmount();
+});
+
+async function harness({ removeReply, preferences = {}, localPreferences = new Map() } = {}) {
   let slots = [], cursor = 0, layout = [], effects = [];
   const scrolls = [], saves = [], deletes = [], replyDeletes = [], removals = [], focus = [], pushes = [];
   const listeners = new Map(), historyStates = [{ otherAppState: 'retained' }]; let historyIndex = 0;
   const host = { isConnected: true, focus: options => focus.push({ target: 'post', options }), closest: () => host, contains: target => !target.portal, matches: () => Boolean(fixture.keyboardFocus) };
   const fixture = {
+    localStorage: {
+      getItem: key => localPreferences.has(key) ? localPreferences.get(key) : null,
+      setItem: (key, value) => localPreferences.set(key, String(value)),
+      removeItem: key => localPreferences.delete(key),
+    },
     preferenceState: {
       preferences: { showTimeline: false, currency: 'USD', eventTypes: [], ...preferences },
       ready: true, loading: false, canEdit: true, saving: false, error: '',
@@ -114,8 +266,11 @@ async function harness({ removeReply, preferences = {} } = {}) {
       import { groupReviewTimelineEvents } from ${JSON.stringify(new URL('../src/lib/reviewTimelineGroups.js', import.meta.url).href)};
       import { findReviewEntryByKey, projectReviewTimelineEntry, resolveReviewReplySource, resolveReviewTimelineEvent, reviewTimelineAnchorEntry, reviewTimelineReplyKey } from ${JSON.stringify(new URL('../src/lib/reviewTimelineEntries.js', import.meta.url).href)};
       import { ReviewSystemAvatar, ReviewSystemName } from ${JSON.stringify(systemIdentityModule)};
+      import { readReviewAudiencePreference as readAudience, writeReviewAudiencePreference as writeAudience } from ${JSON.stringify(new URL('../src/lib/reviewAudiencePreferences.js', import.meta.url).href)};
       const fixture = globalThis[${JSON.stringify(key)}];
       const { useState, useRef, useEffect, useLayoutEffect, useMemo, window, document } = fixture;
+      const readReviewAudiencePreference = (userId, kind) => readAudience(userId, kind, fixture.localStorage);
+      const writeReviewAudiencePreference = (userId, kind, value) => writeAudience(userId, kind, value, fixture.localStorage);
       const Avatar = () => null, AuthorName = () => null, Photo = () => null, SnapshotCard = () => null, ReviewStockCarousel = () => null, ReviewPostBody = () => null, Composer = () => null, Dialog = () => null;
       const ReviewPublicFeed = () => null, ReviewTimeline = () => null, ReviewPreferences = () => null, ReviewTimelinePost = () => null;
       const useReviewPreferences = () => fixture.preferenceState;
@@ -142,7 +297,7 @@ async function harness({ removeReply, preferences = {} } = {}) {
     },
   };
   return {
-    Page, fixture, ctx, scrolls, focus, saves, deletes, replyDeletes, removals, host, pushes, listeners,
+    Page, fixture, ctx, scrolls, focus, saves, deletes, replyDeletes, removals, host, pushes, listeners, localPreferences,
     render() { cursor = 0; layout = []; effects = []; const tree = Page.default({ ctx }); for (const node of walk(tree)) if (node.ref) node.ref.current = { focus: options => focus.push({ target: node.type, options }) }; for (const effect of layout) effect(); for (const effect of effects) effect(); return tree; },
     clickPost(tree, options = {}) { const event = { type: 'click', detail: options.detail ?? 1, nativeEvent: { pointerType: options.pointerType }, currentTarget: host, target: { closest: () => options.interactive || null, portal: options.portal }, defaultPrevented: options.defaultPrevented }; const post = options.id ? find(tree, node => node.type === 'article' && node.props['data-rj-entry-key'] === `log:${options.id}`) : firstPost(tree); post.props.onClick(event); },
     unmount() { for (const slot of slots) slot?.cleanup?.(); },

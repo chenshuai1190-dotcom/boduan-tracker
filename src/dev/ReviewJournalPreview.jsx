@@ -54,7 +54,7 @@ const readingLogs = [
   ].join('\n\n')},
 ];
 export default function ReviewJournalPreview({language,onBack,marketColorMode,navigationTab=false}) {
-  const initialLogs = new URLSearchParams(window.location.search).get('reviewEvaluation') === '1' ? [evaluationLog,...seedLogs] : new URLSearchParams(window.location.search).get('reviewReading') === '1' ? [...readingLogs,...seedLogs] : seedLogs;
+  const initialLogs = new URLSearchParams(window.location.search).get('reviewPublicOwner') === '1' ? [{...evaluationLog,visibility:'public',publishedAt:'2026-11-08T04:00:00Z'},...seedLogs] : new URLSearchParams(window.location.search).get('reviewEvaluation') === '1' ? [evaluationLog,...seedLogs] : new URLSearchParams(window.location.search).get('reviewReading') === '1' ? [...readingLogs,...seedLogs] : seedLogs;
   const [disciplines,setDisciplines] = React.useState(seedInsights);
   const [reviewLogs,setReviewLogs] = React.useState(initialLogs);
   const rows = React.useRef([...seedInsights,...initialLogs]); const imageUrls = React.useRef(new Map()); const imageFiles=React.useRef(new Map());
@@ -115,5 +115,5 @@ export default function ReviewJournalPreview({language,onBack,marketColorMode,na
     removeReviewJournalImage:async path=>{const url=imageUrls.current.get(path);if(url)URL.revokeObjectURL(url);imageUrls.current.delete(path);imageFiles.current.delete(path);},
   }),[]);
   if(!import.meta.env.DEV)return null;
-  return <ReviewJournalPage ctx={{db,userId:OWNER,language,disciplines,reviewLogs,setDisciplines,setReviewLogs,stockTrades,onBack,marketColorMode,usdCny:7.12,fxDate:'2026-11-07T00:00:00Z',navigationTab,previewData:{initialAllScope:new URLSearchParams(window.location.search).get('reviewScope')==='private'?'private':'public',timeline,initialTimeline:new URLSearchParams(window.location.search).get('reviewTimeline')==='1',identity:{nickname:'波段玩家1836',avatarKey:'gold'},history,market,account}}}/>;
+  return <ReviewJournalPage ctx={{db,userId:OWNER,language,disciplines,reviewLogs,setDisciplines,setReviewLogs,stockTrades,onBack,marketColorMode,usdCny:7.12,fxDate:'2026-11-07T00:00:00Z',navigationTab,previewData:{initialAllScope:new URLSearchParams(window.location.search).get('reviewScope')||undefined,timeline,initialTimeline:new URLSearchParams(window.location.search).get('reviewTimeline')==='1',identity:{nickname:'波段玩家1836',avatarKey:'gold'},history,market,account}}}/>;
 }
