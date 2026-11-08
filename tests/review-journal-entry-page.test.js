@@ -38,7 +38,7 @@ test('public refresh is connected to the visible feed and pauses behind editors 
   button(tree, '全部动态范围').props.onClick(); tree = h.render();
   button(tree, '显示公开动态').props.onClick(); tree = h.render();
   assert.ok(feed().props.refreshToken > version, 'reselecting public must invalidate a previously empty list');
-  button(tree, '写复盘').props.onClick(); tree = h.render();
+  button(tree, '发帖').props.onClick(); tree = h.render();
   assert.equal(feed().props.active, false, 'automatic reads must not disrupt a post draft');
   find(tree, node => node.type === h.Page.Composer).props.onClose(); tree = h.render();
   assert.equal(feed().props.active, true);
@@ -77,7 +77,7 @@ test('publishing from All shows the chosen audience and keeps the new post in vi
   h.fixture.window.requestAnimationFrame=callback=>callback();
   let tree=h.render();
   for(const visibility of ['public','private']) {
-    button(tree,'写复盘').props.onClick();tree=h.render();
+    button(tree,'发帖').props.onClick();tree=h.render();
     const composer=find(tree,node=>node.type===h.Page.Composer);
     composer.props.onSaved({...records()[1],id:`new-${visibility}`,visibility});
     composer.props.onClose();tree=h.render();
@@ -280,7 +280,7 @@ test('publishing may reveal the saved audience without replacing the manually ch
   let tree = h.render();
   button(tree, '全部动态范围').props.onClick(); tree = h.render();
   button(tree, '显示私密记录').props.onClick(); tree = h.render();
-  button(tree, '写复盘').props.onClick(); tree = h.render();
+  button(tree, '发帖').props.onClick(); tree = h.render();
   const composer = find(tree, node => node.type === h.Page.Composer);
   composer.props.onSaved({ ...records()[1], id: 'published-after-private', visibility: 'public' });
   composer.props.onClose(); tree = h.render();
@@ -461,7 +461,7 @@ async function harness({ removeReply, preferences = {}, localPreferences = new M
     const compiled = await transformWithOxc(`
       import React from ${JSON.stringify(import.meta.resolve('react'))};
       import { createQuoteAssistantSaveBridge } from ${JSON.stringify(new URL('../src/lib/quoteAssistantTriggers.js', import.meta.url).href)};
-      const quoteAssistantApi={}, QuoteAssistantWorkbench=()=>null;
+      const quoteAssistantApi={}, QuoteAssistantWorkbench=()=>null, QuoteAssistantAccessPanel=()=>null;
       import { ArrowLeft, Search, Plus, MoreHorizontal, Pin, MessageCircle, Pencil, Trash2, ChevronDown, Check, Bell } from ${JSON.stringify(import.meta.resolve('lucide-react'))};
       import { reviewJournalFeed, localReviewDate } from ${JSON.stringify(new URL('../src/lib/reviewJournalFeed.js', import.meta.url).href)};
       import { findReviewStockMentions } from ${JSON.stringify(new URL('../src/lib/reviewStockMentions.js', import.meta.url).href)};
@@ -535,7 +535,7 @@ test('a whole post opens a normal detail page with all entry and comment attachm
   assert.ok(detail(tree));
   assert.equal(find(tree, node => node.type === h.Page.Dialog), undefined);
   assert.equal(find(tree, node => hasClass(node, 'rj-tabs')), undefined);
-  assert.equal(button(tree, '写复盘'), undefined);
+  assert.equal(button(tree, '发帖'), undefined);
   assert.ok(button(tree, '返回投资动态'));
   assert.equal(firstPost(tree).props.role, undefined);
   assert.equal(find(tree, node => node.type === h.Page.ReviewPostBody).props.text, h.ctx.reviewLogs[0].text);
@@ -557,7 +557,7 @@ test('the Journal navigation tab keeps its page title and returns from entries a
   assert.equal(find(tree, node => node.type === 'h1').props.children, '投资动态');
   assert.equal(button(tree, '返回'), undefined, 'a primary tab has no parent-page back action');
   assert.equal(button(tree, '返回投资动态'), undefined);
-  assert.ok(button(tree, '写复盘'));
+  assert.ok(button(tree, '发帖'));
   h.clickPost(tree); tree = h.render();
   assert.ok(detail(tree));
   assert.equal(find(tree, node => node.type === 'h1').props.children, '内容详情');
@@ -985,7 +985,7 @@ test('timeline detail reuses evaluation, preserves references and keeps containe
   button(tree,'时间线').props.onClick();tree=h.render();await Promise.resolve();tree=h.render();
   let timeline=find(tree,node=>node.type===h.Page.ReviewTimeline);
   assert.equal(timeline.props.data.events[0].id,event.id);
-  assert.equal(button(tree,'写复盘'),undefined);
+  assert.equal(button(tree,'发帖'),undefined);
   timeline.props.onSelectEvent(event.id);tree=h.render();
   assert.match(textOf(tree),/时间线记录/);
   timeline=find(tree,node=>node.type===h.Page.ReviewTimeline);
@@ -1196,7 +1196,7 @@ test('the avatar opens an independent settings route and browser history restore
   assert.equal(find(tree, node => node.type === 'h1').props.children, '动态设置');
   assert.ok(find(tree, node => node.type === h.Page.ReviewPreferences));
   assert.equal(firstPost(tree), undefined);
-  assert.equal(button(tree, '写复盘'), undefined);
+  assert.equal(button(tree, '发帖'), undefined);
   assert.equal(find(tree, node => hasClass(node, 'rj-entry-missing')), undefined);
   assert.equal(h.fixture.window.history.state.reviewJournalEntry.key, 'settings');
   assert.equal(h.fixture.window.scrollY, 0);

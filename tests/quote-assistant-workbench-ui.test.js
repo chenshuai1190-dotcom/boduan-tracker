@@ -31,7 +31,7 @@ async function harness(options={}){
  import { getVixComparisonExpectedCloseDate } from ${JSON.stringify(new URL('../src/lib/vixComparisonSession.js',import.meta.url).href)};
  const {useEffect,useRef,useState}=globalThis[${JSON.stringify(key)}];
  const ReviewSystemAvatar=()=>null,ReviewSystemName=()=>null;
- const QuoteAssistantMessage='qa-test-message',Sources='qa-test-sources';
+ const QuoteAssistantMessage='qa-test-message',Sources='qa-test-sources',QuoteAssistantAccessPanel='qa-test-access-panel';
  ${source.slice(source.indexOf('const today'))}
  `,'QuoteAssistantWorkbenchTest.jsx',{jsx:{runtime:'classic'}});Component=(await import(`data:text/javascript;base64,${Buffer.from(result.code).toString('base64')}`)).default;}finally{delete globalThis[key];}
  const db={saveReviewCommunityEvaluation:async(postId,reply,userId)=>{calls.push({name:'save-comment',args:[postId,reply,userId]});return{...reply,postId,authorId:userId};},...options.db};
@@ -173,4 +173,27 @@ test('history and personal memory have independent menu pages and returning rest
  assert.doesNotMatch(text(tree),/当前回答|以前的问题/);assert.equal(walk(tree).some(node=>node.props.className==='qa-composer-dock'),false);
  button(tree,'返回对话').props.onClick();tree=h.render();assert.match(text(tree),/当前回答/);assert.doesNotMatch(text(tree),/我的私密长期偏好/);
  assert.equal(h.calls.filter(call=>['run','publish','schedule'].includes(call.name)).length,0,'opening navigation surfaces never sends or publishes');h.unmount();
+});
+
+
+test('revoking access refreshes consent without inserting the request as a phantom task',async()=>{
+ const state={configured:true,enabled:true,memories:[],posts:[],milestones:[],subscriptions:[],jobs:[{id:'chat',kind:'chat',sessionId:'current',prompt:'分析报表',text:'等待本次授权',status:'draft'}]};
+ let reads=0,release;
+ const h=await harness({api:{state:async()=>{if(reads++===0)return state;return new Promise(resolve=>{release=resolve;});}}});
+ let tree=await h.load();
+ const access=walk(tree).find(node=>node.type==='qa-test-access-panel');assert.ok(access);
+ access.props.onCompleted({id:'consent-request',status:'revoked',outputVisibility:'private'});
+ tree=h.render();tree=visit(h,tree,'任务与草稿');
+ assert.match(text(tree),/还没有任务或草稿/);assert.doesNotMatch(text(tree),/revoked|consent-request/);
+ release(state);await flush();h.unmount();
+});
+
+test('authorized private analysis appears in its existing chat while fresh state loads',async()=>{
+ const state={configured:true,enabled:true,memories:[],posts:[],milestones:[],subscriptions:[],jobs:[{id:'chat',kind:'chat',sessionId:'current',prompt:'分析报表',text:'等待本次授权',status:'draft'}]};
+ let reads=0,release;
+ const h=await harness({api:{state:async()=>{if(reads++===0)return state;return new Promise(resolve=>{release=resolve;});}}});let tree=await h.load();
+ const analysis={id:'analysis',kind:'chat',sessionId:'current',prompt:'继续分析',text:'授权后的实际分析结果',status:'draft'};
+ walk(tree).find(node=>node.type==='qa-test-access-panel').props.onCompleted({job:analysis});
+ tree=h.render();assert.match(text(tree),/授权后的实际分析结果/);
+ release({...state,jobs:[analysis,...state.jobs]});await flush();h.unmount();
 });

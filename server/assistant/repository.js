@@ -40,6 +40,9 @@ export function createAssistantRepository({ env = process.env, fetchImpl = globa
   const admin = (action, payload = {}, options = {}) => request('/rest/v1/rpc/quote_assistant_service', {
     p_action: action, p_payload: payload,
   }, true, 'POST', options.signal || signal);
+  const proactive = (action, payload = {}, options = {}) => request('/rest/v1/rpc/quote_assistant_proactive', {
+    p_action: action, p_payload: payload,
+  }, true, 'POST', options.signal || signal);
   async function initialize() {
     const state = await user('state');
     if (state?.assistant?.authorId) return state.assistant;
@@ -73,5 +76,5 @@ export function createAssistantRepository({ env = process.env, fetchImpl = globa
     }
     return admin('configure', { authorId });
   }
-  return { user, admin, initialize };
+  return { user, admin, proactive, initialize };
 }

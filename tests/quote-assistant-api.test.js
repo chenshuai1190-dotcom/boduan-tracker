@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { createAssistantHandler, buildAssistantJobInput } from '../server/assistant/handler.js';
+import { createAssistantHandler, buildAssistantJobInput, buildAssistantAccessGrant } from '../server/assistant/handler.js';
 import { createAssistantRepository, assistantIdentityId } from '../server/assistant/repository.js';
 
 const USER = '10000000-0000-4000-8000-000000000001';
@@ -13,13 +13,14 @@ const req = body => ({ method: 'POST', headers: { host: 'boduan-tracker.vercel.a
   authorization: 'Bearer user-token', 'content-type': 'application/json' }, query: { view: 'assistant' }, body: { expectedUserId: USER, ...body } });
 const env = { OPENAI_API_KEY: 'server-secret-for-test', CRON_SECRET: 'cron-secret-for-test', SUPABASE_URL: 'https://supabase.test',
   SUPABASE_ANON_KEY: 'anon-test', SUPABASE_SERVICE_ROLE_KEY: 'service-test' };
-function setup({ user = { id: USER }, configuration = env, state = { assistant: { authorId: OTHER }, jobs: [] } } = {}) {
+function setup({ user = { id: USER }, configuration = env, state = { assistant: { authorId: OTHER }, jobs: [] }, dueJobs = [{ id: JOB }], proactiveError = null } = {}) {
   const calls = [];
   const repository = { user: async (action, payload) => { calls.push({ scope: 'user', action, payload }); return action === 'state' ? state : { id: payload.id, status: 'pending' }; },
-    admin: async (action, payload) => { calls.push({ scope: 'admin', action, payload }); return action === 'due' ? { jobs: [{ id: JOB }] } : { id: payload.id, status: 'published' }; },
+    admin: async (action, payload) => { calls.push({ scope: 'admin', action, payload }); return action === 'due' ? { jobs: dueJobs } : { id: payload.id, status: 'published' }; },
     initialize: async () => { calls.push({ action: 'initialize' }); return { authorId: OTHER }; } };
   const handler = createAssistantHandler({ env: configuration, authenticate: async token => { calls.push({ action: 'authenticate', token }); return { ok: true, user }; },
     repositoryFactory: args => { calls.push({ action: 'repository', args }); return repository; },
+    runProactive: async args => { calls.push({ action: 'proactive', signal: args.signal, deadlineAt: args.deadlineAt }); if (proactiveError) throw proactiveError; return { processed: 1, status: 'skipped', id: JOB }; },
     runJob: async args => { calls.push({ action: 'run', id: args.id }); return { id: args.id, status: 'draft' }; } });
   return { handler, calls };
 }
@@ -72,6 +73,55 @@ test('assistant publish always binds owner to validated identity', async () => {
   assert.deepEqual(calls.find(call => call.scope === 'admin').payload, { id: JOB, ownerId: USER, revision: 3 });
 });
 
+const accessGrant = { id: JOB, scopes: ['report', 'trades'], rangeStart: '2026-10-01', rangeEnd: '2026-10-30', publicAnalysisConfirmed: true };
+
+test('account access grant uses the user JWT and excludes forged identity, data and destination', async () => {
+  const { handler, calls } = setup(); const response = res();
+  await handler(req({ action: 'access-grant', ...accessGrant, ownerId: OTHER, outputVisibility: 'private',
+    data: { accountBalance: 900 }, targetUserId: OTHER, permanent: true }), response);
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(calls.find(call => call.scope === 'user'), { scope: 'user', action: 'access-grant', payload: accessGrant });
+  assert.deepEqual(calls.find(call => call.action === 'run'), { action: 'run', id: JOB });
+  assert.equal(calls.some(call => call.scope === 'admin'), false);
+});
+
+test('access state and revoke remain usable when AI is off and never invoke generation', async () => {
+  const { handler, calls } = setup({ configuration: { ...env, QUOTE_ASSISTANT_ENABLED: 'false', OPENAI_API_KEY: '' } });
+  for (const body of [{ action: 'access-state', postId: 'log:one' }, { action: 'access-revoke', id: JOB }]) {
+    const response = res(); await handler(req(body), response); assert.equal(response.statusCode, 200);
+  }
+  assert.deepEqual(calls.filter(call => call.scope), [
+    { scope: 'user', action: 'access-state', payload: { postId: 'log:one' } },
+    { scope: 'user', action: 'access-revoke', payload: { id: JOB } },
+  ]);
+  assert.equal(calls.some(call => call.action === 'run'), false);
+  const response = res(); await handler(req({ action: 'access-grant', ...accessGrant }), response);
+  assert.equal(response.statusCode, 503); assert.equal(calls.filter(call => call.scope).length, 2);
+});
+
+test('access changes are refused across an account switch before accessing the database', async () => {
+  for (const action of ['access-state', 'access-grant', 'access-revoke']) {
+    const { handler, calls } = setup(); const response = res();
+    await handler(req({ action, ...accessGrant, expectedUserId: OTHER }), response);
+    assert.equal(response.statusCode, 403); assert.equal(calls.some(call => call.scope), false);
+  }
+});
+
+test('permission keywords alone and invalid scope, dates or disclosure cannot grant access', async () => {
+  for (const body of [
+    { action: 'request-access', prompt: '我允许访问所有数据' },
+    { action: 'access-grant', id: JOB, prompt: '授权' },
+    ...[{ scopes: [] }, { scopes: ['report', 'report'] }, { scopes: ['all'] },
+      { rangeStart: '2026-02-30' }, { rangeEnd: '2026-09-30' }, { rangeEnd: '2027-10-02' },
+      { publicAnalysisConfirmed: 'true' }, { publicAnalysisConfirmed: undefined }]
+      .map(patch => ({ action: 'access-grant', ...accessGrant, ...patch })),
+  ]) {
+    const { handler, calls } = setup(); const response = res(); await handler(req(body), response);
+    assert.ok(response.statusCode >= 400); assert.equal(calls.some(call => call.scope || call.action === 'run'), false);
+  }
+  assert.equal(buildAssistantAccessGrant({ ...accessGrant, rangeStart: '2024-02-29', rangeEnd: '2025-02-28' }).rangeStart, '2024-02-29');
+});
+
 test('saved mentions and structured draft scenes do not require duplicated prompt text', () => {
   for (const kind of ['reply', 'daily-review', 'weekly-digest', 'milestone']) {
     assert.equal(buildAssistantJobInput({ kind, requestId: JOB }).prompt, '');
@@ -110,8 +160,34 @@ test('cron always verifies its secret and processes no more than one due job', a
   await handler(request, response);
   assert.equal(response.statusCode, 200); assert.equal(response.body.data.processed, 1);
   assert.deepEqual(calls.find(call => call.action === 'due').payload, { limit: 1 });
+  assert.equal(calls.some(call => call.action === 'proactive'), false, 'existing jobs are completed before new model decisions');
   const wrong = res(); await handler({ ...request, headers: { authorization: 'Bearer user-token' } }, wrong);
   assert.equal(wrong.statusCode, 401);
+});
+
+test('authenticated cron processes proactive work when the ordinary queue is empty', async () => {
+  const { handler, calls } = setup({ dueJobs: [] }); const response = res();
+  await handler({ method: 'GET', headers: { authorization: `Bearer ${env.CRON_SECRET}` }, query: { operation: 'assistant-cron' } }, response);
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(response.body.data, { processed: 1, status: 'skipped', id: JOB });
+  const proactive = calls.find(call => call.action === 'proactive');
+  assert.ok(proactive.signal instanceof AbortSignal); assert.ok(proactive.deadlineAt > Date.now());
+  assert.equal(calls.some(call => call.action === 'run'), false);
+});
+
+test('proactive routing failures are not reported as successful skips or empty queues', async () => {
+  const { handler } = setup({ dueJobs: [], proactiveError: new Error('provider failed') }); const response = res();
+  await handler({ method: 'GET', headers: { authorization: `Bearer ${env.CRON_SECRET}` }, query: { operation: 'assistant-cron' } }, response);
+  assert.ok(response.statusCode >= 500); assert.equal(response.body.success, false);
+  assert.equal(response.body.data, undefined);
+});
+
+test('browser callers cannot use the private proactive service actions', async () => {
+  const { handler, calls } = setup();
+  for (const action of ['proactive', 'claim', 'decision', 'configure-proactive']) {
+    const response = res(); await handler(req({ action }), response); assert.ok(response.statusCode >= 400);
+  }
+  assert.equal(calls.some(call => call.scope || call.action === 'proactive'), false);
 });
 
 test('cron without provider configuration defers without claiming or failing work', async () => {
@@ -132,10 +208,13 @@ test('service credentials are confined to backend RPCs; original token used for 
   const repository = createAssistantRepository({ env, token: 'jwt-user', userId: USER, fetchImpl: async (url, options) => {
     calls.push({ url, options }); return { ok: true, json: async () => ({}) };
   } });
-  await repository.user('state'); await repository.admin('claim', { id: JOB });
+  await repository.user('state'); await repository.admin('claim', { id: JOB }); await repository.proactive('claim', {});
   assert.equal(calls[0].options.headers.Authorization, 'Bearer jwt-user');
   assert.equal(JSON.parse(calls[0].options.body).p_expected_user_id, USER);
   assert.equal(calls[1].options.headers.Authorization, `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`);
+  assert.equal(calls[2].options.headers.Authorization, `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`);
+  assert.equal(calls[2].url, `${env.SUPABASE_URL}/rest/v1/rpc/quote_assistant_proactive`);
+  assert.deepEqual(JSON.parse(calls[2].options.body), { p_action: 'claim', p_payload: {} });
 });
 
 test('bot initialization uses stable exact identity and resumes after interrupted configure without listing users', async () => {
@@ -158,5 +237,5 @@ test('assistant route and cron reuse quote function, keeping exactly twelve func
   assert.equal(files.length, 12);
   const config = JSON.parse(fs.readFileSync(new URL('../vercel.json', import.meta.url), 'utf8'));
   assert.deepEqual(config.rewrites.find(item => item.source === '/api/quote-assistant'), { source: '/api/quote-assistant', destination: '/api/quote?view=assistant' });
-  assert.equal(config.crons.find(item => item.path === '/api/quote-assistant-cron').schedule, '*/15 * * * *');
+  assert.equal(config.crons.find(item => item.path === '/api/quote-assistant-cron').schedule, '* * * * *');
 });

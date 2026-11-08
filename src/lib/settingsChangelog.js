@@ -3,6 +3,11 @@ import { CURRENT_RELEASE } from './releaseMeta.js';
 export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
+    items: ['Quote 可按讨论价值主动回复，客观分析投资复盘并避免重复互动；补齐已公开账户快照与交易附件的读取。', '新增账户数据单次授权，可选择范围和日期；公开频道确认后公开分析，支持撤销授权。', '发布入口统一为“发帖”，输入 @ 可选择 Quote；移除新帖心情选择，保留历史记录。'],
+    itemsEn: ['Quote can respond proactively when it adds value, assess investment reviews objectively, and avoid repetitive interactions. Public account snapshots and trade attachments are included in its context.', 'Added one-time account-data permission with selectable scope and dates. Public analysis requires confirmation, and access can be revoked.', 'Renamed the publishing entry to Post, added Quote suggestions when typing @, and removed mood selection for new posts while preserving historical records.'],
+  },
+  {
+    ver: 'v10.7.9.618', date: '2026-11-09',
     items: ['公开发帖和评论新增 @Quote 入口，直接回复小助手也可继续对话；回答围绕原帖和当前回复链，修复星号标记显示，并简化独立聊天界面。'],
     itemsEn: ['Added @Quote shortcuts to public posts and comments, and fixed direct replies to the assistant. Answers focus on the current thread, formatting markers render cleanly, and the private chat interface is simpler.'],
   },

@@ -3,6 +3,7 @@ import { ArrowLeft, ArrowUp, BookOpen, Brain, Check, ChevronRight, Clock3, Histo
 import { ReviewSystemAvatar, ReviewSystemName } from './ReviewSystemIdentity.jsx';
 import { QUOTE_ASSISTANT_MODES, QUOTE_ASSISTANT_STATUSES, mergeQuoteAssistantJob, quoteAssistantPostTitle, quoteAssistantSourceHref } from '../lib/quoteAssistantModel.js';
 import { getVixComparisonExpectedCloseDate } from '../lib/vixComparisonSession.js';
+import QuoteAssistantAccessPanel from './QuoteAssistantAccessCard.jsx';
 import QuoteAssistantMessage, { QuoteAssistantSources as Sources } from './QuoteAssistantMessage.jsx';
 import './QuoteAssistantWorkbench.css';
 
@@ -150,6 +151,7 @@ export default function QuoteAssistantWorkbench({ api, db, userId, language = 'z
         {!loading && !chatJobs.length && busy !== 'generate' && <div className="qa-welcome"><ReviewSystemAvatar/><h2>有什么想一起复盘的？</h2><p>你的想法、观察，都可以从这里聊起。</p><div className="qa-suggestions">{['帮我梳理一个投资想法','复盘时应该关注什么','看看社区最近在讨论什么'].map(value=><button type="button" key={value} onClick={()=>{setPrompt(value);composerRef.current?.focus();}}>{value}<ArrowUp size={15}/></button>)}</div></div>}
         <div className="qa-chat-history">{chatJobs.map(job => <article className="qa-chat-turn" key={job.id}><p className="qa-user-question">{job.prompt}</p><div className="qa-chat-answer"><ReviewSystemAvatar/><div><QuoteAssistantMessage text={job.text || job.errorMessage || QUOTE_ASSISTANT_STATUSES[job.status]}/>{job.status === 'failed' && <button type="button" className="qa-secondary" disabled={Boolean(busy)} onClick={() => retryJob(job)}>重试回答</button>}</div></div></article>)}</div>
         {busy === 'generate' && <div className="qa-chat-turn"><p className="qa-user-question">{prompt}</p><div className="qa-chat-answer qa-thinking" role="status"><ReviewSystemAvatar/><span>Quote 正在思考<span aria-hidden="true"> ···</span></span></div></div>}
+        <QuoteAssistantAccessPanel api={api} userId={userId} jobIds={chatJobs.map(job=>job.id)} refreshToken={chatJobs.map(job=>`${job.id}:${job.revision}:${job.status}`).join('|')} language={language} onCompleted={value=>{if(QUOTE_ASSISTANT_MODES.some(mode=>mode.id===jobValue(value)?.kind))consume(value);void load();}}/>
         {feedback}
       </>}
       {view === 'tools' && <div className="qa-tools">

@@ -118,6 +118,7 @@ async function harness({ entry, storage = new Map(), localPreferences = new Map(
       import { ImagePlus, LineChart, Activity, Smile, MoreHorizontal, X, Loader2 } from ${JSON.stringify(import.meta.resolve('lucide-react'))};
       import { emptyReviewEntry, localReviewDate, reviewDraftKey, restoreReviewDraft } from ${lib('reviewJournalFeed')};
       import { resolveReviewStockLinks } from ${lib('reviewStockMentions')};
+      import { getQuoteMentionQuery, applyQuoteMention } from ${lib('quoteAssistantMention')};
       import { readReviewAudiencePreference as readPreference, writeReviewAudiencePreference as writePreference } from ${lib('reviewAudiencePreferences')};
       const fixture = globalThis[${JSON.stringify(fixtureKey)}];
       const readReviewAudiencePreference = (owner, kind) => readPreference(owner, kind, fixture.localStorage);
@@ -126,6 +127,7 @@ async function harness({ entry, storage = new Map(), localPreferences = new Map(
       const { useState, useRef, useEffect, sessionStorage } = fixture;
       const requestAnimationFrame = callback => callback();
       const Dialog = ({ title, headerAction, children }) => React.createElement('section', { 'aria-label': title }, headerAction, children);
+      const ReviewSystemAvatar = () => null, ReviewSystemName = () => null;
       const Avatar = () => null, AuthorName = () => null, Photo = () => null, SnapshotCard = () => null, SnapshotPicker = () => null, EmojiPicker = () => null, SymbolPicker = () => null;
       ${composerSource}
       export { Composer, SymbolPicker };
@@ -145,7 +147,7 @@ async function harness({ entry, storage = new Map(), localPreferences = new Map(
       for (const effect of effects) effect();
       return tree;
     },
-    type(text) { find(tree, node => node.props['aria-label'] === '复盘正文').props.onChange({ target: { value: text } }); return h.render(); },
+    type(text) { find(tree, node => node.props['aria-label'] === '复盘正文').props.onChange({ target: { value: text, selectionStart: text.length, selectionEnd: text.length } }); return h.render(); },
     stocks: () => linkedStocks(tree),
     remove(symbol) { find(tree, node => node.props['aria-label'] === `移除关联股票 ${symbol}`).props.onClick(); return h.render(); },
     picker() {
@@ -210,7 +212,7 @@ test('editing reorders by the current text and retains existing manual stocks ab
   const entry = { id: 'existing-entry', type: 'log', date: '2026-11-06', text: '先看 $TSM，后看 $NVDA。', stocks: ['NVDA', 'SPY'] };
   const h = await harness({ entry });
   assert.deepEqual(h.stocks(), ['TSM', 'NVDA', 'SPY']);
-  assert.match(renderToStaticMarkup(h.render()), /编辑复盘/);
+  assert.match(renderToStaticMarkup(h.render()), /编辑帖子/);
   h.type('改为先研究 $SPY，然后看 $TSM。');
   assert.deepEqual(h.stocks(), ['SPY', 'TSM', 'NVDA']);
   const payload = await h.save();
@@ -262,4 +264,53 @@ test('a full manual selection remains intact and exposes the automatic-link limi
   assert.match(renderToStaticMarkup(status), /最多 4 只/);
   assert.deepEqual((await h.save()).stocks, manual);
   h.unmount();
+});
+
+
+test('composer uses post wording, removes mood choices and preserves existing saved mood', async () => {
+  const h = await harness(); let tree = h.render();
+  assert.equal(tree.props.title, '发帖');
+  assert.equal(find(tree, node => node.props['aria-label'] === '更多'), undefined);
+  assert.doesNotMatch(renderToStaticMarkup(tree), /记录当时的心情/);
+  const saved = await harness({ entry: { id: 'old-mood', type: 'log', text: '历史记录', date: '2026-11-06', visibility: 'public', mood: '冷静', images: [], stocks: [] } });
+  assert.equal((await saved.save()).mood, '冷静'); saved.unmount(); h.unmount();
+});
+
+test('typing @ offers one trusted Quote suggestion and selection only inserts text', async () => {
+  const h = await harness(); h.render(); let tree = h.type('分析一下 @q');
+  const suggestion = find(tree, node => node.props.role === 'option'); assert.ok(suggestion);
+  suggestion.props.onClick(); tree = h.render();
+  assert.equal(h.draft().text, '分析一下 @Quote '); assert.equal(h.saves.length, 0);
+  assert.equal(find(tree, node => node.props.role === 'option'), undefined);
+  tree = h.type('联系 foo@example.com'); assert.equal(find(tree, node => node.props.role === 'option'), undefined);
+  find(tree, node => node.props['aria-label'] === '发布可见范围').props.onChange({ target: { value: 'private' } });
+  tree = h.type('@'); assert.equal(find(tree, node => node.props.role === 'option'), undefined); h.unmount();
+});
+
+test('Quote suggestion handles keyboard confirmation and ignores IME composition', async () => {
+  const h = await harness(); h.render(); let tree = h.type('@');
+  const input = () => find(tree, node => node.props['aria-label'] === '复盘正文');
+  let prevented = 0;
+  input().props.onKeyDown({ key: 'Enter', nativeEvent: { isComposing: true }, preventDefault() { prevented++; } });
+  tree = h.render(); assert.equal(h.draft().text, '@'); assert.equal(prevented, 0);
+  input().props.onCompositionStart(); tree = h.render(); assert.equal(find(tree, node => node.props.role === 'option'), undefined);
+  input().props.onCompositionEnd({ currentTarget: { value: '@小助手', selectionStart: 4, selectionEnd: 4 } });
+  tree = h.type('@小助手'); assert.ok(find(tree, node => node.props.role === 'option'));
+  input().props.onKeyDown({ key: 'Tab', preventDefault() { prevented++; } }); tree = h.render();
+  assert.equal(h.draft().text, '@Quote '); assert.equal(prevented, 1); assert.equal(h.saves.length, 0); h.unmount();
+});
+
+
+test('touch pointer selection inserts Quote before blur and a later click cannot duplicate it', async () => {
+  const h = await harness(); h.render(); let tree = h.type('@');
+  const suggestion = find(tree, node => node.props.role === 'option');
+  const input = find(tree, node => node.props['aria-label'] === '复盘正文');
+  let prevented = false;
+  suggestion.props.onPointerDown({ preventDefault() { prevented = true; } });
+  input.props.onBlur(); tree = h.render();
+  assert.equal(prevented, true); assert.equal(h.draft().text, '@Quote ');
+  // A synthesized click may still use the old handler after the pointer event.
+  suggestion.props.onClick(); tree = h.render();
+  assert.equal(h.draft().text, '@Quote '); assert.equal(h.saves.length, 0);
+  assert.equal(find(tree, node => node.props.role === 'option'), undefined); h.unmount();
 });

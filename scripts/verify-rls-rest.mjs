@@ -39,6 +39,10 @@ const SERVICE_ONLY_TABLES = [
   { table: 'quote_assistant_jobs', select: 'owner_id' },
   { table: 'quote_assistant_sources', select: 'job_id' },
   { table: 'quote_assistant_comment_sources', select: 'job_id' },
+  { table: 'quote_assistant_proactive_config', select: 'singleton' },
+  { table: 'quote_assistant_proactive_events', select: 'id' },
+  { table: 'quote_assistant_proactive_daily_usage', select: 'day' },
+  { table: 'quote_assistant_access_requests', select: 'owner_id' },
   // Public activity is exposed through authenticated, account-bound RPCs only.
   { table: 'review_public_posts', select: 'author_id' },
   { table: 'review_public_likes', select: 'user_id' },
@@ -67,6 +71,14 @@ const SERVICE_ONLY_TABLES = [
 const SERVICE_ONLY_RPCS = [
   // Read-only actions: an accidentally broadened grant cannot create work.
   { name: 'quote_assistant_service', body: { p_action: 'identity', p_payload: {} } },
+  { name: 'quote_assistant_proactive', body: { p_action: 'state', p_payload: {} } },
+  { name: 'quote_assistant_service_foundation_20261108', body: { p_action: 'identity', p_payload: {} } },
+  { name: 'quote_assistant_service_before_access_20261109', body: { p_action: 'identity', p_payload: {} } },
+  { name: 'quote_assistant_user_before_access_20261109', body: { p_action: 'state', p_payload: {}, p_expected_user_id: null } },
+  { name: 'quote_assistant_public_attachments', body: { p_value: {} } },
+  { name: 'quote_assistant_account_financial_fields', body: { p_value: {} } },
+  { name: 'quote_assistant_comment_fingerprint', body: { p_post: 'log:rls-probe', p_kind: 'author', p_id: 'rls-probe', p_legacy: false } },
+  { name: 'quote_assistant_access_data', body: { p_request: null } },
   { name: 'quote_assistant_fingerprint', body: { p_post_id: null, p_scope: 'public', p_owner: null } },
   { name: 'fetch_review_comment_threads', body: { p_post_id: 'log:rls-probe', p_limit: 1, p_cursor: null, p_locate: null, p_expected_user_id: null } },
   { name: 'fetch_review_comment_thread_replies', body: { p_post_id: 'log:rls-probe', p_root: { kind: 'author', id: 'rls-probe' }, p_limit: 1, p_cursor: null, p_locate: null, p_expected_user_id: null } },

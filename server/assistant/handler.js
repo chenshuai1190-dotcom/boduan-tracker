@@ -5,6 +5,7 @@ import { AssistantError, assistantFailure } from './errors.js';
 import { assistantProviderConfiguration, ASSISTANT_TIMEOUT_MS } from './provider.js';
 import { createAssistantRepository } from './repository.js';
 import { runAssistantJob } from './runtime.js';
+import { runAssistantProactive } from './proactive.js';
 
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
 const KINDS = new Set(['reply', 'daily-review', 'followup', 'weekly-digest', 'milestone', 'chat']);
@@ -64,6 +65,33 @@ function requireRevision(value) {
   return value;
 }
 
+function accessDate(value) {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    throw new AssistantError('ASSISTANT_INVALID_ACCESS', '请选择有效的授权日期范围。', 422);
+  }
+  const timestamp = Date.parse(`${value}T00:00:00Z`);
+  if (!Number.isFinite(timestamp) || new Date(timestamp).toISOString().slice(0, 10) !== value) {
+    throw new AssistantError('ASSISTANT_INVALID_ACCESS', '请选择有效的授权日期范围。', 422);
+  }
+  return timestamp;
+}
+
+export function buildAssistantAccessGrant(body) {
+  const scopes = body.scopes;
+  if (!Array.isArray(scopes) || scopes.length < 1 || scopes.length > 3
+    || new Set(scopes).size !== scopes.length || scopes.some(scope => !['report', 'trades', 'holdings'].includes(scope))) {
+    throw new AssistantError('ASSISTANT_INVALID_ACCESS', '请选择本次允许读取的数据。', 422);
+  }
+  const start = accessDate(body.rangeStart), end = accessDate(body.rangeEnd);
+  if (end < start || end - start > 365 * 86_400_000 || typeof body.publicAnalysisConfirmed !== 'boolean') {
+    throw new AssistantError('ASSISTANT_INVALID_ACCESS', '请确认日期范围及分析的可见范围。', 422);
+  }
+  // Owner, output channel and source always come from the authenticated SQL
+  // request. A client cannot widen an authorization by supplying those fields.
+  return { id: requireId(body.id), scopes: [...scopes], rangeStart: body.rangeStart,
+    rangeEnd: body.rangeEnd, publicAnalysisConfirmed: body.publicAnalysisConfirmed };
+}
+
 export function buildAssistantJobInput(body, scheduled = false) {
   const kind = body.kind === 'daily' ? 'daily-review' : body.kind === 'weekly' ? 'weekly-digest' : body.kind;
   if (!KINDS.has(kind)) throw new AssistantError('ASSISTANT_INVALID_KIND', '请选择有效的小助手功能。', 422);
@@ -104,7 +132,7 @@ function cronAuthorized(req, env) {
 }
 
 export function createAssistantHandler({ env = process.env, authenticate = authenticateAccessToken,
-  repositoryFactory = createAssistantRepository, runJob = runAssistantJob, timeoutMs = ASSISTANT_TIMEOUT_MS } = {}) {
+  repositoryFactory = createAssistantRepository, runJob = runAssistantJob, runProactive = runAssistantProactive, timeoutMs = ASSISTANT_TIMEOUT_MS } = {}) {
   return async function handleAssistant(req, res) {
     headers(req, res);
     const deadlineAt = Date.now() + Math.min(timeoutMs, ASSISTANT_TIMEOUT_MS);
@@ -122,7 +150,12 @@ export function createAssistantHandler({ env = process.env, authenticate = authe
         const repository = repositoryFactory({ env, signal });
         const due = await repository.admin('due', { limit: 1 });
         const job = due?.jobs?.[0];
-        if (!job) return res.status(200).json({ success: true, data: { processed: 0 } });
+        // Finish existing work first. New participation is claimed in the
+        // database, independently of a user's browser staying open.
+        if (!job) {
+          const result = await runProactive({ repository, signal, env, deadlineAt, runJob });
+          return res.status(200).json({ success: true, data: result });
+        }
         const result = await runJob({ id: job.id, repository, signal, env, deadlineAt });
         return res.status(200).json({ success: true, data: { processed: 1, status: result?.status, id: result?.id } });
       }
@@ -151,6 +184,17 @@ export function createAssistantHandler({ env = process.env, authenticate = authe
       } else if (action === 'configure') {
         if (!canConfigure) throw new AssistantError('ASSISTANT_FORBIDDEN', '只有管理员可以初始化 Quote 身份。', 403);
         data = await repository.initialize();
+      } else if (action === 'access-state') {
+        if (body.postId != null && (typeof body.postId !== 'string' || !body.postId || body.postId.length > 150)) {
+          throw new AssistantError('ASSISTANT_INVALID_ACCESS', '请重新打开需要分析的内容。', 422);
+        }
+        data = await repository.user('access-state', body.postId == null ? {} : { postId: body.postId });
+      } else if (action === 'access-revoke') {
+        data = await repository.user('access-revoke', { id: requireId(body.id) });
+      } else if (action === 'access-grant') {
+        if (!enabled || !configuration.configured) throw new AssistantError('ASSISTANT_NOT_CONFIGURED', 'Quote 的 AI 服务尚未配置完成。', 503);
+        const job = await repository.user('access-grant', buildAssistantAccessGrant(body));
+        data = await runJob({ id: job.id, repository, signal, env, deadlineAt });
       } else if (action === 'run' || action === 'schedule') {
         if (!enabled || !configuration.configured) throw new AssistantError('ASSISTANT_NOT_CONFIGURED', 'Quote 的 AI 服务尚未配置完成。', 503);
         const input = buildAssistantJobInput(body, action === 'schedule');

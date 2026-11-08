@@ -61,7 +61,7 @@
   "crons": [
     {
       "path": "/api/quote-assistant-cron",
-      "schedule": "*/15 * * * *"
+      "schedule": "* * * * *"
     },
     {
       "path": "/api/earnings-coverage-schedule",

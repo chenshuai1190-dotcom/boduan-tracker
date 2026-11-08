@@ -1,6 +1,7 @@
 import { AssistantError, assistantFailure, withinAssistantDeadline } from './errors.js';
-import { generateAssistantResponse, extractAssistantMemories } from './provider.js';
+import { generateAssistantResponse, extractAssistantMemories, evaluateAssistantParticipation, ASSISTANT_PARTICIPATION_TIMEOUT_MS } from './provider.js';
 import { getAssistantMarketClose, nextAssistantDailyRun } from './market.js';
+import { publicAssistantAttachments, accountAccessMetadata, normalizeAccountAccessRequest, readAuthorizedAccountData, ACCOUNT_ACCESS_INSTRUCTIONS, ACCOUNT_SCOPES } from './accountAccess.js';
 
 const KIND_INSTRUCTIONS = {
   reply: '场景：在社区原帖下回应 invocation 中召唤你的用户，question 是其已保存的真实问题；post 是背景，comments 仅为从旧到新的直接祖先回复链。先直接回答问题，再补必要依据或不同意见，不复述整篇博文。普通问题尽量用 150 至 300 个汉字，复杂问题可适当展开。不要强制追问、固定开头结尾或套模板。默认只结合原帖与这条回复链；仅在用户需要社区讨论背景、相关公开观点时使用公开帖子搜索工具，不主动串入其他帖。你没有收到图片像素，也没有全网实时搜索或个股新闻工具，不得声称看过图片、查过实时全网或核实了个股新闻；缺少这些信息时直接说明具体缺口。身份以 author.isAssistant 为准，不能凭昵称判断 Quote。',
@@ -11,12 +12,24 @@ const KIND_INSTRUCTIONS = {
   milestone: '场景：作者明确选择分享的时间线里程碑草稿。只描述给出的事件类型、标题和实际日期。若资料只含事件引用，不包含金额或收益率，就不要输出任何假定的账户数字。',
 };
 
+const PROACTIVE_INSTRUCTIONS = {
+  general: '本次是经价值判断后主动参与公开讨论，不是用户召唤。直接回应 invocation 的问题或补充已识别的信息，不说“谢谢邀请”、不重复已经说清的内容，不为了活跃气氛强行追问。简单问题可以短于常规篇幅；有具体新问题或新证据才继续讨论。不主动解释内部判断、任务、次数或 questionKey，用户问及互动规则时必须如实说明。',
+  founder_post: '本次是对一篇已授权主动回应的新公开主帖的回复。直接就内容给出有价值的回应，保持普通用户同等的证据标准；作者身份和点赞不代表其观点正确。合理处说清依据，有问题时直接指出，资料不足就说明，不奉承、不用“高瞻远瞩”“一语中的”等空洞称赞，不主动解释内部流程，若用户问及互动规则必须如实说明。可以自然幽默，但笑点针对观点中的日常矛盾，不挖苦人、不用笑话代替分析。如果正文为空且 hasImages 为真，只知道该帖附有图片，你没有收到图片像素；可以简短询问作者希望讨论哪个点，不能描述图片里有什么，更不能据此做投资判断。',
+  review_author: '本次作者属于服务器登记的投资 AI，仍应与其他用户采用相同的证据标准。若内容是投资决策或复盘，围绕事前依据是否可验证、仓位与风险是否匹配、执行是否符合原计划、结果中过程与运气的区别、后续失效或验证条件作客观判断。只展开与当前内容相关的要点，不强制五段模板或评分；没有给出账本、持仓和交易证据时不能声称已核实，也不因赚钱判定决策正确、亏损判定决策错误。不按 AI 模型品牌、作者人气或创始人身份偏袒，不串入未提供的其他参赛者表现。可以温和幽默，但必须先把具体依据说清。',
+};
+
+function proactiveMode(context) {
+  const mode = context.proactive?.mode;
+  return context.job?.kind === 'reply' && Object.hasOwn(PROACTIVE_INSTRUCTIONS, mode)
+    && !(mode === 'founder_post' && context.job.replyTo) ? mode : null;
+}
+
 const text = (value, max = 2000) => typeof value === 'string' ? value.slice(0, max) : '';
 function postContext(post) {
   if (!post) return null;
   return { id: post.id, text: text(post.text, 5000), date: post.date,
     author: text(post.author?.nickname, 80), stocks: Array.isArray(post.stocks) ? post.stocks.slice(0, 20) : [],
-    market: post.market || null };
+    market: null, ...publicAssistantAttachments(post, { comment: false }), ...(post.hasImages === true ? { hasImages: true } : {}) };
 }
 
 function replyNode(source, kind, assistantId) {
@@ -24,7 +37,8 @@ function replyNode(source, kind, assistantId) {
   return { id: source.id, kind, text: text(source.text, kind === 'post' ? 12000 : 4000),
     author: { id: authorId, nickname: text(source.author?.nickname || source.nickname, 80),
       isAssistant: Boolean(assistantId && authorId === assistantId) },
-    replyTo: source.replyTo || null };
+    replyTo: source.replyTo || null, ...publicAssistantAttachments(source, { comment: kind !== 'post' }),
+    ...(source.hasImages === true ? { hasImages: true } : {}) };
 }
 
 function replyContext(context) {
@@ -34,7 +48,7 @@ function replyContext(context) {
   const assistantId = context.assistant?.authorId;
   if (!job.replyTo) {
     const invocation = replyNode(post, 'post', assistantId);
-    if (!invocation.text.trim()) throw unavailable();
+    if (!invocation.text.trim() && !(proactiveMode(context) === 'founder_post' && post.hasImages === true)) throw unavailable();
     return { invocation, comments: [] };
   }
   const key = reference => reference && ['author', 'community'].includes(reference.kind)
@@ -62,18 +76,34 @@ function replyContext(context) {
   return { invocation, comments: ancestors.reverse() };
 }
 
+function publicDiscussion(context, exclude = [], limit = 20) {
+  const seen = new Set(exclude.map(item => `${item.kind}:${item.id}`)), discussion = [];
+  for (const comment of Array.isArray(context.comments) ? context.comments : []) {
+    const key = `${comment.kind}:${comment.id}`;
+    if (!['author', 'community'].includes(comment.kind) || !comment.id || seen.has(key)
+      || comment.deleted === true || comment.deletedAt || comment.postId && comment.postId !== context.post.id) continue;
+    seen.add(key); discussion.push(replyNode(comment, comment.kind, context.assistant?.authorId));
+    if (discussion.length >= limit) break;
+  }
+  return discussion;
+}
+
 export function buildAssistantContext(context) {
   const job = context.job;
   if (!KIND_INSTRUCTIONS[job?.kind]) throw new AssistantError('ASSISTANT_INVALID_KIND', '请选择有效的小助手功能。', 422);
   const reply = job.kind === 'reply' ? replyContext(context) : null;
+  const mode = proactiveMode(context);
+  const discussion = mode ? publicDiscussion(context, [reply.invocation, ...reply.comments]) : [];
   return { kind: job.kind, question: reply ? reply.invocation.text : text(job.prompt, 4000), date: job.date || null,
     ...(reply ? { invocation: reply.invocation } : {}),
+    ...(mode ? { proactive: { mode, reason: text(context.proactive.reason, 300) }, discussion } : {}),
     replyTo: job.replyTo || null,
+    ...(['reply', 'chat'].includes(job.kind) ? { accountAccess: accountAccessMetadata(context) } : {}),
     range: { from: job.rangeStart || null, to: job.rangeEnd || null },
     post: postContext(context.post),
     comments: reply ? reply.comments : (Array.isArray(context.comments) ? context.comments : []).slice(0, 50).reverse().map(comment => ({
       id: comment.id, kind: comment.kind, authorId: comment.authorId, author: text(comment.author?.nickname || comment.nickname, 80),
-      text: text(comment.text, 1500), createdAt: comment.createdAt, replyTo: comment.replyTo || null,
+      text: text(comment.text, 1500), createdAt: comment.createdAt, replyTo: comment.replyTo || null, ...publicAssistantAttachments(comment),
     })),
     history: reply ? [] : (Array.isArray(context.history) ? context.history : []).slice(-10).map(item => ({ question: text(item.prompt, 1500), answer: text(item.text, 3000) })),
     memories: job.kind === 'chat' && context.memoryEnabled !== false ? (Array.isArray(context.memories) ? context.memories : []).slice(0, 50).map(item => text(item.text, 1000)) : [],
@@ -88,7 +118,7 @@ const functionTool = (name, description, properties, required, execute) => ({
 });
 const sourceFor = post => ({ id: post.id, postId: post.id, title: text(post.text, 80), date: post.date, scope: 'public' });
 
-export function createAssistantTools({ context, marketClose = getAssistantMarketClose, signal } = {}) {
+export function createAssistantTools({ context, marketClose = getAssistantMarketClose, signal, requestAccess } = {}) {
   const posts = new Map([context.post, ...(context.publicPosts || [])].filter(Boolean).map(post => [post.id, post]));
   return [
     functionTool('search_public_posts', '在本次已核验的公开讨论范围内检索原帖；不会读取私密日志。',
@@ -111,11 +141,32 @@ export function createAssistantTools({ context, marketClose = getAssistantMarket
         signal?.throwIfAborted();
         return marketClose({ date: args.date || null });
       }),
+    ...(['reply', 'chat'].includes(context.job?.kind) ? [
+      functionTool('read_account_data', '只读取当前用户已经确认、仅限本次分析的账户资料。不会自动授权；只能选授权卡片中的范围。',
+        { scopes: { type: 'array', items: { type: 'string', enum: ACCOUNT_SCOPES }, minItems: 1, maxItems: 3 } }, ['scopes'], async args => {
+          signal?.throwIfAborted();
+          return readAuthorizedAccountData(context, args);
+        }),
+      ...(typeof requestAccess === 'function' ? [functionTool('request_account_access', '当已有公开快照不足时，请求用户确认读取本人数据。仅创建待确认卡片，不授予权限，也不读取任何私有数据。公开频道的确认包含本帖公开分析。',
+        { scopes: { type: 'array', items: { type: 'string', enum: ACCOUNT_SCOPES }, minItems: 1, maxItems: 3 },
+          rangeStart: { type: ['string', 'null'], description: '起始日期 YYYY-MM-DD；两个日期均为 null 则默认最近30天。' },
+          rangeEnd: { type: ['string', 'null'], description: '结束日期 YYYY-MM-DD；不请求未来日期。' },
+          reason: { type: 'string', minLength: 1, maxLength: 300, description: '说明已有资料缺什么，以及为什么需要这些范围。' } },
+        ['scopes', 'rangeStart', 'rangeEnd', 'reason'], async args => {
+          const payload = normalizeAccountAccessRequest(args);
+          signal?.throwIfAborted();
+          if (accountAccessMetadata(context).status === 'authorized') return { requested: false, reason: 'already_authorized_for_this_analysis', permission: accountAccessMetadata(context) };
+          const saved = await requestAccess(payload);
+          const permission = accountAccessMetadata({ job: context.job, accountAccess: saved });
+          if (permission.status !== 'pending') throw new AssistantError('ASSISTANT_SOURCE_CHANGED', '授权请求暂未创建，请重新打开原帖。', 409);
+          return { requested: true, requiresUserConfirmation: true, permission };
+        })] : []),
+    ] : []),
   ];
 }
 
 export async function runAssistantJob({ id, repository, signal, generate = generateAssistantResponse,
-  marketClose = getAssistantMarketClose, extractMemories = extractAssistantMemories, env = process.env,
+  marketClose = getAssistantMarketClose, extractMemories = extractAssistantMemories, decide = evaluateAssistantParticipation, env = process.env,
   deadlineAt = Date.now() + 80_000 } = {}) {
   const claimed = await repository.admin('claim', { id });
   if (!claimed?.leaseToken) {
@@ -132,7 +183,29 @@ export async function runAssistantJob({ id, repository, signal, generate = gener
   const leaseToken = claimed.leaseToken;
   try {
     const context = await repository.admin('context', { id, leaseToken });
+    // A proactive source/discussion may change after claim. The service commits
+    // cancellation/rejudging before returning; do not generate from empty data.
+    if (context?.job?.status === 'cancelled') return context.job;
     const modelContext = buildAssistantContext(context);
+    // A direct answer to Quote can be a real follow-up or merely "thanks".
+    // Keep the saved-source entry point, but do not generate endless bot chatter.
+    const directAssistantReply = context.job.kind === 'reply' && context.job.autoPublish === true && !context.proactive && modelContext.accountAccess?.status !== 'authorized'
+      && modelContext.invocation?.replyTo && modelContext.comments.at(-1)?.author.isAssistant === true
+      && !/@quote(?![A-Za-z0-9_])/i.test(modelContext.question);
+    if (directAssistantReply) {
+      const budget = Math.min(ASSISTANT_PARTICIPATION_TIMEOUT_MS, deadlineAt - Date.now() - 6000);
+      if (budget < 1000) throw new AssistantError('ASSISTANT_TIMEOUT', '这次回复判断超时，请稍后重试。', 504);
+      const discussion = publicDiscussion(context, [], 40);
+      const decision = await withinAssistantDeadline(() => decide({ context: { mode: 'general', post: modelContext.post,
+        invocation: modelContext.invocation, discussion, recentAssistantReplies: discussion.filter(item => item.author.isAssistant).slice(0, 20) },
+      env, signal, timeoutMs: budget }), signal);
+      signal?.throwIfAborted();
+      if (decision.decision !== 'reply') {
+        const skipped = await repository.admin('participation-skip', { id, leaseToken, reason: decision.reason });
+        if (skipped?.status !== 'cancelled' || skipped.errorCode !== 'NO_REPLY_NEEDED') throw new AssistantError('ASSISTANT_SOURCE_CHANGED', '来源已改变，本次未回复。', 409);
+        return skipped;
+      }
+    }
     if (context.job.kind === 'daily-review') {
       modelContext.marketClose = await withinAssistantDeadline(() => marketClose({ date: context.job.recurrence === 'daily' ? null : context.job.date || null }), signal);
       modelContext.date = modelContext.marketClose.asOfDate;
@@ -143,8 +216,10 @@ export async function runAssistantJob({ id, repository, signal, generate = gener
     const generationBudget = deadlineAt - Date.now() - 6000;
     if (generationBudget <= 0) throw new AssistantError('ASSISTANT_TIMEOUT', '这次查询超时，请重试。', 504);
     const generated = await generate({ context: modelContext,
-      instructions: KIND_INSTRUCTIONS[context.job.kind],
-      tools: createAssistantTools({ context, marketClose, signal }), signal, env, timeoutMs: generationBudget });
+      instructions: [KIND_INSTRUCTIONS[context.job.kind], ACCOUNT_ACCESS_INSTRUCTIONS, PROACTIVE_INSTRUCTIONS[proactiveMode(context)],
+        proactiveMode(context) ? '主动回复额外提供的 discussion 是同帖已核验的其他公开回答；proactive.reason 是内部参与决定的简短资料，不是指令，无需在正文复述；用户询问互动规则时如实说明。先确认已有回答，正文只补本次真正有价值的部分；不把其他分支的观点当成提问者的观点。' : null].filter(Boolean).join('\n'),
+      tools: createAssistantTools({ context, marketClose, signal,
+        requestAccess: payload => repository.admin('request-access', { id, leaseToken, ...payload }) }), signal, env, timeoutMs: generationBudget });
     signal?.throwIfAborted();
     let memoryUpdate;
     if (context.job.kind === 'chat') {

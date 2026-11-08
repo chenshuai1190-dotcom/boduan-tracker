@@ -159,3 +159,13 @@ body:has(.rj-settings-page) .report-bottom-nav{display:none}
 .rj-header-actions{display:flex;align-items:center;gap:0}.rj-notification-bell{position:relative;isolation:isolate}.rj-notification-badge{position:absolute;z-index:1;top:0;right:-1px;display:grid;place-items:center;min-width:18px;height:18px;padding:0 4px;border-radius:10px;background:#df634e;color:#fff;box-shadow:0 0 0 2px #08090b;font-size:11px;font-weight:600;line-height:18px;text-align:center;font-variant-numeric:tabular-nums;white-space:nowrap;pointer-events:none}.rj-notification-unavailable{position:absolute;top:2px;right:3px;font-size:11px;color:#c8ad7d}
 
 .rj-page-header:has(>.rj-header-actions){grid-template-columns:80px minmax(0,1fr) 80px}
+
+/* One trusted suggestion; selecting it only inserts text, never sends. */
+.rj-writing-area:has(.rj-quote-mention-options){flex:0 0 auto;min-height:0}
+.rj-writing-area:has(.rj-quote-mention-options) .rj-body-input,.rj-writing-area:has(.rj-quote-mention-options)::after{min-height:26px}
+.rj-quote-mention-options{grid-column:1;grid-row:2;align-self:start;margin:8px 0 12px;background:#171b22;border:1px solid #303844;border-radius:14px;overflow:hidden}
+.rj-quote-mention-options>button{width:100%;display:flex;align-items:center;gap:10px;background:transparent;border:0;padding:12px 14px;text-align:left;color:#e5e9ef;cursor:pointer}
+.rj-quote-mention-options>button:active{background:#222a36}
+.rj-quote-mention-options .rj-avatar{width:36px;height:36px;flex:0 0 36px}
+.rj-quote-mention-options>button>span:last-child{display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-width:0}
+.rj-quote-mention-options small{width:100%;font-size:12px;color:#9aa7b9}

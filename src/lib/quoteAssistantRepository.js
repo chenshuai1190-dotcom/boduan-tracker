@@ -1,5 +1,6 @@
 import { createReviewSessionGuard } from './reviewSessionGuard.js';
 import { normalizeQuoteAssistantState, quoteAssistantError } from './quoteAssistantModel.js';
+import { normalizeQuoteAccessState } from './quoteAssistantAccess.js';
 
 /** Credentials remain server-side. This client sends the current user's JWT,
  * verifies the account generation before delivery, and never persists prompts. */
@@ -32,6 +33,9 @@ export function createQuoteAssistantRepository(client, { fetchImpl = (...args) =
   return {
     configure: (payload, userId) => request('configure', payload, userId),
     state: async userId => normalizeQuoteAssistantState(await request('state', {}, userId)),
+    accessState: async (payload, userId) => normalizeQuoteAccessState(await request('access-state', payload, userId), userId),
+    grantAccess: (payload, userId) => request('access-grant', payload, userId),
+    revokeAccess: (payload, userId) => request('access-revoke', payload, userId),
     run: (payload, userId) => request('run', payload, userId),
     retry: (payload, userId) => request('retry', payload, userId),
     publish: (payload, userId) => request('publish', payload, userId),
