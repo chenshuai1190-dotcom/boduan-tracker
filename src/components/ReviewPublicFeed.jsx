@@ -70,7 +70,7 @@ function PublicAvatar({ post, db, userId, language }) {
 function PublicPost({ post, full = false, db, userId, language, onOpen, onLike, pending, error, onSelectSymbol, onManageOwnEntry, onOpenComments }) {
   const [expanded, setExpanded] = React.useState(false);
   const english = language.startsWith('en');
-  const commentCount = post.replies?.length || 0;
+  const commentCount = post.commentCount ?? post.replies?.length ?? 0;
   const open = event => {
     if (full || event.defaultPrevented || event.target.closest('button,a,input,textarea,select') || window.getSelection?.()?.toString()) return;
     onOpen(post);
@@ -105,10 +105,73 @@ function PublicTradeReferences({ trades, language }) {
   return <div className="rev-trade-references"><div className="rev-trade-track" aria-label={english ? 'Shared trade references' : '引用的交易记录'}>{valid.map(trade => <article className="rev-trade-reference rpf-trade-reference" key={trade.id}><header><strong>{trade.symbol}</strong><span className={`rev-side-${trade.side}`}>{english ? trade.side === 'buy' ? 'Buy' : 'Sell' : trade.side === 'buy' ? '买入' : '卖出'}</span><time dateTime={trade.date}>{trade.date}</time></header><div><strong>{trade.price.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong><span>{trade.shares.toLocaleString('en-US', { maximumFractionDigits: 6 })} {english ? 'shares' : '股'}</span></div></article>)}</div></div>;
 }
 
-function PublicReplies({ post, db, userId, language, marketColorMode, onSelectSymbol, onEvaluateOwnEntry, onManageOwnReply, sectionRef }) {
+export function ReviewCommunityEvaluations({ postId, db, userId, language = 'zh', marketColorMode, onSelectSymbol, onManageReply, onCountChange, refreshToken = 0, showEmpty = false }) {
+  const english = language.startsWith('en'), key = `${userId}:${postId}`;
+  const [state, setState] = React.useState({ key, evaluations: [], status: 'loading', error: '', hasMore: false, nextCursor: null, totalCount: 0 });
+  const [retry, setRetry] = React.useState(0);
+  const context = React.useRef(key), generation = React.useRef(0), paging = React.useRef(false), countCallback = React.useRef(onCountChange);
+  context.current = key; countCallback.current = onCountChange;
+  React.useEffect(() => {
+    let active = true; const version = ++generation.current; paging.current = false;
+    // The public token changes only after an actual post/evaluation update.
+    // Revalidate from page one: retained tails can otherwise contain a remote
+    // edit or deletion that is no longer present in the newest page.
+    setState({ key, evaluations: [], totalCount: 0, hasMore: false, nextCursor: null, status: 'loading', error: '', more: false });
+    Promise.resolve().then(() => {
+      if (typeof db.fetchReviewCommunityEvaluations !== 'function') throw new Error(english ? 'Community reviews are unavailable.' : '社区评价暂时不可用，请稍后重试。');
+      return db.fetchReviewCommunityEvaluations({ postId, limit: 20, cursor: null }, userId);
+    }).then(result => {
+      if (!active || context.current !== key || generation.current !== version) return;
+      setState({ key, ...result, status: 'ready', error: '', more: false });
+      countCallback.current?.(postId, result.totalCount);
+    }).catch(failure => {
+      if (active && context.current === key && generation.current === version) setState({ key, evaluations: [], status: 'error', error: failure?.message || (english ? 'Reviews could not be loaded.' : '评价暂时无法读取，请重试。'), hasMore: false, nextCursor: null, totalCount: 0, more: false });
+    });
+    return () => { active = false; generation.current += 1; };
+  }, [db, userId, postId, key, refreshToken, retry]);
+  const owned = state.key === key ? state : { evaluations: [], status: 'loading' };
+  const loadMore = async () => {
+    if (paging.current || owned.status !== 'ready' || !owned.hasMore || !owned.nextCursor) return;
+    const version = generation.current; paging.current = true; setState(old => ({ ...old, more: true, error: '' }));
+    try {
+      const result = await db.fetchReviewCommunityEvaluations({ postId, limit: 20, cursor: owned.nextCursor }, userId);
+      if (context.current !== key || generation.current !== version) return;
+      setState(old => ({ key, ...result, evaluations: [...new Map([...old.evaluations, ...result.evaluations].map(reply => [reply.id, reply])).values()]
+        .sort((left,right)=>beforePublicCursor({id:left.id,publishedAt:left.createdAt},{id:right.id,publishedAt:right.createdAt})?1:-1), status: 'ready', error: '', more: false }));
+      countCallback.current?.(postId, result.totalCount);
+    } catch (failure) {
+      if (context.current === key && generation.current === version) {
+        const withdrawn = ['REVIEW_PUBLIC_NOT_FOUND', 'REVIEW_PUBLIC_FORBIDDEN', 'REVIEW_AUTH_REQUIRED', 'REVIEW_ACCOUNT_CHANGED'].includes(failure?.code);
+        setState(old => ({ ...old, ...(withdrawn ? { evaluations: [], totalCount: 0, hasMore: false, nextCursor: null, status: 'error' } : {}), more: false, error: failure?.message || (english ? 'Reviews could not be loaded.' : '评价暂时无法读取，请重试。') }));
+      }
+    } finally { if (context.current === key && generation.current === version) paging.current = false; }
+  };
+  return <div className="rpf-community-replies">
+    {owned.evaluations.map(reply => <div className="rj-reply" key={reply.id} data-rj-reply-id={reply.id}><PublicAvatar post={reply} db={db} userId={userId} language={language}/><div><div className="rev-reply-byline"><strong>{reply.author?.nickname || (english ? 'Quote user' : 'Quote 用户')}</strong><span>·</span><time dateTime={reply.createdAt || reply.date}>{reply.date}</time>{reply.authorId === userId && typeof onManageReply === 'function' && <button type="button" className="rj-icon rj-reply-more" aria-label={english ? 'Comment actions' : '评论操作'} onClick={() => onManageReply(reply)}><MoreHorizontal size={19}/></button>}</div>
+      <EvaluationRating score={reply.score} tags={reply.tags || []}/>
+      {reply.text && <ReviewPostBody text={reply.text} candidates={reply.stocks || []} onSelectSymbol={onSelectSymbol} language={language} full/>}
+      {reply.mood && <p className="rj-note">{english ? 'Mood · ' : '心情 · '}{reply.mood}</p>}
+      {!!reply.stocks?.length && <div className="rpf-symbols">{reply.stocks.map(symbol => <button key={symbol} type="button" onClick={event => onSelectSymbol?.(symbol, event)}>${symbol}</button>)}</div>}
+      {!!reply.images?.length && <div className={`rj-photo-grid rj-images-${reply.images.length} rpf-images`}>{reply.images.map(item => <span key={item.path} className="rpf-image"><PublicMedia db={db} userId={userId} path={item.path} language={language}/></span>)}</div>}
+      {reply.market && <SnapshotCard value={reply.market} language={language}/>}
+      {reply.account && <ReviewAccountCard value={reply.account} marketColorMode={marketColorMode}/>}
+      {!!reply.trades?.length && <PublicTradeReferences trades={reply.trades} language={language}/>}
+    </div></div>)}
+    {owned.status === 'loading' && !owned.evaluations.length && <p className="rj-note" role="status">{english ? 'Loading comments…' : '正在读取评论…'}</p>}
+    {showEmpty && owned.status === 'ready' && !owned.totalCount && <p className="rj-note">{english ? 'No comments yet.' : '还没有评论。'}</p>}
+    {owned.error && <div className="rpf-inline-error" role="alert"><p>{owned.error}</p><button className="rj-text-button" type="button" onClick={() => setRetry(value => value + 1)}>{english ? 'Retry' : '重新读取'}</button></div>}
+    {owned.hasMore && <button className="rpf-more" type="button" disabled={owned.more} onClick={loadMore}>{owned.more ? english ? 'Loading…' : '正在读取…' : english ? 'More comments' : '更多评论'}</button>}
+  </div>;
+}
+
+function PublicReplies({ post, db, userId, language, marketColorMode, onSelectSymbol, onEvaluateOwnEntry, onManageOwnReply, onEvaluateCommunityEntry, onManageCommunityReply, onCommunityCountChange, sectionRef }) {
   const english = language.startsWith('en'), ownPost = post.authorId === userId, replies = post.replies || [];
+  const [loadedCount,setLoadedCount]=React.useState({post:null,count:0});
+  const count = loadedCount.post===post?replies.length+loadedCount.count:post.commentCount ?? replies.length;
+  const evaluate = ownPost ? typeof onEvaluateOwnEntry === 'function' ? () => onEvaluateOwnEntry(post.type, post.sourceId) : null
+    : typeof onEvaluateCommunityEntry === 'function' ? () => onEvaluateCommunityEntry(post) : null;
   return <section ref={sectionRef} className="rj-replies rpf-replies" aria-label={english ? 'Comments' : '评论'}>
-    <div className="rj-replies-header"><h2>{english ? 'Comments' : '评论'}{replies.length ? ` · ${replies.length}` : ''}</h2>{ownPost && typeof onEvaluateOwnEntry === 'function' && <button type="button" className="rj-evaluate-button" onClick={() => onEvaluateOwnEntry(post.type, post.sourceId)}>{english ? 'Write review' : '写评价'}</button>}</div>
+    <div className="rj-replies-header"><h2>{english ? 'Comments' : '评论'}{count ? ` · ${count}` : ''}</h2>{evaluate && <button type="button" className="rj-evaluate-button" onClick={evaluate}>{english ? 'Write review' : '写评价'}</button>}</div>
     {replies.map(reply => <div className="rj-reply" key={reply.id} data-rj-reply-id={reply.id}><PublicAvatar post={post} db={db} userId={userId} language={language}/><div><div className="rev-reply-byline"><strong>{post.author?.nickname || (english ? 'Quote user' : 'Quote 用户')}</strong><span>·</span><time dateTime={reply.date}>{reply.date}</time>{ownPost && typeof onManageOwnReply === 'function' && <button type="button" className="rj-icon rj-reply-more" aria-label={english ? 'Comment actions' : '评论操作'} onClick={() => onManageOwnReply(post.type, post.sourceId, reply.id)}><MoreHorizontal size={19}/></button>}</div>
       <EvaluationRating score={reply.score} tags={reply.tags || []}/>
       {reply.text && <ReviewPostBody text={reply.text} candidates={reply.stocks || []} onSelectSymbol={onSelectSymbol} language={language} full/>}
@@ -119,7 +182,7 @@ function PublicReplies({ post, db, userId, language, marketColorMode, onSelectSy
       {reply.account && <ReviewAccountCard value={reply.account} marketColorMode={marketColorMode}/>}
       {!!reply.trades?.length && <PublicTradeReferences trades={reply.trades} language={language}/>}
     </div></div>)}
-    {!replies.length && <p className="rj-note">{english ? 'No comments yet.' : '还没有评论。'}</p>}
+    <ReviewCommunityEvaluations postId={post.id} db={db} userId={userId} language={language} marketColorMode={marketColorMode} onSelectSymbol={onSelectSymbol} refreshToken={`${post.updatedAt}:${post.commentCount??''}`} showEmpty={!replies.length} onCountChange={(postId,total)=>{setLoadedCount({post,count:total});onCommunityCountChange?.(postId,total);}} onManageReply={reply => onManageCommunityReply?.(post, reply)}/>
   </section>;
 }
 
@@ -136,7 +199,7 @@ const beforePublicCursor = (post, cursor) => {
   return left === right ? post.id < cursor.id : left < right;
 };
 
-function ScopedPublicFeed({ db, userId, language = 'zh', marketColorMode, query = '', symbol = '', refreshToken = 0, refreshRef, active = true, onManageOwnEntry, onEvaluateOwnEntry, onManageOwnReply, onDetailChange }) {
+function ScopedPublicFeed({ db, userId, language = 'zh', marketColorMode, query = '', symbol = '', refreshToken = 0, refreshRef, active = true, onManageOwnEntry, onEvaluateOwnEntry, onManageOwnReply, onEvaluateCommunityEntry, onManageCommunityReply, onCommunityCountChange, onDetailChange }) {
   const english = language.startsWith('en');
   const [localSymbol, setLocalSymbol] = React.useState('');
   const [retry, setRetry] = React.useState(0), [detailRetry, setDetailRetry] = React.useState(0);
@@ -412,7 +475,7 @@ function ScopedPublicFeed({ db, userId, language = 'zh', marketColorMode, query 
   return <section className="rpf-feed" aria-label={english ? 'Public activity' : '公开动态'}>
     {currentDetail ? <div className="rpf-detail"><header className="rj-page-header rpf-detail-header"><button type="button" className="rj-icon" onClick={back} aria-label={english ? 'Back to public activity' : '返回公开动态'}><ArrowLeft size={22} /></button><h1>{english ? 'Journal Entry' : '复盘记录'}</h1><span className="rj-header-spacer" aria-hidden="true" /></header>
       {detailStatus === 'loading' && <p className="rpf-status" role="status"><Loader2 size={18} className="rj-spin" />{english ? 'Loading post…' : '正在读取博文…'}</p>}
-      {detailStatus === 'ready' && currentDetail.post && <div className="rj-entry-content">{postNode(currentDetail.post, true)}<PublicReplies post={currentDetail.post} db={db} userId={userId} language={language} marketColorMode={marketColorMode} onSelectSymbol={selectSymbol} onEvaluateOwnEntry={onEvaluateOwnEntry} onManageOwnReply={onManageOwnReply} sectionRef={commentsRef}/></div>}
+      {detailStatus === 'ready' && currentDetail.post && <div className="rj-entry-content">{postNode(currentDetail.post, true)}<PublicReplies post={currentDetail.post} db={db} userId={userId} language={language} marketColorMode={marketColorMode} onSelectSymbol={selectSymbol} onEvaluateOwnEntry={onEvaluateOwnEntry} onManageOwnReply={onManageOwnReply} onEvaluateCommunityEntry={onEvaluateCommunityEntry} onManageCommunityReply={onManageCommunityReply} onCommunityCountChange={onCommunityCountChange} sectionRef={commentsRef}/></div>}
       {detailStatus === 'missing' && <p className="rpf-status" role="status">{english ? 'This post is no longer public.' : '这条博文已不再公开。'}</p>}
       {detailStatus === 'error' && <div className="rpf-status" role="alert"><p>{currentDetail.error}</p><button type="button" onClick={() => setDetailRetry(value => value + 1)}>{english ? 'Retry' : '重试'}</button></div>}
     </div> : <>

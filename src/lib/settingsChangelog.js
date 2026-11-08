@@ -3,6 +3,11 @@ import { CURRENT_RELEASE } from './releaseMeta.js';
 export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
+    items: ['公开博文支持其他用户发表评论和 1–10 分评分，展示评价者头像昵称，并允许修改、删除自己的评价；评价随博文公开或私密。公开动态支持下拉、返回前台和前台定时更新，修复他人新帖无法及时出现的问题。'],
+    itemsEn: ['Public posts now accept comments and 1–10 ratings from other users, show each reviewer’s identity, and let reviewers edit or delete their own evaluations. Evaluations follow the post’s visibility. Public activity refreshes on pull, resume, and periodically in the foreground so new posts appear.'],
+  },
+  {
+    ver: 'v10.7.9.602', date: '2026-11-08',
     items: ['公开博文与评价统一可见范围，评价中的评分、图片、账户快照和交易引用随博文公开，改为私密后一并隐藏。修复公开详情的顶部布局，恢复评论入口和作者修改、删除功能；分别记住浏览与发布范围，精简多余提示。'],
     itemsEn: ['Public posts and their evaluations now share one audience, including ratings, images, account snapshots, and trade references. Making a post private hides them together. Fixed public detail spacing and restored comments and author actions. Browsing and publishing audiences are remembered separately, with redundant hints removed.'],
   },

@@ -57,6 +57,9 @@ export function mapReviewPublicPost(value) {
     || value.stocks.some(symbol => typeof symbol !== 'string' || !/^[A-Z0-9^][A-Z0-9.^=-]{0,19}$/.test(symbol))
     || !Number.isSafeInteger(value.likeCount) || value.likeCount < 0 || typeof value.liked !== 'boolean') return invalid();
   const market = value.market == null ? null : normalizeReviewMarketSnapshot(value.market);
+  const replies = mapReviewPublicReplies(value.replies, value.authorId);
+  const commentCount = value.commentCount ?? replies.length;
+  if (!Number.isSafeInteger(commentCount) || commentCount < replies.length) return invalid();
   // Older private notes may contain legacy market JSON. Drop an invalid optional
   // snapshot without exposing its unknown fields or hiding the valid public post.
   return {
@@ -65,7 +68,7 @@ export function mapReviewPublicPost(value) {
       avatarKey: normalizeCommunityAvatarKey(value.author.avatarKey),
       avatarPath: normalizeCommunityAvatarPath(value.author.avatarPath, value.authorId) },
     text: value.text, date: value.date, stocks: [...new Set(value.stocks)],
-    images: publicImages(value.images, value.authorId), market, replies: mapReviewPublicReplies(value.replies, value.authorId),
+    images: publicImages(value.images, value.authorId), market, replies, commentCount,
     publishedAt: value.publishedAt, updatedAt: value.updatedAt, likeCount: value.likeCount, liked: value.liked,
   };
 }

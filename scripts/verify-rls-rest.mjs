@@ -33,6 +33,7 @@ const SERVICE_ONLY_TABLES = [
   // Public activity is exposed through authenticated, account-bound RPCs only.
   { table: 'review_public_posts', select: 'author_id' },
   { table: 'review_public_likes', select: 'user_id' },
+  { table: 'review_community_evaluations', select: 'author_id' },
   { table: 'snapshot_publication_markers', select: 'channel' },
   { table: 'margin_debt_events', select: 'user_id' },
   { table: 'margin_debt_history_meta', select: 'version' },
@@ -291,6 +292,18 @@ const AUTHENTICATED_USER_RPCS = [
   {
     name: 'read_personal_debt_ledger',
     body: {},
+  },
+  {
+    name: 'fetch_review_community_evaluations',
+    body: { p_post_id: null, p_limit: 1, p_before: null, p_before_id: null, p_expected_user_id: null },
+  },
+  {
+    name: 'save_review_community_evaluation',
+    body: { p_post_id: null, p_evaluation_id: null, p_expected_revision: 0, p_evaluation: {}, p_expected_user_id: null },
+  },
+  {
+    name: 'delete_review_community_evaluation',
+    body: { p_post_id: null, p_evaluation_id: null, p_expected_revision: 0, p_expected_user_id: null },
   },
   {
     name: 'available_cash_write_contract_ready',

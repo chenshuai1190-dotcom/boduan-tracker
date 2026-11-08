@@ -41,6 +41,9 @@ const stockTrades = [
 ];
 const account = Object.fromEntries(['2026-11-03','2026-11-05','2026-11-06'].map(asOfDate=>[asOfDate,{version:1,kind:'account_snapshot',asOfDate,recordDate:asOfDate,basis:'close',source:'pnl_report',items:[['cumulativeReturnPct',12.5],['yearPeakReturnPct',22.5],['declineFromYearPeakPp',10],['dailyReturnPct',-1.82],['leverage',1.28]].map(([key,value])=>({key,value,asOfDate,basis:'close',source:'pnl_report',...(['yearPeakReturnPct','declineFromYearPeakPp'].includes(key)?{peakDate:'2026-10-23'}:{})}))}]));
 const evaluationLog = {...base,id:'evaluation-example',type:'log',date:'2026-11-05',text:'以后要把 VIX 倒挂作为重要参考。比率大于 1 时，结合仓位，耐心寻找买入机会。',replies:[{id:'evaluation-reply',date:'2026-11-07',text:'方向判断可以保留，但“出现倒挂”不等于立即加大融资。回看这笔买入，仓位加得太快了。下次分批执行，先给后续波动留出余地。',score:6,tags:['仓位过重','耐心不足'],market:snapshot,account:account['2026-11-05'],trades:[{id:'sm1',symbol:'SMH',date:'2026-09-03',side:'buy',price:524.32,shares:30}],images:[],stocks:[]}]};
+const communityEvaluation = { id:'40000000-0000-4000-8000-000000000001',postId:'log:evaluation-example',authorId:'sample-community-reviewer',
+  author:{nickname:'山间慢行',avatarKey:'green',avatarPath:null},revision:1,createdAt:'2026-11-08T05:00:00Z',updatedAt:'2026-11-08T05:00:00Z',
+  date:'2026-11-08',text:'赞同先写下交易条件。这个示例评价来自另一位用户，可以用来检查公开转私密后，作者仍能回看已有讨论。',score:8,tags:['按计划执行'],images:[],stocks:[],trades:[],market:null,account:null,mood:'' };
 const readingLogs = [
   {...base,id:'reading-medium',type:'log',date:'2026-11-08',text:'NVDA 与 SMH 的复盘，不应该只记住买卖价格。真正值得留下的是：当时看到了什么信息，为什么认为这个价格可以接受，以及准备在什么条件下改变判断。\n\n这次先把交易原因、当时的仓位和后续观察分开记录。NVDA 的价格变化只是结果，是否遵守计划才是可以反复检查的部分。短期波动出现时，回到当时写下的条件，比事后用新的信息解释过去更有帮助。\n\n这是一条中等长度的示例记录。正文超过原来的字数限制，但仍能在手机一屏内读完，所以应该直接完整显示。'},
   {...base,id:'reading-long',type:'log',date:'2026-11-07',text:[
@@ -59,10 +62,12 @@ export default function ReviewJournalPreview({language,onBack,marketColorMode,na
   const [reviewLogs,setReviewLogs] = React.useState(initialLogs);
   const reviewPublicRefreshRef = React.useRef(null);
   const [refreshScenarioStatus,setRefreshScenarioStatus] = React.useState('');
+  const [communityScenarioStatus,setCommunityScenarioStatus] = React.useState('');
   const rows = React.useRef([...seedInsights,...initialLogs]); const imageUrls = React.useRef(new Map()); const imageFiles=React.useRef(new Map());
   React.useEffect(()=>()=>imageUrls.current.forEach(url=>URL.revokeObjectURL(url)),[]);
   const db = React.useMemo(()=>({
-    ...createReviewPublicPreview({ownerId:OWNER,getEntries:()=>rows.current,getImage:path=>imageFiles.current.get(path),market:snapshot}),
+    ...createReviewPublicPreview({ownerId:OWNER,getEntries:()=>rows.current,getImage:path=>imageFiles.current.get(path),market:snapshot,
+      communityEvaluations:initialLogs.some(row=>row.id===evaluationLog.id)?[communityEvaluation]:[]}),
     saveReviewJournalEntry:async(entry,userId)=>{
       if(userId!==OWNER)throw new Error('预览账户不匹配');
       if(new URLSearchParams(window.location.search).get('reviewFailure')==='save')throw new Error('模拟保存失败：正文与附件仍保留，请重试。');
@@ -124,6 +129,12 @@ export default function ReviewJournalPreview({language,onBack,marketColorMode,na
       <button type="button" style={{padding:'12px 8px'}} onClick={()=>{db.setReviewPublicPreviewScenario('published');setRefreshScenarioStatus('已模拟其他账号发布，等待自动读取');}}>模拟其他账号发布</button>
       <button type="button" style={{padding:'12px 8px'}} onClick={async()=>{await reviewPublicRefreshRef.current?.();setRefreshScenarioStatus('手动读取完成');}}>读取最新示例</button>
       {refreshScenarioStatus&&<p role="status">{refreshScenarioStatus}</p>}
+    </details>
+    <details style={{padding:'0 16px 12px',fontSize:13,color:'#94a3b8'}}>
+      <summary>本地社区评价验收 · 示例数据</summary>
+      <button type="button" style={{padding:'12px 8px'}} onClick={()=>{db.setReviewCommunityPreviewVisibility('insight:sample-reader','private');setCommunityScenarioStatus('山间慢行的示例帖已改为私密；后续评价读取和保存会拒绝访问。');}}>模拟他人帖子转私密</button>
+      <button type="button" style={{padding:'12px 8px'}} onClick={async()=>{db.setReviewCommunityPreviewVisibility('insight:sample-reader','public');await reviewPublicRefreshRef.current?.();setCommunityScenarioStatus('山间慢行的示例帖恢复公开，已有评价仍保留。');}}>恢复示例帖子公开</button>
+      {communityScenarioStatus&&<p role="status">{communityScenarioStatus}</p>}
     </details>
     <ReviewJournalPage ctx={{db,userId:OWNER,language,disciplines,reviewLogs,setDisciplines,setReviewLogs,stockTrades,onBack,marketColorMode,usdCny:7.12,fxDate:'2026-11-07T00:00:00Z',navigationTab,reviewPublicRefreshRef,previewData:{initialAllScope:new URLSearchParams(window.location.search).get('reviewScope')||undefined,timeline,initialTimeline:new URLSearchParams(window.location.search).get('reviewTimeline')==='1',identity:{nickname:'波段玩家1836',avatarKey:'gold'},history,market,account}}}/>
   </>;

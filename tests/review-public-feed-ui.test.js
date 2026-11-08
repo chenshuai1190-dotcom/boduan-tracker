@@ -26,6 +26,7 @@ async function harness() {
   const db = {
     fetchReviewPublicFeed: (...args) => request('feed', args),
     fetchReviewPublicPost: (...args) => request('post', args),
+    fetchReviewCommunityEvaluations: (...args) => request('community', args),
     setReviewPublicLike: (...args) => request('like', args),
     downloadReviewPublicImage: (...args) => request('image', args),
     downloadReviewPublicAvatar: (...args) => request('avatar', args),
@@ -568,4 +569,115 @@ test('late refresh failures from an obsolete viewer or unmounted page do not rej
     h.requests[1].reject(new Error('obsolete user failure')); await assert.doesNotReject(oldRefresh);
     if (leave === 'switch') { const tree = h.feed({ userId: 'new-viewer' }); assert.doesNotMatch(words(tree), /obsolete user failure/); h.unmount(); }
   }
+});
+
+test('every signed-in visitor can open the shared review composer while owner reviews keep their source path', async () => {
+  const h = await harness(), own = [], community = [];
+  const publicPost = post('log:1', { replies: [{ id: 'self-review' }], commentCount: 4 });
+  const props = { post: publicPost, db: h.db, userId: 'viewer', language: 'zh', onEvaluateOwnEntry: (...args) => own.push(args), onEvaluateCommunityEntry: value => community.push(value) };
+  let tree = h.render(h.components.PublicReplies, props);
+  assert.match(words(tree), /评论 · 4/); button(tree, '写评价').props.onClick();
+  assert.deepEqual(community, [publicPost]); assert.equal(own.length, 0);
+  const list = walk(tree).find(node => node.type === h.components.ReviewCommunityEvaluations);
+  assert.equal(list.props.postId, publicPost.id); assert.equal(list.props.userId, 'viewer');
+  tree = h.render(h.components.PublicReplies, { ...props, userId: 'author' }); button(tree, '写评价').props.onClick();
+  assert.deepEqual(own, [['log', '1']]); assert.equal(community.length, 1);
+  tree = h.render(h.components.PublicPost, { ...props, onSelectSymbol() {}, onOpenComments() {} });
+  assert.equal(words(button(tree, '查看评论')), '4', 'list count includes source reviews and community reviews'); h.unmount();
+});
+
+const communityReply = (id = 'evaluation-1', extra = {}) => ({ id, postId: 'log:1', authorId: 'other-reviewer', author: { nickname: '另一位评价者', avatarKey: 'panda', avatarPath: null }, revision: 3, date: '2026-11-08', createdAt: '2026-11-08T08:00:00Z', updatedAt: '2026-11-08T08:00:00Z', text: '其他用户的评价', score: 9, tags: ['按计划执行'], images: [], trades: [], stocks: [], ...extra });
+const communityPage = (evaluations, totalCount = evaluations.length, nextCursor = null) => ({ evaluations, totalCount, hasMore: Boolean(nextCursor), nextCursor });
+
+test('community rows use reviewer identities, display saved attachments, and expose actions only on the viewer own reviews', async () => {
+  const h = await harness(), actions = [], counts = [];
+  const mine = communityReply('mine', { authorId: 'viewer', author: { nickname: '我的评价身份', avatarKey: 'fox' }, images: [{ path: 'viewer/evaluation.webp' }], account: { id: 'viewer-account' }, market: { id: 'frozen-market' }, trades: [{ id: 'trade', symbol: 'NVDA', date: '2026-11-07', side: 'buy', shares: 1, price: 100 }] });
+  const props = { postId: 'log:1', db: h.db, userId: 'viewer', language: 'zh', onManageReply: value => actions.push(value), onCountChange: (...args) => counts.push(args) };
+  h.render(h.components.ReviewCommunityEvaluations, props); await flush();
+  assert.deepEqual(h.requests[0].args, [{ postId: 'log:1', limit: 20, cursor: null }, 'viewer']);
+  h.requests[0].resolve(communityPage([communityReply(), mine])); await flush(); const tree = h.render(h.components.ReviewCommunityEvaluations, props);
+  assert.match(words(tree), /另一位评价者/); assert.match(words(tree), /我的评价身份/); assert.doesNotMatch(words(tree), /公开作者/);
+  const menus = walk(tree).filter(node => node.type === 'button' && node.props['aria-label'] === '评论操作'); assert.equal(menus.length, 1); menus[0].props.onClick(); assert.equal(actions[0], mine);
+  assert.deepEqual(counts, [['log:1', 2]]);
+  assert.equal(walk(tree).find(node => node.type === h.components.ReviewAccountCard).props.value.id, 'viewer-account');
+  assert.equal(walk(tree).find(node => node.type === h.components.PublicTradeReferences).props.trades[0].id, 'trade');
+  assert.equal(walk(tree).find(node => node.type === h.components.PublicMedia).props.userId, 'viewer'); h.unmount();
+});
+
+test('community review paging is bounded and late responses cannot leak into another account or post', async () => {
+  const h = await harness(), props = { postId: 'log:1', db: h.db, userId: 'viewer' };
+  h.render(h.components.ReviewCommunityEvaluations, props); await flush();
+  const cursor = { createdAt: '2026-11-08T08:00:00Z', id: 'evaluation-1' };
+  h.requests[0].resolve(communityPage([communityReply()], 3, cursor)); await flush(); let tree = h.render(h.components.ReviewCommunityEvaluations, props);
+  button(tree, '更多评论').props.onClick(); button(tree, '更多评论').props.onClick(); assert.equal(h.requests.length, 2);
+  assert.deepEqual(h.requests[1].args[0].cursor, cursor);
+  tree = h.render(h.components.ReviewCommunityEvaluations, { ...props, userId: 'new-viewer', postId: 'log:2' }); await flush();
+  h.requests[2].resolve(communityPage([])); await flush(); h.requests[1].resolve(communityPage([communityReply('late')])); await flush();
+  tree = h.render(h.components.ReviewCommunityEvaluations, { ...props, userId: 'new-viewer', postId: 'log:2' });
+  assert.doesNotMatch(words(tree), /另一位评价者/); assert.equal(button(tree, '更多评论'), undefined); h.unmount();
+});
+
+test('revoked community review reads clear formerly visible content and offer a retry', async () => {
+  const h = await harness(), props = { postId: 'log:1', db: h.db, userId: 'viewer' };
+  h.render(h.components.ReviewCommunityEvaluations, props); await flush(); h.requests[0].resolve(communityPage([communityReply()])); await flush();
+  assert.match(words(h.render(h.components.ReviewCommunityEvaluations, props)), /另一位评价者/);
+  h.render(h.components.ReviewCommunityEvaluations, { ...props, refreshToken: 1 }); await flush(); h.requests[1].reject(new Error('这条博文已不再公开')); await flush();
+  const tree = h.render(h.components.ReviewCommunityEvaluations, { ...props, refreshToken: 1 });
+  assert.doesNotMatch(words(tree), /另一位评价者/); assert.match(words(tree), /已不再公开/); assert.ok(button(tree, '重新读取')); h.unmount();
+});
+
+test('unchanged community refresh retains loaded pages but a changed post token discards stale deleted tails', async () => {
+  const h = await harness(), props = { postId: 'log:1', db: h.db, userId: 'viewer', refreshToken: 'first' };
+  const row = index => communityReply(`reply-${String(index).padStart(3,'0')}`, { createdAt: `2026-11-08T08:00:00.${String(index).padStart(6,'0')}Z`, text: `评论 ${index}` });
+  const rows = (high, low) => Array.from({length:high-low+1},(_,index)=>row(high-index));
+  const cursor = index => ({id:row(index).id,createdAt:row(index).createdAt});
+  h.render(h.components.ReviewCommunityEvaluations,props); await flush(); h.requests[0].resolve(communityPage(rows(40,21),40,cursor(21))); await flush();
+  let tree=h.render(h.components.ReviewCommunityEvaluations,props); button(tree,'更多评论').props.onClick(); h.requests[1].resolve(communityPage(rows(20,1),40)); await flush();
+  tree=h.render(h.components.ReviewCommunityEvaluations,props); assert.equal(walk(tree).filter(node=>node.props['data-rj-reply-id']).length,40);
+  h.render(h.components.ReviewCommunityEvaluations,{...props}); await flush(); assert.equal(h.requests.length,2,'an unchanged updatedAt/count token must not refetch or discard pagination');
+  const deleted=rows(20,1).find(reply=>reply.id==='reply-010');
+  h.render(h.components.ReviewCommunityEvaluations,{...props,refreshToken:'remote-delete-updatedAt'}); await flush();
+  tree=h.render(h.components.ReviewCommunityEvaluations,{...props,refreshToken:'remote-delete-updatedAt'});
+  assert.equal(walk(tree).filter(node=>node.props['data-rj-reply-id']).length,0,'remote deletion invalidates the complete old window before revalidation');
+  h.requests[2].resolve(communityPage(rows(40,21),39,cursor(21))); await flush();
+  tree=h.render(h.components.ReviewCommunityEvaluations,{...props,refreshToken:'remote-delete-updatedAt'});
+  assert.equal(walk(tree).filter(node=>node.props['data-rj-reply-id']).length,20); assert.ok(button(tree,'更多评论'));
+  button(tree,'更多评论').props.onClick(); h.requests[3].resolve(communityPage(rows(20,1).filter(reply=>reply.id!==deleted.id),39)); await flush();
+  tree=h.render(h.components.ReviewCommunityEvaluations,{...props,refreshToken:'remote-delete-updatedAt'});
+  assert.equal(walk(tree).filter(node=>node.props['data-rj-reply-id']).length,39);
+  assert.equal(walk(tree).find(node=>node.props['data-rj-reply-id']===deleted.id),undefined);
+  h.render(h.components.ReviewCommunityEvaluations,{...props,refreshToken:'all-withdrawn'}); await flush(); h.requests[4].resolve(communityPage([])); await flush();
+  tree=h.render(h.components.ReviewCommunityEvaluations,{...props,refreshToken:'all-withdrawn'}); assert.equal(walk(tree).filter(node=>node.props['data-rj-reply-id']).length,0); h.unmount();
+});
+
+test('explicit community mutation refresh removes a deleted own tail and invalidates pending pagination', async () => {
+  const h=await harness(),props={postId:'log:1',db:h.db,userId:'viewer',refreshToken:0};
+  const head=communityReply('head'), mine=communityReply('mine',{authorId:'viewer',text:'本人第二页评价',createdAt:'2026-11-08T07:00:00Z'});
+  const cursor={id:head.id,createdAt:head.createdAt},tailCursor={id:mine.id,createdAt:mine.createdAt};
+  h.render(h.components.ReviewCommunityEvaluations,props); await flush();h.requests[0].resolve(communityPage([head],3,cursor));await flush();
+  let tree=h.render(h.components.ReviewCommunityEvaluations,props);button(tree,'更多评论').props.onClick();h.requests[1].resolve(communityPage([mine],3,tailCursor));await flush();
+  tree=h.render(h.components.ReviewCommunityEvaluations,props);assert.ok(walk(tree).find(node=>node.props['data-rj-reply-id']===mine.id));button(tree,'更多评论').props.onClick();
+  h.render(h.components.ReviewCommunityEvaluations,{...props,refreshToken:1});await flush();h.requests[3].resolve(communityPage([head],2,cursor));await flush();
+  h.requests[2].resolve(communityPage([mine]));await flush();tree=h.render(h.components.ReviewCommunityEvaluations,{...props,refreshToken:1});
+  assert.equal(walk(tree).find(node=>node.props['data-rj-reply-id']===mine.id),undefined);assert.equal(walk(tree).filter(node=>node.props['data-rj-reply-id']).length,1);h.unmount();
+});
+
+test('community pagination privacy and permission failures clear all previously loaded evaluations', async () => {
+  for(const code of ['REVIEW_PUBLIC_NOT_FOUND','REVIEW_PUBLIC_FORBIDDEN']){
+    const h=await harness(),props={postId:'log:1',db:h.db,userId:'viewer',showEmpty:true};
+    const first=communityReply(),cursor={id:first.id,createdAt:first.createdAt};
+    h.render(h.components.ReviewCommunityEvaluations,props);await flush();h.requests[0].resolve(communityPage([first],2,cursor));await flush();
+    let tree=h.render(h.components.ReviewCommunityEvaluations,props);button(tree,'更多评论').props.onClick();
+    h.requests[1].reject(Object.assign(new Error('这条动态已删除或改为私密。'),{code}));await flush();tree=h.render(h.components.ReviewCommunityEvaluations,props);
+    assert.equal(walk(tree).filter(node=>node.props['data-rj-reply-id']).length,0);assert.match(words(tree),/改为私密/);assert.doesNotMatch(words(tree),/还没有评论/);assert.equal(button(tree,'更多评论'),undefined);assert.ok(button(tree,'重新读取'));h.unmount();
+  }
+});
+
+test('a community read error never claims there are no comments', async () => {
+  const h=await harness(), props={postId:'log:1',db:h.db,userId:'viewer',showEmpty:true};
+  let tree=h.render(h.components.ReviewCommunityEvaluations,props); assert.doesNotMatch(words(tree),/还没有评论/); await flush();
+  h.requests[0].reject(new Error('网络暂不可用')); await flush(); tree=h.render(h.components.ReviewCommunityEvaluations,props);
+  assert.match(words(tree),/网络暂不可用/); assert.doesNotMatch(words(tree),/还没有评论/);
+  button(tree,'重新读取').props.onClick(); h.render(h.components.ReviewCommunityEvaluations,props); await flush(); h.requests[1].resolve(communityPage([])); await flush();
+  tree=h.render(h.components.ReviewCommunityEvaluations,props); assert.match(words(tree),/还没有评论/); h.unmount();
 });

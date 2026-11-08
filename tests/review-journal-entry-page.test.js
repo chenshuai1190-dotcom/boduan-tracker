@@ -292,10 +292,10 @@ async function harness({ removeReply, preferences = {}, localPreferences = new M
       const readReviewAudiencePreference = (userId, kind) => readAudience(userId, kind, fixture.localStorage);
       const writeReviewAudiencePreference = (userId, kind, value) => writeAudience(userId, kind, value, fixture.localStorage);
       const Avatar = () => null, AuthorName = () => null, Photo = () => null, SnapshotCard = () => null, ReviewStockCarousel = () => null, ReviewPostBody = () => null, Composer = () => null, Dialog = () => null;
-      const ReviewPublicFeed = () => null, ReviewTimeline = () => null, ReviewPreferences = () => null, ReviewTimelinePost = () => null;
+      const ReviewPublicFeed = () => null, ReviewCommunityEvaluations = () => null, ReviewTimeline = () => null, ReviewPreferences = () => null, ReviewTimelinePost = () => null;
       const useReviewPreferences = () => fixture.preferenceState;
       const ReviewEvaluationComposer = () => null, EvaluationRating = () => null, ReviewAccountCard = () => null, ReviewTradeReferences = () => null, EmojiPicker = () => null;
-      export { ReviewPublicFeed, ReviewSystemAvatar, ReviewSystemName, Avatar, AuthorName, ReviewTimeline, ReviewPreferences, ReviewTimelinePost, Photo, SnapshotCard, ReviewStockCarousel, ReviewPostBody, Composer, Dialog, ReviewEvaluationComposer, EvaluationRating, ReviewAccountCard, ReviewTradeReferences };
+      export { ReviewPublicFeed, ReviewCommunityEvaluations, ReviewSystemAvatar, ReviewSystemName, Avatar, AuthorName, ReviewTimeline, ReviewPreferences, ReviewTimelinePost, Photo, SnapshotCard, ReviewStockCarousel, ReviewPostBody, Composer, Dialog, ReviewEvaluationComposer, EvaluationRating, ReviewAccountCard, ReviewTradeReferences };
       ${pageSource.replaceAll('import.meta.env.DEV', 'true')}
     `, 'ReviewJournalEntryPageTest.jsx', { jsx: { runtime: 'classic' } });
     Page = await import(dataUrl(compiled.code));
@@ -1200,4 +1200,83 @@ test('automatic reads wait for confirmed preferences and ignore a response from 
   for (let index = 0; index < 3; index++) tree = h.render();
   assert.equal(requests.length, 2);
   h.unmount();
+});
+
+test('another author public post uses the shared full evaluation composer with the viewer own account and trade data', async () => {
+  const h = await harness(); h.ctx.previewData.initialAllScope = 'public';
+  const sourceBefore = structuredClone(h.ctx.reviewLogs), writes = [];
+  h.ctx.stockTrades = [{ id: 'my-trade', user_id: 'owner', symbol: 'NVDA' }];
+  h.ctx.db.fetchReviewAccountSnapshot = async () => 'my-account';
+  h.ctx.db.saveReviewCommunityEvaluation = async (...args) => { writes.push(args); return { ...args[1], postId: args[0], authorId: args[2], revision: 1 }; };
+  let tree = h.render(); const feed = () => find(tree, node => node.type === h.Page.ReviewPublicFeed);
+  const foreign = { id: 'log:foreign', type: 'log', sourceId: 'foreign', authorId: 'another-author', text: '别人的公开投资判断', date: '2026-11-08', stocks: ['MSFT'] };
+  feed().props.onDetailChange(true, foreign); tree = h.render(); feed().props.onEvaluateCommunityEntry(foreign); tree = h.render();
+  let editor = find(tree, node => node.type === h.Page.ReviewEvaluationComposer && node.props.open);
+  assert.ok(editor); assert.equal(editor.props.entry.communityPostId, foreign.id); assert.equal(editor.props.entry.text, foreign.text);
+  assert.equal(editor.props.stockTrades, h.ctx.stockTrades); assert.equal(editor.props.userId, 'owner'); assert.equal(editor.props.db.fetchReviewAccountSnapshot, h.ctx.db.fetchReviewAccountSnapshot);
+  assert.match(textOf(editor.props.identityNode), /公开可见/); assert.equal(feed().props.active, false);
+  const adapter = editor.props.db, draft = { id: 'new-review', date: '2026-11-08', text: '', score: 8, tags: ['自定义'], account: { id: 'my-snapshot' }, trades: [{ id: 'my-trade' }] };
+  tree = h.render(); editor = find(tree, node => node.type === h.Page.ReviewEvaluationComposer && node.props.open); assert.equal(editor.props.db, adapter);
+  const saved = await editor.props.db.appendReviewJournalReply(editor.props.entry, draft, 'owner'); editor.props.onSaved(saved); editor.props.onClose(); tree = h.render();
+  assert.deepEqual(writes[0], ['log:foreign', draft, 'owner']); assert.deepEqual(h.ctx.reviewLogs, sourceBefore, 'community reviews must never be inserted into the viewer source journal');
+  assert.ok(feed().props.refreshToken > 0); assert.equal(find(tree, node => node.type === h.Page.ReviewEvaluationComposer).props.open, false);
+  feed().props.onEvaluateCommunityEntry(foreign); tree = h.render(); const draftKey = find(tree, node => node.type === h.Page.ReviewEvaluationComposer && node.props.open).key;
+  find(tree, node => node.type === h.Page.ReviewEvaluationComposer && node.props.open).props.onClose(); tree = h.render(); feed().props.onEvaluateCommunityEntry(foreign); tree = h.render();
+  assert.equal(find(tree, node => node.type === h.Page.ReviewEvaluationComposer && node.props.open).key, draftKey, 'closing a new review keeps its per-post draft mounted');
+  h.ctx.userId = 'switched'; tree = h.render(); assert.equal(find(tree, node => node.type === h.Page.ReviewEvaluationComposer), undefined); h.unmount();
+});
+
+test('community review edit and delete preserve the original revision and never expose another reviewer menu', async () => {
+  const h = await harness(); h.ctx.previewData.initialAllScope = 'public'; const writes = [], deletes = [];
+  h.ctx.db.saveReviewCommunityEvaluation = async (...args) => { writes.push(args); return { ...args[1], revision: args[1].revision + 1 }; };
+  h.ctx.db.deleteReviewCommunityEvaluation = async (...args) => { deletes.push(args); return { deleted: true }; };
+  let tree = h.render(); const feed = () => find(tree, node => node.type === h.Page.ReviewPublicFeed);
+  const post = { id: 'log:foreign', type: 'log', sourceId: 'foreign', authorId: 'another-author', text: '公开记录', date: '2026-11-08' };
+  const reply = { id: 'my-review', postId: post.id, authorId: 'owner', revision: 4, date: '2026-11-08', text: '原评价', score: 6 };
+  feed().props.onDetailChange(true, post); tree = h.render(); feed().props.onManageCommunityReply(post, { ...reply, authorId: 'different-reviewer' }); tree = h.render();
+  assert.equal(button(tree, '修改评价'), undefined);
+  feed().props.onManageCommunityReply(post, reply); tree = h.render(); button(tree, '修改评价').props.onClick(); tree = h.render();
+  let editor = find(tree, node => node.type === h.Page.ReviewEvaluationComposer && node.props.reply);
+  assert.equal(editor.props.reply, reply); await editor.props.db.updateReviewJournalReply(editor.props.entry, reply, { ...reply, id: 'tampered', revision: 99, text: '修改后的评价' }, 'owner');
+  assert.equal(writes[0][1].id, reply.id); assert.equal(writes[0][1].revision, 4); assert.equal(writes[0][2], 'owner'); editor.props.onClose(); tree = h.render();
+  feed().props.onManageCommunityReply(post, reply); tree = h.render(); button(tree, '删除评价').props.onClick(); tree = h.render(); await button(tree, '确认删除评价').props.onClick(); tree = h.render();
+  assert.deepEqual(deletes[0], ['log:foreign', reply, 'owner']); assert.equal(h.replyDeletes.length, 0); assert.ok(feed().props.refreshToken > 0); h.unmount();
+});
+
+test('private owner details retain a separately authorized community list without turning those reviews into self-evaluations', async () => {
+  const h = await harness(); let tree = h.render(); h.clickPost(tree); tree = h.render();
+  let list = find(tree, node => node.type === h.Page.ReviewCommunityEvaluations);
+  assert.ok(list); assert.equal(list.props.postId, 'log:one'); assert.equal(list.props.userId, 'owner');
+  list.props.onCountChange('log:one', 2); tree = h.render();
+  assert.match(textOf(find(tree, node => hasClass(node, 'rj-replies-header'))), /评论 · 3/);
+  list = find(tree, node => node.type === h.Page.ReviewCommunityEvaluations);
+  list.props.onManageReply({ id: 'foreign-review', postId: 'log:one', authorId: 'someone-else', revision: 1 }); tree = h.render();
+  assert.equal(button(tree, '修改评价'), undefined); assert.equal(h.ctx.reviewLogs[0].replies.length, 1); h.unmount();
+});
+
+test('community drafts are isolated per post and stale handlers cannot open an editor on another visible post', async () => {
+  const h=await harness(); h.ctx.previewData.initialAllScope='public'; let tree=h.render();
+  const feed=()=>find(tree,node=>node.type===h.Page.ReviewPublicFeed);
+  const first={id:'log:first-other',type:'log',sourceId:'first-other',authorId:'other',date:'2026-11-08',text:'第一条公开帖'};
+  const second={...first,id:'log:second-other',sourceId:'second-other',text:'第二条公开帖'};
+  feed().props.onDetailChange(true,first); tree=h.render(); feed().props.onEvaluateCommunityEntry(first); tree=h.render();
+  const firstEditor=find(tree,node=>node.type===h.Page.ReviewEvaluationComposer&&node.props.open);
+  const oldOpen=feed().props.onEvaluateCommunityEntry;
+  feed().props.onDetailChange(true,second); tree=h.render(); oldOpen(first); tree=h.render();
+  assert.equal(find(tree,node=>node.type===h.Page.ReviewEvaluationComposer&&node.props.open),undefined);
+  feed().props.onEvaluateCommunityEntry(second); tree=h.render(); const secondEditor=find(tree,node=>node.type===h.Page.ReviewEvaluationComposer&&node.props.open);
+  assert.notEqual(secondEditor.key,firstEditor.key); assert.equal(secondEditor.props.entry.text,second.text);
+  feed().props.onDetailChange(true,first); tree=h.render(); feed().props.onEvaluateCommunityEntry(first); tree=h.render();
+  assert.equal(find(tree,node=>node.type===h.Page.ReviewEvaluationComposer&&node.props.open).key,firstEditor.key);
+  const oldSaved=firstEditor.props.onSaved; h.ctx.userId='another-user'; tree=h.render(); const refresh=find(tree,node=>node.type===h.Page.ReviewPublicFeed).props.refreshToken;
+  oldSaved({id:'late',postId:first.id}); tree=h.render(); assert.equal(find(tree,node=>node.type===h.Page.ReviewPublicFeed).props.refreshToken,refresh);
+  assert.equal(find(tree,node=>node.type===h.Page.ReviewEvaluationComposer),undefined); h.unmount();
+});
+
+test('known community counts persist on the owner category card after leaving the detail', async () => {
+  const h=await harness(); let tree=h.render(); h.clickPost(tree); tree=h.render();
+  find(tree,node=>node.type===h.Page.ReviewCommunityEvaluations).props.onCountChange('log:one',2); tree=h.render();
+  button(tree,'返回投资动态').props.onClick(); tree=h.render();
+  const card=find(tree,node=>node.type==='article'&&node.props['data-rj-entry-key']==='log:one');
+  assert.equal(textOf(button(card,'查看评论')),'3'); h.unmount();
 });
