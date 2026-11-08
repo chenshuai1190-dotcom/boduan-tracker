@@ -1,4 +1,5 @@
 // Isolated sample data for DevVisualPreview. No network or account writes.
+import { createReviewNotificationPreview } from './reviewNotificationPreview.js';
 import { mapReviewPublicReplies, normalizeReviewPublicCursor } from '../lib/reviewPublicModel.js';
 import { buildReviewCommunityEvaluation, normalizeReviewCommunityCursor, normalizeReviewCommunityReplyTarget } from '../lib/reviewCommunityEvaluationModel.js';
 import { isReviewJournalOperationId, reviewJournalError } from '../lib/reviewJournalModel.js';
@@ -8,7 +9,7 @@ export function reviewPreviewEntryTimestamps(entry, existing, now = new Date().t
   return { createdAt, publishedAt: entry.visibility === 'public' ? createdAt : null };
 }
 
-export function createReviewPublicPreview({ ownerId, getEntries, getImage, market, communityEvaluations = [] }) {
+export function createReviewPublicPreview({ ownerId, getEntries, getImage, market, communityEvaluations = [], notifications = false }) {
   const likes = new Map();
   const evaluations = new Map(communityEvaluations.map(row => [row.id, { ...row, source: 'community' }]));
   const deletedEvaluations = new Map();
@@ -59,7 +60,9 @@ export function createReviewPublicPreview({ ownerId, getEntries, getImage, marke
       || (reply.revision ?? 0) < (create ? 0 : 1)) throw reviewJournalError('REVIEW_INVALID_REPLY', '评价标识或版本无效，请重新读取。');
   };
   const writePayload = row => buildReviewCommunityEvaluation(row, ownerId);
+  const notificationApi=notifications?createReviewNotificationPreview({ownerId,samples,evaluations,posts,readEvaluation,assertOwner}):{};
   return {
+    ...notificationApi,
     setReviewPublicPreviewScenario(value) { refreshScenario = ['empty','published'].includes(value) ? value : ''; },
     // DEV-only external author action. It changes only this isolated data source;
     // the next list/detail/comment read must observe the withdrawal itself.

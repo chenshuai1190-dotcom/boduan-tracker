@@ -3,6 +3,11 @@ import { CURRENT_RELEASE } from './releaseMeta.js';
 export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
+    items: ['动态新增消息中心，集中查看回复、评论、点赞与评分；支持未读提示、全部已读和评论定位，消息随帖子公开状态同步。'],
+    itemsEn: ['Activity now includes an inbox for replies, comments, likes, and ratings, with unread badges, mark all as read, and direct comment links. Notifications follow the current post visibility.'],
+  },
+  {
+    ver: 'v10.7.9.607', date: '2026-11-08',
     items: ['帖子、评论和回复统一按实际发布时间显示刚刚、分钟前、小时前，满 24 小时按天显示；具体时间按查看者设备时区展示，编辑及转公开不重置发布时间。'],
     itemsEn: ['Posts, comments, and replies now show just now, minutes ago, hours ago, or days ago after 24 hours, using their original creation time. Exact times follow the viewer’s time zone; edits and visibility changes do not reset publication time.'],
   },

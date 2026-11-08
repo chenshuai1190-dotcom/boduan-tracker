@@ -1,6 +1,6 @@
 # boduan-tracker 当前交接
 
-验证时间：`2026-11-07 Asia/Shanghai`。延续已授权上线，合并累计及年内收益金额/收益率纪录，同步动态、时间线、详情和十项显示设置，保留原评价归属。稳定规则看 `README.md`，流程看 `docs/development-process.md`。
+验证时间：`2026-11-08 Asia/Shanghai`。投资动态新增站内消息中心，覆盖回复、评论、点赞和评分；消息内容与权限随父帖当前状态同步。稳定规则看 `README.md`，流程看 `docs/development-process.md`。
 
 ## 当前生产基准
 
@@ -8,14 +8,16 @@
 | --- | --- |
 | 仓库 | `chenshuai1190-dotcom/boduan-tracker`；唯一发布来源 `main` |
 | 当前工作区 | `/Users/chenshuaishuai/Documents/Codex/2026-10-03/quote-boduan-tracker-2026-10-03/work/quiet-input-fields` |
-| 发布前生产源码 | `2c1ea1830c049228c2f795ef6952ccbfd1472631 / v10.7.9.599`；既有 CI、Vercel 与生产静态产物验证通过 |
-| 发布前部署 | Vercel `B6gmckLn2b9gVn2LVVujd3mgmCm1`；`https://boduan-tracker.vercel.app` |
-| 本次候选版本 | `v10.7.9.600 / 2026-11-07`：收益金额与收益率合并展示 |
+| 发布前生产源码 | `273aea5d069dc8ef78afbd3edbc3479451b5b64a / v10.7.9.607`；既有 CI、Vercel 与生产静态产物验证通过 |
+| 发布前部署 | Vercel `3zDVG7hUryvXHpmwbMR7tF1CDQ8V`；`https://boduan-tracker.vercel.app` |
+| 本次候选版本 | `v10.7.9.608 / 2026-11-08`：站内互动消息、未读状态及评论定位 |
 | 已生效云端配置 | 基础迁移及 `supabase/review_display_preferences_return_drawdown_20261107.sql` 已应用；五个 nullable 显示字段兼容旧客户端，不 backfill、不重置 revision；独立本人显示偏好表，RLS 开启、3 条 owner policy、匿名无 SELECT、authenticated 无 DELETE；原复盘与正式交易记录数量保持不变 |
 | 生产 Checks | 本会话控制台只读核对为“未配置任何检查”；保留仓库 CI 与 Docs，等待精确提交 CI + Docs + Vercel，不宣称平台已配置晋级阻断 |
 
 ## 本次证据与既有边界
-
+- v608 新增 `review_activity_notifications_20261108.sql`，无历史互动回填；服务端 deferred trigger 读取同事务最终回复关系，通知引用与读取状态独立保存，旧博文/评价/点赞数据不重写。四个 RPC 均强制预期用户与登录用户一致；原私有原表权限保持不变。头像新增授权仅限当前有效本人通知对应的当前头像。
+- 消息入口、未读数、分类、全部已读、点击定位和返回已接入。点击旧评论可直接加载第 20 条之后的目标，失效时清除旧内容。账户切换、撤回、取消赞重试、微秒分页、已读边界和后台恢复均有定向测试；五用户 PGlite 实际执行新迁移。验收使用隔离示例，不向真实用户写入测试消息；未验证生产双账号互动写入，也未接入浏览器推送。
+- 新迁移的只读预检/后检位于 `artifacts/review-public-activity/activity-notifications-{preflight,postflight}.sql`，比较既有数据指纹及权限；新功能发布仍需 FULL、匿名 REST 权限检查及精确提交发布等待器。当前生产状态以正式发布记录为准。
 - v600 将金额与收益率按同范围、同方向的连续突破区间合并，保留同日金额主值、收益率及一条金额曲线；非同步纪录标明实际指标，不将金额高点误称为收益率高点。年内与累计新高只有同日同值且纪录方向一致才去重为“年内 · 累计”，缺数不补零。
 - 原始事件推导及金融口径不变；投影保留源 ID、原节点及原评价容器。已有评价按日期合并展示，修改/删除回到原容器并保留并发冲突检测，新评价沿用稳定原始事件引用。账户快照 loader 和时间线 adapter 保持稳定，避免重渲染反复加载。
 - 设置从十三项展示收为十项；原十三个底层开关、v2 缓存和已上线五列兼容结构不变，不需数据库迁移。合并项按任一旧项开启展示，只有用户切换才统一更新成员；两类回撤继续独立。

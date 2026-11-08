@@ -66,7 +66,7 @@ export default function ReviewJournalPreview({language,onBack,marketColorMode,na
   const rows = React.useRef([...seedInsights,...initialLogs]); const imageUrls = React.useRef(new Map()); const imageFiles=React.useRef(new Map());
   React.useEffect(()=>()=>imageUrls.current.forEach(url=>URL.revokeObjectURL(url)),[]);
   const db = React.useMemo(()=>({
-    ...createReviewPublicPreview({ownerId:OWNER,getEntries:()=>rows.current,getImage:path=>imageFiles.current.get(path),market:snapshot,
+    ...createReviewPublicPreview({ownerId:OWNER,getEntries:()=>rows.current,getImage:path=>imageFiles.current.get(path),market:snapshot,notifications:true,
       communityEvaluations:initialLogs.some(row=>row.id===evaluationLog.id)?[communityEvaluation]:[]}),
     saveReviewJournalEntry:async(entry,userId)=>{
       if(userId!==OWNER)throw new Error('预览账户不匹配');

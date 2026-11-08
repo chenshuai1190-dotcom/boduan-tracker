@@ -34,6 +34,7 @@ const SERVICE_ONLY_TABLES = [
   { table: 'review_public_posts', select: 'author_id' },
   { table: 'review_public_likes', select: 'user_id' },
   { table: 'review_community_evaluations', select: 'author_id' },
+  { table: 'review_activity_notifications', select: 'recipient_id' },
   { table: 'snapshot_publication_markers', select: 'channel' },
   { table: 'margin_debt_events', select: 'user_id' },
   { table: 'margin_debt_history_meta', select: 'version' },
@@ -272,6 +273,10 @@ const SERVICE_ONLY_RPCS = [
   },
 ];
 const AUTHENTICATED_USER_RPCS = [
+  {name:'fetch_review_activity_notifications',body:{p_limit:1,p_before:null,p_before_id:null,p_filter:'all',p_expected_user_id:null}},
+  {name:'fetch_review_activity_notification_count',body:{p_expected_user_id:null}},
+  {name:'mark_review_activity_notifications_read',body:{p_ids:[],p_before:null,p_before_id:null,p_expected_user_id:null}},
+  {name:'read_review_activity_notification_target',body:{p_notification_id:null,p_expected_user_id:null}},
   {
     name: 'fetch_review_public_feed_v2',
     body: {

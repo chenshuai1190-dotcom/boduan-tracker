@@ -46,6 +46,7 @@ export { fetchCommunityAvatar, uploadCommunityAvatar, saveCommunityAvatarProfile
 export { readCachedReviewIdentity, fetchReviewIdentity, subscribeReviewIdentity } from './reviewIdentityDb.js';
 export { fetchReviewPublicFeed, fetchReviewPublicPost, setReviewPublicLike, downloadReviewPublicImage, downloadReviewPublicAvatar,
   fetchReviewCommunityEvaluations, saveReviewCommunityEvaluation, deleteReviewCommunityEvaluation } from './reviewPublicDb.js';
+export { fetchReviewNotifications, fetchReviewNotificationCount, markReviewNotificationsRead, readReviewNotificationTarget } from './reviewNotificationDb.js';
 export const {
   readCachedReviewPreferences,
   fetchReviewPreferences,

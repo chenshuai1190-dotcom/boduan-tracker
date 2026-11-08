@@ -2,3 +2,5 @@
 .rpf-replies{scroll-margin-top:calc(70px + env(safe-area-inset-top))}.rpf-trade-reference:active{background:#14171d}
 
 .rpf-reply-author{padding:0;border:0;background:none;color:inherit;font:inherit;font-weight:600;text-align:left;cursor:pointer}.rpf-reply-author:disabled{opacity:1;cursor:default}.rpf-reply-body[role="button"]{cursor:pointer}.rpf-reply-body:focus-visible{outline:1px solid #929aa6;outline-offset:4px;border-radius:4px}.rpf-reply-action{display:block;margin:8px 0 0;padding:5px 0;border:0;background:none;color:#8f98a5;font:inherit;font-size:12px;cursor:pointer}.rpf-reply-target{margin:5px 0 8px;color:#91a6ba;font-size:12px;line-height:1.5}.rev-reply-target{margin:0 16px 14px;color:#91a6ba;font-size:13px;line-height:1.6}
+
+.rpf-notification-target{background:rgba(128,151,181,.08);box-shadow:inset 2px 0 0 #839bb8;outline:none;scroll-margin:100px 0}.rpf-notification-target:focus-visible{outline:1px solid #839bb8;outline-offset:-2px}

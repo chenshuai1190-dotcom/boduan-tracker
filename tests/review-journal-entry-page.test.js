@@ -279,7 +279,7 @@ async function harness({ removeReply, preferences = {}, localPreferences = new M
   try {
     const compiled = await transformWithOxc(`
       import React from ${JSON.stringify(import.meta.resolve('react'))};
-      import { ArrowLeft, Search, Plus, MoreHorizontal, Pin, MessageCircle, Pencil, Trash2, ChevronDown, Check } from ${JSON.stringify(import.meta.resolve('lucide-react'))};
+      import { ArrowLeft, Search, Plus, MoreHorizontal, Pin, MessageCircle, Pencil, Trash2, ChevronDown, Check, Bell } from ${JSON.stringify(import.meta.resolve('lucide-react'))};
       import { reviewJournalFeed, localReviewDate } from ${JSON.stringify(new URL('../src/lib/reviewJournalFeed.js', import.meta.url).href)};
       import { findReviewStockMentions } from ${JSON.stringify(new URL('../src/lib/reviewStockMentions.js', import.meta.url).href)};
       import { mergeReviewTimelineFeed, reviewTimelineFeedDate } from ${JSON.stringify(new URL('../src/lib/reviewTimelineFeed.js', import.meta.url).href)};
@@ -294,9 +294,11 @@ async function harness({ removeReply, preferences = {}, localPreferences = new M
       const writeReviewAudiencePreference = (userId, kind, value) => writeAudience(userId, kind, value, fixture.localStorage);
       const Avatar = () => null, AuthorName = () => null, Photo = () => null, SnapshotCard = () => null, ReviewStockCarousel = () => null, ReviewPostBody = () => null, Composer = () => null, Dialog = () => null;
       const ReviewPublicFeed = () => null, ReviewCommunityEvaluations = () => null, ReplyBody = props => props.children, ReviewTimeline = () => null, ReviewPreferences = () => null, ReviewTimelinePost = () => null;
+      const ReviewNotifications=()=>null;
+      const useReviewNotificationCount=()=>({unreadCount:3,error:false,update:()=>{}});
       const useReviewPreferences = () => fixture.preferenceState;
       const ReviewEvaluationComposer = () => null, EvaluationRating = () => null, ReviewAccountCard = () => null, ReviewTradeReferences = () => null, EmojiPicker = () => null;
-      export { ReviewActivityTime, ReviewPublicFeed, ReviewCommunityEvaluations, ReplyBody, ReviewSystemAvatar, ReviewSystemName, Avatar, AuthorName, ReviewTimeline, ReviewPreferences, ReviewTimelinePost, Photo, SnapshotCard, ReviewStockCarousel, ReviewPostBody, Composer, Dialog, ReviewEvaluationComposer, EvaluationRating, ReviewAccountCard, ReviewTradeReferences };
+      export { ReviewNotifications, ReviewActivityTime, ReviewPublicFeed, ReviewCommunityEvaluations, ReplyBody, ReviewSystemAvatar, ReviewSystemName, Avatar, AuthorName, ReviewTimeline, ReviewPreferences, ReviewTimelinePost, Photo, SnapshotCard, ReviewStockCarousel, ReviewPostBody, Composer, Dialog, ReviewEvaluationComposer, EvaluationRating, ReviewAccountCard, ReviewTradeReferences };
       ${pageSource.replaceAll('import.meta.env.DEV', 'true')}
     `, 'ReviewJournalEntryPageTest.jsx', { jsx: { runtime: 'classic' } });
     Page = await import(dataUrl(compiled.code));
@@ -1337,4 +1339,17 @@ test('private owner details can reply to retained community reviews with private
   const target={id:'retained-review',postId:'log:one',authorId:'visitor',author:{nickname:'来访者'},text:'旧评论正文'};
   list.props.onReply(target);tree=h.render();const editor=find(tree,node=>node.type===h.Page.ReviewEvaluationComposer&&node.props.open);
   assert.ok(editor);assert.match(textOf(editor.props.identityNode),/仅自己可见/);assert.equal(editor.props.replyTarget.id,target.id);assert.equal(editor.props.replyTarget.text,undefined);assert.equal(editor.props.entry.communityPostId,'log:one');h.unmount();
+});
+
+
+test('message entry keeps the public feed paused and opens a notification target in public detail',async()=>{
+  const h=await harness();h.ctx.previewData.initialAllScope='public';let tree=h.render();
+  button(tree,'消息 · 3 条未读').props.onClick();tree=h.render();
+  const inbox=find(tree,node=>node.type===h.Page.ReviewNotifications);assert.ok(inbox);
+  const feed=walk(tree).find(node=>node.type===h.Page.ReviewPublicFeed);assert.equal(feed.props.active,false);
+  inbox.props.onOpen({postId:'log:foreign',commentId:'comment-older'},{id:'notice'});tree=h.render();
+  assert.equal(find(tree,node=>node.type===h.Page.ReviewNotifications),undefined);
+  const request=find(tree,node=>node.type===h.Page.ReviewPublicFeed).props.openRequest;
+  assert.equal(request.postId,'log:foreign');assert.equal(request.commentId,'comment-older');assert.equal(request.notificationId,'notice');
+  h.unmount();
 });

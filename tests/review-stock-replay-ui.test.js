@@ -82,7 +82,7 @@ async function harness({ observer = true } = {}) {
     const React = { ...ActualReact };
     for (const hook of ['useState', 'useRef', 'useEffect', 'useLayoutEffect', 'useMemo', 'useCallback']) React[hook] = (...args) => fixture.active ? fixture[hook](...args) : ActualReact[hook](...args);
     const { useState, useRef, useEffect, useLayoutEffect, useMemo } = React;
-    const { ArrowLeft, ChevronLeft, ChevronRight, RefreshCw, Search, Plus, MoreHorizontal, Pin, MessageCircle, Pencil, Trash2, ChevronDown, Check } = Icons;
+    const { ArrowLeft, ChevronLeft, ChevronRight, RefreshCw, Search, Plus, MoreHorizontal, Pin, MessageCircle, Pencil, Trash2, ChevronDown, Check, Bell } = Icons;
     const { document, window, IntersectionObserver } = fixture;
   `;
   try {
@@ -108,6 +108,8 @@ async function harness({ observer = true } = {}) {
       const ReviewStockCarousel = fixture.ReviewStockCarousel = () => null;
       const ReviewPostBody = () => null;
       const ReviewPublicFeed = () => null, ReviewTimeline = () => null, ReviewPreferences = () => null, ReviewTimelinePost = () => null;
+      const ReviewNotifications=()=>null;
+      const useReviewNotificationCount=()=>({unreadCount:0,error:false,update:()=>{}});
       const useReviewPreferences = () => ({
         preferences: { showTimeline: false, currency: 'USD', eventTypes: [] },
         ready: true, loading: false, canEdit: true, saving: false, error: '',

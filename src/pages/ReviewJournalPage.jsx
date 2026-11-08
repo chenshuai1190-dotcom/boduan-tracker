@@ -1,6 +1,6 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowLeft, Search, Plus, MoreHorizontal, Pin, MessageCircle, ImagePlus, LineChart, Activity, Smile, X, Check, Loader2, Pencil, Trash2, User, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Search, Plus, MoreHorizontal, Pin, MessageCircle, ImagePlus, LineChart, Activity, Smile, X, Check, Loader2, Pencil, Trash2, User, ChevronDown, Bell } from 'lucide-react';
 import { getCommunityAvatarOption } from '../lib/communityProfile.js';
 import { isCommunityAvatarSignedUrl, normalizeCommunityAvatarPath } from '../lib/communityAvatarModel.js';
 import { isReviewAvatarDataUrl } from '../lib/reviewIdentityStorage.js';
@@ -15,6 +15,8 @@ import ReviewTimelinePost from '../components/ReviewTimelinePost.jsx';
 import { ReviewSystemAvatar, ReviewSystemName } from '../components/ReviewSystemIdentity.jsx';
 import ReviewPreferences from '../components/ReviewPreferences.jsx';
 import useReviewPreferences from '../hooks/useReviewPreferences.js';
+import ReviewNotifications from '../components/ReviewNotifications.jsx';
+import useReviewNotificationCount from '../hooks/useReviewNotificationCount.js';
 import { mergeReviewTimelineFeed, reviewTimelineFeedDate } from '../lib/reviewTimelineFeed.js';
 import { groupReviewTimelineEvents } from '../lib/reviewTimelineGroups.js';
 import { findReviewEntryByKey, projectReviewTimelineEntry, resolveReviewReplySource, resolveReviewTimelineEvent, reviewTimelineAnchorEntry, reviewTimelineReplyKey } from '../lib/reviewTimelineEntries.js';
@@ -259,6 +261,7 @@ export default function ReviewJournalPage({ ctx }) {
   const [scopeMenu,setScopeMenu]=useState(false); const [publicDetail,setPublicDetail]=useState(false); const [publicRefresh,setPublicRefresh]=useState(0);
   const [publicEvaluationContext,setPublicEvaluationContext]=useState(null);
   const [publicPostContext,setPublicPostContext]=useState(null);
+  const [notificationOpenRequest,setNotificationOpenRequest]=useState(null);
   const [communityDrafts,setCommunityDrafts]=useState([]), [communityEditing,setCommunityEditing]=useState(null), [communityReplyMenu,setCommunityReplyMenu]=useState(null);
   const [communityCounts,setCommunityCounts]=useState({userId,values:{}});
   const communityView=useRef(null);
@@ -343,6 +346,7 @@ export default function ReviewJournalPage({ ctx }) {
   const selectedTimelineEvent=resolveReviewTimelineEvent(timelineEvents,timelineEventId);
   const isTimelineDetail=Boolean(timelineEventId);
   const isSettings=detailKey==='settings';
+  const isNotifications=detailKey==='notifications';
   const activeReplyMenu=replyMenu?.userId===userId&&replyMenu.entryKey===evaluationKey?replyMenu:null;
   const editingSource=editingEvaluation?.userId===userId&&editingEvaluation.entryKey===evaluationKey
     ?resolveReviewReplySource(evaluationDetail,editingEvaluation.reply,storedTimelineEntries):null;
@@ -353,7 +357,15 @@ export default function ReviewJournalPage({ ctx }) {
     const event=resolveReviewTimelineEvent(timelineEvents,key.slice(9));
     return event?reviewTimelineAnchorEntry(event,storedTimelineEntries):null;
   };
-  const showingDetail=Boolean(detail)||isTimelineDetail||isSettings;
+  const showingDetail=Boolean(detail)||isTimelineDetail||isSettings||isNotifications;
+  const notificationCount=useReviewNotificationCount({db,userId,enabled:!showingDetail&&!publicDetail&&!composer});
+  const openNotification=(target,item)=>{
+    const route={id:crypto.randomUUID(),key:null,symbol:'',parent:routeId};
+    routes.current.set(route.id,route);applyRoute(route);
+    setFilter('all');setAllScope('public');setQuery('');setSearch(false);setScopeMenu(false);
+    setNotificationOpenRequest({id:crypto.randomUUID(),userId,postId:target.postId,commentId:target.commentId,notificationId:item.id,
+      journalRoute:{token:historyToken.current,id:route.id,key:null,symbol:''}});
+  };
   const communityPostId=publicFeedVisible&&publicDetail&&publicPostContext?.userId===userId?publicPostContext.post.id:detail&&!isTimelineDetail?entryKey(detail):null;
   communityView.current={userId,postId:communityPostId};
   const activeCommunityMenu=communityReplyMenu?.userId===userId&&communityReplyMenu.post.id===communityPostId?communityReplyMenu:null;
@@ -380,7 +392,7 @@ export default function ReviewJournalPage({ ctx }) {
       const state=event.state?.reviewJournalEntry;
       const known=state?.token===historyToken.current?routes.current.get(state.id):null;
       // Only this mount's own routes can restore a private entry or stock view.
-      const valid=known&&(!known.key||known.key==='settings'||findReviewEntryByKey(navigation.current.entries,known.key));
+      const valid=known&&(!known.key||known.key==='settings'||known.key==='notifications'||findReviewEntryByKey(navigation.current.entries,known.key));
       applyRoute(valid?known:rootRoute);
     };
     window.addEventListener?.('popstate',onPopState);
@@ -535,14 +547,15 @@ export default function ReviewJournalPage({ ctx }) {
         {isTimelineDetail&&!detail.replies?.length&&<p className="rj-note">还没有评论，写下现在对当时的评价。</p>}
         {error&&!menu&&!activeReplyMenu&&<p role="alert" className="rj-error">{error}</p>}
       </section>):null;
-  return <div className={`rj-page ${navigationTab?'rj-navigation-tab':''} ${showingDetail||(publicFeedVisible&&publicDetail)?'rj-entry-page':''} ${isTimelineDetail?'rj-timeline-detail':''} ${isSettings?'rj-settings-page':''}`}><header className="rj-page-header" hidden={publicFeedVisible&&publicDetail&&!showingDetail}>
+  return <div className={`rj-page ${navigationTab?'rj-navigation-tab':''} ${showingDetail||(publicFeedVisible&&publicDetail)?'rj-entry-page':''} ${isTimelineDetail?'rj-timeline-detail':''} ${isSettings?'rj-settings-page':''}`}><header className="rj-page-header" hidden={isNotifications||(publicFeedVisible&&publicDetail&&!showingDetail)}>
     {showingDetail||tagSymbol?<button className="rj-icon" aria-label="返回投资动态" onClick={closeDetail}><ArrowLeft size={22}/></button>
       :<button className="rj-header-avatar" aria-label={language==='en'?'Activity settings':'动态设置'} onClick={event=>navigate('settings','',event)}><Avatar identity={identity} userId={userId} preview={preview}/></button>}
     <h1 ref={pageTitle} tabIndex={-1}>{isSettings?(language==='en'?'Activity Settings':'动态设置'):isTimelineDetail?(language==='en'?'Timeline Event':'时间线记录'):showingDetail?(language==='en'?'Journal Entry':'复盘记录'):tagSymbol?`$${tagSymbol}`:(language==='en'?'Investment Activity':'投资动态')}</h1>
-    {showingDetail||tagSymbol||filter==='timeline'?<span className="rj-header-spacer"/>:<button className="rj-icon" aria-label="搜索动态" aria-pressed={search} onClick={()=>{setSearch(!search);setQuery('');}}><Search size={21}/></button>}
+    {showingDetail||tagSymbol?<span className="rj-header-spacer"/>:<div className="rj-header-actions"><button type="button" className="rj-icon rj-notification-bell" aria-label={language==='en'?`Messages${notificationCount.unreadCount>0?` · ${notificationCount.unreadCount} unread`:''}`:`消息${notificationCount.unreadCount>0?` · ${notificationCount.unreadCount} 条未读`:''}`} onClick={event=>navigate('notifications','',event)}><Bell size={21}/>{notificationCount.unreadCount>0&&<span className="rj-notification-badge" aria-hidden="true">{notificationCount.unreadCount>99?'99+':notificationCount.unreadCount}</span>}{notificationCount.error&&<span className="rj-notification-unavailable" aria-hidden="true">!</span>}</button>{filter!=='timeline'&&<button className="rj-icon" aria-label="搜索动态" aria-pressed={search} onClick={()=>{setSearch(!search);setQuery('');}}><Search size={21}/></button>}</div>}
   </header>
     {preview&&<div className="rj-preview-note">本地预览 · 示例记录 · 不写入真实账户</div>}
     {identityError&&<button className="rj-identity-error" onClick={()=>setIdentityAttempt(value=>value+1)}>{identity ? '资料暂未更新，点击重试' : '资料暂未读取，点击重试'}</button>}
+    {isNotifications&&<ReviewNotifications key={userId} db={db} userId={userId} language={language} onBack={closeDetail} onOpen={openNotification} onUnreadCountChange={notificationCount.update} refreshRef={reviewPublicRefreshRef}/>}
     {isSettings&&<ReviewPreferences identityNode={<><Avatar identity={identity} userId={userId} preview={preview}/><AuthorName identity={identity}/></>} {...preferenceState} onChange={preferenceState.updatePreferences} onRetry={preferenceState.retry} language={language}/>}
     <div className="rj-list-page" hidden={showingDetail}>
       {!tagSymbol&&!(publicFeedVisible&&publicDetail)&&<div className="rj-scope-navigation" ref={scopeRef}><nav className="rj-tabs" aria-label="复盘分类">{[['all','全部'],['log','复盘日志'],['insight','投资心得'],['timeline','时间线']].map(([id,name])=><button key={id} aria-pressed={filter===id} aria-expanded={id==='all'?scopeMenu:undefined} aria-label={id==='all'?'全部动态范围':undefined} onClick={()=>{setFilter(id);setScopeMenu(id==='all'?!scopeMenu:false);}}>{id==='all'?<>{allScope==='private'?'私密':'全部'}<ChevronDown size={13}/></>:name}</button>)}</nav>{scopeMenu&&<div className="rj-scope-menu" role="group" aria-label="全部页面显示范围">{[['public','全部 · 公开动态','所有 Quote 用户的公开内容'],['private','私密 · 仅自己','自己的私密记录和时间线']].map(([value,label,description])=><button key={value} type="button" aria-label={value==='public'?'显示公开动态':'显示私密记录'} aria-pressed={allScope===value} onClick={()=>{chooseAllScope(value);setScopeMenu(false);setQuery('');setSearch(false);}}><span><strong>{label}</strong><small>{description}</small></span>{allScope===value&&<Check size={16}/>}</button>)}</div>}</div>}
@@ -554,7 +567,7 @@ export default function ReviewJournalPage({ ctx }) {
       {mixedFeedEnabled&&['idle','loading'].includes(ownedTimeline.status)&&<p className="rj-note rj-feed-status" role="status">{language==='en'?'Loading timeline…':'正在读取时间线…'}</p>}
       {mixedFeedEnabled&&ownedTimeline.status==='pending'&&<div className="rj-feed-status" role="status"><p className="rj-note">{language==='en'?'Closing history is being updated. The timeline will be available when complete.':'收盘历史正在更新，完成后可查看时间线。'}</p><button className="rj-text-button" onClick={()=>setTimelineAttempt(value=>value+1)}>{language==='en'?'Retry':'重新读取'}</button></div>}
       {mixedFeedEnabled&&ownedTimeline.error&&<div className="rj-feed-status" role="alert"><p className="rj-note">{ownedTimeline.error}</p><button className="rj-text-button" onClick={()=>setTimelineAttempt(value=>value+1)}>{language==='en'?'Retry':'重新读取'}</button></div>}
-      {publicFeedVisible&&<ReviewPublicFeed key={userId} db={db} userId={userId} language={language} marketColorMode={marketColorMode} query={query} refreshToken={publicRefresh} refreshRef={reviewPublicRefreshRef} active={!showingDetail&&!composer&&!menu&&!activeReplyMenu&&!editingEntry&&!activeCommunityMenu&&!activeCommunityEdit&&!communityDrafts.some(item=>item.userId===userId&&item.open&&item.post.id===communityPostId)&&!lightbox&&!evaluations.some(item=>item.userId===userId&&item.open&&item.key===evaluationKey)} onDetailChange={publicDetailChanged} onManageOwnEntry={manageOwnPublicEntry} onEvaluateOwnEntry={(type,id)=>evaluateOwnPublicEntry(type,id)} onManageOwnReply={evaluateOwnPublicEntry} onEvaluateCommunityEntry={evaluateCommunityEntry} onReplyToReview={replyToReview} onManageCommunityReply={manageCommunityReply} onCommunityCountChange={updateCommunityCount}/>}
+      {publicFeedVisible&&<ReviewPublicFeed key={userId} db={db} userId={userId} language={language} marketColorMode={marketColorMode} query={query} openRequest={notificationOpenRequest?.userId===userId?notificationOpenRequest:null} onOpenRequestHandled={id=>setNotificationOpenRequest(old=>old?.id===id?null:old)} refreshToken={publicRefresh} refreshRef={reviewPublicRefreshRef} active={!showingDetail&&!composer&&!menu&&!activeReplyMenu&&!editingEntry&&!activeCommunityMenu&&!activeCommunityEdit&&!communityDrafts.some(item=>item.userId===userId&&item.open&&item.post.id===communityPostId)&&!lightbox&&!evaluations.some(item=>item.userId===userId&&item.open&&item.key===evaluationKey)} onDetailChange={publicDetailChanged} onManageOwnEntry={manageOwnPublicEntry} onEvaluateOwnEntry={(type,id)=>evaluateOwnPublicEntry(type,id)} onManageOwnReply={evaluateOwnPublicEntry} onEvaluateCommunityEntry={evaluateCommunityEntry} onReplyToReview={replyToReview} onManageCommunityReply={manageCommunityReply} onCommunityCountChange={updateCommunityCount}/>}
       {filter!=='timeline'&&!(publicFeedVisible&&publicDetail)&&<button className="rj-fab" aria-label="写复盘" onClick={()=>setComposer({entry:null})}><Plus size={28}/></button>}
     </div>
     {isTimelineDetail&&selectedTimelineEvent&&<div className="rj-timeline-author"><ReviewSystemAvatar/><div className="rj-post-heading"><ReviewSystemName language={language}/><span>·</span><time dateTime={reviewTimelineFeedDate(selectedTimelineEvent)}>{reviewTimelineFeedDate(selectedTimelineEvent)}</time></div></div>}

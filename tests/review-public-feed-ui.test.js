@@ -27,6 +27,7 @@ async function harness() {
     fetchReviewPublicFeed: (...args) => request('feed', args),
     fetchReviewPublicPost: (...args) => request('post', args),
     fetchReviewCommunityEvaluations: (...args) => request('community', args),
+    readReviewNotificationTarget: (...args) => request('target', args),
     setReviewPublicLike: (...args) => request('like', args),
     downloadReviewPublicImage: (...args) => request('image', args),
     downloadReviewPublicAvatar: (...args) => request('avatar', args),
@@ -767,4 +768,31 @@ test('historical scored and tagged replies retain actions without rating summari
   const rows=walk(tree).filter(node=>node.props['data-rj-reply-id']);assert.equal(rows.length,2,'legacy score-only replies remain visible');
   const summaries=rows.map(row=>walk(row).find(node=>node.type===h.components.EvaluationRating));assert.equal(summaries[0].props.score,8);assert.deepEqual(summaries[0].props.tags,['按计划执行']);assert.equal(summaries[1],undefined);
   assert.ok(button(rows[1],'评论操作'));assert.ok(button(rows[1],'回复'));assert.match(words(rows[1]),/回复 @访客/);h.unmount();
+});
+
+
+test('notification opens a post absent from page one and preserves a comment target', async () => {
+  const h=await harness(), openRequest={id:'open-1',userId:'viewer',postId:'log:older',commentId:'target-comment',notificationId:'notification-1'};
+  h.feed({openRequest});await flush();h.feed({openRequest});await flush();
+  const detail=h.requests.find(row=>row.kind==='post');assert.deepEqual(detail.args,['log:older','viewer']);
+  detail.resolve(post('log:older'));await flush();const tree=h.feed({openRequest});
+  assert.equal(walk(tree).find(row=>row.type===h.components.PublicReplies).props.notificationTarget,openRequest);
+  assert.ok(button(tree,'返回消息'));
+  h.feed({openRequest});await flush();assert.equal(h.requests.filter(row=>row.kind==='post').length,1);
+  button(tree,'返回消息').props.onClick();h.feed({openRequest});await flush();
+  assert.equal(h.requests.filter(row=>row.kind==='post').length,1,'returning must not reopen the consumed request');h.unmount();
+});
+
+test('notification target beyond the first comment page is loaded once and removed on withdrawal', async()=>{
+  const h=await harness(), notificationTarget={notificationId:'notification-1',commentId:'older'};
+  const props={db:h.db,userId:'viewer',postId:'log:1',notificationTarget,refreshToken:0};
+  const render=()=>h.render(h.components.ReviewCommunityEvaluations,props);
+  render();await flush();
+  h.requests.find(row=>row.kind==='community').resolve({evaluations:[],totalCount:21,hasMore:true,nextCursor:{createdAt:'2026-11-08T00:00:00Z',id:'newer'}});
+  h.requests.find(row=>row.kind==='target').resolve({notificationId:'notification-1',postId:'log:1',commentId:'older',evaluation:{id:'older',text:'旧评论定位',authorId:'someone',author:{nickname:'甲'},createdAt:'2026-11-01T00:00:00Z'}});
+  await flush();let tree=render();assert.equal(walk(tree).filter(row=>row.props['data-rj-reply-id']==='older').length,1);
+  props.refreshToken=1;render();await flush();
+  h.requests.filter(row=>row.kind==='community').at(-1).resolve({evaluations:[],totalCount:20,hasMore:false,nextCursor:null});
+  h.requests.filter(row=>row.kind==='target').at(-1).reject(Object.assign(new Error('评论已不可用'),{code:'REVIEW_NOTIFICATION_NOT_FOUND'}));
+  await flush();tree=render();assert.equal(walk(tree).filter(row=>row.props['data-rj-reply-id']==='older').length,0);assert.match(words(tree),/评论已不可用/);h.unmount();
 });
