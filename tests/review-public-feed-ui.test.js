@@ -988,7 +988,8 @@ test('flat community replies show only recipient identity and allow replying to 
   const props={postId:'log:1',db:h.db,userId:'viewer',onReply:reply=>calls.push(reply)};
   h.render(h.components.ReviewCommunityEvaluations,props);await flush();h.requests[0].resolve(communityPage([reply,deleted]));await flush();
   const tree=h.render(h.components.ReviewCommunityEvaluations,props);
-  assert.match(words(tree),/回复 @原评论人/);assert.match(words(tree),/原评论已删除/);assert.doesNotMatch(words(tree),/已删目标昵称/);
+  assert.match(words(tree),/回复 @原评论人/);assert.doesNotMatch(words(tree),/原评论已删除|已删目标昵称/);
+  assert.ok(walk(tree).find(node=>node.props['data-rj-reply-id']===deleted.id),'the valid reply remains after its target is removed');
   const row=walk(tree).find(node=>node.props['data-rj-reply-id']===reply.id);
   button(row,'另一位评价者').props.onClick();assert.equal(calls.at(-1),reply);
   button(row,'回复').props.onClick();assert.equal(calls.at(-1),reply);

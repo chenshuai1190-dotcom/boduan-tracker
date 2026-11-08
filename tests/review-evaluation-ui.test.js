@@ -665,7 +665,7 @@ test('reply composer identifies its recipient without retaining target text and 
   const h=await harness();h.props.replyTarget={kind:'community',id:'target',nickname:'访客',available:true,text:'不应显示的目标正文'};
   let tree=h.render();assert.equal(tree.props.title,'回复评论');assert.match(text(tree),/回复 @访客/);assert.doesNotMatch(text(tree),/不应显示的目标正文/);assert.equal(body(tree).props.placeholder,'写下你的回复…');
   body(tree).props.onChange({target:{value:'先保留这条回复'}});h.props.open=false;assert.equal(h.render(),null);h.props.open=true;tree=h.render();assert.equal(body(tree).props.value,'先保留这条回复');
-  h.props.replyTarget={...h.props.replyTarget,available:false};tree=h.render();assert.match(text(tree),/原评论已删除/);assert.doesNotMatch(text(tree),/回复 @访客/);h.cleanup();
+  h.props.replyTarget={...h.props.replyTarget,available:false};tree=h.render();assert.doesNotMatch(text(tree),/原评论已删除|回复 @访客/);h.cleanup();
 });
 
 test('new replies have no rating or tag controls while all attachment tools remain available', async () => {

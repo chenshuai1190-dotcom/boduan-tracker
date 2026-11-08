@@ -290,12 +290,55 @@ test('new account immediately hides comments and rejects former page and like re
   await flush(); tree=h.render(); assert.equal(rows(tree).length,0); assert.doesNotMatch(words(tree),/late|99/); h.unmount();
 });
 
-test('deleted roots retain their conversation position without like or reply actions', async () => {
+test('deleted roots are hidden while their live replies retain exact ancestry and actions', async () => {
   const h=await harness(); let tree=await h.load(roots([{root:comment('removed',{deleted:true,text:'old content'}),replyCount:1}],{totalCount:1}));
-  assert.match(words(tree),/原评论已删除/); assert.doesNotMatch(words(tree),/old content/); assert.equal(button(tree,'点赞山间慢行的评论 · 12'),undefined);
+  assert.equal(rows(tree).length,0); assert.doesNotMatch(words(tree),/原评论已删除|old content/); assert.equal(button(tree,'点赞山间慢行的评论 · 12'),undefined);
   button(tree,'查看 1 条回复').props.onClick(); h.render(); await flush();
+  assert.deepEqual(h.requests[1].args[0].root,{kind:'community',id:'removed'});
   h.requests[1].resolve(replies([comment('b',{replyTo:{kind:'community',id:'removed',available:false,nickname:'old author'}})])); await flush(); tree=h.render();
-  assert.equal(rows(tree).length,2); assert.doesNotMatch(words(tree),/@old author/); h.unmount();
+  assert.equal(rows(tree).length,1); assert.doesNotMatch(words(tree),/原评论已删除|@old author/);
+  assert.equal(walk(tree).some(node=>node.props.className?.includes('rct-has-replies')),false,'no connector to an absent root');
+  button(tree,'回复山间慢行 · 0 条回复').props.onClick(); assert.equal(h.repliesTo[0].id,'b');
+  button(tree,'点赞山间慢行的评论 · 12').props.onClick(); await flush();
+  assert.deepEqual(h.requests.at(-1).args,['log:1',{kind:'community',id:'b'},true,'viewer']);
+  h.requests.at(-1).resolve({liked:true,likeCount:13}); await flush(); h.unmount();
+});
+
+test('deleted descendants never render and the earliest live reply remains the collapsed preview', async () => {
+  const h=await harness(), root=comment('root');
+  const deleted=[0,1,2].map(i=>comment(`deleted-${i}`,{deleted:true,createdAt:`2026-11-08T01:0${i}:00Z`,text:'DELETED_BODY'}));
+  const first=comment('first',{createdAt:'2026-11-08T01:03:00Z',replyTo:{kind:'community',id:'deleted-2',available:false,nickname:'旧作者'}});
+  const second=comment('second',{createdAt:'2026-11-08T01:04:00Z'});
+  let tree=await h.load(roots([{root,replyCount:2,previewReply:first}]));
+  button(tree,'查看其余 1 条回复').props.onClick(); h.render(); await flush();
+  h.requests[1].resolve(replies([...deleted,first,second],{replyCount:2})); await flush(); tree=h.render();
+  assert.deepEqual(rows(tree).map(node=>node.props['data-review-comment-key']),['community:root','community:first','community:second']);
+  assert.doesNotMatch(renderToStaticMarkup(tree),/原评论已删除|DELETED_BODY|rct-deleted|旧作者/);
+  button(tree,'收起回复').props.onClick(); tree=h.render();
+  assert.deepEqual(rows(tree).map(node=>node.props['data-review-comment-key']),['community:root','community:first']);
+  assert.ok(button(tree,'查看其余 1 条回复'),'the server count already excludes deleted comments'); h.unmount();
+});
+
+test('an all-deleted page preserves its cursor and can load later live replies', async () => {
+  const h=await harness(), root=comment('removed',{deleted:true});
+  const tombstone=comment('deleted-child',{deleted:true,createdAt:'2026-11-08T01:01:00Z'});
+  let tree=await h.load(roots([{root,replyCount:2}]));
+  button(tree,'查看 2 条回复').props.onClick(); h.render(); await flush();
+  h.requests[1].resolve(replies([tombstone],{replyCount:2,hasMore:true,nextCursor:cursorFor(tombstone)})); await flush(); tree=h.render();
+  assert.equal(rows(tree).length,0); assert.doesNotMatch(words(tree),/原评论已删除/);
+  button(tree,'更多回复').props.onClick(); await flush();
+  assert.deepEqual(h.requests.at(-1).args[0].cursor,cursorFor(tombstone));
+  h.requests.at(-1).resolve(replies([comment('live-first'),comment('live-second')],{replyCount:2})); await flush(); tree=h.render();
+  assert.equal(rows(tree).length,2);
+  button(tree,'收起回复').props.onClick(); tree=h.render(); assert.equal(rows(tree).length,1); h.unmount();
+});
+
+test('deleted-only threads leave no article, avatar, separator or expansion control', async () => {
+  const h=await harness({showEmpty:true});
+  const tree=await h.load(roots([{root:comment('removed',{deleted:true}),replyCount:0}],{totalCount:0,communityCount:0}));
+  assert.equal(rows(tree).length,0); assert.equal(walk(tree).filter(node=>node.type==='article').length,0);
+  assert.doesNotMatch(renderToStaticMarkup(tree),/原评论已删除|rct-deleted|rct-toggle|rct-reply-list/);
+  assert.match(words(tree),/还没有评论/); h.unmount();
 });
 
 test('paging permission failures clear all cached roots, children and counts rather than empty success', async () => {

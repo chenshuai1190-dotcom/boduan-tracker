@@ -168,23 +168,21 @@ export default function ReviewCommentThreadList({ postId, db, userId, language =
     onReply?.(comment);
   };
   const row = (item, rootKey, replyCount, child = false) => {
+    if (item.deleted) return null;
     const id = reviewCommentKey(item), comment = { ...item, ...owned.likes[id] }, nickname = comment.author?.nickname || (english ? 'Quote user' : 'Quote 用户');
     const highlighted = focus && targetKey(focus.target) === id;
-    return <div className={`rj-reply rct-comment${child ? ' rct-child' : ''}${highlighted ? ' rpf-notification-target' : ''}${comment.deleted ? ' rct-deleted' : ''}`}
+    return <div className={`rj-reply rct-comment${child ? ' rct-child' : ''}${highlighted ? ' rpf-notification-target' : ''}`}
       key={id} data-rj-reply-id={comment.id} data-review-comment-key={id} tabIndex={highlighted ? -1 : undefined}>
-      {comment.deleted ? <span className="rj-avatar rct-deleted-avatar" aria-hidden="true"/> : renderAvatar?.(comment)}<div className="rct-main">
-        {comment.deleted ? <p className="rj-note">{english ? 'Original comment deleted' : '原评论已删除'}</p> : <>
+      {renderAvatar?.(comment)}<div className="rct-main">
           <div className="rev-reply-byline"><button type="button" className="rpf-reply-author" disabled={!onReply || interactionsDisabled} onClick={() => reply(comment, rootKey)}>{comment.author?.isAssistant === true ? <ReviewSystemName language={language}/> : nickname}</button><span>·</span><ReviewActivityTime createdAt={comment.createdAt} date={comment.date} language={language}/>
             {comment.authorId === userId && onManageReply && <button type="button" className="rj-icon rj-reply-more" disabled={interactionsDisabled} aria-label={english ? 'Comment actions' : '评论操作'} onClick={() => { if (!interactionsDisabled) onManageReply(comment); }}><MoreHorizontal size={19}/></button>}</div>
-          {comment.replyTo && <p className="rpf-reply-target">{comment.replyTo.available === false ? (english ? 'Original comment deleted' : '原评论已删除')
-            : <>{english ? 'Replying to' : '回复'} <button type="button" onClick={() => locate(comment.replyTo)}>@{comment.replyTo.nickname || (english ? 'Quote user' : 'Quote 用户')}</button></>}</p>}
+          {comment.replyTo && comment.replyTo.available !== false && <p className="rpf-reply-target">{english ? 'Replying to' : '回复'} <button type="button" onClick={() => locate(comment.replyTo)}>@{comment.replyTo.nickname || (english ? 'Quote user' : 'Quote 用户')}</button></p>}
           {renderContent?.(comment, interactionsDisabled || !onReply ? undefined : () => reply(comment, rootKey))}
           <div className="rct-actions"><button type="button" className={`rct-like${comment.liked ? ' rpf-liked' : ''}`} aria-pressed={Boolean(comment.liked)} disabled={interactionsDisabled || comment.pending || typeof db.setReviewEvaluationLike !== 'function'}
             aria-label={english ? `${comment.liked ? 'Unlike' : 'Like'} ${nickname}'s comment · ${comment.likeCount || 0}` : `${comment.liked ? '取消点赞' : '点赞'}${nickname}的评论 · ${comment.likeCount || 0}`}
             onClick={() => like(comment)}><Heart size={19} fill={comment.liked ? 'currentColor' : 'none'}/>{comment.likeCount > 0 && <span>{comment.likeCount.toLocaleString()}</span>}</button>
             {onReply && <button type="button" disabled={interactionsDisabled} aria-label={english ? `Reply to ${nickname} · ${replyCount || 0} replies` : `回复${nickname} · ${replyCount || 0} 条回复`} onClick={() => reply(comment, rootKey)}><MessageCircle size={19}/><span>{replyCount || (english ? 'Reply' : '回复')}</span></button>}</div>
           {comment.error && <p className="rpf-inline-error" role="alert">{comment.error}</p>}
-        </>}
       </div>
     </div>;
   };
@@ -193,14 +191,19 @@ export default function ReviewCommentThreadList({ postId, db, userId, language =
       const rootKey = reviewCommentKey(thread.root), open = openKeys.includes(rootKey), childState = owned.children[rootKey];
       // Once page one has been read it supersedes the list preview (including
       // edits/deletions). Located pages never replace the earliest preview.
-      const previewReply = childState?.status === 'ready' ? childState.replies?.[0] : thread.previewReply;
-      const children = mergeReviewCommentReplies(previewReply ? [previewReply] : [], mergeReviewCommentReplies(childState?.replies, childState?.locatedReplies));
+      const previewCandidates = childState?.status === 'ready' ? childState.replies || [] : thread.previewReply ? [thread.previewReply] : [];
+      // Keep tombstones in fetched state for exact ancestry/paging, but never
+      // render them. A deleted first page item must not hide the next live reply.
+      const children = mergeReviewCommentReplies(previewCandidates, mergeReviewCommentReplies(childState?.replies, childState?.locatedReplies)).filter(comment => !comment.deleted);
+      const previewKeys = new Set(previewCandidates.map(reviewCommentKey));
+      const previewReply = children.find(comment => previewKeys.has(reviewCommentKey(comment)));
       const shownReplies = open ? children : previewReply ? [previewReply] : [];
       const hasReplies = thread.replyCount > 0 || children.length > 0;
       const remaining = Math.max(0, thread.replyCount - (previewReply ? 1 : 0));
       const needsPage = !thread.previewReply || thread.replyCount > 1;
       const canToggle = remaining > 0 || open && (children.length > 1 || childState?.hasMore);
-      return <article className={`rct-thread${hasReplies ? ' rct-has-replies' : ''}`} key={rootKey} data-review-thread-key={rootKey}>
+      if (thread.root.deleted && !hasReplies && !childState?.hasMore) return null;
+      return <article className={`rct-thread${thread.root.deleted ? ' rct-root-hidden' : hasReplies ? ' rct-has-replies' : ''}`} key={rootKey} data-review-thread-key={rootKey}>
         {row(thread.root, rootKey, thread.replyCount)}
         {(shownReplies.length > 0 || open && hasReplies) && <div className="rct-reply-list">
           {shownReplies.map(comment => row(comment, rootKey, comment.directReplyCount, true))}
