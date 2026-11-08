@@ -14,6 +14,39 @@ const walk = tree => !React.isValidElement(tree) ? Array.isArray(tree) ? tree.fl
 const find = (tree, predicate) => walk(tree).find(predicate);
 const linkedStocks = tree => walk(tree).filter(node => node.type === 'button' && node.props['aria-label']?.startsWith('移除关联股票 ')).map(node => node.props['aria-label'].slice('移除关联股票 '.length));
 let fixtureId = 0;
+test('new posts start public and retain publication scope when saved and edited', async () => {
+  const h=await harness();
+  let tree=h.render();
+  const visibility=()=>find(tree,node=>node.props['aria-label']==='发布可见范围');
+  assert.equal(visibility().props.value,'public');
+  tree=h.type('一条公开的示例记录');
+  assert.equal(visibility().props.value,'public');
+  assert.equal(h.draft().visibility,'public');
+  const saved=await h.save();assert.equal(saved.visibility,'public');h.unmount();
+  const edited=await harness({entry:{...saved,id:'saved',images:[],stocks:[]}});
+  assert.equal(find(edited.render(),node=>node.props['aria-label']==='发布可见范围').props.value,'public');
+  edited.unmount();
+});
+
+test('an explicit private selection survives the draft and legacy drafts or edits stay private', async () => {
+  const h = await harness();
+  find(h.render(), node => node.props['aria-label'] === '发布可见范围').props.onChange({ target: { value: 'private' } });
+  h.type('一条私密示例记录');
+  assert.equal(h.draft().visibility, 'private'); h.unmount();
+  const restored = await harness({ storage: h.storage });
+  assert.equal(find(restored.render(), node => node.props['aria-label'] === '发布可见范围').props.value, 'private');
+  assert.equal((await restored.save()).visibility, 'private'); restored.unmount();
+  for (const visibility of [undefined, 'private', 'public']) {
+    const entry = { type: 'log', text: '已有内容', date: '2026-11-06', images: [], stocks: [], ...(visibility ? { visibility } : {}) };
+    const storage = new Map([[reviewDraftKey(userId), JSON.stringify(entry)]]);
+    const existingDraft = await harness({ storage });
+    assert.equal(find(existingDraft.render(), node => node.props['aria-label'] === '发布可见范围').props.value, visibility || 'private');
+    assert.equal((await existingDraft.save()).visibility, visibility || 'private'); existingDraft.unmount();
+    const edited = await harness({ entry: { ...entry, id: 'existing' } });
+    assert.equal(find(edited.render(), node => node.props['aria-label'] === '发布可见范围').props.value, visibility || 'private');
+    assert.equal((await edited.save()).visibility, visibility || 'private'); edited.unmount();
+  }
+});
 
 async function harness({ entry, storage = new Map() } = {}) {
   let slots = [], cursor = 0, effects = [], tree;

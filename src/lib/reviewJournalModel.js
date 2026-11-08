@@ -41,6 +41,13 @@ export function normalizeReviewJournalLevel(value) {
   return index >= 0 ? LEVELS[index] : LEVELS[0];
 }
 
+export function normalizeReviewJournalVisibility(value, { strict = false } = {}) {
+  if (value == null || value === 'private') return 'private';
+  if (value === 'public') return 'public';
+  if (strict) throw reviewJournalError('REVIEW_INVALID_VISIBILITY', '请选择公开或仅自己可见。');
+  return 'private';
+}
+
 export function reviewJournalImagePathBelongsToUser(path, userId) {
   if (typeof userId !== 'string' || !userId || typeof path !== 'string') return false;
   const parts = path.split('/');
@@ -170,6 +177,7 @@ export function mapReviewJournalRow(row, type, expectedUserId = row?.user_id) {
   const timelineEvent = type === 'log' ? normalizeReviewTimelineReference(data.timelineEvent) : null;
   return {
     id: row?.id, type,
+    visibility: timelineEvent ? 'private' : normalizeReviewJournalVisibility(data.visibility),
     date: type === 'log' ? row?.log_date || '' : isReviewJournalDate(data.date) ? data.date : createdDate,
     text: typeof row?.text === 'string' ? row.text : '',
     mood: type === 'log' ? row?.mood || '' : typeof data.mood === 'string' ? data.mood : '',
@@ -195,6 +203,7 @@ export function buildReviewJournalWrite(entry, userId) {
   const entryStocks = stocks(entry.stocks, true);
   const entryMarket = jsonSnapshot(entry.market, true);
   const timelineEvent = normalizeReviewTimelineReference(entry.timelineEvent, { strict: true });
+  const visibility = normalizeReviewJournalVisibility(entry.visibility, { strict: true });
   if (timelineEvent && (entry.type !== 'log' || entry.date !== timelineEvent.date)) {
     throw reviewJournalError('REVIEW_INVALID_TIMELINE', '时间线评价须保留原事件的记录日期。');
   }
@@ -207,6 +216,7 @@ export function buildReviewJournalWrite(entry, userId) {
   const mood = typeof entry.mood === 'string' ? entry.mood.trim().slice(0, 100) : '';
   const level = normalizeReviewJournalLevel(entry.level);
   const data = { version: 1, date: entry.date, mood, level, pinned: entry.pinned === true,
+    visibility: timelineEvent ? 'private' : visibility,
     stocks: entryStocks, market: entryMarket, images: entryImages,
     replies: replies(entry.replies, userId, true) };
   if (entry.operationId) data.operationId = entry.operationId;

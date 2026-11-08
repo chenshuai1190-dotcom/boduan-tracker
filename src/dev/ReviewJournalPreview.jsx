@@ -1,4 +1,5 @@
 import React from 'react';
+import { createReviewPublicPreview } from './reviewPublicPreview.js';
 import { createReviewTimelinePreview } from './reviewTimelinePreview.js';
 import ReviewJournalPage from '../pages/ReviewJournalPage.jsx';
 import { buildReviewJournalWrite } from '../lib/reviewJournalModel.js';
@@ -56,15 +57,16 @@ export default function ReviewJournalPreview({language,onBack,marketColorMode,na
   const initialLogs = new URLSearchParams(window.location.search).get('reviewEvaluation') === '1' ? [evaluationLog,...seedLogs] : new URLSearchParams(window.location.search).get('reviewReading') === '1' ? [...readingLogs,...seedLogs] : seedLogs;
   const [disciplines,setDisciplines] = React.useState(seedInsights);
   const [reviewLogs,setReviewLogs] = React.useState(initialLogs);
-  const rows = React.useRef([...seedInsights,...initialLogs]); const imageUrls = React.useRef(new Map());
+  const rows = React.useRef([...seedInsights,...initialLogs]); const imageUrls = React.useRef(new Map()); const imageFiles=React.useRef(new Map());
   React.useEffect(()=>()=>imageUrls.current.forEach(url=>URL.revokeObjectURL(url)),[]);
   const db = React.useMemo(()=>({
+    ...createReviewPublicPreview({ownerId:OWNER,getEntries:()=>rows.current,getImage:path=>imageFiles.current.get(path),market:snapshot}),
     saveReviewJournalEntry:async(entry,userId)=>{
       if(userId!==OWNER)throw new Error('预览账户不匹配');
       if(new URLSearchParams(window.location.search).get('reviewFailure')==='save')throw new Error('模拟保存失败：正文与附件仍保留，请重试。');
       const existing=rows.current.find(row=>row.id===entry.id&&row.type===entry.type);
       if(existing&&existing.revision!==(entry.revision||0))throw new Error('记录已在其他页面更新，请刷新后重试');
-      const stored={...base,...entry,id:entry.id||crypto.randomUUID(),revision:(entry.revision||0)+1,createdAt:entry.createdAt||new Date().toISOString()};
+      const stored={...base,...entry,id:entry.id||crypto.randomUUID(),revision:(entry.revision||0)+1,createdAt:entry.createdAt||new Date().toISOString(),publishedAt:entry.visibility==='public'?(existing?.visibility==='public'?existing.publishedAt:new Date().toISOString()):null};
       rows.current=[stored,...rows.current.filter(row=>!(row.id===stored.id&&row.type===stored.type))];return stored;
     },
     appendReviewJournalReply:async(entry,reply,userId)=>{
@@ -108,10 +110,10 @@ export default function ReviewJournalPreview({language,onBack,marketColorMode,na
       rows.current=rows.current.map(row=>row.id===stored.id&&row.type===stored.type?stored:row);return stored;
     },
     deleteReviewJournalEntry:async entry=>{rows.current=rows.current.filter(row=>!(row.id===entry.id&&row.type===entry.type));},
-    uploadReviewJournalImage:async file=>{const path=`${OWNER}/${crypto.randomUUID()}.${file.type==='image/png'?'png':file.type==='image/webp'?'webp':'jpg'}`;const url=URL.createObjectURL(file);imageUrls.current.set(path,url);return{path,name:file.name,mimeType:file.type,size:file.size,previewUrl:url};},
+    uploadReviewJournalImage:async file=>{const path=`${OWNER}/${crypto.randomUUID()}.${file.type==='image/png'?'png':file.type==='image/webp'?'webp':'jpg'}`;const url=URL.createObjectURL(file);imageUrls.current.set(path,url);imageFiles.current.set(path,file);return{path,name:file.name,mimeType:file.type,size:file.size,previewUrl:url};},
     resolveReviewJournalImage:async path=>{if(!imageUrls.current.has(path))throw new Error('预览图片已失效');return imageUrls.current.get(path);},
-    removeReviewJournalImage:async path=>{const url=imageUrls.current.get(path);if(url)URL.revokeObjectURL(url);imageUrls.current.delete(path);},
+    removeReviewJournalImage:async path=>{const url=imageUrls.current.get(path);if(url)URL.revokeObjectURL(url);imageUrls.current.delete(path);imageFiles.current.delete(path);},
   }),[]);
   if(!import.meta.env.DEV)return null;
-  return <ReviewJournalPage ctx={{db,userId:OWNER,language,disciplines,reviewLogs,setDisciplines,setReviewLogs,stockTrades,onBack,marketColorMode,usdCny:7.12,fxDate:'2026-11-07T00:00:00Z',navigationTab,previewData:{timeline,initialTimeline:new URLSearchParams(window.location.search).get('reviewTimeline')==='1',identity:{nickname:'波段玩家1836',avatarKey:'gold'},history,market,account}}}/>;
+  return <ReviewJournalPage ctx={{db,userId:OWNER,language,disciplines,reviewLogs,setDisciplines,setReviewLogs,stockTrades,onBack,marketColorMode,usdCny:7.12,fxDate:'2026-11-07T00:00:00Z',navigationTab,previewData:{initialAllScope:new URLSearchParams(window.location.search).get('reviewScope')==='private'?'private':'public',timeline,initialTimeline:new URLSearchParams(window.location.search).get('reviewTimeline')==='1',identity:{nickname:'波段玩家1836',avatarKey:'gold'},history,market,account}}}/>;
 }

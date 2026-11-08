@@ -30,6 +30,9 @@ const USER_TABLES = [
   'cost_basis_trades',
 ].map(table => ({ table, select: 'user_id' }));
 const SERVICE_ONLY_TABLES = [
+  // Public activity is exposed through authenticated, account-bound RPCs only.
+  { table: 'review_public_posts', select: 'author_id' },
+  { table: 'review_public_likes', select: 'user_id' },
   { table: 'snapshot_publication_markers', select: 'channel' },
   { table: 'margin_debt_events', select: 'user_id' },
   { table: 'margin_debt_history_meta', select: 'version' },
@@ -268,6 +271,23 @@ const SERVICE_ONLY_RPCS = [
   },
 ];
 const AUTHENTICATED_USER_RPCS = [
+  {
+    name: 'fetch_review_public_feed',
+    body: {
+      p_limit: 1, p_before: null, p_before_id: null, p_query: '', p_symbol: '',
+      p_expected_user_id: null,
+    },
+  },
+  {
+    name: 'read_review_public_post',
+    body: { p_post_id: null, p_expected_user_id: null },
+  },
+  {
+    // Missing identity and invalid post/like inputs must fail before locking or
+    // changing any row, even if anonymous EXECUTE is accidentally granted.
+    name: 'set_review_public_like',
+    body: { p_post_id: null, p_liked: null, p_expected_user_id: null },
+  },
   {
     name: 'read_personal_debt_ledger',
     body: {},

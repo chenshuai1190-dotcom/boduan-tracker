@@ -24,7 +24,7 @@ export function localReviewDate(now = new Date()) {
 }
 
 export function emptyReviewEntry(type = 'log') {
-  return { operationId: globalThis.crypto.randomUUID(), type, date: localReviewDate(), text: '', mood: '', level: '🟢', pinned: false, stocks: [], market: null, images: [], replies: [], revision: 0 };
+  return { operationId: globalThis.crypto.randomUUID(), type, date: localReviewDate(), visibility: 'public', text: '', mood: '', level: '🟢', pinned: false, stocks: [], market: null, images: [], replies: [], revision: 0 };
 }
 
 export function restoreReviewDraft(value, userId, fallbackType = 'log') {
@@ -33,6 +33,8 @@ export function restoreReviewDraft(value, userId, fallbackType = 'log') {
   const date = isReviewJournalDate(value.date) ? value.date : base.date;
   const normalized = mapReviewJournalRow({ user_id:userId, text:value.text, log_date:date,
     level:value.level, pinned:value.pinned, review_data:{...value,date,replies:[]}},value.type,userId);
+  // Restore a draft's own selection. In particular, legacy drafts without a
+  // visibility field remain private instead of inheriting the new-post default.
   // Ordinary post drafts must not become hidden timeline evaluation containers.
   const { timelineEvent: _timelineEvent, ...post } = normalized;
   return {...post,id:undefined,date,revision:0,replies:[],market:normalizeReviewMarketSnapshot(normalized.market),

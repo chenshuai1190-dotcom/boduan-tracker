@@ -50,6 +50,59 @@ test('legacy notes retain original fields while rich metadata defaults safely', 
   assert.equal(note.revision, 0); assert.deepEqual(note.stocks, []); assert.deepEqual(note.images, []); assert.deepEqual(note.replies, []);
   const log = mapReviewJournalRow({ id: 'a', user_id: USER, log_date: '2021-12-03', mood: '平静', text: '日志' }, 'log', USER);
   assert.equal(log.date, '2021-12-03'); assert.equal(log.mood, '平静'); assert.equal(log.pinned, false);
+  assert.equal(note.visibility, 'private'); assert.equal(log.visibility, 'private');
+});
+
+test('visibility defaults private, persists explicit publication and rejects unknown write values', () => {
+  for (const type of ['log', 'insight']) {
+    assert.equal(buildReviewJournalWrite(entry({ type }), USER).review_data.visibility, 'private');
+    const payload = buildReviewJournalWrite(entry({ type, visibility: 'public' }), USER);
+    assert.equal(payload.review_data.visibility, 'public');
+    assert.equal(mapReviewJournalRow(payload, type, USER).visibility, 'public');
+    assert.equal(mapReviewJournalRow({ ...payload, review_data: { visibility: 'friends' } }, type, USER).visibility, 'private');
+    for (const visibility of ['friends', '', true, {}]) {
+      assert.throws(() => buildReviewJournalWrite(entry({ type, visibility }), USER), { code: 'REVIEW_INVALID_VISIBILITY' });
+    }
+  }
+  const timelineEvent = { version: 1, id: 'high:net_assets:2026-11-06', kind: 'high', metric: 'net_assets', date: '2026-11-06', title: '示例新高' };
+  const payload = buildReviewJournalWrite(entry({ visibility: 'public', timelineEvent }), USER);
+  assert.equal(payload.review_data.visibility, 'private');
+  assert.equal(mapReviewJournalRow({ ...payload, review_data: { ...payload.review_data, visibility: 'public' } }, 'log', USER).visibility, 'private');
+});
+
+test('public saves require the public schema before any write, while private saves remain compatible', async () => {
+  const missing = clientFixture();
+  await assert.rejects(missing.repository.save(entry({ visibility: 'public' }), USER), { code: 'REVIEW_PUBLIC_NOT_CONFIGURED' });
+  assert.equal(missing.operations.length, 0);
+  await missing.repository.save(entry(), USER);
+  assert.equal(missing.operations.filter(operation => operation.action === 'insert').length, 1);
+
+  const valid = clientFixture(); const calls = [];
+  valid.client.rpc = async (name, args) => { calls.push({ name, args }); return { data: { posts: [], hasMore: false, nextCursor: null }, error: null }; };
+  const saved = await valid.repository.save(entry({ id: 42, revision: 7, visibility: 'public' }), USER);
+  assert.equal(saved.visibility, 'public'); assert.equal(saved.revision, 8);
+  assert.deepEqual(calls, [{ name: 'fetch_review_public_feed', args: { p_limit: 1, p_before: null, p_before_id: null, p_query: '', p_symbol: '', p_expected_user_id: USER } }]);
+  assert.deepEqual(valid.operations[0].filters, [['id', 42], ['user_id', USER], ['review_revision', 7]]);
+  assert.equal(valid.authCalls(), 3);
+
+  const switched = clientFixture({ users: [USER, OTHER_USER] });
+  switched.client.rpc = valid.client.rpc;
+  await assert.rejects(switched.repository.save(entry({ visibility: 'public' }), USER), { code: 'REVIEW_ACCOUNT_CHANGED' });
+  assert.equal(switched.operations.length, 0);
+
+  const denied = clientFixture();
+  denied.client.rpc = async () => ({ data: null, error: { code: 'PGRST202' } });
+  await assert.rejects(denied.repository.save(entry({ visibility: 'public' }), USER), { code: 'REVIEW_PUBLIC_NOT_CONFIGURED' });
+  assert.equal(denied.operations.length, 0);
+});
+
+test('a public post can be retracted through the same scoped revision write', async () => {
+  const f = clientFixture();
+  const saved = await f.repository.save(entry({ id: 42, revision: 7, visibility: 'private' }), USER);
+  assert.equal(saved.visibility, 'private');
+  assert.equal(f.operations[0].value.review_data.visibility, 'private');
+  assert.deepEqual(f.operations[0].filters, [['id', 42], ['user_id', USER], ['review_revision', 7]]);
+  assert.equal(f.operations.length, 1, 'the database trigger retracts the projection atomically with this write');
 });
 
 test('rich note dates and log pins map without replacing legacy authoritative text fields', () => {

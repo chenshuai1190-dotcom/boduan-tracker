@@ -73,6 +73,20 @@ test('append rebases a stale entry on the current row and preserves every existi
   }
 });
 
+test('private evaluations preserve a public parent selection without changing its public content', async () => {
+  for (const type of ['log', 'insight']) {
+    const initial = record(type);
+    initial.review_data.visibility = 'public';
+    const f = fixture({ type, initial });
+    const saved = await f.repository.appendReply(f.input(), reply({ text: '仅作者自己的评价' }), USER);
+    assert.equal(saved.visibility, 'public');
+    assert.equal(f.get().review_data.visibility, 'public');
+    assert.equal(f.get().text, initial.text);
+    assert.equal(saved.replies.at(-1).text, '仅作者自己的评价');
+    assert.deepEqual(Object.keys(f.operations.find(operation => operation.action === 'update').value).sort(), ['review_data', 'review_revision', 'updated_at']);
+  }
+});
+
 test('a concurrent edit and comment survive a CAS retry that reads the new revision', async () => {
   const f = fixture({ beforeUpdate({ get, set, updateCount }) {
     if (updateCount !== 1) return;

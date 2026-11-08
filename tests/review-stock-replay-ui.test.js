@@ -82,7 +82,7 @@ async function harness({ observer = true } = {}) {
     const React = { ...ActualReact };
     for (const hook of ['useState', 'useRef', 'useEffect', 'useLayoutEffect', 'useMemo', 'useCallback']) React[hook] = (...args) => fixture.active ? fixture[hook](...args) : ActualReact[hook](...args);
     const { useState, useRef, useEffect, useLayoutEffect, useMemo } = React;
-    const { ArrowLeft, ChevronLeft, ChevronRight, RefreshCw, Search, Plus, MoreHorizontal, Pin, MessageCircle, Pencil, Trash2 } = Icons;
+    const { ArrowLeft, ChevronLeft, ChevronRight, RefreshCw, Search, Plus, MoreHorizontal, Pin, MessageCircle, Pencil, Trash2, ChevronDown, Check } = Icons;
     const { document, window, IntersectionObserver } = fixture;
   `;
   try {
@@ -105,7 +105,7 @@ async function harness({ observer = true } = {}) {
       import { findReviewEntryByKey, projectReviewTimelineEntry, resolveReviewReplySource, resolveReviewTimelineEvent, reviewTimelineAnchorEntry, reviewTimelineReplyKey } from ${moduleUrl('reviewTimelineEntries')};
       const ReviewStockCarousel = fixture.ReviewStockCarousel = () => null;
       const ReviewPostBody = () => null;
-      const ReviewTimeline = () => null, ReviewPreferences = () => null, ReviewTimelinePost = () => null;
+      const ReviewPublicFeed = () => null, ReviewTimeline = () => null, ReviewPreferences = () => null, ReviewTimelinePost = () => null;
       const useReviewPreferences = () => ({
         preferences: { showTimeline: false, currency: 'USD', eventTypes: [] },
         ready: true, loading: false, canEdit: true, saving: false, error: '',
@@ -387,7 +387,9 @@ test('journal posts preserve stock order and entry dates in each carousel', asyn
     { id: 'review-b', date: '2026-10-05', text: 'Review B', stocks: ['NVDA'] },
   ];
   const props = { ctx: { userId, stockTrades, reviewLogs: entries, db: { readCachedReviewIdentity: () => null } } };
-  const tree = h.render(h.Page, props);
+  let tree = h.render(h.Page, props);
+  find(tree,node=>node.type==='button'&&node.props.children==='复盘日志').props.onClick();
+  tree=h.render(h.Page,props);
   const replays = () => walk(tree).filter(node => node.type === h.Carousel);
   assert.deepEqual(replays().flatMap(node => node.props.symbols.map(symbol => [symbol, node.props.recordDate])), [['NVDA', '2026-10-05'], ['NVDA', recordDate], ['TSM', recordDate]]);
   for (const replay of replays()) {

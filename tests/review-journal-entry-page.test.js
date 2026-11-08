@@ -19,7 +19,7 @@ const visible = tree => !React.isValidElement(tree) ? Array.isArray(tree) ? tree
 const hasClass = (node, value) => node.props.className?.split(' ').includes(value);
 const find = (tree, predicate) => visible(tree).find(predicate);
 const textOf = tree => !React.isValidElement(tree) ? Array.isArray(tree) ? tree.map(textOf).join('') : String(tree ?? '') : tree.props.text !== undefined ? String(tree.props.text) : textOf(tree.props.children);
-const button = (tree, name) => find(tree, node => node.type === 'button' && (node.props['aria-label'] === name || textOf(node) === name));
+const button = (tree, name) => find(tree, node => node.type === 'button' && (node.props['aria-label'] === name || name==='全部'&&node.props['aria-label']==='全部动态范围' || textOf(node) === name));
 const firstPost = tree => find(tree, node => node.type === 'article');
 const detail = tree => find(tree, node => hasClass(node, 'rj-entry-content'));
 const records = () => [
@@ -27,6 +27,45 @@ const records = () => [
   { id: 'two', type: 'log', date: '2026-11-03', text: '第二条复盘', stocks: [], images: [], replies: [] },
 ];
 let fixtureId = 0;
+test('public/private scope applies only to All while personal categories retain every own entry', async () => {
+  const h=await harness();
+  h.ctx.previewData.initialAllScope='public';
+  h.ctx.reviewLogs=[...records(),{...records()[1],id:'published',visibility:'public'}];
+  let tree=h.render();
+  assert.ok(find(tree,node=>node.type===h.Page.ReviewPublicFeed));
+  assert.equal(visible(tree).filter(node=>node.type==='article').length,0,'private rows never render into the public feed');
+  button(tree,'复盘日志').props.onClick();tree=h.render();
+  assert.equal(find(tree,node=>node.type===h.Page.ReviewPublicFeed),undefined);
+  assert.equal(visible(tree).filter(node=>node.type==='article').length,3,'personal logs include public and private own entries');
+  button(tree,'全部').props.onClick();tree=h.render();
+  button(tree,'显示私密记录').props.onClick();tree=h.render();
+  assert.equal(find(tree,node=>node.type===h.Page.ReviewPublicFeed),undefined);
+  assert.deepEqual(visible(tree).filter(node=>node.type==='article').map(node=>node.props['data-rj-entry-key']),['log:one','log:two']);
+  button(tree,'复盘日志').props.onClick();tree=h.render();
+  assert.equal(visible(tree).filter(node=>node.type==='article').length,3,'private scope must not filter personal category tabs');
+  button(tree,'全部').props.onClick();tree=h.render();button(tree,'显示公开动态').props.onClick();tree=h.render();
+  const publicFeed=find(tree,node=>node.type===h.Page.ReviewPublicFeed);
+  publicFeed.props.onOpenOwnEntry('log','published');tree=h.render();
+  assert.ok(detail(tree),'authors can enter their own original with private evaluations');
+  h.unmount();
+});
+
+test('publishing from All shows the chosen audience and keeps the new post in view', async () => {
+  const h=await harness();
+  h.fixture.window.requestAnimationFrame=callback=>callback();
+  let tree=h.render();
+  for(const visibility of ['public','private']) {
+    button(tree,'写复盘').props.onClick();tree=h.render();
+    const composer=find(tree,node=>node.type===h.Page.Composer);
+    composer.props.onSaved({...records()[1],id:`new-${visibility}`,visibility});
+    composer.props.onClose();tree=h.render();
+    assert.equal(Boolean(find(tree,node=>node.type===h.Page.ReviewPublicFeed)),visibility==='public');
+    assert.equal(h.scrolls.at(-1).top,0);
+    assert.ok(h.ctx.reviewLogs.some(entry=>entry.id===`new-${visibility}`));
+  }
+  h.unmount();
+});
+
 async function harness({ removeReply, preferences = {} } = {}) {
   let slots = [], cursor = 0, layout = [], effects = [];
   const scrolls = [], saves = [], deletes = [], replyDeletes = [], removals = [], focus = [], pushes = [];
@@ -68,7 +107,7 @@ async function harness({ removeReply, preferences = {} } = {}) {
   try {
     const compiled = await transformWithOxc(`
       import React from ${JSON.stringify(import.meta.resolve('react'))};
-      import { ArrowLeft, Search, Plus, MoreHorizontal, Pin, MessageCircle, Pencil, Trash2 } from ${JSON.stringify(import.meta.resolve('lucide-react'))};
+      import { ArrowLeft, Search, Plus, MoreHorizontal, Pin, MessageCircle, Pencil, Trash2, ChevronDown, Check } from ${JSON.stringify(import.meta.resolve('lucide-react'))};
       import { reviewJournalFeed, localReviewDate } from ${JSON.stringify(new URL('../src/lib/reviewJournalFeed.js', import.meta.url).href)};
       import { findReviewStockMentions } from ${JSON.stringify(new URL('../src/lib/reviewStockMentions.js', import.meta.url).href)};
       import { mergeReviewTimelineFeed, reviewTimelineFeedDate } from ${JSON.stringify(new URL('../src/lib/reviewTimelineFeed.js', import.meta.url).href)};
@@ -76,19 +115,19 @@ async function harness({ removeReply, preferences = {} } = {}) {
       import { findReviewEntryByKey, projectReviewTimelineEntry, resolveReviewReplySource, resolveReviewTimelineEvent, reviewTimelineAnchorEntry, reviewTimelineReplyKey } from ${JSON.stringify(new URL('../src/lib/reviewTimelineEntries.js', import.meta.url).href)};
       import { ReviewSystemAvatar, ReviewSystemName } from ${JSON.stringify(systemIdentityModule)};
       const fixture = globalThis[${JSON.stringify(key)}];
-      const { useState, useRef, useEffect, useLayoutEffect, useMemo, window } = fixture;
+      const { useState, useRef, useEffect, useLayoutEffect, useMemo, window, document } = fixture;
       const Avatar = () => null, AuthorName = () => null, Photo = () => null, SnapshotCard = () => null, ReviewStockCarousel = () => null, ReviewPostBody = () => null, Composer = () => null, Dialog = () => null;
-      const ReviewTimeline = () => null, ReviewPreferences = () => null, ReviewTimelinePost = () => null;
+      const ReviewPublicFeed = () => null, ReviewTimeline = () => null, ReviewPreferences = () => null, ReviewTimelinePost = () => null;
       const useReviewPreferences = () => fixture.preferenceState;
       const ReviewEvaluationComposer = () => null, EvaluationRating = () => null, ReviewAccountCard = () => null, ReviewTradeReferences = () => null, EmojiPicker = () => null;
-      export { ReviewSystemAvatar, ReviewSystemName, Avatar, AuthorName, ReviewTimeline, ReviewPreferences, ReviewTimelinePost, Photo, SnapshotCard, ReviewStockCarousel, ReviewPostBody, Composer, Dialog, ReviewEvaluationComposer, EvaluationRating, ReviewAccountCard, ReviewTradeReferences };
+      export { ReviewPublicFeed, ReviewSystemAvatar, ReviewSystemName, Avatar, AuthorName, ReviewTimeline, ReviewPreferences, ReviewTimelinePost, Photo, SnapshotCard, ReviewStockCarousel, ReviewPostBody, Composer, Dialog, ReviewEvaluationComposer, EvaluationRating, ReviewAccountCard, ReviewTradeReferences };
       ${pageSource.replaceAll('import.meta.env.DEV', 'true')}
     `, 'ReviewJournalEntryPageTest.jsx', { jsx: { runtime: 'classic' } });
     Page = await import(dataUrl(compiled.code));
   } finally { delete globalThis[key]; }
   const ctx = {
     userId: 'owner', disciplines: [], reviewLogs: records(), stockTrades: [],
-    previewData: { identity: { nickname: '复盘者' }, history: {} }, onBack: () => { fixture.leftJournal = true; },
+    previewData: { initialAllScope: 'private', identity: { nickname: '复盘者' }, history: {} }, onBack: () => { fixture.leftJournal = true; },
     setDisciplines: update => { ctx.disciplines = update(ctx.disciplines); },
     setReviewLogs: update => { ctx.reviewLogs = update(ctx.reviewLogs); },
     db: {
@@ -942,7 +981,7 @@ test('loaded timeline data is reused across rerenders, settings and feed-categor
     calls.push(owner);
     return { status: 'ready', events: activityEvents(), years: [2026], coverage: {}, warnings: [] };
   };
-  let tree = h.render(); await settle(); tree = h.render();
+  let tree = h.render(); button(tree,'全部动态范围').props.onClick(); tree=h.render(); button(tree,'显示私密记录').props.onClick(); tree=h.render(); await settle(); tree=h.render();
   assert.deepEqual(calls, ['owner']);
   for (let index = 0; index < 4; index++) tree = h.render();
   button(tree, '动态设置').props.onClick(clickEvent(h)); tree = h.render();
@@ -964,7 +1003,7 @@ test('automatic reads wait for confirmed preferences and ignore a response from 
   h.fixture.preferenceState.ready = false;
   const requests = [];
   h.ctx.db.fetchReviewTimeline = owner => new Promise(resolve => requests.push({ owner, resolve }));
-  let tree = h.render(); await settle(); tree = h.render();
+  let tree = h.render(); button(tree,'全部动态范围').props.onClick(); tree=h.render(); button(tree,'显示私密记录').props.onClick(); tree=h.render(); await settle(); tree=h.render();
   assert.equal(requests.length, 0);
   assert.equal(visible(tree).filter(node => node.type === 'article').length, records().length, 'ordinary posts must not wait for display preferences');
   h.fixture.preferenceState.ready = true;

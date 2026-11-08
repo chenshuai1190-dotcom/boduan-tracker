@@ -3,6 +3,11 @@ import { CURRENT_RELEASE } from './releaseMeta.js';
 export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
+    items: ['投资动态“全部”支持切换公开动态与自己的私密记录；新建博文默认公开，可切换仅自己可见；编辑保留原可见范围，旧记录继续私密。公开博文新增点赞与取消点赞，复盘日志、投资心得、时间线继续保留个人视角，评价、账户和交易明细不随正文公开。'],
+    itemsEn: ['All in Activity now switches between public posts and your private records. New posts default to Public and can switch to Only me. Edits retain their existing audience, and old records stay private. Public posts support likes and unlikes. Journal, Insights, and Timeline retain your personal view, while evaluations, account data, and trade details stay private.'],
+  },
+  {
+    ver: 'v10.7.9.600', date: '2026-11-07',
     items: ['合并累计收益新高、年内收益新高和新低中的金额与收益率纪录；金额下方显示同日收益率，同日同值的年内与累计新高只展示一次。动态、时间线、详情和设置同步，保留原有评价及修改删除功能。'],
     itemsEn: ['Combined P&L and return records for cumulative highs and annual highs and lows. Each amount shows its same-day return below; identical annual and cumulative highs appear once. Feed, timeline, details, and settings stay aligned, with existing evaluations and edit/delete support preserved.'],
   },

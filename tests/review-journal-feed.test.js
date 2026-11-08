@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { reviewJournalFeed, reviewDraftKey } from '../src/lib/reviewJournalFeed.js';
+import { reviewJournalFeed, reviewDraftKey, emptyReviewEntry, restoreReviewDraft } from '../src/lib/reviewJournalFeed.js';
 
 test('all feed ignores pinning while category feed prioritizes pins', () => {
   const insights = [{ id: 'a', date: '2026-11-01', pinned: true, text: '耐心' }, { id: 'b', date: '2026-11-05', text: '等待' }];
@@ -14,6 +14,14 @@ test('all feed ignores pinning while category feed prioritizes pins', () => {
 test('draft keys require and separate account identities', () => {
   assert.equal(reviewDraftKey(''), null);
   assert.notEqual(reviewDraftKey('user-a'), reviewDraftKey('user-b'));
+});
+
+test('new posts default public while existing drafts retain their original visibility', () => {
+  for (const type of ['log', 'insight']) assert.equal(emptyReviewEntry(type).visibility, 'public');
+  assert.equal(restoreReviewDraft({ type: 'log', text: '示例' }, 'user-a').visibility, 'private');
+  assert.equal(restoreReviewDraft({ type: 'log', text: '示例', visibility: 'private' }, 'user-a').visibility, 'private');
+  assert.equal(restoreReviewDraft({ type: 'insight', text: '示例', visibility: 'public' }, 'user-a').visibility, 'public');
+  assert.equal(restoreReviewDraft({ type: 'log', text: '示例', visibility: 'friends' }, 'user-a').visibility, 'private');
 });
 
 test('restoring a malformed draft cannot leak owners or crash array rendering', async () => {

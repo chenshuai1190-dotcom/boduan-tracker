@@ -9,6 +9,7 @@ import {
   validateReviewJournalImageFile,
 } from './reviewJournalModel.js';
 import { normalizeReviewTimelineReference, sameReviewTimelineReference, reviewTimelineOperationId } from './reviewTimelineReference.js';
+import { assertReviewPublicAvailable } from './reviewPublicRepository.js';
 
 const conflict = () => reviewJournalError('REVIEW_REVISION_CONFLICT', '这条复盘已被更新或删除，请刷新后重试。');
 function dbError(error) {
@@ -58,6 +59,10 @@ export function createReviewJournalRepository(client, { now = () => new Date().t
     const user = await authenticate(expectedUserId);
     const table = reviewJournalTable(entry?.type);
     let payload = buildReviewJournalWrite(entry, user.id);
+    if (!replyChange && payload.review_data.visibility === 'public') {
+      await assertReviewPublicAvailable(client, expectedUserId);
+      await authenticate(expectedUserId);
+    }
     if (replyChange) {
       // Only change replies on the authoritative row read in this operation. Preserve all
       // existing metadata, including fields this client version does not render.
