@@ -241,7 +241,7 @@ function Composer({ entry, defaultType, identity, userId, db, onSaved, onClose, 
 }
 
 export default function ReviewJournalPage({ ctx }) {
-  const { db, userId, language='zh', disciplines=[], reviewLogs=[], setDisciplines, setReviewLogs, stockTrades=[], onBack, previewData, marketColorMode, usdCny = null, fxDate = '', navigationTab = false } = ctx;
+  const { db, userId, language='zh', disciplines=[], reviewLogs=[], setDisciplines, setReviewLogs, stockTrades=[], onBack, previewData, marketColorMode, usdCny = null, fxDate = '', navigationTab = false, reviewPublicRefreshRef } = ctx;
   const preview = Boolean(import.meta.env.DEV && previewData);
   const preferenceState = useReviewPreferences({ db, userId, preview, previewPreferences: previewData?.preferences });
   const { preferences, ready: preferencesReady } = preferenceState;
@@ -254,7 +254,7 @@ export default function ReviewJournalPage({ ctx }) {
   const [scopeSelection,setScopeSelection]=useState(()=>({userId,value:initialAllScope()}));
   const allScope=scopeSelection.userId===userId?scopeSelection.value:initialAllScope();
   const setAllScope=value=>setScopeSelection({userId,value});
-  const chooseAllScope=value=>{setAllScope(value);writeReviewAudiencePreference(userId,'feedScope',value);};
+  const chooseAllScope=value=>{setAllScope(value);writeReviewAudiencePreference(userId,'feedScope',value);if(value==='public'&&allScope==='public')setPublicRefresh(old=>old+1);};
   const [scopeMenu,setScopeMenu]=useState(false); const [publicDetail,setPublicDetail]=useState(false); const [publicRefresh,setPublicRefresh]=useState(0);
   const [publicEvaluationContext,setPublicEvaluationContext]=useState(null);
   const scopeRef=useRef(null);
@@ -507,7 +507,7 @@ export default function ReviewJournalPage({ ctx }) {
       {mixedFeedEnabled&&['idle','loading'].includes(ownedTimeline.status)&&<p className="rj-note rj-feed-status" role="status">{language==='en'?'Loading timeline…':'正在读取时间线…'}</p>}
       {mixedFeedEnabled&&ownedTimeline.status==='pending'&&<div className="rj-feed-status" role="status"><p className="rj-note">{language==='en'?'Closing history is being updated. The timeline will be available when complete.':'收盘历史正在更新，完成后可查看时间线。'}</p><button className="rj-text-button" onClick={()=>setTimelineAttempt(value=>value+1)}>{language==='en'?'Retry':'重新读取'}</button></div>}
       {mixedFeedEnabled&&ownedTimeline.error&&<div className="rj-feed-status" role="alert"><p className="rj-note">{ownedTimeline.error}</p><button className="rj-text-button" onClick={()=>setTimelineAttempt(value=>value+1)}>{language==='en'?'Retry':'重新读取'}</button></div>}
-      {publicFeedVisible&&<ReviewPublicFeed key={userId} db={db} userId={userId} language={language} marketColorMode={marketColorMode} query={query} refreshToken={publicRefresh} onDetailChange={publicDetailChanged} onManageOwnEntry={manageOwnPublicEntry} onEvaluateOwnEntry={(type,id)=>evaluateOwnPublicEntry(type,id)} onManageOwnReply={evaluateOwnPublicEntry}/>}
+      {publicFeedVisible&&<ReviewPublicFeed key={userId} db={db} userId={userId} language={language} marketColorMode={marketColorMode} query={query} refreshToken={publicRefresh} refreshRef={reviewPublicRefreshRef} active={!showingDetail&&!composer&&!menu&&!activeReplyMenu&&!editingEntry&&!lightbox&&!evaluations.some(item=>item.userId===userId&&item.open&&item.key===evaluationKey)} onDetailChange={publicDetailChanged} onManageOwnEntry={manageOwnPublicEntry} onEvaluateOwnEntry={(type,id)=>evaluateOwnPublicEntry(type,id)} onManageOwnReply={evaluateOwnPublicEntry}/>}
       {filter!=='timeline'&&!(publicFeedVisible&&publicDetail)&&<button className="rj-fab" aria-label="写复盘" onClick={()=>setComposer({entry:null})}><Plus size={28}/></button>}
     </div>
     {isTimelineDetail&&selectedTimelineEvent&&<div className="rj-timeline-author"><ReviewSystemAvatar/><div className="rj-post-heading"><ReviewSystemName language={language}/><span>·</span><time dateTime={reviewTimelineFeedDate(selectedTimelineEvent)}>{reviewTimelineFeedDate(selectedTimelineEvent)}</time></div></div>}

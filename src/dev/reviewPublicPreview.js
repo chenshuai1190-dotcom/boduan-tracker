@@ -3,6 +3,7 @@ import { mapReviewPublicReplies } from '../lib/reviewPublicModel.js';
 
 export function createReviewPublicPreview({ ownerId, getEntries, getImage, market }) {
   const likes = new Map();
+  let refreshScenario = '';
   const exampleAccount = { version:1,kind:'account_snapshot',asOfDate:'2026-11-06',recordDate:'2026-11-05',basis:'close',source:'pnl_report',
     items:[['cumulativeReturnPct',12.5],['yearPeakReturnPct',22.5],['declineFromYearPeakPp',10],['dailyReturnPct',-1.82],['leverage',1.28]].map(([key,value])=>({key,value,asOfDate:'2026-11-06',basis:'close',source:'pnl_report',...(['yearPeakReturnPct','declineFromYearPeakPp'].includes(key)?{peakDate:'2026-10-23'}:{})})) };
   const samples = [
@@ -12,12 +13,13 @@ export function createReviewPublicPreview({ ownerId, getEntries, getImage, marke
       publishedAt:'2026-11-06T05:00:00Z',updatedAt:'2026-11-07T06:00:00Z',likeCount:4,liked:false },
   ];
   const assertOwner = userId => { if(userId!==ownerId)throw new Error('预览账户不匹配'); };
-  const posts = () => [...samples,...getEntries().filter(row=>row.visibility==='public'&&!row.timelineEvent).map(row=>({
+  const posts = () => [...(refreshScenario === 'empty' ? [] : refreshScenario === 'published' ? [{ ...samples[0], id:'insight:sample-fresh-post', sourceId:'sample-fresh-post', text:'刷新验收示例：这是其他账号刚刚发布的公开帖子。', publishedAt:'2026-11-08T06:00:00Z' }] : samples),...(refreshScenario ? [] : getEntries()).filter(row=>row.visibility==='public'&&!row.timelineEvent).map(row=>({
     id:`${row.type}:${row.id}`,type:row.type,sourceId:String(row.id),authorId:ownerId,author:{nickname:'波段玩家1836',avatarKey:'gold',avatarPath:null},
     text:row.text,date:row.date,stocks:row.stocks||[],images:row.images||[],market:row.market||null,replies:row.replies||[],publishedAt:row.publishedAt||row.createdAt||'2026-11-07T04:00:00Z',updatedAt:row.updatedAt||row.createdAt||'2026-11-07T04:00:00Z',likeCount:0,liked:false,
   }))].map(row=>({...row,replies:mapReviewPublicReplies(row.replies,row.authorId),liked:likes.get(row.id)===true,likeCount:row.likeCount+(likes.get(row.id)?1:0)}))
     .sort((a,b)=>b.publishedAt.localeCompare(a.publishedAt)||b.id.localeCompare(a.id));
   return {
+    setReviewPublicPreviewScenario(value) { refreshScenario = ['empty','published'].includes(value) ? value : ''; },
     async fetchReviewPublicFeed({cursor,query='',symbol='',limit=20}={},userId) {
       assertOwner(userId);
       const term=query.trim().toLowerCase();

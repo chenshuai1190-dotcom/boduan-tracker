@@ -1547,6 +1547,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   const pullRefreshResetTimerRef = useRef(null);
   const globalRefreshingRef = useRef(false);
   const runGlobalPullRefreshRef = useRef(null);
+  const reviewPublicRefreshRef = useRef(null);
   const localizedStockTrades = useMemo(() => stockTrades.map(localizeStockNameRow), [stockTrades]);
   const localizedWatchlist = useMemo(() => watchlist.map(localizeStockNameRow), [watchlist]);
   const localizedQuoteCache = useMemo(() => quoteCache.map(localizeStockNameRow), [quoteCache]);
@@ -3601,6 +3602,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
 
       const orderMutationAtStart = watchlistOrderMutationSerialRef.current;
       const benchmarkMutationAtStart = benchmarkMutationSerialRef.current;
+      await reviewPublicRefreshRef.current?.();
       const cloudResult = await db.fetchAllUserData();
       applyCloudUserData(cloudResult, '[全局刷新]', orderMutationAtStart, benchmarkMutationAtStart);
       await fetchDailyFxRates({ force: true });
@@ -5474,7 +5476,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   const activeTabCtx = activeTab === 'settings'
     ? settingsTabCtx
     : activeTab === 'review'
-      ? { db, userId: user?.id || '', language, disciplines, reviewLogs, setDisciplines, setReviewLogs, stockTrades, marketColorMode, usdCny: reviewFx?.rates?.CNY || null, fxDate: reviewFx?.fetchedAt || '', navigationTab: true }
+      ? { db, userId: user?.id || '', language, disciplines, reviewLogs, setDisciplines, setReviewLogs, stockTrades, marketColorMode, usdCny: reviewFx?.rates?.CNY || null, fxDate: reviewFx?.fetchedAt || '', navigationTab: true, reviewPublicRefreshRef }
     : activeTab === 'analysis'
       ? analysisTabCtx
       : tabCtx;
@@ -5637,7 +5639,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
               : isStockComparisonPage
                 ? <StockComparisonPage key={user?.id || ''} ctx={{ userId: user?.id || '', language, marketColorMode, onBack: closeStockComparison }} />
               : isReviewJournalPage
-                ? <ReviewJournalPage key={user?.id || ''} ctx={{ db, userId: user?.id || '', language, disciplines, reviewLogs, setDisciplines, setReviewLogs, stockTrades, marketColorMode, usdCny: reviewFx?.rates?.CNY || null, fxDate: reviewFx?.fetchedAt || '', onBack: closeReviewJournal }} />
+                ? <ReviewJournalPage key={user?.id || ''} ctx={{ db, userId: user?.id || '', language, disciplines, reviewLogs, setDisciplines, setReviewLogs, stockTrades, marketColorMode, usdCny: reviewFx?.rates?.CNY || null, fxDate: reviewFx?.fetchedAt || '', onBack: closeReviewJournal, reviewPublicRefreshRef }} />
               : isInvestmentGoalsPage
                 ? <ReviewTab ctx={tabCtx} />
               : isPortfolioOverlapPage

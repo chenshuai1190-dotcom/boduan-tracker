@@ -19,7 +19,8 @@ let nextId = 0;
 async function harness() {
   let slots = [], cursor = 0, effects = [];
   const listeners = new Map(), historyStates = [{ reviewJournalEntry: { token: 'parent', id: 'root' }, otherAppState: 'retained' }];
-  let historyIndex = 0;
+  let historyIndex = 0, now = 10000, nextTimer = 0;
+  const documentListeners = new Map(), delays = new Map(), refreshRef = { current: null };
   const requests = [], images = [], created = [], revoked = [], timers = new Map(), detailChanges = [], detailNotifications = [], scrolls = [], commentScrolls = [];
   const request = (kind, args) => new Promise((resolve, reject) => requests.push({ kind, args, resolve, reject }));
   const db = {
@@ -34,13 +35,16 @@ async function harness() {
     useRef(initial) { return slots[cursor++] ||= { current: initial }; },
     useEffect(effect, deps) { const i = cursor++, old = slots[i]; if (old && deps.every((dep, j) => Object.is(dep, old.deps[j]))) return; old?.cleanup?.(); const slot = { deps }; slots[i] = slot; effects.push(() => { slot.cleanup = effect(); }); },
     window: { scrollY: 420, scrollTo: value => scrolls.push(value), getSelection: () => ({ toString: () => '' }) },
+    document: { visibilityState: 'visible' }, Date: { now: () => now, parse: Date.parse },
     requestAnimationFrame: fn => fn(), Blob,
     Image: class { constructor() { images.push(this); } decode() { return Promise.resolve(); } },
     URL: { createObjectURL: blob => { const url = `blob:public-${created.length}`; created.push({ blob, url }); return url; }, revokeObjectURL: url => revoked.push(url) },
-    setTimeout: fn => { const id = timers.size + 1; timers.set(id, fn); return id; }, clearTimeout: id => timers.delete(id),
+    setTimeout: (fn, delay) => { const id = ++nextTimer; timers.set(id, fn); delays.set(id, delay); return id; }, clearTimeout: id => { timers.delete(id); delays.delete(id); },
   };
   fixture.window.addEventListener = (type, listener) => { const values = listeners.get(type) || new Set(); values.add(listener); listeners.set(type, values); };
   fixture.window.removeEventListener = (type, listener) => listeners.get(type)?.delete(listener);
+  fixture.document.addEventListener = (type, listener) => { const values = documentListeners.get(type) || new Set(); values.add(listener); documentListeners.set(type, values); };
+  fixture.document.removeEventListener = (type, listener) => documentListeners.get(type)?.delete(listener);
   fixture.window.history = {
     get state() { return historyStates[historyIndex]; },
     pushState(state) { historyStates.splice(++historyIndex, Infinity, state); },
@@ -58,7 +62,7 @@ async function harness() {
       import { normalizeReviewTradeReferences } from ${JSON.stringify(new URL('../src/lib/reviewEvaluationModel.js', import.meta.url).href)};
       const fixture = globalThis[${JSON.stringify(key)}];
       const React = { ...ActualReact, useState: fixture.useState, useRef: fixture.useRef, useEffect: fixture.useEffect };
-      const { window, requestAnimationFrame, Blob, Image, URL, setTimeout, clearTimeout } = fixture;
+      const { window, document, Date, requestAnimationFrame, Blob, Image, URL, setTimeout, clearTimeout } = fixture;
       const ReviewPostBody = props => React.createElement('p', null, props.text);
       const SnapshotCard = () => React.createElement('section', null, '市场快照');
       const EvaluationRating = () => React.createElement('div', null, '评分及标签');
@@ -68,9 +72,14 @@ async function harness() {
     `, 'ReviewPublicFeedUITest.jsx', { jsx: { runtime: 'classic' } });
     components = await import(`data:text/javascript;base64,${Buffer.from(compiled.code).toString('base64')}`);
   } finally { delete globalThis[key]; }
-  const props = { db, userId: 'viewer', onDetailChange: (value, post) => { detailChanges.push(value); detailNotifications.push({ open: value, post }); } };
+  const props = { db, userId: 'viewer', refreshRef, onDetailChange: (value, post) => { detailChanges.push(value); detailNotifications.push({ open: value, post }); } };
   const render = (component, values) => { cursor = 0; effects = []; const tree = component(values); for (const node of walk(tree)) if (node.type === components.PublicReplies) node.props.sectionRef.current = { scrollIntoView: value => commentScrolls.push(value) }; for (const effect of effects) effect(); return tree; };
-  return { db, props, components, requests, images, created, revoked, timers, detailChanges, detailNotifications, scrolls, commentScrolls, history: fixture.window.history,
+  return { db, props, components, requests, images, created, revoked, timers, detailChanges, detailNotifications, scrolls, commentScrolls, history: fixture.window.history, refreshRef,
+    advance(ms) { now += ms; },
+    dispatch(type) { for (const listener of listeners.get(type) || []) listener({ type }); },
+    visibility(value) { fixture.document.visibilityState = value; for (const listener of documentListeners.get('visibilitychange') || []) listener(); },
+    tick() { const entry = [...delays.entries()].find(([, delay]) => delay === 30000); assert.ok(entry, 'visible feed schedules a bounded refresh'); const [id, delay] = entry; const fn = timers.get(id); timers.delete(id); delays.delete(id); now += delay; fn(); },
+    listenerCount() { return [...listeners.values(), ...documentListeners.values()].reduce((count, set) => count + set.size, 0); },
     feed: overrides => render(components.ScopedPublicFeed, { ...props, ...overrides }),
     render, posts: tree => walk(tree).filter(node => node.type === components.PublicPost),
     unmount() { for (const slot of slots) slot?.cleanup?.(); slots = []; },
@@ -115,7 +124,7 @@ test('load more is bounded to one request and merges overlapping pages without d
   let tree = h.feed(); const more = button(tree, '加载更多'); more.props.onClick(); more.props.onClick();
   assert.equal(h.requests.length, 2);
   assert.deepEqual(h.requests[1].args[0].cursor, cursor);
-  h.requests[1].resolve(result([post(), post('log:2')])); await flush(); tree = h.feed();
+  h.requests[1].resolve(result([post(), post('log:2', { publishedAt: '2026-11-06T11:00:00Z' })])); await flush(); tree = h.feed();
   assert.deepEqual(h.posts(tree).map(node => node.props.post.id), ['log:1', 'log:2']);
   assert.equal(button(tree, '加载更多'), undefined);
   h.unmount();
@@ -398,4 +407,165 @@ test('a timed-out image decode cannot later restore a revoked image URL', async 
   const tree = h.render(h.components.PublicMedia, props);
   assert.notEqual(tree.type, 'img'); assert.match(words(tree), /图片暂不可用/);
   assert.deepEqual(h.revoked, ['blob:public-0']); h.unmount();
+});
+
+test('a visible empty public feed discovers another author without remounting or changing its viewer', async () => {
+  const h = await harness(); h.feed(); await flush();
+  h.requests[0].resolve(result([])); await flush();
+  assert.match(words(h.feed()), /还没有公开动态/);
+  h.tick(); await flush();
+  assert.equal(h.requests.length, 2);
+  assert.deepEqual(h.requests[1].args, [{ limit: 20, query: '', symbol: '' }, 'viewer']);
+  const other = post('log:new', { authorId: 'northstar', text: 'Northstar 报到' });
+  h.requests[1].resolve(result([other])); await flush();
+  const tree = h.feed();
+  assert.equal(h.posts(tree)[0].props.post.authorId, 'northstar');
+  assert.doesNotMatch(words(tree), /还没有公开动态/);
+  assert.equal(h.scrolls.length, 0, 'background refresh does not move the reading position');
+  h.unmount(); assert.equal(h.refreshRef.current, null); assert.equal(h.listenerCount(), 0); assert.equal(h.timers.size, 0);
+});
+
+test('manual refresh is shared in flight and awaits both the public list and opened detail', async () => {
+  const h = await harness(); h.feed(); await flush(); h.requests[0].resolve(result([post()])); await flush();
+  let tree = h.feed(); h.posts(tree)[0].props.onOpen(post()); h.feed(); await flush(); h.requests[1].resolve(post()); await flush(); h.feed();
+  let settled = false;
+  const refreshing = h.refreshRef.current(); refreshing.then(() => { settled = true; });
+  assert.equal(h.refreshRef.current(), refreshing); await flush();
+  assert.equal(h.requests.length, 4);
+  assert.equal(h.posts(h.feed())[0].props.post.text, '公开正文', 'revalidation does not flash an empty detail');
+  h.requests[2].resolve(result([post('log:1', { text: '更新后的正文' })])); await flush(); assert.equal(settled, false);
+  h.requests[3].resolve(post('log:1', { text: '更新后的正文', replies: [{ id: 'reply-new', text: '新评价' }] }));
+  await refreshing; tree = h.feed();
+  assert.equal(settled, true); assert.equal(h.posts(tree)[0].props.post.text, '更新后的正文');
+  assert.equal(walk(tree).find(node => node.type === h.components.PublicReplies).props.post.replies[0].text, '新评价');
+  const withdrawn = h.refreshRef.current(); await flush();
+  h.requests[5].resolve(null); await flush(); h.requests[4].resolve(result([post()])); await withdrawn;
+  tree = h.feed(); assert.match(words(tree), /已不再公开/); assert.equal(h.posts(tree).length, 0);
+  button(tree, '返回公开动态').props.onClick(); assert.equal(h.posts(h.feed()).length, 0); h.unmount();
+});
+
+test('refresh failure rejects its caller after all reads settle and never reports an empty success', async () => {
+  const h = await harness(); h.feed(); await flush(); h.requests[0].resolve(result([post()])); await flush();
+  let tree = h.feed(); h.posts(tree)[0].props.onOpen(post()); h.feed(); await flush(); h.requests[1].resolve(post()); await flush(); h.feed();
+  let settled = false;
+  const refreshing = h.refreshRef.current(); const checked = assert.rejects(refreshing, /公开列表网络失败/).then(() => { settled = true; });
+  await flush(); h.requests[2].reject(new Error('公开列表网络失败')); await flush(); assert.equal(settled, false);
+  h.requests[3].resolve(post()); await checked; tree = h.feed();
+  button(tree, '返回公开动态').props.onClick(); tree = h.feed();
+  assert.match(words(tree), /公开列表网络失败/); assert.doesNotMatch(words(tree), /还没有公开动态/); assert.equal(h.posts(tree).length, 1);
+  h.unmount();
+});
+
+test('foreground signals coalesce while hidden or inactive public views do not poll', async () => {
+  const h = await harness(); h.feed(); await flush(); h.requests[0].resolve(result([])); await flush(); h.feed();
+  h.advance(2000); h.visibility('hidden'); h.dispatch('focus'); h.dispatch('pageshow'); await flush();
+  assert.equal(h.requests.length, 1); assert.equal(h.timers.size, 0);
+  h.visibility('visible'); h.dispatch('focus'); h.dispatch('pageshow'); h.dispatch('online'); await flush();
+  assert.equal(h.requests.length, 2, 'a resume burst shares one list request');
+  h.requests[1].resolve(result([post()])); await flush(); h.feed();
+  h.dispatch('focus'); await flush(); assert.equal(h.requests.length, 2, 'settled resume signals within one second are also coalesced');
+  h.feed({ active: false }); assert.equal(h.refreshRef.current, null); assert.equal(h.timers.size, 0);
+  h.advance(30000); h.dispatch('focus'); h.visibility('hidden'); h.visibility('visible'); await flush(); assert.equal(h.requests.length, 2);
+  h.feed({ active: true }); await flush(); assert.equal(h.requests.length, 3);
+  h.requests[2].resolve(result([post('log:new')])); await flush(); assert.equal(h.posts(h.feed())[0].props.post.id, 'log:new');
+  h.unmount(); h.dispatch('online'); await flush(); assert.equal(h.requests.length, 3); assert.equal(h.timers.size, 0);
+});
+
+test('a refresh cannot append an old page or replace an in-flight like with stale server counts', async () => {
+  const h = await harness(); h.feed(); await flush();
+  const cursor = { publishedAt: '2026-11-06T12:00:00Z', id: 'log:1' };
+  h.requests[0].resolve(result([post()], cursor)); await flush(); let tree = h.feed();
+  button(tree, '加载更多').props.onClick();
+  h.posts(tree)[0].props.onLike(h.posts(tree)[0].props.post);
+  const refreshing = h.refreshRef.current(); await flush();
+  h.requests[2].resolve({ postId: 'log:1', liked: true, likeCount: 7 }); await flush();
+  h.requests[3].resolve(result([post(), post('log:new')])); await refreshing;
+  h.requests[1].resolve(result([post('log:old-page')])); await flush(); tree = h.feed();
+  assert.deepEqual(h.posts(tree).map(node => node.props.post.id), ['log:1', 'log:new']);
+  assert.equal(h.posts(tree)[0].props.post.likeCount, 7); assert.equal(h.posts(tree)[0].props.post.liked, true);
+  assert.equal(button(tree, '加载更多'), undefined); h.unmount();
+});
+
+test('a refresh response from a previous viewer or filter cannot enter the replacement scope', async () => {
+  const h = await harness(); h.feed(); await flush(); h.requests[0].resolve(result([])); await flush(); h.feed();
+  const oldRefresh = h.refreshRef.current(); await flush();
+  h.feed({ userId: 'new-viewer', query: 'new' }); await flush();
+  h.requests[2].resolve(result([post('log:current')])); await flush();
+  h.requests[1].resolve(result([post('log:obsolete')])); await oldRefresh;
+  const tree = h.feed({ userId: 'new-viewer', query: 'new' });
+  assert.deepEqual(h.posts(tree).map(node => node.props.post.id), ['log:current']);
+  h.unmount();
+});
+
+const datedPost = index => post(`log:${String(index).padStart(3, '0')}`, { publishedAt: `2026-11-06T12:00:00.${String(index).padStart(6, '0')}Z` });
+const datedRange = (high, low) => Array.from({ length: high - low + 1 }, (_, index) => datedPost(high - index));
+const cursorFor = value => ({ id: value.id, publishedAt: value.publishedAt });
+
+test('automatic refresh retains a loaded tail and removes only vanished posts inside the refreshed time window', async () => {
+  const h = await harness(); h.feed(); await flush();
+  h.requests[0].resolve(result(datedRange(60, 41), cursorFor(datedPost(41)))); await flush();
+  button(h.feed(), '加载更多').props.onClick();
+  const secondPage = datedRange(40, 21); secondPage[0].publishedAt = '2026-11-06T20:00:00.000040+08:00';
+  h.requests[1].resolve(result(secondPage, cursorFor(datedPost(21)))); await flush();
+  assert.equal(h.posts(h.feed()).length, 40);
+  h.tick(); await flush();
+  const newest = [datedPost(62), datedPost(61), datedPost(60), ...datedRange(58, 42)];
+  h.requests[2].resolve(result(newest, cursorFor(datedPost(42)))); await flush(); let tree = h.feed();
+  const ids = h.posts(tree).map(node => node.props.post.id);
+  assert.equal(ids.length, 41); assert.equal(ids.includes('log:059'), false); assert.equal(ids.includes('log:040'), true);
+  assert.deepEqual(ids.slice(-3), ['log:023', 'log:022', 'log:021']);
+  button(tree, '加载更多').props.onClick(); assert.deepEqual(h.requests[3].args[0].cursor, cursorFor(datedPost(21)));
+  h.requests[3].resolve(result(datedRange(20, 1))); await flush(); h.feed();
+  const manual = h.refreshRef.current(); await flush(); h.requests[4].resolve(result(newest, cursorFor(datedPost(42)))); await manual;
+  assert.equal(h.posts(h.feed()).length, 20, 'explicit refresh may restart pagination');
+  h.tick(); await flush(); h.requests[5].resolve(result([datedPost(62)])); await flush();
+  tree = h.feed(); assert.equal(h.posts(tree).length, 1, 'a complete authoritative result removes all stale tail entries');
+  assert.equal(button(tree, '加载更多'), undefined); h.unmount();
+});
+
+test('a whole new page keeps previous cards while subsequent pagination fills and sorts the intervening gap', async () => {
+  const h = await harness(); h.feed(); await flush();
+  h.requests[0].resolve(result(datedRange(40, 21), cursorFor(datedPost(21)))); await flush();
+  button(h.feed(), '加载更多').props.onClick(); h.requests[1].resolve(result(datedRange(20, 1))); await flush(); h.feed();
+  h.tick(); await flush(); h.requests[2].resolve(result(datedRange(100, 81), cursorFor(datedPost(81)))); await flush();
+  let tree = h.feed(); assert.equal(h.posts(tree).length, 60);
+  button(tree, '加载更多').props.onClick(); assert.deepEqual(h.requests[3].args[0].cursor, cursorFor(datedPost(81)));
+  h.requests[3].resolve(result(datedRange(80, 61), cursorFor(datedPost(61)))); await flush(); tree = h.feed();
+  assert.deepEqual(h.posts(tree).map(node => node.props.post.id), [...datedRange(100, 61), ...datedRange(40, 1)].map(item => item.id));
+  h.tick(); await flush(); h.requests[4].resolve(result(datedRange(100, 81), cursorFor(datedPost(81)))); await flush();
+  button(h.feed(), '加载更多').props.onClick(); assert.deepEqual(h.requests[5].args[0].cursor, cursorFor(datedPost(61)), 'refresh retains the unfinished gap cursor rather than the visible oldest item');
+  h.requests[5].resolve(result(datedRange(60, 41), cursorFor(datedPost(41)))); await flush(); tree = h.feed();
+  assert.deepEqual(h.posts(tree).map(node => node.props.post.id), datedRange(100, 1).map(item => item.id)); h.unmount();
+});
+
+test('a fresh republication restores an earlier withdrawn post and its currently open detail', async () => {
+  const h = await harness(); h.feed(); await flush(); h.requests[0].resolve(result([post()])); await flush();
+  h.posts(h.feed())[0].props.onOpen(post()); h.feed(); await flush(); h.requests[1].resolve(null); await flush();
+  assert.match(words(h.feed()), /已不再公开/);
+  const refreshed = h.refreshRef.current(); await flush();
+  const republished = post('log:1', { publishedAt: '2026-11-08T13:00:00Z', text: '重新公开的正文' });
+  h.requests[2].resolve(result([republished])); await flush(); h.requests[3].resolve(republished); await refreshed;
+  let tree = h.feed(); assert.equal(h.posts(tree)[0].props.post.text, '重新公开的正文');
+  button(tree, '返回公开动态').props.onClick(); tree = h.feed(); assert.equal(h.posts(tree)[0].props.post.text, '重新公开的正文'); h.unmount();
+});
+
+test('a second withdrawal during republication recheck defeats a delayed formerly public list result', async () => {
+  const h = await harness(); h.feed(); await flush(); h.requests[0].resolve(result([post()])); await flush();
+  h.posts(h.feed())[0].props.onOpen(post()); h.feed(); await flush(); h.requests[1].resolve(null); await flush(); h.feed();
+  const refreshed = h.refreshRef.current(); await flush();
+  h.requests[3].resolve(null); await flush(); h.requests[2].resolve(result([post()])); await refreshed;
+  let tree = h.feed(); assert.match(words(tree), /已不再公开/); assert.equal(h.posts(tree).length, 0);
+  button(tree, '返回公开动态').props.onClick(); assert.equal(h.posts(h.feed()).length, 0); h.unmount();
+});
+
+test('late refresh failures from an obsolete viewer or unmounted page do not reject the current global refresh flow', async () => {
+  for (const leave of ['switch', 'unmount']) {
+    const h = await harness(); h.feed(); await flush(); h.requests[0].resolve(result([])); await flush(); h.feed();
+    const oldRefresh = h.refreshRef.current(); await flush();
+    if (leave === 'switch') {
+      h.feed({ userId: 'new-viewer' }); await flush(); h.requests[2].resolve(result([post('log:new')])); await flush();
+    } else h.unmount();
+    h.requests[1].reject(new Error('obsolete user failure')); await assert.doesNotReject(oldRefresh);
+    if (leave === 'switch') { const tree = h.feed({ userId: 'new-viewer' }); assert.doesNotMatch(words(tree), /obsolete user failure/); h.unmount(); }
+  }
 });

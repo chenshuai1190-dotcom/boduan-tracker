@@ -27,6 +27,26 @@ const records = () => [
   { id: 'two', type: 'log', date: '2026-11-03', text: '第二条复盘', stocks: [], images: [], replies: [] },
 ];
 let fixtureId = 0;
+test('public refresh is connected to the visible feed and pauses behind editors and settings', async () => {
+  const h = await harness(); h.ctx.previewData.initialAllScope = 'public';
+  const refreshRef = { current: null }; h.ctx.reviewPublicRefreshRef = refreshRef;
+  let tree = h.render();
+  const feed = () => walk(tree).find(node => node.type === h.Page.ReviewPublicFeed);
+  assert.equal(feed().props.refreshRef, refreshRef);
+  assert.equal(feed().props.active, true);
+  const version = feed().props.refreshToken;
+  button(tree, '全部动态范围').props.onClick(); tree = h.render();
+  button(tree, '显示公开动态').props.onClick(); tree = h.render();
+  assert.ok(feed().props.refreshToken > version, 'reselecting public must invalidate a previously empty list');
+  button(tree, '写复盘').props.onClick(); tree = h.render();
+  assert.equal(feed().props.active, false, 'automatic reads must not disrupt a post draft');
+  find(tree, node => node.type === h.Page.Composer).props.onClose(); tree = h.render();
+  assert.equal(feed().props.active, true);
+  button(tree, '动态设置').props.onClick(); tree = h.render();
+  assert.equal(feed().props.active, false, 'the hidden feed must stop polling under settings');
+  h.unmount();
+});
+
 test('public/private scope applies only to All while personal categories retain every own entry', async () => {
   const h=await harness();
   h.ctx.previewData.initialAllScope='public';

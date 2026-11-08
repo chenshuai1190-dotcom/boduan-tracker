@@ -57,6 +57,8 @@ export default function ReviewJournalPreview({language,onBack,marketColorMode,na
   const initialLogs = new URLSearchParams(window.location.search).get('reviewPublicOwner') === '1' ? [{...evaluationLog,visibility:'public',publishedAt:'2026-11-08T04:00:00Z'},...seedLogs] : new URLSearchParams(window.location.search).get('reviewEvaluation') === '1' ? [evaluationLog,...seedLogs] : new URLSearchParams(window.location.search).get('reviewReading') === '1' ? [...readingLogs,...seedLogs] : seedLogs;
   const [disciplines,setDisciplines] = React.useState(seedInsights);
   const [reviewLogs,setReviewLogs] = React.useState(initialLogs);
+  const reviewPublicRefreshRef = React.useRef(null);
+  const [refreshScenarioStatus,setRefreshScenarioStatus] = React.useState('');
   const rows = React.useRef([...seedInsights,...initialLogs]); const imageUrls = React.useRef(new Map()); const imageFiles=React.useRef(new Map());
   React.useEffect(()=>()=>imageUrls.current.forEach(url=>URL.revokeObjectURL(url)),[]);
   const db = React.useMemo(()=>({
@@ -115,5 +117,14 @@ export default function ReviewJournalPreview({language,onBack,marketColorMode,na
     removeReviewJournalImage:async path=>{const url=imageUrls.current.get(path);if(url)URL.revokeObjectURL(url);imageUrls.current.delete(path);imageFiles.current.delete(path);},
   }),[]);
   if(!import.meta.env.DEV)return null;
-  return <ReviewJournalPage ctx={{db,userId:OWNER,language,disciplines,reviewLogs,setDisciplines,setReviewLogs,stockTrades,onBack,marketColorMode,usdCny:7.12,fxDate:'2026-11-07T00:00:00Z',navigationTab,previewData:{initialAllScope:new URLSearchParams(window.location.search).get('reviewScope')||undefined,timeline,initialTimeline:new URLSearchParams(window.location.search).get('reviewTimeline')==='1',identity:{nickname:'波段玩家1836',avatarKey:'gold'},history,market,account}}}/>;
+  return <>
+    <details style={{padding:'calc(env(safe-area-inset-top) + 12px) 16px 12px',fontSize:13,color:'#94a3b8'}}>
+      <summary>本地刷新验收 · 示例数据</summary>
+      <button type="button" style={{padding:'12px 8px'}} onClick={async()=>{db.setReviewPublicPreviewScenario('empty');await reviewPublicRefreshRef.current?.();setRefreshScenarioStatus('示例列表已清空');}}>清空示例公开列表</button>
+      <button type="button" style={{padding:'12px 8px'}} onClick={()=>{db.setReviewPublicPreviewScenario('published');setRefreshScenarioStatus('已模拟其他账号发布，等待自动读取');}}>模拟其他账号发布</button>
+      <button type="button" style={{padding:'12px 8px'}} onClick={async()=>{await reviewPublicRefreshRef.current?.();setRefreshScenarioStatus('手动读取完成');}}>读取最新示例</button>
+      {refreshScenarioStatus&&<p role="status">{refreshScenarioStatus}</p>}
+    </details>
+    <ReviewJournalPage ctx={{db,userId:OWNER,language,disciplines,reviewLogs,setDisciplines,setReviewLogs,stockTrades,onBack,marketColorMode,usdCny:7.12,fxDate:'2026-11-07T00:00:00Z',navigationTab,reviewPublicRefreshRef,previewData:{initialAllScope:new URLSearchParams(window.location.search).get('reviewScope')||undefined,timeline,initialTimeline:new URLSearchParams(window.location.search).get('reviewTimeline')==='1',identity:{nickname:'波段玩家1836',avatarKey:'gold'},history,market,account}}}/>
+  </>;
 }

@@ -125,8 +125,18 @@ function PublicReplies({ post, db, userId, language, marketColorMode, onSelectSy
 
 const blankFeed = key => ({ key, posts: [], status: 'loading', error: '', hasMore: false, nextCursor: null, more: false });
 const errorMessage = (failure, english) => failure?.message || (english ? 'Public activity is unavailable. Please retry.' : '公开动态暂时无法读取，请重试。');
+// PostgreSQL pagination retains microseconds. Compare the whole second and the
+// complete fractional part separately instead of truncating through Date alone.
+const beforePublicCursor = (post, cursor) => {
+  const postSecond = Math.floor(Date.parse(post.publishedAt) / 1000), cursorSecond = Math.floor(Date.parse(cursor.publishedAt) / 1000);
+  if (postSecond !== cursorSecond) return postSecond < cursorSecond;
+  const postFraction = post.publishedAt.match(/\.(\d+)/)?.[1] || '', cursorFraction = cursor.publishedAt.match(/\.(\d+)/)?.[1] || '';
+  const precision = Math.max(postFraction.length, cursorFraction.length);
+  const left = postFraction.padEnd(precision, '0'), right = cursorFraction.padEnd(precision, '0');
+  return left === right ? post.id < cursor.id : left < right;
+};
 
-function ScopedPublicFeed({ db, userId, language = 'zh', marketColorMode, query = '', symbol = '', refreshToken = 0, onManageOwnEntry, onEvaluateOwnEntry, onManageOwnReply, onDetailChange }) {
+function ScopedPublicFeed({ db, userId, language = 'zh', marketColorMode, query = '', symbol = '', refreshToken = 0, refreshRef, active = true, onManageOwnEntry, onEvaluateOwnEntry, onManageOwnReply, onDetailChange }) {
   const english = language.startsWith('en');
   const [localSymbol, setLocalSymbol] = React.useState('');
   const [retry, setRetry] = React.useState(0), [detailRetry, setDetailRetry] = React.useState(0);
@@ -141,8 +151,14 @@ function ScopedPublicFeed({ db, userId, language = 'zh', marketColorMode, query 
   const readyPost = currentDetail?.requestKey === feedKey && currentDetail.status === 'ready' ? currentDetail.post : null;
   const detailId = React.useRef(null); detailId.current = currentDetail?.id || null;
   const detailCallback = React.useRef(onDetailChange); detailCallback.current = onDetailChange;
-  const alive = React.useRef(true), paging = React.useRef(false), pendingLikes = React.useRef(new Set()), likeVersions = React.useRef(new Map()), withdrawn = React.useRef(new Set());
+  const alive = React.useRef(true), paging = React.useRef(false), pendingLikes = React.useRef(new Set()), likeVersions = React.useRef(new Map()), withdrawn = React.useRef(new Map());
+  const withdrawalEpoch = React.useRef(0), withdrawalHistory = React.useRef(new Map());
   const isCurrent = () => alive.current && currentKey.current === feedKey && scopeVersion.current === version;
+  const activity = React.useRef(active); activity.current = active;
+  const feedRequest = React.useRef(null), detailRequest = React.useRef(null), refreshRequest = React.useRef(null);
+  const feedSerial = React.useRef(0), detailSerial = React.useRef(0), lastRefresh = React.useRef(0);
+  const latestRefresh = React.useRef(null);
+  const canRefresh = () => activity.current && userId && (typeof document === 'undefined' || document.visibilityState !== 'hidden');
   const scrollPosition = React.useRef(0);
   const commentsRef = React.useRef(null), pendingComments = React.useRef(false);
   const historyToken = React.useRef(null), historyRoutes = React.useRef(new Map()), navigation = React.useRef(null);
@@ -182,54 +198,166 @@ function ScopedPublicFeed({ db, userId, language = 'zh', marketColorMode, query 
     }
   }, [scopeKey]);
   React.useEffect(() => { setLocalSymbol(''); }, [symbol, query]);
-  React.useEffect(() => {
-    let active = true;
-    paging.current = false; setFeed(blankFeed(feedKey)); setLikes({}); pendingLikes.current.clear(); withdrawn.current.clear();
-    if (!userId) { setFeed({ ...blankFeed(feedKey), status: 'error', error: english ? 'Sign in to view public activity.' : '登录后可查看公开动态。' }); return undefined; }
-    Promise.resolve().then(() => {
+  const reconcileLikes = (posts, versions, pendingAtStart) => {
+    setLikes(old => {
+      const next = { ...old };
+      for (const post of posts) {
+        if (!pendingAtStart.has(post.id) && !pendingLikes.current.has(post.id)
+          && (versions.get(post.id) || 0) === (likeVersions.current.get(post.id) || 0)) delete next[post.id];
+      }
+      return next;
+    });
+  };
+  const restorePublication = (id, epochAtStart) => {
+    if (withdrawalHistory.current.get(id) !== epochAtStart) return false;
+    withdrawn.current.delete(id);
+    return true;
+  };
+  const markWithdrawn = id => {
+    const epoch = ++withdrawalEpoch.current;
+    withdrawalHistory.current.set(id, epoch); withdrawn.current.set(id, epoch);
+  };
+  const readFeed = ({ preserveTail = false } = {}) => {
+    if (feedRequest.current?.key === feedKey) {
+      if (!preserveTail) feedRequest.current.preserveTail = false;
+      return feedRequest.current.promise;
+    }
+    const serial = ++feedSerial.current;
+    const versions = new Map(likeVersions.current), pendingAtStart = new Set(pendingLikes.current);
+    const withdrawalsAtStart = new Map(withdrawalHistory.current);
+    paging.current = false;
+    setFeed(old => old.key === feedKey ? { ...old, more: false, error: '' } : blankFeed(feedKey));
+    const request = { key: feedKey, preserveTail, promise: null };
+    request.promise = Promise.resolve().then(() => {
       if (typeof db.fetchReviewPublicFeed !== 'function') throw new Error(english ? 'Public activity has not been configured.' : '公开动态尚未配置，请稍后重试。');
       return db.fetchReviewPublicFeed({ limit: 20, query, symbol: symbol || localSymbol }, userId);
     }).then(result => {
-      if (!active || !isCurrent()) return;
-      setFeed({ ...blankFeed(feedKey), ...result, posts: result.posts.filter(post => !withdrawn.current.has(post.id)), status: 'ready' });
+      if (!isCurrent() || serial !== feedSerial.current) return;
+      const fresh = result.posts.filter(post => restorePublication(post.id, withdrawalsAtStart.get(post.id)));
+      setFeed(old => {
+        const freshIds = new Set(fresh.map(post => post.id));
+        const tail = request.preserveTail && result.hasMore && result.nextCursor && old.key === feedKey
+          ? old.posts.filter(post => !freshIds.has(post.id) && !withdrawn.current.has(post.id) && beforePublicCursor(post, result.nextCursor)) : [];
+        // With an overlap, the already loaded tail retains its older cursor. If
+        // a whole page of new posts arrived, paginate from the new boundary so
+        // the unseen gap is not skipped, while keeping existing cards visible.
+        const overlaps = tail.length && fresh.some(post => old.posts.some(item => item.id === post.id));
+        return { ...blankFeed(feedKey), ...result, posts: [...fresh, ...tail], status: 'ready',
+          ...(overlaps ? { hasMore: old.hasMore, nextCursor: old.nextCursor } : {}) };
+      });
+      reconcileLikes(result.posts, versions, pendingAtStart);
     }).catch(failure => {
-      if (active && isCurrent()) setFeed({ ...blankFeed(feedKey), status: 'error', error: errorMessage(failure, english) });
-    });
-    return () => { active = false; };
-  }, [db, userId, feedKey]);
-
-  React.useEffect(() => {
-    if (!currentDetail?.id) return undefined;
-    let active = true;
-    const id = currentDetail.id, likeVersion = likeVersions.current.get(id) || 0, hadPendingLike = pendingLikes.current.has(id);
+      if (!isCurrent() || serial !== feedSerial.current) return;
+      setFeed(old => ({ ...(old.key === feedKey ? old : blankFeed(feedKey)), more: false,
+        status: old.key === feedKey && old.posts.length ? 'ready' : 'error', error: errorMessage(failure, english) }));
+      throw failure;
+    }).finally(() => { if (feedRequest.current === request) feedRequest.current = null; });
+    feedRequest.current = request;
+    return request.promise;
+  };
+  const readDetail = (id, hidePrevious = false) => {
+    if (detailRequest.current?.key === feedKey && detailRequest.current.id === id) return detailRequest.current.promise;
+    const serial = ++detailSerial.current;
+    const versions = new Map(likeVersions.current), pendingAtStart = new Set(pendingLikes.current);
+    const withdrawalAtStart = withdrawalHistory.current.get(id);
     const detailContext = { id, scopeKey, requestKey: feedKey };
-    setDetail({ ...detailContext, status: 'loading', post: null, error: '' });
-    Promise.resolve().then(() => db.fetchReviewPublicPost(id, userId)).then(post => {
-      if (!active || !isCurrent() || detailId.current !== id || withdrawn.current.has(id)) return;
+    if (hidePrevious) setDetail({ ...detailContext, status: 'loading', post: null, error: '' });
+    const request = { key: feedKey, id, promise: null };
+    request.promise = Promise.resolve().then(() => db.fetchReviewPublicPost(id, userId)).then(post => {
+      if (!isCurrent() || serial !== detailSerial.current || detailId.current !== id) return;
       if (!post) {
-        withdrawn.current.add(id);
+        markWithdrawn(id);
         setFeed(old => ({ ...old, posts: old.posts.filter(item => item.id !== id) }));
         setDetail({ ...detailContext, status: 'missing', post: null, error: '' }); return;
       }
+      if (!restorePublication(id, withdrawalAtStart)) return;
       setDetail({ ...detailContext, status: 'ready', post, error: '' });
       setFeed(old => ({ ...old, posts: old.posts.map(item => item.id === id ? post : item) }));
-      if (!hadPendingLike && !pendingLikes.current.has(id) && (likeVersions.current.get(id) || 0) === likeVersion) setLikes(old => { const next = { ...old }; delete next[id]; return next; });
+      reconcileLikes([post], versions, pendingAtStart);
     }).catch(failure => {
-      if (active && isCurrent() && detailId.current === id && !withdrawn.current.has(id)) setDetail({ ...detailContext, status: 'error', post: null, error: errorMessage(failure, english) });
-    });
-    return () => { active = false; };
+      if (!isCurrent() || serial !== detailSerial.current || detailId.current !== id || withdrawn.current.has(id)) return;
+      setDetail({ ...detailContext, status: 'error', post: null, error: errorMessage(failure, english) });
+      throw failure;
+    }).finally(() => { if (detailRequest.current === request) detailRequest.current = null; });
+    detailRequest.current = request;
+    return request.promise;
+  };
+  const refresh = ({ automatic = false } = {}) => {
+    if (!isCurrent() || !canRefresh()) return Promise.resolve();
+    if (refreshRequest.current?.key === feedKey && refreshRequest.current.id === detailId.current) {
+      if (!automatic && feedRequest.current?.key === feedKey) feedRequest.current.preserveTail = false;
+      return refreshRequest.current.promise;
+    }
+    // Returning to the foreground may emit focus, pageshow and visibilitychange
+    // together. They share one bounded refresh, including any initial request.
+    if (automatic && Date.now() - lastRefresh.current < 1000) return Promise.resolve();
+    lastRefresh.current = Date.now();
+    const request = { key: feedKey, id: detailId.current, promise: null };
+    const reads = [readFeed({ preserveTail: automatic })];
+    if (detailId.current) reads.push(readDetail(detailId.current));
+    request.promise = Promise.allSettled(reads).then(results => {
+      if (!isCurrent()) return;
+      const failed = results.find(result => result.status === 'rejected');
+      if (failed) throw failed.reason;
+    }).finally(() => { if (refreshRequest.current === request) refreshRequest.current = null; });
+    refreshRequest.current = request;
+    return request.promise;
+  };
+  latestRefresh.current = refresh;
+  React.useEffect(() => {
+    paging.current = false; setFeed(blankFeed(feedKey)); setLikes({}); pendingLikes.current.clear(); withdrawn.current.clear(); withdrawalHistory.current.clear();
+    lastRefresh.current = 0;
+    if (!userId) { setFeed({ ...blankFeed(feedKey), status: 'error', error: english ? 'Sign in to view public activity.' : '登录后可查看公开动态。' }); return undefined; }
+    if (canRefresh()) { lastRefresh.current = Date.now(); readFeed().catch(() => {}); }
+    return () => { feedSerial.current += 1; feedRequest.current = null; refreshRequest.current = null; };
+  }, [db, userId, feedKey]);
+
+  React.useEffect(() => {
+    if (!currentDetail?.id || !canRefresh()) return undefined;
+    readDetail(currentDetail.id, true).catch(() => {});
+    return () => { detailSerial.current += 1; detailRequest.current = null; };
   }, [db, userId, currentDetail?.id, detailRetry, feedKey]);
 
+  React.useEffect(() => {
+    if (!active || !userId) return undefined;
+    let timer, disposed = false;
+    const manualRefresh = () => latestRefresh.current();
+    if (refreshRef) refreshRef.current = manualRefresh;
+    const schedule = () => {
+      clearTimeout(timer);
+      if (!disposed && canRefresh()) timer = setTimeout(() => {
+        timer = null;
+        latestRefresh.current({ automatic: true }).catch(() => {}).finally(schedule);
+      }, 30000);
+    };
+    const resume = () => {
+      clearTimeout(timer);
+      if (!canRefresh()) return;
+      latestRefresh.current({ automatic: true }).catch(() => {}).finally(schedule);
+    };
+    for (const event of ['focus', 'pageshow', 'online']) window.addEventListener?.(event, resume);
+    if (typeof document !== 'undefined') document.addEventListener?.('visibilitychange', resume);
+    resume();
+    return () => {
+      disposed = true; clearTimeout(timer);
+      if (refreshRef?.current === manualRefresh) refreshRef.current = null;
+      for (const event of ['focus', 'pageshow', 'online']) window.removeEventListener?.(event, resume);
+      if (typeof document !== 'undefined') document.removeEventListener?.('visibilitychange', resume);
+    };
+  }, [active, userId, refreshRef]);
+
   const loadMore = async () => {
-    if (paging.current || feed.key !== feedKey || feed.status !== 'ready' || !feed.hasMore || !feed.nextCursor) return;
+    if (paging.current || feedRequest.current?.key === feedKey || feed.key !== feedKey || feed.status !== 'ready' || !feed.hasMore || !feed.nextCursor) return;
+    const serial = feedSerial.current;
     paging.current = true; setFeed(old => ({ ...old, more: true, error: '' }));
     try {
       const result = await db.fetchReviewPublicFeed({ limit: 20, query, symbol: symbol || localSymbol, cursor: feed.nextCursor }, userId);
-      if (!isCurrent()) return;
-      setFeed(old => ({ ...old, posts: [...new Map([...old.posts, ...result.posts].filter(post => !withdrawn.current.has(post.id)).map(post => [post.id, post])).values()], hasMore: result.hasMore, nextCursor: result.nextCursor, more: false }));
+      if (!isCurrent() || serial !== feedSerial.current) return;
+      setFeed(old => ({ ...old, posts: [...new Map([...old.posts, ...result.posts].filter(post => !withdrawn.current.has(post.id)).map(post => [post.id, post])).values()]
+        .sort((left, right) => beforePublicCursor(left, right) ? 1 : -1), hasMore: result.hasMore, nextCursor: result.nextCursor, more: false }));
     } catch (failure) {
-      if (isCurrent()) setFeed(old => ({ ...old, more: false, error: errorMessage(failure, english) }));
-    } finally { if (isCurrent()) paging.current = false; }
+      if (isCurrent() && serial === feedSerial.current) setFeed(old => ({ ...old, more: false, error: errorMessage(failure, english) }));
+    } finally { if (isCurrent() && serial === feedSerial.current) paging.current = false; }
   };
   const display = post => ({ ...post, ...(likes[post.id] || {}) });
   const like = async post => {
@@ -245,7 +373,7 @@ function ScopedPublicFeed({ db, userId, language = 'zh', marketColorMode, query 
     } catch (failure) {
       if (!isCurrent()) return;
       if (failure?.code === 'REVIEW_PUBLIC_NOT_FOUND') {
-        withdrawn.current.add(id);
+        markWithdrawn(id);
         setFeed(old => ({ ...old, posts: old.posts.filter(item => item.id !== id), error: english ? 'This post is no longer public.' : '这条博文已不再公开。' }));
         setLikes(old => { const next = { ...old }; delete next[id]; return next; });
         if (detailId.current === id) setDetail({ id, scopeKey, requestKey: feedKey, status: 'missing', post: null, error: '' });
