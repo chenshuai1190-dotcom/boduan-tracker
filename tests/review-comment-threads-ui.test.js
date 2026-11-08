@@ -1,10 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { readFileSync } from 'node:fs';
 import { transformWithOxc } from 'vite';
 import { compareReviewCommentTime, mergeReviewCommentReplies, mergeReviewCommentThreads } from '../src/lib/reviewCommentThreads.js';
 
+const systemIdentitySource = readFileSync(new URL('../src/components/ReviewSystemIdentity.jsx', import.meta.url), 'utf8');
 const source = readFileSync(new URL('../src/components/ReviewCommentThreads.jsx', import.meta.url), 'utf8');
 const walk = value => !React.isValidElement(value) ? Array.isArray(value) ? value.flatMap(walk) : [] : [value, ...walk(value.props.children)];
 const words = value => !React.isValidElement(value) ? Array.isArray(value) ? value.map(words).join('') : String(value ?? '') : words(value.props.children);
@@ -39,6 +41,8 @@ async function harness(initial = {}) {
       const React = { ...ActualReact, useState: fixture.useState, useRef: fixture.useRef, useEffect: fixture.useEffect };
       const { requestAnimationFrame } = fixture;
       const ReviewActivityTime = props => React.createElement('time', {dateTime:props.createdAt}, props.date);
+      const avatar = '/test/quote-system-fox.jpg';
+      ${systemIdentitySource.slice(systemIdentitySource.indexOf('export function'))}
       ${source.slice(source.indexOf('const empty'))}
     `, 'ReviewCommentThreadUITest.jsx', { jsx: { runtime: 'classic' } });
     component = (await import(`data:text/javascript;base64,${Buffer.from(transformed.code).toString('base64')}`)).default;
@@ -449,4 +453,17 @@ test('legacy author comments sort using server cursor time without inventing the
  const later=comment('later',{createdAt:'2026-11-07T00:00:00.000002Z'});
  assert.ok(compareReviewCommentTime(later,old)>0);
  const rows=mergeReviewCommentReplies([later],[old]);assert.deepEqual(rows.map(row=>row.id),['legacy','later']);assert.equal(rows[0].createdAt,null);
+});
+
+test('comment bylines label verified assistants without promoting a user who merely chose Quote as nickname',async()=>{
+ for(const assistant of [true,false]){
+  const author={nickname:'Quote',...(assistant?{isAssistant:true}:{})};
+  const h=await harness();const tree=await h.load(roots([{root:comment('quote',{author}),replyCount:0}]));
+  const markup=renderToStaticMarkup(tree);
+  assert.equal(markup.includes('rj-system-badge'),assistant);
+  const byline=walk(tree).find(node=>node.type==='button'&&node.props.className==='rpf-reply-author');
+  byline.props.onClick();assert.equal(h.repliesTo[0].author.isAssistant===true,assistant);
+  if(assistant)assert.match(markup,/Quote<\/strong><span class="rj-system-badge">小助手/);
+  h.unmount();
+ }
 });

@@ -17,6 +17,10 @@ import { getStockValuation } from '../server/quote/stockDecisionValuation.js';
 import { fetchMacroSnapshot } from '../server/macro/MacroDataService.js';
 
 export default async function handler(req, res) {
+  if (req.query?.view === 'assistant') {
+    const { default: handleAssistant } = await import('../server/assistant/handler.js');
+    return handleAssistant(req, res);
+  }
   setCorsHeaders(req, res);
   const authRequired = process.env.QUOTE_API_AUTH_REQUIRED !== 'false';
   const dcaViewPresent = [req.query?.view].flat().includes('dca-history');

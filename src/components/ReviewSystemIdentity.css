@@ -1,3 +1,5 @@
 .rj-avatar.rj-system-avatar{background:#000}
 .rj-avatar.rj-system-avatar>img{object-fit:cover;transform:scale(1.6);transform-origin:50% 10%}
-.rj-post-heading .rj-system-badge{display:inline-flex;align-items:center;flex:none;padding:1px 5px;border-radius:4px;background:#24272d;color:#a2a8b1;font-size:10px;font-weight:400;line-height:16px}
+.rj-system-badge{display:inline-flex;align-items:center;flex:none;padding:1px 5px;border-radius:4px;background:#24272d;color:#a2a8b1;font-size:10px;font-weight:400;line-height:16px}
+
+.rpf-reply-author>.rj-system-badge{margin-left:5px;vertical-align:middle}.rpf-reply-author>strong{font-weight:600}

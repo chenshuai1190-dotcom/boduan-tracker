@@ -5,6 +5,7 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { transformWithOxc } from 'vite';
 
+const systemIdentitySource = readFileSync(new URL('../src/components/ReviewSystemIdentity.jsx', import.meta.url), 'utf8');
 const source = readFileSync(new URL('../src/components/ReviewPublicFeed.jsx', import.meta.url), 'utf8');
 const css = readFileSync(new URL('../src/components/ReviewPublicFeed.css', import.meta.url), 'utf8');
 const journalCss = readFileSync(new URL('../src/pages/ReviewJournalPage.css', import.meta.url), 'utf8');
@@ -73,6 +74,8 @@ async function harness() {
       const SnapshotCard = () => React.createElement('section', null, '市场快照');
       const EvaluationRating = () => React.createElement('div', null, '评分及标签');
       const ReviewAccountCard = () => React.createElement('section', null, '账户快照');
+      const avatar = '/test/quote-system-fox.jpg';
+      ${systemIdentitySource.slice(systemIdentitySource.indexOf('export function'))}
       ${source.slice(source.indexOf('// Share only in-flight'))}
       export { ReviewActivityTime, ScopedPublicFeed, PublicPost, PublicReplies, PublicDetailSkeleton, PublicTradeReferences, PublicMedia, PublicAvatarMedia, reviewPublicAvatarCache, ReviewPostBody, EvaluationRating, ReviewAccountCard, SnapshotCard };
     `, 'ReviewPublicFeedUITest.jsx', { jsx: { runtime: 'classic' } });
@@ -1080,4 +1083,18 @@ test('public detail forwards only its own saved reply target while retaining a s
   tree = section.render(section.components.PublicReplies, { ...props, replyTarget: { ...target, postId: 'log:another' } });
   assert.equal(walk(tree).find(node => node.type === section.components.ReviewCommentThreads).props.replyTarget, null);
   section.unmount();
+});
+
+test('only verified assistant authors use the shared fox identity in public posts and avatars',async()=>{
+ const h=await harness();
+ for(const assistant of [true,false]){
+  const author={nickname:'Quote',avatarKey:'fox',...(assistant?{isAssistant:true}:{})};
+  const tree=h.render(h.components.PublicPost,{post:post('log:quote',{author}),db:h.db,userId:'viewer',language:'zh'});
+  const markup=renderToStaticMarkup(tree);
+  assert.equal(markup.includes('rj-system-badge'),assistant);
+  assert.equal(markup.includes('quote-system-fox.jpg'),assistant);
+  if(assistant)assert.match(markup,/Quote<\/strong><span class="rj-system-badge">小助手/);
+  else assert.match(markup,/<strong>Quote<\/strong>/);
+ }
+ assert.equal(h.requests.filter(row=>row.kind==='avatar').length,0,'verified assistant avatar is a bundled asset');h.unmount();
 });

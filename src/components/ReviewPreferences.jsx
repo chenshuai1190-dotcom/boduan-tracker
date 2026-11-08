@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check, Loader2 } from 'lucide-react';
+import { Check, ChevronRight, Loader2 } from 'lucide-react';
 import { REVIEW_TIMELINE_DISPLAY_GROUPS, isReviewTimelineGroupEnabled, setReviewTimelineGroupEnabled } from '../lib/reviewPreferences.js';
 import './ReviewPreferences.css';
 
@@ -12,13 +12,14 @@ function Switch({ checked, disabled, onChange, title, children }) {
 }
 
 /** A normal subpage. Header/back navigation is owned by the journal route. */
-export default function ReviewPreferences({ identityNode, preferences, ready, loading = false, canEdit = ready, saving = false, error = '', onChange, onRetry, language = 'zh' }) {
+export default function ReviewPreferences({ identityNode, preferences, ready, loading = false, canEdit = ready, saving = false, error = '', onChange, onRetry, onOpenAssistant, language = 'zh' }) {
   const en = language.startsWith('en');
   const disabled = !ready || !canEdit || loading || saving;
   const types = preferences.eventTypes || [];
   const toggleGroup = (id, enabled) => onChange({ eventTypes: setReviewTimelineGroupEnabled(types, id, enabled) });
   return <section className="rjp-settings" aria-label={label(en, '动态设置', 'Feed settings')}>
     <div className="rjp-settings-identity">{identityNode}</div>
+    {onOpenAssistant && <button type="button" className="rjp-setting-row" onClick={onOpenAssistant}><span className="rjp-setting-copy"><strong>Quote 小助手</strong><span>对话、复盘、观点回访与我的记忆</span></span><ChevronRight size={18}/></button>}
     {loading && <p className="rjp-save-state" role="status"><Loader2 size={14} className="rj-spin" />{label(en, '正在读取显示偏好', 'Loading display preferences')}</p>}
     {saving && <p className="rjp-save-state" role="status"><Loader2 size={14} className="rj-spin" />{label(en, '正在保存', 'Saving')}</p>}
     {error && <div className="rjp-settings-error" role="alert"><span>{error}</span><button type="button" onClick={onRetry} disabled={loading || saving}>{label(en, '重试', 'Retry')}</button></div>}

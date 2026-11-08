@@ -5,6 +5,7 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { transformWithOxc } from 'vite';
 
+const systemIdentitySource = readFileSync(new URL('../src/components/ReviewSystemIdentity.jsx', import.meta.url), 'utf8');
 const source = readFileSync(new URL('../src/components/ReviewNotifications.jsx', import.meta.url), 'utf8');
 const walk = value => !React.isValidElement(value) ? Array.isArray(value) ? value.flatMap(walk) : [] : [value, ...walk(value.props.children)];
 const words = value => !React.isValidElement(value) ? Array.isArray(value) ? value.map(words).join('') : String(value ?? '') : words(value.props.children);
@@ -57,6 +58,8 @@ async function harness() {
       const { window, document, Date, setTimeout, clearTimeout } = fixture;
       const PublicAvatar = ({ post }) => React.createElement('img', { alt: post.author.nickname, className: 'rj-avatar' });
       const ReviewActivityTime = ({ createdAt }) => React.createElement('time', { dateTime: createdAt }, '3 分钟前');
+      const avatar = '/test/quote-system-fox.jpg';
+      ${systemIdentitySource.slice(systemIdentitySource.indexOf('export function'))}
       ${source.slice(source.indexOf('const unavailable'))}
     `, 'ReviewNotificationsUITest.jsx', { jsx: { runtime: 'classic' } });
     component = (await import(`data:text/javascript;base64,${Buffer.from(compiled.code).toString('base64')}`)).default;
@@ -398,4 +401,17 @@ test('account switch during the second batch prevents remaining batches and stal
   secondBatch.resolve({ unreadCount: 1 }); await marking; tree = h.render();
   assert.equal(h.requests.filter(request => request.kind === 'read').length, 2); assert.equal(h.counts.at(-1), 7);
   assert.equal(rows(tree)[0].props['data-unread'], true); assert.equal(button(tree, '取消'), undefined); assert.equal(h.opened.length, 0); h.unmount();
+});
+
+test('notifications preserve verified assistant identity through avatar props and visible byline only',async()=>{
+ for(const assistant of [true,false]){
+  const actor={nickname:'Quote',avatarKey:'fox',...(assistant?{isAssistant:true}:{})};
+  const h=await harness();const tree=await h.load([item('quote',{actor})]);
+  const markup=renderToStaticMarkup(tree);
+  assert.equal(markup.includes('rj-system-badge'),assistant);
+  const avatar=walk(tree).find(node=>node.props.post?.author===actor);
+  assert.ok(avatar,'actor identity reaches shared PublicAvatar');
+  if(assistant)assert.match(markup,/Quote<\/strong><span class="rj-system-badge">小助手/);
+  h.unmount();
+ }
 });

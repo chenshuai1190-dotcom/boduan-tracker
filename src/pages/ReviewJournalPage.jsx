@@ -15,6 +15,9 @@ import ReviewTimeline from '../components/ReviewTimeline.jsx';
 import ReviewTimelinePost from '../components/ReviewTimelinePost.jsx';
 import { ReviewSystemAvatar, ReviewSystemName } from '../components/ReviewSystemIdentity.jsx';
 import ReviewPreferences from '../components/ReviewPreferences.jsx';
+import QuoteAssistantWorkbench from '../components/QuoteAssistantWorkbench.jsx';
+import { quoteAssistantApi } from '../lib/quoteAssistantApi.js';
+import { createQuoteAssistantSaveBridge } from '../lib/quoteAssistantTriggers.js';
 import useReviewPreferences from '../hooks/useReviewPreferences.js';
 import ReviewNotifications from '../components/ReviewNotifications.jsx';
 import useReviewNotificationCount from '../hooks/useReviewNotificationCount.js';
@@ -247,6 +250,32 @@ function Composer({ entry, defaultType, identity, userId, db, onSaved, onClose, 
 export default function ReviewJournalPage({ ctx }) {
   const { db, userId, language='zh', disciplines=[], reviewLogs=[], setDisciplines, setReviewLogs, stockTrades=[], onBack, previewData, marketColorMode, usdCny = null, fxDate = '', navigationTab = false, reviewPublicRefreshRef, reviewFeedUnread, reviewOpenAllRequest = 0 } = ctx;
   const preview = Boolean(import.meta.env.DEV && previewData);
+  const assistantApi = preview ? previewData?.assistantApi : quoteAssistantApi;
+  const assistantRequestRef = useRef(null);
+  const assistantBridge = useMemo(() => createQuoteAssistantSaveBridge(db, {userId,request:payload=>assistantRequestRef.current?.(payload)}),[db,userId]);
+  const assistantJournalDb = useMemo(()=>assistantApi?({...db,...assistantBridge}):db,[db,assistantBridge,assistantApi]);
+  const [assistantStatus,setAssistantStatus]=useState(null);
+  const assistantScope=useRef({userId});
+  if(assistantScope.current.userId!==userId)assistantScope.current={userId};
+  useEffect(()=>{const scope=assistantScope.current;return()=>{if(assistantScope.current===scope)assistantScope.current={userId:null};};},[userId]);
+  const requestAssistant=async payload=>{
+    if(!assistantApi)return;
+    const scope=assistantScope.current;
+    setAssistantStatus({userId,status:'running',payload});
+    try {
+      const state=await assistantApi.state(userId);
+      if(assistantScope.current!==scope)return;
+      if(!state.configured||state.enabled===false)throw new Error(state.configurationError||'小助手尚未配置；你的内容已正常保存。');
+      const previous=state.jobs.find(job=>job.id===payload.requestId);
+      const result=previous?.status==='failed'?await assistantApi.retry({id:previous.id,revision:previous.revision},userId):await assistantApi.run(payload,userId);
+      if(assistantScope.current!==scope)return;
+      const job=result?.job||result;
+      if(job?.status==='failed')throw new Error(job.errorMessage||'小助手暂未回复；你的内容已正常保存。');
+      setAssistantStatus({userId,status:job?.status==='published'?'done':'queued',payload,job});
+      setPublicRefresh(value=>value+1);
+    } catch(failure) { if(assistantScope.current===scope)setAssistantStatus({userId,status:'failed',payload,error:failure?.message||'小助手暂未回复；你的内容已正常保存。'}); }
+  };
+  assistantRequestRef.current=requestAssistant;
   const preferenceState = useReviewPreferences({ db, userId, preview, previewPreferences: previewData?.preferences });
   const { preferences, ready: preferencesReady } = preferenceState;
   const currencyProps = { displayCurrency: preferences.currency, usdCny, fxDate };
@@ -288,7 +317,7 @@ export default function ReviewJournalPage({ ctx }) {
   const [timelineAttempt,setTimelineAttempt]=useState(0);
   const loadedTimelineAttempt = useRef(-1);
   const pendingFeedAnchor = useRef(null);
-  const [composer,setComposer]=useState(null); const [menu,setMenu]=useState(null); const [detailKey,setDetailKey]=useState(null);
+  const [composer,setComposer]=useState(null); const [menu,setMenu]=useState(null); const [detailKey,setDetailKey]=useState(()=>preview&&previewData?.initialAssistant?'assistant':null);
   const [tagSymbol,setTagSymbol]=useState(''); const [routeId,setRouteId]=useState('root');
   const publicFeedVisible=filter==='all'&&allScope==='public'&&!tagSymbol;
   const evaluationKey=detailKey||(publicFeedVisible&&publicDetail&&publicEvaluationContext?.userId===userId?publicEvaluationContext.key:null);
@@ -364,6 +393,7 @@ export default function ReviewJournalPage({ ctx }) {
   const selectedTimelineEvent=resolveReviewTimelineEvent(timelineEvents,timelineEventId);
   const isTimelineDetail=Boolean(timelineEventId);
   const isSettings=detailKey==='settings';
+  const isAssistant=detailKey==='assistant';
   const isNotifications=detailKey==='notifications';
   const activeReplyMenu=replyMenu?.userId===userId&&replyMenu.entryKey===evaluationKey?replyMenu:null;
   const editingSource=editingEvaluation?.userId===userId&&editingEvaluation.entryKey===evaluationKey
@@ -375,7 +405,7 @@ export default function ReviewJournalPage({ ctx }) {
     const event=resolveReviewTimelineEvent(timelineEvents,key.slice(9));
     return event?reviewTimelineAnchorEntry(event,storedTimelineEntries):null;
   };
-  const showingDetail=Boolean(detail)||isTimelineDetail||isSettings||isNotifications;
+  const showingDetail=Boolean(detail)||isTimelineDetail||isSettings||isNotifications||isAssistant;
   const notificationCount=useReviewNotificationCount({db,userId,enabled:!showingDetail&&!publicDetail&&!composer});
   const openNotification=(target,item)=>{
     const route={id:crypto.randomUUID(),key:null,symbol:'',parent:routeId};
@@ -421,7 +451,7 @@ export default function ReviewJournalPage({ ctx }) {
       const state=event.state?.reviewJournalEntry;
       const known=state?.token===historyToken.current?routes.current.get(state.id):null;
       // Only this mount's own routes can restore a private entry or stock view.
-      const valid=known&&(!known.key||known.key==='settings'||known.key==='notifications'||findReviewEntryByKey(navigation.current.entries,known.key));
+      const valid=known&&(!known.key||known.key==='settings'||known.key==='notifications'||known.key==='assistant'||findReviewEntryByKey(navigation.current.entries,known.key));
       applyRoute(valid?known:rootRoute);
     };
     window.addEventListener?.('popstate',onPopState);
@@ -561,11 +591,11 @@ export default function ReviewJournalPage({ ctx }) {
       {attachments(entry)}
       {!full&&<div className="rj-post-actions"><button onClick={event=>openDetail(entry,event)} aria-label="查看评论"><MessageCircle size={18}/><span>{(entry.replies?.length||0)+(communityCounts.userId===userId?communityCounts.values[entryKey(entry)]||0:0)||'评论'}</span></button></div>}
     </div></article>;
-  const evaluationDb=useMemo(()=>isTimelineDetail?{...db,appendReviewJournalReply:(entry,reply,expectedUserId)=>db.appendReviewTimelineReply(entry,reply,expectedUserId)}:db,[db,isTimelineDetail]);
+  const evaluationDb=useMemo(()=>isTimelineDetail?{...db,appendReviewJournalReply:(entry,reply,expectedUserId)=>db.appendReviewTimelineReply(entry,reply,expectedUserId)}:assistantJournalDb,[db,assistantJournalDb,isTimelineDetail]);
   const communityDb=useMemo(()=>({...db,
-    appendReviewJournalReply:(entry,reply,expectedUserId)=>db.saveReviewCommunityEvaluation(entry.communityPostId,entry.communityReplyTo?{...reply,replyTo:{kind:entry.communityReplyTo.kind,id:entry.communityReplyTo.id}}:reply,expectedUserId),
+    appendReviewJournalReply:(entry,reply,expectedUserId)=>assistantBridge.appendCommunityReply(entry,reply,expectedUserId),
     updateReviewJournalReply:(entry,original,reply,expectedUserId)=>db.saveReviewCommunityEvaluation(entry.communityPostId,{...reply,id:original.id,revision:original.revision,replyTo:original.replyTo?{kind:original.replyTo.kind,id:original.replyTo.id}:null},expectedUserId),
-  }),[db]);
+  }),[db,assistantBridge]);
   const communityEntry=(post,replyTo=null)=>({id:post.sourceId,type:post.type,communityPostId:post.id,communityReplyTo:replyTo,date:post.date,text:post.text,stocks:post.stocks||[],visibility:post.visibility||'public'});
   const privateCommunityPost=!isTimelineDetail?privateCommentPosts[0]||null:null;
   const evaluationEditorProps={identityNode:<><Avatar identity={identity} userId={userId} preview={preview}/><div><AuthorName identity={identity}/><span>现在的评价 · {evaluationDetail?.visibility==='public'?'公开可见':'仅自己可见'}</span></div></>,db:evaluationDb,userId,stockTrades,onSaved:saved,Dialog,EmojiPicker,
@@ -588,10 +618,10 @@ export default function ReviewJournalPage({ ctx }) {
         {typeof db.fetchReviewCommentThreads==='function'?privateCommentPosts.map(post=><ReviewCommentThreads key={`${userId}:${post.id}`} postId={post.id} db={db} userId={userId} language={language} marketColorMode={marketColorMode} onSelectSymbol={openStockTag} refreshToken={`${publicRefresh}:${post.sourceEntry.revision||0}`} showEmpty={privateCommentPosts.length===1} onCountChange={updateCommunityCount} replyTarget={submittedReplyTarget?.userId===userId&&submittedReplyTarget.postId===post.id?submittedReplyTarget:null}
           renderAuthorAvatar={()=><Avatar identity={identity} userId={userId} preview={preview}/>}
           renderAuthorContent={reply=>{const original=post.sourceEntry.replies?.find(item=>item.id===reply.id)||reply;return <>{original.text&&<ReplyBody onReply={()=>replyToReview(post,{kind:'author',id:reply.id,authorId:userId,nickname:identity?.nickname,available:true})} language={language}><p className="rev-reply-body">{original.text}</p></ReplyBody>}{entryNotes(original)}{attachments(original)}</>;}}
-          onReply={reply=>replyToReview(post,{kind:reply.kind||reply.source||'community',id:reply.id,authorId:reply.authorId,nickname:reply.author?.nickname,available:true})}
+          onReply={reply=>replyToReview(post,{kind:reply.kind||reply.source||'community',id:reply.id,authorId:reply.authorId,nickname:reply.author?.nickname,...(reply.author?.isAssistant?{isAssistant:true}:{}),available:true})}
           onManageReply={reply=>{if((reply.kind||reply.source)==='author'){const shown=reviewAuthorCommentForManagement(post,reply);if(!shown)return;setReplyMenu({userId,entryKey:detailKey,reply:shown,confirmDelete:false});setError('');}else manageCommunityReply(post,reply);}}/>):<>
         {(detail.replies||[]).map(item=><div className="rj-reply" key={reviewTimelineReplyKey(item)} data-rj-reply-id={item.id}><Avatar identity={identity} userId={userId} preview={preview}/><div><div className="rev-reply-byline">{privateCommunityPost?<button type="button" className="rpf-reply-author" onClick={()=>replyToReview(privateCommunityPost,{kind:'author',id:item.id,authorId:userId,nickname:identity?.nickname,available:true})}><AuthorName identity={identity}/></button>:<AuthorName identity={identity}/>}<span>·</span><ReviewActivityTime createdAt={item.createdAt} date={item.date} language={language}/><button type="button" className="rj-icon rj-reply-more" aria-label="评论操作" disabled={busy} onClick={()=>{setReplyMenu({userId,entryKey:detailKey,reply:item,confirmDelete:false});setError('');}}><MoreHorizontal size={19}/></button></div><EvaluationRating score={item.score} tags={item.tags}/>{item.text&&<ReplyBody onReply={privateCommunityPost?()=>replyToReview(privateCommunityPost,{kind:'author',id:item.id,authorId:userId,nickname:identity?.nickname,available:true}):undefined} language={language}><p className="rev-reply-body">{item.text}</p></ReplyBody>}{entryNotes(item)}{attachments(item)}{privateCommunityPost&&<button type="button" className="rpf-reply-action" onClick={()=>replyToReview(privateCommunityPost,{kind:'author',id:item.id,authorId:userId,nickname:identity?.nickname,available:true})}>回复</button>}</div></div>)}
-        {privateCommunityPost&&<ReviewCommunityEvaluations key={`${userId}:${privateCommunityPost.id}`} postId={privateCommunityPost.id} db={db} userId={userId} language={language} marketColorMode={marketColorMode} onSelectSymbol={openStockTag} refreshToken={publicRefresh} showEmpty={!detail.replies?.length} onCountChange={updateCommunityCount} onManageReply={reply=>manageCommunityReply(privateCommunityPost,reply)} onReply={reply=>replyToReview(privateCommunityPost,{kind:'community',id:reply.id,authorId:reply.authorId,nickname:reply.author?.nickname,available:true})}/>}
+        {privateCommunityPost&&<ReviewCommunityEvaluations key={`${userId}:${privateCommunityPost.id}`} postId={privateCommunityPost.id} db={db} userId={userId} language={language} marketColorMode={marketColorMode} onSelectSymbol={openStockTag} refreshToken={publicRefresh} showEmpty={!detail.replies?.length} onCountChange={updateCommunityCount} onManageReply={reply=>manageCommunityReply(privateCommunityPost,reply)} onReply={reply=>replyToReview(privateCommunityPost,{kind:'community',id:reply.id,authorId:reply.authorId,nickname:reply.author?.nickname,...(reply.author?.isAssistant?{isAssistant:true}:{}),available:true})}/>}
         </>}
         {isTimelineDetail&&!detail.replies?.length&&<p className="rj-note">还没有评论，写下现在对当时的评价。</p>}
         {error&&!menu&&!activeReplyMenu&&<p role="alert" className="rj-error">{error}</p>}
@@ -599,13 +629,19 @@ export default function ReviewJournalPage({ ctx }) {
   return <div className={`rj-page ${navigationTab?'rj-navigation-tab':''} ${showingDetail||(publicFeedVisible&&publicDetail)?'rj-entry-page':''} ${isTimelineDetail?'rj-timeline-detail':''} ${isSettings?'rj-settings-page':''}`}><header className="rj-page-header" hidden={isNotifications||(publicFeedVisible&&publicDetail&&!showingDetail)}>
     {showingDetail||tagSymbol?<button className="rj-icon" aria-label="返回投资动态" onClick={closeDetail}><ArrowLeft size={22}/></button>
       :<button className="rj-header-avatar" aria-label={language==='en'?'Activity settings':'动态设置'} onClick={event=>navigate('settings','',event)}><Avatar identity={identity} userId={userId} preview={preview}/></button>}
-    <h1 ref={pageTitle} tabIndex={-1}>{isSettings?(language==='en'?'Activity Settings':'动态设置'):isTimelineDetail?(language==='en'?'Timeline Event':'时间线记录'):showingDetail?(language==='en'?'Content Details':'内容详情'):tagSymbol?`$${tagSymbol}`:(language==='en'?'Investment Activity':'投资动态')}</h1>
+    <h1 ref={pageTitle} tabIndex={-1}>{isAssistant?'Quote 小助手':isSettings?(language==='en'?'Activity Settings':'动态设置'):isTimelineDetail?(language==='en'?'Timeline Event':'时间线记录'):showingDetail?(language==='en'?'Content Details':'内容详情'):tagSymbol?`$${tagSymbol}`:(language==='en'?'Investment Activity':'投资动态')}</h1>
     {showingDetail||tagSymbol?<span className="rj-header-spacer"/>:<div className="rj-header-actions"><button type="button" className="rj-icon rj-notification-bell" aria-label={language==='en'?`Messages${notificationCount.unreadCount>0?` · ${notificationCount.unreadCount} unread`:''}`:`消息${notificationCount.unreadCount>0?` · ${notificationCount.unreadCount} 条未读`:''}`} onClick={event=>navigate('notifications','',event)}><Bell size={21}/>{notificationCount.unreadCount>0&&<span className="rj-notification-badge" aria-hidden="true">{notificationCount.unreadCount>99?'99+':notificationCount.unreadCount}</span>}{notificationCount.error&&<span className="rj-notification-unavailable" aria-hidden="true">!</span>}</button>{filter!=='timeline'&&<button className="rj-icon" aria-label="搜索动态" aria-pressed={search} onClick={()=>{setSearch(!search);setQuery('');}}><Search size={21}/></button>}</div>}
   </header>
     {preview&&<div className="rj-preview-note">本地预览 · 示例记录 · 不写入真实账户</div>}
     {identityError&&<button className="rj-identity-error" onClick={()=>setIdentityAttempt(value=>value+1)}>{identity ? '资料暂未更新，点击重试' : '资料暂未读取，点击重试'}</button>}
     {isNotifications&&<ReviewNotifications key={userId} db={db} userId={userId} language={language} onBack={closeDetail} onOpen={openNotification} onUnreadCountChange={notificationCount.update} refreshRef={reviewPublicRefreshRef}/>}
-    {isSettings&&<ReviewPreferences identityNode={<><Avatar identity={identity} userId={userId} preview={preview}/><AuthorName identity={identity}/></>} {...preferenceState} onChange={preferenceState.updatePreferences} onRetry={preferenceState.retry} language={language}/>}
+    {isSettings&&<ReviewPreferences identityNode={<><Avatar identity={identity} userId={userId} preview={preview}/><AuthorName identity={identity}/></>} {...preferenceState} onChange={preferenceState.updatePreferences} onRetry={preferenceState.retry} onOpenAssistant={event=>navigate('assistant','',event)} language={language}/>}
+    {isAssistant&&assistantApi&&<QuoteAssistantWorkbench key={userId} api={assistantApi} db={db} Dialog={Dialog} userId={userId} language={language} preview={preview} onPublished={()=>setPublicRefresh(value=>value+1)} onOpenPost={(postId,source)=>{if(source?.scope==='milestone'){const entry=storedTimelineEntries.find(row=>`log:${row.id}`===postId);if(entry)navigate(`timeline:${entry.timelineEvent.id}`,'');else setError('这条时间线记录暂未读取，请刷新后重试。');}else openNotification({postId},{id:null});}}/>}
+    {assistantStatus?.userId===userId&&<div className="rj-assistant-status" role={assistantStatus.status==='failed'?'alert':'status'} style={{padding:'10px 18px',fontSize:14,color:assistantStatus.status==='failed'?'#e6aaa2':'#aab9ca'}}>
+      {assistantStatus.status==='running'?'内容已保存，Quote 正在回复…':assistantStatus.status==='done'?'Quote 已完成回复。':assistantStatus.status==='queued'?'内容已保存，小助手任务已提交，可在任务记录中查看进度。':assistantStatus.error}
+      {assistantStatus.status==='failed'&&<button type="button" className="rj-text-button" onClick={()=>requestAssistant(assistantStatus.payload)}>重试小助手</button>}
+      {assistantStatus.status!=='running'&&<button type="button" className="rj-text-button" onClick={()=>setAssistantStatus(null)}>关闭</button>}
+    </div>}
     <div className="rj-list-page" hidden={showingDetail}>
       {!tagSymbol&&!(publicFeedVisible&&publicDetail)&&<div className="rj-scope-navigation" ref={scopeRef}>
         <nav className="rj-tabs" aria-label="复盘分类" data-public-unread={showPrivateUnread||undefined}>
@@ -639,7 +675,7 @@ export default function ReviewJournalPage({ ctx }) {
     {menu&&<Dialog title={confirmDelete?'删除这条记录？':'记录操作'} onClose={()=>{if(!busy){setMenu(null);setConfirmDelete(false);setError('');}}}><div className="rj-dialog-body">{error&&<p className="rj-error" role="alert">{error}</p>}{confirmDelete?<><p className="rj-note">正文、关联信息及评论将一起删除。</p><button className="rj-wide-button rj-danger" disabled={busy} onClick={()=>mutate(async()=>{await db.deleteReviewJournalEntry(menu,userId);await Promise.allSettled([...new Set([...(menu.images||[]),...(menu.replies||[]).flatMap(item=>item.images||[])].map(image=>image.path))].map(path=>db.removeReviewJournalImage(path,userId)));(menu.type==='insight'?setDisciplines:setReviewLogs)(old=>old.filter(row=>row.id!==menu.id));setMenu(null);setPublicRefresh(value=>value+1);if(detailKey===entryKey(menu))closeDetail();})}>确认删除</button></>:<><button className="rj-menu-item" onClick={()=>{setComposer({entry:menu});setMenu(null);}}><Pencil size={18}/>编辑记录</button>{!tagSymbol&&filter!=='all'&&<button className="rj-menu-item" disabled={busy} onClick={()=>mutate(async()=>{saved(await db.saveReviewJournalEntry({...menu,pinned:!menu.pinned},userId));setMenu(null);})}><Pin size={18}/>{menu.pinned?'取消置顶':'置顶'}</button>}<button className="rj-menu-item rj-danger" onClick={()=>setConfirmDelete(true)}><Trash2 size={18}/>删除记录</button></>}</div></Dialog>}
     {activeReplyMenu&&<Dialog title={activeReplyMenu.confirmDelete?'删除这条评价？':'评论操作'} onClose={()=>{if(!busy){setReplyMenu(null);setError('');}}}><div className="rj-dialog-body">{error&&<p className="rj-error" role="alert">{error}</p>}{activeReplyMenu.confirmDelete?<><p className="rj-note">这条评价及其中的关联内容将从博文中移除，原始交易记录不受影响。</p><button type="button" className="rj-wide-button rj-danger" disabled={busy} onClick={()=>mutate(async()=>{const source=resolveReviewReplySource(evaluationDetail,activeReplyMenu.reply,storedTimelineEntries);if(!source)throw new Error('记录已不存在，请刷新后重试。');const updated=await db.deleteReviewJournalReply(source.entry,source.reply,userId);saved(updated);setReplyMenu(null);})}>{busy?'删除中…':'确认删除评价'}</button><button type="button" className="rj-wide-button" disabled={busy} onClick={()=>{setReplyMenu(null);setError('');}}>取消</button></>:<><button type="button" className="rj-menu-item" onClick={()=>{closeEvaluations();setEditingEvaluation({userId,entryKey:evaluationKey,reply:activeReplyMenu.reply,sessionId:crypto.randomUUID()});setReplyMenu(null);setError('');}}><Pencil size={18}/>修改评价</button><button type="button" className="rj-menu-item rj-danger" onClick={()=>setReplyMenu({...activeReplyMenu,confirmDelete:true})}><Trash2 size={18}/>删除评价</button></>}</div></Dialog>}
     {activeCommunityMenu&&<Dialog title={activeCommunityMenu.confirmDelete?(activeCommunityIsReply?'删除这条回复？':'删除这条评价？'):'评论操作'} onClose={()=>{if(!busy){setCommunityReplyMenu(null);setError('');}}}><div className="rj-dialog-body">{error&&<p className="rj-error" role="alert">{error}</p>}{activeCommunityMenu.confirmDelete?<><p className="rj-note">这条{activeCommunityIsReply?'回复':'评价'}及其中的关联内容将从博文中移除，原始交易记录不受影响。</p><button type="button" className="rj-wide-button rj-danger" disabled={busy} onClick={()=>mutate(async()=>{await db.deleteReviewCommunityEvaluation(activeCommunityMenu.post.id,activeCommunityMenu.reply,userId);if(navigation.current.userId!==userId)return;communitySaved();setCommunityReplyMenu(null);})}>{busy?'删除中…':activeCommunityIsReply?'确认删除回复':'确认删除评价'}</button><button type="button" className="rj-wide-button" disabled={busy} onClick={()=>{setCommunityReplyMenu(null);setError('');}}>取消</button></>:<><button type="button" className="rj-menu-item" onClick={()=>{setCommunityDrafts(old=>old.map(item=>({...item,open:false})));setCommunityEditing({...activeCommunityMenu,sessionId:crypto.randomUUID()});setCommunityReplyMenu(null);setError('');}}><Pencil size={18}/>{activeCommunityIsReply?'修改回复':'修改评价'}</button><button type="button" className="rj-menu-item rj-danger" onClick={()=>setCommunityReplyMenu({...activeCommunityMenu,confirmDelete:true})}><Trash2 size={18}/>{activeCommunityIsReply?'删除回复':'删除评价'}</button></>}</div></Dialog>}
-    {composer&&<Composer entry={composer.entry} defaultType={filter==='insight'?'insight':'log'} identity={identity} userId={userId} db={db} language={language} onSaved={entry=>{saved(entry);if(filter==='all'){setAllScope(entry.visibility==='public'?'public':'private');if(!composer.entry)window.requestAnimationFrame?.(()=>{if(navigation.current.userId===userId)window.scrollTo({left:0,top:0,behavior:'instant'});});}}} onClose={()=>setComposer(null)} suggestions={suggestions} preview={preview} previewMarket={previewData?.market}/>}
+    {composer&&<Composer entry={composer.entry} defaultType={filter==='insight'?'insight':'log'} identity={identity} userId={userId} db={assistantJournalDb} language={language} onSaved={entry=>{saved(entry);if(filter==='all'){setAllScope(entry.visibility==='public'?'public':'private');if(!composer.entry)window.requestAnimationFrame?.(()=>{if(navigation.current.userId===userId)window.scrollTo({left:0,top:0,behavior:'instant'});});}}} onClose={()=>setComposer(null)} suggestions={suggestions} preview={preview} previewMarket={previewData?.market}/>}
     {evaluations.filter(evaluation=>evaluation.userId===userId&&findReviewEntryByKey(all,evaluation.key)).map(evaluation=><ReviewEvaluationComposer {...evaluationEditorProps} key={`${userId}:${evaluation.key}`} open={evaluation.open&&evaluationKey===evaluation.key&&!editingEntry} entry={evaluationEntryForKey(evaluation.key)} onClose={()=>setEvaluations(old=>old.map(item=>item.userId===userId&&item.key===evaluation.key?{...item,open:false}:item))}/>)}
     {editingEntry&&<ReviewEvaluationComposer {...evaluationEditorProps} key={`${userId}:${editingEvaluation.entryKey}:${editingEntry.id}:${editingEvaluation.reply.id}:${editingEvaluation.sessionId}`} open entry={editingEntry} reply={editingSource.reply} onClose={()=>setEditingEvaluation(null)}/>}
     {communityDrafts.filter(item=>item.userId===userId).map(item=><ReviewEvaluationComposer {...communityEditorProps(item.replyTo,item.post.id)} key={`${userId}:community:${item.key}`} open={item.open&&allowedCommunityPostIds.includes(item.post.id)&&!activeCommunityEdit} entry={communityEntry(item.post,item.replyTo)} replyTarget={item.replyTo} onClose={()=>setCommunityDrafts(old=>old.map(draft=>draft.userId===userId&&draft.key===item.key?{...draft,open:false}:draft))}/>)}

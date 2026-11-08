@@ -1,4 +1,5 @@
 import React from 'react';
+import { createQuoteAssistantPreview } from './quoteAssistantPreview.js';
 import { createReviewPublicPreview, reviewPreviewEntryTimestamps } from './reviewPublicPreview.js';
 import { createReviewTimelinePreview } from './reviewTimelinePreview.js';
 import ReviewJournalPage from '../pages/ReviewJournalPage.jsx';
@@ -77,7 +78,7 @@ export default function ReviewJournalPreview({language,onBack,marketColorMode,na
     pending.forEach(request => failed ? request.reject(new Error('模拟网络失败，请重试。')) : request.resolve());
   };
   React.useEffect(() => () => detailWaiters.current.splice(0).forEach(request => request.reject(new Error('预览已关闭'))), []);
-  const initialLogs = new URLSearchParams(window.location.search).get('reviewPublicOwner') === '1' ? [{...evaluationLog,visibility:'public',publishedAt:'2026-11-08T04:00:00Z'},...seedLogs] : new URLSearchParams(window.location.search).get('reviewEvaluation') === '1' ? [evaluationLog,...seedLogs] : new URLSearchParams(window.location.search).get('reviewReading') === '1' ? [...readingLogs,...seedLogs] : seedLogs;
+  const initialLogs = new URLSearchParams(window.location.search).get('quoteAssistant')==='1' ? [{...base,id:'local-quote-ai-source',type:'log',date:'2026-11-08',visibility:'public',text:'示例观点：这次先把观察条件写下来，一个月后再回看判断。'},...seedLogs] : new URLSearchParams(window.location.search).get('reviewPublicOwner') === '1' ? [{...evaluationLog,visibility:'public',publishedAt:'2026-11-08T04:00:00Z'},...seedLogs] : new URLSearchParams(window.location.search).get('reviewEvaluation') === '1' ? [evaluationLog,...seedLogs] : new URLSearchParams(window.location.search).get('reviewReading') === '1' ? [...readingLogs,...seedLogs] : seedLogs;
   const [disciplines,setDisciplines] = React.useState(seedInsights);
   const [reviewLogs,setReviewLogs] = React.useState(initialLogs);
   const reviewPublicRefreshRef = React.useRef(null);
@@ -88,6 +89,7 @@ export default function ReviewJournalPreview({language,onBack,marketColorMode,na
   const [avatarPageVersion,setAvatarPageVersion] = React.useState(0), [avatarReopen,setAvatarReopen] = React.useState(false);
   const avatarPageRef = React.useRef(null);
   const rows = React.useRef([...seedInsights,...initialLogs]); const imageUrls = React.useRef(new Map()); const imageFiles=React.useRef(new Map());
+  const assistantApi = React.useMemo(()=>createQuoteAssistantPreview({userId:OWNER,getEntries:()=>rows.current}),[]);
   React.useEffect(()=>()=>imageUrls.current.forEach(url=>URL.revokeObjectURL(url)),[]);
   const db = React.useMemo(()=>({
     ...createReviewPublicPreview({ownerId:OWNER,getEntries:()=>rows.current,getImage:path=>imageFiles.current.get(path),market:snapshot,notifications:true,threaded:true,
@@ -168,7 +170,7 @@ export default function ReviewJournalPreview({language,onBack,marketColorMode,na
   const reopenAvatarArticle=message=>{setAvatarScenarioStatus(message);setAvatarReopen(true);setAvatarPageVersion(value=>value+1);};
   if(!import.meta.env.DEV)return null;
   if(new URLSearchParams(window.location.search).get('reviewReplayCache')==='1')return <React.Suspense fallback={null}><ReviewReplayCachePreview snapshot={snapshot}/></React.Suspense>;
-  const journal=<ReviewJournalPage key={avatarCacheEnabled?avatarPageVersion:'default'} ctx={{db,userId:OWNER,language,disciplines,reviewLogs,setDisciplines,setReviewLogs,stockTrades,onBack,marketColorMode,usdCny:7.12,fxDate:'2026-11-07T00:00:00Z',navigationTab,reviewPublicRefreshRef,reviewFeedUnread,reviewOpenAllRequest,previewData:{initialAllScope:avatarCacheEnabled?'public':new URLSearchParams(window.location.search).get('reviewScope')||undefined,timeline,initialTimeline:new URLSearchParams(window.location.search).get('reviewTimeline')==='1',identity:{nickname:'波段玩家1836',avatarKey:'gold'},history,market,account}}}/>;
+  const journal=<ReviewJournalPage key={avatarCacheEnabled?avatarPageVersion:'default'} ctx={{db,userId:OWNER,language,disciplines,reviewLogs,setDisciplines,setReviewLogs,stockTrades,onBack,marketColorMode,usdCny:7.12,fxDate:'2026-11-07T00:00:00Z',navigationTab,reviewPublicRefreshRef,reviewFeedUnread,reviewOpenAllRequest,previewData:{assistantApi,initialAssistant:new URLSearchParams(window.location.search).get('quoteAssistant')==='1',initialAllScope:avatarCacheEnabled?'public':new URLSearchParams(window.location.search).get('reviewScope')||undefined,timeline,initialTimeline:new URLSearchParams(window.location.search).get('reviewTimeline')==='1',identity:{nickname:'波段玩家1836',avatarKey:'gold'},history,market,account}}}/>;
   return <>
     {detailLoadingEnabled&&<section aria-label="本地详情加载验收" style={{padding:'calc(env(safe-area-inset-top) + 12px) 16px 12px',fontSize:13,color:'#94a3b8',background:'#11151b'}}>
       <strong>详情加载验收 · 本地示例，不写真实数据</strong>

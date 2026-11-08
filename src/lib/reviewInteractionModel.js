@@ -45,7 +45,8 @@ export function mapReviewThreadComment(value, postId) {
     || !timestamp(value.sortCreatedAt) || value.createdAt != null && !timestamp(value.createdAt) || typeof value.deleted !== 'boolean' || !count(value.directReplyCount)) return invalid();
   const target = normalizeReviewCommentTarget(value), reaction = mapReviewEvaluationLike(value);
   const author = { nickname: normalizeCommunityNickname(value.author.nickname) || 'Quote 用户',
-    avatarKey: normalizeCommunityAvatarKey(value.author.avatarKey), avatarPath: normalizeCommunityAvatarPath(value.author.avatarPath,value.authorId) };
+    avatarKey: normalizeCommunityAvatarKey(value.author.avatarKey), avatarPath: normalizeCommunityAvatarPath(value.author.avatarPath,value.authorId),
+    ...(value.author.isAssistant === true ? { isAssistant: true } : {}) };
   let payload;
   if (value.deleted) payload = { date: value.sortCreatedAt.slice(0,10), text:'', score:null, tags:[],images:[],stocks:[],trades:[],market:null,account:null,mood:'',replyTo:null };
   else if (value.kind === 'community') payload = mapReviewCommunityEvaluation(value,postId);

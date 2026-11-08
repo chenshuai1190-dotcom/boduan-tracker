@@ -9,6 +9,7 @@ import ReviewActivityTime from './ReviewActivityTime.js';
 import ReviewCommentThreadList from './ReviewCommentThreads.jsx';
 import { reviewPublicAvatarCache } from '../lib/reviewPublicAvatarCache.js';
 import { reviewCommentAccessRevoked } from '../lib/reviewCommentThreads.js';
+import { ReviewSystemAvatar, ReviewSystemName } from './ReviewSystemIdentity.jsx';
 import './ReviewPublicFeed.css';
 
 // Share only in-flight attachment downloads. Avatars use the separate bounded
@@ -83,6 +84,7 @@ function PublicAvatarMedia({ db, userId, path }) {
 }
 
 export function PublicAvatar({ post, db, userId }) {
+  if (post.author?.isAssistant === true) return <ReviewSystemAvatar/>;
   const preset = getCommunityAvatarOption(post.author?.avatarKey).src;
   return <span className="rj-avatar rpf-avatar">{post.author?.avatarPath
     ? <PublicAvatarMedia db={db} userId={userId} path={post.author.avatarPath} />
@@ -105,7 +107,7 @@ function PublicPost({ post, full = false, db, userId, language, onOpen, onLike, 
     }}>
     <PublicAvatar post={post} db={db} userId={userId} language={language} />
     <div className="rj-post-main">
-      <div className="rj-post-heading"><strong>{post.author?.nickname || (english ? 'Quote user' : 'Quote 用户')}</strong><span>·</span><ReviewActivityTime createdAt={post.publishedAt} date={post.date} language={language}/>{post.authorId === userId && typeof onManageOwnEntry === 'function' && <button type="button" className="rj-icon rj-post-more" disabled={interactionsDisabled} aria-label={english ? 'Record actions' : '记录操作'} onClick={event => { event.stopPropagation(); if (!interactionsDisabled) onManageOwnEntry(post.type, post.sourceId); }}><MoreHorizontal size={19}/></button>}</div>
+      <div className="rj-post-heading">{post.author?.isAssistant === true ? <ReviewSystemName language={language}/> : <strong>{post.author?.nickname || (english ? 'Quote user' : 'Quote 用户')}</strong>}<span>·</span><ReviewActivityTime createdAt={post.publishedAt} date={post.date} language={language}/>{post.authorId === userId && typeof onManageOwnEntry === 'function' && <button type="button" className="rj-icon rj-post-more" disabled={interactionsDisabled} aria-label={english ? 'Record actions' : '记录操作'} onClick={event => { event.stopPropagation(); if (!interactionsDisabled) onManageOwnEntry(post.type, post.sourceId); }}><MoreHorizontal size={19}/></button>}</div>
       <ReviewPostBody text={post.text} candidates={post.stocks} onSelectSymbol={onSelectSymbol} language={language} full={full} expanded={expanded} onToggle={() => setExpanded(value => !value)} />
       {!!post.images?.length && <div className={`rj-photo-grid rj-images-${post.images.length} rpf-images`}>{post.images.map(item => <span key={item.path} className="rpf-image"><PublicMedia db={db} userId={userId} path={item.path} language={language} /></span>)}</div>}
       {!!post.stocks?.length && <div className="rpf-symbols">{post.stocks.map(symbol => <button key={symbol} type="button" onClick={event => onSelectSymbol(symbol, event)}>${symbol}</button>)}</div>}
@@ -204,7 +206,7 @@ export function ReviewCommunityEvaluations({ postId, db, userId, language = 'zh'
   };
   return <div className="rpf-community-replies" ref={listRef}>
     {owned.targetError&&<p className="rj-note" role="status">{owned.targetError}</p>}
-    {shownReplies.map(reply => <div className={`rj-reply${reply.id===notificationTarget?.commentId?' rpf-notification-target':''}`} tabIndex={reply.id===notificationTarget?.commentId?-1:undefined} key={reply.id} data-rj-reply-id={reply.id}><PublicAvatar post={reply} db={db} userId={userId} language={language}/><div><div className="rev-reply-byline"><button type="button" className="rpf-reply-author" disabled={!onReply} onClick={()=>onReply?.(reply)}>{reply.author?.nickname || (english ? 'Quote user' : 'Quote 用户')}</button><span>·</span><ReviewActivityTime createdAt={reply.createdAt} date={reply.date} language={language}/>{reply.authorId === userId && typeof onManageReply === 'function' && <button type="button" className="rj-icon rj-reply-more" aria-label={english ? 'Comment actions' : '评论操作'} onClick={() => onManageReply(reply)}><MoreHorizontal size={19}/></button>}</div>
+    {shownReplies.map(reply => <div className={`rj-reply${reply.id===notificationTarget?.commentId?' rpf-notification-target':''}`} tabIndex={reply.id===notificationTarget?.commentId?-1:undefined} key={reply.id} data-rj-reply-id={reply.id}><PublicAvatar post={reply} db={db} userId={userId} language={language}/><div><div className="rev-reply-byline"><button type="button" className="rpf-reply-author" disabled={!onReply} onClick={()=>onReply?.(reply)}>{reply.author?.isAssistant === true ? <ReviewSystemName language={language}/> : reply.author?.nickname || (english ? 'Quote user' : 'Quote 用户')}</button><span>·</span><ReviewActivityTime createdAt={reply.createdAt} date={reply.date} language={language}/>{reply.authorId === userId && typeof onManageReply === 'function' && <button type="button" className="rj-icon rj-reply-more" aria-label={english ? 'Comment actions' : '评论操作'} onClick={() => onManageReply(reply)}><MoreHorizontal size={19}/></button>}</div>
       {reply.replyTo && <p className="rpf-reply-target">{reply.replyTo.available === false ? (english ? 'Original comment deleted' : '原评论已删除') : `${english ? 'Replying to' : '回复'} @${reply.replyTo.nickname || (english ? 'Quote user' : 'Quote 用户')}`}</p>}
       {!reply.replyTo&&<EvaluationRating score={reply.score} tags={reply.tags || []}/>}
       {reply.text && <ReplyBody onReply={onReply ? ()=>onReply(reply) : undefined} language={language}><ReviewPostBody text={reply.text} candidates={reply.stocks || []} onSelectSymbol={onSelectSymbol} language={language} full/></ReplyBody>}
@@ -255,7 +257,7 @@ function PublicReplies({ post, db, userId, language, marketColorMode, onSelectSy
       interactionsDisabled={interactionsDisabled} onAccessRevoked={onAccessRevoked} loadingPlaceholder={<PublicCommentsSkeleton language={language}/>}
       onCountChange={(postId, communityCount, totalCount) => { setLoadedCount({ key: countKey, count: communityCount, totalCount }); onCommunityCountChange?.(postId, communityCount); }}
       onManageReply={reply => reply.kind === 'author' ? onManageOwnReply?.(post.type, post.sourceId, reply.id) : onManageCommunityReply?.(post, reply)}
-      onReply={onReplyToReview ? reply => onReplyToReview(post, { kind: reply.kind, id: reply.id, authorId: reply.authorId, nickname: reply.author?.nickname, available: true }) : undefined}/>
+      onReply={onReplyToReview ? reply => onReplyToReview(post, { kind: reply.kind, id: reply.id, authorId: reply.authorId, nickname: reply.author?.nickname, ...(reply.author?.isAssistant === true ? { isAssistant: true } : {}), available: true }) : undefined}/>
   </section>;
   // Compatibility for isolated legacy fixtures; formal DB always provides the
   // threaded RPC and never falls back after a permission or network failure.
@@ -265,18 +267,18 @@ function PublicReplies({ post, db, userId, language, marketColorMode, onSelectSy
   </section>;
   return <section ref={sectionRef} className="rj-replies rpf-replies" aria-label={english ? 'Comments' : '评论'}>
     <div className="rj-replies-header"><h2>{english ? 'Comments' : '评论'}{count ? ` · ${count}` : ''}</h2>{evaluate && <button type="button" className="rj-evaluate-button" disabled={interactionsDisabled} onClick={() => { if (!interactionsDisabled) evaluate(); }}>{english ? 'Write review' : '写评价'}</button>}</div>
-    {replies.map(reply => <div className="rj-reply" key={reply.id} data-rj-reply-id={reply.id}><PublicAvatar post={post} db={db} userId={userId} language={language}/><div><div className="rev-reply-byline"><button type="button" className="rpf-reply-author" disabled={!onReplyToReview} onClick={()=>onReplyToReview?.(post,{kind:'author',id:reply.id,authorId:post.authorId,nickname:post.author?.nickname,available:true})}>{post.author?.nickname || (english ? 'Quote user' : 'Quote 用户')}</button><span>·</span><ReviewActivityTime createdAt={reply.createdAt} date={reply.date} language={language}/>{ownPost && typeof onManageOwnReply === 'function' && <button type="button" className="rj-icon rj-reply-more" aria-label={english ? 'Comment actions' : '评论操作'} onClick={() => onManageOwnReply(post.type, post.sourceId, reply.id)}><MoreHorizontal size={19}/></button>}</div>
+    {replies.map(reply => <div className="rj-reply" key={reply.id} data-rj-reply-id={reply.id}><PublicAvatar post={post} db={db} userId={userId} language={language}/><div><div className="rev-reply-byline"><button type="button" className="rpf-reply-author" disabled={!onReplyToReview} onClick={()=>onReplyToReview?.(post,{kind:'author',id:reply.id,authorId:post.authorId,nickname:post.author?.nickname,...(post.author?.isAssistant === true ? {isAssistant:true} : {}),available:true})}>{post.author?.isAssistant === true ? <ReviewSystemName language={language}/> : post.author?.nickname || (english ? 'Quote user' : 'Quote 用户')}</button><span>·</span><ReviewActivityTime createdAt={reply.createdAt} date={reply.date} language={language}/>{ownPost && typeof onManageOwnReply === 'function' && <button type="button" className="rj-icon rj-reply-more" aria-label={english ? 'Comment actions' : '评论操作'} onClick={() => onManageOwnReply(post.type, post.sourceId, reply.id)}><MoreHorizontal size={19}/></button>}</div>
       {!reply.replyTo&&<EvaluationRating score={reply.score} tags={reply.tags || []}/>}
-      {reply.text && <ReplyBody onReply={onReplyToReview ? ()=>onReplyToReview(post,{kind:'author',id:reply.id,authorId:post.authorId,nickname:post.author?.nickname,available:true}) : undefined} language={language}><ReviewPostBody text={reply.text} candidates={reply.stocks || []} onSelectSymbol={onSelectSymbol} language={language} full/></ReplyBody>}
+      {reply.text && <ReplyBody onReply={onReplyToReview ? ()=>onReplyToReview(post,{kind:'author',id:reply.id,authorId:post.authorId,nickname:post.author?.nickname,...(post.author?.isAssistant === true ? {isAssistant:true} : {}),available:true}) : undefined} language={language}><ReviewPostBody text={reply.text} candidates={reply.stocks || []} onSelectSymbol={onSelectSymbol} language={language} full/></ReplyBody>}
       {reply.mood && <p className="rj-note">{english ? 'Mood · ' : '心情 · '}{reply.mood}</p>}
       {!!reply.stocks?.length && <div className="rpf-symbols">{reply.stocks.map(symbol => <button key={symbol} type="button" onClick={event => onSelectSymbol(symbol, event)}>${symbol}</button>)}</div>}
       {!!reply.images?.length && <div className={`rj-photo-grid rj-images-${reply.images.length} rpf-images`}>{reply.images.map(item => <span key={item.path} className="rpf-image"><PublicMedia db={db} userId={userId} path={item.path} language={language}/></span>)}</div>}
       {reply.market && <SnapshotCard value={reply.market} language={language}/>}
       {reply.account && <ReviewAccountCard value={reply.account} marketColorMode={marketColorMode}/>}
       {!!reply.trades?.length && <PublicTradeReferences trades={reply.trades} language={language}/>}
-      {onReplyToReview && <button type="button" className="rpf-reply-action" onClick={()=>onReplyToReview(post,{kind:'author',id:reply.id,authorId:post.authorId,nickname:post.author?.nickname,available:true})}>{english ? 'Reply' : '回复'}</button>}
+      {onReplyToReview && <button type="button" className="rpf-reply-action" onClick={()=>onReplyToReview(post,{kind:'author',id:reply.id,authorId:post.authorId,nickname:post.author?.nickname,...(post.author?.isAssistant === true ? {isAssistant:true} : {}),available:true})}>{english ? 'Reply' : '回复'}</button>}
     </div></div>)}
-    <ReviewCommunityEvaluations notificationTarget={notificationTarget} postId={post.id} db={db} userId={userId} language={language} marketColorMode={marketColorMode} onSelectSymbol={onSelectSymbol} refreshToken={`${post.updatedAt}:${post.commentCount??''}`} showEmpty={!replies.length} onCountChange={(postId,total)=>{setLoadedCount({key:countKey,count:total});onCommunityCountChange?.(postId,total);}} onManageReply={reply => onManageCommunityReply?.(post, reply)} onReply={onReplyToReview ? reply => onReplyToReview(post, {kind:'community',id:reply.id,authorId:reply.authorId,nickname:reply.author?.nickname,available:true}) : undefined}/>
+    <ReviewCommunityEvaluations notificationTarget={notificationTarget} postId={post.id} db={db} userId={userId} language={language} marketColorMode={marketColorMode} onSelectSymbol={onSelectSymbol} refreshToken={`${post.updatedAt}:${post.commentCount??''}`} showEmpty={!replies.length} onCountChange={(postId,total)=>{setLoadedCount({key:countKey,count:total});onCommunityCountChange?.(postId,total);}} onManageReply={reply => onManageCommunityReply?.(post, reply)} onReply={onReplyToReview ? reply => onReplyToReview(post, {kind:'community',id:reply.id,authorId:reply.authorId,nickname:reply.author?.nickname,...(reply.author?.isAssistant === true ? {isAssistant:true} : {}),available:true}) : undefined}/>
   </section>;
 }
 

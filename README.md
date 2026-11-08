@@ -95,7 +95,7 @@ npm run release:verify -- <docs|fast|full> <commit> # 一次等待发布结果
 ## 永久安全规则
 
 - GitHub `main` 是唯一代码源头。禁止直接在 Vercel、浏览器控制台或临时服务器文件中改代码。
-- `EODHD_API_KEY`、`SUPABASE_SERVICE_ROLE_KEY`、`CRON_SECRET` 只能存在于服务端环境；不得放入任何 `VITE_` 变量、日志、截图、测试夹具或仓库文件。
+- `OPENAI_API_KEY`、`EODHD_API_KEY`、`SUPABASE_SERVICE_ROLE_KEY`、`CRON_SECRET` 只能存在于服务端环境；不得放入任何 `VITE_` 变量、日志、截图、测试夹具或仓库文件。
 - SEC EDGAR 只能由服务端访问；可选 `SEC_USER_AGENT` 覆盖值不得放入任何 `VITE_` 变量或客户端代码。
 - `/api/quote`、`/api/earnings-calendar`、P&L、比赛和 realtime relay 必须保持登录鉴权；Cron 和修复入口必须保持 `CRON_SECRET` 保护。
 - 浏览器不得直连或暴露付费行情 token。BTC、指数和股票 realtime 统一走已登录服务端 relay。
@@ -104,6 +104,7 @@ npm run release:verify -- <docs|fast|full> <commit> # 一次等待发布结果
 - TQQQ 正式交易弹窗的 RSI(6) 参考复用同一完成收盘序列，独立显示 ≤30 买入观察、≥70 卖出观察及相邻交易日重新穿越 30／70 的提示。只读参考不修改交易校验、仓位提醒、其他 RSI 规则或账本；仅当前日期录入可显示，历史补录不套用当前指标。合格行情直接复用，缺少行情时仅在弹窗内鉴权按需读取一次，不新增轮询；过期、缺数、未完成收盘均不可用。
 - 首页自选与股票趋势共享 `stockRsi.trendMomentum`，独立保存 RSI 状态、即时背离与 `chaseBuyBlocked`，复用同一 Wilder 序列；70 起超买、80 起强超买。即时参考先按时间选择最近有效收盘/RSI 波段峰：左右各 2 根完整日线确认、同日 RSI 为局部峰且至少 70、相距 5–60 根；不能为了得到背离而退选更早峰值。价格更高且 RSI 更低为 WATCH，价格突破至少 0.5% 且 RSI 下降至少 3 点为 POTENTIAL；后续沿用左右各 3 根的价格 high pivot 检测，以该峰当日复权收盘与 RSI 的高价/低 RSI 关系确认 CONFIRMED，日期只能记为右侧数据完整时。确认最多保留 20 根，价格及 RSI 恢复新高、回撤达到 8% 或 RSI 降至 40 时结束。强超买叠加 POTENTIAL/CONFIRMED 才禁止追买，WATCH 不触发，也不生成 SELL 或改变均线/趋势。旧背离生命周期与其风险评分、股票决策规则保持独立；旧缓存缺少新合同必须显示背离未知。
 - 首页市场洞察三大指数保留内部标识 `GSPC.INDX / NDX.INDX / DJI.INDX`，仅此展示链路通过已鉴权服务端快照读取 Yahoo Finance `^GSPC / ^NDX / ^DJI` 的报价和 1 分钟分时数据，不使用 ETF 冒充指数。报价、昨收和曲线来自同一响应，核验指数身份、币种、美东交易日期及交易时段；首次打开即可读取已有真实走势，不拼接不同来源或日期，不生成模拟价格。盘中前台最多每 60 秒一轮、其他时段每 15 分钟；服务端同实例缓存及并发合并，失败短暂退避、限流延长退避，保留最后有效数据且不倒退报价时间。Yahoo 公共数据接口可能限流或不可用，不保证逐笔实时；接收时间不得冒充报价时间。此变更不影响通用 EODHD 指数兼容接口、BTC、个股实时行情、收益计算或任何交易账本。
+- Quote AI 的个人记忆由模型自动归纳、用户可纠正/删除/暂停，存于本人隔离数据库；公开任务不读取个人记忆或私有账本。生成、记忆更新和发布均受服务端权限、租约与幂等限制；公开源或被引用评论撤回后同步取消派生输出，不按 nickname 认定助手身份。合同与回退边界见 `docs/quote-assistant-contract.md`。
 - 所有用户表必须保持 owner scope。任何 `auth.uid()`、`user_id`、grant、policy、SECURITY DEFINER、trigger、schema 或 migration 变化都属于 FULL。
 - 提交 SQL 文件不会自动修改生产数据库。生产 migration/backfill 必须明确授权，执行前后都要有聚合级 preflight/postflight 和回滚方案。
 - 生产验证不得输出 user id、邮箱、持仓、交易明细、密钥或完整财务金额。
@@ -153,6 +154,7 @@ Frontend：
 
 Server：
 
+- `OPENAI_API_KEY`（Secret；仅服务端）、`QUOTE_ASSISTANT_MODEL`（可选；默认 `gpt-6.1-sol`）、`QUOTE_ASSISTANT_ENABLED=false`（停用生成与定时执行）
 - `EODHD_API_KEY`
 - `SEC_USER_AGENT`（SEC EDGAR 公平访问标识；建议包含应用名与可联系邮箱）
 - `SEC_EARNINGS_AUTO_COVERAGE_ENABLED`（仅服务端，默认关闭；foundation/启用流程见专项文档）

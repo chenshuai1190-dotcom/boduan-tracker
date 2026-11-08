@@ -460,6 +460,8 @@ async function harness({ removeReply, preferences = {}, localPreferences = new M
   try {
     const compiled = await transformWithOxc(`
       import React from ${JSON.stringify(import.meta.resolve('react'))};
+      import { createQuoteAssistantSaveBridge } from ${JSON.stringify(new URL('../src/lib/quoteAssistantTriggers.js', import.meta.url).href)};
+      const quoteAssistantApi={}, QuoteAssistantWorkbench=()=>null;
       import { ArrowLeft, Search, Plus, MoreHorizontal, Pin, MessageCircle, Pencil, Trash2, ChevronDown, Check, Bell } from ${JSON.stringify(import.meta.resolve('lucide-react'))};
       import { reviewJournalFeed, localReviewDate } from ${JSON.stringify(new URL('../src/lib/reviewJournalFeed.js', import.meta.url).href)};
       import { findReviewStockMentions } from ${JSON.stringify(new URL('../src/lib/reviewStockMentions.js', import.meta.url).href)};

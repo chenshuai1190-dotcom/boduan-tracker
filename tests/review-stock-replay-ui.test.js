@@ -109,6 +109,8 @@ async function harness({ observer = true } = {}) {
     `, 'ReviewStockReplayUITest.jsx', { jsx: { runtime: 'classic' } });
     fixture.components = await import(dataUrl(compiled.code));
     const page = await transformWithOxc(`${imports}
+      import { createQuoteAssistantSaveBridge } from ${moduleUrl('quoteAssistantTriggers')};
+      const quoteAssistantApi={}, QuoteAssistantWorkbench=()=>null;
       import { reviewJournalFeed } from ${moduleUrl('reviewJournalFeed')};
       import { readReviewAudiencePreference, writeReviewAudiencePreference } from ${moduleUrl('reviewAudiencePreferences')};
       import { findReviewStockMentions } from ${moduleUrl('reviewStockMentions')};

@@ -2,6 +2,7 @@ import React from 'react';
 import { ChevronDown, Heart, Loader2, MessageCircle, MoreHorizontal } from 'lucide-react';
 import ReviewActivityTime from './ReviewActivityTime.js';
 import { mergeReviewCommentReplies, mergeReviewCommentThreads, reviewCommentAccessRevoked, reviewCommentKey, reviewCommentTarget } from '../lib/reviewCommentThreads.js';
+import { ReviewSystemName } from './ReviewSystemIdentity.jsx';
 import './ReviewCommentThreads.css';
 
 const empty = key => ({ key, status: 'loading', threads: [], children: {}, likes: {}, totalCount: 0, communityCount: 0, hasMore: false, nextCursor: null, error: '', more: false });
@@ -173,7 +174,7 @@ export default function ReviewCommentThreadList({ postId, db, userId, language =
       key={id} data-rj-reply-id={comment.id} data-review-comment-key={id} tabIndex={highlighted ? -1 : undefined}>
       {comment.deleted ? <span className="rj-avatar rct-deleted-avatar" aria-hidden="true"/> : renderAvatar?.(comment)}<div className="rct-main">
         {comment.deleted ? <p className="rj-note">{english ? 'Original comment deleted' : '原评论已删除'}</p> : <>
-          <div className="rev-reply-byline"><button type="button" className="rpf-reply-author" disabled={!onReply || interactionsDisabled} onClick={() => reply(comment, rootKey)}>{nickname}</button><span>·</span><ReviewActivityTime createdAt={comment.createdAt} date={comment.date} language={language}/>
+          <div className="rev-reply-byline"><button type="button" className="rpf-reply-author" disabled={!onReply || interactionsDisabled} onClick={() => reply(comment, rootKey)}>{comment.author?.isAssistant === true ? <ReviewSystemName language={language}/> : nickname}</button><span>·</span><ReviewActivityTime createdAt={comment.createdAt} date={comment.date} language={language}/>
             {comment.authorId === userId && onManageReply && <button type="button" className="rj-icon rj-reply-more" disabled={interactionsDisabled} aria-label={english ? 'Comment actions' : '评论操作'} onClick={() => { if (!interactionsDisabled) onManageReply(comment); }}><MoreHorizontal size={19}/></button>}</div>
           {comment.replyTo && <p className="rpf-reply-target">{comment.replyTo.available === false ? (english ? 'Original comment deleted' : '原评论已删除')
             : <>{english ? 'Replying to' : '回复'} <button type="button" onClick={() => locate(comment.replyTo)}>@{comment.replyTo.nickname || (english ? 'Quote user' : 'Quote 用户')}</button></>}</p>}

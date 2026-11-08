@@ -30,6 +30,15 @@ const USER_TABLES = [
   'cost_basis_trades',
 ].map(table => ({ table, select: 'user_id' }));
 const SERVICE_ONLY_TABLES = [
+  // Quote assistant workspaces are RPC-only, including for their owner.
+  { table: 'quote_assistant_identity', select: 'author_id' },
+  { table: 'quote_assistant_preferences', select: 'owner_id' },
+  { table: 'quote_assistant_memories', select: 'owner_id' },
+  { table: 'quote_assistant_sessions', select: 'owner_id' },
+  { table: 'quote_assistant_subscriptions', select: 'owner_id' },
+  { table: 'quote_assistant_jobs', select: 'owner_id' },
+  { table: 'quote_assistant_sources', select: 'job_id' },
+  { table: 'quote_assistant_comment_sources', select: 'job_id' },
   // Public activity is exposed through authenticated, account-bound RPCs only.
   { table: 'review_public_posts', select: 'author_id' },
   { table: 'review_public_likes', select: 'user_id' },
@@ -56,6 +65,9 @@ const SERVICE_ONLY_TABLES = [
   { table: 'sec_earnings_shared_results', select: 'symbol' },
 ];
 const SERVICE_ONLY_RPCS = [
+  // Read-only actions: an accidentally broadened grant cannot create work.
+  { name: 'quote_assistant_service', body: { p_action: 'identity', p_payload: {} } },
+  { name: 'quote_assistant_fingerprint', body: { p_post_id: null, p_scope: 'public', p_owner: null } },
   { name: 'fetch_review_comment_threads', body: { p_post_id: 'log:rls-probe', p_limit: 1, p_cursor: null, p_locate: null, p_expected_user_id: null } },
   { name: 'fetch_review_comment_thread_replies', body: { p_post_id: 'log:rls-probe', p_root: { kind: 'author', id: 'rls-probe' }, p_limit: 1, p_cursor: null, p_locate: null, p_expected_user_id: null } },
   { name: 'fetch_review_evaluation_likes', body: { p_post_id: 'log:rls-probe', p_targets: [], p_expected_user_id: null } },
@@ -283,6 +295,8 @@ const SERVICE_ONLY_RPCS = [
   },
 ];
 const AUTHENTICATED_USER_RPCS = [
+  { name: 'quote_assistant_user', body: { p_action: 'state', p_payload: {}, p_expected_user_id: null } },
+  { name: 'quote_assistant_author_id', body: {} },
   {name:'fetch_review_activity_notifications',body:{p_limit:1,p_before:null,p_before_id:null,p_filter:'all',p_expected_user_id:null}},
   {name:'fetch_review_activity_notification_count',body:{p_expected_user_id:null}},
   {name:'mark_review_activity_notifications_read',body:{p_ids:[],p_before:null,p_before_id:null,p_expected_user_id:null}},

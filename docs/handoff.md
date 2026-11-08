@@ -1,18 +1,19 @@
 # boduan-tracker 当前交接
-验证时间：`2026-11-08 Asia/Shanghai`。v615 及历史走势图复用已发布；v616 候选为默认首条回复、其余回复按需展开和新回复自动定位。稳定规则看 `README.md`，流程看 `docs/development-process.md`。
+验证时间：`2026-11-08 Asia/Shanghai`。v616 首条回复预览已发布；v617 候选为 Quote AI 小助手、自动记忆和五类公开场景。稳定规则看 `README.md`，流程看 `docs/development-process.md`。
 
 ## 当前生产基准
 | 项目 | 当前值 |
 | --- | --- |
 | 仓库 | `chenshuai1190-dotcom/boduan-tracker`；唯一发布来源 `main` |
 | 当前工作区 | `/Users/chenshuaishuai/Documents/Codex/2026-10-03/quote-boduan-tracker-2026-10-03/work/quiet-input-fields` |
-| 发布前生产 | `c5df3f84e4619c0f88e2e50ce90095f39053bb28 / v10.7.9.615`；`https://boduan-tracker.vercel.app`；精确提交 CI、Vercel 与生产静态产物验证通过 |
-| 本次候选版本 | `v10.7.9.616 / 2026-11-08`：公开、私密和时间线评论默认展示最早可见回复，多条显示其余条数；保存回复及通知自动定位；先应用 `review_thread_preview_reply_20261108.sql` 兼容只读 RPC 迁移 |
+| 发布前生产 | `b716bc2596b9c35685dfc651d59fddd7e882ccc4 / v10.7.9.616`；`https://boduan-tracker.vercel.app`；精确提交 CI、Vercel 与生产静态产物验证通过 |
+| 本次候选版本 | `v10.7.9.617 / 2026-11-08`：真实 OpenAI Responses、连续私聊与自动记忆、公开 @ 回复、复盘/回访/周报/里程碑；先应用 `quote_assistant_foundation_20261108.sql`，再部署 runtime；不得将本地样例称为真实回答 |
 | 数据库规格 | 同日经用户确认由 Pro / Nano 切换为 Pro / Micro（1 GB，共享 CPU，新加坡），控制台已生效，新增计算费用为 0；应用与 Auth 基础可用性通过，未据此推断提速幅度 |
 | 已生效云端配置 | 基础迁移及 `supabase/review_display_preferences_return_drawdown_20261107.sql` 已应用；五个 nullable 显示字段兼容旧客户端，不 backfill、不重置 revision；独立本人显示偏好表，RLS 开启、3 条 owner policy、匿名无 SELECT、authenticated 无 DELETE；原复盘与正式交易记录数量保持不变 |
 | 生产 Checks | 本会话控制台只读核对为“未配置任何检查”；保留仓库 CI 与 Docs，等待精确提交 CI + Docs + Vercel，不宣称平台已配置晋级阻断 |
 
 ## 本次证据与既有边界
+- v617 合同见 `docs/quote-assistant-contract.md`：固定无真人登录的 Quote 身份、本人记忆隔离、source 撤回级联、租约/幂等与有界模型工具。Production/Preview 已配置 `OPENAI_API_KEY` Secret，用户已确认充值；foundation 已生效，71 项结构/权限检查通过、28 张旧业务表指纹未变。最终 FULL、真实回答与精确发布结果以 `artifacts/quote-assistant/` 为准，候选不冒充上线。
 - v616 首条回复随根列表同次返回，不逐楼请求；其余回复沿原分页加载。兼容旧响应，不改正文、回复写入、可见范围及完整展开 RPC；定向测试覆盖删除、跨页定位、切号与失权。最终 FULL、生产迁移前后检和精确 SHA 发布结果记录于 `artifacts/review-first-reply/`。
 - v615 只修正动态入口范围恢复和私密入口新帖提示，未改 App 实时／PWA 恢复、未读 RPC、轮询频率或数据库。最终 FULL、已安装 iPhone 主屏幕 PWA 与精确提交发布证据归档 `artifacts/activity-scope-memory/`；等待器通过前仍为候选。v614 设置头像已通过 FULL 4206/4206、iPhone PWA、CI/Docs/Vercel 和线上返回验收；后续头像圆框 `be2c452` 与内容详情标题 `0fc62a4` 均已通过 FAST、CI/Vercel 及生产静态产物验证。v613 即时正文仅在同账号/作用域复用，撤回清除和迟到回包保护保持。
 - v612 消息 repository 复用 `reviewSessionGuard`，服务端 JWT／预期账户／收件人／当前可见权限保持；不缓存消息正文、不改变轮询频率、不承诺即时撤销。FULL 4174/4174、构建、CI/Docs/Vercel 与生产消息列表及目标跳转通过，证据 `artifacts/review-public-activity/v612-acceptance.json`；未量化线上提速幅度。
@@ -25,7 +26,6 @@
 - 原始事件推导及金融口径不变；投影保留源 ID、原节点及原评价容器。已有评价按日期合并展示，修改/删除回到原容器并保留并发冲突检测，新评价沿用稳定原始事件引用。账户快照 loader 和时间线 adapter 保持稳定，避免重渲染反复加载。
 - 设置从十三项展示收为十项；原十三个底层开关、v2 缓存和已上线五列兼容结构不变，不需数据库迁移。合并项按任一旧项开启展示，只有用户切换才统一更新成员；两类回撤继续独立。
 - v599 已通过 FULL（3,765 tests / 3,763 pass / 2 既有 skip）、Quote PWA 冷启动偏好回读、时间线账户快照、精确 SHA CI/Docs/Vercel 和线上检查。本次最终 FULL、iOS 布局及发布结果以 v600 输出为准，原生证据目录为外层 `local-previews/review/dynamic-settings-evidence/v600/`。
-
 - 底部“复盘”改为“动态”，模块“投资复盘”改为“投资动态”；复盘日志、投资心得、投资目标不改名。左上头像打开独立动态设置页，返回恢复列表分类、搜索及阅读位置。
 - 全部默认混排普通博文和带本人身份的系统动态；净资产新高、累计收益新高、年内收益新高/新低、两类独立回撤、单日纪录及月/季/年总结可逐项隐藏。开关只影响全部，专用时间线保留完整事件。系统动态只投影既有事件，点击正文或评论共用原事件与评价，不创建重复博文。
 - 偏好采用独立表和 revision CAS，已确认缓存绑定账号；首次读取失败不把默认值写回云端，保存失败回滚且可显式重试。账号切换、首次创建竞争、跨标签及乱序响应均有定向测试。线上真实账号通过本地正式运行时完成 CNY 保存→刷新回读→恢复 USD；未写测试博文或评价。

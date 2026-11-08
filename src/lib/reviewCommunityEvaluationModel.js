@@ -58,7 +58,8 @@ export function mapReviewCommunityEvaluation(value, expectedPostId) {
   return { ...payload, postId: value.postId, authorId: value.authorId,
     author: { nickname: normalizeCommunityNickname(value.author.nickname) || 'Quote 用户',
       avatarKey: normalizeCommunityAvatarKey(value.author.avatarKey),
-      avatarPath: normalizeCommunityAvatarPath(value.author.avatarPath, value.authorId) },
+      avatarPath: normalizeCommunityAvatarPath(value.author.avatarPath, value.authorId),
+      ...(value.author.isAssistant === true ? { isAssistant: true } : {}) },
     revision: value.revision, createdAt: value.createdAt, updatedAt: value.updatedAt, source: 'community', replyTo: mapReviewCommunityReplyTarget(value.replyTo) };
 }
 

@@ -31,7 +31,8 @@ export function mapReviewNotification(value) {
     commentId: value.commentId === null ? null : uuid(value.commentId), actorId,
     actor: { nickname: normalizeCommunityNickname(value.actor.nickname) || 'Quote 用户',
       avatarKey: normalizeCommunityAvatarKey(value.actor.avatarKey),
-      avatarPath: normalizeCommunityAvatarPath(value.actor.avatarPath, actorId) },
+      avatarPath: normalizeCommunityAvatarPath(value.actor.avatarPath, actorId),
+      ...(value.actor.isAssistant === true ? { isAssistant: true } : {}) },
     createdAt: value.createdAt, readAt: value.readAt, score: value.score, excerpt: value.excerpt, postExcerpt: value.postExcerpt };
 }
 

@@ -3,6 +3,11 @@ import { CURRENT_RELEASE } from './releaseMeta.js';
 export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
+    items: ['新增 Quote AI 小助手：连续私聊与自动记忆、公开 @ 回复、盘后复盘、观点回访、社区周报和里程碑分享；个人记忆可暂停、纠正或删除。'],
+    itemsEn: ['Added the Quote AI assistant with private conversations, automatic memory, public mentions, market close reviews, idea follow-ups, community digests and milestone sharing. Personal memory can be paused, corrected or deleted.'],
+  },
+  {
+    ver: 'v10.7.9.616', date: '2026-11-08',
     items: ['评论默认展示一条回复，多条时可查看其余回复；发送回复后自动展开并定位，公开、私密及时间线保持一致。'],
     itemsEn: ['Comments show one reply by default, with remaining replies available on demand. New replies expand and focus automatically across public, private, and timeline discussions.'],
   },

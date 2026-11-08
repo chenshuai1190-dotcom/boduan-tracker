@@ -6,6 +6,14 @@
   },
   "rewrites": [
     {
+      "source": "/api/quote-assistant",
+      "destination": "/api/quote?view=assistant"
+    },
+    {
+      "source": "/api/quote-assistant-cron",
+      "destination": "/api/quote?view=assistant&operation=assistant-cron"
+    },
+    {
       "source": "/api/earnings-coverage-schedule",
       "destination": "/api/earnings-calendar?operation=sec-coverage-schedule"
     },
@@ -51,6 +59,10 @@
     }
   ],
   "crons": [
+    {
+      "path": "/api/quote-assistant-cron",
+      "schedule": "*/15 * * * *"
+    },
     {
       "path": "/api/earnings-coverage-schedule",
       "schedule": "0 1 * * *"
