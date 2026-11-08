@@ -3,6 +3,11 @@ import { CURRENT_RELEASE } from './releaseMeta.js';
 export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
+    items: ['修复设置页切换 Tab 返回时旧默认头像闪现，直接复用已确认的本人头像和昵称，保留编辑资料时的实时读取及账户隔离。'],
+    itemsEn: ['Fixed old preset avatar flashes when returning to Settings by reusing the confirmed owner avatar and nickname, while retaining fresh profile reads for editing and account isolation.'],
+  },
+  {
+    ver: 'v10.7.9.613', date: '2026-11-08',
     items: ['从动态列表打开博文时立即展示已有正文，并行读取评论并更新内容；首次读取采用骨架占位，保留撤回、转私密及账户切换保护。'],
     itemsEn: ['Posts now open immediately from existing feed content while comments load in parallel and content refreshes. First visits use skeleton placeholders, with withdrawal, privacy, and account-switch protections retained.'],
   },

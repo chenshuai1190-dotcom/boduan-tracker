@@ -37,6 +37,7 @@ import ReportBottomNavIcon from './components/ReportBottomNavIcon.jsx';
 import useReviewScrollNavigation from './hooks/useReviewScrollNavigation.js';
 import useReviewFeedUnread from './hooks/useReviewFeedUnread.js';
 import { createReviewFeedUnreadPreview, REVIEW_FEED_PREVIEW_OWNER } from './dev/reviewFeedUnreadPreview.js';
+import { createSettingsAvatarCachePreview, SETTINGS_AVATAR_PREVIEW_OWNER } from './dev/settingsAvatarCachePreview.js';
 import YearlyActualModal from './components/YearlyActualModal.jsx';
 import { DisciplineModal, LogModal } from './components/ReviewEntryEditors.jsx';
 import { normalizeConfirmModalOptions } from './lib/confirmModal.js';
@@ -1927,6 +1928,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
   ));
   const [previewEarningsReturnTab, setPreviewEarningsReturnTab] = React.useState('home');
   const [communityProfileFocusRequest, setCommunityProfileFocusRequest] = React.useState(0);
+  const settingsAvatarPreview = React.useMemo(() => new URLSearchParams(window.location.search).get('settingsAvatarCache') === '1' ? createSettingsAvatarCachePreview() : null, []);
   const [language, setLanguage] = React.useState(() => {
     if (typeof window === 'undefined') return 'zh';
     return normalizeLanguage(new URLSearchParams(window.location.search).get('lang'));
@@ -3492,6 +3494,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     yearlyActuals,
   };
 
+  const settingsDb = React.useMemo(() => settingsAvatarPreview ? { ...db, ...settingsAvatarPreview } : db, [db, settingsAvatarPreview]);
   const settingsCtx = {
     accountManager: {
       list: async () => [
@@ -3505,7 +3508,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     },
     changelogExpanded,
     communityProfileFocusRequest,
-    db,
+    db: settingsDb,
     language,
     marketColorMode,
     newPwd,
@@ -3528,7 +3531,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
         updateUser: async () => ({ data: { user: { id: 'dev-user' } }, error: null }),
       },
     },
-    user: { id: 'dev-user', email: 'preview@example.com' },
+    user: { id: settingsAvatarPreview ? SETTINGS_AVATAR_PREVIEW_OWNER : 'dev-user', email: 'preview@example.com' },
   };
 
   const reviewNavigationHidden = useReviewScrollNavigation(activeTab === 'review');
@@ -3552,6 +3555,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
       }}
     >
       {featurePreview && <div role="note" style={{ position: 'fixed', bottom: 8, left: '50%', transform: 'translateX(-50%)', zIndex: 110, padding: '4px 10px', borderRadius: 7, color: '#a1a1aa', background: '#171719', fontSize: 11, whiteSpace: 'nowrap', pointerEvents: 'none' }}>本地设计 · 示例数据</div>}
+      {settingsAvatarPreview && <p role="note" style={{ color: '#a1a1aa', padding: '8px 0', fontSize: 12 }}>本地头像缓存验收 · 只读示例</p>}
       <Suspense fallback={<div className="py-12 text-center text-sm text-white/45">加载本地预览...</div>}>
         {activeTab === 'pnl-report'
           ? <PnlReportPage ctx={homeCtx} />

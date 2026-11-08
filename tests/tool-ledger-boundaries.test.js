@@ -106,6 +106,7 @@ const reviewEntryEditorsSource = readFileSync(new URL('../src/components/ReviewE
 const reviewReadingDetailsSource = readFileSync(new URL('../src/components/ReviewReadingDetails.jsx', import.meta.url), 'utf8');
 const reviewReadingDetailsCss = readFileSync(new URL('../src/components/ReviewReadingDetails.css', import.meta.url), 'utf8');
 const settingsTabSource = readFileSync(new URL('../src/tabs/SettingsTab.jsx', import.meta.url), 'utf8');
+const settingsIdentitySource = readFileSync(new URL('../src/components/SettingsCommunityIdentity.jsx', import.meta.url), 'utf8');
 const settingsTabCss = readFileSync(new URL('../src/tabs/SettingsTab.css', import.meta.url), 'utf8');
 const settingsDialogsCss = readFileSync(new URL('../src/tabs/SettingsDialogs.css', import.meta.url), 'utf8');
 const tradesTabSource = readFileSync(new URL('../src/tabs/TradesTab.jsx', import.meta.url), 'utf8');
@@ -626,11 +627,11 @@ test('community profile settings retain preset identity and delegate custom avat
   assert.ok(settingsTabSource.includes('db.fetchCommunityProfile(user)'));
   assert.ok(settingsTabSource.includes('db.upsertCommunityProfile(profile, user)') && settingsTabSource.includes('db.saveCommunityAvatarProfile({ ...profile, avatarPath: nextPath, expectedAvatarPath: customAvatar.path }, user.id)'));
   assert.ok(settingsTabSource.includes('COMMUNITY_AVATAR_OPTIONS.map'), 'settings page should render the preset avatar picker');
-  assert.ok(settingsTabSource.includes('className="settings-report-avatar-image"'), 'the avatar image should keep its independent crop inside the settings-only outer frame');
+  assert.ok(settingsIdentitySource.includes('className="settings-report-avatar-image"'), 'the cached identity avatar should keep its independent crop inside the settings-only outer frame');
   assert.ok(settingsTabSource.includes('settings-report-avatar-option') && settingsTabSource.includes('aria-pressed={active}'), 'community avatar selection should expose the actual selected option');
   assert.match(settingsDialogsCss, /\.settings-report-avatar-option\s*\{[^}]*border:\s*[^;]*transparent;/, 'inactive community avatar options should not add a white border');
   assert.ok(settingsTabSource.includes("return 'scale-[1.15]'"), 'the replacement community avatar set should crop past the source white edge');
-  assert.ok(settingsTabSource.includes('className="settings-report-avatar"'), 'the settings identity avatar should retain its dedicated scoped frame');
+  assert.ok(settingsIdentitySource.includes('className="settings-report-avatar"'), 'the settings identity avatar should retain its dedicated scoped frame');
   assert.match(settingsTabCss, /\.settings-report-avatar\s*\{[^}]*width:\s*95px;[^}]*height:\s*95px;/, 'the settings identity avatar should preserve the approved 95px size');
   assert.match(communityCompetitionPageCss, /img:not\(\[data-custom-avatar=true\]\)[^}]*transform:scale\(1\.15\)/, 'community preset avatars should keep their crop while custom photos preserve the user crop');
   assert.equal(settingsTabSource.includes('supabase.storage'), false, 'settings must delegate storage to the authenticated avatar repository');
@@ -2072,8 +2073,10 @@ test('production settings redesign connects isolated account memory without ledg
   assert.ok(settingsTabSource.includes('accountManager?.switch?.(account.userId)') && settingsTabSource.includes('onAddAccount?.()'), 'account switcher should expose direct switching and add-account actions');
   assert.equal(settingsTabSource.includes('localStorage.setItem'), false, 'session persistence should stay outside the settings view');
   assert.equal(settingsTabSource.includes('<h1'), false, 'settings should not repeat a page title above the community identity card');
-  assert.ok(settingsTabSource.includes('React.useState(Boolean(user?.id))') && settingsTabSource.includes('communityHydrating'), 'community identity should render a neutral hydration state before the real profile arrives');
-  assert.ok(settingsTabSource.includes("<UserAvatar userId={user?.id}") && settingsTabSource.includes("communityAvatarImageClass(avatar.key)"), 'the identity avatar should share the authenticated custom-or-preset renderer while the preset picker keeps its crop rule');
+  assert.ok(settingsTabSource.includes('<SettingsCommunityIdentity db={db} userId={user?.id} language={language} />'), 'settings must route its read-only header through the owner-scoped identity cache');
+  assert.ok(settingsIdentitySource.includes('readCachedReviewIdentity') && settingsIdentitySource.includes('subscribeReviewIdentity') && settingsIdentitySource.includes('fetchReviewIdentity'), 'the header must synchronously reuse confirmed identity and follow authenticated background updates');
+  assert.ok(settingsIdentitySource.includes('identity?.avatarPath === null') && settingsIdentitySource.includes('<User className='), 'unknown avatar metadata must remain neutral and only confirmed no-custom-avatar state may use a preset');
+  assert.ok(settingsTabSource.includes("<UserAvatar userId={user?.id}") && settingsTabSource.includes("communityAvatarImageClass(avatar.key)"), 'the profile editor should retain its authenticated avatar renderer while the preset picker keeps its crop rule');
   assert.ok(accountSessionVaultSource.includes('MAX_REMEMBERED_ACCOUNTS = 5') && accountSessionVaultSource.includes('refreshToken'), 'account session vault should stay bounded and retain refresh capability');
   assert.ok(supabaseClientSource.includes("signOut({ scope: 'local' })") && supabaseClientSource.includes('auth.setSession({'), 'account auth should use local sign-out and Supabase session switching');
   assert.ok(authGateSource.includes('key={authState.user.id}') && appSource.includes('userScopedStorageKey'), 'account changes should remount app state and scope local tools by user');

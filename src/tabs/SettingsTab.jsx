@@ -10,7 +10,6 @@ import {
   Loader2,
   LogOut,
   Monitor,
-  Pencil,
   Plus,
   RefreshCw,
   ShieldCheck,
@@ -20,6 +19,7 @@ import {
 } from 'lucide-react';
 import StockReportModal from '../components/StockReportModal.jsx';
 import UserAvatar from '../components/UserAvatar.jsx';
+import SettingsCommunityIdentity from '../components/SettingsCommunityIdentity.jsx';
 import AvatarCropper from '../components/AvatarCropper.jsx';
 import { validateCommunityAvatarFile } from '../lib/communityAvatarModel.js';
 import './SettingsTab.css';
@@ -132,7 +132,6 @@ function SettingsTab({ ctx }) {
 
   const isInviteAdmin = String(user?.email || '').trim().toLowerCase() === 'chenshuai1190@gmail.com';
   const selectedCommunityAvatar = getCommunityAvatarOption(communityDraft.avatarKey || communityProfile?.avatarKey);
-  const communityHydrating = communityLoading && !communityProfile;
   const communityNicknameValidation = validateCommunityNickname(communityDraft.nickname);
   const communityDirty = Boolean(
     communityProfile
@@ -144,7 +143,6 @@ function SettingsTab({ ctx }) {
       || avatarChoice === 'none' && Boolean(customAvatar.path)
     ),
   );
-  const communityDisplayName = communityProfile?.nickname || communityNicknameValidation.nickname || t(language, 'settings.communityProfile', '社区资料');
 
   const fetchInviteApi = React.useCallback(async (options = {}) => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -686,22 +684,7 @@ function SettingsTab({ ctx }) {
           aria-label={t(language, 'settings.editCommunityProfile', '编辑社区资料')}
           className="settings-report-identity"
         >
-          <span className="settings-report-avatar">
-            <span className="settings-report-avatar-image">
-              {communityHydrating
-                ? <Loader2 className="h-5 w-5 animate-spin text-white/22" />
-                : <UserAvatar userId={user?.id} avatarKey={communityProfile?.avatarKey || selectedCommunityAvatar.key} avatarPath={customAvatar.ready ? customAvatar.path : undefined} previewUrl={customAvatar.url} className="h-full w-full object-cover" />}
-            </span>
-            {!communityHydrating && (
-              <span className="settings-report-avatar-edit">
-                <Pencil className="h-2.5 w-2.5" strokeWidth={1.8} />
-              </span>
-            )}
-          </span>
-          <span className="settings-report-identity-text">
-            <span className="settings-report-name">{communityHydrating ? t(language, 'settings.loading', '加载中...') : communityDisplayName}</span>
-            <span className="settings-report-profile-label">{t(language, 'settings.communityProfile', '社区资料')}</span>
-          </span>
+          <SettingsCommunityIdentity db={db} userId={user?.id} language={language} />
           <ChevronRight className="settings-report-profile-chevron" size={16} />
         </button>
 

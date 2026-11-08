@@ -189,6 +189,7 @@ export default function ReviewJournalPreview({language,onBack,marketColorMode,na
       <a href="?devPreview=1&tab=review-journal&reviewThreads=1&reviewScope=public&reviewDetailLoading=1" style={{display:'block',padding:'12px 8px'}}>正文即时显示与评论并行示例</a>
       <a href="?devPreview=1&tab=home&reviewUnread=1&reviewThreads=1&reviewScope=public" style={{display:'block',padding:'12px 8px'}}>评论与新帖提醒示例</a>
       <a href="?devPreview=1&tab=review-journal&reviewThreads=1&reviewScope=public&reviewAvatarCache=1" style={{display:'block',padding:'12px 8px'}}>头像缓存示例</a>
+      <a href="?devPreview=1&tab=settings&settingsAvatarCache=1" style={{display:'block',padding:'12px 8px'}}>设置头像缓存示例</a>
       <button type="button" style={{padding:'12px 8px'}} onClick={async()=>{db.setReviewPublicPreviewScenario('empty');await reviewPublicRefreshRef.current?.();setRefreshScenarioStatus('示例列表已清空');}}>清空示例公开列表</button>
       <button type="button" style={{padding:'12px 8px'}} onClick={()=>{db.setReviewPublicPreviewScenario('published');reviewFeedUnreadPreview?.publish('insight:sample-fresh-post');reviewFeedUnread?.refresh();setRefreshScenarioStatus('已模拟其他账号发布，等待自动读取');}}>模拟其他账号发布</button>
       <button type="button" style={{padding:'12px 8px'}} onClick={async()=>{await reviewPublicRefreshRef.current?.();setRefreshScenarioStatus('手动读取完成');}}>读取最新示例</button>
