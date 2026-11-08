@@ -81,7 +81,7 @@ test('public saves require the public schema before any write, while private sav
   valid.client.rpc = async (name, args) => { calls.push({ name, args }); return { data: { posts: [], hasMore: false, nextCursor: null }, error: null }; };
   const saved = await valid.repository.save(entry({ id: 42, revision: 7, visibility: 'public' }), USER);
   assert.equal(saved.visibility, 'public'); assert.equal(saved.revision, 8);
-  assert.deepEqual(calls, [{ name: 'fetch_review_public_feed', args: { p_limit: 1, p_before: null, p_before_id: null, p_query: '', p_symbol: '', p_expected_user_id: USER } }]);
+  assert.deepEqual(calls, [{ name: 'fetch_review_public_feed_v2', args: { p_limit: 1, p_before_date: null, p_before: null, p_before_id: null, p_query: '', p_symbol: '', p_expected_user_id: USER } }]);
   assert.deepEqual(valid.operations[0].filters, [['id', 42], ['user_id', USER], ['review_revision', 7]]);
   assert.equal(valid.authCalls(), 3);
 

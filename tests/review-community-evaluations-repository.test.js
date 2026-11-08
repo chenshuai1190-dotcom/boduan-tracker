@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createReviewPublicRepository } from '../src/lib/reviewPublicRepository.js';
-import { buildReviewCommunityEvaluation, mapReviewCommunityEvaluation, mapReviewCommunityEvaluations } from '../src/lib/reviewCommunityEvaluationModel.js';
+import { buildReviewCommunityEvaluation, mapReviewCommunityEvaluation, mapReviewCommunityEvaluations, mapReviewCommunityReplyTarget, normalizeReviewCommunityReplyTarget } from '../src/lib/reviewCommunityEvaluationModel.js';
 import { mapReviewPublicPost } from '../src/lib/reviewPublicModel.js';
-import { createReviewPublicPreview } from '../src/dev/reviewPublicPreview.js';
+import { createReviewPublicPreview, reviewPreviewEntryTimestamps } from '../src/dev/reviewPublicPreview.js';
 
 const VIEWER = '11111111-1111-4111-8111-111111111111';
 const AUTHOR = '22222222-2222-4222-8222-222222222222';
@@ -51,8 +51,8 @@ test('rating-only community creates are valid and retry with the same evaluation
   const result = await f.repository.saveEvaluation(POST, draft(), VIEWER);
   assert.equal(result.score, 8); assert.equal(result.text, ''); assert.equal(result.source, 'community');
   assert.deepEqual(await f.repository.saveEvaluation(POST, draft(), VIEWER), result);
-  assert.deepEqual(f.calls[0], { name: 'save_review_community_evaluation', args: { p_post_id: POST, p_evaluation_id: ID,
-    p_expected_revision: 0, p_evaluation: buildReviewCommunityEvaluation(draft(), VIEWER), p_expected_user_id: VIEWER } });
+  assert.deepEqual(f.calls[0], { name: 'save_review_community_evaluation_v2', args: { p_post_id: POST, p_evaluation_id: ID,
+    p_expected_revision: 0, p_evaluation: buildReviewCommunityEvaluation(draft(), VIEWER), p_reply_to: null, p_expected_user_id: VIEWER } });
   assert.deepEqual(f.calls[0], f.calls[1]); assert.equal(f.authCalls(), 4);
 });
 
@@ -198,4 +198,104 @@ test('isolated preview retains other reviewers on the parent owner private detai
   await assert.rejects(preview.deleteReviewCommunityEvaluation(POST, external, VIEWER), { code: 'REVIEW_PUBLIC_FORBIDDEN' });
   rows.length = 0;
   await assert.rejects(preview.fetchReviewCommunityEvaluations({ postId: POST }, VIEWER), { code: 'REVIEW_PUBLIC_NOT_FOUND' });
+});
+
+test('reply targets whitelist only kind and key while server projections retain availability without quoted content', () => {
+  for (const kind of ['author', 'community']) {
+    const id = kind === 'author' ? 'legacy-self-review' : SECOND_ID;
+    const value = { kind, id, authorId: AUTHOR, nickname: '目标作者', available: false, text: '不要复制的正文', email: 'discard', account: { private: true } };
+    assert.deepEqual(normalizeReviewCommunityReplyTarget(value), { kind, id });
+    assert.deepEqual(mapReviewCommunityReplyTarget(value), { kind, id, authorId: AUTHOR, nickname: '目标作者', available: false });
+    assert.deepEqual(mapReviewCommunityEvaluation(saved({ replyTo: value }), POST).replyTo, mapReviewCommunityReplyTarget(value));
+    assert.doesNotMatch(JSON.stringify(mapReviewCommunityReplyTarget(value)), /正文|discard|private|account/);
+  }
+  assert.equal(normalizeReviewCommunityReplyTarget(undefined), null);
+  assert.equal(mapReviewCommunityEvaluation(saved(), POST).replyTo, null, 'older unthreaded evaluations stay readable');
+  for (const value of [{}, [], { kind: 'post', id: ID }, { kind: 'community', id: 'legacy-id' }, { kind: 'author', id: '' },
+    { kind: 'author', id: 'a'.repeat(101) }, { kind: 'author', id: 'bad\0id' }]) assert.throws(() => normalizeReviewCommunityReplyTarget(value), { code: 'REVIEW_INVALID_REPLY_TARGET' });
+  for (const value of [{ kind: 'author', id: 'a', available: true }, { kind: 'author', id: 'a', authorId: AUTHOR, available: 'true' }]) {
+    assert.throws(() => mapReviewCommunityReplyTarget(value), { code: 'REVIEW_COMMUNITY_INVALID_DATA' });
+  }
+});
+
+test('reply saves use the v2 target argument, preserve target when editing and reject a mismatched response', async () => {
+  const target = { kind: 'author', id: 'self-note', authorId: AUTHOR, nickname: '作者', available: true };
+  const f = fixture({ response: (_name, args) => ({ data: saved({ ...args.p_evaluation, replyTo: target, revision: args.p_expected_revision + 1 }) }) });
+  const result = await f.repository.saveEvaluation(POST, draft({ replyTo: { ...target, authorId: VIEWER, text: '不得上传' } }), VIEWER);
+  assert.equal(result.replyTo.authorId, AUTHOR, 'target identity is returned by the authenticated server');
+  assert.equal(f.calls[0].name, 'save_review_community_evaluation_v2');
+  assert.deepEqual(f.calls[0].args.p_reply_to, { kind: 'author', id: 'self-note' });
+  assert.equal(f.calls[0].args.p_evaluation.replyTo, undefined);
+  assert.doesNotMatch(JSON.stringify(f.calls[0].args), /不得上传/);
+  await f.repository.saveEvaluation(POST, { ...result, text: '修改回复' }, VIEWER);
+  assert.deepEqual(f.calls[1].args.p_reply_to, f.calls[0].args.p_reply_to);
+  const legacyEdit = await f.repository.saveEvaluation(POST, draft({ revision: 1, text: '旧客户端编辑' }), VIEWER);
+  assert.equal(f.calls[2].args.p_reply_to, null); assert.deepEqual(legacyEdit.replyTo, target, 'null target edits preserve the server-owned target');
+  await assert.rejects(f.repository.saveEvaluation(POST, draft({ replyTo: { kind: 'community', id: SECOND_ID } }), VIEWER), { code: 'REVIEW_COMMUNITY_INVALID_DATA' });
+  await assert.rejects(f.repository.saveEvaluation(POST, draft(), VIEWER), { code: 'REVIEW_COMMUNITY_INVALID_DATA' }, 'ordinary creates cannot acquire an unrelated target');
+});
+
+test('preview replies retain source and community references after target deletion without exposing removed contents', async () => {
+  const source = { id: '42', type: 'log', text: '博文', date: '2026-11-06', visibility: 'public', replies: [{ id: 'self-note', date: '2026-11-07', text: '被删除的自评原文' }] };
+  const preview = createReviewPublicPreview({ ownerId: VIEWER, getEntries: () => [source] });
+  const first = await preview.saveReviewCommunityEvaluation(POST, draft({ replyTo: { kind: 'author', id: 'self-note', authorId: AUTHOR, nickname: '伪造昵称' } }), VIEWER);
+  assert.deepEqual(first.replyTo, { kind: 'author', id: 'self-note', authorId: VIEWER, nickname: '波段玩家1836', available: true });
+  const second = await preview.saveReviewCommunityEvaluation(POST, draft({ id: SECOND_ID, text: '回复社区评价', replyTo: { kind: 'community', id: ID } }), VIEWER);
+  assert.equal(second.replyTo.authorId, VIEWER); assert.equal(second.replyTo.available, true);
+  await assert.rejects(preview.saveReviewCommunityEvaluation(POST, { ...second, replyTo: { kind: 'author', id: 'self-note' } }, VIEWER), { code: 'REVIEW_COMMUNITY_INVALID_INPUT' });
+  source.replies = [];
+  const afterAuthorDelete = await preview.fetchReviewCommunityEvaluations({ postId: POST }, VIEWER);
+  assert.equal(afterAuthorDelete.evaluations.find(row => row.id === ID).replyTo.available, false);
+  assert.doesNotMatch(JSON.stringify(afterAuthorDelete), /被删除的自评原文/);
+  const edited = await preview.saveReviewCommunityEvaluation(POST, { ...second, replyTo: null, text: '编辑仍保留回复对象' }, VIEWER);
+  assert.equal(edited.replyTo.id, ID);
+  await preview.deleteReviewCommunityEvaluation(POST, first, VIEWER);
+  const afterCommunityDelete = await preview.fetchReviewCommunityEvaluations({ postId: POST }, VIEWER);
+  assert.equal(afterCommunityDelete.totalCount, 1); assert.equal(afterCommunityDelete.evaluations[0].replyTo.available, false);
+  assert.equal(afterCommunityDelete.evaluations[0].text, '编辑仍保留回复对象');
+  source.visibility = 'private';
+  assert.equal((await preview.fetchReviewCommunityEvaluations({ postId: POST }, VIEWER)).totalCount, 1, 'private parent owner retains the reply');
+});
+
+test('preview refuses cross-post and missing targets and keeps ordinary evaluation edits unthreaded', async () => {
+  const source = { id: '42', type: 'log', text: '博文', date: '2026-11-06', visibility: 'public', replies: [] };
+  const preview = createReviewPublicPreview({ ownerId: VIEWER, getEntries: () => [source], communityEvaluations: [saved({ postId: 'log:other', id: SECOND_ID })] });
+  for (const replyTo of [{ kind: 'community', id: SECOND_ID }, { kind: 'author', id: 'missing' }]) {
+    await assert.rejects(preview.saveReviewCommunityEvaluation(POST, draft({ replyTo }), VIEWER), { code: 'REVIEW_PUBLIC_NOT_FOUND' });
+  }
+  const ordinary = await preview.saveReviewCommunityEvaluation(POST, draft(), VIEWER);
+  await assert.rejects(preview.saveReviewCommunityEvaluation(POST, { ...ordinary, replyTo: { kind: 'community', id: SECOND_ID } }, VIEWER), { code: 'REVIEW_COMMUNITY_INVALID_INPUT' });
+  const externalReply = await preview.saveReviewCommunityEvaluation('log:sample-market', draft({ id: '55555555-5555-4555-8555-555555555555', replyTo: { kind: 'author', id: 'sample-public-evaluation' } }), VIEWER);
+  assert.equal(externalReply.replyTo.nickname, '记录每一步');
+  preview.setReviewCommunityPreviewVisibility('log:sample-market', 'private');
+  await assert.rejects(preview.fetchReviewCommunityEvaluations({ postId: 'log:sample-market' }, VIEWER), { code: 'REVIEW_PUBLIC_NOT_FOUND' });
+  await assert.rejects(preview.saveReviewCommunityEvaluation('log:sample-market', externalReply, VIEWER), { code: 'REVIEW_PUBLIC_NOT_FOUND' });
+});
+
+test('record-date feed pagination and original creation times survive private to public toggles in the preview', async () => {
+  const rows = [
+    { id: 'old', date: '2025-05-01', createdAt: '2025-05-03T05:00:00Z', publishedAt: '2026-11-08T07:00:00Z' },
+    { id: 'new-a', date: '2026-11-06', createdAt: '2026-11-07T06:00:00.123455Z' },
+    { id: 'new-b', date: '2026-11-06', createdAt: '2026-11-07T06:00:00.123456Z' },
+    { id: 'new-c', date: '2026-11-06', createdAt: '2026-11-07T06:00:00.123456Z' },
+  ].map(row => ({ ...row, type: 'log', text: '日期验收', visibility: 'public', replies: [] }));
+  const original = { ...rows[0] }, preview = createReviewPublicPreview({ ownerId: VIEWER, getEntries: () => rows });
+  let cursor = null; const found = [];
+  do {
+    const page = await preview.fetchReviewPublicFeed({ limit: 2, query: '日期验收', cursor }, VIEWER);
+    found.push(...page.posts); cursor = page.nextCursor;
+    if (cursor) assert.deepEqual(cursor, { recordDate: page.posts.at(-1).date, publishedAt: page.posts.at(-1).publishedAt, id: page.posts.at(-1).id });
+  } while (cursor);
+  assert.deepEqual(found.map(row => row.id), ['log:new-c', 'log:new-b', 'log:new-a', 'log:old']);
+  assert.equal(found.at(-1).publishedAt, original.createdAt, 'publication does not replace original insertion time');
+  for (const visibility of ['private', 'public', 'private', 'public']) {
+    const changes = { ...rows[0], visibility };
+    rows[0] = { ...changes, ...reviewPreviewEntryTimestamps(changes, rows[0], '2026-11-09T00:00:00Z') };
+    assert.equal(rows[0].date, original.date); assert.equal(rows[0].createdAt, original.createdAt);
+    assert.equal(rows[0].publishedAt, visibility === 'public' ? original.createdAt : null);
+  }
+  assert.equal((await preview.fetchReviewPublicFeed({ query: '日期验收' }, VIEWER)).posts.at(-1).id, 'log:old');
+  await assert.rejects(preview.fetchReviewPublicFeed({ cursor: { publishedAt: original.createdAt, id: 'log:old' } }, VIEWER), { code: 'REVIEW_PUBLIC_INVALID_DATA' });
+  const firstCreate = reviewPreviewEntryTimestamps({ date: '2026-11-06', visibility: 'public' }, null, '2026-11-08T01:00:00Z');
+  assert.deepEqual(firstCreate, { createdAt: '2026-11-08T01:00:00Z', publishedAt: '2026-11-08T01:00:00Z' });
 });

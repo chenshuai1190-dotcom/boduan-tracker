@@ -292,10 +292,10 @@ async function harness({ removeReply, preferences = {}, localPreferences = new M
       const readReviewAudiencePreference = (userId, kind) => readAudience(userId, kind, fixture.localStorage);
       const writeReviewAudiencePreference = (userId, kind, value) => writeAudience(userId, kind, value, fixture.localStorage);
       const Avatar = () => null, AuthorName = () => null, Photo = () => null, SnapshotCard = () => null, ReviewStockCarousel = () => null, ReviewPostBody = () => null, Composer = () => null, Dialog = () => null;
-      const ReviewPublicFeed = () => null, ReviewCommunityEvaluations = () => null, ReviewTimeline = () => null, ReviewPreferences = () => null, ReviewTimelinePost = () => null;
+      const ReviewPublicFeed = () => null, ReviewCommunityEvaluations = () => null, ReplyBody = props => props.children, ReviewTimeline = () => null, ReviewPreferences = () => null, ReviewTimelinePost = () => null;
       const useReviewPreferences = () => fixture.preferenceState;
       const ReviewEvaluationComposer = () => null, EvaluationRating = () => null, ReviewAccountCard = () => null, ReviewTradeReferences = () => null, EmojiPicker = () => null;
-      export { ReviewPublicFeed, ReviewCommunityEvaluations, ReviewSystemAvatar, ReviewSystemName, Avatar, AuthorName, ReviewTimeline, ReviewPreferences, ReviewTimelinePost, Photo, SnapshotCard, ReviewStockCarousel, ReviewPostBody, Composer, Dialog, ReviewEvaluationComposer, EvaluationRating, ReviewAccountCard, ReviewTradeReferences };
+      export { ReviewPublicFeed, ReviewCommunityEvaluations, ReplyBody, ReviewSystemAvatar, ReviewSystemName, Avatar, AuthorName, ReviewTimeline, ReviewPreferences, ReviewTimelinePost, Photo, SnapshotCard, ReviewStockCarousel, ReviewPostBody, Composer, Dialog, ReviewEvaluationComposer, EvaluationRating, ReviewAccountCard, ReviewTradeReferences };
       ${pageSource.replaceAll('import.meta.env.DEV', 'true')}
     `, 'ReviewJournalEntryPageTest.jsx', { jsx: { runtime: 'classic' } });
     Page = await import(dataUrl(compiled.code));
@@ -1279,4 +1279,47 @@ test('known community counts persist on the owner category card after leaving th
   button(tree,'返回投资动态').props.onClick(); tree=h.render();
   const card=find(tree,node=>node.type==='article'&&node.props['data-rj-entry-key']==='log:one');
   assert.equal(textOf(button(card,'查看评论')),'3'); h.unmount();
+});
+
+test('new comments and each reply target keep separate drafts and save only an explicit reply reference', async () => {
+  const h=await harness();h.ctx.previewData.initialAllScope='public';const writes=[];
+  h.ctx.db.saveReviewCommunityEvaluation=async(...args)=>{writes.push(args);return {...args[1],postId:args[0],authorId:args[2],revision:1};};
+  let tree=h.render();const feed=()=>find(tree,node=>node.type===h.Page.ReviewPublicFeed),editor=()=>find(tree,node=>node.type===h.Page.ReviewEvaluationComposer&&node.props.open);
+  const post={id:'log:foreign',sourceId:'foreign',type:'log',authorId:'someone',date:'2026-10-06',text:'原帖正文',stocks:['MSFT']};
+  const a={kind:'author',id:'author-review',authorId:'someone',nickname:'评论甲',available:true,text:'不得带入目标原文'};
+  const b={kind:'community',id:'reply-b',authorId:'another',nickname:'评论乙',available:true};
+  feed().props.onDetailChange(true,post);tree=h.render();feed().props.onEvaluateCommunityEntry(post);tree=h.render();const commentKey=editor().key;
+  editor().props.onClose();tree=h.render();feed().props.onReplyToReview(post,a);tree=h.render();const aKey=editor().key;
+  assert.notEqual(aKey,commentKey);assert.equal(editor().props.replyTarget.nickname,a.nickname);assert.equal(editor().props.replyTarget.text,undefined);assert.equal(editor().props.entry.text,post.text);
+  const submitted={id:'reply-a',date:'2026-11-08',text:'对甲的回复',score:7,account:{id:'viewer-account'}};
+  await editor().props.db.appendReviewJournalReply(editor().props.entry,submitted,'owner');
+  assert.deepEqual(writes[0],['log:foreign',{...submitted,replyTo:{kind:a.kind,id:a.id}},'owner']);
+  editor().props.onClose();tree=h.render();feed().props.onReplyToReview(post,b);tree=h.render();const bKey=editor().key;assert.notEqual(bKey,aKey);
+  editor().props.onClose();tree=h.render();feed().props.onReplyToReview(post,a);tree=h.render();assert.equal(editor().key,aKey);
+  editor().props.onClose();tree=h.render();feed().props.onEvaluateCommunityEntry(post);tree=h.render();assert.equal(editor().key,commentKey);assert.equal(editor().props.replyTarget,null);
+  const staleReply=feed().props.onReplyToReview;h.ctx.userId='different-account';tree=h.render();staleReply(post,a);tree=h.render();assert.equal(editor(),undefined);h.unmount();
+});
+
+test('post authors reply to other reviewers through community storage and editing cannot retarget a reply', async () => {
+  const h=await harness();h.ctx.previewData.initialAllScope='public';const writes=[];
+  h.ctx.db.saveReviewCommunityEvaluation=async(...args)=>{writes.push(args);return {...args[1],postId:args[0],authorId:args[2],revision:2};};
+  let tree=h.render();const feed=()=>find(tree,node=>node.type===h.Page.ReviewPublicFeed),editor=()=>find(tree,node=>node.type===h.Page.ReviewEvaluationComposer&&node.props.open);
+  const post={id:'log:one',sourceId:'one',type:'log',authorId:'owner',date:'2026-11-06',text:'我发布的原帖'},target={kind:'community',id:'others-review',authorId:'another',nickname:'访客',available:true};
+  feed().props.onDetailChange(true,post);tree=h.render();feed().props.onReplyToReview(post,target);tree=h.render();
+  assert.ok(editor());assert.equal(editor().props.userId,'owner');assert.equal(editor().props.replyTarget.nickname,'访客');
+  const submitted={id:'my-response',date:'2026-11-08',text:'谢谢你的建议'};
+  await editor().props.db.appendReviewJournalReply(editor().props.entry,submitted,'owner');assert.deepEqual(writes[0][1].replyTo,{kind:'community',id:'others-review'});assert.equal(h.ctx.reviewLogs[0].replies.length,1,'reply must not be added to the source self-evaluations');
+  editor().props.onClose();tree=h.render();const reply={...submitted,postId:post.id,authorId:'owner',revision:4,replyTo:target};
+  feed().props.onManageCommunityReply(post,reply);tree=h.render();button(tree,'修改回复').props.onClick();tree=h.render();
+  assert.equal(editor().props.replyTarget,target);
+  await editor().props.db.updateReviewJournalReply(editor().props.entry,reply,{...submitted,replyTo:{kind:'author',id:'tampered'},text:'修改回复'},'owner');
+  assert.deepEqual(writes[1][1].replyTo,{kind:'community',id:'others-review'});assert.equal(writes[1][1].revision,4);h.unmount();
+});
+
+test('private owner details can reply to retained community reviews with private visibility and no target text', async () => {
+  const h=await harness();let tree=h.render();h.clickPost(tree);tree=h.render();
+  const list=find(tree,node=>node.type===h.Page.ReviewCommunityEvaluations);
+  const target={id:'retained-review',postId:'log:one',authorId:'visitor',author:{nickname:'来访者'},text:'旧评论正文'};
+  list.props.onReply(target);tree=h.render();const editor=find(tree,node=>node.type===h.Page.ReviewEvaluationComposer&&node.props.open);
+  assert.ok(editor);assert.match(textOf(editor.props.identityNode),/仅自己可见/);assert.equal(editor.props.replyTarget.id,target.id);assert.equal(editor.props.replyTarget.text,undefined);assert.equal(editor.props.entry.communityPostId,'log:one');h.unmount();
 });

@@ -11,6 +11,26 @@ const timestamp = value => typeof value === 'string'
   && isReviewJournalDate(value.slice(0, 10)) && Number.isFinite(Date.parse(value));
 const invalid = () => { throw reviewJournalError('REVIEW_COMMUNITY_INVALID_DATA', '评价数据暂不可用，请刷新后重试。'); };
 
+/** The client supplies only a same-post target key. Its author and current
+ * availability are server-owned; a reply never copies the target's content. */
+export function normalizeReviewCommunityReplyTarget(value) {
+  if (value == null) return null;
+  const id = typeof value?.id === 'string' ? value.id.trim() : '';
+  if (!plain(value) || !['author', 'community'].includes(value.kind) || !id || id.length > 100
+    || /[\u0000-\u001f\u007f]/.test(id) || value.kind === 'community' && !isReviewJournalOperationId(id)) {
+    throw reviewJournalError('REVIEW_INVALID_REPLY_TARGET', '回复对象无效，请重新打开评论。');
+  }
+  return { kind: value.kind, id: value.kind === 'community' ? id.toLowerCase() : id };
+}
+
+export function mapReviewCommunityReplyTarget(value) {
+  if (value == null) return null;
+  let target;
+  try { target = normalizeReviewCommunityReplyTarget(value); } catch { return invalid(); }
+  if (!isReviewJournalOperationId(value.authorId) || typeof value.available !== 'boolean') return invalid();
+  return { ...target, authorId: value.authorId, nickname: normalizeCommunityNickname(value.nickname) || 'Quote 用户', available: value.available };
+}
+
 /** Validate the reviewer's saved values, then rebuild the public attachment
  * allowlist. No original post, live account data, author identity or internal
  * snapshot evidence can be carried through this write payload. */
@@ -39,7 +59,7 @@ export function mapReviewCommunityEvaluation(value, expectedPostId) {
     author: { nickname: normalizeCommunityNickname(value.author.nickname) || 'Quote 用户',
       avatarKey: normalizeCommunityAvatarKey(value.author.avatarKey),
       avatarPath: normalizeCommunityAvatarPath(value.author.avatarPath, value.authorId) },
-    revision: value.revision, createdAt: value.createdAt, updatedAt: value.updatedAt, source: 'community' };
+    revision: value.revision, createdAt: value.createdAt, updatedAt: value.updatedAt, source: 'community', replyTo: mapReviewCommunityReplyTarget(value.replyTo) };
 }
 
 export function normalizeReviewCommunityCursor(value) {

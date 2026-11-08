@@ -70,7 +70,7 @@ test('public detail and feed read evaluations only from the account-bound public
   });
   assert.equal((await repository.fetchPost('log:42', VIEWER)).replies[0].account.items[0].value, 2);
   assert.equal((await repository.fetchFeed({}, VIEWER)).posts[0].replies[0].trades[0].shares, 10);
-  assert.deepEqual(calls.map(call => call.name), ['read_review_public_post', 'fetch_review_public_feed']);
+  assert.deepEqual(calls.map(call => call.name), ['read_review_public_post', 'fetch_review_public_feed_v2']);
   assert.ok(calls.every(call => call.args.p_expected_user_id === VIEWER));
 });
 

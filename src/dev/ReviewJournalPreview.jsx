@@ -1,5 +1,5 @@
 import React from 'react';
-import { createReviewPublicPreview } from './reviewPublicPreview.js';
+import { createReviewPublicPreview, reviewPreviewEntryTimestamps } from './reviewPublicPreview.js';
 import { createReviewTimelinePreview } from './reviewTimelinePreview.js';
 import ReviewJournalPage from '../pages/ReviewJournalPage.jsx';
 import { buildReviewJournalWrite } from '../lib/reviewJournalModel.js';
@@ -73,7 +73,7 @@ export default function ReviewJournalPreview({language,onBack,marketColorMode,na
       if(new URLSearchParams(window.location.search).get('reviewFailure')==='save')throw new Error('模拟保存失败：正文与附件仍保留，请重试。');
       const existing=rows.current.find(row=>row.id===entry.id&&row.type===entry.type);
       if(existing&&existing.revision!==(entry.revision||0))throw new Error('记录已在其他页面更新，请刷新后重试');
-      const stored={...base,...entry,id:entry.id||crypto.randomUUID(),revision:(entry.revision||0)+1,createdAt:entry.createdAt||new Date().toISOString(),publishedAt:entry.visibility==='public'?(existing?.visibility==='public'?existing.publishedAt:new Date().toISOString()):null};
+      const stored={...base,...entry,id:entry.id||crypto.randomUUID(),revision:(entry.revision||0)+1,...reviewPreviewEntryTimestamps(entry,existing)};
       rows.current=[stored,...rows.current.filter(row=>!(row.id===stored.id&&row.type===stored.type))];return stored;
     },
     appendReviewJournalReply:async(entry,reply,userId)=>{

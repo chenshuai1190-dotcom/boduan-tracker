@@ -1,7 +1,7 @@
 import { isReviewJournalOperationId, reviewJournalError } from './reviewJournalModel.js';
 import { normalizeCommunityAvatarPath } from './communityAvatarModel.js';
 import { isReviewPublicPostId, mapReviewPublicFeed, mapReviewPublicPost, mapReviewPublicLike, normalizeReviewPublicCursor } from './reviewPublicModel.js';
-import { buildReviewCommunityEvaluation, mapReviewCommunityEvaluation, mapReviewCommunityEvaluations, mapReviewCommunityDelete, normalizeReviewCommunityCursor } from './reviewCommunityEvaluationModel.js';
+import { buildReviewCommunityEvaluation, mapReviewCommunityEvaluation, mapReviewCommunityEvaluations, mapReviewCommunityDelete, normalizeReviewCommunityCursor, normalizeReviewCommunityReplyTarget } from './reviewCommunityEvaluationModel.js';
 
 export function reviewPublicError(error) {
   if (['42883', '42P01', '42703', 'PGRST202', 'PGRST204'].includes(error?.code)) {
@@ -24,8 +24,8 @@ export async function assertReviewPublicAvailable(client, expectedUserId) {
   if (typeof expectedUserId !== 'string' || !expectedUserId.trim()) throw reviewJournalError('REVIEW_AUTH_REQUIRED', '请先登录后查看公开动态。');
   if (typeof client?.rpc !== 'function') throw reviewPublicError({ code: 'PGRST202' });
   let result;
-  try { result = await client.rpc('fetch_review_public_feed', {
-    p_limit: 1, p_before: null, p_before_id: null, p_query: '', p_symbol: '', p_expected_user_id: expectedUserId,
+  try { result = await client.rpc('fetch_review_public_feed_v2', {
+    p_limit: 1, p_before_date: null, p_before: null, p_before_id: null, p_query: '', p_symbol: '', p_expected_user_id: expectedUserId,
   }); } catch { throw reviewPublicError(null); }
   const { data, error } = result || {};
   if (error) throw reviewPublicError(error);
@@ -64,8 +64,8 @@ export function createReviewPublicRepository(client) {
       || options.symbol != null && options.symbol !== '' && (typeof options.symbol !== 'string' || !/^[A-Z0-9^][A-Z0-9.^=-]{0,19}$/.test(options.symbol))) {
       throw reviewJournalError('REVIEW_PUBLIC_INVALID_QUERY', '动态筛选条件无效，请重新选择。');
     }
-    return mapReviewPublicFeed(await rpc('fetch_review_public_feed', { p_limit: limit,
-      p_before: cursor?.publishedAt || null, p_before_id: cursor?.id || null,
+    return mapReviewPublicFeed(await rpc('fetch_review_public_feed_v2', { p_limit: limit,
+      p_before_date: cursor?.recordDate || null, p_before: cursor?.publishedAt || null, p_before_id: cursor?.id || null,
       p_query: options.query?.trim() || '', p_symbol: options.symbol || '' }, userId));
   }
   async function fetchPost(id, userId) {
@@ -97,10 +97,13 @@ export function createReviewPublicRepository(client) {
   }
   async function saveEvaluation(postId, reply, userId) {
     validatePost(postId); validateEvaluation(reply, true);
-    const payload = buildReviewCommunityEvaluation(reply, userId);
-    const result = mapReviewCommunityEvaluation(await rpc('save_review_community_evaluation', { p_post_id: postId,
-      p_evaluation_id: reply.id, p_expected_revision: reply.revision ?? 0, p_evaluation: payload }, userId, reviewCommunityError), postId);
+    const payload = buildReviewCommunityEvaluation(reply, userId), replyTo = normalizeReviewCommunityReplyTarget(reply.replyTo);
+    const result = mapReviewCommunityEvaluation(await rpc('save_review_community_evaluation_v2', { p_post_id: postId,
+      p_evaluation_id: reply.id, p_expected_revision: reply.revision ?? 0, p_evaluation: payload, p_reply_to: replyTo }, userId, reviewCommunityError), postId);
     if (result.id !== reply.id || result.authorId !== userId) throw reviewJournalError('REVIEW_COMMUNITY_INVALID_DATA', '保存的评价与当前账户不匹配，请重新读取。');
+    if ((replyTo || !(reply.revision > 0)) && JSON.stringify(normalizeReviewCommunityReplyTarget(result.replyTo)) !== JSON.stringify(replyTo)) {
+      throw reviewJournalError('REVIEW_COMMUNITY_INVALID_DATA', '保存的回复对象不匹配，请重新读取。');
+    }
     return result;
   }
   async function deleteEvaluation(postId, reply, userId) {

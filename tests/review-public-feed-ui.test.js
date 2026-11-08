@@ -120,7 +120,7 @@ test('a public detail fetches fresh data, and withdrawal removes both the detail
 
 test('load more is bounded to one request and merges overlapping pages without duplicate posts', async () => {
   const h = await harness(); h.feed(); await flush();
-  const cursor = { publishedAt: '2026-11-06T12:00:00Z', id: 'log:1' };
+  const cursor = { recordDate: '2026-11-05', publishedAt: '2026-11-06T12:00:00Z', id: 'log:1' };
   h.requests[0].resolve(result([post()], cursor)); await flush();
   let tree = h.feed(); const more = button(tree, '加载更多'); more.props.onClick(); more.props.onClick();
   assert.equal(h.requests.length, 2);
@@ -225,7 +225,10 @@ test('only the author gets the shared record action menu on both cards and detai
     assert.match(action.props.className, /rj-post-more/);
     let stopped = false; action.props.onClick({ stopPropagation() { stopped = true; } });
     assert.equal(stopped, true); assert.deepEqual(calls.at(-1), ['log', '1']);
-    if (!full) assert.equal(words(walk(tree).find(node => node.type === 'time')), '11月06日');
+    const date = walk(tree).find(node => node.type === 'time');
+    assert.equal(words(date), full ? '2026-11-05' : '11月05日');
+    assert.equal(date.props.dateTime, '2026-11-05');
+    assert.doesNotMatch(words(tree), /记录日期/);
     tree = h.render(h.components.PublicPost, { ...props, userId: 'another-user' });
     assert.equal(button(tree, '记录操作'), undefined);
     assert.equal(button(tree, '查看我的记录'), undefined);
@@ -474,7 +477,7 @@ test('foreground signals coalesce while hidden or inactive public views do not p
 
 test('a refresh cannot append an old page or replace an in-flight like with stale server counts', async () => {
   const h = await harness(); h.feed(); await flush();
-  const cursor = { publishedAt: '2026-11-06T12:00:00Z', id: 'log:1' };
+  const cursor = { recordDate: '2026-11-05', publishedAt: '2026-11-06T12:00:00Z', id: 'log:1' };
   h.requests[0].resolve(result([post()], cursor)); await flush(); let tree = h.feed();
   button(tree, '加载更多').props.onClick();
   h.posts(tree)[0].props.onLike(h.posts(tree)[0].props.post);
@@ -500,7 +503,7 @@ test('a refresh response from a previous viewer or filter cannot enter the repla
 
 const datedPost = index => post(`log:${String(index).padStart(3, '0')}`, { publishedAt: `2026-11-06T12:00:00.${String(index).padStart(6, '0')}Z` });
 const datedRange = (high, low) => Array.from({ length: high - low + 1 }, (_, index) => datedPost(high - index));
-const cursorFor = value => ({ id: value.id, publishedAt: value.publishedAt });
+const cursorFor = value => ({ recordDate: value.date, id: value.id, publishedAt: value.publishedAt });
 
 test('automatic refresh retains a loaded tail and removes only vanished posts inside the refreshed time window', async () => {
   const h = await harness(); h.feed(); await flush();
@@ -680,4 +683,58 @@ test('a community read error never claims there are no comments', async () => {
   assert.match(words(tree),/网络暂不可用/); assert.doesNotMatch(words(tree),/还没有评论/);
   button(tree,'重新读取').props.onClick(); h.render(h.components.ReviewCommunityEvaluations,props); await flush(); h.requests[1].resolve(communityPage([])); await flush();
   tree=h.render(h.components.ReviewCommunityEvaluations,props); assert.match(words(tree),/还没有评论/); h.unmount();
+});
+
+test('public feed paging and background tail merges use record date before the source creation timestamp', async () => {
+  const h=await harness();
+  const newest=post('log:newest',{date:'2026-11-07',publishedAt:'2026-11-07T01:00:00Z'});
+  const first=post('log:first',{date:'2026-11-06',publishedAt:'2026-11-06T01:00:00Z'});
+  const lateImport=post('log:import',{date:'2026-10-06',publishedAt:'2026-11-08T01:00:00.123456Z'});
+  const older=post('log:older',{date:'2026-10-05',publishedAt:'2026-11-08T01:00:00.123457Z'});
+  h.feed();await flush();h.requests[0].resolve(result([first],cursorFor(first)));await flush();
+  button(h.feed(),'加载更多').props.onClick();assert.deepEqual(h.requests[1].args[0].cursor,{recordDate:first.date,publishedAt:first.publishedAt,id:first.id});
+  h.requests[1].resolve(result([lateImport],cursorFor(lateImport)));await flush();
+  assert.deepEqual(h.posts(h.feed()).map(node=>node.props.post.id),[first.id,lateImport.id]);
+  h.tick();await flush();h.requests[2].resolve(result([newest,first],cursorFor(first)));await flush();
+  let tree=h.feed();assert.deepEqual(h.posts(tree).map(node=>node.props.post.id),[newest.id,first.id,lateImport.id]);
+  button(tree,'加载更多').props.onClick();assert.deepEqual(h.requests[3].args[0].cursor,cursorFor(lateImport));
+  h.requests[3].resolve(result([older]));await flush();assert.deepEqual(h.posts(h.feed()).map(node=>node.props.post.id),[newest.id,first.id,lateImport.id,older.id]);h.unmount();
+});
+
+test('author self-evaluations and community evaluations both expose separate flat reply actions', async () => {
+  const h=await harness(),calls=[];
+  const original={id:'legacy-author-review',date:'2026-11-06',text:'作者自己的评价',score:8,images:[],stocks:[],tags:[],trades:[]};
+  const item=post('log:1',{replies:[original]});
+  let tree=h.render(h.components.PublicReplies,{post:item,db:h.db,userId:'author',language:'zh',onReplyToReview:(...args)=>calls.push(args)});
+  const authorTarget={kind:'author',id:original.id,authorId:item.authorId,nickname:item.author.nickname,available:true};
+  button(tree,'公开作者').props.onClick();assert.deepEqual(calls.at(-1),[item,authorTarget]);
+  button(tree,'回复').props.onClick();assert.deepEqual(calls.at(-1),[item,authorTarget]);
+  walk(tree).find(node=>node.type===h.components.ReplyBody).props.onReply();assert.deepEqual(calls.at(-1),[item,authorTarget]);
+  const community=walk(tree).find(node=>node.type===h.components.ReviewCommunityEvaluations),reply=communityReply();
+  community.props.onReply(reply);assert.deepEqual(calls.at(-1),[item,{kind:'community',id:reply.id,authorId:reply.authorId,nickname:reply.author.nickname,available:true}]);h.unmount();
+});
+
+test('flat community replies show only recipient identity and allow replying to an existing reply', async () => {
+  const h=await harness(),calls=[];
+  const reply=communityReply('reply-to-review',{replyTo:{kind:'author',id:'source',authorId:'author',nickname:'原评论人',available:true}});
+  const deleted=communityReply('reply-to-deleted',{replyTo:{kind:'community',id:'deleted',authorId:'former-author',nickname:'已删目标昵称',available:false}});
+  const props={postId:'log:1',db:h.db,userId:'viewer',onReply:reply=>calls.push(reply)};
+  h.render(h.components.ReviewCommunityEvaluations,props);await flush();h.requests[0].resolve(communityPage([reply,deleted]));await flush();
+  const tree=h.render(h.components.ReviewCommunityEvaluations,props);
+  assert.match(words(tree),/回复 @原评论人/);assert.match(words(tree),/原评论已删除/);assert.doesNotMatch(words(tree),/已删目标昵称/);
+  const row=walk(tree).find(node=>node.props['data-rj-reply-id']===reply.id);
+  button(row,'另一位评价者').props.onClick();assert.equal(calls.at(-1),reply);
+  button(row,'回复').props.onClick();assert.equal(calls.at(-1),reply);
+  walk(row).find(node=>node.type===h.components.ReplyBody).props.onReply();assert.equal(calls.at(-1),reply);h.unmount();
+});
+
+test('reply body gestures ignore stock controls and keyboard events from nested controls', async () => {
+  const h=await harness();let replies=0,stops=0;
+  const tree=h.render(h.components.ReplyBody,{onReply:()=>replies++,children:'评论正文'});
+  const bodyTarget={closest:()=>null},control={closest:()=>({})};
+  tree.props.onClick({target:control,stopPropagation:()=>stops++});assert.equal(replies,0);
+  tree.props.onClick({target:bodyTarget,defaultPrevented:true,stopPropagation:()=>stops++});assert.equal(replies,0);
+  tree.props.onClick({target:bodyTarget,stopPropagation:()=>stops++});assert.equal(replies,1);assert.equal(stops,1);
+  tree.props.onKeyDown({target:control,currentTarget:bodyTarget,key:'Enter',preventDefault(){},stopPropagation(){}});assert.equal(replies,1);
+  tree.props.onKeyDown({target:bodyTarget,currentTarget:bodyTarget,key:'Enter',preventDefault(){},stopPropagation(){}});assert.equal(replies,2);h.unmount();
 });

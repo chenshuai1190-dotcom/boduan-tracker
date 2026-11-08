@@ -1,7 +1,12 @@
 // Isolated sample data for DevVisualPreview. No network or account writes.
-import { mapReviewPublicReplies } from '../lib/reviewPublicModel.js';
-import { buildReviewCommunityEvaluation, normalizeReviewCommunityCursor } from '../lib/reviewCommunityEvaluationModel.js';
+import { mapReviewPublicReplies, normalizeReviewPublicCursor } from '../lib/reviewPublicModel.js';
+import { buildReviewCommunityEvaluation, normalizeReviewCommunityCursor, normalizeReviewCommunityReplyTarget } from '../lib/reviewCommunityEvaluationModel.js';
 import { isReviewJournalOperationId, reviewJournalError } from '../lib/reviewJournalModel.js';
+
+export function reviewPreviewEntryTimestamps(entry, existing, now = new Date().toISOString()) {
+  const createdAt = existing?.createdAt || entry.createdAt || (existing ? `${existing.date}T04:00:00Z` : now);
+  return { createdAt, publishedAt: entry.visibility === 'public' ? createdAt : null };
+}
 
 export function createReviewPublicPreview({ ownerId, getEntries, getImage, market, communityEvaluations = [] }) {
   const likes = new Map();
@@ -18,14 +23,32 @@ export function createReviewPublicPreview({ ownerId, getEntries, getImage, marke
       publishedAt:'2026-11-06T05:00:00Z',updatedAt:'2026-11-07T06:00:00Z',likeCount:4,liked:false },
   ];
   const assertOwner = userId => { if(userId!==ownerId)throw new Error('预览账户不匹配'); };
-  const communityRows = postId => [...evaluations.values()].filter(row => row.postId === postId)
+  const sourceParent = postId => {
+    const own = getEntries().find(row => `${row.type}:${row.id}` === postId && !row.timelineEvent);
+    return own ? { ...own, authorId: ownerId, author: { nickname: '波段玩家1836' } } : samples.find(row => row.id === postId);
+  };
+  const targetRecord = (postId, target) => {
+    if (target.kind === 'author') {
+      const parent = sourceParent(postId);
+      return parent?.replies?.some(reply => reply.id === target.id) ? { authorId: parent.authorId, nickname: parent.author.nickname } : null;
+    }
+    const reply = evaluations.get(target.id);
+    return reply?.postId === postId ? { authorId: reply.authorId, nickname: reply.author.nickname } : null;
+  };
+  const readEvaluation = row => {
+    if (!row.replyTo) return { ...row, replyTo: null };
+    const current = targetRecord(row.postId, row.replyTo);
+    return { ...row, replyTo: { kind: row.replyTo.kind, id: row.replyTo.id, authorId: row.replyTo.authorId,
+      nickname: current?.nickname || row.replyTo.nickname || 'Quote 用户', available: current?.authorId === row.replyTo.authorId } };
+  };
+  const communityRows = postId => [...evaluations.values()].filter(row => row.postId === postId).map(readEvaluation)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id));
-  const availableSamples = () => (refreshScenario === 'empty' ? [] : refreshScenario === 'published' ? [{ ...samples[0], id:'insight:sample-fresh-post', sourceId:'sample-fresh-post', text:'刷新验收示例：这是其他账号刚刚发布的公开帖子。', publishedAt:'2026-11-08T06:00:00Z' }] : samples).filter(row => sampleVisibility.get(row.id) !== 'private');
+  const availableSamples = () => (refreshScenario === 'empty' ? [] : refreshScenario === 'published' ? [{ ...samples[0], id:'insight:sample-fresh-post', sourceId:'sample-fresh-post', text:'刷新验收示例：这是其他账号刚刚发布的公开帖子。', date:'2026-11-08', publishedAt:'2026-11-08T06:00:00Z' }] : samples).filter(row => sampleVisibility.get(row.id) !== 'private');
   const posts = () => [...availableSamples(),...(refreshScenario ? [] : getEntries()).filter(row=>row.visibility==='public'&&!row.timelineEvent).map(row=>({
     id:`${row.type}:${row.id}`,type:row.type,sourceId:String(row.id),authorId:ownerId,author:{nickname:'波段玩家1836',avatarKey:'gold',avatarPath:null},
-    text:row.text,date:row.date,stocks:row.stocks||[],images:row.images||[],market:row.market||null,replies:row.replies||[],publishedAt:row.publishedAt||row.createdAt||'2026-11-07T04:00:00Z',updatedAt:row.updatedAt||row.createdAt||'2026-11-07T04:00:00Z',likeCount:0,liked:false,
+    text:row.text,date:row.date,stocks:row.stocks||[],images:row.images||[],market:row.market||null,replies:row.replies||[],publishedAt:row.createdAt||`${row.date}T04:00:00Z`,updatedAt:row.updatedAt||row.createdAt||`${row.date}T04:00:00Z`,likeCount:0,liked:false,
   }))].map(row=>{const replies=mapReviewPublicReplies(row.replies,row.authorId);return {...row,replies,commentCount:replies.length+communityRows(row.id).length,liked:likes.get(row.id)===true,likeCount:row.likeCount+(likes.get(row.id)?1:0)};})
-    .sort((a,b)=>b.publishedAt.localeCompare(a.publishedAt)||b.id.localeCompare(a.id));
+    .sort((a,b)=>b.date.localeCompare(a.date)||b.publishedAt.localeCompare(a.publishedAt)||b.id.localeCompare(a.id));
   const assertParent = postId => {
     if (!posts().some(row => row.id === postId) && !getEntries().some(row => `${row.type}:${row.id}` === postId && !row.timelineEvent)) {
       throw reviewJournalError('REVIEW_PUBLIC_NOT_FOUND', '这条动态已删除或改为私密。');
@@ -46,10 +69,10 @@ export function createReviewPublicPreview({ ownerId, getEntries, getImage, marke
     },
     async fetchReviewPublicFeed({cursor,query='',symbol='',limit=20}={},userId) {
       assertOwner(userId);
-      const term=query.trim().toLowerCase();
-      const matching=posts().filter(row=>(!term||`${row.text} ${row.stocks.join(' ')} ${row.author.nickname}`.toLowerCase().includes(term))&&(!symbol||row.stocks.includes(symbol))&&(!cursor||row.publishedAt<cursor.publishedAt||row.publishedAt===cursor.publishedAt&&row.id<cursor.id));
+      const term=query.trim().toLowerCase(), before=normalizeReviewPublicCursor(cursor);
+      const matching=posts().filter(row=>(!term||`${row.text} ${row.stocks.join(' ')} ${row.author.nickname}`.toLowerCase().includes(term))&&(!symbol||row.stocks.includes(symbol))&&(!before||row.date<before.recordDate||row.date===before.recordDate&&(row.publishedAt<before.publishedAt||row.publishedAt===before.publishedAt&&row.id<before.id)));
       const page=matching.slice(0,limit),last=page.at(-1);
-      return {posts:page,hasMore:matching.length>page.length,nextCursor:matching.length>page.length&&last?{publishedAt:last.publishedAt,id:last.id}:null};
+      return {posts:page,hasMore:matching.length>page.length,nextCursor:matching.length>page.length&&last?{recordDate:last.date,publishedAt:last.publishedAt,id:last.id}:null};
     },
     async fetchReviewPublicPost(id,userId) {assertOwner(userId);return posts().find(row=>row.id===id)||null;},
     async fetchReviewCommunityEvaluations({ postId, limit = 20, cursor = null } = {}, userId) {
@@ -63,16 +86,26 @@ export function createReviewPublicPreview({ ownerId, getEntries, getImage, marke
     async saveReviewCommunityEvaluation(postId, reply, userId) {
       assertOwner(userId); assertParent(postId); validateReply(reply, true);
       const payload = writePayload(reply), existing = evaluations.get(reply.id), revision = reply.revision ?? 0;
+      const requestedTarget = normalizeReviewCommunityReplyTarget(reply.replyTo);
       if (deletedEvaluations.has(reply.id)) throw reviewJournalError('REVIEW_PUBLIC_NOT_FOUND', '评价已删除。');
       if (existing && (existing.authorId !== userId || existing.postId !== postId)) throw reviewJournalError('REVIEW_PUBLIC_FORBIDDEN', '只能修改自己的评价。');
+      let replyTo = existing?.replyTo || null;
+      if (existing && requestedTarget && JSON.stringify(normalizeReviewCommunityReplyTarget(existing.replyTo)) !== JSON.stringify(requestedTarget)) {
+        throw reviewJournalError('REVIEW_COMMUNITY_INVALID_INPUT', '回复对象不能修改。');
+      }
+      if (!existing && requestedTarget) {
+        const target = targetRecord(postId, requestedTarget);
+        if (!target) throw reviewJournalError('REVIEW_PUBLIC_NOT_FOUND', '回复对象已删除或不可用。');
+        replyTo = { ...requestedTarget, ...target, available: true };
+      }
       if (existing && JSON.stringify(writePayload(existing)) === JSON.stringify(payload)
-        && (revision === existing.revision || revision === existing.revision - 1)) return existing;
+        && (revision === existing.revision || revision === existing.revision - 1)) return readEvaluation(existing);
       if (!existing && revision !== 0) throw reviewJournalError('REVIEW_PUBLIC_NOT_FOUND', '评价已删除。');
       if (existing && revision !== existing.revision) throw reviewJournalError('REVIEW_COMMUNITY_CONFLICT', '评价已被修改，请重新读取后再操作。');
       const timestamp = new Date().toISOString();
-      const saved = { ...payload, postId, authorId: userId, author: { nickname: '波段玩家1836', avatarKey: 'gold', avatarPath: null },
+      const saved = { ...payload, postId, replyTo, authorId: userId, author: { nickname: '波段玩家1836', avatarKey: 'gold', avatarPath: null },
         revision: (existing?.revision || 0) + 1, createdAt: existing?.createdAt || timestamp, updatedAt: timestamp, source: 'community' };
-      evaluations.set(saved.id, saved); return saved;
+      evaluations.set(saved.id, saved); return readEvaluation(saved);
     },
     async deleteReviewCommunityEvaluation(postId, reply, userId) {
       assertOwner(userId); assertParent(postId); validateReply(reply);

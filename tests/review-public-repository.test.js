@@ -47,19 +47,20 @@ test('invalid foreign images, malformed identifiers and unsafe counts fail visib
 
 test('feed validates pagination and does not mistake malformed responses for empty results', () => {
   assert.deepEqual(mapReviewPublicFeed({ posts: [], hasMore: false, nextCursor: null }), { posts: [], hasMore: false, nextCursor: null });
-  const cursor = { publishedAt: post().publishedAt, id: post().id };
+  const cursor = { recordDate: post().date, publishedAt: post().publishedAt, id: post().id };
   assert.deepEqual(mapReviewPublicFeed(feed({ hasMore: true, nextCursor: cursor })).nextCursor, cursor);
   for (const value of [null, {}, feed({ hasMore: true }), feed({ nextCursor: cursor }), feed({ posts: [post(), post()] }),
-    feed({ hasMore: true, nextCursor: { ...cursor, id: 'log:43' } })]) assert.throws(() => mapReviewPublicFeed(value), { code: 'REVIEW_PUBLIC_INVALID_DATA' });
+    feed({ hasMore: true, nextCursor: { ...cursor, id: 'log:43' } }), feed({ hasMore: true, nextCursor: { ...cursor, recordDate: '2026-11-05' } }),
+    feed({ hasMore: true, nextCursor: { publishedAt: cursor.publishedAt, id: cursor.id } })]) assert.throws(() => mapReviewPublicFeed(value), { code: 'REVIEW_PUBLIC_INVALID_DATA' });
 });
 
 test('public feed uses authenticated bounded cursor RPC and returns no private source rows', async () => {
   const f = fixture();
-  const cursor = { publishedAt: '2026-11-09T01:00:00.123456+00:00', id: 'log:50' };
+  const cursor = { recordDate: '2026-11-07', publishedAt: '2026-11-09T01:00:00.123456+00:00', id: 'log:50' };
   const result = await f.repository.fetchFeed({ limit: 12, cursor, query: ' NVDA ', symbol: 'NVDA' }, VIEWER);
   assert.equal(result.posts[0].authorId, AUTHOR, 'public authors may differ from the authenticated viewer');
   assert.equal(f.authCalls(), 2);
-  assert.deepEqual(f.calls, [{ name: 'fetch_review_public_feed', args: { p_limit: 12, p_before: cursor.publishedAt, p_before_id: cursor.id, p_query: 'NVDA', p_symbol: 'NVDA', p_expected_user_id: VIEWER } }]);
+  assert.deepEqual(f.calls, [{ name: 'fetch_review_public_feed_v2', args: { p_limit: 12, p_before_date: cursor.recordDate, p_before: cursor.publishedAt, p_before_id: cursor.id, p_query: 'NVDA', p_symbol: 'NVDA', p_expected_user_id: VIEWER } }]);
   for (const options of [{ limit: 100 }, { query: 'x'.repeat(201) }, { symbol: 'bad symbol' }, { cursor: { id: 'log:1', publishedAt: 'bad' } }]) {
     await assert.rejects(f.repository.fetchFeed(options, VIEWER));
   }

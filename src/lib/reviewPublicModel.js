@@ -75,8 +75,8 @@ export function mapReviewPublicPost(value) {
 
 export function normalizeReviewPublicCursor(value) {
   if (value == null) return null;
-  if (!plain(value) || !timestamp(value.publishedAt) || !isReviewPublicPostId(value.id)) return invalid();
-  return { publishedAt: value.publishedAt, id: value.id };
+  if (!plain(value) || !isReviewJournalDate(value.recordDate) || !timestamp(value.publishedAt) || !isReviewPublicPostId(value.id)) return invalid();
+  return { recordDate: value.recordDate, publishedAt: value.publishedAt, id: value.id };
 }
 
 export function mapReviewPublicFeed(value) {
@@ -85,7 +85,7 @@ export function mapReviewPublicFeed(value) {
   if (new Set(posts.map(post => post.id)).size !== posts.length
     || value.hasMore && (!nextCursor || !posts.length)
     || !value.hasMore && nextCursor != null) return invalid();
-  if (nextCursor && (nextCursor.id !== posts.at(-1).id || nextCursor.publishedAt !== posts.at(-1).publishedAt)) return invalid();
+  if (nextCursor && (nextCursor.recordDate !== posts.at(-1).date || nextCursor.id !== posts.at(-1).id || nextCursor.publishedAt !== posts.at(-1).publishedAt)) return invalid();
   return { posts, hasMore: value.hasMore, nextCursor };
 }
 

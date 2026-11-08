@@ -3,6 +3,11 @@ import { CURRENT_RELEASE } from './releaseMeta.js';
 export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
+    items: ['公开与私密博文统一按原记录日期展示和排序，切换可见范围不再变成今天的新帖。评论支持点击正文或昵称回复，显示回复对象，并保留本人修改、删除及随博文变化的可见范围。'],
+    itemsEn: ['Public and private posts now share the original record date and ordering; visibility changes no longer move old posts to today. Tap a comment or its author to reply, with a visible reply target, author-only edit and delete actions, and visibility inherited from the post.'],
+  },
+  {
+    ver: 'v10.7.9.603', date: '2026-11-08',
     items: ['公开博文支持其他用户发表评论和 1–10 分评分，展示评价者头像昵称，并允许修改、删除自己的评价；评价随博文公开或私密。公开动态支持下拉、返回前台和前台定时更新，修复他人新帖无法及时出现的问题。'],
     itemsEn: ['Public posts now accept comments and 1–10 ratings from other users, show each reviewer’s identity, and let reviewers edit or delete their own evaluations. Evaluations follow the post’s visibility. Public activity refreshes on pull, resume, and periodically in the foreground so new posts appear.'],
   },

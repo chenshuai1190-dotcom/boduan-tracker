@@ -273,6 +273,13 @@ const SERVICE_ONLY_RPCS = [
 ];
 const AUTHENTICATED_USER_RPCS = [
   {
+    name: 'fetch_review_public_feed_v2',
+    body: {
+      p_limit: 1, p_before_date: null, p_before: null, p_before_id: null,
+      p_query: '', p_symbol: '', p_expected_user_id: null,
+    },
+  },
+  {
     name: 'fetch_review_public_feed',
     body: {
       p_limit: 1, p_before: null, p_before_id: null, p_query: '', p_symbol: '',
@@ -300,6 +307,10 @@ const AUTHENTICATED_USER_RPCS = [
   {
     name: 'save_review_community_evaluation',
     body: { p_post_id: null, p_evaluation_id: null, p_expected_revision: 0, p_evaluation: {}, p_expected_user_id: null },
+  },
+  {
+    name: 'save_review_community_evaluation_v2',
+    body: { p_post_id: null, p_evaluation_id: null, p_expected_revision: 0, p_evaluation: {}, p_reply_to: null, p_expected_user_id: null },
   },
   {
     name: 'delete_review_community_evaluation',
