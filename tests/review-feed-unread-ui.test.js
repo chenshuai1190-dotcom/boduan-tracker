@@ -45,7 +45,7 @@ test('badge uses its own solid background and isolated icon layer without blur o
   assert.match(css,/\.report-bottom-nav-icon-wrap\s*\{[^}]*isolation:\s*isolate/);
 });
 
-test('Dynamic opens the public All request path without clearing counts on the tap itself', () => {
+test('Dynamic requests the All root so the page can restore its saved scope without clearing counts on the tap itself', () => {
   const handler = app.slice(app.indexOf('const handleBottomTabClick ='),app.indexOf('const [portfolioCurrencyMode,'));
   assert.match(handler,/if \(tabId === 'review'\) setReviewOpenAllRequest\(value => value \+ 1\)/);
   assert.doesNotMatch(handler,/markSeen|markReviewFeedSeen|unreadCount/);

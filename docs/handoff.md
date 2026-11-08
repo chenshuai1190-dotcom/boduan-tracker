@@ -1,20 +1,20 @@
 # boduan-tracker 当前交接
 
-验证时间：`2026-11-08 Asia/Shanghai`。v613 博文即时展示已发布；v614 候选修复设置页切换 Tab 后旧默认头像闪现。稳定规则看 `README.md`，流程看 `docs/development-process.md`。
+验证时间：`2026-11-08 Asia/Shanghai`。v614 设置头像缓存、动态头像圆框和内容详情标题已发布；v615 候选修复动态公开／私密选择恢复及私密入口新帖提醒。稳定规则看 `README.md`，流程看 `docs/development-process.md`。
 
 ## 当前生产基准
 | 项目 | 当前值 |
 | --- | --- |
 | 仓库 | `chenshuai1190-dotcom/boduan-tracker`；唯一发布来源 `main` |
 | 当前工作区 | `/Users/chenshuaishuai/Documents/Codex/2026-10-03/quote-boduan-tracker-2026-10-03/work/quiet-input-fields` |
-| 发布前生产 | `00f12f8014dbd9eb76721f6ae834d50ad696f3e6 / v10.7.9.613`；`https://boduan-tracker.vercel.app`；CI、Docs、Vercel 与生产静态产物验证通过 |
-| 本次候选版本 | `v10.7.9.614 / 2026-11-08`：设置头部复用本人身份展示缓存，返回立即显示头像和昵称；未知自定义头像中性占位，编辑强制读取与 CAS 保留；无需迁移 |
+| 发布前生产 | `0fc62a413818a3ad9ac4a2cd689d7eb98308473c / v10.7.9.614`；`https://boduan-tracker.vercel.app`；精确提交 CI、Vercel 与生产静态产物验证通过 |
+| 本次候选版本 | `v10.7.9.615 / 2026-11-08`：动态恢复本人最后明确选择的公开／私密范围；私密入口展示公开新帖数，公开列表成功显示后按原边界标读；发布偏好及铃铛消息独立，无需迁移 |
 | 数据库规格 | 同日经用户确认由 Pro / Nano 切换为 Pro / Micro（1 GB，共享 CPU，新加坡），控制台已生效，新增计算费用为 0；应用与 Auth 基础可用性通过，未据此推断提速幅度 |
 | 已生效云端配置 | 基础迁移及 `supabase/review_display_preferences_return_drawdown_20261107.sql` 已应用；五个 nullable 显示字段兼容旧客户端，不 backfill、不重置 revision；独立本人显示偏好表，RLS 开启、3 条 owner policy、匿名无 SELECT、authenticated 无 DELETE；原复盘与正式交易记录数量保持不变 |
 | 生产 Checks | 本会话控制台只读核对为“未配置任何检查”；保留仓库 CI 与 Docs，等待精确提交 CI + Docs + Vercel，不宣称平台已配置晋级阻断 |
 
 ## 本次证据与既有边界
-- v614 设置头部复用现有 owner identity 展示缓存，未知图片不回退旧 preset；编辑 profile／头像强制读取和 CAS 独立。上一轮本地 FULL 4206/4206、128 项定向测试、iPhone 主屏幕 PWA Tab 往返与独立审查通过；加入发布元数据后最终 FULL 与精确提交发布证据保存至 `artifacts/settings-avatar-cache/v614-*`，等待器通过前仍为候选。v613 已通过 FULL 4195/4195、iPhone PWA、CI/Docs/Vercel 及线上博文/评论/返回验收，证据 `artifacts/review-public-activity/v613-acceptance.json`；正文仅同账号/作用域复用、撤回清除和迟到回包保护保持。
+- v615 只修正动态入口范围恢复和私密入口新帖提示，未改 App 实时／PWA 恢复、未读 RPC、轮询频率或数据库。最终 FULL、已安装 iPhone 主屏幕 PWA 与精确提交发布证据归档 `artifacts/activity-scope-memory/`；等待器通过前仍为候选。v614 设置头像已通过 FULL 4206/4206、iPhone PWA、CI/Docs/Vercel 和线上返回验收；后续头像圆框 `be2c452` 与内容详情标题 `0fc62a4` 均已通过 FAST、CI/Vercel 及生产静态产物验证。v613 即时正文仅在同账号/作用域复用，撤回清除和迟到回包保护保持。
 - v612 消息 repository 复用 `reviewSessionGuard`，服务端 JWT／预期账户／收件人／当前可见权限保持；不缓存消息正文、不改变轮询频率、不承诺即时撤销。FULL 4174/4174、构建、CI/Docs/Vercel 与生产消息列表及目标跳转通过，证据 `artifacts/review-public-activity/v612-acceptance.json`；未量化线上提速幅度。
 - v611 保留服务端 JWT/RLS/预期账户校验，使用本地会话及身份世代减少远程认证；头像按当前账户与 immutable path 缓存，退出/切号清除，不缓存正文或评价附件；新帖只标读请求前边界。规则见 `docs/review-public-activity.md`。FULL 4167/4167、build/docs/whitespace 通过；已安装 iPhone 主屏幕 PWA 隔离示例验证头像首次下载 1 次、重进 1 次、换路径 2 次、清缓存 3 次，同作者评论同步；证据为 `artifacts/review-public-activity/performance-local-acceptance.json`，未测量生产耗时。
 - v610 迁移已应用且精确提交发布通过，证据为 `artifacts/review-public-activity/v610-acceptance.json`。分组分页、通知定位、旧评价日期、原容器编辑与私密权限保留；评论点赞暂不新增通知。v611 不改数据库，不向真实用户提交测试互动；发布结果以 `v611-release-verify.log` 为准，验证前不把候选写成上线。

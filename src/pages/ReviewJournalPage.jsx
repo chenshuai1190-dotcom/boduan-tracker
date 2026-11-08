@@ -255,10 +255,23 @@ export default function ReviewJournalPage({ ctx }) {
   const [filter,setFilter]=useState(() => preview && previewData.initialTimeline ? 'timeline' : 'all'); const [search,setSearch]=useState(false); const [query,setQuery]=useState('');
   const initialAllScope = () => preview && ['public', 'private'].includes(previewData.initialAllScope)
     ? previewData.initialAllScope : readReviewAudiencePreference(userId, 'feedScope');
-  const [scopeSelection,setScopeSelection]=useState(()=>({userId,value:initialAllScope()}));
-  const allScope=scopeSelection.userId===userId?scopeSelection.value:initialAllScope();
+  // Only an explicit browsing choice updates this preference. Notification
+  // targets and newly saved posts can temporarily display another audience.
+  const browsingScope=useRef(null);
+  if(!browsingScope.current||browsingScope.current.userId!==userId)browsingScope.current={userId,value:initialAllScope()};
+  const [scopeSelection,setScopeSelection]=useState(()=>({...browsingScope.current}));
+  const allScope=scopeSelection.userId===userId?scopeSelection.value:browsingScope.current.value;
   const setAllScope=value=>setScopeSelection({userId,value});
-  const chooseAllScope=value=>{setAllScope(value);writeReviewAudiencePreference(userId,'feedScope',value);if(value==='public'&&allScope==='public')setPublicRefresh(old=>old+1);};
+  const chooseAllScope=value=>{
+    if(!['public','private'].includes(value))return;
+    browsingScope.current={userId,value};setAllScope(value);writeReviewAudiencePreference(userId,'feedScope',value);
+    if(value==='public'&&allScope==='public')setPublicRefresh(old=>old+1);
+  };
+  useEffect(()=>{setScopeSelection({...browsingScope.current});},[userId]);
+  const publicUnreadCount=reviewFeedUnread?.unreadCount>0?reviewFeedUnread.unreadCount:0;
+  const publicUnreadDescription=publicUnreadCount?(language==='en'?`${publicUnreadCount} new public posts`:`${publicUnreadCount} 条公开新帖子`):undefined;
+  const showPrivateUnread=allScope==='private'&&publicUnreadCount>0;
+  const publicUnreadBadge=publicUnreadCount>0?<span className="rj-scope-unread-badge" aria-hidden="true">{publicUnreadCount>99?'99+':publicUnreadCount}</span>:null;
   const [scopeMenu,setScopeMenu]=useState(false); const [publicDetail,setPublicDetail]=useState(false); const [publicRefresh,setPublicRefresh]=useState(0);
   const [publicEvaluationContext,setPublicEvaluationContext]=useState(null);
   const [publicPostContext,setPublicPostContext]=useState(null);
@@ -389,12 +402,12 @@ export default function ReviewJournalPage({ ctx }) {
   };
   const handledOpenAllRequest=useRef(null);
   useEffect(()=>{
-    if(!reviewOpenAllRequest||handledOpenAllRequest.current===reviewOpenAllRequest)return;
-    handledOpenAllRequest.current=reviewOpenAllRequest;
-    applyRoute(rootRoute);setFilter('all');setAllScope('public');setQuery('');setSearch(false);setScopeMenu(false);
+    if(!reviewOpenAllRequest||(handledOpenAllRequest.current?.userId===userId&&handledOpenAllRequest.current.request===reviewOpenAllRequest))return;
+    handledOpenAllRequest.current={userId,request:reviewOpenAllRequest};
+    applyRoute(rootRoute);setFilter('all');setAllScope(browsingScope.current.value);setQuery('');setSearch(false);setScopeMenu(false);
     setPublicDetail(false);setPublicPostContext(null);setPublicEvaluationContext(null);setNotificationOpenRequest(null);
     setPublicRefresh(value=>value+1);
-  },[reviewOpenAllRequest]);
+  },[reviewOpenAllRequest,userId]);
   useEffect(()=>{
     const previousRestoration=window.history?.scrollRestoration;
     if(window.history)window.history.scrollRestoration='manual';
@@ -575,7 +588,18 @@ export default function ReviewJournalPage({ ctx }) {
     {isNotifications&&<ReviewNotifications key={userId} db={db} userId={userId} language={language} onBack={closeDetail} onOpen={openNotification} onUnreadCountChange={notificationCount.update} refreshRef={reviewPublicRefreshRef}/>}
     {isSettings&&<ReviewPreferences identityNode={<><Avatar identity={identity} userId={userId} preview={preview}/><AuthorName identity={identity}/></>} {...preferenceState} onChange={preferenceState.updatePreferences} onRetry={preferenceState.retry} language={language}/>}
     <div className="rj-list-page" hidden={showingDetail}>
-      {!tagSymbol&&!(publicFeedVisible&&publicDetail)&&<div className="rj-scope-navigation" ref={scopeRef}><nav className="rj-tabs" aria-label="复盘分类">{[['all','全部'],['log','复盘日志'],['insight','投资心得'],['timeline','时间线']].map(([id,name])=><button key={id} aria-pressed={filter===id} aria-expanded={id==='all'?scopeMenu:undefined} aria-label={id==='all'?'全部动态范围':undefined} onClick={()=>{setFilter(id);setScopeMenu(id==='all'?!scopeMenu:false);}}>{id==='all'?<>{allScope==='private'?'私密':'全部'}<ChevronDown size={13}/></>:name}</button>)}</nav>{scopeMenu&&<div className="rj-scope-menu" role="group" aria-label="全部页面显示范围">{[['public','全部 · 公开动态','所有 Quote 用户的公开内容'],['private','私密 · 仅自己','自己的私密记录和时间线']].map(([value,label,description])=><button key={value} type="button" aria-label={value==='public'?'显示公开动态':'显示私密记录'} aria-pressed={allScope===value} onClick={()=>{chooseAllScope(value);setScopeMenu(false);setQuery('');setSearch(false);}}><span><strong>{label}</strong><small>{description}</small></span>{allScope===value&&<Check size={16}/>}</button>)}</div>}</div>}
+      {!tagSymbol&&!(publicFeedVisible&&publicDetail)&&<div className="rj-scope-navigation" ref={scopeRef}>
+        <nav className="rj-tabs" aria-label="复盘分类" data-public-unread={showPrivateUnread||undefined}>
+          {[['all','全部'],['log','复盘日志'],['insight','投资心得'],['timeline','时间线']].map(([id,name])=><button key={id} aria-pressed={filter===id} aria-expanded={id==='all'?scopeMenu:undefined} aria-label={id==='all'?'全部动态范围':undefined} aria-description={id==='all'&&showPrivateUnread?publicUnreadDescription:undefined} onClick={()=>{setFilter(id);setScopeMenu(id==='all'?!scopeMenu:false);}}>
+            {id==='all'?<>{allScope==='private'?'私密':'全部'}<ChevronDown size={13}/>{showPrivateUnread&&publicUnreadBadge}</>:name}
+          </button>)}
+        </nav>
+        {scopeMenu&&<div className="rj-scope-menu" role="group" aria-label="全部页面显示范围">
+          {[['public','全部 · 公开动态','所有 Quote 用户的公开内容'],['private','私密 · 仅自己','自己的私密记录和时间线']].map(([value,label,description])=><button key={value} type="button" aria-label={value==='public'?'显示公开动态':'显示私密记录'} aria-description={value==='public'?publicUnreadDescription:undefined} aria-pressed={allScope===value} onClick={()=>{chooseAllScope(value);setScopeMenu(false);setQuery('');setSearch(false);}}>
+            <span><strong>{label}</strong><small>{description}</small></span><span className="rj-scope-menu-status">{value==='public'&&publicUnreadBadge}{allScope===value&&<Check size={16}/>}</span>
+          </button>)}
+        </div>}
+      </div>}
       {tagSymbol&&<p className="rj-tag-summary">{language==='en'?`${feed.length} related posts`:`${feed.length} 篇相关博文`}</p>}
       {!tagSymbol&&filter!=='timeline'&&!(publicFeedVisible&&publicDetail)&&search&&<div className="rj-search"><Search size={17}/><input autoFocus value={query} onChange={event=>setQuery(event.target.value)} aria-label="搜索正文、股票或日期" placeholder="搜索正文、股票或日期"/></div>}
       {error&&!menu&&!showingDetail&&<p className="rj-error" role="alert">{error}</p>}
@@ -584,7 +608,7 @@ export default function ReviewJournalPage({ ctx }) {
       {mixedFeedEnabled&&['idle','loading'].includes(ownedTimeline.status)&&<p className="rj-note rj-feed-status" role="status">{language==='en'?'Loading timeline…':'正在读取时间线…'}</p>}
       {mixedFeedEnabled&&ownedTimeline.status==='pending'&&<div className="rj-feed-status" role="status"><p className="rj-note">{language==='en'?'Closing history is being updated. The timeline will be available when complete.':'收盘历史正在更新，完成后可查看时间线。'}</p><button className="rj-text-button" onClick={()=>setTimelineAttempt(value=>value+1)}>{language==='en'?'Retry':'重新读取'}</button></div>}
       {mixedFeedEnabled&&ownedTimeline.error&&<div className="rj-feed-status" role="alert"><p className="rj-note">{ownedTimeline.error}</p><button className="rj-text-button" onClick={()=>setTimelineAttempt(value=>value+1)}>{language==='en'?'Retry':'重新读取'}</button></div>}
-      {publicFeedVisible&&<ReviewPublicFeed key={`${userId}:${reviewOpenAllRequest}`} db={db} userId={userId} language={language} marketColorMode={marketColorMode} query={query} openRequest={notificationOpenRequest?.userId===userId?notificationOpenRequest:null} onOpenRequestHandled={id=>setNotificationOpenRequest(old=>old?.id===id?null:old)} refreshToken={publicRefresh} refreshRef={reviewPublicRefreshRef} reviewFeedUnread={reviewFeedUnread} active={!showingDetail&&!composer&&!menu&&!activeReplyMenu&&!editingEntry&&!activeCommunityMenu&&!activeCommunityEdit&&!communityDrafts.some(item=>item.userId===userId&&item.open&&allowedCommunityPostIds.includes(item.post.id))&&!lightbox&&!evaluations.some(item=>item.userId===userId&&item.open&&item.key===evaluationKey)} onDetailChange={publicDetailChanged} onManageOwnEntry={manageOwnPublicEntry} onEvaluateOwnEntry={(type,id)=>evaluateOwnPublicEntry(type,id)} onManageOwnReply={evaluateOwnPublicEntry} onEvaluateCommunityEntry={evaluateCommunityEntry} onReplyToReview={replyToReview} onManageCommunityReply={manageCommunityReply} onCommunityCountChange={updateCommunityCount}/>}
+      {publicFeedVisible&&<ReviewPublicFeed key={`${userId}:${reviewOpenAllRequest}`} db={db} userId={userId} language={language} marketColorMode={marketColorMode} query={query} openRequest={notificationOpenRequest?.userId===userId?notificationOpenRequest:null} onOpenRequestHandled={id=>setNotificationOpenRequest(old=>old?.id===id?null:old)} refreshToken={publicRefresh} refreshRef={reviewPublicRefreshRef} reviewFeedUnread={browsingScope.current.value==='public'?reviewFeedUnread:undefined} active={!showingDetail&&!composer&&!menu&&!activeReplyMenu&&!editingEntry&&!activeCommunityMenu&&!activeCommunityEdit&&!communityDrafts.some(item=>item.userId===userId&&item.open&&allowedCommunityPostIds.includes(item.post.id))&&!lightbox&&!evaluations.some(item=>item.userId===userId&&item.open&&item.key===evaluationKey)} onDetailChange={publicDetailChanged} onManageOwnEntry={manageOwnPublicEntry} onEvaluateOwnEntry={(type,id)=>evaluateOwnPublicEntry(type,id)} onManageOwnReply={evaluateOwnPublicEntry} onEvaluateCommunityEntry={evaluateCommunityEntry} onReplyToReview={replyToReview} onManageCommunityReply={manageCommunityReply} onCommunityCountChange={updateCommunityCount}/>}
       {filter!=='timeline'&&!(publicFeedVisible&&publicDetail)&&<button className="rj-fab" aria-label="写复盘" onClick={()=>setComposer({entry:null})}><Plus size={28}/></button>}
     </div>
     {isTimelineDetail&&selectedTimelineEvent&&<div className="rj-timeline-author"><ReviewSystemAvatar/><div className="rj-post-heading"><ReviewSystemName language={language}/><span>·</span><time dateTime={reviewTimelineFeedDate(selectedTimelineEvent)}>{reviewTimelineFeedDate(selectedTimelineEvent)}</time></div></div>}

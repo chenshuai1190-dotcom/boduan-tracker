@@ -99,8 +99,8 @@ test('public details retain their visible feed container and use the entry layou
   h.unmount();
 });
 
-test('a Dynamic tab request remounts a public detail as All and restores an inactive feed', async () => {
-  const h = await harness(); h.ctx.previewData.initialAllScope = 'public';
+test('a Dynamic tab request resets child routes while preserving the manually selected All scope', async () => {
+  const h = await harness(); delete h.ctx.previewData.initialAllScope;
   let tree = h.render();
   const feed = () => walk(tree).find(node => node.type === h.Page.ReviewPublicFeed);
   const initialKey = feed().key;
@@ -136,10 +136,19 @@ test('a Dynamic tab request remounts a public detail as All and restores an inac
   assert.equal(feed(), undefined);
   h.ctx.reviewOpenAllRequest = 3;
   h.render(); tree = h.render();
-  assert.ok(find(tree, node => node.type === h.Page.ReviewPublicFeed));
+  assert.equal(feed(), undefined, 'returning to Dynamic must preserve the private All selection');
+  assert.equal(button(tree, '全部动态范围').props['aria-pressed'], true);
+  assert.match(textOf(button(tree, '全部动态范围')), /私密/);
+  assert.equal(visible(tree).filter(node => node.type === 'article').length, records().length);
+
+  button(tree, '全部动态范围').props.onClick(); tree = h.render();
+  button(tree, '显示公开动态').props.onClick(); tree = h.render();
+  button(tree, '投资心得').props.onClick(); tree = h.render();
+  h.ctx.reviewOpenAllRequest = 4;
+  h.render(); tree = h.render();
+  assert.ok(feed(), 'an explicitly selected public scope must also be restored');
   assert.equal(feed().props.active, true);
   assert.equal(button(tree, '全部动态范围').props['aria-pressed'], true);
-  assert.equal(visible(tree).filter(node => node.type === 'article').length, 0, 'the request opens public All, not the remembered private scope');
   h.unmount();
 });
 
@@ -212,6 +221,8 @@ test('an explicit private All scope survives leaving and mounting the page again
   assert.ok(localPreferences.size > 0, 'an explicit choice must persist'); first.unmount();
 
   const second = await harness({ localPreferences }); delete second.ctx.previewData.initialAllScope;
+  second.ctx.reviewOpenAllRequest = 1;
+  tree = second.render();
   tree = second.render();
   assert.equal(find(tree, node => node.type === second.Page.ReviewPublicFeed), undefined);
   assert.equal(visible(tree).filter(node => node.type === 'article').length, records().length);
@@ -233,6 +244,8 @@ test('an explicit public All scope replaces the private preference and survives 
   assert.ok(find(tree, node => node.type === first.Page.ReviewPublicFeed)); first.unmount();
 
   const second = await harness({ localPreferences }); delete second.ctx.previewData.initialAllScope;
+  second.ctx.reviewOpenAllRequest = 1;
+  tree = second.render();
   tree = second.render();
   assert.ok(find(tree, node => node.type === second.Page.ReviewPublicFeed));
   assert.equal(visible(tree).filter(node => node.type === 'article').length, 0); second.unmount();
@@ -263,6 +276,7 @@ test('publishing may reveal the saved audience without replacing the manually ch
   const localPreferences = new Map();
   const h = await harness({ localPreferences }); delete h.ctx.previewData.initialAllScope;
   h.fixture.window.requestAnimationFrame = callback => callback();
+  h.ctx.reviewFeedUnread = { unreadCount: 5, markSeen: () => assert.fail('publishing is not a public-feed acknowledgement') };
   let tree = h.render();
   button(tree, '全部动态范围').props.onClick(); tree = h.render();
   button(tree, '显示私密记录').props.onClick(); tree = h.render();
@@ -270,24 +284,147 @@ test('publishing may reveal the saved audience without replacing the manually ch
   const composer = find(tree, node => node.type === h.Page.Composer);
   composer.props.onSaved({ ...records()[1], id: 'published-after-private', visibility: 'public' });
   composer.props.onClose(); tree = h.render();
-  assert.ok(find(tree, node => node.type === h.Page.ReviewPublicFeed)); h.unmount();
+  assert.ok(find(tree, node => node.type === h.Page.ReviewPublicFeed));
+  assert.equal(find(tree, node => node.type === h.Page.ReviewPublicFeed).props.reviewFeedUnread, undefined, 'revealing a saved public post must not acknowledge the private user’s unread feed');
+  h.ctx.reviewOpenAllRequest = 1; h.render(); tree = h.render();
+  assert.equal(find(tree, node => node.type === h.Page.ReviewPublicFeed), undefined, 'returning through Dynamic restores the explicit browsing choice after publishing');
+  h.unmount();
 
   const remount = await harness({ localPreferences }); delete remount.ctx.previewData.initialAllScope;
   assert.equal(find(remount.render(), node => node.type === remount.Page.ReviewPublicFeed), undefined);
   remount.unmount();
 });
 
-async function harness({ removeReply, preferences = {}, localPreferences = new Map() } = {}) {
+test('notification detail navigation is temporary and does not replace private browsing or publishing preferences', async () => {
+  const localPreferences = new Map(), h = await harness({ localPreferences });
+  delete h.ctx.previewData.initialAllScope;
+  h.ctx.reviewFeedUnread = { unreadCount: 8, markSeen: () => assert.fail('a notification target is not a public-feed acknowledgement') };
+  let tree = h.render();
+  button(tree, '全部动态范围').props.onClick(); tree = h.render();
+  button(tree, '显示私密记录').props.onClick(); tree = h.render();
+  const preferenceKey = [...localPreferences.keys()][0];
+  localPreferences.set(preferenceKey, JSON.stringify({ feedScope: 'private', publishVisibility: 'private' }));
+  const before = [...localPreferences];
+  button(tree, '消息 · 3 条未读').props.onClick(); tree = h.render();
+  find(tree, node => node.type === h.Page.ReviewNotifications).props.onOpen({ postId: 'log:foreign', commentId: 'reply' }, { id: 'notice' });
+  tree = h.render();
+  const publicFeed = find(tree, node => node.type === h.Page.ReviewPublicFeed);
+  assert.equal(publicFeed.props.openRequest.postId, 'log:foreign');
+  assert.equal(publicFeed.props.reviewFeedUnread, undefined, 'temporary public detail navigation must not clear public unread posts');
+  assert.deepEqual([...localPreferences], before, 'opening someone else’s public post is not an audience selection');
+  h.ctx.reviewOpenAllRequest = 1; h.render(); tree = h.render();
+  assert.equal(find(tree, node => node.type === h.Page.ReviewPublicFeed), undefined);
+  assert.match(textOf(button(tree, '全部动态范围')), /私密/);
+  assert.ok(button(tree, '消息 · 3 条未读'), 'browsing-scope navigation must not clear the notification badge');
+  assert.deepEqual([...localPreferences], before);
+  h.unmount();
+
+  const remount = await harness({ localPreferences }); delete remount.ctx.previewData.initialAllScope;
+  remount.ctx.reviewOpenAllRequest = 2; remount.render(); tree = remount.render();
+  assert.equal(find(tree, node => node.type === remount.Page.ReviewPublicFeed), undefined);
+  remount.unmount();
+});
+
+test('blocked preference storage retains the current page choice while a new identity session falls back safely', async () => {
+  const localStorage = { getItem() { throw new Error('storage blocked'); }, setItem() { throw new Error('storage blocked'); } };
+  const h = await harness({ localStorage }); delete h.ctx.previewData.initialAllScope;
+  let tree = h.render();
+  button(tree, '全部动态范围').props.onClick(); tree = h.render();
+  button(tree, '显示私密记录').props.onClick(); tree = h.render();
+  button(tree, '复盘日志').props.onClick(); tree = h.render();
+  h.ctx.reviewOpenAllRequest = 1; h.render(); tree = h.render();
+  assert.equal(find(tree, node => node.type === h.Page.ReviewPublicFeed), undefined);
+  assert.match(textOf(button(tree, '全部动态范围')), /私密/);
+
+  button(tree, '消息 · 3 条未读').props.onClick(); tree = h.render();
+  find(tree, node => node.type === h.Page.ReviewNotifications).props.onOpen({ postId: 'log:foreign' }, { id: 'notice' });
+  tree = h.render(); assert.ok(find(tree, node => node.type === h.Page.ReviewPublicFeed));
+  h.ctx.reviewOpenAllRequest = 2; h.render(); tree = h.render();
+  assert.equal(find(tree, node => node.type === h.Page.ReviewPublicFeed), undefined, 'temporary public navigation cannot replace the in-memory selection');
+  h.ctx.userId = 'second-owner'; tree = h.render();
+  assert.ok(find(tree, node => node.type === h.Page.ReviewPublicFeed), 'another account has its own default');
+  h.ctx.userId = 'owner'; tree = h.render();
+  assert.ok(find(tree, node => node.type === h.Page.ReviewPublicFeed), 'with no readable storage an account switch starts a fresh identity session');
+  button(tree, '全部动态范围').props.onClick(); tree = h.render();
+  button(tree, '显示私密记录').props.onClick(); tree = h.render();
+  button(tree, '全部动态范围').props.onClick(); tree = h.render();
+  button(tree, '显示公开动态').props.onClick(); tree = h.render();
+  h.ctx.reviewOpenAllRequest = 3; h.render(); tree = h.render();
+  assert.ok(find(tree, node => node.type === h.Page.ReviewPublicFeed), 'a later explicit public choice replaces the private session choice');
+  h.unmount();
+});
+
+test('explicitly selecting public after a temporary public target restores unread tracking and refreshes its boundary', async () => {
+  const h = await harness(); delete h.ctx.previewData.initialAllScope;
+  h.ctx.reviewFeedUnread = { unreadCount: 5, captureBoundary: () => assert.fail('the parent page must delegate capture to the public feed'), markSeen: () => assert.fail('the parent page must not acknowledge unread posts') };
+  let tree = h.render();
+  button(tree, '全部动态范围').props.onClick(); tree = h.render();
+  button(tree, '显示私密记录').props.onClick(); tree = h.render();
+  button(tree, '消息 · 3 条未读').props.onClick(); tree = h.render();
+  find(tree, node => node.type === h.Page.ReviewNotifications).props.onOpen({ postId: 'log:foreign' }, { id: 'notice' });
+  tree = h.render();
+  const previous = find(tree, node => node.type === h.Page.ReviewPublicFeed);
+  assert.equal(previous.props.reviewFeedUnread, undefined);
+  button(tree, '全部动态范围').props.onClick(); tree = h.render();
+  button(tree, '显示公开动态').props.onClick(); tree = h.render();
+  const current = find(tree, node => node.type === h.Page.ReviewPublicFeed);
+  assert.equal(current.props.reviewFeedUnread, h.ctx.reviewFeedUnread);
+  assert.ok(current.props.refreshToken > previous.props.refreshToken, 'an explicit choice must obtain a new public boundary instead of acknowledging the temporary detail');
+  assert.ok(button(tree, '消息 · 3 条未读'));
+  h.unmount();
+});
+
+test('private browsing exposes public unread posts without loading public content or acknowledging either badge', async () => {
+  const h = await harness(), acknowledged = [];
+  delete h.ctx.previewData.initialAllScope;
+  h.ctx.reviewFeedUnread = {
+    unreadCount: 12,
+    captureBoundary: () => { acknowledged.push('capture'); },
+    markSeen: () => { acknowledged.push('seen'); },
+  };
+  let tree = h.render();
+  button(tree, '全部动态范围').props.onClick(); tree = h.render();
+  button(tree, '显示私密记录').props.onClick(); tree = h.render();
+  const scope = button(tree, '全部动态范围');
+  assert.equal(find(tree, node => node.type === h.Page.ReviewPublicFeed), undefined);
+  assert.equal(textOf(find(scope, node => hasClass(node, 'rj-scope-unread-badge'))), '12');
+  assert.match(scope.props['aria-description'], /12.*公开.*新帖/);
+  assert.ok(button(tree, '消息 · 3 条未读'));
+  button(tree, '全部动态范围').props.onClick(); tree = h.render();
+  const publicChoice = button(tree, '显示公开动态');
+  assert.equal(textOf(find(publicChoice, node => hasClass(node, 'rj-scope-unread-badge'))), '12');
+  assert.deepEqual(acknowledged, [], 'viewing the private list and opening its selector are not public-feed reads');
+  publicChoice.props.onClick(); tree = h.render();
+  const publicFeed = find(tree, node => node.type === h.Page.ReviewPublicFeed);
+  assert.equal(publicFeed.props.reviewFeedUnread, h.ctx.reviewFeedUnread);
+  assert.equal(publicFeed.props.active, true);
+  assert.deepEqual(acknowledged, [], 'switching scope delegates acknowledgement to the successfully rendered public feed');
+  assert.ok(button(tree, '消息 · 3 条未读'));
+  h.unmount();
+});
+
+test('private scope unread badge hides unavailable counts and caps its visible number', async () => {
+  const h = await harness();
+  for (const [count, expected] of [[0, null], [null, null], [undefined, null], [1, '1'], [99, '99'], [120, '99+']]) {
+    h.ctx.reviewFeedUnread = { unreadCount: count };
+    const tree = h.render(), badge = find(button(tree, '全部动态范围'), node => hasClass(node, 'rj-scope-unread-badge'));
+    if (expected === null) assert.equal(badge, undefined);
+    else assert.equal(textOf(badge), expected);
+  }
+  h.unmount();
+});
+
+async function harness({ removeReply, preferences = {}, localPreferences = new Map(), localStorage } = {}) {
   let slots = [], cursor = 0, layout = [], effects = [];
   const scrolls = [], saves = [], deletes = [], replyDeletes = [], removals = [], focus = [], pushes = [];
   const listeners = new Map(), historyStates = [{ otherAppState: 'retained' }]; let historyIndex = 0;
   const host = { isConnected: true, focus: options => focus.push({ target: 'post', options }), closest: () => host, contains: target => !target.portal, matches: () => Boolean(fixture.keyboardFocus) };
   const fixture = {
-    localStorage: {
+    localStorage: localStorage === undefined ? {
       getItem: key => localPreferences.has(key) ? localPreferences.get(key) : null,
       setItem: (key, value) => localPreferences.set(key, String(value)),
       removeItem: key => localPreferences.delete(key),
-    },
+    } : localStorage,
     preferenceState: {
       preferences: { showTimeline: false, currency: 'USD', eventTypes: [], ...preferences },
       ready: true, loading: false, canEdit: true, saving: false, error: '',

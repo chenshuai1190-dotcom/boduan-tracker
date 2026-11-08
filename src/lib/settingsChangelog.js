@@ -3,6 +3,11 @@ import { CURRENT_RELEASE } from './releaseMeta.js';
 export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
+    items: ['动态会记住上次选择的公开或私密范围；私密入口显示公开新帖提醒，切到公开并加载成功后才清除。'],
+    itemsEn: ['Activity remembers your last public or private feed choice. Private view shows public new-post badges, cleared only after the public feed loads successfully.'],
+  },
+  {
+    ver: 'v10.7.9.614', date: '2026-11-08',
     items: ['修复设置页切换 Tab 返回时旧默认头像闪现，直接复用已确认的本人头像和昵称，保留编辑资料时的实时读取及账户隔离。'],
     itemsEn: ['Fixed old preset avatar flashes when returning to Settings by reusing the confirmed owner avatar and nickname, while retaining fresh profile reads for editing and account isolation.'],
   },
