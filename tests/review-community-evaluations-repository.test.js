@@ -221,7 +221,7 @@ test('reply targets whitelist only kind and key while server projections retain 
 test('reply saves use the v2 target argument, preserve target when editing and reject a mismatched response', async () => {
   const target = { kind: 'author', id: 'self-note', authorId: AUTHOR, nickname: '作者', available: true };
   const f = fixture({ response: (_name, args) => ({ data: saved({ ...args.p_evaluation, replyTo: target, revision: args.p_expected_revision + 1 }) }) });
-  const result = await f.repository.saveEvaluation(POST, draft({ replyTo: { ...target, authorId: VIEWER, text: '不得上传' } }), VIEWER);
+  const result = await f.repository.saveEvaluation(POST, draft({ text: '回复作者', replyTo: { ...target, authorId: VIEWER, text: '不得上传' } }), VIEWER);
   assert.equal(result.replyTo.authorId, AUTHOR, 'target identity is returned by the authenticated server');
   assert.equal(f.calls[0].name, 'save_review_community_evaluation_v2');
   assert.deepEqual(f.calls[0].args.p_reply_to, { kind: 'author', id: 'self-note' });
@@ -231,14 +231,14 @@ test('reply saves use the v2 target argument, preserve target when editing and r
   assert.deepEqual(f.calls[1].args.p_reply_to, f.calls[0].args.p_reply_to);
   const legacyEdit = await f.repository.saveEvaluation(POST, draft({ revision: 1, text: '旧客户端编辑' }), VIEWER);
   assert.equal(f.calls[2].args.p_reply_to, null); assert.deepEqual(legacyEdit.replyTo, target, 'null target edits preserve the server-owned target');
-  await assert.rejects(f.repository.saveEvaluation(POST, draft({ replyTo: { kind: 'community', id: SECOND_ID } }), VIEWER), { code: 'REVIEW_COMMUNITY_INVALID_DATA' });
+  await assert.rejects(f.repository.saveEvaluation(POST, draft({ text: '回复评论', replyTo: { kind: 'community', id: SECOND_ID } }), VIEWER), { code: 'REVIEW_COMMUNITY_INVALID_DATA' });
   await assert.rejects(f.repository.saveEvaluation(POST, draft(), VIEWER), { code: 'REVIEW_COMMUNITY_INVALID_DATA' }, 'ordinary creates cannot acquire an unrelated target');
 });
 
 test('preview replies retain source and community references after target deletion without exposing removed contents', async () => {
   const source = { id: '42', type: 'log', text: '博文', date: '2026-11-06', visibility: 'public', replies: [{ id: 'self-note', date: '2026-11-07', text: '被删除的自评原文' }] };
   const preview = createReviewPublicPreview({ ownerId: VIEWER, getEntries: () => [source] });
-  const first = await preview.saveReviewCommunityEvaluation(POST, draft({ replyTo: { kind: 'author', id: 'self-note', authorId: AUTHOR, nickname: '伪造昵称' } }), VIEWER);
+  const first = await preview.saveReviewCommunityEvaluation(POST, draft({ text: '回复作者', replyTo: { kind: 'author', id: 'self-note', authorId: AUTHOR, nickname: '伪造昵称' } }), VIEWER);
   assert.deepEqual(first.replyTo, { kind: 'author', id: 'self-note', authorId: VIEWER, nickname: '波段玩家1836', available: true });
   const second = await preview.saveReviewCommunityEvaluation(POST, draft({ id: SECOND_ID, text: '回复社区评价', replyTo: { kind: 'community', id: ID } }), VIEWER);
   assert.equal(second.replyTo.authorId, VIEWER); assert.equal(second.replyTo.available, true);
@@ -265,7 +265,7 @@ test('preview refuses cross-post and missing targets and keeps ordinary evaluati
   }
   const ordinary = await preview.saveReviewCommunityEvaluation(POST, draft(), VIEWER);
   await assert.rejects(preview.saveReviewCommunityEvaluation(POST, { ...ordinary, replyTo: { kind: 'community', id: SECOND_ID } }, VIEWER), { code: 'REVIEW_COMMUNITY_INVALID_INPUT' });
-  const externalReply = await preview.saveReviewCommunityEvaluation('log:sample-market', draft({ id: '55555555-5555-4555-8555-555555555555', replyTo: { kind: 'author', id: 'sample-public-evaluation' } }), VIEWER);
+  const externalReply = await preview.saveReviewCommunityEvaluation('log:sample-market', draft({ id: '55555555-5555-4555-8555-555555555555', text: '回复示例评论', replyTo: { kind: 'author', id: 'sample-public-evaluation' } }), VIEWER);
   assert.equal(externalReply.replyTo.nickname, '记录每一步');
   preview.setReviewCommunityPreviewVisibility('log:sample-market', 'private');
   await assert.rejects(preview.fetchReviewCommunityEvaluations({ postId: 'log:sample-market' }, VIEWER), { code: 'REVIEW_PUBLIC_NOT_FOUND' });
@@ -298,4 +298,34 @@ test('record-date feed pagination and original creation times survive private to
   await assert.rejects(preview.fetchReviewPublicFeed({ cursor: { publishedAt: original.createdAt, id: 'log:old' } }, VIEWER), { code: 'REVIEW_PUBLIC_INVALID_DATA' });
   const firstCreate = reviewPreviewEntryTimestamps({ date: '2026-11-06', visibility: 'public' }, null, '2026-11-08T01:00:00Z');
   assert.deepEqual(firstCreate, { createdAt: '2026-11-08T01:00:00Z', publishedAt: '2026-11-08T01:00:00Z' });
+});
+
+test('reply writes remove hidden ratings while post evaluations retain rating-only submissions', async () => {
+  const replyTo = { kind: 'author', id: 'self-note', authorId: AUTHOR, nickname: '作者', available: true };
+  const f = fixture({ response: (_name, args) => ({ data: saved({ ...args.p_evaluation, replyTo: args.p_reply_to ? replyTo : null, revision: args.p_expected_revision + 1 }) }) });
+  const created = await f.repository.saveEvaluation(POST, draft({ text: '回复作者', replyTo }), VIEWER);
+  assert.equal(created.score, null);
+  assert.equal(f.calls[0].args.p_evaluation.score, null);
+  const edited = await f.repository.saveEvaluation(POST, { ...created, score: 10, text: '修改回复', images: [image] }, VIEWER);
+  assert.equal(edited.score, null); assert.deepEqual(edited.images, [image]);
+  const before = f.calls.length;
+  await assert.rejects(f.repository.saveEvaluation(POST, draft({ replyTo }), VIEWER));
+  assert.equal(f.calls.length, before, 'a hidden score alone must not issue a request');
+  assert.equal((await f.repository.saveEvaluation(POST, draft(), VIEWER)).score, 8);
+  const historical = mapReviewCommunityEvaluation(saved({ replyTo, score: 8, text: '' }), POST);
+  assert.equal(historical.id, ID, 'legacy rating-only replies remain readable and manageable');
+  assert.equal(historical.replyTo.id, 'self-note');
+});
+
+test('preview replies enforce text or attachments without changing direct post scoring', async () => {
+  const source = { id: '42', type: 'log', text: '博文', date: '2026-11-06', visibility: 'public', replies: [{ id: 'self-note', date: '2026-11-07', text: '作者评价' }] };
+  const preview = createReviewPublicPreview({ ownerId: VIEWER, getEntries: () => [source] });
+  const replyTo = { kind: 'author', id: 'self-note' };
+  await assert.rejects(preview.saveReviewCommunityEvaluation(POST, draft({ replyTo }), VIEWER));
+  const reply = await preview.saveReviewCommunityEvaluation(POST, draft({ replyTo, text: '继续讨论' }), VIEWER);
+  assert.equal(reply.score, null);
+  const edited = await preview.saveReviewCommunityEvaluation(POST, { ...reply, score: 10, tags: ['自定义'] }, VIEWER);
+  assert.equal(edited.score, null); assert.deepEqual(edited.tags, ['自定义']);
+  const postEvaluation = await preview.saveReviewCommunityEvaluation(POST, draft({ id: SECOND_ID }), VIEWER);
+  assert.equal(postEvaluation.score, 8);
 });

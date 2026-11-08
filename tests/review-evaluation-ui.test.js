@@ -541,3 +541,33 @@ test('reply composer identifies its recipient without retaining target text and 
   body(tree).props.onChange({target:{value:'先保留这条回复'}});h.props.open=false;assert.equal(h.render(),null);h.props.open=true;tree=h.render();assert.equal(body(tree).props.value,'先保留这条回复');
   h.props.replyTarget={...h.props.replyTarget,available:false};tree=h.render();assert.match(text(tree),/原评论已删除/);assert.doesNotMatch(text(tree),/回复 @访客/);h.cleanup();
 });
+
+test('new replies have no rating controls while tags and all attachment tools remain available', async () => {
+  for (const source of ['replyTarget','entry']) {
+    const h=await harness(),target={kind:'community',id:'target',nickname:'访客',available:true};
+    if(source==='replyTarget')h.props.replyTarget=target;else h.props.entry.communityReplyTo=target;
+    let tree=h.render();assert.equal(rating(tree),undefined);assert.doesNotMatch(text(tree),/给当时的判断打个分|轻点选星|评分可留空|未评分/);
+    for(const label of ['交易','市场','账户','图片','表情','＋ 自定义'])assert.ok(button(tree,label),`${label} remains available in replies`);
+    assert.equal(button(tree,'发布').props.disabled,true);
+    button(tree,'按计划执行').props.onClick();tree=h.render();assert.equal(button(tree,'发布').props.disabled,false);
+    await button(tree,'发布').props.onClick();assert.equal(h.calls[0].reply.score,null);assert.deepEqual(h.calls[0].reply.tags,['按计划执行']);h.cleanup();
+  }
+});
+
+test('editing a legacy scored reply hides its score and sends null without losing saved attachments', async () => {
+  const reply={...savedReview(),replyTo:{kind:'author',id:'original',nickname:'原评论人',available:true}},before=structuredClone(reply);
+  const h=await harness({reply});let tree=h.render();assert.equal(tree.props.title,'修改回复');assert.equal(rating(tree),undefined);assert.doesNotMatch(text(tree),/给当时的判断打个分|轻点选星|评分可留空/);
+  for(const label of ['移除已上传图片 1','移除市场快照','移除账户快照','移除交易引用'])assert.ok(button(tree,label));
+  body(tree).props.onChange({target:{value:'修改后的回复'}});tree=h.render();await button(tree,'保存').props.onClick();
+  assert.equal(h.updates[0].replacement.score,null);assert.equal(h.updates[0].replacement.text,'修改后的回复');
+  for(const key of ['images','market','account','trades','tags','replyTo'])assert.deepEqual(h.updates[0].replacement[key],before[key]);
+  assert.deepEqual(reply,before,'stored historical record stays unchanged until save succeeds');h.cleanup();
+});
+
+test('a legacy score-only reply cannot submit as empty content after reply scoring is removed', async () => {
+  const reply={id:'legacy-score-only',date:'2026-11-08',text:'',score:9,replyTo:{kind:'community',id:'target',nickname:'访客',available:true}};
+  const h=await harness({reply});let tree=h.render();assert.equal(rating(tree),undefined);assert.equal(button(tree,'保存').props.disabled,true);
+  await button(tree,'保存').props.onClick();assert.equal(h.updates.length,0,'hidden legacy score must not count as reply content');
+  body(tree).props.onChange({target:{value:'补充真实回复内容'}});tree=h.render();assert.equal(button(tree,'保存').props.disabled,false);await button(tree,'保存').props.onClick();
+  assert.equal(h.updates.length,1);assert.equal(h.updates[0].replacement.score,null);assert.equal(h.updates[0].replacement.text,'补充真实回复内容');h.cleanup();
+});

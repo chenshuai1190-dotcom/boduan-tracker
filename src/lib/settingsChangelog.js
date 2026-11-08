@@ -3,6 +3,11 @@ import { CURRENT_RELEASE } from './releaseMeta.js';
 export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
+    items: ['回复评论不再显示评分控件或回复分数，编辑回复也不会带入旧评分；文字、标签及附件功能保留。直接评价博文仍可打分。'],
+    itemsEn: ['Comment replies no longer show rating controls or scores, and editing a reply does not resubmit a previous rating. Text, tags, and attachments remain available. Direct post evaluations still support ratings.'],
+  },
+  {
+    ver: 'v10.7.9.604', date: '2026-11-08',
     items: ['公开与私密博文统一按原记录日期展示和排序，切换可见范围不再变成今天的新帖。评论支持点击正文或昵称回复，显示回复对象，并保留本人修改、删除及随博文变化的可见范围。'],
     itemsEn: ['Public and private posts now share the original record date and ordering; visibility changes no longer move old posts to today. Tap a comment or its author to reply, with a visible reply target, author-only edit and delete actions, and visibility inherited from the post.'],
   },

@@ -85,7 +85,7 @@ export function createReviewPublicPreview({ ownerId, getEntries, getImage, marke
     },
     async saveReviewCommunityEvaluation(postId, reply, userId) {
       assertOwner(userId); assertParent(postId); validateReply(reply, true);
-      const payload = writePayload(reply), existing = evaluations.get(reply.id), revision = reply.revision ?? 0;
+      const existing = evaluations.get(reply.id), revision = reply.revision ?? 0;
       const requestedTarget = normalizeReviewCommunityReplyTarget(reply.replyTo);
       if (deletedEvaluations.has(reply.id)) throw reviewJournalError('REVIEW_PUBLIC_NOT_FOUND', '评价已删除。');
       if (existing && (existing.authorId !== userId || existing.postId !== postId)) throw reviewJournalError('REVIEW_PUBLIC_FORBIDDEN', '只能修改自己的评价。');
@@ -98,6 +98,7 @@ export function createReviewPublicPreview({ ownerId, getEntries, getImage, marke
         if (!target) throw reviewJournalError('REVIEW_PUBLIC_NOT_FOUND', '回复对象已删除或不可用。');
         replyTo = { ...requestedTarget, ...target, available: true };
       }
+      const payload = writePayload(replyTo ? { ...reply, score: null } : reply);
       if (existing && JSON.stringify(writePayload(existing)) === JSON.stringify(payload)
         && (revision === existing.revision || revision === existing.revision - 1)) return readEvaluation(existing);
       if (!existing && revision !== 0) throw reviewJournalError('REVIEW_PUBLIC_NOT_FOUND', '评价已删除。');
