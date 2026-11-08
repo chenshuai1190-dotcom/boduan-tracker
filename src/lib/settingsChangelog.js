@@ -3,6 +3,11 @@ import { CURRENT_RELEASE } from './releaseMeta.js';
 export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
+    items: ['评论默认展示一条回复，多条时可查看其余回复；发送回复后自动展开并定位，公开、私密及时间线保持一致。'],
+    itemsEn: ['Comments show one reply by default, with remaining replies available on demand. New replies expand and focus automatically across public, private, and timeline discussions.'],
+  },
+  {
+    ver: 'v10.7.9.615', date: '2026-11-08',
     items: ['动态会记住上次选择的公开或私密范围；私密入口显示公开新帖提醒，切到公开并加载成功后才清除。'],
     itemsEn: ['Activity remembers your last public or private feed choice. Private view shows public new-post badges, cleared only after the public feed loads successfully.'],
   },

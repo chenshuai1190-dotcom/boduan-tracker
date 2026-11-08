@@ -64,7 +64,12 @@ export function mapReviewCommentThreads(value,postId,limit=20) {
   if (!isReviewInteractionObject(value)||!Array.isArray(value.threads)||!count(value.totalCount)||!count(value.communityCount)||value.communityCount>value.totalCount) return invalid();
   const threads=value.threads.map(item=>{
     if (!isReviewInteractionObject(item)||!count(item.replyCount)) return invalid();
-    return {root:mapReviewThreadComment(item.root,postId),replyCount:item.replyCount};
+    const root=mapReviewThreadComment(item.root,postId);
+    // Older RPC versions omit this additive field. A preview is an existing,
+    // visible descendant, never a deleted placeholder or the root itself.
+    const previewReply=item.previewReply==null?null:mapReviewThreadComment(item.previewReply,postId);
+    if (previewReply&&(previewReply.deleted||item.replyCount<1||reviewCommentKey(previewReply)===reviewCommentKey(root))) return invalid();
+    return {root,replyCount:item.replyCount,previewReply};
   });
   return {threads,totalCount:value.totalCount,communityCount:value.communityCount,...page(value,threads.map(item=>item.root),limit)};
 }

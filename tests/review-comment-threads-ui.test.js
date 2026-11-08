@@ -58,7 +58,7 @@ async function harness(initial = {}) {
   };
 }
 
-test('thread roots are collapsed, replies load on demand and stay exactly one visual level', async () => {
+test('legacy threads without a preview load on demand and retain the first verified reply when collapsed', async () => {
   const h = await harness(), root = comment('a'), child = comment('b', { replyTo: {kind:'community',id:'a',nickname:'山间慢行',available:true}, directReplyCount:1 }), nested = comment('c', { replyTo: {kind:'community',id:'b',nickname:'山间慢行',available:true} });
   let tree = await h.load(roots([{root,replyCount:2}], {totalCount:3,communityCount:3}));
   assert.equal(rows(tree).length,1); assert.equal(h.requests.length,1); assert.ok(button(tree,'查看 2 条回复'));
@@ -69,8 +69,91 @@ test('thread roots are collapsed, replies load on demand and stay exactly one vi
   assert.equal(rows(tree).length,3); assert.equal(walk(tree).filter(row=>row.props.className==='rct-reply-list').length,1);
   assert.equal(rows(tree).filter(row=>row.props.className.includes('rct-child')).length,2);
   button(rows(tree)[1],'回复山间慢行 · 1 条回复').props.onClick(); assert.equal(h.repliesTo[0].id,'b');
-  button(tree,'收起回复').props.onClick(); tree=h.render(); assert.equal(rows(tree).length,1);
-  button(tree,'查看 2 条回复').props.onClick(); tree=h.render(); await flush(); assert.equal(h.requests.length,2,'reopening an unchanged thread reuses its verified page'); h.unmount();
+  button(tree,'收起回复').props.onClick(); tree=h.render(); assert.equal(rows(tree).length,2);
+  assert.equal(rows(tree)[1].props['data-review-comment-key'],'community:b');
+  button(tree,'查看其余 1 条回复').props.onClick(); tree=h.render(); await flush(); assert.equal(h.requests.length,2,'reopening an unchanged thread reuses its verified page'); h.unmount();
+});
+
+test('zero replies have no expansion control and one preview reply is visible without another request', async () => {
+  for (const count of [0, 1]) {
+    const h = await harness(), root = comment('root');
+    const previewReply = count ? comment('first', { replyTo: { kind: 'community', id: root.id, nickname: '原作者', available: true } }) : null;
+    let tree = await h.load(roots([{ root, replyCount: count, previewReply }], { totalCount: count + 1 }));
+    assert.deepEqual(rows(tree).map(row => row.props['data-review-comment-key']), count ? ['community:root', 'community:first'] : ['community:root']);
+    assert.equal(walk(tree).filter(row => row.props.className === 'rct-toggle').length, 0);
+    assert.doesNotMatch(words(tree), /正在读取回复|查看.*条回复|收起回复/);
+    assert.equal(h.requests.length, 1, 'the root response already contains the first valid reply');
+    if (count) {
+      button(rows(tree)[1], '回复山间慢行 · 0 条回复').props.onClick(); tree = h.render(); await flush();
+      assert.equal(h.repliesTo[0].id, 'first');
+      assert.equal(h.requests.filter(request => request.kind === 'children').length, 0, 'replying to the only visible child must not issue a redundant page read');
+      assert.equal(rows(tree).length, 2);
+      assert.doesNotMatch(words(tree), /正在读取回复/);
+    }
+    h.unmount();
+  }
+});
+
+test('multiple replies keep their preview during loading, deduplicate paged results and stay at one visual level', async () => {
+  const h = await harness(), root = comment('root');
+  const first = comment('first', { text: '最早回复预览', createdAt: '2026-11-08T01:01:00Z', replyTo: { kind: 'community', id: root.id, available: true } });
+  const second = comment('second', { createdAt: '2026-11-08T01:02:00Z', replyTo: { kind: 'community', id: first.id, available: true } });
+  const third = comment('third', { createdAt: '2026-11-08T01:03:00Z', replyTo: { kind: 'community', id: second.id, available: true } });
+  let tree = await h.load(roots([{ root, replyCount: 3, previewReply: first }], { totalCount: 4 }));
+  assert.equal(rows(tree).length, 2); assert.ok(button(tree, '查看其余 2 条回复'));
+  assert.equal(h.requests.length, 1);
+  button(tree, '查看其余 2 条回复').props.onClick(); tree = h.render(); await flush();
+  assert.equal(rows(tree).length, 2, 'the visible first reply remains while the rest load');
+  assert.match(words(tree), /最早回复预览.*正在读取回复/s);
+  const page = h.requests.find(request => request.kind === 'children');
+  assert.deepEqual(page.args, [{ postId: 'log:1', root: { kind: 'community', id: root.id }, limit: 50, cursor: null }, 'viewer']);
+  page.resolve(replies([{ ...first, text: '首屏核验后的最早回复' }, second], { replyCount: 3, hasMore: true, nextCursor: cursorFor(second) }));
+  await flush(); tree = h.render();
+  assert.deepEqual(rows(tree).map(row => row.props['data-review-comment-key']), ['community:root', 'community:first', 'community:second']);
+  assert.doesNotMatch(words(tree), /最早回复预览/);
+  button(tree, '收起回复').props.onClick(); tree = h.render();
+  assert.equal(rows(tree).length, 2); assert.match(words(tree), /首屏核验后的最早回复/);
+  button(tree, '查看其余 2 条回复').props.onClick(); tree = h.render(); await flush();
+  assert.equal(h.requests.length, 2, 'reopening uses the authorized page already loaded');
+  button(tree, '更多回复').props.onClick(); await flush();
+  assert.deepEqual(h.requests.at(-1).args[0].cursor, cursorFor(second));
+  h.requests.at(-1).resolve(replies([second, third], { replyCount: 3 })); await flush(); tree = h.render();
+  assert.deepEqual(rows(tree).map(row => row.props['data-review-comment-key']), ['community:root', 'community:first', 'community:second', 'community:third']);
+  assert.equal(walk(tree).filter(row => row.props.className === 'rct-reply-list').length, 1);
+  assert.equal(rows(tree).filter(row => row.props.className.includes('rct-child')).length, 3, 'replies to replies remain a single visual level');
+  button(tree, '收起回复').props.onClick(); tree = h.render(); assert.equal(rows(tree).length, 2);
+  h.unmount();
+});
+
+test('a complete first reply page replaces an edited or deleted list preview rather than reviving it', async () => {
+  for (const freshReplies of [[comment('fresh-first'), comment('fresh-second')], []]) {
+    const h = await harness();
+    let tree = await h.load(roots([{ root: comment('root'), replyCount: 2, previewReply: comment('deleted-preview', { text: '已删除预览正文' }) }]));
+    assert.match(words(tree), /已删除预览正文/);
+    button(tree, '查看其余 1 条回复').props.onClick(); h.render(); await flush();
+    h.requests.find(request => request.kind === 'children').resolve(replies(freshReplies)); await flush(); tree = h.render();
+    assert.doesNotMatch(words(tree), /已删除预览正文/);
+    assert.equal(rows(tree).length, freshReplies.length + 1);
+    if (freshReplies.length) {
+      button(tree, '收起回复').props.onClick(); tree = h.render();
+      assert.deepEqual(rows(tree).map(row => row.props['data-review-comment-key']), ['community:root', 'community:fresh-first']);
+    } else {
+      assert.equal(walk(tree).filter(row => row.props.className === 'rct-toggle').length, 0);
+    }
+    h.unmount();
+  }
+});
+
+test('reply page network failures keep the first preview and permit retry without parent revocation', async () => {
+  const revoked = [], h = await harness({ onAccessRevoked: error => revoked.push(error) });
+  let tree = await h.load(roots([{ root: comment('root'), replyCount: 2, previewReply: comment('first') }]));
+  button(tree, '查看其余 1 条回复').props.onClick(); h.render(); await flush();
+  h.requests.find(request => request.kind === 'children').reject(new Error('回复暂时无法读取')); await flush(); tree = h.render();
+  assert.equal(rows(tree).length, 2); assert.match(words(tree), /评论 first.*回复暂时无法读取/s); assert.deepEqual(revoked, []);
+  button(tree, '重新读取').props.onClick(); h.render(); await flush();
+  h.requests.filter(request => request.kind === 'children').at(-1).resolve(replies([comment('first'), comment('second')])); await flush(); tree = h.render();
+  assert.equal(rows(tree).length, 3); assert.doesNotMatch(words(tree), /回复暂时无法读取/); assert.deepEqual(revoked, []);
+  h.unmount();
 });
 
 test('read-only detail previews load comments immediately but enable mutations only after detail verification', async () => {
@@ -97,8 +180,9 @@ test('read-only detail previews load comments immediately but enable mutations o
 test('a comments permission failure informs the parent once and blocks older reply pages from returning', async () => {
   const revoked = [], h = await harness({ showEmpty: true, onAccessRevoked: error => revoked.push(error) });
   const root = comment('root');
-  let tree = await h.load(roots([{ root, replyCount: 1 }], { hasMore: true, nextCursor: cursorFor(root) }));
-  button(tree, '查看 1 条回复').props.onClick(); tree = h.render(); await flush();
+  let tree = await h.load(roots([{ root, replyCount: 2, previewReply: comment('first-preview') }], { hasMore: true, nextCursor: cursorFor(root) }));
+  assert.equal(rows(tree).length, 2);
+  button(tree, '查看其余 1 条回复').props.onClick(); tree = h.render(); await flush();
   const olderReplies = h.requests.find(request => request.kind === 'children');
   button(tree, '更多评论').props.onClick(); await flush();
   const failure = Object.assign(new Error('父帖已不再可见'), { code: 'REVIEW_INTERACTION_FORBIDDEN' });
@@ -190,11 +274,14 @@ test('comment likes serialize taps, confirm server counts and rollback a failed 
 });
 
 test('new account immediately hides comments and rejects former page and like responses', async () => {
-  const h=await harness(); let tree=await h.load(roots([{root:comment('a'),replyCount:2}],{hasMore:true,nextCursor:cursorFor(comment('a'))}));
+  const h=await harness(); let tree=await h.load(roots([{root:comment('a'),replyCount:2,previewReply:comment('old-account-preview')}],{hasMore:true,nextCursor:cursorFor(comment('a'))}));
+  assert.equal(rows(tree).length,2);
+  button(tree,'查看其余 1 条回复').props.onClick();h.render();await flush();
   button(tree,'点赞山间慢行的评论 · 12').props.onClick(); button(tree,'更多评论').props.onClick(); await flush();
   tree=h.render({userId:'other',postId:'log:2'}); assert.equal(rows(tree).length,0); await flush();
   h.requests.filter(row=>row.kind==='roots').at(-1).resolve(roots());
   h.requests.find(row=>row.kind==='like').resolve({kind:'community',id:'a',liked:true,likeCount:99});
+  h.requests.find(row=>row.kind==='children').resolve(replies([comment('late-old-account-child')]));
   h.requests.filter(row=>row.kind==='roots')[1].resolve(roots([{root:comment('late'),replyCount:0}]));
   await flush(); tree=h.render(); assert.equal(rows(tree).length,0); assert.doesNotMatch(words(tree),/late|99/); h.unmount();
 });
@@ -229,12 +316,105 @@ test('notification locates an old thread and an off-page reply without skipping 
   h.requests.at(-1).resolve(replies([target],{replyCount:75})); await flush(); tree=h.render(); assert.equal(rows(tree).filter(row=>row.props['data-rj-reply-id']==='target').length,1); h.unmount();
 });
 
+test('a notification targeting the visible first reply highlights it without another reply locate request', async () => {
+  for (const count of [1, 3]) {
+    const target = comment('first', { replyTo: { kind: 'community', id: 'root', available: true } });
+    const thread = { root: comment('root'), replyCount: count, previewReply: target };
+    const h = await harness({ notificationTarget: { notificationId: `notice-${count}`, commentId: target.id } });
+    h.render(); await flush();
+    h.requests.find(request => request.kind === 'notification').resolve({ postId: 'log:1', commentId: target.id }); await flush();
+    for (const request of h.requests.filter(request => request.kind === 'roots')) request.resolve(roots([thread], { totalCount: count + 1 }));
+    await flush(); let tree = h.render(); await flush(); tree = h.render();
+    assert.ok(h.scrolled.includes('community:first'));
+    assert.equal(rows(tree).filter(row => row.props['data-review-comment-key'] === 'community:first').length, 1);
+    const children = h.requests.filter(request => request.kind === 'children');
+    assert.equal(children.filter(request => request.args[0].locate).length, 0, 'the already authorized preview is the requested target');
+    assert.equal(children.length, count === 1 ? 0 : 1, 'a multi-reply notification may open its normal page, while a single preview is complete');
+    h.unmount();
+  }
+});
+
+test('a just-saved off-page reply takes priority over an old notification and preserves the ordinary paging cursor', async () => {
+  const first = comment('first', { createdAt: '2026-11-08T01:01:00Z', replyTo: { kind: 'community', id: 'root', available: true } });
+  const saved = comment('saved', { authorId: 'viewer', createdAt: '2026-11-08T02:00:00Z', replyTo: { kind: 'community', id: 'off-page-parent', available: true } });
+  const thread = { root: comment('root'), replyCount: 75, previewReply: first };
+  const h = await harness({ notificationTarget: { notificationId: 'old-notice', commentId: 'old-target' },
+    replyTarget: { id: 'save-request-1', postId: 'log:1', commentKind: 'community', commentId: saved.id } });
+  h.render(); await flush();
+  assert.equal(h.requests.filter(request => request.kind === 'notification').length, 0, 'a successful save has its own target and does not re-authorize a stale notification');
+  const rootRequests = h.requests.filter(request => request.kind === 'roots');
+  assert.equal(rootRequests.length, 2);
+  assert.deepEqual(rootRequests.find(request => request.args[0].locate).args[0].locate, { kind: 'community', id: saved.id });
+  for (const request of rootRequests) request.resolve(roots([thread], { totalCount: 76, communityCount: 76 }));
+  await flush(); let tree = h.render(); await flush();
+  assert.match(words(tree), /评论 first/, 'the earliest reply remains visible while the saved target is located');
+  const children = h.requests.filter(request => request.kind === 'children');
+  assert.equal(children.length, 2);
+  const page = children.find(request => !request.args[0].locate), located = children.find(request => request.args[0].locate);
+  assert.deepEqual(located.args[0].locate, { kind: 'community', id: saved.id });
+  const cursor = cursorFor(first);
+  page.resolve(replies([first], { replyCount: 75, hasMore: true, nextCursor: cursor }));
+  located.resolve(replies([saved], { replyCount: 75 })); await flush(); tree = h.render();
+  assert.ok(h.scrolled.includes('community:saved'));
+  assert.equal(rows(tree).filter(row => row.props['data-review-comment-key'] === 'community:saved').length, 1);
+  assert.equal(walk(tree).filter(row => row.props.className === 'rct-reply-list').length, 1);
+  button(tree, '更多回复').props.onClick(); await flush();
+  assert.deepEqual(h.requests.at(-1).args[0].cursor, cursor, 'locating the save must not skip unread reply pages');
+  h.requests.at(-1).resolve(replies([saved], { replyCount: 75 })); await flush(); tree = h.render();
+  assert.equal(rows(tree).filter(row => row.props['data-review-comment-key'] === 'community:saved').length, 1);
+  button(tree, '收起回复').props.onClick(); tree = h.render();
+  assert.deepEqual(rows(tree).map(row => row.props['data-review-comment-key']), ['community:root', 'community:first']);
+  assert.equal(h.scrolled.filter(key => key === 'community:saved').length, 1);
+  for (const [patch, expectedScrolls] of [
+    [{ refreshToken: 1 }, 1],
+    [{ replyTarget: { id: 'save-request-2', postId: 'log:1', commentKind: 'community', commentId: saved.id } }, 2],
+  ]) {
+    const before = h.requests.length;
+    h.render(patch); await flush();
+    const refreshedRoots = h.requests.slice(before).filter(request => request.kind === 'roots');
+    assert.equal(refreshedRoots.length, 2, 'refresh may revalidate the thread and locate its saved target');
+    for (const request of refreshedRoots) request.resolve(roots([thread], { totalCount: 76, communityCount: 76 }));
+    await flush(); h.render(); await flush();
+    const refreshedChildren = h.requests.slice(before).filter(request => request.kind === 'children');
+    assert.equal(refreshedChildren.length, 2);
+    for (const request of refreshedChildren) request.resolve(request.args[0].locate
+      ? replies([saved], { replyCount: 75 })
+      : replies([first], { replyCount: 75, hasMore: true, nextCursor: cursor }));
+    await flush(); tree = h.render(); h.render();
+    assert.equal(rows(tree).filter(row => row.props['data-review-comment-key'] === 'community:saved').length, 1);
+    assert.equal(h.scrolled.filter(key => key === 'community:saved').length, expectedScrolls,
+      'the same save request must preserve reading position; a new save request may focus again');
+  }
+  h.unmount();
+});
+
+test('a saved reply target for another post is ignored without displacing a valid notification target', async () => {
+  for (const withNotification of [false, true]) {
+    const h = await harness({ replyTarget: { id: 'other-save', postId: 'log:another', commentKind: 'community', commentId: 'foreign-saved' },
+      notificationTarget: withNotification ? { notificationId: 'current-notice', commentId: 'first' } : null });
+    h.render(); await flush();
+    const notification = h.requests.find(request => request.kind === 'notification');
+    assert.equal(Boolean(notification), withNotification);
+    if (notification) { notification.resolve({ postId: 'log:1', commentId: 'first' }); await flush(); }
+    const rootRequests = h.requests.filter(request => request.kind === 'roots');
+    assert.equal(rootRequests.length, withNotification ? 2 : 1);
+    assert.equal(rootRequests.some(request => request.args[0].locate?.id === 'foreign-saved'), false);
+    if (withNotification) assert.deepEqual(rootRequests.find(request => request.args[0].locate).args[0].locate, { kind: 'community', id: 'first' });
+    for (const request of rootRequests) request.resolve(roots([{ root: comment('root'), replyCount: 1, previewReply: comment('first') }]));
+    await flush(); h.render(); await flush(); h.render();
+    assert.equal(h.requests.filter(request => request.kind === 'children').length, 0);
+    assert.equal(h.scrolled.includes('community:first'), withNotification);
+    assert.equal(h.scrolled.includes('community:foreign-saved'), false);
+    h.unmount();
+  }
+});
+
 test('unchanged threads retain expanded state while mutation refresh drops old data and invalidates late children', async () => {
-  const h=await harness(), result=roots([{root:comment('a'),replyCount:1}]); let tree=await h.load(result);
-  button(tree,'查看 1 条回复').props.onClick(); h.render(); await flush(); const late=h.requests[1];
+  const h=await harness(), result=roots([{root:comment('a'),replyCount:2}]); let tree=await h.load(result);
+  button(tree,'查看 2 条回复').props.onClick(); h.render(); await flush(); const late=h.requests[1];
   h.render({refreshToken:1}); await flush(); assert.equal(rows(h.render()).length,0);
   h.requests.filter(row=>row.kind==='roots').at(-1).resolve(result); await flush(); h.render(); await flush();
-  late.resolve(replies([comment('deleted-old-tail')])); h.requests.filter(row=>row.kind==='children').at(-1).resolve(replies([comment('fresh')])); await flush(); tree=h.render();
+  late.resolve(replies([comment('deleted-old-tail')])); h.requests.filter(row=>row.kind==='children').at(-1).resolve(replies([comment('fresh'),comment('fresh-second')])); await flush(); tree=h.render();
   assert.match(words(tree),/fresh/); assert.doesNotMatch(words(tree),/deleted-old-tail/); assert.ok(button(tree,'收起回复')); h.unmount();
 });
 

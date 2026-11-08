@@ -276,6 +276,10 @@ export default function ReviewJournalPage({ ctx }) {
   const [publicEvaluationContext,setPublicEvaluationContext]=useState(null);
   const [publicPostContext,setPublicPostContext]=useState(null);
   const [notificationOpenRequest,setNotificationOpenRequest]=useState(null);
+  const [submittedReplyTarget,setSubmittedReplyTarget]=useState(null);
+  const replyTargetScope=useRef({userId});
+  if(replyTargetScope.current.userId!==userId)replyTargetScope.current={userId};
+  const clearSubmittedReplyTarget=()=>{replyTargetScope.current={userId};setSubmittedReplyTarget(null);};
   const [communityDrafts,setCommunityDrafts]=useState([]), [communityEditing,setCommunityEditing]=useState(null), [communityReplyMenu,setCommunityReplyMenu]=useState(null);
   const [communityCounts,setCommunityCounts]=useState({userId,values:{}});
   const communityView=useRef(null);
@@ -288,7 +292,7 @@ export default function ReviewJournalPage({ ctx }) {
   const [tagSymbol,setTagSymbol]=useState(''); const [routeId,setRouteId]=useState('root');
   const publicFeedVisible=filter==='all'&&allScope==='public'&&!tagSymbol;
   const evaluationKey=detailKey||(publicFeedVisible&&publicDetail&&publicEvaluationContext?.userId===userId?publicEvaluationContext.key:null);
-  useEffect(()=>{setScopeMenu(false);setPublicDetail(false);setPublicEvaluationContext(null);setPublicPostContext(null);setCommunityReplyMenu(null);setCommunityEditing(null);},[filter,allScope,userId]);
+  useEffect(()=>{setScopeMenu(false);setPublicDetail(false);setPublicEvaluationContext(null);setPublicPostContext(null);setCommunityReplyMenu(null);setCommunityEditing(null);clearSubmittedReplyTarget();},[filter,allScope,userId]);
   useEffect(()=>{setCommunityDrafts([]);setCommunityCounts({userId,values:{}});},[userId]);
   useEffect(()=>{
     if(!scopeMenu)return undefined;
@@ -397,6 +401,7 @@ export default function ReviewJournalPage({ ctx }) {
     positions.current.set(current.id,{x:window.scrollX||0,y:window.scrollY||0,anchor:captureFeedAnchor(),focus:event?(keyboard?(focusPost?trigger?.closest('[data-rj-entry-key]'):trigger):null):positions.current.get(current.id)?.focus});
   };
   const applyRoute=route=>{
+    clearSubmittedReplyTarget();
     pendingPosition.current=positions.current.get(route.id)||{x:0,y:0};
     setRouteId(route.id);setDetailKey(route.key);setTagSymbol(route.symbol);closeEvaluations();setReplyMenu(null);setEditingEvaluation(null);setCommunityReplyMenu(null);setCommunityEditing(null);setError('');
   };
@@ -467,7 +472,11 @@ export default function ReviewJournalPage({ ctx }) {
     if(!entry){setError('原记录暂未读取，请返回后重试。');return;}
     setMenu(entry);setConfirmDelete(false);setError('');
   };
-  const publicDetailChanged=(open,post)=>{
+  const publicDetailChanged=(open,post,postId=post?.id)=>{
+    if(!open||(postId&&replyTargetScope.current.publicPostId!==postId)){
+      clearSubmittedReplyTarget();
+      replyTargetScope.current.publicPostId=open?postId:null;
+    }
     setPublicDetail(open);
     setPublicPostContext(open&&post?{userId,post}:null);
     setPublicEvaluationContext(open&&post?.authorId===userId?{userId,key:`${post.type}:${post.sourceId}`} : null);
@@ -562,11 +571,21 @@ export default function ReviewJournalPage({ ctx }) {
   const evaluationEditorProps={identityNode:<><Avatar identity={identity} userId={userId} preview={preview}/><div><AuthorName identity={identity}/><span>现在的评价 · {evaluationDetail?.visibility==='public'?'公开可见':'仅自己可见'}</span></div></>,db:evaluationDb,userId,stockTrades,onSaved:saved,Dialog,EmojiPicker,
     renderPhotos:images=><div className={`rj-photo-grid rj-images-${images.length}`}>{images.map(item=><Photo key={item.path} item={item} db={db} userId={userId} preview={preview} onOpen={setLightbox}/>)}</div>,
     knownTags:[...new Set(all.flatMap(entry=>(entry.replies||[]).flatMap(reply=>reply.tags||[])))],preview,previewData,language,marketColorMode};
-  const communityEditorProps=replyTarget=>({...evaluationEditorProps,db:communityDb,onSaved:communitySaved,
-    identityNode:<><Avatar identity={identity} userId={userId} preview={preview}/><div><AuthorName identity={identity}/><span>{replyTarget?'回复':'现在的评价'} · {(privateCommunityPost?.visibility==='private'||isTimelineDetail)?'仅自己可见':'公开可见'}</span></div></>});
+  const communityEditorProps=(replyTarget,newReplyPostId=null)=>{
+    const scope=replyTargetScope.current;
+    return {...evaluationEditorProps,db:communityDb,onSaved:result=>{
+      communitySaved();
+      // Only a confirmed new reply may locate itself. A late save from an old
+      // account/detail, an edit, or a top-level review must not move this view.
+      if(!replyTarget||!newReplyPostId||replyTargetScope.current!==scope||navigation.current.userId!==userId
+        ||!reviewCommunityPostAllowed(communityView.current,userId,newReplyPostId)
+        ||result?.postId!==newReplyPostId||result?.authorId!==userId||!result?.id)return;
+      setSubmittedReplyTarget({userId,id:crypto.randomUUID(),postId:newReplyPostId,commentKind:'community',commentId:result.id});
+    },identityNode:<><Avatar identity={identity} userId={userId} preview={preview}/><div><AuthorName identity={identity}/><span>{replyTarget?'回复':'现在的评价'} · {(privateCommunityPost?.visibility==='private'||isTimelineDetail)?'仅自己可见':'公开可见'}</span></div></>};
+  };
   const renderReplies=()=>detail?(<section className="rj-replies" aria-labelledby="rj-comments-title">
         <div className="rj-replies-header"><h2 id="rj-comments-title">评论{(detail.replies?.length||0)+(communityCount||0)?` · ${(detail.replies?.length||0)+(communityCount||0)}`:''}</h2><button type="button" className="rj-evaluate-button" onClick={openEvaluation}>写评价</button></div>
-        {typeof db.fetchReviewCommentThreads==='function'?privateCommentPosts.map(post=><ReviewCommentThreads key={`${userId}:${post.id}`} postId={post.id} db={db} userId={userId} language={language} marketColorMode={marketColorMode} onSelectSymbol={openStockTag} refreshToken={`${publicRefresh}:${post.sourceEntry.revision||0}`} showEmpty={privateCommentPosts.length===1} onCountChange={updateCommunityCount}
+        {typeof db.fetchReviewCommentThreads==='function'?privateCommentPosts.map(post=><ReviewCommentThreads key={`${userId}:${post.id}`} postId={post.id} db={db} userId={userId} language={language} marketColorMode={marketColorMode} onSelectSymbol={openStockTag} refreshToken={`${publicRefresh}:${post.sourceEntry.revision||0}`} showEmpty={privateCommentPosts.length===1} onCountChange={updateCommunityCount} replyTarget={submittedReplyTarget?.userId===userId&&submittedReplyTarget.postId===post.id?submittedReplyTarget:null}
           renderAuthorAvatar={()=><Avatar identity={identity} userId={userId} preview={preview}/>}
           renderAuthorContent={reply=>{const original=post.sourceEntry.replies?.find(item=>item.id===reply.id)||reply;return <>{original.text&&<ReplyBody onReply={()=>replyToReview(post,{kind:'author',id:reply.id,authorId:userId,nickname:identity?.nickname,available:true})} language={language}><p className="rev-reply-body">{original.text}</p></ReplyBody>}{entryNotes(original)}{attachments(original)}</>;}}
           onReply={reply=>replyToReview(post,{kind:reply.kind||reply.source||'community',id:reply.id,authorId:reply.authorId,nickname:reply.author?.nickname,available:true})}
@@ -608,7 +627,7 @@ export default function ReviewJournalPage({ ctx }) {
       {mixedFeedEnabled&&['idle','loading'].includes(ownedTimeline.status)&&<p className="rj-note rj-feed-status" role="status">{language==='en'?'Loading timeline…':'正在读取时间线…'}</p>}
       {mixedFeedEnabled&&ownedTimeline.status==='pending'&&<div className="rj-feed-status" role="status"><p className="rj-note">{language==='en'?'Closing history is being updated. The timeline will be available when complete.':'收盘历史正在更新，完成后可查看时间线。'}</p><button className="rj-text-button" onClick={()=>setTimelineAttempt(value=>value+1)}>{language==='en'?'Retry':'重新读取'}</button></div>}
       {mixedFeedEnabled&&ownedTimeline.error&&<div className="rj-feed-status" role="alert"><p className="rj-note">{ownedTimeline.error}</p><button className="rj-text-button" onClick={()=>setTimelineAttempt(value=>value+1)}>{language==='en'?'Retry':'重新读取'}</button></div>}
-      {publicFeedVisible&&<ReviewPublicFeed key={`${userId}:${reviewOpenAllRequest}`} db={db} userId={userId} language={language} marketColorMode={marketColorMode} query={query} openRequest={notificationOpenRequest?.userId===userId?notificationOpenRequest:null} onOpenRequestHandled={id=>setNotificationOpenRequest(old=>old?.id===id?null:old)} refreshToken={publicRefresh} refreshRef={reviewPublicRefreshRef} reviewFeedUnread={browsingScope.current.value==='public'?reviewFeedUnread:undefined} active={!showingDetail&&!composer&&!menu&&!activeReplyMenu&&!editingEntry&&!activeCommunityMenu&&!activeCommunityEdit&&!communityDrafts.some(item=>item.userId===userId&&item.open&&allowedCommunityPostIds.includes(item.post.id))&&!lightbox&&!evaluations.some(item=>item.userId===userId&&item.open&&item.key===evaluationKey)} onDetailChange={publicDetailChanged} onManageOwnEntry={manageOwnPublicEntry} onEvaluateOwnEntry={(type,id)=>evaluateOwnPublicEntry(type,id)} onManageOwnReply={evaluateOwnPublicEntry} onEvaluateCommunityEntry={evaluateCommunityEntry} onReplyToReview={replyToReview} onManageCommunityReply={manageCommunityReply} onCommunityCountChange={updateCommunityCount}/>}
+      {publicFeedVisible&&<ReviewPublicFeed key={`${userId}:${reviewOpenAllRequest}`} db={db} userId={userId} language={language} marketColorMode={marketColorMode} query={query} openRequest={notificationOpenRequest?.userId===userId?notificationOpenRequest:null} onOpenRequestHandled={id=>setNotificationOpenRequest(old=>old?.id===id?null:old)} refreshToken={publicRefresh} replyTarget={submittedReplyTarget?.userId===userId?submittedReplyTarget:null} refreshRef={reviewPublicRefreshRef} reviewFeedUnread={browsingScope.current.value==='public'?reviewFeedUnread:undefined} active={!showingDetail&&!composer&&!menu&&!activeReplyMenu&&!editingEntry&&!activeCommunityMenu&&!activeCommunityEdit&&!communityDrafts.some(item=>item.userId===userId&&item.open&&allowedCommunityPostIds.includes(item.post.id))&&!lightbox&&!evaluations.some(item=>item.userId===userId&&item.open&&item.key===evaluationKey)} onDetailChange={publicDetailChanged} onManageOwnEntry={manageOwnPublicEntry} onEvaluateOwnEntry={(type,id)=>evaluateOwnPublicEntry(type,id)} onManageOwnReply={evaluateOwnPublicEntry} onEvaluateCommunityEntry={evaluateCommunityEntry} onReplyToReview={replyToReview} onManageCommunityReply={manageCommunityReply} onCommunityCountChange={updateCommunityCount}/>}
       {filter!=='timeline'&&!(publicFeedVisible&&publicDetail)&&<button className="rj-fab" aria-label="写复盘" onClick={()=>setComposer({entry:null})}><Plus size={28}/></button>}
     </div>
     {isTimelineDetail&&selectedTimelineEvent&&<div className="rj-timeline-author"><ReviewSystemAvatar/><div className="rj-post-heading"><ReviewSystemName language={language}/><span>·</span><time dateTime={reviewTimelineFeedDate(selectedTimelineEvent)}>{reviewTimelineFeedDate(selectedTimelineEvent)}</time></div></div>}
@@ -623,7 +642,7 @@ export default function ReviewJournalPage({ ctx }) {
     {composer&&<Composer entry={composer.entry} defaultType={filter==='insight'?'insight':'log'} identity={identity} userId={userId} db={db} language={language} onSaved={entry=>{saved(entry);if(filter==='all'){setAllScope(entry.visibility==='public'?'public':'private');if(!composer.entry)window.requestAnimationFrame?.(()=>{if(navigation.current.userId===userId)window.scrollTo({left:0,top:0,behavior:'instant'});});}}} onClose={()=>setComposer(null)} suggestions={suggestions} preview={preview} previewMarket={previewData?.market}/>}
     {evaluations.filter(evaluation=>evaluation.userId===userId&&findReviewEntryByKey(all,evaluation.key)).map(evaluation=><ReviewEvaluationComposer {...evaluationEditorProps} key={`${userId}:${evaluation.key}`} open={evaluation.open&&evaluationKey===evaluation.key&&!editingEntry} entry={evaluationEntryForKey(evaluation.key)} onClose={()=>setEvaluations(old=>old.map(item=>item.userId===userId&&item.key===evaluation.key?{...item,open:false}:item))}/>)}
     {editingEntry&&<ReviewEvaluationComposer {...evaluationEditorProps} key={`${userId}:${editingEvaluation.entryKey}:${editingEntry.id}:${editingEvaluation.reply.id}:${editingEvaluation.sessionId}`} open entry={editingEntry} reply={editingSource.reply} onClose={()=>setEditingEvaluation(null)}/>}
-    {communityDrafts.filter(item=>item.userId===userId).map(item=><ReviewEvaluationComposer {...communityEditorProps(item.replyTo)} key={`${userId}:community:${item.key}`} open={item.open&&allowedCommunityPostIds.includes(item.post.id)&&!activeCommunityEdit} entry={communityEntry(item.post,item.replyTo)} replyTarget={item.replyTo} onClose={()=>setCommunityDrafts(old=>old.map(draft=>draft.userId===userId&&draft.key===item.key?{...draft,open:false}:draft))}/>)}
+    {communityDrafts.filter(item=>item.userId===userId).map(item=><ReviewEvaluationComposer {...communityEditorProps(item.replyTo,item.post.id)} key={`${userId}:community:${item.key}`} open={item.open&&allowedCommunityPostIds.includes(item.post.id)&&!activeCommunityEdit} entry={communityEntry(item.post,item.replyTo)} replyTarget={item.replyTo} onClose={()=>setCommunityDrafts(old=>old.map(draft=>draft.userId===userId&&draft.key===item.key?{...draft,open:false}:draft))}/>)}
     {activeCommunityEdit&&<ReviewEvaluationComposer {...communityEditorProps(activeCommunityEdit.reply.replyTo)} key={`${userId}:community:${activeCommunityEdit.post.id}:${activeCommunityEdit.reply.id}:${activeCommunityEdit.sessionId}`} open entry={communityEntry(activeCommunityEdit.post)} reply={activeCommunityEdit.reply} replyTarget={activeCommunityEdit.reply.replyTo} onClose={()=>setCommunityEditing(null)}/>}
     {lightbox&&<Dialog title="图片" wide onClose={()=>setLightbox('')}><div className="rj-lightbox"><img src={lightbox} alt="复盘图片原图"/></div></Dialog>}
   </div>;

@@ -5,6 +5,9 @@ import {mapReviewFeedUnread,normalizeReviewFeedCursor,mapReviewThreadComment,map
 const A='11111111-1111-4111-8111-111111111111',B='22222222-2222-4222-8222-222222222222';
 const postId='log:88888888-8888-4888-8888-888888888888';
 const target={kind:'author',id:'own-comment'};
+const rootComment=()=>({...target,postId,authorId:A,author:{nickname:'Author',avatarKey:'gold'},date:'2026-11-08',text:'Root',createdAt:null,sortCreatedAt:'2026-11-08T00:00:00Z',deleted:false,directReplyCount:1,likeCount:0,liked:false});
+const previewComment=()=>({kind:'community',id:B,postId,authorId:B,author:{nickname:'Reviewer',avatarKey:'gold',private_email:'not projected'},date:'2026-11-08',text:'First visible reply',revision:1,createdAt:'2026-11-08T01:00:00.123456Z',updatedAt:'2026-11-08T01:00:00.123456Z',sortCreatedAt:'2026-11-08T01:00:00.123456Z',deleted:false,directReplyCount:0,likeCount:1,liked:true,replyTo:{...target,authorId:A,nickname:'Author',available:true}});
+const threadPage=(previewReply=previewComment(),replyCount=1)=>({threads:[{root:rootComment(),replyCount,previewReply}],totalCount:replyCount+1,communityCount:replyCount,hasMore:false,nextCursor:null});
 function client(value={unreadCount:2,cursor:'9007199254740993'}){
  const calls=[];let owner=A;return{calls,setOwner:user=>{owner=user;},auth:{getUser:async()=>({data:{user:{id:owner}}})},rpc:async(name,args)=>{calls.push({name,args});return{data:typeof value==='function'?await value(name,args):value};}};}
 test('feed cursor is lossless opaque bigint text and invalid / unsafe representations are rejected',()=>{
@@ -45,4 +48,30 @@ test('deleted comment mapper never preserves deleted body or attachments',()=>{
 });
 test('network failure stays error rather than zero unread or empty comments',async()=>{
  const db=client();db.rpc=async()=>{throw new Error('network');};await assert.rejects(()=>createReviewInteractionRepository(db).fetchFeedUnread(A),{code:'REVIEW_INTERACTION_REQUEST_FAILED'});
+});
+test('thread preview is returned by the existing single authenticated roots request without child queries',async()=>{
+ const db=client(threadPage()),repo=createReviewInteractionRepository(db);
+ const result=await repo.fetchCommentThreads({postId},A);
+ assert.equal(db.calls.length,1);assert.equal(db.calls[0].name,'fetch_review_comment_threads');assert.equal(db.calls[0].args.p_expected_user_id,A);
+ assert.equal(result.threads[0].previewReply.id,B);assert.equal(result.threads[0].previewReply.text,'First visible reply');
+ assert.equal(result.threads[0].previewReply.sortCreatedAt,'2026-11-08T01:00:00.123456Z');
+ assert.equal(result.threads[0].previewReply.author.private_email,undefined);assert.equal(result.threads[0].previewReply.liked,true);
+});
+test('old thread responses without preview remain compatible and nested descendants are accepted',()=>{
+ const legacy=threadPage();delete legacy.threads[0].previewReply;
+ assert.equal(mapReviewCommentThreads(legacy,postId).threads[0].previewReply,null);
+ assert.equal(mapReviewCommentThreads(threadPage(null,0),postId).threads[0].previewReply,null);
+ const nested={...previewComment(),replyTo:{kind:'community',id:A,authorId:A,nickname:'Intermediate reviewer',available:false}};
+ assert.equal(mapReviewCommentThreads(threadPage(nested),postId).threads[0].previewReply.replyTo.id,A);
+});
+test('thread preview rejects cross-post, deleted, self and zero-count payloads',()=>{
+ for(const [preview,count] of [[{...previewComment(),postId:'log:99999999-9999-4999-8999-999999999999'},1],[{...previewComment(),deleted:true},1],[rootComment(),1],[previewComment(),0]]){
+  assert.throws(()=>mapReviewCommentThreads(threadPage(preview,count),postId),{code:'REVIEW_INTERACTION_INVALID_DATA'});
+ }
+});
+test('thread previews retain account-switch and denied-access rejection before delivery',async()=>{
+ let switched;switched=client(()=>{switched.setOwner(B);return threadPage();});
+ await assert.rejects(()=>createReviewInteractionRepository(switched).fetchCommentThreads({postId},A),{code:'REVIEW_ACCOUNT_CHANGED'});
+ const hidden=client();hidden.rpc=async()=>({error:{code:'P0002',message:'comment parent unavailable'}});
+ await assert.rejects(()=>createReviewInteractionRepository(hidden).fetchCommentThreads({postId},A),{code:'REVIEW_INTERACTION_NOT_FOUND'});
 });

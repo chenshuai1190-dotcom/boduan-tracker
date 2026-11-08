@@ -7,6 +7,7 @@ const moduleFile=process.env.PGLITE_MODULE_FILE;
 const files=['review_public_activity_20261108.sql','review_public_replies_20261108.sql','review_community_evaluations_20261108.sql','review_public_chronology_replies_20261108.sql','review_activity_notifications_20261108.sql','review_thread_interactions_20261108.sql'];
 const migrations=await Promise.all(files.map(file=>readFile(new URL(`../supabase/${file}`,import.meta.url),'utf8')));
 const migration=migrations.at(-1);
+const previewMigration=await readFile(new URL('../supabase/review_thread_preview_reply_20261108.sql',import.meta.url),'utf8');
 const A='11111111-1111-4111-8111-111111111111',B='22222222-2222-4222-8222-222222222222',C='33333333-3333-4333-8333-333333333333',D='44444444-4444-4444-8444-444444444444',E='55555555-5555-4555-8555-555555555555';
 let nextId=0;const id=()=>`88888888-8888-4888-8888-${String(++nextId).padStart(12,'0')}`;
 test('thread foundation keeps source data intact and serialized unread cursor separate from original chronology',()=>{
@@ -15,6 +16,17 @@ test('thread foundation keeps source data intact and serialized unread cursor se
  assert.match(migration,/for share/);
  assert.match(migration,/greatest\(review_feed_read_state.seen_cursor,excluded.seen_cursor\)/);
  assert.match(migration,/not coalesce\(v_timeline,false\)/);
+});
+test('preview migration only extends the existing roots RPC and uses the same tree and projection',()=>{
+ assert.equal((previewMigration.match(/create or replace function/g)||[]).length,1);
+ assert.match(previewMigration,/create or replace function public\.fetch_review_comment_threads\(/);
+ assert.doesNotMatch(previewMigration,/\b(?:update|delete from|insert into|alter table|create policy|drop|truncate)\s+public\./i);
+ assert.match(previewMigration,/tree as materialized/);
+ assert.match(previewMigration,/not c\.deleted and \(c\.kind,c\.id\)<>\(s\.kind,s\.id\)/);
+ assert.match(previewMigration,/order by c\.created_at asc,c\.kind asc,c\.id asc limit 1/);
+ assert.match(previewMigration,/'previewReply',preview_reply/);
+ assert.match(previewMigration,/p_expected_user_id is distinct from v_user/);
+ assert.match(previewMigration,/not v_parent\.parent_public and v_parent\.parent_author_id<>v_user/);
 });
 test('thread reactions, paginated reply trees, private timeline access and unread acknowledgements execute in PostgreSQL',{
  skip:!moduleFile&&'Set PGLITE_MODULE_FILE to a local PGlite install for isolated SQL execution.',
@@ -67,6 +79,9 @@ test('thread reactions, paginated reply trees, private timeline access and unrea
   const legacy=await insert();
   const fingerprint=async()=>(await rows("select md5(string_agg(to_jsonb(r)::text,'' order by id)) fingerprint from public.review_logs r"))[0].fingerprint;
   const before=await fingerprint();await db.exec(migration);await db.exec(migration);assert.equal(await fingerprint(),before);
+  const repliesDefinition=(await rows("select pg_get_functiondef('public.fetch_review_comment_thread_replies(text,jsonb,integer,jsonb,jsonb,uuid)'::regprocedure) definition"))[0].definition;
+  await db.exec(previewMigration);await db.exec(previewMigration);assert.equal(await fingerprint(),before);
+  assert.equal((await rows("select pg_get_functiondef('public.fetch_review_comment_thread_replies(text,jsonb,integer,jsonb,jsonb,uuid)'::regprocedure) definition"))[0].definition,repliesDefinition,'preview migration leaves expanded paging untouched');
   await t.test('first enable baselines existing posts, then only new other-author public posts count',async()=>{
    assert.deepEqual(await unread(B),{unreadCount:0,cursor:'0'});
    const source=await insert(A);const first=await unread(B);assert.equal(first.unreadCount,1);
@@ -112,19 +127,46 @@ test('thread reactions, paginated reply trees, private timeline access and unrea
    const page=await threads(C,source,2);assert.equal(page.threads.length,2);assert.equal(page.hasMore,true);assert.equal(page.totalCount,12);assert.equal(page.communityCount,11);
    const next=await threads(C,source,2,page.nextCursor);assert.equal(next.threads.length,2);assert.notEqual(page.threads[0].root.id,next.threads[0].root.id);
    const located=await threads(C,source,20,null,{kind:'community',id:chain[6].id});assert.equal(located.threads[0].root.id,root.id);assert.equal(located.threads[0].replyCount,7);
+   assert.equal(located.threads[0].previewReply.id,chain[0].id);
    const initial=await replies(C,source,root,3);assert.equal(initial.replies.length,3);assert.equal(initial.replies[0].directReplyCount,1);assert.equal(initial.hasMore,true);
    const later=await replies(C,source,root,3,initial.nextCursor);assert.equal(later.replies.length,3);assert.notEqual(later.replies[0].id,initial.replies[0].id);
    const exact=await replies(C,source,root,3,null,{kind:'community',id:chain[6].id});assert.equal(exact.replies[0].id,chain[6].id);
    await as(A,"update public.review_logs set review_data=jsonb_set(review_data,'{replies}','[]'::jsonb) where id=$1",[source.id]);
    const missing=await threads(C,source,20,null,{kind:'community',id:chain[6].id});assert.equal(missing.threads[0].root.deleted,true);assert.equal(missing.threads[0].root.text,'');assert.equal(missing.threads[0].replyCount,7);
+   assert.equal(missing.threads[0].previewReply.id,chain[0].id);
    await rpc(B,'delete_review_community_evaluation',[source.postId,chain[2].id,chain[2].revision]);
    const afterDelete=await replies(C,source,root);assert.equal(afterDelete.replyCount,6);assert.equal(afterDelete.replies.find(r=>r.id===chain[2].id).deleted,true);assert.equal(afterDelete.replies.length,7);
+  });
+  await t.test('preview is the earliest nondeleted descendant with stable ties and current parent visibility',async()=>{
+   const source=await insert(A,'public',[{id:'preview-root',date:'2026-11-08',text:'Root'},{id:'empty-root',date:'2026-11-08',text:'No replies'}]);
+   const root={kind:'author',id:'preview-root'};
+   const first=await save(B,source,root,'Earliest reply');
+   const nested=await save(C,source,{kind:'community',id:first.id},'Nested reply');
+   const later=await save(B,source,root,'Other direct reply');
+   await rows("update public.review_community_evaluations set created_at='2026-11-08T01:00:00.123456Z' where id=any($1::uuid[])",[[first.id,nested.id,later.id]]);
+   await like(C,source,{kind:'community',id:first.id});
+   const raw=await rpc(C,'fetch_review_comment_threads',[source.postId,20,null,null]);
+   assert.ok(raw.threads.every(item=>Object.hasOwn(item,'previewReply')));
+   assert.doesNotMatch(JSON.stringify(raw),/private_email|secret-[a-e]/);
+   const page=mapReviewCommentThreads(raw,source.postId);
+   assert.equal(page.threads.find(item=>item.root.id==='empty-root').previewReply,null);
+   const thread=page.threads.find(item=>item.root.id===root.id);
+   assert.equal(thread.replyCount,3);assert.equal(thread.previewReply.id,first.id,'ties use kind/id ASC, matching expanded order');assert.equal(thread.previewReply.liked,true);
+   assert.equal((await replies(C,source,root,1)).replies[0].id,thread.previewReply.id);
+   await rpc(B,'delete_review_community_evaluation',[source.postId,first.id,first.revision]);
+   const remaining=(await threads(C,source,20,null,root)).threads[0];
+   assert.equal(remaining.replyCount,2);assert.equal(remaining.previewReply.id,nested.id,'deleted first reply is skipped, valid nested descendant retained');assert.equal(remaining.previewReply.deleted,false);
+   await visibility(source,'private');await denied(()=>threads(C,source),'P0002');
+   assert.equal((await threads(A,source,20,null,root)).threads[0].previewReply.id,nested.id);
+   await denied(()=>rawRpc(A,'fetch_review_comment_threads',[source.postId,20,null,null,B]));
+   await denied(()=>as(null,'select public.fetch_review_comment_threads($1,20,null,null,null)',[source.postId],'anon'));
   });
   await t.test('timeline thread and reactions remain owner only even if source has public flag',async()=>{
    const source=await insert(A,'public',[{id:'timeline-review',date:'2026-11-08',text:'Private snapshot discussion'}],{timelineEvent:{id:'system-event'}});
    const target={kind:'author',id:'timeline-review'};
    assert.equal((await rows('select count(*)::integer n from public.review_public_posts where id=$1',[source.postId]))[0].n,0);
    const reply=await save(A,source,target,'Owner replies to timeline');assert.equal((await threads(A,source)).totalCount,2);
+   assert.equal((await threads(A,source)).threads[0].previewReply.id,reply.id);
    assert.equal((await like(A,source,target)).likeCount,1);await denied(()=>threads(B,source),'P0002');await denied(()=>save(B,source,target),'P0002');await denied(()=>like(B,source,target),'P0002');
    assert.equal((await replies(A,source,target)).replies[0].id,reply.id);
   });

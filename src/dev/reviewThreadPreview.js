@@ -55,7 +55,7 @@ export function createReviewThreadPreview({ ownerId, getEntries, getCommunityRow
       if (locate) matching = matching.filter(thread => reviewCommentKey(thread.root) === reviewCommentKey(locate) || thread.replies.some(reply => reviewCommentKey(reply) === reviewCommentKey(locate)));
       else if (cursor) matching = matching.filter(thread => compareReviewCommentTime(thread.root, cursor) < 0);
       const selected = matching.slice(0, limit), hasMore = !locate && matching.length > selected.length;
-      return { threads: selected.map(({ root, replyCount }) => ({ root, replyCount })), totalCount: all.totalCount, communityCount: all.communityCount,
+      return { threads: selected.map(({ root, replyCount, replies }) => ({ root, replyCount, previewReply: replies[0] || null })), totalCount: all.totalCount, communityCount: all.communityCount,
         hasMore, nextCursor: hasMore ? cursorFor(selected.at(-1).root) : null };
     },
     async fetchReviewCommentThreadReplies({ postId, root, limit = 50, cursor = null, locate = null }, userId) {

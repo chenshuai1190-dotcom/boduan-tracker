@@ -1058,3 +1058,26 @@ test('search and failed public feed loads never clear the unread boundary', asyn
     await flush();h.feed({query,unreadController});assert.equal(seen.length,0);h.unmount();
   }
 });
+
+test('public detail forwards only its own saved reply target while retaining a separate notification target', async () => {
+  const h = await harness(), item = post(), target = { id: 'saved-request', postId: item.id, commentKind: 'community', commentId: 'saved-reply' };
+  const changes = [], options = { replyTarget: target, onDetailChange: (...args) => changes.push(args) };
+  h.feed(options); await flush(); h.requests[0].resolve(result([item])); await flush();
+  let tree = h.feed(options); h.posts(tree)[0].props.onOpen(item); tree = h.feed(options); await flush();
+  let comments = walk(tree).find(node => node.type === h.components.PublicReplies);
+  assert.equal(comments.props.replyTarget, target);
+  assert.equal(changes.at(-1)[2], item.id, 'route identity is available while the detail is still being verified');
+  h.requests.find(request => request.kind === 'post').resolve(item); await flush(); tree = h.feed(options);
+  assert.equal(walk(tree).find(node => node.type === h.components.PublicReplies).props.replyTarget, target);
+  tree = h.feed({ ...options, replyTarget: { ...target, postId: 'log:another' } });
+  assert.equal(walk(tree).find(node => node.type === h.components.PublicReplies).props.replyTarget, null);
+  h.unmount();
+  const section = await harness(), notificationTarget = { notificationId: 'notification', commentId: 'old-reply' };
+  const props = { post: item, db: { ...section.db, fetchReviewCommentThreads() {} }, userId: 'viewer', language: 'zh', replyTarget: target, notificationTarget };
+  tree = section.render(section.components.PublicReplies, props);
+  comments = walk(tree).find(node => node.type === section.components.ReviewCommentThreads);
+  assert.equal(comments.props.replyTarget, target); assert.equal(comments.props.notificationTarget, notificationTarget);
+  tree = section.render(section.components.PublicReplies, { ...props, replyTarget: { ...target, postId: 'log:another' } });
+  assert.equal(walk(tree).find(node => node.type === section.components.ReviewCommentThreads).props.replyTarget, null);
+  section.unmount();
+});

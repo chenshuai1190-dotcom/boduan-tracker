@@ -12,10 +12,13 @@ const targetKey = target => target ? reviewCommentKey(target) : '';
  * containers. Descendants have one visual indentation; parent identities remain
  * exact, including when an original comment has been deleted. */
 export default function ReviewCommentThreadList({ postId, db, userId, language = 'zh', onReply, onManageReply,
-  onCountChange, refreshToken = 0, showEmpty = false, notificationTarget = null, renderAvatar, renderContent,
+  onCountChange, refreshToken = 0, showEmpty = false, notificationTarget = null, replyTarget = null, renderAvatar, renderContent,
   interactionsDisabled = false, onAccessRevoked, loadingPlaceholder = null }) {
   const english = language.startsWith('en');
-  const key = `${userId}:${postId}`, notificationKey = notificationTarget?.notificationId || notificationTarget?.id || '';
+  const key = `${userId}:${postId}`;
+  const submittedTarget = replyTarget?.postId === postId ? replyTarget : null;
+  const activeTarget = submittedTarget || notificationTarget;
+  const focusKey = activeTarget ? `${submittedTarget ? 'saved' : 'notification'}:${activeTarget.notificationId || activeTarget.id || ''}:${activeTarget.commentKind || activeTarget.targetKind || 'community'}:${activeTarget.commentId || ''}` : '';
   const [state, setState] = React.useState(() => empty(key));
   const [retry, setRetry] = React.useState(0), [expanded, setExpanded] = React.useState({ key, values: [] });
   const [focus, setFocus] = React.useState(null);
@@ -43,19 +46,20 @@ export default function ReviewCommentThreadList({ postId, db, userId, language =
   };
 
   React.useEffect(() => {
-    const version = ++generation.current; pending.current.clear(); focused.current = '';
+    const version = ++generation.current; pending.current.clear();
+    if (!submittedTarget) focused.current = '';
     setState(empty(key)); setFocus(null);
     Promise.resolve().then(async () => {
       const list = db.fetchReviewCommentThreads({ postId, limit: 20, cursor: null }, userId);
       // A notification must still be visible before its old reference is used.
-      const located = notificationTarget?.commentId ? Promise.resolve().then(async () => {
-        if (notificationTarget.notificationId && typeof db.readReviewNotificationTarget === 'function') {
+      const located = activeTarget?.commentId ? Promise.resolve().then(async () => {
+        if (!submittedTarget && notificationTarget.notificationId && typeof db.readReviewNotificationTarget === 'function') {
           const target = await db.readReviewNotificationTarget(notificationTarget.notificationId, userId);
           if (target?.postId !== postId || target?.commentId !== notificationTarget.commentId) {
             throw Object.assign(new Error(english ? 'This comment is no longer available.' : '这条评论已不可用。'), { code: 'REVIEW_NOTIFICATION_NOT_FOUND' });
           }
         }
-        const target = { kind: notificationTarget.commentKind || notificationTarget.targetKind || 'community', id: notificationTarget.commentId };
+        const target = { kind: activeTarget.commentKind || activeTarget.targetKind || 'community', id: activeTarget.commentId };
         return { target, result: await db.fetchReviewCommentThreads({ postId, limit: 20, cursor: null, locate: target }, userId) };
       }) : null;
       return Promise.all([list, located]);
@@ -67,11 +71,11 @@ export default function ReviewCommentThreadList({ postId, db, userId, language =
       if (located) {
         const rootKey = reviewCommentKey(located.result.threads[0].root);
         setExpanded(old => ({ key, values: [...new Set([...(old.key === key ? old.values : []), rootKey])] }));
-        setFocus({ rootKey, target: located.target, token: `${notificationKey}:${version}` });
+        setFocus({ rootKey, target: located.target, token: submittedTarget ? `${key}:${focusKey}` : `${focusKey}:${version}` });
       }
     }).catch(error => fail(error, version, { status: 'error' }));
     return () => { generation.current += 1; };
-  }, [db, key, postId, userId, refreshToken, retry, notificationKey]);
+  }, [db, key, postId, userId, refreshToken, retry, focusKey]);
 
   const loadReplies = (thread, { more = false, locate = null } = {}) => {
     const rootKey = reviewCommentKey(thread.root), version = generation.current;
@@ -100,12 +104,12 @@ export default function ReviewCommentThreadList({ postId, db, userId, language =
     if (owned.status !== 'ready') return;
     for (const thread of owned.threads) {
       const rootKey = reviewCommentKey(thread.root);
-      if (openKeys.includes(rootKey) && !owned.children[rootKey]?.status) loadReplies(thread);
+      if (openKeys.includes(rootKey) && !owned.children[rootKey]?.status && (!thread.previewReply || thread.replyCount > 1)) loadReplies(thread);
     }
     if (focus && focus.rootKey !== targetKey(focus.target)) {
       const thread = owned.threads.find(row => reviewCommentKey(row.root) === focus.rootKey);
       const childState = owned.children[focus.rootKey];
-      if (thread && !childState?.locatedReplies?.some(row => reviewCommentKey(row) === targetKey(focus.target))
+      if (thread && reviewCommentKey(thread.previewReply) !== targetKey(focus.target) && !childState?.locatedReplies?.some(row => reviewCommentKey(row) === targetKey(focus.target))
         && !childState?.replies?.some(row => reviewCommentKey(row) === targetKey(focus.target)) && childState?.locatedTarget !== targetKey(focus.target) && !childState?.error) loadReplies(thread, { locate: focus.target });
     }
   }, [owned.status, owned.threads, expanded, focus]);
@@ -186,19 +190,26 @@ export default function ReviewCommentThreadList({ postId, db, userId, language =
   return <div className="rct-list" ref={listRef}>
     {owned.threads.map(thread => {
       const rootKey = reviewCommentKey(thread.root), open = openKeys.includes(rootKey), childState = owned.children[rootKey];
-      const children = mergeReviewCommentReplies(childState?.replies, childState?.locatedReplies);
+      // Once page one has been read it supersedes the list preview (including
+      // edits/deletions). Located pages never replace the earliest preview.
+      const previewReply = childState?.status === 'ready' ? childState.replies?.[0] : thread.previewReply;
+      const children = mergeReviewCommentReplies(previewReply ? [previewReply] : [], mergeReviewCommentReplies(childState?.replies, childState?.locatedReplies));
+      const shownReplies = open ? children : previewReply ? [previewReply] : [];
       const hasReplies = thread.replyCount > 0 || children.length > 0;
+      const remaining = Math.max(0, thread.replyCount - (previewReply ? 1 : 0));
+      const needsPage = !thread.previewReply || thread.replyCount > 1;
+      const canToggle = remaining > 0 || open && (children.length > 1 || childState?.hasMore);
       return <article className={`rct-thread${hasReplies ? ' rct-has-replies' : ''}`} key={rootKey} data-review-thread-key={rootKey}>
         {row(thread.root, rootKey, thread.replyCount)}
-        {open && hasReplies && <div className="rct-reply-list">
-          {children.map(comment => row(comment, rootKey, comment.directReplyCount, true))}
-          {(!childState?.status || childState.status === 'loading') && <p className="rj-note" role="status"><Loader2 size={14} className="rj-spin"/> {english ? 'Loading replies…' : '正在读取回复…'}</p>}
-          {childState?.locateError && <p className="rj-note" role="status">{childState.locateError}</p>}
-          {childState?.error && <div className="rpf-inline-error" role="alert"><p>{childState.error}</p><button type="button" className="rj-text-button" onClick={() => loadReplies(thread)}>{english ? 'Retry' : '重新读取'}</button></div>}
-          {childState?.hasMore && <button className="rct-load-more" type="button" disabled={childState.more} onClick={() => loadReplies(thread, { more: true })}>{childState.more ? (english ? 'Loading…' : '正在读取…') : (english ? 'More replies' : '更多回复')}</button>}
+        {(shownReplies.length > 0 || open && hasReplies) && <div className="rct-reply-list">
+          {shownReplies.map(comment => row(comment, rootKey, comment.directReplyCount, true))}
+          {open && needsPage && (!childState?.status || childState.status === 'loading') && <p className="rj-note" role="status"><Loader2 size={14} className="rj-spin"/> {english ? 'Loading replies…' : '正在读取回复…'}</p>}
+          {open && childState?.locateError && <p className="rj-note" role="status">{childState.locateError}</p>}
+          {open && childState?.error && <div className="rpf-inline-error" role="alert"><p>{childState.error}</p><button type="button" className="rj-text-button" onClick={() => loadReplies(thread)}>{english ? 'Retry' : '重新读取'}</button></div>}
+          {open && childState?.hasMore && <button className="rct-load-more" type="button" disabled={childState.more} onClick={() => loadReplies(thread, { more: true })}>{childState.more ? (english ? 'Loading…' : '正在读取…') : (english ? 'More replies' : '更多回复')}</button>}
         </div>}
-        {hasReplies && <button type="button" className="rct-toggle" aria-expanded={open} onClick={() => setExpanded(old => ({ key, values: open ? openKeys.filter(value => value !== rootKey) : [...new Set([...openKeys, rootKey])] }))}>
-          <span>{open ? (english ? 'Hide replies' : '收起回复') : thread.replyCount ? (english ? `View ${thread.replyCount} replies` : `查看 ${thread.replyCount} 条回复`) : (english ? 'View conversation' : '查看对话')}</span><ChevronDown size={15}/></button>}
+        {canToggle && <button type="button" className="rct-toggle" aria-expanded={open} onClick={() => setExpanded(old => ({ key, values: open ? openKeys.filter(value => value !== rootKey) : [...new Set([...openKeys, rootKey])] }))}>
+          <span>{open ? (english ? 'Hide replies' : '收起回复') : previewReply ? (english ? `View ${remaining} more ${remaining === 1 ? 'reply' : 'replies'}` : `查看其余 ${remaining} 条回复`) : (english ? `View ${remaining} replies` : `查看 ${remaining} 条回复`)}</span><ChevronDown size={15}/></button>}
       </article>;
     })}
     {owned.status === 'loading' && (loadingPlaceholder || <p className="rj-note" role="status">{english ? 'Loading comments…' : '正在读取评论…'}</p>)}

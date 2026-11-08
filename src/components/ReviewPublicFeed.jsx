@@ -241,7 +241,7 @@ export function ReviewCommentThreads({ postId, db, userId, language = 'zh', mark
     </>}/>;
 }
 
-function PublicReplies({ post, db, userId, language, marketColorMode, onSelectSymbol, onEvaluateOwnEntry, onManageOwnReply, onEvaluateCommunityEntry, onManageCommunityReply, onReplyToReview, onCommunityCountChange, sectionRef, notificationTarget, interactionsDisabled = false, onAccessRevoked }) {
+function PublicReplies({ post, db, userId, language, marketColorMode, onSelectSymbol, onEvaluateOwnEntry, onManageOwnReply, onEvaluateCommunityEntry, onManageCommunityReply, onReplyToReview, onCommunityCountChange, sectionRef, notificationTarget, replyTarget = null, interactionsDisabled = false, onAccessRevoked }) {
   const english = language.startsWith('en'), ownPost = post.authorId === userId, replies = post.replies || [];
   const countKey = JSON.stringify([userId, post.id, post.updatedAt, post.commentCount ?? '']);
   const [loadedCount,setLoadedCount]=React.useState({key:'',count:0});
@@ -251,7 +251,7 @@ function PublicReplies({ post, db, userId, language, marketColorMode, onSelectSy
   if (typeof db.fetchReviewCommentThreads === 'function') return <section ref={sectionRef} className="rj-replies rpf-replies" aria-label={english ? 'Comments' : '评论'}>
     <div className="rj-replies-header"><h2>{english ? 'Comments' : '评论'}{count ? ` · ${count}` : ''}</h2>{evaluate && <button type="button" className="rj-evaluate-button" disabled={interactionsDisabled} onClick={() => { if (!interactionsDisabled) evaluate(); }}>{english ? 'Write review' : '写评价'}</button>}</div>
     <ReviewCommentThreads postId={post.id} db={db} userId={userId} language={language} marketColorMode={marketColorMode} onSelectSymbol={onSelectSymbol}
-      refreshToken={`${post.updatedAt}:${post.commentCount ?? ''}`} showEmpty notificationTarget={notificationTarget}
+      refreshToken={`${post.updatedAt}:${post.commentCount ?? ''}`} showEmpty notificationTarget={notificationTarget} replyTarget={replyTarget?.postId===post.id?replyTarget:null}
       interactionsDisabled={interactionsDisabled} onAccessRevoked={onAccessRevoked} loadingPlaceholder={<PublicCommentsSkeleton language={language}/>}
       onCountChange={(postId, communityCount, totalCount) => { setLoadedCount({ key: countKey, count: communityCount, totalCount }); onCommunityCountChange?.(postId, communityCount); }}
       onManageReply={reply => reply.kind === 'author' ? onManageOwnReply?.(post.type, post.sourceId, reply.id) : onManageCommunityReply?.(post, reply)}
@@ -299,7 +299,7 @@ const beforePublicCursor = (post, cursor) => {
   return beforeTimestampCursor(post, cursor);
 };
 
-function ScopedPublicFeed({ db, userId, language = 'zh', marketColorMode, query = '', symbol = '', refreshToken = 0, refreshRef, active = true, openRequest = null, onOpenRequestHandled, onManageOwnEntry, onEvaluateOwnEntry, onManageOwnReply, onEvaluateCommunityEntry, onManageCommunityReply, onReplyToReview, onCommunityCountChange, onDetailChange, unreadController, reviewFeedUnread }) {
+function ScopedPublicFeed({ db, userId, language = 'zh', marketColorMode, query = '', symbol = '', refreshToken = 0, refreshRef, active = true, openRequest = null, replyTarget = null, onOpenRequestHandled, onManageOwnEntry, onEvaluateOwnEntry, onManageOwnReply, onEvaluateCommunityEntry, onManageCommunityReply, onReplyToReview, onCommunityCountChange, onDetailChange, unreadController, reviewFeedUnread }) {
   const english = language.startsWith('en');
   const [localSymbol, setLocalSymbol] = React.useState('');
   const [retry, setRetry] = React.useState(0), [detailRetry, setDetailRetry] = React.useState(0);
@@ -353,7 +353,7 @@ function ScopedPublicFeed({ db, userId, language = 'zh', marketColorMode, query 
     };
   }, []);
   React.useEffect(() => { alive.current = true; return () => { alive.current = false; detailCallback.current?.(false, null); }; }, []);
-  React.useEffect(() => { detailCallback.current?.(Boolean(currentDetail), readyPost); }, [Boolean(currentDetail), readyPost]);
+  React.useEffect(() => { detailCallback.current?.(Boolean(currentDetail), readyPost, currentDetail?.id); }, [currentDetail?.id, readyPost]);
   React.useEffect(() => {
     if (!visiblePost || !pendingComments.current) return;
     pendingComments.current = false;
@@ -627,7 +627,7 @@ function ScopedPublicFeed({ db, userId, language = 'zh', marketColorMode, query 
       {detailStatus === 'loading' && <PublicDetailSkeleton language={language}/>}
       {visiblePost && <div className="rj-entry-content">{postNode(visiblePost, true)}
         {currentDetail.error && <div className="rpf-detail-retry rpf-inline-error" role="alert"><p>{currentDetail.error}</p><button type="button" className="rj-text-button" onClick={() => setDetailRetry(value => value + 1)}>{english ? 'Retry' : '重试'}</button></div>}
-        <PublicReplies post={visiblePost} db={db} userId={userId} language={language} marketColorMode={marketColorMode} onSelectSymbol={selectSymbol} onEvaluateOwnEntry={onEvaluateOwnEntry} onManageOwnReply={onManageOwnReply} onEvaluateCommunityEntry={onEvaluateCommunityEntry} onManageCommunityReply={onManageCommunityReply} onReplyToReview={onReplyToReview} onCommunityCountChange={onCommunityCountChange} sectionRef={commentsRef} interactionsDisabled={!readyPost} onAccessRevoked={failure => revokeDetailAccess(visiblePost.id, failure)} notificationTarget={notificationContext?.postId===currentDetail.id&&notificationContext.commentId?notificationContext:null}/></div>}
+        <PublicReplies post={visiblePost} db={db} userId={userId} language={language} marketColorMode={marketColorMode} onSelectSymbol={selectSymbol} onEvaluateOwnEntry={onEvaluateOwnEntry} onManageOwnReply={onManageOwnReply} onEvaluateCommunityEntry={onEvaluateCommunityEntry} onManageCommunityReply={onManageCommunityReply} onReplyToReview={onReplyToReview} onCommunityCountChange={onCommunityCountChange} sectionRef={commentsRef} replyTarget={replyTarget?.postId===currentDetail.id?replyTarget:null} interactionsDisabled={!readyPost} onAccessRevoked={failure => revokeDetailAccess(visiblePost.id, failure)} notificationTarget={notificationContext?.postId===currentDetail.id&&notificationContext.commentId?notificationContext:null}/></div>}
       {detailStatus === 'missing' && <p className="rpf-status" role="status">{english ? 'This post is no longer public.' : '这条博文已不再公开。'}</p>}
       {detailStatus === 'error' && <div className="rpf-status" role="alert"><p>{currentDetail.error}</p><button type="button" onClick={() => setDetailRetry(value => value + 1)}>{english ? 'Retry' : '重试'}</button></div>}
     </div> : <>

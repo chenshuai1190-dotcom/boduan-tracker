@@ -1535,3 +1535,69 @@ test('message entry keeps the public feed paused and opens a notification target
   assert.equal(request.postId,'log:foreign');assert.equal(request.commentId,'comment-older');assert.equal(request.notificationId,'notice');
   h.unmount();
 });
+
+test('only a newly saved reply requests focus and public refresh preserves that exact target', async () => {
+  const h = await harness(); h.ctx.previewData.initialAllScope = 'public';
+  let tree = h.render();
+  const feed = () => find(tree, node => node.type === h.Page.ReviewPublicFeed);
+  const editor = () => find(tree, node => node.type === h.Page.ReviewEvaluationComposer && node.props.open);
+  const post = { id: 'log:foreign', sourceId: 'foreign', type: 'log', authorId: 'visitor', date: '2026-11-08', text: '公开帖子' };
+  const parent = { kind: 'community', id: 'old-root', authorId: 'visitor', nickname: '评论者', available: true };
+  feed().props.onDetailChange(true, post); tree = h.render();
+  feed().props.onReplyToReview(post, parent); tree = h.render();
+  const firstEditor = editor(), before = feed().props.refreshToken;
+  const saved = { id: 'new-off-page-reply', postId: post.id, authorId: 'owner', replyTo: parent, revision: 1 };
+  firstEditor.props.onSaved(saved); firstEditor.props.onClose(); tree = h.render();
+  const target = feed().props.replyTarget;
+  assert.ok(target.id); assert.equal(target.userId, 'owner');
+  assert.deepEqual({ ...target, id: undefined }, { userId: 'owner', id: undefined, postId: post.id, commentKind: 'community', commentId: saved.id });
+  assert.notEqual(target.commentId, parent.id); assert.equal(target.notificationId, undefined);
+  assert.ok(feed().props.refreshToken > before);
+  feed().props.onDetailChange(true, null, post.id); tree = h.render();
+  assert.equal(feed().props.replyTarget, target, 'background detail revalidation must not lose the newly saved target');
+  feed().props.onDetailChange(true, post); tree = h.render();
+  feed().props.onManageCommunityReply(post, saved); tree = h.render();
+  button(tree, '修改回复').props.onClick(); tree = h.render();
+  editor().props.onSaved({ ...saved, revision: 2 }); editor().props.onClose(); tree = h.render();
+  assert.equal(feed().props.replyTarget, target, 'editing must not issue another focus request');
+  feed().props.onEvaluateCommunityEntry(post); tree = h.render();
+  editor().props.onSaved({ ...saved, id: 'top-level-review', replyTo: null }); editor().props.onClose(); tree = h.render();
+  assert.equal(feed().props.replyTarget, target, 'top-level evaluations must not issue reply focus requests');
+  feed().props.onDetailChange(false, null); tree = h.render(); assert.equal(feed().props.replyTarget, null);
+  feed().props.onDetailChange(true, post); tree = h.render();
+  firstEditor.props.onSaved(saved); tree = h.render();
+  assert.equal(feed().props.replyTarget, null, 'a late save from the previous visit cannot refocus a reopened detail');
+  h.ctx.userId = 'another-user'; tree = h.render(); firstEditor.props.onSaved(saved); tree = h.render();
+  assert.equal(feed().props.replyTarget, null, 'a prior account cannot restore the target');
+  h.unmount();
+});
+
+test('private and merged timeline reply focus follows the physical comment container and clears on exit', async () => {
+  for (const timeline of [false, true]) {
+    const h = await harness({ preferences: { showTimeline: true, eventTypes: ['return_high', 'pnl_high'] } });
+    h.ctx.db.fetchReviewCommentThreads = () => {};
+    if (timeline) {
+      const point = { date: '2026-10-06', cumulativePnlUsd: 5000, cumulativeReturnPct: 20 };
+      const amount = { id: 'high:cumulative_pnl:2026-10-06', kind: 'high', metric: 'cumulative_pnl', date: point.date, startDate: point.date, title: '累计盈利新高', current: point, points: [point], nodes: [{ key: 'current', point }] };
+      const rate = { ...amount, id: 'high:cumulative_return:2026-10-06', metric: 'cumulative_return', title: '累计收益率新高' };
+      h.ctx.previewData.timeline = { status: 'ready', events: [rate, amount], years: [2026] };
+      for (const [id, event] of [['amount-container', amount], ['rate-container', rate]]) h.ctx.reviewLogs.push({ id, type: 'log', date: point.date, text: event.title, revision: 1, stocks: [], images: [], timelineEvent: { version: 1, id: event.id, kind: event.kind, metric: event.metric, date: point.date, title: event.title }, replies: [{ id: 'root', text: '原评论', date: point.date }] });
+    }
+    let tree = h.render(); await settle(); tree = h.render();
+    if (timeline) systemPosts(tree, h)[0].props.onOpen(systemPosts(tree, h)[0].props.event.id, clickEvent(h));
+    else h.clickPost(tree);
+    tree = h.render();
+    const lists = () => walk(timeline ? find(tree, node => node.type === h.Page.ReviewTimeline).props.renderEvaluations() : tree).filter(node => node.type === h.Page.ReviewCommentThreads);
+    assert.equal(lists().length, timeline ? 2 : 1);
+    const selected = lists().at(-1), parent = { kind: 'community', id: 'root', authorId: 'visitor', author: { nickname: '来访者' } };
+    selected.props.onReply(parent); tree = h.render();
+    const editor = find(tree, node => node.type === h.Page.ReviewEvaluationComposer && node.props.open);
+    editor.props.onSaved({ id: 'new-reply', postId: selected.props.postId, authorId: 'owner', replyTo: parent }); editor.props.onClose(); tree = h.render();
+    for (const list of lists()) assert.equal(list.props.replyTarget?.commentId || null, list.props.postId === selected.props.postId ? 'new-reply' : null);
+    button(tree, '返回投资动态').props.onClick(); tree = h.render();
+    if (timeline) systemPosts(tree, h)[0].props.onOpen(systemPosts(tree, h)[0].props.event.id, clickEvent(h));
+    else h.clickPost(tree);
+    tree = h.render(); assert.ok(lists().every(list => list.props.replyTarget === null));
+    h.unmount();
+  }
+});
