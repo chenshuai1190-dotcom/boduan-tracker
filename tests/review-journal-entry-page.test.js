@@ -286,6 +286,7 @@ async function harness({ removeReply, preferences = {}, localPreferences = new M
       import { groupReviewTimelineEvents } from ${JSON.stringify(new URL('../src/lib/reviewTimelineGroups.js', import.meta.url).href)};
       import { findReviewEntryByKey, projectReviewTimelineEntry, resolveReviewReplySource, resolveReviewTimelineEvent, reviewTimelineAnchorEntry, reviewTimelineReplyKey } from ${JSON.stringify(new URL('../src/lib/reviewTimelineEntries.js', import.meta.url).href)};
       import { ReviewSystemAvatar, ReviewSystemName } from ${JSON.stringify(systemIdentityModule)};
+      import ReviewActivityTime from ${JSON.stringify(new URL('../src/components/ReviewActivityTime.js', import.meta.url).href)};
       import { readReviewAudiencePreference as readAudience, writeReviewAudiencePreference as writeAudience } from ${JSON.stringify(new URL('../src/lib/reviewAudiencePreferences.js', import.meta.url).href)};
       const fixture = globalThis[${JSON.stringify(key)}];
       const { useState, useRef, useEffect, useLayoutEffect, useMemo, window, document } = fixture;
@@ -295,7 +296,7 @@ async function harness({ removeReply, preferences = {}, localPreferences = new M
       const ReviewPublicFeed = () => null, ReviewCommunityEvaluations = () => null, ReplyBody = props => props.children, ReviewTimeline = () => null, ReviewPreferences = () => null, ReviewTimelinePost = () => null;
       const useReviewPreferences = () => fixture.preferenceState;
       const ReviewEvaluationComposer = () => null, EvaluationRating = () => null, ReviewAccountCard = () => null, ReviewTradeReferences = () => null, EmojiPicker = () => null;
-      export { ReviewPublicFeed, ReviewCommunityEvaluations, ReplyBody, ReviewSystemAvatar, ReviewSystemName, Avatar, AuthorName, ReviewTimeline, ReviewPreferences, ReviewTimelinePost, Photo, SnapshotCard, ReviewStockCarousel, ReviewPostBody, Composer, Dialog, ReviewEvaluationComposer, EvaluationRating, ReviewAccountCard, ReviewTradeReferences };
+      export { ReviewActivityTime, ReviewPublicFeed, ReviewCommunityEvaluations, ReplyBody, ReviewSystemAvatar, ReviewSystemName, Avatar, AuthorName, ReviewTimeline, ReviewPreferences, ReviewTimelinePost, Photo, SnapshotCard, ReviewStockCarousel, ReviewPostBody, Composer, Dialog, ReviewEvaluationComposer, EvaluationRating, ReviewAccountCard, ReviewTradeReferences };
       ${pageSource.replaceAll('import.meta.env.DEV', 'true')}
     `, 'ReviewJournalEntryPageTest.jsx', { jsx: { runtime: 'classic' } });
     Page = await import(dataUrl(compiled.code));
@@ -323,6 +324,20 @@ async function harness({ removeReply, preferences = {}, localPreferences = new M
     unmount() { for (const slot of slots) slot?.cleanup?.(); },
   };
 }
+
+test('personal post cards, details and comments share the same creation-time display', async () => {
+  const h = await harness();
+  h.ctx.reviewLogs[0].createdAt = '2026-11-08T06:00:00Z';
+  h.ctx.reviewLogs[0].updatedAt = '2026-11-09T06:00:00Z';
+  h.ctx.reviewLogs[0].replies[0].createdAt = '2026-11-08T07:00:00Z';
+  let tree = h.render();
+  const times = value => visible(value).filter(node => node.type === h.Page.ReviewActivityTime);
+  assert.equal(times(firstPost(tree))[0].props.createdAt, h.ctx.reviewLogs[0].createdAt);
+  h.clickPost(tree); tree = h.render();
+  assert.deepEqual(times(detail(tree)).map(node => node.props.createdAt), ['2026-11-08T06:00:00Z', '2026-11-08T07:00:00Z']);
+  assert.equal(h.ctx.reviewLogs[0].date, '2026-11-04', 'the selected review day remains independent');
+  h.unmount();
+});
 
 test('a whole post opens a normal detail page with all entry and comment attachments', async () => {
   const h = await harness();

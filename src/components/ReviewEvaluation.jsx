@@ -96,6 +96,7 @@ export default function ReviewEvaluationComposer({ open, entry, reply = null, re
   const [customTags,setCustomTags]=React.useState([]);const [customOpen,setCustomOpen]=React.useState(false);const [tagInput,setTagInput]=React.useState('');
   const [tagError,setTagError]=React.useState('');const composing=React.useRef(false);
   const [picker,setPicker]=React.useState('');const [busy,setBusy]=React.useState(false);const busyRef=React.useRef(false);const [error,setError]=React.useState('');
+  const submissionTime=React.useRef(null);
   const scrollRef=React.useRef(null);const tagRef=React.useRef(null);const fileRef=React.useRef(null);const textRef=React.useRef(null);const selection=React.useRef({start:0,end:0});
   const visibilityRef=React.useRef(()=>{});
   const keepInputVisible=()=>visibilityRef.current();
@@ -146,8 +147,13 @@ export default function ReviewEvaluationComposer({ open, entry, reply = null, re
   const save=async()=>{
     if(busyRef.current||!nonempty)return;busyRef.current=true;setBusy(true);setError('');const uploaded=[];
     try{for(const item of files)uploaded.push(await db.uploadReviewJournalImage(item.file,userId));
-      const submitted={...draft,score:isReply?null:draft.score,tags:isReply?[]:draft.tags,images:[...draft.images,...uploaded]};patch({images:submitted.images});files.forEach(item=>URL.revokeObjectURL(item.url));setFiles([]);
-      const saved=reply?await db.updateReviewJournalReply(entry,reply,submitted,userId):await db.appendReviewJournalReply(entry,submitted,userId);onSaved(saved);if(!reply)setDraft(blank());setCustomOpen(false);onClose();
+      // Freeze a new review's time only when its first database attempt is ready.
+      // Upload delays and overnight drafts must not move it to an earlier day;
+      // uncertain retries keep this same identity, date and creation instant.
+      if(!reply&&submissionTime.current?.id!==draft.id){const now=new Date();submissionTime.current={id:draft.id,createdAt:draft.createdAt||now.toISOString(),date:draft.createdAt?draft.date:localReviewDate(now)};}
+      const timing=reply?{}:{createdAt:submissionTime.current.createdAt,date:submissionTime.current.date};
+      const submitted={...draft,...timing,score:isReply?null:draft.score,tags:isReply?[]:draft.tags,images:[...draft.images,...uploaded]};patch({...timing,images:submitted.images});files.forEach(item=>URL.revokeObjectURL(item.url));setFiles([]);
+      const saved=reply?await db.updateReviewJournalReply(entry,reply,submitted,userId):await db.appendReviewJournalReply(entry,submitted,userId);onSaved(saved);if(!reply){submissionTime.current=null;setDraft(blank());}setCustomOpen(false);onClose();
     }catch(failure){if(uploaded.length&&uploaded.length<files.length){patch({images:[...draft.images,...uploaded]});files.slice(0,uploaded.length).forEach(item=>URL.revokeObjectURL(item.url));setFiles(old=>old.slice(uploaded.length));}setError(failure?.message||(reply?'保存失败，修改已保留，请重试。':'发布失败，内容已保留，请重试。'));}
     finally{busyRef.current=false;setBusy(false);}
   };

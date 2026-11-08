@@ -25,7 +25,7 @@ test('trade attachment choices never convert explicit aggregate holdings into ac
   assert.deepEqual(choices.map(node => node.key), ['execution']);
 });
 
-async function harness({ append, update, reply = null } = {}) {
+async function harness({ append, update, reply = null, clock = null } = {}) {
   const slots = [], calls = [], updates = [], saved = [], listeners = new Map(); let cursor = 0, effects = [], closes = 0;
   const fixture = {
     React: { ...React,
@@ -39,18 +39,20 @@ async function harness({ append, update, reply = null } = {}) {
     document: { activeElement: { blur() {} } },
     window: { visualViewport: { addEventListener: (name, fn) => listeners.set(name, fn), removeEventListener: (name, fn) => { if (listeners.get(name) === fn) listeners.delete(name); } } },
     requestAnimationFrame: callback => callback(),
+    Date: clock?.Date || Date,
   };
   const key = `__reviewEvaluationUI${++nextId}`; globalThis[key] = fixture;
   let components;
   try {
     const compiled = await transformWithOxc(`
       import { Activity, Check, ImagePlus, LineChart, Loader2, Smile, Star, Wallet, X } from ${JSON.stringify(import.meta.resolve('lucide-react'))};
-      import { localReviewDate } from ${moduleUrl('reviewJournalFeed')};
+      import { localReviewDate as formatLocalReviewDate } from ${moduleUrl('reviewJournalFeed')};
       import { normalizeReviewEvaluationTags, normalizeReviewAccountSnapshot, normalizeReviewTradeReferences } from ${moduleUrl('reviewEvaluationModel')};
       import { collectReviewReplayTrades } from ${moduleUrl('reviewStockReplayModel')};
       import { keepReviewComposerInputVisible } from ${moduleUrl('reviewComposerVisibility')};
       import { marketTextHexColor } from ${moduleUrl('marketColorMode')};
-      const { React, document, window, requestAnimationFrame } = globalThis[${JSON.stringify(key)}];
+      const { React, document, window, requestAnimationFrame, Date } = globalThis[${JSON.stringify(key)}];
+      const localReviewDate = (now = new Date()) => formatLocalReviewDate(now);
       import { latestReviewAccountCloseDate as accountCloseDate, isReviewAccountCloseDate as isAccountCloseDate } from ${moduleUrl('reviewAccountSnapshot')};
       const getVixComparisonExpectedCloseDate = () => '2026-11-06';
       const latestReviewAccountCloseDate = () => accountCloseDate(Date.parse('2026-11-07T10:00:00Z'));
@@ -91,6 +93,96 @@ function chooseScore(tree, score) {
 }
 function customForm(tree) { return find(tree, node => node.type === 'form'); }
 function customInput(tree) { return find(tree, node => node.type === 'input' && node.props.id === 'rev-custom-tag'); }
+
+// A device clock with an explicit UTC offset keeps the midnight assertions
+// meaningful on CI machines in UTC as well as the developer's local timezone.
+function reviewClock(instant, offsetMinutes = 480) {
+  let current = Date.parse(instant);
+  const local = date => new Date(date.getTime() + offsetMinutes * 60000);
+  return {
+    set(value) { current = Date.parse(value); },
+    Date: class extends Date {
+      constructor(...args) { super(...(args.length ? args : [current])); }
+      static now() { return current; }
+      getFullYear() { return local(this).getUTCFullYear(); }
+      getMonth() { return local(this).getUTCMonth(); }
+      getDate() { return local(this).getUTCDate(); }
+    },
+  };
+}
+
+test('new evaluations take the device-local submission date after uploads finish and reset the clock after success', async () => {
+  const clock = reviewClock('2026-11-08T15:59:00Z');
+  const h = await harness({ clock }); let releaseUpload;
+  h.props.db.uploadReviewJournalImage = file => new Promise(resolve => { releaseUpload = () => resolve({ path: 'owner/midnight.jpg', name: file.name, mimeType: file.type, size: file.size }); });
+  let tree = h.render();
+  body(tree).props.onChange({ target: { value: '午夜前写下、午夜后提交的评价' } }); tree = h.render();
+  find(tree, node => node.type === 'input' && node.props.type === 'file').props.onChange({ target: { files: [new File(['image'], 'midnight.jpg', { type: 'image/jpeg' })], value: 'selected' } });
+  tree = h.render();
+  clock.set('2026-11-08T15:59:59Z');
+  const publishing = button(tree, '发布').props.onClick();
+  assert.equal(h.calls.length, 0, 'the database attempt waits for the image upload');
+  clock.set('2026-11-08T16:00:05Z'); releaseUpload(); await publishing;
+  assert.equal(h.calls[0].reply.createdAt, '2026-11-08T16:00:05.000Z');
+  assert.equal(h.calls[0].reply.date, '2026-11-09', 'the stored date uses the device day, not the UTC date');
+  const firstId = h.calls[0].reply.id;
+  h.props.open = true; tree = h.render();
+  body(tree).props.onChange({ target: { value: '下一条新评价' } }); tree = h.render();
+  clock.set('2026-11-09T16:30:00Z'); await button(tree, '发布').props.onClick();
+  assert.notEqual(h.calls[1].reply.id, firstId);
+  assert.equal(h.calls[1].reply.createdAt, '2026-11-09T16:30:00.000Z');
+  assert.equal(h.calls[1].reply.date, '2026-11-10');
+  h.cleanup();
+});
+
+test('an uncertain reply save retains its first submission time and date across later retries and reopening', async () => {
+  const clock = reviewClock('2026-11-08T15:59:00Z'); let attempts = 0;
+  const h = await harness({ clock, append: async (entry, reply) => { if (++attempts === 1) throw new Error('连接中断'); return { ...entry, replies: [reply] }; } });
+  h.props.replyTarget = { kind: 'community', id: 'target', nickname: '访客', available: true };
+  let tree = h.render(); body(tree).props.onChange({ target: { value: '回复内容' } }); tree = h.render();
+  clock.set('2026-11-08T16:00:02Z'); await button(tree, '发布').props.onClick(); tree = h.render();
+  assert.match(alert(tree), /连接中断/); assert.equal(h.calls[0].reply.createdAt, '2026-11-08T16:00:02.000Z');
+  assert.equal(h.calls[0].reply.date, '2026-11-09');
+  tree.props.onClose(); assert.equal(h.render(), null);
+  clock.set('2026-11-09T16:02:00Z'); h.props.open = true; tree = h.render();
+  body(tree).props.onChange({ target: { value: '回复内容，补充一句' } }); tree = h.render();
+  await button(tree, '发布').props.onClick();
+  for (const key of ['id', 'createdAt', 'date']) assert.equal(h.calls[1].reply[key], h.calls[0].reply[key]);
+  assert.equal(h.calls[1].reply.text, '回复内容，补充一句');
+  assert.equal(h.calls[1].reply.score, null); assert.deepEqual(h.calls[1].reply.tags, []);
+  h.cleanup();
+});
+
+test('an image-upload failure does not freeze a publication time before a database attempt exists', async () => {
+  const clock = reviewClock('2026-11-08T15:59:00Z'); let uploads = 0;
+  const h = await harness({ clock });
+  h.props.db.uploadReviewJournalImage = async file => {
+    if (++uploads === 1) { clock.set('2026-11-08T16:01:00Z'); throw new Error('图片上传中断'); }
+    clock.set('2026-11-10T16:03:00Z'); return { path: 'owner/retry.jpg', name: file.name, mimeType: file.type, size: file.size };
+  };
+  let tree = h.render();
+  find(tree, node => node.type === 'input' && node.props.type === 'file').props.onChange({ target: { files: [new File(['image'], 'retry.jpg', { type: 'image/jpeg' })], value: 'selected' } });
+  tree = h.render(); await button(tree, '发布').props.onClick(); tree = h.render();
+  assert.equal(h.calls.length, 0); assert.match(alert(tree), /图片上传中断/);
+  clock.set('2026-11-10T15:59:00Z'); await button(tree, '发布').props.onClick();
+  assert.equal(h.calls[0].reply.createdAt, '2026-11-10T16:03:00.000Z');
+  assert.equal(h.calls[0].reply.date, '2026-11-11');
+  h.cleanup();
+});
+
+test('editing preserves the original review time and never invents a timestamp for date-only legacy reviews', async () => {
+  for (const metadata of [{ createdAt: '2026-10-06T08:00:00.123456Z' }, {}, { createdAt: null }]) {
+    const reply = { id: 'existing-review', date: '2026-10-06', text: '原来的评价', score: 8, ...metadata };
+    const before = structuredClone(reply), clock = reviewClock('2026-11-08T16:01:00Z');
+    const h = await harness({ clock, reply }); let tree = h.render();
+    body(tree).props.onChange({ target: { value: '修改后的评价' } }); tree = h.render();
+    clock.set('2026-11-10T16:03:00Z'); await button(tree, '保存').props.onClick();
+    assert.equal(h.updates[0].replacement.date, '2026-10-06');
+    assert.equal(h.updates[0].replacement.createdAt, reply.createdAt);
+    assert.equal(Object.hasOwn(h.updates[0].replacement, 'createdAt'), Object.hasOwn(reply, 'createdAt'));
+    assert.deepEqual(reply, before); h.cleanup();
+  }
+});
 
 test('half-star input represents integer points, can clear, and publishes a score-only evaluation', async () => {
   const h = await harness(); let tree = h.render();

@@ -59,6 +59,7 @@ async function harness() {
     const compiled = await transformWithOxc(`
       import ActualReact from ${JSON.stringify(import.meta.resolve('react'))};
       import { ArrowLeft, Heart, Loader2, MessageCircle, MoreHorizontal, User, X } from ${JSON.stringify(import.meta.resolve('lucide-react'))};
+      import ReviewActivityTime from ${JSON.stringify(new URL('../src/components/ReviewActivityTime.js', import.meta.url).href)};
       import { getCommunityAvatarOption } from ${JSON.stringify(new URL('../src/lib/communityProfile.js', import.meta.url).href)};
       import { normalizeReviewTradeReferences } from ${JSON.stringify(new URL('../src/lib/reviewEvaluationModel.js', import.meta.url).href)};
       const fixture = globalThis[${JSON.stringify(key)}];
@@ -69,7 +70,7 @@ async function harness() {
       const EvaluationRating = () => React.createElement('div', null, '评分及标签');
       const ReviewAccountCard = () => React.createElement('section', null, '账户快照');
       ${source.slice(source.indexOf('// Share only in-flight'))}
-      export { ScopedPublicFeed, PublicPost, PublicReplies, PublicTradeReferences, PublicMedia, ReviewPostBody, EvaluationRating, ReviewAccountCard, SnapshotCard };
+      export { ReviewActivityTime, ScopedPublicFeed, PublicPost, PublicReplies, PublicTradeReferences, PublicMedia, ReviewPostBody, EvaluationRating, ReviewAccountCard, SnapshotCard };
     `, 'ReviewPublicFeedUITest.jsx', { jsx: { runtime: 'classic' } });
     components = await import(`data:text/javascript;base64,${Buffer.from(compiled.code).toString('base64')}`);
   } finally { delete globalThis[key]; }
@@ -225,9 +226,10 @@ test('only the author gets the shared record action menu on both cards and detai
     assert.match(action.props.className, /rj-post-more/);
     let stopped = false; action.props.onClick({ stopPropagation() { stopped = true; } });
     assert.equal(stopped, true); assert.deepEqual(calls.at(-1), ['log', '1']);
-    const date = walk(tree).find(node => node.type === 'time');
-    assert.equal(words(date), full ? '2026-11-05' : '11月05日');
-    assert.equal(date.props.dateTime, '2026-11-05');
+    const date = walk(tree).find(node => node.type === h.components.ReviewActivityTime);
+    assert.equal(date.props.createdAt, props.post.publishedAt, 'cards and detail use the original creation instant');
+    assert.equal(date.props.date, props.post.date, 'the review date is only the legacy fallback');
+    assert.match(renderToStaticMarkup(date), /dateTime="2026-11-06T12:00:00Z"/);
     assert.doesNotMatch(words(tree), /记录日期/);
     tree = h.render(h.components.PublicPost, { ...props, userId: 'another-user' });
     assert.equal(button(tree, '记录操作'), undefined);
@@ -590,6 +592,24 @@ test('every signed-in visitor can open the shared review composer while owner re
 });
 
 const communityReply = (id = 'evaluation-1', extra = {}) => ({ id, postId: 'log:1', authorId: 'other-reviewer', author: { nickname: '另一位评价者', avatarKey: 'panda', avatarPath: null }, revision: 3, date: '2026-11-08', createdAt: '2026-11-08T08:00:00Z', updatedAt: '2026-11-08T08:00:00Z', text: '其他用户的评价', score: 9, tags: ['按计划执行'], images: [], trades: [], stocks: [], ...extra });
+
+test('public author and community comments use creation instants rather than submitted calendar dates', async () => {
+  const author = { id: 'self-review', date: '2026-11-07', createdAt: '2026-11-08T06:00:00Z', text: 'self review' };
+  const h = await harness();
+  const tree = h.render(h.components.PublicReplies, { post: post('log:1', { replies: [author] }), db: h.db, userId: 'author', language: 'zh' });
+  const timestamp = walk(tree).find(node => node.type === h.components.ReviewActivityTime);
+  assert.equal(timestamp.props.createdAt, author.createdAt);
+  assert.equal(timestamp.props.date, author.date);
+  h.unmount();
+  const c = await harness(), reply = communityReply('reply', { date: '2026-11-07', updatedAt: '2026-11-09T06:00:00Z' });
+  const props = { postId: 'log:1', db: c.db, userId: 'viewer' };
+  c.render(c.components.ReviewCommunityEvaluations, props); await flush();
+  c.requests[0].resolve(communityPage([reply])); await flush();
+  const displayed = walk(c.render(c.components.ReviewCommunityEvaluations, props)).find(node => node.type === c.components.ReviewActivityTime);
+  assert.equal(displayed.props.createdAt, reply.createdAt);
+  assert.notEqual(displayed.props.createdAt, reply.updatedAt, 'editing must not restart relative time');
+  c.unmount();
+});
 const communityPage = (evaluations, totalCount = evaluations.length, nextCursor = null) => ({ evaluations, totalCount, hasMore: Boolean(nextCursor), nextCursor });
 
 test('community rows use reviewer identities, display saved attachments, and expose actions only on the viewer own reviews', async () => {

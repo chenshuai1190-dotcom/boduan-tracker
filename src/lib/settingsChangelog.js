@@ -3,6 +3,11 @@ import { CURRENT_RELEASE } from './releaseMeta.js';
 export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
+    items: ['帖子、评论和回复统一按实际发布时间显示刚刚、分钟前、小时前，满 24 小时按天显示；具体时间按查看者设备时区展示，编辑及转公开不重置发布时间。'],
+    itemsEn: ['Posts, comments, and replies now show just now, minutes ago, hours ago, or days ago after 24 hours, using their original creation time. Exact times follow the viewer’s time zone; edits and visibility changes do not reset publication time.'],
+  },
+  {
+    ver: 'v10.7.9.606', date: '2026-11-08',
     items: ['回复评论移除预设标签和自定义标签，仅保留文字与附件交流；编辑回复不会带回旧标签。对博文的直接评价继续支持评分与标签。'],
     itemsEn: ['Comment replies now focus on text and attachments, with preset and custom tags removed. Editing a reply no longer resubmits old tags. Direct post evaluations still support ratings and tags.'],
   },
