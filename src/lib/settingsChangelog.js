@@ -3,6 +3,11 @@ import { CURRENT_RELEASE } from './releaseMeta.js';
 export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
+    items: ['消息页采用居中标题与独立分类栏，右上消息管理支持全部已读及勾选多条批量已读；修复动态通知数字模糊，增强角标清晰度。'],
+    itemsEn: ['Refined the inbox header and filters. Message management now offers mark all as read and selected-message batch reading. Activity unread badges are sharper and easier to read.'],
+  },
+  {
+    ver: 'v10.7.9.608', date: '2026-11-08',
     items: ['动态新增消息中心，集中查看回复、评论、点赞与评分；支持未读提示、全部已读和评论定位，消息随帖子公开状态同步。'],
     itemsEn: ['Activity now includes an inbox for replies, comments, likes, and ratings, with unread badges, mark all as read, and direct comment links. Notifications follow the current post visibility.'],
   },

@@ -1,13 +1,26 @@
 .rni-page{min-width:0;min-height:60vh;color:#dce0e6;padding-bottom:24px}
-.rni-header{position:sticky;top:0;z-index:6;display:grid;grid-template-columns:92px minmax(0,1fr) 92px;align-items:center;min-height:60px;padding:6px 12px;background:#08090b}
-.rni-header h1{margin:0;text-align:center;font-size:18px;font-weight:600}
+.rni-header{position:sticky;top:0;z-index:20;display:grid;grid-template-columns:44px minmax(0,1fr) 44px;gap:8px;align-items:center;box-sizing:border-box;height:calc(58px + env(safe-area-inset-top));padding:env(safe-area-inset-top) max(12px,env(safe-area-inset-right)) 0 max(12px,env(safe-area-inset-left));background:#08090b}
+.rni-header h1{margin:0;text-align:center;font-size:19px;font-weight:600}
 .rni-header>.rj-icon{justify-self:start}
-.rni-read-all{justify-self:end;display:flex;align-items:center;gap:4px;min-height:44px;padding:4px 0;border:0;background:none;color:#c6cdd7;font-size:12px;white-space:nowrap}
-.rni-read-all:disabled{color:#666f7c;cursor:default}
+.rni-management{position:relative;justify-self:end}
+.rni-management-menu{position:absolute;right:0;top:calc(100% + 4px);width:174px;padding:5px;border:1px solid #ffffff12;border-radius:14px;background:#171a20;box-shadow:0 10px 28px #0007}
+.rni-management-menu button{display:flex;align-items:center;gap:10px;width:100%;min-height:44px;padding:10px;border:0;border-radius:9px;background:none;color:#dce2eb;font-size:14px;text-align:left}
+.rni-management-menu button:disabled{color:#626d7c;cursor:default}
+.rni-management-menu button:active{background:#ffffff06}
+.rni-cancel-selection{justify-self:end;min-height:44px;padding:0 2px;border:0;background:none;color:#b4bfce;font-size:14px;white-space:nowrap}
 .rni-filters{display:flex;gap:16px;padding:0 16px;border-bottom:.5px solid #ffffff0a}
 .rni-filters button{position:relative;flex:1;min-width:0;min-height:48px;border:0;background:none;color:#818b98;font-size:14px;white-space:nowrap}
 .rni-filters button[aria-pressed=true]{color:#e3e7ed;font-weight:600}
 .rni-filters button[aria-pressed=true]:after{content:'';position:absolute;bottom:0;left:calc(50% - 14px);width:28px;height:3px;border-radius:3px;background:#d8dce5}
+.rni-selection-toolbar button{min-height:44px;padding:0 4px;border:0;background:none;color:#b4bfce;font-size:12px;white-space:nowrap}
+.rni-selection-toolbar button:disabled{color:#626d7c;cursor:default}
+.rni-selection-toolbar{display:flex;align-items:center;gap:12px;min-height:52px;padding:4px 16px;border-bottom:.5px solid #ffffff0a;background:#0c0e12}
+.rni-selection-toolbar .rni-mark-selected{margin-left:auto;min-height:36px;padding:0 12px;border-radius:18px;background:#dce2eb;color:#151a22}
+.rni-selection-toolbar .rni-mark-selected:disabled{background:#20252d;color:#798595}
+.rni-checkbox{display:flex;align-items:center;justify-content:center;flex:none;width:20px;height:20px;margin-top:8px;border:1px solid #566171;border-radius:50%}
+.rni-checkbox-selected{border-color:#dce2eb;background:#dce2eb;color:#131923}
+.rni-row-selecting[aria-pressed=true]{background:#ffffff04}
+.rni-row-selecting:disabled .rni-checkbox{border-color:#303844}
 .rni-item{border-bottom:.5px solid #ffffff0a}
 .rni-row{position:relative;display:flex;align-items:flex-start;gap:12px;width:100%;padding:20px 22px 20px 16px;border:0;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer}
 .rni-row:active{background:#ffffff04}
@@ -30,4 +43,4 @@
 .rni-page button{-webkit-tap-highlight-color:transparent}
 .rni-page button:active{filter:none;opacity:1}
 .rni-page button:focus-visible{outline:1px solid #a5adbb;outline-offset:3px}
-@media(max-width:359px){.rni-filters{gap:7px;padding:0 10px}.rni-filters button{font-size:13px;padding-inline:2px}.rni-row{gap:10px;padding-left:12px}.rni-byline{gap:7px}}
+@media(max-width:359px){.rni-filters{gap:7px;padding:0 10px}.rni-filters button{font-size:13px;padding-inline:2px}.rni-row{gap:10px;padding-left:12px}.rni-byline{gap:7px}.rni-selection-toolbar{gap:8px;padding-inline:12px}.rni-selection-toolbar .rni-mark-selected{padding-inline:9px}.rni-row-selecting{gap:8px}.rni-row-selecting .rj-avatar{width:30px;height:30px}}
