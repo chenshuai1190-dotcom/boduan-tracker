@@ -3,12 +3,22 @@ import assert from 'node:assert/strict';
 import { createReviewSessionGuard } from '../src/lib/reviewSessionGuard.js';
 import { createReviewPublicRepository } from '../src/lib/reviewPublicRepository.js';
 import { createReviewInteractionRepository } from '../src/lib/reviewInteractionRepository.js';
+import { createReviewNotificationRepository } from '../src/lib/reviewNotificationRepository.js';
 
 const A = '11111111-1111-4111-8111-111111111111';
 const B = '22222222-2222-4222-8222-222222222222';
 const IMAGE = `${A}/33333333-3333-4333-8333-333333333333.jpg`;
 const feed = { posts: [], hasMore: false, nextCursor: null };
 const unread = { unreadCount: 1, cursor: '12' };
+const NOTIFICATION = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+const notificationOperations = [
+  { name: 'fetch_review_activity_notifications', run: repo => repo.fetchNotifications({}, A),
+    data: { notifications: [], hasMore: false, nextCursor: null, unreadCount: 1 } },
+  { name: 'fetch_review_activity_notification_count', run: repo => repo.fetchCount(A), data: { unreadCount: 1 } },
+  { name: 'mark_review_activity_notifications_read', run: repo => repo.markRead({ ids: [NOTIFICATION] }, A), data: { unreadCount: 0 } },
+  { name: 'read_review_activity_notification_target', run: repo => repo.readTarget(NOTIFICATION, A),
+    data: { notificationId: NOTIFICATION, postId: 'log:42', commentId: null, evaluation: null } },
+];
 const sessionFor = (id = A, token = 'session-token') => ({ access_token: token, user: { id } });
 function fixture() {
   let session = sessionFor();
@@ -221,4 +231,112 @@ test('replacing the auth client cannot validate an existing session ticket', asy
   const ticket = await guard.begin(A);
   f.client.auth = fixture().client.auth;
   await assert.rejects(guard.verify(ticket), { code: 'REVIEW_ACCOUNT_CHANGED' });
+});
+
+test('all notification operations share the activity observer and avoid routine remote user checks', async () => {
+  const f = fixture(), publicRepo = createReviewPublicRepository(f.client);
+  await publicRepo.fetchFeed({}, A);
+  const repo = createReviewNotificationRepository(f.client);
+  for (const operation of notificationOperations) {
+    f.hooks.rpc = () => ({ data: operation.data });
+    assert.deepEqual(await operation.run(repo), operation.data);
+    assert.equal(f.calls.rpc.at(-1).name, operation.name);
+    assert.equal(f.calls.rpc.at(-1).args.p_expected_user_id, A);
+  }
+  assert.equal(f.calls.rpc.length, 5, 'each operation issues only its business RPC');
+  assert.equal(f.calls.subscriptions, 1, 'notifications reuse the existing activity account observer');
+  assert.equal(f.calls.users, 0, 'normal notifications no longer make eight extra /auth/v1/user requests');
+  assert.equal(f.calls.sessions, 10, 'all requests retain pre/post session checks');
+});
+
+test('every notification operation rejects A to B to A and sign-out/re-sign-in responses', async () => {
+  for (const operation of notificationOperations) {
+    for (const boundary of ['switch-back', 'sign-out-back']) {
+      const f = fixture();
+      f.hooks.rpc = () => {
+        if (boundary === 'switch-back') f.emit('SIGNED_IN', sessionFor(B));
+        else f.emit('SIGNED_OUT', null);
+        f.emit('SIGNED_IN', sessionFor(A));
+        return { data: operation.data };
+      };
+      await assert.rejects(operation.run(createReviewNotificationRepository(f.client)), { code: 'REVIEW_ACCOUNT_CHANGED' });
+      assert.equal(f.calls.rpc.length, 1);
+      assert.equal(f.calls.rpc[0].args.p_expected_user_id, A);
+      assert.equal(f.calls.users, 0);
+    }
+  }
+});
+
+test('notification results and mark-read acknowledgements are discarded when the session disappears', async () => {
+  for (const operation of notificationOperations) {
+    const f = fixture();
+    f.hooks.rpc = () => { f.setSession(null); return { data: operation.data }; };
+    await assert.rejects(operation.run(createReviewNotificationRepository(f.client)), { code: 'REVIEW_AUTH_REQUIRED' });
+    assert.equal(f.calls.rpc.length, 1);
+    assert.equal(f.calls.users, 0);
+  }
+});
+
+test('notifications fail closed before sending any RPC when the current session is missing or another account', async () => {
+  for (const operation of notificationOperations) {
+    for (const [session, code] of [[null, 'REVIEW_AUTH_REQUIRED'], [sessionFor(B), 'REVIEW_ACCOUNT_CHANGED']]) {
+      const f = fixture();
+      f.setSession(session);
+      await assert.rejects(operation.run(createReviewNotificationRepository(f.client)), { code });
+      assert.equal(f.calls.rpc.length, 0);
+      assert.equal(f.calls.users, 0);
+    }
+  }
+});
+
+test('same-account token refresh does not discard valid notification operations', async () => {
+  for (const operation of notificationOperations) {
+    const f = fixture();
+    f.hooks.rpc = () => {
+      f.emit('TOKEN_REFRESHED', sessionFor(A, 'refreshed-token'));
+      f.emit('SIGNED_IN', sessionFor(A, 'refreshed-token'));
+      return { data: operation.data };
+    };
+    assert.deepEqual(await operation.run(createReviewNotificationRepository(f.client)), operation.data);
+    assert.equal(f.calls.users, 0);
+    assert.equal(f.calls.rpc[0].args.p_expected_user_id, A);
+  }
+});
+
+test('notification RPC authorization and transport failures never become empty data or successful mark-read', async () => {
+  for (const operation of notificationOperations) {
+    for (const [failure, expected] of [
+      ['42501', 'REVIEW_NOTIFICATION_FORBIDDEN'],
+      ['PGRST301', 'REVIEW_NOTIFICATION_REQUEST_FAILED'],
+      ['throw', 'REVIEW_NOTIFICATION_REQUEST_FAILED'],
+    ]) {
+      const f = fixture();
+      f.hooks.rpc = () => {
+        if (failure === 'throw') throw new Error('private-rpc-detail');
+        return { error: { code: failure, message: 'private-rpc-detail' } };
+      };
+      await assert.rejects(operation.run(createReviewNotificationRepository(f.client)),
+        error => error.code === expected && !error.message.includes('private'));
+      assert.equal(f.calls.rpc.length, 1);
+      assert.equal(f.calls.rpc[0].args.p_expected_user_id, A);
+      assert.equal(f.calls.users, 0);
+    }
+  }
+});
+
+test('getUser-only clients retain both notification authentication checks and reject account changes', async () => {
+  for (const operation of notificationOperations) {
+    const f = fixture();
+    delete f.client.auth.getSession;
+    delete f.client.auth.onAuthStateChange;
+    const repo = createReviewNotificationRepository(f.client);
+    f.hooks.rpc = () => ({ data: operation.data });
+    assert.deepEqual(await operation.run(repo), operation.data);
+    assert.equal(f.calls.users, 2);
+    assert.equal(f.calls.sessions, 0);
+    f.hooks.rpc = () => { f.setSession(sessionFor(B)); return { data: operation.data }; };
+    await assert.rejects(operation.run(repo), { code: 'REVIEW_ACCOUNT_CHANGED' });
+    assert.equal(f.calls.users, 4);
+    assert.ok(f.calls.rpc.every(call => call.args.p_expected_user_id === A));
+  }
 });

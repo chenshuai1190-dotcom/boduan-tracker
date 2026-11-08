@@ -3,6 +3,11 @@ import { CURRENT_RELEASE } from './releaseMeta.js';
 export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
+    items: ['优化消息中心加载、未读数量和已读操作，减少重复身份核验的网络等待，保留账户切换与内容权限检查。'],
+    itemsEn: ['Reduced repeated authentication round trips for inbox loading, unread counts, and read actions while retaining account-switch and content-access checks.'],
+  },
+  {
+    ver: 'v10.7.9.611', date: '2026-11-08',
     items: ['优化动态与评论加载，复用已读取头像并修复旧预设头像闪现；消息引用支持完整三行文字，未读提示改为蓝色圆点。'],
     itemsEn: ['Improved activity and comment loading, reused downloaded avatars, and removed flashes of old preset avatars. Message previews now show three full lines, with blue unread dots.'],
   },

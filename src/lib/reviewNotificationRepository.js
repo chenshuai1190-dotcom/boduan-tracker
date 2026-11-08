@@ -1,4 +1,5 @@
 import { isReviewJournalOperationId, reviewJournalError } from './reviewJournalModel.js';
+import { createReviewSessionGuard } from './reviewSessionGuard.js';
 import { REVIEW_NOTIFICATION_FILTERS, normalizeReviewNotificationCursor, mapReviewNotificationsPage,
   mapReviewNotificationCount, mapReviewNotificationTarget } from './reviewNotificationModel.js';
 
@@ -16,23 +17,21 @@ export function reviewNotificationError(error) {
   return reviewJournalError('REVIEW_NOTIFICATION_REQUEST_FAILED', '消息暂时无法读取，请重试。');
 }
 
-/** No shared session cache: every read and mutation is bound to the caller's
- * current account locally and to its authenticated JWT on the server. */
+/** The local guard prevents stale account results; every RPC still authorizes
+ * the authenticated JWT, expected account, recipient and current visibility. */
 export function createReviewNotificationRepository(client) {
-  async function authenticate(expectedUserId) {
-    if (!isReviewJournalOperationId(expectedUserId) || !client?.auth?.getUser) throw reviewJournalError('REVIEW_AUTH_REQUIRED', '请先登录后查看消息。');
-    let result;
-    try { result = await client.auth.getUser(); } catch { throw reviewNotificationError(null); }
-    if (result?.error || !result?.data?.user?.id) throw reviewJournalError('REVIEW_AUTH_REQUIRED', '登录状态已失效，请重新登录。');
-    if (result.data.user.id !== expectedUserId) throw reviewJournalError('REVIEW_ACCOUNT_CHANGED', '账户已切换，请重新打开消息。');
-  }
+  const sessionGuard = createReviewSessionGuard(client, {
+    isValidUserId: isReviewJournalOperationId,
+    requestError: () => reviewNotificationError(null),
+  });
   async function rpc(name, args, userId) {
-    await authenticate(userId);
+    const session = await sessionGuard.begin(userId);
     if (typeof client?.rpc !== 'function') throw reviewNotificationError({ code: 'PGRST202' });
+    sessionGuard.assertCurrent(session);
     let result;
     try { result = await client.rpc(name, { ...args, p_expected_user_id: userId }); }
     catch { result = { error: { code: 'NETWORK_ERROR' } }; }
-    await authenticate(userId);
+    await sessionGuard.verify(session);
     if (!result || result.error) throw reviewNotificationError(result?.error);
     return result.data;
   }
