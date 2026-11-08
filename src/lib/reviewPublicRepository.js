@@ -98,9 +98,9 @@ export function createReviewPublicRepository(client) {
   async function saveEvaluation(postId, reply, userId) {
     validatePost(postId); validateEvaluation(reply, true);
     const replyTo = normalizeReviewCommunityReplyTarget(reply.replyTo);
-    // Ratings belong to the post itself. A reply must not resubmit a hidden
-    // legacy score when the user edits its text or attachments.
-    const payload = buildReviewCommunityEvaluation(replyTo ? { ...reply, score: null } : reply, userId);
+    // Ratings and evaluation tags belong to the post itself. Editing a reply
+    // must not resubmit hidden legacy values alongside its text or attachments.
+    const payload = buildReviewCommunityEvaluation(replyTo ? { ...reply, score: null, tags: [] } : reply, userId);
     const result = mapReviewCommunityEvaluation(await rpc('save_review_community_evaluation_v2', { p_post_id: postId,
       p_evaluation_id: reply.id, p_expected_revision: reply.revision ?? 0, p_evaluation: payload, p_reply_to: replyTo }, userId, reviewCommunityError), postId);
     if (result.id !== reply.id || result.authorId !== userId) throw reviewJournalError('REVIEW_COMMUNITY_INVALID_DATA', '保存的评价与当前账户不匹配，请重新读取。');

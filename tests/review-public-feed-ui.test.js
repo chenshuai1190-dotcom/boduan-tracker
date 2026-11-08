@@ -739,12 +739,12 @@ test('reply body gestures ignore stock controls and keyboard events from nested 
   tree.props.onKeyDown({target:bodyTarget,currentTarget:bodyTarget,key:'Enter',preventDefault(){},stopPropagation(){}});assert.equal(replies,2);h.unmount();
 });
 
-test('historical scored replies render their tags and actions without a score while post evaluations keep theirs', async () => {
+test('historical scored and tagged replies retain actions without rating summaries while post evaluations keep theirs', async () => {
   const h=await harness(),props={postId:'log:1',db:h.db,userId:'viewer',onManageReply(){},onReply(){}};
   const evaluation=communityReply('normal',{authorId:'viewer',score:8,tags:['按计划执行']});
   const reply=communityReply('response',{authorId:'viewer',score:9,text:'',tags:['自定义'],replyTo:{kind:'community',id:'target',nickname:'访客',available:true}});
   h.render(h.components.ReviewCommunityEvaluations,props);await flush();h.requests[0].resolve(communityPage([evaluation,reply]));await flush();let tree=h.render(h.components.ReviewCommunityEvaluations,props);
   const rows=walk(tree).filter(node=>node.props['data-rj-reply-id']);assert.equal(rows.length,2,'legacy score-only replies remain visible');
-  const summaries=rows.map(row=>walk(row).find(node=>node.type===h.components.EvaluationRating));assert.equal(summaries[0].props.score,8);assert.equal(summaries[1].props.score,null);assert.deepEqual(summaries[1].props.tags,['自定义']);
+  const summaries=rows.map(row=>walk(row).find(node=>node.type===h.components.EvaluationRating));assert.equal(summaries[0].props.score,8);assert.deepEqual(summaries[0].props.tags,['按计划执行']);assert.equal(summaries[1],undefined);
   assert.ok(button(rows[1],'评论操作'));assert.ok(button(rows[1],'回复'));assert.match(words(rows[1]),/回复 @访客/);h.unmount();
 });

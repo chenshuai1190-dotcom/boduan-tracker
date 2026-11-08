@@ -300,21 +300,28 @@ test('record-date feed pagination and original creation times survive private to
   assert.deepEqual(firstCreate, { createdAt: '2026-11-08T01:00:00Z', publishedAt: '2026-11-08T01:00:00Z' });
 });
 
-test('reply writes remove hidden ratings while post evaluations retain rating-only submissions', async () => {
+test('reply writes remove hidden ratings and tags while direct post evaluations retain both', async () => {
   const replyTo = { kind: 'author', id: 'self-note', authorId: AUTHOR, nickname: '作者', available: true };
   const f = fixture({ response: (_name, args) => ({ data: saved({ ...args.p_evaluation, replyTo: args.p_reply_to ? replyTo : null, revision: args.p_expected_revision + 1 }) }) });
-  const created = await f.repository.saveEvaluation(POST, draft({ text: '回复作者', replyTo }), VIEWER);
+  const created = await f.repository.saveEvaluation(POST, draft({ text: '回复作者', tags: ['仓位过重'], replyTo }), VIEWER);
   assert.equal(created.score, null);
+  assert.deepEqual(created.tags, []);
   assert.equal(f.calls[0].args.p_evaluation.score, null);
-  const edited = await f.repository.saveEvaluation(POST, { ...created, score: 10, text: '修改回复', images: [image] }, VIEWER);
+  assert.deepEqual(f.calls[0].args.p_evaluation.tags, []);
+  const edited = await f.repository.saveEvaluation(POST, { ...created, score: 10, tags: ['历史标签'], text: '修改回复', images: [image] }, VIEWER);
   assert.equal(edited.score, null); assert.deepEqual(edited.images, [image]);
+  assert.deepEqual(edited.tags, []);
   const before = f.calls.length;
   await assert.rejects(f.repository.saveEvaluation(POST, draft({ replyTo }), VIEWER));
-  assert.equal(f.calls.length, before, 'a hidden score alone must not issue a request');
+  await assert.rejects(f.repository.saveEvaluation(POST, draft({ replyTo, score: null, tags: ['历史标签'] }), VIEWER));
+  assert.equal(f.calls.length, before, 'hidden scores or tags alone must not issue a request');
   assert.equal((await f.repository.saveEvaluation(POST, draft(), VIEWER)).score, 8);
+  assert.deepEqual((await f.repository.saveEvaluation(POST, draft({ score: null, tags: ['自定义'] }), VIEWER)).tags, ['自定义']);
   const historical = mapReviewCommunityEvaluation(saved({ replyTo, score: 8, text: '' }), POST);
   assert.equal(historical.id, ID, 'legacy rating-only replies remain readable and manageable');
   assert.equal(historical.replyTo.id, 'self-note');
+  assert.equal(mapReviewCommunityEvaluation(saved({ replyTo, score: null, text: '', tags: ['历史标签'] }), POST).id, ID,
+    'legacy tag-only replies stay readable instead of failing the comment list');
 });
 
 test('preview replies enforce text or attachments without changing direct post scoring', async () => {
@@ -322,10 +329,12 @@ test('preview replies enforce text or attachments without changing direct post s
   const preview = createReviewPublicPreview({ ownerId: VIEWER, getEntries: () => [source] });
   const replyTo = { kind: 'author', id: 'self-note' };
   await assert.rejects(preview.saveReviewCommunityEvaluation(POST, draft({ replyTo }), VIEWER));
+  await assert.rejects(preview.saveReviewCommunityEvaluation(POST, draft({ replyTo, score: null, tags: ['自定义'] }), VIEWER));
   const reply = await preview.saveReviewCommunityEvaluation(POST, draft({ replyTo, text: '继续讨论' }), VIEWER);
   assert.equal(reply.score, null);
   const edited = await preview.saveReviewCommunityEvaluation(POST, { ...reply, score: 10, tags: ['自定义'] }, VIEWER);
-  assert.equal(edited.score, null); assert.deepEqual(edited.tags, ['自定义']);
-  const postEvaluation = await preview.saveReviewCommunityEvaluation(POST, draft({ id: SECOND_ID }), VIEWER);
+  assert.equal(edited.score, null); assert.deepEqual(edited.tags, []);
+  const postEvaluation = await preview.saveReviewCommunityEvaluation(POST, draft({ id: SECOND_ID, tags: ['自定义'] }), VIEWER);
   assert.equal(postEvaluation.score, 8);
+  assert.deepEqual(postEvaluation.tags, ['自定义']);
 });

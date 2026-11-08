@@ -3,6 +3,11 @@ import { CURRENT_RELEASE } from './releaseMeta.js';
 export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
+    items: ['回复评论移除预设标签和自定义标签，仅保留文字与附件交流；编辑回复不会带回旧标签。对博文的直接评价继续支持评分与标签。'],
+    itemsEn: ['Comment replies now focus on text and attachments, with preset and custom tags removed. Editing a reply no longer resubmits old tags. Direct post evaluations still support ratings and tags.'],
+  },
+  {
+    ver: 'v10.7.9.605', date: '2026-11-08',
     items: ['回复评论不再显示评分控件或回复分数，编辑回复也不会带入旧评分；文字、标签及附件功能保留。直接评价博文仍可打分。'],
     itemsEn: ['Comment replies no longer show rating controls or scores, and editing a reply does not resubmit a previous rating. Text, tags, and attachments remain available. Direct post evaluations still support ratings.'],
   },

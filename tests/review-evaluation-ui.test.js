@@ -542,15 +542,16 @@ test('reply composer identifies its recipient without retaining target text and 
   h.props.replyTarget={...h.props.replyTarget,available:false};tree=h.render();assert.match(text(tree),/原评论已删除/);assert.doesNotMatch(text(tree),/回复 @访客/);h.cleanup();
 });
 
-test('new replies have no rating controls while tags and all attachment tools remain available', async () => {
+test('new replies have no rating or tag controls while all attachment tools remain available', async () => {
   for (const source of ['replyTarget','entry']) {
     const h=await harness(),target={kind:'community',id:'target',nickname:'访客',available:true};
     if(source==='replyTarget')h.props.replyTarget=target;else h.props.entry.communityReplyTo=target;
     let tree=h.render();assert.equal(rating(tree),undefined);assert.doesNotMatch(text(tree),/给当时的判断打个分|轻点选星|评分可留空|未评分/);
-    for(const label of ['交易','市场','账户','图片','表情','＋ 自定义'])assert.ok(button(tree,label),`${label} remains available in replies`);
+    for(const label of ['交易','市场','账户','图片','表情'])assert.ok(button(tree,label),`${label} remains available in replies`);
     assert.equal(button(tree,'发布').props.disabled,true);
-    button(tree,'按计划执行').props.onClick();tree=h.render();assert.equal(button(tree,'发布').props.disabled,false);
-    await button(tree,'发布').props.onClick();assert.equal(h.calls[0].reply.score,null);assert.deepEqual(h.calls[0].reply.tags,['按计划执行']);h.cleanup();
+    assert.equal(button(tree,'按计划执行'),undefined);assert.equal(button(tree,'＋ 自定义'),undefined);assert.equal(customForm(tree),undefined);
+    body(tree).props.onChange({target:{value:'感谢你的建议'}});tree=h.render();assert.equal(button(tree,'发布').props.disabled,false);
+    await button(tree,'发布').props.onClick();assert.equal(h.calls[0].reply.score,null);assert.deepEqual(h.calls[0].reply.tags,[]);h.cleanup();
   }
 });
 
@@ -560,7 +561,8 @@ test('editing a legacy scored reply hides its score and sends null without losin
   for(const label of ['移除已上传图片 1','移除市场快照','移除账户快照','移除交易引用'])assert.ok(button(tree,label));
   body(tree).props.onChange({target:{value:'修改后的回复'}});tree=h.render();await button(tree,'保存').props.onClick();
   assert.equal(h.updates[0].replacement.score,null);assert.equal(h.updates[0].replacement.text,'修改后的回复');
-  for(const key of ['images','market','account','trades','tags','replyTo'])assert.deepEqual(h.updates[0].replacement[key],before[key]);
+  assert.deepEqual(h.updates[0].replacement.tags,[]);
+  for(const key of ['images','market','account','trades','replyTo'])assert.deepEqual(h.updates[0].replacement[key],before[key]);
   assert.deepEqual(reply,before,'stored historical record stays unchanged until save succeeds');h.cleanup();
 });
 
@@ -570,4 +572,18 @@ test('a legacy score-only reply cannot submit as empty content after reply scori
   await button(tree,'保存').props.onClick();assert.equal(h.updates.length,0,'hidden legacy score must not count as reply content');
   body(tree).props.onChange({target:{value:'补充真实回复内容'}});tree=h.render();assert.equal(button(tree,'保存').props.disabled,false);await button(tree,'保存').props.onClick();
   assert.equal(h.updates.length,1);assert.equal(h.updates[0].replacement.score,null);assert.equal(h.updates[0].replacement.text,'补充真实回复内容');h.cleanup();
+});
+
+test('legacy tag-only replies cannot submit empty content and editing them clears hidden tags', async () => {
+  const reply={id:'legacy-tag-only',date:'2026-11-08',text:'',score:null,tags:['旧回复标签'],replyTo:{kind:'author',id:'original',nickname:'访客',available:true}};
+  const h=await harness({reply});let tree=h.render();assert.equal(button(tree,'旧回复标签'),undefined);assert.equal(button(tree,'＋ 自定义'),undefined);assert.equal(button(tree,'保存').props.disabled,true);
+  await button(tree,'保存').props.onClick();assert.equal(h.updates.length,0);
+  body(tree).props.onChange({target:{value:'现在补充回复内容'}});tree=h.render();await button(tree,'保存').props.onClick();assert.equal(h.updates[0].replacement.score,null);assert.deepEqual(h.updates[0].replacement.tags,[]);h.cleanup();
+});
+
+test('direct post evaluations still allow tag-only publishing and reply mode hides a previously opened tag form', async () => {
+  const h=await harness();let tree=h.render();assert.ok(rating(tree));button(tree,'按计划执行').props.onClick();tree=h.render();assert.equal(button(tree,'发布').props.disabled,false);
+  await button(tree,'发布').props.onClick();assert.deepEqual(h.calls[0].reply.tags,['按计划执行']);assert.equal(h.calls[0].reply.score,null);h.cleanup();
+  const changed=await harness();tree=changed.render();button(tree,'按计划执行').props.onClick();tree=changed.render();button(tree,'＋ 自定义').props.onClick();tree=changed.render();customForm(tree).props.onSubmit({preventDefault(){}});tree=changed.render();assert.ok(customForm(tree));assert.ok(alert(tree));
+  changed.props.replyTarget={kind:'community',id:'target',nickname:'访客',available:true};tree=changed.render();assert.equal(customForm(tree),undefined);assert.equal(button(tree,'＋ 自定义'),undefined);assert.equal(button(tree,'按计划执行'),undefined);assert.equal(alert(tree),'');assert.equal(button(tree,'发布').props.disabled,true,'hidden draft tags must not count as reply content');changed.cleanup();
 });

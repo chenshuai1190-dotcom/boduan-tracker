@@ -98,7 +98,7 @@ export function createReviewPublicPreview({ ownerId, getEntries, getImage, marke
         if (!target) throw reviewJournalError('REVIEW_PUBLIC_NOT_FOUND', '回复对象已删除或不可用。');
         replyTo = { ...requestedTarget, ...target, available: true };
       }
-      const payload = writePayload(replyTo ? { ...reply, score: null } : reply);
+      const payload = writePayload(replyTo ? { ...reply, score: null, tags: [] } : reply);
       if (existing && JSON.stringify(writePayload(existing)) === JSON.stringify(payload)
         && (revision === existing.revision || revision === existing.revision - 1)) return readEvaluation(existing);
       if (!existing && revision !== 0) throw reviewJournalError('REVIEW_PUBLIC_NOT_FOUND', '评价已删除。');
