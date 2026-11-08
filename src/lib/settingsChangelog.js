@@ -3,6 +3,11 @@ import { CURRENT_RELEASE } from './releaseMeta.js';
 export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
+    items: ['评论支持分组展开回复、点赞和回复数量；动态 Tab 新增公开新帖数字提醒，打开公开全部并加载成功后自动清除。'],
+    itemsEn: ['Comments now group replies into expandable conversations with likes and reply counts. The Activity tab shows new public posts and clears its badge after the public All feed loads successfully.'],
+  },
+  {
+    ver: 'v10.7.9.609', date: '2026-11-08',
     items: ['消息页采用居中标题与独立分类栏，右上消息管理支持全部已读及勾选多条批量已读；修复动态通知数字模糊，增强角标清晰度。'],
     itemsEn: ['Refined the inbox header and filters. Message management now offers mark all as read and selected-message batch reading. Activity unread badges are sharper and easier to read.'],
   },

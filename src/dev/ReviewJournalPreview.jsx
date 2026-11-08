@@ -44,6 +44,15 @@ const evaluationLog = {...base,id:'evaluation-example',type:'log',date:'2026-11-
 const communityEvaluation = { id:'40000000-0000-4000-8000-000000000001',postId:'log:evaluation-example',authorId:'sample-community-reviewer',
   author:{nickname:'山间慢行',avatarKey:'green',avatarPath:null},revision:1,createdAt:'2026-11-08T05:00:00Z',updatedAt:'2026-11-08T05:00:00Z',
   date:'2026-11-08',text:'赞同先写下交易条件。这个示例评价来自另一位用户，可以用来检查公开转私密后，作者仍能回看已有讨论。',score:8,tags:['按计划执行'],images:[],stocks:[],trades:[],market:null,account:null,mood:'' };
+// Deliberately isolated conversation fixtures for the approved threaded view.
+const threadNow=Date.now();
+const threadEvaluation=(id,authorId,nickname,avatarKey,minutes,text,replyTo=null)=>({id,postId:'insight:sample-reader',authorId,author:{nickname,avatarKey,avatarPath:null},revision:1,createdAt:new Date(threadNow-minutes*60000).toISOString(),updatedAt:new Date(threadNow-minutes*60000).toISOString(),date: new Date(threadNow).toISOString().slice(0,10),text,score:null,tags:[],images:[],stocks:[],trades:[],market:null,account:null,mood:'',replyTo});
+const threadedEvaluations=[
+  {...threadEvaluation('50000000-0000-4000-8000-000000000001','sample-commenter','记录每一步','blue',28,'赞同。先把买入条件写清楚，回看时才知道是判断出了问题，还是执行偏离了计划。'),score:8,tags:['按计划执行']},
+  threadEvaluation('50000000-0000-4000-8000-000000000002',OWNER,'波段玩家1836','gold',24,'是的，这次我想把仓位和买入理由也一起记下来。',{kind:'community',id:'50000000-0000-4000-8000-000000000001',authorId:'sample-commenter',nickname:'记录每一步',available:true}),
+  threadEvaluation('50000000-0000-4000-8000-000000000003','sample-commenter','记录每一步','blue',18,'再加一条“什么情况下改变判断”，后面复盘会更清楚。',{kind:'community',id:'50000000-0000-4000-8000-000000000002',authorId:OWNER,nickname:'波段玩家1836',available:true}),
+  threadEvaluation('50000000-0000-4000-8000-000000000004',OWNER,'波段玩家1836','gold',12,'这个提醒很好，下次记录的时候把失效条件补上。',{kind:'community',id:'50000000-0000-4000-8000-000000000003',authorId:'sample-commenter',nickname:'记录每一步',available:true}),
+];
 const readingLogs = [
   {...base,id:'reading-medium',type:'log',date:'2026-11-08',text:'NVDA 与 SMH 的复盘，不应该只记住买卖价格。真正值得留下的是：当时看到了什么信息，为什么认为这个价格可以接受，以及准备在什么条件下改变判断。\n\n这次先把交易原因、当时的仓位和后续观察分开记录。NVDA 的价格变化只是结果，是否遵守计划才是可以反复检查的部分。短期波动出现时，回到当时写下的条件，比事后用新的信息解释过去更有帮助。\n\n这是一条中等长度的示例记录。正文超过原来的字数限制，但仍能在手机一屏内读完，所以应该直接完整显示。'},
   {...base,id:'reading-long',type:'log',date:'2026-11-07',text:[
@@ -56,7 +65,7 @@ const readingLogs = [
     '最后，把没有答案的问题也保留下来。复盘并不要求每一次都得到确定结论；有些判断需要更多时间。完整记录自己的观察、行动和后续变化，让未来的自己有材料可以回看，这就是持续记录的意义。超过手机一屏的部分在列表里折叠，点击展开全文后可以继续阅读到这里。',
   ].join('\n\n')},
 ];
-export default function ReviewJournalPreview({language,onBack,marketColorMode,navigationTab=false}) {
+export default function ReviewJournalPreview({language,onBack,marketColorMode,navigationTab=false,reviewFeedUnread,reviewFeedUnreadPreview,reviewOpenAllRequest=0}) {
   const initialLogs = new URLSearchParams(window.location.search).get('reviewPublicOwner') === '1' ? [{...evaluationLog,visibility:'public',publishedAt:'2026-11-08T04:00:00Z'},...seedLogs] : new URLSearchParams(window.location.search).get('reviewEvaluation') === '1' ? [evaluationLog,...seedLogs] : new URLSearchParams(window.location.search).get('reviewReading') === '1' ? [...readingLogs,...seedLogs] : seedLogs;
   const [disciplines,setDisciplines] = React.useState(seedInsights);
   const [reviewLogs,setReviewLogs] = React.useState(initialLogs);
@@ -66,8 +75,8 @@ export default function ReviewJournalPreview({language,onBack,marketColorMode,na
   const rows = React.useRef([...seedInsights,...initialLogs]); const imageUrls = React.useRef(new Map()); const imageFiles=React.useRef(new Map());
   React.useEffect(()=>()=>imageUrls.current.forEach(url=>URL.revokeObjectURL(url)),[]);
   const db = React.useMemo(()=>({
-    ...createReviewPublicPreview({ownerId:OWNER,getEntries:()=>rows.current,getImage:path=>imageFiles.current.get(path),market:snapshot,notifications:true,
-      communityEvaluations:initialLogs.some(row=>row.id===evaluationLog.id)?[communityEvaluation]:[]}),
+    ...createReviewPublicPreview({ownerId:OWNER,getEntries:()=>rows.current,getImage:path=>imageFiles.current.get(path),market:snapshot,notifications:true,threaded:true,
+      communityEvaluations:[...(initialLogs.some(row=>row.id===evaluationLog.id)?[communityEvaluation]:[]),...(new URLSearchParams(window.location.search).get('reviewThreads')==='1'?threadedEvaluations:[])]}),
     saveReviewJournalEntry:async(entry,userId)=>{
       if(userId!==OWNER)throw new Error('预览账户不匹配');
       if(new URLSearchParams(window.location.search).get('reviewFailure')==='save')throw new Error('模拟保存失败：正文与附件仍保留，请重试。');
@@ -125,8 +134,9 @@ export default function ReviewJournalPreview({language,onBack,marketColorMode,na
   return <>
     <details style={{padding:'calc(env(safe-area-inset-top) + 12px) 16px 12px',fontSize:13,color:'#94a3b8'}}>
       <summary>本地刷新验收 · 示例数据</summary>
+      <a href="?devPreview=1&tab=home&reviewUnread=1&reviewThreads=1&reviewScope=public" style={{display:'block',padding:'12px 8px'}}>评论与新帖提醒示例</a>
       <button type="button" style={{padding:'12px 8px'}} onClick={async()=>{db.setReviewPublicPreviewScenario('empty');await reviewPublicRefreshRef.current?.();setRefreshScenarioStatus('示例列表已清空');}}>清空示例公开列表</button>
-      <button type="button" style={{padding:'12px 8px'}} onClick={()=>{db.setReviewPublicPreviewScenario('published');setRefreshScenarioStatus('已模拟其他账号发布，等待自动读取');}}>模拟其他账号发布</button>
+      <button type="button" style={{padding:'12px 8px'}} onClick={()=>{db.setReviewPublicPreviewScenario('published');reviewFeedUnreadPreview?.publish('insight:sample-fresh-post');reviewFeedUnread?.refresh();setRefreshScenarioStatus('已模拟其他账号发布，等待自动读取');}}>模拟其他账号发布</button>
       <button type="button" style={{padding:'12px 8px'}} onClick={async()=>{await reviewPublicRefreshRef.current?.();setRefreshScenarioStatus('手动读取完成');}}>读取最新示例</button>
       {refreshScenarioStatus&&<p role="status">{refreshScenarioStatus}</p>}
     </details>
@@ -136,6 +146,6 @@ export default function ReviewJournalPreview({language,onBack,marketColorMode,na
       <button type="button" style={{padding:'12px 8px'}} onClick={async()=>{db.setReviewCommunityPreviewVisibility('insight:sample-reader','public');await reviewPublicRefreshRef.current?.();setCommunityScenarioStatus('山间慢行的示例帖恢复公开，已有评价仍保留。');}}>恢复示例帖子公开</button>
       {communityScenarioStatus&&<p role="status">{communityScenarioStatus}</p>}
     </details>
-    <ReviewJournalPage ctx={{db,userId:OWNER,language,disciplines,reviewLogs,setDisciplines,setReviewLogs,stockTrades,onBack,marketColorMode,usdCny:7.12,fxDate:'2026-11-07T00:00:00Z',navigationTab,reviewPublicRefreshRef,previewData:{initialAllScope:new URLSearchParams(window.location.search).get('reviewScope')||undefined,timeline,initialTimeline:new URLSearchParams(window.location.search).get('reviewTimeline')==='1',identity:{nickname:'波段玩家1836',avatarKey:'gold'},history,market,account}}}/>
+    <ReviewJournalPage ctx={{db,userId:OWNER,language,disciplines,reviewLogs,setDisciplines,setReviewLogs,stockTrades,onBack,marketColorMode,usdCny:7.12,fxDate:'2026-11-07T00:00:00Z',navigationTab,reviewPublicRefreshRef,reviewFeedUnread,reviewOpenAllRequest,previewData:{initialAllScope:new URLSearchParams(window.location.search).get('reviewScope')||undefined,timeline,initialTimeline:new URLSearchParams(window.location.search).get('reviewTimeline')==='1',identity:{nickname:'波段玩家1836',avatarKey:'gold'},history,market,account}}}/>
   </>;
 }

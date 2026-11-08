@@ -144,6 +144,7 @@ test('Macro renders all five real bottom tabs, highlights Trades and preserves t
     function ReportBottomNavIcon() { return null; }
     export function renderBottomNavigation(activePage, activeTab, language, handleBottomTabClick) {
       const darkShell = true, showQuoteFetchError = false, fetchError = '';
+      const reviewFeedUnread = { unreadCount: 0 };
       ${flags}
       return <>${bottomNavigation}</>;
     }

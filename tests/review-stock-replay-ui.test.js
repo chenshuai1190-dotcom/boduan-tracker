@@ -103,11 +103,12 @@ async function harness({ observer = true } = {}) {
       import { findReviewStockMentions } from ${moduleUrl('reviewStockMentions')};
       import { mergeReviewTimelineFeed, reviewTimelineFeedDate } from ${moduleUrl('reviewTimelineFeed')};
       import { groupReviewTimelineEvents } from ${moduleUrl('reviewTimelineGroups')};
+      import { reviewCommentPostsForDetail, reviewAuthorCommentForManagement, reviewCommunityPostAllowed } from ${moduleUrl('reviewThreadContext')};
       import { findReviewEntryByKey, projectReviewTimelineEntry, resolveReviewReplySource, resolveReviewTimelineEvent, reviewTimelineAnchorEntry, reviewTimelineReplyKey } from ${moduleUrl('reviewTimelineEntries')};
       import ReviewActivityTime from ${JSON.stringify(new URL('../src/components/ReviewActivityTime.js', import.meta.url).href)};
       const ReviewStockCarousel = fixture.ReviewStockCarousel = () => null;
       const ReviewPostBody = () => null;
-      const ReviewPublicFeed = () => null, ReviewTimeline = () => null, ReviewPreferences = () => null, ReviewTimelinePost = () => null;
+      const ReviewPublicFeed = () => null, ReviewCommentThreads = () => null, ReviewTimeline = () => null, ReviewPreferences = () => null, ReviewTimelinePost = () => null;
       const ReviewNotifications=()=>null;
       const useReviewNotificationCount=()=>({unreadCount:0,error:false,update:()=>{}});
       const useReviewPreferences = () => ({

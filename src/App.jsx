@@ -35,6 +35,7 @@ import { createPnlShareIdentity } from './lib/pnlShareIdentity.js';
 import './components/ReportBottomNav.css';
 import ReportBottomNavIcon from './components/ReportBottomNavIcon.jsx';
 import useReviewScrollNavigation from './hooks/useReviewScrollNavigation.js';
+import useReviewFeedUnread from './hooks/useReviewFeedUnread.js';
 import YearlyActualModal from './components/YearlyActualModal.jsx';
 import { DisciplineModal, LogModal } from './components/ReviewEntryEditors.jsx';
 import ConfirmModal from './components/ConfirmModal.jsx';
@@ -4661,6 +4662,8 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   const homeScrollTopBeforeDrawdownRef = useRef(null);
   const pendingHomeScrollTopRef = useRef(null);
   const [communityProfileFocusRequest, setCommunityProfileFocusRequest] = useState(0);
+  const [reviewOpenAllRequest, setReviewOpenAllRequest] = useState(0);
+  const reviewFeedUnread = useReviewFeedUnread({ db, userId: user?.id || '' });
   const [pnlShareIdentityState, setPnlShareIdentityState] = useState({ status: 'idle', identity: null });
   const pnlShareIdentityRequestRef = useRef(0);
   const [stockDetailSymbol, setStockDetailSymbol] = useState('');
@@ -4674,6 +4677,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     setLanguageState(saveStoredLanguage(nextLanguage));
   }, []);
   const handleBottomTabClick = useCallback((tabId) => {
+    if (tabId === 'review') setReviewOpenAllRequest(value => value + 1);
     const tapAction = resolveBottomTabTap({
       tabId,
       activeTab,
@@ -5476,7 +5480,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   const activeTabCtx = activeTab === 'settings'
     ? settingsTabCtx
     : activeTab === 'review'
-      ? { db, userId: user?.id || '', language, disciplines, reviewLogs, setDisciplines, setReviewLogs, stockTrades, marketColorMode, usdCny: reviewFx?.rates?.CNY || null, fxDate: reviewFx?.fetchedAt || '', navigationTab: true, reviewPublicRefreshRef }
+      ? { db, userId: user?.id || '', language, disciplines, reviewLogs, setDisciplines, setReviewLogs, stockTrades, marketColorMode, usdCny: reviewFx?.rates?.CNY || null, fxDate: reviewFx?.fetchedAt || '', navigationTab: true, reviewPublicRefreshRef, reviewFeedUnread, reviewOpenAllRequest }
     : activeTab === 'analysis'
       ? analysisTabCtx
       : tabCtx;
@@ -5639,7 +5643,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
               : isStockComparisonPage
                 ? <StockComparisonPage key={user?.id || ''} ctx={{ userId: user?.id || '', language, marketColorMode, onBack: closeStockComparison }} />
               : isReviewJournalPage
-                ? <ReviewJournalPage key={user?.id || ''} ctx={{ db, userId: user?.id || '', language, disciplines, reviewLogs, setDisciplines, setReviewLogs, stockTrades, marketColorMode, usdCny: reviewFx?.rates?.CNY || null, fxDate: reviewFx?.fetchedAt || '', onBack: closeReviewJournal, reviewPublicRefreshRef }} />
+                ? <ReviewJournalPage key={user?.id || ''} ctx={{ db, userId: user?.id || '', language, disciplines, reviewLogs, setDisciplines, setReviewLogs, stockTrades, marketColorMode, usdCny: reviewFx?.rates?.CNY || null, fxDate: reviewFx?.fetchedAt || '', onBack: closeReviewJournal, reviewPublicRefreshRef, reviewFeedUnread, reviewOpenAllRequest }} />
               : isInvestmentGoalsPage
                 ? <ReviewTab ctx={tabCtx} />
               : isPortfolioOverlapPage
@@ -5717,7 +5721,10 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
                     className="report-bottom-nav-tab"
                     aria-current={isActive ? 'page' : undefined}
                   >
-                    <ReportBottomNavIcon tabId={tab.id} className="report-bottom-nav-icon" />
+                    <span className="report-bottom-nav-icon-wrap">
+                      <ReportBottomNavIcon tabId={tab.id} className="report-bottom-nav-icon" />
+                      {tab.id === 'review' && reviewFeedUnread.unreadCount > 0 && <span className="report-bottom-nav-new-posts" aria-label={language.startsWith('en') ? `${reviewFeedUnread.unreadCount} new posts` : `${reviewFeedUnread.unreadCount} 条新帖子`}>{reviewFeedUnread.unreadCount > 99 ? '99+' : reviewFeedUnread.unreadCount}</span>}
+                    </span>
                     <span className="report-bottom-nav-label">{tab.label}</span>
                   </button>
                 );

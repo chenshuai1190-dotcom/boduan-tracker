@@ -35,6 +35,8 @@ import ConfirmModal from './components/ConfirmModal.jsx';
 import './components/ReportBottomNav.css';
 import ReportBottomNavIcon from './components/ReportBottomNavIcon.jsx';
 import useReviewScrollNavigation from './hooks/useReviewScrollNavigation.js';
+import useReviewFeedUnread from './hooks/useReviewFeedUnread.js';
+import { createReviewFeedUnreadPreview, REVIEW_FEED_PREVIEW_OWNER } from './dev/reviewFeedUnreadPreview.js';
 import YearlyActualModal from './components/YearlyActualModal.jsx';
 import { DisciplineModal, LogModal } from './components/ReviewEntryEditors.jsx';
 import { normalizeConfirmModalOptions } from './lib/confirmModal.js';
@@ -1881,6 +1883,10 @@ function buildCommunityCompetitionPreview(state, period = 'day') {
 }
 
 function StandardDevVisualPreview({ initialTab = '' }) {
+  const reviewUnreadPreviewEnabled = new URLSearchParams(window.location.search).get('reviewUnread') === '1';
+  const reviewFeedUnreadPreview = React.useMemo(() => createReviewFeedUnreadPreview(), []);
+  const reviewFeedUnread = useReviewFeedUnread({ db: reviewFeedUnreadPreview.db, userId: REVIEW_FEED_PREVIEW_OWNER, enabled: reviewUnreadPreviewEnabled });
+  const [reviewOpenAllRequest, setReviewOpenAllRequest] = React.useState(0);
   const earningsPreviewName = typeof window === 'undefined'
     ? ''
     : new URLSearchParams(window.location.search).get('preview');
@@ -3587,11 +3593,11 @@ function StandardDevVisualPreview({ initialTab = '' }) {
           : activeTab === 'stock-comparison'
           ? <StockComparisonPreview ctx={{ language, marketColorMode, onBack: () => { setActiveTab('trades'); window.scrollTo(0, 0); } }} />
           : activeTab === 'review'
-          ? <ReviewJournalPreview language={language} marketColorMode={marketColorMode} navigationTab />
+          ? <ReviewJournalPreview language={language} marketColorMode={marketColorMode} navigationTab reviewFeedUnread={reviewUnreadPreviewEnabled ? reviewFeedUnread : undefined} reviewFeedUnreadPreview={reviewUnreadPreviewEnabled ? reviewFeedUnreadPreview : undefined} reviewOpenAllRequest={reviewOpenAllRequest} />
           : activeTab === 'investment-goals'
           ? <ReviewTab ctx={reviewCtx} />
           : activeTab === 'review-journal'
-          ? <ReviewJournalPreview language={language} marketColorMode={marketColorMode} onBack={() => { setActiveTab('trades'); window.scrollTo(0, 0); }} />
+          ? <ReviewJournalPreview language={language} marketColorMode={marketColorMode} reviewFeedUnread={reviewUnreadPreviewEnabled ? reviewFeedUnread : undefined} reviewFeedUnreadPreview={reviewUnreadPreviewEnabled ? reviewFeedUnreadPreview : undefined} reviewOpenAllRequest={reviewOpenAllRequest} onBack={() => { setActiveTab('trades'); window.scrollTo(0, 0); }} />
           : activeTab === 'portfolio-overlap'
           ? <PortfolioOverlapPreview ctx={{ language, closePortfolioOverlap: () => { setActiveTab('trades'); window.scrollTo(0, 0); } }} />
           : activeTab === 'dca-lab'
@@ -3653,12 +3659,15 @@ function StandardDevVisualPreview({ initialTab = '' }) {
               return (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
+                  onClick={() => { if (tab.id === 'review') setReviewOpenAllRequest(value => value + 1); setActiveTab(tab.id); }}
                   className="report-bottom-nav-tab"
                   aria-current={isActive ? 'page' : undefined}
                   type="button"
                 >
-                  <ReportBottomNavIcon tabId={tab.id} className="report-bottom-nav-icon" />
+                  <span className="report-bottom-nav-icon-wrap">
+                    <ReportBottomNavIcon tabId={tab.id} className="report-bottom-nav-icon" />
+                    {tab.id === 'review' && reviewFeedUnread.unreadCount > 0 && <span className="report-bottom-nav-new-posts" aria-label={language.startsWith('en') ? `${reviewFeedUnread.unreadCount} new posts` : `${reviewFeedUnread.unreadCount} 条新帖子`}>{reviewFeedUnread.unreadCount > 99 ? '99+' : reviewFeedUnread.unreadCount}</span>}
+                  </span>
                   <span className="report-bottom-nav-label">{tab.label}</span>
                 </button>
               );

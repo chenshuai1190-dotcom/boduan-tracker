@@ -99,6 +99,50 @@ test('public details retain their visible feed container and use the entry layou
   h.unmount();
 });
 
+test('a Dynamic tab request remounts a public detail as All and restores an inactive feed', async () => {
+  const h = await harness(); h.ctx.previewData.initialAllScope = 'public';
+  let tree = h.render();
+  const feed = () => walk(tree).find(node => node.type === h.Page.ReviewPublicFeed);
+  const initialKey = feed().key;
+  feed().props.onDetailChange(true, { id: 'log:foreign', authorId: 'visitor', type: 'log', sourceId: 'foreign' });
+  tree = h.render();
+  assert.ok(hasClass(tree, 'rj-entry-page'));
+  assert.equal(feed().key, initialKey, 'ordinary detail navigation preserves the mounted public feed');
+
+  h.ctx.reviewOpenAllRequest = 1;
+  h.render(); tree = h.render();
+  assert.notEqual(feed().key, initialKey, 'a new tab request must discard the child feed detail route');
+  assert.equal(feed().props.active, true);
+  assert.equal(feed().props.openRequest, null);
+  assert.equal(feed().props.query, '');
+  assert.equal(hasClass(tree, 'rj-entry-page'), false);
+  assert.equal(button(tree, '全部动态范围').props['aria-pressed'], true);
+  const firstRequestKey = feed().key;
+  tree = h.render();
+  assert.equal(feed().key, firstRequestKey, 'rerenders without a new tab tap must keep the loaded list');
+
+  button(tree, '消息 · 3 条未读').props.onClick(); tree = h.render();
+  assert.equal(feed().props.active, false);
+  assert.ok(find(tree, node => node.type === h.Page.ReviewNotifications));
+  h.ctx.reviewOpenAllRequest = 2;
+  h.render(); tree = h.render();
+  assert.notEqual(feed().key, firstRequestKey);
+  assert.equal(feed().props.active, true);
+  assert.equal(find(tree, node => node.type === h.Page.ReviewNotifications), undefined);
+
+  button(tree, '全部动态范围').props.onClick(); tree = h.render();
+  button(tree, '显示私密记录').props.onClick(); tree = h.render();
+  button(tree, '复盘日志').props.onClick(); tree = h.render();
+  assert.equal(feed(), undefined);
+  h.ctx.reviewOpenAllRequest = 3;
+  h.render(); tree = h.render();
+  assert.ok(find(tree, node => node.type === h.Page.ReviewPublicFeed));
+  assert.equal(feed().props.active, true);
+  assert.equal(button(tree, '全部动态范围').props['aria-pressed'], true);
+  assert.equal(visible(tree).filter(node => node.type === 'article').length, 0, 'the request opens public All, not the remembered private scope');
+  h.unmount();
+});
+
 test('public owner evaluations use original records and refresh the public view after edits and deletion', async () => {
   const h = await harness(); h.ctx.previewData.initialAllScope = 'public'; h.ctx.reviewLogs[0].visibility = 'public';
   let tree = h.render();
@@ -284,6 +328,7 @@ async function harness({ removeReply, preferences = {}, localPreferences = new M
       import { findReviewStockMentions } from ${JSON.stringify(new URL('../src/lib/reviewStockMentions.js', import.meta.url).href)};
       import { mergeReviewTimelineFeed, reviewTimelineFeedDate } from ${JSON.stringify(new URL('../src/lib/reviewTimelineFeed.js', import.meta.url).href)};
       import { groupReviewTimelineEvents } from ${JSON.stringify(new URL('../src/lib/reviewTimelineGroups.js', import.meta.url).href)};
+      import { reviewCommentPostsForDetail, reviewAuthorCommentForManagement, reviewCommunityPostAllowed } from ${JSON.stringify(new URL('../src/lib/reviewThreadContext.js', import.meta.url).href)};
       import { findReviewEntryByKey, projectReviewTimelineEntry, resolveReviewReplySource, resolveReviewTimelineEvent, reviewTimelineAnchorEntry, reviewTimelineReplyKey } from ${JSON.stringify(new URL('../src/lib/reviewTimelineEntries.js', import.meta.url).href)};
       import { ReviewSystemAvatar, ReviewSystemName } from ${JSON.stringify(systemIdentityModule)};
       import ReviewActivityTime from ${JSON.stringify(new URL('../src/components/ReviewActivityTime.js', import.meta.url).href)};
@@ -293,12 +338,12 @@ async function harness({ removeReply, preferences = {}, localPreferences = new M
       const readReviewAudiencePreference = (userId, kind) => readAudience(userId, kind, fixture.localStorage);
       const writeReviewAudiencePreference = (userId, kind, value) => writeAudience(userId, kind, value, fixture.localStorage);
       const Avatar = () => null, AuthorName = () => null, Photo = () => null, SnapshotCard = () => null, ReviewStockCarousel = () => null, ReviewPostBody = () => null, Composer = () => null, Dialog = () => null;
-      const ReviewPublicFeed = () => null, ReviewCommunityEvaluations = () => null, ReplyBody = props => props.children, ReviewTimeline = () => null, ReviewPreferences = () => null, ReviewTimelinePost = () => null;
+      const ReviewPublicFeed = () => null, ReviewCommentThreads = () => null, ReviewCommunityEvaluations = () => null, ReplyBody = props => props.children, ReviewTimeline = () => null, ReviewPreferences = () => null, ReviewTimelinePost = () => null;
       const ReviewNotifications=()=>null;
       const useReviewNotificationCount=()=>({unreadCount:3,error:false,update:()=>{}});
       const useReviewPreferences = () => fixture.preferenceState;
       const ReviewEvaluationComposer = () => null, EvaluationRating = () => null, ReviewAccountCard = () => null, ReviewTradeReferences = () => null, EmojiPicker = () => null;
-      export { ReviewNotifications, ReviewActivityTime, ReviewPublicFeed, ReviewCommunityEvaluations, ReplyBody, ReviewSystemAvatar, ReviewSystemName, Avatar, AuthorName, ReviewTimeline, ReviewPreferences, ReviewTimelinePost, Photo, SnapshotCard, ReviewStockCarousel, ReviewPostBody, Composer, Dialog, ReviewEvaluationComposer, EvaluationRating, ReviewAccountCard, ReviewTradeReferences };
+      export { ReviewNotifications, ReviewActivityTime, ReviewPublicFeed, ReviewCommentThreads, ReviewCommunityEvaluations, ReplyBody, ReviewSystemAvatar, ReviewSystemName, Avatar, AuthorName, ReviewTimeline, ReviewPreferences, ReviewTimelinePost, Photo, SnapshotCard, ReviewStockCarousel, ReviewPostBody, Composer, Dialog, ReviewEvaluationComposer, EvaluationRating, ReviewAccountCard, ReviewTradeReferences };
       ${pageSource.replaceAll('import.meta.env.DEV', 'true')}
     `, 'ReviewJournalEntryPageTest.jsx', { jsx: { runtime: 'classic' } });
     Page = await import(dataUrl(compiled.code));

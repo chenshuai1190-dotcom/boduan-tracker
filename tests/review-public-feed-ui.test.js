@@ -796,3 +796,24 @@ test('notification target beyond the first comment page is loaded once and remov
   h.requests.filter(row=>row.kind==='target').at(-1).reject(Object.assign(new Error('评论已不可用'),{code:'REVIEW_NOTIFICATION_NOT_FOUND'}));
   await flush();tree=render();assert.equal(walk(tree).filter(row=>row.props['data-rj-reply-id']==='older').length,0);assert.match(words(tree),/评论已不可用/);h.unmount();
 });
+
+test('public All captures its unread boundary before reading and clears only after successful visible list render', async () => {
+  const h=await harness(), events=[], token={userId:'viewer',cursor:'14',scope:1};
+  let resolveBoundary;
+  const unreadController={captureBoundary:()=>{events.push('capture');return new Promise(resolve=>{resolveBoundary=resolve;});},markSeen:value=>{events.push(['seen',value]);return Promise.resolve();}};
+  h.feed({unreadController}); await flush(); assert.deepEqual(events,['capture']); assert.equal(h.requests.length,0,'capture precedes the feed snapshot');
+  resolveBoundary(token); await flush(); assert.equal(h.requests.length,1); assert.deepEqual(events,['capture']);
+  h.requests[0].resolve(result([post()])); await flush(); assert.equal(events.length,1,'request completion alone must not mark a still-unrendered list');
+  h.feed({unreadController}); assert.deepEqual(events,['capture',['seen',token]]);
+  h.feed({unreadController}); assert.equal(events.length,2,'the same rendered snapshot is acknowledged once'); h.unmount();
+});
+
+test('search and failed public feed loads never clear the unread boundary', async () => {
+  for(const query of ['NVDA','']){
+    const h=await harness(),seen=[];
+    const unreadController={captureBoundary:async()=>({userId:'viewer',cursor:'14'}),markSeen:value=>seen.push(value)};
+    h.feed({query,unreadController});await flush();
+    if(query)h.requests[0].resolve(result([post()]));else h.requests[0].reject(new Error('network unavailable'));
+    await flush();h.feed({query,unreadController});assert.equal(seen.length,0);h.unmount();
+  }
+});

@@ -35,6 +35,10 @@ const SERVICE_ONLY_TABLES = [
   { table: 'review_public_likes', select: 'user_id' },
   { table: 'review_community_evaluations', select: 'author_id' },
   { table: 'review_activity_notifications', select: 'recipient_id' },
+  { table: 'review_evaluation_likes', select: 'user_id' },
+  { table: 'review_feed_clock', select: 'cursor' },
+  { table: 'review_feed_publications', select: 'cursor' },
+  { table: 'review_feed_read_state', select: 'user_id' },
   { table: 'snapshot_publication_markers', select: 'channel' },
   { table: 'margin_debt_events', select: 'user_id' },
   { table: 'margin_debt_history_meta', select: 'version' },
@@ -52,6 +56,12 @@ const SERVICE_ONLY_TABLES = [
   { table: 'sec_earnings_shared_results', select: 'symbol' },
 ];
 const SERVICE_ONLY_RPCS = [
+  { name: 'fetch_review_comment_threads', body: { p_post_id: 'log:rls-probe', p_limit: 1, p_cursor: null, p_locate: null, p_expected_user_id: null } },
+  { name: 'fetch_review_comment_thread_replies', body: { p_post_id: 'log:rls-probe', p_root: { kind: 'author', id: 'rls-probe' }, p_limit: 1, p_cursor: null, p_locate: null, p_expected_user_id: null } },
+  { name: 'fetch_review_evaluation_likes', body: { p_post_id: 'log:rls-probe', p_targets: [], p_expected_user_id: null } },
+  { name: 'set_review_evaluation_like', body: { p_post_id: 'log:rls-probe', p_target: null, p_liked: null, p_expected_user_id: null } },
+  { name: 'fetch_review_feed_unread', body: { p_expected_user_id: null } },
+  { name: 'mark_review_feed_seen', body: { p_cursor: null, p_expected_user_id: null } },
   // Permission denial must precede validation. Invalid write inputs keep these
   // probes side-effect-free even if an EXECUTE grant accidentally regresses.
   {

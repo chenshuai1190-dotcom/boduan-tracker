@@ -1,5 +1,6 @@
 // Isolated sample data for DevVisualPreview. No network or account writes.
 import { createReviewNotificationPreview } from './reviewNotificationPreview.js';
+import { createReviewThreadPreview } from './reviewThreadPreview.js';
 import { mapReviewPublicReplies, normalizeReviewPublicCursor } from '../lib/reviewPublicModel.js';
 import { buildReviewCommunityEvaluation, normalizeReviewCommunityCursor, normalizeReviewCommunityReplyTarget } from '../lib/reviewCommunityEvaluationModel.js';
 import { isReviewJournalOperationId, reviewJournalError } from '../lib/reviewJournalModel.js';
@@ -9,7 +10,7 @@ export function reviewPreviewEntryTimestamps(entry, existing, now = new Date().t
   return { createdAt, publishedAt: entry.visibility === 'public' ? createdAt : null };
 }
 
-export function createReviewPublicPreview({ ownerId, getEntries, getImage, market, communityEvaluations = [], notifications = false }) {
+export function createReviewPublicPreview({ ownerId, getEntries, getImage, market, communityEvaluations = [], notifications = false, threaded = false }) {
   const likes = new Map();
   const evaluations = new Map(communityEvaluations.map(row => [row.id, { ...row, source: 'community' }]));
   const deletedEvaluations = new Map();
@@ -25,7 +26,7 @@ export function createReviewPublicPreview({ ownerId, getEntries, getImage, marke
   ];
   const assertOwner = userId => { if(userId!==ownerId)throw new Error('预览账户不匹配'); };
   const sourceParent = postId => {
-    const own = getEntries().find(row => `${row.type}:${row.id}` === postId && !row.timelineEvent);
+    const own = getEntries().find(row => `${row.type}:${row.id}` === postId && (threaded || !row.timelineEvent));
     return own ? { ...own, authorId: ownerId, author: { nickname: '波段玩家1836' } } : samples.find(row => row.id === postId);
   };
   const targetRecord = (postId, target) => {
@@ -51,7 +52,7 @@ export function createReviewPublicPreview({ ownerId, getEntries, getImage, marke
   }))].map(row=>{const replies=mapReviewPublicReplies(row.replies,row.authorId);return {...row,replies,commentCount:replies.length+communityRows(row.id).length,liked:likes.get(row.id)===true,likeCount:row.likeCount+(likes.get(row.id)?1:0)};})
     .sort((a,b)=>b.date.localeCompare(a.date)||b.publishedAt.localeCompare(a.publishedAt)||b.id.localeCompare(a.id));
   const assertParent = postId => {
-    if (!posts().some(row => row.id === postId) && !getEntries().some(row => `${row.type}:${row.id}` === postId && !row.timelineEvent)) {
+    if (!posts().some(row => row.id === postId) && !getEntries().some(row => `${row.type}:${row.id}` === postId && (threaded || !row.timelineEvent))) {
       throw reviewJournalError('REVIEW_PUBLIC_NOT_FOUND', '这条动态已删除或改为私密。');
     }
   };
@@ -63,6 +64,7 @@ export function createReviewPublicPreview({ ownerId, getEntries, getImage, marke
   const notificationApi=notifications?createReviewNotificationPreview({ownerId,samples,evaluations,posts,readEvaluation,assertOwner}):{};
   return {
     ...notificationApi,
+    ...(threaded ? createReviewThreadPreview({ ownerId, getEntries, getCommunityRows: communityRows, getDeletedRows: postId => [...deletedEvaluations.values()].filter(row => row.postId === postId), sourceParent, assertParent, assertOwner }) : {}),
     setReviewPublicPreviewScenario(value) { refreshScenario = ['empty','published'].includes(value) ? value : ''; },
     // DEV-only external author action. It changes only this isolated data source;
     // the next list/detail/comment read must observe the withdrawal itself.
@@ -117,7 +119,7 @@ export function createReviewPublicPreview({ ownerId, getEntries, getImage, marke
       if (!existing) throw reviewJournalError('REVIEW_PUBLIC_NOT_FOUND', '评价已删除。');
       if (existing.authorId !== userId || existing.postId !== postId) throw reviewJournalError('REVIEW_PUBLIC_FORBIDDEN', '只能删除自己的评价。');
       if (existing.revision !== reply.revision) throw reviewJournalError('REVIEW_COMMUNITY_CONFLICT', '评价已被修改，请重新读取后再操作。');
-      deletedEvaluations.set(reply.id, { id: existing.id, postId: existing.postId, authorId: existing.authorId, revision: existing.revision });
+      deletedEvaluations.set(reply.id, { id: existing.id, postId: existing.postId, authorId: existing.authorId, author: existing.author, revision: existing.revision, createdAt: existing.createdAt, date: existing.date, replyTo: existing.replyTo });
       evaluations.delete(reply.id); return { id: reply.id, postId, deleted: true };
     },
     async setReviewPublicLike(id,liked,userId) {assertOwner(userId);if(!posts().some(row=>row.id===id))throw new Error('这条动态已撤回或删除');likes.set(id,liked===true);const row=posts().find(row=>row.id===id);return {postId:id,liked:row.liked,likeCount:row.likeCount};},
