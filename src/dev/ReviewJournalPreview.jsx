@@ -68,6 +68,14 @@ const readingLogs = [
 ];
 export default function ReviewJournalPreview({language,onBack,marketColorMode,navigationTab=false,reviewFeedUnread,reviewFeedUnreadPreview,reviewOpenAllRequest=0}) {
   const avatarCacheEnabled = new URLSearchParams(window.location.search).get('reviewAvatarCache') === '1';
+  const detailLoadingEnabled = new URLSearchParams(window.location.search).get('reviewDetailLoading') === '1';
+  const detailWaiters = React.useRef([]);
+  const [detailPending, setDetailPending] = React.useState(0);
+  const finishDetailReads = failed => {
+    const pending = detailWaiters.current.splice(0); setDetailPending(0);
+    pending.forEach(request => failed ? request.reject(new Error('模拟网络失败，请重试。')) : request.resolve());
+  };
+  React.useEffect(() => () => detailWaiters.current.splice(0).forEach(request => request.reject(new Error('预览已关闭'))), []);
   const initialLogs = new URLSearchParams(window.location.search).get('reviewPublicOwner') === '1' ? [{...evaluationLog,visibility:'public',publishedAt:'2026-11-08T04:00:00Z'},...seedLogs] : new URLSearchParams(window.location.search).get('reviewEvaluation') === '1' ? [evaluationLog,...seedLogs] : new URLSearchParams(window.location.search).get('reviewReading') === '1' ? [...readingLogs,...seedLogs] : seedLogs;
   const [disciplines,setDisciplines] = React.useState(seedInsights);
   const [reviewLogs,setReviewLogs] = React.useState(initialLogs);
@@ -82,6 +90,9 @@ export default function ReviewJournalPreview({language,onBack,marketColorMode,na
   React.useEffect(()=>()=>imageUrls.current.forEach(url=>URL.revokeObjectURL(url)),[]);
   const db = React.useMemo(()=>({
     ...createReviewPublicPreview({ownerId:OWNER,getEntries:()=>rows.current,getImage:path=>imageFiles.current.get(path),market:snapshot,notifications:true,threaded:true,
+      beforeReadPost: detailLoadingEnabled ? () => new Promise((resolve, reject) => {
+        detailWaiters.current.push({resolve,reject}); setDetailPending(detailWaiters.current.length);
+      }) : undefined,
       avatarCache: avatarCacheEnabled ? {onRequest:setAvatarStats,loadBlob:async asset=>{
         // Fixed repository assets, never arbitrary URLs or remote account media.
         const response=await fetch(asset);if(!response.ok)throw new Error('本地示例头像读取失败');return response.blob();
@@ -157,6 +168,12 @@ export default function ReviewJournalPreview({language,onBack,marketColorMode,na
   if(!import.meta.env.DEV)return null;
   const journal=<ReviewJournalPage key={avatarCacheEnabled?avatarPageVersion:'default'} ctx={{db,userId:OWNER,language,disciplines,reviewLogs,setDisciplines,setReviewLogs,stockTrades,onBack,marketColorMode,usdCny:7.12,fxDate:'2026-11-07T00:00:00Z',navigationTab,reviewPublicRefreshRef,reviewFeedUnread,reviewOpenAllRequest,previewData:{initialAllScope:avatarCacheEnabled?'public':new URLSearchParams(window.location.search).get('reviewScope')||undefined,timeline,initialTimeline:new URLSearchParams(window.location.search).get('reviewTimeline')==='1',identity:{nickname:'波段玩家1836',avatarKey:'gold'},history,market,account}}}/>;
   return <>
+    {detailLoadingEnabled&&<section aria-label="本地详情加载验收" style={{padding:'calc(env(safe-area-inset-top) + 12px) 16px 12px',fontSize:13,color:'#94a3b8',background:'#11151b'}}>
+      <strong>详情加载验收 · 本地示例，不写真实数据</strong>
+      <p role="status">待完成详情请求：{detailPending}。点开帖子后保持请求未完成，核对正文与评论是否已经显示。</p>
+      <button type="button" style={{padding:'10px 8px'}} onClick={()=>finishDetailReads(false)}>完成详情读取</button>
+      <button type="button" style={{padding:'10px 8px'}} onClick={()=>finishDetailReads(true)}>模拟详情网络失败</button>
+    </section>}
     {avatarCacheEnabled&&<section aria-label="本地头像缓存验收" style={{padding:'calc(env(safe-area-inset-top) + 12px) 16px 12px',fontSize:13,color:'#94a3b8',background:'#11151b'}}>
       <strong>头像缓存验收 · 本地示例，不写真实数据</strong>
       <p role="status">头像下载请求：{avatarStats.total} 次 · 当前头像版本：{avatarStats.version} · 本版本请求：{avatarStats.requests[avatarStats.path]||0} 次</p>
@@ -169,6 +186,7 @@ export default function ReviewJournalPreview({language,onBack,marketColorMode,na
     </section>}
     <details style={{padding:'calc(env(safe-area-inset-top) + 12px) 16px 12px',fontSize:13,color:'#94a3b8'}}>
       <summary>本地刷新验收 · 示例数据</summary>
+      <a href="?devPreview=1&tab=review-journal&reviewThreads=1&reviewScope=public&reviewDetailLoading=1" style={{display:'block',padding:'12px 8px'}}>正文即时显示与评论并行示例</a>
       <a href="?devPreview=1&tab=home&reviewUnread=1&reviewThreads=1&reviewScope=public" style={{display:'block',padding:'12px 8px'}}>评论与新帖提醒示例</a>
       <a href="?devPreview=1&tab=review-journal&reviewThreads=1&reviewScope=public&reviewAvatarCache=1" style={{display:'block',padding:'12px 8px'}}>头像缓存示例</a>
       <button type="button" style={{padding:'12px 8px'}} onClick={async()=>{db.setReviewPublicPreviewScenario('empty');await reviewPublicRefreshRef.current?.();setRefreshScenarioStatus('示例列表已清空');}}>清空示例公开列表</button>

@@ -8,6 +8,7 @@ import { normalizeReviewTradeReferences } from '../lib/reviewEvaluationModel.js'
 import ReviewActivityTime from './ReviewActivityTime.js';
 import ReviewCommentThreadList from './ReviewCommentThreads.jsx';
 import { reviewPublicAvatarCache } from '../lib/reviewPublicAvatarCache.js';
+import { reviewCommentAccessRevoked } from '../lib/reviewCommentThreads.js';
 import './ReviewPublicFeed.css';
 
 // Share only in-flight attachment downloads. Avatars use the separate bounded
@@ -88,7 +89,7 @@ export function PublicAvatar({ post, db, userId }) {
     : <img src={preset} alt="" draggable={false} />}</span>;
 }
 
-function PublicPost({ post, full = false, db, userId, language, onOpen, onLike, pending, error, onSelectSymbol, onManageOwnEntry, onOpenComments }) {
+function PublicPost({ post, full = false, db, userId, language, onOpen, onLike, pending, error, onSelectSymbol, onManageOwnEntry, onOpenComments, interactionsDisabled = false }) {
   const [expanded, setExpanded] = React.useState(false);
   const english = language.startsWith('en');
   const commentCount = post.commentCount ?? post.replies?.length ?? 0;
@@ -104,18 +105,30 @@ function PublicPost({ post, full = false, db, userId, language, onOpen, onLike, 
     }}>
     <PublicAvatar post={post} db={db} userId={userId} language={language} />
     <div className="rj-post-main">
-      <div className="rj-post-heading"><strong>{post.author?.nickname || (english ? 'Quote user' : 'Quote 用户')}</strong><span>·</span><ReviewActivityTime createdAt={post.publishedAt} date={post.date} language={language}/>{post.authorId === userId && typeof onManageOwnEntry === 'function' && <button type="button" className="rj-icon rj-post-more" aria-label={english ? 'Record actions' : '记录操作'} onClick={event => { event.stopPropagation(); onManageOwnEntry(post.type, post.sourceId); }}><MoreHorizontal size={19}/></button>}</div>
+      <div className="rj-post-heading"><strong>{post.author?.nickname || (english ? 'Quote user' : 'Quote 用户')}</strong><span>·</span><ReviewActivityTime createdAt={post.publishedAt} date={post.date} language={language}/>{post.authorId === userId && typeof onManageOwnEntry === 'function' && <button type="button" className="rj-icon rj-post-more" disabled={interactionsDisabled} aria-label={english ? 'Record actions' : '记录操作'} onClick={event => { event.stopPropagation(); if (!interactionsDisabled) onManageOwnEntry(post.type, post.sourceId); }}><MoreHorizontal size={19}/></button>}</div>
       <ReviewPostBody text={post.text} candidates={post.stocks} onSelectSymbol={onSelectSymbol} language={language} full={full} expanded={expanded} onToggle={() => setExpanded(value => !value)} />
       {!!post.images?.length && <div className={`rj-photo-grid rj-images-${post.images.length} rpf-images`}>{post.images.map(item => <span key={item.path} className="rpf-image"><PublicMedia db={db} userId={userId} path={item.path} language={language} /></span>)}</div>}
       {!!post.stocks?.length && <div className="rpf-symbols">{post.stocks.map(symbol => <button key={symbol} type="button" onClick={event => onSelectSymbol(symbol, event)}>${symbol}</button>)}</div>}
       {post.market && <SnapshotCard value={post.market} language={language} />}
-      <div className="rj-post-actions rpf-actions"><button type="button" className={`rpf-like${post.liked ? ' rpf-liked' : ''}`} aria-pressed={Boolean(post.liked)} disabled={pending}
-        aria-label={english ? `${post.liked ? 'Unlike' : 'Like'} · ${post.likeCount}` : `${post.liked ? '取消点赞' : '点赞'} · ${post.likeCount}`} onClick={() => onLike(post)}>
+      <div className="rj-post-actions rpf-actions"><button type="button" className={`rpf-like${post.liked ? ' rpf-liked' : ''}`} aria-pressed={Boolean(post.liked)} disabled={pending || interactionsDisabled}
+        aria-label={english ? `${post.liked ? 'Unlike' : 'Like'} · ${post.likeCount}` : `${post.liked ? '取消点赞' : '点赞'} · ${post.likeCount}`} onClick={() => { if (!interactionsDisabled) onLike(post); }}>
         <Heart size={19} fill={post.liked ? 'currentColor' : 'none'} />{post.likeCount > 0 && <span>{post.likeCount.toLocaleString()}</span>}
       </button><button type="button" aria-label={english ? 'View comments' : '查看评论'} onClick={event => { event.stopPropagation(); onOpenComments?.(post, event); }}><MessageCircle size={19}/><span>{commentCount || (english ? 'Comment' : '评论')}</span></button></div>
       {error && <p className="rpf-inline-error" role="alert">{error}</p>}
     </div>
   </article>;
+}
+
+function PublicDetailSkeleton({ language }) {
+  return <div className="rpf-detail-skeleton" role="status" aria-label={language.startsWith('en') ? 'Loading post' : '正在读取博文'} aria-busy="true">
+    <div className="rpf-skeleton-avatar" aria-hidden="true"/><div className="rpf-skeleton-body" aria-hidden="true"><span className="rpf-skeleton-byline"/><span/><span/><span/><span className="rpf-skeleton-short"/></div>
+  </div>;
+}
+
+function PublicCommentsSkeleton({ language }) {
+  return <div className="rpf-comments-skeleton" role="status" aria-label={language.startsWith('en') ? 'Loading comments' : '正在读取评论'} aria-busy="true">
+    {[0, 1].map(index => <div className="rpf-skeleton-comment" key={index} aria-hidden="true"><span className="rpf-skeleton-avatar"/><div className="rpf-skeleton-body"><span className="rpf-skeleton-byline"/><span/><span className="rpf-skeleton-short"/></div></div>)}
+  </div>;
 }
 
 export function ReplyBody({ children, onReply, language = 'zh' }) {
@@ -228,24 +241,30 @@ export function ReviewCommentThreads({ postId, db, userId, language = 'zh', mark
     </>}/>;
 }
 
-function PublicReplies({ post, db, userId, language, marketColorMode, onSelectSymbol, onEvaluateOwnEntry, onManageOwnReply, onEvaluateCommunityEntry, onManageCommunityReply, onReplyToReview, onCommunityCountChange, sectionRef, notificationTarget }) {
+function PublicReplies({ post, db, userId, language, marketColorMode, onSelectSymbol, onEvaluateOwnEntry, onManageOwnReply, onEvaluateCommunityEntry, onManageCommunityReply, onReplyToReview, onCommunityCountChange, sectionRef, notificationTarget, interactionsDisabled = false, onAccessRevoked }) {
   const english = language.startsWith('en'), ownPost = post.authorId === userId, replies = post.replies || [];
-  const [loadedCount,setLoadedCount]=React.useState({post:null,count:0});
-  const count = loadedCount.post===post?(loadedCount.totalCount ?? replies.length+loadedCount.count):post.commentCount ?? replies.length;
+  const countKey = JSON.stringify([userId, post.id, post.updatedAt, post.commentCount ?? '']);
+  const [loadedCount,setLoadedCount]=React.useState({key:'',count:0});
+  const count = loadedCount.key===countKey?(loadedCount.totalCount ?? replies.length+loadedCount.count):post.commentCount ?? replies.length;
   const evaluate = ownPost ? typeof onEvaluateOwnEntry === 'function' ? () => onEvaluateOwnEntry(post.type, post.sourceId) : null
     : typeof onEvaluateCommunityEntry === 'function' ? () => onEvaluateCommunityEntry(post) : null;
   if (typeof db.fetchReviewCommentThreads === 'function') return <section ref={sectionRef} className="rj-replies rpf-replies" aria-label={english ? 'Comments' : '评论'}>
-    <div className="rj-replies-header"><h2>{english ? 'Comments' : '评论'}{count ? ` · ${count}` : ''}</h2>{evaluate && <button type="button" className="rj-evaluate-button" onClick={evaluate}>{english ? 'Write review' : '写评价'}</button>}</div>
+    <div className="rj-replies-header"><h2>{english ? 'Comments' : '评论'}{count ? ` · ${count}` : ''}</h2>{evaluate && <button type="button" className="rj-evaluate-button" disabled={interactionsDisabled} onClick={() => { if (!interactionsDisabled) evaluate(); }}>{english ? 'Write review' : '写评价'}</button>}</div>
     <ReviewCommentThreads postId={post.id} db={db} userId={userId} language={language} marketColorMode={marketColorMode} onSelectSymbol={onSelectSymbol}
       refreshToken={`${post.updatedAt}:${post.commentCount ?? ''}`} showEmpty notificationTarget={notificationTarget}
-      onCountChange={(postId, communityCount, totalCount) => { setLoadedCount({ post, count: communityCount, totalCount }); onCommunityCountChange?.(postId, communityCount); }}
+      interactionsDisabled={interactionsDisabled} onAccessRevoked={onAccessRevoked} loadingPlaceholder={<PublicCommentsSkeleton language={language}/>}
+      onCountChange={(postId, communityCount, totalCount) => { setLoadedCount({ key: countKey, count: communityCount, totalCount }); onCommunityCountChange?.(postId, communityCount); }}
       onManageReply={reply => reply.kind === 'author' ? onManageOwnReply?.(post.type, post.sourceId, reply.id) : onManageCommunityReply?.(post, reply)}
       onReply={onReplyToReview ? reply => onReplyToReview(post, { kind: reply.kind, id: reply.id, authorId: reply.authorId, nickname: reply.author?.nickname, available: true }) : undefined}/>
   </section>;
   // Compatibility for isolated legacy fixtures; formal DB always provides the
   // threaded RPC and never falls back after a permission or network failure.
+  if (interactionsDisabled) return <section ref={sectionRef} className="rj-replies rpf-replies" aria-label={english ? 'Comments' : '评论'}>
+    <div className="rj-replies-header"><h2>{english ? 'Comments' : '评论'}{count ? ` · ${count}` : ''}</h2>{evaluate && <button type="button" className="rj-evaluate-button" disabled>{english ? 'Write review' : '写评价'}</button>}</div>
+    <PublicCommentsSkeleton language={language}/>
+  </section>;
   return <section ref={sectionRef} className="rj-replies rpf-replies" aria-label={english ? 'Comments' : '评论'}>
-    <div className="rj-replies-header"><h2>{english ? 'Comments' : '评论'}{count ? ` · ${count}` : ''}</h2>{evaluate && <button type="button" className="rj-evaluate-button" onClick={evaluate}>{english ? 'Write review' : '写评价'}</button>}</div>
+    <div className="rj-replies-header"><h2>{english ? 'Comments' : '评论'}{count ? ` · ${count}` : ''}</h2>{evaluate && <button type="button" className="rj-evaluate-button" disabled={interactionsDisabled} onClick={() => { if (!interactionsDisabled) evaluate(); }}>{english ? 'Write review' : '写评价'}</button>}</div>
     {replies.map(reply => <div className="rj-reply" key={reply.id} data-rj-reply-id={reply.id}><PublicAvatar post={post} db={db} userId={userId} language={language}/><div><div className="rev-reply-byline"><button type="button" className="rpf-reply-author" disabled={!onReplyToReview} onClick={()=>onReplyToReview?.(post,{kind:'author',id:reply.id,authorId:post.authorId,nickname:post.author?.nickname,available:true})}>{post.author?.nickname || (english ? 'Quote user' : 'Quote 用户')}</button><span>·</span><ReviewActivityTime createdAt={reply.createdAt} date={reply.date} language={language}/>{ownPost && typeof onManageOwnReply === 'function' && <button type="button" className="rj-icon rj-reply-more" aria-label={english ? 'Comment actions' : '评论操作'} onClick={() => onManageOwnReply(post.type, post.sourceId, reply.id)}><MoreHorizontal size={19}/></button>}</div>
       {!reply.replyTo&&<EvaluationRating score={reply.score} tags={reply.tags || []}/>}
       {reply.text && <ReplyBody onReply={onReplyToReview ? ()=>onReplyToReview(post,{kind:'author',id:reply.id,authorId:post.authorId,nickname:post.author?.nickname,available:true}) : undefined} language={language}><ReviewPostBody text={reply.text} candidates={reply.stocks || []} onSelectSymbol={onSelectSymbol} language={language} full/></ReplyBody>}
@@ -257,7 +276,7 @@ function PublicReplies({ post, db, userId, language, marketColorMode, onSelectSy
       {!!reply.trades?.length && <PublicTradeReferences trades={reply.trades} language={language}/>}
       {onReplyToReview && <button type="button" className="rpf-reply-action" onClick={()=>onReplyToReview(post,{kind:'author',id:reply.id,authorId:post.authorId,nickname:post.author?.nickname,available:true})}>{english ? 'Reply' : '回复'}</button>}
     </div></div>)}
-    <ReviewCommunityEvaluations notificationTarget={notificationTarget} postId={post.id} db={db} userId={userId} language={language} marketColorMode={marketColorMode} onSelectSymbol={onSelectSymbol} refreshToken={`${post.updatedAt}:${post.commentCount??''}`} showEmpty={!replies.length} onCountChange={(postId,total)=>{setLoadedCount({post,count:total});onCommunityCountChange?.(postId,total);}} onManageReply={reply => onManageCommunityReply?.(post, reply)} onReply={onReplyToReview ? reply => onReplyToReview(post, {kind:'community',id:reply.id,authorId:reply.authorId,nickname:reply.author?.nickname,available:true}) : undefined}/>
+    <ReviewCommunityEvaluations notificationTarget={notificationTarget} postId={post.id} db={db} userId={userId} language={language} marketColorMode={marketColorMode} onSelectSymbol={onSelectSymbol} refreshToken={`${post.updatedAt}:${post.commentCount??''}`} showEmpty={!replies.length} onCountChange={(postId,total)=>{setLoadedCount({key:countKey,count:total});onCommunityCountChange?.(postId,total);}} onManageReply={reply => onManageCommunityReply?.(post, reply)} onReply={onReplyToReview ? reply => onReplyToReview(post, {kind:'community',id:reply.id,authorId:reply.authorId,nickname:reply.author?.nickname,available:true}) : undefined}/>
   </section>;
 }
 
@@ -294,6 +313,7 @@ function ScopedPublicFeed({ db, userId, language = 'zh', marketColorMode, query 
   const [notificationContext,setNotificationContext]=React.useState(null), handledOpen=React.useRef(null);
   const currentDetail = detail?.scopeKey === scopeKey ? detail : null;
   const readyPost = currentDetail?.requestKey === feedKey && currentDetail.status === 'ready' ? currentDetail.post : null;
+  const visiblePost = currentDetail?.requestKey === feedKey && ['preview', 'ready'].includes(currentDetail.status) ? currentDetail.post : null;
   const detailId = React.useRef(null); detailId.current = currentDetail?.id || null;
   const detailCallback = React.useRef(onDetailChange); detailCallback.current = onDetailChange;
   const alive = React.useRef(true), paging = React.useRef(false), pendingLikes = React.useRef(new Set()), likeVersions = React.useRef(new Map()), withdrawn = React.useRef(new Map());
@@ -310,7 +330,7 @@ function ScopedPublicFeed({ db, userId, language = 'zh', marketColorMode, query 
   const commentsRef = React.useRef(null), pendingComments = React.useRef(false);
   const historyToken = React.useRef(null), historyRoutes = React.useRef(new Map()), navigation = React.useRef(null);
   if (!historyToken.current) historyToken.current = crypto.randomUUID();
-  navigation.current = { scopeKey, feedKey };
+  navigation.current = { scopeKey, feedKey, posts: feed.key === feedKey ? feed.posts : [] };
   const restoreListPosition = () => requestAnimationFrame(() => window.scrollTo({ top: scrollPosition.current, behavior: 'auto' }));
   React.useEffect(() => {
     const onPopState = event => {
@@ -318,7 +338,8 @@ function ScopedPublicFeed({ db, userId, language = 'zh', marketColorMode, query 
       const route = state?.token === historyToken.current ? historyRoutes.current.get(state.id) : null;
       if (route?.scopeKey === navigation.current.scopeKey && !withdrawn.current.has(route.id)) {
         setNotificationContext(route.notification||null);
-        setDetail({ ...route, requestKey: navigation.current.feedKey, status: 'loading', post: null, error: '' });
+        const preview = navigation.current.posts.find(post => post.id === route.id) || null;
+        setDetail({ ...route, requestKey: navigation.current.feedKey, status: preview ? 'preview' : 'loading', post: preview, error: '' });
         window.scrollTo({ top: 0, behavior: 'auto' });
       } else if (detailId.current) { setDetail(null); restoreListPosition(); }
     };
@@ -334,10 +355,10 @@ function ScopedPublicFeed({ db, userId, language = 'zh', marketColorMode, query 
   React.useEffect(() => { alive.current = true; return () => { alive.current = false; detailCallback.current?.(false, null); }; }, []);
   React.useEffect(() => { detailCallback.current?.(Boolean(currentDetail), readyPost); }, [Boolean(currentDetail), readyPost]);
   React.useEffect(() => {
-    if (!readyPost || !pendingComments.current) return;
+    if (!visiblePost || !pendingComments.current) return;
     pendingComments.current = false;
     requestAnimationFrame(() => commentsRef.current?.scrollIntoView({ block: 'start', behavior: 'auto' }));
-  }, [readyPost]);
+  }, [visiblePost]);
   React.useEffect(() => {
     setDetail(null); historyRoutes.current.clear(); pendingComments.current = false;
     if (window.history?.state?.reviewPublicEntry?.token === historyToken.current) {
@@ -364,6 +385,23 @@ function ScopedPublicFeed({ db, userId, language = 'zh', marketColorMode, query 
   const markWithdrawn = id => {
     const epoch = ++withdrawalEpoch.current;
     withdrawalHistory.current.set(id, epoch); withdrawn.current.set(id, epoch);
+  };
+  const revokeDetailAccess = (id, failure = null) => {
+    if (!isCurrent()) return;
+    markWithdrawn(id);
+    setFeed(old => ({ ...old, posts: old.posts.filter(item => item.id !== id) }));
+    setLikes(old => { const next = { ...old }; delete next[id]; return next; });
+    if (detailId.current !== id) return;
+    // A comment denial can arrive before an older successful detail response.
+    // Invalidate that response before clearing either piece of visible content.
+    detailSerial.current += 1; detailRequest.current = null;
+    const unavailable = !failure || failure.code === 'REVIEW_PUBLIC_NOT_FOUND';
+    // These errors can mean only the linked comment was deleted. Do not claim
+    // the post is private, and drop that obsolete locator before manual retry.
+    if (['REVIEW_INTERACTION_NOT_FOUND', 'REVIEW_NOTIFICATION_NOT_FOUND'].includes(failure?.code)) {
+      setNotificationContext(old => old?.postId === id ? { ...old, commentId: null } : old);
+    }
+    setDetail({ id, scopeKey, requestKey: feedKey, status: unavailable ? 'missing' : 'error', post: null, error: unavailable ? '' : errorMessage(failure, english) });
   };
   const readFeed = ({ preserveTail = false } = {}) => {
     if (feedRequest.current?.key === feedKey) {
@@ -408,28 +446,33 @@ function ScopedPublicFeed({ db, userId, language = 'zh', marketColorMode, query 
     feedRequest.current = request;
     return request.promise;
   };
-  const readDetail = (id, hidePrevious = false) => {
+  const readDetail = id => {
     if (detailRequest.current?.key === feedKey && detailRequest.current.id === id) return detailRequest.current.promise;
     const serial = ++detailSerial.current;
     const versions = new Map(likeVersions.current), pendingAtStart = new Set(pendingLikes.current);
     const withdrawalAtStart = withdrawalHistory.current.get(id);
     const detailContext = { id, scopeKey, requestKey: feedKey };
-    if (hidePrevious) setDetail({ ...detailContext, status: 'loading', post: null, error: '' });
+    setDetail(previous => {
+      const retained = previous?.id === id && previous.requestKey === feedKey && ['preview', 'ready'].includes(previous.status) ? previous.post : null;
+      return { ...detailContext, status: retained ? previous.status : 'loading', post: retained, error: '' };
+    });
     const request = { key: feedKey, id, promise: null };
     request.promise = Promise.resolve().then(() => db.fetchReviewPublicPost(id, userId)).then(post => {
       if (!isCurrent() || serial !== detailSerial.current || detailId.current !== id) return;
       if (!post) {
-        markWithdrawn(id);
-        setFeed(old => ({ ...old, posts: old.posts.filter(item => item.id !== id) }));
-        setDetail({ ...detailContext, status: 'missing', post: null, error: '' }); return;
+        revokeDetailAccess(id); return;
       }
       if (!restorePublication(id, withdrawalAtStart)) return;
       setDetail({ ...detailContext, status: 'ready', post, error: '' });
       setFeed(old => ({ ...old, posts: old.posts.map(item => item.id === id ? post : item) }));
       reconcileLikes([post], versions, pendingAtStart);
     }).catch(failure => {
-      if (!isCurrent() || serial !== detailSerial.current || detailId.current !== id || withdrawn.current.has(id)) return;
-      setDetail({ ...detailContext, status: 'error', post: null, error: errorMessage(failure, english) });
+      if (!isCurrent() || serial !== detailSerial.current || detailId.current !== id || withdrawalHistory.current.get(id) !== withdrawalAtStart) return;
+      if (reviewCommentAccessRevoked(failure)) revokeDetailAccess(id, failure);
+      else setDetail(previous => {
+        const retained = previous?.id === id && previous.requestKey === feedKey && ['preview', 'ready'].includes(previous.status) ? previous.post : null;
+        return { ...detailContext, status: retained ? previous.status : 'error', post: retained, error: errorMessage(failure, english) };
+      });
       throw failure;
     }).finally(() => { if (detailRequest.current === request) detailRequest.current = null; });
     detailRequest.current = request;
@@ -467,7 +510,7 @@ function ScopedPublicFeed({ db, userId, language = 'zh', marketColorMode, query 
 
   React.useEffect(() => {
     if (!currentDetail?.id || !canRefresh()) return undefined;
-    readDetail(currentDetail.id, true).catch(() => {});
+    readDetail(currentDetail.id).catch(() => {});
     return () => { detailSerial.current += 1; detailRequest.current = null; };
   }, [db, userId, currentDetail?.id, detailRetry, feedKey]);
 
@@ -514,6 +557,7 @@ function ScopedPublicFeed({ db, userId, language = 'zh', marketColorMode, query 
   };
   const display = post => ({ ...post, ...(likes[post.id] || {}) });
   const like = async post => {
+    if (detailId.current === post.id && !readyPost) return;
     if (pendingLikes.current.has(post.id)) return;
     const id = post.id, before = { liked: Boolean(post.liked), likeCount: post.likeCount };
     const liked = !before.liked;
@@ -525,11 +569,8 @@ function ScopedPublicFeed({ db, userId, language = 'zh', marketColorMode, query 
       setLikes(old => ({ ...old, [id]: { liked: result.liked, likeCount: result.likeCount, pending: false, error: '' } }));
     } catch (failure) {
       if (!isCurrent()) return;
-      if (failure?.code === 'REVIEW_PUBLIC_NOT_FOUND') {
-        markWithdrawn(id);
-        setFeed(old => ({ ...old, posts: old.posts.filter(item => item.id !== id), error: english ? 'This post is no longer public.' : '这条博文已不再公开。' }));
-        setLikes(old => { const next = { ...old }; delete next[id]; return next; });
-        if (detailId.current === id) setDetail({ id, scopeKey, requestKey: feedKey, status: 'missing', post: null, error: '' });
+      if (reviewCommentAccessRevoked(failure)) {
+        revokeDetailAccess(id, failure);
         return;
       }
       setLikes(old => ({ ...old, [id]: { ...before, pending: false, error: errorMessage(failure, english) } }));
@@ -537,9 +578,10 @@ function ScopedPublicFeed({ db, userId, language = 'zh', marketColorMode, query 
     } finally { if (isCurrent()) pendingLikes.current.delete(id); }
   };
   const open = (post, comments = false, notification = null) => {
+    if (!isCurrent()) return;
     setNotificationContext(notification);
     pendingComments.current = comments;
-    if (currentDetail?.id === post.id && readyPost) {
+    if (currentDetail?.id === post.id && visiblePost) {
       if (comments) { pendingComments.current = false; commentsRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' }); }
       return;
     }
@@ -547,7 +589,10 @@ function ScopedPublicFeed({ db, userId, language = 'zh', marketColorMode, query 
     const route = { id: post.id, scopeKey, notification };
     historyRoutes.current.set(post.id, route);
     try { window.history?.pushState({ ...window.history.state, ...(notification?.journalRoute?{reviewJournalEntry:notification.journalRoute}:{}), reviewPublicEntry: { token: historyToken.current, id: post.id } }, ''); } catch { /* The local return button remains usable if history is unavailable. */ }
-    setDetail({ id: post.id, scopeKey, requestKey: feedKey, post: null, status: 'loading', error: '' });
+    // Only the current account/scope's visible feed can seed this preview. The
+    // passed object may be just a notification ID, or an obsolete click closure.
+    const preview = feed.key === feedKey && !withdrawn.current.has(post.id) ? feed.posts.find(item => item.id === post.id) || null : null;
+    setDetail({ id: post.id, scopeKey, requestKey: feedKey, post: preview, status: preview ? 'preview' : 'loading', error: '' });
     window.scrollTo({ top: 0, behavior: 'auto' });
   };
   React.useEffect(()=>{
@@ -566,7 +611,7 @@ function ScopedPublicFeed({ db, userId, language = 'zh', marketColorMode, query 
     window.scrollTo({ top: 0, behavior: 'auto' });
   };
   const postNode = (post, full = false) => <PublicPost key={post.id} post={display(post)} full={full} db={db} userId={userId} language={language} onOpen={open} onLike={like}
-    pending={Boolean(likes[post.id]?.pending)} error={likes[post.id]?.error || ''} onSelectSymbol={selectSymbol} onManageOwnEntry={onManageOwnEntry} onOpenComments={post => open(post, true)} />;
+    pending={Boolean(likes[post.id]?.pending)} interactionsDisabled={full && !readyPost} error={likes[post.id]?.error || ''} onSelectSymbol={selectSymbol} onManageOwnEntry={onManageOwnEntry} onOpenComments={post => open(post, true)} />;
   const ownedFeed = feed.key === feedKey ? feed : blankFeed(feedKey);
   const detailStatus = currentDetail?.requestKey === feedKey ? currentDetail.status : 'loading';
   React.useEffect(() => {
@@ -579,8 +624,10 @@ function ScopedPublicFeed({ db, userId, language = 'zh', marketColorMode, query 
   }, [ownedFeed, currentDetail, active, query, symbol, localSymbol, feedKey]);
   return <section className="rpf-feed" aria-label={english ? 'Public activity' : '公开动态'}>
     {currentDetail ? <div className="rpf-detail"><header className="rj-page-header rpf-detail-header"><button type="button" className="rj-icon" onClick={back} aria-label={notificationContext ? (english?'Back to messages':'返回消息') : english ? 'Back to public activity' : '返回公开动态'}><ArrowLeft size={22} /></button><h1>{english ? 'Journal Entry' : '复盘记录'}</h1><span className="rj-header-spacer" aria-hidden="true" /></header>
-      {detailStatus === 'loading' && <p className="rpf-status" role="status"><Loader2 size={18} className="rj-spin" />{english ? 'Loading post…' : '正在读取博文…'}</p>}
-      {detailStatus === 'ready' && currentDetail.post && <div className="rj-entry-content">{postNode(currentDetail.post, true)}<PublicReplies post={currentDetail.post} db={db} userId={userId} language={language} marketColorMode={marketColorMode} onSelectSymbol={selectSymbol} onEvaluateOwnEntry={onEvaluateOwnEntry} onManageOwnReply={onManageOwnReply} onEvaluateCommunityEntry={onEvaluateCommunityEntry} onManageCommunityReply={onManageCommunityReply} onReplyToReview={onReplyToReview} onCommunityCountChange={onCommunityCountChange} sectionRef={commentsRef} notificationTarget={notificationContext?.postId===currentDetail.id&&notificationContext.commentId?notificationContext:null}/></div>}
+      {detailStatus === 'loading' && <PublicDetailSkeleton language={language}/>}
+      {visiblePost && <div className="rj-entry-content">{postNode(visiblePost, true)}
+        {currentDetail.error && <div className="rpf-detail-retry rpf-inline-error" role="alert"><p>{currentDetail.error}</p><button type="button" className="rj-text-button" onClick={() => setDetailRetry(value => value + 1)}>{english ? 'Retry' : '重试'}</button></div>}
+        <PublicReplies post={visiblePost} db={db} userId={userId} language={language} marketColorMode={marketColorMode} onSelectSymbol={selectSymbol} onEvaluateOwnEntry={onEvaluateOwnEntry} onManageOwnReply={onManageOwnReply} onEvaluateCommunityEntry={onEvaluateCommunityEntry} onManageCommunityReply={onManageCommunityReply} onReplyToReview={onReplyToReview} onCommunityCountChange={onCommunityCountChange} sectionRef={commentsRef} interactionsDisabled={!readyPost} onAccessRevoked={failure => revokeDetailAccess(visiblePost.id, failure)} notificationTarget={notificationContext?.postId===currentDetail.id&&notificationContext.commentId?notificationContext:null}/></div>}
       {detailStatus === 'missing' && <p className="rpf-status" role="status">{english ? 'This post is no longer public.' : '这条博文已不再公开。'}</p>}
       {detailStatus === 'error' && <div className="rpf-status" role="alert"><p>{currentDetail.error}</p><button type="button" onClick={() => setDetailRetry(value => value + 1)}>{english ? 'Retry' : '重试'}</button></div>}
     </div> : <>

@@ -73,6 +73,113 @@ test('thread roots are collapsed, replies load on demand and stay exactly one vi
   button(tree,'查看 2 条回复').props.onClick(); tree=h.render(); await flush(); assert.equal(h.requests.length,2,'reopening an unchanged thread reuses its verified page'); h.unmount();
 });
 
+test('read-only detail previews load comments immediately but enable mutations only after detail verification', async () => {
+  const h = await harness({ interactionsDisabled: true });
+  let tree = h.render(); await flush();
+  assert.equal(h.requests.length, 1, 'the comments reader starts on mount without a verified parent response');
+  assert.deepEqual(h.requests[0].args, [{ postId: 'log:1', limit: 20, cursor: null }, 'viewer']);
+  h.requests[0].resolve(roots([{ root: comment('owned', { authorId: 'viewer' }), replyCount: 0 }])); await flush(); tree = h.render();
+  assert.equal(rows(tree).length, 1, 'an independently authorized comment read may be displayed');
+  for (const name of ['点赞山间慢行的评论 · 12', '回复山间慢行 · 0 条回复', '评论操作', '山间慢行']) {
+    const action = button(tree, name);
+    assert.ok(!action || action.props.disabled, `${name} cannot write while the parent is a preview`);
+  }
+  assert.equal(h.requests.length, 1);
+  assert.equal(h.repliesTo.length, 0); assert.equal(h.managed.length, 0);
+  tree = h.render({ interactionsDisabled: false }); await flush();
+  assert.equal(h.requests.length, 1, 'authorizing the same parent does not refetch unchanged comments');
+  const like = button(tree, '点赞山间慢行的评论 · 12'); assert.ok(like && !like.props.disabled);
+  like.props.onClick(); await flush();
+  assert.equal(h.requests.filter(request => request.kind === 'like').length, 1);
+  h.unmount();
+});
+
+test('a comments permission failure informs the parent once and blocks older reply pages from returning', async () => {
+  const revoked = [], h = await harness({ showEmpty: true, onAccessRevoked: error => revoked.push(error) });
+  const root = comment('root');
+  let tree = await h.load(roots([{ root, replyCount: 1 }], { hasMore: true, nextCursor: cursorFor(root) }));
+  button(tree, '查看 1 条回复').props.onClick(); tree = h.render(); await flush();
+  const olderReplies = h.requests.find(request => request.kind === 'children');
+  button(tree, '更多评论').props.onClick(); await flush();
+  const failure = Object.assign(new Error('父帖已不再可见'), { code: 'REVIEW_INTERACTION_FORBIDDEN' });
+  h.requests.filter(request => request.kind === 'roots').at(-1).reject(failure); await flush(); tree = h.render();
+  assert.deepEqual(revoked, [failure]);
+  assert.equal(rows(tree).length, 0);
+  assert.doesNotMatch(words(tree), /还没有评论/);
+  olderReplies.resolve(replies([comment('LATE_PRIVATE_REPLY')])); await flush(); tree = h.render();
+  assert.equal(rows(tree).length, 0); assert.doesNotMatch(words(tree), /LATE_PRIVATE_REPLY/);
+  assert.equal(revoked.length, 1);
+  h.unmount();
+});
+
+test('a comment network failure remains retryable and does not report parent access revocation', async () => {
+  const revoked = [], h = await harness({ showEmpty: true, onAccessRevoked: error => revoked.push(error) });
+  h.render(); await flush(); h.requests[0].reject(new Error('评论网络暂时不可用')); await flush();
+  let tree = h.render(); assert.deepEqual(revoked, []);
+  assert.match(words(tree), /评论网络暂时不可用/); assert.doesNotMatch(words(tree), /还没有评论/);
+  button(tree, '重新读取').props.onClick(); h.render(); await flush();
+  h.requests.filter(request => request.kind === 'roots').at(-1).resolve(roots([{ root: comment('recovered'), replyCount: 0 }]));
+  await flush(); tree = h.render(); assert.equal(rows(tree).length, 1); assert.deepEqual(revoked, []);
+  h.unmount();
+});
+
+test('a missing notification or located comment invalidates parent content without classifying why access failed', async () => {
+  for (const removed of ['notification', 'located-comment']) {
+    const revoked = [], h = await harness({ showEmpty: true, notificationTarget: { notificationId: 'notice', commentId: 'removed' },
+      onAccessRevoked: error => revoked.push(error) });
+    h.render(); await flush();
+    const notification = h.requests.find(request => request.kind === 'notification');
+    if (removed === 'notification') {
+      notification.reject(Object.assign(new Error('此通知对应的评论已删除'), { code: 'REVIEW_NOTIFICATION_NOT_FOUND' }));
+    } else {
+      notification.resolve({ postId: 'log:1', commentId: 'removed' }); await flush();
+      h.requests.find(request => request.kind === 'roots' && request.args[0].locate)
+        .reject(Object.assign(new Error('定位的评论已删除'), { code: 'REVIEW_INTERACTION_NOT_FOUND' }));
+    }
+    h.requests.find(request => request.kind === 'roots' && !request.args[0].locate).resolve(roots([{ root: comment('still-public'), replyCount: 0 }]));
+    await flush(); const tree = h.render();
+    assert.equal(revoked.length, 1, 'a missing target may also indicate that its parent became private');
+    assert.equal(revoked[0].code, removed === 'notification' ? 'REVIEW_NOTIFICATION_NOT_FOUND' : 'REVIEW_INTERACTION_NOT_FOUND');
+    assert.match(words(tree), /评论已删除/);
+    assert.doesNotMatch(words(tree), /还没有评论|已不再公开|已改为私密/);
+    h.unmount();
+  }
+});
+
+test('a missing parent from the ordinary root-list request does revoke the detail', async () => {
+  const revoked = [], h = await harness({ showEmpty: true, onAccessRevoked: error => revoked.push(error) });
+  h.render(); await flush();
+  const failure = Object.assign(new Error('博文已删除'), { code: 'REVIEW_INTERACTION_NOT_FOUND' });
+  h.requests.find(request => request.kind === 'roots').reject(failure); await flush(); const tree = h.render();
+  assert.deepEqual(revoked, [failure]); assert.equal(rows(tree).length, 0);
+  assert.match(words(tree), /博文已删除/); assert.doesNotMatch(words(tree), /还没有评论/);
+  h.unmount();
+});
+
+test('ambiguous missing replies and like targets revoke stale parent content and block concurrent root pages', async () => {
+  for (const operation of ['children', 'like']) {
+    const revoked = [], h = await harness({ showEmpty: true, onAccessRevoked: error => revoked.push(error) });
+    const root = comment('root');
+    let tree = await h.load(roots([{ root, replyCount: 1 }], { hasMore: true, nextCursor: cursorFor(root) }));
+    button(tree, '更多评论').props.onClick(); await flush();
+    const oldPage = h.requests.filter(request => request.kind === 'roots').at(-1);
+    if (operation === 'children') {
+      button(tree, '查看 1 条回复').props.onClick(); tree = h.render(); await flush();
+    } else {
+      button(tree, '点赞山间慢行的评论 · 12').props.onClick(); await flush();
+    }
+    const failure = Object.assign(new Error('评论对象不可访问，请重试'), { code: 'REVIEW_INTERACTION_NOT_FOUND' });
+    h.requests.find(request => request.kind === operation).reject(failure); await flush(); tree = h.render();
+    assert.deepEqual(revoked, [failure], operation);
+    assert.equal(rows(tree).length, 0);
+    assert.match(words(tree), /评论对象不可访问，请重试/);
+    assert.doesNotMatch(words(tree), /已不再公开|已改为私密|还没有评论/);
+    oldPage.resolve(roots([{ root: comment('LATE_POSSIBLY_PRIVATE'), replyCount: 0 }])); await flush(); tree = h.render();
+    assert.equal(rows(tree).length, 0); assert.doesNotMatch(words(tree), /LATE_POSSIBLY_PRIVATE/);
+    h.unmount();
+  }
+});
+
 test('comment likes serialize taps, confirm server counts and rollback a failed mutation', async () => {
   const h=await harness(); let tree=await h.load(roots([{root:comment('a'),replyCount:0}]));
   button(tree,'点赞山间慢行的评论 · 12').props.onClick(); button(tree,'点赞山间慢行的评论 · 12').props.onClick(); await flush();

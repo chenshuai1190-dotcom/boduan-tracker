@@ -64,6 +64,7 @@ async function harness() {
       import { getCommunityAvatarOption } from ${JSON.stringify(new URL('../src/lib/communityProfile.js', import.meta.url).href)};
       import { normalizeReviewTradeReferences } from ${JSON.stringify(new URL('../src/lib/reviewEvaluationModel.js', import.meta.url).href)};
       import { createReviewPublicAvatarCache } from ${JSON.stringify(new URL('../src/lib/reviewPublicAvatarCache.js', import.meta.url).href)};
+      import { reviewCommentAccessRevoked } from ${JSON.stringify(new URL('../src/lib/reviewCommentThreads.js', import.meta.url).href)};
       const fixture = globalThis[${JSON.stringify(key)}];
       const React = { ...ActualReact, useState: fixture.useState, useRef: fixture.useRef, useEffect: fixture.useEffect };
       const { window, document, Date, requestAnimationFrame, Blob, Image, URL, setTimeout, clearTimeout } = fixture;
@@ -73,7 +74,7 @@ async function harness() {
       const EvaluationRating = () => React.createElement('div', null, '评分及标签');
       const ReviewAccountCard = () => React.createElement('section', null, '账户快照');
       ${source.slice(source.indexOf('// Share only in-flight'))}
-      export { ReviewActivityTime, ScopedPublicFeed, PublicPost, PublicReplies, PublicTradeReferences, PublicMedia, PublicAvatarMedia, reviewPublicAvatarCache, ReviewPostBody, EvaluationRating, ReviewAccountCard, SnapshotCard };
+      export { ReviewActivityTime, ScopedPublicFeed, PublicPost, PublicReplies, PublicDetailSkeleton, PublicTradeReferences, PublicMedia, PublicAvatarMedia, reviewPublicAvatarCache, ReviewPostBody, EvaluationRating, ReviewAccountCard, SnapshotCard };
     `, 'ReviewPublicFeedUITest.jsx', { jsx: { runtime: 'classic' } });
     components = await import(`data:text/javascript;base64,${Buffer.from(compiled.code).toString('base64')}`);
   } finally { delete globalThis[key]; }
@@ -81,6 +82,7 @@ async function harness() {
   const render = (component, values) => { cursor = 0; effects = []; const tree = component(values); for (const node of walk(tree)) if (node.type === components.PublicReplies) node.props.sectionRef.current = { scrollIntoView: value => commentScrolls.push(value) }; for (const effect of effects) effect(); return tree; };
   return { db, props, components, requests, images, created, revoked, timers, detailChanges, detailNotifications, scrolls, commentScrolls, history: fixture.window.history, refreshRef,
     advance(ms) { now += ms; },
+    setScroll(value) { fixture.window.scrollY = value; },
     dispatch(type) { for (const listener of listeners.get(type) || []) listener({ type }); },
     visibility(value) { fixture.document.visibilityState = value; for (const listener of documentListeners.get('visibilitychange') || []) listener(); },
     tick() { const entry = [...delays.entries()].find(([, delay]) => delay === 30000); assert.ok(entry, 'visible feed schedules a bounded refresh'); const [id, delay] = entry; const fn = timers.get(id); timers.delete(id); delays.delete(id); now += delay; fn(); },
@@ -105,11 +107,14 @@ test('public feed authenticates through the viewer-scoped repository and separat
   h.unmount();
 });
 
-test('a public detail fetches fresh data, and withdrawal removes both the detail and stale list item', async () => {
+test('a public detail shows its known body while checking access, and withdrawal removes both it and the list item', async () => {
   const h = await harness(); h.feed(); await flush();
   const old = post(); h.requests[0].resolve(result([old])); await flush();
   let tree = h.feed(); h.posts(tree)[0].props.onOpen(old); tree = h.feed(); await flush();
-  assert.equal(h.posts(tree).length, 0, 'list content must not be used as an authorized detail');
+  assert.equal(h.posts(tree).length, 1, 'the current list body is immediately readable');
+  assert.equal(h.posts(tree)[0].props.post.text, old.text);
+  assert.equal(h.posts(tree)[0].props.interactionsDisabled, true, 'a visible preview does not authorize writes');
+  assert.equal(h.detailNotifications.at(-1).post, null, 'the parent receives only freshly verified details');
   assert.deepEqual(h.requests[1].args, [old.id, 'viewer']);
   assert.equal(h.detailChanges.at(-1), true);
   h.requests[1].resolve(null); await flush(); tree = h.feed();
@@ -118,6 +123,221 @@ test('a public detail fetches fresh data, and withdrawal removes both the detail
   button(tree, '返回公开动态').props.onClick(); tree = h.feed();
   assert.equal(h.detailChanges.at(-1), false);
   assert.equal(h.posts(tree).length, 0);
+  assert.deepEqual(h.scrolls.at(-1), { top: 420, behavior: 'auto' });
+  h.unmount();
+});
+
+test('known detail content and the comments reader mount before the detail request resolves', async () => {
+  const h = await harness(), known = post('log:1', { text: '列表里已经读到的完整正文' });
+  h.feed(); await flush(); h.requests[0].resolve(result([known])); await flush();
+  let tree = h.feed();
+  h.posts(tree)[0].props.onOpen({ ...known, text: 'UNTRUSTED_CLICK_PAYLOAD' });
+  tree = h.feed(); await flush();
+  const preview = h.posts(tree)[0], comments = walk(tree).find(node => node.type === h.components.PublicReplies);
+  assert.equal(preview.props.post.text, known.text, 'only the current viewer and filter list supplies the preview');
+  assert.equal(preview.props.full, true);
+  assert.ok(comments, 'comments can start their own authenticated read without waiting for the post RPC');
+  assert.equal(comments.props.post.id, known.id);
+  assert.equal(comments.props.interactionsDisabled, true);
+  assert.equal(preview.props.interactionsDisabled, true);
+  assert.equal(h.requests.filter(request => request.kind === 'post').length, 1);
+  assert.equal(walk(tree).some(node => node.type === h.components.PublicDetailSkeleton), false);
+  assert.equal(h.detailNotifications.at(-1).post, null);
+  const fresh = { ...known, text: '详情后台核验后的正文' };
+  h.requests.find(request => request.kind === 'post').resolve(fresh); await flush(); tree = h.feed();
+  assert.equal(h.posts(tree)[0].props.post.text, fresh.text);
+  assert.equal(Boolean(h.posts(tree)[0].props.interactionsDisabled), false);
+  assert.equal(Boolean(walk(tree).find(node => node.type === h.components.PublicReplies).props.interactionsDisabled), false);
+  assert.equal(h.detailNotifications.at(-1).post, fresh);
+  h.unmount();
+});
+
+test('preview presentation cannot invoke post likes, record management or a new evaluation', async () => {
+  const known = post('log:1', { authorId: 'viewer' }), actions = [];
+  const h = await harness();
+  const tree = h.render(h.components.PublicPost, { post: known, full: true, db: h.db, userId: 'viewer', language: 'zh',
+    interactionsDisabled: true, onLike: () => actions.push('like'), onManageOwnEntry: () => actions.push('manage') });
+  const like = button(tree, '点赞 · 0'), manage = button(tree, '记录操作');
+  assert.equal(like.props.disabled, true); assert.equal(manage.props.disabled, true);
+  like.props.onClick(); manage.props.onClick({ stopPropagation() {} });
+  assert.deepEqual(actions, [], 'even a stale queued handler cannot start a write from a preview');
+  h.unmount();
+  const replies = await harness();
+  const section = replies.render(replies.components.PublicReplies, { post: known, db: replies.db, userId: 'viewer', language: 'zh',
+    interactionsDisabled: true, onEvaluateOwnEntry: () => actions.push('evaluate') });
+  const evaluate = button(section, '写评价'); assert.ok(!evaluate || evaluate.props.disabled);
+  evaluate?.props.onClick?.(); assert.deepEqual(actions, []);
+  replies.unmount();
+});
+
+test('unknown notification details show a skeleton without trusting a notification body or author', async () => {
+  const h = await harness(), openRequest = { id: 'unknown-detail', userId: 'viewer', postId: 'log:absent',
+    text: 'UNTRUSTED_NOTIFICATION_BODY', authorId: 'viewer', commentId: null };
+  h.feed({ openRequest }); await flush(); const tree = h.feed({ openRequest }); await flush();
+  assert.equal(h.posts(tree).length, 0);
+  assert.ok(walk(tree).find(node => node.type === h.components.PublicDetailSkeleton));
+  assert.equal(h.detailNotifications.at(-1).post, null);
+  assert.deepEqual(h.requests.find(request => request.kind === 'post').args, ['log:absent', 'viewer']);
+  assert.doesNotMatch(words(tree), /UNTRUSTED_NOTIFICATION_BODY|还没有评论/);
+  h.unmount();
+});
+
+test('a transient detail failure retains the readable preview and retry without granting write permission', async () => {
+  const h = await harness(), known = post();
+  h.feed(); await flush(); h.requests[0].resolve(result([known])); await flush();
+  let tree = h.feed(); h.posts(tree)[0].props.onOpen(known); h.feed(); await flush();
+  h.requests.find(request => request.kind === 'post').reject(new Error('暂时网络中断')); await flush(); tree = h.feed();
+  assert.equal(h.posts(tree)[0].props.post.text, known.text);
+  assert.equal(h.posts(tree)[0].props.interactionsDisabled, true);
+  assert.match(words(tree), /暂时网络中断/);
+  assert.doesNotMatch(words(tree), /已不再公开|还没有公开动态/);
+  assert.equal(h.detailNotifications.at(-1).post, null);
+  button(tree, '重试').props.onClick(); h.feed(); await flush();
+  h.requests.filter(request => request.kind === 'post').at(-1).resolve(post('log:1', { text: '重试确认可见' })); await flush(); tree = h.feed();
+  assert.equal(h.posts(tree)[0].props.post.text, '重试确认可见');
+  assert.equal(Boolean(h.posts(tree)[0].props.interactionsDisabled), false);
+  h.unmount();
+});
+
+test('private, forbidden and invalid-session detail responses remove preview and stale list content', async () => {
+  for (const code of ['REVIEW_PUBLIC_NOT_FOUND', 'REVIEW_PUBLIC_FORBIDDEN', 'REVIEW_AUTH_REQUIRED', 'REVIEW_ACCOUNT_CHANGED']) {
+    const h = await harness(), known = post();
+    h.feed(); await flush(); h.requests[0].resolve(result([known])); await flush();
+    let tree = h.feed(); h.posts(tree)[0].props.onOpen(known); h.feed(); await flush();
+    h.requests.find(request => request.kind === 'post').reject(Object.assign(new Error('当前内容不可访问'), { code }));
+    await flush(); tree = h.feed();
+    assert.equal(h.posts(tree).length, 0, code);
+    assert.equal(walk(tree).find(node => node.type === h.components.PublicReplies), undefined, code);
+    assert.equal(h.detailNotifications.at(-1).post, null, code);
+    button(tree, '返回公开动态').props.onClick(); tree = h.feed();
+    assert.equal(h.posts(tree).length, 0, `${code} cannot leave a still-readable list copy`);
+    h.unmount();
+  }
+});
+
+test('a retry after access denial can show a network error and recover instead of remaining a loading skeleton', async () => {
+  const h = await harness(), known = post();
+  h.feed(); await flush(); h.requests[0].resolve(result([known])); await flush();
+  let tree = h.feed(); h.posts(tree)[0].props.onOpen(known); h.feed(); await flush();
+  h.requests.find(request => request.kind === 'post').reject(Object.assign(new Error('暂时无权访问'), { code: 'REVIEW_PUBLIC_FORBIDDEN' }));
+  await flush(); tree = h.feed(); assert.equal(h.posts(tree).length, 0);
+  button(tree, '重试').props.onClick(); h.feed(); await flush();
+  h.requests.filter(request => request.kind === 'post').at(-1).reject(new Error('重试时网络中断'));
+  await flush(); tree = h.feed();
+  assert.match(words(tree), /重试时网络中断/);
+  assert.equal(walk(tree).some(node => node.type === h.components.PublicDetailSkeleton), false);
+  assert.equal(h.posts(tree).length, 0);
+  button(tree, '重试').props.onClick(); h.feed(); await flush();
+  h.requests.filter(request => request.kind === 'post').at(-1).resolve(post('log:1', { text: '重新核验后恢复可见' }));
+  await flush(); tree = h.feed();
+  assert.equal(h.posts(tree)[0].props.post.text, '重新核验后恢复可见');
+  assert.equal(Boolean(h.posts(tree)[0].props.interactionsDisabled), false);
+  h.unmount();
+});
+
+test('a comments access failure removes preview and invalidates the earlier successful detail response', async () => {
+  const h = await harness(), known = post();
+  h.feed(); await flush(); h.requests[0].resolve(result([known])); await flush();
+  let tree = h.feed(); h.posts(tree)[0].props.onOpen(known); tree = h.feed(); await flush();
+  const comments = walk(tree).find(node => node.type === h.components.PublicReplies);
+  assert.equal(typeof comments.props.onAccessRevoked, 'function');
+  comments.props.onAccessRevoked(Object.assign(new Error('帖子已改为私密'), { code: 'REVIEW_INTERACTION_FORBIDDEN' }));
+  tree = h.feed(); assert.equal(h.posts(tree).length, 0);
+  h.requests.find(request => request.kind === 'post').resolve({ ...known, text: 'LATE_WITHDRAWN_BODY' }); await flush(); tree = h.feed();
+  assert.equal(h.posts(tree).length, 0);
+  assert.equal(walk(tree).find(node => node.type === h.components.PublicReplies), undefined);
+  assert.equal(h.detailNotifications.at(-1).post, null);
+  button(tree, '返回公开动态').props.onClick(); tree = h.feed();
+  assert.equal(h.posts(tree).length, 0);
+  h.unmount();
+});
+
+test('ambiguous missing comment targets clear stale content, preserve the original error and retry without the deleted target', async () => {
+  for (const code of ['REVIEW_NOTIFICATION_NOT_FOUND', 'REVIEW_INTERACTION_NOT_FOUND']) {
+    const h = await harness(), known = post();
+    h.feed(); await flush(); h.requests[0].resolve(result([known])); await flush(); h.feed();
+    const openRequest = { id: `missing-${code}`, userId: 'viewer', postId: known.id, notificationId: 'notice', commentId: 'removed-comment' };
+    h.feed({ openRequest }); await flush(); let tree = h.feed({ openRequest }); await flush();
+    const comments = walk(tree).find(node => node.type === h.components.PublicReplies);
+    assert.equal(comments.props.notificationTarget.commentId, 'removed-comment');
+    const oldDetail = h.requests.find(request => request.kind === 'post');
+    comments.props.onAccessRevoked(Object.assign(new Error('引用对象暂不可用，请重新读取'), { code }));
+    tree = h.feed({ openRequest });
+    assert.equal(h.posts(tree).length, 0);
+    assert.equal(walk(tree).find(node => node.type === h.components.PublicReplies), undefined);
+    assert.match(words(tree), /引用对象暂不可用，请重新读取/);
+    assert.doesNotMatch(words(tree), /已不再公开|已改为私密/);
+    oldDetail.resolve({ ...known, text: 'LATE_AMBIGUOUS_BODY' }); await flush(); tree = h.feed({ openRequest });
+    assert.equal(h.posts(tree).length, 0, 'a missing object may also mean the parent became private');
+    button(tree, '重试').props.onClick(); h.feed({ openRequest }); await flush();
+    h.requests.filter(request => request.kind === 'post').at(-1).resolve({ ...known, text: '重新确认正文可访问' });
+    await flush(); tree = h.feed({ openRequest });
+    assert.equal(h.posts(tree)[0].props.post.text, '重新确认正文可访问');
+    assert.equal(walk(tree).find(node => node.type === h.components.PublicReplies).props.notificationTarget, null);
+    h.unmount();
+  }
+});
+
+test('comments arriving before the detail retain their count when the same post revision is replaced', async () => {
+  const h = await harness(), known = post('log:1', { commentCount: 1 });
+  const db = { ...h.db, fetchReviewCommentThreads() { throw new Error('the section does not load threads itself'); } };
+  const props = { post: known, db, userId: 'viewer', language: 'zh', interactionsDisabled: true };
+  let tree = h.render(h.components.PublicReplies, props);
+  const reader = walk(tree).find(node => node.props.postId === known.id && typeof node.props.onCountChange === 'function');
+  assert.ok(reader); reader.props.onCountChange(known.id, 6, 6);
+  tree = h.render(h.components.PublicReplies, { ...props, post: { ...known }, interactionsDisabled: false });
+  assert.match(words(tree), /评论 · 6/);
+  tree = h.render(h.components.PublicReplies, { ...props, post: { ...known, updatedAt: '2026-11-06T13:00:00Z', commentCount: 2 } });
+  assert.match(words(tree), /评论 · 2/);
+  h.unmount();
+});
+
+test('switching viewer or filter immediately hides the preview and rejects its pending detail', async () => {
+  for (const replacement of [{ userId: 'new-viewer' }, { query: 'new-filter' }]) {
+    const h = await harness(), known = post('log:1', { text: 'OLD_SCOPE_BODY' });
+    h.feed(); await flush(); h.requests[0].resolve(result([known])); await flush();
+    let tree = h.feed(); h.posts(tree)[0].props.onOpen(known); tree = h.feed(); await flush();
+    const pending = h.requests.find(request => request.kind === 'post');
+    const previousComments = walk(tree).find(node => node.type === h.components.PublicReplies);
+    tree = h.feed(replacement); await flush();
+    assert.equal(h.posts(tree).length, 0);
+    assert.equal(walk(tree).find(node => node.type === h.components.PublicReplies), undefined);
+    const fresh = post('log:1', { text: 'NEW_SCOPE_BODY' });
+    h.requests.filter(request => request.kind === 'feed').at(-1).resolve(result([fresh]));
+    await flush(); h.feed(replacement);
+    previousComments.props.onAccessRevoked(Object.assign(new Error('OLD_SCOPE_ACCESS_ERROR'), { code: 'REVIEW_INTERACTION_FORBIDDEN' }));
+    pending.resolve({ ...known, text: 'LATE_OLD_SCOPE_BODY' }); await flush(); tree = h.feed(replacement);
+    assert.deepEqual(h.posts(tree).map(node => node.props.post.text), ['NEW_SCOPE_BODY']);
+    assert.equal(button(tree, '返回公开动态'), undefined);
+    h.unmount();
+  }
+});
+
+test('returning during preview restores the list offset and a late detail cannot reopen it', async () => {
+  const h = await harness(), known = post();
+  h.feed(); await flush(); h.requests[0].resolve(result([known])); await flush();
+  let tree = h.feed(); h.posts(tree)[0].props.onOpen(known); tree = h.feed(); await flush();
+  button(tree, '返回公开动态').props.onClick(); tree = h.feed();
+  assert.deepEqual(h.scrolls.at(-1), { top: 420, behavior: 'auto' });
+  h.requests.find(request => request.kind === 'post').resolve({ ...known, text: 'LATE_DETAIL_BODY' }); await flush(); tree = h.feed();
+  assert.equal(button(tree, '返回公开动态'), undefined);
+  assert.equal(h.posts(tree)[0].props.full, false);
+  assert.equal(h.posts(tree)[0].props.post.text, known.text);
+  assert.equal(h.detailChanges.at(-1), false);
+  h.unmount();
+});
+
+test('clicking comments during preview scrolls without adding another history entry or losing the list offset', async () => {
+  const h = await harness(), known = post();
+  h.feed(); await flush(); h.requests[0].resolve(result([known])); await flush();
+  let tree = h.feed(); h.posts(tree)[0].props.onOpen(known); tree = h.feed(); await flush();
+  h.setScroll(100);
+  h.posts(tree)[0].props.onOpenComments(known); tree = h.feed(); await flush();
+  assert.deepEqual(h.commentScrolls.at(-1), { block: 'start', behavior: 'smooth' });
+  assert.equal(h.requests.filter(request => request.kind === 'post').length, 1);
+  assert.equal(h.posts(tree)[0].props.interactionsDisabled, true);
+  button(tree, '返回公开动态').props.onClick(); tree = h.feed();
+  assert.equal(button(tree, '返回公开动态'), undefined, 'one back returns to the list, not a duplicate preview route');
   assert.deepEqual(h.scrolls.at(-1), { top: 420, behavior: 'auto' });
   h.unmount();
 });
@@ -285,11 +505,12 @@ test('public replies show every saved attachment while only their author receive
   assert.equal(walk(tree).filter(node => node.type === 'button').length, 0, 'shared executions are read-only saved values'); h.unmount();
 });
 
-test('comment entry opens an authenticated detail then scrolls to its public reply section', async () => {
+test('comment entry opens the preview reply section immediately and keeps it after detail verification', async () => {
   const h = await harness(); const withReplies = post('log:1', { replies: [{ id: 'reply-1', text: '已公开评价' }] });
   h.feed(); await flush(); h.requests[0].resolve(result([withReplies])); await flush();
   let tree = h.feed(); h.posts(tree)[0].props.onOpenComments(withReplies); h.feed(); await flush();
-  assert.equal(h.commentScrolls.length, 0); h.requests[1].resolve(withReplies); await flush(); tree = h.feed();
+  assert.deepEqual(h.commentScrolls.at(-1), { block: 'start', behavior: 'auto' });
+  h.requests[1].resolve(withReplies); await flush(); tree = h.feed();
   assert.deepEqual(h.commentScrolls.at(-1), { block: 'start', behavior: 'auto' });
   assert.equal(walk(tree).find(node => node.type === h.components.PublicReplies).props.post, withReplies);
   h.posts(tree)[0].props.onOpenComments(withReplies);
@@ -362,7 +583,10 @@ test('browser back and forward restore the public list position and fetch the de
   assert.equal(button(tree, '返回公开动态'), undefined);
   assert.deepEqual(h.scrolls.at(-1), { top: 420, behavior: 'auto' });
   h.history.forward(); tree = h.feed(); await flush();
-  assert.equal(h.posts(tree).length, 0); assert.deepEqual(h.requests[2].args, ['log:1', 'viewer']);
+  assert.equal(h.posts(tree).length, 1, 'forward navigation can show the current list copy while rechecking');
+  assert.equal(h.posts(tree)[0].props.interactionsDisabled, true);
+  assert.equal(h.detailNotifications.at(-1).post, null);
+  assert.deepEqual(h.requests[2].args, ['log:1', 'viewer']);
   h.requests[2].resolve(post('log:1', { text: '前进时重新读取' })); await flush(); tree = h.feed();
   assert.equal(h.posts(tree)[0].props.post.text, '前进时重新读取'); h.unmount();
   assert.equal(h.history.state.reviewPublicEntry, undefined);

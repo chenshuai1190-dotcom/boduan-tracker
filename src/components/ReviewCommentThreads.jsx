@@ -12,14 +12,15 @@ const targetKey = target => target ? reviewCommentKey(target) : '';
  * containers. Descendants have one visual indentation; parent identities remain
  * exact, including when an original comment has been deleted. */
 export default function ReviewCommentThreadList({ postId, db, userId, language = 'zh', onReply, onManageReply,
-  onCountChange, refreshToken = 0, showEmpty = false, notificationTarget = null, renderAvatar, renderContent }) {
+  onCountChange, refreshToken = 0, showEmpty = false, notificationTarget = null, renderAvatar, renderContent,
+  interactionsDisabled = false, onAccessRevoked, loadingPlaceholder = null }) {
   const english = language.startsWith('en');
   const key = `${userId}:${postId}`, notificationKey = notificationTarget?.notificationId || notificationTarget?.id || '';
   const [state, setState] = React.useState(() => empty(key));
   const [retry, setRetry] = React.useState(0), [expanded, setExpanded] = React.useState({ key, values: [] });
   const [focus, setFocus] = React.useState(null);
   const owner = React.useRef(key), generation = React.useRef(0), stateRef = React.useRef(state);
-  const callbacks = React.useRef({ onCountChange }); callbacks.current = { onCountChange };
+  const callbacks = React.useRef({ onCountChange, onAccessRevoked }); callbacks.current = { onCountChange, onAccessRevoked };
   const pending = React.useRef(new Set()), listRef = React.useRef(null), focused = React.useRef('');
   owner.current = key; stateRef.current = state;
   const owned = state.key === key ? state : empty(key);
@@ -33,6 +34,9 @@ export default function ReviewCommentThreadList({ postId, db, userId, language =
       // Otherwise an earlier successful page could revive withdrawn content.
       generation.current += 1; pending.current.clear();
       setState({ ...empty(key), status: 'error', error: message(failure, english) });
+      // NOT_FOUND can mean either the target or its parent was withdrawn. The
+      // parent must hide its content until a fresh detail read resolves that.
+      callbacks.current.onAccessRevoked?.(failure);
       return;
     }
     setState(old => ({ ...old, ...patch, error: message(failure, english) }));
@@ -140,7 +144,7 @@ export default function ReviewCommentThreadList({ postId, db, userId, language =
   };
   const like = async comment => {
     const id = reviewCommentKey(comment), version = generation.current, requestKey = `like:${id}`;
-    if (comment.deleted || pending.current.has(requestKey)) return;
+    if (interactionsDisabled || comment.deleted || pending.current.has(requestKey)) return;
     const before = { liked: Boolean(comment.liked), likeCount: comment.likeCount ?? 0 };
     pending.current.add(requestKey);
     setState(old => ({ ...old, likes: { ...old.likes, [id]: { liked: !before.liked, likeCount: Math.max(0, before.likeCount + (before.liked ? -1 : 1)), pending: true, error: '' } } }));
@@ -154,6 +158,7 @@ export default function ReviewCommentThreadList({ postId, db, userId, language =
     } finally { if (current(version)) pending.current.delete(requestKey); }
   };
   const reply = (comment, rootKey) => {
+    if (interactionsDisabled) return;
     setExpanded(old => ({ key, values: [...new Set([...(old.key === key ? old.values : []), rootKey])] }));
     onReply?.(comment);
   };
@@ -164,15 +169,15 @@ export default function ReviewCommentThreadList({ postId, db, userId, language =
       key={id} data-rj-reply-id={comment.id} data-review-comment-key={id} tabIndex={highlighted ? -1 : undefined}>
       {comment.deleted ? <span className="rj-avatar rct-deleted-avatar" aria-hidden="true"/> : renderAvatar?.(comment)}<div className="rct-main">
         {comment.deleted ? <p className="rj-note">{english ? 'Original comment deleted' : '原评论已删除'}</p> : <>
-          <div className="rev-reply-byline"><button type="button" className="rpf-reply-author" disabled={!onReply} onClick={() => reply(comment, rootKey)}>{nickname}</button><span>·</span><ReviewActivityTime createdAt={comment.createdAt} date={comment.date} language={language}/>
-            {comment.authorId === userId && onManageReply && <button type="button" className="rj-icon rj-reply-more" aria-label={english ? 'Comment actions' : '评论操作'} onClick={() => onManageReply(comment)}><MoreHorizontal size={19}/></button>}</div>
+          <div className="rev-reply-byline"><button type="button" className="rpf-reply-author" disabled={!onReply || interactionsDisabled} onClick={() => reply(comment, rootKey)}>{nickname}</button><span>·</span><ReviewActivityTime createdAt={comment.createdAt} date={comment.date} language={language}/>
+            {comment.authorId === userId && onManageReply && <button type="button" className="rj-icon rj-reply-more" disabled={interactionsDisabled} aria-label={english ? 'Comment actions' : '评论操作'} onClick={() => { if (!interactionsDisabled) onManageReply(comment); }}><MoreHorizontal size={19}/></button>}</div>
           {comment.replyTo && <p className="rpf-reply-target">{comment.replyTo.available === false ? (english ? 'Original comment deleted' : '原评论已删除')
             : <>{english ? 'Replying to' : '回复'} <button type="button" onClick={() => locate(comment.replyTo)}>@{comment.replyTo.nickname || (english ? 'Quote user' : 'Quote 用户')}</button></>}</p>}
-          {renderContent?.(comment, () => reply(comment, rootKey))}
-          <div className="rct-actions"><button type="button" className={`rct-like${comment.liked ? ' rpf-liked' : ''}`} aria-pressed={Boolean(comment.liked)} disabled={comment.pending || typeof db.setReviewEvaluationLike !== 'function'}
+          {renderContent?.(comment, interactionsDisabled || !onReply ? undefined : () => reply(comment, rootKey))}
+          <div className="rct-actions"><button type="button" className={`rct-like${comment.liked ? ' rpf-liked' : ''}`} aria-pressed={Boolean(comment.liked)} disabled={interactionsDisabled || comment.pending || typeof db.setReviewEvaluationLike !== 'function'}
             aria-label={english ? `${comment.liked ? 'Unlike' : 'Like'} ${nickname}'s comment · ${comment.likeCount || 0}` : `${comment.liked ? '取消点赞' : '点赞'}${nickname}的评论 · ${comment.likeCount || 0}`}
             onClick={() => like(comment)}><Heart size={19} fill={comment.liked ? 'currentColor' : 'none'}/>{comment.likeCount > 0 && <span>{comment.likeCount.toLocaleString()}</span>}</button>
-            {onReply && <button type="button" aria-label={english ? `Reply to ${nickname} · ${replyCount || 0} replies` : `回复${nickname} · ${replyCount || 0} 条回复`} onClick={() => reply(comment, rootKey)}><MessageCircle size={19}/><span>{replyCount || (english ? 'Reply' : '回复')}</span></button>}</div>
+            {onReply && <button type="button" disabled={interactionsDisabled} aria-label={english ? `Reply to ${nickname} · ${replyCount || 0} replies` : `回复${nickname} · ${replyCount || 0} 条回复`} onClick={() => reply(comment, rootKey)}><MessageCircle size={19}/><span>{replyCount || (english ? 'Reply' : '回复')}</span></button>}</div>
           {comment.error && <p className="rpf-inline-error" role="alert">{comment.error}</p>}
         </>}
       </div>
@@ -196,7 +201,7 @@ export default function ReviewCommentThreadList({ postId, db, userId, language =
           <span>{open ? (english ? 'Hide replies' : '收起回复') : thread.replyCount ? (english ? `View ${thread.replyCount} replies` : `查看 ${thread.replyCount} 条回复`) : (english ? 'View conversation' : '查看对话')}</span><ChevronDown size={15}/></button>}
       </article>;
     })}
-    {owned.status === 'loading' && <p className="rj-note" role="status">{english ? 'Loading comments…' : '正在读取评论…'}</p>}
+    {owned.status === 'loading' && (loadingPlaceholder || <p className="rj-note" role="status">{english ? 'Loading comments…' : '正在读取评论…'}</p>)}
     {showEmpty && owned.status === 'ready' && !owned.totalCount && <p className="rj-note">{english ? 'No comments yet.' : '还没有评论。'}</p>}
     {owned.error && <div className="rpf-inline-error" role="alert"><p>{owned.error}</p><button className="rj-text-button" type="button" onClick={() => setRetry(value => value + 1)}>{english ? 'Retry' : '重新读取'}</button></div>}
     {owned.hasMore && <button className="rpf-more" type="button" disabled={owned.more} onClick={loadMore}>{owned.more ? (english ? 'Loading…' : '正在读取…') : (english ? 'More comments' : '更多评论')}</button>}

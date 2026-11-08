@@ -3,6 +3,11 @@ import { CURRENT_RELEASE } from './releaseMeta.js';
 export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
+    items: ['从动态列表打开博文时立即展示已有正文，并行读取评论并更新内容；首次读取采用骨架占位，保留撤回、转私密及账户切换保护。'],
+    itemsEn: ['Posts now open immediately from existing feed content while comments load in parallel and content refreshes. First visits use skeleton placeholders, with withdrawal, privacy, and account-switch protections retained.'],
+  },
+  {
+    ver: 'v10.7.9.612', date: '2026-11-08',
     items: ['优化消息中心加载、未读数量和已读操作，减少重复身份核验的网络等待，保留账户切换与内容权限检查。'],
     itemsEn: ['Reduced repeated authentication round trips for inbox loading, unread counts, and read actions while retaining account-switch and content-access checks.'],
   },

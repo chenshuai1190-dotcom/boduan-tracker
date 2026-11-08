@@ -10,7 +10,7 @@ export function reviewPreviewEntryTimestamps(entry, existing, now = new Date().t
   return { createdAt, publishedAt: entry.visibility === 'public' ? createdAt : null };
 }
 
-export function createReviewPublicPreview({ ownerId, getEntries, getImage, market, communityEvaluations = [], notifications = false, threaded = false, avatarCache = null }) {
+export function createReviewPublicPreview({ ownerId, getEntries, getImage, market, communityEvaluations = [], notifications = false, threaded = false, avatarCache = null, beforeReadPost }) {
   const likes = new Map();
   const evaluations = new Map(communityEvaluations.map(row => [row.id, { ...row, source: 'community' }]));
   const deletedEvaluations = new Map();
@@ -99,7 +99,7 @@ export function createReviewPublicPreview({ ownerId, getEntries, getImage, marke
       const page=matching.slice(0,limit),last=page.at(-1);
       return {posts:page,hasMore:matching.length>page.length,nextCursor:matching.length>page.length&&last?{recordDate:last.date,publishedAt:last.publishedAt,id:last.id}:null};
     },
-    async fetchReviewPublicPost(id,userId) {assertOwner(userId);return posts().find(row=>row.id===id)||null;},
+    async fetchReviewPublicPost(id,userId) {assertOwner(userId);await beforeReadPost?.();return posts().find(row=>row.id===id)||null;},
     async fetchReviewCommunityEvaluations({ postId, limit = 20, cursor = null } = {}, userId) {
       assertOwner(userId); assertParent(postId);
       if (!Number.isSafeInteger(limit) || limit < 1 || limit > 20) throw new Error('评价分页范围无效');

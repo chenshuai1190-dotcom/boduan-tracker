@@ -1,20 +1,21 @@
 # boduan-tracker 当前交接
 
-验证时间：`2026-11-08 Asia/Shanghai`。v611 动态、评论及头像加载优化已发布；v612 候选减少消息中心的重复认证往返。稳定规则看 `README.md`，流程看 `docs/development-process.md`。
+验证时间：`2026-11-08 Asia/Shanghai`。v612 消息认证往返优化已发布；v613 候选接入博文正文即时展示和评论并行读取。稳定规则看 `README.md`，流程看 `docs/development-process.md`。
 
 ## 当前生产基准
 | 项目 | 当前值 |
 | --- | --- |
 | 仓库 | `chenshuai1190-dotcom/boduan-tracker`；唯一发布来源 `main` |
 | 当前工作区 | `/Users/chenshuaishuai/Documents/Codex/2026-10-03/quote-boduan-tracker-2026-10-03/work/quiet-input-fields` |
-| 发布前生产 | `74bd4cea152523d23880172c9de142706fc41a04 / v10.7.9.611`；`https://boduan-tracker.vercel.app`；CI、Docs、Vercel 与生产静态产物验证通过 |
-| 本次候选版本 | `v10.7.9.612 / 2026-11-08`：消息列表、未读数、标读与目标定位复用现有会话保护，减少正常会话的重复远程核验；无需迁移 |
+| 发布前生产 | `281bd2750356b77f9c92afb3ca956070d2c033d6 / v10.7.9.612`；`https://boduan-tracker.vercel.app`；CI、Docs、Vercel 与生产静态产物验证通过 |
+| 本次候选版本 | `v10.7.9.613 / 2026-11-08`：复用当前列表正文，详情后台核验，评论并行读取；未知详情骨架占位，权限拒绝清除及旧响应保护保留；无需迁移 |
 | 数据库规格 | 同日经用户确认由 Pro / Nano 切换为 Pro / Micro（1 GB，共享 CPU，新加坡），控制台已生效，新增计算费用为 0；应用与 Auth 基础可用性通过，未据此推断提速幅度 |
 | 已生效云端配置 | 基础迁移及 `supabase/review_display_preferences_return_drawdown_20261107.sql` 已应用；五个 nullable 显示字段兼容旧客户端，不 backfill、不重置 revision；独立本人显示偏好表，RLS 开启、3 条 owner policy、匿名无 SELECT、authenticated 无 DELETE；原复盘与正式交易记录数量保持不变 |
 | 生产 Checks | 本会话控制台只读核对为“未配置任何检查”；保留仓库 CI 与 Docs，等待精确提交 CI + Docs + Vercel，不宣称平台已配置晋级阻断 |
 
 ## 本次证据与既有边界
-- v612 仅将消息 repository 接入已有 `reviewSessionGuard`；预期账户参数、服务端 JWT／收件人／当前可见权限、原分页与标读边界保持。支持会话 API 的客户端缺会话直接失败，旧客户端保留远程双检；不缓存消息正文、不改变轮询频率、不添加即时撤销承诺。定向测试覆盖四类操作、切号与退出重登、token 刷新和失败返回；最终 FULL 与发布证据保存至 `artifacts/review-public-activity/v612-*`，发布等待器通过前仍为候选。
+- v613 只在当前账户与列表作用域内复用已见正文，不持久化博文或授权结果；详情和评论各自核验当前权限，拒绝时清除且旧回包不能恢复。并行读取不依赖未经确认的预览放行写操作；网络失败保留已见正文并给重试。DEV 可人为保持详情 pending 验证正文和评论已出现。最终 FULL、已安装 iPhone 主屏幕 PWA 验收与精确提交发布证据保存至 `artifacts/review-public-activity/v613-*`，等待器通过前仍为候选。
+- v612 消息 repository 复用 `reviewSessionGuard`，服务端 JWT／预期账户／收件人／当前可见权限保持；不缓存消息正文、不改变轮询频率、不承诺即时撤销。FULL 4174/4174、构建、CI/Docs/Vercel 与生产消息列表及目标跳转通过，证据 `artifacts/review-public-activity/v612-acceptance.json`；未量化线上提速幅度。
 - v611 保留服务端 JWT/RLS/预期账户校验，使用本地会话及身份世代减少远程认证；头像按当前账户与 immutable path 缓存，退出/切号清除，不缓存正文或评价附件；新帖只标读请求前边界。规则见 `docs/review-public-activity.md`。FULL 4167/4167、build/docs/whitespace 通过；已安装 iPhone 主屏幕 PWA 隔离示例验证头像首次下载 1 次、重进 1 次、换路径 2 次、清缓存 3 次，同作者评论同步；证据为 `artifacts/review-public-activity/performance-local-acceptance.json`，未测量生产耗时。
 - v610 迁移已应用且精确提交发布通过，证据为 `artifacts/review-public-activity/v610-acceptance.json`。分组分页、通知定位、旧评价日期、原容器编辑与私密权限保留；评论点赞暂不新增通知。v611 不改数据库，不向真实用户提交测试互动；发布结果以 `v611-release-verify.log` 为准，验证前不把候选写成上线。
 - v608 新增 `review_activity_notifications_20261108.sql`，无历史互动回填；服务端 deferred trigger 读取同事务最终回复关系，通知引用与读取状态独立保存，旧博文/评价/点赞数据不重写。四个 RPC 均强制预期用户与登录用户一致；原私有原表权限保持不变。头像新增授权仅限当前有效本人通知对应的当前头像。
@@ -24,7 +25,6 @@
 - 原始事件推导及金融口径不变；投影保留源 ID、原节点及原评价容器。已有评价按日期合并展示，修改/删除回到原容器并保留并发冲突检测，新评价沿用稳定原始事件引用。账户快照 loader 和时间线 adapter 保持稳定，避免重渲染反复加载。
 - 设置从十三项展示收为十项；原十三个底层开关、v2 缓存和已上线五列兼容结构不变，不需数据库迁移。合并项按任一旧项开启展示，只有用户切换才统一更新成员；两类回撤继续独立。
 - v599 已通过 FULL（3,765 tests / 3,763 pass / 2 既有 skip）、Quote PWA 冷启动偏好回读、时间线账户快照、精确 SHA CI/Docs/Vercel 和线上检查。本次最终 FULL、iOS 布局及发布结果以 v600 输出为准，原生证据目录为外层 `local-previews/review/dynamic-settings-evidence/v600/`。
-- v590 已通过 FULL（3,703 tests，3,701 pass，2 项既有 skip）、已安装 PWA 冷启动保存回读、CI/Docs/Vercel 及线上普通博文与系统动态只读验收。下列相关证据与边界沿用。
 
 - 底部“复盘”改为“动态”，模块“投资复盘”改为“投资动态”；复盘日志、投资心得、投资目标不改名。左上头像打开独立动态设置页，返回恢复列表分类、搜索及阅读位置。
 - 全部默认混排普通博文和带本人身份的系统动态；净资产新高、累计收益新高、年内收益新高/新低、两类独立回撤、单日纪录及月/季/年总结可逐项隐藏。开关只影响全部，专用时间线保留完整事件。系统动态只投影既有事件，点击正文或评论共用原事件与评价，不创建重复博文。
