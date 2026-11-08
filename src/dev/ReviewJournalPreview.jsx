@@ -8,6 +8,7 @@ import { isRegularNyseHoliday } from '../lib/quoteRefreshPolicy.js';
 import { createReviewMarketSnapshot, readReviewMarketDate } from '../lib/reviewMarketSnapshot.js';
 import { withStockTradeRecordKind } from '../lib/stockTradeRecordKind.js';
 import { reviewPublicAvatarCache } from '../lib/reviewPublicAvatarCache.js';
+const ReviewReplayCachePreview = React.lazy(() => import('./ReviewReplayCachePreview.jsx'));
 
 // Only imported by DevVisualPreview. No account requests or production writes.
 const OWNER = 'local-review-journal-preview';
@@ -166,6 +167,7 @@ export default function ReviewJournalPreview({language,onBack,marketColorMode,na
   },[avatarCacheEnabled,avatarPageVersion,avatarReopen]);
   const reopenAvatarArticle=message=>{setAvatarScenarioStatus(message);setAvatarReopen(true);setAvatarPageVersion(value=>value+1);};
   if(!import.meta.env.DEV)return null;
+  if(new URLSearchParams(window.location.search).get('reviewReplayCache')==='1')return <React.Suspense fallback={null}><ReviewReplayCachePreview snapshot={snapshot}/></React.Suspense>;
   const journal=<ReviewJournalPage key={avatarCacheEnabled?avatarPageVersion:'default'} ctx={{db,userId:OWNER,language,disciplines,reviewLogs,setDisciplines,setReviewLogs,stockTrades,onBack,marketColorMode,usdCny:7.12,fxDate:'2026-11-07T00:00:00Z',navigationTab,reviewPublicRefreshRef,reviewFeedUnread,reviewOpenAllRequest,previewData:{initialAllScope:avatarCacheEnabled?'public':new URLSearchParams(window.location.search).get('reviewScope')||undefined,timeline,initialTimeline:new URLSearchParams(window.location.search).get('reviewTimeline')==='1',identity:{nickname:'波段玩家1836',avatarKey:'gold'},history,market,account}}}/>;
   return <>
     {detailLoadingEnabled&&<section aria-label="本地详情加载验收" style={{padding:'calc(env(safe-area-inset-top) + 12px) 16px 12px',fontSize:13,color:'#94a3b8',background:'#11151b'}}>
@@ -190,6 +192,7 @@ export default function ReviewJournalPreview({language,onBack,marketColorMode,na
       <a href="?devPreview=1&tab=home&reviewUnread=1&reviewThreads=1" style={{display:'block',padding:'12px 8px'}}>评论与新帖提醒示例</a>
       <a href="?devPreview=1&tab=review-journal&reviewThreads=1&reviewScope=public&reviewAvatarCache=1" style={{display:'block',padding:'12px 8px'}}>头像缓存示例</a>
       <a href="?devPreview=1&tab=settings&settingsAvatarCache=1" style={{display:'block',padding:'12px 8px'}}>设置头像缓存示例</a>
+      <a href="?devPreview=1&tab=review&reviewReplayCache=1" style={{display:'block',padding:'12px 8px'}}>帖子附件缓存示例</a>
       <button type="button" style={{padding:'12px 8px'}} onClick={async()=>{db.setReviewPublicPreviewScenario('empty');await reviewPublicRefreshRef.current?.();setRefreshScenarioStatus('示例列表已清空');}}>清空示例公开列表</button>
       <button type="button" style={{padding:'12px 8px'}} onClick={()=>{db.setReviewPublicPreviewScenario('published');reviewFeedUnreadPreview?.publish('insight:sample-fresh-post');reviewFeedUnread?.refresh();setRefreshScenarioStatus('已模拟其他账号发布，等待自动读取');}}>模拟其他账号发布</button>
       <button type="button" style={{padding:'12px 8px'}} onClick={async()=>{await reviewPublicRefreshRef.current?.();setRefreshScenarioStatus('手动读取完成');}}>读取最新示例</button>

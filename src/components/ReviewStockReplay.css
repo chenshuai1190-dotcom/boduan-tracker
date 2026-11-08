@@ -17,3 +17,4 @@
 .rsr-node.rsr-unpriced span{background:#090a0c;color:var(--rsr-side);border:1.5px solid var(--rsr-side)}
 .rsr-holding{--rsr-side:#b4becb}.rsr-trade dl.rsr-holding-values{grid-template-columns:1fr 1fr}.rsr-holding-caption{display:block;margin-top:7px;color:#89909b;font-size:11px}
 .rsr-ranges{gap:4px;overflow-x:auto;scrollbar-width:none}.rsr-ranges button{flex:1 0 auto;padding-inline:7px;white-space:nowrap}
+.rsr-refresh-note{padding:8px 20px;color:#89919e;font-size:12px;line-height:1.6}.rsr-refresh-note button{margin-left:8px;padding:6px 10px;border-radius:8px;background:#20242b;color:#cbd1dd}

@@ -136,9 +136,10 @@ function ReplayDialog({ symbol, model, loading, error, onRetry, onClose, english
     <div className="rsr-scroll">
       <div className="rsr-readout"><span>{holdingSelected ? tr('历史持仓 · 平均成本', 'Historical holding · Average cost') : `${selectedDate || '—'} · ${tr('拆股复权收盘', 'Split-adjusted close')}`}</span><strong>{price(holdingSelected ? trade.price : selectedRow?.close)}</strong></div>
       <nav className="rsr-ranges" aria-label={tr('走势范围', 'Chart range')}>{[['stage', '本次交易', 'Trade'], ['1m', '1个月', '1M'], ['3m', '3个月', '3M'], ['6m', '6个月', '6M'], ['1y', '1年', '1Y'], ['all', '全部', 'All']].map(([value, zh, en]) => <button type="button" key={value} aria-pressed={range === value} onClick={() => { setRange(value); setInspection(null); }}>{tr(zh, en)}</button>)}</nav>
-      {loading ? <div className="rsr-status" role="status"><RefreshCw size={17} className="ic-spin" />{tr('正在读取历史行情…', 'Loading history…')}</div> : error ? <div className="rsr-status" role="status"><p>{error === 'AUTH_REQUIRED' ? tr('请重新登录后读取行情。', 'Please sign in again.') : tr('历史行情暂不可用，交易记录仍可查看。', 'History is unavailable; trade records remain visible.')}</p><button type="button" onClick={onRetry}>{tr('重试', 'Retry')}</button></div>
+      {loading && !model.rows.length ? <div className="rsr-status" role="status"><RefreshCw size={17} className="ic-spin" />{tr('正在读取历史行情…', 'Loading history…')}</div> : error && !model.rows.length ? <div className="rsr-status" role="status"><p>{error === 'AUTH_REQUIRED' ? tr('请重新登录后读取行情。', 'Please sign in again.') : tr('历史行情暂不可用，交易记录仍可查看。', 'History is unavailable; trade records remain visible.')}</p><button type="button" onClick={onRetry}>{tr('重试', 'Retry')}</button></div>
         : visible.length ? <ReplayChart rows={visible} trades={model.trades} selectedTrade={trade} selectedDate={selectedDate} onSelectDate={setInspection} onSelectTrade={selectTrade} english={english} recordDate={recordDate} />
           : <div className="rsr-status" role="status">{tr('这个阶段没有有效日线。', 'No valid daily history for this period.')}</div>}
+      {error && model.rows.length > 0 && <div className="rsr-refresh-note" role="status">{tr('更新暂未完成，正在显示已缓存的历史行情。', 'Refresh failed; showing cached history.')}<button type="button" onClick={onRetry}>{tr('重试', 'Retry')}</button></div>}
       <div className="rsr-chart-caption"><span>{visible.length ? `${visible[0].date} — ${visible.at(-1).date}` : '—'}</span><button type="button" disabled={!trade} onClick={() => setInspection(null)}>{trade?.recordKind === 'historical_holding' ? tr('查看持仓记录', 'View holding record') : tr('定位交易', 'Locate trade')}</button></div>
       <p className="rsr-marker-note">{holdingSelected ? tr('历史持仓按平均成本汇总，录入日期不代表实际买入日', 'Historical holdings use an average cost; entry dates are not execution dates') : model.trades.some(record => record.recordKind !== 'historical_holding' && !record.markerDate && record.date > visible[0]?.date && record.date < visible.at(-1)?.date) ? tr('空心节点表示该日无收盘行情，成交价见下方', 'Hollow markers have no daily close; execution prices appear below') : tr('节点仅标记交易日，实际成交价见下方', 'Markers show trade dates; execution prices appear below')}</p>
       <div className="rsr-trades-heading"><h2>{tr('我的交易', 'My trades')}</h2><div><button type="button" disabled={!model.trades.length || selectedIndex === 0} onClick={() => selectTrade(selectedIndex - 1)} aria-label={tr('上一笔', 'Previous trade')}><ChevronLeft size={18} /></button><span>{model.trades.length ? selectedIndex + 1 : 0} / {model.trades.length}</span><button type="button" disabled={!model.trades.length || selectedIndex >= model.trades.length - 1} onClick={() => selectTrade(selectedIndex + 1)} aria-label={tr('下一笔', 'Next trade')}><ChevronRight size={18} /></button></div></div>
@@ -163,8 +164,10 @@ function ReplayDialog({ symbol, model, loading, error, onRetry, onClose, english
   </dialog>, document.body);
 }
 
-function ScopedReplay({ symbol, stockTrades, userId, language, previewHistory, companionSymbol, recordDate }) {
+function ScopedReplay({ symbol, stockTrades, userId, language, previewHistory, companionSymbol, recordDate, previewHistoryLoader }) {
   const english = language?.startsWith('en'), preview = import.meta.env.DEV && previewHistory?.synthetic === true ? previewHistory : null;
+  const historyLoader = import.meta.env.DEV && previewHistoryLoader || loadReviewStockReplayHistory;
+  const example = Boolean(preview || import.meta.env.DEV && previewHistoryLoader);
   const cardRef = React.useRef(null);
   const [visible, setVisible] = React.useState(false);
   const [open, setOpen] = React.useState(false), [attempt, setAttempt] = React.useState(0), [loaded, setLoaded] = React.useState({ key: '', data: null, error: '', loading: false });
@@ -172,8 +175,10 @@ function ScopedReplay({ symbol, stockTrades, userId, language, previewHistory, c
   const records = React.useMemo(() => collectReviewReplayTrades({ stockTrades, symbol, userId }), [stockTrades, symbol, userId]);
   const dates = reviewReplayRequestRange(records, endDate), companion = normalizeInvestmentSymbol(companionSymbol) || (symbol === 'QQQ' ? 'SPY' : 'QQQ');
   const effectiveCompanion = companion === symbol ? symbol === 'QQQ' ? 'SPY' : 'QQQ' : companion;
+  const historyArgs = { userId, symbols: [symbol, effectiveCompanion], ...dates };
   const key = JSON.stringify([userId, symbol, effectiveCompanion, dates?.startDate, dates?.endDate, endDate, attempt]);
   const shouldLoad = visible || open;
+  React.useEffect(() => historyLoader.subscribe(() => setLoaded({ key, data: null, error: 'AUTH_REQUIRED', loading: false })), [historyLoader, key]);
   React.useEffect(() => {
     if (preview) return undefined;
     if (!window.IntersectionObserver) { setVisible(true); return undefined; }
@@ -185,35 +190,39 @@ function ScopedReplay({ symbol, stockTrades, userId, language, previewHistory, c
   }, [preview]);
   React.useEffect(() => {
     if (!shouldLoad || preview || !userId || !dates) return undefined;
-    const controller = new AbortController(); setLoaded({ key, data: null, error: '', loading: true });
+    const controller = new AbortController(); setLoaded({ key, data: historyLoader.peek(historyArgs), error: '', loading: true });
     // Existing authenticated stock-comparison contract needs 2–4 symbols. The
     // companion only satisfies that contract and is never included in the chart.
     Promise.resolve().then(() => {
       if (controller.signal.aborted) return null;
-      return loadReviewStockReplayHistory({ userId, symbols: [symbol, effectiveCompanion], ...dates, force: attempt > 0, signal: controller.signal });
+      return historyLoader({ ...historyArgs, force: attempt > 0, signal: controller.signal });
     }).then(data => { if (!controller.signal.aborted) setLoaded({ key, data, error: '', loading: false }); })
-      .catch(error => { if (!controller.signal.aborted) setLoaded({ key, data: null, error: error?.code || 'NETWORK_ERROR', loading: false }); });
+      .catch(error => { if (!controller.signal.aborted) setLoaded({ key, data: historyLoader.peek(historyArgs), error: error?.code?.startsWith('REVIEW_') ? 'AUTH_REQUIRED' : error?.code || 'NETWORK_ERROR', loading: false }); });
     return () => controller.abort();
-  }, [shouldLoad, key, preview]);
-  const current = loaded.key === key ? loaded : null, history = preview || current?.data;
+  }, [shouldLoad, key, preview, historyLoader]);
+  const current = loaded.key === key ? loaded : null;
+  // Peek on every render, not only initialization: the session epoch may have
+  // changed while this card remained mounted. Never restore revoked local data.
+  const history = preview || historyLoader.peek(historyArgs) || (historyLoader.isCurrent(historyArgs, current?.data) ? current.data : null);
   const model = React.useMemo(() => buildReviewStockReplay({ stockTrades, symbol, userId, history, endDate, allowSynthetic: Boolean(preview) }), [stockTrades, symbol, userId, history, endDate, preview]);
   const miniRows = model.rows;
-  const loading = Boolean(shouldLoad && !preview && userId && (!current || current.loading));
+  const loading = Boolean(!history && shouldLoad && !preview && userId && (!current || current.loading));
   const error = !userId ? 'AUTH_REQUIRED' : current?.error || (history && !model.validHistory ? 'INVALID_DATA' : '');
   return <section ref={cardRef} className="rsr-card" data-review-stock-replay={symbol}>
     <button type="button" className="rsr-card-open" onClick={() => setOpen(true)} aria-label={`${symbol} ${english ? 'trade replay' : '交易回放'}`}>
-      <header><strong>{symbol}</strong><span>{preview ? english ? 'Demo trades' : '示例交易' : english ? 'My trade dates' : '我的买卖节点'}</span><ChevronRight size={17} /></header>
+      <header><strong>{symbol}</strong><span>{example ? english ? 'Demo trades' : '示例交易' : english ? 'My trade dates' : '我的买卖节点'}</span><ChevronRight size={17} /></header>
       {miniRows.length ? <ReplayChart rows={miniRows} trades={model.trades} selectedTrade={null} english={english} recordDate={recordDate} mini /> : <div className="rsr-card-chart-status" role="status">{error ? english ? 'History unavailable · open to retry' : '历史行情暂不可用 · 点击重试' : loading || !shouldLoad ? english ? 'Loading chart…' : '正在读取走势…' : english ? 'No historical prices available' : '暂无可用历史行情'}</div>}
       {model.trades.some(trade => trade.recordKind === 'historical_holding') && <span className="rsr-holding-caption">{english ? 'Includes historical holdings' : '含历史持仓记录'}</span>}
+      {error && miniRows.length > 0 && <span className="rsr-holding-caption">{english ? 'Cached history · open to retry refresh' : '已缓存走势 · 点击重试更新'}</span>}
     </button>
-    {open && <ReplayDialog symbol={symbol} model={model} loading={loading} error={error} onRetry={() => setAttempt(value => value + 1)} onClose={() => setOpen(false)} english={english} preview={Boolean(preview)} recordDate={recordDate} />}
+    {open && <ReplayDialog symbol={symbol} model={model} loading={loading} error={error} onRetry={() => setAttempt(value => value + 1)} onClose={() => setOpen(false)} english={english} preview={example} recordDate={recordDate} />}
   </section>;
 }
 
 /** Visible cards load automatically through a shared, bounded request pool.
  * Owner-scoped mapped stock_trades are required;
  * DevVisualPreview alone may supply an explicitly synthetic previewHistory. */
-export default function ReviewStockReplay({ symbol, stockTrades = [], userId = '', language = 'zh', previewHistory, companionSymbol, recordDate }) {
+export default function ReviewStockReplay({ symbol, stockTrades = [], userId = '', language = 'zh', previewHistory, companionSymbol, recordDate, previewHistoryLoader }) {
   const ticker = normalizeInvestmentSymbol(symbol); if (!ticker) return null;
-  return <ScopedReplay key={`${userId}:${ticker}`} symbol={ticker} stockTrades={stockTrades} userId={userId} language={language} previewHistory={previewHistory} companionSymbol={companionSymbol} recordDate={recordDate} />;
+  return <ScopedReplay key={`${userId}:${ticker}`} symbol={ticker} stockTrades={stockTrades} userId={userId} language={language} previewHistory={previewHistory} companionSymbol={companionSymbol} recordDate={recordDate} previewHistoryLoader={previewHistoryLoader} />;
 }

@@ -5,7 +5,7 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { transformWithOxc } from 'vite';
 import { parse } from 'postcss';
-import { buildReviewStockReplay } from '../src/lib/reviewStockReplayModel.js';
+import { buildReviewStockReplay, collectReviewReplayTrades, reviewReplayRequestRange } from '../src/lib/reviewStockReplayModel.js';
 import { isRegularNyseHoliday } from '../src/lib/quoteRefreshPolicy.js';
 import { withStockTradeRecordKind } from '../src/lib/stockTradeRecordKind.js';
 
@@ -36,6 +36,8 @@ let fixtureId = 0;
 async function harness({ observer = true } = {}) {
   let slots = [], cursor = 0, effects = [];
   const requests = [], observers = [];
+  const cached = new Map(), listeners = new Set();
+  const cacheKey = args => JSON.stringify([args.userId, args.symbols, args.startDate, args.endDate]);
   const fixture = {
     active: false, document: { body: { style: {} } },
     useState(initial) {
@@ -64,9 +66,18 @@ async function harness({ observer = true } = {}) {
     },
     useLayoutEffect(effect, deps) { return fixture.useEffect(effect, deps); },
     load(options) {
-      return new Promise((resolve, reject) => requests.push({ options, resolve, reject }));
+      return new Promise((resolve, reject) => requests.push({ options, resolve: data => {
+        if (!options.signal.aborted) cached.set(cacheKey(options), data);
+        resolve(data);
+      }, reject: error => {
+        if (error?.code !== 'NETWORK_ERROR') cached.delete(cacheKey(options));
+        reject(error);
+      } }));
     },
   };
+  fixture.load.peek = options => cached.get(cacheKey(options)) || null;
+  fixture.load.isCurrent = (options, data) => Boolean(data && cached.get(cacheKey(options)) === data);
+  fixture.load.subscribe = listener => { listeners.add(listener); return () => listeners.delete(listener); };
   fixture.IntersectionObserver = observer ? class {
     constructor(callback, options) { this.callback = callback; this.options = options; observers.push(this); }
     observe(node) { this.node = node; }
@@ -125,6 +136,11 @@ async function harness({ observer = true } = {}) {
   } finally { delete globalThis[fixtureKey]; }
   return {
     components: fixture.components, Carousel: fixture.ReviewStockCarousel, Page: fixture.Page, requests, observers,
+    seedHistory(data, overrides = {}) {
+      const props = { ...baseProps, ...overrides };
+      cached.set(cacheKey({ userId: props.userId, symbols: [props.symbol, 'QQQ'], ...reviewReplayRequestRange(collectReviewReplayTrades(props), endDate) }), data);
+    },
+    invalidateCache() { cached.clear(); for (const listener of listeners) listener(); },
     render(component, props, runEffects = false) {
       cursor = 0; effects = []; fixture.active = true;
       let tree;
@@ -164,6 +180,58 @@ test('a visible card fetches and draws history before the replay dialog is opene
   tree = h.card(); await flush();
   assert.equal(h.requests.length, 1, 'opening a loaded card must reuse its history');
   assert.equal(find(tree, node => node.type === h.components.ReplayDialog).props.recordDate, recordDate);
+  h.unmount();
+});
+
+test('remount draws validated cached history on its first render without a loading flash', async () => {
+  const h = await harness({ observer: false });
+  h.seedHistory(history);
+  let tree = h.card();
+  assert.match(markup(tree), /rsr-price-path/);
+  assert.doesNotMatch(markup(tree), /正在读取走势/);
+  tree = h.card(); await flush();
+  assert.equal(h.requests.length, 1, 'visible cards still check their cache/session policy in the background');
+  assert.match(markup(tree), /rsr-price-path/);
+  find(tree, node => hasClass(node, 'rsr-card-open')).props.onClick();
+  tree = h.card();
+  assert.equal(find(tree, node => node.type === h.components.ReplayDialog).props.loading, false);
+  h.unmount();
+});
+
+test('editing trades updates markers without reloading unchanged history, but a changed range has no wrong cached chart', async () => {
+  const h = await harness({ observer: false });
+  h.seedHistory(history); h.card(); h.card(); await flush();
+  h.requests[0].resolve(history); await flush();
+  const changed = stockTrades.map(row => row.id === 'review-buy' ? { ...row, price: 150, shares: 7 } : row);
+  let tree = h.card({ stockTrades: changed }); await flush();
+  assert.equal(chartIn(tree, h).props.trades.find(row => row.id === 'review-buy').shares, 7);
+  assert.equal(h.requests.length, 1);
+  tree = h.card({ stockTrades: [trade('earlier', '2024-04-02'), ...changed] }); await flush();
+  assert.equal(h.requests.length, 2);
+  assert.equal(chartIn(tree, h), undefined, 'different history windows cannot render the old curve');
+  h.unmount();
+});
+
+test('background network failure retains a cached curve and retry, while identity invalidation clears a mounted chart', async () => {
+  const h = await harness({ observer: false });
+  h.seedHistory(history); h.card(); h.card(); await flush();
+  h.requests[0].reject({ code: 'NETWORK_ERROR' }); await flush();
+  let tree = h.card();
+  assert.match(markup(tree), /rsr-price-path/);
+  assert.match(markup(tree), /已缓存走势/);
+  h.invalidateCache();
+  tree = h.card();
+  assert.equal(chartIn(tree, h), undefined);
+  assert.match(markup(tree), /历史行情暂不可用/);
+  h.unmount();
+});
+
+test('a replay dialog keeps its cached curve visible during background refresh and exposes retry on failure', async () => {
+  const h = await harness();
+  const tree = h.render(h.components.ReplayDialog, { symbol: 'NVDA', model, loading: true, error: 'NETWORK_ERROR', onClose() {}, onRetry() {} });
+  assert.ok(chartIn(tree, h));
+  assert.doesNotMatch(markup(tree), /正在读取历史行情/);
+  assert.match(markup(tree), /正在显示已缓存的历史行情/);
   h.unmount();
 });
 
