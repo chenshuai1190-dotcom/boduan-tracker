@@ -131,3 +131,18 @@
 
 .rjt-currency-note{color:var(--rjt-muted,#828b98);font-size:11px;line-height:1.7;margin:0 20px 18px;overflow-wrap:anywhere}
 .rjt-detail-metric.rjt-earnings-primary>strong{font-size:clamp(25px,7.8vw,36px);line-height:1.3;white-space:nowrap}
+
+.rjt-stock-prior{display:flex;align-items:baseline;flex-wrap:wrap;gap:7px 10px;margin-top:10px;font-size:13px;line-height:21px;color:var(--rjt-muted)}
+.rjt-stock-prior strong{font-size:17px;font-weight:400;font-variant-numeric:tabular-nums;white-space:nowrap}
+.rjt-stock-node-tabs{display:flex;overflow-x:auto;gap:7px;margin-top:0;padding-bottom:4px}
+.rjt-stock-node-tabs button{flex:0 0 auto;min-width:84px;padding:8px 12px}
+.rjt-stock-node-tabs strong{font-size:15px;line-height:22px;font-weight:450;font-variant-numeric:tabular-nums}
+.rjt-stock-record-readings{margin-top:16px;padding:17px;border-radius:15px;background:#13161b}
+.rjt-stock-record-readings>.rjt-node-value{margin-top:0}
+.rjt-stock-record-readings>.rjt-node-value>span{color:var(--rjt-muted);font-size:13px}
+.rjt-stock-metrics{grid-template-columns:repeat(2,minmax(0,1fr));margin-top:20px}
+.rjt-stock-metrics span{min-height:42px;overflow-wrap:anywhere}
+.rjt-stock-metrics strong{font-size:18px;white-space:nowrap}
+.rjt-stock-record-readings>.rjt-stock-prior{margin-top:20px}
+.rjt-stock-state{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 20px 18px;font-size:13px;line-height:21px;color:var(--rjt-muted)}
+.rjt-stock-state>span{min-width:0;overflow-wrap:anywhere}.rjt-stock-state>button{flex-shrink:0}

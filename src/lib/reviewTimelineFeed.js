@@ -32,6 +32,12 @@ const compareEvents = (left, right) => Number(left.status !== 'archived') - Numb
   || String(left.id).localeCompare(String(right.id));
 
 function feedBranch(event, category) {
+  if (category === 'stock_daily_record') {
+    // Saved evaluation references retain the stable symbol/year ID, not quote data.
+    const identity = /^record:stock_daily_return:([A-Z0-9.\-]+):(\d{4})$/i.exec(event.id || '');
+    const symbol = event.symbol || identity?.[1], year = event.year || identity?.[2];
+    return symbol && year ? `${category}:${String(symbol).toUpperCase()}:${year}` : `${category}:${event.id}`;
+  }
   if (category === 'drawdown') return `${category}:${event.metric}`;
   if (category !== 'daily_record') return category;
   // Archived evaluation references retain the original ID, but not recordDirection.

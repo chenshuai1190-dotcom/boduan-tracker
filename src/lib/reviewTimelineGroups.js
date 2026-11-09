@@ -14,6 +14,7 @@ export function reviewTimelineRawCategory(event) {
   if (event.kind === 'low') return ({ annual_return: 'annual_return_low', annual_pnl: 'annual_pnl_low' })[event.metric] || null;
   if (event.kind === 'drawdown') return ({ net_assets: 'drawdown', cumulative_return: 'return_drawdown' })[event.metric] || null;
   if (event.kind === 'record' && event.metric === 'daily_return') return 'daily_record';
+  if (event.kind === 'record' && event.metric === 'stock_daily_return') return 'stock_daily_record';
   if (event.kind === 'period' && event.metric === 'period_return') {
     const period = event.periodType || /^period:(month|quarter|year):/.exec(event.id || '')?.[1];
     return ['month', 'quarter', 'year'].includes(period) ? period : null;

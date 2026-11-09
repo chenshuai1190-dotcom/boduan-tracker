@@ -10,7 +10,7 @@ const deferred = () => { let resolve, reject; const promise = new Promise((a,b) 
 test('display defaults include every existing event category and only USD/CNY', () => {
   assert.equal(DEFAULT_REVIEW_PREFERENCES.showTimeline, true);
   assert.equal(DEFAULT_REVIEW_PREFERENCES.currency, 'USD');
-  assert.deepEqual(REVIEW_TIMELINE_TYPES.map(type=>type.id), ['net_assets_high','return_high','pnl_high','annual_return_high','annual_return_low','annual_pnl_high','annual_pnl_low','drawdown','return_drawdown','daily_record','month','quarter','year']);
+  assert.deepEqual(REVIEW_TIMELINE_TYPES.map(type=>type.id), ['net_assets_high','return_high','pnl_high','annual_return_high','annual_return_low','annual_pnl_high','annual_pnl_low','drawdown','return_drawdown','daily_record','stock_daily_record','month','quarter','year']);
   assert.deepEqual(normalizeReviewPreferences(null).eventTypes, REVIEW_TIMELINE_TYPES.map(type=>type.id));
   assert.deepEqual(normalizeReviewPreferences({showTimeline:false,currency:'CNY',eventTypes:['drawdown','unknown','drawdown']}),{showTimeline:false,currency:'CNY',eventTypes:['drawdown']});
   assert.deepEqual(patchReviewPreferences(prefs(),{eventTypes:[]}).eventTypes,[]);
@@ -20,15 +20,22 @@ test('display defaults include every existing event category and only USD/CNY', 
   assert.throws(()=>patchReviewPreferences(prefs(),{owner:'other'}),{code:'REVIEW_PREFERENCES_INVALID'});
 });
 
-test('ten display groups cover the unchanged thirteen persisted event IDs exactly once', () => {
+test('display groups cover all fourteen event IDs exactly once', () => {
   const rawIds = REVIEW_TIMELINE_TYPES.map(type => type.id);
-  assert.equal(REVIEW_TIMELINE_DISPLAY_GROUPS.length, 10);
+  assert.equal(REVIEW_TIMELINE_DISPLAY_GROUPS.length, 11);
   const groupedIds = REVIEW_TIMELINE_DISPLAY_GROUPS.flatMap(group => group.eventTypes);
   assert.deepEqual([...groupedIds].sort(), [...rawIds].sort());
-  assert.equal(new Set(groupedIds).size, 13);
+  assert.equal(new Set(groupedIds).size, 14);
   assert.deepEqual(DEFAULT_REVIEW_PREFERENCES.eventTypes, rawIds);
   for (const group of REVIEW_TIMELINE_DISPLAY_GROUPS) assert.equal(isReviewTimelineGroupEnabled(rawIds, group.id), true);
   assert.throws(() => normalizeReviewPreferences(prefs({ eventTypes: ['annual_high'] }), { strict: true }), { code: 'REVIEW_PREFERENCES_INVALID' });
+});
+
+test('stock loss records have an independent toggle from account daily records', () => {
+  const selected = ['daily_record', 'stock_daily_record'];
+  assert.deepEqual(setReviewTimelineGroupEnabled(selected, 'stock_daily_record', false), ['daily_record']);
+  assert.deepEqual(setReviewTimelineGroupEnabled(selected, 'daily_record', false), ['stock_daily_record']);
+  assert.deepEqual(setReviewTimelineGroupEnabled([], 'stock_daily_record', true), ['stock_daily_record']);
 });
 
 test('legacy partial groups display enabled without rewriting settings until explicitly toggled', () => {

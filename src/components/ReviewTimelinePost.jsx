@@ -10,6 +10,8 @@ import './ReviewTimelinePost.css';
 const finite = value => typeof value === 'number' && Number.isFinite(value);
 const percent = value => finite(value) ? `${value > 0 ? '+' : ''}${value.toFixed(2)}%` : '—';
 const decline = value => finite(value) ? `${Math.abs(value).toFixed(2)}%` : '—';
+const isStockDailyRecord = event => event.kind === 'record' && event.metric === 'stock_daily_return';
+const stockSymbol = event => event.symbol || /^record:stock_daily_return:([^:]+):/.exec(event.id || '')?.[1] || '';
 const isReturnDrawdown = event => event.kind === 'drawdown' && event.metric === 'cumulative_return';
 const label = (en, zh, english) => en ? english : zh;
 const shortDate = (value, en) => en ? value : `${value.slice(5, 7)}月${value.slice(8, 10)}日`;
@@ -17,6 +19,9 @@ const style = (value, mode) => finite(value) && value !== 0 ? { color: marketHex
 
 export function reviewTimelinePostSummary(event, en = false) {
   if (event.status === 'archived') return label(en, '来源数据已更新，保留此前写下的评价。', 'Source data changed; your previous reflection is preserved.');
+  if (isStockDailyRecord(event)) return finite(event.value)
+    ? label(en, `${stockSymbol(event)} 收盘下跌${decline(event.value)}，创下年内最大单日跌幅。`, `${stockSymbol(event)} closed down ${decline(event.value)}, its largest one-day decline of the year.`)
+    : label(en, `${stockSymbol(event)} 年内最大单日跌幅暂不可用。`, `${stockSymbol(event)}'s largest one-day decline is unavailable.`);
   if (isReviewEarningsEvent(event)) return `${event.title} · ${reviewEarningsRecordLabel(event, en)}`;
   if (event.kind === 'drawdown') {
     if (isReturnDrawdown(event)) {
@@ -46,6 +51,12 @@ export function reviewTimelinePostSummary(event, en = false) {
 }
 
 function readings(event, currency, en) {
+  if (isStockDailyRecord(event)) return {
+    title: label(en, `${stockSymbol(event)} · 单日跌幅`, `${stockSymbol(event)} · One-day decline`),
+    value: percent(event.value), direction: event.value,
+    secondaryTitle: label(en, '此前纪录', 'Prior record'),
+    secondary: finite(event.previousRecordPct) ? percent(event.previousRecordPct) : '', secondaryDirection: event.previousRecordPct,
+  };
   if (isReturnDrawdown(event)) return {
     title: label(en, '较年内高点回落', 'Decline from yearly high'), value: decline(event.drawdownPct), direction: event.drawdownPct,
     secondaryTitle: label(en, '本轮最大回落', 'Maximum decline'), secondary: decline(event.maxDrawdownPct), secondaryDirection: event.maxDrawdownPct,
@@ -116,7 +127,7 @@ export default function ReviewTimelinePost({ event, avatarNode, authorNode, comm
       : event.kind === 'drawdown' ? label(en, '持续跟踪', 'Tracking') : '';
   const peakCaption = !returnDrawdown && event.kind === 'drawdown' && event.peak?.date
     ? `${label(en, '较', 'From ')} ${shortDate(event.peak.date, en)} ${label(en, '前高', 'peak')}` : '';
-  const showCurrencyState = info.converted && !percentChart;
+  const showCurrencyState = info.converted && !percentChart && !isStockDailyRecord(event);
   return <article className="rj-post rj-post-link rj-timeline-post" data-rj-entry-key={`timeline:${event.id}`}
     role="link" tabIndex={0} aria-label={`${label(en, '查看', 'View ')}${event.title}`} onClick={clickPost}
     onKeyDown={click => { if (click.target === click.currentTarget && (click.key === 'Enter' || click.key === ' ')) { click.preventDefault(); open(click); } }}>

@@ -6,7 +6,7 @@ import { createReviewPreferencesRepository } from '../src/lib/reviewPreferencesD
 const OWNER='11111111-1111-4111-8111-111111111111',OTHER='22222222-2222-4222-8222-222222222222';
 const now=Date.parse('2026-11-07T00:00:00Z');
 const pref=patch=>({...normalizeReviewPreferences(null),...patch});
-const independentTypes=['return_drawdown','annual_return_high','annual_return_low','annual_pnl_high','annual_pnl_low'];
+const independentTypes=['return_drawdown','annual_return_high','annual_return_low','annual_pnl_high','annual_pnl_low','stock_daily_record'];
 const row=(patch={})=>({user_id:OWNER,show_timeline:true,currency:'USD',event_types:pref().eventTypes.filter(type=>!independentTypes.includes(type)),...Object.fromEntries(independentTypes.map(type=>[`show_${type}`,false])),show_return_drawdown:null,revision:1,updated_at:new Date(now).toISOString(),...patch});
 const deferred=()=>{let resolve;const promise=new Promise(r=>resolve=r);return{promise,resolve};};
 function fixture(initial=row(),{eventTarget=null}={}){
@@ -106,7 +106,7 @@ test('cross-tab events and later remounts cannot regress the cached revision',as
  const f=fixture(row({revision:4,show_timeline:false}),{eventTarget});await f.repo.fetchReviewPreferences(OWNER);
  const key=[...f.disk.keys()][0],updates=[];
  const unsubscribe=f.repo.subscribeReviewPreferences(OWNER,value=>updates.push(value.revision));
- const envelope=(revision,showTimeline)=>JSON.stringify({version:2,ownerId:OWNER,savedAt:now,record:{preferences:pref({showTimeline}),revision,exists:true,updatedAt:new Date(now).toISOString()}});
+ const envelope=(revision,showTimeline)=>JSON.stringify({version:3,ownerId:OWNER,savedAt:now,record:{preferences:pref({showTimeline}),revision,exists:true,updatedAt:new Date(now).toISOString()}});
  const dispatch=raw=>{f.disk.set(key,raw);for(const handler of handlers)handler({key,newValue:raw});};
  dispatch(envelope(2,true));assert.deepEqual(updates,[]);assert.equal(f.repo.readCachedReviewPreferences(OWNER).revision,4);
  dispatch('not-json');assert.equal(f.repo.readCachedReviewPreferences(OWNER).revision,4);
@@ -194,7 +194,7 @@ test('malformed independent return fields are rejected rather than interpreted a
 });
 
 test('new annual record flags default on but explicit independent off values survive reloads',async()=>{
- const annualTypes=independentTypes.filter(type=>type!=='return_drawdown');
+ const annualTypes=independentTypes.filter(type=>type.startsWith('annual_'));
  const f=fixture(row({event_types:[],...Object.fromEntries(annualTypes.map(type=>[`show_${type}`,null]))}));
  const legacy=await f.repo.fetchReviewPreferences(OWNER);
  assert.deepEqual(new Set(legacy.preferences.eventTypes),new Set(annualTypes));
@@ -217,16 +217,47 @@ test('version-one caches cannot reinterpret an absent return key as a new indepe
  const cloud=await f.repo.fetchReviewPreferences(OWNER);
  assert.deepEqual(cloud.preferences.eventTypes,['drawdown','return_drawdown']);
  assert.equal(cloud.revision,1,'old cache revision cannot suppress the fresh schema');
- const stored=JSON.parse(f.disk.get('bottomline_review_display_preferences_v2'));
- assert.equal(stored.version,2);
+ const stored=JSON.parse(f.disk.get('bottomline_review_display_preferences_v3'));
+ assert.equal(stored.version,3);
  assert.equal(stored.ownerId,OWNER);
  assert.equal(f.repo.readCachedReviewPreferences(OTHER),null);
+});
+
+test('old v2 cache cannot silently disable new stock records or override the cloud revision',async()=>{
+ const f=fixture(row({event_types:['daily_record'],show_stock_daily_record:null}));
+ const legacy={version:2,ownerId:OWNER,savedAt:now,record:{preferences:pref({eventTypes:['daily_record']}),revision:99,exists:true,updatedAt:new Date(now).toISOString()}};
+ f.disk.set('bottomline_review_display_preferences_v2',JSON.stringify(legacy));
+ f.disk.set('bottomline_review_display_preferences_v3',JSON.stringify(legacy));
+ assert.equal(f.repo.readCachedReviewPreferences(OWNER),null);
+ const current=await f.repo.fetchReviewPreferences(OWNER);
+ assert.deepEqual(current.preferences.eventTypes,['daily_record','stock_daily_record']);
+ assert.equal(current.revision,1);
+ assert.equal(JSON.parse(f.disk.get('bottomline_review_display_preferences_v3')).version,3);
+});
+
+test('stock loss records default on independently and explicit off survives cache, old writes and master switches',async()=>{
+ const f=fixture(row({event_types:[],show_stock_daily_record:null}));
+ const legacy=await f.repo.fetchReviewPreferences(OWNER);
+ assert.deepEqual(legacy.preferences.eventTypes,['stock_daily_record']);
+ const saved=await f.repo.saveReviewPreferences(pref({eventTypes:['daily_record']}),legacy.revision,OWNER);
+ assert.equal(f.row.show_stock_daily_record,false);
+ assert.deepEqual(f.row.event_types,['daily_record']);
+ const remount=createReviewPreferencesRepository({supabase:f.supabase,storage:f.storage,now:()=>now,eventTarget:null});
+ assert.deepEqual(remount.readCachedReviewPreferences(OWNER),saved);
+ // A previous client saves only its known columns, preserving the new flag.
+ f.row={...f.row,event_types:['daily_record','drawdown'],revision:f.row.revision+1};
+ const updated=await remount.fetchReviewPreferences(OWNER);
+ assert.equal(updated.preferences.eventTypes.includes('stock_daily_record'),false);
+ const hidden=await remount.saveReviewPreferences({...updated.preferences,showTimeline:false},updated.revision,OWNER);
+ await remount.saveReviewPreferences({...hidden.preferences,showTimeline:true},hidden.revision,OWNER);
+ assert.equal(f.row.show_stock_daily_record,false);
+ assert.equal(f.row.show_timeline,true);
 });
 
 test('independent visibility migration only adds nullable booleans and keeps old rows permissions and array contracts intact',()=>{
  const sql=readFileSync(new URL('../supabase/review_display_preferences_return_drawdown_20261107.sql',import.meta.url),'utf8');
  const statements=sql.replace(/--.*$/gm,'');
- for(const type of independentTypes)assert.match(sql,new RegExp(`add column if not exists show_${type} boolean default null`,'i'));
+ for(const type of independentTypes.filter(type=>type!=='stock_daily_record'))assert.match(sql,new RegExp(`add column if not exists show_${type} boolean default null`,'i'));
  assert.match(sql,/atttypid = 'boolean'::regtype/);
  assert.match(sql,/not attnotnull/);
  assert.match(sql,/notify pgrst, 'reload schema'/);

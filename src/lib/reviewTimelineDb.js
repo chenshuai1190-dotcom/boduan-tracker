@@ -1,8 +1,12 @@
 import { buildReviewTimeline } from './reviewTimelineModel.js';
+import { buildReviewStockDailyRecords, collectReviewStockDailyRecordRanges } from './reviewStockDailyRecordModel.js';
+import { loadReviewStockDailyHistory } from './reviewStockDailyRecordHistory.js';
+import { createReviewSessionGuard } from './reviewSessionGuard.js';
 
 const SNAPSHOT_FIELDS = 'id,user_id,snapshot_date,currency,cumulative_pnl_pct,daily_pnl_pct,cumulative_pnl_usd,daily_pnl_usd,market_value_usd,total_assets_usd,net_assets_usd,cash_usd,cash_event_id,cash_effective_at,cash_basis,margin_debt_usd,margin_debt_event_id,margin_debt_effective_at,margin_debt_basis,source_version,locked_at,updated_at';
 const MOVEMENT_FIELDS = 'id,user_id,kind,delta_usd,cash_event_id,occurred_at';
 const STATE_FIELDS = 'user_id,dirty_from_date,ledger_revision,generation,updated_at';
+const SYMBOL_FIELDS = 'id,user_id,snapshot_date,symbol,name,currency,held_shares,source_version,updated_at';
 const PAGE_SIZE = 500;
 const MAX_PAGES = 40;
 const fail = (code, message) => Object.assign(new Error(message), { code });
@@ -23,20 +27,23 @@ const pending = reason => ({ status: 'pending', reason, events: [], years: [],
   warnings: ['收益报表正在更新，完成后再生成时间线。'] });
 
 /** Reads complete bounded history only, with owner checks and a before/after report revision fence. */
-export function createReviewTimelineLoader(client, { now = () => Date.now() } = {}) {
-  const authenticate = async owner => {
-    if (typeof owner !== 'string' || !owner.trim() || !client?.auth?.getUser) {
-      throw fail('REVIEW_AUTH_REQUIRED', '请先登录后读取时间线。');
-    }
-    const { data, error } = await client.auth.getUser();
-    if (error || !data?.user?.id) throw fail('REVIEW_AUTH_REQUIRED', '登录状态已失效，请重新登录。');
-    if (data.user.id !== owner) throw fail('REVIEW_ACCOUNT_CHANGED', '账户已切换，请重新打开时间线。');
-  };
-  return async expectedUserId => {
-    await authenticate(expectedUserId);
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 15000);
-    timer.unref?.();
+export function createReviewTimelineLoader(client, { now = () => Date.now(), loadHistory } = {}) {
+  const guard = createReviewSessionGuard(client);
+  return async (expectedUserId, { onProgress, signal } = {}) => {
+    if (signal?.aborted) throw fail('REQUEST_ABORTED', '时间线读取已取消。');
+    const ticket = await guard.begin(expectedUserId);
+    let controller = new AbortController();
+    const abort = () => controller.abort();
+    signal?.addEventListener('abort', abort, { once: true });
+    if (signal?.aborted) abort();
+    let timer;
+    const timeout = milliseconds => {
+      clearTimeout(timer);
+      timer = setTimeout(abort, milliseconds);
+      timer.unref?.();
+    };
+    timeout(15000);
+    const assertActive = () => { if (controller.signal.aborted) throw fail('REQUEST_ABORTED', '时间线读取已取消或超时，请重试。'); };
     const withAbort = query => typeof query.abortSignal === 'function' ? query.abortSignal(controller.signal) : query;
     const readState = async () => {
       const result = await withAbort(client.from('pnl_report_rebuild_state').select(STATE_FIELDS).eq('user_id', expectedUserId)).maybeSingle();
@@ -76,7 +83,7 @@ export function createReviewTimelineLoader(client, { now = () => Date.now() } = 
       const before = await readState();
       const beforeKey = stateKey(before, expectedUserId);
       if (beforeKey === null || before?.dirty_from_date) {
-        await authenticate(expectedUserId);
+        await guard.verify(ticket);
         return pending(beforeKey === null ? 'invalid_rebuild_state' : 'rebuilding');
       }
       const [snapshots, movements, firstTradeDate] = await Promise.all([
@@ -86,10 +93,52 @@ export function createReviewTimelineLoader(client, { now = () => Date.now() } = 
       ]);
       const after = await readState();
       const afterKey = stateKey(after, expectedUserId);
-      await authenticate(expectedUserId);
+      await guard.verify(ticket);
+      assertActive();
       if (afterKey === null || after?.dirty_from_date || beforeKey !== afterKey) return pending('rebuilding');
       const result = buildReviewTimeline({ snapshots, movements, firstTradeDate, now: now(), expectedUserId });
-      return { status: result.coverage.snapshotCount ? 'ready' : 'empty', ...result };
-    } finally { clearTimeout(timer); }
+      const accountResult = { status: result.coverage.snapshotCount ? 'ready' : 'empty', ...result };
+      if (!result.coverage.snapshotCount) return { ...accountResult, stockRecordStatus: 'empty' };
+      // Existing account events render immediately. A cold historical-price
+      // request must not block posts or the rest of the timeline.
+      onProgress?.({ ...accountResult, stockRecordStatus: 'loading' });
+      let stocks = { events: [], warnings: [] }, stockFailure = false;
+      try {
+        timeout(15000);
+        const symbolSnapshots = await readAll('pnl_report_symbol_snapshots', SYMBOL_FIELDS, 'snapshot_date');
+        assertActive();
+        const input = { snapshots, symbolSnapshots, expectedUserId, now: now() };
+        const { ranges } = collectReviewStockDailyRecordRanges(input);
+        timeout(120000);
+        const { histories, failures } = await loadReviewStockDailyHistory({ ranges, userId: expectedUserId,
+          signal: controller.signal, now, loadHistory,
+          getSession: () => client.auth.getSession() });
+        assertActive();
+        stocks = buildReviewStockDailyRecords({ ...input, histories, now: now() });
+        stockFailure = failures > 0;
+      } catch (error) {
+        if (signal?.aborted || ['REVIEW_ACCOUNT_CHANGED', 'REVIEW_AUTH_REQUIRED', 'AUTH_REQUIRED', 'REQUEST_SUPERSEDED'].includes(error?.code)) throw error;
+        // An internal stock timeout should not hide verified account events.
+        // Renew only the database cancellation scope for the final revision check.
+        if (controller.signal.aborted) controller = new AbortController();
+        stockFailure = true;
+      }
+      // Market history can take longer than database reads. Fence the full
+      // derivation again so a concurrent trade edit/rebuild cannot publish it.
+      timeout(15000);
+      const finalState = await readState(), finalKey = stateKey(finalState, expectedUserId);
+      await guard.verify(ticket);
+      assertActive();
+      if (finalKey === null || finalState?.dirty_from_date || beforeKey !== finalKey) return pending('rebuilding');
+      const events = [...accountResult.events, ...stocks.events].sort((a, b) => b.date.localeCompare(a.date) || a.id.localeCompare(b.id));
+      const incomplete = stockFailure || stocks.warnings.length > 0;
+      const stockRecordStatus = incomplete ? stocks.events.length ? 'incomplete' : 'error' : stocks.events.length ? 'ready' : 'empty';
+      return { ...accountResult, events,
+        years: [...new Set(events.map(event => Number(event.date.slice(0, 4))))].sort((a, b) => b - a),
+        stockRecordStatus,
+        stockRecordWarning: incomplete ? '部分个股的年内行情或收盘持仓尚未核对完整，请稍后重试。' : '',
+        warnings: [...new Set([...accountResult.warnings, ...stocks.warnings,
+          ...(stockFailure ? ['个股纪录未能完整读取，已保留账户时间线。'] : [])])] };
+    } finally { clearTimeout(timer); signal?.removeEventListener('abort', abort); }
   };
 }

@@ -1,5 +1,5 @@
 const KINDS = new Set(['high', 'low', 'drawdown', 'record', 'period']);
-const METRICS = new Set(['net_assets', 'cumulative_return', 'cumulative_pnl', 'annual_return', 'annual_pnl', 'daily_return', 'period_return']);
+const METRICS = new Set(['net_assets', 'cumulative_return', 'cumulative_pnl', 'annual_return', 'annual_pnl', 'daily_return', 'stock_daily_return', 'period_return']);
 const plain = value => value !== null && typeof value === 'object' && !Array.isArray(value)
   && (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null);
 const validId = value => typeof value === 'string' && /^[a-z0-9_:\-.]{1,160}$/i.test(value);
@@ -10,8 +10,8 @@ const validDate = value => {
 };
 const failure = (code, message) => Object.assign(new Error(message), { code });
 
-// This is a stable pointer to an event derived from the account's closing
-// snapshots. It never stores an invented account value or changes the ledger.
+// This is a stable pointer to an event derived from verified closing records.
+// It never stores an invented account value or changes the ledger.
 export function normalizeReviewTimelineReference(value, { strict = false } = {}) {
   if (value == null) return null;
   const title = typeof value.title === 'string' ? value.title.trim() : '';

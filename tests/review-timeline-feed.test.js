@@ -10,7 +10,8 @@ const returnDrawdown = { ...drawdown, id: 'drawdown:cumulative_return:2026-10-06
 const period = type => ({ id: `period:${type}:2026-01-01`, kind: 'period', metric: 'period_return', date: '2026-09-30', periodType: type });
 const events = [high, { ...high, id: 'return', metric: 'cumulative_return' }, { ...high, id: 'profit', metric: 'cumulative_pnl' },
   ...['annual_return', 'annual_pnl'].flatMap(metric => ['high', 'low'].map(kind => ({ ...high, id: `${kind}:${metric}:2026-10-06`, metric, kind }))), drawdown, returnDrawdown,
-  { id: 'daily', kind: 'record', metric: 'daily_return', date: '2026-10-03' }, ...['month', 'quarter', 'year'].map(period)];
+  { id: 'daily', kind: 'record', metric: 'daily_return', date: '2026-10-03' },
+  { id: 'record:stock_daily_return:NVDA:2026', kind: 'record', metric: 'stock_daily_return', symbol: 'NVDA', year: 2026, date: '2026-10-03' }, ...['month', 'quarter', 'year'].map(period)];
 
 test('raw settings retain their event-family mapping while paired earnings switches enable one display group', () => {
   assert.deepEqual(events.map(reviewTimelineCategory), REVIEW_TIMELINE_TYPES.map(type => type.id));
@@ -337,4 +338,22 @@ test('unavailable/invalid FX and missing/overflow balances never masquerade as C
   for (const amount of [undefined, null, NaN, Infinity, '100']) assert.equal(formatReviewMoney(amount), '—');
   assert.equal(formatReviewMoney(Number.MAX_VALUE, { displayCurrency: 'CNY', usdCny: 100 }), '—');
   assert.equal(reviewDisplayCurrency({ displayCurrency: 'JPY', usdCny: 7.2 }).currency, 'USD');
+});
+
+test('stock daily records keep separate symbol and year branches and retain their stable evaluation references', () => {
+  const record = (symbol, year, date, overrides = {}) => ({ id: `record:stock_daily_return:${symbol}:${year}`, kind: 'record', metric: 'stock_daily_return', symbol, year,
+    title: `${symbol} · 年内最大单日跌幅`, date, startDate: `${year}-01-02`, value: -8.52, ...overrides });
+  const nvda = record('NVDA', 2026, '2026-11-05');
+  const msft = record('MSFT', 2026, '2026-10-30');
+  const oldYear = record('NVDA', 2025, '2025-11-05');
+  const outdated = { ...nvda, date: '2026-04-02', value: -6.30 };
+  const archived = { ...nvda, status: 'archived', symbol: undefined, year: undefined };
+  const result = mergeReviewTimelineFeed([], [outdated, nvda, msft, oldYear, archived], DEFAULT_REVIEW_PREFERENCES);
+  assert.deepEqual(result.map(item => item.event), [nvda, msft, oldYear]);
+  assert.equal(reviewTimelineCategory(nvda), 'stock_daily_record');
+  assert.equal(result[0].date, '2026-11-05');
+  assert.equal(mergeReviewTimelineFeed([], [nvda], { ...DEFAULT_REVIEW_PREFERENCES, eventTypes: ['daily_record'] }).length, 0);
+  assert.equal(mergeReviewTimelineFeed([], [nvda, drawdown], { ...DEFAULT_REVIEW_PREFERENCES, eventTypes: ['stock_daily_record'] }).length, 1);
+  assert.equal(mergeReviewTimelineFeed([], [nvda], DEFAULT_REVIEW_PREFERENCES, { query: 'nvda' })[0].event, nvda);
+  assert.equal(mergeReviewTimelineFeed([], [archived], DEFAULT_REVIEW_PREFERENCES)[0].event, archived);
 });

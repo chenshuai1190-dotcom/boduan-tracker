@@ -1176,6 +1176,40 @@ test('timeline drafts stay mounted through category reloads and linked stock tag
   h.unmount();
 });
 
+test('stock-only private All distinguishes loading and failed verification from an empty feed', async () => {
+  for (const stockRecordStatus of ['loading', 'error', 'incomplete']) {
+    const h = await harness({ preferences: { showTimeline: true, eventTypes: ['stock_daily_record'] } });
+    h.ctx.reviewLogs = [];
+    h.ctx.previewData.timeline = { status: 'ready', events: [], years: [], stockRecordStatus };
+    h.render(); await Promise.resolve(); const tree = h.render();
+    assert.doesNotMatch(textOf(tree), /从第一条复盘开始/);
+    assert.match(textOf(tree), stockRecordStatus === 'loading' ? /正在核对个股纪录/ : /部分个股纪录暂未核对完整/);
+    if (stockRecordStatus !== 'loading') assert.ok(button(tree, '重试'));
+    h.unmount();
+  }
+});
+
+test('stock evaluation containers do not become archived while their history is still being checked', async () => {
+  const h = await harness({ preferences: { showTimeline: true, eventTypes: ['stock_daily_record'] } });
+  const reference = { version: 1, id: 'record:stock_daily_return:NVDA:2026', kind: 'record', metric: 'stock_daily_return',
+    date: '2026-04-02', title: 'NVDA · 年内最大单日跌幅' };
+  h.ctx.reviewLogs = [{ id: 'stock-container', type: 'log', text: reference.title, date: reference.date,
+    timelineEvent: reference, replies: [{ id: 'saved-comment', text: '继续观察仓位。', date: reference.date }], stocks: [], images: [] }];
+  h.ctx.previewData.initialTimeline = true;
+  h.ctx.previewData.timeline = { status: 'ready', events: [], years: [], stockRecordStatus: 'loading' };
+  h.render(); await Promise.resolve(); let tree = h.render();
+  let timeline = find(tree, node => node.type === h.Page.ReviewTimeline);
+  assert.deepEqual(timeline.props.data.events, []);
+  const event = { ...reference, date: '2026-11-05', startDate: reference.date, endDate: '2026-11-05',
+    symbol: 'NVDA', year: 2026, value: -8.52, valueType: 'percent', points: [], nodes: [] };
+  h.ctx.previewData.timeline = { status: 'ready', events: [event], years: [2026], stockRecordStatus: 'ready' };
+  h.render(); await Promise.resolve(); tree = h.render();
+  timeline = find(tree, node => node.type === h.Page.ReviewTimeline);
+  assert.equal(timeline.props.data.events[0].date, '2026-11-05');
+  assert.equal(timeline.props.getCommentCount(event), 1);
+  h.unmount();
+});
+
 const activityEvents = () => [
   { id: 'high:net_assets:2026-11-05', kind: 'high', metric: 'net_assets', date: '2026-11-06', startDate: '2026-11-05', endDate: '2026-11-06', title: '净资产新高', value: 120000, valueType: 'money', points: [], nodes: [] },
   { id: 'drawdown:net_assets:2026-10-06', kind: 'drawdown', metric: 'net_assets', date: '2026-11-06', startDate: '2026-10-06', trigger: { date: '2026-11-01' }, title: '净资产回落', value: -12, valueType: 'percent', status: 'active', points: [], nodes: [] },

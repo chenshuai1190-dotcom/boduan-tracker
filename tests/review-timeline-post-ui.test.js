@@ -375,3 +375,28 @@ test('merged cards retain missing values and show combined annual and cumulative
   assert.doesNotMatch(archived, /rj-system-return|rj-system-primary|同时创新/);
   assert.match(archived, /保留此前写下的评价/);
 });
+
+test('stock daily records show stock decline and its prior record without account amounts or FX conversion', () => {
+  const event = { id: 'record:stock_daily_return:NVDA:2026', kind: 'record', metric: 'stock_daily_return', symbol: 'NVDA', year: 2026,
+    title: 'NVDA · 年内最大单日跌幅', date: '2026-11-05', startDate: '2026-04-02', value: -8.52, valueType: 'percent', previousRecordPct: -6.3,
+    current: { date: '2026-11-05', stockCloseUsd: 137.22, previousCloseUsd: 150, stockDailyReturnPct: -8.52 }, points: [], nodes: [] };
+  for (const language of ['zh', 'en']) for (const mode of Object.values(MARKET_COLOR_MODES)) {
+    const tree = Post(props(event, { language, marketColorMode: mode, displayCurrency: 'CNY', usdCny: null }));
+    const summary = byClass(tree, 'rj-timeline-copy').props.children;
+    assert.match(summary, /NVDA.*8\.52%/);
+    assert.match(summary, language === 'en' ? /largest one-day decline of the year/ : /年内最大单日跌幅/);
+    assert.equal(byClass(tree, 'rj-system-primary').props.children, '-8.52%');
+    assert.equal(byClass(tree, 'rj-system-primary').props.style.color, marketHexColor(-8.52, mode));
+    assert.equal(byClass(tree, 'rj-system-secondary').props.children[1].props.children, '-6.30%');
+    assert.equal(byClass(tree, 'rj-system-secondary').props.children[1].props.style.color, marketHexColor(-6.3, mode));
+    assert.equal(byClass(tree, 'rj-system-caption'), undefined);
+    assert.equal(walk(tree).find(node => node.type === fixture.TimelineChart), undefined);
+    assert.doesNotMatch(renderToStaticMarkup(tree), /账户变化|当日盈亏|人民币|汇率|Daily P&L|FX unavailable|data-chart/);
+    assert.equal(walk(byClass(tree, 'rj-timeline-byline')).find(node => node.type === 'time').props.dateTime, '2026-11-05');
+  }
+  const first = Post(props({ ...event, previousRecordPct: null }));
+  assert.equal(byClass(first, 'rj-system-secondary'), undefined, 'first negative record has no invented prior decline');
+  const updated = Post(props({ ...event, value: -9.5, date: '2026-11-06', previousRecordPct: -8.52 }));
+  assert.match(byClass(updated, 'rj-timeline-copy').props.children, /9\.50%/);
+  assert.equal(updated.props['data-rj-entry-key'], `timeline:${event.id}`);
+});

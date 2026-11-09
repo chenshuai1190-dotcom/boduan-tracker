@@ -9,6 +9,7 @@ import { marketHexColor, MARKET_COLOR_MODES } from '../src/lib/marketColorMode.j
 import { normalizeReviewMarketSnapshot } from '../src/lib/reviewMarketSnapshot.js';
 import { convertReviewMoney, formatReviewMoney, reviewCurrencyNotice, reviewDisplayCurrency } from '../src/lib/reviewDisplayCurrency.js';
 import { isReviewEarningsEvent, reviewEarningsScope, reviewEarningsRecordLabel } from '../src/lib/reviewTimelineEarnings.js';
+import { getStockTradeRecordKind, withStockTradeRecordKind } from '../src/lib/stockTradeRecordKind.js';
 
 const source = readFileSync(new URL('../src/components/ReviewTimeline.jsx', import.meta.url), 'utf8');
 const walk = tree => !React.isValidElement(tree) ? Array.isArray(tree) ? tree.flatMap(walk) : [] : [tree, ...walk(tree.props.children)];
@@ -21,7 +22,7 @@ async function harness() {
   const fixture = {
     React: { ...React, useState(initial) { const i = cursor++; const slot = slots[i] ||= { value: typeof initial === 'function' ? initial() : initial }; return [slot.value, value => { slot.value = typeof value === 'function' ? value(slot.value) : value; }]; } },
     icons, marketHexColor, normalizeReviewMarketSnapshot, convertReviewMoney, formatReviewMoney, reviewCurrencyNotice, reviewDisplayCurrency,
-    isReviewEarningsEvent, reviewEarningsScope, reviewEarningsRecordLabel,
+    isReviewEarningsEvent, reviewEarningsScope, reviewEarningsRecordLabel, getStockTradeRecordKind,
     SnapshotCard: ({ value }) => React.createElement('aside', { 'data-market-date': value.asOfDate }, value.items[0].value),
   };
   const key = `__timelineUI${++nextFixture}`;
@@ -29,7 +30,7 @@ async function harness() {
   let components;
   try {
     const compiled = await transformWithOxc(`
-      const { React, icons, marketHexColor, normalizeReviewMarketSnapshot, convertReviewMoney, formatReviewMoney, reviewCurrencyNotice, reviewDisplayCurrency, SnapshotCard, isReviewEarningsEvent, reviewEarningsScope, reviewEarningsRecordLabel } = globalThis[${JSON.stringify(key)}];
+      const { React, icons, marketHexColor, normalizeReviewMarketSnapshot, convertReviewMoney, formatReviewMoney, reviewCurrencyNotice, reviewDisplayCurrency, SnapshotCard, isReviewEarningsEvent, reviewEarningsScope, reviewEarningsRecordLabel, getStockTradeRecordKind } = globalThis[${JSON.stringify(key)}];
       const { ArrowDownRight, ArrowUpRight, CalendarDays, ChevronDown, ChevronRight, Flag, History, Info, Loader2, MessageCircle, RefreshCw } = icons;
       ${source.replace(/^import .*;\n/gm, '')}
       export { TimelineDetail, TimelineEvent, ArchivedDetail };
@@ -515,4 +516,72 @@ test('a retained cumulative-only milestone uses its original scope and returns t
   assert.match(textOf(byClass(detail, 'rjt-chart-heading')), /年内收益金额走势 · CNY/);
   assert.equal(oldPoint.annualPnlUsd, undefined);
   assert.equal(oldPoint.annualReturnPct, undefined);
+});
+
+const stockRecordPoints = [
+  { date: '2026-04-02', stockCloseUsd: 93.7, previousCloseUsd: 100, stockDailyReturnPct: -6.3, previousRecordPct: -4.2, previousRecordDate: '2026-02-04' },
+  { date: '2026-11-05', stockCloseUsd: 137.22, previousCloseUsd: 150, stockDailyReturnPct: -8.52, previousRecordPct: -6.3, previousRecordDate: '2026-04-02' },
+];
+const stockRecord = { id: 'record:stock_daily_return:NVDA:2026', symbol: 'NVDA', year: 2026, title: 'NVDA · 年内最大单日跌幅', kind: 'record', metric: 'stock_daily_return',
+  date: stockRecordPoints[1].date, startDate: stockRecordPoints[0].date, endDate: stockRecordPoints[1].date, value: -8.52, valueType: 'percent', previousRecordPct: -6.3, previousRecordDate: '2026-04-02',
+  current: stockRecordPoints[1], points: stockRecordPoints, nodes: stockRecordPoints.map(point => ({ key: point.date, label: point.date, point })) };
+
+test('stock record list and detail use stock readings, preserve USD prices and follow both market color modes', async () => {
+  for (const language of ['zh', 'en']) for (const mode of Object.values(MARKET_COLOR_MODES)) {
+    const h = await harness();
+    const props = details({ event: stockRecord, language, marketColorMode: mode, displayCurrency: 'CNY', usdCny: null });
+    const list = h.render('TimelineEvent', props);
+    assert.equal(byClass(list, 'rjt-event-primary').props.children[0].props.children, '-8.52%');
+    assert.equal(byClass(list, 'rjt-event-primary').props.children[0].props.style.color, marketHexColor(-8.52, mode));
+    assert.match(renderToStaticMarkup(byClass(list, 'rjt-stock-prior')), /-6\.30%/);
+    const detail = h.render('TimelineDetail', props), html = renderToStaticMarkup(detail);
+    assert.match(html, /\$137\.22/); assert.match(html, /\$150\.00/); assert.match(html, /USD/);
+    assert.match(html, language === 'en' ? /Split-adjusted close · USD/ : /复权收盘价 · USD/);
+    assert.match(html, language === 'en' ? /Previous adjusted close · USD/ : /前日复权收盘价 · USD/);
+    assert.doesNotMatch(html, /<svg[^>]*viewBox="0 0 360|净资产|当时的账户|汇率|人民币|Account at this point|FX|CNY|rjt-chart-section/);
+    assert.equal(byClass(detail, 'rjt-detail-metric').props.children[0].props.style.color, marketHexColor(-8.52, mode));
+    assert.equal(byClass(detail, 'rjt-stock-prior').props.children[1].props.style.color, marketHexColor(-6.3, mode));
+    if (language === 'en') assert.match(html, /NVDA · Largest one-day decline of the year/);
+    assert.equal(h.components.TimelineChart(props), null);
+  }
+});
+
+test('stock record nodes switch the exact close and prior record while unrelated stock transactions stay out', async () => {
+  const h = await harness();
+  const props = details({ event: stockRecord, stockTrades: [
+    { id: 'owned', symbol: 'NVDA', date: '2026-10-06', side: 'buy', shares: 10, price: 130 },
+    { id: 'other', symbol: 'MSFT', date: '2026-10-06', side: 'sell', shares: 5, price: 300 },
+    { id: 'historical', symbol: 'NVDA', date: '2026-10-07', side: 'buy', shares: 30, price: 88.88, note: withStockTradeRecordKind('平均成本汇总', 'historical_holding') },
+  ] });
+  let detail = h.render('TimelineDetail', props);
+  let html = renderToStaticMarkup(detail);
+  assert.match(html, /NVDA/); assert.doesNotMatch(html, /MSFT|88\.88/);
+  assert.equal(walk(detail).filter(node => node.props.className === 'rjt-trade').length, 1);
+  const firstNode = walk(byClass(detail, 'rjt-stock-node-tabs')).find(node => node.type === 'button');
+  firstNode.props.onClick();
+  detail = h.render('TimelineDetail', props); html = renderToStaticMarkup(byClass(detail, 'rjt-stock-record'));
+  assert.match(html, /\$93\.70/); assert.match(html, /\$100\.00/); assert.match(html, /-4\.20%/); assert.match(html, /2026-02-04/);
+  assert.doesNotMatch(html, /\$137\.22|\$150\.00/);
+  assert.equal(walk(byClass(detail, 'rjt-stock-node-tabs')).find(node => node.type === 'button' && node.props['aria-pressed']).props.children[1].props.dateTime, '2026-04-02');
+});
+
+test('stock declines have an independent filter and progressive loading never claims successful empty data', async () => {
+  const h = await harness(); let attempts = 0;
+  const props = { data: { events: [cycle, stockRecord], years: [2026], stockRecordStatus: 'ready' }, displayCurrency: 'CNY', usdCny: null, onRetry: () => { attempts += 1; } };
+  let tree = h.render('default', props);
+  walk(byClass(tree, 'rjt-filters')).find(node => node.type === 'button' && node.props.children === '个股跌幅').props.onClick();
+  tree = h.render('default', props);
+  assert.deepEqual(walk(tree).filter(node => node.type === h.components.TimelineEvent).map(node => node.props.event), [stockRecord]);
+  assert.equal(byClass(tree, 'rjt-currency-note'), undefined);
+  for (const stockRecordStatus of ['loading', 'incomplete', 'error']) {
+    tree = h.render('default', { ...props, data: { events: [cycle], stockRecordStatus } });
+    const html = renderToStaticMarkup(tree);
+    assert.doesNotMatch(html, /暂时没有符合条件的记录/);
+    assert.match(html, /正在核对个股纪录|部分个股纪录暂未核对完整/);
+    if (stockRecordStatus !== 'loading') walk(byClass(tree, 'rjt-stock-state')).find(node => node.type === 'button').props.onClick();
+  }
+  assert.equal(attempts, 2);
+  const missing = h.render('default', { ...props, selectedEventId: stockRecord.id, data: { events: [], stockRecordStatus: 'loading' } });
+  assert.match(renderToStaticMarkup(missing), /正在核对个股纪录/);
+  assert.doesNotMatch(renderToStaticMarkup(missing), /这条记录已重新核对/);
 });

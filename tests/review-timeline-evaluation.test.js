@@ -5,6 +5,7 @@ import { buildReviewJournalWrite, mapReviewJournalRow } from '../src/lib/reviewJ
 import { createReviewJournalRepository } from '../src/lib/reviewJournalRepository.js';
 import { reviewJournalFeed, restoreReviewDraft } from '../src/lib/reviewJournalFeed.js';
 import { normalizeReviewTimelineReference, reviewTimelineOperationId } from '../src/lib/reviewTimelineReference.js';
+import { projectReviewTimelineEntry, reviewTimelineAnchorEntry } from '../src/lib/reviewTimelineEntries.js';
 
 const USER = '11111111-1111-4111-8111-111111111111';
 const OTHER = '22222222-2222-4222-8222-222222222222';
@@ -168,6 +169,30 @@ test('annual high and low evaluations round trip separately and retry without or
   assert.equal(new Set(saved.map(value => value.operationId)).size, 4);
   assert.equal(f.rows.length, 4);
   assert.deepEqual(reviewJournalFeed([], saved), []);
+});
+
+test('held-stock yearly records preserve evaluations as the latest record advances', async () => {
+  const f=fixture(), repo=f.repository();
+  const original={ id:'record:stock_daily_return:NVDA:2026',kind:'record',metric:'stock_daily_return',
+    date:'2026-10-06',startDate:'2026-10-06',title:'NVDA · 年内最大单日跌幅' };
+  const first=await repo.appendTimelineReply(reviewTimelineAnchorEntry(original),reply(),USER);
+  assert.equal(first.timelineEvent.metric,'stock_daily_return');
+  const latest={...original,date:'2026-11-06',endDate:'2026-11-06'};
+  const anchor=reviewTimelineAnchorEntry(latest,[first]);
+  assert.equal(anchor,first,'updated display dates keep the stored evaluation anchor');
+  const second=await repo.appendTimelineReply(anchor,reply({id:'reply-2',text:'又一次破纪录，继续控制风险'}),USER);
+  assert.equal(second.id,first.id);
+  assert.equal(second.date,'2026-10-06');
+  assert.equal(second.replies.length,2);
+  assert.equal(projectReviewTimelineEntry(latest,[second]).replies.length,2);
+  assert.equal(buildReviewJournalWrite(second,USER).review_data.timelineEvent.metric,'stock_daily_return');
+  await assert.rejects(repo.appendTimelineReply({...anchor,timelineEvent:{...anchor.timelineEvent,date:'2026-11-06'}},reply({id:'bad-date'}),USER),{code:'REVIEW_TIMELINE_CONFLICT'});
+  for(const next of [{...original,id:'record:stock_daily_return:MSFT:2026'},
+    {...original,id:'record:stock_daily_return:NVDA:2027',date:'2027-01-05',startDate:'2027-01-05'}]) {
+    const separate=await repo.appendTimelineReply(reviewTimelineAnchorEntry(next),reply(),USER);
+    assert.notEqual(separate.id,first.id);
+  }
+  assert.equal(f.rows.length,3);
 });
 
 test('simultaneous first submissions converge on one container and preserve both evaluations', async () => {

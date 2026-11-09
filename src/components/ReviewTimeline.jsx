@@ -3,6 +3,7 @@ import { ArrowDownRight, ArrowUpRight, CalendarDays, ChevronDown, ChevronRight, 
 import { marketHexColor } from '../lib/marketColorMode.js';
 import { normalizeReviewMarketSnapshot } from '../lib/reviewMarketSnapshot.js';
 import { isReviewEarningsEvent, reviewEarningsScope, reviewEarningsRecordLabel } from '../lib/reviewTimelineEarnings.js';
+import { getStockTradeRecordKind } from '../lib/stockTradeRecordKind.js';
 import { convertReviewMoney, formatReviewMoney, reviewCurrencyNotice, reviewDisplayCurrency } from '../lib/reviewDisplayCurrency.js';
 import { SnapshotCard } from './ReviewMarketSnapshot.jsx';
 import './ReviewTimeline.css';
@@ -21,8 +22,12 @@ const metricLabel = (metric, en) => ({
   annual_return: label(en, '年内收益率', 'Annual return'),
   annual_pnl: label(en, '年内收益金额', 'Annual P&L'),
   daily_return: label(en, '报表单日收益率', 'Report daily return'),
+  stock_daily_return: label(en, '个股单日跌幅', 'Stock one-day decline'),
   period_return: label(en, '报表区间收益率', 'Report period return'),
 }[metric] || label(en, '收盘记录', 'Closing record'));
+const isStockDailyRecord = event => event.kind === 'record' && event.metric === 'stock_daily_return';
+const stockSymbol = event => event.symbol || /^record:stock_daily_return:([^:]+):/.exec(event.id || '')?.[1] || '';
+const eventTitle = (event, en) => isStockDailyRecord(event) && en ? `${stockSymbol(event)} · Largest one-day decline of the year` : event.title;
 const isReturnDrawdown = event => event.kind === 'drawdown' && event.metric === 'cumulative_return';
 const seriesMetric = event => ['high', 'low'].includes(event.kind) || isReturnDrawdown(event) ? event.metric : 'net_assets';
 const isReturnSeries = event => ['cumulative_return', 'annual_return'].includes(seriesMetric(event));
@@ -86,6 +91,7 @@ function eventSummary(event, en) {
 /** Both views consume model-owned dates and amounts; missing values never become zeroes. */
 export function TimelineChart({ event, selectedPoint, detail = false, marketColorMode, language = 'zh', displayCurrency = 'USD', usdCny = null, fxDate = '' }) {
   const en = isEnglish(language), currency = { displayCurrency, usdCny, fxDate };
+  if (isStockDailyRecord(event)) return null;
   const currencyInfo = reviewDisplayCurrency(currency), returnSeries = isReturnSeries(event), pnlSeries = isPnlSeries(event);
   if (!returnSeries && !currencyInfo.available) return <p className="rjt-chart-empty">{pnlSeries ? label(en, '人民币汇率暂不可用，收益金额曲线待更新。', 'The P&L chart will be available when the CNY exchange rate is available.') : label(en, '人民币汇率暂不可用，净资产曲线待更新。', 'The net-asset chart will be available when the CNY exchange rate is available.')}</p>;
   const plottedValue = point => returnSeries ? pointValue(event, point) : convertReviewMoney(pnlSeries ? pointValue(event, point) : point?.chartValue ?? point?.netAssetsUsd, currency);
@@ -139,10 +145,11 @@ function TimelineEvent({ event, onSelectEvent, commentCount = 0, marketColorMode
     <div className="rjt-event-rail"><span className="rjt-event-icon"><Icon size={19} /></span></div>
     <div className="rjt-event-content">
       <div className="rjt-event-meta"><time dateTime={event.date}>{shortDate(event.date)}</time>{statusLabel(event, en) && <span className="rjt-status">{statusLabel(event, en)}</span>}</div>
-      <button type="button" className="rjt-event-open" aria-label={`${label(en, '查看', 'View ')}${event.title}`} onClick={click => onSelectEvent?.(event.id, click)}>
-        <span className="rjt-event-heading"><strong>{event.title}</strong><ChevronRight size={16} /></span>
+      <button type="button" className="rjt-event-open" aria-label={`${label(en, '查看', 'View ')}${eventTitle(event, en)}`} onClick={click => onSelectEvent?.(event.id, click)}>
+        <span className="rjt-event-heading"><strong>{eventTitle(event, en)}</strong><ChevronRight size={16} /></span>
         {!archived && <span className={`rjt-event-primary${isReviewEarningsEvent(event) ? ' rjt-earnings-primary' : ''}`}><strong style={numericStyle}>{reading(event, currency)}</strong><span>{event.kind === 'drawdown' ? drawdownLabel(event, en, true) : metricLabel(event.metric, en)}</span></span>}
         {!archived && isReviewEarningsEvent(event) && <span className="rjt-earnings-return"><strong style={eventStyle(event.returnValue, marketColorMode)}>{percent(event.returnValue)}</strong><span>{reviewEarningsScope(event, en)}{en ? ' return' : '收益率'}</span></span>}
+        {!archived && isStockDailyRecord(event) && finite(event.previousRecordPct) && <span className="rjt-stock-prior"><span>{label(en, '此前纪录', 'Prior record')}</span><strong style={eventStyle(event.previousRecordPct, marketColorMode)}>{percent(event.previousRecordPct)}</strong>{event.previousRecordDate && <time dateTime={event.previousRecordDate}>{shortDate(event.previousRecordDate)}</time>}</span>}
         {summary && <span className="rjt-event-description">{summary}</span>}
         {!archived && event.kind === 'drawdown' && <TimelineChart event={event} marketColorMode={marketColorMode} language={language} {...currency} />}
         {stops.length > 0 && <span className="rjt-three-values">{stops.map(([key, title]) => <span key={key}><span>{shortDate(event[key]?.date)} {title}</span><strong style={isReturnDrawdown(event) ? eventStyle(event[key]?.cumulativeReturnPct, marketColorMode) : undefined}>{pointReading(event, event[key], currency)}</strong></span>)}</span>}
@@ -155,7 +162,7 @@ function TimelineEvent({ event, onSelectEvent, commentCount = 0, marketColorMode
 function ArchivedDetail({ event, language, renderEvaluations, onEvaluate }) {
   const en = isEnglish(language);
   return <div className="rjt-detail" data-rjt-event={event.id}>
-    <section className="rjt-detail-intro"><div className="rjt-detail-eyebrow"><History size={17} /><span>{statusLabel(event, en)}</span></div><h2>{event.title}</h2><p className="rjt-detail-date"><time dateTime={event.date}>{event.date}</time></p><p className="rjt-detail-description">{eventSummary(event, en)}</p></section>
+    <section className="rjt-detail-intro"><div className="rjt-detail-eyebrow"><History size={17} /><span>{statusLabel(event, en)}</span></div><h2>{eventTitle(event, en)}</h2><p className="rjt-detail-date"><time dateTime={event.date}>{event.date}</time></p><p className="rjt-detail-description">{eventSummary(event, en)}</p></section>
     {renderEvaluations ? renderEvaluations(event) : onEvaluate && <section className="rjt-section rjt-evaluations"><button type="button" className="rjt-evaluate" onClick={() => onEvaluate(event)}>{label(en, '写评价', 'Evaluate')}</button></section>}
   </div>;
 }
@@ -176,7 +183,8 @@ function metricReadings(point, mode, en, currency) {
 function TimelineDetail({ event, marketColorMode, entries, stockTrades, onOpenEntry, onEvaluate, renderEvaluations, language, displayCurrency = 'USD', usdCny = null, fxDate = '' }) {
   const en = isEnglish(language), Icon = iconFor(event), currency = { displayCurrency, usdCny, fxDate };
   const currencyInfo = reviewDisplayCurrency(currency);
-  const currencyNotice = currencyInfo.available ? '' : reviewCurrencyNotice(currency, language);
+  const stockRecord = isStockDailyRecord(event);
+  const currencyNotice = currencyInfo.available || stockRecord ? '' : reviewCurrencyNotice(currency, language);
   const summary = eventSummary(event, en);
   const [selection, setSelection] = React.useState(null);
   const nodes = Array.isArray(event.nodes) ? event.nodes.filter(node => node.point) : [];
@@ -192,7 +200,7 @@ function TimelineDetail({ event, marketColorMode, entries, stockTrades, onOpenEn
   const cycle = event.kind === 'drawdown', returnCycle = isReturnDrawdown(event);
   const returnSeries = isReturnSeries(event), pnlSeries = isPnlSeries(event);
   const currentReading = pointReading(event, event.current, currency);
-  const readings = metricReadings(point, marketColorMode, en, currency);
+  const readings = stockRecord ? [] : metricReadings(point, marketColorMode, en, currency);
   const selectedDrawdown = returnCycle
     ? finite(point?.cumulativeReturnPct) && finite(event.peak?.cumulativeReturnPct) ? Math.min(0, point.cumulativeReturnPct - event.peak.cumulativeReturnPct) : null
     : cycle && finite(point?.netAssetsUsd) && finite(event.peak?.netAssetsUsd) && event.peak.netAssetsUsd > 0
@@ -200,6 +208,7 @@ function TimelineDetail({ event, marketColorMode, entries, stockTrades, onOpenEn
   const startDate = event.startDate || event.peak?.date || event.date, endDate = event.endDate || event.current?.date || event.date;
   const relatedEntries = entries.filter(entry => entry.date >= startDate && entry.date <= endDate && !entry.timelineEvent).slice(0, 5);
   const relatedTrades = stockTrades.filter(trade => trade.date >= startDate && trade.date <= endDate
+    && (!stockRecord || String(trade.symbol || '').trim().toUpperCase() === stockSymbol(event) && getStockTradeRecordKind(trade.note) !== 'historical_holding')
     && ['buy', 'sell'].includes(trade.side) && finite(Number(trade.price)) && Number(trade.price) > 0
     && finite(Number(trade.shares)) && Number(trade.shares) > 0).sort((a, b) => b.date.localeCompare(a.date));
   const [allTrades, setAllTrades] = React.useState(false);
@@ -209,7 +218,7 @@ function TimelineDetail({ event, marketColorMode, entries, stockTrades, onOpenEn
   return <div className="rjt-detail" data-rjt-event={event.id}>
     <section className="rjt-detail-intro">
       <div className="rjt-detail-eyebrow"><Icon size={17} />{statusLabel(event, en) && <span>{statusLabel(event, en)}</span>}</div>
-      <h2>{event.title}</h2><p className="rjt-detail-date"><time dateTime={startDate}>{startDate}</time>{endDate !== startDate && <> — <time dateTime={endDate}>{endDate}</time></>}</p>
+      <h2>{eventTitle(event, en)}</h2><p className="rjt-detail-date"><time dateTime={startDate}>{startDate}</time>{endDate !== startDate && <> — <time dateTime={endDate}>{endDate}</time></>}</p>
       <div className={`rjt-detail-metric${isReviewEarningsEvent(event) ? ' rjt-earnings-primary' : ''}`}><strong style={directional(event) ? eventStyle(displayValue(event), marketColorMode) : undefined}>{reading(event, currency)}</strong><span>{cycle ? drawdownLabel(event, en, true) : metricLabel(event.metric, en)}</span></div>
       {isReviewEarningsEvent(event) && <div className="rjt-earnings-return"><strong style={eventStyle(event.returnValue, marketColorMode)}>{percent(event.returnValue)}</strong><span>{reviewEarningsScope(event, en)}{en ? ' return' : '收益率'}</span></div>}
       {cycle ? <div className="rjt-detail-stats"><div><span>{drawdownLabel(event, en)}</span><strong style={eventStyle(event.drawdownPct, marketColorMode)}>{declineReading(event, event.drawdownPct)}</strong></div><div><span>{event.status === 'recovered' ? label(en, '恢复用时', 'Time to recover') : label(en, '距前高', 'Since peak')}</span><strong>{finite(event.durationDays) ? event.durationDays : '—'} <small>{label(en, '天', 'days')}</small></strong></div><div className="rjt-detail-net" style={{ '--rjt-number-units': Math.max(1, currentReading.length * .6) }}><span>{returnCycle ? label(en, '当前收益率', 'Current return') : label(en, '当前净资产', 'Latest net assets')}</span><strong style={returnCycle ? eventStyle(event.current?.cumulativeReturnPct, marketColorMode) : undefined}>{currentReading}</strong></div></div>
@@ -217,7 +226,13 @@ function TimelineDetail({ event, marketColorMode, entries, stockTrades, onOpenEn
       {cycle && event.status === 'interrupted' && <p className="rjt-interrupted"><Info size={15} />{interruptionText(event, en)}</p>}
     </section>
     {currencyNotice && <p className="rjt-currency-note">{currencyNotice}</p>}
-    {(nodes.length > 0 || event.points?.length > 1) && <section className="rjt-chart-section"><div className="rjt-chart-heading"><span>{`${seriesLabel(nodeEvent, en)}${en ? '' : '走势'} · ${returnSeries ? '%' : currencyInfo.currency}`}</span>{selected && <span>{nodeLabel(selected, en, event)} / {shortDate(point.date)}</span>}</div><TimelineChart event={nodeEvent} selectedPoint={point} detail marketColorMode={marketColorMode} language={language} {...currency} />
+    {stockRecord && <section className="rjt-section rjt-stock-record"><div className="rjt-section-heading"><h3>{label(en, '纪录节点', 'Record milestones')}</h3>{point?.date && <time dateTime={point.date}>{point.date}</time>}</div>
+      {nodes.length > 1 && <div className="rjt-node-tabs rjt-stock-node-tabs" aria-label={label(en, '关键节点', 'Milestones')}>{nodes.map(node => <button type="button" key={node.key} aria-pressed={node.key === selected?.key} onClick={() => setSelection({ id: event.id, key: node.key })}><strong style={eventStyle(node.point.stockDailyReturnPct, marketColorMode)}>{percent(node.point.stockDailyReturnPct)}</strong><time dateTime={node.point.date}>{shortDate(node.point.date)}</time></button>)}</div>}
+      {point && <div className="rjt-stock-record-readings"><div className="rjt-node-value"><strong style={eventStyle(point.stockDailyReturnPct, marketColorMode)}>{percent(point.stockDailyReturnPct)}</strong><span>{label(en, '当日跌幅', 'One-day decline')}</span></div><div className="rjt-metric-grid rjt-stock-metrics"><div><span>{label(en, '复权收盘价 · USD', 'Split-adjusted close · USD')}</span><strong>{money(point.stockCloseUsd, { displayCurrency: 'USD' })}</strong></div><div><span>{label(en, '前日复权收盘价 · USD', 'Previous adjusted close · USD')}</span><strong>{money(point.previousCloseUsd, { displayCurrency: 'USD' })}</strong></div></div>
+        {finite(point.previousRecordPct) && <div className="rjt-stock-prior"><span>{label(en, '此前纪录', 'Prior record')}</span><strong style={eventStyle(point.previousRecordPct, marketColorMode)}>{percent(point.previousRecordPct)}</strong>{point.previousRecordDate && <time dateTime={point.previousRecordDate}>{point.previousRecordDate}</time>}</div>}
+      </div>}
+    </section>}
+    {!stockRecord && (nodes.length > 0 || event.points?.length > 1) && <section className="rjt-chart-section"><div className="rjt-chart-heading"><span>{`${seriesLabel(nodeEvent, en)}${en ? '' : '走势'} · ${returnSeries ? '%' : currencyInfo.currency}`}</span>{selected && <span>{nodeLabel(selected, en, event)} / {shortDate(point.date)}</span>}</div><TimelineChart event={nodeEvent} selectedPoint={point} detail marketColorMode={marketColorMode} language={language} {...currency} />
       {nodes.length > 0 && <div className="rjt-node-tabs" aria-label={label(en, '关键节点', 'Milestones')}>{nodes.map(node => <button type="button" key={node.key} aria-pressed={node.key === selected?.key} onClick={() => setSelection({ id: event.id, key: node.key })}>{nodeLabel(node, en, event)}<time dateTime={node.point.date}>{shortDate(node.point.date)}</time></button>)}</div>}
       {point && <div className="rjt-node-detail"><div><span>{selected ? nodeLabel(selected, en, event) : label(en, '账户', 'Account')} · {returnSeries || pnlSeries ? seriesLabel(nodeEvent, en) : label(en, '收盘净资产', 'Closing net assets')}</span><time dateTime={point.date}>{point.date}</time></div><div className="rjt-node-value"><strong style={returnSeries || pnlSeries ? eventStyle(pointValue(nodeEvent, point), marketColorMode) : undefined}>{pointReading(nodeEvent, point, currency)}</strong><span style={eventStyle(selectedDrawdown, marketColorMode)}>{cycle ? declineReading(event, selectedDrawdown) : null}</span></div>{isReviewEarningsEvent(event) && <div className="rjt-earnings-return"><strong style={eventStyle(point[nodeEvent.returnField], marketColorMode)}>{percent(point[nodeEvent.returnField])}</strong><span>{reviewEarningsScope(nodeEvent, en)}{en ? ' return' : '收益率'}</span></div>}</div>}
     </section>}
@@ -242,21 +257,26 @@ export default function ReviewTimeline({ data, loading = false, error, onRetry, 
   if (error) return <div className="rjt-state" role="alert"><Info size={26} /><h2>{label(en, '时间线暂时无法读取', 'Timeline is unavailable')}</h2><p>{typeof error === 'string' ? error : label(en, '请稍后重试。', 'Please try again.')}</p>{onRetry && <button type="button" onClick={onRetry}><RefreshCw size={16} />{label(en, '重新读取', 'Retry')}</button>}</div>;
   if (selected?.status === 'archived') return <ArchivedDetail event={selected} {...{ language, renderEvaluations, onEvaluate }} />;
   if (selected) return <TimelineDetail key={selected.id} event={selected} {...{ marketColorMode, stockTrades, entries, onOpenEntry, onEvaluate, renderEvaluations, language, ...currency }} />;
+  const stockStatus = data?.stockRecordStatus;
+  const stockPending = stockStatus === 'loading';
+  const stockProblem = ['incomplete', 'error'].includes(stockStatus);
+  if (selectedEventId?.startsWith('record:stock_daily_return:') && (stockPending || stockProblem)) return <div className="rjt-state" role={stockPending ? 'status' : 'alert'}><History size={26} /><h2>{stockPending ? label(en, '正在核对个股纪录', 'Checking stock records') : label(en, '个股纪录暂未核对完整', 'Stock records are incomplete')}</h2>{stockProblem && onRetry && <button type="button" onClick={onRetry}>{label(en, '重新读取', 'Retry')}</button>}</div>;
   if (selectedEventId) return <div className="rjt-state"><History size={26} /><h2>{label(en, '这条记录已重新核对', 'This event has been rechecked')}</h2><p>{label(en, '收益报表更新后，事件可能发生变化。', 'An updated P&L report may change the event.')}</p><button type="button" onClick={onBack}>{label(en, '返回时间线', 'Back to timeline')}</button></div>;
   const shown = events.filter(event => (year === 'all' || event.date?.startsWith(year))
-    && (filter === 'all' || (filter === 'period' ? ['record', 'period'].includes(event.kind) : event.kind === filter)))
+    && (filter === 'all' || (filter === 'stock' ? isStockDailyRecord(event) : filter === 'period' ? ['record', 'period'].includes(event.kind) && !isStockDailyRecord(event) : event.kind === filter)))
     .sort((a, b) => String(b.date).localeCompare(String(a.date)) || String(a.id).localeCompare(String(b.id)));
   let currentMonth = '';
   return <section className="rjt-timeline" aria-label={label(en, '投资时间线', 'Investment timeline')}>
     <div className="rjt-heading"><h2>{label(en, '账户的关键时刻', 'Your account milestones')}</h2><label className="rjt-year"><span className="rj-visually-hidden">{label(en, '时间线年份', 'Timeline year')}</span><select value={year} onChange={event => setYear(event.target.value)} aria-label={label(en, '时间线年份', 'Timeline year')}><option value="all">{label(en, '全部年份', 'All years')}</option>{years.map(value => <option value={value} key={value}>{value}</option>)}</select><ChevronDown size={15} /></label></div>
-    <div className="rjt-filters" aria-label={label(en, '时间线事件类型', 'Timeline event type')}>{[['all', '全部事件', 'All events'], ['high', '新高', 'New highs'], ['low', '新低', 'New lows'], ['drawdown', '回撤与恢复', 'Drawdowns'], ['period', '周期纪录', 'Period records']].map(([id, zh, english]) => <button type="button" key={id} aria-pressed={filter === id} onClick={() => setFilter(id)}>{label(en, zh, english)}</button>)}</div>
-    {currencyNotice && <p className="rjt-currency-note">{currencyNotice}</p>}
+    <div className="rjt-filters" aria-label={label(en, '时间线事件类型', 'Timeline event type')}>{[['all', '全部事件', 'All events'], ['high', '新高', 'New highs'], ['low', '新低', 'New lows'], ['drawdown', '回撤与恢复', 'Drawdowns'], ['period', '周期纪录', 'Period records'], ['stock', '个股跌幅', 'Stock declines']].map(([id, zh, english]) => <button type="button" key={id} aria-pressed={filter === id} onClick={() => setFilter(id)}>{label(en, zh, english)}</button>)}</div>
+    {currencyNotice && filter !== 'stock' && (!events.length || events.some(event => !isStockDailyRecord(event))) && <p className="rjt-currency-note">{currencyNotice}</p>}
+    {(filter === 'all' || filter === 'stock') && (stockPending || stockProblem) && <div className="rjt-stock-state" role={stockPending ? 'status' : 'alert'}><span>{stockPending ? label(en, '正在核对个股纪录…', 'Checking stock records…') : label(en, data?.stockRecordWarning || '部分个股纪录暂未核对完整。', 'Some stock records could not be verified.')}</span>{stockProblem && onRetry && <button type="button" className="rjt-text-button" onClick={onRetry}>{label(en, '重试', 'Retry')}</button>}</div>}
     {data?.status === 'pending' ? <div className="rjt-state"><History size={26} /><h2>{label(en, '收益报表正在更新', 'P&L report is updating')}</h2><p>{label(en, '完成收盘核对后，时间线会同步更新。', 'The timeline will update after closing data is reconciled.')}</p>{onRetry && <button type="button" onClick={onRetry}>{label(en, '重新读取', 'Retry')}</button>}</div>
       : shown.length ? shown.map(event => {
         const month = event.date?.slice(0, 7) || '';
         const showMonth = month !== currentMonth; currentMonth = month;
         return <React.Fragment key={event.id}>{showMonth && <div className="rjt-month"><span>{en ? month : `${Number(month.slice(5))} 月`}</span>{!en && <span>{month.slice(0, 4)}</span>}</div>}<TimelineEvent event={event} commentCount={getCommentCount?.(event) ?? 0} {...{ onSelectEvent, marketColorMode, language, ...currency }} /></React.Fragment>;
-      }) : <div className="rjt-state"><History size={26} /><h2>{label(en, '暂时没有符合条件的记录', 'No matching events yet')}</h2><p>{events.length ? label(en, '试试其他年份或事件类型。', 'Try a different year or event type.') : label(en, '有可核对的收盘历史后，新高和回撤会自动呈现。', 'Highs and drawdowns appear as verifiable closing history becomes available.')}</p></div>}
+      }) : (filter === 'all' || filter === 'stock') && (stockPending || stockProblem) ? null : <div className="rjt-state"><History size={26} /><h2>{label(en, '暂时没有符合条件的记录', 'No matching events yet')}</h2><p>{events.length ? label(en, '试试其他年份或事件类型。', 'Try a different year or event type.') : label(en, '有可核对的收盘历史后，新高和回撤会自动呈现。', 'Highs and drawdowns appear as verifiable closing history becomes available.')}</p></div>}
     {events.length > 0 && <p className="rjt-history-end">{label(en, '基于已有收盘历史', 'Based on available closing history')}{data?.coverage?.startDate ? ` · ${data.coverage.startDate} — ${data.coverage.endDate}` : ''}</p>}
   </section>;
 }

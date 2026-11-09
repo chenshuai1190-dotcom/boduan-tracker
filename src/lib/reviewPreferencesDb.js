@@ -1,8 +1,10 @@
 import { normalizeReviewPreferences, sameReviewPreferences } from './reviewPreferences.js';
 
 const TABLE = 'review_display_preferences';
-const STORAGE_KEY = 'bottomline_review_display_preferences_v2';
-const INDEPENDENT_TYPES = ['return_drawdown', 'annual_return_high', 'annual_return_low', 'annual_pnl_high', 'annual_pnl_low'];
+// Old caches cannot distinguish a missing new category from an explicit off
+// selection. Wait for the authoritative nullable-column default once instead.
+const STORAGE_KEY = 'bottomline_review_display_preferences_v3';
+const INDEPENDENT_TYPES = ['return_drawdown', 'annual_return_high', 'annual_return_low', 'annual_pnl_high', 'annual_pnl_low', 'stock_daily_record'];
 const SELECT_COLUMNS = ['show_timeline', 'currency', 'event_types', ...INDEPENDENT_TYPES.map(type => `show_${type}`), 'revision', 'updated_at'].join(',');
 const MAX_CACHE_AGE = 30 * 86400000;
 const MAX_REVISION = 2147483647;
@@ -38,7 +40,7 @@ export function createReviewPreferencesRepository({ supabase, storage = defaultS
     try {
       if (!raw || raw.length > 4096) return null;
       const item = JSON.parse(raw);
-      if (item?.version !== 2 || item.ownerId !== owner || !fresh(item)) return null;
+      if (item?.version !== 3 || item.ownerId !== owner || !fresh(item)) return null;
       const record = item.record;
       if (!record || (record.exists !== true && record.exists !== false)
         || (record.exists ? !Number.isSafeInteger(record.revision) || record.revision < 0 || record.revision > MAX_REVISION : record.revision !== null)
@@ -68,7 +70,7 @@ export function createReviewPreferencesRepository({ supabase, storage = defaultS
     if (known && rank(known) > rank(record)) return known;
     const value = clone(record), savedAt = now();
     cacheLocally(owner, { record: value, savedAt });
-    try { storage?.setItem(STORAGE_KEY, JSON.stringify({ version: 2, ownerId: owner, savedAt, record: value })); } catch { /* Optional cache; cloud save remains authoritative. */ }
+    try { storage?.setItem(STORAGE_KEY, JSON.stringify({ version: 3, ownerId: owner, savedAt, record: value })); } catch { /* Optional cache; cloud save remains authoritative. */ }
     return clone(value);
   }
   async function assertOwner(expectedOwner) {

@@ -28,5 +28,14 @@ export function createReviewTimelinePreview(owner) {
       daily_pnl_usd: net - previous, daily_pnl_pct: (net - previous) / (previous - 10000),
     });
   }
-  return { status: 'ready', ...buildReviewTimeline({ snapshots, movements: [], firstTradeDate: '2026-01-02', expectedUserId: owner, now: Date.parse('2026-11-07T05:00:00Z') }) };
+  const timeline = buildReviewTimeline({ snapshots, movements: [], firstTradeDate: '2026-01-02', expectedUserId: owner, now: Date.parse('2026-11-07T05:00:00Z') });
+  // Explicit fixture-only prices; this preview never enters the formal loader.
+  const points = [
+    { date: '2026-04-02', stockCloseUsd: 93.70, previousCloseUsd: 100, stockDailyReturnPct: -6.30, previousRecordPct: -4.20, previousRecordDate: '2026-02-04' },
+    { date: '2026-11-05', stockCloseUsd: 137.22, previousCloseUsd: 150, stockDailyReturnPct: -8.52, previousRecordPct: -6.30, previousRecordDate: '2026-04-02' },
+  ];
+  const stockEvent = { id: 'record:stock_daily_return:NVDA:2026', kind: 'record', metric: 'stock_daily_return', symbol: 'NVDA', year: 2026, name: 'NVIDIA', title: 'NVDA · 年内最大单日跌幅',
+    value: -8.52, valueType: 'percent', date: points[1].date, startDate: points[0].date, endDate: points[1].date, previousRecordPct: -6.30, previousRecordDate: '2026-04-02',
+    current: points[1], points, nodes: points.map(point => ({ key: point.date, label: point.date, point })) };
+  return { status: 'ready', ...timeline, stockRecordStatus: 'ready', events: [...timeline.events, stockEvent].sort((a, b) => b.date.localeCompare(a.date) || a.id.localeCompare(b.id)) };
 }

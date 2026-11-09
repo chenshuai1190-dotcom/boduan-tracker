@@ -9,7 +9,7 @@ const row = (date, extra = {}) => ({ id: `snapshot-${date}`, user_id: OWNER, sna
   currency: 'USD', source_version: 'pnl_snapshot_v1', locked_at: `${date}T23:00:00Z`, updated_at: `${date}T23:00:00Z`,
   cumulative_pnl_pct: 0.1, cumulative_pnl_usd: 100, daily_pnl_pct: 0.01, daily_pnl_usd: 10, ...extra });
 
-function mock({ snapshots = [], movements = [], trades = [], states = [state(), state()], users = [OWNER, OWNER], errorTable, pageFactory } = {}) {
+function mock({ snapshots = [], movements = [], trades = [], symbolSnapshots = [], states = [state(), state()], users = [OWNER, OWNER], errorTable, pageFactory } = {}) {
   const calls = []; let stateIndex = 0, authIndex = 0;
   const client = {
     auth: { getUser: async () => {
@@ -31,7 +31,8 @@ function mock({ snapshots = [], movements = [], trades = [], states = [state(), 
         },
         then(resolve, reject) {
           if (table === errorTable) return Promise.resolve({ data: null, error: new Error('database unavailable') }).then(resolve, reject);
-          const all = table === 'pnl_report_snapshots' ? snapshots : table === 'stock_trades' ? trades : movements;
+          const all = table === 'pnl_report_snapshots' ? snapshots : table === 'stock_trades' ? trades
+            : table === 'pnl_report_symbol_snapshots' ? symbolSnapshots : movements;
           const data = pageFactory && table !== 'stock_trades' ? pageFactory(table, call.range) : all.slice(call.range[0], call.range[1] + 1);
           return Promise.resolve({ data, error: null }).then(resolve, reject);
         },
@@ -49,10 +50,10 @@ test('authenticates before and after; all table reads include explicit user scop
   assert.equal(result.coverage.snapshotCount, 1);
   assert.equal(calls[0].op, 'auth');
   assert.equal(calls.at(-1).op, 'auth');
-  assert.equal(calls.filter(call => call.op === 'auth').length, 2);
+  assert.equal(calls.filter(call => call.op === 'auth').length, 3);
   assert.ok(calls.filter(call => call.table).every(call => call.filters.some(([field, value]) => field === 'user_id' && value === OWNER)));
   assert.deepEqual([...new Set(calls.filter(call => call.table).map(call => call.table))].sort(),
-    ['available_cash_movements', 'pnl_report_rebuild_state', 'pnl_report_snapshots', 'stock_trades']);
+    ['available_cash_movements', 'pnl_report_rebuild_state', 'pnl_report_snapshots', 'pnl_report_symbol_snapshots', 'stock_trades']);
 });
 
 test('no snapshots is empty; missing authentication and switched accounts are errors', async () => {
@@ -132,4 +133,91 @@ test('absent rebuild state is supported, but creation during reading is fenced',
   assert.equal(clean.status, 'ready');
   const changed = await createReviewTimelineLoader(mock({ snapshots: [row('2026-11-06')], states: [null, state()] }).client, { now: () => NOW })(OWNER);
   assert.equal(changed.status, 'pending');
+});
+
+const STOCK_NOW = Date.parse('2026-01-06T05:00:00Z');
+const stockRows = () => ['2026-01-02', '2026-01-05'].map((date, index) => row(date, { source_version: 'pnl_snapshot_v2',
+  cumulative_pnl_pct: .1 + index * .1, cumulative_pnl_usd: 100 + index * 100 }));
+const heldRows = () => ['2026-01-02', '2026-01-05'].map(date => ({ id: `held-${date}`, user_id: OWNER,
+  snapshot_date: date, symbol: 'NVDA', name: 'NVIDIA', currency: 'USD', held_shares: 10,
+  source_version: 'pnl_snapshot_v2', updated_at: `${date}T23:00:00Z` }));
+function marketHistory(request) {
+  return { version: 1, source: 'EODHD_EOD_SPLITS', priceBasis: 'split_adjusted_close', currency: 'USD',
+    symbols: request.symbols, requestedStartDate: request.startDate, requestedEndDate: request.endDate,
+    expectedAsOfDate: '2026-01-05', splitBasisDate: '2026-01-05', asOfDate: '2026-01-05',
+    fetchedAt: '2026-01-06T04:00:00Z', series: Object.fromEntries(request.symbols.map(symbol => [symbol,
+      { symbol, name: symbol, type: 'Common Stock', rows: [
+        { date: '2025-12-31', close: 100 }, { date: '2026-01-02', close: 95 }, { date: '2026-01-05', close: 85.5 },
+      ] }])) };
+}
+
+test('account events arrive before slow stock prices; only verified held stock is added', async () => {
+  let release, started;
+  const called = new Promise(resolve => { started = resolve; });
+  const market = new Promise(resolve => { release = resolve; });
+  const progress = [], requests = [];
+  const { client } = mock({ snapshots: stockRows(), symbolSnapshots: heldRows() });
+  const resultPromise = createReviewTimelineLoader(client, { now: () => STOCK_NOW,
+    loadHistory: async request => { requests.push(request); started(); await market; return marketHistory(request); } })(OWNER,
+  { onProgress: value => progress.push(value) });
+  await called;
+  assert.equal(progress.length, 1);
+  assert.equal(progress[0].status, 'ready');
+  assert.equal(progress[0].stockRecordStatus, 'loading');
+  assert.ok(progress[0].events.every(event => event.metric !== 'stock_daily_return'));
+  release();
+  const result = await resultPromise;
+  assert.equal(result.stockRecordStatus, 'ready');
+  const stocks = result.events.filter(event => event.metric === 'stock_daily_return');
+  assert.equal(stocks.length, 1);
+  assert.equal(stocks[0].symbol, 'NVDA');
+  assert.equal(stocks[0].date, '2026-01-05');
+  assert.ok(Math.abs(stocks[0].value + 10) < 1e-8);
+  assert.deepEqual(requests[0].symbols, ['NVDA', 'QQQ']);
+  assert.equal(requests[0].startDate, '2025-12-31');
+});
+
+test('price failure is explicitly unavailable and does not hide account events', async () => {
+  const { client } = mock({ snapshots: stockRows(), symbolSnapshots: heldRows() });
+  const result = await createReviewTimelineLoader(client, { now: () => STOCK_NOW,
+    loadHistory: async () => { throw new Error('provider failure'); } })(OWNER);
+  assert.equal(result.status, 'ready');
+  assert.equal(result.stockRecordStatus, 'error');
+  assert.ok(result.stockRecordWarning);
+  assert.ok(result.events.every(event => event.metric !== 'stock_daily_return'));
+  assert.ok(result.events.length > 0);
+});
+
+test('stock evidence, end-of-market revision and account switch are checked before delivery', async () => {
+  const make = extra => mock({ snapshots: stockRows(), symbolSnapshots: heldRows(), ...extra }).client;
+  const options = { now: () => STOCK_NOW, loadHistory: async request => marketHistory(request) };
+  const changed = await createReviewTimelineLoader(make({ states: [state(), state(), state({ ledger_revision: 5 })] }), options)(OWNER);
+  assert.equal(changed.status, 'pending');
+  assert.deepEqual(changed.events, []);
+  await assert.rejects(createReviewTimelineLoader(make({ users: [OWNER, OWNER, 'other'] }), options)(OWNER), { code: 'REVIEW_ACCOUNT_CHANGED' });
+  await assert.rejects(createReviewTimelineLoader(make({ symbolSnapshots: [{ ...heldRows()[0], user_id: 'other' }] }), options)(OWNER), { code: 'REVIEW_ACCOUNT_CHANGED' });
+});
+
+test('unmount abort cancels market work and prevents final delivery', async () => {
+  const controller = new AbortController();
+  let began;
+  const started = new Promise(resolve => { began = resolve; });
+  const { client } = mock({ snapshots: stockRows(), symbolSnapshots: heldRows() });
+  const promise = createReviewTimelineLoader(client, { now: () => STOCK_NOW,
+    loadHistory: async request => { began(); await new Promise(resolve => request.signal.addEventListener('abort', resolve, { once: true }));
+      return marketHistory(request); } })(OWNER, { signal: controller.signal });
+  await started;
+  controller.abort();
+  await assert.rejects(promise, { code: 'REQUEST_ABORTED' });
+});
+
+test('supported session guards reject sign-out and sign-in ABA during market requests', async () => {
+  const { client } = mock({ snapshots: stockRows(), symbolSnapshots: heldRows() });
+  let observer;
+  const session = { user: { id: OWNER }, access_token: 'test-only' };
+  client.auth.getSession = async () => ({ data: { session } });
+  client.auth.onAuthStateChange = callback => { observer = callback; return { data: { subscription: { unsubscribe() {} } } }; };
+  await assert.rejects(createReviewTimelineLoader(client, { now: () => STOCK_NOW,
+    loadHistory: async request => { observer('SIGNED_OUT', null); observer('SIGNED_IN', session); return marketHistory(request); } })(OWNER),
+  { code: 'REVIEW_ACCOUNT_CHANGED' });
 });

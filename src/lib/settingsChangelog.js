@@ -3,6 +3,11 @@ import { CURRENT_RELEASE } from './releaseMeta.js';
 export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
+    items: ['时间线新增持仓股票年内最大单日跌幅记录，按股票与年份合并更新，保留历史节点和评论；新增独立显示开关。', '依据完整年内复权收盘行情与当日正式持仓快照确认记录，数据缺失时提示补充，避免把股票跌幅误当账户收益。'],
+    itemsEn: ['Added annual largest single-day declines for held stocks to the timeline, grouped by stock and year with historical nodes and comments preserved, plus an independent display setting.', 'Records require complete year-to-date split-adjusted closing prices and verified closing positions. Missing data is indicated, and stock declines remain distinct from account returns.'],
+  },
+  {
+    ver: 'v10.7.9.619', date: '2026-11-09',
     items: ['Quote 可按讨论价值主动回复，客观分析投资复盘并避免重复互动；补齐已公开账户快照与交易附件的读取。', '新增账户数据单次授权，可选择范围和日期；公开频道确认后公开分析，支持撤销授权。', '发布入口统一为“发帖”，输入 @ 可选择 Quote；移除新帖心情选择，保留历史记录。'],
     itemsEn: ['Quote can respond proactively when it adds value, assess investment reviews objectively, and avoid repetitive interactions. Public account snapshots and trade attachments are included in its context.', 'Added one-time account-data permission with selectable scope and dates. Public analysis requires confirmation, and access can be revoked.', 'Renamed the publishing entry to Post, added Quote suggestions when typing @, and removed mood selection for new posts while preserving historical records.'],
   },
