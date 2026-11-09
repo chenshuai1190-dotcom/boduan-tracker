@@ -144,5 +144,5 @@
 .rjt-stock-metrics span{min-height:42px;overflow-wrap:anywhere}
 .rjt-stock-metrics strong{font-size:18px;white-space:nowrap}
 .rjt-stock-record-readings>.rjt-stock-prior{margin-top:20px}
-.rjt-stock-state{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 20px 18px;font-size:13px;line-height:21px;color:var(--rjt-muted)}
-.rjt-stock-state>span{min-width:0;overflow-wrap:anywhere}.rjt-stock-state>button{flex-shrink:0}
+.rjt-stock-state{display:flex;flex-direction:column;align-items:center;gap:2px;padding:12px 20px 24px;font-size:12px;line-height:20px;color:var(--rjt-muted);text-align:center}
+.rjt-stock-state>span{min-width:0;overflow-wrap:anywhere}.rjt-stock-state>button{flex-shrink:0;font-size:12px!important;line-height:20px;min-height:44px;padding:12px 10px}
