@@ -13,6 +13,7 @@ import { mergeIndexRestCardsIntoMarketCards, shouldAppendIndexIntraday } from '.
 import { createIndexQuotePoller } from './lib/indexQuoteRefresh.js';
 import { applyStockTickToQuoteRows, buildStockRealtimeSymbolsKey, canStartStockRealtime, isFreshStockRealtimeTick, mergeFreshStockRealtimeRows, mergeStockSnapshotPollRequest, mergeStockTicksIntoQuoteRows, selectStockRealtimeSymbols, shouldAcceptStockRealtimeTick, shouldApplyStockSnapshotTick, shouldPollStockRealtimeSnapshot } from './lib/stockRealtime.js';
 import { normalizeStrictUserStockSymbol, normalizeUserStockSymbol } from './lib/symbols.js';
+import { stockTradeCashOperation } from './lib/stockTradeCashDb.js';
 import { resolveStockDisplayName } from './lib/stockDisplayName.js';
 import { getStoredLanguage, isEnglishLanguage, saveStoredLanguage, t } from './lib/i18n.js';
 import { isEarningsPublished } from './lib/earningsCalendarModel.js';
@@ -971,6 +972,8 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   const [tradeEntryScope, setTradeEntryScope] = useState('ledger'); // ledger = 主交易账本, wave = 波段记录旧账本
   const [tradeSubmitting, setTradeSubmitting] = useState(false);
   const tradeSubmittingRef = useRef(false);
+  const stockTradeCashRequestRef = useRef(null);
+  const stockTradeCashDeleteRequestsRef = useRef(new Map());
   const [newTrade, setNewTrade] = useState({
     symbol: 'TQQQ',
     name: '3倍纳指',
@@ -1038,6 +1041,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     reversalReady: false,
   });
   const [availableCashStatusReady, setAvailableCashStatusReady] = useState(false);
+  const [cashTradeSettlementRevision, setCashTradeSettlementRevision] = useState(0);
   const availableCashCapabilityRequestRef = useRef(0);
   const [disciplines, setDisciplines] = useState([]);
   const [reviewLogs, setReviewLogs] = useState([]);
@@ -2260,6 +2264,14 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     usdRate,
   }), [availableCashStatus?.availableCashUsd, availableCashStatusReady, localizedStockTrades, quoteRows, usdRate]);
 
+  const applyStockTradeCashStatus = useCallback((result) => {
+    if (result?.cashStatus) {
+      setAvailableCashStatus(previous => ({ ...previous, ...result.cashStatus }));
+      setAvailableCashStatusReady(true);
+    }
+    setCashTradeSettlementRevision(version => version + 1);
+  }, []);
+
   const saveMarginDebt = useCallback(async (nextDebtUsd) => {
     if (!marginStatusReady) throw new Error('融资余额仍在同步，请稍后重试');
     const numericDebtUsd = Number(nextDebtUsd);
@@ -2324,6 +2336,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
       });
       setAvailableCashStatus(result.status);
       setAvailableCashStatusReady(true);
+      setCashTradeSettlementRevision(version => version + 1);
       // The status trigger marks the personal report dirty. Cash still enters
       // that read model only through its completed-close snapshot cutoff; a
       // movement must not trigger a live rebuild or touch competition.
@@ -2369,6 +2382,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
       });
       setAvailableCashStatus(result.status);
       setAvailableCashStatusReady(true);
+      setCashTradeSettlementRevision(version => version + 1);
       // A reversal is an append-only cash movement. It must not mutate any
       // trading ledger or synchronously rebuild personal/competition returns.
       return result;
@@ -2581,6 +2595,18 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     }
   }, [user?.id]);
 
+  const reconcileStockTradeCashAfterFailure = async () => {
+    try {
+      const state = await db.fetchStockTradeCashState(user?.id);
+      const trades = await db.fetchStockTrades({ id: user?.id }, { allowCached: false });
+      applyStockTradeCashStatus(state);
+      setStockTrades(trades);
+    } catch {
+      // Keep the last confirmed values and the original mutation error. The
+      // same operation ID remains available for an idempotent retry.
+    }
+  };
+
   const addTrade = async (sideOverride = null) => {
     if (tradeSubmittingRef.current) return;
     const tradeDraft = sideOverride
@@ -2737,15 +2763,24 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
         currency: tradeDraft.currency || 'USD',
         note: tradeDraft.note || '',
       };
-      const tradeRecord = editingId
-        ? await db.updateStockTrade(editingId, tradePayload)
-        : await db.insertStockTrade(tradePayload);
+      const expectedUpdatedAt = tradeDraft.updatedAt;
+      const intent = { userId: user?.id, action: editingId ? 'update' : 'create', id: editingId || null, expectedUpdatedAt, trade: tradePayload };
+      const request = stockTradeCashOperation(stockTradeCashRequestRef.current, intent);
+      stockTradeCashRequestRef.current = request;
+      const mutationOptions = { expectedUserId: user?.id, operationKey: request.operationKey, expectedUpdatedAt };
+      const result = editingId
+        ? await db.updateStockTrade(editingId, tradePayload, mutationOptions)
+        : await db.insertStockTrade(tradePayload, mutationOptions);
+      const tradeRecord = result.trade;
+      applyStockTradeCashStatus(result);
       setStockTrades(current => editingId
         ? current.map(t => String(t.id) === String(editingId) ? tradeRecord : t)
-        : [...current, tradeRecord]);
+        : [...current.filter(t => String(t.id) !== String(tradeRecord.id)), tradeRecord]);
+      stockTradeCashRequestRef.current = null;
       void recalculatePnlReportAfterLedgerMutation();
       void recalculateCompetitionAfterLedgerMutation();
     } catch (e) {
+      await reconcileStockTradeCashAfterFailure();
       showTradeNotice(
         editingId
           ? t(language, 'trades.updateTradeFailed', '更新交易失败')
@@ -2774,15 +2809,33 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
 
   const deleteStockTradeRecord = async (id) => {
     try {
-      await db.deleteStockTrade(id);
+      const original = stockTrades.find(row => String(row.id) === String(id));
+      const intent = { userId: user?.id, action: 'delete', id, expectedUpdatedAt: original?.updatedAt };
+      const request = stockTradeCashOperation(stockTradeCashDeleteRequestsRef.current.get(id), intent);
+      stockTradeCashDeleteRequestsRef.current.set(id, request);
+      const result = await db.deleteStockTrade(id, { expectedUserId: user?.id, operationKey: request.operationKey, expectedUpdatedAt: original?.updatedAt });
+      applyStockTradeCashStatus(result);
       setStockTrades(current => current.filter(t => String(t.id) !== String(id)));
+      stockTradeCashDeleteRequestsRef.current.delete(id);
       void recalculatePnlReportAfterLedgerMutation();
       void recalculateCompetitionAfterLedgerMutation();
     } catch (e) {
+      await reconcileStockTradeCashAfterFailure();
       alert('删除订单失败:' + e.message);
       throw e;
     }
   };
+
+  const cashTradeSettlementApi = useMemo(() => ({
+    load: () => db.fetchStockTradeCashState(user?.id),
+    preview: plan => db.previewStockTradeCash(plan, user?.id),
+    confirm: async plan => {
+      const result = await db.confirmStockTradeCash(plan, user?.id);
+      applyStockTradeCashStatus(result);
+      void recalculatePnlReportAfterLedgerMutation();
+      return result;
+    },
+  }), [user?.id, applyStockTradeCashStatus, recalculatePnlReportAfterLedgerMutation]);
 
   const deleteTrade = async (id) => {
     try {
@@ -5358,6 +5411,8 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     saveWatchlistStockTarget,
     loadAvailableCashMovements,
     mutateAvailableCash,
+    cashTradeSettlementApi,
+    cashTradeSettlementRevision,
     reverseAvailableCashMovement,
     saveMarginDebt,
     reviewLogs,

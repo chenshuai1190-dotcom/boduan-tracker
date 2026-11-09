@@ -9,6 +9,7 @@ import {
   X,
 } from 'lucide-react';
 import { t } from '../lib/i18n.js';
+import CashTradeSettlementPanel from './CashTradeSettlementPanel.jsx';
 
 const NUMBER_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif';
 const RECENT_MOVEMENT_LIMIT = 3;
@@ -204,6 +205,8 @@ export function availableCashDisplayToUsd({ amount, currency = 'USD', usdRate = 
 
 export default function AvailableCashEditor({
   availableCashUsd = 0,
+  cashTradeSettlementApi,
+  cashTradeSettlementRevision,
   currency = 'USD',
   isOpen = false,
   isSet = false,
@@ -220,6 +223,7 @@ export default function AvailableCashEditor({
   const [note, setNote] = React.useState('');
   const [allOut, setAllOut] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
+  const [settlementBusy, setSettlementBusy] = React.useState(false);
   const [saveError, setSaveError] = React.useState('');
   const [movements, setMovements] = React.useState([]);
   const [movementsLoading, setMovementsLoading] = React.useState(false);
@@ -330,7 +334,7 @@ export default function AvailableCashEditor({
   React.useEffect(() => {
     if (!isOpen) return undefined;
     const handleKeyDown = (event) => {
-      if (event.key === 'Escape' && !saving) {
+      if (event.key === 'Escape' && !saving && !settlementBusy) {
         if (reverseTarget) {
           setReverseTarget(null);
           setReverseError('');
@@ -342,7 +346,7 @@ export default function AvailableCashEditor({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [actionKind, confirming, isOpen, onClose, reverseTarget, saving]);
+  }, [actionKind, confirming, isOpen, onClose, reverseTarget, saving, settlementBusy]);
 
   if (!isOpen) return null;
 
@@ -587,7 +591,7 @@ export default function AvailableCashEditor({
       aria-label={t(language, 'home.cashManagement', '现金管理')}
       data-home-available-cash-editor="true"
       onMouseDown={(event) => {
-        if (event.target === event.currentTarget && !saving) onClose?.();
+        if (event.target === event.currentTarget && !saving && !settlementBusy) onClose?.();
       }}
     >
       <section
@@ -618,7 +622,7 @@ export default function AvailableCashEditor({
           </h2>
           <button
             type="button"
-            disabled={saving}
+            disabled={saving || settlementBusy}
             onClick={() => onClose?.()}
             className="absolute right-0 flex h-11 w-11 items-center justify-center rounded-full bg-white/[0.06] text-white/55 active:scale-95 disabled:opacity-35"
             aria-label={t(language, 'home.closeAvailableCash', '关闭现金管理')}
@@ -647,13 +651,13 @@ export default function AvailableCashEditor({
             </div>
 
             <p className="mt-4 text-[11px] leading-4 text-white/40">
-              {t(language, 'home.cashManagementSubtitle', '记录现金进出与余额调整，不触碰交易账本。')}
+              {t(language, 'home.cashManagementSubtitle', '管理现金进出、余额核对与交易结算。')}
             </p>
             <div className="mt-3 grid grid-cols-3 gap-2">
               <button
                 type="button"
                 data-cash-mode="transfer_in"
-                disabled={typeof onMutateCash !== 'function' || !rate}
+                disabled={settlementBusy || typeof onMutateCash !== 'function' || !rate}
                 onClick={() => openAction('transfer_in')}
                 className="flex min-h-[74px] flex-col items-center justify-center gap-2 rounded-2xl bg-white/[0.045] text-[11px] text-white/68 active:scale-[0.98] disabled:opacity-30"
               >
@@ -663,7 +667,7 @@ export default function AvailableCashEditor({
               <button
                 type="button"
                 data-cash-mode="transfer_out"
-                disabled={typeof onMutateCash !== 'function' || currentCashUsd <= 0 || !rate}
+                disabled={settlementBusy || typeof onMutateCash !== 'function' || currentCashUsd <= 0 || !rate}
                 onClick={() => openAction('transfer_out')}
                 className="flex min-h-[74px] flex-col items-center justify-center gap-2 rounded-2xl bg-white/[0.045] text-[11px] text-white/68 active:scale-[0.98] disabled:opacity-30"
               >
@@ -673,7 +677,7 @@ export default function AvailableCashEditor({
               <button
                 type="button"
                 data-cash-mode="balance_adjustment"
-                disabled={typeof onMutateCash !== 'function' || !rate}
+                disabled={settlementBusy || typeof onMutateCash !== 'function' || !rate}
                 onClick={() => openAction('balance_adjustment')}
                 className="flex min-h-[74px] flex-col items-center justify-center gap-2 rounded-2xl bg-white/[0.045] text-[11px] text-white/68 active:scale-[0.98] disabled:opacity-30"
               >
@@ -681,6 +685,8 @@ export default function AvailableCashEditor({
                 {t(language, 'home.cashBalanceAdjustment', '余额调整')}
               </button>
             </div>
+
+            <CashTradeSettlementPanel api={cashTradeSettlementApi} revision={cashTradeSettlementRevision} language={language} onBusyChange={setSettlementBusy} />
 
             <div className="mt-6 flex items-center justify-between">
               <h3 className="text-[13px] font-medium text-white/72">
@@ -781,7 +787,7 @@ export default function AvailableCashEditor({
                       <div className="flex justify-end">
                         <button
                           type="button"
-                          disabled={saving}
+                          disabled={saving || settlementBusy}
                           onClick={() => openReverseConfirmation(movement)}
                           data-cash-reverse-movement={rowId}
                           className="flex min-h-11 items-center gap-1.5 rounded-full px-2 text-[10px] text-white/42 enabled:active:bg-white/[0.035] disabled:opacity-30"

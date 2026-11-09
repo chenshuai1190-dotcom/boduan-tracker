@@ -1435,7 +1435,12 @@ test('retired cost basis data has no storage, cloud CRUD or migration path', () 
     assert.doesNotMatch(source, /bottomline_cost_basis|cost_basis_trades|(?:fetch|insert|delete|migrate)CostBasis/, `${name} must not read, repair, migrate or mutate retired cost-basis records`);
   }
   assert.ok(dbSource.includes('export const insertTrade = async'), 'legacy wave records must keep their independent write API');
-  assert.ok(dbSource.includes('export const insertStockTrade = async'), 'formal trades must keep their independent write API');
+  assert.ok(dbSource.includes("export const insertStockTrade = (trade, options) => mutateSettledStockTrade('create', trade, null, options);"),
+    'formal trades must keep their independent atomic cash settlement write API');
+  assert.ok(dbSource.includes('const result = await stockTradeCashRepository.mutate(action, {'),
+    'formal stock writes must use the settlement repository rather than a retired tool path');
+  assert.ok(dbSource.includes('}, options?.expectedUserId);'),
+    'formal stock writes must forward the expected owner to the settlement repository');
 });
 
 test('retired cost basis records cannot rejoin the quote universe while wave symbols remain', () => {

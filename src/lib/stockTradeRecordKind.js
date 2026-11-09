@@ -1,5 +1,6 @@
-// Display metadata only. Dates, side, cost, quantity and financial calculations
-// keep their ledger semantics; never infer this label from a missing price/day.
+// Legacy display metadata and the explicit form choice. The settlement RPC
+// persists a separate record_kind field; SQL does not infer later financial
+// changes from arbitrary note edits. Never infer this label from missing data.
 const HISTORICAL_HOLDING_MARKER = '[[quote:stock-trade:record-kind=historical_holding:v1]]';
 const RECORD_KIND_LINE = /(?:^|\r?\n)\[\[quote:stock-trade:record-kind=historical_holding:v1\]\](?=\r?\n|$)/g;
 

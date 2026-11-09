@@ -1,0 +1,19 @@
+.cash-settlement{margin-top:20px;padding:16px;border-radius:18px;background:rgba(255,255,255,.035);color:rgba(255,255,255,.72);font-size:13px;line-height:1.6}
+.cash-settlement-heading{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.cash-settlement h3,.cash-settlement h4{margin:0;color:rgba(255,255,255,.9);font-size:14px;font-weight:500}
+.cash-settlement-heading>span{font-size:12px;color:rgba(255,255,255,.5)}
+.cash-settlement p{margin:9px 0;color:rgba(255,255,255,.5);overflow-wrap:anywhere}
+.cash-settlement button{min-height:44px;padding:10px 12px;border:0;border-radius:12px;background:rgba(255,255,255,.065);color:rgba(255,255,255,.85);font-size:13px;line-height:20px}
+.cash-settlement button:disabled,.cash-settlement select:disabled{opacity:.4}
+.cash-settlement-opening{margin-top:16px}
+.cash-settlement-opening label{display:flex;flex-direction:column;gap:6px;font-size:12px}
+.cash-settlement select{width:100%;min-width:0;min-height:44px;border:1px solid rgba(255,255,255,.08);border-radius:10px;background:#191c22;color:rgba(255,255,255,.8);padding:8px;font-size:13px}
+.cash-settlement-opening button{margin-top:8px}
+.cash-settlement-plan{margin-top:12px}
+.cash-settlement dl{margin:12px 0}
+.cash-settlement dl>div{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:4px 12px;padding:5px 0}
+.cash-settlement dt{color:rgba(255,255,255,.5);font-size:12px}
+.cash-settlement dd{margin:0;font-size:14px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.cash-settlement-actions{display:flex;flex-wrap:wrap;gap:8px}
+.cash-settlement .cash-settlement-confirm{background:#e2e6ed;color:#15191e}
+.cash-settlement-error p{color:#e1a5a5}

@@ -3,6 +3,11 @@ import { CURRENT_RELEASE } from './releaseMeta.js';
 export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
+    items: ['修复新账户买入股票后现金未同步扣减的问题，交易与现金统一结算，修改和删除同步核对。', '现金管理新增开户资金核对与自动结算设置，保护旧账户的手工余额与历史持仓，避免重复扣款。'],
+    itemsEn: ['Fixed purchases failing to reduce cash in new accounts. Trades and cash now settle together, including edits and deletions.', 'Cash management now supports opening-balance reconciliation and automatic settlement while protecting manual balances and historical holdings from duplicate charges.'],
+  },
+  {
+    ver: 'v10.7.9.620', date: '2026-11-09',
     items: ['时间线新增持仓股票年内最大单日跌幅记录，按股票与年份合并更新，保留历史节点和评论；新增独立显示开关。', '依据完整年内复权收盘行情与当日正式持仓快照确认记录，数据缺失时提示补充，避免把股票跌幅误当账户收益。'],
     itemsEn: ['Added annual largest single-day declines for held stocks to the timeline, grouped by stock and year with historical nodes and comments preserved, plus an independent display setting.', 'Records require complete year-to-date split-adjusted closing prices and verified closing positions. Missing data is indicated, and stock declines remain distinct from account returns.'],
   },

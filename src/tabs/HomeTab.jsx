@@ -315,6 +315,8 @@ export default function HomeTab({ ctx }) {
     addStock,
     availableCashStatus,
     availableCashStatusReady = false,
+    cashTradeSettlementApi,
+    cashTradeSettlementRevision,
     benchmarkDrawdown,
     benchmarkMenuOpen,
     benchmarkOptions,
@@ -1411,6 +1413,8 @@ export default function HomeTab({ ctx }) {
 
       <AvailableCashEditor
         availableCashUsd={availableCashUsd}
+        cashTradeSettlementApi={cashTradeSettlementApi}
+        cashTradeSettlementRevision={cashTradeSettlementRevision}
         currency={displayCurrency}
         isOpen={showAvailableCashEditor}
         isSet={availableCashIsSet}

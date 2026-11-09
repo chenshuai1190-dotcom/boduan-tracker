@@ -135,7 +135,19 @@ test('formal ledger client integration is isolated, non-blocking, and server-own
   assert.equal(helperBlock.includes('stockTrades'), false);
   assert.equal(helperBlock.includes('quoteRows'), false);
 
-  assert.equal((appSource.match(/void recalculatePnlReportAfterLedgerMutation\(\);/g) || []).length, 2);
+  const mutationBoundaries = [
+    ['const addTrade = async', 'const deleteStockTradeRecord = async'],
+    ['const deleteStockTradeRecord = async', 'const cashTradeSettlementApi = useMemo'],
+    ['const cashTradeSettlementApi = useMemo', 'const deleteTrade = async'],
+  ];
+  for (const [startMarker, endMarker] of mutationBoundaries) {
+    const start = appSource.indexOf(startMarker);
+    const end = appSource.indexOf(endMarker, start);
+    assert.ok(start >= 0 && end > start, `${startMarker} must retain an isolated mutation handler`);
+    assert.equal((appSource.slice(start, end).match(/void recalculatePnlReportAfterLedgerMutation\(\);/g) || []).length, 1,
+      `${startMarker} should enqueue one non-blocking server recalculation after its confirmed mutation`);
+  }
+  assert.equal((appSource.match(/void recalculatePnlReportAfterLedgerMutation\(\);/g) || []).length, 3);
   assert.ok(appSource.includes('pnlReportRefreshVersion,'));
   assert.equal(pageSource.includes('buildPnlReportHistoricalSnapshots'), false);
   assert.equal(pageSource.includes('upsertPnlReportSnapshots'), false);

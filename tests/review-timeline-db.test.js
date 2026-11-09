@@ -54,6 +54,9 @@ test('authenticates before and after; all table reads include explicit user scop
   assert.ok(calls.filter(call => call.table).every(call => call.filters.some(([field, value]) => field === 'user_id' && value === OWNER)));
   assert.deepEqual([...new Set(calls.filter(call => call.table).map(call => call.table))].sort(),
     ['available_cash_movements', 'pnl_report_rebuild_state', 'pnl_report_snapshots', 'pnl_report_symbol_snapshots', 'stock_trades']);
+  const fields = calls.find(call => call.table === 'pnl_report_snapshots').fields.split(',');
+  assert.ok(fields.includes('cash_settlement_baseline_event_id'));
+  assert.ok(fields.includes('cash_settlement_trade_delta_usd'));
 });
 
 test('no snapshots is empty; missing authentication and switched accounts are errors', async () => {

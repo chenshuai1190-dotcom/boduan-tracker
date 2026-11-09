@@ -3,7 +3,7 @@ import { buildReviewStockDailyRecords, collectReviewStockDailyRecordRanges } fro
 import { loadReviewStockDailyHistory } from './reviewStockDailyRecordHistory.js';
 import { createReviewSessionGuard } from './reviewSessionGuard.js';
 
-const SNAPSHOT_FIELDS = 'id,user_id,snapshot_date,currency,cumulative_pnl_pct,daily_pnl_pct,cumulative_pnl_usd,daily_pnl_usd,market_value_usd,total_assets_usd,net_assets_usd,cash_usd,cash_event_id,cash_effective_at,cash_basis,margin_debt_usd,margin_debt_event_id,margin_debt_effective_at,margin_debt_basis,source_version,locked_at,updated_at';
+const SNAPSHOT_FIELDS = 'id,user_id,snapshot_date,currency,cumulative_pnl_pct,daily_pnl_pct,cumulative_pnl_usd,daily_pnl_usd,market_value_usd,total_assets_usd,net_assets_usd,cash_usd,cash_event_id,cash_effective_at,cash_basis,cash_settlement_baseline_event_id,cash_settlement_trade_delta_usd,margin_debt_usd,margin_debt_event_id,margin_debt_effective_at,margin_debt_basis,source_version,locked_at,updated_at';
 const MOVEMENT_FIELDS = 'id,user_id,kind,delta_usd,cash_event_id,occurred_at';
 const STATE_FIELDS = 'user_id,dirty_from_date,ledger_revision,generation,updated_at';
 const SYMBOL_FIELDS = 'id,user_id,snapshot_date,symbol,name,currency,held_shares,source_version,updated_at';

@@ -16,6 +16,7 @@ import { createReviewJournalRepository } from './reviewJournalRepository.js';
 import { createReviewAccountSnapshotLoader } from './reviewAccountSnapshot.js';
 import { createReviewTimelineLoader } from './reviewTimelineDb.js';
 import { createReviewPreferencesRepository } from './reviewPreferencesDb.js';
+import { createStockTradeCashRepository } from './stockTradeCashDb.js';
 
 export {
   fetchPnlReportRebuildState,
@@ -169,7 +170,8 @@ export const repairCurrentUserStockSymbols = async (preUser = null) => {
 
   const tables = await Promise.all([
     repairSymbolRows({ userId: user.id, table: 'trades' }),
-    repairSymbolRows({ userId: user.id, table: 'stock_trades' }),
+    // Formal ledger writes require the versioned trade/cash RPC. Display reads
+    // still normalize legacy symbols; startup must not silently mutate trades.
     repairSymbolRows({ userId: user.id, table: 'watchlist' }),
   ]);
   const repaired = tables.reduce((sum, item) => sum + (item.repaired || 0), 0);
@@ -250,6 +252,8 @@ export const deleteTrade = async (id) => {
 
 const mapStockTrade = (trade) => ({
   id: trade.id,
+  updatedAt: trade.updated_at || trade.updatedAt || null,
+  recordKind: trade.record_kind || trade.recordKind || 'trade',
   symbol: normalizeUserStockSymbol(trade.symbol),
   name: trade.name || '',
   side: trade.side === 'sell' ? 'sell' : 'buy',
@@ -261,7 +265,7 @@ const mapStockTrade = (trade) => ({
   note: trade.note || '',
 });
 
-export const fetchStockTrades = async (preUser = null) => {
+export const fetchStockTrades = async (preUser = null, { allowCached = true } = {}) => {
   const user = preUser || (await supabase.auth.getUser()).data.user;
   if (!user) return [];
 
@@ -273,6 +277,7 @@ export const fetchStockTrades = async (preUser = null) => {
     .order('created_at', { ascending: true });
   if (error) {
     console.error('fetchStockTrades 失败:', error);
+    if (!allowCached) throw error;
     const cached = cacheGet(user.id, 'stock_trades');
     if (cached) return cached;
     throw error;
@@ -282,70 +287,39 @@ export const fetchStockTrades = async (preUser = null) => {
   return stockTrades;
 };
 
-export const insertStockTrade = async (trade) => {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('未登录');
+const stockTradeCashRepository = createStockTradeCashRepository(supabase);
+export const fetchStockTradeCashState = (expectedUserId) => stockTradeCashRepository.load(expectedUserId);
+export const previewStockTradeCash = (plan, expectedUserId) => stockTradeCashRepository.preview(plan, expectedUserId);
 
-  const symbol = normalizeStrictUserStockSymbol(trade.symbol);
-  if (!symbol) throw new Error('股票代码格式不正确');
-  const side = trade.side === 'sell' ? 'sell' : 'buy';
-  const { data, error } = await supabase
-    .from('stock_trades')
-    .insert({
-      user_id: user.id,
-      symbol,
-      name: trade.name || symbol,
-      side,
-      trade_date: trade.date || trade.tradeDate,
-      price: trade.price,
-      shares: trade.shares,
-      fee: trade.fee || 0,
-      currency: trade.currency || 'USD',
-      note: trade.note || '',
-    })
-    .select()
-    .single();
-  if (error) throw error;
-  return mapStockTrade(data);
+function cacheStockCashResult(result, userId) {
+  if (result.cashStatus) {
+    const previous = cacheGet(userId, AVAILABLE_CASH_CACHE_KEY) || {};
+    cacheSet(userId, AVAILABLE_CASH_CACHE_KEY, { ...previous, ...result.cashStatus });
+  }
+  return result;
+}
+
+export const confirmStockTradeCash = async (plan, expectedUserId) => {
+  const result = await stockTradeCashRepository.confirm(plan, expectedUserId);
+  return cacheStockCashResult(result, expectedUserId);
 };
 
-export const updateStockTrade = async (id, trade) => {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('未登录');
-  if (!id) throw new Error('缺少交易记录 id');
+async function mutateSettledStockTrade(action, trade, id, options) {
+  const result = await stockTradeCashRepository.mutate(action, {
+    trade, tradeId: id, operationKey: options?.operationKey, expectedUpdatedAt: options?.expectedUpdatedAt,
+  }, options?.expectedUserId);
+  const mapped = result.trade ? mapStockTrade(result.trade) : null;
+  if (action !== 'delete' && !mapped?.id) throw new Error('交易未返回确认记录，请重试核对。');
+  const cached = cacheGet(options.expectedUserId, 'stock_trades');
+  if (Array.isArray(cached)) cacheSet(options.expectedUserId, 'stock_trades',
+    action === 'delete' ? cached.filter(row => String(row.id) !== String(id))
+      : [...cached.filter(row => String(row.id) !== String(mapped.id)), mapped]);
+  return cacheStockCashResult({ ...result, trade: mapped }, options.expectedUserId);
+}
 
-  const symbol = normalizeStrictUserStockSymbol(trade.symbol);
-  if (!symbol) throw new Error('股票代码格式不正确');
-
-  const side = trade.side === 'sell' ? 'sell' : 'buy';
-  const { data, error } = await supabase
-    .from('stock_trades')
-    .update({
-      symbol,
-      name: trade.name || symbol,
-      side,
-      trade_date: trade.date || trade.tradeDate,
-      price: trade.price,
-      shares: trade.shares,
-      fee: trade.fee || 0,
-      currency: trade.currency || 'USD',
-      note: trade.note || '',
-    })
-    .eq('id', id)
-    .eq('user_id', user.id)
-    .select()
-    .single();
-  if (error) throw error;
-  return mapStockTrade(data);
-};
-
-export const deleteStockTrade = async (id) => {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('未登录');
-
-  const { error } = await scopedDeleteById(supabase.from('stock_trades'), id, user.id);
-  if (error) throw error;
-};
+export const insertStockTrade = (trade, options) => mutateSettledStockTrade('create', trade, null, options);
+export const updateStockTrade = (id, trade, options) => mutateSettledStockTrade('update', trade, id, options);
+export const deleteStockTrade = (id, options) => mutateSettledStockTrade('delete', null, id, options);
 
 // ============ WATCHLIST (关注列表) ============
 

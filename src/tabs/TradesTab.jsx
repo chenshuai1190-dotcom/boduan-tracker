@@ -436,6 +436,8 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
   const {
     availableCashStatus,
     availableCashStatusReady = false,
+    cashTradeSettlementApi,
+    cashTradeSettlementRevision,
     addTrade,
     AlertCircle,
     cacheStockLogo,
@@ -767,6 +769,8 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
     setTradeEntryScope('ledger');
     setNewTrade({
       id: trade.id,
+      updatedAt: trade.updatedAt,
+      recordKind: trade.recordKind,
       symbol,
       name: stockDisplayName(symbol, trade.name),
       side: trade.side === 'sell' ? 'sell' : 'buy',
@@ -2211,6 +2215,8 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
 
         <AvailableCashEditor
           availableCashUsd={availableCashUsd}
+          cashTradeSettlementApi={cashTradeSettlementApi}
+          cashTradeSettlementRevision={cashTradeSettlementRevision}
           currency={displayCurrency}
           isOpen={showAvailableCashEditor}
           isSet={availableCashIsSet}

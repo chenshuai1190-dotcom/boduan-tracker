@@ -51,6 +51,19 @@ function verifyOwner(rows, owner) {
   }
 }
 
+// These two fields are copied from the authoritative cash event by the
+// snapshot trigger. Legacy/manual snapshots have neither field. A partial or
+// malformed pair cannot establish cash provenance.
+function cashSettlementEvidence(row) {
+  const baseline = row.cash_settlement_baseline_event_id;
+  const delta = row.cash_settlement_trade_delta_usd;
+  if (baseline == null && delta == null) return null;
+  const amount = numeric(delta);
+  return eventId(baseline) && eventId(row.cash_event_id)
+    && BigInt(baseline) <= BigInt(row.cash_event_id) && amount !== null
+    ? { baselineId: String(baseline), tradeDeltaUsd: amount } : false;
+}
+
 function verifiedNetAssets(row, date, now) {
   const locked = timestamp(row.locked_at), updated = timestamp(row.updated_at);
   if (row.source_version !== 'pnl_snapshot_v2' || locked === null || locked > now || updated === null || updated > now
@@ -61,6 +74,7 @@ function verifiedNetAssets(row, date, now) {
     || !closeEnough(total, market + cash) || !closeEnough(net, total - debt)) return null;
   const cashTime = timestamp(row.cash_effective_at), debtTime = timestamp(row.margin_debt_effective_at);
   if (row.cash_basis !== 'event' || !eventId(row.cash_event_id) || cashTime === null || !atOrBeforeClose(cashTime, date)) return null;
+  if (cashSettlementEvidence(row) === false) return null;
   const verifiedDebt = row.margin_debt_basis === 'event'
     ? eventId(row.margin_debt_event_id) && debtTime !== null && atOrBeforeClose(debtTime, date)
     : row.margin_debt_basis === 'default_zero' && debt === 0 && row.margin_debt_event_id == null && row.margin_debt_effective_at == null;
@@ -76,6 +90,7 @@ function normalizeSnapshot(row, now) {
     || !usableTimestamp(row.locked_at, now) || !usableTimestamp(row.updated_at, now)
     || !isCompletedCloseSnapshot({ snapshotDate: date, lockedAt: row.locked_at }, new Date(now))) return null;
   const net = verifiedNetAssets(row, date, now);
+  const settlement = net === null ? null : cashSettlementEvidence(row);
   return {
     date, netAssetsUsd: net, chartValue: net,
     totalAssetsUsd: net === null ? null : numeric(row.total_assets_usd),
@@ -85,6 +100,8 @@ function normalizeSnapshot(row, now) {
     cumulativePnlUsd: numeric(row.cumulative_pnl_usd), dailyPnlUsd: numeric(row.daily_pnl_usd),
     cashEventId: eventId(row.cash_event_id) ? String(row.cash_event_id) : null,
     cashEffectiveAt: row.cash_effective_at ?? null,
+    cashSettlementBaselineEventId: settlement?.baselineId ?? null,
+    cashSettlementTradeDeltaUsd: settlement?.tradeDeltaUsd ?? null,
     sourceSnapshotId: row.id, sourceVersion: row.source_version,
     sourceUpdatedAt: row.updated_at ?? null, lockedAt: row.locked_at ?? null,
   };
@@ -115,9 +132,24 @@ function comparisonBreak(previous, current, movements) {
         deltaUsd: between.reduce((sum, row) => sum + row.deltaUsd, 0), date: current.date, count: between.length },
     };
   }
+  const settlementChanged = previous.cashSettlementBaselineEventId !== current.cashSettlementBaselineEventId
+    || previous.cashSettlementTradeDeltaUsd !== current.cashSettlementTradeDeltaUsd;
   if (previous.cashEventId !== current.cashEventId || previous.cashEffectiveAt !== current.cashEffectiveAt
+    || settlementChanged
     || (previous.cashUsd !== null && current.cashUsd !== null && !closeEnough(previous.cashUsd, current.cashUsd))) {
-    return { reason: 'cash_source_changed' };
+    // Buying/selling transforms cash into holdings and does not introduce
+    // outside capital. Only a shared verified baseline plus the exact change
+    // in cumulative trade settlement can explain a changed cash source. The
+    // movement check above still interrupts deposits, withdrawals and manual
+    // adjustments even if their amounts happen to offset a trade.
+    const settledInternally = previous.cashEventId !== current.cashEventId
+      && previous.cashSettlementBaselineEventId !== null
+      && previous.cashSettlementBaselineEventId === current.cashSettlementBaselineEventId
+      && previous.cashUsd !== null && current.cashUsd !== null
+      && previous.cashSettlementTradeDeltaUsd !== null && current.cashSettlementTradeDeltaUsd !== null
+      && closeEnough(current.cashUsd - previous.cashUsd,
+        current.cashSettlementTradeDeltaUsd - previous.cashSettlementTradeDeltaUsd);
+    if (!settledInternally) return { reason: 'cash_source_changed' };
   }
   if (previous.netAssetsUsd === null || current.netAssetsUsd === null) return { reason: 'missing_net_assets' };
   return null;

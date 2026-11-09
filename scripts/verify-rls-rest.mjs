@@ -30,6 +30,10 @@ const USER_TABLES = [
   'cost_basis_trades',
 ].map(table => ({ table, select: 'user_id' }));
 const SERVICE_ONLY_TABLES = [
+  { table: 'stock_trade_cash_accounts', select: 'user_id' },
+  { table: 'stock_trade_cash_entries', select: 'user_id' },
+  { table: 'stock_trade_cash_operations', select: 'user_id' },
+  { table: 'stock_trade_cash_release', select: 'singleton' },
   // Quote assistant workspaces are RPC-only, including for their owner.
   { table: 'quote_assistant_identity', select: 'author_id' },
   { table: 'quote_assistant_preferences', select: 'owner_id' },
@@ -69,6 +73,9 @@ const SERVICE_ONLY_TABLES = [
   { table: 'sec_earnings_shared_results', select: 'symbol' },
 ];
 const SERVICE_ONLY_RPCS = [
+  { name: 'stock_trade_cash', body: { p_action: 'state', p_payload: {}, p_expected_user_id: null } },
+  { name: 'stock_trade_cash_contract_ready', body: {} },
+  { name: 'stock_trade_cash_state', body: { p_owner: null } },
   // Read-only actions: an accidentally broadened grant cannot create work.
   { name: 'quote_assistant_service', body: { p_action: 'identity', p_payload: {} } },
   { name: 'quote_assistant_proactive', body: { p_action: 'state', p_payload: {} } },

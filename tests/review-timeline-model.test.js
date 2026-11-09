@@ -280,6 +280,88 @@ test('cash source change without movement provenance fails closed; same balance 
   assert.equal(result.events.some(event => event.metric === 'net_assets' && event.kind === 'high'), false);
 });
 
+const settledRow = (date, net, cash, delta, event, extra = {}) => row(date, net, {
+  market_value_usd: net - cash, cash_usd: cash,
+  cash_event_id: event, cash_effective_at: `${date}T16:00:00Z`,
+  cash_settlement_baseline_event_id: '1', cash_settlement_trade_delta_usd: delta,
+  ...extra,
+});
+
+test('verified stock purchases and sales preserve one net-asset drawdown and its recovery', () => {
+  const rows = [
+    settledRow('2026-11-02', 2000000, 1000000, 0, '1'),
+    // 295 * 540.58 + 2.50 fee. A stock purchase is not a withdrawal.
+    settledRow('2026-11-03', 1700000, 840526.40, -159473.60, '2'),
+    // 100 * 600 - 2.50 fee. A stock sale is not an external deposit.
+    settledRow('2026-11-04', 1900000, 900523.90, -99476.10, '3'),
+    settledRow('2026-11-05', 2000000, 900523.90, -99476.10, '3', { cash_effective_at: '2026-11-04T16:00:00Z' }),
+  ];
+  const result = build(rows);
+  assert.equal(result.coverage.interruptionCount, 0);
+  const [cycle] = cycles(result);
+  assert.equal(cycles(result).length, 1);
+  assert.equal(cycle.status, 'recovered');
+  assert.equal(cycle.peak.date, '2026-11-02');
+  assert.equal(cycle.endDate, '2026-11-05');
+  assert.ok(Math.abs(cycle.maxDrawdownPct + 15) < 1e-8);
+  assert.deepEqual(cycle.points.map(point => point.cashUsd), [1000000, 840526.40, 900523.90, 900523.90]);
+});
+
+test('internal settlement evidence never suppresses external transfers or manual cash corrections', () => {
+  const rows = [settledRow('2026-11-02', 100, 50, 0, '1'), settledRow('2026-11-03', 80, 40, -10, '2')];
+  for (const kind of ['transfer_in', 'transfer_out', 'balance_adjustment', 'reversal']) {
+    const result = build(rows, [flow('2026-11-03', kind, kind === 'transfer_in' ? 10 : -10)]);
+    assert.equal(result.coverage.interruptionCount, 1, kind);
+    assert.equal(cycles(result).length, 0, kind);
+    assert.equal(result.coverage.interruptions[0].reason,
+      ['transfer_in', 'transfer_out'].includes(kind) ? 'external_cash_flow' : 'cash_adjustment');
+  }
+});
+
+test('cash mismatch, a different baseline, missing evidence and conflicting event identities fail closed', () => {
+  const initial = settledRow('2026-11-02', 100, 50, 0, '1');
+  for (const extra of [
+    { cash_usd: 40.01, market_value_usd: 39.99 },
+    { cash_settlement_baseline_event_id: '2' },
+    { cash_settlement_baseline_event_id: null, cash_settlement_trade_delta_usd: null },
+    { cash_event_id: '1', cash_effective_at: initial.cash_effective_at },
+    { cash_usd: 50, market_value_usd: 30 },
+  ]) {
+    const result = build([initial, settledRow('2026-11-03', 80, 40, -10, '3', extra)]);
+    assert.equal(result.coverage.interruptionCount, 1, JSON.stringify(extra));
+    assert.equal(result.coverage.interruptions[0].reason, 'cash_source_changed');
+    assert.equal(cycles(result).length, 0);
+  }
+});
+
+test('malformed settlement provenance cannot validate net assets; absent legacy metadata remains valid', () => {
+  for (const extra of [
+    { cash_settlement_baseline_event_id: null },
+    { cash_settlement_trade_delta_usd: null },
+    { cash_settlement_baseline_event_id: '0' },
+    { cash_settlement_baseline_event_id: '4' },
+    { cash_settlement_trade_delta_usd: 'NaN' },
+    { cash_settlement_trade_delta_usd: '' },
+  ]) {
+    const result = build([settledRow('2026-11-03', 80, 40, -10, '3', extra)]);
+    assert.equal(result.coverage.netAssetCount, 0, JSON.stringify(extra));
+  }
+  const legacy = build([row('2026-11-02', 100), row('2026-11-03', 80)]);
+  assert.equal(legacy.coverage.netAssetCount, 2);
+  assert.equal(cycles(legacy).length, 1);
+});
+
+test('verified zero net settlement and huge integer event identifiers do not create interruptions', () => {
+  const baseline = '9007199254740993';
+  const rows = [
+    settledRow('2026-11-02', 100, 50, '-10.000000', baseline, { cash_settlement_baseline_event_id: baseline }),
+    settledRow('2026-11-03', 80, 50, '-10.000000', '9007199254740995', { cash_settlement_baseline_event_id: baseline }),
+  ];
+  const result = build(rows);
+  assert.equal(result.coverage.interruptionCount, 0);
+  assert.equal(cycles(result).length, 1);
+});
+
 test('movement after the 17 ET cutoff affects the following close, not the already completed close', () => {
   const result = build([row('2026-11-02', 100), row('2026-11-03', 80), row('2026-11-04', 120)],
     [flow('2026-11-03', 'transfer_in', 40, { occurred_at: '2026-11-03T22:01:00Z' })]);
