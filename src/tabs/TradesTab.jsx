@@ -39,7 +39,7 @@ import { useTradeVixRatioReference } from '../lib/useTradeVixRatioReference.js';
 import { deriveTradeVixRatioReference } from '../lib/tradeVixRatioReference.js';
 import { useStockRsiReference } from '../lib/useStockRsiReference.js';
 import { deriveBuyTradeDiscipline } from '../lib/buyTradeDiscipline.js';
-import { getStockTradeRecordKind, normalizeStockTradeDraftKind, withStockTradeRecordKind } from '../lib/stockTradeRecordKind.js';
+import { getStockTradeRecordKind, normalizeStockTradeDraftKind } from '../lib/stockTradeRecordKind.js';
 import TradeToolsCatalog from '../components/TradeToolsCatalog.jsx';
 import TradesPositionsReport from '../components/TradesPositionsReport.jsx';
 import '../components/PulseDot.css';
@@ -415,23 +415,6 @@ function PositionProfitScenarioSheet({
   );
 }
 
-export function StockTradeRecordKindPicker({ draft, onDraftChange, englishMode = false }) {
-  if (draft?.side === 'sell') return null;
-  const kind = getStockTradeRecordKind(draft?.note);
-  return <div className="trade-record-kind">
-    <div className="trade-record-kind-options" role="group" aria-label={englishMode ? 'Record type' : '记录类型'}>
-      {[
-        ['trade', englishMode ? 'Actual trade' : '实际交易'],
-        ['historical_holding', englishMode ? 'Historical holding' : '历史持仓'],
-      ].map(([value, label]) => <button key={value} type="button" aria-pressed={kind === value}
-        onClick={() => onDraftChange({ ...draft, note: withStockTradeRecordKind(draft?.note, value) })}>{label}</button>)}
-    </div>
-    {kind === 'historical_holding' && <p>{englishMode
-      ? 'Earlier purchases combined at average cost. The entry date is not the purchase date.'
-      : '历史买入按均价汇总，日期仅为录入日。'}</p>}
-  </div>;
-}
-
 export default function TradesTab({ ctx, initialToolPanel = '' }) {
   const {
     availableCashStatus,
@@ -744,6 +727,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
       symbol,
       name: stockDisplayName(symbol, position?.name),
       side,
+      recordKind: 'trade',
       date: localDateKey(),
       price: position?.currentPrice ? (isTqqqFormalTradeEntry({ symbol, scope: 'ledger' })
         ? formatTqqqSuggestedPrice(position.currentPrice)
@@ -2029,9 +2013,6 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
               { key: 'sell', label: tradeSubmitting ? tt('trades.saving', '保存中...') : tt('trades.sell', '卖出'), disabled: tradeSubmitting, onClick: () => confirmTradeSubmit('sell') },
             ]}
           >
-            {(isTqqqTradeEntry || isGenericLedgerTradeEntry) && <StockTradeRecordKindPicker
-              draft={newTrade} englishMode={englishMode}
-              onDraftChange={nextDraft => setNewTrade(normalizeStockTradeDraftKind(nextDraft))} />}
             {isTqqqTradeEntry ? (
               <TqqqTradeEntryPanel
                 draft={newTrade}

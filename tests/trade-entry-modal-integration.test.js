@@ -72,9 +72,9 @@ function assertCostFooter(result, amountType) {
   return amount;
 }
 
-test('historical holdings use explicit save wording but preserve the formal buy action and hard blocks', () => {
+test('existing historical holdings retain edit wording, the formal buy action and hard blocks without a type selector', () => {
   for (const symbol of ['NVDA', 'TQQQ']) {
-    const draft = { symbol, side: 'buy', price: '123.45', shares: '20', date: '2026-10-05', note: withStockTradeRecordKind('', 'historical_holding') };
+    const draft = { id: 'existing-holding', recordKind: 'historical_holding', symbol, side: 'buy', price: '123.45', shares: '20', date: '2026-10-05', note: withStockTradeRecordKind('', 'historical_holding') };
     const result = modal({ draft });
     assert.equal(result.props.actions.length, 1);
     assert.equal(result.props.actions[0].label, '保存历史持仓');

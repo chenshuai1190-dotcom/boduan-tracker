@@ -81,10 +81,10 @@ test('ordinary and TQQQ buys reach the shared discipline confirmation before the
   }
 });
 
-test('explicit historical holdings preserve saving but do not judge aggregate entry dates with current discipline', async () => {
+test('existing historical holdings preserve editing without judging aggregate entry dates with current discipline', async () => {
   for (const symbol of ['NVDA', 'TQQQ']) {
     const note = withStockTradeRecordKind('历史均价汇总', 'historical_holding');
-    const f = fixture({ draft: { symbol, name: symbol, note } });
+    const f = fixture({ draft: { id: 'existing-holding', recordKind: 'historical_holding', symbol, name: symbol, note } });
     f.submit();
     assert.equal(f.notices.length, 0);
     assert.equal(f.confirmations.length, 1);
@@ -92,6 +92,7 @@ test('explicit historical holdings preserve saving but do not judge aggregate en
     assert.match(f.confirmations[0].desc, /录入日期不代表实际买入日/);
     assert.equal(f.confirmations[0].buyDiscipline, null);
     assert.equal(f.updates[0].note, note);
+    assert.equal(f.updates[0].recordKind, 'historical_holding');
     assert.deepEqual(f.writes, []);
     await f.confirmations[0].onConfirm();
     assert.deepEqual(f.writes, ['buy']);
