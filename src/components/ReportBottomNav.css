@@ -18,16 +18,16 @@
   background: #fff;
   border-top-color: #e2e8f0;
 }
-.report-bottom-nav-grid { height: 61px; padding: 0 10px; }
+.report-bottom-nav-grid { height: 50px; padding: 0 10px; }
 .report-bottom-nav-tab {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 5px;
+  gap: 4px;
   min-width: 0;
-  height: 61px;
+  height: 50px;
   padding: 0;
   border: 0;
   background: transparent;
@@ -51,7 +51,7 @@
 .report-bottom-nav-tab:active { background: rgb(255 255 255 / .035); }
 .report-bottom-nav-light .report-bottom-nav-tab:active { background: rgb(0 0 0 / .035); }
 .report-bottom-nav-tab:focus-visible { outline: 1px solid currentColor; outline-offset: -5px; border-radius: 8px; }
-.report-bottom-nav-icon { display: block; flex-shrink: 0; width: 30px; height: 27px; padding: 2.5px 4px; }
+.report-bottom-nav-icon { display: block; flex-shrink: 0; width: 28px; height: 25px; padding: 2.5px 4px; }
 .report-bottom-nav-label { font-size: 10px; font-weight: 400; line-height: 14px; letter-spacing: normal; white-space: nowrap; }
 @media (prefers-reduced-motion: reduce) {
   .report-bottom-nav-tab { transition: none; }
@@ -64,11 +64,11 @@
 
 /* Keep unread digits outside any translucent treatment; navigation animations
    move the whole control but do not filter or fade the number. */
-.report-bottom-nav-icon-wrap { position: relative; display: block; width: 30px; height: 27px; isolation: isolate; }
+.report-bottom-nav-icon-wrap { position: relative; display: block; width: 28px; height: 25px; isolation: isolate; }
 .report-bottom-nav-new-posts {
   position: absolute;
   top: -3px;
-  left: 21px;
+  left: 20px;
   z-index: 1;
   display: grid;
   place-items: center;
