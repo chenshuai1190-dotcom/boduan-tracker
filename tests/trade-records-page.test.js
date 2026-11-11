@@ -10,6 +10,20 @@ import { buildTradeRecordsView, getTradeRecordDateRange, isValidTradeRecordDate 
 
 const source = readFileSync(new URL('../src/pages/TradeRecordsPage.jsx', import.meta.url), 'utf8');
 const css = readFileSync(new URL('../src/pages/TradeRecordsPage.css', import.meta.url), 'utf8');
+
+test('standalone trade navigation reserves the iPhone safe area and keeps filters below the whole header', () => {
+  const header = css.match(/\.trp-header\s*\{([^}]+)\}/)?.[1];
+  const filters = css.match(/\.trp-filters-wrap\s*\{([^}]+)\}/)?.[1];
+  assert.ok(header && filters);
+  const height = header.match(/min-height:\s*([^;]+);/)?.[1];
+  const filtersTop = filters.match(/top:\s*([^;]+);/)?.[1];
+  assert.match(height, /env\(safe-area-inset-top,\s*0px\)/);
+  assert.equal(filtersTop, height, 'sticky filters must include the same safe-area height as navigation');
+  assert.match(header, /padding:\s*calc\(10px \+ env\(safe-area-inset-top,\s*0px\)\) 16px 10px;/,
+    'back button, title and add action must sit below the status bar');
+  assert.match(header, /position:\s*sticky;\s*top:\s*0;/, 'navigation stays accessible after scrolling');
+});
+
 const compiled = (await transformWithOxc(source, 'TradeRecordsPage.jsx', { jsx: { runtime: 'classic' } })).code
   .replace(/^import[^\n]*\n/gm, '').replace(/export default function /g, 'function ').replace(/export function /g, 'function ');
 const names = ['ArrowLeft', 'ArrowUpDown', 'CalendarDays', 'Check', 'ChevronDown', 'ChevronRight', 'Pencil', 'Plus', 'Search', 'Trash2', 'X'];
@@ -165,6 +179,22 @@ test('pending saves disable mutation controls while authorized fixture and logo 
   const logo = walk(tree).find(node => node.type === components.StockLogo);
   assert.equal(logo.props.onLogoLoad, cacheStockLogo); assert.equal(logo.props.urls[0], 'https://example.test/msft.png');
   assert.deepEqual(h.calls, []);
+});
+
+test('list and stock filters use actual stock logos with each symbol cache, matching details', () => {
+  const cacheStockLogo = () => {};
+  const logoCache = Object.fromEntries(['MSFT', 'NVDA', 'GOOGL'].map(symbol => [symbol, { url: `https://example.test/${symbol}.png` }]));
+  const h = harness({ logoCache, cacheStockLogo }); let tree = h.render();
+  const verify = (node, symbol) => {
+    const logo = walk(node).find(child => child.type === components.StockLogo);
+    assert.ok(logo, `${symbol} must use the shared stock logo`);
+    assert.equal(logo.props.symbol, symbol);
+    assert.equal(logo.props.urls[0], logoCache[symbol].url);
+    assert.equal(logo.props.onLogoLoad, cacheStockLogo);
+  };
+  for (const row of byClass(tree, 'trp-row')) verify(row, TRADES.find(trade => trade.id === row.key).symbol);
+  button(tree, '股票代码').props.onClick(); tree = h.render();
+  for (const option of walk(byClass(tree, 'trp-stock-options')[0]).filter(node => node.type === 'button')) verify(option, option.key);
 });
 
 test('failed empty reads are not presented as an empty ledger or zero dollar summary', () => {
