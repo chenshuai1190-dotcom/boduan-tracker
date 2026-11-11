@@ -91,3 +91,23 @@ test('unavailable trade close is distinguished from zero moves', () => {
     assert.doesNotMatch(html, /0\.00%/);
   }
 });
+
+test('detail pages may suppress the repeated note without removing any observation windows', () => {
+  const html = render({ note: 'This note appears above the review', showNote: false });
+  assert.doesNotMatch(html, /This note appears above the review|trade-outcome-note/);
+  assert.match(html, /\+5\.00%/);
+  assert.match(html, /已观察 11 \/ 20 日/);
+  assert.match(html, /收盘数据不完整/);
+  assert.match(html, /非成交盈亏/);
+  assert.match(render({ note: 'Default note still shown' }), /Default note still shown/);
+});
+
+test('the persisted historical kind remains authoritative when an old note has no marker', () => {
+  const html = renderToStaticMarkup(React.createElement(TradeOutcomeReview, {
+    trade: { id: 'opening', symbol: 'MSFT', side: 'buy', date: '2026-07-04', recordKind: 'historical_holding', note: 'Original note' },
+    userId: 'test-owner', initiallyExpanded: true, showNote: false,
+    historyLoader: () => { throw new Error('historical holding must not load execution history'); },
+  }));
+  assert.match(html, /录入日期不作为实际成交日复盘/);
+  assert.doesNotMatch(html, /Original note|trade-outcome-table|正在读取历史行情/);
+});

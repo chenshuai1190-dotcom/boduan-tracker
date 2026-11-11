@@ -32,7 +32,7 @@ function renderCatalog(props) {
   return tree;
 }
 
-const modal = trades.slice(trades.indexOf('{showAllToolsModal && ('), trades.indexOf('{showTradeRecordsTool && ('));
+const modal = trades.slice(trades.indexOf('{showAllToolsModal && ('), trades.indexOf('</ActionModalCard>', trades.indexOf('{showAllToolsModal && (')));
 const handler = modal.match(/onSelect=\{\(toolId\) => \{([\s\S]*?)\}\}\s*\/>/)?.[1];
 assert.ok(handler, 'execute the actual All Tools selection handler');
 const callbacks = app.slice(app.indexOf('const openMacro ='), app.indexOf('const openPortfolioOverlap ='));

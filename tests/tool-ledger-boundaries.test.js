@@ -14,6 +14,8 @@ const genericLedgerTradeEntryPanelCss = readFileSync(new URL('../src/components/
 const stockReportModalSource = readFileSync(new URL('../src/components/StockReportModal.jsx', import.meta.url), 'utf8');
 const stockReportModalCss = readFileSync(new URL('../src/components/StockReportModal.css', import.meta.url), 'utf8');
 const tradesDialogsCss = readFileSync(new URL('../src/tabs/TradesDialogs.css', import.meta.url), 'utf8');
+const tradeRecordsPageSource = readFileSync(new URL('../src/pages/TradeRecordsPage.jsx', import.meta.url), 'utf8');
+const tradeRecordsPageCss = readFileSync(new URL('../src/pages/TradeRecordsPage.css', import.meta.url), 'utf8');
 const accountAssetTrendModalSource = readFileSync(new URL('../src/components/AccountAssetTrendModal.jsx', import.meta.url), 'utf8');
 const accountAssetTrendModalCss = readFileSync(new URL('../src/components/AccountAssetTrendModal.css', import.meta.url), 'utf8');
 const monthlyAssetTrendChartSource = readFileSync(new URL('../src/components/MonthlyAssetTrendChart.jsx', import.meta.url), 'utf8');
@@ -1723,15 +1725,17 @@ test('global pull refresh only starts from the page top outside internal scrolle
   assert.ok(appSource.includes('if (touchStartedInBlockedRegion) return false;'), 'pull-refresh must ignore gestures from internal scrollers');
   assert.ok(appSource.includes('target.closest(\'[data-pull-refresh-block="true"]\')'), 'pull-refresh should support explicit blocked scroll regions');
   assert.ok(appSource.includes('isInternalScrollable'), 'pull-refresh should detect generic nested scroll containers');
-  assert.ok(tradesTabSource.includes('data-pull-refresh-block="true"'), 'trade records list should not trigger global pull-refresh while scrolling records');
+  assert.ok(tradeRecordsPageSource.includes('className="trp-stock-options"'), 'record filters should expose their scrollable stock options');
+  assert.match(tradeRecordsPageCss, /\.trp-stock-options\s*\{[^}]*overflow-y:\s*auto;/, 'record option scrollers remain covered by generic nested-scroll detection');
 });
 
 test('position clicks default to buy and trade records use ledger edit/delete flow', () => {
   assert.equal(tradesTabSource.includes("openTradeModal(position, 'sell')"), false, 'clicking a position row must not default to sell');
   assert.ok(tradesTabSource.includes("onTrade={(row) => openTradeModal(row.position, 'buy')}"), 'the explicit record-trade action should preserve the original position and default buy mode');
   assert.ok(tradesTabSource.includes("{ id: 'records', label: tt('trades.tradeLog', '交易记录'), icon: ListChecks }"), 'stock settings tool should become trade records with a record icon and localized label');
-  assert.ok(tradesTabSource.includes('const ledgerTradeRecords ='), 'trade records tool should render all stock_trades records');
-  assert.ok(tradesTabSource.includes('setOrderActionTrade(trade)'), 'trade records should reuse the order action modal for edit/delete');
+  assert.ok(tradesTabSource.includes('<TradeRecordsPage') && tradesTabSource.includes('trades={stockTrades}'), 'trade records tool should pass the complete formal ledger into the dedicated page');
+  assert.ok(tradesTabSource.includes('onEdit={openTradeEditModal} onDelete={confirmDeleteTodayTrade}'), 'record details must reuse the original ledger editor and confirmed delete flow');
+  assert.ok(tradeRecordsPageSource.includes('onEdit?.(original)') && tradeRecordsPageSource.includes('onDelete?.(original)'), 'record detail actions must forward the original ledger row');
   assert.ok(tradesTabSource.includes('deleteStockTradeRecord(trade.id)'), 'trade records delete flow should still use the database-backed stock_trades delete path');
 });
 
@@ -1742,7 +1746,7 @@ test('stock Chinese names are shared by home positions and trade records', () =>
   assert.ok(homeTabSource.includes('{item.displayName}'), 'home watchlist/positions table should render the localized display name');
   assert.ok(tradesTabSource.includes('stockNameParts(position.symbol, position.name)'), 'trade positions should render localized stock names with language-aware title/subtitle order');
   assert.ok(tradesTabSource.includes('stockDisplayName(trade.symbol, trade.name)'), 'trade records and today orders should render localized stock names');
-  assert.ok(tradesTabSource.includes('stockDisplayName(orderActionTrade.symbol, orderActionTrade.name)'), 'order action modal should render localized stock names');
+  assert.ok(tradesTabSource.includes('stockDisplayName={stockDisplayName}') && tradeRecordsPageSource.includes('stockDisplayName(row.symbol, row.name)') && tradeRecordsPageSource.includes('{displayName(selected)}'), 'record details should reuse the shared localized stock-name helper');
 });
 
 test('language framework covers settings switch, bottom nav, home page, and stock ticker display', () => {
@@ -2315,7 +2319,7 @@ test('Home, Trading, and Assets use continuous scoped reports', () => {
   assert.doesNotMatch(tradesTabCss, /box-shadow|radial-gradient|linear-gradient/, 'Trading report modules should stay visually continuous without decorative shadows');
   assert.equal((tradesTabSource.match(/rounded-2xl border border-transparent bg-\[#101114\]/g) || []).length, 0, 'retired cost-basis summary cards must no longer appear within the Trading report');
   assert.ok(tradesTabSource.includes('<section className="trades-report-tools"'), 'Trading quick actions should use an unboxed report section');
-  assert.ok(tradesTabSource.includes('<section className="trades-report-records"'), 'formal records should retain a dedicated continuous report section');
+  assert.ok(tradesTabSource.includes('<TradeRecordsPage') && tradeRecordsPageSource.includes('<section className="trp-records"'), 'formal records should render their continuous record list on the dedicated page');
   assert.ok(tradesTabSource.includes('<section className="trades-report-ledger"'), 'holdings and orders should share the report ledger section');
   assert.match(tradesTabCss, /\.trades-report-pnl-grid\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/, 'Trading P&L should use two equal report columns');
   assert.equal(tradesTabSource.includes('grid-cols-[1fr_1.12fr_0.96fr] divide-x'), false, 'the Trading header should not retain vertical dividers between its three metrics');
@@ -2683,15 +2687,15 @@ test('review edit modals use in-app validation instead of native alerts', () => 
   assert.ok(logDeleteBlock.includes('showConfirm({') && logDeleteBlock.includes('onConfirm: async () => {\n        await db.deleteReviewLog(logId);'), 'review-log deletion must still pass through the parent confirmation before its original database call');
 });
 
-test('order and account actions use the report variant while retaining the shared shell and danger confirmation', () => {
-  const orderActionStart = tradesTabSource.indexOf('{orderActionTrade && (() => {');
-  const orderActionEnd = tradesTabSource.indexOf('{/* 波段记录', orderActionStart);
-  const orderActionBlock = tradesTabSource.slice(orderActionStart, orderActionEnd);
+test('record details preserve ledger actions and account actions retain the shared shell and danger confirmation', () => {
+  const detailStart = tradeRecordsPageSource.indexOf('<article className="trp-detail">');
+  const detailEnd = tradeRecordsPageSource.indexOf('</article>', detailStart);
+  const detailBlock = tradeRecordsPageSource.slice(detailStart, detailEnd);
   const accountActionStart = analysisTabSource.indexOf('{selectedActionAccount && (');
   const accountActionEnd = analysisTabSource.indexOf('{editingAccount && accountEditDraft && (', accountActionStart);
   const accountActionBlock = analysisTabSource.slice(accountActionStart, accountActionEnd);
 
-  assert.ok(orderActionStart > -1 && orderActionEnd > orderActionStart, 'missing order action modal boundary');
+  assert.ok(detailStart > -1 && detailEnd > detailStart, 'missing trade record detail boundary');
   assert.ok(accountActionStart > -1 && accountActionEnd > accountActionStart, 'missing account action modal boundary');
   assert.ok(actionModalCardSource.includes("widthClassName = 'w-[calc(100vw-76px)] max-w-[360px]'"), 'shared action modal should retain the approved 314px default width');
   assert.ok(actionModalCardSource.includes('min-h-[232px] ${widthClassName} rounded-[27px]'), 'shared action modal should keep the approved height and accept per-family widths');
@@ -2702,20 +2706,19 @@ test('order and account actions use the report variant while retaining the share
   assert.equal(actionModalCardSource.includes('Math.max(320'), false, 'short visual viewports should not be forced beyond their real keyboard-reduced height');
   assert.ok(actionModalCardSource.includes('disabled:opacity-100') && !actionModalCardSource.includes('disabled:opacity-45'), 'disabled normal actions should keep the same neutral color as sibling actions');
   assert.ok(actionModalCardSource.includes('disabled={action.disabled}') && actionModalCardSource.includes('disabled:active:scale-100'), 'same-color disabled actions must still block submission and press feedback');
-  assert.ok(orderActionBlock.includes('<StockReportModal') && stockReportModalSource.includes('<ActionModalCard'), 'order action should opt into the report variant while retaining the shared keyboard and close shell');
-  assert.ok(orderActionBlock.includes('<StockLogo') && orderActionBlock.includes('orderLogoUrls'), 'order action should render the existing stock logo chain');
-  assert.ok(orderActionBlock.includes('className="h-7 w-7 rounded-[6px]"') && orderActionBlock.includes('className="trade-order-logo"'), 'order logo should use the updated report identity sizing');
-  assert.match(tradesDialogsCss, /\.trade-order-side\s*\{[^}]*color:\s*#b5b5bd;/, 'an unspecified order side should retain its neutral fallback');
-  assert.ok(orderActionBlock.includes('className="trade-order-side" data-side={orderActionTrade.side}'), 'the badge color follows the original order side, not P&L or a market color preference');
-  assert.match(tradesDialogsCss, /\.trade-order-dialog \.trade-order-side\[data-side="buy"\]\s*\{[^}]*background:\s*rgb\(255 75 31 \/ \.12\);[^}]*color:\s*#ff4b1f;/, 'buy badges use a quiet red background only inside the order-action dialog');
-  assert.match(tradesDialogsCss, /\.trade-order-dialog \.trade-order-side\[data-side="sell"\]\s*\{[^}]*background:\s*rgb\(54 196 154 \/ \.12\);[^}]*color:\s*#36c49a;/, 'sell badges use a quiet green background only inside the order-action dialog');
-  const orderActions = orderActionBlock.slice(orderActionBlock.indexOf('actions={['), orderActionBlock.indexOf(']}'));
-  assert.doesNotMatch(orderActions, /className\s*:/, 'edit and delete must share the report modal neutral action style without white or red overrides');
+  assert.ok(tradeRecordsPageSource.includes('const original = selected?.sourceTrade || selected;'), 'the display projection must retain the unmodified ledger row for all actions');
+  assert.ok(detailBlock.includes('<StockLogo') && detailBlock.includes('stockLogoCandidates(selected.symbol, logoCache?.[selected.symbol]?.url)') && detailBlock.includes('onLogoLoad={cacheStockLogo}'), 'record detail should preserve the existing cached stock logo fallback chain');
+  assert.match(tradeRecordsPageCss, /\.trade-records-page \.trp-detail-logo\s*\{[^}]*width:\s*44px;[^}]*height:\s*44px;/, 'detail stock identity uses the approved dedicated-page sizing');
+  assert.ok(detailBlock.includes('trp-detail-side trp-${selected.side}'), 'direction color must follow the recorded buy/sell side, not P&L or market color preferences');
+  assert.match(tradeRecordsPageCss, /\.trp-buy\s*\{[^}]*color:\s*var\(--trp-buy,#34d399\);/, 'buy records use approved green direction color');
+  assert.match(tradeRecordsPageCss, /\.trp-sell\s*\{[^}]*color:\s*var\(--trp-sell,#ff653c\);/, 'sell records use approved red direction color');
+  assert.match(tradeRecordsPageCss, /\.trp-detail-side\.trp-buy\s*\{[^}]*background:\s*rgb\(48 197 145 \/ \.07\);/, 'buy badges use a quiet green background');
+  assert.match(tradeRecordsPageCss, /\.trp-detail-side\.trp-sell\s*\{[^}]*background:\s*rgb\(255 104 71 \/ \.07\);/, 'sell badges use a quiet red background');
   assert.doesNotMatch(tradesDialogsCss, /trade-dialog-danger/, 'remove the retired per-action danger tint rather than leaving a conflicting override');
-  assert.ok(orderActionBlock.includes('className="trade-order-total-value"') && orderActionBlock.includes('currencyAmount(amount, displayCurrency, 2)'), 'the full order amount should retain selected currency and two-decimal precision');
-  assert.match(tradesDialogsCss, /\.trade-order-facts\s*\{[^}]*grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\)/, 'date, shares and execution price should share three bounded report columns');
-  assert.ok(orderActionBlock.includes("orderActionTrade.date || '—'") && orderActionBlock.includes('sharesText(orderActionTrade.shares, 0)') && orderActionBlock.includes('fmtAmount(orderActionTrade.price, 2)'), 'order facts should preserve their original date, share and USD execution-price sources');
-  assert.ok(orderActionBlock.includes('onClick: editOrderFromAction') && orderActionBlock.includes('onClick: deleteOrderFromAction'), 'redesigned order actions must still route through the existing edit and delete handlers');
+  assert.ok(detailBlock.includes('<small>{currency}</small>') && detailBlock.includes('money(selected.amountUsd)') && tradeRecordsPageSource.includes('minimumFractionDigits: 2, maximumFractionDigits: 2'), 'the full execution amount should retain selected currency and two-decimal precision');
+  assert.match(tradeRecordsPageCss, /\.trp-detail-facts dd\s*\{[^}]*min-width:\s*0;[^}]*overflow-wrap:\s*anywhere;/, 'detail values must fit bounded rows without clipping');
+  assert.ok(detailBlock.includes("selected.date || '—'") && detailBlock.includes('quantity(selected.shares)') && detailBlock.includes('money(nativePrice(selected), true)') && detailBlock.includes('money(selected.feeUsd)'), 'detail facts should preserve recorded date, shares, USD price and separate fee sources');
+  assert.ok(detailBlock.includes('onClick={() => onEdit?.(original)}') && detailBlock.includes('onClick={() => onDelete?.(original)}') && tradesTabSource.includes('onEdit={openTradeEditModal} onDelete={confirmDeleteTodayTrade}'), 'record actions must route the original row through existing edit and confirmed delete handlers');
   assert.ok(accountActionBlock.includes('<StockReportModal') && stockReportModalSource.includes('<ActionModalCard'), 'account actions should use the report variant over the shared keyboard and close shell');
   assert.ok(accountActionBlock.includes('<AccountLogo account={selectedActionAccount} />'), 'account action should render account logo support');
   assert.ok(analysisTabSource.includes('const candidates = [account?.logoURL, account?.logoUrl, account?.icon]'), 'account logo should accept existing optional URL fields without a schema change');
@@ -2723,10 +2726,8 @@ test('order and account actions use the report variant while retaining the share
   assert.ok(confirmModalSource.includes('h-[52px] rounded-[17px]') && confirmModalSource.includes('bg-[linear-gradient(145deg,#a7232a,#8e1d24)]'), 'delete confirmation should reserve red for the final danger action');
   assert.ok(devVisualPreviewSource.includes('mockTodayStockTrade'), 'local preview should expose a deterministic current-day order for screenshot QA');
   assert.ok(devVisualPreviewSource.includes('showConfirm: showPreviewConfirm'), 'local preview should render the real shared confirmation card instead of auto-confirming');
-  assert.equal(orderActionBlock.includes('修改记录'), false, 'order action edit label should stay compact');
-  assert.equal(orderActionBlock.includes('删除记录'), false, 'order action delete label should stay compact');
-  assert.equal(orderActionBlock.includes('border-[#f6b54b]/30'), false, 'order action edit should no longer use the old gold pill');
-  assert.equal(orderActionBlock.includes('border-rose-300/20'), false, 'order action delete should no longer look dangerous before confirmation');
+  assert.ok(detailBlock.includes("tr('修改交易', 'Edit trade')") && detailBlock.includes("tr('删除', 'Delete')"), 'detail actions retain clear localized labels');
+  assert.match(tradeRecordsPageCss, /\.trp-detail-actions \.trp-delete\s*\{[^}]*background:\s*transparent;/, 'record deletion should retain the restrained approved treatment before final confirmation');
 });
 
 test('approved modal families share the new shell without widening business boundaries', () => {
@@ -2787,7 +2788,7 @@ test('approved modal families share the new shell without widening business boun
   assert.ok(assetHeroHeader.includes('className="asset-report-currency"') && assetHeroHeader.includes('<CurrencyToggle') && currencyToggleSource.includes("['USD', 'CNY']") && assetHeroHeader.includes('setPortfolioCurrencyMode?.(mode)'), 'the asset hero should use explicit USD/CNY options and update the shared currency');
   assert.equal(assetHeroHeader.includes('openMonthlyAssetTrend') || assetHeroHeader.includes('currentMonth'), false, 'the asset hero must no longer show the removed date entry');
   assert.ok(analysisTabSource.includes("tt('analysis.monthlyDetails', '月度明细')"), 'the independent monthly report must remain reachable from the overview');
-  assert.ok(appSource.includes('setShowMonthsDetail(false);\n    setActiveTab(tabId);'), 'bottom tab navigation should leave the asset trend subpage before switching tabs or returning to assets');
+  assert.ok(appSource.includes('setShowMonthsDetail(false);\n    setTradeRecordSelection(null);\n    pendingTradeRootScrollRef.current = null;\n    setActiveTab(tabId);'), 'bottom tab navigation should clear asset trend and selected trade detail state before switching tabs or returning to assets');
   assert.ok(monthlyAssetTrendContentSource.includes('data-asset-trend-month-row={slot.month}') && monthlyAssetTrendContentSource.includes('data-open-asset-category-report={slot.month}'), 'monthly detail rows should expose one exact-month report navigation target');
   assert.ok(monthlyAssetTrendContentSource.includes('onClick={() => onOpenMonthReport?.(slot.month)}'), 'clicking anywhere on a monthly detail row should open its exact account report');
   assert.equal(monthlyAssetTrendContentSource.includes('data-asset-trend-month-edit') || monthlyAssetTrendContentSource.includes('onEditMonth'), false, 'monthly detail rows should not retain the old small edit control');

@@ -160,7 +160,7 @@ test('formal cost preview receives ledger readiness and error state instead of t
   assert.match(appContext, /stockTrades,\s*stockHoldingsReady,\s*stockHoldingsError,/,
     'the production tab must receive actual load state with its ledger');
   const designPreview = readFileSync(new URL('../src/DevVisualPreview.jsx', import.meta.url), 'utf8');
-  assert.match(designPreview, /stockTrades: featurePreview \? exposurePreviewTrades : tradePreviewStockTrades,\s*stockHoldingsReady: true,\s*stockHoldingsError: null,/,
+  assert.match(designPreview, /stockTrades: \(featurePreview \? exposurePreviewTrades : tradePreviewStockTrades\)\.map\(row => \(\{ \.\.\.row, currency: row\.currency \|\| 'USD', fee: row\.fee \?\? 0 \}\)\),\s*stockHoldingsReady: true,\s*stockHoldingsError: null,/,
     'only the local fixture declares its synthetic ledger ready');
 });
 

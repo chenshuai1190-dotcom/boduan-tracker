@@ -19,7 +19,7 @@ function unavailableText(reason, english) {
   return english ? 'Historical prices are unavailable.' : '历史行情暂不可用。';
 }
 
-export function TradeOutcomeReviewContent({ model, note, language = 'zh', marketColorMode }) {
+export function TradeOutcomeReviewContent({ model, note, language = 'zh', marketColorMode, showNote = true }) {
   const english = language.startsWith('en');
   const displayNote = stripStockTradeRecordKind(note);
   const signedStyle = value => Number.isFinite(value) && Math.abs(value) >= 0.005
@@ -48,13 +48,13 @@ export function TradeOutcomeReviewContent({ model, note, language = 'zh', market
       <p className="trade-outcome-footnote">{english ? 'Adjusted close-to-close moves after the trade date, not execution P&L. Extremes use daily closes.' : '成交日收盘后的复权表现，非成交盈亏。最高、最低按每日收盘计算。'}</p>
       <p className="trade-outcome-asof">{english ? 'Data through ' : '数据截至 '}{model.asOfDate}{model.stale ? english ? ' · Awaiting update' : ' · 待更新' : ''}</p>
     </> : <p className="trade-outcome-feedback" role="status">{unavailableText(model?.reason, english)}</p>}
-    {displayNote.trim() && <div className="trade-outcome-note"><span>{english ? 'Trade note' : '交易备注'}</span><p>{displayNote}</p></div>}
+    {showNote && displayNote.trim() && <div className="trade-outcome-note"><span>{english ? 'Trade note' : '交易备注'}</span><p>{displayNote}</p></div>}
   </div>;
 }
 
 /** Render inside trade details. History is requested only after expansion. */
 export default function TradeOutcomeReview({ trade, userId, language = 'zh', marketColorMode,
-  historyLoader = loadDcaHistory, initiallyExpanded = false }) {
+  historyLoader = loadDcaHistory, initiallyExpanded = false, showNote = true }) {
   const english = language.startsWith('en');
   const [expanded, setExpanded] = React.useState(initiallyExpanded);
   const [refresh, setRefresh] = React.useState(0);
@@ -62,7 +62,7 @@ export default function TradeOutcomeReview({ trade, userId, language = 'zh', mar
   const [state, setState] = React.useState({ key: '', loading: false, history: null, error: false });
   const contentId = React.useId();
   const symbol = normalizeInvestmentSymbol(trade?.symbol);
-  const historicalHolding = trade?.side === 'buy' && getStockTradeRecordKind(trade?.note) === 'historical_holding';
+  const historicalHolding = trade?.side === 'buy' && (trade?.recordKind === 'historical_holding' || getStockTradeRecordKind(trade?.note) === 'historical_holding');
   const baseKey = `${userId || ''}:${symbol || ''}:${trade?.date || ''}`;
   const key = `${baseKey}:${refresh}`;
   React.useEffect(() => {
@@ -92,11 +92,11 @@ export default function TradeOutcomeReview({ trade, userId, language = 'zh', mar
       <span>{english ? 'Post-trade review' : '操作复盘'}</span><span className="trade-outcome-toggle-detail">5 / 20 / 60 {english ? 'sessions' : '交易日'} <span aria-hidden="true">{expanded ? '−' : '+'}</span></span>
     </button>
     {expanded && <div id={contentId}>
-      {historicalHolding ? <TradeOutcomeReviewContent model={{ reason: 'historical_holding' }} note={trade?.note} language={language} marketColorMode={marketColorMode} />
-        : !symbol ? <TradeOutcomeReviewContent model={null} note={trade?.note} language={language} marketColorMode={marketColorMode} />
+      {historicalHolding ? <TradeOutcomeReviewContent model={{ reason: 'historical_holding' }} note={trade?.note} showNote={showNote} language={language} marketColorMode={marketColorMode} />
+        : !symbol ? <TradeOutcomeReviewContent model={null} note={trade?.note} showNote={showNote} language={language} marketColorMode={marketColorMode} />
         : !current || current.loading ? <p className="trade-outcome-feedback" role="status">{english ? 'Loading historical prices…' : '正在读取历史行情…'}</p>
         : current.error ? <div className="trade-outcome-feedback" role="status"><span>{english ? 'Historical prices are unavailable.' : '历史行情暂不可用。'}</span><button type="button" onClick={retryHistory}>{english ? 'Retry' : '重试'}</button></div>
-          : <TradeOutcomeReviewContent model={model} note={trade?.note} language={language} marketColorMode={marketColorMode} />}
+          : <TradeOutcomeReviewContent model={model} note={trade?.note} showNote={showNote} language={language} marketColorMode={marketColorMode} />}
     </div>}
   </section>;
 }

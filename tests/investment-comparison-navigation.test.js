@@ -24,7 +24,7 @@ test('investment comparison is a lazy standalone utility with identity, display 
 });
 
 test('Trades shortcut and All Tools open the time machine and the sheet closes before navigation', () => {
-  const tools = trades.slice(trades.indexOf('{showAllToolsModal && ('), trades.indexOf('{showTradeRecordsTool && ('));
+  const tools = trades.slice(trades.indexOf('{showAllToolsModal && ('), trades.indexOf('</ActionModalCard>', trades.indexOf('{showAllToolsModal && (')));
   assert.ok(tools.includes('<ActionModalCard') && tools.includes('<TradeToolsCatalog'));
   assert.match(catalog, /id: 'investment-comparison', titleKey: 'trades.investmentTimeMachine'/);
   assert.match(tools, /setShowAllToolsModal\(false\);[\s\S]*if \(toolId === 'investment-comparison'\) openInvestmentComparison\?\.\(\)/);
@@ -34,20 +34,20 @@ test('Trades shortcut and All Tools open the time machine and the sheet closes b
 });
 
 test('catalog selections preserve active destinations and dismiss the retired cost destination', () => {
-  const tools = trades.slice(trades.indexOf('{showAllToolsModal && ('), trades.indexOf('{showTradeRecordsTool && ('));
+  const tools = trades.slice(trades.indexOf('{showAllToolsModal && ('), trades.indexOf('</ActionModalCard>', trades.indexOf('{showAllToolsModal && (')));
   const handler = tools.match(/onSelect=\{\(toolId\) => \{([\s\S]*?)\}\}\s*\/>/);
   assert.ok(handler, 'the catalog should delegate to a controlled parent navigation handler');
-  const select = new Function('toolId', 'setShowAllToolsModal', 'setToolPanel', 'openInvestmentComparison', 'openWaveTracker', 'openCommunityCompetition', handler[1]);
+  const select = new Function('toolId', 'setShowAllToolsModal', 'setToolPanel', 'openInvestmentComparison', 'openWaveTracker', 'openCommunityCompetition', 'openRecordsPage', handler[1]);
   const destinations = {
     cost: [['sheet', false], ['panel', '']],
-    records: [['sheet', false], ['panel', 'records']],
+    records: [['sheet', false], ['open', 'records']],
     waves: [['sheet', false], ['panel', ''], ['open', 'waves']],
     competition: [['sheet', false], ['panel', ''], ['open', 'competition']],
     'investment-comparison': [['sheet', false], ['panel', ''], ['open', 'investment-comparison']],
   };
   for (const [toolId, expected] of Object.entries(destinations)) {
     const calls = [];
-    select(toolId, value => calls.push(['sheet', value]), value => calls.push(['panel', value]), () => calls.push(['open', 'investment-comparison']), () => calls.push(['open', 'waves']), () => calls.push(['open', 'competition']));
+    select(toolId, value => calls.push(['sheet', value]), value => calls.push(['panel', value]), () => calls.push(['open', 'investment-comparison']), () => calls.push(['open', 'waves']), () => calls.push(['open', 'competition']), () => calls.push(['open', 'records']));
     assert.deepEqual(calls, expected, toolId);
   }
   assert.doesNotMatch(handler[1], /db\.|stock_trades|upsert|insert|save/);

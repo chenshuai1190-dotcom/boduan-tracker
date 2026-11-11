@@ -11,6 +11,8 @@ import { deriveHoldingStockYtdPercent } from '../src/lib/holdingStockYtd.js';
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 const trades = read('src/tabs/TradesTab.jsx');
 const css = read('src/tabs/TradesTab.css');
+const tradeRecords = read('src/pages/TradeRecordsPage.jsx');
+const tradeRecordsCss = read('src/pages/TradeRecordsPage.css');
 const positionsView = read('src/components/TradesPositionsReport.jsx');
 const positionsCss = read('src/components/TradesPositionsReport.css');
 const i18n = read('src/lib/i18n.js');
@@ -183,30 +185,35 @@ test('stock details, scenario and record-trade actions stay separate and preserv
   assert.ok(trades.includes("setTradeEntryScope('wave')"));
   assert.ok(trades.includes('await addTrade(tradeDraft.side);'));
   assert.ok(trades.includes('deleteStockTradeRecord(trade.id)'));
-  assert.ok(trades.includes('onClick={() => setOrderActionTrade(trade)}'));
-  assert.ok(trades.includes('ledgerTradeRecords.map((trade) => renderOrderRow(trade, true))'));
+  assert.ok(trades.includes('onClick={() => openRecordsPage(trade.id)}'));
+  assert.ok(trades.includes('<TradeRecordsPage') && trades.includes('trades={stockTrades}'));
+  assert.ok(trades.includes('onEdit={openTradeEditModal} onDelete={confirmDeleteTodayTrade}'));
+  assert.ok(tradeRecords.includes('const original = selected?.sourceTrade || selected;'));
+  assert.ok(tradeRecords.includes('onEdit?.(original)') && tradeRecords.includes('onDelete?.(original)'));
+  assert.ok(tradeRecords.includes('view.groups.map(group =>') && tradeRecords.includes('group.rows.map(row =>'));
   assert.ok(trades.includes('todayTrades.map((trade) => renderOrderRow(trade))'));
   for (const key of ['trades.reportScenario', 'trades.reportRecordTrade']) {
     assert.equal(i18n.split(`'${key}':`).length - 1, 2, `${key} must exist in Chinese and English`);
   }
 });
 
-test('trade records have a vertical-only viewport and rows fit without clipping their monetary values', () => {
-  const list = css.match(/\.trades-report-record-list\s*\{([^}]+)\}/)?.[1];
+test('trade records use page scrolling and flexible rows without clipping monetary values', () => {
+  const list = tradeRecordsCss.match(/\.trp-records\s*\{([^}]+)\}/)?.[1];
   assert.ok(list);
-  assert.match(list, /overflow-x:\s*hidden;/);
-  assert.match(list, /overflow-y:\s*auto;/);
-  assert.match(list, /touch-action:\s*pan-y;/);
-  assert.match(list, /max-width:\s*100%;/);
-  const row = css.match(/\.trades-report-order\s*\{([^}]+)\}/)?.[1];
+  assert.doesNotMatch(list, /overflow|(?:max-)?height:/, 'the dedicated page should not introduce a nested record scroller');
+  const row = tradeRecordsCss.match(/\.trp-records \.trp-row\s*\{([^}]+)\}/)?.[1];
   assert.ok(row);
   assert.match(row, /width:\s*100%;/);
-  assert.match(row, /min-width:\s*0;/);
-  assert.match(row, /max-width:\s*100%;/);
-  assert.match(row, /appearance:\s*none;/, 'WebKit buttons must use the same explicit row geometry');
-  const main = css.match(/\.trades-report-order-main\s*\{([^}]+)\}/)?.[1];
-  assert.match(main, /grid-template-columns:\s*minmax\(0, 1fr\) minmax\(0, 1\.5fr\) 14px;/,
-    'reserve the entire 14px arrow and prioritize long amounts over company names');
+  assert.match(row, /display:\s*flex;/);
+  assert.match(tradeRecordsCss, /\.trp-row-main\s*\{[^}]*min-width:\s*0;[^}]*flex:\s*1;/);
+  assert.match(tradeRecordsCss, /\.trp-row-end\s*\{[^}]*min-width:\s*0;[^}]*max-width:\s*46%;/);
+  assert.match(tradeRecordsCss, /\.trp-row-end strong\s*\{[^}]*overflow-wrap:\s*anywhere;/);
+  assert.doesNotMatch(tradeRecordsCss, /\.trp-row-end strong\s*\{[^}]*(?:text-overflow|overflow:\s*hidden)/,
+    'full record amounts must wrap instead of being truncated');
+  assert.match(tradeRecordsCss, /\.trp-row-chevron\s*\{[^}]*flex:\s*none;/);
+  assert.ok(tradeRecords.includes('{money(row.amountUsd)}') && tradeRecords.includes('minimumFractionDigits: 2, maximumFractionDigits: 2'));
+  assert.ok(tradeRecords.includes('buildTradeRecordsView({ trades, filters, now })'), 'filters project the existing ledger without fetching or rewriting it');
+  assert.doesNotMatch(tradeRecords, /\b(?:fetch|insertStockTrade|updateStockTrade|deleteStockTrade)\s*\(/);
   const start = trades.indexOf('const renderOrderRow =');
   const end = trades.indexOf('return (\n    <>', start);
   const render = trades.slice(start, end);

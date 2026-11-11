@@ -21,7 +21,7 @@ test('DCA Lab is an identity-scoped lazy standalone tool with no ledger context'
 });
 
 test('all tools closes before opening DCA Lab and the entry follows the investment time machine', () => {
-  const section = trades.slice(trades.indexOf('{showAllToolsModal && ('), trades.indexOf('{showTradeRecordsTool && ('));
+  const section = trades.slice(trades.indexOf('{showAllToolsModal && ('), trades.indexOf('</ActionModalCard>', trades.indexOf('{showAllToolsModal && (')));
   const handler = section.match(/onSelect=\{\(toolId\) => \{([\s\S]*?)\}\}\s*\/>/)[1];
   const calls = [];
   new Function('toolId', 'setShowAllToolsModal', 'setToolPanel', 'openDcaLab', handler)(
@@ -40,13 +40,18 @@ test('local DCA preview uses the standard shell and the existing Trades navigati
   assert.ok(routeList, 'preview routes must remain explicitly allowlisted');
   const routes = [...routeList.matchAll(/'([^']+)'/g)].map(([, route]) => route);
   for (const route of ['portfolio-overlap', 'dca-lab', 'review-journal']) assert.ok(routes.includes(route), `${route} must be selectable in the local preview`);
-  const paddingExpression = preview.match(/paddingTop: (\[[^\n]+\.includes\(activeTab\) \? 0 : [^\n]+),/)?.[1];
+  const paddingExpression = preview.match(/paddingTop: ((?:tradeRecordsActive \? 0 : )?\[[^\n]+\.includes\(activeTab\) \? 0 : [^\n]+),/)?.[1];
   assert.ok(paddingExpression, 'read the actual standalone preview top-padding rule');
-  const paddingTop = new Function('activeTab', `return ${paddingExpression};`);
+  const paddingTop = new Function('activeTab', 'tradeRecordsActive = false', `return ${paddingExpression};`);
   assert.equal(paddingTop('dca-lab'), 0);
   assert.equal(paddingTop('debt-manager'), 0);
   assert.equal(paddingTop('review-journal'), 0, 'the independent journal owns its safe-area header');
   assert.equal(paddingTop('trades'), 'calc(1rem + env(safe-area-inset-top))', 'standard Trades still owns its shell padding');
+  const recordsStyle = preview.match(/\.\.\.(\(tradeRecordsActive \? \{ paddingTop: 0, paddingLeft: 0, paddingRight: 0 \} : \{\}\)),/)?.[1];
+  assert.ok(recordsStyle, 'read the scoped records preview style override');
+  const recordsPadding = new Function('tradeRecordsActive', `return ${recordsStyle};`);
+  assert.deepEqual(recordsPadding(true), { paddingTop: 0, paddingLeft: 0, paddingRight: 0 }, 'the independent records preview owns its safe-area header and side gutters');
+  assert.deepEqual(recordsPadding(false), {}, 'other preview pages keep their existing shell padding');
   assert.match(preview, /<DcaLabPreview ctx=\{\{ language, marketColorMode, usdRate: USD_RATE, closeDcaLab: \(\) => \{ setActiveTab\('trades'\); window\.scrollTo\(0, 0\); \} \}\} \/>/);
   assert.ok(preview.includes("(activeTab === 'dca-lab' && tab.id === 'trades')"));
   const topLevelEntry = preview.slice(preview.indexOf('export default function DevVisualPreview()'));

@@ -23,13 +23,12 @@ import {
 } from '../lib/tqqqTradeDiscipline.js';
 import { formatWaveCurrencyAmount, formatWaveUsdPrice } from '../lib/waveCurrencyDisplay.js';
 import ActionModalCard from '../components/ActionModalCard.jsx';
-import StockReportModal from '../components/StockReportModal.jsx';
 import AccountLeverageBadge from '../components/AccountLeverageBadge.jsx';
 import AvailableCashEditor from '../components/AvailableCashEditor.jsx';
 import GenericLedgerTradeEntryPanel, { GenericLedgerTradeAmount, GenericLedgerTradeMarketReference } from '../components/GenericLedgerTradeEntryPanel.jsx';
 import TradeCostPreview from '../components/TradeCostPreview.jsx';
 import TradeExposurePreview from '../components/TradeExposurePreview.jsx';
-import TradeOutcomeReview from '../components/TradeOutcomeReview.jsx';
+import TradeRecordsPage from '../pages/TradeRecordsPage.jsx';
 import StockLogo, { stockLogoCandidates } from '../components/StockLogo.jsx';
 import TqqqTradeEntryPanel, { TQQQ_ACTION_TONE_CLASSES, TqqqTradeAmount } from '../components/TqqqTradeEntryPanel.jsx';
 import TqqqLiveRsiReference from '../components/TqqqLiveRsiReference.jsx';
@@ -507,16 +506,33 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
   }, [setPortfolioCurrencyMode]);
   const [mainView, setMainView] = React.useState('positions');
   const [toolPanel, setToolPanel] = React.useState(() => (
-    ['waves', 'records'].includes(initialToolPanel) ? initialToolPanel : ''
+    initialToolPanel === 'waves' ? 'waves' : ''
   ));
   const [allTradesModal, setAllTradesModal] = React.useState(null);
   const [showAllToolsModal, setShowAllToolsModal] = React.useState(false);
   const [colorMenuOpen, setColorMenuOpen] = React.useState(false);
-  const [orderActionTrade, setOrderActionTrade] = React.useState(() => import.meta.env.DEV ? ctx.previewOrderActionTrade || null : null);
+  const [fallbackRecordsOpen, setFallbackRecordsOpen] = React.useState(() => initialToolPanel === 'records' || (import.meta.env.DEV && Boolean(ctx.previewOrderActionTrade)));
+  const [fallbackTradeRecordId, setFallbackTradeRecordId] = React.useState(() => import.meta.env.DEV ? ctx.previewOrderActionTrade?.id || null : null);
+  const recordsPageOpen = typeof ctx.tradeRecordsOpen === 'boolean' ? ctx.tradeRecordsOpen : fallbackRecordsOpen;
+  const selectedTradeRecordId = typeof ctx.tradeRecordsOpen === 'boolean' ? ctx.tradeRecordId : fallbackTradeRecordId;
+  const [recordsEverOpened, setRecordsEverOpened] = React.useState(recordsPageOpen);
+  React.useEffect(() => { if (recordsPageOpen) setRecordsEverOpened(true); }, [recordsPageOpen]);
+  const openRecordsPage = (tradeId = null) => {
+    setToolPanel('');
+    if (typeof ctx.openTradeRecords === 'function') ctx.openTradeRecords(tradeId);
+    else { setFallbackRecordsOpen(true); setFallbackTradeRecordId(tradeId); window.scrollTo(0, 0); }
+  };
+  const closeRecordsPage = () => {
+    if (typeof ctx.closeTradeRecords === 'function') ctx.closeTradeRecords();
+    else { setFallbackRecordsOpen(false); setFallbackTradeRecordId(null); window.scrollTo(0, 0); }
+  };
+  const selectRecord = (tradeId) => {
+    if (typeof ctx.selectTradeRecord === 'function') ctx.selectTradeRecord(tradeId);
+    else setFallbackTradeRecordId(tradeId);
+  };
   const [scenarioPosition, setScenarioPosition] = React.useState(null);
   const [showAvailableCashEditor, setShowAvailableCashEditor] = React.useState(false);
   const [waveView, setWaveView] = React.useState('active');
-  const orderActionOpen = !!orderActionTrade;
   const scenarioOpen = !!scenarioPosition;
 
   React.useEffect(() => {
@@ -527,7 +543,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
   }, [currencyMode]);
 
   React.useEffect(() => {
-    if ((!showAddTrade && !orderActionOpen && !scenarioOpen) || typeof window === 'undefined' || typeof document === 'undefined') return undefined;
+    if ((!showAddTrade && !scenarioOpen) || typeof window === 'undefined' || typeof document === 'undefined') return undefined;
 
     const scrollY = window.scrollY || window.pageYOffset || 0;
     const bodyStyle = document.body.style;
@@ -563,7 +579,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
       htmlStyle.overscrollBehavior = previous.htmlOverscrollBehavior;
       window.scrollTo(0, scrollY);
     };
-  }, [showAddTrade, orderActionOpen, scenarioOpen]);
+  }, [showAddTrade, scenarioOpen]);
 
   const summary = investmentSummary || {};
   const positions = summary.activePositions || [];
@@ -635,11 +651,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
   const todayTrades = todayTradeSummary.rows;
   const todayBuys = todayTradeSummary.buys;
   const todaySells = todayTradeSummary.sells;
-  const ledgerTradeRecords = React.useMemo(() => [...(stockTrades || [])].sort((a, b) => (
-    (b.date || '').localeCompare(a.date || '') || String(b.id || '').localeCompare(String(a.id || ''))
-  )), [stockTrades]);
   const showWaveTool = toolPanel === 'waves';
-  const showTradeRecordsTool = toolPanel === 'records';
   const showMainLedger = !showWaveTool;
   const isTqqqTradeEntry = isTqqqFormalTradeEntry({
     symbol: newTrade?.symbol,
@@ -813,20 +825,6 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
         await deleteStockTradeRecord(trade.id);
       },
     });
-  };
-
-  const editOrderFromAction = () => {
-    if (!orderActionTrade) return;
-    const trade = orderActionTrade;
-    setOrderActionTrade(null);
-    openTradeEditModal(trade);
-  };
-
-  const deleteOrderFromAction = () => {
-    if (!orderActionTrade) return;
-    const trade = orderActionTrade;
-    setOrderActionTrade(null);
-    confirmDeleteTodayTrade(trade);
   };
 
   const showTradeFormNotice = (title, desc, info = null) => {
@@ -1016,7 +1014,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
     const amount = toNumber(trade.price) * toNumber(trade.shares) * displayRate;
     const displayName = stockDisplayName(trade.symbol, trade.name);
     return (
-      <button key={trade.id} type="button" className="trades-report-order" onClick={() => setOrderActionTrade(trade)}>
+      <button key={trade.id} type="button" className="trades-report-order" onClick={() => openRecordsPage(trade.id)}>
         <span className="trades-report-order-main">
           <span className="trades-report-order-identity"><strong>{trade.symbol}</strong><small>{displayName}</small></span>
           <span className="trades-report-order-amount">{currencyAmount(amount, displayCurrency, 2)}</span>
@@ -1032,7 +1030,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
 
   return (
     <>
-      <div className="trades-report mx-auto max-w-[430px] pb-2 text-white" style={{ fontFamily: TRADE_FONT }}>
+      <div className="trades-report mx-auto max-w-[430px] pb-2 text-white" hidden={recordsPageOpen} style={{ fontFamily: TRADE_FONT }}>
         <section className="trades-report-hero" data-trades-net-assets-card="true">
           <div className="trades-report-hero-header">
             <span className="trades-report-label">{tt('home.netAssets', '净资产')}</span>
@@ -1081,9 +1079,10 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
             { id: 'all', label: tt('trades.allTools', '全部功能'), icon: LayoutGrid },
           ].map((item) => {
             const Icon = item.icon;
-            const active = item.id === 'records' && toolPanel === item.id;
+            const active = item.id === 'records' && recordsPageOpen;
             return <button key={item.id} type="button" aria-pressed={active} onClick={() => {
               setColorMenuOpen(false);
+              if (item.id === 'records') { openRecordsPage(); return; }
               if (item.id === 'waves') { setToolPanel(''); openWaveTracker?.(); return; }
               if (item.id === 'investment-comparison') { setToolPanel(''); openInvestmentComparison?.(); return; }
               if (item.id === 'investment-goals') { setToolPanel(''); openInvestmentGoals?.(); return; }
@@ -1098,7 +1097,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
             panelClassName="trade-tools-panel" contentClassName="trade-tools-content" headerClassName="trade-tools-header" titleClassName="trade-tools-title" closeButtonClassName="trade-tools-close">
             <TradeToolsCatalog language={language} enableInvestmentGoals={typeof openInvestmentGoals === 'function'} enableDebtManager={typeof openDebtManager === 'function'} enableStockComparison={typeof openStockComparison === 'function'} onSelect={(toolId) => {
               setShowAllToolsModal(false);
-              if (toolId === 'records') { setToolPanel('records'); return; }
+              if (toolId === 'records') { openRecordsPage(); return; }
               setToolPanel('');
               if (toolId === 'investment-comparison') openInvestmentComparison?.();
               if (toolId === 'stock-comparison') openStockComparison?.();
@@ -1112,15 +1111,6 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
               if (toolId === 'competition') openCommunityCompetition?.();
             }} />
           </ActionModalCard>
-        )}
-        {showTradeRecordsTool && (
-          <section className="trades-report-records">
-            <div className="trades-report-section-heading"><h2>{tt('trades.tradeLog', '交易记录')}</h2><button type="button" className="trades-report-text-action" onClick={() => setToolPanel('')} aria-label={englishMode ? 'Close trade records' : '收起交易记录'}><X size={16} /></button></div>
-            <p className="trades-report-note">{tt('trades.tradeRecordsSubtitle', '全部主交易账本 · 点击记录修改或删除')}</p>
-            {ledgerTradeRecords.length === 0 ? <div className="trades-report-empty">{tt('trades.noTradeRecords', '还没有交易记录,先新增一笔买入。')}</div>
-              : <div className="trades-report-record-list" data-pull-refresh-block="true">{ledgerTradeRecords.map((trade) => renderOrderRow(trade, true))}</div>}
-            <button type="button" className="trades-report-add" onClick={() => openTradeModal(null, 'buy')}>{tt('trades.addTrade', '新增交易')}</button>
-          </section>
         )}
         {showMainLedger && (
           <section className="trades-report-ledger">
@@ -1155,62 +1145,17 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
         )}
       </div>
 
-        {orderActionTrade && (() => {
-          const amount = toNumber(orderActionTrade.price) * toNumber(orderActionTrade.shares) * displayRate;
-          const displayName = stockDisplayName(orderActionTrade.symbol, orderActionTrade.name);
-          const orderSymbol = String(orderActionTrade.symbol || '').trim().toUpperCase();
-          const orderLogoUrls = stockLogoCandidates(orderSymbol, logoCache?.[orderSymbol]?.url);
-          return (
-            <StockReportModal
-              title={tt('trades.orderActions', '订单操作')}
-              closeLabel={tt('trades.closeOrderActions', '关闭订单操作')}
-              onClose={() => setOrderActionTrade(null)}
-              panelClassName="trade-order-dialog"
-              actions={[
-                {
-                  key: 'edit',
-                  label: tt('trades.modify', '修改'),
-                  onClick: editOrderFromAction,
-                },
-                {
-                  key: 'delete',
-                  label: tt('trades.delete', '删除'),
-                  onClick: deleteOrderFromAction,
-                },
-              ]}
-            >
-              <div className="trade-order-identity">
-                <div className="trade-order-logo">
-                  <StockLogo
-                    symbol={orderSymbol}
-                    urls={orderLogoUrls}
-                    onLogoLoad={cacheStockLogo}
-                    className="h-7 w-7 rounded-[6px]"
-                  />
-                </div>
-                <div className="min-w-0">
-                  <div className="trade-order-symbol">{orderSymbol || '--'}</div>
-                  <div className="trade-order-name">{displayName || orderSymbol || '--'}</div>
-                </div>
-                <span className="trade-order-side" data-side={orderActionTrade.side}>{sideLabel(orderActionTrade.side)}</span>
-              </div>
-              <div className="trade-order-total">
-                <span className="trade-order-label">{tt('trades.amount', '金额')} · {displayCurrency}</span>
-                <div className="trade-order-total-value" style={{ fontFamily: TRADE_NUMBER_FONT }}>{currencyAmount(amount, displayCurrency, 2)}</div>
-              </div>
-              <dl className="trade-order-facts">
-                <div><dt>{tt('trades.date', '日期')}</dt><dd>{orderActionTrade.date || '—'}</dd></div>
-                <div><dt>{tt('trades.quantity', '股数')}</dt><dd>{sharesText(orderActionTrade.shares, 0)}</dd></div>
-                <div><dt>{englishMode ? 'Price · USD' : '成交价 · USD'}</dt><dd>${fmtAmount(orderActionTrade.price, 2)}</dd></div>
-              </dl>
-              <TradeOutcomeReview key={`${ctx.user?.id || ''}:${orderActionTrade.id}`} trade={orderActionTrade}
-                userId={ctx.user?.id} language={language} marketColorMode={marketColorMode}
-                initiallyExpanded={import.meta.env.DEV && ctx.featurePreviewSection === 'outcome'}
-                historyLoader={import.meta.env.DEV ? ctx.tradeOutcomeHistoryLoader : undefined} />
-            </StockReportModal>
-          );
-        })()}
-
+      {(recordsEverOpened || recordsPageOpen) && <div hidden={!recordsPageOpen}>
+        <TradeRecordsPage key={ctx.user?.id || ''} userId={ctx.user?.id || ''}
+          trades={stockTrades} language={language} marketColorMode={marketColorMode}
+          displayCurrency={displayCurrency} usdRate={usdRate} onCurrencyChange={setCurrencyMode}
+          loading={!stockHoldingsReady} error={stockHoldingsError} active={recordsPageOpen}
+          tradeId={selectedTradeRecordId} onSelectTrade={selectRecord}
+          onBack={closeRecordsPage} onAdd={() => openTradeModal(null, 'buy')}
+          onEdit={openTradeEditModal} onDelete={confirmDeleteTodayTrade}
+          pending={tradeSubmitting} stockDisplayName={stockDisplayName} logoCache={logoCache} cacheStockLogo={cacheStockLogo}
+          historyLoader={import.meta.env.DEV ? ctx.tradeOutcomeHistoryLoader : undefined} />
+      </div>}
 
         {/* 波段记录(取代原来的"冷静室"+"日记本") */}
         {showWaveTool && (

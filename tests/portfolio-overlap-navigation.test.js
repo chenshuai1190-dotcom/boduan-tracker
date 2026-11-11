@@ -18,7 +18,7 @@ test('overlap is a lazy independent Trades tool using the existing summary, not 
 });
 
 test('all tools closes before entering overlap and no other destination changes', () => {
-  const section = trades.slice(trades.indexOf('{showAllToolsModal && ('), trades.indexOf('{showTradeRecordsTool && ('));
+  const section = trades.slice(trades.indexOf('{showAllToolsModal && ('), trades.indexOf('</ActionModalCard>', trades.indexOf('{showAllToolsModal && (')));
   const handler = section.match(/onSelect=\{\(toolId\) => \{([\s\S]*?)\}\}\s*\/>/)[1];
   const calls = [];
   new Function('toolId', 'setShowAllToolsModal', 'setToolPanel', 'openPortfolioOverlap', handler)(

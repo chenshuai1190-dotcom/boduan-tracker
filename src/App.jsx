@@ -4707,6 +4707,10 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   // 当前激活的底部 tab
   const [activeTab, setActiveTab] = useState('home');
   const [activePage, setActivePage] = useState(null);
+  const [tradeRecordSelection, setTradeRecordSelection] = useState(null);
+  const tradeRecordId = tradeRecordSelection && tradeRecordSelection.ownerId === user?.id ? tradeRecordSelection.id : null;
+  const tradeRootScrollBeforeRecordsRef = useRef(0);
+  const pendingTradeRootScrollRef = useRef(null);
   const lastHomeTabTapAtRef = useRef(0);
   const homeScrollTopBeforeWatchlistRef = useRef(null);
   const homeScrollTopBeforeEarningsRef = useRef(null);
@@ -4788,6 +4792,8 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     if (tabId === 'home' && activeTab === 'home' && activePage === null) return;
 
     setShowMonthsDetail(false);
+    setTradeRecordSelection(null);
+    pendingTradeRootScrollRef.current = null;
     setActiveTab(tabId);
     setActivePage(null);
     setStockDetailSymbol('');
@@ -4895,6 +4901,23 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     setActiveTab('trades');
     setActivePage(null);
   }, []);
+  const openTradeRecords = useCallback((tradeId = null) => {
+    if (activeTab === 'trades' && activePage !== 'trade-records') {
+      tradeRootScrollBeforeRecordsRef.current = readRootScrollTop();
+    }
+    setTradeRecordSelection({ ownerId: user?.id || '', id: tradeId == null ? null : String(tradeId) });
+    setActiveTab('trades');
+    setActivePage('trade-records');
+  }, [activeTab, activePage, user?.id]);
+  const closeTradeRecords = useCallback(() => {
+    pendingTradeRootScrollRef.current = tradeRootScrollBeforeRecordsRef.current;
+    setTradeRecordSelection(null);
+    setActiveTab('trades');
+    setActivePage(null);
+  }, []);
+  const selectTradeRecord = useCallback((tradeId) => {
+    setTradeRecordSelection({ ownerId: user?.id || '', id: tradeId == null ? null : String(tradeId) });
+  }, [user?.id]);
   const openDcaLab = useCallback(() => {
     setActiveTab('trades');
     setActivePage('dca-lab');
@@ -5076,6 +5099,11 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
 
   // 页面切换默认回顶；从自选详情或财报系统返回首页时恢复进入前的位置。
   useLayoutEffect(() => {
+    if (activeTab === 'trades' && activePage === null && pendingTradeRootScrollRef.current !== null) {
+      window.scrollTo(0, pendingTradeRootScrollRef.current);
+      pendingTradeRootScrollRef.current = null;
+      return;
+    }
     const scrollTarget = resolveNavigationScrollTarget({
       activeTab,
       activePage,
@@ -5179,8 +5207,9 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   const isStockDecisionPage = activePage === 'stock-decision';
   const isMacroPage = activePage === 'macro';
   const isDebtManagerPage = activePage === 'debt-manager';
-  const isStandalonePage = isReviewJournalPage || isPnlReportPage || isPnlSharePage || isHomeMarginRiskPage || isDrawdownObservationPage || isStockDetailPage || isStockPnlReportPage || isWatchlistStockDetailPage || isWaveTrackerPage || isCommunityCompetitionPage || isEarningsCalendarPage || isEarningsDetailPage || isInvestmentComparisonPage || isStockComparisonPage || isPortfolioOverlapPage || isDcaLabPage || isStockDecisionPage || isVixComparisonPage || isFearGreedPage || isMacroPage || isDebtManagerPage;
-  const isFullBleedPage = isReviewJournalTab || isReviewJournalPage || isPnlSharePage || isCommunityCompetitionPage || isEarningsCalendarPage || isEarningsDetailPage || isPnlReportPage || isStockPnlReportPage || isDebtManagerPage;
+  const isTradeRecordsPage = activePage === 'trade-records';
+  const isStandalonePage = isTradeRecordsPage || isReviewJournalPage || isPnlReportPage || isPnlSharePage || isHomeMarginRiskPage || isDrawdownObservationPage || isStockDetailPage || isStockPnlReportPage || isWatchlistStockDetailPage || isWaveTrackerPage || isCommunityCompetitionPage || isEarningsCalendarPage || isEarningsDetailPage || isInvestmentComparisonPage || isStockComparisonPage || isPortfolioOverlapPage || isDcaLabPage || isStockDecisionPage || isVixComparisonPage || isFearGreedPage || isMacroPage || isDebtManagerPage;
+  const isFullBleedPage = isTradeRecordsPage || isReviewJournalTab || isReviewJournalPage || isPnlSharePage || isCommunityCompetitionPage || isEarningsCalendarPage || isEarningsDetailPage || isPnlReportPage || isStockPnlReportPage || isDebtManagerPage;
   const hideBottomNavigation = isReviewJournalPage || isPnlReportPage || isPnlSharePage || isStockPnlReportPage || isDebtManagerPage;
   const ActiveTab = TAB_COMPONENTS[activeTab] || HomeTab;
   const reviewNavigationHidden = useReviewScrollNavigation(isReviewJournalTab);
@@ -5382,6 +5411,11 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     openInvestmentGoals,
     closeInvestmentGoals,
     openDcaLab,
+    openTradeRecords,
+    closeTradeRecords,
+    selectTradeRecord,
+    tradeRecordsOpen: isTradeRecordsPage,
+    tradeRecordId,
     openStockDecision,
     openMacro,
     openDebtManager,
@@ -5554,7 +5588,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   return (
     <div
       data-review-nav-hidden={reviewNavigationHidden || undefined}
-      className={`min-h-screen ${isFullBleedPage ? 'px-0' : 'px-4'} ${hideBottomNavigation || isReviewJournalTab ? 'pb-0' : 'pb-24'} ${isFearGreedPage || isPnlReportPage || isStockPnlReportPage || isStockDecisionPage || isMacroPage || isDebtManagerPage ? 'bg-[#08090b]' : darkShell ? 'bg-[#05070b]' : 'bg-slate-50'}`}
+      className={`min-h-screen ${isFullBleedPage ? 'px-0' : 'px-4'} ${hideBottomNavigation || isReviewJournalTab ? 'pb-0' : 'pb-24'} ${isTradeRecordsPage || isFearGreedPage || isPnlReportPage || isStockPnlReportPage || isStockDecisionPage || isMacroPage || isDebtManagerPage ? 'bg-[#08090b]' : darkShell ? 'bg-[#05070b]' : 'bg-slate-50'}`}
       style={{ paddingTop: isStandalonePage || isReviewJournalTab ? 0 : 'calc(1rem + env(safe-area-inset-top))' }}
     >
       {pullRefreshStatus !== 'idle' && (

@@ -3314,7 +3314,15 @@ function StandardDevVisualPreview({ initialTab = '' }) {
   const disciplinePreviewContent = buyDisciplineFixture ? <BuyTradeDisciplinePreview fixture={buyDisciplineFixture}
     symbol={String(newTrade.symbol || '').trim().toUpperCase()} side={newTrade.side} tradeDate={newTrade.date}
     englishMode={language === 'en'} tt={(key, fallback, variables) => t(language, key, fallback, variables)} /> : null;
+  const [tradeRecordsOpen, setTradeRecordsOpen] = React.useState(() => new URLSearchParams(window.location.search).get('tradeRecords') === '1' || (featurePreview && !stockTradePreview));
+  const [tradeRecordId, setTradeRecordId] = React.useState(() => featurePreviewSection === 'outcome' ? exposurePreviewTrades.find(row => row.id === 'outcome-nvda')?.id || null : null);
+  const tradeRecordsActive = activeTab === 'trades' && tradeRecordsOpen;
   const tradesCtx = {
+    tradeRecordsOpen,
+    tradeRecordId,
+    openTradeRecords: id => { setTradeRecordId(id == null ? null : String(id)); setTradeRecordsOpen(true); window.scrollTo(0, 0); },
+    closeTradeRecords: () => { setTradeRecordId(null); setTradeRecordsOpen(false); window.scrollTo(0, 0); },
+    selectTradeRecord: setTradeRecordId,
     buyDisciplinePreview: buyDisciplineFixture,
     tradeVixRatioPreview,
     featurePreviewSection,
@@ -3414,7 +3422,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     showAddTrade,
     showConfirm: showPreviewConfirm,
     stockFreshnessStartedAt: freshnessPreviewMode === 'warming' ? Date.now() : 0,
-    stockTrades: featurePreview ? exposurePreviewTrades : tradePreviewStockTrades,
+    stockTrades: (featurePreview ? exposurePreviewTrades : tradePreviewStockTrades).map(row => ({ ...row, currency: row.currency || 'USD', fee: row.fee ?? 0 })),
     stockHoldingsReady: true,
     stockHoldingsError: null,
     displayStockName: (symbol, name, displayLanguage = language) => {
@@ -3549,6 +3557,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
       className={`min-h-screen ${['fear-greed', 'pnl-report', 'stock-pnl-report', 'stock-decision', 'macro', 'debt-manager'].includes(activeTab) ? 'bg-[#08090b]' : 'bg-[#05070b]'} text-white ${['pnl-report', 'pnl-share', 'stock-pnl-report', 'review-journal', 'review', 'debt-manager'].includes(activeTab) ? 'pb-0' : 'pb-24'} ${['pnl-report', 'pnl-share', 'stock-pnl-report', 'community-competition', 'earnings-detail', 'review-journal', 'review', 'debt-manager'].includes(activeTab) ? 'px-0' : 'px-4'} ${activeTab === 'vix-monthly-report' || (activeTab === 'vix-comparison' && new URLSearchParams(window.location.search).get('vixMonthlyDesign') === '1') ? 'vix-monthly-design-host' : ''}`}
       style={{
         paddingTop: ['pnl-report', 'pnl-share', 'stock-pnl-report', 'home-margin-risk', 'drawdown-observation', 'stock-detail', 'wave-tracker', 'community-competition', 'watchlist-stock-detail', 'earnings-detail', 'vix-comparison', 'fear-greed', 'stock-decision', 'investment-comparison', 'stock-comparison', 'macro', 'portfolio-overlap', 'dca-lab', 'review-journal', 'review', 'debt-manager'].includes(activeTab) ? 0 : 'calc(1rem + env(safe-area-inset-top))',
+        ...(tradeRecordsActive ? { paddingTop: 0, paddingLeft: 0, paddingRight: 0 } : {}),
         ...(visualViewportWidth
           ? { marginInline: 'auto', maxWidth: '100%', width: `${visualViewportWidth}px` }
           : {}),

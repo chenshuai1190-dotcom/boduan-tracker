@@ -3,6 +3,11 @@ import { CURRENT_RELEASE } from './releaseMeta.js';
 export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
+    items: ['交易记录升级为独立页面，支持股票多选、日期区间、买卖方向和排序，筛选汇总与日期分组同步；单笔详情展示手续费和备注，修改、删除沿用原交易结算流程。', '修复投资动态头像加载时的占位图标偏移，帖子、评论和消息中的默认占位头像统一居中。'],
+    itemsEn: ['Trade records now have a dedicated page with multi-stock, date and side filters, sorting, matching summaries, and date groups. Individual details include fees and notes, with edits and deletions using the existing settlement flow.', 'Centered loading avatar placeholders across activity posts, comments, and notifications.'],
+  },
+  {
+    ver: 'v10.7.9.621', date: '2026-11-09',
     items: ['修复新账户买入股票后现金未同步扣减的问题，交易与现金统一结算，修改和删除同步核对。', '现金管理新增开户资金核对与自动结算设置，保护旧账户的手工余额与历史持仓，避免重复扣款。'],
     itemsEn: ['Fixed purchases failing to reduce cash in new accounts. Trades and cash now settle together, including edits and deletions.', 'Cash management now supports opening-balance reconciliation and automatic settlement while protecting manual balances and historical holdings from duplicate charges.'],
   },
