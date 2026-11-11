@@ -146,11 +146,19 @@ test('historical holdings keep notes and average cost but never receive fictiona
   const list = h.render({ tradeId: null }); assert.match(text(list), /交易笔数 0/); assert.match(text(list), /另有 1 条历史持仓/);
 });
 
-test('CNY uses the provided FX for totals while source execution prices remain USD; missing fees stay blank', () => {
+test('every amount and price follows system currency changes without changing original transactions', () => {
   const h = harness({ displayCurrency: 'CNY', tradeId: 'msft-new' }); let tree = h.render();
-  assert.match(text(tree), /成交金额 CNY¥1,400\.00/); assert.match(text(tree), /成交价 · USD\$100\.00/); assert.match(text(tree), /含费收支−¥1,407\.00/);
+  assert.match(text(tree), /成交金额 CNY¥1,400\.00/); assert.match(text(tree), /成交价 · CNY¥700\.00/); assert.match(text(tree), /含费收支−¥1,407\.00/);
+  tree = h.render({ tradeId: null });
+  assert.match(text(byClass(tree, 'trp-row')[0]), /2 股·¥700\.00/);
+  tree = h.render({ displayCurrency: 'USD', tradeId: 'msft-new' });
+  assert.match(text(tree), /成交价 · USD\$100\.00/); assert.match(text(tree), /手续费\$1\.00/);
+  tree = h.render({ displayCurrency: 'CNY' });
+  button(tree, '修改交易').props.onClick();
+  assert.equal(h.calls.find(([action]) => action === 'edit')[1], TRADES[0]);
+  assert.equal(TRADES[0].price, 100); assert.equal(TRADES[0].currency, 'USD');
   tree = h.render({ trades: [{ ...TRADES[0], fee: null }] }); assert.match(text(tree), /手续费—含费收支—/);
-  tree = h.render({ usdRate: null }); assert.match(text(tree), /成交金额 CNY—/); assert.doesNotMatch(text(tree), /¥200\.00/);
+  tree = h.render({ usdRate: null }); assert.match(text(tree), /成交金额 CNY—/); assert.match(text(tree), /成交价 · CNY—/); assert.doesNotMatch(text(tree), /¥200\.00|\$100\.00/);
 });
 
 test('inactive pages retain filters and scroll but close sheets and do not mount review history', () => {
