@@ -146,11 +146,11 @@ test('historical holdings keep notes and average cost but never receive fictiona
   const list = h.render({ tradeId: null }); assert.match(text(list), /交易笔数 0/); assert.match(text(list), /另有 1 条历史持仓/);
 });
 
-test('every amount and price follows system currency changes without changing original transactions', () => {
+test('totals follow system currency while unit execution prices always remain in USD', () => {
   const h = harness({ displayCurrency: 'CNY', tradeId: 'msft-new' }); let tree = h.render();
-  assert.match(text(tree), /成交金额 CNY¥1,400\.00/); assert.match(text(tree), /成交价 · CNY¥700\.00/); assert.match(text(tree), /含费收支−¥1,407\.00/);
+  assert.match(text(tree), /成交金额 CNY¥1,400\.00/); assert.match(text(tree), /成交价 · USD\$100\.00/); assert.match(text(tree), /含费收支−¥1,407\.00/);
   tree = h.render({ tradeId: null });
-  assert.match(text(byClass(tree, 'trp-row')[0]), /2 股·¥700\.00/);
+  assert.match(text(byClass(tree, 'trp-row')[0]), /2 股·\$100\.00/);
   tree = h.render({ displayCurrency: 'USD', tradeId: 'msft-new' });
   assert.match(text(tree), /成交价 · USD\$100\.00/); assert.match(text(tree), /手续费\$1\.00/);
   tree = h.render({ displayCurrency: 'CNY' });
@@ -158,7 +158,7 @@ test('every amount and price follows system currency changes without changing or
   assert.equal(h.calls.find(([action]) => action === 'edit')[1], TRADES[0]);
   assert.equal(TRADES[0].price, 100); assert.equal(TRADES[0].currency, 'USD');
   tree = h.render({ trades: [{ ...TRADES[0], fee: null }] }); assert.match(text(tree), /手续费—含费收支—/);
-  tree = h.render({ usdRate: null }); assert.match(text(tree), /成交金额 CNY—/); assert.match(text(tree), /成交价 · CNY—/); assert.doesNotMatch(text(tree), /¥200\.00|\$100\.00/);
+  tree = h.render({ usdRate: null }); assert.match(text(tree), /成交金额 CNY—/); assert.match(text(tree), /成交价 · USD\$100\.00/); assert.doesNotMatch(text(tree), /¥200\.00|¥700\.00/);
 });
 
 test('inactive pages retain filters and scroll but close sheets and do not mount review history', () => {
@@ -232,10 +232,10 @@ test('clearing the detail and hiding simultaneously preserves list scroll instea
   assert.equal(h.scrolls.at(-1), 390);
 });
 
-test('localized company names display and search correctly while edits retain the original English-name record', () => {
+test('company names stay in filters and details without repeating beside list amounts, and edits retain original names', () => {
   const h = harness({ stockDisplayName: (symbol, originalName) => symbol === 'MSFT' ? '微软' : originalName });
   let tree = h.render();
-  assert.match(text(byClass(tree, 'trp-row').find(node => node.key === 'msft-new')), /微软/);
+  assert.doesNotMatch(text(byClass(tree, 'trp-row').find(node => node.key === 'msft-new')), /微软|Microsoft/);
   button(tree, '股票代码').props.onClick(); tree = h.render();
   const searchInput = () => walk(tree).find(node => node.type === 'input' && node.props.type === 'search');
   searchInput().props.onChange({ target: { value: '微软' } }); tree = h.render();

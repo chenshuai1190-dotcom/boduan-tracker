@@ -45,9 +45,8 @@
 .trp-side { font-size: 12px; line-height: 1.6; font-weight: 400; }
 .trp-buy { color: var(--trp-buy,#34d399); }.trp-sell { color: var(--trp-sell,#ff653c); }
 .trp-row-facts { display: flex; align-items: center; flex-wrap: wrap; gap: 2px 6px; margin-top: 6px; color: #87919f; font-size: 12px; }
-.trp-row-end { min-width: 0; max-width: 46%; margin-left: auto; text-align: right; }
-.trp-row-end strong { display: block; font-size: 15px; line-height: 1.35; font-weight: 450; overflow-wrap: anywhere; }
-.trp-row-end > span { display: block; margin-top: 6px; color: #7a8594; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+.trp-row-end { display: flex; align-items: center; justify-content: flex-end; gap: 4px; min-width: 0; max-width: 46%; margin-left: auto; text-align: right; }
+.trp-row-end strong { display: block; min-width: 0; font-size: 15px; line-height: 1.35; font-weight: 450; overflow-wrap: anywhere; }
 .trp-row-chevron { flex: none; color: #5b6572; }
 .trp-end { padding: 27px 16px 32px; margin: 0; text-align: center; color: #748092; font-size: 12px; }
 .trp-empty { padding: 50px 10px 70px; text-align: center; color: #7e8997; }
