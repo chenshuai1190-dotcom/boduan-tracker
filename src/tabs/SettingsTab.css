@@ -37,9 +37,8 @@
 .settings-report-display-option { width: 100%; gap: 0; }
 .settings-report-small-button { display: inline-flex; flex-shrink: 0; align-items: center; justify-content: center; gap: 6px; min-height: 38px; padding: 8px 12px; border-radius: 9px; background: #1b1c1e; color: #b9bac2; font-size: 12px; font-weight: 400; }
 .settings-report-account-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding: 20px 0 26px; }
-.settings-report-account-action { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; border-radius: 10px; background: #1b1c1e; color: #b6b7c0; font-size: 13px; }
+.settings-report-account-action { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; border-radius: 10px; background: #1b1c1e; color: #d7dae0; font-size: 13px; }
 .settings-report-account-action:active { background: #25262a; }
-.settings-report-logout { color: #d29a9b; }
 .settings-report-changelog { border-top: 1px solid var(--settings-line); border-bottom: 1px solid var(--settings-line); }
 .settings-report-changelog-detail { margin: 0 2px 0 34px; padding-bottom: 22px; }
 .settings-report-log-version { color: #9d9ea8; font-size: 12px; font-variant-numeric: tabular-nums; }

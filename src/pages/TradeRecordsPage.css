@@ -83,7 +83,7 @@
 .trp-detail .trade-outcome-toggle-detail, .trp-detail .trade-outcome-basis, .trp-detail .trade-outcome-table, .trp-detail .trade-outcome-footnote, .trp-detail .trade-outcome-asof, .trp-detail .trade-outcome-feedback { font-size: 12px; }
 .trp-detail-actions { display: grid; grid-template-columns: minmax(0,1.8fr) minmax(0,1fr); gap: 11px; margin-top: 28px; }
 .trp-detail-actions button { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 46px; padding: 10px 13px; border: 1px solid #303641; border-radius: 24px; background: #1c222c; color: #e2e6ed; font-size: 13px; line-height: 1.4; }
-.trp-detail-actions .trp-delete { color: #c0a3a0; background: transparent; border-color: #2d3037; }
+.trp-detail-actions .trp-delete { color: #d7dae0; background: transparent; border-color: #30343b; }
 .trp-sheet-shade { position: fixed; inset: 0; z-index: 110; display: flex; align-items: flex-end; justify-content: center; background: rgb(0 0 0 / .68); backdrop-filter: blur(3px); }
 .trp-sheet { box-sizing: border-box; width: min(100%,520px); max-height: 88dvh; overflow-y: auto; overscroll-behavior: contain; padding: 10px 22px calc(24px + env(safe-area-inset-bottom)); border: 1px solid #242a33; border-radius: 24px 24px 0 0; background: #12151a; color: #e5e7eb; box-shadow: 0 -12px 80px rgb(0 0 0 / .35); font: 14px/1.55 -apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC",sans-serif; outline: none; }
 .trp-sheet-handle { width: 32px; height: 4px; border-radius: 9px; background: #424a55; margin: 0 auto 16px; }
