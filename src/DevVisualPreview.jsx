@@ -28,6 +28,7 @@ import {
   X,
 } from 'lucide-react';
 import ConfirmModal from './components/ConfirmModal.jsx';
+import ReportBottomNavIcon from './components/ReportBottomNavIcon.jsx';
 import './components/ReportBottomNav.css';
 import useReviewScrollNavigation from './hooks/useReviewScrollNavigation.js';
 import useReviewFeedUnread from './hooks/useReviewFeedUnread.js';
@@ -3672,6 +3673,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
                   aria-current={isActive ? 'page' : undefined}
                   type="button"
                 >
+                  <ReportBottomNavIcon tabId={tab.id} active={isActive} />
                   <span className="report-bottom-nav-label">{tab.label}</span>
                   {tab.id === 'review' && reviewFeedUnread.unreadCount > 0 && <span className="report-bottom-nav-new-posts" aria-label={language.startsWith('en') ? `${reviewFeedUnread.unreadCount} new posts` : `${reviewFeedUnread.unreadCount} 条新帖子`}>{reviewFeedUnread.unreadCount > 99 ? '99+' : reviewFeedUnread.unreadCount}</span>}
                 </button>

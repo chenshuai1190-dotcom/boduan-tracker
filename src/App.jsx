@@ -33,6 +33,7 @@ import {
 import { COMMUNITY_COMPETITION_PUBLICATION_EVENT } from './lib/communityCompetitionResume.js';
 import { enqueuePnlReportRecalculationAfterLedgerMutation } from './lib/pnlReportRecalculation.js';
 import { createPnlShareIdentity } from './lib/pnlShareIdentity.js';
+import ReportBottomNavIcon from './components/ReportBottomNavIcon.jsx';
 import './components/ReportBottomNav.css';
 import useReviewScrollNavigation from './hooks/useReviewScrollNavigation.js';
 import useReviewFeedUnread from './hooks/useReviewFeedUnread.js';
@@ -5809,6 +5810,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
                     className="report-bottom-nav-tab"
                     aria-current={isActive ? 'page' : undefined}
                   >
+                    <ReportBottomNavIcon tabId={tab.id} active={isActive} />
                     <span className="report-bottom-nav-label">{tab.label}</span>
                     {tab.id === 'review' && reviewFeedUnread.unreadCount > 0 && <span className="report-bottom-nav-new-posts" aria-label={language.startsWith('en') ? `${reviewFeedUnread.unreadCount} new posts` : `${reviewFeedUnread.unreadCount} 条新帖子`}>{reviewFeedUnread.unreadCount > 99 ? '99+' : reviewFeedUnread.unreadCount}</span>}
                   </button>

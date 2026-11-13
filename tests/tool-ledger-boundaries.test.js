@@ -366,7 +366,7 @@ test('active Home double tap preserves navigation behavior with the shared repor
   assert.ok(bottomNavBlock.includes('className="report-bottom-nav-tab"') && bottomNavBlock.includes("aria-current={isActive ? 'page' : undefined}"), 'the shared report style should identify the active tab without changing its tap handler');
   for (const source of [appSource, devVisualPreviewSource]) {
     assert.ok(source.includes("import './components/ReportBottomNav.css';"), 'production and preview should use the same bottom-navigation styles');
-    assert.ok(source.includes('report-bottom-nav-grid') && source.includes('report-bottom-nav-label') && !source.includes('<ReportBottomNavIcon'), 'production and preview should share the text-only bottom navigation');
+    assert.ok(source.includes('report-bottom-nav-grid') && source.includes('report-bottom-nav-label') && source.includes('<ReportBottomNavIcon tabId={tab.id} active={isActive} />'), 'production and preview should share icons driven by the active tab');
   }
   assert.equal(bottomNavBlock.includes('onDoubleClick='), false, 'iOS touch handling should not depend on the unreliable dblclick event');
 });

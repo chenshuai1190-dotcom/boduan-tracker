@@ -14,6 +14,7 @@ const result = await transformWithOxc(`
   import React from ${JSON.stringify(import.meta.resolve('react'))};
   import { t } from ${JSON.stringify(new URL('../src/lib/i18n.js', import.meta.url).href)};
   const WifiOff=()=>null;
+  const ReportBottomNavIcon=()=>null;
   export function Navigation({count,language='zh'}) {
     const reviewFeedUnread={unreadCount:count},hideBottomNavigation=false,reviewNavigationHidden=false,
       activeTab='home',darkShell=true,showQuoteFetchError=false,fetchError='',handleBottomTabClick=()=>{};
