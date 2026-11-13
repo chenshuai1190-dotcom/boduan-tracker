@@ -4,12 +4,13 @@ import { normalizeStrictUserStockSymbol } from './symbols.js';
 import { normalizeReviewTimelineReference } from './reviewTimelineReference.js';
 
 // Presentation only. The two existing tables remain the source of truth.
-export function reviewJournalFeed(insights = [], logs = [], filter = 'all', query = '') {
+export function reviewJournalFeed(insights = [], logs = [], filter = 'all', query = '', alwaysPinnedId = null) {
   const term = String(query).trim().toLocaleLowerCase();
+  const pinRank = row => String(row.id) === alwaysPinnedId ? 2 : Number(Boolean(row.pinned));
   return [...insights.map(row => ({ ...row, type: 'insight' })), ...logs.map(row => ({ ...row, type: 'log' }))]
     .filter(row => !normalizeReviewTimelineReference(row.timelineEvent))
     .filter(row => (filter === 'all' || row.type === filter) && (!term || `${row.text || ''} ${(row.stocks || []).join(' ')} ${row.date || ''} ${(row.replies || []).map(reply => reply.text).join(' ')}`.toLocaleLowerCase().includes(term)))
-    .sort((a, b) => (filter === 'all' ? 0 : Number(Boolean(b.pinned)) - Number(Boolean(a.pinned)))
+    .sort((a, b) => (filter === 'all' ? 0 : pinRank(b) - pinRank(a))
       || String(b.date || '').localeCompare(String(a.date || ''))
       || String(b.createdAt || '').localeCompare(String(a.createdAt || ''))
       || String(b.id).localeCompare(String(a.id)));

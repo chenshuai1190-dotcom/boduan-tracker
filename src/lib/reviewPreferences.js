@@ -34,7 +34,10 @@ export const REVIEW_TIMELINE_DISPLAY_GROUPS = Object.freeze([
   return Object.freeze({ id, label: label || type.label, enLabel: enLabel || type.enLabel,
     group: type.group, eventTypes: Object.freeze(eventTypes) });
 }));
-export const DEFAULT_REVIEW_PREFERENCES = Object.freeze({ showTimeline: true, currency: 'USD', eventTypes: Object.freeze([...TYPE_IDS]) });
+export const REVIEW_ALWAYS_PIN_KEYS = Object.freeze(['alwaysPinnedLogId', 'alwaysPinnedInsightId']);
+export const DEFAULT_REVIEW_PREFERENCES = Object.freeze({ showTimeline: true, currency: 'USD',
+  eventTypes: Object.freeze([...TYPE_IDS]), alwaysPinnedLogId: null, alwaysPinnedInsightId: null });
+const validAlwaysPinId = value => value === null || (typeof value === 'string' && value.length > 0 && value.length <= 100 && !/[^A-Za-z0-9_-]/.test(value));
 const plain = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const failure = () => Object.assign(new Error('动态显示设置格式无效，请重新选择。'), { code: 'REVIEW_PREFERENCES_INVALID' });
 
@@ -55,20 +58,24 @@ export function normalizeReviewPreferences(value, { strict = false } = {}) {
   if (value == null) { if (strict) throw failure(); return { ...DEFAULT_REVIEW_PREFERENCES, eventTypes: [...TYPE_IDS] }; }
   if (!plain(value)) { if (strict) throw failure(); return normalizeReviewPreferences(null); }
   if (strict && (typeof value.showTimeline !== 'boolean' || !['USD', 'CNY'].includes(value.currency)
-    || !Array.isArray(value.eventTypes) || value.eventTypes.some(type => !TYPE_IDS.includes(type)))) throw failure();
+    || !Array.isArray(value.eventTypes) || value.eventTypes.some(type => !TYPE_IDS.includes(type))
+    || REVIEW_ALWAYS_PIN_KEYS.some(key => Object.hasOwn(value, key) && !validAlwaysPinId(value[key])))) throw failure();
   return {
     showTimeline: typeof value.showTimeline === 'boolean' ? value.showTimeline : true,
     currency: value.currency === 'CNY' ? 'CNY' : 'USD',
     eventTypes: Array.isArray(value.eventTypes) ? TYPE_IDS.filter(type => value.eventTypes.includes(type)) : [...TYPE_IDS],
+    alwaysPinnedLogId: validAlwaysPinId(value.alwaysPinnedLogId) ? value.alwaysPinnedLogId : null,
+    alwaysPinnedInsightId: validAlwaysPinId(value.alwaysPinnedInsightId) ? value.alwaysPinnedInsightId : null,
   };
 }
 
 export function patchReviewPreferences(previous, patch) {
-  if (!plain(patch) || Object.keys(patch).some(key => !['showTimeline', 'currency', 'eventTypes'].includes(key))) throw failure();
+  if (!plain(patch) || Object.keys(patch).some(key => !['showTimeline', 'currency', 'eventTypes', ...REVIEW_ALWAYS_PIN_KEYS].includes(key))) throw failure();
   return normalizeReviewPreferences({ ...normalizeReviewPreferences(previous), ...patch }, { strict: true });
 }
 
 export function sameReviewPreferences(left, right) {
   const a = normalizeReviewPreferences(left), b = normalizeReviewPreferences(right);
-  return a.showTimeline === b.showTimeline && a.currency === b.currency && a.eventTypes.join(',') === b.eventTypes.join(',');
+  return a.showTimeline === b.showTimeline && a.currency === b.currency && a.eventTypes.join(',') === b.eventTypes.join(',')
+    && a.alwaysPinnedLogId === b.alwaysPinnedLogId && a.alwaysPinnedInsightId === b.alwaysPinnedInsightId;
 }

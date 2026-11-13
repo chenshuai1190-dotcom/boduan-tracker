@@ -276,6 +276,14 @@ function Composer({ entry, defaultType, identity, userId, db, onSaved, onClose, 
   </Dialog>;
 }
 
+function AlwaysPinIcon({ size = 18 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M5 4.5h14M7 13l5-5 5 5M7 19.5l5-5 5 5" />
+    </svg>
+  );
+}
+
 export default function ReviewJournalPage({ ctx }) {
   const { db, userId, language='zh', disciplines=[], reviewLogs=[], setDisciplines, setReviewLogs, stockTrades=[], onBack, previewData, marketColorMode, usdCny = null, fxDate = '', navigationTab = false, reviewPublicRefreshRef, reviewFeedUnread, reviewOpenAllRequest = 0 } = ctx;
   const preview = Boolean(import.meta.env.DEV && previewData);
@@ -346,7 +354,11 @@ export default function ReviewJournalPage({ ctx }) {
   const [timelineAttempt,setTimelineAttempt]=useState(0);
   const loadedTimelineAttempt = useRef(-1);
   const pendingFeedAnchor = useRef(null);
-  const [composer,setComposer]=useState(null); const [menu,setMenu]=useState(null); const [detailKey,setDetailKey]=useState(()=>preview&&previewData?.initialAssistant?'assistant':null);
+  const [composer,setComposer]=useState(null);
+  const [menuSelection,setMenuSelection]=useState(null);
+  const menu=menuSelection?.userId===userId?menuSelection.entry:null;
+  const setMenu=entry=>setMenuSelection(entry?{userId,entry}:null);
+  const [detailKey,setDetailKey]=useState(()=>preview&&previewData?.initialAssistant?'assistant':null);
   const [tagSymbol,setTagSymbol]=useState(''); const [routeId,setRouteId]=useState('root');
   const publicFeedVisible=filter==='all'&&allScope==='public'&&!tagSymbol;
   const evaluationKey=detailKey||(publicFeedVisible&&publicDetail&&publicEvaluationContext?.userId===userId?publicEvaluationContext.key:null);
@@ -417,7 +429,11 @@ export default function ReviewJournalPage({ ctx }) {
   const timelineEntries=timelineEvents.map(event=>projectReviewTimelineEntry(event,storedTimelineEntries));
   const getTimelineCommentCount=event=>{const projected=projectReviewTimelineEntry(resolveReviewTimelineEvent(timelineEvents,event.id)||event,storedTimelineEntries);return projected.replies.length+(communityCounts.userId===userId?storedTimelineEntries.filter(entry=>projected.timelineSourceEventIds?.includes(entry.timelineEvent?.id)).reduce((sum,entry)=>sum+(communityCounts.values[`log:${entry.id}`]||0),0):0);};
   const all=[...journalEntries,...timelineEntries];
-  const ordinaryFeed=reviewJournalFeed(disciplines,reviewLogs,filter,query);
+  const pinPreferenceKey=filter==='log'?'alwaysPinnedLogId':filter==='insight'?'alwaysPinnedInsightId':null;
+  const alwaysPinnedId=pinPreferenceKey?preferences[pinPreferenceKey]:null;
+  const isAlwaysPinned=entry=>entry.type===filter&&String(entry.id)===alwaysPinnedId;
+  const hasAlwaysPinnedEntry=Boolean(alwaysPinnedId&&journalEntries.some(isAlwaysPinned));
+  const ordinaryFeed=reviewJournalFeed(disciplines,reviewLogs,filter,query,alwaysPinnedId);
   const feed=tagSymbol?journalEntries.filter(entry=>(entry.stocks||[]).includes(tagSymbol)||findReviewStockMentions(entry.text,[...(entry.stocks||[]),...suggestions]).includes(tagSymbol))
     :filter==='all'?mergeReviewTimelineFeed(journalEntries.filter(entry=>entry.visibility!=='public'),rawTimelineEvents,{...preferences,showTimeline:mixedFeedEnabled},{query}):ordinaryFeed;
   const entryKey=entry=>entry.timelineEvent?`timeline:${entry.timelineEvent.id}`:`${entry.type}:${entry.id}`;
@@ -521,6 +537,29 @@ export default function ReviewJournalPage({ ctx }) {
   },[ownedTimeline.data,showingDetail]);
   const saved=entry=>{if(navigation.current.userId!==userId)return;const setter=entry.type==='insight'?setDisciplines:setReviewLogs;setter(old=>old.some(row=>row.id===entry.id)?old.map(row=>row.id===entry.id?entry:row):[entry,...old]);setPublicRefresh(value=>value+1);setError('');};
   const mutate=async action=>{if(busyRef.current)return;busyRef.current=true;setBusy(true);setError('');try{await action();}catch(failure){setError(failure?.message||'操作失败，请重试');}finally{busyRef.current=false;setBusy(false);}};
+  const canShowAlwaysPin=Boolean(menu&&pinPreferenceKey&&!tagSymbol&&menu.type===filter);
+  const toggleAlwaysPin=()=>mutate(async()=>{
+    if(!canShowAlwaysPin||navigation.current.userId!==userId)return;
+    if(!preferenceState.alwaysPinSupported){
+      await preferenceState.reload();
+      if(navigation.current.userId===userId)setError('始终置顶暂不可用，请稍后重试。');
+      return;
+    }
+    const nextPinnedId=isAlwaysPinned(menu)?null:String(menu.id);
+    const updated=await preferenceState.updatePreferences({[pinPreferenceKey]:nextPinnedId});
+    if(navigation.current.userId!==userId)return;
+    if(updated){
+      setMenu(null);
+      if(nextPinnedId!==null&&!detailKey){
+        window.requestAnimationFrame?.(()=>{
+          if(navigation.current.userId===userId&&!navigation.current.key)window.scrollTo({left:0,top:0,behavior:'instant'});
+        });
+      }
+    }else{
+      await preferenceState.reload();
+      if(navigation.current.userId===userId)setError('未能确认始终置顶，请核对当前状态后重试。');
+    }
+  });
   const navigate=(key,symbol,event,focusPost=false)=>{
     rememberPosition(event,focusPost);
     const route={id:crypto.randomUUID(),key,symbol,parent:routeId};
@@ -619,7 +658,16 @@ export default function ReviewJournalPage({ ctx }) {
     aria-label={full?undefined:`查看 ${entry.date} 的内容详情`}
     onClick={full?undefined:event=>openPost(entry,event)}
     onKeyDown={full?undefined:event=>{if(event.target===event.currentTarget&&(event.key==='Enter'||event.key===' ')){event.preventDefault();openDetail(entry,event);}}}>
-    <Avatar identity={identity} userId={userId} preview={preview}/><div className="rj-post-main"><div className="rj-post-heading"><AuthorName identity={identity} />{!tagSymbol&&(full||filter!=='all')&&entry.pinned&&<span className="rj-inline-pin" role="img" aria-label="已置顶"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 4h14M12 21V9m-5 5 5-5 5 5"/></svg></span>}<span>·</span><ReviewActivityTime createdAt={entry.createdAt} date={entry.date} language={language}/>{entry.visibility==='public'&&<span className="rj-public-label">公开</span>}<button className="rj-icon rj-post-more" aria-label="记录操作" onClick={()=>{setMenu(entry);setConfirmDelete(false);setError('');}}><MoreHorizontal size={19}/></button></div>
+    <Avatar identity={identity} userId={userId} preview={preview}/><div className="rj-post-main">
+      <div className="rj-post-heading">
+        <AuthorName identity={identity} />
+        {!tagSymbol&&(isAlwaysPinned(entry)
+          ? <span className="rj-inline-pin rj-inline-always-pin" role="img" aria-label="始终置顶"><AlwaysPinIcon size={13}/></span>
+          : (full||filter!=='all')&&entry.pinned&&<span className="rj-inline-pin" role="img" aria-label="已置顶"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 4h14M12 21V9m-5 5 5-5 5 5"/></svg></span>)}
+        <span>·</span><ReviewActivityTime createdAt={entry.createdAt} date={entry.date} language={language}/>
+        {entry.visibility==='public'&&<span className="rj-public-label">公开</span>}
+        <button className="rj-icon rj-post-more" aria-label="记录操作" onClick={()=>{setMenu(entry);setConfirmDelete(false);setError('');}}><MoreHorizontal size={19}/></button>
+      </div>
       <ReviewPostBody text={entry.text} candidates={[...(entry.stocks||[]),...suggestions]} onSelectSymbol={openStockTag} language={language} full={full} expanded={expanded.has(entryKey(entry))} onToggle={()=>toggleExpanded(entry)}/>
       {full&&entryNotes(entry)}
       {attachments(entry)}
@@ -708,7 +756,23 @@ export default function ReviewJournalPage({ ctx }) {
       {post(detail,true)}
       {renderReplies()}
     </div>}
-    {menu&&<Dialog title={confirmDelete?'删除这条记录？':'记录操作'} onClose={()=>{if(!busy){setMenu(null);setConfirmDelete(false);setError('');}}}><div className="rj-dialog-body">{error&&<p className="rj-error" role="alert">{error}</p>}{confirmDelete?<><p className="rj-note">正文、关联信息及评论将一起删除。</p><button className="rj-wide-button rj-danger" disabled={busy} onClick={()=>mutate(async()=>{await db.deleteReviewJournalEntry(menu,userId);await Promise.allSettled([...new Set([...(menu.images||[]),...(menu.replies||[]).flatMap(item=>item.images||[])].map(image=>image.path))].map(path=>db.removeReviewJournalImage(path,userId)));(menu.type==='insight'?setDisciplines:setReviewLogs)(old=>old.filter(row=>row.id!==menu.id));setMenu(null);setPublicRefresh(value=>value+1);if(detailKey===entryKey(menu))closeDetail();})}>确认删除</button></>:<><button className="rj-menu-item" onClick={()=>{setComposer({entry:menu});setMenu(null);}}><Pencil size={18}/>编辑记录</button>{!tagSymbol&&filter!=='all'&&<button className="rj-menu-item" disabled={busy} onClick={()=>mutate(async()=>{saved(await db.saveReviewJournalEntry({...menu,pinned:!menu.pinned},userId));setMenu(null);})}><Pin size={18}/>{menu.pinned?'取消置顶':'置顶'}</button>}<button className="rj-menu-item rj-danger" onClick={()=>setConfirmDelete(true)}><Trash2 size={18}/>删除记录</button></>}</div></Dialog>}
+    {menu&&<Dialog title={confirmDelete?'删除这条记录？':'记录操作'} onClose={()=>{if(!busy){setMenu(null);setConfirmDelete(false);setError('');}}}>
+      <div className="rj-dialog-body">
+        {error&&<p className="rj-error" role="alert">{error}</p>}
+        {confirmDelete?<><p className="rj-note">正文、关联信息及评论将一起删除。</p><button className="rj-wide-button rj-danger" disabled={busy} onClick={()=>mutate(async()=>{await db.deleteReviewJournalEntry(menu,userId);await Promise.allSettled([...new Set([...(menu.images||[]),...(menu.replies||[]).flatMap(item=>item.images||[])].map(image=>image.path))].map(path=>db.removeReviewJournalImage(path,userId)));(menu.type==='insight'?setDisciplines:setReviewLogs)(old=>old.filter(row=>row.id!==menu.id));setMenu(null);setPublicRefresh(value=>value+1);if(detailKey===entryKey(menu))closeDetail();})}>确认删除</button></>:<>
+          <button type="button" className="rj-menu-item" disabled={busy} onClick={()=>{setComposer({entry:menu});setMenu(null);}}><Pencil size={18}/>编辑记录</button>
+          {!tagSymbol&&filter!=='all'&&<button type="button" className="rj-menu-item" disabled={busy} onClick={()=>mutate(async()=>{saved(await db.saveReviewJournalEntry({...menu,pinned:!menu.pinned},userId));setMenu(null);})}><Pin size={18}/>{menu.pinned?'取消置顶':'置顶'}</button>}
+          {canShowAlwaysPin&&<button type="button" className="rj-menu-item rj-menu-always-pin" disabled={busy||preferenceState.loading||preferenceState.saving} onClick={toggleAlwaysPin}>
+            <AlwaysPinIcon/>
+            <span>
+              {isAlwaysPinned(menu)?'取消始终置顶':'始终置顶'}
+              {hasAlwaysPinnedEntry&&!isAlwaysPinned(menu)?<small className="rj-menu-pin-note">替换当前排在首位的记录</small>:null}
+            </span>
+          </button>}
+          <button type="button" className="rj-menu-item rj-danger" disabled={busy} onClick={()=>setConfirmDelete(true)}><Trash2 size={18}/>删除记录</button>
+        </>}
+      </div>
+    </Dialog>}
     {activeReplyMenu&&<Dialog title={activeReplyMenu.confirmDelete?'删除这条评价？':'评论操作'} onClose={()=>{if(!busy){setReplyMenu(null);setError('');}}}><div className="rj-dialog-body">{error&&<p className="rj-error" role="alert">{error}</p>}{activeReplyMenu.confirmDelete?<><p className="rj-note">这条评价及其中的关联内容将从博文中移除，原始交易记录不受影响。</p><button type="button" className="rj-wide-button rj-danger" disabled={busy} onClick={()=>mutate(async()=>{const source=resolveReviewReplySource(evaluationDetail,activeReplyMenu.reply,storedTimelineEntries);if(!source)throw new Error('记录已不存在，请刷新后重试。');const updated=await db.deleteReviewJournalReply(source.entry,source.reply,userId);saved(updated);setReplyMenu(null);})}>{busy?'删除中…':'确认删除评价'}</button><button type="button" className="rj-wide-button" disabled={busy} onClick={()=>{setReplyMenu(null);setError('');}}>取消</button></>:<><button type="button" className="rj-menu-item" onClick={()=>{closeEvaluations();setEditingEvaluation({userId,entryKey:evaluationKey,reply:activeReplyMenu.reply,sessionId:crypto.randomUUID()});setReplyMenu(null);setError('');}}><Pencil size={18}/>修改评价</button><button type="button" className="rj-menu-item rj-danger" onClick={()=>setReplyMenu({...activeReplyMenu,confirmDelete:true})}><Trash2 size={18}/>删除评价</button></>}</div></Dialog>}
     {activeCommunityMenu&&<Dialog title={activeCommunityMenu.confirmDelete?(activeCommunityIsReply?'删除这条回复？':'删除这条评价？'):'评论操作'} onClose={()=>{if(!busy){setCommunityReplyMenu(null);setError('');}}}><div className="rj-dialog-body">{error&&<p className="rj-error" role="alert">{error}</p>}{activeCommunityMenu.confirmDelete?<><p className="rj-note">这条{activeCommunityIsReply?'回复':'评价'}及其中的关联内容将从博文中移除，原始交易记录不受影响。</p><button type="button" className="rj-wide-button rj-danger" disabled={busy} onClick={()=>mutate(async()=>{await db.deleteReviewCommunityEvaluation(activeCommunityMenu.post.id,activeCommunityMenu.reply,userId);if(navigation.current.userId!==userId)return;communitySaved();setCommunityReplyMenu(null);})}>{busy?'删除中…':activeCommunityIsReply?'确认删除回复':'确认删除评价'}</button><button type="button" className="rj-wide-button" disabled={busy} onClick={()=>{setCommunityReplyMenu(null);setError('');}}>取消</button></>:<><button type="button" className="rj-menu-item" onClick={()=>{setCommunityDrafts(old=>old.map(item=>({...item,open:false})));setCommunityEditing({...activeCommunityMenu,sessionId:crypto.randomUUID()});setCommunityReplyMenu(null);setError('');}}><Pencil size={18}/>{activeCommunityIsReply?'修改回复':'修改评价'}</button><button type="button" className="rj-menu-item rj-danger" onClick={()=>setCommunityReplyMenu({...activeCommunityMenu,confirmDelete:true})}><Trash2 size={18}/>{activeCommunityIsReply?'删除回复':'删除评价'}</button></>}</div></Dialog>}
     {composer&&<Composer entry={composer.entry} defaultType={filter==='insight'?'insight':'log'} identity={identity} userId={userId} db={assistantJournalDb} language={language} onSaved={entry=>{saved(entry);if(filter==='all'){setAllScope(entry.visibility==='public'?'public':'private');if(!composer.entry)window.requestAnimationFrame?.(()=>{if(navigation.current.userId===userId)window.scrollTo({left:0,top:0,behavior:'instant'});});}}} onClose={()=>setComposer(null)} suggestions={suggestions} preview={preview} previewMarket={previewData?.market}/>}

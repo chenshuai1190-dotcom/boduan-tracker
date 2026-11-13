@@ -4,7 +4,7 @@ import { DEFAULT_REVIEW_PREFERENCES, REVIEW_TIMELINE_TYPES, REVIEW_TIMELINE_DISP
 import { createReviewPreferencesController } from '../src/lib/reviewPreferencesController.js';
 
 const prefs = patch => ({ ...normalizeReviewPreferences(null), ...patch });
-const record = (preferences = prefs(), revision = 1) => ({ preferences, revision, exists: true, updatedAt: '2026-11-07T00:00:00Z' });
+const record = (preferences = prefs(), revision = 1) => ({ preferences, revision, exists: true, alwaysPinSupported: true, updatedAt: '2026-11-07T00:00:00Z' });
 const deferred = () => { let resolve, reject; const promise = new Promise((a,b) => { resolve=a;reject=b; }); return { promise,resolve,reject }; };
 
 test('display defaults include every existing event category and only USD/CNY', () => {
@@ -12,7 +12,7 @@ test('display defaults include every existing event category and only USD/CNY', 
   assert.equal(DEFAULT_REVIEW_PREFERENCES.currency, 'USD');
   assert.deepEqual(REVIEW_TIMELINE_TYPES.map(type=>type.id), ['net_assets_high','return_high','pnl_high','annual_return_high','annual_return_low','annual_pnl_high','annual_pnl_low','drawdown','return_drawdown','daily_record','stock_daily_record','month','quarter','year']);
   assert.deepEqual(normalizeReviewPreferences(null).eventTypes, REVIEW_TIMELINE_TYPES.map(type=>type.id));
-  assert.deepEqual(normalizeReviewPreferences({showTimeline:false,currency:'CNY',eventTypes:['drawdown','unknown','drawdown']}),{showTimeline:false,currency:'CNY',eventTypes:['drawdown']});
+  assert.deepEqual(normalizeReviewPreferences({showTimeline:false,currency:'CNY',eventTypes:['drawdown','unknown','drawdown']}),prefs({showTimeline:false,currency:'CNY',eventTypes:['drawdown']}));
   assert.deepEqual(patchReviewPreferences(prefs(),{eventTypes:[]}).eventTypes,[]);
   for(const bad of [null,[],{...prefs(),showTimeline:'false'},{...prefs(),currency:'JPY'},{...prefs(),eventTypes:['unknown']}]) {
     assert.throws(()=>normalizeReviewPreferences(bad,{strict:true}),{code:'REVIEW_PREFERENCES_INVALID'});
@@ -99,7 +99,7 @@ test('failed saves roll back; explicit retry merges only failed fields onto a fr
   await c.load();await c.updatePreferences({currency:'CNY'});
   assert.equal(c.getSnapshot().preferences.currency,'USD');assert.match(c.getSnapshot().error,/其他页面/);
   await c.retry();assert.equal(c.getSnapshot().error,'');assert.equal(saved[1].revision,4);
-  assert.deepEqual(saved[1].next,{showTimeline:true,currency:'CNY',eventTypes:['drawdown']});
+  assert.deepEqual(saved[1].next,prefs({showTimeline:true,currency:'CNY',eventTypes:['drawdown']}));
 });
 
 test('a lost write response followed by retry recognizes the already-saved preference', async () => {
@@ -158,4 +158,80 @@ test('saving the master switch preserves independent drawdown and annual extrema
     await reopened.load(); assert.deepEqual(reopened.getSnapshot().preferences.eventTypes, eventTypes);
     c.dispose(); reopened.dispose();
   }
+});
+
+test('always-pinned IDs accept null, legacy source IDs and UUIDs only', () => {
+  const next = patchReviewPreferences(prefs(), { alwaysPinnedLogId: '41', alwaysPinnedInsightId: '8ffb9ec3-f2c6-4134-b106-09d98ffdd442' });
+  assert.equal(next.alwaysPinnedLogId, '41');
+  assert.equal(patchReviewPreferences(next, { alwaysPinnedLogId: null }).alwaysPinnedInsightId, next.alwaysPinnedInsightId);
+  for (const invalid of [0, false, '', 'trailing\n', 'bad id', 'é', 'x'.repeat(101), [], undefined]) {
+    assert.throws(() => patchReviewPreferences(prefs(), { alwaysPinnedLogId: invalid }), { code: 'REVIEW_PREFERENCES_INVALID' });
+  }
+});
+
+test('always-pin choices only appear after a confirmed write and use a pin-only payload', async () => {
+  const previous = record(prefs({ currency: 'CNY' }));
+  const write = deferred();
+  const db = {
+    readCachedReviewPreferences: () => previous, fetchReviewPreferences: async () => previous,
+    saveReviewPreferences: (next, revision, owner, options) => {
+      assert.equal(next.alwaysPinnedLogId, 'new');
+      assert.equal(next.currency, 'CNY');
+      assert.equal(revision, 1);
+      assert.equal(owner, 'owner');
+      assert.deepEqual(options, { alwaysPinKeys: ['alwaysPinnedLogId'], pinOnly: true });
+      return write.promise;
+    },
+  };
+  const controller = createReviewPreferencesController({ userId: 'owner', db });
+  assert.equal(controller.getSnapshot().alwaysPinSupported, false);
+  await controller.load();
+  assert.equal(controller.getSnapshot().alwaysPinSupported, true);
+  const saving = controller.updatePreferences({ alwaysPinnedLogId: 'new' });
+  assert.equal(controller.getSnapshot().preferences.alwaysPinnedLogId, null);
+  assert.equal(controller.getSnapshot().canEdit, false);
+  write.resolve(record(prefs({ currency: 'CNY', alwaysPinnedLogId: 'new' }), 2));
+  assert.equal(await saving, true);
+  assert.equal(controller.getSnapshot().preferences.alwaysPinnedLogId, 'new');
+});
+
+test('reloading after a category-pin conflict never replays a stale clear on the competing selection', async () => {
+  let cloud = record(prefs({ alwaysPinnedLogId: 'first' })), writes = 0;
+  const db = {
+    fetchReviewPreferences: async () => cloud,
+    saveReviewPreferences: async () => { writes++; throw Object.assign(new Error('stale'), { code: 'REVIEW_PREFERENCES_CONFLICT' }); },
+  };
+  const controller = createReviewPreferencesController({ userId: 'owner', db });
+  await controller.load();
+  cloud = record(prefs({ alwaysPinnedLogId: 'second' }), 2);
+  assert.equal(await controller.updatePreferences({ alwaysPinnedLogId: null }), false);
+  assert.equal(controller.getSnapshot().preferences.alwaysPinnedLogId, 'first');
+  await controller.retry();
+  assert.equal(controller.getSnapshot().preferences.alwaysPinnedLogId, 'second');
+  assert.equal(writes, 1);
+});
+
+test('pin support loss rejects pin changes while preserving the existing display controls', async () => {
+  const unavailable = { ...record(), alwaysPinSupported: false };
+  let cloud = record(), saves = 0;
+  const db = {
+    fetchReviewPreferences: async () => cloud,
+    saveReviewPreferences: async (next, revision, _owner, options) => {
+      saves++;
+      if (options?.pinOnly) throw Object.assign(new Error('始终置顶暂不可用，请稍后重试。'), { code: 'REVIEW_ALWAYS_PIN_UNAVAILABLE' });
+      return { ...record(next, revision + 1), alwaysPinSupported: false };
+    },
+  };
+  const controller = createReviewPreferencesController({ userId: 'owner', db });
+  await controller.load();
+  cloud = unavailable;
+  assert.equal(await controller.updatePreferences({ alwaysPinnedLogId: 'new' }), false);
+  assert.equal(controller.getSnapshot().alwaysPinSupported, false);
+  assert.match(controller.getSnapshot().error, /始终置顶暂不可用/);
+  assert.equal(controller.getSnapshot().canEdit, true);
+  assert.equal(await controller.updatePreferences({ alwaysPinnedLogId: 'newer' }), false);
+  assert.equal(await controller.updatePreferences({ currency: 'CNY' }), true);
+  assert.equal(controller.getSnapshot().preferences.currency, 'CNY');
+  assert.equal(controller.getSnapshot().preferences.alwaysPinnedLogId, null);
+  assert.equal(saves, 2);
 });

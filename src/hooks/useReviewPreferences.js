@@ -15,5 +15,5 @@ export default function useReviewPreferences({ db, userId, preview = false, prev
     return () => { unsubscribe(); unsubscribeExternal?.(); controller.dispose(); };
   }, [controller, db, userId, preview]);
   const value = current.controller === controller ? current.value : controller.getSnapshot();
-  return { ...value, updatePreferences: controller.updatePreferences, retry: controller.retry };
+  return { ...value, updatePreferences: controller.updatePreferences, retry: controller.retry, reload: controller.load };
 }

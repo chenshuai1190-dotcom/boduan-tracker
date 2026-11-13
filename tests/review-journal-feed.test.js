@@ -11,6 +11,24 @@ test('all feed ignores pinning while category feed prioritizes pins', () => {
   assert.equal(insights[0].type, undefined);
 });
 
+test('each category displays its selected record ahead of ordinary pins and still respects search', () => {
+  const insights = [
+    { id: 1, date: '2026-11-01', text: '旧心得' },
+    { id: 2, date: '2026-11-02', pinned: true, text: '复盘心得' },
+    { id: 3, date: '2026-11-03', text: '最新心得' },
+  ];
+  const logs = [
+    { id: 1, date: '2026-11-04', text: '上周复盘' },
+    { id: 2, date: '2026-11-06', pinned: true, text: '本周复盘' },
+  ];
+  const ids = (filter, query, firstId) => reviewJournalFeed(insights, logs, filter, query, firstId).map(row => row.id);
+  assert.deepEqual(ids('insight', '', '1'), [1, 2, 3]);
+  assert.deepEqual(ids('log', '', '1'), [1, 2]);
+  assert.deepEqual(ids('insight', '复盘', '1'), [2]);
+  assert.deepEqual(ids('insight', '', 'missing'), [2, 3, 1]);
+  assert.deepEqual(ids('all', '', '1'), ids('all', '', null));
+});
+
 test('draft keys require and separate account identities', () => {
   assert.equal(reviewDraftKey(''), null);
   assert.notEqual(reviewDraftKey('user-a'), reviewDraftKey('user-b'));

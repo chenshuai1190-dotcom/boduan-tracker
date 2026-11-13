@@ -7,24 +7,30 @@ const OWNER='11111111-1111-4111-8111-111111111111',OTHER='22222222-2222-4222-822
 const now=Date.parse('2026-11-07T00:00:00Z');
 const pref=patch=>({...normalizeReviewPreferences(null),...patch});
 const independentTypes=['return_drawdown','annual_return_high','annual_return_low','annual_pnl_high','annual_pnl_low','stock_daily_record'];
-const row=(patch={})=>({user_id:OWNER,show_timeline:true,currency:'USD',event_types:pref().eventTypes.filter(type=>!independentTypes.includes(type)),...Object.fromEntries(independentTypes.map(type=>[`show_${type}`,false])),show_return_drawdown:null,revision:1,updated_at:new Date(now).toISOString(),...patch});
+const row=(patch={})=>({user_id:OWNER,show_timeline:true,currency:'USD',always_pinned_log_id:null,always_pinned_insight_id:null,event_types:pref().eventTypes.filter(type=>!independentTypes.includes(type)),...Object.fromEntries(independentTypes.map(type=>[`show_${type}`,false])),show_return_drawdown:null,revision:1,updated_at:new Date(now).toISOString(),...patch});
 const deferred=()=>{let resolve;const promise=new Promise(r=>resolve=r);return{promise,resolve};};
-function fixture(initial=row(),{eventTarget=null}={}){
+function fixture(initial=row(),{eventTarget=null,pinSchema=true}={}){
  const calls=[],disk=new Map();let data=initial,owner=OWNER,nextRead=null,afterRequest=null,writeFailure=null;
  const storage={getItem:k=>disk.get(k)||null,setItem:(k,v)=>disk.set(k,v)};
- const supabase={auth:{getUser:async()=>({data:{user:owner?{id:owner}:null}})},from(table){assert.equal(table,'review_display_preferences');let op='read',payload,filters={};return{
-  select(){return this;},eq(k,v){filters[k]=v;return this;},insert(p){op='insert';payload=p;return this;},update(p){op='update';payload=p;return this;},async maybeSingle(){
-   calls.push({op,payload,filters});let result;
+ const supabase={auth:{getUser:async()=>({data:{user:owner?{id:owner}:null}})},from(table){assert.equal(table,'review_display_preferences');let op='read',payload,columns,filters={};return{
+  select(value){columns=value;return this;},eq(k,v){filters[k]=v;return this;},insert(p){op='insert';payload=p;return this;},update(p){op='update';payload=p;return this;},async maybeSingle(){
+   calls.push({op,payload,columns,filters});let result;
+   if(!pinSchema&&columns.includes('always_pinned_log_id')){
+    return {data:null,error:{code:op==='read'?'42703':'PGRST204',message:'Unknown column always_pinned_log_id'}};
+   }
    if(op==='read'){const snapshot=data?structuredClone(data):null,pending=nextRead;nextRead=null;result=pending?await pending.promise:{data:snapshot,error:null};}
-   else if(op==='insert'){if(data)result={data:null,error:{code:'23505'}};else{data={...payload};result={data:structuredClone(data),error:null};}}
+   else if(op==='insert'){if(data)result={data:null,error:{code:'23505'}};else{data={...row(),...payload};result={data:structuredClone(data),error:null};}}
    else if(!data||data.user_id!==filters.user_id||data.revision!==filters.revision)result={data:null,error:null};
    else{data={...data,...payload};result={data:structuredClone(data),error:null};}
+   if(!columns.includes('always_pinned_log_id')&&result.data) {
+    delete result.data.always_pinned_log_id;delete result.data.always_pinned_insight_id;
+   }
    if(op!=='read'&&writeFailure)result={data:null,error:writeFailure};
    afterRequest?.();return result;
   }
  };}};
  const repo=createReviewPreferencesRepository({supabase,storage,now:()=>now,eventTarget});
- return{repo,calls,disk,storage,supabase,get row(){return data;},set row(v){data=v;},set owner(v){owner=v;},set pendingRead(v){nextRead=v;},set after(v){afterRequest=v;},set writeFailure(v){writeFailure=v;}};
+ return{repo,calls,disk,storage,supabase,get row(){return data;},set row(v){data=v;},set owner(v){owner=v;},set pendingRead(v){nextRead=v;},set after(v){afterRequest=v;},set writeFailure(v){writeFailure=v;},set pinSchema(v){pinSchema=v;}};
 }
 
 test('dedicated repository reads defaults without creating a row',async()=>{
@@ -106,7 +112,7 @@ test('cross-tab events and later remounts cannot regress the cached revision',as
  const f=fixture(row({revision:4,show_timeline:false}),{eventTarget});await f.repo.fetchReviewPreferences(OWNER);
  const key=[...f.disk.keys()][0],updates=[];
  const unsubscribe=f.repo.subscribeReviewPreferences(OWNER,value=>updates.push(value.revision));
- const envelope=(revision,showTimeline)=>JSON.stringify({version:3,ownerId:OWNER,savedAt:now,record:{preferences:pref({showTimeline}),revision,exists:true,updatedAt:new Date(now).toISOString()}});
+ const envelope=(revision,showTimeline)=>JSON.stringify({version:4,ownerId:OWNER,savedAt:now,record:{preferences:pref({showTimeline}),revision,exists:true,alwaysPinSupported:true,updatedAt:new Date(now).toISOString()}});
  const dispatch=raw=>{f.disk.set(key,raw);for(const handler of handlers)handler({key,newValue:raw});};
  dispatch(envelope(2,true));assert.deepEqual(updates,[]);assert.equal(f.repo.readCachedReviewPreferences(OWNER).revision,4);
  dispatch('not-json');assert.equal(f.repo.readCachedReviewPreferences(OWNER).revision,4);
@@ -217,8 +223,8 @@ test('version-one caches cannot reinterpret an absent return key as a new indepe
  const cloud=await f.repo.fetchReviewPreferences(OWNER);
  assert.deepEqual(cloud.preferences.eventTypes,['drawdown','return_drawdown']);
  assert.equal(cloud.revision,1,'old cache revision cannot suppress the fresh schema');
- const stored=JSON.parse(f.disk.get('bottomline_review_display_preferences_v3'));
- assert.equal(stored.version,3);
+ const stored=JSON.parse(f.disk.get('bottomline_review_display_preferences_v4'));
+ assert.equal(stored.version,4);
  assert.equal(stored.ownerId,OWNER);
  assert.equal(f.repo.readCachedReviewPreferences(OTHER),null);
 });
@@ -232,7 +238,7 @@ test('old v2 cache cannot silently disable new stock records or override the clo
  const current=await f.repo.fetchReviewPreferences(OWNER);
  assert.deepEqual(current.preferences.eventTypes,['daily_record','stock_daily_record']);
  assert.equal(current.revision,1);
- assert.equal(JSON.parse(f.disk.get('bottomline_review_display_preferences_v3')).version,3);
+ assert.equal(JSON.parse(f.disk.get('bottomline_review_display_preferences_v4')).version,4);
 });
 
 test('stock loss records default on independently and explicit off survives cache, old writes and master switches',async()=>{
@@ -274,4 +280,98 @@ test('migration is additive with owner read/insert/update only and no business d
  assert.match(sql,/notify pgrst, 'reload schema'/);assert.match(sql,/anonymous_can_read/);
  assert.match(sql,/matching_columns <> 7/);assert.match(sql,/conkey = array\[owner_column\]/);assert.match(sql,/confrelid = 'auth.users'::regclass/);
  assert.match(sql,/attacl is not null/);assert.match(sql,/unexpected policies/);assert.match(sql,/coalesce\(array_ndims\(event_types\), 1\) = 1/);
+});
+
+test('an owner can replace or clear each category pin without changing the other or timeline settings', async () => {
+ const f = fixture(row({ show_timeline: false, currency: 'CNY', event_types: ['drawdown'] }));
+ const insightId = 'b17d3b0a-1096-42e6-ba81-b802d1026a1b';
+ const logId = '1000000000010000001';
+ const savePin = (record, key, value) => f.repo.saveReviewPreferences({ ...record.preferences, [key]: value },
+   record.revision, OWNER, { alwaysPinKeys: [key], pinOnly: true });
+ const initial = await f.repo.fetchReviewPreferences(OWNER);
+ assert.equal(initial.alwaysPinSupported, true);
+ const log = await savePin(initial, 'alwaysPinnedLogId', logId);
+ assert.deepEqual(f.calls[1].payload, { always_pinned_log_id: logId, revision: 2, updated_at: new Date(now).toISOString() });
+ assert.deepEqual(f.calls[1].filters, { user_id: OWNER, revision: 1 });
+ const insight = await savePin(log, 'alwaysPinnedInsightId', insightId);
+ const replacement = await savePin(insight, 'alwaysPinnedLogId', '22');
+ assert.equal(replacement.preferences.alwaysPinnedLogId, '22');
+ assert.equal(replacement.preferences.alwaysPinnedInsightId, insightId);
+ await assert.rejects(savePin(insight, 'alwaysPinnedLogId', null), { code: 'REVIEW_PREFERENCES_CONFLICT' });
+
+ // An older client's timeline-only write omits both pin columns.
+ f.row = { ...f.row, currency: 'USD', revision: f.row.revision + 1 };
+ const reloaded = await f.repo.fetchReviewPreferences(OWNER);
+ const timeline = await f.repo.saveReviewPreferences({ ...reloaded.preferences, currency: 'CNY' }, reloaded.revision, OWNER);
+ assert.equal(Object.hasOwn(f.calls.at(-1).payload, 'always_pinned_log_id'), false);
+ assert.equal(Object.hasOwn(f.calls.at(-1).payload, 'always_pinned_insight_id'), false);
+ const cleared = await savePin(timeline, 'alwaysPinnedLogId', null);
+ assert.equal(cleared.preferences.alwaysPinnedLogId, null);
+ assert.equal(cleared.preferences.alwaysPinnedInsightId, insightId);
+ assert.deepEqual(cleared.preferences.eventTypes, ['drawdown', 'return_drawdown']);
+ assert.equal(cleared.preferences.showTimeline, false);
+ assert.equal(cleared.preferences.currency, 'CNY');
+
+ const remount = createReviewPreferencesRepository({ supabase: f.supabase, storage: f.storage, now: () => now, eventTarget: null });
+ assert.deepEqual(remount.readCachedReviewPreferences(OWNER), cleared);
+ assert.deepEqual(await remount.fetchReviewPreferences(OWNER), cleared);
+});
+
+test('a missing pin schema leaves timeline reads and saves working but pin writes cannot commit', async () => {
+ const f = fixture(row({ currency: 'CNY', event_types: [] }), { pinSchema: false });
+ const legacy = await f.repo.fetchReviewPreferences(OWNER);
+ assert.equal(legacy.alwaysPinSupported, false);
+ assert.equal(legacy.preferences.currency, 'CNY');
+ assert.deepEqual(legacy.preferences.eventTypes, []);
+ assert.equal(legacy.preferences.alwaysPinnedLogId, null);
+ const saved = await f.repo.saveReviewPreferences({ ...legacy.preferences, showTimeline: false }, legacy.revision, OWNER);
+ assert.equal(saved.alwaysPinSupported, false);
+ assert.equal(saved.preferences.showTimeline, false);
+ for (const value of ['entry', null]) {
+  await assert.rejects(f.repo.saveReviewPreferences({ ...saved.preferences, alwaysPinnedLogId: value }, saved.revision, OWNER,
+    { alwaysPinKeys: ['alwaysPinnedLogId'], pinOnly: true }), { code: 'REVIEW_ALWAYS_PIN_UNAVAILABLE' });
+ }
+ assert.equal(f.row.revision, 2);
+ assert.deepEqual(f.repo.readCachedReviewPreferences(OWNER), saved);
+ f.pinSchema = true;
+ const current = await f.repo.fetchReviewPreferences(OWNER);
+ assert.equal(current.alwaysPinSupported, true);
+ assert.equal(current.revision, saved.revision);
+});
+
+test('an installed older app cache can paint timeline preferences but cannot supply cloud pin state', async () => {
+ const f = fixture();
+ const cached = { version: 3, ownerId: OWNER, savedAt: now,
+   record: { preferences: pref({ currency: 'CNY', alwaysPinnedLogId: 'old' }), revision: 1, exists: true, updatedAt: new Date(now).toISOString() } };
+ f.disk.set('bottomline_review_display_preferences_v3', JSON.stringify(cached));
+ const initial = f.repo.readCachedReviewPreferences(OWNER);
+ assert.equal(initial.alwaysPinSupported, false);
+ assert.equal(initial.preferences.currency, 'CNY');
+ assert.equal(initial.preferences.alwaysPinnedLogId, null);
+ f.row = { ...f.row, always_pinned_log_id: 'fresh' };
+ const current = await f.repo.fetchReviewPreferences(OWNER);
+ assert.equal(current.alwaysPinSupported, true);
+ assert.equal(current.preferences.alwaysPinnedLogId, 'fresh');
+ f.disk.set('bottomline_review_display_preferences_v3', JSON.stringify({ ...cached, record: { ...cached.record, revision: 2 } }));
+ assert.deepEqual(f.repo.readCachedReviewPreferences(OWNER), current);
+});
+
+test('malformed cloud pin IDs cannot silently become confirmed empty preferences', async () => {
+ const f = fixture(row({ always_pinned_log_id: 'space and more' }));
+ await assert.rejects(f.repo.fetchReviewPreferences(OWNER), { code: 'REVIEW_PREFERENCES_INVALID' });
+ assert.equal(f.repo.readCachedReviewPreferences(OWNER), null);
+});
+
+test('always-pin migration adds only nullable owner preference columns and validates their IDs', () => {
+ const sql = readFileSync(new URL('../supabase/review_display_preferences_always_pin_20261113.sql', import.meta.url), 'utf8');
+ const statements = sql.replace(/--.*$/gm, '');
+ for (const category of ['log', 'insight']) {
+  assert.match(sql, new RegExp(`add column if not exists always_pinned_${category}_id text default null`));
+  assert.match(sql, new RegExp(`length\\(always_pinned_${category}_id\\) between 1 and 100`));
+ }
+ assert.match(sql, /owner_rls_enabled/);
+ assert.match(sql, /source_id_check_valid/);
+ assert.match(sql, /notify pgrst, 'reload schema'/);
+ assert.doesNotMatch(statements, /\b(update|insert into|delete from)\s+public\./i);
+ assert.doesNotMatch(statements, /\b(grant|revoke|create policy|drop policy|alter column)\b/i);
 });

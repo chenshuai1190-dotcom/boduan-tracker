@@ -6,7 +6,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { transformWithOxc } from 'vite';
 
 const source = readFileSync(new URL('../src/pages/ReviewJournalPage.jsx', import.meta.url), 'utf8');
-const pageSource = source.slice(source.indexOf('export default function ReviewJournalPage'));
+const pageSource = source.slice(source.indexOf('function AlwaysPinIcon'));
 const dataUrl = code => `data:text/javascript;base64,${Buffer.from(code).toString('base64')}`;
 const systemIdentitySource = readFileSync(new URL('../src/components/ReviewSystemIdentity.jsx', import.meta.url), 'utf8');
 const systemIdentityModule = dataUrl((await transformWithOxc(`
@@ -427,12 +427,13 @@ async function harness({ removeReply, preferences = {}, localPreferences = new M
     } : localStorage,
     preferenceState: {
       preferences: { showTimeline: false, currency: 'USD', eventTypes: [], ...preferences },
-      ready: true, loading: false, canEdit: true, saving: false, error: '',
+      ready: true, loading: false, canEdit: true, saving: false, error: '', alwaysPinSupported: true,
       updatePreferences: async patch => {
         fixture.preferenceState.preferences = { ...fixture.preferenceState.preferences, ...patch };
         return true;
       },
       retry: async () => {},
+      reload: async () => true,
     },
     document: { activeElement: null },
     window: { scrollX: 0, scrollY: 740, getSelection: () => ({ toString: () => fixture.selection || '' }), scrollTo: value => { scrolls.push(value); fixture.window.scrollX = value.left; fixture.window.scrollY = value.top; } },
@@ -945,6 +946,76 @@ test('stock tags open a cross-category exact-match feed without changing categor
   assert.equal(find(tree,node=>node.type==='input').props.value,'继续观察');
   assert.equal(h.fixture.window.scrollY,740);
   assert.equal(h.saves.length,0);
+  h.unmount();
+});
+
+test('always pin holds one place per category and leaves ordinary pinning intact', async () => {
+  const h = await harness();
+  h.ctx.reviewLogs = [
+    { id: 'ordinary', date: '2026-11-06', text: '普通置顶', pinned: true },
+    { id: 'second', date: '2026-11-05', text: '较新记录' },
+    { id: 'first', date: '2026-11-04', text: '较旧记录' },
+  ];
+  h.ctx.disciplines = [{ id: 'first', date: '2026-11-01', text: '心得' }];
+  const posts = tree => visible(tree).filter(node => node.type === 'article');
+  const keys = tree => posts(tree).map(node => node.props['data-rj-entry-key']);
+  const openMenu = (tree, key) => {
+    button(posts(tree).find(node => node.props['data-rj-entry-key'] === key), '记录操作').props.onClick();
+    return h.render();
+  };
+  const alwaysPinButton = tree => find(tree,node=>hasClass(node,'rj-menu-always-pin'));
+
+  let tree = h.render();
+  button(tree,'复盘日志').props.onClick();
+  tree = openMenu(h.render(),'log:first');
+  assert.ok(button(tree,'置顶'));
+  await alwaysPinButton(tree).props.onClick();
+  tree = h.render();
+  assert.deepEqual(keys(tree),['log:first','log:ordinary','log:second']);
+  assert.equal(find(posts(tree)[0],node=>node.props['aria-label']==='始终置顶').props.role,'img');
+  assert.ok(find(posts(tree)[1],node=>node.props['aria-label']==='已置顶'));
+
+  tree = openMenu(tree,'log:second');
+  assert.match(textOf(alwaysPinButton(tree)),/替换当前排在首位的记录/);
+  await alwaysPinButton(tree).props.onClick();
+  tree = h.render();
+  assert.deepEqual(keys(tree),['log:second','log:ordinary','log:first']);
+  button(tree,'投资心得').props.onClick();
+  tree = openMenu(h.render(),'insight:first');
+  await alwaysPinButton(tree).props.onClick();
+  tree = h.render();
+  assert.equal(h.fixture.preferenceState.preferences.alwaysPinnedLogId,'second');
+  assert.equal(h.fixture.preferenceState.preferences.alwaysPinnedInsightId,'first');
+
+  button(tree,'复盘日志').props.onClick();
+  tree = openMenu(h.render(),'log:second');
+  assert.equal(textOf(alwaysPinButton(tree)),'取消始终置顶');
+  await alwaysPinButton(tree).props.onClick();
+  tree = h.render();
+  assert.deepEqual(keys(tree),['log:ordinary','log:second','log:first']);
+  assert.equal(h.fixture.preferenceState.preferences.alwaysPinnedInsightId,'first');
+  assert.equal(h.saves.length,0);
+  h.unmount();
+});
+
+test('a failed always-pin action reloads the selection and keeps the operation menu open', async () => {
+  const h = await harness({ preferences: { alwaysPinnedLogId: 'one' } });
+  const patches = [];
+  h.fixture.preferenceState.updatePreferences = async patch => { patches.push(patch); return false; };
+  h.fixture.preferenceState.reload = async () => {
+    h.fixture.preferenceState.preferences.alwaysPinnedLogId = 'two';
+    return true;
+  };
+  let tree = h.render();
+  button(tree,'复盘日志').props.onClick();
+  button(firstPost(h.render()),'记录操作').props.onClick();
+  tree = h.render();
+  await button(tree,'取消始终置顶').props.onClick();
+  tree = h.render();
+  assert.deepEqual(patches,[{alwaysPinnedLogId:null}]);
+  assert.equal(firstPost(tree).props['data-rj-entry-key'],'log:two');
+  assert.match(textOf(find(tree,node=>node.props.role==='alert')),/未能确认始终置顶/);
+  assert.ok(find(tree,node=>hasClass(node,'rj-menu-always-pin')));
   h.unmount();
 });
 

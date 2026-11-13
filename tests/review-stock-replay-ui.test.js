@@ -132,7 +132,7 @@ async function harness({ observer = true } = {}) {
       const ReviewEvaluationComposer = () => null, EvaluationRating = () => null, ReviewAccountCard = () => null, ReviewTradeReferences = () => null, EmojiPicker = () => null;
       const Avatar = () => null, AuthorName = () => null, Photo = () => null, SnapshotCard = () => null, Composer = () => null;
       const Dialog = ({ children }) => React.createElement('section', { role: 'dialog' }, children);
-      ${pageSource.slice(pageSource.indexOf('export default function ReviewJournalPage')).replaceAll('import.meta.env.DEV', 'true')}
+      ${pageSource.slice(pageSource.indexOf('function AlwaysPinIcon')).replaceAll('import.meta.env.DEV', 'true')}
     `, 'ReviewJournalReplayUITest.jsx', { jsx: { runtime: 'classic' } });
     fixture.Page = (await import(dataUrl(page.code))).default;
   } finally { delete globalThis[fixtureKey]; }
