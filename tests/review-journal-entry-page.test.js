@@ -1019,6 +1019,23 @@ test('a failed always-pin action reloads the selection and keeps the operation m
   h.unmount();
 });
 
+test('private feed details display the always-pin icon for both post categories', async () => {
+  for (const [type, preferenceKey] of [['log','alwaysPinnedLogId'], ['insight','alwaysPinnedInsightId']]) {
+    const h = await harness({ preferences: { [preferenceKey]: 'pinned-post' } });
+    const entry = { id: 'pinned-post', date: '2026-11-06', text: '始终置顶的私密记录', pinned: true };
+    h.ctx.reviewLogs = type==='log'?[entry]:[];
+    h.ctx.disciplines = type==='insight'?[entry]:[];
+    const list = h.render();
+    assert.equal(find(firstPost(list),node=>hasClass(node,'rj-inline-always-pin')),undefined);
+    h.clickPost(list);
+    const post = firstPost(h.render());
+    assert.equal(post.props['data-rj-entry-key'],`${type}:pinned-post`);
+    assert.equal(find(post,node=>hasClass(node,'rj-inline-always-pin')).props['aria-label'],'始终置顶');
+    assert.equal(find(post,node=>node.props['aria-label']==='已置顶'),undefined);
+    h.unmount();
+  }
+});
+
 test('tag and entry navigation preserve parent pages and positions through browser history',async()=>{
   const h=await harness();h.ctx.reviewLogs[0].text='NVDA 与 QQQ';
   let tree=h.render();

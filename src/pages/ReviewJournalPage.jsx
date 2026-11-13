@@ -429,10 +429,14 @@ export default function ReviewJournalPage({ ctx }) {
   const timelineEntries=timelineEvents.map(event=>projectReviewTimelineEntry(event,storedTimelineEntries));
   const getTimelineCommentCount=event=>{const projected=projectReviewTimelineEntry(resolveReviewTimelineEvent(timelineEvents,event.id)||event,storedTimelineEntries);return projected.replies.length+(communityCounts.userId===userId?storedTimelineEntries.filter(entry=>projected.timelineSourceEventIds?.includes(entry.timelineEvent?.id)).reduce((sum,entry)=>sum+(communityCounts.values[`log:${entry.id}`]||0),0):0);};
   const all=[...journalEntries,...timelineEntries];
-  const pinPreferenceKey=filter==='log'?'alwaysPinnedLogId':filter==='insight'?'alwaysPinnedInsightId':null;
+  const pinPreferenceKeyFor=type=>type==='log'?'alwaysPinnedLogId':type==='insight'?'alwaysPinnedInsightId':null;
+  const pinPreferenceKey=pinPreferenceKeyFor(filter);
   const alwaysPinnedId=pinPreferenceKey?preferences[pinPreferenceKey]:null;
-  const isAlwaysPinned=entry=>entry.type===filter&&String(entry.id)===alwaysPinnedId;
-  const hasAlwaysPinnedEntry=Boolean(alwaysPinnedId&&journalEntries.some(isAlwaysPinned));
+  const isAlwaysPinned=entry=>{
+    const key=pinPreferenceKeyFor(entry.type);
+    return key!==null&&String(entry.id)===preferences[key];
+  };
+  const hasAlwaysPinnedEntry=Boolean(alwaysPinnedId&&journalEntries.some(entry=>entry.type===filter&&isAlwaysPinned(entry)));
   const ordinaryFeed=reviewJournalFeed(disciplines,reviewLogs,filter,query,alwaysPinnedId);
   const feed=tagSymbol?journalEntries.filter(entry=>(entry.stocks||[]).includes(tagSymbol)||findReviewStockMentions(entry.text,[...(entry.stocks||[]),...suggestions]).includes(tagSymbol))
     :filter==='all'?mergeReviewTimelineFeed(journalEntries.filter(entry=>entry.visibility!=='public'),rawTimelineEvents,{...preferences,showTimeline:mixedFeedEnabled},{query}):ordinaryFeed;
@@ -661,9 +665,9 @@ export default function ReviewJournalPage({ ctx }) {
     <Avatar identity={identity} userId={userId} preview={preview}/><div className="rj-post-main">
       <div className="rj-post-heading">
         <AuthorName identity={identity} />
-        {!tagSymbol&&(isAlwaysPinned(entry)
+        {!tagSymbol&&(full||filter!=='all')&&(isAlwaysPinned(entry)
           ? <span className="rj-inline-pin rj-inline-always-pin" role="img" aria-label="始终置顶"><AlwaysPinIcon size={13}/></span>
-          : (full||filter!=='all')&&entry.pinned&&<span className="rj-inline-pin" role="img" aria-label="已置顶"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 4h14M12 21V9m-5 5 5-5 5 5"/></svg></span>)}
+          : entry.pinned&&<span className="rj-inline-pin" role="img" aria-label="已置顶"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 4h14M12 21V9m-5 5 5-5 5 5"/></svg></span>)}
         <span>·</span><ReviewActivityTime createdAt={entry.createdAt} date={entry.date} language={language}/>
         {entry.visibility==='public'&&<span className="rj-public-label">公开</span>}
         <button className="rj-icon rj-post-more" aria-label="记录操作" onClick={()=>{setMenu(entry);setConfirmDelete(false);setError('');}}><MoreHorizontal size={19}/></button>
