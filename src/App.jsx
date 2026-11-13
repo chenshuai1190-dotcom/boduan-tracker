@@ -1,5 +1,5 @@
 import React, { lazy, Suspense, useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef } from 'react';
-import { BookOpen, TrendingDown, TrendingUp, Target, AlertCircle, CheckCircle2, Clock, Trash2, Plus, RefreshCw, Wifi, WifiOff, Home, ListChecks, BarChart3, Settings, LogOut, Loader2, Wallet, Calendar, X, Edit2, ChevronRight, AlertTriangle, Pin, ChevronDown, ChevronUp } from 'lucide-react';
+import { TrendingDown, TrendingUp, Target, AlertCircle, CheckCircle2, Clock, Trash2, Plus, RefreshCw, Wifi, WifiOff, BarChart3, LogOut, Loader2, Calendar, X, Edit2, ChevronRight, AlertTriangle, Pin, ChevronDown, ChevronUp } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import * as db from './lib/db';
 import { deriveInvestmentSummary } from './lib/investmentSummary.js';
@@ -34,7 +34,6 @@ import { COMMUNITY_COMPETITION_PUBLICATION_EVENT } from './lib/communityCompetit
 import { enqueuePnlReportRecalculationAfterLedgerMutation } from './lib/pnlReportRecalculation.js';
 import { createPnlShareIdentity } from './lib/pnlShareIdentity.js';
 import './components/ReportBottomNav.css';
-import ReportBottomNavIcon from './components/ReportBottomNavIcon.jsx';
 import useReviewScrollNavigation from './hooks/useReviewScrollNavigation.js';
 import useReviewFeedUnread from './hooks/useReviewFeedUnread.js';
 import YearlyActualModal from './components/YearlyActualModal.jsx';
@@ -5795,11 +5794,11 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
           <div className="max-w-5xl mx-auto">
             <div className="report-bottom-nav-grid grid grid-cols-5">
               {[
-                { id: 'home',     label: t(language, 'nav.home', '首页'), icon: Home },
-                { id: 'trades',   label: t(language, 'nav.trades', '交易'), icon: ListChecks },
-                { id: 'analysis', label: t(language, 'nav.analysis', '资产'), icon: Wallet },
-                { id: 'review',   label: t(language, 'nav.review', '动态'), icon: BookOpen },
-                { id: 'settings', label: t(language, 'nav.settings', '设置'), icon: Settings },
+                { id: 'home',     label: t(language, 'nav.home', '首页') },
+                { id: 'trades',   label: t(language, 'nav.trades', '交易') },
+                { id: 'analysis', label: t(language, 'nav.analysis', '资产') },
+                { id: 'review',   label: t(language, 'nav.review', '动态') },
+                { id: 'settings', label: t(language, 'nav.settings', '设置') },
               ].map(tab => {
                 const isActive = activeTab === tab.id;
                 return (
@@ -5810,11 +5809,8 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
                     className="report-bottom-nav-tab"
                     aria-current={isActive ? 'page' : undefined}
                   >
-                    <span className="report-bottom-nav-icon-wrap">
-                      <ReportBottomNavIcon tabId={tab.id} className="report-bottom-nav-icon" />
-                      {tab.id === 'review' && reviewFeedUnread.unreadCount > 0 && <span className="report-bottom-nav-new-posts" aria-label={language.startsWith('en') ? `${reviewFeedUnread.unreadCount} new posts` : `${reviewFeedUnread.unreadCount} 条新帖子`}>{reviewFeedUnread.unreadCount > 99 ? '99+' : reviewFeedUnread.unreadCount}</span>}
-                    </span>
                     <span className="report-bottom-nav-label">{tab.label}</span>
+                    {tab.id === 'review' && reviewFeedUnread.unreadCount > 0 && <span className="report-bottom-nav-new-posts" aria-label={language.startsWith('en') ? `${reviewFeedUnread.unreadCount} new posts` : `${reviewFeedUnread.unreadCount} 条新帖子`}>{reviewFeedUnread.unreadCount > 99 ? '99+' : reviewFeedUnread.unreadCount}</span>}
                   </button>
                 );
               })}

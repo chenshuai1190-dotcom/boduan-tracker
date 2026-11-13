@@ -13,8 +13,7 @@ const navigation = app.slice(start, end);
 const result = await transformWithOxc(`
   import React from ${JSON.stringify(import.meta.resolve('react'))};
   import { t } from ${JSON.stringify(new URL('../src/lib/i18n.js', import.meta.url).href)};
-  const Home=()=>null,ListChecks=Home,Wallet=Home,BookOpen=Home,Settings=Home,WifiOff=Home;
-  function ReportBottomNavIcon(){return null;}
+  const WifiOff=()=>null;
   export function Navigation({count,language='zh'}) {
     const reviewFeedUnread={unreadCount:count},hideBottomNavigation=false,reviewNavigationHidden=false,
       activeTab='home',darkShell=true,showQuoteFetchError=false,fetchError='',handleBottomTabClick=()=>{};
@@ -37,12 +36,12 @@ test('production Dynamic badge hides zero/unavailable and caps display at 99+', 
   }
 });
 
-test('badge uses its own solid background and isolated icon layer without blur or opacity', () => {
+test('badge uses its own solid background and isolated tab layer without blur or opacity', () => {
   const badge = css.match(/\.report-bottom-nav-new-posts\s*\{([^}]+)\}/)?.[1];
   assert.ok(badge); assert.match(badge,/background:\s*#ed4b4f/); assert.match(badge,/color:\s*#fff/);
   assert.match(badge,/font-variant-numeric:\s*tabular-nums/); assert.match(badge,/white-space:\s*nowrap/);
   assert.match(badge,/z-index:\s*1/); assert.doesNotMatch(badge,/filter|opacity/);
-  assert.match(css,/\.report-bottom-nav-icon-wrap\s*\{[^}]*isolation:\s*isolate/);
+  assert.match(css,/\.report-bottom-nav-tab\s*\{[^}]*isolation:\s*isolate/);
 });
 
 test('Dynamic requests the All root so the page can restore its saved scope without clearing counts on the tap itself', () => {

@@ -17,23 +17,18 @@ import {
   ChevronRight,
   ChevronUp,
   Edit2,
-  Home,
-  ListChecks,
   Loader2,
   LogOut,
   Pin,
   Plus,
   RefreshCw,
-  Settings,
   Target,
   TrendingUp,
   Trash2,
-  Wallet,
   X,
 } from 'lucide-react';
 import ConfirmModal from './components/ConfirmModal.jsx';
 import './components/ReportBottomNav.css';
-import ReportBottomNavIcon from './components/ReportBottomNavIcon.jsx';
 import useReviewScrollNavigation from './hooks/useReviewScrollNavigation.js';
 import useReviewFeedUnread from './hooks/useReviewFeedUnread.js';
 import { createReviewFeedUnreadPreview, REVIEW_FEED_PREVIEW_OWNER } from './dev/reviewFeedUnreadPreview.js';
@@ -3544,11 +3539,11 @@ function StandardDevVisualPreview({ initialTab = '' }) {
 
   const reviewNavigationHidden = useReviewScrollNavigation(activeTab === 'review');
   const nav = [
-    { id: 'home', label: t(language, 'nav.home', '首页'), icon: Home },
-    { id: 'trades', label: t(language, 'nav.trades', '交易'), icon: ListChecks },
-    { id: 'analysis', label: t(language, 'nav.analysis', '资产'), icon: Wallet },
-    { id: 'review', label: t(language, 'nav.review', '动态'), icon: BookOpen },
-    { id: 'settings', label: t(language, 'nav.settings', '设置'), icon: Settings },
+    { id: 'home', label: t(language, 'nav.home', '首页') },
+    { id: 'trades', label: t(language, 'nav.trades', '交易') },
+    { id: 'analysis', label: t(language, 'nav.analysis', '资产') },
+    { id: 'review', label: t(language, 'nav.review', '动态') },
+    { id: 'settings', label: t(language, 'nav.settings', '设置') },
   ];
 
   return (
@@ -3677,11 +3672,8 @@ function StandardDevVisualPreview({ initialTab = '' }) {
                   aria-current={isActive ? 'page' : undefined}
                   type="button"
                 >
-                  <span className="report-bottom-nav-icon-wrap">
-                    <ReportBottomNavIcon tabId={tab.id} className="report-bottom-nav-icon" />
-                    {tab.id === 'review' && reviewFeedUnread.unreadCount > 0 && <span className="report-bottom-nav-new-posts" aria-label={language.startsWith('en') ? `${reviewFeedUnread.unreadCount} new posts` : `${reviewFeedUnread.unreadCount} 条新帖子`}>{reviewFeedUnread.unreadCount > 99 ? '99+' : reviewFeedUnread.unreadCount}</span>}
-                  </span>
                   <span className="report-bottom-nav-label">{tab.label}</span>
+                  {tab.id === 'review' && reviewFeedUnread.unreadCount > 0 && <span className="report-bottom-nav-new-posts" aria-label={language.startsWith('en') ? `${reviewFeedUnread.unreadCount} new posts` : `${reviewFeedUnread.unreadCount} 条新帖子`}>{reviewFeedUnread.unreadCount > 99 ? '99+' : reviewFeedUnread.unreadCount}</span>}
                 </button>
               );
             })}
