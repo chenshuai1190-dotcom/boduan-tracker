@@ -904,7 +904,6 @@ export default function HomeTab({ ctx }) {
       </section>
 
       <section className="home-report-market" data-home-market-overview="true">
-        <div className="home-report-section-heading"><h2>{englishMode ? 'Market overview' : '市场观察'}</h2></div>
         {marketCards.length > 0 && <div className="home-report-quotes">
           {marketCards.map((item) => <MiniMarketCard key={item?.ticker || item?.displaySymbol || item?.name} item={item} marketColorMode={marketColorMode} language={language} />)}
         </div>}

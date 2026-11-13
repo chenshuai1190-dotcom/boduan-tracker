@@ -21,8 +21,6 @@
 .home-report-leverage { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 3px; }
 .home-report-leverage .home-report-balance-value { margin-top: 0; }
 .home-report-market { padding: 21px 0 22px; border-top: 1px solid var(--home-report-line); }
-.home-report-section-heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.home-report-section-heading h2 { font-size: 17px; font-weight: 500; letter-spacing: -.3px; }
 .home-report-quotes { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 13px; }
 .home-report-quote { position: relative; min-width: 0; padding-bottom: 29px; }
 .home-report-quote > div:first-child { min-height: 17px; }
