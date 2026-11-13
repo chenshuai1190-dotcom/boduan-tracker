@@ -185,7 +185,7 @@ test('stock details, scenario and record-trade actions stay separate and preserv
   assert.ok(trades.includes("setTradeEntryScope('wave')"));
   assert.ok(trades.includes('await addTrade(tradeDraft.side);'));
   assert.ok(trades.includes('deleteStockTradeRecord(trade.id)'));
-  assert.ok(trades.includes('onClick={() => openRecordsPage(trade.id)}'));
+  assert.ok(trades.includes('onClick={() => openRecordsPage(trade.id, true)}'));
   assert.ok(trades.includes('<TradeRecordsPage') && trades.includes('trades={stockTrades}'));
   assert.ok(trades.includes('onEdit={openTradeEditModal} onDelete={confirmDeleteTodayTrade}'));
   assert.ok(tradeRecords.includes('const original = selected?.sourceTrade || selected;'));

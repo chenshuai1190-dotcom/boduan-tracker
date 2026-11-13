@@ -4709,6 +4709,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   const [activePage, setActivePage] = useState(null);
   const [tradeRecordSelection, setTradeRecordSelection] = useState(null);
   const tradeRecordId = tradeRecordSelection && tradeRecordSelection.ownerId === user?.id ? tradeRecordSelection.id : null;
+  const tradeRecordFromTodayOrders = tradeRecordId !== null && tradeRecordSelection?.fromTodayOrders === true;
   const tradeRootScrollBeforeRecordsRef = useRef(0);
   const pendingTradeRootScrollRef = useRef(null);
   const lastHomeTabTapAtRef = useRef(0);
@@ -4901,11 +4902,11 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     setActiveTab('trades');
     setActivePage(null);
   }, []);
-  const openTradeRecords = useCallback((tradeId = null) => {
+  const openTradeRecords = useCallback((tradeId = null, fromTodayOrders = false) => {
     if (activeTab === 'trades' && activePage !== 'trade-records') {
       tradeRootScrollBeforeRecordsRef.current = readRootScrollTop();
     }
-    setTradeRecordSelection({ ownerId: user?.id || '', id: tradeId == null ? null : String(tradeId) });
+    setTradeRecordSelection({ ownerId: user?.id || '', id: tradeId == null ? null : String(tradeId), fromTodayOrders });
     setActiveTab('trades');
     setActivePage('trade-records');
   }, [activeTab, activePage, user?.id]);
@@ -5416,6 +5417,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     selectTradeRecord,
     tradeRecordsOpen: isTradeRecordsPage,
     tradeRecordId,
+    tradeRecordFromTodayOrders,
     openStockDecision,
     openMacro,
     openDebtManager,

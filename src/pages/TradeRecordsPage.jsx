@@ -16,7 +16,7 @@ const quantity = value => finite(Number(value)) && value !== null && value !== '
 export function TradeRecordsPageContent({
   trades = [], userId, language = 'zh', marketColorMode, displayCurrency = 'USD', usdRate,
   loading = false, error = '', onBack, onAdd, onEdit, onDelete, onCurrencyChange,
-  tradeId = null, onSelectTrade, now, active = true, pending = false, historyLoader, logoCache = {}, cacheStockLogo, stockDisplayName,
+  tradeId = null, onSelectTrade, fromTodayOrders = false, now, active = true, pending = false, historyLoader, logoCache = {}, cacheStockLogo, stockDisplayName,
 }) {
   const en = language.startsWith('en');
   const tr = (zh, english) => en ? english : zh;
@@ -27,10 +27,10 @@ export function TradeRecordsPageContent({
   const [dateError, setDateError] = React.useState('');
   const dialogRef = React.useRef(null);
   const listScroll = React.useRef(0);
-  const previousSelection = React.useRef(tradeId);
+  const previousSelection = React.useRef({ tradeId, fromTodayOrders });
   const previousActive = React.useRef(active);
   const pageScroll = React.useRef(0);
-  const returningToList = previousSelection.current != null && tradeId == null;
+  const returningToList = previousSelection.current.tradeId != null && tradeId == null;
   const missingSelection = React.useRef(null);
   const dateKey = getTradeRecordDateRange('today', { now }).fromDate;
   const all = React.useMemo(() => buildTradeRecordsView({ trades, filters: EMPTY_FILTERS, now }), [trades, now, dateKey]);
@@ -51,31 +51,37 @@ export function TradeRecordsPageContent({
   const controlsDisabled = Boolean((loading || error) && all.rows.length === 0);
 
   React.useLayoutEffect(() => {
-    if (previousSelection.current === tradeId) return;
-    const wasDetail = previousSelection.current != null;
-    if (!wasDetail && tradeId != null) listScroll.current = window.scrollY || 0;
-    previousSelection.current = tradeId;
+    const previous = previousSelection.current;
+    if (previous.tradeId === tradeId && previous.fromTodayOrders === fromTodayOrders) return;
+    previousSelection.current = { tradeId, fromTodayOrders };
+    // A detail opened directly from today's orders must not overwrite the records list's scroll.
+    if (fromTodayOrders || previous.fromTodayOrders) return;
+    if (previous.tradeId == null && tradeId != null) listScroll.current = window.scrollY || 0;
     if (active) window.scrollTo({ top: tradeId == null ? listScroll.current : 0, left: 0, behavior: 'instant' });
     pageScroll.current = tradeId == null ? listScroll.current : 0;
     setSheet(null);
-  }, [tradeId, active]);
+  }, [tradeId, active, fromTodayOrders]);
   React.useLayoutEffect(() => {
     if (previousActive.current === active) return;
     previousActive.current = active;
-    if (active) window.scrollTo({ top: pageScroll.current, left: 0, behavior: 'instant' });
+    if (active) window.scrollTo({ top: fromTodayOrders ? 0 : pageScroll.current, left: 0, behavior: 'instant' });
     else {
       // App may clear the selected trade and hide this page in the same render.
       // The selection effect has already restored the saved list position.
-      if (!returningToList) pageScroll.current = window.scrollY || 0;
+      if (!returningToList && !fromTodayOrders) pageScroll.current = window.scrollY || 0;
       setSheet(null);
     }
-  }, [active, returningToList]);
+  }, [active, returningToList, fromTodayOrders]);
+  const returnFromDetail = React.useCallback(() => {
+    if (fromTodayOrders) onBack?.();
+    else onSelectTrade?.(null);
+  }, [fromTodayOrders, onBack, onSelectTrade]);
   React.useEffect(() => {
-    if (tradeId == null || selected || loading || error) { missingSelection.current = null; return; }
+    if (!active || tradeId == null || selected || loading || error) { missingSelection.current = null; return; }
     if (missingSelection.current === tradeId) return;
     missingSelection.current = tradeId;
-    onSelectTrade?.(null);
-  }, [tradeId, selected, loading, error, onSelectTrade]);
+    returnFromDetail();
+  }, [active, tradeId, selected, loading, error, returnFromDetail]);
   React.useEffect(() => {
     if (!active || !sheet || typeof document === 'undefined') return undefined;
     const previousFocus = document.activeElement;
@@ -117,7 +123,7 @@ export function TradeRecordsPageContent({
   const stockOptions = all.stockOptions.filter(stock => !search.trim() || `${stock.symbol} ${stock.name} ${displayName(stock)}`.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()));
 
   return <main className="trade-records-page" hidden={!active}>
-    <header className="trp-header"><button type="button" className="trp-icon-button" onClick={tradeId != null ? () => onSelectTrade?.(null) : onBack} aria-label={tradeId != null ? tr('返回交易记录', 'Back to trade records') : tr('返回交易页', 'Back to Trades')}><ArrowLeft size={22}/></button><h1>{tradeId != null ? tr('交易详情', 'Trade details') : tr('交易记录', 'Trade records')}</h1>{tradeId == null ? <button type="button" className="trp-icon-button trp-add" onClick={onAdd} disabled={pending || !onAdd} aria-label={tr('新增交易', 'Add trade')}><Plus size={20}/></button> : <span/>}</header>
+    <header className="trp-header"><button type="button" className="trp-icon-button" onClick={tradeId != null ? returnFromDetail : onBack} aria-label={tradeId == null ? tr('返回交易页', 'Back to Trades') : fromTodayOrders ? tr('返回当日订单', 'Back to today’s orders') : tr('返回交易记录', 'Back to trade records')}><ArrowLeft size={22}/></button><h1>{tradeId != null ? tr('交易详情', 'Trade details') : tr('交易记录', 'Trade records')}</h1>{tradeId == null ? <button type="button" className="trp-icon-button trp-add" onClick={onAdd} disabled={pending || !onAdd} aria-label={tr('新增交易', 'Add trade')}><Plus size={20}/></button> : <span/>}</header>
     {tradeId != null ? selected ? <article className="trp-detail">
       <div className="trp-detail-identity"><div className="trp-detail-company"><StockLogo symbol={selected.symbol} urls={stockLogoCandidates(selected.symbol, logoCache?.[selected.symbol]?.url)} onLogoLoad={cacheStockLogo} className="trp-detail-logo"/><div><h2>{selected.symbol}</h2><p>{displayName(selected)}</p></div></div><span className={`trp-detail-side trp-${selected.side}`}>{selected.isHistoricalHolding ? tr('历史持仓', 'Historical holding') : sideText(selected.side)}</span></div>
       <div className="trp-detail-amount"><span>{selected.isHistoricalHolding ? tr('记录成本', 'Recorded cost') : tr('成交金额', 'Trade amount')} <small>{currency}</small></span><strong>{money(selected.amountUsd)}</strong></div>

@@ -513,18 +513,20 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
   const [colorMenuOpen, setColorMenuOpen] = React.useState(false);
   const [fallbackRecordsOpen, setFallbackRecordsOpen] = React.useState(() => initialToolPanel === 'records' || (import.meta.env.DEV && Boolean(ctx.previewOrderActionTrade)));
   const [fallbackTradeRecordId, setFallbackTradeRecordId] = React.useState(() => import.meta.env.DEV ? ctx.previewOrderActionTrade?.id || null : null);
+  const [fallbackFromTodayOrders, setFallbackFromTodayOrders] = React.useState(false);
   const recordsPageOpen = typeof ctx.tradeRecordsOpen === 'boolean' ? ctx.tradeRecordsOpen : fallbackRecordsOpen;
   const selectedTradeRecordId = typeof ctx.tradeRecordsOpen === 'boolean' ? ctx.tradeRecordId : fallbackTradeRecordId;
+  const fromTodayOrders = typeof ctx.tradeRecordsOpen === 'boolean' ? ctx.tradeRecordFromTodayOrders : fallbackFromTodayOrders;
   const [recordsEverOpened, setRecordsEverOpened] = React.useState(recordsPageOpen);
   React.useEffect(() => { if (recordsPageOpen) setRecordsEverOpened(true); }, [recordsPageOpen]);
-  const openRecordsPage = (tradeId = null) => {
+  const openRecordsPage = (tradeId = null, fromTodayOrders = false) => {
     setToolPanel('');
-    if (typeof ctx.openTradeRecords === 'function') ctx.openTradeRecords(tradeId);
-    else { setFallbackRecordsOpen(true); setFallbackTradeRecordId(tradeId); window.scrollTo(0, 0); }
+    if (typeof ctx.openTradeRecords === 'function') ctx.openTradeRecords(tradeId, fromTodayOrders);
+    else { setFallbackRecordsOpen(true); setFallbackTradeRecordId(tradeId); setFallbackFromTodayOrders(fromTodayOrders); window.scrollTo(0, 0); }
   };
   const closeRecordsPage = () => {
     if (typeof ctx.closeTradeRecords === 'function') ctx.closeTradeRecords();
-    else { setFallbackRecordsOpen(false); setFallbackTradeRecordId(null); window.scrollTo(0, 0); }
+    else { setFallbackRecordsOpen(false); setFallbackTradeRecordId(null); setFallbackFromTodayOrders(false); window.scrollTo(0, 0); }
   };
   const selectRecord = (tradeId) => {
     if (typeof ctx.selectTradeRecord === 'function') ctx.selectTradeRecord(tradeId);
@@ -1014,7 +1016,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
     const amount = toNumber(trade.price) * toNumber(trade.shares) * displayRate;
     const displayName = stockDisplayName(trade.symbol, trade.name);
     return (
-      <button key={trade.id} type="button" className="trades-report-order" onClick={() => openRecordsPage(trade.id)}>
+      <button key={trade.id} type="button" className="trades-report-order" onClick={() => openRecordsPage(trade.id, true)}>
         <span className="trades-report-order-main">
           <span className="trades-report-order-identity"><strong>{trade.symbol}</strong><small>{displayName}</small></span>
           <span className="trades-report-order-amount">{currencyAmount(amount, displayCurrency, 2)}</span>
@@ -1150,7 +1152,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
           trades={stockTrades} language={language} marketColorMode={marketColorMode}
           displayCurrency={displayCurrency} usdRate={usdRate} onCurrencyChange={setCurrencyMode}
           loading={!stockHoldingsReady} error={stockHoldingsError} active={recordsPageOpen}
-          tradeId={selectedTradeRecordId} onSelectTrade={selectRecord}
+          tradeId={selectedTradeRecordId} onSelectTrade={selectRecord} fromTodayOrders={fromTodayOrders}
           onBack={closeRecordsPage} onAdd={() => openTradeModal(null, 'buy')}
           onEdit={openTradeEditModal} onDelete={confirmDeleteTodayTrade}
           pending={tradeSubmitting} stockDisplayName={stockDisplayName} logoCache={logoCache} cacheStockLogo={cacheStockLogo}

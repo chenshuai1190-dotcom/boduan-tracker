@@ -40,7 +40,7 @@ function localNavigation(ctx = {}, initialToolPanel = '') {
 test('App routes one owner-bound record selection and restores the original Trades scroll only on close', () => {
   const { navigation, calls, refs } = appNavigation();
   navigation.openTradeRecords();
-  assert.deepEqual(calls.splice(0), [['selection', { ownerId: 'owner', id: null }], ['tab', 'trades'], ['page', 'trade-records']]);
+  assert.deepEqual(calls.splice(0), [['selection', { ownerId: 'owner', id: null, fromTodayOrders: false }], ['tab', 'trades'], ['page', 'trade-records']]);
   assert.equal(refs.tradeRootScrollBeforeRecordsRef.current, 540);
   navigation.selectTradeRecord(42);
   assert.deepEqual(calls.splice(0), [['selection', { ownerId: 'owner', id: '42' }]], 'detail selection does not replace the App route');
@@ -50,7 +50,8 @@ test('App routes one owner-bound record selection and restores the original Trad
   assert.deepEqual(calls, [['selection', null], ['tab', 'trades'], ['page', null]]);
   assert.equal(refs.pendingTradeRootScrollRef.current, 540);
   const alreadyOpen = appNavigation({ activePage: 'trade-records', initialScroll: 210 });
-  alreadyOpen.navigation.openTradeRecords('next');
+  alreadyOpen.navigation.openTradeRecords('next', true);
+  assert.deepEqual(alreadyOpen.calls[0], ['selection', { ownerId: 'owner', id: 'next', fromTodayOrders: true }]);
   assert.equal(alreadyOpen.refs.tradeRootScrollBeforeRecordsRef.current, 210, 'opening a detail cannot overwrite the root scroll');
   const ownerGuard = app.match(/  const tradeRecordId = ([^;]+);/)?.[1];
   assert.ok(ownerGuard);
@@ -88,9 +89,9 @@ test('the actual App content keeps the same Trades component type and key for ro
   for (const binding of ['openTradeRecords,', 'closeTradeRecords,', 'selectTradeRecord,', 'tradeRecordsOpen: isTradeRecordsPage,', 'tradeRecordId,']) assert.ok(context.includes(binding));
 });
 
-test('both list entries and a today-order click call the same controlled page opener', () => {
+test('trade record shortcuts open the list and today orders mark their detail origin', () => {
   const events = [];
-  const local = localNavigation({ tradeRecordsOpen: false, tradeRecordId: null, openTradeRecords: id => events.push(['open', id]) });
+  const local = localNavigation({ tradeRecordsOpen: false, tradeRecordId: null, openTradeRecords: (...args) => events.push(['open', ...args]) });
   const tools = trades.slice(trades.indexOf('{showAllToolsModal && ('), trades.indexOf('</ActionModalCard>', trades.indexOf('{showAllToolsModal && (')));
   const handler = tools.match(/onSelect=\{\(toolId\) => \{([\s\S]*?)\}\}\s*\/>/)?.[1];
   const shortcut = trades.slice(trades.indexOf('<section className="trades-report-tools"'), trades.indexOf('{showAllToolsModal && ('));
@@ -98,23 +99,23 @@ test('both list entries and a today-order click call the same controlled page op
   const todayHandler = trades.match(/className="trades-report-order" onClick=\{\(\) => ([^}]+)\}/)?.[1];
   assert.ok(handler && shortcutHandler && todayHandler);
   new Function('toolId', 'setShowAllToolsModal', 'openRecordsPage', handler)('records', value => events.push(['sheet', value]), local.openRecordsPage);
-  assert.deepEqual(events.splice(0), [['sheet', false], ['open', null]]);
+  assert.deepEqual(events.splice(0), [['sheet', false], ['open', null, false]]);
   assert.deepEqual(local.calls.splice(0), [['panel', '']]);
   new Function('item', 'setColorMenuOpen', 'openRecordsPage', shortcutHandler)({ id: 'records' }, value => events.push(['color', value]), local.openRecordsPage);
-  assert.deepEqual(events.splice(0), [['color', false], ['open', null]]);
+  assert.deepEqual(events.splice(0), [['color', false], ['open', null, false]]);
   new Function('trade', 'openRecordsPage', todayHandler)({ id: 'real-trade-id' }, local.openRecordsPage);
-  assert.deepEqual(events, [['open', 'real-trade-id']]);
+  assert.deepEqual(events, [['open', 'real-trade-id', true]]);
   assert.doesNotMatch(`${handler}\n${shortcutHandler}\n${todayHandler}`, /pushState|replaceState|\bdb\.|\bsupabase\.|fetch\(/);
 });
 
 test('controlled navigation wins over preview fallbacks without writing a transaction', () => {
   const events = [];
   const local = localNavigation({ tradeRecordsOpen: false, tradeRecordId: null,
-    openTradeRecords: id => events.push(['open', id]), closeTradeRecords: () => events.push(['close']),
+    openTradeRecords: (...args) => events.push(['open', ...args]), closeTradeRecords: () => events.push(['close']),
     selectTradeRecord: id => events.push(['select', id]) }, 'records');
   assert.equal(local.recordsPageOpen, false); assert.equal(local.selectedTradeRecordId, null);
   local.openRecordsPage('trade'); local.selectRecord(null); local.closeRecordsPage();
-  assert.deepEqual(events, [['open', 'trade'], ['select', null], ['close']]);
+  assert.deepEqual(events, [['open', 'trade', false], ['select', null], ['close']]);
   assert.deepEqual(local.calls, [['panel', '']], 'controlled routing must not mutate fallback state');
   assert.equal(localNavigation({}, 'records').recordsPageOpen, true, 'the existing explicit preview entry still opens the records page');
   assert.doesNotMatch(localBindings, /pushState|replaceState|\bdb\.|\bsupabase\.|addTrade\(|deleteStockTradeRecord\(/);
@@ -131,7 +132,7 @@ test('record presentation stays mounted after first use and forwards the origina
     export function render(options) {
       const { recordsEverOpened, recordsPageOpen, stockTrades, openTradeEditModal, confirmDeleteTodayTrade, openTradeModal } = options;
       const ctx = { user: { id: 'owner' } }, language = 'zh', marketColorMode = 'red-up', displayCurrency = 'USD', usdRate = 7;
-      const setCurrencyMode = () => {}, stockHoldingsReady = true, stockHoldingsError = null, selectedTradeRecordId = 'trade';
+      const setCurrencyMode = () => {}, stockHoldingsReady = true, stockHoldingsError = null, selectedTradeRecordId = 'trade', fromTodayOrders = true;
       const selectRecord = () => {}, closeRecordsPage = () => {}, tradeSubmitting = true, logoCache = {}, cacheStockLogo = () => {};
       const stockDisplayName = (symbol, name) => name || symbol;
       return <>${element}</>;
@@ -149,6 +150,7 @@ test('record presentation stays mounted after first use and forwards the origina
   const page = opened.props.children;
   assert.equal(page.type, TradeRecordsPage); assert.equal(page.key, closed.props.children.key);
   assert.equal(page.props.trades, stockTrades); assert.equal(page.props.onEdit, edit); assert.equal(page.props.onDelete, remove);
+  assert.equal(page.props.fromTodayOrders, true);
   assert.equal(page.props.pending, true); assert.equal(closed.props.children.props.active, false);
   page.props.onEdit(stockTrades[0]); page.props.onDelete(stockTrades[0]); page.props.onAdd();
   assert.deepEqual(actions, [['edit', stockTrades[0]], ['delete', stockTrades[0]], ['add', null, 'buy']]);

@@ -3312,12 +3312,15 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     englishMode={language === 'en'} tt={(key, fallback, variables) => t(language, key, fallback, variables)} /> : null;
   const [tradeRecordsOpen, setTradeRecordsOpen] = React.useState(() => new URLSearchParams(window.location.search).get('tradeRecords') === '1' || (featurePreview && !stockTradePreview));
   const [tradeRecordId, setTradeRecordId] = React.useState(() => featurePreviewSection === 'outcome' ? exposurePreviewTrades.find(row => row.id === 'outcome-nvda')?.id || null : null);
+  const [tradeRecordFromTodayOrders, setTradeRecordFromTodayOrders] = React.useState(false);
+  const [removedPreviewTradeIds, setRemovedPreviewTradeIds] = React.useState([]);
   const tradeRecordsActive = activeTab === 'trades' && tradeRecordsOpen;
   const tradesCtx = {
     tradeRecordsOpen,
     tradeRecordId,
-    openTradeRecords: id => { setTradeRecordId(id == null ? null : String(id)); setTradeRecordsOpen(true); window.scrollTo(0, 0); },
-    closeTradeRecords: () => { setTradeRecordId(null); setTradeRecordsOpen(false); window.scrollTo(0, 0); },
+    tradeRecordFromTodayOrders,
+    openTradeRecords: (id, fromTodayOrders) => { setTradeRecordId(id == null ? null : String(id)); setTradeRecordFromTodayOrders(Boolean(fromTodayOrders)); setTradeRecordsOpen(true); window.scrollTo(0, 0); },
+    closeTradeRecords: () => { setTradeRecordId(null); setTradeRecordFromTodayOrders(false); setTradeRecordsOpen(false); window.scrollTo(0, 0); },
     selectTradeRecord: setTradeRecordId,
     buyDisciplinePreview: buyDisciplineFixture,
     tradeVixRatioPreview,
@@ -3345,7 +3348,7 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     communityCompetitionClient,
     communityCompetitionNow,
     db,
-    deleteStockTradeRecord: async () => {},
+    deleteStockTradeRecord: async id => { setRemovedPreviewTradeIds(current => [...current, String(id)]); },
     disableCommunityCompetitionCache: !competitionResumeSmoke,
     editingNoteId,
     expandedWaves,
@@ -3418,7 +3421,9 @@ function StandardDevVisualPreview({ initialTab = '' }) {
     showAddTrade,
     showConfirm: showPreviewConfirm,
     stockFreshnessStartedAt: freshnessPreviewMode === 'warming' ? Date.now() : 0,
-    stockTrades: (featurePreview ? exposurePreviewTrades : tradePreviewStockTrades).map(row => ({ ...row, currency: row.currency || 'USD', fee: row.fee ?? 0 })),
+    stockTrades: (featurePreview ? exposurePreviewTrades : tradePreviewStockTrades)
+      .filter(row => !removedPreviewTradeIds.includes(String(row.id)))
+      .map(row => ({ ...row, currency: row.currency || 'USD', fee: row.fee ?? 0 })),
     stockHoldingsReady: true,
     stockHoldingsError: null,
     displayStockName: (symbol, name, displayLanguage = language) => {

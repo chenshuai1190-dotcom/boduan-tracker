@@ -51,6 +51,7 @@ function harness(initial = {}) {
     addEventListener: (name, fn) => listeners.set(name, fn), removeEventListener: name => listeners.delete(name) };
   const same = (a, b) => a && b && a.length === b.length && b.every((item, i) => Object.is(item, a[i]));
   const hooks = { ...React,
+    useCallback(callback) { return callback; },
     useState(initial) { const i = cursor++; if (!(i in slots)) slots[i] = typeof initial === 'function' ? initial() : initial; return [slots[i], next => { slots[i] = typeof next === 'function' ? next(slots[i]) : next; }]; },
     useRef(initial) { const i = cursor++; if (!(i in slots)) slots[i] = { current: initial }; return slots[i]; },
     useMemo(calculate, deps) { const i = cursor++; if (!same(slots[i]?.deps, deps)) slots[i] = { value: calculate(), deps }; return slots[i].value; },
@@ -135,6 +136,35 @@ test('successful deletion returns to list, while loading/error do not masquerade
   h.render({ loading: false, error: 'network unavailable' }); assert.deepEqual(h.calls, []);
   h.render({ error: '' }); assert.deepEqual(h.calls, [['select', null]]);
   assert.equal(byClass(h.render(), 'trp-detail').length, 0);
+});
+
+test('a detail opened from today’s orders returns there after deletion or a back tap', () => {
+  const removed = harness({ tradeId: 'msft-new', fromTodayOrders: true });
+  removed.render();
+  removed.render({ trades: TRADES.slice(1), loading: true });
+  assert.deepEqual(removed.calls, []);
+  removed.render({ loading: false });
+  assert.deepEqual(removed.calls, [['back']]);
+  removed.render();
+  assert.deepEqual(removed.calls, [['back']], 'the absent selection must not navigate twice');
+
+  const back = harness({ tradeId: 'msft-new', fromTodayOrders: true });
+  button(back.render(), '返回当日订单').props.onClick();
+  assert.deepEqual(back.calls, [['back']]);
+});
+
+test('opening a today order does not replace the previously saved records list scroll', () => {
+  const h = harness();
+  h.render();
+  h.window.scrollY = 420;
+  h.render({ active: false });
+  h.window.scrollY = 160;
+  h.render({ tradeId: 'msft-new', active: true, fromTodayOrders: true });
+  assert.equal(h.scrolls.at(-1), 0);
+  h.window.scrollY = 240;
+  h.render({ tradeId: null, active: false, fromTodayOrders: false });
+  h.render({ active: true });
+  assert.equal(h.scrolls.at(-1), 420);
 });
 
 test('historical holdings keep notes and average cost but never receive fictional execution cash flows', () => {
