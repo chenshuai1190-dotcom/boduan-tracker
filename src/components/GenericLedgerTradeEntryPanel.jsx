@@ -47,13 +47,15 @@ export function GenericLedgerTradeHeader({ draft, logoCache, cacheStockLogo, onD
                 value={draft?.symbol || ''}
                 placeholder={tt('trades.enterStockTicker', '输入股票代码')}
                 aria-label={tt('trades.stockTicker', '股票代码')}
-                autoCapitalize="characters"
+                autoCapitalize="none"
                 autoComplete="off"
+                autoCorrect="off"
                 spellCheck="false"
                 enterKeyHint="next"
                 onChange={(event) => onDraftChange({
                   ...draft,
-                  symbol: event.target.value.toUpperCase(),
+                  // Keep the native composing text intact. CSS handles uppercase display.
+                  symbol: event.target.value,
                   name: '',
                   price: '',
                 })}

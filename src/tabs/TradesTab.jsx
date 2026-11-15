@@ -2025,11 +2025,14 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
                         type="text"
                         placeholder={tt('trades.tickerPlaceholder', '输入股票代码,如 NVDA')}
                         value={newTrade.symbol}
+                        autoCapitalize="none"
+                        autoComplete="off"
+                        autoCorrect="off"
+                        spellCheck={false}
                         onChange={(e) => {
-                          const sym = e.target.value.toUpperCase();
                           setNewTrade({
                             ...newTrade,
-                            symbol: sym,
+                            symbol: e.target.value,
                             name: '',
                             price: '',
                           });

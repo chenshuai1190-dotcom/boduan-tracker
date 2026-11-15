@@ -69,7 +69,7 @@ test('formal-trade fields preserve the original draft and numeric share input co
   assert.deepEqual(sideButtons.map(node => node.props['aria-pressed']), [true, false]);
   sideButtons[1].props.onClick();
   assert.deepEqual(changed, [
-    { ...draft, symbol: 'AAPL', name: '', price: '' },
+    { ...draft, symbol: 'aapl', name: '', price: '' },
     { ...draft, price: '125.67' },
     { ...draft, shares: '20.5' },
     { ...draft, date: '2026-09-09' },

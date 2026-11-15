@@ -681,7 +681,7 @@ test('main trade entry modal shares the report layout while isolating ordinary, 
   assert.ok(genericHeaderBlock.includes('data-generic-ledger-symbol-header="true"') && genericHeaderBlock.includes('<StockLogo'), 'formal trade should keep stock identity in the header');
   assert.ok(genericHeaderBlock.includes('htmlFor="generic-ledger-trade-symbol"') && genericHeaderBlock.includes('id="generic-ledger-trade-symbol"'), 'the editable stock identity must retain an associated ticker label');
   assert.ok(genericPanelBlock.indexOf('<GenericLedgerTradeHeader') < genericPanelBlock.indexOf('id="generic-ledger-trade-price"'), 'editable identity should precede price and shares in the panel');
-  assert.ok(genericHeaderBlock.includes('symbol: event.target.value.toUpperCase()'), 'stock code should retain its uppercase binding');
+  assert.match(genericLedgerTradeEntryPanelCss, /\.ledger-entry-ticker-input\s*\{[^}]*text-transform:\s*uppercase;/, 'stock code should display uppercase without rewriting the input value');
   assert.ok(genericHeaderBlock.includes('draft?.name'), 'ordinary trade identity should show the resolved company name');
   assert.ok(genericHeaderBlock.includes("name: ''") && genericHeaderBlock.includes("price: ''"), 'editing the ticker should clear stale resolved-name and price state');
   assert.ok(genericPanelBlock.includes('data-generic-ledger-trade-entry="true"'), 'formal trade should use its isolated entry panel');
