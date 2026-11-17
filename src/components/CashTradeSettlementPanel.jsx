@@ -109,16 +109,15 @@ export default function CashTradeSettlementPanel({ api, revision, language = 'zh
   if (typeof api?.load !== 'function') return null;
   const auto = data?.settlement?.mode === 'auto';
   const candidates = (data?.openingCandidates || []).filter(item => item?.eventId && finiteAmount(item.cashUsd));
-  const needsOpeningReview = data?.settlement?.eligibleNewAccount === true && data?.settlement?.canRepair === true && candidates.length > 0;
   return <section className="cash-settlement" aria-label={copy(en, '交易现金结算', 'Trade cash settlement')}>
     <div className="cash-settlement-heading"><h3>{copy(en, '交易现金结算', 'Trade cash settlement')}</h3>{data && <span>{auto ? copy(en, '自动结算', 'Automatic') : copy(en, '手动余额', 'Manual balance')}</span>}</div>
     {loading && <p role="status">{copy(en, '正在读取结算方式…', 'Loading settlement settings…')}</p>}
     {!loading && auto && <p>{copy(en, '买入扣减现金，卖出增加现金，交易修改或删除后同步核对。', 'Purchases reduce cash, sales add cash, and edits or deletions reconcile the balance.')}</p>}
     {!loading && data && !auto && !plan && <>
-      <p>{needsOpeningReview ? copy(en, '先核对开户资金与已发生交易，确认后补记交易现金并启用自动结算。', 'Review opening funds and existing trades before reconciling cash and enabling automatic settlement.') : copy(en, '核对现金后启用自动结算。已有历史持仓不会再次扣款。', 'Confirm your cash balance before enabling automatic settlement. Existing holdings will not be charged again.')}</p>
-      {data.settlement.canEnable && !needsOpeningReview && <button type="button" disabled={Boolean(busy)} onClick={() => preview('enable')}>{busy === 'enable' ? copy(en, '正在核对…', 'Checking…') : copy(en, '从当前余额启用', 'Start from current balance')}</button>}
+      {!data.cashStatus?.isSet && <p>{copy(en, '可先记录买卖，现金余额可以之后再填。', 'You can record trades now and enter your cash balance later.')}</p>}
+      {data.settlement.canEnable && <button type="button" disabled={Boolean(busy)} onClick={() => preview('enable')}>{busy === 'enable' ? copy(en, '正在核对…', 'Checking…') : copy(en, '从当前余额启用', 'Start from current balance')}</button>}
       {data.settlement.canRepair && candidates.length > 0 && <div className="cash-settlement-opening">
-        <label>{copy(en, '开户资金记录', 'Opening cash record')}<select aria-label={copy(en, '开户资金记录', 'Opening cash record')} value={openingId} disabled={Boolean(busy)} onChange={event => setOpeningId(event.target.value)}>
+        <label>{copy(en, '交易前的开户资金', 'Opening cash before trades')}<select aria-label={copy(en, '交易前的开户资金', 'Opening cash before trades')} value={openingId} disabled={Boolean(busy)} onChange={event => setOpeningId(event.target.value)}>
           {candidates.map(item => <option key={item.eventId} value={String(item.eventId)}>{String(item.effectiveAt || '').slice(0, 10)} · {money(item.cashUsd)} USD</option>)}
         </select></label>
         <button type="button" disabled={Boolean(busy) || !openingId} onClick={() => preview('repair')}>{busy === 'repair' ? copy(en, '正在核对…', 'Checking…') : copy(en, '核对遗漏的交易扣款', 'Review unsettled trades')}</button>
@@ -130,7 +129,7 @@ export default function CashTradeSettlementPanel({ api, revision, language = 'zh
         <div><dt>{copy(en, '核对后现金', 'Reconciled cash')}</dt><dd>{money(plan.afterCashUsd)} USD</dd></div>
         <div><dt>{copy(en, '基准日期', 'Baseline date')}</dt><dd>{plan.baselineDate}</dd></div>
         <div><dt>{copy(en, '本次结算交易', 'Trades to settle')}</dt><dd>{plan.affectedTradeCount}{copy(en, ' 笔', '')}</dd></div></dl>
-      <p>{plan.kind === 'repair' ? copy(en, '按所选开户资金核对以上交易，并从此自动结算。', 'Reconcile these trades against the selected opening cash record and enable automatic settlement.') : copy(en, '请确认当前现金已包含已有交易的收支；已有历史持仓不再扣款。', 'Confirm that the current cash balance already includes existing trades. Existing holdings will not be charged again.')}</p>
+      <p>{plan.kind === 'repair' ? copy(en, '请确认所选金额是交易前的开户资金。确认后会补记上方交易的收支，并启用自动结算。', 'Confirm that the selected amount is your opening cash before the trades. This reconciles the trades above and enables automatic settlement.') : copy(en, '请确认当前可用现金已包含已有交易的收支。自动结算从下一笔交易开始。', 'Confirm that your available cash already reflects past trades. Automatic settlement starts with your next trade.')}</p>
       <div className="cash-settlement-actions"><button type="button" className="cash-settlement-confirm" disabled={Boolean(busy)} onClick={confirm}>{busy === 'confirm' ? copy(en, '正在保存…', 'Saving…') : copy(en, '确认并启用', 'Confirm and enable')}</button><button type="button" disabled={Boolean(busy)} onClick={() => { setPlan(null); setError(''); operation.current = null; }}>{copy(en, '取消', 'Cancel')}</button></div>
     </div>}
     {error && <div className="cash-settlement-error" role="alert"><p>{error}</p>{!data && !loading && <button type="button" onClick={() => setAttempt(value => value + 1)}>{copy(en, '重试', 'Retry')}</button>}</div>}

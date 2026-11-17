@@ -50,29 +50,43 @@ test('no settlement API adds no controls or requests; unknown status never appea
   assert.ok(button(tree, '重试'));
 });
 
-test('eligible new accounts review opening funds first, with exact amounts and no implicit write', async () => {
+test('eligible accounts can review opening funds without hiding the current-balance option', async () => {
   const calls = [];
   const api = { load: async () => state(), preview: async input => { calls.push(input); return { plan: plan() }; }, confirm: async () => { throw new Error('must not write yet'); } };
   const h = await harness({ api }); h.render(); await flush();
   let tree = h.render();
   assert.ok(button(tree, '核对遗漏的交易扣款'));
-  assert.equal(button(tree, '从当前余额启用'), undefined);
+  assert.ok(button(tree, '从当前余额启用'));
   assert.equal(button(tree, '确认并启用'), undefined);
   await button(tree, '核对遗漏的交易扣款').props.onClick();
   tree = h.render();
   assert.deepEqual(calls, [{ kind: 'repair', openingEventId: 12 }]);
   for (const value of ['$2,000,000.00 USD', '$1,840,528.90 USD', '2026-11-08', '1 笔']) assert.ok(text(tree).includes(value), value);
+  assert.match(text(tree), /交易前的开户资金/);
   assert.ok(button(tree, '确认并启用'));
 });
 
-test('legacy manual accounts can start from reviewed current cash without selecting historical repair', async () => {
+test('manual accounts can leave cash unset, then explicitly enable from current cash', async () => {
   const calls = [];
-  const api = { load: async () => state({ eligibleNewAccount: false, canRepair: false }), preview: async input => { calls.push(input); return { plan: plan('enable', { afterCashUsd: 2000000, affectedTradeCount: 0 }) }; } };
-  const h = await harness({ api }); h.render(); await flush();
+  const unfunded = { ...state({ canEnable: false, canRepair: false }), cashStatus: { isSet: false }, openingCandidates: [] };
+  const api = {
+    load: async () => unfunded,
+    preview: async input => { calls.push(input); return { plan: plan('enable', { afterCashUsd: 2000000, affectedTradeCount: 0 }) }; },
+  };
+  const h = await harness({ api, revision: 'no-cash' }); h.render(); await flush();
   let tree = h.render();
+  assert.match(text(tree), /可先记录买卖/);
+  assert.equal(button(tree, '从当前余额启用'), undefined);
+
+  h.render({ api: { ...api, load: async () => state({ canRepair: false }) }, revision: 'cash-set' });
+  await flush();
+  tree = h.render();
+  assert.equal(button(tree, '核对遗漏的交易扣款'), undefined);
+  assert.equal(button(tree, '确认并启用'), undefined);
   await button(tree, '从当前余额启用').props.onClick(); tree = h.render();
   assert.deepEqual(calls, [{ kind: 'enable' }]);
-  assert.match(text(tree), /已有历史持仓不再扣款/);
+  assert.match(text(tree), /当前可用现金已包含已有交易的收支/);
+  assert.match(text(tree), /自动结算从下一笔交易开始/);
   assert.match(text(tree), /0 笔/);
 });
 
