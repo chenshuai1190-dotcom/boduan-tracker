@@ -37,7 +37,6 @@ import { deriveStockTradeMarketReference } from '../lib/stockTradeMarketReferenc
 import { useTradeVixRatioReference } from '../lib/useTradeVixRatioReference.js';
 import { deriveTradeVixRatioReference } from '../lib/tradeVixRatioReference.js';
 import { useStockRsiReference } from '../lib/useStockRsiReference.js';
-import { deriveBuyTradeDiscipline } from '../lib/buyTradeDiscipline.js';
 import { getStockTradeRecordKind, normalizeStockTradeDraftKind } from '../lib/stockTradeRecordKind.js';
 import TradeToolsCatalog from '../components/TradeToolsCatalog.jsx';
 import TradesPositionsReport from '../components/TradesPositionsReport.jsx';
@@ -661,13 +660,10 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
   });
   const isGenericLedgerTradeEntry = tradeEntryScope === 'ledger' && !isTqqqTradeEntry;
   const tradeReferenceSymbol = normalizeStrictUserStockSymbol(newTrade?.symbol) || '';
-  const buyDisciplinePreview = import.meta.env.DEV ? ctx.buyDisciplinePreview : null;
   const hasRsiDesignContent = import.meta.env.DEV && Boolean(isTqqqTradeEntry
     ? ctx.tqqqRsiPreviewContent : ctx.stockTradePreviewContent);
-  // The entry and confirmation share this single authenticated observation;
-  // opening confirmation must never start another quote request.
-  const liveTradeRsiReference = useStockRsiReference({
-    active: showAddTrade && tradeEntryScope === 'ledger' && !hasRsiDesignContent && !buyDisciplinePreview,
+  const tradeRsiReference = useStockRsiReference({
+    active: showAddTrade && tradeEntryScope === 'ledger' && !hasRsiDesignContent,
     symbol: tradeReferenceSymbol,
     userId: ctx.user?.id,
     authClient: ctx.supabase?.auth,
@@ -676,10 +672,9 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
     requestDelayMs: isTqqqTradeEntry ? 0 : 500,
     requireMarketReference: isGenericLedgerTradeEntry && newTrade?.side !== 'sell',
   });
-  const tradeRsiReference = buyDisciplinePreview?.rsiReference ?? liveTradeRsiReference;
   const vixRatioPreview = import.meta.env.DEV ? ctx.tradeVixRatioPreview : null;
   const liveTradeVixRatio = useTradeVixRatioReference({
-    active: showAddTrade && tradeEntryScope === 'ledger' && newTrade?.side === 'buy' && Boolean(tradeReferenceSymbol) && !vixRatioPreview && !buyDisciplinePreview,
+    active: showAddTrade && tradeEntryScope === 'ledger' && newTrade?.side === 'buy' && Boolean(tradeReferenceSymbol) && !vixRatioPreview,
     userId: ctx.user?.id, authClient: ctx.supabase?.auth, tradeDate: newTrade?.date,
   });
   const tradeVixRatioReference = vixRatioPreview
@@ -948,20 +943,6 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
       confirmText,
       confirmStyle: 'primary',
       icon: 'check',
-      buyDiscipline: !isWaveEntry && !historicalHolding && tradeDraft.side === 'buy' ? {
-        discipline: deriveBuyTradeDiscipline({
-          tradeDate: tradeDraft.date,
-          side: tradeDraft.side,
-          scope: tradeEntryScope,
-          editingId: tradeDraft.id || tradeDraft.editingId || null,
-          rsiReference: tradeRsiReference,
-          vixReference: tradeVixRatioReference,
-          now: buyDisciplinePreview?.now ?? Date.now(),
-        }),
-        trade: { symbol, name: stockDisplayName(symbol, tradeDraft.name), shares, price, date: tradeDraft.date },
-        allocationWarning: tqqqOverLimitWarning || tqqqAllocationUnavailableWarning ? `${confirmTitle} ${confirmDesc}` : null,
-        englishMode,
-      } : null,
       onConfirm: async () => {
         await addTrade(tradeDraft.side);
       },

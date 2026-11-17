@@ -1,14 +1,11 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import { deriveBuyTradeDiscipline } from '../src/lib/buyTradeDiscipline.js';
 import { normalizeConfirmModalOptions } from '../src/lib/confirmModal.js';
 import { deriveInvestmentSummary } from '../src/lib/investmentSummary.js';
-import { getInvestmentComparisonExpectedCloseDate } from '../src/lib/investmentComparison.js';
 import { stockRsiLocalDateKey } from '../src/lib/stockRsiReference.js';
 import { normalizeStrictUserStockSymbol } from '../src/lib/symbols.js';
 import { deriveTqqqTradePreview } from '../src/lib/tqqqTradeDiscipline.js';
-import { getVixComparisonExpectedCloseDate } from '../src/lib/vixComparisonSession.js';
 import { formatWaveUsdPrice } from '../src/lib/waveCurrencyDisplay.js';
 import { getStockTradeRecordKind, normalizeStockTradeDraftKind, withStockTradeRecordKind } from '../src/lib/stockTradeRecordKind.js';
 
@@ -17,16 +14,14 @@ const handlerStart = source.indexOf('  const confirmTradeSubmit =');
 const handlerEnd = source.indexOf('\n  const toggleToolPanel =', handlerStart);
 assert.ok(handlerStart >= 0 && handlerEnd > handlerStart, 'the fixture must compile the real confirmation handler');
 
-// Execute the actual production handler with real discipline and TQQQ ledger
-// models. Only UI context and the final persistence callback are supplied by
-// the fixture, so a changed branch cannot be concealed by a copied condition.
+// Exercise the production handler with the actual TQQQ ledger validation.
 const createHandler = new Function('context', `
   const { newTrade, tradeEntryScope, tradeSubmitting, stockTrades, quoteRows,
-    summary, usdRate, tradeRsiReference, tradeVixRatioReference, buyDisciplinePreview,
+    summary, usdRate,
     englishMode, showTradeFormNotice, showConfirm, setNewTrade, addTrade,
-    normalizeStrictUserStockSymbol, deriveTqqqTradePreview, deriveBuyTradeDiscipline,
+    normalizeStrictUserStockSymbol, deriveTqqqTradePreview,
     getStockTradeRecordKind, normalizeStockTradeDraftKind,
-    formatWaveUsdPrice, tt, fmtAmount, sharesText, sideLabel, stockDisplayName } = context;
+    formatWaveUsdPrice, tt, fmtAmount, sharesText, sideLabel } = context;
   ${source.slice(handlerStart, handlerEnd)}
   return confirmTradeSubmit;
 `);
@@ -46,23 +41,20 @@ function fixture(options = {}) {
   const submit = createHandler({
     newTrade: draft, tradeEntryScope: options.scope || 'ledger', tradeSubmitting: Boolean(options.submitting),
     stockTrades, quoteRows, summary: deriveInvestmentSummary({ stockTrades, watchlist: quoteRows }), usdRate: 7.2,
-    tradeRsiReference: options.rsiReference ?? { status: 'ready', observation: { value: 78.2, asOf: getInvestmentComparisonExpectedCloseDate(NOW) } },
-    tradeVixRatioReference: options.vixReference ?? { vixRatioReady: true, vixRatioValue: 0.89,
-      vixRatioDataDate: getVixComparisonExpectedCloseDate(NOW) },
-    buyDisciplinePreview: { now: NOW }, englishMode: Boolean(options.englishMode),
+    englishMode: Boolean(options.englishMode),
     showTradeFormNotice: (...args) => notices.push(args),
     showConfirm: value => confirmations.push(normalizeConfirmModalOptions(value)),
     setNewTrade: update => updates.push(update(draft)),
     addTrade: async side => { writes.push(side); if (options.saveError) throw options.saveError; },
-    normalizeStrictUserStockSymbol, deriveTqqqTradePreview, deriveBuyTradeDiscipline, formatWaveUsdPrice,
+    normalizeStrictUserStockSymbol, deriveTqqqTradePreview, formatWaveUsdPrice,
     getStockTradeRecordKind, normalizeStockTradeDraftKind,
     tt: (_key, fallback) => fallback, fmtAmount: format, sharesText: value => `${value} 股`,
-    sideLabel: side => side === 'sell' ? '卖出' : '买入', stockDisplayName: (symbol, name) => name || symbol,
+    sideLabel: side => side === 'sell' ? '卖出' : '买入',
   });
   return { draft, submit, confirmations, notices, writes, updates };
 }
 
-test('ordinary and TQQQ buys reach the shared discipline confirmation before the original save callback', async () => {
+test('ordinary and TQQQ buys open the standard confirmation before saving', async () => {
   for (const symbol of ['NVDA', 'TQQQ']) {
     const f = fixture({ draft: { symbol, name: symbol } });
     f.submit();
@@ -70,10 +62,10 @@ test('ordinary and TQQQ buys reach the shared discipline confirmation before the
     assert.equal(f.notices.length, 0);
     assert.equal(f.confirmations.length, 1);
     const confirmation = f.confirmations[0];
-    assert.equal(confirmation.buyDiscipline.discipline.status, 'unmet');
-    assert.deepEqual(confirmation.buyDiscipline.trade, { symbol, name: symbol, shares: 1, price: 187.5, date: TODAY });
-    assert.equal(confirmation.buyDiscipline.allocationWarning, null);
-    assert.equal(confirmation.buyDiscipline.englishMode, false);
+    assert.equal(confirmation.title, '确认保存正式交易?');
+    assert.equal(confirmation.info, `${symbol} · 买入 1 股 @ 187.50`);
+    assert.equal(confirmation.confirmText, '确认保存');
+    assert.equal(confirmation.showCancel, true);
     assert.equal(f.updates.length, 1);
     assert.equal(f.updates[0].side, 'buy');
     await confirmation.onConfirm();
@@ -81,7 +73,7 @@ test('ordinary and TQQQ buys reach the shared discipline confirmation before the
   }
 });
 
-test('existing historical holdings preserve editing without judging aggregate entry dates with current discipline', async () => {
+test('editing existing historical holdings keeps the historical-record confirmation', async () => {
   for (const symbol of ['NVDA', 'TQQQ']) {
     const note = withStockTradeRecordKind('历史均价汇总', 'historical_holding');
     const f = fixture({ draft: { id: 'existing-holding', recordKind: 'historical_holding', symbol, name: symbol, note } });
@@ -90,7 +82,6 @@ test('existing historical holdings preserve editing without judging aggregate en
     assert.equal(f.confirmations.length, 1);
     assert.match(f.confirmations[0].title, /保存历史持仓/);
     assert.match(f.confirmations[0].desc, /录入日期不代表实际买入日/);
-    assert.equal(f.confirmations[0].buyDiscipline, null);
     assert.equal(f.updates[0].note, note);
     assert.equal(f.updates[0].recordKind, 'historical_holding');
     assert.deepEqual(f.writes, []);
@@ -99,43 +90,44 @@ test('existing historical holdings preserve editing without judging aggregate en
   }
 });
 
-test('TQQQ allocation and unavailable-valuation warnings coexist with the shared discipline result', () => {
-  const overLimit = fixture({ draft: { symbol: 'TQQQ', shares: '20' }, englishMode: true });
+test('TQQQ allocation warnings use the standard confirmation and still allow the buy', async () => {
+  const overLimit = fixture({ draft: { symbol: 'TQQQ', shares: '20' } });
   overLimit.submit();
-  assert.match(overLimit.confirmations[0].buyDiscipline.allocationWarning, /买入后超过10%提醒线/);
-  assert.equal(overLimit.confirmations[0].buyDiscipline.discipline.status, 'unmet');
-  assert.equal(overLimit.confirmations[0].buyDiscipline.englishMode, true);
+  assert.match(overLimit.confirmations[0].title, /买入后超过10%提醒线/);
+  assert.equal(overLimit.confirmations[0].confirmText, '仍然买入');
   assert.deepEqual(overLimit.writes, []);
+  await overLimit.confirmations[0].onConfirm();
+  assert.deepEqual(overLimit.writes, ['buy']);
   const unavailable = fixture({ draft: { symbol: 'TQQQ' }, quoteRows: [] });
   unavailable.submit();
-  assert.match(unavailable.confirmations[0].buyDiscipline.allocationWarning, /估值未就绪/);
-  assert.match(unavailable.confirmations[0].buyDiscipline.allocationWarning, /当前无法计算10%提醒/);
-  assert.equal(unavailable.confirmations[0].buyDiscipline.discipline.status, 'unmet');
+  assert.match(unavailable.confirmations[0].title, /当前无法计算10%提醒/);
+  assert.match(unavailable.confirmations[0].desc, /估值未就绪/);
+  assert.deepEqual(unavailable.writes, []);
 });
 
-test('historical and edited buys keep the new layout but do not judge past decisions with current signals', () => {
+test('historical and edited buys use the appropriate standard confirmation', () => {
   for (const symbol of ['NVDA', 'TQQQ']) {
     for (const patch of [{ date: '2026-10-02' }, { id: 'edited-buy' }, { editingId: 'edited-buy' }]) {
-      const f = fixture({ draft: { symbol, ...patch } });
+      const originalId = patch.id || patch.editingId;
+      const stockTrades = originalId ? [...baseTrades, {
+        id: originalId, symbol, side: 'buy', shares: 1, price: 100, date: '2026-10-01',
+      }] : baseTrades;
+      const f = fixture({ draft: { symbol, ...patch }, stockTrades });
       f.submit();
-      const result = f.confirmations[0].buyDiscipline.discipline;
-      assert.equal(result.status, 'historical');
-      assert.equal(result.applies, false);
-      assert.equal(result.rsi.value, null);
-      assert.equal(result.vix.value, null);
+      assert.equal(f.confirmations[0].title, patch.date ? '确认保存正式交易?' : '确认修改正式交易?');
+      assert.equal(f.confirmations[0].confirmText, '确认保存');
       assert.deepEqual(f.writes, []);
     }
   }
 });
 
-test('sell and wave confirmations preserve their original scope and omit buy-discipline content', async () => {
+test('sell and wave confirmations preserve their original save scope', async () => {
   for (const [scope, symbol, side] of [['ledger', 'NVDA', 'sell'], ['ledger', 'TQQQ', 'sell'],
     ['wave', 'NVDA', 'buy'], ['wave', 'TQQQ', 'buy'], ['wave', 'TQQQ', 'sell']]) {
     const f = fixture({ scope, draft: { symbol, side }, stockTrades: [...baseTrades,
       { id: 'tqqq', symbol: 'TQQQ', side: 'buy', date: '2026-10-01', price: 100, shares: 10 }] });
     f.submit();
     assert.equal(f.confirmations.length, 1);
-    assert.equal(f.confirmations[0].buyDiscipline, null);
     if (scope === 'wave') assert.match(f.confirmations[0].title, /波段/);
     assert.deepEqual(f.writes, []);
     await f.confirmations[0].onConfirm();
@@ -143,7 +135,7 @@ test('sell and wave confirmations preserve their original scope and omit buy-dis
   }
 });
 
-test('existing TQQQ hard blocks still stop before the discipline dialog and before saving', () => {
+test('TQQQ validation stops invalid orders before confirmation or saving', () => {
   const cases = [
     fixture({ draft: { symbol: 'TQQQ', shares: '1.5' } }),
     fixture({ draft: { symbol: 'TQQQ', side: 'sell', shares: '1' } }),
@@ -175,14 +167,7 @@ test('pending saves and invalid draft inputs do not bypass existing validation',
   }
 });
 
-test('confirmation normalization retains the shared payload and save failures propagate without a duplicate write', async () => {
-  const payload = { discipline: { status: 'unknown' }, trade: { symbol: 'NVDA' } };
-  const callback = async () => {};
-  const normalized = normalizeConfirmModalOptions({ buyDiscipline: payload, onConfirm: callback });
-  assert.equal(normalized.buyDiscipline, payload);
-  assert.equal(normalized.onConfirm, callback);
-  assert.equal(normalizeConfirmModalOptions({}).buyDiscipline, null);
-
+test('confirmation forwards save failures without another write', async () => {
   const error = new Error('save unavailable');
   const f = fixture({ saveError: error });
   f.submit();

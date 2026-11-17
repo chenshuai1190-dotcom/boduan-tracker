@@ -9,7 +9,6 @@ export function normalizeConfirmModalOptions(options = {}) {
     confirmStyle: options.confirmStyle || 'danger',
     icon: options.icon || '🗑',
     showCancel: options.showCancel !== false,
-    buyDiscipline: options.buyDiscipline || null,
     onConfirm: options.onConfirm,
   };
 }
