@@ -15,6 +15,19 @@ const numeric = value => {
 const shiftDate = (date, days) => new Date(Date.parse(`${date}T00:00:00Z`) + days * DAY).toISOString().slice(0, 10);
 const compare = (left, right) => left < right ? -1 : left > right ? 1 : 0;
 
+function tradeEntryMicros(timestamp) {
+  if (typeof timestamp !== 'string') return -Infinity;
+  const millis = Date.parse(timestamp);
+  if (!Number.isFinite(millis)) return -Infinity;
+  // Postgres preserves up to six fractional digits. Date.parse keeps the first three.
+  const fraction = timestamp.match(/\.(\d+)/)?.[1] || '';
+  return millis * 1000 + Number(fraction.padEnd(6, '0').slice(3, 6));
+}
+
+export function compareNewestTradeRecords(a, b) {
+  return compare(b.date, a.date) || compare(tradeEntryMicros(b.createdAt), tradeEntryMicros(a.createdAt));
+}
+
 function newYorkDate(now) {
   const date = now instanceof Date ? now : new Date(now);
   if (!Number.isFinite(date.getTime())) return null;
@@ -116,7 +129,7 @@ export function buildTradeRecordsView({ trades = [], filters = {}, now = new Dat
   const rows = filterError ? [] : normalized.filter(row => (!selectedSymbols.size || selectedSymbols.has(row.symbol))
     && (!range.fromDate || row.date >= range.fromDate) && (!range.toDate || row.date <= range.toDate)
     && (side === 'all' || row.side === side))
-    .sort((a, b) => (sort === 'oldest' ? compare(a.date, b.date) : compare(b.date, a.date)) || a.sourceIndex - b.sourceIndex);
+    .sort((a, b) => sort === 'oldest' ? compareNewestTradeRecords(b, a) : compareNewestTradeRecords(a, b));
   const groups = [];
   for (const row of rows) {
     if (groups.at(-1)?.date !== row.date) groups.push({ date: row.date, rows: [] });

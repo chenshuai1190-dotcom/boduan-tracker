@@ -252,6 +252,7 @@ export const deleteTrade = async (id) => {
 
 const mapStockTrade = (trade) => ({
   id: trade.id,
+  createdAt: trade.created_at || trade.createdAt || null,
   updatedAt: trade.updated_at || trade.updatedAt || null,
   recordKind: trade.record_kind || trade.recordKind || 'trade',
   symbol: normalizeUserStockSymbol(trade.symbol),

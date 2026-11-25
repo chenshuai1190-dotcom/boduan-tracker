@@ -56,12 +56,25 @@ test('combined symbol, side and inclusive custom date filters affect rows, group
   assert.deepEqual(view.stockOptions.map(row => row.symbol), ['AAPL', 'MSFT', 'NVDA'], 'stock selection options stay available outside the current filter');
 });
 
-test('same-day records keep input order under both sorts; updatedAt cannot invent execution chronology', () => {
+test('legacy records without entry times keep their input order within the day despite later edits', () => {
   const trades = [trade('b', { updatedAt: '2026-11-10T12:00:00Z' }),
     trade('a', { updatedAt: '2026-11-11T12:00:00Z', side: 'sell' }), trade('prior', { date: '2026-11-09' }),
     trade('next', { date: '2026-11-11' })];
   assert.deepEqual(buildTradeRecordsView({ trades, filters: { sort: 'newest' } }).rows.map(row => row.id), ['next', 'b', 'a', 'prior']);
   assert.deepEqual(buildTradeRecordsView({ trades, filters: { sort: 'oldest' } }).rows.map(row => row.id), ['prior', 'b', 'a', 'next']);
+});
+
+test('same-day entries use original instants including offsets and database microseconds', () => {
+  const trades = [
+    trade('first', { createdAt: '2026-11-10T15:00:00.123004Z', updatedAt: '2026-11-15T12:00:00Z' }),
+    trade('legacy'),
+    trade('last', { createdAt: '2026-11-10T10:00:00.123019-05:00' }),
+    trade('invalid', { createdAt: 'bad' }),
+    trade('middle', { createdAt: '2026-11-10T15:00:00.12301+00:00' }),
+  ];
+  const ids = sort => buildTradeRecordsView({ trades, filters: { sort } }).rows.map(row => row.id);
+  assert.deepEqual(ids('newest'), ['last', 'middle', 'first', 'legacy', 'invalid']);
+  assert.deepEqual(ids('oldest'), ['legacy', 'invalid', 'first', 'middle', 'last']);
 });
 
 test('execution amounts exclude fees and never claim that sale proceeds or net cash flow are profit', () => {

@@ -78,6 +78,21 @@ test('list uses real filtered summaries and date groups without inventing profit
   button(tree, '新增交易').props.onClick(); assert.deepEqual(h.calls, [['add']]);
 });
 
+test('date order toggle sorts same-day sells by entry time and editing an older sell keeps its place', () => {
+  const firstSell = { ...TRADES[1], id: 'first-sell', createdAt: '2026-11-10T15:00:00Z' };
+  const secondSell = { ...TRADES[1], id: 'second-sell', createdAt: '2026-11-10T17:00:00Z' };
+  const backfill = { ...TRADES[2], id: 'prior-day', createdAt: '2026-11-11T18:00:00Z' };
+  const h = harness({ trades: [backfill, firstSell, secondSell] });
+  let tree = h.render();
+  assert.deepEqual(rowIds(tree), ['second-sell', 'first-sell', 'prior-day']);
+
+  const edited = { ...firstSell, price: 152, updatedAt: '2026-11-12T16:00:00Z' };
+  tree = h.render({ trades: [backfill, secondSell, edited] });
+  assert.deepEqual(rowIds(tree), ['second-sell', 'first-sell', 'prior-day']);
+  button(tree, '切换日期排序').props.onClick();
+  assert.deepEqual(rowIds(h.render()), ['prior-day', 'first-sell', 'second-sell']);
+});
+
 test('stock multi-select searches company names, cancels drafts, combines side filters and clears chips', () => {
   const h = harness(); let tree = h.render();
   button(tree, '股票代码').props.onClick(); tree = h.render();

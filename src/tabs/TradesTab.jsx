@@ -29,6 +29,7 @@ import GenericLedgerTradeEntryPanel, { GenericLedgerTradeAmount, GenericLedgerTr
 import TradeCostPreview from '../components/TradeCostPreview.jsx';
 import TradeExposurePreview from '../components/TradeExposurePreview.jsx';
 import TradeRecordsPage from '../pages/TradeRecordsPage.jsx';
+import { compareNewestTradeRecords } from '../lib/tradeRecordsModel.js';
 import StockLogo, { stockLogoCandidates } from '../components/StockLogo.jsx';
 import TqqqTradeEntryPanel, { TQQQ_ACTION_TONE_CLASSES, TqqqTradeAmount } from '../components/TqqqTradeEntryPanel.jsx';
 import TqqqLiveRsiReference from '../components/TqqqLiveRsiReference.jsx';
@@ -647,7 +648,7 @@ export default function TradesTab({ ctx, initialToolPanel = '' }) {
       if (trade.side === 'sell') sells += 1;
       else buys += 1;
     });
-    return { rows, buys, sells };
+    return { rows: rows.sort(compareNewestTradeRecords), buys, sells };
   }, [stockTrades, todayKey]);
   const todayTrades = todayTradeSummary.rows;
   const todayBuys = todayTradeSummary.buys;
