@@ -187,12 +187,24 @@ test('held-stock yearly records preserve evaluations as the latest record advanc
   assert.equal(projectReviewTimelineEntry(latest,[second]).replies.length,2);
   assert.equal(buildReviewJournalWrite(second,USER).review_data.timelineEvent.metric,'stock_daily_return');
   await assert.rejects(repo.appendTimelineReply({...anchor,timelineEvent:{...anchor.timelineEvent,date:'2026-11-06'}},reply({id:'bad-date'}),USER),{code:'REVIEW_TIMELINE_CONFLICT'});
+  // The same owner, symbol, year and reply ID may also have a separate gain discussion.
+  const gain = { ...original, id: original.id + ':best', title: 'NVDA · 年内最大单日涨幅' };
+  const gainReply = reply({ text: '复核上涨的原因' });
+  const savedGain = await repo.appendTimelineReply(reviewTimelineAnchorEntry(gain, [second]), gainReply, USER);
+  assert.notEqual(savedGain.operationId, second.operationId);
+  const stored = [second, savedGain];
+  const newGain = { ...gain, date: '2026-11-05' };
+  const retried = await repo.appendTimelineReply(reviewTimelineAnchorEntry(newGain, stored), gainReply, USER);
+  assert.equal(retried.id, savedGain.id);
+  assert.equal(retried.timelineEvent.date, gain.startDate);
+  assert.deepEqual(projectReviewTimelineEntry(newGain, stored).replies.map(item => item.text), [gainReply.text]);
+  assert.deepEqual(projectReviewTimelineEntry(latest, stored).replies.map(item => item.text), second.replies.map(item => item.text));
   for(const next of [{...original,id:'record:stock_daily_return:MSFT:2026'},
     {...original,id:'record:stock_daily_return:NVDA:2027',date:'2027-01-05',startDate:'2027-01-05'}]) {
     const separate=await repo.appendTimelineReply(reviewTimelineAnchorEntry(next),reply(),USER);
     assert.notEqual(separate.id,first.id);
   }
-  assert.equal(f.rows.length,3);
+  assert.equal(f.rows.length,4);
 });
 
 test('simultaneous first submissions converge on one container and preserve both evaluations', async () => {

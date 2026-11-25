@@ -9,7 +9,7 @@ const TYPES = [
   ['drawdown', '净资产回撤与恢复', 'Net asset drawdowns and recovery', 'drawdown'],
   ['return_drawdown', '收益率高点回落', 'Decline from annual return high', 'drawdown'],
   ['daily_record', '单日涨跌纪录', 'Daily return records', 'record'],
-  ['stock_daily_record', '持仓个股年内最大单日跌幅', 'Held-stock yearly daily loss records', 'record'],
+  ['stock_daily_record', '持仓个股年内最大单日涨跌幅', 'Held stocks’ largest daily gains and losses of the year', 'record'],
   ['month', '月度总结', 'Monthly summaries', 'period'],
   ['quarter', '季度总结', 'Quarterly summaries', 'period'],
   ['year', '年度总结', 'Yearly summaries', 'period'],

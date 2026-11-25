@@ -8,6 +8,12 @@ const eventDate = event => validDate(event?.date) || validDate(event?.endDate) |
 const eventStart = event => validDate(event?.startDate) || eventDate(event);
 const amountMetric = metric => ['annual_pnl', 'cumulative_pnl'].includes(metric);
 
+// Archived evaluation references retain the original ID but omit recordDirection.
+export function isStockDailyGain(event) {
+  return event?.kind === 'record' && event.metric === 'stock_daily_return'
+    && (event.recordDirection === 'best' || event.id?.endsWith(':best') === true);
+}
+
 export function reviewTimelineRawCategory(event) {
   if (!event || typeof event !== 'object') return null;
   if (event.kind === 'high') return ({ net_assets: 'net_assets_high', cumulative_return: 'return_high', cumulative_pnl: 'pnl_high', annual_return: 'annual_return_high', annual_pnl: 'annual_pnl_high' })[event.metric] || null;

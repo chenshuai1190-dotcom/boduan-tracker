@@ -34,8 +34,19 @@ export function createReviewTimelinePreview(owner) {
     { date: '2026-04-02', stockCloseUsd: 93.70, previousCloseUsd: 100, stockDailyReturnPct: -6.30, previousRecordPct: -4.20, previousRecordDate: '2026-02-04' },
     { date: '2026-11-05', stockCloseUsd: 137.22, previousCloseUsd: 150, stockDailyReturnPct: -8.52, previousRecordPct: -6.30, previousRecordDate: '2026-04-02' },
   ];
-  const stockEvent = { id: 'record:stock_daily_return:NVDA:2026', kind: 'record', metric: 'stock_daily_return', symbol: 'NVDA', year: 2026, name: 'NVIDIA', title: 'NVDA · 年内最大单日跌幅',
-    value: -8.52, valueType: 'percent', date: points[1].date, startDate: points[0].date, endDate: points[1].date, previousRecordPct: -6.30, previousRecordDate: '2026-04-02',
-    current: points[1], points, nodes: points.map(point => ({ key: point.date, label: point.date, point })) };
-  return { status: 'ready', ...timeline, stockRecordStatus: 'ready', events: [...timeline.events, stockEvent].sort((a, b) => b.date.localeCompare(a.date) || a.id.localeCompare(b.id)) };
+  const gain = { date: '2026-11-06', stockCloseUsd: 150, previousCloseUsd: points[1].stockCloseUsd };
+  gain.stockDailyReturnPct = (gain.stockCloseUsd / gain.previousCloseUsd - 1) * 100;
+  const stockEvents = [
+    { direction: 'worst', points, label: '跌幅' },
+    { direction: 'best', points: [gain], label: '涨幅' },
+  ].map(({ direction, points, label }) => {
+    const current = points.at(-1);
+    return { id: `record:stock_daily_return:NVDA:2026${direction === 'best' ? ':best' : ''}`,
+      kind: 'record', metric: 'stock_daily_return', symbol: 'NVDA', year: 2026, name: 'NVIDIA',
+      recordDirection: direction, title: `NVDA · 年内最大单日${label}`, value: current.stockDailyReturnPct,
+      valueType: 'percent', date: current.date, startDate: points[0].date, endDate: current.date,
+      previousRecordPct: current.previousRecordPct ?? null, previousRecordDate: current.previousRecordDate ?? null,
+      current, points, nodes: points.map(point => ({ key: point.date, label: point.date, point })) };
+  });
+  return { status: 'ready', ...timeline, stockRecordStatus: 'ready', events: [...timeline.events, ...stockEvents].sort((a, b) => b.date.localeCompare(a.date) || a.id.localeCompare(b.id)) };
 }

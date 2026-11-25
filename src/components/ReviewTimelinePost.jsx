@@ -4,12 +4,13 @@ import { marketHexColor } from '../lib/marketColorMode.js';
 import { reviewTimelineFeedDate } from '../lib/reviewTimelineFeed.js';
 import { isReviewEarningsEvent, reviewEarningsScope, reviewEarningsRecordLabel } from '../lib/reviewTimelineEarnings.js';
 import { formatReviewMoney, reviewDisplayCurrency } from '../lib/reviewDisplayCurrency.js';
-import { TimelineChart } from './ReviewTimeline.jsx';
+import { isStockDailyGain } from '../lib/reviewTimelineGroups.js';
+import { TimelineChart, timelineEventTitle } from './ReviewTimeline.jsx';
 import './ReviewTimelinePost.css';
 
 const finite = value => typeof value === 'number' && Number.isFinite(value);
 const percent = value => finite(value) ? `${value > 0 ? '+' : ''}${value.toFixed(2)}%` : '—';
-const decline = value => finite(value) ? `${Math.abs(value).toFixed(2)}%` : '—';
+const absolutePercent = value => finite(value) ? `${Math.abs(value).toFixed(2)}%` : '—';
 const isStockDailyRecord = event => event.kind === 'record' && event.metric === 'stock_daily_return';
 const stockSymbol = event => event.symbol || /^record:stock_daily_return:([^:]+):/.exec(event.id || '')?.[1] || '';
 const isReturnDrawdown = event => event.kind === 'drawdown' && event.metric === 'cumulative_return';
@@ -19,9 +20,13 @@ const style = (value, mode) => finite(value) && value !== 0 ? { color: marketHex
 
 export function reviewTimelinePostSummary(event, en = false) {
   if (event.status === 'archived') return label(en, '来源数据已更新，保留此前写下的评价。', 'Source data changed; your previous reflection is preserved.');
-  if (isStockDailyRecord(event)) return finite(event.value)
-    ? label(en, `${stockSymbol(event)} 收盘下跌${decline(event.value)}，创下年内最大单日跌幅。`, `${stockSymbol(event)} closed down ${decline(event.value)}, its largest one-day decline of the year.`)
-    : label(en, `${stockSymbol(event)} 年内最大单日跌幅暂不可用。`, `${stockSymbol(event)}'s largest one-day decline is unavailable.`);
+  if (isStockDailyRecord(event)) {
+    const gain = isStockDailyGain(event), symbol = stockSymbol(event);
+    const change = gain ? '涨幅' : '跌幅', direction = gain ? 'gain' : 'decline';
+    return finite(event.value)
+      ? label(en, `${symbol} 收盘${gain ? '上涨' : '下跌'}${absolutePercent(event.value)}，创下年内最大单日${change}。`, `${symbol} closed ${gain ? 'up' : 'down'} ${absolutePercent(event.value)}, its largest one-day ${direction} of the year.`)
+      : label(en, `${symbol} 年内最大单日${change}暂不可用。`, `${symbol}'s largest one-day ${direction} is unavailable.`);
+  }
   if (isReviewEarningsEvent(event)) return `${event.title} · ${reviewEarningsRecordLabel(event, en)}`;
   if (event.kind === 'drawdown') {
     if (isReturnDrawdown(event)) {
@@ -35,8 +40,8 @@ export function reviewTimelinePostSummary(event, en = false) {
       if (!finite(event.drawdownPct)) return label(en, '本轮收益率回落仍在持续追踪，当前回落数据暂不可用。', 'This return decline is still being tracked; the current decline is unavailable.');
       const peak = event.peak?.cumulativeReturnPct, current = event.current?.cumulativeReturnPct;
       return finite(peak) && finite(current)
-        ? label(en, `收益率从年内高点${percent(peak)}回落至${percent(current)}，较高点回落${decline(event.drawdownPct)}，本轮仍在持续追踪。`, `The return fell from its yearly high of ${percent(peak)} to ${percent(current)}, a decline of ${decline(event.drawdownPct)}; this cycle is still being tracked.`)
-        : label(en, `收益率较年内高点回落${decline(event.drawdownPct)}，本轮仍在持续追踪。`, `The return declined ${decline(event.drawdownPct)} from its yearly high; this cycle is still being tracked.`);
+        ? label(en, `收益率从年内高点${percent(peak)}回落至${percent(current)}，较高点回落${absolutePercent(event.drawdownPct)}，本轮仍在持续追踪。`, `The return fell from its yearly high of ${percent(peak)} to ${percent(current)}, a decline of ${absolutePercent(event.drawdownPct)}; this cycle is still being tracked.`)
+        : label(en, `收益率较年内高点回落${absolutePercent(event.drawdownPct)}，本轮仍在持续追踪。`, `The return declined ${absolutePercent(event.drawdownPct)} from its yearly high; this cycle is still being tracked.`);
     }
     if (event.status === 'recovered') return label(en, '账户已回到前高，这一轮回撤记录完成。', 'The account is back at its previous peak; this drawdown cycle is complete.');
     if (event.status === 'interrupted') return label(en, '本轮净资产比较已中断，保留此前的回撤记录。', 'Comparison was interrupted; the recorded drawdown is preserved.');
@@ -52,14 +57,14 @@ export function reviewTimelinePostSummary(event, en = false) {
 
 function readings(event, currency, en) {
   if (isStockDailyRecord(event)) return {
-    title: label(en, `${stockSymbol(event)} · 单日跌幅`, `${stockSymbol(event)} · One-day decline`),
+    title: `${stockSymbol(event)} · ${isStockDailyGain(event) ? label(en, '单日涨幅', 'One-day gain') : label(en, '单日跌幅', 'One-day decline')}`,
     value: percent(event.value), direction: event.value,
     secondaryTitle: label(en, '此前纪录', 'Prior record'),
     secondary: finite(event.previousRecordPct) ? percent(event.previousRecordPct) : '', secondaryDirection: event.previousRecordPct,
   };
   if (isReturnDrawdown(event)) return {
-    title: label(en, '较年内高点回落', 'Decline from yearly high'), value: decline(event.drawdownPct), direction: event.drawdownPct,
-    secondaryTitle: label(en, '本轮最大回落', 'Maximum decline'), secondary: decline(event.maxDrawdownPct), secondaryDirection: event.maxDrawdownPct,
+    title: label(en, '较年内高点回落', 'Decline from yearly high'), value: absolutePercent(event.drawdownPct), direction: event.drawdownPct,
+    secondaryTitle: label(en, '本轮最大回落', 'Maximum decline'), secondary: absolutePercent(event.maxDrawdownPct), secondaryDirection: event.maxDrawdownPct,
   };
   if (event.kind === 'drawdown') return {
     title: label(en, '当前回撤', 'Current drawdown'), value: percent(event.drawdownPct), direction: event.drawdownPct,
@@ -129,7 +134,7 @@ export default function ReviewTimelinePost({ event, avatarNode, authorNode, comm
     ? `${label(en, '较', 'From ')} ${shortDate(event.peak.date, en)} ${label(en, '前高', 'peak')}` : '';
   const showCurrencyState = info.converted && !percentChart && !isStockDailyRecord(event);
   return <article className="rj-post rj-post-link rj-timeline-post" data-rj-entry-key={`timeline:${event.id}`}
-    role="link" tabIndex={0} aria-label={`${label(en, '查看', 'View ')}${event.title}`} onClick={clickPost}
+    role="link" tabIndex={0} aria-label={`${label(en, '查看', 'View ')}${timelineEventTitle(event, en)}`} onClick={clickPost}
     onKeyDown={click => { if (click.target === click.currentTarget && (click.key === 'Enter' || click.key === ' ')) { click.preventDefault(); open(click); } }}>
     {avatarNode}<div className="rj-post-main">
       <div className="rj-post-heading rj-timeline-byline">{authorNode}<span>·</span><time dateTime={feedDate}>{shortDate(feedDate, en)}</time></div>
@@ -142,7 +147,7 @@ export default function ReviewTimelinePost({ event, avatarNode, authorNode, comm
         {showChart && <TimelineChart event={event} marketColorMode={marketColorMode} language={language} {...currency} />}
         {(peakCaption || showCurrencyState) && <div className="rj-system-caption">{peakCaption && <span>{peakCaption}</span>}{showCurrencyState && <span>{info.available ? label(en, '人民币折算', 'CNY conversion') : label(en, '汇率暂不可用', 'FX unavailable')}</span>}</div>}
       </div>}
-      <div className="rj-post-actions"><button type="button" onClick={open} aria-label={`${label(en, '查看', 'View ')}${event.title}${label(en, '的评论', ' comments')}`}><MessageCircle size={18}/><span>{commentCount || label(en, '评论', 'Comment')}</span></button></div>
+      <div className="rj-post-actions"><button type="button" onClick={open} aria-label={`${label(en, '查看', 'View ')}${timelineEventTitle(event, en)}${label(en, '的评论', ' comments')}`}><MessageCircle size={18}/><span>{commentCount || label(en, '评论', 'Comment')}</span></button></div>
     </div>
   </article>;
 }

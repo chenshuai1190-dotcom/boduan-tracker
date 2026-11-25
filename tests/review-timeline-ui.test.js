@@ -8,6 +8,7 @@ import * as icons from 'lucide-react';
 import { marketHexColor, MARKET_COLOR_MODES } from '../src/lib/marketColorMode.js';
 import { normalizeReviewMarketSnapshot } from '../src/lib/reviewMarketSnapshot.js';
 import { convertReviewMoney, formatReviewMoney, reviewCurrencyNotice, reviewDisplayCurrency } from '../src/lib/reviewDisplayCurrency.js';
+import { isStockDailyGain } from '../src/lib/reviewTimelineGroups.js';
 import { isReviewEarningsEvent, reviewEarningsScope, reviewEarningsRecordLabel } from '../src/lib/reviewTimelineEarnings.js';
 import { getStockTradeRecordKind, withStockTradeRecordKind } from '../src/lib/stockTradeRecordKind.js';
 
@@ -22,7 +23,7 @@ async function harness() {
   const fixture = {
     React: { ...React, useState(initial) { const i = cursor++; const slot = slots[i] ||= { value: typeof initial === 'function' ? initial() : initial }; return [slot.value, value => { slot.value = typeof value === 'function' ? value(slot.value) : value; }]; } },
     icons, marketHexColor, normalizeReviewMarketSnapshot, convertReviewMoney, formatReviewMoney, reviewCurrencyNotice, reviewDisplayCurrency,
-    isReviewEarningsEvent, reviewEarningsScope, reviewEarningsRecordLabel, getStockTradeRecordKind,
+    isStockDailyGain, isReviewEarningsEvent, reviewEarningsScope, reviewEarningsRecordLabel, getStockTradeRecordKind,
     SnapshotCard: ({ value }) => React.createElement('aside', { 'data-market-date': value.asOfDate }, value.items[0].value),
   };
   const key = `__timelineUI${++nextFixture}`;
@@ -30,7 +31,7 @@ async function harness() {
   let components;
   try {
     const compiled = await transformWithOxc(`
-      const { React, icons, marketHexColor, normalizeReviewMarketSnapshot, convertReviewMoney, formatReviewMoney, reviewCurrencyNotice, reviewDisplayCurrency, SnapshotCard, isReviewEarningsEvent, reviewEarningsScope, reviewEarningsRecordLabel, getStockTradeRecordKind } = globalThis[${JSON.stringify(key)}];
+      const { React, icons, marketHexColor, normalizeReviewMarketSnapshot, convertReviewMoney, formatReviewMoney, reviewCurrencyNotice, reviewDisplayCurrency, SnapshotCard, isStockDailyGain, isReviewEarningsEvent, reviewEarningsScope, reviewEarningsRecordLabel, getStockTradeRecordKind } = globalThis[${JSON.stringify(key)}];
       const { ArrowDownRight, ArrowUpRight, CalendarDays, ChevronDown, ChevronRight, Flag, History, Info, Loader2, MessageCircle, RefreshCw } = icons;
       ${source.replace(/^import .*;\n/gm, '')}
       export { TimelineDetail, TimelineEvent, ArchivedDetail };
@@ -584,4 +585,40 @@ test('stock declines have an independent filter and progressive loading never cl
   const missing = h.render('default', { ...props, selectedEventId: stockRecord.id, data: { events: [], stockRecordStatus: 'loading' } });
   assert.match(renderToStaticMarkup(missing), /正在核对个股纪录/);
   assert.doesNotMatch(renderToStaticMarkup(missing), /这条记录已重新核对/);
+});
+
+test('annual stock gains appear in all events, have a separate filter, and show stock gains in detail', async () => {
+  const point = { date: '2026-11-04', stockCloseUsd: 110, previousCloseUsd: 100, stockDailyReturnPct: 10,
+    previousRecordPct: 6, previousRecordDate: '2026-04-02' };
+  const gain = { ...stockRecord, id: `${stockRecord.id}:best`, title: 'NVDA · 年内最大单日涨幅', recordDirection: 'best',
+    date: point.date, endDate: point.date, value: 10, previousRecordPct: 6,
+    current: point, points: [point], nodes: [{ key: point.date, label: point.date, point }] };
+  for (const language of ['zh', 'en']) {
+    const en = language === 'en', h = await harness();
+    const props = { language, displayCurrency: 'CNY', data: { events: [stockRecord, gain], years: [2026], stockRecordStatus: 'ready' } };
+    const events = tree => walk(tree).filter(node => node.type === h.components.TimelineEvent).map(node => node.props.event);
+    let tree = h.render('default', props);
+    assert.deepEqual(events(tree), [stockRecord, gain]);
+    for (const [button, expected] of [[en ? 'Stock declines' : '个股跌幅', [stockRecord]], [en ? 'Stock gains' : '个股涨幅', [gain]]]) {
+      walk(byClass(tree, 'rjt-filters')).find(node => node.type === 'button' && node.props.children === button).props.onClick();
+      tree = h.render('default', props);
+      assert.deepEqual(events(tree), expected);
+      assert.equal(byClass(tree, 'rjt-currency-note'), undefined);
+    }
+    const pending = h.render('default', { ...props, data: { events: [stockRecord], stockRecordStatus: 'loading' } });
+    assert.ok(byClass(pending, 'rjt-stock-state'));
+    assert.doesNotMatch(textOf(pending), /No matching events|暂时没有符合条件的记录/);
+    const detail = h.render('TimelineDetail', details({ event: gain, language, displayCurrency: 'CNY' }));
+    const html = renderToStaticMarkup(detail);
+    assert.match(html, en ? /NVDA · Largest one-day gain of the year/ : /NVDA · 年内最大单日涨幅/);
+    assert.match(html, en ? /Stock one-day gain/ : /个股单日涨幅/);
+    assert.match(html, en ? /One-day gain/ : /当日涨幅/);
+    assert.match(html, /\+10\.00%/);
+    assert.match(html, /\$110\.00/);
+    assert.match(html, /\$100\.00/);
+    assert.doesNotMatch(html, /跌幅|decline|净资产|Net assets|FX unavailable/);
+    const archive = h.render('ArchivedDetail', { event: { id: gain.id, kind: 'record', metric: gain.metric,
+      date: gain.date, title: gain.title, status: 'archived' }, language });
+    assert.match(renderToStaticMarkup(archive), en ? /Largest one-day gain/ : /年内最大单日涨幅/);
+  }
 });

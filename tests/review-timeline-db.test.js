@@ -150,11 +150,11 @@ function marketHistory(request) {
     expectedAsOfDate: '2026-01-05', splitBasisDate: '2026-01-05', asOfDate: '2026-01-05',
     fetchedAt: '2026-01-06T04:00:00Z', series: Object.fromEntries(request.symbols.map(symbol => [symbol,
       { symbol, name: symbol, type: 'Common Stock', rows: [
-        { date: '2025-12-31', close: 100 }, { date: '2026-01-02', close: 95 }, { date: '2026-01-05', close: 85.5 },
+        { date: '2025-12-31', close: 100 }, { date: '2026-01-02', close: 110 }, { date: '2026-01-05', close: 99 },
       ] }])) };
 }
 
-test('account events arrive before slow stock prices; only verified held stock is added', async () => {
+test('one history request yields both directions for the verified holding after account events appear', async () => {
   let release, started;
   const called = new Promise(resolve => { started = resolve; });
   const market = new Promise(resolve => { release = resolve; });
@@ -172,10 +172,13 @@ test('account events arrive before slow stock prices; only verified held stock i
   const result = await resultPromise;
   assert.equal(result.stockRecordStatus, 'ready');
   const stocks = result.events.filter(event => event.metric === 'stock_daily_return');
-  assert.equal(stocks.length, 1);
-  assert.equal(stocks[0].symbol, 'NVDA');
-  assert.equal(stocks[0].date, '2026-01-05');
+  assert.deepEqual(stocks.map(event => [event.symbol, event.date, event.recordDirection]), [
+    ['NVDA', '2026-01-05', 'worst'],
+    ['NVDA', '2026-01-02', 'best'],
+  ]);
   assert.ok(Math.abs(stocks[0].value + 10) < 1e-8);
+  assert.ok(Math.abs(stocks[1].value - 10) < 1e-8);
+  assert.equal(requests.length, 1);
   assert.deepEqual(requests[0].symbols, ['NVDA', 'QQQ']);
   assert.equal(requests[0].startDate, '2025-12-31');
 });

@@ -62,9 +62,9 @@ test('compares complete natural-year stock history including unheld dates; emits
   assert.equal(buildReviewStockDailyRecords(input(['2026-01-08'], sampleRows())).events[0].id, event.id);
 });
 
-test('only confirmed positive closing holdings qualify; equal declines and nonnegative days never create records', () => {
+test('only confirmed positive closing holdings qualify; equal declines and flat days never create records', () => {
   assert.equal(buildReviewStockDailyRecords(input(['2026-01-06', '2026-01-07'], sampleRows())).events.length, 0);
-  assert.equal(buildReviewStockDailyRecords(input(['2026-01-08'], prices('2025-12-31', '2026-01-08', { '2026-01-08': 2 }))).events.length, 0);
+  assert.equal(buildReviewStockDailyRecords(input(['2026-01-08'], prices('2025-12-31', '2026-01-08'))).events.length, 0);
   const event = buildReviewStockDailyRecords(input(['2026-01-02'], sampleRows())).events[0];
   assert.equal(event.previousRecordPct, null);
   assert.equal(event.previousRecordDate, null);
@@ -76,6 +76,35 @@ test('only confirmed positive closing holdings qualify; equal declines and nonne
     }));
     assert.equal(result.events.length, 0, JSON.stringify(extra));
   }
+});
+
+test('annual gains and declines keep independent branches, including hurdles set while unheld', () => {
+  const rows = prices('2025-12-31', '2026-01-12', {
+    '2026-01-02': 2, '2026-01-05': 5, '2026-01-06': 3, '2026-01-07': 5 + 1e-10,
+    '2026-01-08': 6, '2026-01-09': -8, '2026-01-12': 7,
+  });
+  const held = ['2026-01-02', '2026-01-06', '2026-01-07', '2026-01-08', '2026-01-09', '2026-01-12'];
+  const { events, warnings } = buildReviewStockDailyRecords(input(held, rows));
+  assert.deepEqual(warnings, []);
+  assert.deepEqual(events.map(event => event.id), ['record:stock_daily_return:NVDA:2026:best', 'record:stock_daily_return:NVDA:2026']);
+  const [gain, loss] = events;
+  assert.equal(gain.recordDirection, 'best');
+  assert.equal(gain.title, 'NVDA · 年内最大单日涨幅');
+  assert.deepEqual(gain.points.map(point => point.date), ['2026-01-02', '2026-01-08', '2026-01-12']);
+  assert.deepEqual(gain.points.map(point => point.previousRecordDate), [null, '2026-01-05', '2026-01-08']);
+  assert.ok(Math.abs(gain.points[1].previousRecordPct - 5) < 1e-8);
+  assert.equal(gain.startDate, '2026-01-02');
+  assert.equal(gain.endDate, '2026-01-12');
+  assert.ok(Math.abs(gain.value - 7) < 1e-8);
+  assert.equal(gain.current, gain.points.at(-1));
+  assert.deepEqual(gain.nodes.map(node => node.point), gain.points);
+  assert.equal(loss.recordDirection, 'worst');
+  assert.equal(loss.previousRecordDate, null);
+  assert.ok(Math.abs(loss.value + 8) < 1e-8);
+
+  const gap = buildReviewStockDailyRecords(input(held, rows.filter(row => row.date !== '2026-01-08')));
+  assert.deepEqual(gap.events.map(event => event.date), ['2026-01-02']);
+  assert.match(gap.warnings.join(' '), /缺口/);
 });
 
 test('clearing or replacing a current holding does not erase earlier verified events', () => {

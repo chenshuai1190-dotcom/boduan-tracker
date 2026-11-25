@@ -344,16 +344,23 @@ test('stock daily records keep separate symbol and year branches and retain thei
   const record = (symbol, year, date, overrides = {}) => ({ id: `record:stock_daily_return:${symbol}:${year}`, kind: 'record', metric: 'stock_daily_return', symbol, year,
     title: `${symbol} · 年内最大单日跌幅`, date, startDate: `${year}-01-02`, value: -8.52, ...overrides });
   const nvda = record('NVDA', 2026, '2026-11-05');
+  const gain = record('NVDA', 2026, '2026-11-03', { id: nvda.id + ':best',
+    title: 'NVDA · 年内最大单日涨幅', recordDirection: 'best', value: 7.1 });
   const msft = record('MSFT', 2026, '2026-10-30');
   const oldYear = record('NVDA', 2025, '2025-11-05');
   const outdated = { ...nvda, date: '2026-04-02', value: -6.30 };
   const archived = { ...nvda, status: 'archived', symbol: undefined, year: undefined };
-  const result = mergeReviewTimelineFeed([], [outdated, nvda, msft, oldYear, archived], DEFAULT_REVIEW_PREFERENCES);
-  assert.deepEqual(result.map(item => item.event), [nvda, msft, oldYear]);
+  const result = mergeReviewTimelineFeed([], [outdated, gain, nvda, msft, oldYear, archived], DEFAULT_REVIEW_PREFERENCES);
+  assert.deepEqual(result.map(item => item.event), [nvda, gain, msft, oldYear]);
   assert.equal(reviewTimelineCategory(nvda), 'stock_daily_record');
   assert.equal(result[0].date, '2026-11-05');
-  assert.equal(mergeReviewTimelineFeed([], [nvda], { ...DEFAULT_REVIEW_PREFERENCES, eventTypes: ['daily_record'] }).length, 0);
-  assert.equal(mergeReviewTimelineFeed([], [nvda, drawdown], { ...DEFAULT_REVIEW_PREFERENCES, eventTypes: ['stock_daily_record'] }).length, 1);
+  assert.deepEqual(mergeReviewTimelineFeed([], [nvda, gain], { ...DEFAULT_REVIEW_PREFERENCES, eventTypes: ['daily_record'] }), []);
+  assert.deepEqual(mergeReviewTimelineFeed([], [nvda, gain, drawdown], { ...DEFAULT_REVIEW_PREFERENCES, eventTypes: ['stock_daily_record'] }).map(row => row.event), [nvda, gain]);
   assert.equal(mergeReviewTimelineFeed([], [nvda], DEFAULT_REVIEW_PREFERENCES, { query: 'nvda' })[0].event, nvda);
   assert.equal(mergeReviewTimelineFeed([], [archived], DEFAULT_REVIEW_PREFERENCES)[0].event, archived);
+  // A stored evaluation pointer has the event ID and title, but no live financial fields.
+  const archivedGain = { id: gain.id, kind: gain.kind, metric: gain.metric, date: gain.startDate,
+    title: gain.title, value: null, status: 'archived' };
+  assert.deepEqual(mergeReviewTimelineFeed([], [archivedGain, nvda], DEFAULT_REVIEW_PREFERENCES).map(row => row.event), [nvda, archivedGain]);
+  assert.deepEqual(mergeReviewTimelineFeed([], [archivedGain, nvda, gain], DEFAULT_REVIEW_PREFERENCES, { query: '涨幅' }).map(row => row.event), [gain]);
 });

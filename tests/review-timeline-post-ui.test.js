@@ -8,15 +8,17 @@ import * as icons from 'lucide-react';
 import { marketHexColor, MARKET_COLOR_MODES } from '../src/lib/marketColorMode.js';
 import { reviewTimelineFeedDate } from '../src/lib/reviewTimelineFeed.js';
 import { formatReviewMoney, reviewDisplayCurrency } from '../src/lib/reviewDisplayCurrency.js';
+import { isStockDailyGain } from '../src/lib/reviewTimelineGroups.js';
 import { isReviewEarningsEvent, reviewEarningsScope, reviewEarningsRecordLabel } from '../src/lib/reviewTimelineEarnings.js';
 
 const source = readFileSync(new URL('../src/components/ReviewTimelinePost.jsx', import.meta.url), 'utf8');
 const fixture = { React, icons, marketHexColor, reviewTimelineFeedDate, formatReviewMoney, reviewDisplayCurrency,
-  isReviewEarningsEvent, reviewEarningsScope, reviewEarningsRecordLabel,
+  isStockDailyGain, isReviewEarningsEvent, reviewEarningsScope, reviewEarningsRecordLabel,
+  timelineEventTitle: event => event.title,
   TimelineChart: props => React.createElement('aside', { 'data-chart-currency': props.displayCurrency, 'data-chart-rate': props.usdCny }, props.event.id) };
 globalThis.__timelinePostUI = fixture;
 const compiled = await transformWithOxc(`
-  const { React, icons, marketHexColor, reviewTimelineFeedDate, formatReviewMoney, reviewDisplayCurrency, TimelineChart, isReviewEarningsEvent, reviewEarningsScope, reviewEarningsRecordLabel } = globalThis.__timelinePostUI;
+  const { React, icons, marketHexColor, reviewTimelineFeedDate, formatReviewMoney, reviewDisplayCurrency, TimelineChart, timelineEventTitle, isStockDailyGain, isReviewEarningsEvent, reviewEarningsScope, reviewEarningsRecordLabel } = globalThis.__timelinePostUI;
   const { MessageCircle } = icons;
   ${source.replace(/^import .*;\n/gm, '')}
 `, 'ReviewTimelinePostUITest.jsx', { jsx: { runtime: 'classic' } });
@@ -399,4 +401,18 @@ test('stock daily records show stock decline and its prior record without accoun
   const updated = Post(props({ ...event, value: -9.5, date: '2026-11-06', previousRecordPct: -8.52 }));
   assert.match(byClass(updated, 'rj-timeline-copy').props.children, /9\.50%/);
   assert.equal(updated.props['data-rj-entry-key'], `timeline:${event.id}`);
+});
+
+test('held-stock gain posts show positive direction, prior gain, and no account or FX readings', () => {
+  const gain = { id: 'record:stock_daily_return:NVDA:2026:best', kind: 'record', metric: 'stock_daily_return',
+    recordDirection: 'best', symbol: 'NVDA', date: '2026-11-05', title: 'NVDA · 年内最大单日涨幅', value: 8.5, previousRecordPct: 4.3 };
+  for (const language of ['en', 'zh']) for (const mode of Object.values(MARKET_COLOR_MODES)) {
+    const tree = Post(props(gain, { language, marketColorMode: mode, displayCurrency: 'CNY' }));
+    const html = renderToStaticMarkup(tree);
+    assert.match(html, language === 'en' ? /NVDA closed up 8\.50%, its largest one-day gain/ : /NVDA 收盘上涨8\.50%，创下年内最大单日涨幅/);
+    assert.match(html, language === 'en' ? /NVDA · One-day gain/ : /NVDA · 单日涨幅/);
+    assert.doesNotMatch(html, /decline|下跌|跌幅|CNY|FX unavailable|账户变化/);
+    assert.equal(byClass(tree, 'rj-system-primary').props.style.color, marketHexColor(8.5, mode));
+    assert.equal(byClass(tree, 'rj-system-secondary').props.children[1].props.children, '+4.30%');
+  }
 });

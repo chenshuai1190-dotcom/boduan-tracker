@@ -23,7 +23,7 @@ test('settings expose the avatar identity, master switch, eleven display groups 
   const html=await render();
   assert.match(html,/动态设置/);assert.match(html,/示例用户/);
   assert.equal((html.match(/role="switch"/g)||[]).length,12);
-  for(const text of ['净资产新高','累计收益新高','年内收益新高','年内收益新低','净资产回撤与恢复','收益率高点回落','单日涨跌纪录','持仓个股年内最大单日跌幅','月度总结','季度总结','年度总结','美元 USD','人民币 CNY'])assert.ok(html.includes(text),text);
+  for(const text of ['净资产新高','累计收益新高','年内收益新高','年内收益新低','净资产回撤与恢复','收益率高点回落','单日涨跌纪录','持仓个股年内最大单日涨跌幅','月度总结','季度总结','年度总结','美元 USD','人民币 CNY'])assert.ok(html.includes(text),text);
   assert.doesNotMatch(html,/累计收益率新高|累计盈利新高|年内收益率新高|年内收益率新低|年内收益金额新高|年内收益金额新低/);
   assert.match(html,/aria-pressed="true"[^>]*>美元 USD/);
 });
@@ -43,12 +43,12 @@ test('loading and saving prevent changes and errors offer a visible retry',async
   assert.match(await render({preferences:{showTimeline:true,currency:'CNY',eventTypes:[]}}),/当前未选择任何事件/);
 });
 
-test('stock loss setting is independent from account daily return records', async () => {
+test('stock gain and loss setting is independent from account daily return records', async () => {
   for (const account of [false, true]) for (const stock of [false, true]) {
     const eventTypes=[account && 'daily_record',stock && 'stock_daily_record'].filter(Boolean);
     const html=await render({preferences:{showTimeline:true,currency:'USD',eventTypes}});
     assert.match(html,new RegExp(`aria-checked="${account}" aria-label="单日涨跌纪录"`));
-    assert.match(html,new RegExp(`aria-checked="${stock}" aria-label="持仓个股年内最大单日跌幅"`));
+    assert.match(html,new RegExp(`aria-checked="${stock}" aria-label="持仓个股年内最大单日涨跌幅"`));
   }
 });
 
