@@ -246,6 +246,11 @@ function TimelineDetail({ event, marketColorMode, entries, stockTrades, onOpenEn
   </div>;
 }
 
+export function TimelinePendingNotice({ fromDate, language, onRetry }) {
+  const en = isEnglish(language);
+  return <div className="rj-feed-status" role="status"><p className="rj-note">{en ? `Closing records from ${fromDate} are awaiting reconciliation.` : `${fromDate} 起的收盘记录待核对。`}</p>{onRetry && <button type="button" className="rj-text-button" onClick={onRetry}>{label(en, '重新读取', 'Retry')}</button>}</div>;
+}
+
 export default function ReviewTimeline({ data, loading = false, error, onRetry, selectedEventId, onSelectEvent, onBack,
   marketColorMode, stockTrades = [], entries = [], onOpenEntry, onEvaluate, renderEvaluations, getCommentCount, language = 'zh', displayCurrency = 'USD', usdCny = null, fxDate = '' }) {
   const en = isEnglish(language), currency = { displayCurrency, usdCny, fxDate };
@@ -257,8 +262,10 @@ export default function ReviewTimeline({ data, loading = false, error, onRetry, 
   const years = [...new Set((Array.isArray(data?.years) ? data.years : events.map(event => event.date?.slice(0, 4))).map(String))].filter(value => /^\d{4}$/.test(value)).sort().reverse();
   if (loading) return <div className="rjt-state" role="status"><Loader2 className="rj-spin" size={24} /><h2>{label(en, '正在整理投资时间线', 'Preparing your timeline')}</h2><p>{label(en, '读取已完成的收益报表记录。', 'Reading completed P&L report records.')}</p></div>;
   if (error) return <div className="rjt-state" role="alert"><Info size={26} /><h2>{label(en, '时间线暂时无法读取', 'Timeline is unavailable')}</h2><p>{typeof error === 'string' ? error : label(en, '请稍后重试。', 'Please try again.')}</p>{onRetry && <button type="button" onClick={onRetry}><RefreshCw size={16} />{label(en, '重新读取', 'Retry')}</button>}</div>;
+  const pendingNotice = data?.pendingFromDate && <TimelinePendingNotice fromDate={data.pendingFromDate} {...{ language, onRetry }} />;
   if (selected?.status === 'archived') return <ArchivedDetail event={selected} {...{ language, renderEvaluations, onEvaluate }} />;
-  if (selected) return <TimelineDetail key={selected.id} event={selected} {...{ marketColorMode, stockTrades, entries, onOpenEntry, onEvaluate, renderEvaluations, language, ...currency }} />;
+  if (selected) return <><TimelineDetail key={selected.id} event={selected} {...{ marketColorMode, stockTrades, entries, onOpenEntry, onEvaluate, renderEvaluations, language, ...currency }} />{pendingNotice}</>;
+  if (selectedEventId && pendingNotice) return <>{pendingNotice}<button type="button" className="rjt-text-button" onClick={onBack}>{label(en, '返回时间线', 'Back to timeline')}</button></>;
   const stockStatus = data?.stockRecordStatus;
   const stockPending = stockStatus === 'loading';
   const stockProblem = ['incomplete', 'error'].includes(stockStatus);
@@ -279,13 +286,14 @@ export default function ReviewTimeline({ data, loading = false, error, onRetry, 
     <div className="rjt-heading"><h2>{label(en, '账户的关键时刻', 'Your account milestones')}</h2><label className="rjt-year"><span className="rj-visually-hidden">{label(en, '时间线年份', 'Timeline year')}</span><select value={year} onChange={event => setYear(event.target.value)} aria-label={label(en, '时间线年份', 'Timeline year')}><option value="all">{label(en, '全部年份', 'All years')}</option>{years.map(value => <option value={value} key={value}>{value}</option>)}</select><ChevronDown size={15} /></label></div>
     <div className="rjt-filters" aria-label={label(en, '时间线事件类型', 'Timeline event type')}>{[['all', '全部事件', 'All events'], ['high', '新高', 'New highs'], ['low', '新低', 'New lows'], ['drawdown', '回撤与恢复', 'Drawdowns'], ['period', '周期纪录', 'Period records'], ['stock_gain', '个股涨幅', 'Stock gains'], ['stock', '个股跌幅', 'Stock declines']].map(([id, zh, english]) => <button type="button" key={id} aria-pressed={filter === id} onClick={() => setFilter(id)}>{label(en, zh, english)}</button>)}</div>
     {currencyNotice && !stockFilter && (!events.length || events.some(event => !isStockDailyRecord(event))) && <p className="rjt-currency-note">{currencyNotice}</p>}
-    {data?.status === 'pending' ? <div className="rjt-state"><History size={26} /><h2>{label(en, '收益报表正在更新', 'P&L report is updating')}</h2><p>{label(en, '完成收盘核对后，时间线会同步更新。', 'The timeline will update after closing data is reconciled.')}</p>{onRetry && <button type="button" onClick={onRetry}>{label(en, '重新读取', 'Retry')}</button>}</div>
+    {data?.status === 'pending' ? !pendingNotice && <div className="rjt-state"><History size={26} /><h2>{label(en, '收益报表正在更新', 'P&L report is updating')}</h2><p>{label(en, '完成收盘核对后，时间线会同步更新。', 'The timeline will update after closing data is reconciled.')}</p>{onRetry && <button type="button" onClick={onRetry}>{label(en, '重新读取', 'Retry')}</button>}</div>
       : shown.length ? shown.map(event => {
         const month = event.date?.slice(0, 7) || '';
         const showMonth = month !== currentMonth; currentMonth = month;
         return <React.Fragment key={event.id}>{showMonth && <div className="rjt-month"><span>{en ? month : `${Number(month.slice(5))} 月`}</span>{!en && <span>{month.slice(0, 4)}</span>}</div>}<TimelineEvent event={event} commentCount={getCommentCount?.(event) ?? 0} {...{ onSelectEvent, marketColorMode, language, ...currency }} /></React.Fragment>;
-      }) : showStockState ? null : <div className="rjt-state"><History size={26} /><h2>{label(en, '暂时没有符合条件的记录', 'No matching events yet')}</h2><p>{events.length ? label(en, '试试其他年份或事件类型。', 'Try a different year or event type.') : label(en, '有可核对的收盘历史后，新高和回撤会自动呈现。', 'Highs and drawdowns appear as verifiable closing history becomes available.')}</p></div>}
+      }) : showStockState || pendingNotice ? null : <div className="rjt-state"><History size={26} /><h2>{label(en, '暂时没有符合条件的记录', 'No matching events yet')}</h2><p>{events.length ? label(en, '试试其他年份或事件类型。', 'Try a different year or event type.') : label(en, '有可核对的收盘历史后，新高和回撤会自动呈现。', 'Highs and drawdowns appear as verifiable closing history becomes available.')}</p></div>}
     {events.length > 0 && <p className="rjt-history-end">{label(en, '基于已有收盘历史', 'Based on available closing history')}{data?.coverage?.startDate ? ` · ${data.coverage.startDate} — ${data.coverage.endDate}` : ''}</p>}
-    {showStockState && <div className="rjt-stock-state" role={stockPending ? 'status' : 'alert'}><span>{stockPending ? label(en, '正在核对个股纪录…', 'Checking stock records…') : label(en, data?.stockRecordWarning || '部分个股纪录暂未核对完整。', 'Some stock records could not be verified.')}</span>{stockProblem && onRetry && <button type="button" className="rjt-text-button" onClick={onRetry}>{label(en, '重试', 'Retry')}</button>}</div>}
+    {showStockState && <div className="rjt-stock-state" role={stockPending ? 'status' : 'alert'}><span>{stockPending ? label(en, '正在核对个股纪录…', 'Checking stock records…') : label(en, data?.stockRecordWarning || '部分个股纪录暂未核对完整。', 'Some stock records could not be verified.')}</span>{stockProblem && onRetry && !pendingNotice && <button type="button" className="rjt-text-button" onClick={onRetry}>{label(en, '重试', 'Retry')}</button>}</div>}
+    {pendingNotice}
   </section>;
 }

@@ -5,6 +5,8 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { transformWithOxc } from 'vite';
 
+import { PNL_REPORT_MUTATION_QUIET_MS } from '../src/lib/pnlReportRebuildPolicy.js';
+
 const source = readFileSync(new URL('../src/pages/ReviewJournalPage.jsx', import.meta.url), 'utf8');
 const pageSource = source.slice(source.indexOf('function AlwaysPinIcon'));
 const dataUrl = code => `data:text/javascript;base64,${Buffer.from(code).toString('base64')}`;
@@ -466,6 +468,7 @@ async function harness({ removeReply, preferences = {}, localPreferences = new M
       import { ArrowLeft, Search, Plus, MoreHorizontal, Pin, MessageCircle, Pencil, Trash2, ChevronDown, Check, Bell } from ${JSON.stringify(import.meta.resolve('lucide-react'))};
       import { reviewJournalFeed, localReviewDate } from ${JSON.stringify(new URL('../src/lib/reviewJournalFeed.js', import.meta.url).href)};
       import { findReviewStockMentions } from ${JSON.stringify(new URL('../src/lib/reviewStockMentions.js', import.meta.url).href)};
+      import { PNL_REPORT_MUTATION_QUIET_MS } from ${JSON.stringify(new URL('../src/lib/pnlReportRebuildPolicy.js', import.meta.url).href)};
       import { mergeReviewTimelineFeed, reviewTimelineFeedDate } from ${JSON.stringify(new URL('../src/lib/reviewTimelineFeed.js', import.meta.url).href)};
       import { groupReviewTimelineEvents } from ${JSON.stringify(new URL('../src/lib/reviewTimelineGroups.js', import.meta.url).href)};
       import { reviewCommentPostsForDetail, reviewAuthorCommentForManagement, reviewCommunityPostAllowed } from ${JSON.stringify(new URL('../src/lib/reviewThreadContext.js', import.meta.url).href)};
@@ -478,12 +481,12 @@ async function harness({ removeReply, preferences = {}, localPreferences = new M
       const readReviewAudiencePreference = (userId, kind) => readAudience(userId, kind, fixture.localStorage);
       const writeReviewAudiencePreference = (userId, kind, value) => writeAudience(userId, kind, value, fixture.localStorage);
       const Avatar = () => null, AuthorName = () => null, Photo = () => null, SnapshotCard = () => null, ReviewStockCarousel = () => null, ReviewStockText = () => null, ReviewPostBody = () => null, Composer = () => null, Dialog = () => null;
-      const ReviewPublicFeed = () => null, ReviewCommentThreads = () => null, ReviewCommunityEvaluations = () => null, ReplyBody = props => props.children, ReviewTimeline = () => null, ReviewPreferences = () => null, ReviewTimelinePost = () => null;
+      const ReviewPublicFeed = () => null, ReviewCommentThreads = () => null, ReviewCommunityEvaluations = () => null, ReplyBody = props => props.children, ReviewTimeline = () => null, TimelinePendingNotice = () => null, ReviewPreferences = () => null, ReviewTimelinePost = () => null;
       const ReviewNotifications=()=>null;
       const useReviewNotificationCount=()=>({unreadCount:3,error:false,update:()=>{}});
       const useReviewPreferences = () => fixture.preferenceState;
       const ReviewEvaluationComposer = () => null, EvaluationRating = () => null, ReviewAccountCard = () => null, ReviewTradeReferences = () => null, EmojiPicker = () => null;
-      export { ReviewNotifications, ReviewActivityTime, ReviewPublicFeed, ReviewCommentThreads, ReviewCommunityEvaluations, ReplyBody, ReviewSystemAvatar, ReviewSystemName, Avatar, AuthorName, ReviewTimeline, ReviewPreferences, ReviewTimelinePost, Photo, SnapshotCard, ReviewStockCarousel, ReviewPostBody, Composer, Dialog, ReviewEvaluationComposer, EvaluationRating, ReviewAccountCard, ReviewTradeReferences };
+      export { ReviewNotifications, ReviewActivityTime, ReviewPublicFeed, ReviewCommentThreads, ReviewCommunityEvaluations, ReplyBody, ReviewSystemAvatar, ReviewSystemName, Avatar, AuthorName, ReviewTimeline, TimelinePendingNotice, ReviewPreferences, ReviewTimelinePost, Photo, SnapshotCard, ReviewStockCarousel, ReviewPostBody, Composer, Dialog, ReviewEvaluationComposer, EvaluationRating, ReviewAccountCard, ReviewTradeReferences };
       ${pageSource.replaceAll('import.meta.env.DEV', 'true')}
     `, 'ReviewJournalEntryPageTest.jsx', { jsx: { runtime: 'classic' } });
     Page = await import(dataUrl(compiled.code));
@@ -1771,4 +1774,111 @@ test('private and merged timeline reply focus follows the physical comment conta
     tree = h.render(); assert.ok(lists().every(list => list.props.replyTarget === null));
     h.unmount();
   }
+});
+
+test('a pending suffix preserves prefix comments and never promotes saved references into stale timeline events', async () => {
+  const h = await harness({ preferences: { showTimeline: true, eventTypes: ['net_assets_high', 'drawdown'] } });
+  const [confirmed, uncertain] = activityEvents();
+  const fromDate = '2026-11-07';
+  h.ctx.previewData.timeline = { status: 'ready', events: [confirmed], pendingFromDate: fromDate };
+  h.ctx.reviewLogs = [confirmed, uncertain, { ...uncertain, id: 'later', startDate: fromDate }].map(event => ({
+    id: `saved-${event.id}`, type: 'log', date: event.startDate, text: event.title, stocks: [], images: [],
+    timelineEvent: { ...event, date: event.startDate }, replies: [{ id: 'reply', date: event.startDate, text: '我的评价' }],
+  }));
+  h.render(); await settle(); let tree = h.render();
+  assert.equal(systemPosts(tree, h).length, 1);
+  assert.equal(systemPosts(tree, h)[0].props.commentCount, 1);
+  assert.equal(find(tree, node => node.type === h.Page.TimelinePendingNotice).props.fromDate, fromDate);
+  button(tree, '时间线').props.onClick(); tree = h.render();
+  const timeline = find(tree, node => node.type === h.Page.ReviewTimeline);
+  assert.deepEqual(timeline.props.data.events.map(event => event.id), [confirmed.id]);
+  assert.equal(timeline.props.getCommentCount(confirmed), 1);
+  h.ctx.previewData.timeline = { status: 'ready', events: [confirmed] };
+  timeline.props.onRetry();
+  tree = h.render(); await settle(); tree = h.render();
+  assert.equal(find(tree, node => node.type === h.Page.ReviewTimeline).props.data.events.filter(event => event.status === 'archived').length, 2);
+  h.unmount();
+});
+
+test('pending revalidation waits for the quiet interval and foreground, coalesces active reads and scopes the result to its owner', async t => {
+  const h = await harness();
+  t.after(() => h.unmount());
+  t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: Date.parse('2026-11-06T15:30:00Z') });
+  delete h.ctx.previewData;
+  h.ctx.db.readCachedReviewIdentity = () => ({ nickname: '当前账户' });
+  h.ctx.db.fetchReviewIdentity = async () => ({ nickname: '当前账户' });
+  h.ctx.db.subscribeReviewIdentity = () => () => {};
+  const reads = [];
+  h.ctx.db.fetchReviewTimeline = (owner, options) => new Promise(resolve => reads.push({ owner, options, resolve }));
+  let tree = h.render();
+  button(tree, '时间线').props.onClick(); tree = h.render();
+  const ready = { status: 'ready', events: activityEvents() };
+  const pending = { ...ready, events: ready.events.slice(0, 1), pendingFromDate: '2026-11-07' };
+  reads[0].resolve(ready);
+  await settle(); tree = h.render();
+  h.ctx.pnlReportRefreshVersion = 1;
+  tree = h.render();
+  assert.equal(find(tree, node => node.type === h.Page.ReviewTimeline).props.data, null);
+  assert.equal(reads.length, 2);
+  reads[1].options.onProgress({ ...pending, stockRecordStatus: 'loading' });
+  tree = h.render();
+  t.mock.timers.tick(PNL_REPORT_MUTATION_QUIET_MS); h.render();
+  assert.equal(reads.length, 2);
+  reads[1].resolve(pending); await settle(); tree = h.render();
+  t.mock.timers.tick(PNL_REPORT_MUTATION_QUIET_MS - 1); h.render();
+  assert.equal(reads.length, 2);
+  h.fixture.document.visibilityState = 'hidden';
+  t.mock.timers.tick(1); h.render();
+  assert.equal(reads.length, 2);
+  h.fixture.document.visibilityState = 'visible';
+  h.listeners.get('pageshow')();
+  h.listeners.get('pageshow')();
+  tree = h.render(); tree = h.render();
+  assert.equal(reads.length, 3);
+  assert.equal(find(tree, node => node.type === h.Page.ReviewTimeline).props.data.events.length, 1);
+  t.mock.timers.tick(PNL_REPORT_MUTATION_QUIET_MS); h.render();
+  assert.equal(reads.length, 3);
+  h.ctx.userId = 'next-owner';
+  tree = h.render();
+  assert.equal(find(tree, node => node.type === h.Page.ReviewTimeline).props.data, null);
+  assert.equal(reads[3].owner, 'next-owner');
+  reads[2].resolve(ready); await settle(); tree = h.render();
+  assert.equal(find(tree, node => node.type === h.Page.ReviewTimeline).props.data, null);
+  reads[3].resolve({ status: 'empty', events: [] }); await settle(); tree = h.render();
+  assert.deepEqual(find(tree, node => node.type === h.Page.ReviewTimeline).props.data.events, []);
+  t.mock.timers.tick(PNL_REPORT_MUTATION_QUIET_MS); h.render();
+  assert.equal(reads.length, 4);
+});
+
+test('returning from a trade rereads an earlier dirty boundary even within the same edit burst', async () => {
+  const [high, drawdown] = activityEvents();
+  const report = { status: 'ready', events: [high, drawdown], pendingFromDate: '2026-11-12' };
+  const visits = [];
+  const fetchReviewTimeline = async owner => {
+    visits.push(owner);
+    return { ...report };
+  };
+  const enter = async () => {
+    const h = await harness();
+    delete h.ctx.previewData;
+    h.ctx.pnlReportRefreshVersion = 1;
+    Object.assign(h.ctx.db, {
+      readCachedReviewIdentity: () => ({ nickname: '当前账户' }),
+      fetchReviewIdentity: async () => ({ nickname: '当前账户' }),
+      subscribeReviewIdentity: () => () => {},
+      fetchReviewTimeline,
+    });
+    let tree = h.render();
+    button(tree, '时间线').props.onClick(); h.render(); await settle(); tree = h.render();
+    const data = find(tree, node => node.type === h.Page.ReviewTimeline).props.data;
+    h.unmount();
+    return data;
+  };
+  assert.equal((await enter()).events.length, 2);
+  report.pendingFromDate = '2026-11-04';
+  report.events = [];
+  const reentered = await enter();
+  assert.equal(reentered.pendingFromDate, '2026-11-04');
+  assert.deepEqual(reentered.events, []);
+  assert.deepEqual(visits, ['owner', 'owner']);
 });

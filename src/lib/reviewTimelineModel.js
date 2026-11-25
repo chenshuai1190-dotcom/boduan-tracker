@@ -455,10 +455,12 @@ function periodEvents(points, latestCloseDate) {
 }
 
 /** Pure, read-only derivation from authenticated raw report rows; never fills absent values with zero. */
-export function buildReviewTimeline({ snapshots = [], movements = [], firstTradeDate = '', now = Date.now(), expectedUserId } = {}) {
+export function buildReviewTimeline({ snapshots = [], movements = [], firstTradeDate = '', pendingFromDate = null,
+  now = Date.now(), expectedUserId } = {}) {
   const currentTime = Number(now);
   if (!Array.isArray(snapshots) || !Array.isArray(movements)) throw fail('REVIEW_HISTORY_INVALID', '时间线数据格式不正确。');
   if (!Number.isFinite(currentTime) || !Number.isFinite(new Date(currentTime).getTime())) throw fail('REVIEW_CLOCK_INVALID', '无法确认当前日期。');
+  if (pendingFromDate !== null && !validDate(pendingFromDate)) throw fail('REVIEW_HISTORY_INVALID', '待核对日期无效。');
   const owner = expectedUserId ?? snapshots[0]?.user_id ?? movements[0]?.user_id;
   verifyOwner(snapshots, owner); verifyOwner(movements, owner);
   const warnings = new Set();
@@ -467,13 +469,19 @@ export function buildReviewTimeline({ snapshots = [], movements = [], firstTrade
     if (seenDates.has(row.snapshot_date)) throw fail('REVIEW_HISTORY_DUPLICATE', '同一交易日存在重复快照，暂不计算时间线。');
     seenDates.add(row.snapshot_date);
   }
-  const points = snapshots.map(row => normalizeSnapshot(row, currentTime)).filter(Boolean).sort((a, b) => a.date.localeCompare(b.date));
+  const verified = pendingFromDate ? snapshots.filter(row => row.snapshot_date < pendingFromDate
+    && timestamp(row.locked_at) !== null && isReviewAccountCloseDate(row.snapshot_date, timestamp(row.locked_at))) : snapshots;
+  const points = verified.map(row => normalizeSnapshot(row, currentTime)).filter(Boolean).sort((a, b) => a.date.localeCompare(b.date));
   const cashMovements = normalizeMovements(movements, currentTime);
   if (points.length < snapshots.length) warnings.add('未完成收盘或无法核验的报表行未参与计算。');
   const netAssetCount = points.filter(point => point.netAssetsUsd !== null).length;
   if (netAssetCount < points.length) warnings.add('部分历史报表没有完整净资产依据；保留其已记录收益数据，不补算净资产。');
   const { events: assetEvents, interruptions } = netAssetEvents(points, cashMovements, warnings);
-  const latestCloseDate = latestReviewAccountCloseDate(currentTime);
+  // Use the real clock to validate late repairs, but don't close periods or
+  // active annual drawdowns beyond the dates the dirty marker lets us prove.
+  const completedThrough = latestReviewAccountCloseDate(currentTime);
+  const latestCloseDate = pendingFromDate && pendingFromDate <= completedThrough
+    ? adjacentSession(pendingFromDate, -1) : completedThrough;
   const events = [...assetEvents, ...returnDrawdownEvents(points, warnings, latestCloseDate), ...reportRecordEvents(points),
     ...annualRecordEvents(annualReportPoints(points, firstTradeDate)), ...periodEvents(points, latestCloseDate)]
     .sort((a, b) => b.date.localeCompare(a.date) || a.id.localeCompare(b.id));

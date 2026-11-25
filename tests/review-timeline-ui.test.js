@@ -622,3 +622,26 @@ test('annual stock gains appear in all events, have a separate filter, and show 
     assert.match(renderToStaticMarkup(archive), en ? /Largest one-day gain/ : /年内最大单日涨幅/);
   }
 });
+
+test('a verified prefix stays readable with a dated footer, including detail and empty-prefix states', async () => {
+  const h = await harness();
+  const data = { status: 'ready', events: [cycle], pendingFromDate: '2026-10-07', years: [2026] };
+  let retries = 0;
+  const props = { data, onRetry: () => retries++ };
+  const list = renderToStaticMarkup(h.render('default', props));
+  assert.match(list, /净资产回撤超过 10%/);
+  assert.match(list, /2026-10-07 起的收盘记录待核对/);
+  assert.doesNotMatch(list, /收益报表正在更新/);
+  const notice = h.render('TimelinePendingNotice', { fromDate: data.pendingFromDate, onRetry: props.onRetry });
+  walk(notice).find(node => node.type === 'button').props.onClick();
+  assert.equal(retries, 1);
+  const detail = renderToStaticMarkup(h.render('default', { ...props, selectedEventId: cycle.id }));
+  assert.match(detail, /最大回撤/);
+  assert.match(detail, /起的收盘记录待核对/);
+  const missing = renderToStaticMarkup(h.render('default', { ...props, selectedEventId: 'uncertain' }));
+  assert.match(missing, /返回时间线/);
+  assert.doesNotMatch(missing, /这条记录已重新核对/);
+  const empty = renderToStaticMarkup(h.render('default', { ...props, data: { ...data, status: 'pending', events: [] } }));
+  assert.match(empty, /2026-10-07 起的收盘记录待核对/);
+  assert.doesNotMatch(empty, /暂时没有符合条件的记录|收益报表正在更新/);
+});

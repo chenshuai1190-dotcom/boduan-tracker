@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createReviewTimelineLoader } from '../src/lib/reviewTimelineDb.js';
+import { currentNewYorkDate } from '../src/lib/pnlReportSnapshots.js';
 
 const OWNER = 'timeline-owner';
 const NOW = Date.parse('2026-11-07T05:00:00Z');
@@ -22,6 +23,7 @@ function mock({ snapshots = [], movements = [], trades = [], symbolSnapshots = [
       const query = {
         select(fields) { call.fields = fields; return query; },
         eq(field, value) { call.filters.push([field, value]); return query; },
+        lt(field, value) { call.upperBound = [field, value]; return query; },
         order(field, options) { call.orders.push([field, options]); return query; },
         range(start, end) { call.range = [start, end]; return query; },
         abortSignal(signal) { call.signal = signal; return query; },
@@ -33,7 +35,11 @@ function mock({ snapshots = [], movements = [], trades = [], symbolSnapshots = [
           if (table === errorTable) return Promise.resolve({ data: null, error: new Error('database unavailable') }).then(resolve, reject);
           const all = table === 'pnl_report_snapshots' ? snapshots : table === 'stock_trades' ? trades
             : table === 'pnl_report_symbol_snapshots' ? symbolSnapshots : movements;
-          const data = pageFactory && table !== 'stock_trades' ? pageFactory(table, call.range) : all.slice(call.range[0], call.range[1] + 1);
+          const bounded = !call.upperBound ? all : all.filter(row => {
+            const [field, limit] = call.upperBound;
+            return field === 'occurred_at' ? currentNewYorkDate(new Date(row[field])) < limit.slice(0, 10) : row[field] < limit;
+          });
+          const data = pageFactory && table !== 'stock_trades' ? pageFactory(table, call.range) : bounded.slice(call.range[0], call.range[1] + 1);
           return Promise.resolve({ data, error: null }).then(resolve, reject);
         },
       };
@@ -153,6 +159,57 @@ function marketHistory(request) {
         { date: '2025-12-31', close: 100 }, { date: '2026-01-02', close: 110 }, { date: '2026-01-05', close: 99 },
       ] }])) };
 }
+
+test('a stable dirty date serves only earlier verified account and stock evidence', async () => {
+  const dirty = '2026-01-05';
+  const { client, calls } = mock({ states: [state({ dirty_from_date: dirty })], snapshots: stockRows(), symbolSnapshots: heldRows(),
+    trades: [{ id: 'trade', trade_date: dirty, user_id: OWNER }],
+    movements: [{ id: 'suffix', user_id: OWNER, occurred_at: '2026-01-05T05:00:00Z', kind: 'unverified' }] });
+  const progress = [], requests = [];
+  const result = await createReviewTimelineLoader(client, { now: () => STOCK_NOW, loadHistory: async request => {
+    requests.push(request);
+    const history = marketHistory(request);
+    history.asOfDate = request.endDate;
+    for (const series of Object.values(history.series)) series.rows = series.rows.filter(row => row.date <= request.endDate);
+    return history;
+  } })(OWNER, { onProgress: value => progress.push(value) });
+  for (const value of [...progress, result]) {
+    assert.equal(value.status, 'ready');
+    assert.equal(value.coverage.endDate, '2026-01-02');
+    assert.equal(value.coverage.snapshotCount, 1);
+    assert.equal(value.pendingFromDate, dirty);
+    assert.ok(value.events.every(event => event.date < dirty));
+  }
+  assert.deepEqual(progress.map(value => value.stockRecordStatus), ['loading']);
+  assert.equal(result.stockRecordStatus, 'ready');
+  assert.deepEqual(result.events.filter(event => event.metric === 'stock_daily_return').map(event => [event.date, event.recordDirection]),
+    [['2026-01-02', 'best']]);
+  assert.deepEqual(requests.map(request => request.endDate), ['2026-01-02']);
+  for (const [table, field, limit] of [['pnl_report_snapshots', 'snapshot_date', dirty],
+    ['pnl_report_symbol_snapshots', 'snapshot_date', dirty], ['stock_trades', 'trade_date', dirty],
+    ['available_cash_movements', 'occurred_at', dirty + ' 00:00 America/New_York']]) {
+    assert.deepEqual(calls.find(call => call.table === table).upperBound, [field, limit]);
+  }
+});
+
+test('an empty verified prefix and changing or invalid revisions never publish suffix events', async () => {
+  const date = '2026-01-05', dirty = state({ dirty_from_date: date });
+  const rows = stockRows();
+  const noPrefix = mock({ states: [dirty], snapshots: [{ ...rows[0], locked_at: null }, rows[1]] });
+  const pending = await createReviewTimelineLoader(noPrefix.client, { now: () => STOCK_NOW })(OWNER);
+  assert.equal(pending.status, 'pending');
+  assert.equal(pending.pendingFromDate, date);
+  assert.deepEqual(pending.events, []);
+  assert.ok(!noPrefix.calls.some(call => call.table === 'pnl_report_symbol_snapshots'));
+  for (const states of [[dirty, state()], [dirty, { ...dirty, ledger_revision: 5 }],
+    [dirty, dirty, { ...dirty, dirty_from_date: '2026-01-02' }], [state({ dirty_from_date: '2026-02-30' })]]) {
+    const { client } = mock({ snapshots: rows, states });
+    const changed = await createReviewTimelineLoader(client, { now: () => STOCK_NOW })(OWNER);
+    assert.equal(changed.status, 'pending');
+    assert.equal(changed.pendingFromDate, null);
+    assert.deepEqual(changed.events, []);
+  }
+});
 
 test('one history request yields both directions for the verified holding after account events appear', async () => {
   let release, started;

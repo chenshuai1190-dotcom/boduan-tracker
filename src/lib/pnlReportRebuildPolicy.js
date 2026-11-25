@@ -1,0 +1,1 @@
+export const PNL_REPORT_MUTATION_QUIET_MS = 20 * 60 * 1000;

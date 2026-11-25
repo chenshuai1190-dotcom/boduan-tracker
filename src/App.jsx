@@ -31,7 +31,7 @@ import {
   recordCommunityCompetitionObservedPublication,
 } from './lib/communityCompetitionCache.js';
 import { COMMUNITY_COMPETITION_PUBLICATION_EVENT } from './lib/communityCompetitionResume.js';
-import { enqueuePnlReportRecalculationAfterLedgerMutation } from './lib/pnlReportRecalculation.js';
+import { createPnlReportMutationScheduler } from './lib/pnlReportRecalculation.js';
 import { createPnlShareIdentity } from './lib/pnlShareIdentity.js';
 import ReportBottomNavIcon from './components/ReportBottomNavIcon.jsx';
 import './components/ReportBottomNav.css';
@@ -964,7 +964,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   // Unlike the startup timeout, this flag means the stock ledger actually loaded.
   const [stockHoldingsReady, setStockHoldingsReady] = useState(false);
   const [stockHoldingsError, setStockHoldingsError] = useState(null);
-  // 收益报表服务端重算完成后递增，只作为页面重新读取数据库快照的信号。
+  // 账本改动或服务端完成核对后，通知页面重新读取已确认的数据库记录。
   const [pnlReportRefreshVersion, setPnlReportRefreshVersion] = useState(0);
   // V2 波段页面只向全局行情层同步最小 symbol/name 集合;真实记录仍由独立页面按需读取。
   const [swingWaveQuoteRows, setSwingWaveQuoteRows] = useState([]);
@@ -2579,21 +2579,29 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     }
   }, [user?.id]);
 
-  const recalculatePnlReportAfterLedgerMutation = useCallback(async () => {
-    if (!String(user?.id || '').trim()) return null;
-    try {
-      return await enqueuePnlReportRecalculationAfterLedgerMutation({ supabase });
-    } catch (error) {
-      // 正式交易已经保存成功；收益快照属于可重试的派生数据，失败不能回滚账本。
-      console.warn('收益报表即时重算暂未完成:', error?.message || error);
-      return null;
-    } finally {
-      // The report page remains read-only. After the mutation-triggered attempt,
-      // refresh an already-open report from authoritative snapshots only; any
-      // remaining dirty state is consumed by the scheduled close jobs.
-      setPnlReportRefreshVersion((version) => version + 1);
-    }
+  const pnlRebuildScheduler = useRef(null);
+  useEffect(() => {
+    const scheduler = createPnlReportMutationScheduler({
+      userId: user?.id, supabase,
+      onSettled: (result, error) => {
+        if (error) console.warn('收益报表稍后重算:', error?.message || error);
+        if (['recalculated', 'cleared', 'already_current'].includes(result?.state)) {
+          setPnlReportRefreshVersion(version => version + 1);
+        }
+      },
+    });
+    pnlRebuildScheduler.current = scheduler;
+    return () => {
+      scheduler.dispose();
+      pnlRebuildScheduler.current = null;
+    };
   }, [user?.id]);
+
+  const recalculatePnlReportAfterLedgerMutation = useCallback((options) => {
+    if (pnlRebuildScheduler.current?.schedule(options)) {
+      setPnlReportRefreshVersion(version => version + 1);
+    }
+  }, []);
 
   const reconcileStockTradeCashAfterFailure = async () => {
     try {
@@ -2777,7 +2785,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
         ? current.map(t => String(t.id) === String(editingId) ? tradeRecord : t)
         : [...current.filter(t => String(t.id) !== String(tradeRecord.id)), tradeRecord]);
       stockTradeCashRequestRef.current = null;
-      void recalculatePnlReportAfterLedgerMutation();
+      recalculatePnlReportAfterLedgerMutation();
       void recalculateCompetitionAfterLedgerMutation();
     } catch (e) {
       await reconcileStockTradeCashAfterFailure();
@@ -2817,7 +2825,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
       applyStockTradeCashStatus(result);
       setStockTrades(current => current.filter(t => String(t.id) !== String(id)));
       stockTradeCashDeleteRequestsRef.current.delete(id);
-      void recalculatePnlReportAfterLedgerMutation();
+      recalculatePnlReportAfterLedgerMutation();
       void recalculateCompetitionAfterLedgerMutation();
     } catch (e) {
       await reconcileStockTradeCashAfterFailure();
@@ -2832,7 +2840,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
     confirm: async plan => {
       const result = await db.confirmStockTradeCash(plan, user?.id);
       applyStockTradeCashStatus(result);
-      void recalculatePnlReportAfterLedgerMutation();
+      recalculatePnlReportAfterLedgerMutation({ cashSettlement: true });
       return result;
     },
   }), [user?.id, applyStockTradeCashStatus, recalculatePnlReportAfterLedgerMutation]);
@@ -5571,7 +5579,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
   const activeTabCtx = activeTab === 'settings'
     ? settingsTabCtx
     : activeTab === 'review'
-      ? { db, userId: user?.id || '', language, disciplines, reviewLogs, setDisciplines, setReviewLogs, stockTrades, marketColorMode, usdCny: reviewFx?.rates?.CNY || null, fxDate: reviewFx?.fetchedAt || '', navigationTab: true, reviewPublicRefreshRef, reviewFeedUnread, reviewOpenAllRequest }
+      ? { db, userId: user?.id || '', language, disciplines, reviewLogs, setDisciplines, setReviewLogs, stockTrades, marketColorMode, usdCny: reviewFx?.rates?.CNY || null, fxDate: reviewFx?.fetchedAt || '', navigationTab: true, reviewPublicRefreshRef, reviewFeedUnread, reviewOpenAllRequest, pnlReportRefreshVersion }
     : activeTab === 'analysis'
       ? analysisTabCtx
       : tabCtx;
@@ -5734,7 +5742,7 @@ function MainApp({ accountManager, onAddAccount, user, onLogout }) {
               : isStockComparisonPage
                 ? <StockComparisonPage key={user?.id || ''} ctx={{ userId: user?.id || '', language, marketColorMode, onBack: closeStockComparison }} />
               : isReviewJournalPage
-                ? <ReviewJournalPage key={user?.id || ''} ctx={{ db, userId: user?.id || '', language, disciplines, reviewLogs, setDisciplines, setReviewLogs, stockTrades, marketColorMode, usdCny: reviewFx?.rates?.CNY || null, fxDate: reviewFx?.fetchedAt || '', onBack: closeReviewJournal, reviewPublicRefreshRef, reviewFeedUnread, reviewOpenAllRequest }} />
+                ? <ReviewJournalPage key={user?.id || ''} ctx={{ db, userId: user?.id || '', language, disciplines, reviewLogs, setDisciplines, setReviewLogs, stockTrades, marketColorMode, usdCny: reviewFx?.rates?.CNY || null, fxDate: reviewFx?.fetchedAt || '', onBack: closeReviewJournal, reviewPublicRefreshRef, reviewFeedUnread, reviewOpenAllRequest, pnlReportRefreshVersion }} />
               : isInvestmentGoalsPage
                 ? <ReviewTab ctx={tabCtx} />
               : isPortfolioOverlapPage

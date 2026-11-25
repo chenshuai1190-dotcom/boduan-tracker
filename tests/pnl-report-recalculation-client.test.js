@@ -3,10 +3,11 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import {
-  enqueuePnlReportRecalculationAfterLedgerMutation,
+  createPnlReportMutationScheduler,
   requestPnlReportRecalculation,
-  resetPnlReportRecalculationRequests,
 } from '../src/lib/pnlReportRecalculation.js';
+
+import { PNL_REPORT_MUTATION_QUIET_MS as quiet } from '../src/lib/pnlReportRebuildPolicy.js';
 
 const appSource = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8');
 const pageSource = readFileSync(new URL('../src/pages/PnlReportPage.jsx', import.meta.url), 'utf8');
@@ -39,10 +40,6 @@ function sessionClient(tokens = ['token-1'], userId = 'user-1') {
 function nextTurn() {
   return new Promise((resolve) => setImmediate(resolve));
 }
-
-test.afterEach(() => {
-  resetPnlReportRecalculationRequests();
-});
 
 test('personal P&L recalculation sends only an authenticated empty POST', async () => {
   const fetchImpl = async (url, options) => {
@@ -82,31 +79,107 @@ test('personal P&L recalculation sends only an authenticated empty POST', async 
   });
 });
 
-test('mutations during an in-flight rebuild coalesce into one queued rerun with a fresh token', async () => {
-  const pending = [];
-  const authHeaders = [];
-  const fetchImpl = async (_url, options) => new Promise((resolve) => {
-    authHeaders.push(options.headers.Authorization);
-    pending.push(resolve);
+test('a buy followed by a delete starts one rebuild twenty minutes after the delete', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const calls = [], results = [];
+  const scheduler = createPnlReportMutationScheduler({
+    userId: 'user-1', supabase: sessionClient(),
+    request: async (options) => { calls.push(options.expectedUserId); return { state: 'recalculated' }; },
+    onSettled: (result) => results.push(result.state),
   });
+  assert.equal(quiet, 20 * 60_000);
+  assert.equal(scheduler.schedule(), true);
+  t.mock.timers.tick(180_000);
+  assert.equal(scheduler.schedule(), false);
+  // Explicit cash confirmation during this window cannot bring it forward.
+  assert.equal(scheduler.schedule({ cashSettlement: true }), false);
+  t.mock.timers.tick(quiet - 1);
+  await nextTurn();
+  assert.deepEqual(calls, []);
+  t.mock.timers.tick(1);
+  await nextTurn();
+  assert.deepEqual(calls, ['user-1']);
+  assert.deepEqual(results, ['recalculated']);
+  scheduler.dispose();
+});
+
+test('a newer edit on another device delays the next POST and reads a fresh session', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const authHeaders = [], results = [];
   const supabase = sessionClient(['token-1', 'token-2']);
-
-  const first = enqueuePnlReportRecalculationAfterLedgerMutation({ supabase, fetchImpl, timeoutMs: 1000 });
+  const scheduler = createPnlReportMutationScheduler({
+    userId: 'user-1', supabase,
+    request: options => requestPnlReportRecalculation({ ...options, timeoutMs: 0,
+      fetchImpl: async (_url, options) => {
+        authHeaders.push(options.headers.Authorization);
+        assert.equal(options.body, '{}');
+        return response(authHeaders.length === 1
+          ? { success: true, state: 'waiting_for_close', waitReason: 'recent_edits', retryAfterMs: 90_000 }
+          : { success: true, state: 'already_current' });
+      },
+    }),
+    onSettled: result => results.push(result.state),
+  });
+  scheduler.schedule();
+  t.mock.timers.tick(quiet);
   await nextTurn();
-  const second = enqueuePnlReportRecalculationAfterLedgerMutation({ supabase, fetchImpl, timeoutMs: 1000 });
-  const third = enqueuePnlReportRecalculationAfterLedgerMutation({ supabase, fetchImpl, timeoutMs: 1000 });
+  t.mock.timers.tick(89_999);
+  assert.deepEqual(authHeaders, ['Bearer token-1']);
+  assert.deepEqual(results, []);
+  t.mock.timers.tick(1);
   await nextTurn();
-  assert.equal(pending.length, 1, 'concurrent mutations must share the active request');
-
-  pending[0](response({ success: true, state: 'already_current' }));
-  await nextTurn();
-  assert.equal(pending.length, 2, 'all mutations during the active request must create only one rerun');
   assert.deepEqual(authHeaders, ['Bearer token-1', 'Bearer token-2']);
+  assert.deepEqual(results, ['already_current']);
+  scheduler.dispose();
+});
 
-  pending[1](response({ success: true, state: 'recalculated' }));
-  const results = await Promise.all([first, second, third]);
-  assert.deepEqual(results.map((item) => item.state), ['recalculated', 'recalculated', 'recalculated']);
+test('new generation and account disposal discard late replies and cancel local timers', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const pending = [], results = [];
+  const scheduler = createPnlReportMutationScheduler({
+    userId: 'user-1', request: () => new Promise(resolve => pending.push(resolve)),
+    onSettled: result => results.push(result),
+  });
+  scheduler.schedule({ cashSettlement: true });
+  t.mock.timers.tick(0);
+  assert.equal(pending.length, 1);
+  scheduler.schedule();
+  pending[0]({ state: 'recalculated' });
+  await nextTurn();
+  assert.deepEqual(results, []);
+  t.mock.timers.tick(quiet);
   assert.equal(pending.length, 2);
+  scheduler.schedule();
+  scheduler.dispose();
+  pending[1]({ state: 'waiting_for_edits', retryAfterMs: 5_000 });
+  await nextTurn();
+  t.mock.timers.tick(quiet * 2);
+  assert.equal(pending.length, 2);
+  assert.deepEqual(results, []);
+  assert.equal(scheduler.schedule(), false);
+});
+
+test('a timer can never request a rebuild for a different signed-in account', async () => {
+  let posts = 0;
+  await assert.rejects(requestPnlReportRecalculation({
+    expectedUserId: 'user-1', supabase: sessionClient(['new-token'], 'user-2'),
+    fetchImpl: () => { posts += 1; },
+  }), { code: 'AUTH_USER_CHANGED' });
+  assert.equal(posts, 0);
+});
+
+test('parallel requests for one account share one POST', async () => {
+  let send, count = 0;
+  const options = { supabase: sessionClient(), timeoutMs: 0, fetchImpl: async () => {
+    count += 1;
+    return new Promise(resolve => { send = resolve; });
+  } };
+  const first = requestPnlReportRecalculation(options);
+  const second = requestPnlReportRecalculation(options);
+  await nextTurn();
+  assert.equal(count, 1);
+  send(response({ success: true, state: 'recalculated' }));
+  assert.deepEqual(await first, await second);
 });
 
 test('waiting_for_close is a successful retryable state, not a client-side dirty clear', async () => {
@@ -124,30 +197,14 @@ test('waiting_for_close is a successful retryable state, not a client-side dirty
 });
 
 test('formal ledger client integration is isolated, non-blocking, and server-owned', () => {
-  const helperStart = appSource.indexOf('const recalculatePnlReportAfterLedgerMutation = useCallback');
-  const helperEnd = appSource.indexOf('const addTrade = async', helperStart);
-  const helperBlock = appSource.slice(helperStart, helperEnd);
-  assert.ok(helperStart >= 0 && helperEnd > helperStart);
-  assert.ok(helperBlock.includes('enqueuePnlReportRecalculationAfterLedgerMutation({ supabase })'));
-  assert.ok(helperBlock.includes('} finally {'));
-  assert.ok(helperBlock.includes('setPnlReportRefreshVersion'));
-  assert.equal(helperBlock.includes("['recalculated', 'cleared', 'already_current']"), false, 'every mutation-triggered outcome should refresh an already-open report from authoritative snapshots');
-  assert.equal(helperBlock.includes('stockTrades'), false);
-  assert.equal(helperBlock.includes('quoteRows'), false);
-
-  const mutationBoundaries = [
-    ['const addTrade = async', 'const deleteStockTradeRecord = async'],
-    ['const deleteStockTradeRecord = async', 'const cashTradeSettlementApi = useMemo'],
-    ['const cashTradeSettlementApi = useMemo', 'const deleteTrade = async'],
-  ];
-  for (const [startMarker, endMarker] of mutationBoundaries) {
-    const start = appSource.indexOf(startMarker);
-    const end = appSource.indexOf(endMarker, start);
-    assert.ok(start >= 0 && end > start, `${startMarker} must retain an isolated mutation handler`);
-    assert.equal((appSource.slice(start, end).match(/void recalculatePnlReportAfterLedgerMutation\(\);/g) || []).length, 1,
-      `${startMarker} should enqueue one non-blocking server recalculation after its confirmed mutation`);
-  }
-  assert.equal((appSource.match(/void recalculatePnlReportAfterLedgerMutation\(\);/g) || []).length, 3);
+  const wiring = appSource.slice(appSource.indexOf('const pnlRebuildScheduler = useRef'), appSource.indexOf('const reconcileStockTradeCashAfterFailure'));
+  assert.ok(wiring.includes('scheduler.dispose()'));
+  assert.ok(wiring.includes('userId: user?.id, supabase'));
+  assert.ok(wiring.includes('if (pnlRebuildScheduler.current?.schedule(options))'));
+  assert.ok(wiring.includes("['recalculated', 'cleared', 'already_current']"));
+  const stockHandlers = appSource.slice(appSource.indexOf('const addTrade = async'), appSource.indexOf('const cashTradeSettlementApi = useMemo'));
+  assert.equal(stockHandlers.split('recalculatePnlReportAfterLedgerMutation();').length - 1, 2);
+  assert.ok(appSource.includes('recalculatePnlReportAfterLedgerMutation({ cashSettlement: true });'));
   assert.ok(appSource.includes('pnlReportRefreshVersion,'));
   assert.equal(pageSource.includes('buildPnlReportHistoricalSnapshots'), false);
   assert.equal(pageSource.includes('upsertPnlReportSnapshots'), false);

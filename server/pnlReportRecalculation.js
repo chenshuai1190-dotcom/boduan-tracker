@@ -1,7 +1,11 @@
 import { createHash } from 'node:crypto';
 
+import { PNL_REPORT_MUTATION_QUIET_MS } from '../src/lib/pnlReportRebuildPolicy.js';
+
 import {
   buildPnlReportHistoricalSnapshots,
+  currentNewYorkDate,
+  isNewYorkSnapshotWindowOpen,
   latestCompletedUsTradingDate,
 } from '../src/lib/pnlReportSnapshots.js';
 import {
@@ -147,11 +151,15 @@ export function isRegularNyseHoliday(dateKey) {
     .some((holidayYear) => regularNyseHolidaysForYear(holidayYear).has(normalized));
 }
 
+function isRegularNyseSessionDate(dateKey) {
+  const weekday = new Date(`${dateKey}T00:00:00Z`).getUTCDay();
+  return weekday >= 1 && weekday <= 5 && !isRegularNyseHoliday(dateKey);
+}
+
 function previousRegularNyseSessionDate(dateKey) {
   let cursor = shiftDate(dateKey, -1);
   for (let index = 0; index < 10 && cursor; index += 1) {
-    const weekday = new Date(`${cursor}T00:00:00Z`).getUTCDay();
-    if (weekday !== 0 && weekday !== 6 && !isRegularNyseHoliday(cursor)) return cursor;
+    if (isRegularNyseSessionDate(cursor)) return cursor;
     cursor = shiftDate(cursor, -1);
   }
   return null;
@@ -185,7 +193,7 @@ function ledgerError(message) {
 
 async function fetchDirtyState(userId) {
   const url = new URL('/rest/v1/pnl_report_rebuild_state', 'https://placeholder.local');
-  url.searchParams.set('select', 'user_id,dirty_from_date,ledger_revision,generation');
+  url.searchParams.set('select', 'user_id,dirty_from_date,ledger_revision,generation,reason');
   url.searchParams.set('user_id', `eq.${userId}`);
   url.searchParams.set('limit', '1');
   const rows = await supabaseAdminFetch(`${url.pathname}${url.search}`);
@@ -259,13 +267,15 @@ async function cleanupExpiredRebuildJobs() {
 
 async function fetchLedgerRevision(userId) {
   const url = new URL('/rest/v1/stock_trade_ledger_revisions', 'https://placeholder.local');
-  url.searchParams.set('select', 'user_id,revision');
+  url.searchParams.set('select', 'revision,last_mutated_at');
   url.searchParams.set('user_id', `eq.${userId}`);
   url.searchParams.set('limit', '1');
   const rows = await supabaseAdminFetch(`${url.pathname}${url.search}`);
   const row = Array.isArray(rows) ? rows[0] || null : null;
   const revision = normalizeCounter(row?.revision);
-  return row && revision != null ? revision : null;
+  return row && revision != null
+    ? { revision, lastMutationMs: Date.parse(row.last_mutated_at) }
+    : null;
 }
 
 function validateRawTrade(row, userId) {
@@ -330,7 +340,7 @@ async function fetchUserTrades(userId) {
   return trades;
 }
 
-function candidateCompletedClose(now) {
+function completedCloseTarget(now, useSnapshotWindow) {
   const date = now instanceof Date ? now : new Date(now);
   if (Number.isNaN(date.getTime())) {
     throw new PnlReportRecalculationError('个人收益重算时间不合法', {
@@ -341,14 +351,17 @@ function candidateCompletedClose(now) {
   }
   // Weekends are moved to Friday here. A normal weekday remains an exact
   // completed-close candidate and must never fall back to an older EODHD row.
-  return latestCompletedUsTradingDate(date);
-}
-
-async function fetchTradingCalendar({ dirtyFromDate, now }) {
-  const candidateDate = candidateCompletedClose(now);
-  const targetDate = isRegularNyseHoliday(candidateDate)
+  const candidateDate = latestCompletedUsTradingDate(date);
+  if (useSnapshotWindow && candidateDate === currentNewYorkDate(date)
+    && !isNewYorkSnapshotWindowOpen(date)) {
+    return previousRegularNyseSessionDate(candidateDate);
+  }
+  return isRegularNyseHoliday(candidateDate)
     ? previousRegularNyseSessionDate(candidateDate)
     : candidateDate;
+}
+
+async function fetchTradingCalendar({ dirtyFromDate, targetDate }) {
   if (!targetDate || dirtyFromDate > targetDate) {
     return { tradingDates: [], throughDate: null, waitingForClose: true };
   }
@@ -420,6 +433,7 @@ async function buildReplacementPlan({
   generation,
   trades,
   now,
+  targetDate,
 }) {
   if (trades.length === 0) {
     const availableCashUserIds = await fetchAvailableCashStatusUserIds(userId);
@@ -437,7 +451,7 @@ async function buildReplacementPlan({
     }
   }
 
-  const calendar = await fetchTradingCalendar({ dirtyFromDate, now });
+  const calendar = await fetchTradingCalendar({ dirtyFromDate, targetDate });
   if (calendar.waitingForClose) {
     return {
       userId,
@@ -678,10 +692,49 @@ async function recalculateAttempt({ userId, now }) {
 
   // The revision read must precede the trade read. If a mutation commits after
   // this point, the final database CAS rejects the prepared generation.
-  const ledgerRevision = await fetchLedgerRevision(userId);
-  if (ledgerRevision == null) throw ledgerError('个人收益正式交易 revision 不可用');
+  const ledger = await fetchLedgerRevision(userId);
+  if (!ledger) throw ledgerError('个人收益正式交易 revision 不可用');
+  const { revision: ledgerRevision, lastMutationMs } = ledger;
   if (ledgerRevision !== dirtyRevision) throw staleError('stale_ledger');
+
+  const pending = {
+    success: true,
+    state: 'waiting_for_close',
+    fromDate: dirtyFromDate,
+    throughDate: null,
+    ledgerRevision,
+    generation,
+    replacedPortfolio: 0,
+    replacedSymbols: 0,
+  };
+  const tradeReason = dirty.reason?.startsWith('stock_trade_')
+    || dirty.reason === 'stock_cash_settled';
+  // A later cash event can replace the reason on an existing pending generation.
+  const latestTradeDate = Number.isFinite(lastMutationMs) ? currentNewYorkDate(lastMutationMs) : null;
+  const today = currentNewYorkDate(now);
+  const retryAfterMs = Math.min(
+    PNL_REPORT_MUTATION_QUIET_MS,
+    lastMutationMs + PNL_REPORT_MUTATION_QUIET_MS - new Date(now).getTime()
+  );
+  const tradePending = tradeReason || (generation > 1 && latestTradeDate !== null);
+  if (tradePending && retryAfterMs > 0) {
+    return { ...pending, state: 'waiting_for_edits', retryAfterMs };
+  }
+
+  // Only the earliest dirty date is persisted. A trade edited today may also
+  // have removed the final open-session row or moved it to an earlier day.
+  // Never clear this generation by publishing just its historical prefix.
+  const targetDate = completedCloseTarget(now, tradePending);
+  if (tradePending && (!targetDate || dirtyFromDate > targetDate)) return pending;
+  if (
+    tradePending
+    && latestTradeDate === today
+    && targetDate < today
+    && isRegularNyseSessionDate(today)
+  ) return pending;
+
   const trades = await fetchUserTrades(userId);
+  if (tradePending && trades.some((trade) => trade.trade_date > targetDate)) return pending;
   const plan = await buildReplacementPlan({
     userId,
     dirtyFromDate,
@@ -689,19 +742,9 @@ async function recalculateAttempt({ userId, now }) {
     generation,
     trades,
     now,
+    targetDate,
   });
-  if (plan.waitingForClose) {
-    return {
-      success: true,
-      state: 'waiting_for_close',
-      fromDate: dirtyFromDate,
-      throughDate: null,
-      ledgerRevision,
-      generation,
-      replacedPortfolio: 0,
-      replacedSymbols: 0,
-    };
-  }
+  if (plan.waitingForClose) return pending;
 
   const committed = await commitReplacementPlan(plan);
   return {
@@ -787,6 +830,7 @@ export async function recalculateDirtyPnlReportUsers({
     cleared: 0,
     alreadyCurrent: 0,
     waitingForClose: 0,
+    waitingForEdits: 0,
     failed: 0,
     retryableFailures: 0,
     permanentFailures: 0,
@@ -809,6 +853,7 @@ export async function recalculateDirtyPnlReportUsers({
         if (result.state === 'recalculated') summary.recalculated += 1;
         else if (result.state === 'cleared') summary.cleared += 1;
         else if (result.state === 'already_current') summary.alreadyCurrent += 1;
+        else if (result.state === 'waiting_for_edits') summary.waitingForEdits += 1;
         else {
           summary.waitingForClose += 1;
           rotateAfterAttempt = true;
@@ -833,10 +878,12 @@ export async function recalculateDirtyPnlReportUsers({
   return {
     ...summary,
     complete: summary.failed === 0
+      && summary.waitingForEdits === 0
       && summary.waitingForClose === 0
       && !summary.batchLimited,
     retryable: summary.permanentFailures === 0
       && (summary.retryableFailures > 0
+        || summary.waitingForEdits > 0
         || summary.waitingForClose > 0
         || summary.batchLimited),
   };

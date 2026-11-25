@@ -59,7 +59,11 @@ export async function handlePnlReportSelfRecalculation(
     const result = await recalculate({ userId: auth.user.id, now });
     return res.status(200).json({
       success: true,
-      state: result.state,
+      // Installed clients also understand this successful pending state.
+      state: result.state === 'waiting_for_edits' ? 'waiting_for_close' : result.state,
+      ...(result.state === 'waiting_for_edits'
+        ? { waitReason: 'recent_edits', retryAfterMs: result.retryAfterMs }
+        : {}),
       fromDate: result.fromDate || null,
       throughDate: result.throughDate || null,
       ledgerRevision: Number.isSafeInteger(Number(result.ledgerRevision))

@@ -7,6 +7,7 @@ import {
   recalculatePnlReportUser,
   resetPnlReportRecalculationStateForTests,
 } from '../server/pnlReportRecalculation.js';
+import { PNL_REPORT_MUTATION_QUIET_MS } from '../src/lib/pnlReportRebuildPolicy.js';
 import { resetCommunityCompetitionEodhdStateForTests } from '../server/communityCompetitionEodhd.js';
 
 const USER_ID = '11111111-1111-4111-8111-111111111111';
@@ -86,8 +87,9 @@ function createRecalculationFetch({
     dirty_from_date: '2026-07-06',
     ledger_revision: 4,
     generation: 2,
+    reason: 'stock_trade_inserted',
   }],
-  revisionRows = [{ user_id: USER_ID, revision: 4 }],
+  revisionRows = [{ user_id: USER_ID, revision: 4, last_mutated_at: '2026-07-01T14:00:00Z' }],
   tradeRows = [validTrade()],
   availableCashRows = [],
   resolveCash = () => null,
@@ -208,6 +210,161 @@ test('immediate P&L rebuild stages a payload-bound EODHD close sequence and fina
   assert.equal(stage.p_symbol_rows.length, 3);
   assert.deepEqual(finalize.p_portfolio_rows, []);
   assert.deepEqual(finalize.p_symbol_rows, []);
+});
+
+test('successive after-close trade edits debounce across independent requests before any ledger or history scans', async () => {
+  const calls = [];
+  const dirty = {
+    user_id: USER_ID, dirty_from_date: '2026-07-06',
+    ledger_revision: 4, generation: 1, reason: 'stock_trade_inserted',
+  };
+  let lastMutation = '2026-07-08T21:00:00Z';
+  const fetchImpl = createRecalculationFetch({
+    dirtyRows: () => [dirty],
+    revisionRows: () => [{ revision: dirty.ledger_revision, last_mutated_at: lastMutation }],
+    // The simulated trade was deleted, so the final settled ledger is empty.
+    tradeRows: [],
+    onCall: (url) => calls.push(new URL(url).pathname),
+  });
+  const run = (time) => recalculatePnlReportUser({ userId: USER_ID, now: new Date(time) });
+  await withRecalculationRuntime(fetchImpl, async () => {
+    const first = await run('2026-07-08T21:09:00Z');
+    assert.equal(first.state, 'waiting_for_edits');
+    assert.equal(first.retryAfterMs, PNL_REPORT_MUTATION_QUIET_MS - 9 * 60_000);
+    dirty.ledger_revision += 1;
+    dirty.generation += 1;
+    dirty.reason = 'stock_trade_deleted';
+    lastMutation = '2026-07-08T21:09:30Z';
+    const second = await run('2026-07-08T21:10:00Z');
+    assert.equal(second.state, 'waiting_for_edits');
+    assert.equal(second.retryAfterMs, PNL_REPORT_MUTATION_QUIET_MS - 30_000);
+    const beforeDeadline = await run('2026-07-08T21:29:29.999Z');
+    assert.equal(beforeDeadline.state, 'waiting_for_edits');
+    assert.equal(beforeDeadline.retryAfterMs, 1);
+    assert.deepEqual([...new Set(calls)], [
+      '/rest/v1/pnl_report_rebuild_state', '/rest/v1/stock_trade_ledger_revisions',
+    ]);
+    assert.equal((await run('2026-07-08T21:29:30Z')).state, 'cleared');
+    assert.equal(calls.filter((path) => path.endsWith('/replace_pnl_report_dirty_range')).length, 1);
+  });
+});
+
+test('an open-session edit or deleted final trade cannot clear a mixed historical generation before 17:00 New York', async () => {
+  for (const [date, cutoff] of [['2026-07-08', 21], ['2026-11-25', 22]]) {
+    const paths = [];
+    const start = Date.parse(`${date}T${cutoff}:00:00Z`);
+    const fetchImpl = createRecalculationFetch({
+      dirtyRows: [{
+        user_id: USER_ID, dirty_from_date: '2026-07-06', ledger_revision: 8, generation: 3,
+        reason: 'available_cash_changed', // Settlement overwrote a trade reason.
+      }],
+      revisionRows: [{ revision: 8, last_mutated_at: new Date(start - 3600_000).toISOString() }],
+      tradeRows: [],
+      onCall: (url) => paths.push(new URL(url).pathname),
+    });
+    await withRecalculationRuntime(fetchImpl, async () => {
+      const waiting = await recalculatePnlReportUser({ userId: USER_ID, now: new Date(start - 1) });
+      assert.equal(waiting.state, 'waiting_for_close');
+      assert.equal(paths.length, 2);
+      assert.equal((await recalculatePnlReportUser({ userId: USER_ID, now: new Date(start) })).state, 'cleared');
+    });
+  }
+});
+
+test('pre-entered and weekend trades retain their dirty generation until an eligible close', async () => {
+  for (const { dirtyFromDate, trades, now, expectedTradeReads } of [
+    // A deleted last trade dated Monday cannot clear the old report on Saturday.
+    { dirtyFromDate: '2026-07-13', trades: [], now: '2026-07-11T21:30:00Z', expectedTradeReads: 0 },
+    // A weekend trade is picked up at the next trading close.
+    { dirtyFromDate: '2026-07-11', trades: [], now: '2026-07-11T21:30:00Z', expectedTradeReads: 0 },
+    // Last mutation yesterday, historical dirty prefix plus a future suffix.
+    { dirtyFromDate: '2026-07-06', trades: [validTrade({ trade_date: '2026-07-09' })],
+      now: '2026-07-08T21:30:00Z', expectedTradeReads: 1 },
+  ]) {
+    const paths = [];
+    const fetchImpl = createRecalculationFetch({
+      dirtyRows: [{
+        user_id: USER_ID, dirty_from_date: dirtyFromDate, ledger_revision: 4,
+        generation: 1, reason: 'stock_trade_updated',
+      }],
+      revisionRows: [{ revision: 4, last_mutated_at: '2026-07-07T14:00:00Z' }],
+      tradeRows: trades,
+      onCall: (url) => paths.push(new URL(url).pathname),
+    });
+    const result = await withRecalculationRuntime(fetchImpl, () => (
+      recalculatePnlReportUser({ userId: USER_ID, now: new Date(now) })
+    ));
+    assert.equal(result.state, 'waiting_for_close');
+    assert.equal(paths.filter((path) => path.endsWith('/stock_trades')).length, expectedTradeReads);
+    assert.equal(paths.some((path) => path.startsWith('/api/eod/') || path.startsWith('/rest/v1/rpc/')), false);
+  }
+});
+
+test('a fresh cash-only generation keeps its existing policy even with an earlier trading session', async () => {
+  const fetchImpl = createRecalculationFetch({
+    dirtyRows: [{
+      user_id: USER_ID, dirty_from_date: '2026-07-06', ledger_revision: 4,
+      generation: 1, reason: 'available_cash_changed',
+    }],
+    revisionRows: [{ revision: 4, last_mutated_at: '2026-07-08T18:00:00Z' }],
+    tradeRows: [],
+    availableCashRows: [{ user_id: USER_ID }],
+  });
+  const result = await withRecalculationRuntime(fetchImpl, () => (
+    recalculatePnlReportUser({ userId: USER_ID, now: new Date('2026-07-08T18:05:00Z') })
+  ));
+  assert.equal(result.state, 'recalculated');
+  assert.equal(result.throughDate, '2026-07-07');
+});
+
+test('a trade concurrent with staging is caught by CAS and the retry observes the new quiet window', async () => {
+  let edited = false;
+  const calls = [];
+  const fetchImpl = createRecalculationFetch({
+    dirtyRows: () => [{
+      user_id: USER_ID, dirty_from_date: '2026-07-06', ledger_revision: edited ? 5 : 4,
+      generation: edited ? 2 : 1, reason: 'stock_trade_updated',
+    }],
+    revisionRows: () => [{
+      revision: edited ? 5 : 4,
+      last_mutated_at: edited ? '2026-07-08T22:00:01Z' : '2026-07-06T12:00:00Z',
+    }],
+    beginOutcomes: ['stale'],
+    onCall: (url) => {
+      const path = new URL(url).pathname;
+      calls.push(path);
+      if (path.endsWith('/begin_pnl_report_dirty_range')) edited = true;
+    },
+  });
+  const result = await withRecalculationRuntime(fetchImpl, () => (
+    recalculatePnlReportUser({ userId: USER_ID, now: new Date('2026-07-08T22:00:00Z') })
+  ));
+  assert.equal(result.state, 'waiting_for_edits');
+  assert.equal(result.ledgerRevision, 5);
+  assert.equal(result.retryAfterMs, PNL_REPORT_MUTATION_QUIET_MS);
+  assert.equal(calls.filter((path) => path.endsWith('/stock_trades')).length, 1);
+  assert.equal(calls.some((path) => path.endsWith('/replace_pnl_report_dirty_range')), false);
+});
+
+test('scheduled maintenance counts a quiet ledger as deferred without rotating it', async () => {
+  const paths = [];
+  const fetchImpl = createRecalculationFetch({
+    revisionRows: [{ revision: 4, last_mutated_at: '2026-07-08T21:59:59Z' }],
+  });
+  await withRecalculationRuntime(async (url, options) => {
+    const path = new URL(url).pathname;
+    paths.push(path);
+    if (path.endsWith('/cleanup_pnl_report_rebuild_jobs')) return jsonResponse({ outcome: 'cleaned' });
+    return fetchImpl(url, options);
+  }, async () => {
+    const result = await recalculateDirtyPnlReportUsers({ now: new Date('2026-07-08T22:00:00Z') });
+    assert.equal(result.waitingForEdits, 1);
+    assert.equal(result.waitingForClose, 0);
+    assert.equal(result.failed, 0);
+    assert.equal(result.complete, false);
+    assert.equal(result.retryable, true);
+    assert.equal(paths.some((path) => path.endsWith('/rotate_pnl_report_rebuild_attempt')), false);
+  });
 });
 
 test('empty formal ledger clears all personal P&L snapshots without any provider request', async () => {

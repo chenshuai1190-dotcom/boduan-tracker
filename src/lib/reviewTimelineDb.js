@@ -10,7 +10,7 @@ const SYMBOL_FIELDS = 'id,user_id,snapshot_date,symbol,name,currency,held_shares
 const PAGE_SIZE = 500;
 const MAX_PAGES = 40;
 const fail = (code, message) => Object.assign(new Error(message), { code });
-const validDate = value => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)
+const validDate = value => typeof value === 'string' && /^(?!0000)\d{4}-\d{2}-\d{2}$/.test(value)
   && Number.isFinite(Date.parse(`${value}T00:00:00Z`)) && new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) === value;
 function stateKey(row, owner) {
   if (row == null) return 'clean';
@@ -22,7 +22,7 @@ function stateKey(row, owner) {
     || !Number.isFinite(Date.parse(row.updated_at))) return null;
   return JSON.stringify([row.dirty_from_date, row.ledger_revision, row.generation, row.updated_at]);
 }
-const pending = reason => ({ status: 'pending', reason, events: [], years: [],
+const pending = (reason, pendingFromDate = null) => ({ status: 'pending', reason, pendingFromDate, events: [], years: [],
   coverage: { startDate: null, endDate: null, snapshotCount: 0, netAssetCount: 0, fullHistory: false },
   warnings: ['收益报表正在更新，完成后再生成时间线。'] });
 
@@ -50,9 +50,10 @@ export function createReviewTimelineLoader(client, { now = () => Date.now(), loa
       if (result.error) throw result.error;
       return result.data;
     };
-    const readFirstTradeDate = async () => {
-      const result = await withAbort(client.from('stock_trades').select('id,user_id,trade_date').eq('user_id', expectedUserId)
-        .order('trade_date', { ascending: true }).order('id', { ascending: true }).range(0, 0));
+    const readFirstTradeDate = async beforeDate => {
+      let query = client.from('stock_trades').select('id,user_id,trade_date').eq('user_id', expectedUserId);
+      if (beforeDate) query = query.lt('trade_date', beforeDate);
+      const result = await withAbort(query.order('trade_date', { ascending: true }).order('id', { ascending: true }).range(0, 0));
       if (result.error) throw result.error;
       if (!Array.isArray(result.data) || result.data.length > 1) throw fail('REVIEW_HISTORY_INVALID', '首笔交易日期无法核验。');
       const first = result.data[0];
@@ -61,13 +62,13 @@ export function createReviewTimelineLoader(client, { now = () => Date.now(), loa
       if (!first.id || !validDate(first.trade_date)) throw fail('REVIEW_HISTORY_INVALID', '首笔交易日期无法核验。');
       return first.trade_date;
     };
-    const readAll = async (table, fields, order) => {
+    const readAll = async (table, fields, order, before) => {
       const rows = [], ids = new Set();
       for (let page = 0; page < MAX_PAGES; page += 1) {
-        const query = client.from(table).select(fields).eq('user_id', expectedUserId)
-          .order(order, { ascending: true }).order('id', { ascending: true })
-          .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
-        const result = await withAbort(query);
+        let query = client.from(table).select(fields).eq('user_id', expectedUserId);
+        if (before) query = query.lt(order, before);
+        const result = await withAbort(query.order(order, { ascending: true }).order('id', { ascending: true })
+          .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1));
         if (result.error) throw result.error;
         if (!Array.isArray(result.data) || result.data.length > PAGE_SIZE) throw fail('REVIEW_HISTORY_INVALID', '时间线历史数据格式不正确。');
         for (const row of result.data) {
@@ -82,22 +83,25 @@ export function createReviewTimelineLoader(client, { now = () => Date.now(), loa
     try {
       const before = await readState();
       const beforeKey = stateKey(before, expectedUserId);
-      if (beforeKey === null || before?.dirty_from_date) {
+      if (beforeKey === null) {
         await guard.verify(ticket);
-        return pending(beforeKey === null ? 'invalid_rebuild_state' : 'rebuilding');
+        return pending('invalid_rebuild_state');
       }
+      // The dirty marker covers the entire suffix starting on this New York ledger date.
+      const pendingFromDate = before?.dirty_from_date ?? null;
       const [snapshots, movements, firstTradeDate] = await Promise.all([
-        readAll('pnl_report_snapshots', SNAPSHOT_FIELDS, 'snapshot_date'),
-        readAll('available_cash_movements', MOVEMENT_FIELDS, 'occurred_at'),
-        readFirstTradeDate(),
+        readAll('pnl_report_snapshots', SNAPSHOT_FIELDS, 'snapshot_date', pendingFromDate),
+        readAll('available_cash_movements', MOVEMENT_FIELDS, 'occurred_at', pendingFromDate && `${pendingFromDate} 00:00 America/New_York`),
+        readFirstTradeDate(pendingFromDate),
       ]);
       const after = await readState();
       const afterKey = stateKey(after, expectedUserId);
       await guard.verify(ticket);
       assertActive();
-      if (afterKey === null || after?.dirty_from_date || beforeKey !== afterKey) return pending('rebuilding');
-      const result = buildReviewTimeline({ snapshots, movements, firstTradeDate, now: now(), expectedUserId });
-      const accountResult = { status: result.coverage.snapshotCount ? 'ready' : 'empty', ...result };
+      if (beforeKey !== afterKey) return pending('rebuilding');
+      const result = buildReviewTimeline({ snapshots, movements, firstTradeDate, pendingFromDate, now: now(), expectedUserId });
+      if (pendingFromDate && !result.coverage.snapshotCount) return pending('rebuilding', pendingFromDate);
+      const accountResult = { status: result.coverage.snapshotCount ? 'ready' : 'empty', pendingFromDate, ...result };
       if (!result.coverage.snapshotCount) return { ...accountResult, stockRecordStatus: 'empty' };
       // Existing account events render immediately. A cold historical-price
       // request must not block posts or the rest of the timeline.
@@ -105,7 +109,7 @@ export function createReviewTimelineLoader(client, { now = () => Date.now(), loa
       let stocks = { events: [], warnings: [] }, stockFailure = false;
       try {
         timeout(15000);
-        const symbolSnapshots = await readAll('pnl_report_symbol_snapshots', SYMBOL_FIELDS, 'snapshot_date');
+        const symbolSnapshots = await readAll('pnl_report_symbol_snapshots', SYMBOL_FIELDS, 'snapshot_date', pendingFromDate);
         assertActive();
         const input = { snapshots, symbolSnapshots, expectedUserId, now: now() };
         const { ranges } = collectReviewStockDailyRecordRanges(input);
@@ -129,7 +133,7 @@ export function createReviewTimelineLoader(client, { now = () => Date.now(), loa
       const finalState = await readState(), finalKey = stateKey(finalState, expectedUserId);
       await guard.verify(ticket);
       assertActive();
-      if (finalKey === null || finalState?.dirty_from_date || beforeKey !== finalKey) return pending('rebuilding');
+      if (beforeKey !== finalKey) return pending('rebuilding');
       const events = [...accountResult.events, ...stocks.events].sort((a, b) => b.date.localeCompare(a.date) || a.id.localeCompare(b.id));
       const incomplete = stockFailure || stocks.warnings.length > 0;
       const stockRecordStatus = incomplete ? stocks.events.length ? 'incomplete' : 'error' : stocks.events.length ? 'ready' : 'empty';

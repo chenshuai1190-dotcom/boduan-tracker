@@ -248,7 +248,7 @@ test('self P&L recalculation always authenticates even when quote auth bypass is
   assert.equal(recalculateCalls, 0);
 });
 
-test('self P&L recalculation uses the token user, returns sanitized waiting state, and is never cached', async () => {
+test('self P&L recalculation uses the token user, returns a backward-compatible edit wait, and is never cached', async () => {
   const env = {
     SUPABASE_URL: process.env.SUPABASE_URL,
     VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL,
@@ -276,7 +276,8 @@ test('self P&L recalculation uses the token user, returns sanitized waiting stat
       recalculate: async (input) => {
         received = input;
         return {
-          state: 'waiting_for_close',
+          state: 'waiting_for_edits',
+          retryAfterMs: 40_000,
           fromDate: '2026-07-31',
           throughDate: null,
           ledgerRevision: 9,
@@ -299,6 +300,8 @@ test('self P&L recalculation uses the token user, returns sanitized waiting stat
   assert.deepEqual(res.body, {
     success: true,
     state: 'waiting_for_close',
+    waitReason: 'recent_edits',
+    retryAfterMs: 40_000,
     fromDate: '2026-07-31',
     throughDate: null,
     ledgerRevision: 9,

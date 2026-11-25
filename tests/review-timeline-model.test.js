@@ -518,6 +518,19 @@ test('year changes close an unrecovered return event without claiming recovery o
   assert.equal(returnCycles(missing)[0].interruptionReason, 'missing_return', 'year-end must not hide an earlier data gap');
 });
 
+test('a historical backfill keeps a verified late repair and leaves the prior drawdown open as of its cutoff', () => {
+  const rows = [row('2025-12-01', 100, { cumulative_pnl_pct: .4 }),
+    row('2025-12-02', 95, { cumulative_pnl_pct: .2, locked_at: '2026-10-15T22:00:00Z', updated_at: '2026-10-15T22:00:00Z' }),
+    row('2025-12-03', 101, { cumulative_pnl_pct: .41 })];
+  const result = build(rows, [], { pendingFromDate: '2025-12-03' });
+  assert.equal(result.coverage.snapshotCount, 2);
+  assert.equal(result.coverage.endDate, '2025-12-02');
+  assert.equal(returnCycles(result)[0].status, 'active');
+  assert.equal(returnCycles(result)[0].endDate, '2025-12-02');
+  assert.equal(result.events.some(event => event.kind === 'period' || event.date >= '2025-12-03'), false);
+  assert.equal(returnCycles(build(rows))[0].status, 'recovered');
+});
+
 test('missing returns or sessions preserve the year peak but neither bridge the curve nor claim recovery', () => {
   for (const missing of ['return', 'session']) {
     const rows = [row('2026-11-02', 100, { cumulative_pnl_pct: .4 }), row('2026-11-03', 100, { cumulative_pnl_pct: .2 }),

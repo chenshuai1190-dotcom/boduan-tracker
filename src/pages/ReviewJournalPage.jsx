@@ -12,7 +12,8 @@ import ReviewPostBody from '../components/ReviewPostBody.jsx';
 import ReviewStockText from '../components/ReviewStockText.jsx';
 import { reviewCommentPostsForDetail, reviewAuthorCommentForManagement, reviewCommunityPostAllowed } from '../lib/reviewThreadContext.js';
 import ReviewPublicFeed, { ReviewCommentThreads, ReviewCommunityEvaluations, ReplyBody } from '../components/ReviewPublicFeed.jsx';
-import ReviewTimeline from '../components/ReviewTimeline.jsx';
+import ReviewTimeline, { TimelinePendingNotice } from '../components/ReviewTimeline.jsx';
+import { PNL_REPORT_MUTATION_QUIET_MS } from '../lib/pnlReportRebuildPolicy.js';
 import ReviewTimelinePost from '../components/ReviewTimelinePost.jsx';
 import { ReviewSystemAvatar, ReviewSystemName } from '../components/ReviewSystemIdentity.jsx';
 import ReviewPreferences from '../components/ReviewPreferences.jsx';
@@ -285,7 +286,7 @@ function AlwaysPinIcon({ size = 18 }) {
 }
 
 export default function ReviewJournalPage({ ctx }) {
-  const { db, userId, language='zh', disciplines=[], reviewLogs=[], setDisciplines, setReviewLogs, stockTrades=[], onBack, previewData, marketColorMode, usdCny = null, fxDate = '', navigationTab = false, reviewPublicRefreshRef, reviewFeedUnread, reviewOpenAllRequest = 0 } = ctx;
+  const { db, userId, language='zh', disciplines=[], reviewLogs=[], setDisciplines, setReviewLogs, stockTrades=[], onBack, previewData, marketColorMode, usdCny = null, fxDate = '', navigationTab = false, reviewPublicRefreshRef, reviewFeedUnread, reviewOpenAllRequest = 0, pnlReportRefreshVersion = 0 } = ctx;
   const preview = Boolean(import.meta.env.DEV && previewData);
   const assistantApi = preview ? previewData?.assistantApi : quoteAssistantApi;
   const assistantRequestRef = useRef(null);
@@ -352,7 +353,6 @@ export default function ReviewJournalPage({ ctx }) {
   const scopeRef=useRef(null);
   const [timelineState,setTimelineState]=useState({userId:null,status:'idle',data:null,error:''});
   const [timelineAttempt,setTimelineAttempt]=useState(0);
-  const loadedTimelineAttempt = useRef(-1);
   const pendingFeedAnchor = useRef(null);
   const [composer,setComposer]=useState(null);
   const [menuSelection,setMenuSelection]=useState(null);
@@ -399,25 +399,53 @@ export default function ReviewJournalPage({ ctx }) {
   };
   useEffect(()=>{
     if(!timelineRequested)return undefined;
-    if(timelineState.userId===userId && ['ready','empty','pending'].includes(timelineState.status) && timelineState.data?.stockRecordStatus!=='loading' && loadedTimelineAttempt.current===timelineAttempt)return undefined;
+    if(timelineState.userId===userId && timelineState.version===pnlReportRefreshVersion && timelineState.attempt===timelineAttempt
+      && timelineState.checkedAt && ['ready','empty','pending'].includes(timelineState.status))return undefined;
     let active=true;
     const controller=new AbortController();
-    loadedTimelineAttempt.current=timelineAttempt;
-    setTimelineState(previous=>({userId,status:'loading',data:previous.userId===userId?previous.data:null,error:''}));
-    const receive=data=>{if(active){pendingFeedAnchor.current=captureFeedAnchor();setTimelineState({userId,status:data.status||'ready',data,error:''});}};
-    const request=preview?Promise.resolve(previewData.timeline||{status:'empty',events:[],years:[],coverage:{},warnings:[]}):db.fetchReviewTimeline(userId,{signal:controller.signal,onProgress:receive});
-    request.then(receive)
-      .catch(failure=>{if(active)setTimelineState(previous=>({userId,status:'error',data:previous.userId===userId?previous.data:null,error:failure?.message||'时间线暂时无法读取，请重试。'}));});
+    const read = {userId,version:pnlReportRefreshVersion,attempt:timelineAttempt,checkedAt:null,error:''};
+    setTimelineState(previous=>{
+      const sameReport = previous.userId===userId && previous.version===pnlReportRefreshVersion;
+      // Only reuse the last confirmed prefix while passively checking the same report version.
+      if(sameReport && previous.status==='ready' && previous.data?.pendingFromDate) return {...previous,...read};
+      return {...read,status:'loading',data:sameReport?previous.data:null};
+    });
+    const receive=(data,completed)=>{if(active){pendingFeedAnchor.current=captureFeedAnchor();setTimelineState({...read,status:data.status||'ready',data,checkedAt:completed && data.stockRecordStatus!=='loading' ? Date.now() : null});}};
+    const request=preview?Promise.resolve(previewData.timeline||{status:'empty',events:[],years:[],coverage:{},warnings:[]}):db.fetchReviewTimeline(userId,{signal:controller.signal,onProgress:data=>receive(data,false)});
+    request.then(data=>receive(data,true))
+      .catch(failure=>{if(active)setTimelineState({...read,status:'error',data:null,error:failure?.message||'时间线暂时无法读取，请重试。'});});
     return()=>{active=false;controller.abort();};
-  },[db,userId,preview,previewData?.timeline,timelineRequested,timelineAttempt]);
+  },[db,userId,preview,previewData?.timeline,timelineRequested,timelineAttempt,pnlReportRefreshVersion]);
   const suggestions=[...new Set(stockTrades.map(row=>String(row.symbol||'').toUpperCase()).filter(Boolean))];
   const journalEntries=reviewJournalFeed(disciplines,reviewLogs);
-  const ownedTimeline=timelineState.userId===userId?timelineState:{status:'idle',data:null,error:''};
+  const ownedTimeline=timelineState.userId===userId && timelineState.version===pnlReportRefreshVersion?timelineState:{status:'idle',data:null,error:''};
+  const pendingFromDate=ownedTimeline.data?.pendingFromDate;
+  const waitingForCloses = Boolean(pendingFromDate || ownedTimeline.status==='pending');
+  const pendingCheckedAt = waitingForCloses ? ownedTimeline.checkedAt : null;
+  const retryTimeline = waitingForCloses && !pendingCheckedAt ? undefined : ()=>setTimelineAttempt(value=>value+1);
+  const timelineVisible=timelineRequested && (!detailKey||detailKey.startsWith('timeline:')) && !composer && !evaluations.some(item=>item.open) && !editingEvaluation;
+  useEffect(()=>{
+    if(!timelineVisible || !pendingCheckedAt) return undefined;
+    let timer, requested=false;
+    const schedule=()=>{
+      clearTimeout(timer);
+      if(requested || document.visibilityState==='hidden') return;
+      const delay=pendingCheckedAt+PNL_REPORT_MUTATION_QUIET_MS-Date.now();
+      if(delay>0) timer=setTimeout(schedule,delay);
+      else { requested=true; setTimelineAttempt(value=>value+1); }
+    };
+    schedule();
+    document.addEventListener?.('visibilitychange',schedule);
+    window.addEventListener('pageshow',schedule);
+    return()=>{clearTimeout(timer);document.removeEventListener?.('visibilitychange',schedule);window.removeEventListener('pageshow',schedule);};
+  },[userId,timelineVisible,pendingCheckedAt]);
   const mixedStockRecordStatus=mixedFeedEnabled&&ownedTimeline.status==='ready'&&preferences.eventTypes.includes('stock_daily_record')?ownedTimeline.data?.stockRecordStatus:null;
   const mixedStockRecordPending=['loading','error','incomplete'].includes(mixedStockRecordStatus);
   const storedTimelineEntries=reviewLogs.filter(entry=>entry.timelineEvent);
   const loadedTimelineEvents=ownedTimeline.data?.events||[];
-  const archivedTimelineEvents=ownedTimeline.status==='ready'||ownedTimeline.status==='empty'?storedTimelineEntries.filter(entry=>!loadedTimelineEvents.some(event=>event.id===entry.timelineEvent.id)
+  // A saved reference can start before the changed date and depend on a later close.
+  // Only a complete read can prove that an unmatched evaluation belongs in the archive.
+  const archivedTimelineEvents=!pendingFromDate && (ownedTimeline.status==='ready'||ownedTimeline.status==='empty')?storedTimelineEntries.filter(entry=>!loadedTimelineEvents.some(event=>event.id===entry.timelineEvent.id)
     && (entry.timelineEvent.metric!=='stock_daily_return'||['ready','empty'].includes(ownedTimeline.data?.stockRecordStatus))).map(entry=>({
     id:entry.timelineEvent.id,kind:entry.timelineEvent.kind,metric:entry.timelineEvent.metric,date:entry.timelineEvent.date,
     startDate:entry.timelineEvent.date,endDate:entry.timelineEvent.date,title:entry.timelineEvent.title,status:'archived',value:null,valueType:'money',points:[],nodes:[],
@@ -745,17 +773,18 @@ export default function ReviewJournalPage({ ctx }) {
       {tagSymbol&&<p className="rj-tag-summary">{language==='en'?`${feed.length} related posts`:`${feed.length} 篇相关博文`}</p>}
       {!tagSymbol&&filter!=='timeline'&&!(publicFeedVisible&&publicDetail)&&search&&<div className="rj-search"><Search size={17}/><input autoFocus value={query} onChange={event=>setQuery(event.target.value)} aria-label="搜索正文、股票或日期" placeholder="搜索正文、股票或日期"/></div>}
       {error&&!menu&&!showingDetail&&<p className="rj-error" role="alert">{error}</p>}
-      {!publicFeedVisible&&(tagSymbol||filter!=='timeline')&&<div className="rj-feed">{feed.map(entry=>entry.type==='timeline'?<ReviewTimelinePost key={`timeline:${entry.event.id}`} event={entry.event} avatarNode={<ReviewSystemAvatar/>} authorNode={<ReviewSystemName language={language}/>} commentCount={getTimelineCommentCount(entry.event)} onOpen={openTimeline} {...currencyProps} marketColorMode={marketColorMode} language={language}/>:post(entry))}{!feed.length&&!mixedStockRecordPending&&!(mixedFeedEnabled&&['idle','loading'].includes(ownedTimeline.status))&&<div className="rj-empty"><MessageCircle size={28}/><h2>{tagSymbol?'暂无相关博文':query?'没有匹配的记录':'从第一条复盘开始'}</h2><p>{tagSymbol?`提到 $${tagSymbol} 的博文会显示在这里。`:query?'换个关键词试试':'投资心得和复盘日志，都在这里。'}</p></div>}</div>}
+      {!publicFeedVisible&&(tagSymbol||filter!=='timeline')&&<div className="rj-feed">{feed.map(entry=>entry.type==='timeline'?<ReviewTimelinePost key={`timeline:${entry.event.id}`} event={entry.event} avatarNode={<ReviewSystemAvatar/>} authorNode={<ReviewSystemName language={language}/>} commentCount={getTimelineCommentCount(entry.event)} onOpen={openTimeline} {...currencyProps} marketColorMode={marketColorMode} language={language}/>:post(entry))}{!feed.length&&!mixedStockRecordPending&&!(mixedFeedEnabled&&(waitingForCloses||['idle','loading'].includes(ownedTimeline.status)))&&<div className="rj-empty"><MessageCircle size={28}/><h2>{tagSymbol?'暂无相关博文':query?'没有匹配的记录':'从第一条复盘开始'}</h2><p>{tagSymbol?`提到 $${tagSymbol} 的博文会显示在这里。`:query?'换个关键词试试':'投资心得和复盘日志，都在这里。'}</p></div>}</div>}
       {!tagSymbol&&filter==='all'&&allScope==='private'&&!preferencesReady&&preferenceState.error&&<p className="rj-note rj-feed-status">{language==='en'?'Activity preferences unavailable. Open your avatar to retry.':'动态偏好暂未读取，点击头像可重试。'}</p>}
       {mixedFeedEnabled&&['idle','loading'].includes(ownedTimeline.status)&&<p className="rj-note rj-feed-status" role="status">{language==='en'?'Loading timeline…':'正在读取时间线…'}</p>}
-      {mixedStockRecordPending&&<div className="rj-feed-status" role={mixedStockRecordStatus==='loading'?'status':'alert'}><p className="rj-note">{mixedStockRecordStatus==='loading'?(language==='en'?'Checking stock records…':'正在核对个股纪录…'):(language==='en'?'Some stock records could not be verified.':'部分个股纪录暂未核对完整。')}</p>{mixedStockRecordStatus!=='loading'&&<button className="rj-text-button" onClick={()=>setTimelineAttempt(value=>value+1)}>{language==='en'?'Retry':'重试'}</button>}</div>}
-      {mixedFeedEnabled&&ownedTimeline.status==='pending'&&<div className="rj-feed-status" role="status"><p className="rj-note">{language==='en'?'Closing history is being updated. The timeline will be available when complete.':'收盘历史正在更新，完成后可查看时间线。'}</p><button className="rj-text-button" onClick={()=>setTimelineAttempt(value=>value+1)}>{language==='en'?'Retry':'重新读取'}</button></div>}
+      {mixedStockRecordPending&&<div className="rj-feed-status" role={mixedStockRecordStatus==='loading'?'status':'alert'}><p className="rj-note">{mixedStockRecordStatus==='loading'?(language==='en'?'Checking stock records…':'正在核对个股纪录…'):(language==='en'?'Some stock records could not be verified.':'部分个股纪录暂未核对完整。')}</p>{mixedStockRecordStatus!=='loading'&&!pendingFromDate&&<button className="rj-text-button" onClick={()=>setTimelineAttempt(value=>value+1)}>{language==='en'?'Retry':'重试'}</button>}</div>}
+      {mixedFeedEnabled&&pendingFromDate&&<TimelinePendingNotice fromDate={pendingFromDate} language={language} onRetry={retryTimeline}/>}
+      {mixedFeedEnabled&&!pendingFromDate&&ownedTimeline.status==='pending'&&<div className="rj-feed-status" role="status"><p className="rj-note">{language==='en'?'Closing history is being updated. The timeline will be available when complete.':'收盘历史正在更新，完成后可查看时间线。'}</p><button className="rj-text-button" onClick={()=>setTimelineAttempt(value=>value+1)}>{language==='en'?'Retry':'重新读取'}</button></div>}
       {mixedFeedEnabled&&ownedTimeline.error&&<div className="rj-feed-status" role="alert"><p className="rj-note">{ownedTimeline.error}</p><button className="rj-text-button" onClick={()=>setTimelineAttempt(value=>value+1)}>{language==='en'?'Retry':'重新读取'}</button></div>}
       {publicFeedVisible&&<ReviewPublicFeed key={`${userId}:${reviewOpenAllRequest}`} db={db} userId={userId} language={language} marketColorMode={marketColorMode} query={query} openRequest={notificationOpenRequest?.userId===userId?notificationOpenRequest:null} onOpenRequestHandled={id=>setNotificationOpenRequest(old=>old?.id===id?null:old)} refreshToken={publicRefresh} replyTarget={submittedReplyTarget?.userId===userId?submittedReplyTarget:null} refreshRef={reviewPublicRefreshRef} reviewFeedUnread={browsingScope.current.value==='public'?reviewFeedUnread:undefined} active={!showingDetail&&!composer&&!menu&&!activeReplyMenu&&!editingEntry&&!activeCommunityMenu&&!activeCommunityEdit&&!communityDrafts.some(item=>item.userId===userId&&item.open&&allowedCommunityPostIds.includes(item.post.id))&&!lightbox&&!evaluations.some(item=>item.userId===userId&&item.open&&item.key===evaluationKey)} renderAccessRequests={post=><QuoteAssistantAccessPanel key={`${userId}:${post.id}`} api={assistantApi} userId={userId} postId={post.id} refreshToken={publicRefresh} language={language} onCompleted={()=>setPublicRefresh(value=>value+1)}/>} onDetailChange={publicDetailChanged} onManageOwnEntry={manageOwnPublicEntry} onEvaluateOwnEntry={(type,id)=>evaluateOwnPublicEntry(type,id)} onManageOwnReply={evaluateOwnPublicEntry} onEvaluateCommunityEntry={evaluateCommunityEntry} onReplyToReview={replyToReview} onManageCommunityReply={manageCommunityReply} onCommunityCountChange={updateCommunityCount}/>}
       {filter!=='timeline'&&!(publicFeedVisible&&publicDetail)&&<button className="rj-fab" aria-label="发帖" onClick={()=>setComposer({entry:null})}><Plus size={28}/></button>}
     </div>
     {isTimelineDetail&&selectedTimelineEvent&&<div className="rj-timeline-author"><ReviewSystemAvatar/><div className="rj-post-heading"><ReviewSystemName language={language}/><span>·</span><time dateTime={reviewTimelineFeedDate(selectedTimelineEvent)}>{reviewTimelineFeedDate(selectedTimelineEvent)}</time></div></div>}
-    {((filter==='timeline'&&!tagSymbol)||isTimelineDetail)&&<div hidden={showingDetail&&!isTimelineDetail}><ReviewTimeline data={timelineData} loading={ownedTimeline.status==='loading'||ownedTimeline.status==='idle'} error={ownedTimeline.error} onRetry={()=>setTimelineAttempt(value=>value+1)} selectedEventId={selectedTimelineEvent?.id||timelineEventId} onSelectEvent={openTimeline} onBack={closeDetail} marketColorMode={marketColorMode} stockTrades={stockTrades} entries={journalEntries} onOpenEntry={openDetail} onEvaluate={openTimelineEvaluation} renderEvaluations={()=>renderReplies()} getCommentCount={getTimelineCommentCount} {...currencyProps} language={language}/></div>}
+    {((filter==='timeline'&&!tagSymbol)||isTimelineDetail)&&<div hidden={showingDetail&&!isTimelineDetail}><ReviewTimeline data={timelineData} loading={ownedTimeline.status==='loading'||ownedTimeline.status==='idle'} error={ownedTimeline.error} onRetry={retryTimeline} selectedEventId={selectedTimelineEvent?.id||timelineEventId} onSelectEvent={openTimeline} onBack={closeDetail} marketColorMode={marketColorMode} stockTrades={stockTrades} entries={journalEntries} onOpenEntry={openDetail} onEvaluate={openTimelineEvaluation} renderEvaluations={()=>renderReplies()} getCommentCount={getTimelineCommentCount} {...currencyProps} language={language}/></div>}
     {detail&&!isTimelineDetail&&<div className="rj-entry-content" key={detailKey}>
       {post(detail,true)}
       {renderReplies()}
