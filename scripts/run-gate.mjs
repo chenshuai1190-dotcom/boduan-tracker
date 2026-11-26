@@ -6,12 +6,61 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { docsWorkflowApplies } from './release-verify-core.mjs';
+import { CURRENT_RELEASE } from '../src/lib/releaseMeta.js';
+import { settingsChangelog } from '../src/lib/settingsChangelog.js';
 
 export const GATE_MATRIX = Object.freeze({
   docs: ['docs-consistency', 'whitespace'],
-  fast: ['targeted-and-related-tests', 'typography', 'build', 'docs-consistency-if-applicable', 'whitespace'],
-  full: ['full-tests-including-typography', 'build', 'docs-consistency-if-applicable', 'whitespace'],
+  fast: ['release-notes', 'targeted-and-related-tests', 'typography', 'build', 'docs-consistency-if-applicable', 'whitespace'],
+  full: ['release-notes', 'full-tests-including-typography', 'build', 'docs-consistency-if-applicable', 'whitespace'],
 });
+
+const RELEASE_META = 'src/lib/releaseMeta.js';
+const CHANGELOG = 'src/lib/settingsChangelog.js';
+
+function productPaths(paths) {
+  return paths.filter(file => file !== RELEASE_META && file !== CHANGELOG
+    && !/\.md$/i.test(file) && !/^src\/(?:dev\/|DevVisualPreview\.jsx$)/.test(file)
+    && /^(?:(?:src|public|api|server|supabase)\/|index\.html$|vercel\.json$)/.test(file));
+}
+
+export function verifyReleaseNotes({ paths, previousVersion, release, changelog, internalReasons = [] }) {
+  if (!paths.includes(RELEASE_META) && !productPaths(paths).length) return;
+  if (!paths.includes(RELEASE_META) && !paths.includes(CHANGELOG)
+    && internalReasons.length && internalReasons.every(reason => reason.trim())) return;
+  if (!paths.includes(RELEASE_META) || !paths.includes(CHANGELOG)) {
+    throw new Error('User-visible releases must update src/lib/releaseMeta.js and src/lib/settingsChangelog.js together. For a behavior-preserving internal change, see docs/development-process.md.');
+  }
+  const latest = changelog[0];
+  if (!previousVersion || release.version.localeCompare(previousVersion, 'en', { numeric: true }) <= 0
+    || !changelog.slice(1).some(entry => entry.ver === previousVersion)
+    || latest?.ver !== release.version || latest.date !== release.date || !latest.latest
+    || ![latest.items, latest.itemsEn].every(items => Array.isArray(items) && items.some(text => typeof text === 'string' && text.trim()))) {
+    throw new Error('Advance the app version, retain the preceding release, and add dated Chinese and English notes for the new release.');
+  }
+}
+
+function gitText(args) {
+  const git = spawnSync('git', args, { encoding: 'utf8' });
+  if (git.status !== 0) throw new Error(git.stderr?.trim() || 'Cannot read the release diff');
+  return git.stdout;
+}
+
+function checkReleaseNotes(paths) {
+  const runtime = productPaths(paths);
+  if (!runtime.length && !paths.includes(RELEASE_META)) return;
+  const base = process.env.BASE_SHA || 'HEAD';
+  const head = process.env.GITHUB_SHA || 'HEAD';
+  let internalReasons = [];
+  if (base !== 'HEAD' && runtime.length && !paths.includes(CHANGELOG) && !paths.includes(RELEASE_META)) {
+    // A reason on an unrelated commit must not exempt a product change.
+    const log = gitText(['log', '--format=%H%x09%(trailers:key=Release-Internal,valueonly,separator=%x20)', `${base}..${head}`, '--', ...runtime]);
+    internalReasons = log.trimEnd().split('\n').filter(Boolean).map(line => line.split('\t')[1] || '');
+  }
+  const previousVersion = gitText(['show', `${base}:${RELEASE_META}`]).match(/\bversion:\s*['"](v[\d.]+)['"]/)?.[1];
+  verifyReleaseNotes({ paths, previousVersion, release: CURRENT_RELEASE, changelog: settingsChangelog, internalReasons });
+  console.log('gate step: PASS release-notes');
+}
 
 const WATCHLIST_PALETTE_INPUTS = new Set([
   'src/tabs/HomeTab.jsx',
@@ -131,29 +180,13 @@ function runWhitespace(scope) {
 function changedPathsForGate() {
   const base = process.env.BASE_SHA;
   const head = process.env.GITHUB_SHA || 'HEAD';
-  const hasBase = gitObjectExists(base);
-  let result;
-  if (hasBase) {
-    result = spawnSync('git', ['diff', '--name-only', base, head], {
-      cwd: process.cwd(),
-      encoding: 'utf8',
-    });
-  } else {
-    result = spawnSync('git', ['status', '--porcelain=v1', '--untracked-files=all'], {
-      cwd: process.cwd(),
-      encoding: 'utf8',
-    });
+  if ((base || process.env.CI) && !gitObjectExists(base)) {
+    throw new Error('A valid BASE_SHA is required to check the committed release range.');
   }
-  if (result.error || result.status !== 0) return [];
-  return String(result.stdout || '')
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => {
-      if (hasBase) return line;
-      const pathText = line.slice(2).trim();
-      return pathText.includes(' -> ') ? pathText.split(' -> ').at(-1) : pathText;
-    });
+  const range = base ? [base, head] : ['HEAD'];
+  const tracked = gitText(['diff', '--no-renames', '--name-only', '-z', ...range, '--']);
+  const untracked = base ? '' : gitText(['ls-files', '--others', '--exclude-standard', '-z']);
+  return (tracked + untracked).split('\0').filter(Boolean);
 }
 
 function usage() {
@@ -180,8 +213,14 @@ function main(argv = process.argv.slice(2)) {
   }
 
   const totalStartedAt = performance.now();
-  const changedPaths = changedPathsForGate();
-
+  let changedPaths;
+  try {
+    changedPaths = changedPathsForGate();
+    if (scope !== 'docs') checkReleaseNotes(changedPaths);
+  } catch (error) {
+    console.error(`gate step: FAIL release diff — ${error.message}`);
+    process.exit(1);
+  }
   if (scope === 'docs') {
     run('node', ['scripts/verify-docs-consistency.mjs'], 'docs-consistency');
   }

@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import test from 'node:test';
 
-import { GATE_MATRIX, resolveFastTests } from '../scripts/run-gate.mjs';
+import { GATE_MATRIX, resolveFastTests, verifyReleaseNotes } from '../scripts/run-gate.mjs';
 import {
   expectedWorkflows,
   extractEntryAsset,
@@ -51,7 +52,7 @@ test('FAST selects direct cross-module source references and changed tests witho
   assert.deepEqual(resolveFastTests([cashTest], [changedFile], sources), [cashTest, marginTest]);
   assert.ok(read('scripts/run-gate.mjs').includes('resolveFastTests(targetedTests, changedPaths, readTestSources())'),
     'the real FAST entry must load repository tests into the resolver');
-  assert.ok(read('scripts/run-gate.mjs').includes("['status', '--porcelain=v1', '--untracked-files=all']"),
+  assert.ok(read('scripts/run-gate.mjs').includes("['ls-files', '--others', '--exclude-standard', '-z']"),
     'new source directories must expose individual untracked file paths');
   assert.ok(read('scripts/run-gate.mjs').includes('gate targeted-tests:'), 'print selected tests so the scope is auditable');
 });
@@ -60,8 +61,8 @@ test('development gates expose one explicit docs, FAST, or FULL path', () => {
   const packageJson = JSON.parse(read('package.json'));
 
   assert.deepEqual(GATE_MATRIX.docs, ['docs-consistency', 'whitespace']);
-  assert.deepEqual(GATE_MATRIX.fast, ['targeted-and-related-tests', 'typography', 'build', 'docs-consistency-if-applicable', 'whitespace']);
-  assert.deepEqual(GATE_MATRIX.full, ['full-tests-including-typography', 'build', 'docs-consistency-if-applicable', 'whitespace']);
+  assert.deepEqual(GATE_MATRIX.fast, ['release-notes', 'targeted-and-related-tests', 'typography', 'build', 'docs-consistency-if-applicable', 'whitespace']);
+  assert.deepEqual(GATE_MATRIX.full, ['release-notes', 'full-tests-including-typography', 'build', 'docs-consistency-if-applicable', 'whitespace']);
   assert.equal(packageJson.scripts['check:docs'], 'node scripts/run-gate.mjs docs');
   assert.equal(packageJson.scripts['check:fast'], 'node scripts/run-gate.mjs fast');
   assert.equal(packageJson.scripts['check:full'], 'node scripts/run-gate.mjs full');
@@ -78,6 +79,39 @@ test('development gates expose one explicit docs, FAST, or FULL path', () => {
     'bootstrap:vercel-link',
   ]) {
     assert.equal(packageJson.scripts[retired], undefined, `${retired} must stay retired`);
+  }
+});
+
+test('a production change requires a version bump and bilingual release notes that retain the previous version', () => {
+  const previousVersion = 'v10.7.9.99';
+  const release = { version: 'v10.7.9.100', date: '2026-11-26' };
+  const latest = { ver: release.version, date: release.date, latest: true, items: ['修复持仓估值'], itemsEn: ['Fixed portfolio valuation'] };
+  const changelog = [latest, { ver: previousVersion }];
+  const paths = ['src/lib/releaseMeta.js', 'src/lib/settingsChangelog.js'];
+  const check = (overrides = {}) => verifyReleaseNotes({ paths, release, previousVersion, changelog, ...overrides });
+  for (const path of ['src/App.jsx', 'src/tabs/HomeTab.css', 'server/quote/providers/eodhd.js', 'api/quote.js']) {
+    for (const updates of [[], [paths[0]], [paths[1]]]) {
+      assert.throws(() => check({ paths: [path, ...updates] }), /update.*together/);
+    }
+    assert.doesNotThrow(() => check({ paths: [path, ...paths] }));
+  }
+  assert.throws(() => check({ previousVersion: release.version }), /Advance the app version/);
+  assert.throws(() => check({ changelog: [latest] }), /retain the preceding release/);
+  assert.throws(() => check({ changelog: [{ ...latest, itemsEn: [] }, ...changelog.slice(1)] }), /Chinese and English/);
+  assert.doesNotThrow(() => check({ paths: ['docs/handoff.md', 'tests/foo.test.js', 'src/dev/Fixture.jsx', 'scripts/run-gate.mjs'] }));
+  const internal = { paths: ['src/lib/investmentSummary.js'], internalReasons: ['Extract unchanged valuation calculation'] };
+  assert.doesNotThrow(() => check(internal));
+  assert.throws(() => check({ ...internal, internalReasons: ['', ...internal.internalReasons] }), /update.*together/);
+});
+
+test('CI fails closed when the release range cannot be read', () => {
+  for (const [base, head] of [['', 'HEAD'], ['0'.repeat(40), 'HEAD'], ['invalid-release-base', 'HEAD'], ['HEAD', 'invalid-release-head']]) {
+    const result = spawnSync(process.execPath, ['scripts/run-gate.mjs', 'fast'], {
+      encoding: 'utf8', env: { ...process.env, CI: 'true', BASE_SHA: base, GITHUB_SHA: head },
+    });
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /FAIL release diff/);
+    assert.doesNotMatch(result.stdout, /gate: PASS/);
   }
 });
 

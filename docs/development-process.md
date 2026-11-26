@@ -174,7 +174,7 @@ sips -g pixelWidth -g pixelHeight -g format "$ios_acceptance_png"
 
 用户明确要求“上线/部署”后：
 
-1. 确认最终 diff 只包含目标改动，且对应 gate 已通过。
+1. 核对本次上线的所有用户可见改动已记入设置页「更新日志」，版本号与日志一致，最终 diff 已通过对应 gate。
 2. 使用项目 SSH key 提交并推送 GitHub `main`；不得直接改 Vercel。
 3. 按本次 tier 只调用一次：
 
@@ -203,14 +203,14 @@ GitHub CI 复用同一个 `check:full`，Docs workflow 复用同一个 `check:do
 - `npm run audit` 检查完整依赖树（包含构建依赖），当前阻断阈值为 `high`，即高危和严重漏洞。不得通过 `--omit=dev`、`continue-on-error` 或忽略退出码绕过；审计服务或网络异常导致命令失败时也停止构建，恢复后再验证。
 - 上线前仍须核对 Vercel 项目的生产 Checks 是否要求对应提交的 CI 成功。仓库内的构建阻断不代表远端生产 Checks 已启用，也不能代替该项远端设置核对；本地测试通过不能宣称远端配置已完成。
 
-## 八、版本与文档只在有意义时更新
+## 八、每次用户可见发布必须写版本日志
 
 - `README.md`：仅稳定架构、安全、环境或产品硬规则改变时更新。
 - 本文件：仅 tier、gate、视觉或发布规则改变时更新。
 - `docs/handoff.md`：仅明确交接或已验证生产基准、风险、下一步发生变化时更新。
-- 纯文档、内部重构、无用户感知修复和部署证据不升设置页版本、不写应用内 changelog。
-- 值得用户看到的一批功能发布才更新 `src/lib/releaseMeta.js` 和 `src/lib/settingsChangelog.js`；设置页从单一 release metadata 读取版本，不再同步多份硬编码。
-- 历史只由 Git、Actions/Vercel 和 changelog 数据保存；测试只验证 changelog 结构，不逐字锁定数百条历史文案。
+- 每次上线新功能、界面或文案调整、用户可感知的修复都须在同一发布中递增 `src/lib/releaseMeta.js` 版本，并在 `src/lib/settingsChangelog.js` 顶部用中英文说明本次变化、保留此前版本。一次部署可合并多项改动。
+- FAST/FULL 检查正式产品代码、版号和日志。仅改文档、测试和开发工具可直接通过这一项。若正式代码只有内部重构，每个涉及该代码的提交应在 Git 提交说明末尾用独立段落写 `Release-Internal: <行为未变的具体原因>`，本地提交后用 `BASE_SHA=HEAD^ npm run check:fast`（或对应 FULL，多提交用发布前的 SHA）核验，CI 读取相同说明。
+- 发布结果应给出设置页可见的版本号和日志要点。Git 和部署记录保存对应提交及上线证据。
 
 ## 九、诊断工具不是门禁
 
@@ -231,7 +231,7 @@ npm run setup:local-env
 - 不再使用 Chrome blank-screen smoke 代替 iOS 验收。
 - 不再使用瞬时失败的 `verify:deploy-status`。
 - 不再每个任务运行 workspace/toolchain/local-env/Vercel link。
-- 不再每个小 UI 升版本、写 changelog、更新 handoff 或另开 docs-only 提交。
+- 同批界面改动共用一条版本日志；日常更新沿用既有交接文档范围。
 - 不再逐字断言历史 changelog，也不恢复 `CONTEXT.md` 或退休文档。
 - 不再为四行 UI 改动启动无收益的等待任务、重复 Simulator 或重复 gate。
 

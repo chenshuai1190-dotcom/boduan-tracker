@@ -3,6 +3,31 @@ import { CURRENT_RELEASE } from './releaseMeta.js';
 export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
+    items: [
+      '11 月 26 日 · 美股休市期间，首页和交易页的持仓估值与今日盈亏锁定在最近一次正式收盘。提前收盘日按实际收盘时间锁定，节后收到新时段的有效报价才恢复更新。',
+      '11 月 26 日 · 录入、修改或删除交易后，报表等待最后一次操作满 20 分钟再安排核对。等待期间，时间线仍可查看已核对的历史事件。',
+      '11 月 25 日 · 时间线新增持仓股票年内最大单日涨幅，可与最大单日跌幅分别查看。同一交易日内选择「最新优先」时，后录入的交易排在前面。',
+      '11 月 17 日 · 新账户未设置现金或余额为零时也可以记录买卖，现金和融资可手动维护。首笔交易前已设置符合结算条件的正数现金时，可自动结算。买入恢复常规确认窗口。',
+      '11 月 15 日 · 修复使用 iPhone 中文输入法录入股票代码时字母重复的问题。',
+      '11 月 13 日 · 复盘日志和投资心得各可选一篇「始终置顶」，排在普通置顶之前。私密详情页也会显示金色置顶图标。删除当日订单后会留在当日订单列表。',
+      '11 月 13 日 · 底部导航从带选中条的纯文字样式调整为图标加文字，当前栏目以实心图标标示。首页移除了「市场观察」标题。',
+      '11 月 11 日 · 修复 iPhone 交易记录页标题和返回按钮被遮挡、部分股票标志未显示的问题。交易金额跟随系统币种，成交单价保留美元。金额与箭头对齐，右侧去掉重复的股票名称。',
+      '11 月 11 日 · 底部导航高度调整为 50 像素。交易详情的修改和删除按钮改为文字，调整删除与切换账户按钮的配色，并移除买卖方向筛选的白色边框。',
+    ],
+    itemsEn: [
+      'Nov 26 · On US market holidays, Home and Trades use the latest official close for position values and daily P&L. On shortened sessions, values lock at the scheduled close. Updates resume when a valid new-session quote arrives.',
+      'Nov 26 · After a trade is added, edited or deleted, report reconciliation waits until 20 minutes after the last change. Previously verified timeline events remain available during the wait.',
+      'Nov 25 · The timeline now tracks each holding’s largest one-day gain of the year alongside its largest decline. With Newest First selected, trades on the same date appear in reverse entry order.',
+      'Nov 17 · New accounts can record trades with no opening cash balance and maintain cash and margin debt manually. Eligible accounts with a positive opening cash balance can settle trades automatically. Purchases use the standard confirmation dialog.',
+      'Nov 15 · Fixed repeated letters when entering stock symbols with a Chinese keyboard on iPhone.',
+      'Nov 13 · One post in Journal and one in Insights can stay above all other pins. Private post details also show the gold pin. Deleting an order from Today’s Orders returns you to that list.',
+      'Nov 13 · The text-only bottom tabs and selection bar were replaced with labeled icons. The selected tab has a filled icon. The Market overview heading was removed from Home.',
+      'Nov 11 · Fixed obscured titles and back buttons on iPhone and missing stock logos in trade records. Transaction amounts follow the selected currency while execution prices stay in USD. Amounts align with their arrows and company names are no longer repeated beside them.',
+      'Nov 11 · The bottom navigation is now 50 pixels tall. Edit and Delete use text buttons in trade details. Delete and Switch Account have updated colors, and the trade direction filter has a simpler border.',
+    ],
+  },
+  {
+    ver: 'v10.7.9.622', date: '2026-11-11',
     items: ['交易记录升级为独立页面，支持股票多选、日期区间、买卖方向和排序，筛选汇总与日期分组同步；单笔详情展示手续费和备注，修改、删除沿用原交易结算流程。', '修复投资动态头像加载时的占位图标偏移，帖子、评论和消息中的默认占位头像统一居中。'],
     itemsEn: ['Trade records now have a dedicated page with multi-stock, date and side filters, sorting, matching summaries, and date groups. Individual details include fees and notes, with edits and deletions using the existing settlement flow.', 'Centered loading avatar placeholders across activity posts, comments, and notifications.'],
   },
