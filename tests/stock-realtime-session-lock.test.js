@@ -398,6 +398,23 @@ test('an impossible calendar date cannot survive as a cached close during a week
   assert.equal(result.dailyPnlChangePercent, null);
 });
 
+test('holiday and shortened-session ticks cannot revive an outdated completed EOD in a cached row', () => {
+  const stale = completedRow({ dailyPnlPriceDate:'2026-11-24', dailyPnlBaselineDate:'2026-11-23' });
+  for (const when of ['2026-11-26T05:45:00-05:00', '2026-11-26T21:30:00-05:00', '2026-11-27T13:00:00-05:00']) {
+    const now = Date.parse(when);
+    const [row] = apply([stale], quoteFrame(205, now), now);
+    assert.equal(row.dailyPnlPrice, 0);
+    assert.equal(summary([row]).todayPnlLocked, false);
+    assert.equal(summary([row]).todayPnl, null);
+  }
+  const friOpen = Date.parse('2026-11-27T04:00:00-05:00');
+  const [live] = apply([completedRow({ dailyPnlPriceDate:'2026-11-25', dailyPnlBaselineDate:'2026-11-24' })],
+    tradeFrame(205, friOpen), friOpen);
+  assert.equal(live.dailyPnlSession, 'pre');
+  assert.equal(live.dailyPnlLocked, false);
+  assert.equal(live.dailyPnlBaselineDate, '2026-11-25');
+});
+
 test('latest same-day REST close can be retained independently from the last live valuation price', () => {
   const live = baseline({
     price: 205, previousClose: 190, dailyBaselineClose: 190, dailyBaselineDate: '2026-09-08',

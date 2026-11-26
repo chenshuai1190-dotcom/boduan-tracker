@@ -93,17 +93,14 @@ function regularNyseHolidaysForYear(year) {
   return holidays;
 }
 
+const equityClockFormat = new Intl.DateTimeFormat('en-US', {
+  timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit',
+  hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+});
+
 function newYorkClock(date = new Date()) {
   try {
-    const parts = new Intl.DateTimeFormat('en-US', {
-      timeZone: 'America/New_York',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      hourCycle: 'h23',
-    }).formatToParts(date);
+    const parts = equityClockFormat.formatToParts(date);
     const read = (type) => parts.find((part) => part.type === type)?.value || '';
     const dateKey = `${read('year')}-${read('month')}-${read('day')}`;
     const hour = Number(read('hour'));
@@ -125,6 +122,46 @@ export function isRegularNyseHoliday(dateKey) {
     .some((holidayYear) => regularNyseHolidaysForYear(holidayYear).has(normalized));
 }
 
+function isUsEquityTradingDate(dateKey) {
+  if (!dateKey) return false;
+  const day = new Date(`${dateKey}T00:00:00Z`).getUTCDay();
+  return day >= 1 && day <= 5 && !isRegularNyseHoliday(dateKey);
+}
+
+export function previousUsEquityQuoteDate(dateKey) {
+  const cursor = new Date(`${dateKey}T00:00:00Z`);
+  if (!Number.isFinite(cursor.getTime()) || utcDateKey(cursor) !== dateKey) return '';
+  do {
+    cursor.setUTCDate(cursor.getUTCDate() - 1);
+    if (cursor.getUTCFullYear() < 1) return '';
+  } while (!isUsEquityTradingDate(utcDateKey(cursor)));
+  return utcDateKey(cursor);
+}
+
+export function getUsEquityQuoteClock(now = Date.now()) {
+  const { dateKey, minuteOfDay } = newYorkClock(now);
+  if (!isUsEquityTradingDate(dateKey)) {
+    return { dateKey, minuteOfDay, regularCloseMinute: null, hasClosedToday: false, session: 'closed' };
+  }
+
+  // NYSE equity early closes: July 3, Christmas Eve (when open), and Black Friday.
+  const monthDay = dateKey.slice(5);
+  const day = new Date(`${dateKey}T00:00:00Z`).getUTCDay();
+  const earlyClose = monthDay === '07-03' || monthDay === '12-24'
+    || (day === 5 && monthDay >= '11-23' && monthDay <= '11-29');
+  const regularCloseMinute = (earlyClose ? 13 : 16) * 60;
+  const hasClosedToday = minuteOfDay >= regularCloseMinute;
+  let session = 'closed';
+  if (minuteOfDay >= 4 * 60 && minuteOfDay < 9 * 60 + 30) session = 'pre';
+  else if (minuteOfDay >= 9 * 60 + 30 && !hasClosedToday) session = 'regular';
+  else if (hasClosedToday && minuteOfDay < (earlyClose ? 17 : 20) * 60) session = 'post';
+  return { dateKey, minuteOfDay, regularCloseMinute, hasClosedToday, session };
+}
+
+export function lastCompletedUsEquityQuoteDate(clock) {
+  return clock.hasClosedToday ? clock.dateKey : previousUsEquityQuoteDate(clock.dateKey);
+}
+
 export function getQuoteBaselineSession(date = new Date(), session = 'closed') {
   const normalizedSession = QUOTE_BASELINE_REFRESH_INTERVAL_MS[session] ? session : 'closed';
   const { dateKey } = newYorkClock(date);
@@ -137,9 +174,9 @@ export function getQuoteCloseSettlementKey({
 } = {}) {
   if (session !== 'postmarket') return '';
   const currentTime = finiteTimestamp(now) || Date.now();
-  const { dateKey, minuteOfDay } = newYorkClock(new Date(currentTime));
-  return dateKey && minuteOfDay >= (16 * 60) + 5 && minuteOfDay < 20 * 60
-    ? dateKey
+  const clock = getUsEquityQuoteClock(currentTime);
+  return clock.session === 'post' && clock.minuteOfDay >= clock.regularCloseMinute + 5
+    ? clock.dateKey
     : '';
 }
 
@@ -193,8 +230,8 @@ export function shouldRunQuoteBaselineRefresh({
   if (universeExpanded && latestAttemptSucceeded) return true;
 
   // The first postmarket transition request can arrive before EODHD rolls its
-  // completed close. Permit one additional 16:05 ET confirmation, then use the
-  // normal 30-minute cooldown even when that confirmation fails.
+  // completed close. Permit one more confirmation five minutes after the
+  // regular close, then use the normal cooldown even if confirmation fails.
   const closeSettlementKey = getQuoteCloseSettlementKey({ session, now });
   if (
     closeSettlementKey

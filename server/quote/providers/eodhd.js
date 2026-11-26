@@ -2,12 +2,8 @@ import { providerFetch, QUOTE_TIMEOUTS } from '../http.js';
 import { buildEodhdStockDetail } from '../stockDetail.js';
 import { buildStockRsi } from '../stockRsi.js';
 import { buildStockRsiRisk } from '../stockRsiRisk.js';
-import { isRegularNyseHoliday } from '../../../src/lib/quoteRefreshPolicy.js';
+import { getUsEquityQuoteClock, isRegularNyseHoliday, lastCompletedUsEquityQuoteDate, previousUsEquityQuoteDate } from '../../../src/lib/quoteRefreshPolicy.js';
 
-const US_EQUITY_REGULAR_START_MINUTES = 9 * 60 + 30;
-const US_EQUITY_REGULAR_END_MINUTES = 16 * 60;
-const US_EQUITY_PREMARKET_START_MINUTES = 4 * 60;
-const US_EQUITY_POSTMARKET_END_MINUTES = 20 * 60;
 const DEFAULT_STOCK_HISTORY_DAYS = 380;
 const STOCK_DETAIL_HISTORY_YEARS = 10;
 
@@ -27,76 +23,8 @@ function isValidMarketDate(value) {
   return Number.isFinite(timestamp) && new Date(timestamp).toISOString().slice(0, 10) === value;
 }
 
-function getUsEquityTimeParts(now = Date.now()) {
-  try {
-    const parts = new Intl.DateTimeFormat('en-US', {
-      timeZone: 'America/New_York',
-      weekday: 'short',
-      hour: '2-digit',
-      minute: '2-digit',
-      hourCycle: 'h23',
-    }).formatToParts(new Date(now));
-    const getPart = (type) => parts.find((part) => part.type === type)?.value || '';
-    const weekday = getPart('weekday');
-    const hour = Number(getPart('hour'));
-    const minute = Number(getPart('minute'));
-    if (!Number.isFinite(hour) || !Number.isFinite(minute)) return null;
-    return {
-      weekday,
-      minutes: hour * 60 + minute,
-    };
-  } catch {
-    return null;
-  }
-}
-
-function getUsEquityMarketDate(now = Date.now()) {
-  try {
-    const parts = new Intl.DateTimeFormat('en-US', {
-      timeZone: 'America/New_York',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    }).formatToParts(new Date(now));
-    const getPart = (type) => parts.find((part) => part.type === type)?.value || '';
-    const year = getPart('year');
-    const month = getPart('month');
-    const day = getPart('day');
-    return year && month && day ? `${year}-${month}-${day}` : '';
-  } catch {
-    return '';
-  }
-}
-
-function getUsEquityQuoteSession(now = Date.now()) {
-  const parts = getUsEquityTimeParts(now);
-  if (!parts || parts.weekday === 'Sat' || parts.weekday === 'Sun') return 'closed';
-  const { minutes } = parts;
-  if (minutes >= US_EQUITY_PREMARKET_START_MINUTES && minutes < US_EQUITY_REGULAR_START_MINUTES) {
-    return 'pre';
-  }
-  if (minutes >= US_EQUITY_REGULAR_START_MINUTES && minutes < US_EQUITY_REGULAR_END_MINUTES) return 'regular';
-  if (minutes >= US_EQUITY_REGULAR_END_MINUTES && minutes < US_EQUITY_POSTMARKET_END_MINUTES) {
-    return 'post';
-  }
-  return 'closed';
-}
-
-function isUsEquitySameDayAfterPostClose(now = Date.now()) {
-  const parts = getUsEquityTimeParts(now);
-  if (!parts || parts.weekday === 'Sat' || parts.weekday === 'Sun') return false;
-  return parts.minutes >= US_EQUITY_POSTMARKET_END_MINUTES;
-}
-
 export function getLatestCompletedEodCutoffDate(now = Date.now()) {
-  const marketDate = getUsEquityMarketDate(now);
-  if (!marketDate) return '';
-  const quoteSession = getUsEquityQuoteSession(now);
-  if (quoteSession === 'post' || isUsEquitySameDayAfterPostClose(now)) return marketDate;
-  const previousDate = new Date(`${marketDate}T00:00:00Z`);
-  if (Number.isNaN(previousDate.getTime())) return '';
-  previousDate.setUTCDate(previousDate.getUTCDate() - 1);
-  return previousDate.toISOString().slice(0, 10);
+  return lastCompletedUsEquityQuoteDate(getUsEquityQuoteClock(now));
 }
 
 export function findDailyBaselineCloseFromEodRows(rows = [], marketDate = '') {
@@ -154,6 +82,15 @@ function findCloseForMarketDateFromEodRows(rows = [], marketDate = '') {
     : null;
 }
 
+function isTradeFromQuoteSession(value, clock, now) {
+  const timestamp = Number(value);
+  if (!Number.isFinite(timestamp) || timestamp <= 0) return false;
+  const time = timestamp < 1e12 ? timestamp * 1000 : timestamp;
+  if (time > Number(now) + 60_000) return false;
+  const tradeClock = getUsEquityQuoteClock(time);
+  return tradeClock.dateKey === clock.dateKey && tradeClock.session === clock.session;
+}
+
 export function normalizeEodhdStockQuoteFields(data, {
   now = Date.now(),
   dailyBaselineClose = null,
@@ -174,7 +111,8 @@ export function normalizeEodhdStockQuoteFields(data, {
   const providerPreviousClose = parseQuoteNumber(data?.previousClosePrice) || 0;
   const rawChange = parseQuoteNumber(data?.change);
   const rawChangePercent = parseQuoteNumber(data?.changePercent);
-  const quoteSession = getUsEquityQuoteSession(now);
+  const clock = getUsEquityQuoteClock(now);
+  const quoteSession = clock.session;
   const historicalDailyBaselineClose = parseQuoteNumber(dailyBaselineClose);
   const hasHistoricalDailyBaseline = isPositiveNumber(historicalDailyBaselineClose);
   const previousClose = hasHistoricalDailyBaseline
@@ -182,13 +120,22 @@ export function normalizeEodhdStockQuoteFields(data, {
     : providerPreviousClose;
   const hasLastTradePrice = isPositiveNumber(lastTradePrice);
   const hasEthPrice = isPositiveNumber(ethPrice);
-  const useExtendedPrice = (quoteSession === 'pre' || quoteSession === 'post') && hasEthPrice;
-  const price = useExtendedPrice
-    ? ethPrice
-    : (hasLastTradePrice ? lastTradePrice : (hasEthPrice ? ethPrice : 0));
+  const extendedSession = quoteSession === 'pre' || quoteSession === 'post';
+  let useExtendedPrice = hasEthPrice && (extendedSession || !hasLastTradePrice);
+  let useLivePnl = quoteSession === 'pre' || quoteSession === 'regular';
+  const selectedTime = useExtendedPrice ? data?.ethTime : data?.lastTradeTime;
+  // The delayed feed can carry the previous session's final trade into the
+  // next open. Keep its confirmed close until one price has a current trade.
+  if (useLivePnl && selectedTime != null && selectedTime !== '' && !isTradeFromQuoteSession(selectedTime, clock, now)) {
+    const otherTime = useExtendedPrice ? data?.lastTradeTime : data?.ethTime;
+    const hasOtherPrice = useExtendedPrice ? hasLastTradePrice : hasEthPrice;
+    if (hasOtherPrice && isTradeFromQuoteSession(otherTime, clock, now)) useExtendedPrice = !useExtendedPrice;
+    else useLivePnl = false;
+  }
+  const price = useExtendedPrice ? ethPrice : (hasLastTradePrice ? lastTradePrice : 0);
   const priceMode = useExtendedPrice
-    ? quoteSession
-    : (hasLastTradePrice ? 'regular' : (hasEthPrice ? 'extended-fallback' : 'unavailable'));
+    ? (extendedSession ? quoteSession : 'extended-fallback')
+    : (hasLastTradePrice ? 'regular' : 'unavailable');
   const regularClose = parseQuoteNumber(regularClosePrice);
   const closedLockedPrice = parseQuoteNumber(closedDailyPnlPrice);
   const closedLockedBaseline = parseQuoteNumber(closedDailyPnlBaselineClose);
@@ -201,15 +148,15 @@ export function normalizeEodhdStockQuoteFields(data, {
   let dailyPnlLocked = false;
   let dailyPnlSource = 'unavailable';
 
-  if (quoteSession === 'pre' || quoteSession === 'regular') {
+  if (useLivePnl) {
     dailyPnlPrice = price;
     dailyPnlSource = quoteSession === 'pre' ? 'realtime-pre' : 'realtime-regular';
-  } else if (quoteSession === 'post' || isUsEquitySameDayAfterPostClose(now)) {
+  } else if (clock.hasClosedToday) {
     // previousClosePrice has no trading date and may still refer to yesterday.
     // Only the dated EOD row can confirm this session's completed close.
     dailyPnlLocked = true;
     if (isPositiveNumber(regularClose) && isValidMarketDate(regularCloseDate)
-      && regularCloseDate === getUsEquityMarketDate(now)) {
+      && regularCloseDate === clock.dateKey) {
       dailyPnlPrice = regularClose;
       dailyPnlPriceDate = regularCloseDate;
       dailyPnlSource = regularCloseSource || 'locked-eod-regular-close';
@@ -217,7 +164,7 @@ export function normalizeEodhdStockQuoteFields(data, {
   } else {
     dailyPnlLocked = true;
     if (isPositiveNumber(closedLockedPrice) && isValidMarketDate(closedDailyPnlDate)
-      && closedDailyPnlDate <= getLatestCompletedEodCutoffDate(now)) {
+      && closedDailyPnlDate === lastCompletedUsEquityQuoteDate(clock)) {
       dailyPnlPrice = closedLockedPrice;
       dailyPnlPriceDate = closedDailyPnlDate;
       dailyPnlSource = closedDailyPnlSource || 'locked-latest-eod-close';
@@ -229,7 +176,7 @@ export function normalizeEodhdStockQuoteFields(data, {
 
   if (dailyPnlLocked && !(isPositiveNumber(dailyPnlBaselineClose)
     && isValidMarketDate(dailyPnlBaselineDate)
-    && dailyPnlPriceDate && dailyPnlBaselineDate < dailyPnlPriceDate)) {
+    && dailyPnlPriceDate && dailyPnlBaselineDate === previousUsEquityQuoteDate(dailyPnlPriceDate))) {
     // Explicitly unknown: consumers must not substitute an undated denominator.
     dailyPnlBaselineClose = 0;
     dailyPnlBaselineDate = '';
@@ -630,8 +577,9 @@ export async function fetchStockQuote(symbol, {
 }) {
   try {
     const now = Date.now();
-    const marketDate = getUsEquityMarketDate(now);
-    const completedEodCutoffDate = getLatestCompletedEodCutoffDate(now);
+    const clock = getUsEquityQuoteClock(now);
+    const marketDate = clock.dateKey;
+    const completedEodCutoffDate = lastCompletedUsEquityQuoteDate(clock);
     const quoteUrl = `https://eodhd.com/api/us-quote-delayed?s=${encodeURIComponent(symbol)}.US&api_token=${eodhdKey}&fmt=json`;
     const today = new Date(now);
     const historyStart = new Date(now);
@@ -778,11 +726,13 @@ export async function fetchStockQuote(symbol, {
             ? eodData.filter((day) => String(day?.date || '') >= quoteHistoryFromDate)
             : eodData;
           stockYtdBaseline = buildStockYtdBaseline(quoteEodData, marketDate);
-          dailyBaseline = findDailyBaselineCloseFromEodRows(quoteEodData, marketDate);
+          dailyBaseline = findCloseForMarketDateFromEodRows(quoteEodData, previousUsEquityQuoteDate(marketDate))
+            || findDailyBaselineCloseFromEodRows(quoteEodData, marketDate);
           marketDateClose = findCloseForMarketDateFromEodRows(quoteEodData, marketDate);
-          latestCompletedClose = marketDateClose || dailyBaseline;
+          latestCompletedClose = completedEodCutoffDate === marketDate
+            ? marketDateClose : findCloseForMarketDateFromEodRows(quoteEodData, completedEodCutoffDate);
           if (latestCompletedClose?.date) {
-            latestCompletedBaseline = findDailyBaselineCloseFromEodRows(quoteEodData, latestCompletedClose.date);
+            latestCompletedBaseline = findCloseForMarketDateFromEodRows(quoteEodData, previousUsEquityQuoteDate(latestCompletedClose.date));
           }
           const currentYearStart = `${today.getFullYear()}-01-01`;
           const historyRows = quoteEodData

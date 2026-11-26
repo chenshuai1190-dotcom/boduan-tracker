@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fetchStockQuote, normalizeEodhdStockQuoteFields } from '../server/quote/providers/eodhd.js';
 import { mergeDailyPnlBaselineFields, mergeQuoteBaselineRows } from '../src/lib/quoteRefreshPolicy.js';
-import { mergeFreshStockRealtimeRows } from '../src/lib/stockRealtime.js';
+import { applyStockTickToQuoteRows, mergeFreshStockRealtimeRows } from '../src/lib/stockRealtime.js';
 import { resolveHomeMarketDisplayMetrics, resolveHoldingDisplayPrice } from '../src/lib/homeMarketDisplay.js';
 import { deriveInvestmentSummary } from '../src/lib/investmentSummary.js';
 
@@ -167,7 +167,7 @@ const HISTORY = [
   { date: EOD_DATE, close: CLOSE, adjusted_close: CLOSE, high: 229, low: 225 },
 ];
 
-async function withProvider(now, rows, verify) {
+async function withProvider(now, rows, verify, rawQuote = RAW_QUOTE, symbol = 'NVDA') {
   const originalFetch = globalThis.fetch;
   const originalNow = Date.now;
   const calls = [];
@@ -176,13 +176,13 @@ async function withProvider(now, rows, verify) {
   globalThis.fetch = async url => {
     const parsed = new URL(url);
     calls.push(parsed.pathname);
-    if (parsed.pathname === '/api/us-quote-delayed') return response({ data: { 'NVDA.US': RAW_QUOTE } });
-    if (parsed.pathname === '/api/eod/NVDA.US') return response(rows);
+    if (parsed.pathname === '/api/us-quote-delayed') return response({ data: { [`${symbol}.US`]: rawQuote } });
+    if (parsed.pathname === `/api/eod/${symbol}.US`) return response(rows);
     if (parsed.hostname === 'query1.finance.yahoo.com') return response({ chart: { result: [] } });
     throw new Error('Unexpected provider request in completed-close regression');
   };
   try {
-    const quote = await fetchStockQuote('NVDA', { eodhdKey: 'mock-only' });
+    const quote = await fetchStockQuote(symbol, { eodhdKey: 'mock-only' });
     assert.equal(quote.error, undefined);
     await verify(quote);
     assert.equal(calls.length, 3, 'reuse the original quote, history and intraday requests');
@@ -195,6 +195,96 @@ async function withProvider(now, rows, verify) {
 test('fetchStockQuote passes exact-date EOD through normalization on both sides of midnight without additional requests', async () => {
   for (const now of [POST, AFTER_POST, AFTER_MIDNIGHT]) {
     await withProvider(now, HISTORY, assertCompleted);
+  }
+});
+
+test('Thanksgiving keeps the prior official close and its one-session P&L throughout the holiday', async () => {
+  const history = [
+    { date: '2026-11-24', adjusted_close: 279.05 },
+    { date: '2026-11-25', adjusted_close: 273.10 },
+    // A provider row on a closed date is never an official close.
+    { date: '2026-11-26', adjusted_close: 274.99 },
+  ];
+  for (const time of ['05:41', '11:00', '18:00', '21:59']) {
+    const now = Date.parse(`2026-11-26T${time}:00-05:00`);
+    await withProvider(now, history, quote => {
+      assert.equal(quote.dailyPnlSession, 'closed');
+      assert.equal(quote.dailyPnlPriceDate, '2026-11-25');
+      assert.equal(quote.dailyPnlBaselineDate, '2026-11-24');
+      near(quote.dailyPnlChange, 273.10 - 279.05);
+      const symbol = 'GOOGL';
+      const cached = { ...quote, symbol };
+      const tick = { symbol, price: 274.99, realtimeAt: now, clientReceivedAt: now, realtime: true };
+      const refreshed = mergeFreshStockRealtimeRows([cached], [tick], { now });
+      const summary = deriveInvestmentSummary({
+        stockTrades: [{ symbol, side: 'buy', date: '2026-11-23', price: 280, shares: 10 }],
+        watchlist: refreshed,
+      });
+      assert.equal(summary.todayPnlLocked, true);
+      near(summary.todayPnl, 10 * (273.10 - 279.05));
+      assert.equal(summary.positions[0].valuationPrice, 273.10);
+    });
+  }
+
+  const now = Date.parse('2026-11-26T10:41:00Z');
+  await withProvider(now, history.filter(row => row.date !== '2026-11-25'), assertUnavailable);
+  await withProvider(now, [ { date:'2026-11-23', adjusted_close: 270 }, history[1] ], quote => {
+    assert.equal(quote.dailyPnlPrice, 273.10);
+    assert.equal(quote.dailyPnlBaselineClose, 0);
+    assert.equal(quote.dailyPnlChange, null);
+  });
+});
+
+test('Friday after Thanksgiving unlocks during premarket and locks to its own dated EOD from 13:00 ET', async () => {
+  const wed = { date: '2026-11-25', adjusted_close: 273.10 };
+  const fri = { date: '2026-11-27', adjusted_close: 275 };
+  for (const [time, session] of [['04:00', 'pre'], ['12:59', 'regular'], ['13:00', 'post'], ['16:59', 'post'], ['17:00', 'closed']]) {
+    const now = Date.parse(`2026-11-27T${time}:00-05:00`);
+    await withProvider(now, [wed, { date: '2026-11-26', adjusted_close: 274.99 }, fri], quote => {
+      assert.equal(quote.dailyPnlSession, session);
+      const locked = ['post', 'closed'].includes(session);
+      assert.equal(quote.dailyPnlLocked, locked);
+      if (locked) {
+        assert.equal(quote.dailyPnlPriceDate, fri.date);
+        assert.equal(quote.dailyPnlBaselineDate, wed.date);
+        near(quote.dailyPnlChange, fri.adjusted_close - wed.adjusted_close);
+      }
+    });
+  }
+  await withProvider(Date.parse('2026-11-27T13:00:00-05:00'), [wed], assertUnavailable);
+});
+
+test('the first post-holiday REST or websocket trade must belong to the new session to unlock dated quotes', async () => {
+  const symbol = 'GOOGL';
+  const wed = { date: '2026-11-25', adjusted_close: 273.10 };
+  const tue = { date: '2026-11-24', adjusted_close: 279.05 };
+  const lastTime = 1795654796868; // Wednesday 19:59:56 ET
+  const raw = { lastTradePrice: 274.99, ethPrice: 274.99, lastTradeTime: lastTime, ethTime: lastTime };
+  for (const time of ['04:00', '09:30']) {
+    const now = Date.parse(`2026-11-27T${time}:01-05:00`);
+    const stockTrades = [{ symbol, side: 'buy', date: tue.date, price: 280, shares: 10 }];
+    await withProvider(now, [tue, wed], waiting => {
+      const staleTick = { symbol, price: 274.99, realtimeAt: lastTime, clientReceivedAt: now, realtime: true };
+      const restored = mergeFreshStockRealtimeRows([waiting], [staleTick], { now });
+      assert.equal(restored[0].dailyPnlPriceDate, wed.date);
+      assert.equal(restored[0].dailyPnlBaselineDate, tue.date);
+      const locked = deriveInvestmentSummary({ stockTrades, watchlist: restored });
+      assert.equal(locked.todayPnlLocked, true);
+      near(locked.todayPnl, 10 * (wed.adjusted_close - tue.adjusted_close));
+      const rows = applyStockTickToQuoteRows(restored, { symbol, price: 275, timestamp: now }, 'live', [], { now });
+      assert.equal(rows[0].dailyPnlBaselineDate, wed.date);
+      const unlocked = deriveInvestmentSummary({ stockTrades, watchlist: rows });
+      assert.equal(unlocked.todayPnlLocked, false);
+      near(unlocked.todayPnl, 10 * (275 - wed.adjusted_close));
+    }, raw, symbol);
+    for (const current of [{ ethPrice: 275, ethTime: now }, { lastTradePrice: 275, lastTradeTime: Math.floor(now / 1000) }]) {
+      await withProvider(now, [tue, wed], quote => {
+        assert.equal(quote.dailyPnlLocked, false);
+        assert.equal(quote.dailyPnlPrice, 275);
+        assert.equal(quote.dailyPnlBaselineDate, wed.date);
+        near(quote.dailyPnlChange, 275 - wed.adjusted_close);
+      }, { ...raw, ...current }, symbol);
+    }
   }
 });
 

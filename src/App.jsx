@@ -19,7 +19,7 @@ import { getStoredLanguage, isEnglishLanguage, saveStoredLanguage, t } from './l
 import { isEarningsPublished } from './lib/earningsCalendarModel.js';
 import { localMonthKey } from './lib/calendarMonth.js';
 import { buildQuoteSymbolBatches } from './lib/quoteRequestBatches.js';
-import { buildQuoteBaselineRows, buildQuoteBaselineUniverseKey, getQuoteBaselineRefreshDelay, getQuoteBaselineSession, getQuoteCloseSettlementKey, isQuoteBaselineUniverseExpansion, mergeDailyPnlBaselineFields, mergeQuoteBaselineRows, shouldQueueQuoteBaselineExpansion, shouldRunQuoteBaselineRefresh } from './lib/quoteRefreshPolicy.js';
+import { buildQuoteBaselineRows, buildQuoteBaselineUniverseKey, getQuoteBaselineRefreshDelay, getQuoteBaselineSession, getQuoteCloseSettlementKey, getUsEquityQuoteClock, isQuoteBaselineUniverseExpansion, mergeDailyPnlBaselineFields, mergeQuoteBaselineRows, shouldQueueQuoteBaselineExpansion, shouldRunQuoteBaselineRefresh } from './lib/quoteRefreshPolicy.js';
 import { formatWaveCurrencyAmount, formatWaveUsdPrice } from './lib/waveCurrencyDisplay.js';
 import { userScopedStorageKey } from './lib/userScopedStorage.js';
 import { clearStockQuoteBootstrapCache, readStockQuoteBootstrapCache, writeStockQuoteBootstrapCache } from './lib/stockQuoteBootstrapCache.js';
@@ -185,16 +185,10 @@ function localDateKey(date = new Date()) {
 }
 
 function getUsMarketSession(date = new Date()) {
-  const etStr = date.toLocaleString('en-US', { timeZone: 'America/New_York' });
-  const et = new Date(etStr);
-  const day = et.getDay();
-  const time = et.getHours() + et.getMinutes() / 60;
-
-  if (day === 0 || day === 6) return 'closed';
-  if (time >= 9.5 && time < 16) return 'regular';
-  if (time >= 4 && time < 9.5) return 'premarket';
-  if (time >= 16 && time < 20) return 'postmarket';
-  return 'closed';
+  const { session } = getUsEquityQuoteClock(date);
+  if (session === 'pre') return 'premarket';
+  if (session === 'post') return 'postmarket';
+  return session;
 }
 
 function getIosPwaRealtimeSnapshotInterval(date = new Date()) {

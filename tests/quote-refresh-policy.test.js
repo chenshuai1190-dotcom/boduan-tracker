@@ -27,6 +27,16 @@ test('full REST baseline uses 15/30/60 minute market-session intervals', () => {
   assert.equal(getQuoteBaselineRefreshInterval('unknown'), QUOTE_BASELINE_REFRESH_INTERVAL_MS.closed);
 });
 
+test('the post-close confirmation starts five minutes after the scheduled half-day close', () => {
+  const check = time => getQuoteCloseSettlementKey({ session: 'postmarket', now: Date.parse(time) });
+  assert.equal(check('2026-11-27T13:04:59-05:00'), '');
+  assert.equal(check('2026-11-27T13:05:00-05:00'), '2026-11-27');
+  assert.equal(check('2026-11-27T17:00:00-05:00'), '');
+  assert.equal(check('2026-11-26T16:05:00-05:00'), '');
+  assert.equal(check('2026-12-24T13:05:00-05:00'), '2026-12-24');
+  assert.equal(check('2028-07-03T13:05:00-04:00'), '2028-07-03');
+});
+
 test('regular NYSE holidays use the closed-session cadence', () => {
   const holiday = new Date('2026-07-03T14:00:00.000Z');
   assert.equal(isRegularNyseHoliday('2026-07-03'), true);
@@ -305,6 +315,7 @@ test('App wires the low-frequency gate without replacing iOS snapshot bursts or 
     source.indexOf('useEffect(() => () => {', source.indexOf('quoteRefreshFromCloudResultRef.current = (result) => {')),
   );
 
+  assert.match(source, /function getUsMarketSession\(date = new Date\(\)\) \{\s*const \{ session \} = getUsEquityQuoteClock\(date\)/);
   assert.match(source, /getQuoteBaselineRefreshDelay\(\{/);
   assert.match(source, /getQuoteBaselineSession\(baselineDate, getUsMarketSession\(baselineDate\)\)/);
   assert.match(source, /shouldRunQuoteBaselineRefresh\(\{/);
