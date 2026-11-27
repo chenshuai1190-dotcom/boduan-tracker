@@ -1118,13 +1118,14 @@ export default function HomeTab({ ctx }) {
               <Search className="h-4 w-4 shrink-0 text-white/35" />
               <input
                 value={stockSearch}
-                onChange={(event) => setStockSearch(event.target.value.toUpperCase())}
+                onChange={(event) => setStockSearch(event.target.value)}
                 onFocus={(event) => {
                   const input = event.currentTarget;
                   setTimeout(() => input.scrollIntoView({ block: 'center', behavior: 'smooth' }), 80);
                 }}
                 placeholder={t(language, 'home.searchStock', '搜索股票名称或代码')}
-                autoCapitalize="characters"
+                autoCapitalize="none"
+                autoComplete="off"
                 autoCorrect="off"
                 spellCheck={false}
                 aria-label={t(language, 'home.searchStock', '搜索股票名称或代码')}
@@ -1291,13 +1292,14 @@ export default function HomeTab({ ctx }) {
               <Search className="h-4 w-4 shrink-0 text-white/35" />
               <input
                 value={editWatchlistSearch}
-                onChange={(event) => setEditWatchlistSearch(event.target.value.toUpperCase())}
+                onChange={(event) => setEditWatchlistSearch(event.target.value)}
                 onFocus={(event) => {
                   const input = event.currentTarget;
                   setTimeout(() => input.scrollIntoView({ block: 'center', behavior: 'smooth' }), 80);
                 }}
                 placeholder={t(language, 'home.searchStock', '搜索股票名称或代码')}
-                autoCapitalize="characters"
+                autoCapitalize="none"
+                autoComplete="off"
                 autoCorrect="off"
                 spellCheck={false}
                 aria-label={t(language, 'home.searchStock', '搜索股票名称或代码')}

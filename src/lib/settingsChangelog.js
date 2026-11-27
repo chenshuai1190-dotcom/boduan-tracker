@@ -3,6 +3,11 @@ import { CURRENT_RELEASE } from './releaseMeta.js';
 export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
+    items: ['修复 iPhone 中文键盘在「添加自选股票」和「编辑自选股票」搜索框中输入股票代码时字母重复的问题。两个搜索框均支持小写代码和中文股票名称。'],
+    itemsEn: ['Fixed repeated letters when entering stock symbols with a Chinese keyboard on iPhone in the Add and Edit Watchlist dialogs. Both searches accept lowercase tickers and Chinese stock names.'],
+  },
+  {
+    ver: 'v10.7.9.623', date: '2026-11-26',
     items: [
       '11 月 26 日 · 美股休市期间，首页和交易页的持仓估值与今日盈亏锁定在最近一次正式收盘。提前收盘日按实际收盘时间锁定，节后收到新时段的有效报价才恢复更新。',
       '11 月 26 日 · 录入、修改或删除交易后，报表等待最后一次操作满 20 分钟再安排核对。等待期间，时间线仍可查看已核对的历史事件。',

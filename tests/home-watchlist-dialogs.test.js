@@ -1,10 +1,67 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { createServer } from 'vite';
 
 const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
 const home = read('src/tabs/HomeTab.jsx');
 const css = read('src/tabs/HomeWatchlistDialogs.css');
+
+function elements(node) {
+  if (Array.isArray(node)) return node.flatMap(elements);
+  return React.isValidElement(node) ? [node, ...elements(node.props.children)] : [];
+}
+
+test('watchlist add and edit preserve composing text while matching normalized tickers and Chinese names', async (t) => {
+  const vite = await createServer({
+    configFile: false,
+    server: { middlewareMode: true, hmr: false, ws: false, watch: null },
+    optimizeDeps: { noDiscovery: true },
+  });
+  t.after(() => vite.close());
+  const { default: HomeTab } = await vite.ssrLoadModule('/src/tabs/HomeTab.jsx');
+
+  for (const dialog of ['add', 'edit']) {
+    const ctx = {
+      showAddStock: dialog === 'add', newStock: {}, ChevronRight: () => null,
+      watchlist: [{ symbol: 'NVDA', name: '英伟达' }, { symbol: 'TSLA', name: '特斯拉' }],
+    };
+    const inputs = ['', 'n', 'nv', ' nVdA ', 'ying', '英伟达', ''];
+    let step = 0;
+
+    function Interact() {
+      const nodes = elements(HomeTab({ ctx }));
+      const input = nodes.find(node => node.type === 'input' && node.props.className === 'watchlist-search-input');
+      if (dialog === 'edit' && !input) {
+        nodes.find(node => node.props.onEdit).props.onEdit();
+        return null;
+      }
+      assert.equal(input.props.value, inputs[step], dialog + ' must preserve the native input value');
+      assert.equal(input.props.autoCapitalize, 'none');
+      assert.equal(input.props.autoCorrect, 'off');
+      assert.equal(input.props.spellCheck, false);
+      const symbols = nodes.filter(node => node.props.className === 'watchlist-symbol').map(node => node.props.children);
+      if (inputs[step] === ' nVdA ' || inputs[step] === '英伟达') {
+        assert.deepEqual(symbols, ['NVDA']);
+      }
+      if (step === inputs.length - 1) {
+        assert.ok(symbols.includes('NVDA') && symbols.includes('TSLA'), 'clearing restores the stock list');
+        return null;
+      }
+      const next = inputs[++step];
+      if (next) {
+        input.props.onChange({ target: { value: next }, nativeEvent: { isComposing: ['n', 'nv', 'ying'].includes(next) } });
+      } else {
+        nodes.find(node => node.props['aria-label'] === '清空搜索').props.onClick();
+      }
+      return null;
+    }
+    renderToStaticMarkup(React.createElement(Interact));
+    assert.equal(step, inputs.length - 1);
+  }
+});
 
 test('watchlist dialogs reuse the current report modal and keep mobile controls readable', () => {
   assert.match(home, /panelClassName="watchlist-dialog watchlist-dialog-add"/);
