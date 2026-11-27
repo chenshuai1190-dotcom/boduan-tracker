@@ -506,3 +506,86 @@ test('journal posts preserve stock order and entry dates in each carousel', asyn
   }
   h.unmount();
 });
+
+test('reference replay keeps posted order and loads chart history for the selected symbol only', async () => {
+  const h = await harness();
+  const references = [
+    trade('later', '2026-10-05'),
+    { ...trade('other-stock', recordDate), symbol: 'SMH' },
+    trade('picked', recordDate),
+  ];
+  const nvda = { ...history, series: { NVDA: { rows } } };
+  const smh = { ...history, series: { SMH: { rows: rows.map(row => ({ ...row, close: row.close + 300 })) } } };
+  const props = { stockTrades: references, initialTradeId: 'picked' };
+  h.seedHistory(nvda, props);
+  const dialog = tree => find(tree, node => node.type === h.components.ReplayDialog);
+  find(h.card(props), node => hasClass(node, 'rsr-card-open')).props.onClick();
+  let view = dialog(h.card(props)).props;
+  assert.deepEqual(view.model.trades.map(row => row.id), ['later', 'other-stock', 'picked']);
+  assert.equal(view.model.trades[1].close, null);
+  assert.equal(view.initialTradeId, 'picked');
+  await flush();
+  assert.equal(h.requests.length, 1);
+  view.onSelectSymbol('SMH');
+  view = dialog(h.card(props)).props;
+  assert.equal(view.symbol, 'SMH');
+  assert.deepEqual(view.model.rows, [], 'pending symbol cannot inherit the previous curve');
+  await flush();
+  assert.deepEqual(h.requests[1].options.symbols, ['SMH', 'QQQ']);
+  h.requests[1].resolve(smh); await flush();
+  view = dialog(h.card(props)).props;
+  assert.equal(view.model.trades[1].close, smh.series.SMH.rows.find(row => row.date === recordDate).close);
+  assert.equal(view.model.trades[2].close, null);
+  view.onClose();
+  assert.equal(chartIn(h.card(props), h).props.rows[0].close, nvda.series.NVDA.rows[0].close);
+  h.unmount();
+});
+
+test('swiping selects the exact same-day reference, and mixed-stock markers keep their original card index', async () => {
+  const h = await harness();
+  const day = recordDate;
+  const refs = [trade('first', day), { ...trade('qqq', day), symbol: 'QQQ' }, trade('chosen', day), trade('last', day)];
+  const replay = buildReviewStockReplay({ symbol: 'NVDA', userId, stockTrades: refs, history, endDate });
+  const trades = refs.map(row => ({ ...row, key: row.id, ...replay.trades.find(item => item.id === row.id), symbol: row.symbol }));
+  const props = { symbol: 'NVDA', model: { ...replay, trades }, initialTradeId: 'chosen', onClose() {}, recordDate: day };
+  let dialog = h.render(h.components.ReplayDialog, props);
+  assert.equal(chartIn(dialog, h).props.selectedTrade.id, 'chosen');
+  const track = find(dialog, node => hasClass(node, 'rsr-trade-track'));
+  track.props.onScroll({ currentTarget: { scrollLeft: 900, children: [0, 300, 600, 900].map(offsetLeft => ({ offsetLeft })) } });
+  dialog = h.render(h.components.ReplayDialog, props);
+  const chart = chartIn(dialog, h);
+  assert.equal(chart.props.selectedTrade.id, 'last');
+  const markerTree = h.render(h.components.ReplayChart, chart.props);
+  const buttons = walk(markerTree).filter(node => hasClass(node, 'rsr-node'));
+  assert.equal(buttons.length, 3);
+  assert.ok(buttons.at(-1).props['aria-pressed']);
+  buttons.find(node => node.props['aria-label'].endsWith('2/3')).props.onClick();
+  dialog = h.render(h.components.ReplayDialog, props);
+  assert.equal(chartIn(dialog, h).props.selectedTrade.id, 'chosen');
+  h.unmount();
+});
+
+test('tapping overlapping markers selects the nearest center while exact ties and keyboard use the hit button', async () => {
+  const h = await harness();
+  const chartRows = rows.slice(0, 32).map(row => ({ ...row, close: 125 }));
+  const trades = [6, 7, 7].map((rowIndex, index) => ({
+    key: String(index), side: 'buy', markerDate: chartRows[rowIndex].date, date: chartRows[rowIndex].date,
+    sameDayCount: index ? 2 : 1, sameDayOrder: index || 1,
+  }));
+  let selected;
+  const tree = h.render(h.components.ReplayChart, { rows: chartRows, trades, onSelectTrade: index => { selected = index; } });
+  const buttons = walk(tree).filter(node => hasClass(node, 'rsr-node'));
+  const box = { left: 30, top: 40, width: 360, height: 200 };
+  const tap = (interceptor, center) => interceptor.props.onClick({
+    detail: 1, currentTarget: { parentElement: { getBoundingClientRect: () => box } },
+    clientX: box.left + parseFloat(center.props.style.left) * box.width / 100,
+    clientY: box.top + parseFloat(center.props.style.top) * box.height / 100,
+  });
+  tap(buttons[1], buttons[0]);
+  assert.equal(selected, 0);
+  tap(buttons[2], buttons[1]);
+  assert.equal(selected, 2);
+  buttons[1].props.onClick({ detail: 0 });
+  assert.equal(selected, 1);
+  h.unmount();
+});

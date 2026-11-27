@@ -32,6 +32,7 @@ async function harness({ append, update, reply = null, clock = null } = {}) {
       useState(initial) { const index = cursor++; const slot = slots[index] ||= { value: typeof initial === 'function' ? initial() : initial };
         return [slot.value, next => { slot.value = typeof next === 'function' ? next(slot.value) : next; }]; },
       useRef(initial) { return slots[cursor++] ||= { current: initial }; },
+      useMemo(factory) { return factory(); },
       useEffect(effect, deps) { const index = cursor++, previous = slots[index];
         if (previous && deps.every((dep, i) => Object.is(dep, previous.deps[i]))) return;
         previous?.cleanup?.(); const slot = slots[index] = { deps }; effects.push(() => { slot.cleanup = effect(); }); },
@@ -82,6 +83,7 @@ async function harness({ append, update, reply = null, clock = null } = {}) {
       effects.forEach(effect => effect()); return tree; };
   return { props, calls, updates, saved, components, Dialog, closes: () => closes,
     render: () => render(components.default, props),
+    renderReferences: references => render(components.ReviewTradeReferences, references),
     renderAccount: accountProps => render(components.AccountPicker, { ...accountProps, Dialog }),
     renderTrades: tradeProps => render(components.TradePicker, { ...tradeProps, Dialog }),
     cleanup() { slots.forEach(slot => slot.cleanup?.()); },
@@ -712,4 +714,23 @@ test('direct post evaluations still allow tag-only publishing and reply mode hid
   await button(tree,'发布').props.onClick();assert.deepEqual(h.calls[0].reply.tags,['按计划执行']);assert.equal(h.calls[0].reply.score,null);h.cleanup();
   const changed=await harness();tree=changed.render();button(tree,'按计划执行').props.onClick();tree=changed.render();button(tree,'＋ 自定义').props.onClick();tree=changed.render();customForm(tree).props.onSubmit({preventDefault(){}});tree=changed.render();assert.ok(customForm(tree));assert.ok(alert(tree));
   changed.props.replyTarget={kind:'community',id:'target',nickname:'访客',available:true};tree=changed.render();assert.equal(customForm(tree),undefined);assert.equal(button(tree,'＋ 自定义'),undefined);assert.equal(button(tree,'按计划执行'),undefined);assert.equal(alert(tree),'');assert.equal(button(tree,'发布').props.disabled,true,'hidden draft tags must not count as reply content');changed.cleanup();
+});
+
+test('opening a trade reference forwards the complete frozen selection and the exact clicked execution', async () => {
+  const h = await harness();
+  const trades = Array.from({ length: 9 }, (_, i) => ({
+    id: String(i + 1), symbol: i === 6 ? 'QQQ' : 'SMH', date: '2026-10-08',
+    side: 'buy', price: 610 + i, shares: 100,
+  }));
+  const props = { trades, userId: 'owner' };
+  const tree = h.renderReferences(props);
+  const cards = walk(tree).filter(node => node.props.className === 'rev-trade-reference');
+  assert.equal(cards.length, 9);
+  cards[3].props.onClick();
+  const replay = find(h.renderReferences(props), node => node.props.initialTradeId === '4');
+  assert.equal(replay.props.symbol, 'SMH');
+  assert.deepEqual(replay.props.stockTrades, trades);
+  cards[6].props.onClick();
+  assert.equal(find(h.renderReferences(props), node => node.props.initialTradeId === '7').props.symbol, 'QQQ');
+  h.cleanup();
 });

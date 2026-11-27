@@ -43,9 +43,20 @@ export function ReviewAccountCard({ value, marketColorMode }) {
 }
 export function ReviewTradeReferences({ trades, userId, language, marketColorMode, previewHistory }) {
   const [open, setOpen] = React.useState(null);
-  const valid = normalizeReviewTradeReferences(trades);
+  const valid = React.useMemo(() => normalizeReviewTradeReferences(trades), [trades]);
+  const selectedTrade = valid.find(trade => trade.id === open);
   if (!valid.length) return null;
-  return <div className="rev-trade-references"><div className="rev-trade-track" aria-label="引用的交易记录">{valid.map(trade => <button type="button" className="rev-trade-reference" key={trade.id} aria-expanded={open === trade.id} onClick={()=>setOpen(open===trade.id?null:trade.id)}><header><strong>{trade.symbol}</strong><span className={`rev-side-${trade.side}`}>{trade.side==='buy'?'买入':'卖出'}</span><time dateTime={trade.date}>{trade.date}</time></header><div><strong>{money(trade.price)}</strong><span>{trade.shares.toLocaleString('en-US',{maximumFractionDigits:6})} 股</span></div><small>成交记录 · 点击查看该笔走势</small></button>)}</div>{valid.length>1 && <div className="rev-swipe-note">左右滑动查看 · {valid.length} 笔引用</div>}{open && valid.some(item=>item.id===open) && <ReviewStockReplay symbol={valid.find(item=>item.id===open).symbol} stockTrades={valid.filter(item=>item.id===open)} userId={userId} language={language} marketColorMode={marketColorMode} recordDate={valid.find(item=>item.id===open).date} previewHistory={previewHistory}/>}</div>;
+  return <div className="rev-trade-references">
+    <div className="rev-trade-track" aria-label="引用的交易记录">{valid.map(trade =>
+      <button type="button" className="rev-trade-reference" key={trade.id} aria-expanded={open === trade.id} onClick={() => setOpen(open === trade.id ? null : trade.id)}>
+        <header><strong>{trade.symbol}</strong><span className={`rev-side-${trade.side}`}>{trade.side === 'buy' ? '买入' : '卖出'}</span><time dateTime={trade.date}>{trade.date}</time></header>
+        <div><strong>{money(trade.price)}</strong><span>{trade.shares.toLocaleString('en-US', { maximumFractionDigits: 6 })} 股</span></div>
+        <small>成交记录 · 点击查看该笔走势</small>
+      </button>)}</div>
+    {valid.length > 1 && <div className="rev-swipe-note">左右滑动查看 · {valid.length} 笔引用</div>}
+    {selectedTrade && <ReviewStockReplay symbol={selectedTrade.symbol} stockTrades={valid} initialTradeId={selectedTrade.id}
+      userId={userId} language={language} marketColorMode={marketColorMode} recordDate={selectedTrade.date} previewHistory={previewHistory}/>}
+  </div>;
 }
 
 function TradePicker({ selected, stockTrades, userId, onChange, onClose, Dialog, relatedSymbols = [] }) {

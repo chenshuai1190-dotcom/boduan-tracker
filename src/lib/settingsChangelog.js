@@ -3,6 +3,11 @@ import { CURRENT_RELEASE } from './releaseMeta.js';
 export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
+    items: ['交易回放从点开的引用开始。「我的交易」可左右滑动浏览这组引用，所选交易的图表节点、成交信息和买入涨跌幅同步切换。跨股票引用也能连续查看。'],
+    itemsEn: ['Trade replay opens at the selected reference. Swipe through the referenced trades to update the chart marker, execution details and change from the selected buy. The chart switches symbols when needed.'],
+  },
+  {
+    ver: 'v10.7.9.625', date: '2026-11-27',
     items: ['交易回放可比较所选日期的收盘价与单笔买入成交价，买入前后的日期都能查看涨跌幅。切换买入记录时同步更新，拆股与合股统一换算。简化了价格标题和图表下方的提示。'],
     itemsEn: ['Trade replay shows how each selected close compares with a specific purchase, including dates before the buy. Switching purchases updates the comparison. Prices use the same split basis. The price heading and chart controls are simpler.'],
   },
