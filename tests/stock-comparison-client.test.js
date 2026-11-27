@@ -18,6 +18,19 @@ const settle = () => new Promise(resolve => setImmediate(resolve));
 
 test.beforeEach(() => resetStockComparisonCache());
 
+test('preserves confirmed split factors and keeps legacy or malformed metadata out of price comparisons', async () => {
+  const data = fixture();
+  data.series.QQQ.rows[0].splitFactor = 0.5;
+  data.series.QQQ.rows[1].splitFactor = 4;
+  data.series.QQQ.rows[2].splitFactor = 1;
+  data.series.TQQQ.rows[0].splitFactor = '1';
+  data.series.TQQQ.rows[1].splitFactor = 0;
+  const result = await loadStockComparison(args({ fetchImpl: async () => response(data) }));
+  assert.deepEqual(result.series.QQQ.rows.map(row => row.splitFactor), [0.5, 4, 1]);
+  assert.deepEqual(result.series.TQQQ.rows.map(row => row.splitFactor), [undefined, undefined, undefined]);
+  assert.deepEqual(result.series.TQQQ.rows.map(row => row.close), [100, 110, 120]);
+});
+
 test('production comparison loader sends authenticated scoped query and caches only validated data', async () => {
   let calls = 0;
   const options = args({ fetchImpl: async (url, options) => {

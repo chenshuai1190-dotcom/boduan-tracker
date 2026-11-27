@@ -675,10 +675,10 @@ export default function ReviewJournalPage({ ctx }) {
   };
   const attachments=entry=><>
     {!!entry.images?.length&&<div className={`rj-photo-grid rj-images-${entry.images.length}`}>{entry.images.map(item=><Photo key={item.path} item={item} db={db} userId={userId} preview={preview} onOpen={setLightbox}/>)}</div>}
-    <ReviewStockCarousel symbols={entry.stocks||[]} recordDate={entry.date} stockTrades={stockTrades} userId={userId} language={language} previewHistory={preview?previewData.history:undefined}/>
+    <ReviewStockCarousel symbols={entry.stocks||[]} recordDate={entry.date} stockTrades={stockTrades} userId={userId} language={language} marketColorMode={marketColorMode} previewHistory={preview?previewData.history:undefined}/>
     {entry.market&&<SnapshotCard value={entry.market} language={language}/>}
     {entry.account&&<ReviewAccountCard value={entry.account} marketColorMode={marketColorMode}/>}
-    {!!entry.trades?.length&&<ReviewTradeReferences trades={entry.trades} userId={userId} language={language} previewHistory={preview?previewData.history:undefined}/>}
+    {!!entry.trades?.length&&<ReviewTradeReferences trades={entry.trades} userId={userId} language={language} marketColorMode={marketColorMode} previewHistory={preview?previewData.history:undefined}/>}
   </>;
   const entryNotes=entry=><div className="rj-entry-notes">
     {entry.mood&&<span>心情 · {entry.mood}</span>}

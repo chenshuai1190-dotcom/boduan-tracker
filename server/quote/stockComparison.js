@@ -140,11 +140,12 @@ export function buildStockComparisonRows(prices, splits, { from, to, splitBasisD
     // RSI independently validates adjusted_close below, without a raw substitute.
     if (row.date < from) continue;
     const rawClose = positiveNumber(row.close);
+    // A trade executed on the split's effective date is already on the new share basis.
     let splitFactor = 1;
     for (const [date, ratio] of splitByDate) if (date > row.date) splitFactor = positiveNumber(splitFactor * ratio);
     const close = positiveNumber(rawClose / splitFactor);
     if (byDate.has(row.date) && byDate.get(row.date).close !== close) throw error('INVALID_DATA');
-    byDate.set(row.date, { date: row.date, close });
+    byDate.set(row.date, { date: row.date, close, splitFactor });
   }
   const rows = [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
   if (!rows.length) throw error('NO_DATA');

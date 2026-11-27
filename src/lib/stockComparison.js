@@ -105,7 +105,9 @@ export function normalizeStockComparisonData(value, { symbols, startDate, endDat
         || typeof row.close !== 'number' || !Number.isFinite(row.close) || row.close <= 0) return null;
       if (row.rsi6 != null && (typeof row.rsi6 !== 'number' || !Number.isFinite(row.rsi6) || row.rsi6 < 0 || row.rsi6 > 100 || invalidRsiBasis)) return null;
       const rsi6 = hasRsiBasis && row.rsi6 != null ? row.rsi6 : null;
-      rows.push(Object.freeze({ date: row.date, close: row.close, rsi6 }));
+      const splitFactor = row.splitFactor;
+      rows.push(Object.freeze({ date: row.date, close: row.close, rsi6,
+        ...(Number.isFinite(splitFactor) && splitFactor > 0 ? { splitFactor } : {}) }));
       previousDate = row.date;
     }
     series[symbol] = Object.freeze({ symbol, name: input.name.trim(), type: input.type,

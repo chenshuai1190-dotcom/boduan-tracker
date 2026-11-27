@@ -60,6 +60,7 @@ test('only raw close and subsequent split actions set price basis; dividends and
   const actions = [{ date: '2026-10-20', split: '2/1' }, { date: '2026-10-26', split: '2/1' }];
   const parsed = buildStockComparisonRows(input, actions, RANGE);
   assert.deepEqual(parsed.map(row => row.close), [25, 27.5, 30]);
+  assert.deepEqual(parsed.map(row => row.splitFactor), [4, 2, 2]);
   assert.equal(parsed.at(-1).close / parsed[0].close - 1, 0.19999999999999996);
   const calls = [];
   const result = await fetchStockComparison('QQQ,TQQQ', options(provider({ calls, prices: () => response(input), splits: () => response(actions) })));
@@ -75,7 +76,9 @@ test('only raw close and subsequent split actions set price basis; dividends and
 
 test('reverse splits and identical duplicate actions are applied once; conflicts and malformed data fail closed', () => {
   const split = { date: '2026-10-20', split: '1/2' };
-  assert.equal(buildStockComparisonRows(rows(), [split, split], RANGE)[0].close, 200);
+  const reverse = buildStockComparisonRows(rows(), [split, split], RANGE);
+  assert.equal(reverse[0].close, 200);
+  assert.deepEqual(reverse.map(row => row.splitFactor), [0.5, 1, 1, 1, 1]);
   for (const actions of [null, {}, [{ date: '2026-10-20', split: '2/0' }], [{ date: '2026-10-20', split: '1/0.0' }], [{ date: '2026-10-20', split: '0/1' }], [split, { ...split, split: '2/1' }], [{ date: '2026-02-30', split: '2/1' }], [{ date: '2026-10-27', split: '2/1' }], [{ date: '2026-10-20', split: 2 }], [{ date: '2026-10-20', split: '2/1junk' }]]) {
     assert.throws(() => buildStockComparisonRows(rows(), actions, RANGE), isCode('INVALID_DATA'));
   }
@@ -87,7 +90,7 @@ test('reverse splits and identical duplicate actions are applied once; conflicts
     assert.throws(() => buildStockComparisonRows(input, [], RANGE), isCode('INVALID_DATA'));
   }
   assert.throws(() => buildStockComparisonRows([], [], RANGE), isCode('NO_DATA'));
-  assert.deepEqual(buildStockComparisonRows([rows()[0], rows()[0]], [], RANGE), [{ date: DATES[0], close: 100 }]);
+  assert.deepEqual(buildStockComparisonRows([rows()[0], rows()[0]], [], RANGE), [{ date: DATES[0], close: 100, splitFactor: 1 }]);
 });
 
 test('one-point ranges and sparse daily data stay observed; series remain separate', async () => {
@@ -238,7 +241,7 @@ test('short, invalid or internally missing adjusted history yields null RSI with
   const missing = history.filter(row => row.date !== '2026-10-16');
   const data = await fetchStockComparison('QQQ,TQQQ', options(historyProvider(missing)));
   assert.ok(data.series.QQQ.rows.every(row => row.rsi6 === null));
-  assert.deepEqual(data.series.QQQ.rows.map(({ rsi6, ...row }) => row), selected);
+  assert.deepEqual(data.series.QQQ.rows.map(({ date, close }) => ({ date, close })), selected);
   const last59 = history.slice(-59);
   assert.equal(addStockComparisonRsi([selected.at(-1)], last59)[0].rsi6, null);
   const last60 = history.slice(-60);

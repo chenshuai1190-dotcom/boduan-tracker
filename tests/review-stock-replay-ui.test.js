@@ -99,8 +99,9 @@ async function harness({ observer = true } = {}) {
   try {
     const compiled = await transformWithOxc(`${imports}
       import { normalizeInvestmentSymbol } from ${moduleUrl('investmentComparisonModel')};
+      import { marketTextHexColor } from ${moduleUrl('marketColorMode')};
       import { stockDetailChartDragIntent } from ${moduleUrl('watchlistStockDetail')};
-      import { buildReviewStockReplay, collectReviewReplayTrades, isReviewReplayBuyHighlight, reviewReplayRequestRange, reviewReplayVisibleRows } from ${moduleUrl('reviewStockReplayModel')};
+      import { buildReviewStockReplay, collectReviewReplayTrades, isReviewReplayBuyHighlight, reviewReplayBuyChangePct, reviewReplayRequestRange, reviewReplayVisibleRows } from ${moduleUrl('reviewStockReplayModel')};
       const loadReviewStockReplayHistory = fixture.load;
       const getInvestmentComparisonExpectedCloseDate = () => ${JSON.stringify(endDate)};
       const createPortal = tree => tree;
@@ -392,8 +393,40 @@ test('trades without a close use a separate date rail without inventing prices o
   dialog = h.render(h.components.ReplayDialog, props);
   assert.equal(chartIn(dialog, h).props.selectedDate, weekend.date);
   const readout = markup(find(dialog, node => hasClass(node, 'rsr-readout')));
-  assert.match(readout, /2026-07-04.*拆股复权收盘.*—/);
+  assert.match(readout, /2026-07-04.*—/);
   assert.doesNotMatch(readout, /\$100|\$110|\$120/);
+  h.unmount();
+});
+
+test('scrubbing the replay compares each close with the selected purchase, including earlier dates', async () => {
+  const early = '2026-06-22', firstBuy = '2026-10-06', secondBuy = '2026-10-07';
+  const quotes = [
+    { date: early, close: 668.91, splitFactor: 1 },
+    { date: firstBuy, close: 632.5, splitFactor: 1 },
+    { date: secondBuy, close: 640, splitFactor: 1 },
+  ];
+  const replay = buildReviewStockReplay({
+    ...baseProps, endDate: secondBuy,
+    stockTrades: [{ ...trade('first', firstBuy), price: 633.88 }, { ...trade('second', secondBuy), price: 640 }],
+    history: { ...history, splitBasisDate: secondBuy, series: { NVDA: { rows: quotes } } },
+  });
+  const h = await harness();
+  const render = () => h.render(h.components.ReplayDialog, { symbol: 'NVDA', model: replay, recordDate: firstBuy });
+  let dialog = render();
+  const value = () => find(dialog, node => hasClass(node, 'rsr-buy-comparison')).props.children[1].props.children;
+  assert.equal(value(), '-0.22%');
+  chartIn(dialog, h).props.onSelectDate(early);
+  dialog = render();
+  assert.equal(value(), '+5.53%');
+  assert.match(markup(find(dialog, node => hasClass(node, 'rsr-readout'))), /2026-06-22.*\$668\.91.*较本次买入/);
+  assert.doesNotMatch(markup(find(dialog, node => hasClass(node, 'rsr-readout'))), /早于本次买入|拆股复权收盘/);
+  assert.equal(find(dialog, node => hasClass(node, 'rsr-marker-note') || node.props.children === '定位交易'), undefined);
+  chartIn(dialog, h).props.onSelectDate(secondBuy);
+  dialog = render();
+  assert.equal(value(), '+0.97%');
+  chartIn(dialog, h).props.onSelectTrade(1, false);
+  dialog = render();
+  assert.equal(value(), '0.00%');
   h.unmount();
 });
 
@@ -418,7 +451,7 @@ test('historical holdings use a separate summary and never create ordinary or ho
   assert.doesNotMatch(markup(card), /实际成交价|当日复权收盘/);
   chartIn(dialog, h).props.onSelectDate(recordDate);
   dialog = h.render(h.components.ReplayDialog, props);
-  assert.match(markup(find(dialog, node => hasClass(node, 'rsr-readout'))), /拆股复权收盘/);
+  assert.match(markup(find(dialog, node => hasClass(node, 'rsr-readout'))), new RegExp(recordDate));
   chartIn(dialog, h).props.onSelectDate('2020-01-01');
   dialog = h.render(h.components.ReplayDialog, props);
   assert.equal(chartIn(dialog, h).props.selectedDate, null, 'stale inspection never selects the historical entry date');

@@ -1,11 +1,41 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { collectReviewReplayTrades, buildReviewStockReplay, isReviewReplayBuyHighlight, reviewReplayRequestRange, reviewReplayVisibleRows } from '../src/lib/reviewStockReplayModel.js';
+import { collectReviewReplayTrades, buildReviewStockReplay, isReviewReplayBuyHighlight, reviewReplayBuyChangePct, reviewReplayRequestRange, reviewReplayVisibleRows } from '../src/lib/reviewStockReplayModel.js';
 import { withStockTradeRecordKind } from '../src/lib/stockTradeRecordKind.js';
 const trade = (date, side = 'buy', extra = {}) => ({ id: date, symbol: 'NVDA', date, side, price: 125, shares: 2, currency: 'USD', ...extra });
 const rows = [{ date: '2026-10-02', close: 122 }, { date: '2026-10-05', close: 123 }, { date: '2026-10-06', close: 126 }];
 const history = { source: 'EODHD_EOD_SPLITS', priceBasis: 'split_adjusted_close', series: { NVDA: { rows } } };
 const base = { symbol: 'NVDA', userId: 'a', endDate: '2026-10-06', history };
+
+test('compares any inspected close with this exact buy execution on the common share basis', () => {
+  const adjusted = rows.map((row, index) => ({ ...row, close: [49, 55, 60][index], splitFactor: 4 }));
+  const result = buildReviewStockReplay({ ...base,
+    history: { ...history, splitBasisDate: base.endDate, series: { NVDA: { rows: adjusted } } },
+    stockTrades: [trade('2026-10-05', 'buy', { price: 200 }), trade('2026-10-05', 'buy', { price: 240 })],
+  });
+  const [first, second] = result.trades;
+  assert.equal(first.price, 200);
+  assert.equal(first.splitAdjustedBuyPrice, 50);
+  assert.deepEqual(result.rows.map(row => reviewReplayBuyChangePct(first, row)), [-2, 10, 20]);
+  assert.equal(reviewReplayBuyChangePct(second, result.rows[2]), 0);
+});
+
+test('compares reverse-split purchases and withholds unconfirmed or non-buy comparisons', () => {
+  const historical = withStockTradeRecordKind('', 'historical_holding');
+  const selected = rows.map(row => ({ ...row, close: 110, splitFactor: 0.5 }));
+  const build = (changes = {}, prices = selected) => buildReviewStockReplay({ ...base,
+    history: { ...history, splitBasisDate: base.endDate, ...changes, series: { NVDA: { rows: prices } } },
+    stockTrades: [trade('2026-10-02', 'buy', { price: 50 }), trade('2026-10-03'), trade('2026-10-05', 'sell'), trade('2026-10-06', 'buy', { note: historical })],
+  });
+  const model = build();
+  assert.deepEqual(model.trades.map(trade => reviewReplayBuyChangePct(trade, model.rows[2])), [10, null, null, null]);
+  for (const result of [build({ splitBasisDate: undefined }), build({ splitBasisDate: '2026-10-05' }),
+    build({ expectedAsOfDate: '2026-10-07' }), build({}, rows), build({}, selected.map(row => ({ ...row, splitFactor: 0 })))]) {
+    assert.equal(result.validHistory, true);
+    assert.equal(reviewReplayBuyChangePct(result.trades[0], result.rows[2]), null);
+  }
+});
+
 test('empty ledger remains empty and valid history is still usable', () => {
   const result = buildReviewStockReplay(base); assert.equal(result.validHistory, true); assert.deepEqual(result.trades, []);
 });

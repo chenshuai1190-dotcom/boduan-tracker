@@ -2,7 +2,7 @@ import React from 'react';
 import ReviewStockReplay from './ReviewStockReplay.jsx';
 import './ReviewStockCarousel.css';
 
-function StockCarousel({ symbols, recordDate, stockTrades, userId, language, previewHistory }) {
+function StockCarousel({ symbols, recordDate, stockTrades, userId, language, marketColorMode, previewHistory }) {
   const track = React.useRef(null);
   const navigation = React.useRef(null);
   const gesture = React.useRef(null);
@@ -29,7 +29,7 @@ function StockCarousel({ symbols, recordDate, stockTrades, userId, language, pre
     observer.observe(track.current);
     return () => observer.disconnect();
   }, [multiple, symbols.length]);
-  const replay = symbol => <ReviewStockReplay symbol={symbol} recordDate={recordDate} stockTrades={stockTrades} userId={userId} language={language} previewHistory={previewHistory} />;
+  const replay = symbol => <ReviewStockReplay symbol={symbol} recordDate={recordDate} stockTrades={stockTrades} userId={userId} language={language} marketColorMode={marketColorMode} previewHistory={previewHistory} />;
   if (!multiple) return <div data-rj-interactive onClick={event => event.stopPropagation()}>{replay(symbols[0])}</div>;
   return <section className="rsc-carousel" data-rj-interactive aria-label={english ? 'Stock charts' : '股票走势'} onClick={event => event.stopPropagation()} onKeyDown={event => {
     // Replay dialogs use portals; their chart keys must not page this carousel.

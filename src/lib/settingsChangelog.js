@@ -3,6 +3,11 @@ import { CURRENT_RELEASE } from './releaseMeta.js';
 export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
+    items: ['交易回放可比较所选日期的收盘价与单笔买入成交价，买入前后的日期都能查看涨跌幅。切换买入记录时同步更新，拆股与合股统一换算。简化了价格标题和图表下方的提示。'],
+    itemsEn: ['Trade replay shows how each selected close compares with a specific purchase, including dates before the buy. Switching purchases updates the comparison. Prices use the same split basis. The price heading and chart controls are simpler.'],
+  },
+  {
+    ver: 'v10.7.9.624', date: '2026-11-27',
     items: ['修复 iPhone 中文键盘在「添加自选股票」和「编辑自选股票」搜索框中输入股票代码时字母重复的问题。两个搜索框均支持小写代码和中文股票名称。'],
     itemsEn: ['Fixed repeated letters when entering stock symbols with a Chinese keyboard on iPhone in the Add and Edit Watchlist dialogs. Both searches accept lowercase tickers and Chinese stock names.'],
   },

@@ -45,7 +45,15 @@ export function isReviewReplayBuyHighlight(trade, reviewDate) {
     && trade.markerDate === reviewDate && Number.isInteger(trade.rowIndex) && trade.rowIndex >= 0;
 }
 
-/** No nearest-date substitution, price interpolation or execution-price adjustment. */
+/** Compare two prices on the replay's common share basis, for dates on either side of the buy. */
+export function reviewReplayBuyChangePct(trade, selectedRow) {
+  const buyPrice = trade?.splitAdjustedBuyPrice;
+  if (!(buyPrice > 0) || !(selectedRow?.close > 0)) return null;
+  const percent = (selectedRow.close - buyPrice) / buyPrice * 100;
+  return Number.isFinite(percent) ? percent : null;
+}
+
+/** Map exact market sessions and retain the original ledger execution price. */
 export function buildReviewStockReplay({ stockTrades = [], symbol, userId, history, endDate, allowSynthetic = false } = {}) {
   const ticker = normalizeInvestmentSymbol(symbol);
   const trades = collectReviewReplayTrades({ stockTrades, symbol: ticker, userId });
@@ -57,19 +65,26 @@ export function buildReviewStockReplay({ stockTrades = [], symbol, userId, histo
   const validRows = validIdentity && input.every((row, index) => sessionDate(row?.date) && row.date <= endDate
     && (!index || row.date > input[index - 1].date) && typeof row.close === 'number' && Number.isFinite(row.close) && row.close > 0);
   const rows = validRows ? input.map((row, index) => ({ date: row.date, close: row.close, gapBefore: index > 0 && missingSessionBetween(input[index - 1].date, row.date) })) : [];
+  const splitBasisDate = isInvestmentDate(history?.splitBasisDate) ? history.splitBasisDate : null;
+  const hasComparableBasis = splitBasisDate && rows.length > 0 && splitBasisDate >= rows.at(-1).date
+    && (history.expectedAsOfDate == null || history.expectedAsOfDate === splitBasisDate);
   const indexByDate = new Map(rows.map((row, index) => [row.date, index]));
   const sameDayCounts = new Map();
   trades.forEach(trade => sameDayCounts.set(trade.date, (sameDayCounts.get(trade.date) || 0) + 1));
   const seen = new Map();
   return {
     symbol: ticker, rows, validHistory: Boolean(validRows), synthetic: Boolean(validRows && synthetic),
-    splitBasisDate: isInvestmentDate(history?.splitBasisDate) ? history.splitBasisDate : null,
+    splitBasisDate,
     trades: trades.map(trade => {
       // Historical holdings carry an entry date and average cost, not an execution.
       // Even a matching market session must never turn them into buy markers.
       const rowIndex = trade.recordKind === 'historical_holding' ? -1 : indexByDate.get(trade.date) ?? -1;
+      const splitFactor = rowIndex >= 0 ? input[rowIndex].splitFactor : null;
+      const buyPrice = trade.side === 'buy' && hasComparableBasis && Number.isFinite(splitFactor) && splitFactor > 0
+        ? trade.price / splitFactor : null;
       seen.set(trade.date, (seen.get(trade.date) || 0) + 1);
       return { ...trade, rowIndex, close: rowIndex < 0 ? null : rows[rowIndex].close,
+        splitAdjustedBuyPrice: Number.isFinite(buyPrice) && buyPrice > 0 ? buyPrice : null,
         markerDate: rowIndex < 0 ? null : trade.date, sameDayCount: sameDayCounts.get(trade.date), sameDayOrder: seen.get(trade.date) };
     }),
   };
