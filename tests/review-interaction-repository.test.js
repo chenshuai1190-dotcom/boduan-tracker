@@ -75,3 +75,13 @@ test('thread previews retain account-switch and denied-access rejection before d
  const hidden=client();hidden.rpc=async()=>({error:{code:'P0002',message:'comment parent unavailable'}});
  await assert.rejects(()=>createReviewInteractionRepository(hidden).fetchCommentThreads({postId},A),{code:'REVIEW_INTERACTION_NOT_FOUND'});
 });
+
+test('author thread roots, community previews and expanded replies retain individual publication zones and server timestamps', () => {
+  const root = { ...rootComment(), activityTimeZone: 'America/New_York' };
+  const preview = { ...previewComment(), activityTimeZone: 'Asia/Tokyo' };
+  const page = mapReviewCommentThreads({ threads: [{ root, replyCount: 1, previewReply: preview }], totalCount: 2, communityCount: 1, hasMore: false, nextCursor: null }, postId);
+  assert.equal(page.threads[0].root.activityTimeZone, root.activityTimeZone);
+  assert.equal(page.threads[0].previewReply.activityTimeZone, preview.activityTimeZone);
+  assert.equal(page.threads[0].previewReply.createdAt, preview.createdAt);
+  assert.equal(mapReviewThreadComment(preview, postId).activityTimeZone, 'Asia/Tokyo');
+});

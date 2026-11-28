@@ -176,5 +176,62 @@ test('thread reactions, paginated reply trees, private timeline access and unrea
    await denied(()=>as(B,"select * from public.review_comment_tree('log:anything')"));
    const policies=await rows("select relname,relrowsecurity from pg_class where relname=any($1)",[['review_evaluation_likes','review_feed_clock','review_feed_publications','review_feed_read_state']]);assert.equal(policies.length,4);assert.ok(policies.every(row=>row.relrowsecurity));
   });
+  await t.test('publication zones survive legacy edits and reach public feeds and threaded replies without backfilling', async () => {
+   await db.exec('create role service_role nologin');
+   const loadSql = name => readFile(new URL(`../supabase/${name}`, import.meta.url), 'utf8');
+   await db.exec(await loadSql('quote_assistant_foundation_20261108.sql'));
+   const zoneSql = await loadSql('review_activity_time_zone_20261128.sql');
+   const before = await fingerprint();
+   await db.exec(zoneSql);
+   await db.exec(zoneSql);
+   assert.equal(await fingerprint(), before);
+
+   const publicPosts = async () => (await rpc(B,'fetch_review_public_feed_v2',[50,null,null,null,'',''])).posts;
+   const publicPost = async source => (await publicPosts()).find(post => post.id === source.postId);
+   const setData = (source, data) => as(A,'update public.review_logs set review_data=$2 where id=$1',[source.id, data]);
+   const authorReply = {id:'local-time',date:'2026-11-08',text:'Author reply',createdAt:'2026-11-08T10:00:00Z'};
+   const source = await insert(A,'private',[{...authorReply,activityTimeZone:'Europe/London'}],{activityTimeZone:'Asia/Shanghai',secret:'private'});
+   assert.equal(await publicPost(source), undefined);
+   await setData(source,{visibility:'public',replies:[authorReply],secret:'private'});
+   const post = await publicPost(source);
+   assert.equal(post.activityTimeZone,'Asia/Shanghai');
+   assert.equal(post.replies[0].activityTimeZone,'Europe/London');
+   assert.equal(Object.hasOwn(post,'secret'),false);
+   await setData(legacy,{visibility:'public',activityTimeZone:'America/New_York'});
+   assert.equal(Object.hasOwn(await publicPost(legacy),'activityTimeZone'),false);
+
+   const [insight] = await as(A,'insert into public.disciplines(user_id,text,review_data) values($1,$2,$3) returning id',
+     [A,'Insight',{visibility:'public',activityTimeZone:'Australia/Sydney'}]);
+   assert.equal((await publicPosts()).find(item=>item.id===`insight:${insight.id}`).activityTimeZone,'Australia/Sydney');
+   await setData(source,{visibility:'public',replies:[
+     {id:'bad-zone',date:'2026-11-08',text:'Bad zone',activityTimeZone:'America/Not_a_real_zone'},
+     {...authorReply,activityTimeZone:'America/New_York'}
+   ]});
+   const edited = await publicPost(source);
+   assert.equal(edited.replies[1].activityTimeZone,'Europe/London');
+   assert.equal(Object.hasOwn(edited.replies[0],'activityTimeZone'),false);
+   const invalid = await insert(A,'public',[],{activityTimeZone:'private@example.com'});
+   assert.equal(Object.hasOwn(await publicPost(invalid),'activityTimeZone'),false);
+
+   const commentId = id();
+   const initial = {date:'2026-11-08',text:'Comment',activityTimeZone:'America/Los_Angeles'};
+   const saveComment = (revision,data) => rpc(B,'save_review_community_evaluation',[source.postId,commentId,revision,data]);
+   const comment = await saveComment(0,initial);
+   assert.equal(comment.activityTimeZone,initial.activityTimeZone);
+   const oldClientEdit = {date:initial.date,text:'Edited comment'};
+   const updated = await saveComment(comment.revision,oldClientEdit);
+   assert.equal(updated.activityTimeZone,initial.activityTimeZone);
+   assert.equal((await saveComment(comment.revision,oldClientEdit)).revision,updated.revision);
+   const target = {kind:'community',id:commentId};
+   const child = await rpc(C,'save_review_community_evaluation_v2',[source.postId,id(),0,
+     {...oldClientEdit,activityTimeZone:'Asia/Tokyo'},target]);
+   assert.equal(child.activityTimeZone,'Asia/Tokyo');
+   const page = await rpc(B,'fetch_review_comment_threads',[source.postId,20,null,target]);
+   assert.equal(page.threads[0].root.activityTimeZone,initial.activityTimeZone);
+   assert.equal(page.threads[0].previewReply.activityTimeZone,'Asia/Tokyo');
+   const expanded = await rpc(B,'fetch_review_comment_thread_replies',[source.postId,target,20,null,null]);
+   assert.equal(expanded.replies[0].activityTimeZone,'Asia/Tokyo');
+   await denied(()=>as(B,"select public.review_activity_zone_field('UTC')"));
+  });
  }finally{await db.close();}
 });

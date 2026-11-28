@@ -89,3 +89,14 @@ test('isolated preview publishes normalized evaluations and withdraws their imag
   await assert.rejects(preview.downloadReviewPublicImage(image.path, AUTHOR), /图片不可用/);
   await assert.rejects(preview.fetchReviewPublicPost('log:42', VIEWER), /预览账户不匹配/);
 });
+
+test('an author post and each reply retain their own publication zones through the public model', () => {
+  const row = mapReviewPublicPost(post({ activityTimeZone: 'Europe/London', replies: [
+    evaluation({ activityTimeZone: 'Asia/Shanghai' }), evaluation({ id: 'legacy' }),
+    evaluation({ id: 'bad', activityTimeZone: 'Not_A_Zone' }),
+  ] }));
+  assert.equal(row.activityTimeZone, 'Europe/London');
+  assert.equal(row.replies[0].activityTimeZone, 'Asia/Shanghai');
+  for (const reply of row.replies.slice(1)) assert.ok(!Object.hasOwn(reply, 'activityTimeZone'));
+  assert.ok(!Object.hasOwn(mapReviewPublicPost(post()), 'activityTimeZone'));
+});

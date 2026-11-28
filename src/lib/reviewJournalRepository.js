@@ -244,7 +244,7 @@ export function createReviewJournalRepository(client, { now = () => new Date().t
       const index = replies.findIndex(item => item.id === original.id);
       if (index < 0) throw replyConflict();
       const current = replies[index];
-      const next = normalize({ ...replacement, id: original.id, date: original.date, createdAt: original.createdAt });
+      const next = normalize({ ...replacement, id: original.id, date: original.date, createdAt: original.createdAt, activityTimeZone: original.activityTimeZone });
       // A lost response may be retried with the old original. Recover success
       // before comparing it, but never overwrite a different concurrent edit.
       if (samePayload(current, next)) return null;

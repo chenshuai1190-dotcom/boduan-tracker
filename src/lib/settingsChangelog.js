@@ -3,6 +3,11 @@ import { CURRENT_RELEASE } from './releaseMeta.js';
 export const settingsChangelog = [
   {
     ver: CURRENT_RELEASE.version, date: CURRENT_RELEASE.date, latest: true,
+    items: ['动态中的帖子、评论和回复在前 4 天按分钟、小时或天显示，满 4 天显示月日，跨年加上年份。新内容按发布者发出时的时区显示日期。'],
+    itemsEn: ['Posts, comments and replies show elapsed time for the first four days, then the publication date, including the year for older years. New activity dates use the author’s time zone at publication.'],
+  },
+  {
+    ver: 'v10.7.9.626', date: '2026-11-27',
     items: ['交易回放从点开的引用开始。「我的交易」可左右滑动浏览这组引用，所选交易的图表节点、成交信息和买入涨跌幅同步切换。跨股票引用也能连续查看。'],
     itemsEn: ['Trade replay opens at the selected reference. Swipe through the referenced trades to update the chart marker, execution details and change from the selected buy. The chart switches symbols when needed.'],
   },

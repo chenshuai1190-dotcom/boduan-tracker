@@ -2,6 +2,7 @@ import { isReviewJournalDate, mapReviewJournalRow, reviewJournalError, reviewJou
 import { normalizeReviewMarketSnapshot } from './reviewMarketSnapshot.js';
 import { normalizeCommunityAvatarKey, normalizeCommunityNickname } from './communityProfile.js';
 import { normalizeCommunityAvatarPath } from './communityAvatarModel.js';
+import { normalizeReviewActivityTimeZone } from './reviewActivityZone.js';
 
 const plain = value => value !== null && typeof value === 'object' && !Array.isArray(value)
   && (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null);
@@ -42,6 +43,7 @@ export function mapReviewPublicReplies(value, authorId) {
     return [{ id: reply.id, date: reply.date, text: reply.text, score: reply.score, tags: reply.tags,
       stocks: reply.stocks, images: publicImages(reply.images, authorId), market, account,
       trades: reply.trades, mood: reply.mood,
+      ...(reply.activityTimeZone ? { activityTimeZone: reply.activityTimeZone } : {}),
       ...(timestamp(reply.createdAt) ? { createdAt: reply.createdAt } : {}) }];
   });
 }
@@ -56,6 +58,7 @@ export function mapReviewPublicPost(value) {
     || !Array.isArray(value.stocks) || value.stocks.length > 20
     || value.stocks.some(symbol => typeof symbol !== 'string' || !/^[A-Z0-9^][A-Z0-9.^=-]{0,19}$/.test(symbol))
     || !Number.isSafeInteger(value.likeCount) || value.likeCount < 0 || typeof value.liked !== 'boolean') return invalid();
+  const activityTimeZone = normalizeReviewActivityTimeZone(value.activityTimeZone);
   const market = value.market == null ? null : normalizeReviewMarketSnapshot(value.market);
   const replies = mapReviewPublicReplies(value.replies, value.authorId);
   const commentCount = value.commentCount ?? replies.length;
@@ -70,6 +73,7 @@ export function mapReviewPublicPost(value) {
       ...(value.author.isAssistant === true ? { isAssistant: true } : {}) },
     text: value.text, date: value.date, stocks: [...new Set(value.stocks)],
     images: publicImages(value.images, value.authorId), market, replies, commentCount,
+    ...(activityTimeZone ? { activityTimeZone } : {}),
     publishedAt: value.publishedAt, updatedAt: value.updatedAt, likeCount: value.likeCount, liked: value.liked,
   };
 }

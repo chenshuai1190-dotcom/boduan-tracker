@@ -40,7 +40,7 @@ async function harness({ append, update, reply = null, clock = null } = {}) {
     document: { activeElement: { blur() {} } },
     window: { visualViewport: { addEventListener: (name, fn) => listeners.set(name, fn), removeEventListener: (name, fn) => { if (listeners.get(name) === fn) listeners.delete(name); } } },
     requestAnimationFrame: callback => callback(),
-    Date: clock?.Date || Date,
+    Date: clock?.Date || Date, deviceReviewActivityTimeZone: () => clock?.zone || 'Asia/Shanghai',
   };
   const key = `__reviewEvaluationUI${++nextId}`; globalThis[key] = fixture;
   let components;
@@ -52,7 +52,7 @@ async function harness({ append, update, reply = null, clock = null } = {}) {
       import { collectReviewReplayTrades } from ${moduleUrl('reviewStockReplayModel')};
       import { keepReviewComposerInputVisible } from ${moduleUrl('reviewComposerVisibility')};
       import { marketTextHexColor } from ${moduleUrl('marketColorMode')};
-      const { React, document, window, requestAnimationFrame, Date } = globalThis[${JSON.stringify(key)}];
+      const { React, document, window, requestAnimationFrame, Date, deviceReviewActivityTimeZone } = globalThis[${JSON.stringify(key)}];
       const localReviewDate = (now = new Date()) => formatLocalReviewDate(now);
       import { latestReviewAccountCloseDate as accountCloseDate, isReviewAccountCloseDate as isAccountCloseDate } from ${moduleUrl('reviewAccountSnapshot')};
       const getVixComparisonExpectedCloseDate = () => '2026-11-06';
@@ -180,10 +180,12 @@ test('an uncertain reply save retains its first submission time and date across 
   assert.match(alert(tree), /连接中断/); assert.equal(h.calls[0].reply.createdAt, '2026-11-08T16:00:02.000Z');
   assert.equal(h.calls[0].reply.date, '2026-11-09');
   tree.props.onClose(); assert.equal(h.render(), null);
+  assert.equal(h.calls[0].reply.activityTimeZone, 'Asia/Shanghai');
+  clock.zone = 'America/Los_Angeles';
   clock.set('2026-11-09T16:02:00Z'); h.props.open = true; tree = h.render();
   body(tree).props.onChange({ target: { value: '回复内容，补充一句' } }); tree = h.render();
   await button(tree, '发布').props.onClick();
-  for (const key of ['id', 'createdAt', 'date']) assert.equal(h.calls[1].reply[key], h.calls[0].reply[key]);
+  for (const key of ['id', 'createdAt', 'date', 'activityTimeZone']) assert.equal(h.calls[1].reply[key], h.calls[0].reply[key]);
   assert.equal(h.calls[1].reply.text, '回复内容，补充一句');
   assert.equal(h.calls[1].reply.score, null); assert.deepEqual(h.calls[1].reply.tags, []);
   h.cleanup();

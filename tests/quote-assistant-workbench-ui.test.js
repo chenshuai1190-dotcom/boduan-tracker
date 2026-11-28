@@ -29,6 +29,7 @@ async function harness(options={}){
  import {ArrowLeft,ArrowUp,BookOpen,Brain,Check,ChevronRight,Clock3,History,Loader2,MessageSquare,MoreHorizontal,Plus,RefreshCw,Trash2} from ${JSON.stringify(import.meta.resolve('lucide-react'))};
  import {QUOTE_ASSISTANT_MODES,QUOTE_ASSISTANT_STATUSES,mergeQuoteAssistantJob,quoteAssistantPostTitle,quoteAssistantSourceHref} from ${JSON.stringify(new URL('../src/lib/quoteAssistantModel.js',import.meta.url).href)};
  import { getVixComparisonExpectedCloseDate } from ${JSON.stringify(new URL('../src/lib/vixComparisonSession.js',import.meta.url).href)};
+ const deviceReviewActivityTimeZone = () => 'Asia/Seoul';
  const {useEffect,useRef,useState}=globalThis[${JSON.stringify(key)}];
  const ReviewSystemAvatar=()=>null,ReviewSystemName=()=>null;
  const QuoteAssistantMessage='qa-test-message',Sources='qa-test-sources',QuoteAssistantAccessPanel='qa-test-access-panel';
@@ -68,6 +69,7 @@ test('public reply saves the actual question before invoking AI with its confirm
  const h=await harness();let tree=await h.load();tree=visit(h,tree,'@Quote 回复');
  input(tree,'公开原帖').props.onChange({target:{value:'log:local-quote-ai-source'}});input(tree,'想和 Quote 说什么').props.onChange({target:{value:'如何验证？'}});tree=h.render();button(tree,'发表评论并请 Quote 回复').props.onClick();await flush();tree=h.render();
  const saved=h.calls.find(c=>c.name==='save-comment'),run=h.calls.find(c=>c.name==='run');assert.ok(saved);assert.ok(run);assert.ok(h.calls.indexOf(saved)<h.calls.indexOf(run));
+ assert.equal(saved.args[1].activityTimeZone,'Asia/Seoul');
  assert.deepEqual(run.args[0].replyTo,{kind:'community',id:saved.args[1].id});assert.equal(run.args[0].autoPublish,true);assert.equal(run.args[0].prompt,undefined,'the server reads the real saved comment');h.unmount();
 });
 

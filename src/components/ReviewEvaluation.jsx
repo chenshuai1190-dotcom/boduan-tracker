@@ -1,5 +1,6 @@
 import React from 'react';
 import { Activity, Check, ImagePlus, LineChart, Loader2, Smile, Star, Wallet, X } from 'lucide-react';
+import { deviceReviewActivityTimeZone } from '../lib/reviewActivityZone.js';
 import { localReviewDate } from '../lib/reviewJournalFeed.js';
 import { normalizeReviewEvaluationTags, normalizeReviewAccountSnapshot, normalizeReviewTradeReferences } from '../lib/reviewEvaluationModel.js';
 import { collectReviewReplayTrades } from '../lib/reviewStockReplayModel.js';
@@ -161,8 +162,13 @@ export default function ReviewEvaluationComposer({ open, entry, reply = null, re
       // Freeze a new review's time only when its first database attempt is ready.
       // Upload delays and overnight drafts must not move it to an earlier day;
       // uncertain retries keep this same identity, date and creation instant.
-      if(!reply&&submissionTime.current?.id!==draft.id){const now=new Date();submissionTime.current={id:draft.id,createdAt:draft.createdAt||now.toISOString(),date:draft.createdAt?draft.date:localReviewDate(now)};}
-      const timing=reply?{}:{createdAt:submissionTime.current.createdAt,date:submissionTime.current.date};
+      if (!reply && submissionTime.current?.id !== draft.id) {
+        const now = new Date();
+        const activityTimeZone = draft.activityTimeZone || deviceReviewActivityTimeZone();
+        submissionTime.current = { id: draft.id, createdAt: draft.createdAt || now.toISOString(),
+          date: draft.createdAt ? draft.date : localReviewDate(now), ...(activityTimeZone ? { activityTimeZone } : {}) };
+      }
+      const timing = reply ? {} : submissionTime.current;
       const submitted={...draft,...timing,score:isReply?null:draft.score,tags:isReply?[]:draft.tags,images:[...draft.images,...uploaded]};patch({...timing,images:submitted.images});files.forEach(item=>URL.revokeObjectURL(item.url));setFiles([]);
       const saved=reply?await db.updateReviewJournalReply(entry,reply,submitted,userId):await db.appendReviewJournalReply(entry,submitted,userId);onSaved(saved);if(!reply){submissionTime.current=null;setDraft(blank());}setCustomOpen(false);onClose();
     }catch(failure){if(uploaded.length&&uploaded.length<files.length){patch({images:[...draft.images,...uploaded]});files.slice(0,uploaded.length).forEach(item=>URL.revokeObjectURL(item.url));setFiles(old=>old.slice(uploaded.length));}setError(failure?.message||(reply?'保存失败，修改已保留，请重试。':'发布失败，内容已保留，请重试。'));}

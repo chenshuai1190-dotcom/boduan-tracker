@@ -64,6 +64,7 @@ export function createReviewPublicPreview({ ownerId, getEntries, getImage, marke
   const availableSamples = () => (refreshScenario === 'empty' ? [] : refreshScenario === 'published' ? [{ ...samples[0], id:'insight:sample-fresh-post', sourceId:'sample-fresh-post', text:'刷新验收示例：这是其他账号刚刚发布的公开帖子。', date:'2026-11-08', publishedAt:'2026-11-08T06:00:00Z' }] : samples).filter(row => sampleVisibility.get(row.id) !== 'private');
   const posts = () => [...availableSamples(),...(refreshScenario ? [] : getEntries()).filter(row=>row.visibility==='public'&&!row.timelineEvent).map(row=>({
     id:`${row.type}:${row.id}`,type:row.type,sourceId:String(row.id),authorId:ownerId,author:{nickname:'波段玩家1836',avatarKey:'gold',avatarPath:null},
+    ...(row.activityTimeZone ? { activityTimeZone: row.activityTimeZone } : {}),
     text:row.text,date:row.date,stocks:row.stocks||[],images:row.images||[],market:row.market||null,replies:row.replies||[],publishedAt:row.createdAt||`${row.date}T04:00:00Z`,updatedAt:row.updatedAt||row.createdAt||`${row.date}T04:00:00Z`,likeCount:0,liked:false,
   }))].map(withAvatar).map(row=>{const replies=mapReviewPublicReplies(row.replies,row.authorId);return {...row,replies,commentCount:replies.length+communityRows(row.id).length,liked:likes.get(row.id)===true,likeCount:row.likeCount+(likes.get(row.id)?1:0)};})
     .sort((a,b)=>b.date.localeCompare(a.date)||b.publishedAt.localeCompare(a.publishedAt)||b.id.localeCompare(a.id));
@@ -123,7 +124,8 @@ export function createReviewPublicPreview({ ownerId, getEntries, getImage, marke
         if (!target) throw reviewJournalError('REVIEW_PUBLIC_NOT_FOUND', '回复对象已删除或不可用。');
         replyTo = { ...requestedTarget, ...target, available: true };
       }
-      const payload = writePayload(replyTo ? { ...reply, score: null, tags: [] } : reply);
+      const payload = writePayload({ ...reply, ...(replyTo ? { score: null, tags: [] } : {}),
+        activityTimeZone: existing ? existing.activityTimeZone : reply.activityTimeZone });
       if (existing && JSON.stringify(writePayload(existing)) === JSON.stringify(payload)
         && (revision === existing.revision || revision === existing.revision - 1)) return readEvaluation(existing);
       if (!existing && revision !== 0) throw reviewJournalError('REVIEW_PUBLIC_NOT_FOUND', '评价已删除。');

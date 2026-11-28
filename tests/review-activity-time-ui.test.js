@@ -42,6 +42,7 @@ async function harness({ now = origin, ...initialProps } = {}) {
     const code = `
       import ActualReact from ${JSON.stringify(import.meta.resolve('react'))};
       import { formatReviewActivityTime } from ${JSON.stringify(new URL('../src/lib/reviewActivityTime.js', import.meta.url).href)};
+      import { normalizeReviewActivityTimeZone } from ${JSON.stringify(new URL('../src/lib/reviewActivityZone.js', import.meta.url).href)};
       const fixture = globalThis[${JSON.stringify(fixtureKey)}];
       const React = { ...ActualReact, useState: fixture.useState, useEffect: fixture.useEffect };
       const Date = { now: () => fixture.now };
@@ -130,18 +131,62 @@ test('unmount clears a live timer and later clock advances schedule nothing', as
   h.advance(3600000); assert.equal(h.scheduled.length, scheduled); assert.equal(h.timers.size, 0);
 });
 
-test('date-only and invalid timestamp records render honest dates without starting timers', async () => {
+test('date-only and invalid timestamp records use calendar checks and never invent a time', async () => {
   for (const createdAt of [undefined, '2026-11-07', '2026-11-07T23:00:00', '2026-02-30T01:00:00Z']) {
     const h = await harness({ createdAt, date: '2026-11-07' });
-    const tree = h.render(); assert.equal(tree.props.children, '2026-11-07');
+    const tree = h.render(); assert.equal(tree.props.children, '11月7日');
     assert.equal(tree.props.dateTime, '2026-11-07'); assert.equal(tree.props.title, '2026-11-07');
-    assert.equal(tree.props['aria-label'], undefined); assert.equal(h.timers.size, 0); assert.equal(h.scheduled.length, 0);
+    assert.match(tree.props['aria-label'], /2026-11-07/);
+    assert.equal(h.timers.size, 1); assert.ok(h.scheduled[0].delay > 60000);
     h.unmount();
   }
   const h = await harness(); h.render(); const previous = [...h.timers.keys()][0];
-  assert.equal(h.render({ createdAt: undefined, date: '2026-11-06' }).props.children, '2026-11-06');
-  assert.ok(h.cleared.includes(previous)); assert.equal(h.timers.size, 0);
+  assert.equal(h.render({ createdAt: undefined, date: '2026-11-06' }).props.children, '11月6日');
+  assert.ok(h.cleared.includes(previous)); assert.equal(h.timers.size, 1);
   const empty = h.render({ date: 'not-a-date' });
+  assert.equal(h.timers.size, 0);
   assert.equal(empty.props.children, '—'); assert.equal(empty.props.dateTime, undefined); assert.equal(empty.props.title, undefined);
   h.unmount();
+});
+
+test('a mounted activity changes from three days ago to a calendar date at 96 hours', async () => {
+  const day = 86400000;
+  const h = await harness({ createdAt: timestamp, activityTimeZone: 'Asia/Shanghai', now: origin + 4 * day - 60000 });
+  assert.equal(h.render().props.children, '3天前');
+  assert.equal(h.advance(59999).props.children, '3天前');
+  const atThreshold = h.advance(1);
+  assert.equal(atThreshold.props.children, '11月8日');
+  assert.equal(atThreshold.props.dateTime, timestamp);
+  h.unmount();
+});
+
+test('an old activity gains its publication year when New Year begins for its author', async () => {
+  const createdAt = '2026-12-20T20:00:00Z';
+  const h = await harness({ createdAt, activityTimeZone: 'Asia/Shanghai', now: Date.parse('2026-12-31T15:59:00Z') });
+  assert.equal(h.render().props.children, '12月21日');
+  assert.equal(h.advance(60000).props.children, '2026年12月21日');
+  h.unmount();
+});
+
+test('a date-only post adds its year at the author’s midnight, then stops checking', async () => {
+  const h = await harness({
+    createdAt: undefined, date: '2026-04-20', activityTimeZone: 'Asia/Kathmandu',
+    now: Date.parse('2026-12-31T18:14:59.875Z'),
+  });
+  assert.equal(h.render().props.children, '4月20日');
+  assert.equal(h.scheduled[0].delay, 125);
+  assert.equal(h.advance(124).props.children, '4月20日');
+  assert.equal(h.advance(1).props.children, '2026年4月20日');
+  assert.equal(h.timers.size, 0);
+  h.unmount();
+});
+
+test('past-year calendar dates start no timer and unmount clears a pending calendar check', async () => {
+  const h = await harness({ createdAt: undefined, date: '2025-05-20', activityTimeZone: 'UTC' });
+  assert.equal(h.render().props.children, '2025年5月20日');
+  assert.equal(h.scheduled.length, 0);
+  assert.equal(h.render({ date: '2026-05-20' }).props.children, '5月20日');
+  assert.equal(h.scheduled[0].delay, 23 * 3600000);
+  h.unmount(); assert.equal(h.timers.size, 0);
+  h.advance(86400000); assert.equal(h.scheduled.length, 1);
 });

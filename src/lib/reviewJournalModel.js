@@ -1,3 +1,4 @@
+import { normalizeReviewActivityTimeZone } from './reviewActivityZone.js';
 import {
   normalizeReviewEvaluationScore, normalizeReviewEvaluationTags,
   normalizeReviewTradeReferences, normalizeReviewAccountSnapshot,
@@ -163,9 +164,11 @@ function replies(value, userId, strict = false) {
       return [];
     }
     ids.add(id);
+    const activityTimeZone = normalizeReviewActivityTimeZone(reply.activityTimeZone);
     return [{ id, date, text, mood: replyMood,
       stocks: replyStocks, market: replyMarket, images: replyImages,
       score: replyScore, tags: replyTags, trades: replyTrades, account: replyAccount,
+      ...(activityTimeZone ? { activityTimeZone } : {}),
       ...(typeof reply.createdAt === 'string' ? { createdAt: reply.createdAt } : {}) }];
   });
 }
@@ -173,6 +176,7 @@ function replies(value, userId, strict = false) {
 export function mapReviewJournalRow(row, type, expectedUserId = row?.user_id) {
   reviewJournalTable(type);
   const data = plainObject(row?.review_data) ? row.review_data : {};
+  const activityTimeZone = normalizeReviewActivityTimeZone(data.activityTimeZone);
   const createdDate = typeof row?.created_at === 'string' ? row.created_at.slice(0, 10) : '';
   const timelineEvent = type === 'log' ? normalizeReviewTimelineReference(data.timelineEvent) : null;
   return {
@@ -189,6 +193,7 @@ export function mapReviewJournalRow(row, type, expectedUserId = row?.user_id) {
     revision: Number.isSafeInteger(row?.review_revision) && row.review_revision >= 0 ? row.review_revision : 0,
     operationId: isReviewJournalOperationId(data.operationId) ? data.operationId : null,
     ...(timelineEvent ? { timelineEvent } : {}),
+    ...(activityTimeZone ? { activityTimeZone } : {}),
     createdAt: row?.created_at || null, updatedAt: row?.updated_at || null,
   };
 }
@@ -219,6 +224,8 @@ export function buildReviewJournalWrite(entry, userId) {
     visibility: timelineEvent ? 'private' : visibility,
     stocks: entryStocks, market: entryMarket, images: entryImages,
     replies: replies(entry.replies, userId, true) };
+  const activityTimeZone = normalizeReviewActivityTimeZone(entry.activityTimeZone);
+  if (activityTimeZone) data.activityTimeZone = activityTimeZone;
   if (entry.operationId) data.operationId = entry.operationId;
   if (timelineEvent) data.timelineEvent = timelineEvent;
   if (new TextEncoder().encode(JSON.stringify(data)).length >= MAX_METADATA_BYTES) {

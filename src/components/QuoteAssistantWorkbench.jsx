@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, ArrowUp, BookOpen, Brain, Check, ChevronRight, Clock3, History, Loader2, MessageSquare, MoreHorizontal, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { ReviewSystemAvatar, ReviewSystemName } from './ReviewSystemIdentity.jsx';
 import { QUOTE_ASSISTANT_MODES, QUOTE_ASSISTANT_STATUSES, mergeQuoteAssistantJob, quoteAssistantPostTitle, quoteAssistantSourceHref } from '../lib/quoteAssistantModel.js';
+import { deviceReviewActivityTimeZone } from '../lib/reviewActivityZone.js';
 import { getVixComparisonExpectedCloseDate } from '../lib/vixComparisonSession.js';
 import QuoteAssistantAccessPanel from './QuoteAssistantAccessCard.jsx';
 import QuoteAssistantMessage, { QuoteAssistantSources as Sources } from './QuoteAssistantMessage.jsx';
@@ -70,7 +71,11 @@ export default function QuoteAssistantWorkbench({ api, db, userId, language = 'z
       ...(mode === 'milestone' ? { postId: milestoneId, shareConfirmed: true } : {}),
       ...(mode === 'followup' || recurring ? { dueAt: new Date(dueAt).toISOString() } : {}),
       ...(recurring ? { recurrence: mode === 'daily-review' ? 'daily' : 'weekly' } : {}) };
-    if (mode === 'reply') next.commentId = newId();
+    if (mode === 'reply') {
+      next.commentId = newId();
+      next.commentDate = today();
+      next.activityTimeZone = deviceReviewActivityTimeZone();
+    }
     retryPayload.current = next; void execute(next);
   };
   const execute = payload => act('generate', async () => {
@@ -83,7 +88,7 @@ export default function QuoteAssistantWorkbench({ api, db, userId, language = 'z
     if (payload.kind === 'reply') {
       if (!payload.savedComment) {
         const saved = await db.saveReviewCommunityEvaluation(payload.postId, { id: payload.commentId, revision: 0,
-          date: today(), text: `@Quote ${payload.prompt}`, score: null, tags: [], images: [], stocks: [], trades: [], market: null, account: null, replyTo: null }, userId);
+          date: payload.commentDate, activityTimeZone: payload.activityTimeZone, text: `@Quote ${payload.prompt}`, score: null, tags: [], images: [], stocks: [], trades: [], market: null, account: null, replyTo: null }, userId);
         if (saved?.id !== payload.commentId || saved?.authorId !== userId) throw new Error('评论保存结果未确认，请重试。');
         payload.savedComment = true;
       }

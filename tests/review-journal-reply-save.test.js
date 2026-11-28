@@ -244,6 +244,7 @@ test('updating one reply rebases on latest entry, preserves immutable identity a
     initial.review_data.futureField = { keep: true };
     const target = initial.review_data.replies[0];
     target.images = [IMAGE];
+    target.activityTimeZone = 'America/New_York';
     target.futureReplyField = { nested: [1, 2] };
     target.market = { ratio: 1.1, futureMarketField: { keep: true } };
     target.account = { version: 1, kind: 'account_snapshot', basis: 'close', source: 'pnl_report',
@@ -254,11 +255,12 @@ test('updating one reply rebases on latest entry, preserves immutable identity a
     const original = originalReply(initial, type);
     const f = fixture({ type, initial });
     const saved = await changeReply(f, 'update', original, { ...original, text: ' 新的判断 ', score: 9,
-      id: 'must-not-change', date: '2025-01-01', createdAt: '2025-01-01T00:00:00.000Z' });
+      activityTimeZone: 'Europe/London', id: 'must-not-change', date: '2025-01-01', createdAt: '2025-01-01T00:00:00.000Z' });
     assert.equal(saved.revision, 5); assert.equal(saved.text, initial.text);
     assert.equal(saved.replies[0].text, '新的判断'); assert.equal(saved.replies[0].score, 9);
     assert.equal(saved.replies[0].id, original.id); assert.equal(saved.replies[0].date, original.date);
     assert.equal(saved.replies[0].createdAt, original.createdAt);
+    assert.equal(saved.replies[0].activityTimeZone, original.activityTimeZone);
     const expected = structuredClone(initial);
     expected.review_data.replies[0].text = '新的判断'; expected.review_data.replies[0].score = 9;
     expected.review_revision = 5; expected.updated_at = '2026-11-07T02:00:00.000Z';

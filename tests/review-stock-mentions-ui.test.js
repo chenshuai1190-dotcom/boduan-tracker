@@ -23,9 +23,10 @@ test('new posts start public and retain publication scope when saved and edited'
   tree=h.type('一条公开的示例记录');
   assert.equal(visibility().props.value,'public');
   assert.equal(h.draft().visibility,'public');
-  const saved=await h.save();assert.equal(saved.visibility,'public');h.unmount();
-  const edited=await harness({entry:{...saved,id:'saved',images:[],stocks:[]}});
+  const saved=await h.save();assert.equal(saved.visibility,'public');assert.equal(saved.activityTimeZone,'Asia/Shanghai');h.unmount();
+  const edited=await harness({entry:{...saved,activityTimeZone:'America/New_York',id:'saved',images:[],stocks:[]}});
   assert.equal(find(edited.render(),node=>node.props['aria-label']==='发布可见范围').props.value,'public');
+  assert.equal((await edited.save()).activityTimeZone,'America/New_York');
   edited.unmount();
 });
 
@@ -118,6 +119,7 @@ async function harness({ entry, storage = new Map(), localPreferences = new Map(
       import { ImagePlus, LineChart, Activity, Smile, MoreHorizontal, X, Loader2 } from ${JSON.stringify(import.meta.resolve('lucide-react'))};
       import { emptyReviewEntry, localReviewDate, reviewDraftKey, restoreReviewDraft } from ${lib('reviewJournalFeed')};
       import { resolveReviewStockLinks } from ${lib('reviewStockMentions')};
+      const deviceReviewActivityTimeZone = () => 'Asia/Shanghai';
       import { getQuoteMentionQuery, applyQuoteMention } from ${lib('quoteAssistantMention')};
       import { readReviewAudiencePreference as readPreference, writeReviewAudiencePreference as writePreference } from ${lib('reviewAudiencePreferences')};
       const fixture = globalThis[${JSON.stringify(fixtureKey)}];

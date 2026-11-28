@@ -4,12 +4,14 @@ import { formatReviewActivityTime } from '../src/lib/reviewActivityTime.js';
 
 const createdAt = '2026-11-07T23:30:00.000Z';
 const start = Date.parse(createdAt);
+const hour = 3600000;
 const format = (elapsed, options = {}) => formatReviewActivityTime({ createdAt, date: '2026-11-06' }, { now: start + elapsed, timeZone: 'Asia/Shanghai', ...options });
 
-test('activities switch at exact minute, hour and elapsed 24-hour boundaries', () => {
+test('activities switch at exact minute, hour and elapsed day boundaries', () => {
   for (const [elapsed, label] of [[0, '刚刚'], [59999, '刚刚'], [60000, '1分钟前'], [119999, '1分钟前'],
     [3599999, '59分钟前'], [3600000, '1小时前'], [86399999, '23小时前'], [86400000, '1天前'],
-    [172799999, '1天前'], [172800000, '2天前']]) {
+    [172799999, '1天前'], [172800000, '2天前'], [72 * hour - 1, '2天前'],
+    [72 * hour, '3天前'], [95 * hour, '3天前'], [96 * hour - 1, '3天前']]) {
     assert.equal(format(elapsed).label, label, `${elapsed} elapsed milliseconds`);
   }
 });
@@ -26,7 +28,9 @@ test('equivalent offset timestamps have equal relative labels and preserve their
   const results = stamps.map(createdAt => formatReviewActivityTime({ createdAt }, { now, timeZone: 'Asia/Shanghai' }));
   assert.deepEqual(results.map(value => value.label), ['3小时前', '3小时前', '3小时前']);
   assert.deepEqual(results.map(value => value.dateTime), stamps);
-  assert.equal(new Set(results.map(value => value.title)).size, 1);
+  assert.match(results[0].title, /11.*08.*07:30:00/);
+  assert.match(results[1].title, /11.*08.*07:30:00/);
+  assert.match(results[2].title, /11.*07.*18:30:00/);
 });
 
 test('viewer timezone changes the precise title but never the relative elapsed label', () => {
@@ -42,12 +46,12 @@ test('viewer timezone changes the precise title but never the relative elapsed l
 test('only explicit timezone timestamps are used, and malformed or calendar-only values fall back without inventing time', () => {
   for (const value of [undefined, null, '', '2026-11-07', '2026-11-07T23:30:00', '2026-11-07 23:30:00Z',
     '2026-02-30T23:30:00Z', '2026-11-07T24:00:00Z', '2026-11-07T23:30:60Z', '2026-11-07T23:30:00+25:00', 1794094200000]) {
-    assert.deepEqual(formatReviewActivityTime({ createdAt: value, date: '2026-11-07' }, { now: start }), { label: '2026-11-07', dateTime: '2026-11-07', title: '2026-11-07' });
+    assert.deepEqual(formatReviewActivityTime({ createdAt: value, date: '2026-11-07' }, { now: start }), { label: '11月7日', dateTime: '2026-11-07', title: '2026-11-07' });
   }
   for (const date of [undefined, '', '2026-02-30', '2026-13-01', '0000-01-01', '2026-1-1']) {
     assert.deepEqual(formatReviewActivityTime({ date }, { now: start }), { label: '—', dateTime: undefined, title: '' });
   }
-  assert.equal(formatReviewActivityTime({ date: '2024-02-29' }).label, '2024-02-29');
+  assert.equal(formatReviewActivityTime({ date: '2024-02-29' }, { now: start }).label, '2024年2月29日');
   assert.equal(formatReviewActivityTime(null).label, '—');
 });
 
@@ -60,7 +64,8 @@ test('future timestamps display just now and invalid clocks safely retain a hist
 
 test('English labels use the same thresholds with correct singular and plural units', () => {
   for (const [elapsed, label] of [[0, 'Just now'], [60000, '1 minute ago'], [120000, '2 minutes ago'],
-    [3600000, '1 hour ago'], [7200000, '2 hours ago'], [86400000, '1 day ago'], [172800000, '2 days ago']]) {
+    [3600000, '1 hour ago'], [7200000, '2 hours ago'], [86400000, '1 day ago'], [172800000, '2 days ago'],
+    [96 * hour - 1, '3 days ago']]) {
     assert.equal(format(elapsed, { language: 'en-US' }).label, label);
   }
 });
@@ -70,4 +75,60 @@ test('server microseconds do not round an activity prematurely into the next min
   const result=formatReviewActivityTime({createdAt:timestamp},{now:Date.parse('2026-11-08T00:01:00.000Z')});
   assert.equal(result.label,'刚刚');assert.equal(result.dateTime,timestamp);
   assert.equal(formatReviewActivityTime({createdAt:timestamp},{now:Date.parse('2026-11-08T00:01:00.001Z')}).label,'1分钟前');
+});
+
+test('recent posts across New Year keep their elapsed hours and days', () => {
+  const createdAt = '2026-12-31T20:00:00+08:00';
+  const start = Date.parse(createdAt);
+  for (const [hours, expected] of [[12, '12小时前'], [24, '1天前'], [72, '3天前']]) {
+    const result = formatReviewActivityTime({ createdAt }, { now: start + hours * hour, timeZone: 'Asia/Shanghai' });
+    assert.equal(result.label, expected);
+    assert.equal(result.dateTime, createdAt);
+  }
+});
+
+test('the fourth full day shows the publication date and preserves submillisecond precision', () => {
+  // This historical post refers to an earlier journal date; the displayed date
+  // must come from its publication timestamp.
+  const createdAt = '2026-11-07T12:00:00.000456+08:00';
+  const post = { createdAt, date: '2026-10-01' };
+  const start = Date.parse(createdAt);
+  const formatAt = (elapsed, language) => formatReviewActivityTime(post, { now: start + elapsed, language, timeZone: 'Asia/Shanghai' });
+  assert.equal(formatAt(96 * hour, 'zh').label, '3天前');
+  const old = formatAt(96 * hour + 1, 'zh');
+  assert.equal(old.label.replaceAll(' ', ''), '11月7日');
+  assert.equal(old.dateTime, createdAt);
+  assert.match(old.title, /2026/);
+  assert.match(formatAt(96 * hour + 1, 'en').label, /^Nov(?:ember)? 7$/);
+});
+
+test('absolute labels compare both years in the author zone, even when the viewer is still in December', () => {
+  const now = Date.parse('2026-12-31T18:00:00Z');
+  const options = { now, timeZone: 'America/New_York' };
+  const createdAt = '2026-12-20T18:30:00-05:00';
+  const post = { createdAt, activityTimeZone: 'Asia/Shanghai' };
+  const result = formatReviewActivityTime(post, options);
+  assert.equal(result.label, '2026年12月21日');
+  assert.match(result.title, /12.*21.*07:30:00/);
+  assert.equal(result.dateTime, createdAt);
+  assert.match(formatReviewActivityTime(post, { ...options, language: 'en' }).label, /^Dec(?:ember)? 21, 2026$/);
+});
+
+test('nonzero publication offsets provide an author-local fallback and normalized UTC history uses the viewer zone', () => {
+  const now = Date.parse('2027-01-07T12:00:00Z');
+  const options = { now, timeZone: 'Asia/Shanghai' };
+  const createdAt = '2026-12-31T20:15:00-05:00';
+  assert.equal(formatReviewActivityTime({ createdAt }, options).label, '2026年12月31日');
+  for (const createdAt of ['2027-01-01T01:15:00Z', '2027-01-01T01:15:00+00:00']) {
+    assert.equal(formatReviewActivityTime({ createdAt }, options).label, '1月1日');
+    assert.equal(formatReviewActivityTime({ createdAt }, { now, timeZone: 'America/New_York' }).label, '2026年12月31日');
+  }
+});
+
+test('an archived date-only post preserves its recorded calendar day across viewers', () => {
+  const post = { date: '2026-12-31', activityTimeZone: 'Asia/Shanghai' };
+  const options = { now: Date.parse('2026-12-31T17:00:00Z'), timeZone: 'America/New_York' };
+  assert.deepEqual(formatReviewActivityTime(post, options), {
+    label: '2026年12月31日', dateTime: '2026-12-31', title: '2026-12-31',
+  });
 });
